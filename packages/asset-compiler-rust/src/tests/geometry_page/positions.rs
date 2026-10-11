@@ -4,9 +4,9 @@
 //! that stores every position, with this same harness; the cases are flat-shaded and smooth
 //! random meshes, the signed zeros, NaN and infinities, the empty page and the largest one.
 
-use crate::geometry_page::{encode, Attribute, FLAG_COLOR, FLAG_NORMAL, FLAG_UV};
 use crate::tests::random::Xorshift;
 use sha2::{Digest, Sha256};
+use trillion3d_page_codec::encode::{encode, Attribute, FLAG_COLOR, FLAG_NORMAL, FLAG_UV};
 
 /// A mesh on its source vertices: positions, then optional attributes, then triangles.
 struct Mesh {
@@ -160,7 +160,7 @@ fn cases() -> Vec<(String, Mesh, i32)> {
 
 /// The outcome of every case with every position stored, in order: name, digest or refusal, page
 /// bytes.
-const DEVELOP: &str = include_str!("geometry_page_positions_develop.tsv");
+const DEVELOP: &str = include_str!("positions_develop.tsv");
 
 // Behaviour: every case decodes to the words a page storing every position decodes it to, or is
 // refused alike, in no more page bytes; the flat-shaded pages, their positions stored once, in

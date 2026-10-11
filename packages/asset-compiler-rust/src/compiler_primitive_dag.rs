@@ -54,12 +54,12 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
 pub(super) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
-    carried: &[&geometry_page::Attribute],
+    carried: &[&encode::Attribute],
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
     blended: bool,
     tile_log2: i32,
-    store_packed: &(impl Fn(&[u32], &[f32], &[&geometry_page::Attribute], &[u32], i32) -> Result<(Value, bool)>
+    store_packed: &(impl Fn(&[u32], &[f32], &[&encode::Attribute], &[u32], i32) -> Result<(Value, bool)>
           + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);

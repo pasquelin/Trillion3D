@@ -1,19 +1,20 @@
-//! The quantizers dispatched at run time (`shared_math::wide`) write the bits their baseline
+//! The quantizers dispatched at run time (`wide`) write the bits their baseline
 //! copy writes: on an x86-64 processor with AVX2 the public entry points run the AVX2 copy, the
 //! bodies called directly the SSE2 one.
 
 use super::{max_error, quantize};
-use crate::tests::random::Xorshift;
-use trillion3d_page_codec::bits;
+use crate::bits;
+use trillion3d_math::random::xorshift64;
 
 /// Positions over twenty octaves, within the 2^24 cells of the finest grid tried, negative and
 /// positive, halves of a cell included: the values where a rounding or a reordered sum would show.
 fn values(count: usize) -> Vec<f32> {
-    let mut random = Xorshift::new(1352);
+    let mut state = 1352u64 | 1;
+    let mut next = move || xorshift64(&mut state);
     (0..count * 3)
         .map(|i| {
-            let magnitude = (random.below(20) as i32 - 10) as f32;
-            let value = (random.unit() - 0.5) * magnitude.exp2();
+            let magnitude = ((next() % 20) as i32 - 10) as f32;
+            let value = ((next() >> 40) as f32 / (1u64 << 24) as f32 - 0.5) * magnitude.exp2();
             if i % 7 == 0 {
                 (value * 64.0).round() / 64.0 + 1.0 / 128.0
             } else {

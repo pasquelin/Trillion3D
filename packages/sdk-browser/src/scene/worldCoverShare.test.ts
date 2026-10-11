@@ -3,7 +3,7 @@
 // leaves the roots they add, which a cell is held far within.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { createWorldBundles } from './worldBundles.ts'
 import type { PageQueue } from '../streaming/types.ts'
 

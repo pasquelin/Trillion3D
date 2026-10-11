@@ -2,9 +2,12 @@
 // here into the others: the wave model (`packages/sdk-core/src/fluids/waves.ts`, `waveRest.ts`)
 // into the GPU deformation's WGSL and the physics module's C++, and the coverage-preserving alpha
 // (`packages/sdk-browser/src/texture/coverageMath.ts`) into the mip chains' WGSL and the
-// compiler's Rust, and the compiler's formats and limits, the animation tracks' layout and the
-// family refusal's public code (`shared-rules/abi.ts`). The physics word layouts (`packages/sdk-core/src/physics/layout.ts`) go into the
-// physics module's C++ the same way. The printer reads the source's own syntax tree and keeps every operation in its
+// compiler's Rust, and the compiler's cache formats and defaults, the animation tracks' layout and
+// the family refusal's public code (`shared-rules/abi.ts`). The physics word layouts
+// (`packages/sdk-core/src/physics/layout.ts`) go into the physics module's C++ the same way. The
+// page format's constants, the DAG's cluster size and the page encoder's ABI words are written once
+// in Rust (`packages/page-codec-wasm`, `dag.rs`) and printed into the TypeScript readers
+// (`shared-rules/pageFormat.ts`), from which the WGSL routines are built. The printer reads the source's own syntax tree and keeps every operation in its
 // order, so each language computes what the source writes, operand for operand. `--check` (a gate
 // of `pnpm run validate`) fails when a printed file is not what its source prints today.
 import { spawnSync } from 'node:child_process'
@@ -15,6 +18,7 @@ import { animationLayoutRust, compilerAbiRust, familyLoadFailedId } from './shar
 import { coverageRust, coverageWgsl } from './shared-rules/coverage.ts'
 import { physicsLayoutHeader } from './shared-rules/layout.ts'
 import { REPOSITORY_ROOT } from './repository-files.ts'
+import { pageEncoderAbiTs, pageFormatTs } from './shared-rules/pageFormat.ts'
 import { waveModelHeader, waveTermsWgsl } from './shared-rules/waves.ts'
 
 /** `text` as the repository formats a file of `path`'s kind. */
@@ -40,6 +44,8 @@ const outputs: Record<string, () => string> = {
   'packages/physics-jolt-wasm/src/waveModel.h': waveModelHeader,
   'packages/physics-jolt-wasm/src/layout.h': physicsLayoutHeader,
   'packages/sdk-browser/src/texture/coverageMathWgsl.ts': coverageWgsl,
+  'packages/sdk-core/src/page/format.ts': pageFormatTs,
+  'packages/sdk-browser/src/wasm/encodeAbi.ts': pageEncoderAbiTs,
   'packages/asset-compiler-rust/src/texture_preview/coverage_math.rs': coverageRust,
   'packages/asset-compiler-rust/src/shared_math/abi.rs': compilerAbiRust,
   'packages/page-codec-wasm/src/anim_layout.rs': animationLayoutRust,

@@ -11,7 +11,7 @@
 /// for the baseline. The kernel and what it calls must be inlined into it (`#[inline(always)]`)
 /// to be compiled for AVX2 too; the processor is asked once, the answer cached by `std`.
 #[inline(always)]
-pub(crate) fn wide<R>(kernel: impl FnOnce() -> R) -> R {
+pub fn wide<R>(kernel: impl FnOnce() -> R) -> R {
     #[cfg(target_arch = "x86_64")]
     if std::arch::is_x86_feature_detected!("avx2") {
         // SAFETY: the processor running this code has AVX2, checked just above.

@@ -5,8 +5,6 @@ pub mod coplanar;
 pub mod cutout;
 mod dag;
 mod eac_modifiers;
-mod geometry_page;
-mod geometry_page_cells;
 mod geometry_page_deform;
 mod geometry_page_quant;
 pub mod import;
@@ -39,6 +37,7 @@ use std::{
     },
     time::Instant,
 };
+use trillion3d_page_codec::encode;
 mod compiler_format;
 mod compiler_identity;
 pub use shared_math::abi::*;

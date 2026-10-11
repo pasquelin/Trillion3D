@@ -282,7 +282,7 @@
     }
   },
   "BufferAttribute": {
-    "summary": "مصفوفة مكتوبة تحمل قيمًا لكل رأس، `itemSize` عددًا لكل رأس: `PageAttribute` الخاص بمرمِّز الصفحات (`page-codec/pageAttributes.ts`)، وما تكتبه صفحة فيه.",
+    "summary": "مصفوفة مكتوبة تحمل قيمًا لكل رأس، `itemSize` عددًا لكل رأس: `PageAttribute` الخاص بمرمِّز الصفحات (`page/pageInput.ts`)، وما تكتبه صفحة فيه.",
     "members": {
       "isBufferAttribute": "دائمًا `true`: يميّز خاصّية مخزن مؤقت عن أي شيء آخر.",
       "type": "كيف أُعلِنت القيم؛ تُحفَظ خاصّية نصف عائمة بدقّة عائمة.",

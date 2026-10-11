@@ -5,7 +5,7 @@ import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.
 import { threeCamera } from '../../witnesses/three/fromGraphNodes.ts'
 import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts'
 import { linearToSrgb8 } from '../../../packages/math/src/color/color.ts'
-import { perspectiveBary } from '../../../packages/sdk-browser/src/visibility/math.ts'
+import { perspectiveBary } from './cpu-image/math.ts'
 import { triangleAt } from './cpu-image/projection.ts'
 import { attr2, backgroundRgb, barycentric, sampleLinear, sampleMap } from './cpu-image/math.ts'
 import { shadeLit } from './cpu-image/lighting.ts'

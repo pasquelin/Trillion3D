@@ -215,28 +215,24 @@ fn vsmMaskRectHits(mask2x2:vec4u,mn:vec2u,mx:vec2u)->bool{
  let cellBits=vec4u(xLow*rowsHigh,xHigh*rowsHigh,xHigh*rowsLow,xLow*rowsLow);
  return (mask2x2.x&cellBits.x)!=0u||(mask2x2.y&cellBits.y)!=0u||(mask2x2.z&cellBits.z)!=0u||(mask2x2.w&cellBits.w)!=0u;
 }
-/** Whether any valid page overlaps a pixel rect clamped to the valid page region. */
-fn vsmTouchesMappedPage(h:VsmHandle,mipLevel:u32,pixels:vec4i,askedMarks:u32,fineCaster:bool,useCover:bool)->bool{
+/** Whether any valid page overlaps a pixel rect clamped to the valid page region, and, with the
+ *  receiver cover, a receiver of the rect. */
+fn vsmTouchesMappedPixels(h:VsmHandle,mipLevel:u32,pixels:vec4i,askedMarks:u32,fineCaster:bool,useCover:bool)->bool{
  if(any(pixels.zw<pixels.xy)){return false;}
  let pagesRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE);
- let wantedMarks=askedMarks|select(0u,VSM_PAGE_FINE,fineCaster);
+ if(!vsmTouchesMappedPage(h,mipLevel,pagesRect,askedMarks,fineCaster)){return false;}
+ if(!useCover){return true;}
  let entryCell=vsmTableEntryOf(h,mipLevel,pagesRect.xy);
- if(vsmMarksMatch(vsmRectMarks(entryCell.tableXY,pagesRect),wantedMarks)){
-  if(useCover){
-   let halfPageRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE-1u);
-   let coverLevel=u32(vsmLevelHoldingRect(vec4i(halfPageRect),2));
-   let coverCell=entryCell.tableXY*2u+(halfPageRect.xy&vec2u(1u));
-   let offsetMip=halfPageRect.xy>>vec2u(coverLevel);
-   let offset=offsetMip<<vec2u(VSM_LOG2_COVER_CELLS+coverLevel-1u);
-   let cellRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE-VSM_LOG2_COVER_CELLS);
-   let subRect=cellRect-offset.xyxy;
-   let subRectAtLevel=subRect>>vec4u(coverLevel);
-   let cover8x8=vsmGatherCover(coverCell,coverLevel);
-   return vsmMaskRectHits(cover8x8,subRectAtLevel.xy,subRectAtLevel.zw);
-  }
-  return true;
- }
- return false;
+ let halfPageRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE-1u);
+ let coverLevel=u32(vsmLevelHoldingRect(vec4i(halfPageRect),2));
+ let coverCell=entryCell.tableXY*2u+(halfPageRect.xy&vec2u(1u));
+ let offsetMip=halfPageRect.xy>>vec2u(coverLevel);
+ let offset=offsetMip<<vec2u(VSM_LOG2_COVER_CELLS+coverLevel-1u);
+ let cellRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE-VSM_LOG2_COVER_CELLS);
+ let subRect=cellRect-offset.xyxy;
+ let subRectAtLevel=subRect>>vec4u(coverLevel);
+ let cover8x8=vsmGatherCover(coverCell,coverLevel);
+ return vsmMaskRectHits(cover8x8,subRectAtLevel.xy,subRectAtLevel.zw);
 }
 /** Clips a pixel rect to the uncached page rect bounds of a map's mip. */
 fn vsmClipToStaleRect(pixels:vec4i,h:VsmHandle,mipLevel:u32)->vec4i{
@@ -338,7 +334,7 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
   let fineCaster=vsmIsFineCaster(staticLayer,pixelRadius);
   pixelRadius*=0.5;
   pixels=vsmClipToStaleRect(pixels,h,mipLevel);
-  if(!vsmTouchesMappedPage(h,mipLevel,pixels,markMask,fineCaster,useCover)){continue;}
+  if(!vsmTouchesMappedPixels(h,mipLevel,pixels,markMask,fineCaster,useCover)){continue;}
   let pagesRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE);
   let slot=atomicAdd(&counts[vsmRenderChunkCounter(params.chunk,0u)],1u);
   if(slot>=params.cmdCapacity){continue;}

@@ -15,7 +15,7 @@ import {
   type VsmPerPageBin,
 } from './markingPass.ts'
 import { VSM_PER_PAGE_DISPATCH_WGSL } from './markingWgsl.ts'
-import { vsmBufferEntry, vsmDynamicUniformEntry } from './passKit.ts'
+import { computeBufferEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
 import type { VsmResources } from './resources.ts'
 import { writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../residency/pools.ts'
@@ -36,8 +36,8 @@ export function vsmPerPageDispatchWgsl(group: number) {
 
 /** The layout entries of the dispatch setup's group: its slot (dynamic uniform) and the ids. */
 export const vsmPerPageDispatchEntries = (): GPUBindGroupLayoutEntry[] => [
-  vsmDynamicUniformEntry(0, 16),
-  vsmBufferEntry(1, GPUShaderStage.COMPUTE, 'read-only-storage'),
+  computeUniformEntry(0, { hasDynamicOffset: true, minBindingSize: 16 }),
+  computeBufferEntry(1, 'read-only-storage', GPUShaderStage.COMPUTE),
 ]
 
 /** Bytes a dispatcher holds on a device of `limits`: its slots, the device's `uniformStride` apart. */

@@ -6,7 +6,7 @@ import { materialClassKey } from '../../visibility/shader/materialClass.ts'
 import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts'
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 import { MODEL_SHIFT } from '../../scene/surfaceModel.ts'
-import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1 } from '../../cluster/format.ts'
+import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1 } from '../../../../sdk-core/src/page/format.ts'
 import {
   FLAG_CLUSTER_PAGE,
   FLAG_LIT,

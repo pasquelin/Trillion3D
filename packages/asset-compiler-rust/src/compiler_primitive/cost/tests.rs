@@ -67,7 +67,8 @@ fn shape(value: &Value, into: &mut (usize, usize, usize, usize)) {
 #[test]
 fn page_constants_are_the_page_record() {
     let pos = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
-    let packed = crate::geometry_page::encode(&[0, 1, 2], &pos, &[], -4, 0).expect("encode");
+    let packed =
+        trillion3d_page_codec::encode::encode(&[0, 1, 2], &pos, &[], -4, 0).expect("encode");
     let digest = "0".repeat(64);
     let cluster = DagCluster {
         indices: vec![0, 1, 2],

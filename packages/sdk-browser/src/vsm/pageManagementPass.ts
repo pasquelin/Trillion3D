@@ -18,7 +18,8 @@
  */
 import { VSM_GROUP_WIDTH } from './constants.ts'
 import { vsmPageManagementKernels } from './pageManagementWgsl.ts'
-import { vsmComputePipe, vsmDynamicUniformEntry, type VsmComputePipe } from './passKit.ts'
+import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
+import { computeUniformEntry } from '../gpu/core/computeBindings.ts'
 import type { VsmPerPageBin } from './markingPass.ts'
 import {
   vsmPerPageDispatcherBytes,
@@ -117,7 +118,9 @@ export function rebindVsmPageManagement(res: VsmResources) {
   ctx.dispatcher.rebind(res)
 }
 /** The parameters' group: one dynamic slot of `VsmPmParams`. */
-const paramsEntries = () => [vsmDynamicUniformEntry(0, VSM_PM_PARAMS_BYTES)]
+const paramsEntries = () => [
+  computeUniformEntry(0, { hasDynamicOffset: true, minBindingSize: VSM_PM_PARAMS_BYTES }),
+]
 
 /** Every page management kernel of `layout` and its pipe, made once a device and source
  *  (`vsmComputePipe`): its tables' group, the parameters' and, per page, the dispatch setup's. */

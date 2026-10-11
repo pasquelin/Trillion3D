@@ -4,7 +4,7 @@
 // seldom, never once a frame, the holds waiting meanwhile.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { worldPage } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldPage } from '../scene/worldRootsPages.fixture.ts'
 import { noBudget, opened } from './cells.fixture.ts'
 import { cellAt, gridWorld } from './cellReads.fixture.ts'
 import { heldBy } from '../scene/worldRoots.fixture.ts'

@@ -113,7 +113,7 @@ pub(super) fn write(case: &Case) -> Written {
         buffer.floats(&case.positions, "VEC3", 3)
     };
     attributes.insert("POSITION".into(), json!(position));
-    let names = geometry_page::PAGE_ATTRIBUTES.map(|(name, _, _)| name);
+    let names = encode::PAGE_ATTRIBUTES.map(|(name, _, _)| name);
     for name in names.into_iter().chain(["TANGENT"]) {
         if let Some((width, values)) = case.values(name) {
             let accessor = buffer.floats(values, &format!("VEC{width}"), width);

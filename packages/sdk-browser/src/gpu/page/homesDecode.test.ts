@@ -8,7 +8,7 @@ import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { randomPage } from '../../page/codec/randomPages.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
@@ -108,7 +108,7 @@ const floats = (n: number, f: (i: number) => number) =>
 function pages() {
   const n = 9
   const position = floats(n * 3, (i) => (i % 7) * 0.5 - 1)
-  const every = encodeGeometryPage(
+  const every = encodePage(
     [0, 1, 2, 2, 3, 4, 4, 5, 6, 6, 7, 8, 8, 1, 0],
     {
       POSITION: { itemSize: 3, array: position },
@@ -127,13 +127,13 @@ function pages() {
     })),
   ).data
   // One position under two texture coordinates: the page stores it once and links to it.
-  const linked = encodeGeometryPage([0, 1, 2, 2, 1, 3], {
+  const linked = encodePage([0, 1, 2, 2, 1, 3], {
     POSITION: { itemSize: 3, array: floats(12, (i) => [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0][i]) },
     TEXCOORD_0: { itemSize: 2, array: floats(8, (i) => i / 8) },
   }).data
   // One vertex: no corner bit, no position bit — the block table is the page's last word, and
   // a block record's window reaches one word past the end.
-  const point = encodeGeometryPage([0, 0, 0], {
+  const point = encodePage([0, 0, 0], {
     POSITION: { itemSize: 3, array: floats(3, () => 2) },
   }).data
   const random3 = [3, 40, 300].map((v) => randomPage(random, v))

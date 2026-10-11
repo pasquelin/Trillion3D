@@ -4,11 +4,10 @@
 use super::tests::{cooked, plate};
 use super::*;
 use super::{decoded::decoded, world::world_dag};
-use crate::dag::{build_dag_tallied, DagAttributes, Grown};
-use crate::geometry_page::{Attribute, FLAG_NORMAL, FLAG_UV};
-use crate::shared_math::abi::DAG_CLUSTER_TRIANGLES;
+use crate::dag::{build_dag_tallied, DagAttributes, Grown, DAG_CLUSTER_TRIANGLES};
 use trillion3d_math::matrix::{multiply_matrix4_from_zero, scaling, translation};
 use trillion3d_math::vec3::{cross, dot, sub};
+use trillion3d_page_codec::encode::{Attribute, FLAG_NORMAL, FLAG_UV};
 
 /// Per vertex of `positions`, the sum of the normals of the faces of `indices` around it.
 fn vertex_normals(positions: &[f32], indices: &[u32]) -> Vec<f32> {

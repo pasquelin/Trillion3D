@@ -1,4 +1,4 @@
-use super::*;
+use trillion3d_page_codec::encode::vertices::localise;
 
 // Lot B5: localise starts from known bound (page carries at most 65,535 vertices and
 // no more corners than indices) instead of resizing corner by corner. Same renumbering on

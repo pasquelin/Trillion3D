@@ -1,4 +1,4 @@
-import { FLAG_MORPH, FLAG_SKIN, FLAG_SOFT_SOURCE } from '../cluster/format.ts'
+import { FLAG_MORPH, FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/page/format.ts'
 import type { ClusterRoot, DeformationOutput } from '../page/selection/types.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 import { pageAddress } from '../webgpu/row/pageSlots.ts'

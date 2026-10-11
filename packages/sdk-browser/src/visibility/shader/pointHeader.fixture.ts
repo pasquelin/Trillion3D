@@ -3,7 +3,7 @@
 // over it.
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts'
 import * as F from '../types.ts'
 import { NO_HIZ_SLOT } from '../../webgpu/row/noHizSlot.ts'
@@ -30,7 +30,7 @@ function encoded(triangles: number, vertices: number, full: boolean, shared: boo
       }
     : {}
   const POSITION = { itemSize: 3, array: position }
-  const data = encodeGeometryPage(indices, { POSITION, ...attributes }).data as Uint8Array
+  const data = encodePage(indices, { POSITION, ...attributes }).data as Uint8Array
   return new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4)
 }
 

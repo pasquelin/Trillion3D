@@ -1,7 +1,7 @@
 import { skinStreams } from '../../../sdk-core/src/world/geometry/skin.ts'
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { readComponent } from '../../../sdk-core/src/world/geometry/bounds.ts'
-import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../cluster/format.ts'
+import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/page/format.ts'
 
 /** Simulated vertices a soft source id may name, unless the caller gives its own bound. */
 const SOFT_VERTICES = 65536

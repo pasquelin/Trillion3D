@@ -26,8 +26,8 @@ test('an `import type` is not an edge: the emitted JavaScript holds no import to
 })
 
 test('one real name beside marked ones is a value edge', () => {
-  // A clause the tree holds: `packages/page-codec/src/geometryPage.ts` keeps `QuantizedGrid` beside
-  // five real names, so the module behind it loads and the ring it could close is a ring.
+  // A clause the tree holds: a module keeps one type beside five real names, so the module
+  // behind it loads and the ring it could close is a ring.
   assert.equal(
     bindsValue('{ bitsFor, ceil32, octEncode, Packer, quantize, type QuantizedGrid }'),
     true,

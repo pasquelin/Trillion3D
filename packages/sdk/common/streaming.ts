@@ -55,12 +55,12 @@ export type { PageIntegrationPlan } from '../../sdk-core/src/page/integrationPla
 export { decodeManifestBinary } from '../../sdk-core/src/manifest/binaryDecode.ts'
 export {
   GEOMETRY_PAGE_CODEC,
-  GEOMETRY_PAGE_FORMAT_VERSION,
   MANIFEST_BINARY_MAGIC,
   MANIFEST_BINARY_VERSION,
   COLUMN_KIND,
 } from '../../sdk-core/src/manifest/binaryFormat.ts'
 export type { ColumnKind } from '../../sdk-core/src/manifest/binaryFormat.ts'
+export { GEOMETRY_PAGE_FORMAT_VERSION } from '../../sdk-core/src/page/format.ts'
 export {
   PAGE_INTEGRATION_FAILURES,
   PAGE_INTEGRATION_PROTOCOL,

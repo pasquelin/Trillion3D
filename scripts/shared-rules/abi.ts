@@ -1,6 +1,6 @@
 // The values the compiler, the runtime and the physics module state in more than one language,
 // written once in TypeScript and printed into the others (`../generate-shared-rules.ts`): the
-// cache formats and the cluster limits and compiler defaults into the compiler's Rust, the packed
+// cache formats and compiler defaults into the compiler's Rust, the packed
 // animation tracks' layout into the sampler's Rust, and the public code of the family refusal into
 // the browser's TypeScript.
 import { join } from 'node:path'
@@ -26,10 +26,6 @@ export function compilerAbiRust() {
 pub const FORMAT_VERSION: u32 = ${FORMAT_VERSION};
 /// Outer cache format required for clustered BLEND.
 pub const CLUSTERED_BLEND_FORMAT_VERSION: u32 = ${CLUSTERED_BLEND_FORMAT_VERSION};
-/// Triangles per cluster. Matches the page budget used by the exact path.
-pub const DAG_CLUSTER_TRIANGLES: usize = ${compiler.DAG_CLUSTER_TRIANGLES};
-/// Vertex limit of a cluster; a 128 triangle cluster never needs more.
-pub const DAG_CLUSTER_VERTICES: usize = ${compiler.DAG_CLUSTER_VERTICES};
 /// The triangle budget of a compilation that names none.
 pub const DEFAULT_TRIANGLE_BUDGET: usize = ${compiler.DEFAULT_TRIANGLE_BUDGET};
 /// The threads of a compilation that names none.

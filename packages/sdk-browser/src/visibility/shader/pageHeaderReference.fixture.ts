@@ -1,7 +1,11 @@
-// The header of a `WGP3` page written from the format alone (`cluster/format.ts`): the words of
+// The header of a `WGP3` page written from the format alone (`sdk-core/src/page/format.ts`): the words of
 // the header and the stream order, never the shader (`pageHeaderReference.test.ts`).
-import { BLOCK_CORNERS, CLUSTER_HEADER_WORDS, MORPH_WORDS } from '../../cluster/format.ts'
-import { TRIANGLE_BLOCK, WIDTH_BITS } from '../../cluster/format.ts'
+import {
+  BLOCK_CORNERS,
+  CLUSTER_HEADER_WORDS,
+  MORPH_WORDS,
+} from '../../../../sdk-core/src/page/format.ts'
+import { TRIANGLE_BLOCK, WIDTH_BITS } from '../../../../sdk-core/src/page/format.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 export type Header = Record<string, number | number[]>

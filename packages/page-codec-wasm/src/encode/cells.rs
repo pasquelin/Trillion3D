@@ -1,12 +1,38 @@
 //! The cells of a page — every vertex on every grid, from the primitive's attributes.
 
-use crate::geometry_page::Attribute;
-use crate::geometry_page_quant::{max_error, quantize, COLOR_EXPONENT};
-use crate::shared_math::word_map;
-use crate::{CompilerError, Result};
+use super::{Attribute, EncodeError, Result};
+use crate::bits::{self, Quant, QuantRefusal};
+use crate::wide::wide;
+use crate::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 use trillion3d_math::octahedral::oct_encode;
-use trillion3d_page_codec::bits::{bits_for, stream_words, Quant};
-use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
+
+/// Colours sit on a grid of 2^-8: 0 and 1 exact, a constant channel free.
+pub const COLOR_EXPONENT: i32 = -8;
+
+/// A vector attribute on its grid (`bits::quantize`): `values` holds `N` floats per vertex — at
+/// least one, a page having at least one corner —, `exponent` is the grid the caller fixed for the
+/// whole primitive and is never widened here — a page whose range needs more than `MAX_BITS` on
+/// that grid is refused as `PAGE_ATTRIBUTE_RANGE`, since a page on a grid of its own would no
+/// longer share its border vertices' cells with its neighbours. A loop over every vertex of every
+/// page: AVX2 where the processor has it (`wide`).
+fn quantize<const N: usize>(values: &[f32], exponent: i32) -> Result<(Quant<N>, Vec<[u32; N]>)> {
+    wide(|| bits::quantize::<N>(values, exponent)).map_err(|refusal| match refusal {
+        QuantRefusal::Range => EncodeError::new(
+            "PAGE_ATTRIBUTE_RANGE",
+            "Page attribute range exceeds 2^24 steps of its primitive grid",
+        ),
+        QuantRefusal::Overflow => EncodeError::new(
+            "INVALID_PAGE_ATTRIBUTE",
+            "Page attribute minimum overflows a float",
+        ),
+    })
+}
+
+/// The error bound a page header carries (`bits::quantization_error`), AVX2 where the processor
+/// has it, as `quantize`.
+fn max_error<const N: usize>(values: &[f32], record: &Quant<N>, offsets: &[[u32; N]]) -> f32 {
+    wide(|| bits::quantization_error::<N>(values, record, offsets))
+}
 
 /// The page's vertices, `width` floats each, gathered from the primitive's `source_width`-wide
 /// values in local order; a missing trailing component reads 1, the alpha of a three-wide colour.
@@ -15,7 +41,7 @@ fn gather(values: &[f32], source_width: usize, width: usize, original: &[u32]) -
     for &source in original {
         let slice = &values[source as usize * source_width..(source as usize + 1) * source_width];
         if slice.iter().any(|v| !v.is_finite()) {
-            return Err(CompilerError::new(
+            return Err(EncodeError::new(
                 "INVALID_PAGE_ATTRIBUTE",
                 "Nonfinite page attribute",
             ));
@@ -33,7 +59,7 @@ pub struct Cell {
     pub normal: u32,
     pub uv: [[u32; 2]; 2],
     pub color: [u32; 4],
-    /// Rank of the vertex's deformation fields among the page's (`geometry_page_deform.rs`).
+    /// Rank of the vertex's deformation fields among the page's (`deform.rs`).
     pub extra: u32,
 }
 
@@ -60,7 +86,7 @@ pub fn grids(
     let (position, position_cells) = quantize::<3>(&page_positions, position_exponent)?;
     let quantization_error = max_error(&page_positions, &position, &position_cells);
     if !quantization_error.is_finite() {
-        return Err(CompilerError::new(
+        return Err(EncodeError::new(
             "INVALID_PAGE_ATTRIBUTE",
             "Page positions span more than a float can measure",
         ));
@@ -108,71 +134,6 @@ pub fn grids(
     })
 }
 
-/// The positions the page stores and, when it stores each once, every vertex's link to its own
-/// position: a flat-shaded page repeats a corner's position under every face normal meeting
-/// there. The distinct positions, in first-use order, are kept when they and the links take fewer
-/// words than one position per vertex; otherwise every vertex keeps its own, with no link. The
-/// decoded vertices are the same either way.
-pub fn stored_positions(unique: &[Cell], bits: [u32; 3]) -> (Vec<[u32; 3]>, Option<Vec<u32>>) {
-    let (table, links) = first_use(unique.iter().map(|cell| cell.position));
-    let words = |count: usize| bits.iter().map(|&b| stream_words(count, b)).sum::<usize>();
-    let link_bits = bits_for(table.len() as u32 - 1);
-    if words(table.len()) + stream_words(unique.len(), link_bits) < words(unique.len()) {
-        (table, Some(links))
-    } else if table.len() == unique.len() {
-        // Every position distinct: the table is already one per vertex, in order.
-        (table, None)
-    } else {
-        (unique.iter().map(|cell| cell.position).collect(), None)
-    }
-}
-
-/// Each distinct item once, in first-use order, and every item's rank among them.
-pub fn first_use<T: Copy + Eq + std::hash::Hash>(
-    items: impl ExactSizeIterator<Item = T>,
-) -> (Vec<T>, Vec<u32>) {
-    let mut distinct = Vec::<T>::with_capacity(items.len());
-    let mut rank = word_map::<T, u32>(items.len());
-    let ranks = items
-        .map(|item| {
-            *rank.entry(item).or_insert_with(|| {
-                distinct.push(item);
-                (distinct.len() - 1) as u32
-            })
-        })
-        .collect();
-    (distinct, ranks)
-}
-
-/// Local vertex renumbering of a page: the table and both lists start at their known final
-/// size, a page carrying at most 65,535 vertices and no more corners than indices.
-pub(crate) fn localise(indices: &[u32], vertices: usize) -> Result<(Vec<u32>, Vec<u32>)> {
-    let bound = indices.len().min(65_535);
-    let mut original = Vec::<u32>::with_capacity(bound);
-    let mut remap = word_map::<u32, u32>(bound);
-    let mut local = Vec::<u32>::with_capacity(indices.len());
-    for &source in indices {
-        if source as usize >= vertices {
-            return Err(CompilerError::new(
-                "INVALID_PAGE",
-                "Page index exceeds positions",
-            ));
-        }
-        let id = if let Some(&id) = remap.get(&source) {
-            id
-        } else {
-            let id = original.len();
-            if id >= 65535 {
-                return Err(CompilerError::new(
-                    "PAGE_VERTEX_LIMIT",
-                    "Page has more than 65535 vertices",
-                ));
-            }
-            original.push(source);
-            remap.insert(source, id as u32);
-            id as u32
-        };
-        local.push(id);
-    }
-    Ok((original, local))
-}
+#[cfg(test)]
+#[path = "wide_tests.rs"]
+mod wide_tests;

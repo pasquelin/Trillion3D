@@ -1,9 +1,9 @@
 //! The position and texture grids of a primitive, written once for both cuts: the compiler's
 //! (`geometry_page_quant::primitive_exponent`, `primitive_uv_exponent`) and the one the engine
 //! runs on drawn triangles or on a compiled primitive's own clusters
-//! (`packages/sdk-browser/src/world/page/runtimeCut.ts`), through its TypeScript twin,
-//! `packages/page-codec/src/gridExponent.ts`. Their logarithms are read from the bits
-//! (`log2.rs`): both cuts take the same integers on every host.
+//! (`packages/sdk-browser/src/world/page/runtimeCut.ts`), through the SDK module
+//! (`wasm_encode.rs`). Their logarithms are read from the bits (`log2.rs`): both cuts take the
+//! same integers on every host.
 
 use super::log2::{ceil_log2, floor_log2};
 use super::{MAX_BITS, MAX_EXPONENT};
@@ -94,3 +94,19 @@ pub fn uv_grid_exponent(span: f64, blended: bool) -> i32 {
         UV_EXPONENT
     }
 }
+
+/// The texture grid of drawn triangles, whose widest page's coordinates span `span`: the run-time
+/// cut's rule alone, no compiled primitive takes it. A `blended` primitive takes the finest grid
+/// that span fits; any other the format's, coarser only where the span would not fit a page's
+/// field; no span, the format's.
+pub fn drawn_uv_grid_exponent(span: f64, blended: bool) -> i32 {
+    match (span > 0.0, blended) {
+        (false, _) => UV_EXPONENT,
+        (true, true) => finest_exponent(span),
+        (true, false) => finest_exponent(span).max(UV_EXPONENT),
+    }
+}
+
+#[cfg(test)]
+#[path = "grid_tests.rs"]
+mod tests;

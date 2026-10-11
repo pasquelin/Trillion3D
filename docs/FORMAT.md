@@ -56,10 +56,13 @@ bundles whose dependencies close up to the pinned roots.
 Index pages (`u32` indices, concatenated in bundles) and `WGP3` geometry pages, quantized clusters a
 shader reads in place, decoded alike by Rust, JavaScript and WGSL.
 
-- Versions: `VERSION`, `HEADER_WORDS` (`codec/lib.rs`); `GEOMETRY_PAGE_FORMAT_VERSION`
-  (`core/manifest/binaryFormat.ts`), declared by the manifest's `geometryPages`.
-- Writes `rust/compiler_primitive_bundle.rs:bundle_dag_pages`, `rust/compiler_page_object.rs:store_page`,
-  `rust/geometry_page.rs:encode_deformed`; grid `codec/bits/grid.rs:grid_exponent`.
+- Versions: `VERSION`, `HEADER_WORDS` (`codec/lib.rs`), printed into `GEOMETRY_PAGE_FORMAT_VERSION`
+  and the other constants of `core/page/format.ts` (`pnpm run generate:shared-rules`), declared by the
+  manifest's `geometryPages`.
+- Writes `codec/encode.rs:encode_deformed`, the one encoder: the compiler's
+  `rust/compiler_primitive_bundle.rs:bundle_dag_pages`, `rust/compiler_page_object.rs:store_page` and
+  the run-time cut (`browser/page/codec/encodeGeometryPage.ts`, `codec/wasm_encode.rs`) call it; grid
+  `codec/bits/grid.rs:grid_exponent`.
 - Reads `browser/cluster/pages.ts:fetchVerified`, `browser/page/codec/geometryPage.ts:decodeGeometryPage`,
   `codec/unpack.rs:decode`, `browser/cluster/decodeWgsl.ts`.
 
@@ -179,5 +182,5 @@ Joints, weights, morph deltas and simulation-source IDs behind a geometry page's
 `primitives[].deformation` bounds their reach.
 
 - Flags: `FLAG_SKIN`, `FLAG_MORPH` (`codec/deform.rs`), `FLAG_SOFT_SOURCE` (`codec/lib.rs`).
-- Writes `rust/geometry_page_deform.rs:page_deformation`; reads
+- Writes `codec/encode/deformation.rs:page_deformation`; reads
   `browser/page/codec/geometryPageDeform.ts:readDeformation`, `browser/deformation/softSource.ts:cookedSoftSource`.

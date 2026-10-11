@@ -2,10 +2,11 @@
 //! group error, vertices on one cell are kept once, every page shares its primitive's exponent, and a page
 //! beyond that grid is refused.
 
-use crate::geometry_page::{encode, Attribute, FLAG_COLOR};
 use crate::geometry_page_quant::tile::TILE_EXTENT_LOG2 as TILE;
-use crate::geometry_page_quant::{primitive_exponent, primitive_uv_exponent, UV_EXPONENT};
+use crate::geometry_page_quant::{primitive_exponent, primitive_uv_exponent};
 use trillion3d_page_codec as codec;
+use trillion3d_page_codec::bits::grid::UV_EXPONENT;
+use trillion3d_page_codec::encode::{encode, Attribute, FLAG_COLOR};
 
 #[test]
 fn a_constant_colour_costs_no_bits_and_the_primitive_grid_follows_the_finest_error() {

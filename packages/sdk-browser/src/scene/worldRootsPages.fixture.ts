@@ -1,14 +1,17 @@
-import type { WorldRoots, WorldRootsCluster } from './worldRoots.ts'
-import type { ClusterGroup } from '../contracts/geometry.ts'
-import { encodeWorldRoots, type WorldRootsSpec } from './worldRootsRecords.fixture.ts'
-import { readWorldRoots } from './worldRootsTable.ts'
-import { encodeGeometryPage } from '../../../page-codec/src/geometryPage.ts'
+import type { WorldRoots, WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoots.ts'
+import type { ClusterGroup } from '../../../sdk-core/src/contracts/geometry.ts'
+import {
+  encodeWorldRoots,
+  type WorldRootsSpec,
+} from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
+import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
+import { encodePage } from '../page/codec/encodePage.fixture.ts'
 
 /** One super-root page as the cook writes it, a geometry page: a triangle of three vertices, `x`
  *  its offset, with its facts (`WorldRootsPageFacts`). */
 export function worldPage(x: number) {
   const array = Float32Array.of(x, 0, 0, x + 1, 0, 0, x, 1, 0)
-  const { data, ...facts } = encodeGeometryPage([0, 1, 2], { POSITION: { itemSize: 3, array } })
+  const { data, ...facts } = encodePage([0, 1, 2], { POSITION: { itemSize: 3, array } })
   return { bytes: data as Uint8Array, facts: { bytes: data.byteLength, ...facts } }
 }
 

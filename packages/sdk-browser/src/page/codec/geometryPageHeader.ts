@@ -9,8 +9,7 @@ import {
   type PageSkin,
   validateRawDeformation,
 } from './geometryPageDeform.ts'
-import { bitsFor, MAX_BITS, MAX_EXPONENT } from '../../../../page-codec/src/pageGrids.ts'
-import { field } from '../../../../page-codec/src/bits.ts'
+import { bitsFor, field } from './pageFields.ts'
 import {
   CLUSTER_HEADER_WORDS,
   CLUSTER_PAGE_MAGIC,
@@ -21,12 +20,14 @@ import {
   FLAG_NORMAL,
   FLAG_UV,
   FLAG_UV1,
+  MAX_BITS,
+  MAX_EXPONENT,
   MAX_WIDTH,
   OPTIONAL,
   BLOCK_CORNERS,
   TRIANGLE_BLOCK,
   WIDTH_BITS,
-} from '../../cluster/format.ts'
+} from '../../../../sdk-core/src/page/format.ts'
 
 /** The widths of a page's corner code (`CornerCode`, `triangles.rs`). */
 type CornerCode = { indexBits: number; prefixBits: number; recordBits: number }

@@ -1,4 +1,4 @@
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { encodePage } from './encodePage.fixture.ts'
 
 /** A geometry page of `vertices` random vertices — signed zeros among them — with normals and
  *  texture coordinates on one page in two, so attribute names travel too. */
@@ -14,7 +14,7 @@ export function randomPage(random: () => number, vertices: number) {
     i < vertices ? i : Math.floor(random() * vertices),
   )
   const full = random() < 0.5
-  const { data } = encodeGeometryPage(indices, {
+  const { data } = encodePage(indices, {
     POSITION: { itemSize: 3, array: position },
     ...(full
       ? { NORMAL: { itemSize: 3, array: normal }, TEXCOORD_0: { itemSize: 2, array: uv } }

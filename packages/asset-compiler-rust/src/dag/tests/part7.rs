@@ -25,15 +25,15 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
         .collect();
     let group: Vec<&DagCluster> = children.iter().collect();
     // jscpd:ignore-end
-    let carried: Vec<crate::geometry_page::Attribute> = uvs
-        .map(|uvs| crate::geometry_page::Attribute {
-            flag: crate::geometry_page::FLAG_UV,
+    let carried: Vec<trillion3d_page_codec::encode::Attribute> = uvs
+        .map(|uvs| trillion3d_page_codec::encode::Attribute {
+            flag: trillion3d_page_codec::encode::FLAG_UV,
             width: 2,
             values: uvs.to_vec(),
         })
         .into_iter()
         .collect();
-    let carried: Vec<&crate::geometry_page::Attribute> = carried.iter().collect();
+    let carried: Vec<&trillion3d_page_codec::encode::Attribute> = carried.iter().collect();
     let attributes = DagAttributes { carried: &carried };
     let welds = welds::Welds::of(positions, attributes, indices);
     let locks = vec![locked; positions.len() / 3];

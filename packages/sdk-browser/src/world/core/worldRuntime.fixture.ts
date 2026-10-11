@@ -5,6 +5,7 @@ import type { SceneLight } from '../../../../sdk-core/src/index.ts'
 import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts'
 import type { Scene } from './scene.ts'
 import { createWorldRuntime } from './worldRuntime.ts'
+import '../../wasm/sdkWasm.fixture.ts'
 
 const saved = { location: Reflect.get(globalThis, 'location') }
 Reflect.set(globalThis, 'location', new URL('http://engine.test/'))

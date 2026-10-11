@@ -6,7 +6,7 @@ use super::merge::WorldDag;
 use super::records::{index, nullable, Records, DAG_MAGIC};
 use super::*;
 use crate::dag::bounds::cluster_bounds;
-use crate::geometry_page::Encoded;
+use trillion3d_page_codec::encode::Encoded;
 
 /// Where each super-root's page lies in the binary, and the page itself; none for a placed object.
 pub(super) type Pages<'a> = (&'a [Option<(usize, usize)>], &'a [Option<Encoded>]);

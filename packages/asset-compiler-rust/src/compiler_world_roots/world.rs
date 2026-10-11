@@ -6,9 +6,10 @@ use super::merge::WorldDag;
 use super::place::{empty, gather, layout_of, Roots, LAYOUT};
 use super::*;
 use crate::dag::clusters::cluster_triangles;
-use crate::dag::{build_dag_from_roots, DagAttributes, DagCluster, DagGroup, Grown};
-use crate::geometry_page::Attribute;
-use crate::shared_math::abi::DAG_CLUSTER_TRIANGLES;
+use crate::dag::{
+    build_dag_from_roots, DagAttributes, DagCluster, DagGroup, Grown, DAG_CLUSTER_TRIANGLES,
+};
+use trillion3d_page_codec::encode::Attribute;
 
 impl WorldDag {
     /// Every placed object still a root — alone in its material, or in a group whose reduction

@@ -1,10 +1,10 @@
 // A proof scene's clusters given the quantized geometry pages a compiler writes
-// (`packages/page-codec/src/geometryPage.ts`): each page of the scene's manifest names its page,
+// (`packages/page-codec-wasm/src/encode.rs`): each page of the scene's manifest names its page,
 // encoded from its triangle and the mesh's positions, normals and texture coordinates — the second
 // set too, as `TEXCOORD_1` —, and the engine reads it through `readGeometryPage`, decoding every
 // attribute in place on the GPU instead of the float pool.
-import { encodeGeometryPage } from '../../../packages/page-codec/src/geometryPage.ts'
-import type { PageAttributes } from '../../../packages/page-codec/src/pageAttributes.ts'
+import { encodePage } from '../../../packages/sdk-browser/src/page/codec/encodePage.fixture.ts'
+import type { PageAttributes } from '../../../packages/sdk-core/src/page/pageInput.ts'
 import type { ScenePreparee } from '../kit/sharedSceneProof.ts'
 
 /** The glTF semantic of each host attribute a page carries. */
@@ -33,7 +33,7 @@ export function compilePages(scene: ScenePreparee) {
       maxPositionError: 2 ** POSITION_EXPONENT,
     }
     for (const page of primitive.pages) {
-      const encoded = encodeGeometryPage(scene.indices.get(page.url)!, source, POSITION_EXPONENT)
+      const encoded = encodePage(scene.indices.get(page.url)!, source, POSITION_EXPONENT)
       const url = `geometry-${page.url}`
       bytes.set(url, encoded.data)
       page.geometry = {

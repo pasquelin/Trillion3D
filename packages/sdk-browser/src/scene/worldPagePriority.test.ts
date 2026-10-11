@@ -2,7 +2,7 @@
 // a prefetch, a sibling a read landed or a far cell's page never jumps the view's own pages.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { createWorldBundles } from './worldBundles.ts'
 import { worldPageServer, worldRootsPageAddress } from './worldPageServe.ts'
 import { PRIORITY_PREFETCH } from '../streaming/priority.ts'

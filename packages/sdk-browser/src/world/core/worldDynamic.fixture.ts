@@ -7,6 +7,7 @@ import { Scene } from './scene.ts'
 import { resolveObjectURL } from 'node:buffer'
 import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts'
 import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts'
+import '../../wasm/sdkWasm.fixture.ts'
 
 /** A world on a session stand-in that takes every rewrite in place, `reaches` the reach each
  *  carried and `boxes` a copy of its pages' boxes; `served` counts its pages,

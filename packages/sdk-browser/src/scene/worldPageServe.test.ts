@@ -3,7 +3,7 @@
 // decodes in place: its world-space positions and its indices, no pose.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { worldPage } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldPage } from './worldRootsPages.fixture.ts'
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { decodeGeometryPage } from '../page/codec/geometryPage.ts'
 import { worldRootsBinSource, worldRootsPageFixtureSource } from './worldPageServe.fixture.ts'

@@ -80,7 +80,7 @@ fn compile_dag_emits_a_flat_per_cluster_cut() {
         }
         assert!(
             page["count"].as_u64().expect("count")
-                <= (crate::shared_math::abi::DAG_CLUSTER_TRIANGLES * 3) as u64
+                <= (crate::dag::DAG_CLUSTER_TRIANGLES * 3) as u64
         );
         match page["parentError"].as_f64() {
             Some(parent) => {

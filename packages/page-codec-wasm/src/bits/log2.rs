@@ -1,6 +1,5 @@
 //! `floor(log2 x)` and `ceil(log2 x)` read from the bits of `x`, the same integer on every host,
-//! for the grids (`grid.rs`); the TypeScript twin is `floorLog2` and `ceilLog2` of
-//! `packages/page-codec/src/gridExponent.ts`.
+//! for the grids (`grid.rs`), the compiler's and, through the SDK module, the run-time cut's.
 //!
 //! A platform's `log2` may differ from another's in its last bit, and next to a power of two
 //! that bit carries the integer. These give the integer of the logarithm rounded to the nearest

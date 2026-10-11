@@ -34,7 +34,8 @@ import {
   type VsmRowBound,
 } from './rowPageBound.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import { vsmBufferEntry, vsmComputePipe } from './passKit.ts'
+import { vsmComputePipe } from './passKit.ts'
+import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import type { VsmLayout } from './layout.ts'
 import { storageBufferCap, type UniformSlots } from '../residency/pools.ts'
@@ -378,7 +379,7 @@ export function releaseVsmTransmission(trans: VsmTransmission) {
  *  the resolve's shared by its two entry points. */
 function transmissionGroupTables(layout: VsmLayout) {
   const C = GPUShaderStage.COMPUTE
-  const buf = (binding: number, type: GPUBufferBindingType) => vsmBufferEntry(binding, C, type)
+  const buf = (binding: number, type: GPUBufferBindingType) => computeBufferEntry(binding, type, C)
   const resolve = [
     [
       buf(0, 'uniform'),

@@ -1,11 +1,11 @@
-// The JavaScript decoder of a quantized cluster page against the reference encoder of
-// `packages/page-codec`: triangles identical, every attribute within the grid's declared error,
-// vertices on the same cells kept once, and the refusals of the format in their order.
+// The JavaScript decoder of a quantized cluster page against the page encoder of the SDK
+// module (`packages/page-codec-wasm`), the one the compiler writes with: triangles identical, every
+// attribute within the grid's declared error, vertices on the same cells kept once, and the
+// refusals of the format in their order.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { decodeGeometryPage } from './geometryPage.ts'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
-import { octDecode, octEncode } from '../../../../page-codec/src/pageGrids.ts'
+import { encodePage } from './encodePage.fixture.ts'
 import { ringMesh } from './ringMesh.fixture.ts'
 import { DEG2RAD } from '../../../../math/src/constants.ts'
 
@@ -51,22 +51,18 @@ test('a page decodes to its triangles, every attribute within the declared error
 
 test('vertices that land on the same cells are kept once and the indices remapped', () => {
   const position = new Float32Array([0, 0, 0, 1, 0, 0, 1 + 2 ** -12, 0, 0, 0, 1, 0])
-  const encoded = encodeGeometryPage(
-    [0, 1, 3, 0, 2, 3],
-    { POSITION: { itemSize: 3, array: position } },
-    -4,
-  )
+  const encoded = encodePage([0, 1, 3, 0, 2, 3], { POSITION: { itemSize: 3, array: position } }, -4)
   const decoded = decodeGeometryPage(encoded.data)
   assert.equal(decoded.vertexCount, 3)
   assert.deepEqual(Array.from(decoded.indices), [0, 1, 2, 0, 1, 2])
   assert.deepEqual(Array.from(decoded.attributes.position.subarray(3, 6)), [1, 0, 0])
 })
 
-test('the reference encoder refuses a page too wide for its grid instead of re-gridding it', () => {
+test('the encoder refuses a page too wide for its grid instead of re-gridding it', () => {
   const wide = {
     POSITION: { itemSize: 3, array: new Float32Array([0, 0, 0, 2 ** 20, 0, 0, 0, 1, 0]) },
   }
-  assert.throws(() => encodeGeometryPage([0, 1, 2], wide, -8), /PAGE_ATTRIBUTE_RANGE/)
+  assert.throws(() => encodePage([0, 1, 2], wide, -8), /PAGE_ATTRIBUTE_RANGE/)
 })
 
 test('a short header, a wrong version, a field beyond the format, a truncation and a forged block record are refused in that order', () => {
@@ -99,44 +95,10 @@ test('a page view off the word boundary decodes bit for bit like the aligned one
   assert.equal(shifted.quantizationError, aligned.quantizationError)
 })
 
-// A normal is written as the compiler writes it (`oct_encode`): of the roundings of its
-// octahedral point, the one that decodes closest, so a page cut at run time carries its normals.
-test('a normal is written as the octahedral code that decodes closest to it', () => {
-  const decode = (q: number) => {
-    const out = [0, 0, 0]
-    octDecode(q, out)
-    return out
-  }
-  let seed = 7
-  const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1
-  for (let i = 0; i < 2000; i++) {
-    const n = [random(), random(), random()],
-      length = Math.hypot(...n)
-    const unit = n.map((v) => v / length)
-    const miss = (q: number) => 1 - decode(q).reduce((dot, v, c) => dot + v * unit[c], 0)
-    const q = octEncode(n[0], n[1], n[2]),
-      [x, y] = [q & 255, q >> 8]
-    for (const [dx, dy] of [
-      [-1, 0],
-      [1, 0],
-      [0, -1],
-      [0, 1],
-      [1, 1],
-      [-1, -1],
-      [1, -1],
-      [-1, 1],
-    ]) {
-      const [nx, ny] = [x + dx, y + dy]
-      if (nx < 0 || ny < 0 || nx > 255 || ny > 255) continue
-      assert.ok(miss(q) <= miss(nx | (ny << 8)) + 1e-6, `normal ${n} took ${x},${y}`)
-    }
-  }
-})
-
 test('a forged index count is refused before the decoder allocates', () => {
   // One vertex, so indices cost no bits and the layout still matches the header alone; three
   // times 2^30 indices, whose byte count wraps a 32-bit size to zero without saturation.
-  const { data } = encodeGeometryPage([0, 0, 0], {
+  const { data } = encodePage([0, 0, 0], {
     POSITION: { itemSize: 3, array: new Float32Array([1, 2, 3]) },
   })
   const forged = (data as Uint8Array).slice()

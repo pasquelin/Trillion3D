@@ -7,10 +7,6 @@
 pub const FORMAT_VERSION: u32 = 11;
 /// Outer cache format required for clustered BLEND.
 pub const CLUSTERED_BLEND_FORMAT_VERSION: u32 = 12;
-/// Triangles per cluster. Matches the page budget used by the exact path.
-pub const DAG_CLUSTER_TRIANGLES: usize = 128;
-/// Vertex limit of a cluster; a 128 triangle cluster never needs more.
-pub const DAG_CLUSTER_VERTICES: usize = 255;
 /// The triangle budget of a compilation that names none.
 pub const DEFAULT_TRIANGLE_BUDGET: usize = 150000;
 /// The threads of a compilation that names none.

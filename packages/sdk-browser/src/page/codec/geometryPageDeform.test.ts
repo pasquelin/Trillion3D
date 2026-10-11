@@ -1,10 +1,10 @@
-// A skinned, morphed page (#357): the reference encoder of `packages/page-codec` writes it, the
+// A skinned, morphed page (#357): the page encoder of the SDK module writes it, the
 // decoder reads its joints, weights and displacements, and a target record that names another
 // word than its streams' refuses the page.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { decodeGeometryPage } from './geometryPage.ts'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { encodePage } from './encodePage.fixture.ts'
 
 const floats = (values: number[], itemSize: number) => ({
   itemSize,
@@ -12,7 +12,7 @@ const floats = (values: number[], itemSize: number) => ({
 })
 
 function bentPage() {
-  return encodeGeometryPage(
+  return encodePage(
     [0, 1, 2],
     {
       POSITION: floats([0, 0, 0, 1, 0, 0, 0, 1, 0], 3),
@@ -54,7 +54,7 @@ test('a target record naming another word than its streams refuses the page', ()
 })
 
 test('joints near the top of the sixteen-bit range still encode a page the reader accepts', () => {
-  const { data } = encodeGeometryPage(
+  const { data } = encodePage(
     [0, 1, 2],
     {
       POSITION: floats([0, 0, 0, 1, 0, 0, 0, 1, 0], 3),

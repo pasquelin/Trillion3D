@@ -29,7 +29,6 @@ export { readPagedManifest } from './manifest/paged.ts'
 export { textureLevelFormat, textureLevelUrl, type TextureLevelFormat } from './texture/levelUrl.ts'
 export {
   GEOMETRY_PAGE_CODEC,
-  GEOMETRY_PAGE_FORMAT_VERSION,
   PREVIEW_ATLAS_COLOR,
   PREVIEW_ATLAS_COVERAGE,
   PREVIEW_ATLAS_DATA,
@@ -42,6 +41,7 @@ export {
   type TextureBlockFormat,
   type TextureLayout,
 } from './manifest/binaryFormat.ts'
+export { GEOMETRY_PAGE_FORMAT_VERSION } from './page/format.ts'
 export { blocksAcross, levelBlockBytes, previewBlockBytes } from './texture/previewLevels.ts'
 export type {
   ManifestBinaryDescriptor,

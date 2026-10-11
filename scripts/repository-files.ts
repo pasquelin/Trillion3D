@@ -12,7 +12,6 @@ export const SOURCE_UNITS = [
   'packages/sdk-core/src',
   'packages/sdk-browser/src',
   'packages/sdk-node/src',
-  'packages/page-codec/src',
 ] as const
 
 /** The unit a maintained file belongs to, or null when it belongs to none: the gates read the

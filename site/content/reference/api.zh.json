@@ -282,7 +282,7 @@
     }
   },
   "BufferAttribute": {
-    "summary": "一个按顶点存值的类型化数组,每个顶点占 `itemSize` 个数字:对应页面编解码器的 `PageAttribute`(`page-codec/pageAttributes.ts`),说明一个页面往里写入的是什么。",
+    "summary": "一个按顶点存值的类型化数组,每个顶点占 `itemSize` 个数字:对应页面编解码器的 `PageAttribute`(`page/pageInput.ts`),说明一个页面往里写入的是什么。",
     "members": {
       "isBufferAttribute": "始终为 `true`:用来把缓冲属性和其他对象区分开来。",
       "type": "这些值最初是如何声明的;半精度浮点属性会以单精度保存。",

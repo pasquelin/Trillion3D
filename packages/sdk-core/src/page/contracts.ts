@@ -1,4 +1,4 @@
-import type { GEOMETRY_PAGE_FORMAT_VERSION } from '../manifest/binaryFormat.ts'
+import type { GEOMETRY_PAGE_FORMAT_VERSION } from './format.ts'
 
 /** The format every cluster page of a cache is written in (`docs/FORMAT.md`), declared once at
  *  the top of the manifest; the page header's magic and the sidecar version are the gates. */

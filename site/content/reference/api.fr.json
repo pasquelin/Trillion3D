@@ -586,7 +586,7 @@
     }
   },
   "BufferAttribute": {
-    "summary": "Un tableau typé de valeurs par sommet, `itemSize` nombres par sommet : le `PageAttribute` du codec de pages (`page-codec/pageAttributes.ts`), avec ce qu’une page y écrit.",
+    "summary": "Un tableau typé de valeurs par sommet, `itemSize` nombres par sommet : le `PageAttribute` du codec de pages (`page/pageInput.ts`), avec ce qu’une page y écrit.",
     "members": {
       "isBufferAttribute": "Toujours `true` : distingue un attribut de tampon de tout le reste.",
       "type": "Comment les valeurs ont été déclarées ; un attribut en demi-flottants est gardé en précision flottante.",

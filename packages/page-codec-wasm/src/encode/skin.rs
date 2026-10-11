@@ -1,6 +1,6 @@
-use super::*;
-use trillion3d_page_codec::bits::bits_for;
-use trillion3d_page_codec::deform::MAX_JOINT_BITS;
+use super::{EncodeError, Result};
+use crate::bits::bits_for;
+use crate::deform::{Skin, MAX_JOINT_BITS};
 
 pub(super) fn skin_fields(
     joints: &[u32],
@@ -14,7 +14,7 @@ pub(super) fn skin_fields(
     let (base, top) = used.fold((u32::MAX, 0), |(lo, hi), j| (lo.min(j), hi.max(j)));
     let bits = bits_for(top - base);
     if bits > MAX_JOINT_BITS || top > 0xffff {
-        return Err(CompilerError::new(
+        return Err(EncodeError::new(
             "PAGE_JOINT_RANGE",
             "A page names a joint past 65,535",
         ));
@@ -31,4 +31,19 @@ pub(super) fn skin_fields(
         bits,
         influences,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::skin_fields;
+
+    #[test]
+    fn a_joint_base_near_the_top_stays_within_what_the_reader_admits() {
+        let joints = vec![65000, 65535, 65000, 65000];
+        let mut fields = vec![Vec::new()];
+        let skin = skin_fields(&joints, &[1.0, 0.0, 0.0, 0.0], 4, &[0], &mut fields).unwrap();
+        assert_eq!(skin.bits, 10);
+        assert!(u64::from(skin.base) + (1u64 << skin.bits) - 1 <= 0xffff);
+        assert_eq!(fields[0][1] + skin.base, 65535);
+    }
 }

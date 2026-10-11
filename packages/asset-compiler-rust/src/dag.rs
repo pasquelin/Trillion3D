@@ -12,11 +12,14 @@
 //! cluster to its parent or whose coarse level bends a normal past its bound (`quality.rs`).
 use crate::perf::{Phase, Timer};
 use crate::qem::{compact_region, simplify_with_locked_vertices};
-use crate::shared_math::abi::{DAG_CLUSTER_TRIANGLES, DAG_CLUSTER_VERTICES};
-use crate::shared_math::{word_map, WordMap, WordSet};
 use crate::{invalid, Result};
 use rayon::prelude::*;
+use trillion3d_page_codec::hash::{word_map, WordMap, WordSet};
 
+/// Triangles per cluster. Matches the page budget used by the exact path.
+pub const DAG_CLUSTER_TRIANGLES: usize = 128;
+/// Vertex limit of a cluster; a 128 triangle cluster never needs more.
+pub const DAG_CLUSTER_VERTICES: usize = 255;
 /// Fewest clusters a group holds, short of its level's only group; the DAG warnings and the stall report read it. Grouping keeps it
 /// with no merge pass: it splits only above `DAG_GROUP_MAX`, each half keeping
 /// 3/8 of 33 clusters or more (`refine_bisection`), so a smaller group is its level's only one.

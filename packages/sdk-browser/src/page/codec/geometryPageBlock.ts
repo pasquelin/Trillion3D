@@ -1,4 +1,4 @@
-import { FLAG_MORPH, FLAG_SKIN, OPTIONAL } from '../../cluster/format.ts'
+import { FLAG_MORPH, FLAG_SKIN, OPTIONAL } from '../../../../sdk-core/src/page/format.ts'
 
 /**
  * The block a decoded page occupies, as the decoder lays it out: the 32-bit indices, then the

@@ -4,10 +4,7 @@
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { eventually } from '../streaming/eventually.fixture.ts'
-import {
-  worldRootsDag,
-  worldRootsFixture,
-} from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldRootsDag, worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
 import { heldBy, modelOpened, opened, rangeOf, served, sha } from './worldRoots.fixture.ts'

@@ -2,7 +2,7 @@
 // the shape the cut rule's fixtures read (`RuleDag`): shared by the super-root and mirror proofs.
 import { worldRootDag } from './worldSuperRoots.ts'
 import { worldRootPages } from './worldPageServe.ts'
-import { worldPage, worldRootsDag } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldPage, worldRootsDag } from './worldRootsPages.fixture.ts'
 import type { RuleDag } from '../page/cut/cutRule.fixture.ts'
 import { cullingBounds } from '../page/cut/bounds.ts'
 

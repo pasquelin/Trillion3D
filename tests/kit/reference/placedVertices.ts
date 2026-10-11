@@ -7,7 +7,7 @@ import { givenClusters } from '../../../packages/sdk-browser/src/world/page/cutC
 
 /** Vertex columns as `DrawnTriangles` holds them: empty normals, or a null set, carry none. */
 type Columns = Pick<DrawnTriangles, 'positions' | 'normals' | 'uvs' | 'colors'>
-/** Each column, the decoded attribute it reads and its width (`cluster/format.ts`). */
+/** Each column, the decoded attribute it reads and its width (`sdk-core/src/page/format.ts`). */
 const COLUMNS = [
   ['positions', 'position', 3],
   ['normals', 'normal', 3],

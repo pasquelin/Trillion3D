@@ -1,4 +1,4 @@
-//! The super-root pages, written as every primitive page is (`geometry_page::encode_deformed`):
+//! The super-root pages, written as every primitive page is (`encode::encode_deformed`):
 //! `WGP3` pages, so both engines decode and draw them as any page. Their world-space positions
 //! lie on one grid for the whole world — an eighth of its finest super-root error, never finer
 //! than the page field allows on the world's extent (`grid_exponent`) —, so a vertex two pages
@@ -6,9 +6,9 @@
 //! colour on bytes, each in its cluster's layout (`place::LAYOUT`).
 use super::merge::WorldDag;
 use super::*;
-use crate::geometry_page::{encode_deformed, Attribute, Encoded};
-use crate::geometry_page_deform::Deformation;
 use trillion3d_page_codec::bits::grid::{grid_exponent, UV_EXPONENT};
+use trillion3d_page_codec::encode::deformation::Deformation;
+use trillion3d_page_codec::encode::{encode_deformed, Attribute, Encoded};
 
 /// The grid of every world page: the finer of the world's extent in 2^16 steps and an eighth of its
 /// finest super-root error, bounded by the page field on that extent.
@@ -57,6 +57,7 @@ pub(super) fn encode_pages(world: &WorldDag) -> Result<Vec<Option<Encoded>>> {
                 exponents,
             )
             .map(Some)
+            .map_err(crate::CompilerError::from)
         })
         .collect()
 }
