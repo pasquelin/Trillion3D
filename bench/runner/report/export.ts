@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import {
   existsSync,
   readdirSync,
@@ -13,6 +12,7 @@ import { assertReport, REPORT_VERSION } from '../../../site/app/reports/model/co
 import type { Report as CampaignReport } from '../../../site/app/reports/model/types.ts'
 import type { Report as BenchReport } from './types.ts'
 import { readJson } from '../../../scripts/repository-files.ts'
+import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 
 type ReportRun = CampaignReport['runs'][number]
 type ReportRecord = CampaignReport['records'][number]
@@ -75,7 +75,7 @@ export function exportReport(source: string, output: string, id: string): Campai
   if (existsSync(output)) throw new Error('Export directory already exists')
   mkdirSync(join(output, 'sources'), { recursive: true })
   for (const file of files(source).sort()) {
-    const runId = createHash('sha256').update(relative(source, file)).digest('hex').slice(0, 16)
+    const runId = sha256(relative(source, file)).slice(0, 16)
     if (!existsSync(file)) {
       report.runs.push({
         id: runId,

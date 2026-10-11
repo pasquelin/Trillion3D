@@ -1,6 +1,5 @@
 // Disk-backed scene caches, compared by engine shape and reference-renderer fields.
 import { type TestContext } from 'node:test'
-import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import * as THREE from 'three'
@@ -9,6 +8,7 @@ import * as K from './sceneKinds.fixture.ts'
 import { sceneCacheFiles } from '../../../../../../../tests/kit/scenes/caches.ts'
 import { decodingImages } from '../../../../../../../packages/sdk-browser/src/host/prepared/decodedImages.fixture.ts'
 import { readJson } from '../../../../../../../scripts/repository-files.ts'
+import { sha256 } from '../../../../../../../packages/sdk-node/src/compiler/provenance.mts'
 
 const repository = new URL('../../../../../../../', import.meta.url)
 
@@ -37,9 +37,7 @@ export function serveFiles(t: TestContext) {
 }
 
 const hash = (array: ArrayLike<number> & ArrayBufferView) =>
-  createHash('sha256')
-    .update(Buffer.from(array.buffer, array.byteOffset, array.byteLength))
-    .digest('hex')
+  sha256(Buffer.from(array.buffer, array.byteOffset, array.byteLength))
 
 function attribute(a: THREE.BufferAttribute | THREE.InterleavedBufferAttribute) {
   const data = 'data' in a ? a.data : undefined

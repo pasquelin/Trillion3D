@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Page } from 'playwright'
@@ -9,6 +8,7 @@ import { measurePayload, runInPage } from './seriesPage.ts'
 import type { Side } from '../harness/sideOptions.ts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
 import type { Row, RunContext } from '../report/types.ts'
+import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 
 /** A series: one side, one view, one threshold. Writes its capture, returns its report row. */
 export async function runSeries(
@@ -77,9 +77,7 @@ export async function runSeries(
     },
     selection: {
       source: result.selection.source,
-      sha256: result.selection.source
-        ? createHash('sha256').update(ids.join('\n')).digest('hex')
-        : null,
+      sha256: result.selection.source ? sha256(ids.join('\n')) : null,
       count: ids.length,
     },
     // Geometry memory published by the engine: bytes held by the page cache and the
