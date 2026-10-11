@@ -34,8 +34,11 @@ function rustConstant(name: string, file = 'compiler_format.rs') {
 }
 
 test('the compiler and the runtime number the cache format alike', () => {
-  assert.equal(rustConstant('FORMAT_VERSION'), FORMAT_VERSION)
-  assert.equal(rustConstant('CLUSTERED_BLEND_FORMAT_VERSION'), CLUSTERED_BLEND_FORMAT_VERSION)
+  assert.equal(rustConstant('FORMAT_VERSION', 'shared_math/abi.rs'), FORMAT_VERSION)
+  assert.equal(
+    rustConstant('CLUSTERED_BLEND_FORMAT_VERSION', 'shared_math/abi.rs'),
+    CLUSTERED_BLEND_FORMAT_VERSION,
+  )
 })
 
 // A block level file is laid out in the engine's tile records; the tile and its gutter are
