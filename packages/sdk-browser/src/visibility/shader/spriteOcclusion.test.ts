@@ -25,12 +25,12 @@ import { prepareWebgpuBlend } from '../../webgpu/blend/prepare.ts'
 import { buildBlendStatics, refreshBlendPlan } from '../../webgpu/blend/plan.ts'
 import { uniformStride } from '../../residency/pools.ts'
 import { orderBlendPasses } from '../../webgpu/blend/order.ts'
-import { itemKept } from '../../webgpu/blend/hierarchyCull.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { identityRoots } from '../../page/selection/placements.fixture.ts'
 import { buildHizPyramid } from '../../../../../bench/oracles/browser/hizPyramid.ts'
 import { NO_HIZ_SLOT } from '../../webgpu/row/noHizSlot.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
+import { hasBit } from '../../../../math/src/scalar/bits.ts'
 
 const sprite = (sizeAttenuation: boolean) => ({ rotation: 0, sizeAttenuation })
 const spriteSurface = (sizeAttenuation: boolean, parameters = {}) =>
@@ -169,7 +169,7 @@ test('a constant-size sprite blend item has no box, and the frustum keeps it', (
   refreshBlendPlan(blendState)
   assert.equal(orderBlendPasses(blendState, [0, 0, 0]), 1)
   assert.deepEqual(
-    [0, 1].map((item) => itemKept(blendState.keepPacked, item)),
+    [0, 1].map((item) => hasBit(blendState.keepPacked, item)),
     [true, false],
   )
 })

@@ -25,6 +25,7 @@ import {
 import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 import { xorshiftRandom as seeded } from '../../../bench/core/index.ts'
 import { expandOnGpu } from './scatterKernel.ts'
+import { setBit } from '../../../packages/math/src/scalar/bits.ts'
 
 const next = seeded(1789)
 /** The vertex words of the widest item, and the clusters an item holds. */
@@ -49,7 +50,7 @@ function plan(items: number, unpaged: number[], base: { instances: number; args:
     draws[item * 4 + 3] = own ? 3 * (1 + Math.floor(next() * 5)) : 0
     counts[item] = Math.floor(next() * (CLUSTERS + 1))
     for (let j = 0; j < CLUSTERS; j++) clusters[item * CLUSTERS + j] = 7000 + item * CLUSTERS + j
-    if (next() < 0.8) keep[item >> 5] |= 1 << (item & 31)
+    if (next() < 0.8) setBit(keep, item)
   }
   // The sorted plan: paint order, the share bit and the pipeline in the low bits.
   const order = new Uint32Array(items)

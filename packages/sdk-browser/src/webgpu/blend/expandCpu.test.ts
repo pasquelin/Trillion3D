@@ -3,9 +3,9 @@ import assert from 'node:assert/strict'
 import { instanceItem } from '../../../../../bench/oracles/browser/instanceItem.ts'
 import { blendChunkWords, blendVertexShift, RUN_WORDS } from './planLayout.ts'
 import { expandBlendPlan } from './expandCpu.fixture.ts'
-import { itemKept } from './hierarchyCull.ts'
 import { DRAW_UNPAGED } from './plan.ts'
 import { planEntry } from './planEntry.ts'
+import { hasBit } from '../../../../math/src/scalar/bits.ts'
 
 /** A plan entry: item rank, share bit, pipeline. */
 const entryOf = (item: number, shared: boolean, pipeline = 1) => planEntry(item, pipeline, shared)
@@ -156,7 +156,7 @@ test('the addressing stride holds the longest instance, and the chunk stays a mu
 test('the frustum verdict is read bit by bit, at the item rank', () => {
   const keep = Uint32Array.from([0b1010, 0b0001])
   assert.deepEqual(
-    [0, 1, 2, 3, 32, 33].map((item) => itemKept(keep, item)),
+    [0, 1, 2, 3, 32, 33].map((item) => hasBit(keep, item)),
     [false, true, false, true, true, false],
   )
 })

@@ -13,7 +13,6 @@ import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.t
 import { TRANSPARENT_STAGES } from './mockComputeBlend.ts'
 import { words } from './mockBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { testBit } from '../../../packages/math/src/scalar/bits.fixture.ts'
 import { mockEvictions, sortStagedRequests } from './mockEvict.ts'
 import { boundListCap, packedFromBindings, readDagUniforms } from './mockDag.ts'
 import { worldsAtEye } from './mockWorldPose.ts'
@@ -34,6 +33,7 @@ import {
   stagedPriority,
 } from '../../../packages/sdk-browser/src/gpu/dag/request.fixture.ts'
 import { LIST_KERNELS, mirrorListStage } from './mockLists.ts'
+import { hasBit, setBit } from '../../../packages/math/src/scalar/bits.ts'
 
 /** The camera cut's kernels the double replays, on the selection's bind group or one of its
  *  entries (a kept list's: `rankGroups`). */
@@ -71,7 +71,7 @@ export function simulateComputeDispatch(
     const itemInts = words(byBinding.get(0)!.data)
     const n = Math.min(count, slotCap)
     const restInts = words(byBinding.get(7)!.data)
-    const restAt = (i: number) => testBit(restInts, i) as 0 | 1
+    const restAt = (i: number) => (hasBit(restInts, i) ? 1 : 0)
     const items: DrawItem[] = []
     for (let i = 0; i < n; i++)
       items.push({
@@ -151,7 +151,7 @@ export function simulateComputeDispatch(
   // `dagMask` sets a draw bit for every drawn page: `dagDrawScatter` compacts them.
   const mask = writtenMask(byBinding.get(DAG_BINDING.work)!.data, dag.pageCount)
   mask.fill(0, 0, bitWords(dag.pageCount))
-  for (const id of result.drawablePageIds ?? []) mask[id >>> 5] |= 1 << (id & 31)
+  for (const id of result.drawablePageIds ?? []) setBit(mask, id)
   const ints = words(byBinding.get(DAG_BINDING.out)!.data)
   ints[1] = result.frustumRejected
   ints[2] = result.lodLevel

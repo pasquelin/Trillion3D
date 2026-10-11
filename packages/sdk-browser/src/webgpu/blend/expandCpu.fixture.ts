@@ -1,11 +1,11 @@
 import { DRAW_UNPAGED, planItem, planPipeline } from './plan.ts'
 import { PLAN_PIPELINE_MASK } from './planEntry.ts'
-import { itemKept } from './hierarchyCull.ts'
 import { instanceWord, placeBlendSlots } from './runs.fixture.ts'
 import { RUN_WORDS, slotCapacity } from './planLayout.ts'
 import { sortSeedsFarToNear } from './sortPlan.ts'
 import { eyeKey } from './eyeKey.ts'
 import type { createWebgpuBlendState } from './state.ts'
+import { hasBit } from '../../../../math/src/scalar/bits.ts'
 type BlendState = ReturnType<typeof createWebgpuBlendState>
 
 /** The cull mode the vertex stage applies to an entry's instances, read back from the pipeline the
@@ -73,7 +73,7 @@ export function expandBlendPlan(x: BlendExpansion) {
     for (let k = 0; k < entries; k++) {
       const entry = order[first + k],
         item = planItem(entry)
-      if (!itemKept(keep, item)) continue
+      if (!hasBit(keep, item)) continue
       const word = instanceWord(item, planVertexCull(entry))
       const paged = draws[item * 4]
       if (paged === DRAW_UNPAGED) {

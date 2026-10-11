@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { mipSize, nextPow2, uniqueSortedInPlace } from './integers.ts'
-import { setBit } from './bits.ts'
-import { testBit } from './bits.fixture.ts'
+import { hasBit, setBit } from './bits.ts'
 import { firstTrue, lastAtMost, lastTrue } from './search.ts'
 
 test('nextPow2 is exact on its whole domain: each power, either side of it, and reals', () => {
@@ -20,13 +19,13 @@ test('nextPow2 is exact on its whole domain: each power, either side of it, and 
   assert.equal(nextPow2(1 + 2 ** -52), 2)
 })
 
-test('setBit and testBit: each bit alone, the top bit of a word, and the signed read', () => {
+test('setBit and hasBit: each bit alone, the top bit of a word, and the signed read', () => {
   const words = new Uint32Array(3)
   for (const i of [0, 31, 32, 63, 70]) setBit(words, i)
   assert.deepEqual([...words], [0x80000001, 0x80000001, 1 << 6])
   for (let i = 0; i < 96; i++) {
     const set = [0, 31, 32, 63, 70].includes(i) ? 1 : 0
-    assert.equal(testBit(words, i), set, `${i}`)
+    assert.equal(hasBit(words, i), set === 1, `${i}`)
     // The signed form a word read through `>>` gives: the same bit.
     assert.equal((words[i >> 5] >> (i & 31)) & 1, set, `${i}`)
   }

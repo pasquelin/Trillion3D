@@ -4,6 +4,7 @@ import { SELECTION_NONE as NONE } from '../../gpu/core/selection.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { copyPages } from '../pages/helpers.ts'
 import { mapRawRanks, type HeldList } from './heldList.ts'
+import { hasBit, setBit } from '../../../../math/src/scalar/bits.ts'
 
 /** The mark of a held id or an entry this list names at a rank no claim reached, until the held
  *  ranks are read: an id read back at it again is a repeat. */
@@ -136,13 +137,11 @@ function carryClaimed(
       waiting[listed++] = i
       continue
     }
-    const w = t >>> 5,
-      bit = 1 << (t & 31)
-    if (named[w] & bit) {
+    if (hasBit(named, t)) {
       waiting[listed++] = ~i
       continue
     }
-    named[w] |= bit
+    setBit(named, t)
     // A record already at its rank is not written again: placements of one primitive share it.
     if (pages && pages[i] !== before[t]) pages[i] = before[t]
   }

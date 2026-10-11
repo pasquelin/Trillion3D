@@ -5,6 +5,7 @@ import type { MockDraw } from './mockEncoder.ts'
 import { words } from './mockBuffers.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
 
 /** A storage binding's offset alignment every WebGPU device grants (`minStorageBufferOffsetAlignment`). */
 const STORAGE_OFFSET_ALIGN = 256
@@ -74,7 +75,7 @@ export function compactDrawnPages(workBytes: Uint8Array, outBytes: Uint8Array, p
   const head = SELECTION_HEADER_WORDS,
     base = head + pageCount
   let found = 0
-  for (let id = 0; id < pageCount; id++) if (drawn(marks, id)) out[base + head + found++] = id
+  for (let id = 0; id < pageCount; id++) if (hasBit(marks, id)) out[base + head + found++] = id
   out[base] = found
 }
 
@@ -84,10 +85,9 @@ export const drawMask = (workBytes: Uint8Array, pageCount: number) =>
   words(workBytes).subarray(dagWorkLayout(ceilDiv(Math.max(1, pageCount), 64)).drawMask)
 export const writtenMask = (workBytes: Uint8Array, pageCount: number) =>
   words(workBytes).subarray(2 * ceilDiv(Math.max(1, pageCount), 64))
-const drawn = (mask: Uint32Array, id: number) => (mask[id >>> 5] & (1 << (id & 31))) !== 0
 /** Page `id`'s bit of the draw mask at word `offset` of `words` (`compactWgsl.ts`). */
 export const maskBit = (words: Uint32Array, offset: number, id: number) =>
-  drawn(words.subarray(offset), id)
+  hasBit(words.subarray(offset), id)
 
 /**
  * Pages the CURRENT IMAGE's mask names, read where the GPU posts them: the draw mask's bits in the
@@ -104,6 +104,6 @@ export function drawnPageIds(
   if (!buffer) throw new Error('Trillion3D DAG work buffer absent')
   const marks = drawMask(buffer.data, pageCount)
   const ids: number[] = []
-  for (let id = 0; id < pageCount; id++) if (drawn(marks, id)) ids.push(id)
+  for (let id = 0; id < pageCount; id++) if (hasBit(marks, id)) ids.push(id)
   return ids
 }

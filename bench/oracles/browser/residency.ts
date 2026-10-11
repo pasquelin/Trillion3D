@@ -1,3 +1,4 @@
+import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
 // Pure A11 oracles, no side effects: `residency.perf.ts` measures them; unit tests import
 // them as reference.
 const CONE_FLOATS = 12,
@@ -31,8 +32,7 @@ export function referenceUpdateResidency(next: Uint32Array, pageCones: Float32Ar
 /** The same residency, reread from the bits: one word for thirty-two clusters. */
 export function residencyColumn(bits: Uint32Array, base: number, count: number) {
   const column = new Float32Array(count)
-  for (let j = 0; j < count; j++)
-    column[j] = (bits[base + (j >>> 5)] & (1 << (j & 31))) !== 0 ? 1 : 0
+  for (let j = 0; j < count; j++) column[j] = hasBit(bits, base * 32 + j) ? 1 : 0
   return column
 }
 
