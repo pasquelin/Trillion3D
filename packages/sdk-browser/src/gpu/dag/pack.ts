@@ -129,17 +129,35 @@ function placeRoot(
   const links = linksFor(culling, count)
   const { structure } = root
   p.cutLinks.push({ structure, links, pageBase, pageCount: count, nodeBase, nodeCount })
-  const base = recordBase(culling, owner, nodeBase)
-  if (!p.shared.firstOf.has(root.pages))
-    p.shared.firstOf.set(root.pages, { pageBase, recordBase: base })
+  // A page array placed before, on the same nodes, has its records: one lookup, no record written.
+  let first = p.shared.firstOf.get(root.pages)
+  const base =
+    first?.nodes === culling.nodes ? first.recordBase : recordBase(culling, owner, nodeBase)
+  if (!first)
+    p.shared.firstOf.set(
+      root.pages,
+      (first = {
+        pageBase,
+        recordBase: base,
+        nodes: culling.nodes,
+        rootClusters: rootClusterCount(root),
+      }),
+    )
   p.recordShift[w] = (base - pageBase) >>> 0
   p.pageIndex.baseOfRoot[w] = pageBase
-  for (const rec of root.pages)
-    if (!(typeof rec.parentError === 'number' && Number.isFinite(rec.parentError))) p.rootClusters++
+  p.rootClusters += first.rootClusters
   p.live.pages += count
   p.pageIndex.packedCount = p.live.pages
   p.live.entries += nodeCount
   p.live.worlds = w + 1
+}
+
+/** The pages of `root` whose parent error is not finite: the clusters a view starts a descent on. */
+function rootClusterCount(root: DagRoot) {
+  let count = 0
+  for (const rec of root.pages)
+    if (!(typeof rec.parentError === 'number' && Number.isFinite(rec.parentError))) count++
+  return count
 }
 
 /** The live counts of `roots` — pages, queue entries (a placement's node each), and nodes, each

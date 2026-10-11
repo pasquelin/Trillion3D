@@ -1,7 +1,7 @@
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { pageAddress } from './pageSlots.ts'
-import type { PageResidency } from '../../gpu/core/selection.ts'
+import type { PageResidency, ResidencyChanges } from '../../gpu/core/selection.ts'
 
 /**
  * WHAT THE ROW CACHE KNOWS OF EACH PACKED PAGE, held for the pages that carry something alone: the
@@ -51,6 +51,14 @@ export function createRowPageState(
     offsetOf(at: number) {
       const rec = recordOf(at)
       return rec ? (offsets.get(pageAddress(rec)) ?? -1) : -1
+    },
+    /** The pages whose flag is up, as the changes a cut with nothing resident reads to reach the
+     *  pool's state: the resident instances, never the catalogue. */
+    residentPages(): ResidencyChanges {
+      const pages = new Int32Array(flags.size)
+      let count = 0
+      flags.forEach((key) => void (pages[count++] = key))
+      return { pages, count }
     },
     /** The flags as the cut reads them. */
     residency: {

@@ -23,8 +23,13 @@ const keyLevel = (word: number) => word >>> KEY_PAGE_BITS
 
 /** The content keys of `roots`, one per page address (`pageAddress`): how many the key words hold. */
 export function keyCount(roots: readonly DagRoot[]) {
-  const addresses = new Set<string>()
-  for (const root of roots) for (const rec of root.pages) addresses.add(pageAddress(rec))
+  const addresses = new Set<string>(),
+    seen = new Set<DagRoot['pages']>()
+  for (const { pages } of roots)
+    if (!seen.has(pages)) {
+      seen.add(pages)
+      for (const rec of pages) addresses.add(pageAddress(rec))
+    }
   return Math.max(1, addresses.size)
 }
 
@@ -41,10 +46,16 @@ export function writeKeyTables(
   words: Uint32Array,
   at: { recordKey: number; keyWord: number },
 ) {
-  const keyOf = new Map<string, number>()
+  const keyOf = new Map<string, number>(),
+    written = new Map<DagRoot['pages'], Set<number>>()
   roots.forEach((root, w) => {
     const pageBase = places.cutLinks[w].pageBase,
       recordBase = (pageBase + places.recordShift[w]) >>> 0
+    // A page array placed again on the records it already has names the same keys: once each.
+    let bases = written.get(root.pages)
+    if (!bases) written.set(root.pages, (bases = new Set()))
+    if (bases.has(recordBase)) return
+    bases.add(recordBase)
     root.pages.forEach((rec, p) => {
       const address = pageAddress(rec),
         level = Math.max(0, Math.trunc(rec.level ?? 0))
