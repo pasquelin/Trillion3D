@@ -28,6 +28,9 @@ import { writeVsmUniforms, type VsmFrameUniforms } from './uniforms.ts'
 import { vsmWriteChanged, vsmWriteChangedRecords } from './writeChanged.ts'
 import {
   VsmCacheManager,
+  advanceLightMobility,
+  newLightMobility,
+  type LightMobility,
   type VsmIdAllocator,
   type VsmNextMap,
   type VsmLightCache,
@@ -229,13 +232,13 @@ export interface VsmFrameState {
   ids: VsmMapIds
 }
 
-/** A light's shape as last seen (its kind and numeric fields), the frame it was last seen and the
- *  mobility factor this frame gave it: compared and rewritten in place, never rebuilt per frame. */
-interface VsmLightShape {
+/** A light's shape as last seen (its kind and numeric fields), the frame it was last seen and its
+ *  mobility (the one map of lights' memory): compared and rewritten in place, never rebuilt per
+ *  frame. */
+interface VsmLightShape extends LightMobility {
   kind: SceneLight['kind']
   values: Float64Array
   seen: number
-  mobility: number
 }
 const SHAPE_VALUES = 13
 
@@ -312,30 +315,23 @@ function trackLightShapes(state: VsmFrameState, lights: readonly VsmFrameLight[]
     shapes = state.lightShapes
   for (const { light } of lights) {
     let shape = shapes.get(light.id)
+    // A new light is an update whatever its fields.
+    let updated = !shape
     if (!shape) {
       shape = {
-        kind: light.kind,
+        kind: '' as SceneLight['kind'],
         values: new Float64Array(SHAPE_VALUES).fill(Number.NaN),
         seen: 0,
-        mobility: 0,
+        ...newLightMobility(),
       }
       shapes.set(light.id, shape)
-      // A new light is an update whatever its fields.
-      shape.kind = '' as SceneLight['kind']
     }
     shape.seen = frame
-    shape.mobility = updateShape(shape, light) ? 1 : 0
+    updated = updateShape(shape, light) || updated
+    advanceLightMobility(shape, updated, frame)
   }
   cache.dropRemovedLights((id) => shapes.get(id)?.seen !== frame)
-  for (const [id, shape] of shapes)
-    if (shape.seen !== frame) {
-      shapes.delete(id)
-      cache.removeLightMobility(id)
-    }
-  for (const { light } of lights) {
-    const shape = shapes.get(light.id)!
-    shape.mobility = cache.updateLightMobility(light.id, shape.mobility === 1)
-  }
+  for (const [id, shape] of shapes) if (shape.seen !== frame) shapes.delete(id)
 }
 
 /** The directional lights' shadows: one clipmap each, into `clipmaps`. */
@@ -529,7 +525,7 @@ export function planVirtualShadowFrame(
   cache.frameStamp = state.frameStamp
   cache.poolPages = layout.poolPages
   trackLightShapes(state, lights)
-  const mobilityOf = (id: string) => state.lightShapes.get(id)?.mobility ?? 0
+  const mobilityOf = (id: string) => state.lightShapes.get(id)?.mobilityFactor ?? 0
   // The distant light refresh schedule.
   cache.scheduleFarLights()
   const casting = castingScratch

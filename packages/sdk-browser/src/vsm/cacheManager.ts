@@ -265,11 +265,47 @@ export interface VsmInvalidationBatch {
   instances: VsmInstanceInvalidation[]
 }
 
-/** The per-light cache state the scene renderer reads: the light mobility. */
-interface LightMobility {
+/** A light's mobility state, which the scene renderer reads as its factor: `firstActiveFrame` the
+ *  frame its activity began, −1 before the first frame that reads it. */
+export interface LightMobility {
   firstActiveFrame: number
   mobilityFactor: number
   active: boolean
+}
+
+/** A light's mobility state at the start: not active. */
+export const newLightMobility = (): LightMobility => ({
+  firstActiveFrame: -1,
+  mobilityFactor: 0,
+  active: false,
+})
+
+/**
+ * Advances a light's mobility at `frame`, once per frame per light, with `updated` true when the
+ * light was added or changed: the factor is 1 then, and falls to 0 over the next
+ * `VSM_LIGHT_ACTIVE_FRAME_COUNT` frames. Returns the factor. Lights are movable (stationary lights
+ * are treated as movable).
+ */
+export function advanceLightMobility(m: LightMobility, updated: boolean, frame: number) {
+  if (updated) {
+    m.firstActiveFrame = -1
+    m.active = true
+    m.mobilityFactor = 1
+  }
+  if (m.active) {
+    if (m.firstActiveFrame === -1) {
+      m.firstActiveFrame = frame
+      m.mobilityFactor = 1
+    } else if (frame - m.firstActiveFrame < VSM_LIGHT_ACTIVE_FRAME_COUNT) {
+      m.mobilityFactor = Math.fround(
+        1 - saturate((frame - m.firstActiveFrame) / VSM_LIGHT_ACTIVE_FRAME_COUNT),
+      )
+    } else {
+      m.active = false
+      m.mobilityFactor = 0
+    }
+  }
+  return m.active ? m.mobilityFactor : 0
 }
 
 interface VsmCacheManagerOptions {
@@ -295,8 +331,6 @@ export class VsmCacheManager {
     fullMapCount: number
     singlePageMapCount: number
   } | null = null
-
-  private mobility = new Map<string, LightMobility>()
 
   constructor(options: VsmCacheManagerOptions = {}) {
     this.cacheEnabled = options.cacheEnabled ?? (VSM_CACHE_ON as number) !== 0
@@ -404,44 +438,6 @@ export class VsmCacheManager {
       }
     }
     oldest?.markScheduled(frame)
-  }
-
-  /**
-   * Call once per frame per light with `updated` true when the light was added or changed. Returns
-   * the light's mobility factor. Lights are movable (stationary lights are treated as movable).
-   */
-  updateLightMobility(lightId: string, updated: boolean) {
-    let m = this.mobility.get(lightId)
-    if (!m) {
-      m = { firstActiveFrame: -1, mobilityFactor: 0, active: false }
-      this.mobility.set(lightId, m)
-      updated = true // an added light is updated like a known one
-    }
-    if (updated) {
-      m.firstActiveFrame = -1
-      m.active = true
-      m.mobilityFactor = 1
-    }
-    if (m.active) {
-      const frame = this.frameStamp | 0
-      if (m.firstActiveFrame === -1) {
-        m.firstActiveFrame = frame
-        m.mobilityFactor = 1
-      } else if (frame - m.firstActiveFrame < VSM_LIGHT_ACTIVE_FRAME_COUNT) {
-        m.mobilityFactor = Math.fround(
-          1 - saturate((frame - m.firstActiveFrame) / VSM_LIGHT_ACTIVE_FRAME_COUNT),
-        )
-      } else {
-        m.active = false
-        m.mobilityFactor = 0
-      }
-    }
-    return m.active ? m.mobilityFactor : 0
-  }
-
-  /** Forgets the mobility state of removed lights. */
-  removeLightMobility(lightId: string) {
-    this.mobility.delete(lightId)
   }
 
   /** Free AVAILABLE pages of the last status message read back (diagnostics). */
