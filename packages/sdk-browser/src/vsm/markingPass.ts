@@ -215,7 +215,7 @@ export function vsmForwardZViewToClip(projection: ArrayLike<number>, out = new F
 // ---- Pass inputs -------------------------------------------------------------------------------
 
 /** What the per-pixel marking reads of the engine's frame (the shadow demand pass's inputs). */
-interface VsmMarkingView {
+export interface VsmMarkingView {
   depth: GPUTextureView
   normalRough: GPUTextureView
   flags: GPUTextureView
@@ -228,12 +228,12 @@ interface VsmMarkingView {
   /** The u32 ids of this view's directional (clipmap) maps. */
   sunMapIds: GPUBuffer
   sunMapCount: number
-  viewRectMin: readonly [number, number]
-  viewSize: readonly [number, number]
+  viewRectMin: [number, number]
+  viewSize: [number, number]
   /** The +z-forward view-to-clip (`vsmForwardZViewToClip`). */
   viewToClip: ArrayLike<number>
   /** The map view's origin shift (−camera position), double precision, split high/low. */
-  originShift: readonly [number, number, number]
+  originShift: [number, number, number]
 }
 
 export interface VsmMarkingFrame {

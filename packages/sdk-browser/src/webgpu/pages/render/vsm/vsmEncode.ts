@@ -6,6 +6,7 @@ import {
   vsmPerPageFrame,
   vsmForwardZViewToClip,
   type VsmMarkingFrame,
+  type VsmMarkingView,
   type VsmPerPageFrame,
 } from '../../../../vsm/markingPass.ts'
 import { taaRenderProjection } from '../../../../taa/frame.ts'
@@ -34,6 +35,9 @@ interface FrameScratch {
   perPage: VsmPerPageFrame
   suns: Uint32Array<ArrayBuffer>
   projected: VsmProjectionLight[]
+  /** The marking's frame and its view of the engine's frame, their fields set each frame. */
+  marking: VsmMarkingFrame
+  markingView: VsmMarkingView
 }
 const SCRATCH = new WeakMap<EngineVsm, FrameScratch>()
 const frameScratch = (vsm: EngineVsm) => {
@@ -45,6 +49,28 @@ const frameScratch = (vsm: EngineVsm) => {
         perPage: vsmPerPageFrame(),
         suns: new Uint32Array(vsm.directionalIds.size / 4),
         projected: [],
+        marking: {
+          fullMapCount: 0,
+          singlePageMapCount: 0,
+          perPage: undefined as never,
+          perspective: true,
+          view: undefined,
+        },
+        markingView: {
+          depth: undefined as never,
+          normalRough: undefined as never,
+          flags: undefined as never,
+          view: undefined as never,
+          directLights: undefined as never,
+          tileLights: undefined as never,
+          lightVsmIds: undefined as never,
+          sunMapIds: undefined as never,
+          sunMapCount: 0,
+          viewRectMin: [0, 0],
+          viewSize: [0, 0],
+          viewToClip: forwardZViewToClip,
+          originShift: [0, 0, 0],
+        },
       }),
     )
   return scratch
@@ -136,30 +162,30 @@ function encodeVsmMarking(
   vsmWriteChanged(device, vsm.lightIds, vsm.lightIdsData, 0, vsm.lightIdsData.length)
   const views = gpu.surfaces!.views()
   const tiles = lights.tiles?.buffer
-  const markingFrame: VsmMarkingFrame = {
-    fullMapCount: plan.fullMapCount,
-    singlePageMapCount: plan.singlePageMapCount,
-    perPage,
-    perspective: cam.perspective === 1,
-    view:
-      lights.buffer && tiles
-        ? {
-            depth: gpu.depthView!,
-            normalRough: views[1],
-            flags: views[3],
-            view: gpu.deferred!.uniform,
-            directLights: lights.buffer,
-            tileLights: tiles,
-            lightVsmIds: vsm.lightIds,
-            sunMapIds: vsm.directionalIds,
-            sunMapCount: directional,
-            viewRectMin: [0, 0],
-            viewSize: [width, height],
-            viewToClip: vsmForwardZViewToClip(projection, forwardZViewToClip),
-            originShift: [-cam.eye[0], -cam.eye[1], -cam.eye[2]],
-          }
-        : undefined,
-  }
+  const markingFrame = scratch.marking
+  markingFrame.fullMapCount = plan.fullMapCount
+  markingFrame.singlePageMapCount = plan.singlePageMapCount
+  markingFrame.perPage = perPage
+  markingFrame.perspective = cam.perspective === 1
+  if (lights.buffer && tiles) {
+    const view = scratch.markingView
+    view.depth = gpu.depthView!
+    view.normalRough = views[1]
+    view.flags = views[3]
+    view.view = gpu.deferred!.uniform
+    view.directLights = lights.buffer
+    view.tileLights = tiles
+    view.lightVsmIds = vsm.lightIds
+    view.sunMapIds = vsm.directionalIds
+    view.sunMapCount = directional
+    view.viewSize[0] = width
+    view.viewSize[1] = height
+    view.viewToClip = vsmForwardZViewToClip(projection, forwardZViewToClip)
+    view.originShift[0] = -cam.eye[0]
+    view.originShift[1] = -cam.eye[1]
+    view.originShift[2] = -cam.eye[2]
+    markingFrame.view = view
+  } else markingFrame.view = undefined
   // The raster's raster marks start at 0, before the pass.
   encoder.clearBuffer(res.rasterMarks)
   const marking = encoder.beginComputePass(MARKING_PASS)

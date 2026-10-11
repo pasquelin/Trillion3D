@@ -59,6 +59,27 @@ export interface VsmFrameUniforms {
   pressureBias: number
 }
 
+/** The block's three word views of a buffer at an offset, made once. */
+const VIEWS = new WeakMap<
+  ArrayBuffer,
+  Map<number, { u: Uint32Array; i: Int32Array; f: Float32Array }>
+>()
+function viewsOf(out: ArrayBuffer, byteOffset: number) {
+  let at = VIEWS.get(out)
+  if (!at) VIEWS.set(out, (at = new Map()))
+  let views = at.get(byteOffset)
+  if (!views)
+    at.set(
+      byteOffset,
+      (views = {
+        u: new Uint32Array(out, byteOffset, VSM_UNIFORMS_BYTES / 4),
+        i: new Int32Array(out, byteOffset, VSM_UNIFORMS_BYTES / 4),
+        f: new Float32Array(out, byteOffset, VSM_UNIFORMS_BYTES / 4),
+      }),
+    )
+  return views
+}
+
 /** Writes the whole block into `out` (at least VSM_UNIFORMS_BYTES). */
 export function writeVsmUniforms(
   out: ArrayBuffer,
@@ -66,9 +87,7 @@ export function writeVsmUniforms(
   frame: VsmFrameUniforms,
   byteOffset = 0,
 ) {
-  const u = new Uint32Array(out, byteOffset, VSM_UNIFORMS_BYTES / 4),
-    i = new Int32Array(out, byteOffset, VSM_UNIFORMS_BYTES / 4),
-    f = new Float32Array(out, byteOffset, VSM_UNIFORMS_BYTES / 4)
+  const { u, i, f } = viewsOf(out, byteOffset)
   u[0] = frame.frameStamp >>> 0
   u[1] = frame.fullMapCount
   u[2] = frame.singlePageMapCount

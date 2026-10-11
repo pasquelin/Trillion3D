@@ -300,6 +300,8 @@ function putShape(v: Float64Array, k: number, x: number | undefined) {
 const castingScratch: VsmFrameLight[] = []
 const clipmapScratch: { light: SceneLight; clipmap: VsmClipmap }[] = []
 const localScratch: { light: SceneLight; setup: VsmLocalLightSetup }[] = []
+// The plan's lights, rebuilt in place: a plan lives until its frame ends.
+const allocationScratch: VsmLightAllocation[] = []
 
 /** True when a cache entry got no id this frame: the page table is short. */
 function anyUnallocated(cache: VsmCacheManager) {
@@ -388,7 +390,8 @@ function setupLocalLights(
 /** The id allocation: directional, local, then unreferenced entries. */
 function allocateLightIds(state: VsmFrameState) {
   const ids = state.ids.reset()
-  const allocations: VsmLightAllocation[] = []
+  const allocations = allocationScratch
+  allocations.length = 0
   for (const { light, clipmap } of clipmapScratch) {
     const entry = clipmap.cacheEntry
     entry.moveToMapId(ids.allocateDirectional(entry.mapCaches.length))
