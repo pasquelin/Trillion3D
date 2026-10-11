@@ -47,9 +47,8 @@ test('one walk clears each table as its own kernel did', () => {
 })
 
 test('the clears by the maps they walk: every map’s tables, a receiver cover by its own maps', () => {
-  const at = (receiver: 'local' | 'directional' | 'none') =>
+  const at = (receiver: 'directional' | 'none') =>
     vsmMarkingClears({ ...vsmLayout({ fullMapCapacity: 7 }, 2 ** 27), coverMode: receiver })
-  assert.deepEqual(at('local'), { all: TARGETS, directionalOnly: [] })
   assert.deepEqual(at('directional'), {
     all: TARGETS.slice(0, 3),
     directionalOnly: ['receiverCover'],

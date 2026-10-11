@@ -19,8 +19,6 @@ import {
   VSM_TABLE_ROW_WIDTH,
   VSM_COUNTERS,
   VSM_TILE_DEPTHS_PER_PAGE,
-  VSM_COVER_SUN,
-  VSM_COVER_LOCAL,
   VSM_UNIFORMS_BYTES,
 } from './constants.ts'
 import {
@@ -34,7 +32,7 @@ import {
 import type { VsmFrameBuffers } from './resources.ts'
 import type { ShrunkPool } from '../residency/outOfMemory.ts'
 
-type VsmCoverMode = 'local' | 'directional' | 'none'
+type VsmCoverMode = 'directional' | 'none'
 
 export interface VsmResourceOptions {
   /** Physical pages of the pool, default 2048; rounded up to whole pool rows. */
@@ -43,7 +41,7 @@ export interface VsmResourceOptions {
   fullMapCapacity: number
   /** Directional maps (clipmap levels), sizes the directional-only receiver cover. */
   sunMapCapacity?: number
-  /** Receiver cover kind; default from `VSM_COVER_LOCAL` / `VSM_COVER_SUN`. */
+  /** Receiver cover kind; default the suns' (the local maps carry none). */
   coverMode?: VsmCoverMode
   /** Separate static cache slice; default true (cache on). */
   cacheEnabled?: boolean
@@ -134,14 +132,9 @@ export function vsmLayout(
   const markMips = VSM_LOG2_PAGE
   const flags = mipChain(pageTableSize[0], pageTableSize[1], markMips)
 
-  const coverMode: VsmCoverMode =
-    options.coverMode ?? (VSM_COVER_LOCAL ? 'local' : VSM_COVER_SUN ? 'directional' : 'none')
+  const coverMode: VsmCoverMode = options.coverMode ?? 'directional'
   let coverSize: [number, number], coverMips: number
-  if (coverMode === 'local') {
-    // A full page table at sample stride 2: 7 + 1 mips.
-    coverSize = [pageTableSize[0] * 2, pageTableSize[1] * 2]
-    coverMips = VSM_LOG2_PAGE + 1
-  } else if (coverMode === 'directional') {
+  if (coverMode === 'directional') {
     // Directional maps (+1 single-page entry), a full row only past one row.
     const required = Math.max(0, options.sunMapCapacity ?? maxFull) + 1
     const rows = ceilDiv(required, entriesPerRow)

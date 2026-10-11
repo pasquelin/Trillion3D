@@ -78,11 +78,10 @@ struct VsmMarkingParams{
 export type VsmClearTarget = 'pageRequests' | 'pageTable' | 'pageMarks' | 'receiverCover'
 
 /** The tables one walk of the maps' pages clears, by the maps it walks: every map (`all`) — the
- *  request flags, the page table and flags, and a receiver cover that holds every map's —, and a
- *  receiver cover that holds the suns' alone, which walks the suns' maps (`directionalOnly`). */
+ *  request flags, the page table and flags —, and a receiver cover that holds the suns', which walks
+ *  the suns' maps (`directionalOnly`). */
 export function vsmMarkingClears(layout: VsmLayout) {
   const all: VsmClearTarget[] = ['pageRequests', 'pageTable', 'pageMarks']
-  if (layout.coverMode === 'local') all.push('receiverCover')
   const directionalOnly: VsmClearTarget[] =
     layout.coverMode === 'directional' ? ['receiverCover'] : []
   return { all, directionalOnly }

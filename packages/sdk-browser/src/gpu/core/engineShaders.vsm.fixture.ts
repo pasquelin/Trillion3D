@@ -57,12 +57,9 @@ export function vsmVariants() {
       variants[`VSM_PROJECTION${subgroups ? '_SUBGROUPS' : ''}${receiver ? '_RECEIVER' : ''}`] =
         vsmProjectionWgsl(layout, { subgroups, receiver })
     }
-  // The marking's clears as each receiver mask makes them (`vsmMarkingClears`): every map's
-  // tables, with a receiver mask of every map or without, and a receiver mask of the suns' alone.
-  const local = vsmMarkingClears({ ...layout, coverMode: 'local' }),
-    suns = vsmMarkingClears({ ...layout, coverMode: 'directional' })
+  // The marking's clears (`vsmMarkingClears`): every map's tables, and a receiver mask of the suns'.
+  const suns = vsmMarkingClears({ ...layout, coverMode: 'directional' })
   variants.VSM_MARKING_CLEAR = vsmResetPageTableWgsl(suns.all, layout)
-  variants.VSM_MARKING_CLEAR_LOCAL_RECEIVER = vsmResetPageTableWgsl(local.all, layout)
   variants.VSM_MARKING_CLEAR_RECEIVER = vsmResetPageTableWgsl(suns.directionalOnly, layout)
   for (const stats of [false, true]) {
     const kernels = {

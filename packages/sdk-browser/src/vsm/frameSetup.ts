@@ -340,7 +340,6 @@ function setupDirectionalLights(
   casting: readonly VsmFrameLight[],
   camera: VsmCameraInput,
   viewport: VsmViewport,
-  mobilityOf: (id: string) => number,
 ) {
   for (const { light } of casting) {
     if (light.kind !== 'directional' || !light.direction) continue
@@ -349,7 +348,6 @@ function setupDirectionalLights(
       { id: light.id, direction: light.direction },
       camera,
       viewport,
-      mobilityOf(light.id),
     )
     clipmapScratch.push({ light, clipmap })
   }
@@ -533,7 +531,7 @@ export function planVirtualShadowFrame(
   for (const l of lights) if (vsmShadowed(l)) casting.push(l)
   clipmapScratch.length = 0
   localScratch.length = 0
-  setupDirectionalLights(state, casting, camera, viewport, mobilityOf)
+  setupDirectionalLights(state, casting, camera, viewport)
   setupLocalLights(state, casting, camera, viewport, mobilityOf)
   const { ids, allocations } = allocateLightIds(state)
   const uniforms = frameUniforms(state, ids)

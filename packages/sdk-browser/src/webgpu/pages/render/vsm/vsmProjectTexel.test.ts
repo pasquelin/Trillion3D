@@ -62,7 +62,7 @@ test('class 1: every pixel rebuilt from either projection reads the same shadow 
       perspective: cam.perspective === 1,
       eye: cam.eye,
     }
-    const clipmap = createVsmClipmap(new VsmCacheManager(), light, seen, { width, height }, 0)
+    const clipmap = createVsmClipmap(new VsmCacheManager(), light, seen, { width, height })
     for (const { px, py, z } of pixelSamples(i, width, height)) {
       const a = shifted(old, px, py, z),
         b = shifted(fresh, px, py, z)

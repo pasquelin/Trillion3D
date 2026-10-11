@@ -54,7 +54,7 @@ const CASES: [string, VsmResourceOptions, number?][] = [
   ['127 maps, every one directional', { fullMapCapacity: 127 }],
   ['255 maps, the pool in parts', { fullMapCapacity: 255 }, 8 * MIB],
   ['a 4096-page pool', { fullMapCapacity: 127, poolPages: 4096 }],
-  ['local masks, no cache slice', { fullMapCapacity: 63, coverMode: 'local', cacheEnabled: false }],
+  ['no masks, no cache slice', { fullMapCapacity: 63, coverMode: 'none', cacheEnabled: false }],
 ]
 
 for (const [name, options, binding] of CASES)

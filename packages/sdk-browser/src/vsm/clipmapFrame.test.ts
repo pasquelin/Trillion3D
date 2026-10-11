@@ -130,7 +130,6 @@ test('along the light, a cached level keeps its depth range until 0.9 of it; pas
     SUN,
     { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] },
     { width: 1024, height: 1024 },
-    0,
   )
   assert.ok(Math.abs(depth(kept, point) - depth(before, point)) < 1e-6)
   kept.cacheEntry.markRendered(2)

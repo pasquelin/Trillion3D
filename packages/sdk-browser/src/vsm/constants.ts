@@ -226,11 +226,6 @@ export const VSM_DETAIL_PIXELS_STATIC = 1
  *  marking's reads; more may miss a page that only a few pixels see (the page margins catch most). */
 export const VSM_MARK_STRIDE_X = 2
 export const VSM_MARK_STRIDE_Y = 2
-/** Declared: whether a map's pages carry a receiver cover (which of a page's 8 × 8 cells hold a
- *  receiver), local / sun: a cached page is then redrawn for a moving caster only where it covers a
- *  receiver. On for the suns, whose pages span many receivers; off for the local maps. */
-export const VSM_COVER_LOCAL = false
-export const VSM_COVER_SUN = true
 
 // The traces. Declared, every one: they shape the contact and the penumbra and set its noise against
 // its cost. Moving any of them changes the image.
@@ -286,12 +281,11 @@ export const VSM_SUN_COARSE_TO = 18
  *  receivers still cast. Larger, the depth precision of a texel drops in proportion. */
 export const VSM_SUN_DEPTH_SPAN = 1000
 /**
- * The sun's level bias, at rest and while the light moves. Each unit below 0 halves the
+ * The sun's level bias. Each unit below 0 halves the
  * clipmap texel; the clipmap still clamps the total, screen term included, to at least 0
  * (`createVsmClipmap`).
  */
 export const VSM_SUN_LEVEL_BIAS = -1.5
-export const VSM_SUN_LEVEL_BIAS_MOVING = -1.5
 /** Declared: a cached level stays valid while |ΔcentreZ| + radius <= 0.9 · cached depth radius: the
  *  tenth left is the margin before a caster leaves the depth range. */
 export const VSM_SUN_DEPTH_KEEP = 0.9
@@ -306,7 +300,6 @@ export const VSM_LOCAL_NEAR_PLANE = 1 * VSM_UNIT_PER_CM
 // light unseen for 10 frames loses its maps, a placement still for 100 frames turns static; the
 // global resolution bias rises (coarser) fast past 85 % of the pool (half the gap a frame) and
 // falls slowly (a tenth) after 10 calm frames, by at most 2 levels.
-export const VSM_CACHE_ON = 1
 export const VSM_PAGE_KEEP_FRAMES = 1000
 export const VSM_LIGHT_KEEP_FRAMES = 10
 export const VSM_STILL_FRAMES = 100

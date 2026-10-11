@@ -13,7 +13,6 @@
  * projection data handed to the GPU is in metres (see `clipmap.ts`).
  */
 import {
-  VSM_CACHE_ON,
   VSM_SUN_DEPTH_KEEP,
   VSM_PRESSURE_LOAD,
   VSM_PRESSURE_BIAS_MAX,
@@ -207,11 +206,11 @@ export class VsmLightCache {
   }
 
   /** Updates a clipmap's cache entry. */
-  updateClipmap(key: VsmSunCacheKey, forceInvalidate: boolean, useCover: boolean) {
+  updateClipmap(key: VsmSunCacheKey, forceInvalidate: boolean) {
     const k = this.clipmapCacheKey
     const changed =
       !sameValues(key.lightDirection, k.lightDirection) || key.firstLevel !== k.firstLevel
-    this.updateCommon(changed, forceInvalidate, useCover)
+    this.updateCommon(changed, forceInvalidate, true)
     if (changed) {
       copyInto(k.lightDirection, key.lightDirection)
       k.firstLevel = key.firstLevel
@@ -226,7 +225,6 @@ export class VsmLightCache {
     lightOrigin: [number, number, number],
     lightRange: number,
     forceInvalidate: boolean,
-    useCover: boolean,
   ) {
     const k = this.localCacheKey
     const changed =
@@ -234,7 +232,7 @@ export class VsmLightCache {
       !sameValues(key.lightOriginShift, k.lightOriginShift) ||
       key.isCachedFarLight !== k.isCachedFarLight ||
       !sameValues(key.shape, k.shape)
-    this.updateCommon(changed, forceInvalidate, useCover)
+    this.updateCommon(changed, forceInvalidate, false)
     if (changed) {
       copyInto(k.worldToLight, key.worldToLight)
       copyInto(k.lightOriginShift, key.lightOriginShift)
@@ -333,7 +331,7 @@ export class VsmCacheManager {
   } | null = null
 
   constructor(options: VsmCacheManagerOptions = {}) {
-    this.cacheEnabled = options.cacheEnabled ?? (VSM_CACHE_ON as number) !== 0
+    this.cacheEnabled = options.cacheEnabled ?? true
     this.poolPages = options.poolPages ?? VSM_POOL_PAGES
   }
 
@@ -450,25 +448,21 @@ export class VsmCacheManager {
    */
   readPoolFeedback(freePages: number, lastPressureBias: number) {
     this.lastFreePages = freePages
-    const maxPageAllocation = VSM_PRESSURE_LOAD,
-      biasCap = VSM_PRESSURE_BIAS_MAX
     const f = Math.fround
-    if (maxPageAllocation > 0) {
-      const frameStamp = this.frameStamp >>> 0
-      const currentAllocation = f(1 - f(freePages / this.poolPages))
-      const allocationRatio = f(currentAllocation / f(maxPageAllocation))
-      const targetBias = f(Math.max(0, lastPressureBias + Math.log2(allocationRatio)))
-      if (
-        currentAllocation <= f(maxPageAllocation) &&
-        (frameStamp - this.lastFrameOverBudget) >>> 0 > VSM_PRESSURE_CALM_FRAMES
-      ) {
-        this.pressureBias = f(lerp(this.pressureBias, targetBias, VSM_PRESSURE_FALL))
-      } else if (currentAllocation > f(maxPageAllocation)) {
-        this.lastFrameOverBudget = frameStamp
-        this.pressureBias = f(lerp(this.pressureBias, targetBias, VSM_PRESSURE_RISE))
-      }
+    const frameStamp = this.frameStamp >>> 0
+    const currentAllocation = f(1 - f(freePages / this.poolPages))
+    const allocationRatio = f(currentAllocation / f(VSM_PRESSURE_LOAD))
+    const targetBias = f(Math.max(0, lastPressureBias + Math.log2(allocationRatio)))
+    if (
+      currentAllocation <= f(VSM_PRESSURE_LOAD) &&
+      (frameStamp - this.lastFrameOverBudget) >>> 0 > VSM_PRESSURE_CALM_FRAMES
+    ) {
+      this.pressureBias = f(lerp(this.pressureBias, targetBias, VSM_PRESSURE_FALL))
+    } else if (currentAllocation > f(VSM_PRESSURE_LOAD)) {
+      this.lastFrameOverBudget = frameStamp
+      this.pressureBias = f(lerp(this.pressureBias, targetBias, VSM_PRESSURE_RISE))
     }
-    const bias = clamp(this.pressureBias, 0, biasCap)
+    const bias = clamp(this.pressureBias, 0, VSM_PRESSURE_BIAS_MAX)
     // In f32, nine tenths of k·2^-149 round back to it for k <= 4: the decay would stop there.
     this.pressureBias = bias < VSM_PRESSURE_BIAS_FLOOR ? 0 : bias
     return this.pressureBias
