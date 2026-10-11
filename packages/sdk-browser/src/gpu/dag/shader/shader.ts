@@ -1,3 +1,4 @@
+import { FAR_PLANE_SLOT } from '../../../../../math/src/geometry/frustum/frustum.ts'
 import { DAG_WORLD_POSE_WGSL } from './worldPoseWgsl.ts'
 import { DAG_ACCESS_WGSL, DAG_BINDINGS_WGSL } from './bindings.ts'
 import type { WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
@@ -52,13 +53,12 @@ struct FrameRange{first:u32,count:u32,}
 /** Vec4s of a placement's row of \`frames\`: the host's words alone (\`../worlds.ts\`). */
 const FRAME:u32=${FRAME_VEC4}u;
 /** Rank of the far plane among the six (\`frustum.ts\`: right, left, bottom, top, far, near). */
-const FAR_PLANE:u32=4u;
-/** True when the view has no far plane: an infinite one reaches the kernel as a NaN plane
+const FAR_PLANE:u32=${FAR_PLANE_SLOT}u;
+/** The plane the frustum test of view \`v\` skips: the far plane when the view has none, else none (6).
+ *  True when the view has no far plane: an infinite one reaches the kernel as a NaN plane
  *  (\`frustum.ts\`, zero normal normalized), which no comparison satisfies, and a NaN stays NaN
  *  through \`dagPrepare\`'s product. Read at the bit on the uniform, a NaN test no compiler folds. */
-fn farless()->bool{return farlessOf(vi);}
-/** \`farless\` of view \`v\`. */
-fn farlessOf(v:u32)->bool{return isNanWord(bitcast<u32>(views[v].planes[FAR_PLANE].x));}
+fn farSkipOf(v:u32)->u32{return select(6u,FAR_PLANE,isNanWord(bitcast<u32>(views[v].planes[FAR_PLANE].x)));}
 /** A plane moved out by the primitive's deformation \`reach\` along every axis: a box clears it
  *  only if the box grown by that reach would — the oracle's \`growPlanes\`. */
 fn grownPlane(p:vec4f,reach:f32)->vec4f{return vec4f(p.xyz,p.w+reach*(abs(p.x)+abs(p.y)+abs(p.z)));}

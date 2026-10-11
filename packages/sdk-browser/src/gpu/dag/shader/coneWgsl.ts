@@ -16,7 +16,7 @@ import { transformHalfExtent } from '../../../../../math/src/wgsl/geometry.ts'
 export const DAG_CONE_WGSL = wgslBlock(
   'DAG_CONE_WGSL',
   [invTranspose3Apply, absoluteSum3, isFiniteScale, transformHalfExtent, transformPoint],
-  `/** GPU mirror of \`isConformal\` (../../../page/cone/cone.ts): 3x3 divided by the sum of its absolute values,
+  `/** GPU mirror of \`isConformal\` (../../../page/cone/cone.fixture.ts): 3x3 divided by the sum of its absolute values,
  *  relative tolerances only; null, infinite or NaN sum (read at the bit): cluster kept. */
 fn isConformal(m:mat3x3f)->bool{
  let t=absoluteSum3(m);
@@ -34,7 +34,7 @@ fn viewPoint()->vec4f{
  let back=vec3f(views[vi].view[0].z,views[vi].view[1].z,views[vi].view[2].z);
  return vec4f(back*(1.0-views[vi].perspective),views[vi].perspective);
 }
-/** GPU mirror of \`coneCullsPageWith\` (../../../page/cone/cone.ts): same tolerances (packages/math/src/geometry/cone.ts), same operands.
+/** GPU mirror of \`coneCullsPageWith\` (../../../page/cone/cone.fixture.ts): same tolerances (packages/math/src/geometry/cone.ts), same operands.
  *  The world it reads is of the RENDER FRAME, at the eye (\`preparedPose\`): the vector from
  *  the box centre to the eye is the opposite of that centre, and subtracting two distant positions
  *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space.

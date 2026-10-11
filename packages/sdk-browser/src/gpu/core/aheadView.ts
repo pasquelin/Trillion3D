@@ -1,4 +1,5 @@
 import {
+  FAR_PLANE_SLOT,
   FRUSTUM_PLANE_VALUES,
   axisAngleQuaternion,
   composeMatrix4,
@@ -74,7 +75,7 @@ export function aheadViewOf(cam: EngineCamera, motion: CameraMotion, into?: Ahea
   }
   multiplyMatrix4(clip, projection, view)
   frustumPlanesFromMatrix(planes, clip)
-  frustumFarPlane(planes, 16, view, cam.far, true)
+  frustumFarPlane(planes, FAR_PLANE_SLOT * 4, view, cam.far, true)
   for (let i = 0; i < 6; i++) {
     const toward = -dotVector3Xyz(planes, dx, dy, dz, i * 4)
     if (toward > 0) planes[i * 4 + 3] += toward

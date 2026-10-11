@@ -18,6 +18,9 @@ import { length3 } from '../../vector/vector.ts'
  * the far plane declared by the host when present.
  */
 
+/** Rank of the FAR plane among the six, the slot the floats of `planes` address at four a plane. */
+export const FAR_PLANE_SLOT = 4
+
 /** Float count for the six planes of a frustum. */
 export const FRUSTUM_PLANE_VALUES = 24
 
@@ -70,7 +73,7 @@ export function frustumPlanesFromMatrix(out: Float32Array | Float64Array, m: Arr
   storeUnitPlane(out, 12, w0 - y0, w1 - y1, w2 - y2, w3 - y3) // y <= w
   // z >= 0, FAR. Under an infinite far plane the z row is (0, 0, 0, near): the reciprocal is
   // 1 / 0 = ∞ and the plane 0 · ∞ = NaN and near · ∞, a plane no point fails.
-  storeUnitPlane(out, 16, z0, z1, z2, z3)
+  storeUnitPlane(out, FAR_PLANE_SLOT * 4, z0, z1, z2, z3)
   storeUnitPlane(out, 20, w0 - z0, w1 - z1, w2 - z2, w3 - z3) // z <= w, NEAR
 }
 
@@ -117,7 +120,7 @@ export function clipPlanesFromMatrix(out: Float64Array, m: ArrayLike<number>) {
   out[13] = w1 - y1
   out[14] = w2 - y2
   out[15] = w3 - y3
-  out[16] = z0 // z >= 0, FAR
+  out[FAR_PLANE_SLOT * 4] = z0 // z >= 0, FAR
   out[17] = z1
   out[18] = z2
   out[19] = z3
@@ -174,7 +177,7 @@ export function frustumContainsPoint(planes: ArrayLike<number>, x: number, y: nu
     planeDistance(planes, 4, x, y, z) < 0 ||
     planeDistance(planes, 8, x, y, z) < 0 ||
     planeDistance(planes, 12, x, y, z) < 0 ||
-    planeDistance(planes, 16, x, y, z) < 0 ||
+    planeDistance(planes, FAR_PLANE_SLOT * 4, x, y, z) < 0 ||
     planeDistance(planes, 20, x, y, z) < 0
   )
 }
@@ -195,7 +198,7 @@ export function frustumExcludesSphere(
     planeDistance(planes, 4, x, y, z) < behind ||
     planeDistance(planes, 8, x, y, z) < behind ||
     planeDistance(planes, 12, x, y, z) < behind ||
-    planeDistance(planes, 16, x, y, z) < behind ||
+    planeDistance(planes, FAR_PLANE_SLOT * 4, x, y, z) < behind ||
     planeDistance(planes, 20, x, y, z) < behind
   )
 }

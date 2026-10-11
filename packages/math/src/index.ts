@@ -65,6 +65,7 @@ export {
   transformPointsByMatricesBatch,
 } from './batch/batch.ts'
 export {
+  FAR_PLANE_SLOT,
   FRUSTUM_PLANE_VALUES,
   clipPlanesFromMatrix,
   frustumFarPlane,

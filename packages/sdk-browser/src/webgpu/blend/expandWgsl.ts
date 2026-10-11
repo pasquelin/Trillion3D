@@ -5,7 +5,7 @@ import { INSTANCE_CULL_SHIFT } from './runs.ts'
 import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts'
 import { expandUniformWgsl } from './expandUniform.ts'
 import { EXPAND_BINDING as B } from './expandBindings.ts'
-import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts'
+import { LANE_SCAN_WGSL, laneRunOffsets } from '../../gpu/core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
@@ -93,14 +93,7 @@ fn countBlendGroups(@builtin(global_invocation_id) id:vec3u,@builtin(local_invoc
 fn scanBlendGroups(@builtin(local_invocation_id) lid:vec3u){
  let k=lid.x;
  let span=laneRun(k,uni.groupCount);
- var somme=0u;
- for(var g=span.x;g<span.y;g++){somme=somme+scratch[uni.entryCount+g];}
- var curseur=uni.instanceBase+laneScan(k,somme)-somme;
- for(var g=span.x;g<span.y;g++){
-  let tenu=scratch[uni.entryCount+g];
-  scratch[uni.entryCount+g]=curseur;
-  curseur=curseur+tenu;
- }
+ ${laneRunOffsets('g', 'span', 'k', 'uni.instanceBase+', 'scratch[uni.entryCount+g]', 'scratch[uni.entryCount+g]=cursor')}
 }
 /** Absolute place of each entry, then its instances: the local place is already counted. */
 @compute @workgroup_size(${EXPAND_GROUP})

@@ -1,4 +1,4 @@
-import { LANE_SCAN_WGSL } from '../../core/laneScanWgsl.ts'
+import { LANE_SCAN_WGSL, laneRunOffsets } from '../../core/laneScanWgsl.ts'
 import { SELECTION_HEADER_WORDS } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
@@ -53,14 +53,7 @@ fn drawnBefore(i:u32,mask:u32)->u32{return countOneBits(mask&(drawBit(i)-1u));}
 fn dagDrawPrefix(@builtin(local_invocation_index) lane:u32){
  let count=blockCount();let base=blockBase();
  let run=laneRun(lane,count);
- var total=0u;
- for(var b=run.x;b<run.y;b++){total=total+atomicLoad(&work[base+b]);}
- var cursor=laneScan(lane,total)-total;
- for(var b=run.x;b<run.y;b++){
-  let n=atomicLoad(&work[base+b]);
-  atomicStore(&work[base+count+b],cursor);
-  cursor=cursor+n;
- }
+ ${laneRunOffsets('b', 'run', 'lane', '', 'atomicLoad(&work[base+b])', 'atomicStore(&work[base+count+b],cursor)')}
  // The last lane's run ends the list, empty or not: its cursor is the total.
  if(lane==63u){out.pages[views[0u].listCap]=cursor;armList(1u,min(cursor,views[0u].listCap));if(cursor>views[0u].listCap){atomicOr(&out.overflow,1u);}}
 }

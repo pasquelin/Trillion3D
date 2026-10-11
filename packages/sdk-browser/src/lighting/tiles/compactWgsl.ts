@@ -1,5 +1,5 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
-import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts'
+import { LANE_SCAN_WGSL, laneRunSum, laneRunWalk } from '../../gpu/core/laneScanWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { bitMask, bitWord, highHalf, lowBits, lowHalf } from '../../../../math/src/wgsl/integer.ts'
 
@@ -120,8 +120,7 @@ fn cacheEntry(lane:u32,entry:vec2u){
  *  scanned over the lanes. Every lane calls it, from uniform control flow; \`laneSums[LANES-1]\`
  *  is then the column's total. */
 fn roomBefore(lane:u32,span:vec2u)->u32{
- var sum=0u;
- for(var slice=span.x;slice<span.y;slice++){sum+=counts[slice]&~TILE_SHADOWED;}
+ ${laneRunSum('slice', 'span', 'counts[slice]&~TILE_SHADOWED')}
  return laneScan(lane,sum)-sum;
 }
 /** Lane zero, after \`roomBefore\`: the column's room in the pool. A column with no light takes
@@ -142,9 +141,6 @@ fn takeRoom(){
 /** A lane deals the column's room, from \`start\`, out over its run \`span\`, \`before\` past it. */
 fn dealRoom(span:vec2u,before:u32,start:u32){
  var next=start+before;
- for(var slice=span.x;slice<span.y;slice++){
-  cursor[slice]=select(TILE_NO_SLICE,next,start!=TILE_NO_SLICE);
-  next+=counts[slice]&~TILE_SHADOWED;
- }
+ ${laneRunWalk('slice', 'span', 'next', 'counts[slice]&~TILE_SHADOWED', 'cursor[slice]=select(TILE_NO_SLICE,next,start!=TILE_NO_SLICE)')}
 }`,
 )

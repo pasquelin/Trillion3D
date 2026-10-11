@@ -59,6 +59,7 @@ export function cacheRun(width: number, height: number, none = false) {
     SHADE_TRIS_SHADER,
     [
       'decodeTriangle',
+      'decodeCorners',
       'transformedNormals',
       'framebuffer',
       'clipToFramebuffer',
