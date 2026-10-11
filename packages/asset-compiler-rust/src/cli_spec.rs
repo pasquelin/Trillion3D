@@ -5,7 +5,8 @@ use serde_json::Value;
 use std::path::{Component, Path, PathBuf};
 use trillion3d_compiler::{
     compiler_budget::{batch_share, fit_workers},
-    texture_formats, Options, TEXTURE_FORMAT_DEFAULT,
+    texture_formats, Options, DEFAULT_RAM_BUDGET_MB, DEFAULT_THREADS, DEFAULT_TRIANGLE_BUDGET,
+    TEXTURE_FORMAT_DEFAULT,
 };
 
 fn number(value: Option<&Value>, default: usize) -> Result<usize, String> {
@@ -69,8 +70,8 @@ pub(super) fn parse_batch(
     cancellation: &Cancellation,
 ) -> Result<(usize, Vec<(String, Options)>), String> {
     let workers = number(spec.get("workers"), 1)?.min(64);
-    let ram_total = number(spec.get("ramBudgetMb"), 256 * workers)?;
-    let default_threads = number(spec.get("threads"), 2)?;
+    let ram_total = number(spec.get("ramBudgetMb"), DEFAULT_RAM_BUDGET_MB * workers)?;
+    let default_threads = number(spec.get("threads"), DEFAULT_THREADS)?;
     // Announced concurrency is admitted only if the total can carry it: a share
     // never goes below a job's floor, so it is the worker count that yields.
     let (workers, default_ram) = batch_share(workers, ram_total)?;
@@ -118,7 +119,7 @@ pub(super) fn parse_batch(
             cache: PathBuf::from(cache),
             resource_base: resource_base.to_string(),
             scope: text(job.get("scope"), "full").to_string(),
-            triangle_budget: field("triangles", 150000)?,
+            triangle_budget: field("triangles", DEFAULT_TRIANGLE_BUDGET)?,
             threads: field("threads", default_threads)?,
             ram_budget_mb: field("ramBudgetMb", default_ram)?,
             simplification: text(job.get("simplification"), "none").to_string(),

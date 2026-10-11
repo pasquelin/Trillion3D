@@ -1,4 +1,5 @@
 import type { JsonSchemaObject } from './types.ts'
+import { DEFAULT_RAM_BUDGET_MB, DEFAULT_THREADS } from '../contracts/compilerAbi.ts'
 
 /**
  * JSON Schema documenting options for native asset compilation (prepare / CLI).
@@ -33,17 +34,15 @@ export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     threads: {
       type: 'integer',
-      default: 2,
+      default: DEFAULT_THREADS,
       minimum: 1,
-      description:
-        'Number of parallel worker threads allocated to the native compiler (default: 2).',
+      description: `Number of parallel worker threads allocated to the native compiler (default: ${DEFAULT_THREADS}).`,
     },
     ramBudgetMb: {
       type: 'integer',
-      default: 256,
+      default: DEFAULT_RAM_BUDGET_MB,
       minimum: 64,
-      description:
-        'RAM memory budget allocated to the compiler in megabytes before admission rejection (default: 256).',
+      description: `RAM memory budget allocated to the compiler in megabytes before admission rejection (default: ${DEFAULT_RAM_BUDGET_MB}).`,
     },
     simplification: {
       type: 'string',

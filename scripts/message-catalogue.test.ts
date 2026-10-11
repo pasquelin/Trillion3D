@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { messageOf, type CatalogueMessage } from '../packages/sdk-node/src/messages/catalogue.mts'
 import { REPOSITORY_ROOT, readJson } from './repository-files.ts'
+import { FAMILY_LOAD_FAILED_ID } from '../packages/sdk-browser/src/host/familyLoadFailedId.ts'
 
 const RUST = join(REPOSITORY_ROOT, 'packages/asset-compiler-rust/src')
 const NODE = join(REPOSITORY_ROOT, 'packages/sdk-node/src')
@@ -84,12 +85,7 @@ test('every code emitted by the Node adapter is in the catalogue', () => {
 })
 
 test("the browser runtime's family refusal carries its catalogue code", () => {
-  const loader = readFileSync(
-    join(REPOSITORY_ROOT, 'packages/sdk-browser/src/host/onDemand.ts'),
-    'utf8',
-  )
-  const id = /FAMILY_LOAD_FAILED_ID = '([^']+)'/.exec(loader)?.[1]
-  assert.equal(id, messageOf('FAMILY_LOAD_FAILED')?.id)
+  assert.equal(FAMILY_LOAD_FAILED_ID, messageOf('FAMILY_LOAD_FAILED')?.id)
 })
 
 // Behaviour: ids are unique and say their level, every entry has one sentence, a cause and an

@@ -6,7 +6,8 @@ use super::decoded::decoded;
 use super::world::world_dag;
 use super::*;
 use crate::compiler_world::translation;
-use crate::dag::{build_dag_tallied, DagAttributes, DAG_CLUSTER_TRIANGLES, DAG_GROUP_MAX};
+use crate::dag::{build_dag_tallied, DagAttributes, DAG_GROUP_MAX};
+use crate::shared_abi::DAG_CLUSTER_TRIANGLES;
 use trillion3d_math::vec3::{length, sub};
 
 const TILE: f64 = 1000.0;

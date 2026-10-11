@@ -5,11 +5,9 @@
 #include <cstdint>
 #include <vector>
 
-namespace trillion {
+#include "layout.h"
 
-/// A body's engine id: its slot in the low bits, the slot's generation above (layout.ts BODY_INDEX),
-/// so a record naming a body that left is never read as the one that took its slot.
-constexpr uint32_t INDEX_MASK = 0x00FFFFFFu;
+namespace trillion {
 
 /// Takes `value` out of `list`, its last entry moved into its place.
 template <class T>

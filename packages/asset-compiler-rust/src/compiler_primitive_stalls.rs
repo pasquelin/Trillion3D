@@ -99,7 +99,7 @@ pub(super) fn dag_report(
     let warnings = compiler_primitive_warn::dag_warnings(strategy, &shape, tallies, &summary);
     let mut report = json!({
         "depth": shape.depth,
-        "clusterTriangles": crate::dag::DAG_CLUSTER_TRIANGLES,
+        "clusterTriangles": crate::shared_abi::DAG_CLUSTER_TRIANGLES,
         "groupMin": crate::dag::DAG_GROUP_MIN,
         "groupMax": crate::dag::DAG_GROUP_MAX,
         "levels": levels,

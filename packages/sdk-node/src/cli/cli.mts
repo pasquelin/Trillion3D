@@ -2,6 +2,11 @@
 import { prepare, createTerminalProgress } from '../index.mts'
 import { compilerError, describeMessage, messageOf } from '../messages/catalogue.mts'
 import { messageTally } from './messageTally.mts'
+import {
+  DEFAULT_RAM_BUDGET_MB,
+  DEFAULT_THREADS,
+  DEFAULT_TRIANGLE_BUDGET,
+} from '../../../sdk-core/src/contracts/compilerAbi.ts'
 
 /** Exit code of `--strict` when the compile succeeded with warnings; failures exit 1. */
 const STRICT_EXIT = 3
@@ -12,10 +17,10 @@ const [
   input,
   output,
   scope = 'slice',
-  budget = '150000',
+  budget = String(DEFAULT_TRIANGLE_BUDGET),
   resourceBaseUrl,
-  threads = '2',
-  ramBudgetMb = '256',
+  threads = String(DEFAULT_THREADS),
+  ramBudgetMb = String(DEFAULT_RAM_BUDGET_MB),
   simplification = 'none',
 ] = argv.filter((arg) => !arg.startsWith('--'))
 const triangleBudget = Number(budget)

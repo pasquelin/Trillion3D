@@ -3,7 +3,8 @@
 //! (`oct.rs`) and the quantization (`quant.rs`) each with its inverse, and a primitive's grids
 //! (`grid.rs`).
 
-use crate::anim::{sample_tracks, ARC_VALUES, QUATERNION};
+use crate::anim::sample_tracks;
+use crate::anim_layout::{ARC_VALUES, QUATERNION};
 use trillion3d_math::golden::{f32s, f64s, run, Twin, Value};
 
 pub(crate) mod grid;

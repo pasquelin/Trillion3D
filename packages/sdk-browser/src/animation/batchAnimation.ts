@@ -19,6 +19,7 @@ import {
 } from './animationAhead.ts'
 import { runTimed } from '../page/decode/batch/batchLot.ts'
 import { loadMathBatch, mathBatchWasm } from '../page/decode/batch/batchState.ts'
+import { ARC_VALUES, CUBIC, QUATERNION, STEP, TRACK_WORDS } from './trackLayout.ts'
 
 /**
  * THE WEBASSEMBLY ANIMATION SAMPLER (`packages/page-codec-wasm/src/anim.rs`), lent to the mixer
@@ -42,12 +43,6 @@ import { loadMathBatch, mathBatchWasm } from '../page/decode/batch/batchState.ts
 
 /** Name under which the governor holds the medians. */
 const ANIMATION_SAMPLE = 'animSampleTracks'
-/** `anim.rs`'s layout: words a track, numbers of an arc, kind bits. */
-const TRACK_WORDS = 6,
-  ARC_VALUES = 4,
-  QUATERNION = 1,
-  STEP = 2,
-  CUBIC = 4
 
 /** A clip's tracks in the module: their description, times and values. */
 type PackedClip = {

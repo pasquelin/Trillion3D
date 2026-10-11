@@ -16,6 +16,7 @@
 //! animation sampler (`anim.rs`, `wasm_anim.rs`). The JavaScript decoder is the public
 //! `page.decode`, a chunk of its own the browser downloads on that call alone.
 pub mod anim;
+mod anim_layout;
 mod attributes;
 pub mod bits;
 pub mod cut_error;
