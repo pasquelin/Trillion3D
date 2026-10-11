@@ -33,6 +33,7 @@ import {
   type VsmFrameState,
   vsmShadowed,
 } from '../../../../vsm/frameSetup.ts'
+import { createVsmProjectionHold } from './vsmProjectionHold.ts'
 import { VsmFeedbackReadback, vsmFeedbackReadbackBytes } from '../../../../vsm/cacheManager.ts'
 import { createVsmMarking, vsmMarkingBytes, type VsmMarking } from '../../../../vsm/markingPass.ts'
 import {
@@ -102,6 +103,8 @@ export interface EngineVsm {
   lightIdsData: Uint32Array<ArrayBuffer>
   directionalIds: GPUBuffer
   mask: VsmMask | undefined
+  /** What the mask was last projected from (`vsmProjectionHold.ts`). */
+  projectionHold: ReturnType<typeof createVsmProjectionHold>
   /** This frame's plan, until `finishVsmFrame`. */
   plan: VsmFramePlan | undefined
   /** The plan whose pages the raster drew (or that had none to draw): another one's pages are not
@@ -279,6 +282,7 @@ export function createEngineVsm(device: GPUDevice, options: VsmResourceOptions):
       lightIdsData: new Uint32Array(LIGHT_SLOTS),
       directionalIds,
       mask: undefined,
+      projectionHold: createVsmProjectionHold(),
       plan: undefined,
       renderedPlan: undefined,
       transmissionDenied: false,

@@ -108,7 +108,7 @@ export function encodeVsmFrame(
   const views = encodeVsmMarking(frame, scratch, perPage, pmFrame)
   encodeVsmRaster(frame)
   encodeVsmAfterRaster(encoder, res, pmFrame)
-  if (encodeVsmProjection(frame, scratch.projected, views)) stats.projectionPasses = 1
+  stats.projectionPasses = encodeVsmProjection(frame, scratch.projected, views)
 }
 
 /** The page marking, one compute pass: the physical page addresses remapped to this frame's ids,

@@ -8,6 +8,8 @@ import {
 import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionView.ts'
 import { shadowPageGroup } from '../../../shadow/pageGroup.ts'
 import { stochasticPhase } from '../../../../taa/frameState.ts'
+import { shadowEpoch } from '../../state/shadowEpoch.ts'
+import { shadowsUnsettled } from '../../state/lights.ts'
 import { focalPixels } from '../../../../../../math/src/projection/camera.ts'
 import { ensureMask, maskLayersFor, type EngineVsm } from './engineVsm.ts'
 import { projectionLight } from './vsmPlan.ts'
@@ -65,7 +67,9 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
 /** Projection: one pass, every light a channel reads (`planVsmFrame`: the first 64), four a layer
  *  of the mask array. None when the plan holds no light — every lamp culled, its cache entries
  *  still counted —: every light then reads no shadow (`planVsmFrame` assigns −1), so no pixel
- *  reads the mask, and a pass of no light would store no texel of it. True when it ran. */
+ *  reads the mask, and a pass of no light would store no texel of it. A frame whose inputs are the
+ *  last projection's, the shadow pages settled, runs none: its mask is that projection's
+ *  (`vsmProjectionHold.ts`). The passes it ran: 0 or 1. */
 export function encodeVsmProjection(
   { rt, device, encoder, cam, projection, vsm, plan }: VsmFrame,
   projected: VsmProjectionLight[],
@@ -80,11 +84,23 @@ export function encodeVsmProjection(
     const l = plan.lights[k]
     projected[k] = projectionLight(store.light(l.id)!, l.firstId)
   }
-  if (!projected.length) return false
+  if (!projected.length) return 0
   const layers = maskLayersFor(projected.length)
   // At the targets' size, as the scene textures are at theirs: the view rect is its
   // top-left, and a dynamic-resolution step does not remake it.
   const mask = ensureMask(device, vsm, gpu.allocatedSize[0], gpu.allocatedSize[1], layers)
+  const phase = stochasticPhase(rt.gpu.temporal?.frame)
+  const { inputs } = vsm.projectionHold
+  inputs.view = cam.view
+  inputs.projection = projection
+  inputs.revisions = rt.run.gate.revisions
+  inputs.lightsEpoch = store.epoch
+  inputs.shadowEpoch = shadowEpoch(lights)
+  inputs.phase = phase
+  inputs.size = gpu.allocatedSize
+  inputs.lights = projected
+  const held = vsm.projectionHold.held(mask.array)
+  if (held && !shadowsUnsettled(lights)) return 0
   // The engine's shadow receiver, as the resolve wrote it (`receiverTargetWgsl.ts`).
   const receiver = gpu.surfaces!.receiverView
   const camera = {
@@ -105,12 +121,13 @@ export function encodeVsmProjection(
       bufferWidth: gpu.allocatedSize[0],
       bufferHeight: gpu.allocatedSize[1],
       camera,
-      frameIndex: stochasticPhase(rt.gpu.temporal?.frame),
+      frameIndex: phase,
       mask: mask.view,
       maskTiles: mask.tilesView,
       receiver,
     },
     projected,
   )
-  return true
+  vsm.projectionHold.keep(mask.array)
+  return 1
 }
