@@ -12,7 +12,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { NodeDomWorker } from '../../oracles/browser/pageWorkNodeWorker.ts'
-import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
+import { quantileOf, summaryOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { prepareSdkWasm } from '../../../packages/sdk-browser/src/wasm/sdkWasm.ts'
 import { lendAnimationSampler } from '../../../packages/sdk-browser/src/animation/batchAnimation.ts'
 import { sampleAhead } from '../../../packages/sdk-browser/src/animation/animationAhead.ts'
@@ -71,7 +71,7 @@ async function round(side: Side) {
   cpus[side].push((cpu() - from) / (FRAMES - WARM))
 }
 const rank = (values: number[], q: number) => quantileOf(values, q) as number
-const median = (values: number[]) => rank(values, 0.5)
+const median = (values: number[]) => summaryOf(values)!.p50
 const spread = (values: number[], digits = 0) =>
   `${median(values).toFixed(digits)} [${rank(values, 0.25).toFixed(digits)}–${rank(values, 0.75).toFixed(digits)}]`
 const paired = (a: number[], b: number[]) => a.map((v, i) => v / b[i])

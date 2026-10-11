@@ -20,14 +20,6 @@ export function median(sorted: ArrayLike<number>) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
 }
 
-/** The value at rank `q` (in [0, 1]) of a sorted list by the floor rank, never interpolated:
- *  `sorted[min(length − 1, floor(q · length))]`, so `q = 1` is the last value and `q = 0.5` the
- *  upper of the two middle ones (`length >> 1`). An empty list gives `undefined`. Unlike
- *  `quantile`'s ceil rank, the 95th percentile of twenty values is the twentieth. */
-export function quantileFloor(sorted: ArrayLike<number>, q: number): number | undefined {
-  return sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]
-}
-
 /** `quantile` of an unsorted list: a copy is sorted ascending first, the list itself is left as is. */
 export function quantileOf(values: ArrayLike<number>, q: number): number | undefined {
   return quantile(ascending(values), q)
@@ -38,15 +30,46 @@ export function medianOf(values: ArrayLike<number>) {
   return median(ascending(values))
 }
 
-/** `quantileFloor` of an unsorted list: a copy is sorted ascending first, the list itself is left as is. */
-export function quantileFloorOf(values: ArrayLike<number>, q: number): number | undefined {
-  return quantileFloor(ascending(values), q)
-}
-
 /** The arithmetic mean of `values`, summed left to right from 0 then divided by the count: the
  *  `reduce((a, b) => a + b, 0) / length` form, bit for bit. An empty list gives NaN. */
 export function mean(values: ArrayLike<number>) {
   let sum = 0
   for (let i = 0; i < values.length; i++) sum += values[i]
   return sum / values.length
+}
+
+/** The numbers of a list of values, from `summaryOf`. */
+export interface Summary {
+  /** How many values. */
+  n: number
+  /** The arithmetic mean (`mean`). */
+  mean: number
+  /** The lowest value. */
+  min: number
+  /** The highest value. */
+  max: number
+  /** The 50th percentile, by the nearest rank (`quantile`): the lower of the two middle values
+   *  of an even count. */
+  p50: number
+  /** The 95th percentile, by the nearest rank (`quantile`). */
+  p95: number
+  /** The 99th percentile, by the nearest rank (`quantile`). */
+  p99: number
+}
+
+/** THE summary of a list of times or errors, in one sort: its count, mean, lowest, highest
+ *  its nearest-rank 50th, 95th and 99th percentiles (`quantile`); `null` for an empty list. The values must
+ *  be comparable (no NaN), or the order is the caller's to blame. */
+export function summaryOf(values: ArrayLike<number>): Summary | null {
+  if (!values.length) return null
+  const sorted = ascending(values)
+  return {
+    n: sorted.length,
+    mean: mean(sorted),
+    min: sorted[0],
+    max: sorted[sorted.length - 1],
+    p50: quantile(sorted, 0.5)!,
+    p95: quantile(sorted, 0.95)!,
+    p99: quantile(sorted, 0.99)!,
+  }
 }

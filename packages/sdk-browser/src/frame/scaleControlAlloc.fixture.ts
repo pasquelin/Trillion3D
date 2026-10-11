@@ -1,6 +1,6 @@
 import v8 from 'node:v8'
 import vm from 'node:vm'
-import { quantileFloorOf } from '../../../math/src/scalar/quantile.ts'
+import { summaryOf } from '../../../math/src/scalar/quantile.ts'
 
 /**
  * Bytes a run of the render-scale control allocates, as the optimiser compiles it — the measure
@@ -58,7 +58,7 @@ const ROUNDS = 5,
   SETTLED = 3,
   MOST_ROUNDS = 25,
   SETTLE_BYTES = 4096
-const median = (bytes: number[]) => quantileFloorOf(bytes, 0.5) as number
+const median = (bytes: number[]) => summaryOf(bytes)!.p50
 
 /** Whether the last `SETTLED` rounds of `bytes` read alike: the code settled. */
 export function settled(bytes: readonly number[]) {

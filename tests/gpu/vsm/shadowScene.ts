@@ -3,7 +3,7 @@
 import type { FakeCanvas } from '../../../bench/dawn/canvas.ts'
 import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
 import { luminance as luminanceOf } from '../../../packages/math/src/color/luminance.fixture.ts'
-import { quantileFloorOf } from '../../../packages/math/src/scalar/quantile.ts'
+import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 import { benchManifest } from '../world/proofWorld.ts'
 
@@ -66,7 +66,7 @@ export function shadingGap(
   // the frame cannot measure on its own. Sensitivity: every count below is monotone in it — a
   // smaller factor lets texture and 8-bit noise in as "moved", a larger one drops penumbra pixels.
   // With nothing darkened the step is 0 and `shadowedOffEdge` stays 0: the proof fails, as it should.
-  const step = (quantileFloorOf(darkening, 0.5) ?? 0) / 2
+  const step = (quantileOf(darkening, 0.5) ?? 0) / 2
   const edge = (i: number) => {
     const x = i % width,
       y = (i - x) / width,

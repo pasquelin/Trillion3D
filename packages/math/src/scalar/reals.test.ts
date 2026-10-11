@@ -1,17 +1,9 @@
-// reals.ts fract, floorMod, lerpArray and snap, quantile.ts median, quantileFloor and mean: exact values, NaN and negatives, and
+// reals.ts fract, floorMod, lerpArray and snap, quantile.ts median, mean and summary: exact values, NaN and negatives, and
 // the expressions they replace bit for bit.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { decayFactor, decayRate, floorMod, fract, lerp, lerpArray, snap, wrap } from './reals.ts'
-import {
-  mean,
-  median,
-  medianOf,
-  quantile,
-  quantileFloor,
-  quantileFloorOf,
-  quantileOf,
-} from './quantile.ts'
+import { mean, median, medianOf, quantile, quantileOf, summaryOf } from './quantile.ts'
 import { edgeValues, HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
 test('fract: the part above the floor, negatives counted from below, NaN through', () => {
@@ -88,17 +80,12 @@ test('snap: the nearest multiple of the step, the expression it replaces bit for
   }
 })
 
-test('quantileFloor and mean: the floor rank and the left-to-right sum, the forms they replace', () => {
-  assert.equal(quantileFloor([1, 2, 3, 4], 0.5), 3)
-  assert.equal(quantileFloor([1, 2, 3, 4], 1), 4)
-  assert.equal(quantileFloor([], 0.5), undefined)
+test('mean: the left-to-right sum, the form it replaces', () => {
   assert.ok(Number.isNaN(mean([])))
   for (let n = 1; n <= 64; n++) {
     const list = Array.from({ length: n }, (_, k) => haltonSpan(n * 64 + k, 5, -1e3, 1e3)).sort(
       (a, b) => a - b,
     )
-    assert.ok(Object.is(quantileFloor(list, 0.5), list[n >> 1]), `${n}`)
-    assert.ok(Object.is(quantileFloor(list, 0.95), list[Math.floor(n * 0.95)]), `${n}`)
     assert.ok(Object.is(mean(list), list.reduce((a, b) => a + b, 0) / n), `${n}`)
     assert.ok(
       Object.is(
@@ -109,14 +96,28 @@ test('quantileFloor and mean: the floor rank and the left-to-right sum, the form
   }
 })
 
-test('quantileOf, medianOf, quantileFloorOf: the sorted rank of an unsorted list, which stays as it was', () => {
+test('quantileOf, medianOf: the sorted rank of an unsorted list, which stays as it was', () => {
   const values = [9, 1, 5, 3, 7, 2]
   const sorted = [1, 2, 3, 5, 7, 9]
   assert.equal(quantileOf(values, 0.95), quantile(sorted, 0.95))
   assert.equal(medianOf(values), median(sorted))
-  assert.equal(quantileFloorOf(values, 0.5), quantileFloor(sorted, 0.5))
-  assert.equal(quantileFloorOf([], 0.5), undefined)
   assert.deepEqual(values, [9, 1, 5, 3, 7, 2])
+})
+
+test('summaryOf: count, mean, extremes, median and nearest-rank percentiles of an unsorted list', () => {
+  const values = Array.from({ length: 100 }, (_, k) => (k * 37) % 100)
+  assert.deepEqual(summaryOf(values), {
+    n: 100,
+    mean: 49.5,
+    min: 0,
+    max: 99,
+    p50: 49,
+    p95: 94,
+    p99: 98,
+  })
+  assert.equal(summaryOf([]), null)
+  assert.equal(summaryOf([4])?.p95, 4)
+  assert.equal(values[0], 0)
 })
 
 test('decayRate and decayFactor: the exponential decay, the factor of the rate returning the share left', () => {
