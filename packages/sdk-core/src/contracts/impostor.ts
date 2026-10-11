@@ -1,7 +1,7 @@
 import { EngineError } from './cache.ts'
+import { IMPOSTOR_VERSION } from './writtenFormats.ts'
 
-/** Format of the `impostors` section a runtime reads, baked by the compiler. */
-export const IMPOSTOR_VERSION = 1
+export { IMPOSTOR_VERSION }
 
 /** One stored level of one atlas map: a lossless PNG object, one per content address. */
 export interface ImpostorLevel {

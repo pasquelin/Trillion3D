@@ -1,10 +1,9 @@
+import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 import * as format from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
 import {
   columnElements,
   type Counts,
 } from '../../../packages/sdk-core/src/manifest/binaryLayout.ts'
-
-const align8 = (value: number) => (value + 7) & ~7
 
 function columnBytes(name: format.ColumnName, counts: Counts) {
   return (
@@ -20,11 +19,14 @@ export function manifestBinaryRanges(counts: Counts) {
     format.ColumnName,
     { offset: number; length: number }
   >
-  let offset = align8((format.MANIFEST_BINARY_HEADER_WORDS + format.COLUMN_NAMES.length * 2) * 4)
+  let offset = alignUp(
+    (format.MANIFEST_BINARY_HEADER_WORDS + format.COLUMN_NAMES.length * 2) * 4,
+    8,
+  )
   for (const name of format.COLUMN_NAMES) {
     const length = columnBytes(name, counts)
     ranges[name] = { offset, length }
-    offset = align8(offset + length)
+    offset = alignUp(offset + length, 8)
   }
   return { ranges, bytes: offset }
 }

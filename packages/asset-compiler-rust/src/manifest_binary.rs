@@ -46,7 +46,7 @@ use tests::split;
 pub const MANIFEST_BINARY_VERSION: u32 = 11;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
-const HEADER_WORDS: usize = 4;
+pub const MANIFEST_BINARY_HEADER_WORDS: usize = 4;
 
 const PAGE_BOUNDS: usize = 0;
 const PAGE_SPHERE: usize = 1;
@@ -170,7 +170,7 @@ pub fn columns(
     let preview_bytes = columns[TEXTURE_PREVIEW_PIXELS].bytes.len();
     let [bc7_bytes, astc_bytes, etc2_bytes] =
         TEXTURE_PREVIEW_BLOCKS.map(|column| columns[column].bytes.len());
-    let header_bytes = (HEADER_WORDS + COLUMNS * 2) * 4;
+    let header_bytes = (MANIFEST_BINARY_HEADER_WORDS + COLUMNS * 2) * 4;
     let mut offsets = [0u32; COLUMNS];
     let mut offset = header_bytes.next_multiple_of(8);
     for index in 0..COLUMNS {
@@ -183,7 +183,7 @@ pub fn columns(
     bytes[4..8].copy_from_slice(&MANIFEST_BINARY_VERSION.to_le_bytes());
     bytes[8..12].copy_from_slice(&(COLUMNS as u32).to_le_bytes());
     for index in 0..COLUMNS {
-        let at = (HEADER_WORDS + index * 2) * 4;
+        let at = (MANIFEST_BINARY_HEADER_WORDS + index * 2) * 4;
         bytes[at..at + 4].copy_from_slice(&offsets[index].to_le_bytes());
         bytes[at + 4..at + 8].copy_from_slice(&(columns[index].bytes.len() as u32).to_le_bytes());
         let start = offsets[index] as usize;

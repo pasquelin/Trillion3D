@@ -13,22 +13,16 @@
  * others: the same traversal bound covers four times more tree than a binary tree.
  */
 
-/** Version of the "proxy" cache product. A proxy of another version is rejected, never guessed. */
-export const SCENE_PROXY_VERSION = 5
-/** 'W','G','P','X' read as an unsigned 32-bit integer little-endian. */
-export const SCENE_PROXY_MAGIC = 0x58504757
-/** Header integers: v3 ownership header, then shape, stored-triangle and placement counts. */
-export const SCENE_PROXY_HEADER_WORDS = 11
-/** Numbers per proxy triangle: three world vertices, no normal — it is deduced from the triangle. */
-export const PROXY_TRIANGLE_FLOATS = 9
-/** Numbers per BVH node: its exact bounds, frame of its children's quantized boxes. */
-export const PROXY_NODE_FLOATS = 6
-/** Children of a node: four boxes tested at once, the nearest kept for the rest. */
-export const PROXY_CHILDREN = 4
-/** Integers per child: two words of quantized box and count, then the link. */
-export const PROXY_CHILD_WORDS = 3
-/** Integers per node: its four children concatenated. */
-export const PROXY_NODE_WORDS = PROXY_CHILDREN * PROXY_CHILD_WORDS
+export {
+  PROXY_CHILD_WORDS,
+  PROXY_CHILDREN,
+  PROXY_NODE_FLOATS,
+  PROXY_NODE_WORDS,
+  PROXY_TRIANGLE_FLOATS,
+  SCENE_PROXY_HEADER_WORDS,
+  SCENE_PROXY_MAGIC,
+  SCENE_PROXY_VERSION,
+} from './writtenFormats.ts'
 
 /** Proxy columns, as its cache object carries them and the GPU copies them. */
 export interface SceneProxyColumns {
