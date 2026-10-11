@@ -3,8 +3,9 @@ import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts'
 import { PRESENT_AT_SHADER, PRESENT_SHADER } from './presentWgsl.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
+import { dagSelectionShader } from '../dag/shader/splitWgsl.ts'
+import { dagSplit } from '../dag/split.ts'
 import { DAG_ARM_SHADER } from '../dag/shader/armWgsl.ts'
-import { withScreenErrorVariant } from '../dag/shader/error.ts'
 import { drawShader } from '../draw/shader.ts'
 import { HIZ_SHADER } from '../hiz/shader.ts'
 import { RADIANCE_SHADER } from '../../reflections/radiance.ts'
@@ -68,6 +69,15 @@ import { vsmVariants } from './engineShaders.vsm.fixture.ts'
 const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]))
 
+/** The cut kernel of a layout whose tables split across bindings (`dagSelectionShader`). */
+const SPLIT_CUT = dagSelectionShader(
+  dagSplit(
+    { maxStorageBufferBindingSize: 4096 },
+    { pageCount: 1000, nodeCount: 10 },
+    { clusters: 48 * 200, nodes: 96 * 10, cold: 4 * 1500 },
+  ),
+)
+
 /** The narrow resolve's key, without lobe code (`contractCuts.ts`). */
 const NARROW = { narrow: true, lobeless: true }
 export const ENGINE_SHADERS: Record<string, string> = {
@@ -76,7 +86,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PRESENT_AT_SHADER,
   TRANSPARENT_OCCLUSION: transparentOcclusionShader(64),
   DAG_SELECTION_SHADER,
-  DAG_SELECTION_REFERENCE: withScreenErrorVariant(DAG_SELECTION_SHADER, 'reference'),
+  DAG_SELECTION_SPLIT: SPLIT_CUT,
   DAG_ARM_SHADER,
   DRAW_SHADER: drawShader(2),
   HIZ_SHADER,

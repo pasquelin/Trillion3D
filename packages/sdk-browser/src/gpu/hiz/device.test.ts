@@ -22,7 +22,8 @@ test('a Hi-Z resize replaces the this-frame level-0 depth target', async () => {
 
 test('with no boxes attached the test encodes nothing; once attached it dispatches in the open pass', async () => {
   const { device } = fakeDevice()
-  let dispatches = 0
+  let dispatches = 0,
+    indirect = 0
   const groups: unknown[] = []
   const setBindGroup = (index: number, group: unknown) => (groups[index] = group)
   const open = {
@@ -30,6 +31,7 @@ test('with no boxes attached the test encodes nothing; once attached it dispatch
       setPipeline() {},
       setBindGroup,
       dispatchWorkgroups: () => void dispatches++,
+      dispatchWorkgroupsIndirect: () => void indirect++,
     } as unknown as GPUComputePassEncoder,
   }
   const hiz = await createGpuHiz(device, 33, 19, 2)
@@ -37,11 +39,12 @@ test('with no boxes attached the test encodes nothing; once attached it dispatch
   // The partition is not mounted: nothing is tested, so nothing is rejected.
   const pages = {} as GPUBuffer
   assert.equal(hiz.encodeTest(device, open, 2, pages, false), 0)
-  assert.equal(dispatches, 0)
+  assert.equal(dispatches + indirect, 0)
   hiz.attach({} as GPUBuffer, {} as GPUBuffer)
   // Nothing to clear and no pass of its own: the partition wrote every row's verdict this frame.
   assert.equal(hiz.encodeTest(device, open, 2, pages, false), 2)
-  assert.equal(dispatches, 1)
+  // One thread sizes the test by the partition's count, and the test runs on those arguments.
+  assert.deepEqual([dispatches, indirect], [1, 1])
   // Group 1 is the page table, whose Hi-Z slot word marks a row never culled.
   const [pagesGroup] = groups.slice(1) as [{ entries: GPUBindGroupEntry[] }]
   assert.deepEqual(pagesGroup.entries, [{ binding: 0, resource: { buffer: pages } }])

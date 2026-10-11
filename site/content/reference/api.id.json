@@ -3053,9 +3053,6 @@
   "SceneToneMapping": {
     "summary": "Nama sebuah kurva tampilan yang dikenal mesin."
   },
-  "ScreenErrorVariant": {
-    "summary": "Cara galat layar sebuah klaster diukur: batas yang terbukti, atau rumus biasa."
-  },
   "ShadowFrameMetrics": {
     "summary": "Penghitung pencahayaan dan bayangan sebuah bingkai, dipisah dari `FrameMetrics` menurut tanggung jawab.",
     "description": "`FrameMetrics` mewarisinya lewat `extends`: kontrak publik yang dilihat konsumen (`sdk-core/index.ts`) tidak berubah, bidang-bidang ini tetap properti langsung `FrameMetrics`.",
@@ -6410,10 +6407,6 @@
   "readCameraWorld": {
     "summary": "Menyalin kamera host ke kamera mesin, leluhur terselesaikan."
   },
-  "referenceScreenError": {
-    "summary": "Galat layar varian `reference`: `(error × stretch) × focal / w`, tak terhingga bila pusat tidak mencapai bidang dekat; `w` adalah bobot klip kedalaman pusat, kedalaman itu sendiri di bawah proyeksi perspektif (`perspective` = 1) dan 1 di bawah proyeksi ortografik (0, `screenErrorBound.ts`).",
-    "description": "Cermin WGSL di `packages/sdk-browser/src/gpu/dag/shader/error.ts`, operand dan urutan yang sama, ke f32. Pemanggil sudah menangani galat nol atau tak terhingga."
-  },
   "removeTransformNode": {
     "summary": "Menghapus `node` dan semua keturunannya; indeks mereka akan dipakai ulang.",
     "description": "Untuk melepaskan sebuah subpohon sambil mempertahankannya, `reparentTransformNode(tree, node, -1)`."
@@ -6443,9 +6436,6 @@
     "summary": "Galat layar tersertifikasi sebuah cluster (C4): sebuah majoran, dalam piksel, dari perpindahan di layar titik mana pun sebuah bola yang dipindahkan paling banyak ε, di bawah proyeksi perspektif, termasuk di luar sumbu.",
     "description": "Bingkai pandang: mata di titik asal, melihat ke arah −z, kedalaman d = −z; piksel (f_x·x/d, f_y·y/d), f = max(f_x, f_y). Primitif berpindah ke pandang lewat sebuah peta afine dengan regangan maksimum s: bola objek (c, r) berada dalam bola pandang (C, ρ = r·s), sebuah perpindahan objek paling banyak ε menjadi sebuah perpindahan Δ paling banyak δ = ε·s. 1. Sebuah titik P = (x, y, d) dari bola berpindah ke P' = P + Δ, dengan kedalaman d' = d + Δd. Dengan q = (x, y)/d: π(P') − π(P) = f·(Δxy − q·Δd)/d'. Peta Δ ↦ Δxy − q·Δd punya norma √(1 + |q|²) (eigenvalue dari I + q·qᵀ: 1 dan 1 + |q|²); jadi, apa pun arah Δ — tegak lurus sumbu, dalam kedalaman menuju kamera atau menjauh, miring —, |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'. 2. Pada bola: d ≥ m = −C_z − ρ, kedalaman minimum; |(x, y)| ≤ ℓ + ρ, di mana ℓ = |(C_x, C_y)| adalah jarak pusat ke sumbu pandang; sehingga |q| ≤ (ℓ + ρ)/m, dan d' ≥ m − δ. 3. Jika m − δ > near (sehingga > 0): E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). Jika tidak, bola, atau salah satu titiknya yang berpindah, mencapai bidang dekat: tak terhingga, yang menghaluskan. Monotonisitas potongan: m adalah infimum kedalaman pada bola dan ℓ + ρ supremum jarak ke sumbu; sebuah bola yang dicakup bola lain karenanya mengumumkan lebih sedikit, sebuah galat lebih besar lebih banyak. Sepanjang sinar (C → k·C, k > 1, kedalaman pusat C_d > 0), (kℓ + ρ)/(k·C_d − ρ) dan 1/(k·C_d − ρ − δ) menurun: galat yang diumumkan menurun dengan jarak. Kedua batas langkah 2 berasal dari dua titik berbeda pada bola: E ketat untuk sebuah bola kecil, longgar saat bola menyerempet bidang dekat jauh dari sumbu (`screenErrorDisplacement.test.ts`). SATU KAMERA, SATU RUMUS. `perspective` adalah bobot clip-w kamera: sebuah titik pada kedalaman pandang d punya w = perspective·d + (1 − perspective) — 1 untuk sebuah proyeksi perspektif (w = d, semua di atas), 0 untuk sebuah proyeksi ortografik (w = 1: q = 0, dan sebuah perpindahan menggerakkan piksel sebesar f·δ apa pun kedalamannya). Batasnya ditulis pada w: E = f·δ·√(w_m² + (p·(ℓ + ρ))²) / (w_m·w_{m−δ}), dengan bidang dekat tercapai saat w_{m−δ} ≤ p·near. Pada p = 1 setiap operasi adalah yang di atas, bit demi bit (sebuah hasil kali dengan 1 dan sebuah jumlah dengan 0 adalah eksak). Tidak ada penjaga di sini: pemanggil sudah menangani sebuah galat null, tak terhingga atau tidak valid. Sebuah kedalaman atau jarak ke sumbu yang tidak berhingga menghasilkan tak terhingga. Urutan operasi, (δ·f)/m lalu sebuah faktor √/(m − δ) ≥ 1, menjaga hasil yang dibulatkan di atas lantai `errorFloorAt` sdk-browser. Cerminan WGSL: `projected` dari `packages/sdk-browser/src/gpu/dag/shader/shader.ts`, operand sama, urutan sama."
   },
-  "screenErrorVariant": {
-    "summary": "Varian yang berlaku."
-  },
   "setNodeAutoUpdate": {
     "summary": "`matrixAutoUpdate`.",
     "description": "Tidak ada lagi yang perlu ditandai saat mengaktifkannya kembali: matriks lokal yang berbeda dari susunannya sudah membawa `NODE_TRS_DIRTY`, ditetapkan oleh `setNodeLocalMatrix` atau oleh setter pose. Bagaimanapun node didaftarkan: cara matriks lokalnya dibuat berubah."
@@ -6462,10 +6452,6 @@
   },
   "setNodeScale": {
     "summary": "Meregangkan satu node sebuah pohon transformasi sebesar `(x, y, z)`."
-  },
-  "setScreenErrorVariant": {
-    "summary": "Mengatur varian untuk seluruh halaman.",
-    "description": "`null`/`undefined` memulihkan milik kita: tidak ada sesi yang mewarisi."
   },
   "side": {
     "summary": "Wajah mana yang digambar sebuah permukaan: kata `Side` milik mesin sendiri (`contracts/material.ts`)."

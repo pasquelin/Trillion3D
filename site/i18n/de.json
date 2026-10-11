@@ -1178,13 +1178,6 @@
         "Adaptiv — `pixelError: 2`, erhöht mit der Kamerageschwindigkeit durch `adaptivePixelError(base, speed, radius)`; eine unbewegte Ansicht behält die Basis."
       ]
     },
-    "ScreenErrorVariant": {
-      "description": "Welche Projektion des Cluster-Fehlers der Schnitt mit der Schwelle vergleicht. Modulzustand für die ganze Seite, gelesen von der CPU-Metrik und in den Auswahl-Shader eingebettet, wenn er kompiliert wird; jede Seite eines Benchmarks läuft in ihrer eigenen Seite. Öffentliche Quelle der Formel: Karis, Stubbe und Wihlidal, SIGGRAPH 2021, „Advances in Real-Time Rendering in Games“.",
-      "values": [
-        "Unsere (die Voreinstellung): eine Schranke, die den Fehler nie unterschätzt.",
-        "Die veröffentlichte Formel, für den Vergleichs-Benchmark."
-      ]
-    },
     "MathPathMode": {
       "description": "Welchen Pfad ein Batch nimmt. `auto` entscheidet durch Messung: der Regler behält einen gleitenden Median der Nanosekunden pro Element auf jeder Seite und wechselt nach einer Serie von Ausführungen mit diesem Vorsprung, wobei JS die Referenz und der Rückfallpfad bleibt. `MATH_PATH_CONTRACT` versioniert den veröffentlichten Bericht.",
       "values": [

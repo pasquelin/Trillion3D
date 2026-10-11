@@ -90,6 +90,8 @@ async function prepareDrawPath(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, hiz
   vis.gpuPartition = partition
   // The tested half's compaction reads the pyramid verdict and draw compaction's list: both.
   vis.gpuRestCompact = await createGpuRestCompact(gpuDevice, {
+    state: partition.state,
+    perRow: gpuDraw.perRow,
     instances: gpuDraw.instanceBuffer,
     indirect: gpuDraw.indirectBuffer,
     slotOffsets: gpuDraw.slotOffsetsBuffer,

@@ -1,9 +1,10 @@
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { BASE_SLOTS, HALF_SLOTS, INSTANCE_WORD_WGSL } from '../draw/contract.ts'
-import { HIZ_REJECTED_WGSL } from '../partition/contract.ts'
+import { HIZ_REJECTED_WGSL, ST_TESTED } from '../partition/contract.ts'
 import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
-import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 
 /** Instances of one tile: the threads of a count or scatter workgroup. */
 export const REST_COMPACT_WORKGROUP = 64
@@ -19,7 +20,10 @@ export const REST_COMPACT_WORKGROUP = 64
  * rejected instance draws nothing: the frame is identical by construction, and no vertex is
  * launched for it.
  *
- * Three dispatches, all in one pass:
+ * Four dispatches, all in one pass:
+ *  - `restArgs`, one thread: the next two dispatches' arguments, from the partition's count of
+ *    tested rows — a tested row takes at most `uni.perRow` instances, so a slot holds at most that
+ *    many times the count, and its tiles are sized by it, never by the rows the table holds;
  *  - `restCount`, a workgroup per tile of 64 instances of a slot: each lane copies its instance
  *    into `work` at its own place and the workgroup counts the survivors of its tile;
  *  - `restScan`, one workgroup: slot by slot, the tile counts become tile offsets through a scan
@@ -36,7 +40,7 @@ export const REST_COMPACT_WORKGROUP = 64
  * and a group past the tiles leaves.
  */
 export const REST_COMPACT_SHADER = wgslProgram(
-  `struct Uniforms{restSlots:u32,tiles:u32,copyWords:u32,pad0:u32,}
+  `struct Uniforms{restSlots:u32,tiles:u32,copyWords:u32,perRow:u32,}
 @group(0) @binding(0) var<storage, read_write> instances:array<u32>;
 @group(0) @binding(1) var<storage, read_write> indirect:array<u32>;
 @group(0) @binding(2) var<storage, read> slotOffsets:array<u32>;
@@ -44,6 +48,8 @@ export const REST_COMPACT_SHADER = wgslProgram(
 @group(0) @binding(4) var<storage, read> hizFlags:array<u32>;
 @group(0) @binding(5) var<storage, read_write> work:array<u32>;
 @group(0) @binding(6) var<uniform> uni:Uniforms;
+@group(0) @binding(7) var<storage, read> partitionState:array<u32>;
+@group(0) @binding(8) var<storage, read_write> tileArgs:array<u32>;
 /** Rank of tested slot number \`n\`: a layer's tested bins, after its occluder ones. */
 fn restSlotAt(n:u32)->u32{return (n/${HALF_SLOTS}u)*${BASE_SLOTS}u+${HALF_SLOTS}u+n%${HALF_SLOTS}u;}
 /** An instance word's verdict: its row's. */
@@ -58,6 +64,14 @@ var<workgroup> slotCount:u32;
 fn sharedCount(lane:u32,count:u32)->u32{
  if(lane==0u){slotCount=count;}
  return workgroupUniformLoad(&slotCount);
+}
+/** The count and scatter dispatches' arguments: the tiles the tested rows can fill, at most the
+ *  \`uni.tiles\` the work buffer holds, in rows, a tested slot up z. */
+@compute @workgroup_size(1)
+fn restArgs(){
+ let tiles=min(ceilDiv(partitionState[${ST_TESTED}u]*uni.perRow,${REST_COMPACT_WORKGROUP}u),uni.tiles);
+ let g=groupGrid(tiles);
+ tileArgs[0]=g.x;tileArgs[1]=g.y;tileArgs[2]=uni.restSlots;
 }
 @compute @workgroup_size(${REST_COMPACT_WORKGROUP})
 fn restCount(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) groups:vec3u){
@@ -114,5 +128,13 @@ fn restScatter(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) 
  if(kept!=0u){instances[start+work[tileWord(n,t)]+rank]=row;}
 }
 `,
-  [PAGE_INFO_STRUCT_WGSL, HIZ_REJECTED_WGSL, INSTANCE_WORD_WGSL, FLAT_INDEX_WGSL, LANE_SCAN_WGSL],
+  [
+    PAGE_INFO_STRUCT_WGSL,
+    HIZ_REJECTED_WGSL,
+    INSTANCE_WORD_WGSL,
+    FLAT_INDEX_WGSL,
+    GROUP_GRID_WGSL,
+    ceilDiv,
+    LANE_SCAN_WGSL,
+  ],
 )

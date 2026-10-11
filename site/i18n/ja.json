@@ -1178,13 +1178,6 @@
         "適応型 — `pixelError: 2`、`adaptivePixelError(base, speed, radius)`によりカメラの速度に応じて上がる。静止したビューでは基準値のまま。"
       ]
     },
-    "ScreenErrorVariant": {
-      "description": "クラスター誤差のどの投影をカットがしきい値と比較するか。ページ全体で共有されるモジュール状態で、CPU側の指標が読み、シェーダーがコンパイルされる際に選択シェーダーに埋め込まれる。ベンチの両側はそれぞれ自分のページで実行される。式の公開元: Karis, Stubbe, Wihlidal, SIGGRAPH 2021, \"Advances in Real-Time Rendering in Games\"。",
-      "values": [
-        "こちら側(デフォルト): 誤差を決して過小評価しない上界。",
-        "公開されている式。比較ベンチ用。"
-      ]
-    },
     "MathPathMode": {
       "description": "どのパスでバッチを実行するか。`auto`は計測によって裁定する: ガバナーは各側で要素あたりのナノ秒の移動中央値を保持し、その優位が一続きの実行の後に切りかわる。JSが基準であり、フォールバックでもある。`MATH_PATH_CONTRACT`が公開レポートのバージョンを管理する。",
       "values": [

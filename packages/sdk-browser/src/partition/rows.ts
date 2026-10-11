@@ -93,18 +93,30 @@ export function releaseRow(mesh: PlacedMesh, row: number) {
   mesh.free.push(row)
 }
 
-/** The range of rows each buffer had written since the last `flush`, which tells the engine. */
+/**
+ * The rows each buffer had written since the last `flush`, which tells the engine: a set of rows
+ * per buffer, never the range between its first and its last, which the free list — last in, first
+ * out — spreads across the whole table. `flush` hands the engine each run of consecutive written
+ * rows once, in ascending order, so the engine reads the rows written and no other.
+ */
 export function createTouchedRows() {
-  const touched = new Map<RowLink, { from: number; to: number }>()
+  const touched = new Map<RowLink, Set<number>>()
   return {
     touch(link: RowLink, row: number) {
-      const range = touched.get(link) ?? { from: row, to: row }
-      range.from = Math.min(range.from, row)
-      range.to = Math.max(range.to, row)
-      touched.set(link, range)
+      const rows = touched.get(link)
+      if (rows) rows.add(row)
+      else touched.set(link, new Set([row]))
     },
     flush(update: (rows: PlacementRows, from: number, to: number) => void) {
-      for (const [link, { from, to }] of touched) update(link.placements!, from, to)
+      for (const [link, set] of touched) {
+        const rows = Uint32Array.from(set).sort()
+        for (let first = 0; first < rows.length;) {
+          let last = first
+          while (rows[last + 1] === rows[last] + 1) last++
+          update(link.placements!, rows[first], rows[last])
+          first = last + 1
+        }
+      }
       touched.clear()
     },
     clear: () => touched.clear(),

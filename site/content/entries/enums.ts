@@ -39,12 +39,4 @@ const { pixelError } = lodQuality('balanced'); // 4; an unknown id throws
 world.pixelError = pixelError; // the world's own property reads the same threshold back
 console.log(world.pixelError);`,
   },
-  {
-    id: 'ScreenErrorVariant',
-    valueNames: ["'certifiee'", "'reference'"],
-    example: `import { screenErrorVariant, setScreenErrorVariant } from 'trillion3d';
-
-setScreenErrorVariant('reference'); // null or undefined restores 'certifiee'
-console.log(screenErrorVariant());`,
-  },
 ]

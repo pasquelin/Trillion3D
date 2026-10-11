@@ -1178,13 +1178,6 @@
         "Adattivo — `pixelError: 2`, aumentato con la velocità della camera tramite `adaptivePixelError(base, speed, radius)`; una vista ferma conserva la base."
       ]
     },
-    "ScreenErrorVariant": {
-      "description": "Quale proiezione dell'errore del cluster confronta il taglio con la soglia. Stato di modulo per l'intera pagina, letto dalla metrica della CPU e integrato nello shader di selezione alla compilazione; ogni lato di un banco viene eseguito nella propria pagina. Fonte pubblica della formula: Karis, Stubbe e Wihlidal, SIGGRAPH 2021, «Advances in Real-Time Rendering in Games».",
-      "values": [
-        "La nostra (predefinita): un limite che non sottostima mai l'errore.",
-        "La formula pubblicata, per il banco di confronto."
-      ]
-    },
     "MathPathMode": {
       "description": "Quale percorso segue un lotto. `auto` decide tramite misurazione: il regolatore mantiene una mediana mobile di nanosecondi per elemento su ciascun lato e cambia dopo una serie di esecuzioni con quel vantaggio, mantenendo JS come riferimento e ripiego. `MATH_PATH_CONTRACT` versiona il report pubblicato.",
       "values": [

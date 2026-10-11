@@ -48,7 +48,6 @@ export async function runSeries(
     // Bytes transferred on the network since the page opened, by file kind.
     network: result.network ?? null,
     variant: side.variant ?? null,
-    errorMetric: side.errorMetric ?? 'certifiee',
     selectedTriangles: metrics.selectedTriangles ?? null,
     uncoveredTriangles: metrics.uncoveredTriangles ?? null,
     // Triangles the recorded frame submitted to draw: the cut minus its hole, counted without

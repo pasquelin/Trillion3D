@@ -724,13 +724,6 @@
         "Adaptif — `pixelError: 2`, dinaikkan sesuai kecepatan kamera oleh `adaptivePixelError(base, speed, radius)`; tampilan yang diam menyimpan nilai dasarnya."
       ]
     },
-    "ScreenErrorVariant": {
-      "description": "Proyeksi mana dari galat cluster yang dibandingkan potongan dengan ambang batasnya. Status modul untuk seluruh halaman, dibaca oleh metrik CPU dan disisipkan ke dalam shader pemilihan saat dikompilasi; tiap sisi sebuah bench berjalan di halamannya sendiri. Sumber rumus yang dipublikasikan: Karis, Stubbe dan Wihlidal, SIGGRAPH 2021, \"Advances in Real-Time Rendering in Games\".",
-      "values": [
-        "Milik kami (bawaan): sebuah batas yang tidak pernah meremehkan galatnya.",
-        "Rumus yang dipublikasikan, untuk bench pembanding."
-      ]
-    },
     "MathPathMode": {
       "description": "Jalur mana yang dipakai sebuah batch. `auto` memutuskan lewat pengukuran: pengatur menyimpan median bergerak nanodetik per elemen di tiap sisi dan berpindah setelah serangkaian eksekusi dengan keunggulan itu, JS tetap jadi acuan dan cadangannya. `MATH_PATH_CONTRACT` memberi versi pada laporan yang diterbitkan.",
       "values": [

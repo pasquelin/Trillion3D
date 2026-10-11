@@ -3,7 +3,6 @@
 // harness and the browser page module — hence type-only imports here, erased at build.
 import type { CameraPose, FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
-import type { ScreenErrorVariant } from '../../../packages/sdk-core/src/index.ts'
 import type { TextureCompression } from '../../../packages/sdk-browser/src/texture/blockFormats.ts'
 import type { MovingLightPlan } from '../lighting/lamps.ts'
 import type { CutSelection, MovingNode, LiveTuning, NetworkBytes } from '../report/types.ts'
@@ -33,7 +32,6 @@ export interface MeasureViewOptions {
   height: number
   pixelRatio: number
   variant: string | null
-  errorMetric: ScreenErrorVariant | null
   trace: boolean
   bounce: boolean
   importedLights: boolean

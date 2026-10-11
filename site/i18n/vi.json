@@ -724,13 +724,6 @@
         "Thích ứng — `pixelError: 2`, được nâng lên theo tốc độ camera bởi `adaptivePixelError(base, speed, radius)`; một góc nhìn đứng yên giữ nguyên giá trị nền."
       ]
     },
-    "ScreenErrorVariant": {
-      "description": "Phép chiếu nào của sai số cụm được phép cắt đem so với ngưỡng. Trạng thái của module cho toàn bộ trang, được thước đo CPU đọc và được chèn thẳng vào shader chọn lựa khi biên dịch; mỗi bên của một bộ đo hiệu năng chạy trên trang riêng của nó. Nguồn công bố công khai của công thức: Karis, Stubbe và Wihlidal, SIGGRAPH 2021, \"Advances in Real-Time Rendering in Games\".",
-      "values": [
-        "Của chúng tôi (mặc định): một giới hạn không bao giờ đánh giá thấp sai số.",
-        "Công thức đã công bố, dùng cho bộ đo hiệu năng so sánh."
-      ]
-    },
     "MathPathMode": {
       "description": "Con đường nào mà một lô được chạy trên. `auto` phân xử bằng đo lường: bộ điều phối giữ một trung vị trượt của số nano giây trên mỗi phần tử ở mỗi bên và chuyển đổi sau một chuỗi thực thi có độ chênh lệch đó, với JS luôn là mốc tham chiếu và phương án dự phòng. `MATH_PATH_CONTRACT` gắn phiên bản cho báo cáo đã công bố.",
       "values": [

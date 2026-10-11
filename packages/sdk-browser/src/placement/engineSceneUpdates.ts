@@ -55,7 +55,7 @@ export interface EngineSceneUpdates extends PlacementGrowth {
   /** Rows `from` to `to` of an instance buffer the session was opened with were written — a pose,
    *  a row taken or parked: the roots that read them follow at the next frame, no table rebuilt. */
   updatePlacements(rows: PlacementRows, from: number, to: number): void
-  /** POC: rows `links` follow `parent`, whose world is `world`; the engine composes them on the
+  /** Rows `links` follow `parent`, whose world is `world`; the engine composes them on the
    *  GPU. `whole`: they are every row that follows it, none unlinks it; otherwise rows it holds,
    *  at a new local matrix. False when it cannot: the owner writes the rows itself. */
   composePlacements(

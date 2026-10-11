@@ -4957,10 +4957,6 @@
   "readCameraWorld": {
     "summary": "Copie la caméra de l’hôte dans la caméra du moteur, ancêtres résolus."
   },
-  "referenceScreenError": {
-    "summary": "Erreur à l’écran de la variante `reference` : `(error × stretch) × focal / w`, l’infini quand le centre n’atteint pas le plan proche ; `w` est le poids de clip de la profondeur du centre, la profondeur elle-même sous une projection en perspective (`perspective` = 1) et 1 sous une projection orthographique (0, `screenErrorBound.ts`).",
-    "description": "Reflet WGSL dans `packages/sdk-browser/src/gpu/dag/shader/error.ts`, mêmes opérandes et même ordre, en f32. L’appelant a déjà traité une erreur nulle ou infinie."
-  },
   "removeTransformNode": {
     "summary": "Retire `node` et tous ses descendants ; leurs indices seront réutilisés.",
     "description": "Pour détacher un sous-arbre en le gardant, `reparentTransformNode(tree, node, -1)`."
@@ -5268,12 +5264,6 @@
     "summary": "Erreur à l’écran certifiée d’un cluster (C4) : un majorant, en pixels, du déplacement à l’écran de tout point d’une sphère bougé d’au plus ε, sous projection en perspective, hors de l’axe compris.",
     "description": "Repère de vue : l’œil à l’origine, qui regarde vers −z, profondeur d = −z ; pixel (f_x·x/d, f_y·y/d), f = max(f_x, f_y). La primitive passe en vue par une application affine d’étirement maximal s : la sphère de l’objet (c, r) est dans la boule de vue (C, ρ = r·s), un déplacement de l’objet d’au plus ε devient un déplacement Δ d’au plus δ = ε·s. 1. Un point P = (x, y, d) de la boule va en P' = P + Δ, de profondeur d' = d + Δd. Avec q = (x, y)/d : π(P') − π(P) = f·(Δxy − q·Δd)/d'. L’application Δ ↦ Δxy − q·Δd a pour norme √(1 + |q|²) (valeurs propres de I + q·qᵀ : 1 et 1 + |q|²) ; donc, quelle que soit la direction de Δ — perpendiculaire à l’axe, en profondeur vers la caméra ou en s’éloignant, oblique —, |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'. 2. Sur la boule : d ≥ m = −C_z − ρ, la profondeur minimale ; |(x, y)| ≤ ℓ + ρ, où ℓ = |(C_x, C_y)| est la distance du centre à l’axe de vue ; donc |q| ≤ (ℓ + ρ)/m, et d' ≥ m − δ. 3. Si m − δ > near (donc > 0) : E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). Sinon la boule, ou un de ses points déplacés, atteint le plan proche : l’infini, qui raffine. Monotonie de la coupe : m est l’infimum de la profondeur sur la boule et ℓ + ρ le supremum de la distance à l’axe ; une boule contenue dans une autre annonce donc moins, une erreur plus grande davantage. Le long du rayon (C → k·C, k > 1, profondeur du centre C_d > 0), (kℓ + ρ)/(k·C_d − ρ) et 1/(k·C_d − ρ − δ) décroissent : l’erreur annoncée décroît avec la distance. Les deux bornes de l’étape 2 viennent de deux points différents de la boule : E est serrée pour une petite sphère, lâche quand la boule frôle le plan proche loin de l’axe (`screenErrorDisplacement.test.ts`). UNE CAMÉRA, UNE FORMULE. `perspective` est le poids clip-w de la caméra : un point à la profondeur de vue d a w = perspective·d + (1 − perspective) — 1 pour une projection en perspective (w = d, tout ce qui précède), 0 pour une projection orthographique (w = 1 : q = 0, et un déplacement bouge le pixel de f·δ quelle que soit la profondeur). La borne s’écrit sur w : E = f·δ·√(w_m² + (p·(ℓ + ρ))²) / (w_m·w_{m−δ}), le plan proche étant atteint quand w_{m−δ} ≤ p·near. À p = 1 chaque opération est celle d’au-dessus, au bit près (un produit par 1 et une somme avec 0 sont exacts). Aucune garde ici : l’appelant a déjà traité une erreur nulle, infinie ou invalide. Une profondeur ou une distance à l’axe non finie donne l’infini. L’ordre des opérations, (δ·f)/m puis un facteur √/(m − δ) ≥ 1, garde le résultat arrondi au-dessus du plancher `errorFloorAt` de sdk-browser. Reflet WGSL : `projected` de `packages/sdk-browser/src/gpu/dag/shader/shader.ts`, mêmes opérandes, même ordre."
   },
-  "screenErrorVariant": {
-    "summary": "La variante en vigueur."
-  },
-  "ScreenErrorVariant": {
-    "summary": "Comment l’erreur à l’écran d’un cluster est mesurée : la borne prouvée, ou la formule simple."
-  },
   "SDK_VERSION": {
     "summary": "La version du paquet de ce moteur."
   },
@@ -5293,10 +5283,6 @@
   },
   "setNodeScale": {
     "summary": "Étire un nœud d’un arbre de transformations de `(x, y, z)`."
-  },
-  "setScreenErrorVariant": {
-    "summary": "Règle la variante pour toute la page.",
-    "description": "`null`/`undefined` remet la nôtre : aucune session n’hérite."
   },
   "SHADOW_PAGE": {
     "summary": "Côté d’une page de l’atlas, en texels : la case d’invalidation d’une face."

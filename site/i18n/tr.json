@@ -1178,13 +1178,6 @@
         "Adaptif — `pixelError: 2`, `adaptivePixelError(base, speed, radius)` ile kamera hızıyla artar; sabit bir görünüm tabanı korur."
       ]
     },
-    "ScreenErrorVariant": {
-      "description": "Kesitin eşikle karşılaştırdığı cluster hatasının hangi izdüşümü olduğu. Tüm sayfa için modül durumu, CPU metriği tarafından okunur ve seçim shader'ı derlendiğinde onun içine gömülür; bir bench'in her tarafı kendi sayfasında çalışır. Formülün herkese açık kaynağı: Karis, Stubbe ve Wihlidal, SIGGRAPH 2021, \"Advances in Real-Time Rendering in Games\".",
-      "values": [
-        "Bizimki (varsayılan): hatayı asla düşük tahmin etmeyen bir sınır.",
-        "Karşılaştırma bench'i için yayımlanmış formül."
-      ]
-    },
     "MathPathMode": {
       "description": "Bir yığının hangi yolda çalıştığı. `auto` ölçümle karar verir: regülatör her tarafta eleman başına nanosaniyenin hareketli medyanını tutar ve o üstünlükte bir seri çalıştırmadan sonra geçiş yapar, JS referans ve yedek yol olarak kalır. `MATH_PATH_CONTRACT`, yayımlanan raporu sürümler.",
       "values": [

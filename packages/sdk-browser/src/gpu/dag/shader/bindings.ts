@@ -1,4 +1,4 @@
-import { COMPUTE, namedBufferEntries } from '../../core/computeBindings.ts'
+import { computeBufferEntry, namedBufferEntries } from '../../core/computeBindings.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /** Group-0 binding of each buffer the selection kernel reads, under its WGSL name. */
@@ -114,17 +114,12 @@ const DAG_TYPES: Record<keyof typeof DAG_BINDING, GPUBufferBindingType> = {
 export function dagBindEntries(
   counts?: Partial<Record<DagPartTable, number>>,
 ): GPUBindGroupLayoutEntry[] {
-  const entry = (binding: number, type: GPUBufferBindingType) => ({
-    binding,
-    visibility: COMPUTE,
-    buffer: { type },
-  })
   return [
     ...Object.entries(DAG_BINDING).map(([name, binding]) =>
-      entry(binding, DAG_TYPES[name as keyof typeof DAG_BINDING]),
+      computeBufferEntry(binding, DAG_TYPES[name as keyof typeof DAG_BINDING]),
     ),
     ...dagPartBindings(counts).map(({ table, binding }) =>
-      entry(binding, DAG_PART_TABLES[table] ? write : read),
+      computeBufferEntry(binding, DAG_PART_TABLES[table] ? write : read),
     ),
   ].sort((a, b) => a.binding - b.binding)
 }

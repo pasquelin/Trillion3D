@@ -1178,13 +1178,6 @@
         "Adaptativo — `pixelError: 2`, elevado con la velocidad de la cámara mediante `adaptivePixelError(base, speed, radius)`; una vista inmóvil conserva la base."
       ]
     },
-    "ScreenErrorVariant": {
-      "description": "Qué proyección del error del clúster compara el corte con el umbral. Estado de módulo para toda la página, leído por la métrica de la CPU e integrado en el shader de selección cuando se compila; cada lado de un banco corre en su propia página. Fuente pública de la fórmula: Karis, Stubbe y Wihlidal, SIGGRAPH 2021, «Advances in Real-Time Rendering in Games».",
-      "values": [
-        "La nuestra (la predeterminada): una cota que nunca subestima el error.",
-        "La fórmula publicada, para el banco de comparación."
-      ]
-    },
     "MathPathMode": {
       "description": "Qué camino sigue un lote. `auto` decide por medición: el regulador mantiene una mediana móvil de nanosegundos por elemento en cada lado y cambia tras una racha de ejecuciones con esa ventaja, quedándose JS como referencia y repliegue. `MATH_PATH_CONTRACT` versiona el informe publicado.",
       "values": [

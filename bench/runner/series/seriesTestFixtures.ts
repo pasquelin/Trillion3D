@@ -62,7 +62,6 @@ export async function contexte(settings: Partial<RunContext['settings']> = {}) {
       source: 'cache',
     },
     variant: null,
-    errorMetric: null,
   } as unknown as Side
   return { ctx, side, OUT }
 }

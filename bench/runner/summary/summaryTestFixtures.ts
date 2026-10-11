@@ -21,7 +21,6 @@ export function rapport(side: Partial<Row>): Report {
         cache: null,
         engine: 'engine-test',
         variant: null,
-        errorMetric: 'certifiee',
       },
     },
     settings: { frames: 8, warmup: 2, width: 640, height: 360, maxPages: 32 } as Report['settings'],

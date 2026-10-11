@@ -2969,9 +2969,6 @@
   "SceneToneMapping": {
     "summary": "엔진이 아는 디스플레이 커브의 이름."
   },
-  "ScreenErrorVariant": {
-    "summary": "클러스터의 화면 오차가 어떻게 측정되는가: 증명된 상한인지, 단순한 공식인지."
-  },
   "ShadowFrameMetrics": {
     "summary": "한 프레임의 라이팅과 그림자 카운터들, 책임에 따라 `FrameMetrics`에서 분리됨.",
     "description": "`FrameMetrics`는 `extends`를 통해 이것들을 상속한다: 사용자에게 보이는 공개 계약(`sdk-core/index.ts`)은 변하지 않으며, 이 필드들은 여전히 `FrameMetrics`의 직접적인 속성이다.",
@@ -6433,10 +6430,6 @@
   "readCameraWorld": {
     "summary": "호스트 카메라를 엔진 카메라로 복사한다, 조상들이 해석된 상태로."
   },
-  "referenceScreenError": {
-    "summary": "`reference` 변형의 화면 오차: `(error × stretch) × focal / w`, 중심이 근평면에 닿지 않으면 무한대. `w`는 중심 깊이의 클립 가중치로, 원근 투영에서는 그 깊이 자체(`perspective` = 1), 정사영에서는 1(0, `screenErrorBound.ts`)입니다.",
-    "description": "`packages/sdk-browser/src/gpu/dag/shader/error.ts`의 WGSL 미러, 같은 피연산자와 같은 순서로, f32로. 호출자는 이미 0이거나 무한한 오차를 처리했습니다."
-  },
   "removeTransformNode": {
     "summary": "`node`와 그 모든 후손을 제거한다; 그들의 인덱스는 재사용될 것이다.",
     "description": "서브트리를 유지한 채 분리하려면, `reparentTransformNode(tree, node, -1)`."
@@ -6466,9 +6459,6 @@
     "summary": "클러스터의 검증된 화면 오차(C4): 최대 ε만큼 이동된 구의 어떤 점이든, 원근 투영(축 밖 포함) 아래에서 화면상 변위에 대한, 픽셀 단위의 상한.",
     "description": "뷰 좌표계: 눈은 원점에 있고 −z 방향을 바라본다, 깊이 d = −z; 픽셀은 (f_x·x/d, f_y·y/d), f = max(f_x, f_y). 프리미티브는 최대 늘림 비율 s의 아핀 사상으로 뷰로 옮겨진다: 오브젝트 구 (c, r)는 뷰 공간의 구 (C, ρ = r·s)에 들어가며, 최대 ε의 오브젝트 변위는 최대 δ = ε·s의 변위 Δ가 된다. 1. 구 위의 점 P = (x, y, d)는 P' = P + Δ로 옮겨지며, 깊이는 d' = d + Δd. q = (x, y)/d라 하면: π(P') − π(P) = f·(Δxy − q·Δd)/d'. 사상 Δ ↦ Δxy − q·Δd는 노름 √(1 + |q|²)를 가진다(I + q·qᵀ의 고유값: 1과 1 + |q|²); 따라서 Δ의 방향(축에 수직, 카메라를 향하거나 멀어지는 깊이 방향, 또는 비스듬함)과 관계없이, |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'. 2. 구 위에서는: d ≥ m = −C_z − ρ(최소 깊이); |(x, y)| ≤ ℓ + ρ(ℓ = |(C_x, C_y)|는 중심에서 뷰 축까지의 거리); 따라서 |q| ≤ (ℓ + ρ)/m이고, d' ≥ m − δ. 3. 만약 m − δ > near(따라서 > 0)라면: E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). 그렇지 않으면 구, 또는 그 변위된 점 중 하나가 근평면에 닿는다: 무한대이며, 이것이 더 정밀한 답이다. 컷의 단조성: m은 구 위 깊이의 하한, ℓ + ρ는 축까지 거리의 상한이다; 따라서 어떤 구가 다른 구에 포함되면 더 작은 오차를 알리고, 더 큰 구는 더 큰 오차를 알린다. 광선을 따라(C → k·C, k > 1, 중심 깊이 C_d > 0), (kℓ + ρ)/(k·C_d − ρ)와 1/(k·C_d − ρ − δ)는 감소한다: 알려지는 오차는 거리에 따라 감소한다. 2단계의 두 상한은 구 위의 서로 다른 두 점에서 온다: E는 작은 구에 대해서는 타이트하고, 구가 축에서 멀리 떨어진 곳에서 근평면을 스치듯 지날 때는 느슨해진다(`screenErrorDisplacement.test.ts`). **하나의 카메라, 하나의 공식.** `perspective`는 카메라의 클립-w 가중치다: 뷰 깊이 d에 있는 점은 w = perspective·d + (1 − perspective)를 가진다 — 원근 투영에서는 1(w = d, 위의 모든 것이 성립), 정사영에서는 0(w = 1: q = 0, 그리고 변위는 깊이와 무관하게 픽셀을 f·δ만큼 움직인다). 이 상한은 w에 대해 쓰인다: E = f·δ·√(w_m² + (p·(ℓ + ρ))²) / (w_m·w_{m−δ}), 근평면에 도달하는 것은 w_{m−δ} ≤ p·near일 때. p = 1에서는 모든 연산이 위와 비트 단위로 일치한다(1을 곱하는 것과 0을 더하는 것은 정확하다). 여기에는 가드가 없다: 호출자는 이미 null, 무한, 또는 유효하지 않은 오차를 처리했다. 유한하지 않은 깊이나 축까지의 거리는 무한대를 낸다. 연산 순서, (δ·f)/m 다음에 계수 √/(m − δ) ≥ 1을 곱하는 순서는, 반올림된 결과를 sdk-browser의 `errorFloorAt` 하한보다 위에 유지한다. WGSL 미러: `packages/sdk-browser/src/gpu/dag/shader/shader.ts`의 `projected`, 같은 피연산자, 같은 순서."
   },
-  "screenErrorVariant": {
-    "summary": "현재 유효한 변형."
-  },
   "setNodeAutoUpdate": {
     "summary": "`matrixAutoUpdate`.",
     "description": "이를 다시 활성화할 때 따로 표시할 것은 없습니다: 그 합성 결과와 다른 로컬 행렬은 이미 `setNodeLocalMatrix`나 자세 세터가 설정한 `NODE_TRS_DIRTY`를 담고 있습니다. 어느 쪽이든 노드는 목록에 오릅니다: 로컬 행렬이 만들어지는 방식이 바뀌었습니다."
@@ -6485,10 +6475,6 @@
   },
   "setNodeScale": {
     "summary": "변환 트리의 한 노드를 `(x, y, z)`만큼 늘린다."
-  },
-  "setScreenErrorVariant": {
-    "summary": "페이지 전체에 대해 그 변형을 설정한다.",
-    "description": "`null`/`undefined`는 우리 쪽 것으로 되돌린다: 어떤 세션도 물려받지 않는다."
   },
   "side": {
     "summary": "어떤 표면이 어느 면을 그리는가: 엔진 고유의 `Side` 용어(`contracts/material.ts`)."

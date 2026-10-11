@@ -1,4 +1,4 @@
-// POC: a parent whose seated children a session composes on the GPU sends its world alone when it
+// A parent whose seated children a session composes on the GPU sends its world alone when it
 // turns: no row is written, no range is sent, whatever the number of children.
 import test from 'node:test'
 import assert from 'node:assert/strict'

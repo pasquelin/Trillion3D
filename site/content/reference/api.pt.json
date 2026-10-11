@@ -2969,9 +2969,6 @@
   "SceneToneMapping": {
     "summary": "O nome de uma curva de exibição que o motor conhece."
   },
-  "ScreenErrorVariant": {
-    "summary": "Como o erro de tela de um cluster é medido: o limite provado ou a fórmula simples."
-  },
   "ShadowFrameMetrics": {
     "summary": "Contadores de iluminação e sombra de um quadro, separados de `FrameMetrics` por responsabilidade.",
     "description": "`FrameMetrics` os herda via `extends`: o contrato público visto pelos consumidores (`sdk-core/index.ts`) permanece inalterado, esses campos continuam sendo propriedades diretas de `FrameMetrics`.",
@@ -6433,10 +6430,6 @@
   "readCameraWorld": {
     "summary": "Copia a câmera do host para a câmera do motor, com os ancestrais resolvidos."
   },
-  "referenceScreenError": {
-    "summary": "Erro de tela da variante `reference`: `(error × stretch) × focal / w`, infinito quando o centro não alcança o plano próximo; `w` é o peso de clip da profundidade do centro, a própria profundidade numa projeção em perspectiva (`perspective` = 1) e 1 numa ortográfica (0, `screenErrorBound.ts`).",
-    "description": "Espelho WGSL em `packages/sdk-browser/src/gpu/dag/shader/error.ts`, mesmos operandos e mesma ordem, em f32. O chamador já tratou um erro zero ou infinito."
-  },
   "removeTransformNode": {
     "summary": "Remove `node` e todos os seus descendentes; seus índices serão reutilizados.",
     "description": "Para desanexar uma subárvore mantendo-a, `reparentTransformNode(tree, node, -1)`."
@@ -6466,9 +6459,6 @@
     "summary": "Erro de tela certificado de um cluster (C4): um majorante, em pixels, do deslocamento na tela de qualquer ponto de uma esfera movida em no máximo ε, sob projeção em perspectiva, fora do eixo incluído.",
     "description": "Referencial de visão: olho na origem, olhando em direção a −z, profundidade d = −z; pixel (f_x·x/d, f_y·y/d), f = max(f_x, f_y). A primitiva vai à visão por um mapa afim de esticamento máximo s: a esfera do objeto (c, r) fica na bola de visão (C, ρ = r·s), um deslocamento do objeto de no máximo ε torna-se um deslocamento Δ de no máximo δ = ε·s. 1. Um ponto P = (x, y, d) da bola vai para P' = P + Δ, de profundidade d' = d + Δd. Com q = (x, y)/d: π(P') − π(P) = f·(Δxy − q·Δd)/d'. O mapa Δ ↦ Δxy − q·Δd tem norma √(1 + |q|²) (autovalores de I + q·qᵀ: 1 e 1 + |q|²); então, qualquer que seja a direção de Δ — perpendicular ao eixo, em profundidade em direção à câmera ou se afastando, oblíqua —, |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'. 2. Na bola: d ≥ m = −C_z − ρ, a profundidade mínima; |(x, y)| ≤ ℓ + ρ, onde ℓ = |(C_x, C_y)| é a distância do centro ao eixo de visão; logo |q| ≤ (ℓ + ρ)/m, e d' ≥ m − δ. 3. Se m − δ > near (logo > 0): E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). Senão a bola, ou um de seus pontos deslocados, alcança o plano próximo: infinito, que refina. Monotonicidade de corte: m é o ínfimo da profundidade na bola e ℓ + ρ o supremo da distância ao eixo; uma bola contida em outra portanto anuncia menos, um erro maior mais. Ao longo do raio (C → k·C, k > 1, profundidade do centro C_d > 0), (kℓ + ρ)/(k·C_d − ρ) e 1/(k·C_d − ρ − δ) decrescem: o erro anunciado decresce com a distância. Os dois limites do passo 2 vêm de dois pontos diferentes da bola: E é justo para uma esfera pequena, frouxo quando a bola raspa o plano próximo longe do eixo (`screenErrorDisplacement.test.ts`). UMA CÂMERA, UMA FÓRMULA. `perspective` é o peso de clip-w da câmera: um ponto na profundidade de visão d tem w = perspective·d + (1 − perspective) — 1 para uma projeção em perspectiva (w = d, tudo o que precede), 0 para uma ortográfica (w = 1: q = 0, e um deslocamento move o pixel por f·δ qualquer que seja a profundidade). O limite é escrito sobre w: E = f·δ·√(w_m² + (p·(ℓ + ρ))²) / (w_m·w_{m−δ}), com o plano próximo alcançado quando w_{m−δ} ≤ p·near. Em p = 1 toda operação é a de cima, bit a bit (um produto por 1 e uma soma com 0 são exatos). Nenhuma guarda aqui: o chamador já tratou um erro nulo, infinito ou inválido. Uma profundidade ou distância ao eixo não finita produz infinito. Ordem das operações, (δ·f)/m depois um fator √/(m − δ) ≥ 1, mantém o resultado arredondado acima do piso `errorFloorAt` do sdk-browser. Espelho WGSL: `projected` de `packages/sdk-browser/src/gpu/dag/shader/shader.ts`, mesmos operandos, mesma ordem."
   },
-  "screenErrorVariant": {
-    "summary": "A variante em vigor."
-  },
   "setNodeAutoUpdate": {
     "summary": "`matrixAutoUpdate`.",
     "description": "Nada mais a marcar ao reativá-la: uma matriz local que difere da sua composição já carrega `NODE_TRS_DIRTY`, definido por `setNodeLocalMatrix` ou por um setter de pose. De um jeito ou de outro o nó é listado: a forma como a sua matriz local é feita mudou."
@@ -6485,10 +6475,6 @@
   },
   "setNodeScale": {
     "summary": "Estica um nó de uma árvore de transformações por `(x, y, z)`."
-  },
-  "setScreenErrorVariant": {
-    "summary": "Define a variante para a página inteira.",
-    "description": "`null`/`undefined` restaura a nossa: nenhuma sessão herda."
   },
   "side": {
     "summary": "Quais faces uma superfície desenha: as próprias palavras `Side` do motor (`contracts/material.ts`)."

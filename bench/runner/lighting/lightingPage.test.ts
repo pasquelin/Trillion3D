@@ -96,7 +96,6 @@ async function mesurer(
     livePools: null,
     instances: 1,
     variant: null,
-    errorMetric: null,
     trace: false,
     bounce: false,
     importedLights: true,

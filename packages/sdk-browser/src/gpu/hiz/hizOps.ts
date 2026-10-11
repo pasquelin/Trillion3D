@@ -6,10 +6,6 @@ import { pendingBuffers } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import type { createHizPipelines, hizPagesGroup } from './pipelines.ts'
 import type { GpuHiz } from './types.ts'
-import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import { dispatchRows } from '../dispatch/grid.ts'
-
-const TEST_WORKGROUP = 64
 
 export type HizPipelines = NonNullable<Awaited<ReturnType<typeof createHizPipelines>>>
 
@@ -19,6 +15,10 @@ export type HizState = HizPipelines & {
   device: GPUDevice
   level0Usage: number
   pagesGroup: ReturnType<typeof hizPagesGroup>
+  /** The test's dispatch arguments, written on the GPU from the partition's box count
+   *  (`testHizArgs`), and the group that binds them to the kernel that writes them. */
+  testArgs: GPUBuffer
+  testArgsGroup: GPUBindGroup
   uniforms: GPUBuffer
   /** The uniform's slots (`hizUniformSlots`): their stride, offsets and the words they hold. */
   slots: UniformSlots
@@ -131,13 +131,17 @@ export function hizTest(
     slot = passes.length
   hizTestSlot(image, slot * h.slots.strideWords, w, hh, rows, counting)
   vsmWriteChangedSlots(queueDevice, h.uniforms, image, h.slots, slot, slot + 1)
-  // The compacted box count lives in the state: the dispatch covers every drawable row
-  // and threads past the count leave at the first test.
+  // The compacted box count lives in the state: a kernel turns it into the dispatch's arguments,
+  // which cover the tested boxes and no other row; the threads past the count leave at the first
+  // test.
   const pass = open.pass
-  pass.setPipeline(h.testPipeline)
   pass.setBindGroup(0, bindGroup, h.slots.offset(slot))
+  pass.setBindGroup(1, h.testArgsGroup)
+  pass.setPipeline(h.argsPipeline)
+  pass.dispatchWorkgroups(1)
   pass.setBindGroup(1, h.pagesGroup(pages))
-  dispatchRows(pass, workgroupCount(rows, TEST_WORKGROUP))
+  pass.setPipeline(h.testPipeline)
+  pass.dispatchWorkgroupsIndirect(h.testArgs, 0)
   return rows
 }
 

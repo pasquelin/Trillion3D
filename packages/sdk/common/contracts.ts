@@ -80,12 +80,6 @@ export { impostorBakedByMesh } from '../../sdk-core/src/impostor/switchTable.ts'
 export { planImpostors } from '../../sdk-core/src/impostor/plan.ts'
 export type { ImpostorCard, ImpostorPlan, ImpostorRoot } from '../../sdk-core/src/impostor/plan.ts'
 export type { OcclusionFrameMetrics } from '../../sdk-core/src/contracts/occlusionMetrics.ts'
-export {
-  referenceScreenError,
-  screenErrorVariant,
-  setScreenErrorVariant,
-} from '../../sdk-core/src/lod/screenErrorVariant.ts'
-export type { ScreenErrorVariant } from '../../sdk-core/src/lod/screenErrorVariant.ts'
 export { SCENE_MODEL_VERSION } from '../../sdk-core/src/scene/core/nodeContracts.ts'
 export type { SceneNodeOptions, SceneState } from '../../sdk-core/src/scene/core/nodeContracts.ts'
 export type {

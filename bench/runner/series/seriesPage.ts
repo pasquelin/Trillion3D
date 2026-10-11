@@ -47,8 +47,6 @@ export function measurePayload(
     pixelRatio: settings.dpr,
     // This side's diagnostic variant: it is what makes two sides two variants.
     variant: side.variant ?? null,
-    // This side's screen-error metric (EXPERIMENT): `null` leaves ours.
-    errorMetric: side.errorMetric ?? null,
     trace: settings.trace === true,
     bounce: settings.bounce,
     importedLights: settings.importedLights,

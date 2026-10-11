@@ -1,4 +1,4 @@
-import { COMPUTE } from '../core/computeBindings.ts'
+import { COMPUTE, computeBufferEntry } from '../core/computeBindings.ts'
 import {
   STATE_TALLY_WGSL,
   ST_REJECTED,
@@ -10,8 +10,9 @@ import {
 import { HIZ_HIDES_WGSL } from './rectWgsl.ts'
 import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
-import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 import { SURFACE_SLOPE_WGSL } from '../../lighting/deferred/footprintWgsl.ts'
 import {
   HIZ_CULL_FARTHEST,
@@ -51,6 +52,18 @@ export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] 
 export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
   { binding: 0, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
 ]
+
+/** Group 1 of `testHizArgs`, beside the page table of `testHiz` (binding 0): the test's dispatch
+ *  arguments, written there and read as the indirect arguments of `testHiz`. The group is set for
+ *  the kernel that writes them and replaced by the page table before the dispatch that reads them:
+ *  an arguments buffer bound as storage in the dispatch it feeds is refused. */
+export const HIZ_TEST_ARGS_ENTRIES: GPUBindGroupLayoutEntry[] = [computeBufferEntry(1, 'storage')]
+
+/** Threads of the test's workgroup. */
+const HIZ_TEST_WORKGROUP = 64
+
+/** Bytes of the test's dispatch arguments. */
+export const HIZ_TEST_ARGS_BYTES = 12
 
 /** The override that makes `buildHiz` the build of the nearest layer (`createHizPipelines`). */
 export const HIZ_NEAREST_BUILD = 'HIZ_NEAREST_BUILD'
@@ -112,6 +125,7 @@ struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fin
 @group(0) @binding(4) var<storage, read_write> flags:array<u32>;
 @group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
 @group(1) @binding(0) var<storage, read> pages:array<PageInfo>;
+@group(1) @binding(1) var<storage, read_write> testArgs:array<u32>;
 var<workgroup> hizTile:array<vec2f,${S ** 2}>;
 /** The index in \`layer\`'s bound of the cell at the index \`i\` the passes name (the culling layer's
  *  routing, \`hizRoute\`): a coarser level's cells lie after those of the layers before it. */
@@ -213,13 +227,20 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
 }
 // Only boxes the frame tests travel this far, each carrying the verdict row it answers for;
 // every other drawable row holds the verdict the partition wrote this frame (\`classifyRows\`).
-// The box count is the one the partition compacted: the CPU does not know it.
+// The box count is the one the partition compacted: the CPU does not know it, \`testHizArgs\`
+// sizes the dispatch by it.
 // Its reject counters, on a sampled frame only (\`uni.counting\`, \`STATE_TALLY_WGSL\`).
-@compute @workgroup_size(64)
+@compute @workgroup_size(${HIZ_TEST_WORKGROUP})
 fn testHiz(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id,n,64u);
+ let i=flatIndex(id,n,${HIZ_TEST_WORKGROUP}u);
  if(i<atomicLoad(&state[${ST_TESTED}u])){testBox(i);}
  flushTally(lane);
+}
+/** The test's indirect arguments: one workgroup of threads per 64 compacted boxes, in rows. */
+@compute @workgroup_size(1)
+fn testHizArgs(){
+ let g=groupGrid(ceilDiv(atomicLoad(&state[${ST_TESTED}u]),${HIZ_TEST_WORKGROUP}u));
+ testArgs[0]=g.x;testArgs[1]=g.y;testArgs[2]=1u;
 }
 fn testBox(i:u32){
  let b=bounds[i];
@@ -241,6 +262,8 @@ fn testBox(i:u32){
   [
     PAGE_INFO_STRUCT_WGSL,
     FLAT_INDEX_WGSL,
+    GROUP_GRID_WGSL,
+    ceilDiv,
     STATE_TALLY_WGSL,
     HIZ_HIDES_WGSL,
     HIZ_TEXEL_WGSL,

@@ -260,9 +260,9 @@ export async function flushRuntime(
   return last?.worldRevision === state.worldRevision ? last.result : null
 }
 
-/** What `appendDagRoots` wrote, sent: the appended placements' frame rows, worlds and origins, and
- *  the placement tree's nodes and member words they joined. Nothing else of the tables moved: their
- *  nodes, records and content keys are their primitives', already there. */
+/** What `appendDagRoots` wrote, sent: the appended placements' primitive words, frame rows, worlds
+ *  and origins, and the placement tree's nodes and member words they joined. Nothing else of the
+ *  tables moved: their nodes, records and content keys are their primitives', already there. */
 function writeAppended(resources: DagResources, added: DagAppended) {
   const { device, packed, nodeParts, coldParts, frames, frameData } = resources,
     cones = packed.pageCones

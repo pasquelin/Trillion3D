@@ -2,8 +2,6 @@ import { dagSelectionShader } from './shader/splitWgsl.ts'
 import type { CutSteps } from './cutSteps.ts'
 import { dagPartCounts, type DagSplit } from './split.ts'
 import { dagBindEntries, type dagGroupEntries } from './shader/bindings.ts'
-import { withScreenErrorVariant } from './shader/error.ts'
-import { screenErrorVariant } from '../../../../sdk-core/src/index.ts'
 import { validatedOrWhy } from '../core/errorScope.ts'
 import { checkShaderModule } from '../core/shaderModule.ts'
 import type { CameraFrames } from './frameRanges.ts'
@@ -24,13 +22,10 @@ export function createDagPipeline(
     const layout = device.createBindGroupLayout({
       entries: dagBindEntries(split && dagPartCounts(split)),
     })
-    // The screen-error variant is frozen at shader compile: it does not change from session
-    // open to session close, and the default text is rendered character for character
-    // (`withScreenErrorVariant`).
     steps?.begin('shader module')
     const module = await checkShaderModule(
       device.createShaderModule({
-        code: withScreenErrorVariant(dagSelectionShader(split), screenErrorVariant()),
+        code: dagSelectionShader(split),
       }),
       'camera cut selection',
     )

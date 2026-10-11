@@ -1178,13 +1178,6 @@
         "Adaptatif : `pixelError: 2`, augmenté avec la vitesse de caméra ; une vue immobile conserve la base."
       ]
     },
-    "ScreenErrorVariant": {
-      "description": "Projection de l’erreur de cluster comparée au seuil. Cet état de module est lu par la métrique CPU et intégré au shader de sélection à sa compilation. Source publique : Karis, Stubbe et Wihlidal, SIGGRAPH 2021.",
-      "values": [
-        "Notre borne, par défaut : elle ne sous-estime jamais l’erreur.",
-        "Formule publiée, utilisée par le banc comparatif."
-      ]
-    },
     "MathPathMode": {
       "description": "Chemin exécuté par un lot. En `auto`, le gouverneur compare les médianes glissantes en nanosecondes par élément et ne bascule qu’après plusieurs exécutions favorables ; JS reste la référence et le repli.",
       "values": [
