@@ -39,6 +39,7 @@ import {
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { bufferEntry, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import {
+  COMPUTE,
   computeBufferEntry,
   computeTextureEntry,
   computeUniformEntry,
@@ -264,7 +265,7 @@ const RECT_LABEL = 'vsm.initPageRects',
  *  when first asked and kept: its WGSL is built and hashed the first time only. */
 export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
   const entries = (specs: readonly VsmBindingSpec[]) =>
-    vsmBindGroupLayoutEntries(specs, layout, C())
+    vsmBindGroupLayoutEntries(specs, layout, COMPUTE)
   const clears = vsmMarkingClears(layout)
   const held: Partial<Record<ClearSet | 'rect' | 'coarse' | 'pixels', VsmComputePipe>> = {}
   const clear = (set: ClearSet) =>
