@@ -23,7 +23,7 @@ export function boxEmpty(out: Float64Array, o: number) {
   out[o + 5] = -Infinity
 }
 
-/** True when an upper bound falls below its lower bound. A NaN bound does not make the box empty. */
+/** True when an upper bound falls below its lower bound; a NaN bound does not make it empty. */
 export function boundsAreEmpty(
   minX: number,
   minY: number,
@@ -35,7 +35,7 @@ export function boundsAreEmpty(
   return maxX < minX || maxY < minY || maxZ < minZ
 }
 
-/** `boundsAreEmpty` of the six bounds a box holds from `o`. */
+/** True when an upper bound falls below its lower bound. A NaN bound does not make the box empty. */
 export function boxIsEmpty(box: ArrayLike<number>, o: number) {
   return boundsAreEmpty(box[o], box[o + 1], box[o + 2], box[o + 3], box[o + 4], box[o + 5])
 }
