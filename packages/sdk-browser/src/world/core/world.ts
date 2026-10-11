@@ -1,4 +1,5 @@
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
+import { DEFAULT_EXPOSURE } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { cameraAdopter } from './worldLink.ts'
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts'
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts'
@@ -61,7 +62,7 @@ function worldParts(target: WorldTarget, options: WorldOptions) {
   const state: WorldState = {
     camera: new Camera('perspective'),
     toneMapping: 'aces',
-    exposure: 1,
+    exposure: DEFAULT_EXPOSURE,
     animating: false,
     disposed: false,
   }
