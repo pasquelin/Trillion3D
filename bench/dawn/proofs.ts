@@ -47,13 +47,6 @@ export const STALE_DUPLICATE = 'stale duplicate'
  */
 export const EXCLUDED = new Map<string, [string, string]>([
   [
-    'placement/transparent-transform',
-    [
-      REGRESSION,
-      'TODO: since 2779442f37 the paged pass encodes the main class draw slot when every transparent row is out of view — an empty drawIndirect counted as a draw (the image is right)',
-    ],
-  ],
-  [
     'lighting/narrow-resolve',
     [REGRESSION, 'TODO #1369: the rectless program is not bit-equal to the full one (1 to 3 ulp)'],
   ],
@@ -62,36 +55,11 @@ export const EXCLUDED = new Map<string, [string, string]>([
     [REGRESSION, 'TODO #1369: the rectless program is not bit-equal to the full one (1 ulp)'],
   ],
   [
-    'vsm/camera-stop',
-    [
-      REGRESSION,
-      'TODO: speckles in the first still frame (7 to 10 pixels) the settled frame does not have — shadow code frozen for the clean-room pass',
-    ],
-  ],
-  [
-    'webgpu/page-tangents',
-    [
-      STALE_DUPLICATE,
-      'its unpaged twin scenes now compile paged (the compiler decides unpaged from the material alone); the recipe in bench/runner/scenes/tangentScenes.ts must be rewritten',
-    ],
-  ],
-  [
-    'taa/temporal-antialiasing',
-    [
-      STALE_DUPLICATE,
-      'hand-written 16 to 24 hold frames where the engine holds after taaStillFrames (66), and a new camera object per pan frame, which the engine reads as a view cut',
-    ],
-  ],
-  [
     'lighting/sampled-lighting',
     [
       STALE_DUPLICATE,
       'its moving-image threshold (max >= 3) already failed on develop; the threshold is unproven',
     ],
-  ],
-  [
-    'partition/conservative-partition',
-    [SETUP, 'port to Dawn unfinished: its only run hung with a promise still pending'],
   ],
 ])
 

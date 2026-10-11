@@ -35,6 +35,13 @@ function scene() {
   return builder.fini()
 }
 
+/** `camera` slid to `x` without changing its optical axis, as `cameraFace` places it. */
+function slide(camera: ReturnType<typeof facingCamera>, x: number) {
+  camera.position.set(x, 0, 3)
+  camera.lookAt(x, 0, 0)
+  camera.updateMatrixWorld(true)
+}
+
 /** One run: still, panned, then the tile moved. `temporal` picks the option. */
 async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) {
   const prepared = scene(),
@@ -52,12 +59,17 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
   try {
     await backend.prepare()
     const still = await untilHeld(backend, camera)
-    // The pan: the camera slides about two thirds of a pixel per frame, for sixteen frames.
-    // Nothing is held; the last rendered image is the one read.
+    // The pan: the camera slides about two thirds of a pixel per frame, for sixteen frames. It is
+    // one camera moved, as a host's controls move theirs: a new camera object at another pose is a
+    // view cut, which drops the history (`trackViewCamera`). Nothing is held; the last rendered
+    // image is the one read.
     let pannedPixels: Uint8Array = new Uint8Array()
-    for (let i = 1; i <= 16; i++)
-      pannedPixels = (await image(backend, facingCamera(0.02 * i))).pixels
+    for (let i = 1; i <= 16; i++) {
+      slide(camera, 0.02 * i)
+      pannedPixels = (await image(backend, camera)).pixels
+    }
     const panned = Array.from(pannedPixels)
+    slide(camera, 0)
     if (!backend.setTransform) throw new Error('the backend has no setTransform')
     backend.setTransform(
       'tile',

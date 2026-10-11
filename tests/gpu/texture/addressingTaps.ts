@@ -6,6 +6,7 @@ import { functionText } from '../../../packages/sdk-browser/src/bounce/wgslBody.
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { bilinear4 } from '../../../packages/math/src/wgsl/sampling.ts'
 import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 
 /** One texture, its RGBA8 bytes, read as a `texture_2d_array` by every batch. */
@@ -36,7 +37,7 @@ function seamRead() {
   const level = functionText(COLOR_SAMPLE_WGSL, 'colorLevel')
   const seam = level.slice(level.indexOf(' let s00='))
   const fetch = /colorFetch\(s,(.+?),level,finest,nearest\)/g
-  if (seam.match(fetch)?.length !== 4 || !seam.includes('return mix('))
+  if (seam.match(fetch)?.length !== 4 || !seam.includes('return bilinear4('))
     throw new Error(`the atlas reads no longer blend a seam from four fetches:\n${level}`)
   return `fn seamRead(t:WrapTaps)->vec4f{\n${seam.replace(fetch, 'textureSampleLevel(maps,engineSampler,$1,0,0.0)')}\n}`
 }
@@ -64,7 +65,7 @@ struct Read{@location(0) engine:vec4f,@location(1) sampler:vec4f,}
  if((c.flags&${BLEND_BIT}u)!=0u&&t.couture){read=seamRead(t);}
  return Read(read,textureSampleLevel(maps,mapSampler,c.uv,0,0.0));
 }`,
-    [WRAP_COORD_WGSL],
+    [WRAP_COORD_WGSL, bilinear4],
   )
 
 type Input = { code: string; textures: TapTexture[]; batches: TapBatch[] }
