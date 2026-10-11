@@ -9,6 +9,24 @@ export const computeBufferEntry = (
   visibility = COMPUTE,
 ): GPUBindGroupLayoutEntry => ({ binding, visibility, buffer: { type } })
 
+/** A uniform buffer binding at `binding` in a layout, seen by `visibility` (the compute stage by
+ *  default): read at a dynamic offset when `hasDynamicOffset`, of at least `minBindingSize` bytes
+ *  when given. */
+export const computeUniformEntry = (
+  binding: number,
+  hasDynamicOffset = false,
+  minBindingSize?: number,
+  visibility = COMPUTE,
+): GPUBindGroupLayoutEntry => ({
+  binding,
+  visibility,
+  buffer: {
+    type: 'uniform',
+    ...(hasDynamicOffset ? { hasDynamicOffset } : {}),
+    ...(minBindingSize === undefined ? {} : { minBindingSize }),
+  },
+})
+
 /** A sampled texture binding of `sampleType` and `viewDimension` at `binding` in a layout, seen by
  *  `visibility` (the compute stage by default). */
 export const computeTextureEntry = (

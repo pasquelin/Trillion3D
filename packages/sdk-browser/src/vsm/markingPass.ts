@@ -38,7 +38,12 @@ import {
 } from './resources.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { bufferEntry, resourceEntry } from '../webgpu/core/liveEntries.ts'
-import { vsmBufferEntry, vsmComputePipe, type VsmComputePipe } from './passKit.ts'
+import {
+  computeBufferEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+} from '../gpu/core/computeBindings.ts'
+import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
 import { writeChanged, writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import {
   VSM_CLEAR_SPECS,
@@ -248,24 +253,6 @@ export interface VsmMarkingFrame {
 
 // ---- Pipelines (cached per device) ------------------------------------------------------------
 
-/** GPUShaderStage.COMPUTE, read at call time (no WebGPU global needed to import this module). */
-const C = () => GPUShaderStage.COMPUTE
-const uniformEntry = (binding: number, hasDynamicOffset = false): GPUBindGroupLayoutEntry => ({
-  binding,
-  visibility: C(),
-  buffer: { type: 'uniform', hasDynamicOffset },
-})
-const storageEntry = (binding: number, type: GPUBufferBindingType) =>
-  vsmBufferEntry(binding, C(), type)
-const textureEntry = (
-  binding: number,
-  sampleType: GPUTextureSampleType,
-): GPUBindGroupLayoutEntry => ({
-  binding,
-  visibility: C(),
-  texture: { sampleType },
-})
-
 // ---- Pipes -------------------------------------------------------------------------------------
 
 /** The labels of the marking's kernels, their pipes' and groups' alike. */
@@ -289,8 +276,8 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
       [
         [
           ...entries(VSM_CLEAR_SPECS),
-          uniformEntry(3, true),
-          ...clears[set].map((_, n) => storageEntry(4 + n, 'storage')),
+          computeUniformEntry(3, true),
+          ...clears[set].map((_, n) => computeBufferEntry(4 + n, 'storage')),
         ],
       ],
     ))
@@ -305,7 +292,7 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
         RECT_LABEL,
         vsmPageRectInitWgsl(layout),
         'vsmInitPageRects',
-        [[...entries(VSM_INIT_RECT_SPECS), uniformEntry(4)]],
+        [[...entries(VSM_INIT_RECT_SPECS), computeUniformEntry(4)]],
       )),
     coarse: () =>
       (held.coarse ??= vsmComputePipe(
@@ -313,7 +300,7 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
         COARSE_LABEL,
         vsmCoarseMarkingWgsl(layout),
         'vsmMarkCoarse',
-        [[...entries(VSM_COARSE_SPECS), uniformEntry(4)]],
+        [[...entries(VSM_COARSE_SPECS), computeUniformEntry(4)]],
       )),
     pixels: () =>
       (held.pixels ??= vsmComputePipe(
@@ -324,15 +311,15 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
         [
           entries(VSM_PIXELS_SPECS),
           [
-            textureEntry(0, 'depth'),
-            textureEntry(1, 'unfilterable-float'),
-            textureEntry(2, 'uint'),
-            uniformEntry(3),
-            storageEntry(4, 'read-only-storage'),
-            storageEntry(5, 'read-only-storage'),
-            storageEntry(6, 'read-only-storage'),
-            storageEntry(7, 'read-only-storage'),
-            uniformEntry(8),
+            computeTextureEntry(0, 'depth'),
+            computeTextureEntry(1, 'unfilterable-float'),
+            computeTextureEntry(2, 'uint'),
+            computeUniformEntry(3),
+            computeBufferEntry(4, 'read-only-storage'),
+            computeBufferEntry(5, 'read-only-storage'),
+            computeBufferEntry(6, 'read-only-storage'),
+            computeBufferEntry(7, 'read-only-storage'),
+            computeUniformEntry(8),
           ],
         ],
       )),

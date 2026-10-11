@@ -10,6 +10,8 @@
  * reverse-Z in both. Shifted = world + originShift (default −camera position), the
  * same split double the projection data carries.
  */
+import { computeTextureEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
+import { NO_CONE } from '../../../sdk-core/src/scene/light/fields.ts'
 import { hasSubgroups } from '../gpu/core/subgroups.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
@@ -288,7 +290,7 @@ function writeLightRecord(
   f[o + L.radius] = light.type === 'directional' ? 0 : light.radius
   f[o + L.sourceRadius] = light.sourceRadius ?? 0
   // The cone's cosine as the lighting packs it: −2, which no direction's cosine reaches, off a spot.
-  f[o + L.cosCone] = light.type === 'spot' ? Math.cos(light.coneAngle) : -2
+  f[o + L.cosCone] = light.type === 'spot' ? Math.cos(light.coneAngle) : NO_CONE
   i[o + L.mapId] = light.mapId | 0
   u[o + L.kind] = KIND[light.type]
 }
@@ -447,23 +449,11 @@ function projectionPassLayout(device: GPUDevice) {
   return device.createBindGroupLayout({
     label: 'vsm.projection.pass',
     entries: [
-      { binding: B.view, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-      {
-        binding: B.sceneDepth,
-        visibility: GPUShaderStage.COMPUTE,
-        texture: { sampleType: 'depth' },
-      },
-      {
-        binding: B.normalRough,
-        visibility: GPUShaderStage.COMPUTE,
-        texture: { sampleType: 'unfilterable-float' },
-      },
-      { binding: B.flags, visibility: GPUShaderStage.COMPUTE, texture: { sampleType: 'uint' } },
-      {
-        binding: B.blueNoise,
-        visibility: GPUShaderStage.COMPUTE,
-        texture: { sampleType: 'unfilterable-float' },
-      },
+      computeUniformEntry(B.view),
+      computeTextureEntry(B.sceneDepth, 'depth'),
+      computeTextureEntry(B.normalRough, 'unfilterable-float'),
+      computeTextureEntry(B.flags, 'uint'),
+      computeTextureEntry(B.blueNoise, 'unfilterable-float'),
       {
         binding: B.shadowMask,
         visibility: GPUShaderStage.COMPUTE,
