@@ -7,12 +7,20 @@ type Pins = { pin(url: string): void; unpin(url: string): void }
 /** The files of one id space the plan pins: its difference from one frame to the next, and the
  *  address each pinned id was pinned under, which an id leaving the plan may no longer name. */
 function createPinned() {
-  const difference = createListDifference(),
-    urls = new Map<number, string>()
+  let difference = createListDifference(),
+    /** The streamer the pins are with: a session opened again on the kept cells has a new one, which
+     *  holds none of them. */
+    streamer: Pins['pin'] | undefined
+  const urls = new Map<number, string>()
   return {
     /** The ids `ids` now pin: those that entered are pinned under `url(id)`, those that left
      *  unpinned. */
     apply(ids: ArrayLike<number>, url: (id: number) => string, { pin, unpin }: Pins) {
+      if (streamer !== pin) {
+        streamer = pin
+        difference = createListDifference()
+        urls.clear()
+      }
       difference.apply(ids)
       for (let i = 0; i < difference.exitedCount; i++) {
         const id = difference.exited[i]

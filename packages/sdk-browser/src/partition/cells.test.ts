@@ -169,3 +169,17 @@ test('a world that poses the scene root reads the cells its camera sees there', 
   await settled(cells, [2, 0, 0], 100, port, noBudget)
   assert.deepEqual([...new Set(asked)], [cellUrl('far.json')])
 })
+
+test('a session opened again on the kept cells pins the files its plan asks anew', async () => {
+  const { cells, bytes } = await sizedWhole(world())
+  const first = io(bytes)
+  await settled(cells, [6000, 0, 0], everywhere, first.port, noBudget)
+  const second = io(bytes)
+  cells.frame([6000, 0, 0], everywhere, second.port, noBudget)
+  const cellFiles = ['far.json', 'near.json'].map(cellUrl)
+  assert.deepEqual(
+    cellFiles.map((url) => second.pinned.get(url)),
+    [1, 1],
+    'the new streamer holds none of the pins the first one did',
+  )
+})
