@@ -1,6 +1,5 @@
 import { createRequestLoop } from './requestLoop.ts'
 import { createWorldContents } from './worldContents.ts'
-import { releaseWorldMirror } from './worldMirror.ts'
 import { createWorldLights } from './worldLights.ts'
 import { createWorldLink } from './worldLink.ts'
 import { createWorldBackground } from './worldBackground.ts'
@@ -31,7 +30,6 @@ export function createWorldRuntime(inputs: Inputs) {
   const track = worldReopens(canvas, inputs.diagnostic.notices, () => reopens.request())
   const state: WorldRuntimeState = {
     explorer: null,
-    mirror: null,
     twins: new Map(),
     resolving: null,
     structureChanged: false,
@@ -159,8 +157,8 @@ function runtimeHandle(
       state.disposed = true
       state.explorer?.dispose()
       track.dispose(state.explorer)
-      if (state.mirror) releaseWorldMirror(state.mirror.root)
       contents.cuts.dispose()
+      contents.dispose()
       scene.traverse((node) => (node._link = null))
     },
   }

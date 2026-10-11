@@ -17,9 +17,10 @@ import { FLAG_DOUBLE } from '../../visibility/types.ts'
 import { visMaterial } from '../../visibility/shader/material.ts'
 import { createdSurface, assignment, PLAIN } from '../api/createdMaterials.ts'
 import { createWorldBatches } from './worldBatches.ts'
+import { createWorldMaterials } from './worldMaterials.ts'
+import { createWorldRanks } from './worldRanks.ts'
 import { buildWorldSource } from './worldSource.ts'
 import type { Cut } from './worldCuts.ts'
-import type { MaterialEntry } from './worldMaterials.ts'
 
 /**
  * What every pass reads of the faces a host surface draws: the side the WebGPU pipelines cull by
@@ -56,17 +57,21 @@ const cut = (): Cut =>
 
 test('a cloth the page builds is drawn and casts on both faces; a rigid body of its material is not', () => {
   const paint = material.meshStandard({ color: 0xc23b3b })
-  const entry: MaterialEntry = { id: 1, key: '', material: paint }
+  const materials = createWorldMaterials(),
+    entry = materials.entryOf(paint)
   const flag = new Mesh(new Geometry(), paint),
     board = new Mesh(new Geometry(), paint)
   flag.physics = { type: 'cloth', pins: [0] }
   board.physics = 'dynamic'
-  const batches = createWorldBatches(() => {})
+  const batches = createWorldBatches(
+    () => {},
+    (worn, held, twoSided) => materials.surfaceOf(worn, held.drawn, twoSided),
+  )
   const shared = cut()
   batches.seat(flag, shared, entry)
   batches.seat(board, shared, entry)
   const opened = batches.reopen()
-  const source = buildWorldSource({ batches: opened, models: [] })!
+  const source = buildWorldSource({ batches: opened, models: [], ranks: createWorldRanks() })!
   const byBatch = new Map(opened.map((batch, i) => [batch, source.root.children[i] as HostMesh]))
   const worn = (mesh: Mesh) => byBatch.get(batches.seats.get(mesh)!.batch)!.material
   assert.equal(paint.side, 'front', 'the page material is left as the page set it')

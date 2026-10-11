@@ -75,13 +75,9 @@ type Session = {
 /** Where `upload` hands a resource's rewritten ranges, made once: `weigh` says the bytes
  *  they send the GPU, the session's count else the lists' own; `write` marks its host geometry and
  *  hands them, with the resource's `reach` and its pages' `boxes` (`pageMotion.ts`), to the
- *  session — false while none draws it, `refused` when it cannot take them; `renewed` says a
+ *  session — false while none draws it (`Cut.held`), `refused` when it cannot take them; `renewed` says a
  *  session opened since. */
-export const vertexUploads = (
-  session: () => Session | null,
-  geometryOf: (cut: Cut) => Geometry | undefined,
-  refused: () => void,
-) => {
+export const vertexUploads = (session: () => Session | null, refused: () => void) => {
   let told: object | null = null
   return {
     /** True once for each session opened since the last call: it holds roots
@@ -94,13 +90,12 @@ export const vertexUploads = (
       return true
     },
     weigh(cut: Cut, ranges: VertexRange[], bytes: number) {
-      const attributes = geometryOf(cut)?.attributes
-      return (attributes && session()?.vertexBytes?.(attributes, ranges)) ?? bytes
+      return session()?.vertexBytes?.(cut.geometry.attributes, ranges) ?? bytes
     },
     write(cut: Cut, ranges: VertexRange[], box: Float64Array, reach: number, boxes?: Float64Array) {
-      const geometry = geometryOf(cut),
+      const { geometry } = cut,
         open = session()
-      if (!geometry || !open) return false
+      if (!open || !cut.held) return false
       markRewritten(geometry, ranges)
       if (!open.updateVertices(geometry.attributes, ranges, box, reach, boxes)) refused()
       return true

@@ -16,6 +16,7 @@ import { buildWorldMirror } from './worldMirror.ts'
 import { createWorldMaterials } from './worldMaterials.ts'
 import { createWorldPoses } from './worldPoses.ts'
 import type { Cut } from './worldCuts.ts'
+import { hostGeometry } from './worldGeometry.ts'
 import type { Seat } from './worldBatches.ts'
 import { boxTransform } from '../../../../sdk-core/src/index.ts'
 import { SPRITE_UNCULLED, spriteAt } from '../../visibility/shader/spriteWgsl.ts'
@@ -76,9 +77,14 @@ test("a sprite's size rule written at run time is a new entry, whose roots carry
 /** The host mesh a world builds for a sprite whose picture sits on its bottom-left corner. */
 function spriteMesh() {
   const drawn = drawnTriangles(object.sprite().geometry, 'sprite', { center: [0, 0] })!
-  const cut = { key: 's', drawn, runtime: {} as never, users: new Set(), held: false } as Cut
+  const cut = {
+    ...{ key: 's', drawn, geometry: hostGeometry(drawn), runtime: {} as never },
+    ...{ users: new Set(), held: false },
+  } as Cut
+  const table = createWorldMaterials()
+  const surface = table.surfaceOf(table.entryOf(material.sprite()), drawn, false)
   const { root } = buildWorldMirror({
-    placed: [{ cut, material: material.sprite(), rows: {} as PlacementRows, name: 's' }],
+    placed: [{ cut, surface, rows: {} as PlacementRows, name: 's' }],
     models: [],
     rankOf: () => 0,
   })

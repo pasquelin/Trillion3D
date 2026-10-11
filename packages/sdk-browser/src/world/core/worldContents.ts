@@ -3,6 +3,7 @@ import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { createWorldCuts, firstMaterial, type Cut } from './worldCuts.ts'
 import { createWorldMaterials, type MaterialEntry } from './worldMaterials.ts'
 import { createWorldBatches } from './worldBatches.ts'
+import { createWorldRanks } from './worldRanks.ts'
 import { createWorldPoses, shownUnder } from './worldPoses.ts'
 import type { LoadedModel } from './loadedModel.ts'
 import type { PlacementGrowth } from '../../placement/engineSceneUpdates.ts'
@@ -25,7 +26,10 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     poses = createWorldPoses()
   const state: ContentsState = {
     ...{ scene, notices, cuts, materials, poses },
-    batches: createWorldBatches(poses.touch),
+    batches: createWorldBatches(poses.touch, (entry, cut, twoSided) =>
+      materials.surfaceOf(entry, cut.drawn, twoSided),
+    ),
+    ranks: createWorldRanks(),
     members: createWorldMembers(scene),
     resolved: new Map(),
     stale: new Set(),
@@ -52,6 +56,11 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     },
     /** The material entries repainted in place since the last call (`worldMaterials.ts`). */
     repainted: materials.takeRepainted,
+    /** Writes them into the surfaces built for them, then has the open session read them again
+     *  (`MaterialsTable.repaint`). */
+    repaint: materials.repaint,
+    /** The world is gone: the surfaces and textures it built are given back. */
+    dispose: materials.dispose,
     /** `parent`'s children changed: read at the next resolve. */
     changed: members.changed,
     /** A node entered the scene (`SceneLink.entered`). */
@@ -70,6 +79,7 @@ type ContentsState = {
   materials: ReturnType<typeof createWorldMaterials>
   poses: ReturnType<typeof createWorldPoses>
   batches: ReturnType<typeof createWorldBatches>
+  ranks: ReturnType<typeof createWorldRanks>
   members: ReturnType<typeof createWorldMembers>
   resolved: Map<Mesh, Resolved>
   stale: Set<Mesh>
@@ -184,5 +194,5 @@ function plan(state: ContentsState) {
     for (const cut of state.held) if (!next.has(cut)) cuts.hold(cut, false)
     state.held = next
   }
-  return { batches: kept, models: [...members.models], release }
+  return { batches: kept, models: [...members.models], ranks: state.ranks, release }
 }

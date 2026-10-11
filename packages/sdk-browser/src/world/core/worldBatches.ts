@@ -4,6 +4,7 @@ import type { PlacementGrowth } from '../../placement/engineSceneUpdates.ts'
 import type { Cut } from './worldCuts.ts'
 import type { MaterialEntry } from './worldMaterials.ts'
 import { drawnTwoSided } from '../../../../sdk-core/src/physics/soft.ts'
+import type { GraphSurface } from '../../host/graph/surface.ts'
 /**
  * A drawn resource: one geometry resource worn with one material entry. Its placements are the
  * rows of one instance buffer (`placement/rows.ts`) the session reads in place; `owners` says
@@ -15,6 +16,11 @@ export type Batch = {
   readonly entry: MaterialEntry
   /** Its meshes are cloths (`drawnTwoSided`): their surface is drawn on both faces. */
   readonly twoSided: boolean
+  /** The surface its rows are worn as (`worldMaterials.ts`), built once with the batch. */
+  readonly surface: GraphSurface
+  /** Its rank among the world's batches, given at its first seat and kept: the order it is
+   *  drawn in among the others of its depth. */
+  readonly order: number
   rows: PlacementRows | null
   readonly owners: (Mesh | null)[]
   readonly free: number[]
@@ -36,9 +42,11 @@ export type Seat = { batch: Batch; row: number }
 /** A session that grows no buffer in place: a held batch seats on its free rows alone. */
 const GROWS_NONE: PlacementGrowth = { growsInPlace: () => false, growPlacements() {} }
 
-export function createWorldBatches(touched: (batch: Batch, row: number) => void) {
+export function createWorldBatches(touched: (batch: Batch, row: number) => void, wear: BatchWear) {
   const state: BatchState = {
     touched,
+    wear,
+    made: 0,
     batches: new Map(),
     seats: new Map(),
     leaving: new Map(),
@@ -72,8 +80,14 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
 }
 
 /** What a world's batches hold (`createWorldBatches`). */
+/** The surface a resource is worn as by a material entry (`MaterialsTable.surfaceOf`). */
+export type BatchWear = (entry: MaterialEntry, cut: Cut, twoSided: boolean) => GraphSurface
+
 type BatchState = {
   touched: (batch: Batch, row: number) => void
+  wear: BatchWear
+  /** Batches made so far: the next one's `order`. */
+  made: number
   batches: Map<string, Batch>
   seats: Map<Mesh, Seat>
   /** The rows meshes still hold in the batch they left, drawn until they hold their new one. */
@@ -82,7 +96,8 @@ type BatchState = {
   short: Set<Batch>
 }
 
-function batchOf({ batches }: BatchState, cut: Cut, entry: MaterialEntry, mesh: Mesh) {
+function batchOf(state: BatchState, cut: Cut, entry: MaterialEntry, mesh: Mesh) {
+  const { batches } = state
   const twoSided = drawnTwoSided(mesh.physics?.soft?.type)
   const key = `${cut.key}/${entry.id}/${mesh.skeleton?.bones.length ?? 0}/${mesh.waves?.waveModel.count ?? 0}/${+twoSided}`
   let batch = batches.get(key)
@@ -94,6 +109,8 @@ function batchOf({ batches }: BatchState, cut: Cut, entry: MaterialEntry, mesh: 
         cut,
         entry,
         twoSided,
+        surface: state.wear(entry, cut, twoSided),
+        order: state.made++,
         rows: null,
         owners: [],
         free: [],

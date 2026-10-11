@@ -3,7 +3,6 @@ import { openMeasuredWorld, type MeasuredWorld } from '../session/explorer.ts'
 import { buildWorldSource } from './worldSource.ts'
 import type { createRequestLoop } from './requestLoop.ts'
 import type { createWorldContents } from './worldContents.ts'
-import { releaseWorldMirror } from './worldMirror.ts'
 import type { createWorldLights } from './worldLights.ts'
 import type { createWorldBackground } from './worldBackground.ts'
 import type { worldReopens } from './worldReopen.ts'
@@ -18,7 +17,6 @@ import { vertexUploads } from './worldDynamicRanges.ts'
  *  the next frame or opening owes the scene. */
 export type WorldRuntimeState = {
   explorer: MeasuredWorld | null
-  mirror: NonNullable<ReturnType<typeof buildWorldSource>> | null
   twins: Map<Object3D, PosedTwin>
   resolving: Promise<void> | null
   structureChanged: boolean
@@ -60,8 +58,7 @@ export function worldOpening(parts: WorldRuntimeParts) {
     const built = buildWorldSource(plan)
     track.closing(state.explorer)
     state.explorer?.dispose()
-    if (state.mirror) releaseWorldMirror(state.mirror.root)
-    state.explorer = state.mirror = null
+    state.explorer = null
     fit.reset()
     plan.release()
     state.twins = (built?.twins ?? new Map()) as Map<Object3D, PosedTwin>
@@ -74,7 +71,6 @@ export function worldOpening(parts: WorldRuntimeParts) {
       state.closed = 'nothing to draw: the scene holds no mesh and no loaded model'
       return track.none()
     }
-    state.mirror = built
     let explorer: MeasuredWorld
     try {
       const scope = built.source.metadata.scope // its first model's scope, or the default
@@ -110,11 +106,7 @@ export function worldOpening(parts: WorldRuntimeParts) {
 export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
   const { inputs, state, contents, lights, background, track } = parts
   const { poses, cuts } = contents
-  const uploads = vertexUploads(
-    () => state.explorer,
-    (cut) => state.mirror?.geometryOf(cut),
-    track.asks('vertices-refused'),
-  )
+  const uploads = vertexUploads(() => state.explorer, track.asks('vertices-refused'))
   return () => {
     const session = state.explorer
     if (state.seatWanted) {
@@ -124,8 +116,7 @@ export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
       // Values or pictures alone repaint the built surface (#335, #362, #572); a reopened one is new.
       const painted = contents.repainted(),
         open = state.explorer === session ? session : null
-      const mirror = state.mirror
-      if (painted.length && mirror && !mirror.repaint(painted, open?.refreshMaterials.bind(open)))
+      if (painted.length && !contents.repaint(painted, open?.refreshMaterials.bind(open)))
         track.request('repaint-refused')
     }
     if (!session || state.explorer !== session) return

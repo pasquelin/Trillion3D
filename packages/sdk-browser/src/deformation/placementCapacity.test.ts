@@ -6,7 +6,10 @@ import type { Cut } from '../world/core/worldCuts.ts'
 import type { MaterialEntry } from '../world/core/worldMaterials.ts'
 
 test('deformation row growth requests a structural reopen while stable owners retain their rows', () => {
-  const batches = createWorldBatches(() => {})
+  const batches = createWorldBatches(
+    () => {},
+    () => ({}) as never,
+  )
   const cut = { key: 'morph', drawn: { deformation: { targets: [{}] } } } as unknown as Cut
   const material = { id: 1 } as MaterialEntry
   const first = new Mesh(),

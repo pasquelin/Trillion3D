@@ -9,6 +9,7 @@ import {
 import type { Cut } from './worldCuts.ts'
 import type { Batch } from './worldBatches.ts'
 import { buildWorldMirror } from './worldMirror.ts'
+import type { WorldRanks } from './worldRanks.ts'
 import { modelWorldRoots, type LoadedModel } from './loadedModel.ts'
 import type { ExplorerScene } from '../session/prepare.ts'
 import { absolutePrimitive } from '../../scene/absolutePrimitive.ts'
@@ -35,6 +36,8 @@ const modelGraph = (model: LoadedModel) =>
 export type WorldPlan = {
   batches: readonly Batch[]
   models: readonly LoadedModel[]
+  /** The ranks the world gave its resources and models (`worldRanks.ts`). */
+  ranks: WorldRanks
 }
 
 /**
@@ -46,15 +49,15 @@ export type WorldPlan = {
  * when nothing is drawn.
  */
 export function buildWorldSource(plan: WorldPlan) {
-  const { batches, models } = plan
-  const merged = mergeModels(models)
+  const { batches, models, ranks } = plan
+  const merged = mergeModels(models, ranks)
   const { primitives, associations } = merged
   // One primitive per geometry resource, however many batches wear it and rows place it.
   const ranked = new Map<Cut, Primitive>()
   const rankOf = (cut: Cut) => {
     let primitive = ranked.get(cut)
     if (!primitive) {
-      ranked.set(cut, (primitive = { ...cut.runtime.primitive, mesh: merged.offset++ }))
+      ranked.set(cut, (primitive = { ...cut.runtime.primitive, mesh: ranks.cut(cut) }))
       primitives.push(primitive)
     }
     return primitive.mesh
@@ -62,10 +65,9 @@ export function buildWorldSource(plan: WorldPlan) {
   if (!primitives.length && !associations.size && !batches.length) return null
   const placedOf = (batch: Batch) => ({
     cut: batch.cut,
-    material: batch.entry.material,
+    surface: batch.surface,
     rows: batch.rows!,
     name: batch.entry.material.name as string,
-    twoSided: batch.twoSided,
   })
   const mirror = buildWorldMirror({
     placed: batches.map(placedOf),
@@ -78,8 +80,6 @@ export function buildWorldSource(plan: WorldPlan) {
   return {
     root: mirror.root,
     twins: mirror.twins,
-    repaint: mirror.repaint,
-    geometryOf: mirror.geometryOf,
     source: {
       manifestUrl: first?.manifestUrl ?? base,
       metadataUrl: first?.metadataUrl ?? base,
@@ -102,13 +102,20 @@ export function buildWorldSource(plan: WorldPlan) {
 }
 
 /** The loaded models' primitives and associations merged, their mesh ranks moved past each
- *  other's; `offset` the first rank none of them takes. */
-function mergeModels(models: readonly LoadedModel[]) {
+ *  other's, as `ranks` gave them. */
+function mergeModels(models: readonly LoadedModel[], ranks: WorldRanks) {
   const primitives: Primitive[] = []
   const associations: ExplorerScene['associations'] = new Map()
-  let offset = 0
   for (const model of models) {
     const { metadata, scene: graph } = model.record
+    const offset = ranks.model(model, () => {
+      // Past every rank its primitives and its meshes name: a mesh whose primitive the view has
+      // not read yet keeps its rank from the next model's.
+      let last = -1
+      for (const { mesh } of metadata.primitives) last = Math.max(last, mesh)
+      for (const link of graph.associations.values()) last = Math.max(last, link.meshes ?? -1)
+      return last + 1
+    })
     for (const primitive of absolutePrimitives(model))
       primitives.push({ ...primitive, mesh: primitive.mesh + offset })
     for (const [node, link] of graph.associations) {
@@ -121,14 +128,8 @@ function mergeModels(models: readonly LoadedModel[]) {
         })
       associations.set(node, moved)
     }
-    // Past every rank its primitives and its meshes name: a mesh whose primitive the view has not
-    // read yet keeps its rank from the next model's.
-    let last = -1
-    for (const { mesh } of metadata.primitives) last = Math.max(last, mesh)
-    for (const link of graph.associations.values()) last = Math.max(last, link.meshes ?? -1)
-    offset += last + 1
   }
-  return { primitives, associations, offset }
+  return { primitives, associations }
 }
 
 /** The one manifest a world's session reads, lent its base by the model whose images were left

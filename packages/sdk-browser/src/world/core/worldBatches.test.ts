@@ -11,10 +11,11 @@ import type { MaterialEntry } from './worldMaterials.ts'
 const cutOf = (key: string) => ({ key, drawn: {} }) as unknown as Cut
 const entry = { id: 0, key: 'm', material: {} } as unknown as MaterialEntry
 const mesh = () => ({}) as Mesh
+const wear = () => ({}) as never
 
 test('a batch the session was not opened with waits for the next opening, then is drawn', () => {
   const touched: number[] = []
-  const batches = createWorldBatches((_, row) => touched.push(row))
+  const batches = createWorldBatches((_, row) => touched.push(row), wear)
   const first = mesh()
   batches.seat(first, cutOf('a'), entry)
   batches.reopen() // the first session opens on resource `a`
@@ -37,7 +38,7 @@ test('a batch the session was not opened with waits for the next opening, then i
 })
 
 test('a batch no mesh wears any more leaves at the next opening', () => {
-  const batches = createWorldBatches(() => {})
+  const batches = createWorldBatches(() => {}, wear)
   const gone = mesh()
   batches.seat(gone, cutOf('a'), entry)
   batches.seat(mesh(), cutOf('b'), entry)
@@ -46,5 +47,26 @@ test('a batch no mesh wears any more leaves at the next opening', () => {
   assert.deepEqual(
     batches.reopen().map((batch) => batch.cut.key),
     ['b'],
+  )
+})
+
+test('a batch keeps the order it was given at its first seat, whichever batches leave', () => {
+  const batches = createWorldBatches(() => {}, wear)
+  const [a, b, c] = [mesh(), mesh(), mesh()]
+  batches.seat(a, cutOf('a'), entry)
+  batches.seat(b, cutOf('b'), entry)
+  const first = batches.reopen()
+  assert.deepEqual(
+    first.map((batch) => batch.order),
+    [0, 1],
+  )
+  batches.unseat(a)
+  batches.seat(c, cutOf('c'), entry)
+  assert.deepEqual(
+    batches.reopen().map((batch) => [batch.cut.key, batch.order]),
+    [
+      ['b', 1],
+      ['c', 2],
+    ],
   )
 })
