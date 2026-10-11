@@ -8,6 +8,7 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { packDagSelection } from './pack.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { createDagReadiness } from './readiness.ts'
+import { createDagPoolList } from './poolList.ts'
 import type { DagRoot } from './types.ts'
 
 type Reads = { sphere: number; url: number; parentError: number }
@@ -79,4 +80,20 @@ test('the blank residency of a placement is the pages its shared state reads rea
     assert.deepEqual(ready, expected(readiness.isReady))
     assert.deepEqual(child, expected(readiness.isChildReady))
   })
+})
+
+test('a cut made beside a pool lists its held pages by asking the keys, never every instance', () => {
+  const roots = world(60, 3, { sphere: 0, url: 0, parentError: 0 })
+  const packed = packDagSelection(roots)
+  const asked: number[] = []
+  const device = { queue: { writeBuffer() {} } } as unknown as GPUDevice
+  const parts = { buffers: [{} as GPUBuffer], bytes: Number.MAX_SAFE_INTEGER }
+  const list = createDagPoolList(device, packed, parts, (page) => (asked.push(page), true))
+  assert.ok(asked.length <= packed.keyCount, `${asked.length} asked for ${packed.keyCount} keys`)
+  assert.ok(asked.length < packed.pageCount / 10)
+  assert.equal(
+    list.entries.size,
+    packed.keyCount,
+    'every key is listed once, at its canonical page',
+  )
 })
