@@ -1837,6 +1837,9 @@
       "containsPoint": "Ob ein Punkt in der Ansicht liegt (`frustumContainsPoint`)."
     }
   },
+  "FAR_PLANE_SLOT": {
+    "summary": "Rang der FAR-Ebene unter den sechs, der Platz, den die Floats von `planes` bei vier je Ebene ansprechen."
+  },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Anzahl der Fließkommazahlen der sechs Ebenen eines Sichtkegels."
   },

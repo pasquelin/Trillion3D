@@ -1046,6 +1046,9 @@
     "summary": "Format cache yang dibaca runtime ini.",
     "description": "Format 5 menambahkan `scene-tables.json`, tabel node dan material tempat scene yang disiapkan diperiksa; format 7 membawa `selectedNodes` sebagai hitungan, bukan daftar (#404). Format yang lebih lama ditolak lewat nomornya, bukan dibaca separuh."
   },
+  "FAR_PLANE_SLOT": {
+    "summary": "Urutan bidang FAR di antara keenam bidang, slot yang dialamati float `planes` dengan empat per bidang."
+  },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Jumlah float untuk keenam bidang sebuah frustum."
   },

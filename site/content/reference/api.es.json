@@ -1837,6 +1837,9 @@
       "containsPoint": "Si un punto está en la vista (`frustumContainsPoint`)."
     }
   },
+  "FAR_PLANE_SLOT": {
+    "summary": "Posición del plano FAR entre los seis, la ranura que direccionan los flotantes de `planes` a cuatro por plano."
+  },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Número de flotantes de los seis planos de un frustum."
   },

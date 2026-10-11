@@ -1046,6 +1046,9 @@
     "summary": "Định dạng bộ nhớ đệm mà thời gian chạy này đọc.",
     "description": "Định dạng 5 đã thêm `scene-tables.json`, các bảng node và vật liệu mà cảnh đã chuẩn bị được đối chiếu với; định dạng 7 mang `selectedNodes` dưới dạng số đếm, không phải danh sách (#404). Các định dạng cũ hơn bị từ chối theo số hiệu của chúng thay vì đọc dở dang."
   },
+  "FAR_PLANE_SLOT": {
+    "summary": "Thứ hạng của mặt phẳng FAR trong sáu mặt phẳng, ô mà các số thực của `planes` định địa chỉ theo bốn số mỗi mặt phẳng."
+  },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Số lượng số thực cho sáu mặt phẳng của một khối nhìn."
   },

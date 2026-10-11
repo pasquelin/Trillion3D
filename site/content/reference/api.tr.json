@@ -1104,6 +1104,9 @@
     "summary": "Bu çalışma zamanının okuduğu önbellek formatı.",
     "description": "Format 5, hazırlanan sahnenin karşı kontrol edildiği düğüm ve malzeme tablolarını, `scene-tables.json`'ı ekledi; format 7 `selectedNodes`'u liste değil sayı olarak taşır (#404). Daha eski formatlar yarım okunmak yerine numaralarıyla reddedilir."
   },
+  "FAR_PLANE_SLOT": {
+    "summary": "Altı düzlem arasında FAR düzleminin sırası; `planes` kayan noktalarının düzlem başına dört olarak adreslediği yuva."
+  },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Bir frustum'un altı düzlemi için float sayısı."
   },

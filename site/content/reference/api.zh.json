@@ -1039,6 +1039,9 @@
     "summary": "此运行时所读取的缓存格式。",
     "description": "格式 5 加入了 `scene-tables.json`,即预处理场景据以核对的节点表和材质表;格式 7 将 `selectedNodes` 写为计数而非列表(#404)。更早的格式会因版本号被直接拒绝,而不是被半途读取。"
   },
+  "FAR_PLANE_SLOT": {
+    "summary": "FAR 平面在六个平面中的序号，即 `planes` 的浮点数按每个平面四个所寻址的槽位。"
+  },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "视锥体六个平面所对应的浮点数个数。"
   },

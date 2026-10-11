@@ -1039,6 +1039,9 @@
     "summary": "Formato de cache que este runtime lê.",
     "description": "O formato 5 adicionou `scene-tables.json`, as tabelas de nós e materiais contra as quais a cena preparada é verificada; o formato 7 carrega `selectedNodes` como uma contagem, não uma lista (#404). Formatos anteriores são recusados pelo seu número em vez de lidos pela metade."
   },
+  "FAR_PLANE_SLOT": {
+    "summary": "Posição do plano FAR entre os seis, o espaço que os floats de `planes` endereçam a quatro por plano."
+  },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Contagem de floats para os seis planos de um frustum."
   },
