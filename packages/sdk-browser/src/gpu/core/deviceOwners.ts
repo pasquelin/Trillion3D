@@ -1,4 +1,5 @@
 import { sessionHandle, sessionTag, tagsIn } from './sessionHandle.ts'
+import { log } from '../../diagnostic/log.ts'
 
 /**
  * Who owns an error on a device that outlives its sessions.
@@ -52,9 +53,7 @@ export function claimGpuDevice(device: GPUDevice, owner: GpuDeviceOwner): GpuDev
       const named = tagsIn(message)
       const live = named.filter((id) => entry.owners.has(id))
       if (named.length > 0 && live.length === 0) {
-        console.warn(
-          `[trillion3d] WebGPU error of a closed session, not the live one's: ${message}`,
-        )
+        log.warn(`WebGPU error of a closed session, not the live one's: ${message}`)
         if (entry.owners.size === 0) entry.pending = message
         for (const owner of entry.owners.values()) owner.closedError(message)
         return

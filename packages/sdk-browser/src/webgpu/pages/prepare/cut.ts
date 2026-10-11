@@ -6,6 +6,7 @@ import type { DagCapacity } from '../../../gpu/dag/pack.ts'
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
 import { composedRoot } from '../../../placement/gpuCompose.ts'
 import { admitCutTables } from './targetFunding.ts'
+import { log } from '../../../diagnostic/log.ts'
 
 /**
  * The GPU cut, the engine's one cut (#1483): one thread per cluster, each with its own error band.
@@ -84,7 +85,7 @@ function reportCutSteps(
   })
   if (made.ms < SLOW_CUT_MS) return
   const steps = made.took.map(({ step, ms }) => `${step} ${ms} ms`).join(', ')
-  console.warn(`[trillion3d] GPU cut made in ${made.ms} ms: ${steps}`)
+  log.warn(`GPU cut made in ${made.ms} ms: ${steps}`)
 }
 
 /**
