@@ -1,3 +1,4 @@
+import { arrayView } from '../../gpu/shadow/layers.ts'
 import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
 import { createWebgpuTilePool, type WebgpuTilePool } from './pool.ts'
 import type { WebgpuTilePageTable } from './pageTable.ts'
@@ -51,7 +52,7 @@ export function createTileLanes(
   })
   const white = new Uint8Array(4 * 4 * 4).fill(255)
   device.queue.writeTexture({ texture: standInTexture }, white, { bytesPerRow: 16 }, [4, 4])
-  const standIn = standInTexture.createView({ dimension: '2d-array' })
+  const standIn = arrayView(standInTexture)
   const views = () => PREVIEW_LAYOUT_NAMES.map((lane) => lanes.get(lane)?.pool.view ?? standIn)
   const pools = () => [...lanes.values()].map((lane) => lane.pool)
   return {

@@ -1,4 +1,4 @@
-import { boundsDiagonal, boxCenter } from './box.ts'
+import { boundsAreEmpty, boundsDiagonal, boxCenter } from './box.ts'
 import { plainLength3 } from '../vector/vector.ts'
 
 /**
@@ -19,7 +19,7 @@ export function sphereFromBounds(
   maxY: number,
   maxZ: number,
 ) {
-  if (maxX < minX || maxY < minY || maxZ < minZ) {
+  if (boundsAreEmpty(minX, minY, minZ, maxX, maxY, maxZ)) {
     out[o] = 0
     out[o + 1] = 0
     out[o + 2] = 0

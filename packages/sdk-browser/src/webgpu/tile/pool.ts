@@ -1,3 +1,4 @@
+import { arrayView } from '../../gpu/shadow/layers.ts'
 import {
   placeOf,
   poolLayerBytes,
@@ -174,7 +175,7 @@ export function createWebgpuTilePool(
   return {
     label,
     texture,
-    view: texture.createView({ dimension: '2d-array' }),
+    view: arrayView(texture),
     layers,
     tiles,
     bytes: layers * poolLayerBytes(texelBytes),

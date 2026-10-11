@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { NO_SLOT } from '../../../../math/src/wgsl/constants.ts'
 import { bitMask, bitWord, byteOf } from '../../../../math/src/wgsl/integer.ts'
 import { InvT3, invTranspose3Prep } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { windingKept, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
@@ -66,7 +67,7 @@ export const MARK_TILE = 8
 
 const LAYOUT_WGSL = wgslBlock(
   'LAYOUT_WGSL',
-  [],
+  [NO_SLOT],
   `const SHADE_CACHE_CURSOR:u32=${SHADE_CACHE_CURSOR_WORD}u;
 const SHADE_CACHE_ROWS:u32=${SHADE_CACHE_ROWS_WORD}u;
 const SHADE_CACHE_CAPACITY:u32=${SHADE_CACHE_CAPACITY_WORD}u;
@@ -78,7 +79,6 @@ const ROW_PREFIX:u32=${ROW_FRAME_WORDS + 1}u;
 const ROW_MARK_WORDS:u32=${ROW_MARK_WORDS}u;
 const PLANE_WORDS:u32=${ROW_MARK_WORDS / 2}u;
 const TRIANGLE_WORDS:u32=${TRIANGLE_WORDS}u;
-const NO_SLOT:u32=0xffffffffu;
 /** Plane A of row \`row\`'s marks, of \`rows\` laid; plane B follows it. */
 fn rowMarks(rows:u32,row:u32)->u32{return ROW_RECORDS+rows*ROW_RECORD_WORDS+row*ROW_MARK_WORDS;}
 /** The first word of the triangles, of \`rows\` laid. */

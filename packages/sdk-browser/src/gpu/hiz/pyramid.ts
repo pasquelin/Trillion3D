@@ -1,3 +1,4 @@
+import { arrayView } from '../shadow/layers.ts'
 import { HIZ_BUILD_SIDE, hizBuildPasses, hizBuildWords, type HizBuildPass } from './uniforms.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 import { pyramidBytes } from './oracle.ts'
@@ -114,7 +115,7 @@ export function allocPyramid(
     level0,
     level0View: level0.createView(),
     pyramid,
-    pyramidView: pyramid.createView({ dimension: '2d-array' }),
+    pyramidView: arrayView(pyramid),
     drawn: pyramidLayout(width, height, slots),
     destroy() {
       level0.destroy()

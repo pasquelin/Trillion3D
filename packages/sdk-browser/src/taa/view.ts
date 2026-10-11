@@ -1,4 +1,7 @@
-import { DEFAULT_EXPOSURE } from '../../../sdk-core/src/scene/core/environment.ts'
+import {
+  environmentExposure,
+  type SceneEnvironment,
+} from '../../../sdk-core/src/scene/core/environment.ts'
 import { invertMatrix4, matrixAtRenderOrigin } from '../../../sdk-core/src/index.ts'
 import { transformDirectionRow } from '../../../math/src/vector/vector.ts'
 import { TAA_SAMPLES } from './jitter.ts'
@@ -45,7 +48,7 @@ function writeReprojection(
  * display grid the history has, the current share and history flags, the native filter weights
  * of this jitter rank, the `render` grid the frame was drawn in, its jitter, whether it moves and
  * its rank among eight (`historyWgsl.ts`), the eye; `layers`, the display layers' history holds the
- * last image's; `deformed`, a GPU deformation moved; `exposure`, the scene's, which the
+ * last image's; `deformed`, a GPU deformation moved; `environment`, the scene's, whose exposure the
  * history's luma and the blend weights are measured in (`shadingHistoryWgsl.ts`); the camera's
  * parallax since the last image, the flicker rates, counted in images, and a render pixel's
  * width in the world (`shadingStill`).
@@ -60,7 +63,7 @@ export function writeTaaView(
   moved: boolean,
   layers = false,
   deformed = false,
-  exposure = DEFAULT_EXPOSURE,
+  environment?: SceneEnvironment,
 ) {
   // Inverse of the view-projection WITHOUT jitter: the reprojected pixel is its unshifted centre,
   // with the depth read at the shifted sample. At a fixed camera, history is thus re-read exactly
@@ -81,7 +84,7 @@ export function writeTaaView(
   packed[T.jitter + 3] = stochasticSlot(state)
   packed.set(cam.eye, T.eye)
   packed[T.eye + 3] = deformed ? 1 : 0
-  packed[T.tsr] = Math.max(exposure, 1e-6)
+  packed[T.tsr] = Math.max(environmentExposure(environment), 1e-6)
   // The last projection of the eye's move since: `previous · (lastEye − eye, 0)`, its three first
   // columns, which anchoring at the eye leaves as they are.
   const last = state.previousViewProjection,

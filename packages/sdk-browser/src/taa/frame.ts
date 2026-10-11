@@ -154,7 +154,7 @@ export function encodeTaaPass(
     temporal.motion.moved || !!rt.compose?.moving,
     !!inputs.filter && filterHistory.written,
     !!vis.deformationCompute,
-    rt.lights.store?.environment?.exposure,
+    rt.lights.store?.environment,
   )
   inputs.upscale = targetSize[0] !== displaySize[0] || targetSize[1] !== displaySize[1]
   inputs.current = current

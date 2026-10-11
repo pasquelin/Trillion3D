@@ -8,10 +8,11 @@ import { directLightingWgsl } from '../direct/lightingWgsl.ts'
 import { type ContractKey, variantLabel } from './contractCuts.ts'
 import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts'
 import { DISPLAY_VALUE_WGSL } from '../toneMappingWgsl.ts'
+import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { AS_IS_FLAG } from '../../scene/surfaceModel.ts'
 import { BLOOM_COMPOSE_WGSL } from '../../effects/bloomLevel.ts'
 import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
-import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { VIEW_WGSL, WORLD_AT_WGSL } from './worldAtWgsl.ts'
 import { resolvedReflectionWgsl } from '../../reflections/weight.ts'
@@ -133,25 +134,20 @@ const asIsMix = (curved: string, share: string) =>
   `let share=${share};let curved=${curved};let untouched=value.rgb/max(value.a,1e-6);
  let color=linearToSrgb(select(curved,curved*(1.0-share)+untouched*share,share>0.0));`
 
-/** What linear radiance goes through before sRGB: `exposed`, the radiance with its exposure applied,
- *  and the expression of the curve's rank, none for the identity. */
-type Chain = { exposed: string; curve: string | null }
+/** What linear radiance goes through before `displayValue`: `exposed`, the radiance with its
+ *  exposure applied, the expression of the curve's rank, and whether the pixel's as-is share
+ *  (`AS_IS_READ`) weighs it. */
+type Chain = { exposed: string; curve: string; asIs: boolean }
 /**
  * Composition, one source for two separate programs — never a branch in the shader.
- * `chain` is what linear radiance goes through before sRGB, and `curve` the declarations it
- * calls, none for the identity. Background, premultiplication and the raw output of diagnostic views are shared,
+ * `chain` is what linear radiance goes through before sRGB, always `displayValue`. Background, premultiplication and the raw output of diagnostic views are shared,
  * and so are debug views: a curved chain is weighed back to the pixel as-is by its share
  * (`AS_IS_READ`), since a normal or depth material is never exposed nor tone mapped. At a
- * share of 0 a lit pixel gets the chain before, bit for bit; the identity chain reads no share.
+ * share of 0 a lit pixel gets the chain before, bit for bit; the identity chain (curve none) reads no share.
  * With `bloom`, `hdr` is the image the chain's last bloom read, blended here (`BLOOM_COMPOSE_WGSL`).
  */
-const composeSource = (
-  curve: WgslDecl | null,
-  chain: Chain,
-  input: ComposeInput,
-  bloom: boolean,
-) => {
-  const read = curve && input !== 'flagless' ? AS_IS_READ[input] : undefined
+const composeSource = (chain: Chain, input: ComposeInput, bloom: boolean) => {
+  const read = chain.asIs && input !== 'flagless' ? AS_IS_READ[input] : undefined
   return wgslProgram(
     `
 @group(0) @binding(0) var hdr:texture_2d<f32>;
@@ -162,7 +158,7 @@ fn composeColor(pixel:vec4f)->vec4f{
  let value=${bloom ? 'bloomed(textureLoad(hdr,coord,0),pixel.xy)' : 'textureLoad(hdr,coord,0)'};
  if(value.a==0.0){return view.background;}
  if(view.viewport.z!=0.0){return vec4f(value.rgb,1.0);}
- ${read ? asIsMix(`toneMap(${chain.exposed},${chain.curve})`, read.share) : `let color=${chain.curve ? `displayValue(${chain.exposed},${chain.curve})` : `linearToSrgb(${chain.exposed})`};`}
+ ${read ? asIsMix(`toneMap(${chain.exposed},${chain.curve})`, read.share) : `let color=displayValue(${chain.exposed},${chain.curve});`}
  return vec4f(color*value.a+view.background.rgb*(1.0-value.a),1.0);
 }
 @fragment fn compose(@builtin(position) pixel:vec4f)->@location(0) vec4f{return composeColor(pixel);}
@@ -176,36 +172,38 @@ struct DisplayOutput{@location(0) capture:vec4f,@location(1) canvas:vec4f,}
       ...(bloom ? [BLOOM_COMPOSE_WGSL] : []),
       FULLSCREEN_VERTEX,
       linearToSrgb,
-      ...(curve ? [curve] : []),
+      DISPLAY_VALUE_WGSL,
     ],
   )
 }
 /** One composition per input: the still image's surface flags, the accumulated share, or none. */
-const composeSources = (curve: WgslDecl | null, chain: Chain, bloom = false) => ({
-  still: composeSource(curve, chain, 'still', bloom),
-  accumulated: composeSource(curve, chain, 'accumulated', bloom),
-  flagless: composeSource(curve, chain, 'flagless', bloom),
+const composeSources = (chain: Chain, bloom = false) => ({
+  still: composeSource(chain, 'still', bloom),
+  accumulated: composeSource(chain, 'accumulated', bloom),
+  flagless: composeSource(chain, 'flagless', bloom),
 })
 /** A program's compositions: plain, and blending in the chain's last bloom (#963). */
-const compositionsOf = (curve: WgslDecl | null, chain: Chain) => ({
-  plain: composeSources(curve, chain),
-  bloom: composeSources(curve, chain, true),
+const compositionsOf = (chain: Chain) => ({
+  plain: composeSources(chain),
+  bloom: composeSources(chain, true),
 })
 /**
  * Contract composition: exposure multiplies linear radiance before the display curve the scene
  * chose — ACES unless it chose another —, last link of the chain. That is the one of
  * programs lit by declared lights.
  */
-export const CONTRACT_COMPOSITIONS = compositionsOf(DISPLAY_VALUE_WGSL, {
+export const CONTRACT_COMPOSITIONS = compositionsOf({
   exposed: 'value.rgb*view.lightParams.w/max(value.a,1e-6)',
   curve: 'u32(view.display.x)',
+  asIs: true,
 })
 /**
  * Unlit-view composition: identity, from linear to sRGB and nothing else. With no declared
  * source there is no radiance to expose or bring into the display range — albedo is
  * read as-is, which is what benches that compare images pixel for pixel ask for.
  */
-export const UNLIT_COMPOSITIONS = compositionsOf(null, {
+export const UNLIT_COMPOSITIONS = compositionsOf({
   exposed: 'value.rgb/max(value.a,1e-6)',
-  curve: null,
+  curve: `${TONE_MAPPING_RANK.none}u`,
+  asIs: false,
 })

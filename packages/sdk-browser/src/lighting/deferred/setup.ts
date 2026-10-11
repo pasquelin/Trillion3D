@@ -203,7 +203,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     tiles,
     transmittanceView: arrayView(transmittance),
     bounceGrid,
-    probes: probes.createView({ dimension: '2d-array' }),
+    probes: arrayView(probes),
     proxy,
     receiver: receiver.resources,
     reflection: reflection.createView(),

@@ -1,3 +1,4 @@
+import { arrayView } from '../../gpu/shadow/layers.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { GUARANTEED_SIDE, textureLimits } from '../../gpu/core/textureLimits.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -61,7 +62,7 @@ export function createFloatAtlas(device: GPUDevice, label: string, floats: numbe
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
   })
   const bytes = extent[0] * extent[1] * extent[2] * 4
-  return { texture, extent, bytes, view: texture.createView({ dimension: '2d-array' }) }
+  return { texture, extent, bytes, view: arrayView(texture) }
 }
 export type FloatAtlas = ReturnType<typeof createFloatAtlas>
 

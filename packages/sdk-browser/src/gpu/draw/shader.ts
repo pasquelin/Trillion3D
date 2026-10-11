@@ -4,6 +4,8 @@ import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitAt, bitWord, ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { NO_SLOT } from '../../../../math/src/wgsl/constants.ts'
+import { DRAW_MASK_WGSL } from '../dag/shader/drawMaskWgsl.ts'
 
 /**
  * Stable compaction of the frame's draw items into one indirect command per slot.
@@ -73,11 +75,7 @@ export const drawShader = (layerSlots: number) => {
 @group(0) @binding(8) var<storage, read> slotUsed:array<u32>;
 // The occluder/rest partition is the only per-frame word of an item, so it travels as one bit each.
 fn restAt(i:u32)->u32{return bitAt(restBits[bitWord(i)],i);}
-fn selected(item:DrawItem)->bool{
- if(uni.selectionEnabled==0u){return true;}
- // The cut's draw mask, a bit a packed page (\`../dag/shader/compactWgsl.ts\`).
- return bitAt(selectionMask[uni.selectionOffset+bitWord(item.selectionIndex)],item.selectionIndex)!=0u;
-}
+fn selected(item:DrawItem)->bool{return uni.selectionEnabled==0u||maskSelects(item.selectionIndex);}
 /** GPU mirror of \`slotOf\` (cpu.ts): same product, same sum, same layer ceiling. */
 fn slotOf(i:u32,item:DrawItem)->u32{return restAt(i)*${HALF_SLOTS}u+item.bin+${BASE_SLOTS}u*min(item.layer,${top}u);}
 fn writeCmd(slot:u32,count:u32){
@@ -92,8 +90,6 @@ fn writeCmd(slot:u32,count:u32){
 fn batchesOf(item:DrawItem)->u32{
  return clamp(ceilDiv(item.triangles*3u,uni.corners),1u,uni.perRow);
 }
-/** No slot: the lane is past the frame's items, or its item is not selected. */
-const NO_SLOT:u32=0xffffffffu;
 var<workgroup> laneSlots:array<u32,64>;
 var<workgroup> laneBatches:array<u32,64>;
 var<workgroup> slotTally:array<atomic<u32>,${slots}>;
@@ -160,6 +156,15 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
  for(var b=0u;b<batches;b++){instances[at+b]=page|((b*stride)<<${BATCH_SHIFT}u);}
 }
 `,
-    [DRAW_ITEM_WGSL, LANE_SCAN_WGSL, FLAT_INDEX_WGSL, ceilDiv, bitWord, bitAt],
+    [
+      DRAW_ITEM_WGSL,
+      LANE_SCAN_WGSL,
+      FLAT_INDEX_WGSL,
+      ceilDiv,
+      bitWord,
+      bitAt,
+      DRAW_MASK_WGSL,
+      NO_SLOT,
+    ],
   )
 }

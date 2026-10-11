@@ -22,7 +22,8 @@ export const ROUTE_FUNCTIONS = ['displayRoute', 'displayValue', 'linearToSrgb', 
 export const routeScope = (kind: 0 | 1 | 2, mask: (at: number[]) => number = () => 1) => ({
   DISPLAY_ROUTE: kind,
   Route: (keep: number, tint: Rgba, add: Rgba): Route => ({ keep, tint, add }),
-  toneMap: (rgb: number[], curve: number) => (assert.equal(curve, ACES), filmic(rgb)),
+  toneMap: (rgb: number[], curve: number) =>
+    curve === TONE_MAPPING_RANK.none ? rgb : (assert.equal(curve, ACES), filmic(rgb)),
   displayMask: (at: number[]) => [mask(at), 0, 0, 0],
   textureLoad: (texture: Texel, at: number[], level: number) => (
     assert.equal(level, 0),

@@ -1,6 +1,6 @@
 import type { EngineCamera } from '../../../camera/world.ts'
 import {
-  DEFAULT_EXPOSURE,
+  environmentExposure,
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
 } from '../../../../../sdk-core/src/scene/core/environment.ts'
@@ -38,7 +38,7 @@ export function encodeDirectLights(
   directParams.fill(0)
   // Exposure is not a light: it sets conversion of radiance into an image, and cannot light anything
   // the declared lights do not already light.
-  directParams[3] = environment ? environment.exposure : DEFAULT_EXPOSURE
+  directParams[3] = environmentExposure(environment)
   directParams[4] = TONE_MAPPING_RANK[environment?.toneMapping ?? DEFAULT_TONE_MAPPING]
   // The eye itself, under any projection: an orthographic camera's view point is a direction.
   directParams.set(cam.eye, 5)
