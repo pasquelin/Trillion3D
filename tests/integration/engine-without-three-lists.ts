@@ -64,4 +64,5 @@ export const BENCH_READS_DECLARATION = /^bench\/(?:witnesses|oracles|perf)\//
 
 export const DECLARATION: Record<string, string> = {
   'page/surface': 'boundary: a record wears a new declaration, its surface read with it',
+  'page/selection/drawSource': 'the source declares what its surface is read from, once',
 }

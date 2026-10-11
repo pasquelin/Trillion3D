@@ -1,5 +1,5 @@
 import { BOX_VALUES, type ClusterManifest, type Primitive } from '../../../../sdk-core/src/index.ts'
-import { sourceSurface, type PageSurface } from '../surface.ts'
+import { sourceSurface, wearsOneOf, type PageSurface } from '../surface.ts'
 import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts'
@@ -114,7 +114,7 @@ const wears = ({ drawSource: source }: PageRec, alpha: AlphaChange) =>
   !!source &&
   (isAssignment(alpha)
     ? !!source.node && alpha.meshes.has(source.node)
-    : alpha.surfaces.includes(source.declaration as object))
+    : wearsOneOf(source, alpha.surfaces))
 
 /** Whether a record is drawn blended once `alpha` moved its surfaces, before or after they are
  *  written: the family a collection gives the class `alpha.to`, or the one it has. */

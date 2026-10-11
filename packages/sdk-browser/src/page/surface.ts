@@ -121,6 +121,10 @@ export function refreshSurface(surface: PageSurface): PageSurface {
   return materialRaster(material, surface)
 }
 
+/** Whether `source` wears one of `surfaces`: the declaration a repaint or an assignment names. */
+export const wearsOneOf = (source: { declaration: HostMaterials }, surfaces: readonly object[]) =>
+  surfaces.includes(source.declaration as object)
+
 /** The records of the source meshes a created material was assigned to. */
 export const recordsOfMeshes = <T extends { drawSource?: { node?: object } }>(
   records: readonly T[],
