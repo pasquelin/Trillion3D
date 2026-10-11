@@ -7,6 +7,7 @@
  * read whole. A file that breaks its contract is refused whole, `INVALID_CACHE`.
  */
 import { uint64FromWords } from '../../../math/src/scalar/uint64.ts'
+import { hexOfBytes } from '../../../math/src/scalar/hex.ts'
 import { lastTrue } from '../../../math/src/scalar/search.ts'
 import type { ClusterGroup } from '../contracts/geometry.ts'
 import {
@@ -55,8 +56,6 @@ function opened(
   return { view, word, pool, list }
 }
 
-const hex = (bytes: Uint8Array) =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 const below = (values: Uint32Array, end: number) => values.every((value) => value < end)
 
 type Opened = ReturnType<typeof opened>
@@ -73,7 +72,7 @@ function tableBundles(bytes: Uint8Array, { word, list }: Opened, count: number) 
     if (!below(dependencies, count)) refuse(`bundle ${rank} dependencies`)
     const offset = end
     end += word(at + 8)
-    const sha256 = hex(bytes.subarray(at + 24, at + BUNDLE))
+    const sha256 = hexOfBytes(bytes.subarray(at + 24, at + BUNDLE))
     return {
       offset,
       bytes: word(at + 8),
@@ -168,7 +167,11 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
     budgetBytes: word(8),
     pinned,
     pinnedTopBytes,
-    payload: { url: WORLD_ROOTS_BIN, sha256: hex(bytes.subarray(48, 80)), bytes: payloadBytes },
+    payload: {
+      url: WORLD_ROOTS_BIN,
+      sha256: hexOfBytes(bytes.subarray(48, 80)),
+      bytes: payloadBytes,
+    },
     bundles,
     pages: tablePages(file, pagesAt, pageCount),
     cells: tableCells(file, [cellsAt, objectsAt], [cellCount, objectCount, bundleCount]),
