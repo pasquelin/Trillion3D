@@ -4,6 +4,7 @@
 import { xorshiftRandom } from '../../../core/index.ts'
 import { normalizeQuaternion } from '../../../../packages/math/src/quaternion/quaternion.ts'
 import { dansDe } from './scenesCore.ts'
+import { MIRRORED_SCALES } from './hostileScales.ts'
 import type { CameraOptics } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 
 export type Vec3 = [number, number, number]
@@ -63,14 +64,7 @@ const ROTATIONS: Quat[] = [
   [NaN, 0, 0, 1],
 ]
 const SCALES: Vec3[] = [
-  [1, 1, 1],
-  [-1, 1, 1],
-  [1, -1, 1],
-  [1, 1, -1],
-  [-1, -1, -1],
-  [2, 0.5, 3],
-  [-2, 3, 0.25],
-  [0, 1, 1],
+  ...MIRRORED_SCALES,
   [0, 0, 0],
   [-0, 1, 1],
   [1e-300, 1, 1],

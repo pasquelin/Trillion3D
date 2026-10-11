@@ -12,6 +12,7 @@ import {
 } from '../../../../packages/sdk-core/src/index.ts'
 import { xorshiftRandom } from '../../../core/index.ts'
 import { f64, referenceNormal, trs } from './coreLine.ts'
+import { MIRRORED_SCALES } from './hostileScales.ts'
 
 /** A node on both sides: the reference object and the foundation buffers. */
 export interface HierarchyNode {
@@ -58,20 +59,7 @@ function metAJour(nodes: HierarchyNode[]) {
 }
 
 /** Hostile scales: negative on one axis or three, non-uniform, zero, extremes. */
-const SCALES = [
-  [1, 1, 1],
-  [-1, 1, 1],
-  [1, -1, 1],
-  [1, 1, -1],
-  [-1, -1, -1],
-  [2, 0.5, 3],
-  [-2, 3, 0.25],
-  [0, 1, 1],
-  [1e-300, 1, 1],
-  [1e150, 1e150, 1e150],
-  [1, 1e-8, 1],
-  [7, 7, 7],
-]
+const SCALES = [...MIRRORED_SCALES, [1e-300, 1, 1], [1e150, 1e150, 1e150], [1, 1e-8, 1], [7, 7, 7]]
 const alea = xorshiftRandom(0x41e7)
 const tourne = () =>
   new THREE.Quaternion(alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5).normalize().toArray()

@@ -12,7 +12,7 @@ import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/unif
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { encodeBefore, resourcesBefore } from '../../../bench/oracles/browser/cut-dispatches.ts'
 import { DAG_SELECTION_SHADER_BEFORE } from '../../../bench/oracles/browser/cut-dispatches-wgsl.ts'
-import { quantileFloorOf } from '../../../packages/math/src/scalar/quantile.ts'
+import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { countCommands, sceneView } from './cutScene.ts'
 
@@ -132,7 +132,7 @@ export async function measureDispatches(sweep: DispatchSweep) {
       totals.push((await batch(encode, sweep.frames)).total)
     bounds.push({
       width,
-      ms: Number((quantileFloorOf(totals, 0.5) as number).toFixed(4)),
+      ms: Number((quantileOf(totals, 0.5) as number).toFixed(4)),
       output: await read(shipped.output),
     })
   }
@@ -140,7 +140,7 @@ export async function measureDispatches(sweep: DispatchSweep) {
   const ms = (list: Timing[], field: keyof Timing) =>
     Number(
       (
-        quantileFloorOf(
+        quantileOf(
           list.map((t) => t[field]),
           0.5,
         ) as number

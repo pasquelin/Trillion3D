@@ -1,7 +1,7 @@
 import { TAU } from '../../../packages/math/src/constants.ts'
 import { lerp, snap as snapTo } from '../../../packages/math/src/scalar/reals.ts'
 import { normalizeVector3 } from '../../../packages/math/src/vector/vector.ts'
-import { mulberry32 } from '../../../site/examples/kit/random.ts'
+import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
 
 export type Vec3 = readonly [number, number, number]
 
@@ -17,7 +17,7 @@ export const snap = (value: number) => snapTo(value, 2 ** -20)
 
 /**
  * A seeded random stream for the scenes modelled in code: the same seed gives the same uniform
- * draws on every machine, since they rest on integer arithmetic alone (the kit's `mulberry32`);
+ * draws on every machine, since they rest on integer arithmetic alone (`mulberry32`, `packages/math/src/sequence/random.ts`);
  * what `normal` and `direction` derive through `Math` is snapped where it is written.
  */
 export function randomStream(seed: number) {

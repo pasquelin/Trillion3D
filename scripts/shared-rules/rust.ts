@@ -13,7 +13,10 @@ export type RustConstant = { name: string; value: number; doc: string[]; scope: 
 
 /** The value of the integer expression `text`, its names read from `known`. */
 function evaluate(text: string, known: ReadonlyMap<string, number>): number {
-  const source = text.replace(/\s+as\s+\w+/g, '').replace(/(?<=\d)_(?=\d)/g, '')
+  const source = text
+    .replace(/\s+as\s+\w+/g, '')
+    .replace(/0x[0-9a-fA-F_]+/g, (hex) => hex.replaceAll('_', ''))
+    .replace(/(?<=\d)_(?=\d)/g, '')
   const tokens = source.match(/0x[0-9a-fA-F]+|\d+|[A-Za-z_]\w*|<<|[-+*()]/g) ?? []
   let at = 0
   const sum = (): number => {
@@ -70,7 +73,9 @@ export function rustConstants(path: string, known = new Map<string, number>()) {
       continue
     }
     const module = /^pub mod (\w+) \{$/.exec(text)
-    const numeric = /^pub const (\w+): (?:[iu](?:8|16|32|64)|usize) = (.+);$/.exec(text)
+    const numeric = /^pub(?:\(crate\))? const (\w+): (?:[iu](?:8|16|32|64)|usize) = (.+);$/.exec(
+      text,
+    )
     if (module) scope.push(module[1])
     else if (text === '}' && scope.length) scope.pop()
     else if (numeric) {
@@ -81,4 +86,21 @@ export function rustConstants(path: string, known = new Map<string, number>()) {
     doc = []
   }
   return found
+}
+
+/** The `pub const` string `name` of the Rust file at `path`, with its leading documentation. */
+export function rustString(path: string, name: string) {
+  let doc: string[] = []
+  for (const line of rustSource(path).split('\n')) {
+    const text = line.trim()
+    const comment = /^\/\/\/ ?(.*)$/.exec(text)
+    if (comment) {
+      doc.push(comment[1])
+      continue
+    }
+    const found = new RegExp(`^pub(?:\\(crate\\))? const ${name}: &str = "([^"]*)";$`).exec(text)
+    if (found) return { name, value: found[1], doc }
+    doc = []
+  }
+  throw new Error(`${path}: no string constant '${name}'`)
 }

@@ -4,7 +4,7 @@
 //! `dwFourCC`, the DX10 header's `dxgiFormat`, or — for an uncompressed surface — its bit
 //! masks. All three paths arrive here and return `None` for anything not on the list: it is
 //! the caller that turns that into a named refusal.
-use crate::plugins::image::blocks::BlockDecode;
+use crate::plugins::image::blocks::{rgba8_bytes, surface_bytes, BlockDecode};
 use crate::plugins::image::Transfer;
 use texture2ddecoder::{decode_bc1a, decode_bc2, decode_bc3, decode_bc4, decode_bc5, decode_bc7};
 
@@ -75,17 +75,11 @@ impl Codec {
         matches!(self.layout(), Layout::Pixels(_))
     }
 
-    /// Bytes occupied by a level of this size. Blocks always cover multiples of four pixels:
-    /// a 1 × 1 level still weighs a whole block. The count saturates rather than overflowing:
-    /// absurd dimensions give an absurd need, hence a refusal.
+    /// Bytes occupied by a level of this size.
     pub(super) fn level_bytes(self, width: u32, height: u32) -> u64 {
         match self.layout() {
-            Layout::Blocks { bytes, .. } => u64::from(width.div_ceil(4))
-                .saturating_mul(u64::from(height.div_ceil(4)))
-                .saturating_mul(u64::from(bytes)),
-            Layout::Pixels(_) => u64::from(width)
-                .saturating_mul(u64::from(height))
-                .saturating_mul(4),
+            Layout::Blocks { bytes, .. } => surface_bytes(width, height, bytes as u64),
+            Layout::Pixels(_) => rgba8_bytes(width, height),
         }
     }
 }

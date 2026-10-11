@@ -4,6 +4,7 @@
 // `multiplyScalar`, `lengthSq`. It serves as bit-by-bit reference for new code. What previous
 // batches already moved out of host — `matrixWindingCw`, `normalMatrix3` — remains as is on both
 // sides: this benchmark only proves vector algebra moved in this batch.
+// jscpd:ignore-start — a frozen copy, a wanted duplicate: the oracle must not share code with what it checks
 import * as THREE from 'three'
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts'
 import { matrixWindingCw, normalMatrix3 } from '../../../packages/sdk-core/src/index.ts'
@@ -133,3 +134,4 @@ export function referenceShadingNormal(
   }
   return frameOut.set(Nx, Ny, Nz)
 }
+// jscpd:ignore-end

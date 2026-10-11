@@ -8,7 +8,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { math } from '../../packages/sdk-core/src/world/math/index.ts'
-import { seeded, valueNoise } from './kit/random.ts'
+import { lcgRandom } from '../../packages/math/src/sequence/random.ts'
+import { valueNoise } from './kit/random.ts'
 
 type Lengths = { unit: (v: number[]) => number[]; length: (v: number[]) => number }
 const direction = math.vector3()
@@ -117,7 +118,7 @@ function planet(L: Lengths) {
         for (const p of [polygon[0], polygon[k], polygon[k + 1]]) band.push(...p.slice(0, 6))
     })
   }
-  const next = seeded(3),
+  const next = lcgRandom(3),
     step = 0.004
   const candidates = Array.from({ length: 10000 }, () => {
     const y = next() * 2 - 1,
@@ -158,12 +159,15 @@ test('the planet reaches the engine and its rules alike through the length rule 
       assert.ok(Object.is(now.bands[index][k], value), `band ${index} word ${k}`),
     )
   })
-  const f = Math.fround
   old.candidates.forEach(({ d, r, slope }, k) => {
     const spot = now.candidates[k]
     d.forEach((value) => {
-      assert.equal(f(value * (spot.r - 0.01)), f(value * (r - 0.01)), `tree ${k}`)
-      assert.equal(f(value * spot.r), f(value * r), `rock ${k}`)
+      assert.equal(
+        Math.fround(value * (spot.r - 0.01)),
+        Math.fround(value * (r - 0.01)),
+        `tree ${k}`,
+      )
+      assert.equal(Math.fround(value * spot.r), Math.fround(value * r), `rock ${k}`)
     })
     // The controls: sea level −0.2 to 0.3 by 0.005, steepness 2 to 60 by 1.
     for (let s = -40; s <= 60; s++)

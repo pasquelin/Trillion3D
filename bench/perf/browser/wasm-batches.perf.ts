@@ -1,11 +1,9 @@
 // Performance bench: batched computation in WebAssembly (WASM against JavaScript).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { measure, rapport } from '../../core/index.ts'
 import type { MeasureCase } from '../../core/index.ts'
-import { prepareSdkWasm } from '../../../packages/sdk-browser/src/wasm/sdkWasm.ts'
+import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import {
   prepareMathBatch,
   mathBatchMetrics,
@@ -17,9 +15,6 @@ import {
 import type { MathLot } from '../../../packages/sdk-browser/src/page/decode/batch/batchLot.ts'
 import { TAILLES, fillsBoxes, remplitMatrices } from './support/wasmBatchCases.ts'
 
-await prepareSdkWasm(
-  readFileSync(join(import.meta.dirname, '../../../packages/sdk-browser/src/wasm/kernels.wasm')),
-)
 await prepareMathBatch('auto')
 
 const state = mathBatchMetrics()

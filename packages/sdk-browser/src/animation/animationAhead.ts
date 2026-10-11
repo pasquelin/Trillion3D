@@ -1,3 +1,4 @@
+import { resized } from '../../../math/src/sequence/resized.ts'
 import type { Track } from '../../../sdk-core/src/world/animation/clip.ts'
 import { type WorkerScope } from '../host/workerScope.ts'
 
@@ -163,9 +164,7 @@ export function askAhead(handle: AheadHandle, t: number) {
   }
   const end = cursor + AHEAD_QUESTION + handle.length
   if (end > request.length) {
-    const grown = new Float64Array(Math.max(2 * request.length, end))
-    grown.set(request.subarray(0, cursor))
-    request = grown
+    request = resized(request, end)
   }
   request[cursor] = handle.id
   request[cursor + 1] = t

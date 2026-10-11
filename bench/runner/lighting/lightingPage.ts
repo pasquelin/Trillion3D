@@ -5,6 +5,7 @@ import type * as PageExplorateur from '../harness/explorerPage.ts'
 import type * as PageMeasure from '../harness/measurePage.ts'
 import type { MovingNode } from '../report/types.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
+import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
 
 // Named by its backend export at build time (`webgpuPagesEngine`), by whatever name a test double
 // exports otherwise: the lookup below is a plain dynamic index by design, so the namespace type
@@ -96,7 +97,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const liveTuning = await measure.reglerReservoirs(explorer, pose, options.livePools)
   let last: ReturnType<typeof explorer.render> | null = null
   for (let i = 0; i < options.frames; i++) {
-    await new Promise<number>((done) => requestAnimationFrame(done))
+    await animationFrame()
     moveLight(i)
     moveNode(i)
     last = explorer.render(poseAt(i))

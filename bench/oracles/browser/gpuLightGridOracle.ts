@@ -6,6 +6,7 @@
  * (`toTileFrame`); `depthRows` are the render matrix's depth and w rows in that frame.
  */
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'
+import { cross, dot } from '../../../tests/gpu/math/f32Vec3.ts'
 import { DEPTH_NEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts'
 
 export type Vec3 = [number, number, number]
@@ -26,32 +27,33 @@ export const GRID: Grid = {
   perOctave: LIGHT_SETTINGS.gridSlicesPerOctave,
 }
 
-export const f = Math.fround
 const map = (g: (a: number) => number): Vec3 => [g(0), g(1), g(2)]
-export const add = (a: Vec3, b: Vec3) => map((i) => f(a[i] + b[i]))
-export const sub = (a: Vec3, b: Vec3) => map((i) => f(a[i] - b[i]))
-export const scale = (a: Vec3, s: number) => map((i) => f(a[i] * s))
-export const dot = (a: Vec3, b: Vec3) => f(f(f(a[0] * b[0]) + f(a[1] * b[1])) + f(a[2] * b[2]))
-const cross = (a: Vec3, b: Vec3): Vec3 => [
-  f(f(a[1] * b[2]) - f(a[2] * b[1])),
-  f(f(a[2] * b[0]) - f(a[0] * b[2])),
-  f(f(a[0] * b[1]) - f(a[1] * b[0])),
-]
+export const add = (a: Vec3, b: Vec3) => map((i) => Math.fround(a[i] + b[i]))
+export const sub = (a: Vec3, b: Vec3) => map((i) => Math.fround(a[i] - b[i]))
+export const scale = (a: Vec3, s: number) => map((i) => Math.fround(a[i] * s))
 
 export const toTileFrame = (view: TileView, point: Vec3) =>
-  map((i) => f(f(point[i]) - f(view.origin[i])))
+  map((i) => Math.fround(Math.fround(point[i]) - Math.fround(view.origin[i])))
 
 function unproject(m: ArrayLike<number>, x: number, y: number, z: number): Vec3 {
   const row = (r: number) =>
-    f(f(f(f(f(m[r]) * x) + f(f(m[r + 4]) * y)) + f(f(m[r + 8]) * z)) + f(m[r + 12]))
+    Math.fround(
+      Math.fround(
+        Math.fround(Math.fround(Math.fround(m[r]) * x) + Math.fround(Math.fround(m[r + 4]) * y)) +
+          Math.fround(Math.fround(m[r + 8]) * z),
+      ) + Math.fround(m[r + 12]),
+    )
   const w = row(3)
-  return map((r) => f(row(r) / w))
+  return map((r) => Math.fround(row(r) / w))
 }
 
 /** `gridSlice`: the slice of a pixel of depth `z`, `perOctave` a doubling of its view depth. */
 export const gridSlice = (z: number, grid = GRID) =>
   Math.trunc(
-    Math.min(Math.max(f(-f(Math.log2(Math.max(z, 1e-30))) * grid.perOctave), 0), grid.slices - 1),
+    Math.min(
+      Math.max(Math.fround(-Math.fround(Math.log2(Math.max(z, 1e-30))) * grid.perOctave), 0),
+      grid.slices - 1,
+    ),
   )
 
 /** `cellCorner`: a column's corner — bit 0 the right edge, bit 1 the bottom — at depth `z`. */
@@ -63,14 +65,21 @@ export function cellCorner(
   grid = GRID,
 ) {
   const edge = (t: number, far: number, extent: number) =>
-    far ? Math.min(f(((t + 1) * grid.cell) / extent), 1) : f((t * grid.cell) / extent)
+    far
+      ? Math.min(Math.fround(((t + 1) * grid.cell) / extent), 1)
+      : Math.fround((t * grid.cell) / extent)
   const x = edge(cell[0], corner & 1, view.width)
   const y = edge(cell[1], corner & 2, view.height)
-  return unproject(view.inverseViewProjection, f(f(x * 2) - 1), f(1 - f(y * 2)), f(z))
+  return unproject(
+    view.inverseViewProjection,
+    Math.fround(Math.fround(x * 2) - 1),
+    Math.fround(1 - Math.fround(y * 2)),
+    Math.fround(z),
+  )
 }
 
 function inwardPlane(normal: Vec3, point: Vec3, inside: Vec3): Plane {
-  const n = scale(normal, f(1 / f(Math.sqrt(dot(normal, normal)))))
+  const n = scale(normal, Math.fround(1 / Math.fround(Math.sqrt(dot(normal, normal)))))
   const facing = dot(n, sub(inside, point)) >= 0 ? n : scale(n, -1)
   return { n: facing, w: -dot(facing, point) }
 }
@@ -89,7 +98,7 @@ export function cellColumn(view: TileView, cell: [number, number], grid = GRID) 
 }
 
 const sphereBehind = (plane: Plane, centre: Vec3, radius: number) =>
-  f(dot(plane.n, centre) + plane.w) < -radius
+  Math.fround(dot(plane.n, centre) + plane.w) < -radius
 
 /** `sphereInColumn`: not wholly behind any of the column's planes. */
 export const sphereInColumn = (column: Plane[], centre: Vec3, radius: number) =>
@@ -99,6 +108,12 @@ export const sphereInColumn = (column: Plane[], centre: Vec3, radius: number) =>
 export function depthOf(view: TileView, p: Vec3) {
   const r = view.depthRows
   const row = (o: number) =>
-    f(f(f(f(f(r[o]) * p[0]) + f(f(r[o + 1]) * p[1])) + f(f(r[o + 2]) * p[2])) + f(r[o + 3]))
+    Math.fround(
+      Math.fround(
+        Math.fround(
+          Math.fround(Math.fround(r[o]) * p[0]) + Math.fround(Math.fround(r[o + 1]) * p[1]),
+        ) + Math.fround(Math.fround(r[o + 2]) * p[2]),
+      ) + Math.fround(r[o + 3]),
+    )
   return { z: row(0), w: row(4) }
 }

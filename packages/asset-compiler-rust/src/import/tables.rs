@@ -161,34 +161,15 @@ impl SceneOutput for SceneTables {
             .iter()
             .filter(|n| n.get("mesh").is_some())
             .count();
-        let tables = Tables {
-            nodes: &self.nodes,
-            meshes: &self.meshes,
-            materials: &self.materials,
-            accessors: &self.accessors,
-            images: &self.images,
-            samplers: &self.samplers,
-            textures: &self.textures,
-            bin: &self.bin,
-        };
-        let mut document = tables.document(plugin, &self.roots());
-        super::attach_lights(&mut document, &self.lights);
-        let gltf_bytes = serde_json::to_vec(&document)?;
-        write_scene(
-            directory,
-            &gltf_bytes,
-            &self.bin,
-            (mesh_nodes, triangles),
-            &self.report,
-            || {
-                json!({
-                    "plugin":crate::plugins::provenance(plugin),"path":source.to_string_lossy(),
-                    "files":self.files,"counts":self.counts,"meshes":self.meshes.len(),
-                    "materials":self.materials.len(),"images":self.images.len(),
-                    "importMs":crate::shared_math::elapsed_ms(started),
-                })
-            },
-        )?;
-        Ok(directory.to_path_buf())
+        Converted {
+            tables: borrowed_tables!(self),
+            roots: &self.roots(),
+            lights: &self.lights,
+            report: &self.report,
+            counts: &self.counts,
+            files: json!(self.files),
+            stats: (mesh_nodes, triangles),
+        }
+        .write(plugin, directory, source, started)
     }
 }

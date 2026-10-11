@@ -9,7 +9,7 @@
  * bytes a whole write would have left.
  */
 import { coalesceRanges, RESIDENCY_RULE, type RangeRule } from '../../webgpu/residency/ranges.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 
 const HELD = new WeakMap<GPUBuffer, Uint32Array>()
@@ -33,7 +33,7 @@ export function writeChangedCopy(source: GPUBuffer, target: GPUBuffer) {
 function heldWords(buffer: GPUBuffer, to: number) {
   let held = HELD.get(buffer)
   if (!held || held.length < to) {
-    const grown = new Uint32Array(clamp(2 * (held?.length ?? 0), to, buffer.size / 4))
+    const grown = new Uint32Array(Math.min(grownLength(held?.length ?? 0, to), buffer.size / 4))
     if (held) grown.set(held)
     HELD.set(buffer, (held = grown))
   }

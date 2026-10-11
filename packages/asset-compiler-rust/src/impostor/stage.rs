@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use trillion3d_math::aabb::diagonal;
 use trillion3d_math::matrix::transform_point;
 
-/// Report contract: the atlas layout, its maps and their chains. A change moves it.
+/// Format of the `impostors` section a runtime reads, baked by the compiler.
 pub(crate) const IMPOSTOR_VERSION: u32 = 1;
 
 /// What the stage reads beyond the proxy's inputs: the job, the source binary, the skinned

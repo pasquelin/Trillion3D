@@ -158,5 +158,5 @@ fn element_digest(g: &Value, bin: &[u8], id: usize) -> Option<String> {
             sha.update(a.bin.get(at..at.checked_add(size)?)?);
         }
     }
-    Some(format!("{:x}", sha.finalize()))
+    Some(hex_of(sha.finalize()))
 }

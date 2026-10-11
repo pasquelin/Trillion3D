@@ -4,7 +4,7 @@ import { HOLD_FRAME_LIMIT } from '../harness/measurePage.ts'
 
 interface TrajectoryPort {
   render(pose: CameraPose): Partial<FrameMetrics>
-  nextFrame(): Promise<void>
+  nextFrame(): Promise<unknown>
   capture(name: string): Promise<string>
 }
 

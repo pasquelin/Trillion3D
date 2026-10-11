@@ -53,12 +53,7 @@ export {
 } from '../../sdk-core/src/page/integrationPlan.ts'
 export type { PageIntegrationPlan } from '../../sdk-core/src/page/integrationPlan.ts'
 export { decodeManifestBinary } from '../../sdk-core/src/manifest/binaryDecode.ts'
-export {
-  GEOMETRY_PAGE_CODEC,
-  MANIFEST_BINARY_MAGIC,
-  MANIFEST_BINARY_VERSION,
-  COLUMN_KIND,
-} from '../../sdk-core/src/manifest/binaryFormat.ts'
+export { GEOMETRY_PAGE_CODEC, COLUMN_KIND } from '../../sdk-core/src/manifest/binaryFormat.ts'
 export type { ColumnKind } from '../../sdk-core/src/manifest/binaryFormat.ts'
 export { GEOMETRY_PAGE_FORMAT_VERSION } from '../../sdk-core/src/page/format.ts'
 export {

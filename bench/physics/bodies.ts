@@ -24,10 +24,10 @@ import {
   PHYSICS_MATERIALS,
   SHAPE,
 } from '../../packages/sdk-core/src/physics/index.ts'
-import { mean, quantileFloorOf } from '../../packages/math/src/scalar/quantile.ts'
+import { summaryOf } from '../../packages/math/src/scalar/quantile.ts'
 import { Quaternion } from '../../packages/sdk-core/src/world/math/quaternion.ts'
 import { openJolt, startJolt } from '../../packages/sdk-browser/src/physics/joltModule.ts'
-import { seeded } from '../../site/examples/kit/random.ts'
+import { lcgRandom } from '../../packages/math/src/sequence/random.ts'
 import {
   runJoltThread,
   type JoltThreadStart,
@@ -70,7 +70,7 @@ function scene(count: number) {
     })
   }
   body(0, MOTION.static, [0, -1, 0], new Quaternion(), 0)
-  const next = seeded(11),
+  const next = lcgRandom(11),
     side = Math.ceil(Math.sqrt(count / 10)),
     turn = new Quaternion()
   for (let i = 0; i < count; i++) {
@@ -101,10 +101,8 @@ type Run = { steps: { ms: number; active: number; full?: number }[]; phases: Map
  */
 function summary(label: string, { steps, phases }: Run) {
   const window = steps.slice(1, WINDOW).map((r) => r.ms)
-  const average = mean(window)
+  const { mean: average, p50: median, p95, max: worst } = summaryOf(window)!
   const asleep = steps.findIndex((r) => r.active === 0)
-  const rank = (q: number) => quantileFloorOf(window, q) as number
-  const [median, p95, worst] = [rank(0.5), rank(0.95), rank(1)]
   const text = `${label}: first ${steps[0].ms.toFixed(1)} ms, median ${median.toFixed(2)}, mean ${average.toFixed(2)}, p95 ${p95.toFixed(2)}, worst ${worst.toFixed(2)} ms`
   const full = steps.filter((r) => r.full).length
   const note = full ? `, contact budgets exceeded in ${full} steps` : ''

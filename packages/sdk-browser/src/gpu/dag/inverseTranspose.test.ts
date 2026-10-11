@@ -21,7 +21,6 @@ import {
   angleBetween,
   inverseTransposeShipped,
   inverseTransposeBefore,
-  f,
   unit,
 } from '../../../../../tests/gpu/math/inverseTransposeF32.ts'
 
@@ -29,9 +28,9 @@ type Vec = [number, number, number]
 
 /** 180° rotation about X, uniform scale s: local axis (0,0,1) must become (0,0,-1). */
 const tourneeDe180 = (s: number): [Vec, Vec, Vec] => [
-  [f(s), 0, 0],
-  [0, f(-s), 0],
-  [0, 0, f(-s)],
+  [Math.fround(s), 0, 0],
+  [0, Math.fround(-s), 0],
+  [0, 0, Math.fround(-s)],
 ]
 const AXE: Vec = [0, 0, 1]
 

@@ -25,14 +25,13 @@ pub(crate) use cache::MeasureCache;
 pub(crate) use measure::{measure, AlphaShape};
 pub(crate) use sheet::{build_sheet, draw_weights, entries, write_sheet};
 
-/// Answer sheet name, at compiled model root: stable path, compilation key
-/// does not move and cache purge does not touch. Compiler renders
-/// nothing — publishes pending textures, caller (terminal or app)
-/// presents and collects answers.
+/// Cutout response sheet, mirroring `packages/asset-compiler-rust/src/cutout.rs`.
+///
+/// The compiler writes this file and re-reads it; a host updates it with human responses.
+/// It is the only format written by both languages, and its version governs how a reader
+/// interprets it: unknown versions are rejected rather than guessed.
 pub const DECISIONS_FILE: &str = "decoupes.json";
-/// Sheet contract version, published in compilation report: governs
-/// ANSWERS reader writes, nothing else. Unknown version refused,
-/// misread answer would alter image unrequested.
+/// The version of the cut-out answer sheet this runtime reads.
 pub const SHEET_VERSION: u64 = 1;
 /// Cutout threshold for reclassified material, glTF default.
 pub(crate) const CUTOUT_ALPHA: f64 = 0.5;

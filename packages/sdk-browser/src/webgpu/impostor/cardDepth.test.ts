@@ -9,13 +9,12 @@ import { multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { fieldCamera } from '../../gpu/dag/placementTree.fixture.ts'
 
-const f = Math.fround
-
 /** `m · v` in single, each product and sum rounded, `m` column-major and already single. */
 function mulSingle(m: ArrayLike<number>, v: readonly number[]) {
   return [0, 1, 2, 3].map((row) => {
     let sum = 0
-    for (let col = 0; col < 4; col++) sum = f(sum + f(m[col * 4 + row] * v[col]))
+    for (let col = 0; col < 4; col++)
+      sum = Math.fround(sum + Math.fround(m[col * 4 + row] * v[col]))
     return sum
   })
 }
@@ -38,7 +37,7 @@ test('a card at the eye keeps its depth within three ULP of the double, to 10⁵
     const cam = engineCamera(fieldCamera(eye, pivot, 1e7)),
       s = 1 + next()
     const world = [s, 0, 0, 0, 0, s, 0, 0, 0, 0, s, 0, pivot[0], pivot[1], pivot[2], 1]
-    const point = [3 * (next() - 0.5), 3 * next(), 3 * (next() - 0.5), 1].map(f)
+    const point = [3 * (next() - 0.5), 3 * next(), 3 * (next() - 0.5), 1].map(Math.fround)
     // The reference, in double.
     const toDraw = multiplyMatrix4(
       new Float64Array(16),
@@ -58,20 +57,24 @@ test('a card at the eye keeps its depth within three ULP of the double, to 10⁵
         cam.viewProjection[4 + r] * eye[1] +
         cam.viewProjection[8 + r] * eye[2]
     const relative = [0, 1, 2].map((k) => {
-      const high = f(world[12 + k]),
-        low = f(world[12 + k] - high),
-        eyeHigh = f(eye[k]),
-        eyeLow = f(eye[k] - eyeHigh)
-      const linear = f(
-        f(f(f(world[k]) * point[0]) + f(f(world[4 + k]) * point[1])) +
-          f(f(world[8 + k]) * point[2]),
+      const high = Math.fround(world[12 + k]),
+        low = Math.fround(world[12 + k] - high),
+        eyeHigh = Math.fround(eye[k]),
+        eyeLow = Math.fround(eye[k] - eyeHigh)
+      const linear = Math.fround(
+        Math.fround(
+          Math.fround(Math.fround(world[k]) * point[0]) +
+            Math.fround(Math.fround(world[4 + k]) * point[1]),
+        ) + Math.fround(Math.fround(world[8 + k]) * point[2]),
       )
-      return f(linear + f(f(high - eyeHigh) + f(low - eyeLow)))
+      return Math.fround(
+        linear + Math.fround(Math.fround(high - eyeHigh) + Math.fround(low - eyeLow)),
+      )
     })
     const now = mulSingle(Float32Array.from(at), [...relative, 1])
     const depth = exact[2] / exact[3]
-    before = Math.max(before, ulps(f(old[2] / old[3]), depth))
-    after = Math.max(after, ulps(f(now[2] / now[3]), depth))
+    before = Math.max(before, ulps(Math.fround(old[2] / old[3]), depth))
+    after = Math.max(after, ulps(Math.fround(now[2] / now[3]), depth))
   }
   console.log(`depth error: ${after.toFixed(2)} ULP at the eye, ${before.toFixed(2)} composed`)
   assert.ok(after <= 3 && before <= 2, `${after} ULP at the eye, ${before} composed`)

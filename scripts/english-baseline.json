@@ -1,5 +1,5 @@
 {
-  "bench": 56,
+  "bench": 55,
   "packages/asset-compiler-rust": 128,
   "packages/sdk-browser": 179,
   "packages/sdk-node": 8,

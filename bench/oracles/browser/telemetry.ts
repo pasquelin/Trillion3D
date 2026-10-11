@@ -12,6 +12,6 @@ export function referenceIntervals(max: number, valeurs: number[]) {
   return intervals
 }
 
-/** `packages/sdk-browser/src/cluster/pages.ts:12-15` and `packages/sdk-browser/src/streaming/fetch.ts:4-7`: one `toString` per byte. */
+/** The independent oracle of `hexOfBytes` and `sha256Hex` (`sha256Hex.test.ts`): one `toString` per byte, written apart on purpose. */
 export const referenceHex = (digested: Uint8Array) =>
   Array.from(digested, (b: number) => b.toString(16).padStart(2, '0')).join('')

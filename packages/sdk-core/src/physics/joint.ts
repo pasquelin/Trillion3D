@@ -1,3 +1,4 @@
+import { createListeners } from '../runtime/listeners.ts'
 import type { Object3D } from '../world/object/object3d.ts'
 import type { JointKind, JointMotor, JointOptions } from './jointOptions.ts'
 
@@ -48,7 +49,7 @@ function required(kind: JointKind, b: Object3D | null, options: JointOptions) {
 export class Joint {
   private _motor: JointMotor | null
   private _broken = false
-  private readonly handlers = new Set<() => void>()
+  private readonly handlers = createListeners()
   /** The world simulating this joint, set while it does: what a write on it asks of the
    *  simulation — the motor changed. */
   _host: { motor(joint: Joint): void } | null = null
@@ -92,14 +93,13 @@ export class Joint {
    * @returns A function that removes the handler.
    */
   on(event: 'break', handler: () => void) {
-    this.handlers.add(handler)
-    return () => void this.handlers.delete(handler)
+    return this.handlers.subscribe(handler)
   }
   /** The simulation broke it. */
   _break() {
     if (this._broken) return
     this._broken = true
-    for (const handler of this.handlers) handler()
+    this.handlers.emit()
   }
 }
 

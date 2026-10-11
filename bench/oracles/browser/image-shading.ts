@@ -1,5 +1,6 @@
 // Pure A2 oracles, no side effects: the CPU image's tests import them as reference
 // (`cpu-image/shade.test.ts`).
+// jscpd:ignore-start — a frozen copy, a wanted duplicate: the oracle must not share code with what it checks
 import * as THREE from 'three'
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import { threeCamera } from '../../witnesses/three/fromGraphNodes.ts'
@@ -113,3 +114,4 @@ export function referenceShadeVisibility(
     }
   return pixels
 }
+// jscpd:ignore-end

@@ -132,9 +132,6 @@
     ],
     "exitCode": 1,
     "ignore": [
-      "bench/perf/**",
-      "bench/oracles/**",
-      "bench/core/**",
       "site/assets/**",
       "packages/math/src/batch/**",
       "**/*Before.fixture.ts"

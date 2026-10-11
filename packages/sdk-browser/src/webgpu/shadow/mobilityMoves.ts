@@ -1,3 +1,4 @@
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts'
 import { holdsPose, promoteRank, touchRank, type MobilityState } from './mobilityState.ts'
 
@@ -29,25 +30,19 @@ export function moveRank(
 export function followLead(s: MobilityState, rank: number, lead: number) {
   if (rank >= s.leads.length) {
     if (lead < 0) return
-    const held = s.leads
-    s.leads = new Int32Array(Math.max(rank + 1, 2 * held.length)).fill(-1)
-    s.leads.set(held)
+    s.leads = resized(s.leads, rank + 1, -1)
   }
   s.leads[rank] = lead
   if (lead < 0) return
-  if (lead >= s.leadMoved.length) growSlots(s, Math.max(lead + 1, 2 * s.leadMoved.length))
+  if (lead >= s.leadMoved.length) growSlots(s, lead + 1)
   if (!(rank < s.moving.length && s.moving[rank])) s.leadMoving[lead] = 0
 }
 
 /** The per-slot arrays hold `size` slots, the ones they held kept. */
 function growSlots(s: MobilityState, size: number) {
-  const held = { leadMoved: s.leadMoved, leadMoving: s.leadMoving, leadDeclared: s.leadDeclared }
-  s.leadMoved = new Uint32Array(size)
-  s.leadMoving = new Uint8Array(size)
-  s.leadDeclared = new Uint32Array(size)
-  s.leadMoved.set(held.leadMoved)
-  s.leadMoving.set(held.leadMoving)
-  s.leadDeclared.set(held.leadDeclared)
+  s.leadMoved = resized(s.leadMoved, size)
+  s.leadMoving = resized(s.leadMoving, size)
+  s.leadDeclared = resized(s.leadDeclared, size)
 }
 
 /**

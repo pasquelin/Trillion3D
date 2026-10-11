@@ -23,25 +23,24 @@ export function field(words: Uint32Array, at: number, bits: number) {
 /** Bits that hold every value of `0..=range`, a range below 2^32; none for a constant field. */
 export const bitsFor = (range: number) => (range <= 0 ? 0 : floorLog2(range) + 1)
 
-const f = Math.fround
-
 /** A grid value back to its float, `min + q * step` in 32-bit steps, the product exact and the sum
  *  rounded once: the one every reader decodes with (`dequant`, `bits/quant.rs`). */
-export const dequant = (min: number, q: number, step: number) => f(min + f(q * step))
+export const dequant = (min: number, q: number, step: number) =>
+  Math.fround(min + Math.fround(q * step))
 
 /** A normal's octahedral bytes (`x` low, `y` high) back to a unit vector at `out[at..at + 3]`, in
  *  32-bit steps. */
 export function octDecode(q: number, out: { [i: number]: number }, at = 0) {
-  let x = f(f((q & 255) * OCT_BYTE_STEP) - 1),
-    y = f(f(((q >>> 8) & 255) * OCT_BYTE_STEP) - 1)
-  const z = f(f(1 - Math.abs(x)) - Math.abs(y))
+  let x = Math.fround(Math.fround((q & 255) * OCT_BYTE_STEP) - 1),
+    y = Math.fround(Math.fround(((q >>> 8) & 255) * OCT_BYTE_STEP) - 1)
+  const z = Math.fround(Math.fround(1 - Math.abs(x)) - Math.abs(y))
   if (z < 0) {
-    const fx = f(f(1 - Math.abs(y)) * (x >= 0 ? 1 : -1))
-    y = f(f(1 - Math.abs(x)) * (y >= 0 ? 1 : -1))
+    const fx = Math.fround(Math.fround(1 - Math.abs(y)) * (x >= 0 ? 1 : -1))
+    y = Math.fround(Math.fround(1 - Math.abs(x)) * (y >= 0 ? 1 : -1))
     x = fx
   }
   const length = length3Float32(x, y, z)
-  out[at] = f(x / length)
-  out[at + 1] = f(y / length)
-  out[at + 2] = f(z / length)
+  out[at] = Math.fround(x / length)
+  out[at + 1] = Math.fround(y / length)
+  out[at + 2] = Math.fround(z / length)
 }

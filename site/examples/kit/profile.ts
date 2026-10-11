@@ -1,4 +1,4 @@
-import { quantileFloorOf } from '../../../packages/math/src/scalar/quantile.ts'
+import { summaryOf } from '../../../packages/math/src/scalar/quantile.ts'
 
 /** Median and 95th percentile of a window, in milliseconds. */
 interface Spread {
@@ -46,9 +46,8 @@ const SUMS = new Set(['totalMs', 'encodeSubmitMs'])
 
 /** The p50 and p95 of a list of durations, or `null` when it is empty. */
 export function spread(values: number[]): Spread | null {
-  if (!values.length) return null
-  const at = (q: number) => quantileFloorOf(values, q) as number
-  return { p50: at(0.5), p95: at(0.95) }
+  const found = summaryOf(values)
+  return found && { p50: found.p50, p95: found.p95 }
 }
 
 /** A window from the durations of its frames, the engine's CPU steps and the worker's steps

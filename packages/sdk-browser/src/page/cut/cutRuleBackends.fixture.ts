@@ -104,11 +104,10 @@ export function wgslBackend(dag: RuleDag, threshold: number, source = DAG_SELECT
     const kept = scope.expression(word[1], ['rejected', 'pixels', 't']),
       draw = scope.expression(camera[1], ['i', 'word'])
     return (_ready, parentPixels, ownPixels, _childReady, t, page) => {
-      const f32 = Math.fround
       const bits = kept({
         rejected: false,
-        pixels: { x: f32(parentPixels), y: f32(ownPixels) },
-        t: f32(t),
+        pixels: { x: Math.fround(parentPixels), y: Math.fround(ownPixels) },
+        t: Math.fround(t),
       })
       return draw({ i: page, word: bits }) === true
     }

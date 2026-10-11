@@ -16,7 +16,7 @@ import {
   hizTextureSize,
 } from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
-import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
+import { readTexture } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 export type WholeFarthestCase = { width: number; height: number; seed: number }
@@ -32,26 +32,8 @@ async function readLayer(
   size: { first: number; upper: number },
 ) {
   const { width, height } = hizTextureSize(size)
-  const texels = width * height
-  const pitch = alignUp(width * 4, 256)
-  const target = device.createBuffer({
-    size: pitch * height,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  })
-  const encoder = device.createCommandEncoder()
-  encoder.copyTextureToBuffer(
-    { texture, origin: [0, 0, layer] },
-    { buffer: target, bytesPerRow: pitch },
-    [width, height, 1],
-  )
-  device.queue.submit([encoder.finish()])
-  await target.mapAsync(GPUMapMode.READ)
-  const mapped = new Uint32Array(target.getMappedRange().slice(0))
-  target.destroy()
-  const words = new Uint32Array(texels)
-  for (let i = 0; i < texels; i++)
-    words[i] = mapped[Math.floor(i / width) * (pitch / 4) + (i % width)]
-  return words
+  const bytes = await readTexture(device, texture, 4, { layer, width, height })
+  return new Uint32Array(bytes.buffer)
 }
 
 export async function testWholeFarthest(cases: WholeFarthestCase[]) {

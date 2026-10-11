@@ -1,6 +1,7 @@
 // Oracles of the shared TS formulas: the unfactored code, copied
 // as-is. These copies are wanted duplicates — it is against
 // them that the shared functions are opposed, value by value, by `Object.is`.
+// jscpd:ignore-start — a frozen copy, a wanted duplicate: the oracle must not share code with what it checks
 
 /** A vertex whose only two screen coordinates matter, as `./cpu-image/projection.ts` reads it. */
 interface ScreenPoint {
@@ -57,3 +58,4 @@ export function referenceNsToMs(nanoseconds: number) {
 export function referenceFloorOf(bounds: { min: { y: number }; max: { y: number } }) {
   return bounds.min.y < 0 && bounds.max.y > 0 ? 0 : bounds.min.y
 }
+// jscpd:ignore-end
