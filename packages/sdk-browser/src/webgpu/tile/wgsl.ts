@@ -206,7 +206,7 @@ export const tileDeclarations = (bindings: AtlasBindings, name: string) =>
 
 /** What a pass that reads a page's materials declares in group 0: the uvs, the colour atlas and
  *  the sampler of the maps, at the visibility layout's bindings. */
-export const materialBindingsWgsl = () =>
+export const materialDeclarations = () =>
   `@group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
 ${tileDeclarations(VIS_BINDINGS.color, 'color')}
 @group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;`

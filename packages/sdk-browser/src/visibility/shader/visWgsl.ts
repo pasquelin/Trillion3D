@@ -4,7 +4,7 @@ import {
   COLOR_SAMPLE_WGSL,
   TILE_POOL_WGSL,
   maskAlphaWgsl,
-  materialBindingsWgsl,
+  materialDeclarations,
 } from '../../webgpu/tile/wgsl.ts'
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { HIZ_REJECTED_WGSL } from '../../gpu/partition/contract.ts'
@@ -53,7 +53,7 @@ ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
 @group(0) @binding(${VIS_BINDINGS.flags}) var<storage, read> hizFlags:array<u32>;
 ${PAGE_BINDING.uniforms}
-${materialBindingsWgsl()}
+${materialDeclarations()}
 ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
 // \`tc\` is the UV and, on a masked row, the vertex alpha of its cutout: one interpolant, as the UV

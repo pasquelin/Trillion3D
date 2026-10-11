@@ -38,8 +38,8 @@ const MODULES = {
   sampling,
 }
 /** The files that declare nothing: the declaration type, the assembler, its comment reader, the
- *  number writer. */
-const TOOLS = new Set(['decl', 'assemble', 'comments', 'number'])
+ *  number writer, the constants writer. */
+const TOOLS = new Set(['decl', 'assemble', 'comments', 'number', 'consts'])
 
 const files = readdirSync(new URL('.', import.meta.url))
   .filter((file) => file.endsWith('.ts') && !/\.(test|fixture)\.ts$/.test(file))
