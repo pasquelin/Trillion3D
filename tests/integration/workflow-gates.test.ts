@@ -119,7 +119,7 @@ test('a failing tool-installed hook still stops git, and pre-push hands it the r
 test('the tracked hooks hold no shell logic: each is a one-line shim onto scripts/hooks', () => {
   const hooks = join(REPOSITORY_ROOT, '.githooks/')
   for (const name of readdirSync(hooks)) {
-    const lines = readFileSync(new URL(name, hooks), 'utf8').trimEnd().split('\n')
+    const lines = readFileSync(join(hooks, name), 'utf8').trimEnd().split('\n')
     assert.equal(lines[0], '#!/bin/sh', name)
     assert.equal(lines.length, 2, `${name} is more than a shim`)
     const script = /^exec node (scripts\/hooks\/[a-z-]+\.ts) .*"\$@"$/.exec(lines[1] ?? '')

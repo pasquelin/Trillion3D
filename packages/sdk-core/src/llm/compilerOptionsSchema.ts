@@ -36,13 +36,15 @@ export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = {
       type: 'integer',
       default: DEFAULT_THREADS,
       minimum: 1,
-      description: `Number of parallel worker threads allocated to the native compiler (default: ${DEFAULT_THREADS}).`,
+      description:
+        'Number of parallel worker threads allocated to the native compiler (see default).',
     },
     ramBudgetMb: {
       type: 'integer',
       default: DEFAULT_RAM_BUDGET_MB,
       minimum: 64,
-      description: `RAM memory budget allocated to the compiler in megabytes before admission rejection (default: ${DEFAULT_RAM_BUDGET_MB}).`,
+      description:
+        'RAM memory budget allocated to the compiler in megabytes before admission rejection (see default).',
     },
     simplification: {
       type: 'string',
