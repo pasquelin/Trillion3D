@@ -29,7 +29,11 @@ budgets, `null` for the unmeasured, CPU and GPU never added):
 (`v06`) with `TRILLION3D_VALIDATION_DIR` set. Each run plays `--repeat` fresh processes; `--engine
 <checkout>` measures another clean checkout. **One scene carries the whole bench**: its own scene
 `an-open-world-of-every-cost` (`bench/kit/scenes/`), played by the scenario `world` — an open world
-of blocks, a dense pebble bed under a low sun, transparents, lamps, TAA — every part a switch. A page
+of textured blocks, a dense pebble bed under a low sun, transmissive glass, the engine's water with
+bodies floating on its waves, Jolt bodies stirred in a bin, skinned trees in the wind, the engine's
+two test scenes streamed from their compiled caches (`pnpm run compile:caches`), lamps, TAA — every
+part a switch, its design note at the top of its script. The scenario presses the scene's start key
+on its first measured frame: the motion starts there on every play, whatever the warm-up. A page
 reads the bench's kit (`bench/kit/index.ts`) as `../runtime/kit.js`: a seeded sequence and its
 settings at their declared start. `suite.ts` runs that scene by default and a list of at most
 five (`MAX_SCENES`, `bench/dawn/suiteRuns.ts`): a longer list is refused, no option lifts it.
