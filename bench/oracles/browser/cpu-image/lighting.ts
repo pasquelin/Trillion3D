@@ -5,6 +5,10 @@ import { shadingNormal } from './shadingNormal.ts'
 import type { VisMaterial, VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/world.ts'
 import { ROUGHNESS_FLOOR } from '../../../../packages/sdk-browser/src/lighting/shaderConstants.ts'
+import {
+  ggxDistribution,
+  ggxVisibility,
+} from '../../../../packages/sdk-core/src/lighting/ggxLobe.ts'
 import { hypot3 } from '../../../../packages/math/src/float/hypot.ts'
 
 /** The roughness floor every shading path clamps to, read here as a number. */
@@ -79,11 +83,8 @@ export function shadeLit(
   const VdotH = Math.max(0, Vx * Hx + Vy * Hy + Vz * Hz)
   const alpha = Math.max(FLOOR, roughness) ** 2
   const alpha2 = alpha * alpha
-  const dDenom = NdotH * NdotH * (alpha2 - 1) + 1
-  const D = alpha2 / (Math.PI * dDenom * dDenom)
-  const gV = NdotL * Math.sqrt(NdotV * NdotV * (1 - alpha2) + alpha2)
-  const gL = NdotV * Math.sqrt(NdotL * NdotL * (1 - alpha2) + alpha2)
-  const Vis = 0.5 / (gV + gL + 1e-7)
+  const D = ggxDistribution(NdotH, alpha2)
+  const Vis = ggxVisibility(NdotV, NdotL, alpha2)
   const f0r = 0.04 * (1 - metalness) + rgb[0] * metalness,
     f0g = 0.04 * (1 - metalness) + rgb[1] * metalness,
     f0b = 0.04 * (1 - metalness) + rgb[2] * metalness

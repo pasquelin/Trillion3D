@@ -26,6 +26,7 @@
 import { pathToFileURL } from 'node:url'
 import { encodeLtcTable, LTC_SIZE } from '../packages/sdk-core/src/lighting/ltcTable.ts'
 import { unit as normalize } from '../packages/math/src/vector/vectorTuple.ts'
+import { ggxDistribution, ggxVisibility } from '../packages/sdk-core/src/lighting/ggxLobe.ts'
 import { minimise } from './ltc-minimise.ts'
 import { hypot3 } from '../packages/math/src/float/hypot.ts'
 import { dotVector3 } from '../packages/math/src/vector/vector.ts'
@@ -40,11 +41,7 @@ function lobe(v: V3, l: V3, alpha: number) {
   const a2 = alpha * alpha,
     nv = Math.max(v[2], 1e-4),
     nl = l[2]
-  const dd = h[2] * h[2] * (a2 - 1) + 1
-  const d = a2 / (PI * dd * dd)
-  const gv = nl * Math.sqrt(nv * nv * (1 - a2) + a2),
-    gl = nv * Math.sqrt(nl * nl * (1 - a2) + a2)
-  return d * (0.5 / (gv + gl + 1e-7)) * nl
+  return ggxDistribution(h[2], a2) * ggxVisibility(nv, nl, a2) * nl
 }
 
 /** A light direction drawn from the GGX half vectors at (u1, u2), and its density. */
@@ -64,9 +61,7 @@ function sampleLobe(v: V3, alpha: number, u1: number, u2: number): [V3, number] 
 function lobeDensity(v: V3, l: V3, alpha: number) {
   const h = normalize([v[0] + l[0], v[1] + l[1], v[2] + l[2]])
   const vh = Math.max(dotVector3(v, h), 1e-7)
-  const a2 = alpha * alpha,
-    dd = h[2] * h[2] * (a2 - 1) + 1
-  return ((a2 / (PI * dd * dd)) * Math.max(h[2], 0)) / (4 * vh)
+  return (ggxDistribution(h[2], alpha * alpha) * Math.max(h[2], 0)) / (4 * vh)
 }
 
 type Ltc = { m: number[]; inverse: number[]; det: number }

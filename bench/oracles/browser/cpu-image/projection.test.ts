@@ -1,5 +1,4 @@
-// Shared-formula batch: signedArea, factored out of 5 copies. Nominal
-// and edge behaviours, distinct from the bit-exact equivalence bench (`bench/perf/browser/ts-formulas.perf.ts`).
+// `signedArea`, the shared formula: nominal and edge behaviours.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { signedArea } from './projection.ts'
