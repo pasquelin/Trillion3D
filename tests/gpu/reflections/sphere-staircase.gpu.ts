@@ -6,7 +6,7 @@
 // pixels the engine's image may step by what the analytic image steps within a pixel of them (its
 // hard horizon) and by ε more.
 //
-//   node bench/dawn/proofs.ts tests/gpu/reflections/sphereStaircase.gpu.ts
+//   node bench/dawn/proofs.ts tests/gpu/reflections/sphere-staircase.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'

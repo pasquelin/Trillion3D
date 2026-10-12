@@ -21,7 +21,7 @@ function caster(width: number, height: number, depth: (x: number, y: number) => 
     depth(i % width, Math.floor(i / width)),
   )
   const field = depthField(width, height, image)
-  const token = { depth: {}, pyramid: {} }
+  const token = { depth: {}, pyramid: {}, front: {} }
   const counter = { loads: 0 }
   const run = shaderRun<{
     vsmScreenRayCast: (o: number[], d: number[], length: number, thickness: number) => number
@@ -36,6 +36,8 @@ function caster(width: number, height: number, depth: (x: number, y: number) => 
       'clipToFramebuffer',
       'perspectiveDivide',
       'hizPlane',
+      'hizFrontDepth',
+      'hizFrontOver',
       'hizCellStep',
       'hizCellNearest',
       'hizCellFarthest',
@@ -54,10 +56,12 @@ function caster(width: number, height: number, depth: (x: number, y: number) => 
       },
       hizDepth: token.depth,
       hizPyramid: token.pyramid,
+      hizFront: token.front,
       hizLevels: field.levels,
       ...constructors(CODE),
       textureLoad: (t: object, cell: number[], layer: number) => {
         if (t === token.depth) return [field.depthAt(cell)]
+        if (t === token.front) return [field.frontAt(cell)]
         if (field.layerOf(cell, layer) === HIZ_NEAREST) counter.loads++
         return [field.word(cell, layer)]
       },

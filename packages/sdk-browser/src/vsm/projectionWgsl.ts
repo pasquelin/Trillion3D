@@ -103,7 +103,7 @@ export const VSM_PROJECTION_BINDING = {
   blueNoise: 4,
   shadowMask: 5,
   shadowMaskTiles: 6,
-  /** The depth pyramid: three bindings from here (`hizDepthEntries`). */
+  /** The depth pyramid: four bindings from here (`hizDepthEntries`). */
   hizDepth: 7,
 } as const
 

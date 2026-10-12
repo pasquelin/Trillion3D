@@ -185,8 +185,8 @@ fn hizSource(at:u32,x:u32,y:u32)->vec2f{
  let i=at+y*uni.b+x;
  if(uni.a!=0u){return hizLoadBound(i);}
  let q=vec2i(i32(x),i32(y));
- let depth=textureLoad(level0,q,0).r;
  if(${HIZ_NEAREST_BUILD}){return hizPlaneCorners(i,q,hizFrontAt(q));}
+ let depth=textureLoad(level0,q,0).r;
  hizPut(i,${HIZ_CULL_FARTHEST}u,bitcast<u32>(depth));
  return vec2f(depth);
 }

@@ -4,7 +4,7 @@
 // floor — while the engine's one screen march does meet the pane, flagged in front (the reflection
 // keeps it). The scene is generated (`glassContactPage.ts`).
 //
-//   node bench/dawn/proofs.ts tests/gpu/vsm/glassContact.gpu.ts
+//   node bench/dawn/proofs.ts tests/gpu/vsm/glass-contact.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'

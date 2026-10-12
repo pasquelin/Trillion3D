@@ -1,7 +1,7 @@
 // A glass pane over a floor, lit, on the machine's device: the contact-shadow ray the lights cast
 // (`vsmScreenRayCast`, the engine's one screen march over the depth pyramid) meets the pane in the
 // depth pyramid and does not darken the floor behind it — a pane's shadow is the maps' transmission
-// (`glassContact.gpu.ts`). The depth is generated: a floor, then once an opaque wall and once a
+// (`glass-contact.gpu.ts`). The depth is generated: a floor, then once an opaque wall and once a
 // transparent pane in the same place; the view is orthographic, its world its NDC.
 import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/factory.ts'
 import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'

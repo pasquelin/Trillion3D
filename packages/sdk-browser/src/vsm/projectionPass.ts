@@ -590,6 +590,7 @@ function passGroupFor(
           { binding: B.hizDepth, resource: inputs.hizDepth.resources[0] },
           { binding: B.hizDepth + 1, resource: inputs.hizDepth.resources[1] },
           { binding: B.hizDepth + 2, resource: inputs.hizDepth.resources[2] },
+          { binding: B.hizDepth + 3, resource: inputs.hizDepth.resources[3] },
           { binding: B.shadowMask, resource: mask },
           { binding: B.shadowMaskTiles, resource: maskTiles },
         ],
