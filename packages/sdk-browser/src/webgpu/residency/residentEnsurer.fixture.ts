@@ -74,7 +74,9 @@ export function orderedPool(
   ahead: (url: string) => boolean = () => false,
 ) {
   const resident = new Map<string, { key: string }>(),
-    pins = new Set<string>()
+    pins = new Set<string>(),
+    /** The pages read for a place, in order. */
+    reads: string[] = []
   /** What arrived since a reader last took it, kept once one asks, as the GPU page cache keeps it. */
   let arrivals: string[] | undefined
   const pin = (url: string) => void pins.add(url)
@@ -83,13 +85,16 @@ export function orderedPool(
   return {
     resident,
     pins,
+    reads,
     get: (url: string) => resident.get(url),
     async load(url: string, _signal?: AbortSignal, pinned?: boolean, priority?: number) {
-      if (resident.size >= slots) {
+      if (resident.size >= slots && !resident.has(url)) {
+        // No place to give: refused before any read, as the cache refuses (`../../gpu/page/load.ts`).
         const victim = given(priority === PRIORITY_PREFETCH)[0]
         if (victim === undefined) throw new Error('POOL_FULL')
         resident.delete(victim)
       }
+      if (!resident.has(url)) reads.push(url)
       resident.set(url, { key: url })
       arrivals?.push(url)
       if (pinned) pin(url)

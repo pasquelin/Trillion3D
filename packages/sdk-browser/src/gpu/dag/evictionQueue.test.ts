@@ -8,9 +8,9 @@ import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { requestScene } from './requestScene.fixture.ts'
-import { AHEAD_AGE, KEY_PAGE_BITS, OLD_STEP, ageStep, canonicalPage } from './evict.ts'
+import { EVICT_IN_USE, KEY_PAGE_BITS, OLD_STEP, canonicalPage } from './evict.ts'
 import * as L from './layout.ts'
-import { aheadClock, listEvictions, pageKeys, raiseGroups } from './evict.fixture.ts'
+import { aheadClock, ageStep, listEvictions, pageKeys, raiseGroups } from './evict.fixture.ts'
 import { pageResidency } from './readiness.fixture.ts'
 import { ruleDag } from '../../page/cut/cutRule.fixture.ts'
 import { placements, stripCamera } from '../../page/cut/cutRuleBackends.fixture.ts'
@@ -153,7 +153,7 @@ test('generated frames: the raised groups say what the cut rule holds, frame aft
     pages = packed.pageCount
   const lastUse = new Uint32Array(packed.groupCount),
     /** The reference: each key's last frame in a closure, the camera's at the frame, the view
-     *  ahead's `AHEAD_AGE` before. */
+     *  ahead's `EVICT_IN_USE` before. */
     held = new Uint32Array(packed.keyCount)
   const pool = Array.from({ length: packed.keyCount }, (_, k) => k)
   const next = random(0x5eed)
@@ -192,6 +192,6 @@ test('generated frames: the raised groups say what the cut rule holds, frame aft
       `frame ${frame}`,
     )
     // The old head: older than any page the view ahead asks for, which it may give way to.
-    assert.equal(old, expected.filter(({ age }) => age > AHEAD_AGE + 1).length)
+    assert.equal(old, expected.filter(({ age }) => age > EVICT_IN_USE + 1).length)
   }
 })

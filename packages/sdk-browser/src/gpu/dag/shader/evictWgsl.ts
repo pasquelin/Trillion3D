@@ -19,7 +19,8 @@ export const DAG_EVICT_WGSL = wgslBlock(
  *  entry \`j\`. */
 fn evictAt(k:u32)->u32{return 2u*views[0u].listCap+HEAD+k;}
 /** Rank of content key \`k\` in the queue, \`RANKS\` while a view uses it: older age step first,
- *  then finer level. Integer only, as \`evictionRank\`. */
+ *  then finer level. Integer only, as
+ *  \`evictionRank\` (\`../evict.fixture.ts\`). */
 fn evictRank(k:u32,now:u32)->u32{
  let age=now-atomicLoad(&work[lastUseAt(groupOfKey(k))]);
  if(age<${EVICT_IN_USE}u){return RANKS;}

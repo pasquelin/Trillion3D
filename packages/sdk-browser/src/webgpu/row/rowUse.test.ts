@@ -3,7 +3,9 @@
 // moved and taken again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ROW_USE_WINDOW, createRowUse } from './rowUse.ts'
+import { createRowUse } from './rowUse.ts'
+import { EVICT_IN_USE } from '../../gpu/dag/evict.ts'
+import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 import { rowIdleSpan } from './rowCache.fixture.ts'
 
 test('a table whose rows are all in use has no victim until a row goes unused', () => {
@@ -22,8 +24,8 @@ test('a table whose rows are all in use has no victim until a row goes unused', 
   }
   assert.equal(victim, 2, 'row 2, unused for the whole span')
   assert.equal(span, rowIdleSpan(), 'a full table and a lone row wait the same span')
-  // The readbacks in flight and the image being encoded may still draw it: never taken before.
-  assert.equal(span, ROW_USE_WINDOW, 'the readbacks a row is held for')
+  // The pool's rule past the readbacks the host reads the cut behind: never taken before.
+  assert.equal(span, EVICT_IN_USE + DAG_READBACK_SLOTS, 'the frames a row is held for')
 })
 
 test('rows given back and moved keep the count of the rows in use', () => {

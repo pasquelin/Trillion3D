@@ -21,20 +21,15 @@ export const EVICT_LEVELS = 32,
 /**
  * Frames a use protects its key for: the frame that used it and the one after, so a key any view
  * — a light's, a view drawn beside the main one — used in the frame before is still in use, whatever
- * order the views cut in. Never listed below this age.
+ * order the views cut in. Never listed below this age. A page the view AHEAD of the camera asks for
+ * (`shader/aheadWgsl.ts`) counts as used this many frames ago: listed after every page older than
+ * that, before any page in use — the camera's pages evict it, it never evicts one of theirs.
  */
 export const EVICT_IN_USE = 2
-/**
- * What a page the view AHEAD of the camera asks for counts as (`shader/aheadWgsl.ts`): used this many
- * frames ago. Listed after every page older than that, before any page in use: the camera's pages
- * evict it, it never evicts one of theirs.
- */
-export const AHEAD_AGE = EVICT_IN_USE
-/** The age step a rank is made of: one step per doubling of the age (`bitLength`). */
-export const ageStep = (age: number) => Math.min(EVICT_AGES - 1, 32 - Math.clz32(age >>> 0))
-/** The first age step of the OLD keys: older than any page the view ahead asks for. The queue's
- *  head of old keys is what a page of the view ahead may take the place of (`oldEvictions`). */
-export const OLD_STEP = ageStep(AHEAD_AGE) + 1
+/** The first age step of the OLD keys — a step a doubling of the age, its bit length —: older than
+ *  any page the view ahead asks for. The queue's head of old keys is what a page of the view ahead
+ *  may take the place of (`evictOld`). */
+export const OLD_STEP = 32 - Math.clz32(EVICT_IN_USE) + 1
 /** A key word: the canonical page on twenty-seven bits — 134,217,728 packed instances —, the level
  *  in the five above, as many as `EVICT_LEVELS` tells apart. */
 export const KEY_PAGE_BITS = 27
@@ -42,13 +37,6 @@ export const KEY_PAGE_MAX = 2 ** KEY_PAGE_BITS
 const keyWord = (page: number, level: number) =>
   ((Math.min(EVICT_LEVELS - 1, level) << KEY_PAGE_BITS) | page) >>> 0
 const keyLevel = (word: number) => word >>> KEY_PAGE_BITS
-/** Rank of a key in the queue, the highest evicted first: older age step, then finer level. Integer
- *  only, as `evictRank` in the kernel; `undefined` for a key in use. */
-export function evictionRank(keyWordOf: number, age: number) {
-  if (age < EVICT_IN_USE) return undefined
-  return ageStep(age) * EVICT_LEVELS + (EVICT_LEVELS - 1 - keyLevel(keyWordOf))
-}
-
 /**
  * The content keys of `roots`, one per page address (`pageAddress`) in packing order, and their
  * GROUPS: a group of the compiled structure is one group whatever placement holds it, and a

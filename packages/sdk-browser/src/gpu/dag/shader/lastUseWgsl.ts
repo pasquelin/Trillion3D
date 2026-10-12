@@ -1,6 +1,6 @@
 import { CAND_LIVE_WORDS, LEVEL_QUEUES } from './levelWgsl.ts'
 import { RAISED_PER_GROUP } from './floorWgsl.ts'
-import { AHEAD_AGE } from '../evict.ts'
+import { EVICT_IN_USE } from '../evict.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { GROUP_GRID_WGSL } from '../../dispatch/grid.ts'
 import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
@@ -54,8 +54,9 @@ fn raiseUse(g:u32,v:u32){
 }
 /** Record \`r\` is used by this cut, drawn or asked for: its key's group is stamped. */
 fn stampUse(r:u32){raiseUse(groupOfKey(keyOf(r)),useClock());}
-/** Record \`r\` is asked for by the view ahead: stamped as used \`AHEAD_AGE\` frames ago. */
-fn stampAhead(r:u32){let now=useClock();raiseUse(groupOfKey(keyOf(r)),max(now,${AHEAD_AGE}u)-${AHEAD_AGE}u);}
+/** Record \`r\` is asked for by the view ahead: stamped as used \`EVICT_IN_USE\` frames ago
+ *  (\`../evict.ts\`). */
+fn stampAhead(r:u32){let now=useClock();raiseUse(groupOfKey(keyOf(r)),max(now,${EVICT_IN_USE}u)-${EVICT_IN_USE}u);}
 /** The round of raised groups being walked: \`[x, y)\` of the list. */
 var<workgroup> raiseRound:vec2u;
 /** The groups replacing each raised group raised to its clock, round after round, until a round
