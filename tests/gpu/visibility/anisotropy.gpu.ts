@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { assertSoundProof, runPageProof } from '../kit/enginePageProof.ts'
-import { difference } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import type { LobeReading } from './physicalLobesPage.ts'
 
 test('the anisotropic highlight stretches along its direction, and its map turns or zeroes it', async () => {
@@ -32,7 +32,7 @@ test('the anisotropic highlight stretches along its direction, and its map turns
     `turned by its map: ${say(directionMap)}`,
   )
   assert.equal(
-    difference(strengthMapZero.pixels, none.pixels),
+    compareImages(strengthMapZero.pixels, none.pixels).differentPixels,
     0,
     'a zero strength map: the isotropic image',
   )

@@ -77,3 +77,30 @@ test('a single-channel error is measured on its own, at aligned and unaligned ad
       assert.deepEqual(compareImages(a, b), { differentPixels: 1, maxChannelError: 8, rmse: 4 })
     }
 })
+
+test('with alpha set aside, a pixel differs by its colour alone, at aligned and unaligned addresses', () => {
+  for (const offset of [0, 1]) {
+    const a = new Uint8Array(12).subarray(offset, offset + 8)
+    const b = new Uint8Array(12).subarray(offset, offset + 8)
+    a.set([1, 2, 3, 255, 4, 5, 6, 255])
+    b.set([1, 2, 3, 0, 4, 9, 6, 255])
+    assert.deepEqual(compareImages(a, b, { alpha: false }), {
+      differentPixels: 1,
+      maxChannelError: 4,
+      rmse: Math.sqrt(16 / 6),
+    })
+    assert.deepEqual(compareImages(a, a, { alpha: false }), {
+      differentPixels: 0,
+      maxChannelError: 0,
+      rmse: 0,
+    })
+    assert.equal(compareImages(a, b).differentPixels, 2)
+  }
+})
+
+test('a list of bytes compares as the Uint8Array of the same bytes', () => {
+  const a = [1, 2, 3, 255, 4, 5, 6, 255]
+  const b = [1, 2, 3, 0, 4, 9, 6, 255]
+  assert.deepEqual(compareImages(a, b), compareImages(Uint8Array.from(a), Uint8Array.from(b)))
+  assert.equal(compareImages(a, Uint8Array.from(b)).differentPixels, 2)
+})

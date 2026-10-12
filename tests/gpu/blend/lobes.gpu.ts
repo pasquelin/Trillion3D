@@ -11,7 +11,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { assertSoundProof, runPageProof } from '../kit/enginePageProof.ts'
-import { difference } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import type { LobeReading } from '../visibility/physicalLobesPage.ts'
 
 const readingsOf = async (method: string) => {
@@ -32,7 +32,7 @@ test('a transparent clear coat draws its highlight over the base, and its zero m
   )
   assert.ok(none.corner > 5, `the blended base is lit: ${none.corner}`)
   assert.equal(
-    difference(coatMapZero.pixels, none.pixels),
+    compareImages(coatMapZero.pixels, none.pixels).differentPixels,
     0,
     'a zero coat map: the uncoated image',
   )
@@ -45,7 +45,7 @@ test('a transparent anisotropic highlight stretches along its direction, and its
   assert.ok(along.alongX > along.alongY + 15, `along the tangent: ${say(along)}`)
   assert.ok(turned.alongY > turned.alongX + 15, `turned a quarter: ${say(turned)}`)
   assert.equal(
-    difference(strengthMapZero.pixels, none.pixels),
+    compareImages(strengthMapZero.pixels, none.pixels).differentPixels,
     0,
     'a zero strength map: the isotropic image',
   )

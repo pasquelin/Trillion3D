@@ -11,7 +11,8 @@ import {
   release,
   type ScenePreparee,
 } from '../kit/sharedSceneProof.ts'
-import { difference, image } from '../kit/sceneImageProof.ts'
+import { image } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import {
   BACKGROUND,
@@ -103,7 +104,9 @@ async function waterCase(
         centre: centre(pixels),
         draws: metrics.transparentDrawCalls,
         held: metrics.frameHeld,
-        moved: frames.length ? difference(frames[frames.length - 1].pixels, pixels) : 0,
+        moved: frames.length
+          ? compareImages(frames[frames.length - 1].pixels, pixels).differentPixels
+          : 0,
         pixels,
       })
     }

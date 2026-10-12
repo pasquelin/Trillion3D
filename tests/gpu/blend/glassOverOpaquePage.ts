@@ -7,7 +7,8 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
-import { colorAt, difference, untilHeld } from '../kit/sceneImageProof.ts'
+import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 
 /** What stands before the backdrop: the glass where it is (`at`, its centre on `x`), its volume,
@@ -89,5 +90,5 @@ export const run = () =>
     result.frontAlone = (await shot({ front: true })).image
     const away = await shot({ glass: { at: 40, volume: false } })
     result.away = away.image
-    result.awayChanged = difference(away.pixels, bare.pixels)
+    result.awayChanged = compareImages(away.pixels, bare.pixels).differentPixels
   })

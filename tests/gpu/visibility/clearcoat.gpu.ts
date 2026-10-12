@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { assertSoundProof, runPageProof } from '../kit/enginePageProof.ts'
-import { difference } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import type { LobeReading } from './physicalLobesPage.ts'
 
 test('a clear coat draws its highlight over the base, and its map zeroes it', async () => {
@@ -30,7 +30,7 @@ test('a clear coat draws its highlight over the base, and its map zeroes it', as
   )
   assert.ok(none.corner > 10, `the base is lit: ${none.corner}`)
   assert.equal(
-    difference(coatMapZero.pixels, none.pixels),
+    compareImages(coatMapZero.pixels, none.pixels).differentPixels,
     0,
     'a zero coat map: the uncoated image',
   )

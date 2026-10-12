@@ -13,7 +13,8 @@ import {
 } from '../../../packages/sdk-browser/src/partition/rows.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { batisseur, cameraFace, engine, release, square } from '../kit/sharedSceneProof.ts'
-import { difference, drawnPixels, untilHeld } from '../kit/sceneImageProof.ts'
+import { drawnPixels, untilHeld } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 
 /** Half-width of the tile, and the three places its rows put it. */
@@ -58,7 +59,11 @@ function place(
 async function settled(backend: Engine, before?: number[] | null) {
   const camera = cameraFace()
   let image = await untilHeld(backend, camera)
-  for (let wait = 0; before && wait < 50 && !difference(image.held ?? [], before); wait++) {
+  for (
+    let wait = 0;
+    before && wait < 50 && !(image.held && compareImages(image.held, before).differentPixels);
+    wait++
+  ) {
     await new Promise((resolve) => setTimeout(resolve, 20))
     image = await untilHeld(backend, camera)
   }
@@ -91,8 +96,8 @@ async function sequence(device: GPUDevice, events: unknown[]) {
       capacity: grown.link.placements!.capacity,
       beforePixels: drawnPixels(before),
       afterPixels: drawnPixels(after),
-      grownFromBefore: difference(after, before),
-      grownFromOpened: difference(after, opened),
+      grownFromBefore: compareImages(after, before).differentPixels,
+      grownFromOpened: compareImages(after, opened).differentPixels,
     }
   } finally {
     release(a.backend, a.canvas, grown.scene)

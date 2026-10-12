@@ -19,7 +19,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
-import { pixelDifference } from '../../../bench/dawn/capture.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { readCacheManifest } from '../../../bench/runner/assets/cacheManifest.ts'
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { sceneDerived } from '../../../bench/runner/assets/scene.ts'
@@ -64,7 +64,8 @@ test(
     for (const run of [1, 2])
       for (const { key, scene } of TANGENT_SCENES)
         images.set(`${key}-${run}`, await tangentImage(key, scene))
-    const delta = (a: string, b: string) => pixelDifference(images.get(a)!, images.get(b)!)
+    const delta = (a: string, b: string) =>
+      compareImages(images.get(a)!, images.get(b)!, { alpha: false })
     const deltas = Object.fromEntries([
       ...TANGENT_SCENES.map(({ key }) => [`${key} A/A`, delta(`${key}-1`, `${key}-2`)]),
       ...['blend', 'opaque'].flatMap((surface) => [
@@ -74,11 +75,12 @@ test(
       ]),
     ])
     console.log(JSON.stringify(deltas))
-    for (const { key } of TANGENT_SCENES) assert.equal(deltas[`${key} A/A`].pixels, 0, `${key} A/A`)
+    for (const { key } of TANGENT_SCENES)
+      assert.equal(deltas[`${key} A/A`].differentPixels, 0, `${key} A/A`)
     const pixels = images.get('blend-unpaged-1')!.length / 4
     const tangents = deltas['blend unpaged vs frame']
     assert.ok(
-      tangents.pixels <= pixels / 100 && tangents.largest <= 16,
+      tangents.differentPixels <= pixels / 100 && tangents.maxChannelError <= 16,
       `blend unpaged vs frame: ${JSON.stringify(tangents)} of ${pixels} pixels`,
     )
   },
