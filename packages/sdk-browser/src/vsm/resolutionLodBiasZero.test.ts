@@ -7,8 +7,6 @@ import assert from 'node:assert/strict'
 import { VSM_PRESSURE_BIAS_FLOOR, vsmLocalMipLevel } from './constants.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { lerp } from '../../../math/src/scalar/reals.ts'
-
-const f = Math.fround
 const F32 = new Float32Array(1),
   U32 = new Uint32Array(F32.buffer)
 const bitsOf = (x: number) => ((F32[0] = x), U32[0])
@@ -40,10 +38,10 @@ test('after an overload the bias falls back to exactly 0, its last step at the f
   assert.equal(bias, 0, `0 at frame ${frame}`)
   assert.ok(frame < 500, `within ${frame} frames`)
   assert.ok(last >= VSM_PRESSURE_BIAS_FLOOR, 'the last bias kept')
-  assert.ok(f(lerp(last, 0, 0.1)) < VSM_PRESSURE_BIAS_FLOOR, 'the next under it')
+  assert.ok(Math.fround(lerp(last, 0, 0.1)) < VSM_PRESSURE_BIAS_FLOOR, 'the next under it')
   // Without the floor, nine tenths of 4·2^-149 round back to it: the decay alone stops there.
   let alone = last
-  for (let k = 0; k < 2000; k++) alone = f(lerp(alone, 0, 0.1))
+  for (let k = 0; k < 2000; k++) alone = Math.fround(lerp(alone, 0, 0.1))
   assert.equal(alone, 4 * 2 ** -149)
   for (let n = 0; n < 100; n++) {
     cache.frameStamp = ++frame
@@ -71,8 +69,9 @@ test('under 2^-54 the bias moves no level on the GPU: the f32 sums of the markin
   // The marking's sums, in f32 and in order (`vsmMarkedLevel`, `vsmLocalMipLevel`):
   // ((level + map bias) + global) + extra, floored; a local mip clamps at 0, and a clipmap's index
   // counts from its first level (0 or more), so a floor of -1 lands where 0 does.
-  const level = (s: number, g: number, e: number) => Math.max(Math.floor(f(f(s + g) + e)), 0)
-  const extras = [0, f(0.25), f(1 - 2 ** -24), 1, f(1.5)]
+  const level = (s: number, g: number, e: number) =>
+    Math.max(Math.floor(Math.fround(Math.fround(s + g) + e)), 0)
+  const extras = [0, Math.fround(0.25), Math.fround(1 - 2 ** -24), 1, Math.fround(1.5)]
   // Every f32 in the 2^14 steps on each side of every integer 0..23.
   const moved: number[] = []
   for (let n = 0; n <= 23; n++) {
@@ -87,9 +86,10 @@ test('under 2^-54 the bias moves no level on the GPU: the f32 sums of the markin
   // Elsewhere the sum is left as it is: from 2^-29 up, G is under half the f32 step on either side
   // of a binade's edge; under 2^-29 the sum stays within (-1, 1), floored to -1 or 0.
   for (let e = -29; e <= 4; e++)
-    for (const s of [2 ** e, -(2 ** e), ofBits(bitsOf(2 ** (e + 1)) - 1)]) assert.equal(f(s + G), s)
-  assert.notEqual(f(-(2 ** -30) + G), -(2 ** -30))
+    for (const s of [2 ** e, -(2 ** e), ofBits(bitsOf(2 ** (e + 1)) - 1)])
+      assert.equal(Math.fround(s + G), s)
+  assert.notEqual(Math.fround(-(2 ** -30) + G), -(2 ** -30))
   // In f32 a level keeps its floor up to 2^-25: that lifts 1 - 2^-24 to 1.
-  assert.equal(level(f(1 - 2 ** -24), 2 ** -26, 0), 0)
-  assert.equal(level(f(1 - 2 ** -24), 2 ** -25, 0), 1)
+  assert.equal(level(Math.fround(1 - 2 ** -24), 2 ** -26, 0), 0)
+  assert.equal(level(Math.fround(1 - 2 ** -24), 2 ** -25, 0), 1)
 })

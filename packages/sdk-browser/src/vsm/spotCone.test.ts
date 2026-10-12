@@ -13,8 +13,6 @@ import { addVsmLocalLightShadow, vsmLocalViewData } from './localLight.ts'
 import { DEG2RAD } from '../../../math/src/constants.ts'
 import { forwardPerspectiveProjection } from '../../../math/src/projection/forwardZ.ts'
 import { HALTON_SWEEP, edgeValues, haltonSpan } from '../../../math/src/sequence/sweep.fixture.ts'
-
-const f32 = Math.fround
 const view = vsmLocalViewData(
   { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] },
   { width: 512, height: 384 },
@@ -30,7 +28,7 @@ function scale(inner: number, outer: number) {
   assert.equal(m[0], m[5])
   return m[0]
 }
-const expected = (angle: number) => f32(1 / Math.tan(f32(angle)))
+const expected = (angle: number) => Math.fround(1 / Math.tan(Math.fround(angle)))
 const WIDEST = 88.9 * DEG2RAD
 
 test("a spot's map takes its outer cone, rounded once to an f32", () => {
@@ -65,10 +63,10 @@ test("a spot's projection is the shared forward perspective, bit for bit, for a 
   const near = edges.flatMap(() => edges)
   const far = edges.flatMap((edge) => edges.map(() => edge))
   for (let i = 1; i <= HALTON_SWEEP; i++) {
-    near.push(f32(haltonSpan(i, 2, 0.001, 50)))
-    far.push(f32(haltonSpan(i, 3, 0.001, 50)))
+    near.push(Math.fround(haltonSpan(i, 2, 0.001, 50)))
+    far.push(Math.fround(haltonSpan(i, 3, 0.001, 50)))
   }
-  const scale = f32(1 / Math.tan(f32(0.6)))
+  const scale = Math.fround(1 / Math.tan(Math.fround(0.6)))
   const now = new Float64Array(16)
   for (let i = 0; i < near.length; i++) {
     if (near[i] === far[i]) continue
@@ -82,7 +80,7 @@ test("a spot's projection is the shared forward perspective, bit for bit, for a 
 test('a spot of no depth range (its range rounds to 0.001 m) takes a finite projection', () => {
   // Declared fix: the former builder divided by far − near = 0 there, entries 10 and 14 ±Infinity
   // and the map broken; the shared one projects every depth to near / z.
-  assert.ok(!oldSpotProjection(1, f32(0.001), f32(0.001)).every(Number.isFinite))
+  assert.ok(!oldSpotProjection(1, Math.fround(0.001), Math.fround(0.001)).every(Number.isFinite))
   const spot = {
     ...{ id: 'spot', kind: 'spot' as const, position: [0, 3, -20], direction: [0, -1, 0] },
     ...{ range: 0.001, coneAngle: 0.6, innerConeAngle: 0 },

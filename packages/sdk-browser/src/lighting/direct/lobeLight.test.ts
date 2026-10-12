@@ -89,8 +89,6 @@ test('a lobed light pays the half-vector only where the base or the coat faces i
   // Both outcomes are met: lights behind the base and the coat, and lights that reach the pixel.
   assert.ok(zeros > 40 && lit > 40, `${zeros} zeros, ${lit} lit`)
 })
-
-const f = Math.fround
 const fdot = F32_SCOPE.dot as (a: number[], b: number[]) => number
 const fcross = F32_SCOPE.cross as (a: number[], b: number[]) => number[]
 const flength = F32_SCOPE.length as (v: number[]) => number
@@ -114,13 +112,13 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
     return text.replace(shippedForm, dividedForm)
   }, shipped)
   const r = random(1484),
-    u = (lo: number, hi: number) => f(lerp(lo, hi, r()))
-  const unit = (v: number[]) => v.map((x) => f(x / Math.hypot(...v)))
+    u = (lo: number, hi: number) => Math.fround(lerp(lo, hi, r()))
+  const unit = (v: number[]) => v.map((x) => Math.fround(x / Math.hypot(...v)))
   const lobes: Record<string, unknown> = {}
   const ours = shaderRun<Record<string, Light>>(shipped, NAMES, { ...F32_SCOPE, lobes })
   const theirs = shaderRun<Record<string, Light>>(divides, NAMES, { ...F32_SCOPE, lobes })
-  const floor = f(ROUGHNESS_FLOOR),
-    pi = f(Math.PI)
+  const floor = Math.fround(ROUGHNESS_FLOOR),
+    pi = Math.fround(Math.PI)
   let lit = 0,
     moved = 0
   for (let round = 0; round < 4000; round++) {
@@ -137,9 +135,11 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
       coat = round % 5 ? 0 : u(0.1, 1),
       coatRough = u(0.05, 1),
       coatN = unit(N.map((n) => n + u(-0.2, 0.2)))
-    const alpha = f(rough * rough),
-      at = f(alpha + f(f(1 - alpha) * f(strength * strength)))
-    const facing = f(Math.max(fdot(N, V), f(1e-4)))
+    const alpha = Math.fround(rough * rough),
+      at = Math.fround(
+        alpha + Math.fround(Math.fround(1 - alpha) * Math.fround(strength * strength)),
+      )
+    const facing = Math.fround(Math.max(fdot(N, V), Math.fround(1e-4)))
     Object.assign(lobes, {
       on: true,
       skewed: true,
@@ -151,10 +151,10 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
       through: coat > 0 ? u(0.5, 1) : 1,
       at,
       ab: alpha,
-      invAt: f(1 / at),
-      invAb: f(1 / alpha),
-      dScale: f(1 / f(f(pi * at) * alpha)),
-      viewLength: flength([f(at * fdot(T, V)), f(alpha * fdot(B, V)), facing]),
+      invAt: Math.fround(1 / at),
+      invAb: Math.fround(1 / alpha),
+      dScale: Math.fround(1 / Math.fround(Math.fround(pi * at) * alpha)),
+      viewLength: flength([Math.fround(at * fdot(T, V)), Math.fround(alpha * fdot(B, V)), facing]),
       coatSurface: ours.lobeSurface([0, 0, 0], 0, coatRough, coatN, V),
     })
     const surface = ours.lobeSurface([u(0, 1), u(0, 1), u(0, 1)], u(0, 1), rough, N, V)

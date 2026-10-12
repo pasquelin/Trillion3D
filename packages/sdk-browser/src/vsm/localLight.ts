@@ -37,8 +37,6 @@ import {
 /** The nearest depth a local light's casters take: 0.1 cm. */
 const VSM_LOCAL_MIN_LIGHT_W = 0.1 * VSM_UNIT_PER_CM
 
-const f32 = Math.fround
-
 /** A point or spot light as the setup reads it (metres, world). */
 export interface VsmLocalLightInput {
   /** Scene light id (of the cache key). */
@@ -71,13 +69,13 @@ interface VsmLocalViewData {
 /** The per-view footprint factors, from our projection (w = −p[11]·depth + p[15]). */
 export function vsmLocalViewData(camera: VsmCameraInput, viewport: VsmViewport): VsmLocalViewData {
   const p = camera.projection
-  const radiusX = f32(f32(2 / viewport.width) / f32(p[0])),
-    radiusY = f32(f32(2 / viewport.height) / f32(p[5]))
+  const radiusX = Math.fround(Math.fround(2 / viewport.width) / Math.fround(p[0])),
+    radiusY = Math.fround(Math.fround(2 / viewport.height) / Math.fround(p[5]))
   const minRadiusClip = Math.min(radiusX, radiusY)
   return {
     view: camera.view,
-    clipToSizeScale: f32(-p[11] * minRadiusClip),
-    clipToSizeBias: f32(p[15] * minRadiusClip),
+    clipToSizeScale: Math.fround(-p[11] * minRadiusClip),
+    clipToSizeBias: Math.fround(p[15] * minRadiusClip),
   }
 }
 
@@ -99,7 +97,7 @@ const SPOT_CONE_GAP = 0.001
  *  widest]) plus the gap, at most the widest plus the gap; rounded once, to an f32. */
 function clampedOuterConeAngle(innerRad: number, outerRad: number) {
   const inner = clamp(innerRad, 0, MAX_SPOT_HALF_ANGLE)
-  return f32(clamp(outerRad, inner + SPOT_CONE_GAP, MAX_SPOT_HALF_ANGLE + SPOT_CONE_GAP))
+  return Math.fround(clamp(outerRad, inner + SPOT_CONE_GAP, MAX_SPOT_HALF_ANGLE + SPOT_CONE_GAP))
 }
 
 /** The cube face directions and up vectors. */
@@ -153,10 +151,11 @@ function coarsestMipNeeded(
   const v = view.view
   // The light's depth is along +Z of its view; the engine's camera looks down −Z.
   const depth = -transformPointRow(v, 2, lightOrigin[0], lightOrigin[1], lightOrigin[2])
-  const worldRadius = f32(
-    f32(Math.max(0, f32(depth) - lightRange)) * view.clipToSizeScale + view.clipToSizeBias,
+  const worldRadius = Math.fround(
+    Math.fround(Math.max(0, Math.fround(depth) - lightRange)) * view.clipToSizeScale +
+      view.clipToSizeBias,
   )
-  const shadowFootprint = f32((worldRadius * footprintPerDistance) / lightRange)
+  const shadowFootprint = Math.fround((worldRadius * footprintPerDistance) / lightRange)
   return vsmLocalMipLevel(shadowFootprint, levelBias, pressureBias)
 }
 
@@ -193,7 +192,7 @@ export function addVsmLocalLightShadow(
     preShadow[k] = -origin[k]
     lightOrigin[k] = origin[k]
   }
-  const localLevelBias = f32(
+  const localLevelBias = Math.fround(
     vsmMovingBias(VSM_LOCAL_LEVEL_BIAS, VSM_LOCAL_LEVEL_BIAS_MOVING, movingShare) +
       (light.levelBias ?? 0),
   )
@@ -212,14 +211,14 @@ export function addVsmLocalLightShadow(
   let outerCone = 0
   if (isSpot) {
     outerCone = clampedOuterConeAngle(light.innerConeAngle ?? 0, light.coneAngle ?? QUARTER_PI)
-    const cosOuter = f32(Math.cos(outerCone)),
-      sinOuter = f32(Math.sin(outerCone)),
-      invTanOuter = f32(focalScale(outerCone))
+    const cosOuter = Math.fround(Math.cos(outerCone)),
+      sinOuter = Math.fround(Math.sin(outerCone)),
+      invTanOuter = Math.fround(focalScale(outerCone))
     // The bounding sphere of the cone, relative to the light: past a half angle of 45° (cos² = 1/2)
     // the sphere through the cap's rim, its centre on the axis at the rim's foot; below, the
     // sphere through the light and the rim.
     let sphereOffset: number, sphereRadius: number
-    if (cosOuter < f32(Math.SQRT1_2)) {
+    if (cosOuter < Math.fround(Math.SQRT1_2)) {
       sphereOffset = radius * cosOuter
       sphereRadius = radius * sinOuter
     } else {
@@ -234,22 +233,22 @@ export function addVsmLocalLightShadow(
       direction[1] * sphereOffset,
       direction[2] * sphereOffset,
     )
-    let depthFar = f32(c[2] + sphereRadius)
-    const depthNear = f32(Math.max(depthFar - sphereRadius * 2, VSM_LOCAL_MIN_LIGHT_W))
-    depthFar = f32(Math.min(depthFar, radius))
+    let depthFar = Math.fround(c[2] + sphereRadius)
+    const depthNear = Math.fround(Math.max(depthFar - sphereRadius * 2, VSM_LOCAL_MIN_LIGHT_W))
+    depthFar = Math.fround(Math.min(depthFar, radius))
     // The outer scale (no border at 16384²), between the nearest and farthest caster depths.
     forwardPerspectiveProjection(viewToClip, invTanOuter, depthNear, depthFar)
   } else
     forwardPerspectiveProjection(
       viewToClip,
-      focalScale(f32(QUARTER_PI)),
+      focalScale(Math.fround(QUARTER_PI)),
       VSM_LOCAL_NEAR_PLANE,
       radius,
     )
   const projectionScale = viewToClip[0]
 
   // The finest mip level any view needs, conservatively.
-  const footprintPerDistance = f32(f32(projectionScale) * VSM_LEVEL0_TEXELS)
+  const footprintPerDistance = Math.fround(Math.fround(projectionScale) * VSM_LEVEL0_TEXELS)
   let finestMip = VSM_MIPS
   for (let v = 0; v < views.length; v++)
     finestMip = Math.min(

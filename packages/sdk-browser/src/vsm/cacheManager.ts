@@ -451,19 +451,18 @@ export class VsmCacheManager {
    */
   readPoolFeedback(freePages: number, lastPressureBias: number) {
     this.lastFreePages = freePages
-    const f = Math.fround
     const frameStamp = this.frameStamp >>> 0
-    const currentAllocation = f(1 - f(freePages / this.poolPages))
-    const allocationRatio = f(currentAllocation / f(VSM_PRESSURE_LOAD))
-    const targetBias = f(Math.max(0, lastPressureBias + Math.log2(allocationRatio)))
+    const currentAllocation = Math.fround(1 - Math.fround(freePages / this.poolPages))
+    const allocationRatio = Math.fround(currentAllocation / Math.fround(VSM_PRESSURE_LOAD))
+    const targetBias = Math.fround(Math.max(0, lastPressureBias + Math.log2(allocationRatio)))
     if (
-      currentAllocation <= f(VSM_PRESSURE_LOAD) &&
+      currentAllocation <= Math.fround(VSM_PRESSURE_LOAD) &&
       (frameStamp - this.lastFrameOverBudget) >>> 0 > VSM_PRESSURE_CALM_FRAMES
     ) {
-      this.pressureBias = f(lerp(this.pressureBias, targetBias, VSM_PRESSURE_FALL))
-    } else if (currentAllocation > f(VSM_PRESSURE_LOAD)) {
+      this.pressureBias = Math.fround(lerp(this.pressureBias, targetBias, VSM_PRESSURE_FALL))
+    } else if (currentAllocation > Math.fround(VSM_PRESSURE_LOAD)) {
       this.lastFrameOverBudget = frameStamp
-      this.pressureBias = f(lerp(this.pressureBias, targetBias, VSM_PRESSURE_RISE))
+      this.pressureBias = Math.fround(lerp(this.pressureBias, targetBias, VSM_PRESSURE_RISE))
     }
     const bias = clamp(this.pressureBias, 0, VSM_PRESSURE_BIAS_MAX)
     // In f32, nine tenths of k·2^-149 round back to it for k <= 4: the decay would stop there.
