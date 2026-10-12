@@ -14,6 +14,7 @@ import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worl
 import { createPartitionFrame } from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts'
 import { compiler, SPACING, world } from './world-partition.fixture.ts'
 import { assertNoneMissing, primed, served } from './world-partition-follow.fixture.ts'
+import { noModels } from '../../packages/sdk-browser/src/world/core/worldModels.fixture.ts'
 
 const SHIFT = 5000
 
@@ -32,7 +33,7 @@ test(
     district.position.x -= SHIFT
     const poses = createWorldPoses()
     poses.moved(district)
-    poses.apply(scene, new Map(), new Map(), () => {})
+    poses.apply(scene, new Map(), noModels(), () => {})
 
     const drawn = new Set<PlacementRows>()
     let renewed = 0

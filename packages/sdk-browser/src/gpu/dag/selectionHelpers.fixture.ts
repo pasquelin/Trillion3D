@@ -10,14 +10,15 @@ import { ruleResidency } from './readiness.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 export const VIEWPORT: [number, number] = [1280, 720]
 export function packed(fixture: ReturnType<typeof dagFixture>) {
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   return { roots, dag: packDagSelection(roots) }
 }
@@ -66,9 +67,9 @@ export function cpuUrls(
 ) {
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   return selectVisiblePages(roots, readCameraWorld(helperCam, camera), {
     pixelError,

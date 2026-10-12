@@ -47,7 +47,7 @@ export async function probeEngineContext(
   } as unknown as ExplorerSession
   await prepareExplorerEngine(opened, {
     source: {} as never,
-    associations: new Map(),
+    draws: [],
     textureIndices: new Map(),
     pageSources,
     factory: (context) => {

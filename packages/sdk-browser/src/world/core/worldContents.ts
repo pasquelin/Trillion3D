@@ -4,6 +4,7 @@ import { createWorldCuts, firstMaterial, type Cut } from './worldCuts.ts'
 import { createWorldMaterials, type MaterialEntry } from './worldMaterials.ts'
 import { createWorldBatches } from './worldBatches.ts'
 import { createWorldRanks } from './worldRanks.ts'
+import { createWorldModels } from './worldModels.ts'
 import { createWorldPoses, shownUnder } from './worldPoses.ts'
 import type { LoadedModel } from './loadedModel.ts'
 import type { PlacementGrowth } from '../../placement/engineSceneUpdates.ts'
@@ -24,12 +25,15 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
   const cuts = createWorldCuts(notices),
     materials = createWorldMaterials(),
     poses = createWorldPoses()
+  const ranks = createWorldRanks()
   const state: ContentsState = {
-    ...{ scene, notices, cuts, materials, poses },
-    batches: createWorldBatches(poses.touch, (entry, cut, twoSided) =>
-      materials.surfaceOf(entry, cut.drawn, twoSided),
+    ...{ scene, notices, cuts, materials, poses, ranks },
+    models: createWorldModels(ranks),
+    batches: createWorldBatches(
+      poses.touch,
+      (entry, cut, twoSided) => materials.surfaceOf(entry, cut.drawn, twoSided),
+      ranks,
     ),
-    ranks: createWorldRanks(),
     members: createWorldMembers(scene),
     resolved: new Map(),
     stale: new Set(),
@@ -67,7 +71,8 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     entered: members.entered,
     reopenNeeded: () => batches.waiting() || !same(state.openedModels, members.models),
     plan: () => plan(state),
-    shown: (node: Object3D) => shownUnder(node, scene),
+    /** The models' graphs and their rows (`worldModels.ts`). */
+    models: state.models,
   }
 }
 
@@ -80,6 +85,7 @@ type ContentsState = {
   poses: ReturnType<typeof createWorldPoses>
   batches: ReturnType<typeof createWorldBatches>
   ranks: ReturnType<typeof createWorldRanks>
+  models: ReturnType<typeof createWorldModels>
   members: ReturnType<typeof createWorldMembers>
   resolved: Map<Mesh, Resolved>
   stale: Set<Mesh>
@@ -182,6 +188,10 @@ function plan(state: ContentsState) {
     batch.owners.forEach(
       (mesh, row) => mesh && poses.writeSeat(mesh, { batch, row }, shownUnder(mesh, scene)),
     )
+  for (const model of members.models) {
+    state.models.drawsOf(model)
+    poses.writeModel(state.models, model, shownUnder(model, scene))
+  }
   poses.settle()
   state.openedModels = new Set(members.models)
   const used = new Set<MaterialEntry>(
@@ -194,5 +204,9 @@ function plan(state: ContentsState) {
     for (const cut of state.held) if (!next.has(cut)) cuts.hold(cut, false)
     state.held = next
   }
-  return { batches: kept, models: [...members.models], ranks: state.ranks, release }
+  return {
+    ...{ batches: kept, models: [...members.models], ranks: state.ranks },
+    worldModels: state.models,
+    release,
+  }
 }

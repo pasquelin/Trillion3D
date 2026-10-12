@@ -4,11 +4,13 @@ import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { createWorldBatches } from '../world/core/worldBatches.ts'
 import type { Cut } from '../world/core/worldCuts.ts'
 import type { MaterialEntry } from '../world/core/worldMaterials.ts'
+import { createWorldRanks } from '../world/core/worldRanks.ts'
 
 test('deformation row growth requests a structural reopen while stable owners retain their rows', () => {
   const batches = createWorldBatches(
     () => {},
     () => ({}) as never,
+    createWorldRanks(),
   )
   const cut = { key: 'morph', drawn: { deformation: { targets: [{}] } } } as unknown as Cut
   const material = { id: 1 } as MaterialEntry

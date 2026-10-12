@@ -12,6 +12,7 @@ import { fanScene, quadCluster } from '../engine/pagesEngineScenes.fixture.ts'
 import type { HostCamera } from './world.ts'
 import type { EngineContext, Engine } from '../engine/types.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 
 /** The fan's manifest without its primitives: same shape as `QUAD_MANIFEST`
  *  (`packages/sdk-browser/src/engine/pagesEngineScenes.fixture.ts`), the fields the mock backend never reads left at neutral values. */
@@ -52,7 +53,7 @@ function transparentFan(): EngineContext & { dispose: () => void } {
       primitives: [{ mesh: 0, primitive: 0, pass: 'clustered-blend', ...primitive }],
     },
     indices,
-    associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
+    draws: graphDraws(source, new Map([[mesh, { meshes: 0, primitives: 0 }]])),
     viewport: [32, 32],
     dispose: () => (geometry.dispose(), material.dispose()),
   }

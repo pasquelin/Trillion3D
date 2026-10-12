@@ -9,6 +9,7 @@ import { createExplorerMaterialApi } from './materialApi.ts'
 import { webgpuMaterialClassRefusal } from '../../webgpu/pages/io/refreshMaterials.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 const slot = (texture: number): TableTextureSlot => ({
   texture,
@@ -81,8 +82,9 @@ export async function scene(
   // One entry per refresh: the alpha change it carried, `undefined` for values alone.
   const refreshes: (AlphaChange | undefined)[] = []
   // One page record per mesh, as the open collects them: the glass one drawn blended.
-  const pages = [...associations.keys()].map((node, at) => ({
-    drawSource: { node },
+  const draws = graphDraws(source, associations)
+  const pages = draws.map((drawSource, at) => ({
+    drawSource,
     transparent: at === 5,
   })) as unknown as PageRec[]
   const backend = {
@@ -94,11 +96,10 @@ export async function scene(
   } as unknown as Engine
   const api = createExplorerMaterialApi({
     check: () => {},
-    source,
-    associations,
+    draws,
     engine: backend,
   })
-  return { api, associations, floor, textures, refreshes, source }
+  return { api, associations, draws, floor, textures, refreshes, source }
 }
 
 export const refusal = (code: string) => (error: unknown) =>

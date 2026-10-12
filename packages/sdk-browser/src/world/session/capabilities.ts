@@ -1,5 +1,5 @@
 import { mathBatchMetrics, prepareMathBatch } from '../../page/decode/batch/batchState.ts'
-import { materialTextures, meshes as objects } from '../../scene/meshes.ts'
+import { materialTextures } from '../../scene/meshes.ts'
 import { hostTextureWritten } from '../../host/textureImport.ts'
 import { families } from '../../host/families.ts'
 import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
@@ -17,13 +17,13 @@ type Inputs = {
   manifestUrl: string
   metadataUrl: string
   base: string
-  source: EngineContext['source']
+  draws: EngineContext['draws']
   pageSources: ExplorerPageSources
 }
 /** Sizes the canvas the engine presents into, and reports the session's configuration. */
 export async function configureExplorer(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, scope, metadata, diagnosticChannel, diagnose } = session
-  const { manifestUrl, metadataUrl, base, source, pageSources } = inputs
+  const { manifestUrl, metadataUrl, base, draws, pageSources } = inputs
   const { pages } = pageSources
   const batchCompute = prepareMathBatch(options.mathPath ?? 'auto')
   canvas.width = devicePixels(options.width ?? DEFAULT_WIDTH, options.pixelRatio)
@@ -61,8 +61,8 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   })
   // The most detail: every texture read with the device's whole anisotropy (`MAX_ANISOTROPY`).
   if (options.detail === 'maximum') {
-    for (const mesh of objects(source))
-      for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material])
+    for (const { declaration } of draws)
+      for (const material of Array.isArray(declaration) ? declaration : [declaration])
         for (const texture of materialTextures(material)) {
           texture.anisotropy = MAX_ANISOTROPY
           texture.needsUpdate = true

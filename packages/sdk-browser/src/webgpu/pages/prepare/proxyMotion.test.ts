@@ -19,6 +19,7 @@ test('borrowed proxies follow off-move-on and late loads without duplicate epoch
   const rt = {
     setup: {
       source: { traverse() {}, _alive: true },
+      draws: [],
       worlds: { of: () => ({ elements: matrix }), refresh: () => refreshes++ },
     },
     run: { gate: { revisions: { scene: 1 } } },
@@ -46,7 +47,7 @@ test('a settling proxy syncs once per still frame until it settles, then once pe
     sync: () => (syncs++, 'moved' as const),
   }
   const rt = {
-    setup: { source: { traverse() {} }, worlds: { of: () => undefined } },
+    setup: { source: { traverse() {} }, draws: [], worlds: { of: () => undefined } },
     run: { frame: 1, gate: { revisions: { scene: 1 } } },
   } as unknown as WebgpuPagesRuntime
   syncPageProxy(rt, proxy)

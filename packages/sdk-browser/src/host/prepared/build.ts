@@ -7,7 +7,7 @@
  */
 import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
-import type { EngineContext } from '../../engine/types.ts'
+import type { DrawAssociations } from '../../page/selection/drawSource.ts'
 import { readOnce } from '../../../../sdk-core/src/world/buffer/pending.ts'
 import { checked } from '../../cluster/checked.ts'
 import { unmetered, type ByteMeter } from '../../cluster/byteMeter.ts'
@@ -78,7 +78,7 @@ export async function buildPreparedScene(inputs: Inputs) {
   })
   signal?.throwIfAborted()
   const source: Object3D = scene
-  const associations: EngineContext['associations'] = meshes
+  const associations: DrawAssociations = meshes
   const textureIndices: Map<HostTexture, number> = ranks
   return { source, associations, textureIndices, bakedImages: skipped.size, nodes, placed, clips }
 }

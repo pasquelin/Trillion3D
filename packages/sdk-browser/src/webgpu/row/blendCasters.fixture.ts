@@ -9,6 +9,7 @@ import { createPageRowWriter } from './pageRowWriter.ts'
 import { createBlendCasterRows } from './blendCasters.ts'
 import { createWebgpuRowState } from './state.ts'
 import { pageAddress } from './pageSlots.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 export const STRIDE = PAGE_INFO_STRIDE / 4
 /** One level-0 root cluster, the blend fixture's first, at the address `url`. */
@@ -38,7 +39,7 @@ export function catalogue(opacity: number, blended = true, transparentShadow = t
   source.updateMatrixWorld(true)
   const metadata = { primitives } as unknown as ClusterManifest
   const indices = new Map(primitives.map((_, i) => [`p${i}`, Uint32Array.of(0, 1, 2)] as const))
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const pages = collected.allPages
   return Object.assign(pages, { glass: materials[1] })
 }

@@ -30,7 +30,6 @@ export function createWorldRuntime(inputs: Inputs) {
   const track = worldReopens(canvas, inputs.diagnostic.notices, () => reopens.request())
   const state: WorldRuntimeState = {
     explorer: null,
-    twins: new Map(),
     resolving: null,
     structureChanged: false,
     seatWanted: false,

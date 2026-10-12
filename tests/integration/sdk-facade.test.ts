@@ -61,17 +61,18 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = readJson(
     new URL('../../site/data/api-inventory.json', import.meta.url),
   )
-  // 712 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 715 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
   // PageHome, PageHomes, QualityResolution, TextureLevelAddress, TextureLevelStore,
-  // WorldQualityOptions and ModelScene; and the page cache a streamer reads through,
+  // WorldQualityOptions and ModelScene; the sources a session draws and their association
+  // (DrawSource, DrawRanks, DrawAssociations); and the page cache a streamer reads through,
   // `createPageCache` with its contract (PageCache, CacheSession, ReadRange, RangeAsk, ByteMeter);
   // it holds no CPU character capsule (Capsule, CapsuleContact, CapsulePush, TriangleTree,
   // CharacterCollision, TriangleCollision): Jolt is the one character body; and the frustum's
   // `FAR_PLANE_SLOT`, the slot a culling reader tests the far plane at.
-  assert.equal(inventory.exports.length, 712)
+  assert.equal(inventory.exports.length, 715)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

@@ -7793,7 +7793,8 @@
       "textureIndices": "Le rang de chaque texture de la scène dans la table que les shaders indexent.",
       "partitions": "Les cellules par lesquelles une scène partitionnée est lue, aucune quand la scène n’est pas partitionnée.",
       "sceneLightingSource": "Le nœud dont les lumières et l’environnement éclairent la scène : `options.sceneLighting`, sinon la racine propre de la scène avant toute réplication.",
-      "framingLot": "Le lot dans lequel le cadrage de la caméra prend les bornes de la scène, `null` quand aucun nœud n’est borné ; l’appelant le rend."
+      "framingLot": "Le lot dans lequel le cadrage de la caméra prend les bornes de la scène, `null` quand aucun nœud n’est borné ; l’appelant le rend.",
+      "draws": "Ce que la scène dessine, une source par nœud dessiné, dans l’ordre du graphe."
     }
   },
   "PageCache": {
@@ -7843,5 +7844,32 @@
   "createPageCache": {
     "summary": "LE CACHE HÔTE UNIQUE : les octets de chaque page et de chaque paquet lus, de chaque fichier qu’un serveur a renvoyé entier au lieu d’une plage (`readRange`), de chaque niveau de texture décodé et de chaque fiche de tuile en blocs (`level`), et du proxy résident de la scène (`keep`), en un seul ensemble d’entrées, UN budget et UNE éviction (`cacheEntries.ts`), face au total CPU (`cpuBytes`, `world.budget.cpu`).",
     "description": "Son propriétaire le garde d’une session à l’autre : un monde remet le même à chaque session qu’il ouvre, donc une session rouverte — sur un périphérique de nouveau accordé après une perte, ou sur une scène qui a changé — lit ici ce que la précédente a récupéré, et ne récupère rien de ce qu’il tient. Chaque session qui lit par lui réserve ses tables de manifeste, sa file de transfert et les tables du moteur (`manifestTableBytes`, `maxTransferBytes`, le `reserve` du flux), dites à mesure qu’elles changent (`open`), le cache gardant leur somme, et prend des prises sur les pages qu’elle épingle ou lit ; les entrées tiennent le reste (`budgetBytes`). Seul le cache évince, une fois que ses entrées dépassent le budget : jamais une entrée que quelqu’un tient, puis les pages, fichiers et niveaux les moins récemment utilisés, le proxy en dernier. Un niveau n’a pas besoin d’une place à lui : il prend ce que l’éviction peut libérer (`roomBytes`), comme une page."
+  },
+  "DrawAssociations": {
+    "summary": "Ce que le chargeur d’un graphe dit de ses nœuds dessinés : l’association de chaque nœud."
+  },
+  "DrawRanks": {
+    "summary": "L’association qu’un manifeste a donnée à une source : ses rangs de maillage et de primitive, les rangées qui la placent.",
+    "members": {
+      "meshes": "Son rang de maillage dans le manifeste.",
+      "primitives": "Son rang de primitive dans ce maillage.",
+      "placements": "Les rangées qui la placent, une racine chacune."
+    }
+  },
+  "DrawSource": {
+    "summary": "Ce qu’une session dessine, source par source : sa géométrie, la déclaration dont sa surface est lue, où elle est placée et ses rangs dans le manifeste.",
+    "members": {
+      "dynamic": "L’hôte réécrit les sommets sur place : le moteur les lit comme des flottants.",
+      "declaration": "D’où la surface est lue, une déclaration ou une par groupe de géométrie.",
+      "node": "Le nœud que l’hôte surveille pour cette source et par lequel il la pose ; sa chaîne décide du masquage. Absent là où des rangées la placent : leur propriétaire écrit la pose et les drapeaux.",
+      "wear": "La source porte `surface` désormais, à la place de sa déclaration.",
+      "rows": "Les rangées d’instances qui la placent, une racine chacune, rangées de côté comprises.",
+      "mesh": "Son rang de maillage dans le manifeste.",
+      "primitives": "Son rang de primitive dans ce maillage.",
+      "geometry": "Les triangles qu’elle dessine.",
+      "attributes": "Les attributs de sommet nommés de cette géométrie : ce par quoi ses tampons GPU sont identifiés.",
+      "castShadow": "Si elle projette des ombres.",
+      "frustumCulled": "Si l’hôte permet de l’écarter hors du champ."
+    }
   }
 }

@@ -14,6 +14,7 @@ import { drawSourceOf } from '../page/selection/drawSource.ts'
 import { rootCoverOf } from '../webgpu/pages/prepare/rootCover.ts'
 import { pageAddress } from '../webgpu/row/pageSlots.ts'
 import { createWebgpuPageTracking } from '../webgpu/row/pageTracking.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 
 /** The cook's world DAG, every cluster wearing primitive 0. */
 function dag() {
@@ -71,7 +72,7 @@ test('a world page is worn by the mesh of its primitive, never a blended one', (
     { mesh: 2, primitive: 0, pass: 'clustered-blend' },
     { mesh: 3, primitive: 0, pass: 'clustered' },
   ] as Primitive[]
-  const wear = worldWearers(source, primitives, associations)
+  const wear = worldWearers(graphDraws(source, associations), primitives)
   assert.equal(wear(0)?.drawSource.node, opaque)
   assert.equal(wear(1), undefined, 'its surface blends')
   assert.equal(wear(2), undefined, 'its primitive blends')

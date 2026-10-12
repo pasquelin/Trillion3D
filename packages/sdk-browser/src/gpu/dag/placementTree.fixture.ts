@@ -10,15 +10,16 @@ import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { dagOracleDescent } from './oracle/descent.fixture.ts'
 import { dagViewFrames } from './oracle/math.fixture.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 /** `side`² placements of the strip, `gap` apart on x and z, the first at the origin. */
 export function placementField(side: number, gap: number) {
   const fixture = dagFixture()
   const [root] = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   ).roots
   const roots: DagRoot[] = []
   for (let k = 0; k < side * side; k++) {

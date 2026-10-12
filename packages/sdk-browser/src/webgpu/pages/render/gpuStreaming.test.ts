@@ -8,15 +8,16 @@ import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera, streamingQuadBackend } from '../testScenes.fixture.ts'
 import { coarseQuadScene } from '../testOccluder.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'
+import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 test('a GPU-driven image reaches the queue as one command buffer', async () => {
   installGpuGlobals()
   const fixture = quadScene()
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const { device, submits } = mockGpu({ packed: packDagSelection(collected.roots) })
   const backend = webgpuPagesEngine({
@@ -55,9 +56,9 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
   fixture.indices.set('2', new Uint32Array([0, 1, 2]))
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const packed = packDagSelection(collected.roots)
   const { device, draws, buffers } = mockGpu({ packed })

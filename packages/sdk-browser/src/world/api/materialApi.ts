@@ -1,13 +1,11 @@
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Engine } from '../../engine/types.ts'
 import { runtimeMaterials } from './runtimeMaterials.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
 import type { GraphTexture } from '../../host/graph/texture.ts'
 import { tableRankOf } from '../../host/prepared/materials.ts'
-import { materialTextures, meshes } from '../../scene/meshes.ts'
-import type { EngineContext } from '../../engine/types.ts'
+import { materialTextures } from '../../scene/meshes.ts'
+import type { DrawSource } from '../../page/selection/drawSource.ts'
 import { primitiveName } from '../../scene/primitiveLookup.ts'
-import type { HostMesh } from '../../host/resources.ts'
 import { EngineError } from '../../../../sdk-core/src/index.ts'
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts'
 import { alphaMoves, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
@@ -26,10 +24,9 @@ export { type CreatedMaterial } from './createdMaterials.ts'
 
 type Inputs = {
   check: () => void
-  /** The scene the session draws: its prepared surfaces are the scene's materials. */
-  source: Object3D
-  /** The source meshes and the manifest primitive each draws: a drawable is named by it. */
-  associations: EngineContext['associations']
+  /** What the session draws: the prepared surfaces of its sources are the scene's materials, and
+   *  a drawable is named by the manifest primitive its source draws. */
+  draws: readonly DrawSource[]
   engine: Engine
   onDispose?: (release: () => void) => void
 }
@@ -52,14 +49,14 @@ const refreshed = (engine: Engine, alpha?: AlphaChange) =>
 
 /** The scene's materials by table rank: the surfaces built from each, the ranks each texture
  *  serves, the drawables by the primitive name a page gives, and the values the file carried. */
-function materialIndex(source: Object3D, associations: EngineContext['associations']) {
+function materialIndex(draws: readonly DrawSource[]) {
   const worn = new Map<number, Set<GraphSurface>>()
   const wearers = new Map<GraphTexture, Set<number>>()
-  const drawables = new Map<string, Set<HostMesh>>()
-  for (const mesh of meshes(source)) {
-    const name = primitiveName(associations.get(mesh))
-    if (name) drawables.set(name, (drawables.get(name) ?? new Set()).add(mesh))
-    for (const surface of [mesh.material as GraphSurface | GraphSurface[]].flat()) {
+  const drawables = new Map<string, Set<DrawSource>>()
+  for (const draw of draws) {
+    const name = primitiveName({ meshes: draw.mesh, primitives: draw.primitives })
+    if (name) drawables.set(name, (drawables.get(name) ?? new Set()).add(draw))
+    for (const surface of [draw.declaration as GraphSurface | GraphSurface[]].flat()) {
       const rank = tableRankOf(surface)
       if (rank === undefined) continue
       worn.set(rank, (worn.get(rank) ?? new Set()).add(surface))
@@ -100,12 +97,12 @@ type Writes = {
   engine: Engine
   scene: () => MaterialIndex
   created: Map<string, Map<string, GraphSurface>>
-  wearing: Map<HostMesh, string>
+  wearing: Map<DrawSource, string>
   wearers: Map<string, number>
 }
 
 /** `mesh` wears created material `id` from now on, leaving the one it wore, if any. */
-function wear({ wearing, wearers }: Writes, mesh: HostMesh, id: string) {
+function wear({ wearing, wearers }: Writes, mesh: DrawSource, id: string) {
   const before = wearing.get(mesh)
   if (before === id) return
   if (before !== undefined) {
@@ -167,7 +164,7 @@ function assignMaterial(writes: Writes, primitive: string, id: string) {
   refuseClass(engine, id, alpha)
   created.set(id, variants)
   for (const mesh of drawn) wear(writes, mesh, id)
-  for (const [mesh, surface] of alpha.meshes) mesh.material = surface
+  for (const [draw, surface] of alpha.meshes) draw.wear(surface)
   engine.wearSurface(alpha)
   return refreshed(engine, alpha)
 }
@@ -184,7 +181,7 @@ function assignMaterial(writes: Writes, primitive: string, id: string) {
  * (`assignMaterial`).
  */
 export function createExplorerMaterialApi(inputs: Inputs) {
-  const { check, source, associations, engine } = inputs
+  const { check, draws, engine } = inputs
   /** The materials the page created, by id no table rank takes, each its surface per geometry
    *  variant a drawable asked (`PLAIN` first): a write reaches them all (`preparedMaterials`). */
   const runtime = runtimeMaterials(check, engine),
@@ -193,7 +190,7 @@ export function createExplorerMaterialApi(inputs: Inputs) {
   /** Built at the first call, not at open: most pages never ask. Before any write, so the values
    *  it keeps as imported are the file's. */
   let held: MaterialIndex | undefined
-  const scene = () => (held ??= materialIndex(source, associations))
+  const scene = () => (held ??= materialIndex(draws))
   /** The created material each assigned mesh wears: a change to one worn reaches the engine. */
   const writes: Writes = { engine, scene, created, wearing: new Map(), wearers: new Map() }
   const required = (id: string) => {

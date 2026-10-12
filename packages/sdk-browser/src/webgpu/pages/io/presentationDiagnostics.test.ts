@@ -8,6 +8,7 @@ import { packDagSelection } from '../../../gpu/dag/selection.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
+import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 test('the GPU readback diagnostic distinguishes the requested clear color from the rendered pixels', () => {
   const pixels = new Uint8Array([42, 48, 60, 255, 1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255])
@@ -65,9 +66,9 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
   const fixture = quadScene()
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const { device } = mockGpu({ packed: packDagSelection(collected.roots) })
   const backend = webgpuPagesEngine({

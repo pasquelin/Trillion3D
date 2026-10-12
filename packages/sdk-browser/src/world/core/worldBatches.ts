@@ -5,19 +5,23 @@ import type { Cut } from './worldCuts.ts'
 import type { MaterialEntry } from './worldMaterials.ts'
 import { drawnTwoSided } from '../../../../sdk-core/src/physics/soft.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
+import type { DrawSource } from '../../page/selection/drawSource.ts'
+import type { WorldRanks } from './worldRanks.ts'
 /**
- * A drawn resource: one geometry resource worn with one material entry. Its placements are the
+ * A drawn resource: one geometry resource worn with one material entry; it is what the session
+ * draws it from (`DrawSource`), its rows the placements. Its placements are the
  * rows of one instance buffer (`placement/rows.ts`) the session reads in place; `owners` says
  * which mesh holds each row, `free` which rows are parked and ready to be taken.
  */
-export type Batch = {
+export type Batch = DrawSource & {
   readonly key: string
   readonly cut: Cut
   readonly entry: MaterialEntry
   /** Its meshes are cloths (`drawnTwoSided`): their surface is drawn on both faces. */
   readonly twoSided: boolean
-  /** The surface its rows are worn as (`worldMaterials.ts`), built once with the batch. */
-  readonly surface: GraphSurface
+  /** The surface its rows are worn as (`worldMaterials.ts`), built once with the batch; the one
+   *  it is drawn in (`DrawSource.wear`) from the day a page gives its drawables another. */
+  surface: GraphSurface
   /** Its rank among the world's batches, given at its first seat and kept: the order it is
    *  drawn in among the others of its depth. */
   readonly order: number
@@ -42,10 +46,15 @@ export type Seat = { batch: Batch; row: number }
 /** A session that grows no buffer in place: a held batch seats on its free rows alone. */
 const GROWS_NONE: PlacementGrowth = { growsInPlace: () => false, growPlacements() {} }
 
-export function createWorldBatches(touched: (batch: Batch, row: number) => void, wear: BatchWear) {
+export function createWorldBatches(
+  touched: (batch: Batch, row: number) => void,
+  wear: BatchWear,
+  ranks: WorldRanks,
+) {
   const state: BatchState = {
     touched,
     wear,
+    ranks,
     made: 0,
     batches: new Map(),
     seats: new Map(),
@@ -74,7 +83,7 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void,
           short.delete(batch)
         } else fit(state, batch)
       }
-      return [...batches.values()]
+      return [...batches.values()].sort((a, b) => a.order - b.order)
     },
   }
 }
@@ -86,6 +95,7 @@ export type BatchWear = (entry: MaterialEntry, cut: Cut, twoSided: boolean) => G
 type BatchState = {
   touched: (batch: Batch, row: number) => void
   wear: BatchWear
+  ranks: WorldRanks
   /** Batches made so far: the next one's `order`. */
   made: number
   batches: Map<string, Batch>
@@ -105,16 +115,29 @@ function batchOf(state: BatchState, cut: Cut, entry: MaterialEntry, mesh: Mesh) 
     batches.set(
       key,
       (batch = {
-        key,
-        cut,
-        entry,
-        twoSided,
-        surface: state.wear(entry, cut, twoSided),
-        order: state.made++,
-        rows: null,
-        owners: [],
-        free: [],
-        wearers: new Set(),
+        ...{ key, cut, entry, twoSided, surface: state.wear(entry, cut, twoSided) },
+        ...{ order: state.made++, rows: null, owners: [], free: [], wearers: new Set<Mesh>() },
+        get geometry() {
+          return cut.geometry
+        },
+        get attributes() {
+          return cut.geometry.attributes
+        },
+        get dynamic() {
+          return !!cut.dynamic
+        },
+        get declaration() {
+          return this.surface
+        },
+        wear(surface: GraphSurface) {
+          this.surface = surface
+        },
+        castShadow: true,
+        frustumCulled: true,
+        get mesh() {
+          return state.ranks.cut(cut)
+        },
+        primitives: 0,
       }),
     )
   return batch

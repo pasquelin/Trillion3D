@@ -3,7 +3,6 @@ import { sourceSurface, wearsOneOf, type PageSurface } from '../surface.ts'
 import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts'
-import { objects } from './helpers.ts'
 import { refreshRootBox } from './batchBoxes.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
 import { createPrimitiveTemplates } from './template.ts'
@@ -13,9 +12,8 @@ import { linkBundleDependencies } from './bundleDependencies.ts'
 import { hostWorldPlacements } from '../../host/world/placements.ts'
 import type { PageRec, ClusterRoot } from './types.ts'
 import { placementsOf, type Placed } from '../../placement/roots.ts'
-import type { HostMesh } from '../../host/resources.ts'
-import { drawSourceOf, type DrawSource } from './drawSource.ts'
-import { rowShadowless, type PlacementRows } from '../../placement/rows.ts'
+import type { DrawSource } from './drawSource.ts'
+import { rowShadowless } from '../../placement/rows.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { blendMoves, isAssignment, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
 /** Whether a primitive's pages are drawn blended at the open. A material moved between draw
@@ -50,13 +48,17 @@ type Drawn = {
 /** One blended draw per placement, sharing the mesh's geometry and surface: each is ordered by its
  *  own depth, and a row's copy is skipped while the row is parked. */
 function blendCopiesOf(
-  { mesh, primitive, surface }: { mesh: HostMesh; primitive: Primitive; surface: PageSurface },
+  {
+    source,
+    primitive,
+    surface,
+  }: { source: DrawSource; primitive: Primitive; surface: PageSurface },
   placed: readonly Placed[],
   order: number,
   copies: BlendCopy[],
 ) {
   for (const { world, placement } of placed) {
-    const copy = createBlendCopyRecord(mesh, order, world, surface, placement)
+    const copy = createBlendCopyRecord(source, order, world, surface, placement)
     copy.deformation = primitive.deformation
     copies.push(copy)
   }
@@ -111,10 +113,7 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
 
 /** Whether `alpha` moves the surface a record wears, or gives it another. */
 const wears = ({ drawSource: source }: PageRec, alpha: AlphaChange) =>
-  !!source &&
-  (isAssignment(alpha)
-    ? !!source.node && alpha.meshes.has(source.node)
-    : wearsOneOf(source, alpha.surfaces))
+  !!source && (isAssignment(alpha) ? alpha.meshes.has(source) : wearsOneOf(source, alpha.surfaces))
 
 /** Whether a record is drawn blended once `alpha` moved its surfaces, before or after they are
  *  written: the family a collection gives the class `alpha.to`, or the one it has. */
@@ -133,11 +132,16 @@ function reassignBlend(records: readonly PageRec[], alpha: AlphaChange) {
   return moved
 }
 
+/**
+ * The records of `draws`, one source after another, each placed where its node stands or at each
+ * row that places it. `source` is the graph the nodes of `draws` live in, whose world matrices the
+ * engine reads in place.
+ */
 export function collectClusterPages(
   source: Object3D,
+  draws: readonly DrawSource[],
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
-  associations: Map<Object3D, { meshes?: number; primitives?: number; placements?: PlacementRows }>,
   options: {
     allowMissing?: boolean
     /** Leaves out a mesh placed by rows whose primitive is not read yet, mounted later (#751). */
@@ -155,32 +159,31 @@ export function collectClusterPages(
   const templates = createPrimitiveTemplates(indices, options.allowMissing === true)
   const covered = new Set<PageRec>()
   let order = 0
-  for (const mesh of objects(source)) {
-    const association = associations.get(mesh)
-    const primitive = primitiveOf(association)
-    if (!primitive && options.pendingPlaced && association?.placements) continue
-    if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`)
-    // One root per placement: the node's pose, or each row its association carries (`placementRoots`).
-    const placed = placementsOf(association, () => worlds.of(mesh))
+  for (const draw of draws) {
+    const primitive = primitiveOf({ meshes: draw.mesh, primitives: draw.primitives })
+    if (!primitive && options.pendingPlaced && draw.rows) continue
+    if (!primitive)
+      throw new Error(`Missing primitive association: ${draw.mesh}/${draw.primitives ?? 0}`)
+    // One root per placement: the node's pose, or each row that places the source (`placementsOf`).
+    const placed = placementsOf({ placements: draw.rows ?? undefined }, () => worlds.of(draw.node!))
     // The surface the declaration wears, read at the boundary into the engine's own record:
     // from here on this collection and everything it feeds hold records, not host materials.
-    const source = drawSourceOf(mesh, association),
-      surface = sourceSurface(source)
+    const surface = sourceSurface(draw)
     if (drawsCopies(primitive, surface)) {
-      blendCopiesOf({ mesh, primitive, surface }, placed, order++, blendCopies)
+      blendCopiesOf({ source: draw, primitive, surface }, placed, order++, blendCopies)
       continue
     }
     const template = templates.pagesOf(primitive)
-    collected.add(source)
+    collected.add(draw)
     const transparent = pagesBlend(primitive, surface)
     const shape = templates.shapeOf(primitive, template)
     // ONE record per primitive page (#1235), shared by every placement of this source object: its
     // world, its row and its packed rank are the layout's, never a field here.
-    const pages = createPageRecords(primitive, template, source, surface, transparent, order)
+    const pages = createPageRecords(primitive, template, draw, surface, transparent, order)
     for (const rec of pages) allPages.push(rec)
     // One dependency list per object: every placement is installed after the same bundles.
     linkBundleDependencies(primitive, pages)
-    const drawn: Drawn = { source, primitive, surface, pages, shape }
+    const drawn: Drawn = { source: draw, primitive, surface, pages, shape }
     coverBootstrap(drawn, covered, bootstrap)
     rootsOf(drawn, placed, roots)
     order++

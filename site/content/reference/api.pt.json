@@ -7793,7 +7793,8 @@
       "textureIndices": "A posição de cada textura da cena na tabela que os shaders indexam.",
       "partitions": "As células pelas quais uma cena particionada é lida, nenhuma quando a cena não é particionada.",
       "sceneLightingSource": "O nó cujas luzes e ambiente iluminam a cena: `options.sceneLighting`, senão a raiz própria da cena antes de qualquer réplica.",
-      "framingLot": "O lote em que o enquadramento da câmera toma os limites da cena, `null` quando nenhum nó tem limites; quem chama o devolve."
+      "framingLot": "O lote em que o enquadramento da câmera toma os limites da cena, `null` quando nenhum nó tem limites; quem chama o devolve.",
+      "draws": "O que a cena desenha, uma fonte por nó desenhado, na ordem do grafo."
     }
   },
   "PageCache": {
@@ -7843,5 +7844,32 @@
   "createPageCache": {
     "summary": "O ÚNICO CACHE DO HOST: os bytes de cada página e pacote lidos, de cada arquivo que um servidor respondeu inteiro em vez de um intervalo (`readRange`), de cada nível de textura decodificado e registro de ladrilho em blocos (`level`), e do proxy residente da cena (`keep`), como um só conjunto de entradas, UM orçamento e UM despejo (`cacheEntries.ts`), face ao total de CPU (`cpuBytes`, `world.budget.cpu`).",
     "description": "O seu dono o mantém de uma sessão para outra: um mundo entrega o mesmo a cada sessão que abre, por isso uma sessão reaberta — num dispositivo concedido de novo após uma perda, ou numa cena que mudou — lê daqui o que a anterior buscou, e não busca nada do que ele mantém. Cada sessão que lê por meio dele reserva as suas tabelas do manifesto, a sua fila de transferência e as tabelas do motor (`manifestTableBytes`, `maxTransferBytes`, o `reserve` do leitor), comunicadas à medida que mudam (`open`), com o cache guardando a sua soma, e toma retenções sobre as páginas que fixa ou lê; as entradas mantêm o resto (`budgetBytes`). Só o cache despeja, quando as suas entradas excedem o orçamento: nunca uma entrada que alguém retém, depois as páginas, arquivos e níveis usados há mais tempo, o proxy por último. Um nível não precisa de espaço próprio: toma o que o despejo pode liberar (`roomBytes`), como uma página."
+  },
+  "DrawAssociations": {
+    "summary": "O que o carregador de um grafo diz dos seus nós desenhados: a associação de cada nó."
+  },
+  "DrawRanks": {
+    "summary": "A associação que um manifesto deu a uma fonte: os seus ranks de malha e de primitiva, as linhas que a colocam.",
+    "members": {
+      "meshes": "O seu rank de malha no manifesto.",
+      "primitives": "O seu rank de primitiva dentro dessa malha.",
+      "placements": "As linhas que a colocam, uma raiz cada."
+    }
+  },
+  "DrawSource": {
+    "summary": "O que uma sessão desenha, fonte a fonte: a sua geometria, a declaração de que a sua superfície é lida, onde é colocada e os seus ranks no manifesto.",
+    "members": {
+      "dynamic": "O anfitrião reescreve os vértices no próprio lugar: o motor lê-os como floats.",
+      "declaration": "De onde a superfície é lida, uma declaração ou uma por grupo de geometria.",
+      "node": "O nó que o anfitrião vigia para esta fonte e pelo qual a posiciona; a sua cadeia decide se é ocultada. Ausente onde linhas a colocam: o seu proprietário escreve a pose e os indicadores.",
+      "wear": "A fonte passa a vestir `surface`, no lugar da sua declaração.",
+      "rows": "As linhas de instâncias que a colocam, uma raiz cada, incluindo as postas de lado.",
+      "mesh": "O seu rank de malha no manifesto.",
+      "primitives": "O seu rank de primitiva dentro dessa malha.",
+      "geometry": "Os triângulos que desenha.",
+      "attributes": "Os atributos de vértice com nome dessa geometria: o que identifica os seus buffers de GPU.",
+      "castShadow": "Se projeta sombras.",
+      "frustumCulled": "Se o anfitrião permite saltá-la fora da vista."
+    }
   }
 }

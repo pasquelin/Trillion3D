@@ -7793,7 +7793,8 @@
       "textureIndices": "El rango de cada textura de la escena en la tabla que indexan los shaders.",
       "partitions": "Las celdas por las que se lee una escena particionada, ninguna cuando la escena no está particionada.",
       "sceneLightingSource": "El nodo cuyas luces y entorno iluminan la escena: `options.sceneLighting`, si no la propia raíz de la escena antes de cualquier réplica.",
-      "framingLot": "El lote en el que el encuadre de la cámara toma los límites de la escena, `null` cuando ningún nodo tiene límites; quien llama lo devuelve."
+      "framingLot": "El lote en el que el encuadre de la cámara toma los límites de la escena, `null` cuando ningún nodo tiene límites; quien llama lo devuelve.",
+      "draws": "Lo que dibuja la escena, una fuente por nodo dibujado, en el orden del grafo."
     }
   },
   "PageCache": {
@@ -7843,5 +7844,32 @@
   "createPageCache": {
     "summary": "LA ÚNICA CACHÉ DEL ANFITRIÓN: los bytes de cada página y paquete leídos, de cada archivo que un servidor respondió entero en lugar de un rango (`readRange`), de cada nivel de textura decodificado y registro de tesela en bloques (`level`), y del proxy residente de la escena (`keep`), como un solo conjunto de entradas, UN presupuesto y UN desalojo (`cacheEntries.ts`), frente al total de CPU (`cpuBytes`, `world.budget.cpu`).",
     "description": "Su propietario la guarda de una sesión a otra: un mundo entrega la misma a cada sesión que abre, así que una sesión reabierta — en un dispositivo concedido de nuevo tras una pérdida, o sobre una escena que cambió — lee de aquí lo que la anterior obtuvo, y no obtiene nada de lo que ella tiene. Cada sesión que lee a través de ella reserva sus tablas de manifiesto, su cola de transferencia y las tablas del motor (`manifestTableBytes`, `maxTransferBytes`, el `reserve` del lector), comunicadas a medida que cambian (`open`), con la caché guardando su suma, y toma retenciones sobre las páginas que fija o lee; las entradas tienen el resto (`budgetBytes`). Solo la caché desaloja, una vez que sus entradas superan el presupuesto: nunca una entrada que alguien retiene, luego las páginas, archivos y niveles usados hace más tiempo, el proxy el último. Un nivel no necesita espacio propio: toma lo que el desalojo puede liberar (`roomBytes`), como una página."
+  },
+  "DrawAssociations": {
+    "summary": "Lo que el cargador de un grafo dice de sus nodos dibujados: la asociación de cada nodo."
+  },
+  "DrawRanks": {
+    "summary": "La asociación que un manifiesto dio a una fuente: sus rangos de malla y de primitiva, las filas que la colocan.",
+    "members": {
+      "meshes": "Su rango de malla en el manifiesto.",
+      "primitives": "Su rango de primitiva dentro de esa malla.",
+      "placements": "Las filas que la colocan, una raíz cada una."
+    }
+  },
+  "DrawSource": {
+    "summary": "Lo que una sesión dibuja, fuente por fuente: su geometría, la declaración de la que se lee su superficie, dónde se coloca y sus rangos en el manifiesto.",
+    "members": {
+      "dynamic": "El anfitrión reescribe los vértices en su lugar: el motor los lee como flotantes.",
+      "declaration": "De dónde se lee la superficie, una declaración o una por grupo de geometría.",
+      "node": "El nodo que el anfitrión vigila para esta fuente y por el que la coloca; su cadena decide si se oculta. Ausente donde la colocan filas: su propietario escribe la pose y los indicadores.",
+      "wear": "La fuente lleva `surface` desde ahora, en lugar de su declaración.",
+      "rows": "Las filas de instancias que la colocan, una raíz cada una, incluidas las filas apartadas.",
+      "mesh": "Su rango de malla en el manifiesto.",
+      "primitives": "Su rango de primitiva dentro de esa malla.",
+      "geometry": "Los triángulos que dibuja.",
+      "attributes": "Los atributos de vértice con nombre de esa geometría: por lo que se identifican sus búferes GPU.",
+      "castShadow": "Si proyecta sombras.",
+      "frustumCulled": "Si el anfitrión permite omitirla fuera de la vista."
+    }
   }
 }

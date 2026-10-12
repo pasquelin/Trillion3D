@@ -1,6 +1,7 @@
 // Root clusters by hand: one over a box, and two primitives each carrying its own.
 import type { HostMesh } from '../../host/graph/graph.fixture.ts'
 import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
+import { drawSourceOf } from '../../page/selection/drawSource.ts'
 
 /** One exact root cluster of three indices over the given box. */
 export function rootPage(url: string, min: number[], max: number[]) {
@@ -31,5 +32,6 @@ export function twoPrimitives(
     [meshA, { meshes: 0, primitives: 0 }],
     [meshB, { meshes: 1, primitives: 0 }],
   ])
-  return { metadata, indices, associations }
+  const draws = [meshA, meshB].map((mesh) => drawSourceOf(mesh, associations.get(mesh)))
+  return { metadata, indices, associations, draws }
 }

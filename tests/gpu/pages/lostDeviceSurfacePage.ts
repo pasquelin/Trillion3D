@@ -30,7 +30,7 @@ export async function run() {
     source: fixture.source,
     metadata: fixture.metadata,
     indices: fixture.indices,
-    associations: fixture.associations,
+    draws: fixture.draws,
     gpuDevice: device,
     maxResidentPages: 8,
     viewport: [128, 128],

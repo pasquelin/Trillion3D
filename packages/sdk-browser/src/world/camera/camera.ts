@@ -16,10 +16,17 @@ export function createExplorerCamera(
   options: MeasuredWorldOptions,
   /** Framing-box buffer, reserved at load; `null` leaves it in JavaScript. */
   lot?: BoxTransformLot | null,
+  /** The page poses the camera itself and the scene has no node to frame: a unit ball about the
+   *  origin stands for its bounds. */
+  placed = false,
 ) {
   const flat = emptyWorldBox()
   hostWorldBounds(source, flat, lot)
   sphereFromBounds(framingSphere, 0, flat[0], flat[1], flat[2], flat[3], flat[4], flat[5])
+  if (placed && !(framingSphere[3] > 0)) {
+    flat.set([-1, -1, -1, 1, 1, 1])
+    sphereFromBounds(framingSphere, 0, -1, -1, -1, 1, 1, 1)
+  }
   const radius = framingSphere[3]
   if (!Number.isFinite(radius) || radius <= 0) throw new Error('Empty scene bounds')
   const framing = framingFromBounds(radius, canvas.width / canvas.height)

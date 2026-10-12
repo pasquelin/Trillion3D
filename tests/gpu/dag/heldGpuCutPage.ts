@@ -27,7 +27,7 @@ export async function runHeldCut() {
     source: fixture.source,
     metadata: fixture.metadata,
     indices: fixture.indices,
-    associations: fixture.associations,
+    draws: fixture.draws,
     gpuDevice: device,
     gpuCanvas: canvas,
     // Too few for the four leaves and the two nodes that replace them: the cut climbs to the

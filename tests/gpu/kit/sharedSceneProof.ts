@@ -16,6 +16,7 @@ import type {
   Page,
   Primitive,
 } from '../../../packages/sdk-core/src/index.ts'
+import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 
 export const VIEWPORT: [number, number] = [96, 96]
 
@@ -103,6 +104,7 @@ export function batisseur() {
         metadata,
         indices,
         associations,
+        draws: graphDraws(source, associations),
         geometries,
         materials,
       }
@@ -144,7 +146,7 @@ export function engine(
     source: scene.source,
     metadata: scene.metadata,
     indices: scene.indices,
-    associations: scene.associations,
+    draws: scene.draws,
     gpuDevice: device,
     gpuCanvas: canvas,
     maxResidentPages: 16,

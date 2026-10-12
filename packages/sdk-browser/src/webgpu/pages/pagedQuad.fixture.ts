@@ -6,6 +6,7 @@ import { QUAD_MANIFEST, quadScene } from '../../engine/pagesEngineScenes.fixture
 import { webgpuPagesEngine } from './pages.ts'
 import type { EngineDiagnostic } from '../../engine/types.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 const POSITIONS = new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0])
 /** The two triangles of the quad, as the corner lists a compiler would cluster them into. */
@@ -69,6 +70,7 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
       },
     ],
   }
+  const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
   return {
     geometry,
     material,
@@ -77,7 +79,8 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
     encoded,
     bytes,
     indices: new Map(specs.map((spec, id) => [String(id), spec.corners])),
-    associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
+    associations,
+    draws: graphDraws(source, associations),
   }
 }
 

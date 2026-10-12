@@ -1,5 +1,6 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import { graphDraws } from './drawSource.ts'
 
 export function blendFixture(
   material: G.GraphSurface = G.basicSurface({
@@ -74,7 +75,10 @@ export function blendFixture(
     ['far', new Uint32Array([3, 4, 5])],
   ])
   const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
-  return { geometry, material, mesh, source, metadata, indices, associations }
+  return {
+    ...{ geometry, material, mesh, source, metadata, indices, associations },
+    draws: graphDraws(source, associations),
+  }
 }
 
 export function camera() {

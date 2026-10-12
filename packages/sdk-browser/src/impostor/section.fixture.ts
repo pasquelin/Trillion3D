@@ -11,6 +11,7 @@ import { dagFixture, frontCamera } from '../page/selection/dag.fixture.ts'
 import { createEngineCamera, readCameraWorld } from '../camera/world.ts'
 import type { TextureLevelReader, TextureLevelRequest } from '../texture/levelReader.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 
 export const VIEWPORT: [number, number] = [1280, 720]
 /** Deliberately not the root's rank: the card names the mesh, the cut reads the rank. */
@@ -57,9 +58,9 @@ export function impostorScene() {
   const fixture = dagFixture()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   for (const root of roots) root.mesh = MESH
   return { fixture, roots, reader, asked }

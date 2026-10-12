@@ -38,8 +38,7 @@ function engineApis(inputs: Inputs, onDispose: (release: () => void) => void) {
     }),
     ...createExplorerMaterialApi({
       ...{ check, engine, onDispose },
-      source: context.source,
-      associations: context.associations,
+      draws: context.draws,
     }),
     ...createExplorerTelemetryApi(inputs.profiler, engine),
   }

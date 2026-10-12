@@ -6,6 +6,7 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { LoadedModel, type ModelRecord } from './loadedModel.ts'
 import { createWorldPoses } from './worldPoses.ts'
 import { Scene } from './scene.ts'
+import { noModels } from './worldModels.fixture.ts'
 
 /** A compiled model's graph as its loader builds it: a root, a turbine and its rotor, and a
  *  crane nobody looks up. */
@@ -66,7 +67,7 @@ test('moving a node of a compiled model moves the graph node it is drawn from', 
   node.rotation.set(0, 0, HALF_PI)
   node.visible = false
   poses.moved(node)
-  poses.apply(scene, new Map(), new Map(), () => {})
+  poses.apply(scene, new Map(), noModels(), () => {})
   assert.equal(rotor.position.y, 5, 'the local pose is kept')
   assert.ok(Math.abs(rotor.quaternion.z - Math.SQRT1_2) < 1e-12, 'the turn reached the graph')
   assert.equal(rotor.visible, false, 'and so did the visibility')
@@ -83,7 +84,7 @@ test('a node whose matrix is its pose is read from and written to its matrix', (
   node.position.x = 2
   const poses = createWorldPoses()
   poses.moved(node)
-  poses.apply(model, new Map(), new Map(), () => {})
+  poses.apply(model, new Map(), noModels(), () => {})
   assert.deepEqual([rotor.matrix.elements[12], rotor.matrix.elements[13]], [2, 7])
 })
 

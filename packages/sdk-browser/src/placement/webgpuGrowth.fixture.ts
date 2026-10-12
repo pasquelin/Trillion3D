@@ -20,6 +20,7 @@ import { readoutRow } from '../gpu/dag/bufferTable.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { growthOf, webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 
 /** A ground triangle, and the two primitives of the mesh the partition places (`cells.fixture`),
  *  each a triangle of one root cluster, on the rows of `links`. */
@@ -51,7 +52,14 @@ function placedScene(links: readonly RowLink[]) {
     [leaves[1], links[1]],
   ])
   const dispose = () => [...geometries, surface].forEach((item) => item.dispose())
-  return { source, metadata, indices, associations, dispose }
+  return {
+    source,
+    metadata,
+    indices,
+    associations,
+    draws: graphDraws(source, associations),
+    dispose,
+  }
 }
 
 /** Pages the scene packs, grown: the ground and four leaf rows of two pages. */
@@ -72,9 +80,9 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
   const scene = placedScene(links)
   const collected = collectClusterPages(
     scene.source,
+    graphDraws(scene.source, scene.associations),
     scene.metadata,
     scene.indices,
-    scene.associations,
   )
   // A binding of `bindingRows` table rows, no smaller than the GPU cut's readout at the scene's list
   // cap, grown or not: the cut is the engine's one cut, and a device that cannot hold it refuses

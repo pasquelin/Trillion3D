@@ -41,7 +41,12 @@ test('whole transmission keeps no pages and distinct placement outputs in the ex
   const a = new Mesh(g, surface),
     b = new Mesh(g, surface)
   const copies = [a, b].map((mesh) => {
-    const copy = createBlendCopyRecord(mesh, 0, mesh.matrixWorld, sourceSurface(drawSourceOf(mesh)))
+    const copy = createBlendCopyRecord(
+      drawSourceOf(mesh),
+      0,
+      mesh.matrixWorld,
+      sourceSurface(drawSourceOf(mesh)),
+    )
     copy.deformation = { joints: [], targets: [4] }
     return copy
   })

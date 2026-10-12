@@ -7793,7 +7793,8 @@
       "textureIndices": "Der Rang jeder Textur der Szene in der Tabelle, die die Shader indizieren.",
       "partitions": "Die Zellen, nach denen eine partitionierte Szene gelesen wird, keine, wenn die Szene nicht partitioniert ist.",
       "sceneLightingSource": "Der Knoten, dessen Lichter und Umgebung die Szene beleuchten: `options.sceneLighting`, sonst die eigene Wurzel der Szene vor jeder Vervielfältigung.",
-      "framingLot": "Der Posten, in dem die Kameraeinstellung die Grenzen der Szene nimmt, `null`, wenn kein Knoten Grenzen hat; der Aufrufer gibt ihn zurück."
+      "framingLot": "Der Posten, in dem die Kameraeinstellung die Grenzen der Szene nimmt, `null`, wenn kein Knoten Grenzen hat; der Aufrufer gibt ihn zurück.",
+      "draws": "Was die Szene zeichnet, eine Quelle je gezeichnetem Knoten, in der Reihenfolge des Graphen."
     }
   },
   "PageCache": {
@@ -7843,5 +7844,32 @@
   "createPageCache": {
     "summary": "DER EINE HOST-CACHE: die Bytes jeder gelesenen Seite und jedes Bündels, jeder Datei, die ein Server ganz statt eines Bereichs beantwortet hat (`readRange`), jeder dekodierten Texturstufe und jedes Block-Kachel-Datensatzes (`level`) und des residenten Proxys der Szene (`keep`), als eine Menge von Einträgen, EIN Budget und EINE Verdrängung (`cacheEntries.ts`), gegen den CPU-Gesamtwert (`cpuBytes`, `world.budget.cpu`).",
     "description": "Sein Besitzer hält ihn über Sitzungen hinweg: Eine Welt übergibt denselben jeder Sitzung, die sie öffnet, sodass eine wieder geöffnete Sitzung — auf einem nach einem Verlust erneut gewährten Gerät oder auf einer geänderten Szene — von hier liest, was die letzte abgerufen hat, und nichts abruft, was er hält. Jede über ihn lesende Sitzung reserviert ihre Manifest-Tabellen, ihre Übertragungswarteschlange und die Tabellen der Engine (`manifestTableBytes`, `maxTransferBytes`, das `reserve` des Streamers), gemeldet, wie sie sich ändern (`open`), wobei der Cache ihre Summe hält, und nimmt Haltungen auf die Seiten, die sie anheftet oder liest; die Einträge halten den Rest (`budgetBytes`). Allein der Cache verdrängt, sobald seine Einträge das Budget überschreiten: nie einen Eintrag, den jemand hält, dann die am längsten unbenutzten Seiten, Dateien und Stufen, den Proxy zuletzt. Eine Stufe braucht keinen eigenen Platz: Sie nimmt, was die Verdrängung freigeben kann (`roomBytes`), wie eine Seite."
+  },
+  "DrawAssociations": {
+    "summary": "Was der Lader eines Graphen über seine gezeichneten Knoten sagt: die Zuordnung jedes Knotens."
+  },
+  "DrawRanks": {
+    "summary": "Die Zuordnung, die ein Manifest einer Quelle gegeben hat: ihre Mesh- und Primitivränge, die Zeilen, die sie platzieren.",
+    "members": {
+      "meshes": "Ihr Mesh-Rang im Manifest.",
+      "primitives": "Ihr Primitivrang innerhalb dieses Meshes.",
+      "placements": "Die Zeilen, die sie platzieren, je eine Wurzel."
+    }
+  },
+  "DrawSource": {
+    "summary": "Was eine Sitzung zeichnet, Quelle für Quelle: ihre Geometrie, die Deklaration, aus der ihre Oberfläche gelesen wird, wo sie platziert ist und ihre Ränge im Manifest.",
+    "members": {
+      "dynamic": "Der Host schreibt die Eckpunkte an Ort und Stelle neu: die Engine liest sie als Gleitkommazahlen.",
+      "declaration": "Woraus die Oberfläche gelesen wird, eine Deklaration oder eine je Geometriegruppe.",
+      "node": "Der Knoten, den der Host für diese Quelle beobachtet und durch den er sie platziert; seine Kette entscheidet über das Ausblenden. Fehlt, wo Zeilen sie platzieren: ihr Besitzer schreibt die Pose und die Flags.",
+      "wear": "Die Quelle trägt von nun an `surface`, anstelle ihrer Deklaration.",
+      "rows": "Die Instanzzeilen, die sie platzieren, je eine Wurzel, beiseitegelegte Zeilen eingeschlossen.",
+      "mesh": "Ihr Mesh-Rang im Manifest.",
+      "primitives": "Ihr Primitivrang innerhalb dieses Meshes.",
+      "geometry": "Die Dreiecke, die sie zeichnet.",
+      "attributes": "Die benannten Eckpunktattribute dieser Geometrie: wonach ihre GPU-Puffer unterschieden werden.",
+      "castShadow": "Ob sie Schatten wirft.",
+      "frustumCulled": "Ob der Host erlaubt, sie außerhalb des Sichtfelds zu überspringen."
+    }
   }
 }

@@ -11,10 +11,11 @@ import { createWebgpuRowState } from '../row/state.ts'
 import { scene } from './materialClasses.fixture.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { markPresentClasses } from './presentClasses.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 test('the three material classes take the three paths the engine has for them', () => {
   const { source, meshes, metadata, indices, associations } = scene()
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   // Cut-out and blend both become cluster roots, so both are cut by the GPU selection; only the
   // blend is drawn by the transparent pass. Transmission leaves the DAG as one mesh.
   assert.deepEqual(
@@ -30,7 +31,7 @@ test('the three material classes take the three paths the engine has for them', 
 
 test('a cut-out cluster carries its alpha test into the visibility row', () => {
   const { source, metadata, indices, associations } = scene()
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const floats = new Float32Array(PAGE_INFO_STRIDE / 4),
     ints = new Uint32Array(floats.buffer)
   const writeRow = createPageRowWriter(
@@ -59,7 +60,7 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
 
 test('a row carries its resolve class, the census of the scene knows it before any image', () => {
   const { source, metadata, indices, associations } = scene()
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const geometryBlocks = new Map(
     collected.roots.map((root) => [
       root.pages[0].attributes,
@@ -107,7 +108,7 @@ test('a row carries its resolve class, the census of the scene knows it before a
 // a normal or depth view —; a lit row, or a blended one, which writes no flag, leaves it unread.
 test('an opaque row showing a surface as-is tells the image its flags are read', () => {
   const { source, metadata, indices, associations } = scene()
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
     ints = new Uint32Array(floats.buffer)
   const layers = { geometryBlocks: new Map(), mapLayer: new Map(), dataLayer: new Map() },

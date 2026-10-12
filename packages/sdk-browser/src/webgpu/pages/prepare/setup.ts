@@ -30,6 +30,7 @@ export function createWebgpuPagesSetup(context: EngineContext, diag: WebgpuDiagn
   const { geometry } = slots
   return {
     source: context.source,
+    draws: context.draws,
     // Index of the engine's world matrices: what the image walks, and what a moved node recomputes.
     // Rows, roots and transparent copies carry the matrices.
     worlds: pages.worlds,

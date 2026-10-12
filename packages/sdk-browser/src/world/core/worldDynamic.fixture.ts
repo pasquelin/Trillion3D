@@ -64,9 +64,9 @@ export function dynamicWorld() {
 export async function collectedPages(source: ExplorerSource) {
   const { roots, allPages } = collectClusterPages(
     source.scene.source,
+    source.scene.draws,
     source.metadata,
     new Map(),
-    source.scene.associations,
     { allowMissing: true },
   )
   for (const rec of allPages)

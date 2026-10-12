@@ -13,15 +13,16 @@ import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { camera, disposeQuadRun, quadBackend, quadScene } from '../testScenes.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'
+import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 test('a drain waits for the shadow pool the device still answers for, then draws and adopts the cut', async () => {
   installGpuGlobals()
   const scene = quadScene()
   const { roots } = collectClusterPages(
     scene.source,
+    graphDraws(scene.source, scene.associations),
     scene.metadata,
     scene.indices,
-    scene.associations,
   )
   const gpu = mockGpu({ packed: packDagSelection(roots) })
   scene.geometry.dispose()

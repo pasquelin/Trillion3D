@@ -9,7 +9,7 @@ import {
   primitiveUsesClusterErrors,
   type ClusterManifest,
 } from '../../../packages/sdk-core/src/index.ts'
-import type { EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { DrawSource } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import type {
   PageRec,
   ClusterRoot,
@@ -41,11 +41,17 @@ type ReferenceRoot = Omit<ClusterRoot<PageRec>, 'worldBox' | 'localBox'> & {
  *  Three.js objects per page for the box union. */
 export function referenceCollectClusterPages(
   source: Object3D,
+  draws: readonly DrawSource[],
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
-  associations: EngineContext['associations'],
   options: { allowMissing?: boolean } = {},
 ) {
+  const associations = new Map(
+    draws.map((draw) => [
+      draw.node,
+      { meshes: draw.mesh, primitives: draw.primitives, placements: draw.rows },
+    ]),
+  )
   const roots: ReferenceRoot[] = [],
     allPages: PageRec[] = [],
     blendCopies: HostMesh[] = [],

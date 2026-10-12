@@ -16,6 +16,7 @@ import {
   poseWaterCost,
   SIZE,
 } from '../../../../../tests/gpu/water/waterCostScene.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 function scene(enabled = true) {
   const source = waterCostScene(1 / 16, enabled)
@@ -24,9 +25,9 @@ function scene(enabled = true) {
     page.geometry = { url: 'quantized-water', maxPositionError: 0.01 } as never
   const collected = collectClusterPages(
     source.source,
+    graphDraws(source.source, source.associations),
     source.metadata,
     source.indices,
-    source.associations,
   )
   const state = createWebgpuBlendState(),
     { gpu } = prepared()

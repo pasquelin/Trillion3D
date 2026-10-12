@@ -93,6 +93,6 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
  *  its variant for their geometry: a vertex-coloured one keeps its colours. */
 export function wearWebgpuSurface(rt: WebgpuPagesRuntime, { meshes }: SurfaceAssignment) {
   for (const rec of recordsOfMeshes(rt.setup.allPages, meshes))
-    wearDeclaration(rec, meshes.get(rec.drawSource!.node!) as HostMaterials)
+    wearDeclaration(rec, meshes.get(rec.drawSource!) as HostMaterials)
   rt.vis.shadeCensus?.moved(true)
 }

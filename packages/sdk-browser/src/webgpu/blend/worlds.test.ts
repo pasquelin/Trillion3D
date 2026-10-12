@@ -10,6 +10,7 @@ import { hostWorldPlacements } from '../../host/world/placements.ts'
 import { refreshBlendBounds, refreshBlendWorlds } from './worlds.ts'
 import { BOX_VALUES } from '../../../../sdk-core/src/index.ts'
 import type { BlendGpuItem } from './state.ts'
+import { drawSourceOf } from '../../page/selection/drawSource.ts'
 
 /** A transparent item reduced to what the refresh reads: its matrix, box, geometry. The scene
  *  carries the parent from the start: that is the shape the engine indexes at prepare. */
@@ -21,7 +22,7 @@ function item(position: G.Vector3, cullable = true) {
   mesh.position.copy(position)
   parent.add(mesh)
   const worlds = hostWorldPlacements(parent)
-  const copy = createBlendCopyRecord(mesh, 0, worlds.of(mesh), surfaceOf([]))
+  const copy = createBlendCopyRecord(drawSourceOf(mesh), 0, worlds.of(mesh), surfaceOf([]))
   const shaped = {
     matrix: copy.matrix,
     worldBox: cullable ? new Float64Array(BOX_VALUES) : undefined,
@@ -37,7 +38,7 @@ test('the transparent copy reads the world matrix the engine holds, it keeps no 
   const mesh = G.mesh(new G.Geometry())
   mesh.position.set(1, 2, 3)
   const worlds = hostWorldPlacements(mesh)
-  const copy = createBlendCopyRecord(mesh, 7, worlds.of(mesh), surfaceOf([]))
+  const copy = createBlendCopyRecord(drawSourceOf(mesh), 7, worlds.of(mesh), surfaceOf([]))
   assert.equal(
     copy.matrix.elements,
     worlds.of(mesh).elements,

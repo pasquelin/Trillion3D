@@ -7,6 +7,7 @@ import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { createWorldBatches } from './worldBatches.ts'
 import type { Cut } from './worldCuts.ts'
 import type { MaterialEntry } from './worldMaterials.ts'
+import { createWorldRanks } from './worldRanks.ts'
 
 const cutOf = (key: string) => ({ key, drawn: {} }) as unknown as Cut
 const entry = { id: 0, key: 'm', material: {} } as unknown as MaterialEntry
@@ -15,7 +16,7 @@ const wear = () => ({}) as never
 
 test('a batch the session was not opened with waits for the next opening, then is drawn', () => {
   const touched: number[] = []
-  const batches = createWorldBatches((_, row) => touched.push(row), wear)
+  const batches = createWorldBatches((_, row) => touched.push(row), wear, createWorldRanks())
   const first = mesh()
   batches.seat(first, cutOf('a'), entry)
   batches.reopen() // the first session opens on resource `a`
@@ -38,7 +39,7 @@ test('a batch the session was not opened with waits for the next opening, then i
 })
 
 test('a batch no mesh wears any more leaves at the next opening', () => {
-  const batches = createWorldBatches(() => {}, wear)
+  const batches = createWorldBatches(() => {}, wear, createWorldRanks())
   const gone = mesh()
   batches.seat(gone, cutOf('a'), entry)
   batches.seat(mesh(), cutOf('b'), entry)
@@ -51,7 +52,7 @@ test('a batch no mesh wears any more leaves at the next opening', () => {
 })
 
 test('a batch keeps the order it was given at its first seat, whichever batches leave', () => {
-  const batches = createWorldBatches(() => {}, wear)
+  const batches = createWorldBatches(() => {}, wear, createWorldRanks())
   const [a, b, c] = [mesh(), mesh(), mesh()]
   batches.seat(a, cutOf('a'), entry)
   batches.seat(b, cutOf('b'), entry)

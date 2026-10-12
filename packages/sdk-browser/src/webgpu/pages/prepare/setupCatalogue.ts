@@ -10,11 +10,11 @@ import { rootCoverOf } from './rootCover.ts'
 
 /** The catalogue's pages, its blended copies, its request index and its root cover. */
 export function setupPages(context: EngineContext, diag: WebgpuDiagnostics) {
-  const { source, metadata, indices, associations } = context
+  const { source, draws, metadata, indices } = context
   // The world DAG beside the scene's pages as the cut's last root, when the scene streams one
   // (`../../../scene/worldRecords.ts`).
   const collected = withWorldRoot(
-    collectClusterPages(source, metadata, indices, associations, { allowMissing: true }),
+    collectClusterPages(source, draws, metadata, indices, { allowMissing: true }),
     context,
   )
   const { roots, allPages, blendCopies, requestCount } = collected
@@ -47,9 +47,9 @@ function pagedBlendCopiesOf(roots: SetupPages['roots'], blendCopies: BlendCopy[]
   const pagedBlendCopies = new Map<MatrixElements, BlendCopy>()
   for (const { world, placement, pages } of roots) {
     const rec = pages[0]
-    if (!rec?.transparent || !rec.drawSource?.node || pagedBlendCopies.has(world)) continue
+    if (!rec?.transparent || !rec.drawSource || pagedBlendCopies.has(world)) continue
     const copy = createBlendCopyRecord(
-      rec.drawSource.node,
+      rec.drawSource,
       rec.renderOrder,
       world,
       rec.material,

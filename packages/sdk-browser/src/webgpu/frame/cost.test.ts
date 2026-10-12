@@ -9,6 +9,7 @@ import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 test('paged transparent commands disappear outside the view and return with both faces on CPU and GPU cuts', async () => {
   installGpuGlobals()
@@ -22,13 +23,14 @@ test('paged transparent commands disappear outside the view and return with both
     fixture.associations.set(twin, { meshes: 0, primitives: 0 })
     const roots = collectClusterPages(
       fixture.source,
+      graphDraws(fixture.source, fixture.associations),
       fixture.metadata,
       fixture.indices,
-      fixture.associations,
     ).roots
     const mock = mockGpu({ packed: gpuCut ? packDagSelection(roots) : undefined })
     const backend = webgpuPagesEngine({
       ...fixture,
+      draws: graphDraws(fixture.source, fixture.associations),
       gpuDevice: mock.device,
       maxResidentPages: 4,
       viewport: [32, 32],

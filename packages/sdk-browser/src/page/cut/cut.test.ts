@@ -7,6 +7,7 @@ import { dagFixture, wideCamera } from '../selection/dag.fixture.ts'
 import { dagCulling } from '../selection/helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from './held.fixture.ts'
+import { graphDraws } from '../selection/drawSource.ts'
 
 const ASK = {
   pixelError: 0,
@@ -24,9 +25,9 @@ function hierarchicalFixture() {
 function rootsOf(fixture: ReturnType<typeof dagFixture>) {
   return collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   ).roots
 }
 

@@ -11,6 +11,7 @@ import { camera } from './testScenes.fixture.ts'
 import { twoCoarseQuadsScene } from './testOccluder.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
 import { type ClusterManifest, type Primitive } from '../../../../sdk-core/src/index.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 /** `twoCoarseQuadsScene`, its manifest completed with the cache-identity fields the fixture
  *  omits — unread by the backends under test. Its second primitive's `pages` carry every `Page`
@@ -31,9 +32,9 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
   const fixture = scene()
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const packed = packDagSelection(collected.roots)
   const { device, draws, buffers } = mockGpu({ packed })

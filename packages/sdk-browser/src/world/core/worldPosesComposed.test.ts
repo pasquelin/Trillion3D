@@ -8,6 +8,7 @@ import { createPlacementRows } from '../../placement/rows.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { createWorldPoses, type PoseComposer } from './worldPoses.ts'
 import type { Seat } from './worldBatches.ts'
+import { noModels } from './worldModels.fixture.ts'
 
 const N = 12000
 
@@ -44,13 +45,13 @@ test('turning a parent of 12 000 composed rows sends one matrix and writes no ro
   }
   const send = (_: unknown, from: number, to: number) => void sent.push([from, to])
   poses.moved(parent)
-  poses.apply(scene, seats, new Map(), send, composer)
+  poses.apply(scene, seats, noModels(), send, composer)
   assert.deepEqual(sent, [[0, N - 1]], 'the first write is whole')
   assert.equal(linked.at(-1)!.links, N, 'and links every child')
   const before = rows.matrices.slice()
   parent.rotation.y = 0.7
   poses.moved(parent)
-  poses.apply(scene, seats, new Map(), send, composer)
+  poses.apply(scene, seats, noModels(), send, composer)
   assert.equal(sent.length, 1, 'no range is sent')
   assert.deepEqual(rows.matrices, before, 'no row is written')
   assert.deepEqual(linked.at(-1), { links: 0, world: [...parent.matrixWorld.elements] })
@@ -62,10 +63,10 @@ test('without a composer, turning the parent writes every row', () => {
     sent: number[][] = []
   const send = (_: unknown, from: number, to: number) => void sent.push([from, to])
   poses.moved(parent)
-  poses.apply(scene, seats, new Map(), send)
+  poses.apply(scene, seats, noModels(), send)
   parent.rotation.y = 0.7
   poses.moved(parent)
-  poses.apply(scene, seats, new Map(), send)
+  poses.apply(scene, seats, noModels(), send)
   assert.deepEqual(sent, [
     [0, N - 1],
     [0, N - 1],
@@ -83,7 +84,7 @@ test('a composed parent destroyed is unlinked once its seats move on, its world 
     epoch: 0,
     link: (node, _, links, whole) => (whole && !links.length && unlinked.push(node), true),
   }
-  const apply = () => poses.apply(scene, seats, new Map(), () => {}, composer)
+  const apply = () => poses.apply(scene, seats, noModels(), () => {}, composer)
   poses.moved(parent)
   apply()
   parent.destroy()

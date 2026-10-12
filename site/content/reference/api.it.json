@@ -7793,7 +7793,8 @@
       "textureIndices": "Il rango di ogni texture della scena nella tabella che gli shader indicizzano.",
       "partitions": "Le celle con cui si legge una scena partizionata, nessuna quando la scena non è partizionata.",
       "sceneLightingSource": "Il nodo le cui luci e il cui ambiente illuminano la scena: `options.sceneLighting`, altrimenti la radice propria della scena prima di ogni replica.",
-      "framingLot": "Il lotto in cui l’inquadratura della camera prende i limiti della scena, `null` quando nessun nodo ha limiti; il chiamante lo restituisce."
+      "framingLot": "Il lotto in cui l’inquadratura della camera prende i limiti della scena, `null` quando nessun nodo ha limiti; il chiamante lo restituisce.",
+      "draws": "Ciò che la scena disegna, una sorgente per nodo disegnato, nell’ordine del grafo."
     }
   },
   "PageCache": {
@@ -7843,5 +7844,32 @@
   "createPageCache": {
     "summary": "L’UNICA CACHE DELL’HOST: i byte di ogni pagina e di ogni pacchetto letti, di ogni file che un server ha restituito intero invece di un intervallo (`readRange`), di ogni livello di texture decodificato e record di tile a blocchi (`level`), e del proxy residente della scena (`keep`), come un unico insieme di voci, UN budget e UNO sfratto (`cacheEntries.ts`), rispetto al totale CPU (`cpuBytes`, `world.budget.cpu`).",
     "description": "Il suo proprietario la tiene da una sessione all’altra: un mondo passa la stessa a ogni sessione che apre, così una sessione riaperta — su un dispositivo concesso di nuovo dopo una perdita, o su una scena cambiata — legge da qui ciò che la precedente ha recuperato, e non recupera nulla di ciò che essa tiene. Ogni sessione che legge tramite essa riserva le tabelle del manifesto, la coda di trasferimento e le tabelle del motore (`manifestTableBytes`, `maxTransferBytes`, il `reserve` dello streamer), comunicate man mano che cambiano (`open`), con la cache che ne tiene la somma, e prende trattenimenti sulle pagine che fissa o legge; le voci tengono il resto (`budgetBytes`). Solo la cache sfratta, una volta che le sue voci superano il budget: mai una voce che qualcuno trattiene, poi le pagine, i file e i livelli usati meno di recente, il proxy per ultimo. Un livello non ha bisogno di spazio proprio: prende ciò che lo sfratto può liberare (`roomBytes`), come una pagina."
+  },
+  "DrawAssociations": {
+    "summary": "Ciò che il caricatore di un grafo dice dei suoi nodi disegnati: l’associazione di ciascun nodo."
+  },
+  "DrawRanks": {
+    "summary": "L’associazione che un manifesto ha dato a una sorgente: i suoi ranghi di mesh e di primitiva, le righe che la collocano.",
+    "members": {
+      "meshes": "Il suo rango di mesh nel manifesto.",
+      "primitives": "Il suo rango di primitiva dentro quella mesh.",
+      "placements": "Le righe che la collocano, una radice ciascuna."
+    }
+  },
+  "DrawSource": {
+    "summary": "Ciò che una sessione disegna, sorgente per sorgente: la sua geometria, la dichiarazione da cui si legge la sua superficie, dove è collocata e i suoi ranghi nel manifesto.",
+    "members": {
+      "dynamic": "L’host riscrive i vertici sul posto: il motore li legge come float.",
+      "declaration": "Da dove si legge la superficie, una dichiarazione o una per gruppo di geometria.",
+      "node": "Il nodo che l’host osserva per questa sorgente e con cui la posiziona; la sua catena decide se è nascosta. Assente dove la collocano delle righe: il loro proprietario scrive la posa e i flag.",
+      "wear": "La sorgente indossa `surface` da ora, al posto della sua dichiarazione.",
+      "rows": "Le righe di istanze che la collocano, una radice ciascuna, comprese quelle messe da parte.",
+      "mesh": "Il suo rango di mesh nel manifesto.",
+      "primitives": "Il suo rango di primitiva dentro quella mesh.",
+      "geometry": "I triangoli che disegna.",
+      "attributes": "Gli attributi di vertice con nome di quella geometria: ciò con cui sono identificati i suoi buffer GPU.",
+      "castShadow": "Se proietta ombre.",
+      "frustumCulled": "Se l’host permette di saltarla fuori dalla vista."
+    }
   }
 }

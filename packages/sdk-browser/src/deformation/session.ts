@@ -1,6 +1,7 @@
 import type { BlendCopy } from '../cluster/blendCopyContract.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
 import type { PageRec } from '../page/selection/selection.ts'
+import type { DrawSource } from '../page/selection/drawSource.ts'
 import { createDeformationFrame, type DeformedMesh } from './frame.ts'
 import { placementDeformation } from './placementSource.ts'
 import { deformedOf } from './source.ts'
@@ -20,19 +21,19 @@ export function createSessionDeformation(
 ) {
   const capacities: Parameters<typeof placementDeformation>[2] = new Map()
   const deformedEntry = (
-    source: DeformedMesh | undefined,
+    draw: DrawSource | undefined,
     owner: ClusterRoot<PageRec> | BlendCopy,
     world: MatrixElements,
   ) => {
+    // A source drawn at rows is moved by the owners of its rows, none by a node of its own.
+    const source: DeformedMesh | undefined = draw?.node ?? (draw?.rows?.sources ? {} : undefined)
     if (!source) return null
     const { mesh, capacity } = placementDeformation(owner.placement, source, capacities)
     return deformedOf(mesh, owner, world, capacity)
   }
   const frame = createDeformationFrame([
-    ...roots.map((root) =>
-      deformedEntry(root.pages[0]?.drawSource?.node as DeformedMesh | undefined, root, root.world),
-    ),
-    ...copies.map((copy) => deformedEntry(copy.userData.drawSource?.node, copy, copy.matrix)),
+    ...roots.map((root) => deformedEntry(root.pages[0]?.drawSource, root, root.world)),
+    ...copies.map((copy) => deformedEntry(copy.userData.drawSource, copy, copy.matrix)),
   ])
   let base = 0
   /** Each root's placement rank by the world it reads: what a transparent item knows it by. */

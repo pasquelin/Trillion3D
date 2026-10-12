@@ -61,6 +61,11 @@ export type {
   PhysicsType,
 } from '../../sdk-core/src/physics/options.ts'
 export type { DiagnosticDetail, EngineDiagnostic } from '../../sdk-browser/src/diagnostic/types.ts'
+export type {
+  DrawAssociations,
+  DrawRanks,
+  DrawSource,
+} from '../../sdk-browser/src/page/selection/drawSource.ts'
 export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts'
 export type { EvictionOrder } from '../../sdk-browser/src/gpu/page/eviction.ts'
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts'

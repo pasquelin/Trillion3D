@@ -22,9 +22,9 @@ import { grownLength } from '../../../math/src/sequence/resized.ts'
 /** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {
   /** Original owners of mirrored rows; their animation sources stay live when rows are reused. */
-  sources?: readonly (Mesh | null)[]
+  sources?: readonly (Mesh<object> | null)[]
   /** Meshes sharing this resource, including those waiting for a placement row. */
-  sourceModels?: ReadonlySet<Mesh>
+  sourceModels?: ReadonlySet<Mesh<object>>
   /** Sixteen column-major floats per row, written by the owner. */
   readonly matrices: Float64Array
   /** 1 where the row places the resource, 0 where it is parked. */

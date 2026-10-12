@@ -13,6 +13,7 @@ import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fi
 import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts'
 import { POSES_PARENT, flattenedCamera, creeRig, poseRig } from '../kit/cameraRig.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 
 const VIEWPORT: [number, number] = [1280, 720]
 
@@ -28,9 +29,9 @@ async function sequence(
   const fixture = dagFixture()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const packed = packDagSelection(roots)
   const selection = await createGpuDagSelection(device, packed)

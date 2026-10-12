@@ -126,20 +126,17 @@ export const wearsOneOf = (source: { declaration: HostMaterials }, surfaces: rea
   surfaces.includes(source.declaration as object)
 
 /** The records of the source meshes a created material was assigned to. */
-export const recordsOfMeshes = <T extends { drawSource?: { node?: object } }>(
+export const recordsOfMeshes = <T extends { drawSource?: object }>(
   records: readonly T[],
   meshes: ReadonlyMap<object, unknown>,
-) => records.filter((rec) => !!rec.drawSource?.node && meshes.has(rec.drawSource.node))
+) => records.filter((rec) => !!rec.drawSource && meshes.has(rec.drawSource))
 
 /** Why neither engine gives an assigned mesh another surface: none of its records is a page's,
  *  it is drawn as a forward copy the open laid out, off the surface the copy took then. */
-export function unpagedRefusal(
-  records: readonly { drawSource?: { node?: object } }[],
-  alpha: AlphaChange,
-) {
+export function unpagedRefusal(records: readonly { drawSource?: object }[], alpha: AlphaChange) {
   if (!isAssignment(alpha)) return
   const unpaged = new Set(alpha.meshes.keys())
-  for (const rec of records) if (rec.drawSource?.node) unpaged.delete(rec.drawSource.node)
+  for (const rec of records) if (rec.drawSource) unpaged.delete(rec.drawSource)
   if (unpaged.size) return 'the drawable is drawn as a forward copy laid out when the session opens'
 }
 

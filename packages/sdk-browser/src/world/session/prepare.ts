@@ -44,7 +44,7 @@ export type ExplorerSource = {
   metadataUrl: string
   base: string
   metadata: import('../../../../sdk-core/src/index.ts').ClusterManifest
-  scene: ExplorerScene
+  scene: Omit<ExplorerScene, 'associations'>
   /** Puts the session's camera where the page draws from, before anything is read for it: a
    *  partitioned scene reads and sizes its cells for that camera, not the framing one. */
   placeCamera?: (camera: HostCamera) => void
@@ -54,7 +54,7 @@ export type ExplorerSource = {
 }
 
 type Inputs = {
-  scene?: ExplorerScene
+  scene?: ExplorerSource['scene']
   placeCamera?: ExplorerSource['placeCamera']
   manifestUrl: string
   metadataUrl: string
@@ -117,7 +117,7 @@ async function sessionScene(
  *  in (a world), else the framing one, which sees the whole scene. */
 async function primeFirstView(
   session: ExplorerSession,
-  scene: ExplorerScene,
+  scene: Pick<ExplorerScene, 'partitions'>,
   camera: HostCamera,
   streamer: ExplorerPageSources['streamer'],
 ) {
@@ -172,9 +172,19 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     sessionScene(session, inputs, opening.streamer, live),
   ])
   const { source } = loadedScene
-  await configureExplorer(session, { manifestUrl, metadataUrl, base, source, pageSources })
+  await configureExplorer(session, {
+    ...{ manifestUrl, metadataUrl, base },
+    draws: loadedScene.draws,
+    pageSources,
+  })
   // Framing replays the buffer reserved at load, then returns it: it is its last reader.
-  const cameraState = createExplorerCamera(source, canvas, options, loadedScene.framingLot)
+  const cameraState = createExplorerCamera(
+    source,
+    canvas,
+    options,
+    loadedScene.framingLot,
+    inputs.placeCamera !== undefined,
+  )
   loadedScene.framingLot?.release()
   inputs.placeCamera?.(cameraState.camera)
   await primeFirstView(session, loadedScene, cameraState.camera, pageSources.streamer)
@@ -184,7 +194,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   const { viewport, context, engine, hostBytes } = await prepareExplorerEngine(session, {
     ...{ source, pageSources, gpuDevice, factory, base, frameBudget },
     sceneLightingSource: loadedScene.sceneLightingSource,
-    associations: loadedScene.associations,
+    draws: loadedScene.draws,
     textureIndices: loadedScene.textureIndices,
     worldRoots: loadedScene.worldRoots,
   })

@@ -7793,7 +7793,8 @@
       "textureIndices": "Sahnenin her dokusunun, gölgelendiricilerin dizinlediği tablodaki sırası.",
       "partitions": "Bölümlenmiş bir sahnenin okunduğu hücreler; sahne bölümlenmemişse yoktur.",
       "sceneLightingSource": "Işıkları ve ortamıyla sahneyi aydınlatan düğüm: `options.sceneLighting`, yoksa herhangi bir çoğaltmadan önce sahnenin kendi kökü.",
-      "framingLot": "Kamera çerçevelemesinin sahnenin sınırlarını aldığı lot, hiçbir düğümün sınırı yoksa `null`; çağıran onu iade eder."
+      "framingLot": "Kamera çerçevelemesinin sahnenin sınırlarını aldığı lot, hiçbir düğümün sınırı yoksa `null`; çağıran onu iade eder.",
+      "draws": "Sahnenin çizdiği: çizilen her düğüm için bir kaynak, grafın sırasıyla."
     }
   },
   "PageCache": {
@@ -7843,5 +7844,32 @@
   "createPageCache": {
     "summary": "TEK ANA BİLGİSAYAR ÖNBELLEĞİ: okunan her sayfanın ve paketin, bir sunucunun aralık yerine bütün olarak yanıtladığı her dosyanın (`readRange`), çözülmüş her doku seviyesinin ve blok karo kaydının (`level`) ve sahnenin yerleşik vekilinin (`keep`) baytları; tek bir girdi kümesi, TEK bütçe ve TEK tahliye olarak (`cacheEntries.ts`), CPU toplamına karşı (`cpuBytes`, `world.budget.cpu`).",
     "description": "Sahibi onu oturumlar boyunca tutar: bir dünya açtığı her oturuma aynısını verir; böylece yeniden açılan bir oturum — bir kayıptan sonra yeniden verilen bir cihazda ya da değişen bir sahnede — sonuncusunun getirdiğini buradan okur ve onun tuttuğu hiçbir şeyi getirmez. Onun üzerinden okuyan her oturum bildirim tablolarını, aktarım kuyruğunu ve motorun tablolarını (`manifestTableBytes`, `maxTransferBytes`, akışın `reserve`'ü) ayırır, değiştikçe bildirilir (`open`), önbellek bunların toplamını tutar; ve sabitlediği ya da okuduğu sayfalar üzerinde tutmalar alır; girdiler gerisini tutar (`budgetBytes`). Yalnızca önbellek tahliye eder, girdileri bütçeyi aştığında: birinin tuttuğu bir girdiyi asla, sonra en uzun süredir kullanılmayan sayfaları, dosyaları ve seviyeleri, vekili en son. Bir seviyenin kendi yerine ihtiyacı yoktur: tahliyenin boşaltabileceğini alır (`roomBytes`), bir sayfa gibi."
+  },
+  "DrawAssociations": {
+    "summary": "Bir grafın yükleyicisinin çizilen düğümleri hakkında söylediği: her düğümün ilişkisi."
+  },
+  "DrawRanks": {
+    "summary": "Bir bildirimin bir kaynağa verdiği ilişki: ağ ve ilkel sıraları, onu yerleştiren satırlar.",
+    "members": {
+      "meshes": "Bildirimdeki ağ sırası.",
+      "primitives": "Bu ağ içindeki ilkel sırası.",
+      "placements": "Onu yerleştiren satırlar, her biri bir kök."
+    }
+  },
+  "DrawSource": {
+    "summary": "Bir oturumun kaynak kaynak çizdiği: geometrisi, yüzeyinin okunduğu bildirim, nereye yerleştirildiği ve bildirimdeki sıraları.",
+    "members": {
+      "dynamic": "Ana bilgisayar köşeleri yerinde yeniden yazar: motor onları kayan noktalı sayı olarak okur.",
+      "declaration": "Yüzeyin nereden okunduğu: bir bildirim ya da geometri grubu başına bir tane.",
+      "node": "Ana bilgisayarın bu kaynak için izlediği ve onu konumlandırdığı düğüm; zinciri gizlenip gizlenmeyeceğine karar verir. Satırlar onu yerleştiriyorsa yoktur: sahipleri konumu ve bayrakları yazar.",
+      "wear": "Kaynak bundan böyle bildiriminin yerine `surface` giyer.",
+      "rows": "Onu yerleştiren örnek satırları, her biri bir kök, kenara alınmış satırlar dahil.",
+      "mesh": "Bildirimdeki ağ sırası.",
+      "primitives": "Bu ağ içindeki ilkel sırası.",
+      "geometry": "Çizdiği üçgenler.",
+      "attributes": "Bu geometrinin adlandırılmış köşe öznitelikleri: GPU arabelleklerinin ayırt edildiği şey.",
+      "castShadow": "Gölge düşürüp düşürmediği.",
+      "frustumCulled": "Ana bilgisayarın onu görüş dışında atlamaya izin verip vermediği."
+    }
   }
 }

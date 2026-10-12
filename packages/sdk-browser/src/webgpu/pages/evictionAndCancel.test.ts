@@ -12,6 +12,7 @@ import { settledImage } from './settledImage.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { Engine } from '../../engine/types.ts'
 import { LAST_USE_WINDOW } from '../residency/lastUseWindow.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 test('a host eviction deferred for coverage is applied once the page is no longer pinned', async () => {
   installGpuGlobals()
@@ -125,9 +126,9 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
   const fixture = quadScene()
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const packed = packDagSelection(collected.roots)
   const { device, draws, buffers } = mockGpu({ packed })

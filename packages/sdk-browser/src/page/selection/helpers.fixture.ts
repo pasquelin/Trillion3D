@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { dagFixture } from './dag.fixture.ts'
 import { collectClusterPages } from './selection.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
+import { graphDraws } from './drawSource.ts'
 
 export function assertOneRepresentationPerGroup(shown: readonly string[]) {
   const drawn = new Set(shown)
@@ -61,9 +62,9 @@ export function culledDagRoots() {
   fixture.metadata.primitives[0].culling = dagCulling()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   return { fixture, roots }
 }

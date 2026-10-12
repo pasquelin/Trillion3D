@@ -45,7 +45,7 @@ export function withWorldRoot<T extends Collected>(collected: T, context: Engine
   const instances = roots.reduce((sum, root) => sum + root.pages.length, 0)
   if (instances + dag.pages.length > KEY_PAGE_MAX) return collected
   const order = roots.reduce((most, root) => Math.max(most, root.pages[0]?.renderOrder ?? 0), 0)
-  const wear = worldWearers(context.source, context.metadata.primitives, context.associations)
+  const wear = worldWearers(context.draws, context.metadata.primitives)
   const root = worldSelectionRoot(dag, wear, order + 1)
   if (!root) return collected
   roots.push(root)
@@ -63,10 +63,9 @@ function objectOfRoot(context: EngineContext, root: ClusterRoot<PageRec>) {
     rec = root.pages[0]
   if (!objects || !placement || root.parked || !rec || rec.transparent) return -1
   const at = rowCell(placement.rows, placement.index),
-    association = rec.drawSource?.node && context.associations.get(rec.drawSource.node)
-  if (!at || association?.meshes === undefined) return -1
-  const primitive = association.primitives ?? 0
-  return objects.objectOf(at.cell, at.node, association.meshes, primitive)
+    draw = rec.drawSource
+  if (!at || draw?.mesh === undefined) return -1
+  return objects.objectOf(at.cell, at.node, draw.mesh, draw.primitives ?? 0)
 }
 
 /** Each placement of `roots` the new `cut` packs draws the object its row places now, as a row

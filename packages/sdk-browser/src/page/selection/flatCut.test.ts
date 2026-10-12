@@ -7,6 +7,7 @@ import { dagFixture, wideCamera, urls } from './dag.fixture.ts'
 import { assertOneRepresentationPerGroup } from './helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
+import { graphDraws } from './drawSource.ts'
 
 test('a flat cluster cut selects exactly one level per chain and covers the surface once', () => {
   const fixture = dagFixture()
@@ -36,9 +37,9 @@ test('a flat cluster cut keeps the frustum cut and reports the root cover', () =
   const fixture = dagFixture()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   assert.deepEqual(
     rootCoverage(roots).map((page) => page.url),
@@ -64,9 +65,9 @@ function cutWithout(...missing: string[]) {
   for (const url of missing) fixture.indices.delete(url)
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
     { allowMissing: true },
   )
   const selected = selectVisiblePages(roots, engineCamera(wideCamera()), {
@@ -115,9 +116,9 @@ test('the cut rule covers the surface once for every residency pattern', () => {
       if (mask & (1 << bit)) fixture.indices.delete(urlsByBit[bit])
     const { roots } = collectClusterPages(
       fixture.source,
+      graphDraws(fixture.source, fixture.associations),
       fixture.metadata,
       fixture.indices,
-      fixture.associations,
       { allowMissing: true },
     )
     for (const pixelError of [0, 4, 20]) {

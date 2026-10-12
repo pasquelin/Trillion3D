@@ -1,5 +1,6 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 const page = (id: number, url: string, start: number) => ({
   id,
@@ -61,5 +62,12 @@ export function scene() {
   const indices = new Map(
     primitives.map((_, index) => [`p${index}`, new Uint32Array([0, 1, 2])] as const),
   )
-  return { source, meshes, metadata, indices, associations }
+  return {
+    source,
+    meshes,
+    metadata,
+    indices,
+    associations,
+    draws: graphDraws(source, associations),
+  }
 }

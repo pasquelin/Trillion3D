@@ -7794,7 +7794,8 @@
       "textureIndices": "Thứ hạng của mỗi kết cấu của cảnh trong bảng mà các shader lập chỉ mục.",
       "partitions": "Các ô mà một cảnh phân vùng được đọc theo, không có khi cảnh không được phân vùng.",
       "sceneLightingSource": "Nút mà ánh sáng và môi trường của nó chiếu sáng cảnh: `options.sceneLighting`, nếu không thì chính gốc của cảnh trước mọi lần nhân bản.",
-      "framingLot": "Lô mà việc dựng khung camera lấy biên của cảnh vào, `null` khi không nút nào có biên; bên gọi trả nó lại."
+      "framingLot": "Lô mà việc dựng khung camera lấy biên của cảnh vào, `null` khi không nút nào có biên; bên gọi trả nó lại.",
+      "draws": "Điều cảnh vẽ, mỗi nút được vẽ một nguồn, theo thứ tự của đồ thị."
     }
   },
   "PageCache": {
@@ -7844,5 +7845,32 @@
   "createPageCache": {
     "summary": "BỘ NHỚ ĐỆM MÁY CHỦ DUY NHẤT: các byte của mọi trang và gói đã đọc, của mọi tệp mà máy chủ trả nguyên vẹn thay cho một khoảng (`readRange`), của mọi mức kết cấu đã giải mã và bản ghi ô khối (`level`), và của proxy thường trú của cảnh (`keep`), như một tập mục, MỘT ngân sách và MỘT cơ chế loại bỏ (`cacheEntries.ts`), so với tổng CPU (`cpuBytes`, `world.budget.cpu`).",
     "description": "Chủ của nó giữ nó qua các phiên: một thế giới trao cùng một bộ nhớ đệm cho mọi phiên nó mở, nên một phiên mở lại — trên thiết bị được cấp lại sau khi mất, hoặc trên một cảnh đã thay đổi — đọc từ đây những gì phiên trước đã tải, và không tải gì mà nó đang giữ. Mỗi phiên đọc qua nó dành chỗ cho các bảng manifest, hàng đợi truyền và các bảng của engine (`manifestTableBytes`, `maxTransferBytes`, `reserve` của bộ đọc), được báo khi chúng thay đổi (`open`), bộ nhớ đệm giữ tổng của chúng, và giữ các trang mà nó ghim hoặc đọc; các mục giữ phần còn lại (`budgetBytes`). Chỉ bộ nhớ đệm loại bỏ, khi các mục của nó vượt ngân sách: không bao giờ một mục có người đang giữ, rồi các trang, tệp và mức lâu nhất không được dùng, proxy sau cùng. Một mức không cần chỗ riêng: nó lấy những gì việc loại bỏ có thể giải phóng (`roomBytes`), như một trang."
+  },
+  "DrawAssociations": {
+    "summary": "Điều bộ nạp của một đồ thị nói về các nút được vẽ của nó: liên kết của từng nút."
+  },
+  "DrawRanks": {
+    "summary": "Liên kết mà một bản kê khai gán cho một nguồn: hạng lưới và hạng nguyên thủy của nó, các hàng đặt nó.",
+    "members": {
+      "meshes": "Hạng lưới của nó trong bản kê khai.",
+      "primitives": "Hạng nguyên thủy của nó trong lưới đó.",
+      "placements": "Các hàng đặt nó, mỗi hàng một gốc."
+    }
+  },
+  "DrawSource": {
+    "summary": "Điều một phiên vẽ, từng nguồn một: hình học của nó, khai báo mà bề mặt của nó được đọc từ đó, nơi nó được đặt và hạng của nó trong bản kê khai.",
+    "members": {
+      "dynamic": "Máy chủ ghi lại các đỉnh tại chỗ: động cơ đọc chúng dưới dạng số thực.",
+      "declaration": "Bề mặt được đọc từ đâu, một khai báo hoặc một khai báo cho mỗi nhóm hình học.",
+      "node": "Nút mà máy chủ theo dõi cho nguồn này và dùng để đặt nó; chuỗi của nó quyết định việc ẩn. Vắng mặt khi các hàng đặt nó: chủ của chúng ghi tư thế và cờ.",
+      "wear": "Từ nay nguồn mang `surface`, thay cho khai báo của nó.",
+      "rows": "Các hàng thực thể đặt nó, mỗi hàng một gốc, kể cả các hàng bị gác lại.",
+      "mesh": "Hạng lưới của nó trong bản kê khai.",
+      "primitives": "Hạng nguyên thủy của nó trong lưới đó.",
+      "geometry": "Các tam giác nó vẽ.",
+      "attributes": "Các thuộc tính đỉnh có tên của hình học đó: thứ mà bộ đệm GPU của nó được định danh theo.",
+      "castShadow": "Nó có đổ bóng hay không.",
+      "frustumCulled": "Máy chủ có cho phép bỏ qua nó ngoài tầm nhìn hay không."
+    }
   }
 }

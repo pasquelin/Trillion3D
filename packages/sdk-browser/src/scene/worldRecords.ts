@@ -24,19 +24,16 @@
 import { drawsBlended } from '../page/selection/collect.ts'
 import type { PageRec, ClusterRoot } from '../page/selection/types.ts'
 import type { PageSurface } from '../page/surface.ts'
-import type { HostMesh } from '../host/resources.ts'
 import { cullingBounds } from '../page/cut/bounds.ts'
 import { cullingLinks } from '../page/cut/links.ts'
 import { flatHierarchy } from '../gpu/dag/hierarchy.ts'
 import { IDENTITY_WORLD } from '../host/matrixElements.ts'
 import { BOX_VALUES } from '../../../sdk-core/src/index.ts'
 import type { worldRootDag } from './worldSuperRoots.ts'
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Primitive } from '../../../sdk-core/src/index.ts'
-import { meshes } from './meshes.ts'
 import { primitiveFinder } from './primitiveLookup.ts'
 import { sourceSurface } from '../page/surface.ts'
-import { drawSourceOf, type DrawSource } from '../page/selection/drawSource.ts'
+import type { DrawSource } from '../page/selection/drawSource.ts'
 
 /** The mesh a world page is worn by, and its surface: none when it draws blended. */
 export type WorldWearer = { drawSource: DrawSource; surface: PageSurface }
@@ -138,28 +135,23 @@ export type WorldHeld = {
 }
 
 /**
- * Each primitive rank of `primitives` to the mesh of `source` that draws it opaque, and its surface,
- * as a page record wears them (`../page/selection/collect.ts`): none for a primitive no mesh draws,
- * or one drawn blended, which no world page stands in for.
+ * Each primitive rank of `primitives` to the source of `draws` that draws it opaque, and its
+ * surface, as a page record wears them (`../page/selection/collect.ts`): none for a primitive no
+ * source draws, or one drawn blended, which no world page stands in for.
  */
-export function worldWearers(
-  source: Object3D,
-  primitives: readonly Primitive[],
-  associations: ReadonlyMap<Object3D, { meshes?: number; primitives?: number }>,
-) {
-  // Each manifest primitive to the first mesh that draws it, found by its association.
+export function worldWearers(draws: readonly DrawSource[], primitives: readonly Primitive[]) {
+  // Each manifest primitive to the first source that draws it, found by its ranks.
   const find = primitiveFinder(primitives),
-    byPrimitive = new Map<Primitive, HostMesh>()
-  for (const mesh of meshes(source)) {
-    const primitive = find(associations.get(mesh))
-    if (primitive && !byPrimitive.has(primitive)) byPrimitive.set(primitive, mesh)
+    byPrimitive = new Map<Primitive, DrawSource>()
+  for (const draw of draws) {
+    const primitive = find({ meshes: draw.mesh, primitives: draw.primitives })
+    if (primitive && !byPrimitive.has(primitive)) byPrimitive.set(primitive, draw)
   }
   return (rank: number): WorldWearer | undefined => {
     const primitive = primitives[rank],
-      mesh = primitive && byPrimitive.get(primitive)
-    if (!mesh) return undefined
-    const source = drawSourceOf(mesh),
-      surface = sourceSurface(source)
-    return drawsBlended(primitive, surface) ? undefined : { drawSource: source, surface }
+      drawSource = primitive && byPrimitive.get(primitive)
+    if (!drawSource) return undefined
+    const surface = sourceSurface(drawSource)
+    return drawsBlended(primitive, surface) ? undefined : { drawSource, surface }
   }
 }

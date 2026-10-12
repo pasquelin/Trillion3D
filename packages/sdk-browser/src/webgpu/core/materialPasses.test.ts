@@ -8,6 +8,7 @@ import { webgpuPagesEngine } from '../pages/pages.ts'
 import { camera, quadScene } from '../pages/testScenes.fixture.ts'
 import { resolveFixture } from './materialPasses.fixture.ts'
 import { MATERIAL_SURFACES_PASS } from '../../stage/passLabels.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 const passSummary = (passes: Array<{ label: string; draws: number }>) =>
   passes.map(({ label, draws }) => [label, draws])
@@ -125,7 +126,7 @@ test('a backend makes no material depth, its class pipelines test no depth, and 
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],

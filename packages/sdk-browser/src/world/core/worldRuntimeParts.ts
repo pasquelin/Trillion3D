@@ -1,4 +1,3 @@
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { openMeasuredWorld, type MeasuredWorld } from '../session/explorer.ts'
 import { buildWorldSource } from './worldSource.ts'
 import type { createRequestLoop } from './requestLoop.ts'
@@ -7,7 +6,6 @@ import type { createWorldLights } from './worldLights.ts'
 import type { createWorldBackground } from './worldBackground.ts'
 import type { worldReopens } from './worldReopen.ts'
 import type { createCanvasFit, followPageCamera } from './worldCamera.ts'
-import type { PosedTwin } from './worldPoses.ts'
 import type { namedMove } from './worldSceneMethods.ts'
 import type { WorldRuntimeInputs } from './worldRuntimeInputs.ts'
 import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts'
@@ -17,7 +15,6 @@ import { vertexUploads } from './worldDynamicRanges.ts'
  *  the next frame or opening owes the scene. */
 export type WorldRuntimeState = {
   explorer: MeasuredWorld | null
-  twins: Map<Object3D, PosedTwin>
   resolving: Promise<void> | null
   structureChanged: boolean
   seatWanted: boolean
@@ -61,9 +58,6 @@ export function worldOpening(parts: WorldRuntimeParts) {
     state.explorer = null
     fit.reset()
     plan.release()
-    state.twins = (built?.twins ?? new Map()) as Map<Object3D, PosedTwin>
-    for (const [node, twin] of state.twins)
-      contents.poses.writeTwin(node, twin, contents.shown(node))
     lights.reset()
     state.lightsChanged = true
     inputs.diagnostic.opening()
@@ -125,7 +119,7 @@ export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
       poses.apply(
         inputs.scene,
         contents.seats,
-        state.twins,
+        contents.models,
         (rows, from, to) => session.updatePlacements(rows, from, to),
         {
           key: session,

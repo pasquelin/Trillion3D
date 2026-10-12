@@ -15,7 +15,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 type Inputs = {
   source: Object3D
   sceneLightingSource?: Object3D
-  associations: EngineContext['associations']
+  draws: EngineContext['draws']
   textureIndices: Map<HostTexture, number>
   pageSources: ExplorerPageSources
   gpuDevice?: GPUDevice
@@ -111,7 +111,7 @@ function engineContext(
     readGeometryPage: worldOrGeometryReader(worldRoots, streamer.readBytes, streamer.signal),
     worldRoots,
     pageRoundTripMs: streamer.roundTripMs,
-    associations: inputs.associations,
+    draws: inputs.draws,
     textureIndices: inputs.textureIndices,
     signal,
     onDiagnostic: diagnosticChannel.enabled ? diagnosticChannel.emit : undefined,

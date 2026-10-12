@@ -7794,7 +7794,8 @@
       "textureIndices": "Peringkat tiap tekstur adegan dalam tabel yang diindeks shader.",
       "partitions": "Sel-sel tempat adegan terpartisi dibaca, tidak ada bila adegan tidak dipartisi.",
       "sceneLightingSource": "Simpul yang lampu dan lingkungannya menerangi adegan: `options.sceneLighting`, jika tidak akar adegan itu sendiri sebelum replikasi apa pun.",
-      "framingLot": "Lot tempat pembingkaian kamera mengambil batas adegan, `null` bila tidak ada simpul yang berbatas; pemanggil mengembalikannya."
+      "framingLot": "Lot tempat pembingkaian kamera mengambil batas adegan, `null` bila tidak ada simpul yang berbatas; pemanggil mengembalikannya.",
+      "draws": "Apa yang digambar adegan, satu sumber untuk setiap simpul yang digambar, menurut urutan graf."
     }
   },
   "PageCache": {
@@ -7844,5 +7845,32 @@
   "createPageCache": {
     "summary": "SATU-SATUNYA CACHE HOST: byte setiap halaman dan bundel yang dibaca, setiap berkas yang dijawab utuh oleh server sebagai ganti sebuah rentang (`readRange`), setiap level tekstur terdekode dan catatan petak blok (`level`), dan proksi residen adegan (`keep`), sebagai satu himpunan entri, SATU anggaran dan SATU pengusiran (`cacheEntries.ts`), terhadap total CPU (`cpuBytes`, `world.budget.cpu`).",
     "description": "Pemiliknya menyimpannya antarsesi: sebuah dunia menyerahkan cache yang sama kepada setiap sesi yang dibukanya, sehingga sesi yang dibuka ulang — pada perangkat yang diberikan lagi setelah hilang, atau pada adegan yang berubah — membaca dari sini apa yang diambil sesi terakhir, dan tidak mengambil apa pun yang ditahannya. Setiap sesi yang membaca melaluinya mencadangkan tabel manifes, antrean transfer, dan tabel mesinnya (`manifestTableBytes`, `maxTransferBytes`, `reserve` milik pembaca), diberitahukan saat berubah (`open`), dengan cache menyimpan jumlahnya, dan mengambil penahanan atas halaman yang disematkan atau dibacanya; entri menahan sisanya (`budgetBytes`). Hanya cache yang mengusir, begitu entrinya melampaui anggaran: tidak pernah entri yang ditahan seseorang, lalu halaman, berkas, dan level yang paling lama tidak dipakai, proksi terakhir. Sebuah level tidak perlu ruang sendiri: ia mengambil apa yang dapat dibebaskan pengusiran (`roomBytes`), seperti halaman."
+  },
+  "DrawAssociations": {
+    "summary": "Apa yang dikatakan pemuat sebuah graf tentang simpul-simpulnya yang digambar: asosiasi tiap simpul."
+  },
+  "DrawRanks": {
+    "summary": "Asosiasi yang diberikan sebuah manifes kepada sebuah sumber: peringkat mesh dan primitifnya, baris yang menempatkannya.",
+    "members": {
+      "meshes": "Peringkat mesh-nya di manifes.",
+      "primitives": "Peringkat primitifnya di dalam mesh itu.",
+      "placements": "Baris yang menempatkannya, satu akar masing-masing."
+    }
+  },
+  "DrawSource": {
+    "summary": "Apa yang digambar sebuah sesi, sumber demi sumber: geometrinya, deklarasi tempat permukaannya dibaca, di mana ia ditempatkan, dan peringkatnya di manifes.",
+    "members": {
+      "dynamic": "Host menulis ulang verteks di tempat: mesin membacanya sebagai float.",
+      "declaration": "Dari mana permukaan dibaca, satu deklarasi atau satu per grup geometri.",
+      "node": "Simpul yang diawasi host untuk sumber ini dan dengannya ia diposisikan; rantainya menentukan penyembunyian. Tidak ada jika baris yang menempatkannya: pemiliknya menulis pose dan bendera.",
+      "wear": "Sumber mengenakan `surface` mulai sekarang, menggantikan deklarasinya.",
+      "rows": "Baris instans yang menempatkannya, satu akar masing-masing, termasuk baris yang disisihkan.",
+      "mesh": "Peringkat mesh-nya di manifes.",
+      "primitives": "Peringkat primitifnya di dalam mesh itu.",
+      "geometry": "Segitiga yang digambarnya.",
+      "attributes": "Atribut verteks bernama dari geometri itu: yang menjadi kunci buffer GPU-nya.",
+      "castShadow": "Apakah ia menjatuhkan bayangan.",
+      "frustumCulled": "Apakah host mengizinkannya dilewati di luar pandangan."
+    }
   }
 }

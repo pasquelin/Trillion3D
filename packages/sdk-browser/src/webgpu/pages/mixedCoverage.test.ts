@@ -7,6 +7,7 @@ import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera } from './testScenes.fixture.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 test('mixed GPU and transparent pages wait for initial coverage before validating the resident cut', async () => {
   installGpuGlobals()
@@ -28,9 +29,9 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
   for (const [url, array] of blend.indices) fixture.indices.set(`blend-${url}`, array)
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   // One catalogue for one cut: the kernel the mock replays selects the transparent clusters too,
   // opaque roots first then transparent, exactly as the layout packs them.
@@ -42,6 +43,7 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
   })
   const backend = webgpuPagesEngine({
     ...fixture,
+    draws: graphDraws(fixture.source, fixture.associations),
     indices: new Map(),
     gpuDevice: device,
     maxResidentPages: 4,
@@ -107,6 +109,7 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   for (const [url, array] of other.indices) fixture.indices.set(`other-${url}`, array)
   const backend = webgpuPagesEngine({
     ...fixture,
+    draws: graphDraws(fixture.source, fixture.associations),
     gpuDevice: device,
     maxResidentPages: 6,
     viewport: [32, 32],
@@ -188,11 +191,9 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
     assert.equal(reuploads.length, 0, 'existing index buffers survive visibility changes')
   } finally {
     await backend.dispose()
-    fixture.geometry.dispose()
-    fixture.material.dispose()
-    other.geometry.dispose()
-    other.material.dispose()
-    legacy.geometry.dispose()
-    legacy.material.dispose()
+    for (const scene of [fixture, other, legacy]) {
+      scene.geometry.dispose()
+      scene.material.dispose()
+    }
   }
 })

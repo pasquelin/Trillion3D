@@ -6,13 +6,12 @@ import assert from 'node:assert/strict'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import type { HostMesh } from '../../host/resources.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
 import { importHostSurface } from '../../host/surfaceImport.ts'
 import { hostSide } from '../../scene/materialSide.ts'
-import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts'
+import { createPlacementRows } from '../../placement/rows.ts'
 import { hostSurface, repaintHostSurface } from './worldSurface.ts'
-import { buildWorldMirror } from './worldMirror.ts'
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { createWorldMaterials } from './worldMaterials.ts'
 import { createWorldPoses } from './worldPoses.ts'
 import type { Cut } from './worldCuts.ts'
@@ -83,12 +82,7 @@ function spriteMesh() {
   } as Cut
   const table = createWorldMaterials()
   const surface = table.surfaceOf(table.entryOf(material.sprite()), drawn, false)
-  const { root } = buildWorldMirror({
-    placed: [{ cut, surface, rows: {} as PlacementRows, name: 's' }],
-    models: [],
-    rankOf: () => 0,
-  })
-  return root.children[0] as HostMesh
+  return new Mesh(cut.geometry, surface)
 }
 
 test("a sprite's host mesh wears the sprite surface and is bounded by its radius", () => {

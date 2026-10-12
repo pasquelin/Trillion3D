@@ -11,6 +11,7 @@ import { dagFixture } from '../page/selection/dag.fixture.ts'
 import { createEngineCamera, readCameraWorld } from '../camera/world.ts'
 import { createHeldResidency } from '../page/cut/held.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 
 /** A seeded generator, so a failure names the case it met. */
 function random(seed: number) {
@@ -69,9 +70,9 @@ test('the cut keeps a cluster its deformation carries into the view, and culls i
     const fixture = dagFixture()
     const { roots } = collectClusterPages(
       fixture.source,
+      graphDraws(fixture.source, fixture.associations),
       fixture.metadata,
       fixture.indices,
-      fixture.associations,
     )
     roots[0].reach = reach
     const ask = {
