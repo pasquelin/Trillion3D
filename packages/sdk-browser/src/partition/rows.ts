@@ -6,12 +6,8 @@
  * (`sizeRows`), for every node its view can hold at once (`sizing.ts`, #575): only a reach or a
  * parent's stretch past that grows them, in place, under the engine that draws them.
  */
-import {
-  createPlacementRows,
-  grownCapacity,
-  growPlacementRows,
-  type PlacementRows,
-} from '../placement/rows.ts'
+import { createPlacementRows, growPlacementRows, type PlacementRows } from '../placement/rows.ts'
+import { grownLength } from '../../../math/src/sequence/resized.ts'
 import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
 import { EngineError } from '../../../sdk-core/src/index.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -54,7 +50,7 @@ export function sizeRows(
     const held = capacityOf(mesh)
     if (rows <= held) continue
     const from = mesh.links.map((link) => link.placements!)
-    if (grow && !grow.growsInPlace(from, grownCapacity(held, rows))) {
+    if (grow && !grow.growsInPlace(from, grownLength(held, rows))) {
       sized = false
       continue
     }
