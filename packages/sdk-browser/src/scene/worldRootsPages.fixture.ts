@@ -6,6 +6,9 @@ import {
 } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
 import { encodePage } from '../page/codec/encodePage.fixture.ts'
+import { buildCullingHierarchy } from '../page/codec/cullingHierarchy.ts'
+import { sdkWasm } from '../wasm/sdkWasm.fixture.ts'
+import type { CullingHierarchy } from '../../../sdk-core/src/contracts/geometry.ts'
 
 /** One super-root page as the cook writes it, a geometry page: a triangle of three vertices, `x`
  *  its offset, with its facts (`WorldRootsPageFacts`). */
@@ -46,7 +49,7 @@ export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => 
   const { bin, bundles } = packBundles(pages, sha256)
   const object = (dependencies: number[]) => ({ node: 0, primitive: 0, roots: [0], dependencies })
   const spec: WorldRootsSpec = {
-    version: 5,
+    version: 6,
     budgetBytes: 4 << 20,
     pinned: 1,
     pinnedTopBytes: bundles[0].bytes,
@@ -161,7 +164,30 @@ export function worldRootsDag() {
     children: [leaves, leaves + 1, leaves + 2],
     outputs: [top],
   })
-  return { clusters, groups, leaves }
+  return { ...inCullingOrder({ clusters, groups }), leaves }
+}
+
+/**
+ * `dag` as the cook writes it (`compiler_world_roots/merge.rs`, `in_culling_order`): its clusters
+ * ranked in the order of the culling hierarchy the one builder gives them, the groups' children and
+ * outputs renumbered with them, and that hierarchy. In place: the caller's arrays are the DAG's.
+ */
+export function inCullingOrder<C extends WorldRootsCluster>(dag: {
+  clusters: C[]
+  groups: ClusterGroup[]
+  culling?: CullingHierarchy
+}) {
+  const { order, culling } = buildCullingHierarchy(sdkWasm, dag.clusters)
+  const rank = new Array<number>(order.length)
+  order.forEach((slot, at) => (rank[slot] = at))
+  const ranked = Array.from(order, (slot, at) => ({ ...dag.clusters[slot], cluster: at }))
+  dag.clusters.splice(0, dag.clusters.length, ...ranked)
+  for (const group of dag.groups) {
+    group.children = group.children.map((child) => rank[child])
+    group.outputs = group.outputs.map((output) => rank[output])
+  }
+  dag.culling = culling
+  return dag
 }
 
 /** The objects of `cell` as a load reads them, word by word (`first`, `size`, `objectNode`,

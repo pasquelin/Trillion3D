@@ -156,7 +156,12 @@ fn the_table_and_its_dag_are_fixed_size_records_and_their_pools() {
         counts.map(|c| c as u32),
         [8, 12, 16].map(|at| words(dag, at))
     );
-    assert_eq!(dag.len(), 24 + counts[0] * 176 + counts[1] * 64 + pool * 4);
+    let nodes = words(dag, 20) as usize;
+    assert!(nodes > 0, "a world carries its culling hierarchy");
+    assert_eq!(
+        dag.len(),
+        24 + counts[0] * 176 + counts[1] * 64 + nodes * 120 + pool * 4
+    );
     // A root's parent error is NaN; a super-root names its bundle, an object root none.
     let root = table["clusters"]
         .as_array()
@@ -197,4 +202,42 @@ fn each_cell_names_its_nodes_first_objects_one_without_any_named_none() {
     let pool_at = cells_at + word(28) * 16 + word(32) * 24;
     assert_eq!(word(cells_at + 12), count);
     assert_eq!(word(pool_at + word(cells_at + 8) * 4), u32::MAX as usize);
+}
+
+/// The DAG's culling nodes, after its groups, name its clusters by their ranks: every cluster lies in
+/// exactly one leaf, and every node's box holds the boxes of the clusters below it.
+#[test]
+fn the_dag_carries_a_culling_hierarchy_over_its_ranks() {
+    let covers = covers();
+    let instances = world(&covers, 2);
+    let cooked = cooked(&instances, 4, WORLD_TOP_BUDGET_BYTES).expect("cooked");
+    let table = decoded(&cooked);
+    let clusters = table["clusters"].as_array().expect("clusters");
+    let dag = &cooked.dag;
+    let words = |at: usize| u32::from_le_bytes(dag[at..at + 4].try_into().unwrap());
+    let count = words(20) as usize;
+    let at = 24 + clusters.len() * 176 + words(12) as usize * 64;
+    let node = |n: usize| -> Vec<f64> {
+        (0..15)
+            .map(|k| {
+                let byte = at + (n * 15 + k) * 8;
+                f64::from_le_bytes(dag[byte..byte + 8].try_into().unwrap())
+            })
+            .collect()
+    };
+    let mut owned = vec![0usize; clusters.len()];
+    for n in 0..count {
+        let v = node(n);
+        assert!(v[11] + v[12] <= count as f64);
+        let (first, pages) = (v[13] as usize, v[14] as usize);
+        for rank in first..first + pages {
+            owned[rank] += 1;
+            let (min, max) = (&clusters[rank]["min"], &clusters[rank]["max"]);
+            for a in 0..3 {
+                assert!(min[a].as_f64().unwrap() >= v[a]);
+                assert!(max[a].as_f64().unwrap() <= v[3 + a]);
+            }
+        }
+    }
+    assert!(owned.iter().all(|&n| n == 1), "every cluster in one leaf");
 }

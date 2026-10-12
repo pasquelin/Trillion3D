@@ -185,7 +185,11 @@ fn a_placed_object_is_one_cluster_and_always_has_a_world_parent() {
         assert!(cluster.lod_error <= group.error);
     }
     // The lone object's parent: a copy of it at its error, in clusters a page holds, its stand-ins.
-    let id = objects[objects.len() - 1];
+    let lone = Some(instances.len() - 1);
+    let id = *objects
+        .iter()
+        .find(|&&id| world.origins[id] == lone)
+        .expect("the lone object");
     let group = &world.groups[world.clusters[id].group.unwrap()];
     assert_eq!(group.children.as_slice(), [id].as_slice());
     let copies = group.outputs.iter().map(|&o| &world.clusters[o]);

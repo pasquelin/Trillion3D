@@ -90,9 +90,9 @@ test('a bundle whose read may pass keeps its hold waiting; let go, it is dropped
 })
 
 test('a bundle read for one page request alone, refused for good, is refused at once again', async (t) => {
-  const { clusters, groups } = worldRootsDag()
+  const { clusters, groups, culling } = worldRootsDag()
   const world = served(t, {
-    dag: { clusters, groups },
+    dag: { clusters, groups, culling },
     answer: async (from, _to, respond) =>
       from === world.table.bundles[2].offset ? new Response('', { status: 404 }) : respond(),
   })
