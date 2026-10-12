@@ -26,15 +26,14 @@
  * (`mobility.moveLead`); a later move stales the moving casters alone. The rows pass writes each
  * linked row's world sphere, what the shadow cull drops a row by, from its composed world.
  *
- * The primitive stretch every cut projects its errors through is derived on the GPU too: the roots pass
- * writes the stretch of the composed world into the root's frame words (`gpuStretchWgsl.ts`), the
- * CPU's to the word. Still derived at the last full write, not on the GPU yet: the corners and
- * world boxes, the shadows' levels of detail — a row whose composed words differ from the ones its
- * corners were made from takes no occlusion verdict, which is safe, and its shadow detail follows
- * the pose of the last CPU write. A link made with the rows' own CPU write changes none of these:
- * the CPU's row write follows them. What a parent's move cannot give a row — a winding that turns,
- * waves or a soft body that read the world, a skeleton whose bones stand in the world's frame —
- * is the owner's to write, the link refused (`composeWebgpuPlacements`, `readsItsWorld`).
+ * Everything a composed world gives is derived on the GPU, the CPU's to the word: the roots pass
+ * writes the primitive stretch every cut projects its errors through (`gpuStretchWgsl.ts`) and the
+ * root's world box; the rows pass the Hi-Z corners and the world-dependent levels of detail of each
+ * row (`gpuComposeDerivedWgsl.ts`); the members pass the leaf boxes the placement tree is refitted
+ * over (`gpu/dag/treeRefit.ts`). The CPU readers — impostor cards, transparent depth, the winding —
+ * read the lazy world of the root once a frame. What a parent's move cannot give a row — waves or a
+ * soft body that read the world, a skeleton whose bones are not models' — is the owner's to write,
+ * the link refused (`composeWebgpuPlacements`, `readsItsWorld`).
  */
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'

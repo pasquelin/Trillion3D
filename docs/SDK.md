@@ -368,7 +368,8 @@ repainted in place, the session kept (a colour picker dragged for ten seconds ke
 change it cannot hold in place — a texture, a kind, a side, transparency, values another material
 object shares — is copied on write: the copy is a new material, and the meshes that wear it join
 the running session as any mesh added to the scene does, the session never opened again for it.
-`world.diagnostic.sessions` counts the sessions a world opened.
+`world.diagnostic.sessions` counts the sessions a world opened: one, unless the device was lost or
+an option changed (`session-reopen`, `cause`).
 
 `material.meshPhysical` accepts `anisotropy` (strength, 0–1), `anisotropyRotation` (radians),
 `clearcoat` and `clearcoatRoughness`, drawn with `anisotropyMap` (RG the direction, B the
@@ -523,7 +524,9 @@ shelf.add(crate).updateWorldMatrix()
 engine's graph extend it. Every write through a node is heard as it is made; numbers written
 straight into a kept `matrix.elements` are announced with `matrixWorldNeedsUpdate = true`, a light's
 colour channels written straight with `needsUpdate = true`: a still scene reads nothing per frame.
-An update or walk costs its subtree only; a dropped object frees its slot when collected.
+An update or walk costs its subtree only; a dropped object frees its slot when collected. A node
+the session poses under a moving parent is composed on the GPU: its `matrixWorld` is read composed
+once per frame, and `updateMatrixWorld` has nothing of it to do.
 
 The graph classes are `Object3D`, `Group`, `Mesh`, `Scene`, `Camera` and `Light` (its `kind`; a
 `rectArea` for a rectangle, a `probe` with 27 coefficients in `sh`). A light hears its colours and
