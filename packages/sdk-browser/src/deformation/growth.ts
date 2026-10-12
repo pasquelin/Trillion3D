@@ -20,6 +20,7 @@ import type { Primitive } from '../../../sdk-core/src/index.ts'
 import { loadDeformationCode, prepareDeformationCompute } from './prepare.ts'
 import { placeFloatPages } from '../webgpu/core/geometryPrepare.ts'
 import type { BlendCopy } from '../cluster/blendCopyContract.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 import { animates, assignDeformationOutputs, pageDeforms, rowsAnimate } from './outputs.ts'
@@ -46,8 +47,7 @@ export function deformsContent(
 /**
  * The session can move what `pages` bring, the float geometries of the pages that read them placed
  * in the pool: the stage's code loaded and its compute made when the session was opened with none.
- * False where the device or the pool refuses (the pool opened without a list a geometry carries,
- * or no room).
+ * False where the device or the pool refuses (no room).
  */
 export async function prepareDeformationGrowth(
   rt: WebgpuPagesRuntime,
@@ -80,6 +80,21 @@ export function joinDeformation(
     added,
     copies.filter((copy) => !copy.userData.pagedBlend),
   )
+}
+
+/**
+ * The rows of a deformed placement are another buffer's (`rebound`, `placement/growth.ts`): the
+ * records and the result blocks that name a placement by its world follow it.
+ */
+export function rebindDeformedWorlds(
+  rt: Pick<WebgpuPagesRuntime, 'vis' | 'setup'>,
+  rebound: ReadonlyMap<MatrixElements, MatrixElements>,
+) {
+  rt.vis.deformation?.rebind(rebound)
+  for (const { pool } of rt.setup.deformationBlocks) {
+    const world = pool?.world && rebound.get(pool.world)
+    if (world) pool!.world = world
+  }
 }
 
 /**

@@ -5,6 +5,7 @@
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../packages/sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../packages/sdk-core/src/world/texture/texture.ts'
+import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
 import { joined, row, type World } from './appendProof.ts'
 
 const ball = geometry.sphere(0.6, 16, 12)
@@ -20,6 +21,27 @@ const glass = (color: number) =>
   material.meshPhysical({ color, roughness: 0.1, transmission: 1, thickness: 0.5, ior: 1.5 })
 
 /** What a world draws before a case adds to it: the opaque row at the front, then `contents`. */
+/** Meshes of one batch — one geometry, one surface — on a grid of `columns` along x from depth
+ *  `z` back, `count` of them: more than a batch of few holds, so its rows grow. */
+function grid(
+  world: World,
+  shape: Parameters<typeof row>[1],
+  paint: Parameters<typeof row>[2],
+  z: number,
+  count: number,
+  columns = 4,
+) {
+  for (let i = 0; i < count; i++) {
+    const mesh = object.mesh(shape, paint)
+    mesh.position.set(
+      ((i % columns) - (columns - 1) / 2) * 1.5,
+      0.6,
+      z - 1.1 * Math.floor(i / columns),
+    )
+    world.scene.add(mesh)
+  }
+}
+
 const held =
   (...contents: Array<(world: World) => void>) =>
   (world: World) => {
@@ -74,3 +96,34 @@ export const runTextured = () =>
     const map = new Texture({ data, width: 8, height: 8 })
     row(world, crate, material.meshStandard({ color: 0xffffff, map }), -7)
   })
+
+const veilOf = veil(0x3a7ab0),
+  glassOf = glass(0xd8e8ff)
+
+/** More blended meshes of a batch the session holds, past the rows it has: the copies and the items
+ *  read the larger buffer, a copy joins per new row. */
+export const runBlendedRows = () =>
+  joined(
+    held((world) => grid(world, crate, veilOf, -1, 1)),
+    (world) => grid(world, crate, veilOf, -1, 11),
+  )
+
+/** The same for a transmissive batch. */
+export const runTransmissiveRows = () =>
+  joined(
+    held((world) => grid(world, ball, glassOf, -1, 1)),
+    (world) => grid(world, ball, glassOf, -1, 11),
+  )
+
+/** Rows grown twice in turn, a blended and a transmissive batch each, beside held ones. */
+export const runBothRows = () =>
+  joined(
+    held((world) => {
+      grid(world, crate, veilOf, -1, 2)
+      grid(world, ball, glassOf, -4, 2)
+    }),
+    (world) => {
+      grid(world, crate, veilOf, -1, 9)
+      grid(world, ball, glassOf, -4, 9)
+    },
+  )

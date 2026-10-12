@@ -57,10 +57,22 @@ export function createSessionDeformation(
   }
   append(roots, copies)
   const rankOf = (world: object) => byWorld.get(world) ?? -1
+  /** The placements whose world was `old` stand on `world` now (a growth of their rows): their
+   *  records follow, found by the new view as the old. */
+  const rebind = (rebound: ReadonlyMap<MatrixElements, MatrixElements>) => {
+    for (const [old, world] of rebound) {
+      const entry = byWorld.get(old)
+      if (entry === undefined) continue
+      byWorld.delete(old)
+      byWorld.set(world, entry)
+      frame.rebind(entry, world)
+    }
+  }
   const skip = createDeformationSkip()
   return {
     frame,
     append,
+    rebind,
     /** The roots the session holds records for: the rank the next one joins at. */
     get ranks() {
       return rankEntry.length

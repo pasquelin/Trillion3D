@@ -266,6 +266,11 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[] = []
     /** Placements `entries` join the records, behind the others': their floats follow the
      *  others', the block grown by `resized` when it is full. Returns the first one's rank. */
     append: (entries: readonly (Deformed | null)[]) => appendRecords(r, entries),
+    /** Placement `i`'s world is now `world`: its row is another buffer's, the same row. */
+    rebind(i: number, world: MatrixElements) {
+      const entry = r.placed[i]
+      if (entry) entry.world = world
+    },
     /** Placements with a record. */
     get deforming() {
       return r.deforming

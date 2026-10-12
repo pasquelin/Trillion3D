@@ -37,6 +37,10 @@ function session() {
   const rt = {
     run: { gpuSelection: cut, movedWorlds: createSortedKeys() },
     layout: { selectionRoots: [root], worldUpdates: new Float32Array(4 * 16) },
+    // No blended surface and no deformation: nothing else reads the rows.
+    setup: { blendCopies: [], pagedBlendCopies: new Map(), deformationBlocks: [] },
+    blendState: { blendGpu: [] },
+    vis: {},
   } as unknown as WebgpuPagesRuntime
   const grow = () => {
     const to = growPlacementRows(rows, rows.capacity + 1)

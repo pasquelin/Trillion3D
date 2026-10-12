@@ -18,8 +18,10 @@
  * (`GpuSelection.appendRoots`); only one past that room packs again — a logarithmic number of
  * times.
  *
- * Refused, so the owner opens the session again: rows the blend pass or a deformation draws, whose
- * tables are laid out at open (`rowsGrowInPlace`), and a session without a GPU cut or a device.
+ * Rows the blend pass draws grow as the others: their copies and items read the larger buffer and
+ * a copy joins per new row, the items and the table's entries made by the function that made the
+ * held ones (`growBlend`). Refused, so the owner opens the session again: a session without a GPU
+ * cut or a device.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { createSessionCut } from '../webgpu/pages/prepare/cut.ts'
@@ -28,11 +30,14 @@ import { loseGpuSelection } from '../webgpu/pages/io/drops.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 import type { BlendCopy } from '../cluster/blendCopyContract.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { forgetRowRoots } from './update.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
-import { growRowRoots } from './growth.ts'
-import { grownCapacity, placedBy, type PlacementRows } from './rows.ts'
+import { growRowCopies, growRowItems, growRowRoots, type Rebound } from './growth.ts'
+import { pagedBlendCopiesOf } from '../webgpu/pages/prepare/setupCatalogue.ts'
+import { rebindDeformedWorlds } from '../deformation/growth.ts'
+import { grownCapacity, type PlacementRows } from './rows.ts'
 import { dagRootCounts } from '../gpu/dag/pack.ts'
 
 type Root = ClusterRoot<PageRec>
@@ -41,7 +46,7 @@ type Root = ClusterRoot<PageRec>
 export const webgpuPlacementApi = (rt: WebgpuPagesRuntime) => ({
   updatePlacements: (rows: PlacementRows, from: number, to: number) =>
     void updateWebgpuPlacements(rt, rows, from, to),
-  growsInPlace: (from: readonly PlacementRows[]) => webgpuGrowsInPlace(rt, from),
+  growsInPlace: () => webgpuGrowsInPlace(rt),
   growPlacements: (from: PlacementRows, to: PlacementRows) => growWebgpuPlacements(rt, from, to),
 })
 /** The roots waiting to join, how many of them the running cut took in place, whether a cut over
@@ -63,21 +68,10 @@ const growths = new WeakMap<WebgpuPagesRuntime, Growth>()
 /** The growth of `rt` in flight, if one is. */
 export const growthOf = (rt: WebgpuPagesRuntime) => growths.get(rt)
 
-/** Whether rows drawn by `template` grow in place: not the blend pass's — transparent pages, whose
- *  tables are laid out at open. */
-const rowsGrowInPlace = (template: Root | undefined) =>
-  !template?.pages.some((page) => page.transparent)
-
-/** Whether the session grows each of `from` in place, asked before any is (`growth.ts`). */
-function webgpuGrowsInPlace(rt: WebgpuPagesRuntime, from: readonly PlacementRows[]) {
-  const { layout, run, gpu, setup, blendState } = rt
-  if (!gpu.device || run.lost || !run.gpuSelection) return false
-  for (const buffer of from) {
-    if (placedBy(setup.blendCopies, buffer) || placedBy(blendState.blendGpu, buffer)) return false
-    if (!rowsGrowInPlace(layout.selectionRoots.find((root) => root.placement?.rows === buffer)))
-      return false
-  }
-  return true
+/** Whether the session grows the rows in place, asked before any is (`growth.ts`). */
+function webgpuGrowsInPlace(rt: WebgpuPagesRuntime) {
+  const { run, gpu } = rt
+  return !!gpu.device && !run.lost && !!run.gpuSelection
 }
 
 /** Steps 1 and 2 of the contract on a growth `webgpuGrowsInPlace` took: every root of `from` reads
@@ -86,12 +80,34 @@ function webgpuGrowsInPlace(rt: WebgpuPagesRuntime, from: readonly PlacementRows
 function growWebgpuPlacements(rt: WebgpuPagesRuntime, from: PlacementRows, to: PlacementRows) {
   const growth = growths.get(rt) ?? { roots: [], copies: [], appended: 0, made: 0, asked: false }
   growths.set(rt, growth)
-  const { selectionRoots } = rt.layout
-  for (const { item } of growRowRoots([...selectionRoots, ...growth.roots], from, to))
+  const { selectionRoots } = rt.layout,
+    { blendState, setup } = rt
+  const rebound: Rebound = new Map(),
+    rooted = growth.roots.length
+  for (const { item } of growRowRoots([...selectionRoots, ...growth.roots], from, to, rebound))
     growth.roots.push(item)
   // The session's roots read `to` now: their row views are taken again.
   forgetRowRoots(selectionRoots)
-  if (growth.roots.length) growth.asked = true
+  // The blended copies and the items of `from` read `to` too; a copy per new row joins the pass
+  // with the paged copies of the roots just added, the tables keyed by a view following it.
+  const copies = growRowCopies(setup.blendCopies, from, to, rebound)
+  growRowItems(blendState.blendGpu, from, to, rebound)
+  copies.push(...pagedBlendCopiesOf(growth.roots.slice(rooted), setup.pagedBlendCopies))
+  rekeyPagedCopies(setup.pagedBlendCopies, rebound)
+  rebindDeformedWorlds(rt, rebound)
+  setup.blendCopies.push(...copies)
+  growth.copies.push(...copies)
+  if (growth.roots.length || copies.length) growth.asked = true
+}
+
+/** The paged copies held by the view of their root's row stand on the row's new view. */
+function rekeyPagedCopies(held: Map<MatrixElements, BlendCopy>, rebound: Rebound) {
+  for (const [old, view] of rebound) {
+    const copy = held.get(old)
+    if (!copy) continue
+    held.delete(old)
+    held.set(view, copy)
+  }
 }
 
 /** Roots of a source added to the session in place wait beside those a growth brought, to be
