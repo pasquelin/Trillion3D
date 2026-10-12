@@ -1,16 +1,11 @@
 // Three.js vs the engine in a browser world, animation: a frame of the world's loop advancing every
 // playing mixer (`advanceMixers`, `packages/sdk-core/src/world/animation/mixer.ts`) with the
-// WebAssembly sampler the world lends them (`packages/sdk-browser/src/animation/batchAnimation.ts`),
-// against `AnimationMixer.update` on the same clips, on the rigs of `support/animationRigs.ts`.
+// engine's one sampler (`packages/sdk-core/src/world/animation/sample.ts`), against `AnimationMixer.update` on the same clips, on the rigs of `support/animationRigs.ts`.
 import * as THREE from 'three'
-import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
-import { lendAnimationSampler } from '../../../packages/sdk-browser/src/animation/batchAnimation.ts'
 import { advanceMixers } from '../../../packages/sdk-core/src/world/animation/mixer.ts'
 import { rapport } from '../../core/index.ts'
 import { duel } from '../../oracles/core/three-duel.ts'
 import { FRAME, NODES, animationRigs } from './support/animationRigs.ts'
-
-await lendAnimationSampler()
 
 const { scene, bones, bonesThree, mixersThree } = animationRigs()
 
@@ -33,7 +28,7 @@ const lines = [
     name: 'AnimationMixer.update, 400 rigs',
     fichier: [
       'packages/sdk-core/src/world/animation/mixer.ts',
-      'packages/sdk-browser/src/animation/batchAnimation.ts',
+      'packages/sdk-core/src/world/animation/sample.ts',
     ],
     size: NODES,
     three: () => {
@@ -53,8 +48,4 @@ const lines = [
   }),
 ]
 
-rapport(
-  'animation-sampler',
-  lines,
-  'the engine animation poses like Three.js, at least as fast, with the WebAssembly sampler',
-)
+rapport('animation-sampler', lines, 'the engine animation poses like Three.js, at least as fast')

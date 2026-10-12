@@ -16,18 +16,6 @@ export type SdkWasm = {
   arena_free(offset: number, bytes: number): void
   math_box_transform_batch(out: number, boxes: number, mats: number, n: number): void
   math_multiply_matrix4_batch(out: number, a: number, b: number, n: number): void
-  /** The animation sampler (`../animation/batchAnimation.ts`). */
-  anim_sample_tracks(
-    tracks: number,
-    n: number,
-    data: number,
-    dataLength: number,
-    keys: number,
-    arcs: number,
-    out: number,
-    outLength: number,
-    t: number,
-  ): void
   /** The normal cone of the run-time cut's clusters (`../world/page/cutCones.ts`): 0 written,
    *  1 refused. */
   cone_clusters(

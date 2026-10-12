@@ -6,12 +6,12 @@ import { type WorkerScope } from '../host/workerScope.ts'
  * THE ANIMATION SAMPLES TAKEN AHEAD ON A WORKER (`animationWorker.ts`). While the world's loop
  * steps by a fixed delta, an action's clip time in the next frame is known at the end of this one
  * (`advanceMixers`): each action asks for it (`askAhead`), the frame's questions leave in one
- * buffer the worker fills with its WebAssembly sampler while the main thread draws, and the next
+ * buffer the worker fills with its sampler while the main thread draws, and the next
  * frame's sample of that action at that time is read from it (`takeAhead`). A pose is a function of
  * the clip's tracks and the time alone, so a sample the buffer holds for exactly the time asked is
  * the one the main thread would compute, bit for bit; any other time — a delta that changed, a
  * play, stop, seek or speed changed in between — or a buffer not back yet is sampled on the main
- * thread (`batchAnimation.ts`), in that same frame: never a stale pose, never a frame late.
+ * thread (`animationSampler.ts`), in that same frame: never a stale pose, never a frame late.
  *
  * Two buffers go back and forth, transferred, never copied: one read by the frame the main thread
  * is computing, one filled by the worker for the next. A buffer holds `[seq, end]`, then per

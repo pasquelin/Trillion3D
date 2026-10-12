@@ -6,13 +6,10 @@
 // writes, and the worker must have answered most samples.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { NodeDomWorker } from '../../../../bench/oracles/browser/pageWorkNodeWorker.ts'
-import { prepareSdkWasm } from '../wasm/sdkWasm.ts'
+import { NodeWorker } from '../../../../bench/kit/worker.ts'
 import { sampleAhead, type AheadPort } from './animationAhead.ts'
 import { countingSampler } from './animationAhead.fixture.ts'
-import { lendAnimationSampler } from './batchAnimation.ts'
+import { animationSampler } from './animationSampler.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import {
   Mixer,
@@ -23,8 +20,6 @@ import {
 import type { Clip, Track } from '../../../sdk-core/src/world/animation/clip.ts'
 import { assertBits } from '../../../../tests/kit/assert/bits.ts'
 import { lcgImulRandom } from '../../../math/src/sequence/seeded.fixture.ts'
-
-await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../wasm/kernels.wasm')))
 
 let random = lcgImulRandom(11)
 
@@ -64,7 +59,7 @@ function clip(name: string, duration: number): Clip {
 const clips = [clip('walk', 1), clip('run', 0.7), clip('nod', 0.4)]
 
 /** A wrapper of the thread's port that counts the buffers out and back. */
-function counted(worker: NodeDomWorker) {
+function counted(worker: NodeWorker) {
   const port = {
     out: 0,
     back: 0,
@@ -137,12 +132,11 @@ async function play(settle: (frame: number) => Promise<void>) {
 }
 
 test('the samples a worker takes ahead write the bits the main thread alone writes', async (t) => {
-  const lent = (await lendAnimationSampler())!
   sampleAhead(null)
   const reference = await play(async () => {})
-  const { sampler, counts } = countingSampler(lent)
+  const { sampler, counts } = countingSampler(animationSampler)
 
-  const worker = new NodeDomWorker(new URL('./animationWorker.fixture.ts', import.meta.url))
+  const worker = new NodeWorker(new URL('./animationWorker.fixture.ts', import.meta.url))
   const port = counted(worker),
     start = () => port
   try {

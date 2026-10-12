@@ -1,57 +1,11 @@
 /**
- * A DOM `Worker` carried by a real `worker_threads` thread, to prove `packages/sdk-browser/src/page/work/pool.ts` and
- * `packages/sdk-browser/src/page/work/host.ts` with a real worker rather than a mock. `pageWorker.ts` reads and writes
- * `globalThis.postMessage` / `globalThis.onmessage`, which `worker_threads` does not know: a small
- * bridge file, written once per worker in a temporary folder, joins the two without touching the
- * real file. The worker imports `pageWorker.ts` by its URL, exactly as the pool does in a
- * browser.
+ * The fakes a pool is proved against: a worker dead from construction, one that dies after its
+ * first answer, and the shim that installs a `Worker` for the length of a run. The real worker on
+ * a Node thread is `bench/kit/worker.ts`.
  */
-import {
-  Worker as ThreadWorker,
-  type Transferable as ThreadTransferable,
-} from 'node:worker_threads'
-import { mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { PortEvent } from '../../kit/worker.ts'
 
-const dossier = mkdtempSync(join(tmpdir(), 'trillion3d-worker-dom-'))
-let counter = 0
-
-function pont(url: URL) {
-  const path = join(dossier, `pont-${counter++}.mjs`)
-  writeFileSync(
-    path,
-    `import { parentPort } from 'node:worker_threads';\n` +
-      `globalThis.postMessage = (message, transfer) => parentPort.postMessage(message, transfer);\n` +
-      `await import(${JSON.stringify(url.href)});\n` +
-      `parentPort.on('message', (data) => globalThis.onmessage?.({ data }));\n`,
-  )
-  return path
-}
-
-/** The three callbacks a DOM `Worker` carries, at the minimal shape this bridge reads and writes:
- *  one event object with a `data` field, nothing else read from it. */
-type NodeWorkerHandler = ((ev: { data: unknown }) => void) | null
-
-/** The real `Worker`: one `worker_threads` thread per instance, like a module `Worker`. */
-export class NodeDomWorker {
-  #worker: ThreadWorker
-  onmessage: NodeWorkerHandler = null
-  onerror: NodeWorkerHandler = null
-  onmessageerror: NodeWorkerHandler = null
-  constructor(url: URL) {
-    this.#worker = new ThreadWorker(pont(url))
-    this.#worker.on('message', (data) => this.onmessage?.({ data }))
-    this.#worker.on('error', () => this.onerror?.({ data: undefined }))
-    this.#worker.on('messageerror', () => this.onmessageerror?.({ data: undefined }))
-  }
-  postMessage(message: unknown, transfer?: readonly ThreadTransferable[]) {
-    this.#worker.postMessage(message, transfer)
-  }
-  terminate() {
-    return this.#worker.terminate()
-  }
-}
+type NodeWorkerHandler = ((event: PortEvent) => void) | null
 
 /** A worker dead from construction: the startup failure the pool must absorb. */
 export class DeadNodeWorker {
@@ -59,7 +13,7 @@ export class DeadNodeWorker {
   onerror: NodeWorkerHandler = null
   onmessageerror: NodeWorkerHandler = null
   constructor() {
-    queueMicrotask(() => this.onerror?.({ data: undefined }))
+    queueMicrotask(() => this.onerror?.(new PortEvent('error')))
   }
   postMessage() {}
   terminate() {}
@@ -82,16 +36,16 @@ export class FlakyNodeWorker {
     this.#count++
     if (this.#count === 1) {
       queueMicrotask(() =>
-        this.onmessage?.({
-          data: {
+        this.onmessage?.(
+          new PortEvent('message', {
             protocol: message.protocol,
             id: message.id,
             ok: true,
             taskMs: 0,
-          },
-        }),
+          }),
+        ),
       )
-    } else queueMicrotask(() => this.onerror?.({ data: undefined }))
+    } else queueMicrotask(() => this.onerror?.(new PortEvent('error')))
   }
   terminate() {}
 }
@@ -103,7 +57,7 @@ export interface NodeWorkerLike {
     onmessage: NodeWorkerHandler
     onerror: NodeWorkerHandler
     onmessageerror: NodeWorkerHandler
-    postMessage(message: unknown, transfer?: readonly ThreadTransferable[]): void
+    postMessage(message: unknown, transfer?: Transferable[]): void
     terminate(): unknown
   }
 }

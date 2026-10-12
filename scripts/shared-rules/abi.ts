@@ -1,7 +1,6 @@
 // The values the compiler, the runtime and the physics module state in more than one language,
 // written once in TypeScript and printed into the others (`../generate-shared-rules.ts`): the
-// cache formats and compiler defaults into the compiler's Rust, the packed
-// animation tracks' layout into the sampler's Rust, and the public code of the family refusal into
+// cache formats and compiler defaults into the compiler's Rust, and the public code of the family refusal into
 // the browser's TypeScript.
 import { join } from 'node:path'
 import {
@@ -9,7 +8,6 @@ import {
   FORMAT_VERSION,
 } from '../../packages/sdk-core/src/contracts/base.ts'
 import * as compiler from '../../packages/sdk-core/src/contracts/compilerAbi.ts'
-import * as track from '../../packages/sdk-browser/src/animation/trackLayout.ts'
 import { REPOSITORY_ROOT, readJson } from '../repository-files.ts'
 import { header } from './statements.ts'
 
@@ -32,23 +30,6 @@ pub const DEFAULT_TRIANGLE_BUDGET: usize = ${compiler.DEFAULT_TRIANGLE_BUDGET};
 pub const DEFAULT_THREADS: usize = ${compiler.DEFAULT_THREADS};
 /// The memory, in MB, of a compilation that names none.
 pub const DEFAULT_RAM_BUDGET_MB: usize = ${compiler.DEFAULT_RAM_BUDGET_MB};
-`
-}
-
-/** The animation sampler's track layout, `anim_layout.rs`. */
-export function animationLayoutRust() {
-  return `${header(['packages/sdk-browser/src/animation/trackLayout.ts'], '//!')}
-
-/// Words describing one track.
-pub const TRACK_WORDS: usize = ${track.TRACK_WORDS};
-/// Numbers of one track's arc: the key it starts at (−1: none yet), its side, angle and sine.
-pub const ARC_VALUES: usize = ${track.ARC_VALUES};
-/// Kind bit: the track holds rotations.
-pub const QUATERNION: u32 = ${track.QUATERNION};
-/// Interpolation, in the kind's bits above the first: the earlier key.
-pub const STEP: u32 = ${track.STEP};
-/// Interpolation, in the kind's bits above the first: glTF's spline.
-pub const CUBIC: u32 = ${track.CUBIC};
 `
 }
 

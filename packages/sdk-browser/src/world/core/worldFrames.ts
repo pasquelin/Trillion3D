@@ -1,7 +1,7 @@
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { advanceMixers } from '../../../../sdk-core/src/world/animation/mixer.ts'
-import { lendAnimationSampler } from '../../animation/batchAnimation.ts'
+import { lendAnimationSampler } from '../../animation/animationSampler.ts'
 import { frameStart } from '../../frame/scheduling.ts'
 import { createFrameGrid } from './worldFrameGrid.ts'
 
@@ -112,8 +112,8 @@ function member<T>(hooks: Set<(info: T) => void>, hook: (info: T) => void) {
 /** The per-frame hooks of a world, in the order they were added: `before` ones ahead of each
  *  drawn frame, the others after it. */
 export function createWorldFrames() {
-  // The mixers sample through the WebAssembly sampler once the module is there.
-  void lendAnimationSampler()
+  // The mixers take their samples ahead on a worker where the page can start one.
+  lendAnimationSampler()
   // The world's time is its frames' (`frameStart`), on the display's grid while it holds one.
   const state: FramesState = {
     hooks: new Set(),

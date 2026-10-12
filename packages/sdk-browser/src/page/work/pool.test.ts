@@ -1,13 +1,13 @@
 // Batch H2: the bounded pool of module workers, proved with real `worker_threads` threads
-// behind `NodeDomWorker`. Hostile inputs: a runner dead on construction, a runner that dies
+// behind `NodeWorker`. Hostile inputs: a runner dead on construction, a runner that dies
 // after its first answer, a pool retired with work queued.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPageWorkPool } from './pool.ts'
+import { NodeWorker } from '../../../../../bench/kit/worker.ts'
 import {
   DeadNodeWorker,
   FlakyNodeWorker,
-  NodeDomWorker,
   withNodeWorkerShim,
 } from '../../../../../bench/oracles/browser/pageWorkNodeWorker.ts'
 
@@ -16,14 +16,14 @@ const short = () => new ArrayBuffer(2)
 const codeOf = (answer: unknown) => (answer as { code?: string }).code
 
 test('a runner dead on construction answers PAGE_TASK_WORKER without ever blocking', () =>
-  withNodeWorkerShim(DeadNodeWorker as unknown as typeof NodeDomWorker, async () => {
+  withNodeWorkerShim(DeadNodeWorker as unknown as typeof NodeWorker, async () => {
     const pool = createPageWorkPool(2)
     assert.equal(codeOf(await pool.submit('cells', short())), 'PAGE_TASK_WORKER')
     assert.equal(pool.alive, false)
   }))
 
 test('a runner that dies after its first answer answers PAGE_TASK_WORKER to the next job', () =>
-  withNodeWorkerShim(FlakyNodeWorker as unknown as typeof NodeDomWorker, async () => {
+  withNodeWorkerShim(FlakyNodeWorker as unknown as typeof NodeWorker, async () => {
     const pool = createPageWorkPool(1)
     assert.equal((await pool.submit('cells', short())).ok, true, 'the first answer must succeed')
     assert.equal(pool.alive, true)
@@ -34,7 +34,7 @@ test('a runner that dies after its first answer answers PAGE_TASK_WORKER to the 
   }))
 
 test('a retired pool finishes the work it was given, the queued too, then closes', () =>
-  withNodeWorkerShim(NodeDomWorker, async () => {
+  withNodeWorkerShim(NodeWorker, async () => {
     const pool = createPageWorkPool(1)
     // One worker: the second task waits in the queue when the pool retires — a session closing
     // while the cells it asked are still being read.

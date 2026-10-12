@@ -40,8 +40,9 @@ const config: KnipConfig = {
         'scripts/format-staged.ts',
         'bench/runner/bench.ts',
         // The GPU bench in Node (`pnpm run bench:gpu`, `bench:gpu:suite`), its recorder, and the
-        // first module of its worker threads, started by URL (`bench/dawn/worker.ts`).
-        'bench/dawn/{run,suite,recorder,workerBoot}.ts',
+        // first module of its worker threads, started by URL (`bench/kit/worker.ts`).
+        'bench/dawn/{run,suite,recorder}.ts',
+        'bench/kit/workerBoot.ts',
         // The cost model's command lines: the scale laws' sweeps, the model itself.
         'bench/dawn/{laws/sweep,laws/cook,laws/table,model/run}.ts',
         // The water and anisotropy costs on Dawn, launched by hand.

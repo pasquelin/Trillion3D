@@ -12,7 +12,7 @@ const live = new Set<NodeWorker>()
 const BOOT = new URL('./workerBoot.ts', import.meta.url)
 
 /** An event of a worker's port: `data` for a message, `error` for a failure. */
-class PortEvent extends Event {
+export class PortEvent extends Event {
   readonly data: unknown
   readonly error: unknown
   constructor(type: string, data?: unknown, error?: unknown) {
@@ -26,7 +26,7 @@ class PortEvent extends Event {
 }
 
 /** One module worker on a Node thread, as the page's `Worker` answers. */
-class NodeWorker extends EventTarget {
+export class NodeWorker extends EventTarget {
   onmessage: ((event: PortEvent) => void) | null = null
   onerror: ((event: PortEvent) => void) | null = null
   onmessageerror: ((event: PortEvent) => void) | null = null

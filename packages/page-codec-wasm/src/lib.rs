@@ -11,10 +11,7 @@
 //! one shipped resource, one instantiation and one linear memory on the browser side): the page
 //! encoder and the grid rules (`wasm_encode.rs`), the math-foundation batch kernels (`math.rs` and
 //! `trillion3d_math::matrix`, ABI and shared buffer in `wasm_math.rs`), the normal cone of the
-//! pages the world cuts at run time (`normal_cone.rs`, `wasm_cone.rs`) and the animation sampler
-//! (`anim.rs`, `wasm_anim.rs`), never the page decoder: the public `page.decode` is JavaScript.
-pub mod anim;
-mod anim_layout;
+//! pages the world cuts at run time (`normal_cone.rs`, `wasm_cone.rs`), never the page decoder: the public `page.decode` is JavaScript.
 mod attributes;
 pub mod bits;
 pub mod cut_error;
@@ -27,8 +24,6 @@ pub mod normal_cone;
 mod positions;
 pub mod triangles;
 mod unpack;
-#[cfg(target_arch = "wasm32")]
-mod wasm_anim;
 #[cfg(target_arch = "wasm32")]
 mod wasm_cone;
 #[cfg(target_arch = "wasm32")]

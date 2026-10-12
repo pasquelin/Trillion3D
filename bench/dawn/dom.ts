@@ -5,8 +5,8 @@
 import { FakeCanvas } from './canvas.ts'
 import { FakeElement, FakeOption } from './elements.ts'
 import { BenchImage, BenchOffscreenCanvas, createImageBitmap } from './images.ts'
-import { installFileFetch } from './fileFetch.ts'
-import { installWorker } from './worker.ts'
+import { installFileFetch } from '../kit/fileFetch.ts'
+import { installWorker } from '../kit/worker.ts'
 
 /** The display a bench draws for: image pixels and their density. */
 export type BenchDisplay = { width: number; height: number; ratio: number }

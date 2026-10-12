@@ -9,7 +9,7 @@ import type { BenchGpu, Counts } from './device.ts'
 import type { BenchBrowser } from './dom.ts'
 import type { FrameGpu } from './passSpans.ts'
 import { watchedOf } from './watched.ts'
-import { settleWorkers } from './worker.ts'
+import { settleWorkers } from '../kit/worker.ts'
 
 /** The display interval the bench's clock advances by, ms: a 120 Hz display. */
 export const REFRESH_MS = 1000 / 120
