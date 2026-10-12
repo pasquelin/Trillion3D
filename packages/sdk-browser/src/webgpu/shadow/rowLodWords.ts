@@ -39,18 +39,18 @@ function writeError(
 export const ROW_LOD_INPUT_DOUBLES = 12
 /** The inputs' bits (`LOD_FLAGS`): the row has a detail, its finer group and itself are ready, it
  *  has a coarser form, its root has a world box. */
-export const LOD_HAS = 1,
+const LOD_HAS = 1,
   LOD_CHILD_READY = 2,
   LOD_READY = 4,
   LOD_HAS_PARENT = 8,
   LOD_HAS_BOX = 16
 /** Where each input lies: the sphere and its radius grown (centre, radius), the coarser form's,
  *  the own error and the coarser one's before the stretch, the bits. */
-export const LOD_SPHERE = 0,
+const LOD_SPHERE = 0,
   LOD_PARENT_SPHERE = 4,
   LOD_OWN = 8,
-  LOD_PARENT = 9,
-  LOD_FLAGS = 10
+  LOD_PARENT = 9
+export const LOD_FLAGS = 10
 
 /**
  * Row `row`'s detail inputs, into `into` from `o`: the sphere of its level of detail — its dynamic
@@ -103,7 +103,7 @@ export function rowLodInputs(
  * it draws it. A row with no record — a blended caster's is given none — or of a cache without
  * errors is drawn by every page.
  */
-export function applyRowLod(
+function applyRowLod(
   out: Float32Array,
   at: number,
   inputs: Float64Array,

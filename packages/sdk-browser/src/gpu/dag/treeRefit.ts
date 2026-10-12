@@ -16,26 +16,12 @@ import { TREE_REFIT_PASS } from '../../stage/passLabels.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { dispatchRows } from '../dispatch/grid.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { memberBox, treeNodeCount, TREE_SPAN, type PlacementTree } from './placementTree.ts'
+import { memberBox, refitLevels, treeNodeCount, type PlacementTree } from './placementTree.ts'
 import { REFIT_PARAM_WORDS, treeRefitWgsl, type RefitLayout } from './treeRefitWgsl.ts'
 import { DAG_BINDING, dagPartEntries } from './shader/bindings.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import type { DagParts } from './split.ts'
 import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
-
-/** The nodes to fit at each level of `tree` once `groups` changed, bottom up: each level's, as
- *  their index within it, increasing. */
-export function refitLevels(tree: PlacementTree, groups: Iterable<number>) {
-  let touched = new Set(groups)
-  const levels: { level: number; ids: Uint32Array<ArrayBuffer> }[] = []
-  for (let l = tree.levels.length - 1; l >= 0 && touched.size; l--) {
-    levels.push({ level: l, ids: new Uint32Array([...touched].sort((a, b) => a - b)) })
-    const above = new Set<number>()
-    for (const j of touched) above.add(Math.floor(j / TREE_SPAN))
-    touched = above
-  }
-  return levels
-}
 
 /** What a refit reads and writes: the tree's nodes and the order of its members as the device lays
  *  them out, and the frames of each range of placements. */
@@ -192,5 +178,3 @@ function refitProgram(
   )
   return { pipeline, ids, params, tables, groups }
 }
-
-export type TreeRefit = ReturnType<typeof createTreeRefit>

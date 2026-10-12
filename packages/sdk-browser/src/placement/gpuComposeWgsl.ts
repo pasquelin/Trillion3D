@@ -15,7 +15,7 @@ import {
 } from './gpuComposeDerivedWgsl.ts'
 import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
 import { nodeTableBlock, WHOLE_LAYOUT, type RefitLayout } from '../gpu/dag/treeRefitWgsl.ts'
-import { ROW_INPUT_DOUBLES } from './composedRowInputs.ts'
+import { ROW_INPUT_DOUBLES } from './composedRowPack.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
@@ -264,6 +264,3 @@ export const composeMembersWgsl = (nodes: RefitLayout['nodes'] = WHOLE_LAYOUT.no
 }`,
     [PRODUCT_WGSL, FLAT_INDEX_WGSL, fromF32, CARRIED_BOX_WGSL, nodeTableBlock(nodes, 1, false)],
   )
-
-/** The members pass over the nodes as the device lays them out: whole. */
-export const COMPOSE_MEMBERS_WGSL = composeMembersWgsl()

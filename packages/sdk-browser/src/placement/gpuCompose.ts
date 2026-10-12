@@ -68,7 +68,13 @@ import { WORLD_ORIGIN_BYTES } from '../gpu/dag/worldOrigins.ts'
 import { PRIMITIVE_BYTES } from '../gpu/dag/cameraRanges.ts'
 import { linkedRowSpheres } from '../webgpu/shadow/spheres.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
-import { declareSlotMove, holdSlotBox, linkBox, remakeSlotBox } from './composeBoxes.ts'
+import {
+  composedRoot,
+  declareSlotMove,
+  holdSlotBox,
+  linkBox,
+  remakeSlotBox,
+} from './composeBoxes.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { COMPOSE_MEMBERS_PASS, COMPOSE_ROOTS_PASS, COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
 import type { ComposedLeaves } from '../gpu/dag/treeFollow.ts'
@@ -627,13 +633,6 @@ function membersKernel(device: GPUDevice, nodes: RefitLayout['nodes']) {
       })),
     )
   return kernel
-}
-
-/** Whether a parent composes root `rank` on the GPU now, read off the one compose state: its tree
- *  group stays open while it does (`../gpu/dag/treeFollow.ts`). */
-export function composedRoot(rt: Pick<WebgpuPagesRuntime, 'compose'>, rank: number) {
-  const parentOf = rt.compose?.parentOf
-  return !!parentOf && rank < parentOf.length && parentOf[rank] !== NONE
 }
 
 /**

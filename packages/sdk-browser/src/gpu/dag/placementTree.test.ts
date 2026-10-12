@@ -3,8 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
-import { fitPlacementTree } from './placementTree.ts'
-import { refitLevels } from './treeRefit.ts'
+import { packPlacementTree, refitLevels } from './placementTree.ts'
 import { packDagSelection } from './selection.ts'
 import { appendDagRoots, dagRootCounts } from './pack.ts'
 import { SELECTION_WORKGROUP } from '../core/selection.ts'
@@ -65,7 +64,7 @@ test('moving, parking or opening one placement refits its group and its cell, at
       Array(tree.depth).fill(1),
       'a node per level of the tree',
     )
-    fitPlacementTree(dag, tree)
+    packPlacementTree(dag, tree)
     assert.ok(box()[4] >= 1000 && box()[4] > before[4])
     // Its cut is the flat one's at the new pose.
     const moved = fieldCut(roots, fieldCamera([990, 2, 0], [1000, 0, -50]), true, dag)
@@ -76,12 +75,12 @@ test('moving, parking or opening one placement refits its group and its cell, at
     assert.ok(moved.pages.length > 0, 'the moved placement is drawn where it went')
     // Parked, its box no longer holds the far pose.
     dag.rootNodes[70] = 0xffffffff
-    fitPlacementTree(dag, tree)
+    packPlacementTree(dag, tree)
     assert.ok(box()[4] < 1000)
     // Never culled, it opens its group.
     dag.rootNodes[70] = dag.rootBases[70]
     dag.mark[70] = SPRITE_UNCULLED
-    fitPlacementTree(dag, tree)
+    packPlacementTree(dag, tree)
     assert.ok(box()[0] < -1e38 && box()[4] > 1e38)
   }
 })
@@ -124,7 +123,7 @@ test("a growth's placements join the tree in place, the cut the flat one's", () 
   for (let w = 0; w < 100; w++) assert.equal(tree.order[tree.slot[w]], w, `placement ${w}`)
   assert.deepEqual(added.tree.members, [128, 148])
   // The new groups' boxes are the GPU refit's: the CPU fit stands for it in the cut it is read by.
-  fitPlacementTree(dag, tree)
+  packPlacementTree(dag, tree)
   for (const camera of views) {
     const cut = fieldCut(roots, camera, true, dag)
     assert.deepEqual(cut.pages, fieldCut(roots, camera, false, dag).pages)
@@ -186,7 +185,7 @@ test("a growth's batch far from the packed placements fills its own groups: none
   const capacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 160 }
   const dag = packDagSelection(near, capacity)
   assert.ok(appendDagRoots(dag, far))
-  fitPlacementTree(dag, dag.placementTree!)
+  packPlacementTree(dag, dag.placementTree!)
   const at = fieldCamera([10_012, 30, 20], [10_012, 0, -12], 200)
   const seen = fieldCut([...near, ...far], at, true, dag).placements
   assert.ok(

@@ -72,8 +72,13 @@ names its dirty groups to) fits them and every node above, bottom up. A CPU read
 card, transparent depth, a winding — reads the composed world once a frame (`composedWorld`, a
 product of the parent's and the local matrix kept by `state.version`), never a second multiply that
 is written back. Models and partition rows link before their rows are written, so no matrix is
-written for them. What a simulation poses itself — waves, soft bodies, a skeleton in the world's
-frame — keeps its owner's write and is not composed.
+written for them. A link is never refused for what reads its row: waves, soft bodies and skeletons read the
+composed world of their root; rows no root reads — a blended surface's, or a root a growth has not
+built yet — are composed for their readers (`placement/composeReaders.ts`) and handed to the roots
+pass once their root exists. Only the pose a session opens on is written by an owner, before any
+engine exists (`partition/follow.ts`, `world/core/worldModels.ts`); a link the session refuses is
+named (`content-refused`) and its rows are parked. The refit and the members pass bind the cut's
+tables as the cut does, split tables in their parts (`gpu/dag/shader/bindings.ts`).
 
 ## WebGPU page raster
 

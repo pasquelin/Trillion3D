@@ -21,11 +21,11 @@ import { FINITE_SENTINEL } from '../../../math/src/constants.ts'
 import { STRETCH_DOUBLE_WGSL } from './gpuStretchWgsl.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
-import { INPUT_LOD, ROW_INPUT_DOUBLES } from './composedRowInputs.ts'
+import { INPUT_LOD, ROW_INPUT_DOUBLES } from './composedRowPack.ts'
 
 /** The words of a double stored as the CPU's `writeSplitDouble` stores it into a `Float32Array`: its
  *  rounding to single precision, then what it left. A word of zero exponent has none left. */
-export const SPLIT_WGSL = wgslBlock(
+const SPLIT_WGSL = wgslBlock(
   'SPLIT_WGSL',
   [dSub, fromF32, toF32],
   `
@@ -39,7 +39,7 @@ fn splitDouble(x:vec2u)->vec2u{
 
 /** `m[i]·x + m[4+i]·y + m[8+i]·z + m[12+i]`, summed left to right: the axis `i` of
  *  `transformAffinePoint`. */
-export const AFFINE_WGSL = wgslBlock(
+const AFFINE_WGSL = wgslBlock(
   'AFFINE_WGSL',
   [dAdd, dMul],
   `

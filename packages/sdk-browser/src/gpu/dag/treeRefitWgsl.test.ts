@@ -7,8 +7,13 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { placementField } from './placementTree.fixture.ts'
 import { packDagSelection } from './selection.ts'
-import { fitPlacementTree, memberBox, treeNodeCount, TREE_SPAN } from './placementTree.ts'
-import { refitLevels } from './treeRefit.ts'
+import {
+  memberBox,
+  packPlacementTree,
+  refitLevels,
+  treeNodeCount,
+  TREE_SPAN,
+} from './placementTree.ts'
 import { treeRefitWgsl, WHOLE_LAYOUT, type RefitLayout } from './treeRefitWgsl.ts'
 import {
   DOUBLE_HELPERS,
@@ -67,7 +72,7 @@ for (const name of ['whole', 'split across parts and ranges'] as const)
     dag.mark[7000] = 5 << 16
     for (let k = 0; k < TREE_SPAN; k++) dag.rootNodes[tree.order[640 + k]] = NONE
     for (const w of [130, 200, 7000, tree.order[640]]) touched.add(w)
-    fitPlacementTree(dag, tree)
+    packPlacementTree(dag, tree)
     const expected = Array.from(words())
     // The GPU's tables as the change leaves them: the held nodes, the leaves, the frames, the order.
     const nodes = held.slice()

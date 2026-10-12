@@ -11,7 +11,7 @@ import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { PlacementRows } from './rows.ts'
 
 /** A row held by its parent's slot, composed for its readers. */
-export type RowReader = {
+type RowReader = {
   readonly parent: object
   readonly rows: PlacementRows
   readonly index: number

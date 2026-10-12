@@ -23,6 +23,7 @@ import { dAbs, dAdd, dLess, dMax, dMin, dMul, dSub } from '../../../../math/src/
 import { fromF32, toF32 } from '../../../../math/src/wgsl/f32.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { partName } from './shader/splitWgsl.ts'
 import { DAG_BINDING, dagPartBindings, type DagPartTable } from './shader/bindings.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { SELECTION_NONE } from '../core/selection.ts'
@@ -36,7 +37,7 @@ const FRAME_ROOT = 1,
 
 const f32Bits = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
 /** The bits of the bound an open node holds, and of an empty one's. */
-export const OPEN_LOW_BITS = f32Bits(-OPEN),
+const OPEN_LOW_BITS = f32Bits(-OPEN),
   OPEN_HIGH_BITS = f32Bits(OPEN)
 /** What the shader reads a level's parameters as: words of `Params`. */
 export const REFIT_PARAM_WORDS = 8
@@ -130,9 +131,6 @@ export const WHOLE_LAYOUT: RefitLayout = {
   frames: [0],
 }
 
-/** The name of part `part` of `table`: the table's own for the first (`dagPartBindings`). */
-const partName = (table: string, part: number) => (part ? `${table}${part}` : table)
-
 /** Element `i` of a table of equal parts — word `k` of a record of `words`, a word when 1 — read or
  *  written through the part that holds it. */
 function acrossParts(table: string, { per, parts }: { per: number; parts: number }, words: number) {
@@ -222,6 +220,3 @@ export function treeRefitWgsl(layout: RefitLayout = WHOLE_LAYOUT) {
     [FLAT_INDEX_WGSL, FIT_WGSL, refitAccessBlock(layout)],
   )
 }
-
-/** The refit of every table whole. */
-export const TREE_REFIT_WGSL = treeRefitWgsl()

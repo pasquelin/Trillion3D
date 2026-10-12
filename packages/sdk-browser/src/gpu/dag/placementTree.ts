@@ -265,7 +265,7 @@ export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, batch
 
 /** Fits every group, then every level above, bottom up: at pack, and after poses moved past what a
  *  list names. */
-export function fitPlacementTree(packed: TreeSource, tree: PlacementTree) {
+function fitPlacementTree(packed: TreeSource, tree: PlacementTree) {
   for (let k = 0; k < tree.count; k++) memberBox(packed, tree, tree.order[k])
   for (let l = tree.levels.length - 1; l >= 0; l--)
     for (let j = 0; j < tree.levels[l].count; j++) fitNode(packed, tree, l, j)
@@ -364,3 +364,17 @@ function writeBox(nodes: Float32Array, n: number, opened: boolean) {
 /** A node's box grown by its margin, before its corners are written apart (`NODE_MIN`,
  *  `NODE_MAX`). */
 const grownBox = new Float64Array(6)
+
+/** The nodes to fit at each level of `tree` once `groups` changed, bottom up: each level's, as
+ *  their index within it, increasing. */
+export function refitLevels(tree: PlacementTree, groups: Iterable<number>) {
+  let touched = new Set(groups)
+  const levels: { level: number; ids: Uint32Array<ArrayBuffer> }[] = []
+  for (let l = tree.levels.length - 1; l >= 0 && touched.size; l--) {
+    levels.push({ level: l, ids: new Uint32Array([...touched].sort((a, b) => a - b)) })
+    const above = new Set<number>()
+    for (const j of touched) above.add(Math.floor(j / TREE_SPAN))
+    touched = above
+  }
+  return levels
+}

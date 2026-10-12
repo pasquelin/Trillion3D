@@ -14,7 +14,7 @@ import { packPageCorners } from '../webgpu/visibility/corners.ts'
 import { ROW_LOD_FLOATS, writeRowLod } from '../webgpu/shadow/rowLodWords.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL } from './gpuComposeWgsl.ts'
-import { ROW_INPUT_DOUBLES, packInputs, rowInputs } from './composedRowInputs.ts'
+import { ROW_INPUT_DOUBLES, packInputs, rowInputs } from './composedRowPack.ts'
 import {
   DOUBLE_HELPERS,
   countLeadingZeros,

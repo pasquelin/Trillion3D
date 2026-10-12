@@ -11,7 +11,7 @@ import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
 import { COMPOSE_ROWS_WGSL, PART_SPHERES } from './gpuComposeWgsl.ts'
-import { ROW_INPUT_DOUBLES } from './composedRowInputs.ts'
+import { ROW_INPUT_DOUBLES } from './composedRowPack.ts'
 import { DOUBLE_HELPERS, countLeadingZeros, pair } from './composeDoubles.fixture.ts'
 
 export const WORDS = PAGE_INFO_STRIDE / 4,

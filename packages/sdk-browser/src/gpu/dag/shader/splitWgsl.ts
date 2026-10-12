@@ -5,7 +5,7 @@ import { dagPartCounts, type DagSplit } from '../split.ts'
 import { type TableSplit } from '../splitFlags.ts'
 
 /** Part `part` of `table`: the table itself for the first, the part's own binding after. */
-const partName = (table: string, part: number) => (part ? `${table}${part}` : table)
+export const partName = (table: string, part: number) => (part ? `${table}${part}` : table)
 
 /** A read of element `i` of a table of `parts` parts of `per` elements each. */
 function equalParts(fn: string, table: string, type: string, { per, parts }: TableSplit) {
