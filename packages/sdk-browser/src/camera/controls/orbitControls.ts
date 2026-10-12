@@ -2,21 +2,10 @@ import { PI, TAU } from '../../../../math/src/constants.ts'
 import { boxEquals } from '../../../../math/src/geometry/box.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import { createChangeGate, createControlBase } from './base.ts'
-import { pivotControlsApi, trackPivotGestures } from './pivot.ts'
+import { keptDistance, panCenter, pivotControlsApi, trackPivotGestures } from './pivot.ts'
 import { controlPose, readVector, writeVector } from './pose.ts'
-import {
-  clampAzimuth,
-  dollyDistance,
-  orbitOrientation,
-  panOffset,
-  pixelWorldScale,
-} from './math.ts'
-import {
-  fromSpherical,
-  POLAR_EPSILON,
-  RADIUS_EPSILON,
-  toSpherical,
-} from '../../../../math/src/vector/spherical.ts'
+import { clampAzimuth, dollyDistance, orbitOrientation } from './math.ts'
+import { fromSpherical, POLAR_EPSILON, toSpherical } from '../../../../math/src/vector/spherical.ts'
 import { clampCompare } from '../../../../math/src/scalar/reals.ts'
 import type { ControlCamera, PivotCameraControls } from './types.ts'
 
@@ -82,7 +71,6 @@ export function createOrbitCameraControls(
     spherical = new Float64Array(3),
     orientation = new Float64Array(4),
     facing = new Float64Array(4),
-    pan = new Float64Array(3),
     moved = new Float64Array(6),
     bounds = new Float64Array(6),
     applied = new Float64Array(6)
@@ -121,8 +109,7 @@ export function createOrbitCameraControls(
     readBounds()
     applied.set(bounds)
     posed = true
-    const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON)
-    spherical[0] = clampCompare(spherical[0], Math.max(api.minDistance, RADIUS_EPSILON), far)
+    spherical[0] = keptDistance(api, spherical[0])
     spherical[1] = clampAzimuth(spherical[1], api.minAzimuthAngle, api.maxAzimuthAngle)
     spherical[2] = clampCompare(
       spherical[2],
@@ -147,14 +134,7 @@ export function createOrbitCameraControls(
     if (!api.enablePan) return
     sample()
     orbitOrientation(orientation, spherical)
-    panOffset(
-      pan,
-      orientation,
-      dx,
-      dy,
-      pixelWorldScale(spherical[0], pose.fov(), height(), pose.zoom()),
-    )
-    for (let i = 0; i < 3; i++) center[i] += pan[i]
+    panCenter(center, orientation, pose, spherical[0], height(), dx, dy)
     apply()
   }
   const dolly = (steps: number) => {
