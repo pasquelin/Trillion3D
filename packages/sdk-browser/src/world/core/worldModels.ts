@@ -56,6 +56,10 @@ class ModelMeshSource implements DrawSource {
   wear(surface: GraphSurface) {
     this.drawn.material = surface
   }
+  /** The mesh's world within its graph: the local matrix the model's composition links its row by. */
+  get local(): ArrayLike<number> {
+    return this.drawn.matrixWorld.elements
+  }
   /** Writes the row from the mesh as its graph holds it: the model's `world` times its own, whether
    *  the model is `shown` and the mesh and every node above it, whether it casts. */
   write(world: Float64Array, shown: boolean) {
@@ -96,6 +100,7 @@ export type ModelDraws = {
   readonly draws: readonly DrawSource[]
   readonly rowed: readonly (DrawSource & {
     readonly rows: PlacementRows
+    readonly local: ArrayLike<number>
     write(world: Float64Array, shown: boolean): void
   })[]
   /** The pose of the world DAG the model holds, once the world draws it (`rootsOf`). */

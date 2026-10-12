@@ -8,6 +8,7 @@ import type { WorldModels } from './worldModels.ts'
 import { chainShown, rootedUnder } from '../../host/world/rooted.ts'
 import { writeModelNode } from './modelNodes.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
+import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 
 /** Rows a session composes on the GPU under their parent (`placement/gpuCompose.ts`). */
 export type PoseComposer = {
@@ -104,7 +105,7 @@ export function createWorldPoses() {
     touch: (batch: Batch, row: number) => touchRange(batch, row, row),
     /** Every row of `model`'s meshes written from the model as it stands (`WorldModels.pose`). */
     writeModel: (models: WorldModels, model: LoadedModel, shown: boolean) =>
-      writeModel(state, models, model, shown),
+      rewriteModel(state, models, model, shown),
     touchRange,
     writeSeat: (mesh: Mesh, seat: Seat, shown: boolean) => writeSeat(state, mesh, seat, shown),
     /** A node's pose, visibility or `castShadow` moved: it and its subtree are written before the
@@ -167,11 +168,52 @@ function touchRows({ ranges }: PoseState, owner: RowsOwner, from: number, to: nu
   } else ranges.set(owner, { rows: owner.rows, from, to })
 }
 
-/** `model`'s graph posed by the model's world, its rows written and noted for the session. */
-function writeModel(state: PoseState, models: WorldModels, model: LoadedModel, shown: boolean) {
+/**
+ * `model`'s rows: the model's world times each mesh's, written and noted for the session — or,
+ * the model only moved (`moved`) while it stands linked under the session's composition, its world
+ * sent alone, no row written. Written whole, the rows are then linked to the model's world, each
+ * at its mesh's own in the graph (`PoseComposer`): the session composes them from then on.
+ */
+function writeModel(
+  state: PoseState,
+  frame: PoseFrame,
+  model: LoadedModel,
+  shown: boolean,
+  moved: boolean,
+) {
+  const { models, composer } = frame
+  if (
+    moved &&
+    composer &&
+    state.composed.get(model) === shown &&
+    composer.link(model, model.matrixWorld.elements, NONE, false)
+  )
+    return
   const draws = models.pose(model, shown)
   for (const source of draws?.rowed ?? []) touchRows(state, source, 0, 0)
   if (draws?.world) touchRows(state, draws.world, 0, 0)
+  if (!composer || !draws) return
+  // The rows the model's pose writes, each at the mesh's own world within its graph; a session
+  // that holds one of them in no root, or refuses them, leaves them as written.
+  const links = draws.rowed.map((source) => ({
+    rows: source.rows,
+    index: 0,
+    local: source.local,
+  }))
+  if (draws.world) links.push({ rows: draws.world.rows, index: 0, local: IDENTITY_MATRIX4 })
+  if (links.length && composer.link(model, model.matrixWorld.elements, links, true))
+    state.composed.set(model, shown)
+  else if (state.composed.delete(model)) state.dropped.add(model)
+}
+
+/** `model`'s rows written outside a frame's walk (`WorldPoses.writeModel`): the CPU's, whole. A
+ *  link the session holds for them is let go at the next walk and made again. */
+function rewriteModel(state: PoseState, models: WorldModels, model: LoadedModel, shown: boolean) {
+  const draws = models.pose(model, shown)
+  for (const source of draws?.rowed ?? []) touchRows(state, source, 0, 0)
+  if (draws?.world) touchRows(state, draws.world, 0, 0)
+  if (state.composed.delete(model)) state.dropped.add(model)
+  state.moved.add(model)
 }
 
 /**
@@ -257,11 +299,14 @@ function writeSubtree(
   const drawn = shown && node.visible
   const seat = frame.seats.get(node as Mesh)
   if (seat) writeSeat(state, node as Mesh, seat, drawn)
-  if (isModel(node)) writeModel(state, frame.models, node, drawn)
-  const linked = state.composed.has(node)
+  // A model's rows are linked under the model itself (`writeModel`); its children are written
+  // as any node's, no composition of theirs beside it.
+  const model = isModel(node)
+  if (model) writeModel(state, frame, node, drawn, true)
+  const linked = !model && state.composed.has(node)
   if (linked && followParent(state, node, drawn, frame)) return
   for (const child of node.children) writeSubtree(state, child, drawn, frame, false)
-  if (frame.composer && (link || linked)) linkChildren(state, node, drawn, frame)
+  if (!model && frame.composer && (link || linked)) linkChildren(state, node, drawn, frame)
 }
 
 /** Another session or another seating holds none of the links: the composed parents' rows are
@@ -275,7 +320,7 @@ function relink(state: PoseState, composer: PoseComposer | undefined) {
     for (const parent of composed.keys()) {
       state.moved.add(parent)
       state.dropped.add(parent)
-      composeEnded(parent)
+      if (!isModel(parent)) composeEnded(parent)
     }
     composed.clear()
   }
@@ -291,7 +336,8 @@ function writeMoved(state: PoseState, scene: Object3D, frame: PoseFrame) {
   // child's row and link follow (`followParent`).
   for (const node of moved) {
     const parent = node._alive ? node.parent : null
-    if (!parent || !composed.has(parent)) continue
+    // A model's rows are linked under it, its children's moves are no parent's (`writeModel`).
+    if (!parent || !composed.has(parent) || isModel(parent)) continue
     const children = movedUnder.get(parent)
     if (children) children.push(node)
     else movedUnder.set(parent, [node])
@@ -310,7 +356,7 @@ function writeMoved(state: PoseState, scene: Object3D, frame: PoseFrame) {
     writeSubtree(state, node, shown, frame, node !== scene)
   }
   // A model whose node moved is posed once, the node's write in its graph read by its rows.
-  for (const model of posed) writeModel(state, frame.models, model, shownUnder(model, scene))
+  for (const model of posed) writeModel(state, frame, model, shownUnder(model, scene), false)
   moved.clear()
   movedUnder.clear()
 }
@@ -326,7 +372,7 @@ function sendRanges(
   for (const parent of state.dropped)
     if (!state.composed.has(parent)) {
       composer?.link(parent, NONE, NONE, true)
-      composeEnded(parent)
+      if (!isModel(parent)) composeEnded(parent)
     }
   state.dropped.clear()
   for (const [batch, range] of state.ranges)

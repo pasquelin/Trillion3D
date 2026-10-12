@@ -50,6 +50,7 @@ import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { declareSlotMove, holdSlotBox, linkBox, remakeSlotBox } from './composeBoxes.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { COMPOSE_ROOTS_PASS, COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
+import type { DeformedMesh } from '../deformation/frame.ts'
 
 /** A compose pass's bind group and what it names: made again only when one of them moves. */
 const heldGroup = () => ({
@@ -223,12 +224,21 @@ function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, roots: nu
     if (state.parentOf[rank] !== NONE) seedMotion(rt, state, rank)
 }
 
+/** Whether a parent's move can reach what moves `link`'s row beyond its world: waves and a soft
+ *  body read the world the CPU holds, a skeleton whose bones stand in the world's frame reads it
+ *  too (a model's stand in its graph's: `PlacementRows.local`). */
+function readsItsWorld({ rows, index }: PlacementLink) {
+  const source = rows.sources?.[index] as DeformedMesh | null | undefined
+  return !!source && (!!source.waves || !!source.softSource || (!!source.skeleton && !rows.local))
+}
+
 /** The root rank of each link, or undefined when one names a row no root reads or a blended copy
- *  reads: the caller writes the rows itself. */
+ *  reads, or one whose deformation reads the world the CPU holds: the caller writes the rows
+ *  itself. */
 function linkedRanks(rt: WebgpuPagesRuntime, links: readonly PlacementLink[]) {
   const ranks: number[] = []
   for (const link of links) {
-    if (placedBy(rt.blendState.blendGpu, link.rows)) return undefined
+    if (placedBy(rt.blendState.blendGpu, link.rows) || readsItsWorld(link)) return undefined
     const rank = rootRankOfRow(rt.layout.selectionRoots, link.rows, link.index)
     if (rank < 0) return undefined
     ranks.push(rank)

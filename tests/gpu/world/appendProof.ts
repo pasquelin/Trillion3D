@@ -3,7 +3,7 @@
 // its sources at once.
 import { createHash } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
-let lastPixels = new Uint8Array(0)
+let lastPixels: Uint8Array = new Uint8Array(0)
 import { createWorld } from '../../../packages/sdk-browser/src/world/core/world.ts'
 import {
   lastFrameOf,

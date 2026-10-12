@@ -9,21 +9,7 @@ import type { LoadedModel } from './loadedModel.ts'
 import { createWorldModels } from './worldModels.ts'
 import { createWorldRanks } from './worldRanks.ts'
 import { createWorldPoses } from './worldPoses.ts'
-
-/** A model whose graph holds `meshes`, each with its association: the shape of a loaded one a
- *  world reads, nothing of its pages. */
-function model(links: { meshes: number; placements?: ReturnType<typeof createPlacementRows> }[]) {
-  const source = new Group(),
-    drawn = links.map(() => new Mesh(new Geometry(), new Material('meshStandard')))
-  source.add(...drawn)
-  const associations = new Map(drawn.map((mesh, i) => [mesh, links[i]]))
-  const metadata = { primitives: links.map((link) => ({ mesh: link.meshes })) }
-  const loaded = Object.assign(new Object3D(), {
-    isLoadedModel: true,
-    record: { metadata, scene: { source, associations } },
-  }) as unknown as LoadedModel
-  return { loaded, drawn, source }
-}
+import { model } from './worldModels.fixture.ts'
 
 test('each drawn mesh of a model is a source at one row, its ranks moved past the models before', () => {
   const models = createWorldModels(createWorldRanks())
