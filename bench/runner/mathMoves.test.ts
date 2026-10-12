@@ -21,12 +21,12 @@ import {
 } from '../../packages/math/src/sequence/sweep.fixture.ts'
 import { length2, length3 } from '../../packages/math/src/vector/vector.ts'
 import { slab } from './lighting/lightTileCity.ts'
+import { ulpBetween } from '../core/ulp.ts'
 
-/** The bench's figures against the expressions they were written with. A bench number never
- *  reaches a pixel (proof (a)): what is asserted is that the new reading is the old one to
- *  two units in the last place of a double, so a posted figure, rounded for a report, is the same. */
-const ulps = (old: number, now: number) =>
-  old === now ? 0 : Math.abs(old - now) / (Math.abs(old) * Number.EPSILON)
+// The bench's figures against the expressions they were written with. A bench number never
+// reaches a pixel (proof (a)): what is asserted is that the new reading is the old one to a few
+// units in the last place of a double (`ulpBetween`), so a posted figure, rounded for a report, is
+// the same.
 
 test('length3 and length2 read the lengths Math.hypot did, to two units in the last place', () => {
   for (let i = 1; i <= HALTON_SWEEP; i++) {
@@ -35,10 +35,10 @@ test('length3 and length2 read the lengths Math.hypot did, to two units in the l
       haltonSpan(i, 3, -1e3, 1e3),
       haltonSpan(i, 5, -1e3, 1e3),
     ]
-    assert.ok(ulps(Math.hypot(x, y, z), length3(x, y, z)) <= 2, `length3 of ${x}, ${y}, ${z}`)
-    assert.ok(ulps(Math.hypot(x, y), length2(x, y)) <= 2, `length2 of ${x}, ${y}`)
+    assert.ok(ulpBetween(Math.hypot(x, y, z), length3(x, y, z)) <= 2, `length3 of ${x}, ${y}, ${z}`)
+    assert.ok(ulpBetween(Math.hypot(x, y), length2(x, y)) <= 2, `length2 of ${x}, ${y}`)
   }
-  for (const x of edgeValues(-1e3, 1e3)) assert.ok(ulps(Math.hypot(x, 1), length2(x, 1)) <= 2)
+  for (const x of edgeValues(-1e3, 1e3)) assert.ok(ulpBetween(Math.hypot(x, 1), length2(x, 1)) <= 2)
 })
 
 test('the page-quantization angle, from the dot of two unit normals, keeps its degrees', () => {
@@ -48,13 +48,13 @@ test('the page-quantization angle, from the dot of two unit normals, keeps its d
   ]) {
     const old = (Math.acos(Math.min(1, Math.max(-1, dot))) * 180) / Math.PI,
       now = Math.acos(clamp(dot, -1, 1)) * RAD2DEG
-    assert.ok(ulps(old, now) <= 4 || Math.abs(old - now) < 1e-13, `angle of dot ${dot}`)
+    assert.ok(ulpBetween(old, now) <= 4 || Math.abs(old - now) < 1e-13, `angle of dot ${dot}`)
   }
 })
 
 test('the light-tile views turn by the same radians as before', () => {
   for (const degrees of [30, 2, 45, 15, 1, 20, 5, 60, 8, -30, -2])
-    assert.ok(ulps((degrees * Math.PI) / 180, degrees * DEG2RAD) <= 1, `${degrees} degrees`)
+    assert.ok(ulpBetween((degrees * Math.PI) / 180, degrees * DEG2RAD) <= 1, `${degrees} degrees`)
 })
 
 test('the byte units are the exact powers of two they were written as', () => {
@@ -100,7 +100,10 @@ test("the witness's LOD reads its camera's own tangent, the old one to four unit
     const fov = haltonSpan(i, 2, 1, 179)
     assert.ok(Object.is(perspectiveSlope(fov), Math.tan(DEG2RAD * 0.5 * fov)), `fov ${fov}`)
     if (fov <= 120)
-      assert.ok(ulps(Math.tan((fov * Math.PI) / 360), perspectiveSlope(fov)) <= 4, `fov ${fov}`)
+      assert.ok(
+        ulpBetween(Math.tan((fov * Math.PI) / 360), perspectiveSlope(fov)) <= 4,
+        `fov ${fov}`,
+      )
   }
 })
 
@@ -138,7 +141,7 @@ test('the light tiles cut their rays by the engine slab test, as before to two u
     assert.equal(n1 <= f1, n0 <= f0, `ray ${i} hits as before`)
     if (n0 > f0) continue
     hits++
-    assert.ok(ulps(n0, n1) <= 2 && ulps(f0, f1) <= 2, `ray ${i} enters and leaves`)
+    assert.ok(ulpBetween(n0, n1) <= 2 && ulpBetween(f0, f1) <= 2, `ray ${i} enters and leaves`)
   }
   assert.ok(hits > HALTON_SWEEP / 2, `${hits} rays hit`)
 })

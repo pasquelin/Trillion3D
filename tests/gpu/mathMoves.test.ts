@@ -10,6 +10,7 @@ import { length2, length3 } from '../../packages/math/src/vector/vector.ts'
 import { distance, resolveRandom } from './lighting/resolveCases.ts'
 import { angleBetween, inverseTransposeShipped, unit } from './math/inverseTransposeF32.ts'
 import { CASES, COLLAPSED, FLATTENED, TINY_REGULAR } from './math/normalTransformCases.ts'
+import { ulpBetween } from '../../bench/core/ulp.ts'
 
 test('the cameras open the same tangent through perspectiveSlope', () => {
   // `facingWorld.ts` (50°), `computeRasterScene.ts` and `waterCostScene.ts` (55°).
@@ -37,10 +38,6 @@ test("the moving proxy's rays keep their lengths", () => {
   assert.ok(Object.is(length3(0.3, 0.2, 1), Math.hypot(0.3, 0.2, 1)))
 })
 
-/** How far `now` lies from `old`, in units of the last place of `old`. */
-const ulps = (old: number, now: number) =>
-  old === now ? 0 : Math.abs(old - now) / (Math.abs(old) * Number.EPSILON)
-
 test('the resolve proofs draw the same f32 unit vectors, and their distances within two ulps', () => {
   // The vectors reach the GPU as f32: `x / Math.hypot(...v)` and the length rule's normalise give
   // the same f32 words. A distance stays on the CPU, where it picks the lights a point reaches.
@@ -53,7 +50,7 @@ test('the resolve proofs draw the same f32 unit vectors, and their distances wit
         root = Math.hypot(...v)
       v.forEach((x, k) => assert.ok(Object.is(Math.fround(x / root), Math.fround(now[k]))))
       const old = Math.hypot(v[0] - p[0], v[1] - p[1], v[2] - p[2])
-      assert.ok(ulps(old, distance(v, p)) <= 2, `seed ${seed}, draw ${i}`)
+      assert.ok(ulpBetween(old, distance(v, p)) <= 2, `seed ${seed}, draw ${i}`)
     }
   }
 })
@@ -74,7 +71,7 @@ test("the normal model's f32 unit vectors are the same, its angles within two ul
       const [a, b] = [v, c.normal],
         cross = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
       const old = Math.atan2(Math.hypot(...cross), a[0] * b[0] + a[1] * b[1] + a[2] * b[2])
-      assert.ok(ulps(old, angleBetween(a, b)) <= 2, `${c.name}`)
+      assert.ok(ulpBetween(old, angleBetween(a, b)) <= 2, `${c.name}`)
     }
   }
 })
