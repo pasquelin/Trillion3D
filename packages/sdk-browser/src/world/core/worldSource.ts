@@ -59,7 +59,7 @@ export function buildWorldSource(plan: WorldPlan) {
   for (const { cut } of batches)
     if (!ranked.has(cut)) {
       ranked.add(cut)
-      primitives.push({ ...cut.runtime.primitive, mesh: ranks.cut(cut) })
+      primitives.push(ranks.primitive(cut))
     }
   if (!primitives.length && !placed.length && !batches.length) return null
   const { first, metadata, base } = worldManifest(models, primitives)

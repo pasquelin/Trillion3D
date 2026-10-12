@@ -25,7 +25,7 @@ import type { WebgpuResidencySets } from '../../residency/sets.ts'
 type Collected = {
   roots: ClusterRoot<PageRec>[]
   allPages: PageRec[]
-  requestCount: number
+  requests: Map<string, number>
 }
 
 /** The world DAG's root among the cut's. */
@@ -50,7 +50,7 @@ export function withWorldRoot<T extends Collected>(collected: T, context: Engine
   if (!root) return collected
   roots.push(root)
   for (const page of root.pages) allPages.push(page)
-  return { ...collected, requestCount: indexPageRequests(allPages) }
+  return { ...collected, requests: indexPageRequests(allPages) }
 }
 
 /**

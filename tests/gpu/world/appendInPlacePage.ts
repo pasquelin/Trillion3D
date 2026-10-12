@@ -16,12 +16,19 @@ import { animationFrame } from '../kit/onDawn.ts'
 type World = ReturnType<typeof createWorld>
 
 const ball = geometry.sphere(0.6, 16, 12)
+const crate = geometry.box(0.9, 0.9, 0.9)
 const paints = [0xb04a3a, 0x3a7ab0].map((color) => material.meshStandard({ color, roughness: 0.7 }))
 
 /** `count` meshes of the shared sphere, worn with `paint`, along z at `row`. */
-function row(world: World, paint: (typeof paints)[number], row: number, count: number) {
+function row(
+  world: World,
+  paint: (typeof paints)[number],
+  row: number,
+  count: number,
+  shape: typeof ball = ball,
+) {
   for (let i = 0; i < count; i++) {
-    const mesh = object.mesh(ball, paint)
+    const mesh = object.mesh(shape, paint)
     mesh.position.set((i - (count - 1) / 2) * 1.6, 0.6, row)
     world.scene.add(mesh)
   }
@@ -58,14 +65,16 @@ function open() {
   return { world, close: () => (world.dispose(), canvas.remove()) }
 }
 
-export async function run() {
+/** A world draws a row, a second row joins it while it runs, and the image is that of a world
+ *  opened on both: `shape` the second row's geometry. */
+async function joined(shape: typeof ball) {
   const grown = open()
   try {
     await grown.world.ready
     row(grown.world, paints[0], 0, 5)
     const before = await frame(grown.world)
     const sessions = grown.world.diagnostic.sessions
-    row(grown.world, paints[1], -2, 5)
+    row(grown.world, paints[1], -2, 5, shape)
     // The roots join the cut between two images: frames are drawn until the new batch appears.
     let after = await frame(grown.world)
     for (let wait = 0; wait < 100 && after === before; wait++) {
@@ -76,7 +85,7 @@ export async function run() {
     try {
       await reference.world.ready
       row(reference.world, paints[0], 0, 5)
-      row(reference.world, paints[1], -2, 5)
+      row(reference.world, paints[1], -2, 5, shape)
       const opened = await frame(reference.world)
       return {
         before,
@@ -91,3 +100,9 @@ export async function run() {
     grown.close()
   }
 }
+
+/** Another material on the geometry the session draws. */
+export const run = () => joined(ball)
+
+/** A geometry the session does not hold. */
+export const runGeometry = () => joined(crate)

@@ -35,6 +35,25 @@ export function pageHomes(widths: ReadonlyMap<string, number>): PageHomes | unde
   return bytes > 0 ? { homes, bytes } : undefined
 }
 
+/** `homes`, a home added behind the others for each address of `widths` it does not name: the
+ *  pages it holds keep their rank, their offset and their width, and the pool that holds the
+ *  catalogue grows by the bytes added. `homes` is the owner's, written in place; none is made
+ *  of an empty catalogue (`pageHomes`) but by it. An address named already, wider here, is
+ *  refused: a page that grew keeps no place. */
+export function extendHomes(homes: PageHomes, widths: ReadonlyMap<string, number>) {
+  const held = homes.homes as Map<string, PageHome>
+  for (const [key, width] of widths) {
+    if (!Number.isSafeInteger(width) || width < 0 || width % 4) throw new Error('INVALID_PAGE_HOME')
+    const home = held.get(key)
+    if (home) {
+      if (width > home.bytes) throw new Error('PAGE_HOME_OUTGROWN')
+      continue
+    }
+    held.set(key, { rank: held.size, offset: homes.bytes, bytes: width })
+    homes.bytes += width
+  }
+}
+
 /** The homes a pool of `slots` places its pages in: those of the whole catalogue when it holds
  *  it, none — fixed slots — otherwise. */
 export const heldHomes = (homes: PageHomes | undefined, slots: number) =>

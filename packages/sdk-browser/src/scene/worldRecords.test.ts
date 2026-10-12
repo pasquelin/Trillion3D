@@ -89,7 +89,7 @@ test('a world root no mesh wears is no page: the cover and the floor take no slo
   const root = worldSelectionRoot(world, (p) => (p === 0 ? { drawSource, surface } : undefined), 7)!
   assert.equal(root.pages[top].url, '', 'the pinned top no mesh wears')
   const cover = rootCoverOf([root], createWebgpuPageTracking(root.pages))
-  assert.ok(cover.bootstrap.length > 0 || cover.floorPages > 0)
+  assert.ok(cover.bootstrap.length > 0 || cover.floorUrls.size > 0)
   assert.ok(
     !cover.bootstrap.some((page) => pageAddress(page) === ''),
     'no page read at an empty address',

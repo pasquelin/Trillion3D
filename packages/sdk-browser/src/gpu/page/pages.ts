@@ -3,7 +3,7 @@ import type { EngineDiagnostic } from '../../engine/types.ts'
 import { createGpuPageReader } from './reader.ts'
 import { createGpuPageLoader } from './load.ts'
 import { createGpuPagePins } from './gpuPagePins.ts'
-import { createPageBuffer, pageBufferBytes } from './resize.ts'
+import { createPageBuffer, pageBufferBytes, type GrownPages } from './resize.ts'
 import { disposePageCache, pageCacheStats, resizeBehind, unloadPage } from './cacheOps.ts'
 import { heldHomes, type PageHomes } from './homes.ts'
 import { createEviction, type EvictionOrder } from './eviction.ts'
@@ -55,7 +55,7 @@ export function createGpuPageCache(
      * into a buffer while it is being copied. The cache keeps held pins before ordinary pins.
      * Returns keys evicted for lack of room.
      */
-    resize: (slots: number) => resizeBehind(context, slots),
+    resize: (slots: number, grown?: GrownPages) => resizeBehind(context, slots, grown),
     get(key: string) {
       return resident.get(key)
     },

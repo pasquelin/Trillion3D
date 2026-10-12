@@ -192,7 +192,7 @@ export function referenceCollectClusterPages(
     allPages,
     blendCopies,
     bootstrap,
-    requestCount: indexPageRequests(allPages),
+    requests: indexPageRequests(allPages),
     prepared: metadata.primitives.reduce((n, p) => n + p.pages.length, 0),
   }
 }

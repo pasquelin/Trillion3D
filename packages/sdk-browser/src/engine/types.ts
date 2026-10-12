@@ -14,6 +14,7 @@ import type { CpuStepSummary } from '../stage/profiler.ts'
 import type { HostCpuStep } from '../host/cpuProfile.ts'
 import type { EngineDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
+import type { StreamPage } from '../streaming/types.ts'
 import type { EngineSceneUpdates } from '../placement/engineSceneUpdates.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { EngineProbes } from './probes.ts'
@@ -167,6 +168,9 @@ export interface EngineContext {
   /** Reads the cache's resident-proxy object once, at the first lit frame; absent without one. */
   readSceneProxy?: () => Promise<import('../../../sdk-core/src/index.ts').SceneProxy>
   readPage?: (url: string) => Promise<Uint32Array> // Validated reader of a page not yet in memory.
+  /** Catalogues the pages of a primitive added to the manifest after the open, before they are
+   *  read (`PageQueue.admit`). */
+  admitPages?: (pages: readonly StreamPage[]) => void
   /** Reader of the cache's geometry pages; absent from a cache that carries none, whose slots are
    *  written from the index pages the arrivals left in memory (`../webgpu/pages/readPage.ts`). */
   readGeometryPage?: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>

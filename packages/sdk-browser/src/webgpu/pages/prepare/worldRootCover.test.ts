@@ -9,7 +9,10 @@ import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 test("a held cell's roots gain a holder while it holds them, until the backend ends", async (t) => {
   const { context, hold, opaque } = await scene(t, true)
   const roots = [placed(opaque)] as unknown as ClusterRoot<PageRec>[]
-  const { roots: selectionRoots } = withWorldRoot({ roots, allPages: [], requestCount: 0 }, context)
+  const { roots: selectionRoots } = withWorldRoot(
+    { roots, allPages: [], requests: new Map() },
+    context,
+  )
   const told: [string[], boolean][] = []
   const holdCover = (pages: readonly PageRec[], held: boolean) =>
     void told.push([pages.map((page) => page.url), held])
@@ -44,7 +47,10 @@ test("a held cell's roots gain a holder while it holds them, until the backend e
 test('the room is the least the live sessions leave; one that ends leaves the others’', async (t) => {
   const { context, opaque, hold } = await scene(t, true)
   const roots = [placed(opaque)] as unknown as ClusterRoot<PageRec>[]
-  const { roots: selectionRoots } = withWorldRoot({ roots, allPages: [], requestCount: 0 }, context)
+  const { roots: selectionRoots } = withWorldRoot(
+    { roots, allPages: [], requests: new Map() },
+    context,
+  )
   const session = (ends: AbortController) =>
     ({
       ...{ context, layout: { selectionRoots }, signal: ends.signal },

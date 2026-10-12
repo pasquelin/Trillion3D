@@ -3,7 +3,7 @@ import { ledgerReplacing } from '../core/deviceLedger.ts'
 import { evictResident } from './commit.ts'
 import type { Eviction } from './eviction.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
-import { heldHomes, type PageHomes } from './homes.ts'
+import { extendHomes, heldHomes, pageHomes, type PageHomes } from './homes.ts'
 import {
   homePlacement,
   quarterBytesOf,
@@ -56,6 +56,10 @@ function rankedPages(
   return buckets.reverse().flatMap((bucket) => bucket.sort(byRecency))
 }
 
+/** The catalogue a pool is laid out for when pages join it: the slot width the widest of them
+ *  asks, and the width of each address new to it (`extendHomes`). */
+export type GrownPages = { pageBytes: number; widths: ReadonlyMap<string, number> }
+
 /**
  * The pool changes size WITHOUT losing what it holds. The pages that matter most keep a place, wherever they
  * were: the root cover first — which a pool never goes below —, then the pinned
@@ -66,13 +70,26 @@ function rankedPages(
  * no fixed slot. Each move goes through the change log, which the residency mirror reads as an
  * ordinary arrival or departure. Returns the evicted keys, pinned included: the caller unpins
  * them on its side.
+ *
+ * Pages joined the catalogue (`grown`): their homes are added behind the others, a pool that holds
+ * the catalogue growing by their bytes with every page where it was; a slot made wider takes every
+ * page to its place in the wider slots, as a pool of another size does.
  */
-export function resizeGpuPages(context: GpuPageContext, slots: number): string[] {
-  const { device, pageBytes, resident } = context
-  const from = heldHomes(context.homes, context.slots),
-    to = heldHomes(context.homes, slots)
-  // Both hold the whole catalogue: every page keeps its home, in the buffer it is in.
-  if (from && to) return ((context.slots = slots), [])
+export function resizeGpuPages(
+  context: GpuPageContext,
+  slots: number,
+  grown?: GrownPages,
+): string[] {
+  const { device, resident } = context
+  const was = context.pageBytes,
+    pageBytes = Math.max(was, grown?.pageBytes ?? was)
+  const from = heldHomes(context.homes, context.slots)
+  if (grown) joinHomes(context, grown.widths)
+  const to = heldHomes(context.homes, slots)
+  const widened = pageBytes !== was
+  // Both hold the whole catalogue: every page keeps its home, in the buffer it is in — a larger one
+  // when homes were added behind them.
+  if (from && to) return growHomes(context, slots, to, pageBytes)
   // The new pool replaces the old, freed once its pages are copied: the budget admits it so.
   const next = ledgerReplacing(device, context.buffer.size, () =>
     createPageBuffer(device, pageBufferBytes(device, pageBytes, slots, to)),
@@ -80,7 +97,7 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
   const encoder = device.createCommandEncoder({ label: 'Trillion3D geometry page cache resize' })
   // Split slots move their quarters with them: the pool is laid out again, page by page.
   const repack = !from && !to && context.placement.split.size > 0
-  if (!from && !to && !repack)
+  if (!from && !to && !repack && !widened)
     encoder.copyBufferToBuffer(
       context.buffer,
       0,
@@ -94,13 +111,10 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
     evicted.push(page.key)
   }
   /** Each page's width before the move: its quarter's or its slot's. */
-  const quarterBytes = quarterBytesOf(pageBytes)
+  const quarterBytes = quarterBytesOf(was)
   const widths = new Map<string, number>()
   for (const page of resident.values())
-    widths.set(
-      page.key,
-      context.placement.split.get(page.slot)?.has(page.key) ? quarterBytes : pageBytes,
-    )
+    widths.set(page.key, context.placement.split.get(page.slot)?.has(page.key) ? quarterBytes : was)
   /** Copies a page and what follows it in its place — its tails — to `offset` of the new pool:
    *  its home's width where it has or takes one, never a byte of a neighbour's. */
   const move = (page: ResidentPage, slot: number, offset: number) => {
@@ -117,7 +131,7 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
     page.offset = offset
     context.changes.placed(page.key, offset)
   }
-  if (repack) repackPages(context, slots, leave, move)
+  if (repack) repackPages(context, slots, pageBytes, leave, move)
   else if (to) {
     // Each page to its own home; one the catalogue does not name has none, and leaves.
     for (const page of [...resident.values()]) {
@@ -133,7 +147,7 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
     const occupied = new Uint8Array(slots)
     const displaced: ResidentPage[] = []
     for (let i = 0; i < pages.length && i < slots; i++)
-      if (!from && pages[i].slot < slots) occupied[pages[i].slot] = 1
+      if (!from && !widened && pages[i].slot < slots) occupied[pages[i].slot] = 1
       else displaced.push(pages[i])
     for (let i = slots; i < pages.length; i++) leave(pages[i])
     // Free slots are taken from the top by a load; a displaced page takes the lowest.
@@ -148,7 +162,34 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
   context.buffer.destroy()
   context.buffer = next
   context.slots = slots
+  context.pageBytes = pageBytes
   return evicted
+}
+
+/** The homes of the addresses `widths` names, behind the pool's own. */
+function joinHomes(context: GpuPageContext, widths: ReadonlyMap<string, number>) {
+  if (context.homes) extendHomes(context.homes, widths)
+  else context.homes = pageHomes(widths)
+}
+
+/** A pool that holds the whole catalogue before and after: every page keeps its home, the buffer
+ *  made larger, and copied whole, when the homes added need bytes it lacks. */
+function growHomes(context: GpuPageContext, slots: number, to: PageHomes, pageBytes: number) {
+  const { device, resident } = context
+  if (context.buffer.size < to.bytes) {
+    const next = ledgerReplacing(device, context.buffer.size, () =>
+      createPageBuffer(device, pageBufferBytes(device, context.pageBytes, slots, to)),
+    )
+    const encoder = device.createCommandEncoder({ label: 'Trillion3D geometry page cache growth' })
+    encoder.copyBufferToBuffer(context.buffer, 0, next, 0, context.buffer.size)
+    device.queue.submit([encoder.finish()])
+    context.buffer.destroy()
+    context.buffer = next
+  }
+  context.placement = homePlacement(to, to.homes.size - resident.size)
+  context.slots = slots
+  context.pageBytes = pageBytes
+  return []
 }
 
 /**
@@ -160,10 +201,11 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
 function repackPages(
   context: GpuPageContext,
   slots: number,
+  pageBytes: number,
   leave: (page: ResidentPage) => void,
   move: (page: ResidentPage, slot: number, offset: number) => void,
 ) {
-  const { pageBytes, resident } = context
+  const { resident } = context
   const quarterBytes = quarterBytesOf(pageBytes)
   const layout: SlotLayout = wholeSlots([])
   const { free, quarters, split } = layout

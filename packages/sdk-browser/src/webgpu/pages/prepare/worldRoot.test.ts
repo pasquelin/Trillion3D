@@ -15,13 +15,13 @@ test('the world joins the catalogue as the last root, its requests ranked again'
   const { context, hold, opaque } = await scene(t)
   const roots = [placed(opaque)] as unknown as ClusterRoot<PageRec>[]
   const allPages = [...roots[0].pages]
-  const collected = withWorldRoot({ roots, allPages, requestCount: 1 }, context)
+  const collected = withWorldRoot({ roots, allPages, requests: new Map() }, context)
   const world = collected.roots.at(-1)!
   assert.equal(world.pages.length, hold.drawn!.dag!.pages.length)
   assert.ok('origins' in world, 'the world DAG, packed last')
   assert.equal(collected.allPages.length, 1 + world.pages.length)
   assert.equal(world.pages[0].renderOrder, 4, 'drawn after every other')
-  assert.ok(collected.requestCount > 1, 'its pages ranked among the requests')
+  assert.ok(collected.requests.size > 1, 'its pages ranked among the requests')
 })
 
 test("a world page is read through the world's source, any other through the host", async (t) => {
@@ -67,7 +67,7 @@ test('the layout keeps the world DAG among the opaque roots, wherever it sits', 
     {
       roots: [opaquePlacement, blended] as unknown as ClusterRoot<PageRec>[],
       allPages: [],
-      requestCount: 0,
+      requests: new Map(),
     },
     context,
   ).roots

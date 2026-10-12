@@ -92,7 +92,7 @@ const passeCollect =
     }
     return {
       refusal: null,
-      requestCount: output.requestCount,
+      requestCount: output.requests.size,
       prepared: output.prepared,
       blendCopies: output.blendCopies.length,
       bootstrap: output.bootstrap.length,

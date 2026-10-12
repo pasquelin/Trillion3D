@@ -95,7 +95,11 @@ test('a batch the session was not opened with is handed to it, seated, and waits
     ['b'],
   )
   assert.deepEqual(seated, [late], 'its mesh holds a row')
-  assert.deepEqual(handed, [[joined[0], { key: 'b' }]], 'the session heard it once')
+  assert.deepEqual(
+    handed,
+    [[joined[0], { key: 'b', mesh: 0 }]],
+    'the session heard it once, at its rank',
+  )
   assert.equal(batches.waiting(), false)
   await Promise.resolve()
   assert.equal(batches.waiting(), false, 'taken: no opening is asked')

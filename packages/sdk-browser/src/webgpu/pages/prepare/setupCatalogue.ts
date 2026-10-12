@@ -17,14 +17,12 @@ export function setupPages(context: EngineContext, diag: WebgpuDiagnostics) {
     collectClusterPages(source, draws, metadata, indices, { allowMissing: true }),
     context,
   )
-  const { roots, allPages, blendCopies, requestCount } = collected
+  const { roots, allPages, blendCopies, requests } = collected
   const sharedBlendMeshes = blendCopies.length
   const pagedBlendCopies = pagedBlendCopiesOf(roots, blendCopies)
   // Request rank → address, posted once for the scene's life: the delta the host receives after the
   // render carries only integers, and it is this table that translates them.
-  const requestUrls: string[] = new Array<string>(requestCount)
-  for (const { requestIndex: rank, streamUrl, url } of allPages)
-    if (rank !== undefined && rank >= 0 && rank < requestCount) requestUrls[rank] = streamUrl ?? url
+  const requestUrls = [...requests.keys()]
   const tracking = createWebgpuPageTracking(allPages)
   diag.traceDiagnostic('page-catalog', 'Stable WebGPU page catalogue', {
     count: tracking.pageCatalog.length,
@@ -69,10 +67,10 @@ type SetupPages = ReturnType<typeof collectClusterPages>
 
 /** The setup's fields of the catalogue's tracking and root cover. */
 export function bootstrapFields(pages: ReturnType<typeof setupPages>) {
-  const { tracking, bootstrap, coverUrls, bootstrapKey, floorPages } = pages
+  const { tracking, bootstrap, coverUrls, bootstrapKey, floorUrls, requests } = pages
   // `byUrl` is indexed by REQUEST key: the streaming bundle when the cache publishes one, the cluster
   // object otherwise. One request therefore hands bytes to every cluster that shares it. The GPU page
   // cache stays keyed by pool address (`pageAddress`), the granularity it uploads and pins.
   const byUrl = indexPagesByUrl(pages.allPages)
-  return { tracking, bootstrap, coverUrls, bootstrapKey, floorPages, byUrl }
+  return { tracking, bootstrap, coverUrls, bootstrapKey, floorUrls, byUrl, requests }
 }

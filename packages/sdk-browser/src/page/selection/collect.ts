@@ -220,7 +220,7 @@ export function collectClusterPages(
   return {
     ...{ roots, allPages, worlds, blendCopies, blendOf, wears, reassignBlend, bootstrap },
     collector,
-    requestCount: indexPageRequests(allPages),
+    requests: indexPageRequests(allPages),
     prepared: metadata.primitives.reduce((n, p) => n + p.pages.length, 0),
   }
 }

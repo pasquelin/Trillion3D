@@ -87,7 +87,7 @@ export function createWorldBatches(
       for (const batch of joined) {
         fit(state, batch, seated)
         const refuse = () => (state.refusals.add(batch), state.refused())
-        grow.addPlacements!(batch, batch.cut.runtime.primitive).then(
+        grow.addPlacements!(batch, state.ranks.primitive(batch.cut)).then(
           (taken) => taken || refuse(),
           refuse,
         )

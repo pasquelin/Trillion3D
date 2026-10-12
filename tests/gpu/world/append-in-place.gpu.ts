@@ -23,3 +23,15 @@ test('a second material on a held geometry joins the session in place and draws 
   assert.deepEqual(result.sessions, [1, 1], 'the session was never opened again')
   assert.equal(result.after, result.opened, 'the image is the fresh open’s')
 })
+
+test('a second geometry joins the session in place and draws as a fresh open', async () => {
+  const result = (await runPageProof(
+    resolve(import.meta.dirname, 'appendInPlacePage.ts'),
+    'appendInPlace',
+    'runGeometry',
+  )) as Result
+  assertSoundProof(result)
+  assert.notEqual(result.after, result.before, 'the second geometry appeared')
+  assert.deepEqual(result.sessions, [1, 1], 'the session was never opened again')
+  assert.equal(result.after, result.opened, 'the image is the fresh open’s')
+})

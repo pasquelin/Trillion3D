@@ -1,5 +1,6 @@
 import type { Cut } from './worldCuts.ts'
 import type { LoadedModel } from './loadedModel.ts'
+import type { Primitive } from '../../../../sdk-core/src/index.ts'
 
 /**
  * THE MESH RANKS OF A WORLD, GIVEN ONCE. A geometry resource and a loaded model each take their
@@ -9,14 +10,25 @@ import type { LoadedModel } from './loadedModel.ts'
  */
 export function createWorldRanks() {
   const cuts = new WeakMap<Cut, number>(),
-    models = new WeakMap<LoadedModel, number>()
+    models = new WeakMap<LoadedModel, number>(),
+    primitives = new WeakMap<Cut, Primitive>()
   let next = 0
+  const rankOf = (cut: Cut) => {
+    let rank = cuts.get(cut)
+    if (rank === undefined) cuts.set(cut, (rank = next++))
+    return rank
+  }
   return {
     /** The rank of the primitive of `cut`. */
-    cut(cut: Cut) {
-      let rank = cuts.get(cut)
-      if (rank === undefined) cuts.set(cut, (rank = next++))
-      return rank
+    cut: rankOf,
+    /** The primitive of `cut` at its rank: the one object a session opens on and the one a session
+     *  already open is handed, its pages the resource's own. */
+    primitive(cut: Cut) {
+      let primitive = primitives.get(cut)
+      if (!primitive) {
+        primitives.set(cut, (primitive = { ...cut.runtime.primitive, mesh: rankOf(cut) }))
+      }
+      return primitive
     },
     /** The first rank of `model`'s block; `span` its meshes' ranks past it, read at its first
      *  seat only. */

@@ -2,6 +2,7 @@ import type {
   ClusterManifest,
   GeometryPageDescriptor,
   Page,
+  Primitive,
   StreamBundle,
 } from '../../../sdk-core/src/index.ts'
 
@@ -32,6 +33,15 @@ export function indexManifestPages(metadata: ClusterManifest) {
     geometryPages: [...geometryByUrl.values()],
     pageIdByUrl,
   }
+}
+
+/** The pages a primitive is read through, as the streamer catalogues them: its index pages, its
+ *  geometry pages and the bundles that carry them. */
+export function primitivePages(primitive: Primitive) {
+  const pages: (Page | GeometryPageDescriptor | StreamBundle)[] = [...primitive.pages]
+  for (const page of primitive.pages) if (page.geometry) pages.push(page.geometry)
+  for (const bundle of primitive.streams?.pages ?? []) pages.push(bundle)
+  return pages
 }
 
 /** Manifest streaming bundles, deduplicated by URL, in order of appearance. */
