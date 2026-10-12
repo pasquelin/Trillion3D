@@ -22,9 +22,8 @@ function codec() {
   }
 }
 
-/** The TypeScript names the readers know three of the page's constants by. */
+/** The TypeScript names the readers know two of the page's constants by. */
 const RENAMED: Record<string, string> = {
-  MAGIC: 'CLUSTER_PAGE_MAGIC',
   VERSION: 'GEOMETRY_PAGE_FORMAT_VERSION',
   HEADER_WORDS: 'CLUSTER_HEADER_WORDS',
 }
@@ -40,32 +39,21 @@ const exported = (constants: readonly RustConstant[], names: readonly string[]) 
     return found
   })
 
-/** The constants a reader recognises by their hexadecimal digits. */
-const HEX = new Set(['MAGIC'])
-
 const declaration = ({ name, value, doc }: RustConstant) =>
-  `${doc.length ? `/**\n${comment(doc, ' * ')}\n */\n` : ''}export const ${RENAMED[name] ?? name} = ${HEX.has(name) ? `0x${value.toString(16)}` : value}`
+  `${doc.length ? `/**\n${comment(doc, ' * ')}\n */\n` : ''}export const ${RENAMED[name] ?? name} = ${value}`
 
 /** The page format's constants, printed for the TypeScript readers. */
 export function pageFormatTs() {
-  const { page, bits, deform, triangles, grid, dag } = codec()
+  const { page, deform, triangles, grid, dag } = codec()
   const flags = [
-    ...exported(page, [
-      'FLAG_NORMAL',
-      'FLAG_UV',
-      'FLAG_UV1',
-      'FLAG_COLOR',
-      'FLAG_SOFT_SOURCE',
-      'FLAGS_ALL',
-    ]),
+    ...exported(page, ['FLAG_NORMAL', 'FLAG_UV', 'FLAG_UV1', 'FLAG_COLOR', 'FLAG_SOFT_SOURCE']),
     ...exported(deform, ['FLAG_SKIN', 'FLAG_MORPH']),
   ]
   const items = [
-    ...exported(page, ['MAGIC', 'VERSION', 'HEADER_WORDS']),
+    ...exported(page, ['VERSION', 'HEADER_WORDS']),
     ...flags,
-    ...exported(deform, ['MAX_JOINT_BITS', 'MAX_MORPH_TARGETS', 'MORPH_WORDS']),
-    ...exported(triangles, ['TRIANGLE_BLOCK', 'BLOCK_CORNERS', 'WIDTH_BITS', 'MAX_WIDTH']),
-    ...exported(bits, ['MAX_BITS', 'MAX_EXPONENT']),
+    ...exported(deform, ['MAX_MORPH_TARGETS', 'MORPH_WORDS']),
+    ...exported(triangles, ['TRIANGLE_BLOCK', 'BLOCK_CORNERS', 'WIDTH_BITS']),
     ...exported(grid, ['UV_EXPONENT']),
     ...exported(dag, ['DAG_CLUSTER_TRIANGLES', 'DAG_CLUSTER_VERTICES']),
   ]

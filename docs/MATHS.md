@@ -19,8 +19,7 @@ imports it. Its contract:
   arithmetic (`multiply`, `min`, `addScalar`) stays.
 
 Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`, `half` — the
-float16 encode and decode), `vector/` (with `spherical.ts`, and `lengthFloat32.ts`, the length
-rounded in float32 as the GPU computes it),
+float16 encode and decode), `vector/` (with `spherical.ts`),
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
 spheres, cones, slabs, triangles, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal
 and pixel scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the

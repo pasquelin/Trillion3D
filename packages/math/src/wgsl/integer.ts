@@ -16,7 +16,7 @@ export const ceilDiv = wgslFn('ceilDiv', [], 'fn ceilDiv(a:u32,n:u32)->u32{retur
  *  times by integer division, one texel at least (`mipSize`, `../scalar/integers.ts`); a level past
  *  31 gives one texel, where a shift by 32 or more would wrap. Held to the processor's by
  *  `golden/mip_size.json`. */
-export const mipSize = wgslFn(
+const mipSize = wgslFn(
   'mipSize',
   [],
   'fn mipSize(size:u32,level:u32)->u32{return max(size>>min(level,31u),1u);}',
