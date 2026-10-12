@@ -4,7 +4,7 @@
 import type { Object3D } from '../object/object3d.ts'
 import { Blends, type Blend } from './blend.ts'
 import { clipTimeOf, trackWidth, type Clip, type Track, type TrackBinding } from './clip.ts'
-import { difference, sample } from './sample.ts'
+import { difference, sample, sampleInto } from './sample.ts'
 import {
   HELD,
   UNRECORDED,
@@ -25,7 +25,7 @@ const advancing: Mixer[] = []
 type Slot = { track: Track; binding: TrackBinding; blend: Blend; pose: boolean }
 /** An action's slots, by the track's place in its clip, read by an update with no lookup;
  *  `alone` once known: whether every track is bound and no two write one property; `sampler`
- *  once asked: the lent sampler bound to its tracks, `null` when they do not pack. */
+ *  once asked: the lent sampler bound to its tracks, `null` when it takes none. */
 type Bound = {
   slots: (Slot | undefined)[]
   alone?: boolean
@@ -64,7 +64,7 @@ function releaseSampler(action: Action) {
   if (bound) bound.sampler = undefined
 }
 
-/** Samples tracks the JavaScript way (`sample`) into `out`, each from its offset. */
+/** Samples tracks (`sample`) into `out`, each from its offset. */
 export type SampleInto = (t: number, out: Float64Array, offsets: Uint32Array) => void
 /** A whole action's tracks bound to a lent sampler. */
 export interface BoundSampler {
@@ -81,11 +81,11 @@ export interface BoundSampler {
   /** Gives its room back. */
   release(): void
 }
-/** A sampler of whole actions on packed tracks, which a host with a faster one lends — the
- *  browser's WebAssembly sampler (`packages/sdk-browser/src/animation/batchAnimation.ts`). */
+/** A sampler of whole actions, which a host lends — the browser's, which takes the samples ahead
+ *  on a worker (`packages/sdk-browser/src/animation/animationSampler.ts`). */
 export interface ActionSampler {
-  /** A sampler of `tracks` in their order, `fallback` its JavaScript path; `undefined` when one
-   *  of them does not pack. */
+  /** A sampler of `tracks` in their order, `fallback` computing a sample here; `undefined` when
+   *  it takes none. */
   bind(tracks: readonly Track[], fallback: SampleInto): BoundSampler | undefined
   /** Every mixer of the frame sampled: the samples asked ahead go, the ones handed are let go. */
   frame?(): void
@@ -140,7 +140,7 @@ function allBound(bound: Bound, tracks: readonly Track[]) {
 }
 
 /** Every track of an action whose tracks are all bound (`allBound`), sampled at `time` through the
- *  lent sampler when they pack: `sample`'s numbers, each track's at `bound.sampler.offsets`;
+ *  lent sampler: `sample`'s numbers, each track's at `bound.sampler.offsets`;
  *  `undefined` without a sampler, the caller then sampling track by track. */
 function sampledWhole(
   bound: Bound,
@@ -153,10 +153,8 @@ function sampledWhole(
     if (!actionSampler) return undefined
     const slots = bound.slots
     bound.sampler =
-      actionSampler.bind(tracks, (t, out, offsets) => {
-        for (let k = 0; k < tracks.length; k++)
-          out.set(sample(tracks[k], t, slots[k]!.binding), offsets[k])
-      }) ?? null
+      actionSampler.bind(tracks, (t, out, offsets) => sampleInto(tracks, slots, t, out, offsets)) ??
+      null
   }
   const sampler = bound.sampler
   if (!sampler) return undefined
@@ -351,7 +349,7 @@ export class Mixer {
   /**
    * The update of a mixer whose only action plays at weight 1 and writes each property alone: the
    * general path's result without its blend — every track sampled, through the lent sampler when
-   * its tracks pack (`ActionSampler`), then each property set to its sample in the same order
+   * the lent sampler binds it (`ActionSampler`), then each property set to its sample in the same order
    * (`Blend.writeAlone`).
    */
   #updateAlone(action: Action, seconds: number, quiet: boolean) {

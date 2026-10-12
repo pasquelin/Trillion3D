@@ -1,5 +1,5 @@
 // The animation samples taken ahead on a worker (`packages/sdk-browser/src/animation/animationAhead.ts`)
-// against the synchronous WebAssembly sampler and Three's `AnimationMixer`, on the duel's scene
+// against the synchronous sampler and Three's `AnimationMixer`, on the duel's scene
 // (`support/animationRigs.ts`): 400 rigs of 25 bones, a position and a rotation track each, at a
 // fixed step. What is timed is the main thread alone: `advanceMixers` (or Three's updates) per
 // frame, and the thread's CPU per frame — the update, the timer, the worker's messages. Frames are
@@ -9,11 +9,13 @@
 // main thread's (`packages/sdk-browser/src/animation/animationAhead.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { NodeDomWorker } from '../../oracles/browser/pageWorkNodeWorker.ts'
+import { NodeWorker } from '../../kit/worker.ts'
 import { quantileOf, summaryOf } from '../../../packages/math/src/scalar/quantile.ts'
-import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
-import { lendAnimationSampler } from '../../../packages/sdk-browser/src/animation/batchAnimation.ts'
-import { sampleAhead } from '../../../packages/sdk-browser/src/animation/animationAhead.ts'
+import { animationSampler } from '../../../packages/sdk-browser/src/animation/animationSampler.ts'
+import {
+  sampleAhead,
+  type AheadPort,
+} from '../../../packages/sdk-browser/src/animation/animationAhead.ts'
 import { countingSampler } from '../../../packages/sdk-browser/src/animation/animationAhead.fixture.ts'
 import {
   advanceMixers,
@@ -21,7 +23,7 @@ import {
 } from '../../../packages/sdk-core/src/world/animation/mixer.ts'
 import { FRAME, animationRigs } from './support/animationRigs.ts'
 
-const { sampler, counts: aheadCounts } = countingSampler((await lendAnimationSampler())!)
+const { sampler, counts: aheadCounts } = countingSampler(animationSampler)
 lendActionSampler(sampler)
 
 /** Rounds of each side, frames a round, the first frames of a round left out, the pause between
@@ -33,20 +35,20 @@ const ROUNDS = 24,
 
 const { scene, mixersThree } = animationRigs()
 
-const worker = new NodeDomWorker(
+const worker = new NodeWorker(
   new URL(
     '../../../packages/sdk-browser/src/animation/animationWorker.fixture.ts',
     import.meta.url,
   ),
 )
-const start = () => worker
+const start = () => worker as unknown as AheadPort
 const pause = () => new Promise((resolve) => setTimeout(resolve, PAUSE_MS))
 const cpu = () => {
   const used = process.threadCpuUsage()
   return used.user + used.system
 }
 
-/** Sync: the WebAssembly sampler on the main thread; ahead: the worker; three: Three. */
+/** Sync: the sampler on the main thread; ahead: the worker; three: Three. */
 type Side = 'sync' | 'ahead' | 'three'
 const updates: Record<Side, number[]> = { sync: [], ahead: [], three: [] }
 const cpus: Record<Side, number[]> = { sync: [], ahead: [], three: [] }

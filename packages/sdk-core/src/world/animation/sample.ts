@@ -55,6 +55,19 @@ export function sample(tr: Track, t: number, bound: TrackBinding) {
   return out
 }
 
+/** `tracks` sampled at `t` through their slots' bindings into `out`, each from its offset: the
+ *  one JavaScript sampler of a whole action, the mixer's and the animation worker's. */
+export function sampleInto(
+  tracks: readonly Track[],
+  slots: readonly ({ binding: TrackBinding } | undefined)[],
+  t: number,
+  out: Float64Array,
+  offsets: Uint32Array,
+) {
+  for (let k = 0; k < tracks.length; k++)
+    out.set(sample(tracks[k], t, slots[k]!.binding), offsets[k])
+}
+
 /** An additive action's difference from its clip's reference pose `reference`: a vector's
  *  difference, a rotation's turn from it, `reference⁻¹ · value`. */
 export function difference(tr: Track, value: Float64Array, reference: Float64Array) {
