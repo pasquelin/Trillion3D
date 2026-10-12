@@ -1,29 +1,21 @@
 #!/usr/bin/env node
-import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { linkLocalFiles } from './local-files.ts'
 import { linkSkills } from './skills-link.ts'
 import { REPOSITORY_ROOT } from './repository-files.ts'
+import { git } from './git-paths.ts'
 
 /** The primary worktree, which `git worktree list` always prints first. */
 function primaryWorktree(): string | undefined {
-  const list = execFileSync('git', ['worktree', 'list', '--porcelain'], {
-    cwd: REPOSITORY_ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  })
+  const list = git(REPOSITORY_ROOT, 'worktree', 'list', '--porcelain')
   const first = list.split('\n', 1)[0] ?? ''
   return first.startsWith('worktree ') ? first.slice('worktree '.length) : undefined
 }
 
 try {
-  const top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-    cwd: REPOSITORY_ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  }).trim()
+  const top = git(REPOSITORY_ROOT, 'rev-parse', '--show-toplevel')
   if (resolve(top) === REPOSITORY_ROOT)
-    execFileSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: REPOSITORY_ROOT })
+    git(REPOSITORY_ROOT, 'config', 'core.hooksPath', '.githooks')
   // A linked worktree starts without the files `.gitignore` keeps local — personal assistant
   // settings and graph artefacts. It gets a link to the ones the primary
   // worktree has, so a batch is written where its rules are readable.

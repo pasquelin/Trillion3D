@@ -7,16 +7,13 @@
 import { spawnSync, type SpawnSyncOptions } from 'node:child_process'
 import { accessSync, constants, existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { git } from '../git-paths.ts'
 
 /** Stops the git command with its reason. */
 export function refuse(reason: string): never {
   process.stderr.write(`git hook: ${reason}\n`)
   process.exit(1)
 }
-
-/** A git command's output, trimmed; empty when it fails (as `$(git …)` in a shell). */
-export const git = (...args: string[]): string =>
-  spawnSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).stdout.trim()
 
 /**
  * Runs a gate of the repository from the worktree root, when the checkout has it (a repository
@@ -39,7 +36,7 @@ export function gate(command: string, args: string[], env: Record<string, string
  * in the common dir (also from a linked worktree); --git-path would answer with core.hooksPath.
  */
 export function runLocalHook(name: string, args: string[], input?: string): void {
-  const hook = join(git('rev-parse', '--git-common-dir'), 'hooks', name)
+  const hook = join(git(process.cwd(), 'rev-parse', '--git-common-dir'), 'hooks', name)
   try {
     accessSync(hook, constants.X_OK)
   } catch {

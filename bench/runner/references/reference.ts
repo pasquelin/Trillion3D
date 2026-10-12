@@ -5,7 +5,6 @@
 // `--references <dir>` writes both there.
 // Each scene's bench poses (`trajectory/poses.ts`), at the reference case (`REFERENCE_ARGS`, any bench flag after
 // them wins), drawn by the engine's reference mode and written with the commit that drew them.
-import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { Page } from 'playwright'
@@ -27,9 +26,7 @@ import {
 import { measurePayload, withGpuIncidents } from '../series/seriesPage.ts'
 import { readStreet } from '../street/street.ts'
 import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
-
-const git = (...args: string[]) =>
-  execFileSync('git', ['-C', REPOSITORY_ROOT, ...args], { encoding: 'utf8' }).trim()
+import { git } from '../../../scripts/git-paths.ts'
 
 /** One scene: its poses drawn in reference mode, the record written under `<dir>/<scene>/`, the
  *  images under `<images>/<scene>/`. */
@@ -58,7 +55,7 @@ async function referenceScene(argv: string[], scene: string, dir: string, images
   // The engine commit that drew them: the last one to change `packages/` in the tree drawn from,
   // the working tree or the commit `--after` named (`git <sha>` in `harness/dists.ts`).
   const tree = /^git ([0-9a-f]+)/.exec(side.from)?.[1] ?? 'HEAD'
-  const commit = git('log', '-1', '--format=%H', tree, '--', 'packages')
+  const commit = git(REPOSITORY_ROOT, 'log', '-1', '--format=%H', tree, '--', 'packages')
   const record: ReferenceRecord = {
     scene,
     commit,
@@ -67,6 +64,7 @@ async function referenceScene(argv: string[], scene: string, dir: string, images
     dirty:
       side.from === 'folder' &&
       git(
+        REPOSITORY_ROOT,
         'status',
         '--porcelain',
         '--untracked-files=no',
