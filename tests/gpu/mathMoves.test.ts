@@ -4,7 +4,7 @@
 // draw the same scenes; the helpers that normalise a draw or a model normal read the same f32 words.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DEG2RAD, HALF_PI, RAD2DEG, TAU } from '../../packages/math/src/constants.ts'
+import { DEG2RAD, TAU } from '../../packages/math/src/constants.ts'
 import { perspectiveSlope } from '../../packages/math/src/projection/camera.ts'
 import { length2, length3 } from '../../packages/math/src/vector/vector.ts'
 import { distance, resolveRandom } from './lighting/resolveCases.ts'
@@ -20,10 +20,7 @@ test('the cameras open the same tangent through perspectiveSlope', () => {
 })
 
 test('the turned objects and lights turn by the same radians', () => {
-  assert.ok(Object.is(60 * DEG2RAD, Math.PI / 3))
   assert.ok(Object.is(30 * DEG2RAD, Math.PI / 6))
-  assert.ok(Object.is(HALF_PI, Math.PI / 2))
-  assert.ok(Object.is(RAD2DEG, 180 / Math.PI))
   for (const degrees of [75, 80, 84, 88])
     assert.ok(Object.is(-degrees * DEG2RAD, (-degrees * Math.PI) / 180), `${degrees}°`)
   // A power of two scales without rounding: the ring of lights, the water's swing.

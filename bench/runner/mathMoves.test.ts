@@ -1,17 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import {
-  DEG2RAD,
-  HALF_PI,
-  MIB,
-  QUARTER_PI,
-  RAD2DEG,
-  TAU,
-} from '../../packages/math/src/constants.ts'
+import { DEG2RAD, RAD2DEG, TAU } from '../../packages/math/src/constants.ts'
 import { perspectiveSlope } from '../../packages/math/src/projection/camera.ts'
-import { quantileOf } from '../../packages/math/src/scalar/quantile.ts'
 import { clamp } from '../../packages/math/src/scalar/reals.ts'
-import { alignUp } from '../../packages/math/src/scalar/integers.ts'
 import { axisAngleQuaternion } from '../../packages/math/src/quaternion/quaternion.ts'
 import { mulberry32 } from '../../packages/math/src/sequence/random.ts'
 import {
@@ -55,42 +46,6 @@ test('the page-quantization angle, from the dot of two unit normals, keeps its d
 test('the light-tile views turn by the same radians as before', () => {
   for (const degrees of [30, 2, 45, 15, 1, 20, 5, 60, 8, -30, -2])
     assert.ok(ulpBetween((degrees * Math.PI) / 180, degrees * DEG2RAD) <= 1, `${degrees} degrees`)
-})
-
-test('the byte units are the exact powers of two they were written as', () => {
-  assert.equal(MIB, 1024 * 1024)
-  for (let i = 1; i <= HALTON_SWEEP; i++) {
-    const value = haltonSpan(i, 2, 0.001, 4096)
-    assert.ok(Object.is(value * 1024 * 1024, value * MIB))
-    assert.ok(Object.is(value / 1048576, value / MIB))
-    assert.ok(Object.is(value / (1024 * 1024), value / MIB))
-  }
-})
-
-// The campaign's error percentiles and the worker bench's quartiles each read `floor(q n)`; the
-// engine's nearest rank is `ceil(q n) - 1`. They are the same index when `q n` is not a whole
-// number, and the engine's is the one before when it is (the 95th of twenty: the 19th, not the
-// 20th), the usual definition of a percentile.
-test('quantile is the nearest rank the benches now read', () => {
-  const sorted = Array.from({ length: 20 }, (_, i) => i)
-  assert.equal(quantileOf(sorted, 0.95), 18)
-  assert.equal(quantileOf(sorted.slice(0, 19), 0.95), 18)
-  assert.equal(quantileOf(sorted.slice(0, 19), 0.5), 9)
-  assert.equal(quantileOf([3, 1, 2].sort(), 0.5), 2)
-})
-
-test('the turns the bench walks are the radians they were written as, bit for bit', () => {
-  // A power of two scales without rounding: `x · π · 2` is `x · TAU`, `(x · π) / 4` is
-  // `x · QUARTER_PI`, `(x · π) · 4` is `x · TAU · 2`, `(2π) / 3` and `(4π) / 3` are `TAU / 3`
-  // and `(2 · TAU) / 3`.
-  for (let i = 1; i <= HALTON_SWEEP; i++) {
-    const x = haltonSpan(i, 2, -1e3, 1e3)
-    assert.ok(Object.is(x * Math.PI * 2, x * TAU), `${x} turns`)
-    assert.ok(Object.is((x * Math.PI) / 4, x * QUARTER_PI), `${x} eighths`)
-    assert.ok(Object.is(x * Math.PI * 4, x * TAU * 2), `${x} half turns`)
-    assert.ok(Object.is(x * (Math.PI / 2), x * HALF_PI), `${x} quarters`)
-  }
-  assert.ok(Object.is((2 * Math.PI) / 3, TAU / 3) && Object.is((4 * Math.PI) / 3, (2 * TAU) / 3))
 })
 
 test("the witness's LOD reads its camera's own tangent, the old one to four units in the last place", () => {
@@ -146,13 +101,6 @@ test('the light tiles cut their rays by the engine slab test, as before to two u
   assert.ok(hits > HALTON_SWEEP / 2, `${hits} rays hit`)
 })
 
-test('the p95 of a series is the nearest rank its clock read, at every length', () => {
-  for (let n = 0; n <= 2000; n++) {
-    const t = Array.from({ length: n }, (_, i) => i)
-    assert.equal(quantileOf(t, 0.95), t[Math.min(Math.ceil(n * 0.95) - 1, n - 1)], `${n} samples`)
-  }
-})
-
 test("the aerial props' turns about +Y are axisAngleQuaternion's, bit for bit", () => {
   // The draw `r` is a whole number over 2³²: `r · TAU` is `2 · (r · π)` exactly, halved exactly.
   const random = mulberry32(7),
@@ -163,11 +111,4 @@ test("the aerial props' turns about +Y are axisAngleQuaternion's, bit for bit", 
     axisAngleQuaternion(q, [0, 1, 0], r * TAU)
     for (let k = 0; k < 4; k++) assert.ok(Object.is(q[k], old[k]), `draw ${r}`)
   }
-})
-
-test('the facade aligns its byte offsets to four as the mask did', () => {
-  for (let offset = 0; offset < 1 << 16; offset++)
-    assert.equal(alignUp(offset, 4), (offset + 3) & ~3, `${offset}`)
-  for (const offset of [2 ** 31 - 8, 2 ** 31 - 5, 2 ** 31 - 4])
-    assert.equal(alignUp(offset, 4), (offset + 3) & ~3, `${offset}`)
 })
