@@ -92,7 +92,7 @@ export function bodyProblem(
   const body = withoutComments(raw)
   if (!/^Closes #\d+/m.test(body)) return 'The body must start with "Closes #<issue>".'
   const text = prose(body)
-  // The tool gate holds for every pull request, a draft and a "Thumbnail only" body included.
+  // The tool gate holds for every pull request, a draft included.
   if (GENERATED_FOOTER.test(text))
     return 'The body carries a "Generated with …" footer: remove the tool\'s signature, it is not evidence (AGENTS.md rule 9).'
   if (TOOL_SESSION.test(text))
@@ -104,8 +104,6 @@ export function bodyProblem(
   const review = section(lines, 'Local review before push')
   if (!review.join('').trim())
     return 'The section "Local review before push" is empty: run the simplification and correctness passes first.'
-  // A thumbnail-only pull request carries no code to review.
-  if (body.includes('Thumbnail only')) return undefined
   const verified = section(lines, 'Verification')
   if (!draft && !verified.some((l) => /^[-*] .+: (not )?delivered/.test(l)))
     return 'The section "Verification" is missing or empty: every To-do item is mapped to its file and test before the pull request is ready.'

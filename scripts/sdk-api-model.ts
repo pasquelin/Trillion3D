@@ -13,7 +13,7 @@ export const ENTRIES = {
 export type ExportEntry = keyof typeof ENTRIES
 /** The published facade of `trillion3d` (`package.json` exports), one file per condition: what a
  *  consumer imports, the entries above plus the symbols the facade adds (`sdk-api-documented.ts`). */
-export const PUBLIC_ENTRIES: Record<ExportEntry, string> = {
+const PUBLIC_ENTRIES: Record<ExportEntry, string> = {
   core: 'packages/sdk/index.ts',
   browser: 'packages/sdk/browser.ts',
   node: 'packages/sdk/node.mts',
@@ -55,23 +55,12 @@ const buildApiProgram = (old?: ts.Program) =>
       skipLibCheck: true,
       types: ['node', '@webgpu/types'],
     },
-    undefined,
-    old,
   )
-/** One program over the entry files and the published facade: the checker the facade, the export
- *  inventory and the reference all read. Built on first use, then kept until `refreshApiProgram`. */
-export function apiProgram(): ts.Program {
-  program ??= buildApiProgram()
   return program
-}
-/** Rebuilds the program from the files as they are now, reusing the unchanged ones: a long-lived
- *  reader (`docs:dev`) calls it before each generation, or it would write the sources it started on. */
-export function refreshApiProgram() {
-  program = buildApiProgram(program)
 }
 
 /** The module symbol of each entry file, in the order `entries` lists them. */
-export function entryModules(
+function entryModules(
   program: ts.Program,
   entries: Record<ExportEntry, string> = ENTRIES,
 ): [ExportEntry, ts.Symbol][] {

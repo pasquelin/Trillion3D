@@ -63,7 +63,7 @@ test('an engine error of another copy of the engine is taken for one, by its nam
   assert.equal(engineErrorOf(worded, 'FALLBACK', 'x').code, 'FALLBACK')
 })
 
-// The codes the API reference publishes, the words a page tests, written here as a page reads them
+// The codes the engine publishes, the words a page tests, written here as a page reads them
 // and not taken from `ENGINE_ERROR_CODES`: a code renamed or dropped breaks the pages testing it, so
 // it breaks this list too, where reading the catalogue would follow it silently.
 const published = `

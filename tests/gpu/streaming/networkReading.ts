@@ -7,9 +7,11 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { ASSETS } from '../../../bench/runner/assets/scene.ts'
 import { poseAt } from '../../../bench/runner/trajectory/poses.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { isCacheObject } from '../../../scripts/compress-cache-objects.ts'
 import { listen, staticServer } from '../../../scripts/static-server.ts'
 import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
+
+/** A scene cache's content-addressed object, geometry pages among them. */
+const isCacheObject = (path: string) => /\/objects\/[^/]+\.bin$/.test(path)
 
 /** One cache object's transfer as the server saw it, on its clock: asked, and answered. */
 type Transfer = { sent: number; done: number }

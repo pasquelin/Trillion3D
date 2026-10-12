@@ -6,14 +6,14 @@ with `physics` set. The module, the worker and its buffers are [ENGINE.md](ENGIN
 cooked colliders [COMPILER.md](COMPILER.md), the rest of the SDK [SDK.md](SDK.md).
 
 ```js
-const world = createWorld('view', { physics: true }); // or world.physics.enabled = true
-const floor = object.mesh(geometry.box(20, 1, 20), material.meshStandard({ physics: 'stone' }));
-floor.physics = 'static';
-const crate = object.mesh(geometry.box(1, 1, 1), material.meshStandard({ physics: 'wood' }));
-crate.physics = 'dynamic';
-crate.position.y = 5;
-world.scene.add(floor, crate);
-crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, impulse));
+const world = createWorld('view', { physics: true }) // or world.physics.enabled = true
+const floor = object.mesh(geometry.box(20, 1, 20), material.meshStandard({ physics: 'stone' }))
+floor.physics = 'static'
+const crate = object.mesh(geometry.box(1, 1, 1), material.meshStandard({ physics: 'wood' }))
+crate.physics = 'dynamic'
+crate.position.y = 5
+world.scene.add(floor, crate)
+crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, impulse))
 ```
 
 Without physics, no byte of the physics module or its page code is fetched; they and the worker's
@@ -24,15 +24,15 @@ WebAssembly module load when physics is first enabled, bodies set before queued.
 `createWorld(canvas, { physics: { gravity, budget, simulationRange } })` sets them at creation;
 each is also a live property of `world.physics`.
 
-| `world.physics.` | Type | Default | Refusal |
-| --- | --- | --- | --- |
-| `enabled` | boolean | `createWorld`'s `physics` | — |
-| `gravity` | a live vector, or `'earth'`, `'moon'`, `'mars'`, `'none'` | `'earth'` | — |
-| `paused` | boolean | `false` | — |
-| `timeScale` | number: 0.25 is slow motion, 0 stands still | 1 | negative or infinite: `RangeError` |
-| `simulationRange` | metres around the camera within which bodies are simulated | `null`: follows `camera.far` | anything but `null` or a finite distance above 0: `RangeError` |
-| `water` | `{ level, waves, density, linearDrag, angularDrag, current }` or `null` | `null` | a wave out of range: `RangeError` |
-| `stats`, `error` | read only | — | — |
+| `world.physics.`  | Type                                                                    | Default                      | Refusal                                                        |
+| ----------------- | ----------------------------------------------------------------------- | ---------------------------- | -------------------------------------------------------------- |
+| `enabled`         | boolean                                                                 | `createWorld`'s `physics`    | —                                                              |
+| `gravity`         | a live vector, or `'earth'`, `'moon'`, `'mars'`, `'none'`               | `'earth'`                    | —                                                              |
+| `paused`          | boolean                                                                 | `false`                      | —                                                              |
+| `timeScale`       | number: 0.25 is slow motion, 0 stands still                             | 1                            | negative or infinite: `RangeError`                             |
+| `simulationRange` | metres around the camera within which bodies are simulated              | `null`: follows `camera.far` | anything but `null` or a finite distance above 0: `RangeError` |
+| `water`           | `{ level, waves, density, linearDrag, angularDrag, current }` or `null` | `null`                       | a wave out of range: `RangeError`                              |
+| `stats`, `error`  | read only                                                               | —                            | —                                                              |
 
 **Water.** Each step the worker fits a plane of the waves to every piece under `water` and pushes it
 by the weight of water displaced, so a body lighter than water floats; the drags set how fast it
@@ -46,8 +46,7 @@ its world box flat to a float32 step — is the water's surface: the engine sets
 `waterSurface` and the GPU moves each vertex where the waves carry it, on the physics' clock, with
 no vertex written on the page; moved off the level, it is released. A body, or a geometry the
 page rewrites (`usage: 'dynamic'`), is never carried, and `mesh.waves = null` (or a surface of the
-page's own) keeps a mesh out. Example: [floating
-crates](../site/examples/floating-crates.html).
+page's own) keeps a mesh out.
 
 ## Bodies
 
@@ -57,9 +56,9 @@ sensor, ccd, decorative, friction, restitution, damping }`.
 - **Shape**, read from the geometry: a box, sphere, capsule or cylinder is that exact primitive
   (scaled); any other mesh its triangles when static, its convex hull (computed in the worker) when
   it moves. A dynamic `{ type: 'triangles' }` is refused (no volume, no mass). `{ type: 'compound',
-  parts }` is one rigid body of primitives, each with `position` and `quaternion` in the object's
+parts }` is one rigid body of primitives, each with `position` and `quaternion` in the object's
   frame, under one positive scale on all axes. A declared `{ type: 'cylinder', halfHeight, radius,
-  radiusBottom }` tapers from its top's `radius` to `radiusBottom`, as
+radiusBottom }` tapers from its top's `radius` to `radiusBottom`, as
   `geometry.cylinder(radiusTop, radiusBottom, height)` draws it. A shape the worker cannot build,
   or a stretched or mirrored compound, fails that body alone (`PHYSICS_FAILED`, the mesh named).
 - **Place.** A dynamic body is a direct child of the scene (`PHYSICS_NESTED`). `position.set`
@@ -70,8 +69,7 @@ sensor, ccd, decorative, friction, restitution, damping }`.
   `density`, `friction` and `restitution` over the preset; a body's `friction` and `restitution`
   override both. `damping: { linear, angular }` is the share of speed lost each second
   (`dv/dt = −c·v`; 0.05 each by default, 0 keeps it all, negative throws `RangeError`), set at
-  creation like `sensor`: a body's own air and rolling loss
-  ([ride a roller coaster](../site/examples/ride-a-roller-coaster.html)).
+  creation like `sensor`: a body's own air and rolling loss.
 - **Motion.** `mesh.physics.velocity` (read: the last step's; written: a launch),
   `applyImpulse(x, y, z)`, `wake()`, `asleep`.
 - **Events.** `on('contact' | 'enter' | 'leave')` gives the other object, an impulse estimate
@@ -87,17 +85,16 @@ sensor, ccd, decorative, friction, restitution, damping }`.
 and the world (`b` is `null`), with the module's constraints; `world.physics.add(j)` and `remove(j)`
 put it in and out. It exists while both bodies are simulated, made again when one returns.
 
-| Option | Meaning |
-| --- | --- |
-| `anchor`, `anchorB` | where they connect (a distance: `anchor` the end on `a`, `anchorB` on `b`); a world point read when the joint is made, then kept in each body's frame |
-| `axis` | the hinge's pin, the slider's rail, the cone's middle; read and kept as `anchor` |
-| `limits: { min, max }` | radians for a hinge (−π to π), metres for a slider or a distance (default: its length), the half angle `max` for a cone |
-| `spring: { frequency, damping }` | makes the stop of a hinge, slider or distance soft. |
-| `motor: { mode: 'velocity' \| 'position', target, maxForce }` | drives a hinge or slider, position measured from where the joint was made; `j.motor` changes it any time |
-| `breakForce` | pull in newtons past which the joint breaks after a step: `j.broken` turns true, `j.on('break', fn)` is called, the bodies part |
+| Option                                                        | Meaning                                                                                                                                               |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `anchor`, `anchorB`                                           | where they connect (a distance: `anchor` the end on `a`, `anchorB` on `b`); a world point read when the joint is made, then kept in each body's frame |
+| `axis`                                                        | the hinge's pin, the slider's rail, the cone's middle; read and kept as `anchor`                                                                      |
+| `limits: { min, max }`                                        | radians for a hinge (−π to π), metres for a slider or a distance (default: its length), the half angle `max` for a cone                               |
+| `spring: { frequency, damping }`                              | makes the stop of a hinge, slider or distance soft.                                                                                                   |
+| `motor: { mode: 'velocity' \| 'position', target, maxForce }` | drives a hinge or slider, position measured from where the joint was made; `j.motor` changes it any time                                              |
+| `breakForce`                                                  | pull in newtons past which the joint breaks after a step: `j.broken` turns true, `j.on('break', fn)` is called, the bodies part                       |
 
-A tuning a kind lacks (a motor on a fixed joint) throws `RangeError`. Example:
-[hinges and joints](../site/examples/hinges-and-joints.html).
+A tuning a kind lacks (a motor on a fixed joint) throws `RangeError`.
 
 **Advanced joints**, with the same `add`, `remove`, `breakForce` and `motor`:
 
@@ -121,8 +118,7 @@ A tuning a kind lacks (a motor on a fixed joint) throws `RangeError`. Example:
   Each gear, pinion and rack needs its own hinge or slider, the body as its `a`, about the same
   axis; the simulation reads them to keep the teeth in phase over any run: always for a rack and
   pinion; for a gear when `ratio` or `1 / ratio` is whole (it wraps each hinge's angle to one turn);
-  any other gear ties speeds only and may slip a fraction of a tooth under load. Example: [gears and
-  pulleys](../site/examples/gears-and-pulleys.html).
+  any other gear ties speeds only and may slip a fraction of a tooth under load.
 
 ## Vehicles
 
@@ -158,8 +154,6 @@ wheelless.
   gears, an option its kind ignores (a car's `trackTurn` or `maxLean`; a motorcycle's `drive`,
   `trackTurn` or `antiRoll`; a tracked vehicle's `clutch`, `drive`, `turnRadius`, `antiRoll` or
   `maxLean`), a `suspensionTravel` not longer than its sag, `9.81 / (2π suspensionFrequency)²`.
-
-Example: [drive a car](../site/examples/drive-a-car.html).
 
 ## Soft bodies
 
@@ -258,23 +252,23 @@ mesh resting in place (set `physics` again to resume), their joints broken (`j.b
 
 `world.budget.physics` is read when physics starts; defaults are `DEFAULT_PHYSICS_BUDGET`.
 
-| Key | Default | Bounds |
-| --- | --- | --- |
-| `bodies` | 16384 | bodies |
-| `decorative` | 1024 | decorative bodies |
-| `memoryBytes` | 128 MiB | a hard ceiling on the module's memory; half holds the static collision, a static triangle mesh past it refused naming `memoryBytes` |
-| `bodyPairs` | 65536 | body pairs per step |
-| `contactConstraints` | 32768 | contacts per step |
-| `contactEvents` | 4096 | contact events per step |
-| `threads` | 8 | the module's thread pool, the worker's included, on a cross-origin isolated page (one elsewhere), at most the logical cores minus the page's own; the worker times its steps and uses fewer threads while more only contend; the module computes the same step on any count |
-| `softVertices` | 16384 (four cloths of 64 × 64) | every soft body's vertices at once |
+| Key                  | Default                        | Bounds                                                                                                                                                                                                                                                                      |
+| -------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bodies`             | 16384                          | bodies                                                                                                                                                                                                                                                                      |
+| `decorative`         | 1024                           | decorative bodies                                                                                                                                                                                                                                                           |
+| `memoryBytes`        | 128 MiB                        | a hard ceiling on the module's memory; half holds the static collision, a static triangle mesh past it refused naming `memoryBytes`                                                                                                                                         |
+| `bodyPairs`          | 65536                          | body pairs per step                                                                                                                                                                                                                                                         |
+| `contactConstraints` | 32768                          | contacts per step                                                                                                                                                                                                                                                           |
+| `contactEvents`      | 4096                           | contact events per step                                                                                                                                                                                                                                                     |
+| `threads`            | 8                              | the module's thread pool, the worker's included, on a cross-origin isolated page (one elsewhere), at most the logical cores minus the page's own; the worker times its steps and uses fewer threads while more only contend; the module computes the same step on any count |
+| `softVertices`       | 16384 (four cloths of 64 × 64) | every soft body's vertices at once                                                                                                                                                                                                                                          |
 
-| Case | Refusal |
-| --- | --- |
-| a key that is no budget | `PHYSICS_BUDGET` from `createWorld`, a `TypeError` when added to `world.budget.physics` |
-| a request past one, or a step finding more pairs or contacts than budgeted | `PHYSICS_BUDGET` on `world.physics.error` |
-| a soft body past `softVertices` | `PHYSICS_BUDGET` naming `softVertices` |
-| an `enter` past the events budget | counted in `stats.droppedEvents`; its `leave` is never sent |
+| Case                                                                       | Refusal                                                                                 |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| a key that is no budget                                                    | `PHYSICS_BUDGET` from `createWorld`, a `TypeError` when added to `world.budget.physics` |
+| a request past one, or a step finding more pairs or contacts than budgeted | `PHYSICS_BUDGET` on `world.physics.error`                                               |
+| a soft body past `softVertices`                                            | `PHYSICS_BUDGET` naming `softVertices`                                                  |
+| an `enter` past the events budget                                          | counted in `stats.droppedEvents`; its `leave` is never sent                             |
 
 Every soft vertex is solved each step, so the step grows linearly with them; a page needing fewer
 lowers `softVertices`.

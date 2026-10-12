@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Export campaign data independently of the portal build and benchmark execution.
+// Export campaign data independently of the benchmark execution.
 import { resolve, join } from 'node:path'
 import { parseArgs } from '../harness/options.ts'
 import { exportReport } from '../report/export.ts'

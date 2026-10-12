@@ -81,11 +81,10 @@ test('the `page-codec` modules are read by the cohesion gate', () => {
   assert.equal(unitOf('packages/sdk-node/src/index.mts') !== null, true)
 })
 
-test('a Rust crate, a script, the site and the bench all keep the bound', () => {
+test('a Rust crate, a script, a test and the bench all keep the bound', () => {
   for (const file of [
     'packages/asset-compiler-rust/src/dag/layout.rs',
     'scripts/check-file-lines.ts',
-    'site/app/main.tsx',
     'bench/core/index.ts',
     'tests/integration/engine-structure.test.ts',
   ]) {

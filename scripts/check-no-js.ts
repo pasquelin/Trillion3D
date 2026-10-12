@@ -1,5 +1,5 @@
-// The repository is TypeScript: no `.js`, `.mjs` or `.cjs` source may live anywhere in it. The demo
-// maths bundle and the portal are build products of `dist/`, never sources.
+// The repository is TypeScript: no `.js`, `.mjs` or `.cjs` source may live anywhere in it. The
+// bundles are build products of `dist/`, never sources.
 import { pathToFileURL } from 'node:url'
 import { repositoryFiles } from './repository-files.ts'
 

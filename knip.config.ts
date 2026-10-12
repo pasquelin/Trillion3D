@@ -10,8 +10,6 @@ const config: KnipConfig = {
   workspaces: {
     '.': {
       entry: [
-        'site/app/main.tsx',
-        'site/examples/kit/index.ts',
         // Served to a bench page as `../runtime/kit.js` (`bench/dawn/page.ts`).
         'bench/kit/index.ts',
         'packages/sdk-browser/src/page/work/pageWorker.ts',
@@ -27,18 +25,12 @@ const config: KnipConfig = {
         'packages/page-codec/src/geometryPage.ts',
         // The second pass of `check:unused` (`scripts/check-unused.ts`), read by knip itself.
         'knip.production.config.ts',
-        'packages/**/*.test.ts',
-        // The scripts `package.json` and the workflows run are found by knip itself; the tests, run
-        // by `node --test`, are entries by rule. Any other script is dead.
-        'scripts/**/*.test.ts',
-        // Run by hand: the example scenes' sources and thumbnails (`docs/LEARNING_PORTAL.md`), the
-        // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`),
-        // the Install page walkthrough (#1355, the recette's Chrome proof).
-        'scripts/docs/examples-assets.ts',
-        'scripts/docs/examples-thumbnails.ts',
-        'scripts/site-first-load.ts',
+        // Every unit test runs by `node --test`: an entry by rule.
+        '{packages,bench,tests,scripts}/**/*.test.ts',
+        // The scripts `package.json` and the workflows run are found by knip itself. Any other
+        // script is dead.
+        // Run by hand: the area-light table fit (`ltcTable.ts`).
         'scripts/ltc-fit.ts',
-        'scripts/prove-install-page.ts',
         // Run by `scripts/build.ts`, steps of `pnpm run build`.
         'scripts/{build-witnesses,copy-resources}.ts',
         // Run by git through the one-line shims of `.githooks/`.
@@ -49,6 +41,9 @@ const config: KnipConfig = {
         // The GPU bench in Node (`pnpm run bench:gpu`, `bench:gpu:suite`), its recorder, and the
         // first module of its worker threads, started by URL (`bench/dawn/worker.ts`).
         'bench/dawn/{run,suite,recorder,workerBoot}.ts',
+        // The bench's page kit, served to its scene pages as `../runtime/kit.js`
+        // (`bench/dawn/page.ts`).
+        'bench/kit/index.ts',
         // The cost model's command lines: the scale laws' sweeps, the model itself.
         'bench/dawn/{laws/sweep,laws/cook,laws/table,model/run}.ts',
         'bench/runner/feedback/feedbackTargetAb.ts',
@@ -99,7 +94,6 @@ const config: KnipConfig = {
         'tests/fixtures/public/*.{ts,mts}',
       ],
       project: [
-        'site/**/*.{ts,tsx}',
         'packages/**/*.{ts,mts}',
         'scripts/**/*.{ts,mts}',
         'tests/**/*.{ts,mts}',
@@ -111,11 +105,10 @@ const config: KnipConfig = {
       },
       // The harness server maps this browser URL to the page entry above.
       ignoreUnresolved: ['/runner/feedback/feedbackTargetPage.ts'],
-      // Rust, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as one) are platform
-      // tools; DaisyUI is loaded by Tailwind; the site build copies SVG files of
-      // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.
-      // The tap runner is a Stryker plugin, loaded by name (`scripts/test-mutation.ts`).
-      ignoreDependencies: ['daisyui', 'flag-icons', '@stryker-mutator/tap-runner'],
+      // Rust and its formatter, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as
+      // one) are platform tools. The tap runner is a Stryker plugin, loaded by name
+      // (`scripts/test-mutation.ts`).
+      ignoreDependencies: ['@stryker-mutator/tap-runner'],
       // `ioreg` and `sips`: macOS's own, the GPU bench reads how busy other programs keep the GPU
       // and decodes the images its pages load.
       ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config', /^c\+\+$/, 'ioreg', 'sips'],

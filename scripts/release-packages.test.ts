@@ -94,19 +94,19 @@ test('the pack restores the execute bit and removes private only when asked', ()
   }
 })
 
-// Behaviour: the package never carries the documentation site nor the witnesses.
-test('the pack refuses an archive that carries the site', () => {
+// Behaviour: the package never carries the bench's witnesses.
+test('the pack refuses an archive that carries the witnesses', () => {
   const { root, out } = checkout()
   assert.throws(
     () =>
       packRelease({
         root,
         out,
-        run: fakePack(['dist/site/index.html']).run,
+        run: fakePack(['dist/witnesses/measurement.js']).run,
         pnpm: 'pnpm',
         publishable: false,
       }),
-    /carries dist\/site\/index\.html/,
+    /carries dist\/witnesses\/measurement\.js/,
   )
   rmSync(root, { recursive: true })
 })

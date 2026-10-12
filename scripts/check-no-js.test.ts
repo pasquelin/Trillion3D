@@ -4,23 +4,23 @@ import { javascriptFiles } from './check-no-js.ts'
 
 test('every JavaScript source anywhere in the repository is refused', () => {
   const files = [
-    'site/app/main.tsx',
-    'site/demos/engine.ts',
-    'site/app/draw.js',
-    'site/reports/copy.mjs',
+    'packages/sdk-browser/src/index.ts',
+    'bench/runner/bench.ts',
+    'bench/runner/draw.js',
+    'tests/kit/copy.mjs',
     'tests/fixtures/scenes/kinetic-garden/cache/native/full/manifest.json',
-    'scripts/docs-build.mjs',
-    'site.js',
+    'scripts/build-bundle.cjs',
+    'engine.js',
   ]
   assert.deepEqual(javascriptFiles(files), [
-    'site/app/draw.js',
-    'site/reports/copy.mjs',
-    'scripts/docs-build.mjs',
-    'site.js',
+    'bench/runner/draw.js',
+    'tests/kit/copy.mjs',
+    'scripts/build-bundle.cjs',
+    'engine.js',
   ])
 })
 
-test('.ts, .mts and .tsx sources pass', () => {
-  const files = ['scripts/x.ts', 'packages/sdk-node/y.mts', 'site/app/main.tsx']
+test('.ts and .mts sources pass', () => {
+  const files = ['scripts/x.ts', 'packages/sdk-node/y.mts']
   assert.deepEqual(javascriptFiles(files), [])
 })

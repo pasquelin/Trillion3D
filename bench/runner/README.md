@@ -7,7 +7,7 @@ Two benches, one per question:
   scenario identical frame for frame. It is the timing bench.
 - **Images and witnesses: the Chrome harness** (`bench/runner/`, this folder). Playwright drives
   the system Chrome: the engine against the witness libraries, image proofs, the screen error of
-  what is drawn, and the published reports.
+  what is drawn, and the reports.
 
 How the acceptance session uses them, batch by batch:
 [the recette skill](../../skills/t3d-recette/SKILL.md). The measurement rules (same input and
@@ -347,10 +347,10 @@ Output under `.mesure/out/39-feedback-ab/` unless `--out`.
 `witness/deformationEnvelope.ts` keeps 120 frames after 30 warmup per crowd count: CPU frame time,
 GPU deformation time, geometry allocation, VRAM bytes; no GPU timestamps means `null`.
 
-## Published reports
+## Reports
 
-Measurement, export and the site's build are separate; the report's format is the bench's
-(`bench/kit/report/`), which the site reads.
+Measurement, export and staging are separate; the report's format is the bench's
+(`bench/kit/report/`).
 
 1. Run `node bench/runner/campaign.ts --out .mesure/out/<campaign>` on a built engine. Resuming
    needs the same arguments, repository state, built JavaScript, asset manifest, browser version and
@@ -359,10 +359,9 @@ Measurement, export and the site's build are separate; the report's format is th
 .mesure/out/<campaign>-report --id <campaign>` (defaults: `.mesure/out/global`,
    `<from>/report-data`, `current`).
 3. Stage: `node bench/runner/report/publishReport.ts --from .mesure/out/<campaign>-report --to
-<site checkout>/site` writes `reports/<id>/` there, replaces the campaign staged before and writes
+<folder>` writes `reports/<id>/` there, replaces the campaign staged before and writes
    the catalogue; an ID already staged is refused. No deploy, no push.
 
 `formatVersion: 1` holds runs and readings, original PNGs and public source JSON (no filesystem
-paths or commands). The portal shows named-engine charts, image pairs as sliders, every scene and
-run comparison and the full source tables; null stays distinct from zero, timing methods stay
-apart, no GPU pass sum is shown as a frame, and no speedup verdict is drawn without repeated runs.
+paths or commands); null stays distinct from zero, timing methods stay apart, no GPU pass sum
+stands for a frame, and no speedup verdict is drawn without repeated runs.

@@ -24,18 +24,18 @@ interface ReportProvenance {
   displayCapHz?: number
 }
 
-export interface ReportCanvas {
+interface ReportCanvas {
   width: number
   height: number
   dpr?: number
 }
 
-export interface CutRow {
+interface CutRow {
   name: string | number
   triangles: number
 }
 
-export interface CutAnalysis {
+interface CutAnalysis {
   total: number
   unknown: number | string
   byPrimitive: CutRow[]
@@ -114,48 +114,4 @@ export interface Report {
   id: string
   runs: ReportRun[]
   records: ReportRecord[]
-}
-
-export interface ReportSource {
-  run: ReportRun
-  data: unknown
-}
-
-export interface CampaignIndexItem {
-  id: string
-  records?: number
-  date?: string
-}
-
-/** Loading, failed or listed without a campaign; a loaded report always carries its sources. */
-export type ReportsState =
-  | {
-      loading: boolean
-      error?: boolean
-      index?: CampaignIndexItem[]
-      report?: undefined
-      sources?: undefined
-    }
-  | {
-      loading: false
-      error?: undefined
-      index: CampaignIndexItem[]
-      report: Report
-      sources: ReportSource[]
-    }
-
-export interface SourceReadingRecord {
-  id: string
-  runId: string
-  scene?: string
-  view?: string
-  quality?: number
-  engine?: string
-  side: string
-  canvas?: ReportCanvas | null
-  complete: {
-    run: Record<string, unknown>
-    frame: Record<string, unknown>
-    measurement: Record<string, unknown>
-  }
 }

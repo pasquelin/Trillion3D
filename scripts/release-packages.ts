@@ -35,8 +35,8 @@ export interface Release {
 export type Lookup = (spec: string) => boolean
 
 const RECORD = 'release.json'
-/** What the package never carries: the documentation site and the bench's witnesses. */
-const LEFT_OUT = /^dist\/(site|witnesses)\//
+/** What the package never carries: the bench's witnesses. */
+const LEFT_OUT = /^dist\/witnesses\//
 
 /** One compiler package: its name, its folder and the program its `bin/` carries. */
 const compilers = (root: string) =>
@@ -90,7 +90,7 @@ function stageCompilers(root: string): void {
  * Packs the six packages into `out` and records them in `out/release.json`. `private` stays in
  * every manifest unless `publishable`, which removes it from the packed copy alone: the repository
  * keeps `private: true`. Refuses a compiler archive without its program and a `trillion3d` archive
- * that carries the site or the witnesses.
+ * that carries the witnesses.
  */
 export function packRelease(options: {
   root: string

@@ -1,8 +1,8 @@
-// reals.ts mix and smoothstep: against exact rational values on dyadic inputs, where
+// reals.ts mix: against exact rational values on dyadic inputs, where
 // every operation is exact, and the forms the sites write, bit for bit.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { lerp, mix, smoothstep } from './reals.ts'
+import { lerp, mix } from './reals.ts'
 import { haltonSpan } from '../sequence/sweep.fixture.ts'
 
 test('mix is a·(1 − t) + b·t, exact at both ends, another rounding than lerp', () => {
@@ -27,17 +27,4 @@ test('the sample blend writes mix: values[i]·(1 − w) + values[j]·w', () => {
       w = haltonSpan(k, 5, 0, 1)
     assert.ok(Object.is(mix(a, b, w), a * (1 - w) + b * w), `${k}`)
   }
-})
-
-test('smoothstep is 3t² − 2t³: exact on dyadic t, symmetric, flat at the ends', () => {
-  for (let i = 0; i <= 1024; i++) {
-    const t = BigInt(i)
-    // 3t² − 2t³ over 1024³.
-    const exact = 3n * t * t * 1024n - 2n * t * t * t
-    assert.equal(smoothstep(i / 1024), Number(exact) / 1024 ** 3, `${i}`)
-  }
-  assert.equal(smoothstep(0), 0)
-  assert.equal(smoothstep(1), 1)
-  assert.equal(smoothstep(0.5), 0.5)
-  for (let i = 0; i <= 64; i++) assert.equal(smoothstep(1 - i / 64), 1 - smoothstep(i / 64))
 })

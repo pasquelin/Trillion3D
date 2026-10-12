@@ -13,15 +13,15 @@
   measurement or comparison table.
 - **Parity**: fixed memory and millisecond budgets, residency driven by what the frame reads,
   compression at cook time, no work in a still scene.
-- **The engine is the product.** Examples demonstrate it and are never a target: a change is judged
-  on generated scenes and on any machine, never on an example passing.
+- **The engine is the product.** A scene demonstrates it and is never a target: a change is judged
+  on generated scenes and on any machine, never on one scene passing.
 - **Work follows what is seen.** Every per-frame cost (CPU, GPU, memory, streaming) is bounded by
   the view: 200 m seen cost the same on a 1 km or a 50 km map. Detail follows pixels: a model of
   17 000 triangles covering one pixel draws a few. Per-frame work runs on the GPU; the CPU reacts
   to changes.
 - **Design before code.** An engine change states its cost as a formula (what grows with the
   world, the visible objects and the pixels, against the hardware's minimum) and an absolute
-  target, and proves it by a law on generated scenes, never by one example or one machine.
+  target, and proves it by a law on generated scenes, never by one scene or one machine.
 
 ## Measure before optimising
 
@@ -51,7 +51,7 @@
 
 ## Streaming, memory and shadows
 
-The rules of #483, for every change to geometry, streaming, memory, shadows or examples:
+The rules of #483, for every change to geometry, streaming, memory or shadows:
 
 1. **No hole**: every surface is drawn by the wanted cluster or its nearest resident ancestor.
 2. **No image loss**: a still image converges to full detail; coarsening is temporary.
@@ -63,7 +63,7 @@ The rules of #483, for every change to geometry, streaming, memory, shadows or e
 7. **Main thread bounded**: decoding, parsing and IO in workers.
 8. **Proven by a test of the invariant**, on two scenes, one an open world.
 9. **Nothing rebuilt every frame**: moving content takes the dynamic or GPU-deformation path.
-10. **Examples use the engine**, never a per-frame workaround.
+10. **Scenes use the engine**, never a per-frame workaround.
 
 ## Code
 
@@ -73,10 +73,10 @@ The rules of #483, for every change to geometry, streaming, memory, shadows or e
   `check:changed --push`.
 - `pnpm run check:changed` is the one local gate (changed-file format, lint, types, lines,
   duplicates, and the unit tests the change can affect); the CI runs all of `validate`.
-- Everything in English. Tests, scripts, site, bench and Rust: 200 lines a file at most; runtime
+- Everything in English. Tests, scripts, bench and Rust: 200 lines a file at most; runtime
   modules: no function over 60 lines or a complexity of 20. No duplicated block, no copied helper.
 - Generic engine: no scene names, no constant tuned on a measurement scene (every value derives
-  from what the object carries, or is declared); the engine never reads `site/` or another project.
+  from what the object carries, or is declared); the engine never reads another project.
 - Platform APIs (DOM, filesystem, React, Vite) stay out of the core contracts. `formatVersion`
   apart from `compilerVersion`; unknown formats and incompatible caches refused.
 - Build outputs are untracked, except the WebAssembly modules: a change under
@@ -100,12 +100,11 @@ The rules of #483, for every change to geometry, streaming, memory, shadows or e
 
 **Labels.** Priority `🔴 critical` … `🟢 low`; `in progress` (claimed); `in review` (pushed);
 after the merge `to audit`, `to measure` (unless the diff cannot move the frame cost: docs, tests,
-scripts, `.github/`, `skills/`, site text), `measuring`, then the recette's `audited` / `audit ko`
+scripts, `.github/`, `skills/`), `measuring`, then the recette's `audited` / `audit ko`
 and `measure ok` / `measure ko`. On merge, remove `in progress`, `in review`, the assignee and old
 verdicts. A ko reopens its issue (`🔴 critical` for frame cost, `🟠 high` otherwise), its comment
 starting with the cause (promise, tests, paperwork or design).
 
 **Release** `develop` → `main`: on the boss's word only, its own issue and pull request, when no
-issue carries `to audit`, `to measure`, `audit ko` or `measure ko`. Its merge publishes the site
-(`pages.yml`) and packs the npm packages (`release.yml`; real publication when `NPM_PUBLISH` is
-`true`).
+issue carries `to audit`, `to measure`, `audit ko` or `measure ko`. Its merge packs the npm packages
+(`release.yml`; real publication when `NPM_PUBLISH` is `true`).

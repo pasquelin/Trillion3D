@@ -2,7 +2,7 @@ import { MIB } from '../../../packages/math/src/constants.ts'
 import { isObject, readPath } from './contract.ts'
 import type { ReportRecord, TimingStat } from './types.ts'
 
-export interface MetricDefinition {
+interface MetricDefinition {
   unit: string
   path: string
   stat?: boolean
@@ -10,7 +10,7 @@ export interface MetricDefinition {
 }
 
 /** Stable metric IDs, units and source paths; no presentation text in campaign data. */
-export const METRICS = {
+const METRICS = {
   gpu: { unit: 'ms', path: 'gpuFrameMs', stat: true },
   cpu: { unit: 'ms', path: 'cpuFrameMs', stat: true },
   cadence: { unit: 'ms', path: 'rafIntervalMs', stat: true },
@@ -26,8 +26,6 @@ export const METRICS = {
   preparation: { unit: 'ms', path: 'preparationMs' },
 } satisfies Record<string, MetricDefinition>
 export type MetricKey = keyof typeof METRICS
-/** The keys of `METRICS`, in declaration order: `Object.keys` alone gives `string[]`. */
-export const METRIC_KEYS = Object.keys(METRICS) as MetricKey[]
 
 export function metricValue(
   record: ReportRecord | null | undefined,

@@ -18,7 +18,7 @@ test('a shader writing a library declaration again is refused, wherever it lives
     'packages/sdk-core/src/planted.ts',
     'tests/gpu/planted.ts',
     'bench/runner/planted.ts',
-    'site/demos/planted.ts',
+    'scripts/fixtures/planted.ts',
   ])
     assert.deepEqual(libraryRedeclarations(new Map([[path, SHADER]])), [
       `${path}: fn edgeFunction`,

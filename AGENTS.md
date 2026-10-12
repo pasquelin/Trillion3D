@@ -3,8 +3,8 @@
 **The goal:** an open-world engine on the web: geometry whose detail follows the pixels, a world
 streamed and computed only where it is seen, dynamic light and shadows, the work on the GPU, a
 perfect image at high frame rates on any machine and scene, faster and finer than the witness
-library the bench compares with. The engine is the product; an example only shows it, and an
-example working is never the goal (CONTRIBUTING.md "The mission").
+library the bench compares with. The engine is the product; a scene only shows it, and a scene
+working is never the goal (CONTRIBUTING.md "The mission").
 
 [CONTRIBUTING.md](CONTRIBUTING.md) wins over this file; read only the sections your change touches.
 One session carries one issue alone (CONTRIBUTING.md "Contribution workflow"); a session started
@@ -13,7 +13,7 @@ Sub-agents run in the foreground, one task each, and launch none. Never the Fabl
 
 1. **No image loss**, even declared (CONTRIBUTING.md "Image and fidelity"); only fluids may lower
    their own quality to hold budget.
-2. **Benches, Chrome, timings and thumbnails are the recette's alone** (`/t3d-recette`), after the
+2. **Benches, Chrome and timings are the recette's alone** (`/t3d-recette`), after the
    merges; they never block one.
 3. Kill only your own processes, by PID; never `pkill`, `killall` or a pattern.
 4. Branch `<issue>-<name>` in `.worktrees/<branch>/`, logs in `.worktrees/logs/`; never commit on
