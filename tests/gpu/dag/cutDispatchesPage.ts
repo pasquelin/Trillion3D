@@ -12,7 +12,7 @@ import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/unif
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { encodeBefore, resourcesBefore } from '../../../bench/oracles/browser/cut-dispatches.ts'
 import { DAG_SELECTION_SHADER_BEFORE } from '../../../bench/oracles/browser/cut-dispatches-wgsl.ts'
-import { quantileFloorOf } from '../../../packages/math/src/scalar/quantile.ts'
+import { quantileFloorOf } from '../../kit/stats/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { countCommands, sceneView } from './cutScene.ts'
 

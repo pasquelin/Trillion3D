@@ -1,6 +1,6 @@
 import v8 from 'node:v8'
 import vm from 'node:vm'
-import { quantileFloorOf } from '../../../math/src/scalar/quantile.ts'
+import { quantileFloorOf } from '../../../../tests/kit/stats/quantile.ts'
 
 /**
  * Bytes a run of the render-scale control allocates, as the optimiser compiles it — the measure

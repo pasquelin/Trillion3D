@@ -3,7 +3,7 @@
 import type { FakeCanvas } from '../../../bench/dawn/canvas.ts'
 import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
 import { luminance as luminanceOf } from '../../../packages/math/src/color/luminance.fixture.ts'
-import { quantileFloorOf } from '../../../packages/math/src/scalar/quantile.ts'
+import { quantileFloorOf } from '../../kit/stats/quantile.ts'
 import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 import { benchManifest } from '../world/proofWorld.ts'
 

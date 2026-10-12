@@ -4,7 +4,7 @@ import prettier from 'prettier'
 import ts from 'typescript'
 import { repositoryFiles } from './repository-files.ts'
 
-export const ROOT = resolve(import.meta.dirname, '..')
+const ROOT = resolve(import.meta.dirname, '..')
 export const ENTRIES = {
   core: 'packages/sdk-core/src/index.ts',
   browser: 'packages/sdk-browser/src/index.ts',
