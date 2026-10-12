@@ -1,7 +1,9 @@
-//! The dependency lists of real cooks: a grid, a site scene and an open-world cell.
-//! Each holds the published bound, closes its lists and reaches the root cover.
-use super::site_scene::{cook_site_scene, SiteScene};
+//! The dependency lists of real cooks: a grid, the engine's test scenes, a family of generated
+//! scenes of thin closed parts and an open-world cell. Each holds the published bound, closes its
+//! lists and reaches the root cover.
+use super::cooked_scene::{cook_fixture, cook_scene, CookedScene, ENGINE_SCENES};
 use super::*;
+use crate::tests::thin_shapes::ThinShapes;
 
 /// Every bundle's closed list, as the report publishes it.
 fn published_lists(streams: &Value) -> Vec<Vec<usize>> {
@@ -99,35 +101,55 @@ fn every_bundle_lists_a_closure_that_reaches_the_root_cover_within_the_published
     fs::remove_dir_all(root).expect("cleanup");
 }
 
-/// Checks every streamed primitive of a site scene (`cook_site_scene`); returns the bundles past
-/// the root cover.
-fn cooked_scene_dependencies(folder: &str, gltf: &str, tag: &str) -> usize {
-    let SiteScene { root, result, .. } = cook_site_scene(folder, gltf, tag, "qem-endpoints");
-    let past_roots = result["primitives"]
+/// Checks every streamed primitive of a cooked scene; returns the bundles past the root cover and
+/// removes the scene's folder.
+fn cooked_scene_dependencies(scene: CookedScene) -> usize {
+    let past_roots = scene.result["primitives"]
         .as_array()
         .expect("primitives")
         .iter()
         .filter(|primitive| primitive["streams"].is_object())
         .map(assert_dependencies_hold)
         .sum();
-    fs::remove_dir_all(root).expect("cleanup");
+    fs::remove_dir_all(scene.root).expect("cleanup");
     past_roots
 }
 
 #[test]
-fn a_site_scene_cooks_closed_lists_within_the_published_bound() {
-    let past_roots =
-        cooked_scene_dependencies("site/assets/examples/hall/source", "geometry.gltf", "scene");
-    assert!(
-        past_roots > 0,
-        "the hall streams bundles past its root cover"
-    );
+fn the_engine_scenes_cook_closed_lists_within_the_published_bound() {
+    for (folder, gltf, tag) in ENGINE_SCENES {
+        let past_roots =
+            cooked_scene_dependencies(cook_fixture(folder, gltf, tag, "qem-endpoints"));
+        assert!(
+            past_roots > 0,
+            "{folder} streams bundles past its root cover"
+        );
+    }
+}
+
+#[test]
+fn a_family_of_multi_primitive_scenes_cooks_closed_lists_within_the_published_bound() {
+    for (rank, case) in ThinShapes::family().iter().enumerate() {
+        let tag = format!("thin-bundles-{rank}");
+        let (gltf, bin) = case.document(&tag);
+        let scene = cook_scene(&tag, gltf, bin, &[], "qem-endpoints");
+        let past_roots = cooked_scene_dependencies(scene);
+        assert!(
+            past_roots > 0,
+            "{case:?} streams bundles past its root cover"
+        );
+    }
 }
 
 #[test]
 fn an_open_world_cell_cooks_closed_lists_within_the_published_bound() {
-    let past_roots =
-        cooked_scene_dependencies("tests/fixtures/openworld-cell", "cell.gltf", "cell");
+    let cell = cook_fixture(
+        "tests/fixtures/openworld-cell",
+        "cell.gltf",
+        "cell",
+        "qem-endpoints",
+    );
+    let past_roots = cooked_scene_dependencies(cell);
     assert!(
         past_roots > 0,
         "the cell streams bundles past its root cover"

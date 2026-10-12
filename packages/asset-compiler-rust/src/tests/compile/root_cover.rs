@@ -1,17 +1,19 @@
 //! A part leaves the DAG only where the error covers it: in every cut the runtime may draw,
-//! the root cover — what `memory-on-a-budget` draws at its smallest budget — included, a part of
-//! the model none of whose vertices the cut names is no wider than the cut's error, and every root
-//! face lies within twice its error of the model (what `signature-architecture` lost:
-//! `dag/vanished.rs`). The cook refuses a parent error below a child's, so a cook that passes
-//! keeps its errors monotone.
+//! the root cover — what the runtime draws at its smallest budget — included, a part of the model
+//! none of whose vertices the cut names is no wider than the cut's error, and every root face lies
+//! within twice its error of the model (what a wide wall dropped whole lost: `dag/vanished.rs`).
+//! The cook refuses a parent error below a child's, so a cook that passes keeps its errors
+//! monotone. Proved on the engine's test scenes and on a family of generated scenes of thin closed
+//! parts (`tests/thin_shapes.rs`).
+use super::cooked_scene::{cook_fixture, cook_scene, CookedScene, ENGINE_SCENES};
 use super::silhouette::{page_cuts, page_indices};
-use super::site_scene::cook_site_scene;
 use super::*;
 use crate::compiler_primitive_warn::root_cover_triangles;
 use crate::dag::bounds::bounding_sphere;
 use crate::dag::clusters::weld_positions;
 use crate::dag::vanished::{extent, parts};
 use crate::physics_cook::hausdorff::one_sided_distance;
+use crate::tests::thin_shapes::ThinShapes;
 use std::collections::HashSet;
 
 /// The root cover's defects against the source it was cooked from, one line each: a root page with
@@ -84,10 +86,9 @@ fn missing_part_defects(
     defects
 }
 
-/// The root cover's and the missing parts' defects of a committed site scene's cook, every
-/// primitive.
-fn site_scene_extent_defects(folder: &str, gltf: &str, tag: &str) -> Vec<String> {
-    let scene = cook_site_scene(folder, gltf, tag, "qem-endpoints");
+/// The root cover's and the missing parts' defects of a cooked scene, every primitive; removes
+/// its folder.
+fn extent_defects(scene: CookedScene) -> Vec<String> {
     let mut defects = Vec::new();
     for primitive in scene.result["primitives"].as_array().expect("primitives") {
         let (positions, indices) = (scene.positions(primitive), scene.indices(primitive));
@@ -102,18 +103,22 @@ fn site_scene_extent_defects(folder: &str, gltf: &str, tag: &str) -> Vec<String>
 }
 
 #[test]
-fn no_part_of_signature_architecture_leaves_a_cut_under_its_extent() {
-    let folder = "site/assets/gallery/signature-architecture/source";
-    let defects = site_scene_extent_defects(folder, "geometry.gltf", "geometry");
-    assert!(defects.is_empty(), "{defects:#?}");
+fn no_part_of_the_engine_scenes_leaves_a_cut_under_its_extent() {
+    for (folder, gltf, tag) in ENGINE_SCENES {
+        let defects = extent_defects(cook_fixture(folder, gltf, tag, "qem-endpoints"));
+        assert!(defects.is_empty(), "{folder}: {defects:#?}");
+    }
 }
 
-/// The chalet's balcony boards (`scripts/docs/examples/chalet.ts`) stand like an arcade's
-/// columns: closed parts 1.08 m across, each apart from the rest. Charged only the simplifier's
-/// error, they left the cut at 1 m.
+/// Upright boards standing apart in a row, like an arcade's columns — closed parts over a metre
+/// across, each apart from the rest — and a roof of thousands of shingles each below a coarse
+/// level's error: charged only the simplifier's error, such boards left the cut at a metre.
 #[test]
-fn no_board_of_the_chalet_balcony_leaves_a_cut_under_its_extent() {
-    let folder = "site/assets/examples/chalet/source";
-    let defects = site_scene_extent_defects(folder, "chalet.gltf", "chalet");
-    assert!(defects.is_empty(), "{defects:#?}");
+fn no_part_of_a_family_of_thin_closed_shapes_leaves_a_cut_under_its_extent() {
+    for (rank, case) in ThinShapes::family().iter().enumerate() {
+        let tag = format!("thin-parts-{rank}");
+        let (gltf, bin) = case.document(&tag);
+        let defects = extent_defects(cook_scene(&tag, gltf, bin, &[], "qem-endpoints"));
+        assert!(defects.is_empty(), "{case:?}: {defects:#?}");
+    }
 }

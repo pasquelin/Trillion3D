@@ -23,7 +23,7 @@
 //! retry locks something new: collapses accumulated over levels flip small faces on spheres and
 //! facades (measured: 13 of 49 levels of MetalRoughSpheres, 13 of 38 of facade-7). The retry
 //! looks at every face but slivers, even one narrower than the error, which the published check
-//! exempts: a coarse face spanning a log of a chalet, 6 m long and 0.22 m wide, came out inside
+//! exempts: a coarse face spanning a log of a log house, 6 m long and 0.22 m wide, came out inside
 //! out at 0.78 m of error, its corners on the caps' normals. Refusing such a face
 //! would refuse the cook; retrying it only costs a few locks. A face none of whose corner copies
 //! a face turned its way draws is retried the same way: a board whose thickness collapsed onto
