@@ -2,7 +2,7 @@ import { MIB } from '../../../packages/math/src/constants.ts'
 import { isObject, readPath } from './contract.ts'
 import type { ReportRecord, TimingStat } from './types.ts'
 
-interface MetricDefinition {
+export interface MetricDefinition {
   unit: string
   path: string
   stat?: boolean
@@ -10,7 +10,7 @@ interface MetricDefinition {
 }
 
 /** Stable metric IDs, units and source paths; no presentation text in campaign data. */
-const METRICS = {
+export const METRICS = {
   gpu: { unit: 'ms', path: 'gpuFrameMs', stat: true },
   cpu: { unit: 'ms', path: 'cpuFrameMs', stat: true },
   cadence: { unit: 'ms', path: 'rafIntervalMs', stat: true },

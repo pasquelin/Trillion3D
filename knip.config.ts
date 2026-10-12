@@ -12,6 +12,8 @@ const config: KnipConfig = {
       entry: [
         // Served to a bench page as `../runtime/kit.js` (`bench/dawn/page.ts`).
         'bench/kit/index.ts',
+        // The report format the site reads from a pinned engine checkout: a public contract.
+        'bench/kit/report/*.ts',
         'packages/sdk-browser/src/page/work/pageWorker.ts',
         'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
         'packages/sdk-browser/src/physics/physicsWorker.ts',
@@ -41,9 +43,6 @@ const config: KnipConfig = {
         // The GPU bench in Node (`pnpm run bench:gpu`, `bench:gpu:suite`), its recorder, and the
         // first module of its worker threads, started by URL (`bench/dawn/worker.ts`).
         'bench/dawn/{run,suite,recorder,workerBoot}.ts',
-        // The bench's page kit, served to its scene pages as `../runtime/kit.js`
-        // (`bench/dawn/page.ts`).
-        'bench/kit/index.ts',
         // The cost model's command lines: the scale laws' sweeps, the model itself.
         'bench/dawn/{laws/sweep,laws/cook,laws/table,model/run}.ts',
         'bench/runner/feedback/feedbackTargetAb.ts',

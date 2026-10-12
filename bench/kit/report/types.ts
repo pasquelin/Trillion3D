@@ -24,18 +24,18 @@ interface ReportProvenance {
   displayCapHz?: number
 }
 
-interface ReportCanvas {
+export interface ReportCanvas {
   width: number
   height: number
   dpr?: number
 }
 
-interface CutRow {
+export interface CutRow {
   name: string | number
   triangles: number
 }
 
-interface CutAnalysis {
+export interface CutAnalysis {
   total: number
   unknown: number | string
   byPrimitive: CutRow[]
