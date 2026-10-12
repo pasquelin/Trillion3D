@@ -3,9 +3,10 @@ import { SceneNotice } from './SceneNotice.tsx'
 import { Card } from '../ui/Card.tsx'
 import { Collapse } from '../ui/Collapse.tsx'
 import { Stat, StatGroup } from '../ui/Stats.tsx'
-import { formatValue, metricValue } from './model/metrics.ts'
+import { metricValue } from '../../../bench/kit/report/metrics.ts'
+import { formatValue } from './model/format.ts'
 import { runOf, sceneName } from './model/presentation.ts'
-import type { Report } from './model/types.ts'
+import type { Report } from '../../../bench/kit/report/types.ts'
 import type { Locale } from '../../content/locale.ts'
 
 interface FindingsProps {

@@ -5,7 +5,7 @@
 // ray-casts it as the engine's depth buffer holds it — reverse-Z, infinite far, 0 on the sky.
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { lerp } from '../../../packages/math/src/scalar/reals.ts'
-import { mulberry32 } from '../../../site/examples/kit/random.ts'
+import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
 import {
   pixelRay,
   rayDepth,

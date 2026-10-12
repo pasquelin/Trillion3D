@@ -3,8 +3,8 @@ import { Section } from '../ui/Text.tsx'
 import { Table } from '../ui/Table.tsx'
 import { readingName } from './model/presentation.ts'
 import { DIAGNOSTICS, diagnosticValue } from './model/diagnostics.ts'
-import { formatValue } from './model/metrics.ts'
-import type { ReportRecord } from './model/types.ts'
+import { formatValue } from './model/format.ts'
+import type { ReportRecord } from '../../../bench/kit/report/types.ts'
 import type { Locale } from '../../content/locale.ts'
 
 interface DiagnosticsProps {

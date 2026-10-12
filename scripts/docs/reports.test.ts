@@ -7,7 +7,7 @@ import { runName, viewName } from '../../site/app/reports/model/names.ts'
 import { flattenFields } from '../../site/app/reports/model/availability.ts'
 import { pairedImages } from '../../site/app/reports/model/presentation.ts'
 import { readingGroups } from '../../site/app/reports/model/sources.ts'
-import { metricValue } from '../../site/app/reports/model/metrics.ts'
+import { metricValue } from '../../bench/kit/report/metrics.ts'
 import { baseRecord, baseRun, baseReport } from './report-fixtures.ts'
 import {
   Comparison,

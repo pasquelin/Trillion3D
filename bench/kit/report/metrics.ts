@@ -1,5 +1,4 @@
-import type { Locale } from '../../../content/locale.ts'
-import { MIB } from '../../../../packages/math/src/constants.ts'
+import { MIB } from '../../../packages/math/src/constants.ts'
 import { isObject, readPath } from './contract.ts'
 import type { ReportRecord, TimingStat } from './types.ts'
 
@@ -42,8 +41,4 @@ export function metricValue(
       : readPath(record?.data, metric.path)
   const value: unknown = metric.stat && isObject(source) ? source[percentile] : source
   return typeof value === 'number' && Number.isFinite(value) ? value / (metric.divisor ?? 1) : null
-}
-export function formatValue(value: number | null | undefined, locale: Locale, unit = ''): string {
-  if (value === null || value === undefined) return '—'
-  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: unit ? 2 : 0 }).format(value)}${unit ? ` ${unit}` : ''}`
 }

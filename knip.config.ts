@@ -12,6 +12,8 @@ const config: KnipConfig = {
       entry: [
         'site/app/main.tsx',
         'site/examples/kit/index.ts',
+        // Served to a bench page as `../runtime/kit.js` (`bench/dawn/page.ts`).
+        'bench/kit/index.ts',
         'packages/sdk-browser/src/page/work/pageWorker.ts',
         'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
         'packages/sdk-browser/src/physics/physicsWorker.ts',

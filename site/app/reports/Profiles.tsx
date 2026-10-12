@@ -5,7 +5,7 @@ import { viewName } from './model/names.ts'
 import { Card } from '../ui/Card.tsx'
 import { runOf, sceneName } from './model/presentation.ts'
 import { ProfileReading } from './ProfileReading.tsx'
-import type { Report, ReportRecord } from './model/types.ts'
+import type { Report, ReportRecord } from '../../../bench/kit/report/types.ts'
 import type { Locale } from '../../content/locale.ts'
 
 interface ProfilesProps {

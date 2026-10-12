@@ -7,7 +7,7 @@ import { flattenFields } from './model/availability.ts'
 import { recordLabel, sceneName } from './model/presentation.ts'
 import { viewName } from './model/names.ts'
 import { Collapse } from '../ui/Collapse.tsx'
-import type { Report, ReportSource } from './model/types.ts'
+import type { Report, ReportSource } from '../../../bench/kit/report/types.ts'
 import type { Locale } from '../../content/locale.ts'
 
 interface AllReadingsProps {

@@ -10,8 +10,8 @@ import {
 } from 'node:fs'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { sceneNote } from '../assets/scene.ts'
-import { assertReport, REPORT_VERSION } from '../../../site/app/reports/model/contract.ts'
-import type { Report as CampaignReport } from '../../../site/app/reports/model/types.ts'
+import { assertReport, REPORT_VERSION } from '../../kit/report/contract.ts'
+import type { Report as CampaignReport } from '../../kit/report/types.ts'
 import type { Report as BenchReport } from './types.ts'
 
 type ReportRun = CampaignReport['runs'][number]

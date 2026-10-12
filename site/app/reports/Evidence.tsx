@@ -2,8 +2,8 @@ import { useWords } from '../i18n.ts'
 import { Collapse } from '../ui/Collapse.tsx'
 import { ImageComparison } from '../ui/ImageComparison.tsx'
 import { engineName, viewName } from './model/names.ts'
-import { formatValue } from './model/metrics.ts'
-import type { ReportRecord } from './model/types.ts'
+import { formatValue } from './model/format.ts'
+import type { ReportRecord } from '../../../bench/kit/report/types.ts'
 import type { Locale } from '../../content/locale.ts'
 
 interface EvidenceProps {
