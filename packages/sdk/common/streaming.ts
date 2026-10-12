@@ -21,7 +21,6 @@ export type {
 export {
   blocksAcross,
   levelBlockBytes,
-  PREVIEW_BASE,
   previewBlockBytes,
   previewFirstLevel,
   previewIsWhole,
@@ -85,7 +84,6 @@ export {
   PREVIEW_BLOCK_SIDE,
   PREVIEW_LAYOUT_NAMES,
   PREVIEW_LOSSLESS_FORMAT,
-  TEXTURE_PREVIEW_VERSION,
 } from '../../sdk-core/src/texture/previewFormat.ts'
 export type { TextureBlockFormat, TextureLayout } from '../../sdk-core/src/texture/previewFormat.ts'
 export { readPagedManifest } from '../../sdk-core/src/manifest/paged.ts'

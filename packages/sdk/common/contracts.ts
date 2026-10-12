@@ -50,6 +50,7 @@ export {
   IMPOSTOR_VERSION,
   MANIFEST_BINARY_MAGIC,
   MANIFEST_BINARY_VERSION,
+  PREVIEW_BASE,
   PROXY_CHILD_WORDS,
   PROXY_CHILDREN,
   PROXY_NODE_FLOATS,
@@ -58,6 +59,7 @@ export {
   SCENE_PROXY_HEADER_WORDS,
   SCENE_PROXY_MAGIC,
   SCENE_PROXY_VERSION,
+  TEXTURE_PREVIEW_VERSION,
 } from '../../sdk-core/src/contracts/writtenFormats.ts'
 export type {
   DagReport,
