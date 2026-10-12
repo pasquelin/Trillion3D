@@ -36,7 +36,9 @@ export function createCharacterPort(post: (message: ToPhysics) => void, at: () =
     at,
     flush() {
       open = true
-      held.splice(0).forEach(post)
+      // Never `forEach(post)`: it would hand `post` the index as its second argument, which the
+      // session's `send` reads as the transfer list.
+      for (const message of held.splice(0)) post(message)
     },
   }
 }
