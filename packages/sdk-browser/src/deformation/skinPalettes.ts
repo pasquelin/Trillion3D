@@ -54,7 +54,10 @@ export function createSkinPalettes(placed: readonly (Deformed | null)[], block: 
         whole: false,
         last: -2,
       })
-      for (let j = 0; j < joints; j++) (bones.push(null), versions.push(0))
+      for (let j = 0; j < joints; j++) {
+        bones.push(null)
+        versions.push(0)
+      }
     }
   }
   append(placed)

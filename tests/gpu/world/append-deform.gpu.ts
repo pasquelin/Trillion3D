@@ -6,18 +6,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { runPageProof, assertSoundProof, type PageProofResult } from '../kit/enginePageProof.ts'
+import { appendCases } from './appendCases.ts'
 
-interface Result extends PageProofResult {
-  before?: string
-  after?: string
-  opened?: string | string[]
-  sessions?: number[]
-}
-
-const page = resolve(import.meta.dirname, 'appendDeformPage.ts')
-const prove = (method: string) => runPageProof(page, 'appendDeform', method) as Promise<Result>
-
-for (const [name, method] of [
+appendCases('appendDeformPage.ts', 'appendDeform', [
   ['a skinned geometry in a session that moves nothing', 'runSkinnedFirst'],
   ['a skinned geometry in a session that moves skinned meshes', 'runSkinned'],
   ['more skinned meshes of a batch the session holds', 'runSkinnedRows'],
@@ -28,17 +19,19 @@ for (const [name, method] of [
   ['a translucent mesh the waves carry', 'runWavedBlended'],
   ['a geometry read as floats', 'runFloats'],
   ['a skinned, a morphed, a waved and a float geometry, one after the other', 'runAll'],
-] as const)
-  test(`${name} joins the session in place and draws as a fresh open`, async () => {
-    const result = await prove(method)
-    assertSoundProof(result)
-    assert.notEqual(result.after, result.before, 'the added meshes appeared')
-    assert.deepEqual(result.sessions, [1, 1], 'the session was never opened again')
-    assert.equal(result.after, result.opened, 'the image is the fresh open’s')
-  })
+])
+
+interface PosesResult extends PageProofResult {
+  opened: string[]
+  agree: boolean[]
+}
 
 test('rows of one batch posed differently draw each its own pose, stably', async () => {
-  const result = (await prove('runPoses')) as Result & { opened: string[]; agree: boolean[] }
+  const result = (await runPageProof(
+    resolve(import.meta.dirname, 'appendDeformPage.ts'),
+    'appendDeform',
+    'runPoses',
+  )) as PosesResult
   assertSoundProof(result)
   assert.equal(
     new Set(result.opened).size,

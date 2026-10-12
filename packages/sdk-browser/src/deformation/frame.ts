@@ -339,6 +339,3 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[] = []
       updateRecords(r, skipped, frame),
   }
 }
-
-/** A session's deformation records, one block (`createDeformationFrame`). */
-export type DeformationFrame = ReturnType<typeof createDeformationFrame>
