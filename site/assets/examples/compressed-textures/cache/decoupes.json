@@ -1,6 +1,0 @@
-{
-  "about": "Answer per texture: cutout = true for a cutout, false for real transparency, null until someone decides. Preparation asks the question and shows the images; this file can also be edited by hand.",
-  "measurementAlgorithm": "0dd1369349b09db93066a1db515b2e1ec59fd2339b727a0678ed08e3d73b1d68",
-  "textures": {},
-  "version": 1
-}

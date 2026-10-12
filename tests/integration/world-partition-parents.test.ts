@@ -44,6 +44,7 @@ test(
       engine: {
         worldCut: () => undefined,
         updatePlacements: (rows) => void drawn.add(rows),
+        composePlacements: () => false,
       } as Partial<Engine> as Engine,
       renew: () => void renewed++,
       budget: { admits: () => true, spend() {} },
