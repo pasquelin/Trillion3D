@@ -1,5 +1,5 @@
 import { giveReadback, takeReadback } from './heldReadback.ts'
-import { alignUp } from '../../../../math/src/scalar/integers.ts'
+import { copyRowBytes } from './copyRowBytes.ts'
 import { mapStaging } from './readbackRing.ts'
 
 /**
@@ -48,9 +48,6 @@ export async function readGpuTextureR32F(
   return new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4)
 }
 
-/** Row pitch of a readback buffer: RGBA8 rows padded to WebGPU's 256-byte alignment. */
-const readbackBytesPerRow = (width: number) => alignUp(width * 4, 256)
-
 /** How `readGpuImage` reads: which level of the texture, and in which row order. */
 export interface ReadImageOptions {
   /** The level copied, whose size `width` × `height` is (default 0). */
@@ -71,7 +68,7 @@ export async function readGpuImage(
   { mipLevel = 0, topDown = false }: ReadImageOptions = {},
 ) {
   signal?.throwIfAborted()
-  const bytesPerRow = readbackBytesPerRow(width),
+  const bytesPerRow = copyRowBytes(width),
     row = width * 4
   const buffer = takeReadback(device, bytesPerRow * height, 'Trillion3D explicit capture')
   let read = false

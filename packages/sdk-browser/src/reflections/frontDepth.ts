@@ -4,6 +4,7 @@ import {
   computeUniformEntry,
 } from '../gpu/core/computeBindings.ts'
 import { FRONT_DEPTH_PASS } from '../stage/passLabels.ts'
+import { copyRowBytes } from '../gpu/core/copyRowBytes.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
@@ -97,7 +98,7 @@ export function frontLayout(device: GPUDevice) {
 
 /** Words of a row of the buffer the scatter writes: `width` words, padded to the 256 bytes a row of
  *  a copy to a texture takes. */
-export const frontPitch = (width: number) => ceilDiv(width * 4, 256) * 64
+export const frontPitch = (width: number) => copyRowBytes(width) / 4
 
 /** Bytes of the front depth of a view at `width × height`: the blends' target and the scatter's
  *  buffer. */

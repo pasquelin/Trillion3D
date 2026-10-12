@@ -7,9 +7,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun, Mat } from '../texture/shaderRun.fixture.ts'
-import { HIZ_NEAREST } from '../gpu/hiz/pyramidTexture.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
-import { depthField } from '../reflections/depthField.fixture.ts'
+import {
+  depthField,
+  depthImage,
+  depthLoads,
+  HIZ_DEPTH_READERS,
+} from '../reflections/depthField.fixture.ts'
 import { CODE, constructors } from './pageWorld.fixture.ts'
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
@@ -17,10 +21,7 @@ const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 /** The shipped cast over the depth image `depth`, `width × height`, in a view whose NDC is its
  *  world; it counts the cells of the pyramid it reads. */
 function caster(width: number, height: number, depth: (x: number, y: number) => number) {
-  const image = Float64Array.from({ length: width * height }, (_, i) =>
-    depth(i % width, Math.floor(i / width)),
-  )
-  const field = depthField(width, height, image)
+  const field = depthField(width, height, depthImage(width, height, depth))
   const token = { depth: {}, pyramid: {}, front: {} }
   const counter = { loads: 0 }
   const run = shaderRun<{
@@ -35,18 +36,7 @@ function caster(width: number, height: number, depth: (x: number, y: number) => 
       'screenBack',
       'clipToFramebuffer',
       'perspectiveDivide',
-      'hizPlane',
-      'hizFrontDepth',
-      'hizFrontOver',
-      'hizCellStep',
-      'hizCellNearest',
-      'hizCellFarthest',
-      'hizLevelCount',
-      'hizCullFarthest',
-      'hizNearest',
-      'hizWholeFarthest',
-      'hizSlice',
-      'hizTexel',
+      ...HIZ_DEPTH_READERS,
     ],
     {
       vsmView: {
@@ -59,12 +49,7 @@ function caster(width: number, height: number, depth: (x: number, y: number) => 
       hizFront: token.front,
       hizLevels: field.levels,
       ...constructors(CODE),
-      textureLoad: (t: object, cell: number[], layer: number) => {
-        if (t === token.depth) return [field.depthAt(cell)]
-        if (t === token.front) return [field.frontAt(cell)]
-        if (field.layerOf(cell, layer) === HIZ_NEAREST) counter.loads++
-        return [field.word(cell, layer)]
-      },
+      textureLoad: depthLoads(field, token, () => counter.loads++),
     },
   )
   return { cast: run.vsmScreenRayCast, counter }

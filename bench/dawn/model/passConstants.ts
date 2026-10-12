@@ -93,17 +93,19 @@ export const MARK_STRIDE = 4,
   MARK_BYTES = 4 + 8 + 1
 /** The reflection's march of a reflecting pixel (`screenMarch`): its iterations, 16 on average
  *  and 35 at the 99th percentile over the proof scenes, each reading a cell of the depth pyramid —
- *  the finished depth's farthest and the nearest, or at level 0 the depth and the slopes —, two
- *  texels. The model counts the mean; what a pass takes above it holds the tail. */
+ *  the finished depth's farthest and the nearest (two texels), or at level 0 the depth, the
+ *  transparent surface's depth and the slopes (`hizPlane`, three). The model counts the dearer
+ *  iteration, three; what a pass takes above the mean iterations holds the tail. */
 export const MARCH_ITERATIONS = 16,
-  MARCH_FETCHES = 2
+  MARCH_FETCHES = 3
 /** What a reflecting pixel's trace reads besides its march: its flags, base colour, depth and
- *  normal (`TRACE_SHADER`); at the hit, three depths for its normal (`reflectionHitNormal`) and one
- *  for the depth weight of the footprint (`reflectionDepthWeight`), then the radiance pyramid's four
+ *  normal (`TRACE_SHADER`); at the hit, two texels for whether the surface is a transparent one
+ *  (`hizFrontOver`) and two for the depth weight of the footprint (`reflectionDepthWeight`: the
+ *  opaque and the transparent depth), then the radiance pyramid's four
  *  bilinear taps of a coarse level (`reflectionLevelColor`, at least one tap of the footprint); its
  *  8 bytes written (`REFLECTION_FORMAT`). */
 export const TRACE_LOADS = 4,
-  HIT_LOADS = 3 + 1,
+  HIT_LOADS = 2 + 2,
   HIT_TAPS = 4,
   TRACE_BYTES = 8
 /** The radiance pyramid (`RADIANCE_SHADER`): the lit image's 8 bytes a pixel read once and written

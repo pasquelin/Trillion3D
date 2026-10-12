@@ -1,22 +1,16 @@
 // Synthetic views for the reflection's tests: opaque boxes, the exact ray cast of them, a reversed
 // infinite perspective camera, and the boxes rasterized into a reversed depth.
+import { dotVector3 } from '../../../math/src/vector/vector.ts'
+import { cross, subtract } from '../../../math/src/vector/vectorTuple.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 
 export type V3 = [number, number, number]
 export type Box = { low: V3; high: V3 }
 
-const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 const norm = (a: V3): V3 => {
   const l = Math.hypot(...a)
   return [a[0] / l, a[1] / l, a[2] / l]
 }
-const cross = (a: V3, b: V3): V3 => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-]
-
 /** Where the ray `o + d·t`, t > `from`, enters `box`, `from` when it starts inside, or Infinity. */
 function rayBox(o: V3, d: V3, box: Box, from = 0) {
   let near = -Infinity,
@@ -63,16 +57,16 @@ export function camera(
   fov = Math.PI / 3,
   near = 0.1,
 ) {
-  const f = norm(sub(target, eye)),
+  const f = norm(subtract(target, eye)),
     r = norm(cross(f, [0, 1, 0])),
     u = cross(r, f)
   const F = 1 / Math.tan(fov / 2),
     a = width / height
   const rows = [
-    [...r.map((x) => (F / a) * x), (-F / a) * dot(r, eye)],
-    [...u.map((x) => F * x), -F * dot(u, eye)],
+    [...r.map((x) => (F / a) * x), (-F / a) * dotVector3(r, eye)],
+    [...u.map((x) => F * x), -F * dotVector3(u, eye)],
     [0, 0, 0, near],
-    [...f, -dot(f, eye)],
+    [...f, -dotVector3(f, eye)],
   ]
   const m = new Float64Array(16)
   for (let row = 0; row < 4; row++)
@@ -132,7 +126,9 @@ export function rasterize(view: Camera, boxes: Box[]) {
     for (let x = 0; x < view.width; x++) {
       const d = view.ray(x + 0.5, y + 0.5),
         { t, index } = castBoxes(view.eye, d, boxes)
-      depth[y * view.width + x] = Number.isFinite(t) ? view.near / (t * dot(d, view.forward)) : 0
+      depth[y * view.width + x] = Number.isFinite(t)
+        ? view.near / (t * dotVector3(d, view.forward))
+        : 0
       shown[y * view.width + x] =
         index < 0
           ? -1

@@ -39,8 +39,7 @@ import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
  *   `reflectedRadiance`, the chain.
  */
 
-/** `reflectionHitNormal`: the normal of the pixel plane the ray stopped in, turned to the eye.
- *  `reflectionSeen`: the screen's answer to a surface at `P`, of normal `N`, reflecting through
+/** `reflectionSeen`: the screen's answer to a surface at `P`, of normal `N`, reflecting through
  *  `lobe` — the march along its centre, the hit on its plane, its footprint (`reflectionFootprint`)
  *  and its confidence: the fades of the image's border (in this image and in the one the radiance
  *  is read from), of the footprint's pyramid level (`reflectionLevelTrust`) and of the screen

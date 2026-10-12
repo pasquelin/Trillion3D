@@ -13,6 +13,52 @@ import {
 } from '../gpu/hiz/pyramidTexture.ts'
 import { hizReduceCeil, hizReduceNearestCeil } from '../../../sdk-core/src/hiz/oracles.fixture.ts'
 
+/** The depth readers of `hizDepthWgsl` a march runs (`shaderRun`), the shipped functions by name. */
+export const HIZ_DEPTH_READERS = [
+  'hizPlane',
+  'hizPixel',
+  'hizPixelIn',
+  'hizFold',
+  'hizFoldOver',
+  'hizFrontDepth',
+  'hizFrontOver',
+  'hizCellStep',
+  'hizCellNearest',
+  'hizCellFarthest',
+  'hizLevelCount',
+  'hizCullFarthest',
+  'hizNearest',
+  'hizWholeFarthest',
+  'hizSlice',
+  'hizTexel',
+]
+
+/** The depth image `width × height` whose pixel `(x, y)` holds `depth(x, y)`. */
+export const depthImage = (
+  width: number,
+  height: number,
+  depth: (x: number, y: number) => number,
+) =>
+  Float64Array.from({ length: width * height }, (_, i) => depth(i % width, Math.floor(i / width)))
+
+/**
+ * The `textureLoad` of the readers over `field`: the opaque depth of `token.depth`, the nearest
+ * transparent surface's of `token.front`, a word of the pyramid for any other texture;
+ * `onNearest` is told each cell of the nearest layer a march reads.
+ */
+export const depthLoads =
+  (
+    field: DepthField,
+    token: { depth: object; front: object },
+    onNearest: (cell: number[]) => void,
+  ) =>
+  (t: object, cell: number[], layer: number) => {
+    if (t === token.depth) return [field.depthAt(cell)]
+    if (t === token.front) return [field.frontAt(cell)]
+    if (field.layerOf(cell, layer) === HIZ_NEAREST) onNearest(cell)
+    return [field.word(cell, layer)]
+  }
+
 const WORD = new Float32Array(1),
   BITS = new Uint32Array(WORD.buffer)
 /** A depth as the pyramid holds it: its `f32` bits. */
@@ -53,6 +99,7 @@ export function depthField(
       'hizPlaneCorners',
       'hizDepthAt',
       'hizFrontAt',
+      'hizFold',
       'surfaceSlopeOf',
       'hizLayer',
       'hizLoad',

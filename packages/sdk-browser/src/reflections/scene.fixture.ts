@@ -3,11 +3,10 @@
 // of boxes seen by a camera (`boxes.fixture.ts`).
 import { Mat, shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { HIZ_NEAREST } from '../gpu/hiz/pyramidTexture.ts'
-import { depthField, type DepthField } from './depthField.fixture.ts'
+import { depthField, depthLoads, HIZ_DEPTH_READERS, type DepthField } from './depthField.fixture.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
 import { reflectionLightViewWgsl, REFLECTION_GROUP } from './viewLayout.ts'
-import { slabWords } from './slab.fixture.ts'
+import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import { reflectionConstant } from './constants.fixture.ts'
 import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
 
@@ -37,7 +36,7 @@ export function viewOf(
       viewProj: new Mat([...m]),
       radianceViewProj: new Mat([...m]),
       radiance: [size[0], size[1], Math.ceil(Math.log2(Math.max(size[0], size[1]))), 0],
-      slab: slabWords([...m], [size[0], size[1]]),
+      slab: screenSlab([...m], size[1]),
       traced: [1, 0, 0, 0],
       proxy: [0, 0, 0, 0],
       surroundings: [0, 0, 0, 0],
@@ -102,18 +101,7 @@ export function reflectionRunner(
       'reflectionDepthWeight',
       'reflectionRay',
       'screenMarch',
-      'hizPlane',
-      'hizFrontDepth',
-      'hizFrontOver',
-      'hizCellStep',
-      'hizCellNearest',
-      'hizCellFarthest',
-      'hizLevelCount',
-      'hizCullFarthest',
-      'hizNearest',
-      'hizWholeFarthest',
-      'hizSlice',
-      'hizTexel',
+      ...HIZ_DEPTH_READERS,
       'screenMarchEnd',
       'screenBack',
       'screenMarchBudget',
@@ -154,15 +142,10 @@ export function reflectionRunner(
         thickness,
       }),
       textureDimensions: () => [reflectionView.radiance[0], reflectionView.radiance[1]],
-      textureLoad: (t: object, cell: number[], layer: number) => {
-        if (t === token.depth) return [depth.depthAt(cell)]
-        if (t === token.front) return [depth.frontAt(cell)]
-        if (depth.layerOf(cell, layer) === HIZ_NEAREST) {
-          counter.loads++
-          counter.cells.push(cell)
-        }
-        return [depth.word(cell, layer)]
-      },
+      textureLoad: depthLoads(depth, token, (cell) => {
+        counter.loads++
+        counter.cells.push(cell)
+      }),
       textureSampleLevel: (_: unknown, __: unknown, uv: number[], level: number) => {
         const tap = [
           uv[0] * reflectionView.radiance[0],

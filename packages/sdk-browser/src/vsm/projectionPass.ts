@@ -13,7 +13,7 @@
 import { computeTextureEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
 import { NO_CONE } from '../../../sdk-core/src/scene/light/fields.ts'
 import { hasSubgroups } from '../gpu/core/subgroups.ts'
-import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
+import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import type { HizDepth } from '../gpu/hiz/types.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
@@ -587,10 +587,7 @@ function passGroupFor(
           { binding: B.normalRough, resource: inputs.normalRough },
           { binding: B.flags, resource: inputs.flags },
           { binding: B.blueNoise, resource: state.blueNoiseView! },
-          { binding: B.hizDepth, resource: inputs.hizDepth.resources[0] },
-          { binding: B.hizDepth + 1, resource: inputs.hizDepth.resources[1] },
-          { binding: B.hizDepth + 2, resource: inputs.hizDepth.resources[2] },
-          { binding: B.hizDepth + 3, resource: inputs.hizDepth.resources[3] },
+          ...hizDepthBindEntries(B.hizDepth, inputs.hizDepth),
           { binding: B.shadowMask, resource: mask },
           { binding: B.shadowMaskTiles, resource: maskTiles },
         ],

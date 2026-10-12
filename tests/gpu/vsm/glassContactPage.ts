@@ -5,7 +5,10 @@
 // transparent pane in the same place; the view is orthographic, its world its NDC.
 import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/factory.ts'
 import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'
-import { hizDepthEntries } from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
+import {
+  hizDepthBindEntries,
+  hizDepthEntries,
+} from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
 import { SCREEN_MARCH_WGSL } from '../../../packages/sdk-browser/src/gpu/hiz/screenMarch.ts'
 import { screenSlab } from '../../../packages/sdk-browser/src/gpu/hiz/screenSlab.ts'
 import {
@@ -128,7 +131,7 @@ export async function testGlassContact(): Promise<GlassContact> {
   const group = device.createBindGroup({
     layout,
     entries: [
-      ...depth.resources.map((resource, binding) => ({ binding, resource })),
+      ...hizDepthBindEntries(0, depth),
       { binding: 4, resource: { buffer: result } },
       { binding: 5, resource: { buffer: uniform } },
     ],

@@ -18,6 +18,8 @@ import {
   HIZ_WHOLE_FARTHEST,
   hizTextureSize,
 } from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
+import { SURFACE_SLOPE_WGSL } from '../../../packages/sdk-browser/src/lighting/deferred/footprintWgsl.ts'
+import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -29,15 +31,17 @@ const rowsOf = (depth: Float32Array, width: number, height: number) =>
 
 const f = Math.fround
 
-/** The plane's slope along one axis from five depths of the line (`surfaceSlopeOf`, in float32). */
-function slopeOf(z: number, before: number, after: number, farBefore: number, farAfter: number) {
-  const into = [f(z - before), f(after - z)],
-    beyond = [f(before - farBefore), f(farAfter - after)]
-  const bend = [Math.abs(f(into[0] - beyond[0])), Math.abs(f(into[1] - beyond[1]))]
-  const continues = [bend[0] < Math.abs(beyond[0]), bend[1] < Math.abs(beyond[1])]
-  if (continues[0] && (!continues[1] || bend[0] <= bend[1])) return into[0]
-  return continues[1] ? into[1] : 0
-}
+/** The slope rule the build holds, the shipped WGSL run as JavaScript: this model's reductions and
+ *  half-float rounding are independent of the build's, the rule they apply is the build's own. */
+const { surfaceSlopeOf: slopeOf } = shaderRun<{
+  surfaceSlopeOf: (
+    z: number,
+    before: number,
+    after: number,
+    farBefore: number,
+    farAfter: number,
+  ) => number
+}>(SURFACE_SLOPE_WGSL, ['surfaceSlopeOf'], {})
 
 /** The farthest corner of each pixel's plane (`hizPlaneCorners`): the depth less half the sum of
  *  its slopes, the slopes relative to the depth and held in half floats, as the build holds them. */

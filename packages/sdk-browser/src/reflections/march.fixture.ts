@@ -1,7 +1,7 @@
 // The shipped march over depth images in an orthographic view, for its tests (`march.test.ts`,
 // `marchFront.test.ts`).
 import { reflectionRunner, viewOf } from './scene.fixture.ts'
-import { depthField } from './depthField.fixture.ts'
+import { depthField, depthImage } from './depthField.fixture.ts'
 
 /** An orthographic view of `width × height` pixels whose world is its NDC: depth along +z, toward
  *  the eye. */
@@ -17,13 +17,12 @@ export function marcher(
   depth: (x: number, y: number) => number,
   front: (x: number, y: number) => number = () => 0,
 ) {
-  const image = Float64Array.from({ length: width * height }, (_, i) =>
-    depth(i % width, Math.floor(i / width)),
+  const field = depthField(
+    width,
+    height,
+    depthImage(width, height, depth),
+    depthImage(width, height, front),
   )
-  const nearest = Float64Array.from({ length: width * height }, (_, i) =>
-    front(i % width, Math.floor(i / width)),
-  )
-  const field = depthField(width, height, image, nearest)
   const run = reflectionRunner(field, flatView(width, height))
   const size = [width, height]
   return {

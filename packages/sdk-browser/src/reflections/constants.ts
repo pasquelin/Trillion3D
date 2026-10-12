@@ -16,7 +16,7 @@ const REFLECTION_STEP_CAP = 256
  *  The same thickness at every depth and under every projection (`screenBack`). */
 const REFLECTION_THICKNESS = 4
 /** The coverage from which a blended fragment is a surface of the depth a ray meets
- *  (`reflectionFrontAdd`): one that hides more than half of what lies behind it. A fainter one
+ *  (`reflectionFrontOut`): one that hides more than half of what lies behind it. A fainter one
  *  tints its backdrop and is no wall to a ray. */
 const REFLECTION_FRONT_COVERAGE = 0.5
 /** The weight under which a stage of the chain is not evaluated: 2⁻¹¹, under half a step of an

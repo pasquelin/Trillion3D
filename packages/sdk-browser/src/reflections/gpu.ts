@@ -6,7 +6,7 @@ import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { buildComputeStages } from '../lighting/deferred/fullscreen.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
-import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
+import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { REFLECTION_FORMAT } from './constants.ts'
 import { FRONT_SHADER, createFrontDepth, frontBytes, frontLayout } from './frontDepth.ts'
 import {
@@ -198,10 +198,7 @@ export function reflectionGroup(
       { binding: 0, resource: { buffer: reflection.uniform } },
       { binding: 1, resource: reflection.radiance.view },
       { binding: 2, resource: reflection.radiance.sampler },
-      ...depth.resources.map((resource, k) => ({
-        binding: REFLECTION_DEPTH_BINDING + k,
-        resource,
-      })),
+      ...hizDepthBindEntries(REFLECTION_DEPTH_BINDING, depth),
       { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: over.lightView } },
       { binding: REFLECTION_SURFACE_BINDING, resource: over.surface },
     ],

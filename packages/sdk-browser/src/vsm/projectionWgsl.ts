@@ -407,7 +407,9 @@ fn vsmPixelOf(groupId:vec2u,groupIndex:u32)->VsmPixel{
  p.pos=${VSM_PROJECTION_GROUP_SIZE}u*groupId+vsmZOrderDecode(groupIndex)+vec2u(rect.xy);
  p.inRect=all(p.pos<vec2u(rect.zw));
  let coord=min(p.pos,vec2u(rect.zw)-1u);
- // The surface's texels are read at once; what they feed waits for \`info.valid\`.
+ // The surface's texels are read at once; what they feed waits for \`info.valid\`. The depth is the
+ // attachment's \`vsmSceneDepth\`, not level 0 of \`hizDepth\` (a colour target the visibility pass writes
+ // beside it, which the screen ray alone marches): two resources, not proved to hold the same bits.
  let deviceZ=textureLoad(vsmSceneDepth,coord,0);${
    receiver
      ? `

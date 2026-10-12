@@ -21,6 +21,7 @@ import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 import { SURFACE_SLOPE_WGSL } from '../../lighting/deferred/footprintWgsl.ts'
 import {
   HIZ_CULL_FARTHEST,
+  HIZ_FOLD_WGSL,
   HIZ_FORMAT,
   HIZ_NEAREST,
   HIZ_TEXEL_WGSL,
@@ -156,7 +157,7 @@ fn hizPutBound(i:u32,bound:vec2f){
 /** The depth of the nearest build at \`q\`: the opaque depth, or the nearest transparent surface's
  *  (\`front\`, a depth a pixel, zero for none) where it lies in front: reverse-Z, the larger. A pixel without one reads the opaque depth, bit for bit. */
 fn hizFrontAt(q:vec2i)->f32{
- return max(textureLoad(level0,q,0).r,textureLoad(front,q,0).r);
+ return hizFold(level0,front,q);
 }
 /** The depth at \`q\` of level 0, clamped to the drawn size. */
 fn hizDepthAt(q:vec2i)->f32{
@@ -282,6 +283,7 @@ fn testBox(i:u32){
     STATE_TALLY_WGSL,
     HIZ_HIDES_WGSL,
     HIZ_TEXEL_WGSL,
+    HIZ_FOLD_WGSL,
     SURFACE_SLOPE_WGSL,
   ],
 )

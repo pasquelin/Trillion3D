@@ -12,17 +12,8 @@ import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { batisseur, engine, release, square } from '../kit/sharedSceneProof.ts'
 import { untilHeld } from '../kit/sceneImageProof.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
-import {
-  EYE,
-  HEIGHT,
-  TARGET,
-  WIDTH,
-  crossing,
-  mirror,
-  pixelOf,
-  rayOf,
-  type V3,
-} from './glassView.ts'
+import { EYE, HEIGHT, TARGET, WIDTH, crossing, mirror, pixelOf, rayOf } from './glassView.ts'
+import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 
 /** Pane A: its centre, its half-side and its yaw (its normal is `(sin yaw, 0, cos yaw)`). */
 const A = { at: [-1.3, 0.7, -2.8] as V3, half: 0.7, yaw: 1.1 }

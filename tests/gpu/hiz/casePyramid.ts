@@ -5,6 +5,7 @@ import {
   HIZ_FORMAT,
   hizTextureSize,
 } from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
+import { hizBindEntries } from '../../../packages/sdk-browser/src/gpu/hiz/shader.ts'
 import {
   hizLayerWords,
   type PackedHiz,
@@ -27,19 +28,24 @@ export function laidPyramid(device: GPUDevice, packed: PackedHiz) {
   return pyramid
 }
 
-/** The entries of the Hi-Z kernel's group over a laid `pyramid`: the test never reads level 0 nor
- *  the front depth, which `level0` stands for. */
+/** The entries of the Hi-Z kernel's group over a laid `pyramid`, one for each entry of the shipped
+ *  layout (`hizBindEntries`) by its kind: the test never reads level 0 nor the front depth, which
+ *  `level0` stands for; `buffers` fill the storage bindings in order. */
 export function hizEntries(
   pyramid: GPUTexture,
   level0: GPUTexture,
   uniform: GPUBindingResource,
   buffers: GPUBuffer[],
 ): GPUBindGroupEntry[] {
-  return [
-    { binding: 0, resource: pyramid.createView({ dimension: '2d-array' }) },
-    { binding: 1, resource: level0.createView() },
-    { binding: 2, resource: uniform },
-    ...buffers.map((buffer, k) => ({ binding: 3 + k, resource: { buffer } })),
-    { binding: 6, resource: level0.createView() },
-  ]
+  const storage = [...buffers]
+  return hizBindEntries(0).map(({ binding, storageTexture, texture, buffer }) => ({
+    binding,
+    resource: storageTexture
+      ? pyramid.createView({ dimension: '2d-array' })
+      : texture
+        ? level0.createView()
+        : buffer?.type === 'uniform'
+          ? uniform
+          : { buffer: storage.shift()! },
+  }))
 }

@@ -6,6 +6,8 @@
 // against.
 import { camera, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
+import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
+import { subtract } from '../../../packages/math/src/vector/vectorTuple.ts'
 import type { RigFrame } from './rigFrame.ts'
 
 export const SPHERES = {
@@ -28,18 +30,15 @@ export const SPHERES = {
 const STANDARD = 2,
   DIFFUSE = 4
 
-const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-
 /** What the ray `o + d·t` (t > `from`) meets first: a sphere (its index), the floor (-2) or the sky
  *  (-1), and the distance. */
 function castSpheres(o: V3, d: V3, from = 0) {
   let t = Infinity,
     index = -1
   SPHERES.centres.forEach((c, k) => {
-    const oc = sub(o, c),
-      b = dot(oc, d),
-      disc = b * b - (dot(oc, oc) - SPHERES.radius ** 2)
+    const oc = subtract(o, c),
+      b = dotVector3(oc, d),
+      disc = b * b - (dotVector3(oc, oc) - SPHERES.radius ** 2)
     if (disc < 0) return
     const root = Math.sqrt(disc)
     for (const at of [-b - root, -b + root])
@@ -85,11 +84,11 @@ export function sphereFrame() {
         { t, index } = castSpheres(eye, d)
       shown[p] = index
       if (index === -1) continue
-      frame.depth[p] = view.near / (t * dot(d, view.forward))
+      frame.depth[p] = view.near / (t * dotVector3(d, view.forward))
       const point = [0, 1, 2].map((k) => eye[k] + d[k] * t) as V3
       if (index >= 0) {
         const c = SPHERES.centres[index]
-        const n = sub(point, c).map((v) => v / SPHERES.radius)
+        const n = subtract(point, c).map((v) => v / SPHERES.radius)
         frame.flags[p] = STANDARD
         frame.normals.set([...n, 0], p * 4)
         frame.base.set([1, 1, 1, 1], p * 4)
@@ -112,9 +111,13 @@ export function exactReflection(view: ReturnType<typeof camera>, x: number, y: n
     { t, index } = castSpheres(view.eye, d)
   if (index < 0) return undefined
   const point = [0, 1, 2].map((k) => view.eye[k] + d[k] * t) as V3
-  const n = sub(point, SPHERES.centres[index]).map((v) => v / SPHERES.radius) as V3
-  const k = 2 * dot(d, n)
+  const n = subtract(point, SPHERES.centres[index]).map((v) => v / SPHERES.radius) as V3
+  const k = 2 * dotVector3(d, n)
   const R = [d[0] - k * n[0], d[1] - k * n[1], d[2] - k * n[2]] as V3
   const hit = castSpheres(point, R, 1e-6)
-  return { index: hit.index, at: point.map((c, i) => c + R[i] * hit.t) as V3, facing: -dot(d, n) }
+  return {
+    index: hit.index,
+    at: point.map((c, i) => c + R[i] * hit.t) as V3,
+    facing: -dotVector3(d, n),
+  }
 }
