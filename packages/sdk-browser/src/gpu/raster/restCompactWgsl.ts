@@ -66,10 +66,12 @@ fn sharedCount(lane:u32,count:u32)->u32{
  return workgroupUniformLoad(&slotCount);
 }
 /** The count and scatter dispatches' arguments: the tiles the tested rows can fill, at most the
- *  \`uni.tiles\` the work buffer holds, in rows, a tested slot up z. */
+ *  \`uni.tiles\` the work buffer holds, in rows, a tested slot up z. Never fewer than one: tile 0
+ *  records the slot's count (\`restCount\`), which \`restScan\` reads — with no tested row, no tile
+ *  would run, and the scan would sum the tile words of an earlier image into the slot's draw. */
 @compute @workgroup_size(1)
 fn restArgs(){
- let tiles=min(ceilDiv(partitionState[${ST_TESTED}u]*uni.perRow,${REST_COMPACT_WORKGROUP}u),uni.tiles);
+ let tiles=clamp(ceilDiv(partitionState[${ST_TESTED}u]*uni.perRow,${REST_COMPACT_WORKGROUP}u),1u,uni.tiles);
  let g=groupGrid(tiles);
  tileArgs[0]=g.x;tileArgs[1]=g.y;tileArgs[2]=uni.restSlots;
 }
