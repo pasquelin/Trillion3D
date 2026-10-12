@@ -280,6 +280,7 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
       records.place(root.pages, culling.nodes, owner, nodeBase),
     ),
   )
+  shared.records = records
   const worldSources = [...roots]
   if (tree) packPlacementTree({ ...p, worldSources }, tree)
   const tables = recordTables(roots, p, records, size.pages, plan),
@@ -390,8 +391,7 @@ export function appendDagRoots(
   }
   for (const root of roots) {
     // Its records are its template's, and their keys with them (`writeKeyTables`).
-    const first = shared.firstOf.get(root.pages)!
-    placeRoot(p, root, live.worlds, () => first.recordBase)
+    placeRoot(p, root, live.worlds, () => recordsOf(root, shared))
     const sizes = levelSizesOf(cullingOf(root, shared), shared),
       shift = tree?.depth ?? 0
     for (let level = 0; level < sizes.length; level++)
@@ -413,6 +413,17 @@ export function appendDagRoots(
   }
 }
 
+/** The first record of `root`'s pages when they are an earlier placement's: those of the same page
+ *  array, or of another array of the same primitive whose records are the same words — a source
+ *  wearing another surface —; -1 when the packing holds none of them. */
+function recordsOf(root: DagRoot, shared: PackShared) {
+  const first = shared.firstOf.get(root.pages)
+  if (first) return first.recordBase
+  const nodes = root.culling?.nodes,
+    block = nodes && shared.nodeBlocks.get(nodes)
+  return block ? (shared.records?.find(root.pages, nodes, block.owner, block.nodeBase) ?? -1) : -1
+}
+
 /** Whether `roots` fit the room `packed` kept: each a placement of a page array it packed, no
  *  deeper than its levels, within its pages, queue entries and placements. */
 function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShared) {
@@ -420,7 +431,7 @@ function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShar
   let pages = live.pages,
     entries = live.entries
   for (const root of roots) {
-    if (!shared.firstOf.has(root.pages)) return false
+    if (recordsOf(root, shared) < 0) return false
     const culling = cullingOf(root, shared),
       shift = packed.placementTree?.depth ?? 0
     if (levelSizesOf(culling, shared).length + shift > packed.levelSizes.length) return false

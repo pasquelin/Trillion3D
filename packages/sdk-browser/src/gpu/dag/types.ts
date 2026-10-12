@@ -85,6 +85,11 @@ export type DagPackShared = {
   /** Per node array, where its nodes lie in the node table — one copy for every placement of
    *  the primitive — and the node owning each of its pages there. */
   nodeBlocks: Map<Float64Array, { nodeBase: number; nodeCount: number; owner: Uint32Array }>
+  /** The unique records written, which a page array of another source of a packed primitive is
+   *  looked up in: its records are an earlier placement's when their words are the same. */
+  records?: {
+    find(pages: DagRoot['pages'], shape: object, owner: Uint32Array, nodeBase: number): number
+  }
 }
 export type PackedDag = {
   kind: 'dag'

@@ -2466,7 +2466,8 @@
     "summary": "所有者交给一个就地扩大其实例缓冲区的会话的内容（`growth.ts`）。",
     "members": {
       "growPlacements": "会话持有的一个实例缓冲区被更大的替换，先是 `from` 的行，其余搁置：会话从此读取 `to` 并持有其新行，不重建任何表（`growth.ts`）。",
-      "growsInPlace": "`growPlacements` 是否接受 `from` 中每一个扩大到 `capacity` 行，在所有者替换任何一个之前询问：false 保持原样，所有者在更大的缓冲区上重新打开会话。"
+      "growsInPlace": "`growPlacements` 是否接受 `from` 中每一个扩大到 `capacity` 行，在所有者替换任何一个之前询问：false 保持原样，所有者在更大的缓冲区上重新打开会话。",
+      "addPlacements": "会话打开时没有的来源(其各行与表面)绘制会话持有的图元：其记录和根加入切割，表面的纹理进入图集，不重建任何表。做不到时返回假，什么也不加入：由所有者重新打开会话。"
     }
   },
   "PlacementRows": {

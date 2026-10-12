@@ -23,7 +23,9 @@ import {
  *  lacks: a model, a resource it was not opened with, or what its engine cannot take in place. */
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera } = inputs
-  const contents = createWorldContents(scene, inputs.diagnostic.notices),
+  const contents = createWorldContents(scene, inputs.diagnostic.notices, () =>
+      track.request('scene-change'),
+    ),
     lights = createWorldLights(scene),
     background = createWorldBackground(scene)
   const placeCamera = followPageCamera(camera, canvas)

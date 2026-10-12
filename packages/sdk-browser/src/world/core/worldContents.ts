@@ -21,7 +21,11 @@ type Resolved = { cut: Cut; entry: MaterialEntry } | null
  * rows excepted, which `growHeld` grows in place on a session that can: a resource the session was
  * not opened with, a model it does not read.
  */
-export function createWorldContents(scene: Object3D, notices: WorldNotices) {
+export function createWorldContents(
+  scene: Object3D,
+  notices: WorldNotices,
+  refused: () => void = () => {},
+) {
   const cuts = createWorldCuts(notices),
     materials = createWorldMaterials(),
     poses = createWorldPoses()
@@ -33,6 +37,7 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
       poses.touch,
       (entry, cut, twoSided) => materials.surfaceOf(entry, cut.drawn, twoSided),
       ranks,
+      refused,
     ),
     members: createWorldMembers(scene),
     resolved: new Map(),
@@ -169,6 +174,15 @@ function seat(state: ContentsState, grow?: PlacementGrowth) {
     if (batches.seat(mesh, entry.cut, entry.entry)) writeRow(state, mesh)
   }
   growHeld(state, grow)
+  joinNew(state, grow)
+}
+
+/** The batches the session was not opened with join it, their rows written first. */
+function joinNew(state: ContentsState, grow?: PlacementGrowth) {
+  const seated: Mesh[] = []
+  for (const batch of state.batches.join((mesh) => seated.push(mesh), grow))
+    state.poses.touchRange(batch, 0, batch.rows!.capacity - 1)
+  seated.forEach((mesh) => writeRow(state, mesh))
 }
 
 const same = <T>(a: ReadonlySet<T>, b: Iterable<T>) => {

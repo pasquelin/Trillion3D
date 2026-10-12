@@ -37,6 +37,8 @@ export function createWebgpuPagesSetup(context: EngineContext, diag: WebgpuDiagn
     viewport: context.viewport ?? [1, 1],
     pixelRatio: context.pixelRatio ?? (() => DEFAULT_PIXEL_RATIO),
     roots: pages.roots,
+    /** What collected the roots, which collects a source added later (`addPlacements`). */
+    collector: pages.collector,
     allPages: pages.allPages,
     blendCopies,
     pagedBlendCopies: pages.pagedBlendCopies,

@@ -1,6 +1,8 @@
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts'
 import type { PlacementRows } from './rows.ts'
+import type { DrawSource } from '../page/selection/drawSource.ts'
+import type { Primitive } from '../../../sdk-core/src/index.ts'
 import type { HostAttributes, HostMaterials } from '../host/resources.ts'
 import type { SelectionUniforms } from '../gpu/core/selection.ts'
 
@@ -44,6 +46,11 @@ export type PlacementGrowth = {
    *  owner replaces any: false leaves them as they are, and the owner opens the session again on
    *  larger ones. */
   growsInPlace(from: readonly PlacementRows[], capacity: number): boolean
+  /** A source the session was not opened with — its rows, its surface — draws a primitive the
+   *  session holds: its records and roots join the cut, the surface's textures taken into the
+   *  atlas, no table rebuilt. False, nothing joined, where it cannot: the owner opens the session
+   *  again. */
+  addPlacements?(source: DrawSource, primitive: Primitive): Promise<boolean>
 }
 
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */

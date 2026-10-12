@@ -9,6 +9,8 @@ import { DEFAULT_CLEAR_COLOR } from '../../engine/common.ts'
 import type { MemoryBudgets } from '../../residency/pools.ts'
 import type { PlacementRows } from '../../placement/rows.ts'
 import type { AlphaChange } from '../../placement/engineSceneUpdates.ts'
+import type { DrawSource } from '../../page/selection/drawSource.ts'
+import type { Primitive } from '../../../../sdk-core/src/index.ts'
 
 type Inputs = {
   check: () => void
@@ -68,6 +70,11 @@ function placementUpdates(check: () => void, engine: Engine) {
     growPlacements: (from: PlacementRows, to: PlacementRows) => (
       check(),
       engine.growPlacements(from, to)
+    ),
+    /** A source the session was not opened with draws a primitive it holds (`Engine.addPlacements`). */
+    addPlacements: (source: DrawSource, primitive: Primitive) => (
+      check(),
+      engine.addPlacements?.(source, primitive) ?? Promise.resolve(false)
     ),
     /** A dynamic geometry's lists were rewritten in place (#573); false when the engine cannot
      *  take it, and only a new session will draw them. */

@@ -2466,7 +2466,8 @@
     "summary": "O que um proprietário entrega a uma sessão que aumenta os seus buffers de instâncias no lugar (`growth.ts`).",
     "members": {
       "growPlacements": "Um buffer de instâncias que a sessão mantém foi substituído por um maior, primeiro as linhas de `from` e o resto estacionado: a sessão lê `to` a partir de agora e mantém as suas novas linhas, sem reconstruir tabelas (`growth.ts`).",
-      "growsInPlace": "Se `growPlacements` aceita cada um de `from` aumentado para `capacity` linhas, perguntado antes de o proprietário substituir algum: false deixa-os como estão, e o proprietário abre de novo a sessão sobre outros maiores."
+      "growsInPlace": "Se `growPlacements` aceita cada um de `from` aumentado para `capacity` linhas, perguntado antes de o proprietário substituir algum: false deixa-os como estão, e o proprietário abre de novo a sessão sobre outros maiores.",
+      "addPlacements": "Uma fonte com que a sessão não foi aberta — as suas linhas, a sua superfície — desenha uma primitiva que a sessão detém: os seus registos e raízes juntam-se ao corte, as texturas da superfície entram no atlas, nenhuma tabela é refeita. Falso, nada foi juntado, onde não é possível: o proprietário abre a sessão de novo."
     }
   },
   "PlacementRows": {

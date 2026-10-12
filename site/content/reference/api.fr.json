@@ -4608,7 +4608,8 @@
     "summary": "Ce qu’un propriétaire remet à une session qui agrandit ses tampons d’instances sur place (`growth.ts`).",
     "members": {
       "growPlacements": "Un tampon d’instances que la session tient a été remplacé par un plus grand, les rangées de `from` d’abord et le reste rangé de côté : la session lit `to` désormais et tient ses nouvelles rangées, sans reconstruire de table (`growth.ts`).",
-      "growsInPlace": "Si `growPlacements` accepte chacun de `from` agrandi à `capacity` rangées, demandé avant que le propriétaire n’en remplace aucun : false les laisse tels quels, et le propriétaire rouvre la session sur de plus grands."
+      "growsInPlace": "Si `growPlacements` accepte chacun de `from` agrandi à `capacity` rangées, demandé avant que le propriétaire n’en remplace aucun : false les laisse tels quels, et le propriétaire rouvre la session sur de plus grands.",
+      "addPlacements": "Une source avec laquelle la session n’a pas été ouverte — ses rangées, sa surface — dessine une primitive que la session détient : ses enregistrements et ses racines rejoignent la découpe, les textures de la surface sont prises dans l’atlas, aucune table n’est refaite. Faux, rien n’a été joint, là où c’est impossible : le propriétaire rouvre la session."
     }
   },
   "PlacementRows": {

@@ -2873,7 +2873,8 @@
     "summary": "Bir sahibin, örnek arabelleklerini yerinde büyüten bir oturuma verdiği şey (`growth.ts`).",
     "members": {
       "growPlacements": "Oturumun tuttuğu bir örnek arabelleği daha büyüğüyle değiştirildi, önce `from`'un satırları, geri kalanı park edildi: oturum artık `to`'yu okur ve yeni satırlarını tutar, hiçbir tablo yeniden kurulmaz (`growth.ts`).",
-      "growsInPlace": "`growPlacements`'ın `from`'un her birini `capacity` satıra büyütülmüş olarak kabul edip etmediği; sahip herhangi birini değiştirmeden önce sorulur: false onları olduğu gibi bırakır ve sahip oturumu daha büyükleri üzerinde yeniden açar."
+      "growsInPlace": "`growPlacements`'ın `from`'un her birini `capacity` satıra büyütülmüş olarak kabul edip etmediği; sahip herhangi birini değiştirmeden önce sorulur: false onları olduğu gibi bırakır ve sahip oturumu daha büyükleri üzerinde yeniden açar.",
+      "addPlacements": "Oturumun açılırken bilmediği bir kaynak — satırları, yüzeyi — oturumun tuttuğu bir ilkeli çizer: kayıtları ve kökleri kesime katılır, yüzeyin dokuları atlasa alınır, hiçbir tablo yeniden kurulmaz. Yanlış, yapılamayan yerde hiçbir şey eklenmemiştir: sahibi oturumu yeniden açar."
     }
   },
   "PlacementRows": {

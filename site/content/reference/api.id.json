@@ -2484,7 +2484,8 @@
     "summary": "Apa yang diserahkan pemilik kepada sesi yang memperbesar buffer instansnya di tempat (`growth.ts`).",
     "members": {
       "growPlacements": "Sebuah buffer instans yang dipegang sesi diganti dengan yang lebih besar, baris `from` lebih dulu dan sisanya diparkir: sesi membaca `to` mulai sekarang dan memegang baris barunya, tanpa membangun ulang tabel (`growth.ts`).",
-      "growsInPlace": "Apakah `growPlacements` menerima setiap `from` yang diperbesar menjadi `capacity` baris, ditanyakan sebelum pemilik mengganti satu pun: false membiarkannya apa adanya, dan pemilik membuka lagi sesi pada yang lebih besar."
+      "growsInPlace": "Apakah `growPlacements` menerima setiap `from` yang diperbesar menjadi `capacity` baris, ditanyakan sebelum pemilik mengganti satu pun: false membiarkannya apa adanya, dan pemilik membuka lagi sesi pada yang lebih besar.",
+      "addPlacements": "Sebuah sumber yang tidak ada saat sesi dibuka — baris dan permukaannya — menggambar primitif yang dipegang sesi: rekaman dan akarnya bergabung ke potongan, tekstur permukaannya masuk ke atlas, tidak ada tabel yang dibangun ulang. False, tidak ada yang digabung, jika tidak bisa: pemilik membuka sesi lagi."
     }
   },
   "PlacementRows": {

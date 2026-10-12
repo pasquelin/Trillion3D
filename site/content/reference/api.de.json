@@ -4600,7 +4600,8 @@
     "summary": "Was ein Besitzer einer Sitzung übergibt, die ihre Instanzpuffer an Ort und Stelle vergrößert (`growth.ts`).",
     "members": {
       "growPlacements": "Ein Instanzpuffer der Sitzung wurde durch einen größeren ersetzt, zuerst die Zeilen von `from`, der Rest geparkt: Die Sitzung liest ab jetzt `to` und hält ihre neuen Zeilen, ohne eine Tabelle neu aufzubauen (`growth.ts`).",
-      "growsInPlace": "Ob `growPlacements` jeden von `from`, auf `capacity` Zeilen vergrößert, annimmt – gefragt, bevor der Besitzer einen ersetzt: false lässt sie, wie sie sind, und der Besitzer öffnet die Sitzung erneut auf größeren."
+      "growsInPlace": "Ob `growPlacements` jeden von `from`, auf `capacity` Zeilen vergrößert, annimmt – gefragt, bevor der Besitzer einen ersetzt: false lässt sie, wie sie sind, und der Besitzer öffnet die Sitzung erneut auf größeren.",
+      "addPlacements": "Eine Quelle, mit der die Sitzung nicht geöffnet wurde — ihre Zeilen, ihre Oberfläche — zeichnet ein Primitiv, das die Sitzung hält: ihre Datensätze und Wurzeln treten dem Schnitt bei, die Texturen der Oberfläche werden in den Atlas aufgenommen, keine Tabelle wird neu gebaut. Falsch, nichts angefügt, wo es nicht geht: der Besitzer öffnet die Sitzung neu."
     }
   },
   "PlacementRows": {

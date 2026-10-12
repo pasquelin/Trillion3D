@@ -50,11 +50,14 @@ export function createWorldBatches(
   touched: (batch: Batch, row: number) => void,
   wear: BatchWear,
   ranks: WorldRanks,
+  refused: () => void = () => {},
 ) {
   const state: BatchState = {
     touched,
     wear,
     ranks,
+    refused,
+    refusals: new Set(),
     made: 0,
     batches: new Map(),
     seats: new Map(),
@@ -69,14 +72,32 @@ export function createWorldBatches(
     seat: (mesh: Mesh, cut: Cut, entry: MaterialEntry) => seat(state, mesh, cut, entry),
     /** True while some mesh waits for a row: one in a batch the session holds is seated by
      *  `growHeld` where the session grows it, any other only by the next opening. */
-    waiting: () => [...short].some((batch) => waitingIn(state, batch) > 0),
+    waiting: () =>
+      state.refusals.size > 0 || [...short].some((batch) => waitingIn(state, batch) > 0),
     /** Seats the waiting meshes of the batches the session holds, growing full rows where the
      *  session takes it (`grow`). Returns the batches grown. */
     growHeld: (seated: (mesh: Mesh) => void, grow?: PlacementGrowth) =>
       [...short].filter((batch) => batch.rows && !!fit(state, batch, seated, grow ?? GROWS_NONE)),
+    /** Hands the session the batches it was not opened with, each sized and seated first: it
+     *  draws their primitive from now on (`PlacementGrowth.addPlacements`), or refuses, and the
+     *  next opening takes them. Returns the batches handed. */
+    join(seated: (mesh: Mesh) => void, grow?: PlacementGrowth) {
+      if (!grow?.addPlacements) return []
+      const joined = [...short].filter((batch) => !batch.rows)
+      for (const batch of joined) {
+        fit(state, batch, seated)
+        const refuse = () => (state.refusals.add(batch), state.refused())
+        grow.addPlacements!(batch, batch.cut.runtime.primitive).then(
+          (taken) => taken || refuse(),
+          refuse,
+        )
+      }
+      return joined
+    },
     /** The batches the next session opens with, each sized and seated by `fit`; one no mesh
      *  wears any more is dropped with its rows. */
     reopen() {
+      state.refusals.clear()
       for (const [key, batch] of batches) {
         if (!batch.wearers.size) {
           batches.delete(key)
@@ -96,6 +117,10 @@ type BatchState = {
   touched: (batch: Batch, row: number) => void
   wear: BatchWear
   ranks: WorldRanks
+  /** Told when the session refuses a batch it was handed: it opens again for it. */
+  refused: () => void
+  /** The batches the session refused, until the next opening. */
+  refusals: Set<Batch>
   /** Batches made so far: the next one's `order`. */
   made: number
   batches: Map<string, Batch>

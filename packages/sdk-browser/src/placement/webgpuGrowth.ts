@@ -90,6 +90,15 @@ function growWebgpuPlacements(rt: WebgpuPagesRuntime, from: PlacementRows, to: P
   if (growth.roots.length) growth.asked = true
 }
 
+/** Roots of a source added to the session in place wait beside those a growth brought, to be
+ *  taken into the cut with them (`addWebgpuPlacements`). */
+export function joinGrownRoots(rt: WebgpuPagesRuntime, roots: readonly Root[]) {
+  const growth = growths.get(rt) ?? { roots: [], appended: 0, made: 0, asked: false }
+  growths.set(rt, growth)
+  growth.roots.push(...roots)
+  if (growth.roots.length) growth.asked = true
+}
+
 /** At frame entry: the roots the growths since the last image brought, appended in place into the
  *  running cut's room, or a cut over every root made beside it at a grown capacity. */
 export function startGrownCut(rt: WebgpuPagesRuntime) {

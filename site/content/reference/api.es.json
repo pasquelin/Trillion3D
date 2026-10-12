@@ -4600,7 +4600,8 @@
     "summary": "Lo que un propietario entrega a una sesión que amplía sus búferes de instancias en el sitio (`growth.ts`).",
     "members": {
       "growPlacements": "Un búfer de instancias que la sesión tiene fue sustituido por uno mayor, primero las filas de `from` y el resto apartado: la sesión lee `to` desde ahora y conserva sus filas nuevas, sin reconstruir ninguna tabla (`growth.ts`).",
-      "growsInPlace": "Si `growPlacements` acepta cada uno de `from` ampliado a `capacity` filas, preguntado antes de que el propietario sustituya alguno: false los deja como están, y el propietario abre de nuevo la sesión sobre otros mayores."
+      "growsInPlace": "Si `growPlacements` acepta cada uno de `from` ampliado a `capacity` filas, preguntado antes de que el propietario sustituya alguno: false los deja como están, y el propietario abre de nuevo la sesión sobre otros mayores.",
+      "addPlacements": "Una fuente con la que no se abrió la sesión — sus filas, su superficie — dibuja una primitiva que la sesión tiene: sus registros y raíces se unen al corte, las texturas de la superficie entran en el atlas, no se rehace ninguna tabla. Falso, nada se unió, donde no puede: el propietario abre la sesión de nuevo."
     }
   },
   "PlacementRows": {

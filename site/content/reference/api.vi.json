@@ -2484,7 +2484,8 @@
     "summary": "Thứ mà chủ sở hữu giao cho một phiên mở rộng bộ đệm thực thể của nó tại chỗ (`growth.ts`).",
     "members": {
       "growPlacements": "Một bộ đệm thực thể mà phiên giữ đã được thay bằng một bộ lớn hơn, các hàng của `from` trước và phần còn lại được cất đi: từ nay phiên đọc `to` và giữ các hàng mới, không dựng lại bảng nào (`growth.ts`).",
-      "growsInPlace": "Liệu `growPlacements` có nhận từng `from` được mở rộng đến `capacity` hàng hay không, được hỏi trước khi chủ sở hữu thay bất kỳ cái nào: false giữ nguyên chúng, và chủ sở hữu mở lại phiên trên các bộ lớn hơn."
+      "growsInPlace": "Liệu `growPlacements` có nhận từng `from` được mở rộng đến `capacity` hàng hay không, được hỏi trước khi chủ sở hữu thay bất kỳ cái nào: false giữ nguyên chúng, và chủ sở hữu mở lại phiên trên các bộ lớn hơn.",
+      "addPlacements": "Một nguồn mà phiên không được mở cùng — các hàng, bề mặt của nó — vẽ một nguyên thủy mà phiên đang giữ: bản ghi và gốc của nó nhập vào lát cắt, kết cấu của bề mặt vào tập ảnh, không bảng nào dựng lại. False, không nhập gì, nơi không làm được: chủ sở hữu mở lại phiên."
     }
   },
   "PlacementRows": {
