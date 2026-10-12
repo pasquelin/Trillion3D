@@ -19,7 +19,7 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *    depth and the radiance pyramid an earlier image of this view);
  *  - `proxy`, the resident proxy's certified error in metres (`x`), the distance a ray leaves a surface
  *    off its normal;
- *  - `surroundings`, the radiance around the scene a miss adds to the environment's, written on the
+ *  - `surroundings`, the background as the view shows it, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`), written on the
  *    GPU from the background, the exposure and the display curve (`BEGIN_SHADER`).
  */
 const LAYOUT = fieldLayout('ReflectionView', [

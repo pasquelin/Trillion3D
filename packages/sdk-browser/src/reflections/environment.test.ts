@@ -1,6 +1,6 @@
 // The radiance around the scene a reflection reads, and the frame's state, shipped WGSL run as JavaScript (`shaderRun`):
-// the GGX lobe's zonal moments over the environment's bands, the surroundings added whole, and the
-// background as the display shows it standing in for a scene that declares no light around it.
+// the GGX lobe's zonal moments over the environment's bands, the background the larger of it and the
+// environment's, and the background as the display shows it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
@@ -45,7 +45,7 @@ test('the GGX lobe keeps a mirror whole and filters the higher bands as it widen
   }
 })
 
-test('the surroundings add to the environment whole, through every lobe', () => {
+test('the surroundings and the environment: the larger of the two, through every lobe', () => {
   const environment = zero()
   environment[0] = [0.4, 0.2, 0.1, 0]
   const surroundings = [0.25, 0.5, 0.125, 0]
@@ -64,7 +64,7 @@ test('the surroundings add to the environment whole, through every lobe', () => 
       const without = bare.reflectionEnvironment(bare.reflectionLobeOf(R, alpha, lobe))
       const with_ = lit.reflectionEnvironment(lit.reflectionLobeOf(R, alpha, lobe))
       for (let c = 0; c < 3; c++)
-        assert.ok(Math.abs(with_[c] - without[c] - surroundings[c]) < 1e-12)
+        assert.ok(Math.abs(with_[c] - Math.max(without[c], surroundings[c])) < 1e-12)
     }
 })
 
@@ -101,7 +101,7 @@ test('a stretched lobe filters each axis by its own width, a round one is the zo
   }
 })
 
-test('a scene with no light around it is surrounded by its background, as the display shows it', () => {
+test('a scene is surrounded by its background, as the display shows it, declared light or none', () => {
   // The lighting's view: the background 0x171d28 as the display shows it, the curve and an exposure
   // of 2; the reflection's own, whose surroundings the begin writes.
   const view = {
@@ -110,7 +110,6 @@ test('a scene with no light around it is surrounded by its background, as the di
     lightParams: [0, 0, 0, 2],
   }
   const reflectionView = { surroundings: [9, 9, 9, 9] }
-  const environment = Array.from({ length: 9 }, () => [0, 0, 0, 0])
   const work = [7, 0, 0, 0]
   const run = shaderRun<{ reflectionBegin: () => void; aces: (c: number[]) => number[] }>(
     BEGIN_SHADER + wgslModule(DISPLAY_VALUE_WGSL),
@@ -124,7 +123,7 @@ test('a scene with no light around it is surrounded by its background, as the di
       'aces',
       'srgbToLinear',
     ],
-    { directLights: { environment }, view, reflectionView, work },
+    { view, reflectionView, work },
   )
   run.reflectionBegin()
   // A mirror (its weight one) shows it through the exposure and the curve: the background's bytes.
@@ -133,10 +132,6 @@ test('a scene with no light around it is surrounded by its background, as the di
     shown.map((c) => Math.round(linearToSrgb(c) * 255)),
     [0x17, 0x1d, 0x28],
   )
-  // A scene that declares light around it — one coefficient — answers alone.
-  environment[3] = [0, 0.1, 0, 0]
-  run.reflectionBegin()
-  assert.deepEqual(reflectionView.surroundings, [0, 0, 0, 0])
   // The tile list starts empty: its indirect arguments, one row of nothing, then 1, and the count.
   assert.deepEqual(work, [0, 1, 1, 0])
 })
