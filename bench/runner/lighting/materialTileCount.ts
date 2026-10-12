@@ -5,13 +5,12 @@
 // material evaluations — one per covered pixel —, are the same before and after.
 //
 //   node bench/runner/lighting/materialTileCount.ts [--width 3456] [--height 2234] [--classes 6]
-import { parseArgs } from 'node:util'
 import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 import {
   classFragments,
   classifyTiles,
 } from '../../../packages/sdk-browser/src/webgpu/core/materialTiles.fixture.ts'
-import { ATRIUM_POSES, atriumDepth } from './lightTileAtrium.ts'
+import { ATRIUM_POSES, atriumCountArgs, atriumDepth } from './lightTileAtrium.ts'
 
 /** Per pixel of a `width` × `height` pose: fragments rasterised before and after, and the
  *  material evaluations (covered pixels). */
@@ -32,14 +31,7 @@ export function countClassFragments(width: number, height: number, classes: numb
 }
 
 async function main() {
-  const { values } = parseArgs({
-    options: {
-      width: { type: 'string', default: '3456' },
-      height: { type: 'string', default: '2234' },
-      classes: { type: 'string', default: '6' },
-    },
-  })
-  const [width, height, classes] = [values.width, values.height, values.classes].map(Number)
+  const { width, height, classes } = atriumCountArgs({ classes: 6 })
   const rows = ATRIUM_POSES.map((_, pose) => {
     const count = countClassFragments(width, height, classes, pose)
     return {
