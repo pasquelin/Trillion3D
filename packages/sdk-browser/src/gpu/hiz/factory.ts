@@ -143,7 +143,8 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
       if (h.disposed || !at) return undefined
       return (at.depth ??= {
         pyramid: at.pyramid,
-        resources: [at.level0View, at.pyramidView, { buffer: h.levelTable }],
+        front: at.front,
+        resources: [at.level0View, at.pyramidView, { buffer: h.levelTable }, at.frontView],
       })
     },
     encodeTest: (queueDevice, open, maxRows, pages, counting) =>

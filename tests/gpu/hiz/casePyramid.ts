@@ -26,3 +26,20 @@ export function laidPyramid(device: GPUDevice, packed: PackedHiz) {
     )
   return pyramid
 }
+
+/** The entries of the Hi-Z kernel's group over a laid `pyramid`: the test never reads level 0 nor
+ *  the front depth, which `level0` stands for. */
+export function hizEntries(
+  pyramid: GPUTexture,
+  level0: GPUTexture,
+  uniform: GPUBindingResource,
+  buffers: GPUBuffer[],
+): GPUBindGroupEntry[] {
+  return [
+    { binding: 0, resource: pyramid.createView({ dimension: '2d-array' }) },
+    { binding: 1, resource: level0.createView() },
+    { binding: 2, resource: uniform },
+    ...buffers.map((buffer, k) => ({ binding: 3 + k, resource: { buffer } })),
+    { binding: 6, resource: level0.createView() },
+  ]
+}

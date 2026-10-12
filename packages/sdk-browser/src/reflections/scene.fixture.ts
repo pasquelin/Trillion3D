@@ -64,7 +64,7 @@ export function reflectionRunner(
   overrides: object = {},
 ) {
   const counter = { loads: 0, taps: [] as number[][], cells: [] as number[][] }
-  const token = { depth: {}, pyramid: {}, radiance: {} }
+  const token = { depth: {}, pyramid: {}, front: {}, radiance: {} }
   const run = shaderRun<{
     reflectionLobeOf: (R: V3, alpha: number, lobe: number[]) => Lobe
     reflectionSeen: (P: V3, N: V3, lobe: Lobe) => Seen
@@ -75,7 +75,7 @@ export function reflectionRunner(
       end: number,
       thickness: number,
       slab: number[],
-    ) => { t: number; plane: number[]; pixel: number[] }
+    ) => { t: number; plane: number[]; pixel: number[]; front: boolean }
     screenMarchEnd: (o: number[], d: number[], size: number[]) => number
     screenMarchBudget: (d: number[], end: number, levels: number) => number
     reflectionConeAt: (distance: number, pixel: number, lobe: Lobe) => Cone
@@ -104,6 +104,8 @@ export function reflectionRunner(
       'reflectionRay',
       'screenMarch',
       'hizPlane',
+      'hizFrontDepth',
+      'hizFrontOver',
       'hizCellStep',
       'hizCellNearest',
       'hizCellFarthest',
@@ -127,6 +129,7 @@ export function reflectionRunner(
       view,
       hizDepth: token.depth,
       hizPyramid: token.pyramid,
+      hizFront: token.front,
       hizLevels: depth.levels,
       reflectionRadiance: token.radiance,
       reflectionSampler: {},
@@ -154,6 +157,7 @@ export function reflectionRunner(
       textureDimensions: () => [reflectionView.radiance[0], reflectionView.radiance[1]],
       textureLoad: (t: object, cell: number[], layer: number) => {
         if (t === token.depth) return [depth.depthAt(cell)]
+        if (t === token.front) return [depth.frontAt(cell)]
         if (depth.layerOf(cell, layer) === HIZ_NEAREST) {
           counter.loads++
           counter.cells.push(cell)

@@ -20,7 +20,8 @@ const SCREEN_MARCH_NUDGE = 2 ** -8
  * (its planes to their far corner) and its nearest, and so do their slabs: between the farthest's
  * back and the nearest. It returns the `t` it stopped at, the plane (depth at its centre, slopes)
  * and centre of the pixel it stopped in (`ScreenHit`); `t` −1 where it meets nothing. `front` says
- * the hit is a transparent surface before the opaque depth: false until the pyramid holds one.
+ * the hit is a transparent surface before the opaque depth: `hizFrontOver`, false where the pyramid holds none: the reflection keeps
+ * it, the contact shadow skips it.
  *
  * A cell is crossed by the ray over `[t, across]`, whose depths lie between two bounds. Entirely in
  * front of the cell's nearest depth, or entirely behind the back of its farthest slab (which lies
@@ -96,10 +97,10 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f)->ScreenHit{
    let h0=z0-s0;
    let h1=z1-s1;
    if(h0>=0.0){
-    if(h1<0.0){return ScreenHit(mix(t,across,h0/(h0-h1)),plane,centre,false);}
+    if(h1<0.0){return ScreenHit(mix(t,across,h0/(h0-h1)),plane,centre,hizFrontOver(vec2i(cell)));}
    }else if(s0>0.0){
     let back=screenBack(s0,thickness,slab);
-    if(z0>=back){return ScreenHit(t,plane,centre,false);}
+    if(z0>=back){return ScreenHit(t,plane,centre,hizFrontOver(vec2i(cell)));}
    }
    t=across;
    level=min(1,top);

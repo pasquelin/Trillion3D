@@ -65,6 +65,7 @@ export function bindHiz(h: HizState) {
       { binding: 3, resource: { buffer: h.bounds } },
       { binding: 4, resource: { buffer: h.flags } },
       { binding: 5, resource: { buffer: h.state } },
+      { binding: 6, resource: at.frontView },
     ],
   })
 }

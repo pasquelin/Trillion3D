@@ -78,6 +78,8 @@ function joue(items: ReturnType<typeof item>[]) {
       mapsSampler: {},
     },
     gpu: {
+      // The front depth the blends write (`frontAttachment`).
+      reflection: { front: { view: {}, fresh: false } },
       hdrView: {},
       colorView: {},
       depthView: {},

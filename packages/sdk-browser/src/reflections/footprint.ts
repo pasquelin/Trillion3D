@@ -73,8 +73,7 @@ fn reflectionConeAt(distance:f32,pixel:f32,lobe:ReflectionLobe)->ReflectionCone{
  return ReflectionCone(short,long,log2(max(short,long/REFLECTION_TAPS)));
 }
 fn reflectionDepthWeight(X:vec2f,surface:ReflectionSurface)->f32{
- let size=vec2i(view.viewport.xy);
- let z=textureLoad(hizDepth,clamp(vec2i(floor(X)),vec2i(0),size-vec2i(1)),0).r;
+ let z=hizFrontDepth(vec2i(floor(X)));
  let along=dot(X-surface.pixel,surface.plane.yz);
  let apart=max(abs(z-surface.plane.x-along)-surface.thickness-abs(along),0.0);
  return 1.0-smoothstep(0.0,2.0*surface.thickness,apart);

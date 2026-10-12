@@ -6,7 +6,8 @@ import {
 } from '../webgpu/pages/prepare/lightResources.ts'
 import { viewProj } from '../webgpu/pages/helpers.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { reflectionGroup, reflectionOver } from './gpu.ts'
+import { encodeFrontDepth } from './frontDepth.ts'
+import { reflectionGroup, reflectionOver, type ScreenReflection } from './gpu.ts'
 import { encodeRadiancePyramid, type RadianceInputs } from './radiance.ts'
 import { encodeReflectionTrace, type TraceInputs } from './trace.ts'
 import type { ReflectionFrame } from './viewWrite.ts'
@@ -25,14 +26,36 @@ const inputs = {} as TraceInputs
 const radianceInputs = {} as RadianceInputs
 
 /**
+/** Stages the image's reflection view (`ScreenReflection.writeView`): what the front depth's carry
+ *  (`encodeDepthPyramid`) and the trace (`encodeReflections`) both read; unchanged, nothing is sent. */
+function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
+  const { gpu, run, bounce } = rt
+  frame.size = gpu.targetSize
+  frame.depthDrawn = run.depthDrawn
+  frame.proxyError = bounce.probes?.proxy?.errorMetres ?? 0
+  reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
+}
+
+/**
  * The depth pyramid's nearest layer, with the finished depth's farthest, once the visibility drew
  * the whole depth (`GpuHiz.encodeNearest`: the Hi-Z's build, which only the readers of the whole
- * depth read): one compute pass, before every reader of it — the direct lights' contact rays
- * (`vsm/`) and the reflections' trace both walk it with the screen march (`gpu/hiz/screenMarch.ts`).
+ * depth read): the last image's transparents' front depth carried to this one's pixels first
+ * (`frontDepth.ts`), which the nearest layer folds in, then one compute pass, before every reader
+ * of it — the direct lights' contact rays (`vsm/`) and the reflections' trace both walk it with the
+ * screen march (`gpu/hiz/screenMarch.ts`).
  */
 export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
-  const hiz = rt.vis.gpuHiz
-  if (!hiz || !rt.run.depthDrawn) return
+  const { gpu, vis } = rt,
+    reflection = gpu.reflection,
+    stages = vis.reflectionPipelines,
+    hiz = vis.gpuHiz,
+    depth = hiz?.depth()
+  if (!hiz) return
+  if (reflection && stages && depth && reflectionOver(rt)) {
+    writeFrame(rt, reflection)
+    encodeFrontDepth(encoder, reflection, stages, depth.front, gpu.targetSize)
+  }
+  if (!rt.run.depthDrawn) return
   hiz.encodeNearest(reflectionPass.begin(encoder))
   reflectionPass.end()
 }
@@ -45,7 +68,7 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
  * reads there (`gpu.deferred.update`, written before the image is submitted).
  */
 export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
-  const { gpu, vis, run, lights, bounce } = rt,
+  const { gpu, vis, lights, bounce } = rt,
     reflection = gpu.reflection,
     stages = vis.reflectionPipelines,
     hiz = vis.gpuHiz,
@@ -53,10 +76,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     over = reflectionOver(rt),
     resident = bounce.probes?.proxy
   if (!reflection || !stages || !hiz || !depth || !over) return
-  frame.size = gpu.targetSize
-  frame.depthDrawn = run.depthDrawn
-  frame.proxyError = resident?.errorMetres ?? 0
-  reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
+  writeFrame(rt, reflection)
   const surfaces = gpu.surfaces,
     deferred = gpu.deferred,
     traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer && !!deferred

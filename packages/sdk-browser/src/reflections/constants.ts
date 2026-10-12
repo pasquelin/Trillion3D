@@ -15,6 +15,10 @@ const REFLECTION_STEP_CAP = 256
  *  surface by more passes behind it and goes on (a pole, a fence), by less is inside it and hits.
  *  The same thickness at every depth and under every projection (`screenBack`). */
 const REFLECTION_THICKNESS = 4
+/** The coverage from which a blended fragment is a surface of the depth a ray meets
+ *  (`reflectionFrontAdd`): one that hides more than half of what lies behind it. A fainter one
+ *  tints its backdrop and is no wall to a ray. */
+const REFLECTION_FRONT_COVERAGE = 0.5
 /** The weight under which a stage of the chain is not evaluated: 2⁻¹¹, under half a step of an
  *  8-bit channel of a radiance of one. */
 const REFLECTION_EPSILON = 2 ** -11
@@ -32,6 +36,7 @@ const REFLECTION_TAPS:f32=${wgslF32(REFLECTION_TAPS)};
 const REFLECTION_STEP_CAP:f32=${wgslF32(REFLECTION_STEP_CAP)};
 const REFLECTION_THICKNESS:f32=${wgslF32(REFLECTION_THICKNESS)};
 const REFLECTION_EPSILON:f32=${wgslF32(REFLECTION_EPSILON)};
+const REFLECTION_FRONT_COVERAGE:f32=${wgslF32(REFLECTION_FRONT_COVERAGE)};
 const REFLECTION_HALF_MAXIMUM:f32=${wgslF32(Math.SQRT2)};
 const REFLECTION_CONE_LIMIT:f32=${wgslF32(Math.tan(40 * DEG2RAD))};
 const REFLECTION_FAR:f32=${wgslF32(2 ** 23)};`,
