@@ -1,5 +1,8 @@
 import { loadUnpaged } from '../../core/positions.ts'
-import { prepareDeformationGeometry } from '../../../deformation/prepare.ts'
+import {
+  prepareDeformationCompute,
+  prepareDeformationGeometry,
+} from '../../../deformation/prepare.ts'
 import { prepareWebgpuBlend } from '../../blend/prepare.ts'
 import { createTransparentTable } from '../../transparent/table.ts'
 import { prepareBlendResources } from '../../blend/resources.ts'
@@ -99,11 +102,7 @@ export async function prepareMaterials(
   vis.writesEmissiveAo = wantsEmissiveAo(rt)
   await grantFrameTargets(rt, gpuDevice)
   // A refused deformation import is a geometry failure, told below: no compute without its code.
-  const deformationCode = vis.deformationCode
-  vis.deformationCompute =
-    deformationCode && (allPages.some((page) => page.deformationOutput) || !!vis.wholeDeformation)
-      ? await deformationCode.createDeformationCompute(gpuDevice)
-      : undefined
+  await prepareDeformationCompute(rt, gpuDevice)
   try {
     if (geometryFailure) throw geometryFailure.error
     await step('textures', () => prepareWebgpuTextures(rt, gpuDevice, census))

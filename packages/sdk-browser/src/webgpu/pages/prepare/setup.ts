@@ -1,4 +1,4 @@
-import { deformationSlotBytes } from '../../../deformation/slotLayout.ts'
+import type { DeformationOutput } from '../../../page/selection/types.ts'
 import { indexSourceBytes } from '../io/catalogue.ts'
 import { describePageSlots, pageAddress } from '../../row/pageSlots.ts'
 import { pageHomes } from '../../../gpu/page/homes.ts'
@@ -44,6 +44,9 @@ export function createWebgpuPagesSetup(context: EngineContext, diag: WebgpuDiagn
     /** What collected the roots, which collects a source added later (`addPlacements`). */
     collector: pages.collector,
     allPages: pages.allPages,
+    /** The blocks of floats the deformation writes its results in, in the float pool's tail: one a
+     *  deformed page of a placement (`assignDeformationOutputs`). */
+    deformationBlocks: [] as DeformationOutput[],
     blendCopies,
     pagedBlendCopies: pages.pagedBlendCopies,
     ...bootstrapFields(pages),
@@ -103,18 +106,11 @@ function setupSlots(
   diag: WebgpuDiagnostics,
   pages: ReturnType<typeof setupPages>,
 ) {
-  const { allPages, roots, floorUrls, coverUrls } = pages
+  const { allPages, floorUrls, coverUrls } = pages
   const floorPages = floorUrls.size
   const uniquePages = Math.max(1, new Set(allPages.map(pageAddress)).size)
   const census = describePageSlots(allPages)
-  const {
-    geometryUrls,
-    pageBytes: sourcePageBytes,
-    homes: widths,
-    maxCorners,
-    ...clusterSides
-  } = census
-  const pageBytes = deformationSlotBytes(allPages, sourcePageBytes, roots, widths)
+  const { geometryUrls, pageBytes, homes: widths, maxCorners, ...clusterSides } = census
   // Each page at its own width while the pool holds the whole catalogue (`gpu/page/homes.ts`).
   const homes = pageHomes(widths)
   // Said out loud, never silently: an opaque or masked cluster the cache gave no geometry page

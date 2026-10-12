@@ -11,8 +11,9 @@ import type { PlacementOf } from '../../placement/rows.ts'
  *  corner (`../../world/core/pageMotion.ts`). */
 export type MovedBox = { readonly min: number[]; readonly max: number[] }
 
-/** Where a page's deformation results lie (`PageRec.deformationOutput`), `count` vertices of them;
- *  `pool` names the float-pool block's geometry and placement world. */
+/** Where a page's deformation results lie for a placement (`ClusterRoot.deformationOutputs`), in the
+ *  float pool, `count` vertices of them from float `from`; `pool` names the geometry and placement
+ *  world of a block shared by the pages of a geometry read as floats, none a page's own. */
 export type DeformationOutput = {
   from: number
   count: number
@@ -66,11 +67,6 @@ export type PageRec = {
   transparent?: boolean
   /** What the page is drawn from: its attributes, declaration and node (`./drawSource.ts`). */
   drawSource?: DrawSource
-  /** GPU deformation output (#357): in this page's cache slot, in words from its start; or, for a
-   *  page drawn from the float pool (`pool`), one block of its geometry's vertices in that pool,
-   *  `from` its first float, shared by every page of its geometry and placement
-   *  (`../../deformation/slotLayout.ts`). */
-  deformationOutput?: DeformationOutput
   sourceOrder?: number
   renderOrder: number
   /** The cone of its triangles' normals the compiler cooked, opened at collection on a surface
@@ -158,6 +154,10 @@ export type ClusterRoot<T> = {
   mark?: number
   /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf
+  /** The results of each of its pages, by the page's rank in `pages`, where its deformation writes
+   *  them (`../../deformation/outputs.ts`): its own, whatever the other placements of the primitive
+   *  pose; absent on a root that deforms nothing. */
+  deformationOutputs?: (DeformationOutput | undefined)[]
   /** How far its primitive's deformation can move a vertex from rest (`Primitive.deformation`),
    *  absent on one that does not deform (#357). */
   deformation?: { joints: number[]; targets: number[]; softVertices?: number }

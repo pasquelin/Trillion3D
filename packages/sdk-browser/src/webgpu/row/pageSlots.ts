@@ -47,8 +47,7 @@ export const readGeometryAhead =
  * that invariant said out loud, on the one walk where both sides are read together.
  *
  * `homes` is each address's own width, its bytes padded to a word: what the pool gives the page
- * when the whole catalogue fits (`../../gpu/page/homes.ts`), the deformation tails raised in after
- * (`../../deformation/slotLayout.ts`).
+ * when the whole catalogue fits (`../../gpu/page/homes.ts`).
  */
 export function describePageSlots(allPages: readonly PageRec[], held = pageSlotCensus()) {
   const { geometryUrls, homes } = held

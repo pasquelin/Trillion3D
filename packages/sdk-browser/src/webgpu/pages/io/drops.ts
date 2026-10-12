@@ -109,6 +109,7 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
   vis.textures?.destroy()
   vis.textures = undefined
   vis.vertexPool = undefined
+  vis.extendGeometry = undefined
   vis.concatPos =
     vis.concatUv =
     vis.concatNrm =

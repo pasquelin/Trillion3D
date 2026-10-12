@@ -18,6 +18,7 @@ import { RenderBundles } from '../../../gpu/core/renderBundles.ts'
 import { createPresentClasses } from '../../core/materialPasses.ts'
 import type { GeometryBlock } from '../../row/pageRowMaterial.ts'
 import type { VertexPool } from '../../core/geometryPool.ts'
+import type { prepareWebgpuGeometry } from '../../core/geometryPrepare.ts'
 import type { BlendModePipelines } from '../../blend/stagePipelines.ts'
 import { type PresentClasses } from '../../core/presentClasses.ts'
 import type { MaterialTiles } from '../../core/materialTiles.ts'
@@ -112,6 +113,8 @@ export interface WebgpuVisState {
   concatNrm: GPUTextureView | undefined
   /** The pool those three buffers are (`../../core/geometryPool.ts`). */
   vertexPool: VertexPool | undefined
+  /** Draws the pool again for what a source added to the session brings (`prepareWebgpuGeometry`). */
+  extendGeometry: ReturnType<typeof prepareWebgpuGeometry>['extendGeometry'] | undefined
   pageTable: GPUBuffer | undefined
   shadeUniform: GPUBuffer | undefined
   /** Virtual textures: the two pools, their page tables, image feedback. */
@@ -174,6 +177,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     concatUv: undefined,
     concatNrm: undefined,
     vertexPool: undefined,
+    extendGeometry: undefined,
     pageTable: undefined,
     shadeUniform: undefined,
     textures: undefined,

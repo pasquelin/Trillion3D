@@ -12,9 +12,9 @@ const label = (key: BufferKey | 'concatNrm') => `Trillion3D transparent geometry
  *  globals then installed. */
 const usage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
 
-/** The stores of `floats` floats, zeroed. */
-export const createPoolStores = (device: GPUDevice, floats: Stores<number>): PoolStores => ({
-  ...(Object.fromEntries(
+/** The two storage buffers of `floats` floats, zeroed. */
+export const createPoolBuffers = (device: GPUDevice, floats: Stores<number>) =>
+  Object.fromEntries(
     BUFFERS.map((key) => [
       key,
       device.createBuffer({
@@ -23,7 +23,11 @@ export const createPoolStores = (device: GPUDevice, floats: Stores<number>): Poo
         usage: usage(),
       }),
     ]),
-  ) as Record<BufferKey, GPUBuffer>),
+  ) as Record<BufferKey, GPUBuffer>
+
+/** The stores of `floats` floats, zeroed. */
+export const createPoolStores = (device: GPUDevice, floats: Stores<number>): PoolStores => ({
+  ...createPoolBuffers(device, floats),
   concatNrm: createFloatAtlas(device, label('concatNrm'), floats.concatNrm),
 })
 
@@ -42,8 +46,13 @@ export function copyPoolStores(
         encoder.copyBufferToBuffer(held[key], source * 4, made[key], destination * 4, count * 4)
 }
 
+/** Frees the two storage buffers: the normal atlas stays. */
+export function releasePoolBuffers(held: PoolStores) {
+  for (const key of BUFFERS) held[key].destroy()
+}
+
 /** Frees the stores. */
 export function releasePoolStores(held: PoolStores) {
-  for (const key of BUFFERS) held[key].destroy()
+  releasePoolBuffers(held)
   held.concatNrm.texture.destroy()
 }

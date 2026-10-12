@@ -69,7 +69,7 @@ test('whole transmission keeps no pages and distinct placement outputs in the ex
   const rows = layout.upload(gpu.device, buffer, 64, () => ({
     ...emptyGeometryBlock(),
     vertexBase: 7,
-  }))
+  }))!
   assert.equal(rows.count, 2)
   assert.equal(items[0].deformInput, items[1].deformInput)
   assert.notEqual(items[0].deformOutput, items[1].deformOutput)

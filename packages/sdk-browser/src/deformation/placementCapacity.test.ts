@@ -6,7 +6,7 @@ import type { Cut } from '../world/core/worldCuts.ts'
 import type { MaterialEntry } from '../world/core/worldMaterials.ts'
 import { createWorldRanks } from '../world/core/worldRanks.ts'
 
-test('deformation row growth requests a structural reopen while stable owners retain their rows', () => {
+test('deformation row growth is taken in place while stable owners retain their rows', () => {
   const batches = createWorldBatches(
     () => {},
     () => ({}) as never,
@@ -28,10 +28,9 @@ test('deformation row growth requests a structural reopen while stable owners re
       grown = true
     },
   })
-  assert.equal(grown, false)
-  assert.equal(batch.rows, rows)
-  assert.equal(batches.waiting(), true)
-  batches.reopen()
+  assert.equal(grown, true, 'the session is handed the larger rows')
   assert.notEqual(batch.rows, rows)
+  assert.equal(batches.waiting(), false)
+  assert.equal(batch.rows!.sources![batches.seats.get(first)!.row], first)
   assert.equal(batch.rows!.sources![batches.seats.get(second)!.row], second)
 })

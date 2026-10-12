@@ -45,6 +45,7 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
     rows.markRowDirty,
     rt.layout.selectionRoots,
     (packed) => rootOfPacked(rt.layout.placement, packed),
+    rt.layout.deformationOutputOf,
   )
   // The residency mirror is the only incremental state of this path: its journal is checked against
   // the cache on every flush, and rebuilt at the slightest disagreement rather than drifting. The

@@ -1,6 +1,7 @@
 import { paletteStretch, PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 import { createWaveHeld, wavesChanged, writeWaves, type WaveHeld } from './waveFrame.ts'
 import { writeSoftSource, type SoftSource } from './softSource.ts'
 import { createSkinPalettes, differs } from './skinPalettes.ts'
@@ -36,8 +37,8 @@ export type Deformed = {
  *  one and its layout, the block and its words, each placement's reach, whether it moves and
  *  whether its record is to upload, its staleness read this frame, the mesh each was written for, its waves' stretch, the skin
  *  palettes, whether no frame was written yet, and the uploaded revision. The per-placement arrays
- *  hold `capacity` places, doubled when placements join (`appendRecords`); the block holds the
- *  floats the records span, doubled the same way. */
+ *  hold places for the placements and the block the floats the records span, both grown by the
+ *  engine's one rule (`resized`) when placements join (`appendRecords`). */
 type Records = ReturnType<typeof deformationRecords>
 
 /** An owner no mesh is: a record not written yet is written for another mesh than the one it meets. */
@@ -70,30 +71,20 @@ function deformationRecords() {
   }
 }
 
-/** `held` grown to `capacity` places, what it holds kept. */
-function widen<T extends Uint8Array | Uint32Array | Float64Array>(held: T, capacity: number): T {
-  const made = new (held.constructor as new (n: number) => T)(capacity)
-  made.set(held)
-  return made
-}
-
 /**
  * Placements `entries` join the records behind the ones held, by the rule the open laid them out
  * with: a record's shape is fixed when it is made, its head written once, its floats end to end
- * after the others'. The arrays and the block double (copied) when they are full. Returns the
+ * after the others'. The arrays and the block grow by `resized` when they are full. Returns the
  * first new placement's rank.
  */
 function appendRecords(r: Records, entries: readonly (Deformed | null)[]) {
   const first = r.placed.length,
     count = first + entries.length
-  if (count > r.bases.length) {
-    const capacity = Math.max(count, 2 * r.bases.length)
-    r.bases = widen(r.bases, capacity)
-    r.reach = widen(r.reach, capacity)
-    r.moving = widen(r.moving, capacity)
-    r.dirty = widen(r.dirty, capacity)
-    r.known = widen(r.known, capacity)
-  }
+  r.bases = resized(r.bases, count)
+  r.reach = resized(r.reach, count)
+  r.moving = resized(r.moving, count)
+  r.dirty = resized(r.dirty, count)
+  r.known = resized(r.known, count)
   // A record's shape is fixed with the session: its layout is measured once.
   const added = entries.map((entry, k) => {
     if (!entry) return null
@@ -104,9 +95,8 @@ function appendRecords(r: Records, entries: readonly (Deformed | null)[]) {
     r.deforming++
     return layout
   })
-  if (r.floats > r.block.length) {
-    const block = new Float32Array(Math.max(r.floats, 2 * r.block.length))
-    block.set(r.block)
+  const block = resized(r.block, r.floats)
+  if (block !== r.block) {
     r.block = block
     r.words = new Uint32Array(block.buffer)
     r.skins.use(block)
@@ -274,7 +264,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[] = []
   appendRecords(r, placed)
   return {
     /** Placements `entries` join the records, behind the others': their floats follow the
-     *  others', the block doubling (copied) when it is full. Returns the first one's rank. */
+     *  others', the block grown by `resized` when it is full. Returns the first one's rank. */
     append: (entries: readonly (Deformed | null)[]) => appendRecords(r, entries),
     /** Placements with a record. */
     get deforming() {

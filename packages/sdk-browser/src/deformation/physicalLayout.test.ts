@@ -25,7 +25,6 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
   const rec = pageRecFixture({
     triangles: 1,
     material: surfaceOf(material()),
-    deformationOutput: { from: 10, count: 3 },
   })
   const write = createPageRowWriter(
     {
@@ -39,6 +38,7 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
     () => {},
     [{ world: new G.Matrix4() }],
     () => 0,
+    () => ({ from: 10, count: 3 }),
   )
   const floats = new Float32Array((PAGE_INFO_STRIDE / 4) * 2)
   const words = new Uint32Array(floats.buffer)
@@ -54,7 +54,7 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
       words[base + PAGE_DEFORM_COUNT_WORD],
       words[base + PAGE_DEFORM_OUTPUT_WORD],
     ],
-    [123, 3, 111],
+    [123, 3, 11],
   )
 })
 

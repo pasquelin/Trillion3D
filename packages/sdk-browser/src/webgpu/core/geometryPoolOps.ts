@@ -8,10 +8,17 @@ import {
   poolFloats,
   type PoolList,
 } from './geometryPoolLayout.ts'
-import { copyPoolStores, createPoolStores, releasePoolStores } from './geometryPoolStores.ts'
+import {
+  copyPoolStores,
+  createPoolBuffers,
+  createPoolStores,
+  releasePoolBuffers,
+  releasePoolStores,
+} from './geometryPoolStores.ts'
 import { fillScratch, releaseScratch, scratchFloats } from './geometryPoolScratch.ts'
 import { writeFloatAtlas } from './floatAtlas.ts'
 import { UV1_FLOATS, writeUv1Tail } from './uv1Tail.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 
 /** The lists of the normal atlas, written again at a growth. */
@@ -33,7 +40,8 @@ export type Pool = {
 }
 
 /** Floats of each store of a pool of `count` vertices. */
-const floatsOf = (p: Pool, count: number) => poolFloats(count, p.tailFloats, p.coloured, p.secondUv)
+const floatsOf = (p: Pool, count: number, tail = p.tailFloats) =>
+  poolFloats(count, tail, p.coloured, p.secondUv)
 
 /** Writes `n` floats of the scratch at float `at` of list `name`'s store. */
 function upload(p: Pool, name: PoolList, at: number, n: number) {
@@ -69,32 +77,54 @@ export function put(
 const weigh = (p: Pool, attributes: HostAttributes, name: PoolList, count: number) =>
   holds(p, attributes, name) ? count * LAYOUT[name].stride * 4 : 0
 
-/** Makes the room for `need` more vertices in place when the pool is short: the buffers are
- *  made wider, what they hold copied into them, the old ones freed, the owners told. False when
- *  the device refuses the size — the caller then opens the session, as it did before (#1293). */
-function ensure(p: Pool, need: number) {
-  const { device, used, size } = p
-  if (used + need <= size) return true
-  const next = size * nextPow2((used + need) / size)
-  const wider = floatsOf(p, next)
+/** The pool laid out for `size` vertices and a tail of `tail` floats, in place: the buffers made
+ *  over, what the held ones hold copied into them (positions, colours, the tail as it stood), the
+ *  old ones freed. A pool of another size makes its normal atlas over too, whose rows follow its
+ *  size, and every block's normals and second UV set are written again, as placed; one of the same
+ *  size keeps it. False when the device refuses the size. */
+function remake(p: Pool, size: number, tail: number) {
+  const { device } = p
+  const wider = floatsOf(p, size, tail)
   if (!poolFits(wider, device.limits)) return false
-  const made = createPoolStores(device, wider),
+  const resized = size !== p.size,
+    made = resized
+      ? createPoolStores(device, wider)
+      : { ...createPoolBuffers(device, wider), concatNrm: p.stores.concatNrm },
     encoder = device.createCommandEncoder()
-  copyPoolStores(encoder, p.stores, made, [size, next, p.tailFloats], p.coloured)
+  copyPoolStores(encoder, p.stores, made, [p.size, size, p.tailFloats], p.coloured)
   device.queue.submit([encoder.finish()])
-  releasePoolStores(p.stores)
+  if (resized) releasePoolStores(p.stores)
+  else releasePoolBuffers(p.stores)
   p.stores = made
-  p.size = next
+  p.size = size
+  p.tailFloats = tail
   p.floats = wider
-  // The atlas's rows follow its size: every block's normals and second UV set are written
-  // again, as placed.
+  if (!resized) return true
   for (const [attributes, block] of p.blocks)
     for (const name of ATLAS_LISTS)
       if (holds(p, attributes, name))
         put(p, attributes, name, { vertex: block.vertexBase, from: 0, n: block.count })
   releaseScratch() // a growth's largest list is not kept, as the open's
+  return true
+}
+
+/** Makes the room for `need` more vertices in place when the pool is short (`remake`), the owners
+ *  told. False when the device refuses the size — the caller then opens the session, as it did
+ *  before (#1293). */
+function ensure(p: Pool, need: number) {
+  const { used, size } = p
+  if (used + need <= size) return true
+  const next = size * nextPow2((used + need) / size)
+  if (!remake(p, next, p.tailFloats)) return false
   p.grown?.(next)
   return true
+}
+
+/** Room for a tail of `tail` floats after the positions, grown by the engine's rule when the pool
+ *  is short (`remake`). False when the device refuses the size. The owners are told by the caller,
+ *  which draws the tail again. */
+export function reserveTail(p: Pool, tail: number) {
+  return tail <= p.tailFloats || remake(p, p.size, grownLength(p.tailFloats, tail))
 }
 
 /** A block for `attributes` in the room left, grown when it is spent; undefined when the device

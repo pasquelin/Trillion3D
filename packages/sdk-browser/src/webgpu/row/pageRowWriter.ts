@@ -3,6 +3,7 @@ import { physicalWord, type PhysicalTable } from '../visibility/physicalTable.ts
 import type { HostAttributes } from '../../host/resources.ts'
 import { rootOf, type PageRec } from '../../page/selection/selection.ts'
 import type { Placements } from '../../page/selection/placements.ts'
+import type { DeformationOutput } from '../../page/selection/types.ts'
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts'
 import { createPageRowConstants } from './pageRowConstants.ts'
 import {
@@ -22,7 +23,7 @@ import { surfaceOpacity, type PageSurface } from '../../page/surface.ts'
 import { shownAsIs } from '../../scene/surfaceModel.ts'
 import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts'
 import type { SessionDeformation } from '../../deformation/session.ts'
-import { writeRowDeformation } from '../../deformation/slotLayout.ts'
+import { writeRowDeformation } from '../../deformation/outputs.ts'
 import { ROW_PLACEMENT_WORD } from './rowPlacement.ts'
 import { NO_HIZ_SLOT } from './noHizSlot.ts'
 import { surfaceEmitsOrOccludes } from '../../scene/surfaceEmission.ts'
@@ -64,6 +65,7 @@ type RowWriter = {
   markRowDirty: (row: number) => void
   roots: Placements
   rootRank: (packed: number) => number
+  outputOf: (packed: number) => DeformationOutput | undefined
   // What the catalogue fixes once and for all is not recomputed for every arriving page.
   constants: ReturnType<typeof createPageRowConstants>
   // Filled again at every row write, never allocated again.
@@ -78,9 +80,11 @@ export function createPageRowWriter(
    *  placement word and its deformation record are its instance's root's. */
   roots: Placements,
   rootRank: (packed: number) => number,
+  /** Where the placement of a packed rank writes the results of its page (`PackedPages.outputOf`). */
+  outputOf: (packed: number) => DeformationOutput | undefined = () => undefined,
 ) {
   const w: RowWriter = {
-    ...{ resources, markRowDirty, roots, rootRank },
+    ...{ resources, markRowDirty, roots, rootRank, outputOf },
     constants: createPageRowConstants(),
     block: emptyGeometryBlock(),
   }
@@ -95,7 +99,7 @@ export function createPageRowWriter(
 }
 
 function writeRow(
-  { resources, markRowDirty, roots, rootRank, constants, block }: RowWriter,
+  { resources, markRowDirty, roots, rootRank, outputOf, constants, block }: RowWriter,
   rec: PageRec,
   pageIndex: number,
   row: number,
@@ -132,7 +136,7 @@ function writeRow(
   // row never culled reads none, nor does a deformed one: its box is its rest pose's.
   const deform = resources.deformation?.rowWord(rank) ?? 0
   ints[base + PAGE_DEFORM_WORD] = deform
-  writeRowDeformation(ints, base, rec.deformationOutput, offsetWords)
+  writeRowDeformation(ints, base, outputOf(pageIndex))
   // An opaque row's lobes record (`PageInfo.physical`): a blended caster's row is never resolved.
   // A float block's second UV set rides in its high bit (`physicalWord`).
   ints[base + PAGE_PHYSICAL_WORD] = rec.transparent

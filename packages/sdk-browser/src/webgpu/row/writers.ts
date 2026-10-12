@@ -1,7 +1,6 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import { ROW_ID_BASE_WORD, ROW_OFFSET_WORD, packedRowBase, restampHizSlot } from './pageRow.ts'
-import { writeRowDeformation } from '../../deformation/slotLayout.ts'
 import type { createPageRowWriter } from './pageRowWriter.ts'
 import type { createWebgpuRowState } from './state.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
@@ -62,7 +61,6 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writeP
       base = row * rowWords
     rows.rowOffsetWords[row] = offsetWords
     ints[base + ROW_OFFSET_WORD] = offsetWords
-    writeRowDeformation(ints, base, recordOf(page)!.deformationOutput, offsetWords)
     rows.markRowDirty(row)
     state.changed = true
   }

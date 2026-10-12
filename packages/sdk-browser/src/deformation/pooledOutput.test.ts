@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { DEFORMATION_COMPUTE_WGSL } from './computeWgsl.ts'
-import { DEFORM_VERTEX_WORDS, deformOutputWord } from './slotLayout.ts'
+import { DEFORM_VERTEX_WORDS, deformOutputWord } from './outputs.ts'
 import type { HostAttributes } from '../host/resources.ts'
 import { FLAG_DYNAMIC } from '../visibility/types.ts'
 
@@ -61,19 +61,20 @@ function stage(positions: Float32Array, indices: Uint32Array, normals: Float32Ar
 }
 
 test("a float page's block in the float pool holds what its slot's tail held, bit for bit", () => {
-  const positions = new Float32Array(REST + 2 + VERTICES * DEFORM_VERTEX_WORDS),
+  const positions = new Float32Array(REST + 2 + 2 * (VERTICES * DEFORM_VERTEX_WORDS + 2)),
     indices = new Uint32Array(64 + VERTICES * DEFORM_VERTEX_WORDS),
     normals = Float32Array.from({ length: REST }, (_, i) => Math.sin(i + 0.5))
   const move = (t: number) => {
     for (let i = 0; i < REST; i++) positions[i] = Math.cos(i * 0.7 + t) * 3.1
   }
   const row = { flags: FLAG_DYNAMIC, indexCount: 6, vertexBase: 0, deform: 0, selectionIndex: 7 }
-  // A tail at word 40 of the page's slot, the page's own row deforming it.
-  const tail = { ...row, pageOffset: 0, deformCount: VERTICES, deformOutput: 40 + 2 + 1 }
+  // A page's own results, after the block's, its own row deforming them.
+  const own = REST + 2 + VERTICES * DEFORM_VERTEX_WORDS + 2
+  const tail = { ...row, pageOffset: 0, deformCount: VERTICES, deformOutput: own + 1 }
   // Now: the block after the vertices, two table rows deforming it from vertex 0 and from vertex
   // 3 on (`wholePool.ts`, one pass of the group a row), the page's row reading it.
   const pool = { attributes: {} as HostAttributes },
-    word = deformOutputWord({ from: REST + 2, count: VERTICES, pool }, 0)
+    word = deformOutputWord({ from: REST + 2, count: VERTICES, pool })
   const pass = (first: number, count: number) => ({
     ...{ ...row, vertexBase: first, indexCount: count, deformCount: count },
     deformOutput: word + first * DEFORM_VERTEX_WORDS,

@@ -19,6 +19,7 @@ import {
   placeBlock,
   poolBytesOf,
   put,
+  reserveTail,
   writeBlock,
   type Pool,
 } from './geometryPoolOps.ts'
@@ -72,6 +73,13 @@ export function createVertexPool(
     get normalBytes() {
       return p.stores.concatNrm.bytes
     },
+    /** The vertices the buffers hold room for. */
+    get size() {
+      return p.size
+    },
+    /** Room for a tail of `tail` floats after the positions, the buffers made over when it is
+     *  short (`reserveTail`); false when the device refuses. */
+    reserve: (tail: number) => reserveTail(p, tail),
     /** Frees the pool's stores: the pool is dropped. */
     destroy: () => releasePoolStores(p.stores),
     /** Places each geometry of `sourced`, dynamic or not, and uploads the buffers whole: the

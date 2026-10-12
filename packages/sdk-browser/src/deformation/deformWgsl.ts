@@ -1,6 +1,6 @@
 import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/page/format.ts'
-import { DEFORM_IN_POOL } from '../visibility/types.ts'
+import { DEFORM_SOURCE_IN_POOL } from '../visibility/types.ts'
 import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
@@ -40,15 +40,15 @@ fn wholeVertex(page:PageInfo,vertex:u32)->u32{
  let start=page.packedBase-1u;return start+4u+vertex*u32(positions[start+3u]);
 }
 fn deformJointId(h:ClusterHeader,page:PageInfo,vertex:u32,k:u32)->u32{
- if((page.deformOutput&${DEFORM_IN_POOL}u)==0u){return clusterJoint(h,page.pageOffset,vertex,k);}
+ if((page.deformOutput&${DEFORM_SOURCE_IN_POOL}u)==0u){return clusterJoint(h,page.pageOffset,vertex,k);}
  return u32(positions[wholeVertex(page,vertex)+k]);
 }
 fn deformWeight(h:ClusterHeader,page:PageInfo,vertex:u32,k:u32)->f32{
- if((page.deformOutput&${DEFORM_IN_POOL}u)==0u){return clusterWeight(h,page.pageOffset,vertex,k);}
+ if((page.deformOutput&${DEFORM_SOURCE_IN_POOL}u)==0u){return clusterWeight(h,page.pageOffset,vertex,k);}
  return positions[wholeVertex(page,vertex)+h.influences+k];
 }
 fn deformMorphValue(h:ClusterHeader,page:PageInfo,t:u32,vertex:u32,normal:bool)->vec3f{
- if((page.deformOutput&${DEFORM_IN_POOL}u)==0u){return clusterMorph(h,page.pageOffset,t,vertex,normal);}
+ if((page.deformOutput&${DEFORM_SOURCE_IN_POOL}u)==0u){return clusterMorph(h,page.pageOffset,t,vertex,normal);}
  let at=wholeVertex(page,vertex)+h.influences*2u+t*6u+select(0u,3u,normal);
  return vec3f(positions[at],positions[at+1u],positions[at+2u]);
 }

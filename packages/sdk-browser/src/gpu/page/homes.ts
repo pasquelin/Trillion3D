@@ -18,7 +18,7 @@ export type PageHomes = {
 /**
  * The pool's layout when the whole catalogue fits: each page at its own width — its bytes padded
  * to a word, raised to the end of its own deformation tails, which stay at their offset
- * (`../../deformation/slotLayout.ts`) — one after the other in the catalogue's order, where a
+ * (`../../deformation/outputs.ts`) — one after the other in the catalogue's order, where a
  * fixed slot gives every page the width of the widest. Every reader reaches a page through its
  * offset (`../../webgpu/residency/mirror.ts`); a decode that reads a word past a page's end
  * keeps none of its bits (`homesDecode.test.ts`), so what lies after a page, a neighbour or

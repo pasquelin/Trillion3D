@@ -30,10 +30,12 @@ export const PAGE_DEFORM_WORD = 64,
  *  own header. Below it, the record's rank plus one. */
 export const PHYSICAL_SECOND_UV = 0x80000000,
   PHYSICAL_RECORD_MASK = 0x7fffffff
-/** The bits of `PAGE_DEFORM_OUTPUT_WORD`: results in the float pool rather than a slot's tail; a
- *  float-pool block with no source header (`../deformation/slotLayout.ts`); the address, the
- *  results' first word plus one. */
-export const DEFORM_IN_POOL = 0x80000000,
+/** The bits of `PAGE_DEFORM_OUTPUT_WORD`, the results lying in the float pool whatever they are:
+ *  the source of the deformation lies in the pool too — a whole copy's streams after a source
+ *  header, a float page's geometry — rather than in the page of the row's slot; a float-pool block
+ *  with no source header (`../deformation/outputs.ts`); the address, the results' first word
+ *  plus one. */
+export const DEFORM_SOURCE_IN_POOL = 0x80000000,
   DEFORM_NO_HEADER = 0x40000000,
   DEFORM_ADDRESS = 0x3fffffff
 export const FLAG_LIT = 1,
