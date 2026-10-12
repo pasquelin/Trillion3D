@@ -3,6 +3,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { NODE_WORLD_LAZY } from '../../../../sdk-core/src/world/transform-tree/transformTree.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import { createPlacementRows } from '../../placement/rows.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
@@ -94,4 +97,56 @@ test('a composed parent destroyed is unlinked once its seats move on, its world 
   assert.deepEqual(unlinked, [parent], 'unlinked, the session holds none of its rows')
   apply()
   assert.equal(unlinked.length, 1, 'and forgotten')
+})
+
+test('the children a session composes are not walked by the transform pass, and read as eager ones do', () => {
+  const { scene, parent, seats } = galaxy(2000)
+  const tree = Object3D._treeOf(scene)
+  const poses = createWorldPoses()
+  const composer: PoseComposer = { key: scene, epoch: 0, link: () => true }
+  const apply = () => poses.apply(scene, seats, noModels(), () => {}, composer)
+  poses.moved(parent)
+  apply()
+  const children = [...parent.children]
+  assert.ok(
+    children.every((child) => tree.flags[child.index] & NODE_WORLD_LAZY),
+    'every composed child is lazy',
+  )
+  const versions = children.map((child) => tree.version[child.index])
+  parent.rotation.y = 0.7
+  parent.position.set(3, 1, -2)
+  poses.moved(parent)
+  apply()
+  assert.deepEqual(
+    children.map((child) => tree.version[child.index]),
+    versions,
+    'no child recalculated by the pass',
+  )
+  const expected = new Float64Array(16)
+  for (const child of [children[0], children[1234], children.at(-1)!]) {
+    multiplyMatrix4(expected, parent.matrixWorld.elements, child.matrix.elements)
+    assert.deepEqual([...child.matrixWorld.elements], [...expected], 'read, it is the composition')
+  }
+})
+
+test('children a session composes no more are the transform pass’s again, their world as it was read', () => {
+  const { scene, parent, seats } = galaxy(8)
+  const tree = Object3D._treeOf(scene)
+  const poses = createWorldPoses()
+  let accepts = true
+  const composer: PoseComposer = { key: scene, epoch: 0, link: () => accepts }
+  const apply = () => poses.apply(scene, seats, noModels(), () => {}, composer)
+  poses.moved(parent)
+  apply()
+  const child = parent.children[3]
+  assert.ok(tree.flags[child.index] & NODE_WORLD_LAZY)
+  parent.rotation.y = 0.3
+  poses.moved(parent)
+  apply()
+  const read = [...child.matrixWorld.elements]
+  accepts = false // the session takes no link now, as another session would
+  composer.epoch++ // every link is let go
+  apply()
+  assert.equal(tree.flags[child.index] & NODE_WORLD_LAZY, 0, 'no longer lazy')
+  assert.deepEqual([...child.matrixWorld.elements], read, 'its world is the one it had')
 })

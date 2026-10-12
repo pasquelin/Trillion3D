@@ -90,7 +90,11 @@ export class SceneNode {
    */
   _setWorldLazy(lazy: boolean) {
     this.assertAlive()
-    return setNodeWorldLazy(this.state.tree, this.index, lazy)
+    const { tree } = this.state
+    // A leaf taken back keeps the world it was read at: refreshed before the pass takes it again.
+    if (!lazy && tree.flags[this.index] & NODE_WORLD_LAZY)
+      updateNodeWorldMatrix(tree, this.index, true, false)
+    return setNodeWorldLazy(tree, this.index, lazy)
   }
 
   /** Adds a child. */ add(child: SceneNode) {

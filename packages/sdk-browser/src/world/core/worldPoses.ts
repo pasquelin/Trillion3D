@@ -185,6 +185,9 @@ function linksOf(children: readonly Object3D[], seats: ReadonlyMap<Mesh, Seat>) 
     const seat = seats.get(child as Mesh)
     if (!seat || !seat.batch.rows || seat.row < 0 || child.children.length) return null
     if ((child as Mesh).primitive === 'sprite') return null
+    // A leaf the session composes is not walked by the pass: its pose is brought to its local
+    // matrix by this read, the one the link carries.
+    void child.worldMatrix
     links.push({ rows: seat.batch.rows, index: seat.row, local: child._matrixElements })
   }
   return links
@@ -210,8 +213,16 @@ function linkChildren(
   { seats, composer }: PoseFrame,
 ) {
   const links = node.children.length ? linksOf(node.children, seats) : null
-  if (links && composer?.link(node, node.matrixWorld.elements, links, true))
+  if (links && composer?.link(node, node.matrixWorld.elements, links, true)) {
     state.composed.set(node, drawn)
+    // The session composes their worlds: the transform pass walks none of them, a read refreshes.
+    for (const child of node.children) child._setWorldLazy(true)
+  }
+}
+
+/** The leaves of `parent` the session no longer composes are the transform pass's again. */
+function composeEnded(parent: Object3D) {
+  if (parent._alive) for (const child of parent.children) child._setWorldLazy(false)
 }
 
 /**
@@ -264,6 +275,7 @@ function relink(state: PoseState, composer: PoseComposer | undefined) {
     for (const parent of composed.keys()) {
       state.moved.add(parent)
       state.dropped.add(parent)
+      composeEnded(parent)
     }
     composed.clear()
   }
@@ -312,7 +324,10 @@ function sendRanges(
   // A parent dropped and not linked again: every row it held is the CPU's, written above. The
   // unlink reads no world: a parent destroyed since it was linked is unlinked all the same.
   for (const parent of state.dropped)
-    if (!state.composed.has(parent)) composer?.link(parent, NONE, NONE, true)
+    if (!state.composed.has(parent)) {
+      composer?.link(parent, NONE, NONE, true)
+      composeEnded(parent)
+    }
   state.dropped.clear()
   for (const [batch, range] of state.ranges)
     if (batch.rows === range.rows) send(range.rows, range.from, range.to)
