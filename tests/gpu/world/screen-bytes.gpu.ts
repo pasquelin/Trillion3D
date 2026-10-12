@@ -6,10 +6,11 @@
 //   + temporal antialiasing   +48 (history at the display size: geometry 8, colour 8, flicker 4,
 //                                  share 4, twice)
 //   + a mirror                 0 (the reflection's targets exist for every lit surface)
-//   + blends                  +10 front depth (Hi-Z 4, reflection target 2 and buffer 4), +8
-//                                  emission and occlusion, with water +12 (backdrop 8, depth 4)
+//   + blends                  +10 front depth (the reflection's: target 2, buffer 4, the folded
+//                                  texture the Hi-Z binds 4), +8 emission and occlusion, with water
+//                                  +12 (backdrop 8, depth 4)
 //
-// A world with no blend holds a texel of front depth, not 10 B/px.
+// A world with no blend holds a texel of the front depth's target, not 10 B/px.
 //
 //   node bench/dawn/proofs.ts tests/gpu/world/screen-bytes.gpu.ts
 import test from 'node:test'

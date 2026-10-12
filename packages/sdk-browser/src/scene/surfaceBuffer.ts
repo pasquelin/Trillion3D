@@ -41,12 +41,12 @@ const FRAME_BYTES_PER_PIXEL = texelBytesOf(
   FEEDBACK_FORMAT,
 )
 /** Color, depth, visibility, HDR, material surfaces, the transparent texture feedback target and
- *  the optional Hi-Z pyramid, with the front depth of the scene's blends when it has any. */
-export function frameTargetBytes(width: number, height: number, withHiz: boolean, front: boolean) {
+ *  the optional Hi-Z pyramid. */
+export function frameTargetBytes(width: number, height: number, withHiz: boolean) {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
     throw new Error('INVALID_SURFACE_SIZE')
   let bytes = width * height * (FRAME_BYTES_PER_PIXEL + SURFACE_BYTES_PER_PIXEL)
-  if (withHiz) bytes += pyramidHeldBytes(width, height, front)
+  if (withHiz) bytes += pyramidHeldBytes(width, height)
   return bytes + SUBSURFACE_TARGET.texelBytes + PHYSICAL_LOBES_TARGET.texelBytes
 }
 /** Per-pixel surface data of a frame, kept on the GPU: depth, normals, material. */

@@ -13,6 +13,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
 
 /** What the water-pass tests share: a scene of three transparent copies, one of which transmits,
  *  prepared and planned as `prepareBlendResources` does, and the frame targets of a replay. */
@@ -103,7 +104,7 @@ export function prepared() {
 export function targets(gpu: WebgpuGpuState) {
   const views = [{}, {}, {}, {}]
   Object.assign(gpu, {
-    reflection: { front: { view: {}, fresh: false } },
+    reflection: reflectionFront(),
     hdrView: {},
     colorView: {},
     depthView: {},
