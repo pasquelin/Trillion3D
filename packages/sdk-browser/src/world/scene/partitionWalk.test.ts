@@ -89,6 +89,7 @@ test('on an engine that grows no buffer, a walk never leaves a cell waiting for 
     engine: {
       worldCut: () => undefined,
       updatePlacements() {},
+      composePlacements: () => false,
       growPlacements() {},
       growsInPlace: () => false,
     } as unknown as Engine,

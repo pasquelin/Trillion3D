@@ -60,11 +60,12 @@ class ModelMeshSource implements DrawSource {
   get local(): ArrayLike<number> {
     return this.drawn.matrixWorld.elements
   }
-  /** Writes the row from the mesh as its graph holds it: the model's `world` times its own, whether
-   *  the model is `shown` and the mesh and every node above it, whether it casts. */
-  write(world: Float64Array, shown: boolean) {
+  /** Writes the row from the mesh as its graph holds it: the model's `world` times its own — unless
+   *  the session composes it (`matrices` false) —, whether the model is `shown` and the mesh and
+   *  every node above it, whether it casts. */
+  write(world: Float64Array, shown: boolean, matrices = true) {
     const { rows, drawn } = this
-    multiplyMatrix4(rows.matrices, world, drawn.matrixWorld.elements)
+    if (matrices) multiplyMatrix4(rows.matrices, world, drawn.matrixWorld.elements)
     let live = shown
     for (let walk: Object3D | null = drawn; live && walk; walk = walk.parent) live = walk.visible
     rows.live[0] = live ? 1 : 0
@@ -75,15 +76,15 @@ class ModelMeshSource implements DrawSource {
 /** The row that poses the world DAG a model holds: the model's world, and whether it is shown. */
 export type WorldPose = {
   readonly rows: PlacementRows
-  write(world: Float64Array, shown: boolean): void
+  write(world: Float64Array, shown: boolean, matrices?: boolean): void
 }
 
 function createWorldPose(): WorldPose {
   const rows = createPlacementRows(1)
   return {
     rows,
-    write(world, shown) {
-      rows.matrices.set(world)
+    write(world, shown, matrices = true) {
+      if (matrices) rows.matrices.set(world)
       rows.live[0] = shown ? 1 : 0
     },
   }
@@ -101,7 +102,7 @@ export type ModelDraws = {
   readonly rowed: readonly (DrawSource & {
     readonly rows: PlacementRows
     readonly local: ArrayLike<number>
-    write(world: Float64Array, shown: boolean): void
+    write(world: Float64Array, shown: boolean, matrices?: boolean): void
   })[]
   /** The pose of the world DAG the model holds, once the world draws it (`rootsOf`). */
   world?: WorldPose
@@ -181,17 +182,19 @@ export function createWorldModels(ranks: WorldRanks) {
         hold.drawnAs({ primitives: draws.primitives, pose: draws.world?.rows })
       return roots
     },
-    /** `model`'s graph put at the model's world, shown as `shown` says, and the rows of its
-     *  meshes written from it; cost: the meshes it draws, once for each move of the model or of
-     *  one of its nodes. */
-    pose(model: LoadedModel, shown: boolean) {
+    /** `model`'s graph brought up to date, and the rows of its meshes written from it, shown as
+     *  `shown` says; cost: the meshes it draws, once for each move of the model or of one of its
+     *  nodes. `composes`, asked once the graph is current, says whether the session composes the
+     *  rows from now on: then no matrix is written, the composition gives it where it is read. */
+    pose(model: LoadedModel, shown: boolean, composes?: (draws: ModelDraws) => boolean) {
       const draws = held.get(model)
       if (!draws) return undefined
       // The graph's worlds are its own, brought up to date where they changed.
       updateTransformTree(Object3D._treeOf(model.record.scene.source))
-      const world = model.matrixWorld.elements
-      for (const source of draws.rowed) source.write(world, shown)
-      draws.world?.write(model.matrixWorld.elements, shown)
+      const world = model.matrixWorld.elements,
+        matrices = !composes?.(draws)
+      for (const source of draws.rowed) source.write(world, shown, matrices)
+      draws.world?.write(world, shown, matrices)
       return draws
     },
   }

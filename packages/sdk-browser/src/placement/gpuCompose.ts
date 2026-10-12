@@ -349,7 +349,11 @@ export function rebindComposedWorlds(rt: WebgpuPagesRuntime) {
  *  too (a model's stand in its graph's: `PlacementRows.local`). */
 function readsItsWorld({ rows, index }: PlacementLink) {
   const source = rows.sources?.[index] as DeformedMesh | null | undefined
-  return !!source && (!!source.waves || !!source.softSource || (!!source.skeleton && !rows.local))
+  return (
+    !rows.local &&
+    !!source &&
+    (!!source.waves || !!source.softSource || (!!source.skeleton && !rows.local))
+  )
 }
 
 /** The root rank of each link, or undefined when one names a row no root reads or a blended copy

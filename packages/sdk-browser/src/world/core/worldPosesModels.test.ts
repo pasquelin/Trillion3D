@@ -21,7 +21,7 @@ function rig() {
   const draws = models.drawsOf(loaded)
   const poses = createWorldPoses(),
     sent: unknown[][] = [],
-    links: { links: number; whole: boolean; world: number[] }[] = []
+    links: { links: number; whole: boolean; world: number[]; locals: number[][] }[] = []
   let accepts = true
   const composer: PoseComposer = {
     key: scene,
@@ -29,7 +29,13 @@ function rig() {
     link: (parent, world, given, whole) =>
       parent === loaded &&
       accepts &&
-      (links.push({ links: given.length, whole, world: Array.from(world) }), true),
+      (links.push({
+        links: given.length,
+        whole,
+        world: Array.from(world),
+        locals: given.map((link) => Array.from(link.local)),
+      }),
+      true),
   }
   const frame = () =>
     poses.apply(
@@ -98,7 +104,10 @@ test('a node of the graph that moves, or the model hidden, writes the rows whole
     [true, true],
     'a node moved: whole',
   )
-  assert.deepEqual([...draws.rowed[0].rows.matrices.slice(12, 15)], [1, 3, 0])
+  // The session composes the rows: no matrix is written, the link carries the mesh's world in the
+  // graph as it stands — the node moved.
+  assert.deepEqual(links.at(-1)!.locals[0].slice(12, 15), [0, 3, 0])
+  assert.deepEqual([...draws.rowed[0].rows.matrices.slice(12, 15)], [0, 0, 0], 'none written')
   loaded.visible = false
   poses.moved(loaded)
   frame()

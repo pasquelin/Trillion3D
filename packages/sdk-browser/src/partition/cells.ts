@@ -59,7 +59,7 @@ export function createPartitionCells(inputs: Inputs) {
     pageDecodes = createDecodes<IndexPage, PageBody>()
   const pins = createPlanPins()
   const holds = createCellHolds(world)
-  const frame: CellFrame = { key: {} }
+  const frame: CellFrame = {}
   const rows = createCellPlacements(root, parents, meshes, frame)
   const { held, touched } = rows
   const far = createFarCells(world, held)

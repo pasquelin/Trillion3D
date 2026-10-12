@@ -189,20 +189,28 @@ function writeModel(
     composer.link(model, model.matrixWorld.elements, NONE, false)
   )
     return
-  const draws = models.pose(model, shown)
+  // The rows the model's pose writes, each linked at the mesh's own world within its graph once the
+  // graph is current: a session that holds one of them in no root, or refuses them, leaves them to
+  // the CPU's write; one that takes them is given no matrix (`WorldModels.pose`).
+  let accepted = false
+  const draws = models.pose(
+    model,
+    shown,
+    composer &&
+      ((rowed) => {
+        const links = rowed.rowed.map((source) => ({
+          rows: source.rows,
+          index: 0,
+          local: source.local,
+        }))
+        if (rowed.world) links.push({ rows: rowed.world.rows, index: 0, local: IDENTITY_MATRIX4 })
+        return (accepted =
+          links.length > 0 && composer.link(model, model.matrixWorld.elements, links, true))
+      }),
+  )
   for (const source of draws?.rowed ?? []) touchRows(state, source, 0, 0)
   if (draws?.world) touchRows(state, draws.world, 0, 0)
-  if (!composer || !draws) return
-  // The rows the model's pose writes, each at the mesh's own world within its graph; a session
-  // that holds one of them in no root, or refuses them, leaves them as written.
-  const links = draws.rowed.map((source) => ({
-    rows: source.rows,
-    index: 0,
-    local: source.local,
-  }))
-  if (draws.world) links.push({ rows: draws.world.rows, index: 0, local: IDENTITY_MATRIX4 })
-  if (links.length && composer.link(model, model.matrixWorld.elements, links, true))
-    state.composed.set(model, shown)
+  if (accepted) state.composed.set(model, shown)
   else if (state.composed.delete(model)) state.dropped.add(model)
 }
 

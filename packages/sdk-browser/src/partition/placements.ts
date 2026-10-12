@@ -41,7 +41,10 @@ export function createCellPlacements(
         write(placements[node])
       }
       held.set(cell, placements)
-      settle()
+      settle(
+        held.values(),
+        placements.map((placement) => placement.parent),
+      )
       return true
     },
     /** Parks the rows of `cell`. */

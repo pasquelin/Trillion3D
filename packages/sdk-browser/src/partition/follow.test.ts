@@ -36,39 +36,49 @@ test("a cell's rows cast as their host mesh says, and follow its castShadow once
   )
 })
 
-test('a scene hung in a frame the session composes: the first move of the frame writes the rows and links them, the next ones send its world alone', async () => {
-  const { cells, bytes } = world(0, null)
-  const frameWorld = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
-  cells.pose(() => frameWorld)
+test('the rows under a core parent follow its world on the GPU: the first rows are written and linked whole, the next cells linked in place, a move sends one world', async () => {
+  const { cells, bytes, core } = world(0, null)
+  cells.pose(() => frame)
+  const frame = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
   await opened(cells, bytes, 1e5, false)
-  const calls: { links: number; whole: boolean; world: number[] }[] = []
+  const calls: { parent: object; links: number; whole: boolean; world: number[] }[] = []
   const { port, updates } = io(bytes)
   let accepts = true
-  port.compose = (_parent, world, given, whole) => (
-    accepts && calls.push({ links: given.length, whole, world: Array.from(world) }),
+  port.compose = (parent, world, given, whole) => (
+    accepts && calls.push({ parent, links: given.length, whole, world: Array.from(world) }),
     accepts
   )
   cells.frame([0, 0, 0], 1e5, port, noBudget)
-  assert.equal(calls.length, 0, 'a still frame links nothing')
-  frameWorld[12] = 40
-  cells.frame([0, 0, 0], 1e5, port, noBudget)
   assert.deepEqual(
-    calls.map(({ links: count, whole }) => [count, whole]),
-    [[6, true]],
-    'every row of the three nodes of both primitives, whole',
+    calls.map(({ links: count, whole }) => [count, whole]).sort(),
+    [
+      [2, true],
+      [4, true],
+    ],
+    'the rows of each parent, linked whole, at the session’s first frame',
   )
-  const sent = updates.length
-  frameWorld[12] = 80
+  assert.equal(new Set(calls.map(({ parent }) => parent)).size, 2, 'a slot a parent')
+  const first = calls.length,
+    sent = updates.length
+  frame[12] = 40
   cells.frame([0, 0, 0], 1e5, port, noBudget)
   assert.deepEqual(
-    calls.slice(1).map(({ links: count, whole }) => [count, whole]),
-    [[0, false]],
-    'its world alone',
+    calls.slice(first).map(({ links: count, whole, world }) => [count, whole, world[12]]),
+    [
+      [0, false, 40],
+      [0, false, 40],
+    ],
+    'the frame moved: each parent’s world, no row',
   )
   assert.equal(updates.length, sent, 'no row written')
-  assert.equal(calls.at(-1)!.world[12], 80)
+  core.position.set(0, 20, 0)
+  const moved = calls.length
+  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  assert.equal(calls.length, moved + 1, 'a core parent moved: its world alone')
+  assert.equal(updates.length, sent, 'no row written')
+  assert.equal(calls.at(-1)!.world[13], 20, 'its world in the frame')
   accepts = false
-  frameWorld[12] = 90
+  frame[12] = 90
   cells.frame([0, 0, 0], 1e5, port, noBudget)
   assert.equal(updates.length > sent, true, 'a session that refuses: the rows are written')
 })
