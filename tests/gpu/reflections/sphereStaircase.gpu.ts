@@ -70,9 +70,10 @@ test('the floor reflected in a mirror sphere has no pixel-to-pixel step the anal
     for (let x = 0; x < width; x++) {
       const exact = exactReflection(view, x + 0.5, y + 0.5)
       if (!exact || exact.facing < FACING) continue
-      if (exact.index === -2 && floorSeen(exact.at, y * width + x))
-        ((analytic[y * width + x] = floor), floored++)
-      else if (exact.index === -1) analytic[y * width + x] = sky
+      if (exact.index === -2 && floorSeen(exact.at, y * width + x)) {
+        analytic[y * width + x] = floor
+        floored++
+      } else if (exact.index === -1) analytic[y * width + x] = sky
     }
   assert.ok(floored > 4000, `${floored} sphere pixels reflect the floor`)
   // The analytic step an edge may take at the pair `p, q`: the largest between neighbours within
@@ -106,7 +107,10 @@ test('the floor reflected in a mirror sphere has no pixel-to-pixel step the anal
           continue
         const excess = Math.abs(seen(p) - seen(q)) / range - allowed(p, q)
         pairs++
-        if (excess > worst) ((worst = excess), (at = `${x},${y}`))
+        if (excess > worst) {
+          worst = excess
+          at = `${x},${y}`
+        }
       }
     }
   console.log(JSON.stringify({ pairs, worst, at }))

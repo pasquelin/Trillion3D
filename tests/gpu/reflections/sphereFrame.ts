@@ -44,13 +44,19 @@ function castSpheres(o: V3, d: V3, from = 0) {
     const root = Math.sqrt(disc)
     for (const at of [-b - root, -b + root])
       if (at > from) {
-        if (at < t) ((t = at), (index = k))
+        if (at < t) {
+          t = at
+          index = k
+        }
         return
       }
   })
   if (d[1] < 0) {
     const at = -o[1] / d[1]
-    if (at > from && at < t) ((t = at), (index = -2))
+    if (at > from && at < t) {
+      t = at
+      index = -2
+    }
   }
   return { t, index }
 }
