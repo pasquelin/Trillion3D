@@ -3,6 +3,9 @@ import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts
 import { keepNumbers } from '../../../math/src/vector/vector.ts'
 import type { Deformed } from './frame.ts'
 
+/** The world a placement's palette is made in: that of its bones. */
+const frameOf = (entry: Deformed) => entry.mesh.frame ?? entry.world.elements
+
 /** True when the `size` floats at `a` and at `b` of `block` differ. */
 export function differs(block: Float32Array, a: number, b: number, size: number) {
   for (let k = 0; k < size; k++) if (block[a + k] !== block[b + k]) return true
@@ -12,7 +15,7 @@ export function differs(block: Float32Array, a: number, b: number, size: number)
 /** What one placement's palette holds of its inputs and its last write. */
 type Held = {
   skeleton: Skeleton | null
-  /** The placement's world as last read. */
+  /** The world the palette is made in, as last read. */
   world: Float64Array
   /** The palette's reach as last measured. */
   reach: number
@@ -92,12 +95,12 @@ export function createSkinPalettes(placed: readonly (Deformed | null)[], block: 
     own.skeleton = skeleton
     if (!enough && moving > -2 && moving < count) {
       const same =
-        moving < 0 ? keepNumbers(own.world, entry.world.elements) : holdBone(i, moving, skeleton)
+        moving < 0 ? keepNumbers(own.world, frameOf(entry)) : holdBone(i, moving, skeleton)
       if (!same) return true
     }
     own.whole = false
     own.last = -1
-    if (!keepNumbers(own.world, entry.world.elements)) {
+    if (!keepNumbers(own.world, frameOf(entry))) {
       if (enough) return true
       changed = true
     }
@@ -127,7 +130,7 @@ export function createSkinPalettes(placed: readonly (Deformed | null)[], block: 
      *  it when `cold`; returns whether the record moved: `moved`, or the palette did. */
     write(i: number, entry: Deformed, at: number, floats: number, cold: boolean, moved: boolean) {
       if (!changed(i, entry) && !cold) return moved
-      entry.mesh.skeleton!.palette(entry.world.elements, kept, at)
+      entry.mesh.skeleton!.palette(frameOf(entry), kept, at)
       const own = held[i]
       own.reach = paletteReach(kept, at, entry.shape.joints, entry.reach.joints)
       if (cold) kept.copyWithin(at + floats, at, at + floats)

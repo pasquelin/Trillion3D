@@ -87,7 +87,7 @@ test('meshes, materials, rows, models and partitions join and leave one session,
   )
   await change(() => scene.remove(first))
   // A model with cells, then a second one, each leaving and coming back.
-  const crowd = model(2, [{}]),
+  const crowd = model(2, [{ pose() {} }]),
     plain = model(1)
   await change(() => scene.add(crowd))
   await change(() => scene.add(plain))

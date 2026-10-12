@@ -25,14 +25,30 @@ function castsMoved(mesh: PlacedMesh) {
   return moved
 }
 
-export function createPlacementWrites(touched: ReturnType<typeof createTouchedRows>) {
+/** The world a partition's scene hangs in: its model's, when a world draws it. The scene's own
+ *  nodes stand in the model's frame, never in the world's (`world/core/worldModels.ts`). */
+export type CellFrame = { world?: () => Float64Array }
+
+export function createPlacementWrites(
+  touched: ReturnType<typeof createTouchedRows>,
+  frame: CellFrame = {},
+) {
   /** The world matrix each parent in use had when its rows were written. */
   const worlds = new Map<Object3D, Float64Array>()
+  /** The frame's world when its rows were written. */
+  const framed = new Float64Array(MATRIX_VALUES)
+  const inner = new Float64Array(MATRIX_VALUES)
   const stale = new Set<Object3D | PlacedMesh>()
   const heldWorld = (node: Object3D) =>
     worlds.get(node) ?? worlds.set(node, resolveCameraWorld(node).worldMatrix.slice()).get(node)!
   const write = ({ mesh, row, parent, local }: Placement) => {
     multiplyMatrix4(product, heldWorld(parent), local)
+    const world = frame.world?.()
+    if (world) {
+      inner.set(product)
+      multiplyMatrix4(product, world, inner)
+      framed.set(world)
+    }
     mesh.links.forEach((link, at) => {
       const rows = link.placements!
       rows.matrices.set(product, row * 16)
@@ -50,6 +66,12 @@ export function createPlacementWrites(touched: ReturnType<typeof createTouchedRo
       for (const mesh of meshes) if (castsMoved(mesh)) stale.add(mesh)
       for (const [node, world] of worlds)
         if (!keepNumbers(world, resolveCameraWorld(node).worldMatrix)) stale.add(node)
+      // The frame moved: every row is the frame's times its own.
+      const world = frame.world?.()
+      if (world && !keepNumbers(framed, world)) {
+        for (const placements of held) for (const at of placements) write(at)
+        if (!stale.size) return
+      }
       if (!stale.size) return
       for (const placements of held)
         for (const at of placements) if (stale.has(at.parent) || stale.has(at.mesh)) write(at)

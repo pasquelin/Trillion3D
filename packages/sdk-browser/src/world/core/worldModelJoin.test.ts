@@ -72,7 +72,7 @@ const flush = () => new Promise((resolve) => setImmediate(resolve))
 test('a model the scene gains is handed to the session, its cells first, then each source', async () => {
   const { joins, session, calls, members, add } = world()
   joins.opened([])
-  const loaded = model(2, 'host', [{}])
+  const loaded = model(2, 'host', [{ pose() {} }])
   add(loaded)
   joins.reconcile(members, session)
   assert.ok(joins.flying, 'a join is in flight until the session has taken it')
@@ -100,7 +100,7 @@ test('no session, no join: the next opening takes the model', () => {
 
 test('a model the scene loses is parked, its cells let go, and drawn again when it comes back', () => {
   const { joins, session, calls, members, add, scene, models } = world()
-  const loaded = model(2, 'host', [{}])
+  const loaded = model(2, 'host', [{ pose() {} }])
   add(loaded)
   joins.opened(members)
   const { rowed } = models.drawsOf(loaded)
@@ -161,7 +161,7 @@ test('a session that follows no partition refuses a model with cells, by name', 
   const { joins, session, said, members, add } = world()
   joins.opened([])
   delete session.preparePartitions
-  add(model(1, 'host', [{}]))
+  add(model(1, 'host', [{ pose() {} }]))
   joins.reconcile(members, session)
   await joins.flying
   assert.match(said[0][1], /follows no partition/)

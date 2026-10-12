@@ -33,6 +33,10 @@ export type PlacementRows = {
   readonly shadowless: Uint8Array
   /** Rows that fit before it grows. */
   readonly capacity: number
+  /** The rows of the meshes of a loaded model (`world/core/worldModels.ts`): each is the model's
+   *  world times the mesh's world within the model's graph, whose bones stand in that graph's
+   *  frame, never in the world's: a palette is read there (`DeformedMesh.frame`). */
+  local?: true
   /** Where each row a partition placed lies (`../partition/rowCells.ts`): its cell and its rank
    *  among the cell's nodes; a column of its own, absent until a cell places one. */
   cells?: ({ cell: number; node: number } | undefined)[]

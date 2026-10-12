@@ -22,6 +22,8 @@ import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { createCellBoxes } from './boxes.ts'
+import type { CellFrame } from './follow.ts'
+import { multiplyMatrix4 } from '../../../sdk-core/src/index.ts'
 import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts'
 import type { CellRows } from './cellDecode.ts'
 import { createDecodes, takeDecoded } from './decodes.ts'
@@ -57,7 +59,8 @@ export function createPartitionCells(inputs: Inputs) {
     pageDecodes = createDecodes<IndexPage, PageBody>()
   const pins = createPlanPins()
   const holds = createCellHolds(world)
-  const rows = createCellPlacements(root, parents, meshes)
+  const frame: CellFrame = {}
+  const rows = createCellPlacements(root, parents, meshes, frame)
   const { held, touched } = rows
   const far = createFarCells(world, held)
   /** Cells waiting for rows; the rung the rows are sized for (`RUNGS`: all); the widest asked. */
@@ -67,8 +70,15 @@ export function createPartitionCells(inputs: Inputs) {
     sized = -1,
     wanted = -1
   /** Where the camera at `eye` stands in the cells' frame, and the rung its view asks. */
+  const framed = new Float64Array(16)
+  /** The scene root's world, in the frame it hangs in (`pose`). */
+  const rootWorld = () => {
+    const world = resolveCameraWorld(root).worldMatrix,
+      outer = frame.world?.()
+    return outer ? multiplyMatrix4(framed, outer, world) : world
+  }
   const view = (eye: ArrayLike<number>, reach: number) => {
-    const local = inCellFrame(resolveCameraWorld(root).worldMatrix, eye, reach)
+    const local = inCellFrame(rootWorld(), eye, reach)
     boxes.refresh()
     const rung = rungOf(heldSide(local.reach, partition.cube, boxes.stretch), partition.cube)
     return { ...local, rung }
@@ -93,6 +103,11 @@ export function createPartitionCells(inputs: Inputs) {
   /** A cell held far lets its super-roots go (`farCells.ts`), a placed one its rows and pages. */
   const leave = (cell: number) => far.release(cell) || (rows.leave(cell), holds.release(cell))
   const partitionCells = {
+    /** The scene hangs in the world `world()` gives, its model's: the rows are that world times
+     *  their own, the camera is read in the scene's frame through it. */
+    pose(world: () => Float64Array) {
+      frame.world = world
+    },
     /** The world roots its far cells are drawn from (`createFarCells`): the cut's lens serves
      *  the cells of the one world DAG it packs. */
     world,

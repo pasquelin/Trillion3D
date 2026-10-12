@@ -33,6 +33,10 @@ export function placementDeformation(
     get waves() {
       return current()?.waves
     },
+    // The rows of a model's meshes stand in the world; their bones in the model's graph.
+    get frame() {
+      return rows.local ? current()?.matrixWorld.elements : undefined
+    },
   }
   return { mesh, capacity }
 }

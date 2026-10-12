@@ -1,4 +1,5 @@
-import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
@@ -8,14 +9,16 @@ import { drawSourceOf, type DrawRanks, type DrawSource } from '../../page/select
 import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts'
 import type { Primitive } from '../../../../sdk-core/src/index.ts'
 import { absolutePrimitive } from '../../scene/absolutePrimitive.ts'
+import { resolveCameraWorld } from '../../camera/world.ts'
 import { modelWorldRoots, type LoadedModel } from './loadedModel.ts'
 import type { WorldRanks } from './worldRanks.ts'
 
 /**
  * One drawn mesh of a loaded model, drawn at one row: a buffer of capacity one, the mechanism
- * the cells' placed meshes use (`partition/rows.ts`). The row is the mesh's world inside its
- * graph, which the model's own pose carries (`poseModel`); the mesh itself stays the row's
- * animation source (`rows.sources`), so its skeleton, morph weights and waves reach the
+ * the cells' placed meshes use (`partition/rows.ts`). The row is the model's world times the mesh's
+ * world inside its graph, which stands in its own frame: the graph hangs from no node of the world
+ * (`PlacementRows.local`); the mesh itself stays the row's animation source (`rows.sources`), so
+ * its skeleton — whose bones stand in that frame too —, morph weights and waves reach the
  * deformation as a placed resource's do.
  */
 class ModelMeshSource implements DrawSource {
@@ -28,6 +31,7 @@ class ModelMeshSource implements DrawSource {
     this.mesh = ranks.meshes
     this.primitives = ranks.primitives
     this.rows = createPlacementRows(1)
+    this.rows.local = true
     this.rows.sources = [drawn]
     this.rows.sourceModels = new Set([drawn])
   }
@@ -52,12 +56,12 @@ class ModelMeshSource implements DrawSource {
   wear(surface: GraphSurface) {
     this.drawn.material = surface
   }
-  /** Writes the row from the mesh as its graph holds it: its world, whether it and every node
-   *  above it are shown, whether it casts. */
-  write() {
+  /** Writes the row from the mesh as its graph holds it: the model's `world` times its own, whether
+   *  the model is `shown` and the mesh and every node above it, whether it casts. */
+  write(world: Float64Array, shown: boolean) {
     const { rows, drawn } = this
-    rows.matrices.set(drawn.matrixWorld.elements)
-    let live = true
+    multiplyMatrix4(rows.matrices, world, drawn.matrixWorld.elements)
+    let live = shown
     for (let walk: Object3D | null = drawn; live && walk; walk = walk.parent) live = walk.visible
     rows.live[0] = live ? 1 : 0
     rows.shadowless[0] = drawn.castShadow ? 0 : 1
@@ -67,7 +71,7 @@ class ModelMeshSource implements DrawSource {
 /** The row that poses the world DAG a model holds: the model's world, and whether it is shown. */
 export type WorldPose = {
   readonly rows: PlacementRows
-  write(world: ArrayLike<number>, shown: boolean): void
+  write(world: Float64Array, shown: boolean): void
 }
 
 function createWorldPose(): WorldPose {
@@ -90,11 +94,12 @@ export type ModelDraws = {
    *  session's manifest lists of the model, made once. */
   readonly primitives: readonly Primitive[]
   readonly draws: readonly DrawSource[]
-  readonly rowed: readonly (DrawSource & { readonly rows: PlacementRows; write(): void })[]
+  readonly rowed: readonly (DrawSource & {
+    readonly rows: PlacementRows
+    write(world: Float64Array, shown: boolean): void
+  })[]
   /** The pose of the world DAG the model holds, once the world draws it (`rootsOf`). */
   world?: WorldPose
-  /** The root its graph hangs from, posed by the model's world: what a node's chain is shown by. */
-  readonly holder: Group
 }
 
 /** The ranks of `model`'s association `link`, moved past the ranks before it. */
@@ -128,9 +133,6 @@ export function createWorldModels(ranks: WorldRanks) {
         for (const link of links.values()) last = Math.max(last, link.meshes ?? -1)
         return last + 1
       })
-      const holder = new Group()
-      holder.matrixAutoUpdate = false
-      holder.add(scene.source)
       const all: DrawSource[] = [],
         rowed: ModelDraws['rowed'][number][] = []
       for (const mesh of objects(scene.source)) {
@@ -143,6 +145,9 @@ export function createWorldModels(ranks: WorldRanks) {
           rowed.push(source)
         }
       }
+      // Its partitions' scene hangs in the model's world, which no node of theirs carries.
+      for (const cells of scene.partitions ?? [])
+        cells.pose(() => resolveCameraWorld(model).worldMatrix as Float64Array)
       let primitives: Primitive[] | undefined
       held.set(
         model,
@@ -156,7 +161,6 @@ export function createWorldModels(ranks: WorldRanks) {
           },
           draws: all,
           rowed,
-          holder,
         }),
       )
       return draws
@@ -178,11 +182,10 @@ export function createWorldModels(ranks: WorldRanks) {
     pose(model: LoadedModel, shown: boolean) {
       const draws = held.get(model)
       if (!draws) return undefined
-      const { holder } = draws
-      holder.matrix.fromArray(model.matrixWorld.elements)
-      holder.visible = shown
-      updateTransformTree(Object3D._treeOf(holder))
-      for (const source of draws.rowed) source.write()
+      // The graph's worlds are its own, brought up to date where they changed.
+      updateTransformTree(Object3D._treeOf(model.record.scene.source))
+      const world = model.matrixWorld.elements
+      for (const source of draws.rowed) source.write(world, shown)
       draws.world?.write(model.matrixWorld.elements, shown)
       return draws
     },

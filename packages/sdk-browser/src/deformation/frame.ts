@@ -22,6 +22,9 @@ export type DeformedMesh = {
   morphTargetInfluences?: number[]
   waves?: WaterSurface | null
   softSource?: SoftSource
+  /** The world its skeleton's bones are read in, when it is not the one its placement stands in:
+   *  the mesh's own within the model's graph (`PlacementRows.local`). */
+  readonly frame?: ArrayLike<number>
 }
 
 /** One deformed placement: where it stands, its mesh, the counts its record holds and how far
