@@ -54,7 +54,7 @@ test('the five-import hierarchy example composes parents before children', () =>
     hierarchyUpdateBatch,
   } = common
   const count = 3
-  // The guide's five-import example, run as written: the portal demo (`site/demos/batch.ts`) shows its own copy.
+  // The guide's five-import example, run as written.
   // jscpd:ignore-start
   const views = (buffer: Float64Array, stride: number): Float64Array[] =>
     Array.from({ length: count }, (_, index) =>
