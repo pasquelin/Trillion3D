@@ -31,6 +31,18 @@ function engineRejects(c: {
   )
 }
 
+/** The host-library oracle's verdict on a case `engineRejects` reads. */
+const oracleRejects = (c: Parameters<typeof engineRejects>[0]) =>
+  referenceConeRejects(
+    { axis: c.coneAxis, angle: c.angle },
+    c.world,
+    c.min,
+    c.max,
+    c.normal,
+    c.scaling,
+    c.eyePos,
+  )
+
 function place(sx: number, sy: number, sz: number, position: number[], euler: number[]) {
   const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(euler[0], euler[1], euler[2]))
   return new THREE.Matrix4().compose(
@@ -57,18 +69,7 @@ test('boxConeRejects matches the host-library oracle under conformal placement (
       scaling: sx,
       eyePos: [10, 8, 6],
     }
-    assert.equal(
-      engineRejects(c),
-      referenceConeRejects(
-        { axis: c.coneAxis, angle: c.angle },
-        world,
-        c.min,
-        c.max,
-        normal,
-        c.scaling,
-        c.eyePos,
-      ),
-    )
+    assert.equal(engineRejects(c), oracleRejects(c))
   }
 })
 
@@ -86,18 +87,7 @@ test('eye inside bounding sphere yields spread of π and never rejects', () => {
     eyePos: [0.1, 0.1, 0.1], // inside the box
   }
   assert.equal(engineRejects(c), false)
-  assert.equal(
-    engineRejects(c),
-    referenceConeRejects(
-      { axis: c.coneAxis, angle: c.angle },
-      world,
-      c.min,
-      c.max,
-      normal,
-      c.scaling,
-      c.eyePos,
-    ),
-  )
+  assert.equal(engineRejects(c), oracleRejects(c))
 })
 
 /** A unit box turned by `euler`, seen from (20, 0, 0) under a cone of `coneAxis` and `angle`: neither
@@ -116,18 +106,7 @@ function assertNeitherRejects(euler: number[], coneAxis: number[], angle: number
     eyePos: [20, 0, 0],
   }
   assert.equal(engineRejects(c), false)
-  assert.equal(
-    referenceConeRejects(
-      { axis: c.coneAxis, angle: c.angle },
-      world,
-      c.min,
-      c.max,
-      normal,
-      c.scaling,
-      c.eyePos,
-    ),
-    false,
-  )
+  assert.equal(oracleRejects(c), false)
 }
 
 test('zero cone axis never rejects (neither does the oracle)', () => {
@@ -151,17 +130,6 @@ test('tangent cone rejects exactly like the oracle, on both sides of tangency', 
   }
   for (const angle of [Math.PI / 6 - 1e-6, Math.PI / 6, Math.PI / 6 + 1e-6]) {
     const c = { ...base, coneAxis: [0, 0, -1], angle }
-    assert.equal(
-      engineRejects(c),
-      referenceConeRejects(
-        { axis: c.coneAxis, angle: c.angle },
-        world,
-        c.min,
-        c.max,
-        normal,
-        c.scaling,
-        c.eyePos,
-      ),
-    )
+    assert.equal(engineRejects(c), oracleRejects(c))
   }
 })

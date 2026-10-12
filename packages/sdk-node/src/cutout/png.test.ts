@@ -3,14 +3,16 @@ import { test } from 'node:test'
 import { deflateSync } from 'node:zlib'
 import { decodePng, encodePng } from './png.mts'
 
-/** A PNG of `type` from raw filtered rows, chunk CRCs left out: the reader does not check them. */
+/** A PNG chunk of `kind`, its CRC left out: the reader does not check it. */
+function chunk(kind: string, body: Buffer) {
+  const head = Buffer.alloc(8)
+  head.writeUInt32BE(body.length, 0)
+  head.write(kind, 4, 'ascii')
+  return Buffer.concat([head, body, Buffer.alloc(4)])
+}
+
+/** A PNG of `type` from raw filtered rows, its `extra` chunks before the data. */
 function png(width: number, height: number, type: number, rows: number[], extra: Buffer[] = []) {
-  const chunk = (kind: string, body: Buffer) => {
-    const head = Buffer.alloc(8)
-    head.writeUInt32BE(body.length, 0)
-    head.write(kind, 4, 'ascii')
-    return Buffer.concat([head, body, Buffer.alloc(4)])
-  }
   const header = Buffer.alloc(13)
   header.writeUInt32BE(width, 0)
   header.writeUInt32BE(height, 4)
@@ -40,12 +42,6 @@ test('an RGB PNG with the Sub and Up filters reads as opaque RGBA', () => {
 
 test('a palette PNG reads its colours and their transparency', () => {
   const palette = Buffer.from([255, 0, 0, 0, 0, 255])
-  const chunk = (kind: string, body: Buffer) => {
-    const head = Buffer.alloc(8)
-    head.writeUInt32BE(body.length, 0)
-    head.write(kind, 4, 'ascii')
-    return Buffer.concat([head, body, Buffer.alloc(4)])
-  }
   const file = png(2, 1, 3, [0, 1, 0], [chunk('PLTE', palette), chunk('tRNS', Buffer.from([128]))])
   assert.deepEqual([...decodePng(file).rgba], [0, 0, 255, 255, 255, 0, 0, 128])
 })
