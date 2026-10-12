@@ -36,6 +36,8 @@
  * waves or a soft body that read the world, a skeleton whose bones stand in the world's frame —
  * is the owner's to write, the link refused (`composeWebgpuPlacements`, `readsItsWorld`).
  */
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
@@ -48,6 +50,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import { placedBy, type PlacementRows } from './rows.ts'
 import { MOVE_PROMOTED, rootRankOfRow } from './update.ts'
+import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts'
 import { BOX_VALUES, matrixWindingCw } from '../../../sdk-core/src/index.ts'
 import { WORLD_ORIGIN_BYTES } from '../gpu/dag/worldOrigins.ts'
 import { PRIMITIVE_BYTES } from '../gpu/dag/cameraRanges.ts'
@@ -73,6 +76,13 @@ function createComposeState(roots: number) {
     roots,
     parentOf: new Uint32Array(Math.max(1, roots)).fill(NONE),
     locals: new Uint32Array(Math.max(1, roots) * MATRIX_DOUBLES * 2),
+    /** Each linked root's local matrix, as the doubles it was linked by: what a CPU reader of its
+     *  world composes with its parent's (`composedWorld`). */
+    localMats: new Float64Array(Math.max(1, roots) * 16),
+    /** The world versions each root's CPU world was composed at (`composedWorld`), and the
+     *  current one: it moves whenever a parent's world, or a link, does. */
+    refreshed: new Uint32Array(Math.max(1, roots)),
+    version: 1,
     /** Each linked parent's slot. */
     parentIds: new Map<object, number>(),
     /** The roots each slot linked, some since taken by another slot; the slots no parent holds. */
@@ -84,8 +94,8 @@ function createComposeState(roots: number) {
     worlds: new Float64Array(16),
     /** Each parent's world at the last drawn frame, in double. */
     previous: new Float64Array(16),
-    /** Whether each parent's world reverses orientation, as it was when its rows were last written
-     *  whole: the winding the rows' draw bins were made for (`../webgpu/pages/prepare/pipelineFor.ts`). */
+    /** Whether each parent's world reverses orientation, as the draw bins of its rows were made
+     *  for it (`../webgpu/pages/prepare/pipelineFor.ts`). */
     winding: [] as boolean[],
     packed: new Uint32Array(MATRIX_DOUBLES * 2),
     /** The roots pass's parameters, 64 words a range of the cut's worlds; the rows pass's four. */
@@ -118,9 +128,9 @@ type ComposeGpu = ReturnType<typeof createComposeGpu>
  * follows it, any other root it linked follows none any more — no link at all frees its slot —;
  * otherwise they are rows it holds, at a new local matrix. False when a link names a row this
  * session does not read through a root, or that a blended copy reads, or when only some rows are
- * given of a parent it holds no link of, or when the parent's world now reverses orientation
- * where it did not (or the other way) — the rows' draw bins were made for a winding —: the caller
- * writes the rows itself, and links them again.
+ * given of a parent it holds no link of: the caller writes the rows itself. A parent whose world
+ * turns its winding has the draw bins of its rows made again from the world the GPU composes
+ * (`remakeBins`).
  */
 export function composeWebgpuPlacements(
   rt: WebgpuPagesRuntime,
@@ -133,13 +143,9 @@ export function composeWebgpuPlacements(
     state = composeState(rt)
   const p = state.parentIds.get(parent)
   if (p === undefined && (!whole || !links.length)) return false
-  // A turn of the winding is the one change of a parent's world the GPU cannot follow: which face
-  // each row's bin culls is a word of the CPU's write.
-  if (p !== undefined && !whole && matrixWindingCw(world) !== state.winding[p]) return false
   const ranks = linkedRanks(rt, links)
   if (!ranks) return false
   const slot = takeSlot(state, parent, p, world)
-  if (whole) state.winding[slot] = matrixWindingCw(world)
   // The shadow pages the slot's roots cover at the parent's last world: a slot linked now has
   // none of its own, its rows' CPU write in this call declares them (`webgpuPlacements.ts`). The
   // static casters under it stay unless a root it changes is still or its parent's move is a first.
@@ -160,6 +166,27 @@ export function composeWebgpuPlacements(
   // Poses moved and no node entered or left: the frame hears it as any engine pose write.
   rt.run.gate.engineMovedInPlace()
   return true
+}
+
+/** The draw bins of the rows of `slot`'s roots are made again, from the world the GPU composes,
+ *  when its winding turned: a mirror changes which face each row's bin culls (`pipelineFor.ts`).
+ *  The rows are written as a row moved is (`moveRootRows`), once a turn, never a move. */
+function remakeBins(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
+  const cw = matrixWindingCw(state.worlds.subarray(slot * 16, slot * 16 + 16))
+  const was = state.winding[slot]
+  state.winding[slot] = cw
+  if (was === undefined || was === cw) return
+  for (const rank of state.ranksOf[slot])
+    if (state.parentOf[rank] === slot) moveRootRows(rt, rt.layout.selectionRoots[rank], rank)
+}
+
+/** The impostor cards of `slot`'s roots follow the parent's move: each card is written again from
+ *  the composed world its root reads (`composedWorld`). */
+function moveCards(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
+  const cards = rt.gpu.impostors
+  if (!cards) return
+  const ranks = state.ranksOf[slot].filter((rank) => state.parentOf[rank] === slot)
+  cards.worldsMoved(ranks)
 }
 
 /** The parent's world at `slot`, held; its move declared to the shadows (`declareSlotMove`) and the
@@ -184,6 +211,9 @@ function settleSlot(
   // Whether the parent moved: one linked now, or sent at the world it held, did not.
   const moved = p !== undefined && !sameElements(state.worlds, world, slot * 16)
   state.worlds.set(world, slot * 16)
+  state.version++
+  remakeBins(rt, state, slot)
+  if (moved || relinked) moveCards(rt, state, slot)
   // A parent's move moves its roots: its first makes them moving casters (`mobility.moveLead`).
   if (moved && rt.lights.mobility.moveLead(slot, state.ranksOf[slot]) === MOVE_PROMOTED)
     movingOnly = false
@@ -221,6 +251,8 @@ function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, roots: nu
   const held = state.roots
   state.parentOf = resized(state.parentOf, roots, NONE)
   state.locals = resized(state.locals, roots * MATRIX_DOUBLES * 2)
+  state.localMats = resized(state.localMats, roots * 16)
+  state.refreshed = resized(state.refreshed, roots)
   state.rankBoxes = resized(state.rankBoxes, roots * BOX_VALUES)
   state.roots = roots
   state.gpu?.dispose()
@@ -228,6 +260,71 @@ function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, roots: nu
   state.linksDirty = true
   for (let rank = 0; rank < held; rank++)
     if (state.parentOf[rank] !== NONE) seedMotion(rt, state, rank)
+}
+
+/**
+ * The composed world of root `rank`, as a CPU reader reads it: its parent's world times its local
+ * matrix, by `multiplyMatrix4` — the doubles the GPU composes (`gpuComposeWgsl.ts`) —, written into
+ * the root's row view the first time it is read since a parent or a link moved, never otherwise: a
+ * reader costs one product, and a move of the parent none. The roots a parent composes carry this
+ * as the `elements` of their world (`installComposedWorld`), so every CPU reader of a world — the
+ * impostor cards, the winding of a row's draw bin, a row written again — reads the world the GPU
+ * draws, and nothing writes it between two reads.
+ */
+function composedWorld(state: ComposeState, rank: number, view: Float64Array) {
+  if (state.refreshed[rank] === state.version) return
+  state.refreshed[rank] = state.version
+  const slot = state.parentOf[rank]
+  if (slot === NONE) return
+  multiplyMatrix4(
+    view,
+    state.worlds.subarray(slot * 16, slot * 16 + 16),
+    state.localMats.subarray(rank * 16, rank * 16 + 16),
+  )
+}
+
+/** The `elements` of root `rank`'s world refresh on read (`composedWorld`); its `stamp` moves with
+ *  the composition, which a memo of what is derived from the world is keyed by. */
+function installComposedWorld(rt: WebgpuPagesRuntime, rank: number) {
+  const world = rt.layout.selectionRoots[rank]?.world as
+    (MatrixElements & { stamp?: number }) | undefined
+  if (!world || Object.getOwnPropertyDescriptor(world, 'elements')?.get) return
+  const view = world.elements as Float64Array
+  const state = rt.compose!
+  state.refreshed[rank] = 0
+  Object.defineProperty(world, 'elements', {
+    configurable: true,
+    enumerable: true,
+    get: () => (composedWorld(state, rank, view), view),
+  })
+  Object.defineProperty(world, 'stamp', {
+    configurable: true,
+    get: () => (state.parentOf[rank] === NONE ? 0 : state.version),
+  })
+}
+
+/** Root `rank`'s world is a plain view again: a parent composes it no more. */
+function removeComposedWorld(rt: WebgpuPagesRuntime, rank: number) {
+  const world = rt.layout.selectionRoots[rank]?.world as
+    (MatrixElements & { stamp?: number }) | undefined
+  if (!world || !Object.getOwnPropertyDescriptor(world, 'elements')?.get) return
+  const view = world.elements
+  delete world.stamp
+  Object.defineProperty(world, 'elements', {
+    configurable: true,
+    enumerable: true,
+    writable: true,
+    value: view,
+  })
+}
+
+/** The roots of a growth read views on their new rows (`growth.ts`): the composed ones carry the
+ *  refreshing `elements` again, their row holding the world they were last read at. */
+export function rebindComposedWorlds(rt: WebgpuPagesRuntime) {
+  const state = rt.compose
+  if (!state) return
+  for (let rank = 0; rank < state.roots && rank < rt.layout.selectionRoots.length; rank++)
+    if (state.parentOf[rank] !== NONE) installComposedWorld(rt, rank)
 }
 
 /** Whether a parent's move can reach what moves `link`'s row beyond its world: waves and a soft
@@ -263,6 +360,7 @@ function takeSlot(
   if (p !== undefined) return slot
   state.parentIds.set(parent, slot)
   state.ranksOf[slot] = []
+  state.winding[slot] = undefined as unknown as boolean
   state.worlds = resized(state.worlds, state.slots * 16)
   state.previous = resized(state.previous, state.slots * 16)
   state.slotBoxes = resized(state.slotBoxes, state.slots * BOX_VALUES)
@@ -281,10 +379,10 @@ function unlinkHeld(rt: WebgpuPagesRuntime, state: ComposeState, slot: number, r
     if (state.parentOf[rank] !== slot) continue
     movingOnly &&= mobility.moves(rank)
     if (kept.has(rank)) continue
+    removeComposedWorld(rt, rank)
     state.parentOf[rank] = NONE
     mobility.follow(rank, -1)
     rt.run.gpuSelection?.composedPlacement(rank, false)
-    rt.gpu.impostors?.linkMoved(rank) // its card may be taken again
   }
   held.length = 0
   state.linksDirty = true
@@ -313,8 +411,9 @@ function linkRanks(
     state.parentOf[rank] = slot
     rt.lights.mobility.follow(rank, slot)
     rt.run.gpuSelection?.composedPlacement(rank, true)
-    rt.gpu.impostors?.linkMoved(rank) // it keeps its clusters: a card is written from a pose the CPU holds
     packDoubles(state.locals, rank * MATRIX_DOUBLES * 2, links[k].local)
+    state.localMats.set(links[k].local as ArrayLike<number>, rank * 16)
+    installComposedWorld(rt, rank)
     linkBox(state, rank, roots[rank], links[k].local)
   }
   if (ranks.length) state.linksDirty = true

@@ -167,4 +167,6 @@ export type ClusterRoot<T> = {
   /** Winding of `world` and the row-table epoch it was computed at (`webgpu/pages/render/winding.ts`). */
   windingCw?: boolean
   windingEpoch?: number
+  /** The stamp of a composed world the winding was taken at (`placement/gpuCompose.ts`). */
+  windingStamp?: number
 }

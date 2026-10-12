@@ -26,7 +26,7 @@ export function session() {
   const rows = createPlacementRows(2)
   const roots = [0, 1].map((index) => ({
     placement: { rows, index },
-    world: { elements: new Float32Array(turn(index)) },
+    world: { elements: new Float64Array(turn(index)) },
   }))
   let revision = 0
   const selection = {
