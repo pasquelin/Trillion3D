@@ -13,6 +13,7 @@
 import {
   checkAllocation,
   ledgerSnapshot,
+  ledgerSweep,
   ledgerTransaction,
   observeCreates,
   type Admission,
@@ -43,6 +44,9 @@ export interface GpuDeviceLedger {
    *  held less those bytes, the state the replacement leaves, never the moment both live. */
   replacing<T>(bytes: number, build: () => T): T
   transaction(): { commit(): void; rollback(): void }
+  /** Destroys every allocation this ledger still counts — never its base's — and returns their
+   *  labels: a session's handle closing gives back what it holds, and its leaks are named. */
+  sweep(): string[]
 }
 
 const ledgers = new WeakMap<LedgerDevice, GpuDeviceLedger>()
@@ -131,6 +135,7 @@ function ledgerOver(
       }
     },
     transaction: () => ledgerTransaction(books),
+    sweep: () => ledgerSweep(books),
     snapshot: () => ledgerSnapshot(books),
   }
   return ledger
@@ -144,8 +149,6 @@ export const gpuDeviceLedgerOf = (device: LedgerDevice | undefined) =>
 export const ledgerRoom = (device: LedgerDevice | undefined) =>
   gpuDeviceLedgerOf(device)?.room ?? Infinity
 
-/** `build` run tentatively on the device's ledger (`GpuDeviceLedger.tentative`), or as is without
- *  one. */
 /** `build` as the replacement of `bytes` (`GpuDeviceLedger.replacing`); as is without a ledger. */
 export const ledgerReplacing = <T>(
   device: LedgerDevice | undefined,
@@ -159,6 +162,8 @@ export const ledgerReplacing = <T>(
 /** Whether `error` is a budget's refusal (`checkAllocation`): the limit, never the device. */
 export const budgetRefused = (error: unknown) => String(error).includes('GPU_BUDGET_EXCEEDED')
 
+/** `build` run tentatively on the device's ledger (`GpuDeviceLedger.tentative`), or as is without
+ *  one. */
 export const ledgerTentative = <T>(device: LedgerDevice | undefined, build: () => T): T => {
   const ledger = gpuDeviceLedgerOf(device)
   return ledger ? ledger.tentative(build) : build()

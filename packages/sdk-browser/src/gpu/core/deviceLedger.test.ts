@@ -163,3 +163,31 @@ test("a shared allocation made tentatively past another session's limit refuses 
   a.release()
   b.release()
 })
+
+test("a session's sweep destroys what its handle still holds, named, and never a shared cache", () => {
+  const gpu = fakeDevice()
+  const base = installGpuDeviceLedger(gpu.device, { counts: namesNoSession })
+  const handle = sessionHandle(gpu.device, '@t3d:9')
+  const session = installGpuDeviceLedger(handle.device, { base })
+  const usage = GPUBufferUsage.STORAGE
+  const shared = gpu.device.createBuffer({ label: 'shared cache', size: 8, usage })
+  const kept = handle.device.createBuffer({ label: 'held readback', size: 8, usage })
+  const gone = handle.device.createBuffer({ label: 'destroyed', size: 8, usage })
+  handle.device.createTexture({
+    label: 'forgotten',
+    size: [2, 2],
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+  })
+  gone.destroy()
+  handle.release()
+  assert.deepEqual(session.sweep(), ['held readback', 'forgotten'])
+  assert.deepEqual(
+    gpu.destroyed.map((resource) => resource.label),
+    ['destroyed @t3d:9', 'held readback @t3d:9', 'forgotten @t3d:9'],
+  )
+  assert.equal(session.snapshot().bytes, base.bytes, 'the session counts nothing of its own')
+  assert.deepEqual(session.sweep(), [], 'a second sweep finds nothing')
+  assert.ok(!gpu.destroyed.includes(shared as never), 'the shared cache stays')
+  assert.ok(gpu.destroyed.includes(kept as never))
+})
