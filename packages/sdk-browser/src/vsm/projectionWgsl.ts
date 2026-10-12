@@ -188,24 +188,6 @@ fn vsmVoteAllTrue(c:bool,split:bool)->bool{return vsmVoteCounter(c);}`
 }
 `
 
-/** The contact ray's cast, over the view uniform `vsmView` and the engine's screen march. */
-export const VSM_SCREEN_RAY_CAST_WGSL = /* wgsl */ `/** The screen-space ray cast: the engine's screen march (\`screenMarch\`, \`gpu/hiz/screenMarch.ts\`)
- *  of the depth along the ray's length, whose reach is the ray's own and whose thickness is
- *  \`thickness\` pixels of footprint — the ray's depth span, so that a surface nearer than the ray
- *  by more than it spans is no occluder of the point the ray leaves. The first crossing is the
- *  occluder: the ray's length up to it, a pixel and a half back (declared: the map trace starts
- *  at the surface, never behind it), or the whole length where it meets nothing. */
-fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,thickness:f32)->f32{
- let size=vsmView.viewPixels.xy;
- let start=clipToFramebuffer(vsmView.shiftedToClip*vec4f(rayOrigin,1.0),size);
- let stop=clipToFramebuffer(vsmView.shiftedToClip*vec4f(rayOrigin+rayDirection*rayLength,1.0),size);
- let d=stop-start;
- let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),thickness,vsmView.screenSlab);
- // A transparent surface is no occluder here: the maps' transmission is its shadow.
- if(hit.t<0.0||hit.front){return rayLength;}
- return rayLength*max(0.0,hit.t-1.5/max(max(abs(d.x),abs(d.y)),1e-6));
-}`
-
 /** Pixel reconstruction, normal bias, screen ray, filter. */
 const PIXEL_WGSL = /* wgsl */ `
 fn vsmUnpackEvenBits(xIn:u32)->u32{
@@ -234,7 +216,22 @@ fn vsmNormalOffset(shiftedPosition:vec3f)->f32{
  let distanceToCamera=vsmCameraDistance(shiftedPosition-vsmView.shiftedEye);
  return vsmNormalOffsetLength(vsm.normalBias,distanceToCamera,vsmView.halfFovTangents.z);
 }
-${VSM_SCREEN_RAY_CAST_WGSL}
+/** The screen-space ray cast: the engine's screen march (\`screenMarch\`, \`gpu/hiz/screenMarch.ts\`)
+ *  of the depth along the ray's length, whose reach is the ray's own and whose thickness is
+ *  \`thickness\` pixels of footprint — the ray's depth span, so that a surface nearer than the ray
+ *  by more than it spans is no occluder of the point the ray leaves. The first crossing is the
+ *  occluder: the ray's length up to it, a pixel and a half back (declared: the map trace starts
+ *  at the surface, never behind it), or the whole length where it meets nothing. */
+fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,thickness:f32)->f32{
+ let size=vsmView.viewPixels.xy;
+ let start=clipToFramebuffer(vsmView.shiftedToClip*vec4f(rayOrigin,1.0),size);
+ let stop=clipToFramebuffer(vsmView.shiftedToClip*vec4f(rayOrigin+rayDirection*rayLength,1.0),size);
+ let d=stop-start;
+ let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),thickness,vsmView.screenSlab);
+ // A transparent surface is no occluder here: the maps' transmission is its shadow.
+ if(hit.t<0.0||hit.front){return rayLength;}
+ return rayLength*max(0.0,hit.t-1.5/max(max(abs(d.x),abs(d.y)),1e-6));
+}
 /** \`biasNormal\`: the normal the receiver's biases follow (normal bias, receiver-plane depth slope);
  *  the shading normal unless the engine's shadow receiver gives its triangle's plane. */
 struct VsmSurfaceInfo{valid:bool,subsurface:bool,worldNormal:vec3f,biasNormal:vec3f,}

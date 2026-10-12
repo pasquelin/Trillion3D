@@ -24,8 +24,7 @@ type ReflectionView = {
   surroundings: number[]
 }
 /** The views of a still view: the reflection's own (`ReflectionView`, its radiance image the
- *  depth's own) and the deferred lighting's (`View`: the pixel's world point, the eye, the drawn
- *  size). */
+ *  depth's own) and the deferred lighting's (the pixel's world point, the eye, the drawn size). */
 type Views = { reflectionView: ReflectionView; view: object }
 export function viewOf(
   m: Iterable<number>,
@@ -53,10 +52,10 @@ export function viewOf(
 
 /**
  * The shipped reflection functions over the depth `depth` and the view uniform `reflectionView`:
- * a read of the radiance image gives, as its colour, the point it reads and the level,
- * `[x, y, level, 1]` — the footprint's colour is their weighted mean —; `counter`
- * counts the cells the march reads (one load of the nearest layer each: a cell's nearest, or a
- * pixel's slopes) and lists the reads; `overrides` stand in for shipped functions.
+ * a read of the radiance image gives, as its colour, the point it reads and the level, `[x, y,
+ * level, 1]` — the footprint's colour is their weighted mean —; `counter` counts the cells the
+ * march reads (one load of the nearest layer each: a cell's nearest, or a pixel's slopes) and lists
+ * the reads; `overrides` stand in for shipped functions.
  */
 export function reflectionRunner(
   depth: DepthField,
@@ -181,7 +180,6 @@ export function reflectionRunner(
     ...run,
     counter,
     levels: depth.levels.count[0],
-    /** The view's slab words and the thickness the reflection marches with. */
     slab: reflectionView.slab,
     thickness: reflectionConstant('REFLECTION_THICKNESS'),
   }
@@ -195,8 +193,7 @@ export function sceneFromDepth(view: Camera, depth: ArrayLike<number>) {
   ] as const
 }
 
-/** A still view of `boxes` from `view`: its depth, which box each pixel shows, and the shipped
- *  reflection over it. */
+/** A still view of `boxes` from `view`: its depth, the box each pixel shows, the shipped reflection. */
 export function sceneOver(view: Camera, boxes: Box[]) {
   const { depth, shown } = rasterize(view, boxes)
   return { depth, shown, ...reflectionRunner(...sceneFromDepth(view, depth)) }
