@@ -37,7 +37,7 @@ const PERF_FORMAT: FrenchException = {
     '`bench/core/measure.ts` and `bench/perf`, read by `bench/runner/perf`, `bench/oracles` and ' +
     "`site/examples/kit/verdict.ts`, and stored in each machine's `.mesure/baselines`: listed " +
     'until renamed together with its readers',
-  files: /^(?:bench\/(?:core|perf|oracles|runner\/perf)\/|site\/examples\/kit\/)/,
+  files: /^(?:bench\/(?:core|kit|perf|oracles|runner\/perf)\/|site\/examples\/kit\/)/,
 }
 
 /** The format's keys holding a counted word, excepted only where they are keys (`.key`, `key:`,

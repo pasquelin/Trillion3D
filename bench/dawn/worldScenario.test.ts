@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { RACINE } from '../core/paths.ts'
+import { fileURLToPath } from 'node:url'
 import { pageFile, readPage } from './page.ts'
 import { BENCH_SCENE, START_KEY, WORLD_SCENARIO } from './worldScenario.ts'
+
+/** The repository the bench scene lives in. */
+const ROOT = fileURLToPath(new URL('../../', import.meta.url))
 
 test('the scenario plays the bench scene, every segment captured, 1 200 frames in all', () => {
   assert.equal(WORLD_SCENARIO.page, BENCH_SCENE)
@@ -28,7 +31,7 @@ test('the motion starts on the first measured frame, and only there', () => {
 })
 
 test('the scene page starts its motion on the key the scenario presses, its runtime alone imported', () => {
-  const [script] = readPage(pageFile(BENCH_SCENE, RACINE)).scripts
+  const [script] = readPage(pageFile(BENCH_SCENE, ROOT)).scripts
   assert.match(script, new RegExp(`START_KEY = '${START_KEY}'`))
   const imported = [...script.matchAll(/from\s+['"]([^'"]+)['"]/g)].map((found) => found[1])
   assert.deepEqual(imported.sort(), ['../runtime/engine.js', '../runtime/kit.js'])
