@@ -1,4 +1,4 @@
-//! Refusals of the page header, in the order the JavaScript decoder raises them.
+//! Refusals of the page header, in the order the decoder raises them.
 
 use super::*;
 

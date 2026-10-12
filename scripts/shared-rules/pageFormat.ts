@@ -85,9 +85,9 @@ ${optional.map(([, flag, size], i) => `  ['${OPTIONAL_NAMES[i]}', ${size}, ${fla
 `
 }
 
-/** The page encoder's request and answer words, printed for the SDK module's loader. */
-export function pageEncoderAbiTs() {
-  const path = `${CODEC}/wasm_encode.rs`
+/** A WASM ABI module's words, printed for the SDK module's loader: the `pub const` counts and the
+ *  `pub mod` word tables of the Rust file `path`, each table under the doc line given. */
+function wasmAbiTs(path: string, counts: string[], tables: [string, string, string][]) {
   const constants = rustConstants(path)
   const scoped = (scope: string) => constants.filter((constant) => constant.scope[0] === scope)
   const object = (scope: string, name: string) => `export const ${name} = {
@@ -101,14 +101,29 @@ ${scoped(scope)
       [name],
     )[0]
   return `${header([path], '//')}
-${declaration(words('REQUEST_WORDS'))}
+${counts.map((name) => declaration(words(name))).join('\n\n')}
 
-${declaration(words('META_WORDS'))}
-
-/** The request's words, by what each holds. */
-${object('request', 'REQUEST')}
-
-/** The answer's words on success. */
-${object('meta', 'META')}
+${tables.map(([scope, name, doc]) => `/** ${doc} */\n${object(scope, name)}`).join('\n\n')}
 `
+}
+
+/** The page encoder's request and answer words, printed for the SDK module's loader. */
+export function pageEncoderAbiTs() {
+  return wasmAbiTs(
+    `${CODEC}/wasm_encode.rs`,
+    ['REQUEST_WORDS', 'META_WORDS'],
+    [
+      ['request', 'REQUEST', "The request's words, by what each holds."],
+      ['meta', 'META', "The answer's words on success."],
+    ],
+  )
+}
+
+/** The page decoder's answer words, printed for the SDK module's loader. */
+export function pageDecoderAbiTs() {
+  return wasmAbiTs(
+    `${CODEC}/wasm_decode.rs`,
+    [],
+    [['unpacked', 'UNPACKED', "The answer's words of a page the check admits."]],
+  )
 }

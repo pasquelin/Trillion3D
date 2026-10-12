@@ -1,18 +1,18 @@
-//! The `WGP3` geometry page — quantized cluster geometry —: its format, its one encoder, its test
+//! The `WGP3` geometry page — quantized cluster geometry —: its format, its one encoder, its one
 //! decoder. The encoder (`encode.rs`) writes every page, the native compiler's and, through the
-//! SDK's one WebAssembly module (`wasm_encode.rs`), the run-time cut's. The constants of this file,
+//! SDK's one WebAssembly module (`wasm_encode.rs`), the run-time cut's; the decoder (`unpack.rs`)
+//! reads every page, the compiler's round-trip test's and, through the same module
+//! (`wasm_decode.rs`), the public `page.decode`'s. The constants of this file,
 //! `bits.rs`, `deform.rs`, `triangles.rs` and `bits/grid.rs` are printed into the TypeScript
-//! readers and the WGSL built from them (`scripts/generate-shared-rules.ts`). The decoder
-//! (`unpack.rs`) is the compiler's round-trip test, refusing as the public JavaScript decoder
-//! (`sdk-browser/src/page/codec/geometryPage.ts`) does.
+//! readers and the WGSL built from them (`scripts/generate-shared-rules.ts`).
 //!
 //! The keep-set, by build. The `rlib` is the native compiler's: the page codec and every kernel
 //! below. The `cdylib` is the SDK's one WebAssembly module, `kernels.wasm` (`pnpm run build:wasm`,
 //! one shipped resource, one instantiation and one linear memory on the browser side): the page
-//! encoder and the grid rules (`wasm_encode.rs`), the math-foundation batch kernels (`math.rs` and
+//! encoder and the grid rules (`wasm_encode.rs`), the page decoder (`wasm_decode.rs`), the math-foundation batch kernels (`math.rs` and
 //! `trillion3d_math::matrix`, ABI and shared buffer in `wasm_math.rs`), the normal cone of the
 //! pages the world cuts at run time (`normal_cone.rs`, `wasm_cone.rs`) and the animation sampler
-//! (`anim.rs`, `wasm_anim.rs`), never the page decoder: the public `page.decode` is JavaScript.
+//! (`anim.rs`, `wasm_anim.rs`).
 pub mod anim;
 mod anim_layout;
 mod attributes;
@@ -31,6 +31,8 @@ mod unpack;
 mod wasm_anim;
 #[cfg(target_arch = "wasm32")]
 mod wasm_cone;
+#[cfg(target_arch = "wasm32")]
+mod wasm_decode;
 #[cfg(target_arch = "wasm32")]
 mod wasm_encode;
 #[cfg(target_arch = "wasm32")]
@@ -64,8 +66,8 @@ pub const FLAG_COLOR: u32 = 8;
 pub const FLAG_SOFT_SOURCE: u32 = 64;
 pub const FLAGS_ALL: u32 = 127;
 
-/// Refusal causes, in the order the JavaScript decoder raises them. The numeric values cross the
-/// WebAssembly ABI: the JS loader retranslates them into `GEOMETRY_PAGE_*` messages.
+/// Refusal causes, in the order the decoder raises them. `code` is what crosses the WebAssembly
+/// ABI: the `GEOMETRY_PAGE_*` message of the loader's error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum PageError {
@@ -73,6 +75,18 @@ pub enum PageError {
     Version = 2,
     Bounds = 3,
     Index = 4,
+}
+
+impl PageError {
+    /// The refusal's code, as the loader throws it.
+    pub fn code(self) -> &'static str {
+        match self {
+            PageError::Header => "GEOMETRY_PAGE_HEADER",
+            PageError::Version => "GEOMETRY_PAGE_VERSION",
+            PageError::Bounds => "GEOMETRY_PAGE_BOUNDS",
+            PageError::Index => "GEOMETRY_PAGE_INDEX",
+        }
+    }
 }
 
 /// A page header, once its twenty-five words, and the records of its morph targets, have been

@@ -43,6 +43,17 @@ export type SdkWasm = {
    *  page waiting for `encode_page_take`; 1 refused, its code in the answer block. */
   encode_page(request: number, answer: number): number
   encode_page_take(out: number): void
+  /** The page decoder (`../page/codec/geometryPage.ts`): `page_check` gates a page's header and
+   *  answers its counts, `page_unpack` writes its indices and attributes into a block of the
+   *  decoded bytes; each 0 when it succeeds, 1 with the refusal's code in the answer block. */
+  page_check(data: number, length: number, maxDecodedBytes: number, answer: number): number
+  page_unpack(
+    data: number,
+    length: number,
+    maxDecodedBytes: number,
+    answer: number,
+    out: number,
+  ): number
   /** The grids of a primitive (`../world/page/cutGrid.ts`): NaN where nothing is known, `blended`
    *  0 or 1. */
   grid_tile_log2(scale: number): number
@@ -58,6 +69,7 @@ export type SdkWasm = {
 type WasmSource = BufferSource | (() => Promise<BufferSource>)
 
 let pending: Promise<SdkWasm | null> | null = null
+let ready: SdkWasm | null = null
 
 /** Resource shipped next to the module: the browser takes it by URL, not from disk. */
 async function resource(): Promise<BufferSource> {
@@ -70,7 +82,7 @@ async function instantiate(source: WasmSource): Promise<SdkWasm | null> {
     if (typeof WebAssembly === 'undefined') return null
     const bytes = typeof source === 'function' ? await source() : source
     const { instance } = await WebAssembly.instantiate(bytes, {})
-    return instance.exports as unknown as SdkWasm
+    return (ready = instance.exports as unknown as SdkWasm)
   } catch {
     return null
   }
@@ -91,4 +103,11 @@ export async function requireSdkWasm(): Promise<SdkWasm> {
   const module = await prepareSdkWasm()
   if (!module || typeof module.encode_page !== 'function') throw new Error('SDK_WASM_UNAVAILABLE')
   return module
+}
+
+/** The module once `requireSdkWasm` has resolved, for the code that runs after its family has
+ *  loaded (`../host/families.ts`) and cannot wait: an error naming that it was not awaited. */
+export function loadedSdkWasm(): SdkWasm {
+  if (!ready) throw new Error('SDK_WASM_UNAVAILABLE')
+  return ready
 }
