@@ -28,7 +28,7 @@ export type GpuHiz = {
    *  occlusion test walk with the `levels()` table. It changes identity on every target resize. */
   pyramidView(): GPUTextureView | undefined
   /** What a reader of the whole depth binds (`hizDepthEntries`, `hizDepthWgsl`): level 0, the
-   *  pyramid and its levels uniform, in that order; `pyramid` names the drawn view's pyramid, which
+   *  pyramid, its levels uniform and its front depth, in that order; `pyramid` names the drawn view's pyramid, which
    *  a reader's bind group follows. */
   depth(): HizDepth | undefined
   /**
@@ -67,7 +67,10 @@ export type GpuHiz = {
 /** The resources of `GpuHiz.depth`. */
 export type HizDepth = {
   pyramid: GPUTexture
-  resources: [GPUTextureView, GPUTextureView, GPUBufferBinding]
+  /** The nearest transparent surface's depth a pixel (`allocPyramid`), whose view is the last
+   *  resource of the list. */
+  front: GPUTexture
+  resources: [GPUTextureView, GPUTextureView, GPUBufferBinding, GPUTextureView]
 }
 
 /** One view's pyramid, at that view's size, held by the view while another is drawn. */

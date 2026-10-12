@@ -10,8 +10,9 @@ import { reflectionGeometryWgsl } from './geometry.ts'
  * footprint behind it (`reflectionBack`); a coarser cell's surfaces lie between its farthest depth
  * of the finished image and its nearest, and so do their slabs: between the farthest's back and the
  * nearest. It returns the `t` it stopped at, the plane (depth at its centre, slopes) and centre of
- * the pixel it stopped in, and how deep into the slab the ray was there, 0 on its front to 1 on its
- * back (`ReflectionHit`); `t` −1 where it meets nothing.
+ * the pixel it stopped in, how deep into the slab the ray was there, 0 on its front to 1 on its
+ * back, and whether that surface is a transparent one in front of the opaque depth (`front`: the
+ * reflection keeps it, a reader of walls only, the contact shadow, skips it) (`ReflectionHit`); `t` −1 where it meets nothing.
  *
  * A cell is crossed by the ray over `[t, across]`, whose depths lie between two bounds. Entirely in
  * front of the cell's nearest depth, or entirely behind the back of its farthest slab (which lies
@@ -30,7 +31,7 @@ export const REFLECTION_MARCH_WGSL = (group: number) =>
   wgslBlock(
     `REFLECTION_MARCH_WGSL(${group})`,
     [REFLECTION_CONSTANTS_WGSL, reflectionGeometryWgsl(group)],
-    `struct ReflectionHit{t:f32,plane:vec3f,pixel:vec2f,into:f32,}
+    `struct ReflectionHit{t:f32,plane:vec3f,pixel:vec2f,into:f32,front:bool,}
 fn reflectionBudget(d:vec3f,end:f32,levels:i32)->u32{
  return u32(ceil(4.0*(abs(d.x)+abs(d.y))*end))+6u*u32(levels)+1u;
 }
@@ -63,10 +64,10 @@ fn reflectionMarch(o:vec3f,d:vec3f,end:f32)->ReflectionHit{
    let h0=z0-s0;
    let h1=z1-s1;
    if(h0>=0.0){
-    if(h1<0.0){return ReflectionHit(mix(t,across,h0/(h0-h1)),plane,centre,0.0);}
+    if(h1<0.0){return ReflectionHit(mix(t,across,h0/(h0-h1)),plane,centre,0.0,hizFrontOver(vec2i(cell)));}
    }else if(s0>0.0){
     let back=reflectionBack(s0,REFLECTION_THICKNESS);
-    if(z0>=back){return ReflectionHit(t,plane,centre,(s0-z0)/max(s0-back,1e-30));}
+    if(z0>=back){return ReflectionHit(t,plane,centre,(s0-z0)/max(s0-back,1e-30),hizFrontOver(vec2i(cell)));}
    }
    t=across;
    level=min(1,top);
@@ -80,6 +81,6 @@ fn reflectionMarch(o:vec3f,d:vec3f,end:f32)->ReflectionHit{
   }
   level-=1;
  }
- return ReflectionHit(-1.0,vec3f(0.0),vec2f(0.0),0.0);
+ return ReflectionHit(-1.0,vec3f(0.0),vec2f(0.0),0.0,false);
 }`,
   )

@@ -35,7 +35,7 @@ import {
 type BlendProgram = { module: GPUShaderModule; pipelines: BlendModePipelines }
 
 /** The blend fragment's values, in their order: what a feedback-free entry keeps. */
-const BLEND_OUT: [string, string][] = ['color', 'asIs', 'tint', 'add'].map((name) => [
+const BLEND_OUT: [string, string][] = ['color', 'asIs', 'tint', 'add', 'front'].map((name) => [
   name,
   'vec4f',
 ])

@@ -6,6 +6,7 @@ import {
 } from '../webgpu/pages/prepare/lightResources.ts'
 import { viewProj } from '../webgpu/pages/helpers.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { encodeFrontDepth } from './frontDepth.ts'
 import { reflectionGroup, reflectionOver } from './gpu.ts'
 import { encodeRadiancePyramid, type RadianceInputs } from './radiance.ts'
 import { encodeReflectionTrace, type TraceInputs } from './trace.ts'
@@ -25,7 +26,8 @@ const inputs = {} as TraceInputs
 const radianceInputs = {} as RadianceInputs
 
 /**
- * The image's reflections, before its lighting: the view uniform, then one compute pass — the depth
+ * The image's reflections, before its lighting: the view uniform, then one compute pass — the last
+ * image's transparents' front depth carried to this one's pixels (`frontDepth.ts`), the depth
  * pyramid's nearest layer, with the finished depth's farthest, once the visibility drew the whole
  * depth (`GpuHiz.encodeNearest`: the Hi-Z's build, which only the readers of the whole depth read,
  * built in their first pass), then the frame state and the opaque surfaces' trace into the
@@ -50,6 +52,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
   const surfaces = gpu.surfaces,
     deferred = gpu.deferred,
     traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer && !!deferred
+  encodeFrontDepth(encoder, reflection, stages, depth.front, gpu.targetSize)
   const open = reflectionPass.begin(encoder)
   if (run.depthDrawn) hiz.encodeNearest(open)
   if (traced) {

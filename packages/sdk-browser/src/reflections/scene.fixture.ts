@@ -63,7 +63,7 @@ export function reflectionRunner(
   overrides: object = {},
 ) {
   const counter = { loads: 0, taps: [] as number[][], cells: [] as number[][] }
-  const token = { depth: {}, pyramid: {}, radiance: {} }
+  const token = { depth: {}, pyramid: {}, front: {}, radiance: {} }
   const run = shaderRun<{
     reflectionLobeOf: (R: V3, alpha: number, lobe: number[]) => Lobe
     reflectionSeen: (P: V3, N: V3, lobe: Lobe) => Seen
@@ -72,7 +72,7 @@ export function reflectionRunner(
       o: number[],
       d: number[],
       end: number,
-    ) => { t: number; plane: number[]; pixel: number[]; into: number }
+    ) => { t: number; plane: number[]; pixel: number[]; into: number; front: boolean }
     reflectionScreenEnd: (o: number[], d: number[], size: number[]) => number
     reflectionBudget: (d: number[], end: number, levels: number) => number
     reflectionConeAt: (distance: number, pixel: number, lobe: Lobe) => Cone
@@ -101,6 +101,8 @@ export function reflectionRunner(
       'reflectionRay',
       'reflectionMarch',
       'hizPlane',
+      'hizFrontDepth',
+      'hizFrontOver',
       'hizCell',
       'hizLevelCount',
       'hizCullFarthest',
@@ -123,6 +125,7 @@ export function reflectionRunner(
       view,
       hizDepth: token.depth,
       hizPyramid: token.pyramid,
+      hizFront: token.front,
       hizLevels: depth.levels,
       reflectionRadiance: token.radiance,
       reflectionSampler: {},
@@ -134,12 +137,13 @@ export function reflectionRunner(
         widths,
       }),
       ReflectionRay: (o: number[], d: number[], end: number) => ({ o, d, end }),
-      ReflectionHit: (t: number, plane: number[], pixel: number[], into: number) => ({
-        t,
-        plane,
-        pixel,
-        into,
-      }),
+      ReflectionHit: (
+        t: number,
+        plane: number[],
+        pixel: number[],
+        into: number,
+        front: boolean,
+      ) => ({ t, plane, pixel, into, front }),
       ReflectionCone: (short: number, long: number, level: number) => ({ short, long, level }),
       ReflectionTaps: (color: number[], weight: number) => ({ color, weight }),
       ReflectionSurface: (pixel: number[], plane: number[], thickness: number) => ({
@@ -150,6 +154,7 @@ export function reflectionRunner(
       textureDimensions: () => [reflectionView.radiance[0], reflectionView.radiance[1]],
       textureLoad: (t: object, cell: number[], layer: number) => {
         if (t === token.depth) return [depth.depthAt(cell)]
+        if (t === token.front) return [depth.frontAt(cell)]
         if (depth.layerOf(cell, layer) === HIZ_NEAREST) {
           counter.loads++
           counter.cells.push(cell)

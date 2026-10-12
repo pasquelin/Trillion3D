@@ -8,6 +8,7 @@ import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
 import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { REFLECTION_FORMAT } from './constants.ts'
+import { FRONT_SHADER, createFrontDepth, frontBytes, frontLayout } from './frontDepth.ts'
 import {
   RADIANCE_SHADER,
   createRadiancePyramid,
@@ -56,7 +57,7 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
 })
 
 /** The reflection's kernels — the frame state, the opaque trace and its tile classification, the
- *  radiance pyramid's two — compiled once a device under one validation scope. */
+ *  radiance pyramid's two, the front depth's scatter — compiled once a device under one validation scope. */
 export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
   validated(device, async () => {
     const modules = {
@@ -72,16 +73,22 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
         label: 'Trillion3D reflection radiance',
         code: RADIANCE_SHADER,
       }),
+      front: device.createShaderModule({
+        label: 'Trillion3D reflection front depth',
+        code: FRONT_SHADER,
+      }),
     }
     for (const made of Object.values(modules)) if (await shaderFailed(made)) return undefined
     const layouts = radianceLayouts(device)
     const layout = (bind: GPUBindGroupLayout) =>
       device.createPipelineLayout({ bindGroupLayouts: [bind] })
-    const [trace, first, down, roll] = await Promise.all([
+    const frontLayouts = frontLayout(device)
+    const [trace, first, down, roll, front] = await Promise.all([
       createTraceStages(device, modules, reflectionLayout(device)),
       buildComputeStages(device, layout(layouts.firstLayout), modules.radiance, ['radianceFirst']),
       buildComputeStages(device, layout(layouts.downLayout), modules.radiance, ['radianceDown']),
       buildComputeStages(device, layout(layouts.rollLayout), modules.radiance, ['radianceRoll']),
+      buildComputeStages(device, layout(frontLayouts), modules.front, ['frontScatter']),
     ])
     return {
       ...trace,
@@ -89,14 +96,16 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
       firstPipeline: first.radianceFirst,
       downPipeline: down.radianceDown,
       rollPipeline: roll.radianceRoll,
+      frontLayout: frontLayouts,
+      frontPipeline: front.frontScatter,
     }
   }),
 )
 export type ReflectionPipelines = NonNullable<Awaited<ReturnType<typeof createReflectionPipelines>>>
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
- *  radiance pyramid, its tile list, its uniform and its radiance hash; the depth it marches is the
- *  Hi-Z's. */
+ *  radiance pyramid, its tile list, its uniform, its radiance hash and the front depth the blends
+ *  write; the depth it marches is the Hi-Z's, with its front depth. */
 export function reflectionBytes(width: number, height: number) {
   const size: GPUExtent3D = [width, height]
   return (
@@ -106,6 +115,7 @@ export function reflectionBytes(width: number, height: number) {
       format: REFLECTION_FORMAT,
       mipLevelCount: radianceLevels(width, height),
     })! +
+    frontBytes(width, height) +
     traceListBytes(width, height) +
     TRACE_ARGS_BYTES +
     REFLECTION_VIEW_BYTES +
@@ -137,6 +147,7 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
   const radiance = createRadiancePyramid(device, width, height)
   const tiles = createTraceTiles(device, width, height)
   const settle = createRadianceSettle(device)
+  const front = createFrontDepth(device, width, height)
   return {
     device,
     target,
@@ -145,6 +156,7 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
     tiles,
     uniform,
     settle,
+    front,
     writeView: createReflectionViewWriter(device, uniform),
     /** The reflection group over each Hi-Z pyramid it was bound with (a view's), and what else it
      *  was made over. */
@@ -158,6 +170,7 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
       tiles.list.destroy()
       uniform.destroy()
       settle.dispose()
+      front.dispose()
     },
   }
 }

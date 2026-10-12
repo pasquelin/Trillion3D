@@ -75,6 +75,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     fogged: (rgb: number[]) => rgb,
     shadowSetView: () => undefined,
     displayRoute: () => ({ keep: 1, tint: [1, 1, 1, 1], add: [0, 0, 0, 0] }),
+    reflectionFrontOut: () => [0, 0, 0, 0],
     BlendGrads: (gradX: number[], gradY: number[], q0: number[], q1: number[]) => ({
       gradX,
       gradY,

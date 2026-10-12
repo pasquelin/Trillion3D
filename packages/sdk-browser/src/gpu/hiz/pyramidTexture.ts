@@ -125,12 +125,16 @@ export const hizDepthEntries = (binding: number, visibility: number): GPUBindGro
   { binding, visibility, texture: { sampleType: 'unfilterable-float' } },
   { binding: binding + 1, visibility, texture: { sampleType: 'uint', viewDimension: '2d-array' } },
   { binding: binding + 2, visibility, buffer: { type: 'uniform' } },
+  { binding: binding + 3, visibility, texture: { sampleType: 'unfilterable-float' } },
 ]
 
 /**
  * What a reader of the whole depth binds in group `group` from `binding` (`GpuHiz.depth`): level 0,
- * the depth the image drew, the pyramid, and its levels. `hizPlane` is a pixel's depth and its
- * plane's slopes in depth per pixel; `hizCell` a cell of a level from 1 up, its farthest depth of
+ * the depth the image drew, the pyramid, its levels, and the nearest transparent surface's depth a
+ * pixel (`front`, zero for none). `hizPlane` is a pixel's depth — the nearer of the opaque depth and
+ * the transparent one, which the nearest layer's bounds fold in the same way (`hizFrontAt`) — and its
+ * plane's slopes in depth per pixel, and `hizFrontOver` whether that depth is a transparent
+ * surface's, in front of the opaque one (a reader that takes only opaque surfaces for walls skips it); `hizCell` a cell of a level from 1 up, its farthest depth of
  * the finished image and its nearest. Both clamp the cell to the level: the last texel of a level covers the image's edge.
  */
 export const hizDepthWgsl = (group: number, binding: number) =>
@@ -141,11 +145,22 @@ export const hizDepthWgsl = (group: number, binding: number) =>
 @group(${group}) @binding(${binding}) var hizDepth:texture_2d<f32>;
 @group(${group}) @binding(${binding + 1}) var hizPyramid:texture_2d_array<u32>;
 @group(${group}) @binding(${binding + 2}) var<uniform> hizLevels:HizLevels;
+@group(${group}) @binding(${binding + 3}) var hizFront:texture_2d<f32>;
 fn hizLevelCount()->i32{return i32(hizLevels.count.x);}
+fn hizFrontDepth(cell:vec2i)->f32{
+ let size=hizLevels.level[0].yz;
+ let p=vec2u(clamp(cell,vec2i(0),vec2i(size)-vec2i(1)));
+ return max(textureLoad(hizDepth,p,0).r,textureLoad(hizFront,p,0).r);
+}
+fn hizFrontOver(cell:vec2i)->bool{
+ let size=hizLevels.level[0].yz;
+ let p=vec2u(clamp(cell,vec2i(0),vec2i(size)-vec2i(1)));
+ return textureLoad(hizFront,p,0).r>textureLoad(hizDepth,p,0).r;
+}
 fn hizPlane(cell:vec2i)->vec3f{
  let size=hizLevels.level[0].yz;
  let p=vec2u(clamp(cell,vec2i(0),vec2i(size)-vec2i(1)));
- let z=textureLoad(hizDepth,p,0).r;
+ let z=hizFrontDepth(cell);
  let slopes=unpack2x16float(textureLoad(hizPyramid,hizTexel(p.y*size.x+p.x),${HIZ_NEAREST},0).r);
  return vec3f(z,slopes*z);
 }

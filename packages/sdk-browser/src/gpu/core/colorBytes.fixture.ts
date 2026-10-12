@@ -27,6 +27,8 @@ const COLOR_TARGET_COST: Partial<Record<GPUTextureFormat, [cost: number, alignme
   rg8unorm: [2, 1],
   rgba8unorm: [8, 1],
   bgra8unorm: [8, 1],
+  // The reflections' front depth (`../../reflections/frontDepth.ts`).
+  r16float: [2, 2],
   r32uint: [4, 4],
   r32float: [4, 4],
   rg32uint: [8, 4],

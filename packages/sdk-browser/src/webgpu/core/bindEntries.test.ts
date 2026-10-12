@@ -98,6 +98,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   const rt = {
     vis,
     gpu: {
+      reflection: { front: { view: {}, fresh: false } },
       cache: { buffer: {} },
       surfaces: { subsurfaceView: {}, receiverView: {}, lobesView: {}, lobes: { width: 1 } },
       zeroUv: {},

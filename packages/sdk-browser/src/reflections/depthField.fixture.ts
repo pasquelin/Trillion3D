@@ -26,7 +26,16 @@ const bitsOf = (value: number) => ((WORD[0] = value), BITS[0])
  * oracle's reductions (`hizReduceCeil`, `hizReduceNearestCeil`). `word` is the texel the shipped
  * readers load (`hizTexel`'s place, a layer); `levels` the levels uniform.
  */
-export function depthField(width: number, height: number, depth: ArrayLike<number>) {
+export function depthField(
+  width: number,
+  height: number,
+  depth: ArrayLike<number>,
+  front: ArrayLike<number> = [],
+) {
+  /** The nearest transparent surface's depth at a pixel, zero for none. */
+  const frontOf = (i: number) => front[i] ?? 0
+  /** The depth the pyramid reduces: the nearer of the opaque and the transparent one. */
+  const merged = (i: number) => Math.max(depth[i], frontOf(i))
   const layout = pyramidBytes(width, height)
   const { sizes, offsets, texels, first, upper } = layout
   const made = Array.from({ length: HIZ_WHOLE_FARTHEST + 1 }, () =>
@@ -34,7 +43,8 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
   )
   const row = hizTextureSize(layout).width
   const slopes = new Uint32Array(width * height)
-  const level0 = {}
+  const level0 = {},
+    frontToken = {}
   const build = shaderRun<{
     hizSource: (at: number, x: number, y: number) => number[]
   }>(
@@ -44,6 +54,7 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
       'hizLoadBound',
       'hizPlaneNearest',
       'hizDepthAt',
+      'hizFrontAt',
       'surfaceSlopeOf',
       'hizLayer',
       'hizLoad',
@@ -55,7 +66,10 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
       [HIZ_NEAREST_BUILD]: true,
       uni: { a: 0, b: width, c: height, upper },
       level0,
-      textureLoad: (_: object, p: number[]) => [Math.fround(depth[p[1] * width + p[0]])],
+      front: frontToken,
+      textureLoad: (t: object, p: number[]) => [
+        Math.fround(t === frontToken ? frontOf(p[1] * width + p[0]) : depth[p[1] * width + p[0]]),
+      ],
       hizPut: (i: number, _: number, word: number) => void (slopes[i] = word),
     },
   )
@@ -67,7 +81,7 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
         made[layer][at] =
           layer === HIZ_NEAREST
             ? Math.fround(build.hizSource(0, x, y)[0])
-            : Math.fround(depth[y * width + x])
+            : Math.fround(merged(y * width + x))
       else {
         const [w, h] = sizes[level - 1],
           square: number[][] = []
@@ -115,8 +129,10 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
       if (layer === HIZ_NEAREST && level === 0) return (cell(layer, 0, x, y), slopes[i])
       return bitsOf(cell(layer, level, x, y))
     },
-    /** The depth level 0 holds at `p`. */
+    /** The depth level 0 holds at `p`: the opaque one. */
     depthAt: (p: number[]) => Math.fround(depth[p[1] * width + p[0]]),
+    /** The nearest transparent surface's depth at `p`, zero for none. */
+    frontAt: (p: number[]) => Math.fround(frontOf(p[1] * width + p[0])),
   }
 }
 export type DepthField = ReturnType<typeof depthField>

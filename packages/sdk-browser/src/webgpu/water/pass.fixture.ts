@@ -101,9 +101,9 @@ export function prepared() {
 
 /** Frame targets of the replay: the HDR image, the opaque depth and surfaces, the backdrop. */
 export function targets(gpu: WebgpuGpuState) {
-  const placeholder = () => ({})
   const views = [{}, {}, {}, {}]
   Object.assign(gpu, {
+    reflection: { front: { view: {}, fresh: false } },
     hdrView: {},
     colorView: {},
     depthView: {},
@@ -118,7 +118,7 @@ export function targets(gpu: WebgpuGpuState) {
     deferred: {
       uniform: {},
       placeholders: Object.fromEntries(
-        ['bounceGrid', 'probes', 'tiles', 'proxy'].map((k) => [k, placeholder()]),
+        ['bounceGrid', 'probes', 'tiles', 'proxy'].map((k) => [k, {}]),
       ),
     },
   })

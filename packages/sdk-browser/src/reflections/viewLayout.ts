@@ -8,15 +8,17 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  * order: what the reflection knows of the view beyond the deferred lighting's own (`View`: the
  * pixel's world point, the eye, the drawn size, the exposure, the display curve and the background
  * are read there, from the one uniform every pass of the image reads).
- *  - `viewProj`, the view-projection the depth was drawn with, and `radianceViewProj`, the one the
- *    radiance pyramid's image was drawn with;
+ *  - `viewProj`, the view-projection the depth was drawn with, `radianceViewProj`, the one the
+ *    radiance pyramid's image was drawn with, and `radianceInverse`, its inverse: the transparents'
+ *    front depth of that image is carried to this one's pixels with the two (`frontDepth.ts`);
  *  - `radiance`, the radiance image's drawn size and its top level (`z`);
  *  - `slab`, the geometry of a surface's thickness (`reflectionBack`): the world size of a pixel at
  *    a unit clip `w` (`x`), the depth at an infinite distance (`y`), the depth a pixel's thickness
  *    spans under an orthographic projection (`z`), and whether the projection is a perspective
  *    (`w`);
  *  - `traced`, whether the screen is traced this image (`x`: the depth pyramid holds this image's
- *    depth and the radiance pyramid an earlier image of this view);
+ *    depth and the radiance pyramid an earlier image of this view), this image's drawn size
+ *    (`yz`) and the words of a row of the front depth's buffer (`w`);
  *  - `proxy`, the resident proxy's certified error in metres (`x`), the distance a ray leaves a surface
  *    off its normal;
  *  - `surroundings`, the background as the view shows it, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`), written on the
@@ -25,6 +27,7 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
 const LAYOUT = fieldLayout('ReflectionView', [
   ['viewProj', 'mat4x4f'],
   ['radianceViewProj', 'mat4x4f'],
+  ['radianceInverse', 'mat4x4f'],
   ['radiance', 'vec4f'],
   ['slab', 'vec4f'],
   ['traced', 'vec4u'],
@@ -44,13 +47,14 @@ export const REFLECTION_VIEW_WGSL = wgslBlock('REFLECTION_VIEW_WGSL', [], LAYOUT
  *  trace's and the forward passes'. */
 export const REFLECTION_GROUP = 1
 
-/** The binding from which the reflection group holds the depth pyramid (`hizDepthEntries`). */
+/** The binding from which the reflection group holds the depth pyramid (`hizDepthEntries`), four
+ *  bindings. */
 export const REFLECTION_DEPTH_BINDING = 3
 
 /** The binding of the deferred lighting's view in the reflection group (`View`). */
-export const REFLECTION_LIGHT_VIEW_BINDING = 6
+export const REFLECTION_LIGHT_VIEW_BINDING = 7
 /** The binding of the proxy's surface cache in the reflection group (`bounce/surface.ts`). */
-export const REFLECTION_SURFACE_BINDING = 7
+export const REFLECTION_SURFACE_BINDING = 8
 
 /**
  * The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the

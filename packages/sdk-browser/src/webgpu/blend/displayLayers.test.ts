@@ -69,7 +69,7 @@ const blendLayer = (mode: 'normal' | 'additive' | 'multiply', colour: Rgba) => {
   const targets = blendTargets(mode, 0xf, true, true)
   return layer(
     colour,
-    [targets[0]!, ...targets.slice(-2).map((target) => target!)],
+    [targets[0]!, ...targets.slice(3, 5).map((target) => target!)],
     blendTargets(mode, 0xf, true)[0]!.blend!,
     mode === 'multiply' ? 2 : 1,
   )

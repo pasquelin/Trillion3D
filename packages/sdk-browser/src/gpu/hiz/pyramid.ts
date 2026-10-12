@@ -16,9 +16,9 @@ import {
 /** The label of a pyramid's level 0, the one texture it holds. */
 const HIZ_LEVEL0_LABEL = 'Trillion3D Hi-Z level 0'
 /** Bytes one view's pyramid holds at `width × height` (`allocPyramid`): its level 0, one r32float
- *  texel a pixel, and its three layers of packed mips. */
+ *  texel a pixel, the front depth, another, and its three layers of packed mips. */
 export const pyramidHeldBytes = (width: number, height: number) =>
-  width * height * 4 + hizTextureBytes(pyramidBytes(width, height))
+  width * height * 8 + hizTextureBytes(pyramidBytes(width, height))
 
 /** Source texels one build workgroup covers per side: each thread reduces a 2 × 2 square. */
 const TILE = 2 * HIZ_BUILD_SIDE
@@ -73,6 +73,11 @@ export type Pyramid = HizPyramid & {
    *  build as storage, read by the others as a texture. */
   pyramid: GPUTexture
   pyramidView: GPUTextureView
+  /** The depth of the nearest transparent surface at each pixel of level 0, zero for none:
+   *  whoever draws the transparents lays it (a copy into it), the nearest build folds it into
+   *  the depth it reduces (`hizFrontAt`). */
+  front: GPUTexture
+  frontView: GPUTextureView
   /** What this image draws in level 0 (`GpuHiz.extent`): the whole size until an image says. */
   drawn: ReturnType<typeof pyramidLayout>
   /** Its bind group, and the `attach` generation it was made for. */
@@ -109,6 +114,12 @@ export function allocPyramid(
       GPUTextureUsage.COPY_DST |
       GPUTextureUsage.COPY_SRC,
   })
+  const front = device.createTexture({
+    label: 'Trillion3D Hi-Z front depth',
+    size: { width, height },
+    format: 'r32float',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
+  })
   return {
     width,
     height,
@@ -116,10 +127,13 @@ export function allocPyramid(
     level0View: level0.createView(),
     pyramid,
     pyramidView: arrayView(pyramid),
+    front,
+    frontView: front.createView(),
     drawn: pyramidLayout(width, height, slots),
     destroy() {
       level0.destroy()
       pyramid.destroy()
+      front.destroy()
     },
   }
 }

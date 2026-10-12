@@ -12,7 +12,7 @@ import {
   ST_TESTED,
   TESTED_U32,
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
-import { laidPyramid } from './casePyramid.ts'
+import { hizEntries, laidPyramid } from './casePyramid.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { BOX_NEAREST, UNIFORM_BYTES, type OcclusionCase } from './occlusionTestCases.ts'
 
@@ -69,14 +69,11 @@ export async function testOcclusion(cases: OcclusionCase[]) {
     const pyramid = laidPyramid(device, sample.packed)
     const group = device.createBindGroup({
       layout,
-      entries: [
-        { binding: 0, resource: pyramid.createView({ dimension: '2d-array' }) },
-        { binding: 1, resource: level0.createView() },
-        { binding: 2, resource: { buffer: uniform, size: UNIFORM_BYTES } },
-        { binding: 3, resource: { buffer: bounds } },
-        { binding: 4, resource: { buffer: flags } },
-        { binding: 5, resource: { buffer: state } },
-      ],
+      entries: hizEntries(pyramid, level0, { buffer: uniform, size: UNIFORM_BYTES }, [
+        bounds,
+        flags,
+        state,
+      ]),
     })
     const encoder = device.createCommandEncoder()
     const pass = encoder.beginComputePass()
