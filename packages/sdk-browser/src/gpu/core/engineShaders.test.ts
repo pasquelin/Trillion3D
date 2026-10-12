@@ -1,8 +1,7 @@
 // A module with a name it declares nowhere compiles on no device: a browser would be the
 // first to see it (`unresolved value 'uni'` in the cluster decoding proof, which
 // decodes through the page geometry and declares no camera). This Node test reads every text the
-// engine compiles, and those of the proofs that compile their own, before any browser does: the
-// cut-dispatches oracle's too (`unresolved call target 'spriteOf'`).
+// engine compiles, and those of the proofs that compile their own, before any browser does.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -12,12 +11,11 @@ import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_BINDING, PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { VIS_SHADER } from '../../visibility/buffer.ts'
 import { CLUSTER_DECODING_SHADER } from '../../../../../tests/gpu/cluster/decodingKernel.ts'
-import { DAG_SELECTION_SHADER_BEFORE } from '../../../../../bench/oracles/browser/cut-dispatches-wgsl.ts'
 import { FLOAT32_MAX } from '../../../../math/src/constants.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 test('every WGSL text the engine and its proofs compile declares every name it uses', () => {
-  const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER, DAG_SELECTION_SHADER_BEFORE }
+  const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER }
   const unresolved = Object.entries(shaders)
     .map(([name, code]) => [name, unresolvedNames(code)] as const)
     .filter(([, names]) => names.length)
@@ -34,7 +32,7 @@ test('no WGSL text the engine and its proofs compile declares a name twice', () 
   // A fragment spliced into two others, or a declaration written by a fragment and by its host,
   // is a module a device refuses even when both texts are equal: each fragment is a declaration
   // its hosts list, and the assembler writes it once.
-  const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER, DAG_SELECTION_SHADER_BEFORE }
+  const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER }
   const twice: string[] = []
   for (const [name, code] of Object.entries(shaders)) {
     const seen = new Set<string>()

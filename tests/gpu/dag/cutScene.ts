@@ -1,4 +1,4 @@
-// The scene the cut's whole-frame proofs mount (`cut-dispatches`, `cut-snapshot`, `frame-ranges`):
+// The scene the cut's whole-frame proofs mount (`cut-snapshot`, `frame-ranges`):
 // a pyramid of levels placed once per pose, seen from the front, and the command count an encode
 // opens.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
@@ -12,9 +12,6 @@ import {
   sceneRoots,
 } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
-
-/** The dispatch proof's scene size, shared with its Node guard (`cut-dispatches-scene.test.ts`). */
-export const DISPATCH_SCENE = { leaves: 12000, levels: 8 } as const
 
 /**
  * The scene, one placement per pose, its camera, and the worlds brought back to that camera's

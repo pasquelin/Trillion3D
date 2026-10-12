@@ -134,19 +134,13 @@ export function flatHierarchy(pages: readonly FlatPage[]) {
  * argument armed by a dispatch of the head pass (`shader/levelWgsl.ts`) — never a copy
  * outside it, which is what the measurement below prices.
  *
- * THE MEASUREMENT THAT JUSTIFIES IT, published by `tests/gpu/dag/cut-dispatches.gpu.ts`
- * and cited from here only: on a Metal 3 device, one more level costs about 26 µs when it
- * opens its own pass behind two off-pass copies, and about 1.5 µs when it is a flat
- * dispatch in the head pass. The bench republishes the slope each run; those two
- * values are the order of magnitude. The bench does not split the copy from the pass
- * it cuts, and does not claim to: removing an arming would also change dispatch size,
- * hence the work done.
- *
- * The cost of those children that leave at once is bounded, and the bench sweeps it:
- * a level announced at 100,000 nodes costs as much as a level of 657, and it takes
- * announcing 1,000,000 to recover the previous level's price. The widest level is
- * about `clusterCount / CULLING_BRANCHING`, so the margin holds up to millions of
- * clusters per primitive.
+ * THE MEASUREMENT THAT JUSTIFIES IT, taken when the arming was introduced against the cut that
+ * opened a pass a level: on a Metal 3 device, one more level costs about 26 µs when it opens its
+ * own pass behind two off-pass copies, and about 1.5 µs when it is a flat dispatch in the head
+ * pass. The cost of the children that leave at once is bounded: a level announced at 100,000 nodes
+ * costs as much as a level of 657, and it takes announcing 1,000,000 to recover the previous
+ * level's price. The widest level is about `clusterCount / CULLING_BRANCHING`, so the margin holds
+ * up to millions of clusters per primitive.
  */
 export function hierarchyLevelSizes(nodes: Float64Array, stride: number) {
   const count = nodes.length / stride
