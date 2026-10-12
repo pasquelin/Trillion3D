@@ -7,15 +7,19 @@ use std::collections::{BTreeMap, BTreeSet};
 use trillion3d_math::matrix::transform_point;
 
 pub mod albedo;
+/// The proxy's pure geometry — snapping, BVH, wide collapse — and its layout numbers live in the page codec,
+/// the crate the browser's one WebAssembly module and the compiler share: one builder.
+pub use trillion3d_page_codec::proxy::{
+    bvh, simplify, wide, PROXY_CELL_METRES, PROXY_CHILDREN, PROXY_CHILD_WORDS, PROXY_ERROR_METRES,
+    PROXY_LEAF_TRIANGLES, PROXY_NODE_FLOATS, PROXY_NODE_WORDS, PROXY_TRIANGLE_BUDGET,
+    PROXY_TRIANGLE_FLOATS,
+};
 pub(crate) mod assemble;
-pub mod bvh;
 pub mod cut;
 pub mod encode;
 pub mod provenance;
 pub mod share;
-pub mod simplify;
 pub(crate) mod tracer;
-pub mod wide;
 
 /// Version of the "proxy" cache product. A proxy of another version is rejected, never guessed.
 pub const SCENE_PROXY_VERSION: u32 = 5;
@@ -25,27 +29,6 @@ pub const SCENE_PROXY_MAGIC: u32 = 0x5850_4757;
 pub const SCENE_PROXY_HEADER_WORDS: usize = 11;
 /// Product name in cache key folder, next to `clusters.json`.
 pub const SCENE_PROXY_FILE: &str = "proxy.bin";
-/// Max certified geometric error of retained cluster, in meters. Published setting.
-pub const PROXY_ERROR_METRES: f64 = 0.05;
-/// Proxy mesh floor, in meters: triangle size after simplification,
-/// surface cache resolution. Triangle budget doubles if needed.
-pub const PROXY_CELL_METRES: f64 = 0.5;
-/// BVH leaf triangles: leaf loop bounded by this count engine side.
-pub const PROXY_LEAF_TRIANGLES: usize = 8;
-/// Triangles entire scene proxy allows itself, all instances placed. Budget
-/// decides actually obtained threshold: 10M triangle scene outputs 30x
-/// coarser than single room, threshold published in manifest.
-pub const PROXY_TRIANGLE_BUDGET: usize = 300_000;
-/// Numbers per proxy triangle: three world vertices, no normal — it is deduced from the triangle.
-pub const PROXY_TRIANGLE_FLOATS: usize = 9;
-/// Numbers per BVH node: its exact bounds, frame of its children's quantized boxes.
-pub const PROXY_NODE_FLOATS: usize = 6;
-/// Children of a node: four boxes tested at once, the nearest kept for the rest.
-pub const PROXY_CHILDREN: usize = 4;
-/// Integers per child: two words of quantized box and count, then the link.
-pub const PROXY_CHILD_WORDS: usize = 3;
-/// Integers per node: its four children concatenated.
-pub const PROXY_NODE_WORDS: usize = PROXY_CHILDREN * PROXY_CHILD_WORDS;
 
 /// Scene proxy, ready for column output.
 #[derive(Default)]

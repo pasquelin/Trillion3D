@@ -89,10 +89,7 @@ pub fn build(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> Vec<Node> {
 }
 
 /// The same tree, with its original triangle ranks for parallel provenance columns.
-pub(crate) fn build_ordered(
-    triangles: &mut Vec<f32>,
-    albedo: &mut Vec<u32>,
-) -> (Vec<Node>, Vec<usize>) {
+pub fn build_ordered(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> (Vec<Node>, Vec<usize>) {
     let count = triangles.len() / PROXY_TRIANGLE_FLOATS;
     if count == 0 {
         return (Vec::new(), Vec::new());

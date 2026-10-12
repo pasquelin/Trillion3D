@@ -44,7 +44,7 @@ fn divisions(edge: f64, size: f64) -> usize {
 
 /// Three grid cells of triangle, canonical order: duplicate key. Triangle
 /// with two vertices in same cell has no area and disappears.
-pub(super) fn key_of(t: &[f32], size: f64) -> Option<[[i32; 3]; 3]> {
+pub fn key_of(t: &[f32], size: f64) -> Option<[[i32; 3]; 3]> {
     let cells = [
         cell_of(&t[0..3], size),
         cell_of(&t[3..6], size),
@@ -149,11 +149,7 @@ fn subdivide(t: &[f32], n: usize, out: &mut Vec<f32>) {
 }
 
 /// Original triangle supplying each subdivided cell; deduplication keeps the first source.
-pub(super) fn simplify_sources(
-    triangles: &mut Vec<f32>,
-    albedo: &mut Vec<u32>,
-    size: f64,
-) -> Vec<usize> {
+pub fn simplify_sources(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, size: f64) -> Vec<usize> {
     let mut sources = Vec::new();
     let mut out: Vec<f32> = Vec::with_capacity(triangles.len());
     let mut colours: Vec<u32> = Vec::with_capacity(albedo.len());
