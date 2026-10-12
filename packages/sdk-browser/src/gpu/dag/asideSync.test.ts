@@ -14,7 +14,7 @@ import { worldDag } from '../../scene/worldSuperRoots.fixture.ts'
 import { createSelectionUniforms } from '../core/selection.ts'
 import { worldFadeScale } from './worldFade.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
-import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
+import type { DagRoot } from './types.ts'
 
 /** The followed selection over `roots`, its view aside made and its regions asked by one main
  *  image; `side`: one image of the view aside alone. */

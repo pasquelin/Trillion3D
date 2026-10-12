@@ -15,7 +15,6 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { keepNumbers } from '../../../math/src/vector/vector.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import type { PlacedMesh, createTouchedRows } from './rows.ts'
-import type { PlacementRows } from '../placement/rows.ts'
 
 /** A cell's node on its row: its mesh, the row, the core node it hangs under and its pose there. */
 export type Placement = { mesh: PlacedMesh; row: number; parent: Object3D; local: Float64Array }

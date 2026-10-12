@@ -97,7 +97,10 @@ test('the groups a change touched, and the nodes above them, are fitted as the b
       childBase: below?.base ?? 0,
       childCount: below?.count ?? 0,
     })
-    for (const j of ids) ((below ? run.fitCell : run.fitGroup)(j), fitted++)
+    for (const j of ids) {
+      ;(below ? run.fitCell : run.fitGroup)(j)
+      fitted++
+    }
   }
   assert.deepEqual(
     nodes.slice(first, last).map((w) => w >>> 0),
