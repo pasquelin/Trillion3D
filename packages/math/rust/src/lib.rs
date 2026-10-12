@@ -55,6 +55,8 @@ pub const GOLDEN_32: u32 = 0x9E37_79B9;
 #[cfg(test)]
 mod golden_ray_triangle;
 #[cfg(test)]
+mod golden_scalar;
+#[cfg(test)]
 mod golden_tests;
 
 #[cfg(test)]

@@ -4,7 +4,7 @@
 
 use trillion3d_math::golden::{f64s, run, Twin, Value, HOSTILE_F64};
 
-fn twins() -> [Twin; 2] {
+fn twins() -> [Twin; 3] {
     [
         Twin {
             file: "albedo_pack",
@@ -20,6 +20,30 @@ fn twins() -> [Twin; 2] {
             compute: |v| vec![Value::U32(crate::albedo::pack([0, 1, 2].map(|c| v[c].f64())))],
         },
         crate::proxy::wide::tests::twin(),
+        Twin {
+            file: "preview_levels",
+            name: "preview_levels",
+            about: "previewFirstLevel and previewLastLevel (sdk-core texture/previewLevels.ts), preview_first_level and preview_last_level (asset-compiler-rust texture_preview/levels.rs): the finest level carried, the first whose sides fit PREVIEW_BASE, and the last, where both sides are one texel",
+            inputs: "width: u32, height: u32",
+            outputs: "first level: u32, last level: u32",
+            cases: || {
+                let sides = [
+                    1u32, 2, 3, 63, 64, 65, 100, 127, 128, 129, 255, 256, 257, 1000, 1024, 4096, 4097,
+                    16384, 32768,
+                ];
+                sides
+                    .iter()
+                    .flat_map(|&w| sides.iter().map(move |&h| vec![Value::U32(w), Value::U32(h)]))
+                    .collect()
+            },
+            compute: |v| {
+                let (w, h) = (v[0].u32(), v[1].u32());
+                vec![
+                    Value::U32(crate::texture_preview::preview_first_level(w, h)),
+                    Value::U32(crate::texture_preview::preview_last_level(w, h)),
+                ]
+            },
+        },
     ]
 }
 
