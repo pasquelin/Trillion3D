@@ -5,7 +5,7 @@
 // layer reduces the far corner of each pixel's plane, not its depth.
 import { fromHalf, toHalf } from '../../../packages/math/src/float/half.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
-import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/factory.ts'
+import { standaloneHiz } from '../kit/standaloneHiz.ts'
 import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'
 import {
   packHizPyramid,
@@ -84,13 +84,7 @@ export async function testWholeFarthest(cases: WholeFarthestCase[]) {
   const { device } = gpu
   const mismatches: string[] = []
   for (const { width, height, seed } of cases) {
-    const hiz = await createGpuHiz(device, width, height, 1)
-    if (!hiz) throw new Error('the Hi-Z does not build')
-    // The build's own bounds and state: the partition's, which owns them, is not mounted here.
-    hiz.attach(
-      device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE }),
-      device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE }),
-    )
+    const { hiz } = await standaloneHiz(device, width, height)
     const pyramid = hiz.swap(undefined) as Pyramid
     hiz.swap(pyramid)
     const rand = lcgRandom(seed)

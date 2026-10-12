@@ -4,14 +4,8 @@
 // from time, memory order or a previous run.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { resolve } from 'node:path'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
-import { BUFFERS, FRAMES } from './deformationKernelCases.ts'
-import type { run } from './deformationKernelPage.ts'
-
-declare global {
-  var deformationKernel: { run: typeof run }
-}
+import { FRAMES } from './deformationKernelCases.ts'
+import { deformationRecords } from './deformationKernelRun.ts'
 
 /** The bits of each float of each frame's records, as hexadecimal words, NaN payloads included. */
 const bitsOf = (records: number[][]) =>
@@ -21,18 +15,8 @@ const bitsOf = (records: number[][]) =>
   })
 
 test('two runs of the same skinned and morphed frames give bit-identical records', async () => {
-  await loadPage(resolve(import.meta.dirname, 'deformationKernelPage.ts'), 'deformationKernel')
-  const pageErrors: string[] = []
   const runs = []
-  for (let i = 0; i < 2; i++) {
-    const { adapter, records, errors } = await runOnDawn(
-      (input) => globalThis.deformationKernel.run(input),
-      { buffers: BUFFERS, frames: FRAMES },
-      pageErrors,
-    )
-    assert.deepEqual([...errors, ...pageErrors], [], `WebGPU errors on ${adapter}`)
-    runs.push(bitsOf(records))
-  }
+  for (let i = 0; i < 2; i++) runs.push(bitsOf(await deformationRecords()))
   const [first, second] = runs
   assert.equal(first.length, FRAMES.length)
   assert.ok(

@@ -3,11 +3,8 @@
 // GPU selection used to be thrown away. Nothing is read from the inside: the drawn cut the engine
 // publishes (`selectedPageIds`), whose coverage the proof checks leaf by leaf.
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { webgpuPagesEngine } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
-import {
-  dagFixture,
-  wideCamera,
-} from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
+import { wideCamera } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
+import { dagFixtureEngine } from '../kit/dagFixtureEngine.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 const FRAMES = 30
@@ -20,24 +17,13 @@ export async function runHeldCut() {
   if (!gpu) return { unavailable: 'no WebGPU adapter' }
   const { device } = gpu
   const events: Pick<EngineDiagnostic, 'phase' | 'message' | 'context'>[] = []
-  const fixture = dagFixture()
   const canvas = document.createElement('canvas')
   document.body.append(canvas)
-  const backend = webgpuPagesEngine({
-    source: fixture.source,
-    metadata: fixture.metadata,
-    indices: fixture.indices,
-    associations: fixture.associations,
-    gpuDevice: device,
+  const { fixture, backend } = dagFixtureEngine(device, events, {
     gpuCanvas: canvas,
     // Too few for the four leaves and the two nodes that replace them: the cut climbs to the
     // resident ancestor every frame, and falls back to root coverage if it must.
     maxResidentPages: 2,
-    viewport: [128, 128],
-    pixelError: 0,
-    clearColor: 0x000000,
-    diagnosticDetail: 'summary',
-    onDiagnostic: (e) => events.push({ phase: e.phase, message: e.message, context: e.context }),
   })
   const camera = wideCamera()
   const frames = []
