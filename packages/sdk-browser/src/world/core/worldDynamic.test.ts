@@ -5,7 +5,7 @@ import { test } from 'node:test'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
-import { listenWorldNotices } from '../diagnostic/worldNotices.ts'
+import { worldNoticeListeners } from '../diagnostic/worldNotices.ts'
 import { createWorldDynamic } from './worldDynamic.ts'
 import type { Cut } from './worldCuts.ts'
 import { takeContentReopens } from './worldRuntime.fixture.ts'
@@ -55,7 +55,7 @@ test('a rewrite is no move: the row of its mesh is never sent again', async () =
 test('a geometry changed on consecutive frames turns dynamic by itself, and says so naming its mesh', async () => {
   const world = dynamicWorld()
   const heard: unknown[] = []
-  const stop = listenWorldNotices(
+  const stop = worldNoticeListeners.subscribe(
     (n) => void (n.phase === 'geometry-dynamic' && heard.push(n.context)),
   )
   const sheet = geometry.plane(1, 1, 4, 4),

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { after } from 'node:test'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { SceneLight } from '../../../../sdk-core/src/index.ts'
-import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts'
+import { createWorldNotices, worldNoticeListeners } from '../diagnostic/worldNotices.ts'
 import type { Scene } from './scene.ts'
 import { createWorldRuntime } from './worldRuntime.ts'
 import '../../wasm/sdkWasm.fixture.ts'
@@ -12,7 +12,7 @@ Reflect.set(globalThis, 'location', new URL('http://engine.test/'))
 Reflect.set(globalThis, 'ProgressEvent', globalThis.ProgressEvent ?? Event)
 /** Every reopen a content change caused in these tests' runtimes: each one a defect. */
 const contentReopens: unknown[] = []
-const stopListening = listenWorldNotices(({ phase, context }) => {
+const stopListening = worldNoticeListeners.subscribe(({ phase, context }) => {
   if (phase === 'session-reopen' && context?.defect) contentReopens.push(context)
 })
 /** The content reopens heard since the last call, for a test that asks one on purpose: taken,
