@@ -4,11 +4,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computePaths } from './summaryCompute.ts'
 import type { MathBatch, MathOperation } from './summaryCompute.ts'
-import type { Report, Row } from '../report/types.ts'
+import type { BenchReport, Row } from '../report/types.ts'
 import { rapport as rapportDe } from './summaryTestFixtures.ts'
 
 /** A report reduced to what `computePaths` reads: one series, one side, its metrics. */
-const rapport = (mathBatch: MathBatch | null): Report => rapportDe({ mathBatch } as Partial<Row>)
+const rapport = (mathBatch: MathBatch | null): BenchReport =>
+  rapportDe({ mathBatch } as Partial<Row>)
 
 /** Governor metrics, completed by what the case wants to show. */
 const reading = (fields: Partial<MathBatch>): MathBatch =>

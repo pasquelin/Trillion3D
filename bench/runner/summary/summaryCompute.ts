@@ -1,6 +1,6 @@
 // The batch calculation path, as the governor published it, for `resume.md`.
 import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
-import type { Report } from '../report/types.ts'
+import type { BenchReport } from '../report/types.ts'
 
 export type MathBatch = NonNullable<FrameMetrics['mathBatch']>
 export type MathOperation = MathBatch['operations'][string]
@@ -23,7 +23,7 @@ function module(reading: MathBatch) {
  * `auto` rereads the arbitration. Nothing is inferred: a side without a reading says so, a side
  * that ran no batch says so too.
  */
-export function computePaths(report: Report) {
+export function computePaths(report: BenchReport) {
   const lines = [
     '| view | pixelError | side | mode | module | operation | path | js ns/elt | wasm ns/elt | switches | elements |',
     '|---|---|---|---|---|---|---|---|---|---|---|',

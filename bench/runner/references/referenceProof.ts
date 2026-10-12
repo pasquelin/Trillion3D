@@ -11,13 +11,13 @@ import {
   settingsMismatch,
   type ReferenceRecord,
 } from './referenceStore.ts'
-import type { Report } from '../report/types.ts'
+import type { BenchReport } from '../report/types.ts'
 
 /** The scene's reference, once the run is known comparable: drawn from a commit, at the same
  *  image settings and pose path, on a still camera, with a reference for each of `views` —
  *  refused before any series runs rather than after it. */
 export function sceneReference(
-  report: Report,
+  report: BenchReport,
   dir = REFERENCES_DIR,
   views: readonly string[] = [],
   images = REFERENCE_IMAGES_DIR,
@@ -64,7 +64,7 @@ function samePose(a: unknown, b: unknown): boolean {
 /** Each side's capture of `series`, by side name, against the reference of its view. */
 export function againstReference(
   record: ReferenceRecord,
-  series: Report['series'][number],
+  series: BenchReport['series'][number],
   files: Record<string, string>,
   captures: ReadonlyMap<string, Capture>,
   images = REFERENCE_IMAGES_DIR,
@@ -93,7 +93,7 @@ const diffText = (d: ReferenceDiff) =>
       : `${d.reference} | ${d.meanChannel.toFixed(3)} | ${d.p999Channel} | ${d.flipMean.toFixed(4)}`
 
 /** `resume.md`'s class-2 table; nothing when the run held no capture to a reference. */
-export function referenceLines(report: Report) {
+export function referenceLines(report: BenchReport) {
   const rows = report.series.flatMap((s) =>
     Object.entries(s.referenceDiff ?? {}).map(
       ([side, d]) => `| ${s.view} | ${s.pixelError} | ${side} | ${diffText(d)} |`,

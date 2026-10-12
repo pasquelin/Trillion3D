@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { memoire } from './summaryMemory.ts'
-import type { Report, Row, Series } from '../report/types.ts'
+import type { BenchReport, Row, Series } from '../report/types.ts'
 
 const series = (view: string, sides: Record<string, Partial<Row>>): Series => ({
   view,
@@ -15,7 +15,7 @@ const series = (view: string, sides: Record<string, Partial<Row>>): Series => ({
 })
 
 /** A minimal report: only the series `memoire()` reads. */
-const rapport = (series: Series[]): Report => ({ series }) as Report
+const rapport = (series: Series[]): BenchReport => ({ series }) as BenchReport
 
 test('each side of each view has its row, and the rest is the difference', () => {
   const lignes = memoire(

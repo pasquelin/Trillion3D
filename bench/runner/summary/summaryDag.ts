@@ -2,7 +2,7 @@
 // (`worstStalls`, the ten primitives that kept the most level-0 triangles as roots, with the cause
 // it named), as the engine's `dag-warnings` diagnostic carries it, in the compiler's order.
 import type { PrimitiveDagStall } from '../../../packages/sdk-core/src/index.ts'
-import type { Report } from '../report/types.ts'
+import type { BenchReport } from '../report/types.ts'
 
 /** The `dag-warnings` diagnostic a side recorded, as `harness/measurePage.ts` keeps it. */
 interface DagWarnings {
@@ -10,7 +10,7 @@ interface DagWarnings {
 }
 
 /** One section: a table per side, or a line saying the side's cache has no stalled primitive. */
-export function stalls(report: Report) {
+export function stalls(report: BenchReport) {
   const lines = [
     '## DAG stalls',
     '',

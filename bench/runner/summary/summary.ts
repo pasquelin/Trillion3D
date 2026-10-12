@@ -5,7 +5,7 @@ import { textures } from './summaryTextures.ts'
 import { memoire } from './summaryMemory.ts'
 import { stalls } from './summaryDag.ts'
 import { referenceLines } from '../references/referenceProof.ts'
-import type { ImageDiff, Report, Row } from '../report/types.ts'
+import type { ImageDiff, BenchReport, Row } from '../report/types.ts'
 
 const num = (value: number | string | null | undefined) => (value == null ? '—' : String(value))
 /** Bytes in megabytes, or a dash: a zero would not be distinct from an absent reading. */
@@ -15,7 +15,7 @@ const oui = (value: boolean | null | undefined) => (value == null ? '—' : valu
 /** Reservoirs requested of the engine: in MiB when the bench gave them, otherwise its defaults. */
 const pool = (bytes: number | null | undefined) =>
   bytes == null ? 'engine default' : `${mo(bytes)} MiB`
-const budgets = (settings: Report['settings']) => {
+const budgets = (settings: BenchReport['settings']) => {
   const parts = [
     `geometry pool ${pool(settings.geometryPoolBytes)}`,
     `texture pool ${pool(settings.texturePoolBytes)}`,
@@ -40,7 +40,7 @@ const couverture = (r: Row) =>
     : String(r.selectedTriangles - r.drawnTriangles - r.uncoveredTriangles)
 
 /** The series table: one row per view, per threshold and per side. */
-function rows(report: Report) {
+function rows(report: BenchReport) {
   const lines = [
     '| view | pixelError | side | selectedTriangles | drawnTriangles | coverage | submitted triangles opaque/total | held image | uncoveredTriangles | Hi-Z tested/rejected/>16 (image) | cut hash | page budget | geometry (MB) |',
     '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
@@ -63,7 +63,7 @@ function rows(report: Report) {
 }
 
 /** The engine's texture counters and the network of each series, one block per side. */
-function counters(report: Report) {
+function counters(report: BenchReport) {
   return report.series.flatMap((series) =>
     Object.entries(series.sides).flatMap(([side, result]) => [
       `### ${series.view} · e${series.pixelError} · ${side}`,
@@ -74,7 +74,7 @@ function counters(report: Report) {
 }
 
 /** `resume.md`: what the series recorded, and nothing else. A dash is an absence, not a zero. */
-export function resume(report: Report) {
+export function resume(report: BenchReport) {
   const lines = [
     `# Measurement ${report.engine} — ${report.scene}`,
     '',
