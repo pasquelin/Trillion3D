@@ -1,4 +1,8 @@
-import { LAST_USE_WINDOW } from '../residency/lastUseWindow.ts'
+import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
+
+/** Readbacks a row stays in use once no readback names it: the readback slots a cut is read back
+ *  behind, and the one being encoded — no image the GPU may still be drawing names it then. */
+export const ROW_USE_WINDOW = DAG_READBACK_SLOTS + 1
 
 /** The stamp of a row its instance holds: one the cut's closure holds now, never idle. */
 const HELD = 0x7fffffff
@@ -9,18 +13,18 @@ const HELD = 0x7fffffff
  * asked ahead, its groups' with it (`rowDemand.ts`) — is held (`hold`): in use whatever the clock;
  * as the instance leaves the closure the row takes the clock's stamp (`release`), so nothing is
  * stamped per readback but what changed. A clock hand sweeps the rows for one unused for
- * `LAST_USE_WINDOW` readbacks, the window a page is held for too: no image since drew it and no view wants it, so giving it back
- * costs no pixel the cut draws. A row taken for an instance no cut has named yet (an arrival) is
+ * `ROW_USE_WINDOW` readbacks: no image since drew it and no view wants it, so giving it back costs
+ * no pixel the cut draws. A row taken for an instance no cut has named yet (an arrival) is
  * the first a request may take back; one taken for a request counts as used now.
  *
  * One word per row, never per placement. The rows in use are counted by the readback that stamped
- * them, a ring of `LAST_USE_WINDOW` counts, and the held rows by one more: a table whose rows are
+ * them, a ring of `ROW_USE_WINDOW` counts, and the held rows by one more: a table whose rows are
  * all in use answers at once, never by a sweep — the full table under a turning camera, every
  * readback. A row given back (`forget`) leaves the count; the table's live rows are exactly those
  * counted, held or idle.
  */
 export function createRowUse(capacity: number) {
-  const K = LAST_USE_WINDOW
+  const K = ROW_USE_WINDOW
   let stamps = new Int32Array(Math.max(1, capacity)),
     // Started past the idle span: a row never stamped is unused.
     clock = K,
@@ -97,7 +101,7 @@ export function createRowUse(capacity: number) {
       stamps = next
     },
     /** The next row of `[0, count)` — the table's live rows — the hand finds unused for
-     *  `LAST_USE_WINDOW`, or -1 at once when every one is in use. */
+     *  `ROW_USE_WINDOW`, or -1 at once when every one is in use. */
     victim(count: number) {
       if (inUse + held >= count) return -1
       for (let step = 0; step < count; step++) {

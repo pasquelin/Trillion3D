@@ -6,12 +6,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
-import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts'
+import { ensurerOptions, orderedPool, pageOf } from './residentEnsurer.fixture.ts'
 
 test('a pool its pins fill reads no page, image after image, until a pin is let go', async () => {
   const pages = ['held 0', 'held 1', 'asked'].map(pageOf)
   const tracking = createWebgpuPageTracking(pages)
-  const cache = lruCache(2),
+  const cache = orderedPool(2),
     loads: string[] = []
   const load = cache.load
   cache.load = async (url: string, signal?: AbortSignal, pinned?: boolean) => (

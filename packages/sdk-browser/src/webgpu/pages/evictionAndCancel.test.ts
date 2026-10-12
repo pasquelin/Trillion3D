@@ -11,9 +11,10 @@ import { coarseQuadScene } from './testOccluder.fixture.ts'
 import { settledImage } from './settledImage.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { Engine } from '../../engine/types.ts'
-import { LAST_USE_WINDOW } from '../residency/lastUseWindow.ts'
+import { EVICT_IN_USE } from '../../gpu/dag/evict.ts'
+import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 
-test('a host eviction deferred for coverage is applied once the page is no longer pinned', async () => {
+test('a host eviction deferred for coverage is applied once the GPU order gives the page up', async () => {
   installGpuGlobals()
   const fixture = coarseQuadScene(),
     { device } = mockGpu()
@@ -32,8 +33,9 @@ test('a host eviction deferred for coverage is applied once the page is no longe
     assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
     const cam = camera()
     cam.lookAt(0, 0, 10)
-    // The drop waits out the window of the page the images stopped drawing, each read back.
-    for (let i = 0; i <= LAST_USE_WINDOW; i++) await flushedImage(backend, cam)
+    // The drop waits until the GPU's order gives the page up: unused by any view for
+    // `EVICT_IN_USE` frames, and that order read back.
+    for (let i = 0; i <= EVICT_IN_USE + DAG_READBACK_SLOTS; i++) await flushedImage(backend, cam)
     await flushedImage(backend)
     backend.render(camera())
     assert.deepEqual(backend.selectedPageIds(), ['2'])

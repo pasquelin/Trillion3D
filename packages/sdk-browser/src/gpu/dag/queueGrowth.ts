@@ -176,7 +176,7 @@ function queueDagGrowth(resources: DagResources, state: DagRuntimeState) {
 
 /** True when `flags` or the list must grow, or `out` must hold the saved regions the views aside
  *  ask. */
-const growthAsked = (resources: DagResources, state: DagRuntimeState) =>
+export const growthAsked = (resources: DagResources, state: DagRuntimeState) =>
   !!state.grow ||
   !!state.growFlags ||
   state.growHeld > resources.heldSlots ||

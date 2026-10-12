@@ -1,11 +1,12 @@
 // A page that fits a quarter of a slot takes a quarter: a pool of slots sized for the largest
 // cluster holds four small pages a slot (`places.ts`), each at its own offset, under the same
-// eviction and the same pins. A pool full of pinned pages still refuses by name, and a resize keeps
-// what it held.
+// eviction and the same pins. A pool with no place to give still refuses by name, and a resize
+// keeps what it held.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPageCache } from './pages.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { orderOf } from './order.fixture.ts'
 
 const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 }
 
@@ -32,18 +33,24 @@ test('small pages take quarters: four a slot, each at its own offset, pinned as 
     [...offsets].sort((a, b) => a - b),
     [0, 16, 32, 48, 64, 80, 96, 112],
   )
-  assert.equal(cache.unpinnedSlots(), 0, 'eight pages in two slots, every place pinned')
-  await assert.rejects(cache.load('small 8'), /ALL_PAGES_PINNED/)
+  assert.equal(cache.room(), 0, 'eight pages in two slots, no place free')
+  cache.evictInOrder(orderOf(keys, cache.arrivals))
+  await assert.rejects(cache.load('small 8'), /POOL_FULL/, 'every listed page pinned')
 })
 
-test('a whole page takes the slot of small pages none of which is pinned, never a pinned one', async () => {
+test('a whole page takes the slot of small pages the order gives up, every one of them', async () => {
   const { cache } = pool(2)
-  for (const key of ['small 0', 'small 1', 'small 2', 'small 3']) await cache.load(key)
+  const small = ['small 0', 'small 1', 'small 2', 'small 3']
+  for (const key of small) await cache.load(key)
   await cache.load('big 0')
+  // `small 3` is in use: the order leaves it out, and its slot stays.
+  cache.evictInOrder(orderOf(small.slice(0, 3), cache.arrivals))
+  await assert.rejects(cache.load('big 1'), /POOL_FULL/)
+  cache.evictInOrder(orderOf([...small, 'big 0'], cache.arrivals))
   cache.pin('big 0')
   cache.pin('small 0')
   // Slot 0 holds four small pages, one pinned; slot 1 the pinned big page: no slot can be freed.
-  await assert.rejects(cache.load('big 1'), /ALL_PAGES_PINNED/)
+  await assert.rejects(cache.load('big 1'), /POOL_FULL/)
   cache.unpin('small 0')
   await cache.load('big 1')
   assert.ok(cache.get('big 1') && cache.get('big 0'))

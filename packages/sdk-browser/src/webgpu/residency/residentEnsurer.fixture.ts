@@ -10,6 +10,7 @@ import { createPageAdmission } from './admission.ts'
 import type { LowerList, LowerPassOptions } from './lowerTier.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { STREAMING_FRAME_MS } from '../../engine/common.ts'
+import { PRIORITY_PREFETCH } from '../../streaming/priority.ts'
 
 /** Fields the residency ensurer never reads: shared across every fixture page. */
 const IDENTITY = { elements: IDENTITY_MATRIX4 }
@@ -62,21 +63,31 @@ export function placement() {
   }
 }
 
-/** A pool of `slots` pages evicting its oldest unpinned page, as the GPU page cache does. */
-export function lruCache(slots: number) {
+/**
+ * A pool of `slots` pages giving up its oldest page as the GPU's order would
+ * (`../../gpu/page/eviction.ts`): never one pinned, nor one `inUse` says a view uses; to a prefetch
+ * (a lower tier's load), never one `ahead` says the view ahead asks for either — the old pages alone.
+ */
+export function orderedPool(
+  slots: number,
+  inUse: (url: string) => boolean = () => false,
+  ahead: (url: string) => boolean = () => false,
+) {
   const resident = new Map<string, { key: string }>(),
     pins = new Set<string>()
   /** What arrived since a reader last took it, kept once one asks, as the GPU page cache keeps it. */
   let arrivals: string[] | undefined
   const pin = (url: string) => void pins.add(url)
+  const given = (lower: boolean) =>
+    [...resident.keys()].filter((key) => !pins.has(key) && !inUse(key) && !(lower && ahead(key)))
   return {
     resident,
     pins,
     get: (url: string) => resident.get(url),
-    async load(url: string, _signal?: AbortSignal, pinned?: boolean) {
+    async load(url: string, _signal?: AbortSignal, pinned?: boolean, priority?: number) {
       if (resident.size >= slots) {
-        const victim = [...resident.keys()].find((key) => !pins.has(key))
-        if (victim === undefined) throw new Error('ALL_PAGES_PINNED')
+        const victim = given(priority === PRIORITY_PREFETCH)[0]
+        if (victim === undefined) throw new Error('POOL_FULL')
         resident.delete(victim)
       }
       resident.set(url, { key: url })
@@ -93,14 +104,7 @@ export function lruCache(slots: number) {
     unpin: (url: string) => pins.delete(url),
     takeUnpinned() {},
     stats: () => ({ pinned: pins.size }),
-    touch(url: string) {
-      const page = resident.get(url)
-      if (!page) return false
-      resident.delete(url)
-      resident.set(url, page)
-      return true
-    },
-    unpinnedSlots: () => slots - pins.size,
+    room: (lower = false) => slots - resident.size + given(lower).length,
   }
 }
 

@@ -3,9 +3,8 @@
 // moved and taken again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createRowUse } from './rowUse.ts'
+import { ROW_USE_WINDOW, createRowUse } from './rowUse.ts'
 import { rowIdleSpan } from './rowCache.fixture.ts'
-import { LAST_USE_WINDOW } from '../residency/lastUseWindow.ts'
 
 test('a table whose rows are all in use has no victim until a row goes unused', () => {
   const use = createRowUse(4)
@@ -24,7 +23,7 @@ test('a table whose rows are all in use has no victim until a row goes unused', 
   assert.equal(victim, 2, 'row 2, unused for the whole span')
   assert.equal(span, rowIdleSpan(), 'a full table and a lone row wait the same span')
   // The readbacks in flight and the image being encoded may still draw it: never taken before.
-  assert.equal(span, LAST_USE_WINDOW, 'the window a page is held for')
+  assert.equal(span, ROW_USE_WINDOW, 'the readbacks a row is held for')
 })
 
 test('rows given back and moved keep the count of the rows in use', () => {

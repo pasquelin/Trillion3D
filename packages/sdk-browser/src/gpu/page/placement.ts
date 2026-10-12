@@ -11,8 +11,9 @@ export type Place = { slot: number; offset: number; victims: readonly ResidentPa
 export interface Placement {
   /** The bytes `key`'s page may fill: one past them would write over a neighbour. */
   room(key: string): number
-  /** The place of `key`'s page of `bytes`, taken, or why none is. */
-  slotFor(key: string, bytes: number): Place | NoVictim
+  /** The place of `key`'s page of `bytes`, taken, or why none is; `lower`, a page of a lower tier,
+   *  takes an old page's alone (`eviction.ts`). */
+  slotFor(key: string, bytes: number, lower?: boolean): Place | NoVictim
   /** `page` left without an arrival to take its place: free for the next one. */
   freed(page: ResidentPage): void
   /** How many places no page holds: slots, and quarters of the slots split. */
@@ -80,8 +81,8 @@ export const wholeSlots = (free: number[]): SlotLayout => ({
 })
 
 /** A pool of fixed slots of `pageBytes` laid out as `layout`: a free place, the last first, else
- *  the one `eviction` gives back — a quarter from any unpinned page, a whole slot from a whole
- *  page or a split slot none of whose pages is pinned. */
+ *  the one `eviction` gives back — a quarter from any page it lists, a whole slot from a whole
+ *  page or a split slot every page of which it lists. */
 export function slotPlacement(
   pageBytes: number,
   { free, quarters, split }: SlotLayout,
@@ -116,9 +117,10 @@ export function slotPlacement(
     for (let quarter = 1; quarter < SLOT_SPLIT; quarter++) quarters.add(slot * SLOT_SPLIT + quarter)
     return slot * SLOT_SPLIT
   }
-  /** Whether every page of split `slot` may leave: none pinned. */
-  const unpinned = (slot: number) => {
-    for (const key of split.get(slot) ?? []) if (eviction.isPinned(key)) return false
+  /** Whether every page of split `slot` may leave with a whole arrival: each listed by the order,
+   *  none in use (`eviction.ts`). */
+  const leaves = (slot: number, lower?: boolean) => {
+    for (const key of split.get(slot) ?? []) if (!eviction.evictable(key, lower)) return false
     return true
   }
   /** A place of `quarter` size, taken; `victims` already gone from the layout. */
@@ -135,12 +137,13 @@ export function slotPlacement(
   }
   return {
     room: () => pageBytes,
-    slotFor(key, bytes) {
+    slotFor(key, bytes, lower) {
       const quarter = quarterBytes > 0 && bytes <= quarterBytes
       const place = take(key, quarter, [])
       if (place) return place
       const page = eviction.victim(
-        (candidate) => quarter || quarterOf(candidate) < 0 || unpinned(candidate.slot),
+        (candidate) => quarter || quarterOf(candidate) < 0 || leaves(candidate.slot, lower),
+        lower,
       )
       if (typeof page === 'string') return page
       // A whole slot asked of a split one leaves with every page of it; any other victim alone.

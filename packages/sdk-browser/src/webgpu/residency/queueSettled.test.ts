@@ -1,7 +1,7 @@
 // A still view walks no queue (#1483): once a pass left nothing to do — every wanted page resident,
 // every lower tier page held —, the queue runs none again until what a pass reads moves: the
-// queue, the pool, a page's bytes, a lower tier's report (`queue.ts`, `residentEnsurer.ts`). It
-// still touches the lower tiers' pages as a pass would, so the pool evicts in the same order.
+// queue, the pool, a page's bytes, a lower tier's report (`queue.ts`, `residentEnsurer.ts`): the
+// pool's order of eviction is the GPU's, and asks nothing of a still view.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
@@ -10,11 +10,9 @@ import { createWebgpuResidencyQueue } from './queue.ts'
 test('a pass that left nothing to do runs again only once what it reads moved', async () => {
   let passes = 0,
     settled = true,
-    revision = 0,
-    touches = 0
+    revision = 0
   const ensureResident = Object.assign(async () => (passes++, settled), {
     revision: () => revision,
-    touchLower: () => void touches++,
   })
   const sets = { desiredCount: 0, acceptedRevision: 0, followDesired() {} }
   const cache = {}
@@ -40,7 +38,7 @@ test('a pass that left nothing to do runs again only once what it reads moved', 
   await image()
   await image()
   await image()
-  assert.deepEqual([passes, touches], [1, 2], 'one pass; the images after it touch the tiers')
+  assert.equal(passes, 1, 'one pass; the images after it run none')
   assert.equal(queue.busy, false)
   revision++
   await image()
