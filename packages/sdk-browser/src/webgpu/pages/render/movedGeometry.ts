@@ -7,6 +7,7 @@ import {
   boxUnionBatch,
 } from '../../../../../sdk-core/src/index.ts'
 import { boxGrow } from '../../../../../math/src/geometry/box.ts'
+import { extendSpan } from '../../../../../math/src/sequence/span.ts'
 import { markReach } from '../../../deformation/halfFloat.ts'
 import { markRootRows } from './movedRoot.ts'
 import type { ClusterRoot, MovedBox, PageRec } from '../../../page/selection/types.ts'
@@ -52,8 +53,7 @@ function takeBoxes(root: ClusterRoot<PageRec>, boxes: Float64Array) {
       own.min[a] = boxes[b + a]
       own.max[a] = boxes[b + 3 + a]
     }
-    span.from = Math.min(span.from, k)
-    span.to = Math.max(span.to, k)
+    extendSpan(span, k)
   }
 }
 

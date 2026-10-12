@@ -3,6 +3,7 @@ import type { ClusterRoot } from '../../../page/selection/types.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { WebgpuPagesLayout } from '../prepare/layout.ts'
 import { noteWorldMoved } from './movedWorlds.ts'
+import { extendSpan } from '../../../../../math/src/sequence/span.ts'
 
 /** What a moved root rewrites: its rows and the memos its world feeds, and the runtime's list of
  *  moved placements, which names it (`movedWorlds.ts`). */
@@ -53,8 +54,7 @@ function reboundCorners(
   for (let page = from; page <= to; page++) {
     const entry = table.entryOf(base + page)
     if (entry < 0) continue
-    moved.from = Math.min(moved.from, entry)
-    moved.to = Math.max(moved.to, entry)
+    extendSpan(moved, entry)
   }
 }
 

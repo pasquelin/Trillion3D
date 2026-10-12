@@ -7,6 +7,7 @@ import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { chainShown, rootedUnder } from '../../host/world/rooted.ts'
 import { writeModelNode } from './modelNodes.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
+import { extendSpan } from '../../../../math/src/sequence/span.ts'
 
 /** Rows a session composes on the GPU under their parent (`placement/gpuCompose.ts`). */
 export type PoseComposer = {
@@ -152,10 +153,8 @@ type PoseFrame = {
 function touchRows({ ranges }: PoseState, batch: Batch, from: number, to: number) {
   if (!batch.rows) return
   const range = ranges.get(batch)
-  if (range && range.rows === batch.rows) {
-    range.from = Math.min(range.from, from)
-    range.to = Math.max(range.to, to)
-  } else ranges.set(batch, { rows: batch.rows, from, to })
+  if (range && range.rows === batch.rows) extendSpan(range, from, to)
+  else ranges.set(batch, { rows: batch.rows, from, to })
 }
 
 /**
