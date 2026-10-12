@@ -14,7 +14,7 @@ import { copyFileSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:f
 import { join, parse } from 'node:path'
 import { compilerFileName, compilerPackage } from '../packages/sdk-node/src/compiler/platform.mts'
 import { rustHost, rustTool } from './build-wasm.ts'
-import { compileReferenceScenes, referenceHashes, type HashRecord } from './compiler-hashes.ts'
+import { compileReferenceScenes, referenceRecord, type HashRecord } from './compiler-hashes.ts'
 import { REPOSITORY_ROOT, posixPath } from './repository-files.ts'
 
 const CRATE = join(REPOSITORY_ROOT, 'packages/asset-compiler-rust')
@@ -64,7 +64,7 @@ const compiler = build('dist', [`-Cprofile-use=${posixPath(merged)}`])
 const record: HashRecord = {
   compiler: platform,
   bytes: statSync(compiler).size,
-  files: referenceHashes(compiler),
+  ...referenceRecord(compiler),
 }
 const shipped = join(REPOSITORY_ROOT, 'packages/compiler', platform, 'bin')
 mkdirSync(shipped, { recursive: true })
