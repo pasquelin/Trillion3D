@@ -9,6 +9,8 @@ import assert from 'node:assert/strict'
 import { determinantMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { writeRotationQuaternion } from '../../../../math/src/matrix/matrix4Trs.ts'
 import { halton } from '../../../../math/src/sequence/halton.ts'
+import { normalizeQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
+import { unit } from '../../../../math/src/vector/vectorTuple.ts'
 import {
   addTransformNode,
   createTransformTree,
@@ -100,8 +102,7 @@ function scene(position: number[], turn: number[], scale: number[], local: numbe
   return { tree, parent, a, b }
 }
 
-const unit = (v: number[]) => v.map((x) => x / Math.hypot(...v))
-const TURN = unit([0.3, -0.5, 0.2, 0.8])
+const TURN = Array.from(normalizeQuaternion(Float64Array.of(0.3, -0.5, 0.2, 0.8)))
 
 test('lookAt under a mirrored or proper parent: world z on the line of sight, y toward up, both modes', () => {
   const up = [0, 1, 0]
@@ -121,7 +122,9 @@ test('lookAt under a mirrored or proper parent: world z on the line of sight, y 
       updateNodeMatrixWorld(tree, parent, true)
       const w = tree.worldViews[a]
       const eye = [w[12], w[13], w[14]]
-      const sight = unit(target.map((t, i) => (viewer ? eye[i] - t : t - eye[i])))
+      const sight = unit(
+        target.map((t, i) => (viewer ? eye[i] - t : t - eye[i])) as [number, number, number],
+      )
       const z = unit([w[8], w[9], w[10]])
       const label = `scale ${scale}, viewer ${viewer}`
       for (let i = 0; i < 3; i++)
@@ -139,13 +142,18 @@ test('lookAt under proper parents: the composed world matrix rounds to the same 
   type Aim = { target: number[]; up: number[]; viewer: boolean }
   const cases: [Case, Aim][] = []
   for (let i = 1; i <= N; i++) {
-    const turn = unit([2, 3, 5, 7].map((base) => at(i, base, 0, -1, 1)))
+    const turn = Array.from(
+      normalizeQuaternion(Float64Array.from([2, 3, 5, 7], (base) => at(i, base, 0, -1, 1))),
+    )
     const position = [2, 3, 5].map((base) => at(i, base, 1, -10, 10))
     const scale = [3, 5, 7].map((base) => at(i, base, 2, 0.25, 4))
     if (i % 3 === 0) scale.fill(scale[0])
     const local = [5, 7, 2].map((base) => at(i, base, 3, -5, 5))
     const target = [7, 2, 3].map((base) => at(i, base, 4, -10, 10))
-    const up = i % 2 ? [0, 1, 0] : unit([2, 3, 5].map((base) => at(i, base, 5, -1, 1)))
+    const up =
+      i % 2
+        ? [0, 1, 0]
+        : unit([2, 3, 5].map((base) => at(i, base, 5, -1, 1)) as [number, number, number])
     cases.push([
       { position, turn, scale, local },
       { target, up, viewer: i % 4 < 2 },

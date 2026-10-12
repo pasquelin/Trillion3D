@@ -1,4 +1,4 @@
-import { crossVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
+import { crossVector3 } from '../../../../math/src/vector/vector.ts'
 import { BufferAttribute } from '../buffer/index.ts'
 import { Geometry } from './geometry.ts'
 import { computeNormals } from './normals.ts'
@@ -96,12 +96,6 @@ export function fromArrays(
 /** A count of pieces as a shape can build it: a whole number, at least `least` — the fewest a
  *  shape of that family closes with. What its recipe records, so the recipe says what was built. */
 export const pieces = (count: number, least: number) => Math.max(least, Math.floor(count))
-
-export const normalize = (x: number, y: number, z: number): [number, number, number] => {
-  const out: [number, number, number] = [x, y, z]
-  normalizeVector3(out)
-  return out
-}
 
 /** Stamps `geometry` with the family call that built it (`Geometry.recipe`): a saved scene
  *  stores the call and builds the same shape again. */

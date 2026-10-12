@@ -1,4 +1,5 @@
-import { GeometryBuilder, fromArrays, normalize, pieces, withRecipe } from './builder.ts'
+import { GeometryBuilder, fromArrays, pieces, withRecipe } from './builder.ts'
+import { unit } from '../../../../math/src/vector/vectorTuple.ts'
 import { sphereArrays, turnPoint } from './sphere.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import { TAU } from '../../../../math/src/constants.ts'
@@ -150,7 +151,7 @@ export function cylinder(
       r = lerp(radiusTop, radiusBottom, v)
     return {
       p: [r * s, height / 2 - v * height, r * c],
-      n: normalize(s, slope, c),
+      n: unit([s, slope, c]),
       uv: [u, 1 - v],
     }
   })
