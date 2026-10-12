@@ -14,12 +14,12 @@ import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
 import type { GlassKind, GlassReading } from './glassPage.ts'
+import { mean } from '../../../packages/math/src/scalar/quantile.ts'
 
 /** The Pearson correlation of two series, and the mean magnitude of the first. */
 function correlate(x: number[], y: number[]) {
   const n = x.length
-  const mx = x.reduce((a, b) => a + b, 0) / n,
-    my = y.reduce((a, b) => a + b, 0) / n
+  const [mx, my] = [mean(x), mean(y)]
   let sxy = 0,
     sxx = 0,
     syy = 0
@@ -30,13 +30,12 @@ function correlate(x: number[], y: number[]) {
   }
   return {
     r: sxy / Math.sqrt(sxx * syy || 1),
-    mean: x.reduce((a, b) => a + Math.abs(b), 0) / n,
+    mean: mean(x.map(Math.abs)),
   }
 }
 
 /** The share of the variance of `y` that `a·u + b·v + c` explains, by least squares (R²). */
 function explained(y: number[], u: number[], v: number[]) {
-  const n = y.length
   const rows = y.map((_, k) => [u[k], v[k], 1])
   const normal = [0, 1, 2].map((i) =>
     [0, 1, 2].map((j) => rows.reduce((s, r) => s + r[i] * r[j], 0)),
@@ -53,12 +52,12 @@ function explained(y: number[], u: number[], v: number[]) {
       }
   }
   const [a, b, c] = rhs.map((value, i) => value / (normal[i][i] || 1e-12))
-  const mean = y.reduce((s, value) => s + value, 0) / n
+  const average = mean(y)
   let residual = 0,
     total = 0
   y.forEach((value, k) => {
     residual += (value - (a * u[k] + b * v[k] + c)) ** 2
-    total += (value - mean) ** 2
+    total += (value - average) ** 2
   })
   return 1 - residual / (total || 1)
 }
