@@ -13,21 +13,11 @@ function quantile(sorted: ArrayLike<number>, q: number): number | undefined {
   return sorted[Math.ceil(q * sorted.length) - 1]
 }
 
-/** The median of a sorted, non-empty list: its middle value for an odd length, the mean of the two
- *  middle ones for an even length, `(s[m − 1] + s[m]) / 2`. Interpolated, unlike `quantile`. */
-function median(sorted: ArrayLike<number>) {
-  const middle = sorted.length >> 1
-  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
-}
-
-/** `quantile` of an unsorted list: a copy is sorted ascending first, the list itself is left as is. */
+/** `quantile` of an unsorted list: a copy is sorted ascending first, the list itself is left as is.
+ *  The median is `quantileOf(values, 0.5)`, the lower of the two middle values of an even count:
+ *  the one convention of every median and 50th percentile. */
 export function quantileOf(values: ArrayLike<number>, q: number): number | undefined {
   return quantile(ascending(values), q)
-}
-
-/** `median` of an unsorted list: a copy is sorted ascending first, the list itself is left as is. */
-export function medianOf(values: ArrayLike<number>) {
-  return median(ascending(values))
 }
 
 /** The arithmetic mean of `values`, summed left to right from 0 then divided by the count: the

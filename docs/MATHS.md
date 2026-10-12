@@ -25,7 +25,7 @@ rounded in float32 as the GPU computes it),
 spheres, cones, slabs, triangles, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal
 and pixel scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
 reversed-depth projections down +z of a light's shadow map; `projectionOracles.ts`), `color/`,
-`scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest and floor ranks, the median and the mean;
+`scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest and floor ranks, the one median (the nearest rank at 0.5) and the mean;
 `search.ts`, the binary searches; `hermite.ts`), `sequence/`
 (`halton.ts`; `random.ts`, the seeded generators, twins of the Rust crate's `random.rs`;
 `sweep.fixture.ts`, the Halton sweep and edge values every rewrite proof runs its old expression
