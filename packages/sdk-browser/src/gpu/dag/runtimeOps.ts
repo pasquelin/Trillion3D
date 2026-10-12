@@ -163,6 +163,8 @@ export function rewritePlacement({ resources, state }: DagRun, w: number) {
   rewritten[0] = w
   frames.writeWorldOrigins(rewritten)
   frames.writeNamedWorlds(packed.worlds, rewritten, 1)
+  // Its stretch too: the GPU's composition wrote the one of the pose its parent gave it.
+  frames.writeNamedRows(rewritten, 1)
   state.worldRevision++
 }
 

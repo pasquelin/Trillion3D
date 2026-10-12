@@ -210,3 +210,48 @@ export const dDiv = wgslFn(
  return dRound(sign,scale,q);
 }`,
 )
+
+/** `a < b` as the CPU compares two doubles that are no NaN: by sign, then magnitude; the zeros
+ *  of either sign are equal. */
+export const dLess = wgslFn(
+  'dLess',
+  [dIsZero],
+  `fn dLess(a:vec2u,b:vec2u)->bool{
+ if(dIsZero(a)&&dIsZero(b)){return false;}
+ let sa=a.x>>31u;
+ let sb=b.x>>31u;
+ if(sa!=sb){return sa==1u;}
+ let below=(a.x&0x7fffffffu)<(b.x&0x7fffffffu)||((a.x&0x7fffffffu)==(b.x&0x7fffffffu)&&a.y<b.y);
+ let above=(a.x&0x7fffffffu)>(b.x&0x7fffffffu)||((a.x&0x7fffffffu)==(b.x&0x7fffffffu)&&a.y>b.y);
+ return select(above,below,sa==0u);
+}`,
+)
+
+/**
+ * `1/√a` of a positive double, to within a few units of its last place: the bits' first guess
+ * (the exponent halved and negated, a few percent off), then Newton's `r·(3/2 − a·r²/2)` five times,
+ * each squaring the error. Products and a difference only, no division.
+ */
+export const dRsqrt = wgslFn(
+  'dRsqrt',
+  [dMul, dSub, wideSub],
+  `fn dRsqrt(a:vec2u)->vec2u{
+ var r=wideSub(vec2u(0x5fe6eb50u,0xc7b537a9u),vec2u(a.x>>1u,(a.y>>1u)|(a.x<<31u)));
+ for(var i=0u;i<5u;i++){
+  let half=dMul(dMul(a,dMul(r,r)),vec2u(0x3fe00000u,0u));
+  r=dMul(r,dSub(vec2u(0x3ff80000u,0u),half));
+ }
+ return r;
+}`,
+)
+
+/** `√a` of a non-negative double, to within a few units of its last place (`dRsqrt`); the zero
+ *  of either sign gives zero. */
+export const dSqrt = wgslFn(
+  'dSqrt',
+  [dIsZero, dMul, dRsqrt],
+  `fn dSqrt(a:vec2u)->vec2u{
+ if(dIsZero(a)){return vec2u(0u,0u);}
+ return dMul(a,dRsqrt(a));
+}`,
+)

@@ -44,6 +44,7 @@ import { placedBy, type PlacementRows } from './rows.ts'
 import { MOVE_PROMOTED, rootRankOfRow } from './update.ts'
 import { BOX_VALUES, matrixWindingCw } from '../../../sdk-core/src/index.ts'
 import { WORLD_ORIGIN_BYTES } from '../gpu/dag/worldOrigins.ts'
+import { PRIMITIVE_BYTES } from '../gpu/dag/cameraRanges.ts'
 import { linkedRowSpheres } from '../webgpu/shadow/spheres.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { declareSlotMove, holdSlotBox, linkBox, remakeSlotBox } from './composeBoxes.ts'
@@ -518,7 +519,7 @@ export function encodeComposedRoots(
   const pass = encoder.beginComputePass({ label: COMPOSE_ROOTS_PASS })
   pass.setPipeline(pipeline)
   for (let r = 0; r < ranges.length; r++) {
-    const { count, buffer } = ranges[r],
+    const { count, buffer, frames } = ranges[r],
       motion = motionBuffer ?? gpu.noMotion,
       held = (gpu.rootGroups[r] ??= heldGroup()),
       next = held.identity.next
@@ -528,6 +529,7 @@ export function encodeComposedRoots(
     next[3] = buffer
     next[4] = count
     next[5] = motion
+    next[6] = frames
     if (held.identity.moved() || !held.group)
       held.group = device.createBindGroup({
         layout: pipeline.getBindGroupLayout(0),
@@ -540,6 +542,7 @@ export function encodeComposedRoots(
           { binding: 5, resource: { buffer: motion } },
           { binding: 6, resource: { buffer: gpu.motionMode } },
           { binding: 7, resource: { buffer: gpu.previous } },
+          { binding: 8, resource: { buffer: frames, offset: 0, size: count * PRIMITIVE_BYTES } },
         ],
       })
     pass.setBindGroup(0, held.group)

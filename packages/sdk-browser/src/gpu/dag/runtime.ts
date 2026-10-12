@@ -92,7 +92,11 @@ function selectionOver(run: DagRun): GpuSelection {
       return packed.live?.pages ?? pageCount
     },
     worldCapacity: packed.worldCount,
-    worldRanges: frames.ranges.map((range, r) => ({ ...range, buffer: frames.worldBuffers[r] })),
+    worldRanges: frames.ranges.map((range, r) => ({
+      ...range,
+      buffer: frames.worldBuffers[r],
+      frames: frames.buffers[r],
+    })),
     packsWorld: !!mirror,
     get worldRevision() {
       return state.worldRevision

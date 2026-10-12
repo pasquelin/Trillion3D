@@ -38,6 +38,10 @@ export function session() {
           size: 128,
           usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         }),
+        frames: device.createBuffer({
+          size: 64,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        }),
       },
     ],
     worldsMovedOnGpu: () => void revision++,

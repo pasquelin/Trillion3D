@@ -106,7 +106,13 @@ export type GpuSelection = {
   readonly worldRevision: number
   /** The buffers of the cut's worlds, one per range of primitives (`../dag/frameRanges.ts`): what
    *  a GPU composition of the poses writes (`../../placement/gpuCompose.ts`). */
-  readonly worldRanges: readonly { first: number; count: number; buffer: GPUBuffer }[]
+  readonly worldRanges: readonly {
+    first: number
+    count: number
+    buffer: GPUBuffer
+    /** The range's frame words, whose first word of a root's row is its stretch. */
+    frames: GPUBuffer
+  }[]
   /** The poses the host holds: every placement's, as a walk wrote them — any may have moved —,
    *  or, `named` given, those it lists, increasing, the placements a call moved: those alone are
    *  compared and sent. The placements whose pose moved — the words a cut reads, or the exact

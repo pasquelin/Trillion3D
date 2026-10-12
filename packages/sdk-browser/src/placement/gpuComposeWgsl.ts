@@ -14,6 +14,8 @@ import { NO_HIZ_SLOT } from '../webgpu/row/noHizSlot.ts'
 import { dAdd, dMul, dSub } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
+import { STRETCH_WGSL } from './gpuStretchWgsl.ts'
+import { FRAME_VEC4 } from '../gpu/dag/types.ts'
 import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
@@ -22,6 +24,8 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 
 /** The parent slot of a root that follows none. */
 export const NONE = 0xffffffff
+/** Words of one primitive's row of the frame buffer: its first is the stretch (`primitiveWordAt`). */
+const FRAME_ROW_WORDS = FRAME_VEC4 * 4
 /** Doubles of one matrix, each two words. */
 export const MATRIX_DOUBLES = 16
 
@@ -59,7 +63,7 @@ fn sameWord(a:u32,b:u32)->bool{
 /**
  * One thread per root of a range of the cut's worlds: `parent · local` — its exact translation
  * kept behind the range's matrices, as the host's are (`worldOrigins.ts`), which each cut reads at
- * its own eye —, and,
+ * its own eye —, the stretch of that world in the root's frame words (`gpuStretchWgsl.ts`), and,
  * once the temporal pass has decided (`motionMode`), the root's motion as `../taa/motion.ts` writes
  * it from the root's single-precision world — the row's words — and the one it held at the last
  * accumulated image (`previous`): a restart takes the world as reference with no motion; a
@@ -77,6 +81,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(5) var<storage,read_write> motion:array<u32>;
 @group(0) @binding(6) var<uniform> motionMode:MotionMode;
 @group(0) @binding(7) var<storage,read_write> previous:array<u32>;
+@group(0) @binding(8) var<storage,read_write> frames:array<u32>;
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let i=flatIndex(g,n,64u);if(i>=params.count){return;}
  let rank=params.first+i;
@@ -94,6 +99,9 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
    worlds[at]=value.x;worlds[at+1u]=value.y;
   }else{worlds[i*16u+k]=world[k];}
  }
+ // The stretch every cut projects its errors through, in the root's row of the frame words.
+ let stretch=maxStretchBits(world);
+ if(stretch!=0xffffffffu){frames[i*${FRAME_ROW_WORDS}u]=stretch;}
  let mode=motionMode.mode;
  if(mode==${MOTION_SKIP}u){return;}
  var held:array<u32,16>;
@@ -111,7 +119,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  }
  for(var k=0u;k<16u;k++){motion[rank*16u+k]=words[k];}
 }`,
-  [...SHARED, SAME_WORD_WGSL, MOTION_WGSL],
+  [...SHARED, SAME_WORD_WGSL, MOTION_WGSL, STRETCH_WGSL],
 )
 
 /**
