@@ -11,6 +11,7 @@ import type { PlacementRows } from '../../placement/rows.ts'
 import type { AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
 import type { Primitive } from '../../../../sdk-core/src/index.ts'
+import type { SessionRuntime } from '../render/sessionRuntime.ts'
 
 type Inputs = {
   check: () => void
@@ -20,6 +21,7 @@ type Inputs = {
   capture: () => Promise<Uint8Array>
   scope: AssetScope
   canvas: HTMLCanvasElement
+  partitionsJoin: SessionRuntime['partitionsJoin']
 }
 
 /** What the session draws of `poses`, one image each, at the canvas's size, bottom row first. */
@@ -74,7 +76,8 @@ function placementUpdates(check: () => void, engine: Engine) {
     /** A source the session was not opened with draws a primitive it holds (`Engine.addPlacements`). */
     addPlacements: (source: DrawSource, primitive: Primitive) => (
       check(),
-      engine.addPlacements?.(source, primitive) ?? Promise.resolve(false)
+      engine.addPlacements?.(source, primitive) ??
+        Promise.resolve('the engine takes no source in place')
     ),
     /** A dynamic geometry's lists were rewritten in place (#573); false when the engine cannot
      *  take it, and only a new session will draw them. */
@@ -83,6 +86,27 @@ function placementUpdates(check: () => void, engine: Engine) {
       engine.updateVertices(...change)
     ),
     vertexBytes: (...change: Parameters<Engine['vertexBytes']>) => engine.vertexBytes(...change),
+  }
+}
+
+/** The partitions a world's models bring, joined to the session while it runs: placed for its view
+ *  (`prime`), then followed by each frame (`follow`) — or no more (`leave`). */
+function partitionJoins(check: () => void, join: Inputs['partitionsJoin']) {
+  return {
+    /** The index pages of `cells` catalogued, their roots counted and bound, the cells the view
+     *  reaches placed (`primePartitions`): before the rows they place are handed to the engine. */
+    preparePartitions: (...args: Parameters<Inputs['partitionsJoin']['prime']>) => (
+      check(),
+      join.prime(...args)
+    ),
+    followPartitions: (...args: Parameters<Inputs['partitionsJoin']['follow']>) => (
+      check(),
+      join.follow(...args)
+    ),
+    leavePartitions: (...args: Parameters<Inputs['partitionsJoin']['leave']>) => (
+      check(),
+      join.leave(...args)
+    ),
   }
 }
 
@@ -100,6 +124,7 @@ export function createExplorerSceneApi(inputs: Inputs) {
       return engine.setMemoryBudgets(budgets)
     },
     ...placementUpdates(check, engine),
+    ...partitionJoins(check, inputs.partitionsJoin),
     /** Bounced light on or off in the session, at the next frame. */
     setBounce(on: boolean) {
       check()

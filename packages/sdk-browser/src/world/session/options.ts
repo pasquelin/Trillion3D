@@ -23,9 +23,9 @@ export interface MeasuredWorldOptions {
   interactive?: boolean
   /** Called before every frame the interactive session draws: the host writes its scene then. */
   beforeFrame?: () => void
-  /** Asked once a partitioned scene's view outgrew what the open session can take in place — rows
-   *  its engine cannot grow, or a mesh the view read it cannot mount —: the owner opens the session
-   *  again, sized for that view, on the manifest the view holds by then. */
+  /** Asked once a partitioned scene's view outgrew the rows the open session can grow in place —
+   *  its engine cannot grow them —: the cells past those rows wait, and the owner says it by name.
+   *  Given, the rows are sized for the first view, not for every node. */
   onPartitionOutgrown?: () => void
   /** False: the interactive session installs no camera controller of its own. */
   ownControls?: boolean

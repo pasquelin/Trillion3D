@@ -4,8 +4,6 @@
 // read back as 8-bit RGBA and digested. The digests are the golden set the proof compares with
 // (`openWorld.golden.json`).
 import { createHash } from 'node:crypto'
-import { resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { createWorld } from '../../../packages/sdk-browser/src/world/core/world.ts'
 import {
   lastFrameOf,
@@ -17,12 +15,10 @@ import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
 import { light } from '../../../packages/sdk-core/src/world/light/index.ts'
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import type { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
-import { compileFullCache } from '../../../scripts/native-compiler.ts'
-import { measureOutput } from '../../../bench/core/paths.ts'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { animationFrame } from '../kit/onDawn.ts'
 import { drawnPixels } from '../kit/sceneImageProof.ts'
+import { coplanarModel } from './generatedModels.ts'
 
 /** The camera of each frame: where it stands and what it looks at. */
 const FRAMES = [
@@ -33,20 +29,7 @@ const FRAMES = [
 const SETTLE_FRAMES = 160
 
 /** The compiled models the world loads: coplanar fixtures, each compiled once by the native compiler. */
-function models() {
-  return ['three-stack', 'blend-overlay', 'partial-overlap'].map((name) => {
-    const out = measureOutput('gpu-proofs', `open-world-${name}`)
-    const source = resolve(REPOSITORY_ROOT, 'tests/fixtures/formats/coplanar', name)
-    compileFullCache({
-      cwd: REPOSITORY_ROOT,
-      source,
-      cache: resolve(out, 'cache'),
-      resourceBase: `${pathToFileURL(source).href}/`,
-      stdio: ['ignore', 'ignore', 'inherit'],
-    })
-    return pathToFileURL(resolve(out, 'cache/native/full/manifest.json')).href
-  })
-}
+const models = () => ['three-stack', 'blend-overlay', 'partial-overlap'].map(coplanarModel)
 
 /** A seeded stream in [0, 1): the scene is the same on every run. */
 function stream(seed: number) {

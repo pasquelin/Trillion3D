@@ -41,7 +41,7 @@ export const capacityOf = (mesh: PlacedMesh) => mesh.links[0]?.placements?.capac
 /** Sizes every buffer of each mesh rank of `needed` to hold that many rows at least, its rows
  *  kept: before its session's engines read them, or under one that grows them in place (`grow`,
  *  `placement/growth.ts`), mesh by mesh, all its buffers at once. False when that session left a
- *  mesh as it was: it only grows in a session opened again. */
+ *  mesh as it was: the cells past its rows wait. */
 export function sizeRows(
   meshes: ReadonlyMap<number, PlacedMesh>,
   needed: ReadonlyMap<number, number>,

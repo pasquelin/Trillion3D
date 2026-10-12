@@ -118,8 +118,8 @@ test('a lost device reopens the session, every frame between shows the last imag
   reopens.stop()
   assert.equal(seen.shown, 'blank', 'a disposed world withdraws its image')
   assert.equal(reopens.heard.length, 1)
-  const [{ cause, defect, drawn, durationMs, framesWithoutImage }] = reopens.heard
-  assert.deepEqual([cause, defect, drawn, framesWithoutImage], ['device-lost', false, true, 3])
+  const [{ cause, kind, drawn, durationMs, framesWithoutImage }] = reopens.heard
+  assert.deepEqual([cause, kind, drawn, framesWithoutImage], ['device-lost', 'lifecycle', true, 3])
   assert.ok(Number(durationMs) >= 0)
 })
 

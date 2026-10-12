@@ -1,6 +1,7 @@
 import { maxStretch } from '../../../../sdk-core/src/index.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
 
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
@@ -51,7 +52,17 @@ export type DagCapacity = {
   primitiveNodes?: number
   records?: number
   keys?: number
+  /** A growth's room: past what the roots hold, as many primitive nodes, records and keys again
+   *  (`grownLength`), at least `AHEAD_MIN` more, for the primitives and sources the growths after
+   *  it bring — each doubling of them packs the roots again, O(log) times in all. The absolute
+   *  counts above add to it. */
+  ahead?: boolean
 }
+
+/** The least primitive nodes, records and keys a growth's room (`DagCapacity.ahead`) keeps past the
+ *  live ones: a few primitives joining a large world pack nothing again. */
+const AHEAD_MIN = 64
+const roomAhead = (held: number) => Math.max(grownLength(held, held + 1), held + AHEAD_MIN)
 
 type PackShared = DagPackShared
 const emptyShared = (): PackShared => ({
@@ -245,7 +256,11 @@ function packPlan(roots: readonly DagRoot[], shared: PackShared, capacity?: DagC
     members = worlds - (world >= 0 ? 1 : 0)
   // The tree's nodes follow the primitives' shared ones: an append adds none of either.
   const first = countRoots(roots, shared)
-  const primitiveNodes = Math.max(first.nodes, room?.primitiveNodes ?? 0)
+  const primitiveNodes = Math.max(
+    first.nodes,
+    room?.primitiveNodes ?? 0,
+    room?.ahead ? roomAhead(first.nodes) : 0,
+  )
   const tree = placementTreeShape(roots, world, { members, worlds }, primitiveNodes)
   const shift = tree?.depth ?? 0
   const counted = shift ? countRoots(roots, shared, (w) => (w === world ? 0 : shift)) : first
@@ -352,8 +367,13 @@ function recordTables(
   pages: number,
   { tree, world, worlds, room }: ReturnType<typeof packPlan>,
 ) {
-  const recordSlots = Math.max(records.count, room?.records ?? 0),
-    keys = Math.max(keyCount(roots), room?.keys ?? 0),
+  const held = keyCount(roots)
+  const recordSlots = Math.max(
+      records.count,
+      room?.records ?? 0,
+      room?.ahead ? roomAhead(records.count) : 0,
+    ),
+    keys = Math.max(held, room?.keys ?? 0, room?.ahead ? roomAhead(held) : 0),
     shape = { pageCount: pages, recordCount: recordSlots, keyCount: keys },
     coldAt = coldBase(shape)
   // The tree's order behind the cold records, for every member slot.
@@ -467,7 +487,8 @@ function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShar
     nodes = live.nodes,
     records = shared.records!.count,
     keys = shared.keys!.count
-  const brought = new Set<Float64Array>()
+  const brought = new Set<Float64Array>(),
+    arrays = new Set<DagRoot['pages']>()
   for (const root of roots) {
     const culling = cullingOf(root, shared),
       shift = packed.placementTree?.depth ?? 0
@@ -477,7 +498,9 @@ function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShar
       brought.add(culling.nodes)
       nodes += count
     }
-    if (recordsOf(root, shared) < 0) {
+    // The placements of one source share its page array: its records and keys are written once.
+    if (!arrays.has(root.pages) && recordsOf(root, shared) < 0) {
+      arrays.add(root.pages)
       records += root.pages.length
       keys += shared.keys!.newKeys(root.pages)
     }

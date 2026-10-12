@@ -12,19 +12,6 @@ import type { WorldModels } from './worldModels.ts'
 import type { WorldRanks } from './worldRanks.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { modelWorldRoots, type LoadedModel } from './loadedModel.ts'
-import { absolutePrimitive } from '../../scene/absolutePrimitive.ts'
-
-/** Each primitive with absolute addresses, made once however often a session reopens: a model
- * whose manifest the view holds lists more or fewer of them from one opening to another. */
-const absolute = new WeakMap<Primitive, Primitive>()
-function absolutePrimitives(model: LoadedModel) {
-  const { metadata, base } = model.record
-  return metadata.primitives.map((primitive) => {
-    let made = absolute.get(primitive)
-    if (!made) absolute.set(primitive, (made = absolutePrimitive(primitive, base)))
-    return made
-  })
-}
 
 /** What a session is opened on: the batches placed by rows, and the models. */
 export type WorldPlan = {
@@ -48,12 +35,7 @@ export function buildWorldSource(plan: WorldPlan) {
   const { batches, models, ranks, worldModels } = plan
   const drawn = models.map((model) => worldModels.drawsOf(model))
   const placed = drawn.flatMap(({ draws }) => draws)
-  const primitives: Primitive[] = models.flatMap((model, i) =>
-    absolutePrimitives(model).map((primitive) => ({
-      ...primitive,
-      mesh: primitive.mesh + drawn[i].offset,
-    })),
-  )
+  const primitives: Primitive[] = drawn.flatMap(({ primitives }) => primitives)
   // One primitive per geometry resource, however many batches wear it and rows place it.
   const ranked = new Set<Cut>()
   for (const { cut } of batches)

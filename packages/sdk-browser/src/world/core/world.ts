@@ -69,12 +69,19 @@ function worldParts(target: WorldTarget, options: WorldOptions) {
   const device = holdWorldDevice((lostAt) =>
     worldRecovered(runtime, frames, diagnostic.notices, pools.pageCache, lostAt),
   )
-  const scene = new Scene(worldModelLoader(device.ready, options.signal, pools.pageCache))
+  const loader = worldModelLoader(
+    device.ready,
+    options.signal,
+    pools.pageCache,
+    () => runtime.holdsSession,
+  )
+  const scene = new Scene(loader)
   const invalidate = () => runtime.invalidate()
   const diagnostic = worldDiagnostic(() => runtime.explorer, options.debug)
   const switches = worldSwitches(options, () => runtime, frames)
   const runtime = worldRuntimeOf({
     ...{ canvas, options, device, scene, state, frames, switches, pools, diagnostic, invalidate },
+    loading: loader.loading,
     step: () => ahead(controls),
   })
   const physics = createWorldPhysics(runtime, scene, () => state.camera, options.physics)
@@ -108,6 +115,8 @@ type RuntimeNeeds = {
   pools: ReturnType<typeof worldPools>
   diagnostic: ReturnType<typeof worldDiagnostic>
   invalidate: () => void
+  /** The loads the first session waits for: its models, not in the scene yet. */
+  loading: () => Promise<unknown> | undefined
   /** Moves what the frame steps ahead of the draw: controls, clips, physics. */
   step: () => void
 }
@@ -117,7 +126,11 @@ function worldRuntimeOf(parts: RuntimeNeeds) {
   const { canvas, options, device, scene, state, frames, switches, pools, diagnostic } = parts
   const runtime = createWorldRuntime({
     canvas,
-    ready: () => device.pending,
+    // The device granted, and the models asked for meanwhile in the scene (`worldLoader.ts`).
+    ready: async () => {
+      await device.pending
+      for (let base = parts.loading(); base; base = parts.loading()) await base
+    },
     scene,
     camera: () => state.camera,
     options: () =>

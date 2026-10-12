@@ -30,7 +30,6 @@ test('deformation row growth is taken in place while stable owners retain their 
   })
   assert.equal(grown, true, 'the session is handed the larger rows')
   assert.notEqual(batch.rows, rows)
-  assert.equal(batches.waiting(), false)
   assert.equal(batch.rows!.sources![batches.seats.get(first)!.row], first)
   assert.equal(batch.rows!.sources![batches.seats.get(second)!.row], second)
 })

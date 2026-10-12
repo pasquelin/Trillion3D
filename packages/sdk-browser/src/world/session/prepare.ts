@@ -14,6 +14,7 @@ import { releaseOwned } from './lifecycle.ts'
 import { streamFailed } from '../scene/streaming.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
 import { primePartitions } from '../scene/partitionFrame.ts'
+import type { PartitionCells } from '../../partition/cells.ts'
 import { ARRIVAL_BUDGET_MS } from '../../engine/common.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { sessionFamilies } from './familyUse.ts'
@@ -115,9 +116,9 @@ async function sessionScene(
 /** The pages and cells the first camera reaches, placed before the engine reads their rows: the
  *  first frame draws them (`partitionFrame.ts`, #575). That camera is the page's when it hands one
  *  in (a world), else the framing one, which sees the whole scene. */
-async function primeFirstView(
+export async function primeFirstView(
   session: ExplorerSession,
-  scene: Pick<ExplorerScene, 'partitions'>,
+  scene: { partitions: readonly PartitionCells[] },
   camera: HostCamera,
   streamer: ExplorerPageSources['streamer'],
 ) {
@@ -208,6 +209,8 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     capabilities,
     viewport,
     context,
+    /** The world roots the engine's host tables count (`hostBytes`): a model joining adds its own. */
+    worldRoots: loadedScene.worldRoots,
     frameBudget,
     engine,
     /** The CPU bytes the engine's host tables and the world roots hold now, which each frame

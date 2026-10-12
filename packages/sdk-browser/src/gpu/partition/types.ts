@@ -63,6 +63,8 @@ export type GpuPartition = {
    *  then gives — the grown draw compact's and Hi-Z test's — from then on. Every row reads as
    *  never projected. */
   grow(rows: number, sources: () => Omit<PartitionSources, 'pyramid'>): PendingGrowth
+  /** Reads what `sources` gives from now on — a draw compact made again —, its rows kept. */
+  rebind(sources: () => Omit<PartitionSources, 'pyramid'>): void
   /** True when the periodic-sample interval has elapsed and none is in flight. */
   countsDue(frame: number): boolean
   /** Encodes the copy of the counters this frame just wrote, on a frame that counts. */

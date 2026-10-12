@@ -81,6 +81,7 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
   vis.shadeCache = undefined
   vis.shadeBindGroupLayout = undefined
   vis.visBindGroupLayout = undefined
+  vis.visModule = undefined
   vis.mapsSampler = undefined
   vis.blendBindGroupLayout = undefined
   vis.blendPipelines = undefined

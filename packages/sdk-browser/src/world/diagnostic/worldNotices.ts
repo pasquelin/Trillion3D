@@ -64,6 +64,20 @@ export function noticeFolds(
 }
 
 /**
+ * What the session running cannot take in place, said by name on `content-refused`: `what` is the
+ * content (a batch, a model, a partition's rows, a picture), `reason` the limit it met — the
+ * catalogue's keys, a pool the device refuses, a pass it refuses. The session goes on drawing what
+ * it holds; the content is not drawn until the cause is lifted. It never opens the session again.
+ */
+export function noticeRefused(notices: Pick<WorldNotices, 'say'>, what: string, reason: string) {
+  notices.say('content-refused', `The session did not take ${what}: ${reason}`, {
+    kind: 'error',
+    what,
+    reason,
+  })
+}
+
+/**
  * Says on the world's channel by how many bytes the effect chain's targets on the `drawn` canvas
  * pass the reserve of the declared one (`effectTargetExcess`), each time that excess grows. The
  * chain still draws the whole image, at full resolution: nothing is shrunk to fit the budget.

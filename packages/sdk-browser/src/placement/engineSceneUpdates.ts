@@ -43,14 +43,14 @@ export type PlacementGrowth = {
    *  (`growth.ts`). */
   growPlacements(from: PlacementRows, to: PlacementRows): void
   /** Whether `growPlacements` takes each of `from` grown to `capacity` rows, asked before the
-   *  owner replaces any: false leaves them as they are, and the owner opens the session again on
-   *  larger ones. */
+   *  owner replaces any: false leaves them as they are, the rows past them wait, and the owner says
+   *  it by name. */
   growsInPlace(from: readonly PlacementRows[], capacity: number): boolean
   /** A source the session was not opened with — its rows, its surface — draws a primitive the
    *  session holds: its records and roots join the cut, the surface's textures taken into the
-   *  atlas, no table rebuilt. False, nothing joined, where it cannot: the owner opens the session
-   *  again. */
-  addPlacements?(source: DrawSource, primitive: Primitive): Promise<boolean>
+   *  atlas, no table rebuilt. `undefined` once joined; else the refusal, by name — a catalogue
+   *  past its keys, a device that refuses the pool or a pass —, nothing joined: the owner says it. */
+  addPlacements?(source: DrawSource, primitive: Primitive): Promise<string | undefined>
 }
 
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */
@@ -81,7 +81,7 @@ export interface EngineSceneUpdates extends PlacementGrowth {
    *  (`world/core/pageMotion.ts`), when given: the engine writes those vertices into the buffers
    *  it holds, grows every cut of their roots by `reach` as a deformation's, bounds each page's
    *  row by its box, and stales what they shadowed, no table rebuilt. True when taken; false, the
-   *  owner opens the session again. */
+   *  owner says it by name: those vertices are not drawn. */
   updateVertices(
     attributes: HostAttributes,
     ranges: readonly VertexRange[],
@@ -106,7 +106,7 @@ export interface EngineSceneUpdates extends PlacementGrowth {
   /** The host surfaces the session was opened with had their values rewritten in place, their
    *  version bumped (`world/core/worldSurface.ts`, `repaintHostSurface`): what reads them is read
    *  again at the next frame, no table rebuilt. False for this change — a map whose picture
-   *  changed size where its layout is fixed (#362) —, the owner opens the session again.
+   *  changed size where its layout is fixed (#362) —, the owner says it by name: it is not redrawn.
    *  `values` false when only their textures moved — a picture, a sampling, a placement —: the
    *  frame follows those itself, and nothing a value feeds, a page-table row, is written again.
    *  `alpha` when surfaces changed alpha mode or cutoff, a class change the engine said it takes

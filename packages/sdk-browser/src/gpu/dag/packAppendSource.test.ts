@@ -112,3 +112,56 @@ test('a primitive past the nodes, records or keys the room kept is not appended'
   const nodesOnly = packDagSelection(roots, { ...room, primitiveNodes: exact.primitiveNodeCount })
   assert.equal(appendDagRoots(nodesOnly, other), undefined, 'none for its records')
 })
+
+test('a packing kept ahead takes a source of records of its own in the room it kept, and no more', () => {
+  const { roots } = scene()
+  const held = roots.slice(0, 3),
+    first = otherSource(roots.slice(3, 4), { transparent: true }),
+    second = roots.slice(4).map((root) => ({
+      ...root,
+      pages: root.pages.map((rec) => ({ ...rec, lodError: (rec.lodError ?? 0) + 1 })),
+    }))
+  const exact = packDagSelection(held)
+  const counts = dagRootCounts([...held, ...first, ...second])
+  const room = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 16, ahead: true }
+  const packed = packDagSelection(held, room)
+  assert.ok(packed.primitiveNodeCount >= exact.primitiveNodeCount + 64, 'room for primitives')
+  assert.ok(packed.recordCount >= exact.recordCount + 64, 'room for records')
+  assert.ok(packed.keyCount >= exact.keyCount + 64, 'room for keys')
+  assert.ok(appendDagRoots(packed, first), 'a source of records of its own is appended in place')
+  // As a packing of every root at the room it kept: its primitive nodes, records and keys.
+  const kept = {
+    ...{ pages: room.pages, nodes: room.nodes, worlds: room.worlds },
+    ...{ primitiveNodes: packed.primitiveNodeCount, records: packed.recordCount },
+    keys: packed.keyCount,
+  }
+  const whole = packDagSelection([...held, ...first], kept)
+  for (const table of TABLES) assert.deepEqual(packed[table], whole[table], table)
+  assert.deepEqual(packed.live, whole.live)
+  // The room doubled once for the records the live ones held: a second source of the same size
+  // asks the packing again, at its own doubling.
+  assert.equal(appendDagRoots(packed, second), undefined)
+})
+
+test('the placements of one source bring its records once, however many they are', () => {
+  const { roots } = scene()
+  const [only] = roots
+  // A thousand placements of one source whose surface is not the held one's: its records are
+  // written once for all of them, and the room counts them once.
+  const world = (k: number) => {
+    const elements = new Float64Array(16)
+    elements.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, k, 0, 0, 1])
+    return { elements }
+  }
+  const pages = only.pages.map((rec) => ({ ...rec, transparent: true }))
+  const source = Array.from({ length: 1000 }, (_, k) => ({ ...only, pages, world: world(k) }))
+  const counts = dagRootCounts([only, ...source])
+  const packed = packDagSelection([only], {
+    pages: 2 * counts.pages,
+    nodes: 2 * counts.nodes,
+    worlds: 2 * counts.worlds,
+    ahead: true,
+  })
+  assert.ok(appendDagRoots(packed, source as DagRoot[]), 'the room takes its records once')
+  assert.equal(packed.live!.worlds, 1001)
+})

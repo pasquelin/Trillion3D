@@ -6,33 +6,30 @@ import { createWorldBatches } from './worldBatches.ts'
 import { createWorldRanks } from './worldRanks.ts'
 import { createWorldModels } from './worldModels.ts'
 import { createWorldPoses, shownUnder } from './worldPoses.ts'
-import type { LoadedModel } from './loadedModel.ts'
-import type { PlacementGrowth } from '../../placement/engineSceneUpdates.ts'
+import { createModelJoins, type ModelSession } from './worldModelJoin.ts'
 import { createWorldMembers } from './worldMembers.ts'
-import { noticeFolds, type WorldNotices } from '../diagnostic/worldNotices.ts'
+import { noticeFolds, noticeRefused, type WorldNotices } from '../diagnostic/worldNotices.ts'
 
 type Resolved = { cut: Cut; entry: MaterialEntry } | null
 
 /**
  * What a world's scene draws, held as tables: each mesh resolved to its geometry resource and
  * its material entry (`resolve`, asynchronous — a resource is cut off the frame), then seated on
- * a row of its batch (`seat`, synchronous, before a frame). `openedModels` is what the session in
- * place was built from; `reopenNeeded` says the scene now asks for something it does not hold — full
- * rows excepted, which `growHeld` grows in place on a session that can: a resource the session was
- * not opened with, a model it does not read.
+ * a row of its batch (`seat`, synchronous, before a frame). What the scene gains after the session
+ * opened joins it in place — full rows grown (`growHeld`), a resource it does not read handed to it
+ * (`joinNew`), a model with its partitions (`worldModelJoin.ts`) —, and what the session cannot
+ * take is said by name (`noticeRefused`): the scene never asks for an opening.
  */
-export function createWorldContents(
-  scene: Object3D,
-  notices: WorldNotices,
-  refused: () => void = () => {},
-) {
+export function createWorldContents(scene: Object3D, notices: WorldNotices) {
   const cuts = createWorldCuts(notices),
     materials = createWorldMaterials(),
     poses = createWorldPoses()
   const ranks = createWorldRanks()
+  const refused = (what: string, reason: string) => noticeRefused(notices, what, reason)
+  const worldModels = createWorldModels(ranks)
   const state: ContentsState = {
     ...{ scene, notices, cuts, materials, poses, ranks },
-    models: createWorldModels(ranks),
+    models: worldModels,
     batches: createWorldBatches(
       poses.touch,
       (entry, cut, twoSided) => materials.surfaceOf(entry, cut.drawn, twoSided),
@@ -40,10 +37,10 @@ export function createWorldContents(
       refused,
     ),
     members: createWorldMembers(scene),
+    joins: createModelJoins({ scene, models: worldModels, poses, refused }),
     resolved: new Map(),
     stale: new Set(),
     unseated: new Set(),
-    openedModels: new Set(),
     held: new Set(),
     seatEpoch: 0,
   }
@@ -57,7 +54,7 @@ export function createWorldContents(
       return state.seatEpoch
     },
     resolve: () => resolve(state),
-    seat: (grow?: PlacementGrowth) => seat(state, grow),
+    seat: (session?: ModelSession) => seat(state, session),
     /** A mesh's geometry or material was written: it is read again on the next resolve. */
     stale: (mesh: Mesh) => stale.add(mesh),
     get staleCount() {
@@ -74,7 +71,11 @@ export function createWorldContents(
     changed: members.changed,
     /** A node entered the scene (`SceneLink.entered`). */
     entered: members.entered,
-    reopenNeeded: () => batches.waiting() || !same(state.openedModels, members.models),
+    /** Settles once the batches and models handed to the session have been taken or refused. */
+    get joining() {
+      const flying = [batches.flying, state.joins.flying].filter((flight) => !!flight)
+      return flying.length ? Promise.all(flying) : undefined
+    },
     plan: () => plan(state),
     /** The models' graphs and their rows (`worldModels.ts`). */
     models: state.models,
@@ -92,10 +93,10 @@ type ContentsState = {
   ranks: ReturnType<typeof createWorldRanks>
   models: ReturnType<typeof createWorldModels>
   members: ReturnType<typeof createWorldMembers>
+  joins: ReturnType<typeof createModelJoins>
   resolved: Map<Mesh, Resolved>
   stale: Set<Mesh>
   unseated: Set<Mesh>
-  openedModels: Set<LoadedModel>
   /** The resources the open session reads: their pages stay served. */
   held: Set<Cut>
   /** Moves whenever a seat may have changed (`SceneLink.seatEpoch`). */
@@ -147,7 +148,7 @@ function writeRow({ poses, batches, scene }: ContentsState, mesh: Mesh) {
  * session takes it (`grow`), each grown buffer's every row then sent again, and each mesh seated
  * writes its row.
  */
-function growHeld(state: ContentsState, grow?: PlacementGrowth) {
+function growHeld(state: ContentsState, grow?: ModelSession) {
   const seated: Mesh[] = []
   for (const batch of state.batches.growHeld((mesh) => seated.push(mesh), grow))
     state.poses.touchRange(batch, 0, batch.rows!.capacity - 1)
@@ -158,10 +159,10 @@ function growHeld(state: ContentsState, grow?: PlacementGrowth) {
  *  session that grows its buffers, `grow` — those a full buffer made wait. A blended or
  *  transmissive surface takes a row like any other: the session draws each row of it as its own
  *  blended draw, ordered by depth. */
-function seat(state: ContentsState, grow?: PlacementGrowth) {
+function seat(state: ContentsState, session?: ModelSession) {
   const { batches, unseated } = state
   state.seatEpoch++
-  growHeld(state, grow) // the meshes that waited first: a row freed since goes to them before new ones
+  growHeld(state, session) // the meshes that waited first: a row freed since goes to them before new ones
   const seating = [...unseated]
   unseated.clear()
   for (const mesh of seating) {
@@ -173,22 +174,22 @@ function seat(state: ContentsState, grow?: PlacementGrowth) {
     }
     if (batches.seat(mesh, entry.cut, entry.entry)) writeRow(state, mesh)
   }
-  growHeld(state, grow)
-  joinNew(state, grow)
+  growHeld(state, session)
+  joinNew(state, session)
+  state.joins.reconcile(state.members.models, session)
 }
 
 /** The batches the session was not opened with join it, their rows written first. */
-function joinNew(state: ContentsState, grow?: PlacementGrowth) {
+function joinNew(state: ContentsState, grow?: ModelSession) {
   const seated: Mesh[] = []
-  for (const batch of state.batches.join((mesh) => seated.push(mesh), grow))
+  for (const batch of state.batches.join((mesh) => seated.push(mesh), grow)) {
     state.poses.touchRange(batch, 0, batch.rows!.capacity - 1)
+    // The session reads its resource from now on: its pages stay served, its rewritten vertices
+    // are sent it (`Cut.held`).
+    state.cuts.hold(batch.cut, true)
+    state.held.add(batch.cut)
+  }
   seated.forEach((mesh) => writeRow(state, mesh))
-}
-
-const same = <T>(a: ReadonlySet<T>, b: Iterable<T>) => {
-  let n = 0
-  for (const item of b) if (!a.has(item) || ++n > a.size) return false
-  return n === a.size
 }
 
 /** Sizes the batches and gathers what the next session opens on; marks it opened. Holds the
@@ -207,7 +208,7 @@ function plan(state: ContentsState) {
     poses.writeModel(state.models, model, shownUnder(model, scene))
   }
   poses.settle()
-  state.openedModels = new Set(members.models)
+  state.joins.opened(members.models)
   const used = new Set<MaterialEntry>(
     [...state.resolved.values()].flatMap((r) => (r ? [r.entry] : [])),
   )

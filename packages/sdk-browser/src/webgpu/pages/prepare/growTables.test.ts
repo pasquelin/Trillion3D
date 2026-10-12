@@ -10,6 +10,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { tableRowsFor } from './growTables.ts'
+import { boundTableRows, rowsAhead } from '../../row/tableRows.ts'
 import { pageTableRows } from '../../row/pageTableRows.ts'
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -93,4 +94,36 @@ test('the blend side is held to the same slot budget as the draw side', () => {
     rows.drawSlots + rows.blendSlots <= 32,
     `the 32 slots hold ${rows.drawSlots + rows.blendSlots}`,
   )
+})
+
+test('a table that must grow takes a growth ahead: twice its rows, within the view and the device', () => {
+  const limits = {
+    maxBufferSize: 1 << 30,
+    maxStorageBufferBindingSize: 1 << 30,
+  } as GPUSupportedLimits
+  const held = { blendFirst: 1000, casterSlots: 1000 }
+  const needed = boundTableRows(limits, 1001, 0)
+  assert.deepEqual(rowsAhead(limits, needed, held, 1 << 18), boundTableRows(limits, 2000, 0))
+  // A table holding what is asked does not move: no growth ahead of a need that is not there.
+  assert.deepEqual(rowsAhead(limits, boundTableRows(limits, 900, 0), held, 1 << 18).drawSlots, 900)
+  // Within the rows a view holds, where the need is within them: pages gained one at a time grow
+  // a table 1000 → 2000 → 4000, never by the page.
+  let rows = 1000,
+    grown = 0
+  for (let pages = 1001; pages <= 4000; pages++) {
+    if (pages <= rows) continue
+    const asked = boundTableRows(limits, pages, 0)
+    rows = rowsAhead(limits, asked, { blendFirst: rows, casterSlots: rows }, 1 << 18).drawSlots
+    grown++
+  }
+  assert.equal(grown, 2)
+  assert.equal(rows, 4000)
+  // A view's rows are a ceiling the growth ahead respects, the need alone above it.
+  assert.equal(
+    rowsAhead(limits, needed, { blendFirst: 1000, casterSlots: 1000 }, 1500).drawSlots,
+    1500,
+  )
+  // The device bounds it as every table is.
+  const tight = { maxBufferSize: 1 << 30, maxStorageBufferBindingSize: 1500 * PAGE_INFO_STRIDE }
+  assert.equal(rowsAhead(tight as GPUSupportedLimits, needed, held, 1 << 18).drawSlots, 1500)
 })

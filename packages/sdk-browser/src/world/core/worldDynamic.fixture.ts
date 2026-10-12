@@ -9,7 +9,7 @@ import { collectClusterPages, type PageRec } from '../../page/selection/selectio
 import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts'
 import '../../wasm/sdkWasm.fixture.ts'
 
-/** A world on a session stand-in that takes every rewrite in place, `reaches` the reach each
+/** A world on a session stand-in that takes every rewrite and every source in place, `reaches` the reach each
  *  carried and `boxes` a copy of its pages' boxes; `served` counts its pages,
  *  `placed` the row ranges sent it (`updatePlacements`).
  *  `frame` draws as a host's `render()` does, `loop` as the session's own loop: `beforeFrame`, the
@@ -23,6 +23,7 @@ export function dynamicWorld() {
     opened: MeasuredWorldOptions[] = [],
     placed = { count: 0 }
   Object.assign(session, {
+    addPlacements: async () => undefined,
     updatePlacements: () => void placed.count++,
     updateVertices: (
       _: unknown,

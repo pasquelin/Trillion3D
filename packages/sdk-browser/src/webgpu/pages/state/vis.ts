@@ -83,6 +83,9 @@ export interface WebgpuVisState {
   /** GPU partition of the image: projection, split and occlusion bounds per row. */
   gpuPartition: GpuPartition | undefined
   visBindGroupLayout: GPUBindGroupLayout | undefined
+  /** The visibility raster's module: the coplanar layers' pipelines are made from it, at the open or
+   *  for layers a source brings (`../prepare/layerGrowth.ts`). */
+  visModule: GPUShaderModule | undefined
   visUniform: GPUBuffer | undefined
   zeroFlags: GPUBuffer | undefined
   // The textured forward pipelines share the visibility path's atlases and fall with it.
@@ -157,6 +160,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     drawLayerSlots: 1,
     gpuPartition: undefined,
     visBindGroupLayout: undefined,
+    visModule: undefined,
     visUniform: undefined,
     zeroFlags: undefined,
     blendBindGroupLayout: undefined,

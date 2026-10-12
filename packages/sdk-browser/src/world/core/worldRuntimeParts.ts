@@ -10,6 +10,7 @@ import type { namedMove } from './worldSceneMethods.ts'
 import type { WorldRuntimeInputs } from './worldRuntimeInputs.ts'
 import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts'
 import { vertexUploads } from './worldDynamicRanges.ts'
+import { noticeRefused } from '../diagnostic/worldNotices.ts'
 
 /** What a world runtime holds between frames: its session, the mirror it was opened on, and what
  *  the next frame or opening owes the scene. */
@@ -47,6 +48,14 @@ export function worldOpening(parts: WorldRuntimeParts) {
   const { canvas, open = openMeasuredWorld } = inputs
   return async () => {
     if (state.disposed) return
+    // The models a world not yet drawing asked for are in its scene, and resolved, before the plan
+    // is taken (`worldLoader.ts`); a refused grant of the device is said below. A session in
+    // place, closed for a lost device or an option, is closed at once.
+    if (!state.explorer) {
+      await inputs.ready().catch(() => {})
+      while (state.resolving && !state.disposed) await state.resolving
+      if (state.disposed) return
+    }
     state.closed = 'its session is opening'
     // What was resolved since the last frame opens with this session, not with the next one.
     if (state.seatWanted) contents.seat()
@@ -75,7 +84,15 @@ export function worldOpening(parts: WorldRuntimeParts) {
         contents.cuts.dynamic.drew(m),
         given.onFrame?.(m)
       )
-      const options = track.options({ ...given, scope, onFrame })
+      const options = track.options({
+        ...{ ...given, scope, onFrame },
+        onPartitionOutgrown: () =>
+          noticeRefused(
+            inputs.diagnostic.notices,
+            'partition rows',
+            'the view outgrew the rows and the engine cannot grow them in place: the cells past them wait',
+          ),
+      })
       // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
       explorer = state.explorer = await open(canvas, options, {
         ...built.source,
@@ -91,6 +108,8 @@ export function worldOpening(parts: WorldRuntimeParts) {
     // Lit before the page's own settings: the first image had no lights. A session's own loop is
     // asked a frame; a world its page leads draws the frame it asks (`worldAskedFrame.ts`).
     explorer.setLightingView('lit')
+    // What the scene gained while it opened — a mesh, a model — joins at the next frame.
+    state.seatWanted = true
     parts.invalidate()
     inputs.opened(explorer)
   }
@@ -98,20 +117,34 @@ export function worldOpening(parts: WorldRuntimeParts) {
 
 /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
 export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
-  const { inputs, state, contents, lights, background, track } = parts
+  const { inputs, state, contents, lights, background } = parts
   const { poses, cuts } = contents
-  const uploads = vertexUploads(() => state.explorer, track.asks('vertices-refused'))
+  const uploads = vertexUploads(
+    () => state.explorer,
+    () =>
+      noticeRefused(
+        inputs.diagnostic.notices,
+        'rewritten vertices',
+        'the engine cannot write them in place: they are not drawn',
+      ),
+  )
   return () => {
     const session = state.explorer
     if (state.seatWanted) {
       state.seatWanted = false
       contents.seat(session ?? undefined)
-      if (contents.reopenNeeded() || (!session && !reopens.running)) track.request('scene-change')
-      // Values or pictures alone repaint the built surface (#335, #362, #572); a reopened one is new.
+      // No session: this opens the first (or the one a failed opening left), never reopens one.
+      if (!session && !reopens.running) reopens.request()
+      // Values or pictures alone repaint the built surface (#335, #362, #572); a session opened
+      // meanwhile is new.
       const painted = contents.repainted(),
         open = state.explorer === session ? session : null
       if (painted.length && !contents.repaint(painted, open?.refreshMaterials.bind(open)))
-        track.request('repaint-refused')
+        noticeRefused(
+          inputs.diagnostic.notices,
+          'a picture',
+          'it changed size where the atlas layout is fixed: it is not redrawn',
+        )
     }
     if (!session || state.explorer !== session) return
     cuts.dynamic.upload(DYNAMIC_UPLOAD_BUDGET_BYTES, uploads)

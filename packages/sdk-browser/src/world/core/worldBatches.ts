@@ -39,8 +39,8 @@ export type Seat = { batch: Batch; row: number }
  * left stays drawn until it holds the new one: a mesh that moves is never missing from a frame.
  * A batch the session holds grows in place (`growHeld`): its rows are replaced by a buffer twice
  * as large at least, the session is handed both (`placement/growth.ts`), and the waiting meshes
- * take the new rows. A batch the session does not hold waits for the next opening (`waiting`),
- * which sizes every batch by the same rule and drops the ones no mesh wears any more. `touched`
+ * take the new rows. A batch the session does not hold joins it (`join`); the next opening sizes every
+ * batch by the same rule and drops the ones no mesh wears any more. `touched`
  * hears every row taken or parked.
  */
 /** A session that grows no buffer in place: a held batch seats on its free rows alone. */
@@ -50,7 +50,7 @@ export function createWorldBatches(
   touched: (batch: Batch, row: number) => void,
   wear: BatchWear,
   ranks: WorldRanks,
-  refused: () => void = () => {},
+  refused: (what: string, reason: string) => void = () => {},
 ) {
   const state: BatchState = {
     touched,
@@ -58,6 +58,7 @@ export function createWorldBatches(
     ranks,
     refused,
     refusals: new Set(),
+    flights: new Set(),
     made: 0,
     batches: new Map(),
     seats: new Map(),
@@ -70,29 +71,36 @@ export function createWorldBatches(
     batches,
     unseat: (mesh: Mesh) => unseat(state, mesh),
     seat: (mesh: Mesh, cut: Cut, entry: MaterialEntry) => seat(state, mesh, cut, entry),
-    /** True while some mesh waits for a row: one in a batch the session holds is seated by
-     *  `growHeld` where the session grows it, any other only by the next opening. */
-    waiting: () =>
-      state.refusals.size > 0 || [...short].some((batch) => waitingIn(state, batch) > 0),
     /** Seats the waiting meshes of the batches the session holds, growing full rows where the
-     *  session takes it (`grow`). Returns the batches grown. */
+     *  session takes it (`grow`); one it does not take is said by name, once. Returns the batches
+     *  grown. */
     growHeld: (seated: (mesh: Mesh) => void, grow?: PlacementGrowth) =>
-      [...short].filter((batch) => batch.rows && !!fit(state, batch, seated, grow ?? GROWS_NONE)),
+      [...short].filter((batch) => {
+        if (!batch.rows) return false
+        const grown = fit(state, batch, seated, grow ?? GROWS_NONE)
+        if (grown === false && grow) refuse(state, batch, 'its rows cannot grow in place')
+        return !!grown
+      }),
     /** Hands the session the batches it was not opened with, each sized and seated first: it
-     *  draws their primitive from now on (`PlacementGrowth.addPlacements`), or refuses, and the
-     *  next opening takes them. Returns the batches handed. */
+     *  draws their primitive from now on (`PlacementGrowth.addPlacements`), or refuses by name.
+     *  Returns the batches handed. */
     join(seated: (mesh: Mesh) => void, grow?: PlacementGrowth) {
       if (!grow?.addPlacements) return []
       const joined = [...short].filter((batch) => !batch.rows)
       for (const batch of joined) {
         fit(state, batch, seated)
-        const refuse = () => (state.refusals.add(batch), state.refused())
-        grow.addPlacements!(batch, state.ranks.primitive(batch.cut)).then(
-          (taken) => taken || refuse(),
-          refuse,
+        const done = grow.addPlacements!(batch, state.ranks.primitive(batch.cut)).then(
+          (reason) => reason && refuse(state, batch, reason),
+          (error: unknown) => refuse(state, batch, String(error)),
         )
+        state.flights.add(done)
+        void done.finally(() => state.flights.delete(done))
       }
       return joined
+    },
+    /** Settles once the batches handed to the session have been taken or refused; none, nothing. */
+    get flying() {
+      return state.flights.size ? Promise.allSettled([...state.flights]) : undefined
     },
     /** The batches the next session opens with, each sized and seated by `fit`; one no mesh
      *  wears any more is dropped with its rows. */
@@ -117,10 +125,12 @@ type BatchState = {
   touched: (batch: Batch, row: number) => void
   wear: BatchWear
   ranks: WorldRanks
-  /** Told when the session refuses a batch it was handed: it opens again for it. */
-  refused: () => void
-  /** The batches the session refused, until the next opening. */
+  /** Told, by name, when the session does not take a batch. */
+  refused: (what: string, reason: string) => void
+  /** The batches the session refused and said, until the next opening. */
   refusals: Set<Batch>
+  /** The batches handed to the session, not yet taken or refused. */
+  flights: Set<Promise<unknown>>
   /** Batches made so far: the next one's `order`. */
   made: number
   batches: Map<string, Batch>
@@ -194,6 +204,13 @@ function unseat(state: BatchState, mesh: Mesh) {
   parkLeaving(state, mesh)
   const seat = leave(state, mesh)
   if (seat) park(state, seat)
+}
+
+/** The session does not take `batch`: said once, until the next opening. */
+function refuse(state: BatchState, batch: Batch, reason: string) {
+  if (state.refusals.has(batch)) return
+  state.refusals.add(batch)
+  state.refused(`the batch of ${batch.key}`, reason)
 }
 
 function waitingIn({ seats }: BatchState, batch: Batch) {

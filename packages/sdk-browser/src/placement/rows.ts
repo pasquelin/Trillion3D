@@ -12,7 +12,7 @@
  *
  * The capacity is the owner's decision; a resource that needs more rows than it holds is given a
  * larger buffer, which the session grows into in place where its engine can
- * (`growth.ts`), and is opened again with otherwise.
+ * (`growth.ts`), and waits otherwise, the owner saying it by name.
  */
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'

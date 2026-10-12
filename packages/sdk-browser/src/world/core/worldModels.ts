@@ -6,6 +6,8 @@ import type { HostMesh } from '../../host/resources.ts'
 import { objects } from '../../page/selection/helpers.ts'
 import { drawSourceOf, type DrawRanks, type DrawSource } from '../../page/selection/drawSource.ts'
 import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts'
+import type { Primitive } from '../../../../sdk-core/src/index.ts'
+import { absolutePrimitive } from '../../scene/absolutePrimitive.ts'
 import type { LoadedModel } from './loadedModel.ts'
 import type { WorldRanks } from './worldRanks.ts'
 
@@ -67,6 +69,9 @@ class ModelMeshSource implements DrawSource {
 export type ModelDraws = {
   /** The first of the model's block of mesh ranks (`WorldRanks.model`). */
   readonly offset: number
+  /** Its primitives with absolute addresses and their mesh ranks moved by `offset`: what the
+   *  session's manifest lists of the model, made once. */
+  readonly primitives: readonly Primitive[]
   readonly draws: readonly DrawSource[]
   readonly rowed: readonly (DrawSource & { readonly rows: PlacementRows; write(): void })[]
   /** The root its graph hangs from, posed by the model's world: what a node's chain is shown by. */
@@ -119,7 +124,22 @@ export function createWorldModels(ranks: WorldRanks) {
           rowed.push(source)
         }
       }
-      held.set(model, (draws = { offset, draws: all, rowed, holder }))
+      let primitives: Primitive[] | undefined
+      held.set(
+        model,
+        (draws = {
+          offset,
+          get primitives() {
+            return (primitives ??= metadata.primitives.map((primitive) => ({
+              ...absolutePrimitive(primitive, model.record.base),
+              mesh: primitive.mesh + offset,
+            })))
+          },
+          draws: all,
+          rowed,
+          holder,
+        }),
+      )
       return draws
     },
     /** `model`'s graph put at the model's world, shown as `shown` says, and the rows of its

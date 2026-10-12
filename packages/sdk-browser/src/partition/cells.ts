@@ -15,7 +15,7 @@
  * `prime`, before the first frame, sizes the rows for the first camera's view (`sizing.ts`; every
  * node when no owner can reopen the session), then reads the pages on its way and the cells it
  * reaches (#575). A reach past those rows, or a parent shrunk or stretched unevenly, grows them in
- * place, else asks the owner to open the session again (`placement/growth.ts`).
+ * place, else tells the owner (`outgrown`) and the cells past the rows wait (`placement/growth.ts`).
  */
 import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
@@ -217,6 +217,23 @@ export function createPartitionCells(inputs: Inputs) {
       plan.visible.forEach((cell, at) => place(cell, decoded[at], seen))
       touched.clear()
       return bytes
+    },
+    /** The partition is let go — the world left the scene it hung from —: every cell placed or
+     *  held far gives its rows back, parked, and its bundles, the files its plan pinned are
+     *  unpinned; `update` is told the rows written. The cells place again at the next `frame`, were
+     *  it followed anew. */
+    close(io: {
+      update(rows: PlacementRows, from: number, to: number): void
+      pin(url: string): void
+      unpin(url: string): void
+    }) {
+      for (const cell of far.cells()) far.release(cell)
+      for (const cell of [...held.keys()]) leave(cell)
+      pageDecodes.keep([], [])
+      decodes.keep([], [])
+      pins.cells([], tookCells, cellUrl, io)
+      pins.pages([], tookPages, io)
+      touched.flush(io.update)
     },
     /** What a frame waits on: the next hold, placed or far, to land or fail, while one reads. */
     reads: () => [...holds.reads(), ...far.reads()],

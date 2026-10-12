@@ -2,6 +2,8 @@
 // it draws, and the comparison of a world a source joins while it runs with a world opened on all of
 // its sources at once.
 import { createHash } from 'node:crypto'
+import { writeFileSync } from 'node:fs'
+let dumped = 0
 import { createWorld } from '../../../packages/sdk-browser/src/world/core/world.ts'
 import {
   lastFrameOf,
@@ -29,7 +31,7 @@ export function row(
 }
 
 /** The image `world` holds, as the digest of its pixels. */
-async function frame(world: World) {
+export async function frame(world: World) {
   await world.awaitPages()
   world.camera.position.set(0, 6, 9)
   world.camera.lookAt(0, 0, 0)
@@ -40,10 +42,12 @@ async function frame(world: World) {
     if (lastFrameOf(world)?.frameHeld) break
   }
   const pixels = await sessionOf(world).capture()
+  if (process.env.APPEND_DUMP) writeFileSync(`${process.env.APPEND_DUMP}-${dumped++}.rgba`, pixels)
   return createHash('sha256').update(pixels).digest('hex')
 }
 
-function open() {
+/** A world on the proofs' canvas and lights. */
+export function open() {
   const canvas = document.createElement('canvas')
   canvas.style.cssText = 'width:320px;height:240px;display:block'
   document.body.append(canvas)
@@ -60,32 +64,41 @@ function open() {
   return { world, close: () => (world.dispose(), canvas.remove()) }
 }
 
+/** The image `world` holds once a change made to it has appeared — drawn until it differs from
+ *  `before` and stops changing: the roots join the cut between two images, several sources one after
+ *  the other. */
+export async function changed(world: World, before: string) {
+  let after = await frame(world),
+    stable = 0
+  for (let wait = 0; wait < 150 && (after === before || stable < 6); wait++) {
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    const next = await frame(world)
+    stable = next === after ? stable + 1 : 0
+    after = next
+  }
+  return after
+}
+
+/** What a case adds to a world: meshes at once, models once they are loaded. */
+type Content = (world: World) => void | Promise<void>
+
 /** A world opened on `held`, then `added` joining it while it runs, against a world opened on
- *  both: the images, and the sessions the first was opened with, before and after. */
-export async function joined(held: (world: World) => void, added: (world: World) => void) {
+ *  both — their models loaded in one burst, one session opened on them all —: the images, and the
+ *  sessions the first was opened with, before and after. */
+export async function joined(held: Content, added: Content) {
   const grown = open()
   try {
     await grown.world.ready
-    held(grown.world)
+    await held(grown.world)
     const before = await frame(grown.world)
     const sessions = grown.world.diagnostic.sessions
-    added(grown.world)
-    // The roots join the cut between two images, several sources one after the other: frames are
-    // drawn until the new meshes appeared and the image stopped changing.
-    let after = await frame(grown.world),
-      stable = 0
-    for (let wait = 0; wait < 150 && (after === before || stable < 6); wait++) {
-      await new Promise((resolve) => setTimeout(resolve, 20))
-      const next = await frame(grown.world)
-      stable = next === after ? stable + 1 : 0
-      after = next
-    }
+    await added(grown.world)
+    const after = await changed(grown.world, before)
     const reference = open()
     try {
       await reference.world.ready
-      held(reference.world)
-      added(reference.world)
-      const opened = await frame(reference.world)
+      await Promise.all([held(reference.world), added(reference.world)])
+      const opened = await changed(reference.world, '')
       return { before, after, opened, sessions: [sessions, grown.world.diagnostic.sessions] }
     } finally {
       reference.close()

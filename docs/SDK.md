@@ -371,7 +371,8 @@ these three doors and nothing else.
 A material written on `color`, `emissive`, `emissiveIntensity`, `metalness` or `roughness` is
 repainted in place, the session kept (a colour picker dragged for ten seconds keeps one session). A
 change it cannot hold in place — a texture, a kind, a side, transparency, values another material
-object shares — is copied on write and reopens the session, once per burst;
+object shares — is copied on write: the copy is a new material, and the meshes that wear it join
+the running session as any mesh added to the scene does, the session never opened again for it.
 `world.diagnostic.sessions` counts the sessions a world opened.
 
 `material.meshPhysical` accepts `anisotropy` (strength, 0–1), `anisotropyRotation` (radians),
@@ -760,8 +761,13 @@ waiting on a shadow pool or frame targets is held, never drawn without its shado
 A lost device is recovered without a reload: the session reopens on a new
 device and rebuilds from the decoded-page cache, fetching nothing it still holds, the canvas keeping
 its last image (`gpu-device-recovered`, `recoveryMs`). Each session reopen is said once as
-`session-reopen`: `cause` (`device-lost`, `option`, or a content change with `defect: true`),
-`durationMs`, `framesWithoutImage`.
+`session-reopen`: `cause` (`device-lost` or `option`, nothing else: no change to the scene's content
+opens a session again), `durationMs`, `framesWithoutImage`. A mesh, a material, a model with its
+cells or a world the scene gains joins the running session in place, and one it loses is parked.
+What the session cannot take in place — a catalogue past its keys (`KEY_PAGE_MAX`), a pool or a pass
+the device refuses, a picture that changed size where the atlas layout is fixed — is said by name,
+once, as `content-refused` (`kind: 'error'`, `what`, `reason`); the rest of the scene is drawn as it
+was.
 
 ## Captures and image checks
 

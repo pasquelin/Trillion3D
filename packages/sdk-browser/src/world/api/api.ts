@@ -22,8 +22,11 @@ type Inputs = SessionRuntime & {
  *  lights and materials, its profile. */
 function engineApis(inputs: Inputs, onDispose: (release: () => void) => void) {
   const { check, engine, render, flush, capture, scope, canvas, camera, context } = inputs
+  const { partitionsJoin } = inputs
   return {
-    ...createExplorerSceneApi({ check, engine, render, flush, capture, scope, canvas }),
+    ...createExplorerSceneApi({
+      ...{ check, engine, render, flush, capture, scope, canvas, partitionsJoin },
+    }),
     ...createExplorerRenderApi({ check, engine }),
     ...createExplorerViewportApi({
       ...{ check, engine, camera, canvas, viewport: inputs.viewport, options: inputs.options },

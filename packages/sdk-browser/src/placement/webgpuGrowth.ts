@@ -20,8 +20,8 @@
  *
  * Rows the blend pass draws grow as the others: their copies and items read the larger buffer and
  * a copy joins per new row, the items and the table's entries made by the function that made the
- * held ones (`growBlend`). Refused, so the owner opens the session again: a session without a GPU
- * cut or a device.
+ * held ones (`growBlend`). Refused, and said by name by the owner: a session without a GPU cut or
+ * a device.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { createSessionCut } from '../webgpu/pages/prepare/cut.ts'
@@ -38,7 +38,7 @@ import { growRowCopies, growRowItems, growRowRoots, type Rebound } from './growt
 import { pagedBlendCopiesOf } from '../webgpu/pages/prepare/setupCatalogue.ts'
 import { rebindDeformedWorlds } from '../deformation/growth.ts'
 import { grownCapacity, type PlacementRows } from './rows.ts'
-import { dagRootCounts } from '../gpu/dag/pack.ts'
+import { dagRootCounts, type DagCapacity } from '../gpu/dag/pack.ts'
 
 type Root = ClusterRoot<PageRec>
 
@@ -161,7 +161,8 @@ export function startGrownCut(rt: WebgpuPagesRuntime) {
 }
 
 /** The capacity a cut over `roots` is packed at: twice the pages and placements the session held
- *  at least (`grownCapacity`), nodes in the pages' proportion. */
+ *  at least (`grownCapacity`), nodes in the pages' proportion, and room for the primitives and
+ *  sources later growths bring (`ahead`). */
 function grownCutCapacity(rt: WebgpuPagesRuntime, roots: readonly Root[]) {
   const needed = dagRootCounts(roots),
     pages = grownCapacity(rt.layout.packedPages.length, needed.pages)
@@ -169,6 +170,7 @@ function grownCutCapacity(rt: WebgpuPagesRuntime, roots: readonly Root[]) {
     pages,
     nodes: ceilDiv(needed.nodes * pages, Math.max(1, needed.pages)),
     worlds: grownCapacity(rt.layout.selectionRoots.length, needed.worlds),
+    ahead: true,
   }
 }
 
@@ -187,9 +189,17 @@ async function makeCut(rt: WebgpuPagesRuntime, growth: Growth): Promise<void> {
   // The pool as it stands, in one write; what moves meanwhile follows at adoption (`swapCut`).
   const held = (page: number) => heldPage(rt, page)
   const capacity = grownCutCapacity(rt, roots)
-  const { cut, refused, error } = await createSessionCut(rt, rt.gpu.device!, roots, held, capacity)
-    .then((result) => ({ ...result, error: undefined as unknown }))
-    .catch((failure: unknown) => ({ cut: undefined, refused: 'creation failed', error: failure }))
+  const make = (room: DagCapacity) =>
+    createSessionCut(rt, rt.gpu.device!, roots, held, room)
+      .then((result) => ({ ...result, error: undefined as unknown }))
+      .catch((failure: unknown) => ({ cut: undefined, refused: 'creation failed', error: failure }))
+  let attempt = await make(capacity)
+  // The room kept for the primitives and sources to come is an advance, not a need: a device that
+  // cannot hold the cut with it is asked for the cut over the roots at the grown pages and
+  // placements alone.
+  if (!attempt.cut && !rt.signal.aborted && !rt.run.lost)
+    attempt = await make({ ...capacity, ahead: false })
+  const { cut, refused, error } = attempt
   if (made !== growth.made || rt.signal.aborted || rt.run.lost) return cut?.dispose()
   rows.logTouched(undefined)
   // The scene's roots no longer fit a cut this device holds: as an open would be, it is refused.
