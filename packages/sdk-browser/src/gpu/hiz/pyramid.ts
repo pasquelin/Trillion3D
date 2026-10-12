@@ -16,9 +16,12 @@ import {
 /** The label of a pyramid's level 0, the one texture it holds. */
 const HIZ_LEVEL0_LABEL = 'Trillion3D Hi-Z level 0'
 /** Bytes one view's pyramid holds at `width × height` (`allocPyramid`): its level 0, one r32float
- *  texel a pixel, the front depth, another, and its three layers of packed mips. */
-export const pyramidHeldBytes = (width: number, height: number) =>
-  width * height * 8 + hizTextureBytes(pyramidBytes(width, height))
+ *  texel a pixel, the front depth, another when the scene has blends (`front`; a texel else), and
+ *  its three layers of packed mips. */
+export const pyramidHeldBytes = (width: number, height: number, front: boolean) =>
+  width * height * 4 +
+  (front ? width * height : 1) * 4 +
+  hizTextureBytes(pyramidBytes(width, height))
 
 /** Source texels one build workgroup covers per side: each thread reduces a 2 × 2 square. */
 const TILE = 2 * HIZ_BUILD_SIDE
@@ -95,6 +98,7 @@ export function allocPyramid(
   width: number,
   height: number,
   slots: UniformSlots,
+  front: boolean,
 ): Pyramid {
   const level0 = device.createTexture({
     label: HIZ_LEVEL0_LABEL,
@@ -114,9 +118,9 @@ export function allocPyramid(
       GPUTextureUsage.COPY_DST |
       GPUTextureUsage.COPY_SRC,
   })
-  const front = device.createTexture({
+  const frontDepth = device.createTexture({
     label: 'Trillion3D Hi-Z front depth',
-    size: { width, height },
+    size: front ? { width, height } : { width: 1, height: 1 },
     format: 'r32float',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
   })
@@ -127,13 +131,13 @@ export function allocPyramid(
     level0View: level0.createView(),
     pyramid,
     pyramidView: arrayView(pyramid),
-    front,
-    frontView: front.createView(),
+    front: frontDepth,
+    frontView: frontDepth.createView(),
     drawn: pyramidLayout(width, height, slots),
     destroy() {
       level0.destroy()
       pyramid.destroy()
-      front.destroy()
+      frontDepth.destroy()
     },
   }
 }

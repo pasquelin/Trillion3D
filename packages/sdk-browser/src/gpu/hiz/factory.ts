@@ -19,12 +19,15 @@ import {
 } from './hizOps.ts'
 
 /** The frame's depth pyramid (`shader.ts`): reverse-Z, its farthest layer for the occlusion, its
- *  nearest for the readers of the whole depth. Without compute, returns `undefined`. */
+ *  nearest for the readers of the whole depth. Without compute, returns `undefined`. `front` says
+ *  whether the scene has blends: their front depth is a texel a pixel, else a single zero texel
+ *  that every pixel reads, which the fold ignores. */
 export async function createGpuHiz(
   device: GPUDevice,
   width: number,
   height: number,
   maxBounds: number,
+  front = true,
 ): Promise<GpuHiz | undefined> {
   if (typeof device.createComputePipeline !== 'function' || width < 1 || height < 1)
     return undefined
@@ -33,8 +36,8 @@ export async function createGpuHiz(
   try {
     const pipelines = await createHizPipelines(device)
     if (!pipelines) return undefined
-    h = hizState(device, pipelines, buffers, Math.max(1, maxBounds))
-    const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots))
+    h = hizState(device, pipelines, buffers, Math.max(1, maxBounds), front)
+    const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots, front))
     const gpu = hizApi(h, first)
     installHiz(h, gpu, first)
     return gpu
@@ -50,6 +53,7 @@ function hizState(
   pipelines: HizPipelines,
   buffers: GPUBuffer[],
   cap: number,
+  front: boolean,
 ): HizState {
   // The deepest pyramid's build passes, then the test's slot, at the device's alignment.
   const slots = hizUniformSlots(device.limits)
@@ -104,6 +108,7 @@ function hizState(
     state: idle,
     flags,
     cap,
+    front,
   }
 }
 

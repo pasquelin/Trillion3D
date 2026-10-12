@@ -41,6 +41,8 @@ export type HizState = HizPipelines & {
   state: GPUBuffer
   flags: GPUBuffer
   cap: number
+  /** Whether the pyramids hold a front depth a pixel (`createGpuHiz`). */
+  front: boolean
 }
 
 /** Verdict flags for `rows` rows. */
@@ -159,7 +161,7 @@ export function hizResize(
   try {
     // The drawn view's pyramid is replaced; another view's, held aside, is not touched.
     h.at?.destroy()
-    installHiz(h, gpu, allocPyramid(h.device, h.level0Usage, width, height, h.slots))
+    installHiz(h, gpu, allocPyramid(h.device, h.level0Usage, width, height, h.slots, h.front))
     return true
   } catch {
     return false
