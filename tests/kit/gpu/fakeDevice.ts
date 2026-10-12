@@ -71,7 +71,11 @@ export function fakeDevice({
     descriptor
   )
   // A compute pipeline is its stage and its layout: a pass checks the groups it sets against it.
-  const computePipeline = (d: GPUComputePipelineDescriptor) => ({ ...d.compute, layout: d.layout })
+  const computePipeline = (d: GPUComputePipelineDescriptor) => ({
+    ...d.compute,
+    layout: d.layout,
+    getBindGroupLayout: () => ({}),
+  })
   const device = {
     label: '',
     lost,

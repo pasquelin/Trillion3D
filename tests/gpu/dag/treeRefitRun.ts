@@ -8,10 +8,10 @@ import { placementField } from '../../../packages/sdk-browser/src/gpu/dag/placem
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import {
   memberBox,
-  packPlacementTree,
   treeNodeCount,
   TREE_SPAN,
 } from '../../../packages/sdk-browser/src/gpu/dag/placementTree.ts'
+import { refitTree } from '../../../packages/sdk-browser/src/gpu/dag/treeRefitRun.fixture.ts'
 import { createTreeRefit } from '../../../packages/sdk-browser/src/gpu/dag/treeRefit.ts'
 import {
   DAG_NODE_FLOATS,
@@ -81,6 +81,11 @@ export async function runRefit(split: boolean) {
     coldParts: { buffers: coldBuffers, bytes: (split ? coldPer : cold.length) * 4 },
     frames: { buffers: frameBuffers, ranges: framesAt.map((first) => ({ first })) },
   })
+  // The first fit, on the GPU: every group, from the open tree the pack leaves.
+  const everyGroup = Array.from({ length: tree.levels.at(-1)!.count }, (_, g) => g)
+  const first = device.createCommandEncoder()
+  refit.run(first, everyGroup)
+  device.queue.submit([first.finish()])
   // The change: poses a long way off, a park, a mark that opens, a whole group parked.
   const touched = new Set<number>()
   const move = (w: number, x: number) => {
@@ -122,21 +127,22 @@ export async function runRefit(split: boolean) {
     for (const word of words) read.push(word)
     void p
   }
-  packPlacementTree(dag, tree)
-  const first = tree.cellBase * DAG_NODE_FLOATS,
+  // The interpreter's fit of every group over the same leaves: what the device must hold.
+  refitTree(dag)
+  const from = tree.cellBase * DAG_NODE_FLOATS,
     last = (tree.cellBase + treeNodeCount(tree)) * DAG_NODE_FLOATS
   const expected = Array.from(
     new Uint32Array(dag.nodes.buffer, dag.nodes.byteOffset, dag.nodes.length),
   )
-  const untouched = Array.from(held.subarray(0, first)).every((word, k) => read[k] === word)
+  const untouched = Array.from(held.subarray(0, from)).every((word, k) => read[k] === word)
   const { court } = await gpu.fermer()
   return {
     adapter: court,
     errors: gpu.errors,
-    differing: Array.from({ length: last - first }, (_, k) => first + k).filter(
+    differing: Array.from({ length: last - from }, (_, k) => from + k).filter(
       (k) => read[k] !== expected[k],
     ).length,
-    compared: last - first,
+    compared: last - from,
     untouched,
   }
 }

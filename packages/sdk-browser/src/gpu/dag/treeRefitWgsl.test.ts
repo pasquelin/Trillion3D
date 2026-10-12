@@ -1,37 +1,19 @@
-// The tree refit (`treeRefitWgsl.ts`, the shipped WGSL run in JavaScript) leaves the tree's nodes as
-// the CPU build fits them (`fitPlacementTree`): word for word, after poses moved a long way, parks,
-// marks that open a group, a whole group parked — the groups the change touched fit again, and the
-// nodes above them, nothing else read or written.
+// The tree refit (`treeRefitWgsl.ts`, the shipped WGSL run in JavaScript): the groups a change touched
+// and the nodes above them, fitted again, leave the tree as a fit of every group does — after poses
+// moved a long way, parks, marks that open a group, a whole group parked —, nothing else read or
+// written. Tables whole, and split into parts and ranges as a small device lays them. The tree is
+// the refit's alone: `packPlacementTree` leaves every node open.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { placementField } from './placementTree.fixture.ts'
 import { packDagSelection } from './selection.ts'
-import {
-  memberBox,
-  packPlacementTree,
-  refitLevels,
-  treeNodeCount,
-  TREE_SPAN,
-} from './placementTree.ts'
-import { treeRefitWgsl, WHOLE_LAYOUT, type RefitLayout } from './treeRefitWgsl.ts'
-import {
-  DOUBLE_HELPERS,
-  countLeadingZeros,
-  pair,
-  type Pair,
-} from '../../placement/composeDoubles.fixture.ts'
+import { memberBox, treeNodeCount, TREE_SPAN } from './placementTree.ts'
+import { WHOLE_LAYOUT, type RefitLayout } from './treeRefitWgsl.ts'
+import { refitTree } from './treeRefitRun.fixture.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
-import { DAG_NODE_FLOATS, FRAME_ROW_WORDS } from './types.ts'
+import { DAG_NODE_FLOATS } from './types.ts'
 
 const NONE = 0xffffffff
-
-/** `words` laid out as the layout says: the parts of `per` records of `width` words each. */
-function inParts(words: number[], per: number, parts: number, width: number) {
-  return Array.from({ length: parts }, (_, p) =>
-    words.slice(p * per * width, parts - 1 === p ? undefined : (p + 1) * per * width),
-  )
-}
 
 /** The device that splits the nodes inside the tree's own range, the order in three, the frames in
  *  three ranges of placements. */
@@ -42,7 +24,7 @@ const split = (cellBase: number): RefitLayout => ({
 })
 
 for (const name of ['whole', 'split across parts and ranges'] as const)
-  test(`the groups a change touched, and the nodes above them, are fitted as the build fits them: tables ${name}`, () => {
+  test(`the groups a change touched, and the nodes above them, are fitted as a fit of every group does: tables ${name}`, () => {
     const roots = placementField(100, 5),
       dag = packDagSelection(roots),
       tree = dag.placementTree!
@@ -51,6 +33,8 @@ for (const name of ['whole', 'split across parts and ranges'] as const)
     const words = () => new Uint32Array(dag.nodes.buffer, dag.nodes.byteOffset, dag.nodes.length)
     const first = tree.cellBase * DAG_NODE_FLOATS,
       last = (tree.cellBase + treeNodeCount(tree)) * DAG_NODE_FLOATS
+    // The first fit: every node, from the open tree the pack leaves.
+    refitTree(dag, undefined, layout)
     const held = Array.from(words())
     // The change: poses a long way off, a park, a mark that opens, a whole group parked.
     const touched = new Set<number>()
@@ -72,83 +56,43 @@ for (const name of ['whole', 'split across parts and ranges'] as const)
     dag.mark[7000] = 5 << 16
     for (let k = 0; k < TREE_SPAN; k++) dag.rootNodes[tree.order[640 + k]] = NONE
     for (const w of [130, 200, 7000, tree.order[640]]) touched.add(w)
-    packPlacementTree(dag, tree)
-    const expected = Array.from(words())
-    // The GPU's tables as the change leaves them: the held nodes, the leaves, the frames, the order.
-    const nodes = held.slice()
-    const frames = Array.from({ length: roots.length * FRAME_ROW_WORDS }, (_, k) => {
-      const w = Math.floor(k / FRAME_ROW_WORDS),
-        at = k % FRAME_ROW_WORDS
-      return at === 1 ? dag.rootNodes[w] : at === 3 ? dag.mark[w] : 0
-    })
-    const cold: number[] = []
-    for (let k = 0; k < tree.capacity; k++) cold[tree.members + k] = tree.order[k]
-    // The tables as the layout lays them: the parts, and a buffer a range of placements.
-    const nodeParts = inParts(nodes, layout.nodes.per, layout.nodes.parts, DAG_NODE_FLOATS)
-    const coldParts = inParts(cold, layout.cold.per, layout.cold.parts, 1)
-    const ranges = layout.frames.map((first, r) =>
-      frames.slice(
-        first * FRAME_ROW_WORDS,
-        (layout.frames[r + 1] ?? roots.length) * FRAME_ROW_WORDS,
-      ),
-    )
-    const tables: Record<string, unknown> = {}
-    nodeParts.forEach((part, k) => (tables[k ? `nodes${k}` : 'nodes'] = part))
-    coldParts.forEach((part, k) => (tables[k ? `cold${k}` : 'cold'] = part))
-    ranges.forEach((part, r) => (tables[`frames${r}`] = part))
-    const params = {
-      first: 0,
-      count: 0,
-      base: 0,
-      live: tree.count,
-      members: tree.members,
-    } as Record<string, number>
-    const run = shaderRun<{ fitGroup(j: number): void; fitCell(j: number): void }>(
-      treeRefitWgsl(layout),
-      [
-        ...DOUBLE_HELPERS,
-        'dLess',
-        'dMin',
-        'dMax',
-        'dAbs',
-        'toF32',
-        'fromF32',
-        'nodeWord',
-        'setNodeWord',
-        'coldAt',
-        'frameWord',
-        'writeBox',
-        'fitGroup',
-        'fitCell',
-      ],
-      {
-        countLeadingZeros,
-        params,
-        ...tables,
-        members: Array.from({ length: roots.length * 6 }, (_, k) => pair(tree.boxes[k]) as Pair),
-      },
-    )
     const groups = [...touched].map((w) => Math.floor(tree.slot[w] / TREE_SPAN))
-    let fitted = 0
-    for (const { level, ids } of refitLevels(tree, groups)) {
-      const below = tree.levels[level + 1]
-      Object.assign(params, {
-        base: tree.levels[level].base,
-        childBase: below?.base ?? 0,
-        childCount: below?.count ?? 0,
-      })
-      for (const j of ids) {
-        ;(below ? run.fitCell : run.fitGroup)(j)
-        fitted++
-      }
-    }
-    const result = nodeParts.flat()
+    const fitted = refitTree(dag, groups, layout)
+    const incremental = Array.from(words())
+    // Against every group fitted again from the same leaves, marks and parks.
+    refitTree(dag, undefined, layout)
+    const full = Array.from(words())
     assert.deepEqual(
-      result.slice(first, last).map((w) => w >>> 0),
-      expected.slice(first, last),
+      incremental.slice(first, last),
+      full.slice(first, last),
       'every node of the tree',
     )
     assert.ok(fitted < treeNodeCount(tree) / 4, `${fitted} of ${treeNodeCount(tree)} nodes fitted`)
-    // The nodes outside the tree are never touched.
-    assert.deepEqual(result.slice(0, first), held.slice(0, first))
+    assert.notDeepEqual(
+      incremental.slice(first, last),
+      held.slice(first, last),
+      'the change moved it',
+    )
+    assert.deepEqual(incremental.slice(0, first), held.slice(0, first), 'nodes outside the tree')
   })
+
+test('a fitted tree holds every member, grown past the single-precision rounding, and opens where a member does', () => {
+  const roots = placementField(40, 6),
+    dag = packDagSelection(roots),
+    tree = dag.placementTree!
+  dag.mark[70] = SPRITE_UNCULLED
+  refitTree(dag)
+  const groups = tree.levels.at(-1)!,
+    node = (n: number) => dag.nodes.subarray(n * DAG_NODE_FLOATS, n * DAG_NODE_FLOATS + 7)
+  const opened = groups.base + Math.floor(tree.slot[70] / TREE_SPAN)
+  assert.ok(node(opened)[0] < -1e38 && node(opened)[4] > 1e38, 'the group of an uncullable member')
+  assert.ok(node(tree.levels[0].base)[0] < -1e38, 'and every node above it')
+  for (const w of [0, 5, 1599]) {
+    if (w === 70) continue
+    const box = node(groups.base + Math.floor(tree.slot[w] / TREE_SPAN)),
+      leaf = tree.boxes.subarray(w * 6, w * 6 + 6)
+    for (let a = 0; a < 3; a++) {
+      assert.ok(box[a] <= leaf[a] && box[4 + a] >= leaf[3 + a], `member ${w}, axis ${a}`)
+    }
+  }
+})

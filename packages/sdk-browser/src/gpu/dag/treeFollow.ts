@@ -54,8 +54,14 @@ export function createTreeFollower(
   leaves?.lay({ per: nodeParts.bytes / (DAG_NODE_FLOATS * 4), parts: nodeParts.buffers.length })
   // What moved since the tree was last read, each placement once, and the groups a composition
   // moved: fitted once, before the next cut reads the tree.
+  // The first cut fits every group: the tree packs open (`packPlacementTree`), the refit is the
+  // one fit there is.
   const dirty = createSortedKeys(),
-    groups = new Set<number>()
+    groups = new Set<number>(
+      tree.levels.at(-1)!.count
+        ? Array.from({ length: tree.levels.at(-1)!.count }, (_, g) => g)
+        : [],
+    )
   /** Placement `w`'s group fits again at the next cut: parked or taken back, posed by a send,
    *  appended, or composed on the GPU by a parent from now on or no longer. */
   const touch = (w: number) => {

@@ -30,10 +30,9 @@
  * leaves a caller writes (`memberBox`, or a composition's own), bottom up.
  */
 import { rowCell } from '../../partition/rowCells.ts'
-import { boxGrow } from '../../../../math/src/geometry/box.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
-import { boxEmpty, boxTransform, boxUnion } from '../../../../sdk-core/src/index.ts'
+import { boxTransform } from '../../../../sdk-core/src/index.ts'
 import { SELECTION_NONE as NONE, SELECTION_WORKGROUP } from '../core/selection.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
@@ -210,7 +209,7 @@ const groupMembers = (tree: PlacementTree, g: number) =>
 
 /**
  * Writes every tree node into `nodes` (`nodeInts` its words): children, kind, the world a range
- * dispatch reads them under (the first), no error to prune by, and each box fitted. A cell's
+ * dispatch reads them under (the first), no error to prune by, its box open until the refit fits it. A cell's
  * children are every node of the level below it lays out; a group's, its live members.
  */
 export function packPlacementTree(packed: TreeSource, tree: PlacementTree) {
@@ -230,7 +229,20 @@ export function packPlacementTree(packed: TreeSource, tree: PlacementTree) {
       packed.nodes[at + NODE_FLOOR] = 0
     }
   })
-  fitPlacementTree(packed, tree)
+  // The boxes are the refit's (`treeRefit.ts`): every node opens until the first cut fits it, over
+  // the leaves taken here.
+  for (let k = 0; k < tree.count; k++) memberBox(packed, tree, tree.order[k])
+  for (const { base, count } of tree.levels)
+    for (let j = 0; j < count; j++) openNode(packed.nodes, base + j)
+}
+
+/** Node `n` takes the box no plane rejects. */
+function openNode(nodes: Float32Array, n: number) {
+  const at = n * DAG_NODE_FLOATS
+  for (let a = 0; a < 3; a++) {
+    nodes[at + NODE_MIN + a] = -OPEN
+    nodes[at + NODE_MAX + a] = OPEN
+  }
 }
 
 /** The member slot the next batch a growth appends starts at: the first of a new group, so no
@@ -263,40 +275,10 @@ export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, batch
   return { nodes: Int32Array.from(nodes), members: [from, tree.count] as const }
 }
 
-/** Fits every group, then every level above, bottom up: at pack, and after poses moved past what a
- *  list names. */
-function fitPlacementTree(packed: TreeSource, tree: PlacementTree) {
-  for (let k = 0; k < tree.count; k++) memberBox(packed, tree, tree.order[k])
-  for (let l = tree.levels.length - 1; l >= 0; l--)
-    for (let j = 0; j < tree.levels[l].count; j++) fitNode(packed, tree, l, j)
-}
-
 /** Whether placement `w`'s box cannot hold its pose: never culled, or deformed by a reach. */
 export const opensTree = (mark: number) => (mark & SPRITE_UNCULLED) !== 0 || mark >>> 16 !== 0
 
 const box = new Float64Array(12)
-
-/** Node `j` of level `l`: a group's box over its members' root boxes through their worlds, parked
- *  ones left out; a cell's over its children's. Open when one of them is. */
-function fitNode(packed: TreeSource, tree: PlacementTree, l: number, j: number) {
-  boxEmpty(box, 0)
-  const below = tree.levels[l + 1],
-    first = j * TREE_SPAN
-  let opened = false
-  if (below)
-    for (let c = first; c < Math.min(first + TREE_SPAN, below.count) && !opened; c++) {
-      opened = isOpenNode(packed.nodes, below.base + c)
-      unionNode(packed.nodes, below.base + c)
-    }
-  else
-    for (let k = first; k < first + groupMembers(tree, j) && !opened; k++)
-      opened = unionMember(packed, tree, tree.order[k])
-  writeBox(packed.nodes, tree.levels[l].base + j, opened)
-}
-
-/** Whether tree node `n` is open: its box is the one no plane rejects (`writeBox`). */
-const isOpenNode = (nodes: Float32Array, n: number) =>
-  nodes[n * DAG_NODE_FLOATS + NODE_MIN] === Math.fround(-OPEN)
 
 /** Member `w`'s root box through its world, kept in `tree.boxes`: taken when it moved, the refit
  *  joining the kept one. A parked member, or one without a root, keeps none. */
@@ -310,60 +292,6 @@ export function memberBox(packed: TreeSource, tree: PlacementTree, w: number) {
   }
   boxTransform(tree.boxes, w * 6, box, 6, packed.worldSources[w].world.elements)
 }
-
-/** Member `w`'s kept box (`takeBox`) joined to `box`; whether it opens its group. */
-function unionMember(packed: TreeSource, tree: PlacementTree, w: number) {
-  if (w === NONE || packed.rootNodes[w] === NONE) return false
-  if (opensTree(packed.mark[w])) return true
-  const b = tree.boxes,
-    at = w * 6
-  boxUnion(box, 0, b[at], b[at + 1], b[at + 2], b[at + 3], b[at + 4], b[at + 5])
-  return false
-}
-
-/** Tree node `n`'s box joined to `box`. */
-function unionNode(nodes: Float32Array, n: number) {
-  const at = n * DAG_NODE_FLOATS + NODE_MIN
-  boxUnion(
-    box,
-    0,
-    nodes[at],
-    nodes[at + 1],
-    nodes[at + 2],
-    nodes[at + 4],
-    nodes[at + 5],
-    nodes[at + 6],
-  )
-}
-
-/**
- * Writes `box[0..6)` as node `n`'s bounds, grown by `MARGIN` of its farthest coordinate and its
- * widest side; an open node takes bounds no plane rejects, an empty one bounds every plane does.
- */
-function writeBox(nodes: Float32Array, n: number, opened: boolean) {
-  const at = n * DAG_NODE_FLOATS
-  // Open, bounds no plane rejects; empty, bounds every plane does.
-  const empty = !(box[3] >= box[0] && box[4] >= box[1] && box[5] >= box[2])
-  if (opened || empty) {
-    const low = opened ? -OPEN : OPEN
-    for (let a = 0; a < 3; a++) {
-      nodes[at + NODE_MIN + a] = low
-      nodes[at + NODE_MAX + a] = -low
-    }
-    return
-  }
-  let reach = 0
-  for (let a = 0; a < 6; a++) reach = Math.max(reach, Math.abs(box[a]))
-  for (let a = 0; a < 3; a++) reach = Math.max(reach, box[a + 3] - box[a])
-  boxGrow(grownBox, 0, box, 0, reach * MARGIN)
-  for (let a = 0; a < 3; a++) {
-    nodes[at + NODE_MIN + a] = grownBox[a]
-    nodes[at + NODE_MAX + a] = grownBox[a + 3]
-  }
-}
-/** A node's box grown by its margin, before its corners are written apart (`NODE_MIN`,
- *  `NODE_MAX`). */
-const grownBox = new Float64Array(6)
 
 /** The nodes to fit at each level of `tree` once `groups` changed, bottom up: each level's, as
  *  their index within it, increasing. */

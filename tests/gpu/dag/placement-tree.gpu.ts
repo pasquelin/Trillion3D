@@ -12,6 +12,7 @@ import {
   fieldCamera,
   placementField,
 } from '../../../packages/sdk-browser/src/gpu/dag/placementTree.fixture.ts'
+import { refitTree } from '../../../packages/sdk-browser/src/gpu/dag/treeRefitRun.fixture.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 
 const VIEWPORT: [number, number] = [1280, 720]
@@ -26,7 +27,9 @@ test('the GPU cut through the placement tree is its oracle’s, pose by pose', a
   const roots = placementField(40, 6)
   const cases = POSES.map(([name, eye, at, far]) => {
     const uniforms = cameraSelectionUniforms(engineCamera(fieldCamera(eye, at, far)), 1, VIEWPORT)
-    const packed = packedWorldsToRenderOrigin(packDagSelection(roots), roots, uniforms.cameraWorld)
+    const pack = packDagSelection(roots)
+    refitTree(pack)
+    const packed = packedWorldsToRenderOrigin(pack, roots, uniforms.cameraWorld)
     assert.ok(packed.placementTree, 'the field takes a tree')
     return { name, packed, uniforms }
   })

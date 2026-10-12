@@ -99,13 +99,14 @@ test('a root a parent composes has its leaf written by the composition, never by
   const linked = new Set<number>(),
     { selection, state, cut, encoded } = await followed(40, linked)
   linked.add(70)
-  const before = state()
+  const first = encoded.length,
+    before = state()
   selection.composedPlacement(70, true)
   cut()
   const after = state()
   assert.equal(after.leaves, before.leaves, 'no leaf sent for a composed placement')
   assert.equal(after.passes - before.passes, 1)
-  assert.equal(encoded.length, 1, 'the composition encodes its leaves before the pass')
+  assert.equal(encoded.length - first, 1, 'the composition encodes its leaves before the pass')
   // The parent moved: the groups its roots stand in are named, and fit with no placement named.
   const group = selection.groupOf(70)
   assert.ok(group >= 0)

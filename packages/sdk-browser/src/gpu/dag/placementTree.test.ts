@@ -3,7 +3,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
-import { packPlacementTree, refitLevels } from './placementTree.ts'
+import { memberBox, refitLevels } from './placementTree.ts'
+import { refitTree } from './treeRefitRun.fixture.ts'
 import { packDagSelection } from './selection.ts'
 import { appendDagRoots, dagRootCounts } from './pack.ts'
 import { SELECTION_WORKGROUP } from '../core/selection.ts'
@@ -64,7 +65,8 @@ test('moving, parking or opening one placement refits its group and its cell, at
       Array(tree.depth).fill(1),
       'a node per level of the tree',
     )
-    packPlacementTree(dag, tree)
+    memberBox(dag, tree, 70)
+    refitTree(dag, [group])
     assert.ok(box()[4] >= 1000 && box()[4] > before[4])
     // Its cut is the flat one's at the new pose.
     const moved = fieldCut(roots, fieldCamera([990, 2, 0], [1000, 0, -50]), true, dag)
@@ -75,12 +77,13 @@ test('moving, parking or opening one placement refits its group and its cell, at
     assert.ok(moved.pages.length > 0, 'the moved placement is drawn where it went')
     // Parked, its box no longer holds the far pose.
     dag.rootNodes[70] = 0xffffffff
-    packPlacementTree(dag, tree)
+    memberBox(dag, tree, 70)
+    refitTree(dag, [group])
     assert.ok(box()[4] < 1000)
     // Never culled, it opens its group.
     dag.rootNodes[70] = dag.rootBases[70]
     dag.mark[70] = SPRITE_UNCULLED
-    packPlacementTree(dag, tree)
+    refitTree(dag, [group])
     assert.ok(box()[0] < -1e38 && box()[4] > 1e38)
   }
 })
@@ -122,8 +125,9 @@ test("a growth's placements join the tree in place, the cut the flat one's", () 
   assert.equal(tree.count, 128 + 20)
   for (let w = 0; w < 100; w++) assert.equal(tree.order[tree.slot[w]], w, `placement ${w}`)
   assert.deepEqual(added.tree.members, [128, 148])
-  // The new groups' boxes are the GPU refit's: the CPU fit stands for it in the cut it is read by.
-  packPlacementTree(dag, tree)
+  // The new members' leaves are taken as the follower takes them (`TreeRefit.leaf`), their groups fit.
+  for (let w = 80; w < 100; w++) memberBox(dag, tree, w)
+  refitTree(dag)
   for (const camera of views) {
     const cut = fieldCut(roots, camera, true, dag)
     assert.deepEqual(cut.pages, fieldCut(roots, camera, false, dag).pages)
@@ -185,7 +189,8 @@ test("a growth's batch far from the packed placements fills its own groups: none
   const capacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 160 }
   const dag = packDagSelection(near, capacity)
   assert.ok(appendDagRoots(dag, far))
-  packPlacementTree(dag, dag.placementTree!)
+  for (let w = 80; w < 100; w++) memberBox(dag, dag.placementTree!, w)
+  refitTree(dag)
   const at = fieldCamera([10_012, 30, 20], [10_012, 0, -12], 200)
   const seen = fieldCut([...near, ...far], at, true, dag).placements
   assert.ok(
