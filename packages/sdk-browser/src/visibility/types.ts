@@ -4,7 +4,6 @@ import type { Texture } from '../../../sdk-core/src/index.ts'
 import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts'
 import { texelFormatOf } from '../host/textureImport.ts'
 import { VIS_CARD_ROWS, VIS_MAX_PAGE_TRIANGLES } from './visWords.ts'
-export { VIS_TRIANGLE_BITS, VIS_TRIANGLE_MASK } from './visWords.ts'
 /** Largest addressable page count: the rows below a card's identifiers (`VIS_CARD_BASE`). */
 export const VIS_MAX_PAGES = VIS_CARD_ROWS - 1
 /** Rejects a page the identifier cannot address, naming the page so a bad cache is actionable. */
@@ -89,8 +88,6 @@ export type VisPage = {
   clusterId?: string
 }
 export type { VisMaterial } from './materialType.ts'
-
-export { isTransmissive } from './shader/material.ts'
 
 /** Why raw texels cannot be read as `textureRgba` reads them — one byte per channel of four, as
  *  many as the size holds —, or nothing when they can: a gate names the storage, never draws it
