@@ -1,12 +1,11 @@
 use super::*;
+use crate::random::xorshift64;
 
 #[test]
 fn length_is_the_root_of_the_squares_powi_or_product_alike() {
     let mut state = crate::GOLDEN;
     for _ in 0..10_000 {
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
+        xorshift64(&mut state);
         let v = [0, 21, 42].map(|shift| f64::from_bits((state >> shift) & 0x3FFF_FFFF_FFFF_FFFF));
         let by_powi = (v[0].powi(2) + v[1].powi(2) + v[2].powi(2)).sqrt();
         assert_eq!(length(v).to_bits(), by_powi.to_bits());
