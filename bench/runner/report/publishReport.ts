@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// Stage a campaign's evidence as the site's one report, replacing the one before; no network use.
+// Stage a campaign's evidence as the one report of the folder `--to` names, replacing the one
+// before; no network use.
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { assertReport } from '../../../site/app/reports/model/contract.ts'
+import { assertReport } from '../../kit/report/contract.ts'
 import { parseArgs } from '../harness/options.ts'
 import { measureOutput } from '../../core/paths.ts'
 import { readJson } from '../../../scripts/repository-files.ts'
@@ -34,7 +35,9 @@ export function publierRapport(source: string, dest: string): string {
 if (import.meta.filename === process.argv[1]) {
   const flags = parseArgs(process.argv.slice(2))
   const from = resolve(flags.get('from') ?? measureOutput('global', 'report-data'))
-  const to = resolve(flags.get('to') ?? 'site')
+  const target = flags.get('to')
+  if (!target) throw new Error('publishReport: --to <the target folder> is required')
+  const to = resolve(target)
   flags.refuseUnread()
   console.log(publierRapport(from, to))
 }

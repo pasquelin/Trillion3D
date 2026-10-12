@@ -25,12 +25,11 @@ test('the server answers one byte range 206, an unsatisfiable one 416, none the 
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const bytes = Buffer.from(Array.from({ length: 256 }, (_, i) => i))
   writeFileSync(join(root, 'level.ktx2'), bytes)
-  // Compressed files too: a range addresses the file's own bytes, so it is never encoded.
-  const server = staticServer({ mounts: [{ prefix: '/', dir: root }], compress: () => true })
+  const server = staticServer({ mounts: [{ prefix: '/', dir: root }] })
   t.after(() => new Promise((done) => (server.close(done), server.closeAllConnections())))
   const port = await listen(server)
   const get = async (range?: string) => {
-    const headers: Record<string, string> = { 'accept-encoding': 'identity' }
+    const headers: Record<string, string> = {}
     if (range) headers.range = range
     const response = await fetch(`http://127.0.0.1:${port}/level.ktx2`, { headers })
     const body = Buffer.from(await response.arrayBuffer())

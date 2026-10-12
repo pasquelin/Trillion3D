@@ -68,7 +68,6 @@ const mutationRun = (files: string[], full: boolean) =>
       '/graphify-out',
       '**/target',
       '/tests/assets',
-      '/site/assets',
       // The personal files, links into the main checkout (`scripts/local-files.ts`).
       ...localFileGlobs(),
     ],

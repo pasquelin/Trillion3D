@@ -4,7 +4,7 @@ import { getPriority, setPriority } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { readJson } from './repository-files.ts'
 
-// The heavy local steps (a test run, `build`, `build:docs`, `build:native`, `compile:caches`) of
+// The heavy local steps (a test run, `build`, `build:native`, `compile:caches`) of
 // every worktree on the machine run one at a time, at low priority: several agents checking at once
 // otherwise start dozens of processes together. The lock is a file in the main checkout's
 // `.worktrees/logs/`, which every worktree shares; a lock whose process is dead is taken over. The

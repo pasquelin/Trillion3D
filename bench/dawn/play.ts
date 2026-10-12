@@ -22,7 +22,7 @@ export async function playScenario(options: BenchOptions, stem: string) {
   const busyBefore = await gpuBusy()
   const gpu = installGpu({ limits: options.profile.limits, featuresOff: options.featuresOff })
   const page = readPage(options.file)
-  const address = pageAddress(options.file, options.engine.root, options.search)
+  const address = pageAddress(options.file, options.search)
   const browser = installBrowser(options.display, address, page.canvasIds, page.elementIds)
   // The profiled play times the CPU alone: it captures nothing, its encoding would be profiled.
   const captures =

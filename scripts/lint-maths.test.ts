@@ -38,12 +38,11 @@ const FORMS: Record<string, string> = {
     'export const f = (v: number) => Math.pow(2, Math.ceil(Math.log2(v)))\n',
 }
 
-test('each form is refused outside packages/math, in a package, the site, the bench and a tool', async () => {
+test('each form is refused outside packages/math, in a package, the bench, a test and a tool', async () => {
   for (const [form, code] of Object.entries(FORMS))
     for (const path of [
       'packages/sdk-core/src/planted.ts',
       'packages/sdk-node/src/planted.mts',
-      'site/app/planted.tsx',
       'packages/sdk-core/src/scene/light-shadow/planted.ts',
       'bench/runner/planted.ts',
       'scripts/planted.ts',

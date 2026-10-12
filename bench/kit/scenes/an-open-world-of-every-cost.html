@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>An open world of every cost</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #cfd8e6;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import {
+        animation,
+        buffer,
+        colorSpace,
+        createWorld,
+        geometry,
+        joint,
+        light,
+        material,
+        math,
+        object,
+        texture,
+        wrap,
+      } from '../runtime/engine.js'
+      import { controls, seeded } from '../runtime/kit.js'
+
+      // THE BENCH'S SCENE: one world that carries every cost the engine counts at once, each part
+      // a switch (default on). Its parts, the cost each one carries and how its size is chosen:
+      //
+      // - Field: ~27 000 blocks on a 250 × 250 grid over 1 200 m, textured facades (a colour and a
+      //   normal map). The frame must cost what the view holds, not what the world holds: most
+      //   blocks are far or out of view, the sun's shadow caster set is the city.
+      // - Ground: a soil texture tiled every 6 m from world coordinates (colour, normal, 8×
+      //   anisotropy at grazing angles), around a basin dug for the water.
+      // - Pebble bed: 10 000 small spheres under a low sun: the densest, hardest sun shadows.
+      // - Glass: six panes and four tinted balls of the transmission material (refraction, IOR 1.5,
+      //   absorption over a thickness), composed on a frozen copy of the image.
+      // - Water: the engine's own (`world.physics.water`): a 60 × 40 m grid lying on the water's
+      //   level, moved on the GPU by the same waves the physics floats bodies on, drawn as
+      //   transmissive water (IOR 1.33, absorbed with depth).
+      // - Bodies (Jolt, in its worker): 240 bodies stirred in a bin by a paddle on a motored hinge,
+      //   which never lets them sleep, and 24 floating on the waves: steps, contacts, buoyancy and
+      //   the poses sent back every frame.
+      // - Trees: 42 skinned trees bent by the wind (`animation.windClip`): the mixers' sampling and
+      //   the GPU deformation of every vertex they move.
+      // - Compiled models: the engine's two test scenes from their compiled caches (a garden of
+      //   35 840 triangles, a mountain watershed scaled ten times), virtualized clustered geometry
+      //   streamed in pages and cut by the view, their cooked collision under the bodies. They are
+      //   compiled by `pnpm run compile:caches`; a cache missing stops the page by name.
+      // - Lamps: a ring of eight point lamps (the light lists per screen tile); the sun casts.
+      //
+      // Deterministic, the same image every run: every place, size and texel comes from seeded
+      // sequences; the physics is paused and the trees held at a seeded pose until the start key
+      // (`P`), which the bench's scenario `world` presses on its first measured frame
+      // (`bench/dawn/worldScenario.ts`), so whatever the warm-up took, the motion starts there,
+      // owing nothing: the physics steps a fixed step on the frames' clock (120 Hz in the bench,
+      // `bench/dawn/frames.ts`) and the clips advance by the same frames. Until the start the
+      // world is kept drawing, so its first moving frame spans one display interval, never the
+      // longer one the loop gives a frame after it slept.
+      const FIELD = { span: 1200, side: 250 }
+      const BED = { count: 10000, half: 9 }
+      const BASIN = { x: 30, z: -40, width: 60, depth: 40, floor: -4, level: -0.5 }
+      const YARD = { from: -74, to: -12, half: 26 }
+      const GARDEN = { x: -30, z: 0, scale: 1.5 }
+      const BIN = { x: -52, z: 0, half: 4, wall: 1.6, grid: 12, pitch: 0.62 }
+      const GROVE = { rows: [-17, 17], from: -70, count: 21, step: 2.3 }
+      const MOUNTAIN = { x: -160, z: -300, scale: 10, clear: 95 }
+      const TILE = 6
+      const START_KEY = 'KeyP'
+      const MODELS = '../../../tests/fixtures/scenes'
+
+      const world = createWorld('view', { controls: 'orbit', physics: true })
+      world.physics.paused = true
+      world.scene.background = math.color('#cfd8e6')
+      world.camera.far = FIELD.span * 2
+      const next = seeded(11)
+      const paint = seeded(23)
+
+      // The compiled models first: a cache that is not there stops the page, by name.
+      async function model(name, scene) {
+        const url = new URL(`${MODELS}/${scene}/cache/native/full/manifest.json`, location.href)
+          .href
+        try {
+          const loaded = await world.scene.load(url)
+          // The world's one sun lights them: their source files' own lights leave.
+          for (const lamp of [...loaded.lights]) loaded.remove(lamp)
+          return loaded
+        } catch (error) {
+          throw new Error(
+            `BENCH_SCENE_CACHE: the ${name} reads ${url}, compiled by \`pnpm run compile:caches\` (${error.message})`,
+          )
+        }
+      }
+      const garden = await model('garden', 'kinetic-garden')
+      garden.scale.set(GARDEN.scale, GARDEN.scale, GARDEN.scale)
+      garden.position.set(GARDEN.x, 0.3, GARDEN.z)
+      const mountain = await model('mountain', 'mountain-terrain')
+      mountain.scale.set(MOUNTAIN.scale, MOUNTAIN.scale, MOUNTAIN.scale)
+      mountain.position.set(MOUNTAIN.x, 0.5, MOUNTAIN.z)
+
+      // Textures, generated: tileable value noise, `cells` lattice cells an octave, wrapping round.
+      function noise(size, octaves) {
+        const out = new Float32Array(size * size)
+        let total = 0
+        octaves.forEach((cells, octave) => {
+          const weight = 0.5 ** octave
+          total += weight
+          const lattice = Array.from({ length: cells * cells }, () => paint())
+          const at = (i, j) => lattice[(j % cells) * cells + (i % cells)]
+          const ease = (t) => t * t * (3 - 2 * t)
+          for (let y = 0; y < size; y++) {
+            const fy = (y / size) * cells,
+              j = Math.floor(fy),
+              sy = ease(fy - j)
+            for (let x = 0; x < size; x++) {
+              const fx = (x / size) * cells,
+                i = Math.floor(fx),
+                sx = ease(fx - i)
+              const top = at(i, j) + (at(i + 1, j) - at(i, j)) * sx
+              const bottom = at(i, j + 1) + (at(i + 1, j + 1) - at(i, j + 1)) * sx
+              out[y * size + x] += weight * (top + (bottom - top) * sy)
+            }
+          }
+        })
+        for (let k = 0; k < out.length; k++) out[k] /= total
+        return out
+      }
+      // A repeating texture of `pixels`; a colour one carries the sRGB curve.
+      function repeated(pixels, size, colour, anisotropy = 1) {
+        const map = texture.data(pixels, size, size, 'rgba')
+        if (colour) map.colorSpace = colorSpace.srgb
+        map.wrapS = map.wrapT = wrap.repeat
+        map.anisotropy = anisotropy
+        return map
+      }
+      // The normal map of a height field: red leans right, green up the picture (its first row is
+      // its top), each slope read across two texels, wrapping round.
+      function normals(height, size, strength, anisotropy) {
+        const pixels = new Uint8Array(size * size * 4)
+        const at = (x, y) => height[((y + size) % size) * size + ((x + size) % size)]
+        for (let y = 0; y < size; y++)
+          for (let x = 0; x < size; x++) {
+            const dx = (at(x + 1, y) - at(x - 1, y)) * strength,
+              dy = (at(x, y + 1) - at(x, y - 1)) * strength
+            const length = Math.hypot(dx, dy, 1)
+            const k = (y * size + x) * 4
+            pixels[k] = Math.round((0.5 - dx / length / 2) * 255)
+            pixels[k + 1] = Math.round((0.5 - dy / length / 2) * 255)
+            pixels[k + 2] = Math.round((0.5 + 1 / length / 2) * 255)
+            pixels[k + 3] = 255
+          }
+        return repeated(pixels, size, false, anisotropy)
+      }
+      // Colours `low` to `high` (sRGB bytes) by a field's value.
+      function tinted(field, size, low, high) {
+        const pixels = new Uint8Array(size * size * 4)
+        for (let k = 0; k < size * size; k++) {
+          for (let c = 0; c < 3; c++)
+            pixels[k * 4 + c] = Math.round(low[c] + (high[c] - low[c]) * field[k])
+          pixels[k * 4 + 3] = 255
+        }
+        return pixels
+      }
+      const SIZE = 512
+      const soilHeight = noise(SIZE, [4, 8, 16, 32, 64])
+      const soil = {
+        map: repeated(tinted(soilHeight, SIZE, [96, 108, 70], [186, 182, 128]), SIZE, true, 8),
+        normalMap: normals(soilHeight, SIZE, 24, 8),
+      }
+      // A facade: six columns and eight rows of windows set into the wall, the wall's grain noise.
+      const grain = noise(SIZE, [16, 32, 64])
+      const relief = new Float32Array(SIZE * SIZE),
+        face = new Float32Array(SIZE * SIZE)
+      for (let y = 0; y < SIZE; y++)
+        for (let x = 0; x < SIZE; x++) {
+          const u = ((x / SIZE) * 6) % 1,
+            v = ((y / SIZE) * 8) % 1
+          const inset = Math.min(u - 0.22, 0.78 - u, v - 0.2, 0.75 - v)
+          const k = y * SIZE + x
+          relief[k] = math.clamp(0.5 - inset * 25, 0, 1)
+          face[k] = relief[k] * (0.75 + 0.25 * grain[k])
+        }
+      const facade = {
+        map: repeated(tinted(face, SIZE, [38, 52, 68], [238, 234, 226]), SIZE, true),
+        normalMap: normals(relief, SIZE, 1.5, 1),
+      }
+
+      // The ground: four slabs round the basin, the basin's floor below, textured from world
+      // coordinates so the slabs meet seamlessly; static bodies the bodies rest on.
+      const groundMatter = material.meshStandard({ roughness: 0.95, physics: 'stone', ...soil })
+      const sand = material.meshStandard({
+        color: '#c9b48a',
+        roughness: 0.9,
+        physics: 'stone',
+        normalMap: soil.normalMap,
+      })
+      function slab([x0, x1], [y0, y1], [z0, z1], matter) {
+        const centre = [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2]
+        const shape = geometry.box(x1 - x0, y1 - y0, z1 - z0)
+        const position = shape.getAttribute('position'),
+          normal = shape.getAttribute('normal'),
+          uv = shape.getAttribute('uv')
+        for (let v = 0; v < position.count; v++) {
+          const x = position.getX(v) + centre[0],
+            y = position.getY(v) + centre[1],
+            z = position.getZ(v) + centre[2]
+          const [a, b] =
+            Math.abs(normal.getY(v)) > 0.5
+              ? [x, z]
+              : Math.abs(normal.getX(v)) > 0.5
+                ? [z, y]
+                : [x, y]
+          uv.setX(v, a / TILE)
+          uv.setY(v, b / TILE)
+        }
+        const mesh = object.mesh(shape, matter)
+        mesh.position.set(...centre)
+        mesh.receiveShadow = true
+        mesh.physics = 'static'
+        return mesh
+      }
+      const [bx0, bx1] = [BASIN.x - BASIN.width / 2, BASIN.x + BASIN.width / 2]
+      const [bz0, bz1] = [BASIN.z - BASIN.depth / 2, BASIN.z + BASIN.depth / 2]
+      const edge = FIELD.span
+      const ground = [
+        slab([-edge, edge], [BASIN.floor, 0], [-edge, bz0], groundMatter),
+        slab([-edge, edge], [BASIN.floor, 0], [bz1, edge], groundMatter),
+        slab([-edge, bx0], [BASIN.floor, 0], [bz0, bz1], groundMatter),
+        slab([bx1, edge], [BASIN.floor, 0], [bz0, bz1], groundMatter),
+        slab([bx0, bx1], [BASIN.floor - 0.4, BASIN.floor], [bz0, bz1], sand),
+      ]
+
+      const blocks = object.group()
+      const block = geometry.box(1, 1, 1)
+      const walls = Array.from({ length: 8 }, (_, k) =>
+        material.meshStandard({
+          color: math.color('#c8b9a4').lerp(math.color('#7f8fa6'), k / 7),
+          roughness: 0.7,
+          ...facade,
+        }),
+      )
+      const step = FIELD.span / FIELD.side
+      // What no block stands on: the pebble bed and its lamps, the basin, the yard of the garden,
+      // the bin and the trees, the mountain, and the corridors the camera crosses (the descent
+      // along the middle, the glide between the blocks), so no view starts inside a wall.
+      const clear = (x, z) => {
+        if (Math.abs(x) < BED.half + 6 && Math.abs(z) < BED.half + 6) return true
+        if (
+          Math.abs(x - BASIN.x) < BASIN.width / 2 + 4 &&
+          Math.abs(z - BASIN.z) < BASIN.depth / 2 + 4
+        )
+          return true
+        if (x > YARD.from && x < YARD.to && Math.abs(z) < YARD.half) return true
+        if (Math.hypot(x - MOUNTAIN.x, z - MOUNTAIN.z) < MOUNTAIN.clear) return true
+        if (Math.abs(x) < 8 && z > 90) return true
+        const [ax, az, bx, bz] = [0, 60, 30, -20]
+        const t = Math.max(
+          0,
+          Math.min(
+            1,
+            ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2),
+          ),
+        )
+        return Math.hypot(x - (ax + t * (bx - ax)), z - (az + t * (bz - az))) < 10
+      }
+      for (let i = 0; i < FIELD.side; i++)
+        for (let j = 0; j < FIELD.side; j++) {
+          if (next() < 0.55 || clear((i - FIELD.side / 2) * step, (j - FIELD.side / 2) * step))
+            continue
+          const tall = 2 + next() * next() * 30
+          const mesh = object.mesh(block, walls[(i + j) % 8])
+          mesh.scale.set(step * (0.4 + next() * 0.4), tall, step * (0.4 + next() * 0.4))
+          mesh.position.set((i - FIELD.side / 2) * step, tall / 2, (j - FIELD.side / 2) * step)
+          mesh.castShadow = mesh.receiveShadow = true
+          blocks.add(mesh)
+        }
+
+      const pebbles = object.group()
+      const pebble = geometry.sphere(0.08, 12, 12)
+      const stones = Array.from({ length: 6 }, (_, k) =>
+        material.meshStandard({
+          color: math.color('#f4efe4').lerp(math.color('#2f6f8f'), k / 5),
+          roughness: 0.35,
+        }),
+      )
+      for (let k = 0; k < BED.count; k++) {
+        const mesh = object.mesh(pebble, stones[k % 6])
+        mesh.position.set((next() - 0.5) * 2 * BED.half, 0.03, (next() - 0.5) * 2 * BED.half)
+        mesh.scale.set(0.7 + next(), 0.5 + next() * 0.4, 0.7 + next() * 0.8)
+        mesh.castShadow = mesh.receiveShadow = true
+        pebbles.add(mesh)
+      }
+
+      // Glass: panes 3 cm thick and solid balls, light bent through them and absorbed on its way.
+      const glass = object.group()
+      const clearGlass = material.meshPhysical({
+        roughness: 0.04,
+        transmission: 1,
+        ior: 1.5,
+        thickness: 0.03,
+        attenuationColor: '#9fd4ff',
+        attenuationDistance: 0.4,
+      })
+      for (let k = 0; k < 6; k++) {
+        const pane = object.mesh(geometry.box(3, 2, 0.03), clearGlass)
+        pane.position.set(-6 + k * 2.4, 1.2, 3 - (k % 2) * 1.5)
+        pane.rotation.y = 0.3 * (k - 2.5)
+        glass.add(pane)
+      }
+      const amberGlass = material.meshPhysical({
+        roughness: 0.02,
+        transmission: 1,
+        ior: 1.5,
+        thickness: 0.8,
+        attenuationColor: '#ffc58a',
+        attenuationDistance: 1.5,
+      })
+      const ball = geometry.sphere(0.4, 48, 24)
+      for (const [x, z] of [
+        [-3, -2.5],
+        [1.5, -3],
+        [4, -0.5],
+        [-4.5, 0.8],
+      ]) {
+        const mesh = object.mesh(ball, amberGlass)
+        mesh.position.set(x, 0.4, z)
+        glass.add(mesh)
+      }
+
+      // The water: the physics' own, four waves of its model; the grid lying on its level is its
+      // surface, carried by those waves on the GPU. Its crests stay below the basin's rim.
+      const WATER = {
+        level: BASIN.level,
+        waves: [
+          { direction: [1, 0.35], wavelength: 11, amplitude: 0.2, steepness: 0.3 },
+          { direction: [0.5, 1], wavelength: 6.5, amplitude: 0.11, steepness: 0.25 },
+          { direction: [-0.6, 1], wavelength: 3.7, amplitude: 0.05, steepness: 0.15 },
+          { direction: [1, -0.8], wavelength: 2.3, amplitude: 0.025, steepness: 0.1 },
+        ],
+      }
+      const water = object.mesh(
+        geometry.plane(BASIN.width, BASIN.depth, 120, 80),
+        material.meshPhysical({
+          roughness: 0.04,
+          transmission: 1,
+          ior: 1.33,
+          thickness: BASIN.level - BASIN.floor,
+          attenuationColor: '#2a8a9a',
+          attenuationDistance: 5,
+        }),
+      )
+      water.rotation.x = -Math.PI / 2
+      water.position.set(BASIN.x, BASIN.level, BASIN.z)
+
+      // The bodies, each a direct child of the scene. The bin: four static walls, a paddle turned
+      // by a motor about a vertical hinge, and two layers of boxes, balls and drums at rest on a
+      // grid, the two rows the paddle stands on left empty.
+      const bodies = []
+      const binWalls = material.meshStandard({ color: '#8d8f94', roughness: 0.8, physics: 'stone' })
+      const binSides = [
+        [BIN.half * 2 + 0.6, 0.3, 0, BIN.half + 0.15],
+        [BIN.half * 2 + 0.6, 0.3, 0, -BIN.half - 0.15],
+        [0.3, BIN.half * 2, BIN.half + 0.15, 0],
+        [0.3, BIN.half * 2, -BIN.half - 0.15, 0],
+      ].map(([w, d, x, z]) => {
+        const wall = object.mesh(geometry.box(w, BIN.wall, d), binWalls)
+        wall.position.set(BIN.x + x, BIN.wall / 2, BIN.z + z)
+        wall.castShadow = wall.receiveShadow = true
+        wall.physics = 'static'
+        return wall
+      })
+      const paddle = object.mesh(
+        geometry.box(BIN.half * 2 - 0.4, 0.7, 0.3),
+        material.meshStandard({ color: '#d9822b', roughness: 0.5, physics: 'metal' }),
+      )
+      paddle.position.set(BIN.x, 0.5, BIN.z)
+      paddle.castShadow = paddle.receiveShadow = true
+      paddle.physics = { type: 'dynamic', mass: 300 }
+      bodies.push(paddle)
+      const stir = joint.hinge(paddle, null, {
+        anchor: [BIN.x, 0.5, BIN.z],
+        axis: [0, 1, 0],
+        motor: { mode: 'velocity', target: 0.8, maxForce: 80000 },
+      })
+      const KINDS = [
+        { shape: geometry.box(0.44, 0.44, 0.44), half: 0.22 },
+        { shape: geometry.sphere(0.22, 20, 12), half: 0.22 },
+        { shape: geometry.cylinder(0.2, 0.2, 0.44, 20), half: 0.22 },
+      ]
+      const toys = ['#e4572e', '#29335c', '#f3a712', '#669bbc'].map((color, k) =>
+        material.meshStandard({ color, roughness: 0.55, physics: k % 2 ? 'rubber' : 'wood' }),
+      )
+      for (let layer = 0; layer < 2; layer++)
+        for (let i = 0; i < BIN.grid; i++)
+          for (let j = 0; j < BIN.grid; j++) {
+            const x = (i - (BIN.grid - 1) / 2) * BIN.pitch,
+              z = (j - (BIN.grid - 1) / 2) * BIN.pitch
+            if (Math.abs(z) < 0.42) continue
+            const kind = KINDS[Math.floor(next() * KINDS.length)]
+            const mesh = object.mesh(kind.shape, toys[Math.floor(next() * toys.length)])
+            mesh.position.set(
+              BIN.x + x,
+              kind.half * (2 * layer + 1) + 0.001 * (layer + 1),
+              BIN.z + z,
+            )
+            mesh.rotation.y = next() * Math.PI
+            mesh.castShadow = mesh.receiveShadow = true
+            mesh.physics = 'dynamic'
+            bodies.push(mesh)
+          }
+      // What floats: crates, drums and balls lighter than water, one in each cell of a 6 × 4 grid
+      // over the basin, set on the water's level.
+      const floating = [
+        [
+          geometry.box(1, 1, 1),
+          material.meshStandard({ color: '#b7793f', roughness: 0.8, physics: 'wood' }),
+        ],
+        [
+          geometry.cylinder(0.45, 0.45, 1.3, 24),
+          material.meshStandard({
+            color: '#8e3b2b',
+            roughness: 0.55,
+            physics: 'wood',
+            density: 350,
+          }),
+        ],
+        [
+          geometry.sphere(0.45, 24, 16),
+          material.meshStandard({
+            color: '#ffc93a',
+            roughness: 0.4,
+            physics: 'rubber',
+            density: 120,
+          }),
+        ],
+      ]
+      for (let i = 0; i < 6; i++)
+        for (let j = 0; j < 4; j++) {
+          const [shape, matter] = floating[Math.floor(next() * floating.length)]
+          const mesh = object.mesh(shape, matter)
+          mesh.position.set(
+            bx0 + ((i + 0.5) / 6) * BASIN.width + (next() - 0.5) * 4,
+            BASIN.level + 0.1,
+            bz0 + ((j + 0.5) / 4) * BASIN.depth + (next() - 0.5) * 4,
+          )
+          mesh.rotation.y = next() * Math.PI
+          mesh.castShadow = mesh.receiveShadow = true
+          mesh.physics = 'dynamic'
+          bodies.push(mesh)
+        }
+
+      // The trees: a trunk and a crown skinned to three bones, shared by every tree, each tree its
+      // own bones and its own wind, held at a seeded moment of it until the world moves.
+      const parts = [
+        [geometry.cylinder(0.13, 0.24, 3.5, 12, 16).translate(0, 1.75, 0), '#76543b'],
+        [geometry.cone(1.2, 3.4, 20, 20).translate(0, 3.3, 0), '#52a87c'],
+      ].map(([shape, color]) => {
+        const positions = shape.getAttribute('position')
+        const joints = new Uint16Array(positions.count * 4),
+          weights = new Float32Array(positions.count * 4)
+        for (let v = 0; v < positions.count; v++) {
+          const height = math.clamp(positions.getY(v) / 1.5, 0, 2)
+          const low = Math.floor(height),
+            high = Math.min(2, low + 1),
+            mix = height - low
+          joints.set([low, high, 0, 0], v * 4)
+          weights.set([1 - mix, mix, 0, 0], v * 4)
+        }
+        shape.setAttribute('skinIndex', buffer.uint16(joints, 4))
+        shape.setAttribute('skinWeight', buffer.float32(weights, 4))
+        return [shape, material.meshStandard({ color, roughness: 0.9 })]
+      })
+      const grove = object.group()
+      const sways = []
+      for (const row of GROVE.rows)
+        for (let rank = 0; rank < GROVE.count; rank++) {
+          const tree = object.group()
+          const bones = Array.from({ length: 3 }, (_, k) => {
+            const bone = object.group()
+            bone.name = `bough${k}`
+            bone.position.y = k ? 1.5 : 0
+            return bone
+          })
+          tree.add(bones[0])
+          bones[0].add(bones[1])
+          bones[1].add(bones[2])
+          // Bound while the tree stands at the origin: its rest pose is its bind pose.
+          const skeleton = animation.skeleton(bones)
+          for (const [shape, matter] of parts) {
+            const mesh = object.mesh(shape, matter)
+            mesh.skeleton = skeleton
+            mesh.castShadow = mesh.receiveShadow = true
+            tree.add(mesh)
+          }
+          const size = 0.7 + next() * 0.4
+          tree.scale.set(size, size, size)
+          tree.position.set(
+            GROVE.from + rank * GROVE.step + (next() - 0.5),
+            0,
+            row + (next() - 0.5) * 2,
+          )
+          tree.rotation.y = next() * Math.PI * 2
+          grove.add(tree)
+          tree.updateMatrixWorld(true)
+          const wind = animation.windClip(bones, {
+            direction: [1, 0.3],
+            angle: 0.06 + next() * 0.05,
+            frequency: 0.3 + next() * 0.25,
+          })
+          sways.push(
+            animation
+              .createMixer(tree)
+              .clipAction(wind)
+              .seek(next() * wind.duration),
+          )
+        }
+
+      const lamps = object.group()
+      for (let k = 0; k < 8; k++) {
+        const turn = (k / 8) * Math.PI * 2
+        lamps.add(
+          light.point({
+            color: k % 2 ? '#ffb45e' : '#8ec5ff',
+            intensity: 14,
+            distance: 9,
+            position: [Math.cos(turn) * 6, 1.4, Math.sin(turn) * 6],
+          }),
+        )
+      }
+
+      const sun = light.directional({ intensity: 3.5, color: '#ffc58a', castShadow: true })
+      sun.position.set(-60, 28, 40)
+      world.scene.add(
+        ...ground,
+        ...binSides,
+        blocks,
+        pebbles,
+        glass,
+        water,
+        grove,
+        lamps,
+        sun,
+        light.hemisphere({ intensity: 1, color: '#9fb4ff', groundColor: '#8a7456' }),
+      )
+
+      // The start: the physics runs, the trees sway. Until then the world keeps drawing.
+      let moving = false
+      function start() {
+        if (moving) return
+        moving = true
+        world.physics.paused = false
+        for (const sway of sways) sway.play()
+        world.invalidate()
+      }
+      window.addEventListener('keydown', (event) => {
+        if (event.code === START_KEY) start()
+      })
+      world.onFrame(() => {
+        if (!moving) world.invalidate()
+      })
+
+      // Five places to stand: high over the field, low among the blocks, over the water, above
+      // the yard, and close to the pebbles.
+      const PLACES = {
+        overview: [
+          [0, 200, 760],
+          [0, 0, 0],
+        ],
+        among: [
+          [0, 6, 60],
+          [0, 4, -60],
+        ],
+        water: [
+          [30, 3, -20],
+          [30, 0, -60],
+        ],
+        yard: [
+          [-26, 9, 23],
+          [-46, 0.5, 0],
+        ],
+        pebbles: [
+          [2.2, 0.9, 3.2],
+          [-1, 0, -1],
+        ],
+      }
+      world.camera.position.set(...PLACES.overview[0])
+      world.controls.target.set(...PLACES.overview[1])
+      world.controls.maxDistance = FIELD.span * 2
+
+      const textured = [groundMatter, ...walls]
+      controls(
+        {
+          motion: 'P sets the water, the bodies and the trees moving',
+          place: Object.keys(PLACES),
+          blocks: true,
+          pebbles: true,
+          glass: true,
+          water: true,
+          bodies: true,
+          trees: true,
+          models: true,
+          textures: true,
+          lamps: true,
+          sunShadows: true,
+          view: ['beauty', 'clusters'],
+        },
+        (values, key) => {
+          if (key === undefined || key === 'place') {
+            const [position, target] = PLACES[values.place]
+            world.camera.position.set(...position)
+            world.controls.target.set(...target)
+          }
+          if (key === undefined || key === 'water')
+            world.physics.water = values.water ? WATER : null
+          if (key === undefined || key === 'bodies') {
+            for (const body of bodies)
+              if (values.bodies) world.scene.add(body)
+              else world.scene.remove(body)
+            if (values.bodies) world.physics.add(stir)
+            else world.physics.remove(stir)
+          }
+          if (key === 'textures')
+            for (const matter of textured) {
+              const maps = matter === groundMatter ? soil : facade
+              matter.map = values.textures ? maps.map : null
+              matter.normalMap = values.textures ? maps.normalMap : null
+            }
+          blocks.visible = values.blocks
+          pebbles.visible = values.pebbles
+          glass.visible = values.glass
+          water.visible = values.water
+          grove.visible = values.trees
+          garden.visible = mountain.visible = values.models
+          lamps.visible = values.lamps
+          sun.castShadow = values.sunShadows
+          world.diagnostic.mode = values.view
+          world.invalidate()
+        },
+      )
+    </script>
+  </body>
+</html>

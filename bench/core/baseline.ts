@@ -4,7 +4,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { baselinePath, BASELINES } from './paths.ts'
-import type { Measurement } from '../../site/examples/kit/measureTypes.ts'
+import type { Measurement } from '../kit/measureTypes.ts'
 import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
 
 /** One stored baseline row, keyed by measurement/case pair. */

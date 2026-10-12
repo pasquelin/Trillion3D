@@ -1,5 +1,5 @@
-// The page elements the bench host gives a page in Node: enough of an element for the examples' kit
-// to build its panels without drawing them (the canvas is `canvas.ts`).
+// The page elements the bench host gives a page in Node: enough of an element for a page to build
+// its own panels without drawing them (the canvas is `canvas.ts`).
 
 import { matches, selectAll } from './selector.ts'
 
@@ -120,7 +120,7 @@ export class FakeElement extends EventTarget {
     else this.attributes.delete(name)
     return on
   }
-  /** The kit's overlay draws in a shadow root of its own (`site/examples/kit/overlay.ts`). */
+  /** A page's overlay may draw in a shadow root of its own. */
   attachShadow() {
     const root = new FakeElement('#shadow-root', this.ownerDocument)
     root.parentElement = null

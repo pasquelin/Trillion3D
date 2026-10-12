@@ -44,17 +44,17 @@ into the implementation hash, one path per line from the crate (`build_inputs.rs
 sources of the compiler and of the crates it links, their manifests, the lock file, the build
 scripts and the cargo configuration.
 
-| Argument | Meaning | Default |
-|---|---|---|
-| `SOURCE` | A folder with `manifest.json`, a `.gltf`/`.glb`, a scene or container of [Input formats](#input-formats), or a folder of such files merged into one scene | required |
-| `CACHE` | Output folder, created if missing; one pointer per scope, pruned after each compile, so one source per cache | required |
-| scope | `slice` keeps whole mesh instances up to the triangle budget; `full` keeps everything | required |
-| `TRIANGLES` | Positive triangle budget of `slice`; ignored by `full` | required |
-| `THREADS` | Worker threads of the job, 1–64 | `2` |
-| `RAM_MB` | Admission budget, at least 64: a job estimated above it is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`); a guard, not a process limit | `256` |
-| `RESOURCE_BASE_URL` | URL prefix under which the host serves the source folder; relative image URIs are rewritten against it | required |
-| `SIMPLIFICATION` | `none`: exact clusters, every one a root; `qem-endpoints`: the coarser levels above them | `none` |
-| `--textures-format=` | `all`, `bc7`, `astc`, `etc2` or `none`: the GPU block families cooked beside the lossless levels, kept only where they pass the quality gate ([FORMAT.md](FORMAT.md#textures)) | `all` |
+| Argument             | Meaning                                                                                                                                                                        | Default  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
+| `SOURCE`             | A folder with `manifest.json`, a `.gltf`/`.glb`, a scene or container of [Input formats](#input-formats), or a folder of such files merged into one scene                      | required |
+| `CACHE`              | Output folder, created if missing; one pointer per scope, pruned after each compile, so one source per cache                                                                   | required |
+| scope                | `slice` keeps whole mesh instances up to the triangle budget; `full` keeps everything                                                                                          | required |
+| `TRIANGLES`          | Positive triangle budget of `slice`; ignored by `full`                                                                                                                         | required |
+| `THREADS`            | Worker threads of the job, 1–64                                                                                                                                                | `2`      |
+| `RAM_MB`             | Admission budget, at least 64: a job estimated above it is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`); a guard, not a process limit                                             | `256`    |
+| `RESOURCE_BASE_URL`  | URL prefix under which the host serves the source folder; relative image URIs are rewritten against it                                                                         | required |
+| `SIMPLIFICATION`     | `none`: exact clusters, every one a root; `qem-endpoints`: the coarser levels above them                                                                                       | `none`   |
+| `--textures-format=` | `all`, `bc7`, `astc`, `etc2` or `none`: the GPU block families cooked beside the lossless levels, kept only where they pass the quality gate ([FORMAT.md](FORMAT.md#textures)) | `all`    |
 
 ```sh
 trillion3d-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
@@ -74,21 +74,32 @@ process, each with its own cache:
   "workers": 2,
   "ramBudgetMb": 16384,
   "jobs": [
-    {"id": "city", "source": "scenes/city/city.obj", "cache": "cache/city", "resourceBaseUrl": "/assets/city/"},
-    {"id": "london", "source": "scenes/london", "cache": "cache/london", "resourceBaseUrl": "/assets/london/", "threads": 8}
+    {
+      "id": "city",
+      "source": "scenes/city/city.obj",
+      "cache": "cache/city",
+      "resourceBaseUrl": "/assets/city/"
+    },
+    {
+      "id": "london",
+      "source": "scenes/london",
+      "cache": "cache/london",
+      "resourceBaseUrl": "/assets/london/",
+      "threads": 8
+    }
   ]
 }
 ```
 
-| Field | Meaning | Default |
-|---|---|---|
-| `workers` | Concurrent jobs, at most 64, lowered until the budget holds them | `1` |
-| `ramBudgetMb` | Budget of the whole batch, split between workers unless a job sets its own | `256 × workers` |
-| `threads` | Default threads per job | `2` |
-| `jobs[].id` | Unique job id in events and the summary | `job-<index>` |
-| `jobs[].source`, `cache`, `resourceBaseUrl` | As on the command line | required |
-| `jobs[].scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification` | Per-job overrides | `full`, `150000`, batch default, batch share, `none` |
-| `jobs[].texturesFormat` | As `--textures-format=` | `all` |
+| Field                                                                   | Meaning                                                                    | Default                                              |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `workers`                                                               | Concurrent jobs, at most 64, lowered until the budget holds them           | `1`                                                  |
+| `ramBudgetMb`                                                           | Budget of the whole batch, split between workers unless a job sets its own | `256 × workers`                                      |
+| `threads`                                                               | Default threads per job                                                    | `2`                                                  |
+| `jobs[].id`                                                             | Unique job id in events and the summary                                    | `job-<index>`                                        |
+| `jobs[].source`, `cache`, `resourceBaseUrl`                             | As on the command line                                                     | required                                             |
+| `jobs[].scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification` | Per-job overrides                                                          | `full`, `150000`, batch default, batch share, `none` |
+| `jobs[].texturesFormat`                                                 | As `--textures-format=`                                                    | `all`                                                |
 
 Jobs go in file order to the first free worker. Two jobs writing one cache, under any spelling, or
 a job asking for more than the whole budget, refuse the batch before it starts (`INVALID_BATCH`).
@@ -111,31 +122,31 @@ being `"job"` for a single invocation and `"*"` on batch lines. `accepted`, `pro
 `complete` carry `ratio`, a whole-job estimate from 0 to 1 that never goes backwards
 (`compiler_ratio.rs`), and `peakRssBytes`, the process's peak memory so far.
 
-| Event | When | Fields |
-|---|---|---|
-| `batch` | First line of `--jobs` | `jobs`, `workers` |
-| `queued` | Each batch job, before any work | `source` |
-| `accepted` | A worker starts the job | `source`, `cache`, `scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification` |
-| `progress` `import-source` | A converting driver writes its scene | `step` (`parse`, `meshes`, `write`, `complete`, `reused`), `completed`, `total` |
-| `progress` `archive` | A container is extracted, then routed | `step` (`extract`, `routed`), `entries`, `bytes`, `chain` |
-| `progress` `import` | Scene loaded and validated | `primitives`, `nodes`, `unsupported` (counts by code), `ms` |
-| `progress` `primitive` | One primitive clustered and paged, in no fixed order | `mesh`, `primitive`, `pages`, `timings`, `warnings` |
-| `progress` `bootstrap` | Root bundles assembled | `completed`, `total` |
-| `progress` `coplanar` | Coplanar cuts | `step`, `completed`, `total` |
-| `progress` `textures` | One source image baked | `completed`, `total` |
-| `progress` `cutouts` | Cutout answer sheet written | `pending`, `sheet` |
-| `progress` `tables` | Prepared scene tables written | `counts`, `ms` |
-| `progress` `proxy` | Resident lighting proxy built | `triangles`, `nodes`, `errorMetres` |
-| `progress` `impostors` | Impostor atlases baked | `baked` |
-| `progress` `lights` | `lights.json` written | `lights`, `rejected`, `counts` |
-| `progress` `reuse` | A folder under the key kept (`completed: 1`) or refused (`reason`) | `completed`, `files`, `objects`, `textureLevels`, `validateMs`, `reason` |
-| `progress` `prune` | Stale keys, imports, objects or texture levels removed | `removedKeys`, `removedObjects`, `removedBytes`, `removedTextures` |
-| `progress` `complete` | Pointer written | `pruned` |
-| `stall` | Success with stalled DAG groups, before `complete` | `rank`, `mesh`, `primitive`, `rootTriangles`, `cause`, `seamVertices`, `lockedVertices`, `uvIslands` |
-| `complete` | The job succeeded | `pointer` (as on stdout), `ms` |
-| `cancelled` | The job stopped on a cancel request | `code: "CANCELLED"`, `message`, `ms`, catalogue fields |
-| `error` | The job failed | `code`, `message`, `ms`, catalogue fields |
-| `done` | Last line of `--jobs` | `completed`, `failed`, `cancelled`, `ms` |
+| Event                      | When                                                               | Fields                                                                                               |
+| -------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `batch`                    | First line of `--jobs`                                             | `jobs`, `workers`                                                                                    |
+| `queued`                   | Each batch job, before any work                                    | `source`                                                                                             |
+| `accepted`                 | A worker starts the job                                            | `source`, `cache`, `scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification`                  |
+| `progress` `import-source` | A converting driver writes its scene                               | `step` (`parse`, `meshes`, `write`, `complete`, `reused`), `completed`, `total`                      |
+| `progress` `archive`       | A container is extracted, then routed                              | `step` (`extract`, `routed`), `entries`, `bytes`, `chain`                                            |
+| `progress` `import`        | Scene loaded and validated                                         | `primitives`, `nodes`, `unsupported` (counts by code), `ms`                                          |
+| `progress` `primitive`     | One primitive clustered and paged, in no fixed order               | `mesh`, `primitive`, `pages`, `timings`, `warnings`                                                  |
+| `progress` `bootstrap`     | Root bundles assembled                                             | `completed`, `total`                                                                                 |
+| `progress` `coplanar`      | Coplanar cuts                                                      | `step`, `completed`, `total`                                                                         |
+| `progress` `textures`      | One source image baked                                             | `completed`, `total`                                                                                 |
+| `progress` `cutouts`       | Cutout answer sheet written                                        | `pending`, `sheet`                                                                                   |
+| `progress` `tables`        | Prepared scene tables written                                      | `counts`, `ms`                                                                                       |
+| `progress` `proxy`         | Resident lighting proxy built                                      | `triangles`, `nodes`, `errorMetres`                                                                  |
+| `progress` `impostors`     | Impostor atlases baked                                             | `baked`                                                                                              |
+| `progress` `lights`        | `lights.json` written                                              | `lights`, `rejected`, `counts`                                                                       |
+| `progress` `reuse`         | A folder under the key kept (`completed: 1`) or refused (`reason`) | `completed`, `files`, `objects`, `textureLevels`, `validateMs`, `reason`                             |
+| `progress` `prune`         | Stale keys, imports, objects or texture levels removed             | `removedKeys`, `removedObjects`, `removedBytes`, `removedTextures`                                   |
+| `progress` `complete`      | Pointer written                                                    | `pruned`                                                                                             |
+| `stall`                    | Success with stalled DAG groups, before `complete`                 | `rank`, `mesh`, `primitive`, `rootTriangles`, `cause`, `seamVertices`, `lockedVertices`, `uvIslands` |
+| `complete`                 | The job succeeded                                                  | `pointer` (as on stdout), `ms`                                                                       |
+| `cancelled`                | The job stopped on a cancel request                                | `code: "CANCELLED"`, `message`, `ms`, catalogue fields                                               |
+| `error`                    | The job failed                                                     | `code`, `message`, `ms`, catalogue fields                                                            |
+| `done`                     | Last line of `--jobs`                                              | `completed`, `failed`, `cancelled`, `ms`                                                             |
 
 A code the message catalogue knows leaves with its catalogue fields: `id`, the stable public code
 (`T3D-Exxx` error, `T3D-Wxxx` warning, `T3D-Ixxx` info), `level`, `cause` and `action`; so do a
@@ -155,7 +166,7 @@ stdout for one job (abridged):
   "formatVersion": 9,
   "selectedTriangles": 1132930,
   "primitives": 412,
-  "metrics": {"importMs": 1571.7, "clusterHierarchyPagesMs": 1822.8, "wallMs": 3411.2},
+  "metrics": { "importMs": 1571.7, "clusterHierarchyPagesMs": 1822.8, "wallMs": 3411.2 },
   "unsupported": ["hard RSS enforcement", "N-API binding"],
   "reused": null
 }
@@ -231,12 +242,12 @@ N-API or WebAssembly binding is provided.
 
 ## Exit codes and error codes
 
-| Program | Code | Meaning |
-|---|---|---|
-| `trillion3d-compiler` | 0 | Every job ready |
-| `trillion3d-compiler` | 2 | Usage error, invalid batch, or a job failed or cancelled; stdout carries the error or the summary |
-| `trillion3d-compile` | 1 | Any failure |
-| `trillion3d-compile` | 3 | `--strict` and a warning (`STRICT_WARNINGS`); the cache is written |
+| Program               | Code | Meaning                                                                                           |
+| --------------------- | ---- | ------------------------------------------------------------------------------------------------- |
+| `trillion3d-compiler` | 0    | Every job ready                                                                                   |
+| `trillion3d-compiler` | 2    | Usage error, invalid batch, or a job failed or cancelled; stdout carries the error or the summary |
+| `trillion3d-compile`  | 1    | Any failure                                                                                       |
+| `trillion3d-compile`  | 3    | `--strict` and a warning (`STRICT_WARNINGS`); the cache is written                                |
 
 Every code, of the compiler, its drivers and the Node adapter, has a stable public code, one
 sentence, its cause and its action, printed with the message from the catalogue
@@ -257,23 +268,23 @@ established legal reading (this page is not legal advice): each reader is writte
 repository, its dependencies' licenses kept, no editor code or SDK reused, no protection bypassed.
 An unknown or ambiguous source is refused with the list of accepted formats.
 
-| Format | Driver | Reader and condition | Dropped, counted by code |
-|---|---|---|---|
-| glTF / GLB | `gltf` | Khronos standard; Draco and meshopt decoded | Nodes outside the rendered scene; quantized positions refused |
-| FBX | `fbx` | MIT ufbx, pinned, never the Autodesk SDK | Cameras, area lights, procedural textures, UV transforms |
-| OBJ / MTL | `obj` | Published specification, through ufbx ([fixture](../tests/fixtures/formats/README.md#obj)) | MTL `Tr`, `illum`, `-o`, `-s`, `-bm` |
-| USD / USDA / USDC | `usd` | AOUSD, TOST 1.0; `openusd` crate, pure Rust | Non-punctual lights, animation (one value kept) |
-| USDZ | `usdz` | Stored, aligned ZIP container | As USD |
-| Alembic | `alembic` | Open, BSD-3; Ogawa reader written here | All but static geometry |
-| `.blend` | `blend` | Documented SDNA, no GPL imposed; reader written here | All but Blender 2.8–5.x meshes, UVs, instances, Principled BSDF |
-| Maya ASCII | `ma` | Public MEL command docs; no script executed | Commands outside the read subset |
-| Unity `.unity`, `.prefab`, `.mat`, `.meta` | `unity` | Documented YAML subset; data only | Scripts |
-| `.unitypackage`, ZIP | `unitypackage`, `zip` | tar.gz and ZIP; each file keeps its license | Encrypted archives refused |
-| PNG, JPEG, TGA, TIFF, BMP, GIF | one each | Open specifications | Animated GIF, BMP masks above 8 bits |
-| OpenEXR, Radiance HDR | `exr`, `hdr` | BSD-3 `exr` crate; HDR reader written here | — |
-| PSD / PSB | `psd` | Adobe's published specification | Layers: the flattened composite only |
-| DDS, KTX2 | `dds`, `ktx2` | Documented containers; `basisu` Apache-2 | Undeclared codecs, KTX 1.0 |
-| WebP | `webp` | Pure Rust `image-webp`, libwebp patent license | Lossy streams, animation |
+| Format                                     | Driver                | Reader and condition                                                                       | Dropped, counted by code                                        |
+| ------------------------------------------ | --------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| glTF / GLB                                 | `gltf`                | Khronos standard; Draco and meshopt decoded                                                | Nodes outside the rendered scene; quantized positions refused   |
+| FBX                                        | `fbx`                 | MIT ufbx, pinned, never the Autodesk SDK                                                   | Cameras, area lights, procedural textures, UV transforms        |
+| OBJ / MTL                                  | `obj`                 | Published specification, through ufbx ([fixture](../tests/fixtures/formats/README.md#obj)) | MTL `Tr`, `illum`, `-o`, `-s`, `-bm`                            |
+| USD / USDA / USDC                          | `usd`                 | AOUSD, TOST 1.0; `openusd` crate, pure Rust                                                | Non-punctual lights, animation (one value kept)                 |
+| USDZ                                       | `usdz`                | Stored, aligned ZIP container                                                              | As USD                                                          |
+| Alembic                                    | `alembic`             | Open, BSD-3; Ogawa reader written here                                                     | All but static geometry                                         |
+| `.blend`                                   | `blend`               | Documented SDNA, no GPL imposed; reader written here                                       | All but Blender 2.8–5.x meshes, UVs, instances, Principled BSDF |
+| Maya ASCII                                 | `ma`                  | Public MEL command docs; no script executed                                                | Commands outside the read subset                                |
+| Unity `.unity`, `.prefab`, `.mat`, `.meta` | `unity`               | Documented YAML subset; data only                                                          | Scripts                                                         |
+| `.unitypackage`, ZIP                       | `unitypackage`, `zip` | tar.gz and ZIP; each file keeps its license                                                | Encrypted archives refused                                      |
+| PNG, JPEG, TGA, TIFF, BMP, GIF             | one each              | Open specifications                                                                        | Animated GIF, BMP masks above 8 bits                            |
+| OpenEXR, Radiance HDR                      | `exr`, `hdr`          | BSD-3 `exr` crate; HDR reader written here                                                 | —                                                               |
+| PSD / PSB                                  | `psd`                 | Adobe's published specification                                                            | Layers: the flattened composite only                            |
+| DDS, KTX2                                  | `dds`, `ktx2`         | Documented containers; `basisu` Apache-2                                                   | Undeclared codecs, KTX 1.0                                      |
+| WebP                                       | `webp`                | Pure Rust `image-webp`, libwebp patent license                                             | Lossy streams, animation                                        |
 
 Not read: `.uasset` / `.umap`, `.max`, `.mb`, native SpeedTree, Substance `.sbsar`, CAD (`.step`,
 `.3dm`), point clouds, HEIC. Export to one of the formats above.
@@ -287,7 +298,8 @@ keeps its outline, and a ring the ears cannot finish falls back on the fan, coun
 
 ### Content Licenses — Independent of Format
 
-Audit local asset and license manifests with [the offline license audit](ASSET_LICENSE_AUDIT.md).
+Audit a local asset and license manifest offline with `pnpm audit:assets <manifest.json>`
+(`scripts/asset-license-manifest.ts` holds its shape).
 
 - FAB Standard License: other tools and engines permitted, standalone asset redistribution
   prohibited; keep the purchase EULA.

@@ -3,7 +3,6 @@ import test from 'node:test'
 import {
   cross2,
   distanceSqVector3,
-  divideVector3,
   distanceVector3,
   dotScalar3,
   dotVector3,
@@ -143,13 +142,4 @@ test('cross2 is the z of the 3D cross product, ax·by − ay·bx', () => {
   assert.equal(cross2(1, 0, 0, 1), 1)
   assert.equal(cross2(0, 1, 1, 0), -1)
   assert.equal(cross2(2, 3, 4, 6), 0)
-})
-
-test('divideVector3 divides each component at the offset, not multiplying by the inverse', () => {
-  const v = [9, 1, 2, 3]
-  assert.equal(divideVector3(v, 1, 3), v)
-  assert.deepEqual(v, [9, 1 / 3, 2 / 3, 1])
-  const w = [0.1, 0.7, 0.3]
-  divideVector3(w, 0, 3)
-  assert.ok(Object.is(w[1], 0.7 / 3))
 })

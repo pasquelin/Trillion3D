@@ -89,7 +89,7 @@ export async function measureFluids({ sdkUrl, settings, captureFile, scene }: Fl
   document.body.append(canvas)
   // GPU incidents are published where the bench rereads them (`withGpuIncidents`).
   const lost: string[] = (globalThis.gpuIncidents = [])
-  // The world leads its own loop, as every physics example does.
+  // The world leads its own loop, as every physics scene does.
   const world = sdk.createWorld(canvas, { physics: true, temporalAntialiasing })
   try {
     await world.ready

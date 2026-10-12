@@ -4,7 +4,7 @@
 import v8 from 'node:v8'
 import vm from 'node:vm'
 import { medianOf, summaryOf } from '../../packages/math/src/scalar/quantile.ts'
-import type { Stats } from '../../site/examples/kit/measureTypes.ts'
+import type { Stats } from '../kit/measureTypes.ts'
 import { ceilDiv } from '../../packages/math/src/scalar/integers.ts'
 
 export interface Reglages {

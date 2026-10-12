@@ -2,31 +2,24 @@ import { GOLDEN } from './golden-checks.ts'
 import { TREE_GATES } from './validate-steps.ts'
 
 // What `check:changed` runs for a change (`scripts/check-changed.ts`). A change that touches only
-// documentation, site images or translations runs the gates and the unit tests that read those
-// files (`scripts/docs/tests.ts`), and no API generation, scene cache or type check.
+// documentation — Markdown, and images outside the code trees — runs the gates, and no scene cache,
+// type check or unit test.
 
-export const sourcePattern = /\.(?:[cm]?ts|tsx)$/
-export const formatPattern = /\.(?:[cm]?ts|tsx|json)$/
+export const sourcePattern = /\.[cm]?ts$/
+export const formatPattern = /\.(?:[cm]?ts|json)$/
 
 const markdown = /\.md$/
 const MESSAGE_CATALOGUE = 'packages/sdk-node/src/messages/messages.json'
 // The notices ship in the package (`package.json` `files`): code, not documentation.
 const packaged = /^THIRD_PARTY_NOTICES\.md$/
-const translation = /^site\/(?:content\/|examples\/)?i18n\/[^/]+\.json$/
-// English is the reference the site's code types its dictionaries from (`typeof english`,
-// `site/content/i18n/dictionary.ts`): a change of it is type-checked, so it is code.
-const english = /^site\/(?:content\/|examples\/)?i18n\/en\.json$/
-// Images outside the trees whose tests and fixtures read them, and outside the scene sources and
-// models the compiler cooks (`site/assets/examples/<scene>/source/`, `…/models/`), which the Rust
-// tests and the scene caches read.
-const siteImage =
-  /^(?!tests\/|bench\/|packages\/|site\/assets\/.*\/(?:source|models)\/).*\.(?:png|jpe?g|gif|webp|avif|svg)$/i
+// Images outside the code trees, whose tests, fixtures and scene sources read them.
+const documentImage =
+  /^(?!tests\/|bench\/|packages\/|scripts\/).*\.(?:png|jpe?g|gif|webp|avif|svg)$/i
 
-/** Whether `file` is documentation, a site image or a translation, which only the tests of
- *  `scripts/docs/tests.ts` read. */
-export function isDocumentation(file: string): boolean {
-  if (packaged.test(file) || english.test(file)) return false
-  return markdown.test(file) || translation.test(file) || siteImage.test(file)
+/** Whether `file` is documentation: Markdown, or an image outside the code trees. */
+function isDocumentation(file: string): boolean {
+  if (packaged.test(file)) return false
+  return markdown.test(file) || documentImage.test(file)
 }
 
 /** Whether `paths` touch anything but documentation: an empty list counts as code, so a change
@@ -37,7 +30,6 @@ export function isCodeChange(paths: readonly string[]): boolean {
 
 /** A step of `check:changed`; `check:x` names the gate `node scripts/check-x.ts`. */
 export type ChangedStep =
-  | 'generate:api'
   | 'compile:caches'
   | 'check:lines'
   | 'check:cohesion'
@@ -46,8 +38,6 @@ export type ChangedStep =
   | 'types'
   | 'duplicates'
   | 'check:unused'
-  | 'check:links'
-  | 'check:i18n'
   | (typeof TREE_GATES)[number]
   | 'rust'
   | 'golden'
@@ -55,8 +45,7 @@ export type ChangedStep =
 
 /**
  * The steps of `check:changed`, in order, for the `changed` paths (deleted ones included), of which
- * `existing` still exist; `tests` is the number of unit tests the change selects, those that read
- * documentation included.
+ * `existing` still exist; `tests` is the number of unit tests the change selects.
  */
 export function changedSteps(
   changed: readonly string[],
@@ -64,7 +53,7 @@ export function changedSteps(
   tests: number,
 ): ChangedStep[] {
   const code = isCodeChange(changed)
-  const steps: ChangedStep[] = code ? ['generate:api', 'compile:caches', 'check:lines'] : []
+  const steps: ChangedStep[] = code ? ['compile:caches', 'check:lines'] : []
   if (existing.some((file) => formatPattern.test(file))) steps.push('format')
   const sources = existing.some((file) => sourcePattern.test(file))
   if (sources) steps.push('lint')
@@ -75,8 +64,6 @@ export function changedSteps(
   if (sources || existing.some((file) => file.endsWith('.rs'))) steps.push('duplicates')
   // A deleted source can leave an export only its tests used: any code change, deletions included.
   if (code) steps.push('check:unused')
-  if (existing.some((file) => markdown.test(file))) steps.push('check:links')
-  if (existing.some((file) => translation.test(file))) steps.push('check:i18n')
   steps.push(...TREE_GATES)
   // The compiler embeds the message catalogue (`asset-compiler-rust/src/messages.rs`). A golden
   // value alone is no Rust change: the `golden` step below holds it to the crates.

@@ -30,7 +30,7 @@ import { MIB } from '../packages/math/src/constants.ts'
 import { sha256 } from '../packages/sdk-node/src/compiler/provenance.mts'
 import { cacheVersions, classify } from './compiler-versions.ts'
 import { compileFullCache } from './native-compiler.ts'
-import { COOKED_SCENES } from './site-caches.ts'
+import { TEST_SCENES } from './scene-caches.ts'
 import { REPOSITORY_ROOT, readJson, filesUnder, posixPath } from './repository-files.ts'
 
 /** The scenes the distributed compiler is proved and trained on, both committed and read by the
@@ -101,7 +101,7 @@ export function compileReferenceScenes(
   visit: (cache: string, name: string) => void = () => {},
 ): void {
   for (const name of REFERENCE_SCENES) {
-    const { directory, ...compile } = COOKED_SCENES[name]
+    const { directory, ...compile } = TEST_SCENES[name]
     const cache = mkdtempSync(join(tmpdir(), `trillion3d-${name}-`))
     try {
       compileFullCache({

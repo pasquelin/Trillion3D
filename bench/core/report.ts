@@ -13,7 +13,7 @@ import {
 } from './baseline.ts'
 import { FRAGMENTS, fragmentPath } from './paths.ts'
 import { ligneMd } from './table.ts'
-import type { Measurement } from '../../site/examples/kit/measureTypes.ts'
+import type { Measurement } from '../kit/measureTypes.ts'
 import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
 
 /** A domain fragment deposited under `.measure/perf/`, for the report's two readers. */

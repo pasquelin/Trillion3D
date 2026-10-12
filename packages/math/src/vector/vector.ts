@@ -302,16 +302,6 @@ export function normalizeVector2(v: NumberSink, at = 0) {
   v[at + 1] *= inverse
 }
 
-/** Brings the vector at `at` to unit length by division, in place and returned: each component is
- *  divided by `length`, which the caller measures. Not `normalizeVector3`'s product by the
- *  reciprocal: for the documents whose published bits hold the quotient (docs/MATHS.md "Lengths"). */
-export function divideVector3<T extends NumberSink>(v: T, at: number, length: number) {
-  v[at] /= length
-  v[at + 1] /= length
-  v[at + 2] /= length
-  return v
-}
-
 /**
  * `out[outAt..outAt + 2] = M · (x, y, z, 1)` for an affine matrix stored row-major on twelve
  * numbers from `mAt` — three rows of four, the translation last in each: the layout of a skinning

@@ -14,20 +14,20 @@ export type EngineRoot = { root: string; commit: string; subject: string; dirty:
 
 /**
  * The checkout at `dir` (the bench's own repository when unset): its commit, and the files of the
- * engine and the site that differ from it. A run on a dirty checkout is refused unless `dirtyOk`.
+ * engine and the bench's scene kit that differ from it. A run on a dirty checkout is refused unless `dirtyOk`.
  */
 export function engineRoot(dir: string | undefined, dirtyOk: boolean): EngineRoot {
   const root = resolve(dir ?? REPOSITORY_ROOT)
   if (!existsSync(join(root, 'packages', 'sdk-browser', 'src', 'index.ts')))
     throw new Error(`BENCH_ENGINE: ${root} holds no engine (packages/sdk-browser/src/index.ts)`)
-  const dirty = git(root, 'status', '--porcelain', '--', 'packages', 'site')
+  const dirty = git(root, 'status', '--porcelain', '--', 'packages', join('bench', 'kit'))
     .split('\n')
     .filter(Boolean)
     // Scene caches are built beside the scenes and never committed.
     .filter((line) => !/\/cache(-none)?\/?$/.test(line))
   if (dirty.length && !dirtyOk)
     throw new Error(
-      `BENCH_ENGINE_DIRTY: ${root} has ${dirty.length} changed engine or site files (${dirty
+      `BENCH_ENGINE_DIRTY: ${root} has ${dirty.length} changed engine or scene kit files (${dirty
         .slice(0, 3)
         .join('; ')}…): measure a clean checkout (--engine .worktrees/831-serve), or --dirty`,
     )

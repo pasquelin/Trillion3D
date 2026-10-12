@@ -1,28 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { publierRapport } from './publishReport.ts'
 import { readJson } from '../../../scripts/repository-files.ts'
 
-test('a campaign replaces the one report, keeps the portal entry, and validates evidence before copying', () => {
+test('a campaign replaces the one report, keeps the other files, and validates evidence before copying', () => {
   const root = mkdtempSync(join(tmpdir(), 'trillion3d-publish-'))
   try {
     const source = join(root, 'source'),
-      dest = join(root, 'site')
+      dest = join(root, 'checkout')
     mkdirSync(source)
     mkdirSync(dest)
-    writeFileSync(join(dest, 'index.html'), 'portal')
+    writeFileSync(join(dest, 'index.html'), 'kept')
     const report = {
       formatVersion: 1,
       id: 'test',
@@ -34,7 +25,7 @@ test('a campaign replaces the one report, keeps the portal entry, and validates 
     assert.equal(existsSync(join(dest, 'reports/test')), false)
     writeFileSync(join(source, 'source.json'), '{}')
     assert.equal(publierRapport(source, dest), join(dest, 'reports/test'))
-    assert.equal(readFileSync(join(dest, 'index.html'), 'utf8'), 'portal')
+    assert.equal(readFileSync(join(dest, 'index.html'), 'utf8'), 'kept')
     assert.equal(readJson(join(dest, 'reports/index.json'))[0].id, 'test')
     assert.throws(() => publierRapport(source, dest), /already published/)
     writeFileSync(join(source, 'report.json'), JSON.stringify({ ...report, id: 'next' }))
@@ -47,16 +38,4 @@ test('a campaign replaces the one report, keeps the portal entry, and validates 
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
-})
-
-test('the published campaign has every image it references, each stored once', () => {
-  const reports = resolve(import.meta.dirname, '../../../site/reports')
-  const [{ id }] = readJson(join(reports, 'index.json'))
-  const report = readJson(join(reports, id, 'report.json'))
-  for (const { image } of report.records as { image: string | null }[])
-    if (image) assert.ok(existsSync(join(reports, id, image)), image)
-  const images = join(reports, id, 'images')
-  const hash = (file: string) => createHash('sha256').update(readFileSync(join(images, file)))
-  const hashes = readdirSync(images).map((file) => hash(file).digest('hex'))
-  assert.equal(new Set(hashes).size, hashes.length, 'two images are byte-identical')
 })

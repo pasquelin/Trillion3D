@@ -140,9 +140,9 @@ test('a maths function copied under other names into any tree is red, owned by t
   for (const path of [
     'packages/sdk-browser/src/a/bound.ts',
     'packages/sdk-core/src/bound.ts',
-    'site/app/bound.ts',
+    'packages/page-codec/src/bound.ts',
     'bench/runner/bound.ts',
-    'scripts/docs/bound.ts',
+    'scripts/fixtures/bound.ts',
     'tests/gpu/kit/bound.ts',
   ]) {
     const groups = duplicateHelpers(

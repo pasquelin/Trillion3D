@@ -1,5 +1,5 @@
 // PNG decoding for the bench's images: 8-bit grey, grey with alpha, RGB, palette (with its
-// transparency) and RGBA, not interlaced — what the examples' textures and `sips` write. The
+// transparency) and RGBA, not interlaced — what the scenes' textures and `sips` write. The
 // repository's own reader (`sdk-node/src/cutout/png.mts`) takes 8-bit RGBA only.
 import { inflateSync } from 'node:zlib'
 

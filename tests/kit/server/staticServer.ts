@@ -71,27 +71,23 @@ const ISOLATION = {
 }
 
 /** Listens on `port`, serves `mounts`, stores captures in `captures`. `isolation` sets COOP and
- *  COEP on each response; `imports` adds to the page's import map; `compress` names the files sent
- *  brotli-encoded to a request that accepts it (`StaticOptions.compress`). */
+ *  COEP on each response; `imports` adds to the page's import map. */
 export async function startServer({
   port = 0,
   mounts,
   captures = new Map(),
   isolation = false,
   imports = {},
-  compress,
 }: {
   port?: number
   mounts: Mount[]
   captures?: Map<string, Capture>
   isolation?: boolean
   imports?: Record<string, string>
-  compress?: (file: string) => boolean
 }): Promise<{ server: Server; port: number }> {
   const html = page(imports)
   const server = staticServer({
     mounts,
-    compress,
     headers: { 'cache-control': 'no-store', ...(isolation ? ISOLATION : {}) },
     transform: (file) =>
       TYPESCRIPT.test(file)

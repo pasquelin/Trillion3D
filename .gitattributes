@@ -7,17 +7,9 @@ packages/sdk/browser.ts linguist-generated
 packages/sdk/node.mts linguist-generated
 packages/sdk/common/** linguist-generated
 packages/sdk/browser/** linguist-generated
-# The records of scripts/check-english.ts and scripts/check-translations.ts (`--write`)
+# The record of scripts/check-english.ts (`--write`)
 scripts/english-baseline.json linguist-generated
-site/content/i18n/translation-sources.json linguist-generated
-# The translations of the generated API reference
-site/content/reference/api.*.json linguist-generated
-# The campaign folder bench/runner/publishReport.ts copies whole; the report modules beside it stay unfolded
-site/reports/*/** linguist-generated
 # The format goldens: the compiler's output, rewritten by a `regenerate_*` test or on a format bump
 tests/fixtures/formats/**/expected.json linguist-generated
 # A generated scene source, as in .prettierignore
 tests/fixtures/scenes/mountain-terrain/** linguist-generated
-site/assets/gallery/signature-architecture/source/** linguist-generated
-# Third-party models and textures the examples compile
-site/assets/examples/*/source/** linguist-vendored

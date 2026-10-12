@@ -4,10 +4,12 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { exportReport } from './export.ts'
-import { assertReport } from '../../../site/app/reports/model/contract.ts'
-import { comparison } from '../../../site/app/reports/model/compare.ts'
-import { metricValue } from '../../../site/app/reports/model/metrics.ts'
-import type { ReportRecord } from '../../../site/app/reports/model/types.ts'
+import { assertReport } from '../../kit/report/contract.ts'
+import { comparison } from '../../kit/report/compare.ts'
+import { metricValue } from '../../kit/report/metrics.ts'
+import { canResume } from './provenance.ts'
+import type { ReportRecord } from '../../kit/report/types.ts'
+import type { Report as MeasureReport } from './types.ts'
 const reading = (): ReportRecord => ({
   id: 'a',
   runId: 'run-a',

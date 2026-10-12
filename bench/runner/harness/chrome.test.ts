@@ -27,7 +27,7 @@ test('under node --test, only a Chrome proof may open Chrome', () => {
 })
 
 test('any explicit script but a unit test may open Chrome, wherever it lives', () => {
-  const runs = [at('bench/runner/bench.ts'), at('scripts/site-first-load.ts')]
+  const runs = [at('bench/runner/bench.ts'), at('scripts/prove-installed-package.ts')]
   for (const run of [...runs, process.execPath])
     assert.doesNotThrow(() => assertBrowserEntryPoint(run, false), run)
   for (const entry of ['', at('scripts/check-changed.test.ts'), at('absent-script.ts')])

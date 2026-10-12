@@ -1,22 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { relatedTests } from './affected-tests.ts'
-import {
-  changedSteps,
-  formatPattern,
-  isCodeChange,
-  isDocumentation,
-  sourcePattern,
-} from './changed-steps.ts'
-import { documentationTests } from './docs/tests.ts'
-import { generateApiFiles } from './generate-api-reference.ts'
+import { changedSteps, formatPattern, isCodeChange, sourcePattern } from './changed-steps.ts'
 import { gitPaths } from './git-paths.ts'
 import { goldenChecks } from './golden-checks.ts'
 import { heavyStep } from './heavy-lock.ts'
 import { pnpmCommand } from './only-pnpm.ts'
 import { repositoryFiles } from './repository-files.ts'
 import { run } from './run.ts'
-import { compileSiteCaches, TEST_SCENES } from './site-caches.ts'
+import { compileCaches } from './scene-caches.ts'
 import { changedTypeErrors, tsProjects } from './ts-projects.ts'
 import { runUnitTests } from './unit-tests.ts'
 
@@ -46,7 +38,6 @@ async function main(): Promise<void> {
       .filter((file) => code && sourcePattern.test(file) && existsSync(file))
       .map((file): [string, string] => [file, readFileSync(file, 'utf8')]),
   )
-  // A documentation change also runs the tests that read documentation (`scripts/docs/tests.ts`).
   const withTests = !process.argv.includes('--push')
   // A push's one heavy step, the seconds-long build the type check may need, runs beside other
   // worktrees' heavy steps rather than wait for them (`scripts/heavy-lock.ts`).
@@ -58,23 +49,14 @@ async function main(): Promise<void> {
     : { crates: [], tests: [] }
   const testFiles = !withTests
     ? []
-    : [
-        ...new Set([
-          ...relatedTests(files, changed),
-          ...([...changed].some(isDocumentation) ? documentationTests(paths) : []),
-          ...golden.tests,
-        ]),
-      ]
+    : [...new Set([...relatedTests(files, changed), ...golden.tests])]
   console.log(`Changed files: ${existing.length}; related tests: ${testFiles.length}`)
   const linted = existing.filter((file) => sourcePattern.test(file))
   for (const step of changedSteps([...changed], existing, testFiles.length))
     switch (step) {
-      // The lint and the tests read these untracked files; without a compiler, the caches only warn.
-      case 'generate:api':
-        await generateApiFiles()
-        break
+      // The tests read these untracked files; without a compiler, the caches only warn.
       case 'compile:caches':
-        if (withTests) compileSiteCaches(false, TEST_SCENES)
+        if (withTests) compileCaches(false)
         break
       case 'check:lines':
         run('node', ['scripts/check-file-lines.ts', '--changed'])
@@ -130,8 +112,7 @@ async function main(): Promise<void> {
       default:
         run('node', [`scripts/${step.replace(':', '-')}.ts`])
     }
-  if (!code)
-    console.log('Documentation only: no API generation, scene cache or type check; its tests only.')
+  if (!code) console.log('Documentation only: no scene cache, type check or unit test.')
   else if (!testFiles.length) console.log('No related unit test; the CI runs the whole suite.')
 }
 

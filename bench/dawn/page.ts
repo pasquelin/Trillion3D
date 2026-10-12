@@ -1,9 +1,9 @@
-// A site page run by the GPU bench as the browser runs it: its module scripts, its two runtime
+// A scene page run by the GPU bench as the browser runs it: its module scripts, its two runtime
 // modules (`../runtime/engine.js`, `../runtime/kit.js`) read from the measured checkout's sources,
-// its elements made by the bench's document. The reference examples and the held-out validation
-// pages alike.
+// its elements made by the bench's document. The bench's own scenes (`bench/kit/scenes/`) and the
+// held-out validation pages alike.
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { World } from '../../packages/sdk-browser/src/index.ts'
 import { measureOutput } from '../core/paths.ts'
@@ -11,11 +11,14 @@ import { measureOutput } from '../core/paths.ts'
 /** Where a held-out validation page lies: outside the repository, never tuned against. */
 const VALIDATION_DIR = process.env.TRILLION3D_VALIDATION_DIR ?? ''
 
-/** The page file a name means: a path, an example's name in `root`, or a validation page's prefix (`v06`). */
+/** The bench's own scenes in a checkout. */
+const SCENES = join('bench', 'kit', 'scenes')
+
+/** The page file a name means: a path, a bench scene's name in `root`, or a validation page's prefix (`v06`). */
 export function pageFile(name: string, root: string) {
   if (existsSync(name)) return resolve(name)
-  const example = join(root, 'site', 'examples', `${name.replace(/\.html$/, '')}.html`)
-  if (existsSync(example)) return example
+  const scene = join(root, SCENES, `${name.replace(/\.html$/, '')}.html`)
+  if (existsSync(scene)) return scene
   if (VALIDATION_DIR && existsSync(VALIDATION_DIR)) {
     const held = readdirSync(VALIDATION_DIR).find(
       (file) => file.startsWith(name) && file.endsWith('.html'),
@@ -23,7 +26,7 @@ export function pageFile(name: string, root: string) {
     if (held) return join(VALIDATION_DIR, held)
   }
   throw new Error(
-    `BENCH_PAGE: no page ${name} (an example's name, a path, or TRILLION3D_VALIDATION_DIR)`,
+    `BENCH_PAGE: no page ${name} (a bench scene's name, a path, or TRILLION3D_VALIDATION_DIR)`,
   )
 }
 
@@ -43,14 +46,10 @@ export function readPage(file: string) {
   return { scripts, canvasIds, elementIds, title: /<title>([^<]*)<\/title>/.exec(html)?.[1] ?? '' }
 }
 
-/**
- * The address the page is read at: beside the checkout's own examples, so what it loads relative
- * to itself (`../assets/…`) is that checkout's, whichever folder holds the file. `search` carries
- * the page's address switches (`?trillion3dGpuLog=1`).
- */
-export function pageAddress(file: string, root: string, search: string) {
-  const folder = dirname(file).endsWith('examples') ? 'examples' : 'validation'
-  return `${pathToFileURL(join(root, 'site', folder, basename(file))).href}${search}`
+/** The address the page is read at: its own file, so what it loads relative to itself is beside
+ *  it. `search` carries the page's address switches (`?trillion3dGpuLog=1`). */
+export function pageAddress(file: string, search: string) {
+  return `${pathToFileURL(file).href}${search}`
 }
 
 /** The page's `../runtime/engine.js`: the checkout's engine, whose `createWorld` also hands the
@@ -68,12 +67,12 @@ export function createWorld(...args) {
 const LAWS_PAGE = join('bench', 'dawn', 'laws', 'world.html')
 
 /** The modules page `file` imports by a relative path, each the checkout's source the bench reads
- *  it as: the engine (`engine`, its module written beside the page's), the examples' kit, and —
+ *  it as: the engine (`engine`, its module written beside the page's), the bench's kit, and —
  *  for the scale laws' page alone — their world (`laws/world.ts`). */
 export function pageModules(root: string, engine: string, file: string): Record<string, string> {
   const modules: Record<string, string> = {
     '../runtime/engine.js': engine,
-    '../runtime/kit.js': pathToFileURL(join(root, 'site', 'examples', 'kit', 'index.ts')).href,
+    '../runtime/kit.js': pathToFileURL(join(root, 'bench', 'kit', 'index.ts')).href,
   }
   if (resolve(file).endsWith(LAWS_PAGE))
     modules['./world.js'] = pathToFileURL(join(root, 'bench', 'dawn', 'laws', 'world.ts')).href

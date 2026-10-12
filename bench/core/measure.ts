@@ -4,11 +4,7 @@
 import { chronometre, type Reglages } from './chrono.ts'
 import { gap } from './diff.ts'
 import type { Counter } from './ulp.ts'
-import {
-  resultRow,
-  type Measurement,
-  type ResultRow,
-} from '../../site/examples/kit/measureTypes.ts'
+import { resultRow, type Measurement, type ResultRow } from '../kit/measureTypes.ts'
 
 export { xorshiftRandom } from '../../packages/math/src/sequence/random.ts'
 

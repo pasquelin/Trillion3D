@@ -4,6 +4,5 @@
   "packages/sdk-browser": 179,
   "packages/sdk-node": 8,
   "scripts": 7,
-  "site": 3,
   "tests": 1
 }

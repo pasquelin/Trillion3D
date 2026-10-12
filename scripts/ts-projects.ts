@@ -76,9 +76,9 @@ export function excludes(project: ts.ParsedCommandLine, file: string): boolean {
   return included.fileNames.includes(file) && !project.fileNames.includes(file)
 }
 
-/** Whether `project` reads the `trillion3d` package from the build output, as the site and the
- *  tools do (`package.json` `exports`): checked against a missing or stale build, it would report
- *  the wrong errors. The package resolving under `dist/`, or not at all (a missing or half-removed
+/** Whether `project` reads the `trillion3d` package from the build output, as the tools do
+ *  (`package.json` `exports`): checked against a missing or stale build, it would report the wrong
+ *  errors. The package resolving under `dist/`, or not at all (a missing or half-removed
  *  build), means it does; the SDK's own projects map it back to their sources. */
 export function readsDist(project: ts.ParsedCommandLine): boolean {
   const importer = resolve(dirname(String(project.options.configFilePath)), 'index.ts')

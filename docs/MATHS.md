@@ -71,9 +71,8 @@ The declared exceptions, each held to bits the rule would change:
   outline's closing point dropped at a gap under 1e-12, where the rule's root would decide a gap
   within an ulp of 1e-12 the other way and change the triangulation (`shapeClose.test.ts`);
   `spriteRow` of `packages/sdk-browser/src/world/core/worldPoses.ts`, where a uniform scale's two
-  axis lengths must round alike; and the generators whose published files hold the builtin's bits,
-  the normals of `scripts/docs/garden-source.ts` (`hypot3`) and the sun's rotation of
-  `scripts/docs/observatory/write.ts` (`hypot4`).
+  axis lengths must round alike; and the generator whose committed files hold the builtin's bits,
+  the normals of `scripts/fixtures/garden-source.ts` (`hypot3`).
 - The plain root without the band, the twin of the Rust vectors (`packages/math/rust/src/vec2.rs`,
   `vec3.rs`): `plainLength3` and `plainLength2` (`vector/vector.ts`), `Math.sqrt` of the three (two) squares
   summed left to right, the rule of every TypeScript twin of a Rust function; `clusterErrorAtDepth` and
@@ -89,9 +88,7 @@ The declared exceptions, each held to bits the rule would change:
   `ik.ts`, for the reason of its length; `normalized` of
   `packages/sdk-core/src/scene/light/validate.ts`, a light direction divided by its `hypot3`,
   because the validated direction feeds the shadow clipmap's own normalise and basis in double and
-  the rule's product differs from that quotient in the last bit on about two directions in three;
-  and `snapped()` of `scripts/docs/examples/mesh.ts`, whose published meshes hold the divide's bits
-  (the doc generators' divides are `divideVector3`).
+  the rule's product differs from that quotient in the last bit on about two directions in three.
 
 ### The WGSL library
 
@@ -292,11 +289,9 @@ the witness calls are the migration table.
 
 ### Unit functions
 
-Each unit function's page in the portal's [API reference](https://www.trillion3d.com/#/en/api) gives
-what it computes, the witness call it replaces, its proof and ratio, written once in
-`site/content/entries/` (`matrix.ts`, `vector.ts`, `camera.ts`). The functions live in
-`packages/math/src/matrix/` (matrices), `packages/math/src/vector/` and
-`packages/math/src/color/` (vectors, colours), `packages/math/src/projection/` (camera frame) and `packages/sdk-browser/src/camera/` (the engine camera).
+The functions live in `packages/math/src/matrix/` (matrices), `packages/math/src/vector/` and
+`packages/math/src/color/` (vectors, colours), `packages/math/src/projection/` (camera frame) and
+`packages/sdk-browser/src/camera/` (the engine camera).
 
 The engine does not read the host's clip-depth convention. It composes its own projection from the
 declared optics — field, aspect, near plane, zoom — in **reversed depth with an infinite far

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The physics step bench: the `ten-thousand-bodies` example's scene (N boxes in ten layers over a
+// The physics step bench: the `ten-thousand-bodies` scene (N boxes in ten layers over a
 // floor), stepped at 60 Hz until every box sleeps, by the committed web modules in node
 // (single-threaded, and threaded on workers) and, when built, by the same C API compiled natively
 // (`packages/physics-jolt-wasm/bench/native.cpp`, same Jolt, same command words). Prints, per run,
@@ -49,8 +49,8 @@ const STEPS = 3600
 /** The fall-and-landing window whose steps are averaged: the first 3 simulated seconds. */
 const WINDOW = 180
 
-/** The example's scene as command words: a stone floor, then `count` wooden boxes in ten layers,
- *  laid out by the same seeded sequence (`site/examples/ten-thousand-bodies.html`). */
+/** The scene as command words: a stone floor, then `count` wooden boxes in ten layers, laid out by
+ *  a seeded sequence. */
 function scene(count: number) {
   const writer = new CommandWriter()
   const body = (id: number, motion: number, position: number[], turn: Quaternion, half: number) => {
