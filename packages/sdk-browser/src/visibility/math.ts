@@ -3,7 +3,7 @@ import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts'
 
 /** Texel of an axis by the sampler's integer rule: mirror folds two periods. */
-export function wrapTexel(t: number, size: number, wrap: WrapMode) {
+function wrapTexel(t: number, size: number, wrap: WrapMode) {
   const p = wrap === 'mirror' ? 2 : 1
   const scaled = wrap === 'clamp' ? saturate(t) : floorMod(t, p)
   const i = Math.floor(scaled * size)

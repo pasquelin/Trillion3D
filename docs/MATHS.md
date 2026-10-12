@@ -24,7 +24,7 @@ float16 encode and decode), `vector/` (with `spherical.ts`),
 spheres, cones, slabs, triangles, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal
 and pixel scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
 reversed-depth projections down +z of a light's shadow map; `projectionOracles.ts`), `color/`,
-`scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest and floor ranks, the median and the mean;
+`scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest and floor ranks, the one median (the nearest rank at 0.5) and the mean;
 `search.ts`, the binary searches; `hermite.ts`), `sequence/`
 (`halton.ts`; `random.ts`, the seeded generators, twins of the Rust crate's `random.rs`;
 `sweep.fixture.ts`, the Halton sweep and edge values every rewrite proof runs its old expression
@@ -181,8 +181,9 @@ or batch, follows these conventions:
   `decomposeMatrix4` — returns nothing, and its row says so. A call on a per-frame path allocates
   nothing. `outAt`/`aAt` offsets let one large buffer hold many operands. A batch returns a count
   as its only value and repeats the formula of its unit function, which stays the oracle. The clone check
-  (`check:duplicates`) skips `batch/` for that reason, and the before-forms a rewrite is proved
-  against (`*Before.fixture.ts`), which copy the code they replace on purpose.
+  (`check:duplicates`) skips only the regions marked `jscpd:ignore`, each one a loop that keeps
+  its values in registers, with its measurement beside it; a rewrite is proved against its
+  before-form while it lands, and the before-form is deleted with that proof.
 - **`Float64Array` for what is computed**, `ArrayLike<number>` for what is only read: a host
   matrix, a plain array or a `Float32Array` enters as-is; a batch writes flags into a `Uint8Array`.
 - **Layout.** One element occupies a fixed number of consecutive values, each declared once:

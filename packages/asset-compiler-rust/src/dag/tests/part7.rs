@@ -7,7 +7,6 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
     let children: Vec<DagCluster> = cluster_triangles(positions, indices, DAG_CLUSTER_TRIANGLES)
         .expect("clusters")
         .into_iter()
-        // jscpd:ignore-start
         .map(|indices| {
             let sphere = bounding_sphere(positions, &indices);
             DagCluster {
@@ -24,7 +23,6 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
         })
         .collect();
     let group: Vec<&DagCluster> = children.iter().collect();
-    // jscpd:ignore-end
     let carried: Vec<trillion3d_page_codec::encode::Attribute> = uvs
         .map(|uvs| trillion3d_page_codec::encode::Attribute {
             flag: trillion3d_page_codec::encode::FLAG_UV,

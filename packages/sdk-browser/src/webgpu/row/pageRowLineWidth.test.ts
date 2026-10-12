@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from '../pages/pages.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/buffer.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
@@ -23,12 +23,11 @@ async function rowLineWidths(lineWidth: number | undefined) {
     backend.render(camera())
     await backend.flush?.()
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
-    const words = PAGE_INFO_STRIDE / 4
     const floats = new Float32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
     const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
     const widths: number[] = []
     for (let row = 0; row < table.size / PAGE_INFO_STRIDE; row++)
-      if (ints[row * words + 25]) widths.push(floats[row * words + 61])
+      if (ints[row * ROW_WORDS + 25]) widths.push(floats[row * ROW_WORDS + 61])
     return widths
   } finally {
     await backend.dispose()

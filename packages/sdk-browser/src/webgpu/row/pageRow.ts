@@ -1,5 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import { FLAG_MASK, PAGE_INFO_STRIDE, VIS_TRIANGLE_BITS } from '../../visibility/buffer.ts'
+import { FLAG_MASK, ROW_WORDS, VIS_TRIANGLE_BITS } from '../../visibility/buffer.ts'
 import { NO_HIZ_SLOT } from './noHizSlot.ts'
 
 /** Row word of the geometry's first vertex in the shared pools (`PageInfo.vertexBase`). */
@@ -16,7 +16,7 @@ export const ROW_MAP_LAYER_WORD = 22,
   ROW_FLAGS_WORD = 23
 /** True when row `row` of the table `ints` is a cutout (`FLAG_MASK`): the bit `maskKeep` tests. */
 export const rowCutout = (ints: Uint32Array, row: number) =>
-  (ints[(row * PAGE_INFO_STRIDE) / 4 + ROW_FLAGS_WORD] & FLAG_MASK) !== 0
+  (ints[row * ROW_WORDS + ROW_FLAGS_WORD] & FLAG_MASK) !== 0
 /** Row word of the surface's opacity, its colour factor's alpha (`PageInfo.blendCoverage`): the
  *  light a blended caster stops, and what a cutout multiplies its alpha by (`maskKeep`). */
 export const ROW_BLEND_COVERAGE_WORD = 57

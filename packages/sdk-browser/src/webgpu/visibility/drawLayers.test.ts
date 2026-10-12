@@ -11,7 +11,7 @@ import {
   slotCount,
 } from '../../gpu/draw/draw.ts'
 import { ROW_INDEX_WORDS } from '../row/pageRow.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/buffer.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createWebgpuVisState, type WebgpuVisState } from '../pages/state/vis.ts'
 import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
@@ -36,10 +36,9 @@ test("a row's coplanar layer goes into its record word, capped, and its triangle
       material,
     }) as unknown as PageRec
   // The two page-table rows carry the three indices each page draws.
-  const rowWords = PAGE_INFO_STRIDE / 4
-  const pageTableInts = new Uint32Array(2 * rowWords)
+  const pageTableInts = new Uint32Array(2 * ROW_WORDS)
   pageTableInts[ROW_INDEX_WORDS] = 3
-  pageTableInts[rowWords + ROW_INDEX_WORDS] = 9
+  pageTableInts[ROW_WORDS + ROW_INDEX_WORDS] = 9
   const layout = {
     rows: {
       packedCount: 2,

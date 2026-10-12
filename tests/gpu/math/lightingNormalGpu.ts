@@ -10,7 +10,6 @@ import {
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { unitOrZero } from '../../../packages/math/src/wgsl/inverseTranspose.ts'
-import { inverseTransposeBeforeIn } from './substitutionBefore.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuModule } from '../kit/webgpuDevice.ts'
 import type { GpuRow, LitCase } from './lightingNormalCases.ts'
@@ -96,19 +95,16 @@ async function run({ shader, data, count }: Input) {
 /**
  * The normal the GPU renders for each case, and the two lit colours (`GpuRow`).
  *
- * `before` puts the inverse-transpose from before the fix back into the program
- * (`inverseTransposeBeforeIn`), to run two versions on the same cases;
  * `substitution` changes `xformNormal`'s output without touching the shipped shader, to put the
- * criterion to the test (`SUBSTITUTIONS`). Both are made sure of, not hoped for: the substitution
+ * criterion to the test (`SUBSTITUTIONS`). It is made sure of, not hoped for: the substitution
  * appears once and only once in the assembled text, and `xformNormal` is called once in it — one
  * that did not take would give a green run that exercised nothing.
  */
 export async function lightNormals(
   cases: LitCase[],
-  { before = false, substitution = SUBSTITUTIONS.none } = {},
+  { substitution = SUBSTITUTIONS.none } = {},
 ): Promise<{ adapter: string; rows: GpuRow[] }> {
-  const shipped = lightingWgsl(substitution)
-  const shader = before ? inverseTransposeBeforeIn(shipped, 'the lighting normals') : shipped
+  const shader = lightingWgsl(substitution)
   const count = (text: string) => shader.split(text).length - 1
   assert.equal(count(`return ${substitution};`), 1, `substitution "${substitution}" not applied`)
   assert.equal(count('probed(xformNormal('), 1, 'xformNormal is no longer the probed output')

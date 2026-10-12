@@ -35,6 +35,25 @@ export function boundsAreEmpty(
   return maxX < minX || maxY < minY || maxZ < minZ
 }
 
+/** Writes the six bounds into `out` at `o`: the one way the folds below store a box. */
+function writeBounds(
+  out: Float64Array,
+  o: number,
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+) {
+  out[o] = minX
+  out[o + 1] = minY
+  out[o + 2] = minZ
+  out[o + 3] = maxX
+  out[o + 4] = maxY
+  out[o + 5] = maxZ
+}
+
 /** True when an upper bound falls below its lower bound. A NaN bound does not make the box empty. */
 export function boxIsEmpty(box: ArrayLike<number>, o: number) {
   return boundsAreEmpty(box[o], box[o + 1], box[o + 2], box[o + 3], box[o + 4], box[o + 5])
@@ -159,13 +178,8 @@ export function boxFromPoints(
     hiY = Math.max(hiY, y)
     hiZ = Math.max(hiZ, z)
   }
-  out[o] = loX
-  out[o + 1] = loY
-  out[o + 2] = loZ
-  out[o + 3] = hiX
-  out[o + 4] = hiY
-  out[o + 5] = hiZ
   // jscpd:ignore-end
+  writeBounds(out, o, loX, loY, loZ, hiX, hiY, hiZ)
 }
 
 /** The box at `bo` of `box` grown by `g` on every side, into `out` at `o` (the same box allowed):
@@ -286,12 +300,7 @@ export function boxTransform(
     maxY = box[bo + 4],
     maxZ = box[bo + 5]
   if (boundsAreEmpty(minX, minY, minZ, maxX, maxY, maxZ)) {
-    out[o] = minX
-    out[o + 1] = minY
-    out[o + 2] = minZ
-    out[o + 3] = maxX
-    out[o + 4] = maxY
-    out[o + 5] = maxZ
+    writeBounds(out, o, minX, minY, minZ, maxX, maxY, maxZ)
     return
   }
   const m0 = m[0],
@@ -337,12 +346,7 @@ export function boxTransform(
     hiY = Math.max(hiY, y)
     hiZ = Math.max(hiZ, z)
   }
-  out[o] = loX
-  out[o + 1] = loY
-  out[o + 2] = loZ
-  out[o + 3] = hiX
-  out[o + 4] = hiY
-  out[o + 5] = hiZ
+  writeBounds(out, o, loX, loY, loZ, hiX, hiY, hiZ)
 }
 
 /** Distance from the point `(x, y, z)` to the box, 0 inside it: the gap past each face: the distance of the

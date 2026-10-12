@@ -2,7 +2,8 @@
 // between one cut and the next being the cost of the code between them. Two whole runs, one at each
 // end, say how far the machine drifted meanwhile: a step smaller than that is noise.
 import { mean } from '../../packages/math/src/scalar/quantile.ts'
-import { ms, table } from './reportText.ts'
+import { ms } from './reportText.ts'
+import { table } from '../core/table.ts'
 
 /** One variant's numbers, medians over its frames: `cut` null is the shader whole. */
 export type Variant = { cut: string | null; frameMs: number; passMs: number; iqrMs: number }

@@ -3,7 +3,7 @@
 import { HIZ_BOUNDS_VALUES } from './corners.ts'
 import { HIZ_KERNEL_TEXELS } from './counts.ts'
 import { boundsFor, projectBoxesFlat } from './projection.fixture.ts'
-import type { HizPage, HizPyramid } from './types.ts'
+import type { HizPage, FlatHizPyramid } from './types.ts'
 import { hizRejectsFlat } from '../../../../bench/oracles/browser/hizOcclusion.ts'
 import { neverCulled } from '../visibility/shader/spriteWgsl.ts'
 import type { EngineCamera } from '../camera/world.ts'
@@ -55,7 +55,7 @@ function hizOversizedFlat(bounds: Float64Array, base: number) {
 export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
   pages: T[],
   locations: PageLocations,
-  pyramid: HizPyramid,
+  pyramid: FlatHizPyramid,
   cam: EngineCamera,
   viewport: [number, number],
   counts: HizCounts,
@@ -92,7 +92,7 @@ export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> 
 export function filterUnoccluded<T extends HizPage>(
   pages: T[],
   locations: PageLocations,
-  pyramid: HizPyramid,
+  pyramid: FlatHizPyramid,
   cam: EngineCamera,
   viewport: [number, number],
   bias = 0,

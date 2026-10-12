@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { refreshWebgpuMaterials } from './refreshMaterials.ts'
-import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { FLAG_MASK, PAGE_INFO_STRIDE, ROW_WORDS } from '../../../visibility/buffer.ts'
 import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../../row/pageRow.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
@@ -61,8 +61,7 @@ test('an opaque surface turned masked cuts every row of its material', async () 
   const masked = () => {
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
     const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
-    const words = PAGE_INFO_STRIDE / 4
-    const rows = Array.from({ length: table.size / PAGE_INFO_STRIDE }, (_, row) => row * words)
+    const rows = Array.from({ length: table.size / PAGE_INFO_STRIDE }, (_, row) => row * ROW_WORDS)
     const drawn = rows.filter((base) => ints[base + ROW_INDEX_WORDS] > 0)
     assert.ok(drawn.length, 'the quad has rows')
     return drawn.every((base) => (ints[base + ROW_FLAGS_WORD] & FLAG_MASK) !== 0)
@@ -109,7 +108,7 @@ test('an alpha move is taken in place under a casting light, the shadow over its
         rowCount: 1,
         blendFirst: 1,
         casterSlots: 1,
-        pageTableInts: new Uint32Array(PAGE_INFO_STRIDE / 4),
+        pageTableInts: new Uint32Array(ROW_WORDS),
         packedRecs: [cutout],
         packedPageIndex: new Int32Array([0]),
       },

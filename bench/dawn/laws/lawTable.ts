@@ -2,7 +2,7 @@
 // weigh, the engine's counters that say what was drawn, and per column the exponent it grows with.
 // Pure: reads the bench's merged reports (`../merge.ts`).
 import type { BenchReport } from '../merge.ts'
-import { table } from '../reportText.ts'
+import { table } from '../../core/table.ts'
 import { exponentOf, lawName } from './fit.ts'
 import type { Law } from './points.ts'
 

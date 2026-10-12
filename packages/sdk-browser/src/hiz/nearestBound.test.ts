@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DEPTH_LAYER_BIAS_UNITS } from '../../../sdk-core/src/lod/depthLayer.ts'
 import { hizNearestBound } from './nearestBound.fixture.ts'
-import type { HizPyramid } from './types.ts'
+import type { FlatHizPyramid } from './types.ts'
 import { hizRejects, type HizBounds } from '../../../../bench/oracles/browser/hizRejects.ts'
 import { FLOAT32_STEP } from '../../../math/src/constants.ts'
 import { lerp } from '../../../math/src/scalar/reals.ts'
@@ -64,7 +64,7 @@ test('a coplanar layer adds to the bound exactly the units by which it advances 
 })
 
 /** A one-texel pyramid whose depth is `far`. */
-function pyramide(far: number): HizPyramid {
+function pyramide(far: number): FlatHizPyramid {
   return {
     data: Float32Array.from([far]),
     offsets: Int32Array.from([0]),

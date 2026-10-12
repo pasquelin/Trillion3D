@@ -17,7 +17,10 @@
 // a rendered normal is tested separately in `normalTransformCriterion.test.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { INVERSE_TRANSPOSE_SHIPPED } from './inverseTransposeBefore.fixture.ts'
+import {
+  invTranspose3Apply,
+  invTranspose3Prep,
+} from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { NORMAL_TRANSFORM_WGSL as NORMAL_TRANSFORM } from '../../lighting/standardLighting.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
@@ -26,7 +29,6 @@ import {
   angleBetween,
   unit,
   normalVerdict,
-  xformNormalBefore,
   xformNormalModel,
 } from '../../../../../tests/gpu/math/inverseTransposeF32.ts'
 import {
@@ -34,7 +36,6 @@ import {
   CASES,
   COLLAPSED,
   TINY_REGULAR,
-  THRESHOLD_SCALE,
 } from '../../../../../tests/gpu/math/normalTransformCases.ts'
 import { RAD2DEG } from '../../../../math/src/constants.ts'
 
@@ -54,36 +55,6 @@ test('lighting normal follows rotation at all scales, from 1e3 to 1e-16', () => 
   // Without effective rotation, these cases prove nothing: true normal must have moved.
   const tournees = CASES.filter((cas) => angleBetween(cas.truth, cas.normal) * RAD2DEG > 10).length
   assert.ok(tournees > CASES.length / 2, `only ${tournees} cases rotate normal`)
-})
-
-test('absolute threshold before batch dropped out, and exactly below s³ = 1e-20', () => {
-  const decroches = CASES.filter(
-    (cas) => !verdict(cas, xformNormalBefore(cas.world, cas.normal)).ok,
-  )
-  assert.ok(decroches.length > 0, 'reproduction no longer reproduces: review cases')
-  // What batch was meant to change, and nothing else: above threshold, old code was already correct.
-  // Dropout outside band would mean bug was not what we thought.
-  for (const cas of decroches)
-    assert.ok(
-      cas.s < THRESHOLD_SCALE,
-      `${cas.name} : dropout outside threshold band (s = ${cas.s} ≥ ${THRESHOLD_SCALE})`,
-    )
-  // And across threshold, behavior toggles: 2.154e-7 inside, 2.16e-7 outside.
-  // Without these two scales, bound would not be tested, only crossed from afar.
-  const a = (s: number) => decroches.some((cas) => cas.s === s)
-  assert.ok(a(2.154e-7), 'just below threshold: former code should have dropped out')
-  assert.ok(!a(2.16e-7), 'just above threshold: former code should not have dropped out')
-})
-
-test('outside threshold band, batch did not move rendered normal', () => {
-  for (const cas of CASES.filter((c) => c.s >= 1e-6)) {
-    const gap =
-      angleBetween(
-        xformNormalModel(cas.world, cas.normal),
-        xformNormalBefore(cas.world, cas.normal),
-      ) * RAD2DEG
-    assert.ok(gap < 1e-4, `${cas.name} : normal moved by ${gap}° outside band`)
-  }
 })
 
 test('singular poses: flattened face keeps normal, collapsed face has none', () => {
@@ -123,7 +94,7 @@ test('selection kernel and lighting read exact same text, character for characte
     ],
     ['DAG selection', DAG_SELECTION_SHADER, ['invTranspose3Prep', 'invTranspose3Apply']],
   ] as const) {
-    for (const text of Object.values(INVERSE_TRANSPOSE_SHIPPED))
+    for (const text of [invTranspose3Prep.text, invTranspose3Apply.text])
       assert.ok(shader.includes(text), `${nom} : shared text absent`)
     for (const fonction of calls)
       assert.equal(

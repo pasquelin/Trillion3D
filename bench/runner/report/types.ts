@@ -157,7 +157,7 @@ interface SideIdentity {
 }
 
 /** The whole harness report: `measure.json`, built by `bench.ts` and read by `summary/summary.ts`. */
-export interface Report {
+export interface BenchReport {
   startedAt: string
   provenance: { machine: unknown; browser: unknown; displayCapHz: number | null }
   command: string

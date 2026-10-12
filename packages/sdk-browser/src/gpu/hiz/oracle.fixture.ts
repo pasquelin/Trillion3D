@@ -6,7 +6,7 @@ import {
 import { pyramidBytes } from './oracle.ts'
 import { HIZ_WHOLE_FARTHEST, hizTextureSize } from './pyramidTexture.ts'
 import { VERDICT_REJECTED, VERDICT_KEPT } from '../partition/contract.ts'
-import type { HizPyramid } from '../../hiz/types.ts'
+import type { FlatHizPyramid } from '../../hiz/types.ts'
 import { hizRejects, type HizBounds } from '../../../../../bench/oracles/browser/hizRejects.ts'
 
 /** One ceil-2×2 reduction of a packed level: the farthest of each square (the minimum, the
@@ -114,7 +114,7 @@ function rowsOf(data: Float32Array, width: number, height: number) {
 }
 
 /** The GPU kernel's pack is already flat: the CPU test's pyramid reads it without copying it. */
-function pyramidFromPacked(packed: PackedHiz): HizPyramid {
+function pyramidFromPacked(packed: PackedHiz): FlatHizPyramid {
   return {
     data: packed.data,
     offsets: Int32Array.from(packed.offsets),

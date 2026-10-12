@@ -1,6 +1,7 @@
 // The batch calculation path, as the governor published it, for `resume.md`.
 import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
-import type { Report } from '../report/types.ts'
+import type { BenchReport } from '../report/types.ts'
+import { tableLines } from '../../core/table.ts'
 
 export type MathBatch = NonNullable<FrameMetrics['mathBatch']>
 export type MathOperation = MathBatch['operations'][string]
@@ -23,30 +24,50 @@ function module(reading: MathBatch) {
  * `auto` rereads the arbitration. Nothing is inferred: a side without a reading says so, a side
  * that ran no batch says so too.
  */
-export function computePaths(report: Report) {
-  const lines = [
-    '| view | pixelError | side | mode | module | operation | path | js ns/elt | wasm ns/elt | switches | elements |',
-    '|---|---|---|---|---|---|---|---|---|---|---|',
-  ]
+export function computePaths(report: BenchReport) {
+  const body: (string | number)[][] = []
   for (const series of report.series)
     for (const [side, result] of Object.entries(series.sides)) {
       const reading = result.mathBatch
-      const tete = `| ${series.view} | ${series.pixelError} | ${side} `
+      const tete = [series.view, series.pixelError, side]
       if (!reading) {
-        lines.push(`${tete}| — | reading missing from this dist | — | — | — | — | — | — |`)
+        body.push([...tete, '—', 'reading missing from this dist', '—', '—', '—', '—', '—', '—'])
         continue
       }
-      const state = `| ${reading.mode} | ${module(reading)} `
+      const state = [reading.mode, module(reading)]
       const operations = Object.entries(reading.operations ?? {})
       if (!operations.length) {
-        lines.push(`${tete}${state}| no batch run | — | — | — | — | — |`)
+        body.push([...tete, ...state, 'no batch run', '—', '—', '—', '—', '—'])
         continue
       }
       for (const [nom, o] of operations)
-        lines.push(
-          `${tete}${state}| ${nom} | ${o.path ?? '—'} | ${ns(o.jsNsPerElement)} ` +
-            `| ${ns(o.wasmNsPerElement)} | ${o.switches} | ${o.elements} |`,
-        )
+        body.push([
+          ...tete,
+          ...state,
+          nom,
+          o.path ?? '—',
+          ns(o.jsNsPerElement),
+          ns(o.wasmNsPerElement),
+          o.switches,
+          o.elements,
+        ])
     }
-  return lines
+  return [
+    ...tableLines(
+      [
+        'view',
+        'pixelError',
+        'side',
+        'mode',
+        'module',
+        'operation',
+        'path',
+        'js ns/elt',
+        'wasm ns/elt',
+        'switches',
+        'elements',
+      ],
+      body,
+    ),
+  ]
 }

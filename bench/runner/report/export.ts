@@ -10,7 +10,7 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { sceneNote } from '../assets/scene.ts'
 import { assertReport, REPORT_VERSION } from '../../kit/report/contract.ts'
 import type { Report as CampaignReport } from '../../kit/report/types.ts'
-import type { Report as BenchReport } from './types.ts'
+import type { BenchReport } from './types.ts'
 import { readJson } from '../../../scripts/repository-files.ts'
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 

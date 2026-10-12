@@ -16,6 +16,7 @@ import { UNI_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/expand
 import { EXPAND_GROUP } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
 import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
+import { readBuffer } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
@@ -89,26 +90,11 @@ async function expand(input: ExpansionInput) {
     pass.dispatchWorkgroups(dispatches[step])
   }
   pass.end()
-  const targets = (
-    [
-      [buffers.expanded.buffer, input.instanceWords],
-      [buffers.args.buffer, input.argsWords],
-    ] as const
-  ).map(([source, words]) => {
-    const target = device.createBuffer({
-      size: words * 4,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    })
-    encoder.copyBufferToBuffer(source, 0, target, 0, words * 4)
-    return target
-  })
   device.queue.submit([encoder.finish()])
-  const [expanded, args] = await Promise.all(
-    targets.map(async (target) => {
-      await target.mapAsync(GPUMapMode.READ)
-      return new Uint32Array(target.getMappedRange().slice(0))
-    }),
-  )
+  const [expanded, args] = [
+    await readBuffer(device, buffers.expanded.buffer, 0, input.instanceWords * 4),
+    await readBuffer(device, buffers.args.buffer, 0, input.argsWords * 4),
+  ]
   const { court: adapter } = await gpu.fermer()
   assert.deepEqual(gpu.errors, [], 'the device reports no error')
   return { adapter, expanded, args }

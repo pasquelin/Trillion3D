@@ -25,7 +25,7 @@ import { readsCache } from './assets/scene.ts'
 import { runFluids } from './fluids/fluids.ts'
 import { readLimits } from './harness/limits.ts'
 import { againstReference, sceneReference } from './references/referenceProof.ts'
-import type { Report, RunContext, Series } from './report/types.ts'
+import type { BenchReport, RunContext, Series } from './report/types.ts'
 import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
 const {
@@ -67,7 +67,7 @@ async function main() {
   const captures = new Map<string, Capture>()
   const mounts = options.resolveMounts(REPOSITORY_ROOT, sides, resources)
 
-  const report: Report = {
+  const report: BenchReport = {
     startedAt: new Date().toISOString(),
     provenance: measurementProvenance(),
     command: `node bench/runner/bench.ts ${process.argv.slice(2).join(' ')}`,

@@ -22,6 +22,7 @@ import {
 import { createStepWords } from '../../../packages/sdk-browser/src/particles/stepWords.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { readBuffer } from '../kit/computeReadback.ts'
 import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 
 type Steps = { words: number[][]; staged: number[]; capacity: number; runs: number[][] }
@@ -39,7 +40,7 @@ async function step({ words, staged, capacity, runs }: Steps) {
       entries: slots.slice(0, count).map((type, binding) => computeBufferEntry(binding, type)),
     }),
   )
-  const { UNIFORM, STORAGE, INDIRECT, COPY_DST, COPY_SRC, MAP_READ } = GPUBufferUsage
+  const { UNIFORM, STORAGE, INDIRECT, COPY_DST, COPY_SRC } = GPUBufferUsage
   const buffer = (size: number, usage: number) => device.createBuffer({ size, usage })
   const groups = particleGroups(capacity) + particleGroups(staged.length / 8),
     read = PARTICLE_STATE_HEAD + 8 * 32
@@ -55,13 +56,12 @@ async function step({ words, staged, capacity, runs }: Steps) {
         compute: { module, entryPoint },
       }),
     )
-    const [uniform, records, state, partials, args, out] = [
+    const [uniform, records, state, partials, args] = [
       buffer(32, UNIFORM | COPY_DST),
       buffer(staged.length * 4, STORAGE | COPY_DST),
       buffer(PARTICLE_STATE_HEAD + capacity * 32, STORAGE | INDIRECT | COPY_DST | COPY_SRC),
       buffer(groups * PARTICLE_PARTIAL_BYTES, STORAGE),
       buffer(PARTICLE_ARGS_BYTES, STORAGE | INDIRECT | COPY_DST),
-      buffer(read, MAP_READ | COPY_DST),
     ]
     device.queue.writeBuffer(records, 0, new Float32Array(staged))
     device.queue.writeBuffer(state, 0, new Uint32Array([DISC_VERTICES]))
@@ -90,16 +90,13 @@ async function step({ words, staged, capacity, runs }: Steps) {
         pass.dispatchWorkgroups(1)
       }
       pass.end()
-      encoder.copyBufferToBuffer(state, 0, out, 0, read)
       device.queue.submit([encoder.finish()])
-      await out.mapAsync(GPUMapMode.READ)
-      const range = out.getMappedRange()
+      const range = (await readBuffer(device, state, 0, read)).buffer
       images.push({
         subgroups,
         window: Array.from(new Uint32Array(range, 0, 8)),
         particles: Array.from(new Float32Array(range, PARTICLE_STATE_HEAD, 64)),
       })
-      out.unmap()
     }
     byFold.push(images)
   }

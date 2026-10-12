@@ -1,6 +1,7 @@
 // A segment's detail in a bench report: its frame, its doubts, its passes, its hitches and commands.
 import type { BenchReport } from './merge.ts'
-import { mib, ms, percent, table } from './reportText.ts'
+import { mib, ms, percent } from './reportText.ts'
+import { table } from '../core/table.ts'
 
 type Segment = BenchReport['segments'][number]
 

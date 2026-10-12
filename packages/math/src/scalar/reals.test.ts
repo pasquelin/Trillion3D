@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { decayFactor, decayRate, floorMod, fract, lerp, lerpArray, snap, wrap } from './reals.ts'
-import { mean, medianOf, quantileOf, summaryOf } from './quantile.ts'
-import { edgeValues, HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
+import { mean, quantileOf, summaryOf } from './quantile.ts'
+import { HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
 test('fract: the part above the floor, negatives counted from below, NaN through', () => {
   assert.equal(fract(2.75), 0.75)
@@ -46,25 +46,6 @@ test('lerpArray: each element lerped, t = 1 an exact copy, into float32 too', ()
   assert.ok(lerpArray(new Float64Array(1), [NaN], [1], 0.5).every(Number.isNaN))
 })
 
-test('median: odd and even lengths, the old body bit for bit', () => {
-  assert.equal(medianOf([4]), 4)
-  assert.equal(medianOf([1, 2, 9]), 2)
-  assert.equal(medianOf([1, 2, 4, 9]), 3)
-  assert.equal(medianOf(Float64Array.of(-3, -1)), -2)
-  const old = (t: number[]) => {
-    const middle = t.length >> 1
-    return t.length % 2 ? t[middle] : (t[middle - 1] + t[middle]) / 2
-  }
-  for (let n = 1; n <= 64; n++) {
-    const list = Array.from({ length: n }, (_, k) => haltonSpan(n * 64 + k, 3, -5, 5)).sort(
-      (a, b) => a - b,
-    )
-    assert.ok(Object.is(medianOf(list), old(list)), `${n}`)
-  }
-  // The edges of [−1, 1] are symmetric, both zeros in the middle: the median is +0.
-  assert.equal(medianOf(edgeValues(-1, 1).sort((a, b) => a - b)), 0)
-})
-
 test('snap: the nearest multiple of the step, the expression it replaces bit for bit', () => {
   assert.equal(snap(13, 8), 16)
   assert.equal(snap(12, 8), 16)
@@ -96,10 +77,10 @@ test('mean: the left-to-right sum, the form it replaces', () => {
   }
 })
 
-test('quantileOf, medianOf: the sorted rank of an unsorted list, which stays as it was', () => {
+test('quantileOf: the sorted rank of an unsorted list, which stays as it was', () => {
   const values = [9, 1, 5, 3, 7, 2]
   assert.equal(quantileOf(values, 0.95), 9)
-  assert.equal(medianOf(values), 4)
+  assert.equal(quantileOf(values, 0.5), 3)
   assert.deepEqual(values, [9, 1, 5, 3, 7, 2])
 })
 

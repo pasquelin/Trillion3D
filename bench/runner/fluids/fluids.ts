@@ -4,6 +4,7 @@
 // `floatingBodies`); what the engine does not draw yet is a THROWAWAY STAND-IN: a flat
 // transmissive ocean (#422 draws the waves), fires and smoke volumes (#423). The engine has one
 // refraction source, a copy of the lit image: the scene has no switch between two.
+import { tableLines } from '../../core/table.ts'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Page } from 'playwright'
@@ -128,12 +129,18 @@ export function fluidsLines(rows: FluidsRow[] | undefined) {
   return [
     '## Fluids scene',
     '',
-    '| side | canvas | bodies | GPU incidents |',
-    '|---|---|---|---|',
-    ...rows.map((r) => {
-      const { width, height, dpr } = r.canvas
-      return `| ${[r.side, `${width}×${height} @${dpr}`, r.bodiesSimulated, r.gpuIncidents?.join(', ') ?? 'none'].join(' | ')} |`
-    }),
+    ...tableLines(
+      ['side', 'canvas', 'bodies', 'GPU incidents'],
+      rows.map((r) => {
+        const { width, height, dpr } = r.canvas
+        return [
+          r.side,
+          `${width}×${height} @${dpr}`,
+          r.bodiesSimulated,
+          r.gpuIncidents?.join(', ') ?? 'none',
+        ]
+      }),
+    ),
     '',
   ]
 }

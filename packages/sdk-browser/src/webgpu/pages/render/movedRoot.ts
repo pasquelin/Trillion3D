@@ -1,10 +1,8 @@
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../../visibility/buffer.ts'
 import type { ClusterRoot } from '../../../page/selection/types.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { WebgpuPagesLayout } from '../prepare/layout.ts'
 import { noteWorldMoved } from './movedWorlds.ts'
-
-const ROW_WORDS = PAGE_INFO_STRIDE / 4
 
 /** What a moved root rewrites: its rows and the memos its world feeds, and the runtime's list of
  *  moved placements, which names it (`movedWorlds.ts`). */

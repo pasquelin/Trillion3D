@@ -1,9 +1,9 @@
 // Shared fixtures for `summary/summary.test.ts`, `summary/summaryCoverage.test.ts` and `summary/summaryCompute.test.ts`:
 // split out to keep the files under the line budget.
-import type { Report, Row } from '../report/types.ts'
+import type { BenchReport, Row } from '../report/types.ts'
 
 /** A minimal report: one series, one side, just what `resume()` reads. */
-export function rapport(side: Partial<Row>): Report {
+export function rapport(side: Partial<Row>): BenchReport {
   return {
     startedAt: 't0',
     provenance: { machine: null, browser: null, displayCapHz: null },
@@ -23,7 +23,13 @@ export function rapport(side: Partial<Row>): Report {
         variant: null,
       },
     },
-    settings: { frames: 8, warmup: 2, width: 640, height: 360, maxPages: 32 } as Report['settings'],
+    settings: {
+      frames: 8,
+      warmup: 2,
+      width: 640,
+      height: 360,
+      maxPages: 32,
+    } as BenchReport['settings'],
     finishedAt: 't1',
     errors: [],
     series: [

@@ -1,4 +1,4 @@
-// The scene the cut's whole-frame proofs mount (`cut-dispatches`, `cut-snapshot`, `frame-ranges`):
+// The scene the cut's whole-frame proofs mount (`cut-snapshot`, `frame-ranges`):
 // a pyramid of levels placed once per pose, seen from the front, and the command count an encode
 // opens.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
@@ -13,9 +13,6 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 
-/** The dispatch proof's scene size, shared with its Node guard (`cut-dispatches-scene.test.ts`). */
-export const DISPATCH_SCENE = { leaves: 12000, levels: 8 } as const
-
 /**
  * The scene, one placement per pose, its camera, and the worlds brought back to that camera's
  * render origin. The hierarchy is the compiler's, one node per detail tier under the root. Every
@@ -29,30 +26,4 @@ export function sceneView(leaves: number, levels: number, poses = [new G.Matrix4
   const uniforms = cameraSelectionUniforms(engineCamera(frontCamera(16, 200)), 1, [1280, 720])
   packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld)
   return { packed, uniforms, resident }
-}
-
-const nothing = () => {}
-
-/**
- * The commands an encode opens, counted on an encoder that only notes them: compute passes, and
- * copies outside a pass. Published, never asserted here: `gpu/dag/encode.test.ts` holds the
- * command-count contract on the same kind of encoder, without a device.
- */
-export function countCommands(encode: (encoder: GPUCommandEncoder) => void) {
-  let passes = 0,
-    copies = 0
-  const pass = {
-    setBindGroup: nothing,
-    setPipeline: nothing,
-    end: nothing,
-    dispatchWorkgroups: nothing,
-    dispatchWorkgroupsIndirect: nothing,
-  }
-  // The only methods the two encodes call: the rest of `GPUCommandEncoder` is never reached.
-  const encoder = {
-    beginComputePass: () => (passes++, pass),
-    copyBufferToBuffer: () => copies++,
-  } as unknown as GPUCommandEncoder
-  encode(encoder)
-  return { passes, copies }
 }

@@ -129,10 +129,9 @@ pub(in crate::tests) fn white_mat(name: &str, floats: &str) -> String {
     mat(name, floats, "    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}\n")
 }
 
-// A plain triangle; the sparse-accessor model of `sparse.rs` only opens on the same header.
-// jscpd:ignore-start
-/// A binary glTF of a single triangle, whose nodes are those the case asks for.
-fn glb(nodes: Value) -> Vec<u8> {
+/// The binary of a plain triangle: its three positions, then its three indices. The sparse-accessor
+/// model of `sparse.rs` opens on the same bytes.
+pub(in crate::tests) fn triangle_bin() -> Vec<u8> {
     let mut bin = Vec::new();
     for value in [0f32, 0., 0., 1., 0., 0., 0., 1., 0.] {
         bin.extend_from_slice(&value.to_le_bytes());
@@ -140,6 +139,12 @@ fn glb(nodes: Value) -> Vec<u8> {
     for value in [0u32, 1, 2] {
         bin.extend_from_slice(&value.to_le_bytes());
     }
+    bin
+}
+
+/// A binary glTF of a single triangle, whose nodes are those the case asks for.
+fn glb(nodes: Value) -> Vec<u8> {
+    let bin = triangle_bin();
     let gltf = json!({
         "asset":{"version":"2.0"},
         "buffers":[{"byteLength":bin.len()}],
@@ -156,7 +161,6 @@ fn glb(nodes: Value) -> Vec<u8> {
     });
     encode_glb(&gltf, &bin)
 }
-// jscpd:ignore-end
 
 /// The node of this name in the intermediate scene.
 pub(in crate::tests) fn node_named<'a>(gltf: &'a Value, name: &str) -> Option<&'a Value> {

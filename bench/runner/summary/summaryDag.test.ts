@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { stalls } from './summaryDag.ts'
-import type { Report } from '../report/types.ts'
+import type { BenchReport } from '../report/types.ts'
 
 const stalled = (mesh: number, rootTriangles: number) => ({
   index: mesh,
@@ -30,7 +30,7 @@ test("each side prints the compiler's stall table as it comes, or says it has no
         },
       },
     ],
-  } as unknown as Report
+  } as unknown as BenchReport
   const lines = stalls(report)
   assert.ok(lines.includes('- before: no stall recorded'))
   const rows = lines.filter((line) => /^\| \d/.test(line))
