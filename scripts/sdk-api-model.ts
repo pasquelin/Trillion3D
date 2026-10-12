@@ -44,8 +44,10 @@ function definingModule(symbol: ts.Symbol, checker: ts.TypeChecker): string {
 }
 
 let program: ts.Program | undefined
-const buildApiProgram = (old?: ts.Program) =>
-  ts.createProgram(
+/** One program over the entry files and the published facade: the checker the facade and the
+ *  export inventory read. Built on first use, then kept. */
+function apiProgram(): ts.Program {
+  program ??= ts.createProgram(
     [...Object.values(ENTRIES), ...Object.values(PUBLIC_ENTRIES)].map((file) => join(ROOT, file)),
     {
       target: ts.ScriptTarget.ES2022,
