@@ -95,8 +95,6 @@ const config: KnipConfig = {
       paths: {
         '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
       },
-      // The harness server maps this browser URL to the page entry above.
-      ignoreUnresolved: ['/runner/feedback/feedbackTargetPage.ts'],
       // Rust and its formatter, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as
       // one) are platform tools. The tap runner is a Stryker plugin, loaded by name
       // (`scripts/test-mutation.ts`).
