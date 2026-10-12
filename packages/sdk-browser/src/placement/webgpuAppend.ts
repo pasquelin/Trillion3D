@@ -7,8 +7,10 @@
  * for the pages they add (`growWebgpuPagePool`); its surface's textures are taken into the atlas
  * (`appendWebgpuTexture`); its roots wait beside those a growth brings and join the cut with them
  * (`webgpuGrowth.ts`, `webgpuGrownCut.ts`), the cut taking them in the room it kept
- * (`appendDagRoots`). Refused where the records would differ in kind — a blended or a deformed
- * primitive, pages read as floats — or where the catalogue cannot hold them (`catalogueRefusal`).
+ * (`appendDagRoots`). A blended or transmissive source brings copies, which join the transparent
+ * pass with them (`webgpu/blend/growth.ts`). Refused where the records would differ in kind — a
+ * deformed primitive, pages read as floats — or where the catalogue or the pass cannot hold them
+ * (`catalogueRefusal`, `blendRefusal`).
  */
 import type { Texture } from '../../../sdk-core/src/index.ts'
 import type { Primitive } from '../../../sdk-core/src/index.ts'
@@ -27,6 +29,8 @@ import {
   holdCatalogueCover,
 } from '../webgpu/pages/prepare/catalogueGrowth.ts'
 import { growWebgpuPagePool } from '../webgpu/pages/io/memory.ts'
+import { blendRefusal, prepareBlendGrowth } from '../webgpu/blend/growth.ts'
+import { byRenderOrder, pagedBlendCopiesOf } from '../webgpu/pages/prepare/setupCatalogue.ts'
 
 /** The textures `surface` reads, colour then data, as the open's census takes them
  *  (`collectWebgpuMaterialTextures`). */
@@ -55,7 +59,8 @@ export async function addWebgpuPlacements(
   const held = collector.primitiveOf(ranks)
   if (held && held.pages !== primitive.pages) return false
   const surface = sourceSurface(source)
-  if (primitive.deformation || drawsBlended(primitive, surface)) return false
+  if (primitive.deformation) return false
+  if (drawsBlended(primitive, surface) && blendRefusal(rt, surface)) return false
   if (!held) {
     if (primitive.pages.some((page) => !page.geometry)) return false
     context.metadata.primitives.push(primitive)
@@ -69,11 +74,18 @@ export async function addWebgpuPlacements(
   const into = collectedSink()
   collector.add(source, into)
   if (catalogueRefusal(rt, into.allPages)) return false
+  // The copies it draws blended or transmissive, ordered as the open orders them.
+  const copies = [...into.blendCopies, ...pagedBlendCopiesOf(into.roots, setup.pagedBlendCopies)]
+  copies.sort(byRenderOrder)
+  if (!(await prepareBlendGrowth(rt, gpu.device, copies, into.allPages))) return false
+  rt.signal.throwIfAborted()
+  if (run.lost || !run.gpuSelection) return false
   const { grown, cover } = growCatalogue(rt, into)
   if (!(await growWebgpuPagePool(rt, grown))) return false
   rt.signal.throwIfAborted()
   if (run.lost) return false
   holdCatalogueCover(rt, cover)
-  joinGrownRoots(rt, into.roots)
+  setup.blendCopies.push(...copies)
+  joinGrownRoots(rt, into.roots, copies)
   return true
 }

@@ -19,7 +19,9 @@ export function setupPages(context: EngineContext, diag: WebgpuDiagnostics) {
   )
   const { roots, allPages, blendCopies, requests } = collected
   const sharedBlendMeshes = blendCopies.length
-  const pagedBlendCopies = pagedBlendCopiesOf(roots, blendCopies)
+  const pagedBlendCopies = new Map<MatrixElements, BlendCopy>()
+  blendCopies.push(...pagedBlendCopiesOf(roots, pagedBlendCopies))
+  blendCopies.sort(byRenderOrder)
   // Request rank → address, posted once for the scene's life: the delta the host receives after the
   // render carries only integers, and it is this table that translates them.
   const requestUrls = [...requests.keys()]
@@ -38,14 +40,21 @@ export function setupPages(context: EngineContext, diag: WebgpuDiagnostics) {
   }
 }
 
+/** Draw order of the forward copies: their source's rank. */
+export const byRenderOrder = (a: BlendCopy, b: BlendCopy) => a.renderOrder - b.renderOrder
+
 /** Transparent pages share selection/residency with opaque pages, but retain one forward draw
  *  per placement (all back faces, then all front faces), keyed by the world of the root that
- *  places its pages: the source mesh's own, or one row of its instance buffer. */
-function pagedBlendCopiesOf(roots: SetupPages['roots'], blendCopies: BlendCopy[]) {
-  const pagedBlendCopies = new Map<MatrixElements, BlendCopy>()
+ *  places its pages: the source mesh's own, or one row of its instance buffer. The copies of
+ *  `roots` not made yet — `held` names those that are, by world — are returned and held. */
+export function pagedBlendCopiesOf(
+  roots: SetupPages['roots'],
+  held: Map<MatrixElements, BlendCopy>,
+) {
+  const made: BlendCopy[] = []
   for (const { world, placement, pages } of roots) {
     const rec = pages[0]
-    if (!rec?.transparent || !rec.drawSource || pagedBlendCopies.has(world)) continue
+    if (!rec?.transparent || !rec.drawSource || held.has(world)) continue
     const copy = createBlendCopyRecord(
       rec.drawSource,
       rec.renderOrder,
@@ -56,11 +65,10 @@ function pagedBlendCopiesOf(roots: SetupPages['roots'], blendCopies: BlendCopy[]
     copy.userData.pagedBlend = true
     // The compiler writes a geometry page for every cluster of a primitive, or for none.
     copy.userData.pageGeometry = !!rec.geometryPage
-    pagedBlendCopies.set(world, copy)
-    blendCopies.push(copy)
+    held.set(world, copy)
+    made.push(copy)
   }
-  blendCopies.sort((a, b) => a.renderOrder - b.renderOrder)
-  return pagedBlendCopies
+  return made
 }
 
 type SetupPages = ReturnType<typeof collectClusterPages>

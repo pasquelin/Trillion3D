@@ -49,10 +49,10 @@ export async function prepareGeometryAndBlend(
   // The transparent draw order is the scene's, settled here once: an image only picks survivors.
   const table = createTransparentTable(selectionRoots, packedPages, blendState.blendGpu)
   blendState.table = table
-  for (let i = 0; i < blendState.table.pagedItems.length; i++)
-    blendState.table.pagedItems[i].pagedIndex = i
-  blendState.compaction = await step('transparent compaction', () =>
-    createTransparentCompaction(gpuDevice, table),
+  // A scene with no blended page has no compaction to make: a source that brings some makes it
+  // (`prepareBlendGrowth`).
+  blendState.compaction = await step('transparent compaction', async () =>
+    table.length ? createTransparentCompaction(gpuDevice, table) : undefined,
   )
   // Transparent clusters are compacted on the GPU alone, from the GPU cut's mask (#1483).
   if (table.length && !blendState.compaction?.encode)

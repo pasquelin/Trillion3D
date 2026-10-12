@@ -1,7 +1,8 @@
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './items.ts'
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts'
-import { createBlendExpand } from './expand.ts'
+import { compileBlendExpand, EXPANSION_REFUSED, mountBlendExpand } from './expand.ts'
+import { validated } from '../../gpu/core/errorScope.ts'
 import { EXPAND_PASSES, planWords, scratchWords, slotCapacity } from './planLayout.ts'
 import { writeKeyRecords } from './keyRecords.ts'
 import { writeVolumeRecords } from '../transparent/transmission.ts'
@@ -12,19 +13,38 @@ import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts
 import { BLEND_ORDER_PASS } from '../../stage/passLabels.ts'
 
 /**
- * Everything the transparent pass holds of the SCENE, mounted once: the item records, the view
- * uniform, the indirect arguments and the GPU frustum that writes them.
+ * Everything the transparent pass holds of the SCENE, mounted at the open (`mountBlendResources`):
+ * the item records, the view uniform, the indirect arguments and the GPU frustum that writes them.
  *
  * Nothing here depends on the camera. What depends on the scene — matrices, materials — is redone
  * by `refreshBlendScene`, and only when the scene has moved.
  */
 export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { blendState } = rt
+  if (!blendState.blendGpu.length) return
+  await prepareBlendKernels(rt, device)
+  // The device refuses what it cannot hold by name, as it refuses the kernels.
+  const mounted = await validated(device, () => (mountBlendResources(rt, device), true))
+  if (mounted) return
+  disposeBlendResources(blendState)
+  throw new Error(EXPANSION_REFUSED)
+}
+
+/** The kernels of the transparent pass, compiled once for the session's life. */
+export async function prepareBlendKernels(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { blendState } = rt
+  blendState.kernels ??= await compileBlendExpand(device)
+}
+
+/**
+ * The scene buffers of the blended items the session holds, mounted on the compiled kernels. The
+ * open mounts them once; a session that gains blended items mounts them again over all of its
+ * items (`growBlend`): everything the previous mount made is released here, expansion included,
+ * and the groups that cited it are voided by their identity at the next pass.
+ */
+export function mountBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { blendState, vis } = rt,
     items = blendState.blendGpu
-  if (!items.length) return
-  // `prepare()` is public and can be called again without going through dispose: everything the
-  // previous prepare mounted is released here, expansion included. Bind groups that cited those
-  // buffers fall with them.
   disposeBlendResources(blendState)
   // A paged item without quantized pages reads the concatenated geometry, the very same as the
   // opaque pass: its first vertex there is the block of its source geometry.
@@ -44,6 +64,8 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
   // The two outputs of expansion: the instance list the shader reads at the rank the vertex index
   // gives it, and one indirect argument per slice. They belong to the scene.
   const entries = blendState.maxPlanEntries
+  // The frustum verdict is sent again: the buffer it goes to is new.
+  blendState.keepMoved = true
   refreshBlendScene(rt, device)
   blendState.expandedBuffer = device.createBuffer({
     label: 'Trillion3D blend expanded instances',
@@ -55,8 +77,9 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
     size: slotCapacity(entries) * 16 * EXPAND_PASSES,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
   })
-  blendState.expand = await createBlendExpand(
+  blendState.expand = mountBlendExpand(
     device,
+    blendState.kernels!,
     {
       items: items.length,
       entries,

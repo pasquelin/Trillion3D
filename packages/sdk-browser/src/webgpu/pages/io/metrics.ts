@@ -127,6 +127,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   pagedBlendCopies.clear()
   blendState.visibleBlend.length = 0
   disposeBlendResources(blendState)
+  blendState.kernels = undefined
   gpu.volumeBuffer?.destroy()
   gpu.volumeBuffer = undefined
   capture.surfaceCapture?.dispose()

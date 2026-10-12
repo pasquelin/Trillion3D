@@ -31,7 +31,9 @@ type BlendItemContext = {
   capacities: Parameters<typeof placementDeformation>[2]
 }
 
-/** Creates forward transparent GPU items, one per copy — per placement —, in source mesh order. */
+/** Creates forward transparent GPU items, one per copy — per placement —, in source mesh order, and
+ *  returns how many items transmit. The copies of a session that gains some later are given the
+ *  same way: their items follow the held ones, and take the water ranks after theirs. */
 export function prepareWebgpuBlend(
   device: GPUDevice,
   blendCopies: readonly BlendCopy[],
@@ -40,7 +42,7 @@ export function prepareWebgpuBlend(
   scene: BlendHostScene,
 ) {
   const ctx: BlendItemContext = { device, gpu, capacities: new Map() }
-  let transmissive = 0
+  let transmissive = blendState.transmissive
   for (const copy of blendCopies) {
     // Its water rank, one-based and compact over the transmissive items: the next one, taken only
     // by an item that transmits.

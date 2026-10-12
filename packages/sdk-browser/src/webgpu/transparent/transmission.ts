@@ -98,6 +98,21 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   device.queue.writeBuffer(gpu.volumeBuffer, 0, packed)
 }
 
+/** The volume table made to hold the transmissive items the session holds now: the records it has
+ *  stay at their rank, a table that fills is copied once into one twice as long. */
+export function growVolumes(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { gpu, blendState } = rt,
+    held = blendState.volumePacked
+  const words = blendState.transmissive * VOLUME_WORDS
+  if (words <= held.length) return
+  const packed = new Float32Array(Math.max(words, 2 * held.length))
+  packed.set(held)
+  blendState.volumePacked = packed
+  const outgrown = gpu.volumeBuffer
+  gpu.volumeBuffer = createVolumeBuffer(device, packed.length / VOLUME_WORDS)
+  outgrown?.destroy()
+}
+
 /** Volume buffer, sized to the scene's transmissive-item count. */
 export function createVolumeBuffer(device: GPUDevice, transmissive: number) {
   return device.createBuffer({

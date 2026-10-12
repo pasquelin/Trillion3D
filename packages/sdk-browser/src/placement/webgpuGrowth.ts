@@ -27,6 +27,7 @@ import { holdGrownWorlds, keepMovesFor } from './growthAnnounce.ts'
 import { loseGpuSelection } from '../webgpu/pages/io/drops.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
+import type { BlendCopy } from '../cluster/blendCopyContract.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { forgetRowRoots } from './update.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
@@ -48,6 +49,9 @@ export const webgpuPlacementApi = (rt: WebgpuPagesRuntime) => ({
  *  made, or the running one that took them (`inPlace`) —, until adopted. */
 type Growth = {
   roots: Root[]
+  /** The blended and transmissive copies of the sources added, which join the pass once their
+   *  roots hold their ranks (`growBlend`). */
+  copies: BlendCopy[]
   appended: number
   made: number
   asked: boolean
@@ -80,7 +84,7 @@ function webgpuGrowsInPlace(rt: WebgpuPagesRuntime, from: readonly PlacementRows
  *  `to`, and one parked root per new row waits for the cut made over all of them, asked of the next
  *  frame entry (`startGrownCut`): a burst of growths packs the DAG once. */
 function growWebgpuPlacements(rt: WebgpuPagesRuntime, from: PlacementRows, to: PlacementRows) {
-  const growth = growths.get(rt) ?? { roots: [], appended: 0, made: 0, asked: false }
+  const growth = growths.get(rt) ?? { roots: [], copies: [], appended: 0, made: 0, asked: false }
   growths.set(rt, growth)
   const { selectionRoots } = rt.layout
   for (const { item } of growRowRoots([...selectionRoots, ...growth.roots], from, to))
@@ -91,13 +95,22 @@ function growWebgpuPlacements(rt: WebgpuPagesRuntime, from: PlacementRows, to: P
 }
 
 /** Roots of a source added to the session in place wait beside those a growth brought, to be
- *  taken into the cut with them (`addWebgpuPlacements`). */
-export function joinGrownRoots(rt: WebgpuPagesRuntime, roots: readonly Root[]) {
-  const growth = growths.get(rt) ?? { roots: [], appended: 0, made: 0, asked: false }
+ *  taken into the cut with them, and its blended `copies` with them to join the transparent pass
+ *  (`addWebgpuPlacements`). */
+export function joinGrownRoots(
+  rt: WebgpuPagesRuntime,
+  roots: readonly Root[],
+  copies: readonly BlendCopy[],
+) {
+  const growth = growths.get(rt) ?? { roots: [], copies: [], appended: 0, made: 0, asked: false }
   growths.set(rt, growth)
   growth.roots.push(...roots)
-  if (growth.roots.length) growth.asked = true
+  growth.copies.push(...copies)
+  if (growth.roots.length || growth.copies.length) growth.asked = true
 }
+
+/** The blended copies waiting to join the pass, taken. */
+export const takeGrownCopies = (rt: WebgpuPagesRuntime) => growths.get(rt)?.copies.splice(0) ?? []
 
 /** At frame entry: the roots the growths since the last image brought, appended in place into the
  *  running cut's room, or a cut over every root made beside it at a grown capacity. */
@@ -110,7 +123,8 @@ export function startGrownCut(rt: WebgpuPagesRuntime) {
   if (cut?.growing) return
   growth.asked = false
   const added = growth.roots.slice(growth.appended)
-  if (cut?.appendRoots(added)) {
+  // Copies alone bring no root: the running cut holds what they join.
+  if (cut && (!added.length || cut.appendRoots(added))) {
     // The worlds the host sends hold theirs at once, at their ranks.
     holdGrownWorlds(
       rt.layout.worldUpdates,

@@ -10,7 +10,7 @@ import type { BlendOverdraw } from './overdraw.ts'
 import type { TransparentCompaction } from '../transparent/compact.ts'
 import type { TransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts'
 import type { TransparentTable } from '../transparent/table.ts'
-import type { BlendExpand } from './expand.ts'
+import type { BlendExpand, BlendKernels } from './expand.ts'
 import { createWaterBounds } from '../water/bounds.ts'
 import type { WaterPass } from '../water/waterPass.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
@@ -169,6 +169,8 @@ function planState() {
     /** Kernel that expands the sorted plan, and the two buffers it writes: the instance list the
      *  shader reads, and one indirect argument per run. */
     expand: undefined as BlendExpand | undefined,
+    /** The kernels the expansion is mounted on, compiled once whatever the items the session holds. */
+    kernels: undefined as BlendKernels | undefined,
     expandedBuffer: undefined as GPUBuffer | undefined,
     argsBuffer: undefined as GPUBuffer | undefined,
     /** What the vertex index shifts to name the first instance of its run, and the vertices of a

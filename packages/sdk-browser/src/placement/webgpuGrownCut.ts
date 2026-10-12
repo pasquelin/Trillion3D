@@ -12,11 +12,13 @@ import { reserveRootBoxes } from '../page/selection/batchBoxes.ts'
 import { mainViewGpu, viewGpu } from '../webgpu/pages/state/view.ts'
 import { markReach } from '../deformation/halfFloat.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
+import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { forgetRowRoots } from './update.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
-import { growthOf, heldPage } from './webgpuGrowth.ts'
+import { growthOf, heldPage, takeGrownCopies } from './webgpuGrowth.ts'
+import { growBlend } from '../webgpu/blend/growth.ts'
 import { announceGrowth, replayMoves, type GrownRoots } from './growthAnnounce.ts'
 
 /**
@@ -50,8 +52,12 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   // rewritten in place, and the pool's copies count each primitive page once by its placements.
   countRootCopies(layout.copies, added)
   postPackedBases(selectionRoots, layout.placement) // in place: readers hold this object
-  layout.opaquePageCount += packedPages.length - first
+  for (const root of added)
+    if (!root.pages[0]?.transparent) layout.opaquePageCount += root.pages.length
   rows.addPages(first)
+  // The blended copies join the pass with the ranks their pages hold now, before the first sync of
+  // the rows names them.
+  joinBlend(rt, takeGrownCopies(rt), added, first)
   // The worlds the cut takes, laid out for every placement its tables hold: a growth into its room
   // keeps them, one past it lays them out once more.
   const slots = Math.max(1, selectionRoots.length, ready.cut.worldCapacity) * 16
@@ -82,6 +88,21 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
     )
   announceGrowth(rt, added, firstRank)
   return true
+}
+
+/** The blended `copies` join the transparent pass; one the device refuses is said once. */
+function joinBlend(
+  rt: WebgpuPagesRuntime,
+  copies: ReturnType<typeof takeGrownCopies>,
+  roots: readonly ClusterRoot<PageRec>[],
+  base: number,
+) {
+  if (!copies.length) return
+  try {
+    growBlend(rt, rt.gpu.device!, copies, roots, base)
+  } catch (error) {
+    rt.diag.diagnosticFailure('blend-growth-failed', error)
+  }
 }
 
 /** `cut` replaces the running cut (`adoptCut`): it holds every root's park and mark word and the
