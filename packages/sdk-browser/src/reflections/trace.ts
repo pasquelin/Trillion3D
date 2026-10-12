@@ -26,11 +26,12 @@ import { REFLECTION_GROUP, REFLECTION_VIEW_WGSL, reflectionLightViewWgsl } from 
 import { reflectionShareWgsl } from './weight.ts'
 import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
 import { HISTORY } from './proxyHistory.ts'
-import { RUNTIME_TRACE_STORAGE_BUFFERS } from '../bounce/runtimeLayout.ts'
 import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
 
 /** The step, in tiles, the run-time proxy's schedule turns by each image: prime, so that it visits every tile of any count. */
 const TILE_STRIDE = 61
+/** The word the tile list starts at in the tiles' one buffer: the indirect arguments, then the list. */
+const TILE_LIST = 4
 
 /** The binding of the resident proxy in the trace's group 0. */
 const PROXY_BINDING = 11
@@ -48,7 +49,7 @@ const RUNTIME_BINDINGS: RuntimeBindings = {
 /**
  * The opaque surfaces' reflection, in the compute pass of the image: where a tile of
  * `SIDE × SIDE` pixels holds a surface with a specular lobe (`classifyReflections`: one thread a
- * pixel, a tile listed once, in `traceList`), the trace (`traceReflections`) runs over the listed
+ * pixel, a tile listed once, in the tile list), the trace (`traceReflections`) runs over the listed
  * tiles alone, and each pixel of such a surface writes the share of the radiance it reflects
  * (`reflectedShare`: both its lobes, traced, weighed on its reflectance and coated); any other
  * pixel writes nothing and the resolve reads nothing of it (`resolvedReflection`). The tiles are
@@ -60,9 +61,8 @@ const RUNTIME_BINDINGS: RuntimeBindings = {
  * (`PHYSICAL_SURFACE_FLAG`), those the lobes target holds (`lobesAt`). Its radiance is the chain of
  * the screen, the proxy, the probes and the environment (`reflectedRadiance`).
  */
-const traceProgram = (runtime: boolean) =>
-  wgslProgram(
-    `@group(0) @binding(0) var traceFlags:texture_2d<u32>;
+export const TRACE_SHADER = wgslProgram(
+  `@group(0) @binding(0) var traceFlags:texture_2d<u32>;
 @group(0) @binding(1) var traceNormals:texture_2d<f32>;
 @group(0) @binding(2) var traceOut:texture_storage_2d<${REFLECTION_FORMAT},write>;
 @group(0) @binding(3) var<storage,read> directLights:DirectLights;
@@ -70,8 +70,7 @@ const traceProgram = (runtime: boolean) =>
 @group(0) @binding(5) var<uniform> bounce:BounceGrid;
 @group(0) @binding(6) var probes:texture_2d_array<f32>;
 @group(0) @binding(7) var<storage,read_write> work:array<atomic<u32>>;
-@group(0) @binding(8) var<storage,read_write> traceList:array<u32>;
-@group(0) @binding(9) var<storage,read> traceCount:array<u32>;
+@group(0) @binding(8) var<storage,read> traceTiles:array<u32>;
 @group(0) @binding(10) var traceBase:texture_2d<f32>;
 var<workgroup> reflecting:atomic<u32>;
 @compute @workgroup_size(${SIDE},${SIDE})
@@ -80,26 +79,25 @@ fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgrou
  workgroupBarrier();
  if(lane==0u&&atomicLoad(&reflecting)!=0u){
   let rank=atomicAdd(&work[3],1u);
-  traceList[rank]=wg.x|(wg.y<<16u);
+  atomicStore(&work[${TILE_LIST}u+rank],wg.x|(wg.y<<16u));
   openSlice(0u,rank);
  }
 }
 @compute @workgroup_size(${SIDE},${SIDE})
 fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) rows:vec3u,@builtin(local_invocation_id) lid:vec3u){
  let rank=flatIndex(wg,rows,1u);
- if(rank>=traceCount[3]){return;}
- ${
-   runtime
-     ? `// The run-time proxy's budget goes to the first tiles it meets: another tile first each image.
- let tile=traceList[(rank+reflectionView.runtime.x*${TILE_STRIDE}u)%traceCount[3]];`
-     : 'let tile=traceList[rank];'
- }
+ let count=traceTiles[3];
+ if(rank>=count){return;}
+ // The run-time proxy's budget goes to the first tiles it meets: another tile first each image.
+ let tile=traceTiles[${TILE_LIST}u+(rank+reflectionView.runtime.x*${TILE_STRIDE}u)%count];
  let id=vec2u(tile&65535u,tile>>16u)*${SIDE}u+lid.xy;
  if(any(vec2f(id)>=view.viewport.xy)){return;}
  let coord=vec2i(id);
  let flags=textureLoad(traceFlags,coord,0).r;
  if(!surfaceReflects(flags)){return;}
- ${runtime ? 'rtPixel=id.y*u32(view.viewport.x)+id.x;\n rtCalls=0u;\n' : ''} let base=textureLoad(traceBase,coord,0);
+ rtPixel=id.y*u32(view.viewport.x)+id.x;
+ rtCalls=0u;
+ let base=textureLoad(traceBase,coord,0);
  let P=worldAt(vec2f(id)+vec2f(0.5),textureLoad(hizDepth,coord,0).r);
  let normal=textureLoad(traceNormals,coord,0);
  let N=normalize(normal.xyz);
@@ -107,31 +105,23 @@ fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) row
  if((flags&${PHYSICAL_SURFACE_FLAG}u)!=0u){lobesAt(textureLoad(traceLobes,coord,0),1.0,N,V,normal.a);}
  textureStore(traceOut,coord,vec4f(reflectedShare(f0Of(base.rgb,base.a),normal.a,N,V,P),1.0));
 }`,
-    [
-      directLightWgsl(),
-      STANDARD_LIGHTING_WGSL,
-      SURFACE_MODEL_LIGHT_WGSL,
-      RECT_SHADING_WGSL,
-      LOBES_LIGHTING_WGSL,
-      LOBES_DECODE_WGSL,
-      BOUNCE_GRID_WGSL,
-      residentProxyWgsl(PROXY_BINDING),
-      reflectionLightViewWgsl(REFLECTION_GROUP),
-      reflectionShareWgsl(REFLECTION_GROUP, true, runtime ? RUNTIME_BINDINGS : undefined),
-      FLAT_INDEX_WGSL,
-      OPEN_SLICE_WGSL,
-      surfaceReflects,
-      f0Of,
-    ],
-  )
-
-/** The opaque trace with the run-time proxy's stage and its four bindings, and without them: the
- *  first where the device holds the storage buffers the stage binds (`RUNTIME_TRACE_STORAGE_BUFFERS`). */
-export const TRACE_SHADER = traceProgram(true)
-export const TRACE_SHADER_PLAIN = traceProgram(false)
-/** Whether `device` holds them: a device with the spec's eight storage buffers a stage traces without. */
-export const tracesRuntime = (device: GPUDevice) =>
-  (device.limits?.maxStorageBuffersPerShaderStage ?? 8) >= RUNTIME_TRACE_STORAGE_BUFFERS
+  [
+    directLightWgsl(),
+    STANDARD_LIGHTING_WGSL,
+    SURFACE_MODEL_LIGHT_WGSL,
+    RECT_SHADING_WGSL,
+    LOBES_LIGHTING_WGSL,
+    LOBES_DECODE_WGSL,
+    BOUNCE_GRID_WGSL,
+    residentProxyWgsl(PROXY_BINDING),
+    reflectionLightViewWgsl(REFLECTION_GROUP),
+    reflectionShareWgsl(REFLECTION_GROUP, true, RUNTIME_BINDINGS),
+    FLAT_INDEX_WGSL,
+    OPEN_SLICE_WGSL,
+    surfaceReflects,
+    f0Of,
+  ],
+)
 
 /**
  * The frame's reflection state, one thread: the radiance around the scene (`surroundings`,
@@ -139,7 +129,8 @@ export const tracesRuntime = (device: GPUDevice) =>
  * value of the view (`view.background`, held below white, which no byte tells from the display's
  * one at an infinite radiance, decoded once) turned back, by the exposure and the display curve of
  * the view, into the radiance that shows it (`toneUnmap`) — and the tile list emptied, its indirect
- * arguments set (`TRACE_SHADER`).
+ * arguments set (`TRACE_SHADER`); the run-time proxy's epoch moved with the lit image and its frame
+ * counters started again.
  */
 export const BEGIN_SHADER = wgslProgram(
   `@group(0) @binding(1) var<storage,read_write> reflectionView:ReflectionView;
@@ -173,7 +164,7 @@ const runtimeEntries = {
 }
 
 /** The trace's bind group 0 and the frame state's layouts. */
-function traceLayouts(device: GPUDevice, runtime: boolean) {
+function traceLayouts(device: GPUDevice) {
   const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
   return {
     traceLayout: layout([
@@ -184,17 +175,12 @@ function traceLayouts(device: GPUDevice, runtime: boolean) {
       computeTextureEntry(4, 'uint'),
       computeBufferEntry(5, 'uniform'),
       computeTextureEntry(6, 'unfilterable-float', '2d-array'),
-      computeBufferEntry(8, 'storage'),
-      computeBufferEntry(9, 'read-only-storage'),
+      computeBufferEntry(8, 'read-only-storage'),
       computeTextureEntry(10, 'unfilterable-float'),
       computeBufferEntry(PROXY_BINDING, 'read-only-storage'),
-      ...(runtime ? Object.values(runtimeEntries) : []),
+      ...Object.values(runtimeEntries),
     ]),
-    classifyLayout: layout([
-      computeTextureEntry(0, 'uint'),
-      computeBufferEntry(7, 'storage'),
-      computeBufferEntry(8, 'storage'),
-    ]),
+    classifyLayout: layout([computeTextureEntry(0, 'uint'), computeBufferEntry(7, 'storage')]),
     beginLayout: layout([
       computeBufferEntry(1, 'storage'),
       computeBufferEntry(2, 'storage'),
@@ -213,8 +199,7 @@ export async function createTraceStages(
   modules: { trace: GPUShaderModule; begin: GPUShaderModule },
   groupLayout: GPUBindGroupLayout,
 ) {
-  const runtime = tracesRuntime(device)
-  const { traceLayout, classifyLayout, beginLayout } = traceLayouts(device, runtime)
+  const { traceLayout, classifyLayout, beginLayout } = traceLayouts(device)
   const layout = (...bindGroupLayouts: GPUBindGroupLayout[]) =>
     device.createPipelineLayout({ bindGroupLayouts })
   const width = groupWidth(device.limits)
@@ -233,7 +218,6 @@ export async function createTraceStages(
     ]),
   ])
   return {
-    runtime,
     traceLayout,
     classifyLayout,
     beginLayout,
@@ -249,16 +233,14 @@ export const traceListBytes = (width: number, height: number) =>
 
 /** The tile list of a view and its indirect arguments (`TRACE_ARGS_BYTES`). */
 export const createTraceTiles = (device: GPUDevice, width: number, height: number) => ({
+  // One buffer, the indirect arguments then the list: the classification writes both, the trace reads
+  // both through one read-only binding — read-only, which an indirect argument may be in the same
+  // dispatch — and a stage of it binds no more than eight storage buffers (`RUNTIME_BINDINGS`).
   args: device.createBuffer({
-    label: 'Trillion3D reflection tile count',
-    size: TRACE_ARGS_BYTES,
+    label: 'Trillion3D reflection tile count and list',
+    size: TRACE_ARGS_BYTES + traceListBytes(width, height),
     // Its count is copied to the settle sample (`settle.ts`).
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_SRC,
-  }),
-  list: device.createBuffer({
-    label: 'Trillion3D reflection tiles',
-    size: traceListBytes(width, height),
-    usage: GPUBufferUsage.STORAGE,
   }),
 })
 type TraceTiles = ReturnType<typeof createTraceTiles>
@@ -342,19 +324,14 @@ function traceGroups(
         { binding: 4, resource: inputs.lobes },
         { binding: 5, resource: { buffer: inputs.bounceGrid } },
         { binding: 6, resource: inputs.probes },
-        { binding: 8, resource: { buffer: tiles.list } },
-        { binding: 9, resource: { buffer: tiles.args } },
+        { binding: 8, resource: { buffer: tiles.args } },
         { binding: 10, resource: inputs.base },
         { binding: PROXY_BINDING, resource: { buffer: inputs.proxy } },
-        ...(stages.runtime
-          ? [
-              { binding: RUNTIME_BINDINGS.proxy, resource: { buffer: inputs.runtime.proxy } },
-              { binding: RUNTIME_BINDINGS.nodes, resource: { buffer: inputs.runtime.nodes } },
-              { binding: RUNTIME_BINDINGS.cold, resource: { buffer: inputs.runtime.cold } },
-              { binding: RUNTIME_BINDINGS.worlds, resource: { buffer: inputs.runtime.worlds } },
-              { binding: RUNTIME_BINDINGS.history, resource: { buffer: inputs.history } },
-            ]
-          : []),
+        { binding: RUNTIME_BINDINGS.proxy, resource: { buffer: inputs.runtime.proxy } },
+        { binding: RUNTIME_BINDINGS.nodes, resource: { buffer: inputs.runtime.nodes } },
+        { binding: RUNTIME_BINDINGS.cold, resource: { buffer: inputs.runtime.cold } },
+        { binding: RUNTIME_BINDINGS.worlds, resource: { buffer: inputs.runtime.worlds } },
+        { binding: RUNTIME_BINDINGS.history, resource: { buffer: inputs.history } },
       ],
     }),
     classify: device.createBindGroup({
@@ -362,7 +339,6 @@ function traceGroups(
       entries: [
         { binding: 0, resource: inputs.flags },
         { binding: 7, resource: { buffer: tiles.args } },
-        { binding: 8, resource: { buffer: tiles.list } },
       ],
     }),
     begin: device.createBindGroup({

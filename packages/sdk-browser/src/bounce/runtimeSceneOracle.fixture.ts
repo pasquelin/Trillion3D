@@ -34,13 +34,22 @@ export type OracleScene = {
   packed: PackedDag
   columns: ArenaColumns
   instances: ReadonlyMap<number, Instance>
+  /** The first blended copy's rank and the copies' worlds, sixteen floats each, after the placements. */
+  copyBase?: number
+  copyWorlds?: Float32Array
 }
+
+/** Member `w`'s world: the culling's, or a copy's. */
+const worldOf = (scene: OracleScene, w: number) =>
+  scene.copyBase !== undefined && w >= scene.copyBase
+    ? scene.copyWorlds!.subarray((w - scene.copyBase) * 16, (w - scene.copyBase) * 16 + 16)
+    : scene.packed.worlds.subarray(w * 16, w * 16 + 16)
 
 /** `rtEnter`: the ray against placement `w`, its world box first. */
 function enter(scene: OracleScene, w: number, o: Vec, d: Vec, best: Hit, s: Spent): Hit {
   const instance = scene.instances.get(w)
   if (!instance) return best
-  const m = scene.packed.worlds.subarray(w * 16, w * 16 + 16)
+  const m = worldOf(scene, w)
   const a: Vec = [m[0], m[1], m[2]],
     b: Vec = [m[4], m[5], m[6]],
     c: Vec = [m[8], m[9], m[10]],
@@ -85,7 +94,7 @@ export function traceScene(scene: OracleScene, o: Vec, d: Vec, limit: number, s:
       s.work += 1
       best = enter(scene, w, o, d, best, s)
     }
-    return best
+    return copiesOf(scene, o, d, best, s)
   }
   const nodes = new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset, packed.nodes.length)
   const cold = new Uint32Array(
@@ -137,6 +146,18 @@ export function traceScene(scene: OracleScene, o: Vec, d: Vec, limit: number, s:
   }
   // A walk that ran out of steps, not of tree, is a spent ray as well.
   if (!done) s.work = RAY_WORK
+  return copiesOf(scene, o, d, best, s)
+}
+
+/** The blended copies, members after the placements: each tried in turn, a unit apiece. */
+function copiesOf(scene: OracleScene, o: Vec, d: Vec, hit: Hit, s: Spent) {
+  let best = hit
+  const count = scene.copyWorlds ? scene.copyWorlds.length / 16 : 0
+  for (let k = 0; k < count; k++) {
+    if (spent(s)) break
+    s.work += 1
+    best = enter(scene, scene.copyBase! + k, o, d, best, s)
+  }
   return best
 }
 
@@ -144,7 +165,7 @@ export function traceScene(scene: OracleScene, o: Vec, d: Vec, limit: number, s:
 export function bruteForce(scene: OracleScene, o: Vec, d: Vec, limit: number): Hit {
   let best: Hit = { distance: limit, placement: 0, triangle: 0, found: false }
   for (const [w, instance] of scene.instances) {
-    const m = scene.packed.worlds.subarray(w * 16, w * 16 + 16)
+    const m = worldOf(scene, w)
     const place = (v: Vec): Vec => [
       m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12],
       m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13],

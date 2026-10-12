@@ -26,19 +26,14 @@ const FUNCTIONS = [
   'rtInverseOf',
   'rtInverseApply',
   'rtInstanceWord',
+  'rtTreeWord',
   'rtTreeLow',
   'rtTreeHigh',
 ]
 const BINDINGS = { group: 0, proxy: 12, nodes: 13, cold: 14, worlds: 15, history: 16 }
 
 export function runOver(w: ReturnType<typeof world>, history: number[] = [0, 0, 0, 0]) {
-  const { packed, header } = w
-  const nodes = new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset, packed.nodes.length)
-  const cold = new Uint32Array(
-    packed.pageCones.buffer,
-    packed.pageCones.byteOffset,
-    packed.pageCones.length,
-  )
+  const { packed, header, nodes, cold } = w
   const text =
     wgslModule(runtimeTraceWgsl(BINDINGS)) +
     'fn testWork()->u32{return rtWork;}\nfn testTests()->u32{return rtTests;}\nfn testReset(){rtWork=0u;rtTests=0u;}\nfn testPixel(p:u32){rtPixel=p;rtCalls=0u;}\n'

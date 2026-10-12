@@ -157,7 +157,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
           frame.viewProjection,
         )
         build.end()
-        reflection.settle.image(encoder, reflection.tiles.args, reflection.history.buffer(false))
+        reflection.settle.image(encoder, reflection.tiles.args, inputs.history)
       }
       device.queue.submit([encoder.finish()])
       reflection.settle.submitted()

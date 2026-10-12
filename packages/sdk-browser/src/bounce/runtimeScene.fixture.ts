@@ -37,7 +37,16 @@ function cube() {
 export function world(
   count: number,
   seed: number,
-  options: { places?: G.Matrix4[]; surfaces?: number[][]; surfaceOf?: (w: number) => number } = {},
+  options: {
+    places?: G.Matrix4[]
+    surfaces?: number[][]
+    surfaceOf?: (w: number) => number
+    /** Blended copies, members after the placements, each a cube at the pose given. */
+    copies?: G.Matrix4[]
+    /** The tree's nodes and members' order as a part of a split table holds them: the part begins at
+     *  this node and this word of the table, which the header names. */
+    shift?: { nodes: number; cold: number }
+  } = {},
 ) {
   const random = stream(seed),
     side = Math.ceil(Math.sqrt(count))
@@ -73,14 +82,19 @@ export function world(
   const triangles = cut.triangles.length / PROXY_TRIANGLE_FLOATS,
     nodes = cut.nodeBounds.length / PROXY_NODE_FLOATS
   const surfaces = options.surfaces ?? [[1, 1, 1, 1, 0, 0, 0, 0]]
+  const copies = options.copies ?? []
   const instancesAt = 0,
-    surfacesAt = count * INSTANCE_WORDS,
+    copyWorldsAt = (count + copies.length) * INSTANCE_WORDS,
+    surfacesAt = copyWorldsAt + copies.length * 16,
     trianglesAt = surfacesAt + surfaces.length * SURFACE_WORDS,
     boundsAt = trianglesAt + triangles * PROXY_TRIANGLE_FLOATS,
     childrenAt = boundsAt + nodes * PROXY_NODE_FLOATS
   const words = new Uint32Array(childrenAt + nodes * PROXY_NODE_WORDS)
-  for (let w = 0; w < count; w++)
+  for (let w = 0; w < count + copies.length; w++)
     words.set([0, 0, options.surfaceOf?.(w) ?? 0, 0], instancesAt + w * INSTANCE_WORDS)
+  copies.forEach((m, k) =>
+    new Float32Array(words.buffer, (copyWorldsAt + k * 16) * 4, 16).set(m.elements),
+  )
   surfaces.forEach((surface, k) => {
     const at = surfacesAt + k * SURFACE_WORDS
     new Float32Array(words.buffer, at * 4, 7).set(surface.slice(0, 7))
@@ -95,7 +109,7 @@ export function world(
     instancesWord: instancesAt,
     surfacesWord: surfacesAt,
     trianglesWord: trianglesAt,
-    albedoWord: 0,
+    copyWorldsWord: copyWorldsAt,
     boundsWord: boundsAt,
     childrenWord: childrenAt,
     treeRoot: tree ? tree.levels[0].base : RUNTIME_NONE,
@@ -104,6 +118,9 @@ export function world(
     worldStride: 16,
     worldRows: count,
     error: 0,
+    nodeFirst: options.shift?.nodes ?? 0,
+    coldFirst: options.shift?.cold ?? 0,
+    copies: copies.length,
     words,
   }
   const columns: ArenaColumns = {
@@ -112,7 +129,32 @@ export function world(
     nodeChildren: cut.nodeChildren,
   }
   const instances = new Map<number, Instance>(
-    Array.from({ length: count }, (_, w) => [w, { node: 0, triangle: 0, triangles }]),
+    Array.from({ length: count + copies.length }, (_, w) => [
+      w,
+      { node: 0, triangle: 0, triangles },
+    ]),
   )
-  return { packed, header, scene: { packed, columns, instances } satisfies OracleScene }
+  // The tables as the shader's bindings hold them: the part of the culling's, after the shift.
+  const shift = options.shift ?? { nodes: 0, cold: 0 }
+  const nodeWords = new Uint32Array(
+    packed.nodes.buffer,
+    packed.nodes.byteOffset,
+    packed.nodes.length,
+  )
+  const coldWords = new Uint32Array(
+    packed.pageCones.buffer,
+    packed.pageCones.byteOffset,
+    packed.pageCones.length,
+  )
+  const nodesPart = nodeWords.subarray(shift.nodes * 24),
+    coldPart = coldWords.subarray(shift.cold)
+  const copyWorlds = new Float32Array(copies.length * 16)
+  copies.forEach((m, k) => copyWorlds.set(m.elements, k * 16))
+  return {
+    packed,
+    header,
+    nodes: nodesPart,
+    cold: coldPart,
+    scene: { packed, columns, instances, copyBase: count, copyWorlds } satisfies OracleScene,
+  }
 }

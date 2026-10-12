@@ -10,7 +10,9 @@ export function noRuntimeProxy(device: GPUDevice, reflection: ScreenReflection) 
   })
   return {
     runtime: { proxy: empty, nodes: empty, cold: empty, worlds: empty },
-    history: reflection.history.buffer(false),
+    history:
+      reflection.history.buffer ??
+      device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
     hash: reflection.settle.hash,
   }
 }

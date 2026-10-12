@@ -11,6 +11,7 @@ import type { CameraMotion, EngineCamera } from '../../camera/world.ts'
 import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
+import type { ProxyCopy } from '../dag/proxyInstances.ts'
 
 /** The step a cut takes on the tables before it encodes, under its uniforms, for its view — an
  *  object the main view holds for the selection's life, or each view aside its own, never another
@@ -139,6 +140,9 @@ export type GpuSelection = {
    *  (`../dag/proxyInstances.ts`): none until a placement wears a proxy. */
   proxyBuffers():
     { proxy: GPUBuffer; nodes: GPUBuffer; cold: GPUBuffer; worlds: GPUBuffer } | undefined
+  /** The blended copies the forward family draws, members of the same proxy after the placements
+   *  (`../dag/proxyInstances.ts`): their poses are read again at each cut. */
+  proxyCopies(copies: readonly ProxyCopy[]): void
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void
   /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `markReach`). */

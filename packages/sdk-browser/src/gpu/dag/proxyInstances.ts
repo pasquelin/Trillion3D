@@ -1,15 +1,18 @@
 /**
  * THE RUN-TIME PROXY KEPT TO THE PLACEMENTS IT TRACES: what a ray can meet of the meshes the world cut
  * at run time, beyond the visible cut (`bounce/runtimeTraceWgsl.ts`). One buffer
- * (`bounce/runtimeLayout.ts`) holds an instance of four words per placement — written next to the
- * culling's own rows, the same `w` —, a surface per drawn material and the arena of the cuts'
- * proxies, each uploaded once, when a placement first wears it. The placements' worlds, and the tree
- * above them, are the culling's: the buffers are the cut's, read where they lie (`buffers`).
+ * (`bounce/runtimeLayout.ts`) holds an instance of four words a placement — written next to the
+ * culling's own rows, the same `w` —, one for each blended copy the forward family draws (the
+ * members after the placements, their worlds in the buffer: they are no member of the culling's
+ * tree), a surface a drawn material and the arena of the cuts' proxies, each uploaded once, when a
+ * placement or a copy first wears it. The placements' worlds, and the tree above them, are the
+ * culling's: the buffers are the cut's, read where they lie (`buffers`) — the part of a split table
+ * that holds the tree, a tree no part holds whole walked as the placements it orders.
  *
  * A member of the run (`runtime.ts`): its operations tell it what moved — roots appended, a
- * placement parked or marked — and each cut refreshes the surfaces a host edited since. A surface
- * edited while no cut is encoded waits for the next one. Without a placement that wears a proxy, no
- * buffer is made and `buffers` answers none: the trace reads its empty stand-ins.
+ * placement parked or marked — and each cut refreshes the surfaces a host edited and the copies that
+ * moved since. Without a placement or a copy that wears a proxy, no buffer is made and `buffers`
+ * answers none: the trace reads its empty stand-ins.
  */
 import {
   PROXY_NODE_FLOATS,
@@ -17,8 +20,10 @@ import {
   PROXY_TRIANGLE_FLOATS,
 } from '../../../../sdk-core/src/index.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
-import { refreshSurface, type PageSurface } from '../../page/surface.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
+import { refreshSurface, type PageSurface } from '../../page/surface.ts'
+import type { RootProxy } from '../../page/selection/types.ts'
+import { rowParked, type PlacementOf } from '../../placement/rows.ts'
 import { createSpans } from '../../bounce/runtimeArena.ts'
 import {
   INSTANCE,
@@ -26,7 +31,6 @@ import {
   RUNTIME_HEADER,
   RUNTIME_HEADER_WORDS,
   RUNTIME_NONE,
-  RUNTIME_TRACE_STORAGE_BUFFERS,
   SURFACE_WORDS,
 } from '../../bounce/runtimeLayout.ts'
 import { writeSurface } from '../../bounce/runtimeSurface.ts'
@@ -50,46 +54,68 @@ type Resources = {
   }
 }
 
+/** A blended copy as the proxy reads it: its cut and surface, the pose it aliases and whether it is
+ *  drawn (`BlendCopy`). */
+export type ProxyCopy = {
+  proxy?: RootProxy
+  matrix: { readonly elements: ArrayLike<number> }
+  hidden?: boolean
+  placement?: PlacementOf
+}
+
 /** Where a cut lies in the arena: its first node and triangle, and what it holds. */
 type Placed = { node: number; triangle: number; nodes: number; triangles: number }
 
+/** The part of a table split in parts of `per` elements that holds elements `[first, first + count)`
+ *  whole, or `undefined` where two parts share them. */
+function partOf(first: number, count: number, per: number) {
+  const part = Math.floor(first / per)
+  return Math.floor((first + Math.max(count, 1) - 1) / per) === part ? part : undefined
+}
+
 export function createProxyInstances({ device, packed, nodeParts, coldParts, frames }: Resources) {
   const tree = packed.placementTree
-  // One part of each table the trace binds: a split table (a device whose one binding is small, or
-  // an enormous scene) is not read, and the chain goes on without this stage.
-  const holds =
-    (device.limits?.maxStorageBuffersPerShaderStage ?? 8) >= RUNTIME_TRACE_STORAGE_BUFFERS &&
-    nodeParts.buffers.length === 1 &&
-    coldParts.buffers.length === 1 &&
-    (!tree || (tree.cellBase + treeNodeCount(tree)) * DAG_NODE_FLOATS * 4 <= nodeParts.bytes)
   const slots = Math.max(1, packed.worldCount)
-  const words = new Uint32Array(slots * INSTANCE_WORDS).fill(RUNTIME_NONE)
+  // The tree is read from the parts that hold its nodes and its members' order; a tree that straddles
+  // two parts is not read, and its placements are walked as they come: the work budget bounds the walk.
+  const nodePart =
+      tree && partOf(tree.cellBase, treeNodeCount(tree), nodeParts.bytes / (DAG_NODE_FLOATS * 4)),
+    coldPart = tree && partOf(tree.members, tree.capacity, coldParts.bytes / 4)
+  const walksTree = nodePart !== undefined && coldPart !== undefined
+  const nodesFirst = walksTree ? nodePart * (nodeParts.bytes / (DAG_NODE_FLOATS * 4)) : 0,
+    coldFirst = walksTree ? coldPart * (coldParts.bytes / 4) : 0
+  let words = new Uint32Array(slots * INSTANCE_WORDS).fill(RUNTIME_NONE)
   // The instance a placement wears now, and the one it keeps while parked.
   const resolved = new Uint32Array(slots * INSTANCE_WORDS).fill(RUNTIME_NONE)
   const cuts = new Map<RuntimeCutProxy, Placed>(),
     surfaces = new Map<PageSurface, { slot: number; version: number; at: number }>()
   const triangles = createSpans(START.triangles),
     nodes = createSpans(START.nodes)
-  let surfaceCapacity = START.surfaces,
+  let copies: readonly ProxyCopy[] = [],
+    copyCount = 0,
+    copyWorlds = new Float32Array(0),
+    surfaceCapacity = START.surfaces,
     error = 0,
     buffer: GPUBuffer | undefined,
-    layout = layoutOf(slots, surfaceCapacity, triangles.capacity, nodes.capacity),
+    layout = layoutOf(),
     surfaceWords = new Uint32Array(surfaceCapacity * SURFACE_WORDS),
     dirty = true
 
-  function layoutOf(placements: number, surfaceCap: number, triangleCap: number, nodeCap: number) {
+  function layoutOf() {
     const instances = 0,
-      surfacesAt = instances + placements * INSTANCE_WORDS,
-      trianglesAt = surfacesAt + surfaceCap * SURFACE_WORDS,
-      boundsAt = trianglesAt + triangleCap * PROXY_TRIANGLE_FLOATS,
-      childrenAt = boundsAt + nodeCap * PROXY_NODE_FLOATS
+      copyWorldsAt = instances + (slots + copies.length) * INSTANCE_WORDS,
+      surfacesAt = copyWorldsAt + copies.length * WORLD_WORDS,
+      trianglesAt = surfacesAt + surfaceCapacity * SURFACE_WORDS,
+      boundsAt = trianglesAt + triangles.capacity * PROXY_TRIANGLE_FLOATS,
+      childrenAt = boundsAt + nodes.capacity * PROXY_NODE_FLOATS
     return {
       instances,
+      copyWorlds: copyWorldsAt,
       surfaces: surfacesAt,
       triangles: trianglesAt,
       bounds: boundsAt,
       children: childrenAt,
-      total: childrenAt + nodeCap * PROXY_NODE_WORDS,
+      total: childrenAt + nodes.capacity * PROXY_NODE_WORDS,
     }
   }
   const byteAt = (word: number) => (RUNTIME_HEADER_WORDS + word) * 4
@@ -102,18 +128,22 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     head[at.instancesWord] = layout.instances
     head[at.surfacesWord] = layout.surfaces
     head[at.trianglesWord] = layout.triangles
+    head[at.copyWorldsWord] = layout.copyWorlds
     head[at.boundsWord] = layout.bounds
     head[at.childrenWord] = layout.children
-    head[at.treeRoot] = tree ? tree.levels[0].base : RUNTIME_NONE
-    head[at.membersWord] = tree?.members ?? 0
-    head[at.members] = tree ? tree.count : packed.worldSources.length
+    head[at.treeRoot] = walksTree ? tree!.levels[0].base : RUNTIME_NONE
+    head[at.membersWord] = walksTree ? tree!.members : 0
+    head[at.members] = walksTree ? tree!.count : packed.worldSources.length
     head[at.worldStride] = WORLD_WORDS
     head[at.worldRows] = frames.ranges[0]?.count ?? 0
     new Float32Array(head.buffer)[at.error] = error
+    head[at.nodeFirst] = nodesFirst
+    head[at.coldFirst] = coldFirst
+    head[at.copies] = copies.length
     return head
   }
 
-  /** The buffer, made at the first need and again, copied, where a table outgrew it. */
+  /** The buffer, made at the first need with everything the CPU holds written into it. */
   function ensure() {
     if (buffer) return buffer
     buffer = device.createBuffer({
@@ -123,27 +153,26 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     })
     device.queue.writeBuffer(buffer, 0, header())
     device.queue.writeBuffer(buffer, byteAt(layout.instances), words)
+    if (copyWorlds.length) device.queue.writeBuffer(buffer, byteAt(layout.copyWorlds), copyWorlds)
     device.queue.writeBuffer(buffer, byteAt(layout.surfaces), surfaceWords)
     return buffer
   }
 
-  /** The tables laid out for `want` more: the buffer replaced by a larger one holding what the old
-   *  one did, where any table is full. */
-  function grow(want: { triangles: number; nodes: number; surfaces: number }) {
-    const next = layoutOf(
-      slots,
-      Math.max(surfaceCapacity, want.surfaces),
-      triangles.grown(want.triangles),
-      nodes.grown(want.nodes),
-    )
-    if (next.total === layout.total && next.surfaces === layout.surfaces) return
-    const old = buffer,
-      before = layout
-    surfaceCapacity = Math.max(surfaceCapacity, want.surfaces)
-    layout = next
-    const grownSurfaces = new Uint32Array(surfaceCapacity * SURFACE_WORDS)
-    grownSurfaces.set(surfaceWords)
-    surfaceWords = grownSurfaces
+  /** The tables laid out again — `want` more triangles, nodes, surfaces, or a copy more or fewer —:
+   *  the buffer replaced by one the new layout fits, the columns it held carried over by copies. */
+  function relayout(want = { triangles: 0, nodes: 0, surfaces: 0 }) {
+    triangles.grown(want.triangles)
+    nodes.grown(want.nodes)
+    const before = layout,
+      grownSurfaces = Math.max(surfaceCapacity, want.surfaces)
+    if (grownSurfaces !== surfaceCapacity) {
+      surfaceCapacity = grownSurfaces
+      const next = new Uint32Array(surfaceCapacity * SURFACE_WORDS)
+      next.set(surfaceWords)
+      surfaceWords = next
+    }
+    layout = layoutOf()
+    const old = buffer
     buffer = undefined
     if (!old) return
     const made = ensure()
@@ -169,7 +198,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     if (triangle === undefined || node === undefined) {
       if (triangle !== undefined) triangles.release(triangle, triangleCount)
       if (node !== undefined) nodes.release(node, nodeCount)
-      grow({
+      relayout({
         triangles: triangles.extent + triangleCount,
         nodes: nodes.extent + nodeCount,
         surfaces: 0,
@@ -202,7 +231,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     let held = surfaces.get(host)
     if (!held) {
       if (surfaces.size === surfaceCapacity)
-        grow({ triangles: 0, nodes: 0, surfaces: surfaceCapacity * 2 })
+        relayout({ triangles: 0, nodes: 0, surfaces: surfaceCapacity * 2 })
       held = { slot: surfaces.size, version: NaN, at: surfaces.size * SURFACE_WORDS }
       surfaces.set(host, held)
     }
@@ -221,6 +250,20 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     return held.slot
   }
 
+  /** The error of a proxy at a pose: the distance a ray leaves a surface off its normal. */
+  function noteError(cell: number, m: ArrayLike<number>, at: number) {
+    const scale = Math.max(
+      length3(m[at], m[at + 1], m[at + 2]),
+      length3(m[at + 4], m[at + 5], m[at + 6]),
+      length3(m[at + 8], m[at + 9], m[at + 10]),
+    )
+    const world = cell * 0.866 * scale
+    if (world > error) {
+      error = world
+      dirty = true
+    }
+  }
+
   /** The instance words of placement `w`, from the root it holds, parked or not. */
   function resolve(w: number) {
     const root = packed.worldSources[w] as DagRoot | undefined,
@@ -236,18 +279,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     resolved[at + INSTANCE.triangle] = placed.triangle
     resolved[at + INSTANCE.surface] = surfaceSlot(proxy.surface)
     resolved[at + INSTANCE.mark] = packed.mark[w] ?? 0
-    // The proxy's error at the placement's scale: the distance a ray leaves a surface off its normal.
-    const m = packed.worlds,
-      scale = Math.max(
-        length3(m[w * 16], m[w * 16 + 1], m[w * 16 + 2]),
-        length3(m[w * 16 + 4], m[w * 16 + 5], m[w * 16 + 6]),
-        length3(m[w * 16 + 8], m[w * 16 + 9], m[w * 16 + 10]),
-      )
-    const world = proxy.cut.cellMetres * 0.866 * scale
-    if (world > error) {
-      error = world
-      dirty = true
-    }
+    noteError(proxy.cut.cellMetres, packed.worlds, w * 16)
   }
 
   /** Placements `[from, to)` written: what they wear, parked ones none until they are taken back. */
@@ -259,7 +291,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       words.set(resolved.subarray(at, at + INSTANCE_WORDS), at)
       if (parked) words[at + INSTANCE.node] = RUNTIME_NONE
     }
-    if (buffer || [...cuts.keys()].length) {
+    if (buffer || cuts.size) {
       const made = ensure()
       device.queue.writeBuffer(
         made,
@@ -273,27 +305,78 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     }
   }
 
+  /** The copies' instances and poses, as the host holds them now: written where one moved, was shown or
+   *  hidden, or wears another cut. */
+  function syncCopies() {
+    let moved = false
+    copies.forEach((copy, k) => {
+      const at = (slots + k) * INSTANCE_WORDS,
+        proxy = copy.proxy
+      const placed = proxy && place(proxy.cut)
+      const shown = !!placed && !copy.hidden && !rowParked(copy.placement)
+      const next = shown
+        ? [placed.node, placed.triangle, surfaceSlot(proxy.surface), 0]
+        : [RUNTIME_NONE, 0, 0, 0]
+      for (let j = 0; j < INSTANCE_WORDS; j++)
+        if (words[at + j] !== next[j]) {
+          words[at + j] = next[j]
+          moved = true
+        }
+      if (!shown) return
+      const world = copy.matrix.elements
+      for (let j = 0; j < WORLD_WORDS; j++)
+        if (copyWorlds[k * WORLD_WORDS + j] !== Math.fround(world[j])) {
+          copyWorlds[k * WORLD_WORDS + j] = world[j]
+          moved = true
+        }
+      noteError(proxy.cut.cellMetres, world, 0)
+    })
+    if (!moved || !copies.length || !(buffer || cuts.size)) return
+    const made = ensure()
+    device.queue.writeBuffer(
+      made,
+      byteAt(layout.instances + slots * INSTANCE_WORDS),
+      words,
+      slots * INSTANCE_WORDS,
+      copies.length * INSTANCE_WORDS,
+    )
+    device.queue.writeBuffer(made, byteAt(layout.copyWorlds), copyWorlds)
+  }
+
   const live = () => packed.live?.worlds ?? packed.worldSources.length
-  if (holds) write(0, live())
+  write(0, live())
 
   return {
     /** The buffers the trace reads, or none: this stage then reads the stand-ins. */
     buffers() {
-      if (!holds || !buffer) return undefined
+      if (!buffer) return undefined
       return {
         proxy: buffer,
-        nodes: nodeParts.buffers[0],
-        cold: coldParts.buffers[0],
+        nodes: nodeParts.buffers[nodePart ?? 0],
+        cold: coldParts.buffers[coldPart ?? 0],
         worlds: frames.worldBuffers[0],
       }
     },
     /** Roots `[from, to)` were appended behind the others: their instances, and the tree's members. */
-    appended(from: number, to: number) {
-      if (holds) write(from, to)
+    appended: write,
+    /** The blended copies the forward family draws, members of this proxy after the placements: their
+     *  poses are the host's (`BlendCopy.matrix`), read again at each cut. */
+    setCopies(next: readonly ProxyCopy[]) {
+      if (next === copies && next.length === copyCount) return
+      if (next.length !== copyCount) {
+        const kept = words.subarray(0, slots * INSTANCE_WORDS)
+        copies = next
+        words = new Uint32Array((slots + copies.length) * INSTANCE_WORDS).fill(RUNTIME_NONE)
+        words.set(kept)
+        copyWorlds = new Float32Array(copies.length * WORLD_WORDS)
+        copyCount = copies.length
+        relayout()
+      } else copies = next
+      syncCopies()
     },
     /** Placement `w` parked, or taken back. */
     park(w: number, parked: boolean) {
-      if (!holds || !buffer || w >= slots) return
+      if (!buffer || w >= slots) return
       const at = w * INSTANCE_WORDS,
         node = parked ? RUNTIME_NONE : resolved[at + INSTANCE.node]
       if (words[at + INSTANCE.node] === node) return
@@ -308,18 +391,19 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     },
     /** Placement `w`'s frame word, its mark and the deformation's reach above it. */
     mark(w: number, mark: number) {
-      if (!holds || !buffer || w >= slots) return
+      if (!buffer || w >= slots) return
       const at = w * INSTANCE_WORDS + INSTANCE.mark
       resolved[at] = mark
       if (words[at] === mark) return
       words[at] = mark
       device.queue.writeBuffer(buffer, byteAt(layout.instances + at), words, at, 1)
     },
-    /** The surfaces a host edited since the last cut, written again. */
+    /** The surfaces a host edited and the copies that moved since the last cut, written again. */
     refresh() {
-      if (!holds || !buffer) return
+      if (!buffer && !copies.length) return
       for (const [surface] of surfaces) surfaceSlot(surface)
-      if (dirty) {
+      syncCopies()
+      if (buffer && dirty) {
         device.queue.writeBuffer(buffer, 0, header())
         dirty = false
       }

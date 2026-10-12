@@ -16,13 +16,11 @@ import {
   radianceLevels,
 } from './radiance.ts'
 import { RADIANCE_HASH_BYTES, SAMPLE_BYTES, createRadianceSettle } from './settle.ts'
-import { HISTORY_HEADER_WORDS, createProxyHistory } from './proxyHistory.ts'
+import { createProxyHistory, historyBytes } from './proxyHistory.ts'
 import {
   BEGIN_SHADER,
   TRACE_SHADER,
-  TRACE_SHADER_PLAIN,
   createTraceStages,
-  tracesRuntime,
   createTraceTiles,
   TRACE_ARGS_BYTES,
   traceListBytes,
@@ -66,7 +64,7 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
     const modules = {
       trace: device.createShaderModule({
         label: 'Trillion3D reflection trace',
-        code: tracesRuntime(device) ? TRACE_SHADER : TRACE_SHADER_PLAIN,
+        code: TRACE_SHADER,
       }),
       begin: device.createShaderModule({
         label: 'Trillion3D reflection begin',
@@ -110,7 +108,7 @@ export type ReflectionPipelines = NonNullable<Awaited<ReturnType<typeof createRe
  *  radiance pyramid, its tile list, its uniform, its radiance hash and the front depth the blends
  *  write, when the scene has blends (`blends`); the depth it marches is the Hi-Z's, with its front
  *  depth. */
-export function reflectionBytes(width: number, height: number, blends: boolean) {
+export function reflectionBytes(width: number, height: number, blends: boolean, history = false) {
   const size: GPUExtent3D = [width, height]
   return (
     REFLECTION_TARGET.bytes(width, height, true) +
@@ -125,9 +123,8 @@ export function reflectionBytes(width: number, height: number, blends: boolean) 
     REFLECTION_VIEW_BYTES +
     RADIANCE_HASH_BYTES +
     SAMPLE_BYTES * 3 +
-    // The run-time proxy's history, its stand-in: the answers are made at the first placement that wears
-    // a proxy, past the budget's ask (`proxyHistory.ts`).
-    HISTORY_HEADER_WORDS * 4
+    // The run-time proxy's answers, while a placement wears a proxy (`proxyHistory.ts`).
+    (history ? historyBytes(width, height) : 0)
   )
 }
 
@@ -143,6 +140,7 @@ export function createScreenReflection(
   width: number,
   height: number,
   blends: boolean,
+  history = false,
 ) {
   // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread the target and set it first;
   // no frame copies it.
@@ -161,7 +159,7 @@ export function createScreenReflection(
   const tiles = createTraceTiles(device, width, height)
   const settle = createRadianceSettle(device)
   const frontDepth = createFrontDepth(device, width, height, blends)
-  const history = createProxyHistory(device, width, height)
+  const answers = createProxyHistory(device, width, height, history)
   return {
     device,
     target,
@@ -171,7 +169,7 @@ export function createScreenReflection(
     uniform,
     settle,
     /** The run-time proxy's answers, kept from image to image (`proxyHistory.ts`). */
-    history,
+    history: answers,
     front: frontDepth,
     writeView: createReflectionViewWriter(device, uniform),
     /** The reflection group over each Hi-Z pyramid it was bound with (a view's), and what else it
@@ -183,10 +181,9 @@ export function createScreenReflection(
       target.destroy()
       radiance.texture.destroy()
       tiles.args.destroy()
-      tiles.list.destroy()
       uniform.destroy()
       settle.dispose()
-      history.dispose()
+      answers.dispose()
       frontDepth.dispose()
     },
   }

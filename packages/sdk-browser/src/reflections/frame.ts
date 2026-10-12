@@ -35,10 +35,7 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
   frame.depthDrawn = run.depthDrawn
   frame.proxyError = bounce.probes?.proxy?.errorMetres ?? 0
   // The run-time proxy's schedule turns by the image while a placement wears a proxy.
-  frame.rotation =
-    rt.vis.reflectionPipelines?.runtime && run.gpuSelection?.proxyBuffers()
-      ? reflection.settle.images
-      : 0
+  frame.rotation = run.gpuSelection?.proxyBuffers() ? reflection.settle.images : 0
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
 }
 
@@ -100,10 +97,11 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.probes = contract.probes ?? deferred.placeholders.probes
     inputs.proxy = resident?.buffer ?? deferred.placeholders.proxy
     // What the world cut at run time, which has no cooked proxy, else the empty stand-in.
-    const meshes = stages.runtime ? rt.run.gpuSelection?.proxyBuffers() : undefined
+    rt.run.gpuSelection?.proxyCopies(rt.setup.blendCopies)
+    const meshes = rt.run.gpuSelection?.proxyBuffers()
     const empty = deferred.placeholders.runtime
     inputs.runtime = meshes ?? { proxy: empty, nodes: empty, cold: empty, worlds: empty }
-    inputs.history = reflection.history.buffer(!!meshes)
+    inputs.history = reflection.history.buffer ?? deferred.placeholders.history
     inputs.hash = reflection.settle.hash
     inputs.lightView = over.lightView
     const group = reflectionGroup(reflection, depth, over)
@@ -134,7 +132,11 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     viewProj,
   )
   pass.end()
-  reflection.settle.image(encoder, reflection.tiles.args, reflection.history.buffer(false))
+  reflection.settle.image(
+    encoder,
+    reflection.tiles.args,
+    reflection.history.buffer ?? gpu.deferred.placeholders.history,
+  )
 }
 
 /** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */

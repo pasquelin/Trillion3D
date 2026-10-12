@@ -14,6 +14,7 @@ import type { Primitive } from '../../../sdk-core/src/index.ts'
 import type { HostAttribute, HostMesh } from '../host/resources.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import type { PageSurface } from '../page/surface.ts'
+import type { RootProxy } from '../page/selection/types.ts'
 import type { PlacementOf } from '../placement/rows.ts'
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 
@@ -32,6 +33,9 @@ export type BlendCopy = {
    *  contract does not hand it out — `blendCopyMesh.ts` is where it is set, and `PageRec.declaration`
    *  is the one field the closed list of `tests/integration/engine-without-three.test.ts` governs. */
   readonly surface: PageSurface
+  /** What a ray can meet of it beyond the drawn copy: the proxy of its primitive's cut, built where the
+   *  world cut it (`world/page/runtimeProxy.ts`); a run-time cut's alone. */
+  proxy?: RootProxy
   readonly matrix: MatrixElements
   /** The row of an instance buffer the copy is posed by, when its mesh is placed by rows: one
    *  copy per row, `matrix` a view on it, skipped while the row is parked. */

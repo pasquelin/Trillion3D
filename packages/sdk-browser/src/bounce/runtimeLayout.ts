@@ -9,7 +9,8 @@ export const RUNTIME_NONE = 0xffffffff
  * of a `proxy.bin` (`page-codec-wasm/src/proxy.rs`), one cut's after another, in the cut's own space.
  * The placement tree and the worlds it places are the culling's (`gpu/dag`), read where they lie.
  *
- * Header words: the placements the instances hold, then the word rank of each region, the tree's
+ * Header words: the placements the instances hold (the blended copies' follow them), then the word rank
+ * of each region — the copies' worlds a region of their own —, the tree's
  * root node (`RUNTIME_NONE` for a packing without a tree: the placements are then its few members), the
  * rank of the tree's member order in the cold table, the live members, the words of a world row, the
  * rows the world table's first range holds and the greatest world error of a cut's proxy, in metres, as
@@ -20,7 +21,7 @@ export const RUNTIME_HEADER = {
   instancesWord: 1,
   surfacesWord: 2,
   trianglesWord: 3,
-  albedoWord: 4,
+  copyWorldsWord: 4,
   boundsWord: 5,
   childrenWord: 6,
   treeRoot: 7,
@@ -29,6 +30,9 @@ export const RUNTIME_HEADER = {
   worldStride: 10,
   worldRows: 11,
   error: 12,
+  nodeFirst: 13,
+  coldFirst: 14,
+  copies: 15,
 } as const
 export const RUNTIME_HEADER_WORDS = 16
 
@@ -42,10 +46,6 @@ export const INSTANCE = { node: 0, triangle: 1, surface: 2, mark: 3 } as const
  *  a flags word; floats but the last. */
 export const SURFACE_WORDS = 8
 export const SURFACE_BLENDED = 1
-
-/** Storage buffers a stage of the reflections' trace binds with the run-time proxy bound: a device that
- *  holds fewer traces without it (`tracesRuntime`), and no buffer of the proxy is made for it. */
-export const RUNTIME_TRACE_STORAGE_BUFFERS = 9
 
 /**
  * THE BUDGETS OF A RAY AND OF A FRAME. One counter of `work` units per ray, shared by the placement

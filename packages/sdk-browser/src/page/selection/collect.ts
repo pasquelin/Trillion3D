@@ -57,6 +57,7 @@ function blendCopiesOf(
   for (const { world, placement } of placed) {
     const copy = createBlendCopyRecord(mesh, order, world, surface, placement)
     copy.deformation = primitive.deformation
+    if (primitive.runtimeProxy) copy.proxy = { cut: primitive.runtimeProxy, surface }
     copies.push(copy)
   }
 }

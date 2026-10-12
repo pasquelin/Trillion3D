@@ -97,6 +97,7 @@ ${wgslConsts({
   RT_NODE_KIND: NODE_KIND,
   RT_SURFACE_BLENDED: SURFACE_BLENDED,
   RT_INSTANCE_WORDS: INSTANCE_WORDS,
+  RT_WORLD_WORDS: 16,
   RT_FRAME_WORK: FRAME_WORK,
   RT_HISTORY_HEADER: HISTORY_HEADER_WORDS,
   RT_HISTORY_PIXEL: HISTORY_PIXEL_WORDS,
@@ -108,9 +109,9 @@ ${wgslConsts({
 })}
 struct RuntimeProxy{
  instances:u32,instancesWord:u32,surfacesWord:u32,trianglesWord:u32,
- albedoWord:u32,boundsWord:u32,childrenWord:u32,treeRoot:u32,
+ copyWorldsWord:u32,boundsWord:u32,childrenWord:u32,treeRoot:u32,
  membersWord:u32,members:u32,worldStride:u32,worldRows:u32,
- error:f32,pad0:u32,pad1:u32,pad2:u32,
+ error:f32,nodeFirst:u32,coldFirst:u32,copies:u32,
  words:array<u32>,
 }
 @group(${group}) @binding(${proxy}) var<storage,read> rtProxy:RuntimeProxy;
@@ -148,6 +149,15 @@ ${wideTraversal({
 /** Placement \`w\`'s world: its linear columns \`a\`, \`b\`, \`c\` and its translation \`t\`. */
 struct RtWorld{a:vec3f,b:vec3f,c:vec3f,t:vec3f,}
 fn rtWorldOf(w:u32)->RtWorld{
+ // A placement's world is the culling's; a blended copy's, the proxy's own, past the placements.
+ if(w>=rtProxy.instances){
+  let at=rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS;
+  return RtWorld(
+   vec3f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u)),
+   vec3f(rtFloat(at+4u),rtFloat(at+5u),rtFloat(at+6u)),
+   vec3f(rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u)),
+   vec3f(rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u)));
+ }
  let base=w*rtProxy.worldStride;
  return RtWorld(
   vec3f(rtWorlds[base],rtWorlds[base+1u],rtWorlds[base+2u]),
@@ -171,7 +181,7 @@ fn rtInstanceWord(w:u32,k:u32)->u32{return rtProxy.words[rtProxy.instancesWord+w
  *  a ray that misses it is one unit spent — then the cut's tree with the ray taken to its space. */
 fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
  let node0=rtInstanceWord(w,0u);
- if(node0==RT_NONE||w>=rtProxy.worldRows){return best;}
+ if(node0==RT_NONE||(w<rtProxy.instances&&w>=rtProxy.worldRows)){return best;}
  let m=rtWorldOf(w);
  let local=rtBox(node0);
  let centre=(local.low+local.high)*0.5;
@@ -186,12 +196,13 @@ fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
  if(hit.found&&hit.distance<best.distance){return hit;}
  return best;
 }
+fn rtTreeWord(node:u32,field:u32)->u32{return rtNodes[(node-rtProxy.nodeFirst)*RT_TREE_FLOATS+field];}
 fn rtTreeLow(node:u32)->vec3f{
- let at=node*RT_TREE_FLOATS+RT_NODE_MIN;
+ let at=(node-rtProxy.nodeFirst)*RT_TREE_FLOATS+RT_NODE_MIN;
  return vec3f(bitcast<f32>(rtNodes[at]),bitcast<f32>(rtNodes[at+1u]),bitcast<f32>(rtNodes[at+2u]));
 }
 fn rtTreeHigh(node:u32)->vec3f{
- let at=node*RT_TREE_FLOATS+RT_NODE_MAX;
+ let at=(node-rtProxy.nodeFirst)*RT_TREE_FLOATS+RT_NODE_MAX;
  return vec3f(bitcast<f32>(rtNodes[at]),bitcast<f32>(rtNodes[at+1u]),bitcast<f32>(rtNodes[at+2u]));
 }
 /** The nearest hit of the ray over every placement that draws a proxy, within \`limit\`: the
@@ -208,41 +219,47 @@ fn rtScene(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
    rtWork+=1u;
    best=rtEnter(w,origin,direction,inverse,best);
   }
-  return best;
- }
- var at:array<u32,RT_TREE_DEPTH>;
- var next:array<u32,RT_TREE_DEPTH>;
- var level=0u;
- var done=false;
- at[0]=rtProxy.treeRoot;
- next[0]=0u;
- for(var step=0u;step<RT_TREE_STEPS;step++){
-  if(rtSpent()){done=true;break;}
-  let node=at[level];
-  let count=rtNodes[node*RT_TREE_FLOATS+RT_NODE_COUNT];
-  let k=next[level];
-  if(k>=count){
-   if(level==0u){done=true;break;}
-   level--;
-   continue;
-  }
-  next[level]=k+1u;
-  rtWork+=1u;
-  let first=rtNodes[node*RT_TREE_FLOATS+RT_NODE_FIRST];
-  if(rtNodes[node*RT_TREE_FLOATS+RT_NODE_KIND]==RT_TREE_GROUP){
-   let w=rtCold[rtProxy.membersWord+first+k];
-   if(w!=RT_NONE){best=rtEnter(w,origin,direction,inverse,best);}
-  }else{
-   let child=first+k;
-   if(rayBoxEntry(rtTreeLow(child),rtTreeHigh(child),origin,inverse,best.distance)<=best.distance&&level+1u<RT_TREE_DEPTH){
-    level++;
-    at[level]=child;
-    next[level]=0u;
+ }else{
+  var at:array<u32,RT_TREE_DEPTH>;
+  var next:array<u32,RT_TREE_DEPTH>;
+  var level=0u;
+  var done=false;
+  at[0]=rtProxy.treeRoot;
+  next[0]=0u;
+  for(var step=0u;step<RT_TREE_STEPS;step++){
+   if(rtSpent()){done=true;break;}
+   let node=at[level];
+   let count=rtTreeWord(node,RT_NODE_COUNT);
+   let k=next[level];
+   if(k>=count){
+    if(level==0u){done=true;break;}
+    level--;
+    continue;
+   }
+   next[level]=k+1u;
+   rtWork+=1u;
+   let first=rtTreeWord(node,RT_NODE_FIRST);
+   if(rtTreeWord(node,RT_NODE_KIND)==RT_TREE_GROUP){
+    let w=rtCold[rtProxy.membersWord-rtProxy.coldFirst+first+k];
+    if(w!=RT_NONE){best=rtEnter(w,origin,direction,inverse,best);}
+   }else{
+    let child=first+k;
+    if(rayBoxEntry(rtTreeLow(child),rtTreeHigh(child),origin,inverse,best.distance)<=best.distance&&level+1u<RT_TREE_DEPTH){
+     level++;
+     at[level]=child;
+     next[level]=0u;
+    }
    }
   }
+  // A walk that ran out of steps, not of tree, is a spent ray as well: it answers nothing.
+  if(!done){rtWork=RT_WORK;}
  }
- // A walk that ran out of steps, not of tree, is a spent ray as well: it answers nothing.
- if(!done){rtWork=RT_WORK;}
+ // The blended copies, members after the placements: each tried in turn, a unit apiece.
+ for(var k=0u;k<rtProxy.copies;k++){
+  if(rtSpent()){break;}
+  rtWork+=1u;
+  best=rtEnter(rtProxy.instances+k,origin,direction,inverse,best);
+ }
  return best;
 }
 /** What a ray brings back: the radiance of what it met, weighed by the confidence of the answer. */

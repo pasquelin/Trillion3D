@@ -10,6 +10,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { displayApart, type FrameSize } from '../state/renderScale.ts'
 import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts'
 import { makesDisplayColor, wantsFrontDepth } from './targetAllocation.ts'
+import { wantsProxyHistory } from './proxyHistory.ts'
 
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
 export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
@@ -157,7 +158,13 @@ export function buildTargets(
   gpu.depthView = gpu.depthTexture.createView()
   gpu.hdrView = gpu.hdrTexture.createView()
   gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0)
-  gpu.reflection = createScreenReflection(device, width, height, wantsFrontDepth(rt))
+  gpu.reflection = createScreenReflection(
+    device,
+    width,
+    height,
+    wantsFrontDepth(rt),
+    wantsProxyHistory(rt),
+  )
   // Temporal history follows the display size.
   const allocationBytes = targetBytes + ensureTaaTargets(rt, size.width, size.height)
   gpu.targetBytes = allocationBytes

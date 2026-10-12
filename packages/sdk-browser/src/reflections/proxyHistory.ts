@@ -19,36 +19,41 @@ export const HISTORY_HEADER_WORDS = 4
 export const HISTORY_PIXEL_WORDS = 2
 export const HISTORY = { left: 0, epoch: 1, spent: 2 } as const
 
-/** Bytes of the history of an image of `width × height`. */
-const historyBytes = (width: number, height: number) =>
+/** Bytes of the history of an image of `width × height`, which a view that wants it holds. */
+export const historyBytes = (width: number, height: number) =>
   (HISTORY_HEADER_WORDS + width * height * HISTORY_PIXEL_WORDS) * 4
 
-/** The history of a view, made at the first need: `buffer` is it, else `empty`. */
-export function createProxyHistory(device: GPUDevice, width: number, height: number) {
-  const empty = device.createBuffer({
-    label: 'Trillion3D empty run-time proxy history',
-    size: HISTORY_HEADER_WORDS * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-  })
+/**
+ * The history of a view: made with it when a placement wears a proxy, else when the first does
+ * (`make`, `webgpu/pages/prepare/proxyHistory.ts`) — its bytes asked of the frame's allocation as the
+ * lobes target's are —, none before: the trace binds the engine's stand-in (`deferred.placeholders`).
+ */
+export function createProxyHistory(
+  device: GPUDevice,
+  width: number,
+  height: number,
+  wanted: boolean,
+) {
   let made: GPUBuffer | undefined
+  const make = () =>
+    (made ??= device.createBuffer({
+      label: 'Trillion3D run-time proxy history',
+      size: historyBytes(width, height),
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    }))
+  if (wanted) make()
   return {
-    /** The history the trace reads and writes: made now when `wanted` and not yet. */
-    buffer(wanted: boolean) {
-      if (wanted && !made)
-        made = device.createBuffer({
-          label: 'Trillion3D run-time proxy history',
-          size: historyBytes(width, height),
-          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-        })
-      return made ?? empty
+    /** The history the trace reads and writes, if the view holds one. */
+    get buffer() {
+      return made
     },
-    /** Bytes held now. */
-    get bytes() {
-      return made?.size ?? 0
+    /** Made now, if it was not: the bytes it adds, none if it was. */
+    make() {
+      const before = made?.size ?? 0
+      return make().size - before
     },
     dispose() {
       made?.destroy()
-      empty.destroy()
     },
   }
 }

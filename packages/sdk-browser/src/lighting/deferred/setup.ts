@@ -197,6 +197,12 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: RUNTIME_HEADER_WORDS * 4,
     usage: GPUBufferUsage.STORAGE,
   })
+  // The run-time proxy's history, a view that holds none: four words the trace's frame counters write.
+  const history = device.createBuffer({
+    label: 'Trillion3D empty run-time proxy history',
+    size: 16,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  })
   const receiver = receiverPlaceholders(device)
   const vsm = createVsmPlaceholders(device)
   // One texel of zero: what a resolve bound before its reflection target reads.
@@ -214,6 +220,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     probes: arrayView(probes),
     proxy,
     runtime,
+    history,
     receiver: receiver.resources,
     reflection: reflection.createView(),
     /** The empty normal atlas: what a transparent item without normals reads (zeros). */
@@ -228,6 +235,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
       probes.destroy()
       proxy.destroy()
       runtime.destroy()
+      history.destroy()
     },
   }
 }

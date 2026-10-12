@@ -9,78 +9,8 @@ import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { dagRootCounts } from './pack.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
-import type { PageSurface } from '../../page/surface.ts'
-import {
-  INSTANCE,
-  INSTANCE_WORDS,
-  RUNTIME_HEADER,
-  RUNTIME_HEADER_WORDS,
-  RUNTIME_NONE,
-} from '../../bounce/runtimeLayout.ts'
-
-const LIMITS = {
-  maxBufferSize: 1 << 28,
-  maxStorageBufferBindingSize: 1 << 28,
-  maxStorageBuffersPerShaderStage: 16,
-}
-const LABEL = 'Trillion3D run-time proxy'
-
-/** A cut of `triangles` triangles over `nodes` nodes, columns of a known value. */
-const cut = (triangles: number, nodes: number, value: number): RuntimeCutProxy => ({
-  triangles: new Float32Array(triangles * 9).fill(value),
-  albedo: new Uint32Array(triangles).fill(0xffffffff),
-  nodeBounds: new Float32Array(nodes * 6).fill(value),
-  nodeChildren: new Uint32Array(nodes * 12).fill(7),
-  cellMetres: 0.1,
-})
-const surface = (emissive: number, version = 1): PageSurface =>
-  ({
-    baseColor: [1, 0.5, 0.25],
-    metalness: 0,
-    lit: true,
-    emissive: [emissive, 0, 0],
-    opacity: 1,
-    transparent: false,
-    blending: undefined,
-    version,
-  }) as unknown as PageSurface
-
-/** The writes of the proxy's buffer. */
-const writes = (gpu: ReturnType<typeof mockGpu>) =>
-  gpu.writes.filter(({ label }) => label === LABEL)
-const words = (bytes: Uint8Array) =>
-  new Uint32Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
-/** The word at `index` (counted from the header) of the last write that covers it. */
-function wordAt(gpu: ReturnType<typeof mockGpu>, index: number) {
-  const at = (RUNTIME_HEADER_WORDS + index) * 4
-  for (const write of writes(gpu).reverse())
-    if (write.offset <= at && at < write.offset + write.bytes.byteLength)
-      return words(write.bytes)[(at - write.offset) / 4]
-  throw new Error(`no write covers word ${index}`)
-}
-
-/** The header as the last write of it left it, and where a region of the buffer starts by it. */
-function headerOf(gpu: ReturnType<typeof mockGpu>) {
-  const last = writes(gpu)
-    .filter(({ offset }) => offset === 0)
-    .at(-1)!
-  return words(last.bytes)
-}
-const region = (gpu: ReturnType<typeof mockGpu>, name: keyof typeof RUNTIME_HEADER) =>
-  headerOf(gpu)[RUNTIME_HEADER[name]]
-
-async function open(
-  wear: (w: number) => { cut: RuntimeCutProxy; surface: PageSurface } | undefined,
-) {
-  installGpuGlobals()
-  const roots = placementField(4, 3)
-  roots.forEach((root, w) => (root.proxy = wear(w)))
-  const packed = packDagSelection(roots)
-  const gpu = mockGpu({ packed, limits: LIMITS })
-  const selection = (await createGpuDagSelection(gpu.device, packed))!
-  return { roots, packed, gpu, selection }
-}
+import { LIMITS, cut, open, region, surface, wordAt, writes } from './proxyInstances.fixture.ts'
+import { INSTANCE, INSTANCE_WORDS, RUNTIME_NONE } from '../../bounce/runtimeLayout.ts'
 
 test('no placement wears a proxy: no buffer, nothing for the trace to read', async () => {
   const { gpu, selection } = await open(() => undefined)
