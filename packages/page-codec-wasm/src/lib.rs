@@ -14,6 +14,7 @@
 //! pages the world cuts at run time (`normal_cone.rs`, `wasm_cone.rs`).
 mod attributes;
 pub mod bits;
+pub mod culling;
 pub mod cut_error;
 pub mod deform;
 pub mod encode;

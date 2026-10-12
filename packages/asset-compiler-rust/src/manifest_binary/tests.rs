@@ -60,8 +60,7 @@ pub(super) fn sample() -> Value {
     bundle["sha256"] = json!(sha('c'));
     let mut primitive =
         json!({"mesh":0,"primitive":0,"pass":"exact-clusters","hierarchy":Value::Null});
-    primitive["culling"] =
-        json!({"stride":crate::CULLING_STRIDE,"count":1,"nodes":vec![0.5;crate::CULLING_STRIDE]});
+    primitive["culling"] = json!({"stride":trillion3d_page_codec::culling::CULLING_STRIDE,"count":1,"nodes":vec![0.5;trillion3d_page_codec::culling::CULLING_STRIDE]});
     primitive["structure"] = json!({"version":1,"roots":[1],"groups":[{"level":1,"error":0.25,"sphere":[1.,2.,3.,4.],"children":[0],"outputs":[1]}]});
     primitive["streams"] = json!({"version":1,"pinned":1,"bundleBytes":131072,"dependencyBound":0,"maxDependencies":0,"pages":[bundle]});
     primitive["pages"] = json!([exact_page(), coarse_page()]);
@@ -129,7 +128,10 @@ fn columns_declare_their_own_offsets_and_lengths() {
     // Two pages, six bounds each, eight bytes a number.
     assert_eq!(read(PAGE_BOUNDS).1, 2 * 6 * 8);
     assert_eq!(read(PAGE_SHA).1, 2 * 64);
-    assert_eq!(read(CULLING_NODES).1, crate::CULLING_STRIDE * 8);
+    assert_eq!(
+        read(CULLING_NODES).1,
+        trillion3d_page_codec::culling::CULLING_STRIDE * 8
+    );
     assert_eq!(read(GROUP_CHILD).1, 4);
     assert_eq!(read(BUNDLE_SHA).1, 64);
     // The small JSON keeps the counts and loses the arrays.

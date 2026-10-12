@@ -1,4 +1,4 @@
-use crate::shared_math::bisect_centres;
+use trillion3d_page_codec::culling::bisect_centres;
 
 pub fn group_clusters(
     centres: &[[f64; 3]],

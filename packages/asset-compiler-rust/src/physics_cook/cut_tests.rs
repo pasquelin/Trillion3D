@@ -4,10 +4,12 @@
 use super::cut::{collision_cut, tolerance};
 use super::hausdorff;
 use super::tests::cluster;
-use crate::dag::{build_culling_bvh, build_dag_tallied, DagAttributes, DagCluster, DagStrategy};
+use crate::dag::bounds::culling_clusters;
+use crate::dag::{build_dag_tallied, DagAttributes, DagCluster, DagStrategy};
 use crate::tests::scene_document::ENGINE_SCENES;
 use crate::tests::thin_shapes::ThinShapes;
 use serde_json::Value;
+use trillion3d_page_codec::culling::build_culling_bvh;
 
 /// Every primitive of the engine's test scene `<folder>/<gltf>`, whose one buffer is `<tag>.bin`:
 /// positions and triangles as drawn, in object space.
@@ -70,7 +72,7 @@ fn every_collider_holds_its_tolerance() {
             continue;
         }
         checked += 1;
-        let (order, culling) = build_culling_bvh(&pos, &dag);
+        let (order, culling) = build_culling_bvh(&culling_clusters(&pos, &dag));
         let (tiles, error) = collision_cut(&dag, &order, &culling, &pos, &source, t);
         assert!(error <= t, "{name}: {error} over {t}");
         assert_eq!(
@@ -113,7 +115,7 @@ fn the_coarsest_cut_that_holds_is_kept() {
         with(tris(3), cluster(1, 0.2, f64::INFINITY)),
     ];
     let source = [tris(0), tris(2)].concat();
-    let (order, culling) = build_culling_bvh(&pos, &dag);
+    let (order, culling) = build_culling_bvh(&culling_clusters(&pos, &dag));
     let t = tolerance(&dag);
     let (tiles, error) = collision_cut(&dag, &order, &culling, &pos, &source, t);
     let mut kept = tiles.concat();
