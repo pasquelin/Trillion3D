@@ -100,7 +100,9 @@ function engineContext(
   const { indices, streamer, pageCache } = inputs.pageSources
   // The world roots the scene's own manifest opened ride the context; their pages are read through
   // the one geometry reader, built here once.
-  const worldRoots = inputs.worldRoots.find((hold) => hold.metadata === metadata)
+  // The cut draws one world DAG: the first a model of the scene holds, drawn (`WorldRootsHold.drawn`);
+  // its table names its primitives as the scene ranks them (`WorldRootsHold.rank`).
+  const worldRoots = inputs.worldRoots.find((hold) => hold.drawn)
   return {
     ...optionContext(session),
     source: inputs.source,
@@ -110,7 +112,7 @@ function engineContext(
     readPage: (url) => streamer.read(url, streamer.signal),
     admitPages: (pages) => streamer.admit(pages),
     onContentRefused: session.options.onContentRefused,
-    readGeometryPage: worldOrGeometryReader(worldRoots, streamer.readBytes, streamer.signal),
+    readGeometryPage: worldOrGeometryReader(inputs.worldRoots, streamer.readBytes, streamer.signal),
     worldRoots,
     pageRoundTripMs: streamer.roundTripMs,
     draws: inputs.draws,

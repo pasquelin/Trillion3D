@@ -169,6 +169,8 @@ export function createCollector(
   // bands and cluster identities depend on no world matrix.
   const templates = createPrimitiveTemplates(indices, options.allowMissing === true)
   const covered = new Set<PageRec>()
+  /** The sources added, in order: those the open collected, then those that joined. */
+  const sources: DrawSource[] = []
   let order = 0
   /** `draw`'s records and roots, into `into`; the primitive it draws, none when it is skipped. */
   const add = (draw: DrawSource, into: Collected) => {
@@ -176,6 +178,7 @@ export function createCollector(
     if (!primitive && options.pendingPlaced && draw.rows) return undefined
     if (!primitive)
       throw new Error(`Missing primitive association: ${draw.mesh}/${draw.primitives ?? 0}`)
+    sources.push(draw)
     // One root per placement: the node's pose, or each row that places the source (`placementsOf`).
     const placed = placementsOf({ placements: draw.rows ?? undefined }, () => worlds.of(draw.node!))
     // The surface the declaration wears, read at the boundary into the engine's own record:
@@ -201,7 +204,7 @@ export function createCollector(
     order++
     return primitive
   }
-  return { add, worlds, primitiveOf }
+  return { add, worlds, primitiveOf, sources }
 }
 
 /** The records of `draws`, one source after another (`createCollector`). */

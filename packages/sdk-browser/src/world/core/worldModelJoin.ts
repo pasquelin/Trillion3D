@@ -3,7 +3,7 @@ import type { PlacementGrowth } from '../../placement/engineSceneUpdates.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
 import type { WorldRootsHold } from '../../scene/worldRoots.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
-import { modelWorldRoots, type LoadedModel } from './loadedModel.ts'
+import type { LoadedModel } from './loadedModel.ts'
 import type { WorldModels } from './worldModels.ts'
 import { shownUnder, type createWorldPoses } from './worldPoses.ts'
 
@@ -36,7 +36,8 @@ type Inputs = {
  * source with rows — are handed to the engine one after the other (`PlacementGrowth.addPlacements`,
  * the function a batch joins by), its partitions are placed for the view and followed from then on
  * (`ModelSession.preparePartitions`, `followPartitions`: the pages catalogued, the roots bound, the
- * first cells placed, as the open does). A model the scene lost keeps its place: its rows are
+ * first cells placed, as the open does), its world DAG is drawn once its sources are
+ * (`PlacementGrowth.addWorldRoots`). A model the scene lost keeps its place: its rows are
  * parked and its cells let go, and it draws again where the scene takes it back. The session is
  * never opened again for a model.
  *
@@ -92,16 +93,23 @@ export function createModelJoins({ scene, models, poses, refused }: Inputs) {
     }
     const why = unfit(model, session)
     if (why) return void refuse(why)
+    const roots = models.rootsOf(model) // its world DAG's pose is written with its meshes'
     write(model)
     const find = primitiveFinder(primitives)
     try {
-      if (partitions.length) await session.preparePartitions!(partitions, modelWorldRoots(model))
+      if (partitions.length) await session.preparePartitions!(partitions, roots)
       for (const source of draws) {
         const primitive = find({ meshes: source.mesh, primitives: source.primitives })
         const reason = !primitive
           ? `no primitive for mesh ${source.mesh}/${source.primitives ?? 0}`
           : await session.addPlacements!(source, primitive)
         if (reason) return void refuse(reason)
+      }
+      // Its world DAG, once its sources wear its pages: the session draws it by the cut made over
+      // every root. Refused, the cells are drawn by their objects alone, and it is said.
+      for (const hold of roots) {
+        const reason = await session.addWorldRoots?.(hold)
+        if (reason) refused(`the world DAG of ${model.record.manifestUrl}`, reason)
       }
     } catch (error) {
       return void refuse(String(error))

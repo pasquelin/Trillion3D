@@ -8,7 +8,7 @@ import { drawSourceOf, type DrawRanks, type DrawSource } from '../../page/select
 import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts'
 import type { Primitive } from '../../../../sdk-core/src/index.ts'
 import { absolutePrimitive } from '../../scene/absolutePrimitive.ts'
-import type { LoadedModel } from './loadedModel.ts'
+import { modelWorldRoots, type LoadedModel } from './loadedModel.ts'
 import type { WorldRanks } from './worldRanks.ts'
 
 /**
@@ -64,6 +64,23 @@ class ModelMeshSource implements DrawSource {
   }
 }
 
+/** The row that poses the world DAG a model holds: the model's world, and whether it is shown. */
+export type WorldPose = {
+  readonly rows: PlacementRows
+  write(world: ArrayLike<number>, shown: boolean): void
+}
+
+function createWorldPose(): WorldPose {
+  const rows = createPlacementRows(1)
+  return {
+    rows,
+    write(world, shown) {
+      rows.matrices.set(world)
+      rows.live[0] = shown ? 1 : 0
+    },
+  }
+}
+
 /** What a loaded model is drawn by: the sources of its drawn meshes, in its graph's order, and
  *  those among them it writes the row of. */
 export type ModelDraws = {
@@ -74,6 +91,8 @@ export type ModelDraws = {
   readonly primitives: readonly Primitive[]
   readonly draws: readonly DrawSource[]
   readonly rowed: readonly (DrawSource & { readonly rows: PlacementRows; write(): void })[]
+  /** The pose of the world DAG the model holds, once the world draws it (`rootsOf`). */
+  world?: WorldPose
   /** The root its graph hangs from, posed by the model's world: what a node's chain is shown by. */
   readonly holder: Group
 }
@@ -142,6 +161,17 @@ export function createWorldModels(ranks: WorldRanks) {
       )
       return draws
     },
+    /** `model`'s world roots, their tables naming its primitives as the merged manifest ranks them
+     *  (`WorldRootsHold.rank`): what the engine draws the world DAG from. */
+    rootsOf(model: LoadedModel) {
+      const roots = modelWorldRoots(model),
+        draws = this.drawsOf(model)
+      // The world DAG of a model is drawn at the model's world: one row, written with its meshes'.
+      if (roots.some((hold) => hold.drawn) && !draws.world) draws.world = createWorldPose()
+      for (const hold of roots)
+        hold.drawnAs({ primitives: draws.primitives, pose: draws.world?.rows })
+      return roots
+    },
     /** `model`'s graph put at the model's world, shown as `shown` says, and the rows of its
      *  meshes written from it; cost: the meshes it draws, once for each move of the model or of
      *  one of its nodes. */
@@ -153,6 +183,7 @@ export function createWorldModels(ranks: WorldRanks) {
       holder.visible = shown
       updateTransformTree(Object3D._treeOf(holder))
       for (const source of draws.rowed) source.write()
+      draws.world?.write(model.matrixWorld.elements, shown)
       return draws
     },
   }

@@ -13,9 +13,9 @@ const ball = geometry.sphere(0.6, 16, 12)
 const paint = material.meshStandard({ color: 0xb04a3a, roughness: 0.7 })
 
 /** A model of the world, at the place its case gives it. */
-async function placed(world: World, url: string, x: number, z: number, scale = 0.15) {
+async function placed(world: World, url: string, x: number, z: number, scale = 0.15, y = 0) {
   const model = await world.scene.load(url)
-  model.position.set(x, 0, z)
+  model.position.set(x, y, z)
   model.scale.setScalar(scale)
   return model
 }
@@ -30,6 +30,8 @@ const overlap = () => coplanarModel('partial-overlap')
 
 /** A crowd past a stream unit — twenty-four hundred cubes: the compiler cuts it in cells. */
 const crowd = () => crowdModel('crowd', 48, 50, [0.2, 0.55, 0.85, 1])
+/** The same crowd cooked with its world DAG (`qem-endpoints`): its far cells are drawn by super-roots. */
+const crowdDag = () => crowdModel('crowd-dag', 48, 50, [0.85, 0.3, 0.3, 1], 'qem-endpoints')
 /** A crowd the stream unit holds: one model, no cell. */
 const small = () => crowdModel('small', 6, 4, [0.85, 0.7, 0.2, 1])
 
@@ -73,6 +75,19 @@ export const runPartitioned = () =>
   joined(
     async (world) => (meshes(world), void (await placed(world, overlay(), -3, 1))),
     async (world) => void (await placed(world, crowd(), 0, -9, 0.3)),
+  )
+
+/** A model cut in cells with its world DAG, so far along the camera's view that its cells are drawn
+ *  by the DAG's super-roots, beside a model. */
+export const runWorldDag = () =>
+  joined(
+    async (world) => {
+      // The world DAG stands in for a cell where the error it adds is under the pixel's.
+      world.pixelError = 1
+      meshes(world)
+      await placed(world, overlay(), -3, 1)
+    },
+    async (world) => void (await placed(world, crowdDag(), 0, -1239, 0.3, -826)),
   )
 
 /** A model cut in cells, in a session that draws meshes alone. */

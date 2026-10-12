@@ -39,7 +39,6 @@ export function catalogueRefusal(rt: WebgpuPagesRuntime, pages: readonly PageRec
   const { tracking, census, maxCorners } = rt.setup
   const added = new Set<string>()
   for (const page of pages) {
-    if ((page.level ?? 0) > tracking.topLevel) return 'a page deeper than the levels ranked'
     if (cornersOf(page) > maxCorners) return 'a page wider than the draw batches'
     const address = pageAddress(page),
       home = census.homes.get(address)
@@ -90,7 +89,9 @@ export function growCatalogue(rt: WebgpuPagesRuntime, brought: Brought) {
   const widths = new Map<string, number>()
   let added = 0
   for (const address of fresh) {
-    const width = census.homes.get(address)!
+    // A record that is no page — a world record no mesh wears — has no home: it takes no slot.
+    const width = census.homes.get(address)
+    if (width === undefined) continue
     widths.set(address, width)
     added += width
   }

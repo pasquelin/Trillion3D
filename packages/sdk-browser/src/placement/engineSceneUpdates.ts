@@ -51,6 +51,13 @@ export type PlacementGrowth = {
    *  atlas, no table rebuilt. `undefined` once joined; else the refusal, by name — a catalogue
    *  past its keys, a device that refuses the pool or a pass —, nothing joined: the owner says it. */
   addPlacements?(source: DrawSource, primitive: Primitive): Promise<string | undefined>
+  /** The world DAG a model joined with (`WorldRootsHold`, its sources handed to `addPlacements`
+   *  first) is drawn from now on, its cells held far where the cut says: its root joins the cut
+   *  made over every root. `undefined` once it waits to join, or when there is nothing to draw —
+   *  the session draws one world DAG, another's —; else the refusal, by name. */
+  addWorldRoots?(
+    roots: import('../scene/worldRoots.ts').WorldRootsHold,
+  ): Promise<string | undefined>
 }
 
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */
@@ -71,9 +78,10 @@ export interface EngineSceneUpdates extends PlacementGrowth {
     links: readonly { rows: PlacementRows; index: number; local: ArrayLike<number> }[],
     whole: boolean,
   ): boolean
-  /** The cut's uniforms while it packs the world DAG (`GpuSelection.packsWorld`), which a
-   *  partition's plan projects its far cells with (#1332); `undefined` while none packs it. */
-  worldCut(): SelectionUniforms | undefined
+  /** The cut's uniforms while it packs the world DAG of `roots` (`GpuSelection.packsWorld`), which a
+   *  partition's plan projects its far cells with (#1332); `undefined` while none packs it, or
+   *  it packs another's: the cut draws one. */
+  worldCut(roots?: object): SelectionUniforms | undefined
   /** The lists `ranges` name of the host geometry whose attributes are `attributes` — a dynamic
    *  geometry's (#573) — were rewritten in place, its moved vertices within `box` (local, where
    *  they were and where they go), each vertex at most `reach` from where its page is bounded on

@@ -17,6 +17,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { forgetRowRoots } from './update.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
+import { followWorldRoot } from '../webgpu/pages/prepare/worldRoot.ts'
 import { growthOf, heldPage, takeGrownCopies } from './webgpuGrowth.ts'
 import { growBlend, waitsForWater } from '../webgpu/blend/growth.ts'
 import { announceGrowth, replayMoves, type GrownRoots } from './growthAnnounce.ts'
@@ -84,6 +85,8 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   reserveBoxes(rt)
   // Taken in place, the running cut already holds them; else the cut made over them replaces it.
   if (!ready.inPlace) swapCut(rt, ready, added, firstRank)
+  // A world DAG among them is the session's: the cells it draws far are followed.
+  if (added.some((root) => 'origins' in root)) followWorldRoot(rt)
   // The new rows as their owner wrote them meanwhile: parked or taken, posed, casting or not.
   for (const root of added)
     if (root.placement)

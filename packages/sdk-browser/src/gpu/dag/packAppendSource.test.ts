@@ -31,6 +31,14 @@ test('a source whose records differ from the primitive’s is not appended: it n
   assert.equal(grown.live!.worlds, 3, 'nothing moved')
 })
 
+test('a world DAG is never appended: its links reach every placement, a cut is packed with it', () => {
+  const { roots, capacity } = scene()
+  const grown = packDagSelection(roots.slice(0, 3), capacity)
+  const world = { ...roots[3], origins: new Int32Array(roots[3].pages.length).fill(-1) }
+  assert.equal(appendDagRoots(grown, [world as DagRoot]), undefined)
+  assert.equal(grown.live!.worlds, 3, 'nothing moved')
+})
+
 test('a source appended writes what it adds — its pages and placements — whatever the placements held', () => {
   const written: Record<number, number[]> = {}
   for (const side of [16, 32, 64]) {

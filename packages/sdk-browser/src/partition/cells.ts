@@ -93,6 +93,9 @@ export function createPartitionCells(inputs: Inputs) {
   /** A cell held far lets its super-roots go (`farCells.ts`), a placed one its rows and pages. */
   const leave = (cell: number) => far.release(cell) || (rows.leave(cell), holds.release(cell))
   const partitionCells = {
+    /** The world roots its far cells are drawn from (`createFarCells`): the cut's lens serves
+     *  the cells of the one world DAG it packs. */
+    world,
     /** The files the streamer's catalogue holds at a session's open: every one the index names now
      *  (`cellIndex.ts`, `named`). */
     get pages() {

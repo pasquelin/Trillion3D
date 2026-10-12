@@ -34,6 +34,8 @@ import type { Primitive } from '../../../sdk-core/src/index.ts'
 import { primitiveFinder } from './primitiveLookup.ts'
 import { sourceSurface } from '../page/surface.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
+import { placementWorld, rowParked, type PlacementRows } from '../placement/rows.ts'
+import { refreshRootBox } from '../page/selection/batchBoxes.ts'
 
 /** The mesh a world page is worn by, and its surface: none when it draws blended. */
 export type WorldWearer = { drawSource: DrawSource; surface: PageSurface }
@@ -84,12 +86,14 @@ function worldRecord(page: WorldPage, rank: number, wearer: WorldWearer, order: 
 /**
  * The cut's root of the world DAG `dag`: its records worn through `wear` (a primitive's rank to the
  * mesh that draws it opaque, none otherwise), its group structure and culling hierarchy over them,
- * drawn at the identity, ranked `order` among the draws; `undefined` when no mesh wears any of it.
+ * drawn at the identity — or at the world of its model, row 0 of `pose` —, ranked `order` among the
+ * draws; `undefined` when no mesh wears any of it.
  */
 export function worldSelectionRoot(
   dag: WorldDagSource,
   wear: (primitive: number) => WorldWearer | undefined,
   order: number,
+  pose?: PlacementRows,
 ): (ClusterRoot<PageRec> & WorldHeld) | undefined {
   let fallback: WorldWearer | undefined
   for (const { primitive } of dag.pages)
@@ -110,8 +114,10 @@ export function worldSelectionRoot(
     const own = ranks.map((rank) => pages[rank]).filter((page) => page.url)
     if (own.length) held.set(bundle, own)
   }
-  return {
-    world: IDENTITY_WORLD,
+  const placement = pose && { rows: pose, index: 0 }
+  const root = {
+    world: placement ? placementWorld(pose, 0) : IDENTITY_WORLD,
+    ...(placement && { placement, parked: rowParked(placement) }),
     pages,
     structure: dag.structure,
     culling: {
@@ -125,6 +131,9 @@ export function worldSelectionRoot(
     origins: dag.origins,
     pagesOf: (bundle: number) => held.get(bundle) ?? [],
   }
+  // Posed by its model: its box is the local one at that world.
+  if (placement) refreshRootBox(root)
+  return root
 }
 
 /** The world DAG's root as the cut packs it: each placed object's origin, and the pages each

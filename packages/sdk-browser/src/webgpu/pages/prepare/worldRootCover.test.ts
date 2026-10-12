@@ -12,6 +12,7 @@ test("a held cell's roots gain a holder while it holds them, until the backend e
   const { roots: selectionRoots } = withWorldRoot(
     { roots, allPages: [], requests: new Map() },
     context,
+    context.draws,
   )
   const told: [string[], boolean][] = []
   const holdCover = (pages: readonly PageRec[], held: boolean) =>
@@ -50,6 +51,7 @@ test('the room is the least the live sessions leave; one that ends leaves the ot
   const { roots: selectionRoots } = withWorldRoot(
     { roots, allPages: [], requests: new Map() },
     context,
+    context.draws,
   )
   const session = (ends: AbortController) =>
     ({

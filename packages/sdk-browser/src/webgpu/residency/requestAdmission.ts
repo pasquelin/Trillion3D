@@ -37,7 +37,7 @@ const SHORT_LEAVE = 0.9
  */
 export function createRequestAdmission(
   sets: WebgpuResidencySets,
-  { keyOf, wanted, topLevel }: Pick<Tracking, 'keyOf' | 'wanted' | 'topLevel'>,
+  tracking: Pick<Tracking, 'keyOf' | 'wanted' | 'topLevel'>,
   closure: Pick<GroupClosure, 'closeOver'>,
   recordOf: (id: number) => PageRec | undefined,
 ) {
@@ -48,8 +48,10 @@ export function createRequestAdmission(
   /** The readbacks the last admission walked: a capture's, then the views'. */
   let lastFirst: unknown = null
   const lastCuts: unknown[] = []
-  const { merge, merged } = admissionMerge(recordOf, topLevel)
-  const filing = createLevelFiling(keyOf, (key) => sets.covers(key), topLevel, merged)
+  // The levels the catalogue ranks rise when a source joins with deeper pages: read at each use.
+  const { keyOf, wanted } = tracking
+  const { merge, merged } = admissionMerge(recordOf, tracking)
+  const filing = createLevelFiling(keyOf, (key) => sets.covers(key), tracking, merged)
   const walk: Walk = {
     merge,
     closure,
@@ -95,15 +97,18 @@ export function createRequestAdmission(
 }
 
 /** The views' requests merged, and the admission level of each. */
-function admissionMerge(recordOf: (id: number) => PageRec | undefined, topLevel: number) {
+function admissionMerge(
+  recordOf: (id: number) => PageRec | undefined,
+  levels: Pick<Tracking, 'topLevel'>,
+) {
   const levelOf = (id: number) => {
     const rec = recordOf(id)
-    return rec ? admissionLevel(rec, topLevel) : 0
+    return rec ? admissionLevel(rec, levels.topLevel) : 0
   }
   /** An admission bucket's level (`../../gpu/dag/readoutWords.ts`, `levelCountsWord`): its level,
    *  raised past `topLevel` with the minimum capacity's bit, as `admissionLevel` raises it. */
   const bucketLevel = (bucket: number) =>
-    (bucket & ADMISSION_LEVEL_MAX) + (bucket > ADMISSION_LEVEL_MAX ? topLevel + 1 : 0)
+    (bucket & ADMISSION_LEVEL_MAX) + (bucket > ADMISSION_LEVEL_MAX ? levels.topLevel + 1 : 0)
   return createReadbackMerge(levelOf, bucketLevel)
 }
 

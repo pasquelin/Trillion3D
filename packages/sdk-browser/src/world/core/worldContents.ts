@@ -204,7 +204,7 @@ function plan(state: ContentsState) {
       (mesh, row) => mesh && poses.writeSeat(mesh, { batch, row }, shownUnder(mesh, scene)),
     )
   for (const model of members.models) {
-    state.models.drawsOf(model)
+    state.models.rootsOf(model) // its draws, its world DAG's pose among them: written with them
     poses.writeModel(state.models, model, shownUnder(model, scene))
   }
   poses.settle()

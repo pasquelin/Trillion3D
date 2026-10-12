@@ -11,7 +11,7 @@ import type { Batch } from './worldBatches.ts'
 import type { WorldModels } from './worldModels.ts'
 import type { WorldRanks } from './worldRanks.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { modelWorldRoots, type LoadedModel } from './loadedModel.ts'
+import type { LoadedModel } from './loadedModel.ts'
 
 /** What a session is opened on: the batches placed by rows, and the models. */
 export type WorldPlan = {
@@ -64,7 +64,7 @@ export function buildWorldSource(plan: WorldPlan) {
         clips: [],
         // Each model's cells follow the session's camera.
         partitions: models.flatMap((model) => model.record.scene.partitions),
-        worldRoots: models.flatMap(modelWorldRoots),
+        worldRoots: models.flatMap((model) => worldModels.rootsOf(model)),
       },
     },
   }

@@ -35,8 +35,8 @@ function viewOf(camera: HostCamera) {
 }
 
 /** The cut's lens `backend` projects with while it packs the world DAG, else none (#1332). */
-function lensOf(backend: Engine, camera: HostCamera) {
-  const cut = backend.worldCut()
+function lensOf(backend: Engine, camera: HostCamera, cells: PartitionCells) {
+  const cut = backend.worldCut(cells.world)
   return cut && { ...cut, slope: lensSlope(camera) }
 }
 
@@ -125,7 +125,7 @@ export function createPartitionFrame(inputs: Inputs) {
     await Promise.all([...asked, ...turned])
     return later || turned.length > 0
   }
-  const io = (): Parameters<PartitionCells['frame']>[2] => ({
+  const io = (cells: PartitionCells): Parameters<PartitionCells['frame']>[2] => ({
     bytes: (url: string) => streamer.getBytes(url),
     decode: decodeCell,
     decodePage,
@@ -140,14 +140,13 @@ export function createPartitionFrame(inputs: Inputs) {
     grow: backend,
     outgrown: renew,
     // While the cut packs the world DAG, a cell its super-roots draw is held far (#1332).
-    lens: lensOf(backend, camera),
+    lens: lensOf(backend, camera, cells),
   })
   const step = () => {
     if (!partitions.length) return
-    const given = io(),
-      { eye, reach } = viewOf(camera)
+    const { eye, reach } = viewOf(camera)
     later = false
-    for (const cells of partitions) later = cells.frame(eye, reach, given, budget) || later
+    for (const cells of partitions) later = cells.frame(eye, reach, io(cells), budget) || later
     asks.end()
   }
   return Object.assign(step, {
@@ -158,12 +157,11 @@ export function createPartitionFrame(inputs: Inputs) {
     },
     /** `cells` are followed no more: each gives its rows and its holds back. */
     leave(cells: readonly PartitionCells[]) {
-      const given = io()
       for (const one of cells) {
         const at = partitions.indexOf(one)
         if (at < 0) continue
         partitions.splice(at, 1)
-        one.close(given)
+        one.close(io(one))
       }
       asks.end()
     },

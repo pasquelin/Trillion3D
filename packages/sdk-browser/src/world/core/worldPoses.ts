@@ -169,7 +169,9 @@ function touchRows({ ranges }: PoseState, owner: RowsOwner, from: number, to: nu
 
 /** `model`'s graph posed by the model's world, its rows written and noted for the session. */
 function writeModel(state: PoseState, models: WorldModels, model: LoadedModel, shown: boolean) {
-  for (const source of models.pose(model, shown)?.rowed ?? []) touchRows(state, source, 0, 0)
+  const draws = models.pose(model, shown)
+  for (const source of draws?.rowed ?? []) touchRows(state, source, 0, 0)
+  if (draws?.world) touchRows(state, draws.world, 0, 0)
 }
 
 /**

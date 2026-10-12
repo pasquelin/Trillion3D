@@ -35,7 +35,7 @@ export async function scene(t: TestContext, alone = false) {
     source,
     draws: [opaque],
     worldRoots: hold,
-    readGeometryPage: worldOrGeometryReader(hold, host, new AbortController().signal),
+    readGeometryPage: worldOrGeometryReader([hold], host, new AbortController().signal),
   } as unknown as EngineContext
   return { context, hold, bin, table, opaque, reads }
 }

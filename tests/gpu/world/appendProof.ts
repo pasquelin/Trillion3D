@@ -3,7 +3,7 @@
 // its sources at once.
 import { createHash } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
-let dumped = 0
+let lastPixels = new Uint8Array(0)
 import { createWorld } from '../../../packages/sdk-browser/src/world/core/world.ts'
 import {
   lastFrameOf,
@@ -42,7 +42,7 @@ export async function frame(world: World) {
     if (lastFrameOf(world)?.frameHeld) break
   }
   const pixels = await sessionOf(world).capture()
-  if (process.env.APPEND_DUMP) writeFileSync(`${process.env.APPEND_DUMP}-${dumped++}.rgba`, pixels)
+  lastPixels = pixels
   return createHash('sha256').update(pixels).digest('hex')
 }
 
@@ -94,12 +94,21 @@ export async function joined(held: Content, added: Content) {
     const sessions = grown.world.diagnostic.sessions
     await added(grown.world)
     const after = await changed(grown.world, before)
+    if (process.env.APPEND_DUMP) writeFileSync(`${process.env.APPEND_DUMP}-joined.rgba`, lastPixels)
     const reference = open()
     try {
       await reference.world.ready
       await Promise.all([held(reference.world), added(reference.world)])
       const opened = await changed(reference.world, '')
-      return { before, after, opened, sessions: [sessions, grown.world.diagnostic.sessions] }
+      if (process.env.APPEND_DUMP)
+        writeFileSync(`${process.env.APPEND_DUMP}-fresh.rgba`, lastPixels)
+      return {
+        before,
+        after,
+        opened,
+        sessions: [sessions, grown.world.diagnostic.sessions],
+        clusters: [lastFrameOf(grown.world)?.clusters, lastFrameOf(reference.world)?.clusters],
+      }
     } finally {
       reference.close()
     }

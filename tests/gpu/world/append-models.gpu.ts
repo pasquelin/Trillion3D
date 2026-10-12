@@ -39,3 +39,24 @@ test('a model the scene loses is parked, drawn again where the scene takes it ba
   assert.equal(result.back, result.full, 'the crowd is drawn again, as it was')
   assert.deepEqual(result.sessions, [1, 1], 'the session was never opened again')
 })
+
+test('a model with its world DAG joins the session in place: its far cells are drawn by the DAG, as a fresh open draws them', async () => {
+  const result = (await runPageProof(
+    resolve(import.meta.dirname, 'appendModelsPage.ts'),
+    'appendModels',
+    'runWorldDag',
+  )) as PageProofResult & {
+    before: string
+    after: string
+    opened: string
+    sessions: number[]
+    clusters: number[]
+  }
+  assertSoundProof(result)
+  assert.notEqual(result.after, result.before, 'the crowd appeared')
+  assert.deepEqual(result.sessions, [1, 1], 'the session was never opened again')
+  assert.equal(result.after, result.opened, 'the image is the fresh open’s')
+  // Two thousand four hundred objects drawn each by its own clusters would be at least that many:
+  // the cells are held far, drawn by the world DAG, in the session that joined as in the one opened.
+  for (const drawn of result.clusters) assert.ok(drawn < 2400, `${result.clusters} clusters`)
+})

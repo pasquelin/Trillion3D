@@ -31,13 +31,14 @@ import {
   readWorldRoots,
   readWorldRootsDag,
 } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
-import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
+import type { ClusterManifest, Primitive } from '../../../sdk-core/src/index.ts'
 import { families } from '../host/families.ts'
 import { worldRootDag } from './worldSuperRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
 import { createWorldBundles } from './worldBundles.ts'
 import { bundlePages, readBundle, readWhole } from './worldRuns.ts'
 import { createWorldObjects } from './worldObjects.ts'
+import type { PlacementRows } from '../placement/rows.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
 import type { PageQueue, StreamPage } from '../streaming/types.ts'
 import { createListeners } from '../../../sdk-core/src/runtime/listeners.ts'
@@ -115,22 +116,23 @@ function readTop(
 }
 
 /**
- * The cache's geometry page reader `read` with the world's pages of `hold` served by its own
- * source, which names the addresses it serves (`WorldPageServer.serves`): built once, where the
- * engine's context is made, and the one reader every page read goes through. Both kinds of page are
+ * The cache's geometry page reader `read` with the world's pages of `holds` — the list a session
+ * keeps, whose models join it while it runs — served by their own source, which names the addresses
+ * it serves (`WorldPageServer.serves`): built once, where the engine's context is made, and the one
+ * reader every page read goes through. Both kinds of page are
  * read under the reader's own signal, else `session`'s — a read never outlives its session —, at
  * the caller's priority.
  */
 export function worldOrGeometryReader(
-  hold: WorldRootsHold | undefined,
+  holds: readonly WorldRootsHold[],
   read: (url: string, signal: AbortSignal, priority?: number) => Promise<Uint8Array>,
   session: AbortSignal,
 ) {
-  const world = hold?.drawn
   return (url: string, own?: AbortSignal, priority?: number) => {
     const signal = own ?? session
-    const source = world?.source.serves(url) ? world.source : undefined
-    return source ? source.read(url, signal, priority) : read(url, signal, priority)
+    for (const { drawn } of holds)
+      if (drawn?.source.serves(url)) return drawn.source.read(url, signal, priority)
+    return read(url, signal, priority)
   }
 }
 
@@ -166,14 +168,15 @@ export async function openWorldRoots(
   if (whole) await bundles.hold(0, { signal })
   const dag = announcedFile(files, WORLD_ROOTS_DAG, base)
   const stream = worldStream(table, dag, (page) => bundles.file(page, signal), bundles.pages)
-  const objects = createWorldObjects(table, metadata.primitives ?? [])
-  const roots = worldRootsHold(table, top, { bundles, stream, objects })
+  const roots = worldRootsHold(table, top, {
+    bundles,
+    stream,
+    primitives: metadata.primitives ?? [],
+  })
   if (table.cells.count > 1 && dag) {
     await roots.stream()
     roots.drawnBytes = dag.bytes
   }
-  // The engine whose scene is this manifest's draws from it (`EngineContext.worldRoots`).
-  roots.metadata = metadata
   return roots
 }
 
@@ -181,14 +184,17 @@ export async function openWorldRoots(
 type HoldParts = {
   bundles: ReturnType<typeof createWorldBundles>
   stream: ReturnType<typeof worldStream>
-  objects: ReturnType<typeof createWorldObjects>
+  primitives: readonly Primitive[]
 }
 
-/** The hold of `table`, its pinned top `top`, over its `bundles`, its `stream` and the `objects`
- *  its rows draw. */
+/** The hold of `table`, its pinned top `top`, over its `bundles`, its `stream` and the objects
+ *  its rows draw, the table's primitive ranks named by `primitives`. */
 function worldRootsHold(table: WorldRoots, top: WorldRootsPage[][], parts: HoldParts) {
-  const { bundles, stream, objects } = parts
-  let streamed: WorldStream | undefined
+  const { bundles, stream } = parts
+  let streamed: WorldStream | undefined,
+    ranked = parts.primitives,
+    posed: PlacementRows | undefined,
+    objects = createWorldObjects(table, ranked)
   const roots = {
     table,
     /** The world pages' source (`worldPageServe.ts`) and their DAG in the engine's own `DagRoot`
@@ -200,10 +206,28 @@ function worldRootsHold(table: WorldRoots, top: WorldRootsPage[][], parts: HoldP
     get drawn() {
       return roots.drawnBytes > 0 ? streamed : undefined
     },
-    /** The manifest that opened it: an engine over that scene draws from it. */
-    metadata: undefined as object | undefined,
+    /** The primitives the table's ranks name, as the session that draws it ranks them: the
+     *  manifest's that opened it, else those the owner of a merged manifest gave (`drawnAs`). */
+    get primitives() {
+      return ranked
+    },
+    /** The row that poses the world DAG: its model's world. Absent, the DAG stands at the
+     *  scene's origin, as a scene opened alone does. */
+    get pose() {
+      return posed
+    },
+    /** The session draws the table as `draw` says — a world merges its models' manifests, so a
+     *  primitive's mesh rank moves where the table's does not (`primitives`, in the table's order),
+     *  and the model that holds the table is moved in the world (`pose`, one row). */
+    drawnAs(draw: { primitives: readonly Primitive[]; pose?: PlacementRows }) {
+      ranked = draw.primitives
+      posed = draw.pose
+      objects = createWorldObjects(table, ranked)
+    },
     /** The object each placed row draws (`worldObjects.ts`). */
-    objects,
+    get objects() {
+      return objects
+    },
     /** The pinned top: its bundles, pages and bytes, for the scene's life. */
     pinned: { bundles: table.pinned, pages: top.flat(), bytes: table.pinnedTopBytes },
     hold: bundles.hold,

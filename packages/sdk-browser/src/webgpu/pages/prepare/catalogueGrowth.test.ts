@@ -108,3 +108,16 @@ test('a page read as floats joins the catalogue by its index bytes, as a quantiz
   assert.equal(grown.widths.get(pages[0].url), 1200, 'its slot holds its index page')
   assert.equal(setup.census.homes.get(pages[0].url), 1200)
 })
+
+test('a page deeper than those held raises the levels ranked; a record that is no page takes no slot', () => {
+  const { setup, rt } = session(2)
+  const pages = primitive(10)
+  pages[1].level = 12
+  // A world record no mesh wears: no address, no bytes.
+  const none = { url: '', triangles: 4, indexBytes: 0, level: 3, parentError: null } as PageRec
+  assert.equal(catalogueRefusal(rt, [...pages, none]), undefined, 'no refusal for the depth')
+  const { grown } = growCatalogue(rt, { allPages: [...pages, none], roots: [rootOf(pages)] })
+  assert.equal(setup.tracking.topLevel, 12, 'the admission reads the levels as they rise')
+  assert.equal(grown.widths.size, PER, 'the pages alone are laid out: no slot of no bytes')
+  assert.ok([...grown.widths.values()].every((width) => width > 0))
+})

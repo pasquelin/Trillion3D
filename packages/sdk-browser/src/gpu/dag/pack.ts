@@ -490,6 +490,9 @@ function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShar
   const brought = new Set<Float64Array>(),
     arrays = new Set<DagRoot['pages']>()
   for (const root of roots) {
+    // The world DAG's links are laid out over every placement at once (`packWorldLinks`): it is
+    // packed with them all, never appended.
+    if (root.origins) return false
     const culling = cullingOf(root, shared),
       shift = packed.placementTree?.depth ?? 0
     if (levelSizesOf(culling, shared).length + shift > packed.levelSizes.length) return false

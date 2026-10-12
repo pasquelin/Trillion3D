@@ -137,7 +137,13 @@ function crowdSource(directory: string, columns: number, rows: number, color: nu
 
 /** The compiled manifest of a crowd of `columns` × `rows` cubes named `name`, as a file address.
  *  Compiled again at each call: the area is the proof's own. */
-export function crowdModel(name: string, columns: number, rows: number, color: number[]) {
+export function crowdModel(
+  name: string,
+  columns: number,
+  rows: number,
+  color: number[],
+  simplification?: 'none' | 'qem-endpoints',
+) {
   const out = measureOutput('gpu-proofs', `append-models-${name}`)
   const source = resolve(out, 'source')
   crowdSource(source, columns, rows, color)
@@ -146,6 +152,7 @@ export function crowdModel(name: string, columns: number, rows: number, color: n
     source,
     cache: resolve(out, 'cache'),
     resourceBase: `${pathToFileURL(source).href}/`,
+    simplification,
     stdio: ['ignore', 'ignore', 'inherit'],
   })
   return pathToFileURL(resolve(out, 'cache/native/full/manifest.json')).href

@@ -13,10 +13,8 @@ export function setupPages(context: EngineContext, diag: WebgpuDiagnostics) {
   const { source, draws, metadata, indices } = context
   // The world DAG beside the scene's pages as the cut's last root, when the scene streams one
   // (`../../../scene/worldRecords.ts`).
-  const collected = withWorldRoot(
-    collectClusterPages(source, draws, metadata, indices, { allowMissing: true }),
-    context,
-  )
+  const scene = collectClusterPages(source, draws, metadata, indices, { allowMissing: true })
+  const collected = withWorldRoot(scene, context, scene.collector.sources)
   const { roots, allPages, blendCopies, requests } = collected
   const sharedBlendMeshes = blendCopies.length
   const pagedBlendCopies = new Map<MatrixElements, BlendCopy>()
