@@ -94,7 +94,7 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   const build = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn hizSource'))
   for (const line of [
     'if(uni.a!=0u){return hizLoadBound(i);}',
-    `if(${HIZ_NEAREST_BUILD}){return vec2f(hizPlaneNearest(i,q,depth),depth);}`,
+    `if(${HIZ_NEAREST_BUILD}){return hizPlaneCorners(i,q,depth);}`,
     'if(uni.d>0u){hizPutBound(uni.dst[0].x+y*uni.dst[0].y+x,bound);}',
     `for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){`,
     `bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${S}u],hizTile[i+dy*${S}u+dx],dx,dy);`,

@@ -192,3 +192,14 @@ test('a ray in front of everything leaves the screen: a miss, within its bound',
   assert.equal(at, undefined)
   assert.ok(loads <= bound)
 })
+
+test('a ray meets a grazing plane in the half of its pixel past the centre, in whatever cell it enters', () => {
+  // A ramp of 0.02 of depth a row, steeper than half a slab (4 pixels of 2 / 1024 deep: 0.0078)
+  // over 0.0078 itself: the plane of the first row of a cell leaves the depth of its centre by
+  // more than the slab's thickness at its far edge. The ray runs level at 0.641, a hair in front of
+  // the plane's depth, 0.640, where it enters row 232, the first of an eight-row cell.
+  const tall = marcher(W, 1024, (_x, y) => (y < 200 ? 0 : y < 250 ? 0.02 * (y + 0.5 - 200) : 1))
+  const { at } = tall.hit([64.5, 100.5, 0.641], [0, 300, 0])
+  assert.ok(at, 'hit')
+  assert.ok(at[1] >= 232 && at[1] < 233, `in row 232: ${at[1]}`)
+})
