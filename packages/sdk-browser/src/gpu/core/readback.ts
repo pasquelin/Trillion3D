@@ -10,18 +10,16 @@ import { mapStaging } from './readbackRing.ts'
  * that wants to check what the GPU wrote calls them.
  */
 
-/** Copies `bytes` bytes of a GPU buffer, or `undefined` if the device does not map. */
+/** Copies `bytes` bytes of a GPU buffer, or `undefined` if the device does not map: through the
+ *  device's held mapped buffer, as `readGpuImage` (a failed copy's is destroyed). */
 export async function readGpuBuffer(
   device: GPUDevice,
   source: GPUBuffer,
   bytes: number,
 ): Promise<Uint32Array | undefined> {
   if (bytes < 4 || typeof device.createBuffer !== 'function') return undefined
-  const staging = device.createBuffer({
-    label: 'Trillion3D buffer readback',
-    size: bytes,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  })
+  const staging = takeReadback(device, bytes, 'Trillion3D buffer readback')
+  let read = false
   try {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D buffer readback' })
     encoder.copyBufferToBuffer(source, 0, staging, 0, bytes)
@@ -29,9 +27,11 @@ export async function readGpuBuffer(
     await mapStaging(staging)
     const copy = new Uint32Array(staging.getMappedRange().slice(0))
     staging.unmap()
+    read = true
     return copy
   } finally {
-    staging.destroy()
+    if (read) giveReadback(device, staging)
+    else staging.destroy()
   }
 }
 
