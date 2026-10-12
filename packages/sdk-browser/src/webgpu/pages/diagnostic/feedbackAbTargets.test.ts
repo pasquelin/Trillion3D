@@ -18,9 +18,10 @@ test('opaque, blend and water pipelines omit exactly the feedback output', () =>
     const share = blendTargets(mode, 0xf, true)[2]
     assert.equal(share?.blend?.color.dstFactor, 'one-minus-src-alpha')
   }
-  assert.equal(waterSurfaceTargets(true).length, 5)
-  assert.equal(waterSurfaceTargets(false).length, 4)
-  assert.equal(waterSurfaceTargets(true)[4].format, 'r32uint')
+  // The water's surface stage: three surfaces, the word, the front depth, then the feedback.
+  assert.equal(waterSurfaceTargets(true).length, 6)
+  assert.equal(waterSurfaceTargets(false).length, 5)
+  assert.equal(waterSurfaceTargets(true)[5].format, 'r32uint')
 })
 
 test('opaque attachments follow the pipelines in place and do not mark feedback written', () => {

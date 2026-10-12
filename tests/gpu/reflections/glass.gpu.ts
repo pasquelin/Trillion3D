@@ -13,7 +13,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
-import type { GlassReading } from './glassPage.ts'
+import type { GlassKind, GlassReading } from './glassPage.ts'
 
 /** The Pearson correlation of two series, and the mean magnitude of the first. */
 function correlate(x: number[], y: number[]) {
@@ -66,90 +66,94 @@ function explained(y: number[], u: number[], v: number[]) {
 /** The half-side of the square of pixels a ray's footprint reads, around the pixel it meets. */
 const SOFT = 1
 
-test('a pane reflects the neighbouring pane and its base, never itself', async () => {
-  const page = (await loadPage(
-    resolve(import.meta.dirname, 'glassPage.ts'),
-    'reflectionGlass',
-  )) as typeof import('./glassPage.ts')
-  const result = (await runOnDawn(page.run, undefined)) as GlassReading & {
-    error?: string
-    errors?: string[]
-  }
-  assert.equal(result.error, undefined, result.error)
-  assert.deepEqual(result.errors, [])
-  assert.deepEqual(result.held, [true, true, true, true, true, true], 'every image is held')
-  const { images, seesPane, seesBase, seesFloor, behindPane } = result
-  const size = result.size
-  /** A pixel's channels, the mean of the `2 · soft + 1` square around it (a ray's footprint). */
-  const pixel = (image: number[], p: number, soft = 0) => {
-    const sum = [0, 0, 0]
-    let count = 0
-    for (let v = -soft; v <= soft; v++)
-      for (let u = -soft; u <= soft; u++) {
-        const x = (p % size[0]) + u,
-          y = Math.floor(p / size[0]) + v
-        if (x < 0 || y < 0 || x >= size[0] || y >= size[1]) continue
-        for (let k = 0; k < 3; k++) sum[k] += image[(y * size[0] + x) * 4 + k]
-        count++
-      }
-    return sum.map((value) => value / count)
-  }
-  /** The correlation of what `near` differs from `far` at the pixels of `pairs`, with what `then`
-   *  differs from `now` at the pixel each one's ray meets. */
-  const follows = (
-    pairs: [number, number][],
-    [near, far]: [number[], number[]],
-    [then, now]: [number[], number[]],
-  ) => {
-    const here: number[] = [],
-      there: number[] = []
-    for (const [p, h] of pairs) {
-      const a = pixel(near, p),
-        b = pixel(far, p),
-        c = pixel(then, h, SOFT),
-        d = pixel(now, h, SOFT)
-      for (let k = 0; k < 3; k++) {
-        here.push(a[k] - b[k])
-        there.push(c[k] - d[k])
-      }
+/** The kinds of transparent surface the one chain meets: each is a pane the others reflect. */
+const KINDS: GlassKind[] = ['blend', 'transmission', 'water']
+
+for (const kind of KINDS)
+  test(`a ${kind} pane reflects the neighbouring pane and its base, never itself`, async () => {
+    const page = (await loadPage(
+      resolve(import.meta.dirname, 'glassPage.ts'),
+      'reflectionGlass',
+    )) as typeof import('./glassPage.ts')
+    const result = (await runOnDawn(page.run, kind)) as GlassReading & {
+      error?: string
+      errors?: string[]
     }
-    return correlate(here, there)
-  }
-  // The same scene with B's pane another colour, then with B's base another: what A shows of each
-  // changes as each changes where A's ray meets it.
-  const pane = follows(seesPane, [images.full, images.tinted], [images.full, images.tinted])
-  const base = follows(seesBase, [images.full, images.rebased], [images.full, images.rebased])
-  // B alone: what a pixel shows is what lies behind it and what its ray meets — the floor and the
-  // bases, which lie in the image where the ray lands: any streak of its own pixels breaks the fit.
-  const channels = [0, 1, 2].map((k) => {
-    const shown: number[] = [],
-      behind: number[] = [],
-      met: number[] = []
-    for (const [p, h] of seesFloor) {
-      shown.push(pixel(images.alone, p)[k])
-      behind.push(pixel(images.bare, p)[k])
-      met.push(pixel(images.alone, h, SOFT)[k])
+    assert.equal(result.error, undefined, result.error)
+    assert.deepEqual(result.errors, [])
+    assert.deepEqual(result.held, [true, true, true, true, true, true], 'every image is held')
+    const { images, seesPane, seesBase, seesFloor, behindPane } = result
+    const size = result.size
+    /** A pixel's channels, the mean of the `2 · soft + 1` square around it (a ray's footprint). */
+    const pixel = (image: number[], p: number, soft = 0) => {
+      const sum = [0, 0, 0]
+      let count = 0
+      for (let v = -soft; v <= soft; v++)
+        for (let u = -soft; u <= soft; u++) {
+          const x = (p % size[0]) + u,
+            y = Math.floor(p / size[0]) + v
+          if (x < 0 || y < 0 || x >= size[0] || y >= size[1]) continue
+          for (let k = 0; k < 3; k++) sum[k] += image[(y * size[0] + x) * 4 + k]
+          count++
+        }
+      return sum.map((value) => value / count)
     }
-    return explained(shown, behind, met)
+    /** The correlation of what `near` differs from `far` at the pixels of `pairs`, with what `then`
+     *  differs from `now` at the pixel each one's ray meets. */
+    const follows = (
+      pairs: [number, number][],
+      [near, far]: [number[], number[]],
+      [then, now]: [number[], number[]],
+    ) => {
+      const here: number[] = [],
+        there: number[] = []
+      for (const [p, h] of pairs) {
+        const a = pixel(near, p),
+          b = pixel(far, p),
+          c = pixel(then, h, SOFT),
+          d = pixel(now, h, SOFT)
+        for (let k = 0; k < 3; k++) {
+          here.push(a[k] - b[k])
+          there.push(c[k] - d[k])
+        }
+      }
+      return correlate(here, there)
+    }
+    // The same scene with B's pane another colour, then with B's base another: what A shows of each
+    // changes as each changes where A's ray meets it.
+    const pane = follows(seesPane, [images.full, images.tinted], [images.full, images.tinted])
+    const base = follows(seesBase, [images.full, images.rebased], [images.full, images.rebased])
+    // B alone: what a pixel shows is what lies behind it and what its ray meets — the floor and the
+    // bases, which lie in the image where the ray lands: any streak of its own pixels breaks the fit.
+    const channels = [0, 1, 2].map((k) => {
+      const shown: number[] = [],
+        behind: number[] = [],
+        met: number[] = []
+      for (const [p, h] of seesFloor) {
+        shown.push(pixel(images.alone, p)[k])
+        behind.push(pixel(images.bare, p)[k])
+        met.push(pixel(images.alone, h, SOFT)[k])
+      }
+      return explained(shown, behind, met)
+    })
+    const alone = Math.min(...channels)
+    console.log(
+      JSON.stringify({
+        pane: [seesPane.length, pane],
+        base: [seesBase.length, base],
+        alone: [seesFloor.length, alone],
+      }),
+    )
+    assert.ok(seesPane.length > 300 && seesBase.length > 100 && seesFloor.length > 100)
+    assert.ok(pane.mean > 1 && base.mean > 1, `B changes what A shows: ${pane.mean}, ${base.mean}`)
+    assert.ok(pane.r > 0.9, `A follows B's pane as composited: ${pane.r}`)
+    assert.ok(base.r > 0.9, `A follows B's base as composited: ${base.r}`)
+    assert.ok(alone > 0.9, `B alone shows what lies behind it and what its ray meets: ${alone}`)
+    // B's base behind B's pane: drawn, green over the grey floor.
+    const green = behindPane.filter((p) => {
+      const [r, g, b] = pixel(images.full, p)
+      return g > r + 20 && g > b + 20
+    })
+    assert.ok(behindPane.length > 100)
+    assert.ok(green.length >= 0.9 * behindPane.length, `${green.length} of ${behindPane.length}`)
   })
-  const alone = Math.min(...channels)
-  console.log(
-    JSON.stringify({
-      pane: [seesPane.length, pane],
-      base: [seesBase.length, base],
-      alone: [seesFloor.length, alone],
-    }),
-  )
-  assert.ok(seesPane.length > 300 && seesBase.length > 100 && seesFloor.length > 100)
-  assert.ok(pane.mean > 1 && base.mean > 1, `B changes what A shows: ${pane.mean}, ${base.mean}`)
-  assert.ok(pane.r > 0.9, `A follows B's pane as composited: ${pane.r}`)
-  assert.ok(base.r > 0.9, `A follows B's base as composited: ${base.r}`)
-  assert.ok(alone > 0.9, `B alone shows what lies behind it and what its ray meets: ${alone}`)
-  // B's base behind B's pane: drawn, green over the grey floor.
-  const green = behindPane.filter((p) => {
-    const [r, g, b] = pixel(images.full, p)
-    return g > r + 20 && g > b + 20
-  })
-  assert.ok(behindPane.length > 100)
-  assert.ok(green.length >= 0.9 * behindPane.length, `${green.length} of ${behindPane.length}`)
-})

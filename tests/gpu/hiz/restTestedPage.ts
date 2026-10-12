@@ -84,29 +84,33 @@ export async function testRestCompaction() {
     flags: verdicts,
   })
   if (!compact) throw new Error('the rest compaction must compile')
-  let recorded: GPUBuffer | undefined
-  const encoder = device.createCommandEncoder()
-  const pass = encoder.beginComputePass()
-  const open = {
-    pass: new Proxy(pass, {
-      get(target, name) {
-        if (name === 'dispatchWorkgroupsIndirect')
-          return (arguments_: GPUBuffer, at: number) => {
-            recorded = arguments_
-            target.dispatchWorkgroupsIndirect(arguments_, at)
-          }
-        const member = Reflect.get(target, name)
-        return typeof member === 'function' ? member.bind(target) : member
-      },
-    }),
+  /** One compaction in its own submission; the arguments its dispatches read. */
+  const encodeRecorded = async () => {
+    let recorded: GPUBuffer | undefined
+    const encoder = device.createCommandEncoder()
+    const pass = encoder.beginComputePass()
+    const open = {
+      pass: new Proxy(pass, {
+        get(target, name) {
+          if (name === 'dispatchWorkgroupsIndirect')
+            return (arguments_: GPUBuffer, at: number) => {
+              recorded = arguments_
+              target.dispatchWorkgroupsIndirect(arguments_, at)
+            }
+          const member = Reflect.get(target, name)
+          return typeof member === 'function' ? member.bind(target) : member
+        },
+      }),
+    }
+    // The table's capacity in instances: far more than the tested rows can fill.
+    if (!compact.encode(open, 2, TABLE_ROWS * PER_ROW, restPages))
+      throw new Error('the compaction must run')
+    pass.end()
+    device.queue.submit([encoder.finish()])
+    if (!recorded) throw new Error('the compaction must dispatch on arguments')
+    return [...(await readBuffer(device, recorded, 0, 12))]
   }
-  // The table's capacity in instances: far more than the tested rows can fill.
-  if (!compact.encode(open, 2, TABLE_ROWS * PER_ROW, restPages))
-    throw new Error('the compaction must run')
-  pass.end()
-  device.queue.submit([encoder.finish()])
-  if (!recorded) throw new Error('the compaction must dispatch on arguments')
-  const restArgs = [...(await readBuffer(device, recorded, 0, 12))]
+  const restArgs = await encodeRecorded()
   const after = await readBuffer(device, instances, 0, 1024 * 4)
   const commandsAfter = await readBuffer(device, indirect, 0, BASE_SLOTS * 16)
   const survivors: number[][] = [],
@@ -118,6 +122,13 @@ export async function testRestCompaction() {
     expected.push(kept)
     survivors.push([...after.subarray(starts[k], starts[k] + commandsAfter[slot * 4 + 1])])
   })
+  // The next image tests no row: its slots hold nothing, the earlier image's tile words stay in the
+  // work buffer, and the compaction must leave every slot empty, never sum those words.
+  device.queue.writeBuffer(indirect, 0, new Uint32Array(BASE_SLOTS * 4))
+  device.queue.writeBuffer(partitionState, 0, new Uint32Array(STATE_WORDS))
+  const emptyArgs = await encodeRecorded()
+  const emptyCommands = await readBuffer(device, indirect, 0, BASE_SLOTS * 16)
+  const emptyCounts = slots.map((slot) => emptyCommands[slot * 4 + 1])
   compact.dispose()
   const { court: adapter } = await gpu.fermer()
   release()
@@ -128,5 +139,6 @@ export async function testRestCompaction() {
     counts: slots.map((slot) => commandsAfter[slot * 4 + 1]),
     survivors,
     expected,
+    empty: { args: emptyArgs, counts: emptyCounts },
   }
 }

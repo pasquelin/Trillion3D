@@ -1,4 +1,5 @@
 import { bindForwardReflection } from '../../reflections/gpu.ts'
+import { frontAttachment } from '../../reflections/frontDepth.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
 import { scissorTo } from './bounds.ts'
 import { createWaterFreeze } from './freeze.ts'
@@ -167,7 +168,9 @@ function encodeWaterFrame(
   if (!group || !frame.surfaces) throw new Error('WATER_NOT_BOUND')
   const rect = frame.freeze.encode(encoder, rt.blendState.waterBounds, rt.gpu.targetSize)
   const written = rt.vis.writesFeedback ? feedbackAttachment(rt) : undefined
-  const pass = encoder.beginRenderPass(passes.surface(lobed, written))
+  const pass = encoder.beginRenderPass(
+    passes.surface(lobed, frontAttachment(rt.gpu.reflection!.front), written),
+  )
   pass.setViewport(0, 0, rt.gpu.targetSize[0], rt.gpu.targetSize[1], 0, 1)
   scissorTo(pass, rect)
   frame.restore.draw(pass, lobed)
@@ -233,10 +236,16 @@ function createWaterPasses() {
       attachments.length = 0
       attachments.push(...surfaceColorAttachments(surfaces).slice(0, 3), word)
     },
-    /** The surface pass, with the lobes target where `lobed`, and the feedback `written`. */
-    surface(lobed: boolean, written: GPURenderPassColorAttachment | undefined) {
+    /** The surface pass, with the lobes target where `lobed`, the `front` depth and the feedback
+     *  `written`. */
+    surface(
+      lobed: boolean,
+      front: GPURenderPassColorAttachment,
+      written: GPURenderPassColorAttachment | undefined,
+    ) {
       attachments.length = 4
       if (lobed) attachments.push(lobes)
+      attachments.push(front)
       if (written) attachments.push(written)
       return surfacePass
     },

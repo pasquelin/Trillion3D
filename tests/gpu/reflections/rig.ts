@@ -75,7 +75,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   if (frame.environment) store.setEnvironment({ exposure: 1, irradiance: frame.environment })
   const lights = createSceneLightContractBuffer(device, store)
   uploadSceneLights(device, { store, buffer: lights, uploadedEpoch: -1 } as WebgpuLightState)
-  const reflection = createScreenReflection(device, width, height)
+  const reflection = createScreenReflection(device, width, height, true)
   const inverse = new Float64Array(16)
   invertMatrix4(inverse, frame.viewProjection)
   // The lighting's view of the image: the eye, the background, an exposure of one, no display

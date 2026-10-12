@@ -101,23 +101,30 @@ export function frontLayout(device: GPUDevice) {
 export const frontPitch = (width: number) => copyRowBytes(width) / 4
 
 /** Bytes of the front depth of a view at `width × height`: the blends' target and the scatter's
- *  buffer. */
-export const frontBytes = (width: number, height: number) =>
-  width * height * 2 + frontPitch(width) * height * 4
+ *  buffer, one texel and one word while no blend is drawn (`createFrontDepth`). */
+export const frontBytes = (width: number, height: number, wanted: boolean) =>
+  wanted ? width * height * 2 + frontPitch(width) * height * 4 : 2 + 4
 
 /** What a view keeps of the front depth: the target the blends write, the buffer the scatter folds
  *  into, whether the blends wrote the target since it was last carried (`fresh`), whether the
- *  Hi-Z's texture holds a depth to clear (`held`), and the scatter's bind group. */
-export function createFrontDepth(device: GPUDevice, width: number, height: number) {
+ *  Hi-Z's texture holds a depth to clear (`held`), and the scatter's bind group. A scene with no
+ *  blend (`wanted` false) draws no blend pass, carries nothing and clears nothing: the target is a
+ *  texel and the buffer a word. */
+export function createFrontDepth(
+  device: GPUDevice,
+  width: number,
+  height: number,
+  wanted: boolean,
+) {
   const written = device.createTexture({
     label: 'Trillion3D reflection front depth',
-    size: [width, height],
+    size: wanted ? [width, height] : [1, 1],
     format: FRONT_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   })
   const folded = device.createBuffer({
     label: 'Trillion3D reflection front depth',
-    size: frontPitch(width) * height * 4,
+    size: wanted ? frontPitch(width) * height * 4 : 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   })
   return {
