@@ -2,13 +2,12 @@
 //! solve of a seam-locked group reads of them (`solved.rs`) — how much surface a unit of each
 //! texture set spans, the seams on the group's open border, the faces it folds across charts.
 use super::border::live_triangles;
-use super::clusters::edge_key;
 use super::*;
 use crate::join::Join;
 use crate::qem::Attribute;
 use trillion3d_math::aabb::longest_side;
-use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vec3::{length, point, sub};
+use trillion3d_math::triangle::{edge_key, longest_edge, triangle_cross};
+use trillion3d_math::vec3::{length, point};
 
 /// Per texture set of `uv_sets`, the surface length one unit of it spans over the triangles `live`:
 /// the square root of their surface area over their texture area; zero where the set spans no area.
@@ -69,14 +68,6 @@ pub fn vertex_islands(weld_seam: &[u32], indices: &[u32]) -> Vec<u32> {
     (0..weld_seam.len() as u32)
         .map(|v| islands.root(v))
         .collect()
-}
-
-/// The longest edge of `tri` over `positions`.
-pub(crate) fn longest_edge(positions: &[f32], tri: &[u32; 3]) -> f64 {
-    let [a, b, c] = tri.map(|v| point(positions, v));
-    length(sub(b, a))
-        .max(length(sub(c, b)))
-        .max(length(sub(a, c)))
 }
 
 /// The longest edge of the faces of `indices` a pixel must hide: those whose corners lie in two

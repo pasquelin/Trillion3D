@@ -1,6 +1,7 @@
-use crate::albedo::{srgb_to_linear, Palette};
+use crate::albedo::Palette;
 use serde_json::Value;
 use std::path::Path;
+use trillion3d_math::color::srgb_byte_to_linear;
 
 /// Mean color of a texture, decoded right here. Oracle does not read the cache preview: it
 /// recomputes the average on the source image, so both paths verify each other.
@@ -25,7 +26,7 @@ fn texture_mean(g: &Value, directory: &Path, texture: u64) -> Option<[f64; 3]> {
     let mut sum = [0.0f64; 3];
     for pixel in decoded.pixels() {
         for (axis, channel) in sum.iter_mut().enumerate() {
-            *channel += srgb_to_linear(pixel.0[axis]);
+            *channel += srgb_byte_to_linear(pixel.0[axis]);
         }
     }
     let count = decoded.pixels().len().max(1) as f64;

@@ -1,6 +1,7 @@
 pub(crate) mod link;
 use crate::{invalid, Result};
 use link::{classify_link, LinkScratch};
+use trillion3d_math::triangle::edge_key;
 #[derive(Debug, Clone, PartialEq)]
 pub struct TopologyReport {
     pub triangles: usize,
@@ -12,13 +13,6 @@ pub struct TopologyReport {
     pub locked_vertices: usize,
     pub unused_vertices: usize,
     pub manifold: bool,
-}
-fn edge_key(a: u32, b: u32) -> (u32, u32) {
-    if a < b {
-        (a, b)
-    } else {
-        (b, a)
-    }
 }
 /// Edge and vertex classification of a triangle soup. The cluster DAG builds its own cluster
 /// graph, so no triangle adjacency is derived here.
@@ -45,7 +39,7 @@ pub fn classify_topology(indices: &[u32], vertex_count: usize) -> Result<Topolog
             let start = tri[e];
             let end = tri[(e + 1) % 3];
             let key = edge_key(start, end);
-            halves.push((key.0, key.1, start, end, face));
+            halves.push((key, start, end, face));
             incident[start as usize] += 1;
             if start != end {
                 link_count[start as usize] += 1;
@@ -77,30 +71,22 @@ pub fn classify_topology(indices: &[u32], vertex_count: usize) -> Result<Topolog
             *at += 1;
         }
     }
-    halves.sort_unstable_by(|left, right| {
-        left.0
-            .cmp(&right.0)
-            .then(left.1.cmp(&right.1))
-            .then(left.4.cmp(&right.4))
-    });
+    halves.sort_unstable_by(|left, right| left.0.cmp(&right.0).then(left.3.cmp(&right.3)));
     let mut boundary = 0;
     let mut manifold = 0;
     let mut non_manifold = 0;
     let mut cursor = 0usize;
     while cursor < halves.len() {
         let mut end = cursor + 1;
-        while end < halves.len()
-            && halves[end].0 == halves[cursor].0
-            && halves[end].1 == halves[cursor].1
-        {
+        while end < halves.len() && halves[end].0 == halves[cursor].0 {
             end += 1;
         }
         let n = end - cursor;
         if n == 1 {
             boundary += 1;
         } else if n == 2
-            && halves[cursor].2 == halves[cursor + 1].3
-            && halves[cursor].3 == halves[cursor + 1].2
+            && halves[cursor].1 == halves[cursor + 1].2
+            && halves[cursor].2 == halves[cursor + 1].1
         {
             manifold += 1;
         } else {
