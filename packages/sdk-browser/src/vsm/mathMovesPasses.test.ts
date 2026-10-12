@@ -32,6 +32,7 @@ import {
   edgeValues,
   haltonSpan,
 } from '../../../math/src/sequence/sweep.fixture.ts'
+import { fakeHizDepth } from './hizDepth.fixture.ts'
 
 /** The old viewMatrices: the four matrices of the view header, words 0-63. */
 function oldHeader(view: ArrayLike<number>, projection: ArrayLike<number>, shift: number[]) {
@@ -84,6 +85,7 @@ test('the projection view header: every word as the old composition wrote it', (
       {
         device,
         depth: texture,
+        hizDepth: fakeHizDepth,
         normalRough: texture,
         flags: texture,
         mask: texture,

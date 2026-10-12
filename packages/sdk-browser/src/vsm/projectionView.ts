@@ -28,7 +28,7 @@ const HEADER: readonly Field[] = [
   ['screenRayScale', 'vec4f'],
   ['halfFovTangents', 'vec4f'],
   ['viewPixels', 'vec4f'],
-  ['clipToBufferUv', 'vec4f'],
+  ['screenSlab', 'vec4f'],
   ['projectionRect', 'vec4i'],
 ]
 

@@ -12,6 +12,8 @@ import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_BYTES } from './pro
 import { encodeVirtualShadowProjection, type VsmProjectionLight } from './projectionPass.ts'
 import { camera, sun } from './projectionScene.fixture.ts'
 import { vsmLayout } from './layout.ts'
+import { VSM_PROJECTION_HEADER_WORDS } from './projectionView.ts'
+import { fakeHizDepth } from './hizDepth.fixture.ts'
 
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
   subgroups: false,
@@ -77,6 +79,7 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
     {
       device,
       depth: view,
+      hizDepth: fakeHizDepth,
       normalRough: view,
       flags: view,
       mask: view,
@@ -102,7 +105,7 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
   const f = new Float32Array(u.buffer, u.byteOffset, u.length)
   assert.equal(u[75], 9, 'the count')
   for (let k = 0; k < 9; k++) {
-    const o = 104 + 12 * k
+    const o = VSM_PROJECTION_HEADER_WORDS + 12 * k
     assert.equal(u[o + 9], 8192 + 6 * k, `light ${k}'s map`)
     assert.equal(f[o] + 0, k, `light ${k}'s position, the eye at the origin`)
   }
@@ -111,6 +114,7 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
   const inputs = {
     device,
     depth: view,
+    hizDepth: fakeHizDepth,
     normalRough: view,
     flags: view,
     mask: view,

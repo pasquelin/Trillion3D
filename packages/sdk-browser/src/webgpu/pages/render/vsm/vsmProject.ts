@@ -101,6 +101,9 @@ export function encodeVsmProjection(
   inputs.lights = projected
   const held = vsm.projectionHold.held(mask.array)
   if (held && !shadowsUnsettled(lights)) return 0
+  // The depth the screen ray marches, its pyramid complete (`encodeDepthPyramid`).
+  const hizDepth = rt.vis.gpuHiz?.depth()
+  if (!hizDepth) return 0
   // The engine's shadow receiver, as the resolve wrote it (`receiverTargetWgsl.ts`).
   const receiver = gpu.surfaces!.receiverView
   const camera = {
@@ -114,12 +117,11 @@ export function encodeVsmProjection(
     {
       device,
       depth: gpu.depthView!,
+      hizDepth,
       normalRough: views[1],
       flags: views[3],
       width,
       height,
-      bufferWidth: gpu.allocatedSize[0],
-      bufferHeight: gpu.allocatedSize[1],
       camera,
       frameIndex: phase,
       mask: mask.view,

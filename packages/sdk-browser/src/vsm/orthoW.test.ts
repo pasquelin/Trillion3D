@@ -15,6 +15,7 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { orthographicProjection } from '../../../math/src/projection/camera.ts'
 import { vsmLayout } from './layout.ts'
 import { MIB } from '../../../math/src/constants.ts'
+import { fakeHizDepth } from './hizDepth.fixture.ts'
 
 const PROJECTION = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, -0.1, 0]
 const VIEW = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
@@ -76,6 +77,7 @@ test('the camera kind decides the projection path: an orthographic matrix scaled
       {
         device,
         depth: view,
+        hizDepth: fakeHizDepth,
         normalRough: view,
         flags: view,
         mask: view,

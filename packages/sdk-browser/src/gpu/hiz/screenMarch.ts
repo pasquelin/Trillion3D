@@ -104,8 +104,8 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f)->ScreenHit{
    level=min(1,top);
    continue;
   }
-  let bounds=hizCell(vec2i(cell),level);
-  if(min(z0,z1)>bounds.y||max(z0,z1)<screenBack(bounds.x,thickness,slab)){
+  // The nearest first: a ray in front of every surface of the cell never reads its farthest.
+  if(min(z0,z1)>hizCellNearest(vec2i(cell),level)||max(z0,z1)<screenBack(hizCellFarthest(vec2i(cell),level),thickness,slab)){
    t=across;
    level=min(level+1,top);
    continue;

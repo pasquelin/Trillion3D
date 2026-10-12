@@ -56,10 +56,11 @@ export const LIGHTING_READ = 1 + 8 + 4 + 8 + 8 + 8 + 4 + 4,
   LIGHTING_FETCHES = 7,
   LIGHTING_WRITE = 8 + 8
 /** The shadow setup's footprint: eight neighbour depths a covered pixel (ENGINE.md, "Direct
- *  lighting"), the screen ray's start and four samples (`vsmProjectionTiles`); the bytes a covered
- *  pixel's projection reads and writes. */
+ *  lighting"), the screen ray's march of the depth pyramid (`vsmScreenRayCast`): its texel reads,
+ *  8 on average over the proof scenes at 3170 × 2000 (a ray of 15 pixels), 17 at the 99th
+ *  percentile; the bytes a covered pixel's projection reads and writes. */
 export const FOOTPRINT = 8,
-  SCREEN_RAY = 5,
+  SCREEN_RAY = 8,
   PROJECTION_BYTES = 21
 /** A shadow ray's sample: a page-table word, then the depth texel it names. */
 export const SAMPLE_FETCHES = 2
