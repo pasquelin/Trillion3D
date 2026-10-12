@@ -1,7 +1,8 @@
 // The depth pyramid's three layers on the machine's device (`gpu/hiz/shader.ts`): the occluders'
 // depth built by `encodePyramid`, then a finished depth, nearer where more was drawn, by
 // `encodeNearest`. The pyramid texture is read back whole and compared with the oracle's
-// reductions (`sdk-core/src/hiz/oracles.fixture.ts`), bit for bit.
+// reductions (`sdk-core/src/hiz/oracles.fixture.ts`), bit for bit; the finished depth's farthest
+// layer reduces the far corner of each pixel's plane, not its depth.
 import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/factory.ts'
 import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'
 import {
@@ -23,6 +24,41 @@ export type WholeFarthestCase = { width: number; height: number; seed: number }
 
 const rowsOf = (depth: Float32Array, width: number, height: number) =>
   Array.from({ length: height }, (_, y) => Array.from(depth.subarray(y * width, (y + 1) * width)))
+
+const f = Math.fround
+
+/** The plane's slope along one axis from five depths of the line (`surfaceSlopeOf`, in float32). */
+function slopeOf(z: number, before: number, after: number, farBefore: number, farAfter: number) {
+  const into = [f(z - before), f(after - z)],
+    beyond = [f(before - farBefore), f(farAfter - after)]
+  const bend = [Math.abs(f(into[0] - beyond[0])), Math.abs(f(into[1] - beyond[1]))]
+  const continues = [bend[0] < Math.abs(beyond[0]), bend[1] < Math.abs(beyond[1])]
+  if (continues[0] && (!continues[1] || bend[0] <= bend[1])) return into[0]
+  return continues[1] ? into[1] : 0
+}
+
+/** The farthest corner of each pixel's plane (`hizPlaneCorners`): the depth less half the sum of
+ *  its slopes, the slopes relative to the depth and held in half floats, as the build holds them. */
+function farthestCorners(depth: Float32Array, width: number, height: number) {
+  const at = (x: number, y: number) =>
+    depth[Math.min(Math.max(y, 0), height - 1) * width + Math.min(Math.max(x, 0), width - 1)]
+  return Float32Array.from(depth, (z, i) => {
+    const x = i % width,
+      y = (i - x) / width
+    const held = (slope: number) => (z > 0 ? f(Math.f16round(f(slope / z)) * z) : 0)
+    const sx = held(slopeOf(z, at(x - 1, y), at(x + 1, y), at(x - 2, y), at(x + 2, y)))
+    const sy = held(slopeOf(z, at(x, y - 1), at(x, y + 1), at(x, y - 2), at(x, y + 2)))
+    return Math.max(f(z - f(0.5 * f(Math.abs(sx) + Math.abs(sy)))), 0)
+  })
+}
+
+/** Two corner words equal to within the half float the slope is held in (2⁻¹¹ of a depth, which is at most one): the GPU's
+ *  division is not the correctly rounded one the model makes, and the slope is held in 16 bits. */
+function sameCorner(a: number, b: number) {
+  if (a === b) return true
+  const x = new Float32Array(new Uint32Array([a, b]).buffer)
+  return Math.abs(x[0] - x[1]) <= 2 ** -11
+}
 
 /** One layer of the pyramid texture, read back: its words. */
 async function readLayer(
@@ -80,14 +116,16 @@ export async function testWholeFarthest(cases: WholeFarthestCase[]) {
     const whole = hizPackedFrom(layers, HIZ_WHOLE_FARTHEST, size)
     const bits = (packed: Float32Array) => new Uint32Array(packed.buffer)
     const expectCull = bits(packHizPyramid(rowsOf(occluders, width, height)).data)
-    const expectWhole = bits(packWholeFarthest(rowsOf(finished, width, height)).data)
+    const expectWhole = bits(
+      packWholeFarthest(rowsOf(farthestCorners(finished, width, height), width, height)).data,
+    )
     const label = `${width}×${height}`
     let wrong = 0
     for (let i = 0; i < texels; i++) if (cull[i] !== expectCull[i]) wrong++
     if (wrong)
       mismatches.push(`${label}: ${wrong} culling texels differ from the occluders' pyramid`)
     wrong = 0
-    for (let i = 0; i < texels; i++) if (whole[i] !== expectWhole[i]) wrong++
+    for (let i = 0; i < texels; i++) if (!sameCorner(whole[i], expectWhole[i])) wrong++
     if (wrong) mismatches.push(`${label}: ${wrong} texels differ from the finished depth's pyramid`)
     hiz.dispose()
   }
