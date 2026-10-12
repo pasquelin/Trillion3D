@@ -10,9 +10,9 @@ pub mod albedo;
 /// The proxy's pure geometry — snapping, BVH, wide collapse — and its layout numbers live in the page codec,
 /// the crate the browser's one WebAssembly module and the compiler share: one builder.
 pub use trillion3d_page_codec::proxy::{
-    bvh, simplify, wide, PROXY_CELL_METRES, PROXY_CHILDREN, PROXY_CHILD_WORDS, PROXY_ERROR_METRES,
-    PROXY_LEAF_TRIANGLES, PROXY_NODE_FLOATS, PROXY_NODE_WORDS, PROXY_TRIANGLE_BUDGET,
-    PROXY_TRIANGLE_FLOATS,
+    build_columns, bvh, simplify, wide, Built, PROXY_CELL_METRES, PROXY_CHILDREN,
+    PROXY_CHILD_WORDS, PROXY_ERROR_METRES, PROXY_LEAF_TRIANGLES, PROXY_NODE_FLOATS,
+    PROXY_NODE_WORDS, PROXY_TRIANGLE_BUDGET, PROXY_TRIANGLE_FLOATS,
 };
 pub(crate) mod assemble;
 pub mod cut;

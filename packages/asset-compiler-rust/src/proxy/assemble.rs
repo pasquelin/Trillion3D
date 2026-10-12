@@ -1,6 +1,6 @@
 //! End of proxy step: world triangles to column-structured format.
 use super::{
-    bvh, simplify, wide, SceneProxy, PROXY_CELL_METRES, PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET,
+    bvh, simplify, SceneProxy, PROXY_CELL_METRES, PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET,
 };
 
 /// Simplifies placed triangles, builds wide BVH, publishes obtained threshold: max
@@ -20,15 +20,18 @@ pub(crate) fn assemble_owned(
 ) -> SceneProxy {
     // DAG cut stops at root; proxy simplification goes as far as
     // needed, delivering bounded-size triangles to surface cache.
-    let cell = simplify::plan_cell(&triangles, PROXY_CELL_METRES, PROXY_TRIANGLE_BUDGET);
+    let cell = simplify::plan_cell(&triangles, PROXY_CELL_METRES, PROXY_TRIANGLE_BUDGET, true);
     let (sources, mut provenance) = if nodes.is_empty() {
         (Vec::new(), super::provenance::Provenance::default())
     } else {
         super::provenance::collect(&triangles, &colours, nodes, cell)
     };
-    let retained = simplify::simplify_sources(&mut triangles, &mut colours, cell);
-    let (tree, order) = bvh::build_ordered(&mut triangles, &mut colours);
-    let (node_bounds, node_children) = wide::collapse(&tree);
+    let super::Built {
+        retained,
+        order,
+        node_bounds,
+        node_children,
+    } = super::build_columns(&mut triangles, &mut colours, cell, true);
     if !sources.is_empty() {
         provenance.triangle_groups = order.iter().map(|rank| sources[retained[*rank]]).collect();
     }

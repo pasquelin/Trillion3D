@@ -25,6 +25,7 @@ import {
   uvGridExponent,
 } from './cutGrid.ts'
 import { requireSdkWasm } from '../../wasm/sdkWasm.ts'
+import { buildCutProxy } from './runtimeProxy.ts'
 
 /**
  * A compiled primitive cut again in session: its own clusters, `ends[k]` the end of cluster
@@ -135,5 +136,14 @@ export async function cutDrawnTriangles(
       ...(built ? { cone: built[k] } : {}),
     })),
   )
-  return { pages, positionExponent, uvExponent, maxPositionError }
+  // What a ray can meet: solid, still faces. A blended surface is no occluder, and the faces that
+  // move after the cut (rewritten, waved, skinned, morphed) have no rest shape to trace.
+  const solid = cones && !blended && !held && !drawn.deformation
+  return {
+    pages,
+    positionExponent,
+    uvExponent,
+    maxPositionError,
+    ...(solid && { proxy: buildCutProxy(module, indices, positions) }),
+  }
 }

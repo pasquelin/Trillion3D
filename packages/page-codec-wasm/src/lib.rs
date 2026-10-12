@@ -35,6 +35,8 @@ mod wasm_decode;
 mod wasm_encode;
 #[cfg(target_arch = "wasm32")]
 mod wasm_math;
+#[cfg(target_arch = "wasm32")]
+mod wasm_proxy;
 pub mod wide;
 pub mod writer;
 

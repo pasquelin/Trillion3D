@@ -76,6 +76,7 @@ fn snap(t: &[f32], size: f64) -> [f32; PROXY_TRIANGLE_FLOATS] {
 fn kept(
     triangles: &[f32],
     size: f64,
+    split: bool,
 ) -> impl Iterator<Item = (usize, [f32; PROXY_TRIANGLE_FLOATS], usize)> + '_ {
     let mut seen: HashSet<[[i32; 3]; 3]> = HashSet::new();
     triangles
@@ -92,15 +93,19 @@ fn kept(
             Some((
                 index,
                 snapped,
-                divisions(longest_edge(&snapped, &[0, 1, 2]), size),
+                if split {
+                    divisions(longest_edge(&snapped, &[0, 1, 2]), size)
+                } else {
+                    1
+                },
             ))
         })
 }
 
 /// How many triangles step `size` would leave without building. Stops on overflow.
-fn count_at(triangles: &[f32], size: f64, budget: usize) -> usize {
+fn count_at(triangles: &[f32], size: f64, budget: usize, split: bool) -> usize {
     let mut total = 0usize;
-    for (_, _, n) in kept(triangles, size) {
+    for (_, _, n) in kept(triangles, size, split) {
         total = total.saturating_add(n.saturating_mul(n));
         if total > budget {
             return total;
@@ -113,10 +118,10 @@ fn count_at(triangles: &[f32], size: f64, budget: usize) -> usize {
 ///
 /// Generic size rule, no scene name: small part keeps floor, city takes
 /// multiple, taken step published with proxy.
-pub fn plan_cell(triangles: &[f32], floor: f64, budget: usize) -> f64 {
+pub fn plan_cell(triangles: &[f32], floor: f64, budget: usize, split: bool) -> f64 {
     let mut size = floor.max(1e-4);
     for _ in 0..CELL_LADDER {
-        if count_at(triangles, size, budget) <= budget {
+        if count_at(triangles, size, budget, split) <= budget {
             break;
         }
         size *= 2.0;
@@ -149,11 +154,16 @@ fn subdivide(t: &[f32], n: usize, out: &mut Vec<f32>) {
 }
 
 /// Original triangle supplying each subdivided cell; deduplication keeps the first source.
-pub fn simplify_sources(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, size: f64) -> Vec<usize> {
+pub fn simplify_sources(
+    triangles: &mut Vec<f32>,
+    albedo: &mut Vec<u32>,
+    size: f64,
+    split: bool,
+) -> Vec<usize> {
     let mut sources = Vec::new();
     let mut out: Vec<f32> = Vec::with_capacity(triangles.len());
     let mut colours: Vec<u32> = Vec::with_capacity(albedo.len());
-    for (index, snapped, n) in kept(triangles, size) {
+    for (index, snapped, n) in kept(triangles, size, split) {
         let before = out.len();
         subdivide(&snapped, n, &mut out);
         sources.resize(out.len() / PROXY_TRIANGLE_FLOATS, index);

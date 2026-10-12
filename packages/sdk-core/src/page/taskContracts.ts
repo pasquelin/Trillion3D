@@ -51,6 +51,18 @@ export interface PageCutPayload {
   /** Grid step of positions, as a power of two. */ positionExponent: number
   /** Grid step of texture coordinates, as a power of two. */ uvExponent: number
   /** Largest position error on that grid. */ maxPositionError: number
+  /** The cut's own proxy, for the faces a light's ray or a reflection can meet; absent for lines,
+   *  sprites, blended, skinned or rewritten faces. */
+  proxy?: PageCutProxy
+}
+/** A cut's proxy in its own space (`page-codec-wasm/src/proxy.rs` `cut_columns`): the columns of
+ *  a `proxy.bin`'s scene, built by the compiler's builder, and the grid step taken. */
+export interface PageCutProxy {
+  /** Three vertices a triangle, `PROXY_TRIANGLE_FLOATS` numbers each. */ triangles: Float32Array
+  /** Packed RGBA8 albedo of each triangle (white). */ albedo: Uint32Array
+  /** Exact bounds of each wide node. */ nodeBounds: Float32Array
+  /** The four children of each node. */ nodeChildren: Uint32Array
+  /** The grid step the cut was snapped to, in the cut's units. */ cellMetres: number
 }
 
 /** A message asking a worker to cut pages, or to read a partition's cells. */
