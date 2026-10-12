@@ -42,12 +42,8 @@ function rowsOf(count: number) {
   return rows
 }
 
-/** The label the temporal pass's motion words go by: it remakes them at exactly the roots it has
- *  (`taa/motion.ts`, `size`), so each join writes them whole, whatever it adds — counted apart. */
-const MOTION = 'Trillion3D TAA placement motion v1'
-
 /** A session over a world of `placements` of one primitive on a mocked device, and what one source
- *  of `count` placements costs it to join: the bytes written, outside the temporal pass's. */
+ *  of `count` placements costs it to join: the bytes written. */
 export async function session(placements: number) {
   installGpuGlobals()
   const surface = G.basicSurface({ color: 0xff0000, side: G.DOUBLE_SIDE })
@@ -87,14 +83,10 @@ export async function session(placements: number) {
     const written = new Map<string, number>()
     for (const { label, bytes } of gpu.writes)
       written.set(label ?? '', (written.get(label ?? '') ?? 0) + bytes.length)
-    const bytes = [...written].reduce(
-      (sum, [label, size]) => sum + (label === MOTION ? 0 : size),
-      0,
-    )
+    const bytes = [...written.values()].reduce((sum, size) => sum + size, 0)
     return {
       refused,
       bytes,
-      motion: written.get(MOTION) ?? 0,
       cut,
       same: rt.run.gpuSelection === cut,
     }

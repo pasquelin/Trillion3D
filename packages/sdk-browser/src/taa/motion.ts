@@ -6,6 +6,7 @@ import {
   transformAffinePoint,
   worldToRenderOrigin,
 } from '../../../sdk-core/src/index.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { type MatrixElements } from '../host/matrixElements.ts'
 import { createDenseKeySet } from '../webgpu/cut/denseKeys.ts'
@@ -36,24 +37,25 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
   const rememberPoses = (from = 0) => {
     for (let w = from; w < roots.length; w++) previous.set(roots[w].world.elements, w * 16)
   }
-  /** One entry per root: those held keep their motion and pose, new ones start still. */
+  /** One entry per root: those held keep their motion and pose, new ones start still. The arrays
+   *  and the buffer are a capacity (`resized`): roots joining in place write their own entries,
+   *  and the buffer is made over a logarithmic number of times. */
   const size = () => {
     const kept = count
     count = Math.max(1, roots.length)
-    const next = new Float32Array(count * 16),
-      poses = new Float64Array(count * 16)
-    next.set(mirror)
+    const next = resized(mirror, count * 16)
+    previous = resized(previous, count * 16)
     for (let w = kept; w < count; w++) next.set(IDENTITY_MATRIX4, w * 16)
-    poses.set(previous)
-    mirror = next
-    previous = poses
-    buffer?.destroy()
-    buffer = device.createBuffer({
-      label: 'Trillion3D TAA placement motion v1',
-      size: mirror.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-    device.queue.writeBuffer(buffer, 0, mirror)
+    if (next !== mirror || !buffer) {
+      mirror = next
+      buffer?.destroy()
+      buffer = device.createBuffer({
+        label: 'Trillion3D TAA placement motion v1',
+        size: mirror.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+      })
+      device.queue.writeBuffer(buffer, 0, mirror)
+    } else device.queue.writeBuffer(buffer, kept * 64, mirror, kept * 16, (count - kept) * 16)
     rememberPoses(kept)
   }
   size()
