@@ -8,11 +8,11 @@
  * these functions re-derive an entry's geometry from its source dimensions alone, so the
  * reader can reject an entry whose written numbers disagree with them.
  */
+import { PREVIEW_BASE } from '../contracts/writtenFormats.ts'
 import { PREVIEW_BLOCK_BYTES, PREVIEW_BLOCK_SIDE } from '../manifest/binaryFormat.ts'
 import { ceilDiv, floorLog2, mipSize } from '../../../math/src/scalar/integers.ts'
 
-/** Largest side a level carried by the sidecar may have. */
-export const PREVIEW_BASE = 64
+export { PREVIEW_BASE }
 
 /** Dimensions of level `level` of a `width`×`height` image. */
 export function previewLevelSize(width: number, height: number, level: number): [number, number] {

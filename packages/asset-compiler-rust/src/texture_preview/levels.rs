@@ -64,9 +64,9 @@ pub fn preview_block_bytes(width: u32, height: u32) -> usize {
         .sum()
 }
 
-/// A streamed tile's side and gutter, in texels: the engine's (`texture/tiles.ts`).
-/// Pinned against it by `tests/integration/shared-cache-format.test.ts`.
+/// A streamed tile's side in texels: the engine's (`texture/tiles.ts`), printed there.
 pub const TILE_SIZE: u32 = 128;
+/// A streamed tile's gutter on each side, in texels.
 pub const TILE_BORDER: u32 = 4;
 
 /// Block columns — or rows — `[from, to)` of each tile's record along a side
