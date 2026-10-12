@@ -1,6 +1,7 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
 import type { HostAttributes, HostMesh } from '../../host/resources.ts'
 import type { PageSurface } from '../surface.ts'
+import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { NormalCone } from '../cone/cone.ts'
 import type { CullingLinks } from '../cut/links.ts'
@@ -110,6 +111,8 @@ export type ClusterStructureIndex = {
  * its flat culling hierarchy and its group links. There is no tree — every cluster carries its own
  * screen-error band, and the hierarchy is only a traversal accelerator.
  */
+/** The proxy of a root's cut and the surface its placement wears (`ClusterRoot.proxy`). */
+export type RootProxy = { cut: RuntimeCutProxy; surface: PageSurface }
 export type ClusterRoot<T> = {
   world: MatrixElements
   pages: T[]
@@ -162,6 +165,10 @@ export type ClusterRoot<T> = {
   /** How far its deformation moves a vertex this frame, in its units: every cut grows its bounds
    *  by it (`../../deformation/frame.ts`); absent or zero at rest. */
   reach?: number
+  /** What a ray can meet of it beyond the visible cut: the proxy of its primitive's cut, built where
+   *  the world cut it (`world/page/runtimeProxy.ts`), and the surface it wears — a run-time cut's
+   *  alone; a cooked one has the scene's resident proxy (`../../bounce/runtimeLayout.ts`). */
+  proxy?: RootProxy
   /** Winding of `world` and the row-table epoch it was computed at (`webgpu/pages/render/winding.ts`). */
   windingCw?: boolean
   windingEpoch?: number

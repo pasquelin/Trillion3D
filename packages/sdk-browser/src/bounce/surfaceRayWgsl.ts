@@ -9,6 +9,11 @@ export const SURFACE_RAY_WGSL = wgslBlock(
   'SURFACE_RAY_WGSL',
   [INVERSE_PI_BOUNCE, SURFACE_IRRADIANCE_WGSL],
   `
+/** The radiance a surface of diffuse \`albedo\` returns from a point \`P\` of normal \`N\`: the lights' irradiance
+ *  there — shadows traced against the cooked proxy — and the bounce the cascades hold, Lambert's. */
+fn surfaceLit(albedo:vec3f,P:vec3f,N:vec3f,reach:f32)->vec3f{
+ return albedo*(directIrradiance(P,N,reach)+sampleBounce(P,N))*INVERSE_PI_BOUNCE;
+}
 fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  let hit=traceProxy(origin,direction,reach);
  if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}
@@ -18,8 +23,7 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  if(hit.owner!=PROXY_POSED){
   let normal=select(geometric,-geometric,face==1u);
   let point=proxyOwnerCentre(hit.triangle,hit.owner);
-  let lighting=directIrradiance(point,normal,reach)+sampleBounce(point,normal);
-  return vec4f(proxyOwnerAlbedo(hit.owner)*lighting*INVERSE_PI_BOUNCE,hit.distance);
+  return vec4f(surfaceLit(proxyOwnerAlbedo(hit.owner),point,normal,reach),hit.distance);
  }
  let texel=hit.triangle*2u+face;
  let size=textureDimensions(surface);

@@ -2,19 +2,14 @@ import { unpackDrawn } from './runtimePack.ts'
 import { runtimeDeformation } from './runtimeDeformation.ts'
 import type { Page, Primitive } from '../../../../sdk-core/src/index.ts'
 import { LINE_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
-import type { PageCutPayload, PageCutProxy } from '../../../../sdk-core/src/page/taskContracts.ts'
+import type { PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
 import { cutPagesOffThread } from '../../page/work/host.ts'
 import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
 import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
 import { drawnBounds, type DrawnShape } from '../../../../sdk-core/src/world/geometry/drawnKind.ts'
 
 /** A runtime primitive, and the addresses its pages are served from until it is released. */
-export type RuntimePrimitive = {
-  primitive: Primitive
-  urls: string[]
-  /** The cut's own proxy (`runtimeProxy.ts`), what the resident proxy's instances of it trace. */
-  proxy?: PageCutProxy
-}
+export type RuntimePrimitive = { primitive: Primitive; urls: string[] }
 
 /** Bytes served at an address of their own, with the digest the page reader checks. */
 function served(bytes: ArrayBuffer, sha256: string, urls: string[]) {
@@ -103,5 +98,6 @@ export async function cutRuntimePrimitive(
   const cut = await cutPagesOffThread(packed)
   const result = servePrimitive(cut, kind)
   if (deformation) result.primitive.deformation = deformation
-  return cut.proxy ? { ...result, proxy: cut.proxy } : result
+  if (cut.proxy) result.primitive.runtimeProxy = cut.proxy
+  return result
 }

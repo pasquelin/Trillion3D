@@ -111,6 +111,10 @@ test('a scene is surrounded by its background, as the display shows it, declared
   }
   const reflectionView = { surroundings: [9, 9, 9, 9] }
   const work = [7, 0, 0, 0]
+  // The radiance hash of the last two images, the lit image having changed, and the run-time proxy's
+  // counters of a frame that left rays and spent work: the epoch moves, the counters start again.
+  const radianceHash = [1, 2, 3, 4]
+  const proxyHistory = [5, 7, 9, 0]
   const run = shaderRun<{ reflectionBegin: () => void; aces: (c: number[]) => number[] }>(
     BEGIN_SHADER + wgslModule(DISPLAY_VALUE_WGSL),
     [
@@ -123,7 +127,7 @@ test('a scene is surrounded by its background, as the display shows it, declared
       'aces',
       'srgbToLinear',
     ],
-    { view, reflectionView, work },
+    { view, reflectionView, work, radianceHash, proxyHistory },
   )
   run.reflectionBegin()
   // A mirror (its weight one) shows it through the exposure and the curve: the background's bytes.
@@ -134,4 +138,14 @@ test('a scene is surrounded by its background, as the display shows it, declared
   )
   // The tile list starts empty: its indirect arguments, one row of nothing, then 1, and the count.
   assert.deepEqual(work, [0, 1, 1, 0])
+  assert.deepEqual(
+    proxyHistory,
+    [0, 8, 0, 0],
+    'left and spent restart, the epoch moves with the lit image',
+  )
+  // A lit image that did not change keeps the epoch.
+  radianceHash.splice(0, 4, 1, 2, 1, 2)
+  proxyHistory.splice(0, 4, 4, 8, 6, 0)
+  run.reflectionBegin()
+  assert.deepEqual(proxyHistory, [0, 8, 0, 0])
 })

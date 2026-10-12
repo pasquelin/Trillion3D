@@ -154,6 +154,16 @@ fn subdivide(t: &[f32], n: usize, out: &mut Vec<f32>) {
 }
 
 /// Original triangle supplying each subdivided cell; deduplication keeps the first source.
+///
+/// `split` is the one difference between the two callers, and it follows from what each keeps the proxy
+/// for. The compiler's scene (`split`) keeps one radiance per proxy triangle (the surface cache), so a
+/// triangle wider than the grid cell is cut to cell-sized ones: a 40 m paving at a 0.5 m cell is 80² ×
+/// 2 triangles, a few hundred kilobytes in a scene of millions, and the cache's resolution. A run-time
+/// cut (`cut_columns`) lights its hit where the ray lands, no cache: the same split of the same paving at
+/// its own grid, 40 m / 1024, would be 2 000 000 triangles, and the 16 384 the cut allows would then
+/// coarsen the grid to about 1.1 m for a plane that is twelve triangles — 850 KB, 1 000× the bytes, the
+/// build time and the tracing for no gain, the subdivision being planar and adding no precision. It
+/// snaps and merges only: its bytes are those of the cut.
 pub fn simplify_sources(
     triangles: &mut Vec<f32>,
     albedo: &mut Vec<u32>,

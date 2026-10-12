@@ -21,6 +21,7 @@ const frame: ReflectionFrame = {
   size: [0, 0],
   depthDrawn: false,
   proxyError: 0,
+  rotation: 0,
 }
 const inputs = {} as TraceInputs
 const radianceInputs = {} as RadianceInputs
@@ -33,6 +34,11 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
   frame.size = gpu.targetSize
   frame.depthDrawn = run.depthDrawn
   frame.proxyError = bounce.probes?.proxy?.errorMetres ?? 0
+  // The run-time proxy's schedule turns by the image while a placement wears a proxy.
+  frame.rotation =
+    rt.vis.reflectionPipelines?.runtime && run.gpuSelection?.proxyBuffers()
+      ? reflection.settle.images
+      : 0
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
 }
 
@@ -93,6 +99,12 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.bounceGrid = contract.bounceGrid ?? deferred.placeholders.bounceGrid
     inputs.probes = contract.probes ?? deferred.placeholders.probes
     inputs.proxy = resident?.buffer ?? deferred.placeholders.proxy
+    // What the world cut at run time, which has no cooked proxy, else the empty stand-in.
+    const meshes = stages.runtime ? rt.run.gpuSelection?.proxyBuffers() : undefined
+    const empty = deferred.placeholders.runtime
+    inputs.runtime = meshes ?? { proxy: empty, nodes: empty, cold: empty, worlds: empty }
+    inputs.history = reflection.history.buffer(!!meshes)
+    inputs.hash = reflection.settle.hash
     inputs.lightView = over.lightView
     const group = reflectionGroup(reflection, depth, over)
     encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)
@@ -122,7 +134,7 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     viewProj,
   )
   pass.end()
-  reflection.settle.image(encoder, reflection.tiles.args)
+  reflection.settle.image(encoder, reflection.tiles.args, reflection.history.buffer(false))
 }
 
 /** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */

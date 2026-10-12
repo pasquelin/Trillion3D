@@ -48,6 +48,40 @@ struct ResidentProxy{
 @group(0) @binding(${binding}) var<storage,read> proxy:ResidentProxy;`,
   )
 
+/** The names a wide tree's reader is written under: its two functions, the storage variable whose
+ *  `boundsWord`, `childrenWord` and `words` hold the tree, and the function reading a word as a float. */
+export type WideNodeNames = { box: string; child: string; source: string; float: string }
+
+/**
+ * The two reads of a wide tree — a node's exact bounds and the dequantized box of one of its
+ * children —, written once for every tree of the engine: the resident proxy's (`BOUNCE_NODE_WGSL`) and the
+ * arena of the run-time cuts' (`runtimeTraceWgsl.ts`) are laid out alike. The node is the rank of the
+ * node in the tree's own columns.
+ */
+export const wideNodeFns = ({
+  box,
+  child,
+  source,
+  float,
+}: WideNodeNames) => `/** Exact bounds of a node, which also serve as the frame for its children's boxes. */
+fn ${box}(node:u32)->Box{
+ let base=${source}.boundsWord+node*NODE_FLOATS;
+ return Box(vec3f(${float}(base),${float}(base+1u),${float}(base+2u)),
+            vec3f(${float}(base+3u),${float}(base+4u),${float}(base+5u)));
+}
+/** A child of a node, dequantized in its parent's bounds. An owned leaf holds canonical
+ *  triangles traced under their owners' poses, as proxyLeaves.ts writes. */
+fn ${child}(node:u32,slot:u32,frame:Box)->ProxyChild{
+ let base=${source}.childrenWord+node*NODE_WORDS+slot*CHILD_WORDS;
+ let low=${source}.words[base];
+ let high=${source}.words[base+1u];
+ let span=(frame.high-frame.low)/255.0;
+ return ProxyChild(
+  Box(frame.low+span*vec3f(f32(byteOf(low,0u)),f32(byteOf(low,1u)),f32(byteOf(low,2u))),
+      frame.low+span*vec3f(f32(byteOf(low,3u)),f32(byteOf(high,0u)),f32(byteOf(high,1u)))),
+  ${source}.words[base+2u],byteOf(high,2u),(high>>24u)!=0u,(high&${PROXY_LEAF_OWNED}u)!=0u);
+}`
+
 /**
  * What a proxy node carries, and how a ray reads it: a triangle's vertices, a node's exact
  * bounds and the four quantized boxes of its children. Albedo is aside, lower down: a
@@ -79,24 +113,7 @@ fn proxyVertex(index:u32,vertex:u32)->vec3f{
  let base=proxy.trianglesWord+index*TRIANGLE_FLOATS+vertex*3u;
  return vec3f(proxyFloat(base),proxyFloat(base+1u),proxyFloat(base+2u));
 }
-/** Exact bounds of a node, which also serve as the frame for its children's boxes. */
-fn nodeBox(node:u32)->Box{
- let base=proxy.boundsWord+node*NODE_FLOATS;
- return Box(vec3f(proxyFloat(base),proxyFloat(base+1u),proxyFloat(base+2u)),
-            vec3f(proxyFloat(base+3u),proxyFloat(base+4u),proxyFloat(base+5u)));
-}
-/** A child of a node, dequantized in its parent's bounds. An owned leaf holds canonical
- *  triangles traced under their owners' poses, as proxyLeaves.ts writes. */
-fn proxyChild(node:u32,slot:u32,frame:Box)->ProxyChild{
- let base=proxy.childrenWord+node*NODE_WORDS+slot*CHILD_WORDS;
- let low=proxy.words[base];
- let high=proxy.words[base+1u];
- let span=(frame.high-frame.low)/255.0;
- return ProxyChild(
-  Box(frame.low+span*vec3f(f32(byteOf(low,0u)),f32(byteOf(low,1u)),f32(byteOf(low,2u))),
-      frame.low+span*vec3f(f32(byteOf(low,3u)),f32(byteOf(high,0u)),f32(byteOf(high,1u)))),
-  proxy.words[base+2u],byteOf(high,2u),(high>>24u)!=0u,(high&${PROXY_LEAF_OWNED}u)!=0u);
-}`,
+${wideNodeFns({ box: 'nodeBox', child: 'proxyChild', source: 'proxy', float: 'proxyFloat' })}`,
 )
 
 /**

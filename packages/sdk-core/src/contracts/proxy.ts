@@ -24,6 +24,17 @@ export {
   SCENE_PROXY_VERSION,
 } from './writtenFormats.ts'
 
+/** A cut's proxy in its own space (`page-codec-wasm/src/proxy.rs` `cut_columns`): the columns of
+ *  a `proxy.bin`'s scene, built by the compiler's builder, and the grid step taken. Held in memory by
+ *  the primitive of a cut the world made at run time, never written to a manifest. */
+export interface RuntimeCutProxy {
+  /** Three vertices a triangle, `PROXY_TRIANGLE_FLOATS` numbers each. */ triangles: Float32Array<ArrayBuffer>
+  /** Packed RGBA8 albedo of each triangle (white). */ albedo: Uint32Array<ArrayBuffer>
+  /** Exact bounds of each wide node. */ nodeBounds: Float32Array<ArrayBuffer>
+  /** The four children of each node. */ nodeChildren: Uint32Array<ArrayBuffer>
+  /** The grid step the cut was snapped to, in the cut's units. */ cellMetres: number
+}
+
 /** Proxy columns, as its cache object carries them and the GPU copies them. */
 export interface SceneProxyColumns {
   /** Three world vertices per triangle, `PROXY_TRIANGLE_FLOATS` numbers each. */

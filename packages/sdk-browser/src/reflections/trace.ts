@@ -24,10 +24,26 @@ import { storageEntry } from './bindings.ts'
 import { REFLECTION_FORMAT, REFLECTION_SIDE as SIDE } from './constants.ts'
 import { REFLECTION_GROUP, REFLECTION_VIEW_WGSL, reflectionLightViewWgsl } from './viewLayout.ts'
 import { reflectionShareWgsl } from './weight.ts'
+import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
+import { HISTORY } from './proxyHistory.ts'
+import { RUNTIME_TRACE_STORAGE_BUFFERS } from '../bounce/runtimeLayout.ts'
 import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
+
+/** The step, in tiles, the run-time proxy's schedule turns by each image: prime, so that it visits every tile of any count. */
+const TILE_STRIDE = 61
 
 /** The binding of the resident proxy in the trace's group 0. */
 const PROXY_BINDING = 11
+/** The bindings of the run-time proxy in the trace's group 0 (`runtimeTraceWgsl.ts`): its buffer, the
+ *  culling's nodes and cold table, the world matrices. */
+const RUNTIME_BINDINGS: RuntimeBindings = {
+  group: 0,
+  proxy: 12,
+  nodes: 13,
+  cold: 14,
+  worlds: 15,
+  history: 16,
+}
 
 /**
  * The opaque surfaces' reflection, in the compute pass of the image: where a tile of
@@ -44,8 +60,9 @@ const PROXY_BINDING = 11
  * (`PHYSICAL_SURFACE_FLAG`), those the lobes target holds (`lobesAt`). Its radiance is the chain of
  * the screen, the proxy, the probes and the environment (`reflectedRadiance`).
  */
-export const TRACE_SHADER = wgslProgram(
-  `@group(0) @binding(0) var traceFlags:texture_2d<u32>;
+const traceProgram = (runtime: boolean) =>
+  wgslProgram(
+    `@group(0) @binding(0) var traceFlags:texture_2d<u32>;
 @group(0) @binding(1) var traceNormals:texture_2d<f32>;
 @group(0) @binding(2) var traceOut:texture_storage_2d<${REFLECTION_FORMAT},write>;
 @group(0) @binding(3) var<storage,read> directLights:DirectLights;
@@ -71,13 +88,18 @@ fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgrou
 fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) rows:vec3u,@builtin(local_invocation_id) lid:vec3u){
  let rank=flatIndex(wg,rows,1u);
  if(rank>=traceCount[3]){return;}
- let tile=traceList[rank];
+ ${
+   runtime
+     ? `// The run-time proxy's budget goes to the first tiles it meets: another tile first each image.
+ let tile=traceList[(rank+reflectionView.runtime.x*${TILE_STRIDE}u)%traceCount[3]];`
+     : 'let tile=traceList[rank];'
+ }
  let id=vec2u(tile&65535u,tile>>16u)*${SIDE}u+lid.xy;
  if(any(vec2f(id)>=view.viewport.xy)){return;}
  let coord=vec2i(id);
  let flags=textureLoad(traceFlags,coord,0).r;
  if(!surfaceReflects(flags)){return;}
- let base=textureLoad(traceBase,coord,0);
+ ${runtime ? 'rtPixel=id.y*u32(view.viewport.x)+id.x;\n rtCalls=0u;\n' : ''} let base=textureLoad(traceBase,coord,0);
  let P=worldAt(vec2f(id)+vec2f(0.5),textureLoad(hizDepth,coord,0).r);
  let normal=textureLoad(traceNormals,coord,0);
  let N=normalize(normal.xyz);
@@ -85,23 +107,31 @@ fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) row
  if((flags&${PHYSICAL_SURFACE_FLAG}u)!=0u){lobesAt(textureLoad(traceLobes,coord,0),1.0,N,V,normal.a);}
  textureStore(traceOut,coord,vec4f(reflectedShare(f0Of(base.rgb,base.a),normal.a,N,V,P),1.0));
 }`,
-  [
-    directLightWgsl(),
-    STANDARD_LIGHTING_WGSL,
-    SURFACE_MODEL_LIGHT_WGSL,
-    RECT_SHADING_WGSL,
-    LOBES_LIGHTING_WGSL,
-    LOBES_DECODE_WGSL,
-    BOUNCE_GRID_WGSL,
-    residentProxyWgsl(PROXY_BINDING),
-    reflectionLightViewWgsl(REFLECTION_GROUP),
-    reflectionShareWgsl(REFLECTION_GROUP, true),
-    FLAT_INDEX_WGSL,
-    OPEN_SLICE_WGSL,
-    surfaceReflects,
-    f0Of,
-  ],
-)
+    [
+      directLightWgsl(),
+      STANDARD_LIGHTING_WGSL,
+      SURFACE_MODEL_LIGHT_WGSL,
+      RECT_SHADING_WGSL,
+      LOBES_LIGHTING_WGSL,
+      LOBES_DECODE_WGSL,
+      BOUNCE_GRID_WGSL,
+      residentProxyWgsl(PROXY_BINDING),
+      reflectionLightViewWgsl(REFLECTION_GROUP),
+      reflectionShareWgsl(REFLECTION_GROUP, true, runtime ? RUNTIME_BINDINGS : undefined),
+      FLAT_INDEX_WGSL,
+      OPEN_SLICE_WGSL,
+      surfaceReflects,
+      f0Of,
+    ],
+  )
+
+/** The opaque trace with the run-time proxy's stage and its four bindings, and without them: the
+ *  first where the device holds the storage buffers the stage binds (`RUNTIME_TRACE_STORAGE_BUFFERS`). */
+export const TRACE_SHADER = traceProgram(true)
+export const TRACE_SHADER_PLAIN = traceProgram(false)
+/** Whether `device` holds them: a device with the spec's eight storage buffers a stage traces without. */
+export const tracesRuntime = (device: GPUDevice) =>
+  (device.limits?.maxStorageBuffersPerShaderStage ?? 8) >= RUNTIME_TRACE_STORAGE_BUFFERS
 
 /**
  * The frame's reflection state, one thread: the radiance around the scene (`surroundings`,
@@ -115,12 +145,17 @@ export const BEGIN_SHADER = wgslProgram(
   `@group(0) @binding(1) var<storage,read_write> reflectionView:ReflectionView;
 @group(0) @binding(2) var<storage,read_write> work:array<u32>;
 @group(0) @binding(3) var<uniform> view:View;
+@group(0) @binding(4) var<storage,read> radianceHash:array<u32>;
+@group(0) @binding(5) var<storage,read_write> proxyHistory:array<u32>;
 const BACKGROUND_WHITE:f32=${254.5 / 255};
 @compute @workgroup_size(1)
 fn reflectionBegin(){
  let shown=toneUnmap(srgbToLinear(min(view.background.rgb,vec3f(BACKGROUND_WHITE))),u32(view.display.x))/view.lightParams.w;
  reflectionView.surroundings=vec4f(shown,0.0);
  work[0]=0u;work[1]=1u;work[2]=1u;work[3]=0u;
+ // The run-time proxy's epoch moves when the lit image does; its frame counters start again.
+ if(radianceHash[0]!=radianceHash[2]||radianceHash[1]!=radianceHash[3]||proxyHistory[${HISTORY.epoch}]==0u){proxyHistory[${HISTORY.epoch}]+=1u;}
+ proxyHistory[${HISTORY.left}]=0u;proxyHistory[${HISTORY.spent}]=0u;
 }`,
   [REFLECTION_VIEW_WGSL, VIEW_WGSL, TONE_UNMAPPING_WGSL, srgbToLinear],
 )
@@ -128,8 +163,17 @@ fn reflectionBegin(){
 /** Bytes of the indirect arguments: the workgroups along x and y, 1, then the count of tiles. */
 export const TRACE_ARGS_BYTES = 16
 
+/** The run-time proxy's four read-only storage bindings. */
+const runtimeEntries = {
+  proxy: computeBufferEntry(RUNTIME_BINDINGS.proxy, 'read-only-storage'),
+  nodes: computeBufferEntry(RUNTIME_BINDINGS.nodes, 'read-only-storage'),
+  cold: computeBufferEntry(RUNTIME_BINDINGS.cold, 'read-only-storage'),
+  worlds: computeBufferEntry(RUNTIME_BINDINGS.worlds, 'read-only-storage'),
+  history: computeBufferEntry(RUNTIME_BINDINGS.history, 'storage'),
+}
+
 /** The trace's bind group 0 and the frame state's layouts. */
-function traceLayouts(device: GPUDevice) {
+function traceLayouts(device: GPUDevice, runtime: boolean) {
   const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
   return {
     traceLayout: layout([
@@ -144,6 +188,7 @@ function traceLayouts(device: GPUDevice) {
       computeBufferEntry(9, 'read-only-storage'),
       computeTextureEntry(10, 'unfilterable-float'),
       computeBufferEntry(PROXY_BINDING, 'read-only-storage'),
+      ...(runtime ? Object.values(runtimeEntries) : []),
     ]),
     classifyLayout: layout([
       computeTextureEntry(0, 'uint'),
@@ -154,6 +199,8 @@ function traceLayouts(device: GPUDevice) {
       computeBufferEntry(1, 'storage'),
       computeBufferEntry(2, 'storage'),
       computeBufferEntry(3, 'uniform'),
+      computeBufferEntry(4, 'read-only-storage'),
+      computeBufferEntry(5, 'storage'),
     ]),
   }
 }
@@ -166,7 +213,8 @@ export async function createTraceStages(
   modules: { trace: GPUShaderModule; begin: GPUShaderModule },
   groupLayout: GPUBindGroupLayout,
 ) {
-  const { traceLayout, classifyLayout, beginLayout } = traceLayouts(device)
+  const runtime = tracesRuntime(device)
+  const { traceLayout, classifyLayout, beginLayout } = traceLayouts(device, runtime)
   const layout = (...bindGroupLayouts: GPUBindGroupLayout[]) =>
     device.createPipelineLayout({ bindGroupLayouts })
   const width = groupWidth(device.limits)
@@ -185,6 +233,7 @@ export async function createTraceStages(
     ]),
   ])
   return {
+    runtime,
     traceLayout,
     classifyLayout,
     beginLayout,
@@ -225,6 +274,12 @@ export type TraceInputs = {
   bounceGrid: GPUBuffer
   probes: GPUTextureView
   proxy: GPUBuffer
+  /** The run-time proxy's buffers, or the empty one in each place (`bounce/runtimeProxy.ts`). */
+  runtime: { proxy: GPUBuffer; nodes: GPUBuffer; cold: GPUBuffer; worlds: GPUBuffer }
+  /** The history of the run-time proxy's answers, or its stand-in (`proxyHistory.ts`), and the
+   *  radiance hash whose change moves its epoch (`settle.ts`). */
+  history: GPUBuffer
+  hash: GPUBuffer
   lightView: GPUBuffer
 }
 
@@ -264,6 +319,12 @@ function traceGroups(
     inputs.bounceGrid,
     inputs.probes,
     inputs.proxy,
+    inputs.runtime.proxy,
+    inputs.runtime.nodes,
+    inputs.runtime.cold,
+    inputs.runtime.worlds,
+    inputs.history,
+    inputs.hash,
     inputs.lightView,
     stages,
   )
@@ -285,6 +346,15 @@ function traceGroups(
         { binding: 9, resource: { buffer: tiles.args } },
         { binding: 10, resource: inputs.base },
         { binding: PROXY_BINDING, resource: { buffer: inputs.proxy } },
+        ...(stages.runtime
+          ? [
+              { binding: RUNTIME_BINDINGS.proxy, resource: { buffer: inputs.runtime.proxy } },
+              { binding: RUNTIME_BINDINGS.nodes, resource: { buffer: inputs.runtime.nodes } },
+              { binding: RUNTIME_BINDINGS.cold, resource: { buffer: inputs.runtime.cold } },
+              { binding: RUNTIME_BINDINGS.worlds, resource: { buffer: inputs.runtime.worlds } },
+              { binding: RUNTIME_BINDINGS.history, resource: { buffer: inputs.history } },
+            ]
+          : []),
       ],
     }),
     classify: device.createBindGroup({
@@ -301,6 +371,8 @@ function traceGroups(
         { binding: 1, resource: { buffer: uniform } },
         { binding: 2, resource: { buffer: tiles.args } },
         { binding: 3, resource: { buffer: inputs.lightView } },
+        { binding: 4, resource: { buffer: inputs.hash } },
+        { binding: 5, resource: { buffer: inputs.history } },
       ],
     }),
   })

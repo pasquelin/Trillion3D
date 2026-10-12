@@ -2,8 +2,9 @@ import { createReadbackRing } from '../gpu/core/readbackRing.ts'
 
 /** Bytes of the hash: the lit image's two words, then the image before it's. */
 export const RADIANCE_HASH_BYTES = 16
-/** Bytes of a sample: the hash, then the count of tiles the trace listed that image. */
-export const SAMPLE_BYTES = RADIANCE_HASH_BYTES + 4
+/** Bytes of a sample: the hash, then the count of tiles the trace listed that image, then the run-time
+ *  proxy's rays it left for later (`runtimeTraceWgsl.ts`). */
+export const SAMPLE_BYTES = RADIANCE_HASH_BYTES + 8
 /** Samples in flight at most: an image's copy waits for none, and takes none when all are in flight. */
 const SAMPLES = 3
 
@@ -25,12 +26,19 @@ function createSampleRing(device: GPUDevice, answer: (image: number, words: Uint
   )
   return {
     /** Copies the hash and the count of tiles into a free sample, for `image`. */
-    copy(encoder: GPUCommandEncoder, hash: GPUBuffer, tiles: GPUBuffer, image: number) {
+    copy(
+      encoder: GPUCommandEncoder,
+      hash: GPUBuffer,
+      tiles: GPUBuffer,
+      left: GPUBuffer,
+      image: number,
+    ) {
       // A copy still waiting for its submission is an abandoned image's: its commands never ran.
       const sample = ring.take(image)
       if (!sample) return
       encoder.copyBufferToBuffer(hash, 0, sample, 0, RADIANCE_HASH_BYTES)
       encoder.copyBufferToBuffer(tiles, 12, sample, RADIANCE_HASH_BYTES, 4)
+      encoder.copyBufferToBuffer(left, 0, sample, RADIANCE_HASH_BYTES + 4, 4)
     },
     /** The image is submitted: its copies are mapped, and answer when the GPU has run them. */
     submitted: ring.submitted,
@@ -68,9 +76,11 @@ export function createRadianceSettle(device: GPUDevice) {
   let images = 0,
     busy = 0,
     equal = 0
-  // A sample's answer: its image's hash is the one before it's, or it listed no tile.
+  // A sample's answer: its image's hash is the one before it's, or it listed no tile — and no ray of
+  // the run-time proxy was left for a later image: the budget of a frame (`FRAME_WORK`) answers the
+  // rest of them in the frames after, and the view settles when none is left.
   const samples = createSampleRing(device, (image, words) => {
-    if ((words[0] === words[2] && words[1] === words[3]) || words[4] === 0)
+    if (((words[0] === words[2] && words[1] === words[3]) || words[4] === 0) && words[5] === 0)
       equal = Math.max(equal, image)
   })
   return {
@@ -78,9 +88,13 @@ export function createRadianceSettle(device: GPUDevice) {
     /** An image is drawn, its radiance pyramid encoded: counted, and, while the view is not
      *  settled, its hash and the count of tiles the trace listed (the fourth word of `tiles`, its
      *  indirect arguments) copied, to be mapped once the image is submitted (`submitted`). */
-    image(encoder: GPUCommandEncoder, tiles: GPUBuffer) {
+    image(encoder: GPUCommandEncoder, tiles: GPUBuffer, left: GPUBuffer) {
       images++
-      if (!this.verified) samples.copy(encoder, hash, tiles, images)
+      if (!this.verified) samples.copy(encoder, hash, tiles, left, images)
+    },
+    /** Images drawn: the rank of the one being drawn, which the run-time proxy's schedule turns by. */
+    get images() {
+      return images
     },
     /** The image about to be drawn is drawn for another reason than the reflections'. */
     busy() {

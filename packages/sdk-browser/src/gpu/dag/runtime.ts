@@ -23,6 +23,7 @@ import {
   type DagRun,
 } from './runtimeOps.ts'
 import { cutBytes } from './cutBuffers.ts'
+import { createProxyInstances } from './proxyInstances.ts'
 
 export function createDagRuntime(
   resources: DagResources,
@@ -47,6 +48,8 @@ export function createDagRuntime(
     // before #1333, and the rows' flags go up as they are.
     mirror: packed.world && createWorldResidencyMirror({ ...packed, world: packed.world }),
     tree: createTreeFollower(resources, composed),
+    // What a ray can meet of the run-time cuts, one instance a placement (`proxyInstances.ts`).
+    proxies: createProxyInstances(resources),
     // A link move with no residency behind it goes to the cut's residency as the rows last stood;
     // each move is told to the run's listener (`linkMoved`).
     links: createLinkFollower(resources, {
@@ -74,6 +77,7 @@ function selectionOver(run: DagRun): GpuSelection {
     if (!live()) return
     frames.flushWords()
     run.tree?.sync()
+    run.proxies.refresh()
     run.links?.sync(uniforms, view)
   }
   const selection: GpuSelection = {
@@ -125,6 +129,7 @@ function selectionOver(run: DagRun): GpuSelection {
     parkWorld: (w, parked) => live() && parkRoot(run, w, parked),
     // The mark travels behind the record shift (`primitiveFrameWords`).
     markWorld: (w, mark) => live() && writeMark(run, w, mark),
+    proxyBuffers: () => (live() ? run.proxies.buffers() : undefined),
     updateResidency: (next, changes, moved) => updateRuntimeResidency(run, next, changes, moved),
     isReady: (page) => uploadResidency.isReady(page),
     isChildReady: (page) => uploadResidency.isChildReady(page),
@@ -152,6 +157,7 @@ function selectionOver(run: DagRun): GpuSelection {
       state.disposed = true
       state.dead = true
       state.pending = state.pending.catch(() => {})
+      run.proxies.dispose()
       for (const buffer of buffers) buffer.destroy()
     },
   }

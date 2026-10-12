@@ -3,7 +3,7 @@ import {
   PROXY_NODE_WORDS,
   PROXY_TRIANGLE_FLOATS,
 } from '../../../../sdk-core/src/index.ts'
-import type { PageCutProxy } from '../../../../sdk-core/src/page/taskContracts.ts'
+import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import { reserveArena } from '../../wasm/wasmArena.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
 
@@ -21,7 +21,7 @@ export function buildCutProxy(
   module: SdkWasm,
   indices: Uint32Array,
   positions: Float32Array,
-): PageCutProxy {
+): RuntimeCutProxy {
   const input = reserveArena(module, [
     { type: 'u32', length: indices.length },
     { type: 'f32', length: positions.length },

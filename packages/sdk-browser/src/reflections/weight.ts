@@ -6,6 +6,7 @@ import { LTC_WGSL } from '../lighting/direct/rectLightWgsl.ts'
 import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
+import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
 
 /**
  * What a lit surface keeps of the radiance it reflects, and how it traces it. `reflectionWeight`
@@ -21,10 +22,10 @@ import { reflectedRadianceWgsl } from './wgsl.ts'
  * (`lobeThrough`), and the coat's added; `reflectedShare` traces and weighs on one reflectance. A
  * program without lobes has no coat and a round lobe.
  */
-export const reflectionShareWgsl = (group: number, lobes: boolean) =>
+export const reflectionShareWgsl = (group: number, lobes: boolean, runtime?: RuntimeBindings) =>
   wgslBlock(
-    `reflectionShareWgsl(${group}, ${lobes})`,
-    [reflectedRadianceWgsl(group), LTC_WGSL, LOBE_AXIS_WGSL, ndotvClamped, DIELECTRIC_F0],
+    `reflectionShareWgsl(${group}, ${lobes}, ${runtime ? 'runtime' : 'cooked'})`,
+    [reflectedRadianceWgsl(group, runtime), LTC_WGSL, LOBE_AXIS_WGSL, ndotvClamped, DIELECTRIC_F0],
     `struct Reflected{base:vec3f,coat:vec3f,}
 fn reflectionWeight(f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
  return ltcSplitSum(f0,lobeRoughness(rough),ndotvClamped(N,V));

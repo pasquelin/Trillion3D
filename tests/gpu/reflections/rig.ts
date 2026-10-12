@@ -1,10 +1,9 @@
 // The engine side of the reflection proofs: a synthetic still frame — the surface flags and normals,
 // the base colour, the depth, the lit image, the physical lobes and the resident proxy of the scene
-// where it has them — laid in the engine's own inputs, then the engine's kernels run on it as an
-// image runs them: the depth pyramid the trace marches (`gpu/hiz`, as the visibility builds it),
-// the view uniform, the surroundings and the opaque trace (`reflections/frame.ts`), then the
-// radiance pyramid of the lit image. Consecutive still images, whose reflection targets are read
-// back to the bit.
+// where it has them — laid in the engine's inputs, its kernels run on it as an image runs them: the
+// depth pyramid, the view, the surroundings and the trace (`reflections/frame.ts`), then the radiance
+// pyramid. Consecutive still images, whose reflection targets are read back to the bit.
+import { noRuntimeProxy } from './rigRuntime.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import {
   createReflectionPipelines,
@@ -119,6 +118,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     bounceGrid,
     probes: probes.createView({ dimension: '2d-array' }),
     proxy,
+    ...noRuntimeProxy(device, reflection),
     lightView: lightView.buffer,
   }
   return {
@@ -157,7 +157,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
           frame.viewProjection,
         )
         build.end()
-        reflection.settle.image(encoder, reflection.tiles.args)
+        reflection.settle.image(encoder, reflection.tiles.args, reflection.history.buffer(false))
       }
       device.queue.submit([encoder.finish()])
       reflection.settle.submitted()

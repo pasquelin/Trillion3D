@@ -30,6 +30,7 @@ export type {
 } from '../../sdk-core/src/scene/light/contracts.ts'
 export type { LightingCapabilities } from '../../sdk-core/src/scene/light/capabilities.ts'
 export type {
+  RuntimeCutProxy,
   SceneProxy,
   SceneProxyColumns,
   SceneProxyDescriptor,

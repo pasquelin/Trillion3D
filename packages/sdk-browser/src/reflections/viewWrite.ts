@@ -17,6 +17,8 @@ export type ReflectionFrame = {
   depthDrawn: boolean
   /** The resident proxy's certified error, in metres: zero without a proxy. */
   proxyError: number
+  /** The image's rank while a placement wears a run-time proxy, else zero: the tile its trace starts at. */
+  rotation?: number
 }
 
 /** The words of the view that the CPU writes, in 16-word runs (`sameElements`). */
@@ -43,6 +45,7 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
   const staged = new Float32Array(REFLECTION_VIEW_WRITTEN_WORDS)
   const sent = new Float32Array(REFLECTION_VIEW_WRITTEN_WORDS)
   const traced = new Uint32Array(staged.buffer, AT.traced * 4, 4)
+  const runtime = new Uint32Array(staged.buffer, AT.runtime * 4, 4)
   const inverse = new Float64Array(16)
   const runs = Array.from({ length: RUNS }, (_, k) => staged.subarray(16 * k, 16 * k + 16))
   return (frame: ReflectionFrame, held: HeldImage, levels: number) => {
@@ -60,6 +63,7 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     traced[2] = frame.size[1]
     traced[3] = frontPitch(frame.size[0])
     staged[AT.proxy] = frame.proxyError
+    runtime[0] = frame.rotation ?? 0
     if (unchanged(sent, runs)) return
     sent.set(staged)
     device.queue.writeBuffer(buffer, 0, staged)

@@ -16,10 +16,13 @@ import {
   radianceLevels,
 } from './radiance.ts'
 import { RADIANCE_HASH_BYTES, SAMPLE_BYTES, createRadianceSettle } from './settle.ts'
+import { HISTORY_HEADER_WORDS, createProxyHistory } from './proxyHistory.ts'
 import {
   BEGIN_SHADER,
   TRACE_SHADER,
+  TRACE_SHADER_PLAIN,
   createTraceStages,
+  tracesRuntime,
   createTraceTiles,
   TRACE_ARGS_BYTES,
   traceListBytes,
@@ -63,7 +66,7 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
     const modules = {
       trace: device.createShaderModule({
         label: 'Trillion3D reflection trace',
-        code: TRACE_SHADER,
+        code: tracesRuntime(device) ? TRACE_SHADER : TRACE_SHADER_PLAIN,
       }),
       begin: device.createShaderModule({
         label: 'Trillion3D reflection begin',
@@ -121,7 +124,10 @@ export function reflectionBytes(width: number, height: number, blends: boolean) 
     TRACE_ARGS_BYTES +
     REFLECTION_VIEW_BYTES +
     RADIANCE_HASH_BYTES +
-    SAMPLE_BYTES * 3
+    SAMPLE_BYTES * 3 +
+    // The run-time proxy's history, its stand-in: the answers are made at the first placement that wears
+    // a proxy, past the budget's ask (`proxyHistory.ts`).
+    HISTORY_HEADER_WORDS * 4
   )
 }
 
@@ -155,6 +161,7 @@ export function createScreenReflection(
   const tiles = createTraceTiles(device, width, height)
   const settle = createRadianceSettle(device)
   const frontDepth = createFrontDepth(device, width, height, blends)
+  const history = createProxyHistory(device, width, height)
   return {
     device,
     target,
@@ -163,6 +170,8 @@ export function createScreenReflection(
     tiles,
     uniform,
     settle,
+    /** The run-time proxy's answers, kept from image to image (`proxyHistory.ts`). */
+    history,
     front: frontDepth,
     writeView: createReflectionViewWriter(device, uniform),
     /** The reflection group over each Hi-Z pyramid it was bound with (a view's), and what else it
@@ -177,6 +186,7 @@ export function createScreenReflection(
       tiles.list.destroy()
       uniform.destroy()
       settle.dispose()
+      history.dispose()
       frontDepth.dispose()
     },
   }

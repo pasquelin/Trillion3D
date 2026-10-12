@@ -135,6 +135,10 @@ export type GpuSelection = {
   /** The row cache now holds `rows` rows: the open counts placements hold follow it
    *  (`../dag/queueGrowth.ts`), grown before the next cut. */
   followRows?(rows: number): void
+  /** The buffers the reflections' trace reads to meet the meshes the world cut at run time
+   *  (`../dag/proxyInstances.ts`): none until a placement wears a proxy. */
+  proxyBuffers():
+    { proxy: GPUBuffer; nodes: GPUBuffer; cold: GPUBuffer; worlds: GPUBuffer } | undefined
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void
   /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `markReach`). */
