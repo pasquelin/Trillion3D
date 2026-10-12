@@ -30,6 +30,8 @@ mod unpack;
 #[cfg(target_arch = "wasm32")]
 mod wasm_cone;
 #[cfg(target_arch = "wasm32")]
+mod wasm_culling;
+#[cfg(target_arch = "wasm32")]
 mod wasm_decode;
 #[cfg(target_arch = "wasm32")]
 mod wasm_encode;

@@ -44,6 +44,10 @@ export type SdkWasm = {
   ): number
   /** The grids of a primitive (`../world/page/cutGrid.ts`): NaN where nothing is known, `blended`
    *  0 or 1. */
+  /** The culling hierarchy of the run-time cut's pages (`../page/codec/cullingHierarchy.ts`): 0
+   *  built, the answer waiting for `culling_build_take`; 1 refused. */
+  culling_build(records: number, count: number, meta: number): number
+  culling_build_take(nodes: number, order: number): void
   grid_tile_log2(scale: number): number
   grid_position_exponent(
     extent: number,

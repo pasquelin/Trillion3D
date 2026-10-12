@@ -25,6 +25,36 @@ pub struct CullingCluster {
     pub parent_error: f64,
 }
 
+/// Numbers per cluster record, the run-time cut's input (`wasm_culling.rs`): the box's least corner
+/// then its greatest, the sphere of what replaces it, its replacement error (infinite for a root)
+/// and its level.
+pub const CULLING_RECORD_FLOATS: usize = 12;
+
+impl CullingCluster {
+    /// The cluster as its record.
+    pub fn record(&self) -> [f64; CULLING_RECORD_FLOATS] {
+        let mut out = [0.0; CULLING_RECORD_FLOATS];
+        out[..3].copy_from_slice(&self.min);
+        out[3..6].copy_from_slice(&self.max);
+        out[6..10].copy_from_slice(&self.parent_sphere);
+        out[10] = self.parent_error;
+        out[11] = self.level as f64;
+        out
+    }
+
+    /// The cluster of record `r`, `None` when its level is not a whole number under `2^32`.
+    pub fn from_record(r: &[f64]) -> Option<Self> {
+        let level = r[11];
+        (level >= 0.0 && level.fract() == 0.0 && level < 4_294_967_296.0).then(|| Self {
+            min: [r[0], r[1], r[2]],
+            max: [r[3], r[4], r[5]],
+            parent_sphere: [r[6], r[7], r[8], r[9]],
+            parent_error: r[10],
+            level: level as usize,
+        })
+    }
+}
+
 /// One node of the per-primitive culling hierarchy.
 ///
 /// `sphere` encloses every `parent_sphere` of the subtree and `max_parent_error` is the largest
@@ -239,4 +269,4 @@ pub fn build_culling_bvh(clusters: &[CullingCluster]) -> (Vec<usize>, Vec<Cullin
 
 #[cfg(test)]
 #[path = "culling_tests.rs"]
-mod tests;
+pub(crate) mod tests;
