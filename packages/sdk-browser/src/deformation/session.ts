@@ -61,6 +61,10 @@ export function createSessionDeformation(
   return {
     frame,
     append,
+    /** The roots the session holds records for: the rank the next one joins at. */
+    get ranks() {
+      return rankEntry.length
+    },
     /** The record of the root at `rank`, -1 for a rank the session holds none of. */
     entryOf: (rank: number) => rankEntry[rank] ?? -1,
     /** Frame `tick`'s records (`frame.update`), a root whose reach spans less than `pixelError`

@@ -20,6 +20,7 @@ import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
 import { growthOf, heldPage, takeGrownCopies } from './webgpuGrowth.ts'
 import { growBlend, waitsForWater } from '../webgpu/blend/growth.ts'
 import { announceGrowth, replayMoves, type GrownRoots } from './growthAnnounce.ts'
+import { joinDeformation, placeDeformation } from '../deformation/growth.ts'
 
 /**
  * At frame entry, a cut made over every root replaces the running one (step 3): the waiting roots
@@ -57,9 +58,14 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   for (const root of added)
     if (!root.pages[0]?.transparent) layout.opaquePageCount += root.pages.length
   rows.addPages(first)
+  // Their records join the deformation's, before the blended items name them; the pool lays its
+  // tail out for them, and for the whole copies the items bring, once these exist.
+  const copies = takeGrownCopies(rt)
+  joinDeformation(rt, added, copies, firstRank)
   // The blended copies join the pass with the ranks their pages hold now, before the first sync of
   // the rows names them.
-  joinBlend(rt, takeGrownCopies(rt), added, first)
+  joinBlend(rt, copies, added, first)
+  placeDeformation(rt)
   // The worlds the cut takes, laid out for every placement its tables hold: a growth into its room
   // keeps them, one past it lays them out once more.
   const slots = Math.max(1, selectionRoots.length, ready.cut.worldCapacity) * 16

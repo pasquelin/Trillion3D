@@ -211,8 +211,6 @@ function size(state: BatchState, batch: Batch, grow?: PlacementGrowth) {
   const held = before?.capacity ?? 0,
     needed = held - batch.free.length + waitingIn(state, batch)
   if (needed <= held) return null
-  if (before && grow && (batch.cut.drawn.deformation || [...batch.wearers].some((m) => m.waves)))
-    return false
   if (before && grow && !grow.growsInPlace([before], grownCapacity(held, needed))) return false
   const rows = growPlacementRows(before, needed)
   const { capacity } = rows

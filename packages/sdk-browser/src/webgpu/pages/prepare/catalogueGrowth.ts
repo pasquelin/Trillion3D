@@ -39,13 +39,12 @@ export function catalogueRefusal(rt: WebgpuPagesRuntime, pages: readonly PageRec
   const { tracking, census, maxCorners } = rt.setup
   const added = new Set<string>()
   for (const page of pages) {
-    if (!page.geometryPage) return 'a page read as floats'
     if ((page.level ?? 0) > tracking.topLevel) return 'a page deeper than the levels ranked'
     if (cornersOf(page) > maxCorners) return 'a page wider than the draw batches'
     const address = pageAddress(page),
       home = census.homes.get(address)
     if (home === undefined) added.add(address)
-    else if (census.geometryUrls.get(address) !== page.geometryPage.url)
+    else if (census.geometryUrls.get(address) !== page.geometryPage?.url)
       return 'an address of two pages'
     else if (paddedBytes(page) > home) return 'a page wider than its home'
   }

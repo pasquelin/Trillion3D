@@ -9,9 +9,10 @@
  * (`webgpuGrowth.ts`, `webgpuGrownCut.ts`), the cut taking them in the room it kept
  * (`appendDagRoots`). A blended or transmissive source brings copies, which join the transparent
  * pass with them (`webgpu/blend/growth.ts`), the water pass and its targets made for the first
- * transmissive one. Refused where the records would differ in kind — a
- * deformed primitive, pages read as floats — or where the catalogue or the pass cannot hold them
- * (`catalogueRefusal`, `blendRefusal`).
+ * transmissive one. A source the deformation stage moves — a skeleton, morph weights, waves — or one
+ * whose vertices are read as floats joins with its records and its float geometries, the stage's code
+ * loaded when the session had none (`deformation/growth.ts`). Refused where the catalogue or the
+ * pass cannot hold it (`catalogueRefusal`, `blendRefusal`).
  */
 import type { Texture } from '../../../sdk-core/src/index.ts'
 import type { Primitive } from '../../../sdk-core/src/index.ts'
@@ -31,6 +32,7 @@ import {
 } from '../webgpu/pages/prepare/catalogueGrowth.ts'
 import { growWebgpuPagePool } from '../webgpu/pages/io/memory.ts'
 import { blendRefusal, prepareBlendGrowth } from '../webgpu/blend/growth.ts'
+import { deformsContent, prepareDeformationGrowth } from '../deformation/growth.ts'
 import { byRenderOrder, pagedBlendCopiesOf } from '../webgpu/pages/prepare/setupCatalogue.ts'
 
 /** The textures `surface` reads, colour then data, as the open's census takes them
@@ -60,10 +62,8 @@ export async function addWebgpuPlacements(
   const held = collector.primitiveOf(ranks)
   if (held && held.pages !== primitive.pages) return false
   const surface = sourceSurface(source)
-  if (primitive.deformation) return false
   if (drawsBlended(primitive, surface) && blendRefusal(rt)) return false
   if (!held) {
-    if (primitive.pages.some((page) => !page.geometry)) return false
     context.metadata.primitives.push(primitive)
     collector.primitiveOf.add(primitive)
     context.admitPages?.(primitivePages(primitive))
@@ -79,6 +79,11 @@ export async function addWebgpuPlacements(
   const copies = [...into.blendCopies, ...pagedBlendCopiesOf(into.roots, setup.pagedBlendCopies)]
   copies.sort(byRenderOrder)
   if (!(await prepareBlendGrowth(rt, gpu.device, copies, into.allPages))) return false
+  rt.signal.throwIfAborted()
+  if (run.lost || !run.gpuSelection) return false
+  // The deformation stage, and the float geometries its pages read, for what moves or is rewritten.
+  const deforms = deformsContent(source, primitive, into.allPages)
+  if (!(await prepareDeformationGrowth(rt, gpu.device, deforms, into.allPages))) return false
   rt.signal.throwIfAborted()
   if (run.lost || !run.gpuSelection) return false
   const { grown, cover } = growCatalogue(rt, into)

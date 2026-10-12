@@ -95,7 +95,16 @@ test('a page the catalogue cannot hold is refused by name', () => {
   const [wide] = primitive(9)
   ;(wide.geometryPage as { indexCount: number }).indexCount = 4000
   assert.match(catalogueRefusal(rt, [wide])!, /wider than the draw/)
-  const [floats] = primitive(10)
-  delete (floats as { geometryPage?: unknown }).geometryPage
-  assert.match(catalogueRefusal(rt, [floats])!, /floats/)
+  assert.equal(catalogueRefusal(rt, [primitive(10)[0]]), undefined)
+})
+
+test('a page read as floats joins the catalogue by its index bytes, as a quantized one does', () => {
+  const { setup, rt } = session(2)
+  const pages = primitive(10)
+  for (const page of pages) delete (page as { geometryPage?: unknown }).geometryPage
+  assert.equal(catalogueRefusal(rt, pages), undefined)
+  const { grown } = growCatalogue(rt, { allPages: pages, roots: [rootOf(pages)] })
+  assert.equal(grown.widths.size, PER)
+  assert.equal(grown.widths.get(pages[0].url), 1200, 'its slot holds its index page')
+  assert.equal(setup.census.homes.get(pages[0].url), 1200)
 })

@@ -63,10 +63,10 @@ const growths = new WeakMap<WebgpuPagesRuntime, Growth>()
 /** The growth of `rt` in flight, if one is. */
 export const growthOf = (rt: WebgpuPagesRuntime) => growths.get(rt)
 
-/** Whether rows drawn by `template` grow in place: neither the blend pass's — transparent pages,
- *  whose tables are laid out at open — nor a deformation's. */
+/** Whether rows drawn by `template` grow in place: not the blend pass's — transparent pages, whose
+ *  tables are laid out at open. */
 const rowsGrowInPlace = (template: Root | undefined) =>
-  !template?.pages.some((page) => page.transparent || page.deformationOutput)
+  !template?.pages.some((page) => page.transparent)
 
 /** Whether the session grows each of `from` in place, asked before any is (`growth.ts`). */
 function webgpuGrowsInPlace(rt: WebgpuPagesRuntime, from: readonly PlacementRows[]) {
