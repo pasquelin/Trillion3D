@@ -33,6 +33,7 @@ import type { MatrixElements } from '../host/matrixElements.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { forgetRowRoots } from './update.ts'
 import { rebindComposedWorlds } from './gpuCompose.ts'
+import { rebindReaders } from './composeReaders.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { growRowCopies, growRowItems, growRowRoots, type Rebound } from './growth.ts'
 import { pagedBlendCopiesOf } from '../webgpu/pages/prepare/setupCatalogue.ts'
@@ -88,6 +89,7 @@ function growWebgpuPlacements(rt: WebgpuPagesRuntime, from: PlacementRows, to: P
     growth.roots.push(item)
   // The session's roots read `to` now: their row views are taken again.
   forgetRowRoots(selectionRoots)
+  if (rt.compose) rebindReaders(rt.compose.readers, from, to)
   rebindComposedWorlds(rt)
   // The blended copies and the items of `from` read `to` too; a copy per new row joins the pass
   // with the paged copies of the roots just added, the tables keyed by a view following it.

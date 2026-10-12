@@ -2,7 +2,7 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts'
 import { PRESENT_AT_SHADER, PRESENT_SHADER } from './presentWgsl.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
-import { TREE_REFIT_WGSL } from '../dag/treeRefitWgsl.ts'
+import { TREE_REFIT_WGSL, treeRefitWgsl } from '../dag/treeRefitWgsl.ts'
 import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
 import { dagSelectionShader } from '../dag/shader/splitWgsl.ts'
 import { dagSplit } from '../dag/split.ts'
@@ -19,6 +19,7 @@ import { RESOLVE, rasterSource } from '../raster/shader.ts'
 import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts'
 import {
   COMPOSE_MEMBERS_WGSL,
+  composeMembersWgsl,
   COMPOSE_ROOTS_WGSL,
   COMPOSE_ROWS_WGSL,
 } from '../../placement/gpuComposeWgsl.ts'
@@ -108,9 +109,15 @@ export const ENGINE_SHADERS: Record<string, string> = {
   RESOLVE,
   REST_COMPACT_SHADER,
   COMPOSE_MEMBERS_WGSL,
+  COMPOSE_MEMBERS_SPLIT: composeMembersWgsl({ per: 4096, parts: 2 }),
   COMPOSE_ROOTS_WGSL,
   COMPOSE_ROWS_WGSL,
   TREE_REFIT_WGSL,
+  TREE_REFIT_SPLIT: treeRefitWgsl({
+    nodes: { per: 4096, parts: 2 },
+    cold: { per: 4096, parts: 2 },
+    frames: [0, 1024],
+  }),
   BOUNCE_PROBE_SHADER,
   BOUNCE_SNAPSHOT_SHADER,
   BOUNCE_SURFACE_SHADER,

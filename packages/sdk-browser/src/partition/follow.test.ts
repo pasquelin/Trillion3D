@@ -80,5 +80,15 @@ test('the rows under a core parent follow its world on the GPU: the first rows a
   accepts = false
   frame[12] = 90
   cells.frame([0, 0, 0], 1e5, port, noBudget)
-  assert.equal(updates.length > sent, true, 'a session that refuses: the rows are written')
+  assert.equal(
+    updates.length > sent,
+    true,
+    'a session that refuses, by name: the rows are parked and sent, none written at a pose of ours',
+  )
+  assert.ok(
+    updates
+      .slice(sent)
+      .every(([rows, from, to]) => rows.live.subarray(from, to + 1).every((v) => v === 0)),
+    'every row sent after the refusal is parked',
+  )
 })

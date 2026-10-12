@@ -101,11 +101,14 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
     maxResidentPages: 3,
     viewport: [1, 1], // The intentionally tiny storage limit also bounds receiver offsets.
   })
-  const { port, held, outgrown: reopened } = io(bytes)
+  const { port, held, outgrown: reopened, rebind } = io(bytes)
   ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
   port.update = (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to)
   const { growsInPlace, growPlacements } = webgpuPlacementApi(rt)
-  port.grow = { growsInPlace, growPlacements }
+  port.grow = {
+    growsInPlace,
+    growPlacements: (from, to) => (growPlacements(from, to), rebind(from, to)),
+  }
   const view = cameraAt(0, 30)
   const draw = async () => {
     renderWebgpuPages(rt, view)

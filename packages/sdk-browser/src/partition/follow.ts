@@ -5,9 +5,11 @@
  * (`Engine.composePlacements`): every core parent of the scene is one parent of the composition,
  * its world — its own in the scene's frame, times the frame's, the model's world, when a world
  * draws the scene — sent alone when it moves, the rows linked to it each at its node's own matrix.
- * One matrix a moved parent, no row written. A session that takes no link — or a row it refuses —
- * leaves the rows to this module's own write, `parent · local`, which is then rewritten, row by
- * row, under each parent whose world moved or whose host mesh's `castShadow` changed.
+ * One matrix a moved parent, no row written. A row placed before any composition exists — `prime`
+ * places the cells before the engine reads the rows — takes the pose the session opens on,
+ * `parent · local`, and is linked at the first frame; from then on this module composes nothing.
+ * A row the session refuses — it says so by name, `content-refused` — is parked, never drawn at a
+ * pose this module made. A host mesh whose `castShadow` changed has its rows' flags written again.
  */
 import type { PlacementLink } from '../placement/gpuCompose.ts'
 import { MATRIX_VALUES, multiplyMatrix4 } from '../../../sdk-core/src/index.ts'
@@ -54,8 +56,6 @@ export function createPlacementWrites(
   const framed = new Float64Array(MATRIX_VALUES)
   /** The parent of the composition each core parent is: its rows are linked to it. */
   const slots = new Map<Object3D, object>()
-  /** False once the session refused a link: every row is this module's to write. */
-  let composes = true
   /** The links the rows a batch wrote are to take, by parent. */
   const pending = new Map<Object3D, PlacementLink[]>()
   const slotWorld = new Float64Array(MATRIX_VALUES),
@@ -78,31 +78,36 @@ export function createPlacementWrites(
       rows.shadowless[row] = mesh.nodes[at]?.castShadow === false ? 1 : 0
       touched.touch(link, row)
     })
-  /** The rows of `placement` as this module writes them: the world of its parent times its node's. */
-  const writeMatrices = (placement: Placement) => {
+  /** The pose a row opens the session on, `parent · local`: written only while no composition
+   *  exists to give it (`prime` places the cells before any engine reads the rows). Once the
+   *  session composes, the row is linked and this module writes none. */
+  const writeOpeningPose = (placement: Placement) => {
     const { mesh, row, parent, local } = placement
     multiplyMatrix4(product, worldOf(parent), local)
     for (const link of mesh.links) link.placements!.matrices.set(product, row * 16)
   }
-  /** Row `placement`: its flags, and its matrix unless its parent is the session's — then the row
-   *  is linked to it at the next `settle`. */
+  /** Row `placement`: its flags, and — `linking` — its link to its parent, made at the next `settle`;
+   *  its opening pose while no composition exists yet. */
   const write = (placement: Placement, linking = true) => {
     const { mesh, row, parent, local } = placement
-    if (composes && slots.has(parent)) {
-      if (linking) {
-        const list = pending.get(parent) ?? pending.set(parent, []).get(parent)!
-        for (const link of mesh.links) list.push({ rows: link.placements!, index: row, local })
-      }
-    } else writeMatrices(placement)
+    heldWorld(parent)
+    if (!frame.compose) writeOpeningPose(placement)
+    else if (linking) {
+      const list = pending.get(parent) ?? pending.set(parent, []).get(parent)!
+      for (const link of mesh.links) list.push({ rows: link.placements!, index: row, local })
+    }
     flags(placement)
   }
-  /** The session refused: every row is this module's, none linked. */
+  /** The session refused, and said so by name: the rows are parked, none drawn at a pose of ours. */
   const refused = (held: Iterable<readonly Placement[]>) => {
-    composes = false
-    for (const [parent, slot] of slots) frame.compose?.(slot, worldOf(parent), [], true)
     slots.clear()
     pending.clear()
-    for (const placements of held) for (const at of placements) write(at)
+    for (const placements of held)
+      for (const { mesh, row } of placements)
+        mesh.links.forEach((link) => {
+          link.placements!.live[row] = 0
+          touched.touch(link, row)
+        })
   }
   /** The rows of `parent` among `held`, as links. */
   const under = (held: Iterable<readonly Placement[]>, parent: Object3D) => {
@@ -133,7 +138,7 @@ export function createPlacementWrites(
     /** The rows `write` took since the last `settle` are linked to their parents; the first rows of
      *  a parent are written as this module writes them, then given to the session. */
     settle(held: Iterable<readonly Placement[]>, parents: Iterable<Object3D>) {
-      if (!frame.compose || !composes) return void pending.clear()
+      if (!frame.compose) return
       for (const parent of new Set([...parents, ...pending.keys()])) {
         const added = pending.get(parent)
         if (!link(parent, held, added)) return refused(held)
@@ -146,7 +151,7 @@ export function createPlacementWrites(
     follow(meshes: Iterable<PlacedMesh>, held: Iterable<readonly Placement[]>) {
       stale.clear()
       // A session that composes now takes the rows placed before it did: one pass over them.
-      if (frame.compose && composes && [...worlds.keys()].some((node) => !slots.has(node))) {
+      if (frame.compose && [...worlds.keys()].some((node) => !slots.has(node))) {
         const groups = new Map<Object3D, PlacementLink[]>()
         for (const placements of held)
           for (const at of placements)
@@ -167,12 +172,11 @@ export function createPlacementWrites(
       for (const [node, world] of worlds) {
         const now = resolveCameraWorld(node).worldMatrix
         if (!framedMoved && keepNumbers(world, now)) continue
-        const slot = composes ? slots.get(node) : undefined
+        const slot = frame.compose ? slots.get(node) : undefined
         world.set(now)
-        // The slot takes the parent's world alone; refused, every row is this module's.
+        // The slot takes the parent's world alone.
         if (slot && frame.compose!(slot, worldOf(node), [], false)) continue
         if (slot) return refused(held)
-        stale.add(node)
       }
       if (framedMoved) framed.set(outer!)
       if (!stale.size) return

@@ -185,16 +185,22 @@ export function createWorldModels(ranks: WorldRanks) {
     /** `model`'s graph brought up to date, and the rows of its meshes written from it, shown as
      *  `shown` says; cost: the meshes it draws, once for each move of the model or of one of its
      *  nodes. `composes`, asked once the graph is current, says whether the session composes the
-     *  rows from now on: then no matrix is written, the composition gives it where it is read. */
+     *  rows from now on: then no matrix is written, the composition gives it where it is read; a
+     *  session that refuses leaves them parked. Without it, no session exists to compose them: the
+     *  rows are written as the pose the session opens on. */
     pose(model: LoadedModel, shown: boolean, composes?: (draws: ModelDraws) => boolean) {
       const draws = held.get(model)
       if (!draws) return undefined
       // The graph's worlds are its own, brought up to date where they changed.
       updateTransformTree(Object3D._treeOf(model.record.scene.source))
       const world = model.matrixWorld.elements,
-        matrices = !composes?.(draws)
-      for (const source of draws.rowed) source.write(world, shown, matrices)
-      draws.world?.write(world, shown, matrices)
+        linked = composes?.(draws) ?? false,
+        // A matrix is written only where no session exists to compose it (the pose the session
+        // opens on); a session that refuses a link has named it, and the rows are parked.
+        matrices = !composes,
+        drawn = shown && (!composes || linked)
+      for (const source of draws.rowed) source.write(world, drawn, matrices)
+      draws.world?.write(world, drawn, matrices)
       return draws
     },
   }

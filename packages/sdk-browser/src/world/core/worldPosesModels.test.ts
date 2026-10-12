@@ -115,8 +115,8 @@ test('a node of the graph that moves, or the model hidden, writes the rows whole
   assert.deepEqual([draws.rowed[0].rows.live[0], draws.rowed[1].rows.live[0]], [0, 0])
 })
 
-test('a session that refuses leaves the rows as the model wrote them, a move writes them whole', () => {
-  const { loaded, draws, poses, sent, links, frame, refuse } = rig()
+test('a session that refuses parks the rows: no matrix is written at a pose of ours', () => {
+  const { loaded, draws, poses, links, frame, refuse } = rig()
   refuse()
   loaded.position.set(1, 0, 0)
   poses.moved(loaded)
@@ -125,8 +125,8 @@ test('a session that refuses leaves the rows as the model wrote them, a move wri
   poses.moved(loaded)
   frame()
   assert.equal(links.length, 0)
-  assert.equal(sent.length, 4, 'both moves wrote and sent both rows')
-  assert.deepEqual([...draws.rowed[1].rows.matrices.slice(12, 15)], [2, 0, 0])
+  assert.deepEqual([draws.rowed[0].rows.live[0], draws.rowed[1].rows.live[0]], [0, 0], 'parked')
+  assert.deepEqual([...draws.rowed[1].rows.matrices.slice(12, 15)], [0, 0, 0], 'none written')
 })
 
 test('a model written outside a walk is written whole at the next, its rows linked again', () => {

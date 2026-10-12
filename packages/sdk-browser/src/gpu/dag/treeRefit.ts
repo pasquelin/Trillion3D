@@ -8,25 +8,19 @@
  * write them (a composition's, `treeFollow.ts`), before `run`. The pass is the one entry point of a
  * refit — the placement tree's, and whatever else bounds its boxes the same way.
  *
- * Where the device splits the tables across bindings, or the cut is made over several ranges, no
- * pass binds them whole: the chain of each touched group is opened instead (`open`) — a box no plane
- * rejects, the tree's no-cull answer — never left as it was.
+ * The pass binds the cut's tables as the cut does: a table the device splits across bindings is read
+ * through its parts at the bindings the kernel gives them (`dagPartEntries`), the frames through
+ * their ranges. Nothing is ever left unfitted, and no group is held open for want of a binding.
  */
-import { oncePerDevice } from '../core/oncePerDevice.ts'
 import { TREE_REFIT_PASS } from '../../stage/passLabels.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { dispatchRows } from '../dispatch/grid.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { memberBox, treeNodeCount, TREE_SPAN, type PlacementTree } from './placementTree.ts'
-import {
-  OPEN_HIGH_BITS,
-  OPEN_LOW_BITS,
-  REFIT_PARAM_WORDS,
-  TREE_REFIT_WGSL,
-} from './treeRefitWgsl.ts'
+import { REFIT_PARAM_WORDS, treeRefitWgsl, type RefitLayout } from './treeRefitWgsl.ts'
+import { DAG_BINDING, dagPartEntries } from './shader/bindings.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
-import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
-import { writeParts, type DagParts } from './split.ts'
+import type { DagParts } from './split.ts'
 import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 
 /** The nodes to fit at each level of `tree` once `groups` changed, bottom up: each level's, as
@@ -43,17 +37,25 @@ export function refitLevels(tree: PlacementTree, groups: Iterable<number>) {
   return levels
 }
 
-/** What a refit reads and writes: the tree's tables as buffers, whole, and as parts. */
+/** What a refit reads and writes: the tree's nodes and the order of its members as the device lays
+ *  them out, and the frames of each range of placements. */
 export type RefitTables = {
-  /** The tree's nodes, frames and cold words, each whole — absent where the device splits them. */
-  nodes?: GPUBuffer
-  frames?: GPUBuffer
-  cold?: GPUBuffer
   nodeParts: DagParts
+  coldParts: DagParts
+  frames: { buffers: GPUBuffer[]; ranges: readonly { first: number }[] }
 }
 
 /** Bytes a level's parameters take in their buffer: a uniform offset's alignment. */
 const PARAM_STRIDE = 256
+
+/** How `tables` lay the refit's tables out: the elements a part holds, the parts, the ranges. */
+function layoutOf({ nodeParts, coldParts, frames }: RefitTables): RefitLayout {
+  return {
+    nodes: { per: nodeParts.bytes / (DAG_NODE_FLOATS * 4), parts: nodeParts.buffers.length },
+    cold: { per: coldParts.bytes / 4, parts: coldParts.buffers.length },
+    frames: frames.ranges.map(({ first }) => first),
+  }
+}
 
 export function createTreeRefit(
   device: GPUDevice,
@@ -64,8 +66,7 @@ export function createTreeRefit(
   tree: PlacementTree,
   tables: RefitTables,
 ) {
-  const { nodes, frames, cold } = tables
-  const gpu = nodes && frames && cold ? { nodes, frames, cold } : undefined
+  const layout = layoutOf(tables)
   const worlds = Math.max(1, packed.worldCount)
   const members = device.createBuffer({
     label: 'Trillion3D placement tree leaf boxes',
@@ -78,12 +79,10 @@ export function createTreeRefit(
   device.queue.writeBuffer(members, 0, words)
   const leafWords = new Uint32Array(12)
   // Compiled off the thread as the tree is followed: the frames wait for it, none compiles it.
-  const kernel = gpu && refitKernel(device).ask()
+  const kernel = refitKernel(device, layout).ask()
   let program: ReturnType<typeof refitProgram> | undefined
   return {
     members,
-    /** Whether the refit is the pass: else it opens the chains it is given. */
-    supported: !!gpu,
     /** Placement `w`'s leaf box, its root's box through the world the CPU holds, written. */
     leaf(w: number) {
       memberBox(packed, tree, w)
@@ -93,12 +92,12 @@ export function createTreeRefit(
     /** The groups `groups` and every node above them fit again, encoded in `encoder`: the leaves
      *  they hold are those `members` holds when it runs. */
     run(encoder: GPUCommandEncoder, groups: Iterable<number>) {
-      if (!gpu) return
       const levels = refitLevels(tree, groups)
       if (!levels.length) return
-      program ??= refitProgram(device, tree, gpu, members, kernel!.get())
+      program ??= refitProgram(device, tree, tables, members, kernel.get())
       const pass = encoder.beginComputePass({ label: TREE_REFIT_PASS })
       pass.setPipeline(program.pipeline)
+      pass.setBindGroup(0, program.tables)
       let at = 0
       levels.forEach(({ level, ids }, step) => {
         const below = tree.levels[level + 1],
@@ -108,26 +107,11 @@ export function createTreeRefit(
         params.set([below?.base ?? 0, below?.count ?? 0, below ? 1 : 0], 5)
         device.queue.writeBuffer(program!.ids, at * 4, ids)
         device.queue.writeBuffer(program!.params, step * PARAM_STRIDE, params)
-        pass.setBindGroup(0, program!.groups[step])
+        pass.setBindGroup(1, program!.groups[step])
         dispatchRows(pass, ceilDiv(ids.length, 64))
         at += ids.length
       })
       pass.end()
-    },
-    /** The chains above `groups` opened, in the nodes' own words: what a device that cannot bind
-     *  the tables whole leaves its tree as. */
-    open(groups: Iterable<number>) {
-      const row = new Float32Array(DAG_NODE_FLOATS),
-        bits = new Uint32Array(row.buffer)
-      for (const { level, ids } of refitLevels(tree, groups))
-        for (const j of ids) {
-          const at = (tree.levels[level].base + j) * DAG_NODE_FLOATS * 4
-          for (let a = 0; a < 3; a++) {
-            bits[NODE_MIN + a] = OPEN_LOW_BITS
-            bits[NODE_MAX + a] = OPEN_HIGH_BITS ^ 0x80000000
-          }
-          writeParts(device, tables.nodeParts, at, row.buffer, 0, DAG_NODE_FLOATS * 4)
-        }
     },
     dispose() {
       members.destroy()
@@ -137,24 +121,36 @@ export function createTreeRefit(
   }
 }
 
-/** The refit kernel of a device, made once. */
-const refitKernel = oncePerDevice((device) =>
-  preparedComputePipeline(device, {
-    label: TREE_REFIT_PASS,
-    layout: 'auto',
-    compute: {
-      module: device.createShaderModule({ label: TREE_REFIT_PASS, code: TREE_REFIT_WGSL }),
-      entryPoint: 'main',
-    },
-  }),
-)
+/** The refit kernel of a device for a layout of its tables, made once. */
+const kernels = new WeakMap<GPUDevice, Map<string, ReturnType<typeof preparedComputePipeline>>>()
+function refitKernel(device: GPUDevice, layout: RefitLayout) {
+  const key = JSON.stringify(layout, (_, v) => (v === Infinity ? 'whole' : v))
+  const held = kernels.get(device) ?? kernels.set(device, new Map()).get(device)!
+  let kernel = held.get(key)
+  if (!kernel)
+    held.set(
+      key,
+      (kernel = preparedComputePipeline(device, {
+        label: TREE_REFIT_PASS,
+        layout: 'auto',
+        compute: {
+          module: device.createShaderModule({
+            label: TREE_REFIT_PASS,
+            code: treeRefitWgsl(layout),
+          }),
+          entryPoint: 'main',
+        },
+      })),
+    )
+  return kernel
+}
 
-/** The pipeline, the lists and the parameters of the passes, made when the first one runs, and one
- *  group per level: the tree's depth is fixed. */
+/** The pipeline's lists and parameters, made when the first pass runs: the tables' group once, and
+ *  one group of the pass's own per level — the tree's depth is fixed. */
 function refitProgram(
   device: GPUDevice,
   tree: PlacementTree,
-  gpu: { nodes: GPUBuffer; frames: GPUBuffer; cold: GPUBuffer },
+  { nodeParts, coldParts, frames }: RefitTables,
   members: GPUBuffer,
   pipeline: GPUComputePipeline,
 ) {
@@ -168,23 +164,33 @@ function refitProgram(
     size: tree.levels.length * PARAM_STRIDE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
+  // The cut's tables, each at its binding and its parts after the kernel's own range binding.
+  const tables = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: DAG_BINDING.nodes, resource: { buffer: nodeParts.buffers[0] } },
+      { binding: DAG_BINDING.cold, resource: { buffer: coldParts.buffers[0] } },
+      ...dagPartEntries({
+        nodes: nodeParts.buffers.slice(1),
+        cold: coldParts.buffers.slice(1),
+      }),
+    ],
+  })
   const groups = tree.levels.map((_, step) =>
     device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
+      layout: pipeline.getBindGroupLayout(1),
       entries: [
         {
           binding: 0,
           resource: { buffer: params, offset: step * PARAM_STRIDE, size: REFIT_PARAM_WORDS * 4 },
         },
         { binding: 1, resource: { buffer: ids } },
-        { binding: 2, resource: { buffer: gpu.nodes } },
-        { binding: 3, resource: { buffer: members } },
-        { binding: 4, resource: { buffer: gpu.frames } },
-        { binding: 5, resource: { buffer: gpu.cold } },
+        { binding: 2, resource: { buffer: members } },
+        ...frames.buffers.map((buffer, r) => ({ binding: 3 + r, resource: { buffer } })),
       ],
     }),
   )
-  return { pipeline, ids, params, groups }
+  return { pipeline, ids, params, tables, groups }
 }
 
 export type TreeRefit = ReturnType<typeof createTreeRefit>

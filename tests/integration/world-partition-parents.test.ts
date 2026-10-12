@@ -4,6 +4,7 @@
 // does (`loadModel`), finds the district by name (`getObjectByName`) and moves it 5 km, to where a
 // still camera stands. The session's per-frame step (`createPartitionFrame`) then reads the cells
 // there: every node within the camera's reach is drawn, on a row at its moved place.
+import { composeStandIn } from '../../packages/sdk-browser/src/partition/composeStandIn.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
@@ -44,7 +45,7 @@ test(
       engine: {
         worldCut: () => undefined,
         updatePlacements: (rows) => void drawn.add(rows),
-        composePlacements: () => false,
+        composePlacements: composeStandIn(),
       } as Partial<Engine> as Engine,
       renew: () => void renewed++,
       budget: { admits: () => true, spend() {} },

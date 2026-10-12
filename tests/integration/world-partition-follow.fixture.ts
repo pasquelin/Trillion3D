@@ -2,6 +2,7 @@
 // session's per-frame step (`createPartitionFrame`) on an engine stand-in that grows its rows in
 // place (`growPlacements`), as the engine does; its cell records read from disk as the runtime
 // reads them (`cellRecords`).
+import { composeStandIn } from '../../packages/sdk-browser/src/partition/composeStandIn.fixture.ts'
 import type { TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
@@ -59,7 +60,7 @@ function standIn(opened: Iterable<PlacementRows>) {
   const backend = {
     worldCut: () => undefined,
     updatePlacements() {},
-    composePlacements: () => false,
+    composePlacements: composeStandIn(),
     growsInPlace: () => true,
     growPlacements(from: PlacementRows, to: PlacementRows) {
       counts.grown++

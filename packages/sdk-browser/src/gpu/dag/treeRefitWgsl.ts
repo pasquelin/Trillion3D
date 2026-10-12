@@ -8,18 +8,22 @@
  * reach (its mark), or one of its children is open: an open box is what `OPEN` bounds say, read back
  * as such. A parked member, or a slot no placement holds, holds nothing.
  *
+ * Group 0 binds the cut's own tables as the cut binds them (`shader/bindings.ts`): `nodes` and `cold`,
+ * each at its binding, a table the device splits in its further parts at theirs (`dagPartBindings`),
+ * read through accessors — `nodeWord`, `setNodeWord`, `coldAt` — that cross the parts as the cut's do
+ * (`shader/splitWgsl.ts`). Group 1 binds the pass's own:
+ *
  *   params      uniform        the level's first id, how many, and what it fits (below)
  *   ids         array<u32>     the nodes of the level to fit, as their index within it
- *   nodes       array<u32>     the tree's nodes, `DAG_NODE_FLOATS` words each, written
  *   members     array<vec2u>   each placement's leaf box, six doubles
- *   frames      array<u32>     each placement's frame words: its root, its mark
- *   cold        array<u32>     the order of the members, from `params.members`
+ *   frames<r>   array<u32>     each placement's frame words: its root, its mark, a buffer a range
  */
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { dAbs, dAdd, dLess, dMax, dMin, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
 import { fromF32, toF32 } from '../../../../math/src/wgsl/f32.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { DAG_BINDING, dagPartBindings, type DagPartTable } from './shader/bindings.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { SELECTION_NONE } from '../core/selection.ts'
 import { FRAME_ROW_WORDS, DAG_NODE_FLOATS } from './types.ts'
@@ -46,12 +50,11 @@ const WRITE_BOX_WGSL = wgslBlock(
   [dAdd, dSub, dMul, dLess, dMax, dAbs, toF32],
   `
 fn writeBox(n:u32,opened:bool,lo:array<vec2u,3>,hi:array<vec2u,3>){
- let at=n*${DAG_NODE_FLOATS}u;
  let empty=dLess(hi[0],lo[0])||dLess(hi[1],lo[1])||dLess(hi[2],lo[2]);
  if(opened||empty){
   let low=select(${OPEN_HIGH_BITS}u,${OPEN_LOW_BITS}u,opened);
   let high=low^0x80000000u;
-  for(var a=0u;a<3u;a++){nodes[at+${NODE_MIN}u+a]=low;nodes[at+${NODE_MAX}u+a]=high;}
+  for(var a=0u;a<3u;a++){setNodeWord(n,${NODE_MIN}u+a,low);setNodeWord(n,${NODE_MAX}u+a,high);}
   return;
  }
  var reach=vec2u(0u,0u);
@@ -61,8 +64,8 @@ fn writeBox(n:u32,opened:bool,lo:array<vec2u,3>,hi:array<vec2u,3>){
  }
  let grown=dMul(reach,vec2u(${MARGIN_HIGH}u,0u));
  for(var a=0u;a<3u;a++){
-  nodes[at+${NODE_MIN}u+a]=toF32(dSub(lo[a],grown));
-  nodes[at+${NODE_MAX}u+a]=toF32(dAdd(hi[a],grown));
+  setNodeWord(n,${NODE_MIN}u+a,toF32(dSub(lo[a],grown)));
+  setNodeWord(n,${NODE_MAX}u+a,toF32(dAdd(hi[a],grown)));
  }
 }`,
 )
@@ -80,11 +83,10 @@ fn fitGroup(j:u32){
  for(var a=0u;a<3u;a++){lo[a]=vec2u(0x7ff00000u,0u);hi[a]=vec2u(0xfff00000u,0u);}
  var opened=false;
  for(var k=0u;k<gm&&!opened;k++){
-  let w=cold[params.members+first+k];
+  let w=coldAt(params.members+first+k);
   if(w==${SELECTION_NONE}u){continue;}
-  let row=w*${FRAME_ROW_WORDS}u;
-  if(frames[row+${FRAME_ROOT}u]==${SELECTION_NONE}u){continue;}
-  let mark=frames[row+${FRAME_MARK}u];
+  if(frameWord(w,${FRAME_ROOT}u)==${SELECTION_NONE}u){continue;}
+  let mark=frameWord(w,${FRAME_MARK}u);
   if((mark&${SPRITE_UNCULLED}u)!=0u||(mark>>16u)!=0u){opened=true;continue;}
   for(var a=0u;a<3u;a++){
    lo[a]=dMin(lo[a],members[w*6u+a]);
@@ -101,33 +103,125 @@ fn fitCell(j:u32){
  var opened=false;
  let end=min(first+${TREE_SPAN}u,params.childCount);
  for(var c=first;c<end&&!opened;c++){
-  let at=(params.childBase+c)*${DAG_NODE_FLOATS}u;
-  if(nodes[at+${NODE_MIN}u]==${OPEN_LOW_BITS}u){opened=true;continue;}
+  let child=params.childBase+c;
+  if(nodeWord(child,${NODE_MIN}u)==${OPEN_LOW_BITS}u){opened=true;continue;}
   for(var a=0u;a<3u;a++){
-   lo[a]=dMin(lo[a],fromF32(nodes[at+${NODE_MIN}u+a]));
-   hi[a]=dMax(hi[a],fromF32(nodes[at+${NODE_MAX}u+a]));
+   lo[a]=dMin(lo[a],fromF32(nodeWord(child,${NODE_MIN}u+a)));
+   hi[a]=dMax(hi[a],fromF32(nodeWord(child,${NODE_MAX}u+a)));
   }
  }
  writeBox(params.base+j,opened,lo,hi);
 }`,
 )
 
+/** How the tables the refit reads are laid on a device: the elements of each part of `nodes` (a
+ *  node) and `cold` (a word), the parts a table has, and the first placement of each range of
+ *  `frames`. */
+export type RefitLayout = {
+  nodes: { per: number; parts: number }
+  cold: { per: number; parts: number }
+  frames: readonly number[]
+}
+
+/** Every table whole: one part each, one range. */
+export const WHOLE_LAYOUT: RefitLayout = {
+  nodes: { per: Infinity, parts: 1 },
+  cold: { per: Infinity, parts: 1 },
+  frames: [0],
+}
+
+/** The name of part `part` of `table`: the table's own for the first (`dagPartBindings`). */
+const partName = (table: string, part: number) => (part ? `${table}${part}` : table)
+
+/** Element `i` of a table of equal parts — word `k` of a record of `words`, a word when 1 — read or
+ *  written through the part that holds it. */
+function acrossParts(table: string, { per, parts }: { per: number; parts: number }, words: number) {
+  const at = (part: number) => (part ? `(i-${part * per}u)` : 'i')
+  const index = (part: number) => (words > 1 ? `${at(part)}*${words}u+k` : at(part))
+  const target = (part: number) => `${partName(table, part)}[${index(part)}]`
+  let read = '',
+    write = ''
+  for (let part = 0; part < parts - 1; part++) {
+    const within = `if(i<${(part + 1) * per}u)`
+    read += `${within}{return ${target(part)};}`
+    write += `${within}{${target(part)}=v;return;}`
+  }
+  return {
+    read: `${read}return ${target(parts - 1)};`,
+    write: `${write}${target(parts - 1)}=v;`,
+  }
+}
+
+/** The tree's nodes as a pass in group `group` reads them: `nodes` at the cut's binding and each
+ *  further part at its own (`dagPartBindings`), `nodeWord` across them — and `setNodeWord` where the
+ *  pass `writable`ly binds them. Whole, one binding. */
+export function nodeTableBlock(
+  layout: RefitLayout['nodes'],
+  group: number,
+  writable: boolean,
+  /** The parts of every table the pass binds: the bindings number across them in turn. */
+  counts: Partial<Record<DagPartTable, number>> = { nodes: layout.parts },
+) {
+  const access = writable ? 'read_write' : 'read',
+    declare = (name: string, binding: number) =>
+      `@group(${group}) @binding(${binding}) var<storage,${access}> ${name}:array<u32>;`
+  const across = acrossParts('nodes', layout, DAG_NODE_FLOATS)
+  const key = `${layout.per}x${layout.parts} g${group}${writable ? 'w' : 'r'} ${JSON.stringify(counts)}`
+  return wgslBlock(
+    `nodeTable(${key})`,
+    [],
+    `${declare('nodes', DAG_BINDING.nodes)}
+${dagPartBindings(counts)
+  .filter(({ table }) => table === 'nodes')
+  .map(({ name, binding }) => declare(name, binding))
+  .join('\n')}
+fn nodeWord(i:u32,k:u32)->u32{${across.read}}
+${writable ? `fn setNodeWord(i:u32,k:u32,v:u32){${across.write}}` : ''}`,
+  )
+}
+
+/** The declarations and accessors of the tables a refit of `layout` reads. */
+function refitAccessBlock(layout: RefitLayout) {
+  const counts = { nodes: layout.nodes.parts, cold: layout.cold.parts },
+    extra = dagPartBindings(counts).filter(({ table }) => table === 'cold'),
+    cold = acrossParts('cold', layout.cold, 1)
+  const ranges = layout.frames
+  let frames = ''
+  ranges.forEach((first, r) => {
+    const next = ranges[r + 1]
+    const read = `return frames${r}[(w-${first}u)*${FRAME_ROW_WORDS}u+k];`
+    frames += next === undefined ? read : `if(w<${next}u){${read}}`
+  })
+  return wgslBlock(
+    `refitAccess(${JSON.stringify(layout)})`,
+    [nodeTableBlock(layout.nodes, 0, true, counts)],
+    `@group(0) @binding(${DAG_BINDING.cold}) var<storage,read> cold:array<u32>;
+${extra.map(({ name, binding }) => `@group(0) @binding(${binding}) var<storage,read> ${name}:array<u32>;`).join('\n')}
+${ranges.map((_, r) => `@group(1) @binding(${3 + r}) var<storage,read> frames${r}:array<u32>;`).join('\n')}
+fn coldAt(i:u32)->u32{${cold.read}}
+fn frameWord(w:u32,k:u32)->u32{${frames}}`,
+  )
+}
+
 /**
  * One thread per node of a level: the group or the cell `ids` names, fitted. Its dispatches run
- * bottom up in one pass: the level above reads the boxes the one below wrote.
+ * bottom up in one pass: the level above reads the boxes the one below wrote. `layout`: how the
+ * device lays the tables out; whole by default.
  */
-export const TREE_REFIT_WGSL = wgslProgram(
-  `struct Params{first:u32,count:u32,base:u32,live:u32,members:u32,childBase:u32,childCount:u32,cells:u32,}
-@group(0) @binding(0) var<uniform> params:Params;
-@group(0) @binding(1) var<storage,read> ids:array<u32>;
-@group(0) @binding(2) var<storage,read_write> nodes:array<u32>;
-@group(0) @binding(3) var<storage,read> members:array<vec2u>;
-@group(0) @binding(4) var<storage,read> frames:array<u32>;
-@group(0) @binding(5) var<storage,read> cold:array<u32>;
+export function treeRefitWgsl(layout: RefitLayout = WHOLE_LAYOUT) {
+  return wgslProgram(
+    `struct Params{first:u32,count:u32,base:u32,live:u32,members:u32,childBase:u32,childCount:u32,cells:u32,}
+@group(1) @binding(0) var<uniform> params:Params;
+@group(1) @binding(1) var<storage,read> ids:array<u32>;
+@group(1) @binding(2) var<storage,read> members:array<vec2u>;
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let i=flatIndex(g,n,64u);if(i>=params.count){return;}
  let j=ids[params.first+i];
  if(params.cells==0u){fitGroup(j);}else{fitCell(j);}
 }`,
-  [FLAT_INDEX_WGSL, FIT_WGSL],
-)
+    [FLAT_INDEX_WGSL, FIT_WGSL, refitAccessBlock(layout)],
+  )
+}
+
+/** The refit of every table whole. */
+export const TREE_REFIT_WGSL = treeRefitWgsl()

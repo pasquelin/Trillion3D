@@ -31,9 +31,9 @@
  * root's world box; the rows pass the Hi-Z corners and the world-dependent levels of detail of each
  * row (`gpuComposeDerivedWgsl.ts`); the members pass the leaf boxes the placement tree is refitted
  * over (`gpu/dag/treeRefit.ts`). The CPU readers — impostor cards, transparent depth, the winding —
- * read the lazy world of the root once a frame. What a parent's move cannot give a row — waves or a
- * soft body that read the world, a skeleton whose bones are not models' — is the owner's to write,
- * the link refused (`composeWebgpuPlacements`, `readsItsWorld`).
+ * read the lazy world of the root once a frame, as waves, a soft body and a skeleton do. A link is
+ * never refused for what reads its row: the rows no root reads — a blended surface's, or a row
+ * whose root is not built yet — are composed for their readers (`composeReaders.ts`).
  */
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
@@ -41,7 +41,7 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import {
-  COMPOSE_MEMBERS_WGSL,
+  composeMembersWgsl,
   COMPOSE_ROOTS_WGSL,
   COMPOSE_ROWS_WGSL,
   MATRIX_DOUBLES,
@@ -50,6 +50,9 @@ import {
   PART_LODS,
   PART_SPHERES,
 } from './gpuComposeWgsl.ts'
+import { DAG_BINDING, dagPartEntries } from '../gpu/dag/shader/bindings.ts'
+import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
+import type { RefitLayout } from '../gpu/dag/treeRefitWgsl.ts'
 import { composedRowInputs } from './composedRowInputs.ts'
 import { MOTION_SKIP } from './composedMotion.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
@@ -69,7 +72,7 @@ import { declareSlotMove, holdSlotBox, linkBox, remakeSlotBox } from './composeB
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { COMPOSE_MEMBERS_PASS, COMPOSE_ROOTS_PASS, COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
 import type { ComposedLeaves } from '../gpu/dag/treeFollow.ts'
-import type { DeformedMesh } from '../deformation/frame.ts'
+import { adoptReaders, dropReaders, holdReaders, writeReaders } from './composeReaders.ts'
 
 /** A compose pass's bind group and what it names: made again only when one of them moves. */
 const heldGroup = () => ({
@@ -102,6 +105,8 @@ function createComposeState(roots: number) {
     inputs: undefined as
       | { buffer: GPUBuffer; packed: Uint32Array<ArrayBuffer>; rows: number; scratch: Float64Array }
       | undefined,
+    /** The rows no root reads that a parent composes for their readers (`composeReaders.ts`). */
+    readers: new Map() as Parameters<typeof dropReaders>[0],
     /** Each linked parent's slot. */
     parentIds: new Map<object, number>(),
     /** The roots each slot linked, some since taken by another slot; the slots no parent holds. */
@@ -161,9 +166,8 @@ export function composeWebgpuPlacements(
   const { mobility } = rt.lights,
     state = composeState(rt)
   const p = state.parentIds.get(parent)
-  if (p === undefined && (!whole || !links.length)) return false
-  const ranks = linkedRanks(rt, links)
-  if (!ranks) return false
+  if (p === undefined && !links.length) return true
+  const { ranks, rooted, readers } = linkedRanks(rt, links)
   const slot = takeSlot(state, parent, p, world)
   // The shadow pages the slot's roots cover at the parent's last world: a slot linked now has
   // none of its own, its rows' CPU write in this call declares them (`webgpuPlacements.ts`). The
@@ -172,16 +176,19 @@ export function composeWebgpuPlacements(
   holdSlotBox(state, p)
   for (const rank of ranks) movingOnly &&= mobility.moves(rank)
   if (whole) movingOnly = unlinkHeld(rt, state, slot, ranks) && movingOnly
-  if (!ranks.length && whole) {
+  if (whole) dropReaders(state.readers, slot)
+  if (readers.length) holdReaders(state.readers, slot, parent, readers, whole)
+  if (!ranks.length && !readers.length && whole) {
     state.parentIds.delete(parent)
     state.freeSlots.push(slot)
     declareSlotMove(rt, state, undefined, movingOnly)
     return true
   }
-  linkRanks(rt, state, { slot, ranks, links, whole })
+  linkRanks(rt, state, { slot, ranks, links: rooted, whole })
   const relinked = ranks.length > 0 || whole
   if (relinked) remakeSlotBox(state, slot)
   settleSlot(rt, state, { slot, p, world, relinked, movingOnly })
+  writeReaders(state.readers, slot, world)
   // Poses moved and no node entered or left: the frame hears it as any engine pose write.
   rt.run.gate.engineMovedInPlace()
   return true
@@ -365,32 +372,39 @@ export function rebindComposedWorlds(rt: WebgpuPagesRuntime) {
   if (!state) return
   for (let rank = 0; rank < state.roots && rank < rt.layout.selectionRoots.length; rank++)
     if (state.parentOf[rank] !== NONE) installComposedWorld(rt, rank)
+  // The rows a root reads now are composed by the roots pass from here on.
+  const roots = rt.layout.selectionRoots
+  for (const { slot, parent, readers } of adoptReaders(state.readers, (rows, index) =>
+    rootRankOfRow(roots, rows, index),
+  ))
+    composeWebgpuPlacements(
+      rt,
+      parent,
+      state.worlds.slice(slot * 16, slot * 16 + 16),
+      readers,
+      false,
+    )
 }
 
-/** Whether a parent's move can reach what moves `link`'s row beyond its world: waves and a soft
- *  body read the world the CPU holds, a skeleton whose bones stand in the world's frame reads it
- *  too (a model's stand in its graph's: `PlacementRows.local`). */
-function readsItsWorld({ rows, index }: PlacementLink) {
-  const source = rows.sources?.[index] as DeformedMesh | null | undefined
-  return (
-    !rows.local &&
-    !!source &&
-    (!!source.waves || !!source.softSource || (!!source.skeleton && !rows.local))
-  )
-}
-
-/** The root rank of each link, or undefined when one names a row no root reads or a blended copy
- *  reads, or one whose deformation reads the world the CPU holds: the caller writes the rows
- *  itself. */
+/** The root rank of each link a root reads (`ranks`, with those links as `rooted`), and the links
+ *  whose rows only a CPU reader holds — no root reads them, or a blended copy does too: composed for
+ *  that reader (`composeReaders.ts`). A link is never refused for what reads its row: waves, a soft
+ *  body or a skeleton read the root's world, which a composed root gives as it is read. */
 function linkedRanks(rt: WebgpuPagesRuntime, links: readonly PlacementLink[]) {
-  const ranks: number[] = []
+  const ranks: number[] = [],
+    rooted: PlacementLink[] = [],
+    readers: PlacementLink[] = [],
+    blended = new Map<PlacementRows, boolean>()
   for (const link of links) {
-    if (placedBy(rt.blendState.blendGpu, link.rows) || readsItsWorld(link)) return undefined
     const rank = rootRankOfRow(rt.layout.selectionRoots, link.rows, link.index)
-    if (rank < 0) return undefined
-    ranks.push(rank)
+    if (rank >= 0) {
+      ranks.push(rank)
+      rooted.push(link)
+    }
+    if (!blended.has(link.rows)) blended.set(link.rows, placedBy(rt.blendState.blendGpu, link.rows))
+    if (rank < 0 || blended.get(link.rows)) readers.push(link)
   }
-  return ranks
+  return { ranks, rooted, readers }
 }
 
 /** The parent's slot: its own, or a new one at `world`, every per-slot table grown to hold it. */
@@ -579,17 +593,41 @@ const composeKernels = oncePerDevice((device) => {
     roots: kernel(
       device.createShaderModule({ label: 'Trillion3D compose roots', code: COMPOSE_ROOTS_WGSL }),
     ),
-    members: kernel(
-      device.createShaderModule({
-        label: 'Trillion3D compose members',
-        code: COMPOSE_MEMBERS_WGSL,
-      }),
-    ),
     rows: kernel(
       device.createShaderModule({ label: 'Trillion3D compose rows', code: COMPOSE_ROWS_WGSL }),
     ),
   }
 })
+
+/** The layout of the nodes each session's tree is followed over, as its members kernel is asked. */
+const memberLayouts = new WeakMap<WebgpuPagesRuntime, RefitLayout['nodes']>()
+
+/** The members kernel for the layout of the nodes it reads, made once for each (`nodeTableWgsl`). */
+const memberKernels = new WeakMap<
+  GPUDevice,
+  Map<string, ReturnType<typeof preparedComputePipeline>>
+>()
+function membersKernel(device: GPUDevice, nodes: RefitLayout['nodes']) {
+  const key = `${nodes.per}x${nodes.parts}`,
+    held = memberKernels.get(device) ?? memberKernels.set(device, new Map()).get(device)!
+  let kernel = held.get(key)
+  if (!kernel)
+    held.set(
+      key,
+      (kernel = preparedComputePipeline(device, {
+        label: COMPOSE_MEMBERS_PASS,
+        layout: 'auto',
+        compute: {
+          module: device.createShaderModule({
+            label: COMPOSE_MEMBERS_PASS,
+            code: composeMembersWgsl(nodes),
+          }),
+          entryPoint: 'main',
+        },
+      })),
+    )
+  return kernel
+}
 
 /** Whether a parent composes root `rank` on the GPU now, read off the one compose state: its tree
  *  group stays open while it does (`../gpu/dag/treeFollow.ts`). */
@@ -607,16 +645,29 @@ export function composedRoot(rt: Pick<WebgpuPagesRuntime, 'compose'>, rank: numb
 export function composedLeaves(rt: WebgpuPagesRuntime): ComposedLeaves {
   return {
     has: (w) => composedRoot(rt, w),
-    encode(encoder, { members, nodes }) {
+    lay: (nodes) => void memberLayouts.set(rt, nodes),
+    encode(encoder, { members, nodeParts }) {
       const state = rt.compose,
         device = rt.gpu.device,
         selection = rt.run.gpuSelection
       if (!state?.parentIds.size || !device || !selection) return
       const gpu = frameParents(rt, device)
       if (!gpu?.parents) return
-      const pipeline = composeKernels(device).members.get()
+      const layout = {
+          per: nodeParts.bytes / (DAG_NODE_FLOATS * 4),
+          parts: nodeParts.buffers.length,
+        },
+        pipeline = membersKernel(device, layout).ask().get(),
+        tables = device.createBindGroup({
+          layout: pipeline.getBindGroupLayout(1),
+          entries: [
+            { binding: DAG_BINDING.nodes, resource: { buffer: nodeParts.buffers[0] } },
+            ...dagPartEntries({ nodes: nodeParts.buffers.slice(1) }),
+          ],
+        })
       const pass = encoder.beginComputePass({ label: COMPOSE_MEMBERS_PASS })
       pass.setPipeline(pipeline)
+      pass.setBindGroup(1, tables)
       selection.worldRanges.forEach(({ first, count, frames }, r) => {
         const params = new Uint32Array([state.roots, first, count, 0])
         device.queue.writeBuffer(gpu.memberParams, r * 256, params)
@@ -629,12 +680,11 @@ export function composedLeaves(rt: WebgpuPagesRuntime): ComposedLeaves {
               { binding: 1, resource: { buffer: gpu.locals } },
               { binding: 2, resource: { buffer: gpu.parentOf } },
               { binding: 3, resource: { buffer: gpu.parents! } },
-              { binding: 4, resource: { buffer: nodes } },
               {
-                binding: 5,
+                binding: 4,
                 resource: { buffer: frames, offset: 0, size: count * PRIMITIVE_BYTES },
               },
-              { binding: 6, resource: { buffer: members } },
+              { binding: 5, resource: { buffer: members } },
             ],
           }),
         )
@@ -653,6 +703,8 @@ export function askComposedPlacements(rt: WebgpuPagesRuntime, device: GPUDevice)
   const kernels = composeKernels(device)
   kernels.roots.ask()
   kernels.rows.ask()
+  const nodes = memberLayouts.get(rt)
+  if (nodes) membersKernel(device, nodes).ask()
 }
 
 /** Parent matrices for this frame, each world in doubles; notes whether one moved since the last. */

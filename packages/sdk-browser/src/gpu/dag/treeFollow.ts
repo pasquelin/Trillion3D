@@ -11,7 +11,7 @@ import { opensTree, TREE_SPAN } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
 import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
-import { createTreeRefit } from './treeRefit.ts'
+import { createTreeRefit, type RefitTables } from './treeRefit.ts'
 
 /** Writes the tree nodes `nodes` names, ascending, in the cut's one run writer's ranges: an
  *  append's (`../dag/runtimeOps.ts`). */
@@ -29,7 +29,9 @@ export function uploadNodes(
  *  writes them all into `members`, the root boxes of `nodes` carried by the worlds it composes. */
 export type ComposedLeaves = {
   has(w: number): boolean
-  encode(encoder: GPUCommandEncoder, tables: { members: GPUBuffer; nodes: GPUBuffer }): void
+  /** The layout of the nodes the tree is followed over: the pass is asked before a frame needs it. */
+  lay(nodes: { per: number; parts: number }): void
+  encode(encoder: GPUCommandEncoder, tables: { members: GPUBuffer; nodeParts: DagParts }): void
 }
 
 /** The follower of `packed`'s tree on `resources`; none without a tree. A member of the run
@@ -41,23 +43,15 @@ export function createTreeFollower(
     packed: PackedDag
     nodeParts: DagParts
     coldParts: DagParts
-    frames: { buffers: GPUBuffer[] }
+    frames: RefitTables['frames']
   },
   leaves?: ComposedLeaves,
 ) {
   const { device, packed, nodeParts, coldParts, frames } = resources,
     tree = packed.placementTree
   if (!tree) return undefined
-  const whole =
-    nodeParts.buffers.length === 1 && coldParts.buffers.length === 1 && frames.buffers.length === 1
-  const refit = createTreeRefit(device, packed, tree, {
-    nodeParts,
-    ...(whole && {
-      nodes: nodeParts.buffers[0],
-      cold: coldParts.buffers[0],
-      frames: frames.buffers[0],
-    }),
-  })
+  const refit = createTreeRefit(device, packed, tree, { nodeParts, coldParts, frames })
+  leaves?.lay({ per: nodeParts.bytes / (DAG_NODE_FLOATS * 4), parts: nodeParts.buffers.length })
   // What moved since the tree was last read, each placement once, and the groups a composition
   // moved: fitted once, before the next cut reads the tree.
   const dirty = createSortedKeys(),
@@ -97,11 +91,10 @@ export function createTreeFollower(
       for (const w of placements ?? []) {
         if (tree.slot[w] === 0xffffffff) continue
         fit.add(Math.floor(tree.slot[w] / TREE_SPAN))
-        if (refit.supported && !leaves?.has(w)) refit.leaf(w)
+        if (!leaves?.has(w)) refit.leaf(w)
       }
-      if (!refit.supported) return refit.open(fit)
       const encoder = device.createCommandEncoder({ label: 'Trillion3D placement tree refit' })
-      leaves?.encode(encoder, { members: refit.members, nodes: nodeParts.buffers[0] })
+      leaves?.encode(encoder, { members: refit.members, nodeParts })
       refit.run(encoder, fit)
       device.queue.submit([encoder.finish()])
     },

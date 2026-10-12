@@ -36,7 +36,11 @@ test('a parent unlinked and linked anew starts from its new world: no motion fro
   frame()
   assert.equal(composeWebgpuPlacements(rt, parent, turn(0), [], true), true, 'unlinked')
   assert.deepEqual([...rt.compose!.parentOf], [NONE, NONE])
-  assert.equal(composeWebgpuPlacements(rt, parent, turn(1), [], false), false, 'holds none')
+  assert.equal(
+    composeWebgpuPlacements(rt, parent, turn(1), [], false),
+    true,
+    'holds none: nothing to follow',
+  )
   composeWebgpuPlacements(rt, parent, turn(2), links.slice(1), true)
   assert.deepEqual([...rt.compose!.parentOf], [NONE, 0], 'its slot taken again, one root')
   assert.equal(frame(), 0, 'linked at its new world: nothing moved on the GPU')

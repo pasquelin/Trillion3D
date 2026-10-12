@@ -28,6 +28,7 @@ async function followed(side = 40, composed?: Set<number>) {
   const encoded: number[] = []
   const leaves: ComposedLeaves | undefined = composed && {
     has: (w) => composed.has(w),
+    lay: () => {},
     encode: () => void encoded.push(composed.size),
   }
   const resources = (await createDagResources(gpu.device, packed))!
