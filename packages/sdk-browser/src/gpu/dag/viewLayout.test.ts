@@ -4,8 +4,8 @@ import { VIEW_BLOCK_WORDS, VIEW_UNIFORM_STRUCT, viewWord, type FieldName } from 
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { writeDagUniforms } from './uniforms.ts'
 
-test('the block holds the hundred and twelve words the uniform array strides by', () => {
-  assert.equal(VIEW_BLOCK_WORDS, 112)
+test('the block holds the hundred and sixteen words the uniform array strides by', () => {
+  assert.equal(VIEW_BLOCK_WORDS, 116)
   // The array is allocated from the same number the kernels index by: one source, no drift.
 })
 
@@ -47,9 +47,14 @@ test('every field starts where WGSL puts it, by its own alignment', () => {
     ['candCap', 68],
     ['recordCount', 69],
     ['keyCount', 70],
-    ['lightOriginHigh', 72],
-    ['lightOriginLow', 76],
-    ['lightPlanes', 80],
+    // The keys' groups and their links, then the frame the stamps are made at (`evict.ts`): the
+    // word before the next vec4 first, then three more.
+    ['groupCount', 71],
+    ['groupEdges', 72],
+    ['frame', 73],
+    ['lightOriginHigh', 76],
+    ['lightOriginLow', 80],
+    ['lightPlanes', 84],
   ]
   for (const [field, word] of asWritten) assert.equal(viewWord(field), word, field)
 })
@@ -74,6 +79,7 @@ test('the struct the kernels bind is the one the table describes, in order', () 
       'viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,admitByLevel:u32,swapRegions:u32,' +
       'worldRoot:u32,treeTop:u32,cellBase:u32,members:u32,worldLinks:u32,worldScale:f32,' +
       'heldBase:u32,heldMask:u32,candCap:u32,recordCount:u32,keyCount:u32,' +
+      'groupCount:u32,groupEdges:u32,frame:u32,' +
       'lightOriginHigh:vec4f,lightOriginLow:vec4f,lightPlanes:array<vec4f,6>,eye:array<vec4u,2>,}',
   )
   // And the shipped shader carries that exact struct, not a copy of it.

@@ -53,10 +53,13 @@ fn aheadCap()->u32{return views[0u].listCap/2u;}
 fn aheadStagedAt(s:u32)->u32{return stagedAt(views[0u].listCap)+${REQUEST_STAGED_WORDS}u*s;}
 /** A request of the view ahead (\`aheadWgsl.ts\`), due \`due\` of the horizon from now: the lower
  *  tier, on its own counter and in its own region. Past its cap it is dropped, never declared: the
- *  camera's requests keep the whole sample, and their overflow alone makes it truncated. */
-fn emitAhead(page:u32,pixels:f32,due:f32){
+ *  camera's requests keep the whole sample, and their overflow alone makes it truncated. True when
+ *  it was staged. */
+fn emitAhead(page:u32,pixels:f32,due:f32)->bool{
  let slot=atomicAdd(&out.ahead,1u);
- if(slot<aheadCap()){stage(aheadStagedAt(slot),page,aheadPriority(pixels,due));}
+ if(slot>=aheadCap()){return false;}
+ stage(aheadStagedAt(slot),page,aheadPriority(pixels,due));
+ return true;
 }
 /** True once the region ahead is full: the view ahead asks for nothing more this frame. */
 fn aheadFull()->bool{return atomicLoad(&out.ahead)>=aheadCap();}

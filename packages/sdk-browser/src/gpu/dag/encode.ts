@@ -110,6 +110,10 @@ function encodeOnce(
   arm(pass, resources)
   perRangeIndirect(pass, ranges, wantedPipeline, dispatchArgs, DAG_ARGS.cand)
   if (headOnly) {
+    // The groups it stamped raise their parents, as a whole cut's do (`shader/lastUseWgsl.ts`): the
+    // cut repeated after it finds them stamped, and raises no group again.
+    pass.setPipeline(evictPipeline)
+    pass.dispatchWorkgroups(1)
     pass.end()
     return
   }
@@ -121,7 +125,8 @@ function encodeOnce(
   // reports one flag per page but the count alone and its ranks.
   // Then the camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one
   // workgroup, in the same pass (`shader/snapshotWgsl.ts`).
-  // Last, once every page this cut uses is stamped, the eviction queue (`shader/evictWgsl.ts`).
+  // Last, once every page this cut uses is stamped and the groups replacing them raised with them
+  // (`shader/lastUseWgsl.ts`), the eviction queue (`shader/evictWgsl.ts`).
   pass.setPipeline(drawPrefixPipeline)
   pass.dispatchWorkgroups(1)
   pass.setPipeline(drawScatterPipeline)

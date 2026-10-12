@@ -41,6 +41,9 @@ export type SelectionUniforms = {
   /** The pool cannot hold the whole cut: the camera's requests rank by admission, the minimum
    *  capacity's pages then the coarsest level first (`../dag/request.ts`). */
   admitByLevel?: boolean
+  /** The host's frame, the clock each view's cut stamps what it uses with (`../dag/evict.ts`):
+   *  never compared — a cut standing still across frames is the same cut. */
+  frame?: number
 }
 /**
  * A resident cut's two lists — the camera's requests, the drawn pages — as the ranks the readback
@@ -61,6 +64,9 @@ export type SelectionResult = {
   drawablePageIds?: number[]
   /** A resident cut's eviction queue (`../dag/evict.ts`): canonical pages, first evicted first. */
   evictPageIds?: number[]
+  /** How many of its first pages are OLD: older than any page the view ahead asks for, the only
+   *  ones a page of the view ahead may take the place of. */
+  evictOld?: number
   /** The camera's requests counted by admission bucket (`../dag/readoutWords.ts`,
    *  `levelCountsWord`): where each level of a list ranked by admission starts. */
   levelCounts?: Uint32Array

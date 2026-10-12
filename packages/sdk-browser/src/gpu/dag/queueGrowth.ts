@@ -2,7 +2,7 @@ import { validationScope } from '../core/errorScope.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { cameraCutBuffers, makeDagBuffer } from './bufferTable.ts'
 import type { FlagShape } from './flagSections.ts'
-import { JOURNAL_SECTION, LAST_USE_SECTION, flagSectionPlace } from './splitFlags.ts'
+import { JOURNAL_SECTION, flagSectionPlace } from './splitFlags.ts'
 import { createDagPipeline } from './pipeline.ts'
 import { cutHeldSlots, growDagList, heldOpenAt, madeWithin, rankGroups } from './listCap.ts'
 import { regionsWanted } from './swap.ts'
@@ -52,7 +52,6 @@ export const widerFlagShape = (a: FlagShape | undefined, b: FlagShape): FlagShap
     ? {
         queueWords: Math.max(a.queueWords, b.queueWords),
         candCap: Math.max(a.candCap, b.candCap),
-        keyCount: b.keyCount,
       }
     : b
 
@@ -123,8 +122,8 @@ async function growDagFlags(resources: DagResources, shape: FlagShape, disposed:
   return true
 }
 
-/** The sections a cut keeps across cuts (`JOURNAL_SECTION`, `LAST_USE_SECTION`) copied from
- *  `resources`' flags into `parts`, cut at `cuts` for `shape`, each at its new place. */
+/** The section a cut keeps across cuts (`JOURNAL_SECTION`) copied from `resources`' flags into
+ *  `parts`, cut at `cuts` for `shape`, at its new place. */
 function carryFlags(
   resources: DagResources,
   parts: GPUBuffer[],
@@ -133,13 +132,10 @@ function carryFlags(
 ) {
   const from = resources.flagShape,
     encoder = resources.device.createCommandEncoder()
-  const words = { [JOURNAL_SECTION]: from.candCap, [LAST_USE_SECTION]: from.keyCount }
-  for (const s of [JOURNAL_SECTION, LAST_USE_SECTION]) {
-    const a = flagSectionPlace(resources.split.flagCuts, from, s),
-      b = flagSectionPlace(cuts, shape, s)
-    const source = resources.flagParts[a.part]
-    encoder.copyBufferToBuffer(source, a.word * 4, parts[b.part], b.word * 4, words[s] * 4)
-  }
+  const a = flagSectionPlace(resources.split.flagCuts, from, JOURNAL_SECTION),
+    b = flagSectionPlace(cuts, shape, JOURNAL_SECTION)
+  const source = resources.flagParts[a.part]
+  encoder.copyBufferToBuffer(source, a.word * 4, parts[b.part], b.word * 4, from.candCap * 4)
   resources.device.queue.submit([encoder.finish()])
 }
 

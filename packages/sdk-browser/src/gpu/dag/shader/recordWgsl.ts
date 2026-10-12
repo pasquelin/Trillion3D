@@ -8,9 +8,10 @@ import { bitIsSet, bitWord, ceilDiv } from '../../../../../math/src/wgsl/integer
  * Cone, box and residency in a forty-eight-byte structure would be read whole by the five frame
  * passes, most of the time to take only a flag. The buffer is an array of words: the residency bit
  * sets first — one word for thirty-two pages, hence one cache line for five hundred —, then the
- * pool's list, then a content key per unique record and a word per key (`../evict.ts`), then the
- * cold records, one per UNIQUE cluster, which the opening pass reads cone and box from. No word per
- * page: a page's placement travels in the entries that carry it (`levelWgsl.ts`).
+ * pool's list, then a content key per unique record, a word and a group per key and the groups'
+ * parents (`../evict.ts`), then the cold records, one per UNIQUE cluster, which the opening pass
+ * reads cone and box from. No word per page: a page's placement travels in the entries that carry
+ * it (`levelWgsl.ts`).
  *
  * A page reaches its hot and cold records through `recordOf`: its index plus its placement's
  * shift, the third frame word (`../worlds.ts`). Ranks are those of `../layout.ts`, sole source of
@@ -28,10 +29,17 @@ fn poolBase()->u32{return 2u*residentWords();}
 /** The pool's list holds \`selectionListCap\` keys (\`../layout.ts\`), whatever the readout's cap. */
 fn recordKeyBase()->u32{return poolBase()+1u+min(views[0u].clusterCount,${SELECTION_LIST_CAP}u);}
 fn keyWordBase()->u32{return recordKeyBase()+max(1u,views[0u].recordCount);}
-fn coldBase()->u32{return keyWordBase()+max(1u,views[0u].keyCount);}
+fn keyGroupBase()->u32{return keyWordBase()+max(1u,views[0u].keyCount);}
+fn groupParentBase()->u32{return keyGroupBase()+max(1u,views[0u].keyCount);}
+fn coldBase()->u32{return groupParentBase()+views[0u].groupCount+1u+views[0u].groupEdges;}
 /** Record \`r\`'s content key, and key \`k\`'s word: its canonical page, its coarsest level. */
 fn keyOf(r:u32)->u32{return coldAt(recordKeyBase()+r);}
 fn keyWordOf(k:u32)->u32{return coldAt(keyWordBase()+k);}
+/** Key \`k\`'s group, and the groups replacing group \`g\`: from \`groupParentStart(g)\` to
+ *  \`groupParentStart(g + 1)\` of \`groupParentAt\` (\`../evict.ts\`). */
+fn groupOfKey(k:u32)->u32{return coldAt(keyGroupBase()+k);}
+fn groupParentStart(g:u32)->u32{return coldAt(groupParentBase()+g);}
+fn groupParentAt(p:u32)->u32{return coldAt(groupParentBase()+views[0u].groupCount+1u+p);}
 fn coldF(r:u32,k:u32)->f32{return bitcast<f32>(coldAt(coldBase()+r*COLD+k));}
 fn coneOf(r:u32)->vec4f{return vec4f(coldF(r,0u),coldF(r,1u),coldF(r,2u),coldF(r,3u));}
 fn boxMin(r:u32)->vec3f{return vec3f(coldF(r,4u),coldF(r,5u),coldF(r,6u));}

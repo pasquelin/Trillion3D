@@ -122,6 +122,10 @@ export function writeDagUniforms(
   ints[W('candCap')] = at.candCap ?? packed.candCount
   ints[W('recordCount')] = packed.recordCount
   ints[W('keyCount')] = packed.keyCount
+  ints[W('groupCount')] = packed.groupCount
+  ints[W('groupEdges')] = packed.groupEdges
+  // The host's frame: every view's cut of one frame stamps the same clock (`shader/lastUseWgsl.ts`).
+  ints[W('frame')] = uniforms.frame ?? 0
   // A pool short of the cut ranks the camera's requests by admission (`request.ts`).
   ints[W('admitByLevel')] = uniforms.admitByLevel ? 1 : 0
   ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)
@@ -197,6 +201,7 @@ export function parseDagOutput(
     if (levelsWord && levelsWord <= evictAt) evict.length = 0
     else readCountedList(ints, evictAt, evict)
     result.evictPageIds = evict
+    result.evictOld = Math.min(evict.length, ints[evictAt + 1] ?? 0)
   }
   return result
 }

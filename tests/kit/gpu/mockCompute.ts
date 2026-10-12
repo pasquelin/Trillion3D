@@ -147,7 +147,10 @@ export function simulateComputeDispatch(
   const frames = words(byBinding.get(DAG_BINDING.frames)!.data)
   const rootNodes = dag.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1])
   const result = evaluateDagSelectionKernel({ ...dag, worlds, rootNodes }, uniforms, resident)
-  mockEvictions(byBinding, dag).stamp([...result.pageIds, ...(result.drawablePageIds ?? [])])
+  mockEvictions(byBinding, dag).stamp(
+    [...result.pageIds, ...(result.drawablePageIds ?? [])],
+    result.aheadPageIds,
+  )
   // `dagMask` sets a draw bit for every drawn page: `dagDrawScatter` compacts them.
   const mask = writtenMask(byBinding.get(DAG_BINDING.work)!.data, dag.pageCount)
   mask.fill(0, 0, bitWords(dag.pageCount))

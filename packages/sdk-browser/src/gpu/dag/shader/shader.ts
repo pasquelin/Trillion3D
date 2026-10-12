@@ -90,7 +90,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
  }
  if(head&&i<blockCount()){atomicStore(&work[blockBase()+i],0u);atomicStore(&work[drawMaskBase()+2u*i],0u);atomicStore(&work[drawMaskBase()+2u*i+1u],0u);}
  if(head&&i<views[0u].viewCount){atomicStore(&work[viewWord(0u,i)],0u);atomicStore(&work[viewWord(2u,i)],0u);}
- if(head&&i==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
+ if(head&&i==0u){atomicStore(&work[drawnGroupsMax()],0u);clearRaised();}
  if(hasTree()){prepareTreeRoots(i);return;}
  let world=views[0u].worldCount;
  if(i>=rangeCount()*views[0u].viewCount){return;}
