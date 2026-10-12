@@ -53,7 +53,7 @@ import { FLOAT32_MIN_NORMAL } from '../../../math/src/wgsl/constants.ts'
 import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
 import { perspectiveDivide, unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
 import { vsmBlueNoiseTwo, vsmBlueNoiseWgsl } from './blueNoise.ts'
-import { VSM_CONSTANTS_WGSL } from './constants.ts'
+import { VSM_CONSTANTS_WGSL, VSM_SCREEN_RAY_MAX_STEPS } from './constants.ts'
 import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_STRUCT } from './projectionView.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec, vsmPoolLoadOf } from './resources.ts'
@@ -220,9 +220,9 @@ fn vsmSampleSceneDepth(uv:vec2f)->f32{
  let t=clampToExtent(vec2i(floor(uv*vec2f(size))),size);
  return textureLoad(vsmSceneDepth,t,0);
 }
-/** The screen-space ray cast (4 samples), its four depths read at once
- *  before any test: the samples and times are each the one before plus a step, and the reads sit side by
- *  side rather than each after the previous one's test. */
+/** The screen-space ray cast: one sample a pixel of the ray's length along its longer screen axis
+ *  (\`VSM_SCREEN_RAY_MAX_STEPS\` at most), each at the time of the one before plus a step, the first
+ *  jittered by the pixel's noise. An occluder a pixel wide is never between two samples. */
 fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,dither:f32)->f32{
  let startClip=vsmView.shiftedToClip*vec4f(rayOrigin,1.0);
  let stepClip=vsmView.shiftedToClip*vec4f(rayDirection*rayLength,0.0);
@@ -233,22 +233,16 @@ fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,dither:f32)
  let sb=vsmView.clipToBufferUv;
  let screenUvzStart=vec3f(startNdc.xy*sb.xy+sb.wz,startNdc.z);
  let screenUvzStep=vec3f(stepNdc.xy*sb.xy,stepNdc.z);
- let steps=4;
+ let reach=0.5*abs(stepNdc.xy)*vsmView.viewPixels.xy;
+ let steps=clamp(i32(ceil(max(reach.x,reach.y))),1,${VSM_SCREEN_RAY_MAX_STEPS});
  let stepJitter=dither-0.5;
  let step=1.0/f32(steps);
- let t0=stepJitter*step+step;
- let t1=t0+step;
- let t2=t1+step;
- let rayTime=vec4f(t0,t1,t2,t2+step);
  let startDepth=vsmSampleSceneDepth(screenUvzStart.xy);
- let storedDepth=vec4f(vsmSampleSceneDepth((screenUvzStart+screenUvzStep*t0).xy),vsmSampleSceneDepth((screenUvzStart+screenUvzStep*t1).xy),
-  vsmSampleSceneDepth((screenUvzStart+screenUvzStep*t2).xy),vsmSampleSceneDepth((screenUvzStart+screenUvzStep*rayTime.w).xy));
  for(var i=0;i<steps;i++){
-  let screenUvz=screenUvzStart+screenUvzStep*rayTime[i];
-  if(storedDepth[i]!=startDepth){
-   // Declared: a hit is placed a step and a half back along the ray.
-   if(screenUvz.z<storedDepth[i]){return rayLength*max(0.0,rayTime[i]-1.5*step);}
-  }
+  let rt=(f32(i+1)+stepJitter)*step;
+  let screenUvz=screenUvzStart+screenUvzStep*rt;
+  let stored=vsmSampleSceneDepth(screenUvz.xy);
+  if(stored!=startDepth&&screenUvz.z<stored){return rayLength*max(0.0,rt-1.5*step);}
  }
  return rayLength;
 }

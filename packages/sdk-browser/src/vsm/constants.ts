@@ -235,6 +235,11 @@ export const VSM_MARK_STRIDE_Y = 2
  *  height at the pixel's depth: it catches contact shadows finer than a texel. Longer catches more,
  *  and may take a near surface for an occluder. */
 export const VSM_SCREEN_RAY_SHARE = 0.015
+/** The screen ray takes one sample a pixel of its length along its longer axis, so that no
+ *  occluder a pixel wide falls between two samples (a thinner stride dots the contact shadow of a
+ *  thin edge); at most this many, the length at 2160 pixels of height and `VSM_SCREEN_RAY_SHARE`
+ *  being 16. */
+export const VSM_SCREEN_RAY_MAX_STEPS = 24
 /** A receiver moves along its normal by 0.5 thousandths of its distance to the eye (over the view's
  *  half-field tangent) before it reads the maps: a texel grows with distance, so does the offset.
  *  More lifts self-shadowing; it also detaches the contact shadows. */
