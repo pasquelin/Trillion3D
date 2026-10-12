@@ -5,7 +5,7 @@ import type { Waves } from '../../../sdk-core/src/fluids/waves.ts'
 import type { PageRec } from '../page/selection/types.ts'
 import { holdPageBoxes, releasePageBoxes } from '../webgpu/pages/render/movedGeometry.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import type { DeformationFrame } from './frame.ts'
+import type { SessionDeformation } from './session.ts'
 
 /** WGSL's sine and cosine stray from the true value by at most 2⁻¹¹ (the WGSL specification's
  *  accuracy of built-in functions): a wave moves a vertex by that share of its reach past the
@@ -53,7 +53,7 @@ function pageBox(rec: PageRec, e: ArrayLike<number>, model: Waves | null, count:
 /** One record set the waves alone bound: every placement drawing its pages, and their boxes. */
 type Group = { ranks: number[]; boxes: Float64Array }
 /** The groups of a session's deformation (`frame`), found once for its roots. */
-const plans = new WeakMap<DeformationFrame, { roots: number; groups: Group[] }>()
+const plans = new WeakMap<SessionDeformation, { roots: number; groups: Group[] }>()
 
 /** A page `PageRec.moved` may bound: a leaf — no coarser form stands for it, it stands for none,
  *  so no level of a cut reads another's bounds —, of a geometry no rewrite bounds. */
@@ -62,8 +62,12 @@ const boundable = (rec: PageRec) =>
 
 /** The record sets of `roots` every placement of which the waves alone move, their pages all
  *  boundable: the sets `PageRec.moved` bounds for every placement that reads it. */
-function groupsOf(roots: WebgpuPagesRuntime['layout']['selectionRoots'], frame: DeformationFrame) {
-  const plan = plans.get(frame)
+function groupsOf(
+  roots: WebgpuPagesRuntime['layout']['selectionRoots'],
+  deformation: SessionDeformation,
+) {
+  const { frame } = deformation,
+    plan = plans.get(deformation)
   if (plan?.roots === roots.length) return plan.groups
   const byPages = new Map<readonly PageRec[], number[]>()
   roots.forEach(({ pages }, i) => {
@@ -74,32 +78,36 @@ function groupsOf(roots: WebgpuPagesRuntime['layout']['selectionRoots'], frame: 
   const groups: Group[] = []
   for (const [pages, ranks] of byPages)
     if (
-      ranks.every((i) => frame.bases[i] && frame.wavesAlone(i) !== undefined) &&
+      ranks.every((i) => {
+        const entry = deformation.entryOf(i)
+        return frame.bases[entry] && frame.wavesAlone(entry) !== undefined
+      }) &&
       pages.every(boundable)
     )
       groups.push({ ranks, boxes: new Float64Array(pages.length * BOX_VALUES) })
-  plans.set(frame, { roots: roots.length, groups })
+  plans.set(deformation, { roots: roots.length, groups })
   return groups
 }
 
 /** Whether a placement of `group` holds a record written anew this frame (`frame.dirty`). */
-function written(group: Group, frame: DeformationFrame) {
-  for (const rank of group.ranks) if (frame.dirty[rank]) return true
+function written(group: Group, deformation: SessionDeformation) {
+  for (const rank of group.ranks)
+    if (deformation.frame.dirty[deformation.entryOf(rank)]) return true
   return false
 }
 
 /** Writes `group`'s boxes, the union over its placements; false when a pose bounds nothing. */
 function writeGroup(
   group: Group,
-  frame: DeformationFrame,
+  deformation: SessionDeformation,
   roots: { world: { elements: ArrayLike<number> }; pages: readonly PageRec[] }[],
 ) {
   const { ranks, boxes } = group
   for (let n = 0; n < ranks.length; n++) {
     const { world: placed, pages } = roots[ranks[n]],
       e = placed.elements,
-      model = frame.wavesAlone(ranks[n]) ?? null,
-      count = frame.drawnWaves(ranks[n])
+      model = deformation.frame.wavesAlone(deformation.entryOf(ranks[n])) ?? null,
+      count = deformation.frame.drawnWaves(deformation.entryOf(ranks[n]))
     if (model) invertMatrix4(inverse, e)
     for (let k = 0, at = 0; k < pages.length; k++, at += BOX_VALUES) {
       if (!pageBox(pages[k], e, model, count)) return false
@@ -121,11 +129,11 @@ function writeGroup(
  * or rest moved) keep their boxes. Any other record set — a joint, a target or a soft source among
  * its sources, a page of a coarser level or of a rewritten geometry — keeps its rest box grown by its reach, and so does one a pose bounds nothing for.
  */
-export function updateWavePages(rt: WebgpuPagesRuntime, frame: DeformationFrame) {
+export function updateWavePages(rt: WebgpuPagesRuntime, deformation: SessionDeformation) {
   const roots = rt.layout.selectionRoots
-  for (const group of groupsOf(roots, frame)) {
-    if (!written(group, frame)) continue
-    if (writeGroup(group, frame, roots)) holdPageBoxes(rt, group.ranks, group.boxes)
+  for (const group of groupsOf(roots, deformation)) {
+    if (!written(group, deformation)) continue
+    if (writeGroup(group, deformation, roots)) holdPageBoxes(rt, group.ranks, group.boxes)
     else releasePageBoxes(rt, group.ranks)
   }
 }
