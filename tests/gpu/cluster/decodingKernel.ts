@@ -12,7 +12,7 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts'
 import {
   FLAG_CLUSTER_PAGE,
-  PAGE_INFO_STRIDE,
+  ROW_WORDS,
 } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -24,8 +24,7 @@ import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/c
 const SLOT_WORDS = 13
 /** Words of a page-table row, and the two the decode reads: its flags, and its slot offset —
  *  `PageInfo.pageOffset`, the word before its index count. */
-const ROW_WORDS = PAGE_INFO_STRIDE / 4,
-  ROW_OFFSET_WORD = ROW_INDEX_WORDS - 1
+const ROW_OFFSET_WORD = ROW_INDEX_WORDS - 1
 
 /** Words a decoded vertex occupies in the readback: position, normal, uv, uv1, colour. */
 export const VERTEX_WORDS = 14

@@ -7,7 +7,7 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { BIN_BACK, CULL_BINS, DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts'
 import type { GpuDraw } from '../../gpu/draw/draw.ts'
 import { createDrawItemWordsHold, refreshDrawItemWords, sendDrawItemWords } from './itemWords.ts'
-import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { FLAG_MASK, ROW_WORDS } from '../../visibility/buffer.ts'
 import { ROW_FLAGS_WORD } from '../row/pageRow.ts'
 import { runsOf } from '../row/dirty.fixture.ts'
 import { createDirtyRows } from '../row/dirty.ts'
@@ -28,7 +28,7 @@ function runtime(n: number, drawLayerSlots: number) {
       packedCount: n,
       packedRecs,
       packedPageIndex: Int32Array.from({ length: n }, (_, i) => 100 + i),
-      pageTableInts: new Uint32Array((Math.max(1, n) * PAGE_INFO_STRIDE) / 4),
+      pageTableInts: new Uint32Array(Math.max(1, n) * ROW_WORDS),
       forEachDirtyRun: dirty.forEachRun,
     },
     selectionRoots: [{ world: new G.Matrix4() }],
@@ -141,7 +141,7 @@ test('no row: nothing is written and nothing is to send', () => {
 test("a cutout row's bin word is its face mode's cutout bin, rewritten with the row", () => {
   const a = runtime(6, 3)
   const cut = (row: number, on: boolean) => {
-    a.layout.rows.pageTableInts[(row * PAGE_INFO_STRIDE) / 4 + ROW_FLAGS_WORD] = on ? FLAG_MASK : 0
+    a.layout.rows.pageTableInts[row * ROW_WORDS + ROW_FLAGS_WORD] = on ? FLAG_MASK : 0
     a.dirty.mark(row)
   }
   // Every other row's bin is its face mode: the partition and the compaction count and place the

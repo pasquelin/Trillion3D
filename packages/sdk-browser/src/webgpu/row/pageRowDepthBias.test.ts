@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from '../pages/pages.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/buffer.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
@@ -29,7 +29,6 @@ test('writePageRow writes the layer bias in positive units at the table row dept
     await backend.flush?.()
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')
     assert.ok(table, 'the page table is allocated once')
-    const words = PAGE_INFO_STRIDE / 4
     const rows = new Uint32Array(
       table!.data.buffer,
       table!.data.byteOffset,
@@ -38,7 +37,7 @@ test('writePageRow writes the layer bias in positive units at the table row dept
     let sawPositiveBias = false,
       sawZeroBias = false
     for (let row = 0; row < table!.size / PAGE_INFO_STRIDE; row++) {
-      const base = row * words,
+      const base = row * ROW_WORDS,
         indexCount = rows[base + 25]
       if (!indexCount) continue
       const bias = rows[base + 60]

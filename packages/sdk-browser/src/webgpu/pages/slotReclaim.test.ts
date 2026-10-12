@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/buffer.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { camera } from './testScenes.fixture.ts'
@@ -86,8 +86,7 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
     maxResidentPages: 6,
     viewport: [32, 32],
   })
-  const view = camera(),
-    words = PAGE_INFO_STRIDE / 4
+  const view = camera()
   const look = (x: number) => {
     view.position.set(x, 0, 5)
     view.lookAt(x, 0, 0)
@@ -112,7 +111,7 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
     const seen = new Set<number>(),
       slots = new Set<number>()
     for (let row = 0; row < table.size / PAGE_INFO_STRIDE; row++) {
-      const base = row * words,
+      const base = row * ROW_WORDS,
         indexCount = rows[base + 25]
       if (!indexCount) continue
       // A live row names itself, so a recycled row cannot be read through the identifier of its predecessor.

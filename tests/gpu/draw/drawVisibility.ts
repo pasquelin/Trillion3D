@@ -2,7 +2,7 @@
 // (`visLayoutEntries`): a page table of one-triangle pages laid on a grid, each row written through
 // the engine's row words, and one uniform block per indirect slot plus one for the direct path.
 import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/src/visibility/visWords.ts'
-import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
 import {
   ROW_HIZ_SLOT_WORD,
   ROW_ID_BASE_WORD,
@@ -35,11 +35,10 @@ export const pageOfId = (id: number) => (id >>> VIS_TRIANGLE_BITS) - 1
 /** The page table: each page's world matrix places its triangle in a grid cell, three indices,
  *  its identifiers' base, and no Hi-Z slot. */
 function pageTable() {
-  const words = PAGE_INFO_STRIDE / 4
-  const table = new Float32Array(PAGES * words),
+  const table = new Float32Array(PAGES * ROW_WORDS),
     ints = new Uint32Array(table.buffer)
   for (let page = 0; page < PAGES; page++) {
-    const base = page * words
+    const base = page * ROW_WORDS
     const [x, y] = [
       (((page % COLUMNS) + 0.5) * 2) / COLUMNS - 1,
       1 - ((Math.floor(page / COLUMNS) + 0.5) * 2) / ROWS,

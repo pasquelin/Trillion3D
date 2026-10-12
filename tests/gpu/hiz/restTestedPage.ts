@@ -13,7 +13,7 @@ import {
   VERDICT_KEPT,
   VERDICT_REJECTED,
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
-import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { heldBuffers } from '../kit/heldBuffers.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { readBuffer } from '../kit/computeReadback.ts'
@@ -68,9 +68,8 @@ export async function testRestCompaction() {
     rejected(row) ? VERDICT_REJECTED : VERDICT_KEPT,
   )
   device.queue.writeBuffer(verdicts, 0, verdictWords)
-  const pageWords = new Uint32Array((tested * PAGE_INFO_STRIDE) / 4)
-  for (let row = 0; row < tested; row++)
-    pageWords[row * (PAGE_INFO_STRIDE / 4) + HIZ_SLOT_WORD] = row
+  const pageWords = new Uint32Array(tested * ROW_WORDS)
+  for (let row = 0; row < tested; row++) pageWords[row * ROW_WORDS + HIZ_SLOT_WORD] = row
   device.queue.writeBuffer(restPages, 0, pageWords)
   const counted = new Uint32Array(STATE_WORDS)
   counted[ST_TESTED] = tested

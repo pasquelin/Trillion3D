@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
-import { FLAG_HAS_COLOR, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { FLAG_HAS_COLOR, PAGE_INFO_STRIDE, ROW_WORDS } from '../../../visibility/buffer.ts'
 import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../../row/pageRow.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
@@ -36,8 +36,7 @@ function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => 
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
     const floats = new Float32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
     const ints = new Uint32Array(floats.buffer, floats.byteOffset, floats.length)
-    const words = PAGE_INFO_STRIDE / 4
-    const bases = Array.from({ length: table.size / PAGE_INFO_STRIDE }, (_, row) => row * words)
+    const bases = Array.from({ length: table.size / PAGE_INFO_STRIDE }, (_, row) => row * ROW_WORDS)
     const drawn = bases.filter((base) => ints[base + ROW_INDEX_WORDS] > 0)
     assert.ok(drawn.length, 'the quad has rows')
     return {
