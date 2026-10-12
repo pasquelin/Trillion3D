@@ -9,7 +9,7 @@ import { Tabs } from '../ui/Tabs.tsx'
 import { pairedImages, sceneName, runOf } from './model/presentation.ts'
 import { engineName, runName, viewName } from './model/names.ts'
 import { Evidence } from './Evidence.tsx'
-import type { Report, ReportRecord } from './model/types.ts'
+import type { Report, ReportRecord } from '../../../bench/kit/report/types.ts'
 import type { Locale } from '../../content/locale.ts'
 
 interface SceneEvidenceProps {

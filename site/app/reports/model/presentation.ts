@@ -1,6 +1,10 @@
 import type { Locale } from '../../../content/locale.ts'
 import { engineName, runName, viewName } from './names.ts'
-import type { Report, ReportRecord, SourceReadingRecord } from './types.ts'
+import type {
+  Report,
+  ReportRecord,
+  SourceReadingRecord,
+} from '../../../../bench/kit/report/types.ts'
 
 /** What a reading's label reads: a report record carries it all, a source reading part of it. */
 type Reading = Pick<SourceReadingRecord, 'runId' | 'engine' | 'view' | 'quality' | 'canvas'>

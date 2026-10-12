@@ -1,7 +1,7 @@
 import { wordsOf } from '../../i18n.ts'
 import type { Locale } from '../../../content/locale.ts'
-import type { MetricKey } from './metrics.ts'
-import type { ReportRecord } from './types.ts'
+import type { MetricKey } from '../../../../bench/kit/report/metrics.ts'
+import type { ReportRecord } from '../../../../bench/kit/report/types.ts'
 
 /** Why `record` has no `metric`, in `locale`'s words. */
 export function missingMetric(

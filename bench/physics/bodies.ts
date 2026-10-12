@@ -49,8 +49,8 @@ const STEPS = 3600
 /** The fall-and-landing window whose steps are averaged: the first 3 simulated seconds. */
 const WINDOW = 180
 
-/** The example's scene as command words: a stone floor, then `count` wooden boxes in ten layers,
- *  laid out by the same seeded sequence (`site/examples/ten-thousand-bodies.html`). */
+/** The scene as command words: a stone floor, then `count` wooden boxes in ten layers, laid out by
+ *  a seeded sequence. */
 function scene(count: number) {
   const writer = new CommandWriter()
   const body = (id: number, motion: number, position: number[], turn: Quaternion, half: number) => {

@@ -2,7 +2,7 @@
 
 Two benches, one per question:
 
-- **Frame time: the GPU bench on Dawn** (`bench/dawn/`). The engine draws a site page in Node on
+- **Frame time: the GPU bench on Dawn** (`bench/dawn/`). The engine draws a scene page in Node on
   this machine's GPU through Dawn, the WebGPU implementation Chrome runs, with no browser, playing a
   scenario identical frame for frame. It is the timing bench.
 - **Images and witnesses: the Chrome harness** (`bench/runner/`, this folder). Playwright drives
@@ -25,12 +25,13 @@ budgets, `null` for the unmeasured, CPU and GPU never added):
     pnpm run test:gpu                  # the GPU proofs on Dawn (bench/dawn/proofs.ts)
     pnpm run test:chrome               # the proofs Dawn cannot run, in Chrome
 
-`<page>` is an example's name (`drive-a-car`), a path, or a held-out validation page's prefix
+`<page>` is a bench scene's name (`bench/kit/scenes/`), a path, or a held-out validation page's prefix
 (`v06`) with `TRILLION3D_VALIDATION_DIR` set. Each run plays `--repeat` fresh processes; `--engine
-<checkout>` measures another clean checkout. **One scene carries the whole bench**: the example
-`an-open-world-of-every-cost`, played by the scenario `world` — an open world of blocks, a dense
-pebble bed under a low sun, transparents, lamps, TAA — every part a switch in the gallery, so it is
-seen and checked before it is measured. `suite.ts` runs that scene by default and a list of at most
+<checkout>` measures another clean checkout. **One scene carries the whole bench**: its own scene
+`an-open-world-of-every-cost` (`bench/kit/scenes/`), played by the scenario `world` — an open world
+of blocks, a dense pebble bed under a low sun, transparents, lamps, TAA — every part a switch. A page
+reads the bench's kit (`bench/kit/index.ts`) as `../runtime/kit.js`: a seeded sequence and its
+settings at their declared start. `suite.ts` runs that scene by default and a list of at most
 five (`MAX_SCENES`, `bench/dawn/suiteRuns.ts`): a longer list is refused, no option lifts it.
 Method: one scene first, then the five, never a full sweep; stop at the first bad scene.
 `--profile desktop|mobile` sets what the device grants (display, limits, features,
@@ -344,7 +345,8 @@ GPU deformation time, geometry allocation, VRAM bytes; no GPU timestamps means `
 
 ## Published reports
 
-Measurement, export and site build are separate; rebuilding the portal never launches Chrome.
+Measurement, export and the site's build are separate; the report's format is the bench's
+(`bench/kit/report/`), which the site reads.
 
 1. Run `node bench/runner/campaign.ts --out .mesure/out/<campaign>` on a built engine. Resuming
    needs the same arguments, repository state, built JavaScript, asset manifest, browser version and
@@ -352,10 +354,9 @@ Measurement, export and site build are separate; rebuilding the portal never lau
 2. Export: `node bench/runner/summary/summaryGlobal.ts --from .mesure/out/<campaign> --to
    .mesure/out/<campaign>-report --id <campaign>` (defaults: `.mesure/out/global`,
    `<from>/report-data`, `current`).
-3. Stage: `node bench/runner/report/publishReport.ts --from .mesure/out/<campaign>-report` writes
-   `site/reports/<id>/`, replaces the campaign staged before and writes the catalogue; an ID already
-   staged is refused. No deploy, no push.
-4. Preview with `pnpm docs:serve`.
+3. Stage: `node bench/runner/report/publishReport.ts --from .mesure/out/<campaign>-report --to
+   <site checkout>/site` writes `reports/<id>/` there, replaces the campaign staged before and writes
+   the catalogue; an ID already staged is refused. No deploy, no push.
 
 `formatVersion: 1` holds runs and readings, original PNGs and public source JSON (no filesystem
 paths or commands). The portal shows named-engine charts, image pairs as sliders, every scene and

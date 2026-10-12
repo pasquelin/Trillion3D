@@ -1,6 +1,6 @@
-import { metricValue } from './metrics.ts'
-import type { MetricKey } from './metrics.ts'
-import type { ReportRecord } from './types.ts'
+import { metricValue } from '../../../../bench/kit/report/metrics.ts'
+import type { MetricKey } from '../../../../bench/kit/report/metrics.ts'
+import type { ReportRecord } from '../../../../bench/kit/report/types.ts'
 
 /** Explicit reading thresholds, never relative engine rankings or inferred FPS. */
 export function assessment(record: ReportRecord, metric: MetricKey) {

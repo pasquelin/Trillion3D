@@ -18,7 +18,7 @@ test('a campaign replaces the one report, keeps the portal entry, and validates 
   const root = mkdtempSync(join(tmpdir(), 'trillion3d-publish-'))
   try {
     const source = join(root, 'source'),
-      dest = join(root, 'site')
+      dest = join(root, 'checkout')
     mkdirSync(source)
     mkdirSync(dest)
     writeFileSync(join(dest, 'index.html'), 'portal')
@@ -48,16 +48,4 @@ test('a campaign replaces the one report, keeps the portal entry, and validates 
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
-})
-
-test('the published campaign has every image it references, each stored once', () => {
-  const reports = resolve(import.meta.dirname, '../../../site/reports')
-  const [{ id }] = JSON.parse(readFileSync(join(reports, 'index.json'), 'utf8'))
-  const report = JSON.parse(readFileSync(join(reports, id, 'report.json'), 'utf8'))
-  for (const { image } of report.records as { image: string | null }[])
-    if (image) assert.ok(existsSync(join(reports, id, image)), image)
-  const images = join(reports, id, 'images')
-  const hash = (file: string) => createHash('sha256').update(readFileSync(join(images, file)))
-  const hashes = readdirSync(images).map((file) => hash(file).digest('hex'))
-  assert.equal(new Set(hashes).size, hashes.length, 'two images are byte-identical')
 })

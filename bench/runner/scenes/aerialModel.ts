@@ -2,7 +2,7 @@
 // few props thousands of nodes share — trees, houses, rocks — each turned on the lathe from a
 // profile, so a triangle count is asked of it and reached. Every mesh is indexed, with smooth
 // normals; the ground's tiles read one height function, so two neighbours meet without a seam.
-import type { Random } from '../../../site/examples/kit/random.ts'
+import type { Random } from '../../../packages/math/src/sequence/random.ts'
 import { computeNormals } from '../../../packages/sdk-core/src/world/geometry/normals.ts'
 import { lerp } from '../../../packages/math/src/scalar/reals.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'

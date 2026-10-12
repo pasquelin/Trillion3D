@@ -4,7 +4,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { RACINE, baselinePath, dossierBaselines } from './paths.ts'
-import type { Measurement } from '../../site/examples/kit/measureTypes.ts'
+import type { Measurement } from '../kit/measureTypes.ts'
 
 /** One stored baseline row, keyed by measurement/case pair. */
 interface BaselineRow {

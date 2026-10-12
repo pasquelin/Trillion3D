@@ -3,9 +3,9 @@ import { Section } from '../ui/Text.tsx'
 import { Table } from '../ui/Table.tsx'
 import { readingName } from './model/presentation.ts'
 import { Cut } from './Cut.tsx'
-import { formatValue } from './model/metrics.ts'
+import { formatValue } from './model/format.ts'
 import { Alert } from '../ui/Alert.tsx'
-import type { Report, ReportRecord, TimingStat } from './model/types.ts'
+import type { Report, ReportRecord, TimingStat } from '../../../bench/kit/report/types.ts'
 import type { Locale } from '../../content/locale.ts'
 
 interface DetailsProps {

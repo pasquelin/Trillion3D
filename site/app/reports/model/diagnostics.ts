@@ -1,5 +1,5 @@
-import { readPath } from './contract.ts'
-import type { ReportRecord } from './types.ts'
+import { readPath } from '../../../../bench/kit/report/contract.ts'
+import type { ReportRecord } from '../../../../bench/kit/report/types.ts'
 
 /** Domain groups stay explicit: these counters are not interchangeable memory totals. Each group
  *  and field is named by `report.diagnostics.<id>`; a field is `[id, path, unit]`. */

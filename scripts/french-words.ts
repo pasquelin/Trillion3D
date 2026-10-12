@@ -33,7 +33,7 @@ export interface FrenchException {
 
 const PERF_FORMAT: FrenchException = {
   reason:
-    'a key of the bench perf measurement format (`site/examples/kit/measureTypes.ts`), written by ' +
+    'a key of the bench perf measurement format (`bench/kit/measureTypes.ts`), written by ' +
     '`bench/core/measure.ts` and `bench/perf`, read by `bench/runner/perf`, `bench/oracles` and ' +
     "`site/examples/kit/verdict.ts`, and stored in each machine's `.mesure/baselines`: listed " +
     'until renamed together with its readers',

@@ -1,4 +1,8 @@
-import type { ReportCanvas, ReportSource, SourceReadingRecord } from './types.ts'
+import type {
+  ReportCanvas,
+  ReportSource,
+  SourceReadingRecord,
+} from '../../../../bench/kit/report/types.ts'
 
 interface SourceSideMeasurement {
   engine?: string

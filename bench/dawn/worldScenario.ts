@@ -1,10 +1,9 @@
-// The bench's one scene is a page of the examples (`site/examples/an-open-world-of-every-cost.html`):
-// an open world carrying every cost the engine counts at once, each part a switch, so it is seen and
-// checked in the gallery before it is measured. The scenario `world` flies over it, low, and holds
-// still. The page is the only source: the bench builds no scene of its own.
+// The bench's one scene, its own page (`bench/kit/scenes/an-open-world-of-every-cost.html`): an open
+// world carrying every cost the engine counts at once, each part a switch. The scenario `world`
+// flies over it, low, and holds still.
 import type { Scenario } from './scenario.ts'
 
-/** The example the bench plays by default. */
+/** The scene the bench plays by default. */
 export const BENCH_SCENE = 'an-open-world-of-every-cost'
 
 const pose = (position: [number, number, number], target: [number, number, number]) => ({

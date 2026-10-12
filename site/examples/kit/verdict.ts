@@ -1,4 +1,4 @@
-import { resultRow, type Measurement, type ResultRow } from './measureTypes.ts'
+import { resultRow, type Measurement, type ResultRow } from '../../../bench/kit/measureTypes.ts'
 import { failures } from './failure.ts'
 import { spread } from './profile.ts'
 import { statsCard } from './stats.ts'
