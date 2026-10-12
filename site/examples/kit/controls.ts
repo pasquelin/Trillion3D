@@ -4,35 +4,9 @@ import { stats } from './stats.ts'
 import type { StatsWorld } from './statsLines.ts'
 import { exampleWord, kitWord, labelOf } from './words.ts'
 
-/**
- * What an example declares for one control, its kind read from the value: `[min, max, value]` or
- * `[min, max, value, step]` a slider, `'#rrggbb'` a colour picker, any other text a line of help
- * (the keys to press), `true`/`false` a toggle, `['a', 'b', …]` a choice starting on its first
- * option, a function a button. */
-export type ControlSpec =
-  | readonly [number, number, number]
-  | readonly [number, number, number, number]
-  | string
-  | boolean
-  | readonly string[]
-  | (() => void)
-
-/** The live value of a declared control: a button has none, a line of help its text. */
-type ControlValue<Spec> = Spec extends readonly number[]
-  ? number
-  : Spec extends readonly string[]
-    ? string
-    : Spec extends boolean
-      ? boolean
-      : Spec extends `#${string}`
-        ? string
-        : never
-
-export type ControlValues<Specs> = {
-  -readonly [
-    Key in keyof Specs as [ControlValue<Specs[Key]>] extends [never] ? never : Key
-  ]: ControlValue<Specs[Key]>
-}
+// The declared settings and their values are the bench kit's (`bench/kit/index.ts`): one home.
+import type { ControlSpec, ControlValues } from '../../../bench/kit/index.ts'
+export type { ControlSpec, ControlValues }
 
 /** One control as the panel draws it. */
 type Control =
