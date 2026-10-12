@@ -18,6 +18,8 @@ pub mod cut_error;
 pub mod deform;
 pub mod encode;
 pub mod hash;
+mod page_error;
+pub use page_error::PageError;
 pub mod math;
 pub mod min_ball;
 pub mod normal_cone;
@@ -60,29 +62,6 @@ pub const FLAG_COLOR: u32 = 8;
 /// The index/weight streams name simulated vertices, never joints. Requires FLAG_SKIN.
 pub const FLAG_SOFT_SOURCE: u32 = 64;
 pub const FLAGS_ALL: u32 = 127;
-
-/// Refusal causes, in the order the decoder raises them. `code` is what crosses the WebAssembly
-/// ABI: the `GEOMETRY_PAGE_*` message of the loader's error.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u32)]
-pub enum PageError {
-    Header = 1,
-    Version = 2,
-    Bounds = 3,
-    Index = 4,
-}
-
-impl PageError {
-    /// The refusal's code, as the loader throws it.
-    pub fn code(self) -> &'static str {
-        match self {
-            PageError::Header => "GEOMETRY_PAGE_HEADER",
-            PageError::Version => "GEOMETRY_PAGE_VERSION",
-            PageError::Bounds => "GEOMETRY_PAGE_BOUNDS",
-            PageError::Index => "GEOMETRY_PAGE_INDEX",
-        }
-    }
-}
 
 /// A page header, once its twenty-five words, and the records of its morph targets, have been
 /// read and every bound accepted.
