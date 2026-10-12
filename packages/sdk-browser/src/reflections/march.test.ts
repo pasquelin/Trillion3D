@@ -3,7 +3,7 @@
 // slab through the side of a pixel, through a gap, on a depth thinner than a pixel, on a pixel's
 // plane, never on the pixel centres a ray skims in front of, never in the pixel it leaves; a ray
 // behind a slab passes behind it and goes on to what lies past; a miss in front of everything — each
-// within its bound, the iterations of the screen distance covered (`reflectionBudget`).
+// within its bound, the iterations of the screen distance covered (`screenMarchBudget`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { reflectionConstant } from './constants.fixture.ts'
@@ -30,14 +30,14 @@ function marcher(width: number, height: number, depth: (x: number, y: number) =>
      *  read, and the iterations it may take. */
     hit(o: number[], d: number[]) {
       run.counter.loads = 0
-      const end = run.reflectionScreenEnd(o.slice(0, 2), d.slice(0, 2), size)
-      const { t, plane } = run.reflectionMarch(o, d, end)
+      const end = run.screenMarchEnd(o.slice(0, 2), d.slice(0, 2), size)
+      const { t, plane } = run.screenMarch(o, d, end, run.thickness, run.slab)
       const at = t < 0 ? undefined : o.map((x, k) => x + d[k] * t)
       return {
         at,
         depth: plane[0],
         loads: run.counter.loads,
-        bound: run.reflectionBudget(d, end, field.levels.level[0][3]),
+        bound: run.screenMarchBudget(d, end, field.levels.level[0][3]),
       }
     },
   }

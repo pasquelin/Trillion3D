@@ -3,10 +3,10 @@ import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
 import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_WGSL } from './field.ts'
 import { reflectionFootprintWgsl } from './footprint.ts'
-import { reflectionGeometryWgsl } from './geometry.ts'
-import { REFLECTION_MARCH_WGSL } from './march.ts'
 import { reflectionRayWgsl } from './ray.ts'
 import { reflectionProxyWgsl } from './proxy.ts'
+import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
+import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
 
 /**
  * THE REFLECTION: ONE SYSTEM FOR EVERY SURFACE. What a surface reflects along its mirror direction
@@ -29,7 +29,7 @@ import { reflectionProxyWgsl } from './proxy.ts'
  * count of images, a seed or a history of its own, so two images of a still view give the same
  * bits.
  *
- * - `march.ts`: the hierarchical march of the depth pyramid, and where it hits;
+ * - `gpu/hiz/screenMarch.ts`: the engine's hierarchical march of the depth pyramid, and where it hits;
  * - `footprint.ts`: the cone of the lobe, the footprint it reads of the radiance pyramid
  *   (`radiance.ts`), and the fades that make the screen's answer a confidence;
  * - `proxy.ts`: the proxy's answer;
@@ -54,9 +54,8 @@ const reflectionSeenWgsl = (group: number) =>
     `reflectionSeenWgsl(${group})`,
     [
       reflectionFootprintWgsl(group),
-      reflectionGeometryWgsl(group),
       reflectionRayWgsl(group),
-      REFLECTION_MARCH_WGSL(group),
+      SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING),
       clipToFramebuffer,
     ],
     `struct ReflectionSeen{color:vec3f,confidence:f32,}
@@ -65,7 +64,7 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  let size=view.viewport.xy;
  let scale=reflectionView.slab.x;
  let ray=reflectionRay(P,N,lobe);
- let marched=reflectionMarch(ray.o,ray.d,ray.end);
+ let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.slab);
  if(marched.t<0.0||marched.plane.x<=0.0){return seen;}
  let H=ray.o+ray.d*marched.t;
  let depth=marched.plane.x+dot(H.xy-marched.pixel,marched.plane.yz);
@@ -84,7 +83,7 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  let ratio=size/reflectionView.radiance.xy;
  let toView=vec4f(marched.pixel-Q*ratio,vec2f(textureDimensions(reflectionRadiance))*ratio);
  // The hit's surface: its plane across the image, a footprint's width deep on either side.
- let surface=ReflectionSurface(marched.pixel,marched.plane,max(depth-reflectionBack(depth,cone.long),1e-30));
+ let surface=ReflectionSurface(marched.pixel,marched.plane,max(depth-screenBack(depth,cone.long,reflectionView.slab),1e-30));
  let taps=reflectionFootprint(Q,hit,pixel,lobe,cone,toView,surface);
  if(!(taps.color.a>0.0)){return seen;}
  seen.color=taps.color.rgb/taps.color.a;

@@ -90,7 +90,7 @@ export const TILE_ID_BYTES = 4
 /** The marking pass: a pixel of four (a stride of 2 each way), its depth, normal and flags read. */
 export const MARK_STRIDE = 4,
   MARK_BYTES = 4 + 8 + 1
-/** The reflection's march of a reflecting pixel (`reflectionMarch`): its iterations, 16 on average
+/** The reflection's march of a reflecting pixel (`screenMarch`): its iterations, 16 on average
  *  and 35 at the 99th percentile over the proof scenes, each reading a cell of the depth pyramid —
  *  the finished depth's farthest and the nearest, or at level 0 the depth and the slopes —, two
  *  texels. The model counts the mean; what a pass takes above it holds the tail. */

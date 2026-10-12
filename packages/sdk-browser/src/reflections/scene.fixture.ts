@@ -8,6 +8,7 @@ import { depthField, type DepthField } from './depthField.fixture.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
 import { reflectionLightViewWgsl, REFLECTION_GROUP } from './viewLayout.ts'
 import { slabWords } from './slab.fixture.ts'
+import { reflectionConstant } from './constants.fixture.ts'
 import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
 
 type Seen = { color: number[]; confidence: number }
@@ -68,13 +69,15 @@ export function reflectionRunner(
     reflectionLobeOf: (R: V3, alpha: number, lobe: number[]) => Lobe
     reflectionSeen: (P: V3, N: V3, lobe: Lobe) => Seen
     reflectionRay: (P: V3, N: V3, lobe: Lobe) => { o: number[]; d: number[]; end: number }
-    reflectionMarch: (
+    screenMarch: (
       o: number[],
       d: number[],
       end: number,
-    ) => { t: number; plane: number[]; pixel: number[]; into: number }
-    reflectionScreenEnd: (o: number[], d: number[], size: number[]) => number
-    reflectionBudget: (d: number[], end: number, levels: number) => number
+      thickness: number,
+      slab: number[],
+    ) => { t: number; plane: number[]; pixel: number[] }
+    screenMarchEnd: (o: number[], d: number[], size: number[]) => number
+    screenMarchBudget: (d: number[], end: number, levels: number) => number
     reflectionConeAt: (distance: number, pixel: number, lobe: Lobe) => Cone
     reflectionFootprint: (
       Q: number[],
@@ -99,7 +102,7 @@ export function reflectionRunner(
       'reflectionLevelColor',
       'reflectionDepthWeight',
       'reflectionRay',
-      'reflectionMarch',
+      'screenMarch',
       'hizPlane',
       'hizCell',
       'hizLevelCount',
@@ -108,9 +111,9 @@ export function reflectionRunner(
       'hizWholeFarthest',
       'hizSlice',
       'hizTexel',
-      'reflectionScreenEnd',
-      'reflectionBack',
-      'reflectionBudget',
+      'screenMarchEnd',
+      'screenBack',
+      'screenMarchBudget',
       'worldAt',
       'viewToEye',
       'reflectionLevelTrust',
@@ -133,12 +136,7 @@ export function reflectionRunner(
         widths,
       }),
       ReflectionRay: (o: number[], d: number[], end: number) => ({ o, d, end }),
-      ReflectionHit: (t: number, plane: number[], pixel: number[], into: number) => ({
-        t,
-        plane,
-        pixel,
-        into,
-      }),
+      ScreenHit: (t: number, plane: number[], pixel: number[]) => ({ t, plane, pixel }),
       ReflectionCone: (short: number, long: number, level: number) => ({ short, long, level }),
       ReflectionTaps: (color: number[], weight: number) => ({ color, weight }),
       ReflectionSurface: (pixel: number[], plane: number[], thickness: number) => ({
@@ -168,7 +166,14 @@ export function reflectionRunner(
       ...overrides,
     },
   )
-  return { ...run, counter, levels: depth.levels.count[0] }
+  return {
+    ...run,
+    counter,
+    levels: depth.levels.count[0],
+    /** The view's slab words and the thickness the reflection marches with. */
+    slab: reflectionView.slab,
+    thickness: reflectionConstant('REFLECTION_THICKNESS'),
+  }
 }
 
 /** The depth `depth` seen by `view`, and its views: what the shipped reflection runs over. */

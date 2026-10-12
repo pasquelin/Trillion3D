@@ -3,7 +3,7 @@ import type { HeldImage } from './radiance.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 
 /** The slab words the shipped writer stages for the view-projection `m` of an image of `size`
- *  (`reflectionSlab` behind `createReflectionViewWriter`). */
+ *  (`screenSlab` behind `createReflectionViewWriter`). */
 export function slabWords(m: ArrayLike<number>, size: readonly [number, number]) {
   let written = new Float32Array(0)
   const device = {
