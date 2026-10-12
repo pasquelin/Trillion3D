@@ -7,6 +7,7 @@
 import * as THREE from 'three'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { dansDe } from './scenesCore.ts'
+import { hostileChains } from './hostileHierarchy.ts'
 import { boxes } from './scenesVolumes.ts'
 import { length3 } from '../../../../packages/math/src/vector/vector.ts'
 import { HALF_PI } from '../../../../packages/math/src/constants.ts'
@@ -36,16 +37,11 @@ function node(depth: number) {
 const root = new THREE.Object3D(),
   nodes: THREE.Object3D[] = []
 /** Depth chains 1 to 6 under the root. */
-for (let string = 0; string < 24; string++) {
-  let parent = root
-  const depth = 1 + (string % 6)
-  for (let d = 0; d < depth; d++) {
-    const n = node(d)
-    parent.add(n)
-    nodes.push(n)
-    parent = n
-  }
-}
+hostileChains({ chains: 24, branches: 0, branchDepth: 0 }, (parent, _, level) => {
+  const n = node(level)
+  ;(parent < 0 ? root : nodes[parent]).add(n)
+  return nodes.push(n) - 1
+})
 /** A multi-child branch, including a rotated parent at non-uniform scale: shear. */
 const branche = node(3)
 branche.scale.set(3, 0.25, 1)

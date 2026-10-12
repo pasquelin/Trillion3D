@@ -12,7 +12,12 @@ import {
 } from '../../../../packages/sdk-core/src/index.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { f64, referenceNormal, trs } from './coreLine.ts'
-import { MIRRORED_SCALES } from './hostileScales.ts'
+import {
+  HOSTILE_POSITIONS,
+  MIRRORED_SCALES,
+  hostileChains,
+  hostilePose,
+} from './hostileHierarchy.ts'
 
 /** A node on both sides: the reference object and the foundation buffers. */
 export interface HierarchyNode {
@@ -74,13 +79,7 @@ const ROTATIONS = [
   tourne(),
 ]
 /** Positions: origin, negative zeros, ordinary, extremes. */
-const POSITIONS = [
-  [0, 0, 0],
-  [-0, -0, -0],
-  [3, -4, 5],
-  [1e150, -1e150, 1e-300],
-  [alea() * 1000, alea() * 1000, alea() * 1000],
-]
+const POSITIONS = [...HOSTILE_POSITIONS, [alea() * 1000, alea() * 1000, alea() * 1000]]
 
 /**
  * Hostile chains: depths 1 to 6, each level drawing its scale, rotation and
@@ -90,30 +89,14 @@ const POSITIONS = [
 export function chainesHostiles(): HierarchyNode[] {
   const nodes: HierarchyNode[] = [],
     roots: THREE.Object3D[] = []
-  const add = (level: number, k: number, parent: number) => {
+  const lists = { positions: POSITIONS, rotations: ROTATIONS, scales: SCALES }
+  hostileChains({ chains: 84, branches: 12, branchDepth: 3 }, (parent, k, level) => {
     const i = nodes.length
-    nodes.push(
-      node(
-        POSITIONS[(k + level) % POSITIONS.length],
-        ROTATIONS[(k * 3 + level) % ROTATIONS.length],
-        SCALES[(k * 7 + level * 5) % SCALES.length],
-      ),
-    )
+    nodes.push(node(...hostilePose(lists, k, level)))
     if (parent >= 0) relie(nodes, i, parent)
     else roots.push(nodes[i].object)
     return i
-  }
-  for (let k = 0; k < 84; k++) {
-    let parent = -1
-    for (let level = 0; level <= k % 6; level++) parent = add(level, k, parent)
-  }
-  for (let k = 0; k < 12; k++) {
-    const branche = add(0, k, -1)
-    for (let child = 0; child < 5; child++) {
-      let parent = branche
-      for (let level = 1; level <= 3; level++) parent = add(level, k + child, parent)
-    }
-  }
+  })
   for (const root of roots) root.updateMatrixWorld(true)
   metAJour(nodes)
   return nodes

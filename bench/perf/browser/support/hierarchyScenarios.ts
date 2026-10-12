@@ -4,7 +4,12 @@
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { normalizeQuaternion } from '../../../../packages/math/src/quaternion/quaternion.ts'
 import { dansDe } from './scenesCore.ts'
-import { MIRRORED_SCALES } from './hostileScales.ts'
+import {
+  HOSTILE_POSITIONS,
+  MIRRORED_SCALES,
+  hostileChains,
+  hostilePose,
+} from './hostileHierarchy.ts'
 import type { CameraOptics } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 
 export type Vec3 = [number, number, number]
@@ -46,14 +51,7 @@ const tourne = (): Quat => {
 }
 
 /** Hostile positions, rotations and scales: ±0, extremes, NaN, infinities, mirrors, zeros. */
-const POSITIONS: Vec3[] = [
-  [0, 0, 0],
-  [-0, -0, -0],
-  [3, -4, 5],
-  [1e150, -1e150, 1e-300],
-  [NaN, 0, 1],
-  [Infinity, -Infinity, 0],
-]
+const POSITIONS: Vec3[] = [...HOSTILE_POSITIONS, [NaN, 0, 1], [Infinity, -Infinity, 0]]
 const ROTATIONS: Quat[] = [
   [0, 0, 0, 1],
   [-0, -0, -0, -1],
@@ -115,39 +113,26 @@ const finies = <T extends number[]>(list: T[]): T[] => list.filter((v) => v.ever
  * subtree and hide a delta behind a shared NaN.
  */
 export function chainesFigees(nonFinies: boolean): HierarchyOp[] {
-  const positions = nonFinies ? POSITIONS : finies(POSITIONS),
-    rotations = nonFinies ? ROTATIONS : finies(ROTATIONS),
-    scales = nonFinies ? SCALES : finies(SCALES)
+  const lists = nonFinies
+    ? { positions: POSITIONS, rotations: ROTATIONS, scales: SCALES }
+    : { positions: finies(POSITIONS), rotations: finies(ROTATIONS), scales: finies(SCALES) }
   const ops: HierarchyOp[] = [],
     roots: number[] = [],
     cameras: number[] = []
   let id = 0
   const add = (parent: number, k: number, level: number, camera: CameraSpec | null = null) => {
-    ops.push([
-      'add',
-      id,
-      parent,
-      positions[(k + level) % positions.length],
-      rotations[(k * 3 + level) % rotations.length],
-      scales[(k * 7 + level * 5) % scales.length],
-      camera,
-    ])
+    ops.push(['add', id, parent, ...hostilePose(lists, k, level), camera])
     if (parent < 0) roots.push(id)
     if (camera) cameras.push(id)
     return id++
   }
-  for (let k = 0; k < 48; k++) {
-    let parent = -1
-    for (let level = 0; level <= k % 6; level++) parent = add(parent, k, level)
-    if (k % 5 === 0) add(parent, k, 7, cameraAuHasard())
-  }
-  for (let k = 0; k < 8; k++) {
-    const branche = add(-1, k, 0)
-    for (let child = 0; child < 5; child++) {
-      let parent = branche
-      for (let level = 1; level <= 3; level++) parent = add(parent, k + child, level)
-    }
-  }
+  hostileChains(
+    { chains: 48, branches: 8, branchDepth: 3 },
+    (parent, k, level) => add(parent, k, level),
+    (last, k) => {
+      if (k % 5 === 0) add(last, k, 7, cameraAuHasard())
+    },
+  )
   for (const r of roots) ops.push(['maj', r, true])
   ops.push(['instantane', 0])
   for (let n = 0; n < id; n++) ops.push(['lis', n])
