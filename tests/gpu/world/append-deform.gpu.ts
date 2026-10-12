@@ -17,7 +17,12 @@ appendCases('appendDeformPage.ts', 'appendDeform', [
   ['a mesh the waves carry in a session that moves nothing', 'runWavedFirst'],
   ['more meshes the waves carry, and another sheet', 'runWavedRows'],
   ['a translucent mesh the waves carry', 'runWavedBlended'],
+  ['more translucent meshes the waves carry than the rows hold', 'runWavedBlendedRows'],
   ['a geometry read as floats', 'runFloats'],
+  ['float geometries with vertex colours', 'runColours'],
+  ['a float geometry with colours in a session that reads none', 'runColoursFirst'],
+  ['float geometries with a second UV set', 'runSecondUv'],
+  ['colours, a second UV set, then more rows', 'runColoursAndSecondUv'],
   ['a skinned, a morphed, a waved and a float geometry, one after the other', 'runAll'],
 ])
 

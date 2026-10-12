@@ -9,6 +9,7 @@ import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/att
 import { WaterSurface } from '../../../packages/sdk-core/src/fluids/waterSurface.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
+import { Texture } from '../../../packages/sdk-core/src/world/texture/texture.ts'
 import { type World } from './appendProof.ts'
 
 export const ball = geometry.sphere(0.6, 16, 12)
@@ -97,3 +98,49 @@ const water = new WaterSurface({
 /** Meshes whose vertices the host rewrites, read as floats. */
 export const rewritten = geometry.sphere(0.6, 16, 12)
 rewritten.usage = 'dynamic'
+
+/** A float geometry whose vertices carry a colour, graded along y. */
+function colouredSphere() {
+  const shape = geometry.sphere(0.6, 16, 12),
+    count = shape.attributes.position.count,
+    colors = new Float32Array(count * 3)
+  for (let v = 0; v < count; v++) {
+    const t = clamp(shape.attributes.position.getY(v) / 1.2 + 0.5, 0, 1)
+    colors.set([1 - t, 0.3 + 0.5 * t, t], v * 3)
+  }
+  shape.setAttribute('color', new BufferAttribute(colors, 3))
+  shape.usage = 'dynamic'
+  return shape
+}
+export const coloured = colouredSphere()
+export const vividPaint = material.meshStandard({
+  color: 0xffffff,
+  roughness: 0.6,
+  vertexColors: true,
+})
+
+/** A float geometry with a second UV set: the first mirrored in u. */
+function mirroredSphere() {
+  const shape = geometry.sphere(0.6, 16, 12),
+    uv = shape.attributes.uv,
+    second = new Float32Array(uv.count * 2)
+  for (let v = 0; v < uv.count; v++) second.set([1 - uv.getX(v), uv.getY(v)], v * 2)
+  shape.setAttribute('uv1', new BufferAttribute(second, 2))
+  shape.usage = 'dynamic'
+  return shape
+}
+export const twoSets = mirroredSphere()
+/** A sharp coat on the right texel of its map, read at the second UV set. */
+const coatMap = new Texture({
+  data: new Uint8Array([0, 0, 0, 255, 255, 255, 255, 255]),
+  width: 2,
+  height: 1,
+})
+Object.assign(coatMap, { channel: 1 })
+export const coatedPaint = material.meshPhysical({
+  color: 0x80a0c0,
+  roughness: 0.6,
+  clearcoat: 1,
+  clearcoatRoughness: 0.08,
+  clearcoatMap: coatMap,
+})

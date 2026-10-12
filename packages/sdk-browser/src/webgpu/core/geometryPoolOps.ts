@@ -39,8 +39,11 @@ export type Pool = {
   stores: ReturnType<typeof createPoolStores>
 }
 
+/** The lists a pool carries beside the positions and the normals (`poolFloats`). */
+type Carried = Pick<Pool, 'coloured' | 'secondUv'>
+
 /** Floats of each store of a pool of `count` vertices. */
-const floatsOf = (p: Pool, count: number, tail = p.tailFloats) =>
+const floatsOf = (p: Carried, count: number, tail: number) =>
   poolFloats(count, tail, p.coloured, p.secondUv)
 
 /** Writes `n` floats of the scratch at float `at` of list `name`'s store. */
@@ -77,16 +80,18 @@ export function put(
 const weigh = (p: Pool, attributes: HostAttributes, name: PoolList, count: number) =>
   holds(p, attributes, name) ? count * LAYOUT[name].stride * 4 : 0
 
-/** The pool laid out for `size` vertices and a tail of `tail` floats, in place: the buffers made
- *  over, what the held ones hold copied into them (positions, colours, the tail as it stood), the
- *  old ones freed. A pool of another size makes its normal atlas over too, whose rows follow its
- *  size, and every block's normals and second UV set are written again, as placed; one of the same
- *  size keeps it. False when the device refuses the size. */
-function remake(p: Pool, size: number, tail: number) {
+/** The pool laid out for `size` vertices and a tail of `tail` floats, in place, carrying the lists
+ *  of `carried` (the lists it holds, or more: `widen`): the buffers made over, what the held ones
+ *  hold copied into them (positions, colours, the tail as it stood), the old ones freed. A pool of
+ *  another size, or one that gains a second UV set, makes its normal atlas over too, whose rows
+ *  follow its size and whose tail is the set, and every block's normals and second UV set are
+ *  written again, as placed; one of the same layout keeps it. False when the device refuses the
+ *  size. */
+function remake(p: Pool, size: number, tail: number, carried: Carried = p) {
   const { device } = p
-  const wider = floatsOf(p, size, tail)
+  const wider = floatsOf(carried, size, tail)
   if (!poolFits(wider, device.limits)) return false
-  const resized = size !== p.size,
+  const resized = size !== p.size || carried.secondUv !== p.secondUv,
     made = resized
       ? createPoolStores(device, wider)
       : { ...createPoolBuffers(device, wider), concatNrm: p.stores.concatNrm },
@@ -99,6 +104,8 @@ function remake(p: Pool, size: number, tail: number) {
   p.size = size
   p.tailFloats = tail
   p.floats = wider
+  p.coloured = carried.coloured
+  p.secondUv = carried.secondUv
   if (!resized) return true
   for (const [attributes, block] of p.blocks)
     for (const name of ATLAS_LISTS)
@@ -127,13 +134,25 @@ export function reserveTail(p: Pool, tail: number) {
   return tail <= p.tailFloats || remake(p, p.size, grownLength(p.tailFloats, tail))
 }
 
+/** The pool carries the lists `attributes` has — colours, a second UV set — which it was opened
+ *  without: laid out wider by the open's own rule (`poolFloats`), what it holds copied, the owners
+ *  told. False when the device refuses the size. */
+function widen(p: Pool, attributes: HostAttributes) {
+  const carried = {
+    coloured: p.coloured || !!attributes.color,
+    secondUv: p.secondUv || !!attributes.uv1,
+  }
+  if (carried.coloured === p.coloured && carried.secondUv === p.secondUv) return true
+  if (!remake(p, p.size, p.tailFloats, carried)) return false
+  p.grown?.(p.size)
+  return true
+}
+
 /** A block for `attributes` in the room left, grown when it is spent; undefined when the device
  *  bounds the size. */
 export function claim(p: Pool, attributes: HostAttributes, dynamic: boolean) {
   const count = attributes.position?.count ?? 0
-  // A list the pool was opened without — colours, a second UV set — opens the session again.
-  if ((attributes.color && !p.coloured) || (attributes.uv1 && !p.secondUv) || !ensure(p, count))
-    return undefined
+  if (!widen(p, attributes) || !ensure(p, count)) return undefined
   const block: GeometryBlock = {
     ...{ vertexBase: p.used, count, hasUv: !!attributes.uv, hasNormal: !!attributes.normal },
     ...{ hasTangent: !!attributes.tangent, hasColor: !!attributes.color, dynamic },

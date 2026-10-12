@@ -7,7 +7,11 @@ import { joined, row, type World } from './appendProof.ts'
 import {
   ball,
   cloth,
+  coloured,
   glass,
+  twoSets,
+  vividPaint,
+  coatedPaint,
   morphed,
   paint,
   rewritten,
@@ -68,6 +72,43 @@ export const runWavedBlended = () => joined(held(), (world) => sea(world, -2, gl
 /** Meshes whose vertices are read as floats, in a session that reads none. */
 export const runFloats = () => joined(held(), (world) => row(world, rewritten, cloth, -1))
 
+/** More translucent sheets the waves carry than the batch's rows hold: the blended copies and the
+ *  records that name them by their world follow the larger buffer. */
+export const runWavedBlendedRows = () =>
+  joined(
+    held((world) => sea(world, -2, glass)),
+    (world) => sea(world, -6, glass, 3),
+  )
+
+/** Meshes whose vertices are read as floats and carry colours, joining a session whose float pool
+ *  was laid out without any: held float meshes beside. */
+export const runColours = () =>
+  joined(
+    held((world) => row(world, rewritten, cloth, -1)),
+    (world) => row(world, coloured, vividPaint, -3),
+  )
+
+/** The same in a session that reads no float geometry at all. */
+export const runColoursFirst = () => joined(held(), (world) => row(world, coloured, vividPaint, -3))
+
+/** Meshes whose vertices are read as floats and carry a second UV set. */
+export const runSecondUv = () =>
+  joined(
+    held((world) => row(world, rewritten, cloth, -1)),
+    (world) => row(world, twoSets, coatedPaint, -3),
+  )
+
+/** Both lists, one after the other, then more meshes of the first. */
+export const runColoursAndSecondUv = () =>
+  joined(
+    held((world) => row(world, rewritten, cloth, -1)),
+    (world) => {
+      row(world, coloured, vividPaint, -3)
+      row(world, twoSets, coatedPaint, -5)
+      row(world, coloured, vividPaint, -7, 5)
+    },
+  )
+
 /** Everything at once, one after the other. */
 export const runAll = () =>
   joined(held(), (world) => {
@@ -76,17 +117,6 @@ export const runAll = () =>
     sea(world, -5)
     row(world, rewritten, cloth, -7)
   })
-export const dbgSkin2 = () =>
-  joined(
-    held((world) => skinned(world, tall, -1, 2)),
-    () => {},
-  )
-export const dbgSea3 = () =>
-  joined(
-    held((world) => sea(world, -5, cloth, 3)),
-    () => {},
-  )
-
 /** Two meshes of one batch posed by `weights`, one morph weight each. */
 function posedMorphs(world: World, weights: number[]) {
   weights.forEach((weight, i) => {

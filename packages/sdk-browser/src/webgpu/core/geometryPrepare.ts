@@ -27,8 +27,8 @@ export type VertexPoolGrowth = {
 }
 
 /** The float geometries of the pages that read them placed in the pool's room, which grows in place
- *  for them; false where the device refuses the size or the pool was opened without a list they
- *  carry (colours, a second UV set). A geometry placed already stays. */
+ *  for them, its layout widened for the colours or the second UV set they carry; false where the
+ *  device refuses the size. A geometry placed already stays. */
 export function placeFloatPages(pool: Pick<VertexPool, 'place'>, pages: readonly PageRec[]) {
   return pages.every(
     (page) => page.geometryPage || pool.place(page.attributes, !!page.drawSource?.dynamic),
@@ -124,8 +124,7 @@ export function prepareWebgpuGeometry(
   placeWhole(capacity)
   const { concatPos, concatUv, concatNrm } = vertexPool
   /** Whether the pool holds the float geometries `pages` and the whole copies `held` read, its tail
-   *  the records and blocks they need: false where the device refuses the room, or the pool was
-   *  opened without a list they carry (colours, a second UV set). */
+   *  the records and blocks they need: false where the device refuses the room. */
   const extend = (
     pages: readonly PageRec[],
     held: readonly BlendGpuItem[],
