@@ -1,5 +1,5 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts'
-import { ROW_WORDS } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import { ROW_ID_BASE_WORD, ROW_OFFSET_WORD, packedRowBase, restampHizSlot } from './pageRow.ts'
 import { writeRowDeformation } from '../../deformation/slotLayout.ts'
 import type { createPageRowWriter } from './pageRowWriter.ts'

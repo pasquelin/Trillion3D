@@ -1,6 +1,6 @@
 import { surfaceOf } from '../../packages/sdk-browser/src/page/surface.ts'
 import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import type { VisPage } from '../../packages/sdk-browser/src/visibility/buffer.ts'
+import type { VisPage } from '../../packages/sdk-browser/src/visibility/types.ts'
 import { engineCamera } from '../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import type { EngineCamera } from '../../packages/sdk-browser/src/camera/world.ts'
 import { identityLocations } from '../../packages/sdk-browser/src/page/selection/placements.fixture.ts'

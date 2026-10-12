@@ -7,7 +7,7 @@ import {
   type PageRec,
 } from '../../page/selection/selection.ts'
 import { screenErrorRatio } from '../../diagnostic/colors.ts'
-import { clusterHash } from '../../visibility/buffer.ts'
+import { clusterHash } from '../../visibility/math.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import type { createWebgpuBlendState } from './state.ts'
 import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'

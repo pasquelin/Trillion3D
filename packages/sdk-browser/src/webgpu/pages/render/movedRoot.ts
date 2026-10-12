@@ -1,4 +1,4 @@
-import { ROW_WORDS } from '../../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../../visibility/types.ts'
 import type { ClusterRoot } from '../../../page/selection/types.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { WebgpuPagesLayout } from '../prepare/layout.ts'

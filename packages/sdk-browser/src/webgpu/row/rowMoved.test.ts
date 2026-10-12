@@ -6,7 +6,7 @@ import { closeAlone, range, rowCache } from './rowCache.fixture.ts'
 import { createRowDemand } from './rowDemand.ts'
 import { createRowUse } from './rowUse.ts'
 import { ROW_OFFSET_WORD } from './pageRow.ts'
-import { ROW_WORDS } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import { pageStateOf } from './pageState.fixture.ts'
 
 test('a full table whose pages move in the pool keeps them resident, rows at their place', () => {

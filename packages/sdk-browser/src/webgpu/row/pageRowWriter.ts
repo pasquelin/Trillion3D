@@ -1,4 +1,3 @@
-import { PAGE_DEFORM_WORD, PAGE_PHYSICAL_WORD } from '../../visibility/types.ts'
 import { physicalWord, type PhysicalTable } from '../visibility/physicalTable.ts'
 import type { HostAttributes } from '../../host/resources.ts'
 import { rootOf, type PageRec } from '../../page/selection/selection.ts'
@@ -15,9 +14,11 @@ import {
 import {
   assertVisibilityPageTriangles,
   FLAG_BLEND_CASTER,
-  frameNormalScaleY,
+  PAGE_DEFORM_WORD,
+  PAGE_PHYSICAL_WORD,
   ROW_WORDS,
-} from '../../visibility/buffer.ts'
+} from '../../visibility/types.ts'
+import { frameNormalScaleY } from '../../visibility/frameNormal.ts'
 import { surfaceOpacity, type PageSurface } from '../../page/surface.ts'
 import { shownAsIs } from '../../scene/surfaceModel.ts'
 import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts'

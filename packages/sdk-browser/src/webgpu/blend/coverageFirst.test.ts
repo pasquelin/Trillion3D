@@ -9,7 +9,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { functionsOf } from '../../texture/shaderRule.fixture.ts'
 import { waterSurfaceWgsl } from '../water/surfaceWgsl.ts'
 import { blendShader } from './shader.ts'
-import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
+import { FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { FACING_SHIFT } from './facing.ts'
 
 const DERIVATIVE = /\b(?:dpdx|dpdy|fwidth)(?:Fine|Coarse)?\(|\btextureSample(?:Bias|Compare)?\(/

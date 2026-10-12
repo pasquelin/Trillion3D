@@ -14,7 +14,7 @@ import {
   FLAG_LIT,
   FLAG_PAGED,
   FLAG_TRANSMISSIVE,
-} from '../../visibility/buffer.ts'
+} from '../../visibility/types.ts'
 import { WATER_RANK_SHIFT } from '../water/rank.ts'
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts'
 import { ensureWebgpuPositionBuffer } from '../core/positions.ts'

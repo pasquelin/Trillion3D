@@ -1,5 +1,5 @@
 import { requestFrameTargets } from '../prepare/targetGrant.ts'
-import { ROW_WORDS } from '../../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../../visibility/types.ts'
 import { projectedPageError, rootOf } from '../../../page/selection/selection.ts'
 import { screenErrorRatio } from '../../../diagnostic/colors.ts'
 import { viewProj } from '../helpers.ts'

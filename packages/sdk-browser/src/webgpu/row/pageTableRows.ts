@@ -1,5 +1,5 @@
 import { storageBufferCap } from '../../residency/pools.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
 
 /** Rows one page table holds on this device: one storage binding of `PAGE_INFO_STRIDE`-byte rows,
  *  the table every pass binds whole (`../pages/render/encodeDraws.ts`, `ensurePageTable`). */
