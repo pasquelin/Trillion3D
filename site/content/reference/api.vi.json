@@ -2485,7 +2485,8 @@
     "members": {
       "growPlacements": "Một bộ đệm thực thể mà phiên giữ đã được thay bằng một bộ lớn hơn, các hàng của `from` trước và phần còn lại được cất đi: từ nay phiên đọc `to` và giữ các hàng mới, không dựng lại bảng nào (`growth.ts`).",
       "growsInPlace": "Liệu `growPlacements` có nhận từng `from` được mở rộng đến `capacity` hàng hay không, được hỏi trước khi chủ sở hữu thay bất kỳ cái nào: false giữ nguyên chúng, và chủ sở hữu mở lại phiên trên các bộ lớn hơn.",
-      "addPlacements": "Một nguồn mà phiên không được mở cùng — các hàng, bề mặt của nó — vẽ một nguyên thủy mà phiên đang giữ: bản ghi và gốc của nó nhập vào lát cắt, kết cấu của bề mặt vào tập ảnh, không bảng nào dựng lại. False, không nhập gì, nơi không làm được: chủ sở hữu mở lại phiên."
+      "addPlacements": "Một nguồn mà phiên không được mở cùng — các hàng, bề mặt của nó — vẽ một nguyên thủy mà phiên đang giữ: bản ghi và gốc của nó nhập vào lát cắt, kết cấu của bề mặt vào tập ảnh, không bảng nào dựng lại. False, không nhập gì, nơi không làm được: chủ sở hữu mở lại phiên.",
+      "addWorldRoots": "DAG của thế giới mà một mô hình đã mang theo (`WorldRootsHold`, các nguồn của nó đã giao trước cho `addPlacements`) được vẽ từ nay, các ô của nó được giữ ở xa nơi phép cắt chỉ định: gốc của nó gia nhập phép cắt làm trên mọi gốc. `undefined` khi nó chờ gia nhập, hoặc khi không có gì để vẽ — phiên chỉ vẽ một DAG của thế giới, của mô hình khác —; nếu không thì là lời từ chối, theo tên."
     }
   },
   "PlacementRows": {
@@ -2495,6 +2496,7 @@
       "live": "1 ở nơi hàng đặt tài nguyên đó, 0 ở nơi nó bị đỗ tạm.",
       "shadowless": "1 ở nơi hàng không đổ bóng (`castShadow` của mesh của nó là `false`), 0 ở nơi nó đổ bóng.",
       "capacity": "Số hàng vừa được trước khi nó phải lớn lên.",
+      "local": "Các hàng của lưới của một mô hình đã nạp (`world/core/worldModels.ts`): mỗi hàng là thế giới của mô hình nhân với thế giới của lưới trong đồ thị của mô hình, mà xương của nó đứng trong hệ quy chiếu của đồ thị ấy, không bao giờ trong hệ của thế giới: bảng màu được đọc ở đó (`DeformedMesh.frame`).",
       "sources": "Chủ sở hữu ban đầu của các hàng được nhân bản; nguồn hoạt ảnh của chúng vẫn sống khi hàng được tái sử dụng.",
       "sourceModels": "Các mesh dùng chung tài nguyên này, kể cả những mesh đang chờ một hàng đặt vị trí.",
       "cells": "Vị trí của mỗi hàng mà một phân vùng đã đặt (`../partition/rowCells.ts`): ô của nó và thứ hạng của nó trong các nút của ô; một cột riêng, vắng mặt cho đến khi một ô đặt một hàng."
@@ -3752,6 +3754,7 @@
       "freeCount": "Có bao nhiêu chỉ số tự do đang chờ.",
       "firstChild": "Các con của mỗi nút dưới dạng danh sách liên kết, −1 nếu không có: một lần duyệt cây con tốn đúng cây con.",
       "lastChild": "Con cuối, nơi một lần gắn được nối vào.",
+      "firstLazy": "Các nút con mà thế giới do thứ khác hợp thành (`NODE_WORLD_LAZY`), như một danh sách thứ hai, tách khỏi danh sách đầu để không phép duyệt cây nào bước qua chúng: nút đầu, và nút cuối nơi một nút được nối. Một nút con ở trong một danh sách, cùng các liên kết anh em phục vụ cả hai.",
       "nextSibling": "Con kế tiếp của cùng cha.",
       "previousSibling": "Con trước đó của cùng cha.",
       "depth": "Số tổ tiên của mỗi node: chặng khung hình dựa vào đó để lấy cha trước con.",

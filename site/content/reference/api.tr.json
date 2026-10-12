@@ -2874,7 +2874,8 @@
     "members": {
       "growPlacements": "Oturumun tuttuğu bir örnek arabelleği daha büyüğüyle değiştirildi, önce `from`'un satırları, geri kalanı park edildi: oturum artık `to`'yu okur ve yeni satırlarını tutar, hiçbir tablo yeniden kurulmaz (`growth.ts`).",
       "growsInPlace": "`growPlacements`'ın `from`'un her birini `capacity` satıra büyütülmüş olarak kabul edip etmediği; sahip herhangi birini değiştirmeden önce sorulur: false onları olduğu gibi bırakır ve sahip oturumu daha büyükleri üzerinde yeniden açar.",
-      "addPlacements": "Oturumun açılırken bilmediği bir kaynak — satırları, yüzeyi — oturumun tuttuğu bir ilkeli çizer: kayıtları ve kökleri kesime katılır, yüzeyin dokuları atlasa alınır, hiçbir tablo yeniden kurulmaz. Yanlış, yapılamayan yerde hiçbir şey eklenmemiştir: sahibi oturumu yeniden açar."
+      "addPlacements": "Oturumun açılırken bilmediği bir kaynak — satırları, yüzeyi — oturumun tuttuğu bir ilkeli çizer: kayıtları ve kökleri kesime katılır, yüzeyin dokuları atlasa alınır, hiçbir tablo yeniden kurulmaz. Yanlış, yapılamayan yerde hiçbir şey eklenmemiştir: sahibi oturumu yeniden açar.",
+      "addWorldRoots": "Bir modelin katıldığı dünya DAG’ı (`WorldRootsHold`, kaynakları önce `addPlacements`’a verilmiş) artık çizilir, hücreleri kesimin söylediği yerde uzakta tutulur: kökü, tüm köklerin üzerinde yapılan kesime katılır. Katılmayı beklediğinde ya da çizilecek bir şey olmadığında — oturum tek bir dünya DAG’ı çizer, başka bir modelinkini — `undefined`; aksi hâlde reddi, adıyla."
     }
   },
   "PlacementRows": {
@@ -2884,6 +2885,7 @@
       "live": "Satırın kaynağı yerleştirdiği yerde 1, park edildiği yerde 0.",
       "shadowless": "Satırın gölge düşürmediği yerde 1 (mesh'inin `castShadow` değeri `false`), düşürdüğü yerde 0.",
       "capacity": "Büyümeden önce sığan satırlar.",
+      "local": "Yüklenmiş bir modelin ağlarının satırları (`world/core/worldModels.ts`): her biri, modelin dünyası çarpı ağın modelin grafiği içindeki dünyasıdır; kemikleri o grafiğin çerçevesinde durur, asla dünyanın çerçevesinde: palet orada okunur (`DeformedMesh.frame`).",
       "sources": "Aynalanmış satırların özgün sahipleri; satırlar yeniden kullanılırken animasyon kaynakları canlı kalır.",
       "sourceModels": "Bu kaynağı paylaşan ağlar, bir yerleştirme satırını bekleyenler dahil.",
       "cells": "Bir bölümün yerleştirdiği her satırın nerede durduğu (`../partition/rowCells.ts`): hücresi ve hücrenin düğümleri arasındaki sırası; kendi sütunu, bir hücre bir satır yerleştirene kadar yoktur."
@@ -4266,6 +4268,7 @@
       "freeCount": "Kaç serbest indeksin beklediği.",
       "firstChild": "Her düğümün çocukları bağlı liste olarak, yoksa −1: bir alt ağaç gezisi alt ağaç kadar maliyetlidir.",
       "lastChild": "Bir eklemenin bağladığı son çocuk.",
+      "firstLazy": "Dünyasını başka bir şeyin oluşturduğu çocuklar (`NODE_WORLD_LAZY`), ağacın hiçbir gezinmesi üzerlerinden geçmesin diye ilkinden ayrı tutulan ikinci bir liste olarak: ilki ve birinin bağlandığı yerdeki sonuncusu. Bir çocuk bir listededir, aynı kardeş bağları ikisine de hizmet eder.",
       "nextSibling": "Aynı ebeveynin sonraki çocuğu.",
       "previousSibling": "Aynı ebeveynin önceki çocuğu.",
       "depth": "Her düğümün ata sayısı: kare geçişi ebeveynleri çocuklardan önce bununla alır.",

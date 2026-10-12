@@ -4601,7 +4601,8 @@
     "members": {
       "growPlacements": "Ein Instanzpuffer der Sitzung wurde durch einen größeren ersetzt, zuerst die Zeilen von `from`, der Rest geparkt: Die Sitzung liest ab jetzt `to` und hält ihre neuen Zeilen, ohne eine Tabelle neu aufzubauen (`growth.ts`).",
       "growsInPlace": "Ob `growPlacements` jeden von `from`, auf `capacity` Zeilen vergrößert, annimmt – gefragt, bevor der Besitzer einen ersetzt: false lässt sie, wie sie sind, und der Besitzer öffnet die Sitzung erneut auf größeren.",
-      "addPlacements": "Eine Quelle, mit der die Sitzung nicht geöffnet wurde — ihre Zeilen, ihre Oberfläche — zeichnet ein Primitiv, das die Sitzung hält: ihre Datensätze und Wurzeln treten dem Schnitt bei, die Texturen der Oberfläche werden in den Atlas aufgenommen, keine Tabelle wird neu gebaut. Falsch, nichts angefügt, wo es nicht geht: der Besitzer öffnet die Sitzung neu."
+      "addPlacements": "Eine Quelle, mit der die Sitzung nicht geöffnet wurde — ihre Zeilen, ihre Oberfläche — zeichnet ein Primitiv, das die Sitzung hält: ihre Datensätze und Wurzeln treten dem Schnitt bei, die Texturen der Oberfläche werden in den Atlas aufgenommen, keine Tabelle wird neu gebaut. Falsch, nichts angefügt, wo es nicht geht: der Besitzer öffnet die Sitzung neu.",
+      "addWorldRoots": "Das Welt-DAG, mit dem ein Modell beitrat (`WorldRootsHold`, seine Quellen zuvor an `addPlacements` übergeben), wird fortan gezeichnet, seine Zellen dort weit gehalten, wo der Schnitt es sagt: seine Wurzel tritt dem Schnitt über alle Wurzeln bei. `undefined`, sobald sie auf den Beitritt wartet oder nichts zu zeichnen ist — die Sitzung zeichnet ein Welt-DAG, das eines anderen —; sonst die Ablehnung mit ihrem Namen."
     }
   },
   "PlacementRows": {
@@ -4611,6 +4612,7 @@
       "live": "1, wo die Zeile die Ressource platziert, 0, wo sie zur Seite gelegt ist.",
       "shadowless": "1, wo die Zeile keinen Schatten wirft (das `castShadow` ihres Meshes ist `false`), 0, wo sie einen wirft.",
       "capacity": "Zeilen, die Platz haben, bevor er wächst.",
+      "local": "Die Zeilen der Netze eines geladenen Modells (`world/core/worldModels.ts`): jede ist die Welt des Modells mal die des Netzes im Graphen des Modells, dessen Knochen im Bezugssystem dieses Graphen stehen, nie in dem der Welt: eine Palette wird dort gelesen (`DeformedMesh.frame`).",
       "sources": "Ursprüngliche Besitzer der gespiegelten Zeilen; ihre Animationsquellen bleiben lebendig, wenn Zeilen wiederverwendet werden.",
       "sourceModels": "Meshes, die diese Ressource teilen, einschließlich derer, die auf eine Platzierungszeile warten.",
       "cells": "Wo jede Zeile liegt, die eine Partition platziert hat (`../partition/rowCells.ts`): ihre Zelle, ihr Rang unter den Knoten der Zelle; eine eigene Spalte, abwesend, bis eine Zelle eine platziert."
@@ -6118,6 +6120,7 @@
       "freeCount": "Wie viele freigegebene Indizes warten.",
       "firstChild": "Die Kinder jedes Knotens als verkettete Liste, −1 für keine: ein Teilbaumdurchlauf kostet den Teilbaum.",
       "lastChild": "Letztes Kind, wo ein Attach verknüpft.",
+      "firstLazy": "Die Kinder, deren Welt etwas anderes zusammensetzt (`NODE_WORLD_LAZY`), als zweite Liste, getrennt von der ersten, damit kein Durchlauf des Baums sie überspringt: das erste, und das letzte, wo eines verknüpft wird. Ein Kind steht in einer Liste, dieselben Geschwisterverknüpfungen bedienen beide.",
       "nextSibling": "Nächstes Kind desselben Elternteils.",
       "previousSibling": "Vorheriges Kind desselben Elternteils.",
       "depth": "Die Anzahl der Vorfahren jedes Knotens: der Frame-Durchgang nimmt danach Elternteile vor Kindern.",

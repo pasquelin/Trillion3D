@@ -4609,7 +4609,8 @@
     "members": {
       "growPlacements": "Un tampon d’instances que la session tient a été remplacé par un plus grand, les rangées de `from` d’abord et le reste rangé de côté : la session lit `to` désormais et tient ses nouvelles rangées, sans reconstruire de table (`growth.ts`).",
       "growsInPlace": "Si `growPlacements` accepte chacun de `from` agrandi à `capacity` rangées, demandé avant que le propriétaire n’en remplace aucun : false les laisse tels quels, et le propriétaire rouvre la session sur de plus grands.",
-      "addPlacements": "Une source avec laquelle la session n’a pas été ouverte — ses rangées, sa surface — dessine une primitive que la session détient : ses enregistrements et ses racines rejoignent la découpe, les textures de la surface sont prises dans l’atlas, aucune table n’est refaite. Faux, rien n’a été joint, là où c’est impossible : le propriétaire rouvre la session."
+      "addPlacements": "Une source avec laquelle la session n’a pas été ouverte — ses rangées, sa surface — dessine une primitive que la session détient : ses enregistrements et ses racines rejoignent la découpe, les textures de la surface sont prises dans l’atlas, aucune table n’est refaite. Faux, rien n’a été joint, là où c’est impossible : le propriétaire rouvre la session.",
+      "addWorldRoots": "Le DAG du monde dont un modèle est venu (`WorldRootsHold`, ses sources remises d’abord à `addPlacements`) est dessiné désormais, ses cellules tenues au loin là où la coupe le dit : sa racine rejoint la coupe faite sur toutes les racines. `undefined` une fois qu’elle attend de rejoindre, ou quand il n’y a rien à dessiner — la session dessine un seul DAG du monde, celui d’un autre —; sinon le refus, par son nom."
     }
   },
   "PlacementRows": {
@@ -4619,6 +4620,7 @@
       "live": "1 là où la rangée place la ressource, 0 là où elle est rangée de côté.",
       "shadowless": "1 là où la rangée ne projette aucune ombre (le `castShadow` de son maillage vaut `false`), 0 là où elle en projette.",
       "capacity": "Rangées qui tiennent avant qu’il grandisse.",
+      "local": "Les rangées des maillages d’un modèle chargé (`world/core/worldModels.ts`) : chacune est le monde du modèle multiplié par celui du maillage dans le graphe du modèle, dont les os se tiennent dans le repère de ce graphe, jamais dans celui du monde : une palette s’y lit (`DeformedMesh.frame`).",
       "sources": "Propriétaires originaux des rangées en miroir ; leurs sources d’animation restent vivantes quand les rangées sont réutilisées.",
       "sourceModels": "Maillages qui partagent cette ressource, y compris ceux qui attendent une rangée de placement.",
       "cells": "Où se trouve chaque rangée qu’une partition a placée (`../partition/rowCells.ts`) : sa cellule et son rang parmi les nœuds de la cellule ; une colonne à part, absente tant qu’une cellule n’en place pas."
@@ -6126,6 +6128,7 @@
       "freeCount": "Combien d’indices libérés attendent.",
       "firstChild": "Les enfants de chaque nœud en liste chaînée, −1 pour aucun : un parcours de sous-arbre coûte le sous-arbre.",
       "lastChild": "Dernier enfant, où un rattachement se lie.",
+      "firstLazy": "Les enfants dont le monde est composé ailleurs (`NODE_WORLD_LAZY`), en seconde liste, tenue hors de la première pour qu’aucun parcours de l’arbre ne les enjambe : le premier, et le dernier où l’on en lie un. Un enfant est dans une liste, les mêmes liens de fratrie servant aux deux.",
       "nextSibling": "Enfant suivant du même parent.",
       "previousSibling": "Enfant précédent du même parent.",
       "depth": "Le nombre d’ancêtres de chaque nœud : la passe d’image en prend les parents avant les enfants.",

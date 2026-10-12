@@ -2467,7 +2467,8 @@
     "members": {
       "growPlacements": "Um buffer de instâncias que a sessão mantém foi substituído por um maior, primeiro as linhas de `from` e o resto estacionado: a sessão lê `to` a partir de agora e mantém as suas novas linhas, sem reconstruir tabelas (`growth.ts`).",
       "growsInPlace": "Se `growPlacements` aceita cada um de `from` aumentado para `capacity` linhas, perguntado antes de o proprietário substituir algum: false deixa-os como estão, e o proprietário abre de novo a sessão sobre outros maiores.",
-      "addPlacements": "Uma fonte com que a sessão não foi aberta — as suas linhas, a sua superfície — desenha uma primitiva que a sessão detém: os seus registos e raízes juntam-se ao corte, as texturas da superfície entram no atlas, nenhuma tabela é refeita. Falso, nada foi juntado, onde não é possível: o proprietário abre a sessão de novo."
+      "addPlacements": "Uma fonte com que a sessão não foi aberta — as suas linhas, a sua superfície — desenha uma primitiva que a sessão detém: os seus registos e raízes juntam-se ao corte, as texturas da superfície entram no atlas, nenhuma tabela é refeita. Falso, nada foi juntado, onde não é possível: o proprietário abre a sessão de novo.",
+      "addWorldRoots": "O DAG do mundo com que um modelo entrou (`WorldRootsHold`, suas fontes entregues antes a `addPlacements`) é desenhado a partir de agora, suas células mantidas ao longe onde o corte o diz: sua raiz junta-se ao corte feito sobre todas as raízes. `undefined` quando espera para juntar-se, ou quando não há nada a desenhar — a sessão desenha um só DAG do mundo, o de outro —; senão a recusa, pelo nome."
     }
   },
   "PlacementRows": {
@@ -2477,6 +2478,7 @@
       "live": "1 onde a linha posiciona o recurso, 0 onde está estacionada.",
       "shadowless": "1 onde a linha não projeta sombra (o `castShadow` da sua malha é `false`), 0 onde projeta.",
       "capacity": "Linhas que cabem antes de crescer.",
+      "local": "As linhas das malhas de um modelo carregado (`world/core/worldModels.ts`): cada uma é o mundo do modelo vezes o da malha dentro do grafo do modelo, cujos ossos ficam no referencial desse grafo, nunca no do mundo: uma paleta é lida ali (`DeformedMesh.frame`).",
       "sources": "Proprietários originais das linhas espelhadas; as suas fontes de animação continuam vivas quando as linhas são reutilizadas.",
       "sourceModels": "Malhas que partilham este recurso, incluindo as que esperam uma linha de posicionamento.",
       "cells": "Onde está cada linha que uma partição posicionou (`../partition/rowCells.ts`): a sua célula e a sua posição entre os nós da célula; uma coluna própria, ausente até que uma célula posicione uma."
@@ -3612,6 +3614,7 @@
       "freeCount": "Quantos índices liberados esperam.",
       "firstChild": "Os filhos de cada nó como lista encadeada, −1 para nenhum: um percurso de subárvore custa a subárvore.",
       "lastChild": "Último filho, onde uma anexação se liga.",
+      "firstLazy": "Os filhos cujo mundo outra coisa compõe (`NODE_WORLD_LAZY`), como segunda lista, mantida fora da primeira para que nenhum percurso da árvore os pise: o primeiro, e o último onde se liga um. Um filho está numa lista, os mesmos laços de irmãos servem às duas.",
       "nextSibling": "Próximo filho do mesmo pai.",
       "previousSibling": "Filho anterior do mesmo pai.",
       "depth": "O número de ancestrais de cada nó: a passada de quadro toma os pais antes dos filhos por ele.",

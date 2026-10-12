@@ -2485,7 +2485,8 @@
     "members": {
       "growPlacements": "Sebuah buffer instans yang dipegang sesi diganti dengan yang lebih besar, baris `from` lebih dulu dan sisanya diparkir: sesi membaca `to` mulai sekarang dan memegang baris barunya, tanpa membangun ulang tabel (`growth.ts`).",
       "growsInPlace": "Apakah `growPlacements` menerima setiap `from` yang diperbesar menjadi `capacity` baris, ditanyakan sebelum pemilik mengganti satu pun: false membiarkannya apa adanya, dan pemilik membuka lagi sesi pada yang lebih besar.",
-      "addPlacements": "Sebuah sumber yang tidak ada saat sesi dibuka — baris dan permukaannya — menggambar primitif yang dipegang sesi: rekaman dan akarnya bergabung ke potongan, tekstur permukaannya masuk ke atlas, tidak ada tabel yang dibangun ulang. False, tidak ada yang digabung, jika tidak bisa: pemilik membuka sesi lagi."
+      "addPlacements": "Sebuah sumber yang tidak ada saat sesi dibuka — baris dan permukaannya — menggambar primitif yang dipegang sesi: rekaman dan akarnya bergabung ke potongan, tekstur permukaannya masuk ke atlas, tidak ada tabel yang dibangun ulang. False, tidak ada yang digabung, jika tidak bisa: pemilik membuka sesi lagi.",
+      "addWorldRoots": "DAG dunia yang dibawa sebuah model (`WorldRootsHold`, sumbernya lebih dulu diserahkan ke `addPlacements`) digambar mulai sekarang, selnya ditahan jauh di tempat potongan menyatakannya: akarnya bergabung ke potongan yang dibuat atas semua akar. `undefined` saat ia menunggu bergabung, atau saat tak ada yang digambar — sesi menggambar satu DAG dunia, milik model lain —; selain itu, penolakan beserta namanya."
     }
   },
   "PlacementRows": {
@@ -2495,6 +2496,7 @@
       "live": "1 di mana baris menempatkan sumber daya itu, 0 di mana ia diparkir.",
       "shadowless": "1 di mana baris tidak melempar bayangan (`castShadow` mesh-nya `false`), 0 di mana ia melemparnya.",
       "capacity": "Baris yang muat sebelum ia tumbuh.",
+      "local": "Baris-baris mesh sebuah model yang dimuat (`world/core/worldModels.ts`): masing-masing adalah dunia model dikali dunia mesh di dalam graf model, yang tulangnya berdiri di kerangka graf itu, tidak pernah di kerangka dunia: palet dibaca di sana (`DeformedMesh.frame`).",
       "sources": "Pemilik asli baris yang dicerminkan; sumber animasinya tetap hidup saat baris digunakan kembali.",
       "sourceModels": "Mesh yang berbagi sumber daya ini, termasuk yang menunggu baris penempatan.",
       "cells": "Letak setiap baris yang ditempatkan sebuah partisi (`../partition/rowCells.ts`): selnya dan peringkatnya di antara node sel itu; kolom tersendiri, tidak ada sampai sebuah sel menempatkan satu."
@@ -3752,6 +3754,7 @@
       "freeCount": "Berapa banyak indeks bebas yang menunggu.",
       "firstChild": "Anak setiap node sebagai daftar berantai, −1 bila tidak ada: penelusuran subpohon berbiaya sebesar subpohon.",
       "lastChild": "Anak terakhir, tempat attach menautkan.",
+      "firstLazy": "Anak-anak yang dunianya disusun oleh hal lain (`NODE_WORLD_LAZY`), sebagai daftar kedua, dijauhkan dari yang pertama agar tak ada penelusuran pohon yang melangkahinya: yang pertama, dan yang terakhir tempat satu ditautkan. Seorang anak ada di satu daftar, tautan saudara yang sama melayani keduanya.",
       "nextSibling": "Anak berikutnya dari induk yang sama.",
       "previousSibling": "Anak sebelumnya dari induk yang sama.",
       "depth": "Jumlah leluhur setiap node: pass frame mengambil induk sebelum anak menurutnya.",

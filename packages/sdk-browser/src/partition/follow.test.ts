@@ -45,7 +45,7 @@ test('a scene hung in a frame the session composes: the first move of the frame 
   const { port, updates } = io(bytes)
   let accepts = true
   port.compose = (_parent, world, given, whole) => (
-    accepts && calls.push({ links: given.length, whole, world: [...world] }),
+    accepts && calls.push({ links: given.length, whole, world: Array.from(world) }),
     accepts
   )
   cells.frame([0, 0, 0], 1e5, port, noBudget)

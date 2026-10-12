@@ -29,7 +29,7 @@ function rig() {
     link: (parent, world, given, whole) =>
       parent === loaded &&
       accepts &&
-      (links.push({ links: given.length, whole, world: [...world] }), true),
+      (links.push({ links: given.length, whole, world: Array.from(world) }), true),
   }
   const frame = () =>
     poses.apply(

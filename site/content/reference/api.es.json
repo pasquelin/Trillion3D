@@ -4601,7 +4601,8 @@
     "members": {
       "growPlacements": "Un búfer de instancias que la sesión tiene fue sustituido por uno mayor, primero las filas de `from` y el resto apartado: la sesión lee `to` desde ahora y conserva sus filas nuevas, sin reconstruir ninguna tabla (`growth.ts`).",
       "growsInPlace": "Si `growPlacements` acepta cada uno de `from` ampliado a `capacity` filas, preguntado antes de que el propietario sustituya alguno: false los deja como están, y el propietario abre de nuevo la sesión sobre otros mayores.",
-      "addPlacements": "Una fuente con la que no se abrió la sesión — sus filas, su superficie — dibuja una primitiva que la sesión tiene: sus registros y raíces se unen al corte, las texturas de la superficie entran en el atlas, no se rehace ninguna tabla. Falso, nada se unió, donde no puede: el propietario abre la sesión de nuevo."
+      "addPlacements": "Una fuente con la que no se abrió la sesión — sus filas, su superficie — dibuja una primitiva que la sesión tiene: sus registros y raíces se unen al corte, las texturas de la superficie entran en el atlas, no se rehace ninguna tabla. Falso, nada se unió, donde no puede: el propietario abre la sesión de nuevo.",
+      "addWorldRoots": "El DAG del mundo con el que se unió un modelo (`WorldRootsHold`, sus fuentes entregadas antes a `addPlacements`) se dibuja desde ahora, sus celdas tenidas lejos donde el corte lo dice: su raíz se une al corte hecho sobre todas las raíces. `undefined` una vez que espera unirse, o cuando no hay nada que dibujar — la sesión dibuja un solo DAG del mundo, el de otro —; si no, el rechazo, por su nombre."
     }
   },
   "PlacementRows": {
@@ -4611,6 +4612,7 @@
       "live": "1 donde la fila coloca el recurso, 0 donde está apartada.",
       "shadowless": "1 donde la fila no proyecta sombra (el `castShadow` de su malla es `false`), 0 donde la proyecta.",
       "capacity": "Filas que caben antes de que crezca.",
+      "local": "Las filas de las mallas de un modelo cargado (`world/core/worldModels.ts`): cada una es el mundo del modelo por el de la malla dentro del grafo del modelo, cuyos huesos están en el marco de ese grafo, nunca en el del mundo: una paleta se lee allí (`DeformedMesh.frame`).",
       "sources": "Propietarios originales de las filas en espejo; sus fuentes de animación siguen vivas cuando se reutilizan las filas.",
       "sourceModels": "Mallas que comparten este recurso, incluidas las que esperan una fila de colocación.",
       "cells": "Dónde se encuentra cada fila que colocó una partición (`../partition/rowCells.ts`): su celda, su rango entre los nodos de la celda; una columna propia, ausente hasta que una celda coloca una."
@@ -6118,6 +6120,7 @@
       "freeCount": "Cuántos índices liberados esperan.",
       "firstChild": "Los hijos de cada nodo como lista enlazada, −1 si no hay: un recorrido de subárbol cuesta el subárbol.",
       "lastChild": "Último hijo, donde se enlaza una unión.",
+      "firstLazy": "Los hijos cuyo mundo compone otra cosa (`NODE_WORLD_LAZY`), como una segunda lista, apartada de la primera para que ningún recorrido del árbol los pise: el primero, y el último donde se enlaza uno. Un hijo está en una lista, los mismos enlaces de hermanos sirven a ambas.",
       "nextSibling": "Siguiente hijo del mismo padre.",
       "previousSibling": "Hijo anterior del mismo padre.",
       "depth": "El número de ancestros de cada nodo: el pase de fotograma toma por él los padres antes que los hijos.",

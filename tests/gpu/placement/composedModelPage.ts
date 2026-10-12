@@ -5,7 +5,9 @@
 // of detail (the stretch of its placement decides what it draws), a skinned tube whose bones stand
 // in its graph, a crowd cut in cells; none is a file of the site.
 import { changed, open, type World } from '../world/appendProof.ts'
-import { crowdModel, skinnedModel, sphereModel } from '../world/generatedModels.ts'
+import { crowdModel } from '../world/generatedModels.ts'
+import { skinnedModel } from '../world/generatedSkin.ts'
+import { sphereModel } from '../world/generatedShapes.ts'
 
 /** Where the model stands: its position, its turn, its scale. */
 type Pose = {
