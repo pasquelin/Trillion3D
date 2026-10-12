@@ -6,20 +6,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { assertSoundProof, runPageProof } from '../kit/enginePageProof.ts'
+import { lobeReadings } from '../kit/enginePageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import type { LobeReading } from './physicalLobesPage.ts'
 
 test('a clear coat draws its highlight over the base, and its map zeroes it', async () => {
-  const result = await runPageProof(
+  const { none, coat, coatMapZero } = await lobeReadings(
     resolve(import.meta.dirname, 'physicalLobesPage.ts'),
     'physicalLobes',
     'clearcoat',
   )
-  assertSoundProof(result)
-  const { none, coat, coatMapZero } = (
-    result as typeof result & { readings: Record<string, LobeReading> }
-  ).readings
   assert.ok(
     coat.centre > none.centre + 30,
     `the coat's highlight: ${coat.centre} over ${none.centre}`,

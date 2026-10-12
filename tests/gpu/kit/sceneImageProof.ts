@@ -4,10 +4,12 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { MIN_RENDER_SCALE } from '../../../packages/sdk-browser/src/frame/renderScaleOption.ts'
 import { taaStillFrames, upscalePhases } from '../../../packages/sdk-browser/src/taa/jitter.ts'
-import { VIEWPORT } from './sharedSceneProof.ts'
+import { VIEWPORT, engine, release, type ScenePreparee } from './sharedSceneProof.ts'
 import { project } from './cameraRig.ts'
 import { animationFrame } from './frame.ts'
-import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { Engine, EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
+import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
+import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 /** Renders a frame in an animation frame of the page (`animationFrame`), as a page draws, and
@@ -93,4 +95,29 @@ export function colorAt(
     py = clamp(Math.round(((point.y + 1) / 2) * (h - 1)), 0, h - 1),
     i = (py * w + px) * 4
   return [pixels[i], pixels[i + 1], pixels[i + 2]]
+}
+
+/** The image `prepared` holds lit by the bench's sun, seen by `camera` through the real engine on
+ *  `device`, `options` completing its context: whether it held, and its pixels — the last rendered
+ *  when none held —, bottom row first. */
+export async function imageUnderSun(
+  device: GPUDevice,
+  events: unknown[],
+  prepared: ScenePreparee,
+  camera: G.Camera,
+  options: Partial<EngineContext> = {},
+) {
+  const sceneLights = createSceneLightStore()
+  sceneLights.add(SUN)
+  const { backend, canvas } = engine(prepared, device, (e) => events.push(e), {
+    sceneLights,
+    ...options,
+  })
+  try {
+    await backend.prepare()
+    const { held, rendered } = await untilHeld(backend, camera)
+    return { held: held !== null, pixels: Uint8Array.from(held ?? rendered ?? []) }
+  } finally {
+    release(backend, canvas, prepared)
+  }
 }

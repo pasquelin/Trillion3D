@@ -10,19 +10,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { assertSoundProof, runPageProof } from '../kit/enginePageProof.ts'
+import { lobeReadings, lobeSpread } from '../kit/enginePageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import type { LobeReading } from '../visibility/physicalLobesPage.ts'
 
-const readingsOf = async (method: string) => {
-  const result = await runPageProof(
-    resolve(import.meta.dirname, 'lobesBlendPage.ts'),
-    'lobesBlend',
-    method,
-  )
-  assertSoundProof(result)
-  return (result as typeof result & { readings: Record<string, LobeReading> }).readings
-}
+const readingsOf = (method: string) =>
+  lobeReadings(resolve(import.meta.dirname, 'lobesBlendPage.ts'), 'lobesBlend', method)
 
 test('a transparent clear coat draws its highlight over the base, and its zero map the uncoated image', async () => {
   const { none, coat, coatMapZero } = await readingsOf('clearcoat')
@@ -40,10 +32,9 @@ test('a transparent clear coat draws its highlight over the base, and its zero m
 
 test('a transparent anisotropic highlight stretches along its direction, and its zero map is isotropic', async () => {
   const { none, along, turned, strengthMapZero } = await readingsOf('anisotropy')
-  const say = (r: LobeReading) => `x ${r.alongX}, y ${r.alongY}, centre ${r.centre}`
-  assert.ok(Math.abs(none.alongX - none.alongY) <= 2, `isotropic: ${say(none)}`)
-  assert.ok(along.alongX > along.alongY + 15, `along the tangent: ${say(along)}`)
-  assert.ok(turned.alongY > turned.alongX + 15, `turned a quarter: ${say(turned)}`)
+  assert.ok(Math.abs(none.alongX - none.alongY) <= 2, `isotropic: ${lobeSpread(none)}`)
+  assert.ok(along.alongX > along.alongY + 15, `along the tangent: ${lobeSpread(along)}`)
+  assert.ok(turned.alongY > turned.alongX + 15, `turned a quarter: ${lobeSpread(turned)}`)
   assert.equal(
     compareImages(strengthMapZero.pixels, none.pixels).differentPixels,
     0,

@@ -22,7 +22,7 @@ import { vsmProjectionWgsl } from '../../../packages/sdk-browser/src/vsm/project
 import { functionText } from '../../../packages/sdk-browser/src/bounce/wgslBody.fixture.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { clipToFramebuffer } from '../../../packages/math/src/wgsl/projection.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
+import { bufferHolding, readBuffer } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 const WIDTH = 64,
@@ -102,11 +102,7 @@ export async function testGlassContact(): Promise<GlassContact> {
   view.set(identity, VSM_PROJECTION_VIEW_WORD.shiftedToClip)
   view.set([WIDTH, HEIGHT, 1 / WIDTH, 1 / HEIGHT], VSM_PROJECTION_VIEW_WORD.viewPixels)
   view.set(screenSlab(identity, HEIGHT), VSM_PROJECTION_VIEW_WORD.screenSlab)
-  const uniform = device.createBuffer({
-    size: view.byteLength,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(uniform, 0, view)
+  const uniform = bufferHolding(device, view, GPUBufferUsage.UNIFORM)
   const result = device.createBuffer({
     size: 32,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,

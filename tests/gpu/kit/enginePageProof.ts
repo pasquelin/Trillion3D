@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { runOnDawn, loadPage } from './onDawn.ts'
+import type { LobeReading } from '../visibility/physicalLobesPage.ts'
 
 /** One entry of the `events` array a page result reports diagnostics through. */
 interface PageProofEvent {
@@ -80,3 +81,14 @@ export function publishAndVerify(
   )
   assertSoundProof(result)
 }
+
+/** Runs `method` of a lobes page (`runPageProof`), checks the run sound, and returns the page's
+ *  readings by case. */
+export async function lobeReadings(page: string, name: string, method: string) {
+  const result = await runPageProof(page, name, method)
+  assertSoundProof(result)
+  return (result as PageProofResult & { readings: Record<string, LobeReading> }).readings
+}
+
+/** A lobe reading told in a failure: its spread along x and y, and its centre. */
+export const lobeSpread = (r: LobeReading) => `x ${r.alongX}, y ${r.alongY}, centre ${r.centre}`

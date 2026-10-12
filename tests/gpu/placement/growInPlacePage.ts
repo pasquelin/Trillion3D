@@ -12,7 +12,14 @@ import {
   type RowLink,
 } from '../../../packages/sdk-browser/src/partition/rows.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { batisseur, cameraFace, engine, release, square } from '../kit/sharedSceneProof.ts'
+import {
+  addBackdrop,
+  batisseur,
+  cameraFace,
+  engine,
+  release,
+  square,
+} from '../kit/sharedSceneProof.ts'
 import { drawnPixels, untilHeld } from '../kit/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
@@ -24,10 +31,7 @@ const HALF = 0.3,
 /** A background, and a tile drawn by rows of one placed mesh, its rows sized for `rows`. */
 function placedScene(rows: number) {
   const builder = batisseur()
-  const background = G.mesh(square(4), G.basicSurface({ color: 0x1b3a5c, side: G.DOUBLE_SIDE }))
-  background.position.z = -2
-  builder.source.add(background)
-  builder.add(background, 'exact-clusters', 4)
+  addBackdrop(builder, G.DOUBLE_SIDE)
   const tile = G.mesh(square(HALF), G.basicSurface({ color: 0xff2020, side: G.DOUBLE_SIDE }))
   builder.source.add(tile)
   builder.add(tile, 'exact-clusters', HALF)

@@ -4,10 +4,8 @@
 // within a few hundredths of a unit; an opaque red tile in front of the glass, and the same tile
 // without the glass; the glass moved out of view; and the backdrop alone.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
-import { SUN } from '../../../bench/runner/lighting/lamps.ts'
-import { batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
-import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
+import { addPlane, batisseur, cameraFace } from '../kit/sharedSceneProof.ts'
+import { colorAt, imageUnderSun } from '../kit/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 
@@ -33,13 +31,8 @@ const glass = (volume: boolean) =>
 
 function scene({ glass: placed, front }: Layout) {
   const builder = batisseur()
-  const add = (surface: G.GraphSurface, pass: string, z: number, half: number, x = 0) => {
-    // A lit square carries its normals: the plane of the graph, not the proofs' bare square.
-    const mesh = G.mesh(G.planeGeometry(2 * half, 2 * half), surface)
-    mesh.position.set(x, 0, z)
-    builder.source.add(mesh)
-    builder.add(mesh, pass, half)
-  }
+  const add = (surface: G.GraphSurface, pass: string, z: number, half: number, x = 0) =>
+    addPlane(builder, surface, pass, z, half, x)
   add(G.basicSurface({ color: 0x2244aa, side: G.DOUBLE_SIDE }), 'exact-clusters', -1, 4)
   if (placed) add(glass(placed.volume), 'clustered-blend', 0, 0.8, placed.at)
   if (front) add(G.basicSurface({ color: 0xcc2222 }), 'exact-clusters', 0.5, 0.25)
@@ -48,21 +41,9 @@ function scene({ glass: placed, front }: Layout) {
 
 /** The held image of `layout`: its pixels at the centre, and all of them (kept in the page). */
 async function imageOf(device: GPUDevice, events: unknown[], layout: Layout) {
-  const prepared = scene(layout),
-    camera = cameraFace()
-  const sceneLights = createSceneLightStore()
-  sceneLights.add(SUN)
-  const { backend, canvas } = engine(prepared, device, (e) => events.push(e), {
-    sceneLights,
-  })
-  try {
-    await backend.prepare()
-    const { held, rendered } = await untilHeld(backend, camera)
-    const pixels = Uint8Array.from(held ?? rendered ?? [])
-    return { held: held !== null, centre: colorAt(pixels, camera, 0, 0), pixels }
-  } finally {
-    release(backend, canvas, prepared)
-  }
+  const camera = cameraFace()
+  const { held, pixels } = await imageUnderSun(device, events, scene(layout), camera)
+  return { held, centre: colorAt(pixels, camera, 0, 0), pixels }
 }
 
 /** What a layout's image tells the proof: whether it held, and its centre. */

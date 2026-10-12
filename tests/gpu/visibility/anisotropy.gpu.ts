@@ -7,29 +7,23 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { assertSoundProof, runPageProof } from '../kit/enginePageProof.ts'
+import { lobeReadings, lobeSpread } from '../kit/enginePageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import type { LobeReading } from './physicalLobesPage.ts'
 
 test('the anisotropic highlight stretches along its direction, and its map turns or zeroes it', async () => {
-  const result = await runPageProof(
+  const { none, along, turned, strengthMapZero, directionMap } = await lobeReadings(
     resolve(import.meta.dirname, 'physicalLobesPage.ts'),
     'physicalLobes',
     'anisotropy',
   )
-  assertSoundProof(result)
-  const { none, along, turned, strengthMapZero, directionMap } = (
-    result as typeof result & { readings: Record<string, LobeReading> }
-  ).readings
-  const say = (r: LobeReading) => `x ${r.alongX}, y ${r.alongY}, centre ${r.centre}`
   // Isotropic: the plane and the lamp are symmetric about the view axis.
-  assert.ok(Math.abs(none.alongX - none.alongY) <= 2, `isotropic: ${say(none)}`)
-  assert.ok(along.alongX > along.alongY + 20, `along the tangent: ${say(along)}`)
-  assert.ok(along.alongX > none.alongX + 20, `wider than the isotropic lobe: ${say(along)}`)
-  assert.ok(turned.alongY > turned.alongX + 20, `turned a quarter: ${say(turned)}`)
+  assert.ok(Math.abs(none.alongX - none.alongY) <= 2, `isotropic: ${lobeSpread(none)}`)
+  assert.ok(along.alongX > along.alongY + 20, `along the tangent: ${lobeSpread(along)}`)
+  assert.ok(along.alongX > none.alongX + 20, `wider than the isotropic lobe: ${lobeSpread(along)}`)
+  assert.ok(turned.alongY > turned.alongX + 20, `turned a quarter: ${lobeSpread(turned)}`)
   assert.ok(
     directionMap.alongY > directionMap.alongX + 20,
-    `turned by its map: ${say(directionMap)}`,
+    `turned by its map: ${lobeSpread(directionMap)}`,
   )
   assert.equal(
     compareImages(strengthMapZero.pixels, none.pixels).differentPixels,

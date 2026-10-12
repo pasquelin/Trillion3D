@@ -1,16 +1,12 @@
 // The generated scene the memory proofs share: an opaque blue backdrop filling the view, and what
 // stands before it — nothing, a clear glass (a blend with water), or a polished metal mirror.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { batisseur } from './sharedSceneProof.ts'
+import { addPlane, batisseur } from './sharedSceneProof.ts'
 
 export function backdropScene(front: 'none' | 'glass' | 'mirror' = 'none') {
   const builder = batisseur()
-  const add = (surface: G.GraphSurface, pass: string, z: number, half: number) => {
-    const mesh = G.mesh(G.planeGeometry(2 * half, 2 * half), surface)
-    mesh.position.set(0, 0, z)
-    builder.source.add(mesh)
-    builder.add(mesh, pass, half)
-  }
+  const add = (surface: G.GraphSurface, pass: string, z: number, half: number) =>
+    addPlane(builder, surface, pass, z, half)
   add(G.basicSurface({ color: 0x2244aa, side: G.DOUBLE_SIDE }), 'exact-clusters', -1, 4)
   if (front === 'glass')
     add(

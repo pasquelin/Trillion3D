@@ -7,10 +7,9 @@
 // tells where on the image the exact mirror rays of the panes' pixels meet what they meet.
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
-import { SUN } from '../../../bench/runner/lighting/lamps.ts'
-import { batisseur, engine, release, square } from '../kit/sharedSceneProof.ts'
-import { untilHeld } from '../kit/sceneImageProof.ts'
+import { batisseur, square } from '../kit/sharedSceneProof.ts'
+import { imageUnderSun } from '../kit/sceneImageProof.ts'
+import { flipRows } from '../kit/patternImage.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { EYE, HEIGHT, TARGET, WIDTH, crossing, mirror, pixelOf, rayOf } from './glassView.ts'
 import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
@@ -96,28 +95,10 @@ function cameraOf() {
 
 /** The held image of `parts`: RGBA bytes, the top row first. */
 async function imageOf(device: GPUDevice, events: unknown[], parts: Parts, kind: GlassKind) {
-  const prepared = scene(parts, kind),
-    camera = cameraOf()
-  const sceneLights = createSceneLightStore()
-  sceneLights.add(SUN)
-  const { backend, canvas } = engine(prepared, device, (e) => events.push(e), {
-    sceneLights,
+  const { held, pixels } = await imageUnderSun(device, events, scene(parts, kind), cameraOf(), {
     viewport: [WIDTH, HEIGHT],
   })
-  try {
-    await backend.prepare()
-    const { held, rendered } = await untilHeld(backend, camera)
-    const bottomUp = Uint8Array.from(held ?? rendered ?? [])
-    const pixels = new Uint8Array(bottomUp.length)
-    for (let y = 0; y < HEIGHT; y++)
-      pixels.set(
-        bottomUp.subarray((HEIGHT - 1 - y) * WIDTH * 4, (HEIGHT - y) * WIDTH * 4),
-        y * WIDTH * 4,
-      )
-    return { held: held !== null, pixels: Array.from(pixels) }
-  } finally {
-    release(backend, canvas, prepared)
-  }
+  return { held, pixels: Array.from(flipRows(pixels, WIDTH)) }
 }
 
 /** What the page reports: the held images, and for the pixels of a pane that see something (pairs

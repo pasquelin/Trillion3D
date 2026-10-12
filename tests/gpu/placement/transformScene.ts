@@ -3,6 +3,7 @@
 // its material.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import {
+  addBackdrop,
   batisseur,
   cameraFace,
   square,
@@ -24,11 +25,7 @@ export const translation = (x: number) => versApi(new G.Matrix4().makeTranslatio
  *  `shared-blend` through the unpaged path. */
 export function transformScene(paged: boolean): ScenePreparee {
   const builder = batisseur()
-  const background = G.mesh(square(4), G.basicSurface({ color: 0x1b3a5c, side: G.DOUBLE_SIDE }))
-  background.name = 'background'
-  background.position.z = -2
-  builder.source.add(background)
-  builder.add(background, 'exact-clusters', 4)
+  addBackdrop(builder, G.DOUBLE_SIDE)
   const tile = G.mesh(
     square(HALF),
     G.basicSurface({ color: 0xff2020, transparent: true, opacity: 0.85, side: G.DOUBLE_SIDE }),
