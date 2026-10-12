@@ -47,7 +47,7 @@ export function frenchWords(text: string, file = ''): string[] {
 }
 
 /** The package a file belongs to: `packages/<name>`, else its top folder. */
-const unitOf = (file: string) =>
+const packageOrFolder = (file: string) =>
   file.startsWith('packages/') ? file.split('/', 2).join('/') : file.split('/')[0]
 
 /** The French words of each file of `files` (path -> text) that has any. */
@@ -65,7 +65,7 @@ export function frenchByFile(files: Map<string, string>): Map<string, string[]> 
 export function countByUnit(found: Map<string, string[]>): Record<string, number> {
   const counts: Record<string, number> = {}
   for (const [file, words] of found)
-    counts[unitOf(file)] = (counts[unitOf(file)] ?? 0) + words.length
+    counts[packageOrFolder(file)] = (counts[packageOrFolder(file)] ?? 0) + words.length
   return Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)))
 }
 
@@ -99,7 +99,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     for (const unit of risen) {
       console.error(`${unit}: ${counts[unit]} French words, ${baseline[unit] ?? 0} allowed:`)
       for (const [file, words] of found)
-        if (unitOf(file) === unit) console.error(`  ${file}: ${words.join(', ')}`)
+        if (packageOrFolder(file) === unit) console.error(`  ${file}: ${words.join(', ')}`)
     }
     if (risen.length) {
       const listed = [...new Set(Object.values(FRENCH_EXCEPTIONS))].map(
