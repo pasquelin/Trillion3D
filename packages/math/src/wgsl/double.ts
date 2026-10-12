@@ -255,3 +255,29 @@ export const dSqrt = wgslFn(
  return dMul(a,dRsqrt(a));
 }`,
 )
+
+/** `|a|`: the sign bit cleared. */
+export const dAbs = wgslFn(
+  'dAbs',
+  [],
+  `fn dAbs(a:vec2u)->vec2u{return vec2u(a.x&0x7fffffffu,a.y);}`,
+)
+
+/** The smaller and the larger of two doubles that are no NaN, as `Math.min` and `Math.max` give
+ *  them: a negative zero is the smaller of the two zeros. */
+export const dMin = wgslFn(
+  'dMin',
+  [dLess, dIsZero],
+  `fn dMin(a:vec2u,b:vec2u)->vec2u{
+ if(dIsZero(a)&&dIsZero(b)){return vec2u(a.x|b.x,0u);}
+ return select(a,b,dLess(b,a));
+}`,
+)
+export const dMax = wgslFn(
+  'dMax',
+  [dLess, dIsZero],
+  `fn dMax(a:vec2u,b:vec2u)->vec2u{
+ if(dIsZero(a)&&dIsZero(b)){return vec2u(a.x&b.x,0u);}
+ return select(a,b,dLess(a,b));
+}`,
+)

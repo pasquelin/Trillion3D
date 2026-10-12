@@ -123,6 +123,12 @@ export type GpuSelection = {
    *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
    *  host holds is written again over the one its parent composed. */
   composedPlacement(world: number, composed: boolean): void
+  /** The member group of placement `world` in the placement tree, -1 outside it: what a
+   *  composition names the groups of the roots a parent moves by. */
+  groupOf(world: number): number
+  /** The groups `groups` name are fitted again before the next cut: the roots a parent
+   *  composes moved with it (`../dag/treeFollow.ts`). */
+  groupsMoved(groups: ArrayLike<number>): void
   /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
    *  them — the levels, the frustum and the raster split follow the composed poses. */

@@ -42,6 +42,7 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import {
+  COMPOSE_MEMBERS_WGSL,
   COMPOSE_ROOTS_WGSL,
   COMPOSE_ROWS_WGSL,
   MATRIX_DOUBLES,
@@ -67,7 +68,8 @@ import { linkedRowSpheres } from '../webgpu/shadow/spheres.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { declareSlotMove, holdSlotBox, linkBox, remakeSlotBox } from './composeBoxes.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import { COMPOSE_ROOTS_PASS, COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
+import { COMPOSE_MEMBERS_PASS, COMPOSE_ROOTS_PASS, COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
+import type { ComposedLeaves } from '../gpu/dag/treeFollow.ts'
 import type { DeformedMesh } from '../deformation/frame.ts'
 
 /** A compose pass's bind group and what it names: made again only when one of them moves. */
@@ -95,6 +97,8 @@ function createComposeState(roots: number) {
      *  current one: it moves whenever a parent's world, or a link, does. */
     refreshed: new Uint32Array(Math.max(1, roots)),
     version: 1,
+    /** The tree groups each slot's roots stand in, for the selection that named them. */
+    groups: undefined as { cut: WeakRef<object>; bySlot: Map<number, Int32Array> } | undefined,
     /** The rows' inputs the rows pass derives their words from (`composedRowInputs.ts`). */
     inputs: undefined as
       | { buffer: GPUBuffer; packed: Uint32Array<ArrayBuffer>; rows: number; scratch: Float64Array }
@@ -196,6 +200,25 @@ function remakeBins(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
     if (state.parentOf[rank] === slot) moveRootRows(rt, rt.layout.selectionRoots[rank], rank)
 }
 
+/** The groups of the placement tree `slot`'s roots stand in fit again before the next cut: their
+ *  leaves moved with the parent. One name a group, never one a root; the list is made once, as the
+ *  slot's roots change or a cut is made over the tree again. */
+function moveGroups(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
+  const selection = rt.run.gpuSelection
+  if (!selection) return
+  if (state.groups?.cut.deref() !== selection)
+    state.groups = { cut: new WeakRef(selection), bySlot: new Map() }
+  let groups = state.groups.bySlot.get(slot)
+  if (!groups) {
+    const named = new Set<number>()
+    for (const rank of state.ranksOf[slot])
+      if (state.parentOf[rank] === slot) named.add(selection.groupOf(rank))
+    named.delete(-1)
+    state.groups.bySlot.set(slot, (groups = Int32Array.from(named)))
+  }
+  selection.groupsMoved(groups)
+}
+
 /** The impostor cards of `slot`'s roots follow the parent's move: each card is written again from
  *  the composed world its root reads (`composedWorld`). */
 function moveCards(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
@@ -230,6 +253,7 @@ function settleSlot(
   state.version++
   remakeBins(rt, state, slot)
   if (moved || relinked) moveCards(rt, state, slot)
+  if (moved || relinked) moveGroups(rt, state, slot)
   // A parent's move moves its roots: its first makes them moving casters (`mobility.moveLead`).
   if (moved && rt.lights.mobility.moveLead(slot, state.ranksOf[slot]) === MOVE_PROMOTED)
     movingOnly = false
@@ -401,6 +425,7 @@ function unlinkHeld(rt: WebgpuPagesRuntime, state: ComposeState, slot: number, r
     movingOnly &&= mobility.moves(rank)
     if (kept.has(rank)) continue
     removeComposedWorld(rt, rank)
+    state.groups?.bySlot.delete(slot)
     state.parentOf[rank] = NONE
     mobility.follow(rank, -1)
     rt.run.gpuSelection?.composedPlacement(rank, false)
@@ -423,6 +448,7 @@ function linkRanks(
 ) {
   const roots = rt.layout.selectionRoots,
     held = state.ranksOf[slot]
+  state.groups?.bySlot.delete(slot)
   for (let k = 0; k < ranks.length; k++) {
     const rank = ranks[k],
       was = state.parentOf[rank]
@@ -481,6 +507,11 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
     size: Math.max(1, rootCount) * ROOT_BOX_WORDS * 4,
     usage: storage,
   })
+  const memberParams = device.createBuffer({
+    label: 'Trillion3D compose member params',
+    size: 256 * 8,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
   const rootBoxes = device.createBuffer({
     label: 'Trillion3D composed world boxes',
     size: Math.max(1, rootCount) * 6 * 8,
@@ -507,6 +538,7 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
     parentOf,
     rootInputs,
     rootBoxes,
+    memberParams,
     parents: undefined as GPUBuffer | undefined,
     uniforms,
     noMotion,
@@ -523,6 +555,7 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
       parentOf.destroy()
       rootInputs.destroy()
       rootBoxes.destroy()
+      memberParams.destroy()
       this.parents?.destroy()
       for (const u of uniforms) u.destroy()
       noMotion.destroy()
@@ -547,6 +580,12 @@ const composeKernels = oncePerDevice((device) => {
     roots: kernel(
       device.createShaderModule({ label: 'Trillion3D compose roots', code: COMPOSE_ROOTS_WGSL }),
     ),
+    members: kernel(
+      device.createShaderModule({
+        label: 'Trillion3D compose members',
+        code: COMPOSE_MEMBERS_WGSL,
+      }),
+    ),
     rows: kernel(
       device.createShaderModule({ label: 'Trillion3D compose rows', code: COMPOSE_ROWS_WGSL }),
     ),
@@ -558,6 +597,54 @@ const composeKernels = oncePerDevice((device) => {
 export function composedRoot(rt: Pick<WebgpuPagesRuntime, 'compose'>, rank: number) {
   const parentOf = rt.compose?.parentOf
   return !!parentOf && rank < parentOf.length && parentOf[rank] !== NONE
+}
+
+/**
+ * The leaves the placement tree's refit fits over for the roots a parent composes (`treeFollow.ts`):
+ * the box of each root's node carried by the world the GPU composes — the leaf `memberBox` makes
+ * from a world the CPU holds. Every composed root is written whenever the tree is fitted again: a
+ * thread each, a few products, only on the frames a parent moved one of them.
+ */
+export function composedLeaves(rt: WebgpuPagesRuntime): ComposedLeaves {
+  return {
+    has: (w) => composedRoot(rt, w),
+    encode(encoder, { members, nodes }) {
+      const state = rt.compose,
+        device = rt.gpu.device,
+        selection = rt.run.gpuSelection
+      if (!state?.parentIds.size || !device || !selection) return
+      const gpu = frameParents(rt, device)
+      if (!gpu?.parents) return
+      const pipeline = composeKernels(device).members.get()
+      const pass = encoder.beginComputePass({ label: COMPOSE_MEMBERS_PASS })
+      pass.setPipeline(pipeline)
+      selection.worldRanges.forEach(({ first, count, frames }, r) => {
+        const params = new Uint32Array([state.roots, first, count, 0])
+        device.queue.writeBuffer(gpu.memberParams, r * 256, params)
+        pass.setBindGroup(
+          0,
+          device.createBindGroup({
+            layout: pipeline.getBindGroupLayout(0),
+            entries: [
+              { binding: 0, resource: { buffer: gpu.memberParams, offset: r * 256, size: 16 } },
+              { binding: 1, resource: { buffer: gpu.locals } },
+              { binding: 2, resource: { buffer: gpu.parentOf } },
+              { binding: 3, resource: { buffer: gpu.parents! } },
+              { binding: 4, resource: { buffer: nodes } },
+              {
+                binding: 5,
+                resource: { buffer: frames, offset: 0, size: count * PRIMITIVE_BYTES },
+              },
+              { binding: 6, resource: { buffer: members } },
+            ],
+          }),
+        )
+        dispatchRows(pass, ceilDiv(count, 64))
+      })
+      pass.end()
+      rt.run.gpuComputeDispatches += selection.worldRanges.length
+    },
+  }
 }
 
 /** Asks the kernels the next frame binds once a parent holds a link

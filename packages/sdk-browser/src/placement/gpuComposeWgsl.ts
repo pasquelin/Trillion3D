@@ -7,7 +7,13 @@
  * the GPU writes is the CPU's, to the bit; a translation is kept exact, as two words a coordinate,
  * for each cut to take its eye off (`../gpu/dag/shader/worldPoseWgsl.ts`).
  */
-import { CORNERS_WGSL, LOD_WGSL, WORLD_BOX_WGSL } from './gpuComposeDerivedWgsl.ts'
+import {
+  CARRIED_BOX_WGSL,
+  CORNERS_WGSL,
+  LOD_WGSL,
+  WORLD_BOX_WGSL,
+} from './gpuComposeDerivedWgsl.ts'
+import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
 import { ROW_INPUT_DOUBLES } from './composedRowInputs.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
@@ -17,7 +23,7 @@ import { dAdd, dMul, dSub } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { STRETCH_WGSL } from './gpuStretchWgsl.ts'
-import { FRAME_VEC4 } from '../gpu/dag/types.ts'
+import { DAG_NODE_FLOATS, FRAME_ROW_WORDS } from '../gpu/dag/types.ts'
 import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
@@ -26,8 +32,8 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 
 /** The parent slot of a root that follows none. */
 export const NONE = 0xffffffff
-/** Words of one primitive's row of the frame buffer: its first is the stretch (`primitiveWordAt`). */
-const FRAME_ROW_WORDS = FRAME_VEC4 * 4
+/** Words of a tree node. */
+const NODE_WORDS = DAG_NODE_FLOATS
 /** The parts of a row the rows pass derives besides its world words (`params.parts`). */
 export const PART_SPHERES = 1,
   PART_CORNERS = 2,
@@ -219,4 +225,43 @@ fn composeRow(row:u32){
  let row=flatIndex(g,n,64u);if(row<params.rowCount){composeRow(row);}
 }`,
   [...SHARED, SPHERE_WGSL, CORNERS_WGSL, LOD_WGSL],
+)
+
+/**
+ * One thread per root of a range: the leaf box the placement tree fits over (`treeRefit.ts`) of a
+ * root a parent composes — the box of its root node, as the packing holds it, carried by the
+ * composed world — in the table of leaf boxes, six doubles a placement, as `memberBox` writes it for
+ * a root whose world the CPU holds. A root without a parent, or parked (its root node none), keeps
+ * the box it had.
+ */
+export const COMPOSE_MEMBERS_WGSL = wgslProgram(
+  `struct Params{rootCount:u32,first:u32,count:u32,pad:u32,}
+@group(0) @binding(0) var<uniform> params:Params;
+@group(0) @binding(1) var<storage,read> locals:array<vec2u>;
+@group(0) @binding(2) var<storage,read> parentOf:array<u32>;
+@group(0) @binding(3) var<storage,read> parents:array<vec2u>;
+@group(0) @binding(4) var<storage,read> nodes:array<u32>;
+@group(0) @binding(5) var<storage,read> frames:array<u32>;
+@group(0) @binding(6) var<storage,read_write> members:array<vec2u>;
+@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(g,n,64u);if(i>=params.count){return;}
+ let rank=params.first+i;
+ if(rank>=params.rootCount){return;}
+ let p=parentOf[rank];
+ if(p==${NONE}u){return;}
+ let root=frames[i*${FRAME_ROW_WORDS}u+1u];
+ if(root==${NONE}u){return;}
+ var world:array<vec2u,16>;
+ for(var k=0u;k<16u;k++){world[k]=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);}
+ let at=root*${NODE_WORDS}u;
+ var lo:array<vec2u,3>;
+ var hi:array<vec2u,3>;
+ for(var a=0u;a<3u;a++){
+  lo[a]=fromF32(nodes[at+${NODE_MIN}u+a]);
+  hi[a]=fromF32(nodes[at+${NODE_MAX}u+a]);
+ }
+ let box=carriedBox(world,lo,hi);
+ for(var k=0u;k<6u;k++){members[rank*6u+k]=box[k];}
+}`,
+  [PRODUCT_WGSL, FLAT_INDEX_WGSL, fromF32, CARRIED_BOX_WGSL],
 )

@@ -15,8 +15,7 @@
  * is — takes the corners' divide by `w` as the CPU does: it is 1.
  */
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { dAdd, dLess, dMul, dSqrt, dSub } from '../../../math/src/wgsl/double.ts'
-import { dIsZero } from '../../../math/src/wgsl/doubleWords.ts'
+import { dAdd, dLess, dMax, dMin, dMul, dSqrt, dSub } from '../../../math/src/wgsl/double.ts'
 import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 import { FINITE_SENTINEL } from '../../../math/src/constants.ts'
 import { STRETCH_DOUBLE_WGSL } from './gpuStretchWgsl.ts'
@@ -75,32 +74,16 @@ fn composeCorners(row:u32,world:array<vec2u,16>){
 }`,
 )
 
-/** The smaller and the larger of two doubles as `Math.min` and `Math.max` give them, a negative
- *  zero the smaller of the two zeros. */
-export const MINMAX_WGSL = wgslBlock(
-  'MINMAX_WGSL',
-  [dLess, dIsZero],
+/** The box of bounds `lo` and `hi` carried by `world`, its eight corners folded in `boxTransform`'s
+ *  order: six doubles, an empty box left as it is. */
+export const CARRIED_BOX_WGSL = wgslBlock(
+  'CARRIED_BOX_WGSL',
+  [AFFINE_WGSL, dMin, dMax, dLess],
   `
-fn dMin(a:vec2u,b:vec2u)->vec2u{
- if(dIsZero(a)&&dIsZero(b)){return vec2u(a.x|b.x,0u);}
- return select(a,b,dLess(b,a));
-}
-fn dMax(a:vec2u,b:vec2u)->vec2u{
- if(dIsZero(a)&&dIsZero(b)){return vec2u(a.x&b.x,0u);}
- return select(a,b,dLess(a,b));
-}`,
-)
-
-/** The world box of root `rank`: its local box (`rootInputs`, six doubles from `at`) carried by
- *  `world`, the eight corners folded in `boxTransform`'s order, an empty box left as it is. */
-export const WORLD_BOX_WGSL = wgslBlock(
-  'WORLD_BOX_WGSL',
-  [AFFINE_WGSL, MINMAX_WGSL],
-  `
-fn composeBox(rank:u32,at:u32,world:array<vec2u,16>){
- let o=rank*6u;
- for(var k=0u;k<6u;k++){rootBoxes[o+k]=rootInputs[at+k];}
- if(dLess(rootInputs[at+3u],rootInputs[at])||dLess(rootInputs[at+4u],rootInputs[at+1u])||dLess(rootInputs[at+5u],rootInputs[at+2u])){return;}
+fn carriedBox(world:array<vec2u,16>,lo:array<vec2u,3>,hi:array<vec2u,3>)->array<vec2u,6>{
+ var out:array<vec2u,6>;
+ for(var a=0u;a<3u;a++){out[a]=lo[a];out[3u+a]=hi[a];}
+ if(dLess(hi[0],lo[0])||dLess(hi[1],lo[1])||dLess(hi[2],lo[2])){return out;}
  var low:array<vec2u,3>;
  var high:array<vec2u,3>;
  var p:array<vec2u,3>;
@@ -110,8 +93,8 @@ fn composeBox(rank:u32,at:u32,world:array<vec2u,16>){
  }
  for(var k=0u;k<8u;k++){
   for(var axis=0u;axis<3u;axis++){
-   p[axis]=rootInputs[at+axis];
-   if(((k>>axis)&1u)!=0u){p[axis]=rootInputs[at+3u+axis];}
+   p[axis]=lo[axis];
+   if(((k>>axis)&1u)!=0u){p[axis]=hi[axis];}
   }
   for(var axis=0u;axis<3u;axis++){
    let v=affineAxis(world,axis,p[0],p[1],p[2]);
@@ -119,10 +102,23 @@ fn composeBox(rank:u32,at:u32,world:array<vec2u,16>){
    high[axis]=dMax(high[axis],v);
   }
  }
- for(var axis=0u;axis<3u;axis++){
-  rootBoxes[o+axis]=low[axis];
-  rootBoxes[o+3u+axis]=high[axis];
- }
+ for(var a=0u;a<3u;a++){out[a]=low[a];out[3u+a]=high[a];}
+ return out;
+}`,
+)
+
+/** The world box of root `rank`: its local box (`rootInputs`, six doubles from `at`) carried by
+ *  `world`. */
+export const WORLD_BOX_WGSL = wgslBlock(
+  'WORLD_BOX_WGSL',
+  [CARRIED_BOX_WGSL],
+  `
+fn composeBox(rank:u32,at:u32,world:array<vec2u,16>){
+ var lo:array<vec2u,3>;
+ var hi:array<vec2u,3>;
+ for(var a=0u;a<3u;a++){lo[a]=rootInputs[at+a];hi[a]=rootInputs[at+3u+a];}
+ let box=carriedBox(world,lo,hi);
+ for(var k=0u;k<6u;k++){rootBoxes[rank*6u+k]=box[k];}
 }`,
 )
 

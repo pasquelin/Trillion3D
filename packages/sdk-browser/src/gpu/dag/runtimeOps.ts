@@ -170,7 +170,7 @@ export function rewritePlacement({ resources, state }: DagRun, w: number) {
 
 /** `GpuSelection.appendRoots`: roots packed behind the others, their words sent. */
 export function appendRoots(
-  { resources, state, uploadResidency }: DagRun,
+  { resources, state, uploadResidency, tree }: DagRun,
   roots: readonly DagRoot[],
 ) {
   if (state.disposed || state.dead || state.growing) return false
@@ -179,6 +179,9 @@ export function appendRoots(
   // Their nodes' open counts first: the node words go up once, with them.
   uploadResidency.append()
   writeAppended(resources, added)
+  // Their groups are fitted at the next cut, over the leaves of the placements they hold.
+  const [first, end] = added.worlds
+  for (let w = first; w < end; w++) tree?.touch(w)
   voidCuts(state)
   return true
 }

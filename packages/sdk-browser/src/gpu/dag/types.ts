@@ -22,6 +22,8 @@ export type DagViewUniforms = SelectionUniforms
 export const DAG_NODE_FLOATS = 24,
   FRAME_VEC4 = 2,
   CULL_STRIDE = 15
+/** Words of a placement's row of `frames`. */
+export const FRAME_ROW_WORDS = FRAME_VEC4 * 4
 type DagCluster = {
   url: string
   /** Its quantized page: with `url`, the content key the pool holds it under (`evict.ts`). */

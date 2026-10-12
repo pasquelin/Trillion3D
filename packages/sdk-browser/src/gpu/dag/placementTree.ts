@@ -21,13 +21,16 @@
  * world —, tested against the frustum's render-frame planes once the eye is taken off it. It holds
  * every member's root box, grown by a margin past the single-precision rounding of both tests, so a
  * box the tree rejects is one every member's root test would have rejected: the cut is unchanged.
- * A member whose pose the box cannot hold — never culled, deformed by a reach, composed on the GPU
- * — opens its group and every node above it: they are never rejected, said by an explicit flag
- * (`nodeOpen`). A parked member, or a member slot no placement holds yet, holds nothing.
+ * A member whose pose the box cannot hold — never culled, deformed by a reach
+ * — opens its group and every node above it: they are never rejected, their box the one no plane
+ * rejects (`OPEN`). A parked member, or a member slot no placement holds yet, holds nothing.
+ *
+ * The tree is built here — `packPlacementTree` fits every node once, as the tables are made —, and
+ * refit on the GPU from then on (`treeRefit.ts`): what a pose, a park or a mark moved, over the
+ * leaves a caller writes (`memberBox`, or a composition's own), bottom up.
  */
 import { rowCell } from '../../partition/rowCells.ts'
 import { boxGrow } from '../../../../math/src/geometry/box.ts'
-import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { boxEmpty, boxTransform, boxUnion } from '../../../../sdk-core/src/index.ts'
@@ -46,7 +49,7 @@ import {
 } from './nodeLayout.ts'
 
 /** Placements a group bounds, and nodes of the level below a cell bounds: one workgroup's lanes. */
-const TREE_SPAN = SELECTION_WORKGROUP
+export const TREE_SPAN = SELECTION_WORKGROUP
 /** A node's kind (`NODE_KIND`): a cell, whose children are nodes of the level below; a group, whose
  *  children are placements. Zero is a placement's own node. */
 const TREE_CELL = 1
@@ -60,9 +63,7 @@ type TreeLevel = { base: number; count: number }
  * `cellBase` on; `depth` the levels it sets above a member's root. `order[k]` is the placement
  * member `k` names (`NONE` past the `count` live members, up to `capacity`), `slot[w]` the member
  * placement `w` is (`NONE` for the world DAG), and the order lies in the cold table from word
- * `members` on — a member slot a growth left before its new groups names none. `composed(w)`: the
- * group of `w` stays open whatever its mark (a pose the GPU composes, `treeFollow.ts`);
- * `nodeOpen[n]`: tree node `cellBase + n` is open.
+ * `members` on — a member slot a growth left before its new groups names none.
  */
 export type PlacementTree = {
   capacity: number
@@ -73,8 +74,6 @@ export type PlacementTree = {
   order: Uint32Array
   slot: Uint32Array
   members: number
-  composed: (w: number) => boolean
-  nodeOpen: Uint8Array
   /** Each placement's root box through its world as its last fit took it, six numbers a slot of
    *  the worlds: a refit transforms the moved members' alone and joins the others' kept. */
   boxes: Float64Array
@@ -120,14 +119,11 @@ export function placementTreeShape(
     slot = new Uint32Array(capacity.worlds).fill(NONE)
   order.set(placementOrder(roots, members))
   for (let k = 0; k < members.length; k++) slot[order[k]] = k
-  const levels = treeLevels(capacity.members, cellBase),
-    nodes = levels.reduce((sum, level) => sum + level.count, 0)
+  const levels = treeLevels(capacity.members, cellBase)
   return {
     ...{ capacity: capacity.members, count: members.length, cellBase, levels, order, slot },
     depth: levels.length,
     members: 0,
-    composed: () => false,
-    nodeOpen: new Uint8Array(nodes),
     boxes: new Float64Array(capacity.worlds * 6),
   }
 }
@@ -204,9 +200,9 @@ const groupLevel = (tree: PlacementTree) => tree.levels[tree.levels.length - 1]
 type TreeSource = Pick<PackedDag, 'nodes' | 'rootNodes' | 'rootBases' | 'mark' | 'worldSources'>
 
 /** Twice a float's largest finite value: an open box's bounds, past every plane. */
-const OPEN = 3.4e38
+export const OPEN = 3.4e38
 /** Relative margin a box grows by: far above both tests' single-precision rounding (2⁻²⁴). */
-const MARGIN = 2 ** -16
+export const MARGIN = 2 ** -16
 
 /** The members group `g` holds now: from its first, up to the live members. */
 const groupMembers = (tree: PlacementTree, g: number) =>
@@ -245,7 +241,8 @@ export const joinStart = (tree: PlacementTree) => ceilDiv(tree.count, TREE_SPAN)
  * Placements `batch`, appended to the packing in place, ordered as the full build orders its
  * members (`placementOrder`) and filling new groups from `joinStart`: each group's box covers its
  * own members alone. Their order words, slots and groups' member counts; returns the tree nodes
- * rewritten and the member slots taken, `[from, to)`, whose words the cold table sends.
+ * whose words changed — the new groups, their boxes left to the refit — and the member slots
+ * taken, `[from, to)`, whose words the cold table sends.
  */
 export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, batch: number[]) {
   const from = joinStart(tree)
@@ -257,54 +254,22 @@ export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, batch
     tree.slot[w] = from + i
   })
   tree.count = from + batch.length
-  const groups = groupLevel(tree).base
-  for (let g = from / TREE_SPAN; g * TREE_SPAN < tree.count; g++)
+  const groups = groupLevel(tree).base,
+    nodes: number[] = []
+  for (let g = from / TREE_SPAN; g * TREE_SPAN < tree.count; g++) {
     nodeInts[(groups + g) * DAG_NODE_FLOATS + NODE_CHILD_COUNT] = groupMembers(tree, g)
-  // A copy of the refit's view, which the next refit overwrites: the append sends it later.
-  const nodes = refitPlacementTree(packed, tree, batch).slice()
-  return { nodes, members: [from, tree.count] as const }
+    nodes.push(groups + g)
+  }
+  return { nodes: Int32Array.from(nodes), members: [from, tree.count] as const }
 }
 
 /** Fits every group, then every level above, bottom up: at pack, and after poses moved past what a
  *  list names. */
 export function fitPlacementTree(packed: TreeSource, tree: PlacementTree) {
-  for (let k = 0; k < tree.count; k++) takeBox(packed, tree, tree.order[k])
+  for (let k = 0; k < tree.count; k++) memberBox(packed, tree, tree.order[k])
   for (let l = tree.levels.length - 1; l >= 0; l--)
     for (let j = 0; j < tree.levels[l].count; j++) fitNode(packed, tree, l, j)
 }
-
-/**
- * Fits again the groups of `placements` and every node above them, after a pose, a park or a mark
- * moved; returns the tree nodes it rewrote, ascending.
- */
-export function refitPlacementTree(
-  packed: TreeSource,
-  tree: PlacementTree,
-  placements: Iterable<number>,
-) {
-  let [touched, above] = refitSets
-  touched.clear()
-  for (const w of placements)
-    if (tree.slot[w] !== NONE) {
-      takeBox(packed, tree, w)
-      touched.add(Math.floor(tree.slot[w] / TREE_SPAN))
-    }
-  for (let l = tree.levels.length - 1; l >= 0 && touched.size; l--) {
-    above.clear()
-    for (const j of touched) {
-      fitNode(packed, tree, l, j)
-      rewritten.listed.add(tree.levels[l].base + j)
-      above.add(Math.floor(j / TREE_SPAN))
-    }
-    ;[touched, above] = [above, touched]
-  }
-  return takeSorted(rewritten)
-}
-
-/** The nodes a refit fits at one level and those above them, and the nodes it rewrote, kept from
- *  one refit to the next: what it returns is a view the next refit overwrites. */
-const refitSets = [new Set<number>(), new Set<number>()],
-  rewritten = createSortedKeys()
 
 /** Whether placement `w`'s box cannot hold its pose: never culled, or deformed by a reach. */
 export const opensTree = (mark: number) => (mark & SPRITE_UNCULLED) !== 0 || mark >>> 16 !== 0
@@ -320,20 +285,22 @@ function fitNode(packed: TreeSource, tree: PlacementTree, l: number, j: number) 
   let opened = false
   if (below)
     for (let c = first; c < Math.min(first + TREE_SPAN, below.count) && !opened; c++) {
-      opened = tree.nodeOpen[below.base + c - tree.cellBase] !== 0
+      opened = isOpenNode(packed.nodes, below.base + c)
       unionNode(packed.nodes, below.base + c)
     }
   else
     for (let k = first; k < first + groupMembers(tree, j) && !opened; k++)
       opened = unionMember(packed, tree, tree.order[k])
-  const n = tree.levels[l].base + j
-  tree.nodeOpen[n - tree.cellBase] = opened ? 1 : 0
-  writeBox(packed.nodes, n, opened)
+  writeBox(packed.nodes, tree.levels[l].base + j, opened)
 }
 
-/** Member `w`'s root box through its world, kept in `tree.boxes`: taken when it moved, its group's
- *  refit joining the kept one. A parked member, or one without a root, keeps none. */
-function takeBox(packed: TreeSource, tree: PlacementTree, w: number) {
+/** Whether tree node `n` is open: its box is the one no plane rejects (`writeBox`). */
+const isOpenNode = (nodes: Float32Array, n: number) =>
+  nodes[n * DAG_NODE_FLOATS + NODE_MIN] === Math.fround(-OPEN)
+
+/** Member `w`'s root box through its world, kept in `tree.boxes`: taken when it moved, the refit
+ *  joining the kept one. A parked member, or one without a root, keeps none. */
+export function memberBox(packed: TreeSource, tree: PlacementTree, w: number) {
   if (w === NONE || packed.rootNodes[w] === NONE) return
   const root = packed.rootBases[w] * DAG_NODE_FLOATS,
     nodes = packed.nodes
@@ -347,7 +314,7 @@ function takeBox(packed: TreeSource, tree: PlacementTree, w: number) {
 /** Member `w`'s kept box (`takeBox`) joined to `box`; whether it opens its group. */
 function unionMember(packed: TreeSource, tree: PlacementTree, w: number) {
   if (w === NONE || packed.rootNodes[w] === NONE) return false
-  if (tree.composed(w) || opensTree(packed.mark[w])) return true
+  if (opensTree(packed.mark[w])) return true
   const b = tree.boxes,
     at = w * 6
   boxUnion(box, 0, b[at], b[at + 1], b[at + 2], b[at + 3], b[at + 4], b[at + 5])

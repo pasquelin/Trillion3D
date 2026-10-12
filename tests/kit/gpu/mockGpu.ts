@@ -131,7 +131,7 @@ export function mockGpu({
       computePipelines.push(descriptor)
       const stage = descriptor.compute as GPUProgrammableStage & { entryPoint: string }
       if (failCompact && stage.entryPoint === 'scatterGroups') throw new Error('NO_COMPACT')
-      return stage
+      return Object.assign(stage, { getBindGroupLayout: () => ({}) })
     },
     createBindGroup: (desc: unknown) => desc,
     createRenderBundleEncoder: fakeBundleEncoder,

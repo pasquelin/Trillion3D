@@ -48,7 +48,7 @@ const derived = shaderRun<{
 const roots = { rootInputs: [] as Pair[], rootBoxes: [] as Pair[] }
 const boxes = shaderRun<{ composeBox(rank: number, at: number, world: Pair[]): void }>(
   COMPOSE_ROOTS_WGSL,
-  [...DOUBLE_HELPERS, 'affineAxis', 'dLess', 'dIsZero', 'dMin', 'dMax', 'composeBox'],
+  [...DOUBLE_HELPERS, 'affineAxis', 'dLess', 'dIsZero', 'dMin', 'dMax', 'carriedBox', 'composeBox'],
   { countLeadingZeros, ...roots },
 )
 
