@@ -3615,6 +3615,7 @@
       "firstChild": "Os filhos de cada nó como lista encadeada, −1 para nenhum: um percurso de subárvore custa a subárvore.",
       "lastChild": "Último filho, onde uma anexação se liga.",
       "firstLazy": "Os filhos cujo mundo outra coisa compõe (`NODE_WORLD_LAZY`), como segunda lista, mantida fora da primeira para que nenhum percurso da árvore os pise: o primeiro, e o último onde se liga um. Um filho está numa lista, os mesmos laços de irmãos servem às duas.",
+      "lastLazy": "Último da lista, onde se liga um.",
       "nextSibling": "Próximo filho do mesmo pai.",
       "previousSibling": "Filho anterior do mesmo pai.",
       "depth": "O número de ancestrais de cada nó: a passada de quadro toma os pais antes dos filhos por ele.",

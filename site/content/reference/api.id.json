@@ -3755,6 +3755,7 @@
       "firstChild": "Anak setiap node sebagai daftar berantai, −1 bila tidak ada: penelusuran subpohon berbiaya sebesar subpohon.",
       "lastChild": "Anak terakhir, tempat attach menautkan.",
       "firstLazy": "Anak-anak yang dunianya disusun oleh hal lain (`NODE_WORLD_LAZY`), sebagai daftar kedua, dijauhkan dari yang pertama agar tak ada penelusuran pohon yang melangkahinya: yang pertama, dan yang terakhir tempat satu ditautkan. Seorang anak ada di satu daftar, tautan saudara yang sama melayani keduanya.",
+      "lastLazy": "Yang terakhir dari daftar, tempat sebuah tautan ditambahkan.",
       "nextSibling": "Anak berikutnya dari induk yang sama.",
       "previousSibling": "Anak sebelumnya dari induk yang sama.",
       "depth": "Jumlah leluhur setiap node: pass frame mengambil induk sebelum anak menurutnya.",

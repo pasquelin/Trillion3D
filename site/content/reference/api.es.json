@@ -6121,6 +6121,7 @@
       "firstChild": "Los hijos de cada nodo como lista enlazada, −1 si no hay: un recorrido de subárbol cuesta el subárbol.",
       "lastChild": "Último hijo, donde se enlaza una unión.",
       "firstLazy": "Los hijos cuyo mundo compone otra cosa (`NODE_WORLD_LAZY`), como una segunda lista, apartada de la primera para que ningún recorrido del árbol los pise: el primero, y el último donde se enlaza uno. Un hijo está en una lista, los mismos enlaces de hermanos sirven a ambas.",
+      "lastLazy": "Último de la lista, donde se enlaza uno.",
       "nextSibling": "Siguiente hijo del mismo padre.",
       "previousSibling": "Hijo anterior del mismo padre.",
       "depth": "El número de ancestros de cada nodo: el pase de fotograma toma por él los padres antes que los hijos.",

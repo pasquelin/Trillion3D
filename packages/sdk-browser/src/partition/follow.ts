@@ -26,9 +26,6 @@ function castsMoved(mesh: PlacedMesh) {
   return moved
 }
 
-/** A row linked to the frame's world: its rows, its rank there, its world within the frame. */
-type FrameLink = { rows: PlacementRows; index: number; local: ArrayLike<number> }
-
 /**
  * The world a partition's scene hangs in: its model's, when a world draws it (the scene's own
  * nodes stand in the model's frame, never in the world's, `world/core/worldModels.ts`), and the
@@ -41,7 +38,7 @@ export type CellFrame = {
   compose?: (
     parent: object,
     world: ArrayLike<number>,
-    links: readonly FrameLink[],
+    links: readonly { rows: PlacementRows; index: number; local: ArrayLike<number> }[],
     whole: boolean,
   ) => boolean
   readonly key?: object
@@ -61,7 +58,7 @@ export function createPlacementWrites(
    *  the session refuses a link. */
   let linked = false
   /** The links of the rows a batch wrote, their matrices taken from a pool. */
-  const pending: FrameLink[] = [],
+  const pending: { rows: PlacementRows; index: number; local: ArrayLike<number> }[] = [],
     pool: Float64Array[] = []
   const stale = new Set<Object3D | PlacedMesh>()
   const heldWorld = (node: Object3D) =>

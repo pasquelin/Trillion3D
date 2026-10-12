@@ -47,6 +47,7 @@ export interface TransformTree {
    *  off the first so no walk of the tree steps over them: first, and last where one links. A
    *  child is in one list, the same sibling links serving both. */
   firstLazy: Int32Array
+  /** Last of the lazy list, where a link goes. */
   lastLazy: Int32Array
   /** Next child of the same parent. */ nextSibling: Int32Array
   /** Previous child of the same parent. */ previousSibling: Int32Array

@@ -6121,6 +6121,7 @@
       "firstChild": "I figli di ogni nodo come lista collegata, −1 se nessuno: una visita di sottoalbero costa il sottoalbero.",
       "lastChild": "Ultimo figlio, dove si collega un aggancio.",
       "firstLazy": "I figli il cui mondo compone altro (`NODE_WORLD_LAZY`), come seconda lista, tenuta fuori dalla prima perché nessun percorso dell’albero li scavalchi: il primo, e l’ultimo dove se ne lega uno. Un figlio è in una lista, gli stessi legami tra fratelli servono entrambe.",
+      "lastLazy": "Ultimo della lista, dove se ne lega uno.",
       "nextSibling": "Figlio successivo dello stesso genitore.",
       "previousSibling": "Figlio precedente dello stesso genitore.",
       "depth": "Il numero di antenati di ogni nodo: il passaggio di frame prende con esso i genitori prima dei figli.",

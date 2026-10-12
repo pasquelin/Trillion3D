@@ -51,13 +51,11 @@ export type PlacementGrowth = {
    *  atlas, no table rebuilt. `undefined` once joined; else the refusal, by name — a catalogue
    *  past its keys, a device that refuses the pool or a pass —, nothing joined: the owner says it. */
   addPlacements?(source: DrawSource, primitive: Primitive): Promise<string | undefined>
-  /** The world DAG a model joined with (`WorldRootsHold`, its sources handed to `addPlacements`
+  /** The world DAG a model joined with (a `WorldRootsHold`, its sources handed to `addPlacements`
    *  first) is drawn from now on, its cells held far where the cut says: its root joins the cut
    *  made over every root. `undefined` once it waits to join, or when there is nothing to draw —
    *  the session draws one world DAG, another's —; else the refusal, by name. */
-  addWorldRoots?(
-    roots: import('../scene/worldRoots.ts').WorldRootsHold,
-  ): Promise<string | undefined>
+  addWorldRoots?(roots: object): Promise<string | undefined>
 }
 
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */

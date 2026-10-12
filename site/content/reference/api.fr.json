@@ -6129,6 +6129,7 @@
       "firstChild": "Les enfants de chaque nœud en liste chaînée, −1 pour aucun : un parcours de sous-arbre coûte le sous-arbre.",
       "lastChild": "Dernier enfant, où un rattachement se lie.",
       "firstLazy": "Les enfants dont le monde est composé ailleurs (`NODE_WORLD_LAZY`), en seconde liste, tenue hors de la première pour qu’aucun parcours de l’arbre ne les enjambe : le premier, et le dernier où l’on en lie un. Un enfant est dans une liste, les mêmes liens de fratrie servant aux deux.",
+      "lastLazy": "Dernier de la liste, où un lien se pose.",
       "nextSibling": "Enfant suivant du même parent.",
       "previousSibling": "Enfant précédent du même parent.",
       "depth": "Le nombre d’ancêtres de chaque nœud : la passe d’image en prend les parents avant les enfants.",

@@ -3755,6 +3755,7 @@
       "firstChild": "Các con của mỗi nút dưới dạng danh sách liên kết, −1 nếu không có: một lần duyệt cây con tốn đúng cây con.",
       "lastChild": "Con cuối, nơi một lần gắn được nối vào.",
       "firstLazy": "Các nút con mà thế giới do thứ khác hợp thành (`NODE_WORLD_LAZY`), như một danh sách thứ hai, tách khỏi danh sách đầu để không phép duyệt cây nào bước qua chúng: nút đầu, và nút cuối nơi một nút được nối. Một nút con ở trong một danh sách, cùng các liên kết anh em phục vụ cả hai.",
+      "lastLazy": "Nút cuối của danh sách, nơi một liên kết được nối thêm.",
       "nextSibling": "Con kế tiếp của cùng cha.",
       "previousSibling": "Con trước đó của cùng cha.",
       "depth": "Số tổ tiên của mỗi node: chặng khung hình dựa vào đó để lấy cha trước con.",

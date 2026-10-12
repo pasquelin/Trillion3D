@@ -19,6 +19,7 @@ import { disposeWebgpuPages, metricsOf } from './io/metrics.ts'
 import { hostTableBytesOf, setWebgpuMemoryBudgets } from './io/memory.ts'
 import { runtimeMaterialApi } from './io/runtimeMaterialApi.ts'
 import { addWebgpuPlacements } from '../../placement/webgpuAppend.ts'
+import type { WorldRootsHold } from '../../scene/worldRoots.ts'
 import { addWebgpuWorldRoots } from '../../placement/webgpuAppendWorld.ts'
 import { setWebgpuClearColor } from './io/clearColor.ts'
 import * as materials from './io/refreshMaterials.ts'
@@ -63,7 +64,7 @@ export function backendSetters(rt: WebgpuPagesRuntime) {
     wearSurface: (assignment) => materials.wearWebgpuSurface(rt, assignment),
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     addPlacements: (source, primitive) => addWebgpuPlacements(rt, source, primitive),
-    addWorldRoots: (roots) => addWebgpuWorldRoots(rt, roots),
+    addWorldRoots: (roots) => addWebgpuWorldRoots(rt, roots as WorldRootsHold),
     ...runtimeMaterialApi(rt),
     setClearColor: (hex) => setWebgpuClearColor(rt, hex),
   } satisfies Partial<Engine>

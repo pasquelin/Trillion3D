@@ -6121,6 +6121,7 @@
       "firstChild": "Die Kinder jedes Knotens als verkettete Liste, −1 für keine: ein Teilbaumdurchlauf kostet den Teilbaum.",
       "lastChild": "Letztes Kind, wo ein Attach verknüpft.",
       "firstLazy": "Die Kinder, deren Welt etwas anderes zusammensetzt (`NODE_WORLD_LAZY`), als zweite Liste, getrennt von der ersten, damit kein Durchlauf des Baums sie überspringt: das erste, und das letzte, wo eines verknüpft wird. Ein Kind steht in einer Liste, dieselben Geschwisterverknüpfungen bedienen beide.",
+      "lastLazy": "Letztes der Liste, wo ein Glied angefügt wird.",
       "nextSibling": "Nächstes Kind desselben Elternteils.",
       "previousSibling": "Vorheriges Kind desselben Elternteils.",
       "depth": "Die Anzahl der Vorfahren jedes Knotens: der Frame-Durchgang nimmt danach Elternteile vor Kindern.",

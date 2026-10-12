@@ -4269,6 +4269,7 @@
       "firstChild": "Her düğümün çocukları bağlı liste olarak, yoksa −1: bir alt ağaç gezisi alt ağaç kadar maliyetlidir.",
       "lastChild": "Bir eklemenin bağladığı son çocuk.",
       "firstLazy": "Dünyasını başka bir şeyin oluşturduğu çocuklar (`NODE_WORLD_LAZY`), ağacın hiçbir gezinmesi üzerlerinden geçmesin diye ilkinden ayrı tutulan ikinci bir liste olarak: ilki ve birinin bağlandığı yerdeki sonuncusu. Bir çocuk bir listededir, aynı kardeş bağları ikisine de hizmet eder.",
+      "lastLazy": "Listenin sonuncusu, bir bağın eklendiği yer.",
       "nextSibling": "Aynı ebeveynin sonraki çocuğu.",
       "previousSibling": "Aynı ebeveynin önceki çocuğu.",
       "depth": "Her düğümün ata sayısı: kare geçişi ebeveynleri çocuklardan önce bununla alır.",
