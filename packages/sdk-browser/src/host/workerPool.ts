@@ -145,6 +145,3 @@ export function createWorkerPool<Q extends Request, A extends Request>(options: 
     },
   }
 }
-export type WorkerPool<Q extends Request, A extends Request> = ReturnType<
-  typeof createWorkerPool<Q, A>
->
