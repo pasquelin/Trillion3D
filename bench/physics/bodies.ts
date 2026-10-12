@@ -27,7 +27,7 @@ import {
 import { mean, quantileFloor } from '../../packages/math/src/scalar/quantile.ts'
 import { Quaternion } from '../../packages/sdk-core/src/world/math/quaternion.ts'
 import { openJolt, startJolt } from '../../packages/sdk-browser/src/physics/joltModule.ts'
-import { seeded } from '../../site/examples/kit/random.ts'
+import { lcgRandom as seeded } from '../../packages/math/src/sequence/random.ts'
 import {
   runJoltThread,
   type JoltThreadStart,

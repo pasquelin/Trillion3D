@@ -5,7 +5,7 @@
 // lights, never for a scene of the repository. `depthField` ray-casts it as the engine's depth
 // buffer holds it — reverse-Z, infinite far, 0 on the sky.
 import { lerp } from '../../../packages/math/src/scalar/reals.ts'
-import { seeded } from '../../../site/examples/kit/random.ts'
+import { lcgRandom as seeded } from '../../../packages/math/src/sequence/random.ts'
 import {
   pixelRay,
   rayDepth,
