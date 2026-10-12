@@ -171,7 +171,7 @@ export async function testGlassContact(): Promise<GlassContact> {
   return {
     adapter,
     errors: gpu.errors,
-    rayLength: 1.4,
+    rayLength: Math.fround(1.4),
     floor: floor[0],
     wall: wall[0],
     pane: pane[0],
