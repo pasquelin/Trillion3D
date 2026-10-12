@@ -24,23 +24,45 @@ const BASE_A = { at: [-1.3, 0.01, -2.8] as V3, half: 1.4, color: 0xe08020 }
 const BASE_B = { at: [2.6, 0.01, -4.6] as V3, half: 1.6, color: 0x20c040 }
 const FLOOR = 0x808890
 /** The colour of B's pane; A's is white. */
-const PANE_B = 0xff3030
+const PANE_B = 0xffc0c0
 
 /** What stands in a scene: B's pane and its colour, B's base and its colour, and pane A. */
 type Parts = { pane: boolean; base: boolean; a?: boolean; paneColor?: number; baseColor?: number }
 
-const glass = (color: number) =>
-  G.standardSurface({
-    color,
-    metalness: 1,
-    roughness: 0.04,
-    transparent: true,
-    opacity: 0.5,
-    depthWrite: false,
-    side: G.DOUBLE_SIDE,
-  })
+/** The kinds of transparent surface the chain meets: a blended pane, a transmissive one, and the
+ *  engine's water (a transmissive one that carries a volume). Each is a half-transparent polished
+ *  metal, so that what it reflects is what the proof reads. */
+export type GlassKind = 'blend' | 'transmission' | 'water'
 
-function scene({ pane, base, a = true, paneColor = PANE_B, baseColor = BASE_B.color }: Parts) {
+const glass = (color: number, kind: GlassKind) =>
+  kind === 'blend'
+    ? G.standardSurface({
+        color,
+        metalness: 1,
+        roughness: 0.04,
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+        side: G.DOUBLE_SIDE,
+      })
+    : G.physicalSurface({
+        color,
+        metalness: 1,
+        roughness: 0.04,
+        transmission: 0.5,
+        ior: 1,
+        thickness: kind === 'water' ? 2 : 0,
+        ...(kind === 'water' ? { attenuationColor: 0xb0d8d0, attenuationDistance: 20 } : {}),
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
+        side: G.DOUBLE_SIDE,
+      })
+
+function scene(
+  { pane, base, a = true, paneColor = PANE_B, baseColor = BASE_B.color }: Parts,
+  kind: GlassKind,
+) {
   const builder = batisseur()
   const add = (
     surface: G.GraphSurface,
@@ -59,8 +81,8 @@ function scene({ pane, base, a = true, paneColor = PANE_B, baseColor = BASE_B.co
   add(flat(FLOOR), 'exact-clusters', 90, [0, 0, -4], { x: -HALF_PI })
   add(flat(BASE_A.color), 'exact-clusters', BASE_A.half, BASE_A.at, { x: -HALF_PI })
   if (base) add(flat(baseColor), 'exact-clusters', BASE_B.half, BASE_B.at, { x: -HALF_PI })
-  if (a) add(glass(0xffffff), 'clustered-blend', A.half, A.at, { y: A.yaw })
-  if (pane) add(glass(paneColor), 'clustered-blend', B.half, B.at, { y: B.yaw })
+  if (a) add(glass(0xffffff, kind), 'clustered-blend', A.half, A.at, { y: A.yaw })
+  if (pane) add(glass(paneColor, kind), 'clustered-blend', B.half, B.at, { y: B.yaw })
   return builder.fini()
 }
 
@@ -73,8 +95,8 @@ function cameraOf() {
 }
 
 /** The held image of `parts`: RGBA bytes, the top row first. */
-async function imageOf(device: GPUDevice, events: unknown[], parts: Parts) {
-  const prepared = scene(parts),
+async function imageOf(device: GPUDevice, events: unknown[], parts: Parts, kind: GlassKind) {
+  const prepared = scene(parts, kind),
     camera = cameraOf()
   const sceneLights = createSceneLightStore()
   sceneLights.add(SUN)
@@ -112,11 +134,11 @@ export type GlassReading = {
   behindPane: number[]
 }
 
-export const run = () =>
+export const run = (kind: GlassKind) =>
   runOnDevice<GlassReading>(async (device, events, result) => {
     const scenes = {
       full: { pane: true, base: true },
-      tinted: { pane: true, base: true, paneColor: 0x3050ff },
+      tinted: { pane: true, base: true, paneColor: 0xc0d0ff },
       rebased: { pane: true, base: true, baseColor: 0xc03030 },
       without: { pane: false, base: false },
       alone: { pane: true, base: true, a: false },
@@ -126,7 +148,7 @@ export const run = () =>
     result.held = []
     result.images = {} as GlassReading['images']
     for (const [name, parts] of Object.entries(scenes) as [keyof typeof scenes, Parts][]) {
-      const { held, pixels } = await imageOf(device, events, parts)
+      const { held, pixels } = await imageOf(device, events, parts, kind)
       result.held.push(held)
       result.images[name] = pixels
     }
