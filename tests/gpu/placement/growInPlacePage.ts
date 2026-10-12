@@ -12,14 +12,8 @@ import {
   type RowLink,
 } from '../../../packages/sdk-browser/src/partition/rows.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
-import {
-  addBackdrop,
-  batisseur,
-  cameraFace,
-  engine,
-  release,
-  square,
-} from '../kit/sharedSceneProof.ts'
+import { batisseur, cameraFace, engine, release, square } from '../kit/sharedSceneProof.ts'
+import { addBackdrop } from '../kit/backdropScene.ts'
 import { drawnPixels, untilHeld } from '../kit/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'

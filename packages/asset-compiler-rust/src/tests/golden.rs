@@ -185,3 +185,13 @@ pub(super) fn write_expected(dir: &Path, mut expected: Value, case: &str, rule: 
     fs::write(dir.join("expected.json"), &text).expect("expected.json");
     println!("fixture written to {}", dir.display());
 }
+
+/// The glTF material of this name, in a compiled scene.
+pub(crate) fn material<'a>(gltf: &'a Value, name: &str) -> &'a Value {
+    gltf["materials"]
+        .as_array()
+        .expect("materials")
+        .iter()
+        .find(|material| material["name"] == json!(name))
+        .unwrap_or_else(|| panic!("no material named {name}"))
+}

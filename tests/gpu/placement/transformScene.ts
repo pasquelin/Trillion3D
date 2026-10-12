@@ -3,7 +3,6 @@
 // its material.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import {
-  addBackdrop,
   batisseur,
   cameraFace,
   square,
@@ -11,6 +10,7 @@ import {
   versApi,
   type ScenePreparee,
 } from '../kit/sharedSceneProof.ts'
+import { addBackdrop } from '../kit/backdropScene.ts'
 
 /** Half-width of the transparent tile: the sampling window depends on it, not the reverse. */
 const HALF = 0.35

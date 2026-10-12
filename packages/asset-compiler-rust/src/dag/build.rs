@@ -1,5 +1,28 @@
 use super::*;
 
+impl DagCluster {
+    /// A level-0 cluster in no group yet: a root of its own, `sphere` bounding both its error and
+    /// its parent's.
+    pub(crate) fn leaf(
+        indices: Vec<u32>,
+        lod_error: f64,
+        sphere: [f64; 4],
+        source_rank: u32,
+    ) -> Self {
+        Self {
+            indices,
+            level: 0,
+            lod_error,
+            parent_error: f64::INFINITY,
+            sphere,
+            parent_sphere: sphere,
+            source_rank,
+            group: None,
+            source: None,
+        }
+    }
+}
+
 /// Clusters, kept groups, one tally per level, the stalled groups with their level, and the arrays
 /// grown with every vertex a seam-locked solve placed (`Grown`).
 pub type DagBuild = (

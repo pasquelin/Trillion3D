@@ -1,16 +1,15 @@
-// lookAtNode under a parent: the node's world z lies on the line of sight and its y follows up,
-// whether the parent mirrors (negative determinant) or not; and for proper parents, eyes, targets
-// and ups the world matrix it composes rounds to the same f32 terms as the former inline formulas:
-// the aim basis (normalise, `up × z`, `z × x`), the parent's normalised columns (one reciprocal of
-// the root, three products) and the product with the conjugate (`multiplyQuaternion`, its sums in
-// the order written below) are the same operations in the same order.
+// lookAtNode under a parent: its world z lies on the line of sight and its y follows up, whether the
+// parent mirrors or not; for proper parents, eyes, targets and ups its world matrix rounds to the
+// same f32 terms as the former inline formulas: the aim basis (normalise, `up × z`, `z × x`), the
+// parent's normalised columns (one reciprocal of the root, three products) and the product with the
+// conjugate (`multiplyQuaternion`, its sums in the order written below), operation for operation.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { determinantMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { writeRotationQuaternion } from '../../../../math/src/matrix/matrix4Trs.ts'
 import { halton } from '../../../../math/src/sequence/halton.ts'
 import { normalizeQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
-import { unit } from '../../../../math/src/vector/vectorTuple.ts'
+import { subtract, unit } from '../../../../math/src/vector/vectorTuple.ts'
 import {
   addTransformNode,
   createTransformTree,
@@ -89,7 +88,7 @@ function formerAim(
 }
 
 /** A parent placed by `(position, unit quaternion, scale)` with two children at `local`. */
-function scene(position: number[], turn: number[], scale: number[], local: number[]) {
+function scene(position: number[], turn: ArrayLike<number>, scale: number[], local: number[]) {
   const tree = createTransformTree(4)
   const parent = addTransformNode(tree)
   const a = addTransformNode(tree, parent)
@@ -102,7 +101,8 @@ function scene(position: number[], turn: number[], scale: number[], local: numbe
   return { tree, parent, a, b }
 }
 
-const TURN = Array.from(normalizeQuaternion(Float64Array.of(0.3, -0.5, 0.2, 0.8)))
+type V3 = [number, number, number]
+const TURN = normalizeQuaternion(Float64Array.of(0.3, -0.5, 0.2, 0.8))
 
 test('lookAt under a mirrored or proper parent: world z on the line of sight, y toward up, both modes', () => {
   const up = [0, 1, 0]
@@ -122,9 +122,7 @@ test('lookAt under a mirrored or proper parent: world z on the line of sight, y 
       updateNodeMatrixWorld(tree, parent, true)
       const w = tree.worldViews[a]
       const eye = [w[12], w[13], w[14]]
-      const sight = unit(
-        target.map((t, i) => (viewer ? eye[i] - t : t - eye[i])) as [number, number, number],
-      )
+      const sight = unit(viewer ? subtract(eye, target) : subtract(target, eye))
       const z = unit([w[8], w[9], w[10]])
       const label = `scale ${scale}, viewer ${viewer}`
       for (let i = 0; i < 3; i++)
@@ -138,22 +136,17 @@ test('lookAt under proper parents: the composed world matrix rounds to the same 
   const N = 4096
   const at = (i: number, base: number, shift: number, lo: number, hi: number) =>
     lo + (hi - lo) * halton(i + shift * N, base)
-  type Case = { position: number[]; turn: number[]; scale: number[]; local: number[] }
+  type Case = { position: number[]; turn: ArrayLike<number>; scale: number[]; local: number[] }
   type Aim = { target: number[]; up: number[]; viewer: boolean }
   const cases: [Case, Aim][] = []
   for (let i = 1; i <= N; i++) {
-    const turn = Array.from(
-      normalizeQuaternion(Float64Array.from([2, 3, 5, 7], (base) => at(i, base, 0, -1, 1))),
-    )
+    const turn = normalizeQuaternion(Float64Array.from([2, 3, 5, 7], (b) => at(i, b, 0, -1, 1)))
     const position = [2, 3, 5].map((base) => at(i, base, 1, -10, 10))
     const scale = [3, 5, 7].map((base) => at(i, base, 2, 0.25, 4))
     if (i % 3 === 0) scale.fill(scale[0])
     const local = [5, 7, 2].map((base) => at(i, base, 3, -5, 5))
     const target = [7, 2, 3].map((base) => at(i, base, 4, -10, 10))
-    const up =
-      i % 2
-        ? [0, 1, 0]
-        : unit([2, 3, 5].map((base) => at(i, base, 5, -1, 1)) as [number, number, number])
+    const up = i % 2 ? [0, 1, 0] : unit([2, 3, 5].map((base) => at(i, base, 5, -1, 1)) as V3)
     cases.push([
       { position, turn, scale, local },
       { target, up, viewer: i % 4 < 2 },

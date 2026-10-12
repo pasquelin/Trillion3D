@@ -113,37 +113,6 @@ export function batisseur() {
 /** A prepared scene as `batisseur().fini()` returns it. */
 export type ScenePreparee = ReturnType<ReturnType<typeof batisseur>['fini']>
 
-/** A lit square of half side `half` added to `builder` on `pass`, facing +z at depth `z`, its
- *  centre on `x`: the plane of the graph, which carries its normals, not the proofs' bare square. */
-export function addPlane(
-  builder: ReturnType<typeof batisseur>,
-  surface: G.GraphSurface,
-  pass: string,
-  z: number,
-  half: number,
-  x = 0,
-) {
-  const mesh = G.mesh(G.planeGeometry(2 * half, 2 * half), surface)
-  mesh.position.set(x, 0, z)
-  builder.source.add(mesh)
-  builder.add(mesh, pass, half)
-  return mesh
-}
-
-/** The proofs' blue backdrop, added to `builder`: a 4 m square named `background` two metres
- *  behind the origin, drawn exact, its surface on `side` when one is given. */
-export function addBackdrop(builder: ReturnType<typeof batisseur>, side?: number) {
-  const background = G.mesh(
-    square(4),
-    G.basicSurface(side === undefined ? { color: 0x1b3a5c } : { color: 0x1b3a5c, side }),
-  )
-  background.name = 'background'
-  background.position.z = -2
-  builder.source.add(background)
-  builder.add(background, 'exact-clusters', 4)
-  return background
-}
-
 /** A host-library matrix, column-major, ready for `setTransform`. */
 export const versApi = (matrice: G.Matrix4): Float32Array => new Float32Array(matrice.elements)
 

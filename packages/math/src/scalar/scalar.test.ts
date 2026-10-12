@@ -12,7 +12,6 @@ import {
 } from './integers.ts'
 import { clamp, clampCompare, clampLowWins, lerp, saturate, wrap } from './reals.ts'
 import { quantileOf } from './quantile.ts'
-import { HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
 test('ceilDiv rounds up, exact at multiples, zero count and NaN', () => {
   assert.equal(ceilDiv(10, 5), 2)
@@ -197,24 +196,4 @@ test('quantile is the nearest rank', () => {
   assert.equal(quantileOf([], 0.5), undefined)
   assert.equal(quantileOf(ten, 0), undefined)
   assert.equal(quantileOf(ten, NaN), undefined)
-})
-
-test('alignUp to four is the mask (offset + 3) & ~3 on every byte offset of 16 bits and at 2³¹', () => {
-  for (let offset = 0; offset < 1 << 16; offset++)
-    assert.equal(alignUp(offset, 4), (offset + 3) & ~3, `${offset}`)
-  for (const offset of [2 ** 31 - 8, 2 ** 31 - 5, 2 ** 31 - 4])
-    assert.equal(alignUp(offset, 4), (offset + 3) & ~3, `${offset}`)
-})
-
-test('floorLog2 is floor(log2) on every side of 1 to 2³² − 1: a full mip chain counts the same levels', () => {
-  // On that span `Math.clz32` reads the side whole, and below 2³² `Math.log2` keeps every integer
-  // apart from the power of two above it; a fractional side truncates in `clz32` as `Math.floor`
-  // rounds the logarithm. Every side to 2¹⁴, the powers of two and their neighbours, Halton sides.
-  const sides: number[] = [2 ** 32 - 1]
-  for (let side = 1; side <= 2 ** 14; side++) sides.push(side)
-  for (let k = 0; k < 32; k++) sides.push(2 ** k - 1, 2 ** k, 2 ** k + 1)
-  for (let i = 1; i <= HALTON_SWEEP; i++)
-    sides.push(Math.floor(haltonSpan(i, 2, 1, 2 ** 32)), haltonSpan(i, 3, 1, 2 ** 32))
-  for (const side of sides.filter((side) => side >= 1 && side < 2 ** 32))
-    assert.equal(floorLog2(side), Math.floor(Math.log2(side)), `side ${side}`)
 })

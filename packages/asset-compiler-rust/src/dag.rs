@@ -74,26 +74,6 @@ pub struct DagCluster {
     pub source: Option<usize>,
 }
 impl DagCluster {
-    /// A level-0 cluster in no group yet: a root of its own, `sphere` bounding both its error and
-    /// its parent's.
-    pub(crate) fn leaf(
-        indices: Vec<u32>,
-        lod_error: f64,
-        sphere: [f64; 4],
-        source_rank: u32,
-    ) -> Self {
-        Self {
-            indices,
-            level: 0,
-            lod_error,
-            parent_error: f64::INFINITY,
-            sphere,
-            parent_sphere: sphere,
-            source_rank,
-            group: None,
-            source: None,
-        }
-    }
     pub fn triangles(&self) -> usize {
         self.indices.len() / 3
     }

@@ -6,7 +6,6 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import {
   VIEWPORT,
-  addBackdrop,
   batisseur,
   square,
   cameraFace as facingCamera,
@@ -14,6 +13,7 @@ import {
   engine,
   versApi as toApiMatrix,
 } from '../kit/sharedSceneProof.ts'
+import { addBackdrop } from '../kit/backdropScene.ts'
 import { image, untilHeld } from '../kit/sceneImageProof.ts'
 import { runAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts'
 

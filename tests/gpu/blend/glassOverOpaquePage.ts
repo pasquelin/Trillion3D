@@ -4,7 +4,8 @@
 // within a few hundredths of a unit; an opaque red tile in front of the glass, and the same tile
 // without the glass; the glass moved out of view; and the backdrop alone.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { addPlane, batisseur, cameraFace } from '../kit/sharedSceneProof.ts'
+import { batisseur, cameraFace } from '../kit/sharedSceneProof.ts'
+import { addPlane } from '../kit/backdropScene.ts'
 import { colorAt, imageUnderSun } from '../kit/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
