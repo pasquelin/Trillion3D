@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { heldBuffers } from './heldBuffers.ts'
+import { heldBuffers, releaseHeldBuffers } from './heldBuffers.ts'
 
 test('a grown buffer is the power of two at or above its size, never 0 bytes', () => {
   const { device } = fakeDevice()
@@ -22,4 +22,24 @@ test('a grown buffer is kept while it holds the size asked', () => {
   const first = held.grow(device, 'kept', 5, GPUBufferUsage.STORAGE)
   assert.equal(held.grow(device, 'kept', 8, GPUBufferUsage.STORAGE), first)
   assert.equal(held.grow(device, 'kept', 9, GPUBufferUsage.STORAGE).size, 16)
+})
+
+test('a closed session gives back every buffer any holder kept for its handle, and only its', () => {
+  const { device } = fakeDevice(),
+    other = fakeDevice().device
+  const readbacks = heldBuffers(1000),
+    batches = heldBuffers()
+  const held = readbacks.take(device, 'readback', 8, GPUBufferUsage.COPY_DST)
+  readbacks.give(device, 'readback', held)
+  const grown = batches.grow(device, 'batch', 8, GPUBufferUsage.STORAGE)
+  const kept = batches.grow(other, 'batch', 8, GPUBufferUsage.STORAGE)
+  let destroyed = 0
+  for (const buffer of [held, grown, kept]) buffer.destroy = () => void destroyed++
+  releaseHeldBuffers(device)
+  assert.equal(destroyed, 2)
+  // Nothing is held any more: the next ask makes a buffer, the other handle's is still kept.
+  assert.notEqual(batches.grow(device, 'batch', 8, GPUBufferUsage.STORAGE), grown)
+  assert.equal(batches.grow(other, 'batch', 8, GPUBufferUsage.STORAGE), kept)
+  releaseHeldBuffers(device)
+  releaseHeldBuffers(other)
 })

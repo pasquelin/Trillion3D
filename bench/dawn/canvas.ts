@@ -23,8 +23,11 @@ class TextureContext {
     this.#texture?.destroy()
     this.#texture = null
   }
+  /** A browser gives the texture back when its context is unconfigured: nothing then holds it. */
   unconfigure() {
     this.#config = null
+    this.#texture?.destroy()
+    this.#texture = null
   }
   getConfiguration() {
     return this.#config
