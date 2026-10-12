@@ -1,9 +1,7 @@
-// The reflection's hierarchical march, shipped WGSL run as JavaScript (`scene.fixture.ts`) over
-// depth images in an orthographic view: a hit where the ray crosses a surface's front, or enters its
-// slab through the side of a pixel, through a gap, on a depth thinner than a pixel, on a pixel's
-// plane, never on the pixel centres a ray skims in front of, never in the pixel it leaves; a ray
-// behind a slab passes behind it and goes on to what lies past; a miss in front of everything — each
-// within its bound, the iterations of the screen distance covered (`screenMarchBudget`).
+// The engine's screen march as the reflection calls it, shipped WGSL run as JavaScript over depth
+// images in an orthographic view: a hit on a surface's front, through a pixel's side, a gap, a depth
+// thinner than a pixel, a pixel's plane; a ray behind a slab passes behind it; a miss in front of
+// everything — each within its bound, the iterations of the screen distance (`screenMarchBudget`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { reflectionConstant } from './constants.fixture.ts'
@@ -194,12 +192,9 @@ test('a ray in front of everything leaves the screen: a miss, within its bound',
 })
 
 test('a ray meets a grazing plane in the half of its pixel past the centre, in whatever cell it enters', () => {
-  // A ramp of 0.02 of depth a row, steeper than half a slab (4 pixels of 2 / 1024 deep: 0.0078)
-  // over 0.0078 itself: the plane of the first row of a cell leaves the depth of its centre by
-  // more than the slab's thickness at its far edge. The ray runs level at 0.641, a hair in front of
-  // the plane's depth, 0.640, where it enters row 232, the first of an eight-row cell.
+  // A ramp of 0.02 a row, past half a slab (0.0078): the far edge of the first row of an eight-row
+  // cell lies past its centre's slab; the ray, level at 0.641, enters row 232 there.
   const tall = marcher(W, 1024, (_x, y) => (y < 200 ? 0 : y < 250 ? 0.02 * (y + 0.5 - 200) : 1))
   const { at } = tall.hit([64.5, 100.5, 0.641], [0, 300, 0])
-  assert.ok(at, 'hit')
-  assert.ok(at[1] >= 232 && at[1] < 233, `in row 232: ${at[1]}`)
+  assert.ok(at && at[1] >= 232 && at[1] < 233, `in row 232: ${at?.[1]}`)
 })
