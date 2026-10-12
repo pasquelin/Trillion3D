@@ -158,3 +158,19 @@ test('a whole link set sent again keeps the motion pose of the roots it already 
   frame()
   assert.deepEqual(seeded(), [0], 'root 0 linked anew starts from its CPU pose again')
 })
+
+test('a parent whose world turns its winding is refused: the rows’ draw bins are the CPU’s to remake', () => {
+  const { rt, rows } = session()
+  const parent = {},
+    links = [0, 1].map((index) => ({ rows, index, local: turn(0) }))
+  composeWebgpuPlacements(rt, parent, turn(0), links, true)
+  const mirrored = turn(0.5)
+  mirrored[0] = -mirrored[0]
+  mirrored[1] = -mirrored[1]
+  mirrored[2] = -mirrored[2]
+  assert.equal(composeWebgpuPlacements(rt, parent, turn(0.7), [], false), true, 'a turn keeps it')
+  assert.equal(composeWebgpuPlacements(rt, parent, mirrored, [], false), false, 'a mirror cannot')
+  // The caller writes the rows and links them again at the mirrored world: that is the new winding.
+  assert.equal(composeWebgpuPlacements(rt, parent, mirrored, links, true), true)
+  assert.equal(composeWebgpuPlacements(rt, parent, turn(0.9), [], false), false, 'turned back')
+})

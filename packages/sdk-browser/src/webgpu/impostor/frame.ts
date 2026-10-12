@@ -9,6 +9,7 @@ import {
   planImpostorCards,
 } from '../../impostor/cards.ts'
 import { createImpostorPass, type ImpostorPass } from './pass.ts'
+import { composedRoot } from '../../placement/gpuCompose.ts'
 
 /** A session's impostor tier on WebGPU: the pass, the baked meshes, and this image's cards. */
 export type WebgpuImpostors = ReturnType<typeof createWebgpuImpostors>
@@ -26,8 +27,10 @@ function createWebgpuImpostors(
       rt.run.gpuSelection?.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0)),
     // A root linked to the world DAG is its super-roots' far away (`../../gpu/dag/worldLinks.ts`):
     // it takes no card, which would draw it twice; one the world does not hold — a host mesh, an
-    // object outside its table — keeps its card, as the session's cut says now.
-    carded: (rank) => !rt.run.gpuSelection?.worldStandsIn(rank),
+    // object outside its table — keeps its card, as the session's cut says now. A root a parent
+    // composes on the GPU (`../../placement/gpuCompose.ts`) draws its clusters: its card is
+    // written from the pose the CPU holds, which is not the one the parent gives it.
+    carded: (rank) => !rt.run.gpuSelection?.worldStandsIn(rank) && !composedRoot(rt, rank),
   })
   return Object.assign(cards, {
     pass,

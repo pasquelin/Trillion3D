@@ -42,7 +42,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import { placedBy, type PlacementRows } from './rows.ts'
 import { MOVE_PROMOTED, rootRankOfRow } from './update.ts'
-import { BOX_VALUES } from '../../../sdk-core/src/index.ts'
+import { BOX_VALUES, matrixWindingCw } from '../../../sdk-core/src/index.ts'
 import { WORLD_ORIGIN_BYTES } from '../gpu/dag/worldOrigins.ts'
 import { linkedRowSpheres } from '../webgpu/shadow/spheres.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
@@ -76,6 +76,9 @@ function createComposeState(roots: number) {
     worlds: new Float64Array(16),
     /** Each parent's world at the last drawn frame, in double. */
     previous: new Float64Array(16),
+    /** Whether each parent's world reverses orientation, as it was when its rows were last written
+     *  whole: the winding the rows' draw bins were made for (`../webgpu/pages/prepare/pipelineFor.ts`). */
+    winding: [] as boolean[],
     packed: new Uint32Array(MATRIX_DOUBLES * 2),
     /** The roots pass's parameters, 64 words a range of the cut's worlds; the rows pass's four. */
     rootParams: new Uint32Array(64),
@@ -107,7 +110,9 @@ type ComposeGpu = ReturnType<typeof createComposeGpu>
  * follows it, any other root it linked follows none any more — no link at all frees its slot —;
  * otherwise they are rows it holds, at a new local matrix. False when a link names a row this
  * session does not read through a root, or that a blended copy reads, or when only some rows are
- * given of a parent it holds no link of: the caller writes the rows itself.
+ * given of a parent it holds no link of, or when the parent's world now reverses orientation
+ * where it did not (or the other way) — the rows' draw bins were made for a winding —: the caller
+ * writes the rows itself, and links them again.
  */
 export function composeWebgpuPlacements(
   rt: WebgpuPagesRuntime,
@@ -120,9 +125,13 @@ export function composeWebgpuPlacements(
     state = composeState(rt)
   const p = state.parentIds.get(parent)
   if (p === undefined && (!whole || !links.length)) return false
+  // A turn of the winding is the one change of a parent's world the GPU cannot follow: which face
+  // each row's bin culls is a word of the CPU's write.
+  if (p !== undefined && !whole && matrixWindingCw(world) !== state.winding[p]) return false
   const ranks = linkedRanks(rt, links)
   if (!ranks) return false
   const slot = takeSlot(state, parent, p, world)
+  if (whole) state.winding[slot] = matrixWindingCw(world)
   // The shadow pages the slot's roots cover at the parent's last world: a slot linked now has
   // none of its own, its rows' CPU write in this call declares them (`webgpuPlacements.ts`). The
   // static casters under it stay unless a root it changes is still or its parent's move is a first.
@@ -258,6 +267,7 @@ function unlinkHeld(rt: WebgpuPagesRuntime, state: ComposeState, slot: number, r
     state.parentOf[rank] = NONE
     mobility.follow(rank, -1)
     rt.run.gpuSelection?.composedPlacement(rank, false)
+    rt.gpu.impostors?.linkMoved(rank) // its card may be taken again
   }
   held.length = 0
   state.linksDirty = true
@@ -286,6 +296,7 @@ function linkRanks(
     state.parentOf[rank] = slot
     rt.lights.mobility.follow(rank, slot)
     rt.run.gpuSelection?.composedPlacement(rank, true)
+    rt.gpu.impostors?.linkMoved(rank) // it keeps its clusters: a card is written from a pose the CPU holds
     packDoubles(state.locals, rank * MATRIX_DOUBLES * 2, links[k].local)
     linkBox(state, rank, roots[rank], links[k].local)
   }
