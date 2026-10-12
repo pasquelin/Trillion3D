@@ -145,10 +145,12 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // length rule's range (hypot outside the normal band) is kept. The browser entry's camera
   // projections read `length2` from the vector module, whose lazy init it starts; its transform tree
   // grows by the one growth rule (`resized`); the cache format's constants the compiler writes are
-  // printed into one module (`contracts/writtenFormats.ts`), which the entry's chain now includes.
+  // printed into one module (`contracts/writtenFormats.ts`), which the entry's chain now includes;
+  // the render-origin module imports the matrix inverse and the culling batch the empty-bounds test,
+  // two more module init calls in the chain (7 bytes, no function kept).
   assert.equal(baseline.outputFiles[0].contents.length, 3_195)
   assert.equal(proposed.outputFiles[0].contents.length, 1_450)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_217)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_224)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )

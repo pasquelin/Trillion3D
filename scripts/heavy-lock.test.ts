@@ -90,7 +90,7 @@ test('a lock whose process is dead is taken over', () => {
   }
 })
 
-test("a takeover removes only the dead holder's lock, and puts back a lock taken meanwhile", () => {
+test("a takeover removes only the dead holder's lock, and leaves a live one in place", () => {
   const root = mkdtempSync(join(tmpdir(), 'heavy-lock-'))
   try {
     const path = join(root, 'heavy-step.lock')
