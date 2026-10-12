@@ -10,6 +10,7 @@ import { createGpuPartition } from '../../../gpu/partition/factory.ts'
 import { createGpuRestCompact } from '../../../gpu/raster/restCompact.ts'
 import { prepareTransparentOcclusion } from '../../transparent/occlusionHost.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { wantsFrontDepth } from './targetAllocation.ts'
 import {
   bindShade,
   prepareBlendPipelines,
@@ -57,7 +58,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
  *  size refuses the scene by name, as one that cannot build the raster that writes it. */
 async function createHizFor(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const [width, height] = rt.setup.viewport
-  const hiz = await createGpuHiz(gpuDevice, 1, 1, rt.layout.drawSlots)
+  const hiz = await createGpuHiz(gpuDevice, 1, 1, rt.layout.drawSlots, wantsFrontDepth(rt))
   const size = () => hiz?.resize(gpuDevice, Math.max(1, width), Math.max(1, height)) || undefined
   if (!hiz || !(await validated(gpuDevice, size, 'out-of-memory'))) {
     hiz?.dispose()

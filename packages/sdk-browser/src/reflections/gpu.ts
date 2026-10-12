@@ -105,8 +105,9 @@ export type ReflectionPipelines = NonNullable<Awaited<ReturnType<typeof createRe
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
  *  radiance pyramid, its tile list, its uniform, its radiance hash and the front depth the blends
- *  write; the depth it marches is the Hi-Z's, with its front depth. */
-export function reflectionBytes(width: number, height: number) {
+ *  write, when the scene has blends (`blends`); the depth it marches is the Hi-Z's, with its front
+ *  depth. */
+export function reflectionBytes(width: number, height: number, blends: boolean) {
   const size: GPUExtent3D = [width, height]
   return (
     REFLECTION_TARGET.bytes(width, height, true) +
@@ -115,7 +116,7 @@ export function reflectionBytes(width: number, height: number) {
       format: REFLECTION_FORMAT,
       mipLevelCount: radianceLevels(width, height),
     })! +
-    frontBytes(width, height) +
+    frontBytes(width, height, blends) +
     traceListBytes(width, height) +
     TRACE_ARGS_BYTES +
     REFLECTION_VIEW_BYTES +
@@ -128,9 +129,15 @@ export function reflectionBytes(width: number, height: number) {
  * A view's reflection at `width × height`: the target the opaque trace writes, the radiance
  * pyramid of its last lit image (`radiance`, which holds the image it was made of: the next image
  * reprojects its hits with its view-projection), the tile list of the trace, the view uniform —
- * whose surroundings the GPU writes — and the writer of the rest of it.
+ * whose surroundings the GPU writes — and the writer of the rest of it. `blends` says whether the
+ * scene has any, which write the front depth (`createFrontDepth`).
  */
-export function createScreenReflection(device: GPUDevice, width: number, height: number) {
+export function createScreenReflection(
+  device: GPUDevice,
+  width: number,
+  height: number,
+  blends: boolean,
+) {
   // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread the target and set it first;
   // no frame copies it.
   const target = device.createTexture({
@@ -147,7 +154,7 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
   const radiance = createRadiancePyramid(device, width, height)
   const tiles = createTraceTiles(device, width, height)
   const settle = createRadianceSettle(device)
-  const front = createFrontDepth(device, width, height)
+  const frontDepth = createFrontDepth(device, width, height, blends)
   return {
     device,
     target,
@@ -156,7 +163,7 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
     tiles,
     uniform,
     settle,
-    front,
+    front: frontDepth,
     writeView: createReflectionViewWriter(device, uniform),
     /** The reflection group over each Hi-Z pyramid it was bound with (a view's), and what else it
      *  was made over. */
@@ -170,7 +177,7 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
       tiles.list.destroy()
       uniform.destroy()
       settle.dispose()
-      front.dispose()
+      frontDepth.dispose()
     },
   }
 }
