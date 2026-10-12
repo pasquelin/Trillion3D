@@ -5,7 +5,8 @@ import {
   setWindingEpoch,
   windingCw,
 } from '../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts'
-import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
+import { measure, stress, rapport } from '../../core/index.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceWindingCw } from '../../oracles/browser/pages-webgpu.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 

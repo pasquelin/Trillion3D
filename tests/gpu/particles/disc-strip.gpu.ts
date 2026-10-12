@@ -20,7 +20,7 @@ import {
   writeDrawWords,
 } from '../../../packages/sdk-browser/src/particles/drawWords.ts'
 import { particleTargets } from '../../../packages/sdk-browser/src/particles/particleTargets.ts'
-import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -43,7 +43,7 @@ type Blend = 'additive' | 'premultiplied'
 /** The particles' state: the window — `DISCS` instances from slot 0 — then each disc alive, at a
  *  random place in a 2 m cube, of a random age and life. */
 function stateWords() {
-  const next = random(755),
+  const next = lcgRandom(755),
     words = new ArrayBuffer(PARTICLE_STATE_HEAD + DISCS * 32)
   new Uint32Array(words, 0, 8).set([DISC_VERTICES, DISCS])
   const slots = new Float32Array(words, PARTICLE_STATE_HEAD)

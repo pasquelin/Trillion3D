@@ -14,7 +14,7 @@ import {
   buildBlendStatics,
   refreshBlendPlan,
 } from '../../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
-import { xorshiftRandom } from '../../../core/index.ts'
+import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { planReference } from '../../../oracles/browser/transparent-orders.ts'
 
 type BlendState = ReturnType<typeof createWebgpuBlendState>

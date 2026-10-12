@@ -5,7 +5,7 @@
 // axes, non-uniform under a parent rotation (shear), zero, extremes; a perspective or
 // orthographic camera posed itself in the hierarchy.
 import * as THREE from 'three'
-import { xorshiftRandom } from '../../../core/index.ts'
+import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { dansDe } from './scenesCore.ts'
 import { boxes } from './scenesVolumes.ts'
 import { length3 } from '../../../../packages/math/src/vector/vector.ts'

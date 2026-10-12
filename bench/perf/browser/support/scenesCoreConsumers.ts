@@ -1,6 +1,6 @@
 // Inputs of consumers attached to the foundation: cluster records, colours. Drawn from a seed.
 import * as THREE from 'three'
-import { xorshiftRandom } from '../../../core/index.ts'
+import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { affines, matrices } from './scenesCore.ts'
 import { pageRecFixture } from './pageRecFixture.ts'
 import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts'

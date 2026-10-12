@@ -10,7 +10,7 @@ import {
   multiplyMatrix4,
   normalMatrix3,
 } from '../../../../packages/sdk-core/src/index.ts'
-import { xorshiftRandom } from '../../../core/index.ts'
+import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { f64, referenceNormal, trs } from './coreLine.ts'
 import { MIRRORED_SCALES } from './hostileScales.ts'
 

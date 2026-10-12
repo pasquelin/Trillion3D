@@ -20,7 +20,6 @@ function reference(values: number[]) {
 }
 
 /** A deterministic generator: the same inputs on every run. */
-const random = lcgRandom
 
 function sameMedian(sliding: SlidingMedian, values: number[], label: string) {
   const got = sliding.median(),
@@ -33,7 +32,7 @@ test('an empty window has no median', () => {
 })
 
 test('every read equals the median recomputed from scratch, reads and writes interleaved', () => {
-  const next = random(919)
+  const next = lcgRandom(919)
   for (let run = 0; run < 200; run++) {
     const sliding = new SlidingMedian(),
       values: number[] = []

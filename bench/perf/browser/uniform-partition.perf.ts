@@ -6,7 +6,8 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import { packPartitionUniform } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
 import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
-import { xorshiftRandom, measure, rapport } from '../../core/index.ts'
+import { measure, rapport } from '../../core/index.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import {
   referencePartitionUniform,
   referenceSplitDouble,

@@ -1,7 +1,7 @@
 // Hierarchy-equivalence scenarios, replayed on both sides by
 // `hierarchyReplayThree.ts` and `hierarchyReplayEngine.ts`.
 // Drawn from a fixed seed: two runs play the exact same operations.
-import { xorshiftRandom } from '../../../core/index.ts'
+import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { normalizeQuaternion } from '../../../../packages/math/src/quaternion/quaternion.ts'
 import { dansDe } from './scenesCore.ts'
 import { MIRRORED_SCALES } from './hostileScales.ts'

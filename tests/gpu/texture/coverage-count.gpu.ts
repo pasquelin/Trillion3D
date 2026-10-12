@@ -9,7 +9,7 @@ import { LEVEL_BIN_BYTES } from '../../../packages/sdk-browser/src/texture/cover
 import { COVERAGE_COUNT_WGSL } from '../../../packages/sdk-browser/src/texture/mipsWgsl.ts'
 import { previewLevelSize } from '../../../packages/sdk-core/src/index.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
@@ -36,7 +36,7 @@ interface CountCase {
 }
 
 function countCases() {
-  const next = random(961)
+  const next = lcgRandom(961)
   // Width, height and level: 1×1, odd, wide and tall, level 0 and reduced; then random ones.
   // prettier-ignore
   const sizes = [[1, 1, 0], [3, 5, 0], [9, 17, 0], [769, 33, 0], [64, 64, 1], [65, 7, 1], [2049, 3, 1]]
