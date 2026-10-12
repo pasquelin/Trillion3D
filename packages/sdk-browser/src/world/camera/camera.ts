@@ -21,7 +21,6 @@ export function createExplorerCamera(
   hostWorldBounds(source, flat, lot)
   sphereFromBounds(framingSphere, 0, flat[0], flat[1], flat[2], flat[3], flat[4], flat[5])
   const radius = framingSphere[3]
-  if (!Number.isFinite(radius) || radius <= 0) throw new Error('Empty scene bounds')
   const framing = framingFromBounds(radius, canvas.width / canvas.height)
   // The box and the centre go back to the host — `explorer.bounds` and `explorer.center` are its
   // API, and its controls want a target. The host objects are built at the boundary
