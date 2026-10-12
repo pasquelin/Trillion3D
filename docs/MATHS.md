@@ -268,8 +268,11 @@ golden:write` rewrites them all, the command each file names.
 
 - TypeScript reader: `packages/math/src/golden.fixture.ts` (`assertGolden`).
 - TypeScript twins: `matrix4.golden.test.ts`, `hypot.golden.test.ts`, `trig.golden.test.ts`,
-  `quaternion.golden.test.ts` (`packages/math/src/`), `sample.golden.test.ts`
-  (`packages/sdk-core/src/world/animation/`).
+  `quaternion.golden.test.ts`, `reals.golden.test.ts` (`interpolation.json`: `lerp`, `mix`),
+  `vector.golden.test.ts` (`vec3_unit.json`: `normalizeVector3`, in the normal band),
+  `sphere.golden.test.ts` (`sphere_union.json`) (`packages/math/src/`). The remaining Rust
+  primitives (`remap`, `unit_to_byte`, Euler composition, box growth, the triangle's closest point)
+  have no TypeScript twin: the compiler alone uses them, so no golden holds them.
 - The page decoder has no TypeScript twin: `decodeGeometryPage` calls the Rust one in the SDK module.
 - Single numbers, `packages/math/golden`: `mip_size` (TypeScript `mipSize`, WGSL `mipSize` through `mipSize.golden.test.ts` of `packages/sdk-browser/src/gpu/shader/`), `srgb_to_linear`, `hermite_basis`, `xorshift32`, `lcg32`; `preview_levels` (`previewLevels.golden.test.ts` of `packages/sdk-core/src/texture/`).
 - WebAssembly twin: `packages/sdk-browser/src/page/decode/batch/multiplyBatch.golden.test.ts`.

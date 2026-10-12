@@ -54,6 +54,8 @@ pub const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
 pub const GOLDEN_32: u32 = 0x9E37_79B9;
 
 #[cfg(test)]
+mod golden_geometry;
+#[cfg(test)]
 mod golden_ray_triangle;
 #[cfg(test)]
 mod golden_scalar;

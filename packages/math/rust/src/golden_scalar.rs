@@ -3,7 +3,7 @@
 
 use crate::golden::{f64s, ordinary, Twin, Value, HOSTILE_F64};
 use crate::random::{lcg32, xorshift32};
-use crate::scalar::{hermite_basis, mip_size};
+use crate::scalar::{hermite_basis, lerp, mip_size, mix};
 
 pub(crate) fn twins() -> Vec<Twin> {
     vec![
@@ -33,6 +33,24 @@ pub(crate) fn twins() -> Vec<Twin> {
             outputs: "4 f64",
             cases: hermite_cases,
             compute: |v| f64s(&hermite_basis(v[0].f64())),
+        },
+        Twin {
+            file: "interpolation",
+            name: "lerp",
+            about: "lerp (math scalar/reals.ts), lerp (math/rust scalar.rs): a + (b - a) * t, exact at t = 0",
+            inputs: "a: f64, b: f64, t: f64",
+            outputs: "1 f64",
+            cases: interpolation_cases,
+            compute: |v| f64s(&[lerp(v[0].f64(), v[1].f64(), v[2].f64())]),
+        },
+        Twin {
+            file: "interpolation",
+            name: "mix",
+            about: "mix (math scalar/reals.ts), mix (math/rust scalar.rs): a * (1 - t) + b * t, exact at both ends",
+            inputs: "a: f64, b: f64, t: f64",
+            outputs: "1 f64",
+            cases: interpolation_cases,
+            compute: |v| f64s(&[mix(v[0].f64(), v[1].f64(), v[2].f64())]),
         },
         Twin {
             file: "xorshift32",
@@ -97,6 +115,26 @@ fn hermite_cases() -> Vec<Vec<Value>> {
     x.extend((0..128).map(|i| ordinary(i) / 100.0));
     x.extend((0..64).map(|i| f64::from(i) / 63.0));
     x.into_iter().map(|v| f64s(&[v])).collect()
+}
+
+/// The specials against each other, the ends and the middle of `t`, then ordinary triples.
+fn interpolation_cases() -> Vec<Vec<Value>> {
+    let h = |i: usize| HOSTILE_F64[i % 16];
+    let mut cases: Vec<Vec<Value>> = (0..256)
+        .map(|i| f64s(&[h(i), h(i / 16), h(i * 5 + 2)]))
+        .collect();
+    for t in [0.0, 1.0, 0.5, 0.1, 1.0 / 3.0, -0.5, 1.5] {
+        cases.push(f64s(&[0.1, 0.7, t]));
+        cases.push(f64s(&[-3.0e8, 1.0e-3, t]));
+    }
+    cases.extend((0..128u64).map(|i| {
+        f64s(&[
+            ordinary(3 * i),
+            ordinary(3 * i + 1),
+            ordinary(3 * i + 2) / 100.0,
+        ])
+    }));
+    cases
 }
 
 /// Chains of states, each next state from the one before, and the extreme words.
