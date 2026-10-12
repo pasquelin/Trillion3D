@@ -19,7 +19,8 @@ const SCREEN_MARCH_NUDGE = 2 ** -8
  * (`screenBack`); a coarser cell's surfaces lie between its farthest depth of the finished image
  * (its planes to their far corner) and its nearest, and so do their slabs: between the farthest's
  * back and the nearest. It returns the `t` it stopped at, the plane (depth at its centre, slopes)
- * and centre of the pixel it stopped in (`ScreenHit`); `t` −1 where it meets nothing.
+ * and centre of the pixel it stopped in (`ScreenHit`); `t` −1 where it meets nothing. `front` says
+ * the hit is a transparent surface before the opaque depth: false until the pyramid holds one.
  *
  * A cell is crossed by the ray over `[t, across]`, whose depths lie between two bounds. Entirely in
  * front of the cell's nearest depth, or entirely behind the back of its farthest slab (which lies
@@ -52,7 +53,7 @@ export const SCREEN_MARCH_WGSL = (group: number, binding: number) =>
     `SCREEN_MARCH_WGSL(${group}, ${binding})`,
     [hizDepthWgsl(group, binding)],
     `const SCREEN_MARCH_NUDGE:f32=${wgslF32(SCREEN_MARCH_NUDGE)};
-struct ScreenHit{t:f32,plane:vec3f,pixel:vec2f,}
+struct ScreenHit{t:f32,plane:vec3f,pixel:vec2f,front:bool,}
 fn screenBack(z:f32,pixels:f32,slab:vec4f)->f32{
  let k=pixels*slab.x;
  let perspective=z-(z-slab.y)*k/(1.0+k);
@@ -95,10 +96,10 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f)->ScreenHit{
    let h0=z0-s0;
    let h1=z1-s1;
    if(h0>=0.0){
-    if(h1<0.0){return ScreenHit(mix(t,across,h0/(h0-h1)),plane,centre);}
+    if(h1<0.0){return ScreenHit(mix(t,across,h0/(h0-h1)),plane,centre,false);}
    }else if(s0>0.0){
     let back=screenBack(s0,thickness,slab);
-    if(z0>=back){return ScreenHit(t,plane,centre);}
+    if(z0>=back){return ScreenHit(t,plane,centre,false);}
    }
    t=across;
    level=min(1,top);
@@ -112,6 +113,6 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f)->ScreenHit{
   }
   level-=1;
  }
- return ScreenHit(-1.0,vec3f(0.0),vec2f(0.0));
+ return ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false);
 }`,
   )

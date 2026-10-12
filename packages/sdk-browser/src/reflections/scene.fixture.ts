@@ -138,7 +138,12 @@ export function reflectionRunner(
         widths,
       }),
       ReflectionRay: (o: number[], d: number[], end: number) => ({ o, d, end }),
-      ScreenHit: (t: number, plane: number[], pixel: number[]) => ({ t, plane, pixel }),
+      ScreenHit: (t: number, plane: number[], pixel: number[], front: boolean) => ({
+        t,
+        plane,
+        pixel,
+        front,
+      }),
       ReflectionCone: (short: number, long: number, level: number) => ({ short, long, level }),
       ReflectionTaps: (color: number[], weight: number) => ({ color, weight }),
       ReflectionSurface: (pixel: number[], plane: number[], thickness: number) => ({
