@@ -51,10 +51,7 @@ test('a changed TypeScript file no project type-checks is an error, not a skip',
   assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/public/publicNode.mts')))
   assert.ok(!excludes(tools, resolve(ROOT, 'tests/gpu/renders/pair.gpu.ts')))
   const build = project('tsconfig.json')
-  assert.ok(
-    !excludes(build, resolve(ROOT, 'bench/runner/x.test.ts')),
-    'outside its include',
-  )
+  assert.ok(!excludes(build, resolve(ROOT, 'bench/runner/x.test.ts')), 'outside its include')
   const fixture = resolve(ROOT, 'packages/sdk-browser/src/x.fixture.ts')
   assert.ok(!excludes(build, fixture), 'an emitting project excludes from its output only')
 })
