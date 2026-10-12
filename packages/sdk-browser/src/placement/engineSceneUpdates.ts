@@ -69,13 +69,13 @@ export interface EngineSceneUpdates extends PlacementGrowth {
   updatePlacements(rows: PlacementRows, from: number, to: number): void
   /** Rows `links` follow `parent`, whose world is `world`; the engine composes them on the
    *  GPU. `whole`: they are every row that follows it, none unlinks it; otherwise rows it holds,
-   *  at a new local matrix. False when it cannot: the owner writes the rows itself. */
+   *  at a new local matrix. */
   composePlacements(
     parent: object,
     world: ArrayLike<number>,
     links: readonly { rows: PlacementRows; index: number; local: ArrayLike<number> }[],
     whole: boolean,
-  ): boolean
+  ): void
   /** The cut's uniforms while it packs the world DAG of `roots` (`GpuSelection.packsWorld`), which a
    *  partition's plan projects its far cells with (#1332); `undefined` while none packs it, or
    *  it packs another's: the cut draws one. */

@@ -25,14 +25,14 @@ test('a root a parent composes reads the composed world; a parent that turns its
     )
   const expected = new Float64Array(16)
   multiplyMatrix4(expected, Float64Array.from(turn(0.7)), Float64Array.from(turn(0.25)))
-  assert.equal(composeWebgpuPlacements(rt, parent, turn(0.7), [], false), true, 'a turn')
+  composeWebgpuPlacements(rt, parent, turn(0.7), [], false)
   assert.deepEqual(world(1), [...expected], 'read, a root is its parent’s world times its local')
   assert.deepEqual(written, [], 'no row written for a turn')
   const mirrored = turn(0.5)
   mirrored[0] = -mirrored[0]
   mirrored[1] = -mirrored[1]
   mirrored[2] = -mirrored[2]
-  assert.equal(composeWebgpuPlacements(rt, parent, mirrored, [], false), true, 'a mirror too')
+  composeWebgpuPlacements(rt, parent, mirrored, [], false)
   assert.deepEqual(written.sort(), [0, 1], 'its rows are written again: their bins follow')
   composeWebgpuPlacements(rt, parent, turn(0.9), [], false)
   assert.deepEqual(written.sort(), [0, 0, 1, 1], 'and again when it turns back')

@@ -1,5 +1,5 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { composeWorld } from '../../placement/composeWorld.ts'
 import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
@@ -65,7 +65,7 @@ class ModelMeshSource implements DrawSource {
    *  every node above it, whether it casts. */
   write(world: Float64Array, shown: boolean, matrices = true) {
     const { rows, drawn } = this
-    if (matrices) multiplyMatrix4(rows.matrices, world, drawn.matrixWorld.elements)
+    if (matrices) composeWorld(rows.matrices, world, drawn.matrixWorld.elements)
     let live = shown
     for (let walk: Object3D | null = drawn; live && walk; walk = walk.parent) live = walk.visible
     rows.live[0] = live ? 1 : 0
@@ -184,23 +184,20 @@ export function createWorldModels(ranks: WorldRanks) {
     },
     /** `model`'s graph brought up to date, and the rows of its meshes written from it, shown as
      *  `shown` says; cost: the meshes it draws, once for each move of the model or of one of its
-     *  nodes. `composes`, asked once the graph is current, says whether the session composes the
-     *  rows from now on: then no matrix is written, the composition gives it where it is read; a
-     *  session that refuses leaves them parked. Without it, no session exists to compose them: the
+     *  nodes. `composes`, asked once the graph is current, links the rows to the session's
+     *  composition: then no matrix is written, the composition gives it where it is read. Without it, no session exists to compose them: the
      *  rows are written as the pose the session opens on. */
-    pose(model: LoadedModel, shown: boolean, composes?: (draws: ModelDraws) => boolean) {
+    pose(model: LoadedModel, shown: boolean, composes?: (draws: ModelDraws) => void) {
       const draws = held.get(model)
       if (!draws) return undefined
       // The graph's worlds are its own, brought up to date where they changed.
       updateTransformTree(Object3D._treeOf(model.record.scene.source))
       const world = model.matrixWorld.elements,
-        linked = composes?.(draws) ?? false,
-        // A matrix is written only where no session exists to compose it (the pose the session
-        // opens on); a session that refuses a link has named it, and the rows are parked.
-        matrices = !composes,
-        drawn = shown && (!composes || linked)
-      for (const source of draws.rowed) source.write(world, drawn, matrices)
-      draws.world?.write(world, drawn, matrices)
+        // A matrix is written only where no session exists to compose it: the pose it opens on.
+        matrices = !composes
+      composes?.(draws)
+      for (const source of draws.rowed) source.write(world, shown, matrices)
+      draws.world?.write(world, shown, matrices)
       return draws
     },
   }

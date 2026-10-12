@@ -2,12 +2,12 @@
  * THE ROWS A PARENT COMPOSES THAT NO ROOT READS: a blended surface's rows, which only its copies
  * read, and rows whose root a growth has not built yet. They follow the parent like any linked row
  * — the link is accepted whatever reads the row —, but no roots pass writes their world: it is the
- * composition's product, `parent · local` by the same `multiplyMatrix4` the GPU's doubles equal
+ * composition's product, `parent · local` by `composeWorld`, the product the GPU's doubles equal
  * (`gpuComposeWgsl.ts`), written into the row once a parent's world is taken (`writeReaders`), for
  * the CPU readers that hold the row in place. A growth that brings a row its root hands the link to
  * the roots pass (`adoptReaders`): from then on the GPU composes it, and this module holds none.
  */
-import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { composeWorld } from './composeWorld.ts'
 import type { PlacementRows } from './rows.ts'
 
 /** A row held by its parent's slot, composed for its readers. */
@@ -63,7 +63,7 @@ export function writeReaders(readers: Readers, slot: number, world: ArrayLike<nu
   const parent = world instanceof Float64Array ? world : Float64Array.from(world)
   for (const { rows, index, local } of held)
     if (index < rows.capacity)
-      multiplyMatrix4(rows.matrices.subarray(index * 16, index * 16 + 16), parent, local)
+      composeWorld(rows.matrices.subarray(index * 16, index * 16 + 16), parent, local)
 }
 
 /**

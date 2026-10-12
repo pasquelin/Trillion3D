@@ -76,8 +76,8 @@ written for them. A link is never refused for what reads its row: waves, soft bo
 composed world of their root; rows no root reads — a blended surface's, or a root a growth has not
 built yet — are composed for their readers (`placement/composeReaders.ts`) and handed to the roots
 pass once their root exists. Only the pose a session opens on is written by an owner, before any
-engine exists (`partition/follow.ts`, `world/core/worldModels.ts`); a link the session refuses is
-named (`content-refused`) and its rows are parked. The refit and the members pass bind the cut's
+engine exists (`partition/follow.ts`, `world/core/worldModels.ts`); every product of a parent's
+world and a local matrix on the CPU is the one function `composeWorld` (`placement/composeWorld.ts`). The refit and the members pass bind the cut's
 tables as the cut does, split tables in their parts (`gpu/dag/shader/bindings.ts`).
 
 ## WebGPU page raster

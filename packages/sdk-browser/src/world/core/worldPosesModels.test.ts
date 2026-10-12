@@ -22,20 +22,18 @@ function rig() {
   const poses = createWorldPoses(),
     sent: unknown[][] = [],
     links: { links: number; whole: boolean; world: number[]; locals: number[][] }[] = []
-  let accepts = true
   const composer: PoseComposer = {
     key: scene,
     epoch: 0,
-    link: (parent, world, given, whole) =>
-      parent === loaded &&
-      accepts &&
-      (links.push({
-        links: given.length,
-        whole,
-        world: Array.from(world),
-        locals: given.map((link) => Array.from(link.local)),
-      }),
-      true),
+    link: (parent, world, given, whole) => {
+      if (parent === loaded)
+        links.push({
+          links: given.length,
+          whole,
+          world: Array.from(world),
+          locals: given.map((link) => Array.from(link.local)),
+        })
+    },
   }
   const frame = () =>
     poses.apply(
@@ -54,7 +52,6 @@ function rig() {
     links,
     frame,
     models,
-    refuse: () => (accepts = false),
     composer,
   }
 }
@@ -113,20 +110,6 @@ test('a node of the graph that moves, or the model hidden, writes the rows whole
   frame()
   assert.equal(links.length, 3)
   assert.deepEqual([draws.rowed[0].rows.live[0], draws.rowed[1].rows.live[0]], [0, 0])
-})
-
-test('a session that refuses parks the rows: no matrix is written at a pose of ours', () => {
-  const { loaded, draws, poses, links, frame, refuse } = rig()
-  refuse()
-  loaded.position.set(1, 0, 0)
-  poses.moved(loaded)
-  frame()
-  loaded.position.set(2, 0, 0)
-  poses.moved(loaded)
-  frame()
-  assert.equal(links.length, 0)
-  assert.deepEqual([draws.rowed[0].rows.live[0], draws.rowed[1].rows.live[0]], [0, 0], 'parked')
-  assert.deepEqual([...draws.rowed[1].rows.matrices.slice(12, 15)], [0, 0, 0], 'none written')
 })
 
 test('a model written outside a walk is written whole at the next, its rows linked again', () => {

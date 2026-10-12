@@ -133,8 +133,7 @@ test('children a session composes no more are the transform pass’s again, thei
   const { scene, parent, seats } = galaxy(8)
   const tree = Object3D._treeOf(scene)
   const poses = createWorldPoses()
-  let accepts = true
-  const composer: PoseComposer = { key: scene, epoch: 0, link: () => accepts }
+  const composer: PoseComposer = { key: scene, epoch: 0, link: () => {} }
   const apply = () => poses.apply(scene, seats, noModels(), () => {}, composer)
   poses.moved(parent)
   apply()
@@ -144,9 +143,7 @@ test('children a session composes no more are the transform pass’s again, thei
   poses.moved(parent)
   apply()
   const read = [...child.matrixWorld.elements]
-  accepts = false // the session takes no link now, as another session would
-  composer.epoch++ // every link is let go
-  apply()
+  poses.apply(scene, seats, noModels(), () => {}, undefined) // no session composes any more
   assert.equal(tree.flags[child.index] & NODE_WORLD_LAZY, 0, 'no longer lazy')
   assert.deepEqual([...child.matrixWorld.elements], read, 'its world is the one it had')
 })

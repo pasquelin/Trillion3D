@@ -47,9 +47,7 @@ test('a composed root keeps its card, written again on its parent’s move from 
   assert.equal(cards.count, 1, 'a card before the root is composed')
   const parent = {},
     local = translate(0, 0, 0)
-  assert.ok(
-    composeWebgpuPlacements(rt, parent, translate(0, 0, 0), [{ rows, index: 0, local }], true),
-  )
+  composeWebgpuPlacements(rt, parent, translate(0, 0, 0), [{ rows, index: 0, local }], true)
   planImpostorCards(cards, roots, engineAt(200), VIEWPORT)
   assert.equal(cards.count, 1, 'composed, it keeps it')
   const translation = () =>

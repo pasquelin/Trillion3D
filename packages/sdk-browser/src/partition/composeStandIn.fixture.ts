@@ -32,7 +32,6 @@ export function composeStandIn(update?: (rows: PlacementRows, from: number, to: 
       const now = rows.matrices.subarray(index * 16, index * 16 + 16)
       if (now.some((v, at) => v !== before[k][at])) update?.(rows, index, index)
     })
-    return true
   }
   return Object.assign(compose, {
     /** A growth replaced `from` by `to`: the rows it holds are `to`'s now. */

@@ -25,7 +25,7 @@ test('a link made while the grown cut is made opens its group in that cut once s
     const rank = rt.layout.selectionRoots.findIndex((root) => root.placement && !root.parked),
       { rows, index } = rt.layout.selectionRoots[rank].placement!
     const link = { rows, index, local: IDENTITY }
-    assert.ok(composeWebgpuPlacements(rt, {}, IDENTITY, [link], true))
+    composeWebgpuPlacements(rt, {}, IDENTITY, [link], true)
     const told: number[] = []
     ready.cut.composedPlacement = (w) => void told.push(w)
     await draw()

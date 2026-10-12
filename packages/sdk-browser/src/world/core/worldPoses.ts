@@ -20,15 +20,14 @@ export type PoseComposer = {
    * `parent`'s world is `world`, and rows `links` follow it, each at its local matrix — views read
    * during the call, never kept. `whole`: they are every row that follows it, any other it held is
    * the CPU's again — none at all unlinks it, its world unread —; otherwise they are children that
-   * moved on their own under a parent it holds. False when it cannot: the caller writes the rows
-   * itself.
+   * moved on their own under a parent it holds.
    */
   link(
     parent: object,
     world: ArrayLike<number>,
     links: readonly { rows: PlacementRows; index: number; local: ArrayLike<number> }[],
     whole: boolean,
-  ): boolean
+  ): void
 }
 
 const NONE: readonly never[] = []
@@ -182,16 +181,13 @@ function writeModel(
   moved: boolean,
 ) {
   const { models, composer } = frame
-  if (
-    moved &&
-    composer &&
-    state.composed.get(model) === shown &&
+  if (moved && composer && state.composed.get(model) === shown) {
     composer.link(model, model.matrixWorld.elements, NONE, false)
-  )
     return
+  }
   // The rows the model's pose writes, each linked at the mesh's own world within its graph once the
-  // graph is current: a session that holds one of them in no root, or refuses them, leaves them to
-  // the CPU's write; one that takes them is given no matrix (`WorldModels.pose`).
+  // graph is current: a session is given no matrix (`WorldModels.pose`); without one the rows are
+  // written, the pose it opens on.
   let accepted = false
   const draws = models.pose(
     model,
@@ -204,8 +200,9 @@ function writeModel(
           local: source.local,
         }))
         if (rowed.world) links.push({ rows: rowed.world.rows, index: 0, local: IDENTITY_MATRIX4 })
-        return (accepted =
-          links.length > 0 && composer.link(model, model.matrixWorld.elements, links, true))
+        if (!links.length) return
+        composer.link(model, model.matrixWorld.elements, links, true)
+        accepted = true
       }),
   )
   for (const source of draws?.rowed ?? []) touchRows(state, source, 0, 0)
@@ -263,7 +260,8 @@ function linkChildren(
   { seats, composer }: PoseFrame,
 ) {
   const links = node.children.length ? linksOf(node.children, seats) : null
-  if (links && composer?.link(node, node.matrixWorld.elements, links, true)) {
+  if (links && composer) {
+    composer.link(node, node.matrixWorld.elements, links, true)
     state.composed.set(node, drawn)
     // The session composes their worlds: the transform pass walks none of them, a read refreshes.
     for (const child of node.children) child._setWorldLazy(true)
@@ -278,14 +276,15 @@ function composeEnded(parent: Object3D) {
 /**
  * A composed parent sends its world, its children follow on the GPU; each child that moved on
  * its own has its row written and sends its local matrix. False, the parent dropped, when its own
- * drawn state flipped — every child's flag follows it —, a moved child is no seated leaf any
- * more, or the session refuses: its subtree is then written whole.
+ * drawn state flipped — every child's flag follows it — or a moved child is no seated leaf any
+ * more: its subtree is then written whole.
  */
 function followParent(state: PoseState, node: Object3D, drawn: boolean, frame: PoseFrame) {
   const { seats, composer } = frame
   const children = state.movedUnder.get(node) ?? NONE
   const links = state.composed.get(node) === drawn ? linksOf(children, seats) : null
-  if (composer && links && composer.link(node, node.matrixWorld.elements, links, false)) {
+  if (composer && links) {
+    composer.link(node, node.matrixWorld.elements, links, false)
     for (const child of children)
       writeSeat(state, child as Mesh, seats.get(child as Mesh)!, drawn && child.visible)
     return true

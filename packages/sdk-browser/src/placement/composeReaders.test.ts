@@ -20,7 +20,7 @@ test('a row deformed by waves, a soft body or a skeleton is linked: the root it 
   const { rt, rows } = session()
   rows.sources = [{ waves: {} }, { softSource: {}, skeleton: {} }] as unknown as typeof rows.sources
   const links = [0, 1].map((index) => ({ rows, index, local: turn(0) }))
-  assert.equal(composeWebgpuPlacements(rt, {}, turn(0.2), links, true), true)
+  composeWebgpuPlacements(rt, {}, turn(0.2), links, true)
   assert.deepEqual([...rt.compose!.parentOf], [0, 0])
   // The world a deformation reads is the parent's times the local, as the roots read it.
   const world = rt.layout.selectionRoots[0].world.elements
@@ -29,8 +29,8 @@ test('a row deformed by waves, a soft body or a skeleton is linked: the root it 
 
 test('a parent with no row held and none given has nothing to follow: no refusal', () => {
   const { rt } = session()
-  assert.equal(composeWebgpuPlacements(rt, {}, turn(0), [], false), true)
-  assert.equal(composeWebgpuPlacements(rt, {}, turn(0), [], true), true)
+  composeWebgpuPlacements(rt, {}, turn(0), [], false)
+  composeWebgpuPlacements(rt, {}, turn(0), [], true)
 })
 
 test('a row no root reads is composed for its readers, and a root a growth brings takes it over', () => {
@@ -41,7 +41,7 @@ test('a row no root reads is composed for its readers, and a root a growth bring
     { rows, index: 0, local: turn(0) },
     { rows: extra, index: 1, local: local(5) },
   ]
-  assert.equal(composeWebgpuPlacements(rt, parent, turn(0.3), links, true), true)
+  composeWebgpuPlacements(rt, parent, turn(0.3), links, true)
   assert.deepEqual(Array.from(placementWorld(extra, 1).elements), product(turn(0.3), local(5)))
   // The parent turns: the reader's row follows it.
   composeWebgpuPlacements(rt, parent, turn(0.6), [], false)

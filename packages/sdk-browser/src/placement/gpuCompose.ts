@@ -35,7 +35,7 @@
  * never refused for what reads its row: the rows no root reads — a blended surface's, or a row
  * whose root is not built yet — are composed for their readers (`composeReaders.ts`).
  */
-import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { composeWorld } from './composeWorld.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
@@ -156,9 +156,8 @@ type ComposeGpu = ReturnType<typeof createComposeGpu>
 /**
  * Takes `world` as `parent`'s world and links `links` to it. `whole`: they are every row that
  * follows it, any other root it linked follows none any more — no link at all frees its slot —;
- * otherwise they are rows it holds, at a new local matrix. False when a link names a row this
- * session does not read through a root, or that a blended copy reads, or when only some rows are
- * given of a parent it holds no link of: the caller writes the rows itself. A parent whose world
+ * otherwise they are rows it holds, at a new local matrix. Every link is taken, whatever reads its
+ * row (`linkedRanks`). A parent whose world
  * turns its winding has the draw bins of its rows made again from the world the GPU composes
  * (`remakeBins`).
  */
@@ -172,7 +171,7 @@ export function composeWebgpuPlacements(
   const { mobility } = rt.lights,
     state = composeState(rt)
   const p = state.parentIds.get(parent)
-  if (p === undefined && !links.length) return true
+  if (p === undefined && !links.length) return
   const { ranks, rooted, readers } = linkedRanks(rt, links)
   const slot = takeSlot(state, parent, p, world)
   // The shadow pages the slot's roots cover at the parent's last world: a slot linked now has
@@ -188,7 +187,7 @@ export function composeWebgpuPlacements(
     state.parentIds.delete(parent)
     state.freeSlots.push(slot)
     declareSlotMove(rt, state, undefined, movingOnly)
-    return true
+    return
   }
   linkRanks(rt, state, { slot, ranks, links: rooted, whole })
   const relinked = ranks.length > 0 || whole
@@ -197,7 +196,6 @@ export function composeWebgpuPlacements(
   writeReaders(state.readers, slot, world)
   // Poses moved and no node entered or left: the frame hears it as any engine pose write.
   rt.run.gate.engineMovedInPlace()
-  return true
 }
 
 /** The draw bins of the rows of `slot`'s roots are made again, from the world the GPU composes,
@@ -317,7 +315,7 @@ function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, roots: nu
 
 /**
  * The composed world of root `rank`, as a CPU reader reads it: its parent's world times its local
- * matrix, by `multiplyMatrix4` — the doubles the GPU composes (`gpuComposeWgsl.ts`) —, written into
+ * matrix, by `composeWorld` — the doubles the GPU composes (`gpuComposeWgsl.ts`) —, written into
  * the root's row view the first time it is read since a parent or a link moved, never otherwise: a
  * reader costs one product, and a move of the parent none. The roots a parent composes carry this
  * as the `elements` of their world (`installComposedWorld`), so every CPU reader of a world — the
@@ -329,7 +327,7 @@ function composedWorld(state: ComposeState, rank: number, view: Float64Array) {
   state.refreshed[rank] = state.version
   const slot = state.parentOf[rank]
   if (slot === NONE) return
-  multiplyMatrix4(
+  composeWorld(
     view,
     state.worlds.subarray(slot * 16, slot * 16 + 16),
     state.localMats.subarray(rank * 16, rank * 16 + 16),

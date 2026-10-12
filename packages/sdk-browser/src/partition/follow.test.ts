@@ -43,11 +43,8 @@ test('the rows under a core parent follow its world on the GPU: the first rows a
   await opened(cells, bytes, 1e5, false)
   const calls: { parent: object; links: number; whole: boolean; world: number[] }[] = []
   const { port, updates } = io(bytes)
-  let accepts = true
-  port.compose = (parent, world, given, whole) => (
-    accepts && calls.push({ parent, links: given.length, whole, world: Array.from(world) }),
-    accepts
-  )
+  port.compose = (parent, world, given, whole) =>
+    void calls.push({ parent, links: given.length, whole, world: Array.from(world) })
   cells.frame([0, 0, 0], 1e5, port, noBudget)
   assert.deepEqual(
     calls.map(({ links: count, whole }) => [count, whole]).sort(),
@@ -77,18 +74,4 @@ test('the rows under a core parent follow its world on the GPU: the first rows a
   assert.equal(calls.length, moved + 1, 'a core parent moved: its world alone')
   assert.equal(updates.length, sent, 'no row written')
   assert.equal(calls.at(-1)!.world[13], 20, 'its world in the frame')
-  accepts = false
-  frame[12] = 90
-  cells.frame([0, 0, 0], 1e5, port, noBudget)
-  assert.equal(
-    updates.length > sent,
-    true,
-    'a session that refuses, by name: the rows are parked and sent, none written at a pose of ours',
-  )
-  assert.ok(
-    updates
-      .slice(sent)
-      .every(([rows, from, to]) => rows.live.subarray(from, to + 1).every((v) => v === 0)),
-    'every row sent after the refusal is parked',
-  )
 })
