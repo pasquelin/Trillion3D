@@ -13,7 +13,7 @@ import {
   VERDICT_KEPT,
   VERDICT_REJECTED,
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
-import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { heldBuffers } from '../kit/heldBuffers.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { readBuffer } from '../kit/computeReadback.ts'
@@ -68,9 +68,8 @@ export async function testRestCompaction() {
     rejected(row) ? VERDICT_REJECTED : VERDICT_KEPT,
   )
   device.queue.writeBuffer(verdicts, 0, verdictWords)
-  const pageWords = new Uint32Array((tested * PAGE_INFO_STRIDE) / 4)
-  for (let row = 0; row < tested; row++)
-    pageWords[row * (PAGE_INFO_STRIDE / 4) + HIZ_SLOT_WORD] = row
+  const pageWords = new Uint32Array(tested * ROW_WORDS)
+  for (let row = 0; row < tested; row++) pageWords[row * ROW_WORDS + HIZ_SLOT_WORD] = row
   device.queue.writeBuffer(restPages, 0, pageWords)
   const counted = new Uint32Array(STATE_WORDS)
   counted[ST_TESTED] = tested
@@ -119,6 +118,34 @@ export async function testRestCompaction() {
     expected.push(kept)
     survivors.push([...after.subarray(starts[k], starts[k] + commandsAfter[slot * 4 + 1])])
   })
+  // The next image tests no row: its slots hold nothing, the earlier image's tile words stay in the
+  // work buffer, and the compaction must leave every slot empty, never sum those words.
+  device.queue.writeBuffer(indirect, 0, new Uint32Array(BASE_SLOTS * 4))
+  device.queue.writeBuffer(partitionState, 0, new Uint32Array(STATE_WORDS))
+  recorded = undefined
+  const again = device.createCommandEncoder()
+  const nextPass = again.beginComputePass()
+  const nextOpen = {
+    pass: new Proxy(nextPass, {
+      get(target, name) {
+        if (name === 'dispatchWorkgroupsIndirect')
+          return (arguments_: GPUBuffer, at: number) => {
+            recorded = arguments_
+            target.dispatchWorkgroupsIndirect(arguments_, at)
+          }
+        const member = Reflect.get(target, name)
+        return typeof member === 'function' ? member.bind(target) : member
+      },
+    }),
+  }
+  if (!compact.encode(nextOpen, 2, TABLE_ROWS * PER_ROW, restPages))
+    throw new Error('the compaction must run')
+  nextPass.end()
+  device.queue.submit([again.finish()])
+  if (!recorded) throw new Error('the compaction must dispatch on arguments')
+  const emptyArgs = [...(await readBuffer(device, recorded, 0, 12))]
+  const emptyCommands = await readBuffer(device, indirect, 0, BASE_SLOTS * 16)
+  const emptyCounts = slots.map((slot) => emptyCommands[slot * 4 + 1])
   compact.dispose()
   const { court: adapter } = await gpu.fermer()
   release()
@@ -129,5 +156,6 @@ export async function testRestCompaction() {
     counts: slots.map((slot) => commandsAfter[slot * 4 + 1]),
     survivors,
     expected,
+    empty: { args: emptyArgs, counts: emptyCounts },
   }
 }

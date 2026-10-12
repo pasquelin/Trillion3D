@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fromUnorm8 } from '../../../packages/math/src/color/color.ts'
-import { mean, quantile } from '../../../packages/math/src/scalar/quantile.ts'
+import { summaryOf } from '../../../packages/math/src/scalar/quantile.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
@@ -105,16 +105,13 @@ export function compareIrradiance(
         errors.push(Math.abs(measured - expected) / expected)
       }
     }
-  errors.sort((a, b) => a - b)
-  const rank = (part: number) => (errors.length ? (quantile(errors, part) as number) : null)
-  const median = rank(0.5),
-    p95 = rank(0.95)
+  const found = summaryOf(errors)
   return {
     channels: counted,
     clipped,
-    meanPercent: errors.length ? mean(errors) * 100 : null,
-    medianPercent: median === null ? null : median * 100,
-    p95Percent: p95 === null ? null : p95 * 100,
+    meanPercent: found ? found.mean * 100 : null,
+    medianPercent: found ? found.p50 * 100 : null,
+    p95Percent: found ? found.p95 * 100 : null,
     engineMean: counted ? engineSum / counted : null,
     oracleMean: counted ? oracleSum / counted : null,
   }

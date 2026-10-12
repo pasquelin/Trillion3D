@@ -15,7 +15,7 @@ import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/c
 import { writeEngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { createWebgpuRowState } from '../../../packages/sdk-browser/src/webgpu/row/state.ts'
 import { createWebgpuRowSync } from '../../../packages/sdk-browser/src/webgpu/row/sync.ts'
-import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { openSelectionKernel } from '../dag/selectionKernel.ts'
@@ -23,7 +23,6 @@ import { runOnDawn } from '../kit/onDawn.ts'
 import { pageAddress } from '../../../packages/sdk-browser/src/webgpu/row/pageSlots.ts'
 
 /** Words of one page-table row: the record writer below names its page in the first. */
-export const ROW_WORDS = PAGE_INFO_STRIDE / 4
 /** Placements apart along -x: one view sees one of them. */
 const SPACING = 1e4
 

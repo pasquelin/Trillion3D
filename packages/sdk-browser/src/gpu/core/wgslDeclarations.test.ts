@@ -8,7 +8,6 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { ENGINE_SHADERS } from './engineShaders.fixture.ts'
 import { unresolvedNames } from './wgslNames.fixture.ts'
 import { CLUSTER_DECODING_SHADER } from '../../../../../tests/gpu/cluster/decodingKernel.ts'
-import { DAG_SELECTION_SHADER_BEFORE } from '../../../../../bench/oracles/browser/cut-dispatches-wgsl.ts'
 import { WGSL_LIBRARY } from '../../../../math/src/wgsl/library.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
@@ -25,7 +24,7 @@ test('every program holds each library declaration once, as the library writes i
   // `validate` and `check:changed`). What the assembler guarantees of a program it writes, each
   // declaration once and as the library's very text, is read here on the text every program finally
   // holds, whoever wrote it: another text is a second formula.
-  const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER, DAG_SELECTION_SHADER_BEFORE }
+  const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER }
   const apart: string[] = []
   for (const decl of WGSL_LIBRARY) {
     const declares = new RegExp(`\\b${decl.kind}\\s+${decl.name}\\b`, 'g')

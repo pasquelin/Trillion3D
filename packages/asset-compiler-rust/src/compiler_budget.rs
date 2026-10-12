@@ -60,7 +60,7 @@ mod tests {
             cache: "c".into(),
             resource_base: "/assets/".into(),
             scope: "full".into(),
-            triangle_budget: 150_000,
+            triangle_budget: crate::DEFAULT_TRIANGLE_BUDGET,
             threads: 1,
             ram_budget_mb,
             simplification: "none".into(),

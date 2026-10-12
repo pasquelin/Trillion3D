@@ -2,7 +2,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { imageDiff, referenceDiff, refuseBlackCaptures } from './imageDiff.ts'
-import type { Report } from '../report/types.ts'
+import type { BenchReport } from '../report/types.ts'
 
 /** A 2 × 2 capture of one RGBA colour. */
 const capture = (rgba: number[]) => ({
@@ -49,7 +49,7 @@ test('a black capture against a drawn one is refused too', () => {
 })
 
 test('every black capture is an error of the report, by its file name', () => {
-  const errors: Report['errors'] = [{ kind: 'console', message: 'noise' }]
+  const errors: BenchReport['errors'] = [{ kind: 'console', message: 'noise' }]
   refuseBlackCaptures(
     errors,
     new Map([

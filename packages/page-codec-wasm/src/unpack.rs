@@ -1,13 +1,14 @@
-//! A page's streams unpacked into one block of words — the mirror of `decodeGeometryPage` —, each
+//! A page's streams unpacked into one block of words — the one decoder, which `decodeGeometryPage` calls through `wasm_decode.rs` —, each
 //! stream walked once by a `BitReader` (STR-01): the same bits as the reference decoder, which
-//! reads every field at random (`unpack_reference.rs`), as the equivalence harness proves.
+//! reads every field at random (`unpack_reference.rs`, a test oracle of another algorithm, never
+//! shipped), as the equivalence harness proves.
 
 use crate::bits::{dequant, le_words, oct_decode_stream, BitReader, Quant};
 use crate::deform::{decode_morphs, decode_skin};
 use crate::{DecodedPage, Header, Layout, PageError};
 use crate::{FLAG_COLOR, FLAG_MORPH, FLAG_NORMAL, FLAG_SKIN, FLAG_UV, FLAG_UV1};
 
-/// A complete page, its streams unpacked and dequantized: the same bytes as `decodeGeometryPage`.
+/// A complete page, its streams unpacked and dequantized: the block `decodeGeometryPage` lays its views on.
 pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, PageError> {
     let header = Header::parse(data, max_decoded_bytes)?;
     let mut words = vec![0u32; header.decoded_bytes() / 4];

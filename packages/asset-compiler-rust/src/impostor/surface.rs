@@ -2,13 +2,13 @@
 //! factors and the texels `texture_preview` already reduced (the finest level of each chain's
 //! tail, `PREVIEW_BASE` texels at most: an impostor frame sees a whole mesh, never one texel of
 //! its leaves). A material cuts where the texture chains take its coverage (`coverage_cut`).
-use crate::albedo::srgb_to_linear;
 use crate::compiler_materials::coverage_cutoff;
 use crate::compiler_tables::materials::slot;
 use crate::cutout::CUTOUT_ALPHA;
 use crate::texture_preview::coverage::{keeps, material_cut, Cut};
 use crate::texture_preview::{preview_level_size, AtlasKind, TexturePreview};
 use serde_json::Value;
+use trillion3d_math::color::srgb_byte_to_linear;
 
 /// One texture level, RGBA8, sampled nearest with repeat.
 pub(crate) struct Texels {
@@ -150,7 +150,7 @@ impl Surface {
     /// Linear base colour at `uv`.
     pub fn colour(&self, uv: [f64; 2]) -> [f64; 3] {
         let texel = self.colour.as_ref().map(|t| t.sample(uv));
-        [0, 1, 2].map(|c| self.factor[c] * texel.map_or(1.0, |t| srgb_to_linear(t[c])))
+        [0, 1, 2].map(|c| self.factor[c] * texel.map_or(1.0, |t| srgb_byte_to_linear(t[c])))
     }
 
     /// Occlusion, roughness, metallic in `[0, 1]`, at the coordinates of each texture's set.

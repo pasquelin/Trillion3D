@@ -4,7 +4,7 @@ import { mean } from '../../../packages/math/src/scalar/quantile.ts'
 import { compareImages } from '../../../packages/sdk-core/src/index.ts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
 import { flipMap } from './flip.ts'
-import type { ImageDiff, Report } from '../report/types.ts'
+import type { ImageDiff, BenchReport } from '../report/types.ts'
 
 /** True when no pixel carries light: RGB 0 everywhere, whatever the alpha. */
 function black({ body }: NonNullable<Capture>) {
@@ -15,10 +15,10 @@ function black({ body }: NonNullable<Capture>) {
 /** Refuses every entirely black capture by its file name: an error of the report, listed first so
  *  `resume.md`'s first 40 errors never hide it behind page noise. */
 export function refuseBlackCaptures(
-  errors: Report['errors'],
+  errors: BenchReport['errors'],
   captures: ReadonlyMap<string, Capture>,
 ) {
-  const refused: Report['errors'] = []
+  const refused: BenchReport['errors'] = []
   for (const [file, capture] of captures)
     if (capture && black(capture))
       refused.push({ kind: 'black-capture', message: `${file}: RGB 0 everywhere` })

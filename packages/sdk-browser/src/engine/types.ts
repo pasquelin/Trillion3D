@@ -94,6 +94,8 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   /** What the view received so far — camera pages made resident, quiet images a still average not
    *  yet whole took —: the view still arriving, which spends no settle limit (#836). */
   landings(): number
+  /** A residency job still loads pages: the view is arriving, whatever the last landing. */
+  arriving(): boolean
   /** Current GPU image, bottom-left origin, read back without stalling a frame: the one the last
    *  flush read when it is still current. */
   capture(): Promise<Uint8Array>

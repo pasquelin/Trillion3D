@@ -31,21 +31,24 @@ function mulberry32Mix(state: number) {
   return (value ^ (value >>> 14)) >>> 0
 }
 
+/** A sequence of numbers in `[0, 1)` drawn from a seed. */
+export type Random = () => number
+
 /** The xorshift32 sequence over `[0, 1)` from `seed`; a zero seed, which xorshift never leaves,
  *  takes `GOLDEN_U32`. */
-export function xorshiftRandom(seed: number) {
+export function xorshiftRandom(seed: number): Random {
   let state = seed >>> 0 || GOLDEN_U32
   return () => (state = xorshift32(state)) / WORD_RANGE
 }
 
 /** The lcg32 sequence over `[0, 1)` from `seed`. */
-export function lcgRandom(seed: number) {
+export function lcgRandom(seed: number): Random {
   let state = seed >>> 0
   return () => (state = lcg32(state)) / WORD_RANGE
 }
 
 /** The Mulberry32 sequence over `[0, 1)` from `seed`: each draw steps the state, then mixes it. */
-export function mulberry32(seed: number) {
+export function mulberry32(seed: number): Random {
   let state = seed >>> 0
   return () => mulberry32Mix((state = mulberry32Step(state))) / WORD_RANGE
 }

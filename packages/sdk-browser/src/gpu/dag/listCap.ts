@@ -4,7 +4,7 @@ import {
   KEPT_HEADER_WORDS,
   OUT_COUNT,
   SELECTION_HEADER_WORDS as HEAD,
-  heldOpenWord,
+  savedJournalWord,
   keptSnapshotWord,
   residentReadbackBytes,
   selectionListCap,
@@ -103,7 +103,7 @@ export const heldOpenAt = (resources: {
   heldSlots: number
   swap: { regions: number }
 }) => ({
-  base: heldOpenWord(resources.listCap, resources.swap.regions) - HEAD,
+  base: savedJournalWord(resources.listCap, resources.swap.regions) - HEAD,
   mask: Math.max(0, resources.heldSlots - 1),
 })
 

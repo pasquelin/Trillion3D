@@ -1,5 +1,5 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/buffer.ts'
 import { ROW_ID_BASE_WORD, ROW_OFFSET_WORD, packedRowBase, restampHizSlot } from './pageRow.ts'
 import type { createPageRowWriter } from './pageRowWriter.ts'
 import type { createWebgpuRowState } from './state.ts'
@@ -15,7 +15,6 @@ type Writer = ReturnType<typeof createPageRowWriter>
  * occupant: its bytes moved in the pool (`replace`).
  */
 export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writePageRow: Writer) {
-  const rowWords = PAGE_INFO_STRIDE / 4
   const state = { changed: false }
   /** A packed rank back to its record: the one catalogue accessor (`../../page/selection/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages)
@@ -37,8 +36,8 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writeP
   const moveRow = (from: number, to: number) => {
     const ints = rows.pageTableInts!,
       page = rows.packedPageIndex[from],
-      base = to * rowWords
-    rows.pageTableFloats!.copyWithin(base, from * rowWords, (from + 1) * rowWords)
+      base = to * ROW_WORDS
+    rows.pageTableFloats!.copyWithin(base, from * ROW_WORDS, (from + 1) * ROW_WORDS)
     ints[base + ROW_ID_BASE_WORD] = packedRowBase(to)
     restampHizSlot(ints, base, to)
     rows.packedRecs[to] = rows.packedRecs[from]
@@ -58,7 +57,7 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writeP
    */
   const replace = (row: number, page: number, offsetWords: number) => {
     const ints = rows.pageTableInts!,
-      base = row * rowWords
+      base = row * ROW_WORDS
     rows.rowOffsetWords[row] = offsetWords
     ints[base + ROW_OFFSET_WORD] = offsetWords
     rows.markRowDirty(row)

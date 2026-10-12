@@ -1,6 +1,6 @@
 import { hizHides } from './hizHides.ts'
 import { HIZ_KERNEL_TEXELS } from '../../../packages/sdk-browser/src/hiz/counts.ts'
-import type { HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts'
+import type { FlatHizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts'
 
 // The test kernel is a power of two: `firstLevel` depends on that to bound the search.
 const KERNEL_LOG2 = Math.log2(HIZ_KERNEL_TEXELS)
@@ -115,7 +115,12 @@ function hizTestRectFlat(
 const rejectScratch = new Int32Array(HIZ_TEST_VALUES)
 
 /** `hizRejects` on the flat layout `projectBoxesFlat` writes. */
-export function hizRejectsFlat(pyramid: HizPyramid, bounds: Float64Array, base: number, bias = 0) {
+export function hizRejectsFlat(
+  pyramid: FlatHizPyramid,
+  bounds: Float64Array,
+  base: number,
+  bias = 0,
+) {
   if (
     !hizTestRectFlat(
       bounds,

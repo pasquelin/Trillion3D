@@ -4,6 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { addVector3, subVector3 } from '../../../../math/src/vector/vector.ts'
 import { Vector3 } from './vector3.ts'
+import { listen } from '../observed.ts'
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts'
 import { HOSTILE_FLOATS } from '../../../../../tests/kit/assert/hostile.ts'
 
@@ -46,8 +47,8 @@ test('Vector3.addVectors and subVectors keep their bits, their writes heard and 
           for (const alias of ['none', 'u', 'v'] as const) {
             const [now, was] = [new Vector3(...start), new Vector3(...start)]
             const heard = [0, 0]
-            now._onChange = () => heard[0]++
-            was._onChange = () => heard[1]++
+            listen(now, () => heard[0]++)
+            listen(was, () => heard[1]++)
             const pick = (t: Vector3, own: V3, as: typeof alias) =>
               alias === as ? t : new Vector3(...own)
             const back = now[method](pick(now, a, 'u'), pick(now, b, 'v'))

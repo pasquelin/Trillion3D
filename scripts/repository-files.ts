@@ -15,7 +15,7 @@ export const SOURCE_UNITS = [
 ] as const
 
 /** The unit a maintained file belongs to, or null when it belongs to none: the gates read the
- *  packages and leave the scripts, the site and the bench to the gates that own them. */
+ *  packages and leave the scripts, the tests and the bench to the gates that own them. */
 export const unitOf = (file: string) =>
   SOURCE_UNITS.find((unit) => file.startsWith(unit + '/')) ?? null
 

@@ -13,6 +13,9 @@
 import { computeTextureEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
 import { NO_CONE } from '../../../sdk-core/src/scene/light/fields.ts'
 import { hasSubgroups } from '../gpu/core/subgroups.ts'
+import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
+import type { HizDepth } from '../gpu/hiz/types.ts'
+import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import {
@@ -86,12 +89,11 @@ interface VsmProjectionInputs {
   depth: GPUTextureView
   normalRough: GPUTextureView
   flags: GPUTextureView
+  /** The depth pyramid of the image (`GpuHiz.depth`, its nearest layer built): the screen ray
+   *  marches it (`gpu/hiz/screenMarch.ts`). */
+  hizDepth: HizDepth
   width: number
   height: number
-  /** Size of the textures the view is drawn in, the view rect at their top-left (dynamic
-   *  resolution draws below it); default `width` × `height`. */
-  bufferWidth?: number
-  bufferHeight?: number
   camera: VsmProjectionCamera
   /** The state frame index: drives the blue noise in time. */
   frameIndex: number
@@ -99,7 +101,8 @@ interface VsmProjectionInputs {
   subgroups?: boolean
   /** The engine's mask (`vsmEncode.ts`): its 2-D array (`VSM_PROJECTION_MASK_FORMAT`, a layer per
    *  four lights at least) and its tile words (`VSM_PROJECTION_TILE_FORMAT`, a texel per group at
-   *  least), both storage bindings `bufferWidth` × `bufferHeight` and its eighth. */
+   *  least), both storage bindings, the size of the textures the view is drawn in (dynamic
+   *  resolution draws below it, in their top-left) and its eighth. */
   mask: GPUTextureView
   maskTiles: GPUTextureView
   /** The engine's shadow receiver target, the resolve's (`receiverTargetWgsl.ts`): given, each pixel
@@ -177,10 +180,7 @@ interface ViewWords {
 const ORIGIN = [0, 0, 0] as const
 
 /** What the view's header is written from (`VsmProjectionInputs`). */
-type ViewInputs = Pick<
-  VsmProjectionInputs,
-  'width' | 'height' | 'bufferWidth' | 'bufferHeight' | 'camera' | 'frameIndex'
->
+type ViewInputs = Pick<VsmProjectionInputs, 'width' | 'height' | 'camera' | 'frameIndex'>
 
 /** The view's matrices into `scratch`: its inverse — the eye its translation (words 12-14) —, the
  *  origin shift, and the shifted-to-view, view-to-clip, shifted-to-clip matrices and its inverse. */
@@ -237,7 +237,7 @@ function writeViewHeader(view: ViewWords, inputs: ViewInputs, count: number) {
 /** The header's screen words (`screenRayScale` on) from view-to-clip `v2c`. */
 function writeScreenWords(
   { f, i }: ViewWords,
-  { width, height, bufferWidth, bufferHeight }: ViewInputs,
+  { width, height }: ViewInputs,
   v2c: Float64Array,
   perspective: boolean,
 ) {
@@ -258,15 +258,9 @@ function writeScreenWords(
   f[pixels + 1] = height
   f[pixels + 2] = 1 / width
   f[pixels + 3] = 1 / height
-  // The screen position scale and bias: NDC to the UV of the buffer the
-  // view rect [0, size) sits in, as the screen ray samples the scene depth.
-  const bw = bufferWidth ?? width,
-    bh = bufferHeight ?? height
-  const uv = W.clipToBufferUv
-  f[uv] = width / bw / 2
-  f[uv + 1] = -height / bh / 2
-  f[uv + 2] = height / 2 / bh
-  f[uv + 3] = width / 2 / bw
+  // The geometry of the thickness the screen march gives a surface (`screenSlab`), from the view's
+  // own matrix: a translation changes neither gradient it reads.
+  f.set(screenSlab(scratch.shiftedToClip, height), W.screenSlab)
   // The projection rect: from (0, 0) (zero), its size.
   i[W.projectionRect + 2] = width
   i[W.projectionRect + 3] = height
@@ -342,6 +336,7 @@ interface PassGroup {
   group: GPUBindGroup
   layout: GPUBindGroupLayout
   depth: GPUTextureView
+  pyramid: GPUTexture
   normalRough: GPUTextureView
   flags: GPUTextureView
   mask: GPUTextureView
@@ -454,6 +449,7 @@ function projectionPassLayout(device: GPUDevice) {
       computeTextureEntry(B.normalRough, 'unfilterable-float'),
       computeTextureEntry(B.flags, 'uint'),
       computeTextureEntry(B.blueNoise, 'unfilterable-float'),
+      ...hizDepthEntries(B.hizDepth, GPUShaderStage.COMPUTE),
       {
         binding: B.shadowMask,
         visibility: GPUShaderStage.COMPUTE,
@@ -574,6 +570,7 @@ function passGroupFor(
     !passGroup ||
     passGroup.layout !== p.passLayout ||
     passGroup.depth !== inputs.depth ||
+    passGroup.pyramid !== inputs.hizDepth.pyramid ||
     passGroup.normalRough !== inputs.normalRough ||
     passGroup.flags !== inputs.flags ||
     passGroup.mask !== mask ||
@@ -590,12 +587,14 @@ function passGroupFor(
           { binding: B.normalRough, resource: inputs.normalRough },
           { binding: B.flags, resource: inputs.flags },
           { binding: B.blueNoise, resource: state.blueNoiseView! },
+          ...hizDepthBindEntries(B.hizDepth, inputs.hizDepth),
           { binding: B.shadowMask, resource: mask },
           { binding: B.shadowMaskTiles, resource: maskTiles },
         ],
       }),
       layout: p.passLayout,
       depth: inputs.depth,
+      pyramid: inputs.hizDepth.pyramid,
       normalRough: inputs.normalRough,
       flags: inputs.flags,
       mask,

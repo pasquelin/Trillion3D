@@ -52,13 +52,3 @@ export function referenceProjectVisibilityVertex(
     worldZ: v.z,
   }
 }
-
-/** `packages/sdk-browser/src/visibility/math.ts:97-106` from before: the sRGB table and 8-bit encoding written inline. */
-export function referenceSrgb8Linear(octet: number) {
-  const c = octet / 255
-  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
-}
-export function referenceLinearToSrgb8(c: number) {
-  const s = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055
-  return Math.max(0, Math.min(255, Math.round(s * 255)))
-}

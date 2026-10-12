@@ -3,7 +3,6 @@
 // whole table is the GPU's to prove (`tests/gpu/dag/frame-ranges.gpu.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { framesBytes } from './frameRanges.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { createDagResources } from './resources.ts'
 import { packDagSelection } from './selection.ts'
@@ -14,7 +13,7 @@ import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { DAG_BINDING } from './shader/bindings.ts'
-import { WORLD_ROW_BYTES, cameraFrameRanges } from './cameraRanges.ts'
+import { PRIMITIVE_BYTES, WORLD_ROW_BYTES, cameraFrameRanges } from './cameraRanges.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { FRAME_VEC4 } from './types.ts'
 
@@ -22,12 +21,12 @@ test('the ranges cover every primitive once, each within one binding', () => {
   const limits = { maxBufferSize: 64 << 20, maxStorageBufferBindingSize: 128 << 20 }
   const ranges = cameraFrameRanges(limits, 1_000_000)
   // A range is as many primitives as one binding holds of the wider table, `worlds`.
-  assert.ok(WORLD_ROW_BYTES > framesBytes(1))
+  assert.ok(WORLD_ROW_BYTES > PRIMITIVE_BYTES)
   assert.equal(ranges.length, ceilDiv(1_000_000, Math.floor((64 << 20) / WORLD_ROW_BYTES)))
   let next = 0
   for (const { first, count } of ranges) {
     assert.equal(first, next, 'no gap, no overlap')
-    assert.ok(framesBytes(count) <= storageBufferCap(limits))
+    assert.ok(count * PRIMITIVE_BYTES <= storageBufferCap(limits))
     next += count
   }
   assert.equal(next, 1_000_000)
@@ -57,7 +56,10 @@ test('each range is its own buffer and bind group, and the stages know the split
   const { frames, ranges } = resources
   const line = (values: ArrayLike<unknown>) => Array.from(values).join(' ')
   assert.equal(line(frames.ranges.map((r) => `${r.first}+${r.count}`)), '0+20 20+20 40+8')
-  assert.equal(line(frames.buffers.map((b) => b.size)), line([20, 20, 8].map(framesBytes)))
+  assert.equal(
+    line(frames.buffers.map((b) => b.size)),
+    line([20, 20, 8].map((count) => count * PRIMITIVE_BYTES)),
+  )
   assert.equal(line(ranges.map((r) => r.count)), '20 20 8')
   let bounds: GPUBuffer | undefined
   for (const [r, { bindGroup }] of ranges.entries()) {

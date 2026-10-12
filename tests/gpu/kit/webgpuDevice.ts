@@ -47,6 +47,7 @@ export async function openGpuDevice(
   const errors: string[] = []
   device.addEventListener('uncapturederror', (event) => errors.push(event.error.message))
   return {
+    adapter,
     device,
     errors,
     async compile(code: string) {

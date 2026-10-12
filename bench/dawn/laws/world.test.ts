@@ -34,7 +34,7 @@ test('the world holds the ground and one mesh a kind, at the scattered places', 
   assert.deepEqual(placed, scatter(1001))
 })
 
-test('only the laws’ page reads the laws’ world: an example’s own `./world.js` is none of it', () => {
-  const example = join(REPOSITORY_ROOT, 'site', 'examples', 'an-example.html')
+test('only the laws’ page reads the laws’ world: another scene’s own `./world.js` is none of it', () => {
+  const example = join(REPOSITORY_ROOT, 'bench', 'kit', 'scenes', 'a-scene.html')
   assert.equal(pageModules(REPOSITORY_ROOT, 'engine', example)['./world.js'], undefined)
 })

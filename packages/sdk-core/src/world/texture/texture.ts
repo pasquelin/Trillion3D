@@ -1,5 +1,6 @@
 import { Vector2 } from '../math/vector2.ts'
 import { listen, unlisten } from '../observed.ts'
+import { createListeners } from '../../runtime/listeners.ts'
 import type { ColorSpace, Filter, Wrap } from '../constants/index.ts'
 
 let nextTexture = 1
@@ -60,7 +61,7 @@ export class Texture {
   sampling = 0
   /** Bumped by a write of `repeat`, `offset` or `rotation`: placed again, nothing sent. */
   placement = 0
-  readonly _listeners = new Set<() => void>()
+  readonly _listeners = createListeners()
 
   /** The picture itself: an image, a canvas, a video or raw pixels. */
   image: unknown
@@ -114,7 +115,7 @@ export class Texture {
   }
   private touch(counter: 'version' | 'sampling' | 'placement' = 'version') {
     this[counter]++
-    for (const listener of this._listeners) listener()
+    this._listeners.emit()
   }
   /** A new texture showing the same picture with the same settings. */
   clone() {

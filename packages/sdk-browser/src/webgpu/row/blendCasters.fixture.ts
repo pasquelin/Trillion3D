@@ -4,14 +4,13 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { blendFixture } from '../../page/selection/blend.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/buffer.ts'
 import { createPageRowWriter } from './pageRowWriter.ts'
 import { createBlendCasterRows } from './blendCasters.ts'
 import { createWebgpuRowState } from './state.ts'
 import { pageAddress } from './pageSlots.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 
-export const STRIDE = PAGE_INFO_STRIDE / 4
 /** One level-0 root cluster, the blend fixture's first, at the address `url`. */
 const [template] = blendFixture().metadata.primitives[0].pages
 const cluster = (url: string) => ({ ...template, url, sha256: url })
@@ -47,7 +46,7 @@ export function catalogue(opacity: number, blended = true, transparentShadow = t
 /** The row table over `pages` with `blendSlots` shadow-only rows, both pages resident. */
 export function mount(pages: PageRec[], blendSlots: number) {
   const rows = createWebgpuRowState(pages, 1, blendSlots)
-  rows.pageTableFloats = new Float32Array(rows.casterSlots * STRIDE)
+  rows.pageTableFloats = new Float32Array(rows.casterSlots * ROW_WORDS)
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer)
   const geometryBlock = { vertexBase: 0, count: 3, hasUv: false, hasNormal: false }
   const writer = createPageRowWriter(

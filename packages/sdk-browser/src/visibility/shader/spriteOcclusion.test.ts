@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import type { HizPage } from '../../hiz/hiz.ts'
+import type { HizPage } from '../../hiz/types.ts'
 import { countUnoccluded, createHizCounts } from '../../hiz/unoccluded.fixture.ts'
 import { cameraAt } from '../../../../../tests/fixtures/hiz.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
@@ -12,7 +12,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { webgpuPagesEngine } from '../../webgpu/pages/pages.ts'
 import { quadScene, camera } from '../../webgpu/pages/testScenes.fixture.ts'
-import { PAGE_INFO_STRIDE } from '../buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../buffer.ts'
 import { HIZ_REJECTED_WGSL, ST_REJECTED } from '../../gpu/partition/contract.ts'
 import { ROW_HIZ_SLOT_WORD, restampHizSlot } from '../../webgpu/row/pageRow.ts'
 import { HIZ_SHADER, HIZ_TEST_PAGES_ENTRIES } from '../../gpu/hiz/shader.ts'
@@ -69,11 +69,10 @@ async function rowHizSlots(sizeAttenuation?: boolean) {
     backend.render(camera())
     await backend.flush()
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
-    const words = PAGE_INFO_STRIDE / 4
     const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
     const slots: number[] = []
     for (let row = 0; row < table.size / PAGE_INFO_STRIDE; row++)
-      if (ints[row * words + 25]) slots.push(ints[row * words + ROW_HIZ_SLOT_WORD])
+      if (ints[row * ROW_WORDS + 25]) slots.push(ints[row * ROW_WORDS + ROW_HIZ_SLOT_WORD])
     return slots
   } finally {
     await backend.dispose()

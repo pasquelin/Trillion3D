@@ -140,7 +140,7 @@ export const PASSES: K.PassModel[] = [
     }),
     sources: [
       K.engine('reflections/frame.ts', 'encodeReflections'),
-      K.engine('reflections/march.ts', 'REFLECTION_MARCH_WGSL'),
+      K.engine('gpu/hiz/screenMarch.ts', 'SCREEN_MARCH_WGSL'),
       K.engine('reflections/trace.ts', 'TRACE_SHADER'),
       K.engine('gpu/hiz/shader.ts', 'HIZ_SHADER'),
       { path: 'bench/runner/counts/frameBudgetRates.ts', symbol: 'hizNearestAccesses' },

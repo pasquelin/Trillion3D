@@ -3,11 +3,12 @@ import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constants.ts'
 import { REFLECTION_LOBE_WGSL } from './field.ts'
 import { REFLECTION_CONE_WGSL } from './footprint.ts'
-import { reflectionBindingsWgsl } from './viewLayout.ts'
+import { REFLECTION_DEPTH_BINDING, reflectionBindingsWgsl } from './viewLayout.ts'
+import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
 
 /**
  * The screen ray of a reflection (`reflectionRay`): its origin, its direction to the far end of its
- * reach, and how far along it the march goes (`end`: the image's edge, `reflectionScreenEnd`, or
+ * reach, and how far along it the march goes (`end`: the image's edge, `screenMarchEnd`, or
  * `REFLECTION_STEP_CAP` pixels of L1 length at most). It leaves the surface one pixel off along its
  * normal: a ray never starts inside the depth it leaves.
  * `reflectionReach`: the world distance along a reflected ray, from its origin `A` (clip) along
@@ -26,13 +27,9 @@ export const reflectionRayWgsl = (group: number) =>
       REFLECTION_CONE_WGSL,
       REFLECTION_LOBE_WGSL,
       clipToFramebuffer,
+      SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING),
     ],
-    `fn reflectionScreenEnd(o:vec2f,d:vec2f,size:vec2f)->f32{
- let toward=select(-o,size-o,d>vec2f(0.0));
- let t=select(vec2f(1.0),toward/d,abs(d)>vec2f(1e-6));
- return min(min(t.x,t.y),1.0);
-}
-fn reflectionReach(A:vec4f,toward:vec4f,lobe:ReflectionLobe)->f32{
+    `fn reflectionReach(A:vec4f,toward:vec4f,lobe:ReflectionLobe)->f32{
  let grow=toward.z-toward.w;
  let near=select(REFLECTION_FAR,(A.w-A.z)/grow,grow>0.0);
  let tangent=max(reflectionConeTangent(lobe.widths.x),reflectionConeTangent(lobe.widths.y)/REFLECTION_TAPS);
@@ -49,7 +46,7 @@ fn reflectionRay(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionRay{
  let toward=reflectionView.viewProj*vec4f(lobe.R,0.0);
  let S0=clipToFramebuffer(A,size);
  let d=clipToFramebuffer(A+toward*reflectionReach(A,toward,lobe),size)-S0;
- let end=min(reflectionScreenEnd(S0.xy,d.xy,size),REFLECTION_STEP_CAP/max(abs(d.x)+abs(d.y),1e-6));
+ let end=min(screenMarchEnd(S0.xy,d.xy,size),REFLECTION_STEP_CAP/max(abs(d.x)+abs(d.y),1e-6));
  return ReflectionRay(S0,d,end);
 }`,
   )

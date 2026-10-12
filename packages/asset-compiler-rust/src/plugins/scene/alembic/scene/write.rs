@@ -7,7 +7,7 @@ use super::super::mesh::{FaceSet, Part};
 use super::super::*;
 use super::Scene;
 use crate::hash;
-use crate::import::{f32_bytes, write_scene, Tables};
+use crate::import::{f32_bytes, scene_source, write_scene, Tables};
 use crate::plugins::scene::{scene_output_fields, SceneOutput};
 
 impl SceneOutput for Scene {
@@ -37,12 +37,14 @@ impl SceneOutput for Scene {
             self.instanced,
             &self.report,
             || {
-                json!({
-                    "plugin": crate::plugins::provenance(plugin), "path": source.to_string_lossy(),
-                    "counts": self.counts, "meshes": self.meshes.len(),
-                    "materials": self.materials.len(),
-                    "importMs": started.elapsed().as_secs_f64() * 1000.0,
-                })
+                scene_source(
+                    plugin,
+                    source,
+                    started,
+                    &self.counts,
+                    (self.meshes.len(), self.materials.len()),
+                    json!({}),
+                )
             },
         )?;
         Ok(directory.to_path_buf())

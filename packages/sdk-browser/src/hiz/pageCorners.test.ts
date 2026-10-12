@@ -3,7 +3,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { boxCornersInto } from '../../../sdk-core/src/index.ts'
-import { BOX_CORNER_VALUES, pageCornersInto, type HizPage } from './hiz.ts'
+import { BOX_CORNER_VALUES, pageCornersInto } from './corners.ts'
+import type { HizPage } from './types.ts'
 import { lcgFloatRandom } from '../../../math/src/sequence/seeded.fixture.ts'
 
 /** A page and the world its root places it by. */

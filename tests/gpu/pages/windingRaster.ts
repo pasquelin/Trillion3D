@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { readBuffer } from '../kit/computeReadback.ts'
 
 const RASTER = `struct Uni{viewProj:mat4x4f,}
 @group(0) @binding(0) var<uniform> uni:Uni;
@@ -73,10 +74,6 @@ async function rasterise({ vertices, ranges, viewProj, width, height, slots }: W
     new Uint32Array(Math.max(1, slots)),
     GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   )
-  const readback = device.createBuffer({
-    size: bytes,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  })
   const target = device.createTexture({
     size: [width, height],
     format: 'rgba8unorm',
@@ -105,11 +102,8 @@ async function rasterise({ vertices, ranges, viewProj, width, height, slots }: W
     pass.draw(count, 1, first, 0)
   }
   pass.end()
-  encoder.copyBufferToBuffer(counts, 0, readback, 0, bytes)
   device.queue.submit([encoder.finish()])
-  await readback.mapAsync(GPUMapMode.READ)
-  const fragments = Array.from(new Uint32Array(readback.getMappedRange().slice(0), 0, slots))
-  readback.unmap()
+  const fragments = Array.from((await readBuffer(device, counts, 0, bytes)).subarray(0, slots))
   const { court: adapter } = await gpu.fermer()
   assert.deepEqual(gpu.errors, [], 'the device reports no error')
   return { adapter, fragments }

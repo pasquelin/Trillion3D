@@ -14,6 +14,7 @@ import {
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { readBuffer } from '../kit/computeReadback.ts'
 import { sceneView } from './cutScene.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
@@ -52,17 +53,10 @@ async function differ(
     dagWorkLayout(r.blockCount).listGroups * 4,
     Uint32Array.from(groups),
   )
-  const read = device.createBuffer({
-    size: 8 * cap,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  })
   const encoder = device.createCommandEncoder()
   encodeDagDifference(encoder, r)
-  encoder.copyBufferToBuffer(r.output, differenceWord(cap) * 4, read, 0, 8 * cap)
   device.queue.submit([encoder.finish()])
-  await read.mapAsync(GPUMapMode.READ)
-  const words = new Uint32Array(read.getMappedRange().slice(0))
-  read.destroy()
+  const words = await readBuffer(device, r.output, differenceWord(cap) * 4, 8 * cap)
   return [0, 1].map((l) => Array.from(words.subarray(l * cap, l * cap + lists[l].length)))
 }
 

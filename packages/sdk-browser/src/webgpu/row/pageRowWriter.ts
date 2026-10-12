@@ -17,7 +17,7 @@ import {
   assertVisibilityPageTriangles,
   FLAG_BLEND_CASTER,
   frameNormalScaleY,
-  PAGE_INFO_STRIDE,
+  ROW_WORDS,
 } from '../../visibility/buffer.ts'
 import { surfaceOpacity, type PageSurface } from '../../page/surface.ts'
 import { shownAsIs } from '../../scene/surfaceModel.ts'
@@ -108,7 +108,7 @@ function writeRow(
   ints: Uint32Array,
 ) {
   const indexCount = rowIndexCount(rec)
-  const base = row * (PAGE_INFO_STRIDE / 4),
+  const base = row * ROW_WORDS,
     material = constants.materialOf(rec.material),
     geo = rowGeometry(rec, resources.geometryBlocks, block)
   const mat = material.mat,

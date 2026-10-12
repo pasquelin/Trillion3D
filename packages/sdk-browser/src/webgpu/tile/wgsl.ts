@@ -1,5 +1,6 @@
+import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { WRAP_COORD_WGSL } from '../../visibility/wrapModes.ts'
-import type { AtlasBindings } from '../core/bindLayout.ts'
+import { VIS_BINDINGS, type AtlasBindings } from '../core/bindLayout.ts'
 import {
   MAX_LEVELS,
   PLACE_AXIS_BITS,
@@ -20,7 +21,7 @@ import {
   samplingFootprintWgsl,
 } from '../../texture/samplingFootprint.ts'
 import { type WgslDecl, wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
-import { highHalf, lowHalf } from '../../../../math/src/wgsl/integer.ts'
+import { highHalf, lowHalf, mipSize2 } from '../../../../math/src/wgsl/integer.ts'
 import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
 
 /** A place's column-or-row and layer fields in a table word (`packPlace`). */
@@ -68,7 +69,7 @@ const AXIS_MASK = (1 << PLACE_AXIS_BITS) - 1,
  * remainder —, so what the material receives is the three-channel map it would have read from a
  * lossless lane.
  *
- * The host shader declares one `${k}Pool<lane>` per lane in `POOL_LANES` order — `colorPool0`,
+ * The host shader declares one `${k}Pool<lane>` per lane in `PREVIEW_LAYOUT_NAMES` order — `colorPool0`,
  * `colorPool1`, `colorPool2`, the same for `data` —, `mapsSampler`, `colorPages` and `dataPages`,
  * at the bindings `../core/bindEntries.ts` publishes.
  *
@@ -88,6 +89,7 @@ const tilePoolWgsl = (mipBias: string) => {
       SAMPLING_WGSL,
       TILE_SLOT_WGSL,
       unitToSigned2,
+      mipSize2,
       lowHalf,
       highHalf,
       lod,
@@ -98,10 +100,12 @@ const TEXEL_PITCH:f32=${TILE_PITCH}.0;
 const TEXEL_BORDER:f32=${TILE_BORDER}.0;
 const POOL_SUBTEXEL:f32=${POOL_SUBTEXEL}.0;
 const POOL_STEP:f32=1.0/${1 / POOL_STEP}.0;
-const PAGE_HEADER:u32=${PAGE_HEADER_WORDS}u;
-const PAGE_SLOT:u32=${PAGE_SLOT_WORDS}u;
-const PAGE_LEVELS:u32=${MAX_LEVELS}u;
-const PAGE_TRANSFORM:u32=${PAGE_TRANSFORM_WORD}u;
+${wgslConsts({
+  PAGE_HEADER: PAGE_HEADER_WORDS,
+  PAGE_SLOT: PAGE_SLOT_WORDS,
+  PAGE_LEVELS: MAX_LEVELS,
+  PAGE_TRANSFORM: PAGE_TRANSFORM_WORD,
+})}
 struct TileTap{uv:vec2f,layer:i32,}
 /** A normal map's Z from its X and Y, as the map stores them (0..1), for a two-channel lane. */
 fn rebuiltZ(xy:vec2f)->f32{let n=unitToSigned2(xy);return (sqrt(max(0.0,1.0-dot(n,n)))+1.0)*0.5;}
@@ -121,10 +125,9 @@ fn tailOffset(rank:u32)->f32{return f32((${TILE_SIZE}u-(${TILE_SIZE}u>>rank)+3u)
 fn placeOrigin(word:u32)->vec2f{return vec2f(f32(word&${AXIS_MASK}u),f32((word>>${PLACE_AXIS_BITS}u)&${AXIS_MASK}u))*TEXEL_PITCH+TEXEL_BORDER;}
 fn placeLayer(word:u32)->i32{return i32((word>>${2 * PLACE_AXIS_BITS}u)&${LAYER_MASK}u);}
 fn sizeOf(word:u32)->vec2f{return vec2f(f32(lowHalf(word)),f32(highHalf(word)));}
-/** Size of a level, \`max(size >> level, 1)\` as the CPU lays it out (\`../../texture/tiles.ts\`): the
- *  size times 2^-level built from its exponent bits — exact, where \`exp2\` may stray by ULPs —, 0
- *  from level 127 on, as the division by 2^level gave. */
-fn levelSize(size:vec2f,level:u32)->vec2f{return max(floor(size*bitcast<f32>((127u-min(level,127u))<<23u)),vec2f(1.0));}
+/** Size of a level, \`mipSize2\` as the CPU lays it out (\`../../texture/tiles.ts\`): a texture's
+ *  sides are integers under 2^16, exact in f32. */
+fn levelSize(size:vec2f,level:u32)->vec2f{return vec2f(mipSize2(vec2u(size),level));}
 fn levelTexel(uv:vec2f,lsize:vec2f)->vec2f{return clamp(uv*lsize,vec2f(0.5),lsize-0.5);}
 /** Entry of a texel in its level: its tile, in tile rows. */
 fn tileEntry(texel:vec2f,lsize:vec2f)->u32{return u32(texel.y/TEXEL_TILE)*u32(ceil(lsize.x/TEXEL_TILE))+u32(texel.x/TEXEL_TILE);}
@@ -200,3 +203,10 @@ export const tileDeclarations = (bindings: AtlasBindings, name: string) =>
     )
     .join('\n')}
 @group(0) @binding(${bindings.pages}) var<storage,read> ${name}Pages:array<u32>;`
+
+/** What a pass that reads a page's materials declares in group 0: the uvs, the colour atlas and
+ *  the sampler of the maps, at the visibility layout's bindings. */
+export const materialDeclarations = () =>
+  `@group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
+${tileDeclarations(VIS_BINDINGS.color, 'color')}
+@group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;`

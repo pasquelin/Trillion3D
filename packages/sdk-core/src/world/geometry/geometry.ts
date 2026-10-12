@@ -1,5 +1,6 @@
 import { BufferAttribute, indexList, ownAttribute } from '../buffer/attribute.ts'
 import type { VertexAttribute } from '../buffer/attribute.ts'
+import { createListeners } from '../../runtime/listeners.ts'
 import { Box3 } from '../math/box3.ts'
 import { Sphere } from '../math/volumes.ts'
 import { Matrix4 } from '../math/matrix4.ts'
@@ -50,7 +51,7 @@ export class Geometry {
   /** The box a dynamic geometry never leaves, when declared: what culls it. */
   maxBounds: Box3 | null = null
   /** Who draws this geometry: every mesh holding it hears its changes. */
-  readonly _listeners = new Set<() => void>()
+  readonly _listeners = createListeners()
   /** Who built it, the world or the application: whether its normalised lists read as stored (`readsStored`). */
   _owner: 'world' | 'host' = 'world'
   /** Tells every holder the geometry changed; the bounds are forgotten when its positions did. */
@@ -58,7 +59,7 @@ export class Geometry {
     this.version++
     if (moved) this.boundingBox = this.boundingSphere = null
     this.recipe = null
-    for (const listener of this._listeners) listener()
+    this._listeners.emit()
     return this
   }
   /** Stores a per-vertex list under `name`. */

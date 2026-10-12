@@ -28,20 +28,18 @@ export interface WaterCostOptions {
 }
 
 export async function run(factory: EngineFactory, options: WaterCostOptions) {
-  const adapter = await navigator.gpu?.requestAdapter()
-  if (!adapter) return { unavailable: 'no WebGPU adapter' }
-  if (!adapter.features.has('timestamp-query'))
-    return { unavailable: 'timestamp-query unavailable' }
-  if (adapter.limits.maxColorAttachmentBytesPerSample < WATER_ATTACHMENT_BYTES)
-    return {
-      unavailable: `water requires ${WATER_ATTACHMENT_BYTES} color attachment bytes per sample`,
-    }
-  // The engine's own device, holding the timestamps and the five water targets.
+  // The engine's own device, holding the timestamps and the five water targets; the kit refuses
+  // a device lacking the limit.
   const gpu = await openGpuDevice(['timestamp-query'], {
     maxColorAttachmentBytesPerSample: WATER_ATTACHMENT_BYTES,
-  })
+  }).catch((error: Error) => ({ unavailable: error.message }))
   if (!gpu) return { unavailable: 'no WebGPU adapter' }
-  const { device, errors } = gpu
+  if ('unavailable' in gpu) return gpu
+  if (!gpu.device.features.has('timestamp-query')) {
+    gpu.device.destroy()
+    return { unavailable: 'timestamp-query unavailable' }
+  }
+  const { adapter, device, errors } = gpu
   const scene = waterCostScene(options.fraction, options.enabled)
   const diagnostics: EngineDiagnostic[] = []
   const { backend, canvas } = engine(

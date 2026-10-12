@@ -1,4 +1,4 @@
-// The CSS selectors the examples' kit finds its own elements with, on the bench's fake elements:
+// The CSS selectors a page finds its own elements with, on the bench's fake elements:
 // a tag, `#id`, `.class` and `[attr]` / `[attr="value"]` parts, joined, in comma lists, with
 // descendants (`a b`). Enough for a page's own panels; anything else matches nothing.
 

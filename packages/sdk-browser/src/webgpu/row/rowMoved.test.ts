@@ -6,10 +6,8 @@ import { closeAlone, range, rowCache } from './rowCache.fixture.ts'
 import { createRowDemand } from './rowDemand.ts'
 import { createRowUse } from './rowUse.ts'
 import { ROW_OFFSET_WORD } from './pageRow.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/buffer.ts'
 import { pageStateOf } from './pageState.fixture.ts'
-
-const WORDS = PAGE_INFO_STRIDE / 4
 
 test('a full table whose pages move in the pool keeps them resident, rows at their place', () => {
   const cache = rowCache(3, 2),
@@ -32,7 +30,7 @@ test('a full table whose pages move in the pool keeps them resident, rows at the
   for (const page of [1, 2]) {
     const row = rows.rowOf(page)
     assert.equal(rows.rowOffsetWords[row], page * 48)
-    assert.equal(rows.pageTableInts![row * WORDS + ROW_OFFSET_WORD], page * 48)
+    assert.equal(rows.pageTableInts![row * ROW_WORDS + ROW_OFFSET_WORD], page * 48)
   }
 })
 

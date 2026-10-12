@@ -4,8 +4,7 @@
 // (defect 1) being scale-free, a tiny rotation was conformal on both sides and only the GPU took the
 // shortcut: it set the unrotated axis against the camera and culled faces that still faced it.
 //
-// The kernel runs on Dawn (`../dag/selectionKernel.ts`) as shipped and with the defect,
-// rebuilt by `substitutionBefore.ts`. A cull is judged against what the engine DRAWS
+// The kernel runs on Dawn (`../dag/selectionKernel.ts`) as shipped. A cull is judged against what the engine DRAWS
 // (`engineDraws.ts`), never against the raw orientation, which ignores the face the engine swaps
 // under a mirror: the two populations the raw count mixes are kept apart.
 //
@@ -25,9 +24,8 @@ import {
   view,
   type Case,
 } from './inverseTransposeCases.ts'
-import { ALL_CASES, OUTSIDE_BAND, turned } from './inverseTransposeSample.ts'
+import { ALL_CASES, turned } from './inverseTransposeSample.ts'
 import { classifyCulls, engineDraws } from './engineDraws.ts'
-import { inverseTransposeBeforeIn } from './substitutionBefore.ts'
 
 /** For each case, whether each kernel of `shaders` culls its page — the cases packed once. */
 async function kernelCulls(cases: Case[], ...shaders: string[]) {
@@ -63,17 +61,16 @@ test('the kernel keeps a half-turned cluster at every uniform scale, and culls i
   assert.equal(cases.filter((lit) => rawOrientation(lit).frontVisible).length, cases.length / 2)
 })
 
-test('before the fix the kernel culled clusters the engine draws; the shipped kernel culls none', async () => {
-  const before = inverseTransposeBeforeIn(DAG_SELECTION_SHADER, 'DAG_SELECTION_SHADER')
+test('the shipped kernel culls no cluster the engine draws', async () => {
   const raw = ALL_CASES.map(rawOrientation)
-  const [draws, [cullsBefore, cullsAfter]] = await Promise.all([
+  const [draws, [culls]] = await Promise.all([
     engineDraws(ALL_CASES),
-    kernelCulls(ALL_CASES, before, DAG_SELECTION_SHADER),
+    kernelCulls(ALL_CASES, DAG_SELECTION_SHADER),
   ])
-  const { index, population } = classifyCulls(raw, draws)
-  const [then, now] = [population(cullsBefore), population(cullsAfter)]
+  const { population } = classifyCulls(raw, draws)
+  const now = population(culls)
 
-  // The counter-example, the first witness (`inverseTransposeSample.ts`): the defect, then its end.
+  // The counter-example, the first witness (`inverseTransposeSample.ts`).
   const counter = ALL_CASES[0]
   assert.ok(inFrustum(counter), 'the counter-example is in view')
   assert.ok(
@@ -83,33 +80,16 @@ test('before the fix the kernel culled clusters the engine draws; the shipped ke
   assert.ok(draws.fragments[0] > 0, 'the engine itself draws the counter-example')
   assert.equal(cpuDecision(counter).conformal, true, 'the CPU judges its transform conformal')
   assert.equal(cpuDecision(counter).culls, false, 'the CPU cut keeps both triangles')
-  assert.equal(cullsBefore[0], true, 'before: the kernel culled the visible cluster')
-  assert.equal(cullsAfter[0], false, 'shipped: the kernel keeps it')
+  assert.equal(culls[0], false, 'the kernel keeps it')
 
-  // The populations, each held apart.
-  assert.ok(then.wrong > 0, 'the defect shows against what the engine draws, not only raw')
+  // The population, held apart.
   assert.equal(now.wrong, 0, `${now.wrong} clusters the engine draws are still culled`)
   assert.equal(now.raw, now.rawUndrawn, 'every cull left is a face the engine does not draw')
-  for (const [name, counts] of Object.entries({ then, now })) {
-    assert.equal(counts.raw, counts.rawDrawn + counts.rawUndrawn, `${name}: raw does not partition`)
-    assert.equal(
-      counts.wrong,
-      counts.rawDrawn + counts.missedByRaw,
-      `${name}: wrong does not partition`,
-    )
-  }
-  assert.ok(then.rawUndrawn > 0 && then.missedByRaw > 0, 'the old count was wrong both ways')
-
-  // What the fix must not change.
-  const changed = index.filter((i) => cullsBefore[i] !== cullsAfter[i])
-  assert.deepEqual(
-    changed.filter((i) => OUTSIDE_BAND.includes(ALL_CASES[i].s)),
-    [],
-    'outside the threshold band (det ≥ 1e-20) no selection changes',
-  )
-  assert.equal(cullsAfter[1], false, 'large scale: det ≫ 1e-20, the kernel keeps it')
+  assert.equal(now.raw, now.rawDrawn + now.rawUndrawn, 'raw does not partition')
+  assert.equal(now.wrong, now.rawDrawn + now.missedByRaw, 'wrong does not partition')
+  assert.equal(culls[1], false, 'large scale: det ≫ 1e-20, the kernel keeps it')
   assert.equal(raw[2].frontVisible, false, 'no rotation: its faces turn away')
   assert.equal(draws.fragments[2], 0, 'no rotation: the engine draws none of it')
-  assert.equal(cullsAfter[2], true, 'no rotation: the right cull stays')
-  assert.equal(cullsAfter[3], false, 'not conformal: never culled, whatever the rotation')
+  assert.equal(culls[2], true, 'no rotation: the right cull stays')
+  assert.equal(culls[3], false, 'not conformal: never culled, whatever the rotation')
 })

@@ -33,6 +33,7 @@ function blendedImage() {
     context: {},
     blendState: { blendGpu: [{}] },
     gpu: {
+      reflection: { front: { view: {}, fresh: false } },
       temporalWanted: false,
       surfaces: { views: () => [{}, {}, {}, {}] },
       allocatedSize: [8, 4],

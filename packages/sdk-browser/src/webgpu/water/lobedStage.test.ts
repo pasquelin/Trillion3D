@@ -40,8 +40,8 @@ test('a lobed transmissive surface draws the lobed stage into the lobes target',
     assert.equal(encodeWaterPass(r.rt, r.encoder, true, {}), true)
     const lobed = ready && waterLobed && hasLobes
     const [{ writes, commands }] = r.passes
-    // The three surfaces, the word, the lobes target where lobed, the feedback.
-    assert.equal(writes.length, lobed ? 6 : 5)
+    // The three surfaces, the word, the lobes target where lobed, the front depth, the feedback.
+    assert.equal(writes.length, lobed ? 7 : 6)
     assert.equal(writes[4] === surfaces.lobesView, lobed, `${waterLobed}, ${hasLobes}`)
     assert.ok(!writes.includes(surfaces.lobesView) || lobed)
     const entry = lobed ? 'fsWaterLobed' : 'fsWater'

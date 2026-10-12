@@ -9,7 +9,8 @@ import { LOCK_OWNER, takeBenchLock } from './lock.ts'
 import type { BenchReport } from './merge.ts'
 import { stamp } from './options.ts'
 import { suiteRuns } from './suiteRuns.ts'
-import { ms, percent, sameImages, table } from './reportText.ts'
+import { ms, percent, sameImages } from './reportText.ts'
+import { table } from '../core/table.ts'
 import { readJson } from '../../scripts/repository-files.ts'
 
 const options = process.argv.slice(2)

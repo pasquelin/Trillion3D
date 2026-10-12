@@ -6,11 +6,7 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { blendFixture } from '../../page/selection/blend.fixture.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import {
-  PAGE_INFO_STRIDE,
-  PAGE_PHYSICAL_WORD,
-  PHYSICAL_SECOND_UV,
-} from '../../visibility/buffer.ts'
+import { ROW_WORDS, PAGE_PHYSICAL_WORD, PHYSICAL_SECOND_UV } from '../../visibility/buffer.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { ROW_MATERIAL_CLASS_WORD } from './pageRow.ts'
 import { createPageRowWriter } from './pageRowWriter.ts'
@@ -39,7 +35,7 @@ function rowOf(surface: G.GraphSurface, hasUv1 = false) {
     metadata,
     new Map([['p0', Uint32Array.of(0, 1, 2)]]),
   ).allPages
-  const floats = new Float32Array(PAGE_INFO_STRIDE / 4),
+  const floats = new Float32Array(ROW_WORDS),
     ints = new Uint32Array(floats.buffer)
   const physicalTable = createPhysicalTable()
   const writer = createPageRowWriter(

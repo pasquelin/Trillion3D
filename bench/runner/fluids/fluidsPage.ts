@@ -6,6 +6,7 @@ import type { FluidsPayload, FluidsScene } from './fluids.ts'
 import type { PhysicsPart } from '../../../packages/sdk-core/src/physics/options.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { posterCapture } from '../harness/measurePage.ts'
+import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
 
 type Sdk = typeof SdkBrowser
 
@@ -79,8 +80,6 @@ function standIns(sdk: Sdk, world: ReturnType<Sdk['createWorld']>, scene: Fluids
     fires.forEach((lamp, i) => (lamp.intensity = 40 * (0.8 + 0.2 * Math.sin(frame * 0.7 + i))))
 }
 
-const nextFrame = () => new Promise<number>((done) => requestAnimationFrame(done))
-
 /** Builds the scene, waits for every body to be simulated, then draws `warmup + frames` frames and captures the last. */
 export async function measureFluids({ sdkUrl, settings, captureFile, scene }: FluidsPayload) {
   const { width, height, warmup, frames, temporalAntialiasing } = settings
@@ -90,7 +89,7 @@ export async function measureFluids({ sdkUrl, settings, captureFile, scene }: Fl
   document.body.append(canvas)
   // GPU incidents are published where the bench rereads them (`withGpuIncidents`).
   const lost: string[] = (globalThis.gpuIncidents = [])
-  // The world leads its own loop, as every physics example does.
+  // The world leads its own loop, as every physics scene does.
   const world = sdk.createWorld(canvas, { physics: true, temporalAntialiasing })
   try {
     await world.ready
@@ -120,7 +119,7 @@ export async function measureFluids({ sdkUrl, settings, captureFile, scene }: Fl
       for (let wait = 0; !reached(); wait++) {
         if (wait > limit || world.physics.error)
           throw new Error(`${state()}: ${world.physics.error ?? 'timed out'}`)
-        await nextFrame()
+        await animationFrame()
       }
     }
     await until(

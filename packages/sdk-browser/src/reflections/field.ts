@@ -61,14 +61,17 @@ fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
 }`,
 )
 
-/** The radiance around the scene through a lobe (`reflectionEnvironment`): the environment's
- *  order-2 coefficients the diffuse term reads through the cosine lobe (`directLights.environment`),
- *  and the uniform radiance the view's `surroundings` add, which every lobe keeps whole. */
+/** The radiance around the scene through a lobe (`reflectionEnvironment`): the larger, per channel,
+ *  of the environment's order-2 coefficients the diffuse term reads through the cosine lobe
+ *  (`directLights.environment`) and the uniform radiance the view's `surroundings` give, which
+ *  every lobe keeps whole — the background as the view shows it. A ray that leaves the scene
+ *  reaches what the view shows there: a declared light around the scene, dimmer than that, never
+ *  makes a mirror show less of the sky than the image does, and a brighter one is still read. */
 export const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
   'REFLECTION_ENVIRONMENT_WGSL',
   [REFLECTION_LOBE_WGSL, REFLECTION_VIEW_WGSL],
   `fn reflectionEnvironment(lobe:ReflectionLobe)->vec3f{
- return max(vec3f(0.0),${lobeRadianceShader((k) => `directLights.environment[${k}].rgb`, 'lobe')})+reflectionView.surroundings.rgb;
+ return max(${lobeRadianceShader((k) => `directLights.environment[${k}].rgb`, 'lobe')},reflectionView.surroundings.rgb);
 }`,
 )
 

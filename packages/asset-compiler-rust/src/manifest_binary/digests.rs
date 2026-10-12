@@ -1,7 +1,7 @@
 //! Fingerprints named by sidecar, read from its header. Split from `manifest_binary.rs`
 //! to respect repository line limit, without changing what they read.
 use super::{
-    bad, is_digest, Result, BUNDLE_SHA, FAMILIES, GEOMETRY_SHA, HEADER_WORDS,
+    bad, is_digest, Result, BUNDLE_SHA, FAMILIES, GEOMETRY_SHA, MANIFEST_BINARY_HEADER_WORDS,
     MANIFEST_BINARY_MAGIC, MANIFEST_BINARY_VERSION, PAGE_SHA, PREVIEW_BAKED, PREVIEW_FIRST_LEVEL,
     PREVIEW_KIND, PREVIEW_LAYOUTS, PREVIEW_WORDS, TEXTURE_PREVIEW_SHA, TEXTURE_PREVIEW_U32,
 };
@@ -79,7 +79,7 @@ fn column(bytes: &[u8], index: usize) -> Result<&[u8]> {
     if index >= word(8)? {
         return Ok(&[]);
     }
-    let at = (HEADER_WORDS + index * 2) * 4;
+    let at = (MANIFEST_BINARY_HEADER_WORDS + index * 2) * 4;
     let (offset, length) = (word(at)?, word(at + 4)?);
     bytes
         .get(offset..offset + length)

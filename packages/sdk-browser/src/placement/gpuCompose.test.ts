@@ -181,15 +181,13 @@ test('a root a parent composes reads the composed world; a parent that turns its
   const parent = {},
     links = [0, 1].map((index) => ({ rows, index, local: turn(0.25) }))
   composeWebgpuPlacements(rt, parent, turn(0), links, true)
-  const world = (rank: number) => [
-    ...(
-      rt.layout.selectionRoots[rank] as never as {
-        world: { elements: ArrayLike<number> }
-      }
-    ).world.elements,
-  ]
+  const world = (rank: number) =>
+    Array.from(
+      (rt.layout.selectionRoots[rank] as never as { world: { elements: ArrayLike<number> } }).world
+        .elements,
+    )
   const expected = new Float64Array(16)
-  multiplyMatrix4(expected, turn(0.7), turn(0.25))
+  multiplyMatrix4(expected, Float64Array.from(turn(0.7)), Float64Array.from(turn(0.25)))
   assert.equal(composeWebgpuPlacements(rt, parent, turn(0.7), [], false), true, 'a turn')
   assert.deepEqual(world(1), [...expected], 'read, a root is its parent’s world times its local')
   assert.deepEqual(written, [], 'no row written for a turn')

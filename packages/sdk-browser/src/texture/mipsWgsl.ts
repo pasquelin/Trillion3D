@@ -1,6 +1,7 @@
 import { COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts'
 import { CUT_BIN_WGSL } from './coverageMathWgsl.ts'
 import { linearToSrgb } from '../../../math/src/wgsl/color.ts'
+import { mipSize2 } from '../../../math/src/wgsl/integer.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
@@ -84,13 +85,12 @@ export const MATERIAL_MIP_WGSL = wgslProgram(
  */
 export const COVERAGE_COUNT_WGSL = wgslBlock(
   'COVERAGE_COUNT_WGSL',
-  [LEVEL_WGSL, COVERAGE_SCALE_WGSL, CUT_BIN_WGSL],
+  [LEVEL_WGSL, COVERAGE_SCALE_WGSL, CUT_BIN_WGSL, mipSize2],
   `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(2) var<storage,read_write> cover:array<atomic<u32>>;
- fn sizeOf(k:u32)->vec2u{return max(level.base.xy>>vec2u(k),vec2u(1u));}
  fn alphaAt(q:vec2u)->u32{
-  let k=level.base.z;let p=vec2i(min(q,sizeOf(k)-vec2u(1u)));
+  let k=level.base.z;let p=vec2i(min(q,mipSize2(level.base.xy,k)-vec2u(1u)));
   if(k==0u){return toByte(textureLoad(source,p,0).w);}
   let s=p*2;let hi=vec2i(level.extent.xy)-vec2i(1);
   return median(vec4f(textureLoad(source,min(s,hi),0).w,textureLoad(source,min(s+vec2i(1,0),hi),0).w,
@@ -102,7 +102,7 @@ export const COVERAGE_COUNT_WGSL = wgslBlock(
   let k=level.base.z;let o=g.xy*8u;
   for(var j=i;j<81u;j+=64u){alphas[j]=alphaAt(o+vec2u(j%9u,j/9u));}
   workgroupBarrier();
-  if(all(id.xy<sizeOf(k))){
+  if(all(id.xy<mipSize2(level.base.xy,k))){
    let j=(id.y-o.y)*9u+id.x-o.x;
    let a=vec4u(alphas[j],alphas[j+1u],alphas[j+9u],alphas[j+10u]);
    for(var s=0u;s<4u;s++){atomicAdd(&tally[cutBin(a,s,level.extent.z)],1u);}

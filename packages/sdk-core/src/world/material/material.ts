@@ -4,6 +4,7 @@ export type { MaterialParameters } from './materialParameters.ts'
 import { alphaModeOf, type Material as EngineMaterial } from '../../contracts/material.ts'
 import { Color, type ColorInput } from '../math/color.ts'
 import { listen, unlisten } from '../observed.ts'
+import { createListeners, type Listeners } from '../../runtime/listeners.ts'
 import type { Blending, Side } from '../constants/index.ts'
 
 /** The fields whose value is a colour: written through `Color`, whatever the page passes. Every
@@ -18,7 +19,7 @@ export const MATERIAL_COLOURS: ReadonlySet<string> = new Set([
   'subsurfaceColor',
 ])
 /** A value that may be heard: a texture keeps its hearers in `_listeners`. */
-type Heard = { isTexture?: boolean; _listeners?: Set<() => void> }
+type Heard = { isTexture?: boolean; _listeners?: Listeners }
 /** The fields that are a material's bookkeeping, never one of its parameters. */
 export const MATERIAL_BOOKKEEPING: ReadonlySet<string> = new Set([
   'isMaterial',
@@ -70,12 +71,12 @@ export class Material {
   /** Bumped by every write: what the world compares to repaint. */
   version = 0
   /** Who wears this material: every mesh holding it hears its writes. */
-  readonly _listeners = new Set<() => void>();
+  readonly _listeners = createListeners();
   [param: string]: unknown
   /** Tells every wearer this material changed. */
   private readonly heard = () => {
     this.version++
-    for (const listener of this._listeners) listener()
+    this._listeners.emit()
   }
 
   /** The kind the material was made as: `'meshStandard'`, `'meshBasic'`… */
@@ -115,7 +116,7 @@ export class Material {
     // A colour or a texture this material holds is heard like the material itself.
     if (MATERIAL_COLOURS.has(key)) listen(value as Color, this.heard)
     const sampled = value as Heard | null
-    if (sampled?.isTexture) sampled._listeners?.add(this.heard)
+    if (sampled?.isTexture) sampled._listeners?.subscribe(this.heard)
   }
   /** Stops hearing what `key` held, unless another field of this material still holds it. */
   private release(key: string, held: unknown) {
@@ -123,7 +124,7 @@ export class Material {
     if (!(held instanceof Color) && !texture) return
     for (const other in this) if (other !== key && this[other] === held) return
     if (held instanceof Color) unlisten(held, this.heard)
-    else (held as Heard)._listeners?.delete(this.heard)
+    else (held as Heard)._listeners?.unsubscribe(this.heard)
   }
   /** `material.needsUpdate = true`: the meshes wearing it are repainted. */
   set needsUpdate(_value: boolean) {}

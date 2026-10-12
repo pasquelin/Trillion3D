@@ -3,7 +3,7 @@ import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts'
 import { receiverLayoutEntries, receiverPlaceholders } from '../../webgpu/visibility/receiver.ts'
-import { arrayView } from '../../gpu/shadow/layers.ts'
+import { arrayView } from '../../gpu/core/textureViews.ts'
 import { PROBE_TEXELS, emptyAtlas } from '../../bounce/atlas.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
@@ -203,7 +203,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     tiles,
     transmittanceView: arrayView(transmittance),
     bounceGrid,
-    probes: probes.createView({ dimension: '2d-array' }),
+    probes: arrayView(probes),
     proxy,
     receiver: receiver.resources,
     reflection: reflection.createView(),

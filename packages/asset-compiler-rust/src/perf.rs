@@ -146,10 +146,9 @@ impl Laps {
     }
     /// Closes the running stage under `label`, and opens the next.
     pub fn lap(&mut self, label: &str) {
-        let now = Instant::now();
-        let ms = now.duration_since(self.last).as_secs_f64() * 1000.0;
+        let ms = crate::shared_math::elapsed_ms(self.last);
         self.laps.insert(label.into(), json!(ms));
-        self.last = now;
+        self.last = Instant::now();
     }
     /// Runs `a` and `b` side by side on the current pool, each timed under its own label from the
     /// end of the stage before, like a lap, and opens the next stage once both are done. The

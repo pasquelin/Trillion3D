@@ -1,7 +1,9 @@
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { length3 } from '../../../math/src/vector/vector.ts'
+import { screenSlab } from '../gpu/hiz/screenSlab.ts'
+import { frontPitch } from './frontDepth.ts'
 import type { HeldImage } from './radiance.ts'
 import { REFLECTION_VIEW_AT as AT, REFLECTION_VIEW_WRITTEN_WORDS } from './viewLayout.ts'
 
@@ -17,24 +19,6 @@ export type ReflectionFrame = {
   proxyError: number
 }
 
-/** The geometry of a surface's thickness under the view-projection `m` (`reflectionBack`), a pixel
- *  `scale` wide at a unit clip `w`: `[scale, A, step, perspective]`. A clip depth is affine in the
- *  point, `z_c = a · w_view + b`, and the clip `w` is `c · w_view + e`: under a perspective (`c`
- *  not zero) the depth is `A + B / w`, with `A = a / c` the depth at an infinite distance; under
- *  an orthographic projection a pixel spans `scale · |a|` of depth, at every distance. */
-function reflectionSlab(m: ArrayLike<number>, scale: number) {
-  const gradientZ = [m[2], m[6], m[10]],
-    gradientW = [m[3], m[7], m[11]]
-  const perspective = gradientW.some((component) => component !== 0)
-  const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-  return [
-    scale,
-    perspective ? dot(gradientZ, gradientW) / dot(gradientW, gradientW) : 0,
-    perspective ? 0 : scale * length3(gradientZ[0], gradientZ[1], gradientZ[2]),
-    perspective ? 1 : 0,
-  ]
-}
-
 /** The words of the view that the CPU writes, in 16-word runs (`sameElements`). */
 const RUNS = ceilDiv(REFLECTION_VIEW_WRITTEN_WORDS, 16)
 
@@ -46,8 +30,9 @@ function unchanged(sent: Float32Array, runs: Float32Array[]) {
 
 /**
  * The writer of a view uniform `buffer`: it stages this image's view — the view-projection, the
- * radiance image's view-projection, drawn size and top level (`levels` − 1), the geometry of a
- * surface's thickness (`reflectionSlab`) with the world size of a pixel at a unit clip `w` — 2 /
+ * radiance image's view-projection and its inverse, drawn size and top level (`levels` − 1), this
+ * image's drawn size, the geometry of a surface's thickness (`screenSlab`) with the world size of a
+ * pixel at a unit clip `w` — 2 /
  * (height · |row y of the view-projection|), the projection's vertical scale —, whether the screen
  * is traced and the resident proxy's error; all but the surroundings, which the GPU
  * writes from the lighting's view. It writes the buffer when what it staged is not what it sent
@@ -58,17 +43,22 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
   const staged = new Float32Array(REFLECTION_VIEW_WRITTEN_WORDS)
   const sent = new Float32Array(REFLECTION_VIEW_WRITTEN_WORDS)
   const traced = new Uint32Array(staged.buffer, AT.traced * 4, 4)
+  const inverse = new Float64Array(16)
   const runs = Array.from({ length: RUNS }, (_, k) => staged.subarray(16 * k, 16 * k + 16))
   return (frame: ReflectionFrame, held: HeldImage, levels: number) => {
     const m = frame.viewProjection
     copyMatrix4(staged, m, AT.viewProj)
     copyMatrix4(staged, held.viewProjection, AT.radianceViewProj)
+    copyMatrix4(staged, invertMatrix4(inverse, held.viewProjection), AT.radianceInverse)
     const [, height] = frame.size
     staged[AT.radiance] = held.size[0]
     staged[AT.radiance + 1] = held.size[1]
     staged[AT.radiance + 2] = levels - 1
-    staged.set(reflectionSlab(m, 2 / (height * length3(m[1], m[5], m[9]))), AT.slab)
+    staged.set(screenSlab(m, height), AT.slab)
     traced[0] = frame.depthDrawn && held.valid ? 1 : 0
+    traced[1] = frame.size[0]
+    traced[2] = frame.size[1]
+    traced[3] = frontPitch(frame.size[0])
     staged[AT.proxy] = frame.proxyError
     if (unchanged(sent, runs)) return
     sent.set(staged)

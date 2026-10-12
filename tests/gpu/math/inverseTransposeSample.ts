@@ -31,8 +31,6 @@ const WITNESSES: [string, Case][] = [
  *  what must not change. 1e-7 to 1e-16 lie inside; 1e-12 and 1e-16 go past where s³ itself is
  *  denormal in f32, which only the 3×3's normalisation crosses. */
 const SCALES = [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-12, 1e-16]
-/** Scales where `det = ±s³` stays above the absolute 1e-20 threshold: the fix changes nothing. */
-export const OUTSIDE_BAND = SCALES.filter((s) => s * s * s >= 1e-20)
 const AXES = [
   [1, 0, 0],
   [0, 1, 0],

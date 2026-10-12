@@ -1,3 +1,4 @@
+import { frontAttachment } from '../../reflections/frontDepth.ts'
 import { bindForwardReflection } from '../../reflections/gpu.ts'
 import { feedbackAttachment } from '../pages/prepare/attachments.ts'
 import { blendEntries } from './identity.ts'
@@ -154,7 +155,9 @@ export function drawBlendPass(
       // The share a debug view or the temporal pass reads; an empty slot otherwise.
       share ? { view: share.view, loadOp: 'load', storeOp: 'store' } : null,
       // The display layers of an image whose blends filter (`displayFilter.ts`).
-      ...(filter ? filter.attachments() : []),
+      ...(filter ? filter.attachments() : [null, null]),
+      // The nearest transparent surface of each pixel, the reflections' (`frontDepth.ts`).
+      frontAttachment(gpu.reflection!.front),
     ],
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
   })

@@ -11,7 +11,7 @@ import {
   workgroupCount,
 } from './integers.ts'
 import { clamp, clampCompare, clampLowWins, lerp, saturate, wrap } from './reals.ts'
-import { quantile } from './quantile.ts'
+import { quantileOf } from './quantile.ts'
 
 test('ceilDiv rounds up, exact at multiples, zero count and NaN', () => {
   assert.equal(ceilDiv(10, 5), 2)
@@ -184,16 +184,16 @@ test('wrap is a floored modulo', () => {
 
 test('quantile is the nearest rank', () => {
   const ten = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-  assert.equal(quantile(ten, 0.5), 5)
-  assert.equal(quantile(ten, 0.95), 10)
-  assert.equal(quantile(ten, 1), 10)
-  assert.equal(quantile(ten, 0.1), 1)
-  assert.equal(quantile(ten, 0.11), 2)
+  assert.equal(quantileOf(ten, 0.5), 5)
+  assert.equal(quantileOf(ten, 0.95), 10)
+  assert.equal(quantileOf(ten, 1), 10)
+  assert.equal(quantileOf(ten, 0.1), 1)
+  assert.equal(quantileOf(ten, 0.11), 2)
   const twenty = Array.from({ length: 20 }, (_, i) => i + 1)
-  assert.equal(quantile(twenty, 0.95), 19)
-  assert.equal(quantile([7], 0.5), 7)
-  assert.equal(quantile(new Float64Array([1, 2, 3]), 0.5), 2)
-  assert.equal(quantile([], 0.5), undefined)
-  assert.equal(quantile(ten, 0), undefined)
-  assert.equal(quantile(ten, NaN), undefined)
+  assert.equal(quantileOf(twenty, 0.95), 19)
+  assert.equal(quantileOf([7], 0.5), 7)
+  assert.equal(quantileOf(new Float64Array([1, 2, 3]), 0.5), 2)
+  assert.equal(quantileOf([], 0.5), undefined)
+  assert.equal(quantileOf(ten, 0), undefined)
+  assert.equal(quantileOf(ten, NaN), undefined)
 })

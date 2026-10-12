@@ -79,11 +79,23 @@ export async function readBuffer(
   }
 }
 
+/** Which part of a texture `readTexture` reads: one array `layer` (default 0), over `width` ×
+ *  `height` texels (default the texture's own). */
+export interface ReadTextureOptions {
+  layer?: number
+  width?: number
+  height?: number
+}
+
 /** Level 0 of `texture` read back, `bytesPerTexel` a texel — any format —, its rows packed the top
  *  first: WebGPU's copy pads each row to 256 bytes, the padding dropped here. */
-export async function readTexture(device: GPUDevice, texture: GPUTexture, bytesPerTexel: number) {
-  const { width, height } = texture,
-    row = width * bytesPerTexel,
+export async function readTexture(
+  device: GPUDevice,
+  texture: GPUTexture,
+  bytesPerTexel: number,
+  { layer = 0, width = texture.width, height = texture.height }: ReadTextureOptions = {},
+) {
+  const row = width * bytesPerTexel,
     pitch = alignUp(row, 256)
   const target = device.createBuffer({
     size: pitch * height,
@@ -92,7 +104,7 @@ export async function readTexture(device: GPUDevice, texture: GPUTexture, bytesP
   try {
     const encoder = device.createCommandEncoder()
     encoder.copyTextureToBuffer(
-      { texture },
+      { texture, origin: [0, 0, layer] },
       { buffer: target, bytesPerRow: pitch, rowsPerImage: height },
       [width, height],
     )

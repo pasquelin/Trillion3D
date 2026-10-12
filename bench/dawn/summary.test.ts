@@ -54,7 +54,7 @@ test('a spread reads the median, the 95th percentile and the extremes, ignoring 
     max: 3,
     n: 3,
     mean: 2,
-    iqr: 1,
+    iqr: 2,
     std: Math.sqrt(2 / 3),
   })
   assert.equal(spread([Number.NaN]), null)
@@ -82,7 +82,7 @@ test('passes are timed once per sampled image, by their own time, absent ones as
 
 test('a segment counts the frames over twice its median as hitches', () => {
   const round = roundNumbers([frame(10), frame(10), frame(11), frame(40)])
-  assert.equal(round.gpuMs?.median, 10.5)
+  assert.equal(round.gpuMs?.median, 10)
   assert.deepEqual(round.hitchFrames, [3])
   assert.equal(round.heldFrom, null)
   assert.equal(roundNumbers([frame(10), { ...frame(10), drawn: false }]).heldFrom, 1)
@@ -137,5 +137,9 @@ test('the bench timer reads every pass of each frame by label, its batches as on
     [100, 1000],
     'the encoded work is read per frame, batches added',
   )
-  assert.equal(rasters[0].waitMs, 0.25, 'the wait before a pass is told apart from its work')
+  assert.equal(
+    rasters[0].waitMs,
+    0,
+    'the wait before a pass (nearest rank of 0 and 0.5) is its own',
+  )
 })

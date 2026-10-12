@@ -1,13 +1,30 @@
-//! Triangles and polygons in space: the edge cross product and area, the barycentric weights, the
+//! Triangles and polygons in space: the edge cross product and area, the longest edge, an edge's key, the barycentric weights, the
 //! closest point to a query, a ray's hit, and Newell's polygon normal.
 
 use crate::real::Real;
-use crate::vec3::{cross, dot, length, sub};
+use crate::vec3::{cross, dot, length, point, sub};
 
 /// `(b − a) × (c − a)`: the normal of the triangle by its winding, twice its area long.
 #[inline]
 pub fn triangle_cross(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> [f64; 3] {
     cross(sub(b, a), sub(c, a))
+}
+
+/// The longest edge of the triangle `tri` of corner ids over `positions`, three `f32` a corner.
+#[inline]
+pub fn longest_edge(positions: &[f32], tri: &[u32; 3]) -> f64 {
+    let [a, b, c] = tri.map(|v| point(positions, v));
+    length(sub(b, a))
+        .max(length(sub(c, b)))
+        .max(length(sub(a, c)))
+}
+
+/// The key of the undirected edge `a`–`b`: its lower corner in the high word, its higher in the
+/// low, so keys sort by lower corner, then higher.
+#[inline]
+pub fn edge_key(a: u32, b: u32) -> u64 {
+    let (lo, hi) = if a < b { (a, b) } else { (b, a) };
+    (u64::from(lo) << 32) | u64::from(hi)
 }
 
 /// The area of the triangle, `length(triangle_cross) / 2`.

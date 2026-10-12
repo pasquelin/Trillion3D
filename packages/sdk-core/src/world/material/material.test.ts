@@ -47,7 +47,7 @@ test('sampled textures notify material wearers while bookkeeping and disposal st
   const texture = new Texture({ width: 2, height: 3 })
   const material = new Material('meshStandard', { map: texture })
   let writes = 0
-  material._listeners.add(() => writes++)
+  material._listeners.subscribe(() => writes++)
   texture.rotation = 0.3
   assert.equal(writes, 1)
   material.roughness = 0.4
@@ -66,14 +66,14 @@ test('cloned materials own revisions, callbacks and color channels independently
   const source = new Material('meshPhong', { specular: new Color([0.2, 0.3, 0.4]) })
   let sourceChanges = 0,
     copyChanges = 0
-  source._listeners.add(() => sourceChanges++)
+  source._listeners.subscribe(() => sourceChanges++)
   source.version = 123
   const copy = source.clone()
   assert.equal(copy.isMaterial, true)
   assert.equal(copy.kind, 'meshPhong')
   assert.equal(copy.version, 0)
   assert.notEqual(copy._listeners, source._listeners)
-  copy._listeners.add(() => copyChanges++)
+  copy._listeners.subscribe(() => copyChanges++)
   copy.opacity = 0.4
   assert.equal(copy.version, 1)
   assert.equal(source.version, 123)
@@ -108,7 +108,7 @@ test('a texture a material no longer samples stops repainting it, unless another
   const texture = new Texture({ width: 2, height: 2 })
   const material = new Material('meshStandard', { map: texture, emissiveMap: texture })
   let writes = 0
-  material._listeners.add(() => writes++)
+  material._listeners.subscribe(() => writes++)
   material.map = null
   writes = 0
   texture.rotation = 0.1
@@ -136,7 +136,7 @@ test('a parameter given as undefined is not given', () => {
 test('a clone is heard by its own wearers alone', () => {
   const source = new Material('meshPhong', { specular: 0x112233 })
   let heard = 0
-  source._listeners.add(() => heard++)
+  source._listeners.subscribe(() => heard++)
   const copy = source.clone()
   copy.color.setRGB(0.1, 0.2, 0.3)
   ;(copy.specular as Color).setRGB(0.3, 0.2, 0.1)

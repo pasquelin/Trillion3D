@@ -32,13 +32,6 @@ pub fn pack(colour: [f64; 3]) -> u32 {
     byte(colour[0]) | (byte(colour[1]) << 8) | (byte(colour[2]) << 16) | (255 << 24)
 }
 
-/// An sRGB byte brought back to linear in `f64`, the curve of the rest of the chain (P1):
-/// `trillion3d_math::color::srgb_to_linear`. The preview table (`texture_preview/curves.rs`) takes
-/// its `f32` form, which rounds apart on 214 of the 256 bytes.
-pub fn srgb_to_linear(byte: u8) -> f64 {
-    trillion3d_math::color::srgb_to_linear(trillion3d_math::scalar::byte_to_unit(byte))
-}
-
 fn factor(material: &Value) -> [f64; 3] {
     material
         .pointer("/pbrMetallicRoughness/baseColorFactor")

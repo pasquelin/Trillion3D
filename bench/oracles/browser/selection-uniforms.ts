@@ -12,8 +12,6 @@ import type { CameraMotion } from '../../../packages/sdk-browser/src/camera/moti
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import type { DagViewUniforms } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 
-const f32 = Math.fround
-
 /** A selection uniform block as plain numbers: what a reader compares, whoever wrote it. */
 export const uniformsOf = (u: SelectionUniforms) => ({
   planes: Array.from(u.planes),
@@ -106,16 +104,16 @@ export function referenceViewBlocks(
     ...zero,
     planes: Array.from(u.planes),
     view: Array.from(u.view),
-    pixelScale: u.pixelScale.map(f32),
-    pixelError: [f32(u.pixelError)],
-    near: [f32(u.near)],
+    pixelScale: u.pixelScale.map(Math.fround),
+    pixelError: [Math.fround(u.pixelError)],
+    near: [Math.fround(u.near)],
     clusterCount: [packed.pageCount],
     nodeCount: [packed.nodeCount],
     worldCount: [packed.worldCount],
-    cameraWorld: u.cameraWorld.map(f32),
-    cameraStretch: [f32(u.cameraStretch ?? 1)],
+    cameraWorld: u.cameraWorld.map(Math.fround),
+    cameraStretch: [Math.fround(u.cameraStretch ?? 1)],
     listCap: [listCap],
-    perspective: [f32(u.perspective ?? 1)],
+    perspective: [Math.fround(u.perspective ?? 1)],
     viewCount: [1],
     viewCapacity: [1],
     queueCap: [packed.nodeCount],

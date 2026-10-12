@@ -2,7 +2,7 @@
 // place a mesh once, and nodes that place it many times through `EXT_mesh_gpu_instancing` — the
 // compiler expands every instance into a placement its partition cuts into cells. One binary
 // buffer, every view on a four-byte boundary. Pure: the JSON and the bytes, written by `cook.ts`.
-import { bufferPacker } from '../../../scripts/docs/examples/gltf.ts'
+import { bufferPacker } from '../../kit/gltf.ts'
 import type { MeshData } from './meshes.ts'
 import type { Placements } from './scatter.ts'
 

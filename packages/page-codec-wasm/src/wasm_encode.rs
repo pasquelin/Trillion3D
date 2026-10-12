@@ -132,15 +132,21 @@ pub unsafe extern "C" fn encode_page(request: u32, meta: u32) -> u32 {
             PAGE.with(|held| *held.borrow_mut() = page.bytes);
             0
         }
-        Err(refusal) => {
-            let code = refusal.code.as_bytes();
-            assert!(code.len() <= (META_WORDS - 1) * 4);
-            answer[0] = code.len() as u32;
-            core::slice::from_raw_parts_mut((meta + 4) as *mut u8, code.len())
-                .copy_from_slice(code);
-            1
-        }
+        Err(refusal) => refuse(meta, &refusal.code),
     }
+}
+
+/// Writes a refusal's `code` in the answer block at `meta`: its length in word 0, its ASCII bytes
+/// from byte 4. Returns 1, the status of a refusal.
+///
+/// # Safety
+/// `meta` must lie in a live `arena_alloc` reservation of `META_WORDS` words.
+pub(crate) unsafe fn refuse(meta: u32, code: &str) -> u32 {
+    let code = code.as_bytes();
+    assert!(code.len() <= (META_WORDS - 1) * 4);
+    *(meta as *mut u32) = code.len() as u32;
+    core::slice::from_raw_parts_mut((meta + 4) as *mut u8, code.len()).copy_from_slice(code);
+    1
 }
 
 /// Copies the page `encode_page` wrote into `out` and forgets it.

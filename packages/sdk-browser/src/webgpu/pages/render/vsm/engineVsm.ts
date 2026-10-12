@@ -1,3 +1,4 @@
+import { arrayView } from '../../../../gpu/core/textureViews.ts'
 /**
  * The engine's shadows: the virtual shadow maps (`../../../../vsm/`), in their frame order,
  * encoded in the direct-lighting step after the visibility and
@@ -444,7 +445,7 @@ export function ensureMask(
     const tiles = device.createTexture(maskTilesDescriptor(width, height))
     return {
       array,
-      view: array.createView({ dimension: '2d-array' }),
+      view: arrayView(array),
       tiles,
       tilesView: tiles.createView(),
     }

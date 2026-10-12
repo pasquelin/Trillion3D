@@ -24,6 +24,9 @@ export type RigFrame = {
   proxy?: { scene: SceneProxy; surface: Float32Array<ArrayBuffer>; reach: number }
   /** The background, `0xrrggbb`, as the display shows it: black by default. */
   background?: number
+  /** The irradiance of a light declared around the scene: nine RGB coefficients, 27 numbers
+   *  (`SceneEnvironment.irradiance`); none by default. */
+  environment?: readonly number[]
 }
 
 export const halves = (values: ArrayLike<number>) => Uint16Array.from(values, toHalf)

@@ -99,8 +99,8 @@ test('subtractive and multiply over paper show the witness in display space', ()
     // The lit target keeps the paper; both layers take the ink's display colour (route 2).
     close([...written(targets[0]!, ink, paper)], [...paper], `${mode} lit target`)
     const route = displayRoute[2](ink.slice(0, 3), 1, ACES, false, ink[3], 1)
-    const tint = blend(targets.at(-2)!.blend!, route.tint, [1, 1, 1, 1])
-    const add = blend(targets.at(-1)!.blend!, route.add, [0, 0, 0, 0])
+    const tint = blend(targets[3]!.blend!, route.tint, [1, 1, 1, 1])
+    const add = blend(targets[4]!.blend!, route.add, [0, 0, 0, 0])
     // The display filter pass: the composed paper times the tint, plus the added value.
     const filter = displayFilterRun(
       [1, 1],

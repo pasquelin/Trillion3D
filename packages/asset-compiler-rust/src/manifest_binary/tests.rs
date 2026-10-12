@@ -14,7 +14,7 @@ pub(super) fn split(m: &Value, t: &Templates, pv: &[TexturePreview]) -> Result<(
 }
 /// The bytes of column `index` of a finished sidecar.
 pub(super) fn column(bytes: &[u8], index: usize) -> &[u8] {
-    let at = (HEADER_WORDS + index * 2) * 4;
+    let at = (MANIFEST_BINARY_HEADER_WORDS + index * 2) * 4;
     let word = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
     &bytes[word(at)..word(at) + word(at + 4)]
 }
@@ -110,13 +110,13 @@ fn columns_declare_their_own_offsets_and_lengths() {
         COLUMNS as u32
     );
     let read = |index: usize| {
-        let at = (HEADER_WORDS + index * 2) * 4;
+        let at = (MANIFEST_BINARY_HEADER_WORDS + index * 2) * 4;
         (
             u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize,
             u32::from_le_bytes(bytes[at + 4..at + 8].try_into().unwrap()) as usize,
         )
     };
-    let mut previous = (HEADER_WORDS + COLUMNS * 2) * 4;
+    let mut previous = (MANIFEST_BINARY_HEADER_WORDS + COLUMNS * 2) * 4;
     for index in 0..COLUMNS {
         let (offset, length) = read(index);
         assert_eq!(offset % 8, 0, "column {index} is not eight-byte aligned");
@@ -167,7 +167,7 @@ fn split_accepts_a_depth_layer_at_the_four_bit_limit_and_writes_it_in_its_column
     let mut manifest = sample();
     manifest["primitives"][0]["pages"][0]["depthLayer"] = json!(15);
     let (_, bytes) = split(&manifest, &TEMPLATES, &[]).expect("split");
-    let at = (HEADER_WORDS + PAGE_DEPTH_LAYER * 2) * 4;
+    let at = (MANIFEST_BINARY_HEADER_WORDS + PAGE_DEPTH_LAYER * 2) * 4;
     let offset = u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
     let first_page_layer = u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap());
     assert_eq!(first_page_layer, 15);

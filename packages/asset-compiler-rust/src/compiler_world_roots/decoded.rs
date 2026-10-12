@@ -40,10 +40,7 @@ impl Reader<'_> {
     }
     fn digest(&mut self) -> String {
         self.at += 32;
-        self.bytes[self.at - 32..self.at]
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect()
+        crate::hex_of(&self.bytes[self.at - 32..self.at])
     }
     /// A pooled list: its first word and length, read in the pool.
     fn pooled(&mut self) -> Value {

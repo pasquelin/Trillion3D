@@ -3,11 +3,11 @@
 import { WRAP_COORD_WGSL } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts'
 import { COLOR_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/webgpu/tile/wgsl.ts'
 import { functionText } from '../../../packages/sdk-browser/src/bounce/wgslBody.fixture.ts'
+import { readTexture } from '../kit/computeReadback.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { bilinear4 } from '../../../packages/math/src/wgsl/sampling.ts'
-import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 
 /** One texture, its RGBA8 bytes, read as a `texture_2d_array` by every batch. */
 interface TapTexture {
@@ -139,22 +139,14 @@ async function sample({ code, textures, batches }: Input) {
     pass.setBindGroup(0, group)
     pass.draw(3)
     pass.end()
-    const row = alignUp(n * 16, 256)
-    const readbacks = targets.map((texture) => {
-      const usage = GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-      const buffer = device.createBuffer({ size: row, usage })
-      encoder.copyTextureToBuffer({ texture }, { buffer, bytesPerRow: row }, [n, 1])
-      return buffer
-    })
     device.queue.submit([encoder.finish()])
     const [engine, native] = await Promise.all(
-      readbacks.map(async (buffer) => {
-        await buffer.mapAsync(GPUMapMode.READ)
-        return Array.from(new Float32Array(buffer.getMappedRange().slice(0, n * 16)))
-      }),
+      targets.map(async (texture) =>
+        Array.from(new Float32Array((await readTexture(device, texture, 16)).buffer)),
+      ),
     )
     reads.push({ engine, sampler: native })
-    for (const resource of [taps, ...targets, ...readbacks]) resource.destroy()
+    for (const resource of [taps, ...targets]) resource.destroy()
   }
   await opened.fermer()
   return { errors, reads }

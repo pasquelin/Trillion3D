@@ -40,7 +40,7 @@
 //! shader without a PBR equivalent, and opacity taken from another image or another channel than
 //! the alpha of the base colour.
 use super::*;
-use crate::import::{f32_bytes, normalise, write_scene, Bin, Report, Tables};
+use crate::import::{f32_bytes, normalise, Bin, Report};
 use crate::plugins::scene::{cancel, normals};
 use crate::{hash, CompilerError};
 use serde_json::{json, Value};

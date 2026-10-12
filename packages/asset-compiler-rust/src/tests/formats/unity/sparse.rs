@@ -3,7 +3,7 @@
 //! of a sparse accessor and a primitive's morph targets would keep naming the model's ranks.
 //! A model alone would then compile, and the same model placed after a built-in cube
 //! — whose views take the first ranks — would be refused or read another mesh's bytes.
-use super::project::{cube, game_object, white_mat, UnityProject};
+use super::project::{cube, game_object, triangle_bin, white_mat, UnityProject};
 use super::*;
 
 const MAT: &str = "000000000000000000000000000000a1";
@@ -18,15 +18,7 @@ const DELTA: [f32; 3] = [0., 0., 1.];
 /// The model's binary glTF and its binary: a triangle whose third vertex is written
 /// in a sparse accessor, and whose primitive carries a morph target.
 fn model() -> (Value, Vec<u8>) {
-    let mut bin = Vec::new();
-    for point in DENSE {
-        for axis in point {
-            bin.extend_from_slice(&axis.to_le_bytes());
-        }
-    }
-    for value in [0u32, 1, 2] {
-        bin.extend_from_slice(&value.to_le_bytes());
-    }
+    let mut bin = triangle_bin();
     bin.extend_from_slice(&2u16.to_le_bytes());
     bin.extend_from_slice(&[0, 0]);
     for axis in SPARSE_POINT {

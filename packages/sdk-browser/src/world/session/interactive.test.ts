@@ -46,7 +46,7 @@ function start(
     state: { disposed: false },
     pendingFrame: async () => false,
     familiesPending: () => undefined,
-    engine: { measureFrame: () => false, landings: () => 0 },
+    engine: { measureFrame: () => false, landings: () => 0, arriving: () => false },
   }
   const invalidate = startInteractiveExplorer(
     explorer as never,

@@ -38,7 +38,7 @@ on:
       # What the scripts above run and read: the compile, the scenes, the platform names.
       - scripts/native-compiler.ts
       - scripts/build-wasm.ts
-      - scripts/site-caches.ts
+      - scripts/scene-caches.ts
       - packages/sdk-node/src/compiler/platform.mts
       - tests/fixtures/scenes/mountain-terrain/**
       - tests/fixtures/scenes/kinetic-garden/**
@@ -165,7 +165,7 @@ jobs:
           name: compiler-base
           path: base.json
 
-  # Every fingerprint against Linux x64's, `develop`'s included; the sizes are printed beside them.
+  # Every fingerprint against Linux x64's, `develop`'s included (a family whose version changed may differ: `scripts/compiler-hashes.ts`); the sizes are printed beside them.
   compare:
     needs: [scope, build, base]
     if: ${{ !cancelled() && needs.scope.outputs.build == 'true' }}
@@ -178,7 +178,7 @@ jobs:
         with:
           pattern: compiler-*
           merge-multiple: true
-      - name: Five builds green, every fingerprint equal to Linux x64's and to develop's (its Jolt colliders excepted while develop fuses)
+      - name: Five builds green, every fingerprint equal to Linux x64's, and to develop's but for the file families whose version changed (Jolt colliders excepted while develop fuses)
         env:
           BUILD: ${{ needs.build.result }}
           BASE: ${{ needs.base.result }}
@@ -191,5 +191,5 @@ jobs:
             test "$BASE" = success
             allow=""
             if [ "$FUSED" = true ]; then allow=--colliders-may-differ; fi
-            node scripts/compiler-hashes.ts --compare $allow linux-x64.json base.json
+            node scripts/compiler-hashes.ts --compare --against-base $allow linux-x64.json base.json
           fi

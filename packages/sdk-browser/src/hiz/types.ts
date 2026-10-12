@@ -16,7 +16,7 @@ export type HizPage = {
  * A Hi-Z pyramid laid out flat, as the CPU oracles read it: one `Float32Array` for every level,
  * one offset and size per level, level 0 the frame's depth and the last level 1×1.
  */
-export type HizPyramid = {
+export type FlatHizPyramid = {
   /** Every level's depths. */
   data: Float32Array
   /** Where each level starts. */

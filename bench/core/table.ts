@@ -2,7 +2,7 @@
 // compose the exact same cells in the same order: they cannot display two formats of
 // the same figure. Only regression icons distinguish the two outputs; the witness column has none.
 import { gapLevel } from './baseline.ts'
-import type { ResultRow } from '../../site/examples/kit/measureTypes.ts'
+import type { ResultRow } from '../kit/measureTypes.ts'
 
 const ms = (v: number | null) => (v === null ? 'null' : v.toFixed(3))
 const ns = (v: number | null) => (v === null ? '—' : v.toFixed(1))
@@ -18,10 +18,23 @@ const COLUMNS = [
   'Note',
 ]
 
+/** A Markdown table as lines: the head, its separator and a line a row of cells. The one writer of
+ *  every bench's tables, console, report and summary. */
+export function tableLines(head: string[], rows: (string | number)[][]) {
+  return [
+    `| ${head.join(' | ')} |`,
+    `|${head.map(() => '---').join('|')}|`,
+    ...rows.map((row) => `| ${row.join(' | ')} |`),
+  ]
+}
+
+/** `tableLines` as one text. */
+export const table = (head: string[], rows: (string | number)[][]) =>
+  tableLines(head, rows).join('\n')
+
 /** Header and its separator, preceded by columns added on the left by caller. */
 export function header(before: string[] = []) {
-  const names = [...before, ...COLUMNS]
-  return [`| ${names.join(' | ')} |`, `|${names.map(() => '---').join('|')}|`]
+  return tableLines([...before, ...COLUMNS], [])
 }
 
 function gapText(v: number | null | undefined, pastilles: boolean) {

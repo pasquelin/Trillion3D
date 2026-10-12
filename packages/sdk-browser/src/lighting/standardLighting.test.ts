@@ -25,6 +25,7 @@ const { standardLighting } = shaderRun<{
     'surfaceLight',
     'standardLobe',
     'ggxDistribution',
+    'fresnelScalar',
     'fresnelSchlick',
     'ndotvFloor',
     'f0Of',
@@ -85,12 +86,12 @@ const byte = (x: number) => {
 }
 
 test('the Fresnel fifth power as products displays the bytes pow displayed', () => {
-  const shipped = 'let x=clamp(1.0-cosine,0.0,1.0);let x2=x*x;return f0+(vec3f(1.0)-f0)*(x2*x2*x);'
+  const shipped = 'let x=clamp(1.0-cosine,0.0,1.0);let x2=x*x;return f0+(1.0-f0)*(x2*x2*x);'
   assert.ok(STANDARD_LIGHTING_WGSL.includes(shipped))
   const viaPow = shaderRun<{ standardLighting: typeof standardLighting }>(
     STANDARD_LIGHTING_WGSL.replace(
       shipped,
-      'return f0+(vec3f(1.0)-f0)*pow(clamp(1.0-cosine,0.0,1.0),5.0);',
+      'return f0+(1.0-f0)*pow(clamp(1.0-cosine,0.0,1.0),5.0);',
     ),
     [
       'standardLighting',
@@ -98,6 +99,7 @@ test('the Fresnel fifth power as products displays the bytes pow displayed', () 
       'surfaceLight',
       'standardLobe',
       'ggxDistribution',
+      'fresnelScalar',
       'fresnelSchlick',
       'ndotvFloor',
       'f0Of',

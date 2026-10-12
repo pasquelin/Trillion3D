@@ -19,10 +19,16 @@ test('a surface rejects an invalid or off-device size, and nothing else: no byte
   assert.throws(() => checkSurfaceSize(device, 1025, 1), /SURFACE_DEVICE_LIMIT/)
   assert.equal(checkSurfaceSize(device, 100, 100), 330000)
   assert.equal(checkSurfaceSize(device, 1024, 1024), MIB * 33, 'targets follow resolution')
+  const pyramid = Math.max(9, 3 * (4 + 1)) * 4 * 3
   assert.equal(
-    frameTargetBytes(3, 3, true),
-    9 * 57 + 9 * 4 + Math.max(9, 3 * (4 + 1)) * 4 * 3 + 8 + 16,
-    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made: level 0, then three layers of max(N, 3M) words (N = 9 at level 0, M = 4 + 1 in the coarser levels, odd levels at ceil dimensions); the 1×1 thin transmission and lobes',
+    frameTargetBytes(3, 3, true, true),
+    9 * 57 + 9 * 4 + 9 * 4 + pyramid + 8 + 16,
+    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made: level 0, the front depth beside it (4 B/px), then three layers of max(N, 3M) words (N = 9 at level 0, M = 4 + 1 in the coarser levels, odd levels at ceil dimensions); the 1×1 thin transmission and lobes',
+  )
+  assert.equal(
+    frameTargetBytes(3, 3, true, false),
+    9 * 57 + 9 * 4 + 4 + pyramid + 8 + 16,
+    'a scene with no blend keeps a texel of front depth',
   )
 })
 
@@ -30,7 +36,7 @@ test('the per-pixel frame holds the shadow receiver target: 25 B/px and its 8', 
   assert.equal(SURFACE_BYTES_PER_PIXEL, 25 + 8)
   // Read off the formats (`textureBytesOf`): the feedback's 4, the frame's 24 beside the surfaces.
   assert.equal(FEEDBACK_BYTES, 4)
-  assert.equal(frameTargetBytes(1, 1, false), 24 + 25 + 8 + 8 + 16)
+  assert.equal(frameTargetBytes(1, 1, false, true), 24 + 25 + 8 + 8 + 16)
   const gpu = fakeDevice({ limits: { maxTextureDimension2D: 4096 } })
   const surface = createSurfaceBuffer(gpu.device, 3840, 2160)
   assert.equal(surface.allocationBytes, 3840 * 2160 * SURFACE_BYTES_PER_PIXEL + 8 + 16)

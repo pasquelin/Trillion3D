@@ -1,5 +1,6 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { onDemand } from './onDemand.ts'
+import { requireSdkWasm } from '../wasm/sdkWasm.ts'
 
 /** Who hears a family's final refusal (`FAMILY_LOAD_FAILED`): each open world, on its error
  *  channel (`world.diagnostic.error`, `worldHandles.ts`), until it closes. */
@@ -42,7 +43,11 @@ export const families = {
   impostors: family('impostors', () => import('../impostor/impostorCode.ts')),
   /** The CPU geometry-page decoder behind the public `page.decode`: the engine itself decodes no
    *  page on the CPU (the GPU reads them in place), so only a page that asks downloads it. */
-  pageCodec: family('page decoder', () => import('../page/codec/geometryPage.ts')),
+  pageCodec: family('page decoder', async () => {
+    // The decoder is the SDK module's (`wasm_decode.rs`): the chunk arrives once the module has.
+    await requireSdkWasm()
+    return import('../page/codec/geometryPage.ts')
+  }),
 }
 export type FamilyName = keyof typeof families
 

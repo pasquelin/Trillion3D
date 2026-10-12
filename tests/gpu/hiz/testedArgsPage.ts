@@ -13,15 +13,14 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { laidPyramid } from './casePyramid.ts'
+import { hizEntries, laidPyramid } from './casePyramid.ts'
 import { heldBuffers } from '../kit/heldBuffers.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { readBuffer } from '../kit/computeReadback.ts'
-import { BOX_NEAREST, CASES } from './occlusionTestCases.ts'
+import { BOX_NEAREST, CASES, UNIFORM_BYTES } from './occlusionTestCases.ts'
 
 /** Rows the table holds, far more than the image tests. */
 const TABLE_ROWS = 20_000
-const UNIFORM_BYTES = 256
 
 export interface TestedArgsRun {
   adapter: string
@@ -69,14 +68,11 @@ export async function testTestedArgs(counts: number[]): Promise<TestedArgsRun> {
   const group = (flags: GPUBuffer) =>
     device.createBindGroup({
       layout: pipelines.layout,
-      entries: [
-        { binding: 0, resource: pyramid.createView({ dimension: '2d-array' }) },
-        { binding: 1, resource: level0.createView() },
-        { binding: 2, resource: { buffer: uniform, size: HIZ_SLOT_WORDS * 4 } },
-        { binding: 3, resource: { buffer: bounds } },
-        { binding: 4, resource: { buffer: flags } },
-        { binding: 5, resource: { buffer: state } },
-      ],
+      entries: hizEntries(pyramid, level0, { buffer: uniform, size: HIZ_SLOT_WORDS * 4 }, [
+        bounds,
+        flags,
+        state,
+      ]),
     })
   const submit = (record: (pass: GPUComputePassEncoder) => void) => {
     const encoder = device.createCommandEncoder()

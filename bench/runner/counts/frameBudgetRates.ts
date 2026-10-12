@@ -58,7 +58,7 @@ export const hizLevelTexels = (width: number, height: number) => ({
 })
 
 /** Texels the nearest layer's build reads of a pixel's plane: its depth and four along each axis
- *  (`hizPlaneNearest`). */
+ *  (`hizPlaneCorners`). */
 const PLANE_READS = 9
 
 /** Texel reads and writes of the culling layer's build of the Hi-Z pyramid of a `width` × `height`

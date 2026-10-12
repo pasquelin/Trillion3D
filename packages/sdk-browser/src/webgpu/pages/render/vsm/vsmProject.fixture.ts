@@ -15,6 +15,7 @@ import { invertMatrix4 } from '../../../../../../math/src/matrix/matrix4Inverse.
 import { composeMatrix4 } from '../../../../../../math/src/matrix/matrix4Compose.ts'
 import { yawPitchQuaternion } from '../../../../../../math/src/quaternion/quaternion.ts'
 import { fakeDevice } from '../../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeHizDepth } from '../../../../vsm/hizDepth.fixture.ts'
 
 const frame = createTaaFrameState()
 export const cam = createEngineCamera(),
@@ -67,7 +68,14 @@ const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1
 function header(projection: Float64Array, width: number, height: number) {
   writes.length = 0
   const camera = { view: cam.view, projection, perspective: cam.perspective === 1 }
-  const inputs = { device, depth: texture, normalRough: texture, flags: texture, mask: texture }
+  const inputs = {
+    device,
+    hizDepth: fakeHizDepth,
+    depth: texture,
+    normalRough: texture,
+    flags: texture,
+    mask: texture,
+  }
   encodeVirtualShadowProjection(
     encoder,
     res,

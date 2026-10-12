@@ -1,6 +1,6 @@
 // No push to develop or main, nor a branch whose changes fail the fast local gates (`check:changed
-// --push` against origin/develop: format, lint, types, lines, duplicates, unused code, links,
-// translations — the CI's red caught before the push; the tests and Clippy stay the CI's); then
+// --push` against origin/develop: format, lint, types, lines, duplicates, unused code — the CI's
+// red caught before the push; the tests and Clippy stay the CI's); then
 // the local pre-push hook runs with the same refs.
 import { readFileSync } from 'node:fs'
 import { gate, refuse, runLocalHook } from './lib.ts'

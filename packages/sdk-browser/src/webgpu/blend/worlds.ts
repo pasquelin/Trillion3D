@@ -1,5 +1,5 @@
 import { boxIsEmpty, boxTransform } from '../../../../sdk-core/src/index.ts'
-import { readHostBox } from '../../host/boxBounds.ts'
+import { readHostBox } from '../../host/world/bounds.ts'
 import type { BlendGpuItem } from './state.ts'
 
 /**
@@ -20,7 +20,7 @@ export function refreshBlendBounds(item: BlendGpuItem) {
     item.bounds = undefined
     return
   }
-  readHostBox(box, local)
+  readHostBox(local, box, 0)
   boxTransform(box, 0, box, 0, item.matrix.elements)
   item.bounds = !boxIsEmpty(box, 0) && box.every(Number.isFinite) ? box : undefined
 }

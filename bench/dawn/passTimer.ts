@@ -6,7 +6,7 @@
 import { readPasses, type FrameGpu, type TimedPass } from './passSpans.ts'
 import { attachmentBytes } from './passSizes.ts'
 import { emptyWork, type PassWork } from './passWorkHooks.ts'
-import { readBack } from './readBack.ts'
+import { readBuffer } from '../../tests/gpu/kit/computeReadback.ts'
 
 /** Timestamps of one frame: two per pass. */
 const CAPACITY = 4096
@@ -23,7 +23,6 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
   let device: GPUDevice | null = null,
     set: GPUQuerySet | null = null,
     resolved: GPUBuffer | null = null,
-    read: GPUBuffer | null = null,
     open = false,
     slot = 0,
     engineTimed = false
@@ -84,10 +83,6 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
             size: CAPACITY * 8,
             usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
           })
-          read = on.createBuffer({
-            size: CAPACITY * 8,
-            usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-          })
         })
       open = true
       slot = 0
@@ -97,14 +92,18 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
     /** Closes the window once everything it encoded was submitted: reads its timestamps back. */
     async close(): Promise<FrameGpu | null> {
       open = false
-      if (!device || !set || !read || !resolved) return null
+      if (!device || !set || !resolved) return null
       if (!slot) return { passes: [], unionMs: 0, gapMs: 0, windowMs: 0, complete: !engineTimed }
-      const [s, r, from, count] = [set, read, resolved, slot]
+      const [s, from, count, on] = [set, resolved, slot, device]
       const stamps = new BigInt64Array(
-        await readBack({ quiet }, device, r, count * 8, (encoder) => {
-          encoder.resolveQuerySet(s, 0, count, from, 0)
-          encoder.copyBufferToBuffer(from, 0, r, 0, count * 8)
-        }),
+        (
+          await quiet(() => {
+            const encoder = on.createCommandEncoder({ label: 'bench timestamps' })
+            encoder.resolveQuerySet(s, 0, count, from, 0)
+            on.queue.submit([encoder.finish()])
+            return readBuffer(on, from, 0, count * 8)
+          })
+        ).buffer,
       )
       return readPasses(stamps, passes, !engineTimed)
     },

@@ -1,26 +1,7 @@
 //! Uncompressed surfaces of the DDS container: the same sixteen pixels written in the three
 //! declared byte orders. Order is a way of writing an image, never of changing it.
+use super::super::REFERENCE_RGBA as PIXELS;
 use super::{bytes, check, SIDE};
-
-/// The sixteen reference pixels of uncompressed surfaces, top row first.
-const PIXELS: [[u8; 4]; 16] = [
-    [255, 0, 0, 255],
-    [0, 255, 0, 128],
-    [0, 0, 255, 255],
-    [255, 255, 0, 64],
-    [0, 0, 0, 0],
-    [255, 255, 255, 255],
-    [17, 34, 51, 68],
-    [200, 100, 50, 150],
-    [10, 20, 30, 40],
-    [240, 230, 220, 210],
-    [1, 2, 3, 4],
-    [250, 251, 252, 253],
-    [128, 128, 128, 128],
-    [0, 128, 255, 32],
-    [255, 128, 0, 224],
-    [64, 96, 128, 160],
-];
 
 // Driver contract for uncompressed surfaces: byte order is a way of writing the same image,
 // never of changing it, and `BGRX8` has no alpha — its surface is opaque.

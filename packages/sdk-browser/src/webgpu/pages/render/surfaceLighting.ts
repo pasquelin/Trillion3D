@@ -16,7 +16,11 @@ import {
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
 import { encodeBlend, prepareBlend } from './encodeBlend.ts'
-import { encodeReflectionRadiance, encodeReflections } from '../../../reflections/frame.ts'
+import {
+  encodeDepthPyramid,
+  encodeReflectionRadiance,
+  encodeReflections,
+} from '../../../reflections/frame.ts'
 import { viewProj } from '../helpers.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { EngineCamera } from '../../../camera/world.ts'
@@ -41,6 +45,8 @@ export function encodeSurfaceLighting(
   const [width, height] = gpu.targetSize,
     raw = run.diagnostic !== 'beauty'
   invertMatrix4(inverseViewProj, viewProj)
+  // The depth's pyramid, complete: the contact rays of the lights and the reflections march it.
+  encodeDepthPyramid(rt, encoder)
   // The transparents are selected and ordered first; light lists encode before resolve, its inputs.
   const blendRuns = prepareBlend(rt, encoder, true)
   const direct = encodeDirectLights(rt, device, encoder, cam, viewProj)

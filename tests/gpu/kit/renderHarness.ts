@@ -1,5 +1,5 @@
 // What the render proofs that open a compiled scene on Dawn share: the `three-stack` golden some of
-// them compile, and the gallery scene others open — both read from disk, as the bench reads them.
+// them compile, and the test scene others open — both read from disk, as the bench reads them.
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { MIB } from '../../../packages/math/src/constants.ts'
@@ -59,9 +59,9 @@ export function coplanarCache(out: string, name: string) {
   }
 }
 
-/** A gallery scene opened on the pages backend, full scope and imported lights, in a canvas of
+/** A test scene opened on the pages backend, full scope and imported lights, in a canvas of
  *  its own at `pixelRatio`, then posed. */
-export interface GalleryScene {
+export interface TestScene {
   id: string
   width: number
   height: number
@@ -73,7 +73,7 @@ export interface GalleryScene {
   target: [number, number, number]
 }
 
-export async function openGalleryScene(scene: GalleryScene): Promise<MeasuredWorld> {
+export async function openTestScene(scene: TestScene): Promise<MeasuredWorld> {
   proofCanvas(scene.id)
   const world = await openEngineWorld(scene.id, {
     manifestUrl: pathToFileURL(resolve(REPOSITORY_ROOT, manifestUrlOf(scene.folder).slice(1))).href,

@@ -17,11 +17,11 @@ pub mod simplify;
 pub(crate) mod tracer;
 pub mod wide;
 
-/// Product contract. Moving cut, sections or node order requires incrementing.
+/// Version of the "proxy" cache product. A proxy of another version is rejected, never guessed.
 pub const SCENE_PROXY_VERSION: u32 = 5;
-/// 'W','G','P','X' read as 32-bit little-endian unsigned int.
+/// 'W','G','P','X' read as an unsigned 32-bit integer little-endian.
 pub const SCENE_PROXY_MAGIC: u32 = 0x5850_4757;
-/// Header: v3 ownership header, then shape, stored-triangle and placement counts.
+/// Header integers: v3 ownership header, then shape, stored-triangle and placement counts.
 pub const SCENE_PROXY_HEADER_WORDS: usize = 11;
 /// Product name in cache key folder, next to `clusters.json`.
 pub const SCENE_PROXY_FILE: &str = "proxy.bin";
@@ -36,16 +36,15 @@ pub const PROXY_LEAF_TRIANGLES: usize = 8;
 /// decides actually obtained threshold: 10M triangle scene outputs 30x
 /// coarser than single room, threshold published in manifest.
 pub const PROXY_TRIANGLE_BUDGET: usize = 300_000;
-/// Numbers per triangle: three world vertices. Normal derived from triangle, un-stored.
+/// Numbers per proxy triangle: three world vertices, no normal — it is deduced from the triangle.
 pub const PROXY_TRIANGLE_FLOATS: usize = 9;
-/// Numbers per node: min then max exact bounds, reference for child
-/// quantized boxes.
+/// Numbers per BVH node: its exact bounds, frame of its children's quantized boxes.
 pub const PROXY_NODE_FLOATS: usize = 6;
-/// BVH node children: four boxes tested at once, closest kept for next step.
+/// Children of a node: four boxes tested at once, the nearest kept for the rest.
 pub const PROXY_CHILDREN: usize = 4;
-/// Integers per child: two quantized box and link words, link itself.
+/// Integers per child: two words of quantized box and count, then the link.
 pub const PROXY_CHILD_WORDS: usize = 3;
-/// Integers per node: four children end to end.
+/// Integers per node: its four children concatenated.
 pub const PROXY_NODE_WORDS: usize = PROXY_CHILDREN * PROXY_CHILD_WORDS;
 
 /// Scene proxy, ready for column output.

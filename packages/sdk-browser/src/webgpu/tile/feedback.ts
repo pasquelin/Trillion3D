@@ -21,6 +21,8 @@ import { createReadbackRing, type ReadbackRing } from '../../gpu/core/readbackRi
  *  every image carries its pick turn (`PICK_CYCLE`). */
 export const FEEDBACK_STRIDE = 4
 export const FEEDBACK_EVERY = FEEDBACK_STRIDE * FEEDBACK_STRIDE
+/** The bits of a coordinate inside a `FEEDBACK_STRIDE` square. */
+export const FEEDBACK_STRIDE_MASK = FEEDBACK_STRIDE - 1
 /** First bit above the phase and the `FEEDBACK_EVERY` bit. */
 export const PICK_SHIFT = floorLog2(FEEDBACK_EVERY) + 1
 

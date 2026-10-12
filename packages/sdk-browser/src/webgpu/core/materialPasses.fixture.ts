@@ -1,4 +1,4 @@
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/buffer.ts'
 import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { createPresentClasses } from './materialPasses.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -12,9 +12,8 @@ import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
  *  `compiled`; `made` names each class a pipeline's `get` had to compile — one nothing asked
  *  (`PreparedPipeline.get`). */
 export function resolveFixture(classes: number[], compiled: number[], single: number[] = []) {
-  const stride = PAGE_INFO_STRIDE / 4,
-    ints = new Uint32Array(stride * classes.length)
-  classes.forEach((key, row) => (ints[row * stride + ROW_MATERIAL_CLASS_WORD] = key))
+  const ints = new Uint32Array(ROW_WORDS * classes.length)
+  classes.forEach((key, row) => (ints[row * ROW_WORDS + ROW_MATERIAL_CLASS_WORD] = key))
   const made: number[] = [],
     passes: Array<{
       label: string

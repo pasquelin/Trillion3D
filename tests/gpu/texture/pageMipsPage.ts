@@ -4,7 +4,8 @@
 // engine makes of its working texture checked against WebGPU's view rule (`checkView`).
 import { generateMaterialMips } from '../../../packages/sdk-browser/src/texture/mipBatch.ts'
 import { materialMipTexture } from '../../../packages/sdk-browser/src/texture/mips.ts'
-import { levelSize, mipLevelCountFor } from '../../../packages/sdk-browser/src/texture/tiles.ts'
+import { previewLevelSize } from '../../../packages/sdk-core/src/index.ts'
+import { mipLevelCountFor } from '../../../packages/sdk-browser/src/texture/tiles.ts'
 import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
 import { readGpuImage } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -43,7 +44,7 @@ export function chainCases(): ChainCase[] {
 export async function readLevels(device: GPUDevice, texture: GPUTexture) {
   const levels: Uint8Array[] = []
   for (let mipLevel = 0; mipLevel < texture.mipLevelCount; mipLevel++) {
-    const [w, h] = levelSize(texture.width, texture.height, mipLevel)
+    const [w, h] = previewLevelSize(texture.width, texture.height, mipLevel)
     levels.push(await readGpuImage(device, texture, w, h, undefined, { mipLevel, topDown: true }))
   }
   return levels
@@ -91,7 +92,7 @@ export async function run(cases: ChainCase[]) {
       encoder.copyTextureToTexture(
         { texture: engine, mipLevel: level },
         { texture: pool, mipLevel: level },
-        [...levelSize(width, height, level), 1],
+        [...previewLevelSize(width, height, level), 1],
       )
     device.queue.submit([encoder.finish()])
     results.push({

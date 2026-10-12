@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
 export const FRAGMENTS = join(REPOSITORY_ROOT, '.mesure', 'perf')
-const BASELINES = join(REPOSITORY_ROOT, '.mesure', 'baselines')
+export const BASELINES = join(REPOSITORY_ROOT, '.mesure', 'baselines')
 
 /** Moves `measureOutput`'s root: the proof import test points its children at its own scratch. */
 const MEASURE_OUT = 'TRILLION3D_MEASURE_OUT'
@@ -18,4 +18,3 @@ const assainir = (domaine: string) => domaine.replace(/[/\\]/g, '-').replace(/^-
 
 export const fragmentPath = (domaine: string) => join(FRAGMENTS, `${assainir(domaine)}.json`)
 export const baselinePath = (domaine: string) => join(BASELINES, `${assainir(domaine)}.json`)
-export const dossierBaselines = BASELINES

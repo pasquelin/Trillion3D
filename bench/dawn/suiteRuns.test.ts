@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { MAX_SCENES, suiteRuns } from './suiteRuns.ts'
 
-test('the default suite is the open-world example alone', () => {
+test('the default suite is the open-world scene alone', () => {
   assert.deepEqual(suiteRuns(), ['an-open-world-of-every-cost:world'])
 })
 

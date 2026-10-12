@@ -7,7 +7,7 @@ import { collectClusterPages } from '../../page/selection/selection.ts'
 import { createShadeCensus } from './shadeCensus.ts'
 import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { createPageRowWriter } from '../row/pageRowWriter.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/buffer.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { scene } from '../core/materialClasses.fixture.ts'
 import type * as G from '../../host/graph/graph.fixture.ts'
@@ -33,7 +33,7 @@ function opened() {
     roots,
     (packed) => packed,
   )
-  const ints = new Uint32Array(PAGE_INFO_STRIDE / 4)
+  const ints = new Uint32Array(ROW_WORDS)
   const rowClass = () => {
     writeRow(roots[0].pages[0], 0, 0, 0, new Float32Array(ints.buffer), ints)
     return ints[ROW_MATERIAL_CLASS_WORD]

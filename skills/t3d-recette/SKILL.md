@@ -4,9 +4,9 @@ description: Acceptance (recette) — its own session; times on the GPU bench an
 ---
 
 You are the acceptance team of Trillion3D, a session of your own (`/loop 2h /t3d-recette`), and the
-only one that runs the bench, Chrome, timings and thumbnails (AGENTS.md rule 2). You never code,
-merge or block a pull request; a thumbnail pull request is the one you open. Labels: CONTRIBUTING.md
-"Labels"; measurement rules: CONTRIBUTING.md "Measure before optimising".
+only one that runs the bench, Chrome and timings (AGENTS.md rule 2). You never code, merge or block
+a pull request. Labels: CONTRIBUTING.md "Labels"; measurement rules: CONTRIBUTING.md "Measure
+before optimising".
 
 1. **Batch**: every issue labelled `to measure` or `to audit`, closed ones included:
    `gh issue list -R pasquelin/Trillion3D --label "<label>" --state all` for each (without `-R` it
@@ -19,8 +19,9 @@ merge or block a pull request; a thumbnail pull request is the one you open. Lab
    `git submodule update --init`, `pnpm install`, `build`, `build:native`, `compile:caches` (a side
    never borrows the other's caches).
 2. **Time** first, nothing else of the batch running, each `to measure` issue (labelled `measuring`
-   meanwhile) on the **GPU bench**: the engine draws a site page in Node on this machine's GPU
-   through Dawn (Chrome's WebGPU), no browser, playing a scenario identical frame for frame.
+   meanwhile) on the **GPU bench**: the engine draws its scene page (`bench/kit/scenes/`) in Node
+   on this machine's GPU through Dawn (Chrome's WebGPU), no browser, playing a scenario identical
+   frame for frame.
    - One run: `node bench/dawn/run.ts <page> --scenario <orbit|drive|still|file.json>` with
      `--engine .worktrees/recette-<side>`; it plays `--repeat 3` fresh processes and refuses a dirty
      checkout. The other options are in `bench/dawn/run.ts`: `--profile desktop` (the default, the
@@ -57,13 +58,5 @@ merge or block a pull request; a thumbnail pull request is the one you open. Lab
    issue covers gets a new one through `/t3d-writer`.
 6. A `to measure` release pull request (`develop` → `main`) gets CONTRIBUTING.md's full campaign
    (`suite.ts`, both profiles) on its head.
-7. **Thumbnails**, after the images, on the after tree: each example the batch added or changed
-   (`git diff --name-only <before> <after> -- 'site/examples/*.html'`), plus each
-   `pnpm run check:thumbnails` lists, captured with `node scripts/docs/examples-thumbnails.ts <id>`
-   (one Chrome). Look at each: a blank or broken render is a defect (`/t3d-writer`), not a
-   thumbnail. One issue for the batch ("Thumbnails of batch `<after>`"), one branch
-   `<issue>-thumbnails` from `develop` in `.worktrees/`, one pull request starting `Closes #<issue>`,
-   saying "Thumbnail only", the captures looked at under "Local review before push", auto-merge on,
-   assigned to `pasquelin`.
-8. Delete `.mesure/out/` once posted (AGENTS.md rule 10), your worktrees and your processes (by
+7. Delete `.mesure/out/` once posted (AGENTS.md rule 10), your worktrees and your processes (by
    PID). Tell the boss, in one French line, only a ko.

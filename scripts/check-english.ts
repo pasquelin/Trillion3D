@@ -10,7 +10,7 @@ import { FRENCH_EXCEPTIONS, FRENCH_WORDS } from './french-words.ts'
 import { repositoryFiles, readJson } from './repository-files.ts'
 import { REPOSITORY_ROOT } from './repository-files.ts'
 
-const SOURCE = /\.(?:[cm]?ts|tsx|rs|wgsl)$/
+const SOURCE = /\.(?:[cm]?ts|rs|wgsl)$/
 /** The files that hold French words on purpose: the list, and the test that plants them. */
 const EXEMPT = new Set(['scripts/french-words.ts', 'scripts/check-english.test.ts'])
 const BASELINE = 'scripts/english-baseline.json'

@@ -6,7 +6,7 @@ import * as common from '../../packages/sdk/index.ts'
 import * as core from '../../packages/sdk-core/src/index.ts'
 import * as browser from '../../packages/sdk/browser.ts'
 import * as browserLegacy from '../../packages/sdk-browser/src/index.ts'
-import { readJson } from '../../scripts/repository-files.ts'
+import { apiInventory } from '../../scripts/sdk-api-inventory.ts'
 
 test('the facade keeps canonical binding identity across environments', () => {
   assert.equal(common.LOD_QUALITY, core.LOD_QUALITY)
@@ -58,10 +58,8 @@ interface Inventory {
 }
 
 test('generated inventory and explicit facade files are current', async () => {
-  const inventory: Inventory = readJson(
-    new URL('../../site/data/api-inventory.json', import.meta.url),
-  )
-  // 715 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  const inventory: Inventory = apiInventory()
+  // 712 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -145,11 +143,15 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // The aim's scratch buffers are marked pure, so a bundle that never aims a node drops them; the
   // length rule's range (hypot outside the normal band) is kept. The browser entry's camera
   // projections read `length2` from the vector module, whose lazy init it starts; its transform tree
-  // grows by the one growth rule (`resized`) and keeps a second list of the children whose world
-  // something else composes (`firstLazy`, `lastLazy`).
+  // grows by the one growth rule (`resized`), keeps a second list of the children whose world
+  // something else composes (`firstLazy`, `lastLazy`); the cache format's constants the compiler writes are
+  // printed into one module (`contracts/writtenFormats.ts`), which the entry's chain now includes;
+  // the render-origin module imports the matrix inverse and the culling batch the empty-bounds test,
+  // two more module init calls in the chain (7 bytes, no function kept); the merged duplicate removals
+  // (runtime, language, code) move it by two bytes more.
   assert.equal(baseline.outputFiles[0].contents.length, 3_195)
   assert.equal(proposed.outputFiles[0].contents.length, 1_450)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_234)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_277)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )

@@ -1,10 +1,10 @@
+import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { DISPLAY_VALUE_WGSL } from '../../lighting/toneMappingWgsl.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts'
 import { programOf } from './displayFilterProgram.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
 import { DISPLAY_FILTER_PASS } from '../../stage/passLabels.ts'
 
 /**
@@ -38,12 +38,12 @@ export const displayTargets = (mode: Blending): GPUColorTargetState[] => [
  *  value `shown`, the composition's chain: exposure, curve unless unlit, sRGB. */
 export const DISPLAY_ROUTE_WGSL = wgslBlock(
   'DISPLAY_ROUTE_WGSL',
-  [DISPLAY_VALUE_WGSL, linearToSrgb],
+  [DISPLAY_VALUE_WGSL],
   `override DISPLAY_ROUTE:u32=0u;
 struct Route{keep:f32,tint:vec4f,add:vec4f,}
 fn displayRoute(rgb:vec3f,exposure:f32,curve:u32,unlit:bool,alpha:f32,masked:f32)->Route{
  if(DISPLAY_ROUTE==0u){return Route(1.0,vec4f(1.0),vec4f(0.0));}
- let shown=select(displayValue(rgb*exposure,curve),linearToSrgb(rgb),unlit);
+ let shown=displayValue(select(rgb*exposure,rgb,unlit),select(curve,${TONE_MAPPING_RANK.none}u,unlit));
  if(DISPLAY_ROUTE==1u){let a=alpha*masked;return Route(1.0-masked,vec4f(0.0,0.0,0.0,a),vec4f(shown*a,a));}
  return Route(1.0,vec4f(shown,1.0),vec4f(shown,1.0));
 }`,

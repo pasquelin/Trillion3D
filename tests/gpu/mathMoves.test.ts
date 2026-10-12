@@ -8,12 +8,7 @@ import { DEG2RAD, HALF_PI, RAD2DEG, TAU } from '../../packages/math/src/constant
 import { perspectiveSlope } from '../../packages/math/src/projection/camera.ts'
 import { length2, length3 } from '../../packages/math/src/vector/vector.ts'
 import { distance, resolveRandom } from './lighting/resolveCases.ts'
-import {
-  angleBetween,
-  inverseTransposeBefore,
-  inverseTransposeShipped,
-  unit,
-} from './math/inverseTransposeF32.ts'
+import { angleBetween, inverseTransposeShipped, unit } from './math/inverseTransposeF32.ts'
 import { CASES, COLLAPSED, FLATTENED, TINY_REGULAR } from './math/normalTransformCases.ts'
 
 test('the cameras open the same tangent through perspectiveSlope', () => {
@@ -66,17 +61,16 @@ test('the resolve proofs draw the same f32 unit vectors, and their distances wit
 test("the normal model's f32 unit vectors are the same, its angles within two ulps", () => {
   // The model normalises in f32 by a double length: the length rule's root and `Math.hypot` give
   // the same f32 quotient on every vector the cases normalise; the angle is read against degrees.
-  const f = Math.fround
+
   for (const c of [...CASES, ...FLATTENED, ...COLLAPSED, TINY_REGULAR]) {
     const w = c.world,
       columns: [number, number, number][] = [0, 4, 8].map((at) => [w[at], w[at + 1], w[at + 2]])
-    const shipped = inverseTransposeShipped(columns, c.normal),
-      before = inverseTransposeBefore(columns, c.normal)
-    for (const v of [shipped, before, c.normal]) {
+    const shipped = inverseTransposeShipped(columns, c.normal)
+    for (const v of [shipped, c.normal]) {
       const root = Math.hypot(...v)
       if (!(root > 0)) continue
       const now = unit(v)
-      v.forEach((x, k) => assert.ok(Object.is(f(x / root), now[k]), `${c.name}`))
+      v.forEach((x, k) => assert.ok(Object.is(Math.fround(x / root), now[k]), `${c.name}`))
       const [a, b] = [v, c.normal],
         cross = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
       const old = Math.atan2(Math.hypot(...cross), a[0] * b[0] + a[1] * b[1] + a[2] * b[2])

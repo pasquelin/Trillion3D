@@ -28,7 +28,7 @@ import type { ControlCamera, PivotCameraControls } from './types.ts'
  *
  * THE POSE IS THE STATE. Every gesture starts by reading `object.position` and `target` back
  * into spherical coordinates, and ends by writing them out again. A host that moves the
- * camera itself — the portal's zoom buttons do — is therefore understood on the next
+ * camera itself — zoom buttons, say — is therefore understood on the next
  * `update()`, and the round trip is what `math.test.ts` pins down.
  *
  * THE ANGLES ARE BOUNDED like the distance, on every drag and every `update()`: the polar

@@ -1,9 +1,4 @@
-import {
-  ASLEEP_BIT,
-  EVENT_WORDS,
-  PHYSICS_LAYOUT_VERSION,
-  POSE_WORDS,
-} from '../../../sdk-core/src/physics/layout.ts'
+import { ASLEEP_BIT, EVENT_WORDS, POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import { MAX_CATCH_UP_STEPS, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
 import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts'
 import type { JoltThreadStart } from './joltThreads.ts'
@@ -12,9 +7,6 @@ import type {
   CharacterInput,
   CharacterSettings,
 } from '../../../sdk-core/src/collision/characterSettings.ts'
-
-/** Version of the page ↔ worker messages below and of the word layouts they carry. */
-export const PHYSICS_PROTOCOL = PHYSICS_LAYOUT_VERSION
 
 /** What the page tells the physics worker. */
 export type ToPhysics =

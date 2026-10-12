@@ -8,7 +8,7 @@ import type { SdkWasm } from './sdkWasm.ts'
  *
  * GROWTH, HELD BY A GENERATION. `WebAssembly.Memory.grow` replaces the `ArrayBuffer` and detaches
  * every view already built: a stale view reads zero without signalling anything. Any module
- * allocation can trigger it — the run-time cut's cones or the animation sampler as much as a second
+ * allocation can trigger it — the run-time cut's cones or the page decoder as much as a second
  * reservation — so forbidding it elsewhere was not enough. Here `blocks()` compares the module's
  * current buffer to the one that carried the views and REBUILDS them all when it has changed,
  * counting one more generation. The bytes themselves survive: `grow` copies the memory, so a

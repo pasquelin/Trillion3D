@@ -14,16 +14,16 @@ import { wgslF32 } from './number.ts'
 
 export const DIELECTRIC_F0 = wgslConst('DIELECTRIC_F0', [], 'const DIELECTRIC_F0=vec3f(0.04);')
 
-export const fresnelSchlick = wgslFn(
-  'fresnelSchlick',
-  [],
-  'fn fresnelSchlick(f0:vec3f,cosine:f32)->vec3f{let x=clamp(1.0-cosine,0.0,1.0);let x2=x*x;return f0+(vec3f(1.0)-f0)*(x2*x2*x);}',
-)
-
 export const fresnelScalar = wgslFn(
   'fresnelScalar',
   [],
   'fn fresnelScalar(f0:f32,cosine:f32)->f32{let x=clamp(1.0-cosine,0.0,1.0);let x2=x*x;return f0+(1.0-f0)*(x2*x2*x);}',
+)
+
+export const fresnelSchlick = wgslFn(
+  'fresnelSchlick',
+  [fresnelScalar],
+  'fn fresnelSchlick(f0:vec3f,cosine:f32)->vec3f{return vec3f(fresnelScalar(f0.x,cosine),fresnelScalar(f0.y,cosine),fresnelScalar(f0.z,cosine));}',
 )
 
 export const f0Of = wgslFn(

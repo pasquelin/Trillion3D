@@ -23,9 +23,40 @@ export function boxEmpty(out: Float64Array, o: number) {
   out[o + 5] = -Infinity
 }
 
+/** True when an upper bound falls below its lower bound; a NaN bound does not make it empty. */
+export function boundsAreEmpty(
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+) {
+  return maxX < minX || maxY < minY || maxZ < minZ
+}
+
+/** Writes the six bounds into `out` at `o`: the one way the folds below store a box. */
+function writeBounds(
+  out: Float64Array,
+  o: number,
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+) {
+  out[o] = minX
+  out[o + 1] = minY
+  out[o + 2] = minZ
+  out[o + 3] = maxX
+  out[o + 4] = maxY
+  out[o + 5] = maxZ
+}
+
 /** True when an upper bound falls below its lower bound. A NaN bound does not make the box empty. */
 export function boxIsEmpty(box: ArrayLike<number>, o: number) {
-  return box[o + 3] < box[o] || box[o + 4] < box[o + 1] || box[o + 5] < box[o + 2]
+  return boundsAreEmpty(box[o], box[o + 1], box[o + 2], box[o + 3], box[o + 4], box[o + 5])
 }
 
 /** The centre of the box given by its six bounds, `(min + max) * 0.5` per axis, into `out` at
@@ -147,13 +178,8 @@ export function boxFromPoints(
     hiY = Math.max(hiY, y)
     hiZ = Math.max(hiZ, z)
   }
-  out[o] = loX
-  out[o + 1] = loY
-  out[o + 2] = loZ
-  out[o + 3] = hiX
-  out[o + 4] = hiY
-  out[o + 5] = hiZ
   // jscpd:ignore-end
+  writeBounds(out, o, loX, loY, loZ, hiX, hiY, hiZ)
 }
 
 /** The box at `bo` of `box` grown by `g` on every side, into `out` at `o` (the same box allowed):
@@ -273,13 +299,8 @@ export function boxTransform(
     maxX = box[bo + 3],
     maxY = box[bo + 4],
     maxZ = box[bo + 5]
-  if (maxX < minX || maxY < minY || maxZ < minZ) {
-    out[o] = minX
-    out[o + 1] = minY
-    out[o + 2] = minZ
-    out[o + 3] = maxX
-    out[o + 4] = maxY
-    out[o + 5] = maxZ
+  if (boundsAreEmpty(minX, minY, minZ, maxX, maxY, maxZ)) {
+    writeBounds(out, o, minX, minY, minZ, maxX, maxY, maxZ)
     return
   }
   const m0 = m[0],
@@ -325,12 +346,7 @@ export function boxTransform(
     hiY = Math.max(hiY, y)
     hiZ = Math.max(hiZ, z)
   }
-  out[o] = loX
-  out[o + 1] = loY
-  out[o + 2] = loZ
-  out[o + 3] = hiX
-  out[o + 4] = hiY
-  out[o + 5] = hiZ
+  writeBounds(out, o, loX, loY, loZ, hiX, hiY, hiZ)
 }
 
 /** Distance from the point `(x, y, z)` to the box, 0 inside it: the gap past each face: the distance of the

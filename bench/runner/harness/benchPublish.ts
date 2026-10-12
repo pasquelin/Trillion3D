@@ -8,11 +8,11 @@ import { gazeNetworkLines } from '../gaze/gazeNetworkRun.ts'
 import { fluidsLines } from '../fluids/fluids.ts'
 import { limitsLines } from './limits.ts'
 import type { Side } from './sideOptions.ts'
-import type { Report } from '../report/types.ts'
+import type { BenchReport } from '../report/types.ts'
 
 /** Writes `measure.json` and `resume.md`, and says where. */
 export async function publish(
-  report: Report,
+  report: BenchReport,
   sides: Side[],
   captures: Map<string, Capture>,
   out: string,

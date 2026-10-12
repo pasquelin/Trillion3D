@@ -6,9 +6,6 @@
 // inputs, or their agreement would mean nothing.
 import { LIT_MATERIAL as MATERIAL, lightingCase } from './lightingNormalCases.ts'
 
-/** s³ = 1e-20: the uniform scale under which an absolute threshold fires. */
-export const THRESHOLD_SCALE = Math.cbrt(1e-20)
-
 const AXES = [
   [1, 0, 0],
   [0, 1, 0],

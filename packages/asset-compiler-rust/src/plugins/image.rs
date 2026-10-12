@@ -57,10 +57,21 @@ const FLOAT_PIXEL_BYTES: u64 = 16;
 /// Bytes occupied by one RGBA8 pixel.
 const RGBA8_PIXEL_BYTES: u64 = 4;
 
+/// The sixteen-bit little-endian field at this offset, or `None` past the end of `bytes`: the one
+/// reader of the headers' fields, for every driver.
+pub(super) fn u16_at(bytes: &[u8], at: usize) -> Option<u16> {
+    Some(u16::from_le_bytes(*bytes.get(at..)?.first_chunk()?))
+}
+
+/// The thirty-two-bit little-endian field at this offset, or `None` past the end of `bytes`.
+pub(super) fn u32_at(bytes: &[u8], at: usize) -> Option<u32> {
+    Some(u32::from_le_bytes(*bytes.get(at..)?.first_chunk()?))
+}
+
 /// The thirty-two-bit little-endian word at this offset, as the headers of the block containers
-/// (`dds`, `ktx2`) store every field: one reader for both, not one copy each.
+/// (`dds`, `ktx2`) store every field: their header's length is checked before they read it.
 pub(super) fn word(bytes: &[u8], at: usize) -> u32 {
-    u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]])
+    u32_at(bytes, at).expect("a header field inside the length that was checked")
 }
 
 /// The allocation ceiling of a surface, checked before decoding anything, at `pixel_bytes` bytes

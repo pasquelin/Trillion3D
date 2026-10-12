@@ -49,7 +49,7 @@ impl<W: Write> Hashing<W> {
     pub fn product(self, name: &str) -> Product {
         Product {
             name: name.to_string(),
-            sha256: format!("{:x}", self.hasher.finalize()),
+            sha256: crate::hex_of(self.hasher.finalize()),
             bytes: self.bytes,
         }
     }

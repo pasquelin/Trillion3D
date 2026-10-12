@@ -57,8 +57,8 @@ The measurement entry point (`packages/sdk-browser/src/measurement/measurement.t
 branch plus the measured world, the backend factories and choice) has no subpath in `exports`, so
 it never reaches a package consumer; `bench/witnesses/measurement.ts` adds the witness entry.
 
-`site/data/api-inventory.json`, generated with the TypeScript checker, lists every entry point and
-binding the facades expose.
+`apiInventory()` (`scripts/sdk-api-inventory.ts`) lists, with the TypeScript checker, every entry
+point and binding the facades expose.
 
 ## Create a world
 
@@ -100,7 +100,7 @@ await world.scene.load('assets/city/manifest.json') // a compiled model, added l
 `await world.awaitPages({ onProgress })` settles once the pages the view reads are resident:
 `{ phase: 'session' }` while the drawing session opens, then `{ phase: 'pages', completed, total }`,
 `total` each page the view reads, once, the last event `completed === total`. One callback for both
-drives a progress bar from first byte to first pages (example `watch-a-world-load`). A session
+drives a progress bar from first byte to first pages. A session
 closed during the wait (a lost device, an option it cannot take in place) never rejects it: the
 wait goes on with the reopened one.
 
@@ -138,8 +138,8 @@ fails is `FAMILY_LOAD_FAILED` (`T3D-E090`, `details.family`) on
 at the soonest. Frames that need a family wait for it, never draw without it; refused impostors
 leave each object its mesh. A page downloads only the renderer it draws with.
 
-**Debug mode** (`createWorld(target, { debug: true })`, `world.diagnostic.debug = true`, the
-examples' stats corner, `?profile` in the address) files frames into `world.cpuSteps` and the frame
+**Debug mode** (`createWorld(target, { debug: true })`, `world.diagnostic.debug = true`, a stats
+overlay, `?profile` in the address) files frames into `world.cpuSteps` and the frame
 report and fetches the measurement's code (`EngineProfiler`, `gpuPassStageOf`, `gpuPassBlockOf`,
 `gpuPassBlockTotals`, also fetched at their first call). Until it arrives, they report nothing
 measured: a page reading them from its first frame turns debug mode on before it.
@@ -291,9 +291,7 @@ world.controls.target.set(0, 1, 0) // orbit pivot
 ```
 
 They live on the world, whose canvas they read, and follow `world.camera` when it is replaced;
-setting `kind` releases the current controller and builds the next. Live examples:
-[orbit](../site/examples/orbit-around-a-clockwork.html),
-[character with physics](../site/examples/walk-with-collisions.html). `firstPerson` is the
+setting `kind` releases the current controller and builds the next. `firstPerson` is the
 character's head without a body.
 
 | `world.controls.kind` | Motion                                         | Gestures                                                            |
@@ -343,7 +341,7 @@ every hit, nearest first; `camera.rayThrough(x, y, aspect)` is the ray through a
 exact raycast is [PHYSICS.md](PHYSICS.md#exact-raycast). An orthographic camera made with
 `fitAspect: true` takes its width from the canvas. Triangle trees are kept within
 `world.budget.raycastTrees` bytes (64 MiB by default, shared by every world on the page), the least
-recently cast dropped past it. Live example: [click to pick](../site/examples/click-to-pick.html).
+recently cast dropped past it.
 
 `controls.transform(world, options)` puts move, turn and scale handles on one object:
 `attach(object)`, `detach()`, `setMode('translate' | 'rotate' | 'scale')`,
@@ -351,8 +349,7 @@ recently cast dropped past it. Live example: [click to pick](../site/examples/cl
 `dragEnd` — one drag, one undo step. The handles are unlit `helper` meshes at a share of the canvas
 height (`size`, a quarter by default), picked before the camera controller hears the press. A drag
 writes the local pose through the parents; the centre cube scales uniformly, by e per handle length
-up the screen. `attach` or `detach` mid-drag ends it with its `dragEnd`. Live example: [move,
-rotate, scale](../site/examples/move-rotate-scale-gizmo.html).
+up the screen. `attach` or `detach` mid-drag ends it with its `dragEnd`.
 
 `scene.toJSON(camera)` writes plain, versioned JSON (`format: 'trillion3d-scene'`, `formatVersion:
 2`): hierarchy, poses, each shape by the call that built it (`geometry.box(2, 1, 1)`; one changed
@@ -362,9 +359,7 @@ model by its manifest address, `helper` marks left out. A texture, a picture env
 material or a number JSON cannot hold is refused (`SCENE_NOT_SAVABLE`). `await scene.fromJSON(json,
 camera)` replaces the content (`helper` marks kept) and reloads the models; another format or
 version is refused (`UNSUPPORTED_SCENE_FORMAT`) before anything is removed. Calls during a read run
-in order, each replacing the last. Live example: [save the
-scene](../site/examples/save-the-scene.html). The portal's scene editor (`site/app/editor/`) uses
-these three doors and nothing else.
+in order, each replacing the last. A scene editor needs these three doors and nothing else.
 
 ### Live material values
 
@@ -409,8 +404,7 @@ its own (`geometry.clone()`).
 Culling reads `geometry.maxBounds` if declared, else a box derived from the first vertices
 ([ENGINE.md](ENGINE.md#dynamic-geometry)). A frame sends at most `DYNAMIC_UPLOAD_BUDGET_BYTES`
 (4 MiB), every buffer written counted, as `metrics.dynamicUploadBytes` reports; a rewrite past it
-waits for the next frame, in order, never dropped. Live example:
-[cloth and rope](../site/examples/cloth-and-rope.html). Water need not be rewritten: a mesh lying
+waits for the next frame, in order, never dropped. Water need not be rewritten: a mesh lying
 flat on the physics' water is moved by its waves on the GPU ([PHYSICS.md](PHYSICS.md)).
 
 ```js
@@ -455,8 +449,8 @@ marks.remove()
 
 ## Installation and environment API
 
-Installing, the CDN `importmap` and the licence: [README](../README.md#quick-start) and the
-portal's [Install page](https://www.trillion3d.com/#/en/learn/install). `npm install trillion3d`
+Installing, the CDN `importmap` and the licence: [README](../README.md#quick-start).
+`npm install trillion3d`
 takes only its machine's compiler package ([COMPILER.md](COMPILER.md#platform-packages)).
 
 A strict browser TypeScript project enables the `browser` condition; without it, Bundler resolution
@@ -587,7 +581,7 @@ assignment, a failed upload publishing nothing. The bitmap is borrowed: decode i
 dropped or the session disposed. Each material owns its texture. Runtime maps have a fixed 64 MiB
 decoded RGBA ceiling, checked before allocation (`TEXTURE_BUDGET`). `tiling` is set-only. Dropping
 an assigned material raises `UNSUPPORTED_SCENE_UPDATE`: assign a replacement first. Dropped IDs are
-never reused. [Live example](../site/examples/page-materials.html).
+never reused.
 
 ## Lights
 
@@ -780,9 +774,8 @@ waits for pages, not an image.
 ## Migration from Three.js
 
 No Three.js adapter ships and no public API takes or returns a Three.js object: Three.js code is
-rewritten with the [families](#families), as the portal's
-[migration page](https://www.trillion3d.com/#/en/learn/three-migration) shows; each maths
-function's page of the [API reference](https://www.trillion3d.com/#/en/api) names its witness call.
+rewritten with the [families](#families); [MATHS.md](MATHS.md) names each maths function's witness
+call.
 
 ## GPU deformation
 
@@ -825,7 +818,4 @@ radians, `frequency` in Hz). `mesh.waves` shares the physics' waves with a water
 
 The GPU deforms vertices before culling and drawing
 ([ENGINE.md](ENGINE.md#gpu-deformation)). `metrics.gpuDeformationMs` is the
-latest measured WebGPU deformation time, `null` without a timestamp sample. Examples: [the walking
-character](../site/examples/a-character-that-walks.html), [the morph
-sample](../site/examples/a-shape-that-morphs.html), [the
-crowd](../site/examples/a-crowd-of-characters.html) (`?count=1`, `10` or `100`).
+latest measured WebGPU deformation time, `null` without a timestamp sample.

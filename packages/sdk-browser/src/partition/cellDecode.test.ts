@@ -3,10 +3,8 @@ import assert from 'node:assert/strict'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { pose } from '../host/prepared/nodes.ts'
 import { configurePageWorkers, patientTask, releasePageWorkers } from '../page/work/host.ts'
-import {
-  NodeDomWorker,
-  withNodeWorkerShim,
-} from '../../../../bench/oracles/browser/pageWorkNodeWorker.ts'
+import { NodeWorker } from '../../../../bench/kit/worker.ts'
+import { withNodeWorkerShim } from '../../../../bench/oracles/browser/pageWorkNodeWorker.ts'
 import { cellRows, decodeCellFile } from './cellDecode.ts'
 
 const nodes = [
@@ -30,7 +28,7 @@ test('a cell file is read into each node its ranks and the local matrix a host n
 })
 
 test('a cell file is parsed in a worker of the page worker pool, never on the main thread', () =>
-  withNodeWorkerShim(NodeDomWorker, async () => {
+  withNodeWorkerShim(NodeWorker, async () => {
     releasePageWorkers()
     configurePageWorkers(1)
     const parse = JSON.parse
@@ -53,7 +51,7 @@ test('a cell file is parsed in a worker of the page worker pool, never on the ma
   }))
 
 test('a cell file the worker refuses answers with its code and names its file', () =>
-  withNodeWorkerShim(NodeDomWorker, async () => {
+  withNodeWorkerShim(NodeWorker, async () => {
     releasePageWorkers()
     configurePageWorkers(1)
     const stale = new TextEncoder().encode(JSON.stringify({ version: 1, nodes }))

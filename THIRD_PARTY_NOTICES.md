@@ -9,8 +9,8 @@ Trillion3D ships the following third-party software in its builds. Each keeps it
   repository.
 - Shipped as: `packages/sdk-browser/src/physics/joltPhysics.wasm` and
   `packages/sdk-browser/src/physics/joltPhysicsThreads.wasm` (the threaded build), both built from
-  those sources by `scripts/build-physics-wasm.ts`. This notice travels with them: in the npm
-  package, and beside them in the site's `docs/runtime/`.
+  those sources by `scripts/build-physics-wasm.ts`. This notice travels with them in the npm
+  package.
 - Licence: MIT.
 
 ```text
@@ -233,7 +233,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   Difference Evaluator for Alternating Images" (NVIDIA, HPG 2020).
 - Source: https://github.com/NVlabs/flip (official repository; reference tool `flip-evaluator` 1.7).
 - Used by: `bench/runner/references/flip.ts`, a measurement tool. It is not shipped: the `files` of
-  `package.json` lists only `dist` (without `dist/site` and `dist/witnesses`), a few documents and
+  `package.json` lists only `dist` (without `dist/witnesses`), a few documents and
   the licence files, and `bench/` is in none of them.
 - This repository's implementation is written here from the published description; the colour-space
   constants are the algorithm's published ones; checked against the reference tool. The licence of
@@ -258,13 +258,9 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 ## Assets
 
-Models and textures are not code and are listed apart. The licence of every asset the repository
-uses, tracked or downloaded outside git, is in the table of
-[`docs/ASSET_LICENSE_AUDIT.md`](docs/ASSET_LICENSE_AUDIT.md#licence-table-of-every-asset).
-Credits for the models tracked by git under the site are in
-[`site/assets/examples/CREDITS.md`](site/assets/examples/CREDITS.md): the street lamp and crate by
-W. Sitters (CC BY 3.0), Marble Bust 01 by Rico Cilliers (CC0), CesiumMan (© 2017 Cesium, CC BY 4.0)
-and AnimatedMorphCube (CC0). Elsewhere in git: the 200-triangle extract of A Beautiful Game
-(© 2020 ASWF, © 2022 Ed Mackey, CC BY 4.0; `tests/fixtures/physics/`) and the Draco Box (© 2017
-Cesium, CC BY 4.0; `tests/fixtures/formats/gltf/compressed-box/`). Sponza (Crytek), DamagedHelmet
-and Duck are downloaded outside git for the bench and are not redistributed by this repository.
+Models and textures are not code and are listed apart. In git: the 200-triangle extract of A
+Beautiful Game (© 2020 ASWF, © 2022 Ed Mackey, CC BY 4.0; `tests/fixtures/physics/`) and the Draco
+Box (© 2017 Cesium, CC BY 4.0; `tests/fixtures/formats/gltf/compressed-box/`). The bench's public
+models (`bench/runner/assets/assetsCatalogue.ts`: Sponza, DamagedHelmet, Duck, CesiumMan,
+AnimatedMorphCube and the others) are downloaded outside git under the terms each one's own
+`README.md` carries, and are not redistributed by this repository.

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { createPageRowWriter } from '../row/pageRowWriter.ts'
-import { FLAG_MASK, PAGE_INFO_STRIDE, isTransmissive } from '../../visibility/buffer.ts'
+import { FLAG_MASK, PAGE_INFO_STRIDE, ROW_WORDS, isTransmissive } from '../../visibility/buffer.ts'
 import { createShadeCensus } from '../visibility/shadeCensus.ts'
 import { createPresentClasses } from './materialPasses.ts'
 import { SURFACE_MODEL } from '../../scene/surfaceModel.ts'
@@ -32,7 +32,7 @@ test('the three material classes take the three paths the engine has for them', 
 test('a cut-out cluster carries its alpha test into the visibility row', () => {
   const { source, metadata, indices, associations } = scene()
   const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
-  const floats = new Float32Array(PAGE_INFO_STRIDE / 4),
+  const floats = new Float32Array(ROW_WORDS),
     ints = new Uint32Array(floats.buffer)
   const writeRow = createPageRowWriter(
     {
@@ -82,15 +82,14 @@ test('a row carries its resolve class, the census of the scene knows it before a
     (packed) => packed,
   )
   const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
-    ints = new Uint32Array(floats.buffer),
-    stride = PAGE_INFO_STRIDE / 4
+    ints = new Uint32Array(floats.buffer)
   const [mask, blend] = collected.roots.map((root) => root.pages[0])
   writeRow(mask, 0, 0, 0, floats, ints)
   writeRow(blend, 1, 1, 0, floats, ints)
   const { HAS_MASK, HAS_VERTEX_NORMAL, DOUBLE_SIDED, HAS_UV } = CLASS_FEATURE
   const cutout = HAS_MASK | HAS_VERTEX_NORMAL | DOUBLE_SIDED
   assert.equal(ints[ROW_MATERIAL_CLASS_WORD], cutout, 'double-sided cut-out with vertex normals')
-  assert.equal(ints[stride + ROW_MATERIAL_CLASS_WORD], HAS_VERTEX_NORMAL, 'the plain blend')
+  assert.equal(ints[ROW_WORDS + ROW_MATERIAL_CLASS_WORD], HAS_VERTEX_NORMAL, 'the plain blend')
   assert.equal(cutout & HAS_UV, 0, 'no uv block, no uv class bit')
   // The census reads the same fields the rows will carry, for the pages that take a row: the
   // blend is a transparent page and the transmission left the DAG, so the cut-out's class alone
@@ -101,7 +100,7 @@ test('a row carries its resolve class, the census of the scene knows it before a
   // An image draws the classes of its packed rows only: the second row alone leaves the cut-out out.
   const present = createPresentClasses()
   assert.deepEqual(markPresentClasses(ints, 2, present, 0), [cutout, HAS_VERTEX_NORMAL])
-  assert.deepEqual(markPresentClasses(ints.subarray(stride), 1, present, 0), [HAS_VERTEX_NORMAL])
+  assert.deepEqual(markPresentClasses(ints.subarray(ROW_WORDS), 1, present, 0), [HAS_VERTEX_NORMAL])
 })
 
 // The image reads its as-is flags from the first opaque row that shows a surface as-is —
@@ -135,20 +134,19 @@ test('an opaque row showing a surface as-is tells the image its flags are read',
 
 // An image over the same rows reuses its classes; a pose moves none.
 test('the classes an image draws are read off the rows again only once a row is written', () => {
-  const stride = PAGE_INFO_STRIDE / 4,
-    rows = createWebgpuRowState([], 3),
-    ints = new Uint32Array(3 * stride),
+  const rows = createWebgpuRowState([], 3),
+    ints = new Uint32Array(3 * ROW_WORDS),
     present = createPresentClasses()
   rows.packedCount = 3
-  ;[5, 9, 5].forEach((key, row) => (ints[row * stride + ROW_MATERIAL_CLASS_WORD] = key))
+  ;[5, 9, 5].forEach((key, row) => (ints[row * ROW_WORDS + ROW_MATERIAL_CLASS_WORD] = key))
   const classes = () => [...markPresentClasses(ints, rows.packedCount, present, rows.rowWrites)]
   assert.deepEqual(classes(), [5, 9])
-  ints[stride + ROW_MATERIAL_CLASS_WORD] = 5
+  ints[ROW_WORDS + ROW_MATERIAL_CLASS_WORD] = 5
   assert.deepEqual(classes(), [5, 9], 'an unmarked word is not reread')
   rows.markRowWords(1)
   assert.deepEqual(classes(), [5, 9], 'a pose keeps the occupant and its class')
   rows.markRowDirty(1)
   assert.deepEqual(classes(), [5])
-  ;[rows.packedCount, ints[stride + ROW_MATERIAL_CLASS_WORD]] = [2, 9]
+  ;[rows.packedCount, ints[ROW_WORDS + ROW_MATERIAL_CLASS_WORD]] = [2, 9]
   assert.deepEqual(classes(), [5, 9], 'a shorter table is read again')
 })

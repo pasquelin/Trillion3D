@@ -8,7 +8,7 @@ export type WebgpuTileAtlas = {
   readonly kind: 'color' | 'data'
   /** The pools of the lanes that have one. */
   readonly pools: readonly WebgpuTilePool[]
-  /** One view per lane, `POOL_LANES` order, a stand-in where the lane has no pool; a new tuple
+  /** One view per lane, `PREVIEW_LAYOUT_NAMES` order, a stand-in where the lane has no pool; a new tuple
    *  whenever a pool is replaced, so a bind group keyed on it is rebuilt. */
   readonly views: readonly GPUTextureView[]
   readonly pages: WebgpuTilePageTable

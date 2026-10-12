@@ -1,5 +1,4 @@
 import {
-  MAX_HIZ_LEVELS,
   UNI_ANCHOR_LOW,
   UNIFORM_U32,
   UNI_ANCHOR,
@@ -8,6 +7,7 @@ import {
   UNI_VIEW,
   UNI_VIEW_PROJ,
 } from './contract.ts'
+import { HIZ_MAX_LEVELS } from '../hiz/uniforms.ts'
 import { matrixAtRenderOrigin } from '../../../../sdk-core/src/index.ts'
 import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 
@@ -64,16 +64,16 @@ export function packPartitionUniform(
   words[UNI_SCALARS] = rows
   words[UNI_SCALARS + 1] = frame.width
   words[UNI_SCALARS + 2] = frame.height
-  words[UNI_SCALARS + 3] = Math.min(frame.levels.length, MAX_HIZ_LEVELS)
+  words[UNI_SCALARS + 3] = Math.min(frame.levels.length, HIZ_MAX_LEVELS)
   words[UNI_SCALARS + 4] = frame.layerTop
   words[UNI_SCALARS + 5] = frame.hasRest ? 1 : 0
   words[UNI_SCALARS + 6] = frame.viewMoved ? 1 : 0
   words[UNI_SCALARS + 7] = frame.counting ? 1 : 0
   words.fill(0, UNI_SCALARS + 8, UNI_LEVELS)
-  for (let level = 0; level < MAX_HIZ_LEVELS; level++) {
+  for (let level = 0; level < HIZ_MAX_LEVELS; level++) {
     const mip = frame.levels[level]
     words[UNI_LEVELS + level] = mip ? mip.offset : 0
-    words[UNI_LEVELS + MAX_HIZ_LEVELS + level] = mip ? mip.width : 1
+    words[UNI_LEVELS + HIZ_MAX_LEVELS + level] = mip ? mip.width : 1
   }
 }
 

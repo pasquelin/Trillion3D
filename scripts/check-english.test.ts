@@ -41,7 +41,7 @@ test('counts are kept per package, the word list itself left out', () => {
       ['packages/sdk-core/src/b/c.ts', 'const largeur = racine;'],
       ['tests/kit/x.ts', '// obtenu'],
       ['scripts/french-words.ts', 'hauteur largeur'],
-      ['site/app/y.ts', 'const height = 1;'],
+      ['bench/core/y.ts', 'const height = 1;'],
     ]),
   )
   assert.deepEqual(countByUnit(found), { 'packages/sdk-core': 3, tests: 1 })

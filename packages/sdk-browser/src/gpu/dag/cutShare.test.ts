@@ -1,3 +1,4 @@
+import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts'
 // The camera cut's tables hold their share of the GPU total (`../../residency/cutTableBytes.ts`):
 // a cut that would pass it is refused by name before the buffer past it is made, and a growth that
 // would pass it is not made — the view coarsens instead, no cut dropped ever drawn.
@@ -11,7 +12,6 @@ import { pageResidency } from './readiness.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { CUT_TABLE_BYTES } from '../../residency/cutTableBytes.ts'
 import { defaultGpuBudget, splitMemoryBudget } from '../../residency/memoryBudget.ts'
-import { DEFAULT_CPU_BUDGET } from '../../residency/memoryBudget.ts'
 
 /** `device` counting the bytes its live buffers hold, and the most they ever held. */
 function counted(device: GPUDevice) {
@@ -40,11 +40,11 @@ test('the default total funds the cut’s tables as they hold them, before the p
   )
   const split = splitMemoryBudget(
     defaultGpuBudget(undefined, held),
-    DEFAULT_CPU_BUDGET,
+    DEFAULT_CACHED_BYTES,
     undefined,
     held,
   )
-  const without = splitMemoryBudget(defaultGpuBudget(), DEFAULT_CPU_BUDGET, undefined, nothing)
+  const without = splitMemoryBudget(defaultGpuBudget(), DEFAULT_CACHED_BYTES, undefined, nothing)
   assert.equal(split.cutTables, held.cutTables)
   assert.deepEqual(
     [split.geometryPool, split.texturePool],

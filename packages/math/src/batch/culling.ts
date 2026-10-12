@@ -1,4 +1,4 @@
-import { BOX_VALUES } from '../geometry/box.ts'
+import { BOX_VALUES, boundsAreEmpty } from '../geometry/box.ts'
 import { length3 } from '../vector/vector.ts'
 import { SPHERE_VALUES } from './strides.ts'
 
@@ -105,7 +105,7 @@ export function sphereFromBoundsBatch(
       maxX = boxes[src + 3],
       maxY = boxes[src + 4],
       maxZ = boxes[src + 5]
-    if (maxX < minX || maxY < minY || maxZ < minZ) {
+    if (boundsAreEmpty(minX, minY, minZ, maxX, maxY, maxZ)) {
       out[o] = 0
       out[o + 1] = 0
       out[o + 2] = 0

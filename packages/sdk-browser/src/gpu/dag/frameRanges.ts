@@ -10,9 +10,6 @@ import { createSortedKeys, takeSorted, type SortedKeys } from '../../webgpu/cut/
 /** Floats of one host row (`primitiveFrameWords`). */
 const ROW_FLOATS = FRAME_VEC4 * 4
 
-/** Bytes of one range's `frames`; a range holds at least one primitive. */
-export const framesBytes = (count: number) => count * PRIMITIVE_BYTES
-
 /**
  * A camera cut's `frames`, one buffer per range (`cameraFrameRanges`), and the uniform that tells
  * each bind group its range: `{first, count}` at the range's aligned offset, written once. The
@@ -133,7 +130,7 @@ function rangeBuffers(
   const buffers = ranges.map(({ count }) =>
     own({
       label: 'Trillion3D DAG frames',
-      size: framesBytes(count),
+      size: count * PRIMITIVE_BYTES,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     }),
   )

@@ -11,7 +11,7 @@ import { moveRootRows } from '../pages/render/movedRoot.ts'
 import { createSortedKeys } from '../cut/denseKeys.ts'
 import { createWebgpuRowState } from '../row/state.ts'
 import { CORNER_VALUES } from '../../gpu/partition/contract.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/buffer.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -41,7 +41,7 @@ function scatteredScene() {
     packedBase: 0,
   }
   const rows = createWebgpuRowState(pages, ROWS)
-  rows.pageTableFloats = new Float32Array((ROWS * PAGE_INFO_STRIDE) / 4)
+  rows.pageTableFloats = new Float32Array(ROWS * ROW_WORDS)
   for (let row = 0; row < ROWS; row++) {
     rows.setRowOf(row, row)
     rows.packedPageIndex[row] = row

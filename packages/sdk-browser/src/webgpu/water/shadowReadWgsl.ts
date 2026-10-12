@@ -1,16 +1,13 @@
-import { WORLD_AT_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 /**
- * Where a water pixel reads its shadows: the point, the side its normal faces and the
- * footprint the composite lights it at (`compositeWgsl.ts`, `waterColor`), on the deferred view
- * (`view`).
+ * Where a water pixel reads its shadows: the side its normal faces, at the footprint the
+ * deferred resolve lights a pixel at (`pixelFootprint`, `footprintWgsl.ts`; `compositeWgsl.ts`,
+ * `waterColor`).
  */
 export const WATER_SHADOW_READ_WGSL = wgslBlock(
   'WATER_SHADOW_READ_WGSL',
-  [WORLD_AT_WGSL],
-  `/** The pixel's footprint at its point \`P\`, depth \`z\`: one pixel across at that depth. */
-fn waterShadowFootprint(pixel:vec2f,z:f32,P:vec3f)->f32{return length(worldAt(pixel+vec2f(1.0,0.0),z)-P);}
-/** Normal \`N\` turned to the side \`V\` looks from: a single-sided surface, or a mesh with no normal
+  [],
+  `/** Normal \`N\` turned to the side \`V\` looks from: a single-sided surface, or a mesh with no normal
  *  attribute, can arrive turned the wrong way. */
 fn waterFacing(N:vec3f,V:vec3f)->vec3f{return select(-N,N,dot(N,V)>0.0);}`,
 )

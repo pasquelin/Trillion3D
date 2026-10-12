@@ -8,21 +8,23 @@ const REFLECTION_EDGE = 1 / 16
  *  the long axis's share of a tap. */
 const REFLECTION_TAPS = 5
 /** The screen distance, in pixels (the L1 length of the ray on the image), a ray is marched over at
- *  most: its iterations are bounded by it (`reflectionBudget`), and the screen's confidence fades
+ *  most: its iterations are bounded by it (`screenMarchBudget`), and the screen's confidence fades
  *  over its second half, so that the next stage carries what lies farther. */
 const REFLECTION_STEP_CAP = 256
 /** The thickness of a surface the march assumes, in pixels of its footprint: a ray behind a pixel's
  *  surface by more passes behind it and goes on (a pole, a fence), by less is inside it and hits.
- *  The same thickness at every depth and under every projection (`reflectionBack`). */
+ *  The same thickness at every depth and under every projection (`screenBack`). */
 const REFLECTION_THICKNESS = 4
+/** The coverage from which a blended fragment is a surface of the depth a ray meets
+ *  (`reflectionFrontOut`): one that hides more than half of what lies behind it. A fainter one
+ *  tints its backdrop and is no wall to a ray. */
+const REFLECTION_FRONT_COVERAGE = 0.5
 /** The weight under which a stage of the chain is not evaluated: 2⁻¹¹, under half a step of an
  *  8-bit channel of a radiance of one. */
 const REFLECTION_EPSILON = 2 ** -11
 
 /**
- * The constants of the reflection's shaders. `REFLECTION_NUDGE` takes a ray past a cell boundary: four
- * units in the last place of a pixel coordinate on the largest image WebGPU guarantees (8192
- * pixels, whose float32 step is 2⁻¹⁰), so that no rounding leaves it behind. `REFLECTION_FAR` is the
+ * The constants of the reflection's shaders. `REFLECTION_FAR` is the
  * distance past which a ray is taken as infinite: 2²³ world units, where a float32 no longer holds
  * a unit step. `REFLECTION_CONE_LIMIT` is the bound of the half-vector's angle (`REFLECTION_CONE_WGSL`).
  */
@@ -34,9 +36,9 @@ const REFLECTION_TAPS:f32=${wgslF32(REFLECTION_TAPS)};
 const REFLECTION_STEP_CAP:f32=${wgslF32(REFLECTION_STEP_CAP)};
 const REFLECTION_THICKNESS:f32=${wgslF32(REFLECTION_THICKNESS)};
 const REFLECTION_EPSILON:f32=${wgslF32(REFLECTION_EPSILON)};
+const REFLECTION_FRONT_COVERAGE:f32=${wgslF32(REFLECTION_FRONT_COVERAGE)};
 const REFLECTION_HALF_MAXIMUM:f32=${wgslF32(Math.SQRT2)};
 const REFLECTION_CONE_LIMIT:f32=${wgslF32(Math.tan(40 * DEG2RAD))};
-const REFLECTION_NUDGE:f32=${wgslF32(2 ** -8)};
 const REFLECTION_FAR:f32=${wgslF32(2 ** 23)};`,
 )
 

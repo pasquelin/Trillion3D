@@ -1,3 +1,4 @@
+import { arrayView } from '../gpu/core/textureViews.ts'
 import type { SceneProxy, BounceCascades } from '../../../sdk-core/src/index.ts'
 import { constructGpuResources } from '../gpu/core/errorScope.ts'
 import { createGpuBounceProxy } from './proxy.ts'
@@ -48,8 +49,8 @@ export function createProbeStorage(
         atlas.createView({ dimension: '2d', baseArrayLayer: level, arrayLayerCount: 1 }),
       )
     const views = {
-      probes: probes.createView({ dimension: '2d-array' }),
-      snapshot: snapshot.createView({ dimension: '2d-array' }),
+      probes: arrayView(probes),
+      snapshot: arrayView(snapshot),
       levels: layers(probes),
       snapshotLevels: layers(snapshot),
     }

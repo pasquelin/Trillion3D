@@ -9,7 +9,7 @@ import { ROW_LOD_FLOATS, writeRowLod } from './rowLodWords.ts'
 import { moveRootRows } from '../pages/render/movedRoot.ts'
 import { createSortedKeys } from '../cut/denseKeys.ts'
 import { createWebgpuRowState } from '../row/state.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/buffer.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { fakeDevice, replayWrites } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -51,7 +51,7 @@ function scene() {
     pages,
   }
   const rows = createWebgpuRowState(pages, ROWS)
-  rows.pageTableFloats = new Float32Array((ROWS * PAGE_INFO_STRIDE) / 4)
+  rows.pageTableFloats = new Float32Array(ROWS * ROW_WORDS)
   // Packed ranks 0..5 are the model's, at its scattered rows; the terrain's fill the others.
   const free = Array.from({ length: ROWS }, (_, row) => row).filter(
     (row) => !MODEL_ROWS.includes(row),

@@ -1,7 +1,7 @@
 import { readGpuBuffer, readGpuTextureR32F } from '../../gpu/core/readback.ts'
 import { visLayerTop } from '../visibility/uniforms.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts'
+import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/corners.ts'
 import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
 
 /**

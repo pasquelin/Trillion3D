@@ -6,8 +6,9 @@ import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { buildComputeStages } from '../lighting/deferred/fullscreen.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
-import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
+import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { REFLECTION_FORMAT } from './constants.ts'
+import { FRONT_SHADER, createFrontDepth, frontBytes, frontLayout } from './frontDepth.ts'
 import {
   RADIANCE_SHADER,
   createRadiancePyramid,
@@ -56,7 +57,7 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
 })
 
 /** The reflection's kernels — the frame state, the opaque trace and its tile classification, the
- *  radiance pyramid's two — compiled once a device under one validation scope. */
+ *  radiance pyramid's two, the front depth's scatter — compiled once a device under one validation scope. */
 export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
   validated(device, async () => {
     const modules = {
@@ -72,16 +73,22 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
         label: 'Trillion3D reflection radiance',
         code: RADIANCE_SHADER,
       }),
+      front: device.createShaderModule({
+        label: 'Trillion3D reflection front depth',
+        code: FRONT_SHADER,
+      }),
     }
     for (const made of Object.values(modules)) if (await shaderFailed(made)) return undefined
     const layouts = radianceLayouts(device)
     const layout = (bind: GPUBindGroupLayout) =>
       device.createPipelineLayout({ bindGroupLayouts: [bind] })
-    const [trace, first, down, roll] = await Promise.all([
+    const frontLayouts = frontLayout(device)
+    const [trace, first, down, roll, front] = await Promise.all([
       createTraceStages(device, modules, reflectionLayout(device)),
       buildComputeStages(device, layout(layouts.firstLayout), modules.radiance, ['radianceFirst']),
       buildComputeStages(device, layout(layouts.downLayout), modules.radiance, ['radianceDown']),
       buildComputeStages(device, layout(layouts.rollLayout), modules.radiance, ['radianceRoll']),
+      buildComputeStages(device, layout(frontLayouts), modules.front, ['frontScatter']),
     ])
     return {
       ...trace,
@@ -89,15 +96,18 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
       firstPipeline: first.radianceFirst,
       downPipeline: down.radianceDown,
       rollPipeline: roll.radianceRoll,
+      frontLayout: frontLayouts,
+      frontPipeline: front.frontScatter,
     }
   }),
 )
 export type ReflectionPipelines = NonNullable<Awaited<ReturnType<typeof createReflectionPipelines>>>
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
- *  radiance pyramid, its tile list, its uniform and its radiance hash; the depth it marches is the
- *  Hi-Z's. */
-export function reflectionBytes(width: number, height: number) {
+ *  radiance pyramid, its tile list, its uniform, its radiance hash and the front depth the blends
+ *  write, when the scene has blends (`blends`); the depth it marches is the Hi-Z's, with its front
+ *  depth. */
+export function reflectionBytes(width: number, height: number, blends: boolean) {
   const size: GPUExtent3D = [width, height]
   return (
     REFLECTION_TARGET.bytes(width, height, true) +
@@ -106,6 +116,7 @@ export function reflectionBytes(width: number, height: number) {
       format: REFLECTION_FORMAT,
       mipLevelCount: radianceLevels(width, height),
     })! +
+    frontBytes(width, height, blends) +
     traceListBytes(width, height) +
     TRACE_ARGS_BYTES +
     REFLECTION_VIEW_BYTES +
@@ -118,9 +129,15 @@ export function reflectionBytes(width: number, height: number) {
  * A view's reflection at `width × height`: the target the opaque trace writes, the radiance
  * pyramid of its last lit image (`radiance`, which holds the image it was made of: the next image
  * reprojects its hits with its view-projection), the tile list of the trace, the view uniform —
- * whose surroundings the GPU writes — and the writer of the rest of it.
+ * whose surroundings the GPU writes — and the writer of the rest of it. `blends` says whether the
+ * scene has any, which write the front depth (`createFrontDepth`).
  */
-export function createScreenReflection(device: GPUDevice, width: number, height: number) {
+export function createScreenReflection(
+  device: GPUDevice,
+  width: number,
+  height: number,
+  blends: boolean,
+) {
   // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread the target and set it first;
   // no frame copies it.
   const target = device.createTexture({
@@ -137,6 +154,7 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
   const radiance = createRadiancePyramid(device, width, height)
   const tiles = createTraceTiles(device, width, height)
   const settle = createRadianceSettle(device)
+  const frontDepth = createFrontDepth(device, width, height, blends)
   return {
     device,
     target,
@@ -145,6 +163,7 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
     tiles,
     uniform,
     settle,
+    front: frontDepth,
     writeView: createReflectionViewWriter(device, uniform),
     /** The reflection group over each Hi-Z pyramid it was bound with (a view's), and what else it
      *  was made over. */
@@ -158,6 +177,7 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
       tiles.list.destroy()
       uniform.destroy()
       settle.dispose()
+      frontDepth.dispose()
     },
   }
 }
@@ -185,10 +205,7 @@ export function reflectionGroup(
       { binding: 0, resource: { buffer: reflection.uniform } },
       { binding: 1, resource: reflection.radiance.view },
       { binding: 2, resource: reflection.radiance.sampler },
-      ...depth.resources.map((resource, k) => ({
-        binding: REFLECTION_DEPTH_BINDING + k,
-        resource,
-      })),
+      ...hizDepthBindEntries(REFLECTION_DEPTH_BINDING, depth),
       { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: over.lightView } },
       { binding: REFLECTION_SURFACE_BINDING, resource: over.surface },
     ],

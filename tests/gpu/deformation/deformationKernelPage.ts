@@ -3,6 +3,7 @@
 // it applies the proof's writes, stamps the image number, dispatches one group and reads back the
 // three vertex records the frame names. Each buffer lands at the binding its shader name has in
 // the stage's own text.
+import { readBuffer } from '../kit/computeReadback.ts'
 import {
   DEFORMATION_COMPUTE_WGSL,
   deformationBindings,
@@ -41,7 +42,7 @@ export async function run({
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     compute: { module, entryPoint: 'deform' },
   })
-  const { STORAGE, UNIFORM, COPY_DST, COPY_SRC, MAP_READ } = GPUBufferUsage
+  const { STORAGE, UNIFORM, COPY_DST, COPY_SRC } = GPUBufferUsage
   const buffer = (words: number[], usage: number) => {
     const made = device.createBuffer({
       size: words.length * 4,
@@ -75,7 +76,6 @@ export async function run({
       { binding: BINDING.normals, resource: normals.createView({ dimension: '2d-array' }) },
     ],
   })
-  const read = device.createBuffer({ size: READ_BYTES, usage: MAP_READ | COPY_DST })
   const records: number[][] = []
   for (const [index, { writes, read: from }] of frames.entries()) {
     for (const { buffer: name, at, words } of writes)
@@ -87,11 +87,12 @@ export async function run({
     pass.setBindGroup(0, group)
     pass.dispatchWorkgroups(1)
     pass.end()
-    encoder.copyBufferToBuffer(named[from.buffer], from.at * 4, read, 0, READ_BYTES)
     device.queue.submit([encoder.finish()])
-    await read.mapAsync(GPUMapMode.READ)
-    records.push([...new Float32Array(read.getMappedRange())])
-    read.unmap()
+    records.push([
+      ...new Float32Array(
+        (await readBuffer(device, named[from.buffer], from.at * 4, READ_BYTES)).buffer,
+      ),
+    ])
   }
   const adapter = (await gpu.fermer()).court
   return { adapter, records, errors: gpu.errors }

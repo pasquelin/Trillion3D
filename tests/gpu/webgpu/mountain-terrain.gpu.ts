@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MIB } from '../../../packages/math/src/constants.ts'
-import { openGalleryScene } from '../kit/renderHarness.ts'
+import { openTestScene } from '../kit/renderHarness.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { settle } from '../world/proofWorld.ts'
 
@@ -37,7 +37,7 @@ test(
     const errors: string[] = []
     const reading = await runOnDawn(
       async () => {
-        const world = await openGalleryScene({
+        const world = await openTestScene({
           id: 'terrain-proof',
           width: 900,
           height: 620,

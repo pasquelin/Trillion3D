@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 /**
  * Cache invalidation shaders (step 7): the load-balanced instance-page invalidation, with the
  * helpers it needs (frustum box cull, screen rect, mip level of a rect — the render cull's, from
@@ -75,9 +76,11 @@ struct VsmInvalidationItem{firstBox:u32,boxCount:u32,payload:u32,prefix:u32,}
 @group(1) @binding(0) var<uniform> vsmInv:VsmInvalidationParams;
 @group(1) @binding(1) var<storage,read> vsmInvInstances:array<VsmInvalidationInstance>;
 @group(1) @binding(2) var<storage,read> vsmInvItems:array<VsmInvalidationItem>;
-const VSM_BOX_CASTS:u32=${VSM_BOX_CASTS}u;
-const VSM_BOX_MOVING:u32=${VSM_BOX_MOVING}u;
-const VSM_INVALIDATION_GROUP_SIZE:u32=${VSM_INVALIDATION_GROUP_SIZE}u;
+${wgslConsts({
+  VSM_BOX_CASTS,
+  VSM_BOX_MOVING,
+  VSM_INVALIDATION_GROUP_SIZE,
+})}
 `
 
 /** Page-rect overlap and static caching (the box cull, its rect and the fine-caster test are the

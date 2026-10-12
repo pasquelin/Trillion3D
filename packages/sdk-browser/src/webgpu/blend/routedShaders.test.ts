@@ -109,6 +109,7 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
         blendGrads: () => ({}),
         blendBase: () => [0, 0, 0, 1],
         blendKeeps: () => true,
+        reflectionFrontOut: () => [0, 0, 0, 0],
         // The lobed program's: an item that names no physical record sets nothing.
         blendPhysicalBegin: () => undefined,
         blendSurface: () => surface,

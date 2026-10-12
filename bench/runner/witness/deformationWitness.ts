@@ -6,7 +6,7 @@ import { octets } from './threeBareScene.ts'
 import { posterCapture } from '../harness/measurePage.ts'
 import { readWitnessImage } from './threeRenderer.ts'
 
-/** Source graph and mixers for the walking/crowd and morph examples; no engine implementation. */
+/** Source graph and mixers for the walking/crowd and morph cases; no engine implementation. */
 export async function deformationWitness(source: string, count: 1 | 10 | 100) {
   const gltf = await new GLTFLoader().loadAsync(source)
   if (!gltf.animations[0]) throw new Error('DEFORMATION_REFERENCE_CLIP_MISSING')

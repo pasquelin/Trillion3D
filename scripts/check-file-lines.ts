@@ -23,8 +23,8 @@ const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/
  */
 
 /** Whether the file still answers to the bound. A maintained runtime module of TypeScript does not,
- *  and `check:cohesion` reads it instead; a test, a fixture, a script, the site, the bench and the
- *  Rust crates all do — each is read whole, and a Rust function's length is not what makes it
+ *  and `check:cohesion` reads it instead; a test, a fixture, a script, the bench and the Rust
+ *  crates all do — each is read whole, and a Rust function's length is not what makes it
  *  hard to change either, but no gate reads it yet, so the bound stays where it still holds. */
 export const keepsLineBound = (file: string): boolean =>
   !unitOf(file) || isTestModule(file) || file.endsWith('/index.ts') || file.endsWith('/index.mts')

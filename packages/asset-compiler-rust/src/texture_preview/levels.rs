@@ -2,15 +2,17 @@
 //! writing and the TypeScript reader (`packages/sdk-core/src/texture/previewLevels.ts`).
 //!
 //! A level `k` is exactly mip level `k` of the source: integer division of both
-//! sides by `2^k`, never less than one texel. The engine can therefore write the
+//! sides by `2^k`, never less than one texel (`trillion3d_math::scalar::mip_size`, the one rule
+//! of every halving pyramid); its first and last levels are held to the reader's by
+//! `golden/preview_levels.json`. The engine can therefore write the
 //! received level `k` into mip level `k` of its atlas layer without recomputing
 //! anything, and sample it as-is.
 use super::*;
+use trillion3d_math::scalar::mip_size;
 
 /// Dimensions of level `level` of a `width`×`height` image.
 pub fn preview_level_size(width: u32, height: u32, level: u32) -> (u32, u32) {
-    let shift = level.min(31);
-    ((width >> shift).max(1), (height >> shift).max(1))
+    (mip_size(width, level), mip_size(height, level))
 }
 
 /// Finest level the sidecar carries: the first whose neither side exceeds
@@ -64,9 +66,9 @@ pub fn preview_block_bytes(width: u32, height: u32) -> usize {
         .sum()
 }
 
-/// A streamed tile's side and gutter, in texels: the engine's (`texture/tiles.ts`).
-/// Pinned against it by `tests/integration/shared-cache-format.test.ts`.
+/// A streamed tile's side in texels: the engine's (`texture/tiles.ts`), printed there.
 pub const TILE_SIZE: u32 = 128;
+/// A streamed tile's gutter on each side, in texels.
 pub const TILE_BORDER: u32 = 4;
 
 /// Block columns — or rows — `[from, to)` of each tile's record along a side

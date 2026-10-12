@@ -5,14 +5,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ceilFloat32 } from '../../../../math/src/float/splitDouble.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { FLAG_BLEND_CASTER, FLAG_MASK, ROW_WORDS } from '../../visibility/buffer.ts'
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../row/pageRow.ts'
 import { shadowsFollowSurfaces, shadowsFollowTextures } from '../pages/prepare/lightResources.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { indexOfRanks } from '../../page/selection/placements.fixture.ts'
-
-const WORDS = PAGE_INFO_STRIDE / 4
 
 const leaves = {} as PageSurface,
   bark = {} as PageSurface
@@ -36,16 +34,16 @@ function record(x: number, material = bark, moving = false) {
  *  on texture 5 —, then a blended caster's row on texture 7. Each row draws packed rank
  *  `row`, and `placement` names the root that rank belongs to. */
 function table() {
-  const ints = new Uint32Array(4 * WORDS),
+  const ints = new Uint32Array(4 * ROW_WORDS),
     base = roots.length
-  ints[0 * WORDS + ROW_FLAGS_WORD] = FLAG_MASK
-  ints[0 * WORDS + ROW_MAP_LAYER_WORD] = 3
-  ints[1 * WORDS + ROW_FLAGS_WORD] = 0
-  ints[1 * WORDS + ROW_MAP_LAYER_WORD] = 3
-  ints[2 * WORDS + ROW_FLAGS_WORD] = FLAG_MASK
-  ints[2 * WORDS + ROW_MAP_LAYER_WORD] = 5
-  ints[3 * WORDS + ROW_FLAGS_WORD] = FLAG_BLEND_CASTER
-  ints[3 * WORDS + ROW_MAP_LAYER_WORD] = 7
+  ints[0 * ROW_WORDS + ROW_FLAGS_WORD] = FLAG_MASK
+  ints[0 * ROW_WORDS + ROW_MAP_LAYER_WORD] = 3
+  ints[1 * ROW_WORDS + ROW_FLAGS_WORD] = 0
+  ints[1 * ROW_WORDS + ROW_MAP_LAYER_WORD] = 3
+  ints[2 * ROW_WORDS + ROW_FLAGS_WORD] = FLAG_MASK
+  ints[2 * ROW_WORDS + ROW_MAP_LAYER_WORD] = 5
+  ints[3 * ROW_WORDS + ROW_FLAGS_WORD] = FLAG_BLEND_CASTER
+  ints[3 * ROW_WORDS + ROW_MAP_LAYER_WORD] = 7
   const packedRecs = [record(0), record(100, leaves), record(10), record(-20, leaves)]
   return {
     rowCount: 3,

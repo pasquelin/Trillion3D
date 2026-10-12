@@ -1,4 +1,4 @@
-import { DEFAULT_EXPOSURE } from '../../../../../sdk-core/src/scene/core/environment.ts'
+import { environmentExposure } from '../../../../../sdk-core/src/scene/core/environment.ts'
 import { readGpuImage } from '../../../gpu/core/readback.ts'
 import type { VisPage } from '../../../visibility/types.ts'
 import { renderWebgpuPages } from '../render/render.ts'
@@ -23,7 +23,7 @@ export function refreshSceneLights(rt: WebgpuPagesRuntime) {
     lights: lights.store.count,
     view: lights.store.lightingView,
     unlit: lights.store.unlit,
-    exposure: lights.store.environment?.exposure ?? DEFAULT_EXPOSURE,
+    exposure: environmentExposure(lights.store.environment),
   })
 }
 

@@ -3,7 +3,7 @@ import { run } from './run.ts'
 
 /** Every maintained unit test: the one rule `pnpm test` and `check:changed` both read. */
 export function isUnitTest(file: string): boolean {
-  return /^(?:packages|bench|tests|scripts|site\/examples\/kit)\/.*\.test\.(?:ts|mts)$/.test(file)
+  return /^(?:packages|bench|tests|scripts)\/.*\.test\.(?:ts|mts)$/.test(file)
 }
 
 /** The `node --test` flags of a run under `env`. A shard, `TRILLION3D_TEST_SHARD` (`2/3`), which

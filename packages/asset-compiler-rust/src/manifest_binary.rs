@@ -30,23 +30,12 @@ mod preview_tests;
 mod primitive;
 #[cfg(test)]
 mod tests;
+mod version;
 pub use digests::{digests, texture_digests, texture_levels, BakedLevels};
 use format::*;
 #[cfg(test)]
 use tests::split;
-
-/// Every version changes what a column means, so a reader refuses any version but its own; the
-/// history sits beside the reader (`sdk-core/src/manifest/binaryFormat.ts`). Version 8 adds the
-/// page dependencies of the streaming bundles, a count per bundle then the flat closed lists: a
-/// reader of version 7 would install a bundle before the bundles holding its parents. Version 9
-/// adds each page's normal cone (`trillion3d_page_codec::normal_cone`), a column a reader of version 8 lacks.
-/// Version 10 holds one manifest page's columns (`compiler_manifest_pages.rs`), the head's the
-/// previews alone. Version 11 adds the ETC2 family: its block column after ASTC's, and its layout
-/// word in each preview entry.
-pub const MANIFEST_BINARY_VERSION: u32 = 11;
-/// 'W','G','M','B' read as a little-endian u32.
-pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
-const HEADER_WORDS: usize = 4;
+pub use version::*;
 
 const PAGE_BOUNDS: usize = 0;
 const PAGE_SPHERE: usize = 1;
@@ -170,7 +159,7 @@ pub fn columns(
     let preview_bytes = columns[TEXTURE_PREVIEW_PIXELS].bytes.len();
     let [bc7_bytes, astc_bytes, etc2_bytes] =
         TEXTURE_PREVIEW_BLOCKS.map(|column| columns[column].bytes.len());
-    let header_bytes = (HEADER_WORDS + COLUMNS * 2) * 4;
+    let header_bytes = (MANIFEST_BINARY_HEADER_WORDS + COLUMNS * 2) * 4;
     let mut offsets = [0u32; COLUMNS];
     let mut offset = header_bytes.next_multiple_of(8);
     for index in 0..COLUMNS {
@@ -183,7 +172,7 @@ pub fn columns(
     bytes[4..8].copy_from_slice(&MANIFEST_BINARY_VERSION.to_le_bytes());
     bytes[8..12].copy_from_slice(&(COLUMNS as u32).to_le_bytes());
     for index in 0..COLUMNS {
-        let at = (HEADER_WORDS + index * 2) * 4;
+        let at = (MANIFEST_BINARY_HEADER_WORDS + index * 2) * 4;
         bytes[at..at + 4].copy_from_slice(&offsets[index].to_le_bytes());
         bytes[at + 4..at + 8].copy_from_slice(&(columns[index].bytes.len() as u32).to_le_bytes());
         let start = offsets[index] as usize;

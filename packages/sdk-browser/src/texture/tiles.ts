@@ -4,6 +4,7 @@ import {
   previewLastLevel,
   previewLevelSize,
 } from '../../../sdk-core/src/index.ts'
+import { TILE_BORDER, TILE_SIZE } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 
 /**
@@ -27,8 +28,7 @@ import { textureLimits } from '../gpu/core/textureLimits.ts'
  * prepare. A missing streamed tile therefore always shows at least the tail — the same
  * pyramid the sidecar already carries in the manifest.
  */
-export const TILE_SIZE = 128
-export const TILE_BORDER = 4
+export { TILE_BORDER, TILE_SIZE }
 export const TILE_PITCH = TILE_SIZE + 2 * TILE_BORDER
 const TILES_PER_ROW = 30
 /**
@@ -49,16 +49,13 @@ export const poolLayerBytes = (texelBytes: number) => POOL_LAYER_SIDE * POOL_LAY
 /** Most levels a texture may have: 2^15 texels a side, the device limit. */
 export const MAX_LEVELS = 16
 
-/** Dimensions of a texture's `level`, never less than one texel per side. */
-export const levelSize = previewLevelSize
-
 /** Full mip chain length for a texture of the given size, down to 1×1: both GPU paths' chains. */
 export const mipLevelCountFor = (width: number, height: number) =>
   previewLastLevel(width, height) + 1
 
 /** Tiles of a streamed level, columns then rows. */
 export function tilesAt(width: number, height: number, level: number): [number, number] {
-  const [w, h] = levelSize(width, height, level)
+  const [w, h] = previewLevelSize(width, height, level)
   return [ceilDiv(w, TILE_SIZE), ceilDiv(h, TILE_SIZE)]
 }
 

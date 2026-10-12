@@ -44,7 +44,7 @@ export function libraryRedeclarations(
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const found = libraryRedeclarations(sourceFilesOf(/\.(?:[cm]?ts|tsx)$/))
+  const found = libraryRedeclarations(sourceFilesOf(/\.[cm]?ts$/))
   for (const line of found)
     console.error(`${line} is the WGSL library's: list its declaration instead of writing it`)
   if (found.length) process.exitCode = 1

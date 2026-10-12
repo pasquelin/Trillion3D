@@ -125,3 +125,25 @@ const REFERENCE_RGB: [[u8; 3]; 8] = [
     [16, 49, 239],
     [132, 239, 66],
 ];
+
+/// The sixteen reference pixels of the TGA and DDS fixtures, top row first: opaque, partial and
+/// zero alpha, so the slightest clipping of the channel shows. The TGA fixtures are their own
+/// 4 × 2 image, the first eight; the DDS surfaces are 4 × 4.
+const REFERENCE_RGBA: [[u8; 4]; 16] = [
+    [255, 0, 0, 255],
+    [0, 255, 0, 128],
+    [0, 0, 255, 255],
+    [255, 255, 0, 64],
+    [0, 0, 0, 0],
+    [255, 255, 255, 255],
+    [17, 34, 51, 68],
+    [200, 100, 50, 150],
+    [10, 20, 30, 40],
+    [240, 230, 220, 210],
+    [1, 2, 3, 4],
+    [250, 251, 252, 253],
+    [128, 128, 128, 128],
+    [0, 128, 255, 32],
+    [255, 128, 0, 224],
+    [64, 96, 128, 160],
+];

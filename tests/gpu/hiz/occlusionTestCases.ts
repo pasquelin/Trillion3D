@@ -23,6 +23,8 @@ const LEVEL = 2
 // the box's nearest point at 0.3 lies behind it.
 const OCCLUDER_DEPTH = 0.6
 export const BOX_NEAREST = 0.3
+/** Bytes of the tests' uniform block, bound at a dynamic offset. */
+export const UNIFORM_BYTES = 256
 
 export interface OcclusionCase {
   name: string

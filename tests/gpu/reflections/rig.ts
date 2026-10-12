@@ -20,10 +20,14 @@ import { PROXY_HEADER_BYTES } from '../../../packages/sdk-browser/src/bounce/siz
 import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts'
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
 import { createDeferredView } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
-import { createSceneLightContractBuffer } from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts'
+import {
+  createSceneLightContractBuffer,
+  uploadSceneLights,
+} from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
 import { TONE_MAPPING_RANK } from '../../../packages/sdk-core/src/scene/core/environment.ts'
 import { invertMatrix4 } from '../../../packages/math/src/matrix/matrix4Inverse.ts'
+import type { WebgpuLightState } from '../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { halves, type RigFrame } from './rigFrame.ts'
 
@@ -67,8 +71,11 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   write(hdr, halves(frame.radiance), 8)
   write(hiz.level0, frame.depth, 4)
   if (frame.lobes) write(lobes, frame.lobes, 16)
-  const lights = createSceneLightContractBuffer(device, createSceneLightStore())
-  const reflection = createScreenReflection(device, width, height)
+  const store = createSceneLightStore()
+  if (frame.environment) store.setEnvironment({ exposure: 1, irradiance: frame.environment })
+  const lights = createSceneLightContractBuffer(device, store)
+  uploadSceneLights(device, { store, buffer: lights, uploadedEpoch: -1 } as WebgpuLightState)
+  const reflection = createScreenReflection(device, width, height, true)
   const inverse = new Float64Array(16)
   invertMatrix4(inverse, frame.viewProjection)
   // The lighting's view of the image: the eye, the background, an exposure of one, no display

@@ -16,6 +16,7 @@ import { selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layo
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { residentAll } from '../../../packages/sdk-browser/src/gpu/dag/residentAll.fixture.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { readBuffer } from '../kit/computeReadback.ts'
 import { sceneView } from './cutScene.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
@@ -71,10 +72,6 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
     if (!resources) return undefined
     // Every page resident: the cut draws every page it wants.
     residentAll(resources)
-    const readback = device.createBuffer({
-      size: resources.readbackBytes,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    })
     const cuts = []
     for (const pixelError of pixelErrors) {
       const block = new Float32Array(DAG_UNIFORM_BYTES / 4)
@@ -82,16 +79,13 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
       device.queue.writeBuffer(resources.uniforms, 0, block)
       const encoder = device.createCommandEncoder()
       encodeDagKernels(encoder, resources)
-      encoder.copyBufferToBuffer(resources.output, 0, readback, 0, resources.readbackBytes)
       device.queue.submit([encoder.finish()])
-      await readback.mapAsync(GPUMapMode.READ)
       const result = parseDagOutput(
-        readback.getMappedRange(),
+        (await readBuffer(device, resources.output, 0, resources.readbackBytes)).buffer,
         0,
         resources.readbackBytes,
         resources.outputBytes / 4,
       )
-      readback.unmap()
       if (!result) throw new Error('unreadable output')
       cuts.push({
         pixelError,
@@ -101,7 +95,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
       })
     }
     const parts = { nodes: resources.nodeParts.buffers.length, flags: resources.flagParts.length }
-    for (const buffer of [...resources.buffers, readback]) buffer.destroy()
+    for (const buffer of resources.buffers) buffer.destroy()
     return { ranges: resources.ranges.length, parts, cuts }
   }
   const whole = await cut(device)

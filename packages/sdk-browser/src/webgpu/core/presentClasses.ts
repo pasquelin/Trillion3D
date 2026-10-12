@@ -1,4 +1,4 @@
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/buffer.ts'
 import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { rowsMoved, type RowsReading } from '../row/dirty.ts'
 
@@ -24,11 +24,10 @@ export function markPresentClasses(
   writes: number,
 ) {
   if (!rowsMoved(into.read, ints, packedCount, writes)) return into.keys
-  const stride = PAGE_INFO_STRIDE / 4,
-    stamp = ++into.stamp
+  const stamp = ++into.stamp
   into.keys.length = 0
   for (let row = 0; row < packedCount; row++) {
-    const key = ints[row * stride + ROW_MATERIAL_CLASS_WORD]
+    const key = ints[row * ROW_WORDS + ROW_MATERIAL_CLASS_WORD]
     if (into.stamps[key] === stamp) continue
     into.stamps[key] = stamp
     into.keys.push(key)

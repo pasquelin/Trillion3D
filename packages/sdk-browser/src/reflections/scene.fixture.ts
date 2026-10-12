@@ -3,11 +3,11 @@
 // of boxes seen by a camera (`boxes.fixture.ts`).
 import { Mat, shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { HIZ_NEAREST } from '../gpu/hiz/pyramidTexture.ts'
-import { depthField, type DepthField } from './depthField.fixture.ts'
+import { depthField, depthLoads, HIZ_DEPTH_READERS, type DepthField } from './depthField.fixture.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
 import { reflectionLightViewWgsl, REFLECTION_GROUP } from './viewLayout.ts'
-import { slabWords } from './slab.fixture.ts'
+import { screenSlab } from '../gpu/hiz/screenSlab.ts'
+import { reflectionConstant } from './constants.fixture.ts'
 import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
 
 type Seen = { color: number[]; confidence: number }
@@ -23,8 +23,7 @@ type ReflectionView = {
   surroundings: number[]
 }
 /** The views of a still view: the reflection's own (`ReflectionView`, its radiance image the
- *  depth's own) and the deferred lighting's (`View`: the pixel's world point, the eye, the drawn
- *  size). */
+ *  depth's own) and the deferred lighting's (the pixel's world point, the eye, the drawn size). */
 type Views = { reflectionView: ReflectionView; view: object }
 export function viewOf(
   m: Iterable<number>,
@@ -37,7 +36,7 @@ export function viewOf(
       viewProj: new Mat([...m]),
       radianceViewProj: new Mat([...m]),
       radiance: [size[0], size[1], Math.ceil(Math.log2(Math.max(size[0], size[1]))), 0],
-      slab: slabWords([...m], [size[0], size[1]]),
+      slab: screenSlab([...m], size[1]),
       traced: [1, 0, 0, 0],
       proxy: [0, 0, 0, 0],
       surroundings: [0, 0, 0, 0],
@@ -52,10 +51,10 @@ export function viewOf(
 
 /**
  * The shipped reflection functions over the depth `depth` and the view uniform `reflectionView`:
- * a read of the radiance image gives, as its colour, the point it reads and the level,
- * `[x, y, level, 1]` — the footprint's colour is their weighted mean —; `counter`
- * counts the cells the march reads (one load of the nearest layer each: a cell's nearest, or a
- * pixel's slopes) and lists the reads; `overrides` stand in for shipped functions.
+ * a read of the radiance image gives, as its colour, the point it reads and the level, `[x, y,
+ * level, 1]` — the footprint's colour is their weighted mean —; `counter` counts the cells the
+ * march reads (one load of the nearest layer each: a cell's nearest, or a pixel's slopes) and lists
+ * the reads; `overrides` stand in for shipped functions.
  */
 export function reflectionRunner(
   depth: DepthField,
@@ -63,18 +62,20 @@ export function reflectionRunner(
   overrides: object = {},
 ) {
   const counter = { loads: 0, taps: [] as number[][], cells: [] as number[][] }
-  const token = { depth: {}, pyramid: {}, radiance: {} }
+  const token = { depth: {}, pyramid: {}, front: {}, radiance: {} }
   const run = shaderRun<{
     reflectionLobeOf: (R: V3, alpha: number, lobe: number[]) => Lobe
     reflectionSeen: (P: V3, N: V3, lobe: Lobe) => Seen
     reflectionRay: (P: V3, N: V3, lobe: Lobe) => { o: number[]; d: number[]; end: number }
-    reflectionMarch: (
+    screenMarch: (
       o: number[],
       d: number[],
       end: number,
-    ) => { t: number; plane: number[]; pixel: number[]; into: number }
-    reflectionScreenEnd: (o: number[], d: number[], size: number[]) => number
-    reflectionBudget: (d: number[], end: number, levels: number) => number
+      thickness: number,
+      slab: number[],
+    ) => { t: number; plane: number[]; pixel: number[]; front: boolean }
+    screenMarchEnd: (o: number[], d: number[], size: number[]) => number
+    screenMarchBudget: (d: number[], end: number, levels: number) => number
     reflectionConeAt: (distance: number, pixel: number, lobe: Lobe) => Cone
     reflectionFootprint: (
       Q: number[],
@@ -99,19 +100,11 @@ export function reflectionRunner(
       'reflectionLevelColor',
       'reflectionDepthWeight',
       'reflectionRay',
-      'reflectionMarch',
-      'hizPlane',
-      'hizCell',
-      'hizLevelCount',
-      'hizCullFarthest',
-      'hizNearest',
-      'hizWholeFarthest',
-      'hizSlice',
-      'hizTexel',
-      'reflectionScreenEnd',
-      'reflectionBack',
-      'reflectionBudget',
-      'reflectionHitNormal',
+      'screenMarch',
+      ...HIZ_DEPTH_READERS,
+      'screenMarchEnd',
+      'screenBack',
+      'screenMarchBudget',
       'worldAt',
       'viewToEye',
       'reflectionLevelTrust',
@@ -123,6 +116,7 @@ export function reflectionRunner(
       view,
       hizDepth: token.depth,
       hizPyramid: token.pyramid,
+      hizFront: token.front,
       hizLevels: depth.levels,
       reflectionRadiance: token.radiance,
       reflectionSampler: {},
@@ -134,11 +128,11 @@ export function reflectionRunner(
         widths,
       }),
       ReflectionRay: (o: number[], d: number[], end: number) => ({ o, d, end }),
-      ReflectionHit: (t: number, plane: number[], pixel: number[], into: number) => ({
+      ScreenHit: (t: number, plane: number[], pixel: number[], front: boolean) => ({
         t,
         plane,
         pixel,
-        into,
+        front,
       }),
       ReflectionCone: (short: number, long: number, level: number) => ({ short, long, level }),
       ReflectionTaps: (color: number[], weight: number) => ({ color, weight }),
@@ -148,14 +142,10 @@ export function reflectionRunner(
         thickness,
       }),
       textureDimensions: () => [reflectionView.radiance[0], reflectionView.radiance[1]],
-      textureLoad: (t: object, cell: number[], layer: number) => {
-        if (t === token.depth) return [depth.depthAt(cell)]
-        if (depth.layerOf(cell, layer) === HIZ_NEAREST) {
-          counter.loads++
-          counter.cells.push(cell)
-        }
-        return [depth.word(cell, layer)]
-      },
+      textureLoad: depthLoads(depth, token, (cell) => {
+        counter.loads++
+        counter.cells.push(cell)
+      }),
       textureSampleLevel: (_: unknown, __: unknown, uv: number[], level: number) => {
         const tap = [
           uv[0] * reflectionView.radiance[0],
@@ -169,7 +159,13 @@ export function reflectionRunner(
       ...overrides,
     },
   )
-  return { ...run, counter, levels: depth.levels.count[0] }
+  return {
+    ...run,
+    counter,
+    levels: depth.levels.count[0],
+    slab: reflectionView.slab,
+    thickness: reflectionConstant('REFLECTION_THICKNESS'),
+  }
 }
 
 /** The depth `depth` seen by `view`, and its views: what the shipped reflection runs over. */
@@ -180,8 +176,7 @@ export function sceneFromDepth(view: Camera, depth: ArrayLike<number>) {
   ] as const
 }
 
-/** A still view of `boxes` from `view`: its depth, which box each pixel shows, and the shipped
- *  reflection over it. */
+/** A still view of `boxes` from `view`: its depth, the box each pixel shows, the shipped reflection. */
 export function sceneOver(view: Camera, boxes: Box[]) {
   const { depth, shown } = rasterize(view, boxes)
   return { depth, shown, ...reflectionRunner(...sceneFromDepth(view, depth)) }

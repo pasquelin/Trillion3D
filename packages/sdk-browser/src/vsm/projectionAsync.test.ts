@@ -4,6 +4,7 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
 import { encodeVirtualShadowProjection, type VsmProjectionLight } from './projectionPass.ts'
 import { camera, sun } from './projectionScene.fixture.ts'
+import { fakeHizDepth } from './hizDepth.fixture.ts'
 
 const view = {} as GPUTextureView
 const lamp: VsmProjectionLight = {
@@ -42,6 +43,7 @@ test('a new light mix compiles off the frame while the twin projects; no frame s
       {
         device,
         depth: view,
+        hizDepth: fakeHizDepth,
         normalRough: view,
         flags: view,
         mask: view,

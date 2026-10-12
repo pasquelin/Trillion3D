@@ -1,4 +1,4 @@
-import { levelSize } from '../../texture/tiles.ts'
+import { previewLevelSize } from '../../../../sdk-core/src/index.ts'
 import type { HeldLevels, LevelFailed } from '../../texture/heldLevels.ts'
 import type { PoolEncoding } from '../../texture/blockFormats.ts'
 import { writeTileFromBlocks } from './writeBlocks.ts'
@@ -20,7 +20,7 @@ type Baked = Extract<TileTexture['source'], { kind: 'baked' }>
 /** The pool a tile of `key` lands in, its level's size and its region in it. */
 function tileTarget(atlas: WebgpuTileAtlas, key: TileKey) {
   const { layout } = atlas.textures[key.slot]
-  const size = levelSize(layout.width, layout.height, key.level)
+  const size = previewLevelSize(layout.width, layout.height, key.level)
   const region = tileRegion(size[0], size[1], key.tx, key.ty)
   return { pool: atlas.poolOf(key.slot).texture, size, region }
 }

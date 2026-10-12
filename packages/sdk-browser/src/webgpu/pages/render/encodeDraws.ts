@@ -1,5 +1,5 @@
 import { requestFrameTargets } from '../prepare/targetGrant.ts'
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../../visibility/buffer.ts'
 import { projectedPageError, rootOf } from '../../../page/selection/selection.ts'
 import { screenErrorRatio } from '../../../diagnostic/colors.ts'
 import { viewProj } from '../helpers.ts'
@@ -62,11 +62,10 @@ export function followRows(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engin
   timing.encodeCounts.itemsUploaded = 0
   ensurePageTable(rt, device)
   if (run.diagnostic === 'screen-error' && rows.pageTableFloats) {
-    const rowWords = PAGE_INFO_STRIDE / 4
     for (let row = 0; row < rows.packedCount; row++) {
       const rec = rows.packedRecs[row]
       if (!rec) continue
-      rows.pageTableFloats[row * rowWords + 56] = screenErrorRatio(
+      rows.pageTableFloats[row * ROW_WORDS + 56] = screenErrorRatio(
         projectedPageError(
           rec,
           rootOf(

@@ -4,6 +4,7 @@
 //! copy: it creates them. Each array goes into the binary through an aligned view, and the
 //! accessor that names it carries the bounds glTF requires of positions.
 use super::*;
+use crate::import::{borrowed_tables, Converted};
 use crate::plugins::scene::{scene_output_fields, SceneOutput};
 use trillion3d_math::aabb::aabb_of_f32;
 
@@ -119,37 +120,16 @@ impl SceneOutput for Out {
             .iter()
             .filter(|node| node.get("mesh").is_some())
             .count();
-        let document = Tables {
-            nodes: &self.nodes,
-            meshes: &self.meshes,
-            materials: &self.materials,
-            accessors: &self.accessors,
-            images: &self.images,
-            samplers: &self.samplers,
-            textures: &self.textures,
-            bin: &self.bin,
+        Converted {
+            tables: borrowed_tables!(self),
+            roots: &self.roots,
+            lights: &self.lights,
+            report: &self.report,
+            counts: &self.counts,
+            files: self.files.clone(),
+            stats: (mesh_nodes, self.triangles),
         }
-        .document(plugin, &self.roots);
-        let mut document = document;
-        crate::import::attach_lights(&mut document, &self.lights);
-        let gltf = serde_json::to_vec(&document)?;
-        write_scene(
-            directory,
-            &gltf,
-            &self.bin,
-            (mesh_nodes, self.triangles),
-            &self.report,
-            || {
-                json!({
-                    "plugin": crate::plugins::provenance(plugin),
-                    "path": source.to_string_lossy(), "files": self.files, "counts": self.counts,
-                    "meshes": self.meshes.len(), "materials": self.materials.len(),
-                    "images": self.images.len(),
-                    "importMs": started.elapsed().as_secs_f64() * 1000.0,
-                })
-            },
-        )?;
-        Ok(directory.to_path_buf())
+        .write(plugin, directory, source, started)
     }
 }
 

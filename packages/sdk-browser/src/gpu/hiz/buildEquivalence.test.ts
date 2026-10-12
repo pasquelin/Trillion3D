@@ -1,10 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HIZ_NEAREST_BUILD, HIZ_SHADER } from './shader.ts'
-import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS, hizBuildPasses } from './uniforms.ts'
-
-/** The deepest pyramid the camera builds (`uniforms.ts`, the passes' default). */
-const HIZ_MAX_LEVELS = 16
+import { HIZ_BUILD_SIDE as S, HIZ_MAX_LEVELS, HIZ_PASS_LEVELS, hizBuildPasses } from './uniforms.ts'
 import { buildAfter, buildBefore, layout, lcg, type Scene } from './buildTranscripts.fixture.ts'
 import { hizLevelSizes } from './levelSizes.ts'
 
@@ -97,7 +94,7 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   const build = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn hizSource'))
   for (const line of [
     'if(uni.a!=0u){return hizLoadBound(i);}',
-    `if(${HIZ_NEAREST_BUILD}){return vec2f(hizPlaneNearest(i,q,depth),depth);}`,
+    `if(${HIZ_NEAREST_BUILD}){return hizPlaneCorners(i,q,hizFrontAt(q));}`,
     'if(uni.d>0u){hizPutBound(uni.dst[0].x+y*uni.dst[0].y+x,bound);}',
     `for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){`,
     `bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${S}u],hizTile[i+dy*${S}u+dx],dx,dy);`,
@@ -106,4 +103,15 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   ])
     assert.ok(build.includes(line), line)
   assert.equal(build.match(/workgroupBarrier\(\);/g)?.length, 2, 'read, barrier, write, barrier')
+  // The culling layer is the opaque depth alone: a transparent surface in front must never hide
+  // what lies behind it from the occlusion test, the partition's cull or the transparent test.
+  assert.match(
+    build,
+    /let depth=textureLoad\(level0,q,0\)\.r;\s*hizPut\(i,\d+u,bitcast<u32>\(depth\)\);/,
+  )
+  assert.equal(
+    HIZ_SHADER.match(/hizFrontAt\(/g)?.length,
+    3,
+    'its definition, the nearest build and the plane neighbours it reads: no other',
+  )
 })

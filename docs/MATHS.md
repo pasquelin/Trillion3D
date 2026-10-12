@@ -19,13 +19,12 @@ imports it. Its contract:
   arithmetic (`multiply`, `min`, `addScalar`) stays.
 
 Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`, `half` — the
-float16 encode and decode), `vector/` (with `spherical.ts`, and `lengthFloat32.ts`, the length
-rounded in float32 as the GPU computes it),
+float16 encode and decode), `vector/` (with `spherical.ts`),
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
 spheres, cones, slabs, triangles, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal
 and pixel scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
 reversed-depth projections down +z of a light's shadow map; `projectionOracles.ts`), `color/`,
-`scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest and floor ranks, the median and the mean;
+`scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest and floor ranks, the one median (the nearest rank at 0.5) and the mean;
 `search.ts`, the binary searches; `hermite.ts`), `sequence/`
 (`halton.ts`; `random.ts`, the seeded generators, twins of the Rust crate's `random.rs`;
 `sweep.fixture.ts`, the Halton sweep and edge values every rewrite proof runs its old expression
@@ -71,9 +70,8 @@ The declared exceptions, each held to bits the rule would change:
   outline's closing point dropped at a gap under 1e-12, where the rule's root would decide a gap
   within an ulp of 1e-12 the other way and change the triangulation (`shapeClose.test.ts`);
   `spriteRow` of `packages/sdk-browser/src/world/core/worldPoses.ts`, where a uniform scale's two
-  axis lengths must round alike; and the generators whose published files hold the builtin's bits,
-  the normals of `scripts/docs/garden-source.ts` (`hypot3`) and the sun's rotation of
-  `scripts/docs/observatory/write.ts` (`hypot4`).
+  axis lengths must round alike; and the generator whose committed files hold the builtin's bits,
+  the normals of `scripts/fixtures/garden-source.ts` (`hypot3`).
 - The plain root without the band, the twin of the Rust vectors (`packages/math/rust/src/vec2.rs`,
   `vec3.rs`): `plainLength3` and `plainLength2` (`vector/vector.ts`), `Math.sqrt` of the three (two) squares
   summed left to right, the rule of every TypeScript twin of a Rust function; `clusterErrorAtDepth` and
@@ -84,14 +82,11 @@ The declared exceptions, each held to bits the rule would change:
 - A division by the length to normalise, which keeps each component correctly rounded:
   `normalizeQuaternion`, whose Kahan sum of the four squares, `hypot4` outside `2^-900..2^900`
   and division are held to `normalize` of `packages/page-codec-wasm/src/anim.rs`, the animation
-  sampler's twin; the octahedral decoder of `packages/sdk-browser/src/page/codec/pageFields.ts`, a float32
-  twin of the Rust codec's (`length3Float32`, then each component divided); the bend axis of
+  sampler's twin; the bend axis of
   `ik.ts`, for the reason of its length; `normalized` of
   `packages/sdk-core/src/scene/light/validate.ts`, a light direction divided by its `hypot3`,
   because the validated direction feeds the shadow clipmap's own normalise and basis in double and
-  the rule's product differs from that quotient in the last bit on about two directions in three;
-  and `snapped()` of `scripts/docs/examples/mesh.ts`, whose published meshes hold the divide's bits
-  (the doc generators' divides are `divideVector3`).
+  the rule's product differs from that quotient in the last bit on about two directions in three.
 
 ### The WGSL library
 
@@ -186,8 +181,9 @@ or batch, follows these conventions:
   `decomposeMatrix4` — returns nothing, and its row says so. A call on a per-frame path allocates
   nothing. `outAt`/`aAt` offsets let one large buffer hold many operands. A batch returns a count
   as its only value and repeats the formula of its unit function, which stays the oracle. The clone check
-  (`check:duplicates`) skips `batch/` for that reason, and the before-forms a rewrite is proved
-  against (`*Before.fixture.ts`), which copy the code they replace on purpose.
+  (`check:duplicates`) skips only the regions marked `jscpd:ignore`, each one a loop that keeps
+  its values in registers, with its measurement beside it; a rewrite is proved against its
+  before-form while it lands, and the before-form is deleted with that proof.
 - **`Float64Array` for what is computed**, `ArrayLike<number>` for what is only read: a host
   matrix, a plain array or a `Float32Array` enters as-is; a batch writes flags into a `Uint8Array`.
 - **Layout.** One element occupies a fixed number of consecutive values, each declared once:
@@ -272,8 +268,13 @@ golden:write` rewrites them all, the command each file names.
 
 - TypeScript reader: `packages/math/src/golden.fixture.ts` (`assertGolden`).
 - TypeScript twins: `matrix4.golden.test.ts`, `hypot.golden.test.ts`, `trig.golden.test.ts`,
-  `quaternion.golden.test.ts` (`packages/math/src/`), `sample.golden.test.ts`
-  (`packages/sdk-core/src/world/animation/`), `pageFields.golden.test.ts` (`packages/sdk-browser/src/page/codec/`).
+  `quaternion.golden.test.ts`, `reals.golden.test.ts` (`interpolation.json`: `lerp`, `mix`),
+  `vector.golden.test.ts` (`vec3_unit.json`: `normalizeVector3`, in the normal band),
+  `sphere.golden.test.ts` (`sphere_union.json`) (`packages/math/src/`). The remaining Rust
+  primitives (`remap`, `unit_to_byte`, Euler composition, box growth, the triangle's closest point)
+  have no TypeScript twin: the compiler alone uses them, so no golden holds them.
+- The page decoder has no TypeScript twin: `decodeGeometryPage` calls the Rust one in the SDK module.
+- Single numbers, `packages/math/golden`: `mip_size` (TypeScript `mipSize`, WGSL `mipSize` through `mipSize.golden.test.ts` of `packages/sdk-browser/src/gpu/shader/`), `srgb_to_linear`, `hermite_basis`, `xorshift32`, `lcg32`; `preview_levels` (`previewLevels.golden.test.ts` of `packages/sdk-core/src/texture/`).
 - WebAssembly twin: `packages/sdk-browser/src/page/decode/batch/multiplyBatch.golden.test.ts`.
 - The proxy BVH child box and albedo bytes are read by WGSL alone (`nodeWgsl.ts`): no CPU twin.
 - The grid rule has no TypeScript twin: the run-time cut runs the Rust rule in the SDK module
@@ -292,11 +293,9 @@ the witness calls are the migration table.
 
 ### Unit functions
 
-Each unit function's page in the portal's [API reference](https://www.trillion3d.com/#/en/api) gives
-what it computes, the witness call it replaces, its proof and ratio, written once in
-`site/content/entries/` (`matrix.ts`, `vector.ts`, `camera.ts`). The functions live in
-`packages/math/src/matrix/` (matrices), `packages/math/src/vector/` and
-`packages/math/src/color/` (vectors, colours), `packages/math/src/projection/` (camera frame) and `packages/sdk-browser/src/camera/` (the engine camera).
+The functions live in `packages/math/src/matrix/` (matrices), `packages/math/src/vector/` and
+`packages/math/src/color/` (vectors, colours), `packages/math/src/projection/` (camera frame) and
+`packages/sdk-browser/src/camera/` (the engine camera).
 
 The engine does not read the host's clip-depth convention. It composes its own projection from the
 declared optics — field, aspect, near plane, zoom — in **reversed depth with an infinite far

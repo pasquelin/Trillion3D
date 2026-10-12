@@ -1,6 +1,6 @@
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
 import { VIS_UNIFORM } from '../../visibility/shader/uniformLayout.ts'
 import { uniformSlots, uniformStride, type UniformSlots } from '../../residency/pools.ts'
-import { POOL_LANES } from '../../texture/blockFormats.ts'
 
 /**
  * Binding numbers of the four WebGPU-path layouts, the single source of truth: the layout
@@ -9,11 +9,11 @@ import { POOL_LANES } from '../../texture/blockFormats.ts'
  * once, never on one alone — the defect merging lots 1 and 2 cost.
  */
 
-/** Four bindings of a virtual-texture atlas: one pool per lane, in `POOL_LANES` order, then its
+/** Four bindings of a virtual-texture atlas: one pool per lane, in `PREVIEW_LAYOUT_NAMES` order, then its
  *  page table. */
 const atlas = (base: number) => ({
-  lanes: POOL_LANES.map((_, index) => base + index),
-  pages: base + POOL_LANES.length,
+  lanes: PREVIEW_LAYOUT_NAMES.map((_, index) => base + index),
+  pages: base + PREVIEW_LAYOUT_NAMES.length,
 })
 export type AtlasBindings = ReturnType<typeof atlas>
 

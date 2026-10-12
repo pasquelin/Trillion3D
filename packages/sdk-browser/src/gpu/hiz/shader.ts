@@ -21,6 +21,7 @@ import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 import { SURFACE_SLOPE_WGSL } from '../../lighting/deferred/footprintWgsl.ts'
 import {
   HIZ_CULL_FARTHEST,
+  HIZ_FOLD_WGSL,
   HIZ_FORMAT,
   HIZ_NEAREST,
   HIZ_TEXEL_WGSL,
@@ -45,6 +46,7 @@ export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] 
     computeBufferEntry(3, 'read-only-storage'),
     computeBufferEntry(4, 'storage'),
     computeBufferEntry(5, 'storage'),
+    computeTextureEntry(6, 'unfilterable-float'),
   ]
 }
 
@@ -83,8 +85,10 @@ export const HIZ_NEAREST_BUILD = 'HIZ_NEAREST_BUILD'
  *    finished one's: a bound every reader can trust. The occlusion test below, the partition's
  *    main-pass cull and the transparent test read it; the readers of the whole depth read its
  *    coarser levels, and level 0 in its own texture, which then holds the depth whole.
- *  - the WHOLE-DEPTH FARTHEST layer, levels 1 and up: the same reduction of the FINISHED depth, built
- *    in the same pass and by the same kernel as the nearest layer (`encodeNearest`). The occluders'
+ *  - the WHOLE-DEPTH FARTHEST layer, levels 1 and up: the same reduction of the FINISHED depth's
+ *    planes — the farthest corner of each pixel's plane (`hizPlaneCorners`), so that it holds the
+ *    whole of every pixel, not its centre alone —, built in the same pass and by the same kernel
+ *    as the nearest layer (`encodeNearest`). The occluders'
  *    depth is the farthest of two images of the same pixel, so its farthest is behind this one's,
  *    and a bound that says a cell lies entirely in front of a ray needs the finished image's.
  *  - the NEAREST layer: level 0 each pixel's plane through its depth — its two slopes in depth per
@@ -92,7 +96,9 @@ export const HIZ_NEAREST_BUILD = 'HIZ_NEAREST_BUILD'
  *    that two halves keep them at every distance —, each coarser texel the nearest — the MAXIMUM —
  *    of the four below it, level 1 of the nearest corner of each pixel's plane, half the slopes'
  *    sum in front of its depth. Built once the whole depth is drawn (`encodeNearest`), for the
- *    readers of the whole depth (`hizDepthWgsl`): a cell's two bounds, its plane at a pixel.
+ *    readers of the whole depth (`hizDepthWgsl`): a cell's two bounds, its plane at a pixel. Both
+ *    reduce the depth with the nearest transparent surface's folded in (`Pyramid.front`): the one
+ *    pyramid holds every surface a ray can meet.
  *
  * Per image of N pixels: the culling build reads level 0 once and writes 4N/3 words, the nearest
  * reads nine texels of level 0 a pixel — its plane's neighbours, cached — and writes 4N/3 words
@@ -125,6 +131,7 @@ struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fin
 @group(0) @binding(3) var<storage, read> bounds:array<Bounds>;
 @group(0) @binding(4) var<storage, read_write> flags:array<u32>;
 @group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
+@group(0) @binding(6) var front:texture_2d<f32>;
 @group(1) @binding(0) var<storage, read> pages:array<PageInfo>;
 @group(1) @binding(1) var<storage, read_write> testArgs:array<u32>;
 var<workgroup> hizTile:array<vec2f,${S ** 2}>;
@@ -147,14 +154,21 @@ fn hizPutBound(i:u32,bound:vec2f){
  hizPut(i,hizLayer(),bitcast<u32>(bound.x));
  if(${HIZ_NEAREST_BUILD}){hizPut(i,${HIZ_WHOLE_FARTHEST}u,bitcast<u32>(bound.y));}
 }
+/** The depth of the nearest build at \`q\`: the opaque depth, or the nearest transparent surface's
+ *  (\`front\`, a depth a pixel, zero for none) where it lies in front: reverse-Z, the larger. A pixel without one reads the opaque depth, bit for bit. */
+fn hizFrontAt(q:vec2i)->f32{
+ return hizFold(level0,front,q);
+}
 /** The depth at \`q\` of level 0, clamped to the drawn size. */
 fn hizDepthAt(q:vec2i)->f32{
- return textureLoad(level0,clamp(q,vec2i(0),vec2i(vec2u(uni.b,uni.c))-vec2i(1)),0).r;
+ return hizFrontAt(clamp(q,vec2i(0),vec2i(vec2u(uni.b,uni.c))-vec2i(1)));
 }
-/** The nearest corner of the plane of the pixel \`q\` of depth \`z\`, its slopes written at \`i\`
- *  of the nearest layer: relative to its depth, two halves; the corner from the halves the readers
- *  unpack (\`hizPlane\`), so that a level-1 bound holds every plane a reader sees. */
-fn hizPlaneNearest(i:u32,q:vec2i,z:f32)->f32{
+/** The nearest and the farthest corner of the plane of the pixel \`q\` of depth \`z\`, its slopes
+ *  written at \`i\` of the nearest layer: relative to its depth, two halves; the corners from the
+ *  halves the readers unpack (\`hizPlane\`), so that a level-1 bound holds every plane a reader
+ *  sees, over the whole of its pixel — not only at its centre: a plane steeper than a slab is
+ *  thick leaves the centre's depth behind at the pixel's far edge. */
+fn hizPlaneCorners(i:u32,q:vec2i,z:f32)->vec2f{
  let x=vec2i(1,0);let y=vec2i(0,1);
  let slopes=vec2f(
   surfaceSlopeOf(z,hizDepthAt(q-x),hizDepthAt(q+x),hizDepthAt(q-x*2),hizDepthAt(q+x*2)),
@@ -162,7 +176,8 @@ fn hizPlaneNearest(i:u32,q:vec2i,z:f32)->f32{
  let word=pack2x16float(select(vec2f(0.0),slopes/z,z>0.0));
  hizPut(i,${HIZ_NEAREST}u,word);
  let s=unpack2x16float(word)*z;
- return z+0.5*(abs(s.x)+abs(s.y));
+ let half=0.5*(abs(s.x)+abs(s.y));
+ return vec2f(z+half,max(z-half,0.0));
 }
 /** A texel of the pass's source level at \`at\`, its pair of bounds: when the source sits at offset
  *  zero, the level-0 texture — copied into the culling layer on the way, or its plane written into
@@ -171,8 +186,8 @@ fn hizSource(at:u32,x:u32,y:u32)->vec2f{
  let i=at+y*uni.b+x;
  if(uni.a!=0u){return hizLoadBound(i);}
  let q=vec2i(i32(x),i32(y));
+ if(${HIZ_NEAREST_BUILD}){return hizPlaneCorners(i,q,hizFrontAt(q));}
  let depth=textureLoad(level0,q,0).r;
- if(${HIZ_NEAREST_BUILD}){return vec2f(hizPlaneNearest(i,q,depth),depth);}
  hizPut(i,${HIZ_CULL_FARTHEST}u,bitcast<u32>(depth));
  return vec2f(depth);
 }
@@ -268,6 +283,7 @@ fn testBox(i:u32){
     STATE_TALLY_WGSL,
     HIZ_HIDES_WGSL,
     HIZ_TEXEL_WGSL,
+    HIZ_FOLD_WGSL,
     SURFACE_SLOPE_WGSL,
   ],
 )
