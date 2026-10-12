@@ -14,7 +14,7 @@ export function createExplorerCamera(
   source: Object3D,
   canvas: HTMLCanvasElement,
   options: MeasuredWorldOptions,
-  /** Framing-box buffer, reserved at load; `null` leaves it in JavaScript. */
+  /** Framing-box buffer, reserved at load; `null` moves each box alone (`boxTransform`). */
   lot?: BoxTransformLot | null,
 ) {
   const flat = emptyWorldBox()

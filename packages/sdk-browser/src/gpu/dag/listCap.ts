@@ -1,4 +1,5 @@
 import { validationScope } from '../core/errorScope.ts'
+import { pendingBuffers } from '../core/tableGrowth.ts'
 import {
   DAG_READBACK_SLOTS,
   KEPT_HEADER_WORDS,
@@ -158,29 +159,44 @@ export async function growDagList(
   } catch {
     /* A creation the device throws on is a refusal too. */
   }
+  const old = [resources.output, ...resources.readback, ...resources.ranks]
+  const growth = cutGrowth(resources, made, old, () => {
+    const from = { output: resources.output, listCap: resources.listCap },
+      grown = heldSlots > resources.heldSlots
+    Object.assign(resources, list)
+    resources.group.out = list!.output
+    resources.ranges = resources.frames.bindGroups(resources.layout, resources.group)
+    resources.rankGroups = rankGroups(resources)
+    // The saved journals and the lists were the old readout's (`swap.ts`).
+    newRegions(resources.swap, regions)
+    writeHeldOpen(resources, grown)
+    carryKeptSnapshot(resources, from)
+  })
   // Refused, or `dispose` came meanwhile: nothing made outlives this call.
   if (!list || disposed()) {
-    for (const buffer of made) buffer.destroy()
+    growth.destroy()
     return false
   }
-  const old = [resources.output, ...resources.readback, ...resources.ranks],
-    from = { output: resources.output, listCap: resources.listCap },
-    grown = heldSlots > resources.heldSlots
-  Object.assign(resources, list)
-  resources.buffers.push(...made)
-  resources.group.out = list.output
-  resources.ranges = resources.frames.bindGroups(resources.layout, resources.group)
-  resources.rankGroups = rankGroups(resources)
-  // The saved journals and the lists were the old readout's (`swap.ts`).
-  newRegions(resources.swap, regions)
-  writeHeldOpen(resources, grown)
-  carryKeptSnapshot(resources, from)
-  for (const buffer of old) {
-    resources.buffers.splice(resources.buffers.indexOf(buffer), 1)
-    buffer.destroy()
-  }
+  growth.commit()
   return true
 }
+
+/**
+ * The growth of the cut's buffers (`../core/tableGrowth.ts`): `made` replaces `replaced`, which
+ * `adopt` puts in place; the cut's buffer list follows, and `replaced` is freed at commit.
+ */
+export const cutGrowth = (
+  resources: DagResources,
+  made: readonly GPUBuffer[],
+  replaced: readonly GPUBuffer[],
+  adopt: () => void,
+) =>
+  pendingBuffers(made, () => {
+    adopt()
+    resources.buffers.push(...made)
+    for (const buffer of replaced) resources.buffers.splice(resources.buffers.indexOf(buffer), 1)
+    return replaced
+  })
 
 /**
  * The kept snapshot carried into the grown readout `to`, lengths and both lists, each at the place

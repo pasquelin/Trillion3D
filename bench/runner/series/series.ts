@@ -87,10 +87,6 @@ export async function runSeries(
     // The geometry pool as the engine held it: requested bytes, slots, what bounded it,
     // and pages the last frame wanted that it could not take. `null` = unpublished.
     geometryPool: geometryPool(metrics),
-    // Compute-path governor reading: requested mode, module availability, and for
-    // each batch operation the path actually run with both medians. `null` when the
-    // measured dist predates the governor — unmeasured, not "JavaScript path".
-    mathBatch: result.mathBatch ?? null,
     lights: lights ? lights.resume : null,
     // Lights that came from the source file, as the engine declared them at open.
     importedLights: result.importedLights ?? null,

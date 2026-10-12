@@ -132,7 +132,7 @@ function passMoves(rt: WebgpuPagesRuntime, announce: boolean) {
     ranks = distinct
     count = distinctCount
   }
-  // World boxes of the moved roots reproject IN BATCH, through the governor, in the buffer
+  // World boxes of the moved roots reproject IN BATCH, through the module's kernel, in the buffer
   // reserved at prepare. A missing or released buffer hands over to the box-by-box computation,
   // which yields the same bits — the same `boxTransform` on the same inputs.
   const lot = count * LOT_SHARE >= roots.length ? layout.rootBoxes : null

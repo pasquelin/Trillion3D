@@ -1,4 +1,3 @@
-import { mathBatchMetrics } from '../../page/decode/batch/batchState.ts'
 import { pageIntegrationStats } from '../../page/integration/host.ts'
 import { pageWorkStats } from '../../page/work/host.ts'
 import { EngineProfiler } from '../../diagnostic/telemetry.ts'
@@ -87,7 +86,6 @@ const UNMEASURED: FrameMetrics = {
   textureBytesLastFrame: null,
   pagesChecked: null,
   pageCheckMs: null,
-  mathBatch: null,
 }
 
 /** The host sample of `engine`'s frames: `fillMetrics` copies the last frame's into it. */
@@ -136,7 +134,6 @@ export function createExplorerMetrics(
     const work = pageWorkStats()
     metricsScratch.pagesChecked = work.checked
     metricsScratch.pageCheckMs = work.checkMs
-    metricsScratch.mathBatch = mathBatchMetrics()
     const integration = pageIntegrationStats()
     metricsScratch.pagesPlannedOffThread = integration.offThread
     metricsScratch.pagePlanMs = integration.planMs

@@ -4,6 +4,7 @@ import { bytesOf, installGpuGlobals } from './globals.ts'
 import { mockBuffers, type MapFaults, type MockWrite } from './mockBuffers.ts'
 import { asWebgpuDevice, untag } from './fakeWebgpuDevice.ts'
 import { fakeBundleEncoder } from './fakeBundles.ts'
+import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 
 /** What a test asks of `mockGpu`: the device limits, the DAG its compute selection runs on — the
  *  one the session uploads when none is given (`mockDag.ts`) —, and the failures it injects. */
@@ -20,7 +21,7 @@ export type MockGpuOptions = MapFaults & {
  * The device that executes, in Node: encoders record passes, draws, bundles and copies, compute
  * dispatches run on their kernels' CPU doubles (`mockCompute.ts`), `asWebgpuDevice` adds error
  * scopes, loss, `this` checks and WebGPU's validation (`validation.ts`). A pages backend runs on
- * it; `fakeDevice()` only records.
+ * it, with the SDK module the kit loads from its bytes; `fakeDevice()` only records.
  */
 export function mockGpu({
   limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
