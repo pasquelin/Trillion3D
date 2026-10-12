@@ -14,6 +14,7 @@ import { encodeBefore, resourcesBefore } from '../../../bench/oracles/browser/cu
 import { DAG_SELECTION_SHADER_BEFORE } from '../../../bench/oracles/browser/cut-dispatches-wgsl.ts'
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { readBuffer } from '../kit/computeReadback.ts'
 import { countCommands, sceneView } from './cutScene.ts'
 
 export interface DispatchSweep {
@@ -50,18 +51,11 @@ export async function measureDispatches(sweep: DispatchSweep) {
   device.queue.writeBuffer(shipped.uniforms, 0, block)
   device.queue.writeBuffer(before.uniforms, 0, block)
 
-  const target = device.createBuffer({
-    size: shipped.readbackBytes,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  })
   /** The wanted and the drawn pages an output holds, bit for bit. */
   const read = async (output: GPUBuffer) => {
     const encoder = device.createCommandEncoder()
-    encoder.copyBufferToBuffer(output, 0, target, 0, shipped.readbackBytes)
     device.queue.submit([encoder.finish()])
-    await target.mapAsync(GPUMapMode.READ)
-    const words = new Uint32Array(target.getMappedRange().slice(0))
-    target.unmap()
+    const words = await readBuffer(device, output, 0, shipped.readbackBytes)
     const list = (at: number) =>
       Array.from(
         words.subarray(

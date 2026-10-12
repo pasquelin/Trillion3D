@@ -15,6 +15,7 @@ import {
   ROW_WORDS,
 } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
+import { readBuffer } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
@@ -111,7 +112,6 @@ async function decodePages(pages: ClusterPage[]) {
     device.queue.writeBuffer(pool, SLOT_WORDS * 4, bytes)
     const outputBytes = (vertexCount * VERTEX_WORDS + (indexCount / 3) * TRIANGLE_WORDS) * 4
     const output = storage(outputBytes, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC)
-    const target = storage(outputBytes, GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ)
     const group = device.createBindGroup({
       layout,
       entries: [
@@ -128,12 +128,9 @@ async function decodePages(pages: ClusterPage[]) {
     pass.setPipeline(pipeline)
     pass.dispatchWorkgroups(ceilDiv(Math.max(vertexCount, indexCount / 3), 64))
     pass.end()
-    encoder.copyBufferToBuffer(output, 0, target, 0, outputBytes)
     device.queue.submit([encoder.finish()])
-    await target.mapAsync(GPUMapMode.READ)
-    words.push(new Uint32Array(target.getMappedRange().slice(0)))
-    target.unmap()
-    for (const buffer of [pool, output, target]) buffer.destroy()
+    words.push(await readBuffer(device, output, 0, outputBytes))
+    for (const buffer of [pool, output]) buffer.destroy()
   }
   for (const buffer of [table, positions, uvs]) buffer.destroy()
   const { court: adapter } = await gpu.fermer()
