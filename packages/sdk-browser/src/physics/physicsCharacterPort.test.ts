@@ -1,26 +1,34 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createCharacterPort } from './physicsCharacter.ts'
+import { createSessionState, createWorkerLink } from './session/sessionLink.ts'
+import { createStepClock } from './stepClock.ts'
 import type { ToPhysics } from './protocol.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import type { startPhysicsWorker } from './sessionWorker.ts'
 
 const message = (key: string) => ({ type: 'character', key }) as unknown as ToPhysics
 
-test('the held messages go out one argument each, as the session send reads its second as a transfer list', () => {
-  const calls: unknown[][] = []
-  // The session's `send(message, transfer = [])`, which `Worker.postMessage` rejects a number for.
-  const send = (...args: unknown[]) => void calls.push(args)
-  const port = createCharacterPort(send as (m: ToPhysics) => void, () => 0)
+test('the held messages reach the worker with no transfer list, the link sending one argument', () => {
+  const posts: unknown[][] = []
+  const worker = { postMessage: (...args: unknown[]) => void posts.push(args) }
+  const link = createWorkerLink(
+    createSessionState(),
+    worker as unknown as ReturnType<typeof startPhysicsWorker>,
+    { length: 0 } as CommandWriter,
+    createStepClock(1 / 60),
+    1 / 60,
+  )
+  const port = createCharacterPort(link.send, link.at)
   port.send(message('a'))
   port.send(message('b'))
   port.send(message('c'))
-  assert.equal(calls.length, 0, 'held until the first commands have gone')
+  assert.equal(posts.length, 0, 'held until the first commands have gone')
   port.flush()
-  assert.deepEqual(
-    calls.map((args) => args.length),
-    [1, 1, 1],
-    'no index or array rides along',
-  )
   port.send(message('d'))
-  assert.equal(calls.length, 4)
-  assert.equal(calls[3].length, 1)
+  assert.deepEqual(
+    posts.map(([, transfer]) => transfer),
+    [[], [], [], []],
+    'no index rides along as a transfer list',
+  )
 })
