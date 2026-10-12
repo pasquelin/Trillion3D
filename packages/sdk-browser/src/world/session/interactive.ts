@@ -52,6 +52,7 @@ function loopScheduler(loop: LoopWiring, captures: Captures, events: ExplorerEmi
     // A page landing, or a still image an unfinished average takes, is the image still arriving:
     // those frames spend none of the settle limit: the engine's own count.
     progress: () => runtime.engine.landings(),
+    arriving: () => runtime.engine.arriving(),
     pending: () => (captures.count ? Promise.resolve(false) : runtime.pendingFrame()),
     error: fail,
     limited: () =>

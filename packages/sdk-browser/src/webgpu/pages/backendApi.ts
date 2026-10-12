@@ -28,6 +28,7 @@ import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts'
 import {
   measureWebgpuFrame,
   pendingWebgpuFrame,
+  webgpuArriving,
   webgpuLandings,
 } from '../frame/interactiveFrame.ts'
 
@@ -113,6 +114,7 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     pendingFrame: () => pendingWebgpuFrame(rt),
     measureFrame: () => measureWebgpuFrame(rt),
     landings: () => webgpuLandings(rt),
+    arriving: () => webgpuArriving(rt),
     flush(options?: { image?: boolean }) {
       return flushWebgpuPages(rt, options)
     },
