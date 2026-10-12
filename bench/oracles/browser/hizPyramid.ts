@@ -6,7 +6,11 @@ import type { FlatHizPyramid } from '../../../packages/sdk-browser/src/hiz/types
  * farthest of each 2×2 block down to 1×1) laid out flat, one buffer for every level. Depths are
  * single precision and the reduction a minimum, so the flat copy holds exactly the reference values.
  */
-export function buildHizPyramid(depth: Float32Array, width: number, height: number): FlatHizPyramid {
+export function buildHizPyramid(
+  depth: Float32Array,
+  width: number,
+  height: number,
+): FlatHizPyramid {
   if (width < 1 || height < 1 || depth.length < width * height) throw new Error('HIZ_DEPTH_SIZE')
   const rows: number[][] = []
   for (let y = 0; y < height; y++) rows.push(Array.from(depth.subarray(y * width, (y + 1) * width)))

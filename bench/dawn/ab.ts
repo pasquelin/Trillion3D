@@ -12,7 +12,8 @@ import { stamp, type BenchOptions } from './options.ts'
 import type { BenchPlay } from './play.ts'
 import { playChild } from './playChild.ts'
 import { engineRoot } from './engineRoot.ts'
-import { ms, percent, table } from './reportText.ts'
+import { ms, percent } from './reportText.ts'
+import { table } from '../core/table.ts'
 
 /** One play of `root`'s engine on `page`: its numbers. */
 function play(options: BenchOptions, page: string, root: string, out: string, tag: string) {

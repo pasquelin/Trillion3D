@@ -2,6 +2,7 @@
 // capability detection (`detectCapabilities`) and published in `measure.json` and `resume.md`.
 // Imported by URL in the page (`probeLimits`), by Node to run it (`readLimits`) and for the report
 // (`limitsLines`): no Node module here.
+import { tableLines } from '../../core/table.ts'
 import type { Page } from 'playwright'
 import type * as SdkBrowser from '../../witnesses/measurement.ts'
 
@@ -82,9 +83,10 @@ export function limitsLines(probe: LimitsRecord | undefined) {
     '',
     ...(raised.length
       ? [
-          '| WebGPU limit | default | adapter |',
-          '|---|---|---|',
-          ...raised.map((l) => `| ${l.name} | ${l.default} | ${l.adapter} |`),
+          ...tableLines(
+            ['WebGPU limit', 'default', 'adapter'],
+            raised.map((l) => [l.name, l.default, l.adapter]),
+          ),
           '',
         ]
       : []),

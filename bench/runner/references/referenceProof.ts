@@ -1,6 +1,7 @@
 // The class-2 image proof (CONTRIBUTING.md, "Image and fidelity"): `bench.ts --reference` holds each
 // side's capture to the engine's reference image of its scene and view (`references/reference.ts`),
 // through `referenceDiff`. A run that cannot be compared with it is refused by name, never scored.
+import { tableLines } from '../../core/table.ts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
 import { referenceDiff, type ReferenceDiff } from './imageDiff.ts'
 import {
@@ -95,9 +96,12 @@ const diffText = (d: ReferenceDiff) =>
 /** `resume.md`'s class-2 table; nothing when the run held no capture to a reference. */
 export function referenceLines(report: BenchReport) {
   const rows = report.series.flatMap((s) =>
-    Object.entries(s.referenceDiff ?? {}).map(
-      ([side, d]) => `| ${s.view} | ${s.pixelError} | ${side} | ${diffText(d)} |`,
-    ),
+    Object.entries(s.referenceDiff ?? {}).map(([side, d]) => [
+      s.view,
+      s.pixelError,
+      side,
+      diffText(d),
+    ]),
   )
   if (!rows.length) return []
   return [
@@ -105,9 +109,7 @@ export function referenceLines(report: BenchReport) {
     '',
     'Channel errors in 1/255 steps, FLIP in [0, 1] (`references/imageDiff.ts::referenceDiff`).',
     '',
-    '| view | pixelError | side | reference | mean | p99.9 | mean FLIP |',
-    '|---|---|---|---|---|---|---|',
-    ...rows,
+    ...tableLines(['view', 'pixelError', 'side', 'reference', 'mean', 'p99.9', 'mean FLIP'], rows),
     '',
   ]
 }

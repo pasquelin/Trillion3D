@@ -6,7 +6,8 @@ import type { Bottleneck } from './bottlenecks.ts'
 import { gainOf, rankBottlenecks, topGains } from './bottlenecks.ts'
 import type { BenchReport } from './merge.ts'
 import type { PassSource } from './passSource.ts'
-import { mib, ms, table } from './reportText.ts'
+import { mib, ms } from './reportText.ts'
+import { table } from '../core/table.ts'
 
 export type Insights = {
   segments: { name: string; ranking: Bottleneck[]; top: Bottleneck[] }[]

@@ -115,7 +115,12 @@ function hizTestRectFlat(
 const rejectScratch = new Int32Array(HIZ_TEST_VALUES)
 
 /** `hizRejects` on the flat layout `projectBoxesFlat` writes. */
-export function hizRejectsFlat(pyramid: FlatHizPyramid, bounds: Float64Array, base: number, bias = 0) {
+export function hizRejectsFlat(
+  pyramid: FlatHizPyramid,
+  bounds: Float64Array,
+  base: number,
+  bias = 0,
+) {
   if (
     !hizTestRectFlat(
       bounds,

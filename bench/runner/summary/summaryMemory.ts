@@ -1,6 +1,7 @@
 import { go, mo } from './summaryTextures.ts'
 import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
 import type { BenchReport } from '../report/types.ts'
+import { tableLines } from '../../core/table.ts'
 
 const num = (v: number | null | undefined) => (typeof v === 'number' ? v : null)
 /** Labels published in the summary: beyond them, the full reading is in `measure.json`. */
@@ -15,10 +16,7 @@ const PLUS_LOURDES = 8
  * the engine could not hold as requested says why, in parentheses.
  */
 export function memoire(report: BenchReport) {
-  const lines = [
-    '| view | threshold | side | total allocated | texture pool | geometry / pool | frame targets | rest |',
-    '|---|---|---|---|---|---|---|---|',
-  ]
+  const body: string[][] = []
   const details: string[] = []
   for (const series of report.series)
     for (const [side, result] of Object.entries(series.sides)) {
@@ -28,13 +26,35 @@ export function memoire(report: BenchReport) {
         geometry = num(m.geometryAllocationBytes),
         cibles = num(m.gpuFrameTargetBytes)
       const reste = total === null ? null : total - (atlas ?? 0) - (geometry ?? 0) - (cibles ?? 0)
-      lines.push(
-        `| ${series.view} | e${series.pixelError} | ${side} | ${go(total)} | ${go(atlas)} ` +
-          `| ${go(geometry)} / ${mo(m.geometryPoolBytes)}${borne(m)} | ${mo(cibles)} | ${go(reste)} |`,
-      )
+      body.push([
+        `${series.view}`,
+        `e${series.pixelError}`,
+        side,
+        `${go(total)}`,
+        `${go(atlas)}`,
+        `${go(geometry)} / ${mo(m.geometryPoolBytes)}${borne(m)}`,
+        `${mo(cibles)}`,
+        `${go(reste)}`,
+      ])
       details.push(...plusLourdes(series, side, m))
     }
-  return [...lines, '', ...details]
+  return [
+    ...tableLines(
+      [
+        'view',
+        'threshold',
+        'side',
+        'total allocated',
+        'texture pool',
+        'geometry / pool',
+        'frame targets',
+        'rest',
+      ],
+      body,
+    ),
+    '',
+    ...details,
+  ]
 }
 
 const borne = (m: Partial<FrameMetrics>) => (m.geometryPoolClamp ? ` (${m.geometryPoolClamp})` : '')

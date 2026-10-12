@@ -3,7 +3,7 @@
 // `../passTimer.ts`), their ratio and the milliseconds above the floor, ranked by the latter.
 // Passes the model does not hold are listed with their time alone. Pure.
 import type { BenchReport } from '../merge.ts'
-import { table } from '../reportText.ts'
+import { table } from '../../core/table.ts'
 import { floorOf } from './floor.ts'
 import type { Machine } from '../machine.ts'
 import { PASSES, type Frame } from './passes.ts'

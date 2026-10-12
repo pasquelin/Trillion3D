@@ -1,4 +1,5 @@
 // `resume.md`, for `bench.ts`: the counters, the cuts and the image deltas of a run, never a time.
+import { tableLines } from '../../core/table.ts'
 import { MIB } from '../../../packages/math/src/constants.ts'
 import { computePaths } from './summaryCompute.ts'
 import { textures } from './summaryTextures.ts'
@@ -41,25 +42,46 @@ const couverture = (r: Row) =>
 
 /** The series table: one row per view, per threshold and per side. */
 function rows(report: BenchReport) {
-  const lines = [
-    '| view | pixelError | side | selectedTriangles | drawnTriangles | coverage | submitted triangles opaque/total | held image | uncoveredTriangles | Hi-Z tested/rejected/>16 (image) | cut hash | page budget | geometry (MB) |',
-    '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
-  ]
+  const body: string[][] = []
   for (const series of report.series)
     for (const [side, r] of Object.entries(series.sides)) {
       const hiz = r.hiZ
-      lines.push(
-        `| ${series.view} | ${series.pixelError} | ${side}${r.engine ? ` · ${r.engine}` : ''} ` +
-          `| ${num(r.selectedTriangles)} | ${num(r.drawnTriangles)} | ${couverture(r)} ` +
-          `| ${num(r.submittedTriangles)}/${num(r.totalSubmittedTriangles)} | ${oui(r.frameHeld)} ` +
-          `| ${num(r.uncoveredTriangles)} ` +
-          `| ${num(hiz.tested)}/${num(hiz.rejected)}/${num(hiz.beyond16Texels)} (${num(hiz.image)}) ` +
-          `| ${r.selection.sha256 ? r.selection.sha256.slice(0, 12) : '—'} (${num(r.selection.source)}) ` +
-          `| ${num(r.pageBudget.requested)} requested, ${num(r.pageBudget.resident)} resident ` +
-          `| ${mo(r.geometryBytes)} |`,
-      )
+      body.push([
+        `${series.view}`,
+        `${series.pixelError}`,
+        `${side}${r.engine ? ` · ${r.engine}` : ''}`,
+        `${num(r.selectedTriangles)}`,
+        `${num(r.drawnTriangles)}`,
+        couverture(r),
+        `${num(r.submittedTriangles)}/${num(r.totalSubmittedTriangles)}`,
+        `${oui(r.frameHeld)}`,
+        `${num(r.uncoveredTriangles)}`,
+        `${num(hiz.tested)}/${num(hiz.rejected)}/${num(hiz.beyond16Texels)} (${num(hiz.image)})`,
+        `${r.selection.sha256 ? r.selection.sha256.slice(0, 12) : '—'} (${num(r.selection.source)})`,
+        `${num(r.pageBudget.requested)} requested, ${num(r.pageBudget.resident)} resident`,
+        `${mo(r.geometryBytes)}`,
+      ])
     }
-  return lines
+  return [
+    ...tableLines(
+      [
+        'view',
+        'pixelError',
+        'side',
+        'selectedTriangles',
+        'drawnTriangles',
+        'coverage',
+        'submitted triangles opaque/total',
+        'held image',
+        'uncoveredTriangles',
+        'Hi-Z tested/rejected/>16 (image)',
+        'cut hash',
+        'page budget',
+        'geometry (MB)',
+      ],
+      body,
+    ),
+  ]
 }
 
 /** The engine's texture counters and the network of each series, one block per side. */
@@ -113,11 +135,14 @@ export function resume(report: BenchReport) {
     ...stalls(report),
     '## A/A witness and before/after delta',
     '',
-    '| view | pixelError | A/A witness (same side, two captures) | before vs after |',
-    '|---|---|---|---|',
-    ...report.series.map(
-      (s) =>
-        `| ${s.view} | ${s.pixelError} | ${diffText(s.witnessAA)} | ${diffText(s.beforeAfterDiff)} |`,
+    ...tableLines(
+      ['view', 'pixelError', 'A/A witness (same side, two captures)', 'before vs after'],
+      report.series.map((s) => [
+        s.view,
+        s.pixelError,
+        diffText(s.witnessAA),
+        diffText(s.beforeAfterDiff),
+      ]),
     ),
     '',
     ...referenceLines(report),
