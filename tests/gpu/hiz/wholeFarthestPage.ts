@@ -4,6 +4,7 @@
 // reductions (`sdk-core/src/hiz/oracles.fixture.ts`), bit for bit; the finished depth's farthest
 // layer reduces the far corner of each pixel's plane, not its depth.
 import { fromHalf, toHalf } from '../../../packages/math/src/float/half.ts'
+import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/factory.ts'
 import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'
 import {
@@ -42,7 +43,7 @@ function slopeOf(z: number, before: number, after: number, farBefore: number, fa
  *  its slopes, the slopes relative to the depth and held in half floats, as the build holds them. */
 function farthestCorners(depth: Float32Array, width: number, height: number) {
   const at = (x: number, y: number) =>
-    depth[Math.min(Math.max(y, 0), height - 1) * width + Math.min(Math.max(x, 0), width - 1)]
+    depth[clamp(y, 0, height - 1) * width + clamp(x, 0, width - 1)]
   return Float32Array.from(depth, (z, i) => {
     const x = i % width,
       y = (i - x) / width
