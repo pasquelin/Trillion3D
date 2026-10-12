@@ -33,7 +33,7 @@ const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
 /** What the ray `o + d·t` (t > `from`) meets first: a sphere (its index), the floor (-2) or the sky
  *  (-1), and the distance. */
-export function castSpheres(o: V3, d: V3, from = 0) {
+function castSpheres(o: V3, d: V3, from = 0) {
   let t = Infinity,
     index = -1
   SPHERES.centres.forEach((c, k) => {
