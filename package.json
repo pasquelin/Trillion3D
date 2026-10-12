@@ -115,11 +115,7 @@
     "reporters": [
       "console"
     ],
-    "exitCode": 1,
-    "ignore": [
-      "packages/math/src/batch/**",
-      "**/*Before.fixture.ts"
-    ]
+    "exitCode": 1
   },
   "optionalDependencies": {
     "@trillion3d/compiler-darwin-arm64": "workspace:*",
