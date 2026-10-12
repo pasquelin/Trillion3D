@@ -7,10 +7,12 @@
  * the GPU writes is the CPU's, to the bit; a translation is kept exact, as two words a coordinate,
  * for each cut to take its eye off (`../gpu/dag/shader/worldPoseWgsl.ts`).
  */
+import { CORNERS_WGSL, LOD_WGSL, WORLD_BOX_WGSL } from './gpuComposeDerivedWgsl.ts'
+import { ROW_INPUT_DOUBLES } from './composedRowInputs.ts'
+import { CORNER_VALUES } from '../gpu/partition/contract.ts'
+import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
-import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
-import { NO_HIZ_SLOT } from '../webgpu/row/noHizSlot.ts'
 import { dAdd, dMul, dSub } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
@@ -26,6 +28,10 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 export const NONE = 0xffffffff
 /** Words of one primitive's row of the frame buffer: its first is the stretch (`primitiveWordAt`). */
 const FRAME_ROW_WORDS = FRAME_VEC4 * 4
+/** The parts of a row the rows pass derives besides its world words (`params.parts`). */
+export const PART_SPHERES = 1,
+  PART_CORNERS = 2,
+  PART_LODS = 4
 /** Doubles of one matrix, each two words. */
 export const MATRIX_DOUBLES = 16
 
@@ -82,6 +88,8 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(6) var<uniform> motionMode:MotionMode;
 @group(0) @binding(7) var<storage,read_write> previous:array<u32>;
 @group(0) @binding(8) var<storage,read_write> frames:array<u32>;
+@group(0) @binding(9) var<storage,read> rootInputs:array<vec2u>;
+@group(0) @binding(10) var<storage,read_write> rootBoxes:array<vec2u>;
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let i=flatIndex(g,n,64u);if(i>=params.count){return;}
  let rank=params.first+i;
@@ -99,6 +107,8 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
    worlds[at]=value.x;worlds[at+1u]=value.y;
   }else{worlds[i*16u+k]=world[k];}
  }
+ // The root's world box, which its rows' detail reads the radius of its object from.
+ if(rootInputs[rank*7u+6u].x!=0u){var carried:array<vec2u,16>;for(var k=0u;k<16u;k++){carried[k]=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);}composeBox(rank,rank*7u,carried);}
  // The stretch every cut projects its errors through, in the root's row of the frame words.
  let stretch=maxStretchBits(world);
  if(stretch!=0xffffffffu){frames[i*${FRAME_ROW_WORDS}u]=stretch;}
@@ -119,12 +129,12 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  }
  for(var k=0u;k<16u;k++){motion[rank*16u+k]=words[k];}
 }`,
-  [...SHARED, SAME_WORD_WGSL, MOTION_WGSL, STRETCH_WGSL],
+  [...SHARED, SAME_WORD_WGSL, MOTION_WGSL, STRETCH_WGSL, WORLD_BOX_WGSL],
 )
 
 /**
  * The world sphere of a linked root's row (`../webgpu/shadow/spheres.ts`), what the shadow cull
- * drops a row by, from its composed world and its local box (`localBoxes`: centre then half extent,
+ * drops a row by, from its composed world and its local box (`inputs`: centre then half extent,
  * the reach in, six doubles). The centre is the CPU's double sum in the same order, split into a
  * high and a low single. The radius is the CPU's per-axis overestimate, in single precision, then
  * grown so that it never falls below the CPU's: each axis sum takes at most six roundings of 2⁻²⁴
@@ -141,19 +151,19 @@ const SPHERE_WGSL = wgslBlock(
 const SPHERE_GROWTH:f32=1.00000095367431640625;
 const CENTRE_ERROR:f32=5.684341886080802e-14;
 fn composeSphere(row:u32,world:array<vec2u,16>){
- let at=row*6u;
+ let at=row*${ROW_INPUT_DOUBLES}u;
  let s=row*8u;
- if(s+8u>arrayLength(&spheres)||at+6u>arrayLength(&localBoxes)){return;}
+ if(s+8u>arrayLength(&spheres)||at+6u>arrayLength(&inputs)){return;}
  var r2=0.0;
  var size=0.0;
  for(var i=0u;i<3u;i++){
-  var centre=dMul(world[i],localBoxes[at]);
+  var centre=dMul(world[i],inputs[at]);
   var axis=0.0;
   for(var j=0u;j<3u;j++){
-   if(j>0u){centre=dAdd(centre,dMul(world[j*4u+i],localBoxes[at+j]));}
+   if(j>0u){centre=dAdd(centre,dMul(world[j*4u+i],inputs[at+j]));}
    let e=abs(bitcast<f32>(toF32(world[j*4u+i])));
-   axis+=e*bitcast<f32>(toF32(localBoxes[at+3u+j]));
-   size+=e*abs(bitcast<f32>(toF32(localBoxes[at+j])));
+   axis+=e*bitcast<f32>(toF32(inputs[at+3u+j]));
+   size+=e*abs(bitcast<f32>(toF32(inputs[at+j])));
   }
   centre=dAdd(centre,world[12u+i]);
   size+=abs(bitcast<f32>(toF32(world[12u+i])));
@@ -170,41 +180,43 @@ fn composeSphere(row:u32,world:array<vec2u,16>){
 )
 
 /**
- * One thread per page-table row (`composeRow`): the world words of a linked root's row, and, while
- * a light casts (`params.spheres`), its world sphere (`composeSphere`). Its corners are those of the
- * row's last CPU write, derived from the very world words that write left: while the composed
- * words equal the ones the row holds, the corners describe it and it keeps the Hi-Z slot the CPU
- * gave it, as the CPU's own row does; once they differ it takes no verdict, which no occlusion test
- * may judge it by, until the CPU writes the row again.
+ * One thread per page-table row (`composeRow`): the world words of a linked root's row and the words
+ * derived from them, each part when its buffer is bound (`params.parts`): the world sphere the
+ * shadow cull drops the row by (`composeSphere`), the eight corners the Hi-Z test projects it by
+ * (`composeCorners`), and the detail the shadows' levels are judged by (`composeLod`) — all from the
+ * row's inputs (`composedRowInputs.ts`) and the composed world, so the row keeps the Hi-Z slot the
+ * CPU gave it: its corners describe it.
  */
 export const COMPOSE_ROWS_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,rowCount:u32,spheres:u32,pad:u32,}
+  `struct Params{rootCount:u32,rowCount:u32,parts:u32,pad:u32,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> locals:array<vec2u>;
 @group(0) @binding(2) var<storage,read> parentOf:array<u32>;
 @group(0) @binding(3) var<storage,read> parents:array<vec2u>;
 @group(0) @binding(4) var<storage,read_write> table:array<u32>;
 @group(0) @binding(5) var<storage,read_write> spheres:array<f32>;
-@group(0) @binding(6) var<storage,read> localBoxes:array<vec2u>;
+@group(0) @binding(6) var<storage,read> inputs:array<vec2u>;
+@group(0) @binding(7) var<storage,read> rootBoxes:array<vec2u>;
+@group(0) @binding(8) var<storage,read_write> corners:array<u32>;
+@group(0) @binding(9) var<storage,read_write> lods:array<u32>;
 fn composeRow(row:u32){
  let base=row*${PAGE_INFO_STRIDE / 4}u;
  let rank=table[base+${ROW_PLACEMENT_WORD}u];
  if(rank>=params.rootCount){return;}
  let p=parentOf[rank];
  if(p==${NONE}u){return;}
- var moved=false;
  var world:array<vec2u,16>;
  for(var k=0u;k<16u;k++){
   world[k]=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);
   let word=toF32(world[k]);
-  moved=moved||word!=table[base+k];
   table[base+k]=word;
  }
- if(moved){table[base+${ROW_HIZ_SLOT_WORD}u]=${NO_HIZ_SLOT}u;}
- if(params.spheres!=0u){composeSphere(row,world);}
+ if((params.parts&${PART_SPHERES}u)!=0u){composeSphere(row,world);}
+ if((params.parts&${PART_CORNERS}u)!=0u&&(row+1u)*${CORNER_VALUES}u<=arrayLength(&corners)){composeCorners(row,world);}
+ if((params.parts&${PART_LODS}u)!=0u&&(row+1u)*${ROW_LOD_FLOATS}u<=arrayLength(&lods)){composeLod(row,rank,world);}
 }
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let row=flatIndex(g,n,64u);if(row<params.rowCount){composeRow(row);}
 }`,
-  [...SHARED, SPHERE_WGSL],
+  [...SHARED, SPHERE_WGSL, CORNERS_WGSL, LOD_WGSL],
 )

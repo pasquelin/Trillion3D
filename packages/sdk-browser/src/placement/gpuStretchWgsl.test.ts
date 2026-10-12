@@ -16,7 +16,7 @@ const run = shaderRun<{ maxStretchBits(w: number[]): number }>(
   wgslProgram('', [STRETCH_WGSL]),
   [
     ...DOUBLE_HELPERS,
-    ...['dDiv', 'dLess', 'dRsqrt', 'dSqrt', 'toF32', 'fromF32', 'chebyshevRoot'],
+    ...['dDiv', 'dLess', 'dRsqrt', 'dSqrt', 'toF32', 'fromF32', 'chebyshevRoot', 'maxStretchOf'],
     'maxStretchBits',
   ],
   { countLeadingZeros },

@@ -7,6 +7,7 @@ import { taaRenderMatrix } from '../../../taa/frame.ts'
 import { abandonFrameEncoder } from './encoder.ts'
 import { ensurePageTable } from './pageTable.ts'
 import { encodeVis } from './encodeVis.ts'
+import { uploadComposedRowInputs } from '../../../placement/composedRowInputs.ts'
 import { uploadRowCorners } from '../../visibility/corners.ts'
 import { refreshDrawItemWords } from '../../visibility/itemWords.ts'
 import { visLayerTop } from '../../visibility/uniforms.ts'
@@ -83,6 +84,7 @@ export function followRows(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engin
   refreshDrawItemWords(rt, visLayerTop(vis), vis.gpuDraw)
   followShadowRows(rt, device)
   uploadRowCorners(rt)
+  uploadComposedRowInputs(rt, device)
   uploadDirtyRows(rt)
 }
 

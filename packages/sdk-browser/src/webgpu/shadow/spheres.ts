@@ -7,7 +7,6 @@ import type { Placements } from '../../page/selection/placements.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { CLUSTER_SPHERE_FLOATS, clusterSpheres } from './rowBuffers.ts'
 import { rowBox, rowGrowth } from '../../hiz/corners.ts'
-import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /**
@@ -92,69 +91,19 @@ function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
     { casterSlots } = rt.layout.rows
   if (lights.spheres && lights.spheres.rows === casterSlots) return lights.spheres
   lights.spheres?.buffer.destroy()
-  lights.spheres?.local?.destroy()
   lights.spheres = clusterSpheres(device, casterSlots)
   return lights.spheres
 }
 
-/** Words of a row's local box (`clusterSpheres`' `local`): six doubles, each two words. */
-const LOCAL_BOX_WORDS = 12
-const localScratch = new Float64Array(6)
-
-/** Writes the local boxes of rows `[from, to]` — centre, then half extent grown by the reach, as
- *  `writeClusterSphere` derives them —; a row without a record takes a zero box. */
-function packLocalBoxes(rt: WebgpuPagesRuntime, out: Uint32Array, from: number, to: number) {
-  const { rows, selectionRoots, placement } = rt.layout
-  for (let row = from; row <= to; row++) {
-    const rec = rows.packedRecs[row],
-      base = row * LOCAL_BOX_WORDS
-    if (!rec) {
-      out.fill(0, base, base + LOCAL_BOX_WORDS)
-      continue
-    }
-    const root = rootOf(selectionRoots, rootOfPacked(placement, rows.packedPageIndex[row])),
-      { min, max } = rowBox(rec),
-      reach = rowGrowth(rec, root.reach)
-    boxCenter(localScratch, 0, min[0], min[1], min[2], max[0], max[1], max[2])
-    for (let axis = 0; axis < 3; axis++)
-      localScratch[3 + axis] = (max[axis] - min[axis]) / 2 + reach
-    packDoubles(out, base, localScratch)
-  }
-}
-
-/** Sends the local boxes of rows `[from, to]`, once they are kept. */
-function uploadLocalBoxes(rt: WebgpuPagesRuntime, from: number, to: number) {
-  const { local, localPacked } = rt.lights.spheres!
-  if (!local || !localPacked) return
-  packLocalBoxes(rt, localPacked, from, to)
-  rt.gpu.device!.queue.writeBuffer(
-    local,
-    from * LOCAL_BOX_WORDS * 4,
-    localPacked,
-    from * LOCAL_BOX_WORDS,
-    (to - from + 1) * LOCAL_BOX_WORDS,
-  )
-}
-
 /**
  * The spheres the compose rows pass rewrites for the rows of roots linked to a parent
- * (`../../placement/gpuCompose.ts`), with each row's local box it makes them from: the boxes are
- * kept from the first frame a parent composes rows while a light casts — every row once, then the
- * rows each upload writes. Undefined while no light casts: no sphere is read.
+ * (`../../placement/gpuCompose.ts`), from the inputs each row keeps (`composedRowInputs.ts`).
+ * Undefined while no light casts: no sphere is read.
  */
-export function linkedRowSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
+export function linkedRowSpheres(rt: WebgpuPagesRuntime) {
   const spheres = rt.lights.spheres
   if (!spheres || spheres.rows === 0) return undefined
-  if (!spheres.local) {
-    spheres.localPacked = new Uint32Array(spheres.rows * LOCAL_BOX_WORDS)
-    spheres.local = device.createBuffer({
-      label: 'Trillion3D cluster local boxes',
-      size: spheres.localPacked.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-    uploadLocalBoxes(rt, 0, spheres.rows - 1)
-  }
-  return spheres as typeof spheres & { local: GPUBuffer }
+  return spheres
 }
 
 function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
@@ -164,7 +113,6 @@ function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
   packClusterSpheres(rows.packedRecs, selectionRoots, spheres.packed, from, to, (row) =>
     rootOfPacked(placement, rows.packedPageIndex[row]),
   )
-  uploadLocalBoxes(rt, from, to)
   // Offset and size counted in floats: that is what `writeBuffer` expects of a typed array.
   rt.gpu.device!.queue.writeBuffer(
     spheres.buffer,

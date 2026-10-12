@@ -57,18 +57,18 @@ const CHEBYSHEV_WGSL = wgslBlock(
 )
 
 /**
- * The single-precision bits of `maxStretch` of the matrix whose words are `w`; all ones for a
- * word that is no finite number, where the CPU refuses the matrix (the stretch is then left as it
- * was).
+ * `maxStretch` of the matrix whose sixteen doubles are `m`, as a double (`math/src/projection/
+ * projectionOracles.ts`): the largest singular value of the linear part, the arithmetic of the CPU's
+ * in the doubles the GPU composes. A world the stretch's callers refuse (a number that is no finite
+ * one) is theirs to leave out.
  */
-export const STRETCH_WGSL = wgslBlock(
-  'STRETCH_WGSL',
-  [dAdd, dSub, dMul, dDiv, dLess, dIsZero, dSqrt, dRsqrt, fromF32, toF32, CHEBYSHEV_WGSL],
-  `fn maxStretchBits(w:array<u32,16>)->u32{
- for(var k=0u;k<16u;k++){if(((w[k]>>23u)&0xffu)==0xffu){return 0xffffffffu;}}
- let a=fromF32(w[0]);let b=fromF32(w[4]);let c=fromF32(w[8]);
- let d=fromF32(w[1]);let e=fromF32(w[5]);let f=fromF32(w[9]);
- let g=fromF32(w[2]);let h=fromF32(w[6]);let i=fromF32(w[10]);
+export const STRETCH_DOUBLE_WGSL = wgslBlock(
+  'STRETCH_DOUBLE_WGSL',
+  [dAdd, dSub, dMul, dDiv, dLess, dIsZero, dSqrt, dRsqrt, CHEBYSHEV_WGSL],
+  `fn maxStretchOf(m:array<vec2u,16>)->vec2u{
+ let a=m[0];let b=m[4];let c=m[8];
+ let d=m[1];let e=m[5];let f=m[9];
+ let g=m[2];let h=m[6];let i=m[10];
  let m00=dAdd(dAdd(dMul(a,a),dMul(d,d)),dMul(g,g));
  let m11=dAdd(dAdd(dMul(b,b),dMul(e,e)),dMul(h,h));
  let m22=dAdd(dAdd(dMul(c,c),dMul(f,f)),dMul(i,i));
@@ -80,13 +80,13 @@ export const STRETCH_WGSL = wgslBlock(
  var top=m00;
  if(dLess(top,m11)){top=m11;}
  if(dLess(top,m22)){top=m22;}
- if(dIsZero(off)){return toF32(dSqrt(top));}
+ if(dIsZero(off)){return dSqrt(top);}
  let mean=dDiv(dAdd(dAdd(m00,m11),m22),vec2u(0x40080000u,0u));
  let d0=dSub(m00,mean);let d1=dSub(m11,mean);let d2=dSub(m22,mean);
  let spreadSquared=dDiv(dAdd(dAdd(dAdd(dMul(d0,d0),dMul(d1,d1)),dMul(d2,d2)),dMul(vec2u(0x40000000u,0u),off)),vec2u(0x40180000u,0u));
  if(dIsZero(spreadSquared)){
-  if(dLess(mean,vec2u(0u,0u))){return 0u;}
-  return toF32(dSqrt(mean));
+  if(dLess(mean,vec2u(0u,0u))){return vec2u(0u,0u);}
+  return dSqrt(mean);
  }
  let r=dRsqrt(spreadSquared);
  let spread=dMul(spreadSquared,r);
@@ -100,7 +100,25 @@ export const STRETCH_WGSL = wgslBlock(
  if(dLess(vec2u(0x3ff00000u,0u),x)){x=vec2u(0x3ff00000u,0u);}
  let t=chebyshevRoot(x);
  let value=dAdd(mean,dMul(dMul(vec2u(0x40000000u,0u),spread),t));
- if(dLess(value,vec2u(0u,0u))){return 0u;}
- return toF32(dSqrt(value));
+ if(dLess(value,vec2u(0u,0u))){return vec2u(0u,0u);}
+ return dSqrt(value);
+}`,
+)
+
+/**
+ * The single-precision bits of `maxStretch` of the matrix whose words are `w`; all ones for a
+ * word that is no finite number, where the CPU refuses the matrix (the stretch is then left as it
+ * was).
+ */
+export const STRETCH_WGSL = wgslBlock(
+  'STRETCH_WGSL',
+  [fromF32, toF32, STRETCH_DOUBLE_WGSL],
+  `fn maxStretchBits(w:array<u32,16>)->u32{
+ var m:array<vec2u,16>;
+ for(var k=0u;k<16u;k++){
+  if(((w[k]>>23u)&0xffu)==0xffu){return 0xffffffffu;}
+  m[k]=fromF32(w[k]);
+ }
+ return toF32(maxStretchOf(m));
 }`,
 )

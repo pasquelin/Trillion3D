@@ -41,7 +41,16 @@ import type { MatrixElements } from '../host/matrixElements.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
-import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL, MATRIX_DOUBLES, NONE } from './gpuComposeWgsl.ts'
+import {
+  COMPOSE_ROOTS_WGSL,
+  COMPOSE_ROWS_WGSL,
+  MATRIX_DOUBLES,
+  NONE,
+  PART_CORNERS,
+  PART_LODS,
+  PART_SPHERES,
+} from './gpuComposeWgsl.ts'
+import { composedRowInputs } from './composedRowInputs.ts'
 import { MOTION_SKIP } from './composedMotion.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
@@ -79,10 +88,17 @@ function createComposeState(roots: number) {
     /** Each linked root's local matrix, as the doubles it was linked by: what a CPU reader of its
      *  world composes with its parent's (`composedWorld`). */
     localMats: new Float64Array(Math.max(1, roots) * 16),
+    /** Each linked root's local box, seven doubles — the box, then whether it has one —, which the
+     *  roots pass carries by the composed world into its world box. */
+    boxWords: new Uint32Array(Math.max(1, roots) * ROOT_BOX_WORDS),
     /** The world versions each root's CPU world was composed at (`composedWorld`), and the
      *  current one: it moves whenever a parent's world, or a link, does. */
     refreshed: new Uint32Array(Math.max(1, roots)),
     version: 1,
+    /** The rows' inputs the rows pass derives their words from (`composedRowInputs.ts`). */
+    inputs: undefined as
+      | { buffer: GPUBuffer; packed: Uint32Array<ArrayBuffer>; rows: number; scratch: Float64Array }
+      | undefined,
     /** Each linked parent's slot. */
     parentIds: new Map<object, number>(),
     /** The roots each slot linked, some since taken by another slot; the slots no parent holds. */
@@ -252,6 +268,7 @@ function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, roots: nu
   state.parentOf = resized(state.parentOf, roots, NONE)
   state.locals = resized(state.locals, roots * MATRIX_DOUBLES * 2)
   state.localMats = resized(state.localMats, roots * 16)
+  state.boxWords = resized(state.boxWords, roots * ROOT_BOX_WORDS)
   state.refreshed = resized(state.refreshed, roots)
   state.rankBoxes = resized(state.rankBoxes, roots * BOX_VALUES)
   state.roots = roots
@@ -414,9 +431,26 @@ function linkRanks(
     packDoubles(state.locals, rank * MATRIX_DOUBLES * 2, links[k].local)
     state.localMats.set(links[k].local as ArrayLike<number>, rank * 16)
     installComposedWorld(rt, rank)
+    writeRootBox(state, rank, roots[rank])
     linkBox(state, rank, roots[rank], links[k].local)
   }
   if (ranks.length) state.linksDirty = true
+}
+
+/** Words of a root's entry in the roots pass's box inputs: six doubles and the flag. */
+const ROOT_BOX_WORDS = 14
+
+/** Root `rank`'s local box and whether it has a world box, as the roots pass reads them. */
+function writeRootBox(
+  state: ComposeState,
+  rank: number,
+  root: { localBox?: ArrayLike<number>; worldBox?: ArrayLike<number> },
+) {
+  const at = rank * ROOT_BOX_WORDS
+  state.boxWords.fill(0, at, at + ROOT_BOX_WORDS)
+  if (!root.localBox || !root.worldBox) return
+  packDoubles(state.boxWords, at, root.localBox as ArrayLike<number>, 0, 6)
+  state.boxWords[at + 12] = 1
 }
 
 function createComposeGpu(device: GPUDevice, rootCount: number) {
@@ -438,7 +472,22 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     }),
   )
+  const rootInputs = device.createBuffer({
+    label: 'Trillion3D composed root boxes',
+    size: Math.max(1, rootCount) * ROOT_BOX_WORDS * 4,
+    usage: storage,
+  })
+  const rootBoxes = device.createBuffer({
+    label: 'Trillion3D composed world boxes',
+    size: Math.max(1, rootCount) * 6 * 8,
+    usage: storage,
+  })
   const noMotion = device.createBuffer({ label: 'Trillion3D no motion', size: 64, usage: storage })
+  // The writable bindings of the rows pass whose buffer is not made: one stand-in each, a binding
+  // never aliasing another's range.
+  const absent = [0, 1, 2].map(() =>
+    device.createBuffer({ label: 'Trillion3D no row part', size: 64, usage: storage }),
+  )
   const previous = device.createBuffer({
     label: 'Trillion3D composed previous worlds',
     size: Math.max(1, rootCount) * 64,
@@ -452,9 +501,12 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
   return {
     locals,
     parentOf,
+    rootInputs,
+    rootBoxes,
     parents: undefined as GPUBuffer | undefined,
     uniforms,
     noMotion,
+    absent,
     previous,
     motionMode,
     /** The roots pass's group of each range of the cut's worlds, and the rows pass's. */
@@ -465,9 +517,12 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
     dispose() {
       locals.destroy()
       parentOf.destroy()
+      rootInputs.destroy()
+      rootBoxes.destroy()
       this.parents?.destroy()
       for (const u of uniforms) u.destroy()
       noMotion.destroy()
+      for (const buffer of absent) buffer.destroy()
       previous.destroy()
       motionMode.destroy()
     },
@@ -542,6 +597,7 @@ function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
     const roots = Math.max(1, state.roots)
     device.queue.writeBuffer(gpu.locals, 0, state.locals, 0, roots * MATRIX_DOUBLES * 2)
     device.queue.writeBuffer(gpu.parentOf, 0, state.parentOf, 0, roots)
+    device.queue.writeBuffer(gpu.rootInputs, 0, state.boxWords, 0, roots * ROOT_BOX_WORDS)
     state.linksDirty = false
   }
   for (const [rank, pose] of state.seeds) device.queue.writeBuffer(gpu.previous, rank * 64, pose)
@@ -645,6 +701,8 @@ export function encodeComposedRoots(
     next[4] = count
     next[5] = motion
     next[6] = frames
+    next[7] = gpu.rootInputs
+    next[8] = gpu.rootBoxes
     if (held.identity.moved() || !held.group)
       held.group = device.createBindGroup({
         layout: pipeline.getBindGroupLayout(0),
@@ -658,6 +716,8 @@ export function encodeComposedRoots(
           { binding: 6, resource: { buffer: gpu.motionMode } },
           { binding: 7, resource: { buffer: gpu.previous } },
           { binding: 8, resource: { buffer: frames, offset: 0, size: count * PRIMITIVE_BYTES } },
+          { binding: 9, resource: { buffer: gpu.rootInputs } },
+          { binding: 10, resource: { buffer: gpu.rootBoxes } },
         ],
       })
     pass.setBindGroup(0, held.group)
@@ -679,25 +739,35 @@ export function encodeComposedRows(
   if (!state || !gpu?.parents || !table) return
   const rows = rt.layout.rows.rowCount
   if (!rows) return
-  // The shadow cull's spheres while a light casts, and the local boxes they are made from.
-  const spheres = linkedRowSpheres(rt, device),
-    params = state.rowParams
+  // The parts of a row it derives from the composed world, each when what it writes is made: the
+  // shadow cull's spheres while a light casts, the Hi-Z corners with the partition, the shadows'
+  // detail with the light that casts.
+  const inputs = composedRowInputs(rt, device),
+    spheres = linkedRowSpheres(rt),
+    corners = rt.vis.gpuPartition?.corners,
+    lods = rt.lights.rowLods?.buffer
+  if (!inputs) return
+  const params = state.rowParams
   params[0] = state.roots
   params[1] = rows
-  params[2] = spheres ? 1 : 0
+  params[2] = (spheres ? PART_SPHERES : 0) | (corners ? PART_CORNERS : 0) | (lods ? PART_LODS : 0)
   device.queue.writeBuffer(gpu.uniforms[1], 0, params)
   const pipeline = composeKernels(device).rows.get()
   const pass = encoder.beginComputePass({ label: COMPOSE_ROWS_PASS })
   pass.setPipeline(pipeline)
   const held = gpu.rowsGroup,
     next = held.identity.next,
-    sphereWorlds = spheres?.buffer ?? gpu.noMotion,
-    sphereLocals = spheres?.local ?? gpu.locals
+    sphereWorlds = spheres?.buffer ?? gpu.absent[0],
+    cornerWords = corners ?? gpu.absent[1],
+    lodWords = lods ?? gpu.absent[2]
   next[0] = pipeline
   next[1] = gpu.parents
   next[2] = table
   next[3] = sphereWorlds
-  next[4] = sphereLocals
+  next[4] = inputs.buffer
+  next[5] = gpu.rootBoxes
+  next[6] = cornerWords
+  next[7] = lodWords
   if (held.identity.moved() || !held.group)
     held.group = device.createBindGroup({
       layout: pipeline.getBindGroupLayout(0),
@@ -708,7 +778,10 @@ export function encodeComposedRows(
         { binding: 3, resource: { buffer: gpu.parents } },
         { binding: 4, resource: { buffer: table } },
         { binding: 5, resource: { buffer: sphereWorlds } },
-        { binding: 6, resource: { buffer: sphereLocals } },
+        { binding: 6, resource: { buffer: inputs.buffer } },
+        { binding: 7, resource: { buffer: gpu.rootBoxes } },
+        { binding: 8, resource: { buffer: cornerWords } },
+        { binding: 9, resource: { buffer: lodWords } },
       ],
     })
   pass.setBindGroup(0, held.group)
