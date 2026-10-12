@@ -92,10 +92,6 @@ export function createRadianceSettle(device: GPUDevice) {
       images++
       if (!this.verified) samples.copy(encoder, hash, tiles, left, images)
     },
-    /** Images drawn: the rank of the one being drawn, which the run-time proxy's schedule turns by. */
-    get images() {
-      return images
-    },
     /** The image about to be drawn is drawn for another reason than the reflections'. */
     busy() {
       busy = images + 1

@@ -8,16 +8,14 @@ import {
   math,
   object,
 } from '../../../packages/sdk-browser/src/index.ts'
-import { EYE, FOV, POST, SPHERE, TARGET } from './runtimeSceneFrame.ts'
+import { FOV, KINDS, POST, SPHERE, type Kind } from './runtimeSceneFrame.ts'
 
-/** The world on `canvas`, the scene added and the camera posed. */
-export function runtimeWorld(canvas: HTMLCanvasElement) {
+/** The world of `kind` on `canvas`, the scene added and the camera posed. */
+export function runtimeWorld(canvas: HTMLCanvasElement, kind: Kind = 'mirror') {
+  const { eye, target, margin: _margin, ...floorLook } = KINDS[kind]
   const world = createWorld(canvas)
   world.scene.background = math.color('#05070d')
-  const floor = object.mesh(
-    geometry.box(60, 0.2, 60),
-    material.meshStandard({ color: '#ffffff', metalness: 1, roughness: 0.02 }),
-  )
+  const floor = object.mesh(geometry.box(60, 0.2, 60), material.meshStandard(floorLook))
   floor.position.y = -0.1
   const post = object.mesh(
     geometry.cylinder(POST.radius, POST.radius, POST.height, 16),
@@ -36,6 +34,6 @@ export function runtimeWorld(canvas: HTMLCanvasElement) {
     light.point({ position: [...SPHERE.centre], color: '#ffcf8a', intensity: 18, distance: 10 }),
     light.hemisphere({ color: '#3a4c80', groundColor: '#0b0d12', intensity: 0.2 }),
   )
-  world.camera.set({ position: [...EYE], target: [...TARGET], fov: FOV })
+  world.camera.set({ position: [...eye], target: [...target], fov: FOV })
   return world
 }

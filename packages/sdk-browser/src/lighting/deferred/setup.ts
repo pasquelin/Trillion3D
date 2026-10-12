@@ -9,6 +9,7 @@ import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts'
 import { PROXY_HEADER_BYTES } from '../../bounce/sizes.ts'
+import { HISTORY_HEADER_WORDS } from '../../reflections/proxyHistory.ts'
 import { RUNTIME_HEADER_WORDS } from '../../bounce/runtimeLayout.ts'
 import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
@@ -194,13 +195,14 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   // one buffer of zeros, a header that says no placement holds an instance (`bounce/runtimeLayout.ts`).
   const runtime = device.createBuffer({
     label: 'Trillion3D empty run-time proxy',
-    size: RUNTIME_HEADER_WORDS * 4,
+    // The header and one word of the arena: what a binding of the program's struct holds at least.
+    size: (RUNTIME_HEADER_WORDS + 1) * 4,
     usage: GPUBufferUsage.STORAGE,
   })
   // The run-time proxy's history, a view that holds none: four words the trace's frame counters write.
   const history = device.createBuffer({
     label: 'Trillion3D empty run-time proxy history',
-    size: 16,
+    size: HISTORY_HEADER_WORDS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   })
   const receiver = receiverPlaceholders(device)

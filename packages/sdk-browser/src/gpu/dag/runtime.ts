@@ -131,6 +131,7 @@ function selectionOver(run: DagRun): GpuSelection {
     markWorld: (w, mark) => live() && writeMark(run, w, mark),
     proxyBuffers: () => (live() ? run.proxies.buffers() : undefined),
     proxyCopies: (copies) => live() && run.proxies.setCopies(copies),
+    proxyRevision: () => run.proxies.revision * 4096 + state.worldRevision,
     updateResidency: (next, changes, moved) => updateRuntimeResidency(run, next, changes, moved),
     isReady: (page) => uploadResidency.isReady(page),
     isChildReady: (page) => uploadResidency.isChildReady(page),

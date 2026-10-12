@@ -12,6 +12,7 @@ const FUNCTIONS = [
   'rtRadiance',
   'rtAnswer',
   'rtStamp',
+  'rtKept',
   'rtSurfaceOf',
   'rtShade',
   'rtScene',
@@ -32,7 +33,7 @@ const FUNCTIONS = [
 ]
 const BINDINGS = { group: 0, proxy: 12, nodes: 13, cold: 14, worlds: 15, history: 16 }
 
-export function runOver(w: ReturnType<typeof world>, history: number[] = [0, 0, 0, 0]) {
+export function runOver(w: ReturnType<typeof world>, history: number[] = [0, 0, 0, 0], epoch = 2) {
   const { packed, header, nodes, cold } = w
   const text =
     wgslModule(runtimeTraceWgsl(BINDINGS)) +
@@ -59,7 +60,9 @@ export function runOver(w: ReturnType<typeof world>, history: number[] = [0, 0, 
     rtTests: 0,
     rtPixel: 0,
     rtCalls: 0,
+    rtRank: 0,
     rtHistory: history,
+    reflectionView: { runtime: [epoch, 0, 0, 0] },
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec) => tint,
     RtSurface: (tint: Vec, opacity: number, emission: Vec, blended: boolean) => ({
@@ -105,9 +108,8 @@ export const ahead: Vec = [1, 0, 0]
 export const origin: Vec = [0, 0, 0]
 
 /** A history of `pixels` pixels at epoch `epoch`, `spent` of the frame's work gone. */
-export const history = (pixels: number, epoch: number, spent: number) => {
+export const history = (pixels: number, spent: number) => {
   const words = new Array<number>(HISTORY_HEADER_WORDS + pixels * HISTORY_PIXEL_WORDS).fill(0)
-  words[HISTORY.epoch] = epoch
   words[HISTORY.spent] = spent
   return words
 }

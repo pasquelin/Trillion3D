@@ -21,8 +21,7 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *    (`yz`) and the words of a row of the front depth's buffer (`w`);
  *  - `proxy`, the resident proxy's certified error in metres (`x`), the distance a ray leaves a surface
  *    off its normal;
- *  - `runtime`, the run-time proxy's schedule (`runtimeTraceWgsl.ts`): the image's rotation (`x`),
- *    which tile the trace starts at, zero when no placement wears a proxy;
+ *  - `runtime`, the run-time proxy's epoch (`x`): what its answers are stamped with;
  *  - `surroundings`, the background as the view shows it, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`), written on the
  *    GPU from the background, the exposure and the display curve (`BEGIN_SHADER`).
  */

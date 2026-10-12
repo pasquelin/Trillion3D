@@ -57,9 +57,10 @@ export const SURFACE_BLENDED = 1
  */
 export const RAY_WORK = 512
 export const RAY_TRIANGLES = 128
-/** 2²⁵ units at ~30 flops: ~1 Gflop a frame, 0.3 ms at the peak of a 3.6 Tflop/s device, ~1.1 ms at a
- *  quarter of it, and up to twice that with the rays in flight when the counter fills. */
-export const FRAME_WORK = 2 ** 25
+/** 2²² units. Measured on the generated scene (Metal, `tests/gpu/reflections/runtime-proxy.gpu.ts`): 1.7 million
+ *  units cost 0.5 ms of the trace, 3.4 G units a second, so 2²² units are ~1.2 ms, and up to twice that with
+ *  the rays in flight when the counter fills: inside the 2 ms the proxy may take of an 8.33 ms frame. */
+export const FRAME_WORK = 2 ** 22
 /** Surfaces met in a ray before it ends: a blended one is looked through, up to this many — a closed
  *  blended solid is two, its front face and its back. */
 export const RAY_LAYERS = 3

@@ -143,6 +143,9 @@ export type GpuSelection = {
   /** The blended copies the forward family draws, members of the same proxy after the placements
    *  (`../dag/proxyInstances.ts`): their poses are read again at each cut. */
   proxyCopies(copies: readonly ProxyCopy[]): void
+  /** The revision of the run-time proxy's buffer and of the cut's poses, which move when what a ray can
+   *  meet did (`../../reflections/proxyHistory.ts`). */
+  proxyRevision(): number
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void
   /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `markReach`). */

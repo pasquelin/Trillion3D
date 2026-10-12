@@ -21,7 +21,6 @@ const frame: ReflectionFrame = {
   size: [0, 0],
   depthDrawn: false,
   proxyError: 0,
-  rotation: 0,
 }
 const inputs = {} as TraceInputs
 const radianceInputs = {} as RadianceInputs
@@ -34,8 +33,11 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
   frame.size = gpu.targetSize
   frame.depthDrawn = run.depthDrawn
   frame.proxyError = bounce.probes?.proxy?.errorMetres ?? 0
-  // The run-time proxy's schedule turns by the image while a placement wears a proxy.
-  frame.rotation = run.gpuSelection?.proxyBuffers() ? reflection.settle.images : 0
+  // The run-time proxy's answers are of an epoch: it moves with the view, the lights, the poses and the proxy.
+  frame.epoch = reflection.history.follow(
+    [rt.lights.store.epoch, run.gpuSelection?.proxyRevision() ?? 0],
+    frame.viewProjection,
+  )
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
 }
 
@@ -102,7 +104,6 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     const empty = deferred.placeholders.runtime
     inputs.runtime = meshes ?? { proxy: empty, nodes: empty, cold: empty, worlds: empty }
     inputs.history = reflection.history.buffer ?? deferred.placeholders.history
-    inputs.hash = reflection.settle.hash
     inputs.lightView = over.lightView
     const group = reflectionGroup(reflection, depth, over)
     encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)

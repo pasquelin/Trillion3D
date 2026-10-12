@@ -109,12 +109,10 @@ test('a scene is surrounded by its background, as the display shows it, declared
     display: [TONE_MAPPING_RANK.aces, 0, 0, 0],
     lightParams: [0, 0, 0, 2],
   }
-  const reflectionView = { surroundings: [9, 9, 9, 9] }
+  const reflectionView = { surroundings: [9, 9, 9, 9], runtime: [0, 0, 0, 0] }
   const work = [7, 0, 0, 0]
-  // The radiance hash of the last two images, the lit image having changed, and the run-time proxy's
-  // counters of a frame that left rays and spent work: the epoch moves, the counters start again.
-  const radianceHash = [1, 2, 3, 4]
-  const proxyHistory = [5, 7, 9, 0]
+  // The run-time proxy's counters of a frame that left rays: the next frame starts where its budget ended.
+  const proxyHistory = [4, 7, 3, 5]
   const run = shaderRun<{ reflectionBegin: () => void; aces: (c: number[]) => number[] }>(
     BEGIN_SHADER + wgslModule(DISPLAY_VALUE_WGSL),
     [
@@ -127,7 +125,7 @@ test('a scene is surrounded by its background, as the display shows it, declared
       'aces',
       'srgbToLinear',
     ],
-    { view, reflectionView, work, radianceHash, proxyHistory },
+    { view, reflectionView, work, proxyHistory },
   )
   run.reflectionBegin()
   // A mirror (its weight one) shows it through the exposure and the curve: the background's bytes.
@@ -138,14 +136,15 @@ test('a scene is surrounded by its background, as the display shows it, declared
   )
   // The tile list starts empty: its indirect arguments, one row of nothing, then 1, and the count.
   assert.deepEqual(work, [0, 1, 1, 0])
+  // Answers were left (4) and the budget ended at tile 5 from tile 3: the next frame starts at 8, the
+  // counters start again.
   assert.deepEqual(
     proxyHistory,
-    [0, 8, 0, 0],
-    'left and spent restart, the epoch moves with the lit image',
+    [0, 0, 8, 0],
+    'left, spent and cursor restart, the offset moves on',
   )
-  // A lit image that did not change keeps the epoch.
-  radianceHash.splice(0, 4, 1, 2, 1, 2)
-  proxyHistory.splice(0, 4, 4, 8, 6, 0)
+  // Every answer was in: the next frame starts where this one did.
+  proxyHistory.splice(0, 4, 0, 6, 8, 2)
   run.reflectionBegin()
-  assert.deepEqual(proxyHistory, [0, 8, 0, 0])
+  assert.deepEqual(proxyHistory, [0, 0, 8, 0])
 })

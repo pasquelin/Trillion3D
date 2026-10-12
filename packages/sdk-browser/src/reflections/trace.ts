@@ -28,8 +28,6 @@ import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
 import { HISTORY } from './proxyHistory.ts'
 import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
 
-/** The step, in tiles, the run-time proxy's schedule turns by each image: prime, so that it visits every tile of any count. */
-const TILE_STRIDE = 61
 /** The word the tile list starts at in the tiles' one buffer: the indirect arguments, then the list. */
 const TILE_LIST = 4
 
@@ -88,8 +86,10 @@ fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) row
  let rank=flatIndex(wg,rows,1u);
  let count=traceTiles[3];
  if(rank>=count){return;}
- // The run-time proxy's budget goes to the first tiles it meets: another tile first each image.
- let tile=traceTiles[${TILE_LIST}u+(rank+reflectionView.runtime.x*${TILE_STRIDE}u)%count];
+ // The run-time proxy's budget goes to the first tiles it meets, and the next frame's start where this
+ // one's ended (proxyHistory.ts, offset).
+ rtRank=rank;
+ let tile=traceTiles[${TILE_LIST}u+(rank+atomicLoad(&rtHistory[RT_OFFSET]))%count];
  let id=vec2u(tile&65535u,tile>>16u)*${SIDE}u+lid.xy;
  if(any(vec2f(id)>=view.viewport.xy)){return;}
  let coord=vec2i(id);
@@ -129,23 +129,23 @@ fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) row
  * value of the view (`view.background`, held below white, which no byte tells from the display's
  * one at an infinite radiance, decoded once) turned back, by the exposure and the display curve of
  * the view, into the radiance that shows it (`toneUnmap`) — and the tile list emptied, its indirect
- * arguments set (`TRACE_SHADER`); the run-time proxy's epoch moved with the lit image and its frame
- * counters started again.
+ * arguments set (`TRACE_SHADER`); the run-time proxy's frame counters started again and its schedule
+ * moved on.
  */
 export const BEGIN_SHADER = wgslProgram(
   `@group(0) @binding(1) var<storage,read_write> reflectionView:ReflectionView;
 @group(0) @binding(2) var<storage,read_write> work:array<u32>;
 @group(0) @binding(3) var<uniform> view:View;
-@group(0) @binding(4) var<storage,read> radianceHash:array<u32>;
-@group(0) @binding(5) var<storage,read_write> proxyHistory:array<u32>;
+@group(0) @binding(4) var<storage,read_write> proxyHistory:array<u32>;
 const BACKGROUND_WHITE:f32=${254.5 / 255};
 @compute @workgroup_size(1)
 fn reflectionBegin(){
  let shown=toneUnmap(srgbToLinear(min(view.background.rgb,vec3f(BACKGROUND_WHITE))),u32(view.display.x))/view.lightParams.w;
  reflectionView.surroundings=vec4f(shown,0.0);
  work[0]=0u;work[1]=1u;work[2]=1u;work[3]=0u;
- // The run-time proxy's epoch moves when the lit image does; its frame counters start again.
- if(radianceHash[0]!=radianceHash[2]||radianceHash[1]!=radianceHash[3]||proxyHistory[${HISTORY.epoch}]==0u){proxyHistory[${HISTORY.epoch}]+=1u;}
+ // The budget ran out at the cursor: the next frame starts there; when every answer is in, where it is.
+ if(proxyHistory[${HISTORY.left}]!=0u){proxyHistory[${HISTORY.offset}]+=proxyHistory[${HISTORY.cursor}];}
+ proxyHistory[${HISTORY.cursor}]=0u;
  proxyHistory[${HISTORY.left}]=0u;proxyHistory[${HISTORY.spent}]=0u;
 }`,
   [REFLECTION_VIEW_WGSL, VIEW_WGSL, TONE_UNMAPPING_WGSL, srgbToLinear],
@@ -185,8 +185,7 @@ function traceLayouts(device: GPUDevice) {
       computeBufferEntry(1, 'storage'),
       computeBufferEntry(2, 'storage'),
       computeBufferEntry(3, 'uniform'),
-      computeBufferEntry(4, 'read-only-storage'),
-      computeBufferEntry(5, 'storage'),
+      computeBufferEntry(4, 'storage'),
     ]),
   }
 }
@@ -258,10 +257,8 @@ export type TraceInputs = {
   proxy: GPUBuffer
   /** The run-time proxy's buffers, or the empty one in each place (`bounce/runtimeProxy.ts`). */
   runtime: { proxy: GPUBuffer; nodes: GPUBuffer; cold: GPUBuffer; worlds: GPUBuffer }
-  /** The history of the run-time proxy's answers, or its stand-in (`proxyHistory.ts`), and the
-   *  radiance hash whose change moves its epoch (`settle.ts`). */
+  /** The history of the run-time proxy's answers, or its stand-in (`proxyHistory.ts`). */
   history: GPUBuffer
-  hash: GPUBuffer
   lightView: GPUBuffer
 }
 
@@ -306,7 +303,6 @@ function traceGroups(
     inputs.runtime.cold,
     inputs.runtime.worlds,
     inputs.history,
-    inputs.hash,
     inputs.lightView,
     stages,
   )
@@ -347,8 +343,7 @@ function traceGroups(
         { binding: 1, resource: { buffer: uniform } },
         { binding: 2, resource: { buffer: tiles.args } },
         { binding: 3, resource: { buffer: inputs.lightView } },
-        { binding: 4, resource: { buffer: inputs.hash } },
-        { binding: 5, resource: { buffer: inputs.history } },
+        { binding: 4, resource: { buffer: inputs.history } },
       ],
     }),
   })

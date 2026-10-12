@@ -95,6 +95,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     copyCount = 0,
     copyWorlds = new Float32Array(0),
     surfaceCapacity = START.surfaces,
+    revision = 0,
     error = 0,
     buffer: GPUBuffer | undefined,
     layout = layoutOf(),
@@ -119,6 +120,11 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     }
   }
   const byteAt = (word: number) => (RUNTIME_HEADER_WORDS + word) * 4
+  /** Every write to the buffer: what a ray can meet changed, so its answers are of another epoch. */
+  const send: GPUQueue['writeBuffer'] = (...args) => {
+    revision++
+    device.queue.writeBuffer(...args)
+  }
 
   /** The header, as it stands. */
   function header() {
@@ -151,10 +157,10 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       size: byteAt(layout.total),
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     })
-    device.queue.writeBuffer(buffer, 0, header())
-    device.queue.writeBuffer(buffer, byteAt(layout.instances), words)
-    if (copyWorlds.length) device.queue.writeBuffer(buffer, byteAt(layout.copyWorlds), copyWorlds)
-    device.queue.writeBuffer(buffer, byteAt(layout.surfaces), surfaceWords)
+    send(buffer, 0, header())
+    send(buffer, byteAt(layout.instances), words)
+    if (copyWorlds.length) send(buffer, byteAt(layout.copyWorlds), copyWorlds)
+    send(buffer, byteAt(layout.surfaces), surfaceWords)
     return buffer
   }
 
@@ -208,17 +214,9 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     }
     if (triangle === undefined || node === undefined) return undefined
     const made = ensure()
-    device.queue.writeBuffer(
-      made,
-      byteAt(layout.triangles + triangle * PROXY_TRIANGLE_FLOATS),
-      cut.triangles,
-    )
-    device.queue.writeBuffer(made, byteAt(layout.bounds + node * PROXY_NODE_FLOATS), cut.nodeBounds)
-    device.queue.writeBuffer(
-      made,
-      byteAt(layout.children + node * PROXY_NODE_WORDS),
-      cut.nodeChildren,
-    )
+    send(made, byteAt(layout.triangles + triangle * PROXY_TRIANGLE_FLOATS), cut.triangles)
+    send(made, byteAt(layout.bounds + node * PROXY_NODE_FLOATS), cut.nodeBounds)
+    send(made, byteAt(layout.children + node * PROXY_NODE_WORDS), cut.nodeChildren)
     const placed = { node, triangle, nodes: nodeCount, triangles: triangleCount }
     cuts.set(cut, placed)
     return placed
@@ -239,13 +237,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       held.version = surface.version
       writeSurface(surfaceWords, held.at, surface)
       if (buffer)
-        device.queue.writeBuffer(
-          buffer,
-          byteAt(layout.surfaces + held.at),
-          surfaceWords,
-          held.at,
-          SURFACE_WORDS,
-        )
+        send(buffer, byteAt(layout.surfaces + held.at), surfaceWords, held.at, SURFACE_WORDS)
     }
     return held.slot
   }
@@ -293,14 +285,14 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     }
     if (buffer || cuts.size) {
       const made = ensure()
-      device.queue.writeBuffer(
+      send(
         made,
         byteAt(layout.instances + from * INSTANCE_WORDS),
         words,
         from * INSTANCE_WORDS,
         (to - from) * INSTANCE_WORDS,
       )
-      device.queue.writeBuffer(made, 0, header())
+      send(made, 0, header())
       dirty = false
     }
   }
@@ -333,14 +325,14 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     })
     if (!moved || !copies.length || !(buffer || cuts.size)) return
     const made = ensure()
-    device.queue.writeBuffer(
+    send(
       made,
       byteAt(layout.instances + slots * INSTANCE_WORDS),
       words,
       slots * INSTANCE_WORDS,
       copies.length * INSTANCE_WORDS,
     )
-    device.queue.writeBuffer(made, byteAt(layout.copyWorlds), copyWorlds)
+    send(made, byteAt(layout.copyWorlds), copyWorlds)
   }
 
   const live = () => packed.live?.worlds ?? packed.worldSources.length
@@ -381,13 +373,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
         node = parked ? RUNTIME_NONE : resolved[at + INSTANCE.node]
       if (words[at + INSTANCE.node] === node) return
       words[at + INSTANCE.node] = node
-      device.queue.writeBuffer(
-        buffer,
-        byteAt(layout.instances + at + INSTANCE.node),
-        words,
-        at + INSTANCE.node,
-        1,
-      )
+      send(buffer, byteAt(layout.instances + at + INSTANCE.node), words, at + INSTANCE.node, 1)
     },
     /** Placement `w`'s frame word, its mark and the deformation's reach above it. */
     mark(w: number, mark: number) {
@@ -396,7 +382,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       resolved[at] = mark
       if (words[at] === mark) return
       words[at] = mark
-      device.queue.writeBuffer(buffer, byteAt(layout.instances + at), words, at, 1)
+      send(buffer, byteAt(layout.instances + at), words, at, 1)
     },
     /** The surfaces a host edited and the copies that moved since the last cut, written again. */
     refresh() {
@@ -404,9 +390,13 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       for (const [surface] of surfaces) surfaceSlot(surface)
       syncCopies()
       if (buffer && dirty) {
-        device.queue.writeBuffer(buffer, 0, header())
+        send(buffer, 0, header())
         dirty = false
       }
+    },
+    /** Writes made to the buffer so far: the answers it gave are of an older one when this moved. */
+    get revision() {
+      return revision
     },
     /** Bytes of the buffer: what the cut's memory budget counts. */
     get bytes() {

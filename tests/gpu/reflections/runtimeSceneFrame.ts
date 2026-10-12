@@ -7,9 +7,28 @@ import { perspectiveSlope } from '../../../packages/math/src/projection/camera.t
 
 export const SPHERE = { centre: [0, 4.3, 0], radius: 0.35 } as const
 export const POST = { radius: 0.12, height: 4 } as const
-export const EYE = [0, 9, 6] as const
-export const TARGET = [0, 1.5, 0] as const
 export const FOV = 50
+/** The floors and the eyes: a polished metal seen from above and in front, and a rough dark paving seen
+ *  steeply down — the pose at which a black disc showed under a lamp's globe. */
+export const KINDS = {
+  mirror: {
+    eye: [0, 9, 6],
+    target: [0, 1.5, 0],
+    color: '#ffffff',
+    metalness: 1,
+    roughness: 0.02,
+    margin: 0.6,
+  },
+  paving: {
+    eye: [0.5, 9, 4],
+    target: [0.5, 2, -1],
+    color: '#1b1f27',
+    metalness: 0,
+    roughness: 0.35,
+    margin: 0.12,
+  },
+} as const
+export type Kind = keyof typeof KINDS
 
 type Vec = [number, number, number]
 const sub = (a: Vec, b: Vec): Vec => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
@@ -52,9 +71,15 @@ function postHit(o: Vec, d: Vec) {
  * primary ray reaches the floor before the post or the sphere, and the mirror ray reaches the sphere
  * before the post, none within `margin` metres of the post. `aspect` is the picture's width over its height.
  */
-export function mirroredSphere(width: number, height: number, aspect: number, margin = 0.6) {
-  const eye: Vec = [...EYE],
-    forward = norm(sub([...TARGET], eye)),
+export function mirroredSphere(
+  kind: Kind,
+  width: number,
+  height: number,
+  aspect: number,
+  margin = KINDS[kind].margin,
+) {
+  const eye: Vec = [...KINDS[kind].eye],
+    forward = norm(sub([...KINDS[kind].target], eye)),
     right = norm(cross(forward, [0, 1, 0])),
     up = cross(right, forward),
     slope = perspectiveSlope(FOV)

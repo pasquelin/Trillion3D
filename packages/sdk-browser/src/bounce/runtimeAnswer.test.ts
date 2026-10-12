@@ -10,7 +10,7 @@ import { world } from './runtimeScene.fixture.ts'
 
 test('a frame under its budget casts the ray, adds its work to the frame and keeps the answer for its pixel', () => {
   const w = world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, 3, 2, 1, 0]] })
-  const kept = history(4, 2, 0)
+  const kept = history(4, 0)
   const run = runOver(w, kept)
   run.testPixel(2)
   const seen = run.rtAnswer(origin, ahead, 1000, 0.01)
@@ -26,7 +26,7 @@ test('a frame under its budget casts the ray, adds its work to the frame and kee
 
 test('a frame past its budget leaves the ray for the next image: the pixel answers what it last got', () => {
   const w = world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, 3, 2, 1, 0]] })
-  const kept = history(4, 2, 0)
+  const kept = history(4, 0)
   // An image that cast it, then a frame whose budget is gone.
   const first = runOver(w, kept)
   first.testPixel(2)
@@ -38,9 +38,8 @@ test('a frame past its budget leaves the ray for the next image: the pixel answe
   assert.deepEqual(again.color, [3, 2, 1], 'the last answer, not the ray it was given')
   assert.equal(again.confidence, 1)
   assert.equal(kept[HISTORY.left], 0, 'the answer is of this epoch: nothing is left')
-  // The epoch moved (the lit image did): the answer is older, and counted as left.
-  kept[HISTORY.epoch] = 3
-  const later = runOver(w, kept)
+  // The epoch moved (an input of the answers did): the answer is older, and counted as left.
+  const later = runOver(w, kept, 3)
   later.testPixel(2)
   later.rtAnswer(origin, ahead, 1000, 0.01)
   assert.equal(kept[HISTORY.left], 1)
@@ -52,7 +51,7 @@ test('a frame past its budget leaves the ray for the next image: the pixel answe
 
 test('a second lobe of a pixel keeps no history: past the budget it answers nothing', () => {
   const w = world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, 3, 2, 1, 0]] })
-  const kept = history(4, 2, FRAME_WORK)
+  const kept = history(4, FRAME_WORK)
   const run = runOver(w, kept)
   run.testPixel(1)
   run.rtAnswer(origin, ahead, 1000, 0.01)
@@ -64,10 +63,25 @@ test('a second lobe of a pixel keeps no history: past the budget it answers noth
 test('a scene with no placement wearing a proxy costs nothing: no ray, no word touched', () => {
   const w = world(1, 1, { places: along(1, 4) })
   w.header.instances = 0
-  const kept = history(4, 2, 0)
+  const kept = history(4, 0)
   const run = runOver(w, kept)
   run.testPixel(1)
   assert.equal(run.rtAnswer(origin, ahead, 1000, 0.01).confidence, 0)
-  assert.deepEqual(kept, history(4, 2, 0))
+  assert.deepEqual(kept, history(4, 0))
   assert.equal(run.testWork(), 0)
+})
+
+test('an answer of this epoch is kept: no ray is cast again for it, the frame spends nothing', () => {
+  const w = world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, 3, 2, 1, 0]] })
+  const kept = history(4, 0)
+  const first = runOver(w, kept)
+  first.testPixel(2)
+  first.rtAnswer(origin, ahead, 1000, 0.01)
+  const spent = kept[HISTORY.spent]
+  const again = runOver(w, kept)
+  again.testPixel(2)
+  const seen = again.rtAnswer(origin, [-1, 0, 0], 1000, 0.01)
+  assert.deepEqual(seen.color, [3, 2, 1], 'the kept answer, not the ray it was given')
+  assert.equal(kept[HISTORY.spent], spent, 'nothing spent')
+  assert.equal(kept[HISTORY.left], 0)
 })

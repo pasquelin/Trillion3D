@@ -1,23 +1,25 @@
 /**
  * THE RUN-TIME PROXY'S ANSWERS, KEPT FROM IMAGE TO IMAGE: what a pixel last got from its ray
  * (`runtimeTraceWgsl.ts`), so that a frame that spends its budget (`FRAME_WORK`) leaves the pixels
- * after it their last answer, and the next frames — the trace starts at another tile each
- * (`ReflectionView.runtime`) — answer them. One buffer: a header of counters the frame's trace
- * reads and writes, then two words a pixel.
+ * after it their last answer, and the next frames — the trace starts where the last one's budget ended,
+ * `offset` — answer them. One buffer: a header of counters the frame's trace reads and writes, then two
+ * words a pixel. What an answer is stamped with, the epoch, is the CPU's (`follow`): it moves when an input
+ * of the answers did — the view, the lights, the placements' poses, a surface, a cut —, never when the lit
+ * image did, which the screen's own reflections change image after image without changing an answer.
  *
  * Header words: the pixels whose answer is older than the epoch (`left`: what the settle waits for,
- * `settle.ts`), the epoch (it moves when the lit image does: `BEGIN_SHADER` compares the radiance hash
- * of the last two images), the work the frame has spent, and a pad. A pixel's words: its colour as three
+ * `settle.ts`), the work the frame has spent, the tile the next frame starts at (`offset`) and the
+ * tiles the last one served from it (`cursor`). A pixel's words: its colour as three
  * half floats (the third in the high half of the second word's low half), its confidence on eight bits
  * and the epoch's low eight bits above them.
  *
  * It is made when a placement first wears a proxy (`ScreenReflection.history`) and kept at the size of
- * the image; the stand-in, four words, is bound before.
+ * the image; the stand-in, its header, is bound before.
  */
-export const HISTORY_HEADER_WORDS = 4
+export const HISTORY_HEADER_WORDS = 8
 /** Words of a pixel's answer. */
 export const HISTORY_PIXEL_WORDS = 2
-export const HISTORY = { left: 0, epoch: 1, spent: 2 } as const
+export const HISTORY = { left: 0, spent: 1, offset: 2, cursor: 3 } as const
 
 /** Bytes of the history of an image of `width × height`, which a view that wants it holds. */
 export const historyBytes = (width: number, height: number) =>
@@ -42,7 +44,23 @@ export function createProxyHistory(
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
     }))
   if (wanted) make()
+  const view = new Float64Array(16)
+  let epoch = 0,
+    key = ''
   return {
+    /**
+     * The epoch of this image's answers: one more than the last image's when an input of the answers moved
+     * (`inputs`, each a revision) or the view did. Idempotent within an image.
+     */
+    follow(inputs: readonly number[], viewProjection: ArrayLike<number>) {
+      const next = inputs.join(',')
+      let moved = false
+      for (let k = 0; k < 16; k++) if (view[k] !== viewProjection[k]) moved = true
+      if (moved || next !== key) epoch++
+      key = next
+      view.set(viewProjection)
+      return epoch
+    },
     /** The history the trace reads and writes, if the view holds one. */
     get buffer() {
       return made

@@ -102,8 +102,9 @@ ${wgslConsts({
   RT_HISTORY_HEADER: HISTORY_HEADER_WORDS,
   RT_HISTORY_PIXEL: HISTORY_PIXEL_WORDS,
   RT_LEFT: HISTORY.left,
-  RT_EPOCH: HISTORY.epoch,
   RT_SPENT: HISTORY.spent,
+  RT_OFFSET: HISTORY.offset,
+  RT_CURSOR: HISTORY.cursor,
   RT_SURFACE_WORDS: SURFACE_WORDS,
   RT_TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
 })}
@@ -322,6 +323,7 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
 /** The pixel the trace is at, and the rays it has asked of the proxy for it: the first is the base
  *  lobe's, which keeps its answer in the history (\`rtAnswer\`); a coat's goes without. */
 var<private> rtPixel:u32;
+var<private> rtRank:u32;
 var<private> rtCalls:u32;
 /** An epoch's stamp on eight bits, never zero: a pixel never answered holds none. */
 fn rtStamp(epoch:u32)->u32{return epoch%255u+1u;}
@@ -338,21 +340,30 @@ fn rtAnswer(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
  let first=rtCalls==0u;
  rtCalls++;
  let at=RT_HISTORY_HEADER+rtPixel*RT_HISTORY_PIXEL;
- let stamp=rtStamp(atomicLoad(&rtHistory[RT_EPOCH]));
+ let stamp=rtStamp(reflectionView.runtime.x);
+ var high=0u;
+ if(first){
+  high=atomicLoad(&rtHistory[at+1u]);
+  // An answer of this epoch is the answer: no ray is cast again for it, whatever budget is left.
+  if((high>>24u)==stamp){return rtKept(at,high);}
+ }
  if(atomicLoad(&rtHistory[RT_SPENT])<RT_FRAME_WORK){
   let seen=rtRadiance(origin,direction,reach,tangent);
   atomicAdd(&rtHistory[RT_SPENT],rtWork);
   if(first){
+   atomicMax(&rtHistory[RT_CURSOR],rtRank+1u);
    atomicStore(&rtHistory[at],pack2x16float(seen.color.xy));
    atomicStore(&rtHistory[at+1u],(pack2x16float(vec2f(seen.color.z,0.0))&0xffffu)|(u32(round(clamp(seen.confidence,0.0,1.0)*255.0))<<16u)|(stamp<<24u));
   }
   return seen;
  }
  if(!first){return RtRadiance(vec3f(0.0),0.0);}
- let low=atomicLoad(&rtHistory[at]);
- let high=atomicLoad(&rtHistory[at+1u]);
- if((high>>24u)!=stamp){atomicAdd(&rtHistory[RT_LEFT],1u);}
- let rg=unpack2x16float(low);
+ atomicAdd(&rtHistory[RT_LEFT],1u);
+ return rtKept(at,high);
+}
+/** The answer a pixel kept: its colour and its confidence, of whatever epoch. */
+fn rtKept(at:u32,high:u32)->RtRadiance{
+ let rg=unpack2x16float(atomicLoad(&rtHistory[at]));
  return RtRadiance(vec3f(rg,unpack2x16float(high&0xffffu).x),f32((high>>16u)&255u)/255.0);
 }
 `,
