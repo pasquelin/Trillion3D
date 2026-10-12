@@ -94,7 +94,7 @@ impl<R: Read> Read for Counting<R> {
 
 /// Unpacks `stream` into a fresh scratch `root`: the scratch directory, the root and the counts.
 fn unpacked(name: &str, stream: impl Read) -> (PathBuf, PathBuf, (usize, u64)) {
-    let dir = scratch(name);
+    let dir = scratch("conteneur", name);
     let root = dir.join("root");
     fs::create_dir_all(&root).expect("root");
     let cancelled = std::sync::atomic::AtomicBool::new(false);

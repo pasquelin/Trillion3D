@@ -51,17 +51,7 @@ pub fn build_dag_tallied(
             .map(|&v| first_use.get(v as usize).copied().unwrap_or(u32::MAX))
             .min()
             .unwrap_or(0);
-        dag.push(DagCluster {
-            indices: cluster,
-            level: 0,
-            lod_error: 0.0,
-            parent_error: f64::INFINITY,
-            sphere,
-            parent_sphere: sphere,
-            source_rank,
-            group: None,
-            source: None,
-        });
+        dag.push(DagCluster::leaf(cluster, 0.0, sphere, source_rank));
     }
     // Welding is only used for reduction: nothing to weld for exact clusters or for a primitive fitting in a single cluster.
     let (mut dag, mut groups, tallies, stalls, grown) =
@@ -95,16 +85,8 @@ pub fn build_dag_from_roots(
     let dag: Vec<DagCluster> = roots
         .into_iter()
         .enumerate()
-        .map(|(rank, (indices, lod_error, sphere))| DagCluster {
-            indices,
-            level: 0,
-            lod_error,
-            parent_error: f64::INFINITY,
-            sphere,
-            parent_sphere: sphere,
-            source_rank: rank as u32,
-            group: None,
-            source: None,
+        .map(|(rank, (indices, lod_error, sphere))| {
+            DagCluster::leaf(indices, lod_error, sphere, rank as u32)
         })
         .collect();
     if dag.len() < 2 {

@@ -1,7 +1,8 @@
 //! Where the transparency of a Blender material comes from: the shader's `Alpha` input, the
 //! image that carries it, and the mode the file declares.
 use super::*;
-use output::{close, factors, material};
+use crate::tests::fixtures::material;
+use output::{close, factors};
 
 // Behaviour: alpha linked on the alpha channel of the image the base colour already holds
 // passes as-is — glTF only reads opacity there. The factor is then one, or it would cancel the

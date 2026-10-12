@@ -8,28 +8,17 @@ use super::*;
 mod geometry;
 use std::fs;
 
-/// A throwaway file carrying these bytes, named by the case that uses it.
-fn written(tag: &str, bytes: &[u8]) -> std::path::PathBuf {
-    let path = std::env::temp_dir().join(format!(
-        "trillion3d-alembic-{tag}-{}-{}.abc",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    fs::write(&path, bytes).expect("test file");
-    path
-}
-
 /// The refusal code of these bytes read as an archive.
 fn refused(tag: &str, bytes: &[u8]) -> &'static str {
-    let path = written(tag, bytes);
+    // A throwaway file carrying these bytes, in a directory named by the case.
+    let dir = crate::tests::directories::scratch("alembic", tag);
+    let path = dir.join("archive.abc");
+    fs::write(&path, bytes).expect("test file");
     let code = Archive::open(&path)
         .err()
         .unwrap_or_else(|| panic!("{tag}: these bytes were expected to be refused"))
         .code;
-    fs::remove_file(&path).expect("cleanup");
+    fs::remove_dir_all(&dir).expect("cleanup");
     code
 }
 

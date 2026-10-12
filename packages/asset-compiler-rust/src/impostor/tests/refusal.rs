@@ -1,6 +1,7 @@
 use crate::impostor::eligibility::{Candidate, FRAMES};
 use crate::impostor::stage::entry;
-use crate::texture_preview::tests::{options, temp_dir};
+use crate::tests::directories::scratch;
+use crate::texture_preview::tests::options;
 
 // Behaviour: a mesh whose root stays below the pixels it covers out to the scene's reach is
 // refused, with the reason and its numbers in its report entry; the same tree placed many times
@@ -8,7 +9,7 @@ use crate::texture_preview::tests::{options, temp_dir};
 // opaque placement is refused before the mesh is read.
 #[test]
 fn a_mesh_whose_root_is_cheaper_than_its_pixels_is_refused_with_its_reason() {
-    let o = options(&temp_dir("impostor-refusal"));
+    let o = options(&scratch("texture-preview", "impostor-refusal"));
     let candidate = |root_triangles| Candidate {
         root_triangles,
         radius: 0.0,

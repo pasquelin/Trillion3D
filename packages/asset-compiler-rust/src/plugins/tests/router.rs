@@ -14,7 +14,7 @@ fn routed(path: &std::path::Path) -> std::result::Result<String, (&'static str, 
 // accepts — otherwise the caller has no way to know what to export.
 #[test]
 fn an_unknown_source_is_refused_and_the_accepted_formats_are_named() {
-    let dir = temp_dir("unknown");
+    let dir = scratch("plugins", "unknown");
     fs::write(dir.join("scene.sbsar"), b"not a format we read").expect("write");
     let (code, message) = routed(&dir).expect_err("an unknown source is refused");
     assert_eq!(code, "SOURCE_FORMAT_UNKNOWN");
@@ -31,7 +31,7 @@ fn an_unknown_source_is_refused_and_the_accepted_formats_are_named() {
 // refuses by naming both rather than guessing which one carries the scene.
 #[test]
 fn a_source_claimed_by_two_plugins_is_refused_and_both_are_named() {
-    let dir = temp_dir("ambiguous");
+    let dir = scratch("plugins", "ambiguous");
     fs::write(dir.join("a.obj"), b"v 0 0 0\n").expect("obj");
     fs::write(dir.join("b.fbx"), b"Kaydara FBX Binary  \x00").expect("fbx");
     let (code, message) = routed(&dir).expect_err("an ambiguous source is refused");
@@ -47,11 +47,11 @@ fn a_source_claimed_by_two_plugins_is_refused_and_both_are_named() {
 // directory; two glTFs in the same directory remain an ambiguity, that of the driver itself.
 #[test]
 fn gltf_and_glb_sources_select_the_gltf_plugin() {
-    let dir = temp_dir("gltf");
+    let dir = scratch("plugins", "gltf");
     fs::write(dir.join("mesh.gltf"), b"{}").expect("gltf");
     assert_eq!(routed(&dir).expect("directory"), "gltf");
     assert_eq!(routed(&dir.join("mesh.gltf")).expect("file"), "gltf");
-    let glb = temp_dir("glb");
+    let glb = scratch("plugins", "glb");
     fs::write(glb.join("mesh.glb"), b"glTF\x02\x00\x00\x00").expect("glb");
     assert_eq!(routed(&glb).expect("glb"), "gltf");
     // Without an extension, the container header is enough to name the driver.
@@ -83,11 +83,11 @@ fn gltf_and_glb_sources_select_the_gltf_plugin() {
 // directory that already carries `manifest.json` goes through no driver.
 #[test]
 fn fbx_obj_and_manifest_sources_each_go_to_their_own_route() {
-    let dir = temp_dir("ufbx");
+    let dir = scratch("plugins", "ufbx");
     fs::write(dir.join("a.fbx"), b"Kaydara FBX Binary  \x00").expect("fbx");
     assert_eq!(routed(&dir.join("a.fbx")).expect("fbx file"), "fbx");
     assert_eq!(routed(&dir).expect("fbx directory"), "fbx");
-    let obj = temp_dir("obj");
+    let obj = scratch("plugins", "obj");
     fs::write(obj.join("a.obj"), b"v 0 0 0\n").expect("obj");
     fs::write(obj.join("a.mtl"), b"newmtl painted\n").expect("mtl");
     match route(&obj).expect("obj directory") {

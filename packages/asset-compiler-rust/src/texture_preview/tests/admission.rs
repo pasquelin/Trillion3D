@@ -33,7 +33,7 @@ fn run(root: &Path, ram: usize, cancelled: bool) -> Result<Vec<TexturePreview>> 
 
 #[test]
 fn constrained_waves_preserve_mips_and_block_tails_byte_for_byte() {
-    let root = temp_dir("admission");
+    let root = scratch("texture-preview", "admission");
     for name in ["a.png", "b.png"] {
         rgba_from(256, 256, |x, y| [x as u8, y as u8, 77, 255])
             .save(root.join(name))
@@ -77,7 +77,7 @@ fn constrained_waves_preserve_mips_and_block_tails_byte_for_byte() {
 
 #[test]
 fn a_single_oversized_image_is_an_admission_error_not_a_white_texture() {
-    let root = temp_dir("admission-refusal");
+    let root = scratch("texture-preview", "admission-refusal");
     for name in ["a.png", "b.png"] {
         rgba_from(256, 256, |_, _| [0, 0, 0, 255])
             .save(root.join(name))

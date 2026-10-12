@@ -1,19 +1,6 @@
 //! Answer reading, and what an answer changes in scene.
 use super::*;
-use std::time::{SystemTime, UNIX_EPOCH};
-
-fn fresh_folder(nom: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!(
-        "trillion3d-decoupes-{nom}-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    fs::create_dir_all(&path).expect("dir");
-    path
-}
+use crate::tests::directories::scratch;
 
 fn write_sheet(directory: &Path, sheet: &Value) {
     fs::write(
@@ -52,7 +39,7 @@ fn answer(directory: &Path, g: &mut Value, bin: &[u8], sha: &str, cutout: bool) 
 // Behavior: without sheet, nothing changes. Blend stays blend, report says so.
 #[test]
 fn without_a_sheet_blend_stays_blend() {
-    let directory = fresh_folder("vide");
+    let directory = scratch("decoupes", "vide");
     let decisions = load_decisions(&directory, &directory).expect("read");
     let (mut g, bin, _) = scene();
     let applied = appliquer(&mut g, &bin, &decisions);
@@ -68,7 +55,7 @@ fn without_a_sheet_blend_stays_blend() {
 // report names changed binding.
 #[test]
 fn a_cutout_answer_turns_the_material_masked() {
-    let directory = fresh_folder("decoupe");
+    let directory = scratch("decoupes", "decoupe");
     let (mut g, bin, sha) = scene();
     let applied = answer(&directory, &mut g, &bin, &sha, true);
     assert_eq!(g["materials"][0]["alphaMode"], json!("MASK"));
@@ -80,7 +67,7 @@ fn a_cutout_answer_turns_the_material_masked() {
 // Behavior: "window" answer, and never decided texture, leave scene intact.
 #[test]
 fn a_pane_answer_leaves_the_scene_intact() {
-    let directory = fresh_folder("vitre");
+    let directory = scratch("decoupes", "vitre");
     let (mut g, bin, sha) = scene();
     answer(&directory, &mut g, &bin, &sha, false);
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
@@ -90,7 +77,7 @@ fn a_pane_answer_leaves_the_scene_intact() {
 // is not a cutout —, refusal named rather than quiet.
 #[test]
 fn a_transmission_is_refused_despite_the_answer() {
-    let directory = fresh_folder("transmission");
+    let directory = scratch("decoupes", "transmission");
     let (mut g, bin, sha) = scene();
     g["materials"][0]["extensions"] =
         json!({"KHR_materials_transmission":{"transmissionFactor":0.8}});
@@ -103,7 +90,7 @@ fn a_transmission_is_refused_despite_the_answer() {
 // opacity does not come from texture, cutting out would not yield it.
 #[test]
 fn a_partial_alpha_factor_is_refused() {
-    let directory = fresh_folder("facteur");
+    let directory = scratch("decoupes", "facteur");
     let (mut g, bin, sha) = scene();
     g["materials"][0]["pbrMetallicRoughness"]["baseColorFactor"] = json!([1.0, 1.0, 1.0, 0.4]);
     let applied = answer(&directory, &mut g, &bin, &sha, true);
@@ -116,7 +103,7 @@ fn a_partial_alpha_factor_is_refused() {
 // image without user asking.
 #[test]
 fn an_unreadable_sheet_is_refused_and_a_null_answer_waits() {
-    let directory = fresh_folder("formes");
+    let directory = scratch("decoupes", "formes");
     write_sheet(
         &directory,
         &json!({"version":1,"textures":{"abc":{"cutout":Value::Null}}}),
@@ -140,7 +127,7 @@ fn an_unreadable_sheet_is_refused_and_a_null_answer_waits() {
 // compiled model does not have one yet.
 #[test]
 fn a_sheet_shipped_with_the_source_seeds() {
-    let (cache, source) = (fresh_folder("cache"), fresh_folder("source"));
+    let (cache, source) = (scratch("decoupes", "cache"), scratch("decoupes", "source"));
     write_sheet(
         &source,
         &json!({"version":1,"textures":{"abc":{"cutout":true}}}),

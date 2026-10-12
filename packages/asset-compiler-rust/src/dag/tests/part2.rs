@@ -37,18 +37,12 @@ fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
         .iter()
         .enumerate()
         .map(|(i, indices)| {
-            let sphere = bounding_sphere(&positions, indices);
-            DagCluster {
-                indices: indices.clone(),
-                level: 0,
-                lod_error: 0.0,
-                parent_error: f64::INFINITY,
-                sphere,
-                parent_sphere: sphere,
-                source_rank: i as u32,
-                group: None,
-                source: None,
-            }
+            DagCluster::leaf(
+                indices.clone(),
+                0.0,
+                bounding_sphere(&positions, indices),
+                i as u32,
+            )
         })
         .collect();
     let group: Vec<&DagCluster> = groups[0].iter().map(|&slot| &children[slot]).collect();
@@ -101,18 +95,12 @@ fn an_isolated_sheet_simplifies_its_whole_boundary() {
     let children: Vec<DagCluster> = clusters
         .iter()
         .map(|indices| {
-            let sphere = bounding_sphere(&positions, indices);
-            DagCluster {
-                indices: indices.clone(),
-                level: 0,
-                lod_error: 0.0,
-                parent_error: f64::INFINITY,
-                sphere,
-                parent_sphere: sphere,
-                source_rank: 0,
-                group: None,
-                source: None,
-            }
+            DagCluster::leaf(
+                indices.clone(),
+                0.0,
+                bounding_sphere(&positions, indices),
+                0,
+            )
         })
         .collect();
     let group: Vec<&DagCluster> = children.iter().collect();

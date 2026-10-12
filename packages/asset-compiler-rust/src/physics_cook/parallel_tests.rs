@@ -168,7 +168,7 @@ fn primitive(
 }
 
 fn assert_same_primitive(name: &str, pos: &[f32], triangles: &[u32]) {
-    let root = crate::texture_preview::tests::temp_dir(name);
+    let root = crate::tests::directories::scratch("texture-preview", name);
     let serial = primitive(false, pos, triangles, &root.join("serial"));
     let parallel = primitive(true, pos, triangles, &root.join("parallel"));
     std::fs::remove_dir_all(&root).ok();

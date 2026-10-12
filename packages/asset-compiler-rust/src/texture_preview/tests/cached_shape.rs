@@ -6,7 +6,7 @@ use super::*;
 // empty cache the same image is measured.
 #[test]
 fn a_cached_alpha_shape_skips_the_analysis_and_a_miss_measures_the_image() {
-    let dir = temp_dir("bake-cached-shape");
+    let dir = scratch("texture-preview", "bake-cached-shape");
     let source = rgba_from(8, 8, |x, _| [40, 90, 160, if x < 3 { 0 } else { 255 }]);
     source.save(dir.join("leaf.png")).expect("save");
     let sha = hash(&fs::read(dir.join("leaf.png")).expect("read"));

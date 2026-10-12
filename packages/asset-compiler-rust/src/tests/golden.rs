@@ -4,10 +4,6 @@
 //! adds its own digest there, never its own harness: two ways to compile a
 //! fixture are two truths.
 use super::*;
-use std::{sync::atomic::AtomicU64, time::SystemTime, time::UNIX_EPOCH};
-
-/// Throwaway root rank: the macOS clock stops at the microsecond, two parallel goldens do not.
-static NEXT: AtomicU64 = AtomicU64::new(0);
 
 /// A compiled golden fixture. The throwaway cache is erased with the structure,
 /// including when the assertion that follows fails and takes the test with it.
@@ -81,15 +77,7 @@ pub(super) fn refused_golden_source(source: &Path, name: &str) -> String {
 /// Common options, and the throwaway root that carries them; the compute bench compiles
 /// its fixtures with them too.
 pub(crate) fn golden_options(source: &Path, name: &str) -> (Options, PathBuf) {
-    let root = std::env::temp_dir().join(format!(
-        "trillion3d-golden-{name}-{}-{}-{}",
-        std::process::id(),
-        NEXT.fetch_add(1, Ordering::Relaxed),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos(),
-    ));
+    let root = scratch("golden", name);
     let options = Options {
         source: source.to_path_buf(),
         cache: root.join("cache"),
