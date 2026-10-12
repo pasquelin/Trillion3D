@@ -24,7 +24,7 @@ const DISPLAY_BYTES = 4
  * reflection, and draws what it drew before.
  */
 export const wantsFrontDepth = (rt: Pick<WebgpuPagesRuntime, 'blendState'>) =>
-  rt.blendState.blendGpu.length > 0
+  rt.blendState.blendGpu.length > 0 || !!rt.blendState.frontGranted
 
 /**
  * Whether a frame of `size` makes a display colour of its own at the render size (`Trillion3D

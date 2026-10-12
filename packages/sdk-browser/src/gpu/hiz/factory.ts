@@ -154,6 +154,12 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
     },
     encodeTest: (queueDevice, open, maxRows, pages, counting) =>
       hizTest(h, queueDevice, open, maxRows, pages, counting),
+    get front() {
+      return h.front
+    },
+    set front(front) {
+      h.front = front
+    },
     resize: (nextDevice, nextWidth, nextHeight) =>
       hizResize(h, gpu, nextDevice, nextWidth, nextHeight),
     swap(next) {

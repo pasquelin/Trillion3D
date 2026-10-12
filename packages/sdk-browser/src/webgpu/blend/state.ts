@@ -130,6 +130,9 @@ function waterState() {
     /** A source that brings a transmissive surface asked for the water pass before its items join:
      *  the targets it draws over are made for it (`holdsWater`). */
     waterGranted: false,
+    /** A source that brings a blend asked for it before its items join: the front depth the blend
+     *  pass writes is made full size (`wantsFrontDepth`). */
+    frontGranted: false,
     transmissiveInView: 0,
     waterBounds: createWaterBounds(),
     /** Volume of each transmissive item, at its water rank, written with the records. */

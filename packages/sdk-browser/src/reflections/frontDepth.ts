@@ -128,6 +128,8 @@ export function createFrontDepth(
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   })
   return {
+    /** Whether it holds the full target: the scene had a blend when it was made. */
+    wanted,
     written,
     view: written.createView(),
     folded,

@@ -49,6 +49,8 @@ export type GpuHiz = {
     counting: boolean,
   ): number
   resize(device: GPUDevice, width: number, height: number): boolean
+  /** Whether its pyramids hold a front depth a pixel; set, the next `resize` makes them so. */
+  front: boolean
   /**
    * The `width × height` this image draws in the top-left of level 0, at most its size: the build,
    * the test and `levels()` read that, so a render-scale change remakes nothing. Level 0 is

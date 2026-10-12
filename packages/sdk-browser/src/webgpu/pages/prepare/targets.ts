@@ -28,6 +28,9 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     holds(gpu.surfaces, gpu.surfaces.subsurface, wantsSubsurface(rt)) &&
     // The lobes target is remade alone when it flips (`followLobes`), never the whole set.
     !!gpu.reflection &&
+    // The front depth the blends write is full-size once the session holds a blend: one that joined
+    // a session opened without remakes it (`wantsFrontDepth`).
+    gpu.reflection.front.wanted === wantsFrontDepth(rt) &&
     !!vis.visTexture
   )
 }

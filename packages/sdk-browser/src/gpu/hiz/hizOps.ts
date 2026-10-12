@@ -157,7 +157,13 @@ export function hizResize(
   height: number,
 ) {
   if (h.disposed || !nextDevice || width < 1 || height < 1) return false
-  if (width === gpu.width && height === gpu.height && h.at) return true
+  if (
+    width === gpu.width &&
+    height === gpu.height &&
+    h.at &&
+    h.at.front.width === (h.front ? width : 1)
+  )
+    return true
   try {
     // The drawn view's pyramid is replaced; another view's, held aside, is not touched.
     h.at?.destroy()

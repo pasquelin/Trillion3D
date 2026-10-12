@@ -3,7 +3,7 @@ import { ledgerTentative } from '../../../gpu/core/deviceLedger.ts'
 import { throwIfStopped } from '../io/lost.ts'
 import { makeTargets, releaseTargets, targetsFit } from './targets.ts'
 import { makeVsmMask } from '../render/vsm/vsmPlan.ts'
-import { frameExtraBytes, frameTargetAllocation } from './targetAllocation.ts'
+import { frameExtraBytes, frameTargetAllocation, wantsFrontDepth } from './targetAllocation.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { drawnViewChanged, viewGpu, type WebgpuView } from '../state/view.ts'
 import { onView } from '../state/viewSwitch.ts'
@@ -129,7 +129,13 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
     dropAside(rt)
   }
   // The view's Hi-Z pyramid fits too, at the render size.
-  if (fit && (!hiz || (hiz.width === renderWidth && hiz.height === renderHeight))) {
+  if (
+    fit &&
+    (!hiz ||
+      (hiz.width === renderWidth &&
+        hiz.height === renderHeight &&
+        hiz.front === wantsFrontDepth(rt)))
+  ) {
     return refreshTargetGrant(rt, size, (error) =>
       refuseTargets(rt, { ...size, requestedBytes: gpu.targetBytes }, 'budget', error),
     )
@@ -245,6 +251,7 @@ async function grantTargets(
 async function grantHiz(rt: WebgpuPagesRuntime, device: GPUDevice, asked: Asked, view: WebgpuView) {
   const hiz = rt.vis.gpuHiz!,
     { renderWidth: width, renderHeight: height } = asked
+  hiz.front = wantsFrontDepth(rt)
   // A resize that throws is refused like one the device declines: the grant never stays settled.
   const size = () => ledgerTentative(device, () => hiz.resize(device, width, height)) || undefined
   const fits = await validated(device, size, 'out-of-memory').catch(() => undefined)

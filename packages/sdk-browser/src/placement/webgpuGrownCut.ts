@@ -19,7 +19,7 @@ import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
 import { followWorldRoot } from '../webgpu/pages/prepare/worldRoot.ts'
 import { growthOf, heldPage, takeGrownCopies } from './webgpuGrowth.ts'
-import { growBlend, waitsForWater } from '../webgpu/blend/growth.ts'
+import { growBlend, waitsForFrontDepth, waitsForWater } from '../webgpu/blend/growth.ts'
 import { announceGrowth, replayMoves, type GrownRoots } from './growthAnnounce.ts'
 import { joinDeformation, placeDeformation } from '../deformation/growth.ts'
 
@@ -36,6 +36,8 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   if (!growth || !ready || selectionRoots.length + growth.roots.length !== ready.roots) return false
   // A transmissive copy joins over the water pass's targets and classes, asked of the frame.
   if (waitsForWater(rt, growth.copies)) return false
+  // A blend joins over the front depth the targets and the Hi-Z were remade to hold.
+  if (waitsForFrontDepth(rt, growth.copies)) return false
   growth.ready = undefined
   // The cut that took them in place is no longer the session's: they are asked again.
   if (ready.inPlace && ready.cut !== run.gpuSelection) {

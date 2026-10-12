@@ -41,6 +41,21 @@ export async function frame(world: World) {
     world.render()
     if (lastFrameOf(world)?.frameHeld) break
   }
+  // The reflections feed on the radiance of the image before (`reflections/gpu.ts`): the rest image
+  // is reached by the same short walk of the camera in every world, so none keeps the history of
+  // the content it joined after.
+  {
+    for (const y of [7, 6]) {
+      world.camera.position.set(0, y, 9)
+      world.camera.lookAt(0, 0, 0)
+      world.camera.updateMatrixWorld(true)
+      for (let i = 0; i < 40; i++) {
+        await animationFrame()
+        world.render()
+        if (lastFrameOf(world)?.frameHeld) break
+      }
+    }
+  }
   const pixels = await sessionOf(world).capture()
   lastPixels = pixels
   return createHash('sha256').update(pixels).digest('hex')
