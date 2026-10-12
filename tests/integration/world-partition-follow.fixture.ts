@@ -59,6 +59,7 @@ function standIn(opened: Iterable<PlacementRows>) {
   const backend = {
     worldCut: () => undefined,
     updatePlacements() {},
+    composePlacements: () => false,
     growsInPlace: () => true,
     growPlacements(from: PlacementRows, to: PlacementRows) {
       counts.grown++

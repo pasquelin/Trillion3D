@@ -2,6 +2,7 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts'
 import { PRESENT_AT_SHADER, PRESENT_SHADER } from './presentWgsl.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
+import { TREE_REFIT_WGSL } from '../dag/treeRefitWgsl.ts'
 import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
 import { dagSelectionShader } from '../dag/shader/splitWgsl.ts'
 import { dagSplit } from '../dag/split.ts'
@@ -16,7 +17,11 @@ import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/s
 import { PARTITION_SHADER } from '../partition/shader.ts'
 import { RESOLVE, rasterSource } from '../raster/shader.ts'
 import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts'
-import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL } from '../../placement/gpuComposeWgsl.ts'
+import {
+  COMPOSE_MEMBERS_WGSL,
+  COMPOSE_ROOTS_WGSL,
+  COMPOSE_ROWS_WGSL,
+} from '../../placement/gpuComposeWgsl.ts'
 import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER } from '../../bounce/probeWgsl.ts'
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts'
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
@@ -102,8 +107,10 @@ export const ENGINE_SHADERS: Record<string, string> = {
   RASTER: rasterSource(4096, 16),
   RESOLVE,
   REST_COMPACT_SHADER,
+  COMPOSE_MEMBERS_WGSL,
   COMPOSE_ROOTS_WGSL,
   COMPOSE_ROWS_WGSL,
+  TREE_REFIT_WGSL,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SNAPSHOT_SHADER,
   BOUNCE_SURFACE_SHADER,

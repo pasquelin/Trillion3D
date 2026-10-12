@@ -12,6 +12,7 @@
  * pass binds them whole: the chain of each touched group is opened instead (`open`) — a box no plane
  * rejects, the tree's no-cull answer — never left as it was.
  */
+import { oncePerDevice } from '../core/oncePerDevice.ts'
 import { TREE_REFIT_PASS } from '../../stage/passLabels.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { dispatchRows } from '../dispatch/grid.ts'
@@ -26,6 +27,7 @@ import {
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
 import { writeParts, type DagParts } from './split.ts'
+import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 
 /** The nodes to fit at each level of `tree` once `groups` changed, bottom up: each level's, as
  *  their index within it, increasing. */
@@ -75,6 +77,8 @@ export function createTreeRefit(
   packDoubles(words, 0, tree.boxes)
   device.queue.writeBuffer(members, 0, words)
   const leafWords = new Uint32Array(12)
+  // Compiled off the thread as the tree is followed: the frames wait for it, none compiles it.
+  const kernel = gpu && refitKernel(device).ask()
   let program: ReturnType<typeof refitProgram> | undefined
   return {
     members,
@@ -92,7 +96,7 @@ export function createTreeRefit(
       if (!gpu) return
       const levels = refitLevels(tree, groups)
       if (!levels.length) return
-      program ??= refitProgram(device, tree, gpu, members)
+      program ??= refitProgram(device, tree, gpu, members, kernel!.get())
       const pass = encoder.beginComputePass({ label: TREE_REFIT_PASS })
       pass.setPipeline(program.pipeline)
       let at = 0
@@ -133,6 +137,18 @@ export function createTreeRefit(
   }
 }
 
+/** The refit kernel of a device, made once. */
+const refitKernel = oncePerDevice((device) =>
+  preparedComputePipeline(device, {
+    label: TREE_REFIT_PASS,
+    layout: 'auto',
+    compute: {
+      module: device.createShaderModule({ label: TREE_REFIT_PASS, code: TREE_REFIT_WGSL }),
+      entryPoint: 'main',
+    },
+  }),
+)
+
 /** The pipeline, the lists and the parameters of the passes, made when the first one runs, and one
  *  group per level: the tree's depth is fixed. */
 function refitProgram(
@@ -140,16 +156,8 @@ function refitProgram(
   tree: PlacementTree,
   gpu: { nodes: GPUBuffer; frames: GPUBuffer; cold: GPUBuffer },
   members: GPUBuffer,
+  pipeline: GPUComputePipeline,
 ) {
-  const module = device.createShaderModule({
-    label: 'Trillion3D placement tree refit',
-    code: TREE_REFIT_WGSL,
-  })
-  const pipeline = device.createComputePipeline({
-    label: 'Trillion3D placement tree refit',
-    layout: 'auto',
-    compute: { module, entryPoint: 'main' },
-  })
   const ids = device.createBuffer({
     label: 'Trillion3D placement tree refit ids',
     size: Math.max(1, treeNodeCount(tree)) * 4,

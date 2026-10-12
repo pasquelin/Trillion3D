@@ -9,6 +9,7 @@
  * leaves the rows to this module's own write, `parent · local`, which is then rewritten, row by
  * row, under each parent whose world moved or whose host mesh's `castShadow` changed.
  */
+import type { PlacementLink } from '../placement/gpuCompose.ts'
 import { MATRIX_VALUES, multiplyMatrix4 } from '../../../sdk-core/src/index.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { keepNumbers } from '../../../math/src/vector/vector.ts'
@@ -18,9 +19,6 @@ import type { PlacementRows } from '../placement/rows.ts'
 
 /** A cell's node on its row: its mesh, the row, the core node it hangs under and its pose there. */
 export type Placement = { mesh: PlacedMesh; row: number; parent: Object3D; local: Float64Array }
-
-/** A row linked to a parent: its rows, its rank there, its node's own matrix. */
-type Link = { rows: PlacementRows; index: number; local: ArrayLike<number> }
 
 /**
  * The world a partition's scene hangs in: its model's, when a world draws it (the scene's own
@@ -32,7 +30,7 @@ export type CellFrame = {
   compose?: (
     parent: object,
     world: ArrayLike<number>,
-    links: readonly Link[],
+    links: readonly PlacementLink[],
     whole: boolean,
   ) => boolean
 }
@@ -60,7 +58,7 @@ export function createPlacementWrites(
   /** False once the session refused a link: every row is this module's to write. */
   let composes = true
   /** The links the rows a batch wrote are to take, by parent. */
-  const pending = new Map<Object3D, Link[]>()
+  const pending = new Map<Object3D, PlacementLink[]>()
   const slotWorld = new Float64Array(MATRIX_VALUES),
     product = new Float64Array(MATRIX_VALUES)
   const stale = new Set<Object3D | PlacedMesh>()
@@ -109,7 +107,7 @@ export function createPlacementWrites(
   }
   /** The rows of `parent` among `held`, as links. */
   const under = (held: Iterable<readonly Placement[]>, parent: Object3D) => {
-    const links: Link[] = []
+    const links: PlacementLink[] = []
     for (const placements of held)
       for (const at of placements)
         if (at.parent === parent)
@@ -119,7 +117,11 @@ export function createPlacementWrites(
   }
   /** `parent`'s rows are the session's: its slot made with every row it holds, or given the rows a
    *  batch wrote since; false when the session refuses. */
-  const link = (parent: Object3D, held: Iterable<readonly Placement[]>, added?: Link[]) => {
+  const link = (
+    parent: Object3D,
+    held: Iterable<readonly Placement[]>,
+    added?: PlacementLink[],
+  ) => {
     const slot = slots.get(parent)
     if (slot) return !added || frame.compose!(slot, worldOf(parent), added, false)
     const made = {}
@@ -146,7 +148,7 @@ export function createPlacementWrites(
       stale.clear()
       // A session that composes now takes the rows placed before it did: one pass over them.
       if (frame.compose && composes && [...worlds.keys()].some((node) => !slots.has(node))) {
-        const groups = new Map<Object3D, Link[]>()
+        const groups = new Map<Object3D, PlacementLink[]>()
         for (const placements of held)
           for (const at of placements)
             for (const link of at.mesh.links) {
