@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { frontCamera } from '../../engine/pagesEngineScenes.fixture.ts'
-import { CLUSTER_PAGE_MAGIC } from '../../../../sdk-core/src/page/format.ts'
 import {
   disposePagedQuad,
   pagedQuad,
@@ -66,7 +65,7 @@ test('the draw ceiling is the catalogue largest corner count, not the slot width
 test('a page whose header is forged is refused instead of poured into the pool', async () => {
   installGpuGlobals()
   const forgeries: Record<string, (view: DataView) => void> = {
-    magic: (view) => view.setUint32(0, CLUSTER_PAGE_MAGIC ^ 1, true),
+    magic: (view) => view.setUint32(0, 0, true),
     version: (view) => view.setUint32(4, 9, true),
     counts: (view) => view.setUint32(8, view.getUint32(8, true) + 16, true),
   }

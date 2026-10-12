@@ -3,6 +3,8 @@
 // numbers of the manifest's binary, the resident proxy, the cutout answer sheet and the impostor
 // section, and `packages/sdk-core/src/contracts/writtenFormats.ts` carries them to the readers,
 // which re-export the ones their module is the home of.
+import { execFileSync } from 'node:child_process'
+import { REPOSITORY_ROOT } from '../repository-files.ts'
 import { comment, header } from './statements.ts'
 import { type RustConstant, rustConstants, rustString } from './rust.ts'
 
@@ -30,12 +32,32 @@ const WRITTEN: readonly (readonly [string, readonly (string | readonly [string, 
   ],
   ['cutout.rs', [['SHEET_VERSION', 'CUTOUT_SHEET_VERSION']]],
   ['impostor/stage.rs', ['IMPOSTOR_VERSION']],
+  ['texture_preview.rs', ['TEXTURE_PREVIEW_VERSION', 'PREVIEW_BASE']],
+  ['texture_preview/levels.rs', ['TILE_SIZE', 'TILE_BORDER']],
+  ['physics_cook.rs', ['PHYSICS_FORMAT_VERSION', 'PIECES_FORMAT_VERSION']],
 ]
 
 /** The constants whose magic is read as hexadecimal digits, as the files' bytes spell it. */
 const HEX = /_MAGIC$/
 
 const docOf = (doc: readonly string[]) => (doc.length ? `/**\n${comment(doc, ' * ')}\n */\n` : '')
+
+const joltDoc = [
+  "The Jolt commit the engine's physics module is built from: the pin of the submodule",
+  "`packages/physics-jolt-wasm/JoltPhysics`, read from the index as the compiler's cook reads",
+  'the submodule head (`build.rs`).',
+]
+
+/** The commit the index pins the Jolt submodule to. */
+function joltCommit() {
+  const entry = execFileSync('git', ['ls-files', '-s', 'packages/physics-jolt-wasm/JoltPhysics'], {
+    cwd: REPOSITORY_ROOT,
+    encoding: 'utf8',
+  })
+  const commit = entry.split(/\s+/)[1]
+  if (!/^[0-9a-f]{40}$/.test(commit ?? '')) throw new Error('the Jolt submodule has no pin')
+  return commit
+}
 
 /** The written formats' constants, printed for the runtime's readers. */
 export function writtenFormatsTs() {
@@ -53,6 +75,7 @@ export function writtenFormatsTs() {
   })
   const sheet = rustString(`${COMPILER}/cutout.rs`, 'DECISIONS_FILE')
   declarations.push(`${docOf(sheet.doc)}export const CUTOUT_SHEET_FILE = '${sheet.value}'`)
+  declarations.push(`${docOf(joltDoc)}export const JOLT_COMMIT = '${joltCommit()}'`)
   return `${header(files, '//')}
 ${declarations.join('\n\n')}
 `

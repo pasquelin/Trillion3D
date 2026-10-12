@@ -4,6 +4,7 @@ import {
   previewLastLevel,
   previewLevelSize,
 } from '../../../sdk-core/src/index.ts'
+import { TILE_BORDER, TILE_SIZE } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 
 /**
@@ -27,8 +28,7 @@ import { textureLimits } from '../gpu/core/textureLimits.ts'
  * prepare. A missing streamed tile therefore always shows at least the tail — the same
  * pyramid the sidecar already carries in the manifest.
  */
-export const TILE_SIZE = 128
-export const TILE_BORDER = 4
+export { TILE_BORDER, TILE_SIZE }
 export const TILE_PITCH = TILE_SIZE + 2 * TILE_BORDER
 const TILES_PER_ROW = 30
 /**

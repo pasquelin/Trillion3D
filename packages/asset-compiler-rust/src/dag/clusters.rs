@@ -1,4 +1,5 @@
 use super::*;
+use trillion3d_math::triangle::edge_key;
 
 pub fn cluster_triangles(
     positions: &[f32],
@@ -59,14 +60,6 @@ pub fn cluster_triangles(
 }
 
 // ---------------------------------------------------------------- cluster graph
-
-/// Key of undirected edge. `topology.rs::edge_key` answers same question under another
-/// encoding — ordered pair rather than 64-bit word — serving another table type:
-/// both remain, aligning one to other would change iteration order.
-pub(super) fn edge_key(a: u32, b: u32) -> u64 {
-    let (lo, hi) = if a < b { (a, b) } else { (b, a) };
-    ((lo as u64) << 32) | hi as u64
-}
 
 /// Shared-edge weights between clusters. Only cluster-boundary edges can be shared, so collecting
 /// those keeps the pass proportional to the boundary rather than to the triangle count.

@@ -3,6 +3,9 @@
 //   packages/asset-compiler-rust/src/proxy.rs
 //   packages/asset-compiler-rust/src/cutout.rs
 //   packages/asset-compiler-rust/src/impostor/stage.rs
+//   packages/asset-compiler-rust/src/texture_preview.rs
+//   packages/asset-compiler-rust/src/texture_preview/levels.rs
+//   packages/asset-compiler-rust/src/physics_cook.rs
 // Edit the source, then run `pnpm run generate:shared-rules`.
 /**
  * Version 4 turns the fixed 16×16 preview entries into the variable progressive levels: the pixel
@@ -88,6 +91,50 @@ export const CUTOUT_SHEET_VERSION = 1
 export const IMPOSTOR_VERSION = 1
 
 /**
+ * Section contract: moving level scale, order, reduction rule, color space,
+ * a block codec or the gate's bar requires incrementing this version and
+ * binary sidecar version carrying it. Version 3 is GPU rule and full chain,
+ * both atlases included; version 4 adds the gated block-compressed levels and
+ * tails. A new chain under a name of its own moves no existing file and needs
+ * no increment: the `Coverage` chain (#42) is one, and so is each cutoff's
+ * coverage-preserving chain (#44), `srgb-coverage-<C>`. Version 5 counts that
+ * chain's coverage on the filtered cut (#43): its bytes move under the same
+ * names, and level files are written only when missing. Version 6 lays a block
+ * level file out in tile records, one HTTP Range each (#962, `tile_records`);
+ * the manifest's `textures.version` names it for the engine. Version 7 adds
+ * the ETC2 family (ETC2 RGBA8, EAC RG11): a third block column and layout
+ * word, and every family cooked by default.
+ */
+export const TEXTURE_PREVIEW_VERSION = 7
+
+/**
+ * Largest side sidecar level can have. Choice bounds section: at most
+ * 21,844 bytes per texture vs megabytes a 256/512 level would add.
+ */
+export const PREVIEW_BASE = 64
+
+/**
+ * A streamed tile's side in texels: the engine's (`texture/tiles.ts`), printed there.
+ */
+export const TILE_SIZE = 128
+
+/**
+ * A streamed tile's gutter on each side, in texels.
+ */
+export const TILE_BORDER = 4
+
+/**
+ * Version of `physics.json`, its own: a reader refuses any other.
+ */
+export const PHYSICS_FORMAT_VERSION = 2
+
+/**
+ * Version of a `physics.json` whose bodies carry pieces (`pieces.rs`): a reader of format 2 alone
+ * refuses it rather than lose them; one without pieces stays format 2, its bodies unchanged.
+ */
+export const PIECES_FORMAT_VERSION = 3
+
+/**
  * Cutout response sheet, mirroring `packages/asset-compiler-rust/src/cutout.rs`.
  *
  * The compiler writes this file and re-reads it; a host updates it with human responses.
@@ -95,3 +142,10 @@ export const IMPOSTOR_VERSION = 1
  * interprets it: unknown versions are rejected rather than guessed.
  */
 export const CUTOUT_SHEET_FILE = 'decoupes.json'
+
+/**
+ * The Jolt commit the engine's physics module is built from: the pin of the submodule
+ * `packages/physics-jolt-wasm/JoltPhysics`, read from the index as the compiler's cook reads
+ * the submodule head (`build.rs`).
+ */
+export const JOLT_COMMIT = 'e77f175595e64cb44218cc9d9d56fc365ad0e36a'

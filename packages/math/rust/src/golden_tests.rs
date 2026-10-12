@@ -4,8 +4,8 @@
 use crate::golden::{f64s, ordinary, run, Twin, Value, HOSTILE_F64};
 use crate::matrix::{multiply_matrix4_one, MATRIX_VALUES};
 
-fn twins() -> [Twin; 6] {
-    [
+fn twins() -> Vec<Twin> {
+    let mut twins = vec![
         Twin {
             file: "matrix4_product",
             name: "matrix4_product",
@@ -69,7 +69,9 @@ fn twins() -> [Twin; 6] {
                 f64s(&q)
             },
         },
-    ]
+    ];
+    twins.extend(crate::golden_scalar::twins());
+    twins
 }
 
 /// Hostile quaternions: each a rotation of the hostile values, the zero, the huge and the tiny.

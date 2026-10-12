@@ -1,6 +1,10 @@
 import { EngineError } from '../contracts/cache.ts'
 import type { PhysicsOption } from './options.ts'
-import { JOLT_COMMIT } from './joltCommit.ts'
+import {
+  JOLT_COMMIT,
+  PHYSICS_FORMAT_VERSION,
+  PIECES_FORMAT_VERSION,
+} from '../contracts/writtenFormats.ts'
 
 /**
  * `physics.json`, the physics a compiled model carries (stage `physics-cook` of the native
@@ -8,7 +12,7 @@ import { JOLT_COMMIT } from './joltCommit.ts'
  * names are the module's binary state, readable only by the build that wrote them: the file names that
  * commit, and a reader refuses another. Formats 2 and 3 are read; 3's pieces wait unused.
  */
-const PHYSICS_FORMAT_VERSIONS: readonly unknown[] = [2, 3]
+const PHYSICS_FORMAT_VERSIONS: readonly unknown[] = [PHYSICS_FORMAT_VERSION, PIECES_FORMAT_VERSION]
 
 /** One cooked shape: a SHA-addressed object beside the manifest. */
 export interface CookedTile {

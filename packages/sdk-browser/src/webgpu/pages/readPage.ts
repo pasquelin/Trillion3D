@@ -1,4 +1,5 @@
-import { readGeometryPageHeader } from '../../page/codec/geometryPageHeader.ts'
+import { checkGeometryPage } from '../../page/codec/geometryPage.ts'
+import { requireSdkWasm } from '../../wasm/sdkWasm.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 
 /**
@@ -25,7 +26,7 @@ export function createPageSource(rt: WebgpuPagesCore) {
     // downstream would ever notice a forged or truncated page. The format's own gate is read
     // here, once per admission: magic, version, grids, and counts that measure exactly this many
     // bytes. A page that fails it is refused through the loader's error path, never uploaded.
-    readGeometryPageHeader(bytes)
+    checkGeometryPage(await requireSdkWasm(), bytes)
     return bytes
   }
   return { read }

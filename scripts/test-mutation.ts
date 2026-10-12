@@ -29,8 +29,7 @@ const testFiles = (repositoryFiles() ?? []).filter(
 )
 if (!testFiles.length) throw new Error(`No unit test under ${PACKAGES.join(' or ')}.`)
 mkdirSync(out, { recursive: true })
-// The sandbox is a copy without `.git`: a test reading the index (the Jolt pin of `joltCommit.test.ts`)
-// reads this checkout's.
+// The sandbox is a copy without `.git`: a test reading the index reads this checkout's.
 process.env.GIT_DIR = resolve(
   REPOSITORY_ROOT,
   execFileSync('git', ['rev-parse', '--git-dir'], {

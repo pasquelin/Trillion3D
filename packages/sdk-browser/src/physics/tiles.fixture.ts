@@ -12,7 +12,7 @@ import { createPhysicsBodies } from './bodies.ts'
 import { createPhysicsPoses } from './poses.ts'
 import { SharedShapes } from './sharedShapes.ts'
 import { createTileStreamer } from './tiles.ts'
-import { JOLT_COMMIT } from '../../../sdk-core/src/physics/joltCommit.ts'
+import { JOLT_COMMIT } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 
 /** The bytes of `tests/fixtures/physics/<name>`. */
 export const fixture = (name: string) =>

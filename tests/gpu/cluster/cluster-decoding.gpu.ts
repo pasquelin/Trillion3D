@@ -1,5 +1,5 @@
 // The WGSL decode of a quantized cluster page, run through the accessors the engine's raster,
-// shadow and resolve stages call — a page-table row over a pool slot —, against the JavaScript
+// shadow and resolve stages call — a page-table row over a pool slot —, against the SDK module's
 // decoder of the same bytes, a flat-shaded page among them (its positions stored once and read
 // through each vertex's link): positions, texture coordinates and colours bit for bit — the
 // format's arithmetic is one multiply and one add, both correctly rounded in WGSL —, normals within
@@ -17,7 +17,7 @@ import { ringMesh } from '../../../packages/sdk-browser/src/page/codec/ringMesh.
 import { crossVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { decodeOnGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodingKernel.ts'
 
-/** A ring page of `triangles` at `exponent`, flat-shaded or not, with the JavaScript decode. */
+/** A ring page of `triangles` at `exponent`, flat-shaded or not, with the SDK module's decode. */
 function page(triangles: number, exponent: number, flat = false) {
   const ring = ringMesh(triangles, exponent)
   const { encoded, indices } = flat ? flatShaded(ring, exponent) : ring

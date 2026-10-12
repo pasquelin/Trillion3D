@@ -1,6 +1,6 @@
 //! Bit fields, dequantization and octahedral normals of a `WGP3` page, each beside its encoder
 //! (`quant`, `oct`), written once for every reader: the WebAssembly decoder, the native compiler
-//! (which encodes and measures its own error with them) and the tests. The WGSL and JavaScript decoders repeat these formulas operation for operation —
+//! (which encodes and measures its own error with them) and the tests. The WGSL decoders repeat these formulas operation for operation —
 //! one multiply and one add per component, both correctly rounded — so a position decoded on
 //! the GPU is the same 32-bit float as one decoded here.
 

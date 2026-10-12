@@ -21,7 +21,7 @@ import {
   samplingFootprintWgsl,
 } from '../../texture/samplingFootprint.ts'
 import { type WgslDecl, wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
-import { highHalf, lowHalf } from '../../../../math/src/wgsl/integer.ts'
+import { highHalf, lowHalf, mipSize2 } from '../../../../math/src/wgsl/integer.ts'
 import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
 
 /** A place's column-or-row and layer fields in a table word (`packPlace`). */
@@ -89,6 +89,7 @@ const tilePoolWgsl = (mipBias: string) => {
       SAMPLING_WGSL,
       TILE_SLOT_WGSL,
       unitToSigned2,
+      mipSize2,
       lowHalf,
       highHalf,
       lod,
@@ -124,10 +125,9 @@ fn tailOffset(rank:u32)->f32{return f32((${TILE_SIZE}u-(${TILE_SIZE}u>>rank)+3u)
 fn placeOrigin(word:u32)->vec2f{return vec2f(f32(word&${AXIS_MASK}u),f32((word>>${PLACE_AXIS_BITS}u)&${AXIS_MASK}u))*TEXEL_PITCH+TEXEL_BORDER;}
 fn placeLayer(word:u32)->i32{return i32((word>>${2 * PLACE_AXIS_BITS}u)&${LAYER_MASK}u);}
 fn sizeOf(word:u32)->vec2f{return vec2f(f32(lowHalf(word)),f32(highHalf(word)));}
-/** Size of a level, \`max(size >> level, 1)\` as the CPU lays it out (\`../../texture/tiles.ts\`): the
- *  size times 2^-level built from its exponent bits — exact, where \`exp2\` may stray by ULPs —, 0
- *  from level 127 on, as the division by 2^level gave. */
-fn levelSize(size:vec2f,level:u32)->vec2f{return max(floor(size*bitcast<f32>((127u-min(level,127u))<<23u)),vec2f(1.0));}
+/** Size of a level, \`mipSize2\` as the CPU lays it out (\`../../texture/tiles.ts\`): a texture's
+ *  sides are integers under 2^16, exact in f32. */
+fn levelSize(size:vec2f,level:u32)->vec2f{return vec2f(mipSize2(vec2u(size),level));}
 fn levelTexel(uv:vec2f,lsize:vec2f)->vec2f{return clamp(uv*lsize,vec2f(0.5),lsize-0.5);}
 /** Entry of a texel in its level: its tile, in tile rows. */
 fn tileEntry(texel:vec2f,lsize:vec2f)->u32{return u32(texel.y/TEXEL_TILE)*u32(ceil(lsize.x/TEXEL_TILE))+u32(texel.x/TEXEL_TILE);}

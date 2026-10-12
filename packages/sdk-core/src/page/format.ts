@@ -9,8 +9,6 @@
 // Edit the source, then run `pnpm run generate:shared-rules`.
 /** The `WGP3` quantized cluster page as every reader must know it (`docs/FORMAT.md`). */
 
-export const CLUSTER_PAGE_MAGIC = 0x33504757
-
 /**
  * The geometry-page format a version-11 sidecar names, as the manifest's `geometryPages` declares
  * it once and every page header opens with.
@@ -42,19 +40,12 @@ export const FLAG_COLOR = 8
  */
 export const FLAG_SOFT_SOURCE = 64
 
-export const FLAGS_ALL = 127
-
 /**
  * Presence bits of the skin and of the morph targets, beside those of `lib.rs`.
  */
 export const FLAG_SKIN = 16
 
 export const FLAG_MORPH = 32
-
-/**
- * Widest joint field: a skin names at most 65,536 joints.
- */
-export const MAX_JOINT_BITS = 16
 
 /**
  * Most morph targets a page carries: eight bits of word 23.
@@ -80,18 +71,6 @@ export const BLOCK_CORNERS = 24
  * Bits of a block's width, 0 to 16: a local index never needs more than 16.
  */
 export const WIDTH_BITS = 5
-
-export const MAX_WIDTH = 16
-
-/**
- * Widest field of the format: a 24-bit field read at any bit offset spans two words at most.
- */
-export const MAX_BITS = 24
-
-/**
- * Largest magnitude of a grid exponent: the step stays a normal `f32`.
- */
-export const MAX_EXPONENT = 64
 
 /**
  * Texture coordinates sit on a fixed grid of 2^-14: a quarter of a texel on a 4096 map.

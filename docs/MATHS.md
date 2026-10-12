@@ -19,8 +19,7 @@ imports it. Its contract:
   arithmetic (`multiply`, `min`, `addScalar`) stays.
 
 Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`, `half` — the
-float16 encode and decode), `vector/` (with `spherical.ts`, and `lengthFloat32.ts`, the length
-rounded in float32 as the GPU computes it),
+float16 encode and decode), `vector/` (with `spherical.ts`),
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
 spheres, cones, slabs, triangles, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal
 and pixel scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
@@ -83,8 +82,7 @@ The declared exceptions, each held to bits the rule would change:
 - A division by the length to normalise, which keeps each component correctly rounded:
   `normalizeQuaternion`, whose Kahan sum of the four squares, `hypot4` outside `2^-900..2^900`
   and division are held to `normalize` of `packages/page-codec-wasm/src/anim.rs`, the animation
-  sampler's twin; the octahedral decoder of `packages/sdk-browser/src/page/codec/pageFields.ts`, a float32
-  twin of the Rust codec's (`length3Float32`, then each component divided); the bend axis of
+  sampler's twin; the bend axis of
   `ik.ts`, for the reason of its length; `normalized` of
   `packages/sdk-core/src/scene/light/validate.ts`, a light direction divided by its `hypot3`,
   because the validated direction feeds the shadow clipmap's own normalise and basis in double and
@@ -270,7 +268,9 @@ golden:write` rewrites them all, the command each file names.
 - TypeScript reader: `packages/math/src/golden.fixture.ts` (`assertGolden`).
 - TypeScript twins: `matrix4.golden.test.ts`, `hypot.golden.test.ts`, `trig.golden.test.ts`,
   `quaternion.golden.test.ts` (`packages/math/src/`), `sample.golden.test.ts`
-  (`packages/sdk-core/src/world/animation/`), `pageFields.golden.test.ts` (`packages/sdk-browser/src/page/codec/`).
+  (`packages/sdk-core/src/world/animation/`).
+- The page decoder has no TypeScript twin: `decodeGeometryPage` calls the Rust one in the SDK module.
+- Single numbers, `packages/math/golden`: `mip_size` (TypeScript `mipSize`, WGSL `mipSize` through `mipSize.golden.test.ts` of `packages/sdk-browser/src/gpu/shader/`), `srgb_to_linear`, `hermite_basis`, `xorshift32`, `lcg32`; `preview_levels` (`previewLevels.golden.test.ts` of `packages/sdk-core/src/texture/`).
 - WebAssembly twin: `packages/sdk-browser/src/page/decode/batch/multiplyBatch.golden.test.ts`.
 - The proxy BVH child box and albedo bytes are read by WGSL alone (`nodeWgsl.ts`): no CPU twin.
 - The grid rule has no TypeScript twin: the run-time cut runs the Rust rule in the SDK module

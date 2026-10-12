@@ -9,7 +9,6 @@ import assert from 'node:assert/strict'
 import { encodePage } from './encodePage.fixture.ts'
 import { CLUSTER_HEADER_WORDS } from '../../../../sdk-core/src/page/format.ts'
 import { decodeGeometryPage } from './geometryPage.ts'
-import { readGeometryPageHeader } from './geometryPageHeader.ts'
 import { cases, outcome } from './positions.fixture.ts'
 
 const DEVELOP: [string, string, number][] = [
@@ -84,16 +83,12 @@ test('every page decodes to the block develop decoded, with only the format-7 he
   assert.ok(flatAfter < flatBefore)
 })
 
-test('a flat-shaded page stores fewer positions than vertices; a stray link is refused', () => {
+test('a flat-shaded page stores fewer positions than vertices', () => {
   const [, mesh] = cases().find(([name]) => name === '65,535 vertices')!
   const { data } = encodePage(mesh.indices, mesh.attributes, mesh.exponent)
-  const { vertexCount, positionCount, linkBits, streams } = readGeometryPageHeader(data)
+  // Header word 22 counts the positions stored (`position_count`, `lib.rs`); the link rule itself,
+  // and the refusal of a link past them, are the decoder's (`positions_tests.rs`).
+  const positionCount = new DataView(data.buffer, data.byteOffset).getUint32(22 * 4, true)
+  const { vertexCount } = decodeGeometryPage(data as Uint8Array, 1 << 28)
   assert.ok(positionCount < vertexCount, `${positionCount} positions for ${vertexCount} vertices`)
-  assert.equal(decodeGeometryPage(data as Uint8Array, 1 << 28).vertexCount, vertexCount)
-  // The first link set to its widest rank, past the stored positions: refused.
-  assert.ok(2 ** linkBits > positionCount)
-  const forged = (data as Uint8Array).slice(),
-    first = new DataView(forged.buffer, (CLUSTER_HEADER_WORDS + streams.links) * 4, 4)
-  first.setUint32(0, first.getUint32(0, true) | (2 ** linkBits - 1), true)
-  assert.throws(() => decodeGeometryPage(forged.slice(), 1 << 28), /GEOMETRY_PAGE_BOUNDS/)
 })

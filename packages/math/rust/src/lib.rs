@@ -15,7 +15,8 @@
 //!   Euler orders and their composition;
 //! - `aabb`, `box_transform`: axis-aligned boxes grown by points and by boxes, crossed by a ray,
 //!   their corners, sides and diagonal, and moved by a matrix;
-//! - `triangle`: a triangle's cross product, area, closest point and ray hit; Newell's normal;
+//! - `triangle`: a triangle's cross product, area, longest edge, closest point and ray hit, an
+//!   edge's key; Newell's normal;
 //! - `octahedral`: the octahedral maps of a direction, on two bytes and on a square;
 //! - `sphere`: bounding spheres merged;
 //! - `random`: the seeded xorshift, congruential and SplitMix generators, and a word hash;
@@ -54,6 +55,8 @@ pub const GOLDEN_32: u32 = 0x9E37_79B9;
 
 #[cfg(test)]
 mod golden_ray_triangle;
+#[cfg(test)]
+mod golden_scalar;
 #[cfg(test)]
 mod golden_tests;
 

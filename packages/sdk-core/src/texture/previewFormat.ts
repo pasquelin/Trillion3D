@@ -3,22 +3,7 @@
  * the block families and their layouts —, beside `../manifest/binaryFormat.ts`, which owns the
  * columns and re-exports this.
  */
-/** Progressive texture levels, mirrored by `packages/asset-compiler-rust/src/texture_preview.rs`:
- *  the tail of a source's mip chain in the sidecar, RGBA8 in the atlas's own encoding, from the
- *  finest level no side of which exceeds `PREVIEW_BASE` down to 1×1 — and, above it, one lossless
- *  PNG per level in the cache, `bakedLevels` of them from level 0 up. Every level follows the mip
- *  rule the card applied when it regenerated the chain itself (`packages/sdk-browser/src/texture/mips.ts`): linear mean of
- *  the colours, median alpha, level `k` from the quantized level `k - 1`. Their sizes are not
- *  written down: they follow from the source dimensions, which `previewLevels.ts` recomputes.
- *  Version 4 bakes every level above the tail, and the tail itself, in the block families the cook
- *  asked for beside the lossless files — the BC family for desktop cards, ASTC 4×4 for mobile ones,
- *  one byte per texel — for the chains a quality gate kept; a chain under the bar stays lossless
- *  in that family, and its entry's layout word says so. Version 5 counts the coverage-preserving
- *  chains' coverage on the filtered cut (#43), in the same layout. Version 6 lays a block level
- *  file out in tile records, one HTTP Range each (#962, `sdk-browser/src/texture/tileRecords.ts`).
- *  Version 7 adds the ETC2 family — ETC2 RGBA8, EAC RG11 — beside BC and ASTC, a third block
- *  column and layout word, and the compiler cooks every family by default. */
-export const TEXTURE_PREVIEW_VERSION = 7
+export { TEXTURE_PREVIEW_VERSION } from '../contracts/writtenFormats.ts'
 /** `texturePreviewU32` slots. */
 export const PREVIEW_TEXTURE = 0,
   PREVIEW_IMAGE = 1,
