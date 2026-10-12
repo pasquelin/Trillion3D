@@ -1,20 +1,36 @@
 // Runs inside the browser page (`page.evaluate`): DOM globals (`location`, `devicePixelRatio`,
 // `crypto.subtle`, `Worker`) are ambient.
+import { readFileSync } from 'node:fs'
+import { stripTypeScriptTypes } from 'node:module'
 import type { EvaluatedInstalledPage, LooseSdk, LooseWorld } from './browser-page-types.ts'
 
 export type { EvaluatedInstalledPage } from './browser-page-types.ts'
+
+/** `hexOfBytes`'s module as a function body the page runs (`new Function`): the page cannot import
+ *  it, and a copy written beside it would be a second hex writer. */
+export function hexModuleSource() {
+  const source = readFileSync(
+    new URL('../../packages/math/src/scalar/hex.ts', import.meta.url),
+    'utf8',
+  )
+  return `${stripTypeScriptTypes(source).replace('export function', 'function')}\nreturn hexOfBytes`
+}
 
 export async function evaluateInstalledPage({
   moduleName,
   manifestUrl,
   replayUrl,
   commonWorkerPath,
+  hexSource,
 }: {
   moduleName: string | null
   manifestUrl: string
   replayUrl: string
   commonWorkerPath: string
+  /** The body of `hexOfBytes` (`packages/math/src/scalar/hex.ts`), as `hexModuleSource` writes it. */
+  hexSource: string
 }): Promise<EvaluatedInstalledPage> {
+  const hexOfBytes = new Function(hexSource)() as (bytes: ArrayLike<number>) => string
   const deadline = performance.now() + 10_000
   while (!moduleName && !globalThis.__installedSdk && performance.now() < deadline)
     await new Promise((resolve) => setTimeout(resolve, 25))
@@ -103,9 +119,7 @@ export async function evaluateInstalledPage({
     )
       aaDifferentPixels++
   const hash = async (bytes: Uint8Array<ArrayBuffer>): Promise<string> =>
-    [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
-      .map((byte) => byte.toString(16).padStart(2, '0'))
-      .join('')
+    hexOfBytes(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
   const captureEvidence = {
     sha256: await hash(capture),
     repeatedSha256: await hash(repeated),

@@ -11,12 +11,8 @@ import * as G from '../host/graph/graph.fixture.ts'
 import { wrapTexel } from './math.ts'
 import { sampleLinear, sampleMap } from '../../../../bench/oracles/browser/cpu-image/math.ts'
 import { textureRgba } from './types.ts'
+import { srgbToLinear } from '../../../math/src/color/color.ts'
 import { referenceTextureRgba } from '../../../../bench/oracles/browser/sampled-texture.ts'
-
-/** The reference: a power per component, without a table. */
-function referenceSrgbToLinear(c: number) {
-  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
-}
 
 function texelIndex(map: Texture, u: number, v: number) {
   const image = textureRgba(map)
@@ -30,11 +26,7 @@ function referenceSampleMap(map: Texture, u: number, v: number): [number, number
   const texel = texelIndex(map, u, v)
   if (!texel) return [1, 1, 1]
   const { data: d, i } = texel
-  return [
-    referenceSrgbToLinear(d[i] / 255),
-    referenceSrgbToLinear(d[i + 1] / 255),
-    referenceSrgbToLinear(d[i + 2] / 255),
-  ]
+  return [srgbToLinear(d[i] / 255), srgbToLinear(d[i + 1] / 255), srgbToLinear(d[i + 2] / 255)]
 }
 
 function texture(width: number, height: number, fill: (i: number) => number, wrap: number) {

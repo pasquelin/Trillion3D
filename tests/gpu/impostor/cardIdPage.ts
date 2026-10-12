@@ -11,6 +11,7 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/impostor/pipelines.ts'
 import { SURFACE_FORMATS } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts'
 import { VIS_CARD_BASE } from '../../../packages/sdk-browser/src/visibility/visWords.ts'
+import { srgbToLinear } from '../../../packages/math/src/color/color.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 
@@ -124,10 +125,7 @@ async function drawCards(
 }
 
 /** The linear value of an sRGB byte. */
-const linear = (byte: number) => {
-  const c = byte / 255
-  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-}
+const linear = (byte: number) => srgbToLinear(byte / 255)
 
 export function runCardId() {
   return runOnDevice(async (device, events, result) => {

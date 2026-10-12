@@ -117,18 +117,5 @@ export async function lignesConsommateursBrowser() {
         ),
       () => projected(vertices),
     ),
-    await ligne(
-      'sRGB: byte table and 8-bit encoding',
-      'packages/math/src/color/color.ts',
-      '256 bytes and hostile values',
-      octets,
-      (l) =>
-        l.map((c, i) => [ancien.referenceSrgb8Linear(i % 256), ancien.referenceLinearToSrgb8(c)]),
-      parElement((c: number, i) => {
-        const sortie = encodages[i]
-        ;[sortie[0], sortie[1]] = [srgbToLinear(fromUnorm8(i % 256)), linearToSrgb8(c)]
-        return sortie
-      }),
-    ),
   ]
 }
