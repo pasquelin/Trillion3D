@@ -1,5 +1,5 @@
 // Shared shapes of the harness measurement: what `series/series.ts` builds, `bench.ts` assembles into
-// `measure.json`, and everything under `bench/runner/` (`summary/summary.ts`, `summary/summaryCompute.ts`,
+// `measure.json`, and everything under `bench/runner/` (`summary/summary.ts`,
 // `summary/summaryMemory.ts`, `summary/summaryTextures.ts`, `report/`) reads back. One record type here, typed
 // once from the engine contracts, rather than cast at every reader.
 import type { CameraPose, FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
@@ -114,7 +114,6 @@ export interface Row {
   geometryBytes: number | null
   pageBudget: PageBudget
   geometryPool: GeometryPool
-  mathBatch: FrameMetrics['mathBatch'] | null
   lights: LightsSummary | null
   importedLights: { count: number; ids: string[] } | null
   /** The lights a Three witness placed (`witness/threeMeasurePage.ts`); null on the engine's side,

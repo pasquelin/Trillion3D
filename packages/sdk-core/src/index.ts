@@ -82,7 +82,6 @@ export {
 export type { PageIntegrationPlan } from './page/integrationPlan.ts'
 export * from './lod/oracles.ts'
 export * from '../../math/src/index.ts'
-export * from './runtime/path/index.ts'
 export * from './world/transform-tree/index.ts'
 export { SceneNode, type SceneNodeOptions } from './scene/core/node.ts'
 export { SCENE_MODEL_VERSION } from './scene/core/nodeContracts.ts'

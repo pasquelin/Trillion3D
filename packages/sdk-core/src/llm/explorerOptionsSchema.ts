@@ -88,13 +88,6 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       description:
         'Enables lights imported from the source scene file. false opens the scene with zero lights.',
     },
-    mathPath: {
-      type: 'string',
-      enum: ['auto', 'js', 'wasm'],
-      default: 'auto',
-      description:
-        "Execution path for batch mathematical operations: 'auto' (automatic governor arbitration), 'js', or 'wasm' (WebAssembly).",
-    },
     textureSource: {
       type: 'string',
       enum: ['host', 'cache'],

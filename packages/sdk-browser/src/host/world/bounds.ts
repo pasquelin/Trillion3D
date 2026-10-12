@@ -75,8 +75,8 @@ export function readHostBox(
  * Union of the world bounds of `source` and its descendants into `into`, which must arrive empty
  * or already started. The world matrices are the transform tree's after one frame pass, which
  * walks only what changed since the last. When `lot` carries exactly these boxes, they go AS A
- * LOT through the governor; otherwise each goes alone, by the same `boxTransform` and on the same
- * inputs.
+ * LOT through the module's kernel; otherwise each goes alone, by `boxTransform`, the kernel's bits
+ * on the same inputs.
  */
 export function hostWorldBounds(
   source: Object3D,
