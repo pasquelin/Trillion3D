@@ -14,7 +14,7 @@ import {
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
-import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts'
+import { PRIMITIVE_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/cameraRanges.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
@@ -117,7 +117,7 @@ function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: Sel
     cold,
     /** The host's row per primitive, then what `dagPrepare` derives behind it. */
     frames: primitiveFrameWords(packed),
-    framesBytes: framesBytes(worldCount),
+    framesBytes: worldCount * PRIMITIVE_BYTES,
     /** One range holds every primitive (`frameRanges.ts`): `{first, count}`. */
     range: new Uint32Array([0, worldCount, 0, 0]),
     views,

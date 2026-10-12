@@ -8,7 +8,7 @@ import { followWritten as follow } from '../host/textureImport.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { wrapTexel } from './math.ts'
+import { mapTexel } from './math.ts'
 import { sampleLinear, sampleMap } from '../../../../bench/oracles/browser/cpu-image/math.ts'
 import { textureRgba } from './types.ts'
 import { srgbToLinear } from '../../../math/src/color/color.ts'
@@ -17,9 +17,7 @@ import { referenceTextureRgba } from '../../../../bench/oracles/browser/sampled-
 function texelIndex(map: Texture, u: number, v: number) {
   const image = textureRgba(map)
   if (!image) return null
-  const x = wrapTexel(u, image.width, map.wrapS),
-    y = wrapTexel(v, image.height, map.wrapT)
-  return { data: image.data, i: (y * image.width + x) * 4 }
+  return { data: image.data, i: mapTexel(image, map, u, v, false) }
 }
 
 function referenceSampleMap(map: Texture, u: number, v: number): [number, number, number] {

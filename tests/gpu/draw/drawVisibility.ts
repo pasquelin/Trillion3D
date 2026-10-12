@@ -20,7 +20,7 @@ import { visLayoutEntries } from '../../../packages/sdk-browser/src/webgpu/visib
 const PAGES = 147,
   COLUMNS = 16,
   ROWS = 10
-export const WIDTH = 256,
+const WIDTH = 256,
   HEIGHT = 160
 /** A page drawn by the direct path, past the indirect slots, under its canonical instance index. */
 export const DIRECT_PAGE = 122

@@ -27,29 +27,3 @@ export function sceneView(leaves: number, levels: number, poses = [new G.Matrix4
   packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld)
   return { packed, uniforms, resident }
 }
-
-const nothing = () => {}
-
-/**
- * The commands an encode opens, counted on an encoder that only notes them: compute passes, and
- * copies outside a pass. Published, never asserted here: `gpu/dag/encode.test.ts` holds the
- * command-count contract on the same kind of encoder, without a device.
- */
-export function countCommands(encode: (encoder: GPUCommandEncoder) => void) {
-  let passes = 0,
-    copies = 0
-  const pass = {
-    setBindGroup: nothing,
-    setPipeline: nothing,
-    end: nothing,
-    dispatchWorkgroups: nothing,
-    dispatchWorkgroupsIndirect: nothing,
-  }
-  // The only methods the two encodes call: the rest of `GPUCommandEncoder` is never reached.
-  const encoder = {
-    beginComputePass: () => (passes++, pass),
-    copyBufferToBuffer: () => copies++,
-  } as unknown as GPUCommandEncoder
-  encode(encoder)
-  return { passes, copies }
-}

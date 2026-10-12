@@ -40,7 +40,7 @@ export interface GpuRow {
 }
 
 /** Rec. 709 luminance: a lit colour compared by a single number. */
-export const luminance = ([r, g, b]: number[]): number => luminanceOf(r, g, b)
+const luminance = ([r, g, b]: number[]): number => luminanceOf(r, g, b)
 
 /** The light and material every case is lit with. */
 export const LIT_MATERIAL = { light: [0.3, 0.8, 0.5, 3], metal: 0.1, roughness: 0.4 }
