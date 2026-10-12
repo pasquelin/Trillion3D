@@ -3,15 +3,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { decayFactor, decayRate, floorMod, fract, lerp, lerpArray, snap, wrap } from './reals.ts'
-import {
-  mean,
-  median,
-  medianOf,
-  quantile,
-  quantileFloor,
-  quantileFloorOf,
-  quantileOf,
-} from './quantile.ts'
+import { mean, median, medianOf, quantile, quantileFloor, quantileOf } from './quantile.ts'
 import { edgeValues, HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
 test('fract: the part above the floor, negatives counted from below, NaN through', () => {
@@ -109,13 +101,11 @@ test('quantileFloor and mean: the floor rank and the left-to-right sum, the form
   }
 })
 
-test('quantileOf, medianOf, quantileFloorOf: the sorted rank of an unsorted list, which stays as it was', () => {
+test('quantileOf and medianOf: the sorted rank of an unsorted list, which stays as it was', () => {
   const values = [9, 1, 5, 3, 7, 2]
   const sorted = [1, 2, 3, 5, 7, 9]
   assert.equal(quantileOf(values, 0.95), quantile(sorted, 0.95))
   assert.equal(medianOf(values), median(sorted))
-  assert.equal(quantileFloorOf(values, 0.5), quantileFloor(sorted, 0.5))
-  assert.equal(quantileFloorOf([], 0.5), undefined)
   assert.deepEqual(values, [9, 1, 5, 3, 7, 2])
 })
 

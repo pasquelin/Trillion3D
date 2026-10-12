@@ -1,54 +1,97 @@
-//! The collision cut holds the tolerance it publishes: on the hall example, and by the coarsest
-//! cut that holds when the tolerance's own cut does not.
+//! The collision cut holds the tolerance it publishes: on every primitive of the engine's test
+//! scenes and of a family of generated scenes of thin closed parts, and by the coarsest cut that
+//! holds when the tolerance's own cut does not.
 use super::cut::{collision_cut, tolerance};
 use super::hausdorff;
 use super::tests::cluster;
 use crate::dag::{build_culling_bvh, build_dag_tallied, DagAttributes, DagCluster, DagStrategy};
+use crate::tests::scene_document::ENGINE_SCENES;
+use crate::tests::thin_shapes::ThinShapes;
 use serde_json::Value;
 
-/// The hall example's stone primitive, as drawn: positions and triangles read from its source.
-fn hall_stone() -> (Vec<f32>, Vec<u32>) {
-    let dir = "../../site/assets/examples/hall/source";
-    let read = |name: &str| std::fs::read(format!("{dir}/{name}")).unwrap();
-    let (g, bin): (Value, _) = (
-        serde_json::from_slice(&read("geometry.gltf")).unwrap(),
-        read("scene.bin"),
-    );
-    let words = |accessor: &Value| {
-        let accessor = &g["accessors"][accessor.as_u64().unwrap() as usize];
-        let view = &g["bufferViews"][accessor["bufferView"].as_u64().unwrap() as usize];
-        let at = view["byteOffset"].as_u64().unwrap() as usize;
-        let bytes = &bin[at..at + view["byteLength"].as_u64().unwrap() as usize];
-        bytes.as_chunks::<4>().0.to_vec()
-    };
-    let primitive = &g["meshes"][0]["primitives"][1];
-    let pos = words(&primitive["attributes"]["POSITION"]);
-    let indices = words(&primitive["indices"]);
-    (
-        pos.into_iter().map(f32::from_le_bytes).collect(),
-        indices.into_iter().map(u32::from_le_bytes).collect(),
-    )
+/// Every primitive of the engine's test scene `<folder>/<gltf>`, whose one buffer is `<tag>.bin`:
+/// positions and triangles as drawn, in object space.
+fn engine_scene(folder: &str, gltf: &str, tag: &str) -> Vec<(Vec<f32>, Vec<u32>)> {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(folder);
+    let g: Value = serde_json::from_slice(&std::fs::read(dir.join(gltf)).unwrap()).unwrap();
+    let bin = std::fs::read(dir.join(format!("{tag}.bin"))).unwrap();
+    let read = |id: &Value| crate::accessor(&g, &bin, id.as_u64().unwrap() as usize, None).unwrap();
+    let meshes = g["meshes"].as_array().unwrap();
+    let primitives = meshes
+        .iter()
+        .flat_map(|m| m["primitives"].as_array().unwrap());
+    primitives
+        .map(|p| {
+            let positions = read(&p["attributes"]["POSITION"]).collect_f32().unwrap();
+            (positions, read(&p["indices"]).collect_u32().unwrap())
+        })
+        .collect()
 }
 
-// Behaviour: a cooked collider holds its tolerance. On the hall example the cut at the tolerance
-// measured 10.3 mm against 7.8 mm; the collider published now measures within it.
+/// The primitives the collider tests cook: every one of the engine's test scenes, and the wood
+/// and the roof of every case of the family.
+fn collider_sources() -> Vec<(String, Vec<f32>, Vec<u32>)> {
+    let mut out = Vec::new();
+    for (folder, gltf, tag) in ENGINE_SCENES {
+        for (rank, (positions, indices)) in engine_scene(folder, gltf, tag).into_iter().enumerate()
+        {
+            out.push((format!("{folder} #{rank}"), positions, indices));
+        }
+    }
+    for case in ThinShapes::family() {
+        let [_, wood, roof] = case.surfaces();
+        for (name, surface) in [("wood", wood), ("roof", roof)] {
+            out.push((
+                format!("{name} of {case:?}"),
+                surface.positions,
+                surface.indices,
+            ));
+        }
+    }
+    out
+}
+
+// Behaviour: a cooked collider holds its tolerance, on every primitive with a simplified level:
+// its measured distance to level 0 is at or under the tolerance, and is the distance the cut
+// publishes. Where the tolerance's own cut measures over it (a cluster's error is the simplifier's
+// estimate, not a bound), the collider is a finer cut that holds; some primitive of the set needs
+// that search, so the set exercises it.
 #[test]
-fn the_hall_collider_holds_its_tolerance() {
-    let (pos, source) = hall_stone();
-    let strategy = DagStrategy::named("qem-endpoints");
-    let (dag, ..) = build_dag_tallied(
-        &pos,
-        DagAttributes::default(),
-        &source,
-        strategy,
-        &|| Ok(()),
-    )
-    .unwrap();
-    let (order, culling) = build_culling_bvh(&pos, &dag);
-    let t = tolerance(&dag);
-    let (tiles, error) = collision_cut(&dag, &order, &culling, &pos, &source, t);
-    assert!(t > 0.0 && error <= t, "{error} over {t}");
-    assert_eq!(error, hausdorff::distance(&pos, &source, &tiles.concat()));
+fn every_collider_holds_its_tolerance() {
+    let (mut checked, mut searched) = (0, 0);
+    for (name, pos, source) in collider_sources() {
+        let strategy = DagStrategy::named("qem-endpoints");
+        let attributes = DagAttributes::default();
+        let (dag, ..) = build_dag_tallied(&pos, attributes, &source, strategy, &|| Ok(())).unwrap();
+        let t = tolerance(&dag);
+        if t == 0.0 {
+            continue;
+        }
+        checked += 1;
+        let (order, culling) = build_culling_bvh(&pos, &dag);
+        let (tiles, error) = collision_cut(&dag, &order, &culling, &pos, &source, t);
+        assert!(error <= t, "{name}: {error} over {t}");
+        assert_eq!(
+            error,
+            hausdorff::distance(&pos, &source, &tiles.concat()),
+            "{name}"
+        );
+        let own: Vec<u32> = dag
+            .iter()
+            .filter(|c| crate::proxy::cut::selected(c, t))
+            .flat_map(|c| c.indices.iter().copied())
+            .collect();
+        if hausdorff::distance(&pos, &source, &own) > t {
+            searched += 1;
+        }
+    }
+    assert!(checked > 0, "no primitive with a simplified level");
+    assert!(
+        searched > 0,
+        "no primitive whose tolerance's own cut measures over it"
+    );
 }
 
 // Behaviour: when the tolerance's own cut measures over it, the coarsest cut that holds is kept,
@@ -79,38 +122,4 @@ fn the_coarsest_cut_that_holds_is_kept() {
     expected.sort_unstable();
     assert_eq!((t, kept), (0.2, expected));
     assert!(error < 1e-9, "{error}");
-}
-
-// Behaviour: every committed example's cooked mesh collider publishes a measured distance at or
-// under its published tolerance (zero tolerances, no level 1, measure float noise and are skipped).
-#[test]
-fn committed_colliders_hold_their_published_tolerance() {
-    let root = std::path::Path::new("../../site/assets/examples");
-    let (mut checked, mut over) = (0, Vec::new());
-    for example in std::fs::read_dir(root).unwrap() {
-        let full = example.unwrap().path().join("cache/native/full");
-        let Ok(manifest) = std::fs::read(full.join("manifest.json")) else {
-            continue;
-        };
-        let key: Value = serde_json::from_slice(&manifest).unwrap();
-        let path = full.join(key["key"].as_str().unwrap()).join("physics.json");
-        let Ok(physics) = std::fs::read(&path) else {
-            continue;
-        };
-        let physics: Value = serde_json::from_slice(&physics).unwrap();
-        for c in physics["colliders"].as_array().unwrap() {
-            let (t, h) = (
-                c["tolerance"].as_f64().unwrap(),
-                c["hausdorff"].as_f64().unwrap(),
-            );
-            if c["kind"] == "mesh" && t > 0.0 {
-                checked += 1;
-                if h > t {
-                    over.push(format!("{}: {h} over {t}", path.display()));
-                }
-            }
-        }
-    }
-    assert!(checked > 0, "no committed collider with a tolerance");
-    assert!(over.is_empty(), "{over:#?}");
 }

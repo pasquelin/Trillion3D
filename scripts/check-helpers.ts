@@ -96,7 +96,7 @@ const MATH_UNIT = 'packages/math/src'
 
 /** The trees outside the packages, whose TypeScript helpers are compared with the maths alone: a
  *  declared oracle among them (`scripts/lint-maths.ts`) keeps its copies on purpose. */
-const MATH_READERS = ['bench', 'scripts', 'site', 'tests']
+const MATH_READERS = ['bench', 'scripts', 'tests']
 
 /** Every helper of `files` (path -> text) defined twice, signature and body alike, in one unit.
  *  The maths unit is the one home the rest of the tree reads, so its helpers are also compared
@@ -110,7 +110,7 @@ export function duplicateHelpers(files: Map<string, string>): Helper[][] {
   for (const [file, text] of files) {
     const unit = UNITS.find((u) => file.startsWith(u + '/'))
     const reader =
-      !unit && /\.(?:[cm]?ts|tsx)$/.test(file) && !isMathsOracle(file)
+      !unit && /\.[cm]?ts$/.test(file) && !isMathsOracle(file)
         ? MATH_READERS.find((tree) => file.startsWith(tree + '/'))
         : undefined
     const home = unit ?? reader

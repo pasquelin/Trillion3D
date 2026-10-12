@@ -7,7 +7,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { batisseur, engine, release } from '../kit/sharedSceneProof.ts'
-import { quantileFloorOf } from '../../../packages/math/src/scalar/quantile.ts'
+import { quantileFloorOf } from '../../kit/stats/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 /** Half side of the floor, in scene units: the far edge reaches the horizon of the view. */

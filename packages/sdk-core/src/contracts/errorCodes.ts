@@ -1,10 +1,9 @@
 import { EngineError } from './cache.ts'
 
 /**
- * Every code an `EngineError` may carry, by family: the words a page may test. What each family
- * means is for the API reference alone (`scripts/api-reference/errorCodeMeanings.ts`).
+ * Every code an `EngineError` may carry, by family: the words a page may test.
  */
-export const ENGINE_ERROR_CODES: readonly (readonly string[])[] = [
+const ENGINE_ERROR_CODES: readonly (readonly string[])[] = [
   [
     'CANVAS_NOT_FOUND',
     'CANVAS_DOCUMENT_UNAVAILABLE',

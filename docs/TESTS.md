@@ -28,24 +28,23 @@ published).
 
 ## 2. The Commands
 
-| Command                  | What it runs                                                                                 |
-| ------------------------ | -------------------------------------------------------------------------------------------- |
-| `pnpm test`              | every `*.test.ts` under `packages/`, `tests/`, `bench/`, `scripts/` and `site/examples/kit/` |
-| `pnpm run check:changed` | the local gate: the gates of `validate` and the unit tests the changed files reach           |
-| `pnpm run validate`      | every gate, as the CI runs it                                                                |
-| `pnpm run test:gpu`      | the GPU proofs on Dawn                                                                       |
-| `pnpm run test:chrome`   | the Chrome proofs                                                                            |
-| `pnpm run test:mutation` | the mutation measurement of `packages/sdk-core/src`                                          |
-| `pnpm run perf:all`      | every benchmark of `bench/perf/`, then the aggregated report                                 |
+| Command                  | What it runs                                                                       |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| `pnpm test`              | every `*.test.ts` under `packages/`, `tests/`, `bench/` and `scripts/`             |
+| `pnpm run check:changed` | the local gate: the gates of `validate` and the unit tests the changed files reach |
+| `pnpm run validate`      | every gate, as the CI runs it                                                      |
+| `pnpm run test:gpu`      | the GPU proofs on Dawn                                                             |
+| `pnpm run test:chrome`   | the Chrome proofs                                                                  |
+| `pnpm run test:mutation` | the mutation measurement of `packages/sdk-core/src`                                |
+| `pnpm run perf:all`      | every benchmark of `bench/perf/`, then the aggregated report                       |
 
 `check:changed` (`scripts/check-changed.ts`) compares with `develop` (`TRILLION3D_BASE_REF`
-overriding) and runs the unit tests a change can affect (`scripts/affected-tests.ts`). A change of
-documentation, translations or example thumbnails also runs the tests that read them
-(`pnpm run test:docs`, `scripts/docs/tests.ts`). It type-checks (`tsc --noEmit`) every tracked
+overriding) and runs the unit tests a change can affect (`scripts/affected-tests.ts`); a change of
+documentation alone (Markdown, images outside the code trees) runs the gates only. It type-checks (`tsc --noEmit`) every tracked
 `tsconfig*.json` project owning a changed TypeScript file, by listing it or by import
 (`scripts/ts-projects.ts`); a changed file no project reaches fails, unless a type-check-only
 (`noEmit`) project's `include` covers it and its `exclude` takes it back. A project reading
-`trillion3d` from `dist/` (the site, the tools) is checked after `pnpm run build`.
+`trillion3d` from `dist/` (the tools) is checked after `pnpm run build`.
 
 CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one per
 group of `scripts/validate-steps.ts`, the `unit` group split into shards of one file list
@@ -85,7 +84,7 @@ of an area are the modules its proofs load. They run on Dawn in Node — the Web
 Chrome runs, on the machine's GPU, no browser (`tests/gpu/kit/onDawn.ts`).
 
 `pnpm run test:gpu` (`bench/dawn/proofs.ts`) takes the machine's bench lock, compiles the test
-scenes (`TEST_SCENES`, `scripts/site-caches.ts`) under it, then runs every `*.gpu.ts` in one
+scenes (`TEST_SCENES`, `scripts/scene-caches.ts`) under it, then runs every `*.gpu.ts` in one
 sequential `node --test`. The proofs are found by rule, never by a hand-curated list:
 `bench/dawn/proofs.test.ts` keeps launched ∪ excluded == disk, and no exclusion outlives the proof
 it names. A proof never opens the GPU from an import: only an explicit run does
@@ -117,17 +116,12 @@ What Dawn does not have is proved in the system Chrome: the absence of WebGPU (`
 and the per-material comparison with the witness library (`webgpu/material-pixels`). Each is a
 `tests/gpu/<area>/<name>.chrome.ts`, found by the same rule and declared in the same `EXCLUDED`;
 its page module is served from the sources and called in a fresh headless Chrome
-(`tests/gpu/kit/onChrome.ts`), under the bench lock. Their scenes are built by the proofs, never a
-page of the site.
+(`tests/gpu/kit/onChrome.ts`), under the bench lock. Their scenes are built by the proofs.
 
 ```bash
 pnpm run test:chrome                                                       # run all
 node bench/dawn/proofs.ts --chrome tests/gpu/webgpu/material-pixels.chrome.ts  # run one
 ```
-
-The site has no browser proof. `node scripts/site-first-load.ts <siteDir> [route …]` measures a
-route's first load (DOMContentLoaded, settled, requests, bytes) over cold contexts: a measurement,
-not a proof.
 
 ### Performance Benchmarks
 
@@ -176,6 +170,5 @@ in its script's header, and `pnpm run check:changed` runs them on what a branch 
 that shape every file: a maintained JS, TS or Rust file holds at most 200 lines (`check:lines`),
 except the runtime modules of `sdk-core`, `sdk-browser`, `sdk-node` and `page-codec`, which answer
 to `check:cohesion` instead (functions of at most 60 lines and a complexity of at most 20, on the
-modules a branch touches). The translations gate is described in
-[LEARNING_PORTAL.md](LEARNING_PORTAL.md#languages). The engine is WebGPU only: `check:webgpu-only`
+modules a branch touches). The engine is WebGPU only: `check:webgpu-only`
 fails on any trace of the GL family of APIs in a tracked file or file name, with no allowlist.

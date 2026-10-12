@@ -9,7 +9,7 @@ import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/enco
 import { DAG_VIEW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { quantileFloorOf } from '../../../packages/math/src/scalar/quantile.ts'
+import { quantileFloorOf } from '../../kit/stats/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { sceneView } from './cutScene.ts'
 

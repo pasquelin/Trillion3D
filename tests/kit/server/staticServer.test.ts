@@ -4,7 +4,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { startServer } from './staticServer.ts'
-import { resolve } from 'node:path'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { readOptions } from '../../../bench/runner/harness/options.ts'
 
 /** The response a harness server started with `options` gives on `path`, its body read, the
@@ -39,13 +41,18 @@ test('--isolation is only on or off, and defaults to off when unstated', () => {
   assert.throws(() => readOptions(['--isolation', 'oui'], process.cwd()), /--isolation/)
 })
 
-test('portal stylesheets are served as CSS so browser proofs use the real layout', async () => {
-  const dir = resolve(import.meta.dirname, '../../../site/styles')
-  const { headers, text } = await served('/styles/portal.css', {
-    mounts: [{ prefix: '/styles/', dir }],
-  })
-  assert.equal(headers.get('content-type'), 'text/css; charset=utf-8')
-  assert.match(text, /render-frame/)
+test('stylesheets are served as CSS so browser proofs use the real layout', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'trillion3d-styles-'))
+  try {
+    writeFileSync(join(dir, 'page.css'), '.render-frame { display: block }\n')
+    const { headers, text } = await served('/styles/page.css', {
+      mounts: [{ prefix: '/styles/', dir }],
+    })
+    assert.equal(headers.get('content-type'), 'text/css; charset=utf-8')
+    assert.match(text, /render-frame/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
 
 test('a TypeScript page module is served as JavaScript, its types stripped', async () => {

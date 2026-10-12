@@ -27,10 +27,6 @@ export const lerp = (a: number, b: number, t: number) => a + (b - a) * t
  *  `scalar.rs`). */
 export const mix = (a: number, b: number, t: number) => a * (1 - t) + b * t
 
-/** The smoothstep polynomial `t * t * (3 - 2 * t)` of `t` in `[0, 1]`: 0 and 1 at the ends, flat at
- *  both. Not clamped: `smoothstep(saturate(t))` holds a `t` out of the interval. */
-export const smoothstep = (t: number) => t * t * (3 - 2 * t)
-
 /** `value` at the nearest multiple of `step`, a half step rounding up: `Math.round(value / step) * step`. */
 export const snap = (value: number, step: number) => Math.round(value / step) * step
 

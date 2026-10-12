@@ -37,7 +37,7 @@ interface InventoryEntry {
   bindingIdentity: string
 }
 
-/** The export inventory of `site/data/api-inventory.json`: every export of the three entries and
+/** The export inventory: every export of the three entries and
  *  of the documented gaps, where it is defined, which entry points bind it and who imports it. */
 export function apiInventory() {
   const rows = [...analyzeEntries(), ...DOCUMENTED_GAPS]

@@ -51,21 +51,20 @@ test('a changed TypeScript file no project type-checks is an error, not a skip',
   assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/public/publicNode.mts')))
   assert.ok(!excludes(tools, resolve(ROOT, 'tests/gpu/renders/pair.gpu.ts')))
   const build = project('tsconfig.json')
-  assert.ok(!excludes(build, resolve(ROOT, 'site/app/x.test.ts')), 'outside its include')
+  assert.ok(!excludes(build, resolve(ROOT, 'bench/runner/x.test.ts')), 'outside its include')
   const fixture = resolve(ROOT, 'packages/sdk-browser/src/x.fixture.ts')
   assert.ok(!excludes(build, fixture), 'an emitting project excludes from its output only')
 })
 
-test('the site and the tools read trillion3d from dist/, so their check builds first', () => {
+test('the tools read trillion3d from dist/, so their check builds first', () => {
   assert.ok(readsDist(project('tsconfig.tools.json')))
-  assert.ok(readsDist(project('tsconfig.site.json')))
   assert.ok(!readsDist(project('tsconfig.core.json')), 'the SDK sources need no build')
 })
 
 test('the projects are the tracked tsconfig files', () => {
   const projects = tsProjects(repositoryFiles(ROOT) ?? [])
   assert.ok(projects.includes('tsconfig.tools.json'), projects.join())
-  assert.ok(projects.includes('tsconfig.site.json'), projects.join())
+  assert.ok(projects.includes('tsconfig.browser.json'), projects.join())
   assert.deepEqual(tsProjects(['a/tsconfig.json', 'tsconfig.core.json', 'x.json']), [
     'a/tsconfig.json',
     'tsconfig.core.json',

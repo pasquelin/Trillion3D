@@ -141,7 +141,7 @@ export function worldBundlePages(table: WorldRoots, bundle: number, bytes: Uint8
  *  projects, and where its page lives — a super-root its `bundle` and `offset` in the binary, an
  *  object root its `origin`, the rank among the table's objects of the placed object drawing it
  *  (`cells.cellOf` finds its cell). Kept out of the exported `WorldRoots`, whose
- *  shape the API reference translates. */
+ *  shape is public. */
 export type WorldRootsCluster = {
   cluster: number
   level: number

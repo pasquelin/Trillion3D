@@ -5,15 +5,13 @@
 //
 // The groups follow what each gate needs, not what it looks at:
 //   quick      the sources alone — it answers in well under a minute, which is when a formatting
-//              or a lint mistake should be reported, not after the Rust suite — and the unit
-//              tests that read documentation (`test:docs`), which a documentation-only pull
-//              request, whose code jobs are skipped, still runs;
+//              or a lint mistake should be reported, not after the Rust suite; a
+//              documentation-only pull request, whose code jobs are skipped, still runs it;
 //              `check:cohesion` is deliberately NOT one of them: it reads the modules a branch
 //              touches and is a step of `check:changed`. Run against the whole tree it reports the
 //              417 functions that predate it — that is the queue it works through, not a failure,
 //              and a gate that cannot go green is not a gate;
-//   typescript the `tsc` build, the site build (`build:docs`) and the gates that read their
-//              products, the CDN core's gzip budget among them. `check:types:browser` belongs here:
+//   typescript the `tsc` build and the gates that read its products, the CDN core's gzip budget among them. `check:types:browser` belongs here:
 //              `check:structure` reads `tsconfig.core.json`, which covers `sdk-core` alone, so the
 //              browser SDK — the largest package — was compiled by no gate at all;
 //   native     Clippy and the Rust tests, which read the scene caches the compiled compiler cooks
@@ -33,16 +31,10 @@
  *  `node scripts/check-x.ts`. The two maths gates are among them: a helper copied from
  *  `packages/math` (`check:helpers`) and a WGSL library declaration written again
  *  (`check:wgsl-library`); the lint refuses the maths' inline forms (`scripts/lint-maths.ts`). */
-export const TREE_GATES = [
-  'check:translations',
-  'check:english',
-  'check:helpers',
-  'check:wgsl-library',
-] as const
+export const TREE_GATES = ['check:english', 'check:helpers', 'check:wgsl-library'] as const
 
 export const VALIDATE_GROUPS = {
   quick: [
-    'generate:api',
     'check:local',
     'format:check',
     'check:lines',
@@ -52,23 +44,15 @@ export const VALIDATE_GROUPS = {
     'check:unused',
     'check:no-js',
     'check:webgpu-only',
-    'check:links',
-    'check:docs-three',
     'check:sdk-facade',
-    'check:i18n',
     ...TREE_GATES,
-    'test:docs',
   ],
   typescript: [
-    'generate:api',
     'check:types:browser',
     'build',
     'check:bundle-size',
     'check:dts',
     'check:structure',
-    'check:docs-bundles',
-    'build:docs',
-    'check:site-types',
     'check:tools-types',
   ],
   native: ['lint:native', 'build:native', 'compile:caches', 'test:native'],

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The physics step bench: the `ten-thousand-bodies` example's scene (N boxes in ten layers over a
+// The physics step bench: the `ten-thousand-bodies` scene (N boxes in ten layers over a
 // floor), stepped at 60 Hz until every box sleeps, by the committed web modules in node
 // (single-threaded, and threaded on workers) and, when built, by the same C API compiled natively
 // (`packages/physics-jolt-wasm/bench/native.cpp`, same Jolt, same command words). Prints, per run,

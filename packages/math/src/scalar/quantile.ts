@@ -38,11 +38,6 @@ export function medianOf(values: ArrayLike<number>) {
   return median(ascending(values))
 }
 
-/** `quantileFloor` of an unsorted list: a copy is sorted ascending first, the list itself is left as is. */
-export function quantileFloorOf(values: ArrayLike<number>, q: number): number | undefined {
-  return quantileFloor(ascending(values), q)
-}
-
 /** The arithmetic mean of `values`, summed left to right from 0 then divided by the count: the
  *  `reduce((a, b) => a + b, 0) / length` form, bit for bit. An empty list gives NaN. */
 export function mean(values: ArrayLike<number>) {

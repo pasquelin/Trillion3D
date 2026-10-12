@@ -81,10 +81,10 @@ test('a constructor, an accessor pair and an object method are all functions, ea
   assert.deepEqual(fns.map((f) => f.name).sort(), ['constructor', 'get b', 'run', 'set b'])
 })
 
-test('the gate reads the packages, and leaves the scripts, the site and the bench to their own gates', () => {
+test('the gate reads the packages, and leaves the scripts, the tests and the bench to their own gates', () => {
   assert.ok(unitOf('packages/sdk-browser/src/gpu/dag/uniforms.ts'))
   assert.equal(unitOf('scripts/check-cohesion.ts'), null)
-  assert.equal(unitOf('site/app/main.tsx'), null)
+  assert.equal(unitOf('tests/kit/server/staticServer.ts'), null)
   assert.equal(unitOf('bench/core/index.ts'), null)
 })
 

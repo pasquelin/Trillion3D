@@ -13,7 +13,7 @@
 [![Tests](https://img.shields.io/badge/tests-node%20%2B%20cargo%20%2B%20GPU%20proofs-2b2d30?logo=checkmarx&logoColor=6da95f)](#quality-bar)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2b2d30)](#licence)
 
-**[Documentation ↗](https://www.trillion3d.com/)** · **[Live report ↗](https://www.trillion3d.com/#/en/reports)** · **[Why](#why-trillion3d)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)**
+**[Documentation](docs/README.md)** · **[Why](#why-trillion3d)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)**
 
 </div>
 
@@ -61,9 +61,8 @@ pnpm run test:native     # cargo test
 ```
 
 This builds the repository. The package is not on npm yet; from its first release, an application
-installs it instead — `npm install trillion3d`, then `npx trillion3d-compile` for its models — as
-the portal's [Install page](https://www.trillion3d.com/#/en/learn/install) shows, with the
-supported platforms and the server headers.
+installs it instead — `npm install trillion3d`, then `npx trillion3d-compile` for its models; the
+supported platforms are in [COMPILER.md](docs/COMPILER.md#platform-packages).
 
 ```js
 import { createWorld, object, geometry, material, light } from 'trillion3d'
@@ -137,15 +136,15 @@ What each package owns: [packages/README.md](packages/README.md).
 
 ## Measuring
 
-Frame time is measured on the GPU bench, which draws a site page in Node on the machine's GPU
-through Dawn; a Chrome harness serves the material proof and pits the engine against two witnesses,
-bare Three.js and Three.js with a three-level `THREE.LOD`. Both, and the published reports:
+Frame time is measured on the GPU bench, which draws its own scene (`bench/kit/`) in Node on the
+machine's GPU through Dawn; a Chrome harness serves the material proof and pits the engine against
+two witnesses, bare Three.js and Three.js with a three-level `THREE.LOD`. Both, and the reports:
 [bench/runner/README.md](bench/runner/README.md); the measurement rules:
 [CONTRIBUTING.md](CONTRIBUTING.md#measure-before-optimising).
 
 ## Quality bar
 
-`pnpm run validate` — format, lint, Clippy, unused code, builds, declarations, links, every
+`pnpm run validate` — format, lint, Clippy, unused code, builds, declarations, every
 JS/TS/Rust test — gates each pull request in CI ([`quality.yml`](.github/workflows/quality.yml));
 `pnpm run test:gpu` adds the proofs on a real GPU. The gates:
 [docs/TESTS.md](docs/TESTS.md#4-quality-gates); the rules a contribution follows:

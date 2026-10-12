@@ -3,7 +3,7 @@ import { families } from './families.ts'
 
 /** Whether a world or the page turned the debug mode on (`setDebugMode`). */
 let asked = false
-/** Whether the page's address carries `?profile`, read as the examples' profile reads it. */
+/** Whether the page's address carries `?profile`. */
 const profileAsked = addressFlag((params) => params.has('profile'))
 
 /**
@@ -12,8 +12,8 @@ const profileAsked = addressFlag((params) => params.has('profile'))
  * (`getReport`) only in it, and the measurement's code (`families.measurement`) — the frame
  * report's and the pass table's — is fetched only once it turns on, or by what reads it — a
  * listened diagnostic channel, the frame audit, an A/B layout, the pass mapping. A page that
- * never asks for it — a world's `debug` option or setter, the examples' stats corner, `?profile`
- * in its address — files no frame into a profile. It is the page's: every world reads it.
+ * never asks for it — a world's `debug` option or setter, a stats overlay, `?profile` in its
+ * address — files no frame into a profile. It is the page's: every world reads it.
  */
 export function debugMode() {
   return asked || profileAsked()

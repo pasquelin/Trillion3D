@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /** The folders whose scenes keep a compiled cache beside their committed source, which git never
- *  tracks (`scripts/site-caches.ts` compiles them, `.gitignore` names them). */
+ *  tracks (`scripts/scene-caches.ts` compiles them, `.gitignore` names them). */
 export const SCENE_ROOTS = ['tests/fixtures/scenes'] as const
 
 const REPOSITORY = fileURLToPath(new URL('../../../', import.meta.url))
@@ -26,7 +26,7 @@ export function manifestUrlOf(scene: string): string {
  *  no source any more, left on disk by a scene removed since, is not read. */
 export async function sceneCacheFiles(file: string): Promise<string[]> {
   const found: string[] = []
-  // `cache`, or `cache-<name>` for a second cook of the same source (`site-caches.ts`).
+  // `cache`, or `cache-<name>` for a second cook of the same source (`scene-caches.ts`).
   const patterns = SCENE_ROOTS.map((folder) => `${folder}/**/cache{,-*}/native/full/${file}`)
   for await (const path of glob(patterns, { cwd: REPOSITORY }))
     if (hasSource(path.replace(/\/cache(-[^/]+)?\/native\/full\/.*$/, ''))) found.push(path)

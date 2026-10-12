@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
 import { build } from 'esbuild'
 import { execFileSync } from 'node:child_process'
 import * as common from '../../packages/sdk/index.ts'
 import * as core from '../../packages/sdk-core/src/index.ts'
 import * as browser from '../../packages/sdk/browser.ts'
 import * as browserLegacy from '../../packages/sdk-browser/src/index.ts'
+import { apiInventory } from '../../scripts/sdk-api-inventory.ts'
 
 test('the facade keeps canonical binding identity across environments', () => {
   assert.equal(common.LOD_QUALITY, core.LOD_QUALITY)
@@ -53,7 +53,7 @@ test('the five-import hierarchy example composes parents before children', () =>
     hierarchyUpdateBatch,
   } = common
   const count = 3
-  // The guide's five-import example, run as written: the portal demo (`site/demos/batch.ts`) shows its own copy.
+  // The guide's five-import example, run as written.
   // jscpd:ignore-start
   const views = (buffer: Float64Array, stride: number): Float64Array[] =>
     Array.from({ length: count }, (_, index) =>
@@ -95,9 +95,7 @@ interface Inventory {
 }
 
 test('generated inventory and explicit facade files are current', async () => {
-  const inventory: Inventory = JSON.parse(
-    await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
-  )
+  const inventory: Inventory = apiInventory()
   // 719 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, nested Hi-Z oracles, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page

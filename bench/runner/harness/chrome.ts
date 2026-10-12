@@ -35,7 +35,7 @@ export function assertBrowserEntryPoint(entry = process.argv[1], testRun = under
  * with the channel set here and nowhere else: a channel or a browser path given is overridden.
  * Playwright's own headless shell, which `chromium.launch` opens without a channel, composites a
  * WebGPU canvas it cannot read: the device is lost right after the first frame, every
- * example with it. Refused unless a bench, script or Chrome proof run is the entry point
+ * scene with it. Refused unless a bench, script or Chrome proof run is the entry point
  * (`assertBrowserEntryPoint`).
  */
 export async function launchChrome(options: LaunchOptions = {}) {
