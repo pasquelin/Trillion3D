@@ -4,34 +4,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planImpostors, type ImpostorRoot } from './plan.ts'
-import { bakedMesh } from './bakedMesh.fixture.ts'
+import { BUSH, TREE, TREE_AND_BUSH, placed } from './bakedMesh.fixture.ts'
 import { impostorRadius, impostorTexelDepth, impostorTriangleDepth } from './switch.ts'
-import type { ImpostorSection } from '../contracts/impostor.ts'
 import { halton } from '../../../math/src/sequence/halton.ts'
 import { hypot3 } from '../../../math/src/float/hypot.ts'
 import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
 import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { TAU } from '../../../math/src/constants.ts'
 
-const TREE = { objectRadius: 4.2, rootTriangles: 2100, coverage: 0.43, frameSide: 128 }
-const BUSH = { objectRadius: 0.6, rootTriangles: 460, coverage: 0.66, frameSide: 64 }
 const INPUTS = { 1: TREE, 2: BUSH } as const
-const section: ImpostorSection = {
-  version: 1,
-  frames: 12,
-  focalPixels: 1117,
-  textureLimit: 8192,
-  baked: 2,
-  refused: 0,
-  meshes: [bakedMesh(1, 'tree', TREE), bakedMesh(2, 'bush', BUSH, true)],
-}
-
-/** A world turned by `angle` about y, scaled by `s`, at `(x, y, z)`, column-major. */
-const placed = (x: number, y: number, z: number, angle: number, s: number) => {
-  const c = Math.cos(angle) * s,
-    n = Math.sin(angle) * s
-  return [c, 0, -n, 0, 0, s, 0, 0, n, 0, c, 0, x, y, z, 1]
-}
 
 /** The view of an eye at `eye` turned by `yaw` about y then `pitch` about x: `R·(p − eye)`. */
 function viewOf(eye: number[], yaw: number, pitch: number) {
@@ -90,7 +71,7 @@ test('every root switches as the former distance decided, over a forest and its 
     const view =
       v === 8 ? viewOf([0, 0, 0], 0, 0) : viewOf(eye, TAU * halton(v, 2), halton(v, 3) - 0.5)
     const focal = v % 2 ? 1117 : 700
-    const plan = planImpostors(roots, section, view, focal)
+    const plan = planImpostors(roots, TREE_AND_BUSH, view, focal)
     roots.forEach((root, r) => {
       assert.equal(plan.switched[r], oldSwitched(root, view, focal), `view ${v} root ${r}`)
       switched += plan.switched[r]

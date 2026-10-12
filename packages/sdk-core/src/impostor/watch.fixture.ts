@@ -1,13 +1,12 @@
 // Generated fields of trees and a camera that sways over them, as the watch's tests read them.
 import type { ImpostorRoot } from './plan.ts'
 import { impostorViewCosine } from './watch.ts'
-import { bakedMesh } from './bakedMesh.fixture.ts'
+import { TREE, bakedMesh } from './bakedMesh.fixture.ts'
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import type { ImpostorSection } from '../contracts/impostor.ts'
 
 export const FOCAL = 1117
-export const TREE = { objectRadius: 4.2, rootTriangles: 2100, coverage: 0.43, frameSide: 128 }
 export const section: ImpostorSection = {
   ...{ version: 1, frames: 12, focalPixels: FOCAL, textureLimit: 8192, baked: 1, refused: 0 },
   meshes: [bakedMesh(1, 'tree', TREE)],
