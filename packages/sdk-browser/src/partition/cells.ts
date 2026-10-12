@@ -59,7 +59,7 @@ export function createPartitionCells(inputs: Inputs) {
     pageDecodes = createDecodes<IndexPage, PageBody>()
   const pins = createPlanPins()
   const holds = createCellHolds(world)
-  const frame: CellFrame = {}
+  const frame: CellFrame = { key: {} }
   const rows = createCellPlacements(root, parents, meshes, frame)
   const { held, touched } = rows
   const far = createFarCells(world, held)
@@ -148,6 +148,9 @@ export function createPartitionCells(inputs: Inputs) {
         forget(urls: readonly string[]): void
         update(rows: PlacementRows, from: number, to: number): void
         grow?: PlacementGrowth
+        /** The session's composition (`Engine.composePlacements`): rows linked to the scene's frame
+         *  follow it on the GPU (`CellFrame`). */
+        compose?: CellFrame['compose']
         outgrown?: () => void
         /** The cut's lens while it packs the world DAG, structurally a `SuperRootLens`. */
         lens?: {
@@ -160,6 +163,7 @@ export function createPartitionCells(inputs: Inputs) {
       },
       budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
     ) {
+      frame.compose = io.compose
       rows.follow()
       const local = view(eye, reach)
       if (local.rung > Math.max(sized, wanted)) {

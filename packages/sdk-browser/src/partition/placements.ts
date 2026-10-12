@@ -22,7 +22,7 @@ export function createCellPlacements(
 ) {
   const held = new Map<number, Placement[]>()
   const touched = createTouchedRows()
-  const { write, follow } = createPlacementWrites(touched, frame)
+  const { write, follow, settle } = createPlacementWrites(touched, frame)
   return {
     /** The rows of each cell placed. */
     held: held as ReadonlyMap<number, readonly Placement[]>,
@@ -41,6 +41,7 @@ export function createCellPlacements(
         write(placements[node])
       }
       held.set(cell, placements)
+      settle()
       return true
     },
     /** Parks the rows of `cell`. */

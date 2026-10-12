@@ -35,3 +35,40 @@ test("a cell's rows cast as their host mesh says, and follow its castShadow once
     'both primitives rewrite their rows, sent before the frame',
   )
 })
+
+test('a scene hung in a frame the session composes: the first move of the frame writes the rows and links them, the next ones send its world alone', async () => {
+  const { cells, bytes } = world(0, null)
+  const frameWorld = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+  cells.pose(() => frameWorld)
+  await opened(cells, bytes, 1e5, false)
+  const calls: { links: number; whole: boolean; world: number[] }[] = []
+  const { port, updates } = io(bytes)
+  let accepts = true
+  port.compose = (_parent, world, given, whole) => (
+    accepts && calls.push({ links: given.length, whole, world: [...world] }),
+    accepts
+  )
+  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  assert.equal(calls.length, 0, 'a still frame links nothing')
+  frameWorld[12] = 40
+  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  assert.deepEqual(
+    calls.map(({ links: count, whole }) => [count, whole]),
+    [[6, true]],
+    'every row of the three nodes of both primitives, whole',
+  )
+  const sent = updates.length
+  frameWorld[12] = 80
+  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  assert.deepEqual(
+    calls.slice(1).map(({ links: count, whole }) => [count, whole]),
+    [[0, false]],
+    'its world alone',
+  )
+  assert.equal(updates.length, sent, 'no row written')
+  assert.equal(calls.at(-1)!.world[12], 80)
+  accepts = false
+  frameWorld[12] = 90
+  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  assert.equal(updates.length > sent, true, 'a session that refuses: the rows are written')
+})

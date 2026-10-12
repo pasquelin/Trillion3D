@@ -138,6 +138,8 @@ export function createPartitionFrame(inputs: Inputs) {
     update: (...range: Parameters<Engine['updatePlacements']>) =>
       backend.updatePlacements(...range),
     grow: backend,
+    compose: (parent, world, links, whole) =>
+      backend.composePlacements(parent, world, links, whole),
     outgrown: renew,
     // While the cut packs the world DAG, a cell its super-roots draw is held far (#1332).
     lens: lensOf(backend, camera, cells),
