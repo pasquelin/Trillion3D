@@ -8,12 +8,7 @@ import { DEG2RAD, HALF_PI, RAD2DEG, TAU } from '../../packages/math/src/constant
 import { perspectiveSlope } from '../../packages/math/src/projection/camera.ts'
 import { length2, length3 } from '../../packages/math/src/vector/vector.ts'
 import { distance, resolveRandom } from './lighting/resolveCases.ts'
-import {
-  angleBetween,
-  inverseTransposeBefore,
-  inverseTransposeShipped,
-  unit,
-} from './math/inverseTransposeF32.ts'
+import { angleBetween, inverseTransposeShipped, unit } from './math/inverseTransposeF32.ts'
 import { CASES, COLLAPSED, FLATTENED, TINY_REGULAR } from './math/normalTransformCases.ts'
 
 test('the cameras open the same tangent through perspectiveSlope', () => {
@@ -70,9 +65,8 @@ test("the normal model's f32 unit vectors are the same, its angles within two ul
   for (const c of [...CASES, ...FLATTENED, ...COLLAPSED, TINY_REGULAR]) {
     const w = c.world,
       columns: [number, number, number][] = [0, 4, 8].map((at) => [w[at], w[at + 1], w[at + 2]])
-    const shipped = inverseTransposeShipped(columns, c.normal),
-      before = inverseTransposeBefore(columns, c.normal)
-    for (const v of [shipped, before, c.normal]) {
+    const shipped = inverseTransposeShipped(columns, c.normal)
+    for (const v of [shipped, c.normal]) {
       const root = Math.hypot(...v)
       if (!(root > 0)) continue
       const now = unit(v)

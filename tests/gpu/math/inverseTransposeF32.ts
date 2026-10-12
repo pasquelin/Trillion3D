@@ -95,14 +95,6 @@ function adjugateTimes([a, b, c]: Mat3, v: Vec3): Vec3 {
   )
 }
 
-/** The form from BEFORE defects 6 and 9, in f32: an absolute `abs(det)<1e-20` on the raw 3×3. */
-export function inverseTransposeBefore(m: Mat3, v: Vec3): Vec3 {
-  const [a, b, c] = m
-  const det = dot(a, cross(b, c))
-  if (Math.abs(det) < 1e-20) return v
-  return divide(adjugateTimes(m, v), det)
-}
-
 /**
  * The shipped kernel, in f32: the 3×3 divided by the sum of its absolute values before the
  * determinant, then the singular convention of `packages/math/src/wgsl/inverseTranspose.ts`. A
@@ -130,7 +122,3 @@ const unitOrZero = (a: Vec3): Vec3 => (dot(a, a) > 0 ? unit(a) : [0, 0, 0])
  *  local normal, then normalised. `world` is the column-major 4×4. */
 export const xformNormalModel = (world: number[], n: Vec3): Vec3 =>
   unitOrZero(inverseTransposeShipped(columns3(world), n))
-
-/** The same with the form from before, to say what the defect returned. */
-export const xformNormalBefore = (world: number[], n: Vec3): Vec3 =>
-  unit(inverseTransposeBefore(columns3(world), n))

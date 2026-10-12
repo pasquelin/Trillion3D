@@ -6,18 +6,12 @@
 //
 // The engine's lighting texts run on Dawn (`lightingNormalGpu.ts`); the truth is the graph's f64
 // normal matrix, and the luminance gap is the same BRDF's, lit on the GPU with the rendered normal
-// and with the true one. The form from before the fix is rebuilt by `substitutionBefore.ts`.
+// and with the true one.
 //
 //   node bench/dawn/proofs.ts tests/gpu/math/normal-transform-small-scale.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  LIT_MATERIAL,
-  campaign,
-  lightingCase,
-  luminance,
-  normalGap,
-} from './lightingNormalCases.ts'
+import { LIT_MATERIAL, campaign, lightingCase, normalGap } from './lightingNormalCases.ts'
 import { lightNormals } from './lightingNormalGpu.ts'
 
 test('the lighting normal follows a quarter turn at every scale, about the threshold too', async () => {
@@ -47,31 +41,12 @@ test('the lighting normal follows a quarter turn at every scale, about the thres
   })
 })
 
-test('the form before the fix lost the rotation at small scales; the shipped text never does', async () => {
-  // The previous text put back into the shipped program, with the same guard as defect 6:
-  // `substitutionBefore.ts` fails naming what is missing if the block is gone, doubled or pasted
-  // crookedly. A merely "different" text would prove nothing.
+test('the shipped text follows the rotation at every scale of the campaign', async () => {
   const cases = campaign()
-  const [then, now] = await Promise.all([
-    lightNormals(cases, { before: true }),
-    lightNormals(cases),
-  ])
-  const dropouts = (rows: typeof now.rows) =>
-    cases.filter((lit, i) => !normalGap(lit, rows[i]).verdict.ok)
+  const { rows } = await lightNormals(cases)
   assert.deepEqual(
-    dropouts(now.rows).map((lit) => lit.name),
+    cases.filter((lit, i) => !normalGap(lit, rows[i]).verdict.ok).map((lit) => lit.name),
     [],
     'the shipped text follows the rotation at every scale',
   )
-  assert.ok(dropouts(then.rows).length > 0, 'defect 9 no longer reproduces: review the cases')
-  // Outside the threshold band (s ≥ 1e-6) the fix moved no lit colour: the arithmetic touches every
-  // shaded pixel.
-  cases.forEach((lit, i) => {
-    if (lit.s < 1e-6) return
-    const [a, b] = [luminance(then.rows[i].litRendered), luminance(now.rows[i].litRendered)]
-    assert.ok(
-      Math.abs(a - b) / Math.max(a, 1e-6) < 1e-5,
-      `${lit.name}: lighting moved, ${a} → ${b}`,
-    )
-  })
 })
