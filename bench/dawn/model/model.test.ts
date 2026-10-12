@@ -50,9 +50,9 @@ test('the passes count their shipped constants', () => {
   const taa = pass('temporal antialiasing').work(frame)
   assert.equal(taa.texels! / frame.D, 30)
   assert.equal(taa.bytes, 48 * frame.D + 17 * frame.P)
-  // One sun: one ray of nine samples, two fetches each, plus the screen ray's five.
+  // One sun: one ray of nine samples, two fetches each, plus the screen ray's march of eight.
   const vsm = pass('vsm.projection').work(frame)
-  assert.equal(vsm.texels, frame.P * (5 + 9 * 2))
+  assert.equal(vsm.texels, frame.P * (8 + 9 * 2))
   // Four lights fill one mask layer, five two.
   assert.equal(pass('vsm.projection').work({ ...frame, L: 5 }).bytes, 21 * frame.P + 8 * frame.P)
   assert.equal(pass('visibility primary').work(frame).triangles, frame.T)

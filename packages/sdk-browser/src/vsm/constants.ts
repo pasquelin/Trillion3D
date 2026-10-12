@@ -232,8 +232,8 @@ export const VSM_MARK_STRIDE_Y = 2
 // The traces. Declared, every one: they shape the contact and the penumbra and set its noise against
 // its cost. Moving any of them changes the image.
 /** The screen-space ray a pixel casts toward the light before the map's, as a share of the view's
- *  height at the pixel's depth: it catches contact shadows finer than a texel. Longer catches more,
- *  and may take a near surface for an occluder. */
+ *  height at the pixel's depth: it catches contact shadows finer than a texel. Longer catches more;
+ *  a surface nearer than the point by more than the ray spans is no occluder (`vsmScreenRayCast`). */
 export const VSM_SCREEN_RAY_SHARE = 0.015
 /** A receiver moves along its normal by 0.5 thousandths of its distance to the eye (over the view's
  *  half-field tangent) before it reads the maps: a texel grows with distance, so does the offset.

@@ -42,7 +42,7 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
     [
       'hizSource',
       'hizLoadBound',
-      'hizPlaneNearest',
+      'hizPlaneCorners',
       'hizDepthAt',
       'surfaceSlopeOf',
       'hizLayer',
@@ -64,10 +64,7 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
     const at = offsets[level] + y * sizes[level][0] + x
     if (Number.isNaN(made[layer][at])) {
       if (level === 0)
-        made[layer][at] =
-          layer === HIZ_NEAREST
-            ? Math.fround(build.hizSource(0, x, y)[0])
-            : Math.fround(depth[y * width + x])
+        made[layer][at] = Math.fround(build.hizSource(0, x, y)[layer === HIZ_NEAREST ? 0 : 1])
       else {
         const [w, h] = sizes[level - 1],
           square: number[][] = []

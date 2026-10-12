@@ -130,8 +130,8 @@ export const hizDepthEntries = (binding: number, visibility: number): GPUBindGro
 /**
  * What a reader of the whole depth binds in group `group` from `binding` (`GpuHiz.depth`): level 0,
  * the depth the image drew, the pyramid, and its levels. `hizPlane` is a pixel's depth and its
- * plane's slopes in depth per pixel; `hizCell` a cell of a level from 1 up, its farthest depth of
- * the finished image and its nearest. Both clamp the cell to the level: the last texel of a level covers the image's edge.
+ * plane's slopes in depth per pixel; `hizCellFarthest` and `hizCellNearest` a cell of a level from 1 up, its
+ * farthest depth of the finished image and its nearest, each its own read. Both clamp the cell to the level: the last texel of a level covers the image's edge.
  */
 export const hizDepthWgsl = (group: number, binding: number) =>
   wgslBlock(
@@ -149,10 +149,11 @@ fn hizPlane(cell:vec2i)->vec3f{
  let slopes=unpack2x16float(textureLoad(hizPyramid,hizTexel(p.y*size.x+p.x),${HIZ_NEAREST},0).r);
  return vec3f(z,slopes*z);
 }
-fn hizCell(cell:vec2i,level:i32)->vec2f{
- let at=hizLevels.level[level];
- let p=vec2u(clamp(cell,vec2i(0),vec2i(at.yz)-vec2i(1)));
- let step=p.y*at.y+p.x;
- return vec2f(hizWholeFarthest(at.w+step),hizNearest(at.x+step));
-}`,
+fn hizCellStep(cell:vec2i,level:i32)->u32{
+ let size=hizLevels.level[level].yz;
+ let p=vec2u(clamp(cell,vec2i(0),vec2i(size)-vec2i(1)));
+ return p.y*size.x+p.x;
+}
+fn hizCellNearest(cell:vec2i,level:i32)->f32{return hizNearest(hizLevels.level[level].x+hizCellStep(cell,level));}
+fn hizCellFarthest(cell:vec2i,level:i32)->f32{return hizWholeFarthest(hizLevels.level[level].w+hizCellStep(cell,level));}`,
   )

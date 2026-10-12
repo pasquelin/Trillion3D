@@ -11,7 +11,7 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *  - `viewProj`, the view-projection the depth was drawn with, and `radianceViewProj`, the one the
  *    radiance pyramid's image was drawn with;
  *  - `radiance`, the radiance image's drawn size and its top level (`z`);
- *  - `slab`, the geometry of a surface's thickness (`reflectionBack`): the world size of a pixel at
+ *  - `slab`, the geometry of a surface's thickness (`screenBack`): the world size of a pixel at
  *    a unit clip `w` (`x`), the depth at an infinite distance (`y`), the depth a pixel's thickness
  *    spans under an orthographic projection (`z`), and whether the projection is a perspective
  *    (`w`);

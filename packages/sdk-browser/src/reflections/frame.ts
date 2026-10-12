@@ -25,11 +25,21 @@ const inputs = {} as TraceInputs
 const radianceInputs = {} as RadianceInputs
 
 /**
- * The image's reflections, before its lighting: the view uniform, then one compute pass — the depth
- * pyramid's nearest layer, with the finished depth's farthest, once the visibility drew the whole
- * depth (`GpuHiz.encodeNearest`: the Hi-Z's build, which only the readers of the whole depth read,
- * built in their first pass), then the frame state and the opaque surfaces' trace into the
- * reflection target the resolve reads, when the image is lit, its field read from the bounce
+ * The depth pyramid's nearest layer, with the finished depth's farthest, once the visibility drew
+ * the whole depth (`GpuHiz.encodeNearest`: the Hi-Z's build, which only the readers of the whole
+ * depth read): one compute pass, before every reader of it — the direct lights' contact rays
+ * (`vsm/`) and the reflections' trace both walk it with the screen march (`gpu/hiz/screenMarch.ts`).
+ */
+export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+  const hiz = rt.vis.gpuHiz
+  if (!hiz || !rt.run.depthDrawn) return
+  hiz.encodeNearest(reflectionPass.begin(encoder))
+  reflectionPass.end()
+}
+
+/**
+ * The image's reflections, before its lighting: the view uniform, then one compute pass — the frame
+ * state and the opaque surfaces' trace into the reflection target the resolve reads, when the image is lit, its field read from the bounce
  * cascades and its proxy from the resident proxy. What the lighting's view holds of the image — its
  * inverse view-projection, the eye, the exposure, the display curve, the background — the trace
  * reads there (`gpu.deferred.update`, written before the image is submitted).
@@ -51,7 +61,6 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     deferred = gpu.deferred,
     traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer && !!deferred
   const open = reflectionPass.begin(encoder)
-  if (run.depthDrawn) hiz.encodeNearest(open)
   if (traced) {
     const views = surfaces.views()
     // The cascades the resolve reads, else its empty ones: the field a miss reads is the diffuse's.

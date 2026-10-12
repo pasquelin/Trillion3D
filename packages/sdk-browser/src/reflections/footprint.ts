@@ -47,7 +47,7 @@ fn reflectionLevelTrust(level:f32,top:f32)->f32{return 1.0-smoothstep(top-1.0,to
  * Its reads sum as `ReflectionTaps`: the depth-weighted colour and coverage, and the depth weights.
  * `toView` maps a point of the radiance image to this image's pixels (`xy` + uv · `zw`), the hit's
  * at the centre of the pixel the ray stopped in, where the depth is read; `ReflectionSurface` is
- * that pixel, its plane and half the hit's slab (`reflectionBack`).
+ * that pixel, its plane and half the hit's slab (`screenBack`).
  * `reflectionConeAt`: the cone of `lobe` at `distance` from its surface, a pixel `pixel` wide there —
  * its axes' diameters in pixels, at least one, and the pyramid level of the width a read spans, the
  * short axis's or the long axis's share of `REFLECTION_TAPS` taps.

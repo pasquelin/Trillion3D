@@ -4,20 +4,16 @@
 // pixels from behind them, must show the wall: the ray passes behind a surface thinner than its
 // slab. One whose exact ray meets the box must show the box: the box, deeper than the slab, stops it.
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
-import { length3 } from '../../../packages/math/src/vector/vector.ts'
-import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import { castBoxes, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { reflectionConstant } from '../../../packages/sdk-browser/src/reflections/constants.fixture.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
-import { boxFrame, type Block } from './boxFrame.ts'
-import { openRig } from './rig.ts'
+import type { Block } from './boxFrame.ts'
+import { exactRays, hitOnScreen, hueOf, interior, renderBlocks } from './rayAudit.ts'
 
 const WIDTH = 320,
   HEIGHT = 180
-/** The march's tuned constants as the shaders read them. */
-const EDGE = reflectionConstant('REFLECTION_EDGE'),
-  STEP_CAP = reflectionConstant('REFLECTION_STEP_CAP'),
-  THICKNESS = reflectionConstant('REFLECTION_THICKNESS')
+/** The march's slab thickness as the shaders read it. */
+const THICKNESS = reflectionConstant('REFLECTION_THICKNESS')
 const EYE: V3 = [0, 6, 4]
 /** Where the eye looks: down onto the floor at 31°, so that the mirror rays drift across the screen. */
 const TARGET: V3 = [0, 0, -6]
@@ -67,60 +63,36 @@ export type ThinReading = {
 
 export function run() {
   return runOnDevice<ThinReading>(async (device, _events, result) => {
-    const { frame, view, shown } = boxFrame(BLOCKS, EYE, TARGET, WIDTH, HEIGHT)
-    const rig = await openRig(device, frame)
-    rig.image()
-    rig.image()
-    const words = await rig.read()
-    rig.dispose()
-    const rgb = (p: number) => [0, 1, 2].map((c) => fromHalf(words[p * 4 + c]))
-    const hue = (v: number[], color: V3) => {
-      const length = length3(v[0], v[1], v[2]) * length3(...color)
-      return length > 0.02 ? (v[0] * color[0] + v[1] * color[1] + v[2] * color[2]) / length : 0
-    }
-    const others = BLOCKS.filter((block) => !block.mirror)
-    const boxes = others.map((block) => block.box)
-    // The exact first block of a floor pixel's mirror ray, -1 for none.
-    const exact = new Int32Array(WIDTH * HEIGHT).fill(-2)
-    const origins: V3[] = [],
-      mirrors: V3[] = []
-    for (let y = 0; y < HEIGHT; y++)
-      for (let x = 0; x < WIDTH; x++) {
-        const p = y * WIDTH + x
-        if (shown[p] < 0 || Math.floor(shown[p] / 6) !== FLOOR_AT) continue
-        const d = view.ray(x + 0.5, y + 0.5)
-        const t = castBoxes(
-          EYE,
-          d,
-          BLOCKS.map((block) => block.box),
-        ).t
-        const P: V3 = [EYE[0] + d[0] * t, EYE[1] + d[1] * t, EYE[2] + d[2] * t]
-        const R: V3 = [d[0], -d[1], d[2]]
-        const o: V3 = [P[0], P[1] + 1e-4, P[2]]
-        const hit = castBoxes(o, R, boxes)
-        exact[p] = hit.index < 0 ? -1 : BLOCKS.indexOf(others[hit.index])
-        origins[p] = o
-        mirrors[p] = R
-      }
+    const { frame, view, shown, rgb } = await renderBlocks(
+      device,
+      BLOCKS,
+      EYE,
+      TARGET,
+      WIDTH,
+      HEIGHT,
+    )
+    const hue = hueOf
+    const { exact, origins, mirrors, boxes } = exactRays(
+      view,
+      BLOCKS,
+      EYE,
+      shown,
+      FLOOR_AT,
+      [0, 1e-4, 0],
+      (d) => [d[0], -d[1], d[2]],
+    )
     // Whether the screen answers: the exact hit lies on the image, off its border (`REFLECTION_EDGE`
     // of its height), within half of the distance the march covers (`REFLECTION_STEP_CAP`), and in
     // the open — the pole or the fence does not stand over it in the image, which would show them
     // there, not the wall.
     const answered = (p: number) => {
-      const hit = castBoxes(origins[p], mirrors[p], boxes)
-      const point: V3 = [0, 1, 2].map((c) => origins[p][c] + mirrors[p][c] * hit.t) as V3
-      const [hx, hy] = view.project(point)
-      const border = EDGE * HEIGHT
-      if (hx <= border || hy <= border || hx >= WIDTH - border || hy >= HEIGHT - border)
-        return false
-      if (
-        Math.abs(hx - (p % WIDTH) - 0.5) + Math.abs(hy - Math.floor(p / WIDTH) - 0.5) >=
-        STEP_CAP / 2
-      )
-        return false
+      const at = hitOnScreen(view, boxes, origins[p], mirrors[p], p)
+      if (!at) return false
       for (let v = -3; v <= 3; v++)
         for (let u = -3; u <= 3; u++) {
-          const block = Math.floor(shown[(Math.floor(hy) + v) * WIDTH + Math.floor(hx) + u] / 6)
+          const block = Math.floor(
+            shown[(Math.floor(at[1]) + v) * WIDTH + Math.floor(at[0]) + u] / 6,
+          )
           if (isThin(block)) return false
         }
       return true
@@ -147,22 +119,10 @@ export function run() {
       }
       return behind
     }
-    // A pixel whose neighbours' exact blocks differ lies on a silhouette: the pixel grid decides it.
-    const interior = (p: number) => {
-      const x = p % WIDTH,
-        y = Math.floor(p / WIDTH)
-      for (let v = -2; v <= 2; v++)
-        for (let u = -2; u <= 2; u++) {
-          const q = (y + v) * WIDTH + x + u
-          if (q < 0 || q >= WIDTH * HEIGHT) return false
-          if (exact[q] > -2 && exact[q] !== exact[p]) return false
-        }
-      return true
-    }
     result.behind = result.behindWall = result.crate = result.crateCrate = 0
     result.wallAll = result.wallHue = 0
     for (let p = 0; p < WIDTH * HEIGHT; p++) {
-      if (exact[p] < -1 || !interior(p) || !answered(p)) continue
+      if (exact[p] < -1 || !interior(exact, WIDTH, HEIGHT, p) || !answered(p)) continue
       if (exact[p] === WALL_AT && behindThin(p)) {
         result.behind++
         if (hue(rgb(p), WALL.color) > 0.98) result.behindWall++

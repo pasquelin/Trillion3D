@@ -50,8 +50,8 @@ import {
   lowBits,
 } from '../../../math/src/wgsl/integer.ts'
 import { FLOAT32_MIN_NORMAL } from '../../../math/src/wgsl/constants.ts'
-import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
-import { perspectiveDivide, unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
+import { clipToFramebuffer, unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
+import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
 import { vsmBlueNoiseTwo, vsmBlueNoiseWgsl } from './blueNoise.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_STRUCT } from './projectionView.ts'
@@ -103,6 +103,8 @@ export const VSM_PROJECTION_BINDING = {
   blueNoise: 4,
   shadowMask: 5,
   shadowMaskTiles: 6,
+  /** The depth pyramid: three bindings from here (`hizDepthEntries`). */
+  hizDepth: 7,
 } as const
 
 /** Bind group of the shadow receiver target the resolve wrote (`receiverTargetWgsl.ts`), binding 0. */
@@ -214,43 +216,21 @@ fn vsmNormalOffset(shiftedPosition:vec3f)->f32{
  let distanceToCamera=vsmCameraDistance(shiftedPosition-vsmView.shiftedEye);
  return vsmNormalOffsetLength(vsm.normalBias,distanceToCamera,vsmView.halfFovTangents.z);
 }
-/** The scene depth at a buffer UV: its nearest texel, clamped to the buffer. */
-fn vsmSampleSceneDepth(uv:vec2f)->f32{
- let size=vec2i(textureDimensions(vsmSceneDepth));
- let t=clampToExtent(vec2i(floor(uv*vec2f(size))),size);
- return textureLoad(vsmSceneDepth,t,0);
-}
-/** The screen-space ray cast (4 samples), its four depths read at once
- *  before any test: the samples and times are each the one before plus a step, and the reads sit side by
- *  side rather than each after the previous one's test. */
-fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,dither:f32)->f32{
- let startClip=vsmView.shiftedToClip*vec4f(rayOrigin,1.0);
- let stepClip=vsmView.shiftedToClip*vec4f(rayDirection*rayLength,0.0);
- let endClip=startClip+stepClip;
- let startNdc=perspectiveDivide(startClip);
- let endNdc=perspectiveDivide(endClip);
- let stepNdc=endNdc-startNdc;
- let sb=vsmView.clipToBufferUv;
- let screenUvzStart=vec3f(startNdc.xy*sb.xy+sb.wz,startNdc.z);
- let screenUvzStep=vec3f(stepNdc.xy*sb.xy,stepNdc.z);
- let steps=4;
- let stepJitter=dither-0.5;
- let step=1.0/f32(steps);
- let t0=stepJitter*step+step;
- let t1=t0+step;
- let t2=t1+step;
- let rayTime=vec4f(t0,t1,t2,t2+step);
- let startDepth=vsmSampleSceneDepth(screenUvzStart.xy);
- let storedDepth=vec4f(vsmSampleSceneDepth((screenUvzStart+screenUvzStep*t0).xy),vsmSampleSceneDepth((screenUvzStart+screenUvzStep*t1).xy),
-  vsmSampleSceneDepth((screenUvzStart+screenUvzStep*t2).xy),vsmSampleSceneDepth((screenUvzStart+screenUvzStep*rayTime.w).xy));
- for(var i=0;i<steps;i++){
-  let screenUvz=screenUvzStart+screenUvzStep*rayTime[i];
-  if(storedDepth[i]!=startDepth){
-   // Declared: a hit is placed a step and a half back along the ray.
-   if(screenUvz.z<storedDepth[i]){return rayLength*max(0.0,rayTime[i]-1.5*step);}
-  }
- }
- return rayLength;
+/** The screen-space ray cast: the engine's screen march (\`screenMarch\`, \`gpu/hiz/screenMarch.ts\`)
+ *  of the depth along the ray's length, whose reach is the ray's own and whose thickness is
+ *  \`thickness\` pixels of footprint — the ray's depth span, so that a surface nearer than the ray
+ *  by more than it spans is no occluder of the point the ray leaves. The first crossing is the
+ *  occluder: the ray's length up to it, a pixel and a half back (declared: the map trace starts
+ *  at the surface, never behind it), or the whole length where it meets nothing. */
+fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,thickness:f32)->f32{
+ let size=vsmView.viewPixels.xy;
+ let start=clipToFramebuffer(vsmView.shiftedToClip*vec4f(rayOrigin,1.0),size);
+ let stop=clipToFramebuffer(vsmView.shiftedToClip*vec4f(rayOrigin+rayDirection*rayLength,1.0),size);
+ let d=stop-start;
+ let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),thickness,vsmView.screenSlab);
+ // A transparent surface is no occluder here: the maps' transmission is its shadow.
+ if(hit.t<0.0||hit.front){return rayLength;}
+ return rayLength*max(0.0,hit.t-1.5/max(max(abs(d.x),abs(d.y)),1e-6));
 }
 /** \`biasNormal\`: the normal the receiver's biases follow (normal bias, receiver-plane depth slope);
  *  the shading normal unless the engine's shadow receiver gives its triangle's plane. */
@@ -341,7 +321,7 @@ fn vsmProjectLight(k:u32,pixel:VsmPixel,participating:bool,voteSplit:bool)->VsmT
  if(participating){
   if(!info.subsurface){shiftedPosition+=worldNormal*vsmNormalOffset(shiftedPosition);}
   if(!info.subsurface&&pixel.screenRayWorld>0.0){
-   traceStart=vsmScreenRayCast(shiftedPosition,L,pixel.screenRayWorld,pixel.noise);
+   traceStart=vsmScreenRayCast(shiftedPosition,L,pixel.screenRayWorld,pixel.screenRayWorld/vsmPixelWorldSize(pixel.sceneDepth,vsmView.viewToClip,vsmView.viewPixels.xy));
   }
  }
  if(directional){
@@ -572,6 +552,8 @@ export function vsmProjectionWgsl(
       vsmBindingsWgsl(0, VSM_PROJECTION_VSM_SPECS, layout),
       VSM_TRACE_LIGHT_WGSL,
       vsmBlueNoiseWgsl(1, VSM_PROJECTION_BINDING.blueNoise),
+      SCREEN_MARCH_WGSL(1, VSM_PROJECTION_BINDING.hizDepth),
+      clipToFramebuffer,
       VSM_TRACE_COMMON_WGSL,
       VSM_TRACE_RESULT_WGSL,
       localLightReaches,
@@ -582,7 +564,6 @@ export function vsmProjectionWgsl(
       ),
       uvToNdc,
       unprojectPoint,
-      perspectiveDivide,
       ceilDivWgsl,
       bitWord,
       bitMask,
@@ -590,7 +571,6 @@ export function vsmProjectionWgsl(
       isFiniteWord,
       lowBits,
       FLOAT32_MIN_NORMAL,
-      clampToExtent,
       ...(receiver ? [receiverTargetReadWgsl(VSM_PROJECTION_RECEIVER_GROUP, 0)] : []),
     ],
   )

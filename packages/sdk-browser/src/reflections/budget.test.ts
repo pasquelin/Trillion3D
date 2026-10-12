@@ -92,8 +92,8 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
       const alpha = 0.0028
       const ray = run.reflectionRay(P, N, run.reflectionLobeOf(R, alpha, [0, 0, 0, alpha]))
       run.counter.loads = 0
-      const hit = run.reflectionMarch(ray.o, ray.d, ray.end)
-      const bound = run.reflectionBudget(ray.d, ray.end, run.levels)
+      const hit = run.screenMarch(ray.o, ray.d, ray.end, run.thickness, run.slab)
+      const bound = run.screenMarchBudget(ray.d, ray.end, run.levels)
       const reads = run.counter.loads
       assert.ok(reads <= bound, `scene ${scene}, ray ${k}: ${reads} reads of ${bound}`)
       if (hit.t < 0 && reads === bound) outOfBound++

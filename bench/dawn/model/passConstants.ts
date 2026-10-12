@@ -56,10 +56,11 @@ export const LIGHTING_READ = 1 + 8 + 4 + 8 + 8 + 8 + 4 + 4,
   LIGHTING_FETCHES = 7,
   LIGHTING_WRITE = 8 + 8
 /** The shadow setup's footprint: eight neighbour depths a covered pixel (ENGINE.md, "Direct
- *  lighting"), the screen ray's start and four samples (`vsmProjectionTiles`); the bytes a covered
- *  pixel's projection reads and writes. */
+ *  lighting"), the screen ray's march of the depth pyramid (`vsmScreenRayCast`): its texel reads,
+ *  8 on average over the proof scenes at 3170 × 2000 (a ray of 15 pixels), 17 at the 99th
+ *  percentile; the bytes a covered pixel's projection reads and writes. */
 export const FOOTPRINT = 8,
-  SCREEN_RAY = 5,
+  SCREEN_RAY = 8,
   PROJECTION_BYTES = 21
 /** A shadow ray's sample: a page-table word, then the depth texel it names. */
 export const SAMPLE_FETCHES = 2
@@ -90,7 +91,7 @@ export const TILE_ID_BYTES = 4
 /** The marking pass: a pixel of four (a stride of 2 each way), its depth, normal and flags read. */
 export const MARK_STRIDE = 4,
   MARK_BYTES = 4 + 8 + 1
-/** The reflection's march of a reflecting pixel (`reflectionMarch`): its iterations, 16 on average
+/** The reflection's march of a reflecting pixel (`screenMarch`): its iterations, 16 on average
  *  and 35 at the 99th percentile over the proof scenes, each reading a cell of the depth pyramid —
  *  the finished depth's farthest and the nearest, or at level 0 the depth and the slopes —, two
  *  texels. The model counts the mean; what a pass takes above it holds the tail. */
