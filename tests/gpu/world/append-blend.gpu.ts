@@ -21,6 +21,10 @@ for (const [name, method] of [
   ['a transmissive geometry the session does not hold', 'runTransmissive'],
   ['a blended and a transmissive geometry, and a second material', 'runBoth'],
   ['a blended geometry in a session that draws none', 'runBlendedFirst'],
+  ['a transmissive geometry in a session opened without water', 'runTransmissiveFirst'],
+  ['a transmissive geometry in a session that draws nothing transparent', 'runTransmissiveAlone'],
+  ['an emitting surface in a session none of whose surfaces emits', 'runEmissive'],
+  ['a textured surface in a session that wears no texture', 'runTextured'],
 ] as const)
   test(`${name} joins the session in place and draws as a fresh open`, async () => {
     const result = await prove(method)
@@ -29,11 +33,3 @@ for (const [name, method] of [
     assert.deepEqual(result.sessions, [1, 1], 'the session was never opened again')
     assert.equal(result.after, result.opened, 'the image is the fresh open’s')
   })
-
-test('a transmissive geometry in a session opened without water opens the world again, as a fresh open', async () => {
-  const result = await prove('runTransmissiveFirst')
-  assertSoundProof(result)
-  assert.notEqual(result.after, result.before, 'the added meshes appeared')
-  assert.deepEqual(result.sessions, [1, 2], 'the water pass is made at the open')
-  assert.equal(result.after, result.opened, 'the image is the fresh open’s')
-})

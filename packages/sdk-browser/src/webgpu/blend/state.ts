@@ -127,6 +127,9 @@ function waterState() {
      *  does not exist of the scene. `transmissiveInView` is how many the frustum kept this image:
      *  zero, and the pass is not encoded (`order.ts`). */
     transmissive: 0,
+    /** A source that brings a transmissive surface asked for the water pass before its items join:
+     *  the targets it draws over are made for it (`holdsWater`). */
+    waterGranted: false,
     transmissiveInView: 0,
     waterBounds: createWaterBounds(),
     /** Volume of each transmissive item, at its water rank, written with the records. */

@@ -4,6 +4,7 @@
 // generated scene: no file of the site.
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../packages/sdk-core/src/world/material/index.ts'
+import { Texture } from '../../../packages/sdk-core/src/world/texture/texture.ts'
 import { joined, row, type World } from './appendProof.ts'
 
 const ball = geometry.sphere(0.6, 16, 12)
@@ -48,7 +49,28 @@ export const runBoth = () =>
 /** A blended geometry in a session that draws none: the transparent pass is made for it. */
 export const runBlendedFirst = () => joined(held(), (world) => row(world, drum, veil(0x70b03a), -5))
 
-/** A transmissive geometry in a session opened without one: the water pass is made at the open,
- *  so the world opens again. */
+/** A transmissive geometry in a session opened without one: the water pass, its backdrop and its
+ *  emission layer are made for it, as the open makes them. */
 export const runTransmissiveFirst = () =>
   joined(held(veils), (world) => row(world, ring, glass(0xffe8d8), -7))
+
+/** The same, in a session that draws nothing transparent. */
+export const runTransmissiveAlone = () =>
+  joined(held(), (world) => row(world, ring, glass(0xffe8d8), -7))
+
+/** A geometry whose surface emits, in a session none of whose surfaces does: the emission layer
+ *  is written from then on. */
+export const runEmissive = () =>
+  joined(held(), (world) =>
+    row(world, ring, material.meshStandard({ color: 0x202020, emissive: 0xff8030 }), -7),
+  )
+
+/** A geometry wearing a texture, in a session that wears none: the feedback target is made. */
+export const runTextured = () =>
+  joined(held(), (world) => {
+    const data = new Uint8Array(8 * 8 * 4)
+    for (let i = 0; i < 64; i++)
+      data.set(((i >> 3) + i) & 1 ? [250, 220, 60, 255] : [40, 90, 200, 255], i * 4)
+    const map = new Texture({ data, width: 8, height: 8 })
+    row(world, crate, material.meshStandard({ color: 0xffffff, map }), -7)
+  })

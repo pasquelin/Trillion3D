@@ -23,9 +23,14 @@ export const VOLUME_MARKED_WGSL = wgslBlock(
   `fn volumeMarked(vol:Volume,bit:u32)->bool{return (u32(vol.attenuation.w)&bit)!=0u;}`,
 )
 
+/** Whether the session's targets hold the water pass's: a transmissive item is held, or a source
+ *  that brings one was granted the pass (`blendState.waterGranted`). */
+export const holdsWater = ({ blendState }: Pick<WebgpuPagesRuntime, 'blendState'>) =>
+  blendState.transmissive > 0 || !!blendState.waterGranted
+
 /** What the water pass adds to the image budget, zero with no transmissive surface. */
 export function backdropBytes(rt: WebgpuPagesRuntime, width: number, height: number) {
-  return rt.blendState.transmissive ? width * height * WATER_BYTES_PER_PIXEL : 0
+  return holdsWater(rt) ? width * height * WATER_BYTES_PER_PIXEL : 0
 }
 
 /**

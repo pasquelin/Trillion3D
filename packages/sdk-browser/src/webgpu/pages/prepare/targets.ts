@@ -2,7 +2,7 @@ import { wantsSubsurface } from '../../../scene/subsurface.ts'
 import { wantsPhysicalLobes } from './lobesTarget.ts'
 import { DISPLAY_FORMAT, FEEDBACK_FORMAT, holds } from '../../../scene/surfaceBuffer.ts'
 import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
-import { createBackdrop } from '../../transparent/transmission.ts'
+import { createBackdrop, holdsWater } from '../../transparent/transmission.ts'
 import { createScreenReflection } from '../../../reflections/gpu.ts'
 import { dropAside, releaseSet } from './targetsSet.ts'
 import { ensureTaaTargets } from '../../../taa/prepare.ts'
@@ -17,6 +17,8 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
   return (
     !!gpu.hdrTexture &&
     !!gpu.colorTexture === makesDisplayColor(rt, size) &&
+    // The water pass's backdrop is full-size while the session holds a transmissive surface.
+    !!gpu.backdrop?.active === holdsWater(rt) &&
     gpu.allocatedSize[0] === size.renderWidth &&
     gpu.allocatedSize[1] === size.renderHeight &&
     gpu.displaySize[0] === size.width &&
@@ -111,7 +113,7 @@ export function buildTargets(
   size: FrameSize,
   targetBytes: number,
 ) {
-  const { gpu, vis, blendState } = rt,
+  const { gpu, vis } = rt,
     { renderWidth: width, renderHeight: height } = size
   const sampled = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     usage = sampled | GPUTextureUsage.COPY_SRC
@@ -151,12 +153,12 @@ export function buildTargets(
     ? size.apart
       ? gpu.colorTexture.createView()
       : gpu.displayView
-    : blendState.transmissive > 0
+    : holdsWater(rt)
       ? gpu.displayView
       : undefined
   gpu.depthView = gpu.depthTexture.createView()
   gpu.hdrView = gpu.hdrTexture.createView()
-  gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0)
+  gpu.backdrop = createBackdrop(device, width, height, holdsWater(rt))
   gpu.reflection = createScreenReflection(device, width, height)
   // Temporal history follows the display size.
   const allocationBytes = targetBytes + ensureTaaTargets(rt, size.width, size.height)

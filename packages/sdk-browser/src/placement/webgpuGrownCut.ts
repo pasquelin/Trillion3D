@@ -18,7 +18,7 @@ import { forgetRowRoots } from './update.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
 import { growthOf, heldPage, takeGrownCopies } from './webgpuGrowth.ts'
-import { growBlend } from '../webgpu/blend/growth.ts'
+import { growBlend, waitsForWater } from '../webgpu/blend/growth.ts'
 import { announceGrowth, replayMoves, type GrownRoots } from './growthAnnounce.ts'
 
 /**
@@ -32,6 +32,8 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   const { layout, setup, run } = rt,
     { selectionRoots, packedPages, rows } = layout
   if (!growth || !ready || selectionRoots.length + growth.roots.length !== ready.roots) return false
+  // A transmissive copy joins over the water pass's targets and classes, asked of the frame.
+  if (waitsForWater(rt, growth.copies)) return false
   growth.ready = undefined
   // The cut that took them in place is no longer the session's: they are asked again.
   if (ready.inPlace && ready.cut !== run.gpuSelection) {

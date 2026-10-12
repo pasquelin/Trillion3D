@@ -68,7 +68,9 @@ export function pipelinesByMode(
  *  blend item declares: what both transparent paths compile up front. A scene of plain glass
  *  compiles normal alone; one with no transparent item compiles no blend program, a mode
  *  asked later compiles at its first draw (`at`). */
-export const declaredBlendModes = (items: readonly BlendGpuItem[]) =>
+export const declaredBlendModes = (
+  items: readonly Pick<BlendGpuItem, 'surface' | 'transmissive'>[],
+) =>
   BLEND_MODES.filter(
     (mode, rank) =>
       (!rank && items.length > 0) ||

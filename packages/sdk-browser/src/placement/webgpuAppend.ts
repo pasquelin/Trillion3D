@@ -8,7 +8,8 @@
  * (`appendWebgpuTexture`); its roots wait beside those a growth brings and join the cut with them
  * (`webgpuGrowth.ts`, `webgpuGrownCut.ts`), the cut taking them in the room it kept
  * (`appendDagRoots`). A blended or transmissive source brings copies, which join the transparent
- * pass with them (`webgpu/blend/growth.ts`). Refused where the records would differ in kind — a
+ * pass with them (`webgpu/blend/growth.ts`), the water pass and its targets made for the first
+ * transmissive one. Refused where the records would differ in kind — a
  * deformed primitive, pages read as floats — or where the catalogue or the pass cannot hold them
  * (`catalogueRefusal`, `blendRefusal`).
  */
@@ -60,7 +61,7 @@ export async function addWebgpuPlacements(
   if (held && held.pages !== primitive.pages) return false
   const surface = sourceSurface(source)
   if (primitive.deformation) return false
-  if (drawsBlended(primitive, surface) && blendRefusal(rt, surface)) return false
+  if (drawsBlended(primitive, surface) && blendRefusal(rt)) return false
   if (!held) {
     if (primitive.pages.some((page) => !page.geometry)) return false
     context.metadata.primitives.push(primitive)

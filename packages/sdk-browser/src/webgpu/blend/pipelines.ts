@@ -31,6 +31,9 @@ import {
   type ContractKey,
 } from '../../lighting/deferred/contractCuts.ts'
 
+/** What the pass reads of an item to be drawn: its surface, and whether it transmits. */
+export type BlendedSurface = Pick<BlendGpuItem, 'surface' | 'transmissive'>
+
 /** A blend program: its module, and the pipelines drawn with it. */
 type BlendProgram = { module: GPUShaderModule; pipelines: BlendModePipelines }
 
@@ -64,7 +67,7 @@ type RoutedPipelines = ReturnType<typeof createRoutedPipelines>
  *  resolve (`createForwardVariants`): `lit` and `waterLit`, the keys their first frames ask for. */
 export async function createWebgpuBlendPipelines(
   device: GPUDevice,
-  items: BlendGpuItem[],
+  items: readonly BlendedSurface[],
   variant?: DiagnosticGpuVariant,
   feedback = true,
   sharedLayout?: GPUBindGroupLayout,

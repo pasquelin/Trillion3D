@@ -1,4 +1,4 @@
-import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
+import { createWebgpuBlendPipelines, type BlendedSurface } from '../../blend/pipelines.ts'
 import { ensureWebgpuShadeBindings } from '../../core/shadeBindings.ts'
 import type { createWebgpuVisibilityShaders } from '../../visibility/shaders.ts'
 import {
@@ -19,30 +19,41 @@ import { blendContext } from './contractLight.ts'
 type Shaders = Awaited<ReturnType<typeof createWebgpuVisibilityShaders>>
 type Variant = WebgpuPagesRuntime['context']['diagnosticGpuVariant']
 
-/** The blend pipelines; a refusal leaves the blends without a pipeline and says why. */
-export async function prepareBlendPipelines(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { vis, diag, blendState } = rt
+/** The blend pipelines of `items` and the water pass they bring, on `layout` when the session has
+ *  one; a refusal is said and builds none. */
+export async function buildBlendPipelines(
+  rt: WebgpuPagesRuntime,
+  gpuDevice: GPUDevice,
+  items: readonly BlendedSurface[],
+  layout?: GPUBindGroupLayout,
+) {
+  const { vis, diag } = rt
   try {
     const built = await createWebgpuBlendPipelines(
       gpuDevice,
-      blendState.blendGpu,
+      items,
       rt.context.diagnosticGpuVariant,
       vis.writesFeedback,
-      undefined,
+      layout,
       blendWritesShare(rt),
       blendContext(rt),
     )
-    vis.blendBindGroupLayout = built.blendBindGroupLayout
-    vis.blendPipelines = built.blendPipelines
-    blendState.water = built.water
     // A refused water pass leaves blends in place and reports the reason.
     if (built.waterRefused) diag.diagnosticFailure('water-pass-refused', built.waterRefused)
+    return built
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error)
-    vis.blendBindGroupLayout = undefined
-    vis.blendPipelines = undefined
-    blendState.water = undefined
+    return undefined
   }
+}
+
+/** The blend pipelines; a refusal leaves the blends without a pipeline and says why. */
+export async function prepareBlendPipelines(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
+  const { vis, blendState } = rt
+  const built = await buildBlendPipelines(rt, gpuDevice, blendState.blendGpu)
+  vis.blendBindGroupLayout = built?.blendBindGroupLayout
+  vis.blendPipelines = built?.blendPipelines
+  blendState.water = built?.water
 }
 
 /** The visibility raster's pipelines, refused by name. */
