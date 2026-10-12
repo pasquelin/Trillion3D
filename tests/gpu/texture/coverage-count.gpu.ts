@@ -17,10 +17,10 @@ import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 /** The shipped count's read through the workgroup's alphas, and the direct read it replaces. */
 const SHARED = `  for(var j=i;j<81u;j+=64u){alphas[j]=alphaAt(o+vec2u(j%9u,j/9u));}
   workgroupBarrier();
-  if(all(id.xy<sizeOf(k))){
+  if(all(id.xy<mipSize2(level.base.xy,k))){
    let j=(id.y-o.y)*9u+id.x-o.x;
    let a=vec4u(alphas[j],alphas[j+1u],alphas[j+9u],alphas[j+10u]);`
-const DIRECT = `  if(all(id.xy<sizeOf(k))){
+const DIRECT = `  if(all(id.xy<mipSize2(level.base.xy,k))){
    let q=id.xy;
    let a=vec4u(alphaAt(q),alphaAt(q+vec2u(1u,0u)),alphaAt(q+vec2u(0u,1u)),alphaAt(q+vec2u(1u,1u)));`
 

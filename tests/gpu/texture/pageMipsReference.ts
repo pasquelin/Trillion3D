@@ -52,7 +52,7 @@ const CHOOSE_WGSL = wgslBlock(
  @compute @workgroup_size(1) fn choose(){
   let c=level.extent.z;var covered=0u;
   for(var b=c;b<256u;b++){covered+=atomicLoad(&cover[b]);}
-  let n0=sizeOf(0u);let nk=sizeOf(level.base.z);let texels=vec2u(n0.x*n0.y,nk.x*nk.y);
+  let n0=mipSize2(level.base.xy,0u);let nk=mipSize2(level.base.xy,level.base.z);let texels=vec2u(n0.x*n0.y,nk.x*nk.y);
   let goal=wideProduct(covered,texels.y);var best=vec4u(0xffffffffu,0xffffffffu,255u,c);var above=0u;
   for(var t=255u;t>0u;t--){
    above+=atomicLoad(&cover[level.base.z*256u+t]);
