@@ -264,6 +264,9 @@ export function normalizeVector3OrZero<T extends NumberSink>(
   return out
 }
 
+/** `signedAngleVector3`'s cross product, held between its two reads. */
+const CROSS_SCRATCH = new Float64Array(3)
+
 /**
  * The signed angle in radians that turns `a` onto `b` about the axis `n`, in `(−π, π]`:
  * `atan2((a × b) · n, a · b)`, the cross product in `crossVector3`'s order and the dot product
@@ -277,16 +280,8 @@ export function signedAngleVector3(
   bAt = 0,
   nAt = 0,
 ) {
-  const ax = a[aAt],
-    ay = a[aAt + 1],
-    az = a[aAt + 2]
-  const bx = b[bAt],
-    by = b[bAt + 1],
-    bz = b[bAt + 2]
-  const cx = ay * bz - az * by,
-    cy = az * bx - ax * bz,
-    cz = ax * by - ay * bx
-  return Math.atan2(cx * n[nAt] + cy * n[nAt + 1] + cz * n[nAt + 2], dotVector3(a, b, aAt, bAt))
+  crossVector3(CROSS_SCRATCH, a, b, 0, aAt, bAt)
+  return Math.atan2(dotVector3(CROSS_SCRATCH, n, 0, nAt), dotVector3(a, b, aAt, bAt))
 }
 
 /** `normalizeVector3` in the plane: the two components at `at` multiplied by `1 / (length2 || 1)`,
