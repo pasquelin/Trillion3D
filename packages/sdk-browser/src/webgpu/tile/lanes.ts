@@ -1,4 +1,4 @@
-import { arrayView } from '../../gpu/shadow/layers.ts'
+import { arrayView } from '../../gpu/core/textureViews.ts'
 import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
 import { createWebgpuTilePool, type WebgpuTilePool } from './pool.ts'
 import type { WebgpuTilePageTable } from './pageTable.ts'

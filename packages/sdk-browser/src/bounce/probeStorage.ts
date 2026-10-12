@@ -1,4 +1,4 @@
-import { arrayView } from '../gpu/shadow/layers.ts'
+import { arrayView } from '../gpu/core/textureViews.ts'
 import type { SceneProxy, BounceCascades } from '../../../sdk-core/src/index.ts'
 import { constructGpuResources } from '../gpu/core/errorScope.ts'
 import { createGpuBounceProxy } from './proxy.ts'

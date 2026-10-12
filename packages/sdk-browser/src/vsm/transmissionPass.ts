@@ -1,4 +1,4 @@
-import { arrayView } from '../gpu/shadow/layers.ts'
+import { arrayView } from '../gpu/core/textureViews.ts'
 /**
  * Host side of the translucent casters' transmission (`transmissionWgsl.ts`): made with the first
  * blended caster, then encoded each frame after the opaque VSM raster and before the projection,

@@ -1,4 +1,4 @@
-import { arrayView } from '../../gpu/shadow/layers.ts'
+import { arrayView } from '../../gpu/core/textureViews.ts'
 import {
   placeOf,
   poolLayerBytes,

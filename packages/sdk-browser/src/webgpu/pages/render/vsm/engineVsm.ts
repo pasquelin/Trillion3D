@@ -1,4 +1,4 @@
-import { arrayView } from '../../../../gpu/shadow/layers.ts'
+import { arrayView } from '../../../../gpu/core/textureViews.ts'
 /**
  * The engine's shadows: the virtual shadow maps (`../../../../vsm/`), in their frame order,
  * encoded in the direct-lighting step after the visibility and

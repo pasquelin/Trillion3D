@@ -1,4 +1,4 @@
-import { arrayView } from '../../gpu/shadow/layers.ts'
+import { arrayView } from '../../gpu/core/textureViews.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { GUARANTEED_SIDE, textureLimits } from '../../gpu/core/textureLimits.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'

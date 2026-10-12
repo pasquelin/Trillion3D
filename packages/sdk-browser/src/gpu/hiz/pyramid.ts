@@ -1,4 +1,4 @@
-import { arrayView } from '../shadow/layers.ts'
+import { arrayView } from '../core/textureViews.ts'
 import { HIZ_BUILD_SIDE, hizBuildPasses, hizBuildWords, type HizBuildPass } from './uniforms.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 import { pyramidBytes } from './oracle.ts'
