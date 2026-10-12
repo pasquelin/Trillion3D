@@ -31,12 +31,11 @@ function marcher(width: number, height: number, depth: (x: number, y: number) =>
     hit(o: number[], d: number[]) {
       run.counter.loads = 0
       const end = run.reflectionScreenEnd(o.slice(0, 2), d.slice(0, 2), size)
-      const { t, plane, into } = run.reflectionMarch(o, d, end)
+      const { t, plane } = run.reflectionMarch(o, d, end)
       const at = t < 0 ? undefined : o.map((x, k) => x + d[k] * t)
       return {
         at,
         depth: plane[0],
-        into,
         loads: run.counter.loads,
         bound: run.reflectionBudget(d, end, field.levels.level[0][3]),
       }
@@ -62,16 +61,14 @@ test('a ray stops where it crosses a depth, its own pixel never', () => {
   // A wall one pixel wide at x = 80 over a far floor; the ray crosses its depth in its pixel.
   const march = marcher(W, H, (x) => (x === 80 ? 0.5 : 0.1))
   const { o, d } = falling(20, 120, 30, 80, 0.5, 0.01)
-  const { at, loads, into } = march.hit(o, d)
+  const { at, loads } = march.hit(o, d)
   assert.ok(at, 'hit')
   assert.ok(at[0] >= 80 && at[0] < 81, `on the wall's pixel: ${at[0]}`)
-  assert.equal(into, 0, 'from its front')
   // A ray that crosses the depth just before the wall enters the wall's slab through the side of
   // its pixel, and stops where it enters.
   const before = falling(20, 120, 30, 79.3, 0.5, 0.01)
   const earlier = march.hit(before.o, before.d)
   assert.ok(earlier.at && earlier.at[0] >= 80 && earlier.at[0] < 80.01, `${earlier.at?.[0]}`)
-  assert.ok(earlier.into > 0 && earlier.into < 0.1, `${earlier.into} into the slab`)
   // A ray leaving its own surface: the origin's pixel is never its hit.
   const own = marcher(W, H, (x) => (x === 20 ? 0.5 : 0.1)).hit([20.5, 30.5, 0.5], [100, 0, 0])
   assert.equal(own.at, undefined)
@@ -117,7 +114,6 @@ test('a ray behind a slab passes behind it, and meets what lies within its thick
   // The wall past it stands inside the ray's thickness: the ray enters its slab through the side.
   const inside = behind(0.5 + SLAB / 2).hit([20.5, 30.5, 0.5], [100, 0, 0])
   assert.ok(inside.at && inside.at[0] >= 90 && inside.at[0] < 90.01, `${inside.at?.[0]}`)
-  assert.ok(Math.abs(inside.into - 0.5) < 1e-3, `${inside.into} into the slab`)
   // One whose slab the ray is past is no hit.
   assert.equal(behind(0.5 + 1.2 * SLAB).hit([20.5, 30.5, 0.5], [100, 0, 0]).at, undefined)
 })

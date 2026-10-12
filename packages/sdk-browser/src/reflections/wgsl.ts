@@ -43,10 +43,12 @@ import { reflectionProxyWgsl } from './proxy.ts'
  *  `reflectionSeen`: the screen's answer to a surface at `P`, of normal `N`, reflecting through
  *  `lobe` — the march along its centre, the hit on its plane, its footprint (`reflectionFootprint`)
  *  and its confidence: the fades of the image's border (in this image and in the one the radiance
- *  is read from), of the footprint's pyramid level (`reflectionLevelTrust`), of the depth into the
- *  hit's slab (a ray that meets a surface near its back hits it less surely), of the side the hit
- *  surface faces and of the screen distance (the march covers `REFLECTION_STEP_CAP` pixels, and the
- *  next stage the rest), times the share of the depth-weighted reads the image covers. */
+ *  is read from), of the footprint's pyramid level (`reflectionLevelTrust`) and of the screen
+ *  distance (the march covers `REFLECTION_STEP_CAP` pixels, and the next stage the rest), times the
+ *  share of the depth-weighted reads the image covers. A hit has no fade of its own, neither by its
+ *  depth in the slab nor by the side its plane faces: either gate turns on and off between
+ *  neighbouring pixels at a thin surface, whose plane and slab depth jump from one to the next,
+ *  and breaks the reflection of a body the ray passes through into shards of its edges. */
 const reflectionSeenWgsl = (group: number) =>
   wgslBlock(
     `reflectionSeenWgsl(${group})`,
@@ -58,12 +60,6 @@ const reflectionSeenWgsl = (group: number) =>
       clipToFramebuffer,
     ],
     `struct ReflectionSeen{color:vec3f,confidence:f32,}
-fn reflectionHitNormal(hit:ReflectionHit)->vec3f{
- let x=vec2f(1.0,0.0);let y=vec2f(0.0,1.0);
- let centre=worldAt(hit.pixel,hit.plane.x);
- let n=normalize(cross(worldAt(hit.pixel+x,hit.plane.x+hit.plane.y)-centre,worldAt(hit.pixel+y,hit.plane.x+hit.plane.z)-centre));
- return select(-n,n,dot(n,viewToEye(centre))>0.0);
-}
 fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  var seen=ReflectionSeen(vec3f(0.0),0.0);
  let size=view.viewport.xy;
@@ -83,8 +79,6 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  let travel=abs(H.x-ray.o.x)+abs(H.y-ray.o.y);
  let confidence=edge
   *reflectionLevelTrust(cone.level,reflectionView.radiance.z)
-  *(1.0-smoothstep(0.5,1.0,marched.into))
-  *smoothstep(0.0,0.25,-dot(reflectionHitNormal(marched),lobe.R))
   *(1.0-smoothstep(0.5*REFLECTION_STEP_CAP,REFLECTION_STEP_CAP,travel));
  if(confidence==0.0){return seen;}
  let ratio=size/reflectionView.radiance.xy;

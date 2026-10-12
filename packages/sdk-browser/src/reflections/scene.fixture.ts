@@ -111,7 +111,6 @@ export function reflectionRunner(
       'reflectionScreenEnd',
       'reflectionBack',
       'reflectionBudget',
-      'reflectionHitNormal',
       'worldAt',
       'viewToEye',
       'reflectionLevelTrust',
