@@ -5,7 +5,7 @@ import { EngineProfiler } from '../../diagnostic/telemetry.ts'
 import type { FrameMetrics, ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
 import { ENGINE_METRIC_KEYS, type EngineMetrics } from '../../diagnostic/metricKeys.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
 type State = () => {
   loaded: number
@@ -95,7 +95,7 @@ export function createExplorerMetrics(
   engine: Engine,
   metadata: ClusterManifest,
   options: MeasuredWorldOptions,
-  streamer: ReturnType<typeof createPageStreamer>,
+  streamer: PageStreaming,
   loaded: number,
   pageBytesRead: number,
   state: State,

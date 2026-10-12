@@ -3,6 +3,9 @@ import { sendEngineDiagnostic } from '../../../diagnostic/engineDiagnostic.ts'
 import { isCancelled } from '../../../engine/common.ts'
 import { log } from '../../../diagnostic/log.ts'
 
+/** The backend's diagnostic channel (`createWebgpuDiagnostics`). */
+export type WebgpuDiagnosticChannel = ReturnType<typeof createWebgpuDiagnostics>
+
 /**
  * The backend's diagnostic channel. What the session says once its `signal` is aborted — the
  * session disposed, its pending compiles, layers and uploads cut short by the released device — is

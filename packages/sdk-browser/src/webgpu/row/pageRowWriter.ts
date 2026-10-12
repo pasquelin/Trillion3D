@@ -71,6 +71,9 @@ type RowWriter = {
   block: GeometryBlock
 }
 
+/** The writer of page-table rows (`createPageRowWriter`). */
+export type PageRowWriter = ReturnType<typeof createPageRowWriter>
+
 /** Serializes one drawable cluster row after its occupant, slot, or input epoch changes. */
 export function createPageRowWriter(
   resources: PageRowResources,

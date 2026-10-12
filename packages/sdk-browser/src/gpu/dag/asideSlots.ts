@@ -2,7 +2,7 @@ import type { GpuCut, SelectionUniforms } from '../core/selection.ts'
 import { createDagOutputScratch, type DagOutputScratch } from './uniforms.ts'
 import { SELECTION_HEADER_WORDS } from './layout.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
-import type { createDagResources } from './resources.ts'
+import type { DagResources } from './resources.ts'
 import { noteWhole } from './swap.ts'
 import { recutView } from './runtimeState.ts'
 import { createCoarsening } from './coarsening.ts'
@@ -11,7 +11,6 @@ import { widerFlagShape } from './queueGrowth.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 
-type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 /** What a copy was cut under, taken when it is copied: the readback's cut is made of it, and the
  *  factor its threshold was cut under (`coarsening.ts`). */
 type Captured = { uniforms: SelectionUniforms; worldRevision: number; coarsen: number }

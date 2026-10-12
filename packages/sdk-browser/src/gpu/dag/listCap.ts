@@ -13,7 +13,7 @@ import {
 import { heldOpenSlots } from './heldOpen.ts'
 import { makeDagBuffer, readoutRow } from './bufferTable.ts'
 import { cutBytes, madeAsked } from './cutBuffers.ts'
-import type { createDagResources } from './resources.ts'
+import type { DagResources } from './resources.ts'
 import type { CameraFrames } from './frameRanges.ts'
 import { newRegions } from './swap.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
@@ -24,7 +24,6 @@ import { viewWord } from './viewLayout.ts'
 import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
 import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
-type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
 /** The cap a cut starts with: the readout's (`selectionListCap`, `layout.ts`), within the device
  *  beside the `heldSlots` slots of open counts its readout holds (`heldOpen.ts`). */

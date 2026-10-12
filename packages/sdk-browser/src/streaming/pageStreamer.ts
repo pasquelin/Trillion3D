@@ -14,6 +14,9 @@ import { lazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
  *  end to end would stand still on it (`queueRanges.ts`). */
 const listed = (page: StreamPage) => !(page.range && page.bytes === 0)
 
+/** The page reads a session streams through (`createPageStreamer`). */
+export type PageStreaming = ReturnType<typeof createPageStreamer>
+
 /** Bounded, prioritized and deduplicated reads through `options.cache`, the page cache its owner
  *  keeps (`pageCache.ts`). A request still waiting in the queue is dropped once its last consumer
  *  leaves; one already transferring is allowed to land in the cache. The cache is a

@@ -1,22 +1,19 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
-import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
+import type { WebgpuDiagnosticChannel } from '../pages/io/diagnostics.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import type { WebgpuResidencySets } from './sets.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
 
-type Cache = ReturnType<typeof createGpuPageCache>
-type Diagnostics = ReturnType<typeof createWebgpuDiagnostics>
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
 export type QueueOptions = {
-  tracking: Tracking
+  tracking: WebgpuPageTracking
   sets: WebgpuResidencySets
   /** A packed rank's record: admission reads a request's level there. */
   recordOf: (id: number) => PageRec | undefined
   /** Slots the queue can ask beyond root coverage, read every cut. */
   room: () => number
-  getCache: () => Cache | undefined
+  getCache: () => GpuPageCache | undefined
   getFrame: () => number
   updatePins: () => void
   /** The groups the cut closes over: what admission walks (`requestAdmission.ts`). */
@@ -32,14 +29,14 @@ export type QueueOptions = {
   ) => Promise<boolean | void>) & { revision: () => number; touchLower: () => void }
   markLost: (error: unknown) => void
   traceEnabled: boolean
-  traceDiagnostic: Diagnostics['traceDiagnostic']
-  diagnosticFailure: Diagnostics['diagnosticFailure']
+  traceDiagnostic: WebgpuDiagnosticChannel['traceDiagnostic']
+  diagnosticFailure: WebgpuDiagnosticChannel['diagnosticFailure']
 }
 
 /** What the queue's job and its face share (`createWebgpuResidencyQueue`). */
 export type QueueRun = {
   options: QueueOptions
-  items: Tracking['wantedPages']
+  items: WebgpuPageTracking['wantedPages']
   pending: Promise<unknown>
   scheduled: boolean
   running: boolean
@@ -47,7 +44,7 @@ export type QueueRun = {
   landing: ReturnType<typeof createLanding>
   inputs: () => number
   settledAt: number
-  settledCache: Cache | undefined
+  settledCache: GpuPageCache | undefined
 }
 
 /**

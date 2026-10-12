@@ -1,6 +1,6 @@
 import type { HostAttribute, HostAttributes } from '../../../host/resources.ts'
 import type { ScreenReflection } from '../../../reflections/gpu.ts'
-import type { createGpuPageCache } from '../../../gpu/page/pages.ts'
+import type { GpuPageCache } from '../../../gpu/page/pages.ts'
 import type { createGpuPresenter } from '../../../gpu/core/presentation.ts'
 import type { createDeferredLighting } from '../../../lighting/deferred/deferred.ts'
 import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts'
@@ -21,7 +21,7 @@ export interface WebgpuGpuState {
   /** The session's handle on the device (`gpu/core/deviceOwners.ts`), from `prepare`: everything
    *  the session creates goes through it, so that the labels name the session. */
   device: GPUDevice | undefined
-  cache: ReturnType<typeof createGpuPageCache> | undefined
+  cache: GpuPageCache | undefined
   colorTexture: GPUTexture | undefined
   depthTexture: GPUTexture | undefined
   colorView: GPUTextureView | undefined

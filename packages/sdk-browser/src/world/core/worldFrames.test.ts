@@ -5,7 +5,7 @@ import { createWorldFrames, NOT_DRAWN } from './worldFrames.ts'
 import { createExplorerMetrics } from '../diagnostic/metrics.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
 test('the first frame after a pause spans at most two of the intervals the loop measured', (t) => {
   let now = 1000
@@ -116,7 +116,7 @@ test('the GPU frame time the engine measured reaches the page hook; an unmeasure
       hits: 0,
       misses: 0,
     }),
-  } as unknown as ReturnType<typeof createPageStreamer>
+  } as unknown as PageStreaming
   let published: object = {}
   const engine = { metrics: () => published } as unknown as Engine
   const { metricsScratch, fillMetrics } = createExplorerMetrics(
