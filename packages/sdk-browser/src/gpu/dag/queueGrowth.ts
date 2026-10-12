@@ -4,7 +4,14 @@ import { cameraCutBuffers, makeDagBuffer } from './bufferTable.ts'
 import type { FlagShape } from './flagSections.ts'
 import { JOURNAL_SECTION, LAST_USE_SECTION, flagSectionPlace } from './splitFlags.ts'
 import { createDagPipeline } from './pipeline.ts'
-import { cutHeldSlots, growDagList, heldOpenAt, madeWithin, rankGroups } from './listCap.ts'
+import {
+  cutGrowth,
+  cutHeldSlots,
+  growDagList,
+  heldOpenAt,
+  madeWithin,
+  rankGroups,
+} from './listCap.ts'
 import { regionsWanted } from './swap.ts'
 import { recutMain, recutView, type DagRuntimeState } from './runtimeState.ts'
 import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
@@ -100,26 +107,23 @@ async function growDagFlags(resources: DagResources, shape: FlagShape, disposed:
   const same = cut.split.flagCuts.join() === resources.split.flagCuts.join()
   const compiled =
     group && !same ? await createDagPipeline(device, group, resources.frames, cut.split) : undefined
+  const growth = cutGrowth(resources, made, resources.flagParts, () => {
+    carryFlags(resources, parts!, cut.split.flagCuts, shape)
+    Object.assign(resources, compiled?.value, {
+      flags: parts![0],
+      flagParts: parts,
+      split: cut.split,
+      flagShape: shape,
+      group,
+    })
+    if (!compiled) resources.ranges = resources.frames.bindGroups(resources.layout, group!)
+    resources.rankGroups = rankGroups(resources)
+  })
   if (!parts || !group || (compiled && !compiled.value) || disposed()) {
-    for (const buffer of made) buffer.destroy()
+    growth.destroy()
     return false
   }
-  carryFlags(resources, parts, cut.split.flagCuts, shape)
-  const old = resources.flagParts
-  Object.assign(resources, compiled?.value, {
-    flags: parts[0],
-    flagParts: parts,
-    split: cut.split,
-    flagShape: shape,
-    group,
-  })
-  resources.buffers.push(...made)
-  if (!compiled) resources.ranges = resources.frames.bindGroups(resources.layout, group)
-  resources.rankGroups = rankGroups(resources)
-  for (const buffer of old) {
-    resources.buffers.splice(resources.buffers.indexOf(buffer), 1)
-    buffer.destroy()
-  }
+  growth.commit()
   return true
 }
 
