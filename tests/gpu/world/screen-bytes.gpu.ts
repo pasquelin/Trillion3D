@@ -17,14 +17,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { runPageProof, assertSoundProof, type PageProofResult } from '../kit/enginePageProof.ts'
-import type { ScreenReading } from './screenBytesPage.ts'
+import { KINDS, type Kind, type ScreenReading } from './screenBytesPage.ts'
 
 /** Allocations that are no frame target: the bench canvas stands for the window's, the held
  *  readback of a capture goes after a second. */
 const ELSEWHERE = /^(bench canvas|Trillion3D explicit capture)$/
 
 /** The bytes a pixel the labels hold at both sizes, the same at both: the screen's own. */
-function screenBytes([small, large]: Record<string, number>[]) {
+function screenBytes([small, large]: ScreenReading[Kind]) {
   const labels = Object.keys(small).filter(
     (label) => !ELSEWHERE.test(label) && Math.abs(large[label] / small[label] - 1) < 0.02,
   )
@@ -32,7 +32,7 @@ function screenBytes([small, large]: Record<string, number>[]) {
 }
 
 /** The bytes a pixel each world holds, a few tenths aside (the tile lists): the formula above. */
-const BUDGET = { opaque: 84, glass: 114, mirror: 84, temporal: 132 }
+const BUDGET = { opaque: 84, glass: 114, mirror: 84, temporal: 132 } satisfies Record<Kind, number>
 
 test('what a world holds per screen pixel is the formula', async () => {
   const result = (await runPageProof(
@@ -40,8 +40,9 @@ test('what a world holds per screen pixel is the formula', async () => {
     'screenBytes',
   )) as PageProofResult & { perPixel: ScreenReading }
   assertSoundProof(result)
-  for (const [kind, expected] of Object.entries(BUDGET)) {
-    const { labels, total } = screenBytes(result.perPixel[kind] as [never, never])
+  for (const kind of KINDS) {
+    const expected = BUDGET[kind],
+      { labels, total } = screenBytes(result.perPixel[kind])
     console.log(JSON.stringify({ kind, total, labels }))
     assert.ok(Math.abs(total - expected) < 0.3, `${kind}: ${total} B/px, expected ${expected}`)
   }
