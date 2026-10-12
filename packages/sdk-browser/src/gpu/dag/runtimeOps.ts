@@ -3,7 +3,6 @@ import {
   type ResidencyChanges,
   type SelectionUniforms,
 } from '../core/selection.ts'
-import type { DagRoot } from './types.ts'
 import {
   refreshMovedStretch,
   changedWorlds,
@@ -22,6 +21,8 @@ import type { createWorldResidencyMirror } from './residencyMirror.ts'
 import { MAIN_VIEW } from './swap.ts'
 import { appendDagRoots, type DagAppended } from './pack.ts'
 import { writeParts } from './split.ts'
+import { COLD_WORDS, CLUSTER_WORDS, keyWordBase, recordKeyBase } from './layout.ts'
+import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
 import { uploadNodes, type TreeFollower } from './treeFollow.ts'
 import type { LinkFollower } from './worldFollow.ts'
 import type { PageResidency } from '../core/selection.ts'
@@ -264,7 +265,7 @@ export async function flushRuntime(
  *  and origins, and the placement tree's nodes and member words they joined. Nothing else of the
  *  tables moved: their nodes, records and content keys are their primitives', already there. */
 function writeAppended(resources: DagResources, added: DagAppended) {
-  const { device, packed, nodeParts, coldParts, frames, frameData } = resources,
+  const { device, packed, nodeParts, coldParts, clusterParts, frames, frameData } = resources,
     cones = packed.pageCones
   const send = (target: typeof nodeParts, source: Float32Array, from: number, bytes: number) =>
     bytes > 0 &&
@@ -272,6 +273,18 @@ function writeAppended(resources: DagResources, added: DagAppended) {
   const [w0, w1] = added.worlds
   const tree = packed.placementTree,
     [m0, m1] = added.tree.members
+  // The primitives it brought: their nodes, hot and cold records, the keys their records read by
+  // and the key words they named or moved — written once, as a packing of every root wrote them.
+  const [n0, n1] = added.nodes,
+    [r0, r1] = added.records,
+    nodeBytes = DAG_NODE_FLOATS * 4
+  send(nodeParts, packed.nodes, n0 * nodeBytes, (n1 - n0) * nodeBytes)
+  send(clusterParts, packed.clusters, r0 * CLUSTER_WORDS * 4, (r1 - r0) * CLUSTER_WORDS * 4)
+  const coldAt = packed.shared!.coldAt!
+  send(coldParts, cones, (coldAt + r0 * COLD_WORDS) * 4, (r1 - r0) * COLD_WORDS * 4)
+  send(coldParts, cones, (recordKeyBase(packed.pageCount) + r0) * 4, (r1 - r0) * 4)
+  const keyAt = keyWordBase({ pageCount: packed.pageCount, recordCount: packed.recordCount })
+  for (const key of added.keys) send(coldParts, cones, (keyAt + key) * 4, 4)
   // The tree nodes joined, in the run writer's ranges.
   uploadNodes(device, nodeParts, packed, added.tree.nodes)
   if (tree) send(coldParts, cones, (tree.members + m0) * 4, (m1 - m0) * 4)

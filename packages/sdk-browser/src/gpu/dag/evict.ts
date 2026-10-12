@@ -40,34 +40,62 @@ export function keyCount(roots: readonly DagRoot[]) {
  * records from `pageBase + recordShift[w]` (`layout.ts`): one record serves every placement of its
  * primitive, and so does its key — no word per page.
  */
+export function createKeyWriter(words: Uint32Array, at: { recordKey: number; keyWord: number }) {
+  const keyOf = new Map<string, number>(),
+    written = new Map<DagRoot['pages'], Set<number>>()
+  return {
+    /** The key words written or moved by the last `place`, by key: what a growth sends. */
+    touched: new Set<number>(),
+    /** The keys held. */
+    get count() {
+      return keyOf.size
+    },
+    /** Whether placing `root`'s pages would name an address no key holds yet: how many. */
+    newKeys(pages: DagRoot['pages']) {
+      const fresh = new Set<string>()
+      for (const rec of pages) {
+        const address = pageAddress(rec)
+        if (!keyOf.has(address)) fresh.add(address)
+      }
+      return fresh.size
+    },
+    /** Placement of `root`: `pageBase` its first page, `recordBase` the first of its records. */
+    place(root: DagRoot, pageBase: number, recordBase: number) {
+      // A page array placed again on the records it already has names the same keys: once each.
+      let bases = written.get(root.pages)
+      if (!bases) written.set(root.pages, (bases = new Set()))
+      if (bases.has(recordBase)) return
+      bases.add(recordBase)
+      root.pages.forEach((rec, p) => {
+        const address = pageAddress(rec),
+          level = Math.max(0, Math.trunc(rec.level ?? 0))
+        let k = keyOf.get(address)
+        if (k === undefined) {
+          keyOf.set(address, (k = keyOf.size))
+          words[at.keyWord + k] = keyWord(pageBase + p, level)
+          this.touched.add(k)
+        } else if (level > keyLevel(words[at.keyWord + k])) {
+          words[at.keyWord + k] = keyWord(canonicalPage(words[at.keyWord + k]), level)
+          this.touched.add(k)
+        }
+        words[at.recordKey + recordBase + p] = k
+      })
+    },
+  }
+}
+
 export function writeKeyTables(
   roots: readonly DagRoot[],
   places: { cutLinks: readonly { pageBase: number }[]; recordShift: Uint32Array },
   words: Uint32Array,
   at: { recordKey: number; keyWord: number },
 ) {
-  const keyOf = new Map<string, number>(),
-    written = new Map<DagRoot['pages'], Set<number>>()
+  const writer = createKeyWriter(words, at)
   roots.forEach((root, w) => {
-    const pageBase = places.cutLinks[w].pageBase,
-      recordBase = (pageBase + places.recordShift[w]) >>> 0
-    // A page array placed again on the records it already has names the same keys: once each.
-    let bases = written.get(root.pages)
-    if (!bases) written.set(root.pages, (bases = new Set()))
-    if (bases.has(recordBase)) return
-    bases.add(recordBase)
-    root.pages.forEach((rec, p) => {
-      const address = pageAddress(rec),
-        level = Math.max(0, Math.trunc(rec.level ?? 0))
-      let k = keyOf.get(address)
-      if (k === undefined) {
-        keyOf.set(address, (k = keyOf.size))
-        words[at.keyWord + k] = keyWord(pageBase + p, level)
-      } else if (level > keyLevel(words[at.keyWord + k]))
-        words[at.keyWord + k] = keyWord(canonicalPage(words[at.keyWord + k]), level)
-      words[at.recordKey + recordBase + p] = k
-    })
+    const pageBase = places.cutLinks[w].pageBase
+    writer.place(root, pageBase, (pageBase + places.recordShift[w]) >>> 0)
   })
+  return writer
 }
 
 /** The page a key word names: where the key's last use is stamped. */

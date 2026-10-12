@@ -5,6 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { appendDagRoots, dagRootCounts, packDagSelection } from './pack.ts'
 import { scene, TABLES } from './packAppend.fixture.ts'
+import * as G from '../../host/graph/graph.fixture.ts'
+import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
 
 /** `roots` drawn by another source of the same primitive: the page array a new surface makes. */
@@ -70,4 +72,43 @@ test('a source appended writes what it adds — its pages and placements — wha
   const per = scene().roots[0].pages.length
   assert.deepEqual(written[1], [per, per, per], 'one placement, at 256, 1024 or 4096 held')
   assert.deepEqual(written[100], [100 * per, 100 * per, 100 * per])
+})
+
+test('a primitive the packing does not hold appends into the room it kept, as a packing of all reads', () => {
+  const { roots } = scene()
+  const other = sceneRoots(scenePages(64, 3), [new G.Matrix4().makeTranslation(40, 0, 0)], true)
+  const all = [...roots, ...other]
+  const exact = packDagSelection(all)
+  const capacity = {
+    pages: 2 * exact.pageCount,
+    nodes: 2 * exact.entryCount,
+    worlds: 2 * exact.worldCount,
+    primitiveNodes: exact.primitiveNodeCount,
+    records: exact.recordCount,
+    keys: exact.keyCount,
+  }
+  const whole = packDagSelection(all, capacity),
+    grown = packDagSelection(roots, capacity)
+  const added = appendDagRoots(grown, other)!
+  assert.ok(added, 'appended in place')
+  for (const table of TABLES) assert.deepEqual(grown[table], whole[table], table)
+  assert.equal(grown.recordCount, whole.recordCount)
+  assert.equal(grown.keyCount, whole.keyCount)
+  assert.deepEqual(grown.live, whole.live)
+  assert.ok(added.nodes[1] > added.nodes[0] && added.records[1] > added.records[0])
+})
+
+test('a primitive past the nodes, records or keys the room kept is not appended', () => {
+  const { roots } = scene()
+  const other = sceneRoots(scenePages(64, 3), [new G.Matrix4()], true)
+  const exact = packDagSelection([...roots, ...other])
+  const room = {
+    pages: 2 * exact.pageCount,
+    nodes: 2 * exact.entryCount,
+    worlds: 2 * exact.worldCount,
+  }
+  const none = packDagSelection(roots, room)
+  assert.equal(appendDagRoots(none, other), undefined, 'no room for its nodes')
+  const nodesOnly = packDagSelection(roots, { ...room, primitiveNodes: exact.primitiveNodeCount })
+  assert.equal(appendDagRoots(nodesOnly, other), undefined, 'none for its records')
 })

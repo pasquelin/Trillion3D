@@ -130,11 +130,16 @@ export function createRecordTable() {
       else byShape.set(shape, [block])
       return block.base
     },
-    /** Copies every unique record into the final buffers, the cold ones from word `coldAt`. */
-    finish(clusters: Float32Array, pageCones: Float32Array, coldAt: number) {
-      const hotInts = new Uint32Array(clusters.buffer),
-        coldInts = new Uint32Array(pageCones.buffer)
-      for (const block of blocks) {
+    /** The unique blocks held: the first a later `finish` copies from. */
+    get blocks() {
+      return blocks.length
+    },
+    /** Copies every unique record into the final buffers, the cold ones from word `coldAt` — or,
+     *  from block `first` on, those a growth added. */
+    finish(clusters: Float32Array, pageCones: Float32Array, coldAt: number, first = 0) {
+      const hotInts = new Uint32Array(clusters.buffer, clusters.byteOffset),
+        coldInts = new Uint32Array(pageCones.buffer, pageCones.byteOffset)
+      for (const block of blocks.slice(first)) {
         hotInts.set(block.hot, block.base * CLUSTER_WORDS)
         coldInts.set(block.cold, coldAt + block.base * COLD_WORDS)
       }
