@@ -120,14 +120,14 @@ test('an idle loop waits for the programs, then draws the image with the chain o
   scheduler.invalidate()
   requested.run()
   // The frame asked right after is drawn while the first one's feedback waits for the programs;
-  // the next comes with both feedbacks in flight: held, nothing drawn.
+  // the next comes with both feedbacks in flight: drawn too, the display paces the loop, and it
+  // asks no feedback.
   requested.run()
-  const frame = rt.run.frame
   requested.run()
   for (let i = 0; i < 4; i++) await turn()
   assert.equal(rt.gpu.effects!.loading, true)
-  assert.equal(rt.run.frame, frame, 'no frame past those in flight is spent while they compile')
-  assert.equal(requested.size, 0)
+  assert.equal(requested.size, 1, 'the loop keeps its pace while they compile')
+  assert.notEqual(rt.gpu.effectsRevision, chain.revision, 'the image lacks the chain meanwhile')
   arrive()
   while (rt.gpu.effects!.loading) await turn()
   await turn()
