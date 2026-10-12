@@ -86,6 +86,7 @@ export function worldOpening(parts: WorldRuntimeParts) {
       )
       const options = track.options({
         ...{ ...given, scope, onFrame },
+        onContentRefused: (what, reason) => noticeRefused(inputs.diagnostic.notices, what, reason),
         onPartitionOutgrown: () =>
           noticeRefused(
             inputs.diagnostic.notices,

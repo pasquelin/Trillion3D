@@ -109,6 +109,7 @@ function engineContext(
     // The session's reads: the engine's own signal when it has one, the session's life at least.
     readPage: (url) => streamer.read(url, streamer.signal),
     admitPages: (pages) => streamer.admit(pages),
+    onContentRefused: session.options.onContentRefused,
     readGeometryPage: worldOrGeometryReader(worldRoots, streamer.readBytes, streamer.signal),
     worldRoots,
     pageRoundTripMs: streamer.roundTripMs,

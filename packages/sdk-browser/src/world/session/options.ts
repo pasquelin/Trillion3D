@@ -27,6 +27,10 @@ export interface MeasuredWorldOptions {
    *  its engine cannot grow them —: the cells past those rows wait, and the owner says it by name.
    *  Given, the rows are sized for the first view, not for every node. */
   onPartitionOutgrown?: () => void
+  /** Asked when the session running cannot take content it was handed after its opening, in a
+   *  step that ends after the hand-over (a cut the device refuses): `what` the content, `reason`
+   *  the limit. The session goes on with the cut it runs; the owner says it by name. */
+  onContentRefused?: (what: string, reason: string) => void
   /** False: the interactive session installs no camera controller of its own. */
   ownControls?: boolean
   /** Called after every frame the session draws, with that frame's metrics. */

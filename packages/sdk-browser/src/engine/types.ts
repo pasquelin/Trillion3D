@@ -171,6 +171,9 @@ export interface EngineContext {
   /** Catalogues the pages of a primitive added to the manifest after the open, before they are
    *  read (`PageQueue.admit`). */
   admitPages?: (pages: readonly StreamPage[]) => void
+  /** What the session running cannot take of the content it was handed, found after the hand-over
+   *  (`MeasuredWorldOptions.onContentRefused`): the engine keeps the cut it runs. */
+  onContentRefused?: (what: string, reason: string) => void
   /** Reader of the cache's geometry pages; absent from a cache that carries none, whose slots are
    *  written from the index pages the arrivals left in memory (`../webgpu/pages/readPage.ts`). */
   readGeometryPage?: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>

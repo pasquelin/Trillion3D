@@ -26,7 +26,6 @@
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { createSessionCut } from '../webgpu/pages/prepare/cut.ts'
 import { holdGrownWorlds, keepMovesFor } from './growthAnnounce.ts'
-import { loseGpuSelection } from '../webgpu/pages/io/drops.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 import type { BlendCopy } from '../cluster/blendCopyContract.ts'
@@ -203,9 +202,16 @@ async function makeCut(rt: WebgpuPagesRuntime, growth: Growth): Promise<void> {
   if (made !== growth.made || rt.signal.aborted || rt.run.lost) return cut?.dispose()
   rows.logTouched(undefined)
   // The scene's roots no longer fit a cut this device holds: as an open would be, it is refused.
+  // The running cut goes on and the roots wait parked, as for any content the session cannot take:
+  // said by name by the owner (`onContentRefused`), never a lost device.
   if (!cut) {
     rt.run.movedWorlds.since = undefined
-    return loseGpuSelection(rt, `grown cut refused: ${refused}`, error)
+    growth.asked = false
+    const cause = error === undefined ? refused : `${refused}: ${String(error)}`
+    return rt.context.onContentRefused?.(
+      'the rows the scene gained',
+      `the device refused the cut over them (${cause})`,
+    )
   }
   // The running cut that took roots in place stays the session's until this one replaces it.
   if (!growth.ready?.inPlace) growth.ready?.cut.dispose()
