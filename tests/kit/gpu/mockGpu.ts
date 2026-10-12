@@ -4,6 +4,9 @@ import { bytesOf, installGpuGlobals } from './globals.ts'
 import { mockBuffers, type MapFaults, type MockWrite } from './mockBuffers.ts'
 import { asWebgpuDevice, untag } from './fakeWebgpuDevice.ts'
 import { fakeBundleEncoder } from './fakeBundles.ts'
+// The engine opens on the SDK module as it opens on its device: its lots and page codec run there.
+// Node cannot fetch the module by its URL, so the kit hands it the bytes the repository ships.
+import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 
 /** What a test asks of `mockGpu`: the device limits, the DAG its compute selection runs on — the
  *  one the session uploads when none is given (`mockDag.ts`) —, and the failures it injects. */
