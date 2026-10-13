@@ -3,6 +3,7 @@ import { rootBoxUnion } from './update.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
 import { rowParked, type PlacementOf } from './rows.ts'
 import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
+import { rootedUnder } from '../host/world/rooted.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 /** A see-through draw — a blend item — as visibility reads it:
@@ -18,12 +19,6 @@ export const rootSource = <T extends { drawSource?: { node?: Object3D } }>(root:
 
 /** The node a see-through draw comes from. */
 export const blendSource = (item: { drawSource?: { node?: Object3D } }) => item.drawSource?.node
-
-/** True when `node` and every node above it are visible. */
-export function shownChain(node: Object3D) {
-  for (let walk: Object3D | null = node; walk; walk = walk.parent) if (!walk.visible) return false
-  return true
-}
 
 /** The entries to read of a list, `ranks[0 .. count)`: those under the nodes the host flipped. */
 export type Subset = { readonly ranks: ArrayLike<number>; readonly count: number }
@@ -49,7 +44,7 @@ function followHidden<E extends { hidden?: boolean }>(
     if (!source) continue
     if (source !== last) {
       last = source
-      lastHidden = !shownChain(source)
+      lastHidden = !rootedUnder(source, null, true)
     }
     if (lastHidden === !!entry.hidden) continue
     entry.hidden = lastHidden

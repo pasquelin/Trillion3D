@@ -5,7 +5,8 @@ import type { WorldRootsHold } from '../../scene/worldRoots.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
 import type { LoadedModel } from './loadedModel.ts'
 import type { WorldModels } from './worldModels.ts'
-import { shownUnder, type createWorldPoses } from './worldPoses.ts'
+import type { createWorldPoses } from './worldPoses.ts'
+import { rootedUnder } from '../../host/world/rooted.ts'
 
 /** What a running session lends the models joining it: the engine's growth, and the partitions it
  *  follows (`world/api/sceneApi.ts`). */
@@ -52,7 +53,7 @@ export function createModelJoins({ scene, models, poses, refused }: Inputs) {
   /** The model's rows written from the model as it stands. */
   const write = (model: LoadedModel) => {
     model.updateWorldMatrix(true, false)
-    poses.writeModel(models, model, shownUnder(model, scene))
+    poses.writeModel(models, model, rootedUnder(model, scene, true))
   }
   /** Parks `model`, which the scene lost — rows down, cells given back —, or draws it again, the
    *  scene took it back. */
