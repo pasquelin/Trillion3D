@@ -171,7 +171,7 @@ export interface VsmChunkKernels {
   args: { cull: VsmComputePipe; expand: VsmComputePipe; draw: VsmComputePipe }
 }
 
-interface Ctx extends VsmChunkKernels {
+export interface VsmRenderContext extends VsmChunkKernels {
   device: GPUDevice
   layout: VsmLayout
   pageLayout: GPUBindGroupLayout
@@ -198,8 +198,6 @@ interface Ctx extends VsmChunkKernels {
   /** Where the rows are, binned for the chunks' bound. */
   rowBound: VsmRowBound
 }
-
-const contexts = new WeakMap<VsmResources, Ctx>()
 
 /** The parameters' binding: the chunk's slot, by dynamic offset. */
 export const vsmRenderParamsEntry = (binding: number) =>
@@ -283,7 +281,10 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
 }
 
 /** Each device's raster pipelines, by the shadow page group's layout and the raster's text. */
-const RASTERS = new WeakMap<GPUDevice, WeakMap<GPUBindGroupLayout, Map<string, Ctx['raster']>>>()
+const RASTERS = new WeakMap<
+  GPUDevice,
+  WeakMap<GPUBindGroupLayout, Map<string, VsmRenderContext['raster']>>
+>()
 
 /**
  * The raster's render pipeline for `layout` on the shadow page group `pageLayout`
@@ -296,7 +297,7 @@ export function vsmRasterPipe(
   device: GPUDevice,
   layout: VsmLayout,
   pageLayout: GPUBindGroupLayout,
-): Ctx['raster'] {
+): VsmRenderContext['raster'] {
   let byPage = RASTERS.get(device)
   if (!byPage) RASTERS.set(device, (byPage = new WeakMap()))
   let byCode = byPage.get(pageLayout)
@@ -340,8 +341,12 @@ export function vsmRasterPipe(
   return raster
 }
 
-function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupLayout): Ctx {
-  const existing = contexts.get(res)
+function context(
+  res: VsmResources,
+  device: GPUDevice,
+  pageLayout: GPUBindGroupLayout,
+): VsmRenderContext {
+  const existing = res.render
   if (
     existing &&
     existing.device === device &&
@@ -353,7 +358,7 @@ function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupL
   // A context made again for the same device keeps its lists; its old target is freed.
   if (existing?.device === device) existing.targetTexture.destroy()
   const targetTexture = device.createTexture(renderTarget())
-  const ctx: Ctx = {
+  const ctx: VsmRenderContext = {
     device,
     layout,
     pageLayout,
@@ -364,7 +369,7 @@ function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupL
     buffers: existing?.device === device ? existing.buffers : {},
     ...vsmChunkContext(RENDER_LABEL, device.limits, existing),
   }
-  contexts.set(res, ctx)
+  res.render = ctx
   return ctx
 }
 
@@ -379,15 +384,13 @@ export function vsmReleaseContext(ctx: {
 
 /** Frees the raster's context of `res`, with the set it was made for (`destroyEngineVsm`). */
 export function releaseVsmRender(res: VsmResources) {
-  const ctx = contexts.get(res)
-  if (ctx) vsmReleaseContext(ctx)
-  contexts.delete(res)
+  if (res.render) vsmReleaseContext(res.render)
+  res.render = undefined
 }
 
 /** Bytes the raster's context of `res` holds on the device: its lists and its dummy target. */
 export function vsmRenderContextBytes(res: VsmResources) {
-  const ctx = contexts.get(res)
-  return ctx ? vsmContextBytes(ctx) : 0
+  return res.render ? vsmContextBytes(res.render) : 0
 }
 
 /** Bytes a draw context holds on the device: its lists and its dummy target, if any. */
@@ -1010,7 +1013,7 @@ interface RasterTables {
 }
 
 /** The raster's groups over the tables of `res.current` and `ctx.groups` (`vsmPerFrameSet`). */
-function rasterTables(res: VsmResources, ctx: Ctx): RasterTables {
+function rasterTables(res: VsmResources, ctx: VsmRenderContext): RasterTables {
   const { device } = ctx,
     groups = ctx.groups!
   return {
@@ -1043,8 +1046,8 @@ function rasterTables(res: VsmResources, ctx: Ctx): RasterTables {
  * The raster's groups this frame: those over the scene's rows and the lists (`ctx.groups`) made
  * again only when one of them moved, those over the VSM tables once a frame set (`rasterTables`).
  */
-function renderGroups(ctx: Ctx, res: VsmResources, scene: VsmRenderScene) {
-  if (vsmSceneRowsMoved(ctx.bound, scene, ctx.buffers as Required<Ctx['buffers']>)) {
+function renderGroups(ctx: VsmRenderContext, res: VsmResources, scene: VsmRenderScene) {
+  if (vsmSceneRowsMoved(ctx.bound, scene, ctx.buffers as Required<VsmRenderContext['buffers']>)) {
     ctx.groups = undefined
     ctx.tables = new WeakMap()
   }
