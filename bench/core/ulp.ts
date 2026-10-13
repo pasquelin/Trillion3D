@@ -29,7 +29,7 @@ function rang64(x: number) {
 }
 
 /** ULP discrepancy between two floats. `Infinity` as soon as NaN or infinity is not shared. */
-function ulpBetween(a: number, b: number, bits = 64) {
+export function ulpBetween(a: number, b: number, bits = 64) {
   if (Object.is(a, b)) return 0
   if (!Number.isFinite(a) || !Number.isFinite(b)) return Infinity
   if (bits === 32) return Math.abs(rang32(a) - rang32(b))
