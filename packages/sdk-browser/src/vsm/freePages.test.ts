@@ -44,7 +44,6 @@ function popAll(pages: Page[], frame: number, mapLevels: number[]) {
       return old
     },
     bitcast_i32: (x: number) => x | 0,
-    countLeadingZeros: (x: number) => Math.clz32(x),
   }
   const names = ['poolCount', 'poolPlace', 'poolScatter', 'poolSlotRank', 'poolRank', 'flatIndex']
   const all = [...names, 'bitLength', ...HOST, ...WORDS, ...FREE]
