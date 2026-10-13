@@ -4,6 +4,7 @@
 // read back as 8-bit RGBA and digested. The digests are the golden set the proof compares with
 // (`openWorld.golden.json`).
 import { createHash } from 'node:crypto'
+import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { createWorld } from '../../../packages/sdk-browser/src/world/core/world.ts'
 import {
   lastFrameOf,
@@ -31,15 +32,9 @@ const SETTLE_FRAMES = 160
 /** The compiled models the world loads: coplanar fixtures, each compiled once by the native compiler. */
 const models = () => ['three-stack', 'blend-overlay', 'partial-overlap'].map(coplanarModel)
 
-/** A seeded stream in [0, 1): the scene is the same on every run. */
-function stream(seed: number) {
-  let state = seed >>> 0
-  return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 2 ** 32
-}
-
 /** The batches: many meshes of one resource each, so rows. */
 function populate(world: ReturnType<typeof createWorld>) {
-  const random = stream(1521)
+  const random = lcgRandom(1521)
   const { scene } = world
   scene.add(
     light.ambient({ intensity: 0.6 }),
