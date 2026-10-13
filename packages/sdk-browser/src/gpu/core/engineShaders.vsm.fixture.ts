@@ -26,6 +26,7 @@ import {
   vsmTransmissionResolveWgsl,
 } from '../../vsm/transmissionWgsl.ts'
 import { vsmLayout } from '../../vsm/layout.ts'
+import { ROW_BINS_WGSL } from '../../vsm/rowBinsWgsl.ts'
 
 /** Every virtual shadow map module, for the layout the engine makes for one sun (`../../webgpu/pages/render/vsm/vsmEncode.ts`)
  *  at WebGPU's default binding size: the projection with and without subgroups and the receiver
@@ -51,6 +52,7 @@ export function vsmVariants() {
     VSM_TRANSMISSION_PLACE: vsmTransmissionPlaceWgsl(layout),
     VSM_TRANSMISSION_BIN: vsmTransmissionBinWgsl(layout),
     VSM_TRANSMISSION_RESOLVE: vsmTransmissionResolveWgsl(layout),
+    ROW_BINS_WGSL,
   }
   for (const subgroups of [false, true])
     for (const receiver of [false, true]) {
