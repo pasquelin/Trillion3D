@@ -133,9 +133,9 @@ export interface VsmRenderScene {
   pageLayout: GPUBindGroupLayout
   pageGroup: GPUBindGroup
   camera: VsmRenderCamera
-  /** The CPU copy of `spheres` (`lights.spheres`): chunks are sized by where the rows are
-   *  (`rowPageBound.ts`), or, where that cannot speak, by the worst case: every row reaching every
-   *  page. */
+  /** What changed in `spheres` (`lights.spheres`) since a frame: chunks are sized by where the rows
+   *  are, from the GPU's histograms of them (`rowPageBound.ts`), or, where that cannot speak, by the
+   *  worst case: every row reaching every page. */
   rowSpheres: VsmRowSpheres
 }
 

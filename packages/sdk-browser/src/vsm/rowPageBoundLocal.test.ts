@@ -1,8 +1,8 @@
-// The shadow raster's chunks by where the rows are, under local lights (`rowPageBound.ts`): what a
-// chunk of K rows is said to hold is never below what the K rows of the most pairs and commands
-// make under the shipped cull (`bruteForceLocal`) — spots and point lights, rows near and far,
-// with a sun or alone, a light that moves then holds still, rows written while its bins are made;
-// lamps that cannot beat the worst case dropped; a sun's bins made a slice a frame.
+// The shadow raster's chunks by where the rows are, under local lights (`rowPageBound.ts`), from the
+// GPU's joint histograms (`rowBins.fixture.ts` lands them): what a chunk of K rows is said to hold is
+// never below what the K rows of the most pairs and commands make under the shipped cull
+// (`bruteForceLocal`) — spots and point lights, rows near and far, with a sun or alone, a light
+// that moves then holds still; lamps that cannot beat the worst case binned no more.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -10,7 +10,6 @@ import {
   vsmBoundChunk,
   type VsmBoundLight,
   type VsmRowBound,
-  type VsmRowSpheres,
 } from './rowPageBound.ts'
 import { vsmRenderViews } from './renderPass.ts'
 import {
@@ -20,28 +19,31 @@ import {
   PAGES,
   scene,
   sunAt,
-  topSums,
   worstOf,
-  writeRow,
+  type SceneRows,
 } from './rowPageBound.fixture.ts'
+import { landBins, topSums } from './rowBins.fixture.ts'
 
-/** The bound of `rows` under `lights` this frame; commands a row at most the views' mips. */
-const ask = (rows: VsmRowSpheres, lights: VsmBoundLight[], bound: VsmRowBound) => {
+/** One frame's bound of `rows` under `lights`, then the histogram it asks, landed at once; commands
+ *  a row at most the views' mips. */
+function ask(rows: SceneRows, lights: VsmBoundLight[], bound: VsmRowBound, bin = true) {
   const end = rows.packed.length / 8,
     { views } = vsmRenderViews(lights),
     cmdsPerRow = views.reduce((n, v, i) => (i % 4 === 1 ? n + v : n), 0)
   // A worst case of 64 rows a chunk: the scenes' few hundred rows take several.
-  const worst = { ...worstOf(), rows: 64, cmdsPerRow }
-  return vsmBoundChunk(bound, rows, { first: 0, end, candidates: end }, lights, worst)
+  const worst = { ...worstOf(), rows: 64, cmdsPerRow },
+    range = { first: 0, end, candidates: end }
+  const chunk = vsmBoundChunk(bound, rows.spheres, range, lights, worst)
+  if (bin) landBins(bound, rows, range, lights)
+  return chunk
 }
 
-/** Asserts the bound of `rows` under `lights` over every K; frames are asked until the bins are
- *  whole. Returns the chunk. */
-function holds(rows: VsmRowSpheres, lights: VsmBoundLight[], bound = createVsmRowBound()) {
-  const whole = () => bound.lamps.state === 'whole'
-  let chunk = ask(rows, lights, bound)
-  for (let f = 0; f < 4 && !(chunk && whole()); f++) chunk = ask(rows, lights, bound)
-  assert.ok(chunk, 'the bins bound the rows')
+/** Asserts the bound of `rows` under `lights` over every K, its histogram made a frame before.
+ *  Returns the chunk. */
+function holds(rows: SceneRows, lights: VsmBoundLight[], bound = createVsmRowBound()) {
+  ask(rows, lights, bound)
+  const chunk = ask(rows, lights, bound)
+  assert.ok(chunk && bound.bins.landed?.lampKeys, 'the joint bins bound the rows')
   const n = rows.packed.length / 8,
     pairs = new Float64Array(n),
     cmds = new Float64Array(n)
@@ -103,31 +105,18 @@ test('a lamp among many far rows bounds a chunk far above the worst case', () =>
   assert.ok(chunk.rows > 16 * 64, `${chunk.rows} rows a chunk`)
 })
 
-test('a light that moves keeps its worst case, then its bins are made a slice a frame', () => {
+test('a light that moves keeps its worst case until a histogram of where it holds lands', () => {
   const rows = scene(900, [0, 1, 0], 6, 0.02, 0.4, 31)
-  const bound = Object.assign(createVsmRowBound(), { slice: 200 })
+  const bound = createVsmRowBound()
   const cache = localAt({ kind: 'spot', position: [0, 3, 0], range: 5, coneAngle: 0.6 }).cache
   const lamp = (x: number) =>
     localAt(
       { kind: 'spot', position: [x, 3, 0], direction: [0, -1, 0], range: 5, coneAngle: 0.6 },
       cache,
     ).light
-  // Moving: no bins, no bound (no sun).
+  // Moving: each histogram binned where it no longer is; no sun, no bound.
   for (let f = 0; f < 3; f++) assert.equal(ask(rows, [lamp(f * 0.5)], bound), undefined)
-  // Held still: bins made over ⌈900 / 200⌉ frames, then read; rows written meanwhile followed.
-  let made = 0
-  for (let f = 0; f < 8; f++) {
-    if (f === 2) {
-      writeRow(rows.packed, 10, [0.5, 1, 0.2], 0.5)
-      writeRow(rows.packed, 700, [1, 0.5, -0.5], 0.3)
-      rows.written = { epoch: rows.written.epoch + 1, runs: [10, 10, 700, 700] }
-    }
-    if (ask(rows, [lamp(1)], bound)) made++
-  }
-  assert.ok(made > 0 && made < 8, `read after ${8 - made} frames`)
-  const fresh = createVsmRowBound()
-  holds(rows, [lamp(1)], fresh)
-  assert.deepEqual([bound.lamps.pairs, bound.lamps.meets], [fresh.lamps.pairs, fresh.lamps.meets])
+  // Held still: the next frame reads the histogram made where it holds.
   holds(rows, [lamp(1)], bound)
 })
 
@@ -138,10 +127,10 @@ test('a light’s weights follow the physical pages they are capped at', () => {
   holds(rows, [lamp], bound)
   const range = { first: 0, end: 300, candidates: 300 }
   const more = { rows: 256, cmdsPerRow: 48, pages: 8192, cap: 1 << 21 }
-  assert.equal(vsmBoundChunk(bound, rows, range, [lamp], more)!.pairs(1), 8192)
+  assert.equal(vsmBoundChunk(bound, rows.spheres, range, [lamp], more)!.pairs(1), 8192)
 })
 
-test('lamps whose rows cannot beat the worst case are dropped, and cost nothing until they move', () => {
+test('lamps whose rows cannot beat the worst case are binned no more until they change', () => {
   const rows = scene(3000, [0, 1.5, 0], 3, 0.1, 0.4, 43)
   const lamps = Array.from({ length: 9 }, (_, i) =>
     point([(i % 3) * 2 - 2, 2.5, ((i / 3) | 0) * 2 - 2], 4),
@@ -150,25 +139,16 @@ test('lamps whose rows cannot beat the worst case are dropped, and cost nothing 
   const worst = { ...worstOf(), cmdsPerRow: 9 * 48 },
     range = { first: 0, end: 3000, candidates: 3000 }
   const bound = createVsmRowBound()
-  const frame = () => vsmBoundChunk(bound, rows, range, lamps, worst)
-  for (let f = 0; f < 4; f++) assert.equal(frame(), undefined)
-  assert.deepEqual([bound.lamps.state, bound.lamps.bins.length], ['hopeless', 0])
-  // Rows written: nothing binned while the lamps hold.
-  writeRow(rows.packed, 7, [0, 1, 0], 0.2)
-  rows.written = { epoch: rows.written.epoch + 1, runs: [7, 7] }
+  const frame = () => {
+    const chunk = vsmBoundChunk(bound, rows.spheres, range, lamps, worst)
+    landBins(bound, rows, range, lamps)
+    return chunk
+  }
   assert.equal(frame(), undefined)
-  assert.equal(bound.lamps.state, 'hopeless')
-})
-
-test('a sun’s bins are made a slice a frame, the worst case meanwhile', () => {
-  const rows = scene(1000, [0, 0, 0], 50, 0.02, 1, 41)
-  const bound = Object.assign(createVsmRowBound(), { slice: 300 })
-  const range = { first: 0, end: 1000, candidates: 1000 }
-  const { light } = sunAt([0, 2, 0])
-  const asked = Array.from(
-    { length: 6 },
-    () => !!vsmBoundChunk(bound, rows, range, [light], worstOf()),
-  )
-  // First sight, then 300 rows a frame: whole on the fifth frame.
-  assert.deepEqual(asked, [false, false, false, false, true, true])
+  frame()
+  assert.ok(bound.bins.hopeless, 'found unable to beat the worst case')
+  // While they hold, no histogram is asked: nothing else to bin.
+  const asked = bound.bins.seq
+  for (let f = 0; f < 3; f++) frame()
+  assert.equal(bound.bins.seq, asked)
 })

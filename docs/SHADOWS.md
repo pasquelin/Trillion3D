@@ -48,7 +48,9 @@ lighting pass (`webgpu/pages/render/vsm/engineVsm.ts`, `vsmEncode.ts`), in this 
 4. Page marking (`vsm/markingPass.ts`, `vsm/markingWgsl.ts`).
 5. Page allocation (`vsm/pageManagementPass.ts:encodeVsmPageMapping`, `vsm/physicalPagesWgsl.ts`).
 6. The shadow raster on the camera cut's resident rows (`vsm/renderPass.ts`,
-   `vsm/renderCullWgsl.ts`, `vsm/renderRasterWgsl.ts`, `vsm/rowPageBound.ts`).
+   `vsm/renderCullWgsl.ts`, `vsm/renderRasterWgsl.ts`), its chunks sized from histograms of the
+   rows' spheres the GPU bins after it and reads back a few frames late (`vsm/rowBinsWgsl.ts`,
+   `vsm/rowPageBound.ts`).
 7. Post render (`vsm/pageManagementPass.ts:encodeVsmAfterRaster`), the blended casters' atlas
    (`vsm/transmissionPass.ts`), then the projection into the mask (`vsm/projectionPass.ts`,
    `vsm/projectionWgsl.ts`, `vsm/traceWgsl.ts`).
