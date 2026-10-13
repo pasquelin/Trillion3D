@@ -106,7 +106,9 @@ function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
     },
     worldCapacity: packed.worldCount,
     worldRanges: frames.ranges.map((range, r) => ({ ...range, frames: frames.buffers[r] })),
-    worlds: frames.worlds.view,
+    get worlds() {
+      return frames.worlds.view
+    },
     packsWorld: !!mirror,
     get worldRevision() {
       return state.worldRevision
@@ -157,10 +159,10 @@ function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
     },
     proxy() {
       const buffer = live() ? run.proxies.buffer() : undefined,
-        instances = run.proxies.instances()
-      if (!buffer || !instances) return undefined
-      if (proxy?.buffer !== buffer || proxy.instances !== instances)
-        proxy = { buffer, instances, worlds: frames.worlds.view, tree: resources.treeTable.view }
+        worlds = frames.worlds.view
+      if (!buffer) return undefined
+      if (proxy?.buffer !== buffer || proxy.worlds !== worlds)
+        proxy = { buffer, worlds, tree: resources.treeTable.view }
       return proxy
     },
     proxyPose: (encoder, host) => live() && run.proxies.pose(encoder, host),

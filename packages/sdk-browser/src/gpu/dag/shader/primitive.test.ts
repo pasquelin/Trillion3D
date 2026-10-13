@@ -23,18 +23,18 @@ import { encodeDagKernels } from '../encode.ts'
 import { cutResources, witnessEncoder } from '../encode.fixture.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 
-test('a placement holds 128 bytes at most, whatever the placements, past one row of the worlds', async () => {
+test('a placement holds 144 bytes at most, whatever the placements, past one row of the records', async () => {
   const [root] = packed(dagFixture()).roots
-  // A row of the worlds' table holds 1024 placements of 96 bytes (`../worldTable.ts`): a world of
-  // fewer pays that row whole, once.
-  const row = 1024 * 96
+  // A row of the records holds 1024 placements of 112 bytes — world, exact translation, the proxy's
+  // instance (`../worldTable.ts`) —: a world of fewer pays that row whole, once.
+  const row = 1024 * 112
   for (const count of [1, 100, 5000]) {
     const dag = packDagSelection(Array.from({ length: count }, () => root))
     const resources = (await createDagResources(fakeDevice().device, dag))!
     const { buffers, worlds } = resources.frames
     const bytes = buffers.reduce((sum, buffer) => sum + buffer.size, 0) + worlds.bytes
     assert.ok(
-      bytes <= 128 * dag.worldCount + row,
+      bytes <= 144 * dag.worldCount + row,
       `${count} placements: ${bytes / dag.worldCount} B each`,
     )
   }

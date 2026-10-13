@@ -29,8 +29,8 @@ test('the water composite layout is the one its bindings name, laid out as the r
     { binding: b.backdrop, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
     { binding: b.backdropDepth, visibility: fragment, texture: { sampleType: 'depth' } },
     { binding: b.proxy, visibility: fragment, buffer: readOnly },
-    // The proxy's record tables: its instances, the culling's worlds and the placement tree.
-    ...[b.proxyWorlds, b.proxyInstances, b.proxyTree].map((binding) => ({
+    // The proxy's record tables: the culling's records, worlds and instances, and the placement tree.
+    ...[b.proxyWorlds, b.proxyTree].map((binding) => ({
       binding,
       visibility: fragment,
       texture: { sampleType: 'uint', viewDimension: '2d-array' },

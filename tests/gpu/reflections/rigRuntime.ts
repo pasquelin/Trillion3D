@@ -11,7 +11,6 @@ import {
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
 import { WORLD_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.ts'
 import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
-import { INSTANCE_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/proxyInstanceTable.ts'
 
 /** A face of the rig's scene: the triangles it holds — two, nine floats each — and the radiance it gives. */
 export type RigFace = { triangles: Float32Array; radiance: readonly [number, number, number] }
@@ -67,8 +66,8 @@ function proxyWords(faces: readonly RigFace[]) {
   return words
 }
 
-/** The proxy's buffer over `faces` and their instances' table, the worlds' table they stand in —
- *  the identity, its exact translation zeros —, and the table of no placement tree. */
+/** The proxy's buffer over `faces`, the records they stand in — the identity, its exact translation
+ *  zeros, and their instances —, and the table of no placement tree. */
 export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
   const words = faces.length ? proxyWords(faces) : new Uint32Array(RUNTIME_HEADER_WORDS + 1)
   const proxy = device.createBuffer({
@@ -87,18 +86,11 @@ export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
   for (let k = 0; k < n; k++) for (const diagonal of [0, 5, 10, 15]) identity[k * 16 + diagonal] = 1
   worlds.write('Matrix', 0, n, identity.buffer, 0)
   worlds.write('Origin', 0, n, new Uint32Array(n * 8).buffer, 0)
-  // The faces' instances in the proxy's own table.
-  const instances = createRecordTexture(
-    device,
-    INSTANCE_TABLE,
-    n,
-    GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-  )
+  // The faces' instances in their records.
   const held = instanceWords(faces)
-  if (held.length) instances.write('Instance', 0, faces.length, held.buffer, 0)
+  if (held.length) worlds.write('Instance', 0, faces.length, held.buffer, 0)
   return {
     proxy,
-    proxyInstances: instances.view,
     proxyWorlds: worlds.view,
     proxyTree: createTreeTable(device, undefined).view,
   }

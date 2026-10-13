@@ -1,16 +1,27 @@
-// The run-time proxy's buffer holds no instance, no placement's world and no tree: the trace reads the
-// instances in the proxy's own record table (`proxyInstanceTable.ts`) and the others in the culling's
-// (`worldTable.ts`, `treeTable.ts`), so the buffer grows with the meshes alone and a world the culling
-// splits in ranges keeps its proxy. Over the device double.
+// The run-time proxy's buffer holds no instance, no placement's world and no tree: the trace reads them
+// in the culling's record tables (`worldTable.ts`, the instances a field of each placement's record;
+// `treeTable.ts`), so the buffer grows with the meshes alone and a world the culling splits in ranges
+// keeps its proxy. Over the device double.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { packDagSelection } from './selection.ts'
 import { cameraFrameRanges, PRIMITIVE_BYTES } from './cameraRanges.ts'
 import { createProxyInstances } from './proxyInstances.ts'
+import { createRecordTexture } from '../core/recordTexture.ts'
+import { WORLD_TABLE } from './worldTable.ts'
+import type { PackedDag } from './types.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { LIMITS, cut, region, surface, writes } from './proxyInstances.fixture.ts'
+
+/** The proxy over `packed` on `device`, its instances in records of the culling's laid for it. */
+const proxyOn = (device: GPUDevice, packed: PackedDag) => {
+  const usage =
+    GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC
+  const worlds = createRecordTexture(device, WORLD_TABLE, Math.max(1, packed.worldCount), usage)
+  return createProxyInstances({ device, packed, frames: { worlds } })
+}
 
 /** The proxy of `side`² placements, each wearing one cut, over a device of `limits`, and the ranges the
  *  culling lays its frames in there. */
@@ -22,7 +33,7 @@ function proxyOver(limits: typeof LIMITS, side = 4) {
   const packed = packDagSelection(roots)
   const gpu = fakeDevice({ limits })
   const ranges = cameraFrameRanges(limits, Math.max(1, packed.worldCount))
-  const proxies = createProxyInstances({ device: gpu.device, packed })
+  const proxies = proxyOn(gpu.device, packed)
   return { gpu, packed, ranges, proxies }
 }
 
@@ -54,7 +65,7 @@ test('the proxy’s buffer holds no instance: it grows with the meshes, never wi
   const few = proxyOver(LIMITS, 4).proxies,
     many = proxyOver(LIMITS, 64).proxies
   assert.equal(many.buffer()!.size, few.buffer()!.size, 'the same buffer')
-  assert.ok(many.instances() && many.bytes > many.buffer()!.size, 'the instances in their table')
+  assert.equal(many.bytes, many.buffer()!.size, 'the instances lie in the culling’s records')
   few.dispose()
   many.dispose()
 })
@@ -64,9 +75,9 @@ test('the proxy holds no tree: its rays walk the culling’s tree where it lies'
   const { proxies, packed } = proxyOver(LIMITS, 10)
   assert.ok(packed.placementTree, 'the field packs a placement tree')
   installGpuGlobals()
-  const flat = createProxyInstances({
-    device: fakeDevice({ limits: LIMITS }).device,
-    packed: { ...packed, placementTree: undefined },
+  const flat = proxyOn(fakeDevice({ limits: LIMITS }).device, {
+    ...packed,
+    placementTree: undefined,
   })
   assert.equal(proxies.bytes, flat.bytes, 'not one word more than the same proxy without a tree')
   proxies.dispose()

@@ -9,9 +9,9 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  * `proxy.bin` (`page-codec-wasm/src/proxy.rs`), one mesh's after another, in the mesh's own space —:
  * what grows with the meshes, never with the placements. What grows with them lies in record tables a
  * program binds beside this buffer, sampled textures, no storage binding — the forward programs'
- * fragment stage binds the eight storage buffers WebGPU guarantees —: the instances, the proxy's own
- * (`gpu/dag/proxyInstanceTable.ts`), and the tree above the placements and their worlds, the
- * culling's, read where they lie (`gpu/dag/treeTable.ts`, `gpu/dag/worldTable.ts`).
+ * fragment stage binds the eight storage buffers WebGPU guarantees —: the culling's, read where they
+ * lie — the placements' records, each world and each instance (`gpu/dag/worldTable.ts`), and the tree
+ * above them (`gpu/dag/treeTable.ts`).
  *
  * Header words, one table the writer's words and the shader's struct (`RUNTIME_PROXY_WGSL`) are both drawn
  * from (`fieldLayout`): the placements the instances hold (the blended copies' follow them), then the word
@@ -44,7 +44,7 @@ export const RUNTIME_PROXY_WGSL = wgslBlock('RUNTIME_PROXY_WGSL', [], HEADER.wgs
 /** Words of one blended copy's world, the proxy's own: its matrix. */
 export const RUNTIME_WORLD_WORDS = 16
 
-/** One placement's instance, one texel of the instances' table (`gpu/dag/proxyInstanceTable.ts`): its
+/** One placement's instance, the `Instance` texel of its record (`gpu/dag/worldTable.ts`): its
  *  cut's first node and first triangle in the arena (`NO_INDEX` where it draws no proxy), the
  *  surface it wears, and its frame word — the mark with the deformation's reach above it
  *  (`markReach`). */

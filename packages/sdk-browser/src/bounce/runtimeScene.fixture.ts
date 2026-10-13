@@ -8,7 +8,6 @@ import { packDagSelection } from '../gpu/dag/selection.ts'
 import { treeNodeCount, TREE_SPAN } from '../gpu/dag/placementTree.ts'
 import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
 import { TREE_TABLE } from '../gpu/dag/treeTable.ts'
-import { INSTANCE_TABLE } from '../gpu/dag/proxyInstanceTable.ts'
 import { sdkWasm } from '../wasm/sdkWasm.fixture.ts'
 import {
   PROXY_NODE_FLOATS,
@@ -88,14 +87,13 @@ export function world(
     childrenAt = boundsAt + nodes * PROXY_NODE_FLOATS
   const tree = packed.placementTree
   const words = new Uint32Array(childrenAt + nodes * PROXY_NODE_WORDS)
-  // Every instance wears the cube's cut, its first node and triangle, the surface asked.
-  const instanceTable = recordTable(INSTANCE_TABLE, count + copies.length)
-  for (let w = 0; w < count + copies.length; w++)
-    instanceTable.set('Instance', w, [0, 0, options.surfaceOf?.(w) ?? 0, 0])
-  // The placements' worlds as the culling holds them: each matrix, and its exact translation beside
-  // it, three doubles.
-  const table = recordTable(WORLD_TABLE, count),
+  // The placements' records as the culling holds them, a copy's after them: each instance wearing the
+  // cube's cut, its first node and triangle, the surface asked; each placement's matrix, and its
+  // exact translation beside it, three doubles.
+  const table = recordTable(WORLD_TABLE, count + copies.length),
     origin = new Uint32Array(8)
+  for (let w = 0; w < count + copies.length; w++)
+    table.set('Instance', w, [0, 0, options.surfaceOf?.(w) ?? 0, 0])
   for (let w = 0; w < count; w++) {
     table.set(
       'Matrix',
@@ -154,7 +152,6 @@ export function world(
   return {
     packed,
     header,
-    instances: instanceTable,
     worlds: table,
     tree: treeTable,
     scene: { packed, columns, instances, copyBase: count, copyWorlds } satisfies OracleScene,

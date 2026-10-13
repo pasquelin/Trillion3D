@@ -14,9 +14,9 @@ import { PROBE_TEXELS } from './atlas.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
-/** The proxy in the probe pass (`probes.ts`): its buffer and instances, the culling's worlds it is
- *  placed by and the placement tree its rays walk. */
-export const PROBE_PROXY = { group: 0, proxy: 1, worlds: 7, tree: 8, instances: 9 } as const
+/** The proxy in the probe pass (`probes.ts`): its buffer, the culling's records — the worlds it is
+ *  placed by and its instances — and the placement tree its rays walk. */
+export const PROBE_PROXY = { group: 0, proxy: 1, worlds: 7, tree: 8 } as const
 
 /**
  * Queue entry `entry`, as both the update and the snapshot's follow-up read it: its level, its

@@ -1,4 +1,5 @@
 import type { DagResources } from './resources.ts'
+import { followRecords } from './recordsFollow.ts'
 import { dispatchRows, groupWidth, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
 import { encodeDifference } from './encodeDifference.ts'
@@ -34,6 +35,8 @@ export function encodeDagKernels(
   resources: DagResources,
   differ = false,
 ) {
+  // The records the groups bind, remade by a growth since the last cut: the groups follow.
+  followRecords(resources)
   // A DIAGNOSTIC variant alone re-encodes the cut. The repeat PRECEDES the cut that counts: each
   // kernel restarts from the clear, the final state is therefore that of a single run, and the
   // frame delta measures what the repeat actually cost — waits between dispatches included, which

@@ -18,6 +18,7 @@ import type { CutSteps } from './cutSteps.ts'
 import { admitted, madeAsked, type CutAdmission } from './cutBuffers.ts'
 import { createMainReadbacks } from './mainReadbacks.ts'
 import { createTreeTable } from './treeTable.ts'
+import { recordsIdentity } from './recordsFollow.ts'
 
 /** The DAG's GPU resources once made (`createDagResources`). */
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
@@ -120,7 +121,13 @@ export async function createDagResources(
     }
     // The frame's copies of the lists, read back in order: made last, within what the tables leave.
     const readbacks = createMainReadbacks(device, resources, made.readbackBytes)
-    return { ...resources, readbacks, rankGroups: rankGroups(resources) }
+    return {
+      ...resources,
+      readbacks,
+      rankGroups: rankGroups(resources),
+      // The records its groups bind, followed when a growth remakes them (`recordsFollow.ts`).
+      recordsBound: recordsIdentity(made.frames.worlds.view),
+    }
   } catch (error) {
     refused(error instanceof Error ? error.message : String(error))
     destroyAll()

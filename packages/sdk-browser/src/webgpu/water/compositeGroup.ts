@@ -30,7 +30,7 @@ const b = WATER_BINDINGS
  *  flags' place —, the water depth, the lights and their shadows — the virtual shadow maps on the
  *  contract's numbers (`CONTRACT_VSM_BINDINGS`), the translucent depth made and dropped with the
  *  transmittance —, what its pixels trace their shadow with (the projection's view and noise), the
- *  probes, the proxy and its instances, the culling's worlds it is placed by and its tree, the frozen
+ *  probes, the proxy and the culling's records — its worlds and instances — and its tree, the frozen
  *  backdrop and its depth, the blend view, the volumes and, for the vertex stage, the verdict its
  *  quad reads the rectangle from. */
 const HELD: readonly Held[] = [
@@ -52,11 +52,6 @@ const HELD: readonly Held[] = [
   [
     b.proxyWorlds,
     ({ lighting }) => lighting.proxyWorlds,
-    { texture: { sampleType: 'uint', viewDimension: '2d-array' } },
-  ],
-  [
-    b.proxyInstances,
-    ({ lighting }) => lighting.proxyInstances,
     { texture: { sampleType: 'uint', viewDimension: '2d-array' } },
   ],
   [

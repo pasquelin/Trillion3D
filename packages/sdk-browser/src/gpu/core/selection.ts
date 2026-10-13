@@ -19,13 +19,12 @@ import type { ProxyBoxes } from '../../bounce/probeSync.ts'
  *  object the main view holds for the selection's life, or each view aside its own, never another
  *  view's — (`../dag/runtime.ts`, `syncTables`). */
 export type TableSync = (uniforms: SelectionUniforms, view: object) => void
-/** What a program reads the proxy through (`../dag/proxyInstances.ts`): its buffer and its
- *  instances' table (`../dag/proxyInstanceTable.ts`), and the cut's record tables, read where they
- *  lie — the worlds it places its meshes by (`../dag/worldTable.ts`) and the placement tree its rays
- *  walk (`../dag/treeTable.ts`). */
+/** What a program reads the proxy through (`../dag/proxyInstances.ts`): its buffer, and the cut's
+ *  record tables, read where they lie — the placements' records, the worlds it places its meshes by
+ *  and its instances (`../dag/worldTable.ts`), and the placement tree its rays walk
+ *  (`../dag/treeTable.ts`). */
 export type ProxyResources = {
   readonly buffer: GPUBuffer
-  readonly instances: GPUTextureView
   readonly worlds: GPUTextureView
   readonly tree: GPUTextureView
 }
@@ -128,8 +127,9 @@ export type GpuSelection = {
     /** The range's frame words, whose first word of a root's row is its stretch. */
     frames: GPUBuffer
   }[]
-  /** The cut's worlds, one record table whatever the ranges (`../dag/worldTable.ts`): what the
-   *  composition writes and the proxy's rays read (`../../bounce/runtimeSceneWgsl.ts`). */
+  /** The cut's records, one table whatever the ranges (`../dag/worldTable.ts`): what the
+   *  composition writes and the proxy's rays read (`../../bounce/runtimeSceneWgsl.ts`). A new view
+   *  once the proxy's copies grow it: read at each use. */
   readonly worlds: GPUTextureView
   /** The poses the host holds: every placement's, as a walk wrote them — any may have moved —,
    *  or, `named` given, those it lists, increasing, the placements a call moved: those alone are

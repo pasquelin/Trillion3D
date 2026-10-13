@@ -5,6 +5,8 @@ import { encodeComposedRoots } from './gpuComposeEncode.ts'
 import { createPlacementRows } from './rows.ts'
 import { composeRuntime } from './composeRuntime.fixture.ts'
 import { createChangedRuns } from '../webgpu/residency/ranges.ts'
+import { fieldStart } from '../gpu/core/recordTexture.ts'
+import { WORLD_TABLE } from '../gpu/dag/worldTable.ts'
 
 /** A parent's world turned by `angle` about y, moved off the origin. */
 export const turn = (angle: number) => {
@@ -41,10 +43,10 @@ export function session() {
         }),
       },
     ],
-    // The cut's worlds' table (`../gpu/dag/worldTable.ts`), which the roots pass writes.
+    // The cut's records (`../gpu/dag/worldTable.ts`), whose worlds the roots pass writes.
     worlds: device
       .createTexture({
-        size: [6144, 1, 1],
+        size: [fieldStart(WORLD_TABLE), 1, 1],
         format: 'rgba32uint',
         usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
       })

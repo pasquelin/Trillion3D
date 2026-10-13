@@ -38,7 +38,6 @@ const PROBE_TYPES: BounceSlot[] = [
 PROBE_TYPES[BOUNCE_LIGHT_LIST_BINDING] = 'read-only-storage'
 PROBE_TYPES[PROBE_PROXY.worlds] = 'records'
 PROBE_TYPES[PROBE_PROXY.tree] = 'records'
-PROBE_TYPES[PROBE_PROXY.instances] = 'records'
 
 /**
  * The world grid's light lists, which the cache texels and the probe and reflection hits walk
@@ -140,8 +139,8 @@ export async function createGpuBounceProbes(
   const lists = worldLightLists(tiles, lights, uniform)
   // The lists' stand-in where no grid holds them: no point reads it (`setLightLists`).
   const noLists = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
-  /** What the probe group names (`createWebgpuBindIdentity`): the proxy's buffer, instances, worlds and tree, the
-   *  light buffer and the world lists of the moment — a growth of the proxy's tables replaces its buffer. */
+  /** What the probe group names (`createWebgpuBindIdentity`): the proxy's buffer, records and tree, the
+   *  light buffer and the world lists of the moment — a growth of the proxy's tables replaces them. */
   const bound = createWebgpuBindIdentity()
   /** The probe group over `proxy`, the lights and `listed`, made again when one of them moved. */
   const bind = (proxy: ProxyResources, listed: GPUBuffer) => {
@@ -152,13 +151,11 @@ export async function createGpuBounceProbes(
     next[2] = listed
     next[3] = proxy.worlds
     next[4] = proxy.tree
-    next[5] = proxy.instances
     if (bound.moved()) {
       const resources = [uniform.buffer, proxy.buffer, light, queue, snapshotView, probesView]
       resources[BOUNCE_LIGHT_LIST_BINDING] = listed
       resources[PROBE_PROXY.worlds] = proxy.worlds
       resources[PROBE_PROXY.tree] = proxy.tree
-      resources[PROBE_PROXY.instances] = proxy.instances
       group = bounceGroup(device, layout, resources, PROBE_TYPES)
     }
   }

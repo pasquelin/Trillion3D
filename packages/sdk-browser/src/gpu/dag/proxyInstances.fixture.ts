@@ -8,7 +8,7 @@ import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.t
 import type { PageSurface } from '../../page/surface.ts'
 import type { RootProxy } from '../../page/selection/types.ts'
 import { RUNTIME_HEADER, RUNTIME_HEADER_WORDS } from '../../bounce/runtimeLayout.ts'
-import { INSTANCE_TABLE } from './proxyInstanceTable.ts'
+import { WORLD_TABLE } from './worldTable.ts'
 import { recordWordAt } from '../core/recordTexture.fixture.ts'
 import type { FakeTexture } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 
@@ -53,15 +53,15 @@ export function wordAt(gpu: ReturnType<typeof fakeDevice>, index: number) {
   throw new Error(`no write covers word ${index}`)
 }
 
-/** Word `k` of instance `w` as the proxy's instances' table holds it — the last one made
- *  (`proxyInstanceTable.ts`). */
+/** Word `k` of instance `w` as the culling's records hold it — the last table written, grown or
+ *  not (`worldTable.ts`). */
 export function instanceAt(gpu: ReturnType<typeof fakeDevice>, w: number, k: number) {
   const texture = gpu.textureWrites
     .map(({ destination }) => destination.texture as unknown as FakeTexture)
-    .filter(({ label }) => label === INSTANCE_TABLE.label)
+    .filter(({ label }) => label === WORLD_TABLE.label)
     .at(-1)
   if (!texture?.words) throw new Error('no instance written')
-  return texture.words[recordWordAt(INSTANCE_TABLE, texture, 'Instance', w, 0) + k]
+  return texture.words[recordWordAt(WORLD_TABLE, texture, 'Instance', w, 0) + k]
 }
 
 /** The header as the last write of it left it, and where a region of the buffer starts by it. */

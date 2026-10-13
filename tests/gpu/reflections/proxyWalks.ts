@@ -12,11 +12,11 @@ import { DAG_NODE_FLOATS } from '../../../packages/sdk-browser/src/gpu/dag/types
 
 /** Words of a hit as the kernel writes it. */
 export const HIT_WORDS = 6
-/** The bindings: the proxy's buffer, the worlds', the tree's and the instances' tables, the rays, the
- *  hits, and the words of before: the worlds, the tree and the instances. */
+/** The bindings: the proxy's buffer, the records' table — worlds and instances — and the tree's, the
+ *  rays, the hits, and the words of before: the worlds, the tree and the instances. */
 const B = {
   ...{ proxy: 0, worlds: 1, rays: 2, hits: 3, oldWorlds: 4, tree: 5, oldTree: 6 },
-  ...{ instances: 7, oldInstances: 8 },
+  ...{ oldInstances: 8 },
 } as const
 
 const KERNEL = `@group(0) @binding(${B.rays}) var<storage,read> rays:array<vec4f>;
@@ -37,15 +37,9 @@ const KERNEL = `@group(0) @binding(${B.rays}) var<storage,read> rays:array<vec4f
  hits[at+5u]=rtTests;
 }`
 
-/** The walk the engine ships: the worlds and the tree read in their record tables. */
+/** The walk the engine ships: the worlds, the instances and the tree read in their record tables. */
 export const NEW_WALK = wgslProgram(KERNEL, [
-  runtimeSceneWgsl({
-    group: 0,
-    proxy: B.proxy,
-    instances: B.instances,
-    worlds: B.worlds,
-    tree: B.tree,
-  }),
+  runtimeSceneWgsl({ group: 0, proxy: B.proxy, worlds: B.worlds, tree: B.tree }),
 ])
 
 /** The world a ray took a placement to before: the culling's rows mirrored in a buffer of its own. */
@@ -103,7 +97,6 @@ export function oldWalk(members: number) {
 /** What a walk binds: the proxy's buffer, and the record tables or what mirrored them. */
 export type WalkInputs = {
   proxy: GPUBuffer
-  instances?: GPUTextureView
   worlds?: GPUTextureView
   tree?: GPUTextureView
   oldInstances?: GPUBuffer
@@ -141,7 +134,6 @@ export async function walk(
   ]
   if (inputs.worlds) entries.push({ binding: B.worlds, resource: inputs.worlds })
   if (inputs.tree) entries.push({ binding: B.tree, resource: inputs.tree })
-  if (inputs.instances) entries.push({ binding: B.instances, resource: inputs.instances })
   if (inputs.oldInstances)
     entries.push({ binding: B.oldInstances, resource: { buffer: inputs.oldInstances } })
   if (inputs.oldWorlds)

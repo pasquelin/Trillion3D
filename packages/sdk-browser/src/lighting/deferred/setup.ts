@@ -195,7 +195,6 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     runtime: standIns.runtime,
     runtimeWorlds: standIns.runtimeWorlds,
     runtimeTree: standIns.runtimeTree,
-    runtimeInstances: standIns.runtimeInstances,
     receiver: receiver.resources,
     reflection: reflection.createView(),
     /** The empty normal atlas: what a transparent item without normals reads (zeros). */

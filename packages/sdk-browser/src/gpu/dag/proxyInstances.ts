@@ -3,10 +3,11 @@
  * (`bounce/runtimeSceneWgsl.ts`) — the meshes the compiler built a proxy for (`proxy.bin`) and the cuts the
  * world made at run time, one structure. Its instances — four words a placement, written next to the
  * culling's own rows, the same `w`, then one for each blended copy the forward family draws (the members
- * after the placements: they are no member of the culling's tree) — lie in a record table of the proxy's own
- * (`proxyInstanceTable.ts`), whatever the world's size; one buffer (`bounce/runtimeLayout.ts`) holds the
- * rest, bounded by the meshes, not by the placements: the copies' worlds, a surface a drawn material, and
- * the arena of the meshes' proxies, each uploaded once, when a placement or a copy first wears it. The
+ * after the placements: they are no member of the culling's tree) — are the `Instance` field of the
+ * culling's records (`worldTable.ts`), beside each placement's world, whatever the world's size: the table
+ * grows for the copies (`RecordTexture.hold`). One buffer (`bounce/runtimeLayout.ts`) holds the rest,
+ * bounded by the meshes, not by the placements: the copies' worlds, a surface a drawn material, and the
+ * arena of the meshes' proxies, each uploaded once, when a placement or a copy first wears it. The
  * placements' worlds and the placement tree are the culling's, read where they lie (`worldTable.ts`,
  * `treeTable.ts`): nothing of them is copied.
  *
@@ -45,7 +46,7 @@ import {
   SURFACE_WORDS,
 } from '../../bounce/runtimeLayout.ts'
 import { NO_TINT, writeSurface } from '../../bounce/runtimeSurface.ts'
-import { createProxyInstanceTable } from './proxyInstanceTable.ts'
+import type { RecordTexture } from '../core/recordTexture.ts'
 import { type DagRoot, type PackedDag } from './types.ts'
 
 /** A proxy's cell to the distance a ray leaves a surface by: half the cell's diagonal, the codec's
@@ -65,6 +66,8 @@ type WriteArgs =
 type Resources = {
   device: GPUDevice
   packed: PackedDag
+  /** The culling's records, whose `Instance` field the instances are (`worldTable.ts`). */
+  frames: { worlds: RecordTexture }
 }
 
 /** A blended copy as the proxy reads it: its cut and surface, the pose it aliases and whether it is
@@ -106,7 +109,7 @@ export type PoseHost = {
 /** A surface slot: the words it holds are those of a version of its record, under a tint. */
 type Held = { slot: number; version: number; at: number }
 
-export function createProxyInstances({ device, packed }: Resources) {
+export function createProxyInstances({ device, packed, frames }: Resources) {
   const tree = packed.placementTree
   const slots = Math.max(1, packed.worldCount)
   let words = new Uint32Array(slots * INSTANCE_WORDS).fill(NO_INDEX)
@@ -160,8 +163,19 @@ export function createProxyInstances({ device, packed }: Resources) {
     if (!target) return
     device.queue.writeBuffer(target, ...args)
   }
-  // The instances, in their record table (`proxyInstanceTable.ts`), made with the buffer.
-  const instances = createProxyInstanceTable(device)
+  // The instances, the `Instance` field of the culling's records (`worldTable.ts`): written whole
+  // with the buffer, then the runs that moved; the table grown when the copies outgrow it.
+  const records = frames.worlds
+  let instancesSent = false
+  /** The instances `[first, first + count)` of `words` the records hold, to them. */
+  function writeInstances(first: number, count: number) {
+    const end = Math.min(first + count, records.capacity)
+    if (end <= first) return
+    const at = words.byteOffset + first * INSTANCE_WORDS * 4
+    records.write('Instance', first, end - first, words.buffer as ArrayBuffer, at)
+  }
+  /** The copies the records hold: every one, unless the cut refused their growth. */
+  const copiesHeldOnGpu = () => Math.min(copies.length, records.capacity - slots)
 
   // The placements standing, and their world boxes for the probes' occupancy map (`proxyBoxes.ts`).
   const live = () => packed.live?.worlds ?? packed.worldSources.length
@@ -188,14 +202,16 @@ export function createProxyInstances({ device, packed }: Resources) {
     head[at.treeRoot] = tree ? 0 : NO_INDEX
     head[at.members] = tree ? tree.count : packed.worldSources.length
     headFloats[at.error] = error
-    head[at.copies] = copies.length
+    head[at.copies] = copiesHeldOnGpu()
     return head
   }
 
-  /** The buffer and the instances' table, made at the first need with everything the CPU holds written
+  /** The buffer and the instances, made and written at the first need with everything the CPU holds written
    *  into them; the table made larger when the copies outgrow it. */
   function ensure() {
-    instances.hold(words)
+    records.hold(words.length / INSTANCE_WORDS)
+    if (!instancesSent) writeInstances(0, words.length / INSTANCE_WORDS)
+    instancesSent = true
     if (buffer) return buffer
     const bytes = byteAt(layout.total)
     // Made in the device's ledger, as every resource the engine allocates (`constructGpuResources`).
@@ -402,7 +418,7 @@ export function createProxyInstances({ device, packed }: Resources) {
     }
     if (buffer || cuts.size) {
       const made = ensure()
-      instances.write(words, from, to - from)
+      writeInstances(from, to - from)
       send(made, 0, header())
       dirty = false
     }
@@ -448,7 +464,7 @@ export function createProxyInstances({ device, packed }: Resources) {
     })
     if (!moved || !copies.length || !(buffer || cuts.size)) return
     const made = ensure()
-    instances.write(words, slots, copies.length)
+    writeInstances(slots, copies.length)
     send(made, byteAt(layout.copyWorlds), copyWorlds)
   }
 
@@ -478,10 +494,6 @@ export function createProxyInstances({ device, packed }: Resources) {
     /** The buffer a program reads the proxy through, or none: it then reads the stand-ins. */
     buffer() {
       return buffer
-    },
-    /** The view of the instances' table a program reads beside the buffer, made with it. */
-    instances() {
-      return instances.view
     },
     /** The world box of each placement that wears a proxy, and which of them are new or moved since the last
      *  call: what the probes' occupancy map keeps (`bounce/probes.ts`). */
@@ -551,7 +563,7 @@ export function createProxyInstances({ device, packed }: Resources) {
         node = parked ? NO_INDEX : resolved[at + INSTANCE.node]
       if (words[at + INSTANCE.node] === node) return
       words[at + INSTANCE.node] = node
-      instances.write(words, w, 1)
+      writeInstances(w, 1)
     },
     /** Placement `w`'s frame word, its mark and the deformation's reach above it. */
     mark(w: number, mark: number) {
@@ -561,7 +573,7 @@ export function createProxyInstances({ device, packed }: Resources) {
       resolved[at] = held
       if (words[at] === held) return
       words[at] = held
-      instances.write(words, w, 1)
+      writeInstances(w, 1)
     },
     /** The surfaces a host edited and the copies that moved since the last cut, written again. */
     refresh() {
@@ -587,14 +599,14 @@ export function createProxyInstances({ device, packed }: Resources) {
         boxes.hostBytes
       )
     },
-    /** Bytes of the buffer and of the instances' table: what the cut's memory budget counts. */
+    /** Bytes of the buffer: what the cut's memory budget counts; the instances are the records',
+     *  the cut's own. */
     get bytes() {
-      return (buffer?.size ?? 0) + instances.bytes
+      return buffer?.size ?? 0
     },
     dispose() {
       buffer?.destroy()
       buffer = undefined
-      instances.destroy()
       pose.dispose()
     },
   }

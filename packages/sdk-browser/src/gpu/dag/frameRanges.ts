@@ -32,9 +32,13 @@ export function createCameraFrames(
 ) {
   const ranges = cameraFrameRanges(device.limits, worldCount),
     slots = uniformSlots(device.limits, ranges.length, 2)
-  // Written by the host and by the composition of the poses (`../../placement/gpuComposeWgsl.ts`).
+  // Written by the host and by the composition of the poses (`../../placement/gpuComposeWgsl.ts`),
+  // copied once when the proxy's copies outgrow it (`RecordTexture.hold`).
   const usage =
-    GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.STORAGE_BINDING
+    GPUTextureUsage.TEXTURE_BINDING |
+    GPUTextureUsage.COPY_DST |
+    GPUTextureUsage.COPY_SRC |
+    GPUTextureUsage.STORAGE_BINDING
   const f: Frames = {
     ...{ device, frameData, ranges, per: ranges[0].count },
     ...rangeBuffers(device, slots, ranges, own),
@@ -58,8 +62,8 @@ export function createCameraFrames(
   const table = {
     ranges,
     buffers,
-    /** The worlds' record table (`worldTable.ts`): the one every pass reads and the composition
-     *  writes. */
+    /** The placements' record table (`worldTable.ts`): the one every pass reads, the composition
+     *  writes and the proxy's instances grow (`proxyInstances.ts`). */
     worlds: f.worlds,
     /** Every placement's exact translation — or those of `named`, increasing —, its doubles to
      *  its record, where each cut reads it at its own eye (`shader/worldPoseWgsl.ts`); those that

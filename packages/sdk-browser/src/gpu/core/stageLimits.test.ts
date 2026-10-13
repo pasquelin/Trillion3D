@@ -78,9 +78,9 @@ test("every opaque resolve program fits WebGPU's default limits", async () => {
   unlit.dispose()
 })
 
-/** Whether a layout of `layouts` shows the fragment stage a record table at `binding` — the proxy's
- *  instances (`../dag/proxyInstanceTable.ts`), the culling's worlds (`../dag/worldTable.ts`) and
- *  placement tree (`../dag/treeTable.ts`) —: a texture of words, no storage buffer. */
+/** Whether a layout of `layouts` shows the fragment stage a record table at `binding` — the culling's
+ *  records, the worlds and the proxy's instances (`../dag/worldTable.ts`), and its placement tree
+ *  (`../dag/treeTable.ts`) —: a texture of words, no storage buffer. */
 const bindsRecords = (layouts: GPUBindGroupLayoutDescriptor[], binding: number) =>
   layouts.some((layout) =>
     [...layout.entries].some(
@@ -119,19 +119,17 @@ test("the blends and the water pass fit WebGPU's default limits", async () => {
     assert.ok(built.water, 'the water pass is built')
   }
   assert.deepEqual(failures, [])
-  // Both trace the proxy through its instances and the culling's worlds and tree, read in place: a
-  // sampled texture each, within the sixteen of their fragment stage once the reflection group binds
-  // the radiance pyramid and level 0 as one texture each; the eight storage buffers left as they were.
+  // Both trace the proxy through the culling's records — its worlds and instances, one table — and
+  // its tree, read in place: a sampled texture each, within the sixteen of their fragment stage with
+  // the display mask's group, the reflection group binding the radiance pyramid and level 0 as one
+  // texture each; the eight storage buffers left as they were.
   for (const [name, bindings] of [
     ['blends', BLEND_BINDINGS],
     ['water', WATER_BINDINGS],
   ] as const) {
     assert.ok(bindsRecords(bindGroupLayouts, bindings.proxyWorlds), `the ${name} bind the worlds`)
     assert.ok(bindsRecords(bindGroupLayouts, bindings.proxyTree), `the ${name} bind the tree`)
-    assert.ok(
-      bindsRecords(bindGroupLayouts, bindings.proxyInstances),
-      `the ${name} bind the instances`,
-    )
+    assert.ok(!('proxyInstances' in bindings), `the ${name} bind no instances' table of their own`)
   }
   // The water composite's lobes target, read by load alone, is a read-only storage texture.
   withinDefaults(layouts, 'the blends and the water pass')

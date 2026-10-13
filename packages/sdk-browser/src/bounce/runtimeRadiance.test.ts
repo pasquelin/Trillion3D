@@ -54,7 +54,7 @@ test('a deformed placement is met at its rest shape, its reach taking confidence
   const w = world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, 1, 1, 1, 0]] })
   // The frame word's high half is the reach as a half float: 1 metre (0x3c00), in the instance's
   // mark (`INSTANCE.mark`).
-  w.instances.set('Instance', 0, [0, 0, 0, 0x3c00 << 16])
+  w.worlds.set('Instance', 0, [0, 0, 0, 0x3c00 << 16])
   const run = runOver(w)
   // A ray's footprint at 4 metres, a hundredth of a metre per metre: 0.05 wide against a metre of reach,
   // on each of the solid's two faces.

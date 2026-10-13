@@ -25,23 +25,21 @@ import {
 } from './runtimeLayout.ts'
 import { worldTableWgsl } from '../gpu/dag/worldTable.ts'
 import { treeTableWgsl } from '../gpu/dag/treeTable.ts'
-import { instanceTableWgsl } from '../gpu/dag/proxyInstanceTable.ts'
 
 /** The bindings of the proxy in a program that casts its rays, in one group: its own buffer
- *  (`runtimeLayout.ts`) and its instances' table (`gpu/dag/proxyInstanceTable.ts`), and the culling's
- *  record tables, read where they lie — its worlds, every placement's (`gpu/dag/worldTable.ts`), and
- *  its placement tree, which the rays walk (`gpu/dag/treeTable.ts`). */
+ *  (`runtimeLayout.ts`), and the culling's record tables, read where they lie — the placements'
+ *  records, every placement's world and every instance (`gpu/dag/worldTable.ts`), and its placement
+ *  tree, which the rays walk (`gpu/dag/treeTable.ts`). */
 export type SceneBindings = {
   group: number
   proxy: number
-  instances: number
   worlds: number
   tree: number
 }
 
 /** What names a fragment of a program over `scene`: its bindings. */
-export const sceneKey = ({ group, proxy, instances, worlds, tree }: SceneBindings) =>
-  `${group}, ${proxy}, ${instances}, ${worlds}, ${tree}`
+export const sceneKey = ({ group, proxy, worlds, tree }: SceneBindings) =>
+  `${group}, ${proxy}, ${worlds}, ${tree}`
 
 /** Tree levels a ray walks down at most: a tree of 64-way nodes holds 2⁴² members in seven. */
 const TREE_DEPTH = 8
@@ -52,7 +50,7 @@ const TREE_DEPTH = 8
  * the world boxes of up to 64 children, a group's children being placements — and, in each placement whose box the ray meets, its
  * mesh's own wide tree (`rtTraceCut`, the engine's one wide traversal, `wideTraversal`) in the mesh's own space,
  * the ray taken there by the inverse of the placement's world. The world is the culling's, read where it lies:
- * nothing is copied per placement; its four-word instance is the proxy's (`gpu/dag/proxyInstanceTable.ts`).
+ * nothing is copied per placement; its four-word instance lies in its record beside it (`gpu/dag/worldTable.ts`).
  *
  * `rtScene` answers the nearest hit, `rtBlocked` whether anything stands on a segment — a shadow does not need
  * the nearest, and returns at the first surface.
@@ -68,11 +66,6 @@ export const runtimeSceneWgsl = (scene: SceneBindings) =>
       RUNTIME_PROXY_WGSL,
       worldTableWgsl('rtWorlds', { group: scene.group, binding: scene.worlds, access: 'read' }),
       treeTableWgsl('rtTree', { group: scene.group, binding: scene.tree, access: 'read' }),
-      instanceTableWgsl('rtInstances', {
-        group: scene.group,
-        binding: scene.instances,
-        access: 'read',
-      }),
       WIDE_TRAVERSAL_WGSL,
       NO_INDEX,
       toF32,
@@ -157,8 +150,8 @@ fn rtWorldOf(w:u32)->mat4x4f{
  return mat4x4f(c0.x,c0.y,c0.z,0.0,c1.x,c1.y,c1.z,0.0,c2.x,c2.y,c2.z,0.0,
   rtOrigin(o0.xy),rtOrigin(o0.zw),rtOrigin(o1.xy),1.0);
 }
-/** Word \`k\` of instance \`w\`, read in its record (\`rtInstancesInstance\`). */
-fn rtInstanceWord(w:u32,k:u32)->u32{return rtInstancesInstance(w,0u)[k];}
+/** Word \`k\` of instance \`w\`, read in its record (\`rtWorldsInstance\`). */
+fn rtInstanceWord(w:u32,k:u32)->u32{return rtWorldsInstance(w,0u)[k];}
 /** The ray against placement \`w\`: its world box, the root of its cut's tree through the world, first —
  *  a ray that misses it is one unit spent — then the cut's tree with the ray taken to its space. */
 fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{

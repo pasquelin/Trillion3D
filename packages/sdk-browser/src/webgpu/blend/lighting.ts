@@ -27,7 +27,6 @@ export function blendLightResources(
     probes: contract.probes ?? placeholders.probes,
     tileLights: contract.tiles ?? placeholders.tiles,
     proxy: contract.proxy?.buffer ?? placeholders.runtime,
-    proxyInstances: contract.proxy?.instances ?? placeholders.runtimeInstances,
     proxyWorlds: contract.proxy?.worlds ?? placeholders.runtimeWorlds,
     proxyTree: contract.proxy?.tree ?? placeholders.runtimeTree,
   }

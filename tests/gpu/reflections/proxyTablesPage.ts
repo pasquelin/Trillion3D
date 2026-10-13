@@ -15,7 +15,6 @@ import {
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
 import { WORLD_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.ts'
 import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
-import { INSTANCE_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/proxyInstanceTable.ts'
 import {
   scenePages,
   sceneRoots,
@@ -77,9 +76,11 @@ export async function compareWalks({
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(proxy, 0, words)
-  // The culling's worlds in their table, as the host writes them, and as the proxy mirrored them.
+  // The culling's records, as the host writes them — each placement's world, then every instance, a
+  // copy's behind the placements —, and the worlds as the proxy mirrored them.
   const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
-  const table = createRecordTexture(device, WORLD_TABLE, count, usage)
+  const held = count + copies.length
+  const table = createRecordTexture(device, WORLD_TABLE, held, usage)
   const matrices = scene.packed.worlds.slice(0, count * 16),
     origins = new Uint32Array(count * 8)
   for (let w = 0; w < count; w++) origins.set(scene.worlds.get('Origin', w), w * 8)
@@ -106,12 +107,10 @@ export async function compareWalks({
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(oldTree, 0, treeWords)
-  // The instances in the proxy's table, and as its buffer held them, four words each.
-  const held = count + copies.length,
-    instanceWords = new Uint32Array(held * 4)
-  for (let w = 0; w < held; w++) instanceWords.set(scene.instances.get('Instance', w), w * 4)
-  const instances = createRecordTexture(device, INSTANCE_TABLE, held, usage)
-  instances.write('Instance', 0, held, instanceWords.buffer, 0)
+  // The instances in the records, and as the proxy's buffer held them, four words each.
+  const instanceWords = new Uint32Array(held * 4)
+  for (let w = 0; w < held; w++) instanceWords.set(scene.worlds.get('Instance', w), w * 4)
+  table.write('Instance', 0, held, instanceWords.buffer, 0)
   const oldInstances = device.createBuffer({
     size: instanceWords.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -121,7 +120,6 @@ export async function compareWalks({
     cast = rays(rayCount, side, seed)
   const now = await walk(device, NEW_WALK, cast, {
     proxy,
-    instances: instances.view,
     worlds: table.view,
     tree: treeTable.view,
   })
@@ -131,7 +129,6 @@ export async function compareWalks({
     oldWorlds,
     oldTree,
   })
-  instances.destroy()
   oldInstances.destroy()
   table.destroy()
   treeTable.destroy()
@@ -168,7 +165,6 @@ async function engineWalk(device: GPUDevice, count: number, cast: Float32Array<A
     proxy &&
     (await walk(device, NEW_WALK, cast, {
       proxy: proxy.buffer,
-      instances: proxy.instances,
       worlds: proxy.worlds,
       tree: proxy.tree,
     }))
