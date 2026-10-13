@@ -1,4 +1,5 @@
 import { evictResident } from './commit.ts'
+import { retire } from '../core/frameRetire.ts'
 import { heldHomes } from './homes.ts'
 import { resizeGpuPages, type GrownPages } from './resize.ts'
 import type { GpuPageContext } from './types.ts'
@@ -58,7 +59,8 @@ export function pageCacheStats(context: GpuPageContext) {
   }
 }
 
-/** Releases the pool: its pages forgotten at once, its buffer destroyed once the queue is done. */
+/** Releases the pool: its pages forgotten at once, its buffer retired once the loads in flight
+ *  settled — destroyed after the frame's submit, which may name it (`frameRetire.ts`). */
 export function disposePageCache(context: GpuPageContext) {
   const { state, resident, device } = context
   if (state.disposed) return state.pending.then(() => {})
@@ -72,15 +74,6 @@ export function disposePageCache(context: GpuPageContext) {
   context.abort.abort()
   resident.clear()
   context.eviction.clear()
-  state.pending = state.pending
-    .catch(() => {})
-    .then(async () => {
-      try {
-        await device.queue.onSubmittedWorkDone()
-      } catch {
-        /* Queue may already be lost. */
-      }
-      context.buffer.destroy()
-    })
+  state.pending = state.pending.catch(() => {}).then(() => retire(device, context.buffer))
   return state.pending
 }

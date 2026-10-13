@@ -5,10 +5,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPageCache } from './pages.ts'
 import { orderOf } from './order.fixture.ts'
+import { destroyRetired } from '../core/frameRetire.ts'
 
 const LIMITS = { maxBufferSize: 1024 }
 test('dispose aborts an in-flight load and does not write after destroy', async () => {
-  const { device, writes, destroyed } = fakeDevice({ limits: LIMITS })
+  const { device, writes, destroyed, fences } = fakeDevice({ limits: LIMITS })
   let resume!: () => void
   const source = {
     read: async (_key: string, signal?: AbortSignal) =>
@@ -29,7 +30,10 @@ test('dispose aborts an in-flight load and does not write after destroy', async 
   await assert.rejects(pending)
   await closed
   assert.equal(writes.length, 0)
-  assert.equal(destroyed.length, 1)
+  assert.equal(destroyed.length, 0, 'retired: the image encoded may still name the pool')
+  assert.equal(fences(), 0, 'no wait on the queue')
+  destroyRetired(device)
+  assert.equal(destroyed.length, 1, 'destroyed after the frame is submitted')
 })
 test('an aborted concurrent load does not prevent a separate non-aborted load for the same key', async () => {
   const { device, writes } = fakeDevice({ limits: LIMITS })
