@@ -13,6 +13,7 @@ import { MORE_BUILTINS, inputs, withArrays } from './sameBits.fixture.ts'
 import { hash } from './pageWorld.fixture.ts'
 import { vsmLayout } from './layout.ts'
 import { TAU } from '../../../math/src/constants.ts'
+import { crossVector3 } from '../../../math/src/vector/vector.ts'
 
 export type Draw = ReturnType<typeof inputs>
 const LAYOUT = vsmLayout({ fullMapCapacity: 63 })
@@ -114,7 +115,7 @@ export function lightView(d: Draw, k: number) {
   )
   const x = [ca * cb, sa * cb, -sb],
     y = [ca * sb * sc - sa * cc, sa * sb * sc + ca * cc, cb * sc]
-  const z = [x[1] * y[2] - x[2] * y[1], x[2] * y[0] - x[0] * y[2], x[0] * y[1] - x[1] * y[0]]
+  const z = crossVector3([0, 0, 0], x, y)
   const at = d.vec(3, () => (d.random() - 0.5) * 8)
   const view = new Mat([...x, 0, ...y, 0, ...z, 0, ...at, 1])
   const s = directional ? 1 / d.int(4, 64) : 1 / Math.tan(d.random() + 0.3)
