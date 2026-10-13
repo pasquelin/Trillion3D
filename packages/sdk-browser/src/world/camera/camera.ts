@@ -14,7 +14,7 @@ export function createExplorerCamera(
   source: Object3D,
   canvas: HTMLCanvasElement,
   options: MeasuredWorldOptions,
-  /** Framing-box buffer, reserved at load; `null` moves each box alone (`boxTransform`). */
+  /** Framing-box buffer, reserved at load; without it, one is made for the framing. */
   lot?: BoxTransformLot | null,
   /** The page poses the camera itself and the scene has no node to frame: a unit ball about the
    *  origin stands for its bounds. */

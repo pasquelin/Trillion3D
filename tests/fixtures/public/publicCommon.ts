@@ -1,6 +1,6 @@
 import {
   createSceneRoot,
-  multiplyMatrix4Batch,
+  multiplyMatrix4,
   type CameraPose,
   type JobSnapshot,
   type SceneNode,
@@ -28,6 +28,6 @@ const invalidPose: CameraPose = { ...home, position: [0, 1] }
 export const commonContract = {
   child,
   invalidPose,
-  multiplyMatrix4Batch,
+  multiplyMatrix4,
   scene,
 }

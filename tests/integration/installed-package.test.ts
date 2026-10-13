@@ -89,7 +89,7 @@ test('the packed distribution is self-contained at its declared boundaries', () 
       [
         '--input-type=module',
         '--eval',
-        "const sdk=await import('trillion3d');const p=await sdk.getSdkProvenance();if(!sdk.multiplyMatrix4Batch||!sdk.prepare||!p.files['dist/sdk/node.mjs'])process.exit(2);for(const path of ['/core','/node','/browser'])try{await import('trillion3d'+path);process.exit(3)}catch(e){if(e.code!=='ERR_PACKAGE_PATH_NOT_EXPORTED')process.exit(4)}",
+        "const sdk=await import('trillion3d');const p=await sdk.getSdkProvenance();if(!sdk.multiplyMatrix4||!sdk.prepare||!p.files['dist/sdk/node.mjs'])process.exit(2);for(const path of ['/core','/node','/browser'])try{await import('trillion3d'+path);process.exit(3)}catch(e){if(e.code!=='ERR_PACKAGE_PATH_NOT_EXPORTED')process.exit(4)}",
       ],
       { cwd: consumer, encoding: 'utf8' },
     )

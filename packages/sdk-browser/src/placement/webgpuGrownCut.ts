@@ -8,7 +8,7 @@
 import { countRootCopies } from '../webgpu/pages/prepare/layout.ts'
 import { growWebgpuTables, tableRowsFor } from '../webgpu/pages/prepare/growTables.ts'
 import { postPackedBases } from '../page/selection/placements.ts'
-import { reserveRootBoxes } from '../page/selection/batchBoxes.ts'
+import { rootBoxesFor } from '../page/selection/batchBoxes.ts'
 import { mainViewGpu, viewGpu } from '../webgpu/pages/state/view.ts'
 import { markReach } from '../deformation/halfFloat.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
@@ -152,19 +152,8 @@ function swapCut(
     if (page < layout.packedPages.length) cut.notePool(page, heldPage(rt, page))
 }
 
-/** The root boxes' batch for the longer list: the one held no longer plays (`transformRootBoxes`),
- *  and the moved boxes are reprojected one by one, to the same bits, until the new one is ready. */
+/** The root boxes' lot for the longer list, remade at its count at once: the next move reads it. */
 function reserveBoxes(rt: WebgpuPagesRuntime) {
-  const { layout, signal } = rt
-  layout.rootBoxes?.release()
-  layout.rootBoxes = null
-  const roots = layout.selectionRoots.length
-  void reserveRootBoxes(layout.selectionRoots).then(
-    (lot) => {
-      if (signal.aborted || layout.rootBoxes || layout.selectionRoots.length !== roots)
-        lot?.release()
-      else layout.rootBoxes = lot
-    },
-    () => {},
-  )
+  const { layout } = rt
+  layout.rootBoxes = rootBoxesFor(layout.rootBoxes, layout.selectionRoots)
 }

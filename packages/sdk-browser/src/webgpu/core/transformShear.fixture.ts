@@ -2,6 +2,7 @@
 // `WebgpuPagesRuntime` reduced to what `setWebgpuTransform` reads and writes, a selection root, and
 // two small comparison helpers. Extracted from `transformShear.test.ts` so
 // `transformFiniteTransform.test.ts` reuses them without copying.
+import '../../wasm/sdkWasm.fixture.ts'
 import { SHADOW_CHANGE_BOXES } from '../../../../sdk-core/src/scene/light-shadow/changes.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'

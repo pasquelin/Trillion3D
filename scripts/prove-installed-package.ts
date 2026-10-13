@@ -96,10 +96,10 @@ try {
   const packageName = source.name
   write(
     'runtime.mjs',
-    `import { getSdkProvenance,multiplyMatrix4Batch,prepare } from '${packageName}';\n` +
-      `if(typeof multiplyMatrix4Batch!=='function'||typeof prepare!=='function')process.exit(2);\n` +
+    `import { getSdkProvenance,multiplyMatrix4,prepare } from '${packageName}';\n` +
+      `if(typeof multiplyMatrix4!=='function'||typeof prepare!=='function')process.exit(2);\n` +
       `const translation=(x,y,z)=>new Float64Array([1,0,0,0,0,1,0,0,0,0,1,0,x,y,z,1]),out=new Float64Array(16);\n` +
-      `multiplyMatrix4Batch([out],[translation(2,3,4)],[translation(5,7,11)],1);if(out[12]!==7||out[13]!==10||out[14]!==15)process.exit(4);\n` +
+      `multiplyMatrix4(out,translation(2,3,4),translation(5,7,11));if(out[12]!==7||out[13]!==10||out[14]!==15)process.exit(4);\n` +
       `const p=await getSdkProvenance();if(!p.files['dist/sdk-node/src/index.mjs'])process.exit(3);\n` +
       `for(const path of ['/core','/node','/browser','/dist/sdk-core/src/index.js'])try{await import('${packageName}'+path);process.exit(5)}catch(e){if(e.code!=='ERR_PACKAGE_PATH_NOT_EXPORTED')process.exit(6)}\n`,
   )
@@ -119,7 +119,7 @@ try {
   const bundles: Record<string, Metafile> = {
     default: bundle(
       'default',
-      `import { multiplyMatrix4Batch } from '${packageName}';\nconsole.log(multiplyMatrix4Batch);\n`,
+      `import { multiplyMatrix4 } from '${packageName}';\nconsole.log(multiplyMatrix4);\n`,
       'neutral',
       [],
     ),

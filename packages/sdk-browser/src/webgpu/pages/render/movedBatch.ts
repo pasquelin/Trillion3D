@@ -11,7 +11,7 @@ import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedCl
 import { appendRootsUnder } from './movedNode.ts'
 import { chainShown } from '../../../host/world/rooted.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
-import { refreshRootBox, transformRootBoxes } from '../../../page/selection/batchBoxes.ts'
+import { transformRootBoxes } from '../../../page/selection/batchBoxes.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
@@ -49,9 +49,6 @@ let movedCount = 0,
 let movedBoxes = new Float64Array(BOX_VALUES),
   listedRoots = new Uint8Array(0),
   promotedRoots = new Uint8Array(0)
-/** Below one moved root in this many, the moved boxes are transformed one by one rather than as
- *  the lot, which transforms every root: the same `boxTransform` yields the same bits. */
-const LOT_SHARE = 8
 
 /**
  * The nodes `nodes` were written — an engine move's, the host's the scene watch heard —, before
@@ -132,11 +129,9 @@ function passMoves(rt: WebgpuPagesRuntime, announce: boolean) {
     ranks = distinct
     count = distinctCount
   }
-  // World boxes of the moved roots reproject IN BATCH, through the module's kernel, in the buffer
-  // reserved at prepare. A missing or released buffer hands over to the box-by-box computation,
-  // which yields the same bits — the same `boxTransform` on the same inputs.
-  const lot = count * LOT_SHARE >= roots.length ? layout.rootBoxes : null
-  const enLot = !!lot && transformRootBoxes(lot, roots, ranks, count)
+  // World boxes of the moved roots reproject IN ONE RUN of the module's kernel over them alone, in
+  // the roots' lot reserved at prepare — remade at the roots' count once it no longer holds them.
+  layout.rootBoxes = transformRootBoxes(layout.rootBoxes, roots, ranks, count)
   for (let k = 0; k < count; k++) {
     const i = ranks[k],
       root = roots[i]
@@ -144,7 +139,6 @@ function passMoves(rt: WebgpuPagesRuntime, announce: boolean) {
     if (!root.worldBox) continue
     // A node moved: each root under it moved, at the pose it now reads.
     promotedRoots[i] = lights.mobility.move(i, root.world.elements, true) === MOVE_PROMOTED ? 1 : 0
-    if (!enLot) refreshRootBox(root)
   }
   // Origin of the scene change: these subtrees' world matrices have just been rewritten. Only
   // poses moved — no node entered or left the scene — so the watched set is left as it stands

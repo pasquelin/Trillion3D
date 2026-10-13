@@ -71,9 +71,8 @@ export function readHostBox(box: HostBox, out: Float64Array, at: number) {
 /**
  * Union of the world bounds of `source` and its descendants into `into`, which must arrive empty
  * or already started. The world matrices are the transform tree's after one frame pass, which
- * walks only what changed since the last. When `lot` carries exactly these boxes, they go AS A
- * LOT through the module's kernel; otherwise each goes alone, by `boxTransform`, the kernel's bits
- * on the same inputs.
+ * walks only what changed since the last. The boxes go AS A LOT through the module's kernel: in
+ * `lot` when it carries exactly these boxes, else in one made for the union (`boxUnionCollector`).
  */
 export function hostWorldBounds(
   source: Object3D,
@@ -88,5 +87,5 @@ export function hostWorldBounds(
     readHostBox(box, union.boxes, union.at)
     union.pose(worlds.of(object).elements)
   })
-  return union.ferme()
+  return union.close()
 }

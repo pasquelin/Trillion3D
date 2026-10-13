@@ -1,3 +1,4 @@
+import '../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
