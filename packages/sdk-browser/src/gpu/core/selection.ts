@@ -131,6 +131,10 @@ export type GpuSelection = {
    *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
    *  host holds is written again over the one its parent composed. */
   composedPlacement(world: number, composed: boolean): void
+  /** How the device lays out the nodes of the placement tree (`../dag/treeRefit.ts`,
+   *  `nodeLayout`), none without a tree: what a kernel reading them is asked for before a frame
+   *  binds it. */
+  readonly treeNodes?: { per: number; parts: number }
   /** The member group of placement `world` in the placement tree, -1 outside it: what a
    *  composition names the groups of the roots a parent moves by. */
   groupOf(world: number): number

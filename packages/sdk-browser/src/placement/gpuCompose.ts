@@ -52,8 +52,8 @@ import {
   PART_SPHERES,
 } from './gpuComposeWgsl.ts'
 import { DAG_BINDING, dagPartEntries } from '../gpu/dag/shader/bindings.ts'
-import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
 import type { RefitLayout } from '../gpu/dag/treeRefitWgsl.ts'
+import { nodeLayout } from '../gpu/dag/treeRefit.ts'
 import { composedRowInputs } from './composedRowInputs.ts'
 import { MOTION_SKIP } from './composedMotion.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
@@ -605,9 +605,6 @@ const composeKernels = oncePerDevice((device) => {
   }
 })
 
-/** The layout of the nodes each session's tree is followed over, as its members kernel is asked. */
-const memberLayouts = new WeakMap<WebgpuPagesRuntime, RefitLayout['nodes']>()
-
 /** The members kernel for each layout of the nodes it reads, made once a device (`nodeTableWgsl`). */
 const memberKernels = oncePerDevice((device) =>
   preparedPipelines(
@@ -636,7 +633,6 @@ const memberKernels = oncePerDevice((device) =>
 export function composedLeaves(rt: WebgpuPagesRuntime): ComposedLeaves {
   return {
     has: (w) => composedRoot(rt, w),
-    lay: (nodes) => void memberLayouts.set(rt, nodes),
     encode(encoder, { members, nodeParts }) {
       const state = rt.compose,
         device = rt.gpu.device,
@@ -644,11 +640,7 @@ export function composedLeaves(rt: WebgpuPagesRuntime): ComposedLeaves {
       if (!state?.parentIds.size || !device || !selection) return
       const gpu = frameParents(rt, device)
       if (!gpu?.parents) return
-      const layout = {
-          per: nodeParts.bytes / (DAG_NODE_FLOATS * 4),
-          parts: nodeParts.buffers.length,
-        },
-        pipeline = memberKernels(device).of(layout).ask().get(),
+      const pipeline = memberKernels(device).of(nodeLayout(nodeParts)).ask().get(),
         tables = device.createBindGroup({
           layout: pipeline.getBindGroupLayout(1),
           entries: [
@@ -694,7 +686,7 @@ export function askComposedPlacements(rt: WebgpuPagesRuntime, device: GPUDevice)
   const kernels = composeKernels(device)
   kernels.roots.ask()
   kernels.rows.ask()
-  const nodes = memberLayouts.get(rt)
+  const nodes = rt.run.gpuSelection?.treeNodes
   if (nodes) memberKernels(device).of(nodes).ask()
 }
 

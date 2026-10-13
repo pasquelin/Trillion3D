@@ -30,8 +30,6 @@ export function uploadNodes(
  *  writes them all into `members`, the root boxes of `nodes` carried by the worlds it composes. */
 export type ComposedLeaves = {
   has(w: number): boolean
-  /** The layout of the nodes the tree is followed over: the pass is asked before a frame needs it. */
-  lay(nodes: { per: number; parts: number }): void
   encode(encoder: GPUCommandEncoder, tables: { members: GPUBuffer; nodeParts: DagParts }): void
 }
 
@@ -52,7 +50,6 @@ export function createTreeFollower(
     tree = packed.placementTree
   if (!tree) return undefined
   const refit = createTreeRefit(device, packed, tree, { nodeParts, coldParts, frames })
-  leaves?.lay({ per: nodeParts.bytes / (DAG_NODE_FLOATS * 4), parts: nodeParts.buffers.length })
   // What moved since the tree was last read, each placement once, and the groups a composition
   // moved: fitted once, before the next cut reads the tree.
   // The first cut fits every group: the tree packs open (`packPlacementTree`), the refit is the

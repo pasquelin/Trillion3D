@@ -35,10 +35,17 @@ export type RefitTables = {
   frames: { buffers: GPUBuffer[]; ranges: readonly { first: number }[] }
 }
 
+/** How the device lays the tree's nodes out: the nodes a part holds, the parts — what a kernel
+ *  reading them is made for (`nodeTableBlock`). */
+export const nodeLayout = (nodeParts: DagParts): RefitLayout['nodes'] => ({
+  per: nodeParts.bytes / (DAG_NODE_FLOATS * 4),
+  parts: nodeParts.buffers.length,
+})
+
 /** How `tables` lay the refit's tables out: the elements a part holds, the parts, the ranges. */
 function layoutOf({ nodeParts, coldParts, frames }: RefitTables): RefitLayout {
   return {
-    nodes: { per: nodeParts.bytes / (DAG_NODE_FLOATS * 4), parts: nodeParts.buffers.length },
+    nodes: nodeLayout(nodeParts),
     cold: { per: coldParts.bytes / 4, parts: coldParts.buffers.length },
     frames: frames.ranges.map(({ first }) => first),
   }
