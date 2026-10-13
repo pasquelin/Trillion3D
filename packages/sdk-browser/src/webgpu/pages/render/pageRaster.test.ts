@@ -8,7 +8,11 @@ import {
   indirectDraws,
   installGpuGlobals,
 } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import {
+  BACKEND,
+  dispatchedEntries,
+  fakeDevice,
+} from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import {
   quadScene,
   camera,
@@ -21,7 +25,7 @@ import { graphDraws } from '../../../page/selection/drawSource.ts'
 test('webgpu pages raster consumes the GPU cache and does not attach a mesh per visible page', async () => {
   installGpuGlobals()
   const { source, metadata, indices, associations, geometry, material } = quadScene()
-  const { draws, writes, computes, buffers, packed, backend } = await flushedGpuScene({
+  const { draws, writes, dispatches, buffers, packed, backend } = await flushedGpuScene({
     source,
     metadata,
     indices,
@@ -54,7 +58,7 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
     vis.reduce((n, d) => n + (d.instanceCount ?? 0), 0),
     2,
   )
-  assert.equal(computes.includes('bin'), false)
+  assert.equal(dispatchedEntries(dispatches).includes('bin'), false)
   assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'))
   backend.dispose()
   geometry.dispose()
@@ -74,19 +78,19 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
     both,
   } = mixedBinScene()
   const metadata: ClusterManifest = { ...metadataPartial, ...MANIFEST_IDENTITY }
-  const { draws, computes, buffers, packed, backend } = await flushedGpuScene({
+  const { draws, dispatches, buffers, packed, backend } = await flushedGpuScene({
     source,
     metadata,
     indices,
     draws: graphDraws(source, associations),
   })
   draws.length = 0
-  computes.length = 0
+  dispatches.length = 0
   backend.render(camera())
   // The two bins — front-only and double-sided — hold two indirect commands on a shared page
   // table, and read the SAME image mask.
   assert.deepEqual(drawnPageIds(buffers, packed), [0, 1])
-  assert.equal(computes.includes('bin'), false)
+  assert.equal(dispatchedEntries(dispatches).includes('bin'), false)
   const vis = indirectDraws(draws)
   assert.ok(vis.length >= 2)
   assert.equal(
@@ -106,7 +110,7 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
 // is raised to it, by name, and the image is complete — never refused.
 test('a budget under root coverage is raised to it, by name, and the image prepares', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device, {
     maxResidentPages: 1,
   })

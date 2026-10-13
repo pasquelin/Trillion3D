@@ -9,7 +9,6 @@
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { functionsOf, wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
@@ -17,6 +16,7 @@ import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
 import { shadedLightScope } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Sum = (...args: unknown[]) => number[]
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
@@ -46,7 +46,7 @@ const SHADING = [
 const same = (a: number[], b: number[]) => a.every((v, i) => Object.is(v, b[i]))
 
 test('one walk of the lights gives the two sums of two walks, bit for bit', () => {
-  const r = random(1563),
+  const r = lcgRandom(1563),
     u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lit = 0
   for (let round = 0; round < 600; round++) {

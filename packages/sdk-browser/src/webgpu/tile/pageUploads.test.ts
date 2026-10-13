@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { entryLevel, packEntry, tileLayout, tilesAt, type TileLayout } from '../../texture/tiles.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { createWebgpuTilePageTable, type TileKey } from './pageTable.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** develop's table edits over a copy of the words, its full descent: the frozen oracle. */
 function oracle(words: Uint32Array, layouts: TileLayout[]) {
@@ -92,7 +92,7 @@ function shadowDevice() {
 // last tiles have no parent (769, 2049): an orphan leaves to its finest ancestor that exists.
 test('flushing only the changed words keeps the GPU table develop’s, word for word, in at most 64 writes', () => {
   for (let seed = 1; seed <= 30; seed++) {
-    const next = random(seed)
+    const next = lcgRandom(seed)
     const layouts = [
       tileLayout(1, 1),
       tileLayout(4096, 4096),

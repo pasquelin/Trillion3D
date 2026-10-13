@@ -20,12 +20,12 @@ import {
   clusterErrorFields,
   cullingNodes,
 } from '../../../packages/sdk-browser/src/page/selection/helpers.ts'
+import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
 import { structureIndex } from '../../../packages/sdk-browser/src/page/selection/structure.ts'
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts'
 import { indexPageRequests } from '../../../packages/sdk-browser/src/page/selection/requests.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
-import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
 import { referencePrimitiveOf } from './bounds-and-index.ts'
 
 type Primitive = ClusterManifest['primitives'][number]

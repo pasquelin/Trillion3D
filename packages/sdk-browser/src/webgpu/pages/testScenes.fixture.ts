@@ -4,7 +4,7 @@ import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { EngineContext, Engine } from '../../engine/types.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import {
@@ -104,7 +104,7 @@ export async function flushedGpuScene(
 ) {
   const collected = collectClusterPages(scene.source, scene.draws, scene.metadata, scene.indices)
   const packed = packDagSelection(collected.roots)
-  const gpu = mockGpu({ packed, limits })
+  const gpu = fakeDevice({ ...BACKEND, packed, limits })
   const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: gpu.device,

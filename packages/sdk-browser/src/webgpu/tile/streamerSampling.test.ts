@@ -8,7 +8,7 @@ import { createWebgpuTileStreamer } from './streamer.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
 import { tileLayout } from '../../texture/tiles.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { hostTextureWritten, importHostTexture } from '../../host/textureImport.ts'
 import type { HostMaterials, HostTexture } from '../../host/resources.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
@@ -32,7 +32,7 @@ const record = (texture: G.GraphTexture) => importHostTexture(texture as unknown
  *  table writes and the colour signals. */
 function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
   const signalled: number[][] = []
-  const { device, writes } = mockGpu()
+  const { device, writes } = fakeDevice(BACKEND)
   const blocks = { bc7: [], astc: [], etc2: [] }
   const whole = (texture?: Texture) => ({
     layout: tileLayout(1, 1),
@@ -57,7 +57,7 @@ function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
   })
   textures.prepare()
   const tableWrites = () =>
-    writes.filter((write) => write.label?.startsWith('Trillion3D texture pages')).length
+    writes.filter((write) => write.buffer.label?.startsWith('Trillion3D texture pages')).length
   return { textures, writes: tableWrites, signalled }
 }
 
@@ -140,7 +140,7 @@ test('a filter changed on a held image releases it, and the image draws it', asy
   const { textures } = streamer([record(colour)], record(host()), () =>
     rt.run.gate.resourcesChanged(),
   )
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   for (let i = 0; i < 2; i++) {
     rt.run.frame++
     keepWebgpuFrame(rt)

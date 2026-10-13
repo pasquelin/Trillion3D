@@ -8,7 +8,6 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { structZero } from '../../texture/shaderRunStructs.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { PARTITION_SHADER } from './shader.ts'
 import { HIZ_SHADER } from '../hiz/shader.ts'
@@ -16,6 +15,7 @@ import { createGpuPartition } from './factory.ts'
 import * as C from './contract.ts'
 import { HALF_SLOTS, slotCount } from '../draw/contract.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Fn = (...args: unknown[]) => unknown
 type Ref = { get: () => number; set: (value: number) => void }
@@ -27,7 +27,7 @@ const bitsOf = (x: number) => (Number.isInteger(x) ? x >>> 0 : builtins.bitcast_
 
 /** `rows` random rows: what each held from the previous image, its item, its projected box. */
 function frameOf(seed: number, rows: number) {
-  const r = random(seed),
+  const r = lcgRandom(seed),
     int = (n: number) => Math.floor(r() * n)
   return {
     rowData: Array.from({ length: rows * C.ROW_DATA_U32 }, (_, k) =>

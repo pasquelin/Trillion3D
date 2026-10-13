@@ -22,9 +22,7 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
   const gpu = fakeDevice()
   const webgpu = createWebgpuEffects(gpu.device, (error) => assert.fail(String(error)))
   const input = {} as GPUTextureView,
-    encoder = {
-      beginRenderPass: () => ({ setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }),
-    } as unknown as GPUCommandEncoder
+    encoder = gpu.device.createCommandEncoder()
   webgpu.encode(encoder, chain, input, width, height)
   await webgpu.settled()
   webgpu.encode(encoder, chain, input, width, height)

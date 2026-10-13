@@ -7,9 +7,9 @@ import assert from 'node:assert/strict'
 import { ruleDag } from './cutRule.fixture.ts'
 import { AWAY, placements } from './cutRuleBackends.fixture.ts'
 import { cpuBackend } from './cutRuleHosts.fixture.ts'
-import { random } from './cutRuleChecks.fixture.ts'
 import { createWebgpuPagesLayout } from '../../webgpu/pages/prepare/layout.ts'
 import type { WebgpuPagesSetup } from '../../webgpu/pages/prepare/setup.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const THRESHOLD = 0.1
 const dag = ruleDag(64),
@@ -33,7 +33,7 @@ function residency(next: () => number) {
 for (const name of Object.keys(backends) as (keyof typeof backends)[]) {
   test(`${name}: a still view reads no page of readiness`, () => {
     const cut = mount(name),
-      resident = residency(random(1))
+      resident = residency(lcgRandom(1))
     cut(resident)
     const entered = cut.reads()
     assert.ok(entered >= 2 * n, 'the placements entering the view are read whole')
@@ -42,7 +42,7 @@ for (const name of Object.keys(backends) as (keyof typeof backends)[]) {
   })
 
   test(`${name}: a residency change reads the pages that moved and no other`, () => {
-    const next = random(2),
+    const next = lcgRandom(2),
       cut = mount(name),
       resident = residency(next)
     cut(resident)
@@ -64,7 +64,7 @@ for (const name of Object.keys(backends) as (keyof typeof backends)[]) {
   test(`${name}: a placement leaving the view lets its readiness go, the total exact`, () => {
     const roots = placements(dag, 2),
       cut = mount(name, roots),
-      resident = residency(random(3))
+      resident = residency(lcgRandom(3))
     cut(resident)
     const both = cut.held.bytes
     assert.equal(cut.held.primitives, 2)
@@ -100,7 +100,7 @@ test('the layout lets the feed route every move; a layout that does not is count
   const setup = { roots: placements(dag, 2), bootstrap: [], cap: 64, pageBytes: 64 }
   const webgpu = createWebgpuPagesLayout(setup as unknown as WebgpuPagesSetup).selectionRoots
   const routed = (cut: ReturnType<typeof cpuBackend>) => {
-    const next = random(4)
+    const next = lcgRandom(4)
     for (let frame = 0; frame < 4; frame++) cut(residency(next))
     return cut.held.unroutedReads
   }

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { quadScene } from './testScenes.fixture.ts'
 import { BASE_SLOTS, DRAW_ITEM_U32, HALF_SLOTS } from '../../gpu/draw/draw.ts'
@@ -62,7 +62,7 @@ test('a page marked with a coplanar depth layer makes prepare() build that layer
   installGpuGlobals()
   const scene = quadScene()
   ;(scene.metadata.primitives[0].pages[1] as { depthLayer?: number }).depthLayer = 3
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const events: Array<{ phase: string; context?: Record<string, unknown> }> = []
   const backend = webgpuPagesEngine({
     ...scene,

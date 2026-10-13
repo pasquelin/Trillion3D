@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from '../pages.ts'
 import { collectClusterPages } from '../../../page/selection/selection.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import { assertOccluderImage, occluderScene, preparedOccluderRun } from '../testOccluder.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'
@@ -12,7 +12,7 @@ import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const scene = occluderScene()
   const { source, indices, associations, geometry, material } = scene
   // `occluderScene` builds `metadata` with only `errorModel`/`clusterStrategy`/`primitives`: the
@@ -51,7 +51,7 @@ test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', as
 
 test("a visibility pass the device fails is the image's failure, said once: no other draw path", async () => {
   installGpuGlobals()
-  const { device } = mockGpu({ failVisPass: true })
+  const { device } = fakeDevice({ ...BACKEND, failVisPass: true })
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const events: Array<{ phase: string; context: Record<string, unknown> }> = []
   const backend = webgpuPagesEngine({
@@ -78,7 +78,7 @@ test("a visibility pass the device fails is the image's failure, said once: no o
 
 test('a device without an r32uint visibility target refuses the scene by name', async () => {
   installGpuGlobals()
-  const { device } = mockGpu({ rejectR32: true })
+  const { device } = fakeDevice({ ...BACKEND, rejectR32: true })
   const { fixture, backend } = quadBackend(device)
   await assert.rejects(backend.prepare(), /WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE/)
   backend.dispose()

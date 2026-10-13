@@ -15,7 +15,7 @@ import { createWebgpuVisibilityRasterPipelines } from './pipelines.ts'
 import { encodeWebgpuVisibilityPasses } from './passes.ts'
 import { createDrawItemWordsHold } from './itemWords.ts'
 import { createWebgpuVisState } from '../pages/state/vis.ts'
-import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
+import { commandArgs } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
 
 test('the tested vertex stage is the occluder one and its verdict read, nothing else', () => {
   const [plain, tested] = ['vis_vs', 'vis_hiz_vs'].map((name) => functionsOf(VIS_SHADER, [name]))
@@ -43,34 +43,31 @@ test('a tested pipeline is its occluder twin but for the vertex stage', async ()
 
 test('the compaction says whether it ran: no rows, no slots or disposed, the verdict is read', async () => {
   const fake = fakeDevice()
-  const buffer = fake.device.createBuffer({
-    size: 64,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
-  })
+  // A buffer a role: an indirect buffer is never bound writable in its own dispatch.
+  const buffer = (label: string) =>
+    fake.device.createBuffer({
+      label,
+      size: 64,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
+    })
   const compact = (await createGpuRestCompact(fake.device, {
-    state: buffer,
+    state: buffer('state'),
     perRow: 4,
-    instances: buffer,
-    indirect: buffer,
-    slotOffsets: buffer,
-    flags: buffer,
+    instances: buffer('instances'),
+    indirect: buffer('indirect'),
+    slotOffsets: buffer('slot offsets'),
+    flags: buffer('flags'),
   }))!
-  let dispatches = 0
-  const pass = {
-    setBindGroup() {},
-    setPipeline() {},
-    dispatchWorkgroups: () => void dispatches++,
-    dispatchWorkgroupsIndirect: () => void dispatches++,
-  } as unknown as GPUComputePassEncoder
-  const open = { pass }
-  assert.equal(compact.encode(open, 3, 0, buffer), false)
-  assert.equal(compact.encode(open, 0, 5, buffer), false)
-  assert.equal(dispatches, 0)
+  const open = { pass: fake.device.createCommandEncoder().beginComputePass() },
+    rows = buffer('rows')
+  assert.equal(compact.encode(open, 3, 0, rows), false)
+  assert.equal(compact.encode(open, 0, 5, rows), false)
+  assert.equal(fake.dispatches.length, 0)
   // Arguments, count, scan, scatter: four dispatches of the frame's pass, none of its own.
-  assert.equal(compact.encode(open, 3, 5, buffer), true)
-  assert.equal(dispatches, 4)
+  assert.equal(compact.encode(open, 3, 5, rows), true)
+  assert.equal(fake.dispatches.length, 4)
   compact.dispose()
-  assert.equal(compact.encode(open, 3, 5, buffer), false)
+  assert.equal(compact.encode(open, 3, 5, rows), false)
 })
 
 /** Each pipeline as a name: layer 0's own, then each coplanar layer's three culls, occluders first. */
@@ -86,19 +83,11 @@ const PIPELINES = {
 
 test('the secondary pass draws with the occluder twins exactly when the compaction ran', () => {
   const drawn = (compacted: boolean) => {
-    const pipelines: Record<string, unknown[]> = {}
-    const encoder = {
-      beginRenderPass: ({ label }: GPURenderPassDescriptor) => {
-        const set = (pipelines[label!] = [] as unknown[])
-        const pass = {
-          ...{ setViewport() {}, setBindGroup() {}, drawIndirect() {}, end() {} },
-          setPipeline: (pipeline: unknown) => void set.push(pipeline),
-          executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(pass, bundles),
-        }
-        return pass
-      },
-      beginComputePass: () => ({ end() {} }),
-    } as unknown as GPUCommandEncoder
+    const fake = fakeDevice()
+    const indirectBuffer = fake.device.createBuffer({
+      size: 1 << 16,
+      usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE,
+    })
     const rt = {
       vis: {
         visView: {},
@@ -107,7 +96,7 @@ test('the secondary pass draws with the occluder twins exactly when the compacti
         visBindGroupLayout: {},
         zeroFlags: {},
         visSlotGroups: new Array(4 * BASE_SLOTS).fill({}),
-        gpuDraw: { indirectBuffer: {} },
+        gpuDraw: { indirectBuffer },
         gpuHiz: { level0View: {}, flags: {}, encodePyramid() {}, encodeTest() {} },
         gpuPartition: { counting: false },
         gpuRestCompact: { encode: () => compacted },
@@ -119,8 +108,14 @@ test('the secondary pass draws with the occluder twins exactly when the compacti
       layout: { rows: { packedCount: 4 }, itemWordsHold: createDrawItemWordsHold(4) },
       context: {},
     } as unknown as WebgpuPagesRuntime
-    encodeWebgpuVisibilityPasses(rt, fakeDevice().device, encoder, true, null)
-    return pipelines
+    encodeWebgpuVisibilityPasses(rt, fake.device, fake.device.createCommandEncoder(), true, null)
+    // The pipelines each pass label set, in order; a label begun again keeps its last pass's.
+    return Object.fromEntries(
+      fake.passes.map(({ label, commands }) => [
+        label!,
+        commandArgs(commands, 'setPipeline').map(([pipeline]) => pipeline),
+      ]),
+    )
   }
   // Layer 0, then a coplanar layer: its occluder set, the same cull ranks; each its opaque slots,
   // then its cutout ones with their face mode's pipeline.

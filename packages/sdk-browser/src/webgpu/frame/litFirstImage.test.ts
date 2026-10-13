@@ -12,20 +12,10 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { settledRt, surface, view } from './hold.fixture.ts'
 import { BLEND_SHADER, UNLIT_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 
-/** A fake device that names every render pipeline compiled off the thread, by its module. */
-function recordingDevice() {
-  const fake = fakeDevice()
-  const compiled: string[] = []
-  const compile = fake.device.createRenderPipelineAsync.bind(fake.device)
-  fake.device.createRenderPipelineAsync = async (descriptor) => {
-    compiled.push(descriptor.fragment?.module.label ?? '')
-    return compile(descriptor)
-  }
-  return { ...fake, compiled }
-}
-
 test('the lit program starts compiling with prepare, before the first frame asks for it', async () => {
-  const { device, compiled } = recordingDevice()
+  const { device, renderPipelines } = fakeDevice()
+  // Every render pipeline the device was asked for, by its module.
+  const compiled = () => renderPipelines.map((made) => made.fragment?.module.label ?? '')
   const lighting = await createDeferredLighting(device, undefined, {
     precompile: true,
     bounce: false,
@@ -34,14 +24,14 @@ test('the lit program starts compiling with prepare, before the first frame asks
   // No frame has asked anything: prepare alone started and awaits them.
   await lighting.litReady
   assert.ok(
-    compiled.some((label) => /^DIRECT_NARROW/.test(label)),
+    compiled().some((label) => /^DIRECT_NARROW/.test(label)),
     'the narrow program',
   )
   assert.ok(
-    compiled.some((label) => /^DIRECT_(?!NARROW)/.test(label)),
+    compiled().some((label) => /^DIRECT_(?!NARROW)/.test(label)),
     'and its wide twin',
   )
-  assert.ok(!compiled.some((label) => label.startsWith('BOUNCE')), 'no bounce unless wanted')
+  assert.ok(!compiled().some((label) => label.startsWith('BOUNCE')), 'no bounce unless wanted')
   const direct = { lights: {} as GPUBuffer }
   assert.equal(lighting.awaited(direct), undefined, 'the first frame waits for nothing')
   lighting.bind(surface, view(), view(), true, direct)

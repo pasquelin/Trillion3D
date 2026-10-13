@@ -2,8 +2,7 @@ import { MIB } from '../../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice, BACKEND } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, quadBackend } from '../testScenes.fixture.ts'
 import { setWebgpuMemoryBudgets } from './memory.ts'
 import { geometryPoolFor } from '../../../residency/pools.ts'
@@ -12,7 +11,7 @@ import { geometryPoolFor } from '../../../residency/pools.ts'
 // again and without losing the image: the report says what it actually holds.
 test('setMemoryBudgets sets the pools in session, brings them back by name, and the image continues', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   // Two 12-byte root pages: a one-page budget is raised to root coverage.
   const { fixture, backend } = quadBackend(device, {
     maxResidentPages: undefined,
@@ -98,7 +97,7 @@ test('a setting above the scene is brought back to its pages, and the cache resi
 // catalogue —, the report says so with `null`, and prepare draws the pools at that budget.
 test('a texture budget set before prepare is kept and drawn by prepare, the report saying null', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device, { maxResidentPages: undefined })
   try {
     const early = await backend.setMemoryBudgets!({ texturePoolBytes: 1 })

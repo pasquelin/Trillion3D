@@ -4,9 +4,9 @@ import { createWater, type WaterSpec } from '../../../sdk-core/src/fluids/index.
 import type { Waves } from '../../../sdk-core/src/fluids/waves.ts'
 import { OCEAN } from '../../../sdk-core/src/fluids/waves.fixture.ts'
 import { PLANE_WORDS, WATER_PIECE_WORDS } from '../../../sdk-core/src/physics/index.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { startModule, type Module } from './module.fixture.ts'
 import { waveRest } from '../../../sdk-core/src/fluids/waveRest.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 /** `wavePatch` as the page computes it without the module: the frozen oracle, never edited. */
 function patch(
@@ -94,7 +94,7 @@ const EDGES = [0, -0, NaN, Infinity, -Infinity, 1e-30, 3.4e38, -1e5]
 test("the module's water planes are the page's, word for word, on random waves and pieces", async () => {
   const jolt = await startModule()
   for (let seed = 1; seed <= 60; seed++) {
-    const next = random(seed)
+    const next = lcgRandom(seed)
     const waves = Array.from({ length: Math.floor(next() * 9) }, () => ({
       direction: [next() - 0.5, next() < 0.2 ? 0 : next() - 0.5] as [number, number],
       wavelength: 0.5 + next() * 200,

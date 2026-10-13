@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import { mock } from 'node:test'
 import { webgpuPagesEngine } from '../webgpu/pages/pages.ts'
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice, writtenBytes } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera as mainCamera, quadScene } from '../webgpu/pages/testScenes.fixture.ts'
 import { DAG, dagLevel } from '../engine/pagesEngine.fixture.ts'
 import { fanScene, quadCluster } from '../engine/pagesEngineScenes.fixture.ts'
@@ -61,7 +61,7 @@ function transparentFan(): EngineContext & { dispose: () => void } {
 
 /** WebGPU backend state: the fake device (records every write), the prepared backend, and the
  *  release of the engine's clock. */
-type EngineState = { gpu: ReturnType<typeof mockGpu>; backend: Engine; dispose: () => void }
+type EngineState = { gpu: ReturnType<typeof fakeDevice>; backend: Engine; dispose: () => void }
 
 /** The engine's clock: still within a frame, one display frame further at each. The camera's
  *  motion — the velocity the GPU cut's view ahead reads (`./motion.ts`) — is then a function of the
@@ -72,7 +72,7 @@ async function webgpuEngine(scene: EngineContext): Promise<EngineState> {
   installGpuGlobals()
   clock.ms = 0
   const held = mock.method(performance, 'now', () => clock.ms)
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: gpu.device,
@@ -91,9 +91,9 @@ async function webgpuImage({ gpu, backend }: EngineState, camera: HostCamera) {
   const metrics = counts(backend.metrics())
   const byLabel = new Map<string, ReturnType<typeof createHash>>()
   for (const write of gpu.writes) {
-    const label = write.label ?? '?'
+    const label = write.buffer.label ?? '?'
     if (!byLabel.has(label)) byLabel.set(label, createHash('sha256'))
-    byLabel.get(label)?.update(write.bytes)
+    byLabel.get(label)?.update(writtenBytes(write))
   }
   const writes: Record<string, string> = {}
   for (const [label, hash] of [...byLabel].sort(([a], [b]) => (a < b ? -1 : 1)))

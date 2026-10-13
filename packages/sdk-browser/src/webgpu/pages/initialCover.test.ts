@@ -3,14 +3,15 @@ import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
 import { camera } from './testScenes.fixture.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 
 test('the initial cover also protects regions first discovered after a camera jump', async () => {
   installGpuGlobals()
-  const { device } = mockGpu({
+  const { device } = fakeDevice({
+    ...BACKEND,
     limits: { maxBufferSize: 1 << 24, maxStorageBufferBindingSize: 1 << 24 },
   })
   const geometry = new G.Geometry()

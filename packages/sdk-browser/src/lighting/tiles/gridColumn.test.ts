@@ -5,7 +5,6 @@
 // the serial column's counts, cursors, lists and overflow flag, column after column.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import {
   CACHE,
   GRID_SLICES,
@@ -19,10 +18,11 @@ import {
 import { GRID_COMPACT_WGSL } from './compactWgsl.ts'
 import { LIGHT_TILES_SHADER } from './shader.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** `count` lights of a column: a share full depth, a share meeting no cell, the others a run. */
 function series(seed: number, count: number, full: number, none: number): Run[] {
-  const r = random(seed),
+  const r = lcgRandom(seed),
     slice = () => Math.floor(r() * GRID_SLICES)
   return Array.from({ length: count }, () => {
     const pick = r(),
@@ -54,7 +54,7 @@ const byAt = (a: [number, number], b: [number, number]) => a[0] - b[0]
 
 test('random columns: the counts, cursors, lists and pool of the serial column', () => {
   for (let seed = 1; seed <= 24; seed++) {
-    const r = random(seed * 7919)
+    const r = lcgRandom(seed * 7919)
     const columns = [0, 1, 2].map((k) =>
       series(seed * 3 + k, Math.floor(r() * (seed % 4 === 0 ? 900 : 200)), r() * 0.3, r() * 0.4),
     )

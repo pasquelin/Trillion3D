@@ -11,7 +11,7 @@ import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { HostAttributes, HostMaterials, HostMesh } from '../../host/resources.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
-import { objects } from './helpers.ts'
+import { meshes } from '../../scene/meshes.ts'
 import type { PlacementRows } from '../../placement/rows.ts'
 
 /** The association a manifest gave a source: its mesh and primitive ranks, the rows that place it. */
@@ -106,4 +106,4 @@ export function drawSourceOf(mesh: HostMesh, ranks?: DrawRanks): DrawSource {
 
 /** The sources of a graph's drawn nodes, in the graph's order, each with its association. */
 export const graphDraws = (root: Object3D, associations: ReadonlyMap<Object3D, DrawRanks>) =>
-  objects(root).map((mesh) => drawSourceOf(mesh, associations.get(mesh)))
+  meshes(root).map((mesh) => drawSourceOf(mesh, associations.get(mesh)))

@@ -184,8 +184,11 @@ test("a session's sweep destroys what its handle still holds, named, and never a
   assert.deepEqual(session.sweep(), ['held readback', 'forgotten'])
   assert.deepEqual(
     gpu.destroyed.map((resource) => resource.label),
-    ['destroyed @t3d:9', 'held readback @t3d:9', 'forgotten @t3d:9'],
+    ['destroyed', 'held readback', 'forgotten'],
   )
+  // Each made under the handle's tag (the kit records the label untagged).
+  for (const label of ['destroyed', 'held readback', 'forgotten'])
+    assert.ok(gpu.labels.includes(`${label} @t3d:9`), label)
   assert.equal(session.snapshot().bytes, base.bytes, 'the session counts nothing of its own')
   assert.deepEqual(session.sweep(), [], 'a second sweep finds nothing')
   assert.ok(!gpu.destroyed.includes(shared as never), 'the shared cache stays')

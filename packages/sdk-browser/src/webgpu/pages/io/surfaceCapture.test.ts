@@ -5,12 +5,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, quadBackend } from '../testScenes.fixture.ts'
 
 test("captureSurfaceView: cameraWorld is the world pose under a rig, not the host camera's local pose", async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device)
   try {
     await backend.prepare()

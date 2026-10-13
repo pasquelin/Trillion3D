@@ -8,6 +8,7 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { GOLDEN_U32 } from '../../../../math/src/constants.ts'
 import { hashUnit, mixWord as mixWordWgsl } from '../../../../math/src/wgsl/sampling.ts'
 import { mixWord } from '../../../../math/src/scalar/integers.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The reference, in big integers: the definition of the hash without a wrapped product. */
 const mixBig = (x: number) => {
@@ -21,8 +22,8 @@ const mixBig = (x: number) => {
 
 test('the processor twin of mixWord is the definition, on the edges and on a spread of words', () => {
   const words = [0, 1, 2, 0x7fffffff, 0x80000000, 0xffffffff, GOLDEN_U32]
-  for (let i = 0, x = 12345; i < 4096; i++, x = (Math.imul(x, 1664525) + 1013904223) >>> 0)
-    words.push(x)
+  const draw = lcgRandom(12345)
+  for (let i = 0; i < 4096; i++) words.push(draw() * 2 ** 32)
   for (const x of words) assert.equal(mixWord(x), mixBig(x), `word ${x}`)
 })
 
@@ -41,8 +42,11 @@ test('the shipped WGSL mixWord evaluates to the twin', () => {
               : NaN,
     },
   )
-  for (let i = 0, x = 7; i < 512; i++, x = (Math.imul(x, 1664525) + 1013904223) >>> 0)
+  const draw = lcgRandom(7)
+  for (let i = 0; i < 512; i++) {
+    const x = draw() * 2 ** 32
     assert.equal(run(x), mixWord(x), `word ${x}`)
+  }
 })
 
 /** The shipped `hashUnit`, in integers. */

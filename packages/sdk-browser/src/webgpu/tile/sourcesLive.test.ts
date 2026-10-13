@@ -12,12 +12,12 @@ import { importHostTexture } from '../../host/textureImport.ts'
 import { GraphTexture } from '../../host/graph/graph.fixture.ts'
 import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 test('a live texture keeps its turn ring between pictures, given back once idle', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   installGpuGlobals()
-  const { device, buffers } = mockGpu()
+  const { device, buffers, destroyed } = fakeDevice(BACKEND)
   const host = new GraphTexture({ data: new Uint8Array(16), width: 2, height: 2 })
   host.flipY = true
   const encoding = poolEncoding(undefined)
@@ -35,22 +35,20 @@ test('a live texture keeps its turn ring between pictures, given back once idle'
   })
   const slot = atlas.textures.length - 1
   for (let picture = 0; picture < 3; picture++) assert.equal(sources.refresh(atlas, slot), true)
-  const turns = (buffers as unknown as { label?: string; destroyed: boolean }[]).filter(
-    ({ label }) => label?.startsWith('Trillion3D texel turn'),
-  )
+  const turns = buffers.filter(({ label }) => label?.startsWith('Trillion3D texel turn'))
   assert.equal(turns.length, 2, 'the ring and its words made once, kept for every picture')
   assert.ok(
-    turns.every(({ destroyed }) => !destroyed),
+    turns.every((buffer) => !destroyed.includes(buffer)),
     'held between pictures',
   )
   t.mock.timers.tick(READBACK_IDLE_MS)
   assert.ok(
-    turns.every(({ destroyed }) => !destroyed),
+    turns.every((buffer) => !destroyed.includes(buffer)),
     'given back to the spares once no picture came',
   )
   t.mock.timers.tick(READBACK_IDLE_MS)
   assert.ok(
-    turns.every(({ destroyed }) => destroyed),
+    turns.every((buffer) => destroyed.includes(buffer)),
     'destroyed once idle in the spares',
   )
   sources.destroy()

@@ -10,7 +10,7 @@ import { packDagSelection } from '../../../gpu/dag/selection.ts'
 import { createSceneLightStore } from '../../../../../sdk-core/src/index.ts'
 import { SUN } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, disposeQuadRun, quadBackend, quadScene } from '../testScenes.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'
 import { graphDraws } from '../../../page/selection/drawSource.ts'
@@ -24,7 +24,7 @@ test('a drain waits for the shadow pool the device still answers for, then draws
     scene.metadata,
     scene.indices,
   )
-  const gpu = mockGpu({ packed: packDagSelection(roots) })
+  const gpu = fakeDevice({ ...BACKEND, packed: packDagSelection(roots) })
   scene.geometry.dispose()
   scene.material.dispose()
   // A real device answers an error scope after a round trip, never within the same task.

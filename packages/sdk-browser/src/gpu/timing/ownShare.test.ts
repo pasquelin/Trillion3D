@@ -2,7 +2,7 @@
 // overlap once, on the pass the queue ran first, so the shares add up to the image.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fixture } from '../../../../../tests/kit/gpu/timingDevice.ts'
+import { timedDevice } from './imageTimer.fixture.ts'
 import { summarizeTimestamps } from './sample.ts'
 import { createGpuTiming } from './timing.ts'
 
@@ -30,7 +30,7 @@ test('overlapping passes keep their spans and get each its own share of the imag
 // before a compute pass (the light tiles) it waits on. The compute pass keeps its own share, and
 // the composition only what it adds after it.
 test('a compute pass keeps its share from a render pass submitted after it that began earlier', async () => {
-  const f = fixture(),
+  const f = timedDevice(),
     samples: any[] = []
   const timer = createGpuTiming(f.device, { onSample: (sample) => void samples.push(sample) })
   const encoder = timer.createEncoder(1)

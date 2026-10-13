@@ -5,10 +5,10 @@ import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 
 /**
  * The octahedral mapping and the three-frame blend, object space, pivot at the bounding-sphere
- * centre, +Y up: the WGSL mirror of the compiler's `octahedron.rs`, whose CPU twin
- * (`sdk-core/src/impostor/octahedron.fixture.ts`) is the oracle (`impostorWgsl.test.ts`). `hemi` is 1 for
- * the upper hemi-octahedron; the map is the library's (`octEncodeHemi`, `octDecodeHemi`). Every function here is a declaration or a single return, so the
- * software shader harness reads the shipped text and not a copy of its formula.
+ * centre, +Y up: the WGSL of the compiler's `octahedron.rs`, held to its places and folds by
+ * `impostorWgsl.test.ts`. `hemi` is 1 for the upper hemi-octahedron; the map is the library's
+ * (`octEncodeHemi`, `octDecodeHemi`). Every function here is a declaration or a single return, so
+ * the software shader harness reads the shipped text and not a copy of its formula.
  */
 const IMPOSTOR_MATH_WGSL = wgslBlock(
   'IMPOSTOR_MATH_WGSL',

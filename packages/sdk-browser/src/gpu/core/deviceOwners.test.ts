@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { claimGpuDevice } from './deviceOwners.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { deviceOwner as owner } from '../../../../../tests/kit/gpu/fakeWebgpuDevice.ts'
 
 // As the implementation writes it: the object at fault by its type and its label, in quotes.
@@ -10,7 +10,7 @@ const destroyed = (label: string) =>
 
 test("an error of a closed session's object is a warning, never the next one's loss", (t) => {
   const warned = t.mock.method(console, 'warn', () => {})
-  const gpu = mockGpu(),
+  const gpu = fakeDevice(BACKEND),
     { device } = gpu
   const first = owner(),
     second = owner()
@@ -40,7 +40,7 @@ test("an error of a closed session's object is a warning, never the next one's l
 
 test('with no session live, the last error of a closed one waits for the next claim', (t) => {
   t.mock.method(console, 'warn', () => {})
-  const gpu = mockGpu(),
+  const gpu = fakeDevice(BACKEND),
     { device } = gpu
   const closing = claimGpuDevice(device, owner())
   closing.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE, label: 'readback' })
@@ -59,7 +59,7 @@ test('with no session live, the last error of a closed one waits for the next cl
 
 test("running out of memory is the live sessions' loss, unless it names a closed one's object", (t) => {
   t.mock.method(console, 'warn', () => {})
-  const gpu = mockGpu(),
+  const gpu = fakeDevice(BACKEND),
     { device } = gpu
   // WebGPU's class, by its name: Node has none.
   class GPUOutOfMemoryError {
@@ -82,13 +82,13 @@ test("running out of memory is the live sessions' loss, unless it names a closed
 })
 
 test('a claim on a device already lost is lost at once; a released one hears no loss', async () => {
-  const gpu = mockGpu(),
+  const gpu = fakeDevice(BACKEND),
     { device } = gpu
   const closed = owner(),
     live = owner()
   claimGpuDevice(device, closed).release()
   claimGpuDevice(device, live)
-  gpu.lose('destroyed')
+  gpu.lose({ reason: 'destroyed', message: 'destroyed' })
   await Promise.resolve()
   assert.deepEqual([closed.losses, live.losses], [[], ['destroyed']])
   const late = owner()

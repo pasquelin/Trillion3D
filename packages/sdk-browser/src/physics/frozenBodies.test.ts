@@ -6,9 +6,9 @@ import {
   LAYER,
   POSE_WORDS,
 } from '../../../sdk-core/src/physics/index.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { startModule, type Module } from './module.fixture.ts'
 import { body } from './records.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 /** Half size of the test boxes, and the radius of their bounds (`report.cpp` place). */
 const HALF = 0.5
@@ -75,7 +75,7 @@ test('a body frozen beyond the range is not measured again before the eye could 
 })
 
 test('frozen bodies thaw on the step the eye comes in range, on a random walk, range changes and non-finite eyes', async () => {
-  const next = random(976)
+  const next = lcgRandom(976)
   const centres = Array.from({ length: 400 }, () => [
     (next() - 0.5) * 300,
     (next() - 0.5) * 20,

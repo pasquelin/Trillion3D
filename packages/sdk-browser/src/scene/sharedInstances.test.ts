@@ -28,7 +28,7 @@ function blendGeometry(withUv: boolean) {
 // of the same geometry share them, each is written only once and counted only once in
 // `vertexBytes`.
 test('two placements of the same transparent geometry share indices, UVs and normals', () => {
-  const { device, buffers: created, textures, writes, texelWrites, destroyed } = fakeDevice()
+  const { device, buffers: created, textures, writes, textureWrites, destroyed } = fakeDevice()
   const gpu = createWebgpuGpuState([1, 1])
   const shared = blendGeometry(true),
     other = blendGeometry(true)
@@ -51,7 +51,7 @@ test('two placements of the same transparent geometry share indices, UVs and nor
   for (const entry of created)
     assert.equal(writes.filter((write) => write.buffer === (entry as object)).length, 1)
   assert.equal(
-    texelWrites.filter((write) => (write.destination.texture as object) === textures[0]).length,
+    textureWrites.filter((write) => (write.destination.texture as object) === textures[0]).length,
     1,
   )
   const bytesOnce = gpu.vertexBytes

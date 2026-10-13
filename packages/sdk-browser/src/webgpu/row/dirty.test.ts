@@ -4,11 +4,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDirtyRows } from './dirty.ts'
 import { runsOf } from './dirty.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 test('rows marked in any order, twice or by ranges, are their maximal runs, once', () => {
   for (let seed = 1; seed <= 30; seed++) {
-    const next = random(seed),
+    const next = lcgRandom(seed),
       rows = 200
     const dirty = createDirtyRows(rows)
     const model = new Set<number>()

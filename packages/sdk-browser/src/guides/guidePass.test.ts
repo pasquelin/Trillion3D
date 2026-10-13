@@ -22,22 +22,10 @@ import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/compi
 // The guides' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
 await families.guides.load()
 
-/** The kit's recording device, and an encoder whose render passes record what they are asked. */
+/** The kit's device, and an encoder of its own. */
 function recorder() {
-  const gpu = fakeDevice(),
-    passes: GPURenderPassDescriptor[] = [],
-    draws: number[][] = []
-  const pass = {
-    setPipeline() {},
-    setBindGroup() {},
-    setVertexBuffer() {},
-    draw: (...args: number[]) => void draws.push(args),
-    end() {},
-  }
-  const encoder = {
-    beginRenderPass: (descriptor: GPURenderPassDescriptor) => (passes.push(descriptor), pass),
-  } as unknown as GPUCommandEncoder
-  return { ...gpu, encoder, passes, draws }
+  const gpu = fakeDevice()
+  return { ...gpu, encoder: gpu.device.createCommandEncoder() }
 }
 
 const unjittered = Float64Array.from({ length: 16 }, (_, i) => (i % 5 === 0 ? 1 : 0)),
@@ -47,25 +35,27 @@ const color = { color: true } as unknown as GPUTextureView,
   hdr = { hdr: true } as unknown as GPUTextureView
 
 test('a world that shows no guide makes no pass, and a pass encodes nothing without one', async () => {
-  const { device, encoder, renderPipelines, buffers, writes, passes } = recorder()
+  const { device, encoder, renderPipelines, buffers, writes, passDescriptors } = recorder()
   const guides = createGuideSet()
   const rt = { context: { guides }, gpu: {} } as never as Parameters<typeof askGuidePass>[0]
   askGuidePass(rt, device)
   guides.lines({ positions: [0, 0, 0, 1, 0, 0] }).setVisible(false)
   askGuidePass(rt, device)
   assert.equal(rt.gpu.guides, undefined, 'none shown: no pass, no pipeline')
-  for (const made of [renderPipelines, buffers, writes, passes]) assert.equal(made.length, 0)
+  for (const made of [renderPipelines, buffers, writes, passDescriptors])
+    assert.equal(made.length, 0)
   const pass = createWebgpuGuidePass(device)
   await pipelinesSettled(device)
   assert.equal(
     pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0]),
     false,
   )
-  for (const made of [buffers, writes, passes]) assert.equal(made.length, 0)
+  for (const made of [buffers, writes, passDescriptors]) assert.equal(made.length, 0)
 })
 
 test('guides draw over the display target, depth read and never written', async () => {
-  const { device, encoder, renderPipelines, buffers, bindGroups, passes, draws } = recorder()
+  const { device, encoder, renderPipelines, buffers, bindGroups, passDescriptors, draws } =
+    recorder()
   const guides = createGuideSet(),
     pass = createWebgpuGuidePass(device)
   assert.equal(pipelinesCompiling(device), true, 'its pipeline compiles off the frame from now')
@@ -78,14 +68,14 @@ test('guides draw over the display target, depth read and never written', async 
   const [pipeline] = renderPipelines
   assert.equal(pipeline.depthStencil, undefined, 'no depth attachment: nothing can write it')
   assert.equal([...pipeline.fragment!.targets][0]?.format, 'rgba8unorm', 'the display target')
-  const [descriptor] = passes
+  const [descriptor] = passDescriptors as GPURenderPassDescriptor[]
   const [attachment] = [...descriptor.colorAttachments]
   assert.equal(attachment?.view, color)
   assert.equal(attachment?.loadOp, 'load', 'over the composed image')
   assert.equal(descriptor.depthStencilAttachment, undefined)
   const [group] = bindGroups
   assert.equal([...group.entries][1]?.resource, depth, 'the scene depth, read in the shader')
-  assert.deepEqual(draws[0], [6, 2], 'one quad per segment')
+  assert.deepEqual([draws[0].vertexCount, draws[0].instanceCount], [6, 2], 'one quad per segment')
   pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0])
   assert.equal(renderPipelines.length, 1, 'built once')
   assert.equal(buffers.length, 2, 'uniform and instances, uploaded once')
@@ -97,7 +87,7 @@ test('guides draw over the display target, depth read and never written', async 
 })
 
 test('the pass draws with the camera, not the jittered matrix of temporal accumulation', async () => {
-  const { device, encoder, writes, passes } = recorder()
+  const { device, encoder, writes, passDescriptors } = recorder()
   const guides = createGuideSet()
   const rt = {
     context: { guides },
@@ -136,7 +126,7 @@ test('the pass draws with the camera, not the jittered matrix of temporal accumu
     [...expected],
     "with the jitter of the depth, at the host's pixel ratio",
   )
-  const [descriptor] = passes
+  const [descriptor] = passDescriptors as GPURenderPassDescriptor[]
   assert.notEqual([...descriptor.colorAttachments][0]?.view, hdr, 'never the image history reads')
   assert.equal(rt.run.gpuDrawCalls, 1)
 })

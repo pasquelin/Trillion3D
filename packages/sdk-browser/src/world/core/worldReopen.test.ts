@@ -25,14 +25,17 @@ function watchedCanvas() {
     getCurrentTexture: () => ({ createView: () => view }),
   }
   const canvas = { width: 1, height: 1, getContext: () => context } as never as HTMLCanvasElement
-  /** An encoder whose pass into the canvas shows `label`. */
-  const encoder = (label: string) =>
-    ({
-      beginRenderPass(pass: GPURenderPassDescriptor) {
-        if ([...pass.colorAttachments][0]?.view === view) seen.shown = label
-        return { setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }
-      },
-    }) as unknown as GPUCommandEncoder
+  /** One of the kit's encoders, whose pass into the canvas shows `label`. */
+  const { device } = fakeDevice()
+  const encoder = (label: string) => {
+    const made = device.createCommandEncoder(),
+      begin = made.beginRenderPass.bind(made)
+    made.beginRenderPass = (pass: GPURenderPassDescriptor) => {
+      if ([...pass.colorAttachments][0]?.view === view) seen.shown = label
+      return begin(pass)
+    }
+    return made
+  }
   return { canvas, seen, encoder }
 }
 

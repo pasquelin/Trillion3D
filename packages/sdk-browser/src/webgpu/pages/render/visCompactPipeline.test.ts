@@ -5,7 +5,11 @@ import { webgpuPagesEngine } from '../pages.ts'
 import { collectClusterPages } from '../../../page/selection/selection.ts'
 import { packDagSelection } from '../../../gpu/dag/selection.ts'
 import { indirectDraws, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import {
+  BACKEND,
+  dispatchedEntries,
+  fakeDevice,
+} from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import type { RasterView } from '../runtime.ts'
 import { assertOccluderImage, occluderScene, preparedOccluderRun } from '../testOccluder.fixture.ts'
@@ -28,7 +32,8 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   }
   const viewport: [number, number] = [32, 32]
   const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
-  const { device, passes, computes, textures, draws } = mockGpu({
+  const { device, passes, dispatches, textures, draws } = fakeDevice({
+    ...BACKEND,
     packed: packDagSelection(collected.roots),
   })
   const run = await preparedOccluderRun(scene, metadata, collected.roots, device, viewport)
@@ -41,7 +46,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   backend.render(cam)
   await backend.flush()
   draws.length = 0
-  computes.length = 0
+  dispatches.length = 0
   backend.render(cam)
   // Occluders clear the target, the tested half reloads it; pyramid build then test, in
   // that order, between the two.
@@ -51,11 +56,11 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
       pass.label === 'Trillion3D visibility secondary',
   )
   assert.ok(visPasses.length >= 2)
-  assert.equal(visPasses[visPasses.length - 2]?.colorLoad, 'clear')
-  assert.equal(visPasses[visPasses.length - 2]?.depthLoad, 'clear')
-  assert.equal(visPasses[visPasses.length - 1]?.colorLoad, 'load')
-  assert.equal(visPasses[visPasses.length - 1]?.depthLoad, 'load')
-  const at = (entry: string) => computes.indexOf(entry)
+  assert.equal(visPasses[visPasses.length - 2]?.colors[0]?.loadOp, 'clear')
+  assert.equal(visPasses[visPasses.length - 2]?.depth?.depthLoadOp, 'clear')
+  assert.equal(visPasses[visPasses.length - 1]?.colors[0]?.loadOp, 'load')
+  assert.equal(visPasses[visPasses.length - 1]?.depth?.depthLoadOp, 'load')
+  const at = (entry: string) => dispatchedEntries(dispatches).indexOf(entry)
   assert.ok(at('buildHiz') >= 0)
   assert.ok(at('testHiz') > at('buildHiz'))
   assert.deepEqual(backend.selectedPageIds().sort(), cpu.shown.map((page) => page.url).sort())
@@ -70,7 +75,11 @@ test('a device that refuses the draw compaction refuses the scene by name', asyn
   installGpuGlobals()
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
-  const { device } = mockGpu({ packed: packDagSelection(collected.roots), failCompact: true })
+  const { device } = fakeDevice({
+    ...BACKEND,
+    packed: packDagSelection(collected.roots),
+    failCompact: true,
+  })
   const backend = webgpuPagesEngine({
     source,
     metadata,
@@ -89,15 +98,15 @@ test('a device that refuses the draw compaction refuses the scene by name', asyn
 
 test('normal GPU rendering never copies the image to CPU staging buffers', async () => {
   installGpuGlobals()
-  const { device, imageCopies } = mockGpu()
+  const { device, textureBufferCopies } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device)
   try {
     await backend.prepare()
     backend.render(camera())
     await backend.flush()
-    imageCopies.length = 0
+    textureBufferCopies.length = 0
     for (let i = 0; i < 3; i++) backend.render(camera())
-    assert.equal(imageCopies.length, 0, 'beauty must not enqueue image readback')
+    assert.equal(textureBufferCopies.length, 0, 'beauty must not enqueue image readback')
   } finally {
     backend.dispose()
     fixture.geometry.dispose()

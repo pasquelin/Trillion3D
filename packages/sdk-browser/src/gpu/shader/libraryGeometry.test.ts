@@ -4,7 +4,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { lcg } from '../hiz/buildTranscripts.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
   boxBehindPlane,
@@ -19,6 +18,7 @@ import {
 } from '../../../../math/src/wgsl/geometry.ts'
 import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'
 import { slabCut } from '../../../../math/src/geometry/slab.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type V = number[]
 const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
@@ -58,7 +58,7 @@ const run = shaderRun<Record<string, (...args: never[]) => never>>(
 ) as unknown as Record<string, (...args: unknown[]) => unknown>
 
 test('the face normal is across both edges, twice the area long', () => {
-  const g = lcg(7)
+  const g = lcgRandom(7)
   for (let i = 0; i < 50; i++) {
     const [p0, p1, p2] = [take(g, 3), take(g, 3), take(g, 3)]
     const n = run.faceNormal(p0, p1, p2) as V
@@ -70,7 +70,7 @@ test('the face normal is across both edges, twice the area long', () => {
 })
 
 test('the rejection is across the normal and leaves v along it', () => {
-  const g = lcg(11)
+  const g = lcgRandom(11)
   for (let i = 0; i < 50; i++) {
     const v = take(g, 3),
       raw = take(g, 3),
@@ -91,7 +91,7 @@ test('the sine from the cosine is the sine of its angle; the floored one is 0 pa
 })
 
 test('a box behind a plane is what the frustum test culls; a sphere, by its centre and radius', () => {
-  const g = lcg(3)
+  const g = lcgRandom(3)
   // Five planes that keep everything: the verdict is the first plane's.
   const keepAll = [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]
   let culled = 0
@@ -122,7 +122,7 @@ test('a box behind a plane is what the frustum test culls; a sphere, by its cent
 })
 
 test('the slab entry is where the slab cut starts, from 0 on, or past the limit on a miss', () => {
-  const g = lcg(5)
+  const g = lcgRandom(5)
   let hits = 0
   for (let i = 0; i < 400; i++) {
     const low = take(g, 3),
@@ -147,7 +147,7 @@ test('the slab entry is where the slab cut starts, from 0 on, or past the limit 
 })
 
 test('the ray meets the triangle where the ray meets its plane inside its corners', () => {
-  const g = lcg(9)
+  const g = lcgRandom(9)
   let hits = 0
   for (let i = 0; i < 400; i++) {
     const [a, b, c] = [take(g, 3), take(g, 3), take(g, 3)]

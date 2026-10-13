@@ -7,16 +7,16 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { PARTITION_SHADER } from './shader.ts'
 import { partitionClearThreads } from './clearWgsl.ts'
 import { PARTITION_WORKGROUP, STATE_WORDS } from './contract.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { dispatchGrid } from '../dispatch/grid.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Ref = { get: () => number[] }
 
 /** `clearRows` over the groups the partition dispatches for `rows` rows, on buffers holding junk,
  *  in rows of `width` groups (`dispatchGrid`): a narrow width stands for a count past 65,535. */
 function cleared(rows: number, restWords: number, slotWords: number, width?: number) {
-  const r = random(rows),
+  const r = lcgRandom(rows),
     junk = (n: number) => Array.from({ length: n }, () => Math.floor(r() * 2 ** 32))
   const m = { state: junk(STATE_WORDS), restBits: junk(restWords), slotUsed: junk(slotWords) }
   const { clearRows } = shaderRun<{ clearRows: (id: number[], n: number[]) => void }>(

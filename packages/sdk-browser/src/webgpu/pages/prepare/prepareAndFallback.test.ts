@@ -2,14 +2,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from '../pages.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { assertBothQuadPagesDrawn, camera, quadBackend, quadScene } from '../testScenes.fixture.ts'
 import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 /** The quad prepared with no resident bytes, its first frame rendered. */
 async function firstFrameWithoutBytes() {
   installGpuGlobals()
-  const { device, draws } = mockGpu()
+  const { device, draws } = fakeDevice(BACKEND)
   const { source, metadata, associations, geometry, material } = quadScene()
   const backend = webgpuPagesEngine({
     source,
@@ -89,7 +89,7 @@ test('webgpu pages without a device fail prepare so the explorer can keep the ho
 
 test('the visibility-buffer path also clears with the host scene background', async () => {
   installGpuGlobals()
-  const { device, passes } = mockGpu()
+  const { device, passes } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device, {
     clearColor: 0x2d4059,
   })
@@ -98,8 +98,8 @@ test('the visibility-buffer path also clears with the host scene background', as
   await backend.flush()
   backend.render(camera())
   const clears = passes
-    .filter((pass) => pass.colorLoad === 'clear' && pass.formats[0] === 'rgba8unorm')
-    .map((pass) => pass.colorClear)
+    .filter((pass) => pass.colors[0]?.loadOp === 'clear' && pass.formats[0] === 'rgba8unorm')
+    .map((pass) => pass.colors[0]?.clearValue)
   assert.ok(clears.length > 0)
   assert.ok(
     clears.some(

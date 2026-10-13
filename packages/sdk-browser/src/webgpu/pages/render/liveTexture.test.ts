@@ -10,7 +10,7 @@ import { mappedQuadRun } from './mappedQuad.fixture.ts'
 import { hostTextureWritten } from '../../../host/textureImport.ts'
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../../residency/pools.ts'
 
-type Labelled = { label?: string; destroyed?: boolean }
+type Labelled = { label?: string }
 
 /** Records every texture write and texture-to-texture copy by the labels of the textures. */
 function spy(device: GPUDevice) {
@@ -67,7 +67,7 @@ test('a map redrawn for 120 frames is copied in place, one working texture kept'
     }
     const live = scratches().slice(made)
     assert.equal(live.length, 1, 'one working texture for 120 frames')
-    assert.equal(live[0].destroyed, false, 'kept while the session lives')
+    assert.equal(gpu.destroyed.includes(live[0]), false, 'kept while the session lives')
     const metrics = backend.metrics() as { textureLiveBytes?: number }
     assert.equal(metrics.textureLiveBytes, 4, 'its bytes declared: one RGBA8 texel')
     // Those bytes are texture memory: the pool is drawn from what the budget leaves them, as soon
@@ -106,7 +106,9 @@ test('a picture alone leaves the row table as it is; a value written rewrites it
       const [buffers, textures] = [gpu.writes.length, writes.length]
       assert.equal(backend.refreshMaterials?.(values), true)
       backend.render(cam)
-      const table = gpu.writes.slice(buffers).some((w) => w.label === 'Trillion3D page table')
+      const table = gpu.writes
+        .slice(buffers)
+        .some((w) => w.buffer.label === 'Trillion3D page table')
       return { table, picture: writes.slice(textures).some((w) => w.first === pixels[0]) }
     }
     for (let each = 0; each < 30; each++)

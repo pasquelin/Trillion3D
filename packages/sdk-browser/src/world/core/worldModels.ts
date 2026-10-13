@@ -4,7 +4,7 @@ import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tr
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
 import type { HostMesh } from '../../host/resources.ts'
-import { objects } from '../../page/selection/helpers.ts'
+import { meshes } from '../../scene/meshes.ts'
 import { drawSourceOf, type DrawRanks, type DrawSource } from '../../page/selection/drawSource.ts'
 import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts'
 import type { Primitive } from '../../../../sdk-core/src/index.ts'
@@ -141,7 +141,7 @@ export function createWorldModels(ranks: WorldRanks) {
       })
       const all: DrawSource[] = [],
         rowed: ModelDraws['rowed'][number][] = []
-      for (const mesh of objects(scene.source)) {
+      for (const mesh of meshes(scene.source)) {
         const link = links.get(mesh)
         if (!link) all.push(drawSourceOf(mesh))
         else if (link.placements) all.push(drawSourceOf(mesh, moved(link, offset)))
