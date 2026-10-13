@@ -99,6 +99,18 @@ test('the upper hemi-octahedron folds a direction below the horizon onto it', ()
     near(encode([x, -4, z], true), encode([x, 0, z], true), `${x}, ${z}`, 0)
 })
 
+// Straight down on the hemi-octahedron and no direction at all have no part on the map's
+// octahedron: they read the zenith frame, as the compiler's `octahedral_encode` defines, never NaN.
+test('a direction with no part on the octahedron reads the zenith frame', () => {
+  for (const [direction, hemi] of [
+    [[0, -1, 0], true],
+    [[0, -(2 ** 1000), 0], true],
+    [[0, 0, 0], true],
+    [[0, 0, 0], false],
+  ] as const)
+    near(encode([...direction], hemi), [0, 0], `${direction} hemi ${hemi}`, 0)
+})
+
 test('atlas encode/decode round trips preserve directions across both folds and quadrants', () => {
   for (const hemi of [false, true])
     for (const x of [-3, -1, 0, 2, 5])
