@@ -26,7 +26,7 @@ export type TreeLeaves = {
   encode(
     encoder: GPUCommandEncoder,
     tables: { members: GPUBuffer; nodeParts: DagParts; frames: TreeFrames },
-    named: { ranks: Int32Array; count: number; whole: boolean },
+    named: { ranks: Int32Array<ArrayBuffer>; count: number; whole: boolean },
   ): void
 }
 

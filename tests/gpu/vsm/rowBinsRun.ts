@@ -115,7 +115,7 @@ export async function runRowBins() {
   const STORAGE = GPUBufferUsage.STORAGE
   const mobility = Uint32Array.from(rows.moving, (m) => (m ? MOBILITY_MOVING : 0))
   const bins = gpu.buffer(bytes, STORAGE | GPUBufferUsage.COPY_SRC)
-  const inputs = [rows.packed, mobility, params.slice(), rowBinTables()].map((data) =>
+  const inputs = [rows.packed.slice(), mobility, params.slice(), rowBinTables()].map((data) =>
     bufferHolding(device, data, STORAGE, 16),
   )
   const group = groupZero(

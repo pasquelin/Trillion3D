@@ -154,7 +154,8 @@ export function encodeCastInvalidation(
       ),
       args = vsmEnsureBuffer(state, label, 'args', 16, indirect, 16),
       groups = castGroups(state, casts.buffer, mapBuffer, args)
-    device.queue.writeBuffer(mapBuffer, 0, maps)
+    // `vsmCastMaps`'s words, a view of its own buffer.
+    device.queue.writeBuffer(mapBuffer, 0, maps as Uint32Array<ArrayBuffer>)
     paramsImage[0] = maps.length
     device.queue.writeBuffer(state.params, 0, paramsImage)
     const { stale, args: sizing } = state.pipes

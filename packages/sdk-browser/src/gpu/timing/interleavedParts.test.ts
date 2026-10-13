@@ -17,7 +17,7 @@ test('a part encoded and submitted while another is open is timed beside it, in 
   roots.finish()
   image.beginComputePass({ label: 'cut' }).end()
   image.finish()
-  const starts = f.passDescriptors.map((d) => d.timestampWrites!.beginningOfPassWriteIndex)
+  const starts = f.passDescriptors.map((d) => d!.timestampWrites!.beginningOfPassWriteIndex)
   assert.deepEqual(starts, [0, PART_ALIGN, 2 * PART_ALIGN])
   assert.deepEqual(
     f.resolves.map(({ first, count }) => `${first}+${count}`),

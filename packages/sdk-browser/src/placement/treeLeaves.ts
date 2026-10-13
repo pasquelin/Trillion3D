@@ -99,7 +99,12 @@ const entries = (
   ])
 
 /** The named placements, sent; a list made again when they outgrow it. */
-function sendList(device: GPUDevice, gpu: TreeLeavesGpu, ranks: Int32Array, count: number) {
+function sendList(
+  device: GPUDevice,
+  gpu: TreeLeavesGpu,
+  ranks: Int32Array<ArrayBuffer>,
+  count: number,
+) {
   if (!gpu.list || gpu.list.size < count * 4) {
     gpu.list?.destroy()
     gpu.list = device.createBuffer({

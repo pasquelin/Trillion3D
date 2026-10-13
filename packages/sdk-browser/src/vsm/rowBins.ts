@@ -68,7 +68,7 @@ function mapPages(j: number, k: number) {
 
 /** The first s bin past `limit(k)` for each e bin k: the s bins of e bin k at or past it are those
  *  whose least s exceeds the limit. */
-function firstPast(limit: (e: number) => number, out = new Uint32Array(E_BINS)) {
+function firstPast(limit: (e: number) => number, out: Uint32Array = new Uint32Array(E_BINS)) {
   for (let k = 0; k < E_BINS; k++) {
     let j = 0
     while (j < S_BINS && !(sLeast[j] > limit(eMost[k]))) j++

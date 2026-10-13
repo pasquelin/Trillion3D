@@ -88,7 +88,7 @@ const entries = (
   ])
 
 /** The moved roots `ranks`, sent; a list made again when they outgrow it. */
-function sendList(device: GPUDevice, gpu: RootBoxesGpu, ranks: Int32Array) {
+function sendList(device: GPUDevice, gpu: RootBoxesGpu, ranks: Int32Array<ArrayBuffer>) {
   if (!gpu.list || gpu.list.size < ranks.byteLength) {
     gpu.list?.destroy()
     gpu.list = device.createBuffer({

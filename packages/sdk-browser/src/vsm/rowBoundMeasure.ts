@@ -33,7 +33,7 @@ const NUMBERS = 11
  *  sun's two populations, and the chunk it answers with, valid until the bound's next answer. */
 export function createScratch() {
   const sc = {
-    key: new Float64Array(0),
+    key: new Float64Array(0) as Float64Array,
     levels: [] as Float64Array[],
     suns: [] as [Heaviest, Heaviest][],
     joint: [new Ascending(PAIR_EDGES, 1), new Ascending(MEET_EDGES, VSM_MIPS)] as const,
