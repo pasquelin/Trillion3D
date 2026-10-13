@@ -88,11 +88,11 @@ function growWebgpuPlacements(rt: WebgpuPagesRuntime, from: PlacementRows, to: P
   // The session's roots read `to` now: their row views are taken again.
   forgetRowRoots(selectionRoots)
   if (rt.compose) rebindReaders(rt.compose.readers, from, to)
-  rebindComposedWorlds(rt)
   // The blended copies and the items of `from` read `to` too; a copy per new row joins the pass
   // with the paged copies of the roots just added, the tables keyed by a view following it.
   const copies = growRowCopies(setup.blendCopies, from, to, rebound)
   growRowItems(blendState.blendGpu, from, to, rebound)
+  rebindComposedWorlds(rt)
   copies.push(...pagedBlendCopiesOf(growth.roots.slice(rooted), setup.pagedBlendCopies))
   rekeyPagedCopies(setup.pagedBlendCopies, rebound)
   rebindDeformedWorlds(rt, rebound)

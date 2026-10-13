@@ -64,7 +64,7 @@ export function createEntryCorners() {
     group: heldGroup(),
   }
 }
-export type EntryCorners = ReturnType<typeof createEntryCorners>
+type EntryCorners = ReturnType<typeof createEntryCorners>
 
 /** The transparent table's occlusion test and what its corners were derived at, as the blend state
  *  holds them (`../blend/state.ts`). */

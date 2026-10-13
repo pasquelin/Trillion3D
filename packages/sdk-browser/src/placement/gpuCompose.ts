@@ -37,16 +37,40 @@
  */
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { PlacementRows } from './rows.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 import { rootRankOfRow } from './update.ts'
 import { NONE } from './gpuComposeWgsl.ts'
 import { declareSlotMove, holdSlotBox, remakeSlotBox } from './composeBoxes.ts'
-import { adoptReaders, holdReaders, writeReaders } from './composeReaders.ts'
+import {
+  adoptReaders,
+  holdReaders,
+  readThroughViews,
+  releaseReaderViews,
+  type ReaderViews,
+} from './composeReaders.ts'
 import { composeState, linkedRanks, linkRanks, takeSlot, unlinkHeld } from './gpuComposeLinks.ts'
 import { settleSlot } from './gpuComposeSlot.ts'
 import { installComposedWorld } from './gpuComposeWorld.ts'
 
 /** A row linked to a parent: its rows, its rank there, its mesh's local matrix. */
 export type PlacementLink = { rows: PlacementRows; index: number; local: ArrayLike<number> }
+
+const NO_VIEWS: readonly MatrixElements[] = []
+
+/** The views the blended items read rows through (`matrix`), indexed once: what a reader's row is
+ *  read through (`composeReaders.ts`). Made only when the readers change, never at a move. */
+function readerViews(rt: WebgpuPagesRuntime): ReaderViews {
+  const byRows = new Map<PlacementRows, Map<number, MatrixElements[]>>()
+  for (const { placement, matrix } of rt.blendState.blendGpu) {
+    if (!placement) continue
+    const views =
+      byRows.get(placement.rows) ?? byRows.set(placement.rows, new Map()).get(placement.rows)!
+    const held = views.get(placement.index)
+    if (held) held.push(matrix)
+    else views.set(placement.index, [matrix])
+  }
+  return (rows, index) => byRows.get(rows)?.get(index) ?? NO_VIEWS
+}
 
 /**
  * Takes `world` as `parent`'s world and links `links` to it. `whole`: they are every row that
@@ -69,6 +93,8 @@ export function composeWebgpuPlacements(
   if (p === undefined && !links.length) return
   const { ranks, rooted, readers } = linkedRanks(rt, links)
   const slot = takeSlot(state, parent, p, world)
+  let views: ReaderViews | undefined
+  const viewsOf = () => (views ??= readerViews(rt))
   // The shadow pages the slot's roots cover at the parent's last world: a slot linked now has
   // none of its own, its rows' CPU write in this call declares them (`webgpuPlacements.ts`). The
   // static casters under it stay unless a root it changes is still or its parent's move is a first.
@@ -76,6 +102,7 @@ export function composeWebgpuPlacements(
   holdSlotBox(state, p)
   for (const rank of ranks) movingOnly &&= mobility.moves(rank)
   if (whole) movingOnly = unlinkHeld(rt, state, slot, ranks) && movingOnly
+  if (whole && state.readers.has(slot)) releaseReaderViews(state.readers, slot, viewsOf())
   if (whole) state.readers.delete(slot)
   if (readers.length) holdReaders(state.readers, slot, parent, readers, whole)
   if (!ranks.length && !readers.length && whole) {
@@ -88,23 +115,30 @@ export function composeWebgpuPlacements(
   const relinked = ranks.length > 0 || whole
   if (relinked) remakeSlotBox(state, slot)
   settleSlot(rt, state, { slot, p, world, relinked, movingOnly })
-  writeReaders(state.readers, slot, world)
+  // Its readers' views read their rows composed: a move composes none until one is read.
+  if (readers.length || whole) readThroughViews(state.readers, slot, viewsOf(), state)
   // Poses moved and no node entered or left: the frame hears it as any engine pose write.
   rt.run.gate.engineMovedInPlace()
 }
 
-/** The roots of a growth read views on their new rows (`growth.ts`): the composed ones carry the
- *  refreshing `elements` again, their row holding the world they were last read at. */
+/** The roots and the blended items of a growth read views on their new rows (`growth.ts`): the
+ *  composed roots carry the refreshing `elements` again, their row holding the world they were last
+ *  read at, and the items read their rows through the composition as the views they replace did. */
 export function rebindComposedWorlds(rt: WebgpuPagesRuntime) {
   const state = rt.compose
   if (!state) return
   for (let rank = 0; rank < state.roots && rank < rt.layout.selectionRoots.length; rank++)
     if (state.parentOf[rank] !== NONE) installComposedWorld(rt, rank)
   // The rows a root reads now are composed by the roots pass from here on.
-  const roots = rt.layout.selectionRoots
-  for (const { slot, parent, readers } of adoptReaders(state.readers, (rows, index) =>
-    rootRankOfRow(roots, rows, index),
-  ))
+  const roots = rt.layout.selectionRoots,
+    viewsOf = readerViews(rt)
+  for (const slot of state.readers.keys()) readThroughViews(state.readers, slot, viewsOf, state)
+  const adopted = adoptReaders(
+    state.readers,
+    (rows, index) => rootRankOfRow(roots, rows, index),
+    viewsOf,
+  )
+  for (const { slot, parent, readers } of adopted)
     composeWebgpuPlacements(
       rt,
       parent,
