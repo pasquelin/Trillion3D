@@ -5,6 +5,7 @@ import { TREE, bakedMesh } from './bakedMesh.fixture.ts'
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import type { ImpostorSection } from '../contracts/impostor.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 export const FOCAL = 1117
 export const section: ImpostorSection = {

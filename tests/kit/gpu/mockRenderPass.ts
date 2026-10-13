@@ -1,26 +1,58 @@
-import { createUsageScope } from './usageScope.ts'
+import { createUsageScope } from './scopeRules.ts'
 import { replayBundles } from './fakeBundles.ts'
 
+/** One draw a render pass recorded: its pass (its index in `passDescriptors`), the pipeline and the
+ *  groups set when it ran, its counts, and the buffer and byte offset an indirect one reads. */
 export type MockDraw = {
+  pass: number
+  pipeline: Pipeline
+  groups: unknown[]
   vertexCount: number
   instanceCount?: number
+  firstVertex?: number
   firstInstance?: number
   bindOffset?: number
   instanceBuffer?: unknown
   slotOffsetsBuffer?: unknown
   indirect?: boolean
+  buffer?: unknown
+  offset?: number
   entryPoint?: string
   fragment?: string
   /** The blend of the pipeline's first colour target, as it was made. */
   blend?: GPUBlendState
 }
+/** One render pass, as it began — its attachments copied, since a frame rewrites its descriptors
+ *  in place; an empty colour slot is `null` — and every command it took since, in order, with its
+ *  arguments (a bundle's among them, after `executeBundles`; `end` last once it ended). */
 export type MockPass = {
   label?: string
-  colorLoad?: string
-  colorClear?: GPUColor
-  depthLoad?: string
-  colorCount: number
+  colors: Array<GPURenderPassColorAttachment | null>
+  depth?: GPURenderPassDepthStencilAttachment
+  /** Each colour target's view format. */
   formats: string[]
+  commands: PassCommands
+}
+
+/** A pass's commands, each in `commands` with its arguments as it is taken, then run. */
+export type PassCommands = Array<[string, unknown[]]>
+
+/** The arguments of each `name` command among `commands`, in order. */
+export const commandArgs = (commands: PassCommands, name: string) =>
+  commands.filter(([taken]) => taken === name).map(([, args]) => args)
+
+/** `pass` with each of its commands recorded in `commands` as it is taken, then run. */
+export function recordCommands<P extends Record<string, (...args: never[]) => unknown>>(
+  pass: P,
+  commands: PassCommands,
+) {
+  const target = pass as Record<string, (...args: never[]) => unknown>
+  for (const [name, run] of Object.entries(pass))
+    target[name] = (...args: never[]) => {
+      commands.push([name, args])
+      return run(...args)
+    }
+  return pass
 }
 
 /** A pipeline as the device makes it: its descriptor (`fakeDevice.ts`). */
@@ -28,29 +60,39 @@ type Pipeline = Partial<GPURenderPipelineDescriptor>
 type Bound = { entries?: Array<{ binding: number; resource: { offset?: number } }> } | undefined
 
 /**
- * A render pass of `fakeDevice()`, begun with `desc`: the pass is listed in `passes`, each draw in
- * `draws` with the entry points and blend of the pipeline set, an indirect draw read from its
- * buffer's bytes; its usage scope refuses an indirect buffer bound writable, and a bundle's
- * commands run in it, its usage scope included.
+ * A render pass of `fakeDevice()`, begun with `desc` as the last of `passDescriptors`: the pass is
+ * listed in `passes`, each draw in `draws` with the pipeline and groups set, an indirect draw read
+ * from its buffer's bytes; its usage scope refuses an indirect buffer bound writable, and a
+ * bundle's commands run in it, its usage scope included.
  */
 export function renderPass(
   desc: GPURenderPassDescriptor | undefined,
-  { passes, draws }: { passes: MockPass[]; draws: MockDraw[] },
+  {
+    passes,
+    draws,
+    passDescriptors,
+  }: { passes: MockPass[]; draws: MockDraw[]; passDescriptors: unknown[] },
 ) {
+  const at = passDescriptors.length - 1
   // An empty slot is `null`, as WebGPU takes it (the blend pass's share).
-  const colors = [...(desc?.colorAttachments ?? [])]
+  const colors = [...(desc?.colorAttachments ?? [])].map((color) => (color ? { ...color } : null))
+  const depth = desc?.depthStencilAttachment
   const scope = createUsageScope('render')
-  passes.push({
+  const record: MockPass = {
     label: desc?.label,
-    colorLoad: colors[0]?.loadOp,
-    colorClear: colors[0]?.clearValue as GPUColor | undefined,
-    depthLoad: desc?.depthStencilAttachment?.depthLoadOp,
-    colorCount: colors.length,
+    colors,
+    ...(depth && { depth: { ...depth } }),
     formats: colors.map((color) => (color?.view as { format?: string } | undefined)?.format ?? ''),
-  })
+    commands: [],
+  }
+  passes.push(record)
   let pipeline: Pipeline = {},
     bound: Bound
+  const groups: unknown[] = []
   const stage = () => ({
+    pass: at,
+    pipeline,
+    groups: [...groups],
     entryPoint: pipeline.vertex?.entryPoint ?? '',
     fragment: pipeline.fragment?.entryPoint ?? '',
   })
@@ -61,6 +103,7 @@ export function renderPass(
     },
     setBindGroup(i: number, group: unknown, offsets?: readonly number[]) {
       bound = group as Bound
+      groups[i] = group
       scope.setBindGroup(i, group, offsets)
     },
     setViewport() {},
@@ -70,11 +113,12 @@ export function renderPass(
     pushDebugGroup() {},
     popDebugGroup() {},
     insertDebugMarker() {},
-    draw(vertexCount: number, instanceCount = 1, _firstVertex = 0, firstInstance = 0) {
+    draw(vertexCount: number, instanceCount = 1, firstVertex = 0, firstInstance = 0) {
       const made = blend()
       draws.push({
         vertexCount,
         instanceCount,
+        firstVertex,
         firstInstance,
         ...stage(),
         ...(made && { blend: made }),
@@ -95,11 +139,13 @@ export function renderPass(
         instanceBuffer: instances?.resource,
         slotOffsetsBuffer: offsets?.resource,
         indirect: true,
-        entryPoint: stage().entryPoint,
+        buffer,
+        offset,
+        ...stage(),
       })
     },
     executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(pass, bundles),
     end: () => scope.end(),
   }
-  return pass
+  return recordCommands(pass, record.commands)
 }

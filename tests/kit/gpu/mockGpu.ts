@@ -1,11 +1,11 @@
 import { fakeDevice } from './fakeDevice.ts'
-import { BACKEND, type FakeDeviceOptions } from './fakeRecords.ts'
+import { BACKEND, dispatchedEntries, type FakeDeviceOptions } from './fakeRecords.ts'
 import type { MapFaults } from './mockBuffers.ts'
 
 /**
  * `fakeDevice(BACKEND)` read as the backend device was before the kit held one device: its writes
- * as `{ offset, bytes, label, size, seq }` — `size` the buffer's —, and each copy's destination
- * usage. A thin view for the tests of the DAG and the placements alone, until they read
+ * as `{ offset, bytes, label, size, seq }` — `size` the buffer's —, each copy's destination usage,
+ * and the entry point of each dispatch. A thin view for the tests of the DAG and the placements alone, until they read
  * `fakeDevice` themselves; nothing else uses it.
  */
 export function mockGpu({ mapGate, ...options }: FakeDeviceOptions & MapFaults = {}) {
@@ -23,6 +23,9 @@ export function mockGpu({ mapGate, ...options }: FakeDeviceOptions & MapFaults =
     },
     get copyUsages() {
       return gpu.copies.map(({ to }) => to.usage)
+    },
+    get computes() {
+      return dispatchedEntries(gpu.dispatches)
     },
   }
 }

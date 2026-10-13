@@ -97,8 +97,8 @@ test('the visibility-buffer path also clears with the host scene background', as
   await backend.flush()
   backend.render(camera())
   const clears = passes
-    .filter((pass) => pass.colorLoad === 'clear' && pass.formats[0] === 'rgba8unorm')
-    .map((pass) => pass.colorClear)
+    .filter((pass) => pass.colors[0]?.loadOp === 'clear' && pass.formats[0] === 'rgba8unorm')
+    .map((pass) => pass.colors[0]?.clearValue)
   assert.ok(clears.length > 0)
   assert.ok(
     clears.some(

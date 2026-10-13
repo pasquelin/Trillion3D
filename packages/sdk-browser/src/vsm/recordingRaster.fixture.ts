@@ -1,9 +1,8 @@
-import { encoder } from './planFrames.fixture.ts'
 import type { VsmRenderScene } from './renderPass.ts'
 import { emptyRowSpheres } from './rowPageBound.fixture.ts'
 
-/** What a raster pass of `rowCount` rows under one sun is encoded with, on a recording device: the
- *  recording encoder, the scene on one tiny buffer, and the sun. */
+/** What a raster pass of `rowCount` rows under one sun is encoded with, on the kit's `device`: one
+ *  of its encoders, the scene on one tiny buffer, and the sun. */
 export function recordingRaster(device: GPUDevice, rowCount: number) {
   const buffer = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
   const scene: VsmRenderScene = {
@@ -18,5 +17,5 @@ export function recordingRaster(device: GPUDevice, rowCount: number) {
     },
   }
   const lights = [{ kind: 'directional' as const, firstId: 0, count: 1, shouldRender: true }]
-  return { encoder, scene, lights }
+  return { encoder: device.createCommandEncoder(), scene, lights }
 }

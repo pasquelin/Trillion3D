@@ -7,7 +7,7 @@ import { TAA_BINDINGS } from './bindingsWgsl.ts'
 // Both resolves compile with the pass; a frame handed no flags draws the flagless one, on
 // a group and layout without the flags, and compiles nothing.
 test('a frame with no as-is pixel resolves flagless, and switching compiles no pipeline', async () => {
-  const { device, renderPipelines } = fakeDevice()
+  const { device, renderPipelines, draws } = fakeDevice()
   const modules = () => renderPipelines.map(({ fragment }) => fragment!.module.label)
   const temporal = await createTemporalAntialiasing(device, [])
   // The ones that read no reactive value compile after them, off the preparation.
@@ -18,26 +18,19 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   ])
   const prepared = modules().length
   temporal.resize(8, 4)
-  const drawn: Array<{ module?: string; bindings: number[]; layout: number[] }> = []
-  const pass = {
-    setPipeline: (pipeline: GPURenderPipelineDescriptor) =>
-      void drawn.push({
+  const encoder = device.createCommandEncoder()
+  /** Each resolve drawn: its module, the bindings its group binds and those its layout declares. */
+  const drawn = () =>
+    draws.map(({ pipeline, groups: [group] }) => {
+      const { entries, layout } = group as GPUBindGroupDescriptor
+      return {
         module: pipeline.fragment!.module.label,
-        bindings: [],
-        layout: [],
-      }),
-    setBindGroup(_slot: number, group: GPUBindGroupDescriptor) {
-      const last = drawn[drawn.length - 1]
-      last.bindings = [...group.entries].map((entry) => entry.binding)
-      const { entries } = group.layout as unknown as GPUBindGroupLayoutDescriptor
-      last.layout = [...entries].map((entry) => entry.binding)
-    },
-    draw() {},
-    end() {},
-  }
-  const encoder = {
-    beginRenderPass: () => pass,
-  } as unknown as GPUCommandEncoder
+        bindings: [...entries].map((entry) => entry.binding),
+        layout: [...(layout as unknown as GPUBindGroupLayoutDescriptor).entries].map(
+          (entry) => entry.binding,
+        ),
+      }
+    })
   const view = () => ({}) as GPUTextureView,
     buffer = {} as GPUBuffer
   const inputs = {
@@ -59,16 +52,17 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   assert.equal(modules().length, prepared, 'no pipeline compiled in a frame')
   // The share history is the share target every resolve binds: the flags alone are the flagless'
   // difference.
-  const flags = TAA_BINDINGS.flags
-  assert.equal(drawn[0].module, 'TAA_RESOLVE_FLAGLESS')
-  assert.ok(!drawn[0].bindings.includes(flags), 'the flagless group binds no flags')
-  assert.ok(!drawn[0].layout.includes(flags), 'nor does its layout declare them')
-  assert.equal(drawn[1].module, 'TAA_RESOLVE')
-  assert.ok(drawn[1].bindings.includes(flags))
-  assert.equal(drawn[2].module, 'TAA_RESOLVE_BLENDED')
-  assert.ok(drawn[2].bindings.includes(flags))
+  const flags = TAA_BINDINGS.flags,
+    first = drawn()
+  assert.equal(first[0].module, 'TAA_RESOLVE_FLAGLESS')
+  assert.ok(!first[0].bindings.includes(flags), 'the flagless group binds no flags')
+  assert.ok(!first[0].layout.includes(flags), 'nor does its layout declare them')
+  assert.equal(first[1].module, 'TAA_RESOLVE')
+  assert.ok(first[1].bindings.includes(flags))
+  assert.equal(first[2].module, 'TAA_RESOLVE_BLENDED')
+  assert.ok(first[2].bindings.includes(flags))
   // Every resolve reads the share target and gathers through the texel sampler.
-  for (const { bindings, layout } of drawn)
+  for (const { bindings, layout } of first)
     for (const binding of [TAA_BINDINGS.shareHistory, TAA_BINDINGS.texelSampler])
       assert.ok(bindings.includes(binding) && layout.includes(binding), `binding ${binding}`)
   // Off the preparation, the flagless and as-is resolves that read no reactive value compile; a
@@ -79,7 +73,9 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   temporal.encode(encoder, { ...inputs, flags: view() })
   temporal.encode(encoder, { ...inputs, reactive: view() })
   assert.deepEqual(
-    drawn.slice(3).map(({ module }) => module),
+    drawn()
+      .slice(3)
+      .map(({ module }) => module),
     ['TAA_RESOLVE_FLAGLESS_UNREACTIVE', 'TAA_RESOLVE_UNREACTIVE', 'TAA_RESOLVE_FLAGLESS'],
   )
   temporal.dispose()

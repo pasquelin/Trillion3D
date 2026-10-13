@@ -9,23 +9,13 @@ import { TAA_PASS } from '../stage/passLabels.ts'
 /** The passes two frames begin — the second resolving display layers, once its
  *  twin has compiled —, the three resolves drawn at preparation, and whether each target stores. */
 async function resolvePasses() {
-  const { device, renderPipelines, textures } = fakeDevice({ compute: false })
+  const { device, renderPipelines, textures, passes, computePasses } = fakeDevice({
+    compute: false,
+  })
   const temporal = await createTemporalAntialiasing(device, [])
   const drawn = renderPipelines.map(({ fragment }) => fragment!.module.label).slice(0, 3)
   temporal.resize(8, 4)
-  const begun: { kind: string; label?: string; attachments: number }[] = []
-  const pass = {
-    setPipeline() {},
-    setBindGroup() {},
-    draw() {},
-    end() {},
-  }
-  const encoder = {
-    beginRenderPass: (d: GPURenderPassDescriptor) => (
-      begun.push({ kind: 'render', label: d.label, attachments: [...d.colorAttachments].length }),
-      pass
-    ),
-  } as unknown as GPUCommandEncoder
+  const encoder = device.createCommandEncoder()
   const view = () => ({}) as GPUTextureView,
     buffer = {} as GPUBuffer
   const encode = () =>
@@ -49,6 +39,10 @@ async function resolvePasses() {
   const stored = textures
     .filter(({ label }) => label?.match(/^Trillion3D TAA .* \d$/))
     .map(({ label, usage }) => [label, !!(usage & GPUTextureUsage.STORAGE_BINDING)] as const)
+  const begun = [
+    ...passes.map(({ label, colors }) => ({ kind: 'render', label, attachments: colors.length })),
+    ...computePasses.map(({ label }) => ({ kind: 'compute', label })),
+  ]
   return { drawn, begun, stored }
 }
 

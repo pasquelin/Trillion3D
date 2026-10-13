@@ -4,6 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { traceGpuCutFrame, traceGpuCutWaiting } from './gpuCutTrace.ts'
 import { submitColorCopy } from './encoder.ts'
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** The runtime slice the trace sites read, counting the records they emit. */
@@ -43,8 +44,8 @@ function runtime(traceEnabled: boolean) {
 }
 
 const cam = { world: new Float32Array(16), eye: [0, 0, 0] } as never
-const device = { queue: { submit: () => {} } } as unknown as GPUDevice
-const encoder = { finish: () => ({}) } as unknown as GPUCommandEncoder
+const { device } = fakeDevice()
+const encoder = device.createCommandEncoder()
 
 /** Every per-image trace site, in the order the GPU cut reaches them. */
 function traceEverySite(rt: WebgpuPagesRuntime) {

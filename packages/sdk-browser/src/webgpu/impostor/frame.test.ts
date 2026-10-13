@@ -12,7 +12,6 @@ import { CARD_FLOATS } from '../../impostor/cardSlots.ts'
 import { viewProj } from '../pages/helpers.ts'
 import { drawImpostorVisibility, encodeImpostorCards } from './encode.ts'
 import { planWebgpuImpostors } from './frame.ts'
-import { recordingEncoder } from './recorder.fixture.ts'
 import { bench, imagesUntilResident } from './frame.fixture.ts'
 import { IMPOSTOR_PASS } from '../../stage/passLabels.ts'
 import { CARD_ROOT, CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts'
@@ -54,11 +53,15 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
   for (let k = 0; k < 3; k++) assert.equal(record[12 + k] + record[16 + k], world[12 + k])
   assert.equal(record[43], 1, 'the world radius R')
   const toClip = engineOf(200).viewProjection
-  const { encoder, open, passes } = recordingEncoder()
+  const encoder = gpu.device.createCommandEncoder(),
+    first = gpu.passDescriptors.length
+  const open = (label: string) => encoder.beginRenderPass({ label, colorAttachments: [] })
+  /** The draws of the `k`-th pass begun on `encoder`. */
+  const drawsOf = (k: number) => gpu.draws.filter((draw) => draw.pass === first + k)
   // Visibility: the card's identifier, depth and the pyramid's level 0, before the pyramid is built.
   viewProj.set(toClip)
   assert.equal(drawImpostorVisibility(rt, gpu.device, open('primary'), true), true)
-  const vis = passes[0].pipeline as GPURenderPipelineDescriptor
+  const vis = drawsOf(0)[0].pipeline
   assert.equal(vis.fragment?.entryPoint, 'card_vis_hiz_fs')
   assert.deepEqual(vis.fragment?.targets, [{ format: 'r32uint' }, { format: 'r32float' }])
   assert.equal(vis.depthStencil?.depthCompare, 'greater', 'depth-tested as the clusters')
@@ -68,15 +71,14 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
   assert.equal(cards()[0]?.size, state.slots.used * CARD_FLOATS, 'the records go up whole once')
   // Surfaces: where the identifier kept is the card's own, read by equality: no depth is compared.
   encodeImpostorCards(rt, encoder)
-  const surfaces = passes[1]
-  assert.equal(surfaces.label, IMPOSTOR_PASS)
-  const pipeline = surfaces.pipeline as GPURenderPipelineDescriptor
-  assert.equal(pipeline.vertex.entryPoint, 'card_vs')
-  assert.equal(pipeline.depthStencil, undefined, 'no depth, written or compared')
-  assert.ok(surfaces.groups[2], 'the identifiers the visibility stage kept')
-  assert.equal(surfaces.groups[1], state.runs[0].group, "the mesh's atlas group")
+  assert.equal(gpu.passDescriptors[first + 1]?.label, IMPOSTOR_PASS)
+  const [surface] = drawsOf(1)
+  assert.equal(surface.pipeline.vertex?.entryPoint, 'card_vs')
+  assert.equal(surface.pipeline.depthStencil, undefined, 'no depth, written or compared')
+  assert.ok(surface.groups[2], 'the identifiers the visibility stage kept')
+  assert.equal(surface.groups[1], state.runs[0].group, "the mesh's atlas group")
   assert.deepEqual(
-    surfaces.draws,
+    drawsOf(1).map((d) => [d.vertexCount, d.instanceCount, d.firstVertex, d.firstInstance]),
     [[4, 1, 0, 0]],
     'one quad — a strip of four corners —, one instance',
   )
@@ -88,16 +90,16 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
 })
 
 test('a near root draws whole again and no card pass is encoded', async () => {
-  const { rt, roots, fixture, marked } = await bench()
+  const { gpu, rt, roots, fixture, marked } = await bench()
   await imagesUntilResident(rt, 200)
   planWebgpuImpostors(rt, engineOf(200))
   planWebgpuImpostors(rt, engineOf(5))
   assert.equal(roots[0].mark, undefined, 'its card bit cleared')
   assert.deepEqual(marked.at(-1), [0, 0], 'and handed to the GPU cut')
   assert.ok(cut(roots, 5).shown.length > 0)
-  const { encoder, passes } = recordingEncoder()
-  encodeImpostorCards(rt, encoder)
-  assert.deepEqual(passes, [], 'no card, no pass')
+  const begun = gpu.passDescriptors.length
+  encodeImpostorCards(rt, gpu.device.createCommandEncoder())
+  assert.equal(gpu.passDescriptors.length, begun, 'no card, no pass')
   fixture.geometry.dispose()
 })
 

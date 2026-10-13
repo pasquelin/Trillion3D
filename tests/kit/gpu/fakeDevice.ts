@@ -16,6 +16,7 @@ import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 
 export {
   BACKEND,
+  dispatchedEntries,
   replayWrites,
   written,
   writtenBytes,
@@ -44,6 +45,7 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
   const textures: FakeTexture[] = [],
     querySets: GPUQuerySetDescriptor[] = [],
     bindGroupLayouts: GPUBindGroupLayoutDescriptor[] = [],
+    pipelineLayouts: GPUPipelineLayoutDescriptor[] = [],
     bindGroups: GPUBindGroupDescriptor[] = [],
     renderPipelines: GPURenderPipelineDescriptor[] = [],
     computePipelines: GPUComputePipelineDescriptor[] = [],
@@ -57,9 +59,10 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
   const records: EncoderRecords = {
     draws: [],
     passes: [],
+    computePasses: [],
     passDescriptors: [],
     commands: [],
-    computes: [],
+    dispatches: [],
     copies: [],
     textureCopies: [],
     textureBufferCopies: [],
@@ -120,7 +123,7 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
       }),
     }),
     createBindGroupLayout: (d: GPUBindGroupLayoutDescriptor) => (bindGroupLayouts.push(d), d),
-    createPipelineLayout: (d: GPUPipelineLayoutDescriptor) => d,
+    createPipelineLayout: (d: GPUPipelineLayoutDescriptor) => (pipelineLayouts.push(d), d),
     createRenderPipeline: renderPipeline,
     ...(asyncPipelines && {
       createRenderPipelineAsync: async (d: GPURenderPipelineDescriptor) => renderPipeline(d),
@@ -178,6 +181,7 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
     textures,
     querySets,
     bindGroupLayouts,
+    pipelineLayouts,
     bindGroups,
     renderPipelines,
     computePipelines,

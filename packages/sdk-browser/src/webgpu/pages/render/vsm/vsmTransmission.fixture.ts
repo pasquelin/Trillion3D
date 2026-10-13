@@ -2,6 +2,7 @@
 // draws no view here), found short once binned: what the growth tests start from.
 import { fakeDevice } from '../../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuDeviceLedger } from '../../../../gpu/core/deviceLedger.ts'
+import { shadowPageEntries } from '../../../shadow/pageGroup.ts'
 import { createVsmResources } from '../../../../vsm/resources.ts'
 import { createVsmTransmission } from '../../../../vsm/transmissionPass.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
@@ -14,25 +15,32 @@ import {
 } from '../../../../vsm/transmissionLayout.ts'
 
 const BINDING = 1 << 27
-/** An encoder whose passes record nothing. */
-const pass = {
-  setPipeline() {},
-  setBindGroup() {},
-  dispatchWorkgroups() {},
-  dispatchWorkgroupsIndirect() {},
-  end() {},
-}
-const encoder = {
-  beginComputePass: () => pass,
-  clearBuffer() {},
-  copyBufferToBuffer() {},
-} as unknown as GPUCommandEncoder
-
 /** A first transmission binned once, then found short (`wanted`: four times its records), under a
  *  ledger whose limit leaves `room(grown, held)` beside what is held. */
 export function shortTransmission(room: (grown: number, held: number) => number) {
   const fake = fakeDevice({
     limits: { maxStorageBufferBindingSize: BINDING, maxTextureDimension2D: 16384 },
+  })
+  const encoder = fake.device.createCommandEncoder()
+  // The shadow page group, made as the engine makes it, before the ledger counts the frame's own.
+  const pageLayout = fake.device.createBindGroupLayout({ entries: shadowPageEntries() })
+  const pageBuffer = fake.device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM,
+  })
+  const pageView = fake.device
+    .createTexture({ size: [1, 1], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING })
+    .createView()
+  const pageGroup = fake.device.createBindGroup({
+    layout: pageLayout,
+    entries: shadowPageEntries().map((e) => ({
+      binding: e.binding,
+      resource: e.buffer
+        ? { buffer: pageBuffer }
+        : e.sampler
+          ? fake.device.createSampler()
+          : pageView,
+    })),
   })
   const box = { limit: 1e12 }
   const ledger = installGpuDeviceLedger(fake.device, { limit: () => box.limit })
@@ -54,7 +62,7 @@ export function shortTransmission(room: (grown: number, held: number) => number)
     layout: { rows: { blendFirst: 0, casterSlots: 1 } },
     run,
   } as unknown as WebgpuPagesRuntime
-  const scene = { rowCount: 1, pageLayout: {} } as Parameters<
+  const scene = { rowCount: 1, pageLayout, pageGroup } as Parameters<
     typeof encodeVsmRenderAndTransmission
   >[5]
   const frame = () => {

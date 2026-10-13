@@ -53,7 +53,7 @@ export function runtime() {
     beginTaaFrame(rt, cam, quiet)
     taaRenderMatrix(rt, cam)
     const before = writes.length
-    encodeTaaPass(rt, device, {} as GPUCommandEncoder, cam, rt.gpu.hdrView!, asIs)
+    encodeTaaPass(rt, device, device.createCommandEncoder(), cam, rt.gpu.hdrView!, asIs)
     return writes.length > before ? (writes[writes.length - 1].data as Float32Array) : null
   }
   return { rt, cam, temporal, encoded, frame, flags }

@@ -9,6 +9,7 @@ import { AS_IS_FLAG } from '../../scene/surfaceModel.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { commandArgs } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
 
 type Compose = { composeColor: (pixel: object) => unknown }
 const hdr = {},
@@ -66,18 +67,10 @@ test('the flagless composition gives the flag-reading one at every share of 0 (O
 })
 
 test('a flagless frame composes with its own pipelines and binds no share, compiling none', async () => {
-  const { device, renderPipelines } = fakeDevice()
-  const labels: string[] = [],
-    groups: GPUBindGroupEntry[][] = []
-  const pass = {
-    setPipeline: (pipeline: GPURenderPipelineDescriptor) =>
-      void labels.push(pipeline.fragment!.module.label!),
-    setBindGroup: (_slot: number, group: GPUBindGroupDescriptor) =>
-      void groups.push(group.entries as GPUBindGroupEntry[]),
-    draw() {},
-    end() {},
-  }
-  const encoder = { beginRenderPass: () => pass } as unknown as GPUCommandEncoder
+  const gpu = fakeDevice(),
+    { device, renderPipelines } = gpu
+  const encoder = device.createCommandEncoder()
+  const taken = (name: string) => gpu.passes.flatMap(({ commands }) => commandArgs(commands, name))
   const view = () => ({}) as GPUTextureView
   const flags = view(),
     views = [view(), view(), view(), flags]
@@ -90,13 +83,18 @@ test('a flagless frame composes with its own pipelines and binds no share, compi
     lighting.compose(encoder, view(), [0, 0, 0, 1], undefined, image, asIs)
   }
   assert.equal(renderPipelines.length, compiled, 'every variant was compiled with its program')
+  const labels = taken('setPipeline').map(
+    ([pipeline]) => (pipeline as GPURenderPipelineDescriptor).fragment!.module.label,
+  )
   assert.deepEqual(labels, [
     'UNLIT_COMPOSE_FLAGLESS',
     'UNLIT_COMPOSE_FLAGLESS',
     'UNLIT_COMPOSE_STILL',
     'UNLIT_COMPOSE_ACCUMULATED',
   ])
-  const bindings = groups.map((entries) => entries.map((entry) => entry.resource))
+  const bindings = taken('setBindGroup').map(([, group]) =>
+    [...(group as GPUBindGroupDescriptor).entries].map((entry) => entry.resource),
+  )
   assert.equal(bindings[0].length, 2, 'the lit image and the view, no flags')
   assert.equal(bindings[1].length, 2, 'the accumulated colour and the view, no share')
   assert.equal(bindings[2][2], flags, 'a frame with an as-is pixel reads the flags')

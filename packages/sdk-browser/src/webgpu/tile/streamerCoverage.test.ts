@@ -11,7 +11,7 @@ import { surfaceOf } from '../../page/surface.ts'
 import { hostTextureWritten, importHostTexture } from '../../host/textureImport.ts'
 import type { HostTexture } from '../../host/resources.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND, dispatchedEntries, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 
 test('a surface switched from masked to opaque after prepare reduces its hosted map again', async () => {
@@ -28,7 +28,7 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
     device,
     computePipelines,
     textures: made,
-    computes,
+    dispatches,
     textureWrites,
     destroyed,
   } = fakeDevice(BACKEND)
@@ -52,7 +52,7 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
       .map(({ compute }) => compute.constants?.weighted)
   const scratches = () => made.filter((texture) => texture.label === 'Trillion3D texture scratch')
   assert.deepEqual(rules(), [1], 'masked at prepare: weighted')
-  const counted = () => computes.filter((entry) => entry === 'choose').length
+  const counted = () => dispatchedEntries(dispatches).filter((entry) => entry === 'choose').length
   assert.equal(counted(), 2, 'both reduced levels of the 4 × 4 chain counted at its cutoff')
   assert.equal(textures.followSampling(), false, 'no filter rule switched')
   assert.deepEqual([signalled, scratches().length], [[], 1], 'a still rule reduces nothing')
