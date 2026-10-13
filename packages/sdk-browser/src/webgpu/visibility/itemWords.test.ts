@@ -22,7 +22,7 @@ function runtime(n: number, drawLayerSlots: number) {
   const packedRecs: PageRec[] = []
   for (let i = 0; i < n; i++)
     packedRecs.push(pageRecFixture({ depthLayer: i % 3, material: surfaceOf(material) }))
-  const dirty = createDirtyRows(Math.max(1, n))
+  const dirty = createDirtyRows()
   const layout = {
     rows: {
       packedCount: n,

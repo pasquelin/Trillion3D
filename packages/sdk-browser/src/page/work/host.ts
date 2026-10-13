@@ -2,6 +2,7 @@ import { PAGE_TASK_PROTOCOL, pageWorkerCount } from '../../../../sdk-core/src/pa
 import { createPageWorkPool, type PageWorkPool } from './pool.ts'
 import { runPageTask } from './task.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'
+import { ownBuffer } from '../../../../sdk-core/src/runtime/ownBuffer.ts'
 import type { PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
 
 const counters = { checked: 0, checkMs: 0 }
@@ -32,16 +33,6 @@ function openPool() {
     pool = createPageWorkPool(pageWorkerCount(cores, admissionLimit))
   }
   return pool
-}
-
-/** A view's buffer, without a copy when the view covers it whole, and a copy otherwise: the task
- *  reads an `ArrayBuffer`, never a leftover shared buffer. */
-function ownBuffer(bytes: Uint8Array) {
-  return (
-    bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
-      ? bytes.buffer
-      : bytes.slice().buffer
-  ) as ArrayBuffer
 }
 
 /**

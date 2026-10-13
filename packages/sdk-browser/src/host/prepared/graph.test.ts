@@ -10,7 +10,7 @@ import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { HostMesh } from '../resources.ts'
 import { GraphSurface } from '../graph/surface.ts'
 import { preparedGraph } from './graph.ts'
-import { shownChain } from '../../placement/hidden.ts'
+import { rootedUnder } from '../world/rooted.ts'
 import { visMaterial } from '../../visibility/shader/material.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 
@@ -98,7 +98,8 @@ test('a node the table says hidden is built hidden, every primitive it draws wit
     const parts: HostMesh[] = []
     scene.traverse((part) => part instanceof Mesh && parts.push(part))
     assert.equal(parts.length, 2)
-    for (const part of parts) assert.equal(shownChain(part), visible, `visible ${visible}`)
+    for (const part of parts)
+      assert.equal(rootedUnder(part, null, true), visible, `visible ${visible}`)
   }
 })
 

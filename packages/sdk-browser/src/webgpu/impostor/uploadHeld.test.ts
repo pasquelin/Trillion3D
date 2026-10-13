@@ -20,7 +20,7 @@ function uploadOnce() {
   slots.records = new Float32Array(64 * CARD_FLOATS)
   slots.used = 64
   slots.full = false
-  for (let k = 0; k < 16; k++) slots.dirty.listed.add(4 * k)
+  for (let k = 0; k < 16; k++) slots.dirty.mark(4 * k)
   const buffer = { size: 64 * CARD_FLOATS * 4 } as GPUBuffer
   const state = { slots, uploadedTo: buffer } as unknown as WebgpuImpostors
   const device = { queue: { writeBuffer: () => {} } } as unknown as GPUDevice

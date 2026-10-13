@@ -3,7 +3,10 @@ import type { PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts'
 import type { ActiveGpuMemory } from '../../residency/activeMemory.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import type { MeasuredWorld } from '../session/explorer.ts'
-import { DEFAULT_GEOMETRY_POOL_BUDGET, DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/pools.ts'
+import {
+  DEFAULT_GEOMETRY_POOL_BUDGET,
+  DEFAULT_TEXTURE_POOL_BUDGET,
+} from '../../../../sdk-core/src/contracts/poolBudgets.ts'
 import {
   DEFAULT_BUDGET_CANVAS,
   defaultGpuBudget,

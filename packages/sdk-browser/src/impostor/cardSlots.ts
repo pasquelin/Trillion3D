@@ -58,7 +58,7 @@ export function createCardSlots() {
     holes: 0,
     /** Slots written since the last upload, once each; every slot when `full` — after a pack, which
      *  moves them all. */
-    dirty: core.createSortedKeys(),
+    dirty: core.createChangedRuns(),
     full: true,
   }
 }
@@ -104,12 +104,12 @@ export function writeCardRecord(
 }
 
 function markDirty(slots: CardSlots, slot: number) {
-  if (!slots.full) slots.dirty.listed.add(slot)
+  if (!slots.full) slots.dirty.mark(slot)
 }
 
 /** The slots written are uploaded: the list starts again empty. */
 export function uploaded(slots: CardSlots) {
-  slots.dirty.listed.clear()
+  slots.dirty.clear()
   slots.full = false
 }
 

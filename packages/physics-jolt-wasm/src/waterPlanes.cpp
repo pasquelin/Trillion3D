@@ -2,8 +2,10 @@
 // (`packages/sdk-core/src/fluids/surface.ts`, `waves.ts`): each piece gets the exact height of the
 // surface above its centre and the slope of the four surface points its rest square is carried
 // to. The same double-precision operations in the same order as the TypeScript model — its rest
-// point printed from it (`waveModel.h`) —, so the planes, rounded to the BUOYANCY command's
-// floats, are the ones it gave (`waterPlanes.test.ts`).
+// point printed from it (`waveModel.h`), the normal's length from the maths core's `hypot3`
+// (`hypot.h`) —, so the planes, rounded to the BUOYANCY command's floats, are the ones it gave
+// (`waterPlanes.test.ts`).
+#include "hypot.h"
 #include "waveModel.h"
 #include "words.h"
 
@@ -65,27 +67,6 @@ double patch(uint32_t count, double px, double pz, double hx, double hz, double 
   return y;
 }
 
-/// `Math.hypot` of three numbers as JavaScript computes it: scaled by the largest, the squares
-/// summed with Kahan's compensation.
-double hypot3(double x, double y, double z) {
-  double values[3] = {std::fabs(x), std::fabs(y), std::fabs(z)}, max = 0;
-  bool nan = false;
-  for (double v : values) {
-    if (std::isnan(v)) nan = true;
-    else if (v > max) max = v;
-  }
-  if (max == INFINITY) return INFINITY;
-  if (nan) return NAN;
-  if (max == 0) return 0;
-  double sum = 0, compensation = 0;
-  for (double v : values) {
-    double n = v / max, summand = n * n - compensation, preliminary = sum + summand;
-    compensation = (preliminary - sum) - summand;
-    sum = preliminary;
-  }
-  return std::sqrt(sum) * max;
-}
-
 /// `Math.max(value, floor)`: a NaN value stays NaN.
 double atLeast(double value, double floor) { return std::isnan(value) || value > floor ? value : floor; }
 
@@ -119,7 +100,7 @@ uint32_t *jolt_water_planes(const uint32_t *pieces, uint32_t count, double level
     double ax = corner[6] - corner[3], ay = corner[7] - corner[4], az = corner[8] - corner[5];
     double bx = corner[9] - corner[0], by = corner[10] - corner[1], bz = corner[11] - corner[2];
     double nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
-    double length = hypot3(nx, ny, nz);
+    double length = trillion::hypot3(nx, ny, nz);
     to[0] = from[0];
     to[1] = from[1];
     trillion::putF32(to + 2, float(x));

@@ -9,7 +9,10 @@ import type { ActiveGpuMemory } from '../../residency/activeMemory.ts'
 import { DEFAULT_BUDGET_CANVAS, defaultGpuBudget } from '../../residency/memoryBudget.ts'
 import { effectTargetReserve } from '../../residency/effectReserve.ts'
 import { SHADOW_POOL_BYTES } from '../../residency/shadowBudgetBytes.ts'
-import { DEFAULT_GEOMETRY_POOL_BUDGET, DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/pools.ts'
+import {
+  DEFAULT_GEOMETRY_POOL_BUDGET,
+  DEFAULT_TEXTURE_POOL_BUDGET,
+} from '../../../../sdk-core/src/contracts/poolBudgets.ts'
 
 const MiB = 2 ** 20
 /** A session holding `frameTargets` beside 400 MiB of shadows, its pools' floors 64 and 32 MiB. */

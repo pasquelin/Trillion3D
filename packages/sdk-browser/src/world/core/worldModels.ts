@@ -1,6 +1,6 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
-import { shownChain } from '../../placement/hidden.ts'
+import { rootedUnder } from '../../host/world/rooted.ts'
 import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
@@ -67,7 +67,7 @@ class ModelMeshSource implements DrawSource {
   write(world: Float64Array, shown: boolean, matrices = true) {
     const { rows, drawn } = this
     if (matrices) multiplyMatrix4(rows.matrices, world, drawn.matrixWorld.elements)
-    rows.live[0] = shown && shownChain(drawn) ? 1 : 0
+    rows.live[0] = shown && rootedUnder(drawn, null, true) ? 1 : 0
     rows.shadowless[0] = drawn.castShadow ? 0 : 1
   }
 }

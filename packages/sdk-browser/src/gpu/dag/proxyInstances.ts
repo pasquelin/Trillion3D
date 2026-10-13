@@ -202,7 +202,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
 
   // The world rows written since the mirror last copied them, in the engine's one changed list: a still
   // world copies nothing. A buffer new made holds none of them (`ensure`), and takes them all.
-  const mirrored = createChangedRuns(slots, WORLD_RUN_GAP, WORLD_RUNS)
+  const mirrored = createChangedRuns(WORLD_RUN_GAP, WORLD_RUNS)
   let worldsAll = true
   // The tree's revision the mirror last copied (`TreeFollower.revision`): a still tree copies nothing. Its
   // member order moves only where roots join it (`appended`): copied then, and into a buffer new made.

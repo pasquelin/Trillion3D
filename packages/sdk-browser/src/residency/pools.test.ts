@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DEFAULT_GEOMETRY_POOL_BUDGET, geometryPoolFor } from './pools.ts'
+import { geometryPoolFor } from './pools.ts'
+import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../../sdk-core/src/contracts/poolBudgets.ts'
 import { MIB } from '../../../math/src/constants.ts'
 
 test('the geometry pool is a fixed byte reservoir, 512 MiB by default', () => {

@@ -71,6 +71,29 @@ test('a module carrying relaxed-simd is rejected even with simd128', () => {
   }
 })
 
+/** A module without a `target_features` section, as emscripten leaves it: its code is read. */
+function bareFile(dir: string): string {
+  const path = join(dir, 'bare.wasm')
+  writeFileSync(path, Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]))
+  return path
+}
+
+test('a module without the section is read from its code, by the same rule', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'trillion3d-build-wasm-'))
+  try {
+    const path = bareFile(dir)
+    assert.throws(() => checkInstructionSet(path), /"target_features" section missing/)
+    assert.doesNotThrow(() => checkInstructionSet(path, () => 'f32x4.add\nf64.mul'))
+    assert.throws(() => checkInstructionSet(path, () => 'f64.mul'), /simd128 missing/)
+    assert.throws(
+      () => checkInstructionSet(path, () => 'f32x4.add\nf32x4.relaxed_madd'),
+      /"relaxed" capability present/,
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('importing the script does not run compilation', () => {
   // If `main()` ran on import, this test would fail long before reaching here: `cargo`
   // is not guaranteed to be installed on the machine running `pnpm test`.

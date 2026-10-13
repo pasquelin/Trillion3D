@@ -3,9 +3,8 @@ import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { RowUse } from './rowUse.ts'
 import { serveInOrder } from './claims.ts'
-import { createListDifference } from './listDifference.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
-import type { IdDelta } from '../cut/delta.ts'
+import { createCutDelta, type CutDelta, type IdDelta } from '../cut/delta.ts'
 
 /** What a readback names, as packed instances: those its cut drew, and those it asks for — the
  *  camera's, then the view ahead's — in the order the GPU ranked them (`../../gpu/dag/request.ts`). */
@@ -36,7 +35,8 @@ const STOP = () => true
  * full. One still waiting for its bytes stays marked and takes its row when they land.
  *
  * Nothing is closed over again per readback: each list — drawn, asked, asked ahead — reaches the
- * demand as its difference (`listDifference.ts`), and two counted closures follow the differences
+ * demand as its difference (`../cut/delta.ts`, a list of ids alone: its marks follow the ids it
+ * holds, never the largest), and two counted closures follow the differences
  * alone: the closure of every list holds the rows in use (a group-mate outside the view keeps a
  * drawn page ready), the closure of the requests the instances wanted. What a difference brings is
  * listed in the readback's order, each group-mate behind the request it came in with. A page whose
@@ -69,13 +69,13 @@ export function createRowDemand(
   const d: DemandState = {
     ...{ table, use, drawsRow },
     lists: {
-      drawn: createListDifference(),
-      asked: createListDifference(),
-      ahead: createListDifference(),
+      drawn: createCutDelta(),
+      asked: createCutDelta(),
+      ahead: createCutDelta(),
     },
     held: closure(),
     asking: closure(),
-    marks: new Uint8Array(0),
+    marks: createSparseInts(),
     list: new Int32Array(8),
     by: new Int32Array(8),
     waitingBy: createSparseInts(),
@@ -162,15 +162,15 @@ type DemandState = {
   use: RowUse
   drawsRow: (page: number) => boolean
   /** Each list's difference from the readback followed before. */
-  lists: Record<'drawn' | 'asked' | 'ahead', ReturnType<typeof createListDifference>>
+  lists: Record<'drawn' | 'asked' | 'ahead', CutDelta>
   /** The closure of every list: the rows in use. */
   held: InstanceClosure
   /** The closure of the requests: the instances wanted. */
   asking: InstanceClosure
   /** Per instance, `WANTED` while the requests' closure holds it, `LISTED` while it is in `list`:
-   *  a byte an instance up to the largest the readbacks named, read per id at each readback with
-   *  no probe (`listDifference.ts` keeps its marks so too). */
-  marks: Uint8Array
+   *  held in a sparse map (`../../page/cut/sparseInts.ts`) for the flagged instances alone, so a
+   *  page id of 10⁹ costs an entry, never a table up to it. */
+  marks: ReturnType<typeof createSparseInts>
   list: Int32Array
   /** Per entry of `list`, the request it came in with: itself, or the one its group-mate asked. */
   by: Int32Array
@@ -200,18 +200,14 @@ type DemandState = {
 const WANTED = 1,
   LISTED = 2
 
-/** Instance `page`'s demand flag `bit` set or cleared, the marks grown to it. */
+/** Instance `page`'s demand flag `bit` set or cleared: a page with no flag left holds no entry. */
 function mark(d: DemandState, page: number, bit: number, on: boolean) {
-  if (page >= d.marks.length) {
-    if (!on) return
-    d.marks = resized(d.marks, page + 1)
-  }
-  if (on) d.marks[page] |= bit
-  else d.marks[page] &= ~bit
+  const was = d.marks.get(page)
+  d.marks.set(page, on ? was | bit : was & ~bit)
 }
 
 /** Whether the requests' closure holds `page`. */
-const isWanted = (d: DemandState, page: number) => ((d.marks[page] ?? 0) & WANTED) !== 0
+const isWanted = (d: DemandState, page: number) => (d.marks.get(page) & WANTED) !== 0
 
 /** Whether the cut reads `page` resident: a row of its own, and its bytes there. */
 const readsResident = (d: DemandState, page: number) => d.table.readsResident(page)
@@ -222,7 +218,7 @@ const readsResident = (d: DemandState, page: number) => d.table.readsResident(pa
 function want(d: DemandState, page: number, by = page) {
   if (readsResident(d, page) || !d.drawsRow(page)) return
   mark(d, page, WANTED, true)
-  if (d.marks[page] & LISTED) return
+  if (d.marks.get(page) & LISTED) return
   if (d.count === d.list.length) {
     d.list = resized(d.list, d.count + 1)
     d.by = resized(d.by, d.list.length)

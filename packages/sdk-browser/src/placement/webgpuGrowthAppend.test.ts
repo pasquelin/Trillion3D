@@ -10,7 +10,7 @@ import { createPlacementRows, growPlacementRows, placementWorld } from './rows.t
 import { sceneRoots, scenePages } from '../gpu/dag/cutFrontierScene.fixture.ts'
 import { startGrownCut, webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
-import { createSortedKeys } from '../webgpu/cut/denseKeys.ts'
+import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
 /** A cut that counts what it took in place, and its releases; it takes nothing while growing. */
@@ -39,7 +39,7 @@ function session() {
   const [held] = sceneRoots(scenePages(4, 2), [placementWorld(rows, 0)])
   const root = { ...held, placement: { rows, index: 0 }, world: placementWorld(rows, 0) }
   const rt = {
-    run: { gpuSelection: cut, movedWorlds: createSortedKeys() },
+    run: { gpuSelection: cut, movedWorlds: createChangedRuns() },
     layout: { selectionRoots: [root], worldUpdates: new Float32Array(4 * 16) },
     // No blended surface and no deformation: nothing else reads the rows.
     setup: { blendCopies: [], pagedBlendCopies: new Map(), deformationBlocks: [] },

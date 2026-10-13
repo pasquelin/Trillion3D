@@ -55,11 +55,11 @@ export function sendList(
       size: capacity * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
-    moves.listed.clear()
+    moves.clear()
     if (count) device.queue.writeBuffer(buffer, 0, set.list, 0, count)
     return buffer
   }
-  if (!moves.listed.count) return held
+  if (!moves.count) return held
   const moved = takeMirrored(list)
   const into = (offset: number, data: ArrayBuffer, from: number, size: number) =>
     device.queue.writeBuffer(held, offset, data, from, size)
@@ -98,7 +98,7 @@ export function followComposedRows(rt: WebgpuPagesRuntime, state: ComposeState) 
     ints = rows.pageTableInts
   if (!state.rowsFollowed) {
     state.rowList.set.clear()
-    state.rowList.moves.listed.clear()
+    state.rowList.moves.clear()
     state.relinked.length = 0
     state.rowsFollowed = true
     if (ints)

@@ -9,6 +9,7 @@
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { checkInstructionSet } from './build-wasm.ts'
 import { REPOSITORY_ROOT } from './repository-files.ts'
 
 const SOURCE = join(REPOSITORY_ROOT, 'packages', 'physics-jolt-wasm')
@@ -32,14 +33,13 @@ for (const [name, threads] of [
   )
   execFileSync('cmake', ['--build', build, '--target', name], { stdio: 'inherit' })
   const built = join(build, `${name}.wasm`)
-  // emscripten strips the `target_features` section, so the instruction set is read from the
-  // code: SIMD instructions must be there, relaxed ones (implementation-defined rounding) must not.
-  const code = execFileSync(join(llvm, 'llvm-objdump'), ['-d', built], {
-    encoding: 'utf8',
-    maxBuffer: 1 << 30,
-  })
-  if (!/\bf32x4\./.test(code)) throw new Error(`${built}: no SIMD instruction in the module.`)
-  if (/\brelaxed_/.test(code)) throw new Error(`${built}: relaxed SIMD instruction in the module.`)
+  // emscripten strips the `target_features` section: the instruction set is read from the code.
+  checkInstructionSet(built, (path) =>
+    execFileSync(join(llvm, 'llvm-objdump'), ['-d', path], {
+      encoding: 'utf8',
+      maxBuffer: 1 << 30,
+    }),
+  )
   mkdirSync(OUTPUT, { recursive: true })
   copyFileSync(built, join(OUTPUT, `${name}.wasm`))
   console.log(`${name}.wasm: ${statSync(built).size} bytes`)

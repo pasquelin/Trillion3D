@@ -1,6 +1,7 @@
 // The rules the engine runs in more than one language, each written once in TypeScript and printed
 // here into the others: the wave model (`packages/sdk-core/src/fluids/waves.ts`, `waveRest.ts`)
-// into the GPU deformation's WGSL and the physics module's C++, and the coverage-preserving alpha
+// into the GPU deformation's WGSL and the physics module's C++, `Math.hypot` of three numbers
+// (`packages/math/src/float/hypot.ts`) into the physics module's C++, the coverage-preserving alpha
 // (`packages/sdk-browser/src/texture/coverageMath.ts`) into the mip chains' WGSL and the
 // compiler's Rust, and the compiler's cache formats and defaults and
 // the family refusal's public code (`shared-rules/abi.ts`). The physics word layouts
@@ -19,6 +20,7 @@ import prettier from 'prettier'
 import { compilerAbiRust, familyLoadFailedId } from './shared-rules/abi.ts'
 import { coverageRust, coverageWgsl } from './shared-rules/coverage.ts'
 import { writtenFormatsTs } from './shared-rules/formats.ts'
+import { hypotHeader } from './shared-rules/hypot.ts'
 import { physicsLayoutHeader } from './shared-rules/layout.ts'
 import { REPOSITORY_ROOT } from './repository-files.ts'
 import { pageEncoderAbiTs, pageFormatTs } from './shared-rules/pageFormat.ts'
@@ -46,6 +48,7 @@ const outputs: Record<string, () => string> = {
   'packages/sdk-browser/src/deformation/waveTermsWgsl.ts': waveTermsWgsl,
   'packages/physics-jolt-wasm/src/waveModel.h': waveModelHeader,
   'packages/physics-jolt-wasm/src/layout.h': physicsLayoutHeader,
+  'packages/physics-jolt-wasm/src/hypot.h': hypotHeader,
   'packages/sdk-browser/src/texture/coverageMathWgsl.ts': coverageWgsl,
   'packages/sdk-core/src/page/format.ts': pageFormatTs,
   'packages/sdk-core/src/contracts/writtenFormats.ts': writtenFormatsTs,

@@ -49,7 +49,7 @@ export const poolLayerBytes = (texelBytes: number) => POOL_LAYER_SIDE * POOL_LAY
 /** Most levels a texture may have: 2^15 texels a side, the device limit. */
 export const MAX_LEVELS = 16
 
-/** Full mip chain length for a texture of the given size, down to 1×1: both GPU paths' chains. */
+/** Full mip chain length for a texture of the given size, down to 1×1. */
 export const mipLevelCountFor = (width: number, height: number) =>
   previewLastLevel(width, height) + 1
 

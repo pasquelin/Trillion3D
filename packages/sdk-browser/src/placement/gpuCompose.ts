@@ -954,7 +954,7 @@ function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   for (const [rank, pose] of state.seeds) device.queue.writeBuffer(gpu.previous, rank * 64, pose)
   state.seeds.clear()
   // The list of composed roots: on a fresh table whole, else its places moved since.
-  if (fresh) state.rankList.moves.listed.clear()
+  if (fresh) state.rankList.moves.clear()
   gpu.rankList = sendList(
     device,
     fresh ? undefined : gpu.rankList,

@@ -9,7 +9,7 @@ import { orderBlendPasses } from '../blend/order.ts'
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
 import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
-import { createSortedKeys } from '../cut/denseKeys.ts'
+import { createChangedRuns } from '../residency/ranges.ts'
 
 // A node of a compiled model hidden once, then shown again, by the host (#407). Every frame
 // renders and settles, the GPU cut drops the node's pages while it is hidden — its root parked
@@ -75,7 +75,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
         markWorld: (_: number, mark: number) => marks.push(mark),
       },
       worldUploadRevision: 1,
-      movedWorlds: createSortedKeys(),
+      movedWorlds: createChangedRuns(),
     },
     setup: { worlds: {} },
     vis: {},

@@ -1,11 +1,11 @@
 import { DEFAULT_CACHED_BYTES } from '../streaming/pageCache.ts'
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { geometryPoolFor } from './pools.ts'
 import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
-  geometryPoolFor,
-} from './pools.ts'
+} from '../../../sdk-core/src/contracts/poolBudgets.ts'
 import { laneCounts, poolEncoding } from '../texture/blockFormats.ts'
 import { TILES_PER_LAYER } from '../texture/tiles.ts'
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts'

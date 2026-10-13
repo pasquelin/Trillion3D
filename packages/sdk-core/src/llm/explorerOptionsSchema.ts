@@ -1,5 +1,10 @@
 import type { JsonSchemaObject } from './types.ts'
 import { explorerSwitchDefault } from '../runtime/explorerSwitches.ts'
+import {
+  DEFAULT_GEOMETRY_POOL_BUDGET,
+  DEFAULT_TEXTURE_POOL_BUDGET,
+  LEAST_POOL_BUDGET,
+} from '../contracts/poolBudgets.ts'
 
 /**
  * Comprehensive JSON Schema documenting all initialization options for the Trillion3D explorer (MeasuredWorldOptions).
@@ -30,15 +35,15 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     geometryPoolBytes: {
       type: 'integer',
-      default: 536870912,
-      minimum: 67108864,
+      default: DEFAULT_GEOMETRY_POOL_BUDGET,
+      minimum: LEAST_POOL_BUDGET,
       description:
-        'Size of the GPU geometry pool in bytes (default 512 MiB = 536870912). Fixed memory allocated to cluster pages. Non-visible pages are evicted or streamed at coarser LOD without overflow.',
+        'Size of the GPU geometry pool in bytes (default 512 MiB). Fixed memory allocated to cluster pages. Non-visible pages are evicted or streamed at coarser LOD without overflow.',
     },
     texturePoolBytes: {
       type: 'integer',
-      default: 536870912,
-      minimum: 67108864,
+      default: DEFAULT_TEXTURE_POOL_BUDGET,
+      minimum: LEAST_POOL_BUDGET,
       description:
         'Size of the virtual texture pool in bytes (default 512 MiB, split equally between color and data atlases).',
     },

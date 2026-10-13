@@ -9,7 +9,7 @@ import type { TexturePool, TexturePools } from './memoryBudgets.ts'
 import {
   halvedPool,
   outOfMemoryContext,
-  type RefusedPool,
+  type HalvedPool,
   type ShrunkPool,
 } from '../../residency/outOfMemory.ts'
 
@@ -27,14 +27,14 @@ export type Granted<P, R> = { pool: P; made: R; halvings: number }
  * (`deviceMade`), and a refusal shrinks that pool — half the bytes it would have held, drawn
  * again by its own rule — until the device grants it or the pool reaches its floor, where half
  * the bytes draws no smaller pool (the root cover of the geometry, the tails of each texture
- * lane, the smallest screen's side of the shadows). The pool in place is never replaced by one
- * the device refused, so the frame goes on: what no longer fits draws coarser. A refusal is published once per request as
+ * lane). The pool in place is never replaced by one the device refused, so the frame goes on:
+ * what no longer fits draws coarser. A refusal is published once per request as
  * `gpu-out-of-memory`, naming the pool, the bytes asked and the bytes granted (`null` when even
  * the floor was refused: the caller then keeps what it holds).
  */
 async function grantedPool<P extends ShrunkPool, R extends Made>(options: {
   device: GPUDevice
-  name: RefusedPool
+  name: HalvedPool
   budgetBytes: number
   draw: (budgetBytes: number) => P
   make: (pool: P) => R
@@ -55,7 +55,7 @@ async function grantedPool<P extends ShrunkPool, R extends Made>(options: {
  *  (`ledgerTentative`): a budget refusal throws, the device's halves the pool. */
 async function grantedWithin<P extends ShrunkPool, R extends Made>(
   device: GPUDevice,
-  name: RefusedPool,
+  name: HalvedPool,
   first: P,
   draw: (budgetBytes: number) => P,
   make: (pool: P) => R,

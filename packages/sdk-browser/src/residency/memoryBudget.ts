@@ -1,4 +1,8 @@
-import { checkBudget, DEFAULT_GEOMETRY_POOL_BUDGET, DEFAULT_TEXTURE_POOL_BUDGET } from './pools.ts'
+import { checkBudget } from './pools.ts'
+import {
+  DEFAULT_GEOMETRY_POOL_BUDGET,
+  DEFAULT_TEXTURE_POOL_BUDGET,
+} from '../../../sdk-core/src/contracts/poolBudgets.ts'
 import { effectChainBytesAt } from '../effects/targets.ts'
 import { admittedPools, validateActiveMemory, type ActiveGpuMemory } from './activeMemory.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from './shadowBudgetBytes.ts'

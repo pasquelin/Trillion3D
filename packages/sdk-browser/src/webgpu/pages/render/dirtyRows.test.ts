@@ -26,7 +26,7 @@ const session = (marks: number[], length = 8) => {
   const writes: Write[] = []
   const floats = new Float32Array(marks.length * PAGE_INFO_STRIDE)
   let cleared = 0
-  const dirty = createDirtyRows(marks.length)
+  const dirty = createDirtyRows()
   marks.forEach((marked, row) => marked && dirty.markWords(row))
   const rt = {
     layout: {

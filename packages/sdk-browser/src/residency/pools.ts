@@ -1,5 +1,4 @@
 import type { TexturePool } from '../webgpu/residency/memoryBudgets.ts'
-import { MIB } from '../../../math/src/constants.ts'
 
 /**
  * Engine memory budgets: FIXED-size pools, set by the host and never read off
@@ -7,12 +6,9 @@ import { MIB } from '../../../math/src/constants.ts'
  * minutes later. What a view asks beyond the pool renders coarser; nothing is refused, nothing
  * stops. A value that cannot be held as-is is brought back to what can, and the reason is published
  * (`clamp`). The engine draws its geometry pool by this rule, its texture pools by
- * `../webgpu/residency/memoryBudgets.ts`.
+ * `../webgpu/residency/memoryBudgets.ts`, from the budgets a host names or the defaults
+ * (`../../../sdk-core/src/contracts/poolBudgets.ts`).
  */
-export const DEFAULT_GEOMETRY_POOL_BUDGET = 512 * MIB
-/** 512 MiB of textures, split between the colour and data atlases
- *  (`../webgpu/residency/memoryBudgets.ts`). */
-export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * MIB
 
 /** Bytes one storage buffer may occupy and bind on this device: the smaller of its limits. Every
  *  buffer sized from the device reads it — the page pool, and the DAG cut's per-primitive tables

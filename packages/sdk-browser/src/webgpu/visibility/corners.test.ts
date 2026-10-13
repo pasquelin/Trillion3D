@@ -8,7 +8,7 @@ import { uploadRowCorners, createCornerUploadHold } from './corners.ts'
 import { uploadClusterSpheres } from '../shadow/bounds.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../shadow/rowBuffers.ts'
 import { moveRootRows } from '../pages/render/movedRoot.ts'
-import { createSortedKeys } from '../cut/denseKeys.ts'
+import { createChangedRuns } from '../residency/ranges.ts'
 import { createWebgpuRowState } from '../row/state.ts'
 import { CORNER_VALUES } from '../../gpu/partition/contract.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
@@ -78,7 +78,7 @@ function scatteredScene() {
         packedCount: ROWS,
       },
     },
-    run: { noOccluderHistory: false, movedWorlds: createSortedKeys() },
+    run: { noOccluderHistory: false, movedWorlds: createChangedRuns() },
     blendState: { occlusionEpoch: 1 },
     lights: {
       spheres: {

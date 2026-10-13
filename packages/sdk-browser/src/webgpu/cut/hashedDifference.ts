@@ -9,7 +9,8 @@ import { NO_INDEX } from '../../../../math/src/constants.ts'
  *
  * A new epoch marks the next list: an id read back at it is a repeat, one read back at the epoch
  * before was held, one with no mark entered; a held id that did not get the new epoch left, and
- * loses its mark. An id without a record is skipped before it is marked: the list never holds it.
+ * loses its mark. An id without a record is skipped before it is marked: the list never holds it;
+ * a list of ids alone (no `recordOf`) holds every id it names.
  * Returns the next list's length.
  */
 export function applyHashed(held: HeldList, ids: ArrayLike<number>, count: number) {
@@ -25,8 +26,8 @@ export function applyHashed(held: HeldList, ids: ArrayLike<number>, count: numbe
   for (let i = 0; i < count; i++) {
     const id = ids[i]
     published[i] = id
-    const rec = recordOf(id)
-    const seen = rec ? mark.set(id, epoch) : epoch
+    const rec = recordOf?.(id)
+    const seen = rec || !recordOf ? mark.set(id, epoch) : epoch
     if (seen === epoch) {
       raw ??= mapRawRanks(held, count, i)
       raw[i] = NO_INDEX

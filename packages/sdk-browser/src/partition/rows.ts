@@ -10,6 +10,7 @@ import { createPlacementRows, growPlacementRows, type PlacementRows } from '../p
 import { grownLength } from '../../../math/src/sequence/resized.ts'
 import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
 import { EngineError } from '../../../sdk-core/src/index.ts'
+import { createChangedRuns, type ChangedRuns } from '../webgpu/residency/ranges.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 /** The association of a host mesh placed by rows: its mesh and primitive ranks, and the rows. */
@@ -90,31 +91,29 @@ export function releaseRow(mesh: PlacedMesh, row: number) {
 }
 
 /**
- * The rows each buffer had written since the last `flush`, which tells the engine: a set of rows
- * per buffer, never the range between its first and its last, which the free list — last in, first
- * out — spreads across the whole table. `flush` hands the engine each run of consecutive written
- * rows once, in ascending order, so the engine reads the rows written and no other.
+ * The rows each buffer had written since the last `flush`, which tells the engine: the engine's one
+ * changed list per buffer (`createChangedRuns`), never the range between its first and its last,
+ * which the free list — last in, first out — spreads across the whole table. `flush` hands the engine
+ * each run of consecutive written rows once, in ascending order, so the engine reads the rows written
+ * and no other; a buffer's list is kept from one flush to the next, nothing allocated per frame.
  */
 export function createTouchedRows() {
-  const touched = new Map<RowLink, Set<number>>()
+  const touched = new Map<RowLink, ChangedRuns>()
   return {
     touch(link: RowLink, row: number) {
-      const rows = touched.get(link)
-      if (rows) rows.add(row)
-      else touched.set(link, new Set([row]))
+      let rows = touched.get(link)
+      if (!rows) touched.set(link, (rows = createChangedRuns()))
+      rows.mark(row)
     },
     flush(update: (rows: PlacementRows, from: number, to: number) => void) {
-      for (const [link, set] of touched) {
-        const rows = Uint32Array.from(set).sort()
-        for (let first = 0; first < rows.length;) {
-          let last = first
-          while (rows[last + 1] === rows[last] + 1) last++
-          update(link.placements!, rows[first], rows[last])
-          first = last + 1
-        }
+      for (const [link, changed] of touched) {
+        if (!changed.count) continue
+        const { count, pairs } = changed.runs()
+        for (let r = 0; r < count; r++) update(link.placements!, pairs[r * 2], pairs[r * 2 + 1])
+        changed.clear()
       }
-      touched.clear()
     },
+    /** Nothing is told: the rows were read whole (a session placed anew); the lists are let go. */
     clear: () => touched.clear(),
   }
 }

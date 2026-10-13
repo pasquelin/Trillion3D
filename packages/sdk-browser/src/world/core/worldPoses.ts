@@ -72,9 +72,6 @@ function modelOf(node: Object3D) {
   return undefined
 }
 
-/** True when `node` is drawn: rooted under `scene`, and it and every ancestor visible. */
-export const shownUnder = (node: Object3D, scene: Object3D) => rootedUnder(node, scene, true)
-
 /**
  * The per-frame change list of a world: the nodes whose pose or visibility moved since the last
  * frame, and the rows those writes touched. `apply` runs once before a frame: the transform tree's
@@ -362,7 +359,7 @@ function writeMoved(state: PoseState, scene: Object3D, frame: PoseFrame) {
     writeSubtree(state, node, shown, frame, node !== scene)
   }
   // A model whose node moved is posed once, the node's write in its graph read by its rows.
-  for (const model of posed) writeModel(state, frame, model, shownUnder(model, scene), false)
+  for (const model of posed) writeModel(state, frame, model, rootedUnder(model, scene, true), false)
   moved.clear()
   movedUnder.clear()
 }

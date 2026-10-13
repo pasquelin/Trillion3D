@@ -19,8 +19,8 @@ export function createProxyBoxes(packed: PackedDag, slots: number, live: () => n
     boxedCuts: (RuntimeCutProxy | undefined)[] = new Array(slots)
   for (let w = 0; w < slots; w++)
     boxes.fill(Infinity, w * 6, w * 6 + 3).fill(-Infinity, w * 6 + 3, w * 6 + 6)
-  const boxed = createChangedRuns(slots, 1),
-    movedBoxes = createChangedRuns(slots, 1)
+  const boxed = createChangedRuns(),
+    movedBoxes = createChangedRuns()
   const extent = [0, 0, 0, 0, 0, 0]
   // Whether the extent was found again since a box that held its edge moved, and holds a box.
   let extentStale = true,

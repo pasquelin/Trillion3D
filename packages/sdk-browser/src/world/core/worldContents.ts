@@ -6,7 +6,8 @@ import { createWorldMaterials, type MaterialEntry } from './worldMaterials.ts'
 import { createWorldBatches } from './worldBatches.ts'
 import { createWorldRanks } from './worldRanks.ts'
 import { createWorldModels } from './worldModels.ts'
-import { createWorldPoses, shownUnder } from './worldPoses.ts'
+import { createWorldPoses } from './worldPoses.ts'
+import { rootedUnder } from '../../host/world/rooted.ts'
 import { createModelJoins, type ModelSession } from './worldModelJoin.ts'
 import { createWorldMembers } from './worldMembers.ts'
 import { noticeFolds, noticeRefused, type WorldNotices } from '../diagnostic/worldNotices.ts'
@@ -144,7 +145,7 @@ async function resolve(state: ContentsState) {
 /** Writes a seated mesh's world matrix and flag into its row. */
 function writeRow({ poses, batches, scene }: ContentsState, mesh: Mesh) {
   mesh.updateWorldMatrix(true, false)
-  poses.writeSeat(mesh, batches.seats.get(mesh)!, shownUnder(mesh, scene))
+  poses.writeSeat(mesh, batches.seats.get(mesh)!, rootedUnder(mesh, scene, true))
 }
 
 /**
@@ -205,11 +206,11 @@ function plan(state: ContentsState) {
   scene.updateMatrixWorld()
   for (const batch of kept)
     batch.owners.forEach(
-      (mesh, row) => mesh && poses.writeSeat(mesh, { batch, row }, shownUnder(mesh, scene)),
+      (mesh, row) => mesh && poses.writeSeat(mesh, { batch, row }, rootedUnder(mesh, scene, true)),
     )
   for (const model of members.models) {
     state.models.rootsOf(model) // its draws, its world DAG's pose among them: written with them
-    poses.writeModel(state.models, model, shownUnder(model, scene))
+    poses.writeModel(state.models, model, rootedUnder(model, scene, true))
   }
   poses.settle()
   state.joins.opened(members.models)

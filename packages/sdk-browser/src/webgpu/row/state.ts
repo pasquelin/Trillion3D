@@ -28,7 +28,7 @@ export function createWebgpuRowState(
   instances: PackedInstances = flatInstances(packedPages),
 ) {
   const casterSlots = drawSlots + blendSlots
-  const dirtyRows = createDirtyRows(casterSlots)
+  const dirtyRows = createDirtyRows()
   const state = {
     /** Pages named by the cache and those whose residency flag just flipped. */
     ...createWebgpuRowJournal(),
@@ -66,7 +66,7 @@ export function createWebgpuRowState(
     },
     /** The table grows in place to `drawSlots` visibility rows and `blendSlots` casters' rows. */
     grow(drawSlots: number, blendSlots: number) {
-      growRowState(state, dirtyRows, drawSlots, blendSlots)
+      growRowState(state, drawSlots, blendSlots)
     },
     /** `packedPages` grew from `first` on (`addRowPages`). */
     addPages(first: number) {

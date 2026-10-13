@@ -2,7 +2,7 @@ import type { HostColour } from '../host/resources.ts'
 import { aimOf, isLightNode } from '../host/graph/kinds.ts'
 import type { Light } from '../../../sdk-core/src/world/light/light.ts'
 import { lampCastsShadow } from '../../../sdk-core/src/world/light/lightRecord.ts'
-import { shownChain } from '../placement/hidden.ts'
+import { rootedUnder } from '../host/world/rooted.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 /**
@@ -76,7 +76,7 @@ function placePair(pair: LightPair, enabled: boolean) {
   copy.color.g = original.color.g
   copy.color.b = original.color.b
   copy.intensity = original.intensity
-  const shown = shownChain(original)
+  const shown = rootedUnder(original, null, true)
   copy.visible = enabled && shown
   const casts = shown && lampCastsShadow(original)
   const moved = casts !== pair.casts

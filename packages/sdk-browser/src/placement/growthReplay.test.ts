@@ -6,11 +6,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { keepMovesFor, replayMoves } from './growthAnnounce.ts'
 import { noteWorldMoved, type MovedWorlds } from '../webgpu/pages/render/movedWorlds.ts'
-import { createSortedKeys, takeSorted } from '../webgpu/cut/denseKeys.ts'
+import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
 const runtime = () => {
-  const movedWorlds: MovedWorlds = createSortedKeys()
+  const movedWorlds: MovedWorlds = createChangedRuns()
   const rt = {
     run: { movedWorlds, gate: { engineMovedInPlace() {} } },
     layout: { worldUpdates: new Float32Array(10_000 * 16) },
@@ -32,7 +32,7 @@ test('the poses named while a cut was made reach it at its swap, they alone', ()
     const ranks = Array.from({ length: count }, (_, k) => (k * 7919) % 10_000)
     for (const rank of ranks) noteWorldMoved(rt.run, rank)
     // The running cut's upload takes them meanwhile: the new one must still be told.
-    takeSorted(rt.run.movedWorlds)
+    rt.run.movedWorlds.take()
     replayMoves(rt, target, [], 0)
     const sorted = [...ranks].sort((a, b) => a - b)
     assert.deepEqual(cut.sent, [sorted], `${count} poses`)

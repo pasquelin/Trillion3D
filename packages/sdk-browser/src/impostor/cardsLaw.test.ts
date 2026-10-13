@@ -7,7 +7,6 @@ import assert from 'node:assert/strict'
 import './lent.fixture.ts'
 import { createImpostorCards, planImpostorCards } from './cards.ts'
 import { uploaded } from './cardSlots.ts'
-import { core } from './borrowed.ts'
 import { cardField as field, impostorSection, MESH } from './section.fixture.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { fieldCamera } from '../gpu/dag/placementTree.fixture.ts'
@@ -41,7 +40,7 @@ function lawOf(count: number) {
     moved = read = 0
     planImpostorCards(state, roots, swayAt(k, turn), VIEWPORT)
     const { slots } = state,
-      writes = slots.full ? cards() : core.takeSorted(slots.dirty).length
+      writes = slots.full ? cards() : slots.dirty.take().length
     uploaded(slots)
     return { reads: read, writes, moved }
   }

@@ -35,20 +35,33 @@ function rustc(...args: string[]): string {
  */
 
 /**
- * The `target_features` custom section of the module lists each capability authorized by the compiler.
- * We require `simd128` and reject any "relaxed" feature whose instruction rounding is implementation-defined.
+ * THE ONE CHECK OF A BUILT MODULE'S INSTRUCTION SET, for both WebAssembly builds: `simd128` required,
+ * any "relaxed" feature, whose instruction rounding is implementation-defined, refused. Read from the
+ * module's `target_features` custom section, which lists each capability the compiler authorized;
+ * where the toolchain strips it (emscripten, `build-physics-wasm.ts`), from the code `disassemble`
+ * prints: SIMD instructions must be there, relaxed ones must not.
  */
-export function checkInstructionSet(path: string): void {
-  const module = new WebAssembly.Module(readFileSync(path))
-  const [section] = WebAssembly.Module.customSections(module, 'target_features')
-  if (!section) throw new Error(`${path}: "target_features" section missing.`)
-  const features = Buffer.from(section).toString('latin1')
-  if (features.includes('relaxed'))
+export function checkInstructionSet(path: string, disassemble?: (path: string) => string): void {
+  const { relaxed, simd } = instructionSet(path, disassemble)
+  if (relaxed)
     throw new Error(
       `${path}: "relaxed" capability present, floating-point rounding not guaranteed.`,
     )
-  if (!features.includes('simd128'))
-    throw new Error(`${path}: simd128 missing from the produced module.`)
+  if (!simd) throw new Error(`${path}: simd128 missing from the produced module.`)
+}
+
+/** Whether the module at `path` carries relaxed instructions and SIMD ones, by its section or,
+ *  without one, by its code (`checkInstructionSet`). */
+function instructionSet(path: string, disassemble?: (path: string) => string) {
+  const module = new WebAssembly.Module(readFileSync(path))
+  const [section] = WebAssembly.Module.customSections(module, 'target_features')
+  if (section) {
+    const features = Buffer.from(section).toString('latin1')
+    return { relaxed: features.includes('relaxed'), simd: features.includes('simd128') }
+  }
+  if (!disassemble) throw new Error(`${path}: "target_features" section missing.`)
+  const code = disassemble(path)
+  return { relaxed: /\brelaxed_/.test(code), simd: /\bf32x4\./.test(code) }
 }
 
 /** The host's Rust target, as `rustc -vV` names it. */

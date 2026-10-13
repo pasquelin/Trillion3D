@@ -1,6 +1,7 @@
 import type { Trillion3dTool } from './types.ts'
 import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts'
 import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts'
+import { LEAST_POOL_BUDGET } from '../contracts/poolBudgets.ts'
 import { DIAGNOSTICS, type DiagnosticMode } from '../runtime/diagnostics.ts'
 
 /** The view modes this engine can show: the others `setDiagnostic` refuses. Pure, so a bundle
@@ -33,12 +34,12 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
       properties: {
         geometryPoolBytes: {
           type: 'integer',
-          minimum: 67108864,
+          minimum: LEAST_POOL_BUDGET,
           description: 'New budget for the geometry pool in bytes (e.g., 268435456 for 256 MiB).',
         },
         texturePoolBytes: {
           type: 'integer',
-          minimum: 67108864,
+          minimum: LEAST_POOL_BUDGET,
           description: 'New budget for the virtual texture pool in bytes.',
         },
       },

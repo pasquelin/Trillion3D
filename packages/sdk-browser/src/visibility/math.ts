@@ -12,10 +12,10 @@ function wrapTexel(t: number, size: number, wrap: WrapMode) {
 
 /**
  * Rank of the texel a map reads at a coordinate, not its components: that byte indexes the sRGB
- * table. The coordinate goes through the map's UV transform first — its affine part, as both GPU
- * paths apply it —, untouched when it is the identity (`transformed`, which a caller reading many
+ * table. The coordinate goes through the map's UV transform first — its affine part, as the GPU
+ * applies it —, untouched when it is the identity (`transformed`, which a caller reading many
  * texels of one map computes once). No footprint here: the texel the coordinate falls in, the
- * `nearest` rule. A `flipY` map reads its rows from the last, as both GPU paths upload them.
+ * `nearest` rule. A `flipY` map reads its rows from the last, as the GPU uploads them.
  */
 export function mapTexel(
   image: { width: number; height: number },

@@ -1,8 +1,8 @@
 import { createChangedRuns } from '../residency/ranges.ts'
 import { PAGE_TABLE_RULE } from './pageTableRule.ts'
 
-export function createPageUploads(size: number) {
-  const changed = createChangedRuns(size, PAGE_TABLE_RULE.gap, PAGE_TABLE_RULE.cap)
+export function createPageUploads() {
+  const changed = createChangedRuns(PAGE_TABLE_RULE.gap, PAGE_TABLE_RULE.cap)
   return {
     /** Word `index` changed since the last flush. */
     mark: changed.mark,

@@ -9,8 +9,9 @@ import { resized } from '../../../../math/src/sequence/resized.ts'
  * the delta then makes `next` the held list.
  */
 export type HeldList = {
-  /** A packed rank back to its record: the one catalogue accessor. */
-  readonly recordOf: (id: number) => PageRec | undefined
+  /** A packed rank back to its record: the one catalogue accessor. None for a list of ids alone:
+   *  every id it names is listed. */
+  readonly recordOf: ((id: number) => PageRec | undefined) | undefined
   /** Epoch of the list where the id was last held: an id the held list holds carries `epoch`, an
    *  id it does not hold carries nothing. */
   readonly mark: ReturnType<typeof createSparseInts>

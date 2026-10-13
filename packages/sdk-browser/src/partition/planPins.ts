@@ -1,4 +1,4 @@
-import { createListDifference } from '../webgpu/row/listDifference.ts'
+import { createCutDelta } from '../webgpu/cut/delta.ts'
 import type { IndexPage } from './cellIndex.ts'
 
 /** What pins and unpins a file: the streamer's counted pin (`PageStreamer.pin`). */
@@ -7,7 +7,7 @@ type Pins = { pin(url: string): void; unpin(url: string): void }
 /** The files of one id space the plan pins: its difference from one frame to the next, and the
  *  address each pinned id was pinned under, which an id leaving the plan may no longer name. */
 function createPinned() {
-  let difference = createListDifference(),
+  let difference = createCutDelta(),
     /** The streamer the pins are with: a session opened again on the kept cells has a new one, which
      *  holds none of them. */
     streamer: Pins['pin'] | undefined
@@ -18,7 +18,7 @@ function createPinned() {
     apply(ids: ArrayLike<number>, url: (id: number) => string, { pin, unpin }: Pins) {
       if (streamer !== pin) {
         streamer = pin
-        difference = createListDifference()
+        difference = createCutDelta()
         urls.clear()
       }
       difference.apply(ids)
