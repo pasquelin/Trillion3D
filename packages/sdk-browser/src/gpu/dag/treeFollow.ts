@@ -12,6 +12,7 @@ import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
 import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
 import { createTreeRefit, type RefitTables } from './treeRefit.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /** Writes the tree nodes `nodes` names, ascending, in the cut's one run writer's ranges: an
  *  append's (`../dag/runtimeOps.ts`). */
@@ -62,6 +63,8 @@ export function createTreeFollower(
         ? Array.from({ length: tree.levels.at(-1)!.count }, (_, g) => g)
         : [],
     )
+  // The moved placements whose leaf the CPU writes, ascending: one scratch for every sync.
+  let written = new Int32Array(8)
   /** Placement `w`'s group fits again at the next cut: parked or taken back, posed by a send,
    *  appended, or composed on the GPU by a parent from now on or no longer. */
   const touch = (w: number) => {
@@ -94,11 +97,14 @@ export function createTreeFollower(
       if (!placements?.length && !groups.size) return
       const fit = new Set(groups)
       groups.clear()
+      let count = 0
+      if (placements) written = resized(written, placements.length)
       for (const w of placements ?? []) {
         if (tree.slot[w] === 0xffffffff) continue
         fit.add(Math.floor(tree.slot[w] / TREE_SPAN))
-        if (!leaves?.has(w)) refit.leaf(w)
+        if (!leaves?.has(w)) written[count++] = w
       }
+      refit.leaves(written, count)
       const encoder = device.createCommandEncoder({ label: 'Trillion3D placement tree refit' })
       leaves?.encode(encoder, { members: refit.members, nodeParts })
       refit.run(encoder, fit)

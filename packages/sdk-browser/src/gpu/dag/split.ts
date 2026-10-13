@@ -126,7 +126,8 @@ function ruleFor(stride: number, count: number): RangeRule {
  * The one run writer of the cut's tables: the `count` increasing indices of `sorted` joined into
  * ranges (`ruleFor`, `coalesceRanges`), each sent as one write into `parts` — the residency bits
  * and node counts, the placement tree's nodes, the placements' links, the worlds a call named, the
- * impostor cards — or through `parts` when it is a `RangeTarget`: the exact translations.
+ * impostor cards — or through `parts` when it is a `RangeTarget`: the exact translations, the
+ * placement tree's leaf boxes (`treeRefit.ts`).
  */
 export function writeRanges(
   device: GPUDevice,

@@ -4,8 +4,9 @@
  * the pass fits them and every node above them, bottom up, in one compute pass of one command
  * buffer — a dispatch a level, a thread a node — and nothing else of the tree is read or written.
  * The leaves it fits over are the table `members` holds, six doubles a placement: the caller
- * writes the ones it moved (`leaf`, the root's box through the world the CPU holds) or has the GPU
- * write them (a composition's, `treeFollow.ts`), before `run`. The pass is the one entry point of a
+ * writes the ones it moved (`leaves`, the root's box through the world the CPU holds, sent in the
+ * cut's one run writer's ranges) or has the GPU write them (a composition's, `treeFollow.ts`),
+ * before `run`. The pass is the one entry point of a
  * refit — the placement tree's, and whatever else bounds its boxes the same way.
  *
  * The pass binds the cut's tables as the cut does: a table the device splits across bindings is read
@@ -20,8 +21,11 @@ import { memberBox, refitLevels, treeNodeCount, type PlacementTree } from './pla
 import { REFIT_PARAM_WORDS, treeRefitWgsl, type RefitLayout } from './treeRefitWgsl.ts'
 import { DAG_BINDING, dagPartEntries } from './shader/bindings.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
-import type { DagParts } from './split.ts'
-import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { writeRanges, type DagParts } from './split.ts'
+import { uniformSlots } from '../../residency/pools.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
+import { preparedComputePipeline, preparedPipelines } from '../../lighting/deferred/fullscreen.ts'
+import { oncePerDevice } from '../core/oncePerDevice.ts'
 
 /** What a refit reads and writes: the tree's nodes and the order of its members as the device lays
  *  them out, and the frames of each range of placements. */
@@ -30,9 +34,6 @@ export type RefitTables = {
   coldParts: DagParts
   frames: { buffers: GPUBuffer[]; ranges: readonly { first: number }[] }
 }
-
-/** Bytes a level's parameters take in their buffer: a uniform offset's alignment. */
-const PARAM_STRIDE = 256
 
 /** How `tables` lay the refit's tables out: the elements a part holds, the parts, the ranges. */
 function layoutOf({ nodeParts, coldParts, frames }: RefitTables): RefitLayout {
@@ -63,40 +64,64 @@ export function createTreeRefit(
   const words = new Uint32Array(worlds * 12)
   packDoubles(words, 0, tree.boxes)
   device.queue.writeBuffer(members, 0, words)
-  const leafWords = new Uint32Array(12)
+  // The leaves a sync wrote, sent as runs of the words above (`writeRanges`): a run's gap sends
+  // the leaves as last sent, and a composed leaf it covers is written again by the composition's
+  // pass, encoded after the writes land (`treeFollow.ts`).
+  const leafSource = { data: words, sourceBase: 0, targetBase: 0, stride: 12 }
+  const toMembers = (offset: number, data: ArrayBuffer, from: number, size: number) =>
+    device.queue.writeBuffer(members, offset, data, from, size)
   // Compiled off the thread as the tree is followed: the frames wait for it, none compiles it.
-  const kernel = refitKernel(device, layout).ask()
+  const kernel = refitKernels(device).of(layout).ask()
   let program: ReturnType<typeof refitProgram> | undefined
   return {
     members,
-    /** Placement `w`'s leaf box, its root's box through the world the CPU holds, written. */
-    leaf(w: number) {
-      memberBox(packed, tree, w)
-      packDoubles(leafWords, 0, tree.boxes, w * 6, 6)
-      device.queue.writeBuffer(members, w * 48, leafWords)
+    /** The leaf boxes of the `count` placements `sorted` names, ascending — each its root's box
+     *  through the world the CPU holds —, written in the fewest runs. */
+    leaves(sorted: Int32Array, count: number) {
+      for (let k = 0; k < count; k++) {
+        const w = sorted[k]
+        memberBox(packed, tree, w)
+        packDoubles(words, w * 12, tree.boxes, w * 6, 6)
+      }
+      writeRanges(device, toMembers, sorted, count, leafSource)
     },
     /** The groups `groups` and every node above them fit again, encoded in `encoder`: the leaves
      *  they hold are those `members` holds when it runs. */
     run(encoder: GPUCommandEncoder, groups: Iterable<number>) {
       const levels = refitLevels(tree, groups)
       if (!levels.length) return
-      program ??= refitProgram(device, tree, tables, members, kernel.get())
+      const p = (program ??= refitProgram(device, tree, tables, members, kernel.get()))
+      // Every level's ids and parameters in one write each: the ids follow one another, the
+      // parameters a uniform slot a level.
+      let ids = 0
+      for (const level of levels) ids += level.ids.length
+      p.idWords = resized(p.idWords, ids)
+      const { strideWords } = p.slots
+      for (let step = 0, at = 0; step < levels.length; step++) {
+        const { level, ids: named } = levels[step],
+          below = tree.levels[level + 1],
+          here = tree.levels[level],
+          o = step * strideWords
+        p.idWords.set(named, at)
+        p.paramWords[o] = at
+        p.paramWords[o + 1] = named.length
+        p.paramWords[o + 2] = here.base
+        p.paramWords[o + 3] = tree.count
+        p.paramWords[o + 4] = tree.members
+        p.paramWords[o + 5] = below?.base ?? 0
+        p.paramWords[o + 6] = below?.count ?? 0
+        p.paramWords[o + 7] = below ? 1 : 0
+        at += named.length
+      }
+      device.queue.writeBuffer(p.ids, 0, p.idWords, 0, ids)
+      device.queue.writeBuffer(p.params, 0, p.paramWords, 0, levels.length * strideWords)
       const pass = encoder.beginComputePass({ label: TREE_REFIT_PASS })
-      pass.setPipeline(program.pipeline)
-      pass.setBindGroup(0, program.tables)
-      let at = 0
-      levels.forEach(({ level, ids }, step) => {
-        const below = tree.levels[level + 1],
-          here = tree.levels[level]
-        const params = new Uint32Array(REFIT_PARAM_WORDS)
-        params.set([at, ids.length, here.base, tree.count, tree.members])
-        params.set([below?.base ?? 0, below?.count ?? 0, below ? 1 : 0], 5)
-        device.queue.writeBuffer(program!.ids, at * 4, ids)
-        device.queue.writeBuffer(program!.params, step * PARAM_STRIDE, params)
-        pass.setBindGroup(1, program!.groups[step])
-        dispatchRows(pass, ceilDiv(ids.length, 64))
-        at += ids.length
-      })
+      pass.setPipeline(p.pipeline)
+      pass.setBindGroup(0, p.tables)
+      for (let step = 0; step < levels.length; step++) {
+        pass.setBindGroup(1, p.groups[step])
+        dispatchRows(pass, ceilDiv(levels[step].ids.length, 64))
+      }
       pass.end()
     },
     dispose() {
@@ -107,16 +132,11 @@ export function createTreeRefit(
   }
 }
 
-/** The refit kernel of a device for a layout of its tables, made once. */
-const kernels = new WeakMap<GPUDevice, Map<string, ReturnType<typeof preparedComputePipeline>>>()
-function refitKernel(device: GPUDevice, layout: RefitLayout) {
-  const key = JSON.stringify(layout, (_, v) => (v === Infinity ? 'whole' : v))
-  const held = kernels.get(device) ?? kernels.set(device, new Map()).get(device)!
-  let kernel = held.get(key)
-  if (!kernel)
-    held.set(
-      key,
-      (kernel = preparedComputePipeline(device, {
+/** The refit kernel of a device for each layout of its tables, made once (`preparedPipelines`). */
+const refitKernels = oncePerDevice((device) =>
+  preparedPipelines(
+    (layout: RefitLayout) =>
+      preparedComputePipeline(device, {
         label: TREE_REFIT_PASS,
         layout: 'auto',
         compute: {
@@ -126,10 +146,10 @@ function refitKernel(device: GPUDevice, layout: RefitLayout) {
           }),
           entryPoint: 'main',
         },
-      })),
-    )
-  return kernel
-}
+      }),
+    (layout) => JSON.stringify(layout, (_, v) => (v === Infinity ? 'whole' : v)),
+  ),
+)
 
 /** The pipeline's lists and parameters, made when the first pass runs: the tables' group once, and
  *  one group of the pass's own per level — the tree's depth is fixed. */
@@ -145,9 +165,10 @@ function refitProgram(
     size: Math.max(1, treeNodeCount(tree)) * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
+  const slots = uniformSlots(device.limits, tree.levels.length, REFIT_PARAM_WORDS)
   const params = device.createBuffer({
     label: 'Trillion3D placement tree refit params',
-    size: tree.levels.length * PARAM_STRIDE,
+    size: slots.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   // The cut's tables, each at its binding and its parts after the kernel's own range binding.
@@ -168,7 +189,7 @@ function refitProgram(
       entries: [
         {
           binding: 0,
-          resource: { buffer: params, offset: step * PARAM_STRIDE, size: REFIT_PARAM_WORDS * 4 },
+          resource: { buffer: params, offset: step * slots.stride, size: REFIT_PARAM_WORDS * 4 },
         },
         { binding: 1, resource: { buffer: ids } },
         { binding: 2, resource: { buffer: members } },
@@ -176,5 +197,15 @@ function refitProgram(
       ],
     }),
   )
-  return { pipeline, ids, params, tables, groups }
+  return {
+    pipeline,
+    ids,
+    params,
+    tables,
+    groups,
+    slots,
+    /** The ids of a run's levels, end to end, and their parameters laid as `params`. */
+    idWords: new Uint32Array(Math.max(1, treeNodeCount(tree))),
+    paramWords: new Uint32Array(slots.strideWords * tree.levels.length),
+  }
 }

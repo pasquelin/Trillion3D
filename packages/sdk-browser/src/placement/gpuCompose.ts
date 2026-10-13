@@ -58,7 +58,7 @@ import { composedRowInputs } from './composedRowInputs.ts'
 import { MOTION_SKIP } from './composedMotion.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
-import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
+import { preparedComputePipeline, preparedPipelines } from '../lighting/deferred/fullscreen.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import { placedBy, type PlacementRows } from './rows.ts'
@@ -608,19 +608,11 @@ const composeKernels = oncePerDevice((device) => {
 /** The layout of the nodes each session's tree is followed over, as its members kernel is asked. */
 const memberLayouts = new WeakMap<WebgpuPagesRuntime, RefitLayout['nodes']>()
 
-/** The members kernel for the layout of the nodes it reads, made once for each (`nodeTableWgsl`). */
-const memberKernels = new WeakMap<
-  GPUDevice,
-  Map<string, ReturnType<typeof preparedComputePipeline>>
->()
-function membersKernel(device: GPUDevice, nodes: RefitLayout['nodes']) {
-  const key = `${nodes.per}x${nodes.parts}`,
-    held = memberKernels.get(device) ?? memberKernels.set(device, new Map()).get(device)!
-  let kernel = held.get(key)
-  if (!kernel)
-    held.set(
-      key,
-      (kernel = preparedComputePipeline(device, {
+/** The members kernel for each layout of the nodes it reads, made once a device (`nodeTableWgsl`). */
+const memberKernels = oncePerDevice((device) =>
+  preparedPipelines(
+    (nodes: RefitLayout['nodes']) =>
+      preparedComputePipeline(device, {
         label: COMPOSE_MEMBERS_PASS,
         layout: 'auto',
         compute: {
@@ -630,10 +622,10 @@ function membersKernel(device: GPUDevice, nodes: RefitLayout['nodes']) {
           }),
           entryPoint: 'main',
         },
-      })),
-    )
-  return kernel
-}
+      }),
+    (nodes) => `${nodes.per}x${nodes.parts}`,
+  ),
+)
 
 /**
  * The leaves the placement tree's refit fits over for the roots a parent composes (`treeFollow.ts`):
@@ -656,7 +648,7 @@ export function composedLeaves(rt: WebgpuPagesRuntime): ComposedLeaves {
           per: nodeParts.bytes / (DAG_NODE_FLOATS * 4),
           parts: nodeParts.buffers.length,
         },
-        pipeline = membersKernel(device, layout).ask().get(),
+        pipeline = memberKernels(device).of(layout).ask().get(),
         tables = device.createBindGroup({
           layout: pipeline.getBindGroupLayout(1),
           entries: [
@@ -703,7 +695,7 @@ export function askComposedPlacements(rt: WebgpuPagesRuntime, device: GPUDevice)
   kernels.roots.ask()
   kernels.rows.ask()
   const nodes = memberLayouts.get(rt)
-  if (nodes) membersKernel(device, nodes).ask()
+  if (nodes) memberKernels(device).of(nodes).ask()
 }
 
 /** Parent matrices for this frame, each world in doubles; notes whether one moved since the last. */
