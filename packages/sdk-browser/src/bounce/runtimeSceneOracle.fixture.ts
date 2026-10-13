@@ -12,12 +12,12 @@ import {
 } from '../gpu/dag/nodeLayout.ts'
 import { TREE_GROUP } from '../gpu/dag/placementTree.ts'
 import { RAY_WORK, RUNTIME_NONE } from './runtimeLayout.ts'
+import { dotVector3 } from '../../../math/src/vector/vector.ts'
+import { cross, subtract } from '../../../math/src/vector/vectorTuple.ts'
 import {
   boxEntry,
-  cross,
-  dot,
+  missed,
   spent,
-  sub,
   traceCut,
   triangleDistance,
   vertex,
@@ -66,13 +66,13 @@ function enter(scene: OracleScene, w: number, o: Vec, d: Vec, best: Hit, s: Spen
     high = world.map((v, k) => v + extent[k]) as Vec
   if (boxEntry(low, high, o, d, best.distance) > best.distance) return best
   const r0 = cross(b, c),
-    det = dot(a, r0)
+    det = dotVector3(a, r0)
   if (Math.abs(det) < 1e-30) return best
   const r = [r0, cross(c, a), cross(a, b)].map((row) => row.map((v) => v / det) as Vec)
-  const apply = (v: Vec): Vec => [dot(r[0], v), dot(r[1], v), dot(r[2], v)]
+  const apply = (v: Vec): Vec => [dotVector3(r[0], v), dotVector3(r[1], v), dotVector3(r[2], v)]
   const hit = traceCut(
     scene.columns,
-    apply(sub(o, t)),
+    apply(subtract(o, t)),
     apply(d),
     best.distance,
     instance.node,
@@ -85,7 +85,7 @@ function enter(scene: OracleScene, w: number, o: Vec, d: Vec, best: Hit, s: Spen
 
 /** `rtScene`: the nearest hit over every placement, the tree walked depth first. */
 export function traceScene(scene: OracleScene, o: Vec, d: Vec, limit: number, s: Spent): Hit {
-  let best: Hit = { distance: limit, placement: 0, triangle: 0, found: false }
+  let best = missed(limit)
   const { packed } = scene,
     tree = packed.placementTree
   if (!tree) {
@@ -163,7 +163,7 @@ function copiesOf(scene: OracleScene, o: Vec, d: Vec, hit: Hit, s: Spent) {
 
 /** Every triangle of every placement tested in turn, through the placement's world. */
 export function bruteForce(scene: OracleScene, o: Vec, d: Vec, limit: number): Hit {
-  let best: Hit = { distance: limit, placement: 0, triangle: 0, found: false }
+  let best = missed(limit)
   for (const [w, instance] of scene.instances) {
     const m = worldOf(scene, w)
     const place = (v: Vec): Vec => [
@@ -173,14 +173,8 @@ export function bruteForce(scene: OracleScene, o: Vec, d: Vec, limit: number): H
     ]
     for (let k = 0; k < instance.triangles; k++) {
       const t = instance.triangle + k
-      const distance = triangleDistance(
-        o,
-        d,
-        place(vertex(scene.columns, t, 0)),
-        place(vertex(scene.columns, t, 1)),
-        place(vertex(scene.columns, t, 2)),
-        best.distance,
-      )
+      const corners = [0, 1, 2].flatMap((c) => place(vertex(scene.columns, t, c)))
+      const distance = triangleDistance(o, d, corners, 0, best.distance)
       if (distance < best.distance) best = { distance, placement: w, triangle: t, found: true }
     }
   }

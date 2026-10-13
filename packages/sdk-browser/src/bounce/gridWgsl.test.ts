@@ -14,6 +14,7 @@ import {
   radianceProjectionShader,
 } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import { unit } from '../../../math/src/vector/vectorTuple.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
@@ -85,14 +86,22 @@ test('a bounce probe is read in the band order the environment uses', () => {
     /e\[(\d)\]\.rgb/g,
     'N',
   )
-  const unit = (x: number, y: number, z: number) => {
-    const length = Math.hypot(x, y, z)
-    return { x: x / length, y: y / length, z: z / length }
-  }
-  const directions = [unit(1, 0, 0), unit(0, 1, 0), unit(0.3, -0.5, 0.8), unit(-2, 1, 1)]
+  const [a, b, c, d, e] = (
+    [
+      [1, 0, 0],
+      [0, 1, 0],
+      [0.3, -0.5, 0.8],
+      [-2, 1, 1],
+      [1, 2, -3],
+    ] as [number, number, number][]
+  ).map((v) => {
+    const [x, y, z] = unit(v)
+    return { x, y, z }
+  })
+  const directions = [a, b, c, d]
   for (const source of directions) {
     const sh = project(source)
-    for (const n of [...directions, unit(1, 2, -3)]) {
+    for (const n of [...directions, e]) {
       const expected = bounce(sh, n),
         read = environment(sh, n)
       assert.ok(Math.abs(Math.max(0, read) - expected) < 1e-5, `${expected} vs ${read}`)

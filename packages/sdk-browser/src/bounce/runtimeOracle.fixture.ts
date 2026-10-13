@@ -7,6 +7,8 @@ import {
   PROXY_TRIANGLE_FLOATS,
 } from '../../../sdk-core/src/index.ts'
 import { RAY_TRIANGLES, RAY_WORK } from './runtimeLayout.ts'
+import { rayTriangle } from '../../../math/src/geometry/rayTriangle.ts'
+import { slabCut } from '../../../math/src/geometry/slab.ts'
 
 /** The columns of the arena's cuts, one cut's after another. */
 export type ArenaColumns = {
@@ -22,45 +24,24 @@ export type Spent = { work: number; tests: number }
 export const spent = (s: Spent) => s.work >= RAY_WORK || s.tests >= RAY_TRIANGLES
 
 export type Vec = [number, number, number]
-export const sub = (a: Vec, b: Vec): Vec => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-export const cross = (a: Vec, b: Vec): Vec => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-]
-export const dot = (a: Vec, b: Vec) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+/** The answer of a ray that has met nothing before `limit`. */
+export const missed = (limit: number): Hit => ({
+  distance: limit,
+  placement: 0,
+  triangle: 0,
+  found: false,
+})
 
 /** `rayBoxEntry`: where the ray enters the box, or `limit + 1`. */
 export function boxEntry(low: Vec, high: Vec, o: Vec, d: Vec, limit: number) {
-  let entry = 0,
-    exit = limit
-  for (let a = 0; a < 3; a++) {
-    const inverse = 1 / (Math.abs(d[a]) < 1e-20 ? 1e-20 : d[a])
-    const t0 = (low[a] - o[a]) * inverse,
-      t1 = (high[a] - o[a]) * inverse
-    entry = Math.max(entry, Math.min(t0, t1))
-    exit = Math.min(exit, Math.max(t0, t1))
-  }
-  return entry <= exit ? entry : limit + 1
+  const span = new Float64Array([0, limit])
+  return slabCut(span, low, 0, high, 0, o, d) ? span[0] : limit + 1
 }
 
-/** `rayTriangleDistance`: the distance along `d`, or `limit` where the ray misses. */
-export function triangleDistance(o: Vec, d: Vec, a: Vec, b: Vec, c: Vec, limit: number) {
-  const edge0 = sub(b, a),
-    edge1 = sub(c, a),
-    perpendicular = cross(d, edge1),
-    determinant = dot(edge0, perpendicular)
-  if (Math.abs(determinant) < 1e-12) return limit
-  const inverse = 1 / determinant,
-    offset = sub(o, a),
-    u = dot(offset, perpendicular) * inverse
-  if (u < 0 || u > 1) return limit
-  const across = cross(offset, edge0),
-    v = dot(d, across) * inverse
-  if (v < 0 || u + v > 1) return limit
-  const distance = dot(edge1, across) * inverse
-  return distance <= 1e-4 || distance >= limit ? limit : distance
-}
+/** `rayTriangleDistance` on the triangle whose nine floats start at `at` of `v`: the distance along
+ *  `d`, or `limit` where the ray misses or meets it within the 1e-4 self-hit bound. */
+export const triangleDistance = (o: Vec, d: Vec, v: ArrayLike<number>, at: number, limit: number) =>
+  rayTriangle(o, d, v, at, 1e-4, limit)
 
 export const vertex = (columns: ArenaColumns, index: number, k: number): Vec => {
   const at = index * PROXY_TRIANGLE_FLOATS + k * 3
@@ -79,7 +60,7 @@ export function traceCut(
   placement: number,
   s: Spent,
 ): Hit {
-  let best: Hit = { distance: limit, placement: 0, triangle: 0, found: false }
+  let best = missed(limit)
   const stack: number[] = []
   let node = 0
   for (let step = 0; step < 128; step++) {
@@ -121,9 +102,8 @@ export function traceCut(
           const distance = triangleDistance(
             o,
             d,
-            vertex(columns, t, 0),
-            vertex(columns, t, 1),
-            vertex(columns, t, 2),
+            columns.triangles,
+            t * PROXY_TRIANGLE_FLOATS,
             best.distance,
           )
           if (distance < best.distance) best = { distance, placement, triangle: t, found: true }

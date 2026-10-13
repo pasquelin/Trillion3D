@@ -5,7 +5,8 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { TRACE_LIST, TRACE_LIST_FIRST } from './runtimeLayout.ts'
 import { runtimeTraceWgsl } from './runtimeTraceWgsl.ts'
-import type { Hit, Vec, world } from './runtimeScene.fixture.ts'
+import type { world } from './runtimeScene.fixture.ts'
+import type { Hit, Vec } from './runtimeOracle.fixture.ts'
 
 /** The functions of the program the run reaches, each named: the interpreter follows the library's alone. */
 const FUNCTIONS = [

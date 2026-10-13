@@ -3,7 +3,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { stream, world, type Vec } from './runtimeScene.fixture.ts'
+import { world } from './runtimeScene.fixture.ts'
+import type { Vec } from './runtimeOracle.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { runOver } from './runtimeRun.fixture.ts'
 import { traceScene } from './runtimeSceneOracle.fixture.ts'
 
@@ -11,7 +13,7 @@ for (const count of [5, 400]) {
   test(`${count} placements: the shipped WGSL walks the tree and the cuts as the oracle does`, () => {
     const w = world(count, count),
       run = runOver(w)
-    const random = stream(5),
+    const random = lcgRandom(5),
       side = Math.ceil(Math.sqrt(count)) * 3
     let hits = 0
     for (let ray = 0; ray < 120; ray++) {
@@ -44,7 +46,7 @@ test('blended copies, members after the placements, are met as the oracle meets 
   })
   const w = world(70, 4, { copies })
   const run = runOver(w)
-  const random = stream(9)
+  const random = lcgRandom(9)
   let hits = 0
   for (let ray = 0; ray < 150; ray++) {
     const origin: Vec = [random() * 16 - 2, 6, random() * 16]

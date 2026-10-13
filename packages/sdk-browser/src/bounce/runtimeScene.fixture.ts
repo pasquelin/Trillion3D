@@ -21,19 +21,9 @@ import {
   SURFACE_WORDS,
 } from './runtimeLayout.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import type { ArenaColumns, Instance } from './runtimeOracle.fixture.ts'
 import type { OracleScene } from './runtimeSceneOracle.fixture.ts'
-
-export type Vec = [number, number, number]
-export type Hit = { distance: number; placement: number; triangle: number; found: boolean }
-
-export function stream(seed: number) {
-  let state = seed
-  return () => {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0
-    return state / 2 ** 32
-  }
-}
 
 /** A unit cube's cut, as the builder holds it. */
 function cube() {
@@ -54,7 +44,7 @@ export function world(
     copies?: G.Matrix4[]
   } = {},
 ) {
-  const random = stream(seed),
+  const random = lcgRandom(seed),
     side = Math.ceil(Math.sqrt(count))
   const worlds =
     options.places ??
