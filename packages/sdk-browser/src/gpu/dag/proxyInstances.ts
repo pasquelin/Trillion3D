@@ -699,6 +699,8 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     worldsWritten(rows: ArrayLike<number>, count = rows.length) {
       for (let k = 0; k < count; k++) worldWritten(rows[k])
     },
+    /** Row `w` of it was written. */
+    worldWritten,
     /** Rows `[from, to)` of it were written, appended roots' worlds among them. */
     worldsRange(from: number, to: number) {
       for (let w = from; w < to && !worldsAll; w++) worldWritten(w)

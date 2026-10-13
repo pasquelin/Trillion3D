@@ -125,7 +125,7 @@ function selectionOver(run: DagRun): GpuSelection {
       if (!live()) return
       state.worldRevision++
       // The proxy's mirror of those rows is copied at the next image; the others stand.
-      for (const w of rows) run.proxies.worldsWritten([w])
+      for (const w of rows) run.proxies.worldWritten(w)
     },
     get growing() {
       return state.growing
