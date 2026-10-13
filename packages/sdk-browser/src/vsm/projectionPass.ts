@@ -327,8 +327,9 @@ function writeVsmProjectionView(
   return 4 * words
 }
 
-/** The projection's module, layouts and bind groups for one layout, vote and receiver variant, and
- *  its pipelines by their constants (`pipelineFor`): the variants share all but their pipeline. */
+/** The projection's module and layouts for one layout, vote and receiver variant, and its
+ *  pipelines by their constants (`pipelineFor`): the variants share all but their pipeline; the
+ *  groups are each set's (`ProjectionState`). */
 interface Pipelines {
   module: GPUShaderModule
   layout: GPUPipelineLayout
@@ -495,7 +496,7 @@ interface ProjectionVariant {
   receiver: boolean
 }
 
-/** The projection's module, layouts and bind groups for these variants. */
+/** The projection's module, layouts and pipelines for these variants. */
 function makePipelines(
   device: GPUDevice,
   { layout, subgroups, receiver }: ProjectionVariant,
