@@ -77,7 +77,7 @@ pub(super) fn assert_mesh_pages(directory: &Path, tables: &Value) {
 fn mesh_pages_are_cut_under_the_limit_and_give_every_primitive_back_in_order() {
     let directory = scratch("pages", "mesh");
     let pad = "x".repeat(200);
-    let primitive = |at: usize| json!({"mesh": at / 50, "primitive": at % 50, "pages": [], "pad": pad, "culling": {"stride": crate::CULLING_STRIDE, "count": 1, "nodes": vec![at; crate::CULLING_STRIDE]}});
+    let primitive = |at: usize| json!({"mesh": at / 50, "primitive": at % 50, "pages": [], "pad": pad, "culling": {"stride": trillion3d_page_codec::culling::CULLING_STRIDE, "count": 1, "nodes": vec![at; trillion3d_page_codec::culling::CULLING_STRIDE]}});
     let primitives: Vec<Value> = (0..5_000).map(primitive).collect();
     let paged = write_mesh_pages(&primitives, &directory).expect("mesh pages");
     let pages = leaves(&MANIFEST_PAGES, &directory, &json!(paged.slots));

@@ -6,6 +6,7 @@ import { QUAD_MANIFEST, quadScene } from '../../engine/pagesEngineScenes.fixture
 import { webgpuPagesEngine } from './pages.ts'
 import type { EngineDiagnostic } from '../../engine/types.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 const POSITIONS = new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0])
 /** The two triangles of the quad, as the corner lists a compiler would cluster them into. */
@@ -65,6 +66,7 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
         pass: 'exact-clusters',
         pages,
         structure: { version: 1, roots: specs.map((_, id) => id), groups: [] },
+        culling: manifestCulling(pages),
         quantization: { positionExponent: -6, uvExponent: -14, maxPositionError: 0.02 },
       },
     ],

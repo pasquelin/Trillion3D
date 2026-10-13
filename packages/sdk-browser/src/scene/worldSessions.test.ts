@@ -68,8 +68,8 @@ test('a load let go while the whole binary downloads stops it: the page cache ke
 })
 
 test("a page a closed session's engine asked is let go with its signal: it never waits on a bind", async (t) => {
-  const { clusters, groups } = worldRootsDag()
-  const { manifest } = served(t, { dag: { clusters, groups } })
+  const { clusters, groups, culling } = worldRootsDag()
+  const { manifest } = served(t, { dag: { clusters, groups, culling } })
   // A world's model: no session yet.
   const roots = (await modelOpened(manifest))!
   const stream = await roots.stream()

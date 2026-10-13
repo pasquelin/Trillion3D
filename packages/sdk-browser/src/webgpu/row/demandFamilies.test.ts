@@ -10,7 +10,7 @@ import { fieldCamera, placementField } from '../../gpu/dag/placementTree.fixture
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { packedWorldsToRenderOrigin } from '../../gpu/dag/pack.fixture.ts'
 import { evaluateDagSelectionKernel } from '../../gpu/dag/oracle/oracle.fixture.ts'
-import { flatHierarchy } from '../../gpu/dag/hierarchy.ts'
+import { cullingInPlace } from '../../gpu/dag/culling.fixture.ts'
 import { structureIndex } from '../../page/selection/structure.ts'
 import { postPackedBases } from '../../page/selection/placements.ts'
 import { createGroupClosure } from '../../page/cut/groupClosure.ts'
@@ -36,7 +36,7 @@ function hostMeshes(count: number, at: (k: number) => [number, number]) {
     ]
     const elements = Float64Array.of(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, z, 1)
     const structure = structureIndex({ version: 1, roots: [0], groups: [] }, 1)
-    return { world: { elements }, pages, culling: flatHierarchy(pages), structure } as DagRoot
+    return { world: { elements }, pages, culling: cullingInPlace(pages), structure } as DagRoot
   })
 }
 

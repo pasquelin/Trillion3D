@@ -1,6 +1,10 @@
 use super::*;
 use trillion3d_math::triangle::edge_key;
+use trillion3d_page_codec::clusters::{spatial::spatial, Caps};
 
+/// The clusters of `indices` over `positions`, at most `max_triangles` triangles and
+/// `DAG_CLUSTER_VERTICES` vertices each, by the one clusterer (`trillion3d_page_codec::clusters`,
+/// the spatial rule): the run-time cut's too. Each cluster's triangles keep their source order.
 pub fn cluster_triangles(
     positions: &[f32],
     indices: &[u32],
@@ -14,49 +18,18 @@ pub fn cluster_triangles(
             "Cluster triangle budget must be a positive multiple of four up to 512",
         ));
     }
-    if indices.len() / 3 <= max_triangles {
-        return Ok(vec![indices.to_vec()]);
-    }
-    let (compact_pos, compact_idx, remap) = compact_region(positions, indices);
-    let bytes = unsafe {
-        std::slice::from_raw_parts(compact_pos.as_ptr() as *const u8, compact_pos.len() * 4)
+    let caps = Caps {
+        triangles: max_triangles,
+        vertices: DAG_CLUSTER_VERTICES,
     };
-    let vertices =
-        meshopt::VertexDataAdapter::new(bytes, 12, 0).map_err(|_| invalid("POSITION adapter"))?;
-    let meshlets = meshopt::build_meshlets(
-        &compact_idx,
-        &vertices,
-        DAG_CLUSTER_VERTICES,
-        max_triangles,
-        0.0,
-    );
-    if meshlets.is_empty() {
-        return Err(invalid("Meshlet builder produced no cluster"));
-    }
-    let mut clusters = Vec::with_capacity(meshlets.len());
-    for i in 0..meshlets.len() {
-        let meshlet = meshlets.get(i);
-        let mut cluster = Vec::with_capacity(meshlet.triangles.len());
-        for corner in meshlet.triangles {
-            let local = *meshlet
-                .vertices
-                .get(*corner as usize)
-                .ok_or_else(|| invalid("Meshlet vertex out of range"))?;
-            cluster.push(
-                *remap
-                    .get(local as usize)
-                    .ok_or_else(|| invalid("Meshlet remap out of range"))?,
-            );
-        }
-        if cluster.is_empty() {
-            continue;
-        }
-        clusters.push(cluster);
-    }
-    if clusters.is_empty() {
-        return Err(invalid("Meshlet builder produced no triangle"));
-    }
-    Ok(clusters)
+    let built = spatial(positions, indices, caps);
+    let mut start = 0;
+    let clusters = built.ends.iter().map(|&end| {
+        let cluster = built.indices[start..end].to_vec();
+        start = end;
+        cluster
+    });
+    Ok(clusters.collect())
 }
 
 // ---------------------------------------------------------------- cluster graph

@@ -18,7 +18,7 @@ import type { DagRoot } from './types.ts'
 function scene() {
   const pages = scenePages(256, 4)
   const worlds = [0, 1, 2, 3, 4].map((k) => new G.Matrix4().makeTranslation(k * 3, 0, 0))
-  const roots: DagRoot[] = sceneRoots(pages, worlds, true)
+  const roots: DagRoot[] = sceneRoots(pages, worlds)
   const counts = dagRootCounts(roots)
   const capacity: DagCapacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 8 }
   return { roots, counts, capacity }
@@ -72,7 +72,7 @@ test('roots past the room, or of a primitive the packing does not hold, are not 
   const { roots, capacity } = scene()
   const tight = packDagSelection(roots.slice(0, 2), { ...capacity, worlds: 3 })
   assert.equal(appendDagRoots(tight, roots.slice(2)), undefined, 'two placements too many')
-  const other = sceneRoots(scenePages(64, 3), [new G.Matrix4()], true)
+  const other = sceneRoots(scenePages(64, 3), [new G.Matrix4()])
   assert.equal(appendDagRoots(tight, other), undefined, 'a primitive it does not hold')
   assert.deepEqual(tight.live, packDagSelection(roots.slice(0, 2)).live, 'nothing moved')
 })

@@ -49,8 +49,11 @@ same bytes.
 
 `manifest-page-<sha256>.bin`: per-cluster numbers as typed-array columns, mapped, not parsed.
 
-- Version: `MANIFEST_BINARY_VERSION` 11, with the `texturePreviewBc7`, `texturePreviewAstc` and
-  `texturePreviewEtc2` block columns (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`).
+- Version: `MANIFEST_BINARY_VERSION` 12, with the `texturePreviewBc7`, `texturePreviewAstc` and
+  `texturePreviewEtc2` block columns (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`);
+  12 cuts the clusters by the one clusterer (`codec/clusters.rs`, the spatial rule) and builds the
+  culling tree, which the page order follows, by the one builder (`codec/culling.rs`, each split on
+  the axis of least cost).
 - Writes `rust/manifest_binary.rs:columns`; reads `core/manifest/binaryRead.ts:readManifestColumns`,
   `core/manifest/binaryDecode.ts:decodeManifestBinary`.
 
@@ -62,7 +65,9 @@ bundles whose dependencies close up to the pinned roots.
 - Types: `core/contracts/geometry.ts` (`Page`, `ClusterStructure`, `StreamCatalogue`); the cut,
   `browser/page/cut/rule.ts:drawsCluster`.
 - Writes `rust/dag.rs`, `rust/compiler_primitive_bundle/pack.rs:pack_bundles`,
-  `rust/compiler_bundle_dependencies.rs`; normal cones `codec/normal_cone.rs`.
+  `rust/compiler_bundle_dependencies.rs`; normal cones `codec/normal_cone.rs`; the culling tree
+  `codec/culling.rs:build_culling_bvh`, the one builder of a primitive's, the world's
+  (`world-roots.dag`) and a run-time cut's hierarchy.
 
 ## Pages
 
@@ -125,15 +130,23 @@ The DAG continued above placed objects up to a pinned world top: `world-roots.ta
   run per cell, capped by bytes. A root only one cell needs is held by that cell; only the roots
   several cells share are pinned, so the pinned top stays within 4 MB (`WORLD_TOP_BUDGET_BYTES`).
   The schema is unchanged.
-- Table layout (little-endian, version 5): an 80-byte header, 56-byte bundles, 24-byte pages,
+- Table layout (little-endian, version 6): an 80-byte header, 56-byte bundles, 24-byte pages,
   16-byte cells, 24-byte objects, then a `u32` pool. A cell record is four `u32` words: the rank of
   its first object, its object count, then the pool offset and length of a list holding each of
   its nodes' first object among the cell's objects (`u32::MAX` for a node with none).
+- DAG layout (version 6): a 24-byte header (magic, version, cluster count, group count, pool
+  length, node count), 176-byte clusters, 64-byte groups, 120-byte culling nodes, then a `u32`
+  pool. The clusters lie in the order of the world's culling hierarchy, built by the one builder
+  a primitive's goes through (`page-codec-wasm/src/culling.rs`): a cluster's rank is the one every
+  record names it by, and each node — fifteen `f64`, a primitive's node layout — names a contiguous
+  range of those ranks. Version 5 had no nodes and ranked the clusters as the build added them.
 
 - Versions: `WORLD_ROOTS_VERSION`, budget `WORLD_TOP_BUDGET_BYTES` (`rust/compiler_world_roots.rs`);
   `VERSION` (`core/manifest/worldRootsTable.ts`).
-- Writes `rust/compiler_world_roots/pack.rs:pack_world`, `rust/compiler_world_roots/records.rs:encode_table`.
-- Reads `core/manifest/worldRootsTable.ts:readWorldRoots`, `core/manifest/worldRoots.ts:worldBundlePages`.
+- Writes `rust/compiler_world_roots/pack.rs:pack_world`, `rust/compiler_world_roots/records.rs:encode_table`,
+  `rust/compiler_world_roots/dag_records.rs:encode_dag`.
+- Reads `core/manifest/worldRootsTable.ts:readWorldRoots`, `core/manifest/worldRootsTable.ts:readWorldRootsDag`,
+  `core/manifest/worldRoots.ts:worldBundlePages`.
 
 ## `lights.json`
 

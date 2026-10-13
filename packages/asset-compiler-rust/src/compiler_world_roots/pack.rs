@@ -19,7 +19,6 @@ use super::records::{digest, encode_table, Bundle, Page, Top};
 use super::top::{held_by, refuse_over_budget};
 use super::*;
 use crate::compiler_primitive_bundle::index_bytes;
-use crate::dag::build_culling_bvh;
 use trillion3d_page_codec::encode::Encoded;
 
 /// Packs `world`, checks that every page reaches the pinned top or a root its cell holds, refuses a
@@ -33,7 +32,8 @@ pub(super) fn pack_world(
 ) -> Result<Cooked> {
     let (dag, groups) = (&world.clusters, &world.groups);
     let encoded = encode_pages(world)?;
-    let (order, _) = build_culling_bvh(&world.positions, dag);
+    // The world lies in its culling order already (`WorldDag::in_culling_order`): rank is slot.
+    let order: Vec<usize> = (0..dag.len()).collect();
     let bound = dependency_bound(dag, groups);
     // A super-root weighs its written page; a placed object, never written, its corners.
     let corners = index_bytes(dag);

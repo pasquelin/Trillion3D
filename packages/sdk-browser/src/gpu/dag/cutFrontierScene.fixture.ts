@@ -3,8 +3,8 @@
  * hierarchy packing gives them. No host-library dependency — the world matrix
  * comes from the caller — `tests/integration/engine-without-three.test.ts` forbids it here.
  */
-import { flatHierarchy } from './hierarchy.ts'
-import { CULL_STRIDE, type DagRoot } from './types.ts'
+import { cullingInPlace } from './culling.fixture.ts'
+import type { DagRoot } from './types.ts'
 
 /** A page of level `level`, placed on a grid, with its replacement's error band. */
 function page(level: number, i: number, gridSide: number, extent: number) {
@@ -39,74 +39,15 @@ export function scenePages(feuilles: number, levels: number) {
   return pages
 }
 
-/**
- * Hierarchy the compiler produces (`dag/culling.rs`, `build_culling_bvh`): the root is
- * split into ONE NODE PER DETAIL LEVEL, then each level gets its own spatial hierarchy.
- * Every node under the root therefore carries only one level — that is what decides
- * whether an error-floor reject can hold, a node straddling two levels having as floor
- * that of its finest level. Pages arrive already sorted by level.
- *
- * Renumbering: node `j` of block `k` goes to `1+k` if it is the block root, otherwise
- * behind all those roots. A node's children stay contiguous and behind it, which
- * `cullingBounds` and `hierarchyLevelSizes` both require.
- */
-function hierarchyByLevels(pages: ReturnType<typeof page>[]) {
-  const STRIDE = CULL_STRIDE
-  const tranches: number[][] = []
-  for (let i = 0, debut = 0; i <= pages.length; i++)
-    if (i === pages.length || pages[i].level !== pages[debut].level) {
-      tranches.push([debut, i])
-      debut = i
-    }
-  const blocs = tranches.map(([de, a]) => ({
-    tree: flatHierarchy(pages.slice(de, a)),
-    premierePage: de,
-  }))
-  let total = 1
-  const bases = blocs.map((bloc) => {
-    const base = total
-    total += bloc.tree.nodes.length / STRIDE - 1
-    return base
-  })
-  const nodes = new Float64Array((total + blocs.length) * STRIDE)
-  const corps = 1 + blocs.length
-  for (let a = 0; a < 3; a++) {
-    nodes[a] = Infinity
-    nodes[3 + a] = -Infinity
-  }
-  // The root spans every level, the coarsest included, whose clusters nothing replaces:
-  // its ceiling certifies nothing, as `flatHierarchy` would say of it.
-  nodes[10] = -1
-  nodes[11] = 1
-  nodes[12] = blocs.length
-  for (let k = 0; k < blocs.length; k++) {
-    const { tree, premierePage } = blocs[k]
-    const count = tree.nodes.length / STRIDE
-    const place = (j: number) => (j === 0 ? 1 + k : corps - 1 + bases[k] + j - 1)
-    for (let j = 0; j < count; j++) {
-      const de = j * STRIDE,
-        vers = place(j) * STRIDE
-      for (let v = 0; v < STRIDE; v++) nodes[vers + v] = tree.nodes[de + v]
-      nodes[vers + 11] = tree.nodes[de + 12] ? place(tree.nodes[de + 11]) : 0
-      nodes[vers + 13] = tree.nodes[de + 13] + premierePage
-      for (let a = 0; a < 3; a++) {
-        if (j === 0 && tree.nodes[de + a] < nodes[a]) nodes[a] = tree.nodes[de + a]
-        if (j === 0 && tree.nodes[de + 3 + a] > nodes[3 + a]) nodes[3 + a] = tree.nodes[de + 3 + a]
-      }
-    }
-  }
-  return { nodes, stride: STRIDE }
-}
-
 /** Scene poses. The world matrix comes from the caller: this module does not know the
  *  witness library, and the closed list in `tests/integration/engine-without-three.test.ts` forbids it.
- *  Without `byLevels` they carry `flatHierarchy`, what packing gives a primitive without a
- *  manifest — the CPU cut, which does not synthesise one, reads it from here too. */
+ *  They carry the hierarchy the compiler gives (`cullingInPlace`): the root split into one node per
+ *  detail level, each level its own spatial tree; `pages` are ranked in its order, in place, so the
+ *  CPU cut, which reads the same array, reads the same ranks. */
 export function sceneRoots(
   pages: ReturnType<typeof page>[],
   worlds: DagRoot['world'][],
-  byLevels = false,
 ): DagRoot[] {
-  const culling = byLevels ? hierarchyByLevels(pages) : flatHierarchy(pages)
+  const culling = cullingInPlace(pages)
   return worlds.map((world) => ({ world, pages: pages as DagRoot['pages'], culling }))
 }

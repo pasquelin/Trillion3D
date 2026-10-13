@@ -1,10 +1,13 @@
 use super::*;
 use trillion3d_math::vec3::{length, sub};
+use trillion3d_page_codec::culling::{
+    build_culling_bvh, CullingNode, CULLING_BRANCHING, CULLING_LEAF,
+};
 
 #[test]
 fn the_culling_hierarchy_owns_every_cluster_once_and_bounds_its_subtree() {
     let (positions, _, dag) = build(160);
-    let (order, nodes) = build_culling_bvh(&positions, &dag);
+    let (order, nodes) = build_culling_bvh(&bounds::culling_clusters(&positions, &dag));
     assert_eq!(order.len(), dag.len());
     let mut sorted = order.clone();
     sorted.sort_unstable();

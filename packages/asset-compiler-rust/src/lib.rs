@@ -49,9 +49,6 @@ pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// v2 published the quadric error alone; their caches are refused, never reinterpreted.
 pub const DAG_ERROR_MODEL: &str = "dag-group-qem-v3";
 pub const DAG_CLUSTER_STRATEGY: &str = "dag-groups";
-/// Numbers per culling node: min[3], max[3], sphere[4], maxParentError, firstChild, childCount,
-/// firstPage, pageCount. `maxParentError` is -1 when the subtree holds a cluster with no replacement.
-pub const CULLING_STRIDE: usize = 15;
 /// Target size of one streaming bundle. Clusters remain individually addressable through offsets.
 pub const STREAM_BUNDLE_BYTES: usize = 128 * 1024;
 pub const STRUCTURE_VERSION: u32 = 1;

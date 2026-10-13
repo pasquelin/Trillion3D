@@ -1,6 +1,6 @@
 import { unpackDrawn } from './runtimePack.ts'
 import { runtimeDeformation } from './runtimeDeformation.ts'
-import type { Page, Primitive } from '../../../../sdk-core/src/index.ts'
+import type { CullingHierarchy, Page, Primitive } from '../../../../sdk-core/src/index.ts'
 import { LINE_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import type { PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
 import { cutPagesOffThread } from '../../page/work/host.ts'
@@ -32,21 +32,35 @@ function restBounds(boxes: Float64Array, k: number) {
   return { min: [...box.subarray(0, 3)], max: [...box.subarray(3)], sphere: [...sphere] }
 }
 
-/** The pages of a cut, served at addresses of their own: the primitive a manifest lists. The
+/** `culling` with every node's box the one box all of a sprite's pages take. */
+function spriteCulling(culling: CullingHierarchy, box: { min: number[]; max: number[] }) {
+  const nodes = culling.nodes.slice()
+  for (let at = 0; at < nodes.length; at += culling.stride)
+    for (let a = 0; a < 3; a++) {
+      nodes[at + a] = box.min[a]
+      nodes[at + 3 + a] = box.max[a]
+    }
+  return { ...culling, nodes }
+}
+
+/** The pages of a cut, served at addresses of their own: the primitive a manifest lists, with the
+ *  culling hierarchy the cut built over them (`runtimeCut.ts`). The
  *  pages of line quads draw one coplanar layer over the faces they lie on (`LINE_DEPTH_LAYER`).
+ *  A sprite's pages all take the box its radius gives (`drawnBounds`), and so does every node.
  * With `boxes`, the primitive is dynamic: index pages alone, no geometry page and no normal
  *  cone — its vertices, read as floats from the host geometry, are rewritten in place —, each page
  *  bounded by its own corners where they were cut (`restBounds`). */
 export function servePrimitive(cut: PageCutPayload, kind: DrawnShape, boxes?: Float64Array) {
   const urls: string[] = []
   const held = !!boxes
+  const sprite = !boxes && drawnBounds(kind)
   const pages: Page[] = cut.pages.map((page, id) => ({
     id,
     ...served(page.index, page.indexSha256, urls),
     count: page.count,
     ...(boxes
       ? restBounds(boxes, id)
-      : (drawnBounds(kind) ?? { min: page.min, max: page.max, sphere: page.sphere })),
+      : sprite || { min: page.min, max: page.max, sphere: page.sphere }),
     role: 'exact',
     start: page.start,
     level: 0,
@@ -74,6 +88,7 @@ export function servePrimitive(cut: PageCutPayload, kind: DrawnShape, boxes?: Fl
     clusterStrategy: 'dag-groups',
     pages,
     structure: { version: 1, roots: pages.map((page) => page.id), groups: [] },
+    culling: sprite ? spriteCulling(cut.culling, sprite) : cut.culling,
     quantization: {
       positionExponent: cut.positionExponent,
       uvExponent: cut.uvExponent,

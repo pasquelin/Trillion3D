@@ -36,7 +36,6 @@ test('pruning drops candidates and keeps exactly the same pages', async () => {
       Array.from({ length: 4 }, (_, w) =>
         new G.Matrix4().makeTranslation((w % 2) * 6.5 - 3.25, Math.floor(w / 2) * 6.5 - 3.25, 0),
       ),
-      true,
     )
     const { packed, uniforms } = posedSelection(camera, [x, z, threshold], VIEWPORT, roots)
     return { name, packed, uniforms }
