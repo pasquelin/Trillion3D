@@ -3,6 +3,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import type { PhysicsSession } from '../../physics/session/session.ts'
 import { poseNamed } from '../../host/world/moveByName.ts'
 import { createWorldRaycast } from './worldRaycast.ts'
+import type { Engine } from '../../engine/types.ts'
 
 /**
  * A world's moves by name, and the methods it exposes over the nodes of its scene.
@@ -37,16 +38,19 @@ export function namedMove(
  * - `setTransform`, a node moved by its name through the engine's own name-indexed path.
  */
 export function worldSceneMethods(
-  scene: Object3D,
   camera: () => Camera,
   canvas: HTMLCanvasElement,
   physics: () => PhysicsSession | null,
-  runtime: { moveNamed(nodeName: string, matrix: Float32Array): void },
+  runtime: {
+    moveNamed(nodeName: string, matrix: Float32Array): void
+    readonly explorer: { readonly engine: Engine } | null
+  },
 ) {
   return {
-    /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
-     *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */
-    raycast: createWorldRaycast(scene, camera, canvas, physics),
+    /** A promise of the nearest object under a canvas point (CSS pixels) or along a world ray, or
+     *  `null`: the node the page added, the world point and normal hit, the distance, the drawn
+     *  triangle (`createWorldRaycast`). */
+    raycast: createWorldRaycast(camera, canvas, physics, () => runtime.explorer?.engine),
     /**
      * Moves the node `nodeName` so that its world pose is `matrix`: a node the page does not keep
      * a handle to is reached by its name (`object.name`), looked up on the scene. The pose is a

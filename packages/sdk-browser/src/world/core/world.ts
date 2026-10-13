@@ -251,7 +251,7 @@ function worldMethods(parts: WorldParts) {
     ...worldMaterialMethods(live, invalidate),
     /** The object a canvas point or a world ray meets, and a node reached by its name
      *  (`worldSceneMethods`): the world's methods over the nodes of its scene. */
-    ...worldSceneMethods(scene, () => state.camera, canvas, physics.session, runtime),
+    ...worldSceneMethods(() => state.camera, canvas, physics.session, runtime),
     /** Runs a function after every drawn frame, with its time and metrics; returns its remover. */
     onFrame: frames.add,
     /** Runs a function ahead of every drawn frame, with `{ delta, time }`; returns its remover.
