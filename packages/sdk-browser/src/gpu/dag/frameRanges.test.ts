@@ -33,10 +33,16 @@ test('the ranges cover every primitive once, each within one binding', () => {
   assert.deepEqual(cameraFrameRanges(limits, 100_000), [{ first: 0, count: 100_000 }])
 })
 
-/** Forty-eight placements of the fixture's primitive, on a device whose binding holds `per`. */
+/** Forty-eight placements of the fixture's primitive, each `k + 1` metres along x — a translation
+ *  a new table does not hold already —, on a device whose binding holds `per`. */
 async function split(per: number) {
   const [root] = packed(dagFixture()).roots
-  const dag = packDagSelection(Array.from({ length: 48 }, () => root))
+  const along = (k: number) => {
+    const elements = Array.from(root.world.elements)
+    elements[12] += k + 1
+    return { ...root, world: { elements } }
+  }
+  const dag = packDagSelection(Array.from({ length: 48 }, (_, k) => along(k)))
   const limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: per * PRIMITIVE_BYTES }
   // Its lists split `flags` in parts too (`split.ts`): the device binds them all at once.
   const fake = fakeDevice({
@@ -91,7 +97,8 @@ test("the host's rows and words land in their range, at their row there", async 
     `${at(w.buffer)}:${w.dataOffset / rowBytes}+${w.size! / rowBytes}`
   assert.equal(rows.map(row).join(' '), '0:0+20 1:20+20 2:40+8')
   // The worlds follow no range: one write of the 48 matrices, four texels each, and one of their
-  // exact translations, two texels each, beside them in the table's row (`worldTable.ts`).
+  // exact translations, two texels each, beside them in the table's row (`worldTable.ts`). A
+  // translation the new table holds already — zero — is never sent (`worldOrigins.ts`).
   const worlds = fake.textureWrites.filter((w) => w.destination.texture === frames.worlds.texture)
   const texels = (w: (typeof worlds)[number]) =>
     `${(w.destination.origin as number[])[0]}+${(w.size as number[])[0]}`

@@ -1,12 +1,13 @@
-// A host walk that turned one placement sends that placement alone: its world — never every row,
-// never the room a growth keeps —, and no frame row for the stretch the turn moved, which the GPU
-// derives from the world it holds (`../../placement/rootBoxes.ts`). On a generated field of 1600
-// placements packed in a room of 3200.
+// A host walk that turned one placement sends that placement alone: its world, its record's matrix
+// (`worldTable.ts`) — never every row, never the room a growth keeps —, and no frame row for the
+// stretch the turn moved, which the GPU derives from the world it holds
+// (`../../placement/rootBoxes.ts`). On a generated field of 1600 placements packed in a room of 3200.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { dagRootCounts } from './pack.ts'
+import { WORLD_TABLE } from './worldTable.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 
@@ -21,14 +22,26 @@ test('a host walk that turned one placement sends its world alone, no stretch', 
   const next = packed.worlds.slice()
   // Placement 70 scaled twice along x: its stretch moves with it, on the GPU.
   next[70 * 16] *= 2
-  const before = gpu.writes.length
+  const before = gpu.writes.length,
+    texturesBefore = gpu.textureWrites.length
   assert.deepEqual([...selection.updateWorlds(next)], [70], 'the one pose moved')
   const bytes = (label: string) =>
     gpu.writes
       .slice(before)
       .filter((write) => write.buffer.label === label)
       .reduce((sum, { data }) => sum + data.byteLength, 0)
-  assert.equal(bytes('Trillion3D DAG worlds'), 64, 'its world')
+  // The worlds are a record table (`worldTable.ts`): its matrix alone, four texels of 16 bytes —
+  // its translation did not move, no origin goes up.
+  const texels = gpu.textureWrites
+    .slice(texturesBefore)
+    .filter(
+      ({ destination }) => (destination.texture as { label?: string }).label === WORLD_TABLE.label,
+    )
+    .reduce((sum, { size }) => {
+      const [w = 1, h = 1, d = 1] = size as number[]
+      return sum + w * h * d
+    }, 0)
+  assert.equal(texels * 16, 64, 'its world')
   assert.equal(bytes('Trillion3D DAG frames'), 0, 'no frame row: its stretch is the GPU’s')
   selection.dispose()
 })
