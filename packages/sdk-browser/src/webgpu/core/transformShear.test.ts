@@ -13,6 +13,7 @@ import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { BOX_VALUES, boxTransform, determinantMatrix4 } from '../../../../sdk-core/src/index.ts'
 import { setWebgpuTransform } from '../pages/render/transform.ts'
+import { rootWorldBox } from '../../page/selection/rootWorld.ts'
 import {
   cisaillee,
   proche,
@@ -90,8 +91,8 @@ test('the reprojected world box is the image of the local box by the sheared mat
   setWebgpuTransform(rt, 'target', demandee)
   const attendu = new Float64Array(BOX_VALUES)
   boxTransform(attendu, 0, Float64Array.from(local), 0, demandee)
-  assert.deepEqual(Array.from(root.worldBox!), Array.from(attendu))
-  assert.equal(root.worldBox![0], 2, 'shear extends the box, a TRS decompose does not')
+  assert.deepEqual(Array.from(rootWorldBox(root)!), Array.from(attendu))
+  assert.equal(rootWorldBox(root)![0], 2, 'shear extends the box, a TRS decompose does not')
   // Where it was, then where it lands: each its own box.
   assert.deepEqual(
     motions.map(({ min, max }) => [...min, ...max]),

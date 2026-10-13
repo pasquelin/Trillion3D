@@ -1,7 +1,7 @@
 import { frustumExcludesBox, maxStretch } from '../../../../sdk-core/src/index.ts'
 import { drawsCard, selectFlat } from './select.fixture.ts'
 import { openMark } from './openRoot.fixture.ts'
-import { worldStretch } from '../selection/rootWorld.ts'
+import { rootWorldBox, worldStretch } from '../selection/rootWorld.ts'
 import { selectionScratch, selectionState, type PageRecord } from './state.fixture.ts'
 import { copyMatrix4, multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { IDENTITY_WORLD } from '../../host/matrixElements.ts'
@@ -101,7 +101,7 @@ export function selectVisiblePages<T extends PageRecord>(
     // A parked instance-buffer row places nothing: its root waits in the tables, untested. The cut
     // takes no root its impostor card draws.
     if (root.parked || drawsCard(root.mark)) continue
-    const box = root.worldBox,
+    const box = rootWorldBox(root),
       // A deformation's reach, in the world: its units stretched by the root's placement (#357).
       g = root.reach ? root.reach * worldStretch(root) : 0
     if (

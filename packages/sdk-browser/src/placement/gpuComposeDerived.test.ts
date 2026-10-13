@@ -1,7 +1,7 @@
 // What the rows pass and the root boxes pass derive from a world (`gpuComposeDerivedWgsl.ts`, the
 // shipped WGSL run in JavaScript) is what the CPU formulas give from the same world and the same
 // inputs, word for word: the eight Hi-Z corners (`packPageCorners`), the shadow detail words (the
-// oracle `writeRowLod`) and the root's world box (`refreshRootBox`). Generated families: rotations, uneven, negative and sheared
+// oracle `writeRowLod`) and the root's world box (`rootWorldBox`). Generated families: rotations, uneven, negative and sheared
 // worlds near and far from the origin, boxes and spheres of every size, a reach and a dynamic
 // box now and then, every combination of the cut rule's residency, rows with and without a
 // coarser form, roots with and without a box.
@@ -9,7 +9,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
-import { refreshRootBox } from '../page/selection/batchBoxes.ts'
+import { takeWorldBox } from '../page/selection/rootWorld.ts'
 import { packPageCorners } from '../webgpu/visibility/corners.fixture.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { writeRowLod } from '../webgpu/shadow/rowLodWords.fixture.ts'
@@ -110,7 +110,7 @@ test('the corners, the detail and the world box a world derives are the CPU form
     const ready = next() < 0.8,
       childReady = next() < 0.8
     // The CPU: the root's box carried by its world, then the row's words from it.
-    if (root.worldBox) refreshRootBox(root as never)
+    if (root.worldBox) takeWorldBox(root)
     const cornersCpu = new Float32Array(CORNER_VALUES)
     packPageCorners(cornersCpu, 0, rec, root.world, root.reach)
     const lodCpu = new Float32Array(ROW_LOD_FLOATS)

@@ -8,7 +8,6 @@ import { createDrawItemWordsHold } from '../../visibility/itemWords.ts'
 import { VIS_MAX_PAGES } from '../../../visibility/types.ts'
 import { boundTableRows, ROW_STEP, VIEW_ROWS } from '../../row/tableRows.ts'
 import type { WebgpuPagesSetup } from './setup.ts'
-import type { BoxTransformLot } from '../../../page/decode/batch/batchRuntime.ts'
 import { postPackedBases } from '../../../page/selection/placements.ts'
 import { createPackedPages, createPageCatalogue } from '../../../page/selection/catalogue.ts'
 import { createPackedInstances } from '../../row/instances.ts'
@@ -115,9 +114,6 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   const instances = createPackedInstances(selectionRoots, placement)
   const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots, instances)
   return {
-    /** Root-box batch, reserved at prepare and replayed on every node move; `null` until prepare has
-     *  happened or when the batch cannot be fitted. */
-    rootBoxes: null as BoxTransformLot | null,
     transparentRoots,
     selectionRoots,
     packedPages,

@@ -3,7 +3,7 @@ import { sourceSurface, wearsOneOf, type PageSurface } from '../surface.ts'
 import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts'
-import { refreshRootBox } from './batchBoxes.ts'
+import { takeWorldBox } from './rootWorld.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
 import { createPrimitiveTemplates } from './template.ts'
 import { createPageRecords } from './collectRecords.ts'
@@ -109,7 +109,7 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
           placement ? rowShadowless(placement) : !source.castShadow,
         ) || undefined,
     }
-    refreshRootBox(root)
+    takeWorldBox(root)
     roots.push(root)
   }
 }

@@ -12,6 +12,7 @@ import { markReach } from '../../../deformation/halfFloat.ts'
 import { markRootRows } from './movedRoot.ts'
 import type { ClusterRoot, MovedBox, PageRec } from '../../../page/selection/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { rootWorldBox } from '../../../page/selection/rootWorld.ts'
 
 /**
  * Geometry that moves in place — rewritten vertices, a GPU deformation —, declared as a node's
@@ -148,7 +149,7 @@ export function releasePageBoxes(rt: WebgpuPagesRuntime, ranks: readonly number[
 /** Root `rank`'s GPU deformation moved: it moves, and its rest world box grown by `reach`
  *  world units — the most it reached this frame or the last — stales its shadow pages. */
 export function noteDeformed(rt: WebgpuPagesRuntime, rank: number, reach: number) {
-  const box = rt.layout.selectionRoots[rank].worldBox
+  const box = rootWorldBox(rt.layout.selectionRoots[rank])
   if (!box) return
   boxGrow(moved, 0, box, 0, reach)
   declare(rt, promote(rt, rank))

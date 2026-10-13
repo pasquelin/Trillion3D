@@ -4,6 +4,7 @@ import { resized } from '../../../../../math/src/sequence/resized.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { rootWorldBox } from '../../../page/selection/rootWorld.ts'
 
 /**
  * A MOVED ROOT'S SHADOW CHANGE, CLUSTER BY CLUSTER. A root's box holds what it draws and
@@ -46,7 +47,8 @@ let own = new Int32Array(0),
 export function noteOwnMove(rt: WebgpuPagesRuntime, rank: number) {
   if (rank < own.length && own[rank]) return true
   const roots = rt.layout.selectionRoots,
-    { localBox, worldBox } = roots[rank],
+    { localBox } = roots[rank],
+    worldBox = rootWorldBox(roots[rank]),
     pose = rt.lights.mobility.poseOf(rank)
   if (!localBox || !worldBox || !pose) return false
   boxTransform(was, 0, localBox, 0, pose)

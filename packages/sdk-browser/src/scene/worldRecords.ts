@@ -34,7 +34,7 @@ import { primitiveFinder } from './primitiveLookup.ts'
 import { sourceSurface } from '../page/surface.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import { placementWorld, rowParked, type PlacementRows } from '../placement/rows.ts'
-import { refreshRootBox } from '../page/selection/batchBoxes.ts'
+import { takeWorldBox } from '../page/selection/rootWorld.ts'
 
 /** The mesh a world page is worn by, and its surface: none when it draws blended. */
 export type WorldWearer = { drawSource: DrawSource; surface: PageSurface }
@@ -103,10 +103,10 @@ export function worldSelectionRoot(
     // No wearer: a record without a page, worn as any other only to stay a record.
     return worldRecord(wearer ? page : { ...page, url: '' }, rank, wearer ?? fallback, order)
   })
-  // The world box: the root node's of the cook's hierarchy, as a primitive's local box.
+  // The local box: the root node's of the cook's hierarchy, as a primitive's; its world box its own.
   const nodes = dag.culling
   if (!nodes) throw new Error('WORLD_CULLING_MISSING')
-  const worldBox = nodes.nodes.slice(0, BOX_VALUES),
+  const localBox = nodes.nodes.slice(0, BOX_VALUES),
     held = new Map<number, PageRec[]>()
   // The roots each bundle holds for its cell, those with a page alone: a record without one is
   // not a page, never held nor covered.
@@ -126,14 +126,14 @@ export function worldSelectionRoot(
       bounds: cullingBounds(nodes, pages),
       links: cullingLinks(nodes, pages.length),
     },
-    worldBox,
-    localBox: worldBox,
+    worldBox: localBox.slice(),
+    localBox,
     boxes: true,
     origins: dag.origins,
     pagesOf: (bundle: number) => held.get(bundle) ?? [],
   }
   // Posed by its model: its box is the local one at that world.
-  if (placement) refreshRootBox(root)
+  if (placement) takeWorldBox(root)
   return root
 }
 

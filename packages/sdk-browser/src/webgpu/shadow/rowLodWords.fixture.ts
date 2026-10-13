@@ -10,7 +10,7 @@ import { transformAffinePoint } from '../../../../sdk-core/src/index.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/constants.ts'
 import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { boxRadius } from '../../../../math/src/geometry/box.ts'
-import { worldStretch, type WorldMemo } from '../../page/selection/rootWorld.ts'
+import { rootWorldBox, worldStretch, type WorldMemo } from '../../page/selection/rootWorld.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import {
@@ -53,7 +53,7 @@ export function writeRowLod(
   const at = row * ROW_LOD_FLOATS,
     e = root?.world.elements ?? IDENTITY,
     scale = root ? worldStretch(root) : 1,
-    box = root?.worldBox
+    box = root && rootWorldBox(root)
   out.fill(0, at, at + ROW_LOD_FLOATS)
   // A row with no coarser form carries `FINITE_SENTINEL` as its parent's error: every page
   // wants finer.

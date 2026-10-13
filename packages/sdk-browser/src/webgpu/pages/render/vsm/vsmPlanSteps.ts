@@ -5,6 +5,7 @@ import { VSM_STILL_FRAMES } from '../../../../vsm/constants.ts'
 import type { planVirtualShadowFrame, VsmFrameLight } from '../../../../vsm/frameSetup.ts'
 import { noteResidenceChange, uploadRowMobility } from '../../../shadow/bounds.ts'
 import { composedSlotBox } from '../../../../placement/composeBoxes.ts'
+import { rootWorldBox } from '../../../../page/selection/rootWorld.ts'
 import { directionalCount, fullMapsFor } from './engineVsm.ts'
 import { grantEngineVsm, growEngineVsm, regrowEngineVsm, reserveProjection } from './vsmGrant.ts'
 
@@ -40,7 +41,8 @@ export function followCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // caches as static again; its box invalidates the static pages it now belongs to — a follower
   // of a parent composed on the GPU, its slot's box where the parent now holds it.
   const settled = lights.mobility.settle(VSM_STILL_FRAMES, (rank, lead) => {
-    const box = lead >= 0 ? composedSlotBox(rt, lead) : rt.layout.selectionRoots[rank]?.worldBox
+    const root = rt.layout.selectionRoots[rank],
+      box = lead >= 0 ? composedSlotBox(rt, lead) : root && rootWorldBox(root)
     if (box) lights.changes.worldChanged(box.subarray(0, 3), box.subarray(3, 6), false)
   })
   if (settled) uploadRowMobility(rt, device, 0, -1)

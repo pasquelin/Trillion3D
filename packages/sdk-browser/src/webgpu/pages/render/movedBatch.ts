@@ -11,13 +11,14 @@ import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedCl
 import { appendRootsUnder } from './movedNode.ts'
 import { chainShown } from '../../../host/world/rooted.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
-import { transformRootBoxes } from '../../../page/selection/batchBoxes.ts'
+import { rootWorldBox } from '../../../page/selection/rootWorld.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
- * What the nodes of one move call leave to do, done once for the call: the moved
- * roots' boxes reprojected in one pass, their rows alone rewritten (`movedRoot.ts`), the scene
+ * What the nodes of one move call leave to do, done once for the call: the moved roots' worlds
+ * taken and their rows alone rewritten (`movedRoot.ts`) — their box and stretch follow when read
+ * (`rootWorld.ts`) —, the scene
  * revision bumped once, then each node's motion box declared to the shadow scheduler as its own
  * call would — two nodes far apart are two boxes, never the room between them —, save the roots
  * that declare their own, cluster by cluster (`movedClusters.ts`). A root under two moved nodes
@@ -76,7 +77,7 @@ function noteBefore(rt: WebgpuPagesRuntime, from: number) {
   const roots = rt.layout.selectionRoots
   boxEmpty(before, 0)
   for (let j = from; j < movedCount; j++) {
-    const box = roots[movedList[j]].worldBox
+    const box = rootWorldBox(roots[movedList[j]])
     if (box && !noteOwnMove(rt, movedList[j])) boxUnionBatch(before, box, 1)
   }
   const at = nodeCount * BOX_VALUES
@@ -129,9 +130,6 @@ function passMoves(rt: WebgpuPagesRuntime, announce: boolean) {
     ranks = distinct
     count = distinctCount
   }
-  // World boxes of the moved roots reproject IN ONE RUN of the module's kernel over them alone, in
-  // the roots' lot reserved at prepare — remade at the roots' count once it no longer holds them.
-  layout.rootBoxes = transformRootBoxes(layout.rootBoxes, roots, ranks, count)
   for (let k = 0; k < count; k++) {
     const i = ranks[k],
       root = roots[i]
@@ -160,7 +158,7 @@ function passMoves(rt: WebgpuPagesRuntime, announce: boolean) {
       // A root whose change is its own declares it here, in its node's turn, once in the call.
       if (ownsMove(rank)) declareOwnMove(rt, rank, promotedRoots[rank] === 1)
       else promoted = promotedRoots[rank] === 1 || promoted
-      if (root.localBox && !ownsMove(rank)) boxUnionBatch(after, root.worldBox, 1)
+      if (root.localBox && !ownsMove(rank)) boxUnionBatch(after, rootWorldBox(root)!, 1)
     }
     start = movedEnds[k]
     declareMove(rt, promoted)
