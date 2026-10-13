@@ -6,7 +6,7 @@ import {
 } from '../gpu/core/computeBindings.ts'
 import { mipLevelCountFor } from '../texture/tiles.ts'
 import { levelViews } from '../texture/mipGroups.ts'
-import { ceilDiv, mipSize } from '../../../math/src/scalar/integers.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
@@ -16,7 +16,7 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { GOLDEN_U32 } from '../../../math/src/wgsl/constants.ts'
 import { mixWord } from '../../../math/src/wgsl/sampling.ts'
 import { storageEntry } from './bindings.ts'
-import { REFLECTION_FORMAT, REFLECTION_SIDE } from './constants.ts'
+import { REFLECTION_SIDE } from './constants.ts'
 import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
 
 /** Levels of the radiance pyramid, level 0 and two a dispatch (`RADIANCE_SHADER`): its coarsest
@@ -36,8 +36,8 @@ const TILE = 2 * REFLECTION_SIDE + 2
  * read it as it is (`reflectionImage`, `footprint.ts`). Its coverage is within one wherever a
  * surface drew — the lighting writes 1 or 0, the blends keep it or blend it over — and it is zero
  * past the drawn size, which the lighting's clear zeroes over the whole target and no pass draws
- * past: the very texels the copy it replaces held. The pyramid holds levels 1 and after, in a
- * texture of half the image's size.
+ * past: the very texels the copy it replaces held. The pyramid holds levels 1 and after in the
+ * mips of that very target (`hdrTargetDescriptor`): a reader binds one texture for every level.
  *
  * Each level is the one before it through the separable tent [1, 3, 3, 1] / 8 on each axis, centred
  * on the coarse texel (the four finer texels around it, the edge's past the drawn image), read as
@@ -69,8 +69,8 @@ const TILE = 2 * REFLECTION_SIDE + 2
  */
 export const RADIANCE_SHADER = wgslProgram(
   `@group(0) @binding(0) var finer:texture_2d<f32>;
-@group(0) @binding(1) var coarser:texture_storage_2d<${REFLECTION_FORMAT},write>;
-@group(0) @binding(2) var coarsest:texture_storage_2d<${REFLECTION_FORMAT},write>;
+@group(0) @binding(1) var coarser:texture_storage_2d<${HDR_FORMAT},write>;
+@group(0) @binding(2) var coarsest:texture_storage_2d<${HDR_FORMAT},write>;
 @group(0) @binding(3) var halves:sampler;
 @group(0) @binding(4) var previous:texture_2d<f32>;
 @group(0) @binding(5) var<uniform> view:View;
@@ -193,8 +193,8 @@ export function radianceLayouts(device: GPUDevice) {
     firstLayout: device.createBindGroupLayout({
       entries: [
         finer,
-        storageEntry(1),
-        storageEntry(2),
+        storageEntry(1, HDR_FORMAT),
+        storageEntry(2, HDR_FORMAT),
         halves,
         computeTextureEntry(4, 'float'),
         view,
@@ -202,7 +202,7 @@ export function radianceLayouts(device: GPUDevice) {
       ],
     }),
     downLayout: device.createBindGroupLayout({
-      entries: [finer, storageEntry(1), storageEntry(2), halves],
+      entries: [finer, storageEntry(1, HDR_FORMAT), storageEntry(2, HDR_FORMAT), halves],
     }),
     rollLayout: device.createBindGroupLayout({ entries: [hash] }),
   }
@@ -238,54 +238,50 @@ export type HeldImage = {
   still: boolean
 }
 
-/** What the pyramid of a view at `width × height` allocates, its usages aside: its levels from 1 on, at
- *  half the size, and the lit image it holds as its level 0. */
-function radianceTextures(width: number, height: number) {
-  return {
-    coarse: {
-      size: [mipSize(width, 1), mipSize(height, 1)],
-      format: REFLECTION_FORMAT,
-      mipLevelCount: Math.max(1, radianceLevels(width, height) - 1),
-    },
-    image: { size: [width, height], format: HDR_FORMAT },
-  } satisfies Record<string, Omit<GPUTextureDescriptor, 'usage'>>
-}
+/** What an HDR target of `width × height` holds, its usage aside (`hdrTargetDescriptor`). */
+const hdrTargetShape = (width: number, height: number) => ({
+  size: [width, height],
+  format: HDR_FORMAT,
+  mipLevelCount: radianceLevels(width, height),
+})
 
-/** Bytes of the pyramid of a view at `width × height` (`radianceTextures`). */
+/**
+ * One of the two HDR targets of a view at `width × height` that take turns (`adoptRadianceImage`):
+ * the lit image at its level 0, the radiance pyramid's levels after it as its mips, which the build
+ * writes from the image it holds (`RADIANCE_SHADER`). The pyramid lies in the image it filters: one
+ * texture a reader binds for all its levels (`reflectionImage`), none beside it.
+ */
+export const hdrTargetDescriptor = (width: number, height: number): GPUTextureDescriptor => ({
+  label: 'Trillion3D HDR lighting',
+  ...hdrTargetShape(width, height),
+  usage: hdrUsage() | GPUTextureUsage.STORAGE_BINDING,
+})
+
+/** The view a pass draws an HDR target through (`hdrTargetDescriptor`): its level 0 alone. */
+export const hdrAttachmentView = (texture: GPUTexture) => texture.createView({ mipLevelCount: 1 })
+
+/** Bytes of the pyramid of a view at `width × height`: the other HDR target whole, and the levels
+ *  past level 0 of the frame's, whose level 0 the frame's targets count (`frameTargetBytes`). */
 export function radianceBytes(width: number, height: number) {
-  const { coarse, image } = radianceTextures(width, height)
-  return textureBytesOf(coarse)! + textureBytesOf(image)!
+  const whole = textureBytesOf(hdrTargetShape(width, height))!,
+    first = textureBytesOf({ size: [width, height], format: HDR_FORMAT })!
+  return 2 * whole - first
 }
 
 /**
- * The radiance pyramid of a view at `width × height`: the lit image it holds (`image`, level 0: the
- * HDR target the last image lit, `adoptRadianceImage`), the levels from 1 on in a texture of half
- * that size (`coarse`, level `k` at its mip `k − 1`, each mip's view in `views`, which the build
- * writes then reads), the sampler of its reads, what it holds, and the build's bind groups, kept
- * for each of the two lit images that take turns. Its bytes are those of one pyramid of `levels`
- * levels at `width × height`, the lit image its level 0 (`reflectionBytes`).
+ * The radiance pyramid of a view at `width × height`: the lit image it holds (`image`, the HDR
+ * target the last image lit, `adoptRadianceImage`), its levels from 1 on in that target's mips
+ * (`hdrTargetDescriptor`, level `k` at mip `k`), the sampler of its reads, what it holds, and the
+ * build's bind groups, kept for each of the two HDR targets that take turns.
  */
 export function createRadiancePyramid(device: GPUDevice, width: number, height: number) {
-  const levels = radianceLevels(width, height),
-    textures = radianceTextures(width, height)
-  const coarse = device.createTexture({
-    ...textures.coarse,
-    label: 'Trillion3D reflection radiance',
-    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-  })
+  const levels = radianceLevels(width, height)
   // The other HDR target: the frame's, the one before's turn about (`adoptRadianceImage`).
-  const image = device.createTexture({
-    ...textures.image,
-    label: 'Trillion3D HDR lighting',
-    usage: hdrUsage(),
-  })
+  const image = device.createTexture(hdrTargetDescriptor(width, height))
   return {
     width,
     height,
-    coarse,
-    view: coarse.createView(),
-    views: levelViews(coarse),
-    image: { texture: image, view: image.createView() },
+    image: { texture: image, view: hdrAttachmentView(image) },
     /** The pyramid was built this image from the frame's HDR target, which is to become its
      *  level 0 once the image is encoded (`adoptRadianceImage`). */
     fresh: false,
@@ -304,8 +300,8 @@ export function createRadiancePyramid(device: GPUDevice, width: number, height: 
       size: [0, 0],
       still: false,
     } as HeldImage,
-    /** The build's groups (`buildGroups`) for each of the lit images it was made over, by the slot
-     *  of their identity: the two HDR targets take turns, each finds its groups held. */
+    /** The build's groups (`buildGroups`) for each of the HDR targets it was made over, by the
+     *  slot of their identity: the two take turns, each finds its groups held. */
     build: {
       identity: createWebgpuBindIdentity(2),
       slots: [] as ({ groups: GPUBindGroup[]; roll: GPUBindGroup } | undefined)[],
@@ -314,26 +310,29 @@ export function createRadiancePyramid(device: GPUDevice, width: number, height: 
 }
 type RadiancePyramid = ReturnType<typeof createRadiancePyramid>
 
-/** What a build reads and writes beyond the pyramid: the lit image, the lighting's view uniform, and
- *  the buffer that holds the image's hash (`settle.ts`). */
-export type RadianceInputs = { hdr: GPUTextureView; view: GPUBuffer; hash: GPUBuffer }
+/** What a build reads and writes beyond the pyramid: the frame's HDR target — its level 0 the lit
+ *  image, its mips the levels the build writes —, the lighting's view uniform, and the buffer that
+ *  holds the image's hash (`settle.ts`). */
+export type RadianceInputs = { texture: GPUTexture; view: GPUBuffer; hash: GPUBuffer }
 
 /** The bind groups of a build over `inputs`: the first dispatch's, then one for each two levels
- *  after, and the roll of the hash. Level `k` is the coarse texture's mip `k − 1`. */
+ *  after, and the roll of the hash. Level `k` is the HDR target's mip `k`, each bound alone: a
+ *  dispatch reads one and writes the two after it. */
 function buildGroups(
   device: GPUDevice,
   pyramid: RadiancePyramid,
   { firstLayout, downLayout, rollLayout }: RadianceStages,
   inputs: RadianceInputs,
 ) {
-  const { views, sampler } = pyramid
+  const { sampler } = pyramid,
+    views = levelViews(inputs.texture)
   const groups = [
     device.createBindGroup({
       layout: firstLayout,
       entries: sequentialEntries([
-        inputs.hdr,
         views[0],
         views[1],
+        views[2],
         sampler,
         pyramid.image.view,
         { buffer: inputs.view },
@@ -345,7 +344,7 @@ function buildGroups(
     groups.push(
       device.createBindGroup({
         layout: downLayout,
-        entries: sequentialEntries([views[at - 1], views[at], views[at + 1], sampler]),
+        entries: sequentialEntries([views[at], views[at + 1], views[at + 2], sampler]),
       }),
     )
   const roll = device.createBindGroup({
@@ -374,7 +373,7 @@ const radianceGroups = (
 ]
 
 /**
- * The radiance pyramid of the lit image `inputs.hdr`, drawn at `size` with `viewProjection`, in the
+ * The radiance pyramid of the lit image in `inputs.texture`, drawn at `size` with `viewProjection`, in the
  * open compute `pass`: the hash of the last image moved aside, levels 1 and 2 from the image and
  * its hash, then two levels a dispatch from the last made (`RADIANCE_SHADER`); what the pyramid
  * holds is then that image, for the next one's reflections, its level 0 the lit image itself once
@@ -395,7 +394,7 @@ export function encodeRadiancePyramid(
   const { levels, held, build } = pyramid
   if (levels < 3) return
   const { next } = build.identity
-  next[0] = inputs.hdr
+  next[0] = inputs.texture
   next[1] = inputs.view
   next[2] = inputs.hash
   next[3] = pipelines

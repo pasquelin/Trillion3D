@@ -48,6 +48,9 @@ export const REFLECTION_VIEW_WGSL = wgslBlock('REFLECTION_VIEW_WGSL', [], LAYOUT
  *  trace's and the forward passes'. */
 export const REFLECTION_GROUP = 1
 
+/** The binding of the radiance pyramid's trilinear sampler in the reflection group. */
+export const REFLECTION_SAMPLER_BINDING = 2
+
 /** The binding from which the reflection group holds the depth pyramid (`hizDepthEntries`), four
  *  bindings. */
 export const REFLECTION_DEPTH_BINDING = 3
@@ -55,14 +58,14 @@ export const REFLECTION_DEPTH_BINDING = 3
 /** The binding of the deferred lighting's view in the reflection group (`View`). */
 export const REFLECTION_LIGHT_VIEW_BINDING = 7
 
-/** The binding of the radiance pyramid's level 0 in the reflection group: the lit image itself, the
- *  HDR target the last image lit (`radiance.ts`). */
+/** The binding of the radiance pyramid in the reflection group: the HDR target the last image lit,
+ *  the lit image itself at its level 0 and level `k` at its mip `k` (`radiance.ts`). */
 export const REFLECTION_IMAGE_BINDING = 9
 
 /**
  * The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the
- * radiance pyramid — its level 0, the lit image (`reflectionImage`), and the levels after it
- * (`reflectionRadiance`, level `k` at mip `k − 1`) — and its trilinear sampler, the depth it
+ * radiance pyramid — one texture (`reflectionImage`): the lit image at level 0, level `k` at mip
+ * `k` — and its trilinear sampler, the depth it
  * marches, the engine's pyramid (`hizDepthWgsl`). The program names the deferred lighting's view (`view`, the pixel's world point
  * `worldAt`, the eye `viewToEye`, the drawn size, the exposure, the display curve, the background)
  * itself: it already has it, or declares it in this group (`reflectionLightViewWgsl`).
@@ -72,8 +75,7 @@ export const reflectionBindingsWgsl = (group: number) =>
     `reflectionBindingsWgsl(${group})`,
     [REFLECTION_VIEW_WGSL, hizDepthWgsl(group, REFLECTION_DEPTH_BINDING), WORLD_AT_WGSL],
     `@group(${group}) @binding(0) var<uniform> reflectionView:ReflectionView;
-@group(${group}) @binding(1) var reflectionRadiance:texture_2d<f32>;
-@group(${group}) @binding(2) var reflectionSampler:sampler;
+@group(${group}) @binding(${REFLECTION_SAMPLER_BINDING}) var reflectionSampler:sampler;
 @group(${group}) @binding(${REFLECTION_IMAGE_BINDING}) var reflectionImage:texture_2d<f32>;`,
   )
 

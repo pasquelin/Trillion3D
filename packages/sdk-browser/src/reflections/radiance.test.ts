@@ -8,6 +8,9 @@ import { image, radianceKernels, type Image } from './radianceKernels.fixture.ts
 import { encodeRadiancePyramid, type RadianceInputs } from './radiance.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 
+/** The frame's HDR target, its three levels the pyramid's (`hdrTargetDescriptor`). */
+const HDR = { mipLevelCount: 3, createView: () => ({}) }
+
 /** The workgroups the shipped build dispatches for the first two levels of an image of `size`: the
  *  dispatch of `encodeRadiancePyramid` over a pyramid of three levels, recorded. */
 function firstDispatch(size: [number, number]) {
@@ -17,13 +20,12 @@ function firstDispatch(size: [number, number]) {
     setBindGroup() {},
     dispatchWorkgroups: (...groups: number[]) => dispatched.push(groups),
   }
-  const inputs = { hdr: {}, view: {}, hash: {} } as unknown as RadianceInputs
+  const inputs = { texture: HDR, view: {}, hash: {} } as unknown as RadianceInputs
   const pipelines = {} as Parameters<typeof encodeRadiancePyramid>[3]
   const pyramid = {
     levels: 3,
     width: size[0],
     height: size[1],
-    views: [{}, {}],
     image: { view: {} },
     held: { valid: false, viewProjection: new Float64Array(16), size: [0, 0], still: false },
     build: { identity: createWebgpuBindIdentity(2), slots: [] },
@@ -164,13 +166,12 @@ function firstPipelines(images: [number, number, number][]) {
     levels: 3,
     width: 64,
     height: 64,
-    views: [{}, {}],
     image: { view: {} },
     held: { valid: false, viewProjection: new Float64Array(16), size: [0, 0], still: false },
     build: { identity: createWebgpuBindIdentity(2), slots: [] },
   } as unknown as Parameters<typeof encodeRadiancePyramid>[2]
   const device = { createBindGroup: () => ({}) } as unknown as GPUDevice
-  const inputs = { hdr: {}, view: {}, hash: {} } as unknown as RadianceInputs
+  const inputs = { texture: HDR, view: {}, hash: {} } as unknown as RadianceInputs
   return images.map(([width, height, m]) => {
     picked.length = 0
     const viewProjection = new Float64Array(16)

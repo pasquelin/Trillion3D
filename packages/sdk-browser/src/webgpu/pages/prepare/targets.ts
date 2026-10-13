@@ -5,9 +5,8 @@ import {
   FEEDBACK_FORMAT,
   holds,
   DEPTH_FORMAT,
-  HDR_FORMAT,
-  hdrUsage,
 } from '../../../scene/surfaceBuffer.ts'
+import { hdrAttachmentView, hdrTargetDescriptor } from '../../../reflections/radiance.ts'
 import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
 import { createBackdrop, holdsWater } from '../../transparent/transmission.ts'
 import { createScreenReflection } from '../../../reflections/gpu.ts'
@@ -141,8 +140,9 @@ export function buildTargets(
     DEPTH_FORMAT,
     usage | GPUTextureUsage.COPY_DST,
   )
-  // One of the two HDR targets that take turns, the other the reflection's (`createRadiancePyramid`).
-  gpu.hdrTexture = target('Trillion3D HDR lighting', HDR_FORMAT, hdrUsage())
+  // One of the two HDR targets that take turns, the other the reflection's (`createRadiancePyramid`):
+  // the radiance pyramid's levels in its mips (`hdrTargetDescriptor`).
+  gpu.hdrTexture = device.createTexture(hdrTargetDescriptor(width, height))
   if (vis.writesFeedback) makeFeedbackTarget(rt, device, width, height)
   gpu.surfaces = createSurfaceBuffer(device, width, height, {
     subsurface: wantsSubsurface(rt),
@@ -168,7 +168,7 @@ export function buildTargets(
       ? gpu.displayView
       : undefined
   gpu.depthView = gpu.depthTexture.createView()
-  gpu.hdrView = gpu.hdrTexture.createView()
+  gpu.hdrView = hdrAttachmentView(gpu.hdrTexture)
   gpu.backdrop = createBackdrop(device, width, height, holdsWater(rt))
   gpu.reflection = createScreenReflection(device, width, height, sceneBlends(rt))
   // Temporal history follows the display size.

@@ -19,6 +19,8 @@ import {
 import {
   adoptRadianceImage,
   encodeRadiancePyramid,
+  hdrAttachmentView,
+  hdrTargetDescriptor,
 } from '../../../packages/sdk-browser/src/reflections/radiance.ts'
 import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/trace.ts'
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
@@ -52,7 +54,8 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   const base = texture('rgba16float', sampled)
   const flags = texture('r8uint', sampled)
   const normals = texture('rgba16float', sampled)
-  const hdr = texture('rgba16float', sampled)
+  // The HDR target of the image's turn, the radiance pyramid's levels in its mips.
+  const hdr = device.createTexture(hdrTargetDescriptor(width, height))
   // No pixel carries the physical lobes: their target is a texel the trace never reads.
   const lobes = texture('rgba32uint', sampled, frame.lobes ? [width, height] : [1, 1])
   // The engine's depth pyramid, its level 0 as the visibility leaves it: the image's depth.
@@ -75,7 +78,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   uploadSceneLights(device, { store, buffer: lights, uploadedEpoch: -1 } as WebgpuLightState)
   const reflection = createScreenReflection(device, width, height, true)
   // The HDR target of the image's turn, and the lit image each image lays in it.
-  const targets = { hdrTexture: hdr, hdrView: hdr.createView(), reflection }
+  const targets = { hdrTexture: hdr, hdrView: hdrAttachmentView(hdr), reflection }
   let lit = frame.radiance
   const inverse = new Float64Array(16)
   invertMatrix4(inverse, frame.viewProjection)
@@ -146,7 +149,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
           device,
           reflection.radiance,
           pipelines,
-          { hdr: targets.hdrView, view: lightView.buffer, hash: reflection.settle.hash },
+          { texture: targets.hdrTexture, view: lightView.buffer, hash: reflection.settle.hash },
           frame.size,
           frame.viewProjection,
         )

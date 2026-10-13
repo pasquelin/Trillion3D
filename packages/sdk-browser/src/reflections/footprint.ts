@@ -56,7 +56,7 @@ fn reflectionLevelTrust(level:f32,top:f32)->f32{return 1.0-smoothstep(top-1.0,to
  * carried to `X`, widened by the depth the plane spans from its pixel to `X`, falling smoothly to 0
  * two thicknesses farther. `reflectionLevelRead` reads one level at `uv`, weighted by the depth
  * there: level 0, the lit image itself (`reflectionImage`), as the sampler interpolates it, sharp,
- * its coverage held within one; a coarser one (`reflectionRadiance`, level `k` at its mip `k − 1`)
+ * its coverage held within one; a coarser one (level `k` at its mip `k`)
  * as a cubic B-spline of its texels (four bilinear reads under one weight), smooth, so that a
  * blurred reflection is a round blob at every level, never a texel's square. `reflectionRadianceAt`
  * reads a fractional level between its two.
@@ -85,17 +85,16 @@ fn reflectionLevelColor(uv:vec2f,level:f32)->vec4f{
   let lit=textureSampleLevel(reflectionImage,reflectionSampler,uv,0.0);
   return vec4f(lit.rgb,clamp(lit.a,0.0,1.0));
  }
- let mip=level-1.0;
- let size=vec2f(textureDimensions(reflectionRadiance,u32(mip)));
+ let size=vec2f(textureDimensions(reflectionImage,u32(level)));
  let t=uv*size-vec2f(0.5);let i=floor(t);let f=t-i;
  let f2=f*f;let f3=f2*f;let e=vec2f(1.0)-f;
  let w0=e*e*e/6.0;let w1=(vec2f(4.0)-6.0*f2+3.0*f3)/6.0;let w3=f3/6.0;let w2=vec2f(1.0)-w0-w1-w3;
  let g0=w0+w1;let g1=w2+w3;
  let low=(i-vec2f(0.5)+w1/g0)/size;let high=(i+vec2f(1.5)+w3/g1)/size;
- return g0.x*g0.y*textureSampleLevel(reflectionRadiance,reflectionSampler,low,mip)
-  +g1.x*g0.y*textureSampleLevel(reflectionRadiance,reflectionSampler,vec2f(high.x,low.y),mip)
-  +g0.x*g1.y*textureSampleLevel(reflectionRadiance,reflectionSampler,vec2f(low.x,high.y),mip)
-  +g1.x*g1.y*textureSampleLevel(reflectionRadiance,reflectionSampler,high,mip);
+ return g0.x*g0.y*textureSampleLevel(reflectionImage,reflectionSampler,low,level)
+  +g1.x*g0.y*textureSampleLevel(reflectionImage,reflectionSampler,vec2f(high.x,low.y),level)
+  +g0.x*g1.y*textureSampleLevel(reflectionImage,reflectionSampler,vec2f(low.x,high.y),level)
+  +g1.x*g1.y*textureSampleLevel(reflectionImage,reflectionSampler,high,level);
 }
 fn reflectionLevelRead(sum:ptr<function,ReflectionTaps>,uv:vec2f,level:f32,share:f32,toView:vec4f,surface:ReflectionSurface){
  let w=share*reflectionDepthWeight(toView.xy+uv*toView.zw,surface);

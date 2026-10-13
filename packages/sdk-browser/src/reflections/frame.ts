@@ -132,9 +132,9 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
   const { gpu, vis } = rt,
     reflection = gpu.reflection,
     stages = vis.reflectionPipelines
-  if (!reflection || !stages || !gpu.hdrView || !gpu.deferred) return
+  if (!reflection || !stages || !gpu.hdrTexture || !gpu.deferred) return
   const pass = encoder.beginComputePass({ label: REFLECTION_RADIANCE_PASS })
-  radianceInputs.hdr = gpu.hdrView
+  radianceInputs.texture = gpu.hdrTexture
   radianceInputs.view = gpu.deferred.uniform
   radianceInputs.hash = reflection.settle.hash
   encodeRadiancePyramid(
