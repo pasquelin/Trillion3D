@@ -5,6 +5,7 @@
 // (`cardTileReads.ts`): at a whole level the pool must return the hardware's own value, bit for
 // bit; between two, its error against the exact filter must be no larger than the hardware's.
 import { srgbToLinear } from '../../../packages/math/src/color/color.ts'
+import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 import type { Chain } from './cardTileRig.ts'
 
 /** What two f32 roundings of a mix may add to an error that is otherwise the same: 2^-22. */
@@ -27,7 +28,7 @@ function bilinear(chain: Chain, srgb: boolean, l: number, u: number, v: number, 
     fx = x - x0,
     fy = y - y0
   const at = (i: number, j: number) =>
-    texel(chain, srgb, l, Math.min(Math.max(i, 0), side - 1), Math.min(Math.max(j, 0), side - 1), c)
+    texel(chain, srgb, l, clamp(i, 0, side - 1), clamp(j, 0, side - 1), c)
   const top = at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx
   const bottom = at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx
   return top * (1 - fy) + bottom * fy
@@ -37,7 +38,7 @@ function bilinear(chain: Chain, srgb: boolean, l: number, u: number, v: number, 
  *  the chain. */
 function trilinear(chain: Chain, srgb: boolean, u: number, v: number, lod: number, c: number) {
   const last = chain.levels.length - 1,
-    level = Math.min(Math.max(lod, 0), last),
+    level = clamp(lod, 0, last),
     l0 = Math.floor(level),
     t = level - l0
   const a = bilinear(chain, srgb, l0, u, v, c)

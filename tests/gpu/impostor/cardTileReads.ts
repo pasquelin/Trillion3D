@@ -3,6 +3,7 @@
 // every tile resident) and by the hardware sampler on the whole chains, as the cards read before
 // #1527 — each map's level clamped to its chain as `impLod` clamps it. The values come back as the
 // shaders returned them, for `compareReads` (`cardTileTrilinear.ts`) to set beside the exact filter.
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import {
@@ -86,7 +87,7 @@ async function run(
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, groupZero(device, pipeline, [{ buffer: input }, { buffer: output }]))
   pass.setBindGroup(1, group(pipeline.getBindGroupLayout(1)))
-  pass.dispatchWorkgroups(Math.ceil(taps.length / 4 / 64))
+  pass.dispatchWorkgroups(ceilDiv(taps.length / 4, 64))
   pass.end()
   device.queue.submit([encoder.finish()])
   const read = (await readGpuBuffer(device, output, bytes))!
