@@ -51,6 +51,9 @@ export function fieldLayout<T extends FieldTable>(name: string, table: T) {
 
 /** The field type of `count` records of the struct `of` lays out: WGSL strides an array of a
  *  struct by the struct's words, already rounded to its alignment. */
-export function arrayOf(of: ReturnType<typeof fieldLayout>, count: number): FieldType {
+export function arrayOf(
+  of: { readonly name: string; readonly words: number; readonly align: number },
+  count: number,
+): FieldType {
   return { wgsl: `array<${of.name},${count}>`, words: of.words * count, align: of.align }
 }

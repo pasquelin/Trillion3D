@@ -154,7 +154,7 @@ fn frontFold(@builtin(global_invocation_id) id:vec3u){
   [REFLECTION_VIEW_WGSL, pixelToNdc, unprojectPoint, clipToFramebuffer],
 )
 
-/** The boxes' one thread (\`frontBox\`): the union of this image's destination box and the last
+/** The boxes' one thread (`frontBox`): the union of this image's destination box and the last
  *  image's, which the fold walks, its workgroups the fold's indirect arguments; then this image's box
  *  is the next one's last, and the next image's starts empty. */
 export const FRONT_BOX_SHADER = wgslProgram(
@@ -194,7 +194,7 @@ export function frontLayout(device: GPUDevice) {
   })
 }
 
-/** The boxes' layout (\`FRONT_BOX_SHADER\`): the boxes and the fold's indirect arguments. */
+/** The boxes' layout (`FRONT_BOX_SHADER`): the boxes and the fold's indirect arguments. */
 export function frontBoxLayout(device: GPUDevice) {
   return device.createBindGroupLayout({
     entries: [computeBufferEntry(0, 'storage'), computeBufferEntry(1, 'storage')],
