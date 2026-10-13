@@ -28,6 +28,7 @@ import {
   flagShapeWords,
 } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
 import { worldTableOn } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.fixture.ts'
+import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
 import {
   childBase,
   savedJournalWord,
@@ -160,10 +161,12 @@ export function bindCase(
   }
   // The worlds' table, as the engine's host writes it (`worldTable.ts`).
   const worlds = worldTableOn(device, selection.packed.worlds, selection.packed.worldSources)
-  made.push(worlds)
+  // The placement tree's table, as the engine makes it (`treeTable.ts`).
+  const tree = createTreeTable(device, selection.packed.placementTree)
+  made.push(worlds, tree)
   const group = device.createBindGroup({
     layout,
-    entries: namedEntries(DAG_BINDING, { ...buffers, worlds: worlds.view }),
+    entries: namedEntries(DAG_BINDING, { ...buffers, worlds: worlds.view, tree: tree.view }),
   })
   return { at, buffers, group, destroy: () => made.forEach((created) => created.destroy()) }
 }

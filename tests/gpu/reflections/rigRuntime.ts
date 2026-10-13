@@ -1,7 +1,7 @@
 // What the reflection rig binds as the proxy (`runtime-proxy.gpu.ts` proves the engine's own): the scene's
 // proxy of a few faces, each one placement of a two-triangle mesh at the identity, wearing a surface that
-// emits the face's radiance, and the worlds' table they are placed by — or an empty header, no placement,
-// no ray.
+// emits the face's radiance, and the culling's tables it is read beside: the worlds the faces are placed by
+// and a placement tree of none (the header names no tree) — or an empty header, no placement, no ray.
 import {
   INSTANCE_WORDS,
   RUNTIME_HEADER,
@@ -11,6 +11,7 @@ import {
 } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
 import { WORLD_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.ts'
+import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
 
 /** A face of the rig's scene: the triangles it holds — two, nine floats each — and the radiance it gives. */
 export type RigFace = { triangles: Float32Array; radiance: readonly [number, number, number] }
@@ -64,8 +65,8 @@ function proxyWords(faces: readonly RigFace[]) {
   return words
 }
 
-/** The proxy's buffer over `faces`, and the worlds' table they stand in: the identity, its exact
- *  translation zeros. */
+/** The proxy's buffer over `faces`, the worlds' table they stand in — the identity, its exact
+ *  translation zeros —, and the table of no placement tree. */
 export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
   const words = faces.length ? proxyWords(faces) : new Uint32Array(RUNTIME_HEADER_WORDS + 1)
   const proxy = device.createBuffer({
@@ -84,5 +85,5 @@ export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
   for (let k = 0; k < n; k++) for (const diagonal of [0, 5, 10, 15]) identity[k * 16 + diagonal] = 1
   worlds.write('Matrix', 0, n, identity.buffer, 0)
   worlds.write('Origin', 0, n, new Uint32Array(n * 8).buffer, 0)
-  return { proxy, proxyWorlds: worlds.view }
+  return { proxy, proxyWorlds: worlds.view, proxyTree: createTreeTable(device, undefined).view }
 }

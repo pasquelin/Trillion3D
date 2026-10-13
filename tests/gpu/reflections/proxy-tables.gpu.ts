@@ -1,6 +1,6 @@
-// The proxy's rays read the culling's worlds where they lie (`gpu/dag/worldTable.ts`): on the GPU, the shipped
-// walk over the record table and the walk of before, over the worlds the proxy's buffer mirrored, answer every
-// ray with the same words — its distance's bits, its placement, its triangle, found or not, its work and its
+// The proxy's rays read the culling's worlds and placement tree where they lie (`gpu/dag/worldTable.ts`,
+// `gpu/dag/treeTable.ts`): on the GPU, the shipped walk over the record tables and the walk of before, over the
+// worlds and the tree the proxy's buffer mirrored, answer every ray with the same words — its distance's bits, its placement, its triangle, found or not, its work and its
 // tests —, on generated fields with and without a placement tree, blended copies among them. And a world the
 // culling splits in ranges keeps its proxy: once refused past one storage binding, its rays now meet the
 // placements of every range, hit for hit those of the same world held whole.
@@ -41,7 +41,7 @@ for (const [count, seed] of [
   [1200, 29],
 ] as const)
   test(
-    `${count} placements: the walk over the record table answers as the walk of before, word for word`,
+    `${count} placements: the walk over the record tables answers as the walk of before, word for word`,
     {
       timeout: 300_000,
     },
