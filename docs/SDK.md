@@ -268,7 +268,11 @@ capture needs. A write applies next frame, no session reopened; a read says what
 the display drawn before temporal antialiasing rebuilds the image: `'auto'` lets the frame budget
 (the display's refresh interval) choose between 0.5 and 1, from the GPU frame time or, without
 timestamps, the frame interval; `{ min, max }` bounds it, a number fixes it. A read is the last
-image's scale.
+image's scale. Where the scale is fixed, or at its floor, and the GPU frame still outlasts the
+refresh, the loop draws on every second refresh (every n-th on a faster display, never under 60
+images a second), so each image is shown for the same time instead of one refresh or two as it
+lands; it draws on every refresh again once the GPU frame falls to 0.81 of the faster budget. A
+scene that holds the refresh is never touched, and the world's time steps by the refreshes shown.
 
 `world.effects` is the ordered chain of passes after temporal antialiasing, before the canvas.
 `effect.bloom({ intensity, radius })` is an energy-conserving glow on the linear

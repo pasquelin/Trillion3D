@@ -1,3 +1,4 @@
+import { judgeCadence, resetCadence, type Cadence } from './cadence.ts'
 import { GRID_TOLERANCE, SUPPORT, type createRefreshClock } from './refreshClock.ts'
 import {
   displayMoved,
@@ -20,13 +21,14 @@ import {
 /** The span a frame may miss its refresh once in: one image a second shown two refreshes. */
 const SECOND_MS = 1000
 
-/** What a tick reads and moves: the controller's state, the display's clock and size, and the
- *  render targets' memory cap. */
+/** What a tick reads and moves: the controller's state, the display's clock and size, the
+ *  render targets' memory cap, and the steady cadence (`cadence.ts`). */
 export interface ScaleParts {
   w: ScaleWindow
   refresh: ReturnType<typeof createRefreshClock>
   display: { width: number; height: number; ratio: number }
   targets: ReturnType<typeof createTargetCap>
+  cadence: Cadence
 }
 
 /** The last image drawn, as the controller was told (`drew`). */
@@ -105,6 +107,7 @@ export function tickScale(p: ScaleParts, image: DrawnImage, now: number, timed: 
     p.targets.lift()
     w.max = w.bounds.max
     refresh.reset()
+    resetCadence(p.cadence)
   }
   refresh.tick(now)
   const gap = refresh.gap
@@ -120,6 +123,16 @@ export function tickScale(p: ScaleParts, image: DrawnImage, now: number, timed: 
   // The image drawn before this display frame, read once whatever the bounds.
   const fresh = w.fresh
   w.fresh = false
+  // The cadence judges the moving images the loop drew at the GPU's pace; it slows only where the
+  // scale cannot lower the cost any more: fixed, or at its floor.
+  judgeCadence(
+    p.cadence,
+    now,
+    gap,
+    refresh.settled ? refresh.display : Number.NaN,
+    fresh && !image.still && gap < INTERVAL_PAUSE_MS,
+    !w.bounds.auto || w.s <= w.bounds.min,
+  )
   // A display frame began: another call in the same frame (gap 0) counts none.
   if (w.bounds.auto) judgeFrame(p, image, fresh)
 }

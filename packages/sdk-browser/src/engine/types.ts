@@ -90,6 +90,9 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   /** The interactive loop's frame began: true where the engine holds it, drawing nothing, to
    *  measure the display (`../webgpu/frame/interactiveFrame.ts`); an explicit render never is. */
   measureFrame(): boolean
+  /** The interactive loop's display frame began: true where the engine leaves it out of its steady
+   *  cadence (`../frame/cadence.ts`) — nothing drawn, no frame counted; an explicit render never is. */
+  skipsFrame(): boolean
   /** What the view received so far — camera pages made resident, quiet images a still average not
    *  yet whole took —: the view still arriving, which spends no settle limit (#836). */
   landings(): number
