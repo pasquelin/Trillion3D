@@ -1,5 +1,5 @@
 import { families } from '../../../host/families.ts'
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**

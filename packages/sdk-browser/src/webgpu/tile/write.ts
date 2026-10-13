@@ -48,7 +48,7 @@ export function tileRegion(levelWidth: number, levelHeight: number, tx: number, 
 export const cellOrigin = (place: TilePlace) =>
   [place.x * TILE_PITCH, place.y * TILE_PITCH] as const
 /** Origin of the `rank`-th queue level in its cell, border included. */
-export const tailOrigin = (place: TilePlace, rank: number): GPUOrigin3D => [
+const tailOrigin = (place: TilePlace, rank: number): GPUOrigin3D => [
   place.x * TILE_PITCH + TILE_BORDER + tailOffset(rank),
   place.y * TILE_PITCH + TILE_BORDER,
   place.layer,
@@ -102,20 +102,40 @@ export function copyTileFromTexture(
   )
 }
 
-/** Queue levels, from the first to 1×1, each at its place in the tile. */
-export function writeTailFromBytes(
+/** How a lane writes one tail level of `level` texels: its bytes checked, queued at `origin`. */
+export type TailLevelWriter = (
+  queue: GPUQueue,
+  pool: GPUTexture,
+  origin: GPUOrigin3D,
+  bytes: Uint8Array,
+  level: readonly [number, number],
+) => void
+
+/** A lossless tail level: four bytes a texel, rows packed. */
+export const writeRgbaLevel: TailLevelWriter = (queue, pool, origin, pixels, [width, height]) => {
+  if (pixels.byteLength !== width * height * 4) throw new Error('TEXTURE_TAIL_BYTES')
+  writeRgba(queue, pool, origin, pixels, width, height)
+}
+
+/** Queue levels, from the first to 1×1, each at its place in the tile, by `writeLevel`. */
+export function writeTail(
   queue: GPUQueue,
   pool: GPUTexture,
   place: TilePlace,
   size: [number, number],
   tail: number,
   levels: readonly Uint8Array[],
+  writeLevel: TailLevelWriter,
 ) {
-  levels.forEach((pixels, rank) => {
-    const [width, height] = previewLevelSize(size[0], size[1], tail + rank)
-    if (pixels.byteLength !== width * height * 4) throw new Error('TEXTURE_TAIL_BYTES')
-    writeRgba(queue, pool, tailOrigin(place, rank), pixels, width, height)
-  })
+  levels.forEach((bytes, rank) =>
+    writeLevel(
+      queue,
+      pool,
+      tailOrigin(place, rank),
+      bytes,
+      previewLevelSize(size[0], size[1], tail + rank),
+    ),
+  )
 }
 
 export function copyTailFromTexture(

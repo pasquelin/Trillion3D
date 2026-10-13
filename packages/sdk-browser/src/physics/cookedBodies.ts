@@ -7,20 +7,24 @@ import {
   declaredMass,
   declaredShape,
   physicsMatterOf,
-  type CommandWriter,
   type CookedBody,
   TRIANGLE_BYTES,
 } from '../../../sdk-core/src/physics/index.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
-import type { createPhysicsBodies } from './bodies.ts'
 import { worldPoseOf } from './bodyFrame.ts'
 import { bodyNodes, countNodes, type BodyNodes } from './bodyNodes.ts'
 import { carriedFrom, driveCarried, type Carried } from './carriedBodies.ts'
 import { createOpenings } from './modelOpenings.ts'
 import { followModel } from './cookedMoved.ts'
-import { cookedHull, holdObjects, hullOf, letGoAll, type HeldObjects } from './cookedObjects.ts'
-import type { SharedShapes } from './sharedShapes.ts'
+import {
+  cookedHull,
+  holdObjects,
+  hullOf,
+  letGoAll,
+  type HeldObjects,
+  type CookedParts,
+} from './cookedObjects.ts'
 import { tilePose, type Model } from './tilePlace.ts'
 
 /** The scene node a dynamic body's poses move, how far around it it wants ground, and the world
@@ -51,13 +55,8 @@ export type Refused = Pick<CookedMadeBody, 'body' | 'scale'>
  * node its collider names (`colliderNode`) leave (`holds`) — a dynamic one's whole subtree's,
  * which moves with it —: no collider is doubled.
  */
-export function createCookedBodies(
-  writer: CommandWriter,
-  bodies: Pick<ReturnType<typeof createPhysicsBodies>, 'claim' | 'release'>,
-  shapes: SharedShapes,
-  invalidate: () => void,
-  failed: (error: EngineError) => void,
-) {
+export function createCookedBodies(parts: CookedParts) {
+  const { writer, bodies, shapes, invalidate, failed } = parts
   /** Each open model's opening: the nodes its bodies stand for (`bodyNodes.ts`), its bodies
    *  made, those a rescale refused with the scale it was at, the hulls they are built on — held,
    *  and restored while held (`cookedObjects.ts`) —, and the signal its leaving aborts its reads

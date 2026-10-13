@@ -17,13 +17,8 @@ import { composesWithBackground, hostBlending } from '../../scene/materialBlendi
 import { GraphSurface, type GraphSurfaceFamily } from '../../host/graph/surface.ts'
 import { physicalSurface, writePhysical } from './worldPhysicalSurface.ts'
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts'
-import {
-  COLOUR_MAPS,
-  HOST_MAPS,
-  hostTexture,
-  repaintHostMaps,
-  type HostTextures,
-} from './worldTextures.ts'
+import { COLOUR_MAPS } from '../../../../sdk-core/src/world/material/material.ts'
+import { HOST_MAPS, hostTexture, repaintHostMaps, type HostTextures } from './worldTextures.ts'
 
 /** The family of each kind that is not physical. */
 const FAMILY: Record<string, GraphSurfaceFamily> = {

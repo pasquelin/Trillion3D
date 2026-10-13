@@ -1,5 +1,5 @@
 // The frame's shadow-map raster and projection (`vsmEncode.ts`).
-import type { EngineCamera } from '../../../../camera/world.ts'
+import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import {
   encodeVirtualShadowProjection,

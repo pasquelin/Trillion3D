@@ -1,6 +1,18 @@
-import type { CookedBody, CookedTile } from '../../../sdk-core/src/physics/index.ts'
+import type { CookedBody, CookedTile, CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
+import type { createPhysicsBodies } from './bodies.ts'
 import type { CookedKind, SharedShape, SharedShapes } from './sharedShapes.ts'
 import { cookedHref, type Model } from './tilePlace.ts'
+
+/** What every factory of a model's cooked bodies makes them with: the command writer, the body
+ *  slots it claims and releases, the shared shapes, the redraw asked and the refusal told. */
+export type CookedParts = {
+  writer: CommandWriter
+  bodies: Pick<ReturnType<typeof createPhysicsBodies>, 'claim' | 'release'>
+  shapes: SharedShapes
+  invalidate: () => void
+  failed: (error: EngineError) => void
+}
 
 /** The cooked objects an opening's bodies are built from, by the URL their manifest names. */
 export type HeldObjects = ReadonlyMap<string, SharedShape>

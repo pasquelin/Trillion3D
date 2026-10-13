@@ -1,4 +1,4 @@
-import type { EngineCamera } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts'
 import {
   projectedPageError,

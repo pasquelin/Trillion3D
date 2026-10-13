@@ -1,4 +1,5 @@
-import { CORNER_VALUES, writeSplitDouble } from '../../gpu/partition/contract.ts'
+import { CORNER_VALUES } from '../../gpu/partition/contract.ts'
+import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { forEachRewrittenRun } from '../row/dirty.ts'
 import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/corners.ts'
 import type { HizPage } from '../../hiz/types.ts'

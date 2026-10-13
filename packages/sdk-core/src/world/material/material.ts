@@ -18,6 +18,17 @@ export const MATERIAL_COLOURS: ReadonlySet<string> = new Set([
   'attenuationColor',
   'subsurfaceColor',
 ])
+/** The texture fields that hold a colour: the only ones whose sRGB image is decoded. The others
+ *  hold data — a direction, a roughness, an occlusion — read as stored whatever the image
+ *  declares, as the WebGPU path reads them. */
+export const COLOUR_MAPS: ReadonlySet<string> = new Set([
+  'map',
+  'emissiveMap',
+  'matcap',
+  'subsurfaceMap',
+  'sheenColorMap',
+  'specularColorMap',
+])
 /** A value that may be heard: a texture keeps its hearers in `_listeners`. */
 type Heard = { isTexture?: boolean; _listeners?: Listeners }
 /** The fields that are a material's bookkeeping, never one of its parameters. */

@@ -1,4 +1,5 @@
 import { mixWord } from '../../../../math/src/scalar/integers.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
 /**
  * Integer values keyed by non-negative integer ids, held only for the ids that carry one: what the
  * cut's per-page state is kept in, so its size follows what the view and the pool hold, never the
@@ -112,7 +113,7 @@ function slotFor(t: Table, key: number) {
   if ((t.size + 1) * 2 > t.keys.length) {
     const at = t.keys.length ? find(t, key) : -1
     if (at >= 0 && t.keys[at] === key) return at
-    allocate(t, Math.max(MIN_SLOTS, t.keys.length * 2))
+    allocate(t, grownLength(t.keys.length, MIN_SLOTS))
   }
   return find(t, key)
 }

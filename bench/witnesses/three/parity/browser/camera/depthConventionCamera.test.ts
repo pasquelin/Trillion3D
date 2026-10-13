@@ -12,10 +12,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
-import {
-  createEngineCamera,
-  readCameraWorld,
-} from '../../../../../../packages/sdk-browser/src/camera/world.ts'
+import { createEngineCamera } from '../../../../../../packages/sdk-browser/src/camera/engineCamera.ts'
+import { readCameraWorld } from '../../../../../../packages/sdk-browser/src/camera/world.ts'
 import {
   DEPTH_CLEAR,
   DEPTH_COMPARE,

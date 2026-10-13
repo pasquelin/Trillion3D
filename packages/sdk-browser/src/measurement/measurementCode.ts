@@ -4,4 +4,5 @@
 // (`../diagnostic/gpuPasses.ts`), one module so that the CDN bundle makes one chunk of it.
 export { SDK_BUILD_PROVENANCE } from './buildProvenance.ts'
 export { FrameProfile } from '../diagnostic/frameProfile.ts'
-export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from '../gpu/core/passBlocks.ts'
+export { gpuPassBlockTotals } from '../gpu/core/passBlocks.ts'
+export { gpuPassBlockOf, gpuPassStageOf } from '../stage/mapping.ts'

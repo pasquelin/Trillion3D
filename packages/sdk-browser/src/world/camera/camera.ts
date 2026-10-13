@@ -4,7 +4,7 @@ import { framingFromBounds } from '../../camera/framing.ts'
 import { DEFAULT_FOV } from '../../engine/common.ts'
 import type { MeasuredWorldOptions } from '../../engine/types.ts'
 import { hostBox, hostFramingCamera, hostPoint } from '../../host/scene/graphObjects.ts'
-import { sphereFromBounds } from '../../../../sdk-core/src/index.ts'
+import { sphereFromBoundsBatch } from '../../../../math/src/batch/culling.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /** Framing centre and radius: midpoint of the bounds and the half-diagonal, reread from a single sphere. */
@@ -19,7 +19,7 @@ export function createExplorerCamera(
 ) {
   const flat = emptyWorldBox()
   hostWorldBounds(source, flat, lot)
-  sphereFromBounds(framingSphere, 0, flat[0], flat[1], flat[2], flat[3], flat[4], flat[5])
+  sphereFromBoundsBatch(framingSphere, flat, 1)
   const radius = framingSphere[3]
   const framing = framingFromBounds(radius, canvas.width / canvas.height)
   // The box and the centre go back to the host — `explorer.bounds` and `explorer.center` are its

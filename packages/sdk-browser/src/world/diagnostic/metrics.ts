@@ -23,7 +23,7 @@ function publishMetric<K extends (typeof ENGINE_METRIC_KEYS)[number]>(
 
 /** The host sample before any frame: every measurement `null` — not held —, none zero but the
  *  frame time and the counts the open carries in. */
-const UNMEASURED: FrameMetrics = {
+export const UNMEASURED: FrameMetrics = {
   rafIntervalMs: null,
   displayRefreshMs: null,
   cpuFrameMs: 0,

@@ -7,7 +7,7 @@ import { copyMatrix4, multiplyMatrix4 } from '../../../../math/src/matrix/matrix
 import { IDENTITY_WORLD } from '../../host/matrixElements.ts'
 import type { ClusterRoot } from '../selection/types.ts'
 import { pixelScale } from '../../../../math/src/projection/camera.ts'
-import type { EngineCamera } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { HeldResidency } from './held.fixture.ts'
 
 /** Cut result, filled in place: the caller supplies the object, the image allocates none. */

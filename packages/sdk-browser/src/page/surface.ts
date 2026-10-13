@@ -31,7 +31,7 @@ import {
   type MaterialRaster,
 } from '../scene/materialSide.ts'
 import { visMaterial } from '../visibility/shader/material.ts'
-import type { VisMaterial } from '../visibility/types.ts'
+import type { VisMaterial } from '../visibility/materialType.ts'
 
 /** The shaded fields of a surface, and the raster facts declared beside them. */
 export type PageSurface = VisMaterial & MaterialRaster

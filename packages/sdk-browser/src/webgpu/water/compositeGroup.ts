@@ -4,6 +4,7 @@ import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts'
 import { readOnly } from '../core/bindLayout.ts'
 import type { BlendLighting } from '../core/blendBindEntries.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /** What the composite's group is made of (`createWaterCompositeLayout`). */
 type Sources = { gpu: WebgpuGpuState; uniform: GPUBuffer; lighting: BlendLighting }
@@ -111,10 +112,7 @@ export function waterCompositeEntries(
     sources = { gpu, uniform, lighting },
     buffer = buffersOf()
   return [
-    ...surfaces
-      .views()
-      .slice(0, SURFACES)
-      .map((resource, binding) => ({ binding, resource })),
+    ...sequentialEntries(surfaces.views().slice(0, SURFACES)),
     ...HELD.map(([binding, of], at) => {
       const held = of(sources)
       return { binding, resource: (buffer[at] ? { buffer: held } : held) as GPUBindingResource }

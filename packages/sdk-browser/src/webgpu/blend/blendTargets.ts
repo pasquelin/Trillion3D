@@ -1,4 +1,4 @@
-import { FEEDBACK_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { FEEDBACK_FORMAT, HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { COVERAGE_EQUATIONS, filtersDisplay } from './equations.ts'
 import { displayTargets } from './displayFilter.ts'
@@ -17,7 +17,7 @@ export const blendTargets = (
 ): (GPUColorTargetState | null)[] => [
   // A filtering mode of a filtered image leaves the lit target to the display layers.
   {
-    format: 'rgba16float',
+    format: HDR_FORMAT,
     writeMask: filtered && filtersDisplay(mode) ? 0 : mask,
     blend: COVERAGE_EQUATIONS[mode],
   },

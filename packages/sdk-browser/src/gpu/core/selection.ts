@@ -7,7 +7,8 @@
  */
 import { FRUSTUM_PLANE_VALUES, maxStretch } from '../../../../sdk-core/src/index.ts'
 import { pixelScale as writePixelScale } from '../../../../math/src/projection/camera.ts'
-import type { CameraMotion, EngineCamera } from '../../camera/world.ts'
+import type { CameraMotion } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'

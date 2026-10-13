@@ -15,7 +15,11 @@ import {
   type VsmPerPageBin,
 } from './markingPass.ts'
 import { VSM_PER_PAGE_DISPATCH_WGSL } from './markingWgsl.ts'
-import { computeBufferEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeUniformEntry,
+  sequentialEntries,
+} from '../gpu/core/computeBindings.ts'
 import type { VsmResources } from './resources.ts'
 import { writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../residency/pools.ts'
@@ -78,10 +82,10 @@ export class VsmPerPageDispatcher {
     this.bindGroup = this.device.createBindGroup({
       label: 'vsm.pm.perPage',
       layout: this.bindGroupLayout,
-      entries: [
-        { binding: 0, resource: { buffer: this.params, offset: 0, size: 16 } },
-        { binding: 1, resource: { buffer: res.perPageIds } },
-      ],
+      entries: sequentialEntries([
+        { buffer: this.params, offset: 0, size: 16 },
+        { buffer: res.perPageIds },
+      ]),
     })
   }
 

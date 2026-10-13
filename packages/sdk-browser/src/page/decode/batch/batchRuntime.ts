@@ -1,5 +1,6 @@
 import { BOX_VALUES, MATRIX_VALUES } from '../../../../../sdk-core/src/index.ts'
 import { f64, size, batchBuffer, type MathLot } from './batchLot.ts'
+import type { SdkWasm } from '../../../wasm/sdkWasm.ts'
 
 /**
  * Initial two batches: box transformation and 4×4 matrix product, both operations
@@ -32,53 +33,45 @@ export interface MultiplyLot extends MathLot {
   readonly out: Float64Array
 }
 
-/** A batch of `n` boxes transformed by `n` matrices; `null` when the module refuses its size. */
-export async function createBoxTransformLot(n: number): Promise<BoxTransformLot | null> {
-  const buffer = await batchBuffer([
-    { type: 'f64', length: n * BOX_VALUES },
-    { type: 'f64', length: n * MATRIX_VALUES },
-    { type: 'f64', length: n * BOX_VALUES },
-  ])
+/** A batch of `n` elements over three `f64` blocks of `values` numbers an element, read through
+ *  the views `names` (re-queried at each read); it holds `count` elements when its first block
+ *  does, and `kernel` runs it on the blocks' offsets. `null` when the module refuses its size. */
+async function threeBlockLot<K extends string>(
+  n: number,
+  values: readonly [number, number, number],
+  names: readonly [K, K, K],
+  kernel: (wasm: SdkWasm, offsets: readonly number[]) => void,
+) {
+  const buffer = await batchBuffer(values.map((v) => ({ type: 'f64', length: n * v }) as const))
   if (!buffer) return null
   const { wasm, blocks, release } = buffer
-  const [inputOffset, matrices, outputOffset] = blocks().map((block) => block.offset)
-  return {
+  const offsets = blocks().map((block) => block.offset)
+  const lot = {
     n,
-    get boxes() {
-      return f64(blocks()[0])
-    },
-    get mats() {
-      return f64(blocks()[1])
-    },
-    get out() {
-      return f64(blocks()[2])
-    },
-    holds: (count) => count > 0 && size(blocks(), 0) === count * BOX_VALUES,
-    run: () => wasm.math_box_transform_batch(outputOffset, inputOffset, matrices, n),
+    holds: (count: number) => count > 0 && size(blocks(), 0) === count * values[0],
+    run: () => kernel(wasm, offsets),
     release,
   }
+  names.forEach((name, at) =>
+    Object.defineProperty(lot, name, { get: () => f64(blocks()[at]), enumerable: true }),
+  )
+  return lot as MathLot & Readonly<Record<K, Float64Array>>
 }
 
-/** A batch of `n` products `out[i] = a[i] · b[i]`; `null` when the module refuses its size. */
-export async function createMultiplyLot(n: number): Promise<MultiplyLot | null> {
-  const request = { type: 'f64', length: n * MATRIX_VALUES } as const
-  const buffer = await batchBuffer([request, request, request])
-  if (!buffer) return null
-  const { wasm, blocks, release } = buffer
-  const [left, right, outputOffset] = blocks().map((block) => block.offset)
-  return {
+/** A batch of `n` boxes transformed by `n` matrices; `null` when the module refuses its size. */
+export const createBoxTransformLot = (n: number): Promise<BoxTransformLot | null> =>
+  threeBlockLot(
     n,
-    get a() {
-      return f64(blocks()[0])
-    },
-    get b() {
-      return f64(blocks()[1])
-    },
-    get out() {
-      return f64(blocks()[2])
-    },
-    holds: (count) => count > 0 && size(blocks(), 0) === count * MATRIX_VALUES,
-    run: () => wasm.math_multiply_matrix4_batch(outputOffset, left, right, n),
-    release,
-  }
-}
+    [BOX_VALUES, MATRIX_VALUES, BOX_VALUES],
+    ['boxes', 'mats', 'out'],
+    (wasm, [boxes, mats, out]) => wasm.math_box_transform_batch(out, boxes, mats, n),
+  )
+
+/** A batch of `n` products `out[i] = a[i] · b[i]`; `null` when the module refuses its size. */
+export const createMultiplyLot = (n: number): Promise<MultiplyLot | null> =>
+  threeBlockLot(
+    n,
+    [MATRIX_VALUES, MATRIX_VALUES, MATRIX_VALUES],
+    ['a', 'b', 'out'],
+    (wasm, [a, b, out]) => wasm.math_multiply_matrix4_batch(out, a, b, n),
+  )

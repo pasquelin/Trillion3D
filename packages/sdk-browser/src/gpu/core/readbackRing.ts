@@ -6,6 +6,19 @@ const mapRead = () => (globalThis as { GPUMapMode?: { READ: number } }).GPUMapMo
 export const mapStaging = (buffer: GPUBuffer, offset?: number, size?: number) =>
   Promise.resolve(buffer.mapAsync(mapRead(), offset, size))
 
+/** A staging buffer of `bytes` bytes under `label`: a copy lands in it, and it maps for reading.
+ *  The one making of a buffer read back, the ring's and the GPU timing's. */
+export const createStaging = (
+  device: Pick<GPUDevice, 'createBuffer'>,
+  label: string,
+  bytes: number,
+) =>
+  device.createBuffer({
+    label,
+    size: bytes,
+    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+  })
+
 interface Staging {
   buffer: GPUBuffer
   /** What the frame that took the buffer says of its copy, given back to `read`. */
@@ -61,11 +74,7 @@ export function createReadbackRing(
   const make = () => {
     let buffer: GPUBuffer | undefined
     try {
-      buffer = device.createBuffer({
-        label: options.label,
-        size: options.bytes,
-        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-      })
+      buffer = createStaging(device, options.label, options.bytes)
     } catch {
       /* A device that cannot make the buffer cannot map it either. */
     }

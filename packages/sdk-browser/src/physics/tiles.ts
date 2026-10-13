@@ -46,7 +46,7 @@ export function createTileStreamer(
   // The static collision's shares: of the memory, and of the bodies, the others keeping the rest.
   const share = collisionBytesOf(budget)
   const shapes = new SharedShapes({ writer, ledger: bodies.ledger, failed })
-  const declared = createModelBodies(writer, bodies, shapes, invalidate, failed)
+  const declared = createModelBodies({ writer, bodies, shapes, invalidate, failed })
   const resident = createResidentTiles(writer, bodies, shapes)
   const schedule = new TileSchedule({ bodies, declared, shapes, resident, invalidate, failed })
   // A body no tile holds takes the farthest tiles' slots and bytes when none are left for it.

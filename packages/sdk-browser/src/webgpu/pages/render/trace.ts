@@ -1,4 +1,5 @@
-import { enginePose, type EngineCamera } from '../../../camera/world.ts'
+import { enginePose } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** Every full frame snapshot starts from the same identity: backend, frame, submission, pose and

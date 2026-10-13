@@ -6,6 +6,7 @@ import { pendingBuffers } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import type { createHizPipelines, hizPagesGroup } from './pipelines.ts'
 import type { GpuHiz } from './types.ts'
+import { sequentialEntries } from '../core/computeBindings.ts'
 
 export type HizPipelines = NonNullable<Awaited<ReturnType<typeof createHizPipelines>>>
 
@@ -66,15 +67,15 @@ export function bindHiz(h: HizState) {
   at.bindings = h.bindings
   h.bindGroup = at.group = h.device.createBindGroup({
     layout: h.layout,
-    entries: [
-      { binding: 0, resource: at.pyramidView },
-      { binding: 1, resource: at.level0View },
-      { binding: 2, resource: { buffer: h.uniforms, size: HIZ_SLOT_WORDS * 4 } },
-      { binding: 3, resource: { buffer: h.bounds } },
-      { binding: 4, resource: { buffer: h.flags } },
-      { binding: 5, resource: { buffer: h.state } },
-      { binding: 6, resource: at.frontView },
-    ],
+    entries: sequentialEntries([
+      at.pyramidView,
+      at.level0View,
+      { buffer: h.uniforms, size: HIZ_SLOT_WORDS * 4 },
+      { buffer: h.bounds },
+      { buffer: h.flags },
+      { buffer: h.state },
+      at.frontView,
+    ]),
   })
 }
 

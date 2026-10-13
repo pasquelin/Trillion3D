@@ -116,14 +116,13 @@ ${VSM_PROJECTION_VIEW_STRUCT}
 `
 
 const bindingsWgsl = () => {
-  const B = VSM_PROJECTION_BINDING
   return /* wgsl */ `
-@group(1) @binding(${B.view}) var<uniform> vsmView:VsmProjectionView;
-@group(1) @binding(${B.sceneDepth}) var vsmSceneDepth:texture_depth_2d;
-@group(1) @binding(${B.normalRough}) var vsmNormalRough:texture_2d<f32>;
-@group(1) @binding(${B.flags}) var vsmFlags:texture_2d<u32>;
-@group(1) @binding(${B.shadowMask}) var vsmShadowMask:texture_storage_2d_array<${VSM_PROJECTION_MASK_FORMAT},write>;
-@group(1) @binding(${B.shadowMaskTiles}) var vsmShadowMaskTiles:texture_storage_2d<${VSM_PROJECTION_TILE_FORMAT},write>;`
+@group(1) @binding(${VSM_PROJECTION_BINDING.view}) var<uniform> vsmView:VsmProjectionView;
+@group(1) @binding(${VSM_PROJECTION_BINDING.sceneDepth}) var vsmSceneDepth:texture_depth_2d;
+@group(1) @binding(${VSM_PROJECTION_BINDING.normalRough}) var vsmNormalRough:texture_2d<f32>;
+@group(1) @binding(${VSM_PROJECTION_BINDING.flags}) var vsmFlags:texture_2d<u32>;
+@group(1) @binding(${VSM_PROJECTION_BINDING.shadowMask}) var vsmShadowMask:texture_storage_2d_array<${VSM_PROJECTION_MASK_FORMAT},write>;
+@group(1) @binding(${VSM_PROJECTION_BINDING.shadowMaskTiles}) var vsmShadowMaskTiles:texture_storage_2d<${VSM_PROJECTION_TILE_FORMAT},write>;`
 }
 
 /** Whether both halves voted true (`halfVoted`: the lane's half's vote), one answer for the

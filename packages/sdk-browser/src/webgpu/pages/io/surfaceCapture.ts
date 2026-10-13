@@ -5,6 +5,7 @@ import {
   checkSurfaceSize,
   holds,
   type SurfaceCapture,
+  DEPTH_FORMAT,
 } from '../../../scene/surfaceBuffer.ts'
 import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
 import { collectPendingUrls } from '../../../page/selection/selection.ts'
@@ -35,7 +36,7 @@ function copySurfaces(
     depth = gpuDevice.createTexture({
       label: 'Trillion3D owned surface depth',
       size: { width: options.width, height: options.height },
-      format: 'depth32float',
+      format: DEPTH_FORMAT,
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
     })
   } catch (error) {

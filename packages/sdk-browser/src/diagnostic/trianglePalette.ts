@@ -1,21 +1,16 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { GOLDEN_U32 } from '../../../math/src/wgsl/constants.ts'
+import { mixWord } from '../../../math/src/wgsl/sampling.ts'
 import { byteOf } from '../../../math/src/wgsl/integer.ts'
 
-/** Bright, stable display colors derived from integer triangle IDs. */
+/** Bright, stable display colors derived from integer triangle IDs, hashed by the engine's one
+ *  integer hash (`mixWord`). */
 export const TRIANGLE_PALETTE_WGSL = wgslBlock(
   'TRIANGLE_PALETTE_WGSL',
-  [GOLDEN_U32, byteOf],
+  [mixWord, byteOf],
   `
-fn triangleHash(id:u32)->u32{
- var x=id+GOLDEN_U32;
- x=(x^(x>>16u))*0x7feb352du;
- x=(x^(x>>15u))*0x846ca68bu;
- return x^(x>>16u);
-}
-fn stableTriangleId(cluster:u32,triangle:u32)->u32{return cluster^triangleHash(triangle);}
+fn stableTriangleId(cluster:u32,triangle:u32)->u32{return cluster^mixWord(triangle);}
 fn hashColor(id:u32)->vec3f{
- let h=triangleHash(id);
+ let h=mixWord(id);
  let hue=f32(h&65535u)/65535.0;
  let saturation=0.65+0.25*f32(byteOf(h,2u))/255.0;
  let value=0.78+0.20*f32(byteOf(h,3u))/255.0;

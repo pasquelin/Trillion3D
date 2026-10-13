@@ -3,6 +3,7 @@ import { BLEND_EQUATIONS } from '../../scene/materialBlending.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { preparedPipeline, started } from './fullscreen.ts'
 import { AS_IS_SHARE_PASS } from '../../stage/passLabels.ts'
+import { sequentialEntries, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
 /** Red, the as-is share; green, the reactive value. */
 export const AS_IS_SHARE_FORMAT: GPUTextureFormat = 'rg8unorm'
@@ -27,7 +28,7 @@ export const REACTIVE_TARGET: GPUColorTargetState = { ...SHARE_TARGET, writeMask
 const seedProgram = oncePerDevice((device) => {
   const module = device.createShaderModule({ code: AS_IS_SHARE_SHADER })
   const layout = device.createBindGroupLayout({
-    entries: [{ binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'uint' } }],
+    entries: [computeTextureEntry(0, 'uint', '2d', GPUShaderStage.FRAGMENT)],
   })
   const pipeline = started(
     preparedPipeline(device, {
@@ -65,7 +66,7 @@ export function createAsIsShare(
   })
   const view = texture.createView()
   const { layout, pipeline } = seedProgram(device)
-  const group = device.createBindGroup({ layout, entries: [{ binding: 0, resource: flags }] })
+  const group = device.createBindGroup({ layout, entries: sequentialEntries([flags]) })
   return {
     view,
     /** Clears the share and its reactive value to 0, then, on an image that can hold an as-is

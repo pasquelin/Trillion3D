@@ -1,4 +1,4 @@
-import { createEngineCamera, type EngineCamera } from '../../../camera/world.ts'
+import { createEngineCamera, type EngineCamera } from '../../../camera/engineCamera.ts'
 import type { ViewHold } from '../../../frame/viewRevision.ts'
 import type { HizPyramid } from '../../../gpu/hiz/types.ts'
 import type { PresentRect } from '../../../gpu/core/presentAt.ts'

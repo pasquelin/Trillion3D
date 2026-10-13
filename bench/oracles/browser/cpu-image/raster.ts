@@ -16,7 +16,7 @@ import {
 import { VIS_TRIANGLE_MASK } from '../../../../packages/sdk-browser/src/visibility/visWords.ts'
 import { packVisibilityId } from './ids.ts'
 import { cutout } from './cutout.ts'
-import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/world.ts'
+import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import {
   locationOf,
   type PageLocations,
