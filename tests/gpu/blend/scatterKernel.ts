@@ -14,7 +14,7 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts'
 import { UNI_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
 import { EXPAND_GROUP } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
-import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
+import { namedEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { readBuffer } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -53,7 +53,7 @@ async function expand(input: ExpansionInput) {
     return made
   }
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
-  // Each buffer under its WGSL name: `namedBufferEntries` lays it at that name's binding.
+  // Each buffer under its WGSL name: `namedEntries` lays it at that name's binding.
   const buffers = {
     uni: {
       buffer: buffer(input.uniform, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
@@ -77,7 +77,7 @@ async function expand(input: ExpansionInput) {
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const group = device.createBindGroup({
     layout,
-    entries: namedBufferEntries(EXPAND_BINDING, buffers),
+    entries: namedEntries(EXPAND_BINDING, buffers),
   })
   const dispatches = blendExpandDispatch([], input.entries, input.runs)
   const encoder = device.createCommandEncoder()

@@ -14,7 +14,7 @@ import {
   computeTextureEntry,
   computeUniformEntry,
   sequentialEntries,
-  namedBufferEntries,
+  namedEntries,
 } from '../gpu/core/computeBindings.ts'
 import { NO_CONE } from '../../../sdk-core/src/scene/light/fields.ts'
 import { hasSubgroups } from '../gpu/core/subgroups.ts'
@@ -600,7 +600,7 @@ function passGroupFor(
         label: 'vsm.projection.pass',
         layout: p.passLayout,
         entries: [
-          ...namedBufferEntries(VSM_PROJECTION_BINDING, {
+          ...namedEntries(VSM_PROJECTION_BINDING, {
             view: { buffer: state.uniform! },
             sceneDepth: inputs.depth,
             normalRough: inputs.normalRough,
@@ -608,7 +608,7 @@ function passGroupFor(
             blueNoise: state.blueNoiseView!,
           }),
           ...hizDepthBindEntries(VSM_PROJECTION_BINDING.hizDepth, inputs.hizDepth),
-          ...namedBufferEntries(VSM_PROJECTION_BINDING, {
+          ...namedEntries(VSM_PROJECTION_BINDING, {
             shadowMask: mask,
             shadowMaskTiles: maskTiles,
           }),

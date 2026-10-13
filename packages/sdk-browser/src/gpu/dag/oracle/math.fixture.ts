@@ -2,7 +2,8 @@ import { copyMatrix4, multiplyMatrix4 } from '../../../../../sdk-core/src/index.
 import { screenErrorBound } from '../../../../../sdk-core/src/lod/screenErrorBound.ts'
 import { viewDepthOf, viewLateralOf } from '../../../page/selection/projection.ts'
 import { OPEN_PLANES, openMark } from '../../../page/cut/openRoot.fixture.ts'
-import type { DagViewUniforms, PackedDag } from '../types.ts'
+import type { PackedDag } from '../types.ts'
+import type { SelectionUniforms } from '../../core/selection.ts'
 
 /**
  * The CPU mirror of the kernel's planes taken into a placement's local space (`m`, 4x4
@@ -103,7 +104,7 @@ export const thresholdOf = (f: DagViewFrames, w: number) => f.thresholds[w] ?? f
 
 export function dagViewFrames(
   packed: Pick<PackedDag, 'worlds' | 'worldStretch' | 'worldCount'> & Partial<PackedDag>,
-  uniforms: DagViewUniforms,
+  uniforms: SelectionUniforms,
 ): DagViewFrames {
   const cameraStretch = uniforms.cameraStretch ?? 1,
     perspective = uniforms.perspective ?? 1

@@ -10,7 +10,6 @@ import { VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/view
 import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import type { CameraMotion } from '../../../packages/sdk-browser/src/camera/motion.ts'
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
-import type { DagViewUniforms } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 
 /** A selection uniform block as plain numbers: what a reader compares, whoever wrote it. */
 export const uniformsOf = (u: SelectionUniforms) => ({
@@ -95,7 +94,7 @@ export function readViewBlock(target: Float32Array, index: number): Block {
  *  stays zero. */
 export function referenceViewBlocks(
   packed: { pageCount: number; nodeCount: number; worldCount: number },
-  u: DagViewUniforms,
+  u: SelectionUniforms,
   listCap: number,
   blocks: number,
 ) {

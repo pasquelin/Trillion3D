@@ -42,7 +42,7 @@ export const computeTextureEntry = (
  * resource — a buffer, a view, a sampler — lands at the binding of its shader name, whatever order
  * the caller lists them in; a name the caller leaves out is bound by none.
  */
-export const namedBufferEntries = <Name extends string>(
+export const namedEntries = <Name extends string>(
   bindings: Record<Name, number>,
   resources: Partial<Record<Name, GPUBindingResource>>,
 ): GPUBindGroupEntry[] =>

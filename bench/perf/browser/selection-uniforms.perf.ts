@@ -5,6 +5,7 @@
 import {
   cameraSelectionUniforms,
   createSelectionUniforms,
+  type SelectionUniforms,
 } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
 import { VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
@@ -13,7 +14,7 @@ import {
   writeEngineCamera,
 } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import type { CameraMotion } from '../../../packages/sdk-browser/src/camera/motion.ts'
-import type { DagViewUniforms, PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
+import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { measure, rapport } from '../../core/index.ts'
 import {
   readViewBlock,
@@ -79,7 +80,7 @@ const dag = { pageCount: 120000, nodeCount: 40000, worldCount: 2479 }
 type BlockCase = {
   target: Float32Array
   packed: typeof dag
-  uniforms: DagViewUniforms
+  uniforms: SelectionUniforms
 }
 const blockCase = (blocks: number, b: Omit<BlockCase, 'target'>): BlockCase => ({
   target: new Float32Array(VIEW_BLOCK_WORDS * blocks),

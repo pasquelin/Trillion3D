@@ -18,7 +18,7 @@ import { PRIMITIVE_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/camer
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
-import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
+import { namedEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 import { createDagReadiness } from '../../../packages/sdk-browser/src/gpu/dag/readiness.ts'
 import { heldOpenSlots } from '../../../packages/sdk-browser/src/gpu/dag/heldOpen.ts'
 import { heldOpenAt } from '../../../packages/sdk-browser/src/gpu/dag/listCap.ts'
@@ -162,7 +162,7 @@ export function bindCase(
   }
   const group = device.createBindGroup({
     layout,
-    entries: namedBufferEntries(DAG_BINDING, buffers),
+    entries: namedEntries(DAG_BINDING, buffers),
   })
   return { at, buffers, group, destroy: () => made.forEach((created) => created.destroy()) }
 }

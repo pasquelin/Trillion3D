@@ -22,9 +22,13 @@ import {
   firstAheadRequest,
 } from '../request.fixture.ts'
 import { CLUSTER_LEVEL_SHIFT, CLUSTER_ROOT_CHILD, CLUSTER_TRANSPARENT } from '../clusterFlags.ts'
-import type { PackedDag, DagViewUniforms } from '../types.ts'
+import type { PackedDag } from '../types.ts'
 import type { CutRuleAt } from './predicates.fixture.ts'
-import { SELECTION_NONE, type SelectionResult } from '../../core/selection.ts'
+import {
+  SELECTION_NONE,
+  type SelectionResult,
+  type SelectionUniforms,
+} from '../../core/selection.ts'
 
 /**
  * Node oracle for the kernel, in the same shape the shader uses. Not called by the renderer.
@@ -35,7 +39,7 @@ import { SELECTION_NONE, type SelectionResult } from '../../core/selection.ts'
  */
 export function evaluateDagSelectionKernel(
   packed: PackedDag,
-  uniforms: DagViewUniforms,
+  uniforms: SelectionUniforms,
   resident?: DagCutResidency,
   rule?: CutRuleAt,
 ): DagOracleResult {
