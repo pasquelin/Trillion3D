@@ -2,9 +2,9 @@
 // cascade level's lattice — inside, on its cells' faces and past it —, the one irradiance the
 // cache and the probe hits sum (`lightsIrradiance`) walking each point's cell list
 // (`bounceLightSlice`) is the irradiance walking every light, bit for bit, for 1, 32 and 256
-// lights — lamps and spots of every range, a rectangle, a sun — and 4096 small lamps, the lists
-// made by the light grid pass over the lattice (`createGpuLightTiles`, `world`). Each sum's
-// dispatch is timed.
+// lights — lamps and spots of every range, a rectangle, a sun — and 4096 and 100 000 small lamps,
+// the lists made by the light grid's world pass over the lattice (`createGpuLightTiles`): the same
+// loop with the cascades' uniform naming the lists or none. Each walk and the rebuild are timed.
 //
 //   node bench/dawn/proofs.ts tests/gpu/bounce/light-lists.gpu.ts
 import test from 'node:test'
@@ -18,9 +18,14 @@ test('a bounce point walking its cell list sums what walking every light sums, b
     'bounceLightLists',
   )) as typeof import('./lightListsPage.ts')
   const pageErrors: string[] = []
-  // 1, 32 and 256 lights reaching up to 20 m over the 32 m lattice; then 4096 lamps of a few
-  // metres, the many small lights the lists are for.
-  const sets = [...[1, 32, 256].map((count) => ({ count, reach: 20 })), { count: 4096, reach: 3 }]
+  // 1, 32 and 256 lights reaching up to 20 m over the 32 m lattice; then 4096 and 100 000 small
+  // lamps, the many lights of an open world; each scattered (probe and reflection hits) and in
+  // cell order (the cache sweep's texels).
+  const sets = [
+    ...[1, 32, 256].map((count) => ({ count, reach: 20 })),
+    { count: 4096, reach: 3 },
+    { count: 100_000, reach: 1 },
+  ].flatMap((set) => [false, true].map((coherent) => ({ ...set, coherent })))
   const result = await runOnDawn(page.run, sets, pageErrors)
   assert.ok(!('unavailable' in result), 'WebGPU must be available')
   assert.deepEqual([...result.errors, ...pageErrors], [])
@@ -28,9 +33,9 @@ test('a bounce point walking its cell list sums what walking every light sums, b
     const sorted = [...ms].sort((a, b) => a - b)
     return { median: sorted[sorted.length >> 1], min: sorted[0], max: sorted[sorted.length - 1] }
   }
-  for (const { count, reach, all, listed, lit, ms } of result.runs) {
+  for (const { count, reach, coherent, fallbacks, all, listed, lit, ms } of result.runs) {
     const timing = { all: stats(ms.all), listed: stats(ms.listed), build: stats(ms.build) }
-    console.log(JSON.stringify({ count, reach, lit, ...timing }))
+    console.log(JSON.stringify({ count, reach, coherent, fallbacks, lit, ...timing }))
     assert.ok(lit > 0, `${count} lights light some points`)
     let apart = 0
     for (let i = 0; i < all.length; i++) if (all[i] !== listed[i]) apart++

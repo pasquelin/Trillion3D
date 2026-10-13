@@ -65,7 +65,13 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
   }
   bounce.pending = context.readSceneProxy!()
     .then((proxy: SceneProxy) =>
-      createGpuBounceProbes(device, proxy, () => lights.buffer!, bounce.budgetMs),
+      createGpuBounceProbes(
+        device,
+        proxy,
+        () => lights.buffer!,
+        bounce.budgetMs,
+        () => lights.tiles,
+      ),
     )
     .then((probes) => {
       if (rt.gpu.device !== device) {

@@ -40,8 +40,10 @@ export function lightsOf(count: number, reach: number, r: () => number): SceneLi
   })
 }
 
-/** Points inside the lattice, on its cells' faces, and past it; their unit normals. */
-export function pointsOf(r: () => number) {
+/** Points inside the lattice, on its cells' faces, and past it; their unit normals. `coherent`: in
+ *  cell order, as the cache sweep holds its texels — the proxy's triangles in its tree's order, a
+ *  workgroup's in one leaf —; else scattered, as probe and reflection hits are. */
+export function pointsOf(r: () => number, coherent: boolean) {
   const words = new Float32Array(POINTS * 8)
   const half = (SIDE * SPACING) / 2
   for (let k = 0; k < POINTS; k++) {
@@ -55,5 +57,13 @@ export function pointsOf(r: () => number) {
       l = length3(n[0], n[1], n[2]) || 1
     for (let axis = 0; axis < 3; axis++) words[8 * k + 4 + axis] = n[axis] / l
   }
-  return words
+  if (!coherent) return words
+  const cellOf = (k: number) => {
+    const c = [0, 1, 2].map((a) => Math.floor((words[8 * k + a] + half) / SPACING))
+    return (c[1] * 64 + c[0]) * 64 + c[2]
+  }
+  const order = Array.from({ length: POINTS }, (_, k) => k).sort((a, b) => cellOf(a) - cellOf(b))
+  const sorted = new Float32Array(words.length)
+  order.forEach((k, at) => sorted.set(words.subarray(8 * k, 8 * k + 8), 8 * at))
+  return sorted
 }

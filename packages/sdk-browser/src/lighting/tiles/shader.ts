@@ -31,7 +31,7 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 export const lightTilesShader = (kind: LightGridKind) =>
   wgslProgram(
     `
-struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,depthRows:array<vec4f,2>,}
+struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,depthRows:array<vec4f,2>,start:vec4u,}
 @group(0) @binding(0) var<uniform> view:TileView;
 @group(0) @binding(1) var<storage,read> lights:DirectLights;
 @group(0) @binding(2) var<storage,read_write> tiles:array<u32>;
@@ -70,7 +70,7 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
  let walk=workgroupUniformLoad(&walked);
  dealRoom(span,before,walk.w);
  workgroupBarrier();
- let base=(cell.y*u32(view.viewport.z)+cell.x)*COLUMN_SLICES*TILE_STRIDE;
+ let base=view.start.x+(cell.y*u32(view.viewport.z)+cell.x)*COLUMN_SLICES*TILE_STRIDE;
  for(var slice=lane;slice<COLUMN_SLICES;slice+=LANES){
   tiles[base+slice*TILE_STRIDE]=counts[slice];tiles[base+slice*TILE_STRIDE+1u]=cursor[slice];
  }

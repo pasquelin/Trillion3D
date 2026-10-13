@@ -73,7 +73,6 @@ export function submitColorCopy(
   rt.vis.gpuPartition?.countsSubmitted()
   if (published) rt.vis.textures?.feedback.submitted()
   rt.lights.tiles?.submitted()
-  rt.bounce.probes?.submitted()
   vsmSubmitted(rt)
   reflectionsSubmitted(rt)
   // Every encode path has sent what its rows need before it submits: the image that leaves consumed

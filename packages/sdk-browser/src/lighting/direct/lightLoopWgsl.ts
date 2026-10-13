@@ -148,14 +148,9 @@ const shadeStatement = (pair: boolean) => `
  * without the reject (#1249). The irradiance always rejects: a light in range there costs a ray
  * through the proxy, which the sphere test's few words do not weigh.
  */
-export const sliceLightingWgsl = (
-  reject: boolean,
-  pair = false,
-  term: LightTerm = 'surface',
-  listed = true,
-) =>
+export const sliceLightingWgsl = (reject: boolean, pair = false, term: LightTerm = 'surface') =>
   wgslBlock(
-    `sliceLightingWgsl(${reject}, ${pair}, ${term}, ${listed})`,
+    `sliceLightingWgsl(${reject}, ${pair}, ${term})`,
     [],
     term === 'surface'
       ? lightLoop(
@@ -172,10 +167,11 @@ export const sliceLightingWgsl = (
         )
       : lightLoop(
           'lightsIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f',
-          `${listed ? '\n let slice=bounceLightSlice(P);' : ''}
+          `
+ let slice=bounceLightSlice(P);
  var result=vec3f(0.0);`,
-          listed ? 'slice.y' : 'directLights.count',
-          listed ? LISTED_PICK : 'let light=index;',
+          'slice.y',
+          LISTED_PICK,
           reject,
           'result+=declaredIrradiance(directLights.items[light],P,N,reach);',
         ),
@@ -213,19 +209,11 @@ const RANGE_REJECT_TEST = `
 
 /**
  * A bounce point's irradiance (\`lightsIrradiance\`): the light term and its loop, with the range
- * reject. \`listed\`: the lights of the point's cell of the bounce's world grid
- * (\`bounceLightSlice\`, \`../../bounce/lightCellWgsl.ts\`), which its module declares; else every
- * declared light — the same sum, a light no list of the cell holds adding an exact zero there.
+ * reject, over the lights of the point's cell of the world light grid (\`bounceLightSlice\`,
+ * \`../../bounce/lightCellWgsl.ts\`, which its module lists with the light grid's buffer).
  */
-export const lightsIrradianceWgsl = (listed: boolean) =>
-  wgslBlock(
-    `lightsIrradianceWgsl(${listed})`,
-    [
-      declaredLightWgsl({}, { term: 'irradiance' }),
-      sliceLightingWgsl(true, false, 'irradiance', listed),
-    ],
-    '',
-  )
-
-/** The irradiance of every declared light: a module with no world grid's lists. */
-export const LIGHTS_IRRADIANCE_WGSL = lightsIrradianceWgsl(false)
+export const LIGHTS_IRRADIANCE_WGSL = wgslBlock(
+  'LIGHTS_IRRADIANCE_WGSL',
+  [declaredLightWgsl({}, { term: 'irradiance' }), sliceLightingWgsl(true, false, 'irradiance')],
+  '',
+)

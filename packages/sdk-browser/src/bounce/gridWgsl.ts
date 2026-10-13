@@ -28,6 +28,9 @@ struct BounceGrid{
  reach:vec4f,
  counts:vec4u,
  frame:vec4u,
+ /** The world light grid's records' first word in the light grid's buffer (\`bounceLightSlice\`),
+  *  \`TILE_NO_SLICE\` for none. */
+ lists:vec4u,
  levels:array<BounceLevel,${BOUNCE_SETTINGS.cascadeLevels}>,
 }
 ${wgslConsts({

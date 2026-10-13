@@ -23,6 +23,10 @@ const { lightsIrradiance } = shaderRun<{
   isRect: () => false,
   isSun: () => false,
   isSunKind: () => false,
+  // No world lists: every light, the loop's fallback (`bounceLightSlice`).
+  TILE_NO_SLICE: 0xffffffff,
+  bounceLightSlice: () => [0xffffffff, directLights.count],
+  tileLights: [],
   rectIrradiance: () => [0, 0, 0, 0],
   directIncidence: () => [0, 1, 0, 1],
   proxyBlocked: (origin: Vec, direction: Vec, span: number) => {

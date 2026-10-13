@@ -56,6 +56,7 @@ export const TRACE_SHADER = wgslProgram(
 @group(0) @binding(8) var<storage,read_write> traceList:array<u32>;
 @group(0) @binding(9) var<storage,read> traceCount:array<u32>;
 @group(0) @binding(10) var traceBase:texture_2d<f32>;
+@group(0) @binding(17) var<storage,read> tileLights:array<u32>;
 var<workgroup> reflecting:atomic<u32>;
 @compute @workgroup_size(${SIDE},${SIDE})
 fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -143,6 +144,7 @@ function traceLayouts(device: GPUDevice) {
       computeBufferEntry(8, 'storage'),
       computeBufferEntry(9, 'read-only-storage'),
       computeTextureEntry(10, 'unfilterable-float'),
+      computeBufferEntry(17, 'read-only-storage'),
       computeBufferEntry(PROXY_BINDING, 'read-only-storage'),
     ]),
     classifyLayout: layout([
@@ -222,6 +224,8 @@ export type TraceInputs = {
   normals: GPUTextureView
   lobes: GPUTextureView
   lights: GPUBuffer
+  /** The light grid's buffer, whose world lists the proxy hits walk (`bounceLightSlice`). */
+  lightLists: GPUBuffer
   bounceGrid: GPUBuffer
   probes: GPUTextureView
   proxy: GPUBuffer
@@ -265,6 +269,7 @@ function traceGroups(
     inputs.probes,
     inputs.proxy,
     inputs.lightView,
+    inputs.lightLists,
     stages,
   )
   if (reflection.traceGroups && sameEntries(reflection.traceGroups.key, probe))
@@ -284,6 +289,7 @@ function traceGroups(
         { binding: 8, resource: { buffer: tiles.list } },
         { binding: 9, resource: { buffer: tiles.args } },
         { binding: 10, resource: inputs.base },
+        { binding: 17, resource: { buffer: inputs.lightLists } },
         { binding: PROXY_BINDING, resource: { buffer: inputs.proxy } },
       ],
     }),

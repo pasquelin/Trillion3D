@@ -14,6 +14,7 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { floorProxy } from '../../../sdk-core/src/scene/core/proxy.fixture.ts'
 import { createGpuBounceProbes } from './probes.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, BOUNCE_PASS } from '../stage/passLabels.ts'
+import { createGpuLightTiles } from '../lighting/tiles/tiles.ts'
 
 /** The lanes of a snapshot workgroup, read from the shader's `@workgroup_size`. */
 const LANES = Number(/@workgroup_size\((\d+)\)/.exec(BOUNCE_SNAPSHOT_SHADER)?.[1])
@@ -105,7 +106,14 @@ test('a working image copies no atlas: one bounce pass sweeps, updates, then the
     limits: { maxStorageBufferBindingSize: 1 << 30, maxBufferSize: 1 << 30 },
   })
   const lights = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
-  const probes = await createGpuBounceProbes(gpu.device, floorProxy(8, 4), () => lights, 1000)
+  const tiles = await createGpuLightTiles(gpu.device)
+  const probes = await createGpuBounceProbes(
+    gpu.device,
+    floorProxy(8, 4),
+    () => lights,
+    1000,
+    () => tiles,
+  )
   const work: string[] = []
   let entry = ''
   const encoder = {
@@ -150,4 +158,5 @@ test('a working image copies no atlas: one bounce pass sweeps, updates, then the
   assert.equal(probes.encode(encoder, 1, [4, 4, 2]), true)
   assert.equal(work.includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`), false)
   probes.dispose()
+  tiles.dispose()
 })

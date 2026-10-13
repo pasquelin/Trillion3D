@@ -1,16 +1,17 @@
-import { LIGHTS_IRRADIANCE_WGSL, lightsIrradianceWgsl } from '../lighting/direct/lightLoopWgsl.ts'
+import { LIGHTS_IRRADIANCE_WGSL } from '../lighting/direct/lightLoopWgsl.ts'
 import { BOUNCE_LIGHT_CELL_WGSL } from './lightCellWgsl.ts'
-import { wgslBlock, type WgslDecl } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
 
 /** Posed hits read the surface cache, an atlas (`atlas.ts`) whose padding texels, never written,
  *  hold zero — what a texel past the cache returns. An owned leaf's hit evaluates the lighting at
- *  its owner's transformed centroid: no stale coowner cell, no owner-sized radiance allocation. */
-const surfaceRayWgsl = (irradiance: WgslDecl[]) =>
-  wgslBlock(
-    `surfaceRayWgsl(${irradiance.map((d) => d.name).join(', ')})`,
-    [INVERSE_PI_BOUNCE, ...irradiance],
-    `
+ *  its owner's transformed centroid: no stale coowner cell, no owner-sized radiance allocation —
+ *  walking the lights of its cell (`bounceLightSlice`), in every program that traces it (the probes,
+ *  the reflections), each binding the light grid's buffer as `tileLights`. */
+export const SURFACE_RAY_WGSL = wgslBlock(
+  'SURFACE_RAY_WGSL',
+  [INVERSE_PI_BOUNCE, LIGHTS_IRRADIANCE_WGSL, BOUNCE_LIGHT_CELL_WGSL],
+  `
 fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  let hit=traceProxy(origin,direction,reach);
  if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}
@@ -28,9 +29,4 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  if(texel>=size.x*size.y){return vec4f(0.0,0.0,0.0,hit.distance);}
  return vec4f(textureLoad(surface,vec2u(texel%size.x,texel/size.x),0).rgb,hit.distance);
 }`,
-  )
-
-/** A ray's radiance in a program without the world grid's lists (the reflections): every light. */
-export const SURFACE_RAY_WGSL = surfaceRayWgsl([LIGHTS_IRRADIANCE_WGSL])
-/** A probe ray's radiance (\`probeWgsl.ts\`): an owned leaf's hit walks its cell's lights. */
-export const PROBE_RAY_WGSL = surfaceRayWgsl([lightsIrradianceWgsl(true), BOUNCE_LIGHT_CELL_WGSL])
+)

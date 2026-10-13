@@ -90,6 +90,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.normals = views[1]
     inputs.lobes = surfaces.lobesView
     inputs.lights = lights.buffer!
+    inputs.lightLists = lights.tiles?.buffer ?? deferred.placeholders.tiles
     inputs.bounceGrid = contract.bounceGrid ?? deferred.placeholders.bounceGrid
     inputs.probes = contract.probes ?? deferred.placeholders.probes
     inputs.proxy = resident?.buffer ?? deferred.placeholders.proxy
