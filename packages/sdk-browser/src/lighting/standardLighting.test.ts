@@ -12,6 +12,7 @@ import { saturate } from '../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { dotVector3 } from '../../../math/src/vector/vector.ts'
 import { unit } from '../../../math/src/vector/vectorTuple.ts'
+import { linearToSrgb8 } from '../../../math/src/color/color.ts'
 
 /** The standard lobe as a program holds it, its library declarations included. */
 const STANDARD_LIGHTING_WGSL = wgslModule(STANDARD_LIGHTING)
@@ -81,10 +82,7 @@ test('a sharp highlight is the GGX distribution, to f32, through its core', () =
 })
 
 /** The displayed byte of a linear value: clamped, sRGB-encoded, quantised to 8 bits. */
-const byte = (x: number) => {
-  const c = saturate(x)
-  return Math.round(255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055))
-}
+const byte = (x: number) => linearToSrgb8(saturate(x))
 
 test('the Fresnel fifth power as products displays the bytes pow displayed', () => {
   const shipped = 'let x=clamp(1.0-cosine,0.0,1.0);let x2=x*x;return f0+(1.0-f0)*(x2*x2*x);'

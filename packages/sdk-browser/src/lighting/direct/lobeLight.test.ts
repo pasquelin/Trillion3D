@@ -18,6 +18,7 @@ import { LOBES_LIGHTING_WGSL } from './lobesWgsl.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { linearToSrgb8 } from '../../../../math/src/color/color.ts'
 
 type Light = (...args: unknown[]) => number[]
 const NAMES = [
@@ -92,12 +93,11 @@ test('a lobed light pays the half-vector only where the base or the coat faces i
 const fdot = F32_SCOPE.dot as (a: number[], b: number[]) => number
 const fcross = F32_SCOPE.cross as (a: number[], b: number[]) => number[]
 const flength = F32_SCOPE.length as (v: number[]) => number
-const srgb = (c: number) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055)
 /** A lit colour as 8-bit display bytes: three exposures, each clipped and through `c / (1 + c)`. */
 const bytes = (rgb: number[]) =>
   [0.25, 1, 4].flatMap((exposure) =>
     [(c: number) => Math.min(c, 1), (c: number) => c / (1 + c)].flatMap((curve) =>
-      rgb.map((c) => Math.round(255 * srgb(curve(Math.max(c * exposure, 0))))),
+      rgb.map((c) => linearToSrgb8(curve(Math.max(c * exposure, 0)))),
     ),
   )
 
