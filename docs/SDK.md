@@ -357,9 +357,9 @@ never in `onFrame`, a frame late.
 ### Picking, moving and saving
 
 `await world.raycast(at)` resolves to the nearest hit under a canvas point (CSS pixels,
-`event.offsetX`/`offsetY`) or along a world `Ray`, or `null`: the node the page added, world
-`point` and `normal`, `distance`, and `face`, the drawn triangle (its cluster × 256 + its rank in
-it). It always returns a promise, settled a frame or so later: the GPU traces every ray cast in the
+`event.offsetX`/`offsetY`) or along a world `Ray`, or `null`: the scene node drawn there (a mesh
+the page added, or a node of a loaded model, under it), world `point` and `normal`, `distance`, and
+`face`, the drawn triangle (its cluster × 256 + its rank in it). It always returns a promise, settled a frame or so later: the GPU traces every ray cast in the
 same tick in one dispatch — down the placement tree, each placement's cluster hierarchy, then the
 triangles the rasters draw — and reads the hits back without ever stalling the page. What is hit
 is what is drawn, at the finest detail resident: a loaded model on its own triangles, a skinned,

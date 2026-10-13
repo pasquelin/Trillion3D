@@ -4,7 +4,8 @@ import type { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 /** Where a ray meets what the world draws (`world.raycast`): the object hit, the world point and the
  *  surface's normal there, how far along the ray, and which drawn triangle. */
 export interface Intersection {
-  /** The object hit: the very node the page added. */
+  /** The object hit: the scene node drawn there — a mesh the page added, or a node of a loaded
+   *  model, under the model. */
   object: Object3D
   /** The world point hit. */
   point: Vector3
