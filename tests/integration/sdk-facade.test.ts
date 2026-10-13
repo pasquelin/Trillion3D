@@ -59,7 +59,7 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 709 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 711 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -72,8 +72,9 @@ test('generated inventory and explicit facade files are current', async () => {
   // it holds no CPU character capsule (Capsule, CapsuleContact, CapsulePush, TriangleTree,
   // CharacterCollision, TriangleCollision): Jolt is the one character body; and the frustum's
   // `FAR_PLANE_SLOT`, the slot a culling reader tests the far plane at. It holds no compute-path
-  // governor either: the batches run their WebAssembly kernels alone.
-  assert.equal(inventory.exports.length, 709)
+  // governor either: the batches run their WebAssembly kernels alone. The run-time proxy a placement
+  // wears carries its deformation (CutDeformation, CORNER_INFLUENCES).
+  assert.equal(inventory.exports.length, 711)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
@@ -153,10 +154,12 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // two more module init calls in the chain (7 bytes, no function kept); the merged duplicate removals
   // (runtime, language, code) move it by two bytes more; the compute-path governor gone, its
   // contract's module leaves the browser chain; the light settings' tap count, gone with the
-  // filtered shadow read, takes eleven off.
-  assert.equal(baseline.outputFiles[0].contents.length, 3_184)
-  assert.equal(proposed.outputFiles[0].contents.length, 1_450)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_170)
+  // filtered shadow read, takes eleven off; the run-time proxy's contract, posed for deformed
+  // placements, moves the core by sixty bytes off, the package and its browser condition by
+  // fourteen and eighteen on.
+  assert.equal(baseline.outputFiles[0].contents.length, 3_124)
+  assert.equal(proposed.outputFiles[0].contents.length, 1_464)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_188)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )
