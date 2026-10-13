@@ -3,6 +3,8 @@ import { deviceMade } from '../../gpu/core/errorScope.ts'
 import { budgetRefused, ledgerTentative } from '../../gpu/core/deviceLedger.ts'
 import { createPageBuffer } from '../../gpu/page/resize.ts'
 import { tilePoolTexture } from '../tile/pool.ts'
+import { tileUseBuffer } from '../tile/slotUse.ts'
+import { TILES_PER_LAYER } from '../../texture/tiles.ts'
 import type { PoolEncoding } from '../../texture/blockFormats.ts'
 import type { GeometryPool } from '../../residency/pools.ts'
 import type { TexturePool, TexturePools } from './memoryBudgets.ts'
@@ -125,26 +127,31 @@ export const grantedTexturePool = <R extends Made>(
 export const geometryProbe = (device: GPUDevice) => (pool: GeometryPool) =>
   createPageBuffer(device, pool.allocatedBytes, PROBE_LABEL)
 
-/** A texture pool's probe: one texture per lane it takes, as the pool makes it, under the probe's
- *  label. */
+/** A texture pool's probe: one texture per lane it takes and each atlas's place words
+ *  (`tileUseBuffer`), as the pool makes them, under the probe's label. */
 export const textureProbe =
   (device: GPUDevice, encoding: PoolEncoding) =>
   (pool: TexturePool): Made => {
-    const textures = (['color', 'data'] as const).flatMap((kind) =>
-      PREVIEW_LAYOUT_NAMES.filter((lane) => pool.layers[kind][lane] > 0).map((lane) =>
-        device.createTexture({
-          ...tilePoolTexture({
-            kind,
-            lane,
-            format: encoding.formatOf(kind, lane),
-            texelBytes: encoding.texelBytes(lane),
-            layers: pool.layers[kind][lane],
+    const made: Made[] = (['color', 'data'] as const).flatMap((kind) => {
+      const lanes = PREVIEW_LAYOUT_NAMES.filter((lane) => pool.layers[kind][lane] > 0)
+      const places = lanes.reduce((sum, lane) => sum + pool.layers[kind][lane], 0) * TILES_PER_LAYER
+      return [
+        ...lanes.map((lane) =>
+          device.createTexture({
+            ...tilePoolTexture({
+              kind,
+              lane,
+              format: encoding.formatOf(kind, lane),
+              texelBytes: encoding.texelBytes(lane),
+              layers: pool.layers[kind][lane],
+            }),
+            label: PROBE_LABEL,
           }),
-          label: PROBE_LABEL,
-        }),
-      ),
-    )
-    return { destroy: () => textures.forEach((texture) => texture.destroy()) }
+        ),
+        device.createBuffer({ ...tileUseBuffer(kind, places), label: PROBE_LABEL }),
+      ]
+    })
+    return { destroy: () => made.forEach((resource) => resource.destroy()) }
   }
 
 /** The pool a probe was granted, the probe released: a resize allocates the pool itself when it

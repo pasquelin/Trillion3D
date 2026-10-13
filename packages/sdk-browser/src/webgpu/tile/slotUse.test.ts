@@ -10,8 +10,11 @@ import { createTileEvictions } from './evictSort.ts'
 import { entryIndex, reduceRequests, stampedPlace } from './stamp.fixture.ts'
 import { REDUCE_WGSL } from './reduceWgsl.ts'
 import { TILE_USE_HEADER } from './slotUse.ts'
-import { packEntry, placeOf, tileLayout } from '../../texture/tiles.ts'
-import { poolEncoding } from '../../texture/blockFormats.ts'
+import { packEntry, placeOf, tileLayout, TILES_PER_LAYER } from '../../texture/tiles.ts'
+import { laneCounts, poolEncoding } from '../../texture/blockFormats.ts'
+import { textureProbe } from '../residency/poolGrants.ts'
+import { texturePoolFor } from '../residency/memoryBudgets.ts'
+import { noTails } from '../../texture/noTails.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { words } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
 import { createWebgpuTilePageTable, type TileKey } from './pageTable.ts'
@@ -120,4 +123,29 @@ test('a tile past the feedback cap, read every frame, is stamped and stays resid
   }
   assert.equal(victims.size, pool.tiles - 1 - 600, 'only the tiles no pixel reads')
   for (const key of seen) assert.equal(atlas.resides(key), true)
+})
+
+// The place words are GPU memory made with the pools: the probe that asks the device for a pool
+// asks for them too, at the size the atlas makes them, so a resize after it creates nothing the
+// device or the ledger has not admitted. Old code: the probe asked for the textures alone.
+test('a texture probe asks for the place words of each atlas, as the atlas makes them', () => {
+  const { device, buffers } = fakeDevice()
+  const encoding = poolEncoding(undefined),
+    lanes = { ...laneCounts(), lossless: 2 * TILES_PER_LAYER }
+  const pool = texturePoolFor(
+    1 << 30,
+    undefined,
+    { color: lanes, data: lanes },
+    encoding.texelBytes,
+    noTails,
+  )
+  assert.equal(pool.layers.color.lossless, 2)
+  textureProbe(device, encoding)(pool)
+  const probed = buffers.filter(({ label }) => label === 'Trillion3D pool probe')
+  const { atlas } = scene()
+  const made = (layers: number) => (atlas.slotUse.buffer.size / 4 - TILE_USE_HEADER) * layers * 4
+  assert.deepEqual(
+    probed.map(({ size }) => size),
+    [0, 0].map(() => TILE_USE_HEADER * 4 + made(2)),
+  )
 })

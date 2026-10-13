@@ -9,6 +9,16 @@ import type { WebgpuTilePool } from './pool.ts'
 export const TILE_USE_HEADER = 4
 /** The tier of a free or pinned place: never ranked, never a victim. */
 export const TILE_UNRANKED = 0xffffffff
+/** Words of one place: the clock a pixel last read it, and its tier. */
+const PLACE_USE_WORDS = 2
+
+/** The buffer of an atlas's place words over `places` places: what `layout` creates, and what a
+ *  probe asks the device for beside the pools' textures (`../residency/poolGrants.ts`). */
+export const tileUseBuffer = (kind: 'color' | 'data', places: number) => ({
+  label: `Trillion3D texture place use ${kind}`,
+  size: (TILE_USE_HEADER + PLACE_USE_WORDS * Math.max(1, places)) * 4,
+  usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+})
 
 /**
  * The GPU words of an atlas's places (#1527): per place of each lane's pool, the last clock a pixel
@@ -36,19 +46,19 @@ export function createTileSlotUse(device: GPUDevice, kind: 'color' | 'data') {
     clock: number,
   ) => {
     const count = last - first + 1
-    scratch = resized(scratch, 2 * count)
+    scratch = resized(scratch, PLACE_USE_WORDS * count)
     for (let i = 0; i < count; i++) {
       const index = first + i,
         held = !pool.freeAt(index) && !pool.pinnedOf(index)
-      scratch[2 * i] = held ? clock : 0
-      scratch[2 * i + 1] = held ? tileKeyOf(pool.keyOf(index)).level : TILE_UNRANKED
+      scratch[PLACE_USE_WORDS * i] = held ? clock : 0
+      scratch[PLACE_USE_WORDS * i + 1] = held ? tileKeyOf(pool.keyOf(index)).level : TILE_UNRANKED
     }
     device.queue.writeBuffer(
       buffer!,
-      (TILE_USE_HEADER + 2 * (base + first)) * 4,
+      (TILE_USE_HEADER + PLACE_USE_WORDS * (base + first)) * 4,
       scratch,
       0,
-      2 * count,
+      PLACE_USE_WORDS * count,
     )
   }
   return {
@@ -72,11 +82,7 @@ export function createTileSlotUse(device: GPUDevice, kind: 'color' | 'data') {
         places += next[lane]?.tiles ?? 0
       })
       if (buffer) retire(device, buffer)
-      buffer = device.createBuffer({
-        label: `Trillion3D texture place use ${kind}`,
-        size: (TILE_USE_HEADER + 2 * Math.max(1, places)) * 4,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      })
+      buffer = device.createBuffer(tileUseBuffer(kind, places))
       device.queue.writeBuffer(buffer, 0, bases)
       for (const pool of next)
         if (pool) for (const index of pool.occupied()) pool.changed.mark(index)
