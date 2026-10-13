@@ -6,11 +6,11 @@ import {
   BLEND_ORDER_ENTRIES,
   BLEND_ORDER_SHADER,
   blendOrderBindEntries,
-  KEY_RECORD_WORDS,
   ORDER_BINDING,
   ORDER_UNI_WORDS,
-  orderFrameWords,
 } from './orderWgsl.ts'
+import { KEY_RECORD_WORDS } from './keyLayout.ts'
+import { orderFrameWords } from './frameHead.ts'
 import { orderStepCount, sortSize, type OrderStep } from './orderSteps.ts'
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import { shaderFailed } from '../../gpu/core/shaderModule.ts'

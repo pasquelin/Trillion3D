@@ -42,6 +42,9 @@ export const createBlendOrderState = () => ({
   /** Key records of the items, two views of one buffer (`keyRecords.ts`). */
   keyPacked: new Float64Array(0) as Float64Array<ArrayBuffer>,
   keyWords: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+  /** The records noted stale between two plans (`noteKeyRecord`); none when `to` is below
+   *  `from`. */
+  keyMoved: { from: Infinity, to: -1 },
   /** The plan changed since the GPU last received it: seeds, dispatches, key records. */
   planMoved: true,
 })

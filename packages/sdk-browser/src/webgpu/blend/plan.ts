@@ -7,7 +7,7 @@ import { filtersDisplay } from './equations.ts'
 import { buildBlendHierarchy } from './hierarchy.ts'
 import { EXPAND_PASSES, blendChunkWords, blendVertexShift, planRegions } from './planLayout.ts'
 import { slotCount } from './runs.ts'
-import { FRAME_EYE_WORDS, orderFrameWords } from './orderWgsl.ts'
+import { FRAME_HEAD, orderFrameWords } from './frameHead.ts'
 import { orderStepCount, planOrderSteps } from './orderSteps.ts'
 import type { BlendGpuItem, WebgpuBlendState } from './state.ts'
 import {
@@ -232,7 +232,7 @@ function splitBlendClasses(blendState: WebgpuBlendState) {
 /** Where the frame data puts the own keys and seeds, and the order kernel's dispatches. */
 function planBlendOrder(blendState: WebgpuBlendState) {
   const layout = blendState.frameLayout
-  layout.ownKeys = FRAME_EYE_WORDS
+  layout.ownKeys = FRAME_HEAD.words
   let at = layout.ownKeys + 2 * blendState.ownItems.length
   let step = 0
   for (let pass = 0; pass < EXPAND_PASSES; pass++) {
