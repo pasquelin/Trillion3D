@@ -8,9 +8,6 @@ import { PHYSICAL_SURFACE_FLAG } from '../../scene/physicalLobes.ts'
 import { readLobesStatement } from '../direct/lobesWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
-/** First binding of what the resolve's receiver offset reads (`RECEIVER_BINDINGS`). */
-export const LIGHTING_RECEIVER_BINDING = DEFERRED_BINDINGS.receiver
-
 /** The lighting's entry and its camera fog. */
 export const LIGHT_SURFACE_ENTRY =
   '@fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{'
@@ -62,7 +59,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
   return wgslBlock(
     `contractSurfaceBody(${bounce})`,
     [
-      receiverOffsetWgsl(LIGHTING_RECEIVER_BINDING),
+      receiverOffsetWgsl(DEFERRED_BINDINGS.receiver),
       PIXEL_FOOTPRINT_WGSL,
       SHADOW_VIEW_AT_WGSL,
       SURFACE_EMISSIVE_AO_WGSL,

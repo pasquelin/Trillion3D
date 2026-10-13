@@ -1,14 +1,12 @@
 import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts'
 import { PHYSICAL_LOBES_BINDING } from '../../scene/physicalLobes.ts'
-import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts'
 import { receiverEntries, type ReceiverResources } from '../../webgpu/visibility/receiver.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { createDeferredLightingLayout, type DeferredPlaceholders } from './setup.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
-import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import { VSM_MASK_TILES_BINDING } from '../../vsm/projectionWgsl.ts'
 import { REFLECTION_TARGET_BINDING } from '../../reflections/weight.ts'
 import type { ComposeInput } from './shaders.ts'
@@ -294,7 +292,7 @@ function contractEntries(
   },
 ): GPUBindGroupEntry[] {
   return [
-    ...receiverEntries(LIGHTING_RECEIVER_BINDING, r.receiver),
+    ...receiverEntries(DEFERRED_BINDINGS.receiver, r.receiver),
     { binding: SUBSURFACE_BINDING, resource: surface.subsurfaceView },
     { binding: PHYSICAL_LOBES_BINDING, resource: surface.lobesView },
     ...namedEntries(DEFERRED_BINDINGS, {
@@ -308,7 +306,7 @@ function contractEntries(
     }),
     { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: r.mask },
     { binding: VSM_MASK_TILES_BINDING, resource: r.maskTiles },
-    { binding: VSM_TRANSMISSION_RESOLVE_BINDING, resource: r.vsmTransmission },
+    { binding: DEFERRED_BINDINGS.transmissionResolve, resource: r.vsmTransmission },
     { binding: REFLECTION_TARGET_BINDING, resource: r.reflection },
   ]
 }

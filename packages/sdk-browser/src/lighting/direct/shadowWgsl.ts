@@ -153,7 +153,7 @@ fn vsmLocate(id:u32,directional:bool,fromEye:vec3f)->VsmLocated{
  * exactly zero before any shadow read (`declaredLight`, `incidence.w`), as the lists rest on.
  *
  * `resolveTransmission` is the opaque resolve's binding of the translucent casters' transmission
- * (`VSM_TRANSMISSION_RESOLVE_BINDING`), null in a blend or water pass; `maskBinding` the resolve's
+ * (`DEFERRED_BINDINGS.transmissionResolve`), null in a blend or water pass; `maskBinding` the resolve's
  * mask array, and in the other passes, which declare no mask, their transmission. `trace`, the
  * bindings a blend or water pass traces with (the water's, `CONTRACT_TRACE_BINDINGS`, unless given). The names the passes write (footprint, receiver
  * offset and plane, view) are kept, so their bodies need no change. The block lists what it calls,

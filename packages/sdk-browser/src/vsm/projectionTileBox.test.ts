@@ -10,9 +10,9 @@ import {
   VSM_LIGHT_KIND_POINT as POINT,
 } from './constants.ts'
 import {
-  CODE,
+  PROJECTION_CODE,
   NAMES,
-  SCOPE,
+  PROJECTION_SCOPE,
   lightsOf,
   pixelsOf,
   type Light,
@@ -35,7 +35,7 @@ test('the box test never drops a light a pixel of the tile is in, even with the 
       vsmLightMayReachTile: (k: number, lo: V3, hi: V3, unbounded: boolean) => boolean
       vsmOrderedKey: (x: V3) => V3
       vsmOrderedValue: (k: V3) => V3
-    }>(CODE, NAMES.slice(6, 14), {
+    }>(PROJECTION_CODE, NAMES.slice(6, 14), {
       // The float tests in binary32, as a GPU runs them, the box's root against them.
       ...F32_SCOPE,
       ...SCOPE,
@@ -45,9 +45,9 @@ test('the box test never drops a light a pixel of the tile is in, even with the 
     })
   // The keys' integer words exactly: binary32 rounds no bit operation.
   const words = shaderRun<{ vsmOrderedKey: (x: V3) => V3; vsmOrderedValue: (k: V3) => V3 }>(
-    CODE,
+    PROJECTION_CODE,
     ['vsmOrderedKey', 'vsmOrderedValue'],
-    SCOPE,
+    PROJECTION_SCOPE,
   )
   const rand = seeded(64)
   let reached = 0,
@@ -99,7 +99,7 @@ test('a lit point not finite makes every light a candidate: its own test is the 
   const run = shaderRun<{
     vsmTileBound: (valid: boolean, p: V3, lane: number) => void
     vsmLightMayReachTile: (k: number, lo: V3, hi: V3, unbounded: boolean) => boolean
-  }>(CODE, NAMES.slice(1, 2).concat(NAMES.slice(7, 11)), scope)
+  }>(PROJECTION_CODE, NAMES.slice(1, 2).concat(NAMES.slice(7, 11)), scope)
   // Far from every light, the box alone keeps none of them; one point not finite keeps them all.
   const far: V3 = [1e6, 1e6, 1e6]
   assert.ok(lights.every((_, k) => !run.vsmLightMayReachTile(k, far, far, false)))
@@ -111,7 +111,7 @@ test('a lit point not finite makes every light a candidate: its own test is the 
     let held = 0
     const { vsmTileBound } = shaderRun<{
       vsmTileBound: (valid: boolean, p: V3, lane: number) => void
-    }>(CODE, ['vsmTileBound', 'vsmOrderedKey', 'isFiniteWord'], {
+    }>(PROJECTION_CODE, ['vsmTileBound', 'vsmOrderedKey', 'isFiniteWord'], {
       ...s,
       atomicOr: (_p: unknown, v: number) => void (held |= v),
     })
@@ -125,15 +125,15 @@ test('a lit point not finite makes every light a candidate: its own test is the 
 })
 
 test('a pass of one light, or of suns alone, takes its lights as the candidates: no box, no barrier for it', () => {
-  const entry = CODE.slice(CODE.indexOf('fn vsmProjection('))
+  const entry = PROJECTION_CODE.slice(PROJECTION_CODE.indexOf('fn vsmProjection('))
   assert.match(
     entry,
     /var candidates=vec2u\(1u,0u\);\n if\(VSM_PROJECTION_KINDS==1u\)\{candidates=vsmLightsBelow\(lightCount\);\}\n else if\(!VSM_PROJECTION_ONE_LIGHT\)\{\n {2}vsmTileBound\(/,
   )
   const { vsmLightsBelow } = shaderRun<{ vsmLightsBelow: (count: number) => number[] }>(
-    CODE,
+    PROJECTION_CODE,
     ['vsmLightsBelow'],
-    SCOPE,
+    PROJECTION_SCOPE,
   )
   for (const count of [0, 1, 5, 31, 32, 33, 63, 64]) {
     const bits = vsmLightsBelow(count)

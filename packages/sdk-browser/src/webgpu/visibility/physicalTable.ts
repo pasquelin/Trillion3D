@@ -17,7 +17,6 @@ export const PHYSICAL_ROW_RECORDS = 256
 const ROW_TEXELS = PHYSICAL_ROW_RECORDS * 3,
   ROW_BYTES = ROW_TEXELS * 16
 
-const FLOOR = ROUGHNESS_FLOOR
 /** One record, filled before it is compared with the table's: a row write allocates nothing. */
 const scratch = new Float32Array(PHYSICAL_RECORD_WORDS)
 const scratchInts = new Uint32Array(scratch.buffer)
@@ -42,7 +41,7 @@ function writePhysicalRecord(
   scratch[0] = saturate(mat.anisotropy ?? 0)
   scratch[1] = mat.anisotropyRotation ?? 0
   scratch[2] = saturate(mat.clearcoat ?? 0)
-  scratch[3] = clamp(mat.clearcoatRoughness ?? 0, FLOOR, 1)
+  scratch[3] = clamp(mat.clearcoatRoughness ?? 0, ROUGHNESS_FLOOR, 1)
   scratch[4] = mat.clearcoatNormalScale?.[0] ?? 1
   scratch[5] = mat.clearcoatNormalScale?.[1] ?? 1
   let channels = 0

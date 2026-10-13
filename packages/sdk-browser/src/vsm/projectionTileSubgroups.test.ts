@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
-import { CASES, SCOPE, pixelsOf, type Pixel } from './projectionTiles.fixture.ts'
+import { CASES, PROJECTION_SCOPE, pixelsOf, type Pixel } from './projectionTiles.fixture.ts'
 import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
