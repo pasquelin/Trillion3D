@@ -47,3 +47,27 @@ test('blended copies are members after the placements: their instances and their
   assert.equal(word(1, INSTANCE.node), 0)
   selection.dispose()
 })
+
+test('a copy that joins the host’s list in place is counted at the next cut, before it writes the copies', async () => {
+  const c = cut(2, 1, 1),
+    s = surface(1)
+  const { gpu, selection, packed, roots } = await open((w) =>
+    w < 2 ? { primitive: { runtimeProxy: c }, surface: s } : undefined,
+  )
+  const copy = (x: number) => ({
+    proxy: { primitive: { runtimeProxy: c }, surface: s },
+    matrix: { elements: Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1]) },
+  })
+  // The list the engine keeps grows by push: the same array, a longer one.
+  const copies = [copy(3)]
+  selection.proxyCopies(copies)
+  copies.push(copy(5))
+  selection.dispatch(kernelUniforms(packed, roots, fieldCamera([0, 5, 20], [0, 0, 0]), 1))
+  assert.equal(region(gpu, 'copies'), 2)
+  assert.equal(
+    wordAt(gpu, region(gpu, 'instancesWord') + (packed.worldCount + 1) * INSTANCE_WORDS),
+    0,
+    'the joined copy wears the cut',
+  )
+  selection.dispose()
+})

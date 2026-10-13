@@ -552,6 +552,23 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     return { boxes: Float64Array.from(out), changed: Uint8Array.from(changed) }
   }
 
+  /** The blended copies the forward family draws, members of this proxy after the placements: their
+   *  poses are the host's (`BlendCopy.matrix`), read again at each cut. The host's list grows in place
+   *  as a source joins: every cut counts it again (`refresh`) before it writes the copies. */
+  function setCopies(next: readonly ProxyCopy[]) {
+    if (next === copies && next.length === copyCount) return
+    if (next.length !== copyCount) {
+      const kept = words.subarray(0, slots * INSTANCE_WORDS)
+      copies = next
+      words = new Uint32Array((slots + copies.length) * INSTANCE_WORDS).fill(RUNTIME_NONE)
+      words.set(kept)
+      copyWorlds = new Float32Array(copies.length * WORLD_WORDS)
+      copyCount = copies.length
+      relayout({ triangles: 0, nodes: 0, surfaces: 0 })
+    } else copies = next
+    syncCopies()
+  }
+
   return {
     /** The buffer a program reads the proxy through, or none: it then reads the stand-ins. */
     buffer() {
@@ -643,21 +660,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     },
     /** Roots `[from, to)` were appended behind the others: their instances, and the tree's members. */
     appended: write,
-    /** The blended copies the forward family draws, members of this proxy after the placements: their
-     *  poses are the host's (`BlendCopy.matrix`), read again at each cut. */
-    setCopies(next: readonly ProxyCopy[]) {
-      if (next === copies && next.length === copyCount) return
-      if (next.length !== copyCount) {
-        const kept = words.subarray(0, slots * INSTANCE_WORDS)
-        copies = next
-        words = new Uint32Array((slots + copies.length) * INSTANCE_WORDS).fill(RUNTIME_NONE)
-        words.set(kept)
-        copyWorlds = new Float32Array(copies.length * WORLD_WORDS)
-        copyCount = copies.length
-        relayout({ triangles: 0, nodes: 0, surfaces: 0 })
-      } else copies = next
-      syncCopies()
-    },
+    setCopies,
     /** Placement `w` parked, or taken back. */
     park(w: number, parked: boolean) {
       if (!buffer || w >= slots) return
@@ -679,6 +682,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     },
     /** The surfaces a host edited and the copies that moved since the last cut, written again. */
     refresh() {
+      if (copies.length !== copyCount) setCopies(copies)
       if (!buffer && !copies.length) return
       for (const [surface, tints] of surfaces)
         for (const tint of tints.keys()) surfaceSlot(surface, tint === WHITE ? undefined : tint)
