@@ -33,14 +33,10 @@ export function square(half: number): G.Geometry {
   return geometry
 }
 
-/**
- * Builder of a prepared scene: each added mesh becomes a primitive of two level-0
- * clusters that nothing replaces — the smallest legal DAG — one triangle each, with the culling
- * hierarchy the compiler writes beside them (`manifestCulling`, the one builder). `place` makes and
- * adds one: a square of half-side `half` (`square`, or `geometry` of that extent — a lit plane
- * that carries its normals) wearing `surface`, at `position`, turned by the Euler angles `turn`
- * (each zero unsaid), drawn in `pass`.
- */
+/** Builder of a prepared scene: each added mesh becomes a primitive of two level-0 clusters that
+ *  nothing replaces — the smallest legal DAG — one triangle each, with the culling hierarchy the
+ *  compiler writes (`manifestCulling`). `place` adds a square of half-side `half` (`square`, or a
+ *  lit plane's `geometry`) wearing `surface`, at `position`, turned by `turn`, drawn in `pass`. */
 export function batisseur() {
   const source = new G.Group(),
     indices = new Map<string, Uint32Array>(),
