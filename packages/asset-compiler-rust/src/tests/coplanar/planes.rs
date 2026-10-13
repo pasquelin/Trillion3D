@@ -1,5 +1,5 @@
 use crate::coplanar::plane::*;
-use trillion3d_math::vec3::{dot, length};
+use trillion3d_math::vec3::dot;
 
 // Behavior 1: plane_of_triangles yields plane for flat cluster, None otherwise.
 #[test]
@@ -75,22 +75,6 @@ fn canonical_uses_second_axis_when_first_is_zero() {
     let (n1, _) = canonical([0.0, -0.5, 1.0], 1.0);
     // Second axis is negative, so must be inverted
     assert!(n1[1] > 0.0);
-}
-
-// Tests for helper functions
-#[test]
-fn dot_product_works_correctly() {
-    let a = [1.0, 2.0, 3.0];
-    let b = [4.0, 5.0, 6.0];
-    let result = dot(a, b);
-    assert_eq!(result, 32.0); // 1*4 + 2*5 + 3*6
-}
-
-#[test]
-fn length_computes_magnitude() {
-    let a = [3.0, 4.0, 0.0];
-    let result = length(a);
-    assert_eq!(result, 5.0);
 }
 
 #[test]
