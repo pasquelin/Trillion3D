@@ -350,7 +350,7 @@ function buildGroups(
     )
   const roll = device.createBindGroup({
     layout: rollLayout,
-    entries: [{ binding: 6, resource: { buffer: inputs.hash } }],
+    entries: sequentialEntries([{ buffer: inputs.hash }], 6),
   })
   return { groups, roll }
 }

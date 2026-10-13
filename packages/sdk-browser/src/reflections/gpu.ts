@@ -7,6 +7,7 @@ import {
   computeBufferEntry,
   computeTextureEntry,
   computeUniformEntry,
+  sequentialEntries,
 } from '../gpu/core/computeBindings.ts'
 import { buildComputeStages } from '../lighting/deferred/fullscreen.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
@@ -237,9 +238,11 @@ export function reflectionGroup(
     label: 'Trillion3D reflection',
     layout: reflectionLayout(device),
     entries: [
-      { binding: 0, resource: { buffer: reflection.uniform } },
-      { binding: 1, resource: reflection.radiance.view },
-      { binding: 2, resource: reflection.radiance.sampler },
+      ...sequentialEntries([
+        { buffer: reflection.uniform },
+        reflection.radiance.view,
+        reflection.radiance.sampler,
+      ]),
       ...hizDepthBindEntries(REFLECTION_DEPTH_BINDING, depth),
       { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: lightView } },
       { binding: REFLECTION_IMAGE_BINDING, resource: image },

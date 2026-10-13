@@ -23,6 +23,7 @@ import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
 import { preparedComputePipeline, preparedPipelines } from '../../lighting/deferred/fullscreen.ts'
 import { oncePerDevice } from '../core/oncePerDevice.ts'
+import { sequentialEntries } from '../core/computeBindings.ts'
 import { createRefitLevels } from './treeRefitLevels.ts'
 
 /** What a refit reads and writes: the tree's nodes and the order of its members as the device lays
@@ -182,19 +183,16 @@ function refitProgram(
   const groups = tree.levels.map((_, step) =>
     device.createBindGroup({
       layout: pipeline.getBindGroupLayout(1),
-      entries: [
+      entries: sequentialEntries([
         {
-          binding: 0,
-          resource: {
-            buffer: steps.params,
-            offset: steps.slots.offset(step)[0],
-            size: REFIT_PARAM_WORDS * 4,
-          },
+          buffer: steps.params,
+          offset: steps.slots.offset(step)[0],
+          size: REFIT_PARAM_WORDS * 4,
         },
-        { binding: 1, resource: { buffer: ids } },
-        { binding: 2, resource: { buffer: members } },
-        ...frames.buffers.map((buffer, r) => ({ binding: 3 + r, resource: { buffer } })),
-      ],
+        { buffer: ids },
+        { buffer: members },
+        ...frames.buffers.map((buffer) => ({ buffer })),
+      ]),
     }),
   )
   return { pipeline, ids, steps, tables, groups }
