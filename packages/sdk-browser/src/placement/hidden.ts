@@ -62,7 +62,7 @@ const moved = rootBoxUnion()
  * shown again, unless its row is parked. A root placed at its own node's world casts as its mesh
  * says (`castShadow`, its shadowless bit); a row says for its own (`followPlacementRows`). `flip`
  * hears the rank of each root that flipped. A see-through draw of a hidden node takes `hidden`,
- * which its selection reads (`notDrawn`), and `seeThrough.flipped` hears it. Read once per scene
+ * which its selection reads (`notDrawn`), and `seeThrough.flipped` hears it and its rank. Read once per scene
  * revision, never per frame. Returns the box of the roots that flipped, where the shadow pages must
  * be drawn again, or `null`; its corners are views of one scratch box, read before the next call.
  * `movingOnly` says every root that flipped `moves` already: the static casters under it stay.
@@ -77,7 +77,7 @@ export function followHostVisibility<
   seeThrough: {
     entries: readonly S[]
     sourceOf: (entry: S) => Object3D | undefined
-    flipped?: (entry: S) => void
+    flipped?: (entry: S, rank: number) => void
   },
   flip?: (rank: number, root: ClusterRoot<T>) => void,
   moves?: (rank: number) => boolean,
@@ -114,7 +114,7 @@ export function followHostVisibility<
   followHidden(
     seeThrough.entries,
     seeThrough.sourceOf,
-    (entry) => seeThrough.flipped?.(entry),
+    (entry, rank) => seeThrough.flipped?.(entry, rank),
     under?.seeThrough,
   )
   return boxIsEmpty(moved.box, 0) ? null : { min: moved.min, max: moved.max, movingOnly }

@@ -136,7 +136,7 @@ test('precedes is a total order, NaN farthest', () => {
 test('empty, single-item and single-pass scenes', () => {
   for (const count of [1, 2, 3]) walk(count, 50 + count, 8)
   const blendState = blendSceneOf([])
-  assert.equal(orderBlendPasses(blendState, [0, 0, 0]), 0)
+  orderBlendPasses(blendState, [0, 0, 0])
   assert.deepEqual(blendState.runCount, [0, 0])
 })
 

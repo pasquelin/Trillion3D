@@ -20,26 +20,15 @@ function item(z: number, extra: Partial<BlendGpuItem> = {}) {
   } as unknown as BlendGpuItem
 }
 
-/** Everything a ranking hands the frame: paint order, slots, mask, reject and water counts. */
-function outcome(blendState: WebgpuBlendState, rejected: number) {
-  return {
-    rejected,
-    ...paintOutcome(blendState),
-    keep: Array.from(blendState.keepPacked),
-    transmissiveInView: blendState.transmissiveInView,
-  }
-}
-
-/** Ranks `blendState` and a fresh scene of the same items and planes, from source order. */
+/** Ranks `blendState` and a fresh scene of the same items and planes, from source order: the
+ *  paint order, the slots and the frame words (the head's planes and item count included). */
 function rankAgainstFresh(blendState: WebgpuBlendState, eye: number[]) {
-  const kept = outcome(blendState, orderBlendPasses(blendState, eye))
+  orderBlendPasses(blendState, eye)
+  const kept = paintOutcome(blendState)
   const fresh = blendSceneOf([...blendState.blendGpu])
   fresh.blendPlanes.set(blendState.blendPlanes)
-  assert.deepEqual(
-    kept,
-    outcome(fresh, orderBlendPasses(fresh, eye)),
-    'bit-identical to a full ranking',
-  )
+  orderBlendPasses(fresh, eye)
+  assert.deepEqual(kept, paintOutcome(fresh), 'bit-identical to a full ranking')
 }
 
 /** A scene already ranked from the eye. */
@@ -97,11 +86,20 @@ test('an item without a box follows its world origin, as a full ranking would', 
   rankAgainstFresh(blendState, eye)
 })
 
-test('an item that turns transmissive: the water count follows', () => {
+test('the CPU reads no box of an item the GPU keys and judges: the verdict is the GPU’s', () => {
   const { blendState, eye } = rankedScene()
-  blendState.blendGpu[0].transmissive = true
+  // Every item is paged and of the main class: the GPU keys it, judges it, orders it.
+  const items = blendState.blendGpu
+  items.forEach((item, rank) => {
+    items[rank] = new Proxy(item, {
+      get: (target, key) =>
+        key === 'bounds'
+          ? assert.fail(`item ${rank}'s box read on the CPU`)
+          : Reflect.get(target, key),
+    })
+  })
   orderBlendPasses(blendState, eye)
-  assert.equal(blendState.transmissiveInView, 1)
+  orderBlendPasses(blendState, [0, 0, -9])
 })
 
 test('a frame without an eye resumes ranking when the eye returns', () => {

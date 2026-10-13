@@ -4,7 +4,7 @@ import { readHostBox } from '../host/world/bounds.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { SessionDeformation } from './session.ts'
 import { noteDeformedBounds } from '../webgpu/pages/render/movedGeometry.ts'
-import { refitBlendHierarchy } from '../webgpu/blend/hierarchy.ts'
+import { noteKeyRecord } from '../webgpu/blend/keyRecords.ts'
 
 const local = new Float64Array(6),
   before = new Float64Array(6)
@@ -14,17 +14,18 @@ const local = new Float64Array(6),
  * region. A record that did not change can still be carried by its node (`worldsMoved`): a skin
  * palette, morph weights and soft sources are read in the mesh's own frame, so the box follows the
  * matrix too. A changed record dirties its region even inside the same box (its surface moved); a
- * carried one only when its box changed. The transparent tree is refit to the boxes rewritten,
- * unless a matrix moved: `refreshBlendBoxes` refits it that frame anyway.
+ * carried one only when its box changed. A rewritten box goes to the item's key record, which the
+ * GPU verdict and order read (`noteKeyRecord`); a matrix move rewrites them all that frame anyway.
  */
 export function updateWholeDeformationBounds(
   rt: WebgpuPagesRuntime,
   deformation: SessionDeformation,
   worldsMoved: boolean,
 ) {
-  let rewritten = false
-  for (const item of rt.blendState.blendGpu) {
-    const box = item.deformBounds,
+  const items = rt.blendState.blendGpu
+  for (let rank = 0; rank < items.length; rank++) {
+    const item = items[rank],
+      box = item.deformBounds,
       source = item.sourceGeometry.boundingBox
     const changed = deformation.changedOfWorld(item.matrix)
     if (!box || !source || !(worldsMoved || changed)) continue
@@ -34,10 +35,9 @@ export function updateWholeDeformationBounds(
     boxTransform(box, 0, local, 0, item.matrix.elements)
     item.bounds = box
     const same = boxEquals(box, 0, before, 0)
-    if (!same) rewritten = true
+    if (!same) noteKeyRecord(rt.blendState, rank)
     else if (!changed) continue
     boxUnionBatch(before, box, 1)
     noteDeformedBounds(rt, before)
   }
-  if (rewritten && !worldsMoved) refitBlendHierarchy(rt.blendState)
 }

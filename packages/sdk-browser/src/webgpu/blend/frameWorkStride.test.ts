@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { orderBlendPasses } from './order.ts'
 import { blendSceneOf } from './plan.fixture.ts'
 import { counted, expandable } from './frameWork.fixture.ts'
-import { encodeBlendExpansion } from './resources.ts'
+import { encodeBlendExpansion } from './expansionFrame.ts'
 import { EXPAND_PASSES } from './planLayout.ts'
 import { orderStepCount } from './orderSteps.ts'
 import { ORDER_UNI } from './orderWgsl.ts'
@@ -24,12 +24,13 @@ test('a device aligning uniform offsets at 512 lays every step and pass 512 byte
   const entries = await expandable(device, blendState)
   orderBlendPasses(blendState, [0, 5, 0])
   encodeBlendExpansion(
-    { blendState } as unknown as WebgpuPagesRuntime,
+    { blendState, gpu: {} } as unknown as WebgpuPagesRuntime,
     fake.device.createCommandEncoder(),
   )
-  // The dynamic offset of each group the passes set.
+  // The dynamic offset of each group the passes set: the verdict's group has none.
   const offsets = fake.computePasses
     .flatMap(({ commands }) => commandArgs(commands, 'setBindGroup'))
+    .filter(([, , dynamic]) => dynamic !== undefined)
     .map(([, , dynamic]) => (dynamic as readonly number[])[0])
 
   const steps = blendState.orderSteps

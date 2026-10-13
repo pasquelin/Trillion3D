@@ -1,12 +1,13 @@
-// What a frame asks of the CPU for the transparent order: the frustum verdict,
-// and the keys and order of the own entries only. A pass of one class — the ordinary scene — has
-// none: no key, no sort, no per-item word sent; the GPU orders it.
+// What a frame asks of the CPU for the transparent order: the keys and order of the own entries
+// only — the frustum verdict is the GPU's. A pass of one class — the ordinary scene — has none: no
+// key, no sort, no per-item word sent; the GPU judges and orders it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { orderBlendPasses } from './order.ts'
 import { blendSceneOf } from './plan.fixture.ts'
 import { counted, expandable } from './frameWork.fixture.ts'
-import { encodeBlendExpansion } from './resources.ts'
+import { encodeBlendExpansion } from './expansionFrame.ts'
+import { FRAME_HEAD } from './frameHead.ts'
 import { ORDER_UNI_WORDS } from './orderWgsl.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice, replayWrites, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -34,7 +35,7 @@ test('a steady frame sends the GPU the eye alone: no order, no run, no word per 
   await expandable(device, blendState)
   assert.ok(blendState.expand, 'the kernels are made')
   const encoder = device.createCommandEncoder()
-  const rt = { blendState } as unknown as WebgpuPagesRuntime
+  const rt = { blendState, gpu: {} } as unknown as WebgpuPagesRuntime
   orderBlendPasses(blendState, [0, 5, 0])
   encodeBlendExpansion(rt, encoder)
   for (const eye of [
@@ -46,9 +47,14 @@ test('a steady frame sends the GPU the eye alone: no order, no run, no word per 
     orderBlendPasses(blendState, eye)
     encodeBlendExpansion(rt, encoder)
     const bytes = writes.reduce((sum, write) => sum + written(write).byteLength, 0)
-    assert.equal(bytes, 32, `eye ${eye}: the eye, four doubles, and nothing else`)
-    // The order's dispatches, fixed by the plan, then the expansion's four: the CPU asks no count.
-    assert.equal(dispatches.length, blendState.orderSteps[0].length + 4)
+    assert.equal(
+      bytes,
+      FRAME_HEAD.words * 4,
+      `eye ${eye}: the frame's head — the eye, the planes, the water's view — and nothing else`,
+    )
+    // The verdict, the order's dispatches fixed by the plan, then the expansion's four: the CPU
+    // asks no count and judges no item.
+    assert.equal(dispatches.length, 1 + blendState.orderSteps[0].length + 4)
   }
 })
 
@@ -64,7 +70,7 @@ test('a plan sends its order steps in one write at 256 bytes, as the whole steps
   const ofSteps = () => writes.filter((w) => w.buffer === (steps as unknown as GPUBuffer))
   writes.length = 0
   orderBlendPasses(blendState, [0, 5, 0])
-  encodeBlendExpansion({ blendState } as unknown as WebgpuPagesRuntime, encoder)
+  encodeBlendExpansion({ blendState, gpu: {} } as unknown as WebgpuPagesRuntime, encoder)
   const sent = ofSteps()
   assert.equal(sent.length, 1, 'one write, the one the whole steps made')
   assert.ok(written(sent[0]).byteLength <= steps.size, 'never past the whole steps')

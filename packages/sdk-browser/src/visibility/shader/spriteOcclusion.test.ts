@@ -24,6 +24,7 @@ import { prepareWebgpuBlend } from '../../webgpu/blend/prepare.ts'
 import { buildBlendStatics, refreshBlendPlan } from '../../webgpu/blend/plan.ts'
 import { uniformStride } from '../../residency/pools.ts'
 import { orderBlendPasses } from '../../webgpu/blend/order.ts'
+import { blendVerdictCpu } from '../../webgpu/blend/verdict.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { identityRoots } from '../../page/selection/placements.fixture.ts'
 import { buildHizPyramid } from '../../../../../bench/oracles/browser/hizPyramid.ts'
@@ -167,9 +168,12 @@ test('a constant-size sprite blend item has no box, and the frustum keeps it', (
   blendState.blendPlanes.set(Float64Array.from({ length: 24 }, (_, i) => (i % 4 === 3 ? -1 : 0)))
   buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
-  assert.equal(orderBlendPasses(blendState, [0, 0, 0]), 1)
+  orderBlendPasses(blendState, [0, 0, 0])
+  // The verdict the GPU computes, item by item (`verdict.fixture.ts`, held to the kernel's words).
+  const { keep, rejected } = blendVerdictCpu(blendState)
+  assert.equal(rejected, 1)
   assert.deepEqual(
-    [0, 1].map((item) => hasBit(blendState.keepPacked, item)),
+    [0, 1].map((item) => hasBit(keep, item)),
     [true, false],
   )
 })

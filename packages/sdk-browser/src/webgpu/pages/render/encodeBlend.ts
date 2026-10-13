@@ -1,6 +1,6 @@
 import { drawBlendPass } from '../../blend/draw.ts'
 import { writeBlendView } from '../../blend/uniforms.ts'
-import { encodeBlendExpansion } from '../../blend/resources.ts'
+import { encodeBlendExpansion } from '../../blend/expansionFrame.ts'
 import { orderBlendPasses } from '../../blend/order.ts'
 import { encodeTransparentInstances } from '../../transparent/draw.ts'
 import { boundWaterPass, encodeWaterPass } from '../../water/pass.ts'
@@ -46,13 +46,15 @@ export function prepareBlend(
   if (!ready) return false
   const cpuStart = performance.now()
   encodeTransparentInstances(rt, encoder)
-  // The frustum verdict — one bit per item to the GPU, THE image's reject count, water's bounds —
-  // and the few own entries' order on the CPU; the GPU sorts the rest far to near (a blend writes
-  // no depth).
+  // The few own entries' order on the CPU, the frame's head for the GPU — the eye, the frustum
+  // planes, the water's view —; the GPU judges every item, bounds the water and sorts the rest far
+  // to near (a blend writes no depth).
   boundWaterPass(rt, composes, viewProj)
-  run.blendFrustumRejected = orderBlendPasses(blendState, blendEye(rt))
-  // The GPU orders and expands the plan: instances, one indirect argument per slot.
+  orderBlendPasses(blendState, blendEye(rt))
+  // The GPU judges, orders and expands the plan: instances, one indirect argument per slot.
   encodeBlendExpansion(rt, encoder)
+  // The image's reject count is the GPU's, read back a few images late (`verdictRead.ts`).
+  run.blendFrustumRejected = blendState.expand?.counts.rejected ?? 0
   const elapsed = performance.now() - cpuStart
   timing.transparentPrepareMs += elapsed
   timing.transparentEncodeMs += elapsed

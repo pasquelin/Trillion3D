@@ -21,6 +21,7 @@ import type { BlendGpuItem, WebgpuBlendState } from './state.ts'
 
 type Kernel = { judgeLane(group: number, lane: number): void; packLane(g: number, l: number): void }
 
+const NAMES = ['judgeLane', 'packLane', 'judgeItem', 'boxExcluded', 'frameDouble', 'keyedDouble']
 const EDGES = [NaN, Infinity, -Infinity, -0, 0, Number.MAX_VALUE, -Number.MAX_VALUE, 5e-324]
 
 /** The verdict of `blendState` as the kernel computes it, its two barrier halves replayed group
@@ -39,7 +40,8 @@ function gpuVerdict(blendState: WebgpuBlendState, counts: number[]) {
     tally: [0, 0],
   }
   scope.verdict[VERDICT.rejected] = scope.verdict[VERDICT.inView] = 0
-  const kernel = shaderRun<Kernel>(BLEND_VERDICT_SHADER, ['judgeLane', 'packLane'], scope)
+  // The kernel's own functions; the library's are reached on their own.
+  const kernel = shaderRun<Kernel>(BLEND_VERDICT_SHADER, NAMES, scope)
   for (let group = 0; group * VERDICT_GROUP < items; group++) {
     scope.tally[0] = scope.tally[1] = 0
     for (let lane = 0; lane < VERDICT_GROUP; lane++) kernel.judgeLane(group, lane)
@@ -119,9 +121,11 @@ function scene(count: number, next: () => number, edges: boolean) {
 
 function check(count: number, seed: number, edges: boolean) {
   const { blendState, counts } = scene(count, lcgRandom(seed), edges)
+  // The compaction's four words a paged rank, its instance count the second.
+  const instances = counts.filter((_, word) => word % 4 === 1)
   assert.deepEqual(
     gpuVerdict(blendState, counts),
-    blendVerdictCpu(blendState, counts),
+    blendVerdictCpu(blendState, instances),
     `seed ${seed}, ${count} items`,
   )
 }

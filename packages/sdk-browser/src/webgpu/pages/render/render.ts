@@ -6,7 +6,7 @@ import { holdWebgpuFrame } from '../../frame/hold.ts'
 import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts'
 import { deviceAnswering } from '../../frame/deviceAnswer.ts'
 import { pumpResidentTiles } from '../prepare/lightResources.ts'
-import { refreshBlendBoxes } from '../../blend/hierarchy.ts'
+import { refreshBlendWorlds } from '../../blend/worlds.ts'
 import { refreshBlendScene } from '../../blend/resources.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { followLiveTextures } from '../io/memory.ts'
@@ -135,7 +135,7 @@ function drawFrameInputs(
   // A transparent item READS the world matrix of its source mesh: nothing is to be copied. Only
   // its world box, which is a computation, is remade — and only when the scene has changed matrices.
   if (worldsMoved && gpuDevice) {
-    refreshBlendBoxes(blendState)
+    refreshBlendWorlds(blendState.blendGpu)
     // Records, boxes and the plan follow the scene, not the camera: it is here, and nowhere in
     // the image, that the transparent list is walked again — its poses alone while no material
     // moved (`refreshBlendScene`).

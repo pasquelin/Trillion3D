@@ -1,10 +1,9 @@
-import { ceilDiv, bitWords } from '../../../../math/src/scalar/integers.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts'
 import { refreshSurface, surfaceSide, type PageSurface } from '../../page/surface.ts'
 import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { filtersDisplay } from './equations.ts'
-import { buildBlendHierarchy } from './hierarchy.ts'
 import { EXPAND_PASSES, blendChunkWords, blendVertexShift, planRegions } from './planLayout.ts'
 import { slotCount } from './runs.ts'
 import { FRAME_HEAD, orderFrameWords } from './frameHead.ts'
@@ -116,8 +115,6 @@ export function buildBlendStatics(blendState: WebgpuBlendState, uniformStride: n
   blendState.instanceBase[1] = room[0]
   blendState.instanceCapacity = Math.max(1, room[0] + room[1])
   blendState.drawsPacked = draws
-  blendState.keepPacked = new Uint32Array(Math.max(1, bitWords(items.length)))
-  buildBlendHierarchy(blendState)
   // Same worst case for the plan tables, its slots and the frame data, and for the same reason.
   const entries = Math.max(1, items.length) * MAX_SIDES
   blendState.maxPlanEntries = entries

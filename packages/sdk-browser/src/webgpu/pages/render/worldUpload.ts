@@ -1,6 +1,7 @@
 import { rootWorlds, rootWorldsMoved } from '../../../gpu/dag/pack.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
 import { blendSource, followHostVisibility } from '../../../placement/hidden.ts'
+import { noteKeyRecord } from '../../blend/keyRecords.ts'
 import { flipWorld } from '../../../placement/webgpuPlacements.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import { finishMoves, noteMoved } from './movedBatch.ts'
@@ -40,10 +41,15 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
   // roots covered are drawn again, static casters included unless every root that flipped was
   // moving already: the static layer never held those (`../../shadow/mobility.ts`).
   if (reshaped || (write && write.flipped.length)) {
-    const blend = rt.blendState.blendGpu
+    const { blendState } = rt
+    // A blend item hidden or shown rewrites the drawn bit of its key record (`keyRecords.ts`).
     const flipped = followHostVisibility(
       selectionRoots,
-      { entries: blend, sourceOf: blendSource },
+      {
+        entries: blendState.blendGpu,
+        sourceOf: blendSource,
+        flipped: (_, rank) => noteKeyRecord(blendState, rank),
+      },
       flipWorld(rt),
       rt.lights.mobility.moves,
       reshaped ? undefined : underFlipped(rt, write.flipped),

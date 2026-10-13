@@ -74,6 +74,8 @@ export function submitColorCopy(
   destroyRetired(device)
   // Counts of a sampled image are mapped only once the image that copied them is submitted.
   rt.vis.gpuPartition?.countsSubmitted()
+  // The transparents' verdict counts of the image map once it left (`verdictRead.ts`).
+  rt.blendState.expand?.submitted()
   if (published) rt.vis.textures?.feedback.submitted()
   rt.lights.tiles?.submitted()
   vsmSubmitted(rt)

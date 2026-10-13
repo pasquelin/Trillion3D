@@ -12,8 +12,8 @@ import type { WebgpuBlendState } from './state.ts'
 /**
  * What the verdict leaves for the image: the keep words, the drawn items drawing nothing, the
  * drawn transmissive items in view, and whether each water rank draws. A paged item is kept when
- * drawn, and draws what the compaction counted for it (`counts`, four words a paged rank); an
- * unpaged one is kept unless its box lies outside the frustum (`frustumExcludesBox`).
+ * drawn, and draws what the compaction counted for it (`counts`, by paged rank); an unpaged one is
+ * kept unless its box lies outside the frustum (`frustumExcludesBox`).
  */
 export function blendVerdictCpu(blendState: WebgpuBlendState, counts: ArrayLike<number> = []) {
   const items = blendState.blendGpu,
@@ -35,7 +35,7 @@ export function blendVerdictCpu(blendState: WebgpuBlendState, counts: ArrayLike<
       !!box &&
       (!paged || !!water) &&
       frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])
-    const held = paged ? counts[draws[i * 4] * 4 + 1] !== 0 : !excluded
+    const held = paged ? counts[draws[i * 4]] !== 0 : !excluded
     if (paged || !excluded) setBit(keep, i)
     if (!held) rejected++
     if (!water) return

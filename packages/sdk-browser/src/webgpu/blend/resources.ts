@@ -1,15 +1,14 @@
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './items.ts'
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts'
-import { compileBlendExpand, EXPANSION_REFUSED, mountBlendExpand } from './expand.ts'
+import { mountBlendExpand } from './expand.ts'
+import { compileBlendExpand, EXPANSION_REFUSED } from './expandKernels.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
 import { EXPAND_PASSES, planWords, scratchWords, slotCapacity } from './planLayout.ts'
-import { writeKeyRecords } from './keyRecords.ts'
 import { writeVolumeRecords } from '../transparent/transmission.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { uniformStride } from '../../residency/pools.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
-import { BLEND_ORDER_PASS } from '../../stage/passLabels.ts'
 
 /**
  * Everything the transparent pass holds of the SCENE, mounted at the open (`mountBlendResources`):
@@ -63,8 +62,8 @@ export function mountBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // The two outputs of expansion: the instance list the shader reads at the rank the vertex index
   // gives it, and one indirect argument per slice. They belong to the scene.
   const entries = blendState.maxPlanEntries
-  // The frustum verdict is sent again: the buffer it goes to is new.
-  blendState.keepMoved = true
+  // The verdict's buffers are new: no count read back before holds for them.
+  blendState.verdictEpoch++
   refreshBlendScene(rt, device)
   blendState.expandedBuffer = device.createBuffer({
     label: 'Trillion3D blend expanded instances',
@@ -81,6 +80,7 @@ export function mountBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
     blendState.kernels!,
     {
       items: items.length,
+      waters: blendState.transmissive,
       entries,
       planWords: planWords(entries),
       scratchWords: scratchWords(entries),
@@ -206,51 +206,4 @@ function writeBlendPoses(
   const at = first * BLEND_ITEM_WORDS * 4
   const bytes = (last - first + 1) * BLEND_ITEM_WORDS * 4
   queue.writeBuffer(buffer, at, packed.buffer, at, bytes)
-}
-
-/**
- * What the image asks of the kernels: the plan when it moved, the frustum verdict when it moved,
- * the frame data, then for each pass its order and its expansion, chained in ONE compute pass.
- *
- * Dispatches of the same compute pass are ordered and see the previous writes: blend can therefore
- * hand its work memory back to transmission, whose instances and arguments live in their own
- * regions.
- */
-export function encodeBlendExpansion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
-  const { blendState } = rt,
-    expand = blendState.expand,
-    { runCount, seeds } = blendState
-  if (!expand) return
-  // No slot to draw: a frame without an eye paints nothing (`order.ts`).
-  if (!runCount[0] && !runCount[1]) return
-  if (blendState.planMoved) {
-    expand.uploadPlan({
-      passes: seeds.map((passSeeds, pass) => ({
-        seeds: passSeeds,
-        counts: {
-          entries: passSeeds.length,
-          runs: blendState.slotCounts[pass],
-          instanceBase: blendState.instanceBase[pass],
-        },
-        region: blendState.planRegions[pass],
-      })),
-      scene: blendState,
-      stepWords: blendState.orderStepWords,
-      keyWords: writeKeyRecords(blendState),
-    })
-    blendState.planMoved = false
-  }
-  if (blendState.keepMoved) {
-    expand.uploadKeep(blendState.keepPacked)
-    blendState.keepMoved = false
-  }
-  expand.uploadFrame(blendState.frameWords, blendState.frameLayout.words)
-  const pass = encoder.beginComputePass({ label: BLEND_ORDER_PASS })
-  for (let slice = 0; slice < seeds.length; slice++)
-    if (runCount[slice])
-      expand.encode(pass, slice, blendState.orderSteps[slice], {
-        entries: seeds[slice].length,
-        runs: runCount[slice],
-      })
-  pass.end()
 }

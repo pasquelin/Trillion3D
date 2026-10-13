@@ -15,6 +15,7 @@ import { PLAN_SHARED_BIT } from './planEntry.ts'
 import { RUN_WORDS } from './planLayout.ts'
 import type { WebgpuBlendState } from './state.ts'
 import { transparentScene } from './orderKernel.fixture.ts'
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { referenceOrder } from './plan.fixture.ts'
 
 const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0
@@ -40,7 +41,7 @@ function slicedRuns(order: number[]) {
 
 /** Every instance the draws paint, in paint order, with the pipeline, the buffers and the vertex
  *  count of the draw that paints it: two lists equal here paint the same image. */
-function painted(blendState: WebgpuBlendState, order: number[], runs: number[]) {
+function painted(blendState: WebgpuBlendState, keep: Uint32Array, order: number[], runs: number[]) {
   const expanded = new Uint32Array(blendState.instanceCapacity * 2),
     args = new Uint32Array(runs.length * 2 + 4)
   const counts = new Uint32Array(blendState.table!.length).map((_, k) => 1 + (k % 3))
@@ -49,7 +50,7 @@ function painted(blendState: WebgpuBlendState, order: number[], runs: number[]) 
     runs: Uint32Array.from(runs),
     runCount: runs.length / RUN_WORDS,
     draws: blendState.drawsPacked,
-    keep: blendState.keepPacked,
+    keep,
     itemCounts: counts,
     instances: Uint32Array.from({ length: 4 * blendState.table!.length }, (_, k) => 1000 + k),
     maxVertexWords: blendState.maxVertexWords,
@@ -86,10 +87,11 @@ test('the slots paint the instances the runs painted, in their order, with their
     const { blendState, next } = transparentScene(count, seed)
     for (let frame = 0; frame < 4; frame++) {
       const eye = [0, 1, 2].map(() => Math.round((next() - 0.5) * 16) / 2)
-      // Some items out of view: their instances vanish from both lists.
-      for (let w = 0; w < blendState.keepPacked.length; w++)
-        blendState.keepPacked[w] = Math.floor(next() * 2 ** 32)
-      orderBlendPasses(blendState, eye, () => 0)
+      // Some items out of view, as the GPU verdict leaves them: their instances vanish from both
+      // lists.
+      const keep = new Uint32Array(bitWords(blendState.blendGpu.length))
+      for (let w = 0; w < keep.length; w++) keep[w] = Math.floor(next() * 2 ** 32)
+      orderBlendPasses(blendState, eye)
       refreshEyeKeys(blendState, eye)
       for (let pass = 0; pass < 2; pass++) {
         const seeds = blendState.seeds[pass]
@@ -100,10 +102,10 @@ test('the slots paint the instances the runs painted, in their order, with their
         assert.deepEqual(after, before, `${count} items, frame ${frame}, pass ${pass}: order`)
         const runs = cpuModel(blendState).runs[pass],
           slots = Array.from(runs.subarray(0, blendState.slotCounts[pass] * 2))
-        const instances = painted(blendState, before, slicedRuns(before))
+        const instances = painted(blendState, keep, before, slicedRuns(before))
         assert.ok(instances.length > seeds.length / 4, 'most entries paint')
         assert.deepEqual(
-          painted(blendState, after, slots),
+          painted(blendState, keep, after, slots),
           instances,
           `${count} items, frame ${frame}, pass ${pass}: painted`,
         )
