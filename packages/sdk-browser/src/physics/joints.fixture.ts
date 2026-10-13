@@ -55,8 +55,12 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
       scene.add(mesh)
       return mesh
     },
-    /** Reconciles the bodies and joints, then steps `steps` times at 60 Hz. */
-    run(steps: number) {
+    /** The vehicles as the session keeps them: their wheels drawn at a frame's time (`apply`). */
+    vehicles,
+    /** Reconciles the bodies and joints, then steps `steps` times at 60 Hz, the wheels drawn on
+     *  each step's state; `live`: the page then waits for the next tick, as a live worker's does,
+     *  and the wheels stay on their way (`twoSteps.ts`). */
+    run(steps: number, live = false) {
       bodies.reconcile(new Set(), (error) => {
         throw error
       })
@@ -76,7 +80,7 @@ export async function jointRig(gravity: [number, number, number] = [0, -9.81, 0]
         const broken = jolt.broken()
         if (broken.length) joints.broke(broken)
         vehicles.receive({ words: jolt.vehicles().slice(), befores: null }, 1)
-        vehicles.apply(1, false)
+        vehicles.apply(1, live)
       }
     },
     /** `world.raycast(ray, options)` against the bodies of the last step. */
