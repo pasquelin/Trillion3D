@@ -25,7 +25,6 @@ const frame: ReflectionFrame = {
 const inputs = {} as TraceInputs
 const radianceInputs = {} as RadianceInputs
 
-/**
 /** Stages the image's reflection view (`ScreenReflection.writeView`): what the front depth's carry
  *  (`encodeDepthPyramid`) and the trace (`encodeReflections`) both read; unchanged, nothing is sent. */
 function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {

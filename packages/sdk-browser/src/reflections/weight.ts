@@ -6,7 +6,7 @@ import { LTC_WGSL } from '../lighting/direct/rectLightWgsl.ts'
 import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
-import type { SceneBindings } from '../bounce/runtimeTraceWgsl.ts'
+import type { SceneBindings } from '../bounce/runtimeSceneWgsl.ts'
 import type { ProxyBindings } from './proxy.ts'
 
 /**

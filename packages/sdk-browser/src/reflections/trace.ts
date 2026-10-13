@@ -20,15 +20,12 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { f0Of } from '../../../math/src/wgsl/lighting.ts'
 import { srgbToLinear } from '../../../math/src/wgsl/color.ts'
 import { storageEntry, storeEntry } from './bindings.ts'
-import { REFLECTION_FORMAT, REFLECTION_SIDE as SIDE } from './constants.ts'
+import { REFLECTION_FORMAT, REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_GROUP, REFLECTION_VIEW_WGSL, reflectionLightViewWgsl } from './viewLayout.ts'
 import { reflectionShareWgsl } from './weight.ts'
 import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
 import { TRACE_LIST, TRACE_LIST_FIRST } from '../bounce/runtimeLayout.ts'
 import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
-
-/** The word the tile list starts at in the list buffer: the counters, then the list (`TRACE_LIST`). */
-const TILE_LIST = TRACE_LIST_FIRST
 
 /** The binding of the light grid's buffer in the trace's group 0: the world lists the proxy hits walk. */
 const LIGHT_LISTS_BINDING = 17
@@ -44,7 +41,7 @@ const RUNTIME_BINDINGS: RuntimeBindings = {
 
 /**
  * The opaque surfaces' reflection, in the compute pass of the image: where a tile of
- * `SIDE × SIDE` pixels holds a surface with a specular lobe (`classifyReflections`: one thread a
+ * `REFLECTION_SIDE`² pixels holds a surface with a specular lobe (`classifyReflections`: a thread a
  * pixel, a tile listed once, in the tile list), the trace (`traceReflections`) runs over the listed
  * tiles alone, and each pixel of such a surface writes the share of the radiance it reflects
  * (`reflectedShare`: both its lobes, traced, weighed on its reflectance and coated); any other
@@ -69,18 +66,18 @@ export const TRACE_SHADER = wgslProgram(
 @group(0) @binding(10) var traceBase:texture_2d<f32>;
 @group(0) @binding(${LIGHT_LISTS_BINDING}) var<storage,read> tileLights:array<u32>;
 var<workgroup> reflecting:atomic<u32>;
-@compute @workgroup_size(${SIDE},${SIDE})
+@compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
  if(all(vec2f(id.xy)<view.viewport.xy)&&surfaceReflects(textureLoad(traceFlags,vec2i(id.xy),0).r)){atomicOr(&reflecting,1u);}
  workgroupBarrier();
  if(lane==0u&&atomicLoad(&reflecting)!=0u){
   let rank=atomicAdd(&work[3],1u);
-  atomicStore(&rtList[${TILE_LIST}u+rank],wg.x|(wg.y<<16u));
+  atomicStore(&rtList[${TRACE_LIST_FIRST}u+rank],wg.x|(wg.y<<16u));
   atomicMax(&rtList[${TRACE_LIST.count}u],rank+1u);
   openSlice(0u,rank);
  }
 }
-@compute @workgroup_size(${SIDE},${SIDE})
+@compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) rows:vec3u,@builtin(local_invocation_id) lid:vec3u){
  let rank=flatIndex(wg,rows,1u);
  let count=atomicLoad(&rtList[${TRACE_LIST.count}u]);
@@ -88,8 +85,8 @@ fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) row
  // The run-time proxy's budget goes to the first tiles it meets, and the next frame's start where this
  // one's ended (the list's offset).
  rtRank=rank;
- let tile=atomicLoad(&rtList[${TILE_LIST}u+(rank+atomicLoad(&rtList[${TRACE_LIST.offset}u]))%count]);
- let id=vec2u(tile&65535u,tile>>16u)*${SIDE}u+lid.xy;
+ let tile=atomicLoad(&rtList[${TRACE_LIST_FIRST}u+(rank+atomicLoad(&rtList[${TRACE_LIST.offset}u]))%count]);
+ let id=vec2u(tile&65535u,tile>>16u)*${REFLECTION_SIDE}u+lid.xy;
  if(any(vec2f(id)>=view.viewport.xy)){return;}
  let coord=vec2i(id);
  let flags=textureLoad(traceFlags,coord,0).r;
@@ -224,7 +221,7 @@ export async function createTraceStages(
 
 /** Bytes of the list of a view at `width × height`: the counters, then a tile a word. */
 export const traceListBytes = (width: number, height: number) =>
-  TRACE_LIST_FIRST * 4 + ceilDiv(width, SIDE) * ceilDiv(height, SIDE) * 4
+  TRACE_LIST_FIRST * 4 + ceilDiv(width, REFLECTION_SIDE) * ceilDiv(height, REFLECTION_SIDE) * 4
 
 /** The tiles of a view: the indirect arguments (`TRACE_ARGS_BYTES`), and the list the trace reads and
  *  writes with the frame's counters (`TRACE_LIST`). */
@@ -366,7 +363,7 @@ export function encodeReflectionTrace(
   pass.setPipeline(stages.classifyPipeline)
   pass.setBindGroup(0, groups.classify)
   pass.setBindGroup(1, depthGroup)
-  pass.dispatchWorkgroups(ceilDiv(size[0], SIDE), ceilDiv(size[1], SIDE))
+  pass.dispatchWorkgroups(ceilDiv(size[0], REFLECTION_SIDE), ceilDiv(size[1], REFLECTION_SIDE))
   pass.setPipeline(stages.tracePipeline)
   pass.setBindGroup(0, groups.trace)
   pass.dispatchWorkgroupsIndirect(reflection.tiles.args, 0)

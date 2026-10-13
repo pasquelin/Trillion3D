@@ -12,8 +12,6 @@ import {
   TRACE_LIST,
 } from './runtimeLayout.ts'
 
-export type { SceneBindings }
-
 /**
  * THE RADIANCE OF A RAY: what a ray of the proxy (`runtimeSceneWgsl.ts`) brings back. `rtRadiance` is the
  * radiance through up to `RAY_LAYERS` surfaces — a blended one lets the rest of the light through (its opacity

@@ -1,5 +1,5 @@
-// The layout of the run-time proxy's buffer, kept apart from the passes that read it (`runtimeTraceWgsl.ts`)
-// and the object that writes it (`runtimeProxy.ts`): both read it from here.
+// The layout of the run-time proxy's buffer, kept apart from the passes that read it (`runtimeSceneWgsl.ts`)
+// and the object that writes it (`gpu/dag/proxyInstances.ts`): both read it from here.
 /** No instance, no node: a word every table spells the absence of a link with. */
 export const RUNTIME_NONE = 0xffffffff
 

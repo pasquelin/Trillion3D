@@ -10,7 +10,7 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { clipToFramebuffer, pixelToNdc, unprojectPoint } from '../../../math/src/wgsl/projection.ts'
-import { REFLECTION_CONSTANTS_WGSL, REFLECTION_SIDE as SIDE } from './constants.ts'
+import { REFLECTION_CONSTANTS_WGSL, REFLECTION_SIDE } from './constants.ts'
 
 const { min, max } = Math
 import type { ReflectionPipelines, ScreenReflection } from './gpu.ts'
@@ -94,7 +94,7 @@ export const FRONT_SHADER = wgslProgram(
 @group(0) @binding(1) var written:texture_2d<f32>;
 @group(0) @binding(2) var<storage,read_write> folded:array<atomic<u32>>;
 @group(0) @binding(3) var<uniform> frontRect:FrontRect;
-@compute @workgroup_size(${SIDE},${SIDE})
+@compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn frontScatter(@builtin(global_invocation_id) id:vec3u){
  let last=vec2u(reflectionView.radiance.xy);
  let texel=frontRect.origin+id.xy;
@@ -289,7 +289,7 @@ export function encodeFrontDepth(
       const pass = encoder.beginComputePass({ label: FRONT_DEPTH_PASS })
       pass.setPipeline(stages.frontPipeline)
       pass.setBindGroup(0, front.group)
-      pass.dispatchWorkgroups(ceilDiv(x1 - x0, SIDE), ceilDiv(y1 - y0, SIDE))
+      pass.dispatchWorkgroups(ceilDiv(x1 - x0, REFLECTION_SIDE), ceilDiv(y1 - y0, REFLECTION_SIDE))
       pass.end()
     }
   }

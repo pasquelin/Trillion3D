@@ -264,14 +264,6 @@ export function bindForwardReflection(pass: GPURenderPassEncoder, rt: Reflection
     pass.setBindGroup(REFLECTION_GROUP, reflectionGroup(rt.gpu.reflection, depth, over))
 }
 
-/**
- * Whether the view's reflections are what a still view shows: the radiance pyramid holds an image
- * of this view, and — when no temporal accumulation turns the projection from image to image, whose
- * own settling covers it — that image was drawn from where the one before it was, and its lit
- * image is the one before it's (`settle.verified`), so the image traced on it reflects the view as
- * it stands, never the one it moved from nor the light it changed. A held image is then final:
- * drawn again, it gives the same bits.
- */
 /** The image the reflections last reflected shows a scene that is no more: content joined it. The
  *  next image traces nothing and builds the radiance from its own lit image, as a scene opened with
  *  that content draws its first, so the images that follow are the same bits as a fresh open's,
@@ -282,6 +274,14 @@ export function forgetReflectedImage(reflection: ScreenReflection | undefined) {
   reflection.settle.busy()
 }
 
+/**
+ * Whether the view's reflections are what a still view shows: the radiance pyramid holds an image
+ * of this view, and — when no temporal accumulation turns the projection from image to image, whose
+ * own settling covers it — that image was drawn from where the one before it was, and its lit
+ * image is the one before it's (`settle.verified`), so the image traced on it reflects the view as
+ * it stands, never the one it moved from nor the light it changed. A held image is then final:
+ * drawn again, it gives the same bits.
+ */
 export const reflectionsSettled = (
   reflection: ScreenReflection | undefined,
   accumulating: boolean,

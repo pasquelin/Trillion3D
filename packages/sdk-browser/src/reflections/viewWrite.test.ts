@@ -3,7 +3,7 @@
 // nothing in them turning with the frame.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { REFLECTION_VIEW_AT as AT, REFLECTION_VIEW_WRITTEN_WORDS } from './viewLayout.ts'
+import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WRITTEN_WORDS } from './viewLayout.ts'
 import type { HeldImage } from './radiance.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 
@@ -34,20 +34,36 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
     traced = new Uint32Array(words.buffer)
   // The world size of a pixel one unit away: 2·tan(30°) / 300, a perspective whose depth at an
   // infinite distance is zero.
-  assert.ok(Math.abs(words[AT.slab] / ((2 * Math.tan(Math.PI / 6)) / 300) - 1) < 1e-6)
-  assert.deepEqual([...words.slice(AT.slab + 1, AT.slab + 4)], [0, 0, 1])
+  assert.ok(
+    Math.abs(words[REFLECTION_VIEW_AT.slab] / ((2 * Math.tan(Math.PI / 6)) / 300) - 1) < 1e-6,
+  )
   assert.deepEqual(
-    [words[AT.radiance], words[AT.radiance + 1], words[AT.radiance + 2]],
+    [...words.slice(REFLECTION_VIEW_AT.slab + 1, REFLECTION_VIEW_AT.slab + 4)],
+    [0, 0, 1],
+  )
+  assert.deepEqual(
+    [
+      words[REFLECTION_VIEW_AT.radiance],
+      words[REFLECTION_VIEW_AT.radiance + 1],
+      words[REFLECTION_VIEW_AT.radiance + 2],
+    ],
     [200, 100, 7],
   )
-  assert.equal(words[AT.radianceViewProj], 2, "the held image's view-projection")
-  assert.equal(traced[AT.traced], 0, 'no held image: the environment alone')
-  assert.deepEqual([...words.slice(AT.proxy, AT.proxy + 1)], [Math.fround(0.1)])
+  assert.equal(words[REFLECTION_VIEW_AT.radianceViewProj], 2, "the held image's view-projection")
+  assert.equal(traced[REFLECTION_VIEW_AT.traced], 0, 'no held image: the environment alone')
+  assert.deepEqual(
+    [...words.slice(REFLECTION_VIEW_AT.proxy, REFLECTION_VIEW_AT.proxy + 1)],
+    [Math.fround(0.1)],
+  )
   assert.equal(words.length, REFLECTION_VIEW_WRITTEN_WORDS, 'the surroundings are not written')
   write(frame, { ...held, valid: true }, 8)
-  assert.equal(new Uint32Array(written[1].buffer)[AT.traced], 1)
+  assert.equal(new Uint32Array(written[1].buffer)[REFLECTION_VIEW_AT.traced], 1)
   write({ ...frame, depthDrawn: false }, { ...held, valid: true }, 8)
-  assert.equal(new Uint32Array(written[2].buffer)[AT.traced], 0, 'a stale depth is never marched')
+  assert.equal(
+    new Uint32Array(written[2].buffer)[REFLECTION_VIEW_AT.traced],
+    0,
+    'a stale depth is never marched',
+  )
   // A still view writes once: nothing in the words turns with the frame.
   write({ ...frame, depthDrawn: false }, { ...held, valid: true }, 8)
   write({ ...frame, depthDrawn: false }, { ...held, valid: true }, 8)
@@ -71,7 +87,7 @@ test("the slab follows the projection: a perspective's depth at infinity, an ort
       held,
       1,
     )
-    return [...words.slice(AT.slab, AT.slab + 4)]
+    return [...words.slice(REFLECTION_VIEW_AT.slab, REFLECTION_VIEW_AT.slab + 4)]
   }
   // A finite reversed perspective, near 0.1 and far 100: z = n(f − w) / (w(f − n)) = A + B / w.
   const n = 0.1,
