@@ -7,8 +7,8 @@ import {
   runtimeRadianceWgsl,
   runtimeTraceWgsl,
   type RuntimeBindings,
-  type SceneBindings,
 } from '../bounce/runtimeTraceWgsl.ts'
+import type { SceneBindings } from '../bounce/runtimeSceneWgsl.ts'
 
 /** The bindings a program reads the proxy through: with the store the opaque trace keeps its answers in
  *  (`RuntimeBindings`), or the proxy alone (`SceneBindings`), as the forward programs read it. */

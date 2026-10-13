@@ -1,3 +1,5 @@
+import { grownLength } from '../../../math/src/sequence/resized.ts'
+
 /** A range of a table, `count` units from `first`. */
 type Span = { first: number; count: number }
 
@@ -15,9 +17,6 @@ export function createSpans(initial: number) {
   return {
     get capacity() {
       return capacity
-    },
-    get used() {
-      return end - free.reduce((sum, span) => sum + span.count, 0)
     },
     take(count: number): number | undefined {
       if (count === 0) return end
@@ -55,10 +54,10 @@ export function createSpans(initial: number) {
         free.pop()
       }
     },
-    /** The table is laid out for at least `count` units from now on: doubled until it is. */
+    /** The table is laid out for at least `count` units from now on, by the one growth rule
+     *  (`grownLength`): twice what it held at least. */
     grown(count: number) {
-      while (capacity < count) capacity *= 2
-      return capacity
+      if (capacity < count) capacity = grownLength(capacity, count)
     },
     /** Units of the used part, free ranges inside it included: what a copy to a larger table moves. */
     get extent() {

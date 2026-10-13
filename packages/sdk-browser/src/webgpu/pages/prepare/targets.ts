@@ -17,7 +17,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { displayApart, type FrameSize } from '../state/renderScale.ts'
 import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts'
 import { makesDisplayColor, sceneBlends } from './targetAllocation.ts'
-import { wantsProxyStore } from './proxyStore.ts'
+import { wantsProxyStore } from '../../../reflections/proxyStore.ts'
 
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
 export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {

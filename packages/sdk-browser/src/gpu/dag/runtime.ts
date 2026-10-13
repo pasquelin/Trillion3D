@@ -24,9 +24,7 @@ import {
 import type { DagResources } from './resources.ts'
 import { cutBytes } from './cutBuffers.ts'
 import { createProxyInstances } from './proxyInstances.ts'
-
-/** No placement wears a proxy: no box. */
-const EMPTY_BOXES = { boxes: new Float64Array(0), changed: new Uint8Array(0) }
+import { NO_PROXY_BOXES } from '../../bounce/probeSync.ts'
 
 export function createDagRuntime(
   resources: DagResources,
@@ -127,7 +125,7 @@ function selectionOver(run: DagRun): GpuSelection {
       if (!live()) return
       state.worldRevision++
       // The proxy's mirror of those rows is copied at the next image; the others stand.
-      for (const w of rows) run.proxies.worldsWritten([w])
+      for (const w of rows) run.proxies.worldWritten(w)
     },
     get growing() {
       return state.growing
@@ -149,10 +147,10 @@ function selectionOver(run: DagRun): GpuSelection {
       return run.proxies.hostBytes
     },
     proxyBuffer: () => (live() ? run.proxies.buffer() : undefined),
-    proxyMirror: (encoder) => live() && run.proxies.mirror(encoder),
+    proxyMirror: (encoder) => live() && run.proxies.mirror(encoder, run.tree?.revision ?? 0),
     proxyPose: (encoder, host) => live() && run.proxies.pose(encoder, host),
     proxyArrived: () => live() && run.proxies.arrived(),
-    proxyBoxes: () => (live() ? run.proxies.worldBoxes() : EMPTY_BOXES),
+    proxyBoxes: () => (live() ? run.proxies.worldBoxes() : NO_PROXY_BOXES),
     proxyCopies: (copies) => live() && run.proxies.setCopies(copies),
     proxyRevision: () => run.proxies.revision * 4096 + state.worldRevision,
     updateResidency: (next, changes, moved) => updateRuntimeResidency(run, next, changes, moved),

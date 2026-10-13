@@ -13,7 +13,7 @@ import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contra
  *   model's;
  * - `irradiance`, what a point of the bounce cache receives (`declaredIrradiance`, `../../bounce/`),
  *   wherever in the world, mostly off screen: its shadow one ray through the resident proxy
- *   (`rtBlocked`), whatever the view, and its response the cosine alone — the cache multiplies
+ *   (`rtBlocked`), a rectangle's toward its centre, whatever the view, and its response the cosine alone — the cache multiplies
  *   by its albedo over π. The maps would leave an off-screen point unshadowed, or draw pages no
  *   view asks for: each term's visibility is the one its points can read.
  * The incidence, the range, the rectangle's irradiance and the light's colour and intensity are

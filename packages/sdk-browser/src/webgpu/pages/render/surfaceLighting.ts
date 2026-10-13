@@ -29,6 +29,17 @@ import type { EngineCamera } from '../../../camera/engineCamera.ts'
 const inverseViewProj = new Float64Array(16),
   cameraWorldArray: [number, number, number, number] = [0, 0, 0, 1]
 
+/** What the proxy's pose reads of the deformation (`PoseHost`): one object, refilled for each call
+ *  and emptied after it, so that an image allocates none. */
+const poseHost = {
+  pool: undefined as GPUBuffer | undefined,
+  revision: 0,
+  deformation: undefined as WebgpuPagesRuntime['vis']['deformation'],
+  recordOf(world: object): number {
+    return poseHost.deformation?.wordOfWorld(world) ?? 0
+  },
+}
+
 /** Lights the surfaces into the HDR target, draws the forward transparents over it, and composes the
  *  display image at its size; returns whether it landed on the presented swap-chain view. */
 export function encodeSurfaceLighting(
@@ -46,11 +57,11 @@ export function encodeSurfaceLighting(
   // The placement tree the proxy's rays walk, as the culling left it this image (`proxyInstances.ts`).
   run.gpuSelection?.proxyMirror(encoder)
   const { deformation } = rt.vis
-  run.gpuSelection?.proxyPose(encoder, {
-    pool: rt.vis.concatPos,
-    recordOf: (world) => deformation?.wordOfWorld(world) ?? 0,
-    revision: deformation?.frame.revision ?? 0,
-  })
+  poseHost.pool = rt.vis.concatPos
+  poseHost.deformation = deformation
+  poseHost.revision = deformation?.frame.revision ?? 0
+  run.gpuSelection?.proxyPose(encoder, poseHost)
+  poseHost.pool = poseHost.deformation = undefined
   const [width, height] = gpu.targetSize,
     raw = run.diagnostic !== 'beauty'
   invertMatrix4(inverseViewProj, viewProj)

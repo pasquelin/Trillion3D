@@ -15,7 +15,11 @@ export async function floorProbes(tiled = false) {
   // One placement wears a proxy: its buffer, and its box over the floor the probes keep.
   const scene = {
     buffer: () => lights,
-    boxes: () => ({ boxes: Float64Array.from([0, 0, 0, 8, 0.1, 4]), changed: Uint8Array.of(0) }),
+    boxes: () => ({
+      boxes: Float64Array.from([0, 0, 0, 8, 0.1, 4]),
+      moved: { count: 0, pairs: new Int32Array(0) },
+      extent: [0, 0, 0, 8, 0.1, 4],
+    }),
   }
   const probes = await createGpuBounceProbes(
     gpu.device,

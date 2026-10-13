@@ -1,6 +1,7 @@
 import { BOUNCE_SETTINGS, type SceneProxy } from '../../../../../sdk-core/src/index.ts'
 import { bounceProbeBytes } from '../../../bounce/limits.ts'
 import { createGpuBounceProbes } from '../../../bounce/probes.ts'
+import { NO_PROXY_BOXES } from '../../../bounce/probeSync.ts'
 import { grantCapability } from '../io/drops.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
@@ -14,8 +15,7 @@ const BOUNCE_APPROXIMATIONS = [
   'the proxy carries a certified geometric error, so a bounce leaves the coarse surface',
   'the proxy carries diffuse albedo only: emission, transparency and specular are not bounced',
   'a probe update reads the cascades as they stand, so one update may see a neighbour already updated',
-  'a probe ray that exhausts the published traversal bound reports no hit, which darkens',
-  'a shadow ray that exhausts that bound reports no blocker, which lights a cell that should be dark',
+  'a ray that exhausts the published traversal bound, or whose shadow ray does, carries no weight: a probe renormalises over the rays that answered',
   'a probe ray lights the surface it lands on at the point it lands, every light and its shadow, so the cost of a ray grows with the lights',
   'a probe buried in a surface or lost in open sky goes to sleep and is skipped until a light changes',
   'the millisecond budget follows a timestamp read several frames late, and only every third or twelfth frame',
@@ -73,7 +73,7 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
         proxy.bounds,
         {
           buffer: () => rt.run.gpuSelection?.proxyBuffer(),
-          boxes: () => rt.run.gpuSelection?.proxyBoxes() ?? EMPTY_BOXES,
+          boxes: () => rt.run.gpuSelection?.proxyBoxes() ?? NO_PROXY_BOXES,
         },
         () => lights.buffer!,
         bounce.budgetMs,
@@ -130,9 +130,6 @@ function publish(rt: WebgpuPagesRuntime) {
     approximations: BOUNCE_APPROXIMATIONS,
   })
 }
-
-/** No placement wears a proxy yet: no box. */
-const EMPTY_BOXES = { boxes: new Float64Array(0), changed: new Uint8Array(0) }
 
 /** The meshes' proxies of a compiled scene set on the primitives that wear them, one a compiled primitive in
  *  the manifest's order, and the placements told: the scene's proxy is one structure, whether the compiler

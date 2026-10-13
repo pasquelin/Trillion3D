@@ -15,7 +15,6 @@ import {
   vsmProjectionSampleWgsl,
 } from '../../vsm/projectionDataWgsl.ts'
 import { vsmTransmissionReadWgsl } from '../../vsm/transmissionWgsl.ts'
-import { VSM_MASK_TILES_BINDING } from '../../vsm/projectionWgsl.ts'
 import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
 import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
@@ -302,7 +301,7 @@ const vsmMaskWgsl = (binding: number) =>
     [byteOf],
     `
 @group(0) @binding(${binding}) var vsmShadowMask:texture_2d_array<u32>;
-@group(0) @binding(${VSM_MASK_TILES_BINDING}) var vsmShadowMaskTiles:texture_2d<u32>;
+@group(0) @binding(${DEFERRED_BINDINGS.maskTiles}) var vsmShadowMaskTiles:texture_2d<u32>;
 /** A lane's code to its factor (\`vsmMaskCode\`, \`vsm/projectionWgsl.ts\`): 1 where no ray was
  *  traced, else the k of its n rays that missed, k / n by the projection's own expression, as the
  *  half float the mask held. */

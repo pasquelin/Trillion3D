@@ -10,11 +10,7 @@ import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts'
 import { STORE_LAYERS } from '../../bounce/runtimeLayout.ts'
 import { RUNTIME_HEADER_WORDS } from '../../bounce/runtimeLayout.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
-import {
-  VSM_MASK_TILES_BINDING,
-  VSM_PROJECTION_MASK_FORMAT,
-  VSM_PROJECTION_TILE_FORMAT,
-} from '../../vsm/projectionWgsl.ts'
+import { VSM_PROJECTION_MASK_FORMAT, VSM_PROJECTION_TILE_FORMAT } from '../../vsm/projectionWgsl.ts'
 import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
 import { VSM_PROJECTION_VIEW_BYTES } from '../../vsm/projectionView.ts'
 import { REFLECTION_TARGET } from '../../reflections/weight.ts'
@@ -142,7 +138,7 @@ function resolveLayoutEntries(): GPUBindGroupLayoutEntry[] {
     ),
     // The share of the radiance the reflection trace wrote (`../../reflections/trace.ts`).
     REFLECTION_TARGET.layoutEntry(),
-    computeTextureEntry(VSM_MASK_TILES_BINDING, 'uint', '2d', GPUShaderStage.FRAGMENT),
+    computeTextureEntry(DEFERRED_BINDINGS.maskTiles, 'uint', '2d', GPUShaderStage.FRAGMENT),
   ]
 }
 

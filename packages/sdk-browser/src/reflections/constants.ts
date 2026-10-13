@@ -28,8 +28,7 @@ export const REFLECTION_CONSTANTS = {
    *  (`reflectionFrontOut`): one that hides more than half of what lies behind it. A fainter one
    *  tints its backdrop and is no wall to a ray. */
   REFLECTION_FRONT_COVERAGE: 0.5,
-  REFLECTION_HALF_MAXIMUM: Math.SQRT2,
-  /** The bound of the half-vector's angle (`REFLECTION_CONE_WGSL`). */
+  /** The bound of the half-vector's angle (`REFLECTION_CONE_WGSL`): tan 40°. */
   REFLECTION_CONE_LIMIT: Math.tan(40 * DEG2RAD),
   /** The distance past which a ray is taken as infinite: 2²³ world units, where a float32 no
    *  longer holds a unit step. */

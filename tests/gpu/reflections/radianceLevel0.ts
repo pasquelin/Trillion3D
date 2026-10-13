@@ -101,9 +101,7 @@ export async function level0(
   const reflection = createScreenReflection(device, width, height, false)
   const { hiz, partition } = await standaloneHiz(device, width, height)
   const lightView = createDeferredView(device)
-  const group = reflectionGroup(reflection, hiz.depth()!, {
-    lightView: lightView.buffer,
-  })
+  const group = reflectionGroup(reflection, hiz.depth()!, lightView.buffer)
   // The lit image in the pyramid's level 0, as an image's adoption leaves it there.
   const texels = litImage(size, drawn)
   device.queue.writeTexture(

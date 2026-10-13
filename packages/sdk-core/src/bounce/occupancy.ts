@@ -18,9 +18,13 @@ import { alignDown } from '../../../math/src/scalar/integers.ts'
  *
  * Nothing here names a scene or inspects the camera: extent, triangles, cells.
  */
+/** The placements a change touched, as runs of rows: `count` `[first, last]` pairs (`createChangedRuns`). */
+export type MovedRows = { readonly count: number; readonly pairs: ArrayLike<number> }
+
 export interface BounceOccupancy {
-  /** Placements moved: `boxes` holds six world bounds per placement, `changed` flags the moved. */
-  moved(boxes: ArrayLike<number>, changed: ArrayLike<number>): void
+  /** Placements moved: `boxes` holds six world bounds per placement (an empty box for one that holds
+   *  none), `rows` the runs of those that moved: the work follows them, never the placements' count. */
+  moved(boxes: ArrayLike<number>, rows: MovedRows): void
   /** Once per frame: the first frame after motion stopped rebuilds the exact map on `extent`. */
   settle(boxes: ArrayLike<number>, extent: readonly number[]): void
   /** True when a level's cell in its global lattice warrants a probe. */
@@ -110,11 +114,13 @@ export function createBounceOccupancy(
     return true
   }
   return {
-    moved(boxes, changed) {
+    moved(boxes, rows) {
       quiet = 2
       all ||= !covers()
       last.fill(NaN)
-      for (let t = 0; !all && t < changed.length; t++) if (changed[t]) all = !add(boxes, t * 6)
+      for (let r = 0; !all && r < rows.count; r++)
+        for (let t = rows.pairs[2 * r]; !all && t <= rows.pairs[2 * r + 1]; t++)
+          all = !add(boxes, t * 6)
     },
     settle(boxes, extent) {
       if (!quiet || --quiet) return

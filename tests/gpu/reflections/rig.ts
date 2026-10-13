@@ -112,7 +112,6 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     bounceGrid,
     probes: probes.createView({ dimension: '2d-array' }),
     ...rigProxy(device, reflection, frame.proxy?.faces),
-    lightView: lightView.buffer,
     lightLists: device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE }),
   }
   return {
@@ -137,7 +136,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
       // the finished depth's farthest.
       hiz.encodePyramid({ pass })
       hiz.encodeNearest({ pass })
-      const group = reflectionGroup(reflection, depth, over)
+      const group = reflectionGroup(reflection, depth, over.lightView)
       encodeReflectionTrace(pass, reflection, pipelines, inputs, group, frame.size)
       pass.end()
       if (radiance) {
