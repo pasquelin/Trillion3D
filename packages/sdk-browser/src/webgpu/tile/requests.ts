@@ -17,9 +17,10 @@ const byWeight = (a: TileRequest, b: TileRequest) => b.weight - a.weight
  * A budget defers tiles, it never drops them: the remainder of a pass is kept in weight order and
  * offered again to the next pass, until fresh feedback replaces it. Fresh feedback always wins,
  * since it names what the image looks at now; a deferred tile still looked at is named again
- * within a feedback cycle, one no longer looked at would be work for nothing. A replay places its
- * tiles at the frame of the feedback that named them (`frame`): the pool then yields exactly what
- * that pass would have yielded, never a tile a later image has looked at.
+ * within a feedback cycle, one no longer looked at would be work for nothing. A replay keeps the
+ * frame of the feedback that named them (`frame`). Which tile gives its place is the GPU's word:
+ * the pixels stamp the places they read, the ancestor of a streaming tile included
+ * (`stampWgsl.ts`).
  *
  * The feedback lists the tiles asked and nothing else (`feedback.ts`): a feedback costs the tiles
  * it names. The requests are records reused from one feedback to the next, each fed the key of its
@@ -42,8 +43,8 @@ export function createTileRequests(options: {
     key: { slot: 0, level: 0, tx: 0, ty: 0 },
     weight: 0,
   })
-  /** Tiles the last image feedback names, resident ones touched along the way. */
-  const fromFeedback = (hits: FeedbackHits, frame: number) => {
+  /** Tiles the last image feedback names that do not reside. */
+  const fromFeedback = (hits: FeedbackHits) => {
     let requested = 0,
       atLevel = 0,
       gap = 0,
@@ -60,7 +61,7 @@ export function createTileRequests(options: {
       const served = atlas.servedLevel(key) - key.level
       if (served === 0) atLevel++
       gap += served
-      if (atlas.touch(key, frame)) continue
+      if (atlas.resides(key)) continue
       request.atlas = atlas
       request.weight = hits.weight[i]
       count++
@@ -82,7 +83,7 @@ export function createTileRequests(options: {
       const hits = feedback.take()
       if (!hits) return wanted
       named = frame
-      fromFeedback(hits, frame)
+      fromFeedback(hits)
       return wanted
     },
     /** Frame of the feedback the list came from: where a pass places what it serves. */

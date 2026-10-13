@@ -15,6 +15,8 @@ import { floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import { PICK_CYCLE } from './pickCycle.ts'
 import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
+import { feedbackBuffers } from './feedbackBuffers.ts'
+import type { TileQueueCut } from './evictSort.ts'
 
 /** Phase word: the `FEEDBACK_EVERY` bit asks for every pixel; otherwise the two low bits give the
  *  column and the next two the row of the speaking pixel in each `FEEDBACK_STRIDE` square, therefore
@@ -26,11 +28,6 @@ export const FEEDBACK_EVERY = FEEDBACK_STRIDE * FEEDBACK_STRIDE
 export const FEEDBACK_STRIDE_MASK = FEEDBACK_STRIDE - 1
 /** First bit above the phase and the `FEEDBACK_EVERY` bit. */
 export const PICK_SHIFT = floorLog2(FEEDBACK_EVERY) + 1
-
-/** The most tiles one image lists: more than a pool serves in an image, and the readback they make
- *  stays the same whatever the textures the scene wears. A tile past it speaks again at the next
- *  phase. */
-const FEEDBACK_HITS = 16384
 
 /** The tiles an image asked, by feedback rank, each with the pixels that named it: the first
  *  `count` entries of `index` and `weight`. */
@@ -54,8 +51,11 @@ export type WebgpuTileFeedback = {
   grow(entries: number): void
   /** Word the uniform carries: the phase, or "every pixel" during a convergence, and the pick turn. */
   phaseWord(every: boolean): number
-  /** Copies the list to a free readback buffer and empties it, in the image. */
-  encode(encoder: GPUCommandEncoder): void
+  /** Copies the list to a free readback buffer and empties it, in the image; the eviction queues
+   *  of `cut` ride behind it, handed to it when they land (`evictSort.ts`). */
+  encode(encoder: GPUCommandEncoder, cut?: TileQueueCut): void
+  /** Whether a readback buffer is free for `encode`. */
+  available(): boolean
   /** The image is submitted: the copy it carried maps; the phase advances, and the pick with a
    *  whole phase round. */
   submitted(): void
@@ -76,39 +76,22 @@ type MutableHits = { count: number; index: Uint32Array; weight: Uint32Array }
  * image not yet submitted may name them.
  */
 export function createWebgpuTileFeedback(device: GPUDevice, entries: number): WebgpuTileFeedback {
-  /** One generation of buffers: `count` counters and the list its ring takes are copied from. */
-  const allocate = (count: number, generation: number) => {
-    const capacity = Math.min(count, FEEDBACK_HITS)
-    const words = 1 + 2 * capacity
-    const bytes = Math.max(16, count * 4),
-      listBytes = Math.max(16, words * 4)
-    const buffer = (label: string, size: number, usage: number) =>
-      device.createBuffer({ label, size, usage })
-    return {
-      generation,
-      count,
-      capacity,
-      words,
-      listBytes,
-      buffer: buffer('Trillion3D texture feedback', bytes, GPUBufferUsage.STORAGE),
-      list: buffer(
-        'Trillion3D texture feedback hits',
-        listBytes,
-        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-      ),
-    }
-  }
   let latest: FeedbackHits | undefined
-  let gen = allocate(entries, 0)
+  let gen = feedbackBuffers(device, entries, 0)
   // The tiles that came back, one per readback buffer and generation: nothing is allocated per image.
   const held = new WeakMap<
     GPUBuffer,
     { generation: number; read: Uint32Array; hits: MutableHits }
   >()
+  /** The eviction queues each readback buffer carries behind its list, and where they start. */
+  const carried = new WeakMap<GPUBuffer, { cut: TileQueueCut | undefined; at: number }>()
   const ring = createReadbackRing<number>(
     device,
     { label: 'Trillion3D texture feedback readback', bytes: gen.listBytes, count: 2, eager: true },
     (mapped, staging, generation) => {
+      // A queue names places, never ranks: read whatever the generation.
+      const queues = carried.get(staging)
+      if (queues?.cut) queues.cut.read(new Uint32Array(mapped, queues.at, queues.cut.bytes / 4))
       if (generation !== gen.generation) return
       const { capacity, words } = gen
       let slot = held.get(staging)
@@ -150,7 +133,7 @@ export function createWebgpuTileFeedback(device: GPUDevice, entries: number): We
       return gen.count
     },
     grow(ranks) {
-      const next = allocate(ranks, gen.generation + 1)
+      const next = feedbackBuffers(device, ranks, gen.generation + 1)
       retire(device, gen.buffer)
       retire(device, gen.list)
       gen = next
@@ -158,11 +141,16 @@ export function createWebgpuTileFeedback(device: GPUDevice, entries: number): We
       latest = undefined
     },
     phaseWord: (every) => (every ? FEEDBACK_EVERY : 0) | phase | (pick << PICK_SHIFT),
-    encode(encoder) {
+    encode(encoder, cut) {
       if (encoded) return
-      const target = ring.take(gen.generation, gen.listBytes)
+      const target = ring.take(gen.generation, gen.listBytes + (cut?.bytes ?? 0))
       if (!target) return
       encoder.copyBufferToBuffer(gen.list, 0, target, 0, gen.listBytes)
+      if (cut) encoder.copyBufferToBuffer(cut.buffer, 0, target, gen.listBytes, cut.bytes)
+      let queues = carried.get(target)
+      if (!queues) carried.set(target, (queues = { cut, at: 0 }))
+      queues.cut = cut
+      queues.at = gen.listBytes
       encoder.clearBuffer(gen.list, 0, 4)
       encoded = true
     },
@@ -178,6 +166,7 @@ export function createWebgpuTileFeedback(device: GPUDevice, entries: number): We
       latest = undefined
       return counts
     },
+    available: () => ring.available(),
     settled: () => ring.settled(),
     destroy() {
       gen.buffer.destroy()

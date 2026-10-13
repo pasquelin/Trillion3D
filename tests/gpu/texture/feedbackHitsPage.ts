@@ -40,6 +40,20 @@ export async function run(kase: FeedbackCase) {
     [width, height],
   )
   const view = target.createView()
+  // No texture behind the ranks: tables of no slot, whose stamps read nothing (`stampWgsl.ts`).
+  const storage = (words: number[]) => {
+    const buffer = device.createBuffer({
+      size: 16,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    })
+    device.queue.writeBuffer(buffer, 0, Uint32Array.from(words))
+    return buffer
+  }
+  const atlas = () => ({
+    pages: { buffer: storage([0, 0, 4, 4]) },
+    slotUse: { buffer: storage([0, 0, 0, 0]) },
+  })
+  const stamp = { clock: 1, atlases: [atlas(), atlas()] } as never
   const listed: { ranks: number[]; weights: number[] }[] = []
   for (let image = 0; image <= images; image++) {
     if (image === images) {
@@ -52,7 +66,7 @@ export async function run(kase: FeedbackCase) {
       )
     }
     const encoder = device.createCommandEncoder()
-    reduce.encode(encoder, view, feedback, [width, height], feedback.phaseWord(every))
+    reduce.encode(encoder, view, feedback, [width, height], feedback.phaseWord(every), stamp)
     feedback.encode(encoder)
     device.queue.submit([encoder.finish()])
     feedback.submitted()

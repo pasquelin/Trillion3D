@@ -18,7 +18,7 @@ const atlas = (entries: number, retired = false) =>
       },
     },
     servedLevel: () => 2,
-    touch: () => false,
+    resides: () => false,
   }) as never
 
 /** The tiles a feedback names: the ranks with a count, as the GPU lists them. */

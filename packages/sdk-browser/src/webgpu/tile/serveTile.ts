@@ -31,7 +31,7 @@ export function serveBaked(
   { device, encoding, failed }: { device: GPUDevice; encoding: PoolEncoding; failed: LevelFailed },
   levels: HeldLevels,
   source: Baked,
-  { atlas, key, frame }: TileAsk,
+  { atlas, key }: TileAsk,
 ): Served {
   const { pool, size, region } = tileTarget(atlas, key)
   const address = {
@@ -41,10 +41,10 @@ export function serveBaked(
     format: encoding.levelFormat(atlas.textures[key.slot].lane),
   }
   // A level that cannot fit beside the pages kept will not come: refused, not waited for.
-  const roomFor = () => atlas.roomFor(key.slot, frame)
+  const roomFor = () => atlas.roomFor(key.slot)
   const held = levels.read(address, size, failed, key.tx, key.ty, roomFor)
   if (typeof held === 'string') return held
-  const place = atlas.place(key, frame)
+  const place = atlas.place(key)
   if (!place) return 'refused'
   if (held instanceof Uint8Array) writeTileFromBlocks(device.queue, pool, place, held, region)
   else writeTileFromBitmap(device.queue, pool, place, held, region)
@@ -64,7 +64,7 @@ export function serveHost(
     builds.ask(id, frame, atlas, key.slot)
     return 'waiting'
   }
-  const place = atlas.place(key, frame)
+  const place = atlas.place(key)
   if (!place) return 'refused'
   builds.read(id)
   const { pool, region } = tileTarget(atlas, key)

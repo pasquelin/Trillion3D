@@ -49,6 +49,9 @@ export const MATERIAL_SURFACES_PASS = 'Trillion3D material surfaces v1'
 export const MATERIAL_COMPUTE_PASS = 'Trillion3D material cache and tiles'
 /** The texture feedback's reduction and the texel turn of the tile atlases (`../webgpu/tile/`). */
 export const TEXTURE_FEEDBACK_REDUCE_PASS = 'Trillion3D texture feedback reduce'
+/** The tile pools' victim queues, ranked on the places the feedback stamped
+ *  (`../webgpu/tile/evictSort.ts`). */
+export const TEXTURE_EVICTION_PASS = 'Trillion3D texture eviction queue'
 export const TEXEL_TURN_PASS = 'Trillion3D texel turn'
 /** The blend passes (`../webgpu/blend/`): the transparents, the transmissive ones, the order and
  *  expansion, the display mask and the display filter. */
@@ -136,6 +139,7 @@ export const ENGINE_PASSES = [
   definePass({ label: MATERIAL_SURFACES_PASS, stage: 'geometry', block: 'materials' }),
   definePass({ label: IMPOSTOR_PASS, stage: 'geometry', block: 'materials' }),
   definePass({ label: TEXTURE_FEEDBACK_REDUCE_PASS, stage: 'textures', block: 'other' }),
+  definePass({ label: TEXTURE_EVICTION_PASS, stage: 'textures', block: 'other' }),
   definePass({ label: TEXEL_TURN_PASS, stage: 'textures', block: 'other' }),
   definePass({ label: TRANSPARENTS_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: TRANSMISSION_PASS, stage: 'transparents', block: 'other' }),

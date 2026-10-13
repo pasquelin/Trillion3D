@@ -14,6 +14,7 @@ import { TRANSPARENT_STAGES } from './fakeComputeBlend.ts'
 import { words } from './fakeBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
+import { fakeTileSort, isTileSort } from './fakeTileEvict.ts'
 import { boundListCap, packedFromBindings, readDagUniforms } from './fakeDag.ts'
 import { worldsAtEye } from './fakeWorldPose.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
@@ -102,6 +103,9 @@ export function simulateComputeDispatch(
   const stage = computePipeline?.entryPoint
   // A group a test wrote by hand, without entries, binds nothing the double could run on.
   if (!computeBind?.entries || !DAG_STAGES.has(stage ?? '')) return
+  // A tile pool's queue, on its sort's own group (`fakeTileEvict.ts`).
+  if (stage === 'poolScatter' && isTileSort(computeBind.entries))
+    return fakeTileSort(computeBind.entries, offsets)
   // The selection binds one buffer per `DAG_BINDING` slot: one missing is a validation error. The
   // pool sort's last dispatch is the geometry queue's only on the selection's group.
   const slots = Object.keys(DAG_BINDING).length

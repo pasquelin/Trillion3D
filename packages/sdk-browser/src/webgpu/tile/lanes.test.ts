@@ -28,6 +28,7 @@ test('each texture lives in the pool of its lane, and an empty lane has a stand-
     encoding,
     layers: { lossless: 1, rgba: 2, 'two-channel': 0 },
     feedbackOffset: 0,
+    clock: () => 1,
     textures,
   })
   assert.equal(atlas.pools.length, 2)
@@ -36,9 +37,9 @@ test('each texture lives in the pool of its lane, and an empty lane has a stand-
   assert.equal(atlas.views[0], atlas.poolOf(1).view)
   assert.notEqual(atlas.views[2], atlas.views[0], 'the two-channel lane: a stand-in')
   atlas.pinTails({ writeTexture() {} } as never, () => {})
-  atlas.place({ slot: 0, level: 0, tx: 0, ty: 0 }, 10)
-  atlas.place({ slot: 1, level: 0, tx: 0, ty: 0 }, 10)
-  atlas.place({ slot: 1, level: 0, tx: 1, ty: 0 }, 10)
+  atlas.place({ slot: 0, level: 0, tx: 0, ty: 0 })
+  atlas.place({ slot: 1, level: 0, tx: 0, ty: 0 })
+  atlas.place({ slot: 1, level: 0, tx: 1, ty: 0 })
   assert.equal(atlas.poolOf(0).resident, 2, 'its tail and one tile')
   assert.equal(atlas.poolOf(1).resident, 3, 'its tail and two tiles')
   assert.equal(atlas.pages.words[4 + 3] >>> 24, encoding.tapOf('rgba'))
@@ -70,10 +71,11 @@ test('an appended texture opens its lane, pins its tail there and hands out new 
     encoding: poolEncoding('bc7'),
     layers: { lossless: 0, rgba: 1, 'two-channel': 0 },
     feedbackOffset: 0,
+    clock: () => 1,
     textures: [texture('rgba')],
   })
   atlas.pinTails(queue, () => {})
-  atlas.place({ slot: 0, level: 0, tx: 0, ty: 0 }, 10)
+  atlas.place({ slot: 0, level: 0, tx: 0, ty: 0 })
   const views = atlas.views,
     held = atlas.pages.entryOf({ slot: 0, level: 0, tx: 0, ty: 0 })
   assert.equal(atlas.resize(gpu, { lossless: 0, rgba: 1, 'two-channel': 1 }).replaced, 1)
@@ -99,6 +101,7 @@ test('the white fill alone takes no pool, reads the white stand-in, and joins it
     encoding,
     layers: { lossless: 0, rgba: 0, 'two-channel': 0 },
     feedbackOffset: 0,
+    clock: () => 1,
     textures: [{ ...fill, source: { kind: 'bytes' as const, tail: WHITE_TAIL } }],
   })
   assert.equal(atlas.pools.length, 0, 'no layer')
