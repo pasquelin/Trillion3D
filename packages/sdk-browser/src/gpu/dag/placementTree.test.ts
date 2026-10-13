@@ -133,7 +133,7 @@ test("a growth's placements join the tree in place, the cut the flat one's", () 
   assert.equal(tree.count, 128 + 20)
   for (let w = 0; w < 100; w++) assert.equal(tree.order[tree.slot[w]], w, `placement ${w}`)
   assert.deepEqual(added.tree.members, [128, 148])
-  // The new members' leaves are taken as the follower takes them (`TreeRefit.leaf`), their groups fit.
+  // The new members' leaves are taken as the follower takes them (`TreeRefit.leaves`), their groups fit.
   for (let w = 80; w < 100; w++) memberBox(dag, tree, w)
   refitTree(dag)
   for (const camera of views) {
