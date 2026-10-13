@@ -1,5 +1,5 @@
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
-import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { stagedOutputBytes } from './layout.ts'
 import { OPEN_SLOT_WORDS } from './heldOpen.ts'
@@ -53,7 +53,7 @@ export function cameraCutBuffers(
     Partial<Pick<PackedDag, 'entryCount' | 'candCount' | 'groupCount'>>,
   limits?: Parameters<typeof storageBufferCap>[0],
 ) {
-  const blockCount = ceilDiv(packed.pageCount, SELECTION_WORKGROUP),
+  const blockCount = ceilDiv(packed.pageCount, WORKGROUP_THREADS),
     workLayout = dagWorkLayout(blockCount, packed.groupCount)
   const shape = dagFlagShape(packed),
     flagWords = flagShapeWords(shape)

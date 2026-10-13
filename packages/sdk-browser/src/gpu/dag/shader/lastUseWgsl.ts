@@ -2,7 +2,7 @@ import { CAND_LIVE_WORDS, LEVEL_QUEUES } from './levelWgsl.ts'
 import { RAISED_PER_GROUP } from './floorWgsl.ts'
 import { EVICT_IN_USE } from '../evict.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { GROUP_GRID_WGSL } from '../../dispatch/grid.ts'
+import { GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
@@ -31,12 +31,12 @@ export const dagFlagsWords = (queueWords: number, candCap: number) =>
 
 export const DAG_LAST_USE_WGSL = wgslBlock(
   'DAG_LAST_USE_WGSL',
-  [ceilDiv, GROUP_GRID_WGSL],
+  [ceilDiv, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL],
   `/** Kept list \`l\`'s group count in \`work\`, x then y (0, 1), then the restored journal's (2), then
  *  the descent queues' (3 to 5, \`queueGroups\`): what the arming kernel copies (\`armWgsl.ts\`). */
 fn listGroups(l:u32)->u32{return drawnGroupsMax()+1u+2u*l;}
 /** The groups of a list of \`n\`, at least one, written for \`listGroups(l)\`. */
-fn armList(l:u32,n:u32){let g=groupGrid(ceilDiv(max(n,1u),64u));atomicStore(&work[listGroups(l)],g.x);atomicStore(&work[listGroups(l)+1u],g.y);}
+fn armList(l:u32,n:u32){let g=groupGrid(ceilDiv(max(n,1u),WORKGROUP_THREADS));atomicStore(&work[listGroups(l)],g.x);atomicStore(&work[listGroups(l)+1u],g.y);}
 /** Group \`g\`'s last use, behind the lists' group counts. */
 fn lastUseAt(g:u32)->u32{return listGroups(6u)+g;}
 /** The groups this cut raised: their count, then the groups. */

@@ -1,9 +1,9 @@
+import { WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE, FEEDBACK_STRIDE_MASK } from './feedback.ts'
 
 /** Phase pixels on one side of a workgroup of the reduction (`reduce.ts`). */
 export const REDUCE_WORKGROUP = 8
-/** Listed tiles a workgroup of the gather takes. */
-export const GATHER_WORKGROUP = 64
 
 /** The reduction: a pixel adds one to the counter of the tile it asks, and the pixel that finds it
  *  at zero lists the tile, if the list has room — else the counter is zeroed again, so that no tile
@@ -28,12 +28,15 @@ export const REDUCE_WGSL = `struct ReduceUni{size:vec2u,feedback:u32,cap:u32,}
 
 /** The gather: each listed tile's count into the list's weights, its counter zeroed for the next
  *  image. */
-export const GATHER_WGSL = `struct GatherUni{cap:u32,}
+export const GATHER_WGSL = wgslProgram(
+  `struct GatherUni{cap:u32,}
 @group(0) @binding(0) var<storage,read_write> tileFeedback:array<atomic<u32>>;
 @group(0) @binding(1) var<storage,read_write> hits:array<atomic<u32>>;
 @group(0) @binding(2) var<uniform> uni:GatherUni;
-@compute @workgroup_size(${GATHER_WORKGROUP}) fn gather(@builtin(global_invocation_id) id:vec3u){
+@compute @workgroup_size(WORKGROUP_THREADS) fn gather(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=min(atomicLoad(&hits[0]),uni.cap)){return;}
  let rank=atomicLoad(&hits[1u+id.x]);
  atomicStore(&hits[1u+uni.cap+id.x],atomicExchange(&tileFeedback[rank],0u));
-}`
+}`,
+  [WORKGROUP_THREADS_WGSL],
+)

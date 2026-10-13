@@ -1,7 +1,7 @@
 import { LANE_SCAN_WGSL, laneRunOffsets } from '../../core/laneScanWgsl.ts'
 import { SELECTION_HEADER_WORDS } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 import { bitMask, bitWord, ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
@@ -29,10 +29,9 @@ import { bitMask, bitWord, ceilDiv } from '../../../../../math/src/wgsl/integer.
  */
 export const DAG_COMPACT_WGSL = wgslBlock(
   'DAG_COMPACT_WGSL',
-  [LANE_SCAN_WGSL, ceilDiv, bitWord, bitMask, FLAT_INDEX_WGSL],
-  `const BLOCK:u32=64u;
-const HEAD:u32=${SELECTION_HEADER_WORDS}u;
-fn blockCount()->u32{return ceilDiv(views[0u].clusterCount,BLOCK);}
+  [LANE_SCAN_WGSL, ceilDiv, bitWord, bitMask, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
+  `const HEAD:u32=${SELECTION_HEADER_WORDS}u;
+fn blockCount()->u32{return ceilDiv(views[0u].clusterCount,WORKGROUP_THREADS);}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */
 fn blockBase()->u32{return 0u;}
 /** Two words per block behind the block offsets: bit \`i & 63\` of block \`i / 64\` is page \`i\`'s draw
@@ -49,17 +48,17 @@ fn drawBit(i:u32)->u32{return bitMask(i);}
 /** The drawn pages of \`mask\`, page \`i\`'s word, below page \`i\`. */
 fn drawnBefore(i:u32,mask:u32)->u32{return countOneBits(mask&(drawBit(i)-1u));}
 /** Each lane totals its run of blocks; the shared lane scan gives the run its offset. */
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn dagDrawPrefix(@builtin(local_invocation_index) lane:u32){
  let count=blockCount();let base=blockBase();
  let run=laneRun(lane,count);
  ${laneRunOffsets('b', 'run', 'lane', '', 'atomicLoad(&work[base+b])', 'atomicStore(&work[base+count+b],cursor)')}
  // The last lane's run ends the list, empty or not: its cursor is the total.
- if(lane==63u){out.pages[views[0u].listCap]=cursor;armList(1u,min(cursor,views[0u].listCap));if(cursor>views[0u].listCap){atomicOr(&out.overflow,1u);}}
+ if(lane==WORKGROUP_THREADS-1u){out.pages[views[0u].listCap]=cursor;armList(1u,min(cursor,views[0u].listCap));if(cursor>views[0u].listCap){atomicOr(&out.overflow,1u);}}
 }
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id,n,64u);if(s>=liveCount()){return;}
+ let s=flatIndex(id,n,WORKGROUP_THREADS);if(s>=liveCount()){return;}
  // Only live clusters carry a non-zero draw flag; those of the block that are not in the list
  // are zero and add nothing to the rank, exactly as in yesterday's full walk.
  let i=entryIndex(liveAt(s));if((atomicLoad(&work[drawMaskWord(i)])&drawBit(i))==0u){return;}
@@ -69,7 +68,7 @@ fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  let word=drawMaskWord(i);
  var rank=drawnBefore(i,atomicLoad(&work[word]));
  if((i&32u)!=0u){rank=rank+countOneBits(atomicLoad(&work[word-1u]));}
- let off=atomicLoad(&work[blockBase()+blockCount()+i/BLOCK]);
+ let off=atomicLoad(&work[blockBase()+blockCount()+i/WORKGROUP_THREADS]);
  let at=off+rank;if(at>=views[0u].listCap){atomicOr(&out.overflow,1u);return;}
  out.pages[views[0u].listCap+HEAD+at]=i;
 }

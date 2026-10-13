@@ -1,6 +1,6 @@
+import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
-import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
@@ -32,7 +32,7 @@ export function fakeEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
   const [work, cold, out, views] = (['work', 'cold', 'out', 'views'] as const).map((name) =>
     words(byBinding.get(DAG_BINDING[name])!.data),
   )
-  const layout = dagWorkLayout(ceilDiv(packed.pageCount, SELECTION_WORKGROUP), packed.groupCount),
+  const layout = dagWorkLayout(ceilDiv(packed.pageCount, WORKGROUP_THREADS), packed.groupCount),
     lastUse = work.subarray(layout.lastUse, layout.lastUse + packed.groupCount),
     now = views[viewWord('frame')],
     keys = pageKeys(packed),

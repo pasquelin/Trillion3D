@@ -23,7 +23,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { dAbs, dAdd, dLess, dMax, dMin, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
 import { fromF32, toF32 } from '../../../../math/src/wgsl/f32.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { partName } from './shader/splitWgsl.ts'
 import { DAG_BINDING, dagPartBindings, type DagPartTable } from './shader/bindings.ts'
 import { FRAME_ROW_WORDS, DAG_NODE_FLOATS } from './types.ts'
@@ -31,7 +31,7 @@ import { MARGIN, TREE_SPAN } from './placementTree.ts'
 import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/wgsl/constants.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
-import { REFIT_LANES } from './treeRefitLevels.ts'
+import { WORKGROUP_THREADS } from './treeRefitLevels.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** Where a placement's root lies in its frame row (`primitiveFrameWords`). */
@@ -205,11 +205,11 @@ export function treeRefitWgsl(layout: RefitLayout = WHOLE_LAYOUT) {
 @group(1) @binding(0) var<uniform> params:Params;
 @group(1) @binding(1) var<storage,read> ids:array<u32>;
 @group(1) @binding(2) var<storage,read> members:array<vec2u>;
-@compute @workgroup_size(${REFIT_LANES}) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(g,n,${REFIT_LANES}u);if(i>=params.count){return;}
+@compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(g,n,WORKGROUP_THREADS);if(i>=params.count){return;}
  let j=ids[params.first+i];
  if(params.cells==0u){fitGroup(j);}else{fitCell(j);}
 }`,
-    [FLAT_INDEX_WGSL, FIT_WGSL, refitAccessBlock(layout)],
+    [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, FIT_WGSL, refitAccessBlock(layout)],
   )
 }

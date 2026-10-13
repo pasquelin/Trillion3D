@@ -1,11 +1,12 @@
 // The order kernel run in JavaScript (`shaderRun`) on generated scenes, its block dispatch replayed
 // barrier by barrier, against the CPU model: what `orderWgsl.test.ts` and `slots.test.ts` read.
+import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { hostBlending } from '../../scene/materialBlending.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { BLEND_ORDER_SHADER, ORDER_UNI, SLOT_GROUP, SORT_BLOCK } from './orderWgsl.ts'
+import { BLEND_ORDER_SHADER, ORDER_UNI, SORT_BLOCK } from './orderWgsl.ts'
 import { writeKeyRecords } from './keyRecords.ts'
 import { orderBlendPasses } from './order.ts'
 import { cpuModel, orderBlendPlanCpu, refreshEyeKeys } from './expandCpu.fixture.ts'
@@ -65,7 +66,7 @@ function runOrder(blendState: WebgpuBlendState, pass: number, gpu: ReturnType<ty
       continue
     }
     if (step.entry === 2) {
-      for (let r = 0; r < step.groups * SLOT_GROUP; r++)
+      for (let r = 0; r < step.groups * WORKGROUP_THREADS; r++)
         kernel.placeBlendSlots([r, 0, 0], [step.groups, 1, 1])
       continue
     }

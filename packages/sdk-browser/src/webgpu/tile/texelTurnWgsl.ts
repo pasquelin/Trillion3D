@@ -1,11 +1,10 @@
+import { WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { byteOf } from '../../../../math/src/wgsl/integer.ts'
 import { MATERIAL_MIP_FORMAT } from '../../texture/mips.ts'
 
 // The kernel that turns raw texels on the GPU (`texelTurn.ts`).
 
-/** Texels one workgroup turns, along a row. */
-export const TEXEL_TURN_WORKGROUP = 64
 /** The turns a host texture asks, as bits. */
 export const TEXEL_FLIP = 1,
   TEXEL_PREMULTIPLY = 2
@@ -20,7 +19,7 @@ struct Turn { width: u32, rows: u32, first: u32, flags: u32 }
 @group(0) @binding(1) var<storage, read> source: array<u32>;
 @group(0) @binding(2) var turned: texture_storage_2d<${MATERIAL_MIP_FORMAT}, write>;
 fn times(c: u32, a: u32) -> u32 { return (c * a + 127u) / 255u; }
-@compute @workgroup_size(${TEXEL_TURN_WORKGROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn main(@builtin(global_invocation_id) id: vec3u) {
   let x = id.x;
   let y = id.y;
@@ -33,5 +32,5 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   let to = select(turn.first + y, turn.first + turn.rows - 1u - y, (turn.flags & ${TEXEL_FLIP}u) != 0u);
   textureStore(turned, vec2u(x, to), unpack4x8unorm(t));
 }`,
-  [byteOf],
+  [byteOf, WORKGROUP_THREADS_WGSL],
 )

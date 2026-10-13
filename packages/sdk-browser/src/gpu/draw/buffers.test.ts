@@ -1,3 +1,4 @@
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -8,7 +9,6 @@ import {
   DRAW_INDIRECT_STRIDE,
   DRAW_ITEM_U32,
   UNIFORM_BYTES,
-  WORKGROUP,
   slotCount,
 } from './contract.ts'
 import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
@@ -50,7 +50,7 @@ test('the indirect, group and slotUsed buffers grow with layerSlots; the item, r
   assert.equal(one.uniforms.size, three.uniforms.size)
   assert.equal(three.indirectBuffer.size, slotCount(3) * DRAW_INDIRECT_STRIDE)
   assert.equal(three.slotUsedBuf.size, slotCount(3) * 4)
-  const groupCount = ceilDiv(slotCap, WORKGROUP)
+  const groupCount = ceilDiv(slotCap, WORKGROUP_THREADS)
   assert.equal(three.groupCounts.size, groupCount * slotCount(3) * 4)
   assert.equal(three.groupOffsets.size, groupCount * slotCount(3) * 4)
   assert.ok(

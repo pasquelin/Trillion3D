@@ -23,7 +23,7 @@ test('the shipped prefix kernel scans each slot over the 64 threads in workgroup
     assert.ok(shader.includes(LANE_SCAN_WGSL.text), 'the shared lane scan')
     assert.match(
       shader,
-      /@compute @workgroup_size\(64\)\s*fn prefixGroups\(@builtin\(local_invocation_index\) lane:u32\)/,
+      /@compute @workgroup_size\(WORKGROUP_THREADS\)\s*fn prefixGroups\(@builtin\(local_invocation_index\) lane:u32\)/,
     )
     const kernel = prefixKernel(shader)
     assert.match(kernel, new RegExp(`for\\(var slot=0u;slot<${slotCount(k)}u;slot\\+\\+\\)`))

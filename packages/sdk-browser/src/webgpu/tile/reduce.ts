@@ -10,9 +10,10 @@
  * pixel that first counts a tile lists it; the gather (`gather`) then reads each listed tile's count
  * and zeroes its counter, so nothing is walked but the tiles asked.
  */
+import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE, type WebgpuTileFeedback } from './feedback.ts'
-import { GATHER_WGSL, GATHER_WORKGROUP, REDUCE_WGSL, REDUCE_WORKGROUP } from './reduceWgsl.ts'
+import { GATHER_WGSL, REDUCE_WGSL, REDUCE_WORKGROUP } from './reduceWgsl.ts'
 import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { TEXTURE_FEEDBACK_REDUCE_PASS } from '../../stage/passLabels.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
@@ -128,7 +129,7 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
         device.queue.writeBuffer(gatherUniform, 0, capWord)
         pass.setPipeline(gathering.get())
         pass.setBindGroup(0, gathered!)
-        pass.dispatchWorkgroups(ceilDiv(feedback.capacity, GATHER_WORKGROUP))
+        pass.dispatchWorkgroups(ceilDiv(feedback.capacity, WORKGROUP_THREADS))
       }
       pass.end()
     },

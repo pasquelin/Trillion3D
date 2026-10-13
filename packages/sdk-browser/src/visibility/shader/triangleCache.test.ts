@@ -3,6 +3,7 @@
 // (`triangleCache.fixture.ts`), the shipped passes run — or none —, then
 // every pixel's `pixelTriangle` and `rowFrame` are asked for the bits its own decode and
 // composition give it: what the resolve reads is what it computed without the cache.
+import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { cacheRun } from './triangleCache.fixture.ts'
@@ -70,7 +71,7 @@ test('each triangle two pixels read is cached, every pixel reads its decode bit 
   )
   assert.equal(run.cache[0], slots.length)
   // The fitting slots end where the cursor stopped; the dispatch covers them, a group no more.
-  const groups = ceilDiv(slots.length, 64)
+  const groups = ceilDiv(slots.length, WORKGROUP_THREADS)
   assert.deepEqual(
     [run.cache[SHADE_CACHE_END], ...run.work],
     [slots.length, Math.min(groups, 2), ceilDiv(groups, 2), 1],

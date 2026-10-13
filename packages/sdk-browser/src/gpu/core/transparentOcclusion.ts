@@ -1,10 +1,10 @@
-import { CORNER_VALUES, PARTITION_WORKGROUP } from '../partition/contract.ts'
+import { CORNER_VALUES } from '../partition/contract.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
 import { computeBufferEntry, computeTextureEntry, sequentialEntries } from './computeBindings.ts'
 import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import { dispatchRows } from '../dispatch/grid.ts'
+import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { TRANSPARENT_OCCLUSION_PASS } from '../../stage/passLabels.ts'
 import {
   createWebgpuBindIdentity,
@@ -56,7 +56,7 @@ export async function createTransparentOcclusion(
       ...{ device, entryCount, sources, ...buffers, ...made },
       ...{ bound: createWebgpuBindIdentity(), bindGroup: undefined, disposed: false },
       // A thread an entry.
-      groups: workgroupCount(entryCount, PARTITION_WORKGROUP),
+      groups: workgroupCount(entryCount, WORKGROUP_THREADS),
     }
     return {
       /** World corners of entries `[from, to]`, on the only interval the table changed. */
@@ -80,7 +80,7 @@ export async function createTransparentOcclusion(
         if (o.disposed || entries <= o.entryCount) return false
         destroy()
         Object.assign(o, occlusionBuffers(device, entries), { entryCount: entries })
-        o.groups = workgroupCount(entries, PARTITION_WORKGROUP)
+        o.groups = workgroupCount(entries, WORKGROUP_THREADS)
         return true
       },
       /**

@@ -1,6 +1,6 @@
 import { computeBufferEntry } from '../core/computeBindings.ts'
 import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
-import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitAt, bitWord, ceilDiv } from '../../../../math/src/wgsl/integer.ts'
@@ -90,8 +90,8 @@ fn writeCmd(slot:u32,count:u32){
 fn batchesOf(item:DrawItem)->u32{
  return clamp(ceilDiv(item.triangles*3u,uni.corners),1u,uni.perRow);
 }
-var<workgroup> laneSlots:array<u32,64>;
-var<workgroup> laneBatches:array<u32,64>;
+var<workgroup> laneSlots:array<u32,WORKGROUP_THREADS>;
+var<workgroup> laneBatches:array<u32,WORKGROUP_THREADS>;
 var<workgroup> slotTally:array<atomic<u32>,${slots}>;
 /** The slot item \`i\` draws in, or \`NO_INDEX\` when it lies at or past \`end\` or is not selected. */
 fn slotAt(i:u32,end:u32)->u32{
@@ -100,24 +100,24 @@ fn slotAt(i:u32,end:u32)->u32{
  if(!selected(item)){return NO_INDEX;}
  return slotOf(i,item);
 }
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
  // A group of the last row past the count has no count to write.
  let group=flatIndex(wg,n,1u);
  if(group>=uni.groupCount){return;}
  // \`slotTally\` starts at zero: WGSL zero-initializes workgroup memory for each workgroup.
- let i=group*64u+lane;
+ let i=group*WORKGROUP_THREADS+lane;
  let s=slotAt(i,min(uni.count,uni.slotCap));
  if(s!=NO_INDEX){atomicAdd(&slotTally[s],batchesOf(items[i]));}
  workgroupBarrier();
- for(var slot=lane;slot<${slots}u;slot+=64u){
+ for(var slot=lane;slot<${slots}u;slot+=WORKGROUP_THREADS){
   groupCounts[group*${slots}u+slot]=select(atomicLoad(&slotTally[slot]),0u,slotUsed[slot]==0u);
  }
 }
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn prefixGroups(@builtin(local_invocation_index) lane:u32){
  if(uni.count>uni.slotCap){
-  for(var slot=lane;slot<${slots}u;slot+=64u){writeCmd(slot,0u);}
+  for(var slot=lane;slot<${slots}u;slot+=WORKGROUP_THREADS){writeCmd(slot,0u);}
   return;
  }
  let span=laneRun(lane,uni.groupCount);
@@ -129,16 +129,16 @@ fn prefixGroups(@builtin(local_invocation_index) lane:u32){
    continue;
   }
   ${laneRunOffsets('group', 'span', 'lane', 'start+', `groupCounts[group*${slots}u+slot]`, `groupOffsets[group*${slots}u+slot]=cursor`)}
-  let total=laneSums[63u];
+  let total=laneSums[WORKGROUP_THREADS-1u];
   if(lane==0u){writeCmd(slot,total);}
   start=start+total;
   workgroupBarrier();
  }
 }
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
  if(uni.count>uni.slotCap){return;}
- let group=flatIndex(wg,n,1u);let i=group*64u+lane;
+ let group=flatIndex(wg,n,1u);let i=group*WORKGROUP_THREADS+lane;
  // The rank is the count of EARLIER lanes of the group in the same slot: the item's place in
  // the group's stable order.
  let s=slotAt(i,uni.count);
@@ -160,6 +160,7 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
       DRAW_ITEM_WGSL,
       LANE_SCAN_WGSL,
       FLAT_INDEX_WGSL,
+      WORKGROUP_THREADS_WGSL,
       ceilDiv,
       bitWord,
       bitAt,

@@ -22,7 +22,7 @@ import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { dAdd, dMul, dSub, splitDouble } from '../../../math/src/wgsl/double.ts'
-import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { STRETCH_WGSL } from './gpuStretchWgsl.ts'
 import { FRAME_ROW_WORDS } from '../gpu/dag/types.ts'
@@ -59,7 +59,7 @@ fn composed(parentAt:u32,localAt:u32,k:u32)->vec2u{
 )
 
 /** What both passes call: the product, its rounding to single precision and the grid index. */
-const SHARED = [PRODUCT_WGSL, toF32, FLAT_INDEX_WGSL]
+const SHARED = [PRODUCT_WGSL, toF32, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL]
 
 /**
  * True when two single-precision words are equal as the CPU compares them (`!==` on the numbers
@@ -100,8 +100,8 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(9) var<storage,read> rootInputs:array<vec2u>;
 @group(0) @binding(10) var<storage,read_write> rootBoxes:array<vec2u>;
 @group(0) @binding(11) var<storage,read> ranks:array<u32>;
-@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let j=flatIndex(g,n,64u);if(j>=params.listed){return;}
+@compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
  let rank=ranks[j];
  if(rank<params.first||rank>=params.first+params.count||rank>=params.rootCount){return;}
  let i=rank-params.first;
@@ -235,8 +235,8 @@ fn composeRow(row:u32){
  if((params.parts&${PART_CORNERS}u)!=0u&&(row+1u)*${CORNER_VALUES}u<=arrayLength(&corners)){composeCorners(row,world);}
  if((params.parts&${PART_LODS}u)!=0u&&(row+1u)*${ROW_LOD_FLOATS}u<=arrayLength(&lods)){composeLod(row,rank,world);}
 }
-@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let j=flatIndex(g,n,64u);if(j>=params.listed){return;}
+@compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
  let row=rowList[j];if(row<params.rowCount){composeRow(row);}
 }`,
   [...SHARED, SPHERE_WGSL, CORNERS_WGSL, LOD_WGSL],
@@ -260,8 +260,8 @@ export const composeMembersWgsl = (nodes: RefitLayout['nodes'] = WHOLE_LAYOUT.no
 @group(0) @binding(4) var<storage,read> frames:array<u32>;
 @group(0) @binding(5) var<storage,read_write> members:array<vec2u>;
 @group(0) @binding(6) var<storage,read> ranks:array<u32>;
-@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let j=flatIndex(g,n,64u);if(j>=params.listed){return;}
+@compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
  let rank=ranks[j];
  if(rank<params.first||rank>=params.first+params.count||rank>=params.rootCount){return;}
  let i=rank-params.first;
@@ -287,6 +287,7 @@ export const composeMembersWgsl = (nodes: RefitLayout['nodes'] = WHOLE_LAYOUT.no
     [
       PRODUCT_WGSL,
       FLAT_INDEX_WGSL,
+      WORKGROUP_THREADS_WGSL,
       fromF32,
       dAdd,
       dSub,

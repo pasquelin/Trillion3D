@@ -1,25 +1,24 @@
+import { WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { LANE_SCAN_WGSL, laneRunSum, laneRunWalk } from '../../gpu/core/laneScanWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { bitMask, bitWord, highHalf, lowBits, lowHalf } from '../../../../math/src/wgsl/integer.ts'
 
-/** Lanes of a column's workgroup: a batch of lights, one each. */
-export const GRID_LANES = 64
 /** Runs a column keeps between its two walks: a column of more kept lights tests the rest again. */
 const GRID_CACHE = 512
 
 /**
- * The lists of a column's cells, in two walks of its kept lights, each a batch of 64 at a
- * time, one per lane, every lane in step: a lane marks the light's bit in the mask of each slice of
- * its run — in one mask for all of them when the run holds every slice, a sun's —, then each lane
- * counts — in the first walk — or writes — in the second — the slices it owns, bit after bit, so
- * each list holds its lights in increasing order, as a single-thread loop. Between the walks, the
- * lanes scan their runs of slices (the engine's `laneRun` and `laneScan`) and lane zero takes the
- * column's room in the view's pool (`./pool.ts`, one atomic add), which each lane then deals out
- * over its run; no room left: the overflow is raised and every cell of the column walks every
- * light (`TILE_NO_SLICE`). The first walk keeps the runs it found, `GRID_CACHE` at most: the second
- * walk reads them, and tests again only the lights past them. All of it is integer: the counts,
- * cursors and lists are the single-thread loop's (`gridColumn.test.ts`).
+ * The lists of a column's cells, in two walks of its kept lights, each a batch of
+ * `WORKGROUP_THREADS` at a time, one per lane, every lane in step: a lane marks the light's bit in
+ * the mask of each slice of its run — in one mask for all of them when the run holds every slice, a
+ * sun's —, then each lane counts — in the first walk — or writes — in the second — the slices it
+ * owns, bit after bit, so each list holds its lights in increasing order, as a single-thread loop.
+ * Between the walks, the lanes scan their runs of slices (the engine's `laneRun` and `laneScan`)
+ * and lane zero takes the column's room in the view's pool (`./pool.ts`, one atomic add), which
+ * each lane then deals out over its run; no room left: the overflow is raised and every cell of the
+ * column walks every light (`TILE_NO_SLICE`). The first walk keeps the runs it found, `GRID_CACHE`
+ * at most: the second walk reads them, and tests again only the lights past them. All of it is
+ * integer: the counts, cursors and lists are the single-thread loop's (`gridColumn.test.ts`).
  *
  * A column holds `slices` cells (`COLUMN_SLICES`): the view's columns their depth slices
  * (`gridSlices`), the bounce's world columns their cells along z (`cascadeSize`, `./shader.ts`).
@@ -27,9 +26,8 @@ const GRID_CACHE = 512
 export const gridCompactWgsl = (slices: number) =>
   wgslBlock(
     `gridCompactWgsl(${slices})`,
-    [LANE_SCAN_WGSL, lowHalf, highHalf, bitMask, bitWord, lowBits],
+    [LANE_SCAN_WGSL, WORKGROUP_THREADS_WGSL, lowHalf, highHalf, bitMask, bitWord, lowBits],
     `${wgslConsts({
-      LANES: GRID_LANES,
       CACHE: GRID_CACHE,
       COLUMN_SLICES: slices,
     })}
@@ -41,7 +39,7 @@ const ALL_CACHED:u32=0xffffffffu;
 struct TilePool{start:u32,capacity:u32,head:atomic<u32>,overflow:atomic<u32>,}
 @group(0) @binding(3) var<storage,read_write> pool:TilePool;
 /** The batch: each lane's light, its shadow slot in the high bit, and its run. */
-var<workgroup> chunk:array<vec2u,LANES>;
+var<workgroup> chunk:array<vec2u,WORKGROUP_THREADS>;
 /** Per slice, the lanes of the batch whose run holds it; the lanes holding a shadow slot. */
 var<workgroup> masks:array<atomic<u32>,${2 * slices}u>;
 /** The lanes whose entry holds every slice: their bit stands for every slice's mask. */
@@ -92,7 +90,7 @@ fn markEntry(lane:u32,entry:vec2u){
 fn countSlices(lane:u32){
  let shadow=vec2u(atomicLoad(&slotted[0]),atomicLoad(&slotted[1]));
  let whole=vec2u(atomicLoad(&full[0]),atomicLoad(&full[1]));
- for(var slice=lane;slice<COLUMN_SLICES;slice+=LANES){
+ for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){
   let mask=whole|vec2u(atomicLoad(&masks[slice*2u]),atomicLoad(&masks[slice*2u+1u]));
   counts[slice]+=countOneBits(mask.x)+countOneBits(mask.y);
   if(any((mask&shadow)!=vec2u(0u))){counts[slice]|=TILE_SHADOWED;}
@@ -102,7 +100,7 @@ fn countSlices(lane:u32){
 /** The slices lane \`lane\` owns write the batch's lights of their mask in increasing order. */
 fn writeSlices(lane:u32){
  let whole=vec2u(atomicLoad(&full[0]),atomicLoad(&full[1]));
- for(var slice=lane;slice<COLUMN_SLICES;slice+=LANES){
+ for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){
   var at=cursor[slice];
   for(var word=0u;word<2u;word++){
    var mask=whole[word]|atomicLoad(&masks[slice*2u+word]);
@@ -123,8 +121,8 @@ fn cacheEntry(lane:u32,entry:vec2u){
  if(lowHalf(entry.y)<=highHalf(entry.y)){cache[cached+rank]=entry;}
 }
 /** The room of the slices before lane \`lane\`'s run \`span\` (\`laneRun\`): the runs' totals,
- *  scanned over the lanes. Every lane calls it, from uniform control flow; \`laneSums[LANES-1]\`
- *  is then the column's total. */
+ *  scanned over the lanes. Every lane calls it, from uniform control flow;
+ *  \`laneSums[WORKGROUP_THREADS-1]\` is then the column's total. */
 fn roomBefore(lane:u32,span:vec2u)->u32{
  ${laneRunSum('slice', 'span', 'counts[slice]&~TILE_SHADOWED')}
  return laneScan(lane,sum)-sum;
@@ -132,7 +130,7 @@ fn roomBefore(lane:u32,span:vec2u)->u32{
 /** Lane zero, after \`roomBefore\`: the column's room in the pool. A column with no light takes
  *  none; \`walked.x\` says whether the second walk has lists to write. */
 fn takeRoom(){
- let total=laneSums[LANES-1u];
+ let total=laneSums[WORKGROUP_THREADS-1u];
  var at=0u;var fits=true;
  if(total>0u){
   // The count of what was asked stops at half the word's range: it never wraps back into room.

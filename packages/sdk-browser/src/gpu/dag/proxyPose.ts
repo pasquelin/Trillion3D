@@ -6,6 +6,7 @@
  * (`bounce/runtimePoseLevels.ts`), one parameter slot a level — and the dispatches; the proxy's buffer, its
  * layout and what each copy is belong to `proxyInstances.ts`.
  */
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import { PROXY_NODE_WORDS, PROXY_TRIANGLE_FLOATS } from '../../../../sdk-core/src/index.ts'
 import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
@@ -22,7 +23,6 @@ import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { poseLevels, poseSchedule } from '../../bounce/runtimePoseLevels.ts'
 import {
   POSE_ENTRY,
-  POSE_LANES,
   POSE_STEP_WORDS,
   POSE_WORDS,
   RUNTIME_POSE_SHADER,
@@ -187,7 +187,7 @@ export function createProxyPose(device: GPUDevice) {
       const pass = encoder.beginComputePass({ label: PROXY_POSE_PASS })
       pass.setPipeline(program.corners.get())
       pass.setBindGroup(0, bound, slots.offset(0))
-      pass.dispatchWorkgroups(ceilDiv(corners, POSE_LANES), entries.length)
+      pass.dispatchWorkgroups(ceilDiv(corners, WORKGROUP_THREADS), entries.length)
       // The deepest level first: a node reads its children's bounds, which the level below fitted.
       pass.setPipeline(program.fit.get())
       steps.encode(pass, schedule.depth, (open, step) =>

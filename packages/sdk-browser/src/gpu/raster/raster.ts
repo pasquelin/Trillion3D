@@ -15,7 +15,7 @@ import { createRasterResolves } from './resolve.ts'
 import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import type { GpuRasterInput } from './types.ts'
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import { dispatchRows } from '../dispatch/grid.ts'
+import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import {
   RASTER_BINNING_PASS,
   RASTER_IDENTIFIERS_PASS,
@@ -162,10 +162,14 @@ function encodeOccluders(r: Raster, encoder: GPUCommandEncoder, input: GpuRaster
   binning.setBindGroup(0, group)
   binning.setPipeline(r.clear.get())
   // A thread a pixel.
-  dispatchRows(binning, ceilDiv(width * height, 64))
+  dispatchRows(binning, ceilDiv(width * height, WORKGROUP_THREADS))
   binning.setPipeline(r.bin.get())
   // A group a page row, in rows; z: a page's triangles, at most 256 (`VIS_TRIANGLE_BITS`), 4 groups.
-  dispatchRows(binning, Math.max(1, input.pageRows), workgroupCount(input.maxTriangles, 64))
+  dispatchRows(
+    binning,
+    Math.max(1, input.pageRows),
+    workgroupCount(input.maxTriangles, WORKGROUP_THREADS),
+  )
   binning.setPipeline(r.plan.get())
   binning.dispatchWorkgroups(1)
   binning.end()

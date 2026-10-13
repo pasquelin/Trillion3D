@@ -1,11 +1,15 @@
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { PLAN_PIPELINE_MASK, PLAN_SHIFT, PLAN_VERTEX_CULL_BIT } from './planEntry.ts'
 import { INSTANCE_CULL_SHIFT } from './runs.ts'
-import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts'
+import { RUN_WORDS } from './planLayout.ts'
 import { expandUniformWgsl } from './expandUniform.ts'
 import { EXPAND_BINDING as B } from './expandBindings.ts'
 import { LANE_SCAN_WGSL, laneRunOffsets } from '../../gpu/core/laneScanWgsl.ts'
-import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
+import {
+  FLAT_INDEX_WGSL,
+  WORKGROUP_THREADS_WGSL,
+  WORKGROUP_THREADS,
+} from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
@@ -24,11 +28,11 @@ export const BLEND_EXPAND_ENTRIES = [
 ]
 
 export function blendExpandDispatch(out: number[], entries: number, runs: number) {
-  const groups = workgroupCount(entries, EXPAND_GROUP)
+  const groups = workgroupCount(entries, WORKGROUP_THREADS)
   out[0] = groups
   out[1] = 1
   out[2] = groups
-  out[3] = workgroupCount(runs, EXPAND_GROUP)
+  out[3] = workgroupCount(runs, WORKGROUP_THREADS)
   return out
 }
 
@@ -61,7 +65,6 @@ export const BLEND_EXPAND_SHADER = wgslProgram(
 @group(0) @binding(${B.scratch}) var<storage,read_write> scratch:array<u32>;
 @group(0) @binding(${B.expanded}) var<storage,read_write> expanded:array<vec2u>;
 @group(0) @binding(${B.args}) var<storage,read_write> args:array<u32>;
-const GROUP=${EXPAND_GROUP}u;
 fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
 fn kept(item:u32)->bool{return bitIsSet(keep[bitWord(item)],item);}
 /** What a plan entry expands: the clusters compaction kept for it, the chunks an unpaged
@@ -74,10 +77,10 @@ fn instancesOf(i:u32)->u32{
  return counts[d.x*4u+1u];
 }
 /** One thread group per entry packet: each counts ITS entry once, and the packet takes from that
- *  in one go each local place and its total (the shared lane scan: EXPAND_GROUP is 64). */
-@compute @workgroup_size(${EXPAND_GROUP})
+ *  in one go each local place and its total (the shared lane scan's width). */
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn countBlendGroups(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id,n,${EXPAND_GROUP}u);
+ let i=flatIndex(id,n,WORKGROUP_THREADS);
  let group=flatIndex(wid,n,1u);
  let k=lid.x;
  var mien=0u;
@@ -85,22 +88,22 @@ fn countBlendGroups(@builtin(global_invocation_id) id:vec3u,@builtin(local_invoc
  let inclusive=laneScan(k,mien);
  if(i<uni.entryCount){scratch[i]=inclusive-mien;}
  // A packet of the last row past the count has no total.
- if(k==GROUP-1u&&group<uni.groupCount){scratch[uni.entryCount+group]=inclusive;}
+ if(k==WORKGROUP_THREADS-1u&&group<uni.groupCount){scratch[uni.entryCount+group]=inclusive;}
 }
 /** Running sum over packets, at two levels: each thread takes a slice, the packet scans the
- *  sixty-four subtotals, then each thread puts its own back. */
-@compute @workgroup_size(${EXPAND_GROUP})
+ *  subtotals, then each thread puts its own back. */
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn scanBlendGroups(@builtin(local_invocation_id) lid:vec3u){
  let k=lid.x;
  let span=laneRun(k,uni.groupCount);
  ${laneRunOffsets('g', 'span', 'k', 'uni.instanceBase+', 'scratch[uni.entryCount+g]', 'scratch[uni.entryCount+g]=cursor')}
 }
 /** Absolute place of each entry, then its instances: the local place is already counted. */
-@compute @workgroup_size(${EXPAND_GROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id,n,${EXPAND_GROUP}u);
+ let i=flatIndex(id,n,WORKGROUP_THREADS);
  if(i>=uni.entryCount){return;}
- let at=scratch[uni.entryCount+i/GROUP]+scratch[i];
+ let at=scratch[uni.entryCount+i/WORKGROUP_THREADS]+scratch[i];
  scratch[i]=at;
  let held=instancesOf(i);
  if(held==0u){return;}
@@ -116,9 +119,9 @@ fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgr
  }
  for(var j=0u;j<held;j++){expanded[at+j]=vec2u(word,clusters[d.z+j]);}
 }
-@compute @workgroup_size(${EXPAND_GROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let r=flatIndex(id,n,${EXPAND_GROUP}u);
+ let r=flatIndex(id,n,WORKGROUP_THREADS);
  if(r>=uni.runCount){return;}
  let at=uni.runsBase+r*${RUN_WORDS}u;
  let first=plan[at];
@@ -145,5 +148,5 @@ fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  args[o+3u]=0u;
 }
 `,
-  [expandUniformWgsl(), LANE_SCAN_WGSL, FLAT_INDEX_WGSL, bitWord, bitIsSet],
+  [expandUniformWgsl(), LANE_SCAN_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, bitWord, bitIsSet],
 )

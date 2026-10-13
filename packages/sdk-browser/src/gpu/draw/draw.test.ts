@@ -80,9 +80,9 @@ test('overflow zeros instance counts in every indirect slot', () => {
 
 test('draw shader counts, prefixes and scatters page groups in parallel with stable order', () => {
   assert.doesNotMatch(DRAW_SHADER, /@compute @workgroup_size\(1\)/)
-  assert.match(DRAW_SHADER, /@compute @workgroup_size\(64\)\s*fn countGroups/)
-  assert.match(DRAW_SHADER, /@compute @workgroup_size\(64\)\s*fn scatterGroups/)
-  assert.match(DRAW_SHADER, /@compute @workgroup_size\(64\)\s*fn prefixGroups/)
+  assert.match(DRAW_SHADER, /@compute @workgroup_size\(WORKGROUP_THREADS\)\s*fn countGroups/)
+  assert.match(DRAW_SHADER, /@compute @workgroup_size\(WORKGROUP_THREADS\)\s*fn scatterGroups/)
+  assert.match(DRAW_SHADER, /@compute @workgroup_size\(WORKGROUP_THREADS\)\s*fn prefixGroups/)
   assert.match(DRAW_SHADER, /workgroupBarrier\(\);/)
   // The only atomics tally a group's slots in workgroup memory: no global counter decides where
   // an item lands, so the order stays that of the items.

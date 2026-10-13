@@ -4,7 +4,6 @@ import {
   FLAG_KEPT,
   FLAG_PREV_REST,
   FLAG_PROJECTED,
-  PARTITION_WORKGROUP,
   ROW_DATA_U32,
   ROW_FLAGS,
   ROW_NEAREST,
@@ -14,7 +13,7 @@ import {
   STATE_TALLY_WGSL,
 } from './contract.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { BOX_PROJECT_WGSL } from '../core/boxProjectWgsl.ts'
 import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
 
@@ -52,11 +51,11 @@ import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
  */
 export const PARTITION_PROJECT_WGSL = wgslBlock(
   'PARTITION_PROJECT_WGSL',
-  [STATE_TALLY_WGSL, FLAT_INDEX_WGSL, BOX_PROJECT_WGSL, HIZ_HIDDEN_WGSL],
+  [STATE_TALLY_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, BOX_PROJECT_WGSL, HIZ_HIDDEN_WGSL],
   `
-@compute @workgroup_size(${PARTITION_WORKGROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn projectRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
- let row=flatIndex(id,n,${PARTITION_WORKGROUP}u);
+ let row=flatIndex(id,n,WORKGROUP_THREADS);
  if(row<uni.rows){projectRow(row);}
  flushTally(lane);
 }

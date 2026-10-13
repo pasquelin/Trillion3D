@@ -49,9 +49,6 @@ export const FLAG_CLIP = 1,
  */
 export const TESTED_U32 = 12
 
-/** Threads of a per-row kernel workgroup. */
-export const PARTITION_WORKGROUP = 64
-
 /** Words of `state`: the frame counters, all atomic. */
 export const STATE_WORDS = 16
 

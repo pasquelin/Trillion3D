@@ -1,16 +1,14 @@
 // A DAG selection case laid out the way the engine's host uploads it: the buffers' contents and
 // sizes the selection kernel binds (`selectionKernel.ts`), each derived from the engine's own
 // layout functions, never restated.
+import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
 import type * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import type { sceneRoots } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
-import {
-  SELECTION_WORKGROUP,
-  cameraSelectionUniforms,
-} from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
+import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
@@ -98,7 +96,7 @@ function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: Sel
   // The open counts behind the readout's lists, as the engine lays them (`listCap.ts`).
   const held = { listCap, heldSlots, swap: { regions: 0 } }
   writeDagUniforms(views, packed, uniforms, listCap, undefined, undefined, heldOpenAt(held))
-  const blockCount = ceilDiv(Math.max(1, packed.pageCount), SELECTION_WORKGROUP),
+  const blockCount = ceilDiv(Math.max(1, packed.pageCount), WORKGROUP_THREADS),
     worldCount = Math.max(1, packed.worldCount)
   return {
     work: dagWorkLayout(blockCount),

@@ -2,6 +2,7 @@
 // the previous level filled, `dagWanted` over candidate pages only, and the kernels
 // that follow over the live-cluster list. This file holds the list each kernel walks;
 // `encode.test.ts` holds the number of commands a frame opens.
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeDagKernels } from './encode.ts'
@@ -26,7 +27,7 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   // before it filled: no level visits the whole hierarchy, nor every placement's.
   assert.deepEqual(dispatches.slice(2, 5), [
     { kernel: 'dagRootLevel', groups: 1 },
-    { kernel: 'dagLevel1', groups: ceilDiv(ETAGES[1], 64) },
+    { kernel: 'dagLevel1', groups: ceilDiv(ETAGES[1], WORKGROUP_THREADS) },
     { kernel: 'dagLevel2', groups: 'indirect', list: QUEUE + 2 },
   ])
   const ordre = dispatches.map((l) => l.kernel)

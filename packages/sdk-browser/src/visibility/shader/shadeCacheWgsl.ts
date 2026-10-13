@@ -6,7 +6,11 @@ import { bitMask, bitWord, byteOf } from '../../../../math/src/wgsl/integer.ts'
 import { InvT3, invTranspose3Prep } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { windingKept, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { VIS_MAX_PAGE_TRIANGLES, VIS_TRIANGLE_BITS } from '../visWords.ts'
-import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL } from '../../gpu/dispatch/grid.ts'
+import {
+  FLAT_INDEX_WGSL,
+  OPEN_SLICE_WGSL,
+  WORKGROUP_THREADS_WGSL,
+} from '../../gpu/dispatch/grid.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
 import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
 import { PIXEL_TRIANGLE_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
@@ -61,8 +65,6 @@ export const ROW_MARK_WORDS = 16
 export const TRIANGLE_WORDS = 42
 /** Triangles a visibility identifier addresses in a row: its low byte. */
 export const ROW_TRIANGLES = 256
-/** Rows a workgroup of the rows pass handles; the triangles pass's lanes per row. */
-export const SHADE_ROWS_LANES = 64
 /** The marks pass's tile side. */
 export const MARK_TILE = 8
 
@@ -179,8 +181,8 @@ fn markTriangle(rows:u32,row:u32,tri:u32,kind:u32){
 /** What the marks and rows passes count from zero — every row's marks, the slots' cursor and the
  *  end of the fitting ones, and the triangles pass's dispatch, x and y — zeroed by the frame's
  *  first dispatch, one lane per mark word. */
-@compute @workgroup_size(${SHADE_ROWS_LANES}) fn shade_clear(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(g,n,${SHADE_ROWS_LANES}u);
+@compute @workgroup_size(WORKGROUP_THREADS) fn shade_clear(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(g,n,WORKGROUP_THREADS);
  if(i<2u){atomicStore(&work[i],0u);}
  if(i==0u){atomicStore(&shadeCache[SHADE_CACHE_CURSOR],0u);atomicStore(&shadeCache[SHADE_CACHE_END],0u);}
  let rows=atomicLoad(&shadeCache[SHADE_CACHE_ROWS]);
@@ -207,8 +209,8 @@ var<workgroup> tileIds:array<u32,${MARK_TILE * MARK_TILE}>;
  * writes each slot's triangle in the slot's first word, raises the end of the fitting slots and
  * the triangles pass's dispatch.
  */
-@compute @workgroup_size(${SHADE_ROWS_LANES}) fn shade_rows(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let row=flatIndex(g,n,${SHADE_ROWS_LANES}u);
+@compute @workgroup_size(WORKGROUP_THREADS) fn shade_rows(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let row=flatIndex(g,n,WORKGROUP_THREADS);
  let rows=atomicLoad(&shadeCache[SHADE_CACHE_ROWS]);
  if(row>=rows){return;}
  let record=ROW_RECORDS+row*ROW_RECORD_WORDS;
@@ -236,9 +238,17 @@ var<workgroup> tileIds:array<u32,${MARK_TILE * MARK_TILE}>;
   }
  }
  atomicMax(&shadeCache[SHADE_CACHE_END],base+count);
- openSlice(0u,(base+count-1u)>>6u);
+ openSlice(0u,(base+count-1u)/WORKGROUP_THREADS);
 }`,
-  [PAGE_INFO_STRUCT_WGSL, FLAT_INDEX_WGSL, OPEN_SLICE_WGSL, ROW_FRAME_WGSL, bitWord, bitMask],
+  [
+    PAGE_INFO_STRUCT_WGSL,
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    OPEN_SLICE_WGSL,
+    ROW_FRAME_WGSL,
+    bitWord,
+    bitMask,
+  ],
 )
 
 /** The triangles pass, the page decoded by the resolve's own text. */
@@ -258,8 +268,8 @@ fn storeTriangle(at:u32,t:PixelTriangle){
  storeVec(at+39u,vec4f(t.iw,0.0),3u);
 }
 /** One lane per slot below the end of the fitting slots: the triangle its first word names. */
-@compute @workgroup_size(${SHADE_ROWS_LANES}) fn shade_tris(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let slot=flatIndex(g,n,${SHADE_ROWS_LANES}u);
+@compute @workgroup_size(WORKGROUP_THREADS) fn shade_tris(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let slot=flatIndex(g,n,WORKGROUP_THREADS);
  if(slot>=shadeCache[SHADE_CACHE_END]){return;}
  let at=cachedTriangles(shadeCache[SHADE_CACHE_ROWS])+slot*TRIANGLE_WORDS;
  let row=shadeCache[at]>>${VIS_TRIANGLE_BITS}u;let tri=shadeCache[at]&0xffu;
@@ -272,6 +282,7 @@ fn storeTriangle(at:u32,t:PixelTriangle){
     PAGE_INFO_STRUCT_WGSL,
     SHADE_UNI_WGSL,
     FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
     normalAtlasWgsl(6),
     PAGE_SCREEN_WGSL,
     PAGE_NORMAL_WGSL,

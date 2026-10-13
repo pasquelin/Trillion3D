@@ -40,7 +40,7 @@ import type { MatrixElements } from '../host/matrixElements.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { uniformStride } from '../residency/pools.ts'
-import { dispatchRows } from '../gpu/dispatch/grid.ts'
+import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import {
   composeMembersWgsl,
   COMPOSE_ROOTS_WGSL,
@@ -888,7 +888,7 @@ export function composedLeaves(rt: WebgpuPagesRuntime): ComposedLeaves {
         held.identity.entries[0] ??= memberEntries(device, gpu, r)
         composeGroup(device, held, pipeline)
         pass.setBindGroup(0, held.group!)
-        dispatchRows(pass, ceilDiv(listed, 64))
+        dispatchRows(pass, ceilDiv(listed, WORKGROUP_THREADS))
       }
       gpu.frame.ranges = NO_RANGES
       pass.end()
@@ -1040,7 +1040,7 @@ export function encodeComposedRoots(
   pass.setPipeline(pipeline)
   for (let r = 0; r < ranges.length; r++) {
     pass.setBindGroup(0, gpu.rootGroups[r].group!)
-    dispatchRows(pass, ceilDiv(listed, 64))
+    dispatchRows(pass, ceilDiv(listed, WORKGROUP_THREADS))
   }
   pass.end()
   rt.run.gpuComputeDispatches += ranges.length
@@ -1103,7 +1103,7 @@ export function encodeComposedRows(
   const pass = encoder.beginComputePass({ label: COMPOSE_ROWS_PASS })
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, held.group!)
-  dispatchRows(pass, ceilDiv(listed, 64))
+  dispatchRows(pass, ceilDiv(listed, WORKGROUP_THREADS))
   pass.end()
   rt.run.gpuComputeDispatches++
 }

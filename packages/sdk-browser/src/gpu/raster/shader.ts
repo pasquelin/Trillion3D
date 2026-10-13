@@ -8,7 +8,7 @@ import { SMALL_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { RASTER_TRI_WGSL } from './triWgsl.ts'
 import { RASTER_PIXEL_WGSL } from './pixelWgsl.ts'
 import { rasterKernels } from './kernelsWgsl.ts'
-import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 
@@ -56,6 +56,7 @@ ${rasterKernels(capacity)}`,
       worldMatrix3,
       FLAT_INDEX_WGSL,
       GROUP_GRID_WGSL,
+      WORKGROUP_THREADS_WGSL,
       ceilDiv,
     ],
   )

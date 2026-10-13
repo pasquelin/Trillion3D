@@ -10,10 +10,7 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { uniformSlots } from '../../residency/pools.ts'
 import { writeChangedSlots } from '../core/writeChanged.ts'
-import { dispatchRows } from '../dispatch/grid.ts'
-
-/** Threads of a workgroup of every refit kernel: a node each. */
-export const REFIT_LANES = 64
+import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 
 /** The parameters of `count` levels of `words` words each, in the buffer `params` a refit binds. */
 export function createRefitLevels(device: GPUDevice, label: string, count: number, words: number) {
@@ -47,7 +44,7 @@ export function createRefitLevels(device: GPUDevice, label: string, count: numbe
         const nodes = image[step * slots.strideWords + 1]
         if (!nodes) continue
         bind(pass, step)
-        dispatchRows(pass, ceilDiv(nodes, REFIT_LANES))
+        dispatchRows(pass, ceilDiv(nodes, WORKGROUP_THREADS))
       }
     },
     dispose() {

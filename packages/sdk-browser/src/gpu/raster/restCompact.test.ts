@@ -35,7 +35,10 @@ test('compaction scatters the survivors from a copy and only rewrites the instan
   assert.match(REST_COMPACT_SHADER, /work\[at\]=row;/)
   assert.match(REST_COMPACT_SHADER, /row=work\[start\+x\]/)
   assert.match(REST_COMPACT_SHADER, /instances\[start\+work\[tileWord\(n,t\)\]\+rank\]=row;/)
-  assert.match(REST_COMPACT_SHADER, /indirect\[restSlotAt\(n\)\*4u\+1u\]=laneSums\[63u\];/)
+  assert.match(
+    REST_COMPACT_SHADER,
+    /indirect\[restSlotAt\(n\)\*4u\+1u\]=laneSums\[WORKGROUP_THREADS-1u\];/,
+  )
   assert.doesNotMatch(REST_COMPACT_SHADER, /indirect\[[^\]]*\*4u\]=/)
 })
 

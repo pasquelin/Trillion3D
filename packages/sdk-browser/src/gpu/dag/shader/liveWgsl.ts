@@ -1,6 +1,6 @@
 import { WORK_BLOCK_WORDS } from './floorWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
+import { OPEN_SLICE_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 
 /**
  * The list of live clusters of a frame, and the dispatch argument that sizes it.
@@ -18,9 +18,9 @@ import { OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
  * a cluster whose `visible` was false — hence a cluster they did nothing with.
  *
  * The workgroup count is not pulled afterwards by a single-thread kernel: the append
- * that opens a sixty-four-wide slice — the one whose rank is a multiple of the group size —
+ * that opens a `WORKGROUP_THREADS`-wide slice — the one whose rank is a multiple of the group size —
  * raises the count itself (`openSlice`). It is therefore exactly
- * `ceil(live / 64)`, with no extra dispatch and without the fixed latency a single-thread
+ * `ceil(live / WORKGROUP_THREADS)`, with no extra dispatch and without the fixed latency a single-thread
  * dispatch pays anyway.
  *
  * The mask is the only one of them to write a draw flag; those it does not visit are
@@ -40,7 +40,7 @@ import { OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
  */
 export const DAG_LIVE_WGSL = wgslBlock(
   'DAG_LIVE_WGSL',
-  [OPEN_SLICE_WGSL],
+  [OPEN_SLICE_WGSL, WORKGROUP_THREADS_WGSL],
   `/** The live list behind the candidates, three words an entry: the page, its placement, the cone
  *  word \`dagWanted\` keeps for \`dagMask\` (\`coneWgsl.ts\`). */
 fn liveBase()->u32{return views[0u].queueCap+2u*views[0u].candCap;}
@@ -53,7 +53,7 @@ fn liveAppend(entry:u32,w:u32,cone:u32){
  let s=atomicAdd(&work[liveCounter()],1u);
  if(s>=views[0u].candCap){dropWork(LIST_DROPPED);return;}
  setFlag(liveBase()+3u*s,entry);setFlag(liveBase()+3u*s+1u,w);setFlag(liveBase()+3u*s+2u,cone);
- if((s&63u)==0u){openSlice(liveGroups(),s>>6u);}
+ if(s%WORKGROUP_THREADS==0u){openSlice(liveGroups(),s/WORKGROUP_THREADS);}
 }
 fn liveAt(s:u32)->u32{return flagAt(liveBase()+3u*s);}
 fn liveWorld(s:u32)->u32{return flagAt(liveBase()+3u*s+1u);}

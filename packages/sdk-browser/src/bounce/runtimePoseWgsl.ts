@@ -12,16 +12,13 @@ import {
   deformSkinFn,
   type DeformRecordSource,
 } from '../deformation/deformWgsl.ts'
-import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
-import { REFIT_LANES } from '../gpu/dag/treeRefitLevels.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { WIDE_CHILD_PACK_WGSL, wideNodeFns } from './nodeWgsl.ts'
 import { RUNTIME_PROXY_WGSL } from './runtimeLayout.ts'
 
 /** The pose's record reads: the deformation's float pool, bound as `pool` (`deformRecordFns`). */
 const POSE_RECORD: DeformRecordSource = { source: 'pool', prefix: 'pose' }
 
-/** Threads of a workgroup of the pose: a corner each, or a node (`REFIT_LANES`). */
-export const POSE_LANES = REFIT_LANES
 /** One pose's entry: the rest and the posed copy's first triangle and how many, the posed copy's first
  *  node and how many, the corner table's first word, and the record's first float in the pool plus one
  *  (zero: no record, the copy stays at rest). */
@@ -69,7 +66,6 @@ ${wgslConsts({
   POSE_NODE: POSE_ENTRY.node,
   POSE_CORNERS: POSE_ENTRY.corners,
   POSE_RECORD_WORD: POSE_ENTRY.record,
-  LANES: POSE_LANES,
   INFLUENCES: CORNER_INFLUENCES,
   TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
   CHILDREN: PROXY_CHILDREN,
@@ -101,7 +97,7 @@ fn posePoint(a:DeformAt,corner:u32,rest:vec3f)->vec3f{
  if(a.joints==0u){return v;}
  return poseSkin(corner,a.palette,a.joints,vec4f(v,1.0));
 }
-@compute @workgroup_size(LANES)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn poseCorners(@builtin(global_invocation_id) id:vec3u){
  if(id.y>=step.z){return;}
  let entry=id.y*POSE_WORDS;
@@ -134,9 +130,9 @@ fn poseChildBox(first:u32,triangle:u32,c:ProxyChild)->Box{
  }
  return Box(low,high);
 }
-@compute @workgroup_size(LANES)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn fitNodes(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(g,n,LANES);
+ let i=flatIndex(g,n,WORKGROUP_THREADS);
  if(i>=step.y){return;}
  let item=2u*(step.x+i);
  let entry=ids[item]*POSE_WORDS;
@@ -170,5 +166,12 @@ fn fitNodes(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:ve
   arena.words[at+1u]=packed.y;
  }
 }`,
-  [RUNTIME_PROXY_WGSL, DEFORM_AT_WGSL, WIDE_CHILD_PACK_WGSL, FLAT_INDEX_WGSL, FINITE_SENTINEL],
+  [
+    RUNTIME_PROXY_WGSL,
+    DEFORM_AT_WGSL,
+    WIDE_CHILD_PACK_WGSL,
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    FINITE_SENTINEL,
+  ],
 )

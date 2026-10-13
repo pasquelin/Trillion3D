@@ -1,5 +1,6 @@
+import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { workgroupCount, nextPow2, floorLog2 } from '../../../../math/src/scalar/integers.ts'
-import { ORDER_UNI, SLOT_GROUP, SORT_BLOCK } from './orderWgsl.ts'
+import { ORDER_UNI, SORT_BLOCK } from './orderWgsl.ts'
 
 const [BLOCKS, STEP, SLOTS] = [0, 1, 2]
 
@@ -62,7 +63,7 @@ export function planOrderSteps(pass: OrderPass, words: Uint32Array, first: numbe
     steps.push({
       entry,
       // The slot kernel runs one thread per own entry, one for the lone gap of a pass without.
-      groups: entry === SLOTS ? workgroupCount(pass.ownCount, SLOT_GROUP) : groups,
+      groups: entry === SLOTS ? workgroupCount(pass.ownCount, WORKGROUP_THREADS) : groups,
       uniform,
     })
   }

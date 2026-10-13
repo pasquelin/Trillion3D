@@ -22,7 +22,7 @@ import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts'
 import { DAG_EVICT_WGSL } from './evictWgsl.ts'
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts'
 import { DAG_HELD_OPEN_WGSL } from '../heldOpen.ts'
-import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { DAG_VIEWS_WGSL } from './viewsWgsl.ts'
 import { DAG_RECORD_WGSL } from './recordWgsl.ts'
@@ -81,9 +81,9 @@ fn stretchOf(world:u32)->f32{return frames[rowOf(world)*FRAME].x*views[vi].camer
  *  is its primitive, each range's dispatch takes its range's slots (\`rangeSlot\`). With one, the
  *  tree's top nodes and the world DAG's root alone (\`prepareTreeRoots\`): a member is its kept
  *  group's to prepare. The first range's dispatch resets the frame. */
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let head=rangeFirst()==0u;let i=flatIndex(id,n,64u);
+ let head=rangeFirst()==0u;let i=flatIndex(id,n,WORKGROUP_THREADS);
  if(head&&i==0u){
   atomicStore(&out.count,0u);atomicStore(&out.overflow,0u);atomicStore(&out.ahead,0u);out.aheadPlaced=0u;
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
@@ -99,12 +99,12 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
  // its gate closes it (\`opensRoot\`).
  openRoot(t,w);
 }
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lid:u32){
  // Totals are summed in the workgroup first (\`totalsWgsl.ts\`), so EVERY thread in the
  // group crosses both barriers: a thread with no cluster does not return early, it does nothing.
  ouvreTotaux(lid);
- let s=flatIndex(id,n,64u);
+ let s=flatIndex(id,n,WORKGROUP_THREADS);
  if(s<liveCount()){
   let entry=liveAt(s);let i=entryIndex(entry);let w=liveWorld(s);
   // A page of another range's primitive is that range's dispatch's (\`inRange\`).
@@ -123,7 +123,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
   noteImage(r,clusterFlags,draw);
   // Drawn count of this page's block, held here rather than reread later page by page; its bit is
   // the draw mask every reader takes (\`compactWgsl.ts\`).
-  if(draw){atomicAdd(&work[blockBase()+i/BLOCK],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(r);}
+  if(draw){atomicAdd(&work[blockBase()+i/WORKGROUP_THREADS],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(r);}
  }}
  verseTotaux(lid);
 }
@@ -154,6 +154,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
       DAG_FLOOR_WGSL,
       DAG_HELD_OPEN_WGSL,
       FLAT_INDEX_WGSL,
+      WORKGROUP_THREADS_WGSL,
       DAG_VIEWS_WGSL,
       DAG_RECORD_WGSL,
       DAG_AHEAD_WGSL,

@@ -23,12 +23,10 @@ import {
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
-import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 
-/** Thread group size of the instance load balancer. */
-export const VSM_INVALIDATION_GROUP_SIZE = 64
 /** Bytes per `VsmInvalidationInstance`. */
 export const VSM_INVALIDATION_INSTANCE_BYTES = 96
 /** Bytes of `VsmInvalidationParams`. */
@@ -79,7 +77,6 @@ struct VsmInvalidationItem{firstBox:u32,boxCount:u32,payload:u32,prefix:u32,}
 ${wgslConsts({
   VSM_BOX_CASTS,
   VSM_BOX_MOVING,
-  VSM_INVALIDATION_GROUP_SIZE,
 })}
 `
 
@@ -181,9 +178,9 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  }
 }
 /** The load-balanced entry point: one thread per (item, instance of the item), in rows. */
-@compute @workgroup_size(VSM_INVALIDATION_GROUP_SIZE)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn vsmStaleBoxes(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lidx:u32){
- let thread=flatIndex(wid,nwg,1u)*VSM_INVALIDATION_GROUP_SIZE+lidx;
+ let thread=flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lidx;
  if(thread>=vsmInv.boxCount||vsmInv.invItemCount==0u){return;}
  // Item of this thread: the last whose prefix is <= thread.
  var lo=0u;
@@ -223,6 +220,7 @@ export function vsmInvalidationWgsl(layout: VsmLayout) {
       VSM_PAGE_MARKS_GATHER_WGSL,
       VSM_BOX_CULL_WGSL,
       FLAT_INDEX_WGSL,
+      WORKGROUP_THREADS_WGSL,
       transformPoint,
     ],
   )

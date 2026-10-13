@@ -1,3 +1,4 @@
+import { WORKGROUP_THREADS_WGSL, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts'
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
@@ -15,9 +16,6 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** The proxy in the probe pass: its buffer, the world matrices mirrored in it. */
 const PROBE_PROXY = { group: 0, proxy: 1 } as const
-
-/** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
-const BOUNCE_WORKGROUP = 64
 
 /**
  * Queue entry `entry`, as both the update and the snapshot's follow-up read it: its level, its
@@ -76,7 +74,6 @@ export const BOUNCE_PROBE_SHADER = wgslProgram(
 @group(0) @binding(${BOUNCE_LIGHT_LIST_BINDING}) var<storage,read> tileLights:array<u32>;
 ${wgslConsts({
   RAYS_PER_PROBE: BOUNCE_SETTINGS.raysPerProbe,
-  WORKGROUP: BOUNCE_WORKGROUP,
 })}
 const BLEND_STABLE:f32=${BOUNCE_SETTINGS.blendStable};
 const BLEND_MOVING:f32=${BOUNCE_SETTINGS.blendMoving};
@@ -97,9 +94,9 @@ fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
 }
 /** Partial sums of a group: nine basis accumulators, four of distance, the travel and the rays that
  *  answered. */
-var<workgroup> partial:array<array<vec3f,${BOUNCE_WORKGROUP}>,13>;
-var<workgroup> partialTravelled:array<vec2f,${BOUNCE_WORKGROUP}>;
-@compute @workgroup_size(${BOUNCE_WORKGROUP})
+var<workgroup> partial:array<array<vec3f,WORKGROUP_THREADS>,13>;
+var<workgroup> partialTravelled:array<vec2f,WORKGROUP_THREADS>;
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
  if(group.x>=bounce.frame.y||bounce.counts.w==0u){return;}
  // The queue says, rank by rank, which probe of which level works: the scheduler filled
@@ -121,7 +118,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  var answered=0.0;
  // One thread per ray: a probe at sixty-four rays occupies a whole group, where a single
  // thread chained them one after another and left the GPU idle.
- for(var ray=lane;ray<RAYS_PER_PROBE;ray+=WORKGROUP){
+ for(var ray=lane;ray<RAYS_PER_PROBE;ray+=WORKGROUP_THREADS){
   let d=rayDirection(ray,jitter,rotation);
   let sample=rtProbeRay(origin,d,reach);
   // An exhausted ray carries zero weight: the estimate is renormalised over the rays that answered.
@@ -141,7 +138,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // round, and thread zero writes the probe.
  for(var k=0u;k<13u;k++){partial[k][lane]=sums[k];}
  partialTravelled[lane]=vec2f(travelled,answered);
- for(var stride=WORKGROUP/2u;stride>0u;stride>>=1u){
+ for(var stride=WORKGROUP_THREADS/2u;stride>0u;stride>>=1u){
   workgroupBarrier();
   if(lane<stride){
    for(var k=0u;k<13u;k++){partial[k][lane]+=partial[k][lane+stride];}
@@ -195,6 +192,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
     DIRECT_LIGHT_WGSL,
     BOUNCE_GRID_WGSL,
     QUEUED_PROBE_WGSL,
+    WORKGROUP_THREADS_WGSL,
     TWO_PI,
     GOLDEN_ANGLE,
     hashUnit,
@@ -216,7 +214,7 @@ export const BOUNCE_SNAPSHOT_SHADER = wgslProgram(
 @group(0) @binding(1) var<storage,read> probeQueue:array<u32>;
 @group(0) @binding(2) var probes:texture_2d_array<f32>;
 @group(0) @binding(3) var snapshotOut:texture_storage_2d_array<rgba32float,write>;
-@compute @workgroup_size(${BOUNCE_WORKGROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn followSnapshot(@builtin(global_invocation_id) id:vec3u){
  let entry=id.x/PROBE_VECTORS;
  if(entry>=bounce.frame.y||bounce.counts.w==0u){return;}
@@ -225,8 +223,9 @@ fn followSnapshot(@builtin(global_invocation_id) id:vec3u){
  let at=vec2u(queued.probe.x+id.x%PROBE_VECTORS,queued.probe.y);
  textureStore(snapshotOut,at,queued.probe.z,textureLoad(probes,at,queued.probe.z,0));
 }`,
-  [BOUNCE_GRID_HEAD_WGSL, QUEUED_PROBE_WGSL],
+  [BOUNCE_GRID_HEAD_WGSL, QUEUED_PROBE_WGSL, WORKGROUP_THREADS_WGSL],
 )
 
 /** Workgroups of the snapshot's follow-up for a queue of `entries` probes: a thread a texel. */
-export const snapshotGroups = (entries: number) => ceilDiv(entries * PROBE_TEXELS, BOUNCE_WORKGROUP)
+export const snapshotGroups = (entries: number) =>
+  ceilDiv(entries * PROBE_TEXELS, WORKGROUP_THREADS)

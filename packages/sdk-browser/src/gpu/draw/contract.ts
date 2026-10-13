@@ -44,8 +44,7 @@ export const CULL_BINS = 3
 export const HALF_SLOTS = 2 * CULL_BINS
 /** Slots of one coplanar layer: the occluder half, then the tested half. */
 export const BASE_SLOTS = 2 * HALF_SLOTS
-export const UNIFORM_BYTES = 32,
-  WORKGROUP = 64
+export const UNIFORM_BYTES = 32
 /**
  * u32 per draw record: the page-table row, its bin (face mode, plus `CULL_BINS` on a cutout
  * row), its page index in the selection

@@ -8,14 +8,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
-import { dispatchGrid } from '../../gpu/dispatch/grid.ts'
+import { dispatchGrid, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import {
   ROW_MARK_WORDS,
   ROW_RECORD_WORDS,
   SHADE_CACHE_HEADER_WORDS,
   SHADE_CACHE_ROWS_WORD,
   SHADE_CACHE_SHADER,
-  SHADE_ROWS_LANES,
   TRIANGLE_WORDS,
 } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -54,9 +53,9 @@ test('the first dispatch zeroes what the two clears zeroed, and nothing else', (
       ['shade_clear', 'flatIndex', 'rowMarks'],
       { ...wgslConstants(SHADE_CACHE_SHADER), ...m },
     )
-    const [nx, ny] = dispatchGrid(ceilDiv(rows * ROW_MARK_WORDS, SHADE_ROWS_LANES), span)
+    const [nx, ny] = dispatchGrid(ceilDiv(rows * ROW_MARK_WORDS, WORKGROUP_THREADS), span)
     for (let y = 0; y < ny; y++)
-      for (let x = 0; x < nx * SHADE_ROWS_LANES; x++) shade_clear([x, y, 0], [nx, ny, 1])
+      for (let x = 0; x < nx * WORKGROUP_THREADS; x++) shade_clear([x, y, 0], [nx, ny, 1])
     assert.deepEqual(m.shadeCache, expected, `${rows} rows`)
     assert.deepEqual(m.work, [0, 0, 1], `${rows} rows: x and y zeroed, one deep kept`)
   }

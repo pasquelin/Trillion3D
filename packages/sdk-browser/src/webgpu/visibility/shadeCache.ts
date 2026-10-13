@@ -1,5 +1,5 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { dispatchRows } from '../../gpu/dispatch/grid.ts'
+import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { CACHED, cachePasses } from './shadeCachePasses.ts'
 import { heldSwitch } from '../../host/heldSwitch.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
@@ -13,7 +13,6 @@ import {
   SHADE_CACHE_CAPACITY_WORD,
   SHADE_CACHE_HEADER_WORDS,
   SHADE_CACHE_ROWS_WORD,
-  SHADE_ROWS_LANES,
   TRIANGLE_WORDS,
 } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
@@ -152,11 +151,11 @@ function encodeShade(c: Cache, open: OpenPass, inputs: ShadeCacheInputs) {
   pass.setPipeline(passes.shade_clear)
   pass.setBindGroup(0, c.rowsGroup!)
   // The clear a lane per mark word, the rows a lane per row: in rows of the passes' width.
-  dispatchRows(pass, ceilDiv(rows * ROW_MARK_WORDS, SHADE_ROWS_LANES), 1, passes.span)
+  dispatchRows(pass, ceilDiv(rows * ROW_MARK_WORDS, WORKGROUP_THREADS), 1, passes.span)
   pass.setPipeline(passes.shade_marks)
   pass.dispatchWorkgroups(ceilDiv(c.width, MARK_TILE), ceilDiv(c.height, MARK_TILE))
   pass.setPipeline(passes.shade_rows)
-  dispatchRows(pass, ceilDiv(rows, SHADE_ROWS_LANES), 1, passes.span)
+  dispatchRows(pass, ceilDiv(rows, WORKGROUP_THREADS), 1, passes.span)
   pass.setPipeline(passes.shade_tris)
   pass.setBindGroup(0, c.trisGroup!)
   pass.dispatchWorkgroupsIndirect(passes.work, 0)

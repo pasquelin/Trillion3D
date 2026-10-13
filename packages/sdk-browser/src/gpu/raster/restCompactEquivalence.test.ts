@@ -1,8 +1,8 @@
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BASE_SLOTS, HALF_SLOTS } from '../draw/contract.ts'
 import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from '../partition/contract.ts'
-import { REST_COMPACT_WORKGROUP as TILE } from './restCompactWgsl.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
@@ -35,7 +35,7 @@ function truncate(f: Frame) {
   for (let n = 0; n < f.restSlots; n++) {
     const slot = restSlotAt(n)
     let last = 0
-    for (let x = 0; x < Math.min(f.indirect[slot * 4 + 1], f.tiles * TILE); x++)
+    for (let x = 0; x < Math.min(f.indirect[slot * 4 + 1], f.tiles * WORKGROUP_THREADS); x++)
       if (survives(f, f.instances[f.offsets[slot] + x])) last = x + 1
     f.indirect[slot * 4 + 1] = last
   }
@@ -50,10 +50,10 @@ function compact(f: Frame) {
   for (let n = 0; n < f.restSlots; n++)
     for (let t = 0; t < f.tiles; t++) {
       const slot = restSlotAt(n)
-      const count = Math.min(f.indirect[slot * 4 + 1], f.tiles * TILE)
+      const count = Math.min(f.indirect[slot * 4 + 1], f.tiles * WORKGROUP_THREADS)
       let kept = 0
-      for (let lane = 0; lane < TILE; lane++) {
-        const x = t * TILE + lane
+      for (let lane = 0; lane < WORKGROUP_THREADS; lane++) {
+        const x = t * WORKGROUP_THREADS + lane
         if (x >= count) continue
         const at = f.offsets[slot] + x
         work[at] = f.instances[at]
@@ -64,9 +64,9 @@ function compact(f: Frame) {
   // The scan owns each slot's count, read off the command before it rewrites it; over the lanes it
   // is a serial exclusive sum of the slot's tile counts, term for term.
   for (let n = 0; n < f.restSlots; n++) {
-    work[countWord(n)] = Math.min(f.indirect[restSlotAt(n) * 4 + 1], f.tiles * TILE)
+    work[countWord(n)] = Math.min(f.indirect[restSlotAt(n) * 4 + 1], f.tiles * WORKGROUP_THREADS)
     let cursor = 0
-    for (let t = 0; t < ceilDiv(work[countWord(n)], TILE); t++) {
+    for (let t = 0; t < ceilDiv(work[countWord(n)], WORKGROUP_THREADS); t++) {
       const kept = work[tileWord(n, t)]
       work[tileWord(n, t)] = cursor
       cursor += kept
@@ -78,8 +78,8 @@ function compact(f: Frame) {
     for (let t = f.tiles - 1; t >= 0; t--) {
       const start = f.offsets[restSlotAt(n)]
       let rank = 0
-      for (let lane = 0; lane < TILE; lane++) {
-        const x = t * TILE + lane
+      for (let lane = 0; lane < WORKGROUP_THREADS; lane++) {
+        const x = t * WORKGROUP_THREADS + lane
         if (x >= work[countWord(n)] || !survives(f, work[start + x])) continue
         f.instances[start + work[tileWord(n, t)] + rank++] = work[start + x]
       }
@@ -123,7 +123,10 @@ function frame(rand: () => number): Frame {
     hizFlags,
     restSlots: HALF_SLOTS * layers,
     // The dispatch covers the drawable rows, sometimes fewer than a slot holds.
-    tiles: ceilDiv(rand() < 0.2 ? 1 + Math.floor(rand() * 100) : Math.max(1, total), TILE),
+    tiles: ceilDiv(
+      rand() < 0.2 ? 1 + Math.floor(rand() * 100) : Math.max(1, total),
+      WORKGROUP_THREADS,
+    ),
   }
 }
 

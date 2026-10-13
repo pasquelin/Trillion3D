@@ -1,6 +1,6 @@
 import { KEPT_HEADER_WORDS } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 import { ceilDiv, highHalf, lowHalf } from '../../../../../math/src/wgsl/integer.ts'
 
 /** A region that names none: the swap kernels skip it (`../swap.ts`). */
@@ -26,7 +26,7 @@ export const swapRegionsWord = (save: number, back: number) => (save | (back << 
  */
 export const DAG_SWAP_WGSL = wgslBlock(
   'DAG_SWAP_WGSL',
-  [ceilDiv, lowHalf, highHalf, FLAT_INDEX_WGSL, GROUP_GRID_WGSL],
+  [ceilDiv, lowHalf, highHalf, FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL],
   `const REGION_NONE:u32=${REGION_NONE}u;
 /** Region \`v\` of \`out.pages\`: its journal's length, then its pages (\`savedJournalWord\`). */
 fn savedAt(v:u32)->u32{return keptAt(${KEPT_HEADER_WORDS}u+2u*views[0u].listCap+v*(1u+views[0u].listCap));}
@@ -34,9 +34,9 @@ fn savedAt(v:u32)->u32{return keptAt(${KEPT_HEADER_WORDS}u+2u*views[0u].listCap+
  *  — its length as counted, its first \`listCap\` pages —, and the length of the one it names second
  *  armed for \`dagRestoreJournal\`. On a swap, its pages' draw flags are zeroed: the only ones that
  *  can be one; no other is visited, and none is walked in full. */
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id,n,64u);let held=atomicLoad(&work[drawnCounter()]);
+ let s=flatIndex(id,n,WORKGROUP_THREADS);let held=atomicLoad(&work[drawnCounter()]);
  let save=lowHalf(views[0u].swapRegions);let back=highHalf(views[0u].swapRegions);let cap=views[0u].listCap;
  if(s==0u){
   if(save!=REGION_NONE){out.pages[savedAt(save)]=held;}
@@ -51,12 +51,12 @@ fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups
 /** The region \`swapRegions\` names second back as the drawn journal, its pages' draw flags set and its dispatch
  *  argument as its appends would leave it (\`openSlice\`): the next cut clears it as its own. The
  *  journal in place was cleared before (\`dagClearDrawn\`). */
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn dagRestoreJournal(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id,n,64u);let v=highHalf(views[0u].swapRegions);
+ let s=flatIndex(id,n,WORKGROUP_THREADS);let v=highHalf(views[0u].swapRegions);
  let count=min(out.pages[savedAt(v)],views[0u].listCap);
  if(s==0u){
-  let grid=select(vec2u(0u),groupGrid(ceilDiv(count,64u)),count>0u);
+  let grid=select(vec2u(0u),groupGrid(ceilDiv(count,WORKGROUP_THREADS)),count>0u);
   atomicStore(&work[drawnCounter()],count);
   atomicStore(&work[drawnGroups()],grid.x);
   atomicStore(&work[drawnGroups()+1u],grid.y);

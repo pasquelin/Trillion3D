@@ -1,6 +1,5 @@
-import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import type { DagResources } from './resources.ts'
-import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
+import { dispatchRows, groupWidth, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
 import { encodeDifference } from './encodeDifference.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
@@ -137,7 +136,7 @@ function encodeOnce(
   pass.setPipeline(commitPipeline)
   dispatchRows(
     pass,
-    Math.max(1, workgroupCount(2 * resources.blockCount, SELECTION_WORKGROUP)),
+    Math.max(1, workgroupCount(2 * resources.blockCount, WORKGROUP_THREADS)),
     1,
     width,
   )
@@ -205,7 +204,7 @@ function perRange(
       typeof threads === 'number' ? threads : threads(view, r),
       r ? 0 : firstFloor,
     )
-    dispatchRows(pass, workgroupCount(count, SELECTION_WORKGROUP), 1, width)
+    dispatchRows(pass, workgroupCount(count, WORKGROUP_THREADS), 1, width)
   }
 }
 

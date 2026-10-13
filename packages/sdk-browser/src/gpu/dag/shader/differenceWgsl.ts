@@ -3,11 +3,10 @@ import { ADMISSION_BUCKETS } from '../request.ts'
 import { KEPT_HEADER_WORDS } from '../layout.ts'
 import { KEPT_RANK_HEAD } from '../keptRanks.ts'
 import { OPEN_SLOT_WORDS } from '../heldOpen.ts'
-import { SELECTION_WORKGROUP } from '../../core/selection.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { mixWord } from '../../../../../math/src/wgsl/sampling.ts'
 import { halfLoadSlots } from '../../../../../math/src/wgsl/integer.ts'
-import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 
 /**
@@ -43,7 +42,7 @@ export const DIFFERENCE_STAGES = ['dagCutDifference0', 'dagCutDifference1'] as c
 
 export const DAG_DIFFERENCE_WGSL = wgslBlock(
   'DAG_DIFFERENCE_WGSL',
-  [FLAT_INDEX_WGSL, mixWord, halfLoadSlots, NO_INDEX],
+  [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, mixWord, halfLoadSlots, NO_INDEX],
   `/** Admission bucket \`b\`'s count of the camera's requests in \`out.pages\`, behind the eviction
  *  burst (\`levelCountsWord\`). */
 fn levelCountAt(b:u32)->u32{return 2u*views[0u].listCap+2u*HEAD+${EVICTION_BURST}u+b;}
@@ -113,24 +112,24 @@ ${[0, 1].map(listKernels).join('')}`,
  *  thread whatever the length (\`armList\`). */
 function listKernels(l: number) {
   return `/** List ${l}: each rank's page, its rank in the kept list; the next keep's generation named. */
-@compute @workgroup_size(${SELECTION_WORKGROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn ${DIFFERENCE_STAGES[l]}(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id,n,${SELECTION_WORKGROUP}u);
+ let s=flatIndex(id,n,WORKGROUP_THREADS);
  if(s==0u){atomicStore(&work[KEPT_NEXT],atomicLoad(&work[KEPT_GEN])+1u);}
  if(s<listCount(${l}u)){out.pages[fromAt(${l}u,s)]=keptRankOf(${l}u,listPage(${l}u,s));}
 }
 /** List ${l} of this snapshot becomes the kept one: its pages, the rank of each, its length. */
-@compute @workgroup_size(${SELECTION_WORKGROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn ${KEEP_STAGES[l]}(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id,n,${SELECTION_WORKGROUP}u);let gen=atomicLoad(&work[KEPT_NEXT]);
+ let s=flatIndex(id,n,WORKGROUP_THREADS);let gen=atomicLoad(&work[KEPT_NEXT]);
  if(s<listCount(${l}u)){let page=listPage(${l}u,s);out.pages[keptPage(${l}u,s)]=page;keepRank(page,s,gen);}
  if(s==0u){out.pages[keptAt(${l}u)]=listCount(${l}u);atomicStore(&work[KEPT_GEN],gen);}
 }
 /** Kept list ${l}, carried into a readout made again, ranked in its new, empty table
  *  (\`../listCap.ts\`). */
-@compute @workgroup_size(${SELECTION_WORKGROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn ${REKEEP_STAGES[l]}(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id,n,${SELECTION_WORKGROUP}u);
+ let s=flatIndex(id,n,WORKGROUP_THREADS);
  if(s<out.pages[keptAt(${l}u)]){keepRank(out.pages[keptPage(${l}u,s)],s,1u);}
  if(s==0u){atomicStore(&work[KEPT_GEN],1u);}
 }

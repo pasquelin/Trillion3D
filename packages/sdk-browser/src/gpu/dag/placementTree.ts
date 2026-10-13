@@ -32,11 +32,11 @@
  * refit on the GPU from then on (`treeRefit.ts`): what a pose, a park or a mark moved, over the
  * leaves a caller writes (`memberBox`, or a composition's own), bottom up.
  */
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { rowCell } from '../../partition/rowCells.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { boxTransform } from '../../../../sdk-core/src/index.ts'
-import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
 import { FINITE_SENTINEL, NO_INDEX } from '../../../../math/src/constants.ts'
@@ -55,7 +55,7 @@ import {
 } from './nodeLayout.ts'
 
 /** Placements a group bounds, and nodes of the level below a cell bounds: one workgroup's lanes. */
-export const TREE_SPAN = SELECTION_WORKGROUP
+export const TREE_SPAN = WORKGROUP_THREADS
 /** A node's kind (`NODE_KIND`): a cell, whose children are nodes of the level below; a group, whose
  *  children are placements. Zero is a placement's own node. */
 const TREE_CELL = 1

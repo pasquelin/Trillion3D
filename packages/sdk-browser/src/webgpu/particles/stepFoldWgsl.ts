@@ -1,17 +1,15 @@
+import { WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
-/** Slots one workgroup steps. */
-export const PARTICLE_WORKGROUP = 64
-
-/** The max of 64 lanes' pairs through a workgroup array, six halvings: every lane gets it. */
+/** The max of a workgroup's lanes' pairs through a workgroup array, halving: every lane gets it. */
 const LANES_FOLD_WGSL = wgslBlock(
   'LANES_FOLD_WGSL',
-  [],
+  [WORKGROUP_THREADS_WGSL],
   `
-var<workgroup> lanes: array<vec2u, ${PARTICLE_WORKGROUP}>;
+var<workgroup> lanes: array<vec2u, WORKGROUP_THREADS>;
 fn foldLanes(local: u32, span: vec2u) -> vec2u {
   lanes[local] = span;
-  for (var half = ${PARTICLE_WORKGROUP / 2}u; half > 0u; half >>= 1u) {
+  for (var half = (WORKGROUP_THREADS/2u); half > 0u; half >>= 1u) {
     workgroupBarrier();
     if (local < half) { lanes[local] = max(lanes[local], lanes[local + half]); }
   }

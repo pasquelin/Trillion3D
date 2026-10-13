@@ -3,6 +3,7 @@
 // workgroup's flush after all its lanes, as its barrier orders them, beside the same routines
 // counting by one `state` atomic per row: on a sampled frame `state` holds the same
 // words; on every frame the verdicts, rows, rest bits, slot counts and tested boxes are the same.
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -19,7 +20,6 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Fn = (...args: unknown[]) => unknown
 type Ref = { get: () => number; set: (value: number) => void }
-const LANES = C.PARTITION_WORKGROUP
 /** The members of a tested box, in the order the test reads its words (`struct Bounds`). */
 const BOUNDS = Object.keys(structZero(HIZ_SHADER)('Bounds') as object)
 /** `bitcast<u32>` of the kernels' `i32` rectangle words, or of a depth's `f32`. */
@@ -109,10 +109,11 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
   })
   /** `routine` over `count` threads, a workgroup at a time, its flush after all its lanes. */
   const each = (routine: Fn, count: number, flushTally: Fn | undefined) => {
-    for (let base = 0; base < count; base += LANES) {
+    for (let base = 0; base < count; base += WORKGROUP_THREADS) {
       m.tally.fill(0)
-      for (let lane = 0; lane < LANES && base + lane < count; lane++) routine(base + lane)
-      for (let lane = 0; lane < LANES && flushTally; lane++) flushTally(lane)
+      for (let lane = 0; lane < WORKGROUP_THREADS && base + lane < count; lane++)
+        routine(base + lane)
+      for (let lane = 0; lane < WORKGROUP_THREADS && flushTally; lane++) flushTally(lane)
     }
   }
   each(partition.projectRow, rows, partition.flushTally)

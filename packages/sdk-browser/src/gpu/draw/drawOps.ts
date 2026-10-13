@@ -1,11 +1,11 @@
-import { DRAW_ITEM_U32, WORKGROUP } from './contract.ts'
+import { DRAW_ITEM_U32 } from './contract.ts'
 import type { GpuDraw } from './contract.ts'
 import { createGpuDrawBuffers } from './buffers.ts'
 import { constructGpuResources } from '../core/errorScope.ts'
 import { pendingBuffers } from '../core/tableGrowth.ts'
 import { writeChanged } from '../core/writeChanged.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import { dispatchRows } from '../dispatch/grid.ts'
+import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { sequentialEntries } from '../core/computeBindings.ts'
 
 type Held = ReturnType<typeof createGpuDrawBuffers>
@@ -69,7 +69,7 @@ export function encodeDraw(
   // Only the groups the frame's items reach are counted and prefixed. The groups past them hold
   // zero by construction and nothing reads them, so bounding the serial prefix by the live count
   // is exact.
-  const liveGroups = workgroupCount(n, WORKGROUP)
+  const liveGroups = workgroupCount(n, WORKGROUP_THREADS)
   uniData[0] = count
   uniData[1] = d.corners
   uniData[2] = d.slotCap

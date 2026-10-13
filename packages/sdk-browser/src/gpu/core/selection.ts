@@ -20,8 +20,6 @@ import type { ProxyBoxes } from '../../bounce/probeSync.ts'
  *  view's — (`../dag/runtime.ts`, `syncTables`). */
 export type TableSync = (uniforms: SelectionUniforms, view: object) => void
 
-export const SELECTION_WORKGROUP = 64
-
 /**
  * `cameraStretch` is the camera half of the cut's object-to-view stretch, `perspective` the
  * projection's clip-w weight (`EngineCamera.perspective`), 1 when absent. `view` and `planes` are
