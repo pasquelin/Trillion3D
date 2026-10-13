@@ -1,5 +1,4 @@
-import { controlSettingAccessors, type ControlSettings } from './worldControlsAccessors.ts'
-import type { CharacterSettings } from './worldCharacterAccessors.ts'
+import { controlSettingAccessors } from './worldControlsAccessors.ts'
 import { CONTROL_SETTINGS, type ControlSetting } from './worldControlsSettings.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -171,7 +170,7 @@ test('`world.controls` as a character stands where it was put until the physics 
 })
 
 test('every kept control setting has its documented accessor, and every accessor its setting', () => {
-  type Documented = keyof (ControlSettings & CharacterSettings)
+  type Documented = keyof ReturnType<typeof controlSettingAccessors>
   const same: [ControlSetting] extends [Documented]
     ? [Documented] extends [ControlSetting]
       ? true

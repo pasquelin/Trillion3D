@@ -48,7 +48,7 @@ export function tileRegion(levelWidth: number, levelHeight: number, tx: number, 
 export const cellOrigin = (place: TilePlace) =>
   [place.x * TILE_PITCH, place.y * TILE_PITCH] as const
 /** Origin of the `rank`-th queue level in its cell, border included. */
-export const tailOrigin = (place: TilePlace, rank: number): GPUOrigin3D => [
+const tailOrigin = (place: TilePlace, rank: number): GPUOrigin3D => [
   place.x * TILE_PITCH + TILE_BORDER + tailOffset(rank),
   place.y * TILE_PITCH + TILE_BORDER,
   place.layer,

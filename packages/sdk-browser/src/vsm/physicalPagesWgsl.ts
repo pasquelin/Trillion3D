@@ -78,7 +78,7 @@ export interface VsmPmKernel {
  * Assembles a module: the group-0 bindings of `specs`, params, optional per-page setup, optional
  * stats, then `body`, which lists the declarations its text uses.
  */
-export function vsmPmModule(
+function vsmPmModule(
   layout: VsmLayout,
   specs: VsmBindingSpec[],
   body: WgslDecl,

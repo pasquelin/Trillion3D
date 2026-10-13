@@ -2,7 +2,8 @@ import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { worldControls, type WorldControls } from './worldCamera.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { CONTROL_SETTINGS, type ControlSetting, type Controller } from './worldControlsSettings.ts'
-import { controlSettingAccessors } from './worldControlsAccessors.ts'
+import { controlSettingAccessors, type ControlSettings } from './worldControlsAccessors.ts'
+import type { CharacterSettings } from './worldCharacterAccessors.ts'
 import { controlTargets, noVehicle, type CharacterSource } from './worldControlTargets.ts'
 
 /**
@@ -149,6 +150,6 @@ export function worldControlsHandle(
     ...Object.getOwnPropertyDescriptors(controlSettingAccessors(settings, setting)),
     ...Object.getOwnPropertyDescriptors(targets.accessors),
   }
-  type Kept = ReturnType<typeof controlSettingAccessors> & typeof targets.accessors
+  type Kept = ControlSettings & CharacterSettings & typeof targets.accessors
   return Object.defineProperties(handle, kept) as typeof handle & Kept
 }
