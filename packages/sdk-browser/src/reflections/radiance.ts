@@ -229,8 +229,8 @@ export const radianceLevels = (width: number, height: number) => {
 /** What a view's radiance pyramid holds: whether it holds an image of this view, the
  *  view-projection and drawn size that image was drawn with — the next image reprojects its hits
  *  with them —, whether the image before it was drawn with the same view-projection and size: an
- *  image traced on it reads the view it is drawn from (`reflectionsSettled`) —, and so whether its
- *  build hashed it (`still`). */
+ *  image traced on it reads the view it is drawn from (`reflectionsSettled`) — (`still`); its build
+ *  hashed it then, unless the view was settled (`RadiancePyramid.hashed`). */
 export type HeldImage = {
   valid: boolean
   viewProjection: Float64Array
