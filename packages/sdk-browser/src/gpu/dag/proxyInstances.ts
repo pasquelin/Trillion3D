@@ -480,8 +480,19 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       const cut = proxy?.primitive.runtimeProxy
       const placed = cut && place(cut)
       const shown = !!placed && !copy.hidden && !rowParked(copy.placement)
+      // A copy of a deforming mesh stands at its own posed copy, as a placement does.
+      const posedAs =
+        shown && cut.deform && placed.corner !== undefined
+          ? posedCopy(slots + k, cut, placed)
+          : undefined
+      if (!posedAs) dropPosed(slots + k)
       const next = shown
-        ? [placed.node, placed.triangle, surfaceSlot(proxy.surface, tintOf(cut)), 0]
+        ? [
+            posedAs?.node ?? placed.node,
+            posedAs?.triangle ?? placed.triangle,
+            surfaceSlot(proxy.surface, tintOf(cut)),
+            0,
+          ]
         : [RUNTIME_NONE, 0, 0, 0]
       for (let j = 0; j < INSTANCE_WORDS; j++)
         if (words[at + j] !== next[j]) {
@@ -611,7 +622,9 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       let due = host.revision !== posedRevision
       const entries: PoseEntry[] = []
       for (const [w, copy] of posed) {
-        const root = packed.worldSources[w] as DagRoot
+        // A placement's record is found by its root's world, a blended copy's by its matrix.
+        const world =
+          w < slots ? (packed.worldSources[w] as DagRoot).world : copies[w - slots]?.matrix
         due ||= copy.fresh
         entries.push({
           cut: copy.cut,
@@ -619,7 +632,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
           posedTriangle: copy.triangle,
           posedNode: copy.node,
           corners: RUNTIME_HEADER_WORDS + layout.deform + copy.placed.corner!,
-          record: host.recordOf(root.world),
+          record: world ? host.recordOf(world) : 0,
         })
       }
       if (!due || !pose.run(encoder, buffer, host.pool, entries)) return
@@ -650,6 +663,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       if (next.length !== copyCount) {
         const kept = words.subarray(0, slots * INSTANCE_WORDS)
         copies = next
+        for (const w of [...posed.keys()]) if (w >= slots + next.length) dropPosed(w)
         words = new Uint32Array((slots + copies.length) * INSTANCE_WORDS).fill(RUNTIME_NONE)
         words.set(kept)
         copyWorlds = new Float32Array(copies.length * WORLD_WORDS)

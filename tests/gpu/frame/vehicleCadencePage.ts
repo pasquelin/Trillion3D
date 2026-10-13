@@ -39,7 +39,15 @@ export type CadenceFrame = {
   answer: number
 }
 
-export type CadenceReading = { frames: CadenceFrame[]; refreshes: number; speed: number }
+/** What the page reads: the frames drawn, the refreshes played, the car's last speed, and
+ *  whether the world's device was granted GPU timestamps (`timestamp-query`), which the engine's
+ *  timer, and the cadence with it, read the GPU time by. */
+export type CadenceReading = {
+  frames: CadenceFrame[]
+  refreshes: number
+  speed: number
+  timestampQuery: boolean
+}
 
 /** The terrain's height at `x, z`: gentle rolls a car drives over. */
 const height = (x: number, z: number) => 0.4 * Math.sin(x / 13) * Math.sin(z / 17)
@@ -152,6 +160,7 @@ export function run({ seconds, pixelRatio }: { seconds: number; pixelRatio: numb
       result.frames = frames
       result.refreshes = refreshes
       result.speed = car.speed
+      result.timestampQuery = !!caught.device?.features.has('timestamp-query')
     } finally {
       world.dispose()
       display.restore()
