@@ -15,6 +15,7 @@ import {
   type FakePass,
   type PassCommands,
 } from './fakeRenderPass.ts'
+import { copyTexels } from './fakeResources.ts'
 
 /** What the encoders of one device record, in the order they were encoded. */
 export type EncoderRecords = {
@@ -168,6 +169,7 @@ export function createFakeCommandEncoderFactory(
       ) {
         commands.push('copy')
         textureCopies.push({ from, to, size })
+        act(() => copyTexels(from, to, size))
       },
       resolveQuerySet(
         querySet: GPUQuerySet,

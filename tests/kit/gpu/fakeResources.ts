@@ -58,6 +58,39 @@ export function writeTexels(
     }
 }
 
+/** An origin, a dictionary or a sequence, as three numbers. */
+function originOf(o: GPUOrigin3D = []) {
+  if (Array.isArray(o)) return [o[0] ?? 0, o[1] ?? 0, o[2] ?? 0]
+  const d = o as GPUOrigin3DDict
+  return [d.x ?? 0, d.y ?? 0, d.z ?? 0]
+}
+
+/** The words of `size` texels copied from one 32-bit integer texture into another, as
+ *  `copyTextureToTexture` moves them: a record table's growth (`recordTexture.ts`). A source no
+ *  write reached holds zeros; another format keeps none. */
+export function copyTexels(
+  from: GPUTexelCopyTextureInfo,
+  to: GPUTexelCopyTextureInfo,
+  size: GPUExtent3D,
+) {
+  const source = from.texture as unknown as FakeTexture,
+    target = to.texture as unknown as FakeTexture,
+    channels = WORD_TEXELS[target.format]
+  if (!channels || !source.words) return
+  target.words ??= new Uint32Array(
+    target.width * target.height * target.depthOrArrayLayers * channels,
+  )
+  const [sx, sy, sz] = originOf(from.origin),
+    [tx, ty, tz] = originOf(to.origin),
+    [width, rows, layers] = textureExtent(size)
+  for (let layer = 0; layer < layers; layer++)
+    for (let row = 0; row < rows; row++) {
+      const at = (((sz + layer) * source.height + sy + row) * source.width + sx) * channels,
+        into = (((tz + layer) * target.height + ty + row) * target.width + tx) * channels
+      target.words.set(source.words.subarray(at, at + width * channels), into)
+    }
+}
+
 /** A texture as the device makes it: its descriptor, its size read out — a `GPUExtent3D`, as a
  *  dictionary or a sequence —, the views made of it, each naming it (`texture`, not enumerated). */
 export function texture(descriptor: GPUTextureDescriptor, destroyed: Array<{ label?: string }>) {

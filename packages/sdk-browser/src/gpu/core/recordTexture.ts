@@ -1,5 +1,6 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { arrayView } from './textureViews.ts'
+import { retire } from './frameRetire.ts'
 
 /**
  * THE RECORD TEXTURES: the engine's one home for a table of records that grows with the world — the
@@ -83,13 +84,22 @@ function texelPieces(layout: RecordLayout, field: string, first: number, count: 
   return pieces
 }
 
+/** The records an extent of `layout` holds (`recordExtent`): its rows' whole. */
+const heldRecords = (layout: RecordLayout, [, rows, layers]: [number, number, number]) =>
+  (layers === 1 ? rows : layers << layout.layerShift) << layout.rowShift
+
 /**
  * A record table made on `device` for `records` records: its texture and the view every pass binds
  * (`2d-array`, whatever its layers), and the writes of the host — a run of records' field from the
  * bytes that hold it, or through a byte target (`target`), what the cut's run writer sends
  * (`../dag/split.ts`, `writeRanges`). `usage` is the texture's, the caller's: a GPU writer adds
- * `STORAGE_BINDING`. `make` creates it, `bytes` large: an owner's admission and ledger
- * (`../dag/resources.ts`).
+ * `STORAGE_BINDING`, a table that grows (`hold`) `COPY_SRC`. `make` creates it, `bytes` large: an
+ * owner's admission and ledger (`../dag/resources.ts`).
+ *
+ * A table grows in place of a second one beside it (`hold`): made larger, the records it held
+ * copied on the GPU once, in the queue's order behind every write sent to it, the one replaced
+ * retired after the frame that may name it (`retire`). Its texture and view are then new: every
+ * group that binds it follows the view's identity (`createWebgpuBindIdentity`).
  */
 export function createRecordTexture(
   device: GPUDevice,
@@ -99,10 +109,15 @@ export function createRecordTexture(
   make: (descriptor: GPUTextureDescriptor, bytes: number) => GPUTexture = (descriptor) =>
     device.createTexture(descriptor),
 ) {
-  const size = recordExtent(layout, records),
-    bytes = texelBytes(layout.format),
-    held = size[0] * size[1] * size[2] * bytes
-  const texture = make({ label: layout.label, size, format: layout.format, usage }, held)
+  const bytes = texelBytes(layout.format)
+  /** The texture of `count` records, made by `make`. */
+  const made = (count: number) => {
+    const size = recordExtent(layout, count),
+      held = size[0] * size[1] * size[2] * bytes
+    const texture = make({ label: layout.label, size, format: layout.format, usage }, held)
+    return { texture, size, held, view: arrayView(texture), capacity: heldRecords(layout, size) }
+  }
+  let table = made(records)
   /** Texels `[first, first + count)` of field `field` (`texelPieces`), `data` holding them from
    *  `dataOffset` bytes, one after the other. */
   const writeTexels = (
@@ -115,7 +130,7 @@ export function createRecordTexture(
     const rowBytes = (layout.fields[field] << layout.rowShift) * bytes
     for (const piece of texelPieces(layout, field, first, count))
       device.queue.writeTexture(
-        { texture, origin: [piece.x, piece.y, piece.layer] },
+        { texture: table.texture, origin: [piece.x, piece.y, piece.layer] },
         data,
         { offset: dataOffset + (piece.first - first) * bytes, bytesPerRow: rowBytes },
         [piece.width, piece.rows, 1],
@@ -134,10 +149,20 @@ export function createRecordTexture(
     writeTexels(field, first * texels, count * texels, data, dataOffset)
   }
   return {
-    texture,
-    view: arrayView(texture),
+    get texture() {
+      return table.texture
+    },
+    get view() {
+      return table.view
+    },
     /** Bytes the texture holds. */
-    bytes: held,
+    get bytes() {
+      return table.held
+    },
+    /** The records it holds: at least as many as asked, its last row's whole. */
+    get capacity() {
+      return table.capacity
+    },
     write,
     writeTexels,
     /** Field `field` as a byte target: `size` bytes of `data` from `dataOffset`, at byte `offset` of
@@ -146,7 +171,27 @@ export function createRecordTexture(
       return (offset: number, data: ArrayBuffer, dataOffset: number, size: number) =>
         writeTexels(field, offset / bytes, size / bytes, data, dataOffset)
     },
-    destroy: () => texture.destroy(),
+    /**
+     * A table that holds `wanted` records: this one, or one made larger — twice the last at
+     * least, so a growth costs a constant a record —, its records copied once on the GPU in the
+     * queue's order, the texture replaced retired (`retire`). Whether it holds them: a growth its
+     * maker refuses keeps the table it had.
+     */
+    hold(wanted: number) {
+      if (wanted <= table.capacity) return true
+      const old = table
+      try {
+        table = made(Math.max(wanted, 2 * old.capacity))
+      } catch {
+        return false
+      }
+      const encoder = device.createCommandEncoder({ label: `${layout.label} growth` })
+      encoder.copyTextureToTexture({ texture: old.texture }, { texture: table.texture }, old.size)
+      device.queue.submit([encoder.finish()])
+      retire(device, old.texture)
+      return true
+    },
+    destroy: () => table.texture.destroy(),
   }
 }
 export type RecordTexture = ReturnType<typeof createRecordTexture>
