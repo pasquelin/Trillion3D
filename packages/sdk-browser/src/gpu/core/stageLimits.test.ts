@@ -1,9 +1,8 @@
-// Every lighting program of the opaque resolve, the blends and the water pass binds no more of a
-// kind in one stage than the session's device holds: the counts it asks of the adapter
-// (`WEBGPU_REQUIRED_LIMITS`), WebGPU's defaults for the others. The kit's device, holding the
-// defaults, refuses a pipeline layout past them (`tests/kit/gpu/limitRules.ts`), and every layout
-// binds within the sampled textures the device asks for — WebGPU's guaranteed 16 —: a device with
-// the defaults draws every program.
+// Every program of the opaque resolve, the blends, the water pass, the reflections and the depth
+// pyramid binds no more of a kind in one stage than WebGPU guarantees a device that asks for
+// nothing: 16 sampled textures, 8 storage buffers, 4 storage textures — the engine runs on any
+// machine at the default limits. The kit's device, holding the defaults, refuses a pipeline layout
+// past them (`tests/kit/gpu/limitRules.ts`); each test reads every stage it built too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -17,29 +16,37 @@ import { createDeferredPlaceholders } from '../../lighting/deferred/setup.ts'
 import { createDeferredView } from '../../lighting/deferred/view.ts'
 import { createWebgpuBlendPipelines } from '../../webgpu/blend/pipelines.ts'
 import type { BlendGpuItem } from '../../webgpu/blend/state.ts'
+import { createReflectionPipelines } from '../../reflections/gpu.ts'
+import { createHizPipelines } from '../hiz/pipelines.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { stageBindingCounts } from '../../../../../tests/kit/gpu/bindRules.ts'
 import { BLEND_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { WATER_BINDINGS } from '../../webgpu/water/compositeWgsl.ts'
 
-/** The most bindings of `limit`'s kind one stage of these layouts binds; `stage`, in it alone. */
-const widest = (layouts: GPUPipelineLayoutDescriptor[], limit: string, stage = '') =>
-  Math.max(
-    0,
-    ...layouts.flatMap((layout) =>
-      stageBindingCounts(layout)
-        .filter((counted) => counted.limit === limit && counted.kind.endsWith(stage))
-        .map(({ count }) => count),
-    ),
+/** What WebGPU guarantees each stage of a device that asks for no more, by limit. */
+const WEBGPU_DEFAULTS: Readonly<Record<string, number>> = {
+  maxSampledTexturesPerShaderStage: 16,
+  maxStorageBuffersPerShaderStage: 8,
+  maxStorageTexturesPerShaderStage: 4,
+}
+
+/** Every stage of every layout of `layouts` within WebGPU's defaults, each kind; `where` names
+ *  the programs. */
+function withinDefaults(layouts: GPUPipelineLayoutDescriptor[], where: string) {
+  assert.ok(layouts.length > 0, `${where}: built`)
+  for (const layout of layouts)
+    for (const { limit, kind, count } of stageBindingCounts(layout)) {
+      const max = WEBGPU_DEFAULTS[limit]
+      if (max !== undefined) assert.ok(count <= max, `${where}: ${count} ${kind}, past ${max}`)
+    }
+}
+
+test('the engine asks no more sampled textures a stage than WebGPU guarantees', () => {
+  assert.equal(
+    WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage,
+    WEBGPU_DEFAULTS.maxSampledTexturesPerShaderStage,
   )
-/** The most sampled textures one stage of these layouts binds. */
-const widestSampled = (layouts: GPUPipelineLayoutDescriptor[]) =>
-  widest(layouts, 'maxSampledTexturesPerShaderStage')
-/** WebGPU's guaranteed storage textures a stage: what the device gets from an adapter that offers
- *  no more, which the engine asks for all it offers (`WEBGPU_REQUIRED_LIMITS`). */
-const GUARANTEED_STORAGE_TEXTURES = 4
-/** WebGPU's guaranteed storage buffers a stage, asked likewise. */
-const GUARANTEED_STORAGE_BUFFERS = 8
+})
 
 /** Every key a frame can ask the opaque resolve for: both list widths, each set of cuts. */
 const KEYS: ContractKey[] = [false, true].flatMap((narrow) =>
@@ -53,7 +60,7 @@ const KEYS: ContractKey[] = [false, true].flatMap((narrow) =>
   })),
 )
 
-test("every opaque resolve program fits the device's per-stage limits", async () => {
+test("every opaque resolve program fits WebGPU's default limits", async () => {
   const { device, pipelineLayouts: layouts } = fakeDevice()
   const failures: unknown[] = []
   const onFailure = (error: unknown) => void failures.push(error)
@@ -65,15 +72,8 @@ test("every opaque resolve program fits the device's per-stage limits", async ()
   const variants = createContractVariants(device, bindings, undefined, { onFailure })
   for (const bounce of [false, true]) for (const key of KEYS) await variants.precompile(bounce, key)
   assert.deepEqual(failures, [])
-  assert.ok(
-    widestSampled(layouts) <= WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage,
-    'the device holds the sampled textures the widest program binds',
-  )
-  // Its targets read by load alone are read-only storage textures (`deferredLayoutEntries`): within
-  // the guaranteed four of a fragment stage.
-  assert.ok(
-    widest(layouts, 'maxStorageTexturesPerShaderStage', 'Fragment') <= GUARANTEED_STORAGE_TEXTURES,
-  )
+  // Its targets read by load alone are read-only storage textures (`deferredLayoutEntries`).
+  withinDefaults(layouts, 'the opaque resolve')
   variants.release()
   unlit.dispose()
 })
@@ -92,7 +92,7 @@ const bindsRecords = (layouts: GPUBindGroupLayoutDescriptor[], binding: number) 
     ),
   )
 
-test("the blends and the water pass fit the device's per-stage limits", async () => {
+test("the blends and the water pass fit WebGPU's default limits", async () => {
   const { device, pipelineLayouts: layouts, bindGroupLayouts } = fakeDevice()
   const failures: unknown[] = []
   // One item per blending mode, every display route among them, and one that transmits: every
@@ -119,10 +119,9 @@ test("the blends and the water pass fit the device's per-stage limits", async ()
     assert.ok(built.water, 'the water pass is built')
   }
   assert.deepEqual(failures, [])
-  assert.ok(layouts.length > 0)
   // Both trace the proxy through its instances and the culling's worlds and tree, read in place: a
-  // sampled texture each, which the counts below hold, the eight storage buffers of their fragment stage left as
-  // they were.
+  // sampled texture each, within the sixteen of their fragment stage once the reflection group binds
+  // the radiance pyramid and level 0 as one texture each; the eight storage buffers left as they were.
   for (const [name, bindings] of [
     ['blends', BLEND_BINDINGS],
     ['water', WATER_BINDINGS],
@@ -134,12 +133,15 @@ test("the blends and the water pass fit the device's per-stage limits", async ()
       `the ${name} bind the instances`,
     )
   }
-  assert.ok(widestSampled(layouts) <= WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage)
-  // Their storage bindings within the guaranteed ones of a fragment stage: the water composite's
-  // lobes target, read by load alone, is a read-only storage texture (`../../webgpu/water/`).
-  for (const [limit, guaranteed] of [
-    ['maxStorageBuffersPerShaderStage', GUARANTEED_STORAGE_BUFFERS],
-    ['maxStorageTexturesPerShaderStage', GUARANTEED_STORAGE_TEXTURES],
-  ] as const)
-    assert.ok(widest(layouts, limit, 'Fragment') <= guaranteed, limit)
+  // The water composite's lobes target, read by load alone, is a read-only storage texture.
+  withinDefaults(layouts, 'the blends and the water pass')
+})
+
+test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", async () => {
+  const { device, pipelineLayouts: layouts } = fakeDevice()
+  // The trace binds the reflection group (`reflectionLayout`) beside its own: the radiance
+  // pyramid one texture, level 0 its opaque and front depths in one (`hizDepthEntries`).
+  assert.ok(await createReflectionPipelines(device), 'the reflection kernels build')
+  assert.ok(await createHizPipelines(device), 'the depth pyramid kernels build')
+  withinDefaults(layouts, 'the reflections and the depth pyramid')
 })
