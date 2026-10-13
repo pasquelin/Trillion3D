@@ -20,7 +20,6 @@ export const TABLES = [
   'nodes',
   'pageCones',
   'worlds',
-  'worldStretch',
   'rootNodes',
   'rootBases',
   'mark',
