@@ -121,7 +121,11 @@ export type {
 } from '../../sdk-core/src/physics/jointOptions.ts'
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts'
 export type { PageHome, PageHomes } from '../../sdk-browser/src/gpu/page/homes.ts'
-export type { PageSurface, SurfaceFamily } from '../../sdk-browser/src/page/surface.ts'
+export type {
+  PageSurface,
+  SurfaceFacts,
+  SurfaceFamily,
+} from '../../sdk-browser/src/page/surface.ts'
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts'
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts'
 export type { PathRun } from '../../sdk-browser/src/camera/path.ts'
@@ -131,6 +135,7 @@ export type { PlacementLink } from '../../sdk-browser/src/placement/gpuCompose.t
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts'
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts'
 export type { RangeAsk, ReadRange } from '../../sdk-browser/src/cluster/ranged.ts'
+export { Releasable } from '../../sdk-browser/src/host/graph/resource.ts'
 export type { RenderScale } from '../../sdk-browser/src/frame/renderScaleOption.ts'
 export type { ResidentPage } from '../../sdk-browser/src/gpu/page/types.ts'
 export {
@@ -166,6 +171,7 @@ export type {
 } from '../../sdk-core/src/physics/vehicle.ts'
 export { VEHICLE_SPECS } from '../../sdk-core/src/physics/vehicleSpec.ts'
 export type { VehicleSpec, VehicleSpecs } from '../../sdk-core/src/physics/vehicleSpec.ts'
+export type { VisMaterial } from '../../sdk-browser/src/visibility/materialType.ts'
 export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts'
 export { WaterSurface } from '../../sdk-core/src/fluids/waterSurface.ts'
 export { Waves } from '../../sdk-core/src/fluids/waves.ts'

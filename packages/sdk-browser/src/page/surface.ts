@@ -27,7 +27,7 @@ export type SurfaceFamily =
   'basic' | 'standard' | 'physical' | 'lambert' | 'phong' | 'toon' | 'normal' | 'matcap' | 'depth'
 
 /** The raster facts declared beside the shaded fields, and what a family keeps as declared. */
-type SurfaceFacts = {
+export type SurfaceFacts = {
   /** Bumped by every write (`surfaceWritten`). */
   version: number
   /** Its name. */

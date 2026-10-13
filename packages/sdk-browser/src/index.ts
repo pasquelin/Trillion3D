@@ -94,8 +94,11 @@ export type {
 /** The shapes a host node's pose and rotation are read through (`host/scene/graphNodes.ts`). */
 export type { HostRotation, HostVector } from './host/scene/graphNodes.ts'
 /** The surface record a mesh of the engine's graph wears (`page/surface.ts`), holding the core's
- *  texture records; its nodes are the core's. */
-export type { PageSurface, SurfaceFamily } from './page/surface.ts'
+ *  texture records; its nodes are the core's. Its three parts are named: the shaded fields
+ *  (`VisMaterial`), the raster facts (`SurfaceFacts`) and its release (`Releasable`). */
+export type { PageSurface, SurfaceFacts, SurfaceFamily } from './page/surface.ts'
+export type { VisMaterial } from './visibility/materialType.ts'
+export type { Releasable } from './host/graph/resource.ts'
 export { declareSurface } from './page/surfaceRecord.ts'
 export type { SurfaceDeclaration } from './page/surfaceDeclaration.ts'
 export type { HostNodeMatrix, MatrixElements } from './host/matrixElements.ts'
