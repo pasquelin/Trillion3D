@@ -3,6 +3,7 @@
 // thirds of the primitives' `worlds` rows hold (`WORLD_ROW_BYTES`): `frames` then splits in two ranges
 // (`frameRanges.ts`) and every table past the binding in parts bound at once (`split.ts`). Only the capacity the cut reads
 // changes; the device underneath is the same.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts'
@@ -16,7 +17,6 @@ import { selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layo
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { residentAll } from '../../../packages/sdk-browser/src/gpu/dag/residentAll.fixture.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 import { sceneView } from './cutScene.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
@@ -81,7 +81,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
       encodeDagKernels(encoder, resources)
       device.queue.submit([encoder.finish()])
       const result = parseDagOutput(
-        (await readBuffer(device, resources.output, 0, resources.readbackBytes)).buffer,
+        (await readGpuBuffer(device, resources.output, resources.readbackBytes))!.buffer,
         0,
         resources.readbackBytes,
         resources.outputBytes / 4,

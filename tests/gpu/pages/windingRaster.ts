@@ -2,10 +2,11 @@
 // pipelines and the `frontFace` that `windingCw` picks (`webgpu/pages/render/winding.ts`) —
 // winding reversed under a mirror. One fragment counter per case: the faces the engine draws,
 // the ground truth a cut decision is held against.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import assert from 'node:assert/strict'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { bufferHolding, readBuffer } from '../kit/computeReadback.ts'
+import { bufferHolding } from '../kit/computeReadback.ts'
 
 const RASTER = `struct Uni{viewProj:mat4x4f,}
 @group(0) @binding(0) var<uniform> uni:Uni;
@@ -91,7 +92,7 @@ async function rasterise({ vertices, ranges, viewProj, width, height, slots }: W
   }
   pass.end()
   device.queue.submit([encoder.finish()])
-  const fragments = Array.from((await readBuffer(device, counts, 0, bytes)).subarray(0, slots))
+  const fragments = Array.from((await readGpuBuffer(device, counts, bytes))!.subarray(0, slots))
   const { court: adapter } = await gpu.fermer()
   assert.deepEqual(gpu.errors, [], 'the device reports no error')
   return { adapter, fragments }

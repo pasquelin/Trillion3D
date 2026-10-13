@@ -3,6 +3,7 @@
 // (`lightsIrradiance`) at generated points, once walking each point's cell list and once with no
 // lists — the very loop, every light (`bounceLightSlice`) —, both read back; each walk and the
 // lists' rebuild timed on the GPU, interleaved.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { BOUNCE_SETTINGS, createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
@@ -21,7 +22,7 @@ import {
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
 import { TILE_STRIDE_WORDS } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
-import { autoKernel, readBuffer } from '../kit/computeReadback.ts'
+import { autoKernel } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { BASE, POINTS, SIDE, SPACING, lightsOf, pointsOf } from './lightListsScene.ts'
 
@@ -93,7 +94,7 @@ export async function run(sets: ListSet[]) {
     if (querySet) encoder.resolveQuerySet(querySet, 0, 2, stamps, 0)
     device.queue.submit([encoder.finish()])
     if (!querySet) return NaN
-    const t = new BigUint64Array((await readBuffer(device, stamps, 0, 16)).buffer)
+    const t = new BigUint64Array((await readGpuBuffer(device, stamps, 16))!.buffer)
     return Number(t[1] - t[0]) / 1e6
   }
   const runs = []
@@ -121,7 +122,7 @@ export async function run(sets: ListSet[]) {
       await device.queue.onSubmittedWorkDone()
       await new Promise((settled) => setTimeout(settled, 20))
       const records = new Uint32Array(
-        (await readBuffer(device, tiles.buffer!, tiles.worldStart * 4, SIDE ** 3 * 8)).buffer,
+        (await readGpuBuffer(device, tiles.buffer!, SIDE ** 3 * 8, tiles.worldStart * 4))!.buffer,
       )
       fallbacks = 0
       for (let cell = 0; cell < SIDE ** 3; cell++)
@@ -162,7 +163,7 @@ export async function run(sets: ListSet[]) {
     }
     const words = await Promise.all(
       kernels.map(async ({ sums }) => [
-        ...new Uint32Array((await readBuffer(device, sums, 0, POINTS * 16)).buffer),
+        ...new Uint32Array((await readGpuBuffer(device, sums, POINTS * 16))!.buffer),
       ]),
     )
     for (const { uniform, sums } of kernels) {

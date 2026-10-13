@@ -3,6 +3,7 @@
 // against the read the copy it replaces gave — the copy made here as the engine made it, then
 // sampled through the same sampler —, at taps over generated lit images, their drawn border and past
 // it, their coverage within one and zero past the drawn size as the lighting's clear leaves them.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { toHalf } from '../../../packages/math/src/float/half.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { wgslModule } from '../../../packages/math/src/wgsl/assemble.ts'
@@ -22,7 +23,7 @@ import {
   computeTextureEntry,
   sequentialEntries,
 } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
-import { autoKernel, groupZero, readBuffer } from '../kit/computeReadback.ts'
+import { autoKernel, groupZero } from '../kit/computeReadback.ts'
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
 
 /** The lit images of the level-0 proof: their size, and the drawn size inside it. */
@@ -181,8 +182,8 @@ export async function level0(
   pass.end()
   device.queue.submit([encoder.finish()])
   const [a, b] = [
-    await readBuffer(device, engine, 0, count * 16),
-    await readBuffer(device, copied, 0, count * 16),
+    (await readGpuBuffer(device, engine, count * 16))!,
+    (await readGpuBuffer(device, copied, count * 16))!,
   ]
   let differ = 0,
     nonzero = 0

@@ -1,6 +1,7 @@
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { f32Bits } from '../../../packages/math/src/float/bits.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { autoKernel, bufferHolding, groupZero, readBuffer } from '../kit/computeReadback.ts'
+import { autoKernel, bufferHolding, groupZero } from '../kit/computeReadback.ts'
 import { IDENTITY_MATRIX4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import {
   COMPOSE_ROWS_WGSL,
@@ -87,7 +88,7 @@ export async function runSphere() {
   pass.dispatchWorkgroups(ceilDiv(CASES, 64))
   pass.end()
   device.queue.submit([encoder.finish()])
-  const read = await readBuffer(device, spheres, 0, CASES * 8 * 4)
+  const read = (await readGpuBuffer(device, spheres, CASES * 8 * 4))!
   const { court } = await gpu.fermer()
   const words = Array.from(read),
     run = { adapter: court, errors: gpu.errors }

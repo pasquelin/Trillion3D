@@ -3,6 +3,7 @@
 // shadow and resolve stages call — `pageHeader`, `pageCorner`, `pagePosition`, `pageUv` over a
 // page-table row —, then a readback. The page sits at a non-zero word offset, as in the engine's
 // pool: the addressing is proved too, not only the arithmetic.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { COTANGENT_FRAME_WGSL } from '../../../packages/sdk-browser/src/cluster/decodeWgsl.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts'
@@ -12,7 +13,6 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts'
 import { FLAG_CLUSTER_PAGE, ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
@@ -126,7 +126,7 @@ async function decodePages(pages: ClusterPage[]) {
     pass.dispatchWorkgroups(ceilDiv(Math.max(vertexCount, indexCount / 3), 64))
     pass.end()
     device.queue.submit([encoder.finish()])
-    words.push(await readBuffer(device, output, 0, outputBytes))
+    words.push((await readGpuBuffer(device, output, outputBytes))!)
     for (const buffer of [pool, output]) buffer.destroy()
   }
   for (const buffer of [table, positions, uvs]) buffer.destroy()

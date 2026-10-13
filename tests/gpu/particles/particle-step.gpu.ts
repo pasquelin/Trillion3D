@@ -8,6 +8,7 @@
 // image's records. Both folds of a workgroup's lanes, by subgroup where the device has them and through
 // workgroup memory, give the same window. The words are the engine's: the pool stages the
 // records, `createStepWords` writes the uniform; only this proof reads the state back.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ParticlePool } from '../../../packages/sdk-core/src/fluids/particles.ts'
@@ -22,7 +23,6 @@ import {
 import { createStepWords } from '../../../packages/sdk-browser/src/particles/stepWords.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 
 type Steps = { words: number[][]; staged: number[]; capacity: number; runs: number[][] }
@@ -93,7 +93,7 @@ async function step({ words, staged, capacity, runs }: Steps) {
       }
       pass.end()
       device.queue.submit([encoder.finish()])
-      const range = (await readBuffer(device, state, 0, read)).buffer
+      const range = (await readGpuBuffer(device, state, read))!.buffer
       images.push({
         subgroups,
         window: Array.from(new Uint32Array(range, 0, 8)),

@@ -3,10 +3,10 @@
 // — the union of its passes' spans, passes the GPU overlaps counted once — and never from a host
 // clock a busy main thread would stretch. A pass the engine times keeps its own timestamps: a frame
 // that holds one is marked, its total left out.
+import { readGpuBuffer } from '../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { readPasses, type FrameGpu, type TimedPass } from './passSpans.ts'
 import { attachmentBytes } from './passSizes.ts'
 import { emptyWork, type PassWork } from './passWorkHooks.ts'
-import { readBuffer } from '../../tests/gpu/kit/computeReadback.ts'
 
 /** Timestamps of one frame: two per pass. */
 const CAPACITY = 4096
@@ -96,14 +96,12 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
       if (!slot) return { passes: [], unionMs: 0, gapMs: 0, windowMs: 0, complete: !engineTimed }
       const [s, from, count, on] = [set, resolved, slot, device]
       const stamps = new BigInt64Array(
-        (
-          await quiet(() => {
-            const encoder = on.createCommandEncoder({ label: 'bench timestamps' })
-            encoder.resolveQuerySet(s, 0, count, from, 0)
-            on.queue.submit([encoder.finish()])
-            return readBuffer(on, from, 0, count * 8)
-          })
-        ).buffer,
+        (await quiet(() => {
+          const encoder = on.createCommandEncoder({ label: 'bench timestamps' })
+          encoder.resolveQuerySet(s, 0, count, from, 0)
+          on.queue.submit([encoder.finish()])
+          return readGpuBuffer(on, from, count * 8)
+        }))!.buffer,
       )
       return readPasses(stamps, passes, !engineTimed)
     },

@@ -3,6 +3,7 @@
 // kernels run (`encodeDagDifference`), the difference read back. Lists drawn at random, repeats
 // included, up to the full cap — the table's load one half —, then the readout grown, its kept
 // lists carried and ranked again in tables of the new size (`growDagList`).
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import {
   createDagResources,
   type DagResources,
@@ -17,7 +18,6 @@ import {
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 import { sceneView } from './cutScene.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
@@ -65,7 +65,7 @@ async function differ(
   const encoder = device.createCommandEncoder()
   encodeDagDifference(encoder, r)
   device.queue.submit([encoder.finish()])
-  const words = await readBuffer(device, r.output, differenceWord(cap) * 4, 8 * cap)
+  const words = (await readGpuBuffer(device, r.output, 8 * cap, differenceWord(cap) * 4))!
   return [0, 1].map((l) => Array.from(words.subarray(l * cap, l * cap + lists[l].length)))
 }
 

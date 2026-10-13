@@ -1,3 +1,4 @@
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 import { sequentialEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 /** What a diagnostic run binds beside its output: a storage buffer holding these bytes, or any
@@ -61,7 +62,7 @@ export async function computeReadback(
     pass.dispatchWorkgroups(workgroups)
     pass.end()
     device.queue.submit([encoder.finish()])
-    const read = await readBuffer(device, output, 0, bytes)
+    const read = (await readGpuBuffer(device, output, bytes))!
     return Array.from(words === 'u32' ? read : new Float32Array(read.buffer))
   } finally {
     for (const created of made) created.destroy()
@@ -92,28 +93,6 @@ export const groupZero = (
 export function kernelOn(device: GPUDevice, code: string, out: GPUBuffer) {
   const pipeline = device.createComputePipeline(autoKernel(device.createShaderModule({ code })))
   return { pipeline, bind: groupZero(device, pipeline, [{ buffer: out }]) }
-}
-
-/** `bytes` of `source` from `offset`, copied once the queue's work before it ran, as words. */
-export async function readBuffer(
-  device: GPUDevice,
-  source: GPUBuffer,
-  offset: number,
-  bytes: number,
-) {
-  const target = device.createBuffer({
-    size: Math.max(4, bytes),
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  })
-  try {
-    const encoder = device.createCommandEncoder()
-    if (bytes) encoder.copyBufferToBuffer(source, offset, target, 0, bytes)
-    device.queue.submit([encoder.finish()])
-    await target.mapAsync(GPUMapMode.READ)
-    return new Uint32Array(target.getMappedRange().slice(0, bytes))
-  } finally {
-    target.destroy()
-  }
 }
 
 /** Which part of a texture `readTexture` reads: one array `layer` (default 0), over `width` ×
