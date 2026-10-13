@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { MANIFEST_IDENTITY, dagRoots } from '../engine/pagesEngine.fixture.ts'
 import { QUAD_MANIFEST, triangleGeometry } from '../engine/pagesEngineScenes.fixture.ts'
+import { manifestCulling } from '../gpu/dag/culling.fixture.ts'
 import { rootPage } from '../webgpu/pages/rootPages.fixture.ts'
 import { BACKEND, fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
@@ -20,14 +21,17 @@ import type { Primitive } from '../../../sdk-core/src/index.ts'
 
 const structure = { version: 1, roots: [0], groups: [] }
 /** A primitive of one page, `layer` coplanar layers deep. */
-export const primitive = (mesh: number, url: string, layer = 0): Primitive =>
-  ({
+export const primitive = (mesh: number, url: string, layer = 0): Primitive => {
+  const { pages } = dagRoots([{ ...rootPage(url, [-1, -1, 0], [1, 1, 0]), depthLayer: layer }])
+  return {
     mesh,
     primitive: 0,
     pass: 'exact-clusters',
-    pages: dagRoots([{ ...rootPage(url, [-1, -1, 0], [1, 1, 0]), depthLayer: layer }]).pages,
+    pages,
     structure,
-  }) as never
+    culling: manifestCulling(pages),
+  } as never
+}
 
 /** `count` rows of identity poses on a grid, all live. */
 function rowsOf(count: number) {

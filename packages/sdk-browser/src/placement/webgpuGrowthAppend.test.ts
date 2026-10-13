@@ -7,6 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPlacementRows, growPlacementRows, placementWorld } from './rows.ts'
+import { sceneRoots, scenePages } from '../gpu/dag/cutFrontierScene.fixture.ts'
 import { growthOf, startGrownCut, webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import { createSortedKeys } from '../webgpu/cut/denseKeys.ts'
@@ -35,7 +36,8 @@ function session() {
   const refusals: string[][] = []
   const cut = fakeCut()
   let rows = createPlacementRows(1)
-  const root = { pages: [], placement: { rows, index: 0 }, world: placementWorld(rows, 0) }
+  const [held] = sceneRoots(scenePages(4, 2), [placementWorld(rows, 0)])
+  const root = { ...held, placement: { rows, index: 0 }, world: placementWorld(rows, 0) }
   const rt = {
     run: { gpuSelection: cut, movedWorlds: createSortedKeys() },
     layout: { selectionRoots: [root], worldUpdates: new Float32Array(4 * 16) },
