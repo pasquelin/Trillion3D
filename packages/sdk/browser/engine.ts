@@ -85,8 +85,6 @@ export {
   gpuPassStageOf,
 } from '../../sdk-browser/src/diagnostic/gpuPasses.ts'
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts'
-export { declareSurface } from '../../sdk-browser/src/page/surfaceRecord.ts'
-export type { SurfaceDeclaration } from '../../sdk-browser/src/page/surfaceDeclaration.ts'
 export type {
   GravityInput,
   WorldPhysicsOptions,
@@ -122,6 +120,7 @@ export type {
 } from '../../sdk-core/src/physics/jointOptions.ts'
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts'
 export type { PageHome, PageHomes } from '../../sdk-browser/src/gpu/page/homes.ts'
+export type { PageSurface, SurfaceFamily } from '../../sdk-browser/src/page/surface.ts'
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts'
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts'
 export type { PathRun } from '../../sdk-browser/src/camera/path.ts'

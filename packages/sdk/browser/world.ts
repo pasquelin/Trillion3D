@@ -18,7 +18,6 @@ export {
 } from '../../sdk-core/src/world/constants/index.ts'
 export type {
   Blending,
-  ColorSpace,
   Filter,
   Side,
   ToneMapping,

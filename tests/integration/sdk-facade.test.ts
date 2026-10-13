@@ -59,7 +59,7 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 709 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 706 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -76,8 +76,13 @@ test('generated inventory and explicit facade files are current', async () => {
   // two (boxTransformBatch, multiplyMatrix4Batch) stands beside them; nor a second page source
   // beside the streaming (httpPageSource): `page.httpSource` reads through a streamer. The run-time proxy a placement
   // wears carries its deformation (CutDeformation, CORNER_INFLUENCES), and the bounce occupancy names
-  // the rows it is told moved (MovedRows).
-  assert.equal(inventory.exports.length, 709)
+  // the rows it is told moved (MovedRows). A mesh wears the one surface record its material declared
+  // (PageSurface, its SurfaceFamily), which holds the core's texture record: the host surface and
+  // texture copies (GraphSurface, GraphTexture, HostMaterial, HostTexture), the host's side word
+  // (materialSide) and the texture's own colour-space word (TextureColorSpace, now the world's
+  // ColorSpace, public in the common entry too) are gone; the compiler's filter words (TableFilter)
+  // the table texture carries are named; the bounce budget is the proxy's (ProxyBudget).
+  assert.equal(inventory.exports.length, 706)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
@@ -160,8 +165,9 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // filtered shadow read, takes eleven off; the run-time proxy's contract, posed for deformed
   // placements, moves the core by sixty bytes off, the package and its browser condition by
   // fourteen and eighteen on. The batch twins gone, the bundle is of the single product
-  // `multiplyMatrix4`, the kernels' bits.
-  assert.equal(baseline.outputFiles[0].contents.length, 3_066)
+  // `multiplyMatrix4`, the kernels' bits. The light settings' samples a pixel, gone with the sampled
+  // resolve, and the proxy's one ray budget of two milliseconds take nineteen off the core.
+  assert.equal(baseline.outputFiles[0].contents.length, 3_047)
   assert.equal(proposed.outputFiles[0].contents.length, 1_406)
   assert.equal(browserProposed.outputFiles[0].contents.length, 3_124)
   assert.ok(

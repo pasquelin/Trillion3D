@@ -41,6 +41,7 @@ export {
   clusterErrorPixels,
   screenErrorBound,
 } from '../../sdk-core/src/lod/screenErrorBound.ts'
+export type { ColorSpace } from '../../sdk-core/src/world/constants/index.ts'
 export { createJob } from '../../sdk-core/src/runtime/jobs/jobs.ts'
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/runtime/jobs/jobs.ts'
 export { createSceneRoot, SceneRoot } from '../../sdk-core/src/scene/core/root.ts'
@@ -113,6 +114,7 @@ export {
   TABLE_TRIPLETS,
 } from '../../sdk-core/src/scene/core/tableSurfaces.ts'
 export type {
+  TableFilter,
   TableMaterial,
   TableTexture,
   TableTextureSlot,

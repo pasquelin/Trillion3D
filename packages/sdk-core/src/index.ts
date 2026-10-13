@@ -96,6 +96,8 @@ export { SceneRoot, createSceneRoot } from './scene/core/root.ts'
 export type { AlphaMode, LinearRgb, Material, Side } from './contracts/material.ts'
 export type { SoftBodyType } from './physics/soft.ts'
 export type { Texture, TextureFilter, WrapMode } from './texture/contract.ts'
+/** How a texture record's numbers are read, the word its `colorSpace` holds. */
+export type { ColorSpace } from './world/constants/index.ts'
 export * from './scene/core/tableSurfaces.ts'
 export type { TablePage, TableSlot } from './scene/core/tablePages.ts'
 export { compareImages } from './runtime/compareImages.ts'
