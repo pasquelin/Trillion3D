@@ -8,7 +8,7 @@ import { EXPLORER_SWITCH_NAMES } from '../runtime/explorerSwitches.fixture.ts'
 import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
-} from '../../../sdk-browser/src/residency/pools.ts'
+} from '../contracts/poolBudgets.ts'
 import { DEFAULT_TEXTURE_UPLOAD_MS } from '../../../sdk-browser/src/residency/textureTransferDefaults.ts'
 
 const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA)

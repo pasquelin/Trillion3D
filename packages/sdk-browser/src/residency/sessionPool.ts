@@ -1,4 +1,5 @@
-import { DEFAULT_GEOMETRY_POOL_BUDGET, geometryPoolFor } from './pools.ts'
+import { geometryPoolFor } from './pools.ts'
+import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../../sdk-core/src/contracts/poolBudgets.ts'
 
 /**
  * The geometry pool a session starts with (`budgetBytes`, the default when the host names none),

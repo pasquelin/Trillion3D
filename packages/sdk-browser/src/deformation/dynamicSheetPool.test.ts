@@ -14,7 +14,7 @@ import { assignDeformationOutputs } from './outputs.ts'
 import { rootCoverage } from '../page/selection/selection.ts'
 import { rootChildren } from '../residency/minimumCapacity.ts'
 import { pageHomes } from '../gpu/page/homes.ts'
-import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../residency/pools.ts'
+import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../../sdk-core/src/contracts/poolBudgets.ts'
 import { sessionGeometryPool } from '../residency/sessionPool.ts'
 
 /** The device of the report: a buffer of at most 4 294 967 292 bytes. */

@@ -2,7 +2,10 @@ import { MIB } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { sessionPools, worldBudget, worldPools, type Pools } from './worldBudget.ts'
-import { DEFAULT_TEXTURE_POOL_BUDGET, DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts'
+import {
+  DEFAULT_TEXTURE_POOL_BUDGET,
+  DEFAULT_GEOMETRY_POOL_BUDGET,
+} from '../../../../sdk-core/src/contracts/poolBudgets.ts'
 import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts'
 import { createBounceCascades, type FrameMetrics } from '../../../../sdk-core/src/index.ts'

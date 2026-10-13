@@ -7,7 +7,10 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { effect } from '../../../sdk-core/src/world/effect/index.ts'
 import { createWebgpuEffects } from '../webgpu/effects/webgpuEffects.ts'
 import { effectChainBytesAt } from '../effects/targets.ts'
-import { DEFAULT_GEOMETRY_POOL_BUDGET, DEFAULT_TEXTURE_POOL_BUDGET } from './pools.ts'
+import {
+  DEFAULT_GEOMETRY_POOL_BUDGET,
+  DEFAULT_TEXTURE_POOL_BUDGET,
+} from '../../../sdk-core/src/contracts/poolBudgets.ts'
 import { DEFAULT_BUDGET_CANVAS, effectTargetExcess, splitMemoryBudget } from './memoryBudget.ts'
 import { BOUNCE_PROBE_BYTES, SHADOW_POOL_BYTES } from './shadowBudgetBytes.ts'
 import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from './budget.fixture.ts'
