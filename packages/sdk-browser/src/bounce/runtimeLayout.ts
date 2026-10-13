@@ -8,7 +8,8 @@ export const RUNTIME_NONE = 0xffffffff
  * surface per drawn material, then the arena of the meshes' own proxies — the columns of a `proxy.bin`
  * (`page-codec-wasm/src/proxy.rs`), one mesh's after another, in the mesh's own space —, the mirror of the
  * placement tree's nodes and the mirror of its member order, and the world matrices the instances are placed
- * by. The tree above the placements and their worlds are the culling's, copied here each frame (`mirror`), so
+ * by. The tree above the placements and their worlds are the culling's, copied here (`mirror`: the tree each
+ * frame, the world rows written since the last copy and no other), so
  * that a program reads the whole proxy through one storage binding: the forward programs, whose fragment stage
  * binds the eight WebGPU guarantees, have no room for a second.
  *

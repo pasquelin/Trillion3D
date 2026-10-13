@@ -127,3 +127,33 @@ test('past its first tables the arena grows, the columns it held carried over by
   assert.deepEqual(triangles, [0, 1000, 2000, 3000, 4000, 5000])
   selection.dispose()
 })
+
+test('a still world copies no byte into the proxy; a moved row copies its own and no other', async () => {
+  const c = cut(2, 1, 1),
+    s = surface(1)
+  const { gpu, selection } = await open(() => ({ primitive: { runtimeProxy: c }, surface: s }))
+  const rows = region(gpu, 'worldRows')
+  assert.ok(rows >= 10, 'the world table holds the placements')
+  // The bytes the mirror copies into the worlds' region of the buffer, whatever else it copies (the tree).
+  const from = (16 + region(gpu, 'worldsWord')) * 4,
+    to = (16 + region(gpu, 'copyWorldsWord')) * 4
+  const mirror = () => {
+    const runs: number[] = []
+    const encoder = {
+      copyBufferToBuffer: (_a: unknown, _b: number, _c: unknown, at: number, size: number) => {
+        if (at >= from && at < to) runs.push(size)
+      },
+    } as unknown as GPUCommandEncoder
+    selection.proxyMirror(encoder)
+    return runs
+  }
+  assert.deepEqual(mirror(), [rows * 64], 'the buffer new made takes every row once')
+  assert.deepEqual(mirror(), [], 'a still world copies nothing')
+  assert.deepEqual(mirror(), [], 'and goes on copying nothing')
+  selection.worldsMovedOnGpu([3, 4])
+  assert.deepEqual(mirror(), [2 * 64], 'two neighbouring rows are one copy of their own bytes')
+  selection.worldsMovedOnGpu([1, 9])
+  assert.deepEqual(mirror(), [64, 64], 'two far rows are two copies, nothing between them')
+  assert.deepEqual(mirror(), [], 'still again')
+  selection.dispose()
+})

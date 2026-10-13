@@ -123,8 +123,11 @@ function selectionOver(run: DagRun): GpuSelection {
       run.linkMoved = listener
     },
     worldStandsIn: (w) => !!run.links?.standsIn(w),
-    worldsMovedOnGpu() {
-      if (live()) state.worldRevision++
+    worldsMovedOnGpu(rows) {
+      if (!live()) return
+      state.worldRevision++
+      // The proxy's mirror of those rows is copied at the next image; the others stand.
+      for (const w of rows) run.proxies.worldsWritten([w])
     },
     get growing() {
       return state.growing

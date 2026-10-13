@@ -140,8 +140,8 @@ function updateNamedWorlds(run: DagRun, next: Float32Array, all: Int32Array) {
  *  refreshed where their linear part moved, before their copy (`refreshMovedStretch`), their
  *  worlds copied into those held and sent, each run to its range, with the rows whose stretch
  *  moved; their count. */
-function sendMoved({ resources }: DagRun, next: Float32Array, moved: number) {
-  const { packed, frames, frameData } = resources
+function sendMoved(run: DagRun, next: Float32Array, moved: number) {
+  const { packed, frames, frameData } = run.resources
   stretchedScratch = resized(stretchedScratch, moved)
   const stretched = refreshMovedStretch(
     packed.worlds,
@@ -156,7 +156,10 @@ function sendMoved({ resources }: DagRun, next: Float32Array, moved: number) {
     const w = movedScratch[i]
     packed.worlds.set(next.subarray(w * 16, w * 16 + 16), w * 16)
   }
-  if (moved) frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
+  if (moved) {
+    frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
+    run.proxies.worldsWritten(movedScratch, moved)
+  }
   if (stretched) frames.writeNamedRows(stretchedScratch, stretched)
   return moved
 }
@@ -164,13 +167,14 @@ function sendMoved({ resources }: DagRun, next: Float32Array, moved: number) {
 /** `GpuSelection.composedPlacement`, unlinked: placement `w`'s parent no longer poses it, and the
  *  pose it composed on the GPU — words the host never wrote — is replaced by the host's own, its
  *  world and its exact translation written again whatever the caches held. */
-export function rewritePlacement({ resources, state }: DagRun, w: number) {
+export function rewritePlacement({ resources, state, proxies }: DagRun, w: number) {
   const { packed, frames } = resources
   if (w >= packed.worldSources.length) return
   frames.forgetOrigin(w)
   rewritten[0] = w
   frames.writeWorldOrigins(rewritten)
   frames.writeNamedWorlds(packed.worlds, rewritten, 1)
+  proxies.worldsWritten(rewritten, 1)
   // Its stretch too: the GPU's composition wrote the one of the pose its parent gave it.
   frames.writeNamedRows(rewritten, 1)
   state.worldRevision++
@@ -189,6 +193,7 @@ export function appendRoots(run: DagRun, roots: readonly DagRoot[]) {
   const [first, end] = added.worlds
   for (let w = first; w < end; w++) tree?.touch(w)
   run.proxies.appended(first, end)
+  run.proxies.worldsRange(first, end)
   voidCuts(state)
   return true
 }
