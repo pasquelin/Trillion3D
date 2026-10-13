@@ -309,9 +309,9 @@ again at another scale.
 triangles (naming the model and the triangle's glTF `material`), a body on its shape.
 `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`, `capsule` with `halfHeight`
 and `radius`) sweeps that shape; `maxDistance` defaults to `camera.far`; `ignore` names a body to
-pass through, the asker's own. Without `exact` or `shape`, `world.raycast` answers at once from the
-scene's geometry, a model on its box ([Picking](SDK.md#picking-moving-and-saving)). With physics
-off, an exact raycast throws `PHYSICS_OFF`.
+pass through, the asker's own. Without `exact` or `shape`, `world.raycast` asks the engine's GPU
+ray query, on the triangles the world draws ([Picking](SDK.md#picking-moving-and-saving)). With
+physics off, an exact raycast throws `PHYSICS_OFF`.
 
 ## The character
 

@@ -6,6 +6,7 @@ import { setWebgpuTemporalAntialiasing } from '../../taa/prepare.ts'
 import { flushWebgpuPages } from './render/flush.ts'
 import { captureSurfaceView } from './io/surfaceCapture.ts'
 import { captureColorView } from './io/colorCapture.ts'
+import { createRayQueue } from '../rays/rayQueue.ts'
 import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts'
 import { captureImage, rasterView, syncResident } from './io/hostApi.ts'
 import { pendingUrls, retainedRanks } from './io/hostLists.ts'
@@ -162,6 +163,11 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     },
     capture() {
       return captureImage(rt)
+    },
+    async castRay(ray, filter, reach) {
+      const device = rt.gpu.device
+      if (!device || run.lost) return null
+      return (rt.rays ??= createRayQueue(rt, device)).cast(ray, filter, reach)
     },
     selectedPageIds: () => run.shown.map((rec) => rec.url),
     selectedClusterIds: () => run.shown.map((rec) => rec.clusterId),

@@ -13,7 +13,6 @@ import {
   splitMemoryBudget,
   type BudgetCanvas,
 } from '../../residency/memoryBudget.ts'
-import { raycastTreeBudget } from '../../../../sdk-core/src/world/object/raycastTrees.ts'
 import { createPageCache, DEFAULT_CACHED_BYTES, type PageCache } from '../../streaming/pageCache.ts'
 
 /** The pools a page asks for, the two totals and the declared canvas, kept to open every later session with them; and
@@ -213,14 +212,6 @@ export function worldBudget(
     set texturePool(bytes: number) {
       pools.texturePool = Math.min(bytes, room('geometryPool', DEFAULT_TEXTURE_POOL_BUDGET))
       rebalance()
-    },
-    /** Bytes of CPU memory `raycast` keeps for triangle trees, shared by every world on the page;
-     *  past it the tree cast at least recently is dropped. Set it to change the envelope. */
-    get raycastTrees() {
-      return raycastTreeBudget.bytes
-    },
-    set raycastTrees(bytes: number) {
-      raycastTreeBudget.bytes = bytes
     },
   }
 }

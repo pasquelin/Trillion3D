@@ -110,6 +110,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   useWebgpuView(rt, rt.views.main)
   rt.run.gate.release()
   services.residency.quietPending()
+  rt.rays?.dispose()
+  rt.rays = undefined
   timing.gpuTiming?.dispose()
   rt.vis.wholeDeformation?.table.destroy()
   rt.vis.wholeDeformation = undefined

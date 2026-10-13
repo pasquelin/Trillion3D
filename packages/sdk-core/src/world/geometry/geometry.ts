@@ -5,7 +5,6 @@ import { Box3 } from '../math/box3.ts'
 import { Sphere } from '../math/volumes.ts'
 import { Matrix4 } from '../math/matrix4.ts'
 import { computeNormals } from './normals.ts'
-import { forgetTree } from '../object/raycastTrees.ts'
 import { readPoints, spanBox, spanSphere } from './bounds.ts'
 import { transformVertices } from './transform.ts'
 
@@ -190,12 +189,11 @@ export class Geometry {
     copy.userData = JSON.parse(JSON.stringify(this.userData)) as Record<string, unknown>
     return copy
   }
-  /** Gives the geometry back: runs every release hook once, forgets the holders and the raycast
-   *  tree; a disposed geometry is drawn and cast at by nobody. */
+  /** Gives the geometry back: runs every release hook once and forgets the holders; a disposed
+   *  geometry is drawn by nobody. */
   dispose() {
     for (const hook of this.released) hook()
     this.released.clear()
     this._listeners.clear()
-    forgetTree(this)
   }
 }

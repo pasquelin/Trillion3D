@@ -42,7 +42,19 @@ export type WideTraversal = {
   overflow: string
   /** What the traversal returns. */
   answer: string
+  /** The first node, an expression: the tree's own first, 0, unless given. */
+  root?: string
+  /** The slots a node is read for and the items a leaf child is tested for, expressions of `node`
+   *  and `child`: a tree of the proxy's width, `CHILDREN` and `LEAF_TRIANGLES`, unless given — a
+   *  tree whose nodes count their own, the cut's (`../webgpu/rays/rayQueryWgsl.ts`), says so. */
+  children?: string
+  leaf?: string
+  /** The nodes the stack holds: the proxy's `STACK_DEPTH`, unless given. */
+  stack?: number
 }
+
+/** The stack's bound a push is checked against: the proxy's constant, or the size given. */
+const stackBound = (t: WideTraversal) => (t.stack ? `${t.stack}u` : 'STACK_DEPTH')
 
 /** A hook's statement on its own line at `indent`, or nothing: a traversal without one keeps its text. */
 const hook = (statement: string, indent: number) =>
@@ -59,9 +71,9 @@ fn ${t.name}(origin:vec3f,direction:vec3f,limit:f32${t.params})->${t.returns}{
  ${t.start}
  ${t.empty}
  let inverse=rayInverseDirection(direction);
- var stack:array<u32,${BOUNCE_SETTINGS.traversalStack}>;
+ var stack:array<u32,${t.stack ?? BOUNCE_SETTINGS.traversalStack}>;
  var depth=0u;
- var node=0u;
+ var node=${t.root ?? '0u'};
  let steps=${t.steps};
  for(var step=0u;step<steps;step++){${hook(t.stop, 2)}${hook(t.visit, 2)}
   let frame=${t.box};
@@ -71,13 +83,13 @@ fn ${t.name}(origin:vec3f,direction:vec3f,limit:f32${t.params})->${t.returns}{
   }
   var nearest=0u;
   var nearestSpan=best.distance+1.0;
-  for(var slot=0u;slot<CHILDREN;slot++){${hook(t.stop, 3)}
+  for(var slot=0u;slot<${t.children ?? 'CHILDREN'};slot++){${hook(t.stop, 3)}
    let child=${t.child};
    if(!child.present){continue;}
    let span=rayBoxEntry(child.box.low,child.box.high,origin,inverse,best.distance);
    if(span>best.distance){continue;}
    if(child.count>0u){
-    for(var k=0u;k<LEAF_TRIANGLES;k++){
+    for(var k=0u;k<${t.leaf ?? 'LEAF_TRIANGLES'};k++){
      if(k>=child.count){break;}${hook(t.stop, 5)}
      let index=child.offset+k;
      ${t.test}
@@ -86,11 +98,11 @@ fn ${t.name}(origin:vec3f,direction:vec3f,limit:f32${t.params})->${t.returns}{
    }
    if(span<nearestSpan){
     if(nearestSpan<=best.distance){
-     if(depth<STACK_DEPTH){stack[depth]=nearest;depth++;}else{${t.overflow}}
+     if(depth<${stackBound(t)}){stack[depth]=nearest;depth++;}else{${t.overflow}}
     }
     nearest=child.offset;
     nearestSpan=span;
-   }else if(depth<STACK_DEPTH){stack[depth]=child.offset;depth++;}else{${t.overflow}}
+   }else if(depth<${stackBound(t)}){stack[depth]=child.offset;depth++;}else{${t.overflow}}
   }
   if(nearestSpan<=best.distance){node=nearest;continue;}
   if(depth==0u){break;}

@@ -6,14 +6,8 @@ import { BOUNCE_SETTINGS, PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/in
 import { invTranspose3Prep } from '../../../math/src/wgsl/inverseTranspose.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { transformHalfExtent } from '../../../math/src/wgsl/geometry.ts'
-import {
-  NODE_CHILD_COUNT,
-  NODE_FIRST_CHILD,
-  NODE_KIND,
-  NODE_MAX,
-  NODE_MIN,
-} from '../gpu/dag/nodeLayout.ts'
-import { TREE_GROUP } from '../gpu/dag/placementTree.ts'
+import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
+import { PLACEMENT_TREE_WALK_WGSL, placementTreeWalk } from '../gpu/dag/treeWalkWgsl.ts'
 import { wideNodeFns } from './nodeWgsl.ts'
 import { WIDE_TRAVERSAL_WGSL, wideTraversal } from './traceWgsl.ts'
 import {
@@ -41,9 +35,6 @@ export type SceneBindings = {
 export const sceneKey = ({ group, proxy, worlds, tree }: SceneBindings) =>
   `${group}, ${proxy}, ${worlds}, ${tree}`
 
-/** Tree levels a ray walks down at most: a tree of 64-way nodes holds 2⁴² members in seven. */
-const TREE_DEPTH = 8
-
 /**
  * THE PROXY'S RAYS: what a ray meets of the scene, compiled meshes and the cuts the world made at run time
  * alike. One traversal over two levels: the culling's placement tree, read in its record table — its nodes hold
@@ -68,6 +59,7 @@ export const runtimeSceneWgsl = (scene: SceneBindings) =>
       treeTableWgsl('rtTree', { group: scene.group, binding: scene.tree, access: 'read' }),
       WIDE_TRAVERSAL_WGSL,
       NO_INDEX,
+      PLACEMENT_TREE_WALK_WGSL,
       toF32,
       invTranspose3Prep,
       worldMatrix3,
@@ -78,14 +70,9 @@ ${wgslConsts({
   RT_WORK: RAY_WORK,
   RT_TRIANGLES: RAY_TRIANGLES,
   RT_STEPS: BOUNCE_SETTINGS.traversalSteps,
-  RT_TREE_DEPTH: TREE_DEPTH,
   RT_TREE_STEPS: 2 * RAY_WORK,
-  RT_TREE_GROUP: TREE_GROUP,
   RT_NODE_MIN: NODE_MIN,
   RT_NODE_MAX: NODE_MAX,
-  RT_NODE_FIRST: NODE_FIRST_CHILD,
-  RT_NODE_COUNT: NODE_CHILD_COUNT,
-  RT_NODE_KIND: NODE_KIND,
   RT_INSTANCE_NODE: INSTANCE.node,
   RT_INSTANCE_TRIANGLE: INSTANCE.triangle,
   RT_INSTANCE_SURFACE: INSTANCE.surface,
@@ -178,6 +165,8 @@ fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
 fn rtTreeCorner(node:u32,k:u32)->vec3f{
  return vec3f(bitcast<f32>(rtTreeWord(node,k)),bitcast<f32>(rtTreeWord(node,k+1u)),bitcast<f32>(rtTreeWord(node,k+2u)));
 }
+fn rtTreeLow(node:u32)->vec3f{return rtTreeCorner(node,RT_NODE_MIN);}
+fn rtTreeHigh(node:u32)->vec3f{return rtTreeCorner(node,RT_NODE_MAX);}
 /** The nearest hit of the ray over every placement that draws a proxy, within \`limit\`: the
  *  placement tree walked depth first, a child entered when its box is met, a group's members one by one.
  *  \`found\` is false past the budget, with the ray's counters spent: ask \`rtSpent\`. A packing with no
@@ -194,42 +183,18 @@ fn rtScene(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
    if(rtAnyHit&&best.found){return best;}
   }
  }else{
-  var at:array<u32,RT_TREE_DEPTH>;
-  var next:array<u32,RT_TREE_DEPTH>;
-  var level=0u;
-  var done=false;
-  at[0]=rtProxy.treeRoot;
-  next[0]=0u;
-  for(var step=0u;step<RT_TREE_STEPS;step++){
-   if(rtSpent()){done=true;break;}
-   let node=at[level];
-   let count=rtTreeWord(node,RT_NODE_COUNT);
-   let k=next[level];
-   if(k>=count){
-    if(level==0u){done=true;break;}
-    level--;
-    continue;
-   }
-   next[level]=k+1u;
-   rtWork+=1u;
-   let first=rtTreeWord(node,RT_NODE_FIRST);
-   if(rtTreeWord(node,RT_NODE_KIND)==RT_TREE_GROUP){
-    let w=rtTreeMember(first+k);
-    if(w!=NO_INDEX){
-     best=rtEnter(w,origin,direction,inverse,best);
-     if(rtAnyHit&&best.found){return best;}
-    }
-   }else{
-    let child=first+k;
-    if(rayBoxEntry(rtTreeCorner(child,RT_NODE_MIN),rtTreeCorner(child,RT_NODE_MAX),origin,inverse,best.distance)<=best.distance&&level+1u<RT_TREE_DEPTH){
-     level++;
-     at[level]=child;
-     next[level]=0u;
-    }
-   }
-  }
-  // A walk that ran out of steps, not of tree, is a spent ray as well: it answers nothing.
-  if(!done){rtWork=RT_WORK;}
+${placementTreeWalk({
+  root: 'rtProxy.treeRoot',
+  word: 'rtTreeWord',
+  low: 'rtTreeLow',
+  high: 'rtTreeHigh',
+  member: (slot) => `rtTreeMember(${slot})`,
+  enter: 'best=rtEnter(w,origin,direction,inverse,best);if(rtAnyHit&&best.found){return best;}',
+  stop: 'if(rtSpent()){done=true;break;}',
+  visit: 'rtWork+=1u;',
+  steps: 'RT_TREE_STEPS',
+  cut: 'rtWork=RT_WORK;',
+})}
  }
  // The blended copies, members after the placements: each tried in turn, a unit apiece.
  for(var k=0u;k<rtProxy.copies;k++){

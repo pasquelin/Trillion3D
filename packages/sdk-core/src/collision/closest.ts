@@ -1,6 +1,6 @@
 /**
  * CLOSEST POINTS between a segment and a triangle: how near a segment comes to a triangle, the
- * query the screen-error measure (`bench/runner/screenError/`) and the exact raycast read.
+ * query the screen-error measure reads (`bench/runner/screenError/`).
  *
  * The closest pair of a segment and a triangle is one of three things: the point where the
  * segment pierces the triangle (distance zero), an end of the segment against the inside of the

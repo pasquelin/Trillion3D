@@ -4,7 +4,7 @@
 // afar. `bench` is the bench's four named views (`trajectory/poses.ts`, `VIEWS`), read off the engine's box.
 import { boxCenter, boxRadius } from '../../../packages/math/src/geometry/box.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
-import type { TriangleTree } from '../../../packages/sdk-core/src/collision/triangleTree.ts'
+import type { TriangleTree } from './triangleTree.ts'
 import { VIEWS, poseAt, type Bounds } from '../trajectory/poses.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
 
