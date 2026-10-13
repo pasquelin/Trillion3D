@@ -119,8 +119,9 @@ export async function run(counts: number[]) {
         size: POINTS * 16,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
       })
+      // Walking every light reads no grid: the kernel's layout holds no uniform then.
       const entries: GPUBindGroupEntry[] = [
-        { binding: 0, resource: { buffer: uniform } },
+        ...(listed ? [{ binding: 0, resource: { buffer: uniform } }] : []),
         { binding: 1, resource: { buffer: points } },
         { binding: 2, resource: { buffer: lights.buffer } },
         { binding: 3, resource: { buffer: sums } },

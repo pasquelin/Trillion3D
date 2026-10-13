@@ -37,6 +37,7 @@ function runtime(traceEnabled: boolean) {
     gpu: {},
     vis: {},
     lights: {},
+    bounce: {},
     gate: {},
   } as unknown as WebgpuPagesRuntime
   return { rt, phases }

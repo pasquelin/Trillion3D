@@ -105,7 +105,10 @@ shadowed or rectangular light runs a program built without that code
 Dynamic, off by default: irradiance probes in nested cascades trace rays against the resident
 proxy the compiler writes ([FORMAT.md](FORMAT.md)), under a budget in milliseconds (`bounce/`). The
 probes and the environment share one basis
-(`sdk-core/scene/core/irradianceBasis.ts`).
+(`sdk-core/scene/core/irradianceBasis.ts`). Its points are lit by the one light function and loop, in their irradiance
+term, shadowed by proxy rays (`lighting/direct/lightLoopWgsl.ts`); each walks the lights of its cell
+of a world light grid that the light grid pass lists over the last cascade level
+(`bounce/lightCellWgsl.ts`), again only when a light or that level changes.
 
 ## Fog
 
