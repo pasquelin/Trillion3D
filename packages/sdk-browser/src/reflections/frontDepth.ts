@@ -16,7 +16,7 @@ import { clipToFramebuffer, pixelToNdc, unprojectPoint } from '../../../math/src
 import { REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 
-const { min, max } = Math
+const { min } = Math
 import type { ReflectionPipelines, ScreenReflection } from './gpu.ts'
 import { REFLECTION_VIEW_BYTES, REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 
