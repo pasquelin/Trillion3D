@@ -7,6 +7,8 @@ import { buildTransformHandles } from './transformHandles.ts'
 import { handleScreenSize } from './transformView.ts'
 import { createListeners, type Listeners } from '../../../../sdk-core/src/runtime/listeners.ts'
 import type { TransformMode, TransformSnap, TransformSpace } from './transformMath.ts'
+import type { CanvasPoint, RaycastOptions } from '../core/worldRaycast.ts'
+import type { Intersection } from '../query/types.ts'
 
 /** What a transform control needs of a world: `createWorld` returns one. */
 export type TransformHost = {
@@ -18,6 +20,9 @@ export type TransformHost = {
   readonly camera: Camera
   /** Runs `hook` after each frame drawn; returns what stops it. */
   onFrame(hook: () => void): () => void
+  /** The nearest thing a canvas point meets, answered a frame or so later (`world.raycast`): the
+   *  hover the handles are picked by. */
+  raycast(at: CanvasPoint, options: RaycastOptions): Promise<Intersection | null>
 }
 
 /** What `controls.transform` may be told; every field is optional. */
@@ -38,9 +43,9 @@ export type TransformEvent = 'change' | 'dragStart' | 'dragEnd'
 /**
  * A transform control: handles on one object that move, turn or scale it with the mouse, in the
  * world's or the object's own axes, rounded to `snap`. The handles are scene meshes (`helper`
- * marks, `transformHandles.ts`) kept at one screen size; a press is picked on them with the CPU
- * raycast, before the camera controller hears it, so an orbit rests while a handle is dragged and
- * resumes after, with no page code. A drag writes the object's local pose from the world pose it
+ * marks, `transformHandles.ts`) kept at one screen size; a press is picked on them by the world's
+ * ray query, hovered as the pointer moves (`transformDrag.ts`), before the camera controller hears
+ * it, so an orbit rests while a handle is dragged and resumes after, with no page code. A drag writes the object's local pose from the world pose it
  * asks for, through its parents. Nothing runs between frames: the handles follow the view after
  * a frame the world drew, and a still scene draws none.
  */
