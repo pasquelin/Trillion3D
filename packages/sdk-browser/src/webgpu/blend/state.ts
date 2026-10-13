@@ -136,6 +136,9 @@ function waterState() {
     /** A source that brings a blend asked for it before its items join: the front depth the blend
      *  pass writes is made full size (`sceneBlends`). */
     frontGranted: false,
+    /** The compaction and the occlusion test being made for the first blended pages the session
+     *  gains (`mountTransparent`), until they are. */
+    mounting: undefined as Promise<boolean> | undefined,
     transmissiveInView: 0,
     waterBounds: createWaterBounds(),
     /** Volume of each transmissive item, at its water rank, written with the records. */
