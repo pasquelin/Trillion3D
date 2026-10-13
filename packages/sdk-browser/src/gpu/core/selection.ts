@@ -162,6 +162,8 @@ export type GpuSelection = {
   /** The buffer a program reads the proxy through (`../dag/proxyInstances.ts`): none until a placement
    *  wears one. */
   proxyBuffer(): GPUBuffer | undefined
+  /** Bytes the CPU keeps for the proxy (`../dag/proxyInstances.ts`): the streamer's reservation counts them. */
+  readonly proxyHostBytes: number
   /** The placement tree copied into the proxy's buffer, before the first program of the image that walks it. */
   proxyMirror(encoder: GPUCommandEncoder): void
   /** The deformed placements' copies of their meshes' proxies posed by the records of the frame, before the
