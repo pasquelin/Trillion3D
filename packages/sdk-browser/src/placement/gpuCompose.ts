@@ -125,8 +125,15 @@ function createComposeState(roots: number) {
     rowsFollowed: false,
     /** A row of the table was written since the rows pass last ran (`uploadComposedRowInputs`). */
     rowsWritten: true,
-    /** What the passes last ran over: the cut's host writes, the table's age, the motion bound. */
-    ranAt: { frameWrites: -1, tableEpoch: -1, motion: undefined as GPUBuffer | undefined },
+    /** What each pass last ran over: the composition's version, the cut's host writes, the
+     *  table's age, the motion bound. */
+    ranAt: {
+      roots: -1,
+      rows: -1,
+      frameWrites: -1,
+      tableEpoch: -1,
+      motion: undefined as GPUBuffer | undefined,
+    },
     /** The GPU's previous worlds hold every composed root's world, and its motion rows are
      *  identity: a roots pass would write nothing new (`decideComposedMotion`). */
     previousCurrent: false,
@@ -136,8 +143,9 @@ function createComposeState(roots: number) {
     ranCurrent: false,
     /** A parent's world was set since the parents went up. */
     parentsDirty: true,
-    /** This frame moved what the passes compose: a parent's world, the links (`frameParents`). */
-    changed: true,
+    /** Moves with what the passes compose — a parent's world, the links, a motion's start, the
+     *  parents' buffer —, as each frame sends it (`frameParents`): a pass runs until it ran at it. */
+    composedAt: 0,
     /** The roots each slot composes, listed once as its links change (`slotRanks`). */
     linked: new Map<number, Int32Array>(),
     /** Each linked parent's slot. */
@@ -841,8 +849,8 @@ function writeParents(state: ComposeState) {
 }
 
 /** The links, this frame's parents and the list of composed roots on the GPU, each sent once per
- *  frame and only when it moved; undefined without links. Notes whether the frame changed what the
- *  passes compose (`changed`). */
+ *  frame and only when it moved; undefined without links. What the passes compose moved, its
+ *  version moves (`composedAt`). */
 function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const state = rt.compose
   if (!state || !state.parentIds.size) return undefined
@@ -885,7 +893,7 @@ function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   }
   if (writeParents(state))
     device.queue.writeBuffer(gpu.parents!, 0, state.packed, 0, count * MATRIX_DOUBLES * 2)
-  state.changed = state.moving || linked || seeded || made
+  if (state.moving || linked || seeded || made) state.composedAt++
   return gpu
 }
 
@@ -958,7 +966,7 @@ export function encodeComposedRoots(
   // composed scene costs no pass.
   const motionSettled = !motionBuffer || (state.previousCurrent && state.motionIdentity)
   if (
-    !state.changed &&
+    state.composedAt === state.ranAt.roots &&
     !bound &&
     motionSettled &&
     motionBuffer === state.ranAt.motion &&
@@ -968,8 +976,9 @@ export function encodeComposedRoots(
   // The previous worlds are current when they were before and no world moved since; a motion
   // buffer bound anew holds rows the pass has not written.
   state.ranFrame = rt.run.frame
-  state.ranCurrent = state.previousCurrent && !state.changed
+  state.ranCurrent = state.previousCurrent && state.composedAt === state.ranAt.roots
   state.previousCurrent = state.ranCurrent
+  state.ranAt.roots = state.composedAt
   if (motionBuffer !== state.ranAt.motion) state.motionIdentity = false
   state.ranAt.motion = motionBuffer
   state.ranAt.frameWrites = selection.frameWrites
@@ -1050,8 +1059,14 @@ export function encodeComposedRows(
     })
   // The rows it writes hold what it wrote last unless a parent or a link moved, or the host wrote
   // a row since (`rowsWritten`, the table's age): a still view writes none.
-  if (!state.changed && !bound && !state.rowsWritten && rows.tableEpoch === state.ranAt.tableEpoch)
+  if (
+    state.composedAt === state.ranAt.rows &&
+    !bound &&
+    !state.rowsWritten &&
+    rows.tableEpoch === state.ranAt.tableEpoch
+  )
     return
+  state.ranAt.rows = state.composedAt
   state.rowsWritten = false
   state.ranAt.tableEpoch = rows.tableEpoch
   const params = state.rowParams
