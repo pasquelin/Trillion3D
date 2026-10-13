@@ -3,19 +3,19 @@
  *
  * Every path that moves a root's world rewrites its rows (`movedRoot.ts`, `moveRootRows`), and
  * names it there, beside that write: its rank is listed once. The next image sends those worlds
- * alone (`worldUpload.ts`, `takeSorted`); a host walk, which names none, sends every one. The GPU
+ * alone (`worldUpload.ts`, `take`); a host walk, which names none, sends every one. The GPU
  * cut says which poses moved, and its tree and the cards follow those. While a cut is
  * made beside the running one (`../../../placement/webgpuGrowth.ts`), every move is kept for it as
  * well (`since`): its swap replays them.
  */
-import type { SortedKeys } from '../../cut/denseKeys.ts'
+import type { ChangedRuns } from '../../residency/ranges.ts'
 
 /** The ranks listed since the last take; `since`, while a cut is made beside the running one, the
  *  ranks named since its pack and whether a host walk moved every world. */
-export type MovedWorlds = SortedKeys & { since?: { ranks: SortedKeys; walked: boolean } }
+export type MovedWorlds = ChangedRuns & { since?: { ranks: ChangedRuns; walked: boolean } }
 
 /** Placement `rank`'s world was just written: listed once. */
 export function noteWorldMoved(run: { movedWorlds: MovedWorlds }, rank: number) {
-  run.movedWorlds.listed.add(rank)
-  run.movedWorlds.since?.ranks.listed.add(rank)
+  run.movedWorlds.mark(rank)
+  run.movedWorlds.since?.ranks.mark(rank)
 }

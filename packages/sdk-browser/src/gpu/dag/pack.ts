@@ -411,7 +411,7 @@ function recordTables(
     cold.set(tree.order, (tree.members = members))
     const { set, moves } = tree.always
     cold.set(set.list.subarray(0, set.count), (tree.alwaysAt = members + tree.capacity))
-    moves.listed.clear()
+    moves.clear()
   }
   const at = {
     recordKey: recordKeyBase(pages),

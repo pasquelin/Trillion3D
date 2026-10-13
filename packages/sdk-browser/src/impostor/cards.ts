@@ -109,8 +109,7 @@ export function impostorCardsBytes<G>(state: ImpostorCards<G>) {
   return (
     state.watch.hostBytes +
     slots.records.byteLength +
-    slots.dirty.listed.byteLength +
-    slots.dirty.sorted.byteLength +
+    slots.dirty.byteLength +
     8 * state.holding.length +
     state.moves.byteLength +
     segments

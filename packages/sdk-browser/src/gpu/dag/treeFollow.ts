@@ -10,13 +10,8 @@
 import { drawnAlways, treeMarkMoved, TREE_SPAN } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
-import {
-  createSortedKeys,
-  mirrorKey,
-  mirroredWords,
-  takeMirrored,
-  takeSorted,
-} from '../../webgpu/cut/denseKeys.ts'
+import { mirrorKey, mirroredWords, takeMirrored } from '../../webgpu/cut/denseKeys.ts'
+import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
 import { createTreeRefit, type RefitTables } from './treeRefit.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 
@@ -60,7 +55,7 @@ export function createTreeFollower(
   // moved: fitted once, before the next cut reads the tree.
   // The first cut fits every group: the tree packs open (`packPlacementTree`), the refit is the
   // one fit there is.
-  const dirty = createSortedKeys(),
+  const dirty = createChangedRuns(),
     groups = new Set<number>(
       tree.levels.at(-1)!.count
         ? Array.from({ length: tree.levels.at(-1)!.count }, (_, g) => g)
@@ -71,7 +66,7 @@ export function createTreeFollower(
   /** Placement `w`'s group fits again at the next cut: parked or taken back, posed by a send,
    *  appended, or composed on the GPU by a parent from now on or no longer. */
   const touch = (w: number) => {
-    if (w < tree.slot.length) dirty.listed.add(w)
+    if (w < tree.slot.length) dirty.mark(w)
   }
   let revision = 0
   return {
@@ -107,7 +102,7 @@ export function createTreeFollower(
      *  command buffer of its own that the cut's follows. */
     sync() {
       // The members drawn whatever the view, their places moved since sent behind the order.
-      if (tree.always.moves.listed.count) {
+      if (tree.always.moves.count) {
         const moved = takeMirrored(tree.always),
           source = { data: mirroredWords(tree.always), sourceBase: 0, stride: 1 }
         writeRanges(device, coldParts, moved, moved.length, {
@@ -115,7 +110,7 @@ export function createTreeFollower(
           targetBase: tree.alwaysAt,
         })
       }
-      const placements = dirty.listed.count ? takeSorted(dirty) : undefined
+      const placements = dirty.count ? dirty.take() : undefined
       if (!placements?.length && !groups.size) return
       const fit = new Set(groups)
       groups.clear()

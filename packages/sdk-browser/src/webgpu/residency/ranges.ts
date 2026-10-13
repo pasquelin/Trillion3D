@@ -57,27 +57,46 @@ export function coalesceRanges(
 }
 
 /**
- * The indices that changed since the last upload, each once, and the runs they make under the
- * coalescer: the one changed list of every flush that sends what changed. `gap` is the largest step
- * two neighbours share a run across, `cap` the most runs (none bounds them: every run stays apart).
- * The runs are made when asked, once per change.
+ * The indices that changed since the last upload, each once: the one changed list of every flush
+ * that sends what changed — rows, words, slots, records, placements. A flush takes them as the runs
+ * of its own coalescer (`runs`): `gap` the largest step two neighbours share a run across, `cap` the
+ * most runs (none bounds them: every run stays apart), made when asked, once per change. A writer
+ * whose runs follow the stride of its records takes them increasing instead (`take`) and coalesces
+ * them by their bytes (`../../gpu/dag/split.ts`, `writeRanges`).
+ *
+ * An index is marked by a byte, the marks grown to the largest marked: the indices are those of a
+ * table the engine holds, so the marks weigh a byte per entry of it at most, and a mark is one array
+ * write — no probe, which a flush of every row of a rebuilt table would pay per row.
  */
-export function createChangedRuns(size: number, gap: number, cap = Infinity) {
-  let marked = new Uint8Array(size)
-  let changed = new Int32Array(64),
-    count = 0
+export function createChangedRuns(gap = 1, cap = Infinity) {
+  let marked = new Uint8Array(0),
+    changed = new Int32Array(8),
+    count = 0,
+    /** The last `take`, increasing: a view the next take overwrites. */
+    taken = new Int32Array(0)
   /** The runs as `[first, last]` pairs, valid while `joined`. */
-  let pairs = new Int32Array(128),
+  let pairs = new Int32Array(0),
     runCount = 0,
     joined = true
-  const rule = { gap, cap, overflow: 'narrowest', steps: new Int32Array(64) } satisfies RangeRule
-  return {
+  const rule = { gap, cap, overflow: 'narrowest', steps: new Int32Array(0) } satisfies RangeRule
+  const runs = {
     /** How many indices changed. */
     get count() {
       return count
     },
+    /** Bytes of the marks, the lists and the runs. */
+    get byteLength() {
+      return (
+        marked.byteLength +
+        changed.byteLength +
+        taken.byteLength +
+        pairs.byteLength +
+        rule.steps.byteLength
+      )
+    },
     /** `index` changed since the last `clear`. */
     mark(index: number) {
+      if (index >= marked.length) marked = resized(marked, index + 1)
       if (marked[index]) return
       marked[index] = 1
       if (count === changed.length) changed = resized(changed, count + 1)
@@ -95,15 +114,23 @@ export function createChangedRuns(size: number, gap: number, cap = Infinity) {
       }
       return { count: runCount, pairs }
     },
+    /** The changed indices, increasing, every mark cleared: a view the next take overwrites. */
+    take() {
+      taken = resized(taken, count)
+      const sorted = taken.subarray(0, count)
+      sorted.set(changed.subarray(0, count))
+      sorted.sort()
+      runs.clear()
+      return sorted
+    },
     /** Every change sent: nothing is marked. */
     clear() {
       for (let i = 0; i < count; i++) marked[changed[i]] = 0
       count = runCount = 0
       joined = true
     },
-    /** The indices run to `size`: the marks held so far are kept. */
-    grow(size: number) {
-      marked = resized(marked, size)
-    },
   }
+  return runs
 }
+
+export type ChangedRuns = ReturnType<typeof createChangedRuns>

@@ -10,7 +10,7 @@ test('rows marked in any order, twice or by ranges, are their maximal runs, once
   for (let seed = 1; seed <= 30; seed++) {
     const next = lcgRandom(seed),
       rows = 200
-    const dirty = createDirtyRows(rows)
+    const dirty = createDirtyRows()
     const model = new Set<number>()
     for (let round = 0; round < 4; round++) {
       for (let k = 0; k < 20; k++) {
@@ -35,7 +35,7 @@ test('rows marked in any order, twice or by ranges, are their maximal runs, once
 })
 
 test('the rows past a limit are left out, a run cut at it', () => {
-  const dirty = createDirtyRows(20)
+  const dirty = createDirtyRows()
   dirty.mark(2, 4)
   dirty.mark(9, 12)
   assert.deepEqual(
@@ -47,10 +47,9 @@ test('the rows past a limit are left out, a run cut at it', () => {
   )
 })
 
-test('a grown table keeps its marks and takes the rows beyond', () => {
-  const dirty = createDirtyRows(4)
+test('the marks reach any row, those held so far kept', () => {
+  const dirty = createDirtyRows()
   dirty.mark(3)
-  dirty.grow(8)
   dirty.mark(3, 6)
   assert.deepEqual(runsOf(dirty.forEachRun), [[3, 6]])
   dirty.clear()

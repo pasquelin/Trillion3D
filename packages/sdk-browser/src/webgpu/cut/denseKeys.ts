@@ -1,5 +1,6 @@
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
+import { createChangedRuns, type ChangedRuns } from '../residency/ranges.ts'
 
 /**
  * Membership over integer keys, with the members listed densely in a typed array. Testing, adding
@@ -71,35 +72,14 @@ export function createDenseKeySet(mirror?: unknown[]) {
   }
 }
 
-/** Keys listed once each, handed out increasing (`takeSorted`): the moved placements, the tree
- *  nodes a refit rewrote, the card records written. */
-export type SortedKeys = { listed: DenseKeySet; sorted: Int32Array }
-
-export const createSortedKeys = (): SortedKeys => ({
-  listed: createDenseKeySet(),
-  sorted: new Int32Array(8),
-})
-
-/** The keys listed since the last take, increasing, the list emptied: a view the next take
- *  overwrites. */
-export function takeSorted(keys: SortedKeys) {
-  const { list, count } = keys.listed
-  keys.sorted = resized(keys.sorted, count)
-  const ranks = keys.sorted.subarray(0, count)
-  ranks.set(list.subarray(0, count))
-  ranks.sort()
-  keys.listed.clear()
-  return ranks
-}
-
 /** Keys listed densely for a GPU list read a thread a key, with the places of the list written
  *  since it last went up: the composition's roots and rows (`../../placement/composedRowInputs.ts`),
  *  the placement tree's members drawn whatever the view (`../../gpu/dag/placementTree.ts`). */
-export type MirroredKeys = { set: DenseKeySet; moves: SortedKeys }
+export type MirroredKeys = { set: DenseKeySet; moves: ChangedRuns }
 
 export const createMirroredKeys = (): MirroredKeys => ({
   set: createDenseKeySet(),
-  moves: createSortedKeys(),
+  moves: createChangedRuns(),
 })
 
 /** `key` in `keys` or out of it, as `inside` says: the places of the list it wrote are noted. A
@@ -107,19 +87,19 @@ export const createMirroredKeys = (): MirroredKeys => ({
 export function mirrorKey(keys: MirroredKeys, key: number, inside: boolean) {
   const { set, moves } = keys
   if (inside) {
-    if (set.add(key)) moves.listed.add(set.count - 1)
+    if (set.add(key)) moves.mark(set.count - 1)
     return
   }
   const at = set.indexOf(key)
   if (at < 0) return
   set.remove(key)
-  if (at < set.count) moves.listed.add(at)
+  if (at < set.count) moves.mark(at)
 }
 
 /** The places of `keys`' list written since the last take that the list still holds, increasing:
  *  a view the next take overwrites. */
 export function takeMirrored(keys: MirroredKeys) {
-  const sorted = takeSorted(keys.moves)
+  const sorted = keys.moves.take()
   let held = sorted.length
   while (held && sorted[held - 1] >= keys.set.count) held--
   return sorted.subarray(0, held)

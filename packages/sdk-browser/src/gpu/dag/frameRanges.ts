@@ -6,7 +6,7 @@ import { primitiveWordAt } from './worlds.ts'
 import { dagGroupEntries } from './shader/bindings.ts'
 import { PRIMITIVE_BYTES, WORLD_ROW_BYTES, cameraFrameRanges } from './cameraRanges.ts'
 import { writeParts, writeRanges } from './split.ts'
-import { createSortedKeys, takeSorted, type SortedKeys } from '../../webgpu/cut/denseKeys.ts'
+import { createChangedRuns, type ChangedRuns } from '../../webgpu/residency/ranges.ts'
 /** Floats of one host row (`primitiveFrameWords`). */
 const ROW_FLOATS = FRAME_VEC4 * 4
 
@@ -31,7 +31,7 @@ export function createCameraFrames(
     ...{ device, frameData, ranges, per: ranges[0].count },
     ...rangeBuffers(device, slots, ranges, own),
     frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
-    pending: createSortedKeys(),
+    pending: createChangedRuns(),
     writes: 0,
   }
   const { buffers, worldBuffers, bounds } = f
@@ -111,7 +111,7 @@ type Frames = {
   worldBuffers: GPUBuffer[]
   bounds: GPUBuffer
   /** The primitives whose row holds a word not yet sent. */
-  pending: SortedKeys
+  pending: ChangedRuns
   /** Writes sent into the buffers above (`writes`). */
   writes: number
 }
@@ -202,13 +202,13 @@ function writeSpan(
 /** A word staged counts as a write from now: it goes up at the next flush, before any cut reads it. */
 function writeWord(f: Frames, w: number, slot: number, value: number) {
   f.frameInts[primitiveWordAt(w) + slot] = value
-  f.pending.listed.add(w)
+  f.pending.mark(w)
   f.writes++
 }
 
 function flushWords(f: Frames) {
-  if (!f.pending.listed.count) return
-  const named = takeSorted(f.pending)
+  if (!f.pending.count) return
+  const named = f.pending.take()
   writeNamed(f, f.buffers, ROW_FLOATS, f.frameData, named, named.length)
 }
 export type CameraFrames = ReturnType<typeof createCameraFrames>

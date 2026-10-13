@@ -43,8 +43,7 @@ function ownBytes(cards: ReturnType<typeof createImpostorCards>) {
   let tables =
       cards.watch.hostBytes +
       cards.slots.records.byteLength +
-      cards.slots.dirty.listed.byteLength +
-      cards.slots.dirty.sorted.byteLength +
+      cards.slots.dirty.byteLength +
       8 * cards.holding.length +
       cards.moves.byteLength,
     holders = 0

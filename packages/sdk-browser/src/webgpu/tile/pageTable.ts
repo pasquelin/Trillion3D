@@ -93,7 +93,7 @@ function pageTable(layouts: TileLayout[], feedbackOffset: number): Table {
     for (let level = 0; level < layout.tail; level++)
       words[levelsAt + slot * MAX_LEVELS + level] = entriesAt + bases[slot] + layout.offsets[level]
   }
-  return { layouts, words, bases, entries, entriesAt, uploads: createPageUploads(words.length) }
+  return { layouts, words, bases, entries, entriesAt, uploads: createPageUploads() }
 }
 
 /** The word of a streamed tile; a tile in the tail or off its level is refused. */

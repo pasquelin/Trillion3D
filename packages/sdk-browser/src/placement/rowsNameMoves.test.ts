@@ -6,7 +6,6 @@ import * as G from '../host/graph/graph.fixture.ts'
 import { runtime, selectionRoot } from '../webgpu/core/transformShear.fixture.ts'
 import { createPlacementRows, placementWorld } from './rows.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
-import { takeSorted } from '../webgpu/cut/denseKeys.ts'
 
 test('a row its owner moves names its placement to the next upload', () => {
   const rows = createPlacementRows(2)
@@ -23,5 +22,5 @@ test('a row its owner moves names its placement to the next upload', () => {
   rt.lights.mobility.ensure(2, 2, (rank) => roots[rank].world.elements)
   rows.matrices.set(new G.Matrix4().makeTranslation(25, 0, 0).elements, 16)
   updateWebgpuPlacements(rt, rows, 1, 1)
-  assert.deepEqual([...takeSorted(rt.run.movedWorlds)], [1], 'its world alone goes up')
+  assert.deepEqual([...rt.run.movedWorlds.take()], [1], 'its world alone goes up')
 })

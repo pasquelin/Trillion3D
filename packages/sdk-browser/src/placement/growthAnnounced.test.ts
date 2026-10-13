@@ -3,14 +3,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { announceGrowth } from './growthAnnounce.ts'
-import { createSortedKeys } from '../webgpu/cut/denseKeys.ts'
+import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
 const runtime = () => {
   const said: string[] = []
   const rt = {
     run: {
-      movedWorlds: createSortedKeys(),
+      movedWorlds: createChangedRuns(),
       gate: {
         sceneChanged: () => void said.push('walk'),
         engineMovedInPlace: () => void said.push('moved'),
@@ -29,8 +29,8 @@ test('roots a growth brings are named, never walked', () => {
       10_000,
     )
     assert.deepEqual(said, ['moved'], `${count} roots`)
-    const { list, count: named } = rt.run.movedWorlds.listed
-    assert.equal(named, count)
-    assert.deepEqual([list[0], list[named - 1]], [10_000, 10_000 + count - 1])
+    const named = rt.run.movedWorlds.take()
+    assert.equal(named.length, count)
+    assert.deepEqual([named[0], named[count - 1]], [10_000, 10_000 + count - 1])
   }
 })

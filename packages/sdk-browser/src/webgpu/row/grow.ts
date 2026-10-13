@@ -1,4 +1,3 @@
-import type { createDirtyRows } from './dirty.ts'
 import type { WebgpuRowState } from './state.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 
@@ -18,12 +17,7 @@ function widened<T extends Int32Array | Uint32Array>(from: T, to: T, fill: numbe
  * declared dirty, so each reader of the table — the GPU page table, the draw records, the corners,
  * the spheres, the mobility words — takes its rows again, once. `generation` names the table.
  */
-export function growRowState(
-  rows: WebgpuRowState,
-  dirty: ReturnType<typeof createDirtyRows>,
-  drawSlots: number,
-  blendSlots: number,
-) {
+export function growRowState(rows: WebgpuRowState, drawSlots: number, blendSlots: number) {
   const held = rows.blendFirst,
     casterSlots = drawSlots + blendSlots
   rows.rowPageIndex = widened(rows.rowPageIndex, new Int32Array(drawSlots), -1)
@@ -46,7 +40,6 @@ export function growRowState(
   }
   rows.blendFirst = drawSlots
   rows.casterSlots = casterSlots
-  dirty.grow(casterSlots)
   rows.markRowDirty(0, casterSlots - 1)
   rows.generation++
 }

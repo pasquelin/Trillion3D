@@ -11,8 +11,8 @@ type DirtyRuns = <C>(ctx: C, visit: RowRunVisitor<C>, last?: number) => void
  * scattered across the table sends those rows and no row of the terrain between them; a reader
  * walks the runs, never the table.
  */
-export function createDirtyRows(drawSlots: number) {
-  const changed = createChangedRuns(drawSlots, 1)
+export function createDirtyRows() {
+  const changed = createChangedRuns()
   let writes = 0
   const dirty = {
     /** Occupant writes since the table was made, never cleared: what `rowsMoved` compares. */
@@ -45,8 +45,6 @@ export function createDirtyRows(drawSlots: number) {
     }) satisfies DirtyRuns,
     /** Every row uploaded: the marks cleared. */
     clear: changed.clear,
-    /** The table grew to `rows` (`grow.ts`): the marks held so far are kept. */
-    grow: changed.grow,
   }
   return dirty
 }

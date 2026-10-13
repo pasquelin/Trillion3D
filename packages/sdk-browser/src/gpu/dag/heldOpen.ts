@@ -2,7 +2,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import * as sampling from '../../../../math/src/wgsl/sampling.ts'
 import { halfLoadSlots, mixWord, slotsWithin } from '../../../../math/src/scalar/integers.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
-import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
+import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
 
 /**
  * THE OPEN COUNTS A PLACEMENT HOLDS OF ITS OWN, beside its primitive's shared nodes.
@@ -47,8 +47,8 @@ export function createHeldOpen(capacity: number) {
     mask = slots - 1,
     words = new Uint32Array(new ArrayBuffer(slots * OPEN_SLOT_WORDS * 4))
   const held = new Map<number, number>(),
-    touched = createSortedKeys(),
-    placements = createSortedKeys()
+    touched = createChangedRuns(),
+    placements = createChangedRuns()
   /** The slot holding (`w`, `node`), or the empty one ending its probe; -1 past the probe bound. */
   const find = (w: number, node: number) => {
     let s = heldHash(w, node, mask)
@@ -62,7 +62,7 @@ export function createHeldOpen(capacity: number) {
     const n = (held.get(w) ?? 0) + by
     if (n) held.set(w, n)
     else held.delete(w)
-    placements.listed.add(w)
+    placements.mark(w)
   }
   /** Slot `s` emptied: the entries behind it that may move closer to their home do (backward
    *  shift), so no probe ever crosses a hole. */
@@ -71,13 +71,13 @@ export function createHeldOpen(capacity: number) {
       const at = j * OPEN_SLOT_WORDS
       if (words[at] === 0) {
         words.fill(0, hole * OPEN_SLOT_WORDS, hole * OPEN_SLOT_WORDS + OPEN_SLOT_WORDS)
-        touched.listed.add(hole)
+        touched.mark(hole)
         return
       }
       const home = heldHash(words[at] - 1, words[at + 1], mask)
       if (((j - home) & mask) >= ((j - hole) & mask)) {
         words.copyWithin(hole * OPEN_SLOT_WORDS, at, at + OPEN_SLOT_WORDS)
-        touched.listed.add(hole)
+        touched.mark(hole)
         hole = j
       }
     }
@@ -113,7 +113,7 @@ export function createHeldOpen(capacity: number) {
           remove(s)
         } else if (words[at + 2] !== value) {
           words[at + 2] = value
-          touched.listed.add(s)
+          touched.mark(s)
         }
         return
       }
@@ -129,7 +129,7 @@ export function createHeldOpen(capacity: number) {
         return
       }
       words.set([w + 1, node, value], at)
-      touched.listed.add(s)
+      touched.mark(s)
       entries++
       count(w, 1)
     },
@@ -143,9 +143,9 @@ export function createHeldOpen(capacity: number) {
       return dropped
     },
     /** The slots written since the last call, ascending. */
-    takeSlots: () => takeSorted(touched),
+    takeSlots: () => touched.take(),
     /** The placements whose entry count moved since the last call, ascending. */
-    takePlacements: () => takeSorted(placements),
+    takePlacements: () => placements.take(),
     /**
      * The table made again over `capacity` slots, every entry it holds and every count it had no
      * room for placed again: what the row cache's growth asks (`../queueGrowth.ts`). Its words are new, to be written whole; the
@@ -156,7 +156,7 @@ export function createHeldOpen(capacity: number) {
       slots = capacity
       mask = slots - 1
       words = new Uint32Array(new ArrayBuffer(slots * OPEN_SLOT_WORDS * 4))
-      for (const w of held.keys()) placements.listed.add(w)
+      for (const w of held.keys()) placements.mark(w)
       held.clear()
       entries = 0
       const left = [...spill].flatMap(([w, own]) => [...own].map(([node, v]) => [w, node, v]))
@@ -164,7 +164,7 @@ export function createHeldOpen(capacity: number) {
       for (let at = 0; at < old.length; at += OPEN_SLOT_WORDS)
         if (old[at]) table.set(old[at] - 1, old[at + 1], old[at + 2])
       for (const [w, node, value] of left) table.set(w, node, value)
-      takeSorted(touched)
+      touched.clear()
     },
   }
   return table

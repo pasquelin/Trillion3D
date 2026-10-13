@@ -26,7 +26,7 @@ export function createDrawItemWordsHold(slots: number) {
     layerSlots: -1,
     target: undefined as GpuDraw | undefined,
     /** Rows whose words the GPU has not yet received. */
-    pending: createDirtyRows(Math.max(1, slots)),
+    pending: createDirtyRows(),
     /** Triangles of each row, as they entered the total. */
     triangles: new Uint32Array(Math.max(1, slots)),
     /** Sum of triangles of rows `[0, heldCount)`. */

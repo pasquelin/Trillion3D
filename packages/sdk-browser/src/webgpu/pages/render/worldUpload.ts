@@ -2,7 +2,6 @@ import { rootWorlds, rootWorldsMoved } from '../../../gpu/dag/pack.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
 import { blendSource, followHostVisibility } from '../../../placement/hidden.ts'
 import { flipWorld } from '../../../placement/webgpuPlacements.ts'
-import { takeSorted } from '../../cut/denseKeys.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import { finishMoves, noteMoved } from './movedBatch.ts'
 import { appendRootsUnder, appendUnder } from './movedNode.ts'
@@ -60,7 +59,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
   // none and sends nothing. A scene that changed shape names none: every one does. The GPU cut
   // says which poses its send moved (`updateWorlds`) — without one, those named, or those a scan
   // finds —, and the impostor cards follow those alone.
-  const named = takeSorted(run.movedWorlds),
+  const named = run.movedWorlds.take(),
     selection = run.gpuSelection,
     cards = rt.gpu?.impostors
   if (!reshaped) {

@@ -1,5 +1,5 @@
 import { noteWorldMoved } from '../webgpu/pages/render/movedWorlds.ts'
-import { createSortedKeys, takeSorted } from '../webgpu/cut/denseKeys.ts'
+import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
@@ -20,7 +20,7 @@ export function announceGrowth(
 /** A cut is packed beside the running one from now on: every pose named — or a host walk — is
  *  kept for it until its swap (`replayMoves`). */
 export function keepMovesFor(rt: Pick<WebgpuPagesRuntime, 'run'>) {
-  rt.run.movedWorlds.since = { ranks: createSortedKeys(), walked: false }
+  rt.run.movedWorlds.since = { ranks: createChangedRuns(), walked: false }
 }
 
 /** Roots a growth added, as their worlds are read. */
@@ -52,6 +52,6 @@ export function replayMoves(
   rt.run.movedWorlds.since = undefined
   if (!since) return
   if (since.walked) return void cut.updateWorlds(worlds)
-  const ranks = takeSorted(since.ranks)
+  const ranks = since.ranks.take()
   if (ranks.length) cut.updateWorlds(worlds, ranks)
 }

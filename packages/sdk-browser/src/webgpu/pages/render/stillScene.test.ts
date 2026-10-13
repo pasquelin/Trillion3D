@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadWorlds } from './worldUpload.ts'
 import { noteWorldMoved } from './movedWorlds.ts'
-import { createSortedKeys } from '../../cut/denseKeys.ts'
+import { createChangedRuns } from '../../residency/ranges.ts'
 import { rootWorlds } from '../../../gpu/dag/pack.ts'
 import type { DagRoot } from '../../../gpu/dag/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -38,7 +38,7 @@ function image(count: number, next: () => number) {
         updateWorlds: () => (walks.shift() ?? false) && { reshaped: true, flipped: [] },
         revisions: { scene: 3 },
       },
-      movedWorlds: createSortedKeys(),
+      movedWorlds: createChangedRuns(),
       worldUploadRevision: 2,
       gpuSelection: {
         updateWorlds(worlds: Float32Array) {
