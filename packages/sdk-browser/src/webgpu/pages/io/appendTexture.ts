@@ -13,9 +13,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { textureBytesBeside } from './memory.ts'
 import { prepareHostReductions } from '../../../texture/mips.ts'
 import { prepareTexelTurn } from '../../tile/texelTurn.ts'
-
-/** The append each session runs last: the next one draws its lane from the pool that one left. */
-const appending = new WeakMap<WebgpuPagesRuntime, Promise<unknown>>()
+import { queueTableGrowth } from '../prepare/growthQueue.ts'
 
 /**
  * A texture taken by a live session's atlas after open, by the path the open ran: its
@@ -24,18 +22,16 @@ const appending = new WeakMap<WebgpuPagesRuntime, Promise<unknown>>()
  * (`poolTaking`), granted under the out-of-memory scope, then its slot appended (`growth.ts`). A
  * refusal (`TEXTURE_BUDGET`) comes before anything moves. The catalogue, the page tables and the
  * pool bytes are published (`material-texture-appended`). Returns the texture's slot, the one it
- * already holds when it has one. Appends run one after the other. Internal: a created material's
- * map goes through here.
+ * already holds when it has one. Appends run one after the other, in the session's growth queue
+ * (`queueTableGrowth`): the next one draws its lane from the pool that one left. Internal: a created
+ * material's map goes through here.
  */
 export function appendWebgpuTexture(
   rt: WebgpuPagesRuntime,
   texture: Texture,
   kind: 'color' | 'data',
 ): Promise<number> {
-  const previous = appending.get(rt)?.catch(() => undefined) ?? Promise.resolve()
-  const next = previous.then(() => appendNow(rt, texture, kind))
-  appending.set(rt, next)
-  return next
+  return queueTableGrowth(rt, () => appendNow(rt, texture, kind))
 }
 
 async function appendNow(

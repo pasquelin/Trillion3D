@@ -12,6 +12,10 @@ import type { EngineDiagnostic } from '../../../engine/types.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, quadBackend } from '../testScenes.fixture.ts'
+import type { Texture } from '../../../../../sdk-core/src/index.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { queueTableGrowth } from '../prepare/growthQueue.ts'
+import { appendWebgpuTexture } from './appendTexture.ts'
 
 type Group = { entries: Array<{ resource?: { buffer?: unknown } }> }
 
@@ -78,4 +82,29 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     fixture.geometry.dispose()
     fixture.material.dispose()
   }
+})
+
+// Appends ran in a chain of their own beside the session's growth queue: one could draw its lane
+// while a growth asked before it still moved the tables.
+test('an append waits in the growth queue, behind a growth asked before it', async () => {
+  const texture = {} as Texture
+  const rt = {
+    setup: {},
+    layout: { growing: undefined },
+    vis: { mapLayer: new Map([[texture, 3]]), dataLayer: new Map() },
+  } as unknown as WebgpuPagesRuntime
+  const order: string[] = []
+  let release = () => {}
+  void queueTableGrowth(rt, async () => {
+    await new Promise<void>((done) => (release = done))
+    order.push('growth')
+  })
+  const slot = appendWebgpuTexture(rt, texture, 'color').then(
+    (held) => (order.push('append'), held),
+  )
+  await new Promise((settle) => setTimeout(settle))
+  assert.deepEqual(order, [], 'the append waits for the growth')
+  release()
+  assert.equal(await slot, 3, 'the slot it holds')
+  assert.deepEqual(order, ['growth', 'append'])
 })

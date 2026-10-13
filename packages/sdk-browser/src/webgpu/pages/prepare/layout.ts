@@ -151,7 +151,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     rows,
     /** The rows the scene asked when one binding of the device held fewer, else null. */
     pageTableBound: bounded,
-    /** The growth of the tables under way, which the next one waits for (`growTables.ts`). */
+    /** The growth under way — the tables', the layers', an atlas lane's —, which the next one
+     *  waits for (`growthQueue.ts`). */
     growing: undefined as Promise<unknown> | undefined,
     ...rowScratch(drawSlots, pageBytes),
   }
