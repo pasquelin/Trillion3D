@@ -117,8 +117,11 @@ export function write(surface: PageSurface, patch: SceneMaterialPatch, mode?: Al
   // As the open draws a table entry: the cutoff kept, or the page's, or glTF's for a new cutout.
   const cutoff = patch.alphaCutoff ?? (surface.alphaTest || MASK_CUTOFF)
   if (mode) Object.assign(surface, alphaModeFields(mode, cutoff))
-  // A placement written on the record itself: every consumer's journal hears it.
-  if (patch.tiling)
-    for (const texture of materialTextures(surface)) texture.repeat.set(...patch.tiling)
+  // A placement written on the record itself: every consumer's journal hears it. The record is
+  // shared by the material's variants and may fill several slots: placed once, not once a wearer.
+  const tiling = patch.tiling
+  if (tiling)
+    for (const { repeat } of materialTextures(surface))
+      if (repeat.x !== tiling[0] || repeat.y !== tiling[1]) repeat.set(...tiling)
   surfaceWritten(surface)
 }
