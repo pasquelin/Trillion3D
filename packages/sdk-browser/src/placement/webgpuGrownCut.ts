@@ -18,7 +18,7 @@ import { forgetRowRoots } from './update.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
 import { followWorldRoot } from '../webgpu/pages/prepare/worldRoot.ts'
-import { growthOf, heldPage, takeGrownCopies } from './webgpuGrowth.ts'
+import { heldPage, takeGrownCopies } from './webgpuGrowth.ts'
 import { growBlend, waitsForFrontDepth, waitsForWater } from '../webgpu/blend/growth.ts'
 import { forgetReflectedImage } from '../reflections/gpu.ts'
 import { announceGrowth, replayMoves, type GrownRoots } from './growthAnnounce.ts'
@@ -30,7 +30,7 @@ import { joinDeformation, placeDeformation } from '../deformation/growth.ts'
  * their owner's writes. False when no growth is ready.
  */
 export function adoptGrownCut(rt: WebgpuPagesRuntime) {
-  const growth = growthOf(rt),
+  const growth = rt.growth,
     ready = growth?.ready
   const { layout, setup, run } = rt,
     { selectionRoots, packedPages, rows } = layout

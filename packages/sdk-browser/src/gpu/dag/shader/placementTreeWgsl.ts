@@ -1,5 +1,5 @@
-import { TREE_GROUP } from '../placementTree.ts'
-import { CARD_ROOT } from '../../../visibility/shader/spriteWgsl.ts'
+import { REACH_UNBOUNDED, TREE_GROUP } from '../placementTree.ts'
+import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
 import { outsidePlanesFn } from './outsidePlanesWgsl.ts'
@@ -19,8 +19,9 @@ import { LEVEL_QUEUES } from './levelWgsl.ts'
  * root test.
  *
  * With a tree, queue 0 holds its top nodes, then the world DAG's root — the one placement the tree
- * leaves out, wherever the packing put it (`worldRoot`) —, and `dagPrepare` writes those alone.
- * Without one, it holds one root per placement.
+ * leaves out, wherever the packing put it (`worldRoot`) —, then the members drawn whatever the view
+ * (`always`, `../placementTree.ts`: never culled, or deformed past every finite reach), which no
+ * group opens; `dagPrepare` writes those alone. Without one, it holds one root per placement.
  */
 export const DAG_TREE_PREPARE_WGSL = wgslBlock(
   'DAG_TREE_PREPARE_WGSL',
@@ -28,11 +29,14 @@ export const DAG_TREE_PREPARE_WGSL = wgslBlock(
   `/** Whether the cut descends a placement tree (\`treeTop\`, its top level's nodes). */
 fn hasTree()->bool{return views[0u].treeTop>0u;}
 /** Queue 0's entries a view opens: one root per placement without a tree; with one, its top
- *  nodes, then the world DAG's root when it is packed. */
+ *  nodes, the world DAG's root when it is packed, then the members drawn whatever the view. */
 fn rootSlots()->u32{
  let world=select(0u,1u,views[0u].worldRoot!=0xffffffffu);
- return select(views[0u].worldCount,views[0u].treeTop+world,hasTree());
+ return select(views[0u].worldCount,views[0u].treeTop+world+views[0u].alwaysCount,hasTree());
 }
+/** Whether placement \`w\` is drawn whatever the view, as \`drawnAlways\` says of its mark: never
+ *  culled, or deformed past every finite reach (\`reachOf\` infinite). */
+fn drawnAlways(w:u32)->bool{let mark=markOf(w);return (mark&${SPRITE_UNCULLED}u)!=0u||(mark>>16u)>=${REACH_UNBOUNDED}u;}
 /** The one gate of a placement's root, whoever opens it — \`dagPrepare\` an ungrouped one, its kept
  *  group a member (\`placementStep\`): parked, drawn by its impostor card, or drawn by the world DAG
  *  in its place (\`worldCovers\`), it opens nothing. */
@@ -42,12 +46,18 @@ fn openRoot(at:u32,w:u32){
  putEntry(queueBase(0u),at,select(0xffffffffu,packEntry(vi,rootOf(w)),opensRoot(w)),w);
 }
 /** \`dagPrepare\`'s thread \`i\` of the bound range, with a tree: the head range writes its top
- *  nodes, the world DAG's range that root behind them. */
+ *  nodes, the world DAG's range that root behind them, and each member drawn whatever the view is
+ *  written behind it by the range that holds it — thread \`top + 1 + j\` of every range, member
+ *  \`j\`. */
 fn prepareTreeRoots(i:u32){
  let top=select(0u,views[0u].treeTop,rangeFirst()==0u);
  if(i<top){putEntry(queueBase(0u),i,packEntry(0u,views[0u].cellBase+i),0u);return;}
  let w=views[0u].worldRoot;
- if(i==top&&w!=0xffffffffu&&inRange(w)){vi=0u;openRoot(views[0u].treeTop,w);}
+ if(i==top){if(w!=0xffffffffu&&inRange(w)){vi=0u;openRoot(views[0u].treeTop,w);}return;}
+ let j=i-top-1u;
+ if(j>=views[0u].alwaysCount){return;}
+ let m=coldAt(views[0u].always+j);
+ if(inRange(m)){vi=0u;openRoot(views[0u].treeTop+select(0u,1u,w!=0xffffffffu)+j,m);}
 }
 `,
 )
@@ -59,10 +69,10 @@ export const DAG_TREE_DESCENT_WGSL = wgslBlock(
   `const TREE_GROUP:u32=${TREE_GROUP}u;
 /** Member \`k\` of the tree's order (\`members\`, behind the cold records), deposited by its kept group
  *  under the view \`vi\`: its root tested as pass 0 tests an ungrouped one, unless its gate closes
- *  it (\`opensRoot\`). */
+ *  it (\`opensRoot\`) or queue 0 opened it already (\`drawnAlways\`). */
 fn placementStep(src:u32,k:u32){
  let w=coldAt(views[0u].members+k);
- if(w==0xffffffffu||!inRange(w)||!opensRoot(w)){return;}
+ if(w==0xffffffffu||!inRange(w)||!opensRoot(w)||drawnAlways(w)){return;}
  nodeStep(src,rootOf(w),w);
 }
 /** A cell or a group of the tree: its world box under the camera, then under the view ahead. Its

@@ -400,13 +400,19 @@ function recordTables(
       groupEdges: edges,
     },
     coldAt = coldBase(shape)
-  // The tree's order behind the cold records, for every member slot.
+  // The tree's order behind the cold records, for every member slot, then the members drawn
+  // whatever the view (`drawnAlways`), as many slots again.
   const members = coldAt + Math.max(1, recordSlots) * COLD_WORDS,
-    linkBase = members + (tree?.capacity ?? 0)
+    linkBase = members + 2 * (tree?.capacity ?? 0)
   const clusters = new Float32Array(Math.max(1, recordSlots) * CLUSTER_WORDS),
     pageCones = new Float32Array(linkBase + (world >= 0 ? worldLinkWords(worlds) : 0)),
     cold = new Uint32Array(pageCones.buffer)
-  if (tree) cold.set(tree.order, (tree.members = members))
+  if (tree) {
+    cold.set(tree.order, (tree.members = members))
+    const { set, moves } = tree.always
+    cold.set(set.list.subarray(0, set.count), (tree.alwaysAt = members + tree.capacity))
+    moves.listed.clear()
+  }
   const at = {
     recordKey: recordKeyBase(pages),
     keyWord: keyWordBase(shape),

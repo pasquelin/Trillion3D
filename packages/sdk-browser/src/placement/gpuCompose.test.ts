@@ -8,6 +8,8 @@ import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/compi
 import { decideComposedMotion, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { NONE } from './gpuComposeWgsl.ts'
 import { session, turn } from './composeSession.fixture.ts'
+import { ROW_WORDS } from '../visibility/types.ts'
+import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 
 test("a parent's turn advances the cut's world revision on the frame it moved, and only then", () => {
   const { rt, rows, frame } = session()
@@ -41,14 +43,20 @@ test('a parent unlinked and linked anew starts from its new world: no motion fro
   assert.equal(frame(), 0, 'linked at its new world: nothing moved on the GPU')
 })
 
-/** A table of `count` rows holding no page: the rows' inputs are zero. */
-const tableOf = (count: number) => ({
-  rowCount: count,
-  packedRecs: [],
-  packedPageIndex: [],
-  blendFirst: count,
-  forEachDirtyRun: () => {},
-})
+/** A table of `count` rows holding no page, row `i` naming root `i`: the rows' inputs are zero. */
+const tableOf = (count: number) => {
+  const pageTableInts = new Uint32Array(count * ROW_WORDS)
+  for (let row = 0; row < count; row++) pageTableInts[row * ROW_WORDS + ROW_PLACEMENT_WORD] = row
+  return {
+    rowCount: count,
+    packedRecs: [],
+    packedPageIndex: [],
+    blendFirst: count,
+    tableEpoch: 1,
+    pageTableInts,
+    forEachDirtyRun: () => {},
+  }
+}
 
 test('the compose kernels are asked once a parent links rows, the frames held until they compiled off the thread', async () => {
   const { rt, rows, frame, device, encoder, compiled } = session()

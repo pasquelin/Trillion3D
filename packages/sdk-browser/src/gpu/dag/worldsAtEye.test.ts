@@ -35,6 +35,7 @@ const run = shaderRun<{
 }>(DAG_WORLD_POSE_WGSL, [...SUBTRACTION, 'toF32', 'atEye', 'translationAtEye'], {
   countLeadingZeros,
 })
+
 test('a translation the kernel reads at the eye is the rebased one, bit for bit', () => {
   const next = lcgRandom(1473)
   const EDGES = [NaN, 0, -0, Infinity, -Infinity, 1e39, -1e39, 1e-45, 5e-324, 2 ** 24 + 1, 1e300]

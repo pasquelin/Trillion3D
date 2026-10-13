@@ -30,6 +30,10 @@ export function nextPow2(v: number) {
   throw new RangeError(`nextPow2: ${v} is past 2^32`)
 }
 
+/** Slots of an open-addressed table that holds `entries` at a load of one half at most: a power
+ *  of two, two slots at least. */
+export const halfLoadSlots = (entries: number) => nextPow2(2 * Math.max(1, entries))
+
 /** Side of mip level `level` of a texture whose base side is `size`, a non-negative int32: `size`
  *  halved `level` times by integer division, one texel at least; a level past 31 gives one texel. */
 export const mipSize = (size: number, level: number) => Math.max(1, size >>> Math.min(level, 31))

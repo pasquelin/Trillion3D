@@ -6,6 +6,7 @@ import type { AsideCut } from '../../../gpu/core/aside.ts'
 import type { FrameGateCore } from '../../../frame/gateCore.ts'
 import type { WebgpuBudgetState } from '../../residency/budgetState.ts'
 import type { MovedWorlds } from '../render/movedWorlds.ts'
+import type { DeviceGrant } from '../../../gpu/core/errorScope.ts'
 
 export { createWebgpuRunState } from './runState.ts'
 
@@ -112,4 +113,21 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** Ordered signature of the tested half: two images that share it share their occluders, therefore
    *  the partition the next one inherits. */
   occluderSignature: number
+  /** The session's memory funding (`../prepare/targetFunding.ts`, `../io/memory.ts`). */
+  funding: WebgpuFunding
+}
+
+/** What the session's memory funding holds between two asks. */
+export interface WebgpuFunding {
+  /** The device ledger's bytes the targets were last funded at: a refusal is said once a ledger
+   *  state, not every frame. */
+  ledgerBytes: number | undefined
+  /** The pools funded again beside targets already in place, one at a time. */
+  refreshing: DeviceGrant | undefined
+  /** Bytes of the cut's table about to be made, funded with what the tables hold, 0 between two
+   *  admissions (`admitCutTables`). */
+  cutAsked: number
+  /** The geometry pool's renewals, one after the other, each drawn from the catalogue as it
+   *  stands (`growWebgpuPagePool`). */
+  renewal: Promise<unknown>
 }

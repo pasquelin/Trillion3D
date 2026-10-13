@@ -8,40 +8,18 @@ import assert from 'node:assert/strict'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
-import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import { Material } from '../../../../sdk-core/src/world/material/material.ts'
-import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { worldNoticeListeners } from '../diagnostic/worldNotices.ts'
-import { LoadedModel } from './loadedModel.ts'
 import type { ReopenCause } from './worldReopen.ts'
 import { Scene } from './scene.ts'
+import { loadedModel, meshLinks } from './worldModels.fixture.ts'
 import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts'
 
 /** Every cause of a reopen: adding one to the type breaks this table, and the proof with it. */
 const CAUSES: Record<ReopenCause, true> = { 'device-lost': true, option: true }
 
-/** A model of `count` meshes, `cells` partitions it places meshes by: the shape a world reads. */
-function model(count: number, cells: object[] = []) {
-  const source = new Group(),
-    drawn = Array.from(
-      { length: count },
-      () => new Mesh(new Geometry(), new Material('meshStandard')),
-    )
-  source.add(...drawn)
-  return new LoadedModel({
-    base: 'file:///cache/',
-    manifestUrl: 'file:///cache/manifest.json',
-    metadataUrl: 'file:///cache/clusters.json',
-    textureSource: 'host',
-    metadata: { primitives: drawn.map((_, i) => ({ mesh: i, primitive: 0, pages: [] })) } as never,
-    scene: {
-      source,
-      associations: new Map(drawn.map((mesh, i) => [mesh, { meshes: i }])),
-      partitions: cells,
-    } as never,
-  })
-}
+/** A model of `count` meshes, `cells` partitions it places meshes by (`loadedModel`). */
+const model = (count: number, cells: object[] = []) =>
+  loadedModel(meshLinks(count), { partitions: cells }).loaded
 
 test('the causes of a reopen are a lost device and an option, and no content change', () => {
   assert.deepEqual(Object.keys(CAUSES).sort(), ['device-lost', 'option'])

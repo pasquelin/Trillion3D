@@ -97,7 +97,8 @@ export async function runRefit(split: boolean) {
       frames.subarray(first * FRAME_ROW_WORDS, end * FRAME_ROW_WORDS),
     )
   })
-  for (const w of touched) refit.leaf(w)
+  const moved = Int32Array.from(touched).sort()
+  refit.leaves(moved, moved.length)
   const groups = new Set([...touched].map((w) => Math.floor(tree.slot[w] / TREE_SPAN)))
   const encoder = device.createCommandEncoder()
   refit.run(encoder, groups)

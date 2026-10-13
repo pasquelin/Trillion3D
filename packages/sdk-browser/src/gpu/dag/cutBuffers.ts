@@ -14,8 +14,8 @@ const pastShare = (bytes: number, share: number) =>
 
 /**
  * The one way a buffer of a cut's tables is made, beside the `held` bytes they hold: within the
- * `share`, the session's budget asked first (`admit`), and made tentatively on its ledger — the cut
- * has a fallback, a coarser cut or the CPU's, so a refusal never refuses the session
+ * `share`, the session's budget asked first (`admit`), and made tentatively on its ledger — a
+ * refusal never refuses the session: the cut keeps the tables it holds (`listCap.ts`)
  * (`ledgerTentative`).
  */
 export function madeAsked(

@@ -34,7 +34,7 @@ for (const name of ['whole', 'split across parts and ranges'] as const)
     // The first fit: every node, from the open tree the pack leaves.
     refitTree(dag, undefined, layout)
     const held = Array.from(words())
-    // The change: poses a long way off, a park, a mark that opens, a whole group parked.
+    // The change: poses a long way off, a park, a mark drawn whatever the view, a reach, a whole group parked.
     const touched = treeChange(dag, roots)
     const groups = [...touched].map((w) => Math.floor(tree.slot[w] / TREE_SPAN))
     const fitted = refitTree(dag, groups, layout)
@@ -56,7 +56,7 @@ for (const name of ['whole', 'split across parts and ranges'] as const)
     assert.deepEqual(incremental.slice(0, first), held.slice(0, first), 'nodes outside the tree')
   })
 
-test('a fitted tree holds every member, grown past the single-precision rounding, and opens where a member does', () => {
+test('a fitted tree holds every member, grown past the single-precision rounding, finite where a member is never culled', () => {
   const roots = placementField(40, 6),
     dag = packDagSelection(roots),
     tree = dag.placementTree!
@@ -64,11 +64,10 @@ test('a fitted tree holds every member, grown past the single-precision rounding
   refitTree(dag)
   const groups = tree.levels.at(-1)!,
     node = (n: number) => dag.nodes.subarray(n * DAG_NODE_FLOATS, n * DAG_NODE_FLOATS + 7)
-  const opened = groups.base + Math.floor(tree.slot[70] / TREE_SPAN)
-  assert.ok(node(opened)[0] < -1e38 && node(opened)[4] > 1e38, 'the group of an uncullable member')
-  assert.ok(node(tree.levels[0].base)[0] < -1e38, 'and every node above it')
-  for (const w of [0, 5, 1599]) {
-    if (w === 70) continue
+  const held = groups.base + Math.floor(tree.slot[70] / TREE_SPAN)
+  assert.ok(node(held)[0] > -1e38 && node(held)[4] < 1e38, 'the group of an uncullable member')
+  assert.ok(node(tree.levels[0].base)[0] > -1e38, 'and every node above it')
+  for (const w of [0, 5, 70, 1599]) {
     const box = node(groups.base + Math.floor(tree.slot[w] / TREE_SPAN)),
       leaf = tree.boxes.subarray(w * 6, w * 6 + 6)
     for (let a = 0; a < 3; a++) {

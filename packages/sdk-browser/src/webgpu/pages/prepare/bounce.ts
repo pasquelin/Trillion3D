@@ -152,8 +152,7 @@ export function syncLightingProxies(rt: WebgpuPagesRuntime) {
   const { probes } = rt.bounce
   if (!probes) return
   const epoch = rt.run.gate.revisions.scene
-  if (seen.get(rt.bounce) === epoch) return
-  seen.set(rt.bounce, epoch)
+  if (rt.bounce.sceneEpoch === epoch) return
+  rt.bounce.sceneEpoch = epoch
   probes.sync()
 }
-const seen = new WeakMap<object, number>()

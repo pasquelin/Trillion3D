@@ -19,6 +19,9 @@ export interface WebgpuBounceState {
   reason: string | null
   /** Light-store revision already seen: a change restarts convergence. */
   lightEpoch: number
+  /** Scene revision the probes last followed the placements at, -1 before any
+   *  (`../prepare/bounce.ts`, `syncLightingProxies`). */
+  sceneEpoch: number
   /** Probes updated and rays launched by the last image; zero when nothing was encoded. */
   probesUpdated: number
   raysLaunched: number
@@ -50,6 +53,7 @@ export function createWebgpuBounceState(wanted: boolean, budgetMs: number): Webg
     budgetMs,
     reason: null,
     lightEpoch: 0,
+    sceneEpoch: -1,
     probesUpdated: 0,
     raysLaunched: 0,
     encoded: false,

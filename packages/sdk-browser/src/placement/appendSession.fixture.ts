@@ -15,7 +15,7 @@ import { disposeWebgpuPages } from '../webgpu/pages/io/metrics.ts'
 import { createPlacementRows } from './rows.ts'
 import { drawSourceOf, graphDraws } from '../page/selection/drawSource.ts'
 import { addWebgpuPlacements } from './webgpuAppend.ts'
-import { growthOf, startGrownCut } from './webgpuGrowth.ts'
+import { startGrownCut } from './webgpuGrowth.ts'
 import { adoptGrownCut } from './webgpuGrownCut.ts'
 import type { Primitive } from '../../../sdk-core/src/index.ts'
 
@@ -84,7 +84,7 @@ export async function session(placements: number) {
     const cut = rt.run.gpuSelection
     const refused = await addWebgpuPlacements(rt, drawSourceOf(added, ranks), brings ?? held)
     startGrownCut(rt)
-    await growthOf(rt)?.making
+    await rt.growth?.making
     assert.ok(adoptGrownCut(rt), 'the roots joined the cut')
     await rt.layout.growing
     const written = new Map<string, number>()

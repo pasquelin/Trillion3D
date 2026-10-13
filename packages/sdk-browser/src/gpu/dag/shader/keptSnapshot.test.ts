@@ -8,7 +8,7 @@ import { wgslScope } from '../../../page/cut/wgslPredicate.fixture.ts'
 import { wgslConstants } from '../../../texture/shaderRule.fixture.ts'
 import {
   KEPT_HEADER_WORDS,
-  SELECTION_HEADER_WORDS as HEAD,
+  SELECTION_HEADER_WORDS,
   savedJournalWord,
   keptSnapshotWord,
 } from '../layout.ts'
@@ -27,7 +27,7 @@ test('the kept snapshot and the saved journals lie where the host lays them, a w
   for (const cap of [1, 64, 1000, 262144]) {
     const k = kernel(cap),
       at = keptSnapshotWord(cap)
-    // `out.pages` starts behind the header: the kernel's word `w` is the readout's `HEAD + w`.
+    // `out.pages` starts behind the header: the kernel's word `w` is the readout's `SELECTION_HEADER_WORDS + w`.
     for (const w of [
       0,
       1,
@@ -35,9 +35,13 @@ test('the kept snapshot and the saved journals lie where the host lays them, a w
       KEPT_HEADER_WORDS + cap,
       KEPT_HEADER_WORDS + 2 * cap - 1,
     ])
-      assert.equal(k.keptAt(w) + HEAD, at + w, `list of ${cap}, kept word ${w}`)
+      assert.equal(k.keptAt(w) + SELECTION_HEADER_WORDS, at + w, `list of ${cap}, kept word ${w}`)
     // Behind the regions the views aside save, the open counts the host writes (`heldOpen.ts`).
     for (const regions of [0, 1, 3])
-      assert.equal(k.savedAt(regions) + HEAD, savedJournalWord(cap, regions), `${regions} regions`)
+      assert.equal(
+        k.savedAt(regions) + SELECTION_HEADER_WORDS,
+        savedJournalWord(cap, regions),
+        `${regions} regions`,
+      )
   }
 })

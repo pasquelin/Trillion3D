@@ -10,6 +10,7 @@ import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { createWorldResidencyMirror } from './residencyMirror.ts'
 import { createAsideCut } from './aside.ts'
 import { createTreeFollower, type ComposedLeaves } from './treeFollow.ts'
+import { nodeLayout } from './treeRefit.ts'
 import { createLinkFollower } from './worldFollow.ts'
 import {
   appendRoots,
@@ -106,11 +107,15 @@ function selectionOver(run: DagRun): GpuSelection {
     get worldRevision() {
       return state.worldRevision
     },
+    get frameWrites() {
+      return frames.writes
+    },
     updateWorlds: (next, named) => updateRuntimeWorlds(run, next, named),
     composedPlacement(w, composed) {
       if (!composed && live()) rewritePlacement(run, w)
       run.tree?.touch(w)
     },
+    treeNodes: run.tree && nodeLayout(resources.nodeParts),
     groupOf: (w) => run.tree?.groupOf(w) ?? -1,
     groupsMoved: (groups) => run.tree?.groupsMoved(groups),
     placeObject: (w, object) => run.links?.place(w, object),

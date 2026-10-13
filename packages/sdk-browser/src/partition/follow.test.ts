@@ -6,6 +6,9 @@ import assert from 'node:assert/strict'
 import { object } from '../../../sdk-core/src/world/object/index.ts'
 import { geometry } from '../../../sdk-core/src/world/geometry/index.ts'
 import { io, noBudget, opened, world } from './cells.fixture.ts'
+import { createPlacementWrites, type CellFrame, type Placement } from './follow.ts'
+import { createTouchedRows, placedMesh } from './rows.ts'
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 test("a cell's rows cast as their host mesh says, and follow its castShadow once changed", async () => {
   const [plain, ink] = [0, 1].map(() => object.mesh(geometry.box(1, 1, 1)))
@@ -74,4 +77,43 @@ test('the rows under a core parent follow its world on the GPU: the first rows a
   assert.equal(calls.length, moved + 1, 'a core parent moved: its world alone')
   assert.equal(updates.length, sent, 'no row written')
   assert.equal(calls.at(-1)!.world[13], 20, 'its world in the frame')
+})
+
+test('a frame move reaches every slot even when a row is linked before the next follow', () => {
+  const host = object.mesh(geometry.box(1, 1, 1))
+  const outer = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+  const sent = new Map<object, number[]>()
+  const frame: CellFrame = {
+    world: () => outer,
+    compose: (parent, world) => void sent.set(parent, Array.from(world)),
+  }
+  const writes = createPlacementWrites(createTouchedRows(), frame)
+  const [a, b] = [object.group(), object.group()]
+  const placement = (parent: Object3D): Placement => ({
+    mesh: placedMesh([{}], [host]),
+    row: 0,
+    parent,
+    local: new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
+  })
+  const held = [[placement(a)], [placement(b)]]
+  for (const [at] of held) {
+    writes.write(at)
+    writes.settle(held, [at.parent])
+  }
+  writes.follow([], held)
+  const slots = [...sent.keys()]
+  assert.equal(slots.length, 2, 'a slot a parent')
+  // The frame moves, and a row of `a` is linked before the next follow reads the frame.
+  outer[12] = 40
+  const added = placement(a)
+  held.push([added])
+  writes.write(added)
+  writes.settle(held, [a])
+  sent.clear()
+  writes.follow([], held)
+  assert.deepEqual(
+    slots.map((slot) => sent.get(slot)?.[12]),
+    [40, 40],
+    'both parents take the frame’s move, the one not linked again too',
+  )
 })

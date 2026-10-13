@@ -4,7 +4,7 @@ import { createWorldRanks } from './worldRanks.ts'
 import type { Cut } from './worldCuts.ts'
 import type { LoadedModel } from './loadedModel.ts'
 
-const cut = () => ({}) as Cut
+const cut = () => ({ runtime: { primitive: {} } }) as unknown as Cut
 const model = () => ({}) as LoadedModel
 
 test('a resource keeps the rank it was given, whatever is seated after it', () => {

@@ -1,5 +1,6 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { composeWorld } from '../../placement/composeWorld.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { shownChain } from '../../placement/hidden.ts'
 import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
@@ -65,10 +66,8 @@ class ModelMeshSource implements DrawSource {
    *  every node above it, whether it casts. */
   write(world: Float64Array, shown: boolean, matrices = true) {
     const { rows, drawn } = this
-    if (matrices) composeWorld(rows.matrices, world, drawn.matrixWorld.elements)
-    let live = shown
-    for (let walk: Object3D | null = drawn; live && walk; walk = walk.parent) live = walk.visible
-    rows.live[0] = live ? 1 : 0
+    if (matrices) multiplyMatrix4(rows.matrices, world, drawn.matrixWorld.elements)
+    rows.live[0] = shown && shownChain(drawn) ? 1 : 0
     rows.shadowless[0] = drawn.castShadow ? 0 : 1
   }
 }
@@ -99,11 +98,7 @@ export type ModelDraws = {
    *  session's manifest lists of the model, made once. */
   readonly primitives: readonly Primitive[]
   readonly draws: readonly DrawSource[]
-  readonly rowed: readonly (DrawSource & {
-    readonly rows: PlacementRows
-    readonly local: ArrayLike<number>
-    write(world: Float64Array, shown: boolean, matrices?: boolean): void
-  })[]
+  readonly rowed: readonly (DrawSource & WorldPose & { readonly local: ArrayLike<number> })[]
   /** The pose of the world DAG the model holds, once the world draws it (`rootsOf`). */
   world?: WorldPose
 }

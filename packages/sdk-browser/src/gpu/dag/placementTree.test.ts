@@ -11,6 +11,7 @@ import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { boxTransform, frustumExcludesBox } from '../../../../sdk-core/src/index.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
+import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
 
 const views = [
   // Inside the field, looking along a row; from above its corner; past its edge, looking away.
@@ -80,11 +81,18 @@ test('moving, parking or opening one placement refits its group and its cell, at
     memberBox(dag, tree, 70)
     refitTree(dag, [group])
     assert.ok(box()[4] < 1000)
-    // Never culled, it opens its group.
+    // Never culled, it stays a finite leaf of its group and is drawn whatever the view, from the
+    // list apart (`always`): a view away from its group draws it as the flat descent does.
     dag.rootNodes[70] = dag.rootBases[70]
     dag.mark[70] = SPRITE_UNCULLED
+    mirrorKey(tree.always, 70, true)
+    memberBox(dag, tree, 70)
     refitTree(dag, [group])
-    assert.ok(box()[0] < -1e38 && box()[4] > 1e38)
+    assert.ok(box()[4] >= 1000 && box()[4] < 1e38 && box()[0] > -1e38, 'its group finite')
+    const away = fieldCamera([30, 2, -30], [30, 0, -200])
+    const kept = fieldCut(roots, away, true, dag)
+    assert.deepEqual(kept.pages, fieldCut(roots, away, false, dag).pages)
+    assert.ok(kept.placements.includes(70), 'drawn from queue 0')
   }
 })
 
@@ -125,7 +133,7 @@ test("a growth's placements join the tree in place, the cut the flat one's", () 
   assert.equal(tree.count, 128 + 20)
   for (let w = 0; w < 100; w++) assert.equal(tree.order[tree.slot[w]], w, `placement ${w}`)
   assert.deepEqual(added.tree.members, [128, 148])
-  // The new members' leaves are taken as the follower takes them (`TreeRefit.leaf`), their groups fit.
+  // The new members' leaves are taken as the follower takes them (`TreeRefit.leaves`), their groups fit.
   for (let w = 80; w < 100; w++) memberBox(dag, tree, w)
   refitTree(dag)
   for (const camera of views) {
@@ -141,20 +149,44 @@ test("a growth's placements join the tree in place, the cut the flat one's", () 
   )
 })
 
-test('an open group opens every node above it, by its flag, its bounds past every plane', () => {
+test('a member drawn whatever the view is listed apart: every box stays finite, the cut the flat one', () => {
   const roots = placementField(40, 6)
   roots[70] = { ...roots[70], mark: SPRITE_UNCULLED }
+  // Deformed by a reach: its leaf grows by it, its group holds it, nothing opens.
+  roots[71] = { ...roots[71], mark: 0x4000 << 16 }
   const dag = packDagSelection(roots),
-    tree = dag.placementTree!,
-    group = Math.floor(tree.slot[70] / SELECTION_WORKGROUP)
-  const cell = tree.levels[0].base + Math.floor(group / SELECTION_WORKGROUP)
-  for (const node of [tree.levels.at(-1)!.base + group, cell]) {
-    assert.deepEqual(
-      Array.from(dag.nodes.subarray(node * 24, node * 24 + 7)).filter((_, a) => a !== 3),
-      [-3.4e38, -3.4e38, -3.4e38, 3.4e38, 3.4e38, 3.4e38].map(Math.fround),
-      `node ${node}: exactly the open bounds`,
-    )
+    tree = dag.placementTree!
+  const { set } = tree.always
+  assert.deepEqual(Array.from(set.list.subarray(0, set.count)), [70], 'the never culled alone')
+  refitTree(dag)
+  assert.equal(tree.depth, 2, 'groups under one cell')
+  for (const w of [70, 71]) {
+    const g = Math.floor(tree.slot[w] / SELECTION_WORKGROUP),
+      group = tree.levels.at(-1)!.base + g,
+      cell = tree.levels[0].base + Math.floor(g / SELECTION_WORKGROUP)
+    const box = dag.nodes.subarray(group * 24, group * 24 + 7),
+      leaf = tree.boxes.subarray(w * 6, w * 6 + 6)
+    for (let a = 0; a < 3; a++)
+      assert.ok(box[a] <= leaf[a] && box[4 + a] >= leaf[3 + a], `member ${w}, axis ${a}`)
+    for (const node of [group, cell])
+      assert.ok(
+        Array.from(dag.nodes.subarray(node * 24, node * 24 + 7)).every((v) => Math.abs(v) < 1e38),
+        `node ${node} finite`,
+      )
   }
+  // The reach grows the leaf past the rest one's on every side.
+  const grown = tree.boxes.slice(71 * 6, 71 * 6 + 6)
+  dag.mark[71] = 0
+  memberBox(dag, tree, 71)
+  const rest = tree.boxes.slice(71 * 6, 71 * 6 + 6)
+  for (let a = 0; a < 3; a++) assert.ok(grown[a] < rest[a] && grown[3 + a] > rest[3 + a])
+  dag.mark[71] = 0x4000 << 16
+  memberBox(dag, tree, 71)
+  for (const camera of views)
+    assert.deepEqual(
+      fieldCut(roots, camera, true, dag).pages,
+      fieldCut(roots, camera, false, dag).pages,
+    )
 })
 
 test('the tree is ceil(log64 n) levels deep, its top one node: the descent opens on it alone', () => {

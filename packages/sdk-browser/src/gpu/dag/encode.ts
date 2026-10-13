@@ -1,4 +1,4 @@
-import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts'
+import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import type { DagResources } from './resources.ts'
 import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
@@ -135,7 +135,12 @@ function encodeOnce(
   // The cut's mask and drawn log become the frame's, unless it dropped work: a thread a word of
   // the masks (`shader/commitWgsl.ts`).
   pass.setPipeline(commitPipeline)
-  dispatchRows(pass, Math.max(1, workgroupCount(2 * resources.blockCount, WORKGROUP)), 1, width)
+  dispatchRows(
+    pass,
+    Math.max(1, workgroupCount(2 * resources.blockCount, SELECTION_WORKGROUP)),
+    1,
+    width,
+  )
   pass.setPipeline(requestSortPipeline)
   pass.dispatchWorkgroups(1)
   pass.setPipeline(evictPipeline)
@@ -157,23 +162,26 @@ function arm(pass: GPUComputePassEncoder, { armPipeline, armGroup, ranges }: Dag
 }
 
 /**
- * The entries of queue 0 range `r`'s `dagPrepare` writes (`levelEntries` those pass 0 reads): without a
- * placement tree, its own placements; with one, the head range the tree's top nodes, the world DAG's
- * range its root, and every range reads those few entries whole (`placementTreeWgsl.ts`).
+ * The threads of queue 0 range `r`'s `dagPrepare` (`levelEntries` the entries pass 0 reads): without
+ * a placement tree, its own placements; with one, the head range the tree's top nodes, the world
+ * DAG's range its root, then every range a thread each member drawn whatever the view, the range
+ * that holds it writing it — and every range reads those few entries whole (`placementTreeWgsl.ts`).
  */
 function prepareEntries({ packed, ranges }: DagResources, r: number) {
   const tree = packed.placementTree,
     world = packed.world?.root ?? -1
   if (!tree) return ranges[r].count
-  const holds = world >= ranges[r].first && world < ranges[r].first + ranges[r].count
-  return (r ? 0 : tree.levels[0].count) + (holds ? 1 : 0)
+  const holds = world >= ranges[r].first && world < ranges[r].first + ranges[r].count,
+    always = tree.always.set.count
+  return (r ? 0 : tree.levels[0].count) + (always ? 1 + always : holds ? 1 : 0)
 }
 
 /** The entries of queue 0 range `r`'s pass 0 reads (`prepareEntries`). */
 function levelEntries({ packed, ranges }: DagResources, r: number) {
   const tree = packed.placementTree
   if (!tree) return ranges[r].count
-  return tree.levels[0].count + ((packed.world?.root ?? -1) >= 0 ? 1 : 0)
+  const world = (packed.world?.root ?? -1) >= 0 ? 1 : 0
+  return tree.levels[0].count + world + tree.always.set.count
 }
 
 /**
@@ -197,7 +205,7 @@ function perRange(
       typeof threads === 'number' ? threads : threads(view, r),
       r ? 0 : firstFloor,
     )
-    dispatchRows(pass, workgroupCount(count, WORKGROUP), 1, width)
+    dispatchRows(pass, workgroupCount(count, SELECTION_WORKGROUP), 1, width)
   }
 }
 

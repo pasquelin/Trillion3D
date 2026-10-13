@@ -5,12 +5,12 @@ import { createPlacementRows } from '../../placement/rows.ts'
 import { createWorldModels } from './worldModels.ts'
 import { createWorldRanks } from './worldRanks.ts'
 import { createWorldPoses } from './worldPoses.ts'
-import { model } from './worldModels.fixture.ts'
+import { loadedModel } from './worldModels.fixture.ts'
 
 test('each drawn mesh of a model is a source at one row, its ranks moved past the models before', () => {
   const models = createWorldModels(createWorldRanks())
-  const first = model([{ meshes: 0 }, { meshes: 1 }]),
-    second = model([{ meshes: 0 }])
+  const first = loadedModel([{ meshes: 0 }, { meshes: 1 }]),
+    second = loadedModel([{ meshes: 0 }])
   const a = models.drawsOf(first.loaded),
     b = models.drawsOf(second.loaded)
   assert.deepEqual(
@@ -29,7 +29,7 @@ test('each drawn mesh of a model is a source at one row, its ranks moved past th
 
 test('posing a model writes the row of each mesh from its graph, shown or not', () => {
   const models = createWorldModels(createWorldRanks())
-  const { loaded, drawn } = model([{ meshes: 0 }, { meshes: 1 }])
+  const { loaded, drawn } = loadedModel([{ meshes: 0 }, { meshes: 1 }])
   drawn[0].position.set(0, 2, 0)
   loaded.position.set(3, 0, 0)
   loaded.updateMatrixWorld(true)
@@ -60,7 +60,7 @@ test('posing a model writes the row of each mesh from its graph, shown or not', 
 test('a model never built is never posed, and a mesh the cells place keeps their rows', () => {
   const models = createWorldModels(createWorldRanks())
   const placements = createPlacementRows(4)
-  const { loaded, drawn } = model([{ meshes: 0, placements }])
+  const { loaded, drawn } = loadedModel([{ meshes: 0, placements }])
   assert.equal(models.pose(loaded, true), undefined)
   const [draw] = models.drawsOf(loaded).draws
   assert.equal(draw.rows, placements, 'the cells’ rows, read where the loader keeps them')
@@ -70,7 +70,7 @@ test('a model never built is never posed, and a mesh the cells place keeps their
 
 test('a model moved, or a node of it, has its rows written and sent once before the frame', () => {
   const models = createWorldModels(createWorldRanks())
-  const { loaded, drawn } = model([{ meshes: 0 }])
+  const { loaded, drawn } = loadedModel([{ meshes: 0 }])
   const scene = new Object3D()
   scene.add(loaded)
   scene.updateMatrixWorld(true)

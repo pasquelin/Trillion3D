@@ -59,12 +59,14 @@ export async function runSphere() {
   packDoubles(parents, 0, IDENTITY_MATRIX4)
   const params = bufferHolding(
     device,
-    new Uint32Array([CASES, CASES, PART_SPHERES, 0]),
+    new Uint32Array([CASES, CASES, PART_SPHERES, CASES]),
     GPUBufferUsage.UNIFORM,
   )
   const spheres = gpu.buffer(CASES * 8 * 4, STORAGE)
   const pipeline = await device.createComputePipelineAsync(autoKernel(module))
   const absent = () => gpu.buffer(16, STORAGE)
+  // Every row is a composed root's: the pass's list names them all.
+  const rows = buffer(Uint32Array.from({ length: CASES }, (_, i) => i))
   const group = groupZero(
     device,
     pipeline,
@@ -79,6 +81,7 @@ export async function runSphere() {
       absent(),
       absent(),
       absent(),
+      rows,
     ].map((held) => ({ buffer: held })),
   )
   const encoder = device.createCommandEncoder()

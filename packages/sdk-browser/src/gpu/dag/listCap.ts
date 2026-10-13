@@ -23,7 +23,7 @@ import { keptRankRow } from './keptRanks.ts'
 import { HELD_BY_WORD } from './worlds.ts'
 import { viewWord } from './viewLayout.ts'
 import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
-import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts'
+import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 
 /** The cap a cut starts with: the readout's (`selectionListCap`, `layout.ts`), within the device
@@ -223,7 +223,12 @@ function carryKeptSnapshot(to: DagResources, from: { output: GPUBuffer; listCap:
   to.rekeepPipelines.forEach((pipeline, l) => {
     pass.setBindGroup(0, to.rankGroups[l])
     pass.setPipeline(pipeline)
-    dispatchRows(pass, workgroupCount(from.listCap, WORKGROUP), 1, groupWidth(device.limits))
+    dispatchRows(
+      pass,
+      workgroupCount(from.listCap, SELECTION_WORKGROUP),
+      1,
+      groupWidth(device.limits),
+    )
   })
   pass.end()
   device.queue.submit([encoder.finish()])

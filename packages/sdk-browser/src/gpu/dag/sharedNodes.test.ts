@@ -26,7 +26,7 @@ import { CAND_LIVE_WORDS, LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { treeNodeCount } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
-import { packed as fixturePacked } from './selectionHelpers.fixture.ts'
+import { packed } from './selectionHelpers.fixture.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { createDagReadiness } from './readiness.ts'
 import { pageResidency } from './readiness.fixture.ts'
@@ -130,7 +130,7 @@ test('the cut over shared nodes is each placement cut alone, page for page, resi
 })
 
 test('placements holding their own open counts cut as each alone, a table short of them as well', () => {
-  const [root] = fixturePacked(dagFixture()).roots
+  const [root] = packed(dagFixture()).roots
   const roots = Array.from({ length: 9 }, (_, w) => ({
     ...root,
     world: new G.Matrix4().setPosition((w % 3) * 5 - 5, 0, -Math.floor(w / 3) * 5),

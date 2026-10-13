@@ -7,11 +7,18 @@
  * engine's one (`treeRefit.ts`): this module names what it fits and writes the leaves — the box of
  * each placement the CPU holds the world of — and the composition writes the ones it composes.
  */
-import { opensTree, TREE_SPAN } from './placementTree.ts'
+import { drawnAlways, treeMarkMoved, TREE_SPAN } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
-import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
+import {
+  createSortedKeys,
+  mirrorKey,
+  mirroredWords,
+  takeMirrored,
+  takeSorted,
+} from '../../webgpu/cut/denseKeys.ts'
 import { createTreeRefit, type RefitTables } from './treeRefit.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /** Writes the tree nodes `nodes` names, ascending, in the cut's one run writer's ranges: an
  *  append's (`../dag/runtimeOps.ts`). */
@@ -29,8 +36,6 @@ export function uploadNodes(
  *  writes them all into `members`, the root boxes of `nodes` carried by the worlds it composes. */
 export type ComposedLeaves = {
   has(w: number): boolean
-  /** The layout of the nodes the tree is followed over: the pass is asked before a frame needs it. */
-  lay(nodes: { per: number; parts: number }): void
   encode(encoder: GPUCommandEncoder, tables: { members: GPUBuffer; nodeParts: DagParts }): void
 }
 
@@ -51,7 +56,6 @@ export function createTreeFollower(
     tree = packed.placementTree
   if (!tree) return undefined
   const refit = createTreeRefit(device, packed, tree, { nodeParts, coldParts, frames })
-  leaves?.lay({ per: nodeParts.bytes / (DAG_NODE_FLOATS * 4), parts: nodeParts.buffers.length })
   // What moved since the tree was last read, each placement once, and the groups a composition
   // moved: fitted once, before the next cut reads the tree.
   // The first cut fits every group: the tree packs open (`packPlacementTree`), the refit is the
@@ -62,6 +66,8 @@ export function createTreeFollower(
         ? Array.from({ length: tree.levels.at(-1)!.count }, (_, g) => g)
         : [],
     )
+  // The moved placements whose leaf the CPU writes, ascending: one scratch for every sync.
+  let written = new Int32Array(8)
   /** Placement `w`'s group fits again at the next cut: parked or taken back, posed by a send,
    *  appended, or composed on the GPU by a parent from now on or no longer. */
   const touch = (w: number) => {
@@ -74,9 +80,14 @@ export function createTreeFollower(
     get revision() {
       return revision
     },
-    /** Placement `w`'s mark moved from `before`: its group fits again where it opens or closes. */
+    /** Placement `w`'s mark moved from `before`: its leaf fits again where its reach moved, and it
+     *  joins or leaves the members drawn whatever the view (`drawnAlways`). */
     marked(w: number, before: number) {
-      if (opensTree(packed.mark[w]) !== opensTree(before)) touch(w)
+      const mark = packed.mark[w]
+      if (!treeMarkMoved(before, mark)) return
+      touch(w)
+      if (w < tree.slot.length && tree.slot[w] !== 0xffffffff)
+        mirrorKey(tree.always, w, drawnAlways(mark))
     },
     /** The poses a send moved (`updateWorlds`), a host walk's as a call's. */
     moved(ranks: ArrayLike<number>) {
@@ -95,15 +106,27 @@ export function createTreeFollower(
     /** Before every cut on the tables, the main view's or one aside: what moved fitted again, in a
      *  command buffer of its own that the cut's follows. */
     sync() {
+      // The members drawn whatever the view, their places moved since sent behind the order.
+      if (tree.always.moves.listed.count) {
+        const moved = takeMirrored(tree.always),
+          source = { data: mirroredWords(tree.always), sourceBase: 0, stride: 1 }
+        writeRanges(device, coldParts, moved, moved.length, {
+          ...source,
+          targetBase: tree.alwaysAt,
+        })
+      }
       const placements = dirty.listed.count ? takeSorted(dirty) : undefined
       if (!placements?.length && !groups.size) return
       const fit = new Set(groups)
       groups.clear()
+      let count = 0
+      if (placements) written = resized(written, placements.length)
       for (const w of placements ?? []) {
         if (tree.slot[w] === 0xffffffff) continue
         fit.add(Math.floor(tree.slot[w] / TREE_SPAN))
-        if (!leaves?.has(w)) refit.leaf(w)
+        if (!leaves?.has(w)) written[count++] = w
       }
+      refit.leaves(written, count)
       const encoder = device.createCommandEncoder({ label: 'Trillion3D placement tree refit' })
       leaves?.encode(encoder, { members: refit.members, nodeParts })
       refit.run(encoder, fit)

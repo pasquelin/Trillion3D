@@ -1,4 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts'
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * The address one pool slot is held, pinned and read under, for one cluster record.
@@ -12,6 +13,18 @@ import type { PageRec } from '../../page/selection/selection.ts'
  */
 export const pageAddress = (rec: Pick<PageRec, 'url' | 'geometryPage'>) =>
   rec.geometryPage?.url ?? rec.url
+
+/** The bytes a page takes in its pool slot, padded to a word: its geometry page's, else its
+ *  index bytes. */
+export const paddedPageBytes = (page: Pick<PageRec, 'geometryPage' | 'array' | 'indexBytes'>) =>
+  alignUp(
+    page.geometryPage ? page.geometryPage.bytes : (page.array?.byteLength ?? page.indexBytes),
+    4,
+  )
+
+/** The corners a page draws: its geometry page's indices, else three a triangle. */
+export const pageCorners = (page: Pick<PageRec, 'geometryPage' | 'triangles'>) =>
+  page.geometryPage ? page.geometryPage.indexCount : page.triangles * 3
 
 /**
  * Starts the read of a cluster's geometry page ahead of its admission (`../residency/admission.ts`)
@@ -61,11 +74,10 @@ export function describePageSlots(allPages: readonly PageRec[], held = pageSlotC
       held.fromGeometryPage++
     } else if (page.transparent) held.transparentClusters++
     else held.fromSourceGeometry++
-    const n = geometry ? geometry.bytes : (page.array?.byteLength ?? page.indexBytes)
-    const padded = n + (n % 4 ? 4 - (n % 4) : 0)
+    const padded = paddedPageBytes(page)
     if (padded > held.pageBytes) held.pageBytes = padded
     if (padded > (homes.get(address) ?? 0)) homes.set(address, padded)
-    const corners = geometry ? geometry.indexCount : page.triangles * 3
+    const corners = pageCorners(page)
     if (corners > held.maxCorners) held.maxCorners = corners
   }
   return held

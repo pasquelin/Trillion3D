@@ -20,7 +20,7 @@ import type { DagResources } from './resources.ts'
 import type { createWorldResidencyMirror } from './residencyMirror.ts'
 import { MAIN_VIEW } from './swap.ts'
 import { appendDagRoots, type DagAppended } from './pack.ts'
-import { writeParts } from './split.ts'
+import { writeParts, writeRanges } from './split.ts'
 import {
   COLD_WORDS,
   CLUSTER_WORDS,
@@ -305,11 +305,17 @@ function writeAppended(resources: DagResources, added: DagAppended) {
   const coldAt = packed.shared!.coldAt!
   send(coldParts, cones, (coldAt + r0 * COLD_WORDS) * 4, (r1 - r0) * COLD_WORDS * 4)
   send(coldParts, cones, (recordKeyBase(packed.pageCount) + r0) * 4, (r1 - r0) * 4)
-  const keyAt = keyWordBase(packed),
-    groupAt = keyGroupBase(packed)
-  for (const key of added.keys) {
-    send(coldParts, cones, (keyAt + key) * 4, 4)
-    send(coldParts, cones, (groupAt + key) * 4, 4)
+  // The keys' words and groups, each table's in the cut's one run writer's ranges.
+  if (added.keys.length) {
+    const keys = Int32Array.from(new Set(added.keys)).sort(),
+      words = new Uint32Array(cones.buffer, cones.byteOffset, cones.length)
+    for (const base of [keyWordBase(packed), keyGroupBase(packed)])
+      writeRanges(device, coldParts, keys, keys.length, {
+        data: words,
+        sourceBase: base,
+        targetBase: base,
+        stride: 1,
+      })
   }
   // The key groups they made: the parent starts of each, and the edges behind the live ones.
   const parentAt = groupParentBase(packed),

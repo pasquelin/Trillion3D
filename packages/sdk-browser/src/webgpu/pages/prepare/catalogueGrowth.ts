@@ -11,7 +11,12 @@
  */
 import type { PageRec, ClusterRoot } from '../../../page/selection/types.ts'
 import { indexPageRequests, pageRequestUrl } from '../../../page/selection/requests.ts'
-import { describePageSlots, pageAddress } from '../../row/pageSlots.ts'
+import {
+  describePageSlots,
+  pageAddress,
+  pageCorners,
+  paddedPageBytes,
+} from '../../row/pageSlots.ts'
 import { pageSourceBytes } from '../io/catalogue.ts'
 import { KEY_PAGE_MAX } from '../../../gpu/dag/evict.ts'
 import { growCoverKeys } from '../../residency/coverKeys.ts'
@@ -22,28 +27,18 @@ import { coverPagesOf } from './rootCover.ts'
 /** What a collection of a source brings the catalogue (`createCollector`). */
 export type Brought = { allPages: PageRec[]; roots: ClusterRoot<PageRec>[] }
 
-/** The bytes a page takes in its pool slot, padded to a word. */
-const paddedBytes = (page: PageRec) => {
-  const n = page.geometryPage
-    ? page.geometryPage.bytes
-    : (page.array?.byteLength ?? page.indexBytes)
-  return n + (n % 4 ? 4 - (n % 4) : 0)
-}
-const cornersOf = (page: PageRec) =>
-  page.geometryPage ? page.geometryPage.indexCount : page.triangles * 3
-
 /** Why the catalogue cannot take `pages` where it stands, said by name; none when it can. */
 export function catalogueRefusal(rt: WebgpuPagesRuntime, pages: readonly PageRec[]) {
   const { tracking, census, maxCorners } = rt.setup
   const added = new Set<string>()
   for (const page of pages) {
-    if (cornersOf(page) > maxCorners) return 'a page wider than the draw batches'
+    if (pageCorners(page) > maxCorners) return 'a page wider than the draw batches'
     const address = pageAddress(page),
       home = census.homes.get(address)
     if (home === undefined) added.add(address)
     else if (census.geometryUrls.get(address) !== page.geometryPage?.url)
       return 'an address of two pages'
-    else if (paddedBytes(page) > home) return 'a page wider than its home'
+    else if (paddedPageBytes(page) > home) return 'a page wider than its home'
   }
   if (tracking.pageCatalog.length + added.size > KEY_PAGE_MAX) return 'KEY_PAGE_MAX'
   return undefined

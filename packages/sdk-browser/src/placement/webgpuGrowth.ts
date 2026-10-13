@@ -52,7 +52,7 @@ export const webgpuPlacementApi = (rt: WebgpuPagesRuntime) => ({
 /** The roots waiting to join, how many of them the running cut took in place, whether a cut over
  *  them is asked, the cut being made, the pages the pool moved since it began, and the one ready —
  *  made, or the running one that took them (`inPlace`) —, until adopted. */
-type Growth = {
+export type GrowthInFlight = {
   roots: ClusterRoot<PageRec>[]
   /** The blended and transmissive copies of the sources added, which join the pass once their
    *  roots hold their ranks (`growBlend`). */
@@ -64,9 +64,9 @@ type Growth = {
   moved?: Set<number>
   ready?: { cut: GpuSelection; roots: number; moved: Set<number>; inPlace?: true }
 }
-const growths = new WeakMap<WebgpuPagesRuntime, Growth>()
-/** The growth of `rt` in flight, if one is. */
-export const growthOf = (rt: WebgpuPagesRuntime) => growths.get(rt)
+/** The growth of `rt`, begun when none is. */
+const growing = (rt: WebgpuPagesRuntime) =>
+  (rt.growth ??= { roots: [], copies: [], appended: 0, made: 0, asked: false })
 
 /** Whether the session grows the rows in place, asked before any is (`growth.ts`). */
 function webgpuGrowsInPlace(rt: WebgpuPagesRuntime) {
@@ -78,8 +78,7 @@ function webgpuGrowsInPlace(rt: WebgpuPagesRuntime) {
  *  `to`, and one parked root per new row waits for the cut made over all of them, asked of the next
  *  frame entry (`startGrownCut`): a burst of growths packs the DAG once. */
 function growWebgpuPlacements(rt: WebgpuPagesRuntime, from: PlacementRows, to: PlacementRows) {
-  const growth = growths.get(rt) ?? { roots: [], copies: [], appended: 0, made: 0, asked: false }
-  growths.set(rt, growth)
+  const growth = growing(rt)
   const { selectionRoots } = rt.layout,
     { blendState, setup } = rt
   const rebound: Rebound = new Map(),
@@ -120,20 +119,19 @@ export function joinGrownRoots(
   roots: readonly ClusterRoot<PageRec>[],
   copies: readonly BlendCopy[],
 ) {
-  const growth = growths.get(rt) ?? { roots: [], copies: [], appended: 0, made: 0, asked: false }
-  growths.set(rt, growth)
+  const growth = growing(rt)
   growth.roots.push(...roots)
   growth.copies.push(...copies)
   if (growth.roots.length || growth.copies.length) growth.asked = true
 }
 
 /** The blended copies waiting to join the pass, taken. */
-export const takeGrownCopies = (rt: WebgpuPagesRuntime) => growths.get(rt)?.copies.splice(0) ?? []
+export const takeGrownCopies = (rt: WebgpuPagesRuntime) => rt.growth?.copies.splice(0) ?? []
 
 /** At frame entry: the roots the growths since the last image brought, appended in place into the
  *  running cut's room, or a cut over every root made beside it at a grown capacity. */
 export function startGrownCut(rt: WebgpuPagesRuntime) {
-  const growth = growths.get(rt)
+  const growth = rt.growth
   if (!growth?.asked) return
   const cut = rt.run.gpuSelection
   // A list growing between two frames takes no root: asked again at the next frame entry, rather
@@ -179,7 +177,7 @@ function grownCutCapacity(rt: WebgpuPagesRuntime, roots: readonly ClusterRoot<Pa
 /** The GPU cut over the session's roots and those waiting, made beside the running one; a later
  *  growth makes another, and this one is dropped. The pool's slots that move meanwhile are logged
  *  (`logTouched`) and replayed alone at the swap (`webgpuGrownCut.ts`). */
-async function makeCut(rt: WebgpuPagesRuntime, growth: Growth): Promise<void> {
+async function makeCut(rt: WebgpuPagesRuntime, growth: GrowthInFlight): Promise<void> {
   const made = ++growth.made,
     roots = [...rt.layout.selectionRoots, ...growth.roots],
     { rows } = rt.layout,

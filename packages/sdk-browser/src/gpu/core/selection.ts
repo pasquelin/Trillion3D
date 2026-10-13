@@ -132,12 +132,19 @@ export type GpuSelection = {
    *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
    *  host holds is written again over the one its parent composed. */
   composedPlacement(world: number, composed: boolean): void
+  /** How the device lays out the nodes of the placement tree (`../dag/treeRefit.ts`,
+   *  `nodeLayout`), none without a tree: what a kernel reading them is asked for before a frame
+   *  binds it. */
+  readonly treeNodes?: { per: number; parts: number }
   /** The member group of placement `world` in the placement tree, -1 outside it: what a
    *  composition names the groups of the roots a parent moves by. */
   groupOf(world: number): number
   /** The groups `groups` name are fitted again before the next cut: the roots a parent
    *  composes moved with it (`../dag/treeFollow.ts`). */
   groupsMoved(groups: ArrayLike<number>): void
+  /** Writes the host made into the cut's frames and worlds since they were made: a GPU writer of
+   *  the same words (`../../placement/gpuCompose.ts`) writes them again once it moved. */
+  readonly frameWrites: number
   /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
    *  them — the levels, the frustum and the raster split follow the composed poses. `rows` are the

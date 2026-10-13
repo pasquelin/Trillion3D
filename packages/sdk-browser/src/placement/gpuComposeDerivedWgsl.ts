@@ -14,29 +14,23 @@
  * An affine world — its last row `(0, 0, 0, 1)`, as every product of the poses a node tree makes
  * is — takes the corners' divide by `w` as the CPU does: it is 1.
  */
-import { f32Bits } from '../../../math/src/float/bits.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { dAdd, dLess, dMax, dMin, dMul, dSqrt, dSub } from '../../../math/src/wgsl/double.ts'
+import {
+  dAdd,
+  dLess,
+  dMax,
+  dMin,
+  dMul,
+  dSqrt,
+  dSub,
+  splitDouble,
+} from '../../../math/src/wgsl/double.ts'
 import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
-import { FINITE_SENTINEL } from '../../../math/src/constants.ts'
+import { FINITE_SENTINEL } from '../../../math/src/wgsl/constants.ts'
 import { STRETCH_DOUBLE_WGSL } from './gpuStretchWgsl.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { INPUT_LOD, ROW_INPUT_DOUBLES } from './composedRowPack.ts'
-
-/** The words of a double stored as the CPU's `writeSplitDouble` stores it into a `Float32Array`: its
- *  rounding to single precision, then what it left. A word of zero exponent has none left. */
-const SPLIT_WGSL = wgslBlock(
-  'SPLIT_WGSL',
-  [dSub, fromF32, toF32],
-  `
-fn splitDouble(x:vec2u)->vec2u{
- let high=toF32(x);
- var low=0u;
- if(((high>>23u)&0xffu)!=0u){low=toF32(dSub(x,fromF32(high)));}
- return vec2u(high,low);
-}`,
-)
 
 /** `m[i]·x + m[4+i]·y + m[8+i]·z + m[12+i]`, summed left to right: the axis `i` of
  *  `transformAffinePoint`. */
@@ -55,7 +49,7 @@ const BASE = `let at=row*${ROW_INPUT_DOUBLES}u;`
  *  takes the maximum on `x` when bit 0 of `k` is set, on `y` for bit 1, on `z` for bit 2. */
 export const CORNERS_WGSL = wgslBlock(
   'CORNERS_WGSL',
-  [SPLIT_WGSL, AFFINE_WGSL],
+  [splitDouble, AFFINE_WGSL],
   `
 fn composeCorners(row:u32,world:array<vec2u,16>){
  ${BASE}
@@ -123,13 +117,11 @@ fn composeBox(rank:u32,at:u32,world:array<vec2u,16>){
 }`,
 )
 
-const SENTINEL_BITS = f32Bits(FINITE_SENTINEL)
-
 /** Row `row`'s detail words at `world` (`applyRowLod`): the errors and their centres by the stretch of
  *  the world, the radii, the radius of the root's world box, the residency folded in. */
 export const LOD_WGSL = wgslBlock(
   'LOD_WGSL',
-  [SPLIT_WGSL, AFFINE_WGSL, STRETCH_DOUBLE_WGSL, dSqrt, dMul, dAdd, dSub],
+  [splitDouble, AFFINE_WGSL, STRETCH_DOUBLE_WGSL, dSqrt, dMul, dAdd, dSub, FINITE_SENTINEL],
   `
 fn lodCentre(o:u32,at:u32,world:array<vec2u,16>,src:u32,low:u32){
  for(var axis=0u;axis<3u;axis++){
@@ -142,7 +134,7 @@ fn composeLod(row:u32,rank:u32,world:array<vec2u,16>){
  let at=row*${ROW_INPUT_DOUBLES}u+${INPUT_LOD}u;
  let o=row*${ROW_LOD_FLOATS}u;
  for(var k=0u;k<${ROW_LOD_FLOATS}u;k++){lods[o+k]=0u;}
- lods[o+7u]=${SENTINEL_BITS}u;
+ lods[o+7u]=bitcast<u32>(FINITE_SENTINEL);
  let flags=inputs[at+10u].x;
  if((flags&16u)!=0u){
   let a=rootBoxes[rank*6u];let b=rootBoxes[rank*6u+1u];let c=rootBoxes[rank*6u+2u];
