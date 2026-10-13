@@ -5,12 +5,12 @@
 // sphere about the world box the formula replaces (`|W|·h`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { generated } from './composeDoubles.fixture.ts'
 import { sphereRadius } from './rowSphere.ts'
 
 test('the sphere holds every corner of the box in its world, tight on the farthest', () => {
-  const next = random(23)
+  const next = lcgRandom(23)
   let tight = 0,
     tighter = 0
   for (let i = 0; i < 2000; i++) {

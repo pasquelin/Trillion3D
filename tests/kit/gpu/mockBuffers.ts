@@ -9,10 +9,6 @@ export const words = (bytes: Uint8Array) =>
 export const floats = (bytes: Uint8Array) =>
   new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4)
 
-/** What a mapping meets on the backend device (`mockGpu`, until its last readers move to
- *  `fakeDevice`): a refusal, or a gate the test opens when it chooses. */
-export type MapFaults = { failMap?: boolean; mapGate?: Promise<void> }
-
 /**
  * The buffers of `fakeDevice()`, which map as on a real device: their bytes are the mapped range;
  * mapping a destroyed buffer is a validation error on the device (`OperationError`, counted by

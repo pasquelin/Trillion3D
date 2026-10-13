@@ -6,7 +6,7 @@ import * as G from '../host/graph/graph.fixture.ts'
 import { MANIFEST_IDENTITY, dagRoots } from '../engine/pagesEngine.fixture.ts'
 import { QUAD_MANIFEST, triangleGeometry } from '../engine/pagesEngineScenes.fixture.ts'
 import { rootPage } from '../webgpu/pages/rootPages.fixture.ts'
-import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
 import { createWebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { prepareWebgpuBackend } from '../webgpu/pages/prepare/prepare.ts'
@@ -57,7 +57,10 @@ export async function session(placements: number) {
   const associations = new Map([
     [mesh, { meshes: 7, primitives: 0, placements: rowsOf(placements) }],
   ])
-  const gpu = mockGpu({ limits: { maxBufferSize: 1 << 30, maxStorageBufferBindingSize: 1 << 30 } })
+  const gpu = fakeDevice({
+    ...BACKEND,
+    limits: { maxBufferSize: 1 << 30, maxStorageBufferBindingSize: 1 << 30 },
+  })
   const rt = createWebgpuPagesRuntime({
     ...{ source, metadata, indices, associations, gpuDevice: gpu.device },
     draws: graphDraws(source, associations),
@@ -81,8 +84,8 @@ export async function session(placements: number) {
     assert.ok(adoptGrownCut(rt), 'the roots joined the cut')
     await rt.layout.growing
     const written = new Map<string, number>()
-    for (const { label, bytes } of gpu.writes)
-      written.set(label ?? '', (written.get(label ?? '') ?? 0) + bytes.length)
+    for (const { buffer, data } of gpu.writes)
+      written.set(buffer.label ?? '', (written.get(buffer.label ?? '') ?? 0) + data.byteLength)
     const bytes = [...written.values()].reduce((sum, size) => sum + size, 0)
     return {
       refused,

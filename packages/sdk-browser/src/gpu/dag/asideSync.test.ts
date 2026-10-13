@@ -13,14 +13,14 @@ import { ruleDag } from '../../page/cut/cutRule.fixture.ts'
 import { worldDag } from '../../scene/worldSuperRoots.fixture.ts'
 import { createSelectionUniforms } from '../core/selection.ts'
 import { worldFadeScale } from './worldFade.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { DagRoot } from './types.ts'
 
 /** The followed selection over `roots`, its view aside made and its regions asked by one main
  *  image; `side`: one image of the view aside alone. */
 async function asideOver(roots: DagRoot[]) {
   const packed = packDagSelection(roots),
-    gpu = mockGpu({ packed })
+    gpu = fakeDevice({ ...BACKEND, packed })
   const resources = (await createDagResources(gpu.device, packed))!
   const selection = createDagRuntime(resources)
   const aside = selection.aside()
@@ -55,7 +55,7 @@ test('a view aside cut alone reads the tree refitted and the root word of a park
   selection.updateWorlds(next, Int32Array.of(399))
   selection.parkWorld(5, true)
   const leaves = () =>
-    gpu.writes.filter(({ label }) => label === 'Trillion3D placement tree leaf boxes')
+    gpu.writes.filter(({ buffer }) => buffer.label === 'Trillion3D placement tree leaf boxes')
   const sent = leaves().length,
     refits = () =>
       gpu.commands.filter((c) => c === 'compute Trillion3D placement tree refit').length

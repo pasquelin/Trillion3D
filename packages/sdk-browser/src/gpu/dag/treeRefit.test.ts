@@ -8,14 +8,14 @@ import { packDagSelection } from './selection.ts'
 import { createTreeRefit } from './treeRefit.ts'
 import { DAG_BINDING, dagPartBindings } from './shader/bindings.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 
 test('the tables of a split device are bound in their parts by the cut’s own bindings', () => {
   installGpuGlobals()
   const packed = packDagSelection(placementField(40, 6)),
     tree = packed.placementTree!,
-    { device, passes, commands } = mockGpu({ packed })
+    { device, passes, commands } = fakeDevice({ ...BACKEND, packed })
   const groups: { layout?: unknown; entries: { binding: number }[] }[] = []
   const make = device.createBindGroup.bind(device)
   device.createBindGroup = (descriptor) => (groups.push(descriptor as never), make(descriptor))

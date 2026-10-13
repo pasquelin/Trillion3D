@@ -3,7 +3,6 @@ import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { NormalCone } from '../../page/cone/cone.ts'
 import type { PageSurface } from '../../page/surface.ts'
-import type { SelectionUniforms } from '../core/selection.ts'
 import type { ClusterStructureIndex } from '../../page/selection/types.ts'
 import type { CullingLinks } from '../../page/cut/links.ts'
 import type { PlacementTree } from './placementTree.ts'
@@ -13,9 +12,6 @@ import type { PlacementIndex } from '../../page/selection/placements.ts'
 import type { RootProxy } from '../../page/selection/types.ts'
 import type { createRecordTable } from './packRecords.ts'
 import type { ContentKeys } from './evict.ts'
-
-/** The view one run of the kernel serves: the camera's uniforms. */
-export type DagViewUniforms = SelectionUniforms
 
 /** Twenty-four floats per node: the sixteen from the manifest, then the subtree error-floor
  *  sphere, the floor and a flags word (`packNodes.ts`). A row of `frames` is the placement's words,

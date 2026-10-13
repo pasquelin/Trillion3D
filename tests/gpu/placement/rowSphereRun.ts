@@ -8,7 +8,7 @@ import { ROW_INPUT_DOUBLES } from '../../../packages/sdk-browser/src/placement/c
 import { sphereRadius } from '../../../packages/sdk-browser/src/placement/rowSphere.ts'
 import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { ROW_PLACEMENT_WORD } from '../../../packages/sdk-browser/src/webgpu/row/rowPlacement.ts'
-import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { generated } from '../../../packages/sdk-browser/src/placement/composeDoubles.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { packDoubles } from '../../../packages/math/src/float/splitDouble.ts'
@@ -18,7 +18,7 @@ const CASES = 600
 
 /** The device's words and the CPU's for `CASES` generated rows: how many differ, and by how much. */
 export async function runSphere() {
-  const next = random(5)
+  const next = lcgRandom(5)
   const worlds = new Uint32Array(CASES * 32),
     inputs = new Uint32Array(CASES * ROW_INPUT_DOUBLES * 2)
   const expected: number[] = []

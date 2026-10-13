@@ -11,7 +11,7 @@ import { objectCovers, worldScene } from './worldScene.fixture.ts'
 import { ruleResidency, pageResidency } from './readiness.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { cameraSelectionUniforms, SELECTION_NONE as NONE } from '../core/selection.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { createWorldResidencyMirror } from './residencyMirror.ts'
 
 /** The scene with one lone object, the last, its world cluster, its copies, and the mirror. */
@@ -103,7 +103,7 @@ test("across its cell's hold and release, a lone object is drawn by its copies, 
 
 test('a placed lone object is drawn by its placement or both copies, never both, never neither', () => {
   const s = lone(),
-    next = random(7919),
+    next = lcgRandom(7919),
     seen = { placement: 0, copies: 0 }
   const draw = () => Array.from({ length: s.world.pages.length }, () => next() < 0.75)
   for (let frame = 0; frame < 400; frame++) {

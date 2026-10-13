@@ -84,19 +84,17 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
     }
     for (const made of Object.values(modules)) if (await shaderFailed(made)) return undefined
     const layouts = radianceLayouts(device)
-    const layout = (bind: GPUBindGroupLayout) =>
-      device.createPipelineLayout({ bindGroupLayouts: [bind] })
     const frontLayouts = frontLayout(device)
     const [trace, first, down, roll, front] = await Promise.all([
       createTraceStages(device, modules, reflectionLayout(device)),
-      buildComputeStages(device, layout(layouts.firstLayout), modules.radiance, [
+      buildComputeStages(device, [layouts.firstLayout], modules.radiance, [
         'radianceFirst',
         'radianceFirstHashed',
         'radianceFirstBoth',
       ]),
-      buildComputeStages(device, layout(layouts.downLayout), modules.radiance, ['radianceDown']),
-      buildComputeStages(device, layout(layouts.rollLayout), modules.radiance, ['radianceRoll']),
-      buildComputeStages(device, layout(frontLayouts), modules.front, ['frontScatter']),
+      buildComputeStages(device, [layouts.downLayout], modules.radiance, ['radianceDown']),
+      buildComputeStages(device, [layouts.rollLayout], modules.radiance, ['radianceRoll']),
+      buildComputeStages(device, [frontLayouts], modules.front, ['frontScatter']),
     ])
     return {
       ...trace,

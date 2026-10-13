@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { maxStretch } from '../../../sdk-core/src/index.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { STRETCH_WGSL } from './gpuStretchWgsl.ts'
@@ -29,7 +29,7 @@ const expected = (world: ArrayLike<number>) =>
   bitsOf(maxStretch(Array.from(Float32Array.from(world))))
 
 test('the stretch of a generated world is the CPU’s, word for word', () => {
-  const next = random(23)
+  const next = lcgRandom(23)
   for (let i = 0; i < 1500; i++) {
     const world = generated(next, [10, 1e4][i % 2])
     const bits = run.maxStretchBits(words(world)) >>> 0
@@ -75,7 +75,7 @@ test('the exact cases take the branches of the formula: pure scales, turns, the 
 })
 
 test('a word that is no finite number leaves the stretch as it was: the CPU refuses the matrix', () => {
-  const world = generated(random(3), 10),
+  const world = generated(lcgRandom(3), 10),
     row = words(world)
   row[5] = 0x7f800000
   assert.equal(run.maxStretchBits(row) >>> 0, 0xffffffff)

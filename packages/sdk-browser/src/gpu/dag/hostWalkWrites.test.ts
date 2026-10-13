@@ -7,7 +7,7 @@ import { placementField } from './placementTree.fixture.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { dagRootCounts } from './pack.ts'
 import { FRAME_VEC4 } from './types.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 
 test('a host walk that turned one placement sends its world and its row alone', async () => {
@@ -16,7 +16,7 @@ test('a host walk that turned one placement sends its world and its row alone', 
     counts = dagRootCounts(roots)
   const capacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 2 * roots.length }
   const packed = packDagSelection(roots, capacity)
-  const gpu = mockGpu({ packed })
+  const gpu = fakeDevice({ ...BACKEND, packed })
   const selection = (await createGpuDagSelection(gpu.device, packed))!
   const next = packed.worlds.slice()
   // Placement 70 scaled twice along x: its stretch moves with it.
@@ -26,8 +26,8 @@ test('a host walk that turned one placement sends its world and its row alone', 
   const bytes = (label: string) =>
     gpu.writes
       .slice(before)
-      .filter((write) => write.label === label)
-      .reduce((sum, { bytes: data }) => sum + data.byteLength, 0)
+      .filter((write) => write.buffer.label === label)
+      .reduce((sum, { data }) => sum + data.byteLength, 0)
   assert.equal(bytes('Trillion3D DAG worlds'), 64, 'its world')
   assert.ok(bytes('Trillion3D DAG frames') <= FRAME_VEC4 * 16, 'its frame row, no other')
   selection.dispose()

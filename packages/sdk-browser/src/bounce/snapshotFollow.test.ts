@@ -9,7 +9,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER, snapshotGroups } from './probeWgsl.ts'
 import { PROBE_TEXELS } from './atlas.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createGpuBounceProbes } from './probes.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, BOUNCE_PASS } from '../stage/passLabels.ts'
@@ -28,7 +28,7 @@ const atlas = (width: number, height: number, layers: number, fill: () => number
 const at = (a: Atlas, [x, y]: number[], layer: number) => (layer * a.height + y) * a.width + x
 
 test('after the follow-up, the snapshot is the probes, word for word', () => {
-  const r = random(7),
+  const r = lcgRandom(7),
     side = 3,
     levels = 2,
     width = side * PROBE_TEXELS,
@@ -118,30 +118,32 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
     1000,
     () => tiles,
   )
-  const work: string[] = []
-  let entry = ''
-  const encoder = {
-    copyTextureToTexture: () => void work.push('copy'),
-    // The world lists' pool state, sampled for its growth (`lighting/tiles/pool.ts`).
-    copyBufferToBuffer: () => void work.push('sample'),
-    beginRenderPass: (d: GPURenderPassDescriptor) => (
-      work.push(`clear ${[...d.colorAttachments].length}`),
-      { end() {} }
-    ),
-    beginComputePass: ({ label }: GPUComputePassDescriptor) => (
-      work.push(`pass ${label}`),
-      {
-        setPipeline: (p: { entryPoint: string }) => (entry = p.entryPoint),
-        setBindGroup() {},
-        dispatchWorkgroups: (x: number) => void work.push(`${entry} ${x}`),
-        end() {},
+  const encoder = gpu.device.createCommandEncoder()
+  /** What the encoder took, in order: each compute pass by its label, then its dispatches by entry
+   *  point and groups; every other command as the kit names it. */
+  const workOf = () => {
+    const log: string[] = []
+    let next = 0
+    for (const command of gpu.commands) {
+      if (!command.startsWith('compute ')) {
+        log.push(command)
+        continue
       }
-    ),
-  } as unknown as GPUCommandEncoder
+      const { label, commands } = gpu.computePasses[next++]
+      log.push(`pass ${label}`)
+      let entry = ''
+      for (const [name, [x]] of commands) {
+        if (name === 'setPipeline') entry = (x as { entryPoint: string }).entryPoint
+        if (name === 'dispatchWorkgroups') log.push(`${entry} ${x}`)
+      }
+    }
+    return log
+  }
   assert.equal(probes.encode(encoder, 1, [4, 4, 2]), true)
-  const groups = probes.lastProbes
+  const groups = probes.lastProbes,
+    work = workOf()
   assert.ok(groups > 0)
-  assert.equal(work.includes('copy'), false, 'no copy of the atlas')
+  assert.equal(gpu.textureCopies.length, 0, 'no copy of the atlas')
   // One pass: the probes' update, the snapshot's follow-up.
   const at = work.indexOf(`pass ${BOUNCE_PASS}`)
   assert.deepEqual(
@@ -158,9 +160,9 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
     work.indexOf(`pass ${BOUNCE_LIGHT_LISTS_PASS}`) < at &&
       work.includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`),
   )
-  work.length = 0
+  const before = work.length
   assert.equal(probes.encode(encoder, 1, [4, 4, 2]), true)
-  assert.equal(work.includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`), false)
+  assert.equal(workOf().slice(before).includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`), false)
   probes.dispose()
   tiles.dispose()
 })

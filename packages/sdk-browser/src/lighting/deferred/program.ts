@@ -20,7 +20,7 @@ import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { createCompositions, type CompositionSources } from './compositions.ts'
 import { type FusedBlend } from '../../webgpu/effects/webgpuKinds.ts'
 import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
-import { sequentialEntries, namedBufferEntries } from '../../gpu/core/computeBindings.ts'
+import { sequentialEntries, namedEntries } from '../../gpu/core/computeBindings.ts'
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. With them,
  *  the frame's key: what its program leaves out (`contractCuts.ts`). */
@@ -236,7 +236,7 @@ function bindLight(
   state.boundFlags = surface.views()[3]
   const entries: GPUBindGroupEntry[] = [
     ...sequentialEntries(surface.views()),
-    ...namedBufferEntries(DEFERRED_BINDINGS, { depth, view: { buffer: bindings.uniform } }),
+    ...namedEntries(DEFERRED_BINDINGS, { depth, view: { buffer: bindings.uniform } }),
   ]
   if (sources.direct) {
     if (!lights) throw new Error('the contract program binds no declared-light buffer')
@@ -254,7 +254,7 @@ function bindLight(
   }
   if (sources.bounce && direct.bounceGrid && direct.probes)
     entries.push(
-      ...namedBufferEntries(DEFERRED_BINDINGS, {
+      ...namedEntries(DEFERRED_BINDINGS, {
         bounceGrid: { buffer: direct.bounceGrid },
         probes: direct.probes,
       }),
@@ -298,11 +298,11 @@ function contractEntries(
     ...receiverEntries(LIGHTING_RECEIVER_BINDING, r.receiver),
     { binding: SUBSURFACE_BINDING, resource: surface.subsurfaceView },
     { binding: PHYSICAL_LOBES_BINDING, resource: surface.lobesView },
-    ...namedBufferEntries(DEFERRED_BINDINGS, {
+    ...namedEntries(DEFERRED_BINDINGS, {
       lights: { buffer: r.lights },
       tiles: { buffer: r.tiles },
     }),
-    ...namedBufferEntries(CONTRACT_VSM_BINDINGS, {
+    ...namedEntries(CONTRACT_VSM_BINDINGS, {
       pageTable: { buffer: r.vsm.pageTable },
       projectionData: { buffer: r.vsm.projectionData },
       uniforms: { buffer: r.vsm.uniforms },

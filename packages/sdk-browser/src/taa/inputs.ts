@@ -1,7 +1,7 @@
 import { TAA_BINDINGS } from './bindingsWgsl.ts'
 import type { DisplayLayers } from './layers.ts'
 import type { AccumulatedImage } from '../lighting/deferred/program.ts'
-import { namedBufferEntries } from '../gpu/core/computeBindings.ts'
+import { namedEntries } from '../gpu/core/computeBindings.ts'
 
 /** What the pass reads in the frame: the lit and blended image, depth, visibility-buffer
  *  identifiers, the page-record table, placement motion matrices and the surface flags — absent
@@ -57,7 +57,7 @@ export function taaGroupEntries(
   geometry: GPUTextureView,
   shading: GPUTextureView,
 ): GPUBindGroupEntry[] {
-  return namedBufferEntries(TAA_BINDINGS, {
+  return namedEntries(TAA_BINDINGS, {
     current: inputs.current,
     history: image.color,
     historySampler: sampler,

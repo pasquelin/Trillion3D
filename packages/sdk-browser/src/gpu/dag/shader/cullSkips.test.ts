@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from './shader.ts'
 import { DAG_CONE_WGSL } from './coneWgsl.ts'
-import { random } from '../../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
 import { cameraSelectionUniforms } from '../../core/selection.ts'
 import { createEngineCamera, writeEngineCamera } from '../../../camera/engineCamera.ts'
 import { HALF_PI, boxConeRejects, frustumExcludesBox } from '../../../../../sdk-core/src/index.ts'
@@ -25,7 +25,7 @@ const gpuSin = (x: number) => Math.sin(x) - 2 ** -11
 test('the cone exits early before its arcsine: every verdict kept, on random and edge inputs', () => {
   const text = wgslSource(DAG_CONE_WGSL)
   assert.ok(text.indexOf('if(!(d<0.0)){return false;}') < text.indexOf('let radius='))
-  const next = random(906)
+  const next = lcgRandom(906)
   const ds = [NaN, -Infinity, -1, -1e-7, -0, 0, 1e-7, 1, Infinity]
   const totals = [NaN, 0, -0, 1e-7, 1, HALF_PI - 1e-7, HALF_PI, Math.PI, Infinity]
   for (let n = 0; n < 200; n++) {
@@ -68,7 +68,7 @@ test('skipping the infinite far plane keeps every box verdict, in any primitive 
   const { planes } = cameraPlanes(Infinity)
   const skipped = planes.slice()
   skipped.set([0, 0, 0, 1], 16)
-  const next = random(2222),
+  const next = lcgRandom(2222),
     local = new Float64Array(24),
     localSkipped = new Float64Array(24)
   const worlds = [

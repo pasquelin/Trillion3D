@@ -46,10 +46,22 @@ export const forgetRowRoots = (roots: readonly object[]) => {
   indexes.delete(roots)
 }
 
-/** What one root's move changed: the box it left and entered, as one union, and its two corners. */
-const moved = new Float64Array(BOX_VALUES),
-  movedMin = moved.subarray(0, 3),
-  movedMax = moved.subarray(3, 6)
+/** A scratch box the roots it is given cover, as one union, and its two corners: views of it,
+ *  read before its next union. `add` unions a root's world box, unless `parked` keeps it out. */
+export function rootBoxUnion() {
+  const box = new Float64Array(BOX_VALUES)
+  return {
+    box,
+    min: box.subarray(0, 3),
+    max: box.subarray(3, 6),
+    add(root: { worldBox?: Float64Array }, parked = false) {
+      if (root.worldBox && !parked) boxUnionBatch(box, root.worldBox, 1)
+    },
+  }
+}
+
+/** What one root's move changed: the box it left and entered. */
+const moved = rootBoxUnion()
 
 /**
  * Brings the roots of rows `from` to `to` level with what the owner wrote in them: each root's
@@ -100,21 +112,21 @@ export function followPlacementRows<T>(
     // hidden, not moved — the primitive is removed or added and its pages invalidated once,
     // without caching it as dynamic (only a transform update does).
     const move = posed ? posed(rank, root.world.elements) : MOVE_PROMOTED
-    boxEmpty(moved, 0)
-    if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1)
+    boxEmpty(moved.box, 0)
+    moved.add(root, root.parked)
     if (flipped || cast) {
       root.parked = parked
       flip?.(rank, root)
     }
     follow?.(rank)
     refreshRootBox(root)
-    if (root.worldBox && !parked) boxUnionBatch(moved, root.worldBox, 1)
+    moved.add(root, parked)
     // Its rows and box follow the row all the same; only a move, a show or hide, or a change of
     // casting stales shadow pages. One that moves as it flips is out of the static layer
     // (`mobility.ts`).
-    if ((move === MOVE_NONE && !cast && !flipped) || boxIsEmpty(moved, 0)) continue
+    if ((move === MOVE_NONE && !cast && !flipped) || boxIsEmpty(moved.box, 0)) continue
     any = true
-    touched?.(movedMin, movedMax, move === MOVE_MOVING, rank, !flipped && !cast, move)
+    touched?.(moved.min, moved.max, move === MOVE_MOVING, rank, !flipped && !cast, move)
   }
   return any
 }

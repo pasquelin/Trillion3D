@@ -1,4 +1,4 @@
-import type { DagViewUniforms, PackedDag } from './types.ts'
+import type { PackedDag } from './types.ts'
 import {
   OUT_AHEAD_PLACED,
   OUT_COUNT,
@@ -10,7 +10,7 @@ import {
   SELECTION_HEADER_WORDS,
   evictionWord,
 } from './layout.ts'
-import type { SelectionResult } from '../core/selection.ts'
+import type { SelectionResult, SelectionUniforms } from '../core/selection.ts'
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
 import { WORK_DROPPED } from './shader/viewsWgsl.ts'
 import { VIEW_BLOCK_WORDS, viewWord } from './viewLayout.ts'
@@ -55,7 +55,7 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
 
 /** The view ahead of a moving camera (`shader/aheadWgsl.ts`): block 1 repeats the camera's with the
  *  planes and view ahead, block 0 says it is there. */
-function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagViewUniforms) {
+function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: SelectionUniforms) {
   const ahead = uniforms.ahead,
     at = AHEAD_VIEW * VIEW_BLOCK_WORDS
   if (!ahead || target.length < at + VIEW_BLOCK_WORDS) return
@@ -79,7 +79,7 @@ function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagV
 export function writeDagUniforms(
   target: Float32Array,
   packed: PackedDag,
-  uniforms: DagViewUniforms,
+  uniforms: SelectionUniforms,
   listCap: number,
   saveRegion = REGION_NONE,
   coarsen = 1,

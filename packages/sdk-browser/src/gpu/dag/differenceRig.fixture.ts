@@ -1,11 +1,15 @@
-// A resident cut on a recording device whose work runs when it is submitted, through the
+// A resident cut on the kit's deferred device, whose work runs when it is submitted, through the
 // kernels' mirror: each cut writes the lists the test gives it, `dagCutDifference` and `dagCutKeep`
 // run on the readout as `difference.fixture.ts` replays them, and copies, writes and readbacks move
 // the words the real ones would. A command buffer never submitted runs nothing. What the readbacks
 // hold is then the GPU's difference of the lists given, in the order the real dispatch copied them,
 // for the host to adopt or not (`dispatch.ts`, `differenceChain.ts`).
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { bytesOf } from '../../../../../tests/kit/gpu/globals.ts'
+import {
+  dispatchedEntries,
+  fakeDevice,
+  type FakeBuffer,
+} from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { words } from '../../../../../tests/kit/gpu/mockBuffers.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { packDagSelection } from './selection.ts'
@@ -16,7 +20,6 @@ import { packed } from './selectionHelpers.fixture.ts'
 
 /** The two lists one cut publishes: the camera's requests, the drawn pages. */
 export type RigCut = { asked: number[]; drawn: number[] }
-type Op = () => void
 
 /** `dagMask` and the kernels before the snapshot, as their outputs: `cut` written into `out`, on a
  *  list of `cap` ranks; past it, the readout says it is truncated. */
@@ -31,8 +34,11 @@ function writeCut(out: Uint32Array, cap: number, cut: RigCut) {
   out.set(drawn, 2 * HEAD + cap)
 }
 
+/** Kernels that run nothing (`FakeDeviceOptions.kernel`): the readbacks stand for what they write. */
+export const idleKernels = () => () => {}
+
 /** `device`'s readbacks map what the kernels would have written for `lists()` on a list of its
- *  cap, and its compute passes do nothing: the readbacks stand for what they write. */
+ *  cap; its kernels are `idleKernels`. */
 export function writtenReadbacks(device: GPUDevice, lists: () => { cap: number; cut: RigCut }) {
   const create = device.createBuffer.bind(device)
   device.createBuffer = (descriptor: GPUBufferDescriptor) => {
@@ -46,89 +52,28 @@ export function writtenReadbacks(device: GPUDevice, lists: () => { cap: number; 
       }
     return buffer
   }
-  const encode = device.createCommandEncoder.bind(device)
-  const pass = new Proxy({}, { get: () => () => {} })
-  device.createCommandEncoder = () =>
-    Object.assign(encode(), { beginComputePass: () => pass }) as unknown as GPUCommandEncoder
 }
 
 /** `placements` placements of the fixture's primitive, cut on a list of `cap` ranks. */
 export async function differenceRig(cap: number, placements = 40) {
   const [root] = packed(dagFixture()).roots
   const dag = packDagSelection(Array.from({ length: placements }, () => root))
-  const fake = fakeDevice()
-  const words = new Map<GPUBuffer, Uint32Array>()
-  const model = (buffer: GPUBuffer) => {
-    let held = words.get(buffer)
-    if (!held) words.set(buffer, (held = new Uint32Array(buffer.size >>> 2)))
-    return held
-  }
-  const device = fake.device
-  const create = device.createBuffer.bind(device)
-  /** The readback slots, and how many copies into them ran. */
-  const readbacks = new Set<GPUBuffer>()
-  let copies = 0
-  device.createBuffer = (descriptor: GPUBufferDescriptor) => {
-    const buffer = create(descriptor)
-    if (descriptor.usage & GPUBufferUsage.MAP_READ) {
-      readbacks.add(buffer)
-      buffer.getMappedRange = () => model(buffer).slice().buffer
-    }
-    return buffer
-  }
-  device.queue.writeBuffer = (
-    buffer: GPUBuffer,
-    offset: number,
-    data: GPUAllowSharedBufferSource,
-    dataOffset?: number,
-    size?: number,
-  ) => {
-    new Uint8Array(model(buffer).buffer).set(bytesOf(data, dataOffset, size), offset)
-    return undefined
-  }
-  device.queue.submit = (buffers: Iterable<GPUCommandBuffer>) => {
-    for (const commands of buffers)
-      for (const op of (commands as unknown as { ops: Op[] }).ops) op()
-  }
-  /** The lists the next cut writes, and the kernels encoded since `encoded` was last read. */
+  /** The lists the next cut writes. */
   let next: RigCut = { asked: [], drawn: [] }
-  const encoded: string[] = []
-  device.createCommandEncoder = () => {
-    const ops: Op[] = []
-    let entry = ''
+  const fake = fakeDevice({
+    deferred: true,
     // Each kernel runs on the readout and the cap of the dispatch that encoded it.
-    const kernel = (name: string) => {
-      const out = resources.output,
+    kernel: (entry) => {
+      const out = words((resources.output as unknown as FakeBuffer).data),
         listCap = resources.listCap
-      encoded.push(name)
-      if (name === 'dagPrepare') {
-        const cut = next
-        ops.push(() => writeCut(model(out), listCap, cut))
-      } else ops.push(() => mirrorDifferenceStage(name, model(out), listCap))
-    }
-    const pass = new Proxy(
-      {},
-      {
-        get: (_, name) =>
-          name === 'setPipeline'
-            ? (pipeline: { entryPoint: string }) => (entry = pipeline.entryPoint)
-            : name === 'dispatchWorkgroups' || name === 'dispatchWorkgroupsIndirect'
-              ? () => kernel(entry)
-              : () => {},
-      },
-    )
-    return {
-      beginComputePass: () => pass,
-      copyBufferToBuffer(from: GPUBuffer, at: number, to: GPUBuffer, into: number, size: number) {
-        ops.push(() => {
-          model(to).set(model(from).subarray(at >>> 2, (at + size) >>> 2), into >>> 2)
-          if (readbacks.has(to)) copies++
-        })
-      },
-      clearBuffer() {},
-      finish: () => ({ ops }),
-    } as unknown as GPUCommandEncoder
-  }
+      if (entry !== 'dagPrepare') return () => void mirrorDifferenceStage(entry, out, listCap)
+      const cut = next
+      return () => writeCut(out, listCap, cut)
+    },
+  })
+  const device = fake.device
+  /** The kernels encoded since `encoded` was last read, from the `seen`-th dispatch on. */
+  let seen = 0
   const resources = (await createDagResources(device, dag, null, cap))!
   const selection = createDagRuntime(resources)
   return {
@@ -139,8 +84,8 @@ export async function differenceRig(cap: number, placements = 40) {
     /** The next cut writes `cut`. */
     cutNext: (cut: RigCut) => (next = cut),
     /** Snapshots copied into a readback slot so far. */
-    copies: () => copies,
+    copies: () => fake.copies.filter(({ to }) => to.usage & GPUBufferUsage.MAP_READ).length,
     /** The kernels encoded since the last call, flat or indirect. */
-    encoded: () => encoded.splice(0),
+    encoded: () => dispatchedEntries(fake.dispatches.slice(seen, (seen = fake.dispatches.length))),
   }
 }

@@ -12,7 +12,7 @@ import {
   orderFrameWords,
 } from './orderWgsl.ts'
 import { orderStepCount, sortSize, type OrderStep } from './orderSteps.ts'
-import { namedBufferEntries } from '../../gpu/core/computeBindings.ts'
+import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import { shaderFailed } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
@@ -274,7 +274,7 @@ function bindKernels(
   const expansion: Kernel = {
     group: device.createBindGroup({
       layout: expandLayout,
-      entries: namedBufferEntries(EXPAND_BINDING, {
+      entries: namedEntries(EXPAND_BINDING, {
         uni: { buffer: buffers.uniforms, size: UNI_WORDS * 4 },
         plan: { buffer: buffers.plan },
         keep: { buffer: buffers.keep },
@@ -291,7 +291,7 @@ function bindKernels(
   const order: Kernel = {
     group: device.createBindGroup({
       layout: orderLayout,
-      entries: namedBufferEntries(ORDER_BINDING, {
+      entries: namedEntries(ORDER_BINDING, {
         uni: { buffer: buffers.steps, size: ORDER_UNI_WORDS * 4 },
         plan: { buffer: buffers.plan },
         keyed: { buffer: buffers.keyed },

@@ -5,14 +5,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 
 test('a named pose sends its world and its translation alone, each where its range holds it', async () => {
   installGpuGlobals()
   const roots = placementField(40, 6),
     packed = packDagSelection(roots)
-  const gpu = mockGpu({ packed })
+  const gpu = fakeDevice({ ...BACKEND, packed })
   const selection = await createGpuDagSelection(gpu.device, packed)
   assert.ok(selection)
   const [range] = selection.worldRanges
@@ -25,10 +25,12 @@ test('a named pose sends its world and its translation alone, each where its ran
     [70],
     'the one that moved',
   )
-  const sent = gpu.writes.slice(before).filter(({ label }) => label === 'Trillion3D DAG worlds')
+  const sent = gpu.writes
+    .slice(before)
+    .filter(({ buffer }) => buffer.label === 'Trillion3D DAG worlds')
   // Placement 3 was named and did not move: nothing of it goes up.
   assert.deepEqual(
-    sent.map(({ offset, bytes }) => [offset, bytes.byteLength]),
+    sent.map(({ offset, data }) => [offset, data.byteLength]),
     [[range.count * 64 + 70 * 32, 32]],
     'its translation alone — its linear part stood —: 32 bytes of 1600 placements',
   )
@@ -40,8 +42,8 @@ test('a named pose sends its world and its translation alone, each where its ran
   assert.deepEqual(
     gpu.writes
       .slice(turned)
-      .filter(({ label }) => label === 'Trillion3D DAG worlds')
-      .map(({ offset, bytes }) => [offset, bytes.byteLength]),
+      .filter(({ buffer }) => buffer.label === 'Trillion3D DAG worlds')
+      .map(({ offset, data }) => [offset, data.byteLength]),
     [[70 * 64, 64]],
   )
   selection.dispose()

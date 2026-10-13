@@ -10,7 +10,7 @@ import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { createSelectionUniforms } from '../core/selection.ts'
 import { TREE_REFIT_PASS } from '../../stage/passLabels.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import type { ComposedLeaves } from './treeFollow.ts'
 
@@ -21,7 +21,8 @@ async function followed(side = 40, composed?: Set<number>) {
   installGpuGlobals()
   const roots = placementField(side, 6),
     packed = packDagSelection(roots),
-    gpu = mockGpu({
+    gpu = fakeDevice({
+      ...BACKEND,
       packed,
       limits: { maxBufferSize: 2 ** 30, maxStorageBufferBindingSize: 2 ** 28 },
     })
@@ -34,7 +35,9 @@ async function followed(side = 40, composed?: Set<number>) {
   const resources = (await createDagResources(gpu.device, packed))!
   const selection = createDagRuntime(resources, undefined, leaves)
   const sent = (label: string) =>
-    gpu.writes.filter((write) => write.label === label).reduce((n, w) => n + w.bytes.byteLength, 0)
+    gpu.writes
+      .filter((write) => write.buffer.label === label)
+      .reduce((n, w) => n + w.data.byteLength, 0)
   const state = () => ({
     leaves: sent('Trillion3D placement tree leaf boxes') / 48,
     nodes: sent('Trillion3D placement tree refit ids') / 4,

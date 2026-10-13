@@ -10,8 +10,9 @@ import { witnessEncoder, cutResources, ETAGES, LIVE, CAND, QUEUE } from './encod
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 test('each cut kernel dispatches over the list the previous one filled', () => {
-  const { encoder, dispatches } = witnessEncoder()
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources())
+  const witness = witnessEncoder()
+  encodeDagKernels(witness.encoder, cutResources())
+  const { dispatches } = witness.read()
   const byKernel = new Map(dispatches.map((l) => [l.kernel, l]))
   // Live clusters: the previous verdict, spoken on them alone.
   for (const kernel of ['dagMask', 'dagDrawScatter']) {
@@ -46,8 +47,9 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
 })
 
 test('wait between launches depends only on depth, not on cluster count', () => {
-  const { encoder, dispatches } = witnessEncoder()
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources())
+  const witness = witnessEncoder()
+  encodeDagKernels(witness.encoder, cutResources())
+  const { dispatches } = witness.read()
   // Log clear, prepare, one pass per level (three), candidates, mask, prefix, compaction, the
   // commit of the cut's mask, the request sort and the eviction queue: the cut rule decides each
   // cluster once, in the mask, with no round per primitive before it.
@@ -60,12 +62,12 @@ test('wait between launches depends only on depth, not on cluster count', () => 
   assert.equal(dispatches[1].groups, 1)
   // Sixteen times more clusters, as many launches: depth is what counts them.
   const large = witnessEncoder()
-  encodeDagKernels(large.encoder as unknown as GPUCommandEncoder, cutResources(3, 65536))
-  assert.equal(large.dispatches.length, dispatches.length)
+  encodeDagKernels(large.encoder, cutResources(3, 65536))
+  assert.equal(large.read().dispatches.length, dispatches.length)
   // One more level, one more launch.
   const profond = witnessEncoder()
-  encodeDagKernels(profond.encoder as unknown as GPUCommandEncoder, cutResources(4))
-  assert.equal(profond.dispatches.length, dispatches.length + 1)
+  encodeDagKernels(profond.encoder, cutResources(4))
+  assert.equal(profond.read().dispatches.length, dispatches.length + 1)
 })
 
 test('list kernels read their cluster from the list, not from their thread id', () => {

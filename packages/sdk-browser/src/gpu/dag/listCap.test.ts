@@ -16,7 +16,7 @@ import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { deviceListCap } from './deviceListCap.ts'
-import { writtenReadbacks } from './differenceRig.fixture.ts'
+import { idleKernels, writtenReadbacks } from './differenceRig.fixture.ts'
 
 test('the list a device holds is the largest whose readout one binding holds', () => {
   const limits = { maxStorageBufferBindingSize: 128 << 20 }
@@ -41,7 +41,7 @@ test('a truncated list doubles past what the cut asked, within the catalogue and
 async function cut(cap: number, options: Parameters<typeof fakeDevice>[0] = {}) {
   const [root] = packed(dagFixture()).roots
   const dag = packDagSelection(Array.from({ length: 48 }, () => root))
-  const fake = fakeDevice(options)
+  const fake = fakeDevice({ kernel: idleKernels, ...options })
   // Every readback maps what the kernels would have written for `drawn` on the list in place: the
   // drain cuts again on a grown list by itself (`runtime.ts`).
   let drawn: number[] = []

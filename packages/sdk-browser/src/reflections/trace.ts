@@ -162,33 +162,38 @@ const runtimeEntries = {
 
 /** The trace's bind group 0 and the frame state's layouts. */
 function traceLayouts(device: GPUDevice) {
-  const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
   return {
-    traceLayout: layout([
-      computeTextureEntry(0, 'uint'),
-      computeTextureEntry(1, 'unfilterable-float'),
-      storageEntry(2),
-      computeBufferEntry(3, 'read-only-storage'),
-      computeTextureEntry(4, 'uint'),
-      computeBufferEntry(5, 'uniform'),
-      computeTextureEntry(6, 'unfilterable-float', '2d-array'),
-      computeBufferEntry(RUNTIME_BINDINGS.list, 'storage'),
-      storeEntry(RUNTIME_BINDINGS.store),
-      computeTextureEntry(10, 'unfilterable-float'),
-      computeBufferEntry(LIGHT_LISTS_BINDING, 'read-only-storage'),
-      ...Object.values(runtimeEntries),
-    ]),
-    classifyLayout: layout([
-      computeTextureEntry(0, 'uint'),
-      computeBufferEntry(7, 'storage'),
-      computeBufferEntry(RUNTIME_BINDINGS.list, 'storage'),
-    ]),
-    beginLayout: layout([
-      computeBufferEntry(1, 'storage'),
-      computeBufferEntry(2, 'storage'),
-      computeBufferEntry(3, 'uniform'),
-      computeBufferEntry(4, 'storage'),
-    ]),
+    traceLayout: device.createBindGroupLayout({
+      entries: [
+        computeTextureEntry(0, 'uint'),
+        computeTextureEntry(1, 'unfilterable-float'),
+        storageEntry(2),
+        computeBufferEntry(3, 'read-only-storage'),
+        computeTextureEntry(4, 'uint'),
+        computeBufferEntry(5, 'uniform'),
+        computeTextureEntry(6, 'unfilterable-float', '2d-array'),
+        computeBufferEntry(RUNTIME_BINDINGS.list, 'storage'),
+        storeEntry(RUNTIME_BINDINGS.store),
+        computeTextureEntry(10, 'unfilterable-float'),
+        computeBufferEntry(LIGHT_LISTS_BINDING, 'read-only-storage'),
+        ...Object.values(runtimeEntries),
+      ],
+    }),
+    classifyLayout: device.createBindGroupLayout({
+      entries: [
+        computeTextureEntry(0, 'uint'),
+        computeBufferEntry(7, 'storage'),
+        computeBufferEntry(RUNTIME_BINDINGS.list, 'storage'),
+      ],
+    }),
+    beginLayout: device.createBindGroupLayout({
+      entries: [
+        computeBufferEntry(1, 'storage'),
+        computeBufferEntry(2, 'storage'),
+        computeBufferEntry(3, 'uniform'),
+        computeBufferEntry(4, 'storage'),
+      ],
+    }),
   }
 }
 
@@ -201,22 +206,18 @@ export async function createTraceStages(
   groupLayout: GPUBindGroupLayout,
 ) {
   const { traceLayout, classifyLayout, beginLayout } = traceLayouts(device)
-  const layout = (...bindGroupLayouts: GPUBindGroupLayout[]) =>
-    device.createPipelineLayout({ bindGroupLayouts })
   const width = groupWidth(device.limits)
   const rows = width === DEFAULT_GROUP_WIDTH ? undefined : { GROUP_WIDTH: width }
   const [{ reflectionBegin }, { classifyReflections }, { traceReflections }] = await Promise.all([
-    buildComputeStages(device, layout(beginLayout), modules.begin, ['reflectionBegin']),
+    buildComputeStages(device, [beginLayout], modules.begin, ['reflectionBegin']),
     buildComputeStages(
       device,
-      layout(classifyLayout, groupLayout),
+      [classifyLayout, groupLayout],
       modules.trace,
       ['classifyReflections'],
       rows,
     ),
-    buildComputeStages(device, layout(traceLayout, groupLayout), modules.trace, [
-      'traceReflections',
-    ]),
+    buildComputeStages(device, [traceLayout, groupLayout], modules.trace, ['traceReflections']),
   ])
   return {
     traceLayout,

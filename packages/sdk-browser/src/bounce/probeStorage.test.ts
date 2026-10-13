@@ -43,16 +43,10 @@ test('a level is cleared in the probes and in their snapshot by one pass, the tw
     [11, 1, 3],
   )
   // The descriptor is reused: each pass's attachments are read as it begins.
-  const cleared: unknown[][] = []
-  const encoder = {
-    beginRenderPass: (d: GPURenderPassDescriptor) => (
-      cleared.push([...d.colorAttachments].map((a) => [a!.view, a!.loadOp])),
-      { end() {} }
-    ),
-  } as unknown as GPUCommandEncoder
+  const encoder = gpu.device.createCommandEncoder()
   storage.clearLevels(encoder, 0b101)
   assert.deepEqual(
-    cleared,
+    gpu.passes.map(({ colors }) => colors.map((color) => [color?.view, color?.loadOp])),
     [0, 2].map((level) => [
       [storage.views.levels[level], 'clear'],
       [storage.views.snapshotLevels[level], 'clear'],

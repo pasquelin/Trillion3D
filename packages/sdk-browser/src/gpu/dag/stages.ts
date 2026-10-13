@@ -21,7 +21,6 @@ export async function createDagStages(
     ...(width !== DEFAULT_GROUP_WIDTH && { GROUP_WIDTH: width }),
   }
   const constants = Object.keys(set).length ? set : undefined
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => `dagLevel${q}`)
   const entries = [
     ...levels,
@@ -45,7 +44,7 @@ export async function createDagStages(
   const waiting = new Set<string>(entries)
   const stage = await buildComputeStages(
     device,
-    pipelineLayout,
+    [layout],
     module,
     entries,
     constants,

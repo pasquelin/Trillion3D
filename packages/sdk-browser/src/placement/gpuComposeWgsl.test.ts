@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { worldToRenderOrigin } from '../../../sdk-core/src/index.ts'
 import { composeWorld } from './composeWorld.ts'
 import { COMPOSE_ROWS_WGSL } from './gpuComposeWgsl.ts'
@@ -35,7 +35,7 @@ const run = shaderRun<{
 const f32Bits = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
 
 test('a double rounds to single precision as a Float32Array stores it', () => {
-  const next = random(3)
+  const next = lcgRandom(3)
   const values = [0, -0, 1, -1, FLOAT32_MAX, 3.4028235677973366e38, 3.5e38, 1e-38]
   values.push(1.1754943508222875e-38, 1.401298464324817e-45, 7.006492321624085e-46, 2e-46, 1e-50)
   values.push(Infinity, -Infinity, 1 + 2 ** -24, 1 + 3 * 2 ** -24, 1 + 2 ** -24 + 2 ** -52)
@@ -46,7 +46,7 @@ test('a double rounds to single precision as a Float32Array stores it', () => {
 })
 
 test('parent · local, at the eye, is the CPU world word for word, near and far from the origin', () => {
-  const next = random(11)
+  const next = lcgRandom(11)
   const product = new Float64Array(16),
     atEye = new Float32Array(16),
     rows = new Float32Array(16)

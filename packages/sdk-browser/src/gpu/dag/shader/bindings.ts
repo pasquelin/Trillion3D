@@ -1,4 +1,4 @@
-import { computeBufferEntry, namedBufferEntries } from '../../core/computeBindings.ts'
+import { computeBufferEntry, namedEntries } from '../../core/computeBindings.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /** Group-0 binding of each buffer the selection kernel reads, under its WGSL name. */
@@ -51,7 +51,7 @@ export function dagGroupEntries(
   const { parts, ...whole } = buffers
   const named = Object.entries(whole).map(([name, buffer]) => [name, { buffer }])
   return [
-    ...namedBufferEntries(DAG_BINDING, { ...Object.fromEntries(named), range }),
+    ...namedEntries(DAG_BINDING, { ...Object.fromEntries(named), range }),
     ...dagPartEntries(parts),
   ]
 }

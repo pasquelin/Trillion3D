@@ -107,9 +107,10 @@ test("the host's rows and words land in their range, at their row there", async 
 
 test('each kernel that reads a primitive runs once per range, under its bind group', () => {
   const ranges = [100, 30].map((count, r) => ({ first: r * 100, count, bindGroup: `r${r}` }))
-  const { encoder, dispatches, boundGroups } = witnessEncoder()
+  const witness = witnessEncoder()
   const cut = { ...cutResources(5), ranges } as unknown as Parameters<typeof encodeDagKernels>[1]
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cut)
+  encodeDagKernels(witness.encoder, cut)
+  const { dispatches, boundGroups } = witness.read()
   const of = (kernel: string) => dispatches.filter((l) => l.kernel === kernel).map((l) => l.groups)
   assert.deepEqual(of('dagPrepare'), [2, 1], 'the first range also resets 64 blocks')
   assert.deepEqual(of('dagRootLevel'), [2, 1], "each range's roots")

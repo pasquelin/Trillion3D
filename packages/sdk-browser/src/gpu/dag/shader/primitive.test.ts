@@ -15,7 +15,7 @@ import { packDagSelection } from '../selection.ts'
 import { packed } from '../selectionHelpers.fixture.ts'
 import { dagFixture } from '../../../page/selection/dag.fixture.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
-import { random } from '../../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
 import { frustumExcludesBox } from '../../../../../sdk-core/src/index.ts'
 import { wgslSource } from '../../../../../math/src/wgsl/source.fixture.ts'
 import { encodeDagKernels } from '../encode.ts'
@@ -43,14 +43,15 @@ test('the frame’s prepare reads no placement: ten thousand cost it what their 
     dag = packDagSelection(Array.from({ length: count }, () => root))
   const top = dag.placementTree!.levels[0].count,
     blockCount = ceilDiv(dag.pageCount, 64)
-  const { encoder, dispatches } = witnessEncoder()
+  const witness = witnessEncoder()
   const cut = {
     ...cutResources(3),
     packed: dag,
     blockCount,
     ranges: [{ first: 0, count, bindGroup: {} }],
   } as unknown as Parameters<typeof encodeDagKernels>[1]
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cut)
+  encodeDagKernels(witness.encoder, cut)
+  const { dispatches } = witness.read()
   const prepare = dispatches.find((d) => d.kernel === 'dagPrepare')!,
     groups = Number(prepare.groups) * (prepare.rows ?? 1)
   // The tree's top nodes and the block counts it resets, never a thread a placement.
@@ -86,7 +87,7 @@ test('no kernel writes a placement’s row: its pose is made where it is read', 
 test("a never-culled primitive's open planes keep every box", () => {
   const open = new Float64Array(24)
   for (let p = 0; p < 6; p++) open[p * 4 + 3] = 1
-  const next = random(9),
+  const next = lcgRandom(9),
     edges = [NaN, -Infinity, -3.4e38, -1, -0, 0, 1, 3.4e38, Infinity]
   const values = [...edges, ...Array.from({ length: 40 }, () => (next() - 0.5) * 1e6)]
   for (let n = 0; n < 20_000; n++) {

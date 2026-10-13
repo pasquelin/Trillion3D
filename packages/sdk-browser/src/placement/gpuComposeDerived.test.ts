@@ -8,7 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { refreshRootBox } from '../page/selection/batchBoxes.ts'
 import { packPageCorners } from '../webgpu/visibility/corners.ts'
 import { ROW_LOD_FLOATS, writeRowLod } from '../webgpu/shadow/rowLodWords.ts'
@@ -81,7 +81,7 @@ const doubleOf = (p: Pair) => {
 }
 
 test('the corners, the detail and the world box a parent’s move derives are the CPU’s, word for word', () => {
-  const next = random(41)
+  const next = lcgRandom(41)
   let withBox = 0
   const scratch = new Float64Array(ROW_INPUT_DOUBLES),
     packed = new Uint32Array(ROW_INPUT_DOUBLES * 2)

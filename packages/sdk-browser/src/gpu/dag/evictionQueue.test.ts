@@ -4,7 +4,7 @@
 // closure (`../../page/cut/groupClosure.ts`) on generated frames.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { requestScene } from './requestScene.fixture.ts'
@@ -19,7 +19,7 @@ import { createGroupClosure } from '../../page/cut/groupClosure.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The first frame the tests cut at: past the two a use protects, so a page never used is old. */
 const START = 10
@@ -28,7 +28,7 @@ const START = 10
  *  frame and reads back. */
 async function residentCutOf(packed: ReturnType<typeof packDagSelection>, uniforms: object) {
   installGpuGlobals()
-  const gpu = mockGpu({ packed })
+  const gpu = fakeDevice({ ...BACKEND, packed })
   const selection = await createGpuDagSelection(gpu.device, packed)
   assert.ok(selection)
   selection.updateResidency(pageResidency(new Uint32Array(packed.pageCount).fill(1)))
@@ -156,7 +156,7 @@ test('generated frames: the raised groups say what the cut rule holds, frame aft
      *  ahead's `EVICT_IN_USE` before. */
     held = new Uint32Array(packed.keyCount)
   const pool = Array.from({ length: packed.keyCount }, (_, k) => k)
-  const next = random(0x5eed)
+  const next = lcgRandom(0x5eed)
   for (let frame = START; frame < START + 80; frame++) {
     const pick = (share: number) =>
       Array.from({ length: pages }, (_, p) => p).filter(() => next() < share)
