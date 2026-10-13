@@ -1,11 +1,8 @@
 // The steps of the frame's shadow-map plan (`vsmPlan.ts`, `planVsmFrame`): the set held for the
-// frame's lights, the casters' residency and mobility followed, and the lights' mask channels.
+// frame's lights, the casters' residency followed, and the lights' mask channels.
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
-import { VSM_STILL_FRAMES } from '../../../../vsm/constants.ts'
 import type { planVirtualShadowFrame, VsmFrameLight } from '../../../../vsm/frameSetup.ts'
-import { noteResidenceChange, uploadRowMobility } from '../../../shadow/bounds.ts'
-import { composedSlotBox } from '../../../../placement/composeBoxes.ts'
-import { rootWorldBox } from '../../../../page/selection/rootWorld.ts'
+import { noteResidenceChange } from '../../../shadow/bounds.ts'
 import { directionalCount, fullMapsFor } from './engineVsm.ts'
 import { grantEngineVsm, growEngineVsm, regrowEngineVsm, reserveProjection } from './vsmGrant.ts'
 
@@ -28,8 +25,9 @@ export function heldVsm(rt: WebgpuPagesRuntime, device: GPUDevice, list: VsmFram
   return vsm && reserveProjection(rt, device, vsm, list) ? vsm : undefined
 }
 
-/** The casters' changes since the last frame: residency, and placements come to rest. */
-export function followCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
+/** The casters' residency changes since the last frame; the placements come to rest are their rows'
+ *  (`../encodeDraws.ts`, `followShadowRows`). */
+export function followCasters(rt: WebgpuPagesRuntime) {
   const { lights } = rt
   // Residency changed since the last frame: a cluster that entered or left is another caster;
   // its box joins the change list at once, as the old scheduler's did (#831).
@@ -37,15 +35,6 @@ export function followCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
   lights.residence.flush(rows.residency, (page) =>
     noteResidenceChange(lights, selectionRoots, placement, page, recordOf(page)!, undefined, true),
   )
-  // The cached-as-dynamic update: a placement at rest past the static threshold frames
-  // caches as static again; its box invalidates the static pages it now belongs to — a follower
-  // of a parent composed on the GPU, its slot's box where the parent now holds it.
-  const settled = lights.mobility.settle(VSM_STILL_FRAMES, (rank, lead) => {
-    const root = rt.layout.selectionRoots[rank],
-      box = lead >= 0 ? composedSlotBox(rt, lead) : root && rootWorldBox(root)
-    if (box) lights.changes.worldChanged(box.subarray(0, 3), box.subarray(3, 6), false)
-  })
-  if (settled) uploadRowMobility(rt, device, 0, -1)
 }
 
 /** Mask channels, in the plan's light order; every other light reads no shadow. */

@@ -1,7 +1,8 @@
-// A written range of placement rows stales only what moved in it. The world hands each
-// instance buffer's written span once (`world/core/worldPoses.ts`): a row of it left where it
-// stands — a still mesh between two written ones, a sleeping wheel posed again in place — is no
-// move, and two roots that moved are two boxes, never the room between them.
+// A written range of placement rows moves only what moved in it. The world hands each instance
+// buffer's written span once (`world/core/worldPoses.ts`): a row of it left where it stands — a
+// still mesh between two written ones, a sleeping wheel posed again in place — is no move. The
+// shadow pages a moved root left and entered are its rows' to stale on the GPU (`rowCastWgsl.ts`):
+// the follow declares no box, it only says which roots moved, flipped, or turned moving.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { boxTransform } from '../../../sdk-core/src/index.ts'
@@ -19,7 +20,7 @@ const BOXES = [
 ]
 
 /** The three placements, rows of one buffer; the writer moves rows along x and hands the whole
- *  span as written, each moved root's box to `touched`, and whether it was moving already. */
+ *  span as written, each root that reads a written row to `follow`. */
 function placed() {
   const rows = createPlacementRows(BOXES.length)
   const roots = BOXES.map((local, index) => {
@@ -33,99 +34,64 @@ function placed() {
   })
   const mobility = createShadowMobility()
   mobility.ensure(roots.length, 1, (rank) => roots[rank].world.elements)
-  const write = (
-    moves: number[][],
-    touched: (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) => void,
-    flip?: (rank: number, root: { mark?: number }) => void,
-  ) => {
+  const followed: number[] = []
+  const write = (moves: number[][], flip?: (rank: number, root: { mark?: number }) => void) => {
     for (const [index, x] of moves) rows.matrices[index * 16 + 12] = x
+    followed.length = 0
     const last = BOXES.length - 1
-    return followPlacementRows(
-      roots as never,
-      rows,
-      0,
-      last,
-      flip,
-      mobility.move,
-      undefined,
-      touched,
+    return followPlacementRows(roots as never, rows, 0, last, flip, mobility.move, (rank) =>
+      followed.push(rank),
     )
   }
-  return { rows, write, mobility }
+  return { rows, write, mobility, followed }
 }
 
-test('a written range stales each root that moved, apart, and none left where it stands', () => {
-  const { write } = placed(),
-    boxes: number[][] = []
-  const collect = (min: ArrayLike<number>, max: ArrayLike<number>) =>
-    boxes.push([...Array.from(min), ...Array.from(max)])
+test('a written range moves each root that moved, and none left where it stands', () => {
+  const { write, mobility, followed } = placed()
   assert.equal(
-    write(
-      [
-        [0, 0.1],
-        [2, 1],
-      ],
-      collect,
-    ),
+    write([
+      [0, 0.1],
+      [2, 1],
+    ]),
     true,
   )
-  assert.deepEqual(boxes, [
-    [-0.1, 0, -0.1, 0.2, 0.2, 0.1],
-    [20, 0, 20, 22, 1, 21],
-  ])
-  boxes.length = 0
-  assert.equal(write([[0, 0.1]], collect), false, 'written again where it stands: no move')
-  assert.deepEqual(boxes, [])
+  assert.deepEqual([0, 1, 2].map(mobility.moves), [true, false, true])
+  assert.deepEqual(followed, [0, 1, 2], 'every root of the written span is followed')
+  assert.equal(write([[0, 0.1]]), false, 'written again where it stands: no move')
 })
 
-test('a row parked or taken back where it stands stales its box, and is no move', () => {
+test('a row parked or taken back where it stands is drawn again, and is no move', () => {
   // A hidden or shown primitive is removed or added and its pages invalidated once; only a
   // transform update caches it as dynamic: the static layer keeps it.
-  const { rows, write, mobility } = placed(),
-    boxes: [number[], boolean][] = []
-  const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
-    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly])
+  const { rows, write, mobility } = placed()
   rows.live[2] = 0
-  assert.equal(write([], collect), true, 'parked: its box is stale')
-  assert.deepEqual(boxes, [[BOXES[2], false]], 'the static layer is drawn again')
-  boxes.length = 0
+  assert.equal(write([]), true, 'parked: drawn again')
   rows.live[2] = 1
-  assert.equal(write([], collect), true, 'taken back: its box is stale')
-  assert.deepEqual(boxes, [[BOXES[2], false]], 'still static')
+  assert.equal(write([]), true, 'taken back: drawn again')
   assert.equal(mobility.moves(2), false, 'shown or hidden in place: never moving')
 })
 
-test('a row that stops or starts casting flips its mark and stales its box, whatever its pose', () => {
+test('a row that stops or starts casting flips its mark, whatever its pose', () => {
   // `castShadow` written on a world mesh reaches its row (`worldPoses.ts`); its root leaves
   // or enters every light cut, and the pages it covered are drawn again without it, or with it.
-  const { rows, write } = placed(),
-    boxes: [number[], boolean][] = [],
+  const { rows, write, mobility } = placed(),
     marks: [number, number | undefined][] = []
-  const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
-    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly])
   const flip = (rank: number, root: { mark?: number }) => marks.push([rank, root.mark])
   for (const shadowless of [1, 0]) {
     rows.shadowless[1] = shadowless
-    assert.equal(write([], collect, flip), true, 'a change of casting, whatever its pose')
+    assert.equal(write([], flip), true, 'a change of casting, whatever its pose')
     assert.deepEqual(marks, [[1, shadowless ? SHADOWLESS_ROOT : undefined]])
-    assert.deepEqual(boxes, [[BOXES[1], false]], 'the static layer, the root never made moving')
-    boxes.length = marks.length = 0
-    assert.equal(write([], collect, flip), false, 'written again unchanged: nothing')
+    assert.equal(mobility.moves(1), false, 'the root never made moving')
+    marks.length = 0
+    assert.equal(write([], flip), false, 'written again unchanged: nothing')
   }
 })
 
-test('a moving row that stops casting as it moves stales its moving casters alone', () => {
+test('a moving row that stops casting as it moves stays moving', () => {
   // The static layer leaves a moving placement out (`mobility.ts`), so it has nothing of it.
-  const { rows, write } = placed(),
-    boxes: [number[], boolean][] = []
-  const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
-    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly])
-  write([[0, 0.1]], collect)
-  boxes.length = 0
+  const { rows, write, mobility } = placed()
+  write([[0, 0.1]])
   rows.shadowless[0] = 1
-  assert.equal(write([[0, 0.2]], collect), true)
-  assert.deepEqual(
-    boxes.map(([, movingOnly]) => movingOnly),
-    [true],
-  )
+  assert.equal(write([[0, 0.2]]), true)
+  assert.equal(mobility.moves(0), true)
 })

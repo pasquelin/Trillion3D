@@ -1,13 +1,7 @@
 import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts'
-import {
-  declareInPlace,
-  declareOwnMove,
-  forgetOwnMoves,
-  noteOwnMove,
-  ownsMove,
-} from '../webgpu/pages/render/movedClusters.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { followPlacementRows, MOVE_NONE, MOVE_PROMOTED, rootRankOfRow } from './update.ts'
+import { followPlacementRows, MOVE_NONE, rootRankOfRow } from './update.ts'
+import { deriveRootRows } from './rowWords.ts'
 import { takeCellsMoved } from '../partition/rowCells.ts'
 import { placedBy, type PlacementRows } from './rows.ts'
 import { linkWorldObject } from '../webgpu/pages/prepare/worldRoot.ts'
@@ -17,8 +11,10 @@ export const flipWorld =
   (rt: WebgpuPagesRuntime) => (rank: number, root: { parked?: boolean; mark?: number }) => {
     rt.run.gpuSelection?.parkWorld(rank, !!root.parked)
     rt.run.gpuSelection?.markWorld(rank, root.mark ?? 0)
-    // Its rows' words say whether it casts (`MOBILITY_SHADOWLESS`): the caster passes skip them.
+    // Its rows' words say whether it casts (`MOBILITY_SHADOWLESS`): the caster passes skip them,
+    // and its rows, derived again, stale the pages it left or entered (`rowCastWgsl.ts`).
     rt.lights.mobility.touch(rank)
+    deriveRootRows(rt, rank)
     // A row parked or taken draws its object, or none, from now on (`worldRoot.ts`).
     linkWorldObject(rt, rank)
   }
@@ -43,9 +39,10 @@ export function updateWebgpuPlacements(
 ) {
   const { run, layout, lights } = rt,
     { mobility } = lights
-  // Each moved root stales its own pages, its moving casters only once it was moving already
-  // (`../webgpu/shadow/mobility.ts`): the plan keeps the boxes apart (`changes.ts`). A root that
-  // only moved declares its clusters at its last pose and its new one (`movedClusters.ts`).
+  // Each moved root's rows stale the pages they left and entered, its moving casters only once it
+  // was moving already (`../webgpu/shadow/mobility.ts`): the rows pass derives them, row by row
+  // (`rowCastWgsl.ts`); a root shown or hidden, or turned to cast or not, in place, the same
+  // (`flipWorld`).
   const moved = followPlacementRows(
     layout.selectionRoots,
     rows,
@@ -53,24 +50,17 @@ export function updateWebgpuPlacements(
     to,
     flipWorld(rt),
     (rank, world) => {
-      // Weighed once: a pose that moved is noted at its last pose, then taken as a move.
-      if (!mobility.poseOf(rank)) return mobility.move(rank, world)
-      if (mobility.holds(rank, world, layout.selectionRoots[rank]?.localBox)) return MOVE_NONE
-      noteOwnMove(rt, rank)
-      return mobility.move(rank, world, true)
+      // Weighed once: a pose that moved is taken as a move, its rows' shadow change asked; one its
+      // shadows hold — a parked body posed again within a float32 step — derives its rows alone.
+      const move = !mobility.poseOf(rank)
+        ? mobility.move(rank, world)
+        : mobility.holds(rank, world, layout.selectionRoots[rank]?.localBox)
+          ? MOVE_NONE
+          : mobility.move(rank, world, true)
+      if (move !== MOVE_NONE) deriveRootRows(rt, rank)
+      return move
     },
     (rank) => moveRootRows(rt, layout.selectionRoots[rank], rank),
-    (min, max, movingOnly, rank, moveOnly, move) => {
-      if (moveOnly && ownsMove(rank)) declareOwnMove(rt, rank, !movingOnly)
-      // A root shown or hidden in place is still as it was: the static slice holds it unless it
-      // moves already, and its clusters say which pages it covers (`declareInPlace`).
-      else if (move === MOVE_NONE) declareInPlace(rt, rank, min, max, mobility.moves(rank))
-      // A first move — of a root parked past the static threshold too, whose box
-      // was last made at a pose rounded again at rest, so it declares its row's — leaves the
-      // static slice: the invalidation uses the cache state from before the update.
-      // Moving before this update: moving now, and not by this first move.
-      else lights.changes.worldChanged(min, max, move !== MOVE_PROMOTED && mobility.moves(rank))
-    },
   )
   // Whether the blend pass draws these rows, asked once and only when needed.
   let blended: boolean | undefined
@@ -83,7 +73,6 @@ export function updateWebgpuPlacements(
     if (rank >= 0) linkWorldObject(rt, rank)
     return rank >= 0 || drawnBlended()
   })
-  forgetOwnMoves()
   // Blend items posed by these rows read them in place: the frame only has to be drawn again,
   // and their boxes follow at its world refresh (`refreshBlendWorlds`).
   if (!moved && !drawnBlended()) return

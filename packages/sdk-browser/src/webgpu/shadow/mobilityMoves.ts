@@ -42,7 +42,6 @@ export function followLead(s: MobilityState, rank: number, lead: number) {
 function growSlots(s: MobilityState, size: number) {
   s.leadMoved = resized(s.leadMoved, size)
   s.leadMoving = resized(s.leadMoving, size)
-  s.leadDeclared = resized(s.leadDeclared, size)
 }
 
 /**
@@ -69,16 +68,14 @@ export function moveLeadSlot(s: MobilityState, lead: number, ranks: readonly num
 /**
  * One scene frame: every moving placement that has not moved for more than `threshold` frames
  * — itself, nor the parent slot it follows (`moveLead`) — turns static and is handed to
- * `turnedStatic`, which invalidates its static pages, so the static slice draws it. A follower
- * is handed with its slot, once a call for the slot: the slot's box holds every follower where
- * its parent now holds it, which the follower's own box, made at its last CPU pose, may not.
- * Its rows' words are written anew at the next `writeRows`, its rows alone. Walks the moving
- * placements only. Returns whether one did.
+ * `turnedStatic`, which has its rows stale their static pages, so the static slice draws it
+ * (`../../placement/rowCastWgsl.ts`). Its rows' words are written anew at the next `writeRows`, its
+ * rows alone. Walks the moving placements only. Returns whether one did.
  */
 export function settleMoving(
   s: MobilityState,
   threshold: number,
-  turnedStatic: (rank: number, lead: number) => void,
+  turnedStatic: (rank: number) => void,
 ) {
   s.frame = (s.frame + 1) >>> 0
   const frame = s.frame,
@@ -95,13 +92,8 @@ export function settleMoving(
     list.pop()
     touchRank(s, rank)
     any = true
-    if (lead < 0) turnedStatic(rank, -1)
-    else {
-      s.leadMoving[lead] = 0
-      if (s.leadDeclared[lead] === frame) continue
-      s.leadDeclared[lead] = frame
-      turnedStatic(rank, lead)
-    }
+    if (lead >= 0) s.leadMoving[lead] = 0
+    turnedStatic(rank)
   }
   return any
 }

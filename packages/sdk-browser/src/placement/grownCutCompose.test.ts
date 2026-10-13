@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placedSession } from './webgpuGrowth.fixture.ts'
 import { composeWebgpuPlacements } from './gpuCompose.ts'
-import { composedRoot } from './composeBoxes.ts'
+import { composedRoot } from './gpuComposeState.ts'
 import { noBudget, settled } from '../partition/cells.fixture.ts'
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]

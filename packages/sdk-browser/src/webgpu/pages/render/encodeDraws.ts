@@ -7,7 +7,8 @@ import { taaRenderMatrix } from '../../../taa/frame.ts'
 import { abandonFrameEncoder } from './encoder.ts'
 import { ensurePageTable } from './pageTable.ts'
 import { encodeVis } from './encodeVis.ts'
-import { followRowWords } from '../../../placement/rowWords.ts'
+import { deriveRootRows, followRowWords } from '../../../placement/rowWords.ts'
+import { VSM_STILL_FRAMES } from '../../../vsm/constants.ts'
 import { forgetRewrittenRows } from '../../visibility/corners.ts'
 import { refreshDrawItemWords } from '../../visibility/itemWords.ts'
 import { visLayerTop } from '../../visibility/uniforms.ts'
@@ -44,6 +45,9 @@ function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (!lights.rowsFollowed && rows.casterSlots > 0) rows.markRowWords(0, rows.casterSlots - 1)
   lights.rowsFollowed = true
   ensureClusterSpheres(rt, device)
+  // A placement at rest past the static threshold caches as static again: its mobility words go up
+  // below, and its rows, derived again, stale the static pages it now belongs to (`rowCastWgsl.ts`).
+  lights.mobility.settle(VSM_STILL_FRAMES, (rank) => deriveRootRows(rt, rank))
   uploadDirtyRowMobility(rt, device)
   ensureRowLods(rt, device)
 }

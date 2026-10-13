@@ -2,7 +2,6 @@
  * THE LINKS OF THE COMPOSITION (`gpuCompose.ts`): the session's composition over its root list, a
  * parent's slot, the roots a call links and those a whole set no longer holds.
  */
-import { BOX_VALUES } from '../../../sdk-core/src/index.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { mirrorKey } from '../webgpu/cut/denseKeys.ts'
@@ -10,8 +9,8 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { MATRIX_DOUBLES, NONE } from './gpuComposeWgsl.ts'
 import { placedBy, type PlacementRows } from './rows.ts'
 import { rootRankOfRow } from './update.ts'
-import { linkBox } from './composeBoxes.ts'
 import { noteRootWorld } from './rootWorlds.ts'
+import { deriveRootRows } from './rowWords.ts'
 import {
   createComposeState,
   growComposeState,
@@ -73,13 +72,11 @@ export function takeSlot(
   state.winding[slot] = undefined as unknown as boolean
   state.worlds = resized(state.worlds, state.slots * 16)
   state.previous = resized(state.previous, state.slots * 16)
-  state.slotBoxes = resized(state.slotBoxes, state.slots * BOX_VALUES)
   state.previous.set(world, slot * 16)
   return slot
 }
 
-/** Every root `slot` held and `ranks` does not keep follows no parent any more; whether every
- *  root it held was moving already. */
+/** Every root `slot` held and `ranks` does not keep follows no parent any more. */
 export function unlinkHeld(
   rt: WebgpuPagesRuntime,
   state: ComposeState,
@@ -89,15 +86,14 @@ export function unlinkHeld(
   const { mobility } = rt.lights,
     held = state.ranksOf[slot],
     kept = new Set(ranks)
-  let movingOnly = true
   for (const rank of held) {
-    if (state.parentOf[rank] !== slot) continue
-    movingOnly &&= mobility.moves(rank)
-    if (kept.has(rank)) continue
+    if (state.parentOf[rank] !== slot || kept.has(rank)) continue
     removeComposedWorld(rt, rank)
     state.parentOf[rank] = NONE
-    // Its world is the CPU's again: sent from it, its rows derived from it.
+    // Its world is the CPU's again: sent from it, its rows derived from it, the pages they leave
+    // and enter staled.
     noteRootWorld(rt, rank)
+    deriveRootRows(rt, rank)
     mirrorKey(state.rankList, rank, false)
     state.relinked.push(rank)
     mobility.follow(rank, -1)
@@ -106,7 +102,6 @@ export function unlinkHeld(
   held.length = 0
   slotMoved(state, slot)
   state.linksDirty = true
-  return movingOnly
 }
 
 /** `ranks` follow `slot`, each at its link's local matrix. */
@@ -120,8 +115,7 @@ export function linkRanks(
     whole,
   }: { slot: number; ranks: number[]; links: readonly PlacementLink[]; whole: boolean },
 ) {
-  const roots = rt.layout.selectionRoots,
-    held = state.ranksOf[slot]
+  const held = state.ranksOf[slot]
   slotMoved(state, slot)
   for (let k = 0; k < ranks.length; k++) {
     const rank = ranks[k],
@@ -139,7 +133,6 @@ export function linkRanks(
     packDoubles(state.locals, rank * MATRIX_DOUBLES * 2, links[k].local)
     state.localMats.set(links[k].local as ArrayLike<number>, rank * 16)
     installComposedWorld(rt, rank)
-    linkBox(state, rank, roots[rank], links[k].local)
   }
   if (ranks.length) state.linksDirty = true
 }

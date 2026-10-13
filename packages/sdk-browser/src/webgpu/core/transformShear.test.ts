@@ -86,18 +86,14 @@ test('the reprojected world box is the image of the local box by the sheared mat
     local = [-1, -1, -1, 1, 1, 1],
     root = selectionRoot(mesh, local, worlds),
     avant = Array.from(root.worldBox!),
-    { rt, motions } = runtime(source, [root], worlds),
+    { rt } = runtime(source, [root], worlds),
     demandee = versGpu(cisaillee(3, 6))
   setWebgpuTransform(rt, 'target', demandee)
   const attendu = new Float64Array(BOX_VALUES)
   boxTransform(attendu, 0, Float64Array.from(local), 0, demandee)
   assert.deepEqual(Array.from(rootWorldBox(root)!), Array.from(attendu))
   assert.equal(rootWorldBox(root)![0], 2, 'shear extends the box, a TRS decompose does not')
-  // Where it was, then where it lands: each its own box.
-  assert.deepEqual(
-    motions.map(({ min, max }) => [...min, ...max]),
-    [avant, Array.from(attendu)],
-  )
+  assert.notDeepEqual(avant, Array.from(attendu), 'the box it left is not the one it lands in')
 })
 
 test('a conformal translation-rotation-scale matrix stays exact, fields included', () => {

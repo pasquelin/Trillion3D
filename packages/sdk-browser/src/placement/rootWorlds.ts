@@ -16,7 +16,7 @@ import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { grownLength, resized } from '../../../math/src/sequence/resized.ts'
 import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { NONE } from './gpuComposeWgsl.ts'
+import { composedRoot } from './gpuComposeState.ts'
 import { movedList, noteMoved } from './rootMoves.ts'
 
 /** Words of a root's world, sixteen doubles; of its world box, six; of its local box, six doubles
@@ -66,10 +66,6 @@ export function noteRootWorld(rt: Pick<WebgpuPagesRuntime, 'rootWorlds'>, rank: 
   rootWorldsOf(rt).moved.mark(rank)
 }
 
-/** Whether a parent composes root `rank`: the compose worlds pass writes its world. */
-const composed = (rt: Pick<WebgpuPagesRuntime, 'compose'>, rank: number) =>
-  !!rt.compose && rank < rt.compose.roots && rt.compose.parentOf[rank] !== NONE
-
 /** The tables at the roots' count, made again — every root sent — when they no longer hold them. */
 function ensureTables(device: GPUDevice, held: RootWorlds, roots: number) {
   if (held.worlds && held.capacity >= roots) return
@@ -102,7 +98,7 @@ function sendRun(rt: WebgpuPagesRuntime, device: GPUDevice, from: number, to: nu
 function sendSpan(rt: WebgpuPagesRuntime, device: GPUDevice, from: number, to: number) {
   let first = -1
   for (let rank = from; rank <= to; rank++) {
-    if (composed(rt, rank)) {
+    if (composedRoot(rt, rank)) {
       if (first >= 0) sendRun(rt, device, first, rank - 1)
       first = -1
       continue

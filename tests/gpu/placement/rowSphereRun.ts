@@ -62,7 +62,7 @@ export async function runSphere() {
   // Every row of the table (`all`): the pass's list names none.
   const params = bufferHolding(
     device,
-    new Uint32Array([CASES, PART_SPHERES, CASES, 1]),
+    new Uint32Array([CASES, PART_SPHERES, CASES, 1, 0, 0, 0, 0]),
     GPUBufferUsage.UNIFORM,
   )
   const spheres = gpu.buffer(CASES * 8 * 4, STORAGE)
@@ -77,6 +77,8 @@ export async function runSphere() {
       buffer(table),
       spheres,
       buffer(inputs),
+      absent(),
+      absent(),
       absent(),
       absent(),
       absent(),

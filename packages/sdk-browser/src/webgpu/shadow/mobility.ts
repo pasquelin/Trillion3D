@@ -41,7 +41,7 @@ export function createShadowMobility() {
       moveRank(s, rank, world, forced),
     follow: (rank: number, lead: number) => followLead(s, rank, lead),
     moveLead: (lead: number, ranks: readonly number[]) => moveLeadSlot(s, lead, ranks),
-    settle: (threshold: number, turnedStatic: (rank: number, lead: number) => void) =>
+    settle: (threshold: number, turnedStatic: (rank: number) => void) =>
       settleMoving(s, threshold, turnedStatic),
     touch: (rank: number) => touchRank(s, rank),
     writeRows: writeMobilityRows.bind(null, s),

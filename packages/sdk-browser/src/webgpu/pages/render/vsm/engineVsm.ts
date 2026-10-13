@@ -126,8 +126,10 @@ export interface EngineVsm {
   said: Set<'raster' | 'transmission' | 'mask' | 'transmission-full'>
   /** The frame a pool drawn short of the full one may ask to grow again at (`vsmGrant.ts`). */
   regrowFrame: number
-  /** The box invalidation read before the plan, and the previous frame's slot count. */
+  /** The box invalidation read before the plan, the maps the rows' shadow changes stale
+   *  (`vsmCastMaps`), and the previous frame's slot count. */
   pendingBoxes: VsmInvalidationPhase | null
+  pendingCastMaps: Uint32Array | null
   prevSlots: number
   /** Page counters of the stats permutation, read back a few frames late. */
   statsReadback: VsmReadbackRing
@@ -297,6 +299,7 @@ export function createEngineVsm(device: GPUDevice, options: VsmResourceOptions):
       said: new Set(),
       regrowFrame: 0,
       pendingBoxes: null,
+      pendingCastMaps: null,
       prevSlots: 0,
       statsReadback: createReadbackRing(
         device,

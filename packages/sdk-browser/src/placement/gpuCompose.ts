@@ -19,12 +19,10 @@
  * decision is a uniform written after the pass is encoded and before the image is submitted, as the
  * CPU motion's own write is: every reader of the motion sees it.
  *
- * The shadows follow a parent's move as they follow a moved node's (`movedBatch.ts`): the box of
- * the slot's linked roots in the parent's frame (`slotBoxes`, the union of each root's local box
- * through its local matrix, made when the links change) is declared at the parent's last world and
- * at its new one, each on its own, the second only when it differs — one box per moved parent, at
- * most two per move, never a row. Its first move makes its roots moving casters, once
- * (`mobility.moveLead`); a later move stales the moving casters alone.
+ * The shadows follow a parent's move as they follow a moved node's: the rows pass, deriving the
+ * linked roots' rows from the worlds the parent's move composed, stales the pages each row left and
+ * entered (`rowCastWgsl.ts`); the CPU declares no box. Its first move makes its roots moving
+ * casters, once (`mobility.moveLead`); a later move stales the moving casters alone.
  *
  * Everything a composed world gives is derived on the GPU, the CPU's to the word, as a host's world
  * is: the root boxes pass writes its world box and the primitive stretch every cut projects its
@@ -40,7 +38,6 @@ import type { PlacementRows } from './rows.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import { rootRankOfRow } from './update.ts'
 import { NONE } from './gpuComposeWgsl.ts'
-import { declareSlotMove, holdSlotBox, remakeSlotBox } from './composeBoxes.ts'
 import {
   adoptReaders,
   holdReaders,
@@ -87,34 +84,25 @@ export function composeWebgpuPlacements(
   links: readonly PlacementLink[],
   whole: boolean,
 ) {
-  const { mobility } = rt.lights,
-    state = composeState(rt)
+  const state = composeState(rt)
   const p = state.parentIds.get(parent)
   if (p === undefined && !links.length) return
   const { ranks, rooted, readers } = linkedRanks(rt, links)
   const slot = takeSlot(state, parent, p, world)
   let views: ReaderViews | undefined
   const viewsOf = () => (views ??= readerViews(rt))
-  // The shadow pages the slot's roots cover at the parent's last world: a slot linked now has
-  // none of its own, its rows' CPU write in this call declares them (`webgpuPlacements.ts`). The
-  // static casters under it stay unless a root it changes is still or its parent's move is a first.
-  let movingOnly = true
-  holdSlotBox(state, p)
-  for (const rank of ranks) movingOnly &&= mobility.moves(rank)
-  if (whole) movingOnly = unlinkHeld(rt, state, slot, ranks) && movingOnly
+  if (whole) unlinkHeld(rt, state, slot, ranks)
   if (whole && state.readers.has(slot)) releaseReaderViews(state.readers, slot, viewsOf())
   if (whole) state.readers.delete(slot)
   if (readers.length) holdReaders(state.readers, slot, parent, readers, whole)
   if (!ranks.length && !readers.length && whole) {
     state.parentIds.delete(parent)
     state.freeSlots.push(slot)
-    declareSlotMove(rt, state, undefined, movingOnly)
     return
   }
   linkRanks(rt, state, { slot, ranks, links: rooted, whole })
   const relinked = ranks.length > 0 || whole
-  if (relinked) remakeSlotBox(state, slot)
-  settleSlot(rt, state, { slot, p, world, relinked, movingOnly })
+  settleSlot(rt, state, { slot, p, world, relinked })
   // Its readers' views read their rows composed: a move composes none until one is read.
   if (readers.length || whole) readThroughViews(state.readers, slot, viewsOf(), state)
   // Poses moved and no node entered or left: the frame hears it as any engine pose write.

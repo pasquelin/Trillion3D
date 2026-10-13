@@ -3,7 +3,6 @@
  * parent slot and local matrix —, the parents' worlds, the lists the passes run over and
  * what each pass last ran at; grown with the session's roots.
  */
-import { BOX_VALUES } from '../../../sdk-core/src/index.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { createMirroredKeys } from '../webgpu/cut/denseKeys.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -76,10 +75,6 @@ export function createComposeState(roots: number) {
     packed: new Uint32Array(MATRIX_DOUBLES * 2),
     /** The worlds pass's parameters (the ranges' passes keep theirs, `rangeParams`). */
     worldParams: new Uint32Array(4),
-    /** Each linked root's local box through its local matrix: its box in its parent's frame. */
-    rankBoxes: new Float64Array(Math.max(1, roots) * BOX_VALUES),
-    /** Each slot's box in its parent's frame: the union of its linked roots' (`rankBoxes`). */
-    slotBoxes: new Float64Array(BOX_VALUES),
     /** Roots linked since the last frame, with the world their motion starts from. */
     seeds: new Map<number, Float32Array<ArrayBuffer>>(),
     /** The temporal pass's decision and eye (`composedMotion.ts`), as the roots pass reads it. */
@@ -96,6 +91,14 @@ export function createComposeState(roots: number) {
 }
 
 export type ComposeState = ReturnType<typeof createComposeState>
+
+/** Whether a parent composes root `rank` on the GPU now, read off the one compose state: the
+ *  compose worlds pass writes its world (`rootWorlds.ts`), and its tree group stays open while it
+ *  does (`../gpu/dag/treeFollow.ts`). */
+export function composedRoot(rt: Pick<WebgpuPagesRuntime, 'compose'>, rank: number) {
+  const state = rt.compose
+  return !!state && rank < state.roots && state.parentOf[rank] !== NONE
+}
 
 /** Root `rank`'s motion starts from the pose the CPU motion last accumulated it at — the one
  *  `../taa/motion.ts` would compare its next world with —, its world without one. */
@@ -114,7 +117,6 @@ export function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, ro
   state.locals = resized(state.locals, roots * MATRIX_DOUBLES * 2)
   state.localMats = resized(state.localMats, roots * 16)
   state.refreshed = resized(state.refreshed, roots)
-  state.rankBoxes = resized(state.rankBoxes, roots * BOX_VALUES)
   state.roots = roots
   state.gpu?.dispose()
   state.gpu = undefined

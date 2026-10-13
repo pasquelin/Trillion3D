@@ -21,12 +21,19 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { FINITE_SENTINEL } from '../../../math/src/wgsl/constants.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
+import { ROW_CAST_WGSL } from './rowCastWgsl.ts'
 
 /** The parts of a row the rows pass derives besides its world words (`params.parts`), each when its
- *  buffer is made. */
+ *  buffer is made; the shadow changes (`PART_CASTS`) once the mobility words and the change list
+ *  are made beside the spheres (`rowCastWgsl.ts`). */
 export const PART_SPHERES = 1,
   PART_CORNERS = 2,
-  PART_LODS = 4
+  PART_LODS = 4,
+  PART_CASTS = 8
+
+/** A listed row's word: the row, and whether its shadow change is asked (`ROW_EMITS`). */
+export const ROW_NAMED = 0x7fffffff,
+  ROW_EMITS = 0x80000000
 
 /**
  * The world sphere of a row, what the shadow cull drops it by, from its root's world and its local
@@ -107,11 +114,13 @@ export const DERIVE_ROWS_ENTRY = 'deriveRows'
 /**
  * One thread a row (`deriveRow`): a row holding no page takes the clear words (`clearRow`); a row
  * holding one, its root's world as single-precision words and, each part when its buffer is bound
- * (`params.parts`), its sphere (`composeSphere`), its corners (`composeCorners`) and its detail
- * (`composeLod`). The row keeps the Hi-Z slot the CPU gave it: its corners describe it.
+ * (`params.parts`), its sphere (`composeSphere`) and its cast state (`castCode`), its corners
+ * (`composeCorners`) and its detail (`composeLod`). The row keeps the Hi-Z slot the CPU gave it:
+ * its corners describe it. A row whose shadow change is asked — every row of the table or of the
+ * composed list (`params.emitAll`), or a listed row marked `ROW_EMITS` — appends it (`castRow`).
  */
 export const DERIVE_ROWS_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,parts:u32,listed:u32,all:u32,}
+  `struct Params{rootCount:u32,parts:u32,listed:u32,all:u32,emitAll:u32,pad0:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> rootWorlds:array<vec2u>;
 @group(0) @binding(2) var<storage,read_write> table:array<u32>;
@@ -121,27 +130,49 @@ export const DERIVE_ROWS_WGSL = wgslProgram(
 @group(0) @binding(6) var<storage,read_write> corners:array<u32>;
 @group(0) @binding(7) var<storage,read_write> lods:array<u32>;
 @group(0) @binding(8) var<storage,read> rowList:array<u32>;
-fn deriveRow(row:u32){
+@group(0) @binding(9) var<storage,read> mobility:array<u32>;
+@group(0) @binding(10) var<storage,read_write> castChanges:array<atomic<u32>>;
+fn deriveRow(row:u32,emit:bool){
  let at=row*${ROW_INPUT_DOUBLES}u;
  let base=row*${ROW_WORDS}u;
  if(at+${ROW_INPUT_DOUBLES}u>arrayLength(&inputs)||base+${ROW_WORDS}u>arrayLength(&table)){return;}
- if((inputs[at+${INPUT_FLAGS}u].x&${ROW_HAS_RECORD}u)==0u){clearRow(row);return;}
+ let sphered=(params.parts&${PART_SPHERES}u)!=0u&&(row+1u)*8u<=arrayLength(&spheres);
+ let cast=emit&&sphered&&(params.parts&${PART_CASTS}u)!=0u;
+ var was:array<f32,8>;
+ if(cast){for(var k=0u;k<8u;k++){was[k]=spheres[row*8u+k];}}
+ if((inputs[at+${INPUT_FLAGS}u].x&${ROW_HAS_RECORD}u)==0u){
+  if(cast){castRow(row,was,false,false);}
+  clearRow(row);
+  return;
+ }
  let rank=table[base+${PAGE_INFO.at.placement}u];
  if(rank>=params.rootCount){return;}
  var world:array<vec2u,16>;
+ var worldSame=true;
  for(var k=0u;k<16u;k++){
   world[k]=rootWorlds[rank*16u+k];
-  table[base+k]=toF32(world[k]);
+  let single=toF32(world[k]);
+  worldSame=worldSame&&table[base+k]==single;
+  table[base+k]=single;
  }
- if((params.parts&${PART_SPHERES}u)!=0u){composeSphere(row,world);}
+ if(sphered){
+  composeSphere(row,world);
+  if((params.parts&${PART_CASTS}u)!=0u){spheres[row*8u+7u]=castCode(row);}
+ }
+ if(cast){castRow(row,was,worldSame,true);}
  if((params.parts&${PART_CORNERS}u)!=0u&&(row+1u)*${CORNER_VALUES}u<=arrayLength(&corners)){composeCorners(row,world);}
  if((params.parts&${PART_LODS}u)!=0u&&(row+1u)*${ROW_LOD_FLOATS}u<=arrayLength(&lods)){composeLod(row,rank,world);}
 }
 @compute @workgroup_size(64) fn deriveRows(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let j=flatIndex(g,n,64u);if(j>=params.listed){return;}
  var row=j;
- if(params.all==0u){row=rowList[j];}
- deriveRow(row);
+ var emit=params.emitAll!=0u;
+ if(params.all==0u){
+  let named=rowList[j];
+  row=named&${ROW_NAMED}u;
+  emit=emit||(named&${ROW_EMITS}u)!=0u;
+ }
+ deriveRow(row,emit);
 }`,
-  [toF32, FLAT_INDEX_WGSL, SPHERE_WGSL, CLEAR_ROW_WGSL, CORNERS_WGSL, LOD_WGSL],
+  [toF32, FLAT_INDEX_WGSL, SPHERE_WGSL, CLEAR_ROW_WGSL, CORNERS_WGSL, LOD_WGSL, ROW_CAST_WGSL],
 )

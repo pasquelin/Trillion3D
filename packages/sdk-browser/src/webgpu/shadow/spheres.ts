@@ -5,6 +5,7 @@ import { boxCenter } from '../../../../math/src/geometry/box.ts'
 import { rootOf, type PageRec } from '../../page/selection/selection.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { createCastChanges, spheresMadeAnew } from './castChanges.ts'
 import { CLUSTER_SPHERE_FLOATS, clusterSpheres } from './rowBuffers.ts'
 import { rowBox, rowGrowth } from '../../hiz/corners.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
@@ -75,14 +76,17 @@ export function packClusterSpheres(
  * row order: the only geometric datum the shadow pass needs to drop a cluster, its sphere against
  * a light's range and against a face's cone. The rows pass writes the buffer
  * (`../../placement/rowWordsPass.ts`), for every row whose root moved or which was written; made
- * here at the table's caster rows while a light casts.
+ * here at the table's caster rows while a light casts, with the list the rows pass appends the
+ * rows' shadow changes to (`castChanges.ts`).
  */
 export function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights } = rt,
     { casterSlots } = rt.layout.rows
+  lights.casts ??= createCastChanges(device)
   if (lights.spheres && lights.spheres.rows === casterSlots) return lights.spheres
   lights.spheres?.buffer.destroy()
   lights.spheres = clusterSpheres(device, casterSlots)
+  spheresMadeAnew(lights)
   return lights.spheres
 }
 

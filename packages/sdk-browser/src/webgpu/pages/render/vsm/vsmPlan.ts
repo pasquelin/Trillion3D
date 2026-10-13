@@ -22,6 +22,7 @@ import {
   wholeTableRows,
 } from './engineVsm.ts'
 import { vsmInvalidationPipe } from '../../../../vsm/invalidationPass.ts'
+import { vsmCastMaps, vsmCastPipes } from '../../../../vsm/castInvalidation.ts'
 import { vsmMarkingPipes } from '../../../../vsm/markingPass.ts'
 import { vsmPageManagementPipes } from '../../../../vsm/pageManagementPass.ts'
 import { vsmRasterPipe, vsmRenderComputePipes } from '../../../../vsm/renderPass.ts'
@@ -145,8 +146,11 @@ export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const layout = vsmFirstSetLayout(device, frameLights(rt, 'reserve'))
   const marking = vsmMarkingPipes(device, layout),
     render = vsmRenderComputePipes(device, layout)
+  const casts = vsmCastPipes(device, layout)
   const pipes = [
     vsmInvalidationPipe(device, layout),
+    casts.stale,
+    casts.args,
     marking.clear('all'),
     marking.clear('directionalOnly'),
     marking.rect(),
@@ -204,13 +208,14 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
     return false
   }
   const { state } = vsm
-  followCasters(rt, device)
+  followCasters(rt)
   // The invalidations: the world's change boxes against the PREVIOUS frame's maps,
   // read before the plan gives this frame its ids. Representation changes held for the camera to
   // rest enter now: they invalidate at once.
   const changes = lights.changes
   changes.releaseDeferred()
-  const boxes = vsmInvalidationPhaseFromShadowBoxes(state.cache, changes)
+  const boxes = vsmInvalidationPhaseFromShadowBoxes(state.cache, changes),
+    castMaps = vsmCastMaps(state.cache)
   changes.settled()
   const prevSlots = state.cache.prevFrame?.mapSlotCount ?? 0
   // The sun's clipmap is sized for the display, whatever scale this frame draws at; local lights
@@ -245,6 +250,7 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   }
   vsm.plan = plan
   vsm.pendingBoxes = boxes
+  vsm.pendingCastMaps = castMaps
   vsm.prevSlots = prevSlots
   assignChannels(store, vsm, plan)
   return true

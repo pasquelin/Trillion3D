@@ -3,7 +3,7 @@
 import { runsOf } from '../row/dirty.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { uploadDirtyRowMobility, uploadRowMobility } from './bounds.ts'
+import { uploadDirtyRowMobility } from './bounds.ts'
 import { createShadowMobility } from './mobility.ts'
 import { createWebgpuRowState } from '../row/state.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
@@ -65,7 +65,9 @@ test('the mobility words of a scattered change are its runs, and the words the s
   const upload = () => {
     const dirty = runsOf(span.rows.forEachDirtyRun)
     const [from, to] = dirty.length ? [dirty[0][0], dirty.at(-1)![1]] : [0, -1]
-    uploadRowMobility(span.rt, span.rt.gpu.device!, from, to)
+    // The span's path: every row between the first dirty one and the last, written whole.
+    if (to >= from) span.rows.markRowWords(from, to)
+    uploadDirtyRowMobility(span.rt, span.rt.gpu.device!)
     uploadDirtyRowMobility(runs.rt, runs.rt.gpu.device!)
     for (const { rows } of sides) rows.clearDirty()
   }
@@ -144,7 +146,7 @@ test('the words after a sequence of dirty runs are the rows own, from closures b
     )
     assert.deepEqual(held(), expected, `image ${image}: every row holds the words its state gives`)
   }
-  uploadRowMobility(rt, rt.gpu.device!, 0, -1)
+  uploadDirtyRowMobility(rt, rt.gpu.device!)
   // One call to start each image, then one per run: far more calls than images, one set of closures.
   assert.ok(written.length >= 4 * 3, `runs were written: ${written.length}`)
   for (const at of [0, 4, 5, 7, 8]) {

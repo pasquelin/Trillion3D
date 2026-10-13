@@ -1,8 +1,10 @@
 /**
- * THE ROWS PASS ON THE GPU (`rowWordsWgsl.ts`): a thread a row the CPU named this frame
- * (`rowWords.ts`) — or every caster row, when a buffer it writes or reads was made anew —, then a
- * thread a row of the roots a parent composes once their worlds moved (`composedRows.ts`). It runs
- * in the frame's command buffer after the compose worlds pass and before any reader of the words.
+ * THE ROWS PASS ON THE GPU (`rowWordsWgsl.ts`): a thread a row of the roots a parent composes once
+ * their worlds moved (`composedRows.ts`), then a thread a row the CPU named this frame
+ * (`rowWords.ts`) — or every caster row, when a buffer it writes or reads was made anew. It runs in
+ * the frame's command buffer after the compose worlds pass and before any reader of the words. The
+ * composed rows go first: a row both lists name has its shadow change appended from the pose it
+ * left, before the second derivation finds it where it already stands (`rowCastWgsl.ts`).
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
@@ -14,6 +16,7 @@ import { COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
 import {
   DERIVE_ROWS_ENTRY,
   DERIVE_ROWS_WGSL,
+  PART_CASTS,
   PART_CORNERS,
   PART_LODS,
   PART_SPHERES,
@@ -21,8 +24,10 @@ import {
 import { composeGroup } from './composeGroups.ts'
 import { createRowWordsGpu, partsMoved, rowEntries, type RowWordsGpu } from './rowWordsGpu.ts'
 import { followComposedRows, sendList } from './composedRows.ts'
-import type { RowWords } from './rowWords.ts'
+import { forgetTargets, type RowWords } from './rowWords.ts'
 import { writeMovedRoots } from './rootPasses.ts'
+import { castsBound } from './rowWordsGpu.ts'
+import { reserveCasts } from '../webgpu/shadow/castChanges.ts'
 
 /** The rows kernel, once a device, compiled off the thread (`askRowWords`). */
 const rowsKernel = oncePerDevice((device) =>
@@ -69,21 +74,24 @@ function composedRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return state.rowList.set.count
 }
 
-/** Dispatch `g` of the pass over `listed` rows, `all` of the table or those its list names. */
+/** Dispatch `g` of the pass over `listed` rows, `all` of the table or those its list names; every
+ *  row's shadow change asked when `emitAll`, else a listed row's when its list asks it. */
 function dispatch(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   pass: GPUComputePassEncoder,
-  { gpu, pipeline, g, listed, all }: RowDispatch,
+  { gpu, pipeline, g, listed, all, emitAll }: RowDispatch,
 ) {
   const words = gpu.words[g]
   words[0] = rt.layout.selectionRoots.length
   words[1] =
     (gpu.frame[0] ? PART_SPHERES : 0) |
     (gpu.frame[1] ? PART_CORNERS : 0) |
-    (gpu.frame[2] ? PART_LODS : 0)
+    (gpu.frame[2] ? PART_LODS : 0) |
+    (castsBound(rt) ? PART_CASTS : 0)
   words[2] = listed
   words[3] = all ? 1 : 0
+  words[4] = emitAll ? 1 : 0
   device.queue.writeBuffer(gpu.params[g], 0, words)
   const held = gpu.groups[g]
   held.identity.entries[0] ??= rowEntries(rt, gpu, g)
@@ -98,12 +106,15 @@ type RowDispatch = {
   g: number
   listed: number
   all: boolean
+  emitAll: boolean
 }
 
 /**
- * The rows pass, before anything reads a row's words this frame: the named rows — every caster row
- * when a buffer it binds was made anew —, then the composed rows when their worlds moved. Nothing
- * on a frame where no row was written and no root moved.
+ * The rows pass, before anything reads a row's words this frame: the composed rows when their
+ * worlds moved, then the named rows — every caster row when a buffer it binds was made anew. Nothing
+ * on a frame where no row was written and no root moved. The shadow changes it may append have their
+ * room first (`reserveCasts`): two a row whose change is asked, the pose left and the one entered;
+ * a pass over every row appends into the room the list holds, past which it stales every page.
  */
 export function encodeRowWords(
   rt: WebgpuPagesRuntime,
@@ -126,13 +137,17 @@ export function encodeRowWords(
     listed = all ? rows.casterSlots : state.count
   if (!listed && !composed) return
   sendTargets(device, gpu, state)
+  const casts = rt.lights.casts
+  if (casts && castsBound(rt))
+    reserveCasts(casts, device, 2 * ((all ? 0 : composed) + state.emits), rows.casterSlots)
   const pipeline = rowsKernel(device).get()
   const pass = encoder.beginComputePass({ label: COMPOSE_ROWS_PASS })
   pass.setPipeline(pipeline)
-  if (listed) dispatch(rt, device, pass, { gpu, pipeline, g: 0, listed, all })
-  if (composed && !all) dispatch(rt, device, pass, { gpu, pipeline, g: 1, listed: composed, all })
+  if (composed && !all)
+    dispatch(rt, device, pass, { gpu, pipeline, g: 1, listed: composed, all, emitAll: true })
+  if (listed) dispatch(rt, device, pass, { gpu, pipeline, g: 0, listed, all, emitAll: all })
   pass.end()
   state.all = false
-  state.count = 0
+  forgetTargets(state)
   state.encodedInto = encoder
 }

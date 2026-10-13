@@ -16,8 +16,7 @@ import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../../gpu/shadow/mobilityB
  * `writeRows`. `leads`: the parent slot each placement follows on the GPU
  * (`../../placement/gpuCompose.ts`), -1 for none — its rows take no CPU pose while the parent
  * moves — sized by `follow` itself, since a link may come before `ensure`; per slot, `leadMoved`
- * the `settle` frame its parent last moved at, `leadMoving` 1 once its followers were made moving,
- * `leadDeclared` the `settle` call that last declared its box.
+ * the `settle` frame its parent last moved at, `leadMoving` 1 once its followers were made moving.
  */
 export function createMobilityState() {
   return {
@@ -37,7 +36,6 @@ export function createMobilityState() {
     leads: new Int32Array(0),
     leadMoved: new Uint32Array(0),
     leadMoving: new Uint8Array(0),
-    leadDeclared: new Uint32Array(0),
   }
 }
 

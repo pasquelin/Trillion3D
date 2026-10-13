@@ -13,6 +13,7 @@ import type { ShadowRowLods } from '../../shadow/rowLods.ts'
 import type { MobilitySource } from '../../shadow/bounds.ts'
 import type { VsmFrameLight } from '../../../vsm/frameSetup.ts'
 import type { clusterSpheres } from '../../shadow/rowBuffers.ts'
+import type { CastChanges } from '../../shadow/castChanges.ts'
 import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts'
 
 /** Direct lighting: the light store (the host's too), tile lists, and what the virtual shadow maps
@@ -34,6 +35,9 @@ export interface WebgpuLightState {
   mobilityRows: GPUBuffer | undefined // a word per row, what the raster splits its casters by
   rowLods: ShadowRowLods | undefined // each caster row's detail, its level chosen per page
   spheres: ReturnType<typeof clusterSpheres> | undefined
+  /** The rows' shadow changes the rows pass appends and the invalidation reads, made with the
+   *  spheres (`../../shadow/castChanges.ts`). */
+  casts: CastChanges | undefined
   /** Whether the caster rows' spheres, mobility words and detail followed every change of the row
    *  table since a light last cast: false while none casts, when they are neither made nor written
    *  (`../render/encodeDraws.ts`). */
@@ -70,6 +74,7 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     mobilityRows: undefined,
     rowLods: undefined,
     spheres: undefined,
+    casts: undefined,
     rowsFollowed: false,
     uploadedEpoch: 0,
     lightsActive: 0,

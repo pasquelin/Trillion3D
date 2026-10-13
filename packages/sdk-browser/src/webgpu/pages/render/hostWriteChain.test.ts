@@ -45,7 +45,7 @@ for (const count of [1e3, 1e5])
     for (const link of links) link.position.x += 1
     image()
     assert.ok(reads() - before <= 10 * CHAIN, `${reads() - before} box reads for ${CHAIN} roots`)
-    assert.ok(motions.length <= 2, `${motions.length} shadow boxes declared`)
+    assert.equal(motions.length, 0, 'no shadow box declared on the CPU: the rows stale theirs')
   })
 
 test('a chain moved whole through the engine moves each root once', () => {
@@ -57,5 +57,5 @@ test('a chain moved whole through the engine moves each root once', () => {
   motions.length = 0
   setWebgpuTransforms(rt, links, poses)
   assert.ok(reads() - before <= 10 * CHAIN, `${reads() - before} box reads for ${CHAIN} roots`)
-  assert.ok(motions.length <= 2, `${motions.length} shadow boxes declared`)
+  assert.equal(motions.length, 0, 'no shadow box declared on the CPU: the rows stale theirs')
 })

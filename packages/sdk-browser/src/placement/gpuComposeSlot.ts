@@ -1,14 +1,12 @@
 /**
  * A PARENT'S MOVE FOLLOWED (`gpuCompose.ts`): its world held, its rows' draw bins made again when
- * its winding turned, the tree groups and the impostor cards of its roots told, its move declared
- * to the shadows.
+ * its winding turned, the tree groups and the impostor cards of its roots told, its move told to
+ * the shadow mobility.
  */
 import { matrixWindingCw } from '../../../sdk-core/src/index.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts'
-import { MOVE_PROMOTED } from './update.ts'
-import { declareSlotMove } from './composeBoxes.ts'
 import { slotRanks, type ComposeState } from './gpuComposeState.ts'
 
 /** The draw bins of the rows of `slot`'s roots are made again, from the world the GPU composes,
@@ -47,8 +45,8 @@ function moveCards(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
   rt.gpu.impostors?.worldsMoved(slotRanks(state, slot))
 }
 
-/** The parent's world at `slot`, held; its move declared to the shadows (`declareSlotMove`) and the
- *  temporal pyramid. */
+/** The parent's world at `slot`, held; its move told to the shadow mobility — the rows pass stales
+ *  the pages its roots' rows left and entered (`rowCastWgsl.ts`) — and the temporal pyramid. */
 export function settleSlot(
   rt: WebgpuPagesRuntime,
   state: ComposeState,
@@ -57,13 +55,11 @@ export function settleSlot(
     p,
     world,
     relinked,
-    movingOnly,
   }: {
     slot: number
     p: number | undefined
     world: ArrayLike<number>
     relinked: boolean
-    movingOnly: boolean
   },
 ) {
   // Whether the parent moved: one linked now, or sent at the world it held, did not.
@@ -75,7 +71,5 @@ export function settleSlot(
   if (moved || relinked) moveCards(rt, state, slot)
   if (moved || relinked) moveGroups(rt, state, slot)
   // A parent's move moves its roots: its first makes them moving casters (`mobility.moveLead`).
-  if (moved && rt.lights.mobility.moveLead(slot, state.ranksOf[slot]) === MOVE_PROMOTED)
-    movingOnly = false
-  if (p !== undefined && (moved || relinked)) declareSlotMove(rt, state, slot, movingOnly)
+  if (moved) rt.lights.mobility.moveLead(slot, state.ranksOf[slot])
 }

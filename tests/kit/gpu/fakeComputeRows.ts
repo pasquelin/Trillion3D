@@ -5,6 +5,8 @@ import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.f
 import {
   DERIVE_ROWS_ENTRY,
   DERIVE_ROWS_WGSL,
+  ROW_EMITS,
+  ROW_NAMED,
 } from '../../../packages/sdk-browser/src/placement/rowWordsWgsl.ts'
 import {
   COMPOSE_WORLDS_ENTRY,
@@ -64,27 +66,36 @@ const ROW_FUNCTIONS = [
     'writeCorners',
     'composeCorners',
   ],
-  ...['lodCentre', 'composeLod', 'deriveRow'],
+  ...['lodCentre', 'composeLod', 'castCode', 'emitCast', 'emitSphere', 'castRow', 'deriveRow'],
 ]
 
 /** Replays a dispatch of the rows pass (`DERIVE_ROWS_WGSL`): every row its list names, or every
- *  row of the table. */
+ *  row of the table, each row's shadow change asked as the dispatch or its list entry asks it. */
 function simulateDeriveRows(bind: ComputeBind) {
-  const [rootCount, parts, listed, all] = boundWords(bind, 0)
-  const run = shaderRun<{ deriveRow(row: number): void }>(DERIVE_ROWS_WGSL, ROW_FUNCTIONS, {
-    countLeadingZeros,
-    arrayLength,
-    params: { rootCount, parts, listed, all },
-    rootWorlds: pairs(boundWords(bind, 1)),
-    table: boundWords(bind, 2),
-    spheres: floats(bind.entries.find((entry) => entry.binding === 3)!.resource.buffer.data),
-    inputs: pairs(boundWords(bind, 4)),
-    rootBoxes: pairs(boundWords(bind, 5)),
-    corners: boundWords(bind, 6),
-    lods: boundWords(bind, 7),
-  })
+  const [rootCount, parts, listed, all, emitAll] = boundWords(bind, 0)
+  const run = shaderRun<{ deriveRow(row: number, emit: boolean): void }>(
+    DERIVE_ROWS_WGSL,
+    ROW_FUNCTIONS,
+    {
+      countLeadingZeros,
+      arrayLength,
+      params: { rootCount, parts, listed, all, emitAll },
+      rootWorlds: pairs(boundWords(bind, 1)),
+      table: boundWords(bind, 2),
+      spheres: floats(bind.entries.find((entry) => entry.binding === 3)!.resource.buffer.data),
+      inputs: pairs(boundWords(bind, 4)),
+      rootBoxes: pairs(boundWords(bind, 5)),
+      corners: boundWords(bind, 6),
+      lods: boundWords(bind, 7),
+      mobility: boundWords(bind, 9),
+      castChanges: boundWords(bind, 10),
+    },
+  )
   const list = boundWords(bind, 8)
-  for (let j = 0; j < listed; j++) run.deriveRow(all ? j : list[j])
+  for (let j = 0; j < listed; j++) {
+    const named = all ? j : list[j]
+    run.deriveRow(named & ROW_NAMED, emitAll !== 0 || (named & ROW_EMITS) !== 0)
+  }
 }
 
 /** Replays a dispatch of the compose worlds pass (`COMPOSE_WORLDS_WGSL`): each listed root a parent

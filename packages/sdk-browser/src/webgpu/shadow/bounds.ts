@@ -95,12 +95,7 @@ const mobilityRun: RowRunVisitor<MobilitySource> = (source, from, to) => {
  * page cull splits a page's casters by, static layer or moving casters, and drawn with no fragment
  * stage or with the cutout test.
  */
-export function uploadRowMobility(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  from: number,
-  to: number,
-) {
+function uploadRowMobility(rt: WebgpuPagesRuntime, device: GPUDevice, from: number, to: number) {
   const source = sourceOf(rt, device),
     { lights, layout } = rt,
     { casterSlots } = layout.rows,

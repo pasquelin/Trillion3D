@@ -16,10 +16,10 @@ const readMin = new Float64Array(3),
  * changed.
  *
  * The list is a fixed budget (`capacity`): as many boxes as the pool holds pages, the most
- * distinct pages a frame can draw, and at least `SHADOW_CHANGE_BOXES`, what a frame of movers
- * declares cluster by cluster (`movedClusters.ts`). Past it — the one overflow — the last
- * box absorbs every further one: their union stales a superset of their pages, never fewer. A
- * caller that can declare one change as a few boxes or as many reads what is left (`room`).
+ * distinct pages a frame can draw, and at least `SHADOW_CHANGE_BOXES`. Past it — the one overflow
+ * — the last box absorbs every further one: their union stales a superset of their pages, never
+ * fewer. A move is no box of this list: the rows the GPU moves stale their own pages
+ * (`sdk-browser/src/placement/rowCastWgsl.ts`).
  *
  * The scheduler consumes them every frame: it derives the stale pages of each view, which
  * then carry the state. The boxes therefore have nothing to retain from one frame to the next —
@@ -42,7 +42,7 @@ const readMin = new Float64Array(3),
  * budget.
  */
 /** Boxes the list holds apart at least: each is projected in every light view it may reach at the
- *  next plan, so the count bounds that work. Declared: a few hundred moving clusters a frame, and
+ *  next plan, so the count bounds that work. Declared: a few hundred residency changes a frame, and
  *  room to spare. */
 export const SHADOW_CHANGE_BOXES = 4096
 
@@ -97,8 +97,6 @@ export function createShadowChanges(capacity: number) {
   const changes = {
     /** Boxes in the list. */
     count: 0,
-    /** Boxes the list still holds apart before the overflow. */
-    room: () => capacity - changes.count,
     /** A representation change waits for the camera to rest: the hold must not close before. */
     deferred: () => !boxIsEmpty(held[0].box, 0) || !boxIsEmpty(held[1].box, 0),
     /**

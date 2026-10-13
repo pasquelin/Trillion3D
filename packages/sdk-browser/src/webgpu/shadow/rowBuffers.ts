@@ -3,6 +3,7 @@ import type { WebgpuLightState } from '../pages/state/lights.ts'
 
 import { CLUSTER_SPHERE_FLOATS } from '../../gpu/shadow/sphereContract.ts'
 import { ROW_LOD_FLOATS } from './rowLodWords.ts'
+import { spheresMadeAnew } from './castChanges.ts'
 export { CLUSTER_SPHERE_FLOATS } from '../../gpu/shadow/sphereContract.ts'
 
 /** Bytes a shadow row buffer of `words` 4-byte words per row takes at `casterSlots` rows: never
@@ -68,6 +69,7 @@ export function growShadowRows(
       pendingBuffers(device, [next.buffer], () => {
         const old = lights.spheres
         lights.spheres = next
+        spheresMadeAnew(lights)
         return [old?.buffer]
       }),
     )
