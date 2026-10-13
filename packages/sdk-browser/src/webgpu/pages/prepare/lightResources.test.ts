@@ -19,7 +19,8 @@ const LAMP: SceneLight = {
 
 function harness() {
   const store = createSceneLightStore()
-  return { store, rt: { lights: { store } } as unknown as WebgpuPagesRuntime }
+  // No cut selection yet: no proxy for the forward passes to trace.
+  return { store, rt: { lights: { store }, run: {} } as unknown as WebgpuPagesRuntime }
 }
 
 test('`lit` view with no light: the contract still lights, the image comes out black', () => {
