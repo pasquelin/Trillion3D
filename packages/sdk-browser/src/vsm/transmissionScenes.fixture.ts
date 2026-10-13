@@ -1,15 +1,8 @@
 // Generated scenes for the exact transmission read (`transmissionWgsl.ts`), a brute-force cast in
 // f64 and the texel store the read replaced, to hold the read against.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import { type Caster, pack, unpack } from './transmissionRead.fixture.ts'
-import {
-  type Tri,
-  type V,
-  f32,
-  geometry,
-  random,
-  sheet,
-  waves,
-} from './transmissionSheets.fixture.ts'
+import { type Tri, type V, geometry, sheet, waves } from './transmissionSheets.fixture.ts'
 
 /** A brute-force cast in f64: the casters strictly above `z` at `p`, their factors multiplied. */
 export function oracle(casters: Caster[], p: V, z: number) {
@@ -68,13 +61,13 @@ export const byte = (c: V) => c.map((x) => Math.round(x * 255))
 
 /** Generated scenes: a wave sheet over part of the page (its edge crossing it), a pane, slivers. */
 export function scene(seed: number): Caster[] {
-  const rnd = random(seed)
+  const rnd = mulberry32(seed)
   const colour = () => pack([0.2 + 0.6 * rnd(), 0.2 + 0.6 * rnd(), 0.2 + 0.6 * rnd()])
   const sea = colour()
   const height = (p: V) => 2 + 0.3 * Math.sin(p[0] * 0.1 + seed) + 0.2 * Math.cos(p[1] * 0.13)
   const casters: Caster[] = sheet(6, -20 + 30 * rnd(), 70 + 40 * rnd(), waves).map((tri) => ({
     tri,
-    d: tri.map(height).map(f32),
+    d: tri.map(height).map(Math.fround),
     q: sea,
   }))
   const ox = 70 + 30 * rnd(),
@@ -83,7 +76,7 @@ export function scene(seed: number): Caster[] {
     [ox, oy],
     [ox + 25 + 10 * rnd(), oy + 3],
     [ox + 5, oy + 30 + 10 * rnd()],
-  ].map((v) => v.map(f32)) as Tri
+  ].map((v) => v.map(Math.fround)) as Tri
   casters.push({ tri: pane, d: [5, 5, 5], q: colour() })
   return casters
 }

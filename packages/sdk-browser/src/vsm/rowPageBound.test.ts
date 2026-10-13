@@ -2,6 +2,7 @@
 // said to hold is never below what the K rows of the most pairs and commands make under the
 // shipped cull (`bruteForce`) — random scenes, a camera far from the origin, objects larger than
 // the clipmap, a camera moved without re-binning, rows written and a range grown or shrunk.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -16,7 +17,6 @@ import {
   emptyRowSpheres,
   PAGES,
   scene,
-  seeded,
   sunAt,
   topSums,
   worstOf,
@@ -72,7 +72,7 @@ test('rows written, then a camera moved without re-binning: still above every K'
   const rows = scene(1500, [0, 0, 0], 300, 0.02, 3, 11)
   const sun = sunAt([0, 2, 0])
   const { bound } = holds(rows, sun)
-  const rand = seeded(5)
+  const rand = mulberry32(5)
   for (const i of [100, 103, 120, 300, 350, 399])
     writeRow(rows.packed, i, [rand() * 50, 0, rand() * 50], 2)
   rows.written = { epoch: 1, runs: [100, 120, 300, 399] }

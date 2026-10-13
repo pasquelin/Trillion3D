@@ -2,10 +2,10 @@
 // them by: seeded f32 inputs with their edges — signed zeros, ones, the f32 limits, infinities,
 // NaN —, the bit-for-bit equality of two results, and the built-ins of the VSM helpers that
 // `shaderRunBuiltins.fixture.ts` lacks.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import { Mat } from '../texture/shaderRun.fixture.ts'
 import { builtins, each } from '../texture/shaderRunBuiltins.fixture.ts'
 import { unit } from './pageWorld.fixture.ts'
-import { seeded } from './planFrames.fixture.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { FLOAT32_MAX } from '../../../math/src/constants.ts'
 
@@ -18,7 +18,7 @@ const NON_FINITE = [Infinity, -Infinity, NaN]
 /** Seeded inputs: f32 values of either sign over `span` binary orders around 1, an edge (and a
  *  non-finite value when `nonFinite`) one draw in `edge`. */
 export function inputs(seed: number, { edge = 8, span = 16, nonFinite = true } = {}) {
-  const random = seeded(seed)
+  const random = mulberry32(seed)
   const edges = nonFinite ? [...EDGES, ...NON_FINITE] : EDGES
   const pick = <T>(list: readonly T[]) => list[Math.floor(random() * list.length)]
   const f = () =>

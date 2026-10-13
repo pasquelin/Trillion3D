@@ -37,9 +37,10 @@
 // words past its old place closed up, their pads gone; every other buffer kept.
 // Retaken when the trace tunables left the uniform block for constants of the shader (144 bytes
 // for 192): the mip offsets moved up twelve words; every other buffer kept.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { planFrames, randomWorld, seeded } from './planFrames.fixture.ts'
+import { planFrames, randomWorld } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
@@ -56,7 +57,7 @@ const DIGESTS: Record<number, string[]> = {
 
 for (const seed of [1, 2])
   test(`seed ${seed}: three frames leave the same bytes in every buffer they write`, () => {
-    const random = seeded(seed)
+    const random = mulberry32(seed)
     const run = planFrames()
     const eye: [number, number, number] = [0, 2, 0]
     const digests: string[] = []

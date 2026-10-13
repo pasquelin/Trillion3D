@@ -1,6 +1,7 @@
 // The tile's box (`vsmLightMayReachTile`, `projectionWgsl.ts`) keeps every light a pixel of the
 // tile is in, with the roundings of both tests against it; a lit point not finite keeps them all;
 // a pass of one light takes its light as the tile's one candidate, with no box.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
@@ -19,7 +20,6 @@ import {
   type Pixel,
   type V3,
 } from './projectionTiles.fixture.ts'
-import { seeded } from './planFrames.fixture.ts'
 import { singleUlp } from '../../../../bench/core/ulp.ts'
 
 test('the box test never drops a light a pixel of the tile is in, even with the roundings against it', () => {
@@ -49,7 +49,7 @@ test('the box test never drops a light a pixel of the tile is in, even with the 
     ['vsmOrderedKey', 'vsmOrderedValue'],
     SCOPE,
   )
-  const rand = seeded(64)
+  const rand = mulberry32(64)
   let reached = 0,
     kept = 0
   for (let round = 0; round < 400; round++) {
@@ -86,7 +86,7 @@ test('the box test never drops a light a pixel of the tile is in, even with the 
 })
 
 test('a lit point not finite makes every light a candidate: its own test is the device’s', () => {
-  const lights = lightsOf(seeded(7), 12, [[0, 0, 0]]).map((l) =>
+  const lights = lightsOf(mulberry32(7), 12, [[0, 0, 0]]).map((l) =>
     l.kind === DIRECTIONAL ? { ...l, kind: POINT } : l,
   )
   const scope = {
