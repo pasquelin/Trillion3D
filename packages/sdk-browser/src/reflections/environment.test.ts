@@ -115,11 +115,11 @@ test('a scene is surrounded by its background, as the display shows it, declared
   )
 })
 
-test('the frame state restarts the tile list and moves the proxy schedule on', () => {
+test('the frame state restarts the tile list and the work the proxy rays spent', () => {
   const work = [7, 0, 0, 0]
-  // The trace's list of a frame that left rays (its tiles, the pixels left, the work spent, the offset and the
-  // cursor): the next frame starts where its budget ended.
-  const traceList = [9, 4, 7, 3, 5]
+  // The trace's list of the frame before (its tiles, the work its rays spent, then two tiles): every
+  // ray was cast in its frame, so nothing carries over.
+  const traceList = [9, 4, 7, 3]
   const run = shaderRun<{ reflectionBegin: () => void }>(BEGIN_SHADER, ['reflectionBegin'], {
     work,
     traceList,
@@ -127,15 +127,6 @@ test('the frame state restarts the tile list and moves the proxy schedule on', (
   run.reflectionBegin()
   // The tile list starts empty: its indirect arguments, one row of nothing, then 1, and the count.
   assert.deepEqual(work, [0, 1, 1, 0])
-  // Answers were left (4) and the budget ended at tile 5 from tile 3: the next frame starts at 8, the
-  // counters start again.
-  assert.deepEqual(
-    traceList,
-    [0, 0, 0, 8, 0],
-    'the count, left, spent and cursor restart, the offset moves on',
-  )
-  // Every answer was in: the next frame starts where this one did.
-  traceList.splice(0, 5, 3, 0, 6, 8, 2)
-  run.reflectionBegin()
-  assert.deepEqual(traceList, [0, 0, 0, 8, 0])
+  // The count and the work spent start again; the entries past them are written before any read.
+  assert.deepEqual(traceList, [0, 0, 7, 3], 'the count and the work spent restart')
 })
