@@ -107,14 +107,8 @@ async function level0(
   const reflection = createScreenReflection(device, width, height, false)
   const { hiz, partition } = await standaloneHiz(device, width, height)
   const lightView = createDeferredView(device)
-  const surface = device.createTexture({
-    size: [1, 1],
-    format: 'rgba32float',
-    usage: GPUTextureUsage.TEXTURE_BINDING,
-  })
   const group = reflectionGroup(reflection, hiz.depth()!, {
     lightView: lightView.buffer,
-    surface: surface.createView(),
   })
   // The lit image in the pyramid's level 0, as an image's adoption leaves it there.
   const texels = litImage(size, drawn)
@@ -207,8 +201,7 @@ async function level0(
     if (a[i] !== b[i]) differ++
     if (a[i] !== 0) nonzero++
   }
-  for (const made of [copy, surface, tapBuffer, engine, copied, bounds, ...partition])
-    made.destroy()
+  for (const made of [copy, tapBuffer, engine, copied, bounds, ...partition]) made.destroy()
   reflection.dispose()
   hiz.dispose()
   lightView.dispose()

@@ -123,8 +123,9 @@ test('every source a pass cites holds its symbol, and its formula the bytes its 
 
 test('the selection’s dispatches are the encoder’s: ten, and two a level', () => {
   for (const levels of [2, 3, 4, 5]) {
-    const { encoder, dispatches, armements } = witnessEncoder()
-    encodeDagKernels(encoder as never, cutResources(levels) as never)
+    const witness = witnessEncoder()
+    encodeDagKernels(witness.encoder as never, cutResources(levels) as never)
+    const { dispatches, armements } = witness.read()
     assert.equal(
       dispatches.length + armements.length,
       DAG_FIXED_DISPATCHES + DAG_LEVEL_DISPATCHES * levels,

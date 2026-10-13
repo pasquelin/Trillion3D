@@ -23,7 +23,7 @@ type Sum = (...args: unknown[]) => number[]
 const LOBED = waterCompositeShader({})
 const PLAIN = waterCompositeShader({ lobeless: true })
 const SINGLE = wgslModule(
-  declaredLightingWgsl({ proxy: 13, transmittance: 18 }, { lobeless: false }),
+  declaredLightingWgsl({ transmittance: 18 }, { lobeless: false }),
   STANDARD_LIGHTING_WGSL,
 )
 const K = wgslConstants(LOBED)

@@ -32,7 +32,7 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
   const { gpu, run, bounce } = rt
   frame.size = gpu.targetSize
   frame.depthDrawn = run.depthDrawn
-  frame.proxyError = bounce.probes?.proxy?.errorMetres ?? 0
+  frame.proxyError = bounce.proxy?.errorMetres ?? 0
   // The run-time proxy's answers are of an epoch: it moves with the view, the lights, the poses and the proxy.
   frame.epoch = reflection.store.follow(
     [rt.lights.store.epoch, run.gpuSelection?.proxyRevision() ?? 0],

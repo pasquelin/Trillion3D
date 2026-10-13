@@ -22,10 +22,7 @@ type Sum = (...args: unknown[]) => number[]
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
 // The program without lobe code; the lobed one's pair is `lobedPair.test.ts`'s.
 const WATER = waterCompositeShader({ lobeless: true })
-const SINGLE = wgslModule(
-  declaredLightingWgsl({ proxy: 13, transmittance: 18 }),
-  STANDARD_LIGHTING_WGSL,
-)
+const SINGLE = wgslModule(declaredLightingWgsl({ transmittance: 18 }), STANDARD_LIGHTING_WGSL)
 const K = wgslConstants(WATER)
 const SHARED = ['directIncidence', 'rangeWindow', 'isSun', 'isSunKind', 'isRect']
 const SHADING = [

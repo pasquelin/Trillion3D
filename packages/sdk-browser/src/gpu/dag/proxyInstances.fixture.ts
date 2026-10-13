@@ -6,6 +6,7 @@ import { BACKEND, fakeDevice, writtenBytes } from '../../../../../tests/kit/gpu/
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import type { PageSurface } from '../../page/surface.ts'
+import type { RootProxy } from '../../page/selection/types.ts'
 import { RUNTIME_HEADER, RUNTIME_HEADER_WORDS } from '../../bounce/runtimeLayout.ts'
 
 export const LIMITS = {
@@ -59,9 +60,7 @@ function headerOf(gpu: ReturnType<typeof fakeDevice>) {
 export const region = (gpu: ReturnType<typeof fakeDevice>, name: keyof typeof RUNTIME_HEADER) =>
   headerOf(gpu)[RUNTIME_HEADER[name]]
 
-export async function open(
-  wear: (w: number) => { cut: RuntimeCutProxy; surface: PageSurface } | undefined,
-) {
+export async function open(wear: (w: number) => RootProxy | undefined) {
   installGpuGlobals()
   const roots = placementField(4, 3)
   roots.forEach((root, w) => (root.proxy = wear(w)))

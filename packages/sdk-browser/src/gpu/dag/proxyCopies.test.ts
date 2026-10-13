@@ -11,15 +11,15 @@ test('blended copies are members after the placements: their instances and their
   const c = cut(2, 1, 1),
     s = surface(1)
   const { gpu, selection, packed, roots } = await open((w) =>
-    w < 2 ? { cut: c, surface: s } : undefined,
+    w < 2 ? { primitive: { runtimeProxy: c }, surface: s } : undefined,
   )
   const slots = packed.worldCount
   const pose = (x: number) => ({
     elements: Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1]),
   })
   const copies = [
-    { proxy: { cut: c, surface: s }, matrix: pose(3) },
-    { proxy: { cut: c, surface: s }, matrix: pose(5), hidden: true },
+    { proxy: { primitive: { runtimeProxy: c }, surface: s }, matrix: pose(3) },
+    { proxy: { primitive: { runtimeProxy: c }, surface: s }, matrix: pose(5), hidden: true },
     { matrix: pose(7) },
   ]
   selection.proxyCopies(copies)

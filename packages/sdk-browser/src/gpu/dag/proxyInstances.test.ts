@@ -74,7 +74,7 @@ test('a surface goes up with the cut and again when its record moves on', async 
 test('a parked placement draws no proxy until it is taken back, and a mark follows its placement', async () => {
   const c = cut(2, 1, 1),
     s = surface(1)
-  const { gpu, selection } = await open(() => ({ cut: c, surface: s }))
+  const { gpu, selection } = await open(() => ({ primitive: { runtimeProxy: c }, surface: s }))
   const node = (w: number) =>
     wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + INSTANCE.node)
   const mark = (w: number) =>
@@ -94,7 +94,7 @@ test('roots appended behind the others join with their instances', async () => {
     counts = dagRootCounts(roots)
   const c = cut(2, 1, 1),
     s = surface(1)
-  roots.forEach((root) => (root.proxy = { cut: c, surface: s }))
+  roots.forEach((root) => (root.proxy = { primitive: { runtimeProxy: c }, surface: s }))
   const packed = packDagSelection(roots.slice(0, 10), {
     pages: 2 * counts.pages,
     nodes: 2 * counts.nodes,

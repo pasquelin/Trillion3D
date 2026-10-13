@@ -14,7 +14,7 @@ test('a rigid mesh has nothing to pose', () => {
 })
 
 test("each corner keeps its vertex's four heaviest influences, and the proxy triangle's source decides the vertex", () => {
-  const joints = new Uint16Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+  const joints = new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
   const weights = new Float32Array([0.1, 0.4, 0.2, 0.3, 1, 0, 0, 0, 0.5, 0.5, 0, 0])
   const found = cornerDeformation(
     new Uint32Array([1]),
