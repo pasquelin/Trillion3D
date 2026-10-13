@@ -119,7 +119,10 @@ test('a texture that comes after open brings the target in place, the other targ
     )
     assert.equal(seen.lastPass?.at(4), 'r32uint')
     assert.deepEqual(hdr(), before, 'no target remade: the frame set stays in place')
-    assert.equal(before.some((target) => gpu.destroyed.includes(target)), false)
+    assert.equal(
+      before.some((target) => gpu.destroyed.includes(target)),
+      false,
+    )
     assert.ok(seen.shade.some((pipeline) => pipeline.entry === 'shade_fs' && pipeline.r32))
   } finally {
     disposeQuadRun(backend, fixture)
