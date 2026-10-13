@@ -28,6 +28,7 @@ import { refreshSurface, type PageSurface } from '../../page/surface.ts'
 import type { RootProxy } from '../../page/selection/types.ts'
 import { rowParked, type PlacementOf } from '../../placement/rows.ts'
 import { createSpans } from '../../bounce/runtimeArena.ts'
+import { pendingMade } from '../core/tableGrowth.ts'
 import { createProxyPose, type PoseEntry } from './proxyPose.ts'
 import {
   INSTANCE,
@@ -285,7 +286,15 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     copy(before.children, layout.children, nodes.extent * PROXY_NODE_WORDS)
     copy(before.deform, layout.deform, corners.extent)
     device.queue.submit([encoder.finish()])
-    old.destroy()
+    // The old buffer may be recorded in commands of this image not yet submitted, or held by a group in
+    // flight: it is freed when the work submitted by then is done, the one growth transaction
+    // (`gpu/core/tableGrowth.ts`) with its free deferred.
+    pendingMade(
+      old,
+      old.size,
+      (held) => void device.queue.onSubmittedWorkDone().then(() => held.destroy()),
+      () => old,
+    ).commit()
   }
 
   /** `count` units of each table taken, the tables laid out again when one cannot hold them: the spans, or
