@@ -34,6 +34,9 @@ export function createDenseKeySet(mirror?: unknown[]) {
       return rank.byteLength + list.byteLength
     },
     has: (key: number) => rank.get(key) !== 0,
+    /** Where `key` stands in `list`, -1 when it is no member: the place a `remove` fills with the
+     *  last member. */
+    indexOf: (key: number) => rank.get(key) - 1,
     /** True when the key was not a member yet; `value` fills the mirror entry beside it. */
     add(key: number, value?: unknown) {
       if (rank.get(key) !== 0) return false

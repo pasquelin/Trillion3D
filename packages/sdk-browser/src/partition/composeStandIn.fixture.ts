@@ -2,7 +2,6 @@
 // holds its rows at the parent's world times their local, through the composition's own reader
 // module (`placement/composeReaders.ts`), as a session without a GPU would give them to a reader.
 import {
-  dropReaders,
   holdReaders,
   rebindReaders,
   writeReaders,
@@ -23,7 +22,7 @@ export function composeStandIn(update?: (rows: PlacementRows, from: number, to: 
     whole: boolean,
   ) => {
     const slot = slots.get(parent) ?? slots.set(parent, slots.size).get(parent)!
-    if (whole) dropReaders(readers, slot)
+    if (whole) readers.delete(slot)
     holdReaders(readers, slot, parent, links, whole)
     const held = readers.get(slot) ?? [],
       before = held.map(({ rows, index }) => rows.matrices.slice(index * 16, index * 16 + 16))

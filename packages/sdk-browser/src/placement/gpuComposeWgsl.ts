@@ -74,7 +74,8 @@ fn sameWord(a:u32,b:u32)->bool{
 )
 
 /**
- * One thread per root of a range of the cut's worlds: `parent · local` — its exact translation
+ * One thread per root a parent composes (`ranks`, the composition's dense list of them), those of a
+ * range of the cut's worlds alone at work: `parent · local` — its exact translation
  * kept behind the range's matrices, as the host's are (`worldOrigins.ts`), which each cut reads at
  * its own eye —, the stretch of that world in the root's frame words (`gpuStretchWgsl.ts`), and,
  * once the temporal pass has decided (`motionMode`), the root's motion as `../taa/motion.ts` writes
@@ -84,7 +85,7 @@ fn sameWord(a:u32,b:u32)->bool{
  * writes identity.
  */
 export const COMPOSE_ROOTS_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,first:u32,count:u32,pad:u32,}
+  `struct Params{rootCount:u32,first:u32,count:u32,listed:u32,}
 struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> locals:array<vec2u>;
@@ -97,10 +98,12 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(8) var<storage,read_write> frames:array<u32>;
 @group(0) @binding(9) var<storage,read> rootInputs:array<vec2u>;
 @group(0) @binding(10) var<storage,read_write> rootBoxes:array<vec2u>;
+@group(0) @binding(11) var<storage,read> ranks:array<u32>;
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(g,n,64u);if(i>=params.count){return;}
- let rank=params.first+i;
- if(rank>=params.rootCount){return;}
+ let j=flatIndex(g,n,64u);if(j>=params.listed){return;}
+ let rank=ranks[j];
+ if(rank<params.first||rank>=params.first+params.count||rank>=params.rootCount){return;}
+ let i=rank-params.first;
  let p=parentOf[rank];
  if(p==${NONE}u){return;}
  var world:array<u32,16>;
@@ -196,7 +199,8 @@ fn composeSphere(row:u32,world:array<vec2u,16>){
 )
 
 /**
- * One thread per page-table row (`composeRow`): the world words of a linked root's row and the words
+ * One thread per page-table row of a root a parent composes (`rowList`, the composition's dense list
+ * of them; `composeRow`): the world words of a linked root's row and the words
  * derived from them, each part when its buffer is bound (`params.parts`): the world sphere the
  * shadow cull drops the row by (`composeSphere`), the eight corners the Hi-Z test projects it by
  * (`composeCorners`), and the detail the shadows' levels are judged by (`composeLod`) — all from the
@@ -204,7 +208,7 @@ fn composeSphere(row:u32,world:array<vec2u,16>){
  * CPU gave it: its corners describe it.
  */
 export const COMPOSE_ROWS_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,rowCount:u32,parts:u32,pad:u32,}
+  `struct Params{rootCount:u32,rowCount:u32,parts:u32,listed:u32,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> locals:array<vec2u>;
 @group(0) @binding(2) var<storage,read> parentOf:array<u32>;
@@ -215,6 +219,7 @@ export const COMPOSE_ROWS_WGSL = wgslProgram(
 @group(0) @binding(7) var<storage,read> rootBoxes:array<vec2u>;
 @group(0) @binding(8) var<storage,read_write> corners:array<u32>;
 @group(0) @binding(9) var<storage,read_write> lods:array<u32>;
+@group(0) @binding(10) var<storage,read> rowList:array<u32>;
 fn composeRow(row:u32){
  let base=row*${ROW_WORDS}u;
  let rank=table[base+${ROW_PLACEMENT_WORD}u];
@@ -232,13 +237,15 @@ fn composeRow(row:u32){
  if((params.parts&${PART_LODS}u)!=0u&&(row+1u)*${ROW_LOD_FLOATS}u<=arrayLength(&lods)){composeLod(row,rank,world);}
 }
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let row=flatIndex(g,n,64u);if(row<params.rowCount){composeRow(row);}
+ let j=flatIndex(g,n,64u);if(j>=params.listed){return;}
+ let row=rowList[j];if(row<params.rowCount){composeRow(row);}
 }`,
   [...SHARED, SPHERE_WGSL, CORNERS_WGSL, LOD_WGSL],
 )
 
 /**
- * One thread per root of a range: the leaf box the placement tree fits over (`treeRefit.ts`) of a
+ * One thread per root a parent composes (`ranks`), those of a range at work: the leaf box the
+ * placement tree fits over (`treeRefit.ts`) of a
  * root a parent composes — the box of its root node, as the packing holds it, carried by the
  * composed world — in the table of leaf boxes, six doubles a placement, as `memberBox` writes it for
  * a root whose world the CPU holds. A root without a parent, or parked (its root node none), keeps
@@ -246,17 +253,19 @@ fn composeRow(row:u32){
  */
 export const composeMembersWgsl = (nodes: RefitLayout['nodes'] = WHOLE_LAYOUT.nodes) =>
   wgslProgram(
-    `struct Params{rootCount:u32,first:u32,count:u32,pad:u32,}
+    `struct Params{rootCount:u32,first:u32,count:u32,listed:u32,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> locals:array<vec2u>;
 @group(0) @binding(2) var<storage,read> parentOf:array<u32>;
 @group(0) @binding(3) var<storage,read> parents:array<vec2u>;
 @group(0) @binding(4) var<storage,read> frames:array<u32>;
 @group(0) @binding(5) var<storage,read_write> members:array<vec2u>;
+@group(0) @binding(6) var<storage,read> ranks:array<u32>;
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(g,n,64u);if(i>=params.count){return;}
- let rank=params.first+i;
- if(rank>=params.rootCount){return;}
+ let j=flatIndex(g,n,64u);if(j>=params.listed){return;}
+ let rank=ranks[j];
+ if(rank<params.first||rank>=params.first+params.count||rank>=params.rootCount){return;}
+ let i=rank-params.first;
  let p=parentOf[rank];
  if(p==${NONE}u){return;}
  let root=frames[i*${FRAME_ROW_WORDS}u+1u];

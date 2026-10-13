@@ -32,6 +32,7 @@ export function createCameraFrames(
     ...rangeBuffers(device, slots, ranges, own),
     frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
     pending: createSortedKeys(),
+    writes: 0,
   }
   const { buffers, worldBuffers, bounds } = f
   const origins = createWorldOrigins(device, ranges, worldBuffers, sources)
@@ -51,7 +52,11 @@ export function createCameraFrames(
     /** Every placement's exact translation — or those of `named`, increasing —, its doubles to
      *  its range, where each cut reads it at its own eye (`shader/worldPoseWgsl.ts`); those that
      *  moved (`createWorldOrigins`). */
-    writeWorldOrigins: (named?: Int32Array) => origins.write(named),
+    writeWorldOrigins: (named?: Int32Array) => {
+      const sent = origins.write(named)
+      if (sent.length) f.writes++
+      return sent
+    },
     /** Placement `row`'s translation as the GPU no longer holds it: its next write sends it. */
     forgetOrigin: (row: number) => origins.forget(row),
     originBytes: origins.hostBytes,
@@ -83,6 +88,11 @@ export function createCameraFrames(
      *  run writer (`writeRanges`): a row is the host's words alone. Nothing when no word was
      *  written. */
     flushWords: () => flushWords(f),
+    /** Writes the host made into the frames, the worlds and their exact translations since they
+     *  were made: what a GPU writer of the same words follows (`../../placement/gpuCompose.ts`). */
+    get writes() {
+      return f.writes
+    },
   }
   table.writeRows()
   table.writeWorlds(worlds)
@@ -102,21 +112,24 @@ type Frames = {
   bounds: GPUBuffer
   /** The primitives whose row holds a word not yet sent. */
   pending: SortedKeys
+  /** Writes sent into the buffers above (`writes`). */
+  writes: number
 }
 
 /** The `count` increasing primitives of `named`, `stride` words each of `data`, to the buffers
  *  of their ranges, which start at the range's first primitive: one table split in equal parts. */
 function writeNamed(
-  { device, per }: Frames,
+  f: Frames,
   buffers: GPUBuffer[],
   stride: number,
   data: Float32Array,
   named: Int32Array,
   count: number,
 ) {
-  const parts = { buffers, bytes: per * stride * 4 },
+  if (count) f.writes++
+  const parts = { buffers, bytes: f.per * stride * 4 },
     source = { data, sourceBase: 0, targetBase: 0, stride }
-  writeRanges(device, parts, named, count, source)
+  writeRanges(f.device, parts, named, count, source)
 }
 
 /** Each range's `frames` and `worlds`, and the uniform of every range's `{first, count}`, written
@@ -180,6 +193,7 @@ function writeSpan(
   words: number,
 ) {
   if (words <= 0) return
+  f.writes++
   const parts = { buffers, bytes: f.per * strideWords * 4 }
   const bytes = data.buffer as ArrayBuffer
   writeParts(f.device, parts, fromWord * 4, bytes, data.byteOffset + fromWord * 4, words * 4)

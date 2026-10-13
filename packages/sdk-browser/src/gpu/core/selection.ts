@@ -141,6 +141,9 @@ export type GpuSelection = {
   /** The groups `groups` name are fitted again before the next cut: the roots a parent
    *  composes moved with it (`../dag/treeFollow.ts`). */
   groupsMoved(groups: ArrayLike<number>): void
+  /** Writes the host made into the cut's frames and worlds since they were made: a GPU writer of
+   *  the same words (`../../placement/gpuCompose.ts`) writes them again once it moved. */
+  readonly frameWrites: number
   /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
    *  them — the levels, the frustum and the raster split follow the composed poses. `rows` are the

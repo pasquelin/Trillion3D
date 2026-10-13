@@ -1,5 +1,5 @@
 // The composition the GPU runs for a linked placement (`gpuComposeWgsl.ts`) gives the CPU's words
-// to the bit: the transform tree's double product (`composeWorld`), rounded as a `Float32Array`
+// to the bit: the transform tree's double product (`multiplyMatrix4`), rounded as a `Float32Array`
 // stores it, the translation brought to the eye by the double subtraction first
 // (`worldToRenderOrigin`). Generated hierarchies: rotations, uneven and negative scales, shears,
 // translations far from the origin, an eye far from it too.
@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { worldToRenderOrigin } from '../../../sdk-core/src/index.ts'
-import { composeWorld } from './composeWorld.ts'
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { COMPOSE_ROWS_WGSL } from './gpuComposeWgsl.ts'
 import {
   DOUBLE_HELPERS,
@@ -55,10 +55,10 @@ test('parent · local, at the eye, is the CPU world word for word, near and far 
     const grand = generated(next, far),
       parent = new Float64Array(16)
     // Two levels on the CPU, as the tree composes them: the GPU takes the parent's world.
-    composeWorld(parent, grand, generated(next, far))
+    multiplyMatrix4(parent, grand, generated(next, far))
     const local = generated(next, 20)
     const eye = [0, 1, 2].map(() => (next() - 0.5) * far)
-    composeWorld(product, parent, local)
+    multiplyMatrix4(product, parent, local)
     rows.set(product)
     worldToRenderOrigin(atEye, product, eye)
     parents.splice(0, 16, ...Array.from(parent, pair))

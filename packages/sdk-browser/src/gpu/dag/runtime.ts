@@ -109,6 +109,9 @@ function selectionOver(run: DagRun): GpuSelection {
     get worldRevision() {
       return state.worldRevision
     },
+    get frameWrites() {
+      return frames.writes
+    },
     updateWorlds: (next, named) => updateRuntimeWorlds(run, next, named),
     composedPlacement(w, composed) {
       if (!composed && live()) rewritePlacement(run, w)

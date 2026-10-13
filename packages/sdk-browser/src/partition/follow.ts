@@ -12,7 +12,7 @@
  */
 import type { PlacementLink } from '../placement/gpuCompose.ts'
 import { MATRIX_VALUES } from '../../../sdk-core/src/index.ts'
-import { composeWorld } from '../placement/composeWorld.ts'
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { keepNumbers } from '../../../math/src/vector/vector.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
@@ -76,7 +76,7 @@ export function createPlacementWrites(
   const worldOf = (parent: Object3D) => {
     const own = heldWorld(parent),
       outer = frame.world?.()
-    return outer ? composeWorld(slotWorld, outer, own) : own
+    return outer ? multiplyMatrix4(slotWorld, outer, own) : own
   }
   /** The link of row `row` of `link`'s rows at `local`: the one shape a row is linked by. */
   const linkOf = (link: RowLink, row: number, local: Float64Array): PlacementLink => ({
@@ -117,7 +117,7 @@ export function createPlacementWrites(
    *  session composes, the row is linked and this module writes none. */
   const writeOpeningPose = (placement: Placement) => {
     const { mesh, row, parent, local } = placement
-    composeWorld(product, worldOf(parent), local)
+    multiplyMatrix4(product, worldOf(parent), local)
     for (const link of mesh.links) link.placements!.matrices.set(product, row * 16)
   }
   /** Row `placement`: its flags, and — `linking` — its link to its parent, made at the next `settle`;

@@ -70,7 +70,7 @@ export async function runSphere() {
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  device.queue.writeBuffer(params, 0, new Uint32Array([CASES, CASES, PART_SPHERES, 0]))
+  device.queue.writeBuffer(params, 0, new Uint32Array([CASES, CASES, PART_SPHERES, CASES]))
   const spheres = buffer(CASES * 8 * 4)
   const pipeline = await device.createComputePipelineAsync({
     layout: 'auto',
@@ -90,6 +90,11 @@ export async function runSphere() {
       { binding: 7, resource: { buffer: absent() } },
       { binding: 8, resource: { buffer: absent() } },
       { binding: 9, resource: { buffer: absent() } },
+      // Every row is a composed root's: the pass's list names them all.
+      {
+        binding: 10,
+        resource: { buffer: buffer(Uint32Array.from({ length: CASES }, (_, i) => i)) },
+      },
     ],
   })
   const encoder = device.createCommandEncoder()

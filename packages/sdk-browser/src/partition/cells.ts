@@ -23,7 +23,7 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { createCellBoxes } from './boxes.ts'
 import type { CellFrame } from './follow.ts'
-import { composeWorld } from '../placement/composeWorld.ts'
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts'
 import type { CellRows } from './cellDecode.ts'
 import { createDecodes, takeDecoded } from './decodes.ts'
@@ -75,7 +75,7 @@ export function createPartitionCells(inputs: Inputs) {
   const rootWorld = () => {
     const world = resolveCameraWorld(root).worldMatrix,
       outer = frame.world?.()
-    return outer ? composeWorld(framed, outer, world) : world
+    return outer ? multiplyMatrix4(framed, outer, world) : world
   }
   const view = (eye: ArrayLike<number>, reach: number) => {
     const local = inCellFrame(rootWorld(), eye, reach)

@@ -1,5 +1,5 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { composeWorld } from '../../placement/composeWorld.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { shownChain } from '../../placement/hidden.ts'
 import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
@@ -66,7 +66,7 @@ class ModelMeshSource implements DrawSource {
    *  every node above it, whether it casts. */
   write(world: Float64Array, shown: boolean, matrices = true) {
     const { rows, drawn } = this
-    if (matrices) composeWorld(rows.matrices, world, drawn.matrixWorld.elements)
+    if (matrices) multiplyMatrix4(rows.matrices, world, drawn.matrixWorld.elements)
     rows.live[0] = shown && shownChain(drawn) ? 1 : 0
     rows.shadowless[0] = drawn.castShadow ? 0 : 1
   }
