@@ -6,6 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { commandArgs } from '../../../../tests/kit/gpu/mockRenderPass.ts'
 import { createVsmResources } from './resources.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_BYTES } from './projectionView.ts'
@@ -48,23 +49,17 @@ test('one store a layer the tile holds a light of, under bounds the view gives: 
 })
 
 test('nine lights: one vsm.projection pass, each light at its offset of the view', async () => {
-  const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
+  const { device, writes, computePasses } = fakeDevice({
+    limits: { maxStorageBufferBindingSize: 1 << 27 },
+  })
   const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
-  const passes: string[] = [],
-    constants: Record<string, number>[] = []
-  const encoder = {
-    beginComputePass: (d: GPUComputePassDescriptor) => (
-      passes.push(d.label!),
-      {
-        // The fake device's pipeline is its descriptor's compute stage.
-        setPipeline: (p: GPUProgrammableStage) =>
-          constants.push(p.constants as Record<string, number>),
-        setBindGroup() {},
-        dispatchWorkgroups() {},
-        end() {},
-      }
-    ),
-  } as unknown as GPUCommandEncoder
+  const encoder = device.createCommandEncoder()
+  /** The constants of each pipeline the passes set since `from`. */
+  const constants = (from = 0) =>
+    computePasses
+      .flatMap(({ commands }) => commandArgs(commands, 'setPipeline'))
+      .slice(from)
+      .map(([pipeline]) => (pipeline as GPUProgrammableStage).constants as Record<string, number>)
   const view = {} as GPUTextureView
   const lights: VsmProjectionLight[] = Array.from({ length: 9 }, (_, k) => ({
     type: 'point',
@@ -96,7 +91,10 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
     },
     lights,
   )
-  assert.deepEqual(passes, ['vsm.projection'])
+  assert.deepEqual(
+    computePasses.map(({ label }) => label),
+    ['vsm.projection'],
+  )
   // The header and the nine records: the shader reads no record past the count.
   const upload = writes.find((w) => w.buffer.label === 'vsm.projection.view')
   assert.ok(upload)
@@ -124,9 +122,10 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
   }
   const asked = [lights.slice(0, 1), [sun], [sun, lights[0]]]
   // Each is asked once, off the frame, then served by its own pipeline (`pipelineFor`).
+  let served = 0
   for (const round of [0, 1]) {
     if (round) {
-      constants.length = 0
+      served = constants().length
       await new Promise(setImmediate)
     }
     for (const [at, pass] of asked.entries())
@@ -138,7 +137,7 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
       )
   }
   assert.deepEqual(
-    constants.map((c) => [c.VSM_PROJECTION_ONE_LIGHT, c.VSM_PROJECTION_KINDS]),
+    constants(served).map((c) => [c.VSM_PROJECTION_ONE_LIGHT, c.VSM_PROJECTION_KINDS]),
     [
       [1, 2],
       [1, 1],
