@@ -8,9 +8,16 @@ import {
   PROXY_NODE_WORDS,
   PROXY_TRIANGLE_FLOATS,
 } from '../../../sdk-core/src/index.ts'
-import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
-import { RECORD_HEAD } from '../deformation/layout.ts'
+import {
+  DEFORM_AT_WGSL,
+  deformRecordFns,
+  deformSkinFn,
+  type DeformRecordSource,
+} from '../deformation/deformWgsl.ts'
 import { RUNTIME_HEADER, RUNTIME_HEADER_WORDS } from './runtimeLayout.ts'
+
+/** The pose's record reads: the deformation's float pool, bound as `pool` (`deformRecordFns`). */
+const POSE_RECORD: DeformRecordSource = { source: 'pool', prefix: 'pose' }
 
 /** Threads of a workgroup of the pose: a corner or a node each. */
 export const POSE_LANES = 64
@@ -26,8 +33,9 @@ export const POSE_WORDS = 8
  *   whose four heaviest joints and weights and whose morph deltas the mesh's proxy kept (`CutDeformation`); the
  *   placement's record in the float pool (`deformation/layout.ts`) gives this frame's palette and morph weights.
  *   The morph targets move the rest vertex, the joints carry the result (the weights' blend, renormalised),
- *   in the order `deformWgsl.ts` gives the page vertices, and the point comes out in the mesh's own space,
- *   where its placement's world takes it on.
+ *   the record read and the joints blended by the very functions the page vertices are
+ *   (`deformRecordFns`, `deformSkinFn`), and the point comes out in the mesh's own space, where its
+ *   placement's world takes it on.
  * - `fitNodes`: the wide tree's bounds fitted again, one dispatch a level from the deepest to the root
  *   (`runtimePoseLevels.ts`), a thread a node. A node's exact bounds are the union of its children's — a leaf's
  *   triangles', an inner child's own, already fitted — and each child's quantized box is written again in the
@@ -47,8 +55,6 @@ ${wgslConsts({
   CHILDREN_WORD: RUNTIME_HEADER.childrenWord,
   POSE_WORDS,
   LANES: POSE_LANES,
-  RECORD_HEAD,
-  PALETTE_FLOATS,
   INFLUENCES: CORNER_INFLUENCES,
   TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
   NODE_FLOATS: PROXY_NODE_FLOATS,
@@ -64,34 +70,23 @@ ${wgslConsts({
 @group(0) @binding(4) var<uniform> step:vec4u;
 fn arenaFloat(word:u32)->f32{return bitcast<f32>(arena[word]);}
 fn arenaVec(word:u32)->vec3f{return vec3f(arenaFloat(word),arenaFloat(word+1u),arenaFloat(word+2u));}
-/** Joint \`j\` of the palette at \`at\` (\`count\` joints, the last standing for a larger rank), its three rows. */
-fn poseJoint(at:u32,j:u32,count:u32)->mat3x4f{
- let b=at+min(j,count-1u)*PALETTE_FLOATS;
- return mat3x4f(pool[b],pool[b+1u],pool[b+2u],pool[b+3u],
-  pool[b+4u],pool[b+5u],pool[b+6u],pool[b+7u],
-  pool[b+8u],pool[b+9u],pool[b+10u],pool[b+11u]);
-}
-/** The point \`rest\` of the corner whose table begins at \`corner\`, moved by the record at \`record\`: the
- *  morph targets, then the blend of the corner's joints. */
-fn posePoint(record:u32,corner:u32,rest:vec3f)->vec3f{
- let joints=bitcast<u32>(pool[record+2u]);
- let targets=bitcast<u32>(pool[record+3u]);
- let palette=record+RECORD_HEAD;
- let weights=palette+2u*joints*PALETTE_FLOATS;
+${deformRecordFns(POSE_RECORD)}
+${deformSkinFn(POSE_RECORD, {
+  name: 'poseSkin',
+  params: 'corner:u32',
+  influences: 'INFLUENCES',
+  weight: 'arenaFloat(corner+INFLUENCES+k)',
+  joint: 'u32(arenaFloat(corner+k))',
+})}
+/** The point \`rest\` of the corner whose table begins at \`corner\`, moved by the record \`a\`: the
+ *  morph targets, then the blend of the corner's joints (\`deformSkinFn\`). */
+fn posePoint(a:DeformAt,corner:u32,rest:vec3f)->vec3f{
  var v=rest;
- for(var t=0u;t<targets;t++){
-  v+=pool[weights+t]*arenaVec(corner+2u*INFLUENCES+3u*t);
+ for(var t=0u;t<a.targets;t++){
+  v+=pool[a.weights+t]*arenaVec(corner+2u*INFLUENCES+3u*t);
  }
- if(joints==0u){return v;}
- var result=vec3f(0.0);
- var total=0.0;
- for(var k=0u;k<INFLUENCES;k++){
-  let weight=arenaFloat(corner+INFLUENCES+k);
-  total+=weight;
-  if(weight!=0.0){result+=weight*(vec4f(v,1.0)*poseJoint(palette,u32(arenaFloat(corner+k)),joints));}
- }
- if(total>0.0){return result/total;}
- return v;
+ if(a.joints==0u){return v;}
+ return poseSkin(corner,a.palette,a.joints,vec4f(v,1.0));
 }
 @compute @workgroup_size(LANES)
 fn poseCorners(@builtin(global_invocation_id) id:vec3u){
@@ -105,9 +100,9 @@ fn poseCorners(@builtin(global_invocation_id) id:vec3u){
  var v=arenaVec(rest);
  let record=poses[entry+7u];
  if(record!=0u){
-  let head=record-1u;
-  let width=2u*INFLUENCES+3u*bitcast<u32>(pool[head+3u]);
-  v=posePoint(head,poses[entry+5u]+corner*width,v);
+  let a=poseAt(record-1u,false);
+  let width=2u*INFLUENCES+3u*a.targets;
+  v=posePoint(a,poses[entry+5u]+corner*width,v);
  }
  arena[out]=bitcast<u32>(v.x);
  arena[out+1u]=bitcast<u32>(v.y);
@@ -180,5 +175,5 @@ fn fitNodes(@builtin(global_invocation_id) id:vec3u){
   arena[child+1u]=highBytes.y|(highBytes.z<<8u)|(words&0xffff0000u);
  }
 }`,
-  [],
+  [DEFORM_AT_WGSL],
 )
