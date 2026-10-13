@@ -1,6 +1,7 @@
 // The row cache's bench (#1483): `instances` opaque clusters, each at its own address, over a table
 // of `slots` visibility rows, the residency mirror and the readbacks driven by hand.
 import { createWebgpuRowState } from './state.ts'
+import { slotTable } from './pageState.fixture.ts'
 import { createWebgpuRowSync } from './sync.ts'
 import { createRowUse } from './rowUse.ts'
 import type { InstanceClosure } from './rowDemand.ts'
@@ -69,7 +70,8 @@ export function rowCache(instances: number, slots: number) {
         depthLayer: 0,
       }) as unknown as PageRec,
   )
-  const rows = createWebgpuRowState(pages, slots)
+  const held = slotTable()
+  const rows = createWebgpuRowState(pages, slots, 0, undefined, held.read)
   rows.pageTableFloats = new Float32Array(slots * ROW_WORDS)
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer)
   // A row names its instance, one past it, where the GPU would read the record.
@@ -85,7 +87,7 @@ export function rowCache(instances: number, slots: number) {
   /** The instances `ids` take their bytes (`offset` a slot) or give them back (-1). */
   const land = (ids: Iterable<number>, offset = 16) => {
     for (const page of ids) {
-      rows.setAddressOffset(pageAddress(pages[page]), offset < 0 ? -1 : page * offset)
+      held.set(pageAddress(pages[page]), offset < 0 ? -1 : page * offset)
       rows.touchPage(page)
     }
   }

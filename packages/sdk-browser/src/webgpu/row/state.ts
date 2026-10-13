@@ -26,6 +26,8 @@ export function createWebgpuRowState(
   /** Packed ranks by pool ADDRESS, the key the cache names when a slot moves: the layout's, per
    *  primitive page (`./instances.ts`); made here over a flat list built without one. */
   instances: PackedInstances = flatInstances(packedPages),
+  /** The pool slot, in words, an address holds in the page cache, -1 none (`pageState.ts`). */
+  slotWords?: (address: string) => number,
 ) {
   const casterSlots = drawSlots + blendSlots
   const dirtyRows = createDirtyRows()
@@ -41,7 +43,11 @@ export function createWebgpuRowState(
     /** A record's packed ranks all share its pool address: the address's first rank names it. A
      *  caller that needs ONE instance's rank uses the packed list the cut publishes, never this. */
     pageIndexOf: (rec: PageRec) => instances.first(pageAddress(rec)),
-    ...createRowPageState(createPageCatalogue(packedPages).recordOf, () => packedPages.length),
+    ...createRowPageState(
+      createPageCatalogue(packedPages).recordOf,
+      () => packedPages.length,
+      slotWords,
+    ),
     ...rowArrays(drawSlots, casterSlots),
     ...rowCounters(),
     /** Declares rows `[from, to]` dirty — one row by default —; `clearDirty` once all are sent. */

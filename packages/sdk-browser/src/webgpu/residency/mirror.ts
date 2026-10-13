@@ -1,41 +1,27 @@
 import type { GpuPageCache } from '../../gpu/page/pages.ts'
-import type { WebgpuDiagnosticChannel } from '../pages/io/diagnostics.ts'
-import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import type { PackedInstances } from '../row/instances.ts'
 
 type MirrorOptions = {
-  /** Packed ranks by pool address, and each address's slot: read live, as pages join in place. */
-  table: {
-    readonly instances: Pick<PackedInstances, 'each'>
-    addressOffset(address: string): number
-    setAddressOffset(address: string, words: number): void
-    clearAddressOffsets(): void
-  }
-  tracking: WebgpuPageTracking
-  engineDiagnostic: WebgpuDiagnosticChannel['engineDiagnostic']
-  getCache: () => GpuPageCache | undefined
-  getFrame: () => number
+  /** Packed ranks by pool address: read live, as pages join in place. */
+  table: { readonly instances: Pick<PackedInstances, 'each'> }
+  getCache: () => Pick<GpuPageCache, 'drainResidencyChanges'> | undefined
   onOffsetChange?: (page: number, offset: number) => void
 }
 
-/** Tracks cache arrivals and departures — every address, transparent keys outside the row table
- *  included: one slot an address, which each of its instances reads (`../row/pageState.ts`). */
+/**
+ * Names the packed ranks whose address arrived, left or moved in the cache — every address,
+ * transparent keys outside the row table included —, from the cache's residency log alone
+ * (`../../gpu/page/residencyLog.ts`): one entry a key, its last place. The slot itself is read on
+ * the cache, where it is true (`../row/pageState.ts`, `offsetOf`): nothing is mirrored, so nothing
+ * can drift and nothing is rebuilt.
+ */
 export function createWebgpuResidencyMirror(options: MirrorOptions) {
-  const { table, tracking, engineDiagnostic, getCache, getFrame } = options
+  const { table, getCache } = options
   const residencyKeys: string[] = [],
     residencySlots: number[] = []
-  let journalResident = 0
   let dirty = true
-
   let offset = -1
   const named = (page: number) => options.onOffsetChange?.(page, offset)
-  /** Address `key` takes slot `words`, each of its packed ranks named when it moved. */
-  const setOffsets = (key: string, words: number) => {
-    if (table.addressOffset(key) === words) return
-    table.setAddressOffset(key, words)
-    offset = words
-    table.instances.each(key, named)
-  }
 
   const sync = () => {
     const cache = getCache()
@@ -45,26 +31,8 @@ export function createWebgpuResidencyMirror(options: MirrorOptions) {
     cache.drainResidencyChanges(residencyKeys, residencySlots)
     if (residencyKeys.length) dirty = true
     for (let c = 0; c < residencyKeys.length; c++) {
-      const key = residencyKeys[c],
-        offsetWords = residencySlots[c]
-      const was = table.addressOffset(key) >= 0
-      if (offsetWords >= 0 && !was) journalResident++
-      else if (offsetWords < 0 && was) journalResident--
-      setOffsets(key, offsetWords)
-    }
-    const resident = cache.residentPages
-    if (journalResident === resident) return
-    engineDiagnostic('gpu-residency-mirror-rebuilt', 'Residency mirror rebuilt from the cache', {
-      frame: getFrame(),
-      journal: journalResident,
-      resident,
-    })
-    dirty = true
-    journalResident = 0
-    for (const url of tracking.pageCatalog) {
-      const page = cache.get(url)
-      if (page) journalResident++
-      setOffsets(url, page ? page.offset / 4 : -1)
+      offset = residencySlots[c]
+      table.instances.each(residencyKeys[c], named)
     }
   }
 

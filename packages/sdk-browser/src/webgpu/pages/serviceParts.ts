@@ -20,14 +20,11 @@ import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /** The row table's sync: the residency mirror, the page-row writer, the row cache. */
 export function createRowSyncFor(rt: WebgpuPagesCore) {
-  const { run, gpu, diag, context } = rt,
+  const { run, gpu, context } = rt,
     { rows, packedPages } = rt.layout
   const mirror = createWebgpuResidencyMirror({
     table: rows,
-    tracking: rt.setup.tracking,
-    engineDiagnostic: diag.engineDiagnostic,
     getCache: () => gpu.cache,
-    getFrame: () => run.frame,
     onOffsetChange: (page, words) => (
       rows.touchPage(page),
       updateTransparentSpan(rt, page, words),
@@ -47,9 +44,9 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
     (packed) => rootOfPacked(rt.layout.placement, packed),
     rt.layout.deformationOutputOf,
   )
-  // The residency mirror is the only incremental state of this path: its journal is checked against
-  // the cache on every flush, and rebuilt at the slightest disagreement rather than drifting. The
-  // row table is a cache of what the GPU cut draws and asks for (`../row/slots.ts`).
+  // The residency log names the instances whose slot moved; the slot is read on the cache itself
+  // (`../row/pageState.ts`). The row table is a cache of what the GPU cut draws and asks for
+  // (`../row/slots.ts`).
   const rowSync = createWebgpuRowSync(
     rows,
     mirror,

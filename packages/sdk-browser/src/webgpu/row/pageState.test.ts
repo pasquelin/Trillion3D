@@ -8,6 +8,7 @@ import { createPackedInstances } from './instances.ts'
 import { createPackedPages } from '../../page/selection/catalogue.ts'
 import { postPackedBases } from '../../page/selection/placements.ts'
 import { pageAddress } from './pageSlots.ts'
+import { slotTable } from './pageState.fixture.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 
 /** `count` placements of one primitive of sixty-four pages, its packed pages and their row table of
@@ -16,11 +17,14 @@ function table(count: number, rows: number) {
   const pages = Array.from({ length: 64 }, (_, i) => ({ url: `p${i}` }) as PageRec)
   const roots = Array.from({ length: count }, () => ({ pages }))
   const placement = postPackedBases(roots),
-    packed = createPackedPages(roots, placement)
+    packed = createPackedPages(roots, placement),
+    slots = slotTable()
+  const instances = createPackedInstances(roots, placement)
   return {
     pages,
     packed,
-    state: createWebgpuRowState(packed, rows, 0, createPackedInstances(roots, placement)),
+    slots,
+    state: createWebgpuRowState(packed, rows, 0, instances, slots.read),
   }
 }
 
@@ -45,12 +49,12 @@ test('the row table holds the same bytes from a hundred placements to ten thousa
 })
 
 test('one pool slot an address, which every instance of it reads', () => {
-  const { pages, packed, state } = table(1000, 16)
-  state.setAddressOffset(pageAddress(pages[7]), 4096)
+  const { pages, packed, slots, state } = table(1000, 16)
+  slots.set(pageAddress(pages[7]), 4096)
   for (const placement of [0, 1, 999]) assert.equal(state.offsetOf(placement * 64 + 7), 4096)
   assert.equal(state.offsetOf(8), -1, 'another address holds none')
   assert.equal(state.offsetOf(packed.length), -1, 'past the catalogue: none')
-  state.setAddressOffset(pageAddress(pages[7]), -1)
+  slots.set(pageAddress(pages[7]), -1)
   assert.equal(state.offsetOf(64 + 7), -1, 'given back: every instance with it')
 })
 

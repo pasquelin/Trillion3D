@@ -75,7 +75,12 @@ export function askedTableRows(
  *  budget and to one binding of the device (`limits`), and every per-row scratch array the image
  *  reuses instead of reallocating. The table grows in place when a larger pool or the GPU cut's
  *  requests ask more rows (`growTables.ts`). */
-export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSupportedLimits) {
+export function createWebgpuPagesLayout(
+  setup: WebgpuPagesSetup,
+  limits?: GPUSupportedLimits,
+  /** The pool slot, in words, an address holds in the page cache, -1 none: the cache's own. */
+  slotWords?: (address: string) => number,
+) {
   const { roots, bootstrap, cap: slots, pageBytes } = setup
   // The world DAG is one more opaque root, wherever it sits (`../../../gpu/dag/residencyMirror.ts`).
   const opaqueRoots = roots.filter((root) => !root.pages[0]?.transparent),
@@ -114,7 +119,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   // ranks the cut publishes, and the row state indexes it once (`./catalogue.ts`).
   const catalogue = createPageCatalogue(packedPages)
   const instances = createPackedInstances(selectionRoots, placement)
-  const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots, instances)
+  const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots, instances, slotWords)
   return {
     /** Root-box batch, reserved at prepare and replayed on every node move; `null` until prepare has
      *  happened or when the batch cannot be fitted. */

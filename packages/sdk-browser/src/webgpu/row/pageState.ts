@@ -3,23 +3,27 @@ import type { PageRec } from '../../page/selection/selection.ts'
 import { pageAddress } from './pageSlots.ts'
 import type { PageResidency, ResidencyChanges } from '../../gpu/core/selection.ts'
 
+/** No page cache: no address holds a slot. */
+const NO_SLOT = () => -1
+
 /**
  * WHAT THE ROW CACHE KNOWS OF EACH PACKED PAGE, held for the pages that carry something alone: the
  * visibility row a page draws from, the casters' row a blended one casts from, the residency flag
  * the cut reads — each a sparse map (`../../page/cut/sparseInts.ts`), so its size follows the rows
- * and the resident instances, never the placements a scene repeats its pages on —, and the pool slot
- * each ADDRESS holds, one per resident address, which every instance of it reads. An absent page
- * holds no row and no flag; an absent address no slot.
+ * and the resident instances, never the placements a scene repeats its pages on. The pool slot
+ * each ADDRESS holds, which every instance of it reads, is the cache's own (`slotWords`): read where
+ * it is true, never mirrored. An absent page holds no row and no flag.
  */
 export function createRowPageState(
   recordOf: (page: number) => PageRec | undefined,
   pageCount: () => number,
+  /** The pool slot, in words, `address` holds in the page cache, -1 none: the cache's truth. */
+  slotWords: (address: string) => number = NO_SLOT,
 ) {
-  // A row and a slot are stored plus one: an absent page reads -1.
+  // A row is stored plus one: an absent page reads -1.
   const rows = createSparseInts(),
     blend = createSparseInts(),
-    flags = createSparseInts(),
-    offsets = new Map<string, number>()
+    flags = createSparseInts()
   const page = {
     /** The visibility row `page` draws from, -1 none. */
     rowOf: (at: number) => rows.get(at) - 1,
@@ -39,18 +43,10 @@ export function createRowPageState(
     readsResident: (at: number) => rows.get(at) > 0 && flags.get(at) > 0,
     /** Whether `page` holds a visibility row. */
     hasRow: (at: number) => rows.get(at) > 0,
-    /** The pool slot, in words, `address` holds, -1 none (`../residency/mirror.ts`). */
-    addressOffset: (address: string) => offsets.get(address) ?? -1,
-    setAddressOffset(address: string, words: number) {
-      if (words < 0) offsets.delete(address)
-      else offsets.set(address, words)
-    },
-    /** Every address leaves the pool's mirror, before it is read again whole. */
-    clearAddressOffsets: () => offsets.clear(),
     /** The pool slot `page`'s address holds, -1 none: one slot serves every instance of it. */
     offsetOf(at: number) {
       const rec = recordOf(at)
-      return rec ? (offsets.get(pageAddress(rec)) ?? -1) : -1
+      return rec ? slotWords(pageAddress(rec)) : -1
     },
     /** The pages whose flag is up, as the changes a cut with nothing resident reads to reach the
      *  pool's state: the resident instances, never the catalogue. */
