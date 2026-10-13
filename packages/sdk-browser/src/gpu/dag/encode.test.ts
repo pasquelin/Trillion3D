@@ -10,16 +10,18 @@ test('a frame opens one command, whatever the depth', () => {
   // and each copy outside a pass closes the current encoder and opens another. A level dispatched
   // indirectly arms its argument by a dispatch of the pass, never a copy: one pass, period.
   for (const levelCount of [1, 3, 5]) {
-    const { encoder, copies, passes } = witnessEncoder()
-    encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources(levelCount))
+    const witness = witnessEncoder()
+    encodeDagKernels(witness.encoder, cutResources(levelCount))
+    const { copies, passes } = witness.read()
     assert.deepEqual(passes, ['Trillion3D DAG selection'])
     assert.deepEqual(copies, [], 'nothing copied outside the pass')
   }
 })
 
 test('each list is armed in the pass after the kernel that fills it, before the one that walks it', () => {
-  const { encoder, dispatches, armements, boundGroups } = witnessEncoder()
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources())
+  const witness = witnessEncoder()
+  encodeDagKernels(witness.encoder, cutResources())
+  const { dispatches, armements, boundGroups } = witness.read()
   const kernels = dispatches.map((l) => l.kernel)
   // Before the journal's clear (the previous frame's drawn count), before level 2 (the queue level
   // 1 filled), after the descent (the candidates), after `dagWanted` (the live clusters).
@@ -48,8 +50,9 @@ test('each list is armed in the pass after the kernel that fills it, before the 
 test('a level past the first is dispatched on what the level before it deposited', () => {
   // Stages [2, 9, 40, 150, 600]: past level 1, the bound would be every placement's nodes of the
   // level, the world's; each is dispatched on its queue's armed groups instead.
-  const { encoder, dispatches } = witnessEncoder()
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources(5))
+  const witness = witnessEncoder()
+  encodeDagKernels(witness.encoder, cutResources(5))
+  const { dispatches } = witness.read()
   const levels = dispatches.filter((l) => /^dag(Root)?Level/.test(l.kernel))
   assert.deepEqual(
     levels.map((l) => [l.kernel, l.groups === 'indirect' ? l.list : l.groups]),
@@ -73,8 +76,9 @@ test('a flat dispatch past the device width runs in rows of it', () => {
     entryCount: 1000,
     device,
   } as unknown as typeof base
-  const { encoder, dispatches } = witnessEncoder()
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, wide)
+  const witness = witnessEncoder()
+  encodeDagKernels(witness.encoder, wide)
+  const { dispatches } = witness.read()
   const levels = dispatches
     .filter((l) => /^dag(Root)?Level/.test(l.kernel))
     .map((l) => `${l.groups}x${l.rows ?? 1}`)
@@ -82,8 +86,9 @@ test('a flat dispatch past the device width runs in rows of it', () => {
 })
 
 test('the camera cut sorts its requests once, then lists its evictions, one workgroup each', () => {
-  const { encoder, dispatches } = witnessEncoder()
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources())
+  const witness = witnessEncoder()
+  encodeDagKernels(witness.encoder, cutResources())
+  const { dispatches } = witness.read()
   const last = ['dagSortRequests', 'dagListEvictions']
   assert.deepEqual(
     dispatches.slice(-last.length),
@@ -99,8 +104,9 @@ test('with a placement tree, prepare and pass 0 run over its top and the world D
     ranges = [0, 1].map((r) => ({ first: r * 65_536, count: r ? 34_464 : 65_536, bindGroup: {} }))
   const packed = { placementTree: { levels: [{ count: 1 }] }, world: { root: 70_000 } }
   const cut = { ...base, blockCount: 1, ranges, packed } as unknown as typeof base
-  const { encoder, dispatches } = witnessEncoder()
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cut)
+  const witness = witnessEncoder()
+  encodeDagKernels(witness.encoder, cut)
+  const { dispatches } = witness.read()
   const of = (kernel: string) => dispatches.filter((l) => l.kernel === kernel).map((l) => l.groups)
   assert.deepEqual(
     of('dagPrepare'),

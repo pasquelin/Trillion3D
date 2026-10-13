@@ -54,14 +54,7 @@ export function session() {
     gpuSelection: selection,
     gpuComputeDispatches: 0,
   })
-  const encoder = {
-    beginComputePass: () => ({
-      setPipeline() {},
-      setBindGroup() {},
-      dispatchWorkgroups() {},
-      end() {},
-    }),
-  } as unknown as GPUCommandEncoder
+  const encoder = device.createCommandEncoder()
   const frame = () => {
     rt.run.frame++
     encodeComposedRoots(rt, device, encoder)

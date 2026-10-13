@@ -1,5 +1,5 @@
 /**
- * Cut witness encoder: it dispatches nothing, it notes. What the GPU pays between two kernels is
+ * The cut's witness, read off the kit's encoder. What the GPU pays between two kernels is
  * counted in COMMANDS, not threads — each compute pass and each copy outside a pass empties its
  * queue and caches —, and two test files hold that contract: `live.test.ts` for the list
  * each kernel walks, `encode.test.ts` for the command count.
@@ -7,11 +7,11 @@
 import assert from 'node:assert/strict'
 import type { encodeDagKernels } from './encode.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 /** `list`: the list whose armed record the dispatch reads, `-1` when no arming ran before it in
  *  its pass; `rows`: the rows of a flat dispatch past one row (`../dispatch/grid.ts`). */
 type Dispatch = { kernel: string; groups: number | 'indirect'; list?: number; rows?: number }
-type Copie = { de: string; vers: string; enPasse: boolean }
 
 export const LIVE = 1234,
   CAND = 3000,
@@ -28,53 +28,48 @@ const LIST_OF_RECORD = new Map<number, number>([
 /** Nodes of each stage: the upper bound on which that level's pass dispatches flat. */
 export const ETAGES = [2, 9, 40, 150, 600]
 
-/** An encoder that only notes: which kernel, dispatched flat or on which list. The arming kernel
- *  is not a launch of the cut's: `armements` holds, for each run, the launches before it. */
+/** One of the kit's encoders, and `read()`: what the cut encoded on it — which kernel, dispatched
+ *  flat or on which list. The arming kernel is not a launch of the cut's: `armements` holds, for
+ *  each run, the launches before it. */
 export function witnessEncoder() {
-  const dispatches: Dispatch[] = []
-  const copies: Copie[] = []
-  const passes: string[] = []
-  const armements: number[] = []
-  /** Each bind group a pass sets, in order. */
-  const boundGroups: unknown[] = []
-  let kernel = ''
-  let arme = false
-  let ouverte = false
-  const pass = {
-    setBindGroup: (_: number, group: unknown) => void boundGroups.push(group),
-    setPipeline(next: { entryPoint: string }) {
-      kernel = next.entryPoint
-    },
-    dispatchWorkgroups(groups: number, rows = 1) {
-      if (kernel === 'dagArm') {
-        assert.equal(groups, 1, 'one workgroup arms the three lists')
-        armements.push(dispatches.length)
-        arme = true
-        return
+  const kit = fakeDevice()
+  const read = () => {
+    const dispatches: Dispatch[] = []
+    const armements: number[] = []
+    /** Each bind group a pass sets, in order. */
+    const boundGroups: unknown[] = []
+    for (const { commands } of kit.computePasses) {
+      let kernel = '',
+        arme = false
+      for (const [name, args] of commands) {
+        if (name === 'setBindGroup') boundGroups.push(args[1])
+        if (name === 'setPipeline') kernel = (args[0] as { entryPoint: string }).entryPoint
+        if (name === 'dispatchWorkgroups') {
+          const [groups, rows = 1] = args as number[]
+          if (kernel === 'dagArm') {
+            assert.equal(groups, 1, 'one workgroup arms the three lists')
+            armements.push(dispatches.length)
+            arme = true
+          } else dispatches.push({ kernel, groups, ...(rows > 1 && { rows }) })
+        }
+        if (name === 'dispatchWorkgroupsIndirect') {
+          const [buffer, decalage] = args as [{ nom: string }, number]
+          assert.equal(buffer.nom, 'dispatchArgs')
+          const list = arme ? (LIST_OF_RECORD.get(decalage) ?? -1) : -1
+          dispatches.push({ kernel, groups: 'indirect', list })
+        }
       }
-      dispatches.push({ kernel, groups, ...(rows > 1 && { rows }) })
-    },
-    dispatchWorkgroupsIndirect(buffer: { nom: string }, decalage: number) {
-      assert.equal(buffer.nom, 'dispatchArgs')
-      const list = arme ? (LIST_OF_RECORD.get(decalage) ?? -1) : -1
-      dispatches.push({ kernel, groups: 'indirect', list })
-    },
-    end() {
-      ouverte = false
-      arme = false
-    },
+    }
+    const passes = kit.computePasses.map(({ label }) => label)
+    return {
+      dispatches,
+      copies: [...kit.copies, ...kit.textureCopies],
+      passes,
+      armements,
+      boundGroups,
+    }
   }
-  const encoder = {
-    beginComputePass(descriptor: { label: string }) {
-      passes.push(descriptor.label)
-      ouverte = true
-      return pass
-    },
-    copyBufferToBuffer(de: { nom: string }, _d: number, vers: { nom: string }) {
-      copies.push({ de: de.nom, vers: vers.nom, enPasse: ouverte })
-    },
-  }
-  return { encoder, dispatches, copies, passes, armements, boundGroups }
+  return { encoder: kit.device.createCommandEncoder(), read }
 }
 
 /** A stage named as the witness will see it pass: `encode.ts` destructures these fields

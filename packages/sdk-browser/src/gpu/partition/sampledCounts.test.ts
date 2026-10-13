@@ -160,7 +160,8 @@ test('every counter but the allocator goes through the tally; the kernels flush 
 })
 
 test('the partition copies its counters on the frame that counted, and only then', async () => {
-  const { device } = fakeDevice()
+  const fake = fakeDevice(),
+    { device } = fake
   const buffer = (label: string) => ({ label, size: 4, destroy() {} }) as unknown as GPUBuffer
   let at = 0
   // A frame from 40 to 44 has no pyramid: it runs no kernel, counts nothing, and its sample waits.
@@ -168,22 +169,20 @@ test('the partition copies its counters on the frame that counted, and only then
     ...{ items: buffer('i'), flags: buffer('f'), restBits: buffer('r'), slotUsed: buffer('s') },
     pyramid: () => (at < 40 || at > 44 ? ({} as GPUTextureView) : undefined),
   }))!
+  /** The frames whose encoding copied. */
   const copies: number[] = []
-  const pass = { setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {}, end() {} }
-  const encoder = {
-    clearBuffer() {},
-    beginComputePass: () => pass,
-    copyBufferToBuffer: () => void copies.push(at),
-  } as unknown as GPUCommandEncoder
+  const encoder = device.createCommandEncoder()
   const matrix = new Float64Array(16),
     sizes = { width: 8, height: 8, levels: [], layerTop: 0, hasRest: true, viewMoved: false }
   const frame = { view: matrix, viewProj: matrix, anchor: [0, 0, 0] as const, near: 1, rows: 4 }
   for (; at < 60; at++) {
     // The caller's one `countsDue` answer: the frame's `counting`.
     const counting = partition.countsDue(at)
+    const copied = fake.copies.length
     partition.beginFrame(encoder, { ...frame, ...sizes, counting })
     assert.equal(partition.counting, counting && (at < 40 || at > 44), `frame ${at}`)
     partition.encodeCounts(encoder, at)
+    if (fake.copies.length > copied) copies.push(at)
     partition.countsSubmitted()
     // The sample maps once the frame is submitted: the next is due fifteen frames on.
     await new Promise((settled) => setTimeout(settled))

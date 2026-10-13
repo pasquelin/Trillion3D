@@ -12,7 +12,7 @@ import { createDagResources, type DagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { stagedOutputBytes } from './layout.ts'
 import { viewWord } from './viewLayout.ts'
-import { writtenReadbacks } from './differenceRig.fixture.ts'
+import { idleKernels, writtenReadbacks } from './differenceRig.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { SelectionUniforms } from '../core/selection.ts'
 
@@ -49,6 +49,7 @@ export function world() {
 export async function worldCut(deviceCap: number) {
   const scene = world()
   const fake = fakeDevice({
+    kernel: idleKernels,
     limits: {
       maxStorageBufferBindingSize: stagedOutputBytes(deviceCap),
       maxStorageBuffersPerShaderStage: 1024,

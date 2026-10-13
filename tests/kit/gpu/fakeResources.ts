@@ -1,5 +1,5 @@
 // The creations of `fakeDevice()` beside its buffers (`mockBuffers.ts`): a texture as the device
-// makes it, and the refusal a test asks of an allocation.
+// makes it, a pipeline's group layouts, and the refusal a test asks of an allocation.
 import type { FakeDeviceOptions, FakeTexture } from './fakeRecords.ts'
 import { untag } from './fakeWebgpuDevice.ts'
 
@@ -38,3 +38,13 @@ export function texture(descriptor: GPUTextureDescriptor, destroyed: Array<{ lab
   }
   return made
 }
+
+/** `pipeline` with its `getBindGroupLayout`: the layout its group `i` reads. Not enumerable, so a
+ *  pipeline compares to its descriptor as it was made. */
+export const withGroups = <P extends object>(pipeline: P, layout: GPUPipelineLayout | 'auto') =>
+  Object.defineProperty(pipeline, 'getBindGroupLayout', {
+    value: (i: number) =>
+      [...((layout as Partial<GPUPipelineLayoutDescriptor>)?.bindGroupLayouts ?? [])][i] ?? {},
+    writable: true,
+    configurable: true,
+  })

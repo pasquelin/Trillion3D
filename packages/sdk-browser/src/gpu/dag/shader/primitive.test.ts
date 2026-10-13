@@ -43,14 +43,15 @@ test('the frame’s prepare reads no placement: ten thousand cost it what their 
     dag = packDagSelection(Array.from({ length: count }, () => root))
   const top = dag.placementTree!.levels[0].count,
     blockCount = ceilDiv(dag.pageCount, 64)
-  const { encoder, dispatches } = witnessEncoder()
+  const witness = witnessEncoder()
   const cut = {
     ...cutResources(3),
     packed: dag,
     blockCount,
     ranges: [{ first: 0, count, bindGroup: {} }],
   } as unknown as Parameters<typeof encodeDagKernels>[1]
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cut)
+  encodeDagKernels(witness.encoder, cut)
+  const { dispatches } = witness.read()
   const prepare = dispatches.find((d) => d.kernel === 'dagPrepare')!,
     groups = Number(prepare.groups) * (prepare.rows ?? 1)
   // The tree's top nodes and the block counts it resets, never a thread a placement.

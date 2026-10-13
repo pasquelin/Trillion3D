@@ -8,7 +8,7 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { buffer, frame, view } from './partition.fixture.ts'
 
 test('the frame clears nothing from the encoder: its first dispatch zeroes what the kernels count', async () => {
-  const { device, dispatches } = fakeDevice()
+  const { device, dispatches, clears } = fakeDevice()
   let pyramid: GPUTextureView | undefined = view('pyramid')
   const partition = (await createGpuPartition(device, 4096, {
     items: buffer('items'),
@@ -17,12 +17,9 @@ test('the frame clears nothing from the encoder: its first dispatch zeroes what 
     slotUsed: { ...buffer('slots'), size: 4 * 300 },
     pyramid: () => pyramid,
   }))!
-  const cleared: unknown[] = []
-  const quiet = {
-    clearBuffer: (target: unknown) => void cleared.push(target),
-  } as unknown as GPUCommandEncoder
+  const quiet = device.createCommandEncoder()
   partition.beginFrame(quiet, frame(4000))
-  assert.deepEqual(cleared, [], 'no counter, rest bit or slot count is cleared outside the pass')
+  assert.deepEqual(clears, [], 'no counter, rest bit or slot count is cleared outside the pass')
   partition.encode({ pass: device.createCommandEncoder().beginComputePass() })
   // 300 slot words outnumber the 125 rest-bit words and the 16 counters: five groups of 64.
   assert.deepEqual(
@@ -54,7 +51,7 @@ test('rows past one dimension of a dispatch run in rows of 65,535 groups (`dispa
     slotUsed: { ...buffer('slots'), size: 4 * 300 },
     pyramid: () => view('pyramid'),
   }))!
-  partition.beginFrame({ clearBuffer() {} } as unknown as GPUCommandEncoder, frame(rows))
+  partition.beginFrame(device.createCommandEncoder(), frame(rows))
   partition.encode({ pass: device.createCommandEncoder().beginComputePass() })
   // 65,536 groups of 64 rows: two rows of 65,535, the second's threads past the count leaving;
   // the clear's 131,071 rest-bit words, 2,048 groups, one row.

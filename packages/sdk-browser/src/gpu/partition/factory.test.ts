@@ -16,17 +16,6 @@ const bufferGroups = (bindGroups: GPUBindGroupDescriptor[]) =>
     ),
   )
 
-const encoder = () =>
-  ({
-    clearBuffer() {},
-    beginComputePass: () => ({
-      setPipeline() {},
-      setBindGroup() {},
-      dispatchWorkgroups() {},
-      end() {},
-    }),
-  }) as unknown as GPUCommandEncoder
-
 /** Body of every WGSL function of the module, by name. */
 function functionBodies(shader: string) {
   const bodies = new Map<string, string>()
@@ -86,18 +75,18 @@ test('the projection rebinds the pyramid when its identity changes, and only the
     bufferGroups(bindGroups).filter((group) => PARTITION_BINDING.pyramid in group)
   assert.equal(projectGroups().length, 1, 'one projection group at creation')
   assert.equal(projectGroups()[0][PARTITION_BINDING.pyramid], pyramid)
-  partition.beginFrame(encoder(), frame(4))
-  partition.beginFrame(encoder(), frame(4))
+  partition.beginFrame(device.createCommandEncoder(), frame(4))
+  partition.beginFrame(device.createCommandEncoder(), frame(4))
   assert.equal(projectGroups().length, 1, 'the same pyramid is not rebound')
   pyramid = view('pyramid B')
-  partition.beginFrame(encoder(), frame(4))
+  partition.beginFrame(device.createCommandEncoder(), frame(4))
   assert.equal(projectGroups().length, 2, 'a resized pyramid gets a new group')
   assert.equal(projectGroups()[1][PARTITION_BINDING.pyramid], pyramid)
   partition.dispose()
 })
 
 test('rows rewritten since the last image are cleared run by run, once', async () => {
-  const { device } = fakeDevice()
+  const { device, clears } = fakeDevice()
   const partition = await createGpuPartition(device, 64, {
     items: buffer('items'),
     flags: buffer('flags'),
@@ -106,26 +95,19 @@ test('rows rewritten since the last image are cleared run by run, once', async (
     pyramid: () => view('pyramid'),
   })
   assert.ok(partition)
-  const cleared: Array<[unknown, number, number]> = []
-  const clearing = () =>
-    ({
-      ...encoder(),
-      clearBuffer: (target: unknown, offset: number, size: number) =>
-        cleared.push([target, offset, size]),
-    }) as unknown as GPUCommandEncoder
   const rowBytes = ROW_DATA_U32 * 4
   const rowRuns = () =>
-    cleared
+    clears
       .splice(0)
-      .filter(([target]) => target === partition.rowData)
-      .map(([, offset, size]) => [offset / rowBytes, size / rowBytes])
-  partition.beginFrame(clearing(), frame(64))
+      .filter(({ buffer }) => buffer === partition.rowData)
+      .map(({ offset, size }) => [offset / rowBytes, size! / rowBytes])
+  partition.beginFrame(device.createCommandEncoder(), frame(64))
   assert.deepEqual(rowRuns(), [], 'nothing rewritten: nothing cleared')
   partition.forgetRows(10, 12)
   partition.forgetRows(20, 20)
   partition.forgetRows(5, 3)
   partition.forgetRows(60, 90)
-  partition.beginFrame(clearing(), frame(64))
+  partition.beginFrame(device.createCommandEncoder(), frame(64))
   assert.deepEqual(
     rowRuns(),
     [
@@ -135,7 +117,7 @@ test('rows rewritten since the last image are cleared run by run, once', async (
     ],
     'each run alone, none of the rows between them, bounded to the buffer',
   )
-  partition.beginFrame(clearing(), frame(64))
+  partition.beginFrame(device.createCommandEncoder(), frame(64))
   assert.deepEqual(rowRuns(), [], 'forgotten once, then remembered as projected again')
   partition.dispose()
 })

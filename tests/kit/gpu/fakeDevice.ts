@@ -9,7 +9,7 @@ import {
 } from './fakeRecords.ts'
 import { bundleMaker } from './fakeBundles.ts'
 import { asWebgpuDevice } from './fakeWebgpuDevice.ts'
-import { refusing, texture } from './fakeResources.ts'
+import { refusing, texture, withGroups } from './fakeResources.ts'
 import { fakeBuffers } from './mockBuffers.ts'
 import { createMockCommandEncoderFactory, type EncoderRecords } from './mockEncoder.ts'
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
@@ -64,22 +64,13 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
     commands: [],
     dispatches: [],
     copies: [],
+    clears: [],
     textureCopies: [],
     textureBufferCopies: [],
     resolves: [],
   }
   let seq = 0,
     fences = 0
-  // A pipeline's `getBindGroupLayout`: the layout its group `i` reads. Not enumerable, so a pipeline
-  // compares to its descriptor as it was made.
-  const withGroups = <P extends object>(pipeline: P, layout: GPUPipelineLayout | 'auto') =>
-    Object.defineProperty(pipeline, 'getBindGroupLayout', {
-      value: groupLayout(layout),
-      writable: true,
-      configurable: true,
-    })
-  const groupLayout = (layout: GPUPipelineLayout | 'auto') => (i: number) =>
-    [...((layout as Partial<GPUPipelineLayoutDescriptor>)?.bindGroupLayouts ?? [])][i] ?? {}
   // A render pipeline is its descriptor: a pass that sets it reads its entry points and blend.
   const renderPipeline = (descriptor: GPURenderPipelineDescriptor) => {
     const target = [...(descriptor.fragment?.targets ?? [])][0]
@@ -168,7 +159,11 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
       },
       copyExternalImageToTexture: (_source: unknown, destination: GPUCopyExternalImageDestInfo) =>
         void imageCopies.push(destination),
-      submit: () => void submits.push(seq++),
+      // A deferred device's commands run when their buffer is submitted (`mockEncoder.ts`).
+      submit(done: Iterable<{ ops?: Array<() => void> }> = []) {
+        for (const { ops = [] } of done) for (const op of ops) op()
+        submits.push(seq++)
+      },
       onSubmittedWorkDone: async () => void fences++,
     },
   }

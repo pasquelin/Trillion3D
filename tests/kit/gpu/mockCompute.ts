@@ -100,7 +100,8 @@ export function simulateComputeDispatch(
     return
   }
   const stage = computePipeline?.entryPoint
-  if (!computeBind || !DAG_STAGES.has(stage ?? '')) return
+  // A group a test wrote by hand, without entries, binds nothing the double could run on.
+  if (!computeBind?.entries || !DAG_STAGES.has(stage ?? '')) return
   // The selection binds one buffer per `DAG_BINDING` slot: one missing is a validation error.
   const slots = Object.keys(DAG_BINDING).length
   if (computeBind.entries.length !== slots)

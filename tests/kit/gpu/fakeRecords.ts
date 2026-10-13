@@ -151,6 +151,16 @@ export type FakeDeviceOptions = {
   failCompact?: boolean
   /** Every shader module reports a compilation error. */
   failCompile?: boolean
+  /** An encoder's copies, clears and kernels run when its command buffer is submitted, as on a GPU;
+   *  one never submitted runs nothing. Otherwise they run as they are encoded. */
+  deferred?: boolean
+  /** A test's own double of the kernel `entryPoint` dispatched with group `bind`, called as it is
+   *  encoded: the work it returns runs in the kit's double's place, none for the kit's own. */
+  kernel?: (
+    entryPoint: string,
+    bind: unknown,
+    offsets?: readonly number[],
+  ) => (() => void) | undefined
 }
 
 /** A pages backend run whole on the device: a MiB a buffer and a binding, its pipelines built at
