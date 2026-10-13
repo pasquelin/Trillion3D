@@ -1,6 +1,7 @@
 use super::families::{families, FAMILIES};
 use super::*;
-use crate::split::{bisect_centres, half_area, sort_along};
+use crate::split::{bisect_centres, sort_along};
+use trillion3d_math::aabb::half_area;
 use trillion3d_math::random::xorshift64;
 use trillion3d_math::sphere::enclosing_sphere;
 
