@@ -18,6 +18,7 @@ import type { PageRec } from '../../page/selection/types.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
 import { followRowWords } from '../../placement/rowWords.ts'
+import { createShadowMobility } from './mobility.ts'
 import { encodeRowWords } from '../../placement/rowWordsPass.ts'
 import { uploadDirtyRows } from '../pages/render/dirtyRows.ts'
 
@@ -92,7 +93,8 @@ function scene() {
       },
     },
     blendState: { occlusionEpoch: 1 },
-    lights: {},
+    // The rows' motion is committed each follow (`rowTravel.ts`): the mobility's travel is read.
+    lights: { mobility: createShadowMobility() },
     timing: { encodeCounts: { rowsUploaded: 0 } },
     vis: { pageTable: device.createBuffer({ size: ROWS * PAGE_INFO_STRIDE, usage }) },
     gpu: { device },

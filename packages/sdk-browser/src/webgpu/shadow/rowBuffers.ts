@@ -2,9 +2,9 @@ import { pendingBuffers, type PendingGrowth } from '../../gpu/core/tableGrowth.t
 import type { WebgpuLightState } from '../pages/state/lights.ts'
 
 import { CLUSTER_SPHERE_FLOATS } from '../../gpu/shadow/sphereContract.ts'
+import { createRowMotion } from '../../gpu/shadow/rowMotion.ts'
 import { ROW_LOD_FLOATS } from './rowLodWords.ts'
 import { spheresMadeAnew } from './castChanges.ts'
-export { CLUSTER_SPHERE_FLOATS } from '../../gpu/shadow/sphereContract.ts'
 
 /** Bytes a shadow row buffer of `words` 4-byte words per row takes at `casterSlots` rows: never
  *  empty, a binding holds at least a row. */
@@ -20,26 +20,17 @@ export const shadowRowBytes = (casterSlots: number) =>
   rowBufferBytes(casterSlots, 1) +
   rowBufferBytes(casterSlots, ROW_LOD_FLOATS)
 
-/** The world spheres of `casterSlots` rows, the rows pass's (`../../placement/rowWordsPass.ts`), and
- *  their CPU copy, which the shadow raster sizes its chunks from (`spheres.ts`). */
+/** The world spheres of `casterSlots` rows, the rows pass's (`../../placement/rowWordsPass.ts`):
+ *  the GPU's alone, never copied to the CPU. Beside them, what changed in them frame to frame
+ *  (`motion`, `rowTravel.ts`), which the shadow raster sizes its chunks by, with the histograms the
+ *  GPU makes of them (`../../vsm/rowPageBound.ts`). */
 export function clusterSpheres(device: GPUDevice, casterSlots: number) {
   const buffer = device.createBuffer({
     label: 'Trillion3D cluster spheres v1',
     size: rowBufferBytes(casterSlots, CLUSTER_SPHERE_FLOATS),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
-  return {
-    buffer,
-    packed: new Float32Array(casterSlots * CLUSTER_SPHERE_FLOATS),
-    rows: casterSlots,
-    /** The row runs `[from, to]` (flat pairs) the copy of `epoch` wrote (`closeSphereCopies`). */
-    written: { epoch: 0, runs: [] as number[] },
-    /** The runs the copy under way writes (`copyClusterSpheres`). */
-    writing: undefined as number[] | undefined,
-    /** The composition's version the copies of its rows were made at, 0 before any
-     *  (`../../placement/composedSpheres.ts`). */
-    composedVersion: 0,
-  }
+  return { buffer, rows: casterSlots, motion: createRowMotion() }
 }
 
 /** One mobility word per row of `casterSlots` rows (`mobility.ts`), the size its words take. */

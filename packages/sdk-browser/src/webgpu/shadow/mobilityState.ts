@@ -1,5 +1,6 @@
 import { poseHoldsBox, sameElements } from '../../../../math/src/matrix/matrixElements.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../../gpu/shadow/mobilityBits.ts'
+import { createTravel } from './mobilityTravel.ts'
 
 /**
  * The state of `createShadowMobility`, fields of one object (`mobility.ts`).
@@ -17,6 +18,8 @@ import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../../gpu/shadow/mobilityB
  * (`../../placement/gpuCompose.ts`), -1 for none — its rows take no CPU pose while the parent
  * moves — sized by `follow` itself, since a link may come before `ensure`; per slot, `leadMoved`
  * the `settle` frame its parent last moved at, `leadMoving` 1 once its followers were made moving.
+ * `travel`: how far the placements and the parent slots went since the rows last took it, and the
+ * placements whose rows changed otherwise (`mobilityTravel.ts`).
  */
 export function createMobilityState() {
   return {
@@ -36,6 +39,7 @@ export function createMobilityState() {
     leads: new Int32Array(0),
     leadMoved: new Uint32Array(0),
     leadMoving: new Uint8Array(0),
+    travel: createTravel(),
   }
 }
 
@@ -51,6 +55,8 @@ export function touchRank(s: MobilityState, rank: number) {
 
 /** Placement `rank` starts moving at this frame: the static slice leaves it out. */
 export function promoteRank(s: MobilityState, rank: number) {
+  // Its rows were binned as still: each may now be anywhere.
+  s.travel.jumped.push(rank)
   s.moving[rank] = 1
   s.lastMoved[rank] = s.frame
   s.movingList.push(rank)

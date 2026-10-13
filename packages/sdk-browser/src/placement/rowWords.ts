@@ -18,7 +18,7 @@ import { createRowInputs, ensureRowInputs, sendRowFlags, sendRowInputs } from '.
 import { sendRootWorlds } from './rootWorlds.ts'
 import { takeMovedRows } from './rootMoves.ts'
 import { followComposedRun } from './composedRows.ts'
-import { closeSphereCopies, copyClusterSpheres } from '../webgpu/shadow/spheres.ts'
+import { commitRowMotion } from '../webgpu/shadow/rowTravel.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import type { RowWordsGpu } from './rowWordsGpu.ts'
 import { ROW_EMITS, ROW_NAMED } from './rowWordsWgsl.ts'
@@ -44,6 +44,9 @@ function createRowWords() {
     roots: [] as number[],
     /** The pass's GPU side (`rowWordsPass.ts`), made at its first run. */
     gpu: undefined as RowWordsGpu | undefined,
+    /** Rows named this frame for another reason than a root's move: written, made ready, every
+     *  row — what the shadow chunks' bound counts as changed (`commitRowMotion`). */
+    derived: 0,
   }
 }
 export type RowWords = ReturnType<typeof createRowWords>
@@ -83,13 +86,13 @@ export function deriveRootRows(rt: Pick<WebgpuPagesRuntime, 'rowWords'>, rank: n
 }
 
 /** A run of rows the table declared dirty: their inputs sent and their words derived again, the
- *  composed rows' list and the spheres' CPU copy following them. */
+ *  composed rows' list following them. */
 const dirtyRun: RowRunVisitor<WebgpuPagesRuntime> = (rt, from, to) => {
   const state = rt.rowWords!
   if (!state.sentWhole) sendRowInputs(rt, rt.gpu.device!, state.inputs, from, to)
   for (let row = from; row <= to; row++) target(state, row)
+  state.derived += to - from + 1
   followComposedRun(rt, from, to)
-  copyClusterSpheres(rt, from, to)
 }
 
 /** The rows of root `rank`'s resident pages derived again — its world was sent —, their shadow
@@ -108,7 +111,6 @@ function targetRootRows(rt: WebgpuPagesRuntime, state: RowWords, rank: number, e
     if (row < 0 || row >= rows.casterSlots) continue
     if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue
     target(state, row, emits)
-    copyClusterSpheres(rt, row, row)
   }
 }
 
@@ -134,10 +136,8 @@ export function followRowWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (state.sentWhole) {
     state.all = true
     forgetTargets(state)
-    if (rows.casterSlots) {
-      sendRowInputs(rt, device, state.inputs, 0, rows.casterSlots - 1)
-      copyClusterSpheres(rt, 0, rows.casterSlots - 1)
-    }
+    if (rows.casterSlots) sendRowInputs(rt, device, state.inputs, 0, rows.casterSlots - 1)
+    state.derived += rows.casterSlots
   }
   rows.forEachDirtyRun(rt, dirtyRun, rows.casterSlots - 1)
   // A row whose readiness moved: its detail's bits go up, eight bytes, and its words are derived.
@@ -145,9 +145,12 @@ export function followRowWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   for (let k = 0; k < ready.length && ready[k] < rows.casterSlots; k++) {
     if (!state.sentWhole) sendRowFlags(rt, device, state.inputs, ready[k])
     target(state, ready[k])
+    state.derived++
   }
   if (moved) for (let k = 0; k < moved.length; k++) targetRootRows(rt, state, moved[k], false)
   for (const rank of state.roots) targetRootRows(rt, state, rank, true)
   state.roots.length = 0
-  closeSphereCopies(rt)
+  // The rows a moving root's travel carries are counted by how far it went, the others whole.
+  commitRowMotion(rt, state.derived)
+  state.derived = 0
 }

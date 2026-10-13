@@ -64,12 +64,19 @@ export function settleSlot(
 ) {
   // Whether the parent moved: one linked now, or sent at the world it held, did not.
   const moved = p !== undefined && !sameElements(state.worlds, world, slot * 16)
+  // A parent's move moves its roots: its first makes them moving casters, each how far it went
+  // (`mobility.moveLead`), from the world it held.
+  if (moved)
+    rt.lights.mobility.moveLead(
+      slot,
+      state.ranksOf[slot],
+      state.worlds.subarray(slot * 16, slot * 16 + 16),
+      world,
+    )
   if (moved || p === undefined) state.parentsDirty = true
   state.worlds.set(world, slot * 16)
   state.version++
   remakeBins(rt, state, slot)
   if (moved || relinked) moveCards(rt, state, slot)
   if (moved || relinked) moveGroups(rt, state, slot)
-  // A parent's move moves its roots: its first makes them moving casters (`mobility.moveLead`).
-  if (moved) rt.lights.mobility.moveLead(slot, state.ranksOf[slot])
 }

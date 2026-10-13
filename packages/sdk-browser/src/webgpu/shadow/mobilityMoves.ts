@@ -1,6 +1,7 @@
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts'
 import { holdsPose, promoteRank, touchRank, type MobilityState } from './mobilityState.ts'
+import { noteTravel } from './mobilityTravel.ts'
 
 /**
  * Placement `rank` was posed at `world`: it moved unless `world` is the pose it was last seen
@@ -18,6 +19,7 @@ export function moveRank(
 ) {
   if (rank < 0 || rank >= s.moving.length) return MOVE_PROMOTED
   if (!forced && holdsPose(s, rank, world)) return MOVE_NONE
+  noteTravel(s.travel.ranks, rank, s.poses.subarray(rank * 16, rank * 16 + 16), world)
   s.poses.set(world, rank * 16)
   s.lastMoved[rank] = s.frame
   if (s.moving[rank]) return MOVE_MOVING
@@ -33,6 +35,8 @@ export function followLead(s: MobilityState, rank: number, lead: number) {
     s.leads = resized(s.leads, rank + 1, -1)
   }
   s.leads[rank] = lead
+  // Linked or let go, its world is another's: its rows may be anywhere.
+  s.travel.jumped.push(rank)
   if (lead < 0) return
   if (lead >= s.leadMoved.length) growSlots(s, lead + 1)
   if (!(rank < s.moving.length && s.moving[rank])) s.leadMoving[lead] = 0
@@ -45,13 +49,20 @@ function growSlots(s: MobilityState, size: number) {
 }
 
 /**
- * Parent slot `lead` moved: every placement of `ranks` that follows it moved with it, as one
- * `move` each would weigh it, without a pose per placement. Its first move makes its still
- * followers moving, once; a later one only stamps the slot's frame, which `settle` reads for
- * each follower. Returns `MOVE_PROMOTED` when a follower left the static slice, else
- * `MOVE_MOVING`.
+ * Parent slot `lead` moved from world `from` to `to`: every placement of `ranks` that follows it
+ * moved with it, as one `move` each would weigh it, without a pose per placement — the slot's
+ * travel is noted once. Its first move makes its still followers moving, once; a later one only
+ * stamps the slot's frame, which `settle` reads for each follower. Returns `MOVE_PROMOTED` when a
+ * follower left the static slice, else `MOVE_MOVING`.
  */
-export function moveLeadSlot(s: MobilityState, lead: number, ranks: readonly number[]) {
+export function moveLeadSlot(
+  s: MobilityState,
+  lead: number,
+  ranks: readonly number[],
+  from: ArrayLike<number>,
+  to: ArrayLike<number>,
+) {
+  noteTravel(s.travel.slots, lead, from, to)
   if (lead < 0 || lead >= s.leadMoved.length) return MOVE_PROMOTED
   s.leadMoved[lead] = s.frame
   if (s.leadMoving[lead]) return MOVE_MOVING
