@@ -9,11 +9,11 @@ import test, { before } from 'node:test'
 import assert from 'node:assert/strict'
 import { LIGHT_SETTINGS, type SceneLight } from '../../../packages/sdk-core/src/index.ts'
 import type { ResolveScene } from './resolvePage.ts'
+import { distanceVector3 } from '../../../packages/math/src/vector/vector.ts'
 import {
   assertSameBits,
   assertWithinUlps,
   cellRecord,
-  distance,
   resolveRandom,
   resolveSamples,
   runResolves,
@@ -57,7 +57,9 @@ const oneSample = (): Lamp => {
 /** The tile's list: every lamp whose sphere comes within 30 % of a sample — those that reach
  *  one, and near misses that add an exact zero —, in rank order. */
 const listOf = (set: Lamp[]) =>
-  set.flatMap((l, i) => (points.some((P) => distance(P, l.position) < l.range * 1.3) ? [i] : []))
+  set.flatMap((l, i) =>
+    points.some((P) => distanceVector3(P, l.position) < l.range * 1.3) ? [i] : [],
+  )
 
 /** A cell's record of `list`, named, as the grid pass of a scene of `count` lamps writes it:
  *  `shadowed` the listed ranks that carry a shadow slot, so the flag is the pass's. */
@@ -131,7 +133,7 @@ before(async () => {
   // The lamp over one sample reaches it and no other, and its tile lists it.
   const edge = sets.findIndex((set) => set.length === 40)
   const { position, range } = sets[edge][20]
-  const reached = points.filter((P) => distance(P, position) < range)
+  const reached = points.filter((P) => distanceVector3(P, position) < range)
   assert.equal(reached.length, 1, 'one sample in reach')
   assert.ok(lists[edge].includes(20))
   const runs = await runResolves(SCENES)

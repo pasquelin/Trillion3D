@@ -1,9 +1,10 @@
 //! THE MEDIAN SPLIT of a group of ids by their centres, one for every tree built over boxed things:
-//! the culling hierarchy (`culling.rs`), the triangle clusters (`clusters/spatial.rs`) and the DAG's
-//! groups (`asset-compiler-rust/src/dag/groups.rs`).
+//! the culling hierarchy (`culling.rs`), the triangle clusters (`clusters/spatial.rs`), the proxy's
+//! BVH (`proxy/bvh.rs`) and the DAG's groups (`asset-compiler-rust/src/dag/groups.rs`).
 //! A split is a selection, linear in the group, never a sort; a caller that reads a half in order
 //! sorts it (`sort_along`). Ties break by identifier, so a tree is the same on every build.
 use trillion3d_math::aabb::{aabb_of, aabb_of_boxes, longest_axis};
+use trillion3d_math::vecn::distance2;
 
 /// The order of two ids by their centres' coordinate on `axis` (`total_cmp`, so NaN has a place),
 /// then by identifier: two coincident centres keep the same order from build to build.
@@ -38,24 +39,12 @@ pub fn bisect_centres(slice: &mut [usize], centres: &[[f64; 3]]) -> usize {
     axis
 }
 
-/// The surface of a box, half of it.
-pub fn half_area(min: [f64; 3], max: [f64; 3]) -> f64 {
-    let [x, y, z] = [0, 1, 2].map(|a| max[a] - min[a]);
-    x * y + y * z + z * x
-}
-
-/// The squared diagonal of a box: the square of the radius its sphere is drawn and culled with.
-pub fn diagonal_squared(min: [f64; 3], max: [f64; 3]) -> f64 {
-    let [x, y, z] = [0, 1, 2].map(|a| max[a] - min[a]);
-    x * x + y * y + z * z
-}
-
 /// Splits `slice` at rank `at` on the axis of the least cost, of the three: each side's count times
-/// the squared diagonal of its boxes (`bounds` of an id). A side's squared diagonal is the square
-/// of the sphere every cull and every shadow page draws it with, so the cost is what a view pays
-/// to test what lies below; on a flat patch, where a surface ties on both axes, it still cuts the
-/// long side first, so the sides stay square. Each axis costs one selection and one pass over the
-/// boxes, so a split stays linear. Returns that axis.
+/// the squared diagonal of its boxes (`bounds` of an id; `distance2` of the corners). A side's
+/// squared diagonal is the square of the sphere every cull and every shadow page draws it with, so
+/// the cost is what a view pays to test what lies below; on a flat patch, where a surface ties on
+/// both axes, it still cuts the long side first, so the sides stay square. Each axis costs one
+/// selection and one pass over the boxes, so a split stays linear. Returns that axis.
 pub fn bisect_least_cost(
     slice: &mut [usize],
     centres: &[[f64; 3]],
@@ -69,7 +58,7 @@ pub fn bisect_least_cost(
         let (low, high) = boxes(&slice[..at]);
         let (low1, high1) = boxes(&slice[at..]);
         let (left, right) = (at as f64, (slice.len() - at) as f64);
-        let cost = left * diagonal_squared(low, high) + right * diagonal_squared(low1, high1);
+        let cost = left * distance2(high, low) + right * distance2(high1, low1);
         if best.is_none_or(|(least, _)| cost < least) {
             best = Some((cost, axis));
         }

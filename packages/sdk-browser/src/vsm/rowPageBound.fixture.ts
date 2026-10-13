@@ -2,6 +2,7 @@
 // commands each row can make: the shipped cull (`vsmRenderCullWgsl`, run by `shaderRun`) on the
 // projection data's clip matrix — the orthographic box, the screen rect — then the pages of the rect;
 // for a local light's maps, its range first, the perspective box, and every mip's rect.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { CLUSTER_SPHERE_FLOATS as STRIDE } from '../gpu/shadow/sphereContract.ts'
@@ -14,10 +15,8 @@ import { addVsmLocalLightShadow, vsmLocalViewData, type VsmLocalLightInput } fro
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
 import { createVsmResources } from './resources.ts'
 import type { VsmBoundLight, VsmRowSpheres, VsmWorst } from './rowPageBound.ts'
-import { seeded } from './planFrames.fixture.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
-export { seeded }
 export const PAGES = 2048
 /** The raster's worst case at `PAGES` pages under a sun, its lists of `cap` entries. */
 export const worstOf = (cap = 1 << 21): VsmWorst => ({
@@ -52,7 +51,7 @@ export function scene(
   rMax: number,
   seed = 1,
 ) {
-  const rand = seeded(seed)
+  const rand = mulberry32(seed)
   return sphereRows(
     n,
     () => centre.map((c) => c + (rand() * 2 - 1) * spread),

@@ -1,7 +1,7 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { vectorRejection } from '../../../math/src/wgsl/geometry.ts'
 import { LOBE_PACK_WGSL } from '../scene/physicalLobes.ts'
-import { ROUGHNESS_FLOOR } from './shaderConstantsWgsl.ts'
+import { ROUGHNESS_FLOOR_WGSL } from './shaderConstantsWgsl.ts'
 
 /**
  * The width of a lobe of roughness `rough`, the one rule of every program that reads it: the
@@ -18,7 +18,7 @@ import { ROUGHNESS_FLOOR } from './shaderConstantsWgsl.ts'
  */
 export const LOBE_AXIS_WGSL = wgslBlock(
   'LOBE_AXIS_WGSL',
-  [LOBE_PACK_WGSL, vectorRejection, ROUGHNESS_FLOOR],
+  [LOBE_PACK_WGSL, vectorRejection, ROUGHNESS_FLOOR_WGSL],
   `fn lobeRoughness(rough:f32)->f32{return clamp(rough,ROUGHNESS_FLOOR,1.0);}
 fn lobeAlpha(rough:f32)->f32{let r=lobeRoughness(rough);return r*r;}
 fn lobeAxis(d:vec3f,strength:f32,N:vec3f,alpha:f32)->vec4f{

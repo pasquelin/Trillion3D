@@ -3,8 +3,9 @@ import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { DEG2RAD } from '../../../math/src/constants.ts'
 
 /**
- * THE CONSTANTS OF THE REFLECTION'S SHADERS, one table the WGSL block is printed from
- * (`REFLECTION_CONSTANTS_WGSL`, each as the `f32` nearest it) and the tests read.
+ * The constants of the reflection's shaders, by the name they read, one table: the WGSL block is
+ * printed from it (`REFLECTION_CONSTANTS_WGSL`, each the `f32` nearest its value) and the tests
+ * that state a rule in their terms read it here.
  */
 export const REFLECTION_CONSTANTS = {
   /** The image border, a fraction of its height, over which a hit fades into the next stage. */
@@ -34,7 +35,7 @@ export const REFLECTION_CONSTANTS = {
   REFLECTION_FAR: 2 ** 23,
 } as const
 
-/** The reflection's constants as the shaders read them (`REFLECTION_CONSTANTS`). */
+/** The constants of the reflection's shaders (`REFLECTION_CONSTANTS`), as WGSL declares them. */
 export const REFLECTION_CONSTANTS_WGSL = wgslBlock(
   'REFLECTION_CONSTANTS_WGSL',
   [],

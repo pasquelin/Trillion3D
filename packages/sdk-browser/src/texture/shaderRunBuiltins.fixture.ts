@@ -1,5 +1,6 @@
 // The WGSL built-ins and operators `shaderRun` (`shaderRun.fixture.ts`) runs a shader with, in
 // JavaScript double precision.
+import { f32Bits, fromF32Bits } from '../../../math/src/float/bits.ts'
 import { cross } from '../../../math/src/vector/vectorTuple.ts'
 import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
 import { SCALAR } from './shaderRunOperators.fixture.ts'
@@ -103,10 +104,8 @@ const int = (x: Scalar) => Math.trunc(Number(x))
 
 const numeric = (f: (...x: number[]) => number) => each((...x) => f(...x.map(n)))
 /** A float's 32 bits as an unsigned integer, and back: `bitcast`. */
-const WORD = new Float32Array(1),
-  BITS = new Uint32Array(WORD.buffer)
-const toBits = each((x) => ((WORD[0] = n(x)), BITS[0]))
-const toFloat = each((x) => ((BITS[0] = n(x)), WORD[0]))
+const toBits = each((x) => f32Bits(n(x)))
+const toFloat = each((x) => fromF32Bits(n(x)))
 const vec = (value: Value) => value as number[]
 
 /** A pointer: what `&x` gives an atomic (`shaderRun.fixture.ts`). */

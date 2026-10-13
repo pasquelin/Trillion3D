@@ -29,6 +29,7 @@ const FUNCTIONS = [
   'rtBox',
   'rtChild',
   'rtWorldOf',
+  'rtOrigin',
   'rtInstanceWord',
   'rtTreeWord',
   'rtTreeLow',

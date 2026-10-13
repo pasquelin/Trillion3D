@@ -1,7 +1,8 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
+import { RASTER_BACKGROUND } from '../../page/raster.ts'
 import { worldOrGeometryReader, type WorldRootsHold } from '../../scene/worldRoots.ts'
 import type { HostTexture } from '../../host/resources.ts'
-import { DEFAULT_CLEAR_COLOR, isCancelled, pixelRatioOf } from '../../engine/common.ts'
+import { isCancelled, pixelRatioOf } from '../../engine/common.ts'
 import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts'
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts'
 import { createTextureLevelReader } from '../../texture/levelReader.ts'
@@ -64,7 +65,7 @@ function optionContext(session: ExplorerSession) {
     maxResidentPages: options.maxResidentPages,
     pixelError: options.pixelError ?? 0,
     lodAdaptive: options.lodAdaptive,
-    clearColor: options.clearColor ?? DEFAULT_CLEAR_COLOR,
+    clearColor: options.clearColor ?? RASTER_BACKGROUND,
     pixelRatio: () => pixelRatioOf(options),
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,

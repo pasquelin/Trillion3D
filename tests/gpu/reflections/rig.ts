@@ -9,6 +9,7 @@
 // targets are read back to the bit.
 import { rigProxy } from './rigRuntime.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
+import { createSurroundings } from '../../../packages/sdk-browser/src/lighting/toneUnmap.ts'
 import {
   createReflectionPipelines,
   createScreenReflection,
@@ -95,6 +96,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   // The scene's proxy and the radiance its faces give; else no proxy, a header of zeros, which reads as
   // no placement.
   const over = { lightView: lightView.buffer }
+  const surroundings = createSurroundings()(frame.background ?? 0, 1, TONE_MAPPING_RANK.none)
   // No bounce probes: an empty grid (no level, no light list read) holding a proxy ray's reach.
   const bounceGrid = device.createBuffer({
     size: BOUNCE_GRID_BYTES,
@@ -110,7 +112,6 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     bounceGrid,
     probes: probes.createView({ dimension: '2d-array' }),
     ...rigProxy(device, reflection, frame.proxy?.faces),
-    lightView: lightView.buffer,
     lightLists: device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE }),
   }
   return {
@@ -124,6 +125,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
           size: frame.size,
           depthDrawn: true,
           proxyError: 0,
+          surroundings,
         },
         reflection.radiance.held,
         reflection.radiance.levels,

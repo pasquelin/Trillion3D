@@ -9,7 +9,7 @@ import {
   fakeDevice,
   type FakeBuffer,
 } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { words } from '../../../../../tests/kit/gpu/mockBuffers.ts'
+import { words } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { packDagSelection } from './selection.ts'

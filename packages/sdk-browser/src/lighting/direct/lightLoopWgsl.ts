@@ -60,7 +60,7 @@ export const declaredLightWgsl = (
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return ${terms(pair, (rgb, metal) => `(modelLight(${rgb},${metal},N,incidence.xyz,energy,ao)+transmitted)*color`)};}
  return ${terms(pair, (_rgb, _metal, shading) => `(${lobes ? 'lobeLight' : 'surfaceLight'}(${shading},N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
 }`
-      : `fn declaredIrradiance(light:DirectLight,P:vec3f,N:vec3f,reach:f32)->vec3f{${key.rectless ? '' : IRRADIANCE_RECT}${INCIDENCE('vec3f(0.0)')}${IRRADIANCE_TERM}
+      : `fn declaredIrradiance(light:DirectLight,P:vec3f,N:vec3f,reach:f32)->vec3f{${irradianceTerm(key.rectless)}
 }`,
   )
 }
@@ -74,35 +74,41 @@ const INCIDENCE = (zeroTerm: string) => `
  let incidence=directIncidence(light,P);
  if(incidence.w<=0.0){return ${zeroTerm};}`
 
-/** A rectangle's irradiance, under the one visibility rule of every light the bounce reads: where it
- *  adds light and casts a shadow, one ray through the resident proxy toward its centre — a rectangle
- *  behind a wall lights no cell through it, as a lamp does not. */
-const IRRADIANCE_RECT = `
- if(isRect(light)){
-  let lit=light.colorIntensity.rgb*light.colorIntensity.w*rectIrradiance(light,P,N).w;
-  if(all(lit==vec3f(0.0))||light.params.z<=0.5){return lit;}
-  let offset=light.positionRange.xyz-P;
-  let span=length(offset);
-  if(span>0.0&&rtBlocked(P+N*1e-3,offset/span,span)){return vec3f(0.0);}
-  return lit;
- }`
-
 /**
- * A punctual light's irradiance through the proxy: its cosine, then — where it adds light and casts
- * a shadow — one ray toward it through the resident proxy, which keeps a closed door closed for the
- * bounce as for the direct term. Every shadow-casting light that adds light at the point is tested:
- * one left untested would shine through the wall. A sun's ray reaches \`reach\`, a lamp's the lamp.
+ * A light's irradiance through the proxy, one rule for every kind: what it adds at the point — a
+ * punctual light's cosine, a rectangle's form factor (\`rectIrradiance\`), its exact zero out of
+ * range —, then, where it adds light and casts a shadow, one ray toward it through the resident
+ * proxy, which keeps a closed door closed for the bounce as for the direct term. Every
+ * shadow-casting light that adds light at the point is tested: one left untested would shine
+ * through the wall. A sun's ray reaches \`reach\`, a lamp's the lamp, a rectangle's its centre. A
+ * rectangle casts no shadow by its contract (\`validateRect\`, \`packages/sdk-core/src/scene/light/validate.ts\`),
+ * in the direct term as here: its flag is never set, and the rule tests it as any light's.
  */
-const IRRADIANCE_TERM = `
- let cosine=dot(N,incidence.xyz);
- if(cosine<=0.0){return vec3f(0.0);}
- let lit=light.colorIntensity.rgb*light.colorIntensity.w*incidence.w*cosine;
+const irradianceTerm = (rectless = false) => `
+ var lit=vec3f(0.0);
+ var toward=vec3f(0.0);${
+   rectless
+     ? PUNCTUAL_IRRADIANCE
+     : `
+ if(isRect(light)){
+  lit=light.colorIntensity.rgb*light.colorIntensity.w*rectIrradiance(light,P,N).w;
+  toward=normalize(light.positionRange.xyz-P);
+ }else{${PUNCTUAL_IRRADIANCE}
+ }`
+ }
  if(all(lit==vec3f(0.0))){return lit;}
  if(light.params.z>0.5){
   let span=select(length(light.positionRange.xyz-P),reach,isSun(light));
-  if(rtBlocked(P+N*1e-3,incidence.xyz,span)){return vec3f(0.0);}
+  if(rtBlocked(P+N*1e-3,toward,span)){return vec3f(0.0);}
  }
  return lit;`
+
+/** A punctual light's irradiance before its shadow: its incidence, then its cosine. */
+const PUNCTUAL_IRRADIANCE = `${INCIDENCE('vec3f(0.0)')}
+ let cosine=dot(N,incidence.xyz);
+ if(cosine<=0.0){return vec3f(0.0);}
+ lit=light.colorIntensity.rgb*light.colorIntensity.w*incidence.w*cosine;
+ toward=incidence.xyz;`
 
 /**
  * With `pair`, the light's two terms from one walk (`declaredLightPair`): on the surface, and on a

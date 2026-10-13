@@ -5,14 +5,13 @@ import { join } from 'node:path'
 import type { Page } from 'playwright'
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
-import * as options from '../harness/options.ts'
+import { ENGINES } from '../harness/sideOptions.ts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
 import { measureIrradiance } from './oraclePage.ts'
 import type { LightsPlan } from '../lighting/lamps.ts'
-import type { SideBase } from '../harness/dists.ts'
+import { type SideBase, sdkEntryUrl } from '../harness/dists.ts'
 import { compareIrradiance, convergenceDelay, oracleJob, runOracle } from './oracleCompare.ts'
 import type { OracleReport } from './oracleCompare.ts'
-import { sdkEntryUrl } from '../harness/dists.ts'
 
 /** The oracle campaign's own settings, read once from flags. */
 export interface OracleSettings {
@@ -77,7 +76,7 @@ export async function runView(page: Page, ctx: RunViewCtx): Promise<OracleView> 
   const result = await page.evaluate(measureIrradiance, {
     sdkUrl: sdkEntryUrl(side),
     manifestUrl,
-    backend: options.ENGINES.webgpu.backend,
+    backend: ENGINES.webgpu.backend,
     pose,
     captureFile,
     width: settings.width,

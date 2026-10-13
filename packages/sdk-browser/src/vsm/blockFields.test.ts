@@ -10,6 +10,8 @@ import { ENGINE_SHADERS } from '../gpu/core/engineShaders.fixture.ts'
 import { directShadowWgsl } from '../lighting/direct/shadowWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
+import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from './constants.ts'
+import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
@@ -21,12 +23,25 @@ const COMPOSED: Record<string, string> = {
   'direct read, opaque resolve': wgslModule(directShadowWgsl(25, { resolveTransmission: 14 })),
 }
 
-/** The field names of struct `name` in `text`, pads left out. */
-function fieldsOf(text: string, name: string) {
+/** The body of struct `name` in `text`. */
+function bodyOf(text: string, name: string) {
   const body = new RegExp(`struct ${name}\\{([^}]*)\\}`).exec(text)
   assert.ok(body, `struct ${name}`)
-  return [...body[1].matchAll(/(\w+):/g)].map((m) => m[1]).filter((f) => !f.startsWith('_'))
+  return body[1]
 }
+
+/** The field names of struct `name` in `text`, pads left out. */
+const fieldsOf = (text: string, name: string) =>
+  [...bodyOf(text, name).matchAll(/(\w+):/g)].map((m) => m[1]).filter((f) => !f.startsWith('_'))
+
+/** The fields of struct `name` in `text`, pads included: each its name and its type. */
+const declaredOf = (text: string, name: string) =>
+  [...bodyOf(text, name).matchAll(/(\w+):(\w+(?:<[^>]*>)?),/g)].map((m) => [m[1], m[2]] as const)
+
+/** The bytes of the host-shareable struct `name` of `text`, laid out as WGSL lays it out
+ *  (`fieldLayout`): every field the parse read, at its size. */
+const bytesOf = (text: string, name: string) =>
+  4 * fieldLayout(name, declaredOf(text, name) as Parameters<typeof fieldLayout>[1]).words
 
 /** `text` without the function `name` (the decode, which reads every field): from its name to the
  *  brace that balances its body's opening one. */
@@ -59,8 +74,21 @@ const UNIFORM_FIELDS = fieldsOf(wgslSource(VSM_UNIFORMS_WGSL), 'VsmUniforms'),
   )
 
 test('every field of the uniform block and of the projection record is read by a shader', () => {
-  assert.ok(Object.keys(COMPOSED).length >= 140, 'every engine shader is checked')
-  assert.ok(UNIFORM_FIELDS.length >= 18 && RECORD_FIELDS.length >= 15 && RAW_FIELDS.length >= 15)
+  assert.equal(
+    Object.keys(COMPOSED).length,
+    Object.keys(ENGINE_SHADERS).length + 2,
+    'every engine shader is checked, and the two direct reads',
+  )
+  // The parse read every field: the fields it found fill the block and the record the host writes.
+  assert.equal(bytesOf(wgslSource(VSM_UNIFORMS_WGSL), 'VsmUniforms'), VSM_UNIFORMS_BYTES)
+  assert.equal(
+    bytesOf(wgslSource(VSM_PROJECTION_DATA_WGSL), 'VsmProjectionRecord'),
+    VSM_PROJECTION_RECORD_BYTES,
+  )
+  assert.ok(
+    RAW_FIELDS.every((field) => RECORD_FIELDS.includes(field)),
+    'the decoded record holds every raw field',
+  )
   assert.deepEqual(unread(UNIFORM_FIELDS, texts(), ['vsm']), [])
   assert.deepEqual(unread(RAW_FIELDS, Object.values(COMPOSED), []), [])
   assert.deepEqual(unread(RECORD_FIELDS, texts(), []), [])

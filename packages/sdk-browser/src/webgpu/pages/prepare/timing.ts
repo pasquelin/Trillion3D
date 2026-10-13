@@ -27,12 +27,14 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       }
       timing.lastGpuFrameMs = sample.submittedMs
       gpuLog(rt, sample)
-      // The controller steps on an image timed whole: a pass whose pair cannot be read may lie
-      // outside the span, which is then short, and the frame interval steps it as for no time.
+      // The span is the image's whole time, or a lower bound of it where a pass's pair cannot be
+      // read (that pass may lie outside it): the scale steps on a whole one alone, the cadence
+      // slows on a bound too (`frame/cadence.ts`).
       rt.scale.observe(
-        sample.pairs.invalid > 0 ? null : sample.frameMs,
+        sample.frameMs,
         sample.renderScale,
         sample.scaleSteered !== false,
+        sample.pairs.invalid === 0,
       )
       // The bounce budget is a duration: it reads here the timer of its own stage, the per-pass
       // profile's, and corrects the next image's batch. Never an estimate.

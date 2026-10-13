@@ -9,13 +9,13 @@ import {
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { sceneNote } from '../assets/scene.ts'
 import { assertReport, REPORT_VERSION } from '../../kit/report/contract.ts'
-import type { Report as CampaignReport } from '../../kit/report/types.ts'
+import type { Report } from '../../kit/report/types.ts'
 import type { BenchReport } from './types.ts'
 import { readJson } from '../../../scripts/repository-files.ts'
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 
-type ReportRun = CampaignReport['runs'][number]
-type ReportRecord = CampaignReport['records'][number]
+type ReportRun = Report['runs'][number]
+type ReportRecord = Report['records'][number]
 
 /** Normalises an image delta for the public record: the pixel-count reading, or `null`. */
 function toWitness(diff: unknown): { pixels: number; total: number } | null {
@@ -64,7 +64,7 @@ function image(
   copyFileSync(file, join(output, target))
   return target
 }
-export function exportReport(source: string, output: string, id: string): CampaignReport {
+export function exportReport(source: string, output: string, id: string): Report {
   const report: {
     formatVersion: typeof REPORT_VERSION
     id: string

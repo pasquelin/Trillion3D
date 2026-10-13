@@ -6,6 +6,7 @@
 // lobe, to the rounding of its other form.
 //
 //   node bench/dawn/proofs.ts tests/gpu/lighting/lobes-resolve.gpu.ts
+import { fromF32Bits } from '../../../packages/math/src/float/bits.ts'
 import test, { before } from 'node:test'
 import assert from 'node:assert/strict'
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts'
@@ -77,7 +78,6 @@ test('the lobes program sums a pixel without lobes as the program without lobe c
 })
 
 test('the anisotropic lobe at αt = α is the isotropic GGX lobe', () => {
-  const f32 = (bits: number) => new Float32Array(new Uint32Array([bits]).buffer)[0]
   let compared = 0
   for (let k = 0; k < points.length; k++) {
     const at = k * SAMPLE_FLOATS,
@@ -86,8 +86,8 @@ test('the anisotropic lobe at αt = α is the isotropic GGX lobe', () => {
     // A view behind its normal is no pixel: both forms clamp N·V there, differently.
     if (N[0] * V[0] + N[1] * V[1] + N[2] * V[2] < 0.05) continue
     for (let c = 0; c < 3; c++) {
-      const iso = f32(sums.standard[4 * k + c]),
-        aniso = f32(sums.isoAniso[4 * k + c])
+      const iso = fromF32Bits(sums.standard[4 * k + c]),
+        aniso = fromF32Bits(sums.isoAniso[4 * k + c])
       assert.ok(
         Math.abs(aniso - iso) <= 1e-4 * Math.max(1, Math.abs(iso)),
         `sample ${k}, channel ${c}: ${aniso} for ${iso}`,

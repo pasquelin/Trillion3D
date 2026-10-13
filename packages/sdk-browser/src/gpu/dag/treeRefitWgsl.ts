@@ -18,6 +18,7 @@
  *   members     array<vec2u>   each placement's leaf box, six doubles
  *   frames<r>   array<u32>     each placement's frame words: its root, its mark, a buffer a range
  */
+import { f32Bits } from '../../../../math/src/float/bits.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { dAbs, dAdd, dLess, dMax, dMin, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
 import { fromF32, toF32 } from '../../../../math/src/wgsl/f32.ts'
@@ -36,7 +37,6 @@ import { REFIT_LANES } from './treeRefitLevels.ts'
 const FRAME_ROOT = 1,
   FRAME_MARK = 3
 
-const f32Bits = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
 /** The bits of the bound an open node holds, and of an empty one's. */
 const OPEN_LOW_BITS = f32Bits(-OPEN),
   OPEN_HIGH_BITS = f32Bits(OPEN)

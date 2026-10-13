@@ -1,5 +1,5 @@
 import { UNIFORM_BYTES, drawBatches } from './contract.ts'
-import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { createGpuDrawBuffers } from './buffers.ts'
 import type { GpuDraw } from './contract.ts'
 import { constructGpuResources, validated } from '../core/errorScope.ts'
@@ -21,7 +21,7 @@ export async function createGpuDraw(
   maxCorners: number,
 ): Promise<GpuDraw | undefined> {
   const { corners, perRow } = drawBatches(maxCorners)
-  if (!canCompute(device) || slotCap < 1) return undefined
+  if (slotCap < 1) return undefined
   let allocated: ReturnType<typeof createGpuDrawBuffers> | undefined
   let d: Draw | undefined
   const release = () => {

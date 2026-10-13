@@ -94,7 +94,8 @@ export function createTileRequests(options: {
     defer(from: number) {
       wanted.from = Math.min(from, wanted.to)
     },
-    /** Tiles waiting for a next pass, deferred by the budget. */
+    /** Tiles the list still offers: once a pass told what it reached (`defer`), those its budget
+     *  deferred to the next; before, the whole list it is offered. */
     get deferred() {
       return wanted.to - wanted.from
     },

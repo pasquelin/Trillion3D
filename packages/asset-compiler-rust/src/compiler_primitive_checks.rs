@@ -37,7 +37,8 @@ fn triangles(indices: &[u32]) -> impl Iterator<Item = &[u32]> {
 mod tests {
     use super::*;
     use crate::dag::{build_dag_tallied, DagAttributes, DagStrategy};
-    use trillion3d_page_codec::encode::{Attribute, FLAG_NORMAL};
+    use trillion3d_page_codec::encode::Attribute;
+    use trillion3d_page_codec::FLAG_NORMAL;
 
     /// A gently waved sheet facing up with its up normals, and the DAG the compiler builds of it;
     /// the source triangle `inverted`, if any, winds the other way.

@@ -12,7 +12,7 @@ import { CARD_FLOATS } from '../../impostor/cardSlots.ts'
 import { viewProj } from '../pages/helpers.ts'
 import { drawImpostorVisibility, encodeImpostorCards } from './encode.ts'
 import { planWebgpuImpostors } from './frame.ts'
-import { bench, imagesUntilResident } from './frame.fixture.ts'
+import { bench } from './frame.fixture.ts'
 import { IMPOSTOR_PASS } from '../../stage/passLabels.ts'
 import { CARD_ROOT, CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts'
 import {
@@ -24,7 +24,7 @@ import {
 } from '../../impostor/section.fixture.ts'
 
 test('a switched root draws its card in visibility and surfaces once its atlas lands', async () => {
-  const { gpu, rt, roots, fixture, asked, marked, landed } = await bench()
+  const { gpu, rt, roots, fixture, asked, marked, landed, untilResident } = await bench()
   // First image: the atlas is asked through the one reader, and the root keeps its clusters.
   planWebgpuImpostors(rt, engineOf(200))
   assert.equal(roots[0].mark, undefined, 'no card before the atlas: the root stays whole')
@@ -33,7 +33,7 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
     asked.map((request) => request.url),
     ATLAS_URLS,
   )
-  await imagesUntilResident(rt, 200)
+  await untilResident(200)
   assert.ok(landed() >= 2, 'the landing and the atlas made break a held image')
   const atlas = gpu.textures.filter((t) => t.label?.includes('impostor')).map((t) => t.format)
   assert.deepEqual(atlas, ['rgba8unorm-srgb', 'rgba8unorm', 'rgba8unorm'])
@@ -90,8 +90,8 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
 })
 
 test('a near root draws whole again and no card pass is encoded', async () => {
-  const { gpu, rt, roots, fixture, marked } = await bench()
-  await imagesUntilResident(rt, 200)
+  const { gpu, rt, roots, fixture, marked, untilResident } = await bench()
+  await untilResident(200)
   planWebgpuImpostors(rt, engineOf(200))
   planWebgpuImpostors(rt, engineOf(5))
   assert.equal(roots[0].mark, undefined, 'its card bit cleared')
@@ -116,12 +116,12 @@ test('a card out of the view asks no atlas and leaves its root to the card', asy
 })
 
 test('two meshes placed by one shared world each draw their own card', async () => {
-  const { rt, roots, fixture } = await bench()
+  const { rt, roots, fixture, untilResident } = await bench()
   // A second baked mesh whose root shares the first's world object (`IDENTITY_WORLD` is shared).
   const other = { ...section.meshes[0], mesh: MESH + 1, sourceMesh: MESH + 1 }
   rt.context.metadata.impostors = { ...section, baked: 2, meshes: [section.meshes[0], other] }
   roots.push({ ...roots[0], mesh: MESH + 1 })
-  await imagesUntilResident(rt, 200)
+  await untilResident(200)
   planWebgpuImpostors(rt, engineOf(200))
   for (const root of roots) assert.equal(root.mark, CARD_ROOT, 'each root left to its card')
   const { count, runCount } = rt.gpu.impostors!
@@ -130,12 +130,12 @@ test('two meshes placed by one shared world each draw their own card', async () 
 })
 
 test('a root the packed world DAG stands in for draws no card; one it does not hold keeps its own', async () => {
-  const { rt, roots, marked } = await bench()
+  const { rt, roots, marked, untilResident } = await bench()
   // Two roots of two baked meshes: one the world holds, one it does not.
   const other = { ...section.meshes[0], mesh: MESH + 1, sourceMesh: MESH + 1 }
   rt.context.metadata.impostors = { ...section, baked: 2, meshes: [section.meshes[0], other] }
   roots.push({ ...roots[0], mesh: MESH + 1 })
-  await imagesUntilResident(rt, 200)
+  await untilResident(200)
   planWebgpuImpostors(rt, engineOf(200))
   assert.equal(roots[0].mark, CARD_ROOT, 'carded while no world DAG is packed')
   assert.equal(rt.gpu.impostors!.count, 2)

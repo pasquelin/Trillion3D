@@ -76,7 +76,7 @@ pub enum QuantRefusal {
 /// A vector attribute on the grid of `2^exponent`: `values` holds `N` floats per vertex, each
 /// divided by the step and rounded half away from zero. Returns the record and, per vertex, the
 /// `N` grid offsets from the page minimum. `#[inline(always)]`: the compiler runs it in its AVX2
-/// copy (`wide.rs`).
+/// copy (`simd.rs`).
 #[inline(always)]
 pub fn quantize<const N: usize>(
     values: &[f32],

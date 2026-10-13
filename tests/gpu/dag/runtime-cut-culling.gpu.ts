@@ -10,8 +10,8 @@ import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import { cutDrawnTriangles } from '../../../packages/sdk-browser/src/world/page/runtimeCut.ts'
 import { cullingNodes } from '../../../packages/sdk-browser/src/page/selection/helpers.ts'
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import { runSelectionKernel, type SelectionCase } from './selectionKernel.ts'
-import { posedSelection } from './selectionCase.ts'
+import { runSelectionKernel } from './selectionKernel.ts'
+import { posedSelection, type SelectionCase } from './selectionCase.ts'
 
 const VIEWPORT: [number, number] = [1280, 720]
 

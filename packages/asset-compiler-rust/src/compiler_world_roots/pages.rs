@@ -13,7 +13,7 @@ use trillion3d_page_codec::encode::{encode_deformed, Attribute, Encoded};
 /// The grid of every world page: the finer of the world's extent in 2^16 steps and an eighth of its
 /// finest super-root error, bounded by the page field on that extent.
 pub(super) fn world_exponent(world: &WorldDag) -> i32 {
-    let bounds = crate::proxy::bvh::extent(&world.positions);
+    let bounds = trillion3d_page_codec::proxy::bvh::extent(&world.positions);
     let extent = (0..3)
         .map(|axis| bounds[axis + 3] - bounds[axis])
         .fold(0.0, f64::max);

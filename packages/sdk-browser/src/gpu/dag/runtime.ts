@@ -174,6 +174,7 @@ function selectionOver(run: DagRun): GpuSelection {
     aside: () => createAsideCut(resources, state, { copyOwed: run.copyOwed, syncTables }),
     adopt: (cut) => (!state.dead && cut === state.last ? chain.adopt() : undefined),
     failed: () => state.dead,
+    landed: () => state.pending.then(() => {}),
     flush: () =>
       flushRuntime(run, (uniforms) => {
         syncTables(uniforms, mainView)

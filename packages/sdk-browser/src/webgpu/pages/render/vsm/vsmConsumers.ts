@@ -18,7 +18,7 @@ function projectedVsm(rt: WebgpuPagesRuntime) {
 }
 
 /** This frame's resources a non-mask read takes (blend, water): the maps, the pool's first slice —
- *  one window (`vsmForwardPoolBinding`) — and the projection's view and noise its fragments trace
+ *  its one window (`VSM_FORWARD_LAYOUT`) — and the projection's view and noise its fragments trace
  *  with (`vsmTraceFactor`), or none. */
 export function vsmConsumerResources(rt: WebgpuPagesRuntime) {
   const vsm = projectedVsm(rt)

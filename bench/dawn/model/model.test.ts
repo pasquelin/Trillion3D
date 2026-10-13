@@ -5,8 +5,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import type { BenchReport } from '../merge.ts'
 import { floorOf } from './floor.ts'
 import { frameOf, modelRows, modelText } from './modelTable.ts'
-import { PASSES, type Frame } from './passes.ts'
-import { DAG_FIXED_DISPATCHES, DAG_LEVEL_DISPATCHES } from './passConstants.ts'
+import { PASSES } from './passes.ts'
+import { DAG_FIXED_DISPATCHES, DAG_LEVEL_DISPATCHES, type Frame } from './passConstants.ts'
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts'
 import {
   cutResources,

@@ -1,4 +1,5 @@
 import { floorLog2 } from '../../../packages/math/src/scalar/integers.ts'
+import { textureExtent } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 import { TEXTURE, aspectFormat, srgbPair, usageRefusedBy, type Features } from './formats.ts'
 
 /**
@@ -48,9 +49,7 @@ export function checkTexture(
   descriptor: GPUTextureDescriptor,
   features: Features = NO_FEATURES,
 ): TextureInfo {
-  const size = descriptor.size
-  const [width, height = 1, layers = 1] =
-    'width' in size ? [size.width, size.height, size.depthOrArrayLayers] : [...size]
+  const [width, height, layers] = textureExtent(descriptor.size)
   const info: TextureInfo = {
     label: descriptor.label,
     format: descriptor.format,

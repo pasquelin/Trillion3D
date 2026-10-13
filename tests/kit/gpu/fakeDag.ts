@@ -2,8 +2,8 @@ import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/select
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
 import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
-import { floats, words } from './mockBuffers.ts'
-import { worldsAtEye } from './mockWorldPose.ts'
+import { floats, words } from './fakeBuffers.ts'
+import { worldsAtEye } from './fakeWorldPose.ts'
 import { indexOfRanks } from '../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
 
 type Bound = Map<number, { data: Uint8Array }>

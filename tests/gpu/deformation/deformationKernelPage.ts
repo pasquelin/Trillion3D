@@ -3,7 +3,7 @@
 // it applies the proof's writes, stamps the image number, dispatches one group and reads back the
 // three vertex records the frame names. Each buffer lands at the binding its shader name has in
 // the stage's own text.
-import { readBuffer } from '../kit/computeReadback.ts'
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import {
   DEFORMATION_COMPUTE_WGSL,
   deformationBindings,
@@ -90,7 +90,7 @@ export async function run({
     device.queue.submit([encoder.finish()])
     records.push([
       ...new Float32Array(
-        (await readBuffer(device, named[from.buffer], from.at * 4, READ_BYTES)).buffer,
+        (await readGpuBuffer(device, named[from.buffer], READ_BYTES, from.at * 4))!.buffer,
       ),
     ])
   }

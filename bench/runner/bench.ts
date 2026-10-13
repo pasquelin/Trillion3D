@@ -9,8 +9,11 @@
 import { mkdir } from 'node:fs/promises'
 import type { Page } from 'playwright'
 import { onFreshPage } from './harness/chrome.ts'
-import * as options from './harness/options.ts'
-import { isEngine } from './harness/sideOptions.ts'
+import { PATH_VERSION, VIEWS, poseAt, trajectoryPoses } from './trajectory/poses.ts'
+import { assetsManifest, sceneGltf, readsCache } from './assets/scene.ts'
+import { equipSides, readOptions, resolveMounts } from './harness/options.ts'
+import { resolveSides, sdkEntryUrl } from './harness/dists.ts'
+import { sideReport, isEngine } from './harness/sideOptions.ts'
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts'
 import { readStreet } from './street/street.ts'
 import { imageDiff } from './references/imageDiff.ts'
@@ -20,7 +23,6 @@ import { recordInputs } from './report/evidence.ts'
 import { runSeries } from './series/series.ts'
 import { runGazeSeries } from './gaze/gazeNetworkRun.ts'
 import { publish } from './harness/benchPublish.ts'
-import { readsCache } from './assets/scene.ts'
 import { runFluids } from './fluids/fluids.ts'
 import { readLimits } from './harness/limits.ts'
 import { againstReference, sceneReference } from './references/referenceProof.ts'
@@ -34,17 +36,17 @@ const {
   out: OUT,
   flags,
   resources,
-} = options.readOptions(process.argv.slice(2), REPOSITORY_ROOT)
+} = readOptions(process.argv.slice(2), REPOSITORY_ROOT)
 const CTX: RunContext = { MANIFEST: null, OUT, settings, lights: null, poses: null }
 
 async function main() {
-  const { sides, scene, after, before } = options.equipSides(flags, settings)
+  const { sides, scene, after, before } = equipSides(flags, settings)
   // `--reference`: the class-2 proof, each capture against the scene's reference image.
   const proof = flags.get('reference') === 'true'
   // Every option is read by now: a misspelt or retired flag stops the run before any build.
   flags.refuseUnread()
   await mkdir(OUT, { recursive: true })
-  const dists = options.resolveSides({ after, before, root: REPOSITORY_ROOT })
+  const dists = resolveSides({ after, before, root: REPOSITORY_ROOT })
   for (const side of sides)
     Object.assign(
       side,
@@ -55,17 +57,14 @@ async function main() {
     throw new Error('--gaze-network requires a compiled cache scene')
   if (settings.gazeNetwork && sides.some((side) => !isEngine(side.engine)))
     throw new Error('--gaze-network requires the WebGPU page engine on every side')
-  const MANIFEST = options.assetsManifest(
-    scene,
-    readsCache(scene) && sides.some((side) => !side.cache),
-  )
+  const MANIFEST = assetsManifest(scene, readsCache(scene) && sides.some((side) => !side.cache))
   CTX.MANIFEST = MANIFEST
   for (const side of sides) {
     side.manifestUrl = side.cache ? `/cache/${side.name}/native/full/manifest.json` : MANIFEST
-    side.sourceUrl = side.engine.source === 'gltf' ? options.sceneGltf(scene) : null
+    side.sourceUrl = side.engine.source === 'gltf' ? sceneGltf(scene) : null
   }
   const captures = new Map<string, Capture>()
-  const mounts = options.resolveMounts(REPOSITORY_ROOT, sides, resources)
+  const mounts = resolveMounts(REPOSITORY_ROOT, sides, resources)
 
   const report: BenchReport = {
     startedAt: new Date().toISOString(),
@@ -74,11 +73,11 @@ async function main() {
     head: git(REPOSITORY_ROOT, 'rev-parse', 'HEAD'),
     scene,
     engine: settings.engine,
-    pathVersion: options.PATH_VERSION,
+    pathVersion: PATH_VERSION,
     settings,
     flags: FLAGS,
     resources,
-    sides: Object.fromEntries(sides.map(options.sideReport)),
+    sides: Object.fromEntries(sides.map(sideReport)),
     series: [],
     errors: [],
   }
@@ -114,13 +113,13 @@ async function main() {
       })
     })
   try {
-    report.limits = await onPage((page) => readLimits(page, options.sdkEntryUrl(sides[0])))
+    report.limits = await onPage((page) => readLimits(page, sdkEntryUrl(sides[0])))
     if (!readsCache(scene)) {
       report.fluids = await runFluids(sides, onPage, settings, OUT, captures)
       return await publish(report, sides, captures, OUT)
     }
     const urls = {
-      sdkUrl: options.sdkEntryUrl(sides[0]),
+      sdkUrl: sdkEntryUrl(sides[0]),
       manifestUrl: sides[0].manifestUrl ?? MANIFEST,
     }
     // The box, then the camera's street read off the model's own geometry, on one page: the poses
@@ -135,16 +134,14 @@ async function main() {
     }
     for (const pixelError of settings.pixelErrors)
       for (const view of views) {
-        const index = options.VIEWS[view].index
-        const pose = options.poseAt(bounds, index)
+        const index = VIEWS[view].index
+        const pose = poseAt(bounds, index)
         // Moving camera: one pose per measured frame along benchmark trajectory.
-        CTX.poses = settings.movingCamera
-          ? options.trajectoryPoses(bounds, index, settings.frames)
-          : null
+        CTX.poses = settings.movingCamera ? trajectoryPoses(bounds, index, settings.frames) : null
         const series: Series = {
           view,
           pixelError,
-          segment: options.VIEWS[view].segment,
+          segment: VIEWS[view].segment,
           index,
           pose,
           sides: {},

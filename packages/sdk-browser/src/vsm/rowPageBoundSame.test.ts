@@ -4,18 +4,19 @@
 // bins by weight with a comparator; a bin's levels from the level order's prefix sums and the bins
 // in an integer-keyed order leave every number the same (their weights and pages are integers:
 // summed in any order, they are the same doubles, and equal weights take the same share of a top).
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createVsmRowBound, vsmBoundChunk } from './rowPageBound.ts'
-import { seeded, sphereRows, sunAt, worstOf } from './rowPageBound.fixture.ts'
+import { sphereRows, sunAt, worstOf } from './rowPageBound.fixture.ts'
 
 const DIGEST = '6cd174a2d006703f8dc51a3299621af41011014cb049a4289708fbd60e7f6323'
 
 test('the bound answers the same numbers, every K, every frame', () => {
   const hash = createHash('sha256')
   for (let seed = 1; seed <= 4; seed++) {
-    const rand = seeded(seed)
+    const rand = mulberry32(seed)
     const n = 600 + seed * 150
     // Rows small beside the levels, spread from a few metres to a kilometre: the bins beat the
     // worst case, by little or by much.

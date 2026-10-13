@@ -7,13 +7,11 @@ import { lerp } from '../../../packages/math/src/scalar/reals.ts'
  * uniform on a log scale — the one that covers the decades of a distance, a radius or an error
  * equally.
  */
-export function lois(draw: () => number): {
-  hasard: () => number
+export function draws(draw: () => number): {
   between: (a: number, b: number) => number
   log: (a: number, b: number) => number
 } {
   return {
-    hasard: draw,
     between: (a: number, b: number) => lerp(a, b, draw()),
     log: (a: number, b: number) => a * (b / a) ** draw(),
   }

@@ -47,6 +47,8 @@ import {
   RUNTIME_HEADER,
   RUNTIME_HEADER_WORDS,
   RUNTIME_NONE,
+  RUNTIME_ORIGIN_WORDS,
+  RUNTIME_WORLD_WORDS,
   SURFACE_WORDS,
 } from '../../bounce/runtimeLayout.ts'
 import { NO_TINT, writeSurface } from '../../bounce/runtimeSurface.ts'
@@ -63,8 +65,9 @@ const WORLD_RUN_GAP = 5,
 const CELL_ERROR_FACTOR = SQRT3 / 2
 
 /** The world matrices are sixteen words each in the cut's worlds, the exact translations behind. */
-const WORLD_WORDS = 16,
-  WORLD_BYTES = WORLD_WORDS * 4
+const WORLD_WORDS = RUNTIME_WORLD_WORDS,
+  WORLD_BYTES = WORLD_WORDS * 4,
+  ORIGIN_BYTES = RUNTIME_ORIGIN_WORDS * 4
 /** Cuts, surfaces, triangles and nodes a first buffer is laid out for: doubled as needed. */
 const START = { surfaces: 16, triangles: 4096, nodes: 1024, corners: 4096 }
 
@@ -141,7 +144,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   // The poses as the pose reads them, kept while the copies and where they lie stay (`poseLayout`):
   // laid again when a copy is made or given back, or the tables are laid out again.
   const poseEntries: PoseEntry[] = [],
-    poseRoots: DagRoot[] = []
+    poseKeys: number[] = []
   let poseLayout = 0,
     entriesLayout = -1,
     poseFresh = false
@@ -158,7 +161,8 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   function layoutOf() {
     const instances = 0,
       worldsAt = instances + (slots + copies.length) * INSTANCE_WORDS,
-      copyWorldsAt = worldsAt + slots * WORLD_WORDS,
+      originsAt = worldsAt + slots * WORLD_WORDS,
+      copyWorldsAt = originsAt + slots * RUNTIME_ORIGIN_WORDS,
       surfacesAt = copyWorldsAt + copies.length * WORLD_WORDS,
       trianglesAt = surfacesAt + surfaceCapacity * SURFACE_WORDS,
       boundsAt = trianglesAt + triangles.capacity * PROXY_TRIANGLE_FLOATS,
@@ -169,6 +173,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     return {
       instances,
       worlds: worldsAt,
+      origins: originsAt,
       copyWorlds: copyWorldsAt,
       surfaces: surfacesAt,
       triangles: trianglesAt,
@@ -242,6 +247,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     head[at.worldRows] = worldRows()
     headFloats[at.error] = error
     head[at.copies] = copies.length
+    head[at.originsWord] = layout.origins
     return head
   }
 
@@ -490,8 +496,16 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       const cut = proxy?.primitive.runtimeProxy
       const placed = cut && place(cut)
       const shown = !!placed && !copy.hidden && !rowParked(copy.placement)
-      moved = setWord(at + INSTANCE.node, shown ? placed.node : RUNTIME_NONE) || moved
-      moved = setWord(at + INSTANCE.triangle, shown ? placed.triangle : 0) || moved
+      // A copy of a deforming mesh stands at its own posed copy, as a placement does.
+      const posedAs =
+        shown && cut.deform && placed.corner !== undefined
+          ? posedCopy(slots + k, cut, placed)
+          : undefined
+      if (!posedAs) dropPosed(slots + k)
+      moved =
+        setWord(at + INSTANCE.node, shown ? (posedAs?.node ?? placed.node) : RUNTIME_NONE) || moved
+      moved =
+        setWord(at + INSTANCE.triangle, shown ? (posedAs?.triangle ?? placed.triangle) : 0) || moved
       moved =
         setWord(at + INSTANCE.surface, shown ? surfaceSlot(proxy.surface, tintOf(cut)) : 0) || moved
       moved = setWord(at + INSTANCE.mark, 0) || moved
@@ -596,6 +610,26 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     return result
   }
 
+  /** The blended copies the forward family draws, members of this proxy after the placements: their
+   *  poses are the host's (`BlendCopy.matrix`), read again at each cut. The host's list grows in place
+   *  as a source joins: every cut counts it again (`refresh`) before it writes the copies. */
+  function setCopies(next: readonly ProxyCopy[]) {
+    if (next === copies && next.length === copiesHeld()) return
+    if (next.length !== copiesHeld()) {
+      const kept = words.subarray(0, slots * INSTANCE_WORDS)
+      copies = next
+      for (const w of [...posed.keys()]) if (w >= slots + next.length) dropPosed(w)
+      words = new Uint32Array((slots + copies.length) * INSTANCE_WORDS).fill(RUNTIME_NONE)
+      words.set(kept)
+      copyWorlds = new Float32Array(copies.length * WORLD_WORDS)
+      relayout()
+    } else copies = next
+    syncCopies()
+  }
+
+  /** The copies the instance words and worlds are laid out for. */
+  const copiesHeld = () => copyWorlds.length / WORLD_WORDS
+
   return {
     /** The buffer a program reads the proxy through, or none: it then reads the stand-ins. */
     buffer() {
@@ -613,9 +647,11 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       const rows = worldRows(),
         source = frames.worldBuffers[0]
       if (rows > 0 && source) {
-        const into = buffer
-        const copy = (from: number, to: number) =>
-          from < to &&
+        const into = buffer,
+          // The exact translations lie behind the range's matrices: the translation a ray reads.
+          originsAt = (frames.ranges[0]?.count ?? 0) * WORLD_BYTES
+        const copy = (from: number, to: number) => {
+          if (from >= to) return
           encoder.copyBufferToBuffer(
             source,
             from * WORLD_BYTES,
@@ -623,6 +659,14 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
             byteAt(layout.worlds) + from * WORLD_BYTES,
             (to - from) * WORLD_BYTES,
           )
+          encoder.copyBufferToBuffer(
+            source,
+            originsAt + from * ORIGIN_BYTES,
+            into,
+            byteAt(layout.origins) + from * ORIGIN_BYTES,
+            (to - from) * ORIGIN_BYTES,
+          )
+        }
         if (worldsAll) copy(0, rows)
         else {
           const { count, pairs } = mirrored.runs()
@@ -663,9 +707,9 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       if (host.revision === posedRevision && !poseFresh) return
       if (entriesLayout !== poseLayout) {
         entriesLayout = poseLayout
-        poseEntries.length = poseRoots.length = 0
+        poseEntries.length = poseKeys.length = 0
         for (const [w, copy] of posed) {
-          poseRoots.push(packed.worldSources[w] as DagRoot)
+          poseKeys.push(w)
           poseEntries.push({
             cut: copy.cut,
             restTriangle: copy.placed.triangle,
@@ -676,8 +720,12 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
           })
         }
       }
-      for (let k = 0; k < poseEntries.length; k++)
-        poseEntries[k].record = host.recordOf(poseRoots[k].world)
+      for (let k = 0; k < poseEntries.length; k++) {
+        // A placement's record is found by its root's world, a blended copy's by its matrix.
+        const w = poseKeys[k],
+          world = w < slots ? (packed.worldSources[w] as DagRoot).world : copies[w - slots]?.matrix
+        poseEntries[k].record = world ? host.recordOf(world) : 0
+      }
       if (!pose.run(encoder, buffer, host.pool, poseEntries, poseLayout)) return
       posedRevision = host.revision
       poseFresh = false
@@ -703,19 +751,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     appended: write,
     /** The blended copies the forward family draws, members of this proxy after the placements: their
      *  poses are the host's (`BlendCopy.matrix`), read again at each cut. */
-    setCopies(next: readonly ProxyCopy[]) {
-      const held = copyWorlds.length / WORLD_WORDS
-      if (next === copies && next.length === held) return
-      if (next.length !== held) {
-        const kept = words.subarray(0, slots * INSTANCE_WORDS)
-        copies = next
-        words = new Uint32Array((slots + copies.length) * INSTANCE_WORDS).fill(RUNTIME_NONE)
-        words.set(kept)
-        copyWorlds = new Float32Array(copies.length * WORLD_WORDS)
-        relayout()
-      } else copies = next
-      syncCopies()
-    },
+    setCopies,
     /** Placement `w` parked, or taken back. */
     park(w: number, parked: boolean) {
       if (w >= slots) return
@@ -739,6 +775,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     },
     /** The surfaces a host edited and the copies that moved since the last cut, written again. */
     refresh() {
+      if (copies.length !== copiesHeld()) setCopies(copies)
       if (!buffer && !copies.length) return
       for (const [surface, tints] of surfaces)
         for (const tint of tints.keys()) surfaceSlot(surface, tint)

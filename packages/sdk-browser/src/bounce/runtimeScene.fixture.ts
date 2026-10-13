@@ -13,7 +13,14 @@ import {
 } from '../../../sdk-core/src/index.ts'
 import { buildCutProxy } from '../world/page/runtimeProxy.ts'
 import { cubeGeometry } from '../world/page/cube.fixture.ts'
-import { INSTANCE_WORDS, RUNTIME_NONE, SURFACE_WORDS } from './runtimeLayout.ts'
+import {
+  INSTANCE_WORDS,
+  RUNTIME_NONE,
+  RUNTIME_ORIGIN_WORDS,
+  RUNTIME_WORLD_WORDS,
+  SURFACE_WORDS,
+} from './runtimeLayout.ts'
+import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import type { ArenaColumns, Instance } from './runtimeOracle.fixture.ts'
 import type { OracleScene } from './runtimeSceneOracle.fixture.ts'
 
@@ -84,8 +91,9 @@ export function world(
   const copies = options.copies ?? []
   const instancesAt = 0,
     worldsAt = (count + copies.length) * INSTANCE_WORDS,
-    copyWorldsAt = worldsAt + count * 16,
-    surfacesAt = copyWorldsAt + copies.length * 16,
+    originsAt = worldsAt + count * RUNTIME_WORLD_WORDS,
+    copyWorldsAt = originsAt + count * RUNTIME_ORIGIN_WORDS,
+    surfacesAt = copyWorldsAt + copies.length * RUNTIME_WORLD_WORDS,
     trianglesAt = surfacesAt + surfaces.length * SURFACE_WORDS,
     boundsAt = trianglesAt + triangles * PROXY_TRIANGLE_FLOATS,
     childrenAt = boundsAt + nodes * PROXY_NODE_FLOATS
@@ -101,6 +109,9 @@ export function world(
   new Float32Array(words.buffer, worldsAt * 4, count * 16).set(
     packed.worlds.subarray(0, count * 16),
   )
+  // Their exact translations, three doubles each.
+  for (let w = 0; w < count; w++)
+    packDoubles(words, originsAt + w * RUNTIME_ORIGIN_WORDS, worlds[w].elements, 12, 3)
   copies.forEach((m, k) =>
     new Float32Array(words.buffer, (copyWorldsAt + k * 16) * 4, 16).set(m.elements),
   )
@@ -149,6 +160,7 @@ export function world(
     worldRows: count,
     error: 0,
     copies: copies.length,
+    originsWord: originsAt,
     words,
   }
   const columns: ArenaColumns = {

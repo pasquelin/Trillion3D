@@ -7,13 +7,13 @@ import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/
 import {
   VIEWPORT,
   batisseur,
-  cameraFace as facingCamera,
-  release as release,
+  cameraFace,
+  release,
   engine,
-  versApi as toApiMatrix,
+  toApiMatrix,
 } from '../kit/sharedSceneProof.ts'
 import { image, untilHeld } from '../kit/sceneImageProof.ts'
-import { runAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts'
+import { runAccumulation } from '../kit/deviceProof.ts'
 
 /** The tile's rotation, a third of a radian: its edges are oblique. */
 const TURN = 0.33
@@ -29,7 +29,7 @@ function scene() {
 }
 
 /** `camera` slid to `x` without changing its optical axis, as `cameraFace` places it. */
-function slide(camera: ReturnType<typeof facingCamera>, x: number) {
+function slide(camera: ReturnType<typeof cameraFace>, x: number) {
   camera.position.set(x, 0, 3)
   camera.lookAt(x, 0, 0)
   camera.updateMatrixWorld(true)
@@ -48,7 +48,7 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
     },
     { temporalAntialiasing: temporal },
   )
-  const camera = facingCamera()
+  const camera = cameraFace()
   try {
     await backend.prepare()
     const still = await untilHeld(backend, camera)
@@ -78,5 +78,5 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
 
 /** Without accumulation, with it, and with it again as the A/A witness; and the viewport. */
 export async function run() {
-  return { viewport: VIEWPORT, ...(await withAndWithoutAccumulation(fullRun)) }
+  return { viewport: VIEWPORT, ...(await runAccumulation(fullRun)) }
 }

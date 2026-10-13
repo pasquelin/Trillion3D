@@ -3,6 +3,7 @@
 // kernels run (`encodeDagDifference`), the difference read back. Lists drawn at random, repeats
 // included, up to the full cap — the table's load one half —, then the readout grown, its kept
 // lists carried and ranked again in tables of the new size (`growDagList`).
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import {
   createDagResources,
   type DagResources,
@@ -11,13 +12,12 @@ import { encodeDagDifference } from '../../../packages/sdk-browser/src/gpu/dag/e
 import { growDagList } from '../../../packages/sdk-browser/src/gpu/dag/listCap.ts'
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
 import {
-  SELECTION_HEADER_WORDS as HEAD,
+  SELECTION_HEADER_WORDS,
   differenceWord,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 import { sceneView } from './cutScene.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
@@ -45,9 +45,17 @@ async function differ(
   device.queue.writeBuffer(r.uniforms, 0, block)
   const [asked, drawn] = lists
   device.queue.writeBuffer(r.output, 0, Uint32Array.of(asked.length))
-  device.queue.writeBuffer(r.output, HEAD * 4, Uint32Array.from(asked))
-  device.queue.writeBuffer(r.output, (HEAD + cap) * 4, Uint32Array.of(drawn.length))
-  device.queue.writeBuffer(r.output, (2 * HEAD + cap) * 4, Uint32Array.from(drawn))
+  device.queue.writeBuffer(r.output, SELECTION_HEADER_WORDS * 4, Uint32Array.from(asked))
+  device.queue.writeBuffer(
+    r.output,
+    (SELECTION_HEADER_WORDS + cap) * 4,
+    Uint32Array.of(drawn.length),
+  )
+  device.queue.writeBuffer(
+    r.output,
+    (2 * SELECTION_HEADER_WORDS + cap) * 4,
+    Uint32Array.from(drawn),
+  )
   const groups = lists.flatMap((list) => [ceilDiv(Math.max(1, list.length), 64), 1])
   device.queue.writeBuffer(
     r.work,
@@ -57,7 +65,7 @@ async function differ(
   const encoder = device.createCommandEncoder()
   encodeDagDifference(encoder, r)
   device.queue.submit([encoder.finish()])
-  const words = await readBuffer(device, r.output, differenceWord(cap) * 4, 8 * cap)
+  const words = (await readGpuBuffer(device, r.output, 8 * cap, differenceWord(cap) * 4))!
   return [0, 1].map((l) => Array.from(words.subarray(l * cap, l * cap + lists[l].length)))
 }
 

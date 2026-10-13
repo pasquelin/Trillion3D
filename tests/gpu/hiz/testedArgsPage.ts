@@ -1,6 +1,7 @@
 // The Hi-Z test sized by the partition's count of tested rows, on the machine's device: the
 // engine's own pipelines, a table that holds far more rows than the image tests, the dispatch
 // arguments and the verdicts read back.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import {
   createHizPipelines,
   hizArgsGroup,
@@ -14,9 +15,7 @@ import {
 import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { hizEntries, laidPyramid } from './casePyramid.ts'
-import { heldBuffers } from '../kit/heldBuffers.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 import { BOX_NEAREST, CASES, UNIFORM_BYTES } from './occlusionTestCases.ts'
 
 /** Rows the table holds, far more than the image tests. */
@@ -35,8 +34,7 @@ export interface TestedArgsRun {
 export async function testTestedArgs(counts: number[]): Promise<TestedArgsRun> {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('WebGPU must be available')
-  const { device } = gpu
-  const { buffer, release } = heldBuffers(device)
+  const { device, buffer } = gpu
   const pipelines = await createHizPipelines(device)
   if (!pipelines) throw new Error('the Hi-Z pipelines must compile')
   const [sample] = CASES
@@ -117,9 +115,9 @@ export async function testTestedArgs(counts: number[]): Promise<TestedArgsRun> {
     })
     hiz.push({
       tested,
-      args: [...(await readBuffer(device, args, 0, 12))],
-      flags: [...(await readBuffer(device, sized, 0, TABLE_ROWS * 4))],
-      whole: [...(await readBuffer(device, whole, 0, TABLE_ROWS * 4))],
+      args: [...(await readGpuBuffer(device, args, 12))!],
+      flags: [...(await readGpuBuffer(device, sized, TABLE_ROWS * 4))!],
+      whole: [...(await readGpuBuffer(device, whole, TABLE_ROWS * 4))!],
     })
   }
   // A count of boxes past one dimension of a dispatch: the arguments alone, nothing dispatched.
@@ -132,9 +130,8 @@ export async function testTestedArgs(counts: number[]): Promise<TestedArgsRun> {
     pass.setPipeline(pipelines.argsPipeline)
     pass.dispatchWorkgroups(1)
   })
-  const wideArgs = [...(await readBuffer(device, args, 0, 12))]
+  const wideArgs = [...(await readGpuBuffer(device, args, 12))!]
 
   const { court: adapter } = await gpu.fermer()
-  release()
   return { adapter, errors: gpu.errors, hiz, wideArgs }
 }

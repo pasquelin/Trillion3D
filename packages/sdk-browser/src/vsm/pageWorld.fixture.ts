@@ -3,6 +3,7 @@
 // drawn per entry (unmapped, mapped, or falling back 1-3 levels coarser, whose own entry is then
 // drawn the same way), projection records per map, pool words per texel — each a hash of its
 // address, so a word read twice is the same word. The world counts the page-table words read.
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import { Mat } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
@@ -23,11 +24,6 @@ function hash(...words: number[]) {
 }
 /** A hash in [0, 1). */
 export const unit = (...words: number[]) => hash(...words) / 2 ** 32
-
-const WORD = new Float32Array(1),
-  BITS = new Uint32Array(WORD.buffer)
-/** An f32's bits. */
-export const f32Bits = (x: number) => ((WORD[0] = x), BITS[0])
 
 /** Each structure `source` declares, as its constructor: the arguments in member order. */
 export function constructors(source: string) {

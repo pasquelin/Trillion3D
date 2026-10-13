@@ -151,7 +151,7 @@ pub(super) fn compile_primitive(
     let scale = mesh_scales.get(old).copied();
     let demand = crate::proxy::cut::cut_demand(
         scale,
-        crate::proxy::PROXY_TRIANGLE_BUDGET,
+        trillion3d_page_codec::proxy::PROXY_TRIANGLE_BUDGET,
         triangle_count,
         *scene_triangles,
     );

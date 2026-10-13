@@ -1,17 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DEFAULT_SCENE, sceneOf } from './assets/scene.ts'
-import {
-  ENGINES,
-  engineOf,
-  equipSide,
-  equipSides,
-  parseArgs,
-  poseAt,
-  readOptions,
-  trajectoryPoses,
-} from './harness/options.ts'
-import { isEngine } from './harness/sideOptions.ts'
+import { ENGINES, engineOf, equipSide, isEngine } from './harness/sideOptions.ts'
+import { equipSides, readOptions } from './harness/options.ts'
+import { parseArgs } from './harness/flags.ts'
+import { poseAt, trajectoryPoses } from './trajectory/poses.ts'
 
 test('readOptions parses command line arguments correctly', () => {
   const root = '/tmp/test'

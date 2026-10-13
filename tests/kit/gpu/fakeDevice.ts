@@ -10,8 +10,8 @@ import {
 import { bundleMaker } from './fakeBundles.ts'
 import { asWebgpuDevice } from './fakeWebgpuDevice.ts'
 import { refusing, texture, withGroups } from './fakeResources.ts'
-import { fakeBuffers } from './mockBuffers.ts'
-import { createMockCommandEncoderFactory, type EncoderRecords } from './mockEncoder.ts'
+import { fakeBuffers } from './fakeBuffers.ts'
+import { createFakeCommandEncoderFactory, type EncoderRecords } from './fakeEncoder.ts'
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 
 export {
@@ -30,12 +30,12 @@ export {
  * error scopes, loss, `this` checks, WebGPU's validation). Every creation, write, encoded command,
  * render bundle and destroy succeeds and is recorded in call order — a test reads the list it
  * observes —; the buffers hold their bytes, copies and clears move them, and each compute
- * dispatch runs its kernel's CPU double (`mockCompute.ts`), so a whole pages backend runs on it.
- * Options (`FakeDeviceOptions`): limits, features, allocations or mappings that fail, no compute,
- * pipelines built at the call alone, the DAG the selection reads, and the injected failures.
+ * dispatch runs its kernel's CPU double (`fakeCompute.ts`), so a whole pages backend runs on it.
+ * Options (`FakeDeviceOptions`): limits, features, allocations, mappings or compute pipelines that
+ * fail, pipelines built at the call alone, the DAG the selection reads, and the injected failures.
  */
 export function fakeDevice(options: FakeDeviceOptions = {}) {
-  const { limits, compute = true, asyncPipelines = true, features = [] } = options
+  const { limits, asyncPipelines = true, features = [] } = options
   installGpuGlobals()
   const scopes: Array<object | null> = [],
     // Every `destroy` call in order, the device's own included: a resource destroyed twice is twice.
@@ -82,6 +82,7 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
   // A compute pipeline is its stage and its layout: a pass checks the groups it sets against it.
   const computePipeline = (descriptor: GPUComputePipelineDescriptor) => {
     computePipelines.push(descriptor)
+    if (options.failCompute) throw new Error('NO_COMPUTE')
     if (options.failCompact && descriptor.compute.entryPoint === 'scatterGroups')
       throw new Error('NO_COMPACT')
     return withGroups({ ...descriptor.compute, layout: descriptor.layout }, descriptor.layout)
@@ -119,15 +120,13 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
     ...(asyncPipelines && {
       createRenderPipelineAsync: async (d: GPURenderPipelineDescriptor) => renderPipeline(d),
     }),
-    ...(compute && {
-      createComputePipeline: computePipeline,
-      ...(asyncPipelines && {
-        createComputePipelineAsync: async (d: GPUComputePipelineDescriptor) => computePipeline(d),
-      }),
+    createComputePipeline: computePipeline,
+    ...(asyncPipelines && {
+      createComputePipelineAsync: async (d: GPUComputePipelineDescriptor) => computePipeline(d),
     }),
     createBindGroup: (d: GPUBindGroupDescriptor) => (bindGroups.push(d), d),
     createRenderBundleEncoder: bundles.make,
-    createCommandEncoder: createMockCommandEncoderFactory(records, options),
+    createCommandEncoder: createFakeCommandEncoderFactory(records, options),
     queue: {
       writeBuffer(
         buffer: GPUBuffer,
@@ -136,6 +135,13 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
         dataOffset = 0,
         size?: number,
       ) {
+        // A window past the data is refused as the device refuses it.
+        const length =
+          data instanceof ArrayBuffer
+            ? data.byteLength
+            : (data as unknown as ArrayLike<number>).length
+        if (dataOffset + (size ?? length - dataOffset) > length)
+          throw new RangeError("size + dataOffset is larger than data's size")
         writes.push({
           buffer,
           offset,
@@ -159,7 +165,7 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
       },
       copyExternalImageToTexture: (_source: unknown, destination: GPUCopyExternalImageDestInfo) =>
         void imageCopies.push(destination),
-      // A deferred device's commands run when their buffer is submitted (`mockEncoder.ts`).
+      // A deferred device's commands run when their buffer is submitted (`fakeEncoder.ts`).
       submit(done: Iterable<{ ops?: Array<() => void> }> = []) {
         for (const { ops = [] } of done) for (const op of ops) op()
         submits.push(seq++)

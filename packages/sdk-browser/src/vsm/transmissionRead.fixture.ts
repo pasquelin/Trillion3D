@@ -1,6 +1,7 @@
 // The exact transmission read's proofs (`transmissionWgsl.ts`), its shipped WGSL run by
 // `shaderRun`: generated scenes, a slice laid out as the resolve writes it, a brute-force cast and
 // the texel store the read replaced.
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { VSM_TRANSMISSION_NONE, vsmTransmissionReadWgsl } from './transmissionWgsl.ts'
@@ -25,11 +26,10 @@ export function memoryOf(casters: Caster[]) {
   const rows = 1
   const slice: V[] = []
   const records = casters.map(({ tri, d, q }) => {
-    const bits = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
     return [
-      [bits(tri[0][0]), bits(tri[0][1]), bits(tri[1][0]), bits(tri[1][1])],
-      [bits(tri[2][0]), bits(tri[2][1]), bits(d[0]), bits(d[1])],
-      [bits(d[2]), 0, q, 0],
+      [f32Bits(tri[0][0]), f32Bits(tri[0][1]), f32Bits(tri[1][0]), f32Bits(tri[1][1])],
+      [f32Bits(tri[2][0]), f32Bits(tri[2][1]), f32Bits(d[0]), f32Bits(d[1])],
+      [f32Bits(d[2]), 0, q, 0],
       [0, 0, 0, 0],
     ]
   })

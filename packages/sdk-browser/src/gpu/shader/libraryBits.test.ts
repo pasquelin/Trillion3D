@@ -1,6 +1,7 @@
 // The bit-set, byte and float-class declarations of the maths library
 // (`packages/math/src/wgsl/integer.ts`, `color.ts`), their shipped text run in JavaScript with the
 // GPU's unsigned arithmetic, against BigInt words and the floats a typed array reads from the bits.
+import { f32Bits, fromF32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -85,11 +86,6 @@ test('byte k of a word, the lowest first, and its unit value over 255', () => {
   assert.equal(run.unorm8(0x00000080, 0), 128 / 255)
 })
 
-/** The 32 bits of the float32 nearest `x`. */
-const bitsOf = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
-/** The float32 of the bits `word`. */
-const floatOf = (word: number) => new Float32Array(new Uint32Array([word]).buffer)[0]
-
 test('a float classed by its bits: NaN past the infinity, finite under the full exponent', () => {
   const floats = [
     0,
@@ -104,9 +100,9 @@ test('a float classed by its bits: NaN past the infinity, finite under the full 
     -Infinity,
     NaN,
   ]
-  const words = [...floats.map(bitsOf), 0x7f800001, 0xff800001, 0x7fffffff, 0xffc00000, 0x7f7fffff]
+  const words = [...floats.map(f32Bits), 0x7f800001, 0xff800001, 0x7fffffff, 0xffc00000, 0x7f7fffff]
   for (const word of words) {
-    const x = floatOf(word)
+    const x = fromF32Bits(word)
     assert.equal(run.isNanWord(word), Number.isNaN(x), word.toString(16))
     assert.equal(run.isFiniteWord(word), Number.isFinite(x), word.toString(16))
   }

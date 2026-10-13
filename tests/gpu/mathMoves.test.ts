@@ -7,7 +7,8 @@ import assert from 'node:assert/strict'
 import { DEG2RAD, TAU } from '../../packages/math/src/constants.ts'
 import { perspectiveSlope } from '../../packages/math/src/projection/camera.ts'
 import { length2, length3 } from '../../packages/math/src/vector/vector.ts'
-import { distance, resolveRandom } from './lighting/resolveCases.ts'
+import { distanceVector3 } from '../../packages/math/src/vector/vector.ts'
+import { resolveRandom } from './lighting/resolveCases.ts'
 import { angleBetween, inverseTransposeShipped, unit } from './math/inverseTransposeF32.ts'
 import { CASES, COLLAPSED, FLATTENED, TINY_REGULAR } from './math/normalTransformCases.ts'
 import { ulpBetween } from '../../bench/core/ulp.ts'
@@ -47,7 +48,7 @@ test('the resolve proofs draw the same f32 unit vectors, and their distances wit
         root = Math.hypot(...v)
       v.forEach((x, k) => assert.ok(Object.is(Math.fround(x / root), Math.fround(now[k]))))
       const old = Math.hypot(v[0] - p[0], v[1] - p[1], v[2] - p[2])
-      assert.ok(ulpBetween(old, distance(v, p)) <= 2, `seed ${seed}, draw ${i}`)
+      assert.ok(ulpBetween(old, distanceVector3(v, p)) <= 2, `seed ${seed}, draw ${i}`)
     }
   }
 })

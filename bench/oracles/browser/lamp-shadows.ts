@@ -2,16 +2,13 @@
 // floats — the transformed box centre as three split doubles (rounded high part
 // at `base`, what it left at `base + 4`), the radius inflated term by term, then widened by the
 // centre's own split error and rounded UP to f32, so the sphere stays conservative.
+import { f32Bits, fromF32Bits } from '../../../packages/math/src/float/bits.ts'
 export const SPHERE_FLOATS = 8
-
-const f32 = new Float32Array(1),
-  f32Bits = new Uint32Array(f32.buffer)
 
 /** The smallest f32 at or above `v` (`v` finite and not negative, as a radius is). */
 function f32AtOrAbove(v: number) {
-  f32[0] = v
-  if (f32[0] < v) f32Bits[0]++
-  return f32[0]
+  const near = Math.fround(v)
+  return near < v ? fromF32Bits(f32Bits(near) + 1) : near
 }
 
 export function referenceClusterSphere(

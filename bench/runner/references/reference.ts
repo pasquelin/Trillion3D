@@ -13,7 +13,11 @@ import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts'
 import { onFreshPage } from '../harness/chrome.ts'
 import { benchLights } from '../lighting/lamps.ts'
-import * as options from '../harness/options.ts'
+import { PATH_VERSION, VIEWS, poseAt } from '../trajectory/poses.ts'
+import { assetsManifest } from '../assets/scene.ts'
+import { equipSides, readOptions, resolveMounts } from '../harness/options.ts'
+import { parseArgs } from '../harness/flags.ts'
+import { resolveSides, sdkEntryUrl } from '../harness/dists.ts'
 import type * as ReferencePage from './referencePage.ts'
 import {
   REFERENCE_ARGS,
@@ -31,18 +35,18 @@ import { git } from '../../../scripts/git-paths.ts'
 /** One scene: its poses drawn in reference mode, the record written under `<dir>/<scene>/`, the
  *  images under `<images>/<scene>/`. */
 async function referenceScene(argv: string[], scene: string, dir: string, images: string) {
-  const { flags, settings, views } = options.readOptions(
+  const { flags, settings, views } = readOptions(
     [...REFERENCE_ARGS, ...argv, '--scene', scene],
     REPOSITORY_ROOT,
   )
-  const { sides, after } = options.equipSides(flags, settings)
+  const { sides, after } = equipSides(flags, settings)
   flags.refuseUnread()
   const [side] = sides
-  Object.assign(side, options.resolveSides({ after, root: REPOSITORY_ROOT })[0])
-  const manifest = options.assetsManifest(scene, !side.cache)
+  Object.assign(side, resolveSides({ after, root: REPOSITORY_ROOT })[0])
+  const manifest = assetsManifest(scene, !side.cache)
   side.manifestUrl = side.cache ? `/cache/${side.name}/native/full/manifest.json` : manifest
   const captures = new Map<string, Capture>()
-  const mounts = options.resolveMounts(REPOSITORY_ROOT, sides, null)
+  const mounts = resolveMounts(REPOSITORY_ROOT, sides, null)
   const { server, port } = await startServer({ port: settings.port, mounts, captures })
   const view = {
     url: `http://127.0.0.1:${port}/`,
@@ -75,7 +79,7 @@ async function referenceScene(argv: string[], scene: string, dir: string, images
     from: side.from,
     command: `node bench/runner/references/reference.ts ${[...argv, '--scene', scene].join(' ')}`,
     generatedAt: new Date().toISOString(),
-    pathVersion: options.PATH_VERSION,
+    pathVersion: PATH_VERSION,
     engine: settings.engine,
     settings: imageSettings(settings),
     supersampling: 0,
@@ -85,11 +89,11 @@ async function referenceScene(argv: string[], scene: string, dir: string, images
   mkdirSync(join(dir, scene), { recursive: true })
   mkdirSync(join(images, scene), { recursive: true })
   try {
-    const urls = { sdkUrl: options.sdkEntryUrl(side), manifestUrl: side.manifestUrl }
+    const urls = { sdkUrl: sdkEntryUrl(side), manifestUrl: side.manifestUrl }
     const bounds = await onPage((page) => readStreet(page, urls))
     const lights = benchLights(bounds, settings)
     for (const view of views) {
-      const pose = options.poseAt(bounds, options.VIEWS[view].index)
+      const pose = poseAt(bounds, VIEWS[view].index)
       const file = `${view}.png`
       const payload = measurePayload(side, 0, pose, null, file, settings, lights, manifest)
       const result = await onPage((page) =>
@@ -129,7 +133,7 @@ async function referenceScene(argv: string[], scene: string, dir: string, images
 
 async function main() {
   const argv = process.argv.slice(2)
-  const own = options.parseArgs(argv)
+  const own = parseArgs(argv)
   const scenes = (own.get('scene') ?? REFERENCE_SCENES.join(',')).split(',').filter(Boolean)
   const asked = own.get('references')
   const dir = resolve(asked ?? REFERENCES_DIR),

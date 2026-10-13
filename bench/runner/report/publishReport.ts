@@ -4,7 +4,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { assertReport } from '../../kit/report/contract.ts'
-import { parseArgs } from '../harness/options.ts'
+import { parseArgs } from '../harness/flags.ts'
 import { measureOutput } from '../../core/paths.ts'
 import { readJson } from '../../../scripts/repository-files.ts'
 export function publierRapport(source: string, dest: string): string {

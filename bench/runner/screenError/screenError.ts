@@ -14,7 +14,10 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { onFreshPage } from '../harness/chrome.ts'
 import { readBounds } from '../harness/page.ts'
-import { ENGINES, parseArgs, resolveMounts, resolveSides, sdkEntryUrl } from '../harness/options.ts'
+import { ENGINES } from '../harness/sideOptions.ts'
+import { parseArgs } from '../harness/flags.ts'
+import { resolveMounts } from '../harness/options.ts'
+import { resolveSides, sdkEntryUrl } from '../harness/dists.ts'
 import { sceneDerived } from '../assets/scene.ts'
 import {
   auditPoses,

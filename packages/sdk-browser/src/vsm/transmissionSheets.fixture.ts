@@ -7,7 +7,6 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 export type V = number[]
 export type Tri = [V, V, V]
-export const f32 = (x: number) => Math.fround(x)
 /** The engine's layout for one sun. */
 export const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
 /** Texels of a block, of a cell, cells a side, the memory's width (`transmissionWgsl.ts`). */
@@ -34,15 +33,12 @@ export const geometry = shaderRun<{
   {},
 )
 
-/** A seeded generator in [0, 1), the Mulberry32 sequence. */
-export { mulberry32 as random } from '../../../math/src/sequence/random.ts'
-
 /** A sheet of `n` × `n` quads over [lo, hi]², corners moved by `move`, each quad cut along
  *  alternating diagonals: as the sea's grid is drawn. */
 export function sheet(n: number, lo: number, hi: number, move: (p: V) => V): Tri[] {
   const at = (i: number, j: number) => {
     const p = [lo + ((hi - lo) * i) / n, lo + ((hi - lo) * j) / n]
-    return move(p).map(f32)
+    return move(p).map(Math.fround)
   }
   const out: Tri[] = []
   for (let j = 0; j < n; j++)

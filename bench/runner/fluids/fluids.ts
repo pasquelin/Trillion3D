@@ -18,11 +18,10 @@ import { OCEAN } from '../../../packages/sdk-core/src/fluids/waves.fixture.ts'
 import { floatingBodies } from '../../../packages/sdk-browser/src/physics/water.fixture.ts'
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
-import { isEngine } from '../harness/sideOptions.ts'
+import { isEngine, type Side } from '../harness/sideOptions.ts'
 import { sdkEntryUrl } from '../harness/dists.ts'
 import { withGpuIncidents } from '../series/seriesPage.ts'
-import type { Side } from '../harness/sideOptions.ts'
-import type { BenchSettings } from '../harness/options.ts'
+import type { BenchSettings } from '../harness/benchSettings.ts'
 import type * as FluidsPage from './fluidsPage.ts'
 
 type Vec3 = [number, number, number]

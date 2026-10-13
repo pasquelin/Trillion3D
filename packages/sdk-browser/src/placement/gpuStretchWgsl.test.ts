@@ -3,6 +3,7 @@
 // for word, on generated worlds — rotations, uneven and negative scales, shears, a cut-down
 // matrix, a sphere's scale, the exact cases (an identity, a pure turn, a pure scale) that take
 // each branch of the formula.
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
@@ -22,11 +23,10 @@ const run = shaderRun<{ maxStretchBits(w: number[]): number }>(
   { countLeadingZeros },
 )
 
-const bitsOf = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
 /** The words of a world's single-precision row, and what the CPU stores for its stretch. */
-const words = (world: ArrayLike<number>) => [...new Uint32Array(Float32Array.from(world).buffer)]
+const words = (world: ArrayLike<number>) => Array.from(world, f32Bits)
 const expected = (world: ArrayLike<number>) =>
-  bitsOf(maxStretch(Array.from(Float32Array.from(world))))
+  f32Bits(maxStretch(Array.from(Float32Array.from(world))))
 
 test('the stretch of a generated world is the CPU’s, word for word', () => {
   const next = lcgRandom(23)

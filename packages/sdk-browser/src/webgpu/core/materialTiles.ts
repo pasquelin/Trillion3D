@@ -1,6 +1,6 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
-import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts'
 import {
   MATERIAL_TILE_SLOTS,
@@ -31,10 +31,9 @@ export function materialTileDrawLayout(device: GPUDevice) {
 }
 
 /** The classification's pipelines — its draws' clear and the classification — and layout; none on
- *  a device with no compute or that refuses them (`validated`). A shader that does not compile is
+ *  a device that refuses them (`validated`). A shader that does not compile is
  *  a defect, thrown by name. */
 async function classifier(device: GPUDevice) {
-  if (!canCompute(device)) return undefined
   const compute = GPUShaderStage.COMPUTE
   return validated(device, async () => {
     const module = await createCheckedShaderModule(device, MATERIAL_TILES_SHADER, 'MATERIAL_TILES')

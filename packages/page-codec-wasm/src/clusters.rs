@@ -11,6 +11,14 @@
 pub mod ordered;
 pub mod spatial;
 
+use trillion3d_math::vec3::point_checked;
+
+/// Vertex `v` of a stream of three `f32` a vertex, as `f64`; NaN past the end, which no box keeps
+/// and no area or length survives.
+fn point(positions: &[f32], v: u32) -> [f64; 3] {
+    point_checked(positions, v).unwrap_or([f64::NAN; 3])
+}
+
 /// The most triangles and distinct vertices one cluster holds: the compiler's
 /// `DAG_CLUSTER_TRIANGLES` and `DAG_CLUSTER_VERTICES`, which the run-time cut reads too.
 #[derive(Clone, Copy, Debug)]

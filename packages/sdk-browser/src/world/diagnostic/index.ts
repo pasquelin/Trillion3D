@@ -2,7 +2,7 @@ import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { EngineDiagnostic } from '../../engine/types.ts'
 import { presentationColorDiagnostic } from '../../diagnostic/presentationDiagnostic.ts'
 import { sessionOf } from '../core/worldSession.ts'
-import { DEFAULT_CLEAR_COLOR } from '../../engine/common.ts'
+import { RASTER_BACKGROUND } from '../../page/raster.ts'
 import { worldNoticeListeners } from './worldNotices.ts'
 import { createListeners } from '../../../../sdk-core/src/runtime/listeners.ts'
 
@@ -42,7 +42,7 @@ export const diagnostic = {
     const session = sessionOf(world)
     const { width, height } = session.canvas
     const background = world.scene.background as { getHex?: () => number } | null
-    const clear = background?.getHex?.() ?? DEFAULT_CLEAR_COLOR
+    const clear = background?.getHex?.() ?? RASTER_BACKGROUND
     return presentationColorDiagnostic(await session.capture(), width, height, clear)
   },
   /**

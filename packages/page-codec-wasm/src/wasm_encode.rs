@@ -2,16 +2,16 @@
 //! the grid rules (`bits/grid.rs`) that set their exponents: byte offsets into `arena_alloc`
 //! reservations, like `wasm_math.rs`. The loader is `packages/sdk-browser/src/page/codec/encode.ts`.
 //!
-//! A page is written by `encode_page` from one request block of `REQUEST_WORDS` words and left in
-//! the module until `encode_page_take` copies it out: its length is known only once written.
+//! A page is written by `encode_page` from one request block of `REQUEST_WORDS` words and held for
+//! the loader (`held.rs`): its length is known only once written.
 
 use crate::bits::grid::{
     drawn_uv_grid_exponent, primitive_grid_exponent, tile_log2, uv_grid_exponent,
 };
 use crate::encode::deformation::{Deformation, MorphTarget};
 use crate::encode::{encode_deformed, Attribute};
-use crate::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
-use std::cell::RefCell;
+use crate::held::hold;
+use crate::{Header, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
 /// Words of a request block. Offsets are bytes in linear memory, 0 for an absent array.
 pub const REQUEST_WORDS: usize = 16;
@@ -39,30 +39,28 @@ pub mod request {
     pub const TARGETS: usize = 15;
 }
 
-/// Words of the block `encode_page` answers in.
+/// Words of the block `encode_page` and the decoder's `page_check` (`wasm_decode.rs`) answer in.
 pub const META_WORDS: usize = 16;
-/// The answer's words on success: the page's `vertex_count`, `index_count`, `flags`, decoded
-/// bytes, quantization error (float bits) and byte length. On refusal, word 0 is the length of
-/// the refusal's code and its ASCII bytes follow from byte 4.
+/// The answer's words on success, the header of the page written or checked (`answer_header`):
+/// its `vertex_count`, `index_count`, `flags`, decoded bytes, quantization error (float bits),
+/// morph targets and skin influences. On refusal, word 0 is the length of the refusal's code and
+/// its ASCII bytes follow from byte 4 (`refuse`).
 pub mod meta {
     pub const VERTEX_COUNT: usize = 0;
     pub const INDEX_COUNT: usize = 1;
     pub const FLAGS: usize = 2;
     pub const DECODED_BYTES: usize = 3;
     pub const QUANTIZATION_ERROR: usize = 4;
-    pub const BYTES: usize = 5;
-}
-
-thread_local! {
-    static PAGE: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+    pub const MORPH_TARGETS: usize = 5;
+    pub const SKIN_INFLUENCES: usize = 6;
 }
 
 unsafe fn floats<'a>(offset: u32, count: usize) -> &'a [f32] {
     core::slice::from_raw_parts(offset as *const f32, count)
 }
 
-/// Writes the page `request` describes. Returns 0 and fills `meta`, the page waiting for
-/// `encode_page_take`; or 1 with the refusal's code in `meta`.
+/// Writes the page `request` describes. Returns 0, its header answered in `meta` and the page held;
+/// or 1 with the refusal's code in `meta`.
 ///
 /// # Safety
 /// `request` and `meta` must lie in live `arena_alloc` reservations of `REQUEST_WORDS` and
@@ -70,7 +68,6 @@ unsafe fn floats<'a>(offset: u32, count: usize) -> &'a [f32] {
 #[no_mangle]
 pub unsafe extern "C" fn encode_page(request: u32, meta: u32) -> u32 {
     let r = core::slice::from_raw_parts(request as *const u32, REQUEST_WORDS);
-    let answer = core::slice::from_raw_parts_mut(meta as *mut u32, META_WORDS);
     let vertices = r[request::VERTEX_COUNT] as usize;
     let indices = core::slice::from_raw_parts(
         r[request::INDICES] as *const u32,
@@ -123,17 +120,27 @@ pub unsafe extern "C" fn encode_page(request: u32, meta: u32) -> u32 {
     );
     match encode_deformed(indices, positions, &carried, (&deformation, &[]), exponents) {
         Ok(page) => {
-            answer[meta::VERTEX_COUNT] = page.header.vertex_count as u32;
-            answer[meta::INDEX_COUNT] = page.header.index_count as u32;
-            answer[meta::FLAGS] = page.header.flags;
-            answer[meta::DECODED_BYTES] = page.header.decoded_bytes() as u32;
-            answer[meta::QUANTIZATION_ERROR] = page.header.quantization_error.to_bits();
-            answer[meta::BYTES] = page.bytes.len() as u32;
-            PAGE.with(|held| *held.borrow_mut() = page.bytes);
+            answer_header(meta, &page.header);
+            hold(page.bytes);
             0
         }
         Err(refusal) => refuse(meta, &refusal.code),
     }
+}
+
+/// Answers `header` in the block at `answer`, word by word of `meta`.
+///
+/// # Safety
+/// `answer` must lie in a live `arena_alloc` reservation of `META_WORDS` words.
+pub(crate) unsafe fn answer_header(answer: u32, header: &Header) {
+    let words = core::slice::from_raw_parts_mut(answer as *mut u32, META_WORDS);
+    words[meta::VERTEX_COUNT] = header.vertex_count as u32;
+    words[meta::INDEX_COUNT] = header.index_count as u32;
+    words[meta::FLAGS] = header.flags;
+    words[meta::DECODED_BYTES] = header.decoded_bytes() as u32;
+    words[meta::QUANTIZATION_ERROR] = header.quantization_error.to_bits();
+    words[meta::MORPH_TARGETS] = header.morphs.len() as u32;
+    words[meta::SKIN_INFLUENCES] = header.skin.influences as u32;
 }
 
 /// Writes a refusal's `code` in the answer block at `meta`: its length in word 0, its ASCII bytes
@@ -147,18 +154,6 @@ pub(crate) unsafe fn refuse(meta: u32, code: &str) -> u32 {
     *(meta as *mut u32) = code.len() as u32;
     core::slice::from_raw_parts_mut((meta + 4) as *mut u8, code.len()).copy_from_slice(code);
     1
-}
-
-/// Copies the page `encode_page` wrote into `out` and forgets it.
-///
-/// # Safety
-/// `out` must lie in a live `arena_alloc` reservation of at least the page's byte length.
-#[no_mangle]
-pub unsafe extern "C" fn encode_page_take(out: u32) {
-    PAGE.with(|held| {
-        let page = held.take();
-        core::slice::from_raw_parts_mut(out as *mut u8, page.len()).copy_from_slice(&page);
-    });
 }
 
 /// A tile's width as a power of two for a primitive the largest world `scale` places

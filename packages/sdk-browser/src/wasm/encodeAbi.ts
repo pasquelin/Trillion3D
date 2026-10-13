@@ -7,7 +7,7 @@
 export const REQUEST_WORDS = 16
 
 /**
- * Words of the block `encode_page` answers in.
+ * Words of the block `encode_page` and the decoder's `page_check` (`wasm_decode.rs`) answer in.
  */
 export const META_WORDS = 16
 
@@ -38,5 +38,6 @@ export const META = {
   FLAGS: 2,
   DECODED_BYTES: 3,
   QUANTIZATION_ERROR: 4,
-  BYTES: 5,
+  MORPH_TARGETS: 5,
+  SKIN_INFLUENCES: 6,
 } as const

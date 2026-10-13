@@ -5,12 +5,12 @@
 // past the pool, then the output's count raised and the input's cleared — the counts written by
 // lane 0 once every lane read them (the barrier: here lane 0 runs last), and the feedback reading
 // the available count before the append clears it.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { vsmPhysicalPageKernels } from './physicalPagesWgsl.ts'
-import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
 const KERNELS = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7 }))
@@ -40,7 +40,7 @@ function appended(words: number[], n: number, from: number, to: number) {
 test('after the feedback, the available pages go after the requested ones, as the dispatches did', () => {
   const code = KERNELS.poolFeedback.code,
     C = wgslConstants(code)
-  const rand = seeded(11)
+  const rand = mulberry32(11)
   for (const n of [600, 300, 2048]) {
     for (let round = 0; round < 12; round++) {
       const counts = [0, 0, 0, 0].map(() => Math.floor(rand() * (n + 1)))
@@ -70,7 +70,7 @@ test('after the feedback, the available pages go after the requested ones, as th
 test('the empty pages go after the compacted available ones, as the dispatches did', () => {
   const code = KERNELS.packFreePages.code,
     C = wgslConstants(code)
-  const rand = seeded(12)
+  const rand = mulberry32(12)
   for (const n of [600, 2048]) {
     for (let round = 0; round < 12; round++) {
       const counts = [0, 0, 0, 0].map(() => Math.floor(rand() * (n + 1)))

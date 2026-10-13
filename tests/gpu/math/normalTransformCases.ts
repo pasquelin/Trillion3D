@@ -4,7 +4,7 @@
 // (`packages/sdk-browser/src/gpu/shader/normalTransform.test.ts`) and the shipped shader on Dawn
 // (`tests/gpu/math/normal-transform.gpu.ts`): the f32 model and the real shader answer on the SAME
 // inputs, or their agreement would mean nothing.
-import { LIT_MATERIAL as MATERIAL, lightingCase } from './lightingNormalCases.ts'
+import { LIT_MATERIAL, lightingCase } from './lightingNormalCases.ts'
 
 const AXES = [
   [1, 0, 0],
@@ -22,7 +22,7 @@ export const CASES = SCALES.flatMap((s) =>
   (['uniform', 'anisotropic'] as const).flatMap((kind) =>
     AXES.flatMap((axis) =>
       [37, 90, 180].flatMap((angleDeg) =>
-        NORMALS.map((normal) => lightingCase({ s, kind, axis, angleDeg, normal, ...MATERIAL })),
+        NORMALS.map((normal) => lightingCase({ s, kind, axis, angleDeg, normal, ...LIT_MATERIAL })),
       ),
     ),
   ),
@@ -57,7 +57,7 @@ const singular = (name: string, columns: number[][], normal: number[], truth: nu
   truth,
   singular: true,
   collapsed: truth === ZERO,
-  ...MATERIAL,
+  ...LIT_MATERIAL,
 })
 
 /**
@@ -148,5 +148,5 @@ export const TINY_REGULAR = {
   truth: [0.6, 0.8, 0],
   singular: false,
   collapsed: false,
-  ...MATERIAL,
+  ...LIT_MATERIAL,
 }

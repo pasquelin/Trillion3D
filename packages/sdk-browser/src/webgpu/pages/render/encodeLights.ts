@@ -1,8 +1,7 @@
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import {
+  environmentCurve,
   environmentExposure,
-  DEFAULT_TONE_MAPPING,
-  TONE_MAPPING_RANK,
 } from '../../../../../sdk-core/src/scene/core/environment.ts'
 import { uploadSceneLights } from '../state/lightBuffer.ts'
 import { ensureBounce, syncLightingProxies } from '../prepare/bounce.ts'
@@ -38,7 +37,7 @@ export function encodeDirectLights(
   // Exposure is not a light: it sets conversion of radiance into an image, and cannot light anything
   // the declared lights do not already light.
   directParams[3] = environmentExposure(environment)
-  directParams[4] = TONE_MAPPING_RANK[environment?.toneMapping ?? DEFAULT_TONE_MAPPING]
+  directParams[4] = environmentCurve(environment)
   // The eye itself, under any projection: an orthographic camera's view point is a direction.
   directParams.set(cam.eye, 5)
   // The unlit view reads neither light lists nor a shadow map: it therefore encodes none of them.
@@ -85,8 +84,9 @@ function encodeTileLists(
   const { lights, gpu } = rt,
     { tiles } = lights,
     [width, height] = gpu.targetSize
+  // Sized before the bounce listed its world grid (`encodeDirectLights`); a buffer the world's growth
+  // replaced since is bound again by the pass.
   if (!tiles || !lights.buffer) return false
-  if (!tiles.ensure(width, height, lights.buffer, lights.store.count)) return false
   tiles.update(viewProjection, eye, width, height)
   return tiles.encode(encoder, rt.run.frame)
 }

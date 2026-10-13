@@ -12,7 +12,7 @@ export function referenceCutComplete(desired: readonly PageRec[]) {
   return true
 }
 
-/** `packages/sdk-browser/src/webgpu/pages/io/hostApi.ts:pendingUrls` before the batch: `collectPendingUrls` on the whole cut. */
+/** `packages/sdk-browser/src/webgpu/pages/io/hostLists.ts:pendingUrls` before the batch: `collectPendingUrls` on the whole cut. */
 export function referencePendingUrls(
   desired: readonly PageRec[],
   stamps: RequestStamps,

@@ -1,5 +1,6 @@
 // The exact read's edge rule (`transmissionWgsl.ts`: `vsmTInside`): every point of a sheet counted
 // once — random points, points on shared edges and vertices, fans, the seams between clusters.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
@@ -9,9 +10,7 @@ import {
   type V,
   LAYOUT,
   count,
-  f32,
   geometry,
-  random,
   sheet,
   waves,
 } from './transmissionSheets.fixture.ts'
@@ -19,13 +18,13 @@ import { TAU } from '../../../math/src/constants.ts'
 import { lerp } from '../../../math/src/scalar/reals.ts'
 
 test('the edge rule counts every point of a sheet once: random, on shared edges and on vertices', () => {
-  const rnd = random(7)
+  const rnd = mulberry32(7)
   for (const [name, tris, move] of [
     ['a regular grid', sheet(16, 0, 128, (p) => p), (p: V) => p],
     ['a wave-moved grid', sheet(12, 4, 124, waves), waves],
   ] as const) {
     const points: V[] = []
-    for (let k = 0; k < 1200; k++) points.push([20 + 88 * rnd(), 20 + 88 * rnd()].map(f32))
+    for (let k = 0; k < 1200; k++) points.push([20 + 88 * rnd(), 20 + 88 * rnd()].map(Math.fround))
     // Every interior vertex, and every point on a shared edge the grid holds exactly.
     for (const tri of tris)
       for (const v of tri) if (v.every((x) => x > 20 && x < 108)) points.push(v)
@@ -40,7 +39,7 @@ test('the edge rule counts every point of a sheet once: random, on shared edges 
       [60, -9],
       [70, 150],
     ])
-      assert.equal(count(tris, move(p).map(f32)), 0)
+      assert.equal(count(tris, move(p).map(Math.fround)), 0)
   }
 })
 
@@ -49,7 +48,7 @@ test('a fan counts its shared vertex and spokes once; a triangle of no area hold
   for (const spokes of [3, 5, 7, 12]) {
     const ring = Array.from({ length: spokes }, (_, k) => {
       const a = (TAU * (k + 0.37)) / spokes
-      return [centre[0] + 30 * Math.cos(a), centre[1] + 30 * Math.sin(a)].map(f32)
+      return [centre[0] + 30 * Math.cos(a), centre[1] + 30 * Math.sin(a)].map(Math.fround)
     })
     const fan: Tri[] = ring.map((v, k) => [centre, v, ring[(k + 1) % spokes]])
     assert.equal(count(fan, centre), 1, `${spokes} spokes: the centre`)
@@ -79,7 +78,8 @@ test('a sheet cut into clusters keeps its seams: each cluster projects its own b
     ['vsmTTexel'],
     {},
   )
-  const world = (i: number, j: number) => [i * 0.25 + 0.03 * Math.sin(j), j * 0.25, 0].map(f32)
+  const world = (i: number, j: number) =>
+    [i * 0.25 + 0.03 * Math.sin(j), j * 0.25, 0].map(Math.fround)
   const project = (p: V) =>
     bin.vsmTTexel([p[0] * 0.125 + 0.01, p[1] * 0.125 + 0.01, 0.5, 1], 128, [0, 0])
   const bands: Tri[][] = []
@@ -98,7 +98,7 @@ test('a sheet cut into clusters keeps its seams: each cluster projects its own b
     bands.push(tris)
   }
   const all = bands.flat()
-  const rnd = random(11)
+  const rnd = mulberry32(11)
   let seamPoints = 0
   for (let band = 1; band < bands.length; band++) {
     // The seam's corners, from each side, to the same bits.

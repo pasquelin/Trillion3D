@@ -3,14 +3,14 @@
 // nothing in them turning with the frame.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WRITTEN_WORDS } from './viewLayout.ts'
+import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 import type { HeldImage } from './radiance.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 
 /** A device whose queue lays each write into the words of one view uniform: what the buffer holds
  *  after each call, and the writes it took. */
 function viewDevice() {
-  const words = new Float32Array(REFLECTION_VIEW_WRITTEN_WORDS + 16),
+  const words = new Float32Array(REFLECTION_VIEW_WORDS + 16),
     bits = new Uint32Array(words.buffer)
   const held = { words, bits, writes: 0, last: 0 }
   const device = {
@@ -69,7 +69,12 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
     [...words.slice(REFLECTION_VIEW_AT.proxy, REFLECTION_VIEW_AT.proxy + 1)],
     [Math.fround(0.1)],
   )
-  assert.ok(sent.last <= REFLECTION_VIEW_WRITTEN_WORDS, 'the surroundings are not written')
+  assert.ok(sent.last <= REFLECTION_VIEW_WORDS, 'the view and no word past it')
+  assert.deepEqual(
+    [...words.slice(REFLECTION_VIEW_AT.surroundings, REFLECTION_VIEW_AT.surroundings + 4)],
+    [0, 0, 0, 0],
+    'no background declared: a ray that leaves the scene reaches the environment',
+  )
   write(frame, { ...held, valid: true }, 8)
   assert.equal(traced[REFLECTION_VIEW_AT.traced], 1)
   write({ ...frame, depthDrawn: false }, { ...held, valid: true }, 8)

@@ -67,7 +67,7 @@ test('WebGPU: a pool whose time runs before its first particle dispatches no emp
 
 test('WebGPU: a step that cannot compile is heard, and its pools stop asking frames', async () => {
   const heard: unknown[] = [],
-    { device } = fakeDevice({ compute: false })
+    { device } = fakeDevice({ failCompute: true })
   const particles = createWebgpuParticles(device, (error) => heard.push(error))
   const pool = new ParticlePool({ capacity: 8 })
   pool.emit(0, 0, 0, 0, 1, 0, 2)

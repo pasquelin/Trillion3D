@@ -1,7 +1,8 @@
 /**
  * The display curves' constants (`toneMappingWgsl.ts`): the matrices as numbers, column after
  * column, written as WGSL matrices, and the curves' expressions as text. Each is the curve the
- * display pass evaluates.
+ * display pass evaluates; the numbers the curves' inverses read on the CPU (`toneUnmap.ts`) beside
+ * them.
  */
 import { wgslF32, wgslMatrix3 } from '../../../math/src/wgsl/number.ts'
 import { normalMatrix3 } from '../../../math/src/matrix/matrix3.ts'
@@ -41,14 +42,16 @@ const ACES_OUTPUT = [
 /** The filmic curve. declared: an exposure scale, two colour matrices around a rational fit of `c`,
  *  set together as one look. Sensitivity: each number shapes the tone and the colour of the whole
  *  image, so none is changed alone. */
+const ACES_EXPOSURE = 0.6
 export const ACES = {
-  exposure: wgslF32(0.6),
+  exposure: wgslF32(ACES_EXPOSURE),
   input: wgslMatrix3(ACES_INPUT),
   output: wgslMatrix3(ACES_OUTPUT),
-  /** The two matrices' inverses, and the rational fit's coefficients as numbers: what the curve's
-   *  inverse reads (`toneUnmap`). */
-  inputInverse: wgslMatrix3(inverse3(ACES_INPUT)),
-  outputInverse: wgslMatrix3(inverse3(ACES_OUTPUT)),
+  /** The exposure scale, the two matrices' inverses, and the rational fit's coefficients as
+   *  numbers: what the curve's inverse reads (`toneUnmap`). */
+  exposureScale: ACES_EXPOSURE,
+  inputInverse: inverse3(ACES_INPUT),
+  outputInverse: inverse3(ACES_OUTPUT),
   fit: ACES_FIT,
   numerator: `c*(c+${ACES_FIT.a})-${ACES_FIT.b}`,
   denominator: `c*(${ACES_FIT.d}*c+${ACES_FIT.e})+${ACES_FIT.f}`,
@@ -65,6 +68,10 @@ const AGX_OUTSET = [
   1.157823702216272, -0.11060664309660294, -0.016493938717834573, -0.016493938717834257,
   1.2519364065950405,
 ]
+/** The sixth-degree contrast fit of the log-domain curve, from `c⁶` down to the constant. */
+const AGX_CONTRAST = [15.5, -40.14, 31.96, -6.868, 0.4298, 0.1191, -0.00232] as const
+/** A coefficient as a term of a sum: its sign always written. */
+const signed = (x: number) => (x < 0 ? `${x}` : `+${x}`)
 /** The log-domain curve. declared: a conversion to the BT.2020 primaries and back, an inset and an
  *  outset matrix, the log2 range in EV and a sixth-degree contrast fit over `c`, `c2 = c²`,
  *  `c4 = c⁴`, set together as one look. Sensitivity: each number shapes the tone and the colour of
@@ -76,12 +83,15 @@ export const AGX = {
   outset: wgslMatrix3(AGX_OUTSET),
   /** The inverses the curve's inverse reads (`toneUnmap`): of the narrowing, of the outset, and of
    *  the inset after the widening. */
-  toNarrowInverse: wgslMatrix3(inverse3(AGX_TO_NARROW)),
-  outsetInverse: wgslMatrix3(inverse3(AGX_OUTSET)),
-  intoLogInverse: wgslMatrix3(inverse3(multiply3(AGX_INSET, AGX_TO_WIDE))),
+  toNarrowInverse: inverse3(AGX_TO_NARROW),
+  outsetInverse: inverse3(AGX_OUTSET),
+  intoLogInverse: inverse3(multiply3(AGX_INSET, AGX_TO_WIDE)),
   low: -12.47393,
   high: 4.026069,
-  contrast: '15.5*c4*c2-40.14*c4*c+31.96*c4-6.868*c2*c+0.4298*c2+0.1191*c-0.00232',
+  /** The contrast fit's coefficients, from `c⁶` down to the constant, and its text over `c`,
+   *  `c2`, `c4`. */
+  contrastFit: AGX_CONTRAST,
+  contrast: `${AGX_CONTRAST[0]}*c4*c2${signed(AGX_CONTRAST[1])}*c4*c${signed(AGX_CONTRAST[2])}*c4${signed(AGX_CONTRAST[3])}*c2*c${signed(AGX_CONTRAST[4])}*c2${signed(AGX_CONTRAST[5])}*c${signed(AGX_CONTRAST[6])}`,
 }
 
 /** The display gamma the filmic curves carry, which a power takes back to linear before the sRGB
@@ -91,8 +101,11 @@ export const GAMMA = 2.2
 /** The filmic rational fit of `x = max(0, c − 0.004)`, display gamma included:
  *  `x(a·x + b) / (x(a·x + c) + d)`. */
 const CINEON_FIT = { a: 6.2, b: 0.5, c: 1.7, d: 0.06 }
+const CINEON_OFFSET = 0.004
 export const CINEON = {
-  offset: wgslF32(0.004),
+  offset: wgslF32(CINEON_OFFSET),
+  /** The offset as a number, for the curve's inverse (`toneUnmap`). */
+  offsetValue: CINEON_OFFSET,
   fit: CINEON_FIT,
   curve: `(x*(${CINEON_FIT.a}*x+${CINEON_FIT.b}))/(x*(${CINEON_FIT.a}*x+${CINEON_FIT.c})+${CINEON_FIT.d})`,
 }

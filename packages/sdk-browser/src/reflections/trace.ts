@@ -15,21 +15,18 @@ import { directLightWgsl } from '../lighting/direct/lightWgsl.ts'
 import { RECT_SHADING_WGSL } from '../lighting/direct/rectLightWgsl.ts'
 import { LOBES_DECODE_WGSL, LOBES_LIGHTING_WGSL } from '../lighting/direct/lobesWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../lighting/standardLighting.ts'
-import { TONE_UNMAPPING_WGSL } from '../lighting/toneMappingWgsl.ts'
 import { BOUNCE_GRID_WGSL } from '../bounce/gridWgsl.ts'
 import { SURFACE_MODEL_LIGHT_WGSL, surfaceReflects } from '../scene/surfaceModel.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../scene/physicalLobes.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { f0Of } from '../../../math/src/wgsl/lighting.ts'
-import { srgbToLinear } from '../../../math/src/wgsl/color.ts'
 import { storageEntry, storeEntry } from './bindings.ts'
 import { REFLECTION_FORMAT, REFLECTION_SIDE } from './constants.ts'
-import { REFLECTION_GROUP, REFLECTION_VIEW_WGSL, reflectionLightViewWgsl } from './viewLayout.ts'
+import { REFLECTION_GROUP, reflectionLightViewWgsl } from './viewLayout.ts'
 import { reflectionShareWgsl } from './weight.ts'
 import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
 import { TRACE_LIST, TRACE_LIST_FIRST } from '../bounce/runtimeLayout.ts'
-import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
 
 /**
  * THE ONE TABLE OF THE TRACE'S GROUP 0, shared by the classification and the trace: the WGSL
@@ -62,9 +59,8 @@ const RUNTIME_BINDINGS: RuntimeBindings = {
   store: TRACE_BINDINGS.store,
 }
 
-/** The frame state's group (`BEGIN_SHADER`): the view uniform, the indirect arguments, the
- *  lighting's view and the trace's list. */
-const BEGIN_BINDINGS = { view: 1, work: 2, lightView: 3, list: 4 } as const
+/** The frame state's group (`BEGIN_SHADER`): the indirect arguments and the trace's list. */
+const BEGIN_BINDINGS = { work: 2, list: 4 } as const
 
 /**
  * The opaque surfaces' reflection, in the compute pass of the image: where a tile of
@@ -151,24 +147,16 @@ fn tracePixel(rank:u32,lid:vec2u){
 )
 
 /**
- * The frame's reflection state, one thread: the radiance around the scene (`surroundings`,
- * `reflectionEnvironment`) — the background the view shows, as a mirror must show it: the display
- * value of the view (`view.background`, held below white, which no byte tells from the display's
- * one at an infinite radiance, decoded once) turned back, by the exposure and the display curve of
- * the view, into the radiance that shows it (`toneUnmap`) — and the tile list emptied, its indirect
- * arguments set (`TRACE_SHADER`); the run-time proxy's frame counters started again and its schedule
- * moved on.
+ * The frame's reflection state, one thread: the tile list emptied, its indirect arguments set
+ * (`TRACE_SHADER`); the run-time proxy's frame counters started again and its schedule moved on.
+ * The radiance around the scene (`surroundings`) is the CPU's, written with the view
+ * (`createSurroundings`, `../lighting/toneUnmap.ts`).
  */
 export const BEGIN_SHADER = wgslProgram(
-  `@group(0) @binding(${BEGIN_BINDINGS.view}) var<storage,read_write> reflectionView:ReflectionView;
-@group(0) @binding(${BEGIN_BINDINGS.work}) var<storage,read_write> work:array<u32>;
-@group(0) @binding(${BEGIN_BINDINGS.lightView}) var<uniform> view:View;
+  `@group(0) @binding(${BEGIN_BINDINGS.work}) var<storage,read_write> work:array<u32>;
 @group(0) @binding(${BEGIN_BINDINGS.list}) var<storage,read_write> traceList:array<u32>;
-const BACKGROUND_WHITE:f32=${254.5 / 255};
 @compute @workgroup_size(1)
 fn reflectionBegin(){
- let shown=toneUnmap(srgbToLinear(min(view.background.rgb,vec3f(BACKGROUND_WHITE))),u32(view.display.x))/view.lightParams.w;
- reflectionView.surroundings=vec4f(shown,0.0);
  work[0]=0u;work[1]=1u;work[2]=1u;work[3]=0u;
  // The budget ran out at the cursor: the next frame starts there; when every pixel holds its samples, where it is.
  traceList[${TRACE_LIST.count}u]=0u;
@@ -176,7 +164,7 @@ fn reflectionBegin(){
  traceList[${TRACE_LIST.cursor}u]=0u;
  traceList[${TRACE_LIST.left}u]=0u;traceList[${TRACE_LIST.spent}u]=0u;
 }`,
-  [REFLECTION_VIEW_WGSL, VIEW_WGSL, TONE_UNMAPPING_WGSL, srgbToLinear],
+  [],
 )
 
 /** Bytes of the indirect arguments: the workgroups along x and y, 1, then the count of tiles. */
@@ -210,9 +198,7 @@ function traceLayouts(device: GPUDevice) {
     }),
     beginLayout: device.createBindGroupLayout({
       entries: [
-        computeBufferEntry(BEGIN_BINDINGS.view, 'storage'),
         computeBufferEntry(BEGIN_BINDINGS.work, 'storage'),
-        computeBufferEntry(BEGIN_BINDINGS.lightView, 'uniform'),
         computeBufferEntry(BEGIN_BINDINGS.list, 'storage'),
       ],
     }),
@@ -296,7 +282,6 @@ export type TraceInputs = {
   proxy: GPUBuffer
   /** The store of the run-time proxy's answers, or its stand-in (`proxyStore.ts`). */
   store: GPUTextureView
-  lightView: GPUBuffer
 }
 
 /** The groups of a trace: the trace's, the classification's and the frame state's. */
@@ -319,7 +304,7 @@ function traceGroups(
   stages: Awaited<ReturnType<typeof createTraceStages>>,
   inputs: TraceInputs,
 ) {
-  const { device, targetView, uniform, tiles, trace } = reflection
+  const { device, targetView, tiles, trace } = reflection
   const { next } = trace.identity
   next.length = 0
   next.push(
@@ -333,7 +318,6 @@ function traceGroups(
     inputs.probes,
     inputs.proxy,
     inputs.store,
-    inputs.lightView,
     inputs.lightLists,
   )
   if (!trace.identity.moved() && trace.groups) return trace.groups
@@ -366,9 +350,7 @@ function traceGroups(
     begin: device.createBindGroup({
       layout: stages.beginLayout,
       entries: namedEntries(BEGIN_BINDINGS, {
-        view: { buffer: uniform },
         work: { buffer: tiles.args },
-        lightView: { buffer: inputs.lightView },
         list: { buffer: tiles.list },
       }),
     }),

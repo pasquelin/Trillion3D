@@ -11,6 +11,11 @@ import { reflectionGroup, reflectionLightView, type ScreenReflection } from './g
 import { encodeRadiancePyramid, type RadianceInputs } from './radiance.ts'
 import { encodeReflectionTrace, type TraceInputs } from './trace.ts'
 import type { ReflectionFrame } from './viewWrite.ts'
+import { createSurroundings } from '../lighting/toneUnmap.ts'
+import {
+  environmentCurve,
+  environmentExposure,
+} from '../../../sdk-core/src/scene/core/environment.ts'
 
 /** The reflections' compute pass, opened by the first of its dispatches. */
 const reflectionPass = new LazyComputePass(REFLECTION_PASS)
@@ -22,6 +27,9 @@ const frame: ReflectionFrame = {
   depthDrawn: false,
   proxyError: 0,
 }
+/** The radiance a ray that leaves the scene reaches, computed again when the background, the
+ *  exposure or the curve moves. */
+const surroundings = createSurroundings()
 const inputs = {} as TraceInputs
 const radianceInputs = {} as RadianceInputs
 
@@ -32,6 +40,12 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
   frame.size = gpu.targetSize
   frame.depthDrawn = run.depthDrawn
   frame.proxyError = bounce.proxy?.errorMetres ?? 0
+  const { environment } = rt.lights.store
+  frame.surroundings = surroundings(
+    run.clearColor,
+    environmentExposure(environment),
+    environmentCurve(environment),
+  )
   // The run-time proxy's answers are of an epoch: it moves with the view, the lights, the poses and the proxy.
   frame.epoch = reflection.store.follow(
     rt.lights.store.epoch,
@@ -60,7 +74,7 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
   if (!hiz) return
   if (reflection && stages && depth && reflectionLightView(rt)) {
     writeFrame(rt, reflection)
-    encodeFrontDepth(encoder, reflection, stages, gpu.targetSize)
+    encodeFrontDepth(encoder, reflection, stages)
   }
   if (!rt.run.depthDrawn) return
   hiz.encodeNearest(reflectionPass.begin(encoder))
@@ -103,7 +117,6 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     rt.run.gpuSelection?.proxyCopies(rt.setup.blendCopies)
     inputs.proxy = rt.run.gpuSelection?.proxyBuffer() ?? deferred.placeholders.runtime
     inputs.store = reflection.store.view ?? deferred.placeholders.store
-    inputs.lightView = lightView
     const group = reflectionGroup(reflection, depth, lightView)
     encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)
   }

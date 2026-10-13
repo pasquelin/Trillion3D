@@ -4,6 +4,7 @@
 // rounded number — the exact one, short of overflow, where both are infinite. On the sample's own
 // level the depth was (raw − 0) / 1: it is (raw − 0) · 1, raw itself. Run in f32 over raw depths and
 // biases of every exponent the reversed-Z depth reaches, signed zeros among them.
+import { fromF32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
@@ -53,12 +54,10 @@ test('the shipped reads multiply by the exact inverse of the level scale', () =>
 
 test('in f32, (raw − bias) / 2^-k is (raw − bias) · 2^k, and (raw − 0) / 1 is raw', () => {
   const next = lcgRandom(1563)
-  const word = new Float32Array(1),
-    bits = new Uint32Array(word.buffer)
   const values = [0, -0, 1, 2 ** -24, 2 ** -126, 0.5]
   for (let i = 0; i < 200_000; i++) {
-    bits[0] = Math.floor(next() * 2 ** 32)
-    if (Number.isFinite(word[0])) values.push(word[0])
+    const x = fromF32Bits(Math.floor(next() * 2 ** 32))
+    if (Number.isFinite(x)) values.push(x)
   }
   let checked = 0
   for (const raw of values) {

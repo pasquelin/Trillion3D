@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createExplorerFrameScheduler } from './frameScheduler.ts'
-import { frameQueue } from './frameQueue.fixture.ts'
+import { decided, frameQueue } from './frameQueue.fixture.ts'
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
@@ -12,7 +12,6 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 const FRAMES_IN_FLIGHT = DAG_READBACK_SLOTS
 
 /** Every microtask a settled feedback runs is done: the loop's decision is made. */
-const decided = () => new Promise(setImmediate)
 
 /** Runs the frames the loop asks, each decided, until it asks none; a loop that never stops fails. */
 async function runFrames(frames: ReturnType<typeof frameQueue>) {

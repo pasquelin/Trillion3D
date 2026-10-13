@@ -7,7 +7,8 @@ import { setDissect } from '../../../bench/dawn/dissectHooks.ts'
 import { stepsOf, type Variant } from '../../../bench/dawn/dissectReport.ts'
 import { cutsOf, hashOf } from '../../../bench/dawn/shaderCuts.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
-import { kernelOn, openBenchDevice } from '../kit/benchDevice.ts'
+import { openBenchDevice } from '../kit/benchDevice.ts'
+import { kernelOn } from '../kit/computeReadback.ts'
 
 const loop = (n: number, from: string) =>
   `for (var i = 0u; i < ${n}u; i++) { ${from} = fract(${from} * 1.7 + 0.31) + sin(${from}); }`

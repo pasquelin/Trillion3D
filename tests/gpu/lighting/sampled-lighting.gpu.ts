@@ -12,10 +12,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'
-import {
-  runPageProof as runPage,
-  assertSoundProof as assertHealthy,
-} from '../kit/enginePageProof.ts'
+import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts'
 
 interface Run {
   held: number[] | null
@@ -24,7 +21,7 @@ interface Run {
   first: number[]
   last: number[]
 }
-type Result = Awaited<ReturnType<typeof runPage>> & {
+type Result = Awaited<ReturnType<typeof runPageProof>> & {
   viewport: [number, number]
   lights: number
   sans: Run
@@ -38,8 +35,8 @@ const INTERIOR = [16, 80]
 
 test('a still image shades every light, a moving one a drawn subset that history averages', async () => {
   const page = resolve(import.meta.dirname, 'sampledLightingPage.ts')
-  const result = (await runPage(page, 'sampledLighting', 'run')) as Result
-  assertHealthy(result)
+  const result = (await runPageProof(page, 'sampledLighting', 'run')) as Result
+  assertSoundProof(result)
   const [width] = result.viewport
   const { sans: plain, with: accumulated, witness } = result
   /** The largest channel difference of each interior pixel: its mean, and its maximum. */

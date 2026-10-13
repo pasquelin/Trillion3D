@@ -45,13 +45,36 @@ export async function bench() {
       },
     },
   } as unknown as WebgpuPagesRuntime
-  return { gpu, rt, roots, fixture, asked, marked, landed: () => landed }
+  return {
+    gpu,
+    rt,
+    roots,
+    fixture,
+    asked,
+    marked,
+    landed: () => landed,
+    /** Images drawn at `z` until the atlas is made (`imagesUntilResident`). */
+    untilResident: (z: number) => imagesUntilResident(rt, gpu, z),
+  }
 }
 
-/** Images drawn until the atlas landed and was made: each lands what the one before asked. */
-export async function imagesUntilResident(rt: WebgpuPagesRuntime, z: number) {
-  for (let image = 0; image < 3; image++) {
+/** Images an atlas takes at most: its levels asked, landed, then copied and bound. */
+const RESIDENT_IMAGES = 8
+
+/** Images drawn at `z` until the atlas of every mesh the roots hold landed and was made — its
+ *  group bound on the device —, each landing what the one before asked; within
+ *  `RESIDENT_IMAGES`. */
+async function imagesUntilResident(
+  rt: WebgpuPagesRuntime,
+  gpu: ReturnType<typeof fakeDevice>,
+  z: number,
+) {
+  const bound = (mesh: number | undefined) =>
+    gpu.bindGroups.some((group) => group.label === `Trillion3D impostor atlas ${mesh}`)
+  const made = () => rt.layout.selectionRoots.every((root) => bound(root.mesh))
+  for (let image = 0; image < RESIDENT_IMAGES && !made(); image++) {
     planWebgpuImpostors(rt, engineAt(z))
     await settle()
   }
+  assert.ok(made(), `the atlas is made within ${RESIDENT_IMAGES} images`)
 }

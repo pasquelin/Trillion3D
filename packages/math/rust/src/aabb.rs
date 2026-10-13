@@ -1,8 +1,9 @@
-//! Axis-aligned boxes, as a low and a high corner, grown by points and by boxes, and crossed by a
-//! ray: every compiler stage that bounds geometry grows its boxes here, with the same bits on every
-//! machine.
+//! Axis-aligned boxes, as a low and a high corner, grown by points and by boxes, and measured:
+//! every compiler stage that bounds geometry grows its boxes here, with the same bits on every
+//! machine. A ray crosses them in `ray_box.rs`.
 
 use crate::js::{lower, lower_f32, upper, upper_f32};
+use crate::real::Real;
 
 /// Extends bounding box by another box, axis by axis in axis order, by `lower` and `upper`: NaN
 /// in the read box leaves the bound as is, NaN in the bound is replaced by the coordinate. Min
@@ -149,38 +150,25 @@ pub fn diagonal<const N: usize>(low: [f64; N], high: [f64; N]) -> f64 {
     crate::vecn::length(crate::vecn::sub(high, low))
 }
 
-/// Whether the ray from `origin`, its direction's reciprocal `inverse`, crosses the box `[low,
-/// high]` between 0 and `limit`: the slab test, axis by axis in axis order, each side's distance
-/// `(bound − origin) · inverse`, the entry raised from 0 by `f64::max` of the nearer and the exit
-/// lowered from `limit` by `f64::min` of the farther; a hit when the entry is not past the exit. A
-/// NaN distance (`0 · ∞`, a zero component of the direction against a bound through the origin) is
-/// passed over by `min` and `max`, the other bound's distance then both the nearer and the farther.
+/// Half the surface of the box, `xy + yz + zx` of its sides `high − low`, in either precision:
+/// what a tree compares its boxes by. A side neither positive nor a number (an empty or flat box)
+/// counts `+0`.
 #[inline]
-pub fn ray_aabb(
-    low: [f64; 3],
-    high: [f64; 3],
-    origin: [f64; 3],
-    inverse: [f64; 3],
-    limit: f64,
-) -> bool {
-    let mut entry = 0.0f64;
-    let mut exit = limit;
-    for axis in 0..3 {
-        let near = (low[axis] - origin[axis]) * inverse[axis];
-        let far = (high[axis] - origin[axis]) * inverse[axis];
-        entry = entry.max(near.min(far));
-        exit = exit.min(near.max(far));
-    }
-    entry <= exit
+pub fn half_area<T: Real + PartialOrd>(low: [T; 3], high: [T; 3]) -> T {
+    let [x, y, z] = [0, 1, 2].map(|axis| {
+        let side = high[axis] - low[axis];
+        if side > T::ZERO {
+            side
+        } else {
+            T::ZERO
+        }
+    });
+    x * y + y * z + z * x
 }
 
 #[cfg(test)]
 #[path = "aabb_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "aabb_ray_tests.rs"]
-mod ray_tests;
 
 #[cfg(test)]
 #[path = "aabb_extent_tests.rs"]

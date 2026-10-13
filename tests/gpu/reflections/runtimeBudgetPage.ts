@@ -1,13 +1,12 @@
 // The page of the run-time proxy's budget proof: the first case of the family drawn at a size whose rays outnumber
 // the frame's budget, the temporal accumulation off so that the image holds; each frame's counters read
-// (`HISTORY`) until the image holds,
-import { TRACE_LIST } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
+// (`traceCounters`) until the image holds.
 import { proofCanvas } from '../kit/renderHarness.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
-import { listenToWorldDevices, readWords } from '../kit/worldErrors.ts'
+import { listenToWorldDevices } from '../kit/worldErrors.ts'
 import { familyCase } from './runtimeFamilyCases.ts'
-import { familyWorld } from './runtimeFamilyWorld.ts'
+import { familyWorld, traceCounters } from './runtimeFamilyWorld.ts'
 
 /** What the proof reads: each frame's work spent and pixels left from the first that casts a ray, and the
  *  image the world holds at the end. */
@@ -54,15 +53,9 @@ export const run = (size: readonly [number, number]) =>
       frame++
     ) {
       await animationFrame()
-      const list = [...made]
-        .reverse()
-        .find(([label]) => label.startsWith('Trillion3D reflection tile list'))?.[1]
-      if (!list || !context.current) continue
-      const counters = await readWords(context.getConfiguration().device, list, 5)
-      trail.push({
-        spent: counters[TRACE_LIST.spent],
-        left: counters[TRACE_LIST.left],
-      })
+      if (!context.current) continue
+      const counters = await traceCounters(context.getConfiguration().device, made)
+      if (counters) trail.push(counters)
     }
     Object.assign(result, { trail, held: held > 0, worldErrors: errors })
     world.dispose()

@@ -4,7 +4,7 @@ import { writeChanged } from '../gpu/core/writeChanged.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import { frontPitch } from './frontDepth.ts'
 import type { HeldImage } from './radiance.ts'
-import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WRITTEN_WORDS } from './viewLayout.ts'
+import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 
 /** What an image tells its reflection view (`createReflectionViewWriter`). */
 export type ReflectionFrame = {
@@ -18,6 +18,8 @@ export type ReflectionFrame = {
   proxyError: number
   /** The run-time proxy's epoch (`proxyStore.ts`, `follow`): what its answers are stamped with. */
   epoch?: number
+  /** The radiance a ray that leaves the scene reaches (`createSurroundings`): zero when absent. */
+  surroundings?: ArrayLike<number>
 }
 
 /**
@@ -26,13 +28,12 @@ export type ReflectionFrame = {
  * image's drawn size, the geometry of a surface's thickness (`screenSlab`) with the world size of a
  * pixel at a unit clip `w` — 2 /
  * (height · |row y of the view-projection|), the projection's vertical scale —, whether the screen
- * is traced and the resident proxy's error; all but the surroundings, which the GPU
- * writes from the lighting's view. The words that differ from those it sent go up (`writeChanged`):
- * a still view writes once, and nothing in it is a frame index or a seed. Nothing is allocated by
- * a call.
+ * is traced, the resident proxy's error and the surroundings. The words that differ from those it
+ * sent go up (`writeChanged`): a still view writes once, and nothing in it is a frame index or a
+ * seed. Nothing is allocated by a call.
  */
 export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer) {
-  const staged = new Float32Array(REFLECTION_VIEW_WRITTEN_WORDS)
+  const staged = new Float32Array(REFLECTION_VIEW_WORDS)
   const words = new Uint32Array(staged.buffer)
   const traced = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.traced * 4, 4)
   const runtime = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.runtime * 4, 4)
@@ -57,6 +58,8 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     traced[3] = frontPitch(frame.size[0])
     staged[REFLECTION_VIEW_AT.proxy] = frame.proxyError
     runtime[0] = frame.epoch ?? 0
-    writeChanged(device, buffer, words, 0, REFLECTION_VIEW_WRITTEN_WORDS)
+    if (frame.surroundings) staged.set(frame.surroundings, REFLECTION_VIEW_AT.surroundings)
+    else staged.fill(0, REFLECTION_VIEW_AT.surroundings, REFLECTION_VIEW_AT.surroundings + 4)
+    writeChanged(device, buffer, words, 0, REFLECTION_VIEW_WORDS)
   }
 }

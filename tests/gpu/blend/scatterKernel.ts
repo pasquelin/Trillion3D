@@ -2,6 +2,7 @@
 // the engine (`blendExpandBindEntries`, `EXPAND_BINDING`), dispatched as the engine dispatches them
 // (`BLEND_EXPAND_ENTRIES`, `blendExpandDispatch`), then its two outputs read back — the expanded
 // instance list and each run's indirect arguments.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import assert from 'node:assert/strict'
 import {
   BLEND_EXPAND_ENTRIES,
@@ -16,7 +17,6 @@ import { UNI_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/expand
 import { EXPAND_GROUP } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
 import { namedEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
@@ -92,8 +92,8 @@ async function expand(input: ExpansionInput) {
   pass.end()
   device.queue.submit([encoder.finish()])
   const [expanded, args] = [
-    await readBuffer(device, buffers.expanded.buffer, 0, input.instanceWords * 4),
-    await readBuffer(device, buffers.args.buffer, 0, input.argsWords * 4),
+    (await readGpuBuffer(device, buffers.expanded.buffer, input.instanceWords * 4))!,
+    (await readGpuBuffer(device, buffers.args.buffer, input.argsWords * 4))!,
   ]
   const { court: adapter } = await gpu.fermer()
   assert.deepEqual(gpu.errors, [], 'the device reports no error')

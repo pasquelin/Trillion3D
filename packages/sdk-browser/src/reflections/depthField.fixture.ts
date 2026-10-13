@@ -1,6 +1,7 @@
 // The depth pyramid a reflection march reads, built from any depth image for its tests: level 0
 // of the nearest layer by the Hi-Z build's own first pass, the coarser texels of its three layers by
 // the Hi-Z oracle's reductions.
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { HIZ_SHADER, HIZ_NEAREST_BUILD } from '../gpu/hiz/shader.ts'
 import { pyramidBytes } from '../gpu/hiz/oracle.ts'
@@ -58,11 +59,6 @@ export const depthLoads =
     if (field.layerOf(cell, layer) === HIZ_NEAREST) onNearest(cell)
     return [field.word(cell, layer)]
   }
-
-const WORD = new Float32Array(1),
-  BITS = new Uint32Array(WORD.buffer)
-/** A depth as the pyramid holds it: its `f32` bits. */
-const bitsOf = (value: number) => ((WORD[0] = value), BITS[0])
 
 /**
  * The depth pyramid a march reads of the `width × height` depth image `depth`, at the packed
@@ -169,7 +165,7 @@ export function depthField(
         x = (i - offsets[level]) % w,
         y = Math.floor((i - offsets[level]) / w)
       if (layer === HIZ_NEAREST && level === 0) return (cell(layer, 0, x, y), slopes[i])
-      return bitsOf(cell(layer, level, x, y))
+      return f32Bits(cell(layer, level, x, y))
     },
     /** The depth level 0 holds at `p`: the opaque one. */
     depthAt: (p: number[]) => Math.fround(depth[p[1] * width + p[0]]),

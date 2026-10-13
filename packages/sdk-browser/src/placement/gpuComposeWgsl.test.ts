@@ -3,6 +3,7 @@
 // stores it, the translation brought to the eye by the double subtraction first
 // (`worldToRenderOrigin`). Generated hierarchies: rotations, uneven and negative scales, shears,
 // translations far from the origin, an eye far from it too.
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
@@ -31,8 +32,6 @@ const run = shaderRun<{
   parents,
   locals,
 })
-
-const f32Bits = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
 
 test('a double rounds to single precision as a Float32Array stores it', () => {
   const next = lcgRandom(3)
