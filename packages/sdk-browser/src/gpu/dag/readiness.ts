@@ -69,8 +69,6 @@ export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
       for (let at = worlds.length; at < packed.cutLinks.length; at++)
         worlds.push(blankOf(r, packed.cutLinks[at]))
     },
-    /** The open counts the placements hold of their own (`heldOpen.ts`). */
-    heldOpen,
     /** The placements holding a state of their own: those a page of which is resident. */
     get heldPlacements() {
       return r.heldCount
