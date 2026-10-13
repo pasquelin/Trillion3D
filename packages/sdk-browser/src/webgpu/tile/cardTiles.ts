@@ -30,8 +30,10 @@ const NO_CARDS: ReadonlyMap<number, CardTiles> = new Map()
  * hardware read of a whole chain, never a coarser stand-in, and until then its mesh keeps its
  * clusters (no image lost). A card not drawn posts no feedback: what it waits for, the CPU asks
  * (`requests.ts`, `fileTails.ts`), weighted by the pixels its nearest card covers as the feedback
- * would count them, one in `FEEDBACK_EVERY`. Once drawn, its pixels stamp what they read, the
- * ancestor of a streaming tile included (`stampWgsl.ts`).
+ * would count them, one in `FEEDBACK_EVERY`. Every tile it needs that resides, the CPU stamps as
+ * it asks (`stamp`), in the use words the pixels' stamp writes (`stampWgsl.ts`): a level its cards
+ * need and no pixel reads — the card waiting, or drawn at levels it does not all read — is never a
+ * victim, so a full pool cannot turn a card back to its clusters and again.
  *
  * A card asks as the view reaches it: the CPU reacts to a change, never waits on the GPU. A level
  * landing or a tile served while a card waits breaks a held image (`landed`), so the card is
@@ -74,7 +76,8 @@ export function createCardTiles(
       key.level = level
       for (key.ty = 0; key.ty < layout.down[level]; key.ty++)
         for (key.tx = 0; key.tx < layout.across[level]; key.tx++) {
-          if (atlas.resides(key)) continue
+          // Needed and read by no pixel yet, or not all: stamped as read, never a victim.
+          if (atlas.stamp(key)) continue
           ready = false
           ask(atlas, key, weight)
         }

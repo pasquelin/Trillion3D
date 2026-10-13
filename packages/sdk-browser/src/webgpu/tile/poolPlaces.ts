@@ -67,6 +67,14 @@ export function adopt(places: Places, index: number, key: number, pin: boolean) 
   places.freeStale = true
 }
 
+/** `index` used by an asker that reads no pixel of it yet (a card waiting for its maps,
+ *  `cardTiles.ts`): stamped as an arrival is — its use word written at the next flush's clock, in
+ *  use for the frames after, and a queue cut before it never names it. */
+export function use(places: Places, index: number) {
+  places.arrived[taken(places, index)] = ++places.arrivals
+  places.changed.mark(index)
+}
+
 export function release(places: Places, index: number) {
   taken(places, index)
   places.owner[index] = -1

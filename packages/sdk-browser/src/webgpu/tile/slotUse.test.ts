@@ -125,6 +125,32 @@ test('a tile past the feedback cap, read every frame, is stamped and stays resid
   for (const key of seen) assert.equal(atlas.resides(key), true)
 })
 
+// A card waiting for its maps posts no feedback, and one drawn may not read every level it needs:
+// the CPU stamps the tiles it asks (`cardTiles.ts`) in the words the pixels' stamp writes, so a
+// full pool never gives them up and turns the card back to its clusters. Old code: no pixel read
+// them, and the queue named them.
+test('under a full pool, the tiles a card asks are never victims while it waits or is shown', () => {
+  const { atlas, frame, level0, pool } = scene()
+  for (let i = 0; pool.resident < pool.tiles; i++) atlas.place(level0(i))
+  const card = Array.from({ length: 50 }, (_, i) => level0(100 + i))
+  const ask = () => card.forEach((key) => assert.equal(atlas.stamp(key), true))
+  // No pixel reads them: the card asks them image after image.
+  for (let f = 0; f < 6; f++) {
+    ask()
+    frame([])
+  }
+  // Asked once more after the queue's cut: that ask keeps them out of the cut queue too.
+  ask()
+  const victims = new Set<number>()
+  for (let index = pool.victim(); index !== undefined; index = pool.victim()) {
+    victims.add(index)
+    pool.release(index)
+  }
+  assert.equal(victims.size, pool.tiles - 1 - card.length, 'every other place but the tail')
+  for (const key of card) assert.equal(atlas.resides(key), true)
+  assert.equal(atlas.stamp(level0(0)), false, 'a tile given up is not stamped')
+})
+
 // The place words are GPU memory made with the pools: the probe that asks the device for a pool
 // asks for them too, at the size the atlas makes them, so a resize after it creates nothing the
 // device or the ledger has not admitted. Old code: the probe asked for the textures alone.

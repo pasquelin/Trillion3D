@@ -10,7 +10,7 @@ import {
 } from '../../texture/tiles.ts'
 import type { PoolLane } from '../../texture/blockFormats.ts'
 import type { ChangedRuns } from '../residency/ranges.ts'
-import { acquire, adopt, occupied, placesOf, release, taken } from './poolPlaces.ts'
+import { acquire, adopt, occupied, placesOf, release, taken, use } from './poolPlaces.ts'
 import { createPlaceOrder } from './placeOrder.ts'
 
 /**
@@ -40,7 +40,8 @@ export type WebgpuTilePool = {
   /** Occupied tiles, and their bytes. */
   readonly resident: number
   readonly residentBytes: number
-  /** Tiles that ever arrived: the cut of a queue, a tile arrived since never its victim. */
+  /** Tiles that ever arrived or were used (`use`): the cut of a queue, a tile arrived or used
+   *  since never its victim. */
   readonly arrivals: number
   /** Places occupied or freed since their use words were last written (`slotUse.ts`). */
   readonly changed: ChangedRuns
@@ -49,6 +50,9 @@ export type WebgpuTilePool = {
   /** Sets `key` at a precise free place — what a resized pool takes back from the old one. */
   adopt(index: number, key: number, pinned?: boolean): void
   release(index: number): void
+  /** Stamps `index` used as an arrival is (`poolPlaces.ts`): what the CPU asks of a tile no pixel
+   *  reads yet, in the same words the GPU stamps. */
+  use(index: number): void
   keyOf(index: number): number
   pinnedOf(index: number): boolean
   /** Whether `index` is free. */
@@ -138,6 +142,7 @@ export function createWebgpuTilePool(
     acquire: (key, pin = false) => acquire(places, key, pin),
     adopt: (index, key, pin = false) => adopt(places, index, key, pin),
     release: (index) => release(places, index),
+    use: (index) => use(places, index),
     keyOf: (index) => places.owner[taken(places, index)],
     pinnedOf: (index) => places.pinned[taken(places, index)] === 1,
     freeAt: (index) => places.owner[index] === -1,

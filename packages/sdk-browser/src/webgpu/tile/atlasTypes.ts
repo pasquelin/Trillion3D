@@ -38,6 +38,9 @@ export type WebgpuTileAtlas = {
   relayout(feedbackOffset: number): void
   /** Whether the tile resides. Its use is the GPU's: the pixels that read it stamp its place. */
   resides(key: TileKey): boolean
+  /** Whether the tile resides; one that does is stamped used (`WebgpuTilePool.use`), as a pixel's
+   *  read stamps it: an asker that needs it and reads none of it yet keeps it from the queue. */
+  stamp(key: TileKey): boolean
   /** A place for an arriving tile: free, or the next victim of its lane's queue (`placeOrder.ts`);
    *  `undefined` when the queue has none — every place read of late — refusal counted. */
   place(key: TileKey): TilePlace | undefined

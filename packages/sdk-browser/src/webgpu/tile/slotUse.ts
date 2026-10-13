@@ -27,9 +27,10 @@ export const tileUseBuffer = (kind: 'color' | 'data', places: number) => ({
  * level its tile carries, `TILE_UNRANKED` free or pinned. The pool's queue ranks them
  * (`evictSortWgsl.ts`).
  *
- * The CPU writes only the places a pool occupied or freed (`changed`): an arrival is used at the
- * clock it lands on, in use for the frames after it; a freed place is unranked. Nothing else of a
- * place is written by the CPU: the stamps are the GPU's. A lane pool replaced moves every base:
+ * The CPU writes only the places a pool occupied, used or freed (`changed`): an arrival is used at
+ * the clock it lands on, in use for the frames after it, and so is a tile an asker that reads no
+ * pixel of it yet stamps (`WebgpuTilePool.use`, an impostor card's maps); a freed place is
+ * unranked. Every other stamp is the GPU's. A lane pool replaced moves every base:
  * the buffer is made again, every occupied place written as an arrival.
  */
 export function createTileSlotUse(device: GPUDevice, kind: 'color' | 'data') {
