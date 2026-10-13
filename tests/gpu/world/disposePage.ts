@@ -45,8 +45,8 @@ function bench(scene: string, temporal: boolean) {
     await settle(world)
     return {
       bytes: () => world.engine.metrics().gpuAllocatedBytes ?? 0,
-      dispose() {
-        world.dispose()
+      async dispose() {
+        await world.dispose()
         document.getElementById(scene)?.remove()
       },
     }
