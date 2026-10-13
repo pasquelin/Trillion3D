@@ -358,7 +358,7 @@ interface PassGroup {
 /** What a set's projection holds (`vsmProjectionReserve`), freed with the set
  *  (`releaseVsmProjection`): never shared by two sessions on one device. The engine projects once a
  *  frame into its one mask: one view uniform and one pass group. */
-interface ProjectionState {
+export interface VsmProjectionState {
   uniform?: GPUBuffer
   group?: PassGroup
   /** The view uniform's image, uploaded each frame, and its words. */
@@ -371,12 +371,11 @@ interface ProjectionState {
 
 /** The device's projection pipelines, by the layout and variant they were compiled for. */
 const pipelines = new WeakMap<GPUDevice, Map<string, Pipelines>>()
-const states = new WeakMap<VsmResources, ProjectionState>()
 
 /** Bytes the projection of `res` holds — its view uniform and blue noise —, which freeing the
  *  set gives back (`releaseVsmProjection`; the pass draws into the engine's mask). */
 export const vsmProjectionHeldBytes = (res: VsmResources) => {
-  const state = states.get(res)
+  const state = res.projection
   return (
     (state?.uniform ? VSM_PROJECTION_VIEW_BYTES : 0) + (state?.blueNoise ? VSM_BLUE_NOISE_BYTES : 0)
   )
@@ -407,7 +406,7 @@ export function vsmProjectionReserve(device: GPUDevice, res: VsmResources) {
  *  the water's trace reads too (`vsmTraceFactor`), the same view and noise. None before the set's
  *  first reservation. */
 export function vsmProjectionShared(res: VsmResources) {
-  const state = states.get(res)
+  const state = res.projection
   return state?.uniform && state.blueNoiseView
     ? { view: state.uniform, noise: state.blueNoiseView }
     : undefined
@@ -415,28 +414,24 @@ export function vsmProjectionShared(res: VsmResources) {
 
 /** Frees what the projection of `res` holds, with the set (`destroyEngineVsm`). */
 export function releaseVsmProjection(res: VsmResources) {
-  const state = states.get(res)
+  const state = res.projection
   if (!state) return
-  states.delete(res)
+  res.projection = undefined
   state.uniform?.destroy()
   state.blueNoise?.destroy()
 }
 
 function projectionState(res: VsmResources) {
-  let s = states.get(res)
-  if (!s) {
-    const staging = new ArrayBuffer(VSM_PROJECTION_VIEW_BYTES)
-    s = {
-      staging,
-      words: {
-        f: new Float32Array(staging),
-        u: new Uint32Array(staging),
-        i: new Int32Array(staging),
-      },
-    }
-    states.set(res, s)
-  }
-  return s
+  if (res.projection) return res.projection
+  const staging = new ArrayBuffer(VSM_PROJECTION_VIEW_BYTES)
+  return (res.projection = {
+    staging,
+    words: {
+      f: new Float32Array(staging),
+      u: new Uint32Array(staging),
+      i: new Int32Array(staging),
+    },
+  })
 }
 
 /** The projection's pass, and its pipelines. */
@@ -579,7 +574,7 @@ function pipelineFor(p: Pipelines, lights: readonly VsmProjectionLight[]) {
  *  the views it binds changes. */
 function passGroupFor(
   device: GPUDevice,
-  state: ProjectionState,
+  state: VsmProjectionState,
   p: Pipelines,
   inputs: VsmProjectionInputs,
 ) {

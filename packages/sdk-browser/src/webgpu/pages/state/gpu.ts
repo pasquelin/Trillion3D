@@ -10,8 +10,7 @@ import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts'
 import type { WebgpuEffects } from '../../effects/webgpuEffects.ts'
 import type { WebgpuGuidePass } from '../../../guides/guidePass.ts'
 import type { WebgpuParticles } from '../../particles/webgpuParticles.ts'
-import type { DeviceGrant } from '../../../gpu/core/errorScope.ts'
-import type { FrameSize } from './renderScale.ts'
+import type { TargetGrant } from '../prepare/targetsSet.ts'
 import type { FloatAtlas } from '../../core/floatAtlas.ts'
 import type { WebgpuImpostors } from '../../impostor/frame.ts'
 import type * as ImpostorCode from '../../../impostor/impostorCode.ts'
@@ -61,8 +60,8 @@ export interface WebgpuGpuState {
   /** Bytes of the image targets of this size, those the image budget admitted. */
   targetBytes: number
   /** The frame targets asked of the device (`targetGrant.ts`): in flight, or settled when refused
-   *  at that size; gone once granted. */
-  targetGrant: (FrameSize & DeviceGrant & { retryAt?: number }) | undefined
+   *  at that size; gone once granted — once swapped in, made aside. */
+  targetGrant: TargetGrant | undefined
   positionBuffers: Map<HostAttributes, GPUBuffer>
   /** Indices, UVs and normals of transparents, held by the source geometry: two instances of the same
    *  object share the same geometry, therefore the same buffers. `undefined` kept in the table says
@@ -156,3 +155,8 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     impostorCode: undefined,
   }
 }
+
+/** `gpu`'s grant while it holds the frames: asked the held way, in flight or refused. Targets made
+ *  aside hold none — the frames draw into those in place meanwhile. */
+export const heldTargetGrant = (gpu: Pick<WebgpuGpuState, 'targetGrant'>) =>
+  gpu.targetGrant?.mode === 'held' ? gpu.targetGrant : undefined

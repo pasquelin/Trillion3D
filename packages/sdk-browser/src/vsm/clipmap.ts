@@ -163,9 +163,6 @@ function vsmClipmapLevelRadiusCm(absoluteLevel: number) {
   return Math.fround(Math.pow(2, Math.fround(absoluteLevel + 1)))
 }
 
-/** The clipmap each light's cache entry keeps (`createVsmClipmap`): its matrices, levels and
- *  bounds rewritten in place every frame, made anew with a new entry. */
-const CLIPMAPS = new WeakMap<VsmLightCache, VsmClipmap>()
 /** The config every clipmap shares: read, never written. */
 const GLOBAL_CONFIG: Readonly<VsmClipmapConfig> = Object.freeze(
   (() => {
@@ -192,23 +189,17 @@ const direction: [number, number, number] = [0, 0, 0],
 
 /** The clipmap `cacheEntry` keeps, made with it. */
 function heldClipmap(cacheEntry: VsmLightCache) {
-  let clipmap = CLIPMAPS.get(cacheEntry)
-  if (!clipmap)
-    CLIPMAPS.set(
-      cacheEntry,
-      (clipmap = {
-        config: GLOBAL_CONFIG,
-        light: undefined as unknown as VsmDirectionalLightInput,
-        cacheEntry,
-        lightDirection: [0, 0, 0],
-        lightViewRotation: new Float64Array(16),
-        eyeWorld: [0, 0, 0],
-        firstLevel: 0,
-        levelBias: 0,
-        levels: [],
-      }),
-    )
-  return clipmap
+  return (cacheEntry.clipmap ??= {
+    config: GLOBAL_CONFIG,
+    light: undefined as unknown as VsmDirectionalLightInput,
+    cacheEntry,
+    lightDirection: [0, 0, 0],
+    lightViewRotation: new Float64Array(16),
+    eyeWorld: [0, 0, 0],
+    firstLevel: 0,
+    levelBias: 0,
+    levels: [],
+  })
 }
 
 /** Level `k` of `levels`, made the first time. */
@@ -224,7 +215,7 @@ const heldLevel = (levels: VsmClipmapLevel[], k: number) =>
  * Builds a clipmap: finds/updates the light's cache entry, builds
  * every level, runs the per-level cache test and stores each level's projection data in its cache
  * entry (`cacheEntry.mapCaches[i].projectionData`). The clipmap returned is the one the
- * entry keeps (`CLIPMAPS`): the next frame of the same light rewrites it.
+ * entry keeps (`VsmLightCache.clipmap`): the next frame of the same light rewrites it.
  */
 export function createVsmClipmap(
   cache: VsmCacheManager,

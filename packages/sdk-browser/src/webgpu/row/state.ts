@@ -93,6 +93,9 @@ function rowCounters() {
   return {
     rowCount: 0,
     tableEpoch: 1,
+    /** How many writes of material values the session took (`refreshWebgpuMaterials`): what the
+     *  blends' records reread with each (`../blend/resources.ts`). */
+    materialEpoch: 0,
     rowsEpoch: 0,
     candidateCount: 0,
     /**

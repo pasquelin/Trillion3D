@@ -56,6 +56,20 @@ test('a light page capped by the memory budget stays under the cap, then grows w
   assert.equal(control.wanted(), 1)
 })
 
+// The wait a refusal sets was kept in a table of its own beside the grant's retry frame.
+test('a refused size waits, twice as long at each refusal at its view size, the cap lifted after', () => {
+  const control = createScaleControl('auto')
+  at120(control)
+  assert.equal(control.memoryRefused('v', 0), 300)
+  assert.equal(control.memoryRefused('v', 300), 900, 'twice the wait at the same view size')
+  assert.equal(control.memoryRefused('w', 900), 1200, 'another view size waits the first again')
+  assert.equal(control.capMemory('w'), true)
+  control.liftMemoryCap(1199)
+  assert.equal(control.memoryCapped, true, 'held until the wait is over')
+  control.liftMemoryCap(1200)
+  assert.equal(control.memoryCapped, false, 'lifted once it is')
+})
+
 test('the control reads back the measured refresh and the last frame interval', () => {
   const control = createScaleControl('auto')
   assert.equal(control.refreshMs, null, 'no period before the clock finds one')

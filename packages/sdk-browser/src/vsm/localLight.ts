@@ -159,8 +159,6 @@ function coarsestMipNeeded(
   return vsmLocalMipLevel(shadowFootprint, levelBias, pressureBias)
 }
 
-/** The setup each light's cache entry keeps (`addVsmLocalLightShadow`), rewritten each frame. */
-const SETUPS = new WeakMap<VsmLightCache, VsmLocalLightSetup>()
 // The frame's scratch: what a light computes before its cache entry is known (the entry copies
 // its key when it changes), and its maps' rendering matrices, copied into each map's own record.
 const X_AXIS = [1, 0, 0],
@@ -177,7 +175,7 @@ const X_AXIS = [1, 0, 0],
 /**
  * Sets up a local light's shadow: finds/updates the light's cache entry, computes the finest mip level and the distant-light state, and
  * refreshes the cached projection data of each of its maps. The setup returned is the one the
- * entry keeps (`SETUPS`): the next frame of the same light rewrites it.
+ * entry keeps (`VsmLightCache.localSetup`): the next frame of the same light rewrites it.
  */
 export function addVsmLocalLightShadow(
   cache: VsmCacheManager,
@@ -313,8 +311,7 @@ export function addVsmLocalLightShadow(
     data.finestMip = finestMip
   }
 
-  let setup = SETUPS.get(cacheEntry)
-  if (!setup) SETUPS.set(cacheEntry, (setup = { cacheEntry, finestMip, drawsThisFrame }))
+  const setup = (cacheEntry.localSetup ??= { cacheEntry, finestMip, drawsThisFrame })
   setup.finestMip = finestMip
   setup.drawsThisFrame = drawsThisFrame
   return setup

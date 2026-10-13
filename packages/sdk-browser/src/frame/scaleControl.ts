@@ -65,8 +65,9 @@ import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './sca
  * the interval from the previous display frame `tick` read to the last (null before two or after a
  * pause); `set`, another scale: the controller restarts at the bounds' maximum, knowing nothing;
  * `wanted`, the scale an image is drawn at, the controller's or the fixed one; `allocated`,
- * `capMemory`, `uncapMemory` and `memoryCapped`, the render targets' scale and memory cap
- * (`scaleMemory.ts`); `drew(scale, steered, still)`, an image was drawn; `tick(now, timed)`, a
+ * `capMemory`, `uncapMemory`, `memoryCapped`, `memoryRefused` and `liftMemoryCap`, the render
+ * targets' scale, their memory cap and the clock its refusals are asked again by
+ * (`scaleMemory.ts`);`drew(scale, steered, still)`, an image was drawn; `tick(now, timed)`, a
  * frame of the display began at `now`, ms, its rAF timestamp, `timed`: the device has a GPU timer
  * (`tickScale`); `observe(gpuMs, scale, steered, whole)`, the GPU time of an image drawn at `scale`, a few
  * frames late: a cost of the window, brought to the current scale by its area, where the image was
@@ -112,6 +113,8 @@ export function createScaleControl(option: RenderScale | undefined) {
     allocated: memory.allocated,
     capMemory: memory.cap,
     uncapMemory: memory.uncap,
+    memoryRefused: memory.refused,
+    liftMemoryCap: memory.lift,
     get memoryCapped() {
       return targets.capped
     },

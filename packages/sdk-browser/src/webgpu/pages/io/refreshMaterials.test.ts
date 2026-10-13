@@ -105,6 +105,7 @@ test('an alpha move is taken in place under a casting light, the shadow over its
     layout: {
       rows: {
         tableEpoch: 1,
+        materialEpoch: 0,
         rowCount: 1,
         blendFirst: 1,
         casterSlots: 1,

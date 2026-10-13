@@ -17,12 +17,13 @@ import {
 export { growClusterBox, uploadClusterSpheres } from './spheres.ts'
 
 /**
- * What `mobility.writeRows` reads of the table, built once per runtime: the table, its roots and its
- * placements are the layout's own objects for the session (`../pages/prepare/layout.ts`), and the buffer is
- * read from the lights when a run is pushed, so no run and no image builds a closure. `device` is
- * the one the call in progress uploads on.
+ * What `mobility.writeRows` reads of the table, built once per runtime and kept on its lights
+ * (`mobilitySource`): the table, its roots and its placements are the layout's own objects for the
+ * session (`../pages/prepare/layout.ts`), and the buffer is read from the lights when a run is
+ * pushed, so no run and no image builds a closure. `device` is the one the call in progress
+ * uploads on.
  */
-type MobilitySource = {
+export type MobilitySource = {
   rt: WebgpuPagesRuntime
   device: GPUDevice
   worldOf: (rank: number) => ArrayLike<number>
@@ -33,10 +34,8 @@ type MobilitySource = {
   shadowless: (rank: number) => boolean
 }
 
-const sources = new WeakMap<WebgpuPagesRuntime, MobilitySource>()
-
 function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const built = sources.get(rt)
+  const built = rt.lights.mobilitySource
   if (built) {
     built.device = device
     return built
@@ -66,7 +65,7 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
       return !root || !!root.parked || ((root.mark ?? 0) & CASTS_NO_SHADOW) !== 0
     },
   }
-  sources.set(rt, source)
+  lights.mobilitySource = source
   return source
 }
 
