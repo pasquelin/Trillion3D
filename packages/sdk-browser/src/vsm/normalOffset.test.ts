@@ -12,13 +12,13 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { VSM_CONSTANTS_WGSL, VSM_NORMAL_BIAS } from './constants.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { halton } from '../../../math/src/sequence/halton.ts'
+import { singleUlp } from '../../../../bench/core/ulp.ts'
 
 const source = wgslModule(VSM_CONSTANTS_WGSL)
 const { vsmNormalOffsetLength } = shaderRun<{
   vsmNormalOffsetLength: (bias: number, distance: number, inverseTangent: number) => number
 }>(source, ['vsmNormalOffsetLength'], {})
 const floor = wgslConstants(VSM_CONSTANTS_WGSL).VSM_NORMAL_OFFSET_FLOOR
-const ulp = (x: number) => 2 ** (Math.floor(Math.log2(Math.abs(x))) - 23)
 
 test('the projection’s length is its former expression, operation for operation', () => {
   for (let i = 1; i <= 2000; i++) {
@@ -44,6 +44,7 @@ test('the lighting’s length is its former product to within two units of the l
       tangent = Math.fround(0.05 + halton(i, 3) * 4)
     const former = Math.max(floor, VSM_NORMAL_BIAS * distance * tangent)
     const now = vsmNormalOffsetLength(VSM_NORMAL_BIAS, distance, Math.fround(1 / tangent))
-    if (former > floor) assert.ok(Math.abs(now - former) <= 2 * ulp(former), `${now} for ${former}`)
+    if (former > floor)
+      assert.ok(Math.abs(now - former) <= 2 * singleUlp(former), `${now} for ${former}`)
   }
 })
