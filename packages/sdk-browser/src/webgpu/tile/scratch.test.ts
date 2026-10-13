@@ -8,7 +8,7 @@ import { texture } from '../../world/texture/index.ts'
 import { hostTexture } from '../../world/core/worldTextures.ts'
 import { importHostTexture } from '../../host/textureImport.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { GraphTexture } from '../../host/graph/graph.fixture.ts'
 import { CoverageReaders } from '../../texture/coverage.ts'
@@ -25,7 +25,7 @@ type Copy = {
  *  a working texture; returns the external copies and the texel rows written. */
 function upload(page: Texture | HostTexture, [width, height]: [number, number]) {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const copies: Copy[] = [],
     rows: Uint8Array[] = []
   Object.assign(device.queue, {
@@ -116,7 +116,7 @@ test('a coverage working texture reduces weighted by alpha unless uploaded premu
   installGpuGlobals()
   // One device per case: the one reduction pipeline it builds says the rule the texture took.
   const rule = (coverage: boolean, premultiplyAlpha: boolean) => {
-    const { device, computePipelines } = mockGpu()
+    const { device, computePipelines } = fakeDevice(BACKEND)
     const host = new GraphTexture({ data: new Uint8Array(8), width: 1, height: 2 })
     host.premultiplyAlpha = premultiplyAlpha
     const map = importHostTexture(host)
@@ -138,7 +138,7 @@ test('a coverage working texture reduces weighted by alpha unless uploaded premu
 // names no storage binding (the device lost at prepare in Chrome otherwise).
 test('a colour working texture is stored rgba8unorm with storage, viewed in the pool format', () => {
   installGpuGlobals()
-  const { device, textures } = mockGpu()
+  const { device, textures } = fakeDevice(BACKEND)
   const created: GPUTextureDescriptor[] = [],
     create = device.createTexture.bind(device)
   device.createTexture = (descriptor) => (created.push(descriptor), create(descriptor))

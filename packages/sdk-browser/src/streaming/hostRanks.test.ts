@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHostRankDelta } from './hostRanks.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 const URLS = Array.from({ length: 40 }, (_, rank) => `r${rank}`)
 
@@ -18,7 +18,7 @@ function listed(delta: ReturnType<ReturnType<typeof createHostRankDelta>['finish
 }
 
 test('a list marked with its repeated records skipped leaves the deltas marked one by one', () => {
-  const next = random(1235)
+  const next = lcgRandom(1235)
   // Records shared by runs of placements, some without a rank, some past the table.
   const records = Array.from({ length: 30 }, (_, i) => ({
     requestIndex: i % 7 === 3 ? undefined : i % 11 === 5 ? 99 : Math.floor(next() * URLS.length),

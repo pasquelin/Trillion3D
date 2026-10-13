@@ -30,7 +30,7 @@ test('a device that refuses the water pipelines keeps the blends, and the refusa
   const create = mount.device.createRenderPipelineAsync
   mount.device.createRenderPipelineAsync = async (descriptor: GPURenderPipelineDescriptor) => {
     if (descriptor.fragment?.entryPoint === 'fsWater') throw new Error('DEVICE_SAYS_NO')
-    return create(descriptor)
+    return create.call(mount.device, descriptor)
   }
   const built = await createWebgpuBlendPipelines(mount.device, items(2, true))
   assert.equal(built.water, undefined, 'no water pass')

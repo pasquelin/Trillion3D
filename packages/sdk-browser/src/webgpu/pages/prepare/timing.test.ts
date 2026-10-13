@@ -2,14 +2,13 @@
 // only when every pass that ran was read — a span missing a pass is short, no GPU time.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fixture } from '../../../../../../tests/kit/gpu/timingDevice.ts'
-import { MS } from '../../../gpu/timing/imageTimer.fixture.ts'
+import { MS, timedDevice } from '../../../gpu/timing/imageTimer.fixture.ts'
 import { prepareGpuTiming } from './timing.ts'
 import { createWebgpuTimingState } from '../state/timing.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 async function observed(pairs: [bigint, bigint][]) {
-  const f = fixture(),
+  const f = timedDevice(),
     seen: (number | null)[] = []
   const rt = {
     timing: createWebgpuTimingState(),

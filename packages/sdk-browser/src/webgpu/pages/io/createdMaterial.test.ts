@@ -8,7 +8,7 @@ import { webgpuPagesEngine } from '../pages.ts'
 import { FLAG_HAS_COLOR, PAGE_INFO_STRIDE, ROW_WORDS } from '../../../visibility/types.ts'
 import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../../row/pageRow.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../testScenes.fixture.ts'
 import { createExplorerMaterialApi } from '../../../world/api/materialApi.ts'
 
@@ -16,7 +16,7 @@ import { createExplorerMaterialApi } from '../../../world/api/materialApi.ts'
 function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => {}) {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device, buffers } = mockGpu()
+    { device, buffers } = fakeDevice(BACKEND)
   edit(fixture)
   const backend = webgpuPagesEngine({
     ...fixture,

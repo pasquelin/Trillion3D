@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { cross, subtract } from '../../../../math/src/vector/vectorTuple.ts'
 import { SHADING_POINT_WGSL } from './shadingPoint.ts'
-import { random as seeded } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type V = number[]
 const { shadingPointOffset } = shaderRun<{
@@ -97,7 +97,7 @@ test('the receiver never falls behind its triangle: a concave patch keeps its po
     [0, 0, 0],
   )
   // Any triangle, any normals on one side of it: the receiver stays on or in front of it.
-  const next = seeded(1344),
+  const next = lcgRandom(1344),
     random = () => next() * 2 - 1
   for (let i = 0; i < 500; i++) {
     const p = [0, 1, 2].map(() => [random(), random(), random()].map((x) => x * 4))

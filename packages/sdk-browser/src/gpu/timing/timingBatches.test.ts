@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fixture } from '../../../../../tests/kit/gpu/timingDevice.ts'
+import { timedDevice } from './imageTimer.fixture.ts'
 import { createGpuTiming } from './timing.ts'
 import { QUERY_COUNT, TIMED_PASSES } from './queries.ts'
 import { VSM_TIMED_PASSES } from './vsmPasses.ts'
@@ -10,7 +10,7 @@ import { VSM_PASS_PREFIX } from '../../stage/passLabels.ts'
 // timed over is timed whole, so its shadow milliseconds are published; one past the
 // image's passes is truncated.
 const frameOf = async (vsmPasses: number) => {
-  const f = fixture(),
+  const f = timedDevice(),
     samples: any[] = []
   const timer = createGpuTiming(f.device, { onSample: (sample) => void samples.push(sample) })
   const selection = timer.createEncoder(1)

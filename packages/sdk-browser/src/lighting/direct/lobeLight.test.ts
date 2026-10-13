@@ -10,7 +10,6 @@
 // curve.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
@@ -18,6 +17,7 @@ import { ROUGHNESS_FLOOR } from '../shaderConstants.ts'
 import { LOBES_LIGHTING_WGSL } from './lobesWgsl.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Light = (...args: unknown[]) => number[]
 const NAMES = [
@@ -39,7 +39,7 @@ const before = shipped.replace(
 
 test('a lobed light pays the half-vector only where the base or the coat faces it, bit for bit', () => {
   assert.notEqual(before, shipped)
-  const r = random(1483),
+  const r = lcgRandom(1483),
     u = (lo: number, hi: number) => Math.fround(lerp(lo, hi, r()))
   const unit = (v: number[]) => v.map((x) => Math.fround(x / Math.hypot(...v)))
   // What a pixel's lights share of a surface, as the shipped loop takes it (`lobeSurface`).
@@ -111,7 +111,7 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
     assert.ok(text.includes(shippedForm), shippedForm)
     return text.replace(shippedForm, dividedForm)
   }, shipped)
-  const r = random(1484),
+  const r = lcgRandom(1484),
     u = (lo: number, hi: number) => Math.fround(lerp(lo, hi, r()))
   const unit = (v: number[]) => v.map((x) => Math.fround(x / Math.hypot(...v)))
   const lobes: Record<string, unknown> = {}

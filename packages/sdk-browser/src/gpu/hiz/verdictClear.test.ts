@@ -7,11 +7,11 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { structZero } from '../../texture/shaderRunStructs.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { PARTITION_SHADER } from '../partition/shader.ts'
 import { HIZ_SHADER } from './shader.ts'
 import * as C from '../partition/contract.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Fn = (...args: unknown[]) => unknown
 type Ref = { get: () => number; set: (value: number) => void }
@@ -20,7 +20,7 @@ const bitsOf = (x: number) => (Number.isInteger(x) ? x >>> 0 : builtins.bitcast_
 
 /** One frame of `rows` drawable rows over a verdict buffer of `cap` words left by earlier frames. */
 function frame(seed: number, rows: number, cap: number, hasRest: number) {
-  const r = random(seed),
+  const r = lcgRandom(seed),
     int = (n: number) => Math.floor(r() * n)
   return {
     rows,

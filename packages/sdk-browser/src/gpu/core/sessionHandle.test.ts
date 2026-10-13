@@ -6,11 +6,11 @@ import { installGpuDeviceLedger } from './deviceLedger.ts'
 import { validated } from './errorScope.ts'
 import { generateMaterialMips } from '../../texture/mipBatch.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { deviceOwner, untag } from '../../../../../tests/kit/gpu/fakeWebgpuDevice.ts'
 
 test('every object a session creates names it; the device names none', () => {
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const { device: handle, tag } = claimGpuDevice(gpu.device, deviceOwner())
   assert.equal(sharedGpuDevice(handle), gpu.device)
   assert.equal(handle.limits, gpu.device.limits)
@@ -35,7 +35,7 @@ test('every object a session creates names it; the device names none', () => {
 })
 
 test("the tagged label rides on the caller's own descriptor for the call only", () => {
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const { device: handle, tag } = claimGpuDevice(gpu.device, deviceOwner())
   const mine = { label: 'frame' },
     unlabelled = { size: 4, usage: GPUBufferUsage.STORAGE }
@@ -47,7 +47,7 @@ test("the tagged label rides on the caller's own descriptor for the call only", 
 })
 
 test('a released handle is inert: its creations abort, its queue writes nothing', async () => {
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const claim = claimGpuDevice(gpu.device, deviceOwner())
   const { queue } = claim.device
   const buffer = claim.device.createBuffer({ size: 4, usage: GPUBufferUsage.COPY_DST })
@@ -67,7 +67,7 @@ test('a released handle is inert: its creations abort, its queue writes nothing'
 })
 
 test("a session released inside a validation scope closes it: the next one's error reaches the device", async () => {
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const first = claimGpuDevice(gpu.device, deviceOwner())
   const building = validated(first.device, async () => {
     await Promise.resolve()
@@ -88,7 +88,7 @@ test("a session released inside a validation scope closes it: the next one's err
 
 test('the ledger, on the handle, counts by the label as the engine wrote it, the shared caches once', () => {
   installGpuGlobals()
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const { device: handle } = claimGpuDevice(gpu.device, deviceOwner())
   const caches = installGpuDeviceLedger(gpu.device, { counts: namesNoSession })
   const ledger = installGpuDeviceLedger(handle, { base: caches })

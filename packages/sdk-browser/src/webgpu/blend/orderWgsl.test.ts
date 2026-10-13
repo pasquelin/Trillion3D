@@ -4,7 +4,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { BLEND_ORDER_SHADER } from './orderWgsl.ts'
 import { orderBlendPasses } from './order.ts'
@@ -12,6 +11,7 @@ import { refreshEyeKeys } from './expandCpu.fixture.ts'
 import { blendSceneOf } from './plan.fixture.ts'
 import type { BlendGpuItem } from './state.ts'
 import { checkKernel, gpuOf, transparentScene } from './orderKernel.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 test('the order kernel sorts every pass and places every slot as the CPU model does', () => {
   // Up to one block, then past it: 700 items ask a network of 1 024 entries, 1 500 one of 2 048,
@@ -35,7 +35,7 @@ test('the order kernel sorts every pass and places every slot as the CPU model d
 })
 
 test('the kernel keys an item as the CPU does, to the bit, far from the origin and near ties', () => {
-  const next = random(11)
+  const next = lcgRandom(11)
   const items: BlendGpuItem[] = []
   let previous = [0, 0, 0, 0]
   for (let i = 0; i < 200; i++) {

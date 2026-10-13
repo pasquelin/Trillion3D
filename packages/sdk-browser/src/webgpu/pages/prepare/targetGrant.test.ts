@@ -29,7 +29,7 @@ async function resized(
     label,
     (raise, { size }) => {
       const hizAlive = gpu.textures.some(
-        (texture) => texture.label === HI_Z_LEVEL_0 && !texture.destroyed,
+        (texture) => texture.label === HI_Z_LEVEL_0 && !gpu.destroyed.includes(texture),
       )
       if (size?.width === 48) answer(raise, hizAlive)
     },
@@ -54,7 +54,9 @@ async function resized(
   viewport[0] = viewport[1] = 48
   const said = (phase: string) => events.filter((event) => event.phase === phase)
   const widths = (label: string) =>
-    gpu.textures.filter((made) => made.label === label && !made.destroyed).map((made) => made.width)
+    gpu.textures
+      .filter((made) => made.label === label && !gpu.destroyed.includes(made))
+      .map((made) => made.width)
   const dispose = () => {
     assert.equal(said('gpu-device-lost').length, 0, 'never reported as a lost device')
     disposeQuadRun(backend, scene)
@@ -83,7 +85,9 @@ test('under pressure, the targets are refused whole: Hi-Z and its pipelines are 
     )
     assert.equal(visPipelines(), made, 'no visibility pipeline made again without Hi-Z')
     assert.ok(
-      s.gpu.textures.some((texture) => texture.label === HI_Z_LEVEL_0 && !texture.destroyed),
+      s.gpu.textures.some(
+        (texture) => texture.label === HI_Z_LEVEL_0 && !s.gpu.destroyed.includes(texture),
+      ),
       'a pyramid is held',
     )
   } finally {

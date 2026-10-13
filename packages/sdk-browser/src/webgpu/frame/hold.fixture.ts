@@ -127,7 +127,7 @@ export function deferredLightingHarness() {
   device.createRenderPipelineAsync = async (descriptor) => {
     const label = descriptor.fragment?.module.label ?? ''
     if (label.startsWith('DIRECT') || label.startsWith('BOUNCE')) await gate
-    return compile(descriptor)
+    return compile.call(device, descriptor)
   }
   return {
     device,

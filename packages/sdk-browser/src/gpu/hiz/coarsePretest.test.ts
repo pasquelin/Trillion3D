@@ -2,9 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts'
 import { HIZ_TEST_VALUES, hizTestRect } from '../../../../../bench/oracles/browser/hizOcclusion.ts'
-import { lcg } from './buildTranscripts.fixture.ts'
 import { packHizPyramid } from './oracle.fixture.ts'
 import type { PackedHiz } from './oracle.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 // The Hi-Z rectangle test reads a coarse mip first and stops at the first texel that does not
 // hide (`pyramidHides`), instead of taking the minimum of the whole footprint
@@ -110,7 +110,7 @@ function pyramid(rand: () => number, width: number, height: number, hostile: boo
 }
 
 function sweep(seed: number, hostile: boolean, min: Min = Math.min) {
-  const rand = lcg(seed)
+  const rand = lcgRandom(seed)
   let judged = 0,
     rejected = 0,
     coarse = 0

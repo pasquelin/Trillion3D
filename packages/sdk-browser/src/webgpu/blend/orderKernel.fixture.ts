@@ -2,7 +2,6 @@
 // barrier by barrier, against the CPU model: what `orderWgsl.test.ts` and `slots.test.ts` read.
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { hostBlending } from '../../scene/materialBlending.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -15,6 +14,7 @@ import { uniformStride } from '../../residency/pools.ts'
 import { planWords, RUN_WORDS } from './planLayout.ts'
 import { createWebgpuBlendState, type BlendGpuItem, type WebgpuBlendState } from './state.ts'
 import type { TransparentTable } from '../transparent/table.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Vec = number[]
 type Kernel = {
@@ -100,7 +100,7 @@ const MODES = ['normal', 'normal', 'normal', 'additive', 'multiply'] as const
  * or with a non-finite bound; paged items have their clusters in a table.
  */
 export function transparentScene(count: number, seed: number) {
-  const next = random(seed)
+  const next = lcgRandom(seed)
   const pick = (n: number) => Math.floor(next() * n)
   const items: BlendGpuItem[] = []
   const ranges: number[] = []

@@ -4,7 +4,7 @@ import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { dagLevel } from '../../engine/pagesEngine.fixture.ts'
 import { quadScene, camera, flushedImage } from './testScenes.fixture.ts'
 import { coarseQuadScene } from './testOccluder.fixture.ts'
@@ -17,7 +17,7 @@ import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 test('a host eviction deferred for coverage is applied once the GPU order gives the page up', async () => {
   installGpuGlobals()
   const fixture = coarseQuadScene(),
-    { device } = mockGpu()
+    { device } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
@@ -50,7 +50,7 @@ test('a host eviction deferred for coverage is applied once the GPU order gives 
 test('a leaf carrying its own coarse representation keeps that GPU fallback during exact-page loading', async () => {
   installGpuGlobals()
   const fixture = coarseQuadScene(),
-    { device } = mockGpu()
+    { device } = fakeDevice(BACKEND)
   // One cluster replaced by one coarser cluster: a group of a single child.
   const leaf = { ...fixture.metadata.primitives[0].pages[0], count: 6, bytes: 24 }
   const level = dagLevel([leaf], [{ ...fixture.metadata.primitives[0].pages[2], id: 1 }], 1)
@@ -84,7 +84,7 @@ test('a leaf carrying its own coarse representation keeps that GPU fallback duri
 test('cancelling initial coverage loading cannot publish a ready backend', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device, draws } = mockGpu(),
+    { device, draws } = fakeDevice(BACKEND),
     controller = new AbortController()
   let reading!: () => void, release!: () => void
   const started = new Promise<void>((resolve) => {
@@ -132,7 +132,7 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
     fixture.associations,
   )
   const packed = packDagSelection(collected.roots)
-  const { device, draws, buffers } = mockGpu({ packed })
+  const { device, draws, buffers } = fakeDevice({ ...BACKEND, packed })
   const events: Array<{ phase: string; context?: Record<string, unknown> }> = []
   const backend = webgpuPagesEngine({
     ...fixture,

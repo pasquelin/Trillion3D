@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { untag } from '../../../../../tests/kit/gpu/fakeWebgpuDevice.ts'
 import {
   quadScene,
@@ -20,7 +20,7 @@ import type { EngineDiagnostic } from '../../engine/types.ts'
 test('detail replaces the complete GPU fallback only after every replacement is uploaded', async () => {
   installGpuGlobals()
   const fixture = coarseQuadScene(),
-    { device } = mockGpu()
+    { device } = fakeDevice(BACKEND)
   const backend = streamingQuadBackend(fixture, device) as ReturnType<typeof webgpuPagesEngine> & {
     selectedPageIds(): string[]
   }
@@ -58,7 +58,7 @@ test('detail replaces the complete GPU fallback only after every replacement is 
 test('a refinement exceeding the GPU budget keeps the floor, not the refused root, and reports the limit', async () => {
   installGpuGlobals()
   const fixture = deepQuadScene(),
-    { device } = mockGpu(),
+    { device } = fakeDevice(BACKEND),
     events: EngineDiagnostic[] = []
   const backend = webgpuPagesEngine({
     ...fixture,
@@ -91,7 +91,7 @@ test('a refinement exceeding the GPU budget keeps the floor, not the refused roo
 test('a failed initial page reader rejects preparation before exposing a partial scene', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device, draws } = mockGpu()
+    { device, draws } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...fixture,
     indices: new Map(),
@@ -114,7 +114,7 @@ test('a failed initial page reader rejects preparation before exposing a partial
 test('streaming completion during image readback preserves the captured frame and resumes on render', async () => {
   installGpuGlobals()
   const fixture = coarseQuadScene(),
-    { device, passes, imageCopies } = mockGpu()
+    { device, passes, textureBufferCopies } = fakeDevice(BACKEND)
   const createBuffer = device.createBuffer.bind(device)
   let mapped!: () => void, release!: () => void
   const mapping = new Promise<void>((resolve) => {
@@ -148,7 +148,7 @@ test('streaming completion during image readback preserves the captured frame an
     assert.equal(passes.length, before, 'streaming must not overwrite an image being captured')
     assert.equal((await backend.capture()).length, 32 * 32 * 4)
     assert.deepEqual(backend.pendingUrls?.(), [], 'pages arriving during capture remain accepted')
-    assert.equal(imageCopies.length, 1, 'the capture must not spin on streaming updates')
+    assert.equal(textureBufferCopies.length, 1, 'the capture must not spin on streaming updates')
     await flushedImage(backend)
     await flushedImage(backend)
     backend.render(camera())

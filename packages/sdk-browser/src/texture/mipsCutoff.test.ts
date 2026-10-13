@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { generateMaterialMips } from './mipBatch.ts'
 import { TEXTURE_MIPS_PASS } from './mipsPass.ts'
 import { REDUCE, oneChain, scratch, wider } from './mips.fixture.ts'
+import { writtenBytes } from '../../../../tests/kit/gpu/fakeDevice.ts'
 
 // #748: a chain with a cutoff counts each level — level 0 first — and picks its `t` before reducing
 // it, every level's block carrying the cutoff and its first bin word, the reduction reading `t` from
@@ -15,7 +16,7 @@ test('a chain with a cutoff counts each level before reducing it, a plain one no
   assert.deepEqual(computes, ['count', 'count', 'choose', REDUCE, 'count', 'choose', REDUCE])
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256) / 4
   const blocks = (at: number) => {
-    const words = new Uint32Array(writes[at].bytes.buffer)
+    const words = new Uint32Array(writtenBytes(writes[at]).slice().buffer)
     return [0, 1, 2].map((block) => [...words.subarray(block * stride, block * stride + 7)])
   }
   const levels = [
@@ -60,7 +61,7 @@ test('a batch writes its chains’ blocks once, in order, and reduces them in on
   ])
   // The first chain's reductions bind blocks 1, 2, its counts 0, 1, 2; the second chain's 4–6.
   assert.deepEqual(offsets, [1, 2, 0, 1, 2, 4, 5, 6])
-  const words = new Uint32Array(writes[0].bytes.buffer)
+  const words = new Uint32Array(writtenBytes(writes[0]).slice().buffer)
   const block = (at: number) => [...words.subarray(at * 64, at * 64 + 7)]
   assert.deepEqual(block(2), [2, 2, 128, 0, 4, 4, 2])
   assert.deepEqual(block(3), [8, 8, 0, 0, 8, 8, 0])
@@ -77,7 +78,7 @@ test('a batch picks a level of all its cutting chains in one dispatch', () => {
     { texture: eight, format: 'rgba8unorm', width: 8, height: 8, weighted: false, cutoff: 64 },
   ])
   assert.equal(computes.filter((entry) => entry === 'choose').length, 3, 'one a level')
-  const words = new Uint32Array(writes[0].bytes.buffer)
+  const words = new Uint32Array(writtenBytes(writes[0]).slice().buffer)
   // Blocks 0–2 the 4×4's, 3–6 the 8×8's, 7–10 the picks', then the table.
   assert.deepEqual([...words.subarray(8 * 64, 8 * 64 + 3)], [1, 11 * 64, 64])
   assert.deepEqual([...words.subarray(11 * 64)], [3, 4, 0, 3])

@@ -9,7 +9,7 @@ import { VIS_SHADER } from '../../visibility/shader/visWgsl.ts'
 import { drawShader } from './shader.ts'
 import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts'
 import { BASE_SLOTS, BATCH_SHIFT, HALF_SLOTS, drawBatches, slotCount } from './contract.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Item = { row: number; bin: number; rest: number; triangles: number }
 type Shape = { corners: number; perRow: number }
@@ -72,7 +72,7 @@ function primitives(instances: number[], corners: number, indexCount: (row: numb
 }
 
 function frame(seed: number, rows: number, maxTriangles: number): Item[] {
-  const next = random(seed)
+  const next = lcgRandom(seed)
   return Array.from({ length: rows }, (_, row) => ({
     row,
     bin: Math.floor(next() * HALF_SLOTS),

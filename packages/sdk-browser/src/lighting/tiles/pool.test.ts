@@ -8,8 +8,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createGpuLightTiles } from './tiles.ts'
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
 import { shippedColumn, suns } from './gridColumn.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** 160 × 160 pixels: 3 × 3 columns of cells. */
 const COLUMNS = ceilDiv(160, LIGHT_SETTINGS.tileSize) ** 2
@@ -98,7 +98,7 @@ test('a column of lights holding every slice fills that bound exactly; one word 
   }
   // Random columns of a view sharing its pool: none overflows.
   for (let seed = 1; seed <= 12; seed++) {
-    const r = random(seed),
+    const r = lcgRandom(seed),
       lights = 1 + Math.floor(r() * 3),
       columns = 8
     const capacity = await poolOf(columns * CELL, CELL, lights)

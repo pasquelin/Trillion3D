@@ -18,8 +18,8 @@ import { BLOOM_WGSL } from '../webgpu/effects/bloomWgsl.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../lighting/deferred/shaders.ts'
-import { random as seeded } from '../page/cut/cutRuleChecks.fixture.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 type Size = readonly [number, number]
 type Tent = (uv: number[]) => number[]
@@ -29,7 +29,7 @@ const UP = publishedUpTaps()
  *  rounding the weights to `weightBits` if given: `reads.taps` counts the bilinear reads, and
  *  `published` is the oracle's tent at `(x, y)` texels of the level. */
 function tentsOver([w, h]: Size, radius: number, seed: number, weightBits?: number) {
-  const random = seeded(seed)
+  const random = lcgRandom(seed)
   const channels: Image[] = Array.from({ length: 4 }, () => ({
     data: Float64Array.from({ length: w * h }, () => random() * 4 - 1),
     w,
@@ -84,7 +84,7 @@ const SIZES: Size[] = [
 ]
 
 test('four taps give the tent, in doubles, on every size pair and at the edges', () => {
-  const random = seeded(2024)
+  const random = lcgRandom(2024)
   let compared = 0
   for (const [width, height] of SIZES)
     for (const { out, read } of pairs(width, height)) {

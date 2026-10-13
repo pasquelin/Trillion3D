@@ -9,7 +9,6 @@
 // bit for bit, each skip alone and both.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
@@ -18,6 +17,7 @@ import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from './lightingWgsl.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Sum = (...args: unknown[]) => number[]
 const GUARDED =
@@ -45,7 +45,7 @@ const NAMES = [
 ]
 
 test('the skipped thin transmission and back-facing lobes keep every sum, bit for bit, in f32', () => {
-  const r = random(1564),
+  const r = lcgRandom(1564),
     u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lit = 0
   for (const shadowed of [false, true])

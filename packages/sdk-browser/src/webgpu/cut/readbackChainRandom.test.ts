@@ -10,8 +10,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mountReadbackChain, settle } from './readbackChain.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import type { GpuCut } from '../../gpu/core/selection.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Pair = [Set<number>, Set<number>]
 const both = (f: (l: 0 | 1) => Set<number>): Pair => [f(0), f(1)]
@@ -51,7 +51,7 @@ const repeats = (list: number[]) => new Set(list.filter((page, i) => list.indexO
 
 /** Random frames on a list of 48 ranks; `messy` adds repeats and pages without a record. */
 async function run(seed: number, messy: boolean) {
-  const next = random(seed),
+  const next = lcgRandom(seed),
     m = await mountReadbackChain(48, messy ? MESSY_RECORDS : 300),
     model = chainModel()
   /** Pages the asked lists repeat since the one adopted, that one included. */
