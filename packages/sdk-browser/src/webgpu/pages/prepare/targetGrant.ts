@@ -1,11 +1,10 @@
-import { deviceMade, grantPending, startGrant, validated } from '../../../gpu/core/errorScope.ts'
-import { ledgerTentative } from '../../../gpu/core/deviceLedger.ts'
+import { grantPending, startGrant } from '../../../gpu/core/errorScope.ts'
 import { throwIfStopped } from '../io/lost.ts'
-import { makeTargets, releaseTargets, targetsFit } from './targets.ts'
-import { makeVsmMask } from '../render/vsm/vsmPlan.ts'
+import { releaseTargets, targetsFit } from './targets.ts'
 import { frameExtraBytes, frameTargetAllocation } from './targetAllocation.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { drawnViewChanged, viewGpu, type WebgpuView } from '../state/view.ts'
+import { viewGpu, type WebgpuView } from '../state/view.ts'
+import { heldTargetGrant } from '../state/gpu.ts'
 import { onView } from '../state/viewSwitch.ts'
 import {
   frameSizeOf,
@@ -14,67 +13,38 @@ import {
   viewKey,
   type FrameSize,
 } from '../state/renderScale.ts'
-import { fundFrameTargets, poolFundingPending, refreshTargetGrant } from './targetFunding.ts'
+import { refreshTargetGrant } from './targetFunding.ts'
+import { grantHiz, grantTargets, refuseTargets, stopped } from './targetDevice.ts'
 import { asideTargets, asksAside, makeTargetsAside } from './targetsAside.ts'
-import { dropAside } from './targetsSet.ts'
+import { dropAside, type HeldTargets } from './targetsSet.ts'
 
-/** True while no frame can be drawn: its targets are asked of the device, or were refused at
- *  this size. The frame is then held (`holdWebgpuFrame`), and nothing is presented. */
-export const frameTargetsAwaited = (rt: WebgpuPagesRuntime) => rt.gpu.targetGrant !== undefined
+/** True while no frame can be drawn: its targets are asked of the device the held way, or were
+ *  refused at this size. The frame is then held (`holdWebgpuFrame`), and nothing is presented. */
+export const frameTargetsAwaited = (rt: WebgpuPagesRuntime) => heldTargetGrant(rt.gpu) !== undefined
 
-/** A session lost or released: what it asked is never a refusal. */
-const stopped = (rt: WebgpuPagesRuntime) => rt.run.lost || rt.signal.aborted
-
-type Asked = FrameSize & { requestedBytes: number; retryAt?: number }
 /** The size asked this frame: copied only when a grant starts, never allocated per frame. */
 const wanted = {} as FrameSize
-/** The frame targets `asked` refused by name, and why. */
-const refuseTargets = (rt: WebgpuPagesRuntime, asked: Asked, reason: string, error?: unknown) =>
-  rt.diag.engineDiagnostic('frame-targets-refused', 'The device refused the frame targets', {
-    kind: 'error',
-    code: 'WEBGPU_FRAME_TARGETS_REFUSED',
-    reason,
-    ...asked,
-    ...(error === undefined ? {} : { error: String(error) }),
-  })
 
 /** A refusal for memory: the device's, or the budget's limit (`GPU_BUDGET_EXCEEDED`). */
 const memoryRefusal = (error?: unknown) =>
   error === undefined || /GPU_BUDGET_(EXCEEDED|UNDER_MINIMUM)/.test(String(error))
-
-/** Frames a refused size waits before it is asked again, then twice as many after each refusal,
- *  up to `RETRY_MAX` times that: a budget whose room no measure predicts — the pools are budgets of
- *  their own, moved by each funding — is asked again rarely, never every frame, never never. */
-const RETRY_FRAMES = 300,
-  RETRY_MAX = 64
-/** The next frame a refused size may be asked again at, and the wait after the next refusal. */
-const retries = new WeakMap<WebgpuPagesRuntime, { view: string; at: number; wait: number }>()
-
-/** The frame a size refused now may be asked again at: later after each refusal at this view. */
-function retryAfterRefusal(rt: WebgpuPagesRuntime) {
-  const view = viewKey(rt),
-    held = retries.get(rt),
-    wait = held?.view === view ? Math.min(held.wait * 2, RETRY_FRAMES * RETRY_MAX) : RETRY_FRAMES
-  const at = rt.run.frame + wait
-  retries.set(rt, { view, at, wait })
-  return at
-}
 
 /**
  * Targets refused for memory at a size the controller scales (`scalesTargets`): the render scale
  * is held one eighth below the targets' at this view size (`ScaleControl.capMemory`), said, and
  * the grant forgotten so the next frame asks that smaller size — the frame always draws, at the
  * resolution the budget holds. The cap is lifted again after a wait that doubles at each refusal
- * (`retryAfterRefusal`, `liftMemoryCap`): the resolution comes back once the budget holds it. At
- * the scale's floor, or for a scale the page fixed, the refused size is asked again after it.
+ * (`ScaleControl.memoryRefused`, `liftMemoryCap`): the resolution comes back once the budget holds
+ * it. At the scale's floor, or for a scale the page fixed, the refused size is asked again after
+ * it, at the grant's `retryAt`.
  */
 function stepDownAfterRefusal(
   rt: WebgpuPagesRuntime,
-  asked: Asked,
+  asked: HeldTargets,
   view: WebgpuView,
   error?: unknown,
 ) {
-  const at = retryAfterRefusal(rt)
+  const at = rt.scale.memoryRefused(viewKey(rt), rt.run.frame)
   if (!memoryRefusal(error) || !scalesTargets(rt) || !rt.scale.capMemory(viewKey(rt))) {
     asked.retryAt = at
     return
@@ -94,15 +64,6 @@ function stepDownAfterRefusal(
   )
 }
 
-/** The wait after the last refusal is over: the cap lifts, the targets are asked at the
- *  controller's scale again. */
-function liftMemoryCap(rt: WebgpuPagesRuntime) {
-  if (!rt.scale.memoryCapped) return
-  const held = retries.get(rt)
-  if (!held || rt.run.frame < held.at) return
-  rt.scale.uncapMemory()
-}
-
 /**
  * Asks the device for the frame targets of the view's sizes (`frameSizeOf`), unless those in place
  * fit, a grant is still in flight — one at a time —, or this size was refused. A size the device
@@ -114,7 +75,7 @@ function liftMemoryCap(rt: WebgpuPagesRuntime) {
  */
 export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, held = false) {
   const { gpu, capture, diag, run } = rt
-  liftMemoryCap(rt)
+  rt.scale.liftMemoryCap(run.frame)
   const size = frameSizeOf(rt, wanted),
     { width, height, renderWidth, renderHeight } = size
   const fit = targetsFit(rt, size),
@@ -134,9 +95,9 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
       refuseTargets(rt, { ...size, requestedBytes: gpu.targetBytes }, 'budget', error),
     )
   }
-  const pending = gpu.targetGrant
-  // A size refused is asked again after its wait (`retryAfterRefusal`): never every frame, never
-  // never.
+  // Made aside, the grant went above: one asked the held way is left, if any.
+  const pending = heldTargetGrant(gpu)
+  // A size refused is asked again after its wait (`memoryRefused`): never every frame, never never.
   if (
     pending &&
     (!pending.settled ||
@@ -147,7 +108,7 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
     granted = () => void (viewGpu(rt, view).targetGrant = undefined)
   // The view's targets are in place, its pyramid is not: it alone is asked, refused as they are.
   if (fit) {
-    const asked = { ...size, requestedBytes: gpu.targetBytes }
+    const asked: HeldTargets = { ...size, mode: 'held', requestedBytes: gpu.targetBytes }
     const done = grantHiz(rt, device, asked, view).then(
       (made) => void (made ? granted() : !stopped(rt) && stepDownAfterRefusal(rt, asked, view)),
     )
@@ -167,7 +128,8 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
   }))
   // Thrown here, synchronously: a size beyond the device's limits releases nothing.
   const extra = frameExtraBytes(rt, size),
-    asked = { ...size, requestedBytes: frameTargetAllocation(rt, size, extra) }
+    requestedBytes = frameTargetAllocation(rt, size, extra),
+    asked: HeldTargets = { ...size, mode: 'held', requestedBytes }
   if (!held && asksAside(rt, asked)) return makeTargetsAside(rt, device, asked)
   // Granted, the record goes; refused, it stays, settled, and holds the frames at this size. A
   // creation that throws refuses them by name too, unless the session stopped.
@@ -188,67 +150,13 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
 
 /** Await or retry the current target grant before preparation or capture. */
 export async function grantFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  await grantPending(rt.gpu.targetGrant)
-  rt.gpu.targetGrant = undefined
   // Awaited, never swapped later: targets made aside meanwhile go.
-  await grantPending(asideTargets(rt))
+  await grantPending(rt.gpu.targetGrant)
   dropAside(rt)
+  rt.gpu.targetGrant = undefined
   await requestFrameTargets(rt, device, true)
   if (!frameTargetsAwaited(rt)) return
   // A session stopped meanwhile says so, rather than a refusal.
   throwIfStopped(rt)
   throw new Error('WEBGPU_FRAME_TARGETS_REFUSED')
-}
-
-/** Admit and allocate this view's targets, its Hi-Z pyramid among them (#1483): a refusal
- *  releases the attempt, never the device. */
-async function grantTargets(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  asked: Asked,
-  view: WebgpuView,
-) {
-  const { diag } = rt
-  await poolFundingPending(rt) // One funding moves the pools at a time (#1362).
-  await onView(rt, view, () => fundFrameTargets(rt, asked, asked.requestedBytes))
-  // Made, and released when refused, on the view that asked; tentatively
-  // (`GpuDeviceLedger.tentative`): targets past the budget's limit are refused without refusing
-  // the session, and the scale steps down (`stepDownAfterRefusal`).
-  const make = () =>
-    ledgerTentative(device, () =>
-      onView(rt, view, () => {
-        const made = makeTargets(rt, device, asked, asked.requestedBytes)
-        return { allocation: made.allocation, destroy: () => onView(rt, view, made.destroy) }
-      }),
-    )
-  const made = await deviceMade(device, make)
-  if (stopped(rt) || !made) {
-    made?.destroy()
-    if (!stopped(rt)) refuseTargets(rt, asked, 'gpu-out-of-memory')
-    return false
-  }
-  // The shadows' mask is a frame target: made with them, in the room funded for it.
-  onView(rt, view, () => makeVsmMask(rt, device))
-  const { allocation } = made
-  diag.traceDiagnostic(
-    'targets-transition',
-    'GPU targets allocated after transition',
-    () => allocation,
-  )
-  diag.engineDiagnostic('frame-allocation', 'GPU targets allocated', allocation)
-  onView(rt, view, () => drawnViewChanged(rt))
-  return true
-}
-
-/** `view`'s own Hi-Z pyramid at its size, under the device's out-of-memory check: false when
- *  refused, as frame targets are (`stepDownAfterRefusal`). */
-async function grantHiz(rt: WebgpuPagesRuntime, device: GPUDevice, asked: Asked, view: WebgpuView) {
-  const hiz = rt.vis.gpuHiz!,
-    { renderWidth: width, renderHeight: height } = asked
-  // A resize that throws is refused like one the device declines: the grant never stays settled.
-  const size = () => ledgerTentative(device, () => hiz.resize(device, width, height)) || undefined
-  const fits = await validated(device, size, 'out-of-memory').catch(() => undefined)
-  if (!fits && !stopped(rt)) refuseTargets(rt, asked, 'gpu-out-of-memory')
-  onView(rt, view, () => drawnViewChanged(rt))
-  return !!fits
 }

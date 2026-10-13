@@ -8,14 +8,15 @@ import type { FrameSize } from '../state/renderScale.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { buildTargets, targetAllocationOf } from './targets.ts'
 import { syncFeedbackTarget } from './feedbackVariant.ts'
+import { mainViewGpu } from '../state/view.ts'
 import {
-  asides,
   destroyAside,
   emptySet,
   releaseSet,
   tradeSet,
-  type Aside,
+  type AskedTargets,
   type AsideTargets,
+  type TargetGrant,
   type TargetSet,
 } from './targetsSet.ts'
 
@@ -28,29 +29,29 @@ import {
  * (`requestFrameTargets`). The way `setWebgpuMemoryBudgets` rebuilds the pools while the old live.
  */
 
-/** The drawn view's targets made aside, while it has some. */
+/** The drawn view's targets made aside, while it has some: its grant, asked aside. */
 export const asideTargets = (rt: WebgpuPagesRuntime) => {
-  const aside = asides.get(rt)
-  return aside && aside.view === rt.views.active ? aside : undefined
+  const grant = rt.gpu.targetGrant
+  return grant?.mode === 'aside' ? grant : undefined
 }
 
-/** Whether targets made aside are still asked of the device, or granted and not yet swapped in: a
- *  frame held meanwhile is not the still one the page waits for, since the swap draws the next. */
+/** Whether targets made aside — the main view's, the one view they are made for (`asksAside`) — are
+ *  still asked of the device, or granted and not yet swapped in: a frame held meanwhile is not the
+ *  still one the page waits for, since the swap draws the next. */
 export const asidePending = (rt: WebgpuPagesRuntime) => {
-  const aside = asides.get(rt)
-  return !!aside && (!aside.settled || aside.granted)
+  const grant = mainViewGpu(rt).targetGrant
+  return grant?.mode === 'aside' && (!grant.settled || grant.granted)
 }
 
 /** Whether the targets `asked`, `asked.requestedBytes` of them, are asked aside: the main view's
  *  targets in place at the same display size, which the visibility pass goes on drawing into
  *  (#816), nothing asked of them otherwise, the room for both. */
-export function asksAside(rt: WebgpuPagesRuntime, asked: FrameSize & { requestedBytes: number }) {
+export function asksAside(rt: WebgpuPagesRuntime, asked: AskedTargets) {
   const { gpu, vis, views, capture } = rt
   return (
     views.active === views.main &&
     !capture.capturing &&
     !!vis.visView &&
-    !asides.has(rt) &&
     gpu.targetGrant === undefined &&
     !!gpu.hdrTexture &&
     gpu.displaySize[0] === asked.width &&
@@ -59,22 +60,20 @@ export function asksAside(rt: WebgpuPagesRuntime, asked: FrameSize & { requested
   )
 }
 
-/** Asks the device for the targets `asked` beside those in place; their answer is read at the next
- *  frame's entry (`swapAsideTargets`), or by `requestFrameTargets` when refused. */
-export function makeTargetsAside(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  asked: FrameSize & { requestedBytes: number },
-) {
-  const aside: AsideTargets = { ...asked, view: rt.views.active, granted: false, dropped: false }
+/** Asks the device for the targets `asked` beside those in place, the view's grant
+ *  (`gpu.targetGrant`) meanwhile; their answer is read at the next frame's entry
+ *  (`swapAsideTargets`), or by `requestFrameTargets` when refused. */
+export function makeTargetsAside(rt: WebgpuPagesRuntime, device: GPUDevice, asked: AskedTargets) {
+  const aside: AsideTargets = { ...asked, mode: 'aside', granted: false, dropped: false },
+    view = rt.views.active
   const make = () =>
-    ledgerTentative(device, () => onView(rt, aside.view, () => buildAside(rt, device, aside)))
+    ledgerTentative(device, () => onView(rt, view, () => buildAside(rt, device, aside)))
   const done = deviceMade(device, make).then(
     (made) => void (aside.granted = !!made && !aside.dropped),
     () => destroyAside(aside),
   )
-  const grant: Aside = startGrant(done, aside)
-  asides.set(rt, grant)
+  const grant: TargetGrant = startGrant(done, aside)
+  rt.gpu.targetGrant = grant
   return grant.done
 }
 
@@ -113,7 +112,7 @@ const resizes = (rt: WebgpuPagesRuntime, aside: FrameSize) =>
 export function swapAsideTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const aside = asideTargets(rt)
   if (!aside?.granted || !aside.set) return false
-  asides.delete(rt)
+  rt.gpu.targetGrant = undefined
   const { vis, run } = rt,
     resized = resizes(rt, aside),
     old: TargetSet = emptySet()

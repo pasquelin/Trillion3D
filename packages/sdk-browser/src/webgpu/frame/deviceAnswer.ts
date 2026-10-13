@@ -4,6 +4,7 @@ import { pipelinesCompiling, pipelinesSettled } from '../../lighting/deferred/co
 import { litProgramPending } from '../pages/prepare/lightResources.ts'
 import { askFramePipelines } from './framePipelines.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { heldTargetGrant } from '../pages/state/gpu.ts'
 
 /** One answer the device may still owe the frame: whether it is pending, read without allocating
  *  (the held frame asks it every frame), and the promise it settles with, `undefined` once given. */
@@ -16,11 +17,12 @@ const answerOf = (answer: Answer['answer']): Answer => ({
   answer,
 })
 
-/** Every answer, in one list both `deviceAnswering` and `deviceAnswer` read: the targets' grant,
- *  the lit program the device compiles, the compiles the frame waits for — counted while only
- *  asked whether (`pipelinesCompiling`). */
+/** Every answer, in one list both `deviceAnswering` and `deviceAnswer` read: the targets' grant
+ *  the frames wait for (asked the held way, never one made aside), the lit program the device
+ *  compiles, the compiles the frame waits for — counted while only asked whether
+ *  (`pipelinesCompiling`). */
 const ANSWERS: readonly Answer[] = [
-  answerOf((rt) => grantPending(rt.gpu.targetGrant)),
+  answerOf((rt) => grantPending(heldTargetGrant(rt.gpu))),
   answerOf(litProgramPending),
   {
     pending: (rt) => pipelinesCompiling(rt.gpu.device),
