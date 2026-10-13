@@ -11,7 +11,7 @@ import { wrap, clamp, saturate } from '../scalar/reals.ts'
 
 /** The transfer curve's constants, which the WGSL twins read (`../wgsl/color.ts`): the decode's and
  *  the encode's thresholds, the slope of the linear part, the power's scale, offset and exponent. */
-export const SRGB_DECODE_THRESHOLD = 0.04045
+const SRGB_DECODE_THRESHOLD = 0.04045
 export const SRGB_ENCODE_THRESHOLD = 0.0031308
 export const SRGB_SLOPE = 12.92
 export const SRGB_SCALE = 1.055
