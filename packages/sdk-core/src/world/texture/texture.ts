@@ -81,7 +81,7 @@ export class Texture implements TextureRecord {
   readonly layout: string
   /** How each pixel is stored: `'rgba'`, `'rgb'`, `'r'`, `'depth'`… */
   readonly format: string
-  constructor(image: unknown, layout = '2d', format = 'rgba') {
+  constructor(image: unknown = null, layout = '2d', format = 'rgba') {
     this.image = image
     this.layout = layout
     this.format = format

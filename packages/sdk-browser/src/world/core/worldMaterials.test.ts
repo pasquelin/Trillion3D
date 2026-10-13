@@ -173,7 +173,7 @@ test('one material worn with and without colours gets one surface per case, both
   ;[a, b].forEach((surface: GraphSurface, i) => assert.ok(surface.version > versions[i]!))
 })
 
-test('the surfaces of an entry the table drops are given back, and the textures only they wore', () => {
+test('the surfaces of an entry the table drops are given back', () => {
   const table = createWorldMaterials()
   const kept = table.entryOf(material.meshStandard({ color: 0x111111 })),
     dropped = table.entryOf(material.meshStandard({ color: 0x222222 }))

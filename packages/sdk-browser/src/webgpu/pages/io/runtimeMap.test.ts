@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { bitmapFixture } from '../../../world/api/bitmap.fixture.ts'
 import { createExplorerMaterialApi } from '../../../world/api/materialApi.ts'
-import { GraphTexture } from '../../../host/graph/texture.ts'
+import { Texture } from '../../../../../sdk-core/src/world/texture/texture.ts'
 import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { tileBytes } from '../../../texture/tiles.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
@@ -21,7 +21,7 @@ function open(map?: ImageBitmap) {
   }
   const fixture = quadScene()
   if (map) {
-    const texture = new GraphTexture(map)
+    const texture = new Texture(map)
     texture.flipY = false
     texture.colorSpace = 'srgb'
     fixture.material.map = texture

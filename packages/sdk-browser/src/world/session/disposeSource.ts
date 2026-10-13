@@ -1,5 +1,6 @@
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import type { HostGraphMaterial, HostGraphTexture } from '../../host/scene/graphResources.ts'
+import type { HostGraphMaterial } from '../../host/scene/graphResources.ts'
+import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { materialTextures, meshes as objects } from '../../scene/meshes.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -8,7 +9,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 export function disposeSource(source: Object3D) {
   const geometries = new Set<Geometry>(),
     materials = new Set<HostGraphMaterial>(),
-    textures = new Set<HostGraphTexture>()
+    textures = new Set<Texture>()
   for (const mesh of objects(source)) {
     geometries.add(mesh.geometry)
     for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {

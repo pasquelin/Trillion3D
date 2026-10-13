@@ -5,7 +5,6 @@
 // share a mode is read in its own.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { importHostTexture } from '../../../../packages/sdk-browser/src/host/textureImport.ts'
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { createEngineCamera } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { readCameraWorld } from '../../../../packages/sdk-browser/src/camera/world.ts'
@@ -22,14 +21,14 @@ import { sampleLinear } from './math.ts'
 import { rasterVisibility } from './raster.ts'
 
 const CASES = addressingCases()
-const maps = new Map<string, G.GraphTexture>()
+const maps = new Map<string, G.Texture>()
 /** The case's texture, one per size and pair of modes. */
 function mapOf({ width, height, wrapS, wrapT }: AddressingCase) {
   const key = `${width}x${height}/${wrapS}/${wrapT}`
   if (!maps.has(key))
     maps.set(
       key,
-      Object.assign(new G.GraphTexture(), {
+      Object.assign(new G.Texture(), {
         image: { data: textureBytes(width, height), width, height },
         wrapS,
         wrapT,
@@ -48,11 +47,7 @@ const name = (c: AddressingCase) =>
 
 test('the oracle map read keeps the texel the sampler rule names, on every case', () => {
   for (const c of CASES)
-    assert.deepEqual(
-      texelOf(sampleLinear(importHostTexture(mapOf(c)), c.u, c.v)),
-      c.expected,
-      name(c),
-    )
+    assert.deepEqual(texelOf(sampleLinear(mapOf(c), c.u, c.v)), c.expected, name(c))
 })
 
 test("the oracle raster's alpha cutout reads the texel the sampler rule names", () => {
@@ -97,10 +92,10 @@ test('each map of a mixed material is read in its own mode', () => {
     height: TEXTURE.height,
   }
   for (const { name: map, slot, wrapS, wrapT } of MAPS) {
-    const texture = Object.assign(material[slot] as G.GraphTexture, { image, flipY: false })
+    const texture = Object.assign(material[slot] as G.Texture, { image, flipY: false })
     for (const [u, v] of UV)
       assert.deepEqual(
-        texelOf(sampleLinear(importHostTexture(texture), u, v)),
+        texelOf(sampleLinear(texture, u, v)),
         [nearestTexel(u, TEXTURE.width, wrapS), nearestTexel(v, TEXTURE.height, wrapT)],
         `${map} at (${u}, ${v})`,
       )

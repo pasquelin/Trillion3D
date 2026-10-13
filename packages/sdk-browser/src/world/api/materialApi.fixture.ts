@@ -55,7 +55,7 @@ export const entry = (overrides: Partial<TableMaterial>): TableMaterial => ({
 export async function scene(
   materialClassRefusal: typeof webgpuMaterialClassRefusal = webgpuMaterialClassRefusal,
 ) {
-  const textures = [new G.GraphTexture(), new G.GraphTexture()]
+  const textures = [new G.Texture(), new G.Texture()]
   const materialOf = preparedMaterials(
     [
       entry({ name: 'floor', map: slot(0), baseColor: [0.5, 0.5, 0.5] }),

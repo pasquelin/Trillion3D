@@ -8,7 +8,6 @@
 //   node bench/dawn/proofs.ts tests/gpu/texture/texture-addressing.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { wrapNibble } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts'
 import {
@@ -48,7 +47,7 @@ test('the engine reads, nearest and linear, what the sampler set to the map mode
   }))
   /** A case's addressing nibble, by the function the page records store (`wrapNibble`). */
   const nibble = ({ wrapS, wrapT }: AddressingCase) =>
-    wrapNibble(importHostTexture(Object.assign(new G.GraphTexture(), { wrapS, wrapT })))
+    wrapNibble(Object.assign(new G.Texture(), { wrapS, wrapT }))
   const batches: (TapBatch & { members: AddressingCase[] })[] = []
   for (const filter of ['nearest', 'linear'] as const)
     SIZES.forEach(([width, height], texture) => {

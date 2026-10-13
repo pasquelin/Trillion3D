@@ -5,8 +5,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as G from '../../../host/graph/graph.fixture.ts'
-import { importHostTexture } from '../../../host/textureImport.ts'
-import type { HostTexture } from '../../../host/resources.ts'
 import { MATERIAL_SURFACES_PASS } from '../../../stage/passLabels.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import {
@@ -103,7 +101,7 @@ test('a texture that comes after open brings the target in place, the other targ
   const hdr = () => gpu.textures.filter(({ label }) => label === 'Trillion3D HDR lighting')
   try {
     const before = hdr()
-    const map = importHostTexture(G.dataTexture(new Uint8Array(64), 4, 4) as unknown as HostTexture)
+    const map = G.dataTexture(new Uint8Array(64), 4, 4)
     await backend.appendTexture(map, 'color')
     // The image asks the variant that writes the feedback; the one in place draws meanwhile.
     await drawn(backend)

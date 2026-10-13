@@ -5,7 +5,7 @@ import { hostSurface, repaintHostSurface } from './worldSurface.ts'
 
 test('anisotropy values reach the physical surface on creation and repaint', () => {
   const paint = material.meshPhysical({ anisotropy: 0.85, anisotropyRotation: 1.2 }),
-    surface = hostSurface(paint, false, new Map())
+    surface = hostSurface(paint, false)
   const read = () => [surface.anisotropy, surface.anisotropyRotation]
   assert.deepEqual(read(), [0.85, 1.2])
   const version = surface.version
@@ -24,7 +24,7 @@ test('anisotropy values reach the physical surface on creation and repaint', () 
 
 test('an undeclared anisotropy keeps its neutral defaults', () => {
   const paint = material.meshPhysical(),
-    surface = hostSurface(paint, false, new Map())
+    surface = hostSurface(paint, false)
   assert.deepEqual([surface.anisotropy, surface.anisotropyRotation], [0, 0])
   paint.roughness = 0.2
   repaintHostSurface(surface, paint)

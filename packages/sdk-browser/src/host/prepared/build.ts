@@ -13,7 +13,6 @@ import { checked } from '../../cluster/checked.ts'
 import { unmetered, type ByteMeter } from '../../cluster/byteMeter.ts'
 import { sceneDocument } from '../../scene/tables.ts'
 import { bakedImages } from '../../texture/skip.ts'
-import type { HostTexture } from '../resources.ts'
 import { preparedGeometries } from './geometry.ts'
 import { clothPrimitives, preparedGraph } from './graph.ts'
 import { preparedImages } from './images.ts'
@@ -79,6 +78,13 @@ export async function buildPreparedScene(inputs: Inputs) {
   signal?.throwIfAborted()
   const source: Object3D = scene
   const associations: DrawAssociations = meshes
-  const textureIndices: Map<HostTexture, number> = ranks
-  return { source, associations, textureIndices, bakedImages: skipped.size, nodes, placed, clips }
+  return {
+    source,
+    associations,
+    textureIndices: ranks,
+    bakedImages: skipped.size,
+    nodes,
+    placed,
+    clips,
+  }
 }

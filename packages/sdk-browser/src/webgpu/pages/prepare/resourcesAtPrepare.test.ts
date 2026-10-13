@@ -7,8 +7,6 @@ import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import type { EngineDiagnostic } from '../../../engine/types.ts'
 import type { Engine } from '../../../engine/types.ts'
-import { importHostTexture } from '../../../host/textureImport.ts'
-import type { HostTexture } from '../../../host/resources.ts'
 
 test('trace failure diagnostics retain bounded stack and cause context', async () => {
   installGpuGlobals()
@@ -153,7 +151,7 @@ test('texture pools are allocated at the first map, copy destinations at the siz
   await backend.prepare()
   assert.equal(pools().length, 0, 'no map: no layer')
   assert.equal(backend.metrics().texturePoolBytes, 0)
-  const map = importHostTexture(G.dataTexture(new Uint8Array(64), 4, 4) as unknown as HostTexture)
+  const map = G.dataTexture(new Uint8Array(64), 4, 4)
   await (backend as Engine).appendTexture(map, 'color')
   assert.equal(pools().length, 1, 'its colour pool alone, the data atlas still has no map')
   const need =

@@ -7,15 +7,14 @@
 import * as THREE from 'three'
 import type { VertexAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import type { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts'
-import {
-  isGraphTexture,
-  type GraphTexture,
-} from '../../../packages/sdk-browser/src/host/graph/texture.ts'
+import type { Texture } from '../../../packages/sdk-core/src/world/texture/texture.ts'
+import { COLOUR_MAPS } from '../../../packages/sdk-core/src/world/material/material.ts'
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts'
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 
 type Held<T> = { made: T; version: number }
-const textures = new WeakMap<GraphTexture, Held<THREE.Texture>>()
+/** One copy per record and reading: a texture worn as colour and as data is decoded twice. */
+const textures = [false, true].map(() => new WeakMap<Texture, Held<THREE.Texture>>())
 const sources = new WeakMap<object, THREE.Source>()
 const surfaces = new WeakMap<GraphSurface, Held<THREE.Material>>()
 const geometries = new WeakMap<Geometry, THREE.BufferGeometry>()
@@ -35,49 +34,71 @@ function sourceOf(image: unknown) {
   return source
 }
 
-/** The library's texture of an engine texture, its sampler state and transform kept in step. */
-function threeTexture(texture: GraphTexture | THREE.Texture): THREE.Texture {
+/** The engine's words in the library's numbers: addressing, filtering, texel channels. */
+const WRAPS = {
+  repeat: THREE.RepeatWrapping,
+  clamp: THREE.ClampToEdgeWrapping,
+  mirror: THREE.MirroredRepeatWrapping,
+} as const
+const FILTERS = {
+  nearest: THREE.NearestFilter,
+  linear: THREE.LinearFilter,
+  nearestMipNearest: THREE.NearestMipmapNearestFilter,
+  nearestMipLinear: THREE.NearestMipmapLinearFilter,
+  linearMipNearest: THREE.LinearMipmapNearestFilter,
+  linearMipLinear: THREE.LinearMipmapLinearFilter,
+} as const
+const FORMATS: Record<string, THREE.PixelFormat> = {
+  rgba: THREE.RGBAFormat,
+  rgb: THREE.RGBFormat as THREE.PixelFormat,
+  r: THREE.RedFormat,
+}
+
+/** Whether a surface field holds an engine texture record. */
+const isTexture = (value: unknown): value is Texture =>
+  (value as { isTexture?: boolean } | null)?.isTexture === true
+
+/** The library's texture of an engine texture record, its sampler state and transform kept in
+ *  step with the record's three counters; decoded as sRGB only where a colour field wears an sRGB
+ *  record, as the engine's colour atlas reads it. */
+function threeTexture(texture: Texture | THREE.Texture, colour: boolean): THREE.Texture {
   if (texture instanceof THREE.Texture) return texture
-  let held = textures.get(texture)
-  if (held && held.version === texture.version) return held.made
+  const version = texture.version + texture.sampling + texture.placement
+  const copies = textures[+colour]
+  let held = copies.get(texture)
+  if (held && held.version === version) return held.made
+  const texels = texture.layout === 'data'
   if (!held) {
     const pixels = texture.image as { data: THREE.TypedArray; width: number; height: number }
-    const format = texture.format as THREE.PixelFormat
     held = {
-      made:
-        texture.kind === 'texels'
-          ? new THREE.DataTexture(pixels.data, pixels.width, pixels.height, format)
-          : new THREE.Texture(),
+      made: texels
+        ? new THREE.DataTexture(pixels.data, pixels.width, pixels.height, FORMATS[texture.format])
+        : new THREE.Texture(),
       version: -1,
     }
-    textures.set(texture, held)
-    follow(texture, held.made)
+    copies.set(texture, held)
   }
   const made = held.made
   // The picture is taken again at every version: a texture whose image was replaced shows it.
-  if (texture.kind !== 'texels') {
+  if (!texels) {
     if (made.source.data !== texture.image) made.source = sourceOf(texture.image)
   } else if (made.image !== texture.image) made.image = texture.image as typeof made.image
   made.name = texture.name
-  made.mapping = texture.mapping as THREE.Mapping
   made.channel = texture.channel
-  made.wrapS = texture.wrapS as THREE.Wrapping
-  made.wrapT = texture.wrapT as THREE.Wrapping
-  made.magFilter = texture.magFilter as THREE.MagnificationTextureFilter
-  made.minFilter = texture.minFilter as THREE.MinificationTextureFilter
+  made.wrapS = WRAPS[texture.wrapS]
+  made.wrapT = WRAPS[texture.wrapT]
+  made.magFilter = FILTERS[texture.magFilter] as THREE.MagnificationTextureFilter
+  made.minFilter = FILTERS[texture.minFilter]
   made.anisotropy = texture.anisotropy
-  made.colorSpace = texture.colorSpace as THREE.ColorSpace
-  made.offset.set(texture.offset.x, texture.offset.y)
-  made.repeat.set(texture.repeat.x, texture.repeat.y)
-  made.center.set(texture.center.x, texture.center.y)
-  made.rotation = texture.rotation
-  made.matrixAutoUpdate = texture.matrixAutoUpdate
-  made.matrix.fromArray(texture.matrix.elements)
-  made.generateMipmaps = texture.generateMipmaps
+  made.colorSpace =
+    colour && texture.colorSpace === 'srgb' ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace
+  // The record's own composed transform: the library composes nothing of its own.
+  made.matrixAutoUpdate = false
+  made.matrix.fromArray(texture.transform)
   made.premultiplyAlpha = texture.premultiplyAlpha
   made.flipY = texture.flipY
   made.needsUpdate = true
-  held.version = texture.version
+  held.version = version
   return made
 }
 
@@ -105,7 +126,7 @@ function paint(into: THREE.Material, surface: GraphSurface) {
     if (BOOKKEEPING.has(key) || BRAND.test(key) || !(key in into)) continue
     const held = target[key] as { isColor?: boolean; isVector2?: boolean } | null
     const given = value as Record<'r' | 'g' | 'b' | 'x' | 'y', number>
-    if (isGraphTexture(value)) target[key] = threeTexture(value)
+    if (isTexture(value)) target[key] = threeTexture(value, COLOUR_MAPS.has(key))
     else if (held?.isColor && value) (held as THREE.Color).setRGB(given.r, given.g, given.b)
     else if (held?.isVector2 && value) (held as THREE.Vector2).set(given.x, given.y)
     else target[key] = Array.isArray(value) ? value.slice() : value

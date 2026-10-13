@@ -6,10 +6,6 @@
  * the graph, it is what the nodes point at.
  */
 import type { GraphSurface } from '../graph/surface.ts'
-import type { GraphTexture } from '../graph/texture.ts'
 
 /** A surface of the walked graph. */
 export type HostGraphMaterial = GraphSurface
-
-/** A texture of the walked graph. */
-export type HostGraphTexture = GraphTexture

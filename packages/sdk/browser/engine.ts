@@ -86,7 +86,6 @@ export {
 } from '../../sdk-browser/src/diagnostic/gpuPasses.ts'
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts'
 export { GraphSurface } from '../../sdk-browser/src/host/graph/surface.ts'
-export { GraphTexture } from '../../sdk-browser/src/host/graph/texture.ts'
 export type {
   GravityInput,
   WorldPhysicsOptions,
@@ -110,7 +109,6 @@ export type {
   HostMesh,
   HostPoint,
   HostScene,
-  HostTexture,
 } from '../../sdk-browser/src/host/resources.ts'
 export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/host/matrixElements.ts'
 export type { HostRotation, HostVector } from '../../sdk-browser/src/host/scene/graphNodes.ts'

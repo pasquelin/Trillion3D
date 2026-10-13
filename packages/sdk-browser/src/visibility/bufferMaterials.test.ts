@@ -14,8 +14,8 @@ import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image
 
 test('Repeat wrap samples the same texel at UV 0.25 and 1.25', () => {
   const map = nearestQuadTexture()
-  map.wrapS = G.HOST_WRAP_REPEAT
-  map.wrapT = G.HOST_WRAP_REPEAT
+  map.wrapS = 'repeat'
+  map.wrapT = 'repeat'
   const a = G.basicSurface({ color: 0xffffff, map })
   const b = G.basicSurface({ color: 0xffffff, map })
   const left = quadPages(a, [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25])
@@ -55,8 +55,8 @@ test('FrontSide visbuffer culls a back-facing triangle', () => {
 })
 
 test('a metalness map B=0 keeps a dielectric; B=1 is a metal', () => {
-  const dielectric = G.dataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, G.HOST_FORMAT_RGBA)
-  const metal = G.dataTexture(new Uint8Array([0, 255, 255, 255]), 1, 1, G.HOST_FORMAT_RGBA)
+  const dielectric = G.dataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, 'rgba')
+  const metal = G.dataTexture(new Uint8Array([0, 255, 255, 255]), 1, 1, 'rgba')
   const a = G.standardSurface({
     color: 0xffffff,
     metalness: 1,
@@ -87,8 +87,8 @@ test('a metalness map B=0 keeps a dielectric; B=1 is a metal', () => {
 })
 
 test('a roughness map G channel changes the GGX highlight', () => {
-  const smooth = G.dataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, G.HOST_FORMAT_RGBA)
-  const rough = G.dataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, G.HOST_FORMAT_RGBA)
+  const smooth = G.dataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, 'rgba')
+  const rough = G.dataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, 'rgba')
   const a = G.standardSurface({
     color: 0xffffff,
     metalness: 1,

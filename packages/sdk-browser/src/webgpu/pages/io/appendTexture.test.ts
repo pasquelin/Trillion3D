@@ -5,8 +5,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
-import { importHostTexture } from '../../../host/textureImport.ts'
-import type { HostTexture } from '../../../host/resources.ts'
 import type { Engine } from '../../../engine/types.ts'
 import type { EngineDiagnostic } from '../../../engine/types.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
@@ -34,7 +32,7 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
   })
   const labelled = (label: string) => buffers.filter((buffer) => buffer.label?.includes(label))
   const host = G.dataTexture(new Uint8Array(512 * 512 * 4), 512, 512)
-  const map = importHostTexture(host as unknown as HostTexture)
+  const map = host
   try {
     await backend.prepare()
     backend.render(camera())

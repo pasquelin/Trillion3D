@@ -10,6 +10,7 @@ import { createTileCounters } from './counters.ts'
 import { createTileRequests } from './requests.ts'
 import { createTileGrowth } from './growth.ts'
 import { HEADERS_SWITCHED, HEADERS_WRITTEN, samplingHeaders } from './samplingHeaders.ts'
+import { closeTextureJournal, openTextureJournal } from '../../../../sdk-core/src/texture/writes.ts'
 /**
  * Tile streamer: what the image asked becomes resident, under a per-image budget in bytes AND in
  * milliseconds, most looked-at tile first. Image-feedback counters name the tiles; the streamer
@@ -80,7 +81,9 @@ export function createWebgpuTileStreamer(options: {
   const requests = createTileRequests({ feedback, color, data, counters })
   const atlases = [color, data]
   const flushAll = () => atlases.forEach((atlas) => atlas.flush(device))
-  const followHeaders = samplingHeaders(color, data)
+  // The records written since the last render, heard from their own writes; closed at `destroy`.
+  const journal = openTextureJournal()
+  const followHeaders = samplingHeaders(color, data, journal)
   return {
     color,
     data,
@@ -184,6 +187,7 @@ export function createWebgpuTileStreamer(options: {
      *  working textures asked are built. */
     settled: () => Promise.all([feedback.settled(), sources.settled()]).then(() => undefined),
     destroy() {
+      closeTextureJournal(journal)
       sources.destroy()
       reduce.destroy()
       feedback.destroy()

@@ -11,12 +11,11 @@ import { Color, type ColorInput } from '../../../../sdk-core/src/world/math/colo
 import { box, plane, sphere } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { resolveCameraWorld } from '../../camera/world.ts'
-import { HOST_FILTER_NEAREST, HOST_FORMAT_RGBA } from '../surfaceConstants.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { GraphSurface, type GraphSurfaceFamily } from './surface.ts'
-import { GraphTexture } from './texture.ts'
+import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import type { HostAttributes } from '../resources.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
@@ -43,7 +42,7 @@ export type { HostMesh } from '../resources.ts'
 export { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 export { Scene } from '../../world/core/scene.ts'
 export { GraphSurface } from './surface.ts'
-export { GraphTexture } from './texture.ts'
+export { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 export * from './graphLights.fixture.ts'
 
 /** The faces a surface draws, as a surface's `side` holds them (`../../scene/materialSide.ts`). */
@@ -120,28 +119,21 @@ export const orthographicCamera = (
   far = 2000,
 ) => new Camera('orthographic', { near, far, left, right, top, bottom })
 
-/** A texture of raw texels: read as they are, nearest, no mips, rows not flipped. */
+/** A texture of raw texels: read as they are, nearest, rows not flipped. */
 export function dataTexture(
   data: ArrayBufferView | null = null,
   width = 1,
   height = 1,
-  format = HOST_FORMAT_RGBA,
+  format = 'rgba',
 ) {
-  const texture = new GraphTexture({ data, width, height })
-  Object.assign(texture, { kind: 'texels', format })
-  texture.magFilter = texture.minFilter = HOST_FILTER_NEAREST
-  texture.generateMipmaps = false
+  const texture = new Texture({ data, width, height }, 'data', format)
+  texture.magFilter = texture.minFilter = 'nearest'
   texture.flipY = false
-  texture.needsUpdate = true
   return texture
 }
 
 /** A texture drawn on a canvas, uploaded at its first use. */
-export function canvasTexture(canvas: unknown) {
-  const texture = new GraphTexture(canvas)
-  texture.needsUpdate = true
-  return texture
-}
+export const canvasTexture = (canvas: unknown) => new Texture(canvas)
 
 /**
  * A copy of the core's primitive, stored in 32-bit

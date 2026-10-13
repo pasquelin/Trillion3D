@@ -8,8 +8,6 @@ import { tileCatalogue } from './catalogue.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
 import { CoverageReaders } from '../../texture/coverage.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import { hostTextureWritten, importHostTexture } from '../../host/textureImport.ts'
-import type { HostTexture } from '../../host/resources.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, dispatchedEntries, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -17,12 +15,12 @@ import * as G from '../../host/graph/graph.fixture.ts'
 test('a surface switched from masked to opaque after prepare reduces its hosted map again', async () => {
   installGpuGlobals()
   const host = G.dataTexture(new Uint8Array(64), 4, 4)
-  host.magFilter = G.HOST_FILTER_LINEAR
-  host.minFilter = G.HOST_FILTER_LINEAR_MIP_LINEAR
+  host.magFilter = 'linear'
+  host.minFilter = 'linearMipLinear'
   const material = G.standardSurface({ map: host, alphaTest: 0.5 })
   const readers = new CoverageReaders()
   readers.read(surfaceOf(material))
-  const map = importHostTexture(host as unknown as HostTexture),
+  const map = host,
     encoding = poolEncoding(undefined)
   const {
     device,
@@ -68,7 +66,6 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   assert.equal(scratches().length, 2, 'once')
   material.alphaTest = 0.5
   host.needsUpdate = true
-  hostTextureWritten()
   await Promise.resolve()
   textures.followSampling()
   assert.equal(scratches().length, 3, 'reduced once, by its new picture, never twice')
@@ -77,13 +74,12 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   assert.equal(counted(), 6, 'a new cutoff reduces its chain again')
   // Append must not acknowledge a neighbour's pending image/filter change as already uploaded.
   const extra = G.dataTexture(new Uint8Array(16), 2, 2)
-  const extraMap = importHostTexture(extra as unknown as HostTexture)
+  const extraMap = extra
   const [, entry] = tileCatalogue([extraMap], () => undefined, undefined, encoding, readers)
   const beforeAppend = scratches().length,
     uploadedBeforeAppend = textureWrites.length
   host.needsUpdate = true
-  host.magFilter = G.HOST_FILTER_NEAREST
-  hostTextureWritten()
+  host.magFilter = 'nearest'
   await Promise.resolve()
   const appended = textures.append('color', entry)
   assert.equal(scratches().length, beforeAppend + 1, 'only the new source uploads at append')

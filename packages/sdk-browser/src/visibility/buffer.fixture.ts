@@ -49,17 +49,11 @@ export function centerId(ids: Uint32Array, width: number, height: number) {
 
 /** A 2×2 RGBA map sampled nearest — red, green, blue, white — its rows as stored. */
 export function nearestQuadTexture() {
-  const map = G.dataTexture(
+  return G.dataTexture(
     new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]),
     2,
     2,
-    G.HOST_FORMAT_RGBA,
   )
-  map.magFilter = G.HOST_FILTER_NEAREST
-  map.minFilter = G.HOST_FILTER_NEAREST
-  map.flipY = false
-  map.needsUpdate = true
-  return map
 }
 
 /** Analytical UV derivatives of the winning triangle, by the resolve's own gradients. Not a finite

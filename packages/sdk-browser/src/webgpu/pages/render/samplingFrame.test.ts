@@ -6,7 +6,6 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { disposeQuadRun } from '../testScenes.fixture.ts'
 import { mappedQuadRun } from './mappedQuad.fixture.ts'
-import { hostTextureWritten } from '../../../host/textureImport.ts'
 
 test('a filter written on a map is in its header before the image that draws it is submitted', async () => {
   const map = G.dataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1)
@@ -15,9 +14,8 @@ test('a filter written on a map is in its header before the image that draws it 
     const header = () =>
       gpu.writes.filter((write) => write.buffer.label?.startsWith('Trillion3D texture pages'))
     const before = header().length
-    map.magFilter = G.HOST_FILTER_LINEAR
+    map.magFilter = 'linear'
     map.needsUpdate = true
-    hostTextureWritten()
     ;(fixture.material as G.GraphSurface).needsUpdate = true
     backend.refreshMaterials?.()
     const submitted = gpu.submits.length

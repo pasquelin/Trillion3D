@@ -5,41 +5,37 @@
 // i = ⌊u·size⌋, then clamp, modulo, or modulo over two periods whose second is read backwards.
 // `texture-addressing.gpu.ts` checks that rule against the real samplers, case by case, and the
 // engine's wrap WGSL against both.
-import {
-  HOST_WRAP_CLAMP_TO_EDGE,
-  HOST_WRAP_MIRRORED_REPEAT,
-  HOST_WRAP_REPEAT,
-} from '../../../packages/sdk-browser/src/host/surfaceConstants.ts'
+import type { WrapMode } from '../../../packages/sdk-core/src/index.ts'
 import { fromUnorm8 } from '../../../packages/math/src/color/color.ts'
 import { clamp, mix, wrap } from '../../../packages/math/src/scalar/reals.ts'
 
 /** The three host wrap modes, by name. */
-const MODES: [string, number][] = [
-  ['ClampToEdge', HOST_WRAP_CLAMP_TO_EDGE],
-  ['Repeat', HOST_WRAP_REPEAT],
-  ['MirroredRepeat', HOST_WRAP_MIRRORED_REPEAT],
+const MODES: [string, WrapMode][] = [
+  ['ClampToEdge', 'clamp'],
+  ['Repeat', 'repeat'],
+  ['MirroredRepeat', 'mirror'],
 ]
 
 /** The WebGPU address mode a sampler set to each host wrap mode takes. */
-export const ADDRESS_MODE = new Map<number, GPUAddressMode>([
-  [HOST_WRAP_CLAMP_TO_EDGE, 'clamp-to-edge'],
-  [HOST_WRAP_REPEAT, 'repeat'],
-  [HOST_WRAP_MIRRORED_REPEAT, 'mirror-repeat'],
+export const ADDRESS_MODE = new Map<WrapMode, GPUAddressMode>([
+  ['clamp', 'clamp-to-edge'],
+  ['repeat', 'repeat'],
+  ['mirror', 'mirror-repeat'],
 ])
 
 /** Half a level in 255: the weight quantisation the sampler is allowed. */
 export const TOLERANCE = 0.5
 
 /** Texel index `i` brought back into the image by the wrap mode alone. */
-function wrapIndex(i: number, size: number, mode: number) {
-  if (mode === HOST_WRAP_CLAMP_TO_EDGE) return clamp(i, 0, size - 1)
-  const period = mode === HOST_WRAP_REPEAT ? size : 2 * size
+function wrapIndex(i: number, size: number, mode: WrapMode) {
+  if (mode === 'clamp') return clamp(i, 0, size - 1)
+  const period = mode === 'repeat' ? size : 2 * size
   const j = wrap(i, period)
   return j < size ? j : period - 1 - j
 }
 
 /** The texel nearest-neighbour sampling keeps on an axis of `size` texels. */
-export function nearestTexel(t: number, size: number, wrap: number) {
+export function nearestTexel(t: number, size: number, wrap: WrapMode) {
   return wrapIndex(Math.floor(t * size), size, wrap)
 }
 
@@ -49,7 +45,7 @@ export function nearestTexel(t: number, size: number, wrap: number) {
  * itself (§ 3.8.10). Under repeat, the two indices of a period seam are therefore the last texel
  * and the first, which wrapping the coordinate would split.
  */
-export function linearTexels(t: number, size: number, wrap: number): [number, number, number] {
+export function linearTexels(t: number, size: number, wrap: WrapMode): [number, number, number] {
   const c = t * size - 0.5,
     low = Math.floor(c)
   return [wrapIndex(low, size, wrap), wrapIndex(low + 1, size, wrap), c - low]
@@ -60,7 +56,7 @@ const blendedByte = ([i0, i1, weight]: [number, number, number]) =>
   mix(20 + 40 * i0, 20 + 40 * i1, weight)
 
 /** The rule's exact colour on an axis, the two texels blended, in [0, 1]. */
-export const ruleColour = (t: number, size: number, wrap: number) =>
+export const ruleColour = (t: number, size: number, wrap: WrapMode) =>
   fromUnorm8(blendedByte(linearTexels(t, size, wrap)))
 
 /**
@@ -68,8 +64,8 @@ export const ruleColour = (t: number, size: number, wrap: number) =>
  * last and the other the first. Clamp and mirror read the same edge texel twice there, which
  * wrapping the coordinate already yields: they have no seam.
  */
-export const onSeam = (t: number, size: number, wrap: number) => {
-  if (wrap !== HOST_WRAP_REPEAT) return false
+export const onSeam = (t: number, size: number, wrap: WrapMode) => {
+  if (wrap !== 'repeat') return false
   const [i0, i1] = linearTexels(t, size, wrap)
   return i1 !== i0 + 1
 }
@@ -117,8 +113,8 @@ export interface AddressingCase {
   height: number
   nameS: string
   nameT: string
-  wrapS: number
-  wrapT: number
+  wrapS: WrapMode
+  wrapT: WrapMode
   u: number
   v: number
   /** Whether the probed coordinate falls on the boundary of two texels. */

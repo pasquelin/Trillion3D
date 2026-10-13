@@ -1,21 +1,18 @@
 /**
- * The one boundary that reads a host material and a host texture.
+ * The one boundary that reads a host material.
  *
- * What comes out is the engine's own records — `Texture` of `../../../sdk-core/src/texture/contract.ts` and the
- * `VisMaterial` of `../visibility/types.ts`, colours, factors, addressing and filtering in the engine's
- * words. Everything downstream — the page row, the tile pools, the transparent items, the software
- * raster — computes on those and never reaches back to the host object.
+ * What comes out is the engine's own `VisMaterial` (`../visibility/types.ts`): colours and factors
+ * in the engine's words, and the texture records the material holds — the one record of each
+ * texture (`../../../sdk-core/src/texture/contract.ts`), held as it is, never copied. Everything
+ * downstream — the page row, the tile pools, the transparent items, the software raster —
+ * computes on those and never reaches back to the host object.
  *
- * Nothing here names a rendering library: a host material and a host texture are read through the
- * shapes of `shadedMaterial.ts`, and the state they declare through the named constants of
- * `surfaceConstants.ts`.
- *
- * A texture keeps ONE record for the session (`textureImport.ts`).
+ * Nothing here names a rendering library: a host material is read through the shapes of
+ * `shadedMaterial.ts`.
  */
 
-import type { HostColour, HostMaterials, HostTexture } from './resources.ts'
+import type { HostColour, HostMaterials } from './resources.ts'
 import { isHostColour, type HostShadedMaterial } from './shadedMaterial.ts'
-import { importHostTexture } from './textureImport.ts'
 import type { Side, Texture } from '../../../sdk-core/src/index.ts'
 import { sideOf } from '../scene/materialSide.ts'
 import type { VisMaterial } from '../visibility/materialType.ts'
@@ -27,15 +24,8 @@ import {
   metalRough,
 } from '../scene/surfaceModel.ts'
 
-const map = (texture: unknown) => (texture ? importHostTexture(texture as HostTexture) : undefined)
-
-/** A host-keyed table of glTF texture ranks, rekeyed once on the records the engine addresses. */
-export function importTextureIndices(indices?: ReadonlyMap<HostTexture, number>) {
-  if (!indices) return undefined
-  const ranks = new Map<Texture, number>()
-  for (const [host, rank] of indices) ranks.set(importHostTexture(host), rank)
-  return ranks
-}
+/** The record a map slot holds, or nothing. */
+const map = (texture: Texture | null | undefined) => texture ?? undefined
 
 /** White is what a material with no declared colour is drawn with, as the host does. */
 const WHITE: HostColour = { r: 1, g: 1, b: 1 }
@@ -120,7 +110,7 @@ function surfaceRecord(
 type Rgb = [number, number, number]
 
 /** `texture`'s record when `on`. */
-const mapIf = (on: boolean, texture: unknown) => (on ? map(texture) : undefined)
+const mapIf = (on: boolean, texture: Texture | null | undefined) => (on ? map(texture) : undefined)
 
 /** `value`, or `fallback` when unsaid, when `on`; `off` otherwise. */
 const valueIf = (on: boolean, value: number | undefined, fallback: number, off = 0) =>

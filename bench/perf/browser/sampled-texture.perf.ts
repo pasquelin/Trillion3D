@@ -1,6 +1,5 @@
 // the bytes of a sampled texture.
 import type { Texture } from '../../../packages/sdk-core/src/index.ts'
-import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { textureRgba } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { measure, stress, rapport } from '../../core/index.ts'
@@ -14,25 +13,25 @@ const octets = (n: number) => {
   return data
 }
 const texture = (width: number, height: number) => {
-  const t = new G.GraphTexture()
+  const t = new G.Texture()
   t.image = { data: octets(width * height * 4), width: width, height: height }
   return t
 }
 const grandeTexture = texture(512, 512),
   minuscule = texture(1, 1)
-const withoutData = new G.GraphTexture()
+const withoutData = new G.Texture()
 withoutData.image = { width: 4, height: 4 }
-const sansImage = new G.GraphTexture()
-const zero = new G.GraphTexture()
+const sansImage = new G.Texture()
+const zero = new G.Texture()
 zero.image = { data: new Uint8Array(0), width: 0, height: 0 }
 const contentBefore = octets(16 * 16 * 4),
   contentAfter = octets(8 * 8 * 4)
 const shiftedView = new Uint8Array(new ArrayBuffer(4096), 128, 1024)
-const decalee = new G.GraphTexture()
+const decalee = new G.Texture()
 decalee.image = { data: shiftedView, width: 16, height: 16 }
 
 interface CasTexture {
-  textures?: G.GraphTexture[]
+  textures?: G.Texture[]
   tours: number
   remplacer?: boolean
 }
@@ -45,7 +44,7 @@ const passeTexture =
     const cibles = input.remplacer
       ? [
           (() => {
-            const t = new G.GraphTexture()
+            const t = new G.Texture()
             t.image = { data: contentBefore, width: 16, height: 16 }
             return t
           })(),
@@ -56,7 +55,7 @@ const passeTexture =
         if (input.remplacer && tour === 1)
           target.image = { data: contentAfter, width: 8, height: 8 }
         // The engine reads the imported record; the host object is what a bench may still mutate.
-        const rgba = fn(importHostTexture(target))
+        const rgba = fn(target)
         if (!rgba) {
           nuls++
           continue
@@ -100,7 +99,7 @@ const resTexture = await measure({
 
 await stress({
   name: 'textureRgba extremes',
-  calculation: (t: G.GraphTexture) => textureRgba(importHostTexture(t)),
+  calculation: (t: G.Texture) => textureRgba(t),
   extremes: [
     { name: 'sansImage', input: sansImage },
     { name: 'zero', input: zero },

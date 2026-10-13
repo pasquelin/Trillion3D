@@ -1,8 +1,8 @@
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
-import type { HostGraphMaterial, HostGraphTexture } from '../host/scene/graphResources.ts'
+import type { HostGraphMaterial } from '../host/scene/graphResources.ts'
+import type { Texture } from '../../../sdk-core/src/world/texture/texture.ts'
 import type { HostMesh } from '../host/resources.ts'
 import { isDrawnNode } from '../host/graph/kinds.ts'
-import { isGraphTexture } from '../host/graph/texture.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 /** Meshes of a subtree, in preorder. Nothing is lifted here: the world matrices the
@@ -23,6 +23,7 @@ export const loadHostVertices = (meshes: Iterable<{ geometry: Geometry }>) =>
     ),
   )
 /** The textures a host material carries, whatever their slot: what its renderer would sample. */
-export function* materialTextures(material: HostGraphMaterial): Generator<HostGraphTexture> {
-  for (const value of Object.values(material)) if (isGraphTexture(value)) yield value
+export function* materialTextures(material: HostGraphMaterial): Generator<Texture> {
+  for (const value of Object.values(material))
+    if ((value as { isTexture?: boolean } | null)?.isTexture) yield value as Texture
 }

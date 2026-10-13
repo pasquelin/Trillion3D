@@ -1,4 +1,3 @@
-import { followHostTexture } from '../../../host/textureImport.ts'
 import { pictureFits } from '../../tile/live.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { shadowsFollowSurfaces } from '../prepare/lightResources.ts'
@@ -76,10 +75,7 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
   const textures = rt.vis.textures
   if (!textures) return true
   return [textures.color, textures.data].every((atlas) =>
-    atlas.textures.every((entry) => {
-      if (entry.source.kind === 'host') followHostTexture(entry.source.map)
-      return pictureFits(entry)
-    }),
+    atlas.textures.every((entry) => pictureFits(entry)),
   )
 }
 

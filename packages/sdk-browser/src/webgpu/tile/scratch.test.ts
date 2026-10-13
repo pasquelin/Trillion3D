@@ -5,25 +5,20 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTileScratch } from './scratch.ts'
 import { texture } from '../../world/texture/index.ts'
-import { hostTexture } from '../../world/core/worldTextures.ts'
-import { importHostTexture } from '../../host/textureImport.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
-import { GraphTexture } from '../../host/graph/graph.fixture.ts'
+import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { CoverageReaders } from '../../texture/coverage.ts'
 import type { PageSurface } from '../../page/surface.ts'
-
-type HostTexture = InstanceType<typeof GraphTexture>
 
 type Copy = {
   source: { source: unknown; flipY?: boolean }
   destination: { premultipliedAlpha?: boolean }
 }
 
-/** Uploads a page texture through the engine's own chain — its surface texture, its record — into
- *  a working texture; returns the external copies and the texel rows written. */
-function upload(page: Texture | HostTexture, [width, height]: [number, number]) {
+/** Uploads a page texture — the engine's record itself — into a working texture; returns the
+ *  external copies and the texel rows written. */
+function upload(map: Texture, [width, height]: [number, number]) {
   installGpuGlobals()
   const { device } = fakeDevice(BACKEND)
   const copies: Copy[] = [],
@@ -33,9 +28,6 @@ function upload(page: Texture | HostTexture, [width, height]: [number, number]) 
       copies.push({ source, destination }),
     writeTexture: (_to: unknown, data: Uint8Array) => rows.push(new Uint8Array(data)),
   })
-  const map = importHostTexture(
-    page instanceof GraphTexture ? page : hostTexture(page, true, new Map()),
-  )
   createTileScratch(device, {
     map,
     width,
@@ -88,8 +80,8 @@ test('a picture that says flipY false is copied as it is', () => {
 // draw wrong or fail the device's validation.
 test('texels the RGBA8 working texture cannot hold as stored are refused by name', () => {
   const refused: [string, ...Parameters<typeof texture.data>][] = [
-    ['texel format 1022 is unsupported: RGBA only', new Uint8Array(12), 2, 2, 'rgb'],
-    ['texel format 1028 is unsupported: RGBA only', new Uint8Array(4), 2, 2, 'r'],
+    ['texel format rgb is unsupported: RGBA only', new Uint8Array(12), 2, 2, 'rgb'],
+    ['texel format r is unsupported: RGBA only', new Uint8Array(4), 2, 2, 'r'],
     ['texel storage is unsupported: 8-bit texels only', new Float32Array(16), 2, 2],
     ['texel storage holds 8 bytes, not 2×2 RGBA', new Uint8Array(8), 2, 2],
   ]
@@ -100,7 +92,7 @@ test('texels the RGBA8 working texture cannot hold as stored are refused by name
 // A host texture that says `premultiplyAlpha` lands with its colour times its alpha.
 test('a premultiplyAlpha canvas is copied premultiplied; one that does not say so is not', () => {
   const canvas = { width: 1, height: 1 } as HTMLCanvasElement
-  const host = new GraphTexture(canvas)
+  const host = new Texture(canvas)
   host.premultiplyAlpha = true
   assert.equal(upload(host, [1, 1]).copies[0].destination.premultipliedAlpha, true)
   assert.equal(
@@ -117,9 +109,9 @@ test('a coverage working texture reduces weighted by alpha unless uploaded premu
   // One device per case: the one reduction pipeline it builds says the rule the texture took.
   const rule = (coverage: boolean, premultiplyAlpha: boolean) => {
     const { device, computePipelines } = fakeDevice(BACKEND)
-    const host = new GraphTexture({ data: new Uint8Array(8), width: 1, height: 2 })
+    const host = new Texture({ data: new Uint8Array(8), width: 1, height: 2 })
     host.premultiplyAlpha = premultiplyAlpha
-    const map = importHostTexture(host)
+    const map = host
     const readers = new CoverageReaders()
     readers.read({ map, alphaTest: coverage ? 0.5 : 0, transparent: false } as PageSurface)
     const size = { width: 1, height: 2, format: 'rgba8unorm' } as const
@@ -142,7 +134,7 @@ test('a colour working texture is stored rgba8unorm with storage, viewed in the 
   const created: GPUTextureDescriptor[] = [],
     create = device.createTexture.bind(device)
   device.createTexture = (descriptor) => (created.push(descriptor), create(descriptor))
-  const map = importHostTexture(new GraphTexture({ data: new Uint8Array(16), width: 2, height: 2 }))
+  const map = new Texture({ data: new Uint8Array(16), width: 2, height: 2 })
   const scratch = createTileScratch(device, {
     map,
     width: 2,

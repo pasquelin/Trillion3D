@@ -24,7 +24,7 @@ interface TruthMap {
   height: number
   /** Whether its colours are sRGB-encoded, decoded before they are mixed. */
   srgb: boolean
-  /** Its UV transform, a 3×3 matrix column-major (`GraphTexture.matrix`). */
+  /** Its UV transform, a 3×3 matrix column-major (`Texture.transform`). */
   uv: ArrayLike<number>
 }
 

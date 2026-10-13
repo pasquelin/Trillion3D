@@ -40,12 +40,11 @@ function floorMap(anisotropy: number) {
     texels[i] = (i & 3) === 3 ? 255 : byte
   }
   const map = Object.assign(G.dataTexture(texels, PICTURE, PICTURE), {
-    colorSpace: G.HOST_COLOUR_SPACE_SRGB,
-    magFilter: G.HOST_FILTER_LINEAR,
-    minFilter: G.HOST_FILTER_LINEAR_MIP_LINEAR,
-    generateMipmaps: true,
-    wrapS: G.HOST_WRAP_REPEAT,
-    wrapT: G.HOST_WRAP_REPEAT,
+    colorSpace: 'srgb',
+    magFilter: 'linear',
+    minFilter: 'linearMipLinear',
+    wrapS: 'repeat',
+    wrapT: 'repeat',
     anisotropy,
   })
   map.repeat.set(REPEAT, REPEAT)

@@ -1,5 +1,5 @@
-// A texture's sampling follows its host, not the surfaces that wear it — the records
-// brought up at each render, before the hold verdict, then the headers written where a word
+// A texture's sampling follows its record, not the surfaces that wear it — the records written
+// since the last render visited, before the hold verdict, then the headers written where a word
 // moved, whichever pass reads the texture —, and a moved colour texture is signalled as a landed
 // tile is, so the cutout shadows that read it follow and a held image is released.
 import test from 'node:test'
@@ -9,8 +9,7 @@ import { poolEncoding } from '../../texture/blockFormats.ts'
 import { tileLayout } from '../../texture/tiles.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { hostTextureWritten, importHostTexture } from '../../host/textureImport.ts'
-import type { HostMaterials, HostTexture } from '../../host/resources.ts'
+import type { HostMaterials } from '../../host/resources.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { visMaterial } from '../../visibility/shader/material.ts'
 import { holdWebgpuFrame, keepWebgpuFrame } from '../frame/hold.ts'
@@ -22,11 +21,10 @@ installGpuGlobals()
 /** A host texture at the default sampling. */
 const host = () => {
   const texture = G.dataTexture(new Uint8Array(4), 1, 1)
-  texture.magFilter = G.HOST_FILTER_LINEAR
-  texture.minFilter = G.HOST_FILTER_LINEAR_MIP_LINEAR
+  texture.magFilter = 'linear'
+  texture.minFilter = 'linearMipLinear'
   return texture
 }
-const record = (texture: G.GraphTexture) => importHostTexture(texture as unknown as HostTexture)
 
 /** A streamer over one colour and one data texture, both whole in their tail; counts the page
  *  table writes and the colour signals. */
@@ -61,10 +59,9 @@ function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
   return { textures, writes: tableWrites, signalled }
 }
 
-/** One image's follow, as `../pages/render/render.ts` runs it before the hold verdict; the
- *  host writes before it are announced, as the engine's writers do (`hostTextureWritten`). */
-const follow = async (textures: { followSampling(): boolean }, announced = true) => {
-  if (announced) hostTextureWritten()
+/** One image's follow, as `../pages/render/render.ts` runs it before the hold verdict: the
+ *  records written since the last image are in the streamer's journal, by their own writes. */
+const follow = async (textures: { followSampling(): boolean }) => {
   await Promise.resolve()
   return textures.followSampling()
 }
@@ -72,14 +69,14 @@ const follow = async (textures: { followSampling(): boolean }, announced = true)
 test('the headers follow their hosts at each render, only what moved written', async () => {
   const colour = host(),
     data = host()
-  const colourRecord = record(colour)
-  const { textures, writes, signalled } = streamer([colourRecord], record(data))
+  const colourRecord = colour
+  const { textures, writes, signalled } = streamer([colourRecord], data)
   const opened = writes()
   await follow(textures)
   assert.equal(writes(), opened, 'nothing moved: nothing written')
   // A host sets either order as often as the other: `needsUpdate` first, the filter after it.
   colour.needsUpdate = true
-  colour.minFilter = G.HOST_FILTER_NEAREST_MIP_NEAREST
+  colour.minFilter = 'nearestMipNearest'
   colour.anisotropy = 8
   await follow(textures)
   assert.equal(colourRecord.minFilter, 'nearestMipNearest', 'the filter written after it')
@@ -87,13 +84,13 @@ test('the headers follow their hosts at each render, only what moved written', a
   assert.equal(writes(), opened + 1)
   await follow(textures)
   assert.equal(writes(), opened + 1, 'the same state: written once')
-  // A placement moves no version: the matrix recomposed at the image moves the header.
+  // A placement moves no version: the matrix recomposed at the write moves the header.
   data.offset.x = 0.5
   await follow(textures)
   assert.deepEqual(signalled, [[1], []], 'signalled, no shadow reads a data map')
   assert.equal(writes(), opened + 2, 'one send per atlas that moved')
   // An addressing rides in the header too: written, and the cutout shadows told, as a filter.
-  colour.wrapS = G.HOST_WRAP_REPEAT
+  colour.wrapS = 'repeat'
   await follow(textures)
   assert.deepEqual(signalled, [[1], [], [1]], 'the colour slot, for its cutout shadows')
   assert.equal(writes(), opened + 3)
@@ -104,18 +101,18 @@ test('the headers follow their hosts at each render, only what moved written', a
 // at: the second to follow in the image learns the change the first brought up.
 test('two engines over the same texture both write the change', async () => {
   const colour = host()
-  const shared = record(colour)
-  const first = streamer([shared], record(host())),
-    second = streamer([shared], record(host()))
+  const shared = colour
+  const first = streamer([shared], host()),
+    second = streamer([shared], host())
   const opened = [first.writes(), second.writes()]
-  colour.magFilter = G.HOST_FILTER_NEAREST
+  colour.magFilter = 'nearest'
   assert.equal(await follow(first.textures), true, 'a filter rule switched on')
   assert.equal(second.textures.followSampling(), true, 'the second engine learns it too')
   assert.deepEqual([first.writes(), second.writes()], [opened[0] + 1, opened[1] + 1])
   assert.deepEqual([first.signalled, second.signalled], [[[1]], [[1]]])
-  colour.magFilter = G.HOST_FILTER_LINEAR
+  colour.magFilter = 'linear'
   assert.equal(await follow(first.textures), true, 'switched off: the pages change class')
-  colour.wrapS = G.HOST_WRAP_REPEAT
+  colour.wrapS = 'repeat'
   assert.equal(await follow(first.textures), false, 'an addressing switches no filter rule')
   first.textures.destroy()
   second.textures.destroy()
@@ -125,9 +122,9 @@ test('the map of a transparent surface alone follows its host, no surface reread
   const map = host()
   const surface = G.standardSurface({ transparent: true, opacity: 0.5, map })
   const read = visMaterial(surface as unknown as HostMaterials).map!
-  const { textures, signalled } = streamer([read], record(host()))
-  map.magFilter = G.HOST_FILTER_NEAREST
-  map.wrapT = G.HOST_WRAP_MIRRORED_REPEAT
+  const { textures, signalled } = streamer([read], host())
+  map.magFilter = 'nearest'
+  map.wrapT = 'mirror'
   await follow(textures)
   assert.deepEqual([read.magFilter, read.wrapT], ['nearest', 'mirror'], 'the item’s record')
   assert.deepEqual(signalled, [[1]])
@@ -137,9 +134,7 @@ test('the map of a transparent surface alone follows its host, no surface reread
 test('a filter changed on a held image releases it, and the image draws it', async () => {
   const colour = host()
   const rt = settledRt()
-  const { textures } = streamer([record(colour)], record(host()), () =>
-    rt.run.gate.resourcesChanged(),
-  )
+  const { textures } = streamer([colour], host(), () => rt.run.gate.resourcesChanged())
   const { device } = fakeDevice(BACKEND)
   for (let i = 0; i < 2; i++) {
     rt.run.frame++
@@ -147,16 +142,16 @@ test('a filter changed on a held image releases it, and the image draws it', asy
   }
   await follow(textures)
   assert.equal(holdWebgpuFrame(rt, device), true, 'nothing moved: the image is held')
-  colour.magFilter = G.HOST_FILTER_NEAREST
+  colour.magFilter = 'nearest'
   await follow(textures)
   assert.equal(holdWebgpuFrame(rt, device), false, 'the next image is drawn')
   textures.destroy()
 })
 
 // The follow walked every slot and read every host at every image, held or not.
-test('a still image reads no host and walks no slot', async () => {
+test('a still image reads no record and walks no slot', async () => {
   const colour = host()
-  const { textures, writes } = streamer([record(colour)], record(host()))
+  const { textures, writes } = streamer([colour], host())
   await follow(textures)
   const opened = writes()
   let reads = 0
@@ -165,10 +160,11 @@ test('a still image reads no host and walks no slot', async () => {
     get: () => (reads++, magFilter),
     configurable: true,
   })
-  for (let image = 0; image < 3; image++) await follow(textures, false)
-  assert.equal(reads, 0, 'nothing announced: nothing read')
+  for (let image = 0; image < 3; image++) await follow(textures)
+  assert.equal(reads, 0, 'nothing written: nothing read')
+  colour.anisotropy = 1
   await follow(textures)
-  assert.ok(reads > 0, 'an announced write is read at the next image')
+  assert.ok(reads > 0, 'a written record is read at the next image')
   assert.equal(writes(), opened, 'and nothing moved: nothing written')
   textures.destroy()
 })

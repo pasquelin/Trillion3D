@@ -1,7 +1,6 @@
 // Common-formulas lot: each WGSL fragment factored out of `pageWgsl.ts` must stay the
 // unique write of its identifier, and each shader that assembles it must carry it only once —
 // two copies in the same text would be two chances of seeing it drift, as before this lot.
-import { importWrapMode } from '../../host/wrapImport.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -107,13 +106,13 @@ test('wrapLinear mixes the two texels of the rule, a period seam included', () =
       coordonnees.push(Math.fround(entier + reste))
   let couture = 0
   for (const taille of [1, 2, 3, 4, 5, 8])
-    for (const wrap of [G.HOST_WRAP_CLAMP_TO_EDGE, G.HOST_WRAP_REPEAT, G.HOST_WRAP_MIRRORED_REPEAT])
+    for (const wrap of ['clamp', 'repeat', 'mirror'] as const)
       for (const t of coordonnees) {
         const expected = regle(t, taille, wrap)
-        if (expected[1] !== expected[0] + 1 && wrap === G.HOST_WRAP_REPEAT) couture++
+        if (expected[1] !== expected[0] + 1 && wrap === 'repeat') couture++
         assert.ok(
-          Math.abs(valeur(wrapLinear(t, taille, importWrapMode(wrap))) - valeur(expected)) <= 1e-9,
-          `${taille} texels, t=${t}: rule ${expected}, read ${wrapLinear(t, taille, importWrapMode(wrap))}`,
+          Math.abs(valeur(wrapLinear(t, taille, wrap)) - valeur(expected)) <= 1e-9,
+          `${taille} texels, t=${t}: rule ${expected}, read ${wrapLinear(t, taille, wrap)}`,
         )
       }
   assert.ok(couture > 100, `the series must exercise the seam, only ${couture} cases`)

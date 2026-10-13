@@ -6,7 +6,7 @@ import { webgpuPagesEngine } from '../pages.ts'
 
 /** A pages backend on the mock device drawing the quad scene with `map` on its surface: prepared,
  *  one image drawn and flushed — the state a change made after it is measured from. */
-export async function mappedQuadRun(map: G.GraphTexture) {
+export async function mappedQuadRun(map: G.Texture) {
   installGpuGlobals()
   const gpu = fakeDevice(BACKEND)
   map.needsUpdate = true

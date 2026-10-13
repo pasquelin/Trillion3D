@@ -18,7 +18,7 @@ import { perspectiveProjection } from '../../../../../../../packages/math/src/pr
 import { Light } from '../../../../../../../packages/sdk-core/src/world/light/light.ts'
 import { BufferAttribute } from '../../../../../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { GraphSurface } from '../../../../../../../packages/sdk-browser/src/host/graph/surface.ts'
-import { GraphTexture } from '../../../../../../../packages/sdk-browser/src/host/graph/texture.ts'
+import { Texture } from '../../../../../../../packages/sdk-core/src/world/texture/texture.ts'
 import { hookHostNode } from '../../../../../../../packages/sdk-browser/src/host/scene/hooks.ts'
 import { Geometry } from '../../../../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 
@@ -120,16 +120,15 @@ test('a geometry bounds itself by the rule of the engine, morph targets included
 })
 
 test('a texture transform, a surface family and a copied light hold the default values', () => {
-  const texture = new GraphTexture(null),
+  const texture = new Texture(null),
     reference = new THREE.Texture()
   for (const t of [texture, reference]) {
     t.offset.set(0.25, -0.5)
     t.repeat.set(2, 3)
-    t.center.set(0.5, 0.5)
     t.rotation = 0.7
-    t.updateMatrix()
   }
-  assert.deepEqual([...texture.matrix.elements], reference.matrix.elements)
+  reference.updateMatrix()
+  assert.deepEqual([...texture.transform], reference.matrix.elements)
   const surface = new GraphSurface('physical'),
     physical = new THREE.MeshPhysicalMaterial() as unknown as Record<string, unknown>
   for (const key of ['ior', 'blending', 'depthFunc', 'side', 'normalMapType', 'alphaTest'])

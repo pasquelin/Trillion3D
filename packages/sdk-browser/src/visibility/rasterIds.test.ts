@@ -25,7 +25,7 @@ function cut(): { pages: ReturnType<typeof quadPages>['pages']; dispose: () => v
       new Uint8Array([0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 255]),
       2,
       2,
-      G.HOST_FORMAT_RGBA,
+      'rgba',
     ),
   })
   const near = quadPages(opaque, [0, 0, 1, 0, 1, 1, 0, 1])

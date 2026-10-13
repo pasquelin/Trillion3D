@@ -2,13 +2,11 @@
 // handed to both engines as the same host texture.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { fromUnorm8 } from '../../../packages/math/src/color/color.ts'
+import type { ColorSpace } from '../../../packages/sdk-core/src/world/constants/index.ts'
 
 /** How a map is read beyond its pixels: the host texture's fields, written over the canvas one. */
 type MapOptions = Partial<
-  Pick<
-    G.GraphTexture,
-    'colorSpace' | 'magFilter' | 'minFilter' | 'generateMipmaps' | 'wrapS' | 'wrapT' | 'anisotropy'
-  >
+  Pick<G.Texture, 'colorSpace' | 'magFilter' | 'minFilter' | 'wrapS' | 'wrapT' | 'anisotropy'>
 > & { repeat?: number }
 
 /** A `size`² canvas `draw` paints, as a host texture both engines read the same way: unflipped,
@@ -17,7 +15,7 @@ function canvasMap(
   size: number,
   draw: (ctx: CanvasRenderingContext2D) => void,
   { repeat, ...options }: MapOptions = {},
-): G.GraphTexture {
+): G.Texture {
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = size
   draw(canvas.getContext('2d')!)
@@ -26,11 +24,10 @@ function canvasMap(
   return map
 }
 
-/** Nearest both ways and no chain: every read returns one texel. */
+/** Nearest both ways: every read returns one texel. */
 const NEAREST = {
-  magFilter: G.HOST_FILTER_NEAREST,
-  minFilter: G.HOST_FILTER_NEAREST,
-  generateMipmaps: false,
+  magFilter: 'nearest',
+  minFilter: 'nearest',
 } as const
 
 /** Quadrant texels, top-left, top-right, bottom-left, bottom-right on screen (`flipY` off, plane
@@ -46,8 +43,8 @@ const QUADRANT_AT = [
  *  quadrants of the square, nearest, unrepeated, in the declared space. */
 export function texture(
   texels: [number, number, number, number][],
-  colorSpace: string = G.HOST_COLOUR_SPACE_NONE,
-): G.GraphTexture {
+  colorSpace: ColorSpace = 'none',
+): G.Texture {
   return canvasMap(
     2,
     (ctx) =>
@@ -72,7 +69,7 @@ export const checkerMap = () =>
           ctx.fillRect(x, y, 1, 1)
         }
     },
-    { colorSpace: G.HOST_COLOUR_SPACE_SRGB, ...NEAREST },
+    { colorSpace: 'srgb', ...NEAREST },
   )
 
 /** Black and white stripes one texel wide, running along V, repeated four times each way, with
@@ -88,9 +85,9 @@ export const stripeMap = (anisotropy: number) =>
       }
     },
     {
-      colorSpace: G.HOST_COLOUR_SPACE_SRGB,
-      wrapS: G.HOST_WRAP_REPEAT,
-      wrapT: G.HOST_WRAP_REPEAT,
+      colorSpace: 'srgb',
+      wrapS: 'repeat',
+      wrapT: 'repeat',
       repeat: 4,
       anisotropy,
     },
@@ -107,9 +104,9 @@ const foliageMap = (anisotropy: number) =>
       for (let x = 0; x < 8; x += 4) ctx.fillRect(x, 0, 2, 8)
     },
     {
-      colorSpace: G.HOST_COLOUR_SPACE_SRGB,
-      wrapS: G.HOST_WRAP_REPEAT,
-      wrapT: G.HOST_WRAP_REPEAT,
+      colorSpace: 'srgb',
+      wrapS: 'repeat',
+      wrapT: 'repeat',
       repeat: 4,
       anisotropy,
     },
@@ -129,8 +126,7 @@ export const TILTED_NORMAL: [number, number, number, number][] = Array.from({ le
 ])
 
 /** A base-colour map of four quadrants, in sRGB like every base colour. */
-export const colourMap = (texels: [number, number, number, number][]) =>
-  texture(texels, G.HOST_COLOUR_SPACE_SRGB)
+export const colourMap = (texels: [number, number, number, number][]) => texture(texels, 'srgb')
 
 /** A cutout material of `foliageMap`, anisotropy 16, cut at half alpha. */
 export const foliage = () => ({ map: foliageMap(16), alphaTest: 0.5 })

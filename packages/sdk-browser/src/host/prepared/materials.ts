@@ -10,17 +10,15 @@
  *   it — are built per primitive kind;
  * - the physical extensions are applied under the parameter names the table writes them with.
  */
-import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts'
+import type { TableMaterial, TableTextureSlot, Texture } from '../../../../sdk-core/src/index.ts'
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 import type { AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
 import { COLOUR_MAPS, MATERIAL_COLOURS } from '../../../../sdk-core/src/world/material/material.ts'
 import { GraphSurface } from '../graph/surface.ts'
-import { type GraphTexture } from '../graph/texture.ts'
 import { hostSide } from '../../scene/materialSide.ts'
-import { HOST_COLOUR_SPACE_SRGB } from '../surfaceConstants.ts'
 import { linearColour } from '../graph/surfaceFields.ts'
 
-type Slot = (slot: TableTextureSlot, colorSpace?: string) => Promise<GraphTexture | null>
+type Slot = (slot: TableTextureSlot, colour: boolean) => Promise<Texture | null>
 type Params = Record<string, unknown>
 
 /** How a surface draws its alpha mode, at open and when a page changes it
@@ -105,7 +103,7 @@ async function build(
   const assign = (name: string, from: TableTextureSlot | null) => {
     if (from)
       pending.push(
-        slot(from, COLOUR_MAPS.has(name) ? HOST_COLOUR_SPACE_SRGB : undefined).then((texture) => {
+        slot(from, COLOUR_MAPS.has(name)).then((texture) => {
           if (texture) params[name] = texture
         }),
       )

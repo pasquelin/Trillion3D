@@ -4,6 +4,8 @@
  * the flags `isMesh` and `isInstancedMesh` —, the loader the scenes are compared with by its
  * library's flags and type names — named here, for the comparison alone (`scenes.fixture.ts`).
  */
+import * as THREE from 'three'
+
 type Fields = Record<string, unknown>
 
 /** The library's flag of each node kind, the most specific first. */
@@ -52,7 +54,7 @@ export const surfaceFamily = (surface: Fields) =>
 export function textureKind(value: Fields | null | undefined) {
   if (!value) return undefined
   if (value.kind === 'texture' || value.kind === 'texels') return value.kind
-  if (value.isTexture) return value.isDataTexture ? 'texels' : 'texture'
+  if (value.isTexture) return value.isDataTexture || value.layout === 'data' ? 'texels' : 'texture'
   return undefined
 }
 
@@ -63,3 +65,37 @@ export const isAttribute = (value: Fields | null | undefined) =>
     value.kind === 'interleavedAttribute' ||
     !!value.isBufferAttribute ||
     !!value.isInterleavedBufferAttribute)
+
+/** The reference's sampler numbers in the engine's words: what both sides are compared in. */
+const WORDS = new Map<unknown, string>([
+  [THREE.RepeatWrapping, 'repeat'],
+  [THREE.ClampToEdgeWrapping, 'clamp'],
+  [THREE.MirroredRepeatWrapping, 'mirror'],
+  [THREE.NearestFilter, 'nearest'],
+  [THREE.LinearFilter, 'linear'],
+  [THREE.NearestMipmapNearestFilter, 'nearestMipNearest'],
+  [THREE.NearestMipmapLinearFilter, 'nearestMipLinear'],
+  [THREE.LinearMipmapNearestFilter, 'linearMipNearest'],
+  [THREE.LinearMipmapLinearFilter, 'linearMipLinear'],
+])
+const word = (value: unknown) => WORDS.get(value) ?? value
+
+/** A texture's fields in the engine's words, whichever side built it: an engine record carries
+ *  its composed transform, a reference texture composes its matrix here. */
+export function textureFields(v: Fields) {
+  const reference = v as unknown as THREE.Texture
+  const matrix = v.transform ?? (reference.updateMatrix(), reference.matrix.elements)
+  return {
+    ...Object.fromEntries(
+      ['name', 'channel', 'anisotropy', 'flipY', 'premultiplyAlpha', 'image'].map((key) => [
+        key,
+        v[key],
+      ]),
+    ),
+    ...Object.fromEntries(
+      ['wrapS', 'wrapT', 'magFilter', 'minFilter'].map((key) => [key, word(v[key])]),
+    ),
+    srgb: v.colorSpace === 'srgb',
+    matrix: Array.from(matrix as ArrayLike<number>),
+  }
+}

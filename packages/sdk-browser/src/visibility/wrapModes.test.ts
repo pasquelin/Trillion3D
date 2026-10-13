@@ -3,8 +3,7 @@
 // therefore carries its own nibble, and each shader read folds by the nibble of the texture it
 // samples — not the material flags, which carry only one for all of them.
 // Proof on a real GPU is `tests/gpu/texture/texture-addressing.gpu.ts`.
-import type { Texture } from '../../../sdk-core/src/index.ts'
-import { importWrapMode } from '../host/wrapImport.ts'
+import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
@@ -21,32 +20,21 @@ import { maskAlphaWgsl } from '../webgpu/tile/wgsl.ts'
 import { MAPS, mixedNibbles } from '../../../../tests/gpu/texture/addressingMaps.ts'
 import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 
-const carte = (wrapS: number, wrapT: number) =>
-  ({ wrapS: importWrapMode(wrapS), wrapT: importWrapMode(wrapT) }) as Texture
+const carte = (wrapS: WrapMode, wrapT: WrapMode) => ({ wrapS, wrapT }) as Texture
 /** Expected nibble of a fixture entry, recomputed from its two declared wrap modes. */
 const expected = (c: (typeof MAPS)[number]) => wrapNibble(carte(c.wrapS, c.wrapT))
 
 test('wrapNibble sets the repeat or mirror bit per axis, no bit in clamp', () => {
   assert.equal(wrapNibble(undefined), 0, 'no map')
-  assert.equal(wrapNibble(carte(G.HOST_WRAP_CLAMP_TO_EDGE, G.HOST_WRAP_CLAMP_TO_EDGE)), 0)
+  assert.equal(wrapNibble(carte('clamp', 'clamp')), 0)
+  assert.equal(wrapNibble(carte('repeat', 'repeat')), WRAP_S_REPEAT | WRAP_T_REPEAT)
+  assert.equal(wrapNibble(carte('mirror', 'mirror')), WRAP_S_MIRROR | WRAP_T_MIRROR)
   assert.equal(
-    wrapNibble(carte(G.HOST_WRAP_REPEAT, G.HOST_WRAP_REPEAT)),
-    WRAP_S_REPEAT | WRAP_T_REPEAT,
-  )
-  assert.equal(
-    wrapNibble(carte(G.HOST_WRAP_MIRRORED_REPEAT, G.HOST_WRAP_MIRRORED_REPEAT)),
-    WRAP_S_MIRROR | WRAP_T_MIRROR,
-  )
-  assert.equal(
-    wrapNibble(carte(G.HOST_WRAP_MIRRORED_REPEAT, G.HOST_WRAP_REPEAT)),
+    wrapNibble(carte('mirror', 'repeat')),
     WRAP_S_MIRROR | WRAP_T_REPEAT,
     'a different mode per axis sets a different bit per axis',
   )
-  assert.equal(
-    wrapNibble(carte(G.HOST_WRAP_CLAMP_TO_EDGE, G.HOST_WRAP_MIRRORED_REPEAT)),
-    WRAP_T_MIRROR,
-    'S in clamp sets no S bit',
-  )
+  assert.equal(wrapNibble(carte('clamp', 'mirror')), WRAP_T_MIRROR, 'S in clamp sets no S bit')
 })
 
 test('each map carries its own nibble in its header, whatever the others', () => {

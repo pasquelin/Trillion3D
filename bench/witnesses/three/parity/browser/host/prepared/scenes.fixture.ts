@@ -138,19 +138,10 @@ const SURFACE_FIELDS = (
 const NODE_FIELDS =
   'name visible frustumCulled renderOrder castShadow receiveShadow matrixAutoUpdate'
 
-const TEXTURE_FIELDS = (
-  'name channel wrapS wrapT magFilter minFilter anisotropy flipY premultiplyAlpha ' +
-  'generateMipmaps colorSpace matrixAutoUpdate mapping image'
-).split(' ')
 function read(value: unknown, ranks: Ranks): unknown {
   const v = value as Record<string, unknown> | null | undefined
   const kind = K.textureKind(v)
-  if (v && kind) {
-    const t = v as unknown as { updateMatrix(): void; matrix: { elements: ArrayLike<number> } }
-    t.updateMatrix()
-    const fields = Object.fromEntries(TEXTURE_FIELDS.map((key) => [key, v[key]]))
-    return { kind, ...fields, matrix: Array.from(t.matrix.elements), rank: ranks(v)?.textures }
-  }
+  if (v && kind) return { kind, ...K.textureFields(v), rank: ranks(v)?.textures }
   if (v?.isColor) return [v.r, v.g, v.b]
   if (v?.isVector2) return [v.x, v.y]
   if (typeof v !== 'object' || v === null) return value

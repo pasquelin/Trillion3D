@@ -4,7 +4,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { followHostTexture, importHostTexture } from '../../host/textureImport.ts'
 import { refusal, scene } from './materialApi.fixture.ts'
 
 test('the scene materials are listed by table rank, each a detached copy', async () => {
@@ -38,8 +37,7 @@ test('the scene materials are listed by table rank, each a detached copy', async
 test('setMaterial writes each listed value into every surface of the material, live', async () => {
   const { api, floor, textures, refreshes } = await scene()
   const versions = floor.map((surface) => surface.version)
-  const record = importHostTexture(textures[0])
-  followHostTexture(record)
+  const record = textures[0]
   const placement = record.placement
   api.setMaterial('0', {
     baseColor: [0.25, 0.5, 0.75],
@@ -65,8 +63,11 @@ test('setMaterial writes each listed value into every surface of the material, l
     assert.equal(surface.roughness, 0.25)
   }
   assert.deepEqual([textures[0].repeat.x, textures[0].repeat.y], [4, 2])
-  followHostTexture(record)
-  assert.equal(record.placement, placement + 1, 'an engine following the map sees it tiled')
+  assert.equal(
+    record.placement,
+    placement + 1,
+    'the record itself is tiled, its transform composed',
+  )
   assert.equal(record.transform[0], 4)
   assert.equal(api.setMaterial('1', { alphaCutoff: 0.25 }), true, 'every engine took it')
   assert.equal(api.material('1').alphaCutoff, 0.25)

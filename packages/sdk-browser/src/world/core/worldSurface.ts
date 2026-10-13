@@ -17,8 +17,19 @@ import { composesWithBackground, hostBlending } from '../../scene/materialBlendi
 import { GraphSurface, type GraphSurfaceFamily } from '../../host/graph/surface.ts'
 import { physicalSurface, writePhysical } from './worldPhysicalSurface.ts'
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts'
-import { COLOUR_MAPS } from '../../../../sdk-core/src/world/material/material.ts'
-import { HOST_MAPS, hostTexture, repaintHostMaps, type HostTextures } from './worldTextures.ts'
+import { TABLE_SLOTS } from '../../../../sdk-core/src/scene/core/tableSurfaces.ts'
+import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts'
+
+/** Material fields that hold a texture, by the name both sides give them: a surface holds the
+ *  material's texture record itself, so a write of the texture reaches every reader with no copy. */
+const HOST_MAPS = [
+  ...TABLE_SLOTS,
+  'alphaMap',
+  'matcap',
+  'gradientMap',
+  'subsurfaceMap',
+  ...PHYSICAL_MAP_FIELDS,
+]
 
 /** The family of each kind that is not physical. */
 const FAMILY: Record<string, GraphSurfaceFamily> = {
@@ -130,7 +141,6 @@ export type SurfaceReading = 'faces' | 'lines' | 'sprite' | 'sheet'
 export function hostSurface(
   material: Material,
   vertexColors: boolean,
-  textures: HostTextures,
   reading: SurfaceReading = 'faces',
 ) {
   const family = FAMILY[material.kind]
@@ -139,8 +149,7 @@ export function hostSurface(
     : physicalSurface(material, vertexColors)
   for (const field of HOST_MAPS) {
     const texture = material[field] as Texture | undefined
-    if (texture?.isTexture && field in surface)
-      surface[field] = hostTexture(texture, COLOUR_MAPS.has(field), textures)
+    if (texture?.isTexture && field in surface) surface[field] = texture
   }
   if ('flatShading' in surface) surface.flatShading = material.flatShading === true
   surface.depthWrite = material.depthWrite
@@ -161,12 +170,10 @@ export function hostSurface(
  * cutoff, physical extensions and the family they put a physical kind in, a line's width, a
  * dashed line's dash and gap, a sprite's turn — and its maps' sampling into the surface built for
  * it, as `hostSurface` wrote them, and bumps the surface's version: every reader of the surface
- * (`page/surface.ts`) takes them at its next read, nothing built again. A map whose
- * version moved sends its picture again; one whose placement alone moved is placed again,
- * nothing sent (`repaintHostMaps`).
+ * (`page/surface.ts`) takes them at its next read, nothing built again. Its maps are the
+ * material's texture records themselves: their pictures, sampling and placement need no write.
  */
 export function repaintHostSurface(surface: GraphSurface, material: Material) {
-  repaintHostMaps(surface as unknown as Record<string, unknown>, material)
   writeColours(surface, material)
   if (typeof surface.metalness === 'number') surface.metalness = material.metalness
   if (typeof surface.roughness === 'number') surface.roughness = material.roughness

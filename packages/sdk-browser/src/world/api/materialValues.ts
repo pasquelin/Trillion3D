@@ -7,7 +7,6 @@ import type { GraphSurface } from '../../host/graph/surface.ts'
 import { materialTextures } from '../../scene/meshes.ts'
 import { sideOf } from '../../scene/materialSide.ts'
 import { importHostSurface } from '../../host/surfaceImport.ts'
-import { hostTextureWritten } from '../../host/textureImport.ts'
 import { alphaModeFields } from '../../host/prepared/materials.ts'
 
 /** The cutoff a material turned masked takes when the page names none: glTF's default. */
@@ -123,10 +122,8 @@ export function write(surface: GraphSurface, patch: SceneMaterialPatch, mode?: A
   // As the open draws a table entry: the cutoff kept, or the page's, or glTF's for a new cutout.
   const cutoff = patch.alphaCutoff ?? (surface.alphaTest || MASK_CUTOFF)
   if (mode) Object.assign(surface, alphaModeFields(mode, cutoff))
-  if (patch.tiling) {
+  // A placement written on the record itself: every consumer's journal hears it.
+  if (patch.tiling)
     for (const texture of materialTextures(surface)) texture.repeat.set(...patch.tiling)
-    // A placement is followed only once a write is announced: unsaid, no engine would see it.
-    hostTextureWritten()
-  }
   surface.needsUpdate = true
 }

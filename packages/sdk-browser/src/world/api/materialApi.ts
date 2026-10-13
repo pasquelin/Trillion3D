@@ -1,7 +1,7 @@
 import type { Engine } from '../../engine/types.ts'
 import { runtimeMaterials } from './runtimeMaterials.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
-import type { GraphTexture } from '../../host/graph/texture.ts'
+import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { tableRankOf } from '../../host/prepared/materials.ts'
 import { materialTextures } from '../../scene/meshes.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
@@ -51,7 +51,7 @@ const refreshed = (engine: Engine, alpha?: AlphaChange) =>
  *  serves, the drawables by the primitive name a page gives, and the values the file carried. */
 function materialIndex(draws: readonly DrawSource[]) {
   const worn = new Map<number, Set<GraphSurface>>()
-  const wearers = new Map<GraphTexture, Set<number>>()
+  const wearers = new Map<Texture, Set<number>>()
   const drawables = new Map<string, Set<DrawSource>>()
   for (const draw of draws) {
     const name = primitiveName({ meshes: draw.mesh, primitives: draw.primitives })

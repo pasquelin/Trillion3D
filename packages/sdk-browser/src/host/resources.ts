@@ -7,10 +7,6 @@ import type { VertexAttribute } from '../../../sdk-core/src/world/buffer/attribu
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { InstancedMesh } from '../../../sdk-core/src/world/object/instancedMesh.ts'
 import type { GraphSurface } from './graph/surface.ts'
-import type { GraphTexture } from './graph/texture.ts'
-
-/** A texture of the graph: a decoded picture or raw texels, and the sampler state it declares. */
-export type HostTexture = GraphTexture
 
 /** One vertex attribute of a geometry, owning its storage or viewing an interleaved one. */
 export type HostAttribute = VertexAttribute

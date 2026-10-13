@@ -8,10 +8,11 @@
  * rendering library is named on either side.
  */
 
-import type { HostColour, HostMaterial, HostTexture } from './resources.ts'
+import type { HostColour, HostMaterial } from './resources.ts'
+import type { Texture } from '../../../sdk-core/src/index.ts'
 
 /** A map slot: the texture the material names there, or nothing. */
-type HostMap = HostTexture | null | undefined
+type HostMap = Texture | null | undefined
 
 /** A host colour is declared as such by its owner; three loose numbers are not one. */
 export const isHostColour = (value: unknown): value is HostColour =>

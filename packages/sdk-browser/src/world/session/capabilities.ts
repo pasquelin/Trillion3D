@@ -1,5 +1,4 @@
 import { materialTextures } from '../../scene/meshes.ts'
-import { hostTextureWritten } from '../../host/textureImport.ts'
 import { families } from '../../host/families.ts'
 import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
 import { SCENE_FILE } from '../../scene/tables.ts'
@@ -59,10 +58,6 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   if (options.detail === 'maximum') {
     for (const { declaration } of draws)
       for (const material of Array.isArray(declaration) ? declaration : [declaration])
-        for (const texture of materialTextures(material)) {
-          texture.anisotropy = MAX_ANISOTROPY
-          texture.needsUpdate = true
-        }
-    hostTextureWritten()
+        for (const texture of materialTextures(material)) texture.anisotropy = MAX_ANISOTROPY
   }
 }

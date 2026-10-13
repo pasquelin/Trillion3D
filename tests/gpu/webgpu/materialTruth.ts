@@ -24,7 +24,7 @@ export function truthOf(
 ): TruthReading | undefined {
   if (fixture.truth === undefined || engine.length === 0) return // no frame: `held` names it
   const surface = fixture.material(),
-    map = surface.map as G.GraphTexture | null
+    map = surface.map as G.Texture | null
   if (
     !map ||
     fixture.lit ||
@@ -33,15 +33,14 @@ export function truthOf(
     surface.family !== 'basic' ||
     (surface.color as G.Color).getHex() !== 0xffffff ||
     map.flipY ||
-    map.magFilter !== G.HOST_FILTER_LINEAR ||
-    map.wrapS !== G.HOST_WRAP_REPEAT ||
-    map.wrapT !== G.HOST_WRAP_REPEAT
+    map.magFilter !== 'linear' ||
+    map.wrapS !== 'repeat' ||
+    map.wrapT !== 'repeat'
   )
     throw new Error(
       `${fixture.name}: the ground truth reads an opaque white unlit front face wearing an ` +
         'unflipped, repeated, bilinear map',
     )
-  map.updateMatrix()
   const canvas = map.image as HTMLCanvasElement
   const truth = groundTruth({
     size: SIZE,
@@ -51,8 +50,8 @@ export function truthOf(
       data: canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data,
       width: canvas.width,
       height: canvas.height,
-      srgb: map.colorSpace === G.HOST_COLOUR_SPACE_SRGB,
-      uv: map.matrix.elements,
+      srgb: map.colorSpace === 'srgb',
+      uv: map.transform,
     },
     alphaTest: surface.alphaTest,
     behind:
