@@ -9,7 +9,7 @@ import {
 } from './fakeRecords.ts'
 import { bundleMaker } from './fakeBundles.ts'
 import { asWebgpuDevice } from './fakeWebgpuDevice.ts'
-import { refusing, texture, withGroups } from './fakeResources.ts'
+import { refusing, texture, withGroups, writeTexels } from './fakeResources.ts'
 import { fakeBuffers } from './fakeBuffers.ts'
 import { createFakeCommandEncoderFactory, type EncoderRecords } from './fakeEncoder.ts'
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
@@ -27,10 +27,9 @@ export {
 
 /**
  * THE GPU DEVICE OF THE TESTS, in Node, as WebGPU writes one (`asWebgpuDevice`: an event target,
- * error scopes, loss, `this` checks, WebGPU's validation). Every creation, write, encoded command,
- * render bundle and destroy succeeds and is recorded in call order — a test reads the list it
- * observes —; the buffers hold their bytes, copies and clears move them, and each compute
- * dispatch runs its kernel's CPU double (`fakeCompute.ts`), so a whole pages backend runs on it.
+ * error scopes, loss, `this` checks, validation). Every creation, write, command, bundle and
+ * destroy succeeds, recorded in call order; buffers and integer textures hold their bytes, copies
+ * and clears move them, a compute dispatch runs its kernel's CPU double (`fakeCompute.ts`).
  * Options (`FakeDeviceOptions`): limits, features, allocations, mappings or compute pipelines that
  * fail, pipelines built at the call alone, the DAG the selection reads, and the injected failures.
  */
@@ -162,6 +161,7 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
         size: GPUExtent3D,
       ) {
         textureWrites.push({ destination, data: copyOf(data), layout, size, seq: seq++ })
+        writeTexels(destination, data, layout, size)
       },
       copyExternalImageToTexture: (_source: unknown, destination: GPUCopyExternalImageDestInfo) =>
         void imageCopies.push(destination),

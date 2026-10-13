@@ -26,6 +26,9 @@ export type FakeTexture = GPUTextureDescriptor & {
   views: GPUTextureViewDescriptor[]
   createView(descriptor?: GPUTextureViewDescriptor): GPUTextureViewDescriptor
   destroy(): void
+  /** The words a 32-bit integer texture holds, as the queue wrote them (`writeTexels`): layer after
+   *  layer, row after row, texel after texel; none before a write. */
+  words?: Uint32Array
 }
 /** One `queue.writeBuffer`: `data` a copy of what it sent — the window `dataOffset` and `size`
  *  (elements of the source, bytes of an `ArrayBuffer`) cut out of its source —; `seq` its rank among

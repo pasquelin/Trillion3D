@@ -123,6 +123,14 @@ export const builtins = {
   bitcast_vec3u: toBits,
   bitcast_vec4u: toBits,
   bitcast_f32: toFloat,
+  bitcast_vec4f: toFloat,
+  // A texture the scope binds answers its own loads: a record table's words
+  // (`../gpu/core/recordTexture.fixture.ts`).
+  textureLoad: (
+    texture: { load(coords: number[], layer: number): number[] },
+    coords: number[],
+    layer: number,
+  ) => texture.load(coords, layer),
   f32: each(float),
   i32: each(int),
   u32: each((x) => int(x) >>> 0),
