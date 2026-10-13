@@ -6,7 +6,7 @@ import { COLOR_SAMPLE_WGSL, TILE_POOL_WGSL, tileDeclarations } from '../../webgp
 import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { SMALL_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { RASTER_TRI_WGSL } from './triWgsl.ts'
-import { RASTER_PIXEL_WGSL } from './pixelWgsl.ts'
+import { RASTER_PIXEL_WGSL, pixelCount, pixelOffset } from './pixelWgsl.ts'
 import { rasterKernels } from './kernelsWgsl.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
@@ -39,7 +39,6 @@ ${tileDeclarations(SMALL_BINDINGS.color, 'color')}
 @group(0) @binding(${SMALL_BINDINGS.work}) var<storage,read_write> work:array<atomic<u32>>;
 const LIST:u32=${listBase}u;
 @group(0) @binding(${SMALL_BINDINGS.selectionMask}) var<storage,read> selectionMask:array<u32>;
-fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
 // The \`viewProj * world\` product and the linear-part determinant depend only on the page: they
 // are computed once for the page and reread as-is by each of its triangles. The same operands
 // in the same order give the same float as a per-triangle compute.
@@ -80,10 +79,8 @@ export const RESOLVE = wgslProgram(
 struct One{@location(0) id:u32,@builtin(frag_depth) depth:f32,}
 struct Two{@location(0) id:u32,@location(1) hiz:f32,@builtin(frag_depth) depth:f32,}
 struct Hiz{@location(0) hiz:f32,@builtin(frag_depth) depth:f32,}
-fn offset(pos:vec4f)->u32{return u32(pos.y)*u32(uni.viewport.x)+u32(pos.x);}
-fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
-@fragment fn one(@builtin(position) pos:vec4f)->One{let i=offset(pos);let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}return One(id,bitcast<f32>(frame[i]));}
-@fragment fn two(@builtin(position) pos:vec4f)->Two{let i=offset(pos);let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}let depth=bitcast<f32>(frame[i]);return Two(id,depth,depth);}
-@fragment fn hiz(@builtin(position) pos:vec4f)->Hiz{let d=bitcast<f32>(frame[offset(pos)]);if(d<=${wgslF32(DEPTH_CLEAR)}){discard;}return Hiz(d,d);}`,
-  [VIS_UNIFORMS_WGSL],
+@fragment fn one(@builtin(position) pos:vec4f)->One{let i=pixelOffset(vec2u(pos.xy));let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}return One(id,bitcast<f32>(frame[i]));}
+@fragment fn two(@builtin(position) pos:vec4f)->Two{let i=pixelOffset(vec2u(pos.xy));let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}let depth=bitcast<f32>(frame[i]);return Two(id,depth,depth);}
+@fragment fn hiz(@builtin(position) pos:vec4f)->Hiz{let d=bitcast<f32>(frame[pixelOffset(vec2u(pos.xy))]);if(d<=${wgslF32(DEPTH_CLEAR)}){discard;}return Hiz(d,d);}`,
+  [VIS_UNIFORMS_WGSL, pixelCount, pixelOffset],
 )

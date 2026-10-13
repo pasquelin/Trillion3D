@@ -1,11 +1,27 @@
 import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
 import { maskKeepWgsl } from '../../visibility/shader/pageWgsl.ts'
 import { maskAlphaWgsl } from '../../webgpu/tile/wgsl.ts'
 import { UV_GRADIENTS_WGSL } from '../../visibility/shader/shadeDeclWgsl.ts'
 import { RASTER_TRI_WGSL } from './triWgsl.ts'
+import { VIS_UNIFORMS_WGSL } from '../../visibility/shader/pageWgsl.ts'
+
+/** The pixels of the frame the raster writes: the work buffer holds their depths, then their
+ *  identifiers one frame further. */
+export const pixelCount = wgslFn(
+  'pixelCount',
+  [VIS_UNIFORMS_WGSL],
+  'fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}',
+)
+
+/** Pixel `p`'s row-major rank in either half of the work buffer. */
+export const pixelOffset = wgslFn(
+  'pixelOffset',
+  [VIS_UNIFORMS_WGSL],
+  'fn pixelOffset(p:vec2u)->u32{return p.y*u32(uni.viewport.x)+p.x;}',
+)
 
 /**
  * What a visibility-buffer pixel receives, and the resolve of two triangles that fall at exactly
@@ -43,7 +59,14 @@ import { RASTER_TRI_WGSL } from './triWgsl.ts'
  */
 export const RASTER_PIXEL_WGSL = wgslBlock(
   'RASTER_PIXEL_WGSL',
-  [edgeFunction, RASTER_TRI_WGSL, UV_GRADIENTS_WGSL, maskKeepWgsl(maskAlphaWgsl(false))],
+  [
+    edgeFunction,
+    RASTER_TRI_WGSL,
+    UV_GRADIENTS_WGSL,
+    maskKeepWgsl(maskAlphaWgsl(false)),
+    pixelCount,
+    pixelOffset,
+  ],
   `
 /** Canonical order of two screen vertices: highest first, then leftmost. */
 fn canonBefore(a:vec2f,b:vec2f)->bool{return a.y<b.y||(a.y==b.y&&a.x<b.x);}
@@ -97,7 +120,7 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
   let gradients=uvGradients(t.a,sb,sc,sample,t.ua.xy,nb.xy,nc.xy,vec3f(1.0/t.ca.w,1.0/qb.w,1.0/qc.w));
   if(!maskKeep(page,tc.xy,tc.z,gradients[0],gradients[1])){return;}
  }
- let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);
+ let offset=pixelOffset(vec2u(pixel));
  let raw=bitcast<u32>(depth);
  let bits=min(bitcast<u32>(${wgslF32(DEPTH_NEAR)}),raw+page.depthBias);
  if(writeId){if(atomicLoad(&work[offset])==bits){atomicMin(&work[pixelCount()+offset],page.packedBase|(t.triangle&0xffu));}}
