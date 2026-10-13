@@ -27,9 +27,9 @@ import {
 import { grownLength, resized } from '../../../math/src/sequence/resized.ts'
 import { writeRanges } from '../gpu/dag/split.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
-import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { NONE } from './gpuComposeWgsl.ts'
 import type { ComposeState } from './gpuCompose.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 /** Words of a row's inputs, packed. */
 const ROW_INPUT_WORDS = ROW_INPUT_DOUBLES * 2
@@ -75,7 +75,7 @@ export function sendList(
 
 /** Row `row` in the rows list or out of it: in while the root the table names it by is composed. */
 function followRow(state: ComposeState, ints: Uint32Array, rowCount: number, row: number) {
-  const rank = row < rowCount ? ints[row * ROW_WORDS + ROW_PLACEMENT_WORD] : NONE
+  const rank = row < rowCount ? ints[row * ROW_WORDS + PAGE_INFO.at.placement] : NONE
   mirrorKey(state.rowList, row, rank < state.roots && state.parentOf[rank] !== NONE)
 }
 

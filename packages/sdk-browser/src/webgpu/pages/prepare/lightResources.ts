@@ -1,7 +1,6 @@
 import { FLAG_BLEND_CASTER, FLAG_MASK, ROW_WORDS } from '../../../visibility/types.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { PageSurface } from '../../../page/surface.ts'
-import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts'
 import type { WebgpuLightState } from '../state/lights.ts'
 import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts'
 import { FAR_VALUE } from '../../../../../math/src/constants.ts'
@@ -58,7 +57,8 @@ export function shadowsFollowTextures(
   shadowsFollowRows(lights, rows, roots, placement, (row) => {
     const base = row * ROW_WORDS
     return (
-      !!(ints[base + ROW_FLAGS_WORD] & ALPHA_READERS) && slots.has(ints[base + ROW_MAP_LAYER_WORD])
+      !!(ints[base + PAGE_INFO.at.flags] & ALPHA_READERS) &&
+      slots.has(ints[base + PAGE_INFO.at.mapIndex])
     )
   })
 }
@@ -137,3 +137,4 @@ export {
   readsAsIs,
   wantsContractLighting,
 } from './contractLight.ts'
+import { PAGE_INFO } from '../../../visibility/pageInfo.ts'

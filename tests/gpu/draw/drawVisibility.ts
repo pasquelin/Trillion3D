@@ -3,12 +3,7 @@
 // the engine's row words, and one uniform block per indirect slot plus one for the direct path.
 import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/src/visibility/visWords.ts'
 import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
-import {
-  ROW_HIZ_SLOT_WORD,
-  ROW_ID_BASE_WORD,
-  ROW_INDEX_WORDS,
-  packedRowBase,
-} from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts'
+import { packedRowBase } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts'
 import { NO_HIZ_SLOT } from '../../../packages/sdk-browser/src/webgpu/row/noHizSlot.ts'
 import {
   VIS_BINDINGS,
@@ -16,6 +11,7 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts'
 import { visLayoutEntries } from '../../../packages/sdk-browser/src/webgpu/visibility/shaders.ts'
 import { bufferHolding } from '../kit/computeReadback.ts'
+import { PAGE_INFO } from '../../../packages/sdk-browser/src/visibility/pageInfo.ts'
 
 /** Pages in the table, laid `COLUMNS` × `ROWS` over a target of `WIDTH` × `HEIGHT`. */
 const PAGES = 147,
@@ -45,9 +41,9 @@ function pageTable() {
       1 - ((Math.floor(page / COLUMNS) + 0.5) * 2) / ROWS,
     ]
     table.set([0.8 / COLUMNS, 0, 0, 0, 0, 0.8 / ROWS, 0, 0, 0, 0, 1, 0, x, y, 0, 1], base)
-    ints[base + ROW_INDEX_WORDS] = 3
-    ints[base + ROW_ID_BASE_WORD] = packedRowBase(page)
-    ints[base + ROW_HIZ_SLOT_WORD] = NO_HIZ_SLOT
+    ints[base + PAGE_INFO.at.indexCount] = 3
+    ints[base + PAGE_INFO.at.packedBase] = packedRowBase(page)
+    ints[base + PAGE_INFO.at.hizSlot] = NO_HIZ_SLOT
   }
   return table
 }

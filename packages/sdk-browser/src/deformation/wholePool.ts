@@ -1,10 +1,5 @@
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import {
-  ROW_WORDS,
-  PAGE_DEFORM_WORD,
-  PAGE_DEFORM_COUNT_WORD,
-  PAGE_DEFORM_OUTPUT_WORD,
-} from '../visibility/types.ts'
+import { ROW_WORDS } from '../visibility/types.ts'
 import type { BlendGpuItem } from '../webgpu/blend/state.ts'
 import type { SessionDeformation } from './session.ts'
 import { wholeDeformationInputs } from './wholeInputs.ts'
@@ -14,14 +9,9 @@ import { DEFORMATION_LANES } from './computeWgsl.ts'
 import type { GeometryBlock } from '../webgpu/row/pageRowMaterial.ts'
 import type { DeformationOutput } from '../page/selection/types.ts'
 import type { HostAttributes } from '../host/resources.ts'
-import {
-  ROW_FLAGS_WORD,
-  ROW_ID_BASE_WORD,
-  ROW_INDEX_WORDS,
-  ROW_VERTEX_BASE_WORD,
-} from '../webgpu/row/pageRow.ts'
 import { boxEmpty } from '../../../sdk-core/src/index.ts'
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 /**
  * Setup-only layout of whole-copy source streams and per-placement results in the float pool, and
@@ -87,14 +77,14 @@ export function wholeDeformationPool(
         item.deformBounds = new Float64Array(6)
         boxEmpty(item.deformBounds, 0)
         // Other attributes keep their shared geometry buffers; only position access has an offset.
-        table[at + ROW_FLAGS_WORD] = item.flags
-        table[at + ROW_INDEX_WORDS] = item.count
-        table[at + ROW_VERTEX_BASE_WORD] = item.vertexBase
+        table[at + PAGE_INFO.at.flags] = item.flags
+        table[at + PAGE_INFO.at.indexCount] = item.count
+        table[at + PAGE_INFO.at.vertexBase] = item.vertexBase
         // A whole copy has no identifier base: its word carries the source streams' first float.
-        table[at + ROW_ID_BASE_WORD] = item.deformInput
-        table[at + PAGE_DEFORM_COUNT_WORD] = item.sourceGeometry.attributes.position!.count
-        table[at + PAGE_DEFORM_WORD] = session!.wordOfWorld(item.matrix)
-        table[at + PAGE_DEFORM_OUTPUT_WORD] = item.deformOutput
+        table[at + PAGE_INFO.at.packedBase] = item.deformInput
+        table[at + PAGE_INFO.at.deformCount] = item.sourceGeometry.attributes.position!.count
+        table[at + PAGE_INFO.at.deform] = session!.wordOfWorld(item.matrix)
+        table[at + PAGE_INFO.at.deformOutput] = item.deformOutput
       })
       let row = placed.length
       pooled.forEach((block, i) => {
@@ -108,12 +98,12 @@ export function wholeDeformationPool(
         for (let first = 0; first < block.count; first += DEFORMATION_LANES, row++) {
           const at = row * ROW_WORDS,
             count = Math.min(DEFORMATION_LANES, block.count - first)
-          table[at + ROW_FLAGS_WORD] = geometry.dynamic ? FLAG_DYNAMIC : 0
-          table[at + ROW_INDEX_WORDS] = count // any count but zero: the stage skips an empty row
-          table[at + ROW_VERTEX_BASE_WORD] = geometry.vertexBase + first
-          table[at + PAGE_DEFORM_COUNT_WORD] = count
-          table[at + PAGE_DEFORM_WORD] = deform
-          table[at + PAGE_DEFORM_OUTPUT_WORD] = output + first * DEFORM_VERTEX_WORDS
+          table[at + PAGE_INFO.at.flags] = geometry.dynamic ? FLAG_DYNAMIC : 0
+          table[at + PAGE_INFO.at.indexCount] = count // any count but zero: the stage skips an empty row
+          table[at + PAGE_INFO.at.vertexBase] = geometry.vertexBase + first
+          table[at + PAGE_INFO.at.deformCount] = count
+          table[at + PAGE_INFO.at.deform] = deform
+          table[at + PAGE_INFO.at.deformOutput] = output + first * DEFORM_VERTEX_WORDS
         }
       })
       // Only the blocks of pages' own results: their rows are the page table's.

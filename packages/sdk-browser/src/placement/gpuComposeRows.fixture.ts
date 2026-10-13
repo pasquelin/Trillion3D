@@ -8,11 +8,10 @@ import { updateTransformTree } from '../../../sdk-core/src/world/transform-tree/
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../visibility/types.ts'
-import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
-import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
 import { COMPOSE_ROWS_WGSL, PART_SPHERES } from './gpuComposeWgsl.ts'
 import { ROW_INPUT_DOUBLES } from './composedRowPack.ts'
 import { DOUBLE_HELPERS, countLeadingZeros, pair } from './composeDoubles.fixture.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 export const N = 120
 const pairs = (values: ArrayLike<number>) => Array.from(values, pair)
@@ -60,8 +59,8 @@ export function cpuTable(meshes: readonly { matrixWorld: { elements: ArrayLike<n
     const base = row * ROW_WORDS
     for (let k = 16; k < ROW_WORDS; k++) ints[base + k] = (row * 2654435761 + k * 40503) >>> 0
     floats.set(mesh.matrixWorld.elements, base)
-    ints[base + ROW_PLACEMENT_WORD] = row
-    ints[base + ROW_HIZ_SLOT_WORD] = row
+    ints[base + PAGE_INFO.at.placement] = row
+    ints[base + PAGE_INFO.at.hizSlot] = row
   })
   return ints
 }

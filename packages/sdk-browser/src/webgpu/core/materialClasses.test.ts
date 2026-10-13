@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { collectClusterPages } from '../../page/selection/selection.ts'
-import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { createPageRowWriter } from '../row/pageRowWriter.ts'
 import { FLAG_MASK, PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import { isTransmissive } from '../../visibility/shader/material.ts'
@@ -13,6 +12,7 @@ import { scene } from './materialClasses.fixture.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { markPresentClasses } from './presentClasses.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 test('the three material classes take the three paths the engine has for them', () => {
   const { source, meshes, metadata, indices, associations } = scene()
@@ -50,13 +50,17 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
   // A page written as a row belongs to a placement: its collection ranked its root.
   const mask = collected.roots[0].pages[0]
   writeRow(mask, 0, 0, 0, floats, ints)
-  assert.equal((ints[23] & FLAG_MASK) !== 0, true, 'the cut-out flag is set')
-  assert.equal(floats[19], 0.5, 'the material alpha threshold travels with the row')
+  assert.equal((ints[PAGE_INFO.at.flags] & FLAG_MASK) !== 0, true, 'the cut-out flag is set')
+  assert.equal(
+    floats[PAGE_INFO.at.baseColor + 3],
+    0.5,
+    'the material alpha threshold travels with the row',
+  )
   // A blend never becomes a cut-out: its row would otherwise discard instead of blending.
   const blend = collected.roots[1].pages[0]
   writeRow(blend, 0, 0, 0, floats, ints)
-  assert.equal((ints[23] & FLAG_MASK) !== 0, false)
-  assert.equal(floats[19], 1)
+  assert.equal((ints[PAGE_INFO.at.flags] & FLAG_MASK) !== 0, false)
+  assert.equal(floats[PAGE_INFO.at.baseColor + 3], 1)
 })
 
 test('a row carries its resolve class, the census of the scene knows it before any image', () => {
@@ -89,8 +93,8 @@ test('a row carries its resolve class, the census of the scene knows it before a
   writeRow(blend, 1, 1, 0, floats, ints)
   const { HAS_MASK, HAS_VERTEX_NORMAL, DOUBLE_SIDED, HAS_UV } = CLASS_FEATURE
   const cutout = HAS_MASK | HAS_VERTEX_NORMAL | DOUBLE_SIDED
-  assert.equal(ints[ROW_MATERIAL_CLASS_WORD], cutout, 'double-sided cut-out with vertex normals')
-  assert.equal(ints[ROW_WORDS + ROW_MATERIAL_CLASS_WORD], HAS_VERTEX_NORMAL, 'the plain blend')
+  assert.equal(ints[PAGE_INFO.at.materialClass], cutout, 'double-sided cut-out with vertex normals')
+  assert.equal(ints[ROW_WORDS + PAGE_INFO.at.materialClass], HAS_VERTEX_NORMAL, 'the plain blend')
   assert.equal(cutout & HAS_UV, 0, 'no uv block, no uv class bit')
   // The census reads the same fields the rows will carry, for the pages that take a row: the
   // blend is a transparent page and the transmission left the DAG, so the cut-out's class alone
@@ -139,15 +143,15 @@ test('the classes an image draws are read off the rows again only once a row is 
     ints = new Uint32Array(3 * ROW_WORDS),
     present = createPresentClasses()
   rows.packedCount = 3
-  ;[5, 9, 5].forEach((key, row) => (ints[row * ROW_WORDS + ROW_MATERIAL_CLASS_WORD] = key))
+  ;[5, 9, 5].forEach((key, row) => (ints[row * ROW_WORDS + PAGE_INFO.at.materialClass] = key))
   const classes = () => [...markPresentClasses(ints, rows.packedCount, present, rows.rowWrites)]
   assert.deepEqual(classes(), [5, 9])
-  ints[ROW_WORDS + ROW_MATERIAL_CLASS_WORD] = 5
+  ints[ROW_WORDS + PAGE_INFO.at.materialClass] = 5
   assert.deepEqual(classes(), [5, 9], 'an unmarked word is not reread')
   rows.markRowWords(1)
   assert.deepEqual(classes(), [5, 9], 'a pose keeps the occupant and its class')
   rows.markRowDirty(1)
   assert.deepEqual(classes(), [5])
-  ;[rows.packedCount, ints[ROW_WORDS + ROW_MATERIAL_CLASS_WORD]] = [2, 9]
+  ;[rows.packedCount, ints[ROW_WORDS + PAGE_INFO.at.materialClass]] = [2, 9]
   assert.deepEqual(classes(), [5, 9], 'a shorter table is read again')
 })

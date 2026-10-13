@@ -7,7 +7,6 @@ import { uploadDirtyRowMobility, uploadRowMobility } from './bounds.ts'
 import { createShadowMobility } from './mobility.ts'
 import { createWebgpuRowState } from '../row/state.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
-import { ROW_INDEX_WORDS } from '../row/pageRow.ts'
 import {
   MOBILITY_CORNER_SHIFT,
   MOBILITY_MOVING,
@@ -17,6 +16,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { fakeDevice, replayWrites } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 const ROWS = 1000,
   PLACEMENTS = 8,
@@ -76,7 +76,7 @@ test('the mobility words of a scattered change are its runs, and the words the s
   for (const { rt, rows, roots } of sides) {
     const ints = rows.pageTableInts!
     for (const row of [2, 3, 997]) {
-      ints[row * ROW_WORDS + ROW_INDEX_WORDS] = 3 * row
+      ints[row * ROW_WORDS + PAGE_INFO.at.indexCount] = 3 * row
       rows.markRowWords(row)
     }
     rows.packedPageIndex[500] = 3 * SPAN
@@ -120,7 +120,7 @@ test('the words after a sequence of dirty runs are the rows own, from closures b
   // Each image marks rows at both ends of the table and in its middle: several runs to write.
   for (let image = 1; image <= 4; image++) {
     for (const row of [image, image + 1, 400 + image, 990 - image]) {
-      ints[row * ROW_WORDS + ROW_INDEX_WORDS] = 7 * row + image
+      ints[row * ROW_WORDS + PAGE_INFO.at.indexCount] = 7 * row + image
       rows.markRowWords(row)
     }
     rows.packedPageIndex[500 + image] = image * SPAN
@@ -138,7 +138,7 @@ test('the words after a sequence of dirty runs are the rows own, from closures b
     const expected = Array.from(
       { length: ROWS },
       (_, row) =>
-        (ints[row * ROW_WORDS + ROW_INDEX_WORDS] << MOBILITY_CORNER_SHIFT) |
+        (ints[row * ROW_WORDS + PAGE_INFO.at.indexCount] << MOBILITY_CORNER_SHIFT) |
         (moved.has(placementOf(row)) ? MOBILITY_MOVING : 0) |
         (parked.has(placementOf(row)) ? MOBILITY_SHADOWLESS : 0),
     )

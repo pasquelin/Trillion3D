@@ -6,6 +6,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 // Behaviour 22: writePageRow writes the bias in positive units at the table row's depthBias
 // slot; a layer-0 row keeps that field at zero.
@@ -38,9 +39,9 @@ test('writePageRow writes the layer bias in positive units at the table row dept
       sawZeroBias = false
     for (let row = 0; row < table!.size / PAGE_INFO_STRIDE; row++) {
       const base = row * ROW_WORDS,
-        indexCount = rows[base + 25]
+        indexCount = rows[base + PAGE_INFO.at.indexCount]
       if (!indexCount) continue
-      const bias = rows[base + 60]
+      const bias = rows[base + PAGE_INFO.at.depthBias]
       if (bias === 0) {
         sawZeroBias = true
         continue

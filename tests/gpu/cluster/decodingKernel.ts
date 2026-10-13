@@ -7,22 +7,16 @@ import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readba
 import { COTANGENT_FRAME_WGSL } from '../../../packages/sdk-browser/src/cluster/decodeWgsl.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts'
-import {
-  ROW_FLAGS_WORD,
-  ROW_INDEX_WORDS,
-} from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts'
 import { FLAG_CLUSTER_PAGE, ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
+import { PAGE_INFO } from '../../../packages/sdk-browser/src/visibility/pageInfo.ts'
 
 /** Word the page sits at in its slot: never zero, so an accessor that forgot the offset fails. */
 const SLOT_WORDS = 13
-/** Words of a page-table row, and the two the decode reads: its flags, and its slot offset —
- *  `PageInfo.pageOffset`, the word before its index count. */
-const ROW_OFFSET_WORD = ROW_INDEX_WORDS - 1
 
 /** Words a decoded vertex occupies in the readback: position, normal, uv, uv1, colour. */
 export const VERTEX_WORDS = 14
@@ -96,8 +90,8 @@ async function decodePages(pages: ClusterPage[]) {
     device.createBuffer({ size, usage })
   // One row, saying the slot holds a quantized page and where in the pool it starts.
   const row = new Uint32Array(ROW_WORDS)
-  row[ROW_FLAGS_WORD] = FLAG_CLUSTER_PAGE
-  row[ROW_OFFSET_WORD] = SLOT_WORDS
+  row[PAGE_INFO.at.flags] = FLAG_CLUSTER_PAGE
+  row[PAGE_INFO.at.pageOffset] = SLOT_WORDS
   const table = storage(row.byteLength)
   device.queue.writeBuffer(table, 0, row)
   // The source float buffers the accessors never read on a quantized row: bound, and empty.

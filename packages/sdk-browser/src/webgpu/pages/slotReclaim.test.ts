@@ -14,6 +14,7 @@ import { EVICT_IN_USE } from '../../gpu/dag/evict.ts'
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 import { type ClusterManifest, type Primitive } from '../../../../sdk-core/src/index.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /** `twoCoarseQuadsScene`, its manifest completed with the cache-identity fields the fixture
  *  omits — unread by the backends under test. Its second primitive's `pages` carry every `Page`
@@ -116,25 +117,25 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
       slots = new Set<number>()
     for (let row = 0; row < table.size / PAGE_INFO_STRIDE; row++) {
       const base = row * ROW_WORDS,
-        indexCount = rows[base + 25]
+        indexCount = rows[base + PAGE_INFO.at.indexCount]
       if (!indexCount) continue
       // A live row names itself, so a recycled row cannot be read through the identifier of its predecessor.
-      assert.equal(rows[base + 27], (row + 1) << 8, `row ${row} identifier`)
+      assert.equal(rows[base + PAGE_INFO.at.packedBase], (row + 1) << 8, `row ${row} identifier`)
       // Its index range is one of the fixture's clusters, and no two live rows claim the same cluster or
       // the same GPU slot: a row still describing the cluster it was recycled from would do both.
       assert.ok(indexCount === 3 || indexCount === 6, `row ${row} index count ${indexCount}`)
       assert.equal(
-        seen.has(rows[base + 47]),
+        seen.has(rows[base + PAGE_INFO.at.selectionIndex]),
         false,
-        `row ${row} duplicates cluster ${rows[base + 47]}`,
+        `row ${row} duplicates cluster ${rows[base + PAGE_INFO.at.selectionIndex]}`,
       )
       assert.equal(
-        slots.has(rows[base + 24]),
+        slots.has(rows[base + PAGE_INFO.at.pageOffset]),
         false,
-        `row ${row} duplicates slot ${rows[base + 24]}`,
+        `row ${row} duplicates slot ${rows[base + PAGE_INFO.at.pageOffset]}`,
       )
-      seen.add(rows[base + 47])
-      slots.add(rows[base + 24])
+      seen.add(rows[base + PAGE_INFO.at.selectionIndex])
+      slots.add(rows[base + PAGE_INFO.at.pageOffset])
     }
     // The rows are a cache of the resident instances the cut draws or asks (`../row/slots.ts`): a
     // leaked row would show up as a live row past the resident pages, and none at all as a lost one.
