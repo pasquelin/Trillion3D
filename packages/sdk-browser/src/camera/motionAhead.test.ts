@@ -10,11 +10,11 @@ import type { EngineCamera } from './engineCamera.ts'
 import { aheadViewOf } from '../gpu/core/aheadView.ts'
 import * as G from '../host/graph/graph.fixture.ts'
 import { engineCamera as engineCameraOf } from './camera.fixture.ts'
-import { random as reproducible } from '../page/cut/cutRuleChecks.fixture.ts'
 import { PREFETCH_HORIZON_MS, prefetchHorizonMs } from '../engine/common.ts'
 import { restartCameraMotion } from './motion.fixture.ts'
 import { AHEAD_SMOOTHING_MS } from './motionSmoothing.ts'
 import { MAX_PREFETCH_HORIZON_MS } from '../engine/prefetchHorizon.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 /** A bare engine camera: the eye and the way back are all the motion reads. */
 const pose = (eye: number[], back = [0, 0, 1]) => {
@@ -24,7 +24,7 @@ const pose = (eye: number[], back = [0, 0, 1]) => {
 }
 
 test('what the image reads never depends on the view ahead, on random paths', () => {
-  const random = reproducible(921)
+  const random = lcgRandom(921)
   const special = [0, -0, NaN, Infinity, -Infinity, 1e-300, 1e300]
   const pick = () => (random() < 0.1 ? special[Math.floor(random() * 7)] : random() * 200 - 100)
   // `scrambled` has its velocity ahead overwritten before every read: the speed of the adaptive

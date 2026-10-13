@@ -7,9 +7,9 @@
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Color = (pixel: number[]) => number[]
 
@@ -101,7 +101,7 @@ function runner(text: string) {
 }
 
 test('a fully transmissive pixel composes the same numbers without lighting its colour', () => {
-  const r = random(1468),
+  const r = lcgRandom(1468),
     // The program without lobe code: a lobed one adds terms under the same share (`waterLobesWgsl.ts`).
     run = runner(waterCompositeShader({ lobeless: true }))
   for (let round = 0; round < 4000; round++) {

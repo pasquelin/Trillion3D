@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createWebgpuTilePool } from './pool.ts'
 import { poolLayerBytes, POOL_MAX_LAYERS, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const rgba = { kind: 'data', lane: 'lossless', format: 'rgba8unorm', texelBytes: 4 } as const
 
@@ -90,7 +90,7 @@ test('eviction candidates are unpinned tiles that neither this image nor the pre
 
 test('random acquires, touches and releases: the victims leave by last use, then by touch', () => {
   for (let seed = 1; seed <= 40; seed++) {
-    const next = random(seed)
+    const next = lcgRandom(seed)
     const { device } = fakeDevice()
     const pool = createWebgpuTilePool(device, { ...rgba, layers: 1 })
     /** The model: each resident place's last use and the order it was last touched in. */

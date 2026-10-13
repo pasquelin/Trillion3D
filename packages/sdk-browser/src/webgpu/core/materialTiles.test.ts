@@ -4,7 +4,6 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import {
   MATERIAL_TILE_DRAW_WGSL,
   MATERIAL_TILE_SLOTS,
@@ -15,6 +14,7 @@ import { encodeMaterialPasses } from './materialPasses.ts'
 import { resolveFixture } from './materialPasses.fixture.ts'
 import { MATERIAL_COMPUTE_PASS } from '../../stage/passLabels.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Fn = (...args: number[]) => number
 type Corner = (tile: number, i: number, tilesX: number) => { x: number; y: number }
@@ -102,7 +102,7 @@ test('each class draws the tiles its slot lists, classified once before the surf
 })
 
 test("the pass's first dispatch zeroes every slot's draw, as the encoder's clear did", () => {
-  const r = random(3),
+  const r = lcgRandom(3),
     tileDraws = Array.from({ length: MATERIAL_TILE_SLOTS * 4 }, () => Math.floor(r() * 2 ** 32))
   const { clearTiles } = shaderRun<{ clearTiles: (slot: number) => void }>(
     MATERIAL_TILES_SHADER,

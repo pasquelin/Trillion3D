@@ -3,13 +3,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { lcg } from '../hiz/buildTranscripts.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
   edgeFunction,
   perspectiveBarycentric,
   planeBarycentric,
 } from '../../../../math/src/wgsl/barycentric.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type V = number[]
 type F = (...args: unknown[]) => V
@@ -41,7 +41,7 @@ test('the edge function is twice the signed area, positive to the left of a → 
 })
 
 test('the affine weights sum to one and rebuild the screen point', () => {
-  const g = lcg(13)
+  const g = lcgRandom(13)
   for (let i = 0; i < 100; i++) {
     const corners = [take(g, 2), take(g, 2), take(g, 2)]
     const p = take(g, 2).map((x) => 2 * x)
@@ -53,7 +53,7 @@ test('the affine weights sum to one and rebuild the screen point', () => {
 })
 
 test('the perspective weights are those of the clip-space point the screen point shows', () => {
-  const g = lcg(17)
+  const g = lcgRandom(17)
   for (let i = 0; i < 100; i++) {
     const clip = [0, 1, 2].map(() => [...take(g, 3), 1.5 + (2 * g() - 1)])
     const screen = clip.map((c) => [c[0] / c[3], c[1] / c[3], c[2] / c[3]])
@@ -72,7 +72,7 @@ test('the perspective weights are those of the clip-space point the screen point
 })
 
 test('the plane weights rebuild the point projected on the triangle, all on a for a degenerate one', () => {
-  const g = lcg(19)
+  const g = lcgRandom(19)
   for (let i = 0; i < 100; i++) {
     const corners = [take(g, 3), take(g, 3), take(g, 3)]
     const truth = take(g, 2)

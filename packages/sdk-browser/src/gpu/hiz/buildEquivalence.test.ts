@@ -2,8 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HIZ_NEAREST_BUILD, HIZ_SHADER } from './shader.ts'
 import { HIZ_BUILD_SIDE as S, HIZ_MAX_LEVELS, HIZ_PASS_LEVELS, hizBuildPasses } from './uniforms.ts'
-import { buildAfter, buildBefore, layout, lcg, type Scene } from './buildTranscripts.fixture.ts'
+import { buildAfter, buildBefore, layout, type Scene } from './buildTranscripts.fixture.ts'
 import { hizLevelSizes } from './levelSizes.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 // The reference pyramid build is a copy of the level-0 texture then one dispatch per mip, each
 // reading the level above from the pyramid. `buildHiz` reads the texture once, copies it on the
@@ -47,13 +48,13 @@ for (const [seed, hostile, trials] of [
   [17, true, 150],
 ] as const)
   test(`same pyramid, bit for bit, seed ${seed}${hostile ? ', with NaN, ±0 and ±Inf depths' : ''}`, () => {
-    const rand = lcg(seed)
+    const rand = lcgRandom(seed)
     for (let trial = 0; trial < trials; trial++)
       assertSamePyramid(scene(rand, hostile), rand, `trial ${trial}`)
   })
 
 test('edge sizes: one texel, one row, one column, a tile edge, 1080p, a capped mip count', () => {
-  const rand = lcg(3)
+  const rand = lcgRandom(3)
   const sizes: Array<[number, number, number]> = [
     [1, 1, HIZ_MAX_LEVELS],
     [1, 37, HIZ_MAX_LEVELS],

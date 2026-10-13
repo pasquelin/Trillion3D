@@ -7,8 +7,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { directLightingWgsl } from './lightingWgsl.ts'
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const UNSHADOWED = wgslModule(directLightingWgsl({ unshadowed: true, lobeless: true }))
 const K = wgslConstants(UNSHADOWED)
@@ -41,7 +41,7 @@ function walk(lamps: Lamp[], P: number) {
 }
 
 test('a light past its range is skipped, one in range or the sun always shaded', () => {
-  const r = random(1249)
+  const r = lcgRandom(1249)
   for (let run = 0; run < 50; run++) {
     const lamps: Lamp[] = [...Array(64).keys()].map((rank) => ({
       positionRange: { xyz: r() * 40, w: r() * 8 },

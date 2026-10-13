@@ -14,9 +14,9 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/tile/texelTurnWgsl.ts'
 import { premultipliedByte } from '../../../bench/oracles/browser/cpu-image/math.ts'
 import { readGpuImage } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 
 type Case = { width: number; height: number; flags: number; band?: number; texels: number[] }
 
@@ -61,7 +61,7 @@ function expected({ width, height, flags, texels }: Case) {
 }
 
 test('raw texels land flipped and premultiplied exactly as the rule says, whole or in bands', async () => {
-  const next = random(362),
+  const next = lcgRandom(362),
     cases: Case[] = []
   // Every byte in every channel: texel `i` of a 64 × 4 picture is (i, 255 − i, 7i, i) mod 256.
   const every = Array.from({ length: 256 }, (_, i) => [i, 255 - i, (7 * i) & 255, i]).flat()

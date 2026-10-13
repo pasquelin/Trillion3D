@@ -6,16 +6,16 @@ import { generateMaterialMips } from '../../../packages/sdk-browser/src/texture/
 import { materialMipTexture } from '../../../packages/sdk-browser/src/texture/mips.ts'
 import { previewLevelSize } from '../../../packages/sdk-core/src/index.ts'
 import { mipLevelCountFor } from '../../../packages/sdk-browser/src/texture/tiles.ts'
-import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
 import { readGpuImage } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { checkView } from '../../kit/gpu/bindRules.ts'
 import { encodeReferenceChain, type ChainCase } from './pageMipsReference.ts'
+import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 
 /** Colour chains plain, weighted and cut; data chains; even, odd, wide and tall sizes. Alphas mix
  *  the foliage's two ends with random ones, so the median, the weights and the cut all act. */
 export function chainCases(): ChainCase[] {
-  const next = random(1469)
+  const next = lcgRandom(1469)
   const texels = (width: number, height: number) =>
     Uint8Array.from({ length: width * height * 4 }, (_, i) => {
       if (i % 4 < 3) return Math.floor(next() * 256)

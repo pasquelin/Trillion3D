@@ -9,7 +9,7 @@ import {
 import { beforesAt, resultWords } from './protocol.ts'
 import { createTickResults } from './tickResults.ts'
 import { tickModule } from './tickResults.fixture.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 /** NaN, -NaN, ±0, ±Inf and the largest finite float, as words a pose can carry. */
 const EDGES = [0x7fc00000, 0xffc00001, 0, 0x80000000, 0x7f800000, 0xff800000, 0x7f7fffff]
@@ -99,7 +99,7 @@ function gathered(ticks: Run[][], bodies: number, staged: boolean) {
 
 test("a tick's poses and their steps before match the record-by-record gather, block-copied first steps and runs of no step included", () => {
   for (let seed = 1; seed <= 40; seed++) {
-    const next = random(seed),
+    const next = lcgRandom(seed),
       bodies = 1 + Math.floor(next() * 64)
     // Empty steps, a full one (every body), and random ones, one to four runs a tick, one in
     // five of no step.

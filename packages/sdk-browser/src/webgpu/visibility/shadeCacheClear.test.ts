@@ -9,7 +9,6 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { dispatchGrid } from '../../gpu/dispatch/grid.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import {
   ROW_MARK_WORDS,
   ROW_RECORD_WORDS,
@@ -19,8 +18,9 @@ import {
   SHADE_ROWS_LANES,
   TRIANGLE_WORDS,
 } from '../../visibility/shader/shadeCacheWgsl.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
-const r = random(5)
+const r = lcgRandom(5)
 const junk = (n: number) => Array.from({ length: n }, () => Math.floor(r() * 2 ** 32))
 
 function cache(rows: number, capacity: number) {
