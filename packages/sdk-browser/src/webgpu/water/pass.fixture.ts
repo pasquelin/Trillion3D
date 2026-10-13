@@ -96,10 +96,10 @@ export function prepared() {
   // The image sort posts the keys and the slices the pass encodes (the copies share one place:
   // equal keys, split by source order); the GPU's verdict bound the water's rectangle this image.
   orderBlendPasses(blendState, [0, 0, 0])
-  const copies = GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+  const copied = GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
   const verdict = device.createBuffer({
     size: verdictWords(blendState.transmissive) * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | copies,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | copied,
   })
   blendState.expand = { buffers: { verdict } } as never
   blendState.waterBound = true
