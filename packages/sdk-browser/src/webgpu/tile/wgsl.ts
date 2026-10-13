@@ -1,18 +1,11 @@
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { WRAP_COORD_WGSL } from '../../visibility/wrapModes.ts'
 import { VIS_BINDINGS, type AtlasBindings } from '../core/bindLayout.ts'
-import {
-  MAX_LEVELS,
-  PLACE_AXIS_BITS,
-  PLACE_LAYER_BITS,
-  POOL_STEP,
-  POOL_SUBTEXEL,
-  TILE_BORDER,
-  TILE_PITCH,
-  TILE_SIZE,
-} from '../../texture/tiles.ts'
+import { MAX_LEVELS, TILE_SIZE } from '../../texture/tiles.ts'
 import { PAGE_HEADER_WORDS, PAGE_SLOT_WORDS, PAGE_TRANSFORM_WORD } from './pageTable.ts'
 import { SAMPLING_WGSL } from './samplingWgsl.ts'
+import { POOL_PLACE_WGSL } from './poolPlaceWgsl.ts'
 import { atlasReadWgsl } from './atlasReadWgsl.ts'
 import { tileKindWgsl } from './kindWgsl.ts'
 import {
@@ -23,10 +16,6 @@ import {
 import { type WgslDecl, wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { highHalf, lowHalf, mipSize2 } from '../../../../math/src/wgsl/integer.ts'
 import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
-
-/** A place's column-or-row and layer fields in a table word (`packPlace`). */
-const AXIS_MASK = (1 << PLACE_AXIS_BITS) - 1,
-  LAYER_MASK = (1 << PLACE_LAYER_BITS) - 1
 
 /**
  * Virtual-texture reads shared by every pass: an indirection through the page table, then a sample
@@ -87,6 +76,7 @@ const tilePoolWgsl = (mipBias: string) => {
     [
       WRAP_COORD_WGSL,
       SAMPLING_WGSL,
+      POOL_PLACE_WGSL,
       TILE_SLOT_WGSL,
       unitToSigned2,
       mipSize2,
@@ -95,18 +85,13 @@ const tilePoolWgsl = (mipBias: string) => {
       lod,
       samplingFootprintWgsl(lod),
     ],
-    `const TEXEL_TILE:f32=${TILE_SIZE}.0;
-const TEXEL_PITCH:f32=${TILE_PITCH}.0;
-const TEXEL_BORDER:f32=${TILE_BORDER}.0;
-const POOL_SUBTEXEL:f32=${POOL_SUBTEXEL}.0;
-const POOL_STEP:f32=1.0/${1 / POOL_STEP}.0;
+    `const TEXEL_TILE:f32=${wgslF32(TILE_SIZE)};
 ${wgslConsts({
   PAGE_HEADER: PAGE_HEADER_WORDS,
   PAGE_SLOT: PAGE_SLOT_WORDS,
   PAGE_LEVELS: MAX_LEVELS,
   PAGE_TRANSFORM: PAGE_TRANSFORM_WORD,
 })}
-struct TileTap{uv:vec2f,layer:i32,}
 /** A normal map's Z from its X and Y, as the map stores them (0..1), for a two-channel lane. */
 fn rebuiltZ(xy:vec2f)->f32{let n=unitToSigned2(xy);return (sqrt(max(0.0,1.0-dot(n,n)))+1.0)*0.5;}
 /** LOD a footprint asks of a texture, clamped to its levels: the single rule for choosing a level
@@ -117,13 +102,6 @@ fn slotWrapped(s:TileSlot,uv:vec2f)->vec2f{
  if(!wrapRepete(s.wrap)){return wrapReplie(uv,s.wrap);}
  return wrapUv(uv,s.wrap,s.size).proche;
 }
-/** Pool coordinate of a texel at \`texel\` from a tile's \`origin\`, counted in 2^-24 steps: exact
- *  in f32 at every place (\`POOL_LAYER_SIDE\`, \`../../texture/tiles.ts\`), with no division. */
-fn poolAxis(origin:f32,texel:f32)->f32{return (origin*POOL_SUBTEXEL+round(texel*POOL_SUBTEXEL))*POOL_STEP;}
-fn poolTap(origin:vec2f,texel:vec2f,layer:i32)->TileTap{return TileTap(vec2f(poolAxis(origin.x,texel.x),poolAxis(origin.y,texel.y)),layer);}
-fn tailOffset(rank:u32)->f32{return f32((${TILE_SIZE}u-(${TILE_SIZE}u>>rank)+3u)&~3u);}
-fn placeOrigin(word:u32)->vec2f{return vec2f(f32(word&${AXIS_MASK}u),f32((word>>${PLACE_AXIS_BITS}u)&${AXIS_MASK}u))*TEXEL_PITCH+TEXEL_BORDER;}
-fn placeLayer(word:u32)->i32{return i32((word>>${2 * PLACE_AXIS_BITS}u)&${LAYER_MASK}u);}
 fn sizeOf(word:u32)->vec2f{return vec2f(f32(lowHalf(word)),f32(highHalf(word)));}
 /** Size of a level, \`mipSize2\` as the CPU lays it out (\`../../texture/tiles.ts\`): a texture's
  *  sides are integers under 2^16, exact in f32. */

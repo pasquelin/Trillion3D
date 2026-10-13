@@ -1,4 +1,4 @@
-// A pool place on the GPU (`texture/tiles.ts`, `webgpu/tile/wgsl.ts`): the place a table word
+// A pool place on the GPU (`texture/tiles.ts`, `webgpu/tile/poolPlaceWgsl.ts`): the place a table word
 // names — column, row, and a layer up to the last a pool may take, past the 255 an 8-bit field held
 // — is the one the atlas reads decode, for a streamed tile's entry and for a texture's tail word;
 // and on a real pool, the tap the shader builds from it samples the very texel the streamer wrote
@@ -15,7 +15,7 @@ import {
   TILE_BORDER,
   type TilePlace,
 } from '../../../packages/sdk-browser/src/texture/tiles.ts'
-import { TILE_POOL_WGSL } from '../../../packages/sdk-browser/src/webgpu/tile/wgsl.ts'
+import { POOL_PLACE_WGSL } from '../../../packages/sdk-browser/src/webgpu/tile/poolPlaceWgsl.ts'
 import { cellOrigin } from '../../../packages/sdk-browser/src/webgpu/tile/write.ts'
 import { computeOnDawn } from '../kit/computeRun.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
@@ -24,7 +24,7 @@ import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 function poolLines() {
   const wanted =
     /^(const (TEXEL_PITCH|TEXEL_BORDER|POOL_SUBTEXEL|POOL_STEP):.*|struct TileTap\{.*|fn (poolAxis|poolTap|placeOrigin|placeLayer)\(.*)$/gm
-  const lines = TILE_POOL_WGSL.text.match(wanted) ?? []
+  const lines = POOL_PLACE_WGSL.text.match(wanted) ?? []
   assert.equal(lines.length, 9, `the pool text no longer declares its place decode:\n${lines}`)
   return lines.join('\n')
 }
