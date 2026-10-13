@@ -15,6 +15,7 @@ import { createCompositions, type CompositionSources } from './compositions.ts'
 import { type FusedBlend } from '../../webgpu/effects/webgpuKinds.ts'
 import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
 import { sequentialEntries, namedEntries } from '../../gpu/core/computeBindings.ts'
+import type { ProxyResources } from '../../gpu/core/selection.ts'
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. With them,
  *  the frame's key: what its program leaves out (`contractCuts.ts`). */
@@ -44,9 +45,9 @@ export interface DirectLightResources extends Partial<ContractKey> {
    *  identity. */
   bounceGrid?: GPUBuffer
   probes?: GPUTextureView
-  /** The proxy's buffer, the world matrices it places its meshes by mirrored in it, which the forward programs
-   *  read (`webgpu/blend/lighting.ts`): the opaque resolve binds none. Absent, a zero substitute. */
-  proxy?: GPUBuffer
+  /** The proxy's buffer and the culling's worlds it places its meshes by, which the forward programs read
+   *  (`webgpu/blend/lighting.ts`): the opaque resolve binds none. Absent, zero substitutes. */
+  proxy?: ProxyResources
   /** The reflection target the opaque trace wrote (`../../reflections/trace.ts`); absent, a zero
    *  substitute. */
   reflection?: GPUTextureView

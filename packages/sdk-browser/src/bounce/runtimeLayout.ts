@@ -10,26 +10,21 @@ export const RUNTIME_NONE = 0xffffffff
  * THE PROXY'S BUFFER: one storage binding holding, in this order, the header, an instance per placement, a
  * surface per drawn material, then the arena of the meshes' own proxies — the columns of a `proxy.bin`
  * (`page-codec-wasm/src/proxy.rs`), one mesh's after another, in the mesh's own space —, the mirror of the
- * placement tree's nodes and the mirror of its member order, and the world matrices the instances are placed
- * by. The tree above the placements and their worlds are the culling's, copied here (`mirror`: the tree's
- * nodes when the refit moved them, its member order when it was written, the world rows written since the last
- * copy and no other), so that a program reads the whole proxy through one storage binding: the forward
- * programs, whose fragment stage binds the eight storage buffers WebGPU guarantees, have no room for a second,
- * and the culling's own stage binds eight as well.
+ * placement tree's nodes and the mirror of its member order, and the worlds of the blended copies. The tree
+ * above the placements is the culling's, copied here (`mirror`: its nodes when the refit moved them, its member
+ * order when it was written). The placements' worlds are the culling's too, read where they lie: the record
+ * table a program binds beside this buffer (`gpu/dag/worldTable.ts`), a sampled texture, no storage binding —
+ * the forward programs' fragment stage binds the eight storage buffers WebGPU guarantees.
  *
- * ONE BINDING HOLDS IT ALL, OR NO PROXY. A placement takes 112 bytes here (instance, world, exact translation)
- * and 96 in the culling's world table (`gpu/dag/cameraRanges.ts`), which splits in ranges only past one binding:
- * a proxy that fits one binding stands over a world of one range, every placement's row in it. A proxy past one
- * binding is refused by name (`gpu/dag/proxyInstances.ts`), never made: the trace then reads its stand-ins.
+ * ONE BINDING HOLDS THE REST, OR NO PROXY. A proxy past one binding is refused by name
+ * (`gpu/dag/proxyInstances.ts`), never made: the trace then reads its stand-ins.
  *
  * Header words, one table the writer's words and the shader's struct (`RUNTIME_PROXY_WGSL`) are both drawn
  * from (`fieldLayout`): the placements the instances hold (the blended copies' follow them), then the word
  * rank of each region — the copies' worlds a region of their own —, the tree's root node (`RUNTIME_NONE` for
  * a packing without a tree: the placements are then its few members), the id of the first node the mirror
- * holds, the words of its nodes and of its members, the live members, the word rank of the placements'
- * worlds, the greatest world error of a proxy, in metres, as an `f32`'s bits: the distance a ray leaves a
- * surface off its normal, the blended copies, and the word rank of the placements' exact translations, which
- * follow their worlds.
+ * holds, the words of its nodes and of its members, the live members, the greatest world error of a proxy, in
+ * metres, as an `f32`'s bits: the distance a ray leaves a surface off its normal, and the blended copies.
  */
 const HEADER = fieldLayout(
   'RuntimeProxy',
@@ -46,10 +41,8 @@ const HEADER = fieldLayout(
     ['treeWord', 'u32'],
     ['membersWord', 'u32'],
     ['members', 'u32'],
-    ['worldsWord', 'u32'],
     ['error', 'f32'],
     ['copies', 'u32'],
-    ['originsWord', 'u32'],
   ] as const,
   'words:array<u32>,',
 )
@@ -58,11 +51,8 @@ export const RUNTIME_HEADER_WORDS = HEADER.words
 /** The proxy's buffer as the shaders read it: the header's fields, then every word past them. */
 export const RUNTIME_PROXY_WGSL = wgslBlock('RUNTIME_PROXY_WGSL', [], HEADER.wgsl)
 
-/** Words of one placement's world as the proxy mirrors it: sixteen of the matrix, of which the translation's
- *  three are no cut's, and eight of its exact translation, three doubles (`gpu/dag/worldOrigins.ts`), the
- *  rounding of which to single precision is the translation a ray reads (`rtWorldOf`). */
+/** Words of one blended copy's world, the proxy's own: its matrix. */
 export const RUNTIME_WORLD_WORDS = 16
-export const RUNTIME_ORIGIN_WORDS = 8
 
 /** One placement's instance: its cut's first node and first triangle in the arena (`RUNTIME_NONE`
  *  where it draws no proxy), the surface it wears, and its frame word — the mark with the

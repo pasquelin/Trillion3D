@@ -184,6 +184,14 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: (RUNTIME_HEADER_WORDS + 1) * 4,
     usage: GPUBufferUsage.STORAGE,
   })
+  // The culling's worlds such a program binds beside it (`gpu/dag/worldTable.ts`): one texel, which no
+  // ray reads — no placement holds an instance.
+  const runtimeWorlds = device.createTexture({
+    label: 'Trillion3D empty run-time proxy worlds',
+    size: [1, 1, 1],
+    format: 'rgba32uint',
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+  })
   const receiver = receiverPlaceholders(device)
   const vsm = createVsmPlaceholders(device)
   // One texel of zero: what a resolve bound before its reflection target reads.
@@ -200,6 +208,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     bounceGrid,
     probes: arrayView(probes),
     runtime,
+    runtimeWorlds: arrayView(runtimeWorlds),
     receiver: receiver.resources,
     reflection: reflection.createView(),
     /** The empty normal atlas: what a transparent item without normals reads (zeros). */
@@ -213,6 +222,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
       bounceGrid.destroy()
       probes.destroy()
       runtime.destroy()
+      runtimeWorlds.destroy()
     },
   }
 }

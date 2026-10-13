@@ -90,6 +90,7 @@ export async function keptRankDifferences() {
   await take([drawList(256, pages, 9), drawList(256, pages, 10)])
   const rankBytes = r.ranks.map((buffer) => buffer.size)
   for (const buffer of r.buffers) buffer.destroy()
+  for (const { texture } of r.textures) texture.destroy()
   const info = await gpu.fermer()
   return { adapter: info.court, errors, pages, grown, rankBytes, snapshots }
 }

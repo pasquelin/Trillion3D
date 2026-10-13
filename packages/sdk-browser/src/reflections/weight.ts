@@ -6,7 +6,7 @@ import { LTC_WGSL } from '../lighting/direct/rectLightWgsl.ts'
 import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
-import type { SceneBindings } from '../bounce/runtimeSceneWgsl.ts'
+import { sceneKey, type SceneBindings } from '../bounce/runtimeSceneWgsl.ts'
 import type { ProxyBindings } from './proxy.ts'
 
 /**
@@ -25,7 +25,7 @@ import type { ProxyBindings } from './proxy.ts'
  */
 export const reflectionShareWgsl = (group: number, lobes: boolean, runtime: ProxyBindings) =>
   wgslBlock(
-    `reflectionShareWgsl(${group}, ${lobes}, ${runtime.proxy}, ${'list' in runtime})`,
+    `reflectionShareWgsl(${group}, ${lobes}, ${sceneKey(runtime)}, ${'list' in runtime})`,
     [reflectedRadianceWgsl(group, runtime), LTC_WGSL, LOBE_AXIS_WGSL, ndotvClamped, DIELECTRIC_F0],
     `struct Reflected{base:vec3f,coat:vec3f,}
 fn reflectionWeight(f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
@@ -68,7 +68,7 @@ fn reflectedShare(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
  *  and weighs the one trace on two reflectances (`reflectionShare`). */
 export const forwardReflectionWgsl = (group: number, lobes: boolean, scene: SceneBindings) =>
   wgslBlock(
-    `forwardReflectionWgsl(${group}, ${lobes}, ${scene.proxy})`,
+    `forwardReflectionWgsl(${group}, ${lobes}, ${sceneKey(scene)})`,
     [reflectionShareWgsl(group, lobes, scene), surfaceReflects],
     `fn surfaceReflection(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
  if(!surfaceReflects(surfaceModel)){return vec3f(0.0);}

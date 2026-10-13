@@ -15,7 +15,7 @@ import { createMaskSwap } from './swap.ts'
 import { VIEW_ROWS } from '../../webgpu/row/tableRows.ts'
 import { CUT_TABLE_BYTES } from '../../residency/cutTableBytes.ts'
 import type { CutSteps } from './cutSteps.ts'
-import { madeAsked, type CutAdmission } from './cutBuffers.ts'
+import { admitted, madeAsked, type CutAdmission } from './cutBuffers.ts'
 import { createMainReadbacks } from './mainReadbacks.ts'
 
 /** The DAG's GPU resources once made (`createDagResources`). */
@@ -47,7 +47,8 @@ export async function createDagResources(
   steps?: CutSteps,
 ) {
   listCap ??= initialListCap(device.limits, packed.live?.pages ?? packed.pageCount, heldSlots)
-  const buffers: GPUBuffer[] = []
+  const buffers: GPUBuffer[] = [],
+    textures: { texture: GPUTexture; bytes: number }[] = []
   let held = 0
   /** A buffer of this cut's: the runtime's dispose destroys them all. One past the share, or the
    *  budget refuses, is never made: the cut is refused by name. */
@@ -57,9 +58,29 @@ export async function createDagResources(
     buffers.push(buffer)
     return buffer
   }
+  /** A record texture of this cut's (`../core/recordTexture.ts`), `bytes` large: the same
+   *  admission, the same end. */
+  const ownTexture = (descriptor: GPUTextureDescriptor, bytes: number) => {
+    const texture = admitted(device, admit, held, share, { label: descriptor.label, bytes }, () =>
+      device.createTexture(descriptor),
+    )
+    held += bytes
+    textures.push({ texture, bytes })
+    return texture
+  }
+  /** Every resource made so far, each destroyed whatever the others do: a partial setup must not
+   *  leak. */
+  const destroyAll = () => {
+    for (const made of [...buffers, ...textures.map(({ texture }) => texture)])
+      try {
+        made.destroy()
+      } catch {
+        /* The next one still goes. */
+      }
+  }
   try {
     steps?.begin('tables')
-    const { tables, ...made } = dagBuffers(device, packed, own, listCap, heldSlots)
+    const { tables, ...made } = dagBuffers(device, packed, { own, ownTexture }, listCap, heldSlots)
     const { group, frames, split, work, dispatchArgs } = made
     // One validation scope after the other: the device's scopes are one stack, and two built
     // together would each pop the other's.
@@ -73,7 +94,7 @@ export async function createDagResources(
     const pipeline = compiled.value,
       arm = armed?.value
     if (!pipeline || !arm) {
-      for (const buffer of buffers) buffer.destroy()
+      destroyAll()
       refused((pipeline ? armed?.refused : compiled.refused) ?? 'the device made no pipeline')
       return undefined
     }
@@ -84,6 +105,7 @@ export async function createDagResources(
       repeat,
       ...made,
       buffers,
+      textures,
       own,
       ...uploadDagTables(device, packed, tables),
       ...pipeline,
@@ -100,12 +122,7 @@ export async function createDagResources(
     return { ...resources, readbacks, rankGroups: rankGroups(resources) }
   } catch (error) {
     refused(error instanceof Error ? error.message : String(error))
-    for (const buffer of buffers)
-      try {
-        buffer.destroy()
-      } catch {
-        /* Partial setup must not leak. */
-      }
+    destroyAll()
     return undefined
   }
 }
@@ -114,7 +131,10 @@ export async function createDagResources(
 function dagBuffers(
   device: GPUDevice,
   packed: PackedDag,
-  own: Own,
+  {
+    own,
+    ownTexture,
+  }: { own: Own; ownTexture: (d: GPUTextureDescriptor, bytes: number) => GPUTexture },
   listCap: number,
   heldSlots: number,
 ) {
@@ -142,7 +162,15 @@ function dagBuffers(
   const work = makeDagBuffer(own, rows.work)
   const worldCount = Math.max(1, packed.worldCount)
   const { worlds, worldSources } = packed
-  const frames = createCameraFrames(device, frameData, worldCount, own, worlds, worldSources)
+  const frames = createCameraFrames(
+    device,
+    frameData,
+    worldCount,
+    own,
+    worlds,
+    worldSources,
+    ownTexture,
+  )
   const group = dagGroup(tables, uniforms, list.output, work)
   const { clusters, nodes, flags, cold: pageCones } = group
   return {

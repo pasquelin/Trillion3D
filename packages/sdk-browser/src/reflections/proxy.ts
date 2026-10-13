@@ -8,7 +8,7 @@ import {
   runtimeTraceWgsl,
   type RuntimeBindings,
 } from '../bounce/runtimeTraceWgsl.ts'
-import type { SceneBindings } from '../bounce/runtimeSceneWgsl.ts'
+import { sceneKey, type SceneBindings } from '../bounce/runtimeSceneWgsl.ts'
 
 /** The bindings a program reads the proxy through: with the list the opaque trace counts its rays' work in
  *  (`RuntimeBindings`), or the proxy alone (`SceneBindings`), as the forward programs read it. */
@@ -29,7 +29,7 @@ export const reflectionProxyWgsl = (group: number, runtime: ProxyBindings) => {
   // reject).
   const counted = 'list' in runtime
   return wgslBlock(
-    `reflectionProxyWgsl(${group}, ${runtime.proxy}, ${counted})`,
+    `reflectionProxyWgsl(${group}, ${sceneKey(runtime)}, ${counted})`,
     [
       reflectionBindingsWgsl(group),
       REFLECTION_LOBE_WGSL,

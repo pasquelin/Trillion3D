@@ -1,4 +1,4 @@
-import type { GpuSelection, SelectionUniforms } from '../core/selection.ts'
+import type { GpuSelection, ProxyResources, SelectionUniforms } from '../core/selection.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { createDagPoolList } from './poolList.ts'
 import { createDagDispatch } from './dispatch.ts'
@@ -66,10 +66,12 @@ export function createDagRuntime(
 /** The camera cut's face (`GpuSelection`) over `run`. */
 function selectionOver(run: DagRun): GpuSelection {
   const { resources, state, uploadResidency, poolList, mirror, chain } = run
-  const { packed, pageCount, frames, buffers } = resources
+  const { packed, pageCount, frames, buffers, textures } = resources
   // The draw mask, in the part of `flags` that holds its section whole (`split.ts`): its readers
   // bind one buffer at one offset, whatever the split.
   const live = () => !state.disposed && !state.dead
+  // What the programs read the proxy through, made again when its buffer is (`proxy`).
+  let proxy: ProxyResources | undefined
   /** The main view, as the steps before a cut know it (`TableSync`). */
   const mainView = {}
   // The one step every cut on these tables takes before it encodes, the main view's and each view
@@ -98,11 +100,8 @@ function selectionOver(run: DagRun): GpuSelection {
       return packed.live?.pages ?? pageCount
     },
     worldCapacity: packed.worldCount,
-    worldRanges: frames.ranges.map((range, r) => ({
-      ...range,
-      buffer: frames.worldBuffers[r],
-      frames: frames.buffers[r],
-    })),
+    worldRanges: frames.ranges.map((range, r) => ({ ...range, frames: frames.buffers[r] })),
+    worlds: frames.worlds.view,
     packsWorld: !!mirror,
     get worldRevision() {
       return state.worldRevision
@@ -129,7 +128,7 @@ function selectionOver(run: DagRun): GpuSelection {
     worldsMovedOnGpu(rows) {
       if (!live()) return
       state.worldRevision++
-      // The proxy's mirror of those rows is copied at the next image; the others stand.
+      // The proxy's world boxes of those rows are made again; the others stand.
       for (const w of rows) run.proxies.worldWritten(w)
     },
     get growing() {
@@ -151,7 +150,12 @@ function selectionOver(run: DagRun): GpuSelection {
     get proxyHostBytes() {
       return run.proxies.hostBytes
     },
-    proxyBuffer: () => (live() ? run.proxies.buffer() : undefined),
+    proxy() {
+      const buffer = live() ? run.proxies.buffer() : undefined
+      if (!buffer) return undefined
+      if (proxy?.buffer !== buffer) proxy = { buffer, worlds: frames.worlds.view }
+      return proxy
+    },
     get proxyRefusal() {
       return run.proxies.refusal
     },
@@ -195,6 +199,7 @@ function selectionOver(run: DagRun): GpuSelection {
       run.proxies.dispose()
       resources.readbacks.destroy()
       for (const buffer of buffers) buffer.destroy()
+      for (const { texture } of textures) texture.destroy()
     },
   }
   return selection

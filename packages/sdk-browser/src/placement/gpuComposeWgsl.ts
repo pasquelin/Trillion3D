@@ -32,6 +32,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { isNanWord } from '../../../math/src/wgsl/integer.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
+import { worldTableWgsl } from '../gpu/dag/worldTable.ts'
 
 /** The parent slot of a root that follows none. */
 export const NONE = 0xffffffff
@@ -42,6 +43,9 @@ export const PART_SPHERES = 1,
   PART_LODS = 4
 /** Doubles of one matrix, each two words. */
 export const MATRIX_DOUBLES = 16
+/** The binding of the cut's worlds in the roots pass: a write-only storage texture, the worlds'
+ *  record table (`../gpu/dag/worldTable.ts`). */
+export const COMPOSE_WORLDS_BINDING = 4
 
 /** Element `k` (column-major) of `parent · local`, both read as doubles from their first word:
  *  column `k >> 2`, row `k & 3`, the shift and mask being the division and remainder by four of
@@ -76,9 +80,10 @@ fn sameWord(a:u32,b:u32)->bool{
 
 /**
  * One thread per root a parent composes (`ranks`, the composition's dense list of them), those of a
- * range of the cut's worlds alone at work: `parent · local` — its exact translation
- * kept behind the range's matrices, as the host's are (`worldOrigins.ts`), which each cut reads at
- * its own eye —, the stretch of that world in the root's frame words (`gpuStretchWgsl.ts`), and,
+ * range of the cut's frame words alone at work: `parent · local` into the root's record of the
+ * cut's worlds (`../gpu/dag/worldTable.ts`), written whole — its matrix as the host writes it, its
+ * exact translation beside it, as the host's is (`worldOrigins.ts`), which each cut reads at its own
+ * eye —, the stretch of that world in the root's frame words (`gpuStretchWgsl.ts`), and,
  * once the temporal pass has decided (`motionMode`), the root's motion as `../taa/motion.ts` writes
  * it from the root's single-precision world — the row's words — and the one it held at the last
  * accumulated image (`previous`): a restart takes the world as reference with no motion; a
@@ -92,7 +97,6 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(1) var<storage,read> locals:array<vec2u>;
 @group(0) @binding(2) var<storage,read> parentOf:array<u32>;
 @group(0) @binding(3) var<storage,read> parents:array<vec2u>;
-@group(0) @binding(4) var<storage,read_write> worlds:array<u32>;
 @group(0) @binding(5) var<storage,read_write> motion:array<u32>;
 @group(0) @binding(6) var<uniform> motionMode:MotionMode;
 @group(0) @binding(7) var<storage,read_write> previous:array<u32>;
@@ -108,16 +112,17 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  let p=parentOf[rank];
  if(p==${NONE}u){return;}
  var world:array<u32,16>;
+ var origin:array<u32,8>;
  for(var k=0u;k<16u;k++){
   let value=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);
   world[k]=toF32(value);
-  // The translation is the exact one behind the range's matrices, which each cut reads at its own
-  // eye (\`../gpu/dag/shader/worldPoseWgsl.ts\`): words 12 to 14 of the row are no cut's.
-  if(k>=12u&&k<15u){
-   let at=params.count*16u+i*8u+2u*(k-12u);
-   worlds[at]=value.x;worlds[at+1u]=value.y;
-  }else{worlds[i*16u+k]=world[k];}
+  // The exact translation beside the matrix, which each cut reads at its own eye
+  // (\`../gpu/dag/shader/worldPoseWgsl.ts\`), high word then low word.
+  if(k>=12u&&k<15u){origin[2u*(k-12u)]=value.x;origin[2u*(k-12u)+1u]=value.y;}
  }
+ for(var t=0u;t<4u;t++){worldsMatrixStore(rank,t,vec4u(world[t*4u],world[t*4u+1u],world[t*4u+2u],world[t*4u+3u]));}
+ worldsOriginStore(rank,0u,vec4u(origin[0],origin[1],origin[2],origin[3]));
+ worldsOriginStore(rank,1u,vec4u(origin[4],origin[5],0u,0u));
  // The root's world box, which its rows' detail reads the radius of its object from.
  if(rootInputs[rank*7u+6u].x!=0u){var carried:array<vec2u,16>;for(var k=0u;k<16u;k++){carried[k]=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);}composeBox(rank,rank*7u,carried);}
  // The stretch every cut projects its errors through, in the root's row of the frame words.
@@ -140,7 +145,14 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  }
  for(var k=0u;k<16u;k++){motion[rank*16u+k]=words[k];}
 }`,
-  [...SHARED, SAME_WORD_WGSL, MOTION_WGSL, STRETCH_WGSL, WORLD_BOX_WGSL],
+  [
+    ...SHARED,
+    SAME_WORD_WGSL,
+    MOTION_WGSL,
+    STRETCH_WGSL,
+    WORLD_BOX_WGSL,
+    worldTableWgsl('worlds', { group: 0, binding: COMPOSE_WORLDS_BINDING, access: 'write' }),
+  ],
 )
 
 /**

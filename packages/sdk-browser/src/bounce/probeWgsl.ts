@@ -13,8 +13,10 @@ import { PROBE_TEXELS } from './atlas.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
-/** The proxy in the probe pass: its buffer, the world matrices mirrored in it. */
-const PROBE_PROXY = { group: 0, proxy: 1 } as const
+/** The binding of the culling's worlds the proxy is placed by in the probe pass (`probes.ts`). */
+export const PROBE_PROXY_WORLDS = 7
+/** The proxy in the probe pass: its buffer, and the culling's worlds. */
+const PROBE_PROXY = { group: 0, proxy: 1, worlds: PROBE_PROXY_WORLDS } as const
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
 const BOUNCE_WORKGROUP = 64

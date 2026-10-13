@@ -2,22 +2,36 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DAG_BINDING, dagBindEntries } from './bindings.ts'
 import { DAG_SELECTION_SHADER } from './shader.ts'
-import { entryBufferBindings, wgslBufferBindings } from '../../core/wgslBindings.fixture.ts'
+import {
+  entryBufferBindings,
+  wgslBufferBindings,
+  wgslTextureBindings,
+} from '../../core/wgslBindings.fixture.ts'
 import { unresolvedNames } from '../../core/wgslNames.fixture.ts'
+
+/** The layout's buffer entries, and its texture entries' bindings. */
+const buffers = () => entryBufferBindings(dagBindEntries().filter((entry) => entry.buffer))
+const textures = () =>
+  dagBindEntries()
+    .filter((entry) => entry.texture)
+    .map((entry) => entry.binding)
 
 test('the DAG layout entries are the bindings the selection shader declares', () => {
   const declared = wgslBufferBindings(DAG_SELECTION_SHADER)
-  assert.equal(declared.length, 10)
-  assert.deepEqual(entryBufferBindings(dagBindEntries()), declared)
+  assert.equal(declared.length, 9)
+  assert.deepEqual(buffers(), declared)
+  // The worlds are a record texture (`../worldTable.ts`), no storage buffer of the stage's eight.
+  assert.deepEqual(textures(), [DAG_BINDING.worlds])
+  assert.deepEqual(wgslTextureBindings(DAG_SELECTION_SHADER), [DAG_BINDING.worlds])
 })
 
 test('a binding whose access changes in the shader no longer matches the entries', () => {
   const drifted = DAG_SELECTION_SHADER.replace(
-    '@binding(6) var<storage, read> worlds',
-    '@binding(6) var<storage, read_write> worlds',
+    '@binding(7) var<storage, read> frames',
+    '@binding(7) var<storage, read_write> frames',
   )
   assert.notEqual(drifted, DAG_SELECTION_SHADER)
-  assert.notDeepEqual(entryBufferBindings(dagBindEntries()), wgslBufferBindings(drifted))
+  assert.notDeepEqual(buffers(), wgslBufferBindings(drifted))
 })
 
 test('each DAG buffer name owns its own binding, from 0 without a gap', () => {

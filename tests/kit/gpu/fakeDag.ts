@@ -3,10 +3,12 @@ import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bi
 import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { floats, words } from './fakeBuffers.ts'
-import { worldsAtEye } from './fakeWorldPose.ts'
+import { viewTexture, worldsAtEye } from './fakeWorldPose.ts'
 import { indexOfRanks } from '../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
 
 type Bound = Map<number, { data: Uint8Array }>
+/** The bound worlds' table: the view at the worlds' binding (`DAG_BINDING.worlds`). */
+type Worlds = Parameters<typeof viewTexture>[0]
 
 /** The DAG selection uniform block as the shader reads it: the camera. */
 export function readDagUniforms(data: Uint8Array) {
@@ -40,7 +42,7 @@ export const boundListCap = (byBinding: Bound) =>
  * CPU doubles read of a packing, and nothing more: the GPU cut is the engine's one cut (#1483), so
  * every session on the double runs it.
  */
-export function packedFromBindings(byBinding: Bound): PackedDag {
+export function packedFromBindings(byBinding: Bound, worlds: Worlds): PackedDag {
   const views = words(byBinding.get(DAG_BINDING.views)!.data)
   const pageCount = views[viewWord('clusterCount')],
     nodeCount = views[viewWord('nodeCount')],
@@ -68,7 +70,7 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
     nodes: floats(byBinding.get(DAG_BINDING.nodes)!.data),
     pageCones: floats(byBinding.get(DAG_BINDING.cold)!.data),
     worlds: worldsAtEye(
-      byBinding.get(DAG_BINDING.worlds)!.data,
+      viewTexture(worlds),
       byBinding.get(DAG_BINDING.views)!.data,
       worldCount * 16,
     ),

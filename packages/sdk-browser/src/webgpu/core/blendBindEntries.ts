@@ -23,9 +23,10 @@ export type BlendLighting = {
   probes: GPUTextureView
   /** Per-tile lamp lists: the blend pass reads the slice that concerns it. */
   tileLights: GPUBuffer
-  /** What a ray can meet of the scene: the proxy's buffer and the world matrices it places its meshes by
-   *  (`../../bounce/runtimeSceneWgsl.ts`), read by the reflection of the forward programs. */
+  /** What a ray can meet of the scene: the proxy's buffer and the culling's worlds it places its meshes
+   *  by (`../../bounce/runtimeSceneWgsl.ts`), read by the reflection of the forward programs. */
   proxy: GPUBuffer
+  proxyWorlds: GPUTextureView
 }
 
 /** Resources of a transparent-mesh group: the mesh itself and the scene. */
@@ -94,10 +95,13 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   bounceGrid: ['fragment', UNIFORM],
   probes: ['fragment', FLOAT_ARRAY],
   tileLights: ['fragment', STORAGE],
-  // The proxy, the worlds it is placed by mirrored in it, **read-only**: a binding the fragment stage could write would
-  // cost the pass its early depth reject (4232 hidden fragment draws). The probes are an atlas
-  // (`../../bounce/atlas.ts`), no storage buffer.
+  // The proxy, **read-only**: a binding the fragment stage could write would cost the pass its early
+  // depth reject (4232 hidden fragment draws). The probes are an atlas (`../../bounce/atlas.ts`), no
+  // storage buffer.
   proxy: ['fragment', STORAGE],
+  // The culling's worlds the proxy is placed by (`../../gpu/dag/worldTable.ts`): a record texture, the
+  // fragment stage holding the eight storage buffers WebGPU guarantees.
+  proxyWorlds: ['fragment', { texture: { sampleType: 'uint', viewDimension: '2d-array' } }],
   // The physical records a lobed blend reads (`../blend/physicalWgsl.ts`): a texture, the
   // fragment stage holding the eight storage buffers WebGPU guarantees.
   physical: ['fragment', { texture: { sampleType: 'uint' } }],

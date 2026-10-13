@@ -1,7 +1,13 @@
-import { computeBufferEntry, namedEntries } from '../../core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeTextureEntry,
+  namedEntries,
+} from '../../core/computeBindings.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { worldTableWgsl } from '../worldTable.ts'
 
-/** Group-0 binding of each buffer the selection kernel reads, under its WGSL name. */
+/** Group-0 binding of each table the selection kernel reads, under its WGSL name: buffers, and the
+ *  worlds' record texture (`../worldTable.ts`). */
 export const DAG_BINDING = {
   clusters: 0,
   nodes: 1,
@@ -39,19 +45,21 @@ export function dagPartBindings(counts: Partial<Record<DagPartTable, number>> = 
 const countsOf = (extra: DagExtraParts = {}) =>
   Object.fromEntries(Object.entries(extra).map(([table, list]) => [table, list.length + 1]))
 
-/** Group 0 of the selection kernel, each buffer at its WGSL name's binding, and `range` the
- *  primitives its `frames` holds (`../frameRanges.ts`): the camera cut's, the light cut's and the
- *  dispatch bench's. `parts`, a split table's further parts, each at its own binding. */
+/** Group 0 of the selection kernel, each buffer at its WGSL name's binding, the worlds' view at
+ *  theirs, and `range` the primitives its `frames` holds (`../frameRanges.ts`): the camera cut's,
+ *  the light cut's and the dispatch bench's. `parts`, a split table's further parts, each at its
+ *  own binding. */
 export function dagGroupEntries(
-  buffers: Record<Exclude<keyof typeof DAG_BINDING, 'range'>, GPUBuffer> & {
+  buffers: Record<Exclude<keyof typeof DAG_BINDING, 'range' | 'worlds'>, GPUBuffer> & {
+    worlds: GPUTextureView
     parts?: DagExtraParts
   },
   range: GPUBufferBinding,
 ) {
-  const { parts, ...whole } = buffers
+  const { parts, worlds, ...whole } = buffers
   const named = Object.entries(whole).map(([name, buffer]) => [name, { buffer }])
   return [
-    ...namedEntries(DAG_BINDING, { ...Object.fromEntries(named), range }),
+    ...namedEntries(DAG_BINDING, { ...Object.fromEntries(named), worlds, range }),
     ...dagPartEntries(parts),
   ]
 }
@@ -69,14 +77,13 @@ export function dagPartEntries(parts?: DagExtraParts) {
  *  (`dagSelectionWgsl`). */
 export const DAG_BINDINGS_WGSL = wgslBlock(
   'DAG_BINDINGS_WGSL',
-  [],
+  [worldTableWgsl('worlds', { group: 0, binding: B.worlds, access: 'read' })],
   `@group(0) @binding(${B.clusters}) var<storage, read> clusters:array<Cluster>;
 @group(0) @binding(${B.nodes}) var<storage, read> nodes:array<CullNode>;
 @group(0) @binding(${B.views}) var<uniform> views:array<Uniforms,MAX_VIEWS>;
 @group(0) @binding(${B.flags}) var<storage, read_write> flags:array<u32>;
 @group(0) @binding(${B.out}) var<storage, read_write> out:Output;
 @group(0) @binding(${B.work}) var<storage, read_write> work:array<atomic<u32>>;
-@group(0) @binding(${B.worlds}) var<storage, read> worlds:array<vec4u>;
 @group(0) @binding(${B.frames}) var<storage, read> frames:array<vec4f>;
 @group(0) @binding(${B.cold}) var<storage, read> cold:array<u32>;
 @group(0) @binding(${B.range}) var<uniform> range:FrameRange;
@@ -99,14 +106,13 @@ fn setFlag(i:u32,v:u32){flags[i]=v;}`,
 
 const read = 'read-only-storage',
   write = 'storage'
-const DAG_TYPES: Record<keyof typeof DAG_BINDING, GPUBufferBindingType> = {
+const DAG_TYPES: Record<Exclude<keyof typeof DAG_BINDING, 'worlds'>, GPUBufferBindingType> = {
   clusters: read,
   nodes: read,
   views: 'uniform',
   flags: write,
   out: write,
   work: write,
-  worlds: read,
   frames: read,
   cold: read,
   range: 'uniform',
@@ -122,7 +128,9 @@ export function dagBindEntries(
 ): GPUBindGroupLayoutEntry[] {
   return [
     ...Object.entries(DAG_BINDING).map(([name, binding]) =>
-      computeBufferEntry(binding, DAG_TYPES[name as keyof typeof DAG_BINDING]),
+      name === 'worlds'
+        ? computeTextureEntry(binding, 'uint', '2d-array')
+        : computeBufferEntry(binding, DAG_TYPES[name as keyof typeof DAG_TYPES]),
     ),
     ...dagPartBindings(counts).map(({ table, binding }) =>
       computeBufferEntry(binding, DAG_PART_TABLES[table] ? write : read),

@@ -38,13 +38,15 @@ export const WATER_BINDINGS = {
   shadowSampler: 10,
   bounceGrid: 11,
   probes: 12,
-  /** The proxy's buffer, the world matrices mirrored in it, which the reflection traces. */
+  /** The proxy's buffer, which the reflection traces, and the culling's worlds it places its meshes
+   *  by (`proxyWorlds`, a record texture: `../../gpu/dag/worldTable.ts`). */
   proxy: 13,
   backdrop: 14,
   backdropDepth: 15,
   /** The blend view uniform, as written for the blend pass: projection, eye, tiles, flags. */
   uniform: 16,
   volumes: 17,
+  proxyWorlds: 20,
   /** The shadow pool's transmittance layer, on the deferred resolve's numbers. */
   shadowTransmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
   shadowTranslucentDepth: CONTRACT_SHADOW_BINDINGS.translucentDepth,
@@ -114,6 +116,7 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
       forwardReflectionWgsl(REFLECTION_GROUP, lobes, {
         group: 0,
         proxy: WATER_BINDINGS.proxy,
+        worlds: WATER_BINDINGS.proxyWorlds,
       }),
       WATER_COLOR_WGSL,
       VIEW_WGSL,

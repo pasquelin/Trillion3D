@@ -19,6 +19,8 @@ import { createWebgpuBlendPipelines } from '../../webgpu/blend/pipelines.ts'
 import type { BlendGpuItem } from '../../webgpu/blend/state.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { stageBindingCounts } from '../../../../../tests/kit/gpu/bindRules.ts'
+import { BLEND_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { WATER_BINDINGS } from '../../webgpu/water/compositeWgsl.ts'
 
 /** The most bindings of `limit`'s kind one stage of these layouts binds; `stage`, in it alone. */
 const widest = (layouts: GPUPipelineLayoutDescriptor[], limit: string, stage = '') =>
@@ -76,8 +78,21 @@ test("every opaque resolve program fits the device's per-stage limits", async ()
   unlit.dispose()
 })
 
+/** Whether a layout of `layouts` shows the fragment stage the culling's worlds at `binding`: a
+ *  record texture of words (`../dag/worldTable.ts`), no storage buffer. */
+const bindsWorlds = (layouts: GPUBindGroupLayoutDescriptor[], binding: number) =>
+  layouts.some((layout) =>
+    [...layout.entries].some(
+      (entry) =>
+        entry.binding === binding &&
+        (entry.visibility & GPUShaderStage.FRAGMENT) !== 0 &&
+        entry.texture?.sampleType === 'uint' &&
+        entry.texture.viewDimension === '2d-array',
+    ),
+  )
+
 test("the blends and the water pass fit the device's per-stage limits", async () => {
-  const { device, pipelineLayouts: layouts } = fakeDevice()
+  const { device, pipelineLayouts: layouts, bindGroupLayouts } = fakeDevice()
   const failures: unknown[] = []
   // One item per blending mode, every display route among them, and one that transmits: every
   // blend set, the routed ones and the water stage and composite are built.
@@ -104,6 +119,10 @@ test("the blends and the water pass fit the device's per-stage limits", async ()
   }
   assert.deepEqual(failures, [])
   assert.ok(layouts.length > 0)
+  // Both trace the proxy through the culling's worlds, read in place: a sampled texture each, which
+  // the counts below hold, the eight storage buffers of their fragment stage left as they were.
+  assert.ok(bindsWorlds(bindGroupLayouts, BLEND_BINDINGS.proxyWorlds), 'the blends bind the worlds')
+  assert.ok(bindsWorlds(bindGroupLayouts, WATER_BINDINGS.proxyWorlds), 'the water binds the worlds')
   assert.ok(widestSampled(layouts) <= WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage)
   // Their storage bindings within the guaranteed ones of a fragment stage: the water composite's
   // lobes target, read by load alone, is a read-only storage texture (`../../webgpu/water/`).

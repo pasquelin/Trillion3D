@@ -15,7 +15,7 @@ import { words } from './fakeBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
 import { boundListCap, packedFromBindings, readDagUniforms } from './fakeDag.ts'
-import { worldsAtEye } from './fakeWorldPose.ts'
+import { viewTexture, worldsAtEye } from './fakeWorldPose.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 
 import {
@@ -47,6 +47,7 @@ const DAG_STAGES = new Set([
 ])
 
 export type ComputeBind = {
+  /** A buffer's binding, or a view's — the worlds' table (`viewTexture`). */
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>
 }
 
@@ -102,15 +103,18 @@ export function simulateComputeDispatch(
   const stage = computePipeline?.entryPoint
   // A group a test wrote by hand, without entries, binds nothing the double could run on.
   if (!computeBind?.entries || !DAG_STAGES.has(stage ?? '')) return
-  // The selection binds one buffer per `DAG_BINDING` slot: one missing is a validation error.
+  // The selection binds one table per `DAG_BINDING` slot: one missing is a validation error.
   const slots = Object.keys(DAG_BINDING).length
   if (computeBind.entries.length !== slots)
     throw new Error(`dag selection bind group requires ${slots} entries`)
   const byBinding = new Map(
     computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
   )
+  const boundWorlds = computeBind.entries.find(
+    ({ binding }) => binding === DAG_BINDING.worlds,
+  )!.resource
   // A test that hands no DAG reads the one the session uploaded (`fakeDag.ts`).
-  const dag = packed ?? packedFromBindings(byBinding),
+  const dag = packed ?? packedFromBindings(byBinding, boundWorlds),
     listCap = boundListCap(byBinding)
   if (stage === 'dagSortRequests') return sortStagedRequests(byBinding, listCap)
   if (mirrorListStage(stage!, byBinding, dag, listCap)) return // the lists' and the journals' mirror
@@ -132,12 +136,12 @@ export function simulateComputeDispatch(
     ready: residentFlags(cold, dag.pageCount),
     childReady: residentFlags(cold, dag.pageCount, childBase(dag.pageCount)),
   }
-  // World matrices are read IN THE BOUND BUFFER, where the shader reads them, each translation at
+  // World matrices are read IN THE BOUND TABLE, where the shader reads them, each translation at
   // the eye of the same uniform block as the kernel reads it (`fakeWorldPose.ts`): the view and
   // planes are of that frame. A copy made at packing would put absolute worlds under a view with no
   // translation — two frames in one formula, and not a single page kept.
   const worlds = worldsAtEye(
-    byBinding.get(DAG_BINDING.worlds)!.data,
+    viewTexture(boundWorlds),
     byBinding.get(DAG_BINDING.views)!.data,
     dag.worlds.length,
   )

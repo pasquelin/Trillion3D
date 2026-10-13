@@ -22,14 +22,18 @@ import {
   RAY_TRIANGLES,
   RAY_WORK,
   RUNTIME_NONE,
-  RUNTIME_ORIGIN_WORDS,
   RUNTIME_PROXY_WGSL,
   RUNTIME_WORLD_WORDS,
 } from './runtimeLayout.ts'
+import { worldTableWgsl } from '../gpu/dag/worldTable.ts'
 
-/** The binding of the proxy in a program that casts its rays: its own buffer (`runtimeLayout.ts`), which holds
- *  the placement tree it walks and every placement's world (`gpu/dag/frameRanges.ts`, one range). */
-export type SceneBindings = { group: number; proxy: number }
+/** The bindings of the proxy in a program that casts its rays, in one group: its own buffer
+ *  (`runtimeLayout.ts`), which holds the placement tree it walks, and the culling's worlds, the record
+ *  table every placement's world lies in (`gpu/dag/worldTable.ts`), read where they lie. */
+export type SceneBindings = { group: number; proxy: number; worlds: number }
+
+/** What names a fragment of a program over `scene`: its bindings. */
+export const sceneKey = ({ group, proxy, worlds }: SceneBindings) => `${group}, ${proxy}, ${worlds}`
 
 /** Tree levels a ray walks down at most: a tree of 64-way nodes holds 2⁴² members in seven. */
 const TREE_DEPTH = 8
@@ -49,11 +53,12 @@ const TREE_DEPTH = 8
  * visited and every triangle spends from the same counters; a ray that spends them, or whose shadow
  * ray spends its own (`rtLost`), is exhausted and carries zero weight (`runtimeLayout.ts`).
  */
-export const runtimeSceneWgsl = ({ group, proxy }: SceneBindings) =>
+export const runtimeSceneWgsl = (scene: SceneBindings) =>
   wgslBlock(
-    `runtimeSceneWgsl(${group}, ${proxy})`,
+    `runtimeSceneWgsl(${sceneKey(scene)})`,
     [
       RUNTIME_PROXY_WGSL,
+      worldTableWgsl('rtWorlds', { group: scene.group, binding: scene.worlds, access: 'read' }),
       WIDE_TRAVERSAL_WGSL,
       toF32,
       invTranspose3Prep,
@@ -81,10 +86,9 @@ ${wgslConsts({
   RT_INSTANCE_SURFACE: INSTANCE.surface,
   RT_INSTANCE_MARK: INSTANCE.mark,
   RT_WORLD_WORDS: RUNTIME_WORLD_WORDS,
-  RT_ORIGIN_WORDS: RUNTIME_ORIGIN_WORDS,
   RT_TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
 })}
-@group(${group}) @binding(${proxy}) var<storage,read> rtProxy:RuntimeProxy;
+@group(${scene.group}) @binding(${scene.proxy}) var<storage,read> rtProxy:RuntimeProxy;
 /** The ray's spending: box tests and node visits in \`rtWork\`, triangle tests in \`rtTests\`. */
 var<private> rtWork:u32;
 var<private> rtTests:u32;
@@ -120,12 +124,11 @@ ${wideTraversal({
   answer: 'best',
   overflow: 'rtWork=RT_WORK;',
 })}
-/** One coordinate of a placement's exact translation, three doubles in their words, as the single-precision
- *  value a host write of its world holds. */
-fn rtOrigin(at:u32,k:u32)->f32{return bitcast<f32>(toF32(vec2u(rtProxy.words[at+2u*k],rtProxy.words[at+2u*k+1u])));}
-/** Placement \`w\`'s world, column-major: a placement's is the culling's, mirrored in the proxy's buffer,
- *  its translation the exact one behind the matrices (the matrices' own are no cut's); a blended copy's,
- *  the proxy's own, past the placements. */
+/** A double's words, high then low, as the single-precision value a host write of a world holds. */
+fn rtOrigin(t:vec2u)->f32{return bitcast<f32>(toF32(t));}
+/** Placement \`w\`'s world, column-major: a placement's is the culling's, read in its record
+ *  (\`rtWorldsMatrix\`), its translation the exact one beside the matrix (\`rtWorldsOrigin\`; the matrix's
+ *  own is no cut's); a blended copy's, the proxy's own, past the placements. */
 fn rtWorldOf(w:u32)->mat4x4f{
  if(w>=rtProxy.instances){
   let at=rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS;
@@ -134,12 +137,13 @@ fn rtWorldOf(w:u32)->mat4x4f{
    rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u),0.0,
    rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u),1.0);
  }
- let at=rtProxy.worldsWord+w*RT_WORLD_WORDS;
- let o=rtProxy.originsWord+w*RT_ORIGIN_WORDS;
- return mat4x4f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u),0.0,
-  rtFloat(at+4u),rtFloat(at+5u),rtFloat(at+6u),0.0,
-  rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u),0.0,
-  rtOrigin(o,0u),rtOrigin(o,1u),rtOrigin(o,2u),1.0);
+ let c0=bitcast<vec4f>(rtWorldsMatrix(w,0u));
+ let c1=bitcast<vec4f>(rtWorldsMatrix(w,1u));
+ let c2=bitcast<vec4f>(rtWorldsMatrix(w,2u));
+ let o0=rtWorldsOrigin(w,0u);
+ let o1=rtWorldsOrigin(w,1u);
+ return mat4x4f(c0.x,c0.y,c0.z,0.0,c1.x,c1.y,c1.z,0.0,c2.x,c2.y,c2.z,0.0,
+  rtOrigin(o0.xy),rtOrigin(o0.zw),rtOrigin(o1.xy),1.0);
 }
 fn rtInstanceWord(w:u32,k:u32)->u32{return rtProxy.words[rtProxy.instancesWord+w*RT_INSTANCE_WORDS+k];}
 /** The ray against placement \`w\`: its world box, the root of its cut's tree through the world, first —

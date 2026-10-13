@@ -1,8 +1,9 @@
 // The engine's real cut (`createDagResources`, `encodeDagKernels`) on the device the engine opens
 // (`requestExplorerDevice`), once whole and once through that same device reporting a binding two
-// thirds of the primitives' `worlds` rows hold (`WORLD_ROW_BYTES`): `frames` then splits in two ranges
-// (`frameRanges.ts`) and every table past the binding in parts bound at once (`split.ts`). Only the capacity the cut reads
-// changes; the device underneath is the same.
+// thirds of the primitives' `frames` rows hold (`PRIMITIVE_BYTES`): `frames` then splits in two ranges
+// (`frameRanges.ts`), every table past the binding in parts bound at once (`split.ts`), and the worlds
+// stay one record table every range binds (`worldTable.ts`). Only the capacity the cut reads changes;
+// the device underneath is the same.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
@@ -11,12 +12,13 @@ import {
   writeDagUniforms,
   parseDagOutput,
 } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
-import { WORLD_ROW_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/cameraRanges.ts'
+import { PRIMITIVE_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/cameraRanges.ts'
 import { dagDeviceRefusal } from '../../../packages/sdk-browser/src/gpu/dag/deviceRefusal.ts'
 import { selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { residentAll } from '../../../packages/sdk-browser/src/gpu/dag/residentAll.fixture.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { reporting } from '../kit/reportingDevice.ts'
 import { sceneView } from './cutScene.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
@@ -35,22 +37,6 @@ const poses = Array.from({ length: PLACEMENTS }, (_, k) =>
   ),
 )
 
-/** `device` reporting `binding` bytes per buffer and per storage binding, every other limit and
- *  every call its own. */
-function reporting(device: GPUDevice, binding: number) {
-  const capped = new Set<PropertyKey>(['maxBufferSize', 'maxStorageBufferBindingSize'])
-  const limits = new Proxy(device.limits, {
-    get: (target, key) => (capped.has(key) ? binding : Reflect.get(target, key, target)),
-  })
-  return new Proxy(device, {
-    get: (target, key) => {
-      if (key === 'limits') return limits
-      const value = Reflect.get(target, key, target)
-      return typeof value === 'function' ? value.bind(target) : value
-    },
-  })
-}
-
 /** The cut at each threshold of `pixelErrors`, whole and split, and what the engine's device check
  *  says of the split device. */
 export async function cutWholeAndSplit(pixelErrors: number[]) {
@@ -58,7 +44,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
   if (!gpu) throw new Error('WebGPU must be available')
   const { device, errors } = gpu
   const { packed, uniforms } = sceneView(2, 2, poses)
-  const lying = reporting(device, ceilDiv(2 * packed.worldCount, 3) * WORLD_ROW_BYTES)
+  const lying = reporting(device, ceilDiv(2 * packed.worldCount, 3) * PRIMITIVE_BYTES)
   const refusal = dagDeviceRefusal(lying.limits, packed)
   const cut = async (target: GPUDevice) => {
     // The readout keeps the catalogue's cap on both devices: a list sized from the reported
@@ -96,6 +82,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
     }
     const parts = { nodes: resources.nodeParts.buffers.length, flags: resources.flagParts.length }
     for (const buffer of resources.buffers) buffer.destroy()
+    for (const { texture } of resources.textures) texture.destroy()
     return { ranges: resources.ranges.length, parts, cuts }
   }
   const whole = await cut(device)

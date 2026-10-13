@@ -1,5 +1,5 @@
-// Each cut reads a placement's translation at its own eye, from the exact one behind the range's
-// matrices (`shader/worldPoseWgsl.ts`): the kernel's text, run as is (`shaderRun`), gives the bits
+// Each cut reads a placement's translation at its own eye, from the exact one beside its matrix in
+// the worlds' table (`shader/worldPoseWgsl.ts`): the kernel's text, run as is (`shaderRun`), gives the bits
 // the rebase pass wrote before — the double difference, rounded once —, on random translations and
 // eyes and on the edges; no pass over every placement runs, whatever the views and their eyes; a
 // pose sent writes its own words alone; and a root its parent stops composing takes back the pose
@@ -25,6 +25,9 @@ import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, dispatchedEntries, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { viewTexture } from '../../../../../tests/kit/gpu/fakeWorldPose.ts'
+import { recordWordAt } from '../core/recordTexture.fixture.ts'
+import { WORLD_TABLE } from './worldTable.ts'
 
 /** The double functions the pose's subtraction reaches: those of the compose passes but the
  *  product's. */
@@ -123,25 +126,26 @@ test('a pose sent writes its world and its exact translation, nothing more', () 
     worlds,
     sources as never,
   )
-  const before = fake.writes.length
+  const before = fake.textureWrites.length
   sources[1].world.elements[12] += 2.5
   worlds[16 + 12] = sources[1].world.elements[12]
   table.writeWorldOrigins(Int32Array.of(1))
   table.writeNamedWorlds(worlds, Int32Array.of(1), 1)
   assert.deepEqual(
-    fake.writes.slice(before).map((write) => write.size),
-    [32, 64],
-    'its doubles and its matrix',
+    fake.textureWrites.slice(before).map((write) => write.size),
+    [
+      [2, 1, 1],
+      [4, 1, 1],
+    ],
+    'its doubles and its matrix, two texels and four',
   )
 })
 
 test('a root its parent stops composing takes back the pose the host holds', async () => {
   const { fixture, uniforms, selection } = await cutOnce()
   // Its parent composes it far out of the view on the GPU, words the host never wrote.
-  const [range] = selection.worldRanges
-  const bytes = (range.buffer as unknown as { data: Uint8Array }).data
-  const words = new Uint32Array(bytes.buffer, bytes.byteOffset, range.count * 24)
-  packDoubles(words, range.count * 16, [1000, 0, 0])
+  const worlds = viewTexture(selection.worlds)
+  packDoubles(worlds.words!, recordWordAt(WORLD_TABLE, worlds, 'Origin', 0), [1000, 0, 0])
   selection.composedPlacement(0, true)
   selection.worldsMovedOnGpu([])
   selection.dispatch(uniforms)

@@ -13,23 +13,36 @@ const pastShare = (bytes: number, share: number) =>
   new Error(`GPU_CUT_TABLES_PAST_SHARE: ${bytes} > ${share}`)
 
 /**
- * The one way a buffer of a cut's tables is made, beside the `held` bytes they hold: within the
- * `share`, the session's budget asked first (`admit`), and made tentatively on its ledger — a
- * refusal never refuses the session: the cut keeps the tables it holds (`listCap.ts`)
- * (`ledgerTentative`).
+ * The one way a resource of a cut's tables is made — `bytes` large, named `label` —, beside the
+ * `held` bytes they hold: within the `share`, the session's budget asked first (`admit`), and made
+ * tentatively on its ledger — a refusal never refuses the session: the cut keeps the tables it
+ * holds (`listCap.ts`) (`ledgerTentative`).
  */
-export function madeAsked(
+export function admitted<T>(
+  device: GPUDevice,
+  admit: CutAdmission,
+  held: number,
+  share: number,
+  { label, bytes }: { label?: string; bytes: number },
+  build: () => T,
+) {
+  if (held + bytes > share) throw pastShare(held + bytes, share)
+  if (!label?.startsWith(CUT_LABEL)) throw new Error(`GPU_CUT_BUFFER_UNNAMED`)
+  admit(bytes)
+  return ledgerTentative(device, build)
+}
+
+/** A buffer of a cut's tables (`admitted`). */
+export const madeAsked = (
   device: GPUDevice,
   admit: CutAdmission,
   held: number,
   share: number,
   descriptor: GPUBufferDescriptor,
-) {
-  if (held + descriptor.size > share) throw pastShare(held + descriptor.size, share)
-  if (!descriptor.label?.startsWith(CUT_LABEL)) throw new Error(`GPU_CUT_BUFFER_UNNAMED`)
-  admit(descriptor.size)
-  return ledgerTentative(device, () => device.createBuffer(descriptor))
-}
+) =>
+  admitted(device, admit, held, share, { label: descriptor.label, bytes: descriptor.size }, () =>
+    device.createBuffer(descriptor),
+  )
 
 /** Bytes a ledger's labels give the cuts' tables (`CUT_LABEL`). */
 export const cutLedgerBytes = (byLabel: Readonly<Record<string, number>>) =>
@@ -38,10 +51,13 @@ export const cutLedgerBytes = (byLabel: Readonly<Record<string, number>>) =>
     0,
   )
 
-/** Bytes the cut's buffers hold, its readback ring's with them (`mainReadbacks.ts`). */
+/** Bytes the cut's buffers and record textures hold, its readback ring's with them
+ *  (`mainReadbacks.ts`). */
 export const cutBytes = (resources: {
   buffers: readonly GPUBuffer[]
+  textures?: readonly { readonly bytes: number }[]
   readbacks?: { readonly bytes: number }
 }) =>
   resources.buffers.reduce((sum, buffer) => sum + buffer.size, 0) +
+  (resources.textures ?? []).reduce((sum, texture) => sum + texture.bytes, 0) +
   (resources.readbacks?.bytes ?? 0)

@@ -72,7 +72,7 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
         device,
         proxy.bounds,
         {
-          buffer: () => rt.run.gpuSelection?.proxyBuffer(),
+          proxy: () => rt.run.gpuSelection?.proxy(),
           boxes: () => rt.run.gpuSelection?.proxyBoxes() ?? NO_PROXY_BOXES,
         },
         () => lights.buffer!,

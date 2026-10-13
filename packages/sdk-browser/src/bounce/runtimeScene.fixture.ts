@@ -1,5 +1,5 @@
 // The scene the run-time proxy's tests run over: cubes turned and stretched, packed with the culling's
-// tree, and the proxy's buffer as the shader reads it.
+// tree, the proxy's buffer as the shader reads it, and the culling's worlds it reads beside it.
 import * as G from '../host/graph/graph.fixture.ts'
 import { scenePages, sceneRoots } from '../gpu/dag/cutFrontierScene.fixture.ts'
 import { packDagSelection } from '../gpu/dag/selection.ts'
@@ -16,11 +16,12 @@ import { cubeGeometry } from '../world/page/cube.fixture.ts'
 import {
   INSTANCE_WORDS,
   RUNTIME_NONE,
-  RUNTIME_ORIGIN_WORDS,
   RUNTIME_WORLD_WORDS,
   SURFACE_WORDS,
 } from './runtimeLayout.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
+import { recordTable } from '../gpu/core/recordTexture.fixture.ts'
+import { WORLD_TABLE } from '../gpu/dag/worldTable.ts'
 import type { ArenaColumns, Instance } from './runtimeOracle.fixture.ts'
 import type { OracleScene } from './runtimeSceneOracle.fixture.ts'
 
@@ -36,13 +37,14 @@ export function stream(seed: number) {
 }
 
 /** A unit cube's cut, as the builder holds it. */
-function cube() {
+export function cubeCut() {
   const { indices, positions } = cubeGeometry()
   return buildCutProxy(sdkWasm, indices, positions)
 }
 
-/** `count` cubes turned and stretched, packed with the culling's tree, and the run-time proxy's
- *  buffer over them as the shader reads it: instances, then the cut's columns. */
+/** `count` cubes turned and stretched, packed with the culling's tree, the run-time proxy's buffer
+ *  over them as the shader reads it — instances, then the cut's columns —, and the culling's worlds
+ *  (`worlds`, the record table the trace reads them in). */
 export function world(
   count: number,
   seed: number,
@@ -84,15 +86,13 @@ export function world(
       return m
     })
   const packed = packDagSelection(sceneRoots(scenePages(16, 2), worlds))
-  const cut = cube()
+  const cut = cubeCut()
   const triangles = cut.triangles.length / PROXY_TRIANGLE_FLOATS,
     nodes = cut.nodeBounds.length / PROXY_NODE_FLOATS
   const surfaces = options.surfaces ?? [[1, 1, 1, 1, 0, 0, 0, 0]]
   const copies = options.copies ?? []
   const instancesAt = 0,
-    worldsAt = (count + copies.length) * INSTANCE_WORDS,
-    originsAt = worldsAt + count * RUNTIME_WORLD_WORDS,
-    copyWorldsAt = originsAt + count * RUNTIME_ORIGIN_WORDS,
+    copyWorldsAt = (count + copies.length) * INSTANCE_WORDS,
     surfacesAt = copyWorldsAt + copies.length * RUNTIME_WORLD_WORDS,
     trianglesAt = surfacesAt + surfaces.length * SURFACE_WORDS,
     boundsAt = trianglesAt + triangles * PROXY_TRIANGLE_FLOATS,
@@ -105,13 +105,19 @@ export function world(
   const words = new Uint32Array(membersAt + (tree?.capacity ?? 0))
   for (let w = 0; w < count + copies.length; w++)
     words.set([0, 0, options.surfaceOf?.(w) ?? 0, 0], instancesAt + w * INSTANCE_WORDS)
-  // The placements' worlds, as the proxy's buffer mirrors the culling's.
-  new Float32Array(words.buffer, worldsAt * 4, count * 16).set(
-    packed.worlds.subarray(0, count * 16),
-  )
-  // Their exact translations, three doubles each.
-  for (let w = 0; w < count; w++)
-    packDoubles(words, originsAt + w * RUNTIME_ORIGIN_WORDS, worlds[w].elements, 12, 3)
+  // The placements' worlds as the culling holds them: each matrix, and its exact translation beside
+  // it, three doubles.
+  const table = recordTable(WORLD_TABLE, count),
+    origin = new Uint32Array(8)
+  for (let w = 0; w < count; w++) {
+    table.set(
+      'Matrix',
+      w,
+      new Uint32Array(packed.worlds.buffer, packed.worlds.byteOffset + w * 64, 16),
+    )
+    packDoubles(origin, 0, worlds[w].elements, 12, 3)
+    table.set('Origin', w, origin)
+  }
   copies.forEach((m, k) =>
     new Float32Array(words.buffer, (copyWorldsAt + k * 16) * 4, 16).set(m.elements),
   )
@@ -156,10 +162,8 @@ export function world(
     treeWord: treeAt,
     membersWord: membersAt,
     members: tree ? tree.count : count,
-    worldsWord: worldsAt,
     error: 0,
     copies: copies.length,
-    originsWord: originsAt,
     words,
   }
   const columns: ArenaColumns = {
@@ -178,6 +182,7 @@ export function world(
   return {
     packed,
     header,
+    worlds: table,
     scene: { packed, columns, instances, copyBase: count, copyWorlds } satisfies OracleScene,
   }
 }

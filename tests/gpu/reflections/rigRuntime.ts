@@ -1,6 +1,7 @@
 // What the reflection rig binds as the proxy (`runtime-proxy.gpu.ts` proves the engine's own): the scene's
 // proxy of a few faces, each one placement of a two-triangle mesh at the identity, wearing a surface that
-// emits the face's radiance — or an empty header in each of its two places, no placement, no ray.
+// emits the face's radiance, and the worlds' table they are placed by — or an empty header, no placement,
+// no ray.
 import {
   INSTANCE_WORDS,
   RUNTIME_HEADER,
@@ -8,6 +9,8 @@ import {
   RUNTIME_NONE,
   SURFACE_WORDS,
 } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
+import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
+import { WORLD_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.ts'
 
 /** A face of the rig's scene: the triangles it holds — two, nine floats each — and the radiance it gives. */
 export type RigFace = { triangles: Float32Array; radiance: readonly [number, number, number] }
@@ -24,9 +27,7 @@ function proxyWords(faces: readonly RigFace[]) {
     trianglesAt = surfacesAt + n * SURFACE_WORDS,
     boundsAt = trianglesAt + 2 * n * TRIANGLE_FLOATS,
     childrenAt = boundsAt + n * NODE_FLOATS,
-    worldsAt = childrenAt + n * NODE_WORDS,
-    originsAt = worldsAt + n * 16,
-    total = originsAt + n * 8
+    total = childrenAt + n * NODE_WORDS
   const words = new Uint32Array(RUNTIME_HEADER_WORDS + total + 1)
   const floats = new Float32Array(words.buffer)
   const at = RUNTIME_HEADER
@@ -39,9 +40,6 @@ function proxyWords(faces: readonly RigFace[]) {
   words[at.childrenWord] = childrenAt
   words[at.treeRoot] = RUNTIME_NONE
   words[at.members] = n
-  words[at.worldsWord] = worldsAt
-  // The faces' exact translations, three doubles each: zeros, the identity's.
-  words[at.originsWord] = originsAt
   const base = RUNTIME_HEADER_WORDS
   faces.forEach(({ triangles, radiance }, k) => {
     // Instance: the node and triangle it starts at, the surface it wears, no mark.
@@ -63,12 +61,11 @@ function proxyWords(faces: readonly RigFace[]) {
     words[child + 1] = (1 << 24) | (2 << 16) | (255 << 8) | 255
     words[child + 2] = 0
   })
-  // The faces stand at the identity.
-  for (let k = 0; k < n; k++)
-    for (const diagonal of [0, 5, 10, 15]) floats[base + worldsAt + k * 16 + diagonal] = 1
   return words
 }
 
+/** The proxy's buffer over `faces`, and the worlds' table they stand in: the identity, its exact
+ *  translation zeros. */
 export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
   const words = faces.length ? proxyWords(faces) : new Uint32Array(RUNTIME_HEADER_WORDS + 1)
   const proxy = device.createBuffer({
@@ -76,5 +73,16 @@ export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(proxy, 0, words)
-  return { proxy }
+  const n = Math.max(1, faces.length),
+    worlds = createRecordTexture(
+      device,
+      WORLD_TABLE,
+      n,
+      GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    )
+  const identity = new Float32Array(n * 16)
+  for (let k = 0; k < n; k++) for (const diagonal of [0, 5, 10, 15]) identity[k * 16 + diagonal] = 1
+  worlds.write('Matrix', 0, n, identity.buffer, 0)
+  worlds.write('Origin', 0, n, new Uint32Array(n * 8).buffer, 0)
+  return { proxy, proxyWorlds: worlds.view }
 }

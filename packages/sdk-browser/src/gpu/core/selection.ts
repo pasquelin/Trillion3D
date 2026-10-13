@@ -19,6 +19,9 @@ import type { ProxyBoxes } from '../../bounce/probeSync.ts'
  *  object the main view holds for the selection's life, or each view aside its own, never another
  *  view's — (`../dag/runtime.ts`, `syncTables`). */
 export type TableSync = (uniforms: SelectionUniforms, view: object) => void
+/** What a program reads the proxy through (`../dag/proxyInstances.ts`): its buffer, and the cut's
+ *  worlds it places its meshes by, read where they lie (`../dag/worldTable.ts`). */
+export type ProxyResources = { readonly buffer: GPUBuffer; readonly worlds: GPUTextureView }
 
 export const SELECTION_WORKGROUP = 64
 
@@ -112,15 +115,17 @@ export type GpuSelection = {
   /** Bytes of its GPU tables, within the cut's share (`../../residency/cutTableBytes.ts`). */
   readonly gpuBytes?: number
   readonly worldRevision: number
-  /** The buffers of the cut's worlds, one per range of primitives (`../dag/frameRanges.ts`): what
-   *  a GPU composition of the poses writes (`../../placement/gpuCompose.ts`). */
+  /** The ranges of primitives the cut's frame words are split in (`../dag/frameRanges.ts`): what
+   *  a GPU composition of the poses writes the stretch into (`../../placement/gpuCompose.ts`). */
   readonly worldRanges: readonly {
     first: number
     count: number
-    buffer: GPUBuffer
     /** The range's frame words, whose first word of a root's row is its stretch. */
     frames: GPUBuffer
   }[]
+  /** The cut's worlds, one record table whatever the ranges (`../dag/worldTable.ts`): what the
+   *  composition writes and the proxy's rays read (`../../bounce/runtimeSceneWgsl.ts`). */
+  readonly worlds: GPUTextureView
   /** The poses the host holds: every placement's, as a walk wrote them — any may have moved —,
    *  or, `named` given, those it lists, increasing, the placements a call moved: those alone are
    *  compared and sent. The placements whose pose moved — the words a cut reads, or the exact
@@ -147,7 +152,7 @@ export type GpuSelection = {
   /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
    *  them — the levels, the frustum and the raster split follow the composed poses. `rows` are the
-   *  placements whose worlds it wrote: the proxy mirrors those rows and no other. */
+   *  placements whose worlds it wrote: the proxy makes their boxes again and no other. */
   worldsMovedOnGpu(rows: Iterable<number>): void
   /** True while its list or its regions grow between two frames (`../dag/listCap.ts`): no root
    *  is appended meanwhile, and the appending caller asks again at its next frame. */
@@ -166,9 +171,9 @@ export type GpuSelection = {
   /** The row cache now holds `rows` rows: the open counts placements hold follow it
    *  (`../dag/queueGrowth.ts`), grown before the next cut. */
   followRows?(rows: number): void
-  /** The buffer a program reads the proxy through (`../dag/proxyInstances.ts`): none until a placement
-   *  wears one, or none past one storage binding of the device (`proxyRefusal`). */
-  proxyBuffer(): GPUBuffer | undefined
+  /** What a program reads the proxy through (`ProxyResources`): none until a placement wears one, or
+   *  none past one storage binding of the device (`proxyRefusal`). */
+  proxy(): ProxyResources | undefined
   /** Why no buffer holds the proxy a placement wears, by name: its bytes past one storage binding. */
   readonly proxyRefusal: string | undefined
   /** Bytes the CPU keeps for the proxy (`../dag/proxyInstances.ts`): the streamer's reservation counts them. */

@@ -1,24 +1,19 @@
-// The run-time proxy is one storage binding or none: a world the culling splits in ranges holds a proxy past
-// that binding, refused by name and never made; a world of one range holds every placement's row. Its tree's
-// member order goes up once, and again when roots join it. Over the device double.
+// The run-time proxy is one storage binding or none, and holds no placement's world: the trace reads them in
+// the culling's record table (`worldTable.ts`), so a world the culling splits in ranges keeps its proxy. Its
+// tree's member order goes up once, and again when roots join it. Over the device double.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { packDagSelection } from './selection.ts'
-import { cameraFrameRanges, WORLD_ROW_BYTES } from './cameraRanges.ts'
+import { cameraFrameRanges, PRIMITIVE_BYTES } from './cameraRanges.ts'
 import { createProxyInstances } from './proxyInstances.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { LIMITS, cut, region, surface, writes } from './proxyInstances.fixture.ts'
-import {
-  INSTANCE_WORDS,
-  RUNTIME_HEADER_WORDS,
-  RUNTIME_ORIGIN_WORDS,
-  RUNTIME_WORLD_WORDS,
-} from '../../bounce/runtimeLayout.ts'
+import { INSTANCE_WORDS, RUNTIME_HEADER_WORDS } from '../../bounce/runtimeLayout.ts'
 
-/** The proxy of `side`² placements, each wearing one cut, over a device of `limits`, its world table
- *  laid in the ranges the culling lays it in there. */
+/** The proxy of `side`² placements, each wearing one cut, over a device of `limits`, and the ranges the
+ *  culling lays its frames in there. */
 function proxyOver(limits: typeof LIMITS, side = 4) {
   installGpuGlobals()
   const roots = placementField(side, 3),
@@ -36,65 +31,41 @@ function proxyOver(limits: typeof LIMITS, side = 4) {
     bytes,
   })
   const ranges = cameraFrameRanges(limits, Math.max(1, packed.worldCount))
-  const frames = {
-    ranges,
-    worldBuffers: ranges.map(({ count }) =>
-      gpu.device.createBuffer({
-        size: count * WORLD_ROW_BYTES,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-      }),
-    ),
-  }
   const proxies = createProxyInstances({
     device: gpu.device,
     packed,
     nodeParts: table(packed.nodes.byteLength),
     coldParts: table(packed.pageCones.byteLength),
-    frames,
   })
   return { gpu, packed, ranges, proxies }
 }
 
-test('a proxy holds more bytes a placement than the culling’s world row: past one range, past one binding', () => {
-  const proxyRow = (INSTANCE_WORDS + RUNTIME_WORLD_WORDS + RUNTIME_ORIGIN_WORDS) * 4
-  assert.ok(proxyRow > WORLD_ROW_BYTES, `${proxyRow} bytes against ${WORLD_ROW_BYTES}`)
-})
-
-test('a world split in two ranges: the proxy past one binding is refused by name, and none is made', () => {
-  // Eight placements a range: the sixteen of the field lie in two.
-  const binding = 8 * WORLD_ROW_BYTES
+test('a world the culling splits in ranges holds its proxy: the worlds are read in their table, never in it', () => {
+  // Eight placements a range of the frames: the sixteen of the field lie in two.
+  const binding = 8 * PRIMITIVE_BYTES
   const { gpu, ranges, proxies } = proxyOver({
     ...LIMITS,
     maxBufferSize: 1 << 20,
     maxStorageBufferBindingSize: binding,
   })
-  assert.equal(ranges.length, 2, 'the culling splits its worlds')
-  assert.equal(proxies.buffer(), undefined, 'no buffer past the binding a ray reads it through')
-  assert.match(proxies.refusal ?? '', new RegExp(`past one storage binding of ${binding}`))
-  assert.equal(writes(gpu).length, 0, 'nothing is sent')
-  // A placement written in the second range sends nothing either: the trace reads its stand-ins.
-  proxies.worldWritten(12)
-  proxies.mirror({} as GPUCommandEncoder, 1)
-  assert.equal(writes(gpu).length, 0)
-  proxies.dispose()
-})
-
-test('a world of one range: every placement’s row, the last included, is in the buffer the trace reads', () => {
-  const { gpu, ranges, proxies } = proxyOver(LIMITS)
-  assert.equal(ranges.length, 1)
+  assert.equal(ranges.length, 2, 'the culling splits its frames')
   assert.ok(proxies.buffer(), 'the proxy is made')
   assert.equal(proxies.refusal, undefined)
-  assert.equal(region(gpu, 'instances'), ranges[0].count, 'its instances are the range’s rows')
-  // The mirror copies every row, the sixteenth among them, from the one range.
-  const worldsAt = (RUNTIME_HEADER_WORDS + region(gpu, 'worldsWord')) * 4
-  const copied: number[] = []
+  assert.ok(writes(gpu).length > 0, 'its instances are sent')
+  // A placement written in the second range copies nothing into it: no world lies there.
+  proxies.worldWritten(12)
+  const copies: number[] = []
   const encoder = {
-    copyBufferToBuffer: (_a: unknown, _b: number, _c: unknown, at: number, size: number) => {
-      if (at === worldsAt) copied.push(size)
-    },
+    copyBufferToBuffer: (_a: unknown, _b: number, _c: unknown, _at: number, size: number) =>
+      void copies.push(size),
   } as unknown as GPUCommandEncoder
   proxies.mirror(encoder, 1)
-  assert.deepEqual(copied, [ranges[0].count * RUNTIME_WORLD_WORDS * 4])
+  assert.deepEqual(copies, [], 'sixteen placements pack no tree, and no world is copied')
+  assert.equal(
+    region(gpu, 'copyWorldsWord'),
+    16 * INSTANCE_WORDS,
+    'behind the instances, the copies’ worlds: no placement’s world, no exact translation',
+  )
   proxies.dispose()
 })
 

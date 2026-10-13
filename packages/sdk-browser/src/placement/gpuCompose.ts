@@ -44,6 +44,7 @@ import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import {
   composeMembersWgsl,
   COMPOSE_ROOTS_WGSL,
+  COMPOSE_WORLDS_BINDING,
   COMPOSE_ROWS_WGSL,
   MATRIX_DOUBLES,
   NONE,
@@ -65,7 +66,6 @@ import { placedBy, type PlacementRows } from './rows.ts'
 import { MOVE_PROMOTED, rootRankOfRow } from './update.ts'
 import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts'
 import { BOX_VALUES, matrixWindingCw } from '../../../sdk-core/src/index.ts'
-import { WORLD_ORIGIN_BYTES } from '../gpu/dag/worldOrigins.ts'
 import { PRIMITIVE_BYTES } from '../gpu/dag/cameraRanges.ts'
 import { linkedRowSpheres } from '../webgpu/shadow/spheres.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
@@ -77,7 +77,7 @@ import {
   remakeSlotBox,
 } from './composeBoxes.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import { liveBuffer } from '../webgpu/core/liveEntries.ts'
+import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { createMirroredKeys, mirrorKey } from '../webgpu/cut/denseKeys.ts'
 import { COMPOSE_MEMBERS_PASS, COMPOSE_ROOTS_PASS, COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
@@ -130,24 +130,24 @@ const linkEntries = (
 ]
 
 /** The roots pass's entries over range `r` (`COMPOSE_ROOTS_WGSL`), read live: its parameters'
- *  slot, the links, the parents, its worlds, the motion and its mode, the previous worlds, its
- *  frames, the roots' boxes and their list. */
-const rootEntries = (device: GPUDevice, gpu: ComposeGpu, r: number) =>
-  sequentialEntries([
-    ...linkEntries(device, gpu, () => gpu.rootParams.buffer, r),
-    liveBuffer(
-      () => rangeOf(gpu, r).buffer,
-      undefined,
-      rangeBytes(gpu, r, 64 + WORLD_ORIGIN_BYTES),
-    ),
-    liveBuffer(() => gpu.frame.motion ?? gpu.noMotion),
-    liveBuffer(() => gpu.motionMode),
-    liveBuffer(() => gpu.previous),
-    liveBuffer(() => rangeOf(gpu, r).frames, undefined, rangeBytes(gpu, r, PRIMITIVE_BYTES)),
-    liveBuffer(() => gpu.rootInputs),
-    liveBuffer(() => gpu.rootBoxes),
-    liveBuffer(() => gpu.rankList),
-  ])
+ *  slot, the links, the parents, the cut's worlds, the motion and its mode, the previous worlds,
+ *  its frames, the roots' boxes and their list. */
+const rootEntries = (device: GPUDevice, gpu: ComposeGpu, r: number) => [
+  ...sequentialEntries(linkEntries(device, gpu, () => gpu.rootParams.buffer, r)),
+  resourceEntry(COMPOSE_WORLDS_BINDING, () => gpu.frame.worlds),
+  ...sequentialEntries(
+    [
+      liveBuffer(() => gpu.frame.motion ?? gpu.noMotion),
+      liveBuffer(() => gpu.motionMode),
+      liveBuffer(() => gpu.previous),
+      liveBuffer(() => rangeOf(gpu, r).frames, undefined, rangeBytes(gpu, r, PRIMITIVE_BYTES)),
+      liveBuffer(() => gpu.rootInputs),
+      liveBuffer(() => gpu.rootBoxes),
+      liveBuffer(() => gpu.rankList),
+    ],
+    COMPOSE_WORLDS_BINDING + 1,
+  ),
+]
 
 /** The members pass's entries over range `r`, read live: its parameters' slot, the links, the
  *  parents, its frames, the tree's members and the composed roots' list. */
@@ -724,6 +724,8 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
      *  and the parts they write — a stand-in each where the part is not made. */
     frame: {
       ranges: NO_RANGES,
+      /** The cut's worlds, the one table every range's roots are written into. */
+      worlds: undefined as GPUTextureView | undefined,
       motion: undefined as GPUBuffer | undefined,
       members: undefined as GPUBuffer | undefined,
       table: undefined as GPUBuffer | undefined,
@@ -1002,6 +1004,7 @@ export function encodeComposedRoots(
     pipeline = composeKernels(device).roots.get()
   writeRangeParams(device, gpu.rootParams, ranges, state.roots, listed)
   gpu.frame.ranges = ranges
+  gpu.frame.worlds = selection.worlds
   gpu.frame.motion = motionBuffer
   let bound = false
   for (let r = 0; r < ranges.length; r++) {
@@ -1009,8 +1012,10 @@ export function encodeComposedRoots(
     held.identity.entries[0] ??= rootEntries(device, gpu, r)
     if (composeGroup(device, held, pipeline)) bound = true
   }
-  // The groups are made: the cut's ranges are not held past them, so a cut swapped out goes.
+  // The groups are made: the cut's ranges and worlds are not held past them, so a cut swapped out
+  // goes.
   gpu.frame.ranges = NO_RANGES
+  gpu.frame.worlds = undefined
   // Every word this pass writes is the one it wrote last, unless something it reads moved, a host
   // write put its own words there (`frameWrites`), or the motion is not settled: a still view of a
   // composed scene costs no pass.
