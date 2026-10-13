@@ -6,12 +6,17 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import '../impostor/lent.fixture.ts'
 import { createImpostorCards, impostorWorldsMoved, planImpostorCards } from '../impostor/cards.ts'
-import { engineAt, impostorScene, impostorSection, VIEWPORT } from '../impostor/section.fixture.ts'
+import {
+  engineAt,
+  impostorScene,
+  impostorSection,
+  RESIDENT,
+  VIEWPORT,
+} from '../impostor/section.fixture.ts'
 import { composeWebgpuPlacements } from './gpuCompose.ts'
 import { composeRuntime } from './composeRuntime.fixture.ts'
 import { createPlacementRows } from './rows.ts'
 
-const GROUP = { atlas: 1 }
 const translate = (x: number, y: number, z: number) => [
   1,
   0,
@@ -33,7 +38,7 @@ const translate = (x: number, y: number, z: number) => [
 
 test('a composed root keeps its card, written again on its parent’s move from the world it reads', () => {
   const { fixture, roots } = impostorScene(),
-    cards = createImpostorCards<typeof GROUP>(impostorSection, { atlasOf: () => GROUP })
+    cards = createImpostorCards(impostorSection, RESIDENT)
   const rows = createPlacementRows(1)
   const root = roots[0] as unknown as { placement: unknown; world: { elements: Float64Array } }
   root.placement = { rows, index: 0 }

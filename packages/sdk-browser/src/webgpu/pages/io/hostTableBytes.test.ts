@@ -10,7 +10,7 @@ import {
   cardField,
   engineAt,
   impostorSection,
-  MESH,
+  RESIDENT,
   VIEWPORT,
 } from '../../../impostor/section.fixture.ts'
 import { hostTableBytesOf } from './memory.ts'
@@ -25,7 +25,7 @@ const PER_ROOT = 1 + 4 + 8 + 4 + 4 + 8 + 8 + 24 + 8 + (11 + 4) * 8 + 2 * 8 + 8
 /** The host bytes beside the streamer of a session holding a planned field of `count` roots, and
  *  the bytes of its card records. */
 function bytesAt(count: number) {
-  const cards = createImpostorCards(impostorSection, { atlasOf: () => ({ atlas: MESH }) })
+  const cards = createImpostorCards(impostorSection, RESIDENT)
   planImpostorCards(cards, cardField(count), engineAt(200), VIEWPORT)
   const rt = {
     services: { hostTableBytes: () => 0 },

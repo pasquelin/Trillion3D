@@ -8,6 +8,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import type { Vec } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { cardPassWgsl } from './cardWgsl.ts'
+import { cardTileWgsl } from '../tile/cardReads.ts'
 import { impostorCardCorners } from '../../impostor/card.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { fieldCamera } from '../../gpu/dag/placementTree.fixture.ts'
@@ -15,7 +16,7 @@ import { fieldCamera } from '../../gpu/dag/placementTree.fixture.ts'
 const run = shaderRun<{
   cardCorner(basis: Mat, centre: Vec, radius: number, k: number): number[]
   cardOutside(c0: Vec, c1: Vec, c2: Vec, c3: Vec): boolean
-}>(cardPassWgsl(), ['spriteAt', 'cardCorner', 'cardOutside'], {
+}>(cardPassWgsl(cardTileWgsl()), ['spriteAt', 'cardCorner', 'cardOutside'], {
   mat4x4f: (...columns: number[][]) => new Mat(columns.flat()),
 })
 

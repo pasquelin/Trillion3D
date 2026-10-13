@@ -1,5 +1,5 @@
 import { pageAddress } from '../../webgpu/row/pageSlots.ts'
-import { REQUEST_PRIORITY_MAX } from './request.ts'
+import { POOL_TIERS } from '../pool/rank.ts'
 import type { DagRoot } from './types.ts'
 
 /**
@@ -15,27 +15,12 @@ import type { DagRoot } from './types.ts'
  * Oldest use first, then finer level first among equal ages — a child leaves before its parent
  * (#477) —; a key some view used this frame or the one before is never listed.
  */
-/** Levels and age steps the rank tells apart, the request's priority field split in two halves. */
-export const EVICT_LEVELS = 32,
-  EVICT_AGES = (REQUEST_PRIORITY_MAX + 1) / EVICT_LEVELS
-/**
- * Frames a use protects its key for: the frame that used it and the one after, so a key any view
- * — a light's, a view drawn beside the main one — used in the frame before is still in use, whatever
- * order the views cut in. Never listed below this age. A page the view AHEAD of the camera asks for
- * (`shader/aheadWgsl.ts`) counts as used this many frames ago: listed after every page older than
- * that, before any page in use — the camera's pages evict it, it never evicts one of theirs.
- */
-export const EVICT_IN_USE = 2
-/** The first age step of the OLD keys — a step a doubling of the age, its bit length —: older than
- *  any page the view ahead asks for. The queue's head of old keys is what a page of the view ahead
- *  may take the place of (`evictOld`). */
-export const OLD_STEP = 32 - Math.clz32(EVICT_IN_USE) + 1
 /** A key word: the canonical page on twenty-seven bits — 134,217,728 packed instances —, the level
- *  in the five above, as many as `EVICT_LEVELS` tells apart. */
+ *  in the five above, as many tiers as a pool rank tells apart (`POOL_TIERS`). */
 export const KEY_PAGE_BITS = 27
 export const KEY_PAGE_MAX = 2 ** KEY_PAGE_BITS
 const keyWord = (page: number, level: number) =>
-  ((Math.min(EVICT_LEVELS - 1, level) << KEY_PAGE_BITS) | page) >>> 0
+  ((Math.min(POOL_TIERS - 1, level) << KEY_PAGE_BITS) | page) >>> 0
 const keyLevel = (word: number) => word >>> KEY_PAGE_BITS
 /**
  * The CONTENT KEYS OF A PACKING, one per page address (`pageAddress`) in packing order, and their

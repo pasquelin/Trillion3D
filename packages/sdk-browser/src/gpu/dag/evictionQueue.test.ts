@@ -1,5 +1,5 @@
 // The EVICTION QUEUE a resident GPU cut publishes: run on the Node device, which replays the
-// stamps, their raise up the groups and `dagListEvictions` through their CPU mirrors
+// stamps, their raise up the groups and the pool sort (`../pool/sortWgsl.ts`) through their CPU mirrors
 // (`tests/kit/gpu/fakeEvict.ts`); the mirrors themselves checked against the cut rule's own
 // closure (`../../page/cut/groupClosure.ts`) on generated frames.
 import test from 'node:test'
@@ -8,9 +8,11 @@ import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { requestScene } from './requestScene.fixture.ts'
-import { EVICT_IN_USE, KEY_PAGE_BITS, OLD_STEP, canonicalPage } from './evict.ts'
+import { KEY_PAGE_BITS, canonicalPage } from './evict.ts'
+import { EVICT_IN_USE, OLD_STEP } from '../pool/rank.ts'
+import { ageStep } from '../pool/rank.fixture.ts'
 import * as L from './layout.ts'
-import { aheadClock, ageStep, listEvictions, pageKeys, raiseGroups } from './evict.fixture.ts'
+import { aheadClock, listEvictions, pageKeys, raiseGroups } from './evict.fixture.ts'
 import { pageResidency } from './readiness.fixture.ts'
 import { ruleDag } from '../../page/cut/cutRule.fixture.ts'
 import { placements, stripCamera } from '../../page/cut/cutRuleBackends.fixture.ts'

@@ -1,9 +1,10 @@
 /**
- * THE ONE READ OF A HELD LEVEL, tiles' and impostor atlases' alike: the cooked levels and block
- * tile records a session cuts its tiles from, read through its level reader and held among the
- * page cache's entries under the reader's cook (`TextureLevelReader.store`,
- * `streaming/pageCache.ts`), within its one budget, the least recently read leaving first. That is
- * the chain's only host memory, and it does not depend on the scene.
+ * THE ONE READ OF A HELD LEVEL: the cooked levels, level files and block tile records a session
+ * cuts its tiles from — an impostor map's among them (`webgpu/tile/cardMaps.ts`) —, read through
+ * its level reader and held among the page cache's entries under the reader's cook
+ * (`TextureLevelReader.store`, `streaming/pageCache.ts`), within its one budget, the least
+ * recently read leaving first. That is the chain's only host memory, and it does not depend on
+ * the scene.
  *
  * A lossless level is read whole, decoded by the browser: a PNG is not cut by bytes. A block tile
  * is read alone, its record by one HTTP Range (`levelReader.ts`, `tileRecords.ts`), its length
@@ -16,11 +17,6 @@
  * (`streaming/failures.ts`), which says when it is asked again, if ever; a record answered short or
  * foreign is refused for good. Its tile stays served by its coarse level meanwhile. The failures
  * live with the reader, one per level or record asked at most.
- *
- * An asker that asks the same levels every frame and needs them all at once — an impostor atlas
- * (`impostor/atlas.ts`) — builds their asks once (`ask`), holds them in the cache while it gathers
- * them (`hold`), so a level landing never evicts another of its set, and lets them go once it is
- * done (`letGo`).
  */
 import {
   bitmapBytes,
@@ -45,13 +41,6 @@ export class LevelBytesError extends Error {
 type Size = readonly [width: number, height: number]
 /** Hears a read its asker launched that failed. */
 export type LevelFailed = (address: TextureLevelAddress, error: unknown) => void
-/** A whole level as an asker keeps it from one frame to the next (`HeldLevels.ask`): its address,
- *  its size, and what it is held under, built once. */
-export type LevelAsk = {
-  readonly address: TextureLevelAddress
-  readonly size: Size
-  readonly id: string
-}
 
 /** Cooked-level reads in flight at most: beyond that, a level waits for the next image. */
 const MAX_LEVEL_READS = 6
@@ -157,31 +146,6 @@ function createHeldLevels(read: TextureLevelReader) {
       const id = levelId(key, address, address.format === PREVIEW_LOSSLESS_FORMAT, tx, ty)
       return readId(id, address, size, failed, tx, ty, roomFor)
     },
-    /** The ask of the level `address` names, `size` texels wide and high, as `read` asks it at
-     *  tile 0, 0 — a lossless level whole —, built once. */
-    ask: (address: TextureLevelAddress, size: Size): LevelAsk => ({
-      address,
-      size,
-      id: levelId(key, address, address.format === PREVIEW_LOSSLESS_FORMAT, 0, 0),
-    }),
-    /** `read` of a level asked before (`ask`), no string built. */
-    readAsked: ({ id, address, size }: LevelAsk, failed: LevelFailed) =>
-      readId(id, address, size, failed, 0, 0, always),
-    /** Whether the read of `ask` failed for good: no request will be sent for it again. */
-    failedForGood: ({ id }: LevelAsk) => failures.blocked(id)?.state === 'refused',
-    /** Holds `asks` in the cache, landed or not, until `letGo`: no eviction takes them. */
-    hold(asks: readonly LevelAsk[]) {
-      for (const { id } of asks) store.acquire(id)
-    },
-    /** Lets `asks` held go (`hold`): they leave by last use from now on. */
-    letGo(asks: readonly LevelAsk[]) {
-      for (const { id } of asks) store.release(id)
-      store.fit()
-    },
-    /** Bytes a level landing may take in the cache (`PageCache.roomBytes`). */
-    get room() {
-      return store.roomBytes
-    },
     /** Tells `landed` each level that lands from now on; returns what stops it. */
     watch: watchers.subscribe,
     get inFlight() {
@@ -203,8 +167,8 @@ export type HeldLevels = ReturnType<typeof createHeldLevels>
 
 const made = new WeakMap<TextureLevelReader, HeldLevels>()
 
-/** The one held-level read of `read`, tiles' and impostor atlases' alike: made on first use, gone
- *  with its reader. */
+/** The one held-level read of `read`, every tile's, an impostor map's included: made on first
+ *  use, gone with its reader. */
 export function heldLevelsOf(read: TextureLevelReader) {
   let levels = made.get(read)
   if (!levels) made.set(read, (levels = createHeldLevels(read)))

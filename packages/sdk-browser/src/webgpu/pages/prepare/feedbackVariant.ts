@@ -7,6 +7,7 @@ import { blendWritesShare } from './asIsShareTarget.ts'
 import { blendContext } from './contractLight.ts'
 import { makeFeedbackTarget } from './targets.ts'
 import { keepsEveryOutput } from './emissiveAoLayer.ts'
+import { cardsStream } from '../../tile/cardMaps.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** The pipelines of one feedback variant: those a frame binds, swapped as one. */
@@ -19,13 +20,13 @@ export type FeedbackAside = { feedback: boolean; emissiveAo: boolean; set?: Feed
 
 /**
  * Whether the scene's pipelines should write the texture feedback: a pixel asks a tile only of a
- * texture it wears, so a scene that wears none has nothing to ask, no target to clear and no
- * reduction to run. While the feedback A/B runs, its arm decides; its session, and a diagnostic
+ * texture it wears — an impostor card's maps among them (`cardsStream`) —, so a scene that wears
+ * none has nothing to ask, no target to clear and no reduction to run. While the feedback A/B runs, its arm decides; its session, and a diagnostic
  * variant — whose stages have no twin without the output —, keep the feedback.
  */
 export function wantsFeedback(rt: WebgpuPagesRuntime) {
   if (rt.feedbackAB) return rt.feedbackAB.target
-  return keepsEveryOutput(rt) || rt.vis.mapLayer.size + rt.vis.dataLayer.size > 0
+  return keepsEveryOutput(rt) || rt.vis.mapLayer.size + rt.vis.dataLayer.size > 0 || cardsStream(rt)
 }
 
 /** Brings the drawn view's feedback target to the pipelines in place (`vis.writesFeedback`): made

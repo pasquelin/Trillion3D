@@ -15,7 +15,7 @@ import { srgbToLinear } from '../../../packages/math/src/color/color.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 
-import { DEPTH_SKEW, SIDE, atlasGroup, cardRecords, half, viewUniform } from './cardIdRig.ts'
+import { DEPTH_SKEW, SIDE, cardRecords, cardTiles, half, viewUniform } from './cardIdRig.ts'
 
 /** What one pair of stages drew. */
 type Drawn = {
@@ -37,7 +37,12 @@ async function drawCards(
   const pipes = cardPipelines(device)
   const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear' })
   const records = cardRecords(device, cards)
-  const atlases = cards.map(({ colour }) => atlasGroup(device, pipes.atlasLayout, sampler, colour))
+  const tiles = cardTiles(
+    device,
+    pipes.tilesLayout,
+    sampler,
+    cards.map(({ colour }) => colour),
+  )
   const imageGroup = (view: GPUBuffer) =>
     device.createBindGroup({
       layout: pipes.imageLayout,
@@ -73,10 +78,8 @@ async function drawCards(
   })
   visual.setPipeline(pipes.visPipeline(true))
   visual.setBindGroup(0, visImage)
-  cards.forEach((_, slot) => {
-    visual.setBindGroup(1, atlases[slot])
-    visual.draw(4, 1, 0, slot)
-  })
+  visual.setBindGroup(1, tiles.group)
+  cards.forEach((_, slot) => visual.draw(4, 1, 0, slot))
   visual.end()
   const draw = encoder.beginRenderPass({
     colorAttachments: surfaces.map((texture) => ({
@@ -86,8 +89,9 @@ async function drawCards(
       clearValue: [0, 0, 0, 0],
     })),
   })
-  draw.setPipeline(pipes.pipeline)
+  draw.setPipeline(pipes.surfacePipeline(false))
   draw.setBindGroup(0, surfaceImage)
+  draw.setBindGroup(1, tiles.group)
   draw.setBindGroup(
     2,
     device.createBindGroup({
@@ -95,10 +99,7 @@ async function drawCards(
       entries: [{ binding: 0, resource: ids.createView() }],
     }),
   )
-  cards.forEach((_, slot) => {
-    draw.setBindGroup(1, atlases[slot])
-    draw.draw(4, 1, 0, slot)
-  })
+  cards.forEach((_, slot) => draw.draw(4, 1, 0, slot))
   draw.end()
   device.queue.submit([encoder.finish()])
   const failure = await device.popErrorScope()

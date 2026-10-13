@@ -1,12 +1,12 @@
 import type { ResidentPage } from './types.ts'
 
-/** An eviction order a GPU cut publishes (`../dag/evict.ts`), its keys read one at a time as
- *  victims are taken. */
-export type EvictionOrder = {
+/** An eviction order a GPU pool publishes (`../pool/sortWgsl.ts`), its keys read one at a time as
+ *  victims are taken: a page address for geometry pages, a place for tiles, a row for rows. */
+export type EvictionOrder<K = string> = {
   /** How many keys the order lists. */
   readonly count: number
   /** The key at rank `at`, the first victim at 0. */
-  keyAt(at: number): string
+  keyAt(at: number): K
   /** How many of its first keys are OLD: older than any page the view ahead asks for. */
   readonly old: number
   /** The cache's arrivals when its cut ran (`arrivals`): a page that arrived since is not in it,
@@ -17,8 +17,11 @@ export type EvictionOrder = {
   open(): boolean
 }
 
+/** What a pool holds of each resident key: the arrival count when it arrived. */
+type Held = { readonly generation: number }
+
 /** Whether a page may give its place to the arrival asking. */
-export type Accept = (page: ResidentPage) => boolean
+export type Accept<V extends Held = ResidentPage> = (page: V) => boolean
 
 /** Why no slot is given back: no order, or the order spent. */
 export type NoVictim = 'eviction-queue-spent'
@@ -34,18 +37,21 @@ export type NoVictim = 'eviction-queue-spent'
  * OLD head: it never evicts a page any view used of late.
  *
  * A pin is the cache's own hold: the root cover's pages, which the GPU never lists either
- * (`../dag/poolList.ts`). No clock, no recency: the GPU's.
+ * (`../dag/poolList.ts`). No clock, no recency: the GPU's. The one victim taker of every GPU pool,
+ * keyed `K`, each resident key's entry `V`.
  */
-export function createEviction(resident: ReadonlyMap<string, ResidentPage>) {
-  const pins = new Set<string>()
-  let order: EvictionOrder | undefined,
+export function createEviction<K = string, V extends Held = ResidentPage>(
+  resident: Pick<ReadonlyMap<K, V>, 'get'>,
+) {
+  const pins = new Set<K>()
+  let order: EvictionOrder<K> | undefined,
     at = 0
   /** The rank of each key the order lists, and its keys by rank, read once when first asked:
    *  victims alone read no more than they take. */
-  const ranks = new Map<string, number>(),
-    keys: string[] = []
+  const ranks = new Map<K, number>(),
+    keys: K[] = []
   let mapped = false
-  const rankOf = (key: string) => {
+  const rankOf = (key: K) => {
     if (!mapped && order) {
       mapped = true
       for (let rank = 0; rank < order.count; rank++)
@@ -55,17 +61,17 @@ export function createEviction(resident: ReadonlyMap<string, ResidentPage>) {
   }
   const keyAt = (rank: number) => (mapped ? keys[rank] : order!.keyAt(rank))
   /** Entries passed while pinned or refused, with their rank: offered again, first. */
-  const held: { key: string; rank: number }[] = []
+  const held: { key: K; rank: number }[] = []
   /** The listed page `key` when it may give its place: still resident, not arrived since, not
    *  pinned, accepted. `undefined` keeps it held; `null` drops it for good. */
-  const listed = (key: string, accept: Accept) => {
+  const listed = (key: K, accept: Accept<V>) => {
     const page = resident.get(key)
     if (!page || page.generation > order!.arrivals) return null
     return pins.has(key) || !accept(page) ? undefined : page
   }
   return {
     /** The page whose place the next arrival takes among those `accept` takes, or why none is. */
-    victim(accept: Accept = () => true, lower = false): ResidentPage | NoVictim {
+    victim(accept: Accept<V> = () => true, lower = false): V | NoVictim {
       if (!order?.open()) return 'eviction-queue-spent'
       const end = lower ? order.old : order.count
       for (let i = 0; i < held.length; i++) {
@@ -92,7 +98,7 @@ export function createEviction(resident: ReadonlyMap<string, ResidentPage>) {
     },
     /** Whether `key`'s page may leave with a victim — the order lists it, in its old head for
      *  `lower` —: what a slot split in quarters asks of every page it holds (`placement.ts`). */
-    evictable(key: string, lower = false) {
+    evictable(key: K, lower = false) {
       const rank = rankOf(key)
       if (rank === undefined || !order?.open() || pins.has(key)) return false
       const page = resident.get(key)
@@ -101,7 +107,7 @@ export function createEviction(resident: ReadonlyMap<string, ResidentPage>) {
     /** `key`'s rank in the order, the first victim at 0; `undefined` for a key it does not list. */
     rankOf,
     /** Evicts in `order` from now on; `undefined`: no victim until the next one. */
-    follow(next?: EvictionOrder) {
+    follow(next?: EvictionOrder<K>) {
       order = next
       at = 0
       held.length = 0
@@ -110,20 +116,20 @@ export function createEviction(resident: ReadonlyMap<string, ResidentPage>) {
       mapped = false
     },
     /** `key`'s page is pinned: no eviction takes it until its unpin. False when it already was. */
-    pin(key: string) {
+    pin(key: K) {
       if (pins.has(key)) return false
       pins.add(key)
       return true
     },
     /** `key`'s page is unpinned. False when it was not pinned. */
-    unpin: (key: string) => pins.delete(key),
-    isPinned: (key: string) => pins.has(key),
+    unpin: (key: K) => pins.delete(key),
+    isPinned: (key: K) => pins.has(key),
     /** How many pages are pinned. */
     get pinnedCount() {
       return pins.size
     },
     /** `key` left the pool, its pin with it. */
-    left(key: string) {
+    left(key: K) {
       pins.delete(key)
     },
     /** Every page left at once. */
@@ -138,4 +144,6 @@ export function createEviction(resident: ReadonlyMap<string, ResidentPage>) {
   }
 }
 
-export type Eviction = ReturnType<typeof createEviction>
+export type Eviction<K = string, V extends Held = ResidentPage> = ReturnType<
+  typeof createEviction<K, V>
+>

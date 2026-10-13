@@ -35,11 +35,13 @@ export function surfaceColorAttachments(surfaces: SurfaceBuffer) {
   return attachments
 }
 
-let loadedFor: GPUTextureView[] | undefined, loaded: Attachments | undefined
+let loadedFor: GPUTextureView[] | undefined,
+  loaded: Attachments | undefined,
+  loadedWithFeedback: Attachments | undefined
 
 /** The same surfaces, kept rather than cleared: a pass drawing over what the material passes wrote
  *  (the impostor cards, `../../impostor/encode.ts`). Rebuilt only with the view set. */
-export function surfaceLoadAttachments(surfaces: SurfaceBuffer) {
+function surfaceLoadAttachments(surfaces: SurfaceBuffer) {
   const views = surfaces.views()
   if (loadedFor !== views || !loaded) {
     loaded = surfaceSlots(surfaces, views, (view) => ({
@@ -48,6 +50,7 @@ export function surfaceLoadAttachments(surfaces: SurfaceBuffer) {
       storeOp: 'store' as const,
     }))
     loadedFor = views
+    loadedWithFeedback = undefined
   }
   return loaded
 }
@@ -70,6 +73,16 @@ export function feedbackAttachment(rt: WebgpuPagesRuntime) {
   feedback.loadOp = rt.run.feedbackWritten ? 'load' : 'clear'
   rt.run.feedbackWritten = true
   return feedback
+}
+
+/** The surfaces kept, then the feedback target while the pipelines write it (`feedbackVariant.ts`):
+ *  the attachments of the impostor cards' surface stage, whose pixels ask the tiles they read. */
+export function cardColorAttachments(rt: WebgpuPagesRuntime, surfaces: SurfaceBuffer) {
+  const base = surfaceLoadAttachments(surfaces)
+  if (!rt.vis.writesFeedback) return base
+  loadedWithFeedback ??= [...base, feedback]
+  feedbackAttachment(rt)
+  return loadedWithFeedback
 }
 
 /** Surfaces then the feedback target, while the pipelines write it (`feedbackVariant.ts`): the

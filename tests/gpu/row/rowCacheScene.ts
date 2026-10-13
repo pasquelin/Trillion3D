@@ -2,6 +2,7 @@
 // every instance far smaller than them, each instance's bytes resident; and the loop that cuts with
 // the shipped kernel, follows its readback in the row cache and syncs it until the drawn cut is the
 // one the view wants (`row-cache.gpu.ts`, `row-owner.gpu.ts`).
+import { slotTable } from '../../../packages/sdk-browser/src/webgpu/row/pageState.fixture.ts'
 import { ruleDag } from '../../../packages/sdk-browser/src/page/cut/cutRule.fixture.ts'
 import {
   placements,
@@ -41,11 +42,12 @@ export function rowCacheScene(copies: number, table: number) {
     }))
   const placement = postPackedBases(roots)
   const pages = roots.flatMap((root) => root.pages) as PageRec[]
-  const rows = createWebgpuRowState(pages, table)
+  const slots = slotTable()
+  const rows = createWebgpuRowState(pages, table, 0, undefined, slots.read)
   rows.pageTableFloats = new Float32Array(table * ROW_WORDS)
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer)
   pages.forEach((_, page) => {
-    rows.setAddressOffset(pageAddress(pages[page]), page * 16)
+    slots.set(pageAddress(pages[page]), page * 16)
     rows.touchPage(page)
   })
   const sync = createWebgpuRowSync(

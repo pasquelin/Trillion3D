@@ -6,13 +6,14 @@ import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 
 /**
  * The card pipelines (#1335) and their three group layouts: the image's (view uniform, card
- * records), a mesh's atlas, which the feed fills (`feed.ts`), and the identifiers' (the surface
- * stage's alone). The visibility stages (`visPipeline`) write
+ * records), the tile pool's, where every card reads its maps (`../tile/cardReads.ts`), and the
+ * identifiers' (the surface stage's alone). The visibility stages (`visPipeline`) write
  * the card's identifier (`VIS_CARD_BASE | slot`) and the depth: beside the clusters, into the pyramid's level 0 too, with their
  * targets and depth (`VIS_TARGETS`, `VIS_DEPTH`); alone in an image without a drawable row, into
- * the identifiers alone, no pyramid to build. The surface stage (`pipeline`) writes the four
+ * the identifiers alone, no pyramid to build. The surface stage (`surfacePipeline`) writes the four
  * opaque surfaces where the identifier the visibility stage kept is the card's own, which it reads
- * from a group of its own (`idsLayout`): no depth, written or compared.
+ * from a group of its own (`idsLayout`): no depth, written or compared; with the feedback target
+ * beside them while the frame's pipelines write it, its pixels asking the tiles they read.
  */
 async function makeCardPipelines(device: GPUDevice) {
   const FRAGMENT = GPUShaderStage.FRAGMENT,
@@ -24,22 +25,23 @@ async function makeCardPipelines(device: GPUDevice) {
       computeBufferEntry(1, 'read-only-storage', VERTEX | FRAGMENT),
     ],
   })
-  const atlasLayout = device.createBindGroupLayout({
-    label: 'Trillion3D impostor atlas',
-    entries: [
-      ...[0, 1, 2].map((binding) => computeTextureEntry(binding, 'float', '2d', FRAGMENT)),
-      { binding: 3, visibility: FRAGMENT, sampler: { type: 'filtering' as const } },
-    ],
+  const tilesLayout = device.createBindGroupLayout({
+    label: 'Trillion3D impostor tiles',
+    entries: core.cardTileLayoutEntries(),
   })
   const idsLayout = device.createBindGroupLayout({
     label: 'Trillion3D impostor identifiers',
     entries: [computeTextureEntry(0, 'uint', '2d', FRAGMENT)],
   })
-  const module = device.createShaderModule({ label: IMPOSTOR_PASS, code: cardPassWgsl() })
-  const layout = device.createPipelineLayout({ bindGroupLayouts: [imageLayout, atlasLayout] })
-  const surfaceLayout = device.createPipelineLayout({
-    bindGroupLayouts: [imageLayout, atlasLayout, idsLayout],
+  const module = device.createShaderModule({
+    label: IMPOSTOR_PASS,
+    code: cardPassWgsl(core.cardTileWgsl()),
   })
+  const layout = device.createPipelineLayout({ bindGroupLayouts: [imageLayout, tilesLayout] })
+  const surfaceLayout = device.createPipelineLayout({
+    bindGroupLayouts: [imageLayout, tilesLayout, idsLayout],
+  })
+  const surfaces = core.SURFACE_FORMATS.map((format): GPUColorTargetState => ({ format }))
   const make = (
     label: string,
     entryPoint: string,
@@ -57,11 +59,12 @@ async function makeCardPipelines(device: GPUDevice) {
       ...(depthStencil && { depthStencil }),
     })
   // Compiled together, off the thread (#1362).
-  const [pipeline, ids, hiz] = await Promise.all([
+  const [pipeline, fed, ids, hiz] = await Promise.all([
+    make(IMPOSTOR_PASS, 'card_fs', surfaces, surfaceLayout),
     make(
       IMPOSTOR_PASS,
-      'card_fs',
-      core.SURFACE_FORMATS.map((format) => ({ format })),
+      'card_feedback_fs',
+      [...surfaces, { format: core.FEEDBACK_FORMAT }],
       surfaceLayout,
     ),
     make(IMPOSTOR_VISIBILITY_PASS, 'card_vis_fs', [core.VIS_TARGETS[0]], layout, core.VIS_DEPTH),
@@ -69,9 +72,11 @@ async function makeCardPipelines(device: GPUDevice) {
   ])
   return {
     imageLayout,
-    atlasLayout,
+    tilesLayout,
     idsLayout,
-    pipeline,
+    /** The surface stage's pipeline: with the feedback target beside the surfaces (`fed`) while
+     *  the frame's pipelines write it, without otherwise. */
+    surfacePipeline: (feedback: boolean) => (feedback ? fed : pipeline),
     /** The visibility stage's pipeline: with the pyramid's level 0 beside the clusters (`hiz`),
      *  the identifiers alone in an image without a drawable row. */
     visPipeline: (withHiz: boolean) => (withHiz ? hiz : ids),

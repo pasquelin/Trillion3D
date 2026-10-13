@@ -85,15 +85,19 @@ test('a flat dispatch past the device width runs in rows of it', () => {
   assert.deepEqual(levels, ['1x1', '4x4'])
 })
 
-test('the camera cut sorts its requests once, then lists its evictions, one workgroup each', () => {
+test('the camera cut sorts its requests once, then lists its evictions over the pool list', () => {
   const witness = witnessEncoder()
   encodeDagKernels(witness.encoder, cutResources())
   const { dispatches } = witness.read()
-  const last = ['dagSortRequests', 'dagListEvictions']
-  assert.deepEqual(
-    dispatches.slice(-last.length),
-    last.map((kernel) => ({ kernel, groups: 1 })),
-  )
+  // The pool sort runs a thread a slot of the list's 4096, in sixteen groups of 256: no group
+  // walks more than its own slots, whatever the pool (`../pool/sortWgsl.ts`).
+  assert.deepEqual(dispatches.slice(-5), [
+    { kernel: 'dagSortRequests', groups: 1 },
+    { kernel: 'dagRaiseParents', groups: 1 },
+    { kernel: 'poolCount', groups: 16 },
+    { kernel: 'poolPlace', groups: 1 },
+    { kernel: 'poolScatter', groups: 16 },
+  ])
   assert.equal(dispatches.filter((l) => l.kernel === 'dagSortRequests').length, 1)
 })
 

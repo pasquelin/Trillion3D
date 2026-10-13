@@ -64,7 +64,8 @@ function withScratch(
 function serveTile(sources: Sources, ask: TileAsk, encoder: OpenEncoder): Served {
   const { source } = ask.atlas.textures[ask.key.slot]
   const { levels } = sources
-  if (source.kind === 'baked' && levels) return serveBaked(sources, levels, source, ask)
+  if ((source.kind === 'baked' || source.kind === 'files') && levels)
+    return serveBaked(sources, levels, source, ask)
   if (source.kind !== 'host') throw new Error('TEXTURE_TILE_WITHOUT_SOURCE')
   const id = scratchId(ask.atlas, ask.key.slot)
   return serveHost(sources.builds, heldScratch(sources, id), id, ask, encoder)
@@ -112,7 +113,7 @@ function reduceHost(sources: Sources, atlas: WebgpuTileAtlas, slot: number) {
  */
 export function createTileSources(options: SourcesOptions) {
   const { device, counters, encoding, readLevel, onFailure } = options
-  // The session's one held-level read, the impostor atlases' too (`heldLevelsOf`).
+  // The session's one held-level read, the impostor maps' tails' too (`fileTails.ts`).
   const levels = readLevel && heldLevelsOf(readLevel)
   const failed: LevelFailed = (address, error) =>
     onFailure(
@@ -131,6 +132,8 @@ export function createTileSources(options: SourcesOptions) {
       live.release(id)
     },
     levels,
+    /** Who hears a level read of theirs fail. */
+    failed,
     /** Serves a tile from its source (`Served`). */
     serve: (atlas: WebgpuTileAtlas, key: TileKey, frame: number, encoder: OpenEncoder) =>
       serveTile(sources, { atlas, key, frame }, encoder),

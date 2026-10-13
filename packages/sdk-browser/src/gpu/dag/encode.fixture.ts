@@ -101,6 +101,7 @@ export function cutResources(levelCount = 3, pageCount = 4096) {
     drawScatterPipeline: step('dagDrawScatter'),
     commitPipeline: step('dagCommitMask'),
     requestSortPipeline: step('dagSortRequests'),
-    evictPipeline: step('dagListEvictions'),
+    raisePipeline: step('dagRaiseParents'),
+    evictSort: { count: step('poolCount'), place: step('poolPlace'), scatter: step('poolScatter') },
   } as unknown as Parameters<typeof encodeDagKernels>[1]
 }

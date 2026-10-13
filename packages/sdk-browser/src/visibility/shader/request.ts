@@ -31,13 +31,14 @@ fn shadePick(p:RequestPick,missing:bool,page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec
  if(p.sel==MAP_CHOICES+1u){return colorRequestIndex(page.subsurfaceMap,uv,ddx,ddy,p.next,1u,false,HAS_SAMPLING,missing);}
  return mapRequest(p,missing,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,ddx,ddy,HAS_SAMPLING);
 }
-/** Tile rank this pixel asks for, plus one, or zero: during a convergence, the first of its picks
- *  whose tile is missing (\`everyPick\`), else its own. */
+/** Tile rank this pixel asks for, plus one, or zero: on a convergence's asking rows
+ *  (\`feedbackMissing\`), the first of its picks whose tile is missing (\`everyPick\`), else its
+ *  own — the tile it reads, stamped. */
 fn shadeRequest(page:PageInfo,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->u32{
  let physical=HAS_PHYSICAL&&page.physical!=0u;
  if(!(HAS_UV&&(ANY_MAP||page.subsurfaceMap!=0u||physical))||!feedbackPhase(pos,uni.feedback)){return 0u;}
  let choices=MAP_CHOICES+1u+select(0u,1u,page.subsurfaceMap!=0u)+select(0u,4u,physical);
- if(feedbackEvery(uni.feedback)){
+ if(feedbackMissing(pos,uni.feedback)){
   for(var turn=0u;turn<choices*PICK_TURNS;turn++){
    let rank=shadePick(everyPick(pos,choices,turn),true,page,uv,ddx,ddy);
    if(rank!=0u){return rank;}

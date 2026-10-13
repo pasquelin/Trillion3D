@@ -28,7 +28,7 @@ export const blendRequestWgsl = (lobes: boolean) => {
 fn blendRequest(in:VSOut,gradX:vec2f,gradY:vec2f)->u32{
  if(!feedbackPhase(in.position.xy,uni.feedback)){return 0u;}
  let choices=MAP_CHOICES+select(0u,1u,in.emissive.w!=0.0)${lobes ? '+select(0u,4u,physicalOn)' : ''};
- if(feedbackEvery(uni.feedback)){
+ if(feedbackMissing(in.position.xy,uni.feedback)){
   for(var turn=0u;turn<choices*PICK_TURNS;turn++){
    let rank=blendPick(in,everyPick(in.position.xy,choices,turn),true,gradX,gradY);
    if(rank!=0u){return rank;}

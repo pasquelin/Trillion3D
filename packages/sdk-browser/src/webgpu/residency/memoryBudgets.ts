@@ -36,7 +36,7 @@ export type TexturePools = {
   tails: AtlasLanes
   coverage: CoverageReaders
   /** Bytes held beside the pool it was drawn without: the live textures' working textures
-   *  and the resident impostor atlases (`textureBytesBeside`). */
+   *  (`textureBytesBeside`). */
   liveBytes?: number
 }
 

@@ -4,14 +4,15 @@
 // and folds the compiler's own tests pin.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { IMPOSTOR_CARD_WGSL } from './impostorWgsl.ts'
+import { impostorCardWgsl } from './impostorWgsl.ts'
+import { cardTileWgsl } from '../../webgpu/tile/cardReads.ts'
 import { runShaderText } from './shaderText.fixture.ts'
 import { functionsOf } from '../../texture/shaderRule.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
 
 /** The card's functions, as the software harness runs them. */
-const shaderOf = (name: string) => functionsOf(wgslModule(IMPOSTOR_CARD_WGSL), [name])
+const shaderOf = (name: string) => functionsOf(wgslModule(impostorCardWgsl(cardTileWgsl())), [name])
 const octSide = runShaderText<number>(shaderOf('octSide'))
 const run = {
   encode: runShaderText<number[]>(shaderOf('octEncodeHemi'), { octSide }),

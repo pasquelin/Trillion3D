@@ -12,7 +12,13 @@ import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
 import { vsmPmContextBytes } from '../../../../vsm/pageManagementPass.ts'
 import { vsmProjectionBytesToMake, vsmProjectionReserve } from '../../../../vsm/projectionPass.ts'
 import { VSM_INVALIDATION_PARAMS_BYTES } from '../../../../vsm/invalidationWgsl.ts'
-import { outOfMemoryContext } from '../../../../residency/outOfMemory.ts'
+import { halvings, outOfMemoryContext } from '../../../../residency/outOfMemory.ts'
+import {
+  budgetRefusal,
+  deviceRefusal,
+  retryDue,
+  type Refusal,
+} from '../../../../gpu/core/refusal.ts'
 import { noteShadowPressure } from '../../../shadow/memoryGrant.ts'
 import {
   castingCount,
@@ -34,6 +40,7 @@ import {
 import { vsmRenderContextBytes, vsmRenderFloorBytes } from '../../../../vsm/renderPass.ts'
 import {
   vsmLayout,
+  vsmPoolDraw,
   vsmPoolWithin,
   vsmResourceBytes,
   vsmTableBytes,
@@ -44,10 +51,10 @@ import { vsmTransmissionBytes } from '../../../../vsm/transmissionLayout.ts'
 /** What every reason this module gives the lights for reading no shadow starts with. */
 const UNAVAILABLE = 'virtual shadow maps'
 
-/** A set refused for the frame's lights: the room it waits for, the maps those lights want, and
- *  the set asked for them — an overflow regrow's, never asked again as the set that overflowed. */
-export type VsmRefusal = {
-  retryAt: number
+/** A set refused for the frame's lights: its refusal record (`../../../../gpu/core/refusal.ts`), the
+ *  maps those lights want, and the set asked for them — an overflow regrow's, never asked again as
+ *  the set that overflowed. */
+export type VsmRefusal = Refusal & {
   wanted: number
   directional: number
   fullMapCapacity: number
@@ -136,12 +143,14 @@ export function vsmSetBytes(
  * Replaces the engine's maps by a set of `fullMapCapacity` full maps, at the most physical pages
  * up to `pagesAsked` that the budget's room holds once the frame's other shadow bytes are set
  * aside (`bytesBeside`, `vsmPoolWithin`); the set replaced is freed first, so its bytes count as
- * room. A pool short of the full one is said (`pool-shrunk`, `gpu-out-of-memory`) — or, when it
+ * room. A set the device refuses — undone whole (`constructGpuResources`) — is drawn again at half
+ * its bytes, the one rule of every pool (`halvings`), down to the eighth: the lights keep casting,
+ * coarser. A pool short of the full one is said (`pool-shrunk`, `gpu-out-of-memory`) — or, when it
  * replaces a smaller one (`grownFrom`), its growth (`shadow-pool-regrown`) —, and the shadows'
  * resolution bias is its halvings from the full pool; its fill then raises the resolution bias as
  * the full pool's does (`VsmCacheManager.readPoolFeedback`). When none fits, the lights read no
  * shadow, by name (`pool-refused`), until the room holds the smallest pool or the lights change;
- * when the device refuses the set — undone whole (`constructGpuResources`) —, until they change.
+ * when the device refuses even the eighth, until its refusal's wait ends or the lights change.
  */
 export function grantEngineVsm(
   rt: WebgpuPagesRuntime,
@@ -163,38 +172,46 @@ export function grantEngineVsm(
   if (same) fullMapCapacity = Math.max(fullMapCapacity, refused.fullMapCapacity)
   const poolPages = same ? Math.min(pagesAsked, refused.poolPages) : pagesAsked
   const options = engineVsmOptions(fullMapCapacity, directional, poolPages)
-  const refusal = (retryAt: number) =>
-    (lights.vsmRefusal = { retryAt, wanted, directional, fullMapCapacity, poolPages })
-  try {
-    const asked = vsmLayout(options)
-    const room = ledgerRoom(device) - bytesBeside(rt, device, list, asked, held)
-    if (same && room < refused.retryAt) return undefined
-    const pool = vsmPoolWithin(room, options)
-    if (!pool) {
-      const smallest = { ...options, poolPages: poolPages / 8 }
-      refusal(vsmResourceBytes(vsmLayout(smallest)))
-      lights.shadowReason = `${UNAVAILABLE} refused: no page pool fits the GPU budget`
-      noteShadowPressure(lights.memory, 'pool-refused')
-      diag.engineDiagnostic(
-        'gpu-out-of-memory',
-        'The GPU budget holds no shadow page pool: the lights cast no shadow',
-        outOfMemoryContext('shadow', vsmResourceBytes(asked)),
-      )
-      return undefined
-    }
+  const { frame } = rt.run
+  const refusal = (record: Refusal) =>
+    (lights.vsmRefusal = { ...record, wanted, directional, fullMapCapacity, poolPages })
+  const asked = vsmLayout(options)
+  const room = ledgerRoom(device) - bytesBeside(rt, device, list, asked, held)
+  if (same && !retryDue(refused, room, frame)) return undefined
+  const first = vsmPoolWithin(room, options)
+  if (!first) {
+    const smallest = { ...options, poolPages: poolPages / 8 }
+    refusal(budgetRefusal(vsmResourceBytes(vsmLayout(smallest)), frame))
+    lights.shadowReason = `${UNAVAILABLE} refused: no page pool fits the GPU budget`
+    noteShadowPressure(lights.memory, 'pool-refused')
+    diag.engineDiagnostic(
+      'gpu-out-of-memory',
+      'The GPU budget holds no shadow page pool: the lights cast no shadow',
+      outOfMemoryContext('shadow', vsmResourceBytes(asked)),
+    )
+    return undefined
+  }
+  let error: unknown
+  for (const pool of halvings(first, vsmPoolDraw(options))) {
     const pages = pool.layout.poolPages
-    const vsm = createEngineVsm(device, { ...options, poolPages: pages })
-    vsm.regrowFrame = rt.run.frame + VSM_PRESSURE_CALM_FRAMES
+    let vsm: EngineVsm
+    try {
+      vsm = createEngineVsm(device, { ...options, poolPages: pages })
+    } catch (thrown) {
+      error = thrown
+      continue
+    }
+    vsm.regrowFrame = frame + VSM_PRESSURE_CALM_FRAMES
     sayPool(rt, pages, grownFrom, () => outOfMemoryContext('shadow', vsmResourceBytes(asked), pool))
     lights.vsmRefusal = undefined
     if (lights.shadowReason?.startsWith(UNAVAILABLE)) lights.shadowReason = null
     return (lights.vsm = vsm)
-  } catch (error) {
-    // Not the budget's room, which was measured: asked again only for other lights.
-    refusal(Infinity)
-    lights.shadowReason = `${UNAVAILABLE} unavailable: ${String(error)}`
-    return undefined
   }
+  // Not the budget's room, which was measured: the device refused even the floor, asked again
+  // after its refusal's wait, or at once for other lights.
+  refusal(deviceRefusal(frame, same ? refused : undefined))
+  lights.shadowReason = `${UNAVAILABLE} unavailable: ${String(error)}`
+  return undefined
 }
 
 /**

@@ -1,19 +1,16 @@
 // Page of the eviction-rank proof: the engine's real GPU cut (`createGpuDagSelection`) on Dawn,
 // every page resident and in the pool, cut frame after frame at generated poses and clocks — the
-// stamps of what it draws and asks for, their raise up the groups and `dagListEvictions`, all on
+// stamps of what it draws and asks for, their raise up the groups and the pool sort, all on
 // the GPU — beside the CPU oracle of the same rules (`evict.fixture.ts`) fed the same readbacks.
 import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import {
-  ageStep,
   listEvictions,
   pageKeys,
   raiseGroups,
 } from '../../../packages/sdk-browser/src/gpu/dag/evict.fixture.ts'
-import {
-  EVICT_IN_USE,
-  EVICT_LEVELS,
-  KEY_PAGE_BITS,
-} from '../../../packages/sdk-browser/src/gpu/dag/evict.ts'
+import { KEY_PAGE_BITS } from '../../../packages/sdk-browser/src/gpu/dag/evict.ts'
+import { EVICT_IN_USE } from '../../../packages/sdk-browser/src/gpu/pool/rank.ts'
+import { poolRank } from '../../../packages/sdk-browser/src/gpu/pool/rank.fixture.ts'
 import { EVICTION_BURST } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
@@ -51,7 +48,7 @@ export async function runEvictionRank(frames = 48, seed = 0x5eed) {
   const rankOf = (page: number, now: number) => {
     const key = keyOfPage.get(page)!,
       age = now - lastUse[keys.groups.keyGroups[key]]
-    return ageStep(age) * EVICT_LEVELS + (EVICT_LEVELS - 1 - (keys.keyWords[key] >>> KEY_PAGE_BITS))
+    return poolRank(age, keys.keyWords[key] >>> KEY_PAGE_BITS, 0)
   }
   const next = lcgRandom(seed),
     readings: RankFrame[] = []

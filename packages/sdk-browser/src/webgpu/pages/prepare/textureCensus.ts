@@ -29,6 +29,8 @@ export const catalogueReport = (textures: readonly TileTexture[]) => ({
   tailOnly:
     textures.filter((texture) => !texture.retired && texture.source.kind === 'bytes').length - 1,
   host: textures.filter((texture) => texture.source.kind === 'host').length,
+  /** Impostor maps, each level its own file (`../../tile/cardMaps.ts`). */
+  cardMaps: textures.filter((texture) => texture.source.kind === 'files').length,
   lanes: laneTails(textures),
   streamedTiles: textures.reduce((total, texture) => total + texture.layout.entries, 0),
 })

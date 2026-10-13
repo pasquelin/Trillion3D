@@ -90,7 +90,10 @@ function pageTable(layouts: TileLayout[], feedbackOffset: number): Table {
     words[header] = layout.width | (layout.height << 16)
     words[header + 1] = layout.tail
     words[header + 2] = layout.last
-    for (let level = 0; level < layout.tail; level++)
+    // Level 0's first word even for a texture all tail: the starts climb with the slots, what the
+    // stamp's search reads (`stampWgsl.ts`); no read takes a level at or past the tail.
+    words[levelsAt + slot * MAX_LEVELS] = entriesAt + bases[slot]
+    for (let level = 1; level < layout.tail; level++)
       words[levelsAt + slot * MAX_LEVELS + level] = entriesAt + bases[slot] + layout.offsets[level]
   }
   return { layouts, words, bases, entries, entriesAt, uploads: createPageUploads() }

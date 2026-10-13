@@ -3,6 +3,7 @@ import type { LaneCounts, PoolLane } from '../../texture/blockFormats.ts'
 import type { TileTexture } from './tileTexture.ts'
 import type { WebgpuTilePool } from './pool.ts'
 import type { TileKey, WebgpuTilePageTable } from './pageTable.ts'
+import type { TileSlotUse } from './slotUse.ts'
 
 export type WebgpuTileAtlas = {
   readonly kind: 'color' | 'data'
@@ -12,6 +13,8 @@ export type WebgpuTileAtlas = {
    *  whenever a pool is replaced, so a bind group keyed on it is rebuilt. */
   readonly views: readonly GPUTextureView[]
   readonly pages: WebgpuTilePageTable
+  /** Its places' GPU words: when each was last read, and its tier (`slotUse.ts`). */
+  readonly slotUse: TileSlotUse
   readonly textures: readonly TileTexture[]
   readonly evictions: number
   readonly refused: number
@@ -33,17 +36,21 @@ export type WebgpuTileAtlas = {
   /** Lays the table out again at `feedbackOffset` (`regrownPageTable`), the views a new tuple:
    *  every group naming the atlas is rebuilt once. */
   relayout(feedbackOffset: number): void
-  /** Marks the tile seen if it resides; says whether that is so. */
-  touch(key: TileKey, frame: number): boolean
-  /** A place for an arriving tile: free, or taken back from the least looked-at of its lane;
-   *  `undefined` when everything the pool carries has been looked at in this image — refusal counted. */
-  place(key: TileKey, frame: number): TilePlace | undefined
-  /** Says whether `place` would have a place to give in this image, without taking anything;
-   *  false counts a refusal. Residency is decided BEFORE reading a level: a pool full for the
-   *  view launches no read for a tile it would then refuse. */
-  roomFor(slot: number, frame: number): boolean
+  /** Whether the tile resides. Its use is the GPU's: the pixels that read it stamp its place. */
+  resides(key: TileKey): boolean
+  /** Whether the tile resides; one that does is stamped used (`WebgpuTilePool.use`), as a pixel's
+   *  read stamps it: an asker that needs it and reads none of it yet keeps it from the queue. */
+  stamp(key: TileKey): boolean
+  /** A place for an arriving tile: free, or the next victim of its lane's queue (`placeOrder.ts`);
+   *  `undefined` when the queue has none — every place read of late — refusal counted. */
+  place(key: TileKey): TilePlace | undefined
+  /** Says whether `place` may have a place to give, without taking anything; false counts a
+   *  refusal. Residency is decided BEFORE reading a level: a pool full for the view launches no
+   *  read for a tile it would then refuse. */
+  roomFor(slot: number): boolean
   /** Level that serves a tile today: its own, an ancestor, or the tail. */
   servedLevel(key: TileKey): number
+  /** Sends the table's changed words and the places' that arrived or left. */
   flush(device: Pick<GPUDevice, 'queue'>): void
   /** Changes each lane's layers while keeping its tiles; returns the evicted tiles and how many
    *  pools were replaced. */

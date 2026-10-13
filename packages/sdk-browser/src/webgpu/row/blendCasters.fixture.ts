@@ -8,6 +8,7 @@ import { ROW_WORDS } from '../../visibility/types.ts'
 import { createPageRowWriter } from './pageRowWriter.ts'
 import { createBlendCasterRows } from './blendCasters.ts'
 import { createWebgpuRowState } from './state.ts'
+import { slotTable } from './pageState.fixture.ts'
 import { pageAddress } from './pageSlots.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 
@@ -45,7 +46,8 @@ export function catalogue(opacity: number, blended = true, transparentShadow = t
 
 /** The row table over `pages` with `blendSlots` shadow-only rows, both pages resident. */
 export function mount(pages: PageRec[], blendSlots: number) {
-  const rows = createWebgpuRowState(pages, 1, blendSlots)
+  const slots = slotTable()
+  const rows = createWebgpuRowState(pages, 1, blendSlots, undefined, slots.read)
   rows.pageTableFloats = new Float32Array(rows.casterSlots * ROW_WORDS)
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer)
   const geometryBlock = { vertexBase: 0, count: 3, hasUv: false, hasNormal: false }
@@ -63,7 +65,7 @@ export function mount(pages: PageRec[], blendSlots: number) {
     (packed) => packed,
   )
   pages.forEach((_, page) => {
-    rows.setAddressOffset(pageAddress(pages[page]), page * 16)
+    slots.set(pageAddress(pages[page]), page * 16)
     rows.touchPage(page)
   })
   const restaled: PageRec[] = []

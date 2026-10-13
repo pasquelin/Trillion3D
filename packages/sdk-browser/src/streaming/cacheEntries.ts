@@ -18,8 +18,8 @@ const before = <V, K>(a: CacheEntry<V, K>, b: CacheEntry<V, K>) =>
 
 /**
  * THE ENTRIES OF EVERY CACHE — the host's page cache, its pages, the files its ranged reads keep
- * whole, the decoded texture levels and the scene proxy (`pageCache.ts`), and the impostor atlases
- * on the GPU (`impostor/feed.ts`): one map of refcounted entries, and the heap of those no one
+ * whole, the decoded texture levels and the scene proxy (`pageCache.ts`): one map of refcounted
+ * entries, and the heap of those no one
  * holds, the lowest tier first and, within a tier, the least recently touched first. Each cache
  * weighs them against its own budget: `evict` takes the first while its owner says it is over.
  *

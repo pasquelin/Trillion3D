@@ -1,17 +1,15 @@
 import type { createTargetCap } from './scaleTargets.ts'
 import { restartWindow, type ScaleWindow } from './scaleWindow.ts'
-
-/** Frames a refused size waits before it is asked again, then twice as many after each refusal,
- *  up to `RETRY_MAX` times that: a budget whose room no measure predicts — the pools are budgets of
- *  their own, moved by each funding — is asked again rarely, never every frame, never never. */
-const RETRY_FRAMES = 300,
-  RETRY_MAX = 64
+import { deviceRefusal, retryFrame, type Refusal } from '../gpu/core/refusal.ts'
 
 /** The controller's share of the render targets' memory cap (`createTargetCap`), and the clock its
- *  refusals are asked again by: the view size refused last, the wait it set, the frame it ends. */
+ *  refusals are asked again by: the view size refused last, and its refusal record
+ *  (`../gpu/core/refusal.ts`) — a budget whose room no measure predicts, the pools budgets of their
+ *  own moved by each funding, is waited for as the device is. */
 export function createScaleMemory(w: ScaleWindow, targets: ReturnType<typeof createTargetCap>) {
   // No refusal yet: a cap set otherwise is never lifted by the clock.
-  const refusal = { view: '', wait: 0, at: Infinity }
+  let refusedView = '',
+    refusal: Refusal | undefined
   const memory = {
     /** The scale the render targets of a `view` size are made at. */
     allocated: (view = '') => targets.allocated(w.bounds.max, view),
@@ -33,19 +31,17 @@ export function createScaleMemory(w: ScaleWindow, targets: ReturnType<typeof cre
       targets.lift()
       w.max = w.bounds.max
     },
-    /** Targets of the `view` size refused at `frame`: the frame they may be asked again at, and
+    /** Targets of the view size `size` refused at `frame`: the frame they may be asked again at, and
      *  the cap lifted at (`lift`) — later after each refusal at this view size. */
-    refused(view: string, frame: number) {
-      refusal.wait =
-        refusal.view === view ? Math.min(refusal.wait * 2, RETRY_FRAMES * RETRY_MAX) : RETRY_FRAMES
-      refusal.view = view
-      refusal.at = frame + refusal.wait
-      return refusal.at
+    refused(size: string, frame: number) {
+      refusal = deviceRefusal(frame, size === refusedView ? refusal : undefined)
+      refusedView = size
+      return retryFrame(refusal)
     },
     /** At `frame`, the wait after the last refusal is over: the cap lifts, the targets are asked
      *  at the controller's scale again. */
     lift(frame: number) {
-      if (targets.capped && frame >= refusal.at) memory.uncap()
+      if (targets.capped && refusal && frame >= retryFrame(refusal)) memory.uncap()
     },
   }
   return memory

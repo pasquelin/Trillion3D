@@ -22,7 +22,7 @@ test('a tile moved by a shrink takes the finer entries it served to its new plac
   const coarse = { slot: 0, level: 1, tx: 1, ty: 0 },
     fine = { slot: 0, level: 0, tx: 2, ty: 1 },
     id = tileId(coarse)
-  pool.adopt(TILES_PER_LAYER, id, 5)
+  pool.adopt(TILES_PER_LAYER, id)
   pages.setTile(coarse, pool.placeOf(TILES_PER_LAYER))
   pages.setTile(fine, { x: 3, y: 0, layer: 0 })
   const resident = new Map([[id, TILES_PER_LAYER]])

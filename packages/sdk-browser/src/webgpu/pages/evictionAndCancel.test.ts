@@ -11,7 +11,7 @@ import { coarseQuadScene } from './testOccluder.fixture.ts'
 import { settledImage } from './settledImage.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { Engine } from '../../engine/types.ts'
-import { EVICT_IN_USE } from '../../gpu/dag/evict.ts'
+import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 

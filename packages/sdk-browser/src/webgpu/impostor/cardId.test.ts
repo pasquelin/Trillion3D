@@ -8,12 +8,13 @@ import assert from 'node:assert/strict'
 import '../../impostor/lent.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { cardPassWgsl } from './cardWgsl.ts'
+import { cardTileWgsl } from '../tile/cardReads.ts'
 import { VIS_CARD_BASE, VIS_CARD_ROWS, VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 import { VIS_MAX_PAGES } from '../../visibility/types.ts'
 import { VIEW_ROWS } from '../row/tableRows.ts'
 import { NO_PAGE_ID } from '../../taa/pageIdWgsl.ts'
 
-const wgsl = cardPassWgsl()
+const wgsl = cardPassWgsl(cardTileWgsl())
 const body = (entry: string) => wgsl.slice(wgsl.indexOf(`fn ${entry}(`)).split('\n}')[0]
 
 test('the card identifier names a row no page table holds', () => {
@@ -27,10 +28,16 @@ test('the card identifier names a row no page table holds', () => {
 })
 
 test('the surface stage reads the identifier and compares no depth; the visibility stages write it', () => {
-  const surface = body('card_fs')
-  assert.match(surface, /textureLoad\(cardIds,vec2i\(in\.clip\.xy\),0\)\.r!=cardId\(in\.card\)/)
-  assert.doesNotMatch(wgsl, /struct CardOut\{[^}]*frag_depth/)
-  assert.doesNotMatch(surface, /px\.depth/)
+  assert.match(
+    body('cardKept'),
+    /textureLoad\(cardIds,vec2i\(in\.clip\.xy\),0\)\.r==cardId\(in\.card\)/,
+  )
+  for (const entry of ['card_fs', 'card_feedback_fs']) {
+    const surface = body(entry)
+    assert.match(surface, /if\(!cardKept\(in\)\)\{discard;\}/, entry)
+    assert.doesNotMatch(surface, /px\.depth/, entry)
+  }
+  assert.doesNotMatch(wgsl, /struct Card(Fed)?Out\{[^}]*frag_depth/)
   for (const entry of ['card_vis_fs', 'card_vis_hiz_fs'])
     assert.match(body(entry), /cardId\(in\.card\)/, entry)
 })

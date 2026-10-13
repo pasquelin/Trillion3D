@@ -3,7 +3,7 @@ import type { GpuPageCache } from '../../gpu/page/pages.ts'
 import type { EvictionOrder } from '../../gpu/page/eviction.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
-import { EVICT_IN_USE } from '../../gpu/dag/evict.ts'
+import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 
 type Cache = Pick<GpuPageCache, 'evictInOrder' | 'arrivals' | 'takeRefused'>
 

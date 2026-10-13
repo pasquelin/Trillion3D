@@ -281,11 +281,25 @@ export function vsmPoolWithin(
 ): VsmPool | undefined {
   const asked = options.poolPages ?? VSM_POOL_PAGES
   for (let pages = asked; pages >= asked / 8; pages /= 2) {
-    const layout = vsmLayout({ ...options, poolPages: pages })
-    const allocatedBytes = vsmResourceBytes(layout)
-    if (allocatedBytes > budgetBytes) continue
-    const clamp = pages === asked ? null : pages <= asked / 8 ? 'minimum' : 'ceiling'
-    return { layout, budgetBytes, allocatedBytes, clamp }
+    const pool = vsmPoolAt(budgetBytes, options, pages)
+    if (pool.allocatedBytes <= budgetBytes) return pool
   }
   return undefined
 }
+
+/** The set of `options` at `pages` physical pages, drawn for `budgetBytes`. */
+function vsmPoolAt(budgetBytes: number, options: VsmResourceOptions, pages: number): VsmPool {
+  const asked = options.poolPages ?? VSM_POOL_PAGES
+  const layout = vsmLayout({ ...options, poolPages: pages })
+  const clamp = pages === asked ? null : pages <= asked / 8 ? 'minimum' : 'ceiling'
+  return { layout, budgetBytes, allocatedBytes: vsmResourceBytes(layout), clamp }
+}
+
+/** The shadow pool's draw rule, as the one halving rule reads it (`halvedPool`,
+ *  `../residency/outOfMemory.ts`): the set `vsmPoolWithin` draws for a budget, and below the eighth,
+ *  the eighth — the floor, which no halving goes under. */
+export const vsmPoolDraw =
+  (options: VsmResourceOptions) =>
+  (budgetBytes: number): VsmPool =>
+    vsmPoolWithin(budgetBytes, options) ??
+    vsmPoolAt(budgetBytes, options, (options.poolPages ?? VSM_POOL_PAGES) / 8)

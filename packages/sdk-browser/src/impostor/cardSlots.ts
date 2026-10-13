@@ -1,7 +1,7 @@
 /**
  * THE CARD RECORDS, KEPT: one record per card the image may draw, written when its root takes its
  * card or its world moves, never per image. Each mesh's cards stand together in one segment of the
- * records — the run its atlas is bound for —, a segment that fills moving to the end at twice its
+ * records — the run one draw draws —, a segment that fills moving to the end at twice its
  * room, and the records packed again once the room segments left behind is half of it: a card
  * placed or taken back writes one or two records, amortized.
  *
@@ -9,19 +9,21 @@
  * linear part, its translation in two singles — the high word, then the rest (`writeSplitDouble`) —
  * so the shader takes the eye off it in double-single and draws the card at the eye, the linear
  * part's inverse, the shape (object radius, frames a side, hemi, the texel depth's logarithm at unit
- * focal length) and the object-space pivot with the world radius. Nothing in it depends on the view;
- * a world moved without turning or scaling rewrites its translation alone.
+ * focal length), the object-space pivot with the world radius, and its mesh's three map slots in
+ * the tile atlases (`CardTiles`). Nothing in it depends on the view; a world moved without turning
+ * or scaling rewrites its translation alone.
  */
 import { invertMatrix4 } from '../../../sdk-core/src/index.ts'
 import type { BakedEntry } from '../../../sdk-core/src/impostor/switchTable.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import type { DenseKeySet } from '../webgpu/cut/denseKeys.ts'
+import type { CardTiles } from '../webgpu/tile/cardTiles.ts'
 import { core } from './borrowed.ts'
 import { grownLength, resized } from '../../../math/src/sequence/resized.ts'
 import { sameLinearPartFloat32 } from '../../../math/src/matrix/matrixElements.ts'
 
 /** Floats of one card record. */
-export const CARD_FLOATS = 44
+export const CARD_FLOATS = 48
 
 /** One card: its slot in its segment, the world it draws — the one of every root holding it —,
  *  and how many roots hold it. */
@@ -29,8 +31,8 @@ export type CardHolder = { slot: number; world: ArrayLike<number>; roots: number
 
 /** One mesh's cards: its segment of the records, the card of each slot and each world's card —
  *  two primitives of one placement are one card —, the roots whose switch holds and their bound,
- *  and its atlas. */
-export type CardSegment<G> = {
+ *  and its maps. */
+export type CardSegment = {
   mesh: number
   entry: BakedEntry
   start: number
@@ -39,14 +41,18 @@ export type CardSegment<G> = {
   cards: CardHolder[]
   holders: Map<ArrayLike<number>, CardHolder>
   eligible: DenseKeySet
-  /** The pivot spheres of the roots switched, as one box; `stale` once one leaves or moves. */
+  /** The pivot spheres of the roots switched, as one box, and their least and largest world
+   *  radius; `stale` once one leaves or moves. */
   box: Float64Array
+  radii: Float64Array
   stale: boolean
-  /** The mesh's atlas, as the last image that asked it found it. */
-  group: G | undefined
-  /** Asked in view and found absent: its roots keep their clusters until it lands. */
+  /** The mesh's three map slots, read once; none for a mesh the tile catalogue does not hold. */
+  tiles: CardTiles | undefined
+  /** Whether its maps held what its cards read the last image that asked them. */
+  ready: boolean
+  /** Asked in view and found not ready: its roots keep their clusters until its tiles land. */
   gated: boolean
-  /** Roots switched this image while the mesh held no atlas: the view decides their bit. */
+  /** Roots switched this image while the mesh's maps were not ready: the view decides their bit. */
   pending: number[]
 }
 
@@ -68,13 +74,13 @@ export type CardSlots = ReturnType<typeof createCardSlots>
 const inverse = new Float64Array(16),
   ORIGIN = [0, 0, 0] as const
 
-/** Writes the record of a card of `entry` placed by `world` at world radius `radius` into slot
- *  `slot`; `moved`, the card's record already there, its world alone moved. */
+/** Writes the record of a card of `entry` placed by `world` at world radius `radius`, its maps
+ *  `tiles`, into slot `slot`; `moved`, the card's record already there, its world alone moved. */
 export function writeCardRecord(
   slots: CardSlots,
   slot: number,
   world: ArrayLike<number>,
-  entry: BakedEntry,
+  { entry, tiles }: { entry: BakedEntry; tiles: CardTiles },
   radius: number,
   moved = false,
 ) {
@@ -101,6 +107,9 @@ export function writeCardRecord(
   const centre = entry.centre ?? ORIGIN
   for (let k = 0; k < 3; k++) out[at + 40 + k] = centre[k]
   out[at + 43] = radius
+  // The slots as singles, exact far past the table's slots (`tileId`): the shader truncates them.
+  for (let k = 0; k < 3; k++) out[at + 44 + k] = tiles[k]
+  out[at + 47] = 0
 }
 
 function markDirty(slots: CardSlots, slot: number) {
@@ -122,11 +131,7 @@ function hold(slots: CardSlots, records: number) {
 /** A free slot at the end of `segment`, which grows to twice its room when full: in place when it
  *  ends the records, else moved to their end; the records packed again once the room left behind
  *  is half of theirs. */
-export function slotAtEnd<G>(
-  slots: CardSlots,
-  segments: Iterable<CardSegment<G>>,
-  segment: CardSegment<G>,
-) {
+export function slotAtEnd(slots: CardSlots, segments: Iterable<CardSegment>, segment: CardSegment) {
   if (segment.count < segment.capacity) return segment.start + segment.count
   const room = grownLength(segment.capacity, 4)
   if (segment.start + segment.capacity === slots.used) {
@@ -148,7 +153,7 @@ export function slotAtEnd<G>(
 }
 
 /** Every segment again from the start of the records, in turn, its room kept. */
-function pack<G>(slots: CardSlots, segments: Iterable<CardSegment<G>>) {
+function pack(slots: CardSlots, segments: Iterable<CardSegment>) {
   const next = new Float32Array(slots.records.length)
   let at = 0
   for (const segment of segments) {
@@ -164,7 +169,7 @@ function pack<G>(slots: CardSlots, segments: Iterable<CardSegment<G>>) {
 }
 
 /** Card `card` of `segment` given back: the segment's last card moves into its slot. */
-export function freeSlot<G>(slots: CardSlots, segment: CardSegment<G>, card: CardHolder) {
+export function freeSlot(slots: CardSlots, segment: CardSegment, card: CardHolder) {
   const last = --segment.count,
     local = card.slot
   if (local !== last) {

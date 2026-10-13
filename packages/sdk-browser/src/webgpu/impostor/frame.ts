@@ -1,4 +1,4 @@
-import type { ImpostorMaps, ImpostorSection } from '../../../../sdk-core/src/index.ts'
+import type { ImpostorSection } from '../../../../sdk-core/src/index.ts'
 import { markReach } from '../../deformation/halfFloat.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -18,9 +18,11 @@ function createWebgpuImpostors(
   pass: ImpostorPass,
   section: ImpostorSection,
 ) {
-  const cards = createImpostorCards<GPUBindGroup>(section, {
-    // The group of a mesh's atlas, drawn this image; asked while absent (`feed.ts`).
-    atlasOf: (mesh: number, maps: ImpostorMaps) => pass.feed.group(mesh, maps, rt.run.frame),
+  const cards = createImpostorCards(section, {
+    // A mesh's maps in the one tile pool, ready once every tile its cards read resides, the
+    // missing ones asked (`../tile/cardTiles.ts`).
+    tilesOf: (mesh) => rt.vis.textures?.cards.tilesOf(mesh),
+    ready: (tiles, ask) => rt.vis.textures?.cards.ready(tiles, ask) ?? false,
     // The roots whose card bit moved are handed to the GPU cut (`markWorld`), their reach kept.
     moved: (rank, root) =>
       rt.run.gpuSelection?.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0)),
@@ -41,30 +43,20 @@ function createWebgpuImpostors(
   })
 }
 
-/** The session's impostor tier, made by the first image that can draw it: a baked section, the
- *  level reader and the visibility buffer's surfaces. A cache without impostors makes nothing. */
+/** The session's impostor tier, made by the first image that can draw it: a baked section whose
+ *  maps the tile catalogue holds (`../tile/cardMaps.ts`). A cache without impostors makes
+ *  nothing. */
 function impostorsOf(rt: WebgpuPagesRuntime): WebgpuImpostors | undefined {
   const section = rt.context.metadata.impostors,
-    reader = rt.context.readTextureLevel,
     device = rt.gpu.device
   if (rt.gpu.impostors) return rt.gpu.impostors
-  if (!section?.baked || !reader || !device) return undefined
-  const { setup, vis, diag } = rt
-  const pass = createImpostorPass(device, reader, {
-    // What the one texture budget leaves beside the pool's floor and the live textures.
-    room: () =>
-      setup.texturePoolBudget -
-      (setup.texturePools?.poolFor(1).allocatedBytes ?? 0) -
-      (vis.textures?.sources.liveBytes ?? 0),
-    landed: () => rt.run.gate.resourcesChanged(),
-    onFailure: diag.diagnosticFailure,
-  })
-  return (rt.gpu.impostors = createWebgpuImpostors(rt, pass, section))
+  if (!section?.baked || !rt.vis.textures?.cards.count || !device) return undefined
+  return (rt.gpu.impostors = createWebgpuImpostors(rt, createImpostorPass(device), section))
 }
 
 /**
  * THE IMAGE'S IMPOSTOR PLAN on WebGPU: the shared plan (`planImpostorCards`) at the engine's focal
- * length for the image's viewport, each card kept once its mesh's atlas group is made (`feed.ts`),
+ * length for the image's viewport, each card kept once its mesh's maps hold what it reads,
  * save on a root the packed world DAG stands in for, whose super-roots draw it far away instead.
  * The roots whose card bit moved are handed to the GPU cut too: every camera cut, CPU and GPU,
  * leaves a marked root to its card, every light cut keeps its clusters.

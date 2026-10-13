@@ -14,6 +14,7 @@ import { TRANSPARENT_STAGES } from './fakeComputeBlend.ts'
 import { words } from './fakeBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
+import { fakeTileSort, isTileSort } from './fakeTileEvict.ts'
 import { boundListCap, packedFromBindings, readDagUniforms } from './fakeDag.ts'
 import { worldsAtEye } from './fakeWorldPose.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
@@ -42,7 +43,7 @@ const DAG_STAGES = new Set([
   'dagDrawScatter',
   'dagCommitMask',
   'dagSortRequests',
-  'dagListEvictions',
+  'poolScatter',
   ...LIST_KERNELS,
 ])
 
@@ -102,8 +103,13 @@ export function simulateComputeDispatch(
   const stage = computePipeline?.entryPoint
   // A group a test wrote by hand, without entries, binds nothing the double could run on.
   if (!computeBind?.entries || !DAG_STAGES.has(stage ?? '')) return
-  // The selection binds one buffer per `DAG_BINDING` slot: one missing is a validation error.
+  // A tile pool's queue, on its sort's own group (`fakeTileEvict.ts`).
+  if (stage === 'poolScatter' && isTileSort(computeBind.entries))
+    return fakeTileSort(computeBind.entries, offsets)
+  // The selection binds one buffer per `DAG_BINDING` slot: one missing is a validation error. The
+  // pool sort's last dispatch is the geometry queue's only on the selection's group.
   const slots = Object.keys(DAG_BINDING).length
+  if (stage === 'poolScatter' && computeBind.entries.length !== slots) return
   if (computeBind.entries.length !== slots)
     throw new Error(`dag selection bind group requires ${slots} entries`)
   const byBinding = new Map(
@@ -114,7 +120,9 @@ export function simulateComputeDispatch(
     listCap = boundListCap(byBinding)
   if (stage === 'dagSortRequests') return sortStagedRequests(byBinding, listCap)
   if (mirrorListStage(stage!, byBinding, dag, listCap)) return // the lists' and the journals' mirror
-  if (stage === 'dagListEvictions') return fakeEvictions(byBinding, dag).list()
+  // The geometry queue whole on its last dispatch: `dagRaiseParents`, `poolCount` and `poolPlace`
+  // leave nothing the mirror does not redo (`fakeEvict.ts`).
+  if (stage === 'poolScatter') return fakeEvictions(byBinding, dag).list()
   // Compaction rereads the draw flags `dagMask` left, as `dagDrawPrefix` then `dagDrawScatter` do.
   if (stage === 'dagDrawScatter')
     return compactDrawnPages(

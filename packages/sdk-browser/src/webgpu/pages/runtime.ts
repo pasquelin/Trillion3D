@@ -87,7 +87,12 @@ export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRun
     traceEnabled,
   }
   const setup = createWebgpuPagesSetup(context, diag)
-  const layout = createWebgpuPagesLayout(setup, context.gpuDevice?.limits)
+  const gpu = createWebgpuGpuState(setup.viewport)
+  // A page's slot is read on the cache, the truth, never mirrored (`../row/pageState.ts`).
+  const layout = createWebgpuPagesLayout(setup, context.gpuDevice?.limits, (address) => {
+    const page = gpu.cache?.get(address)
+    return page ? page.offset / 4 : -1
+  })
   // A page table past one binding holds what the binding does, said: a page left without a row
   // draws through its nearest resident ancestor (`../row/tableRows.ts`).
   if (layout.pageTableBound)
@@ -114,7 +119,6 @@ export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRun
       'direct WebGPU present',
     ],
   }
-  const gpu = createWebgpuGpuState(setup.viewport)
   const core: WebgpuPagesCore = {
     context,
     closer,

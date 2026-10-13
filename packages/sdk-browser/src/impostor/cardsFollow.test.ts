@@ -5,9 +5,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import './lent.fixture.ts'
 import { createImpostorCards, impostorWorldsMoved, planImpostorCards } from './cards.ts'
-import { engineAt, impostorScene, impostorSection, MESH, VIEWPORT } from './section.fixture.ts'
-
-const GROUP = { atlas: 1 }
+import {
+  engineAt,
+  impostorScene,
+  impostorSection,
+  MESH,
+  VIEWPORT,
+  RESIDENT,
+} from './section.fixture.ts'
 
 /** The world translation a card's record holds, its two singles summed. */
 const translation = (records: Float32Array) =>
@@ -15,7 +20,7 @@ const translation = (records: Float32Array) =>
 
 test('a card is written from its root’s world as it is now, one remade elsewhere included', () => {
   const { fixture, roots } = impostorScene(),
-    state = createImpostorCards<typeof GROUP>(impostorSection, { atlasOf: () => GROUP })
+    state = createImpostorCards(impostorSection, RESIDENT)
   planImpostorCards(state, roots, engineAt(200), VIEWPORT)
   assert.equal(state.count, 1)
   // A growth poses the root again on a new buffer: another world object, another place.
@@ -30,7 +35,7 @@ test('a card is written from its root’s world as it is now, one remade elsewhe
 
 test('a mesh’s box is fitted again to its roots as one moves back', () => {
   const { fixture, roots } = impostorScene(),
-    state = createImpostorCards<typeof GROUP>(impostorSection, { atlasOf: () => GROUP })
+    state = createImpostorCards(impostorSection, RESIDENT)
   // A second placement of the mesh beside the first.
   const beside = Float64Array.from(roots[0].world.elements)
   beside[12] = -3

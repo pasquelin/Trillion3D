@@ -1,4 +1,6 @@
 import { entryLevel } from '../../texture/tiles.ts'
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
+import { createTileSlotUse } from './slotUse.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { createWebgpuTilePageTable } from './pageTable.ts'
 import { writeRgbaLevel, writeTail } from './write.ts'
@@ -29,12 +31,18 @@ export function createWebgpuTileAtlas(
     textures: TileTexture[]
     /** A tile gave its place up: the texture it belonged to, for whoever reads it to follow. */
     onEvicted?: (slot: number) => void
+    /** The clock the next feedback reduction stamps at: what an arrival is used at
+     *  (`slotUse.ts`). */
+    clock: () => number
   },
 ): WebgpuTileAtlas {
   const { kind, textures, encoding, feedbackOffset } = options
   const lanes = createTileLanes(device, options)
   let views = lanes.views(),
     pools = lanes.pools()
+  const slotUse = createTileSlotUse(device, kind)
+  const lanePools = () => PREVIEW_LAYOUT_NAMES.map((name) => lanes.lanes.get(name)?.pool)
+  slotUse.layout(lanePools())
   const layouts = () => textures.map((texture) => texture.layout)
   let pages = createWebgpuTilePageTable(device, layouts(), { kind, feedbackOffset })
   const vacant = new Set<number>()
@@ -44,8 +52,8 @@ export function createWebgpuTileAtlas(
   }
   let evictions = 0,
     refused = 0
-  const evict = (lane: Lane, frame: number) => {
-    const index = lane.pool.victim(frame)
+  const evict = (lane: Lane) => {
+    const index = lane.pool.victim()
     if (index === undefined) return undefined
     evictTile(lane.pool, index, { pages, resident: lane.resident }, options.onEvicted)
     evictions++
@@ -62,14 +70,15 @@ export function createWebgpuTileAtlas(
   ) => {
     for (let slot = from; slot < to; slot++) {
       const { layout, source, lane, retired } = textures[slot]
-      if (retired) continue
+      // A level files' tail is pinned once its levels arrive (`fileTails.ts`), never here.
+      if (retired || source.kind === 'files') continue
       if (slot === 0 && fillWaits()) {
         pages.setTail(0, { x: 0, y: 0, layer: 0 }, encoding.tapOf(lane))
         continue
       }
       const pool = lanes.of(slot).pool
       // The floor holds every tail (`texturePoolFor`): a pool drawn under it refuses by name.
-      const index = pool.acquire(tailId(slot), 0, true)
+      const index = pool.acquire(tailId(slot), true)
       if (index === undefined) throw new Error('TEXTURE_POOL_UNDER_FLOOR')
       const place = pool.placeOf(index)
       if (source.kind === 'host') fromHost(slot, place)
@@ -97,6 +106,7 @@ export function createWebgpuTileAtlas(
     get pages() {
       return pages
     },
+    slotUse,
     textures,
     get evictions() {
       return evictions
@@ -134,26 +144,25 @@ export function createWebgpuTileAtlas(
       }
     },
     relayout,
-    touch(key, frame) {
+    resides: (key) => lanes.of(key.slot).resident.has(tileId(key)),
+    stamp(key) {
       const lane = lanes.of(key.slot),
         index = lane.resident.get(tileId(key))
-      if (index === undefined) return false
-      lane.pool.touch(index, frame)
-      return true
+      if (index !== undefined) lane.pool.use(index)
+      return index !== undefined
     },
-    roomFor(slot, frame) {
-      const lane = lanes.of(slot)
-      if (lane.pool.resident < lane.pool.tiles || lane.pool.victim(frame) !== undefined) return true
+    roomFor(slot) {
+      const { pool } = lanes.of(slot)
+      if (pool.resident < pool.tiles || pool.victims() > 0) return true
       refused++
       return false
     },
-    place(key, frame) {
+    place(key) {
       const lane = lanes.of(key.slot),
         id = tileId(key)
-      // A free place, otherwise the one the least looked-at just gave back.
-      let index = lane.pool.acquire(id, frame)
-      if (index === undefined && evict(lane, frame) !== undefined)
-        index = lane.pool.acquire(id, frame)
+      // A free place, otherwise the one the GPU's queue gives back.
+      let index = lane.pool.acquire(id)
+      if (index === undefined && evict(lane) !== undefined) index = lane.pool.acquire(id)
       if (index === undefined) {
         refused++
         return undefined
@@ -167,7 +176,10 @@ export function createWebgpuTileAtlas(
       const word = pages.entryOf(key)
       return word === 0 ? textures[key.slot].layout.tail : entryLevel(word)
     },
-    flush: (target) => pages.flush(target),
+    flush(target) {
+      pages.flush(target)
+      slotUse.flush(options.clock())
+    },
     resize(target, layers) {
       const fillLane = lanes.lanes.get(textures[0].lane)
       // The fill follows its lane: its place given back as it closes, pinned as it opens or closes.
@@ -178,12 +190,14 @@ export function createWebgpuTileAtlas(
       if (result.replaced) {
         views = lanes.views()
         pools = lanes.pools()
+        slotUse.layout(lanePools())
       }
       evictions += result.evicted
       return result
     },
     destroy() {
       pages.destroy()
+      slotUse.destroy()
       lanes.destroy()
     },
   }

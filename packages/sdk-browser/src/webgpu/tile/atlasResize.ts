@@ -8,7 +8,7 @@ import { pendingMade } from '../../gpu/core/tableGrowth.ts'
 /**
  * An atlas pool changes layers WITHOUT losing what it holds. Surviving layers are copied in one
  * command, slot for slot: the page table does not move for them. Tiles of vanishing layers are moved into a free
- * slot of the new pool — pinned queues first, then the most looked-at —, each copied and
+ * slot of the new pool — pinned tails first, then the most looked-at by the GPU's queue —, each copied and
  * re-registered in the table; what no longer fits is evicted, the table says so, `onEvicted` hears
  * its texture and the coarse level takes over. A tail never leaves: only a pool drawn under its
  * tails' floor, which `texturePoolFor` never draws, displaces one, and refuses by name.
@@ -57,17 +57,19 @@ function moveTiles(
   const displaced: number[] = []
   for (const index of pool.occupied()) {
     const id = pool.keyOf(index)
-    if (index < next.tiles)
-      next.adopt(index, id, pool.lastUseOf(index), tailSlotOf(id) !== undefined)
+    if (index < next.tiles) next.adopt(index, id, tailSlotOf(id) !== undefined)
     else displaced.push(index)
   }
+  // Pinned first, then by the GPU's queue from its far end: a place it does not list — read of
+  // late — before any it does, and the last victim before the first.
   const pinned = (index: number) => Number(pool.pinnedOf(index))
-  displaced.sort((a, b) => pinned(b) - pinned(a) || pool.lastUseOf(b) - pool.lastUseOf(a))
+  const lastOut = (index: number) => pool.rankOf(index) ?? Number.MAX_SAFE_INTEGER
+  displaced.sort((a, b) => pinned(b) - pinned(a) || lastOut(b) - lastOut(a))
   let evicted = 0
   for (const index of displaced) {
     const id = pool.keyOf(index),
       tail = tailSlotOf(id),
-      target = next.acquire(id, pool.lastUseOf(index), pool.pinnedOf(index))
+      target = next.acquire(id, pool.pinnedOf(index))
     if (target === undefined) {
       // The tails hold the lowest places, pinned first into a fresh pool, and the floor keeps them
       // all (`texturePoolFor`): only a pool drawn under it displaces one, never cleared as a tile.

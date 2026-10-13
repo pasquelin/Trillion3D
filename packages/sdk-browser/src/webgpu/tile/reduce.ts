@@ -13,6 +13,7 @@
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE, type WebgpuTileFeedback } from './feedback.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { GATHER_WGSL, REDUCE_WGSL, REDUCE_WORKGROUP } from './reduceWgsl.ts'
 import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { TEXTURE_FEEDBACK_REDUCE_PASS } from '../../stage/passLabels.ts'
@@ -24,6 +25,13 @@ import {
   sequentialEntries,
 } from '../../gpu/core/computeBindings.ts'
 
+/** Where the reduction stamps the places its pixels read (`stampWgsl.ts`): the clock, and the
+ *  colour then the data atlas — its table and its places' words. */
+export type TileStamp = {
+  clock: number
+  atlases: readonly Pick<WebgpuTileAtlas, 'pages' | 'slotUse'>[]
+}
+
 export type WebgpuTileReduce = {
   /** Encodes reduction of the target into the feedback's counters and list, for the image's phase,
    *  then the gather of the listed tiles' counts, in the same pass. */
@@ -33,6 +41,7 @@ export type WebgpuTileReduce = {
     feedback: Pick<WebgpuTileFeedback, 'buffer' | 'list' | 'capacity'>,
     size: [number, number],
     phaseWord: number,
+    stamp: TileStamp,
   ): void
 
   destroy(): void
@@ -46,6 +55,10 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
       computeBufferEntry(1, 'storage'),
       computeUniformEntry(2),
       computeBufferEntry(3, 'storage'),
+      computeBufferEntry(4, 'read-only-storage'),
+      computeBufferEntry(5, 'read-only-storage'),
+      computeBufferEntry(6, 'storage'),
+      computeBufferEntry(7, 'storage'),
     ],
   })
   const gatherLayout = device.createBindGroupLayout({
@@ -71,7 +84,7 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
   )
   const uniform = device.createBuffer({
     label: 'Trillion3D texture feedback reduce uniform',
-    size: 16,
+    size: 32,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const gatherUniform = device.createBuffer({
@@ -79,17 +92,23 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  const words = new Uint32Array(4),
+  const words = new Uint32Array(8),
     capWord = new Uint32Array(1)
   // The groups follow the target and the buffers: rebuilt when one moved (`bindIdentity.ts`).
   const reduced = createWebgpuBindIdentity(),
     gatherBound = createWebgpuBindIdentity()
   let group: GPUBindGroup | undefined, gathered: GPUBindGroup | undefined
   return {
-    encode(encoder, target, feedback, size, phaseWord) {
-      reduced.next[0] = target
-      reduced.next[1] = feedback.buffer
-      reduced.next[2] = feedback.list
+    encode(encoder, target, feedback, size, phaseWord, stamp) {
+      const [color, data] = stamp.atlases
+      const next = reduced.next
+      next[0] = target
+      next[1] = feedback.buffer
+      next[2] = feedback.list
+      next[3] = color.pages.buffer
+      next[4] = data.pages.buffer
+      next[5] = color.slotUse.buffer
+      next[6] = data.slotUse.buffer
       if (reduced.moved())
         group = device.createBindGroup({
           layout,
@@ -98,12 +117,17 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
             { buffer: feedback.buffer },
             { buffer: uniform },
             { buffer: feedback.list },
+            { buffer: color.pages.buffer },
+            { buffer: data.pages.buffer },
+            { buffer: color.slotUse.buffer },
+            { buffer: data.slotUse.buffer },
           ]),
         })
       words[0] = size[0]
       words[1] = size[1]
       words[2] = phaseWord
       words[3] = feedback.capacity
+      words[4] = stamp.clock
       device.queue.writeBuffer(uniform, 0, words)
       const every = (phaseWord & FEEDBACK_EVERY) !== 0
       const cols = every ? size[0] : ceilDiv(size[0], FEEDBACK_STRIDE),

@@ -1,4 +1,4 @@
-import { EVICT_IN_USE } from '../../gpu/dag/evict.ts'
+import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 
 /** Frames a row stays in use after the last readback that named it: the pool's rule

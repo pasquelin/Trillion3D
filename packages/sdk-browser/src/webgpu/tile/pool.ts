@@ -9,7 +9,9 @@ import {
   type TilePlace,
 } from '../../texture/tiles.ts'
 import type { PoolLane } from '../../texture/blockFormats.ts'
-import { createCacheEntries } from '../../streaming/cacheEntries.ts'
+import type { ChangedRuns } from '../residency/ranges.ts'
+import { acquire, adopt, occupied, placesOf, release, taken, use } from './poolPlaces.ts'
+import { createPlaceOrder } from './placeOrder.ts'
 
 /**
  * Physical pool of an atlas: an array-texture of 30×30-tile layers, at the size the host budget
@@ -18,9 +20,11 @@ import { createCacheEntries } from '../../streaming/cacheEntries.ts'
  * which takes its places back through `adopt`.
  *
  * The pool does not know what a tile carries: it holds, per place, a KEY the caller confides to
- * it, the last image that looked at it, and whether it is pinned. A texture's tail is pinned at
- * prepare; a streamed tile never is. The places are entries of the engine's one LRU
- * (`streaming/cacheEntries.ts`): the last image that looked at a place is its tier, a pin a hold.
+ * it and whether it is pinned. A texture's tail is pinned at prepare; a streamed tile never is.
+ * Which place gives itself up is the GPU's word: each frame stamps the places its pixels read, and
+ * the pool's queue, ranked on those stamps, is read back with the feedback (`placeOrder.ts`). The
+ * places occupied or freed since the last flush are `changed`: their use words follow
+ * (`slotUse.ts`).
  */
 export type WebgpuTilePool = {
   /** Its texture's label as the engine wrote it, before a session's tag. */
@@ -36,20 +40,34 @@ export type WebgpuTilePool = {
   /** Occupied tiles, and their bytes. */
   readonly resident: number
   readonly residentBytes: number
+  /** Tiles that ever arrived or were used (`use`): the cut of a queue, a tile arrived or used
+   *  since never its victim. */
+  readonly arrivals: number
+  /** Places occupied or freed since their use words were last written (`slotUse.ts`). */
+  readonly changed: ChangedRuns
   /** Takes a free tile for `key`, or returns `undefined` when the pool is full. */
-  acquire(key: number, frame: number, pinned?: boolean): number | undefined
+  acquire(key: number, pinned?: boolean): number | undefined
   /** Sets `key` at a precise free place — what a resized pool takes back from the old one. */
-  adopt(index: number, key: number, frame: number, pinned?: boolean): void
+  adopt(index: number, key: number, pinned?: boolean): void
   release(index: number): void
-  touch(index: number, frame: number): void
+  /** Stamps `index` used as an arrival is (`poolPlaces.ts`): what the CPU asks of a tile no pixel
+   *  reads yet, in the same words the GPU stamps. */
+  use(index: number): void
   keyOf(index: number): number
-  lastUseOf(index: number): number
   pinnedOf(index: number): boolean
-  /** The unpinned tile, least recently looked at, that neither `frame` nor the previous image
-   *  looked at. A tile looked at on the previous image is very likely looked at on this one: giving
-   *  it up for another is asking for it again on the next — a full pool would spin on itself every
-   *  image. It refuses instead, and the coarse level holds; that is the pool's age rule. */
-  victim(frame: number): number | undefined
+  /** Whether `index` is free. */
+  freeAt(index: number): boolean
+  /** The place the GPU's queue gives up next (`placeOrder.ts`): unpinned, and read by no pixel in
+   *  the frame its queue was cut nor the one before. A tile looked at on the previous image is very
+   *  likely looked at on this one: giving it up for another is asking for it again on the next — a
+   *  full pool would spin on itself every image. It refuses instead, and the coarse level holds. */
+  victim(): number | undefined
+  /** How many victims the queue may still give: an upper bound. */
+  victims(): number
+  /** A place's rank in the queue, the first victim at 0; `undefined` unlisted. */
+  rankOf(index: number): number | undefined
+  /** Takes the queue a readback brought: its count then its places, cut at `arrivals`. */
+  follow(queue: Uint32Array, arrivals: number): void
   /** Every occupied place, pinned included, in pool order. */
   occupied(): number[]
   placeOf(index: number): TilePlace
@@ -89,78 +107,6 @@ export function tilePoolTexture(options: TilePoolOptions) {
   }
 }
 
-/** What a pool knows of its places: per place, the key it holds — -1 free —; the free places; and
- *  the occupied ones as the LRU's entries, last use their tier, a pin a hold. */
-type Places = {
-  tiles: number
-  owner: Int32Array
-  /** Free places, the lowest on top of the stack: a half-empty pool stays compact. The stack is
-   *  rebuilt in one pass when an adopt has stale-dated it, at the next take. */
-  free: number[]
-  freeStale: boolean
-  recent: ReturnType<typeof createCacheEntries<number, number>>
-}
-
-const placesOf = (tiles: number): Places => ({
-  tiles,
-  owner: new Int32Array(tiles).fill(-1),
-  free: [],
-  freeStale: true,
-  recent: createCacheEntries<number, number>(),
-})
-
-function settle(places: Places) {
-  if (!places.freeStale) return
-  const { free, owner } = places
-  free.length = 0
-  for (let index = places.tiles - 1; index >= 0; index--) if (owner[index] === -1) free.push(index)
-  places.freeStale = false
-}
-
-/** `index`, held: a free place is refused. */
-function taken({ owner }: Places, index: number) {
-  if (owner[index] === -1) throw new Error('TEXTURE_TILE_FREE')
-  return index
-}
-
-function occupy(places: Places, index: number, key: number, frame: number, pin: boolean) {
-  places.owner[index] = key
-  places.recent.set(index, index, 0, frame)
-  if (pin) places.recent.acquire(index)
-}
-
-function acquire(places: Places, key: number, frame: number, pin: boolean) {
-  settle(places)
-  const index = places.free.pop()
-  if (index === undefined) return undefined
-  occupy(places, index, key, frame, pin)
-  return index
-}
-
-function adopt(places: Places, index: number, key: number, frame: number, pin: boolean) {
-  if (places.owner[index] !== -1) throw new Error('TEXTURE_TILE_OCCUPIED')
-  occupy(places, index, key, frame, pin)
-  places.freeStale = true
-}
-
-function release(places: Places, index: number) {
-  taken(places, index)
-  places.owner[index] = -1
-  places.recent.drop(index)
-  if (!places.freeStale) places.free.push(index)
-}
-
-function victim({ recent }: Places, frame: number) {
-  const first = recent.first
-  return first && first.tier < frame - 1 ? first.key : undefined
-}
-
-function occupied({ tiles, owner }: Places) {
-  const out: number[] = []
-  for (let index = 0; index < tiles; index++) if (owner[index] !== -1) out.push(index)
-  return out
-}
-
 export function createWebgpuTilePool(
   device: TilePoolDevice,
   options: TilePoolOptions,
@@ -172,6 +118,9 @@ export function createWebgpuTilePool(
   const label = descriptor.label
   const texture = device.createTexture(descriptor)
   const places = placesOf(tiles)
+  const order = createPlaceOrder((index) =>
+    places.owner[index] === -1 ? undefined : { index, generation: places.arrived[index] },
+  )
   return {
     label,
     texture,
@@ -181,22 +130,26 @@ export function createWebgpuTilePool(
     bytes: layers * poolLayerBytes(texelBytes),
     tileBytes: perTile,
     get resident() {
-      return places.recent.size
+      return places.count
     },
     get residentBytes() {
-      return places.recent.size * perTile
+      return places.count * perTile
     },
-    acquire: (key, frame, pin = false) => acquire(places, key, frame, pin),
-    adopt: (index, key, frame, pin = false) => adopt(places, index, key, frame, pin),
+    get arrivals() {
+      return places.arrivals
+    },
+    changed: places.changed,
+    acquire: (key, pin = false) => acquire(places, key, pin),
+    adopt: (index, key, pin = false) => adopt(places, index, key, pin),
     release: (index) => release(places, index),
-    touch(index, frame) {
-      taken(places, index)
-      if (places.recent.entry(index)!.tier !== frame) places.recent.set(index, index, 0, frame)
-    },
+    use: (index) => use(places, index),
     keyOf: (index) => places.owner[taken(places, index)],
-    lastUseOf: (index) => places.recent.entry(taken(places, index))!.tier,
-    pinnedOf: (index) => places.recent.entry(taken(places, index))!.holds > 0,
-    victim: (frame) => victim(places, frame),
+    pinnedOf: (index) => places.pinned[taken(places, index)] === 1,
+    freeAt: (index) => places.owner[index] === -1,
+    victim: order.victim,
+    victims: order.victims,
+    rankOf: order.rankOf,
+    follow: order.follow,
     occupied: () => occupied(places),
     placeOf,
     destroy() {
