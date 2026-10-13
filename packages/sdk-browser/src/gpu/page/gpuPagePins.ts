@@ -1,4 +1,5 @@
 import type { GpuPageContext } from './types.ts'
+import { placesFor } from './load.ts'
 
 export function createGpuPagePins(context: GpuPageContext) {
   const { resident, eviction, check, reader } = context
@@ -26,22 +27,14 @@ export function createGpuPagePins(context: GpuPageContext) {
         pinned: eviction.pinnedCount,
       }))
     },
-    /**
-     * Moves a resident page to the far end of the eviction order, without a load: a page a
-     * lower tier still wants is then the last unpinned page a new arrival takes the slot of.
-     */
-    touch(key: string, lower = false) {
-      if (!resident.has(key)) return false
-      eviction.touched(key, lower)
-      return true
-    },
-    /** Places a load can take without evicting a pinned page: the free slots and quarters, and
-     *  the unpinned pages' (`places.ts`). */
-    unpinnedSlots() {
-      return context.placement.free + resident.size - eviction.pinnedCount
-    },
+    /** Places a load can take now: the free slots and quarters, then the pages the published
+     *  order still gives — its old head alone for a page of a lower tier (`eviction.ts`). */
+    room: (lower = false) => placesFor(context, lower),
     /** Whether the page `key` is pinned. */
     isPinned: eviction.isPinned,
+    /** Whether the pool holds the page `key` and keeps it: pinned, in use by some view, or not
+     *  given up by the order in hand (`eviction.ts`). */
+    holds: (key: string) => resident.has(key) && !eviction.evictable(key),
     /** Unpins `key`; true when it was pinned. */
     unpin(key: string) {
       if (!eviction.unpin(key)) return false

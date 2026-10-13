@@ -119,9 +119,9 @@ export type LowerPassOptions = {
 type LowerPass = LowerPassOptions & { skips: (rec: PageRec) => boolean }
 
 /** The lower tiers' pass of the residency ensurer (`residentEnsurer.ts`): their merged list, its
- *  load into what the camera left, whether it leaves work, and the touch a settled pass still does. */
+ *  load into what the camera left, and whether it leaves work. */
 export function createLowerPass(options: LowerPassOptions) {
-  const { getCache, tracking, bootstrapKey, hasBytes, lowerTiers } = options
+  const { tracking, bootstrapKey, hasBytes, lowerTiers } = options
   const mergeLower = createLowerMerge(tracking.keyOf)
   /** Whether a lower tier page is not the tiers' to load: wanted by the camera, pinned, or without
    *  its bytes. */
@@ -130,46 +130,27 @@ export function createLowerPass(options: LowerPassOptions) {
     return tracking.wanted.has(key) || !!bootstrapKey[key] || !hasBytes(rec)
   }
   const pass: LowerPass = { ...options, skips }
-  /** What the last touch of the lower pages was made for: the reports of the tiers and the pool. */
-  let touchedReports = -1,
-    touchedCache: GpuPageCache | undefined
-  const reports = () => lowerTiers().reduce((sum, tier) => sum + tier.revision, 0)
   return {
     list: () => mergeLower(lowerTiers()),
-    load: async (
+    load: (
       lower: readonly PageRec[],
       cache: GpuPageCache,
       cameraWaiting: () => boolean,
       reads: AbortSignal,
-    ) => {
-      touchedReports = reports()
-      touchedCache = cache
-      await loadLowerTiers(pass, lower, cache, cameraWaiting, reads)
-    },
+    ) => loadLowerTiers(pass, lower, cache, cameraWaiting, reads),
     /** True when every lower tier page is held, or left to the camera: the tiers leave no work. */
     held: (cache: GpuPageCache) =>
       mergeLower(lowerTiers()).every((rec) => skips(rec) || !!cache.get(pageAddress(rec))),
-    /** What a pass that finds nothing to do still does: the lower tiers' pages touched, so the
-     *  pool's order of eviction is the one a pass would have left — once for each report of the
-     *  tiers, a pass or a touch having made it already otherwise. */
-    touch() {
-      const cache = getCache(),
-        at = reports()
-      if (!cache || (touchedReports === at && touchedCache === cache)) return
-      touchedReports = at
-      touchedCache = cache
-      for (const rec of mergeLower(lowerTiers()))
-        if (!skips(rec)) cache.touch(pageAddress(rec), true)
-    },
   }
 }
 
 /**
  * What the camera left: the lower tiers' pages — the pages ahead of the camera —, loaded only
- * into slots nobody holds — free, or taken by a page no tier wants. They are never pinned: a
- * camera page evicts them, they never evict a camera page, and an object on screen is never
- * coarsened for a view to come. A tier keeps every page its list still names, so a wanted page is
- * never evicted and reloaded each frame (#1016).
+ * into the free slots and those of the OLD pages the GPU's order gives up — older than any page the
+ * view ahead asks for (`../../gpu/page/eviction.ts`). They are never pinned: a camera page evicts
+ * them, they never evict a page any view used of late, and an object on screen is never coarsened
+ * for a view to come. The view ahead stamps every page its list still names (`stampAhead`), so a
+ * wanted page is never evicted and reloaded each frame (#1016).
  */
 async function loadLowerTiers(
   pass: LowerPass,
@@ -179,9 +160,7 @@ async function loadLowerTiers(
   reads: AbortSignal,
 ) {
   const { skips, budget, signal } = pass
-  let spare = cache.unpinnedSlots()
-  for (let i = 0; i < lower.length; i++)
-    if (!skips(lower[i]) && cache.touch(pageAddress(lower[i]), true)) spare--
+  let spare = cache.room(true)
   pass.readAhead?.(lower, spare, (rec) => !skips(rec), cache, reads, PRIORITY_PREFETCH)
   // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
   // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
@@ -201,7 +180,7 @@ async function loadLowerTiers(
       budget.spend()
     } catch (error) {
       // The camera's own burst took the last slot meanwhile: the tier waits, as it does.
-      if (String(error).includes('ALL_PAGES_PINNED')) return
+      if (String(error).includes('POOL_FULL')) return
       throw error
     }
   }

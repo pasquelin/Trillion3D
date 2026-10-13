@@ -42,6 +42,9 @@ export type SelectionUniforms = {
   /** The pool cannot hold the whole cut: the camera's requests rank by admission, the minimum
    *  capacity's pages then the coarsest level first (`../dag/request.ts`). */
   admitByLevel?: boolean
+  /** The host's frame, the clock each view's cut stamps what it uses with (`../dag/evict.ts`):
+   *  never compared — a cut standing still across frames is the same cut. */
+  frame?: number
 }
 /**
  * A resident cut's two lists — the camera's requests, the drawn pages — as the ranks the readback
@@ -62,6 +65,9 @@ export type SelectionResult = {
   drawablePageIds?: number[]
   /** A resident cut's eviction queue (`../dag/evict.ts`): canonical pages, first evicted first. */
   evictPageIds?: number[]
+  /** How many of its first pages are OLD: older than any page the view ahead asks for, the only
+   *  ones a page of the view ahead may take the place of. */
+  evictOld?: number
   /** The camera's requests counted by admission bucket (`../dag/readoutWords.ts`,
    *  `levelCountsWord`): where each level of a list ranked by admission starts. */
   levelCounts?: Uint32Array
@@ -125,6 +131,9 @@ export type GpuSelection = {
   /** True while its list or its regions grow between two frames (`../dag/listCap.ts`): no root
    *  is appended meanwhile, and the appending caller asks again at its next frame. */
   readonly growing: boolean
+  /** True while no cut may run on its tables (`../dag/queueGrowth.ts`, `tablesHeld`): the frames
+   *  draw the last cut that ran whole, so no page it may draw leaves the pool meanwhile. */
+  readonly cutHeld: boolean
   /** The factor the main view's projected-error threshold is cut under: 1 but past the list one
    *  binding holds, where the cut coarsens until it fits (`../dag/coarsening.ts`). */
   readonly coarsen: number
@@ -155,6 +164,9 @@ export type GpuSelection = {
   isChildReady(page: number): boolean
   /** Each page the pool takes or gives back: the eviction queue lists what it holds. */
   notePool(page: number, held: boolean): void
+  /** The pool refused a page for lack of a place: the next dispatch cuts again, and its readback
+   *  brings a new eviction queue, the ages grown since (`../dag/evict.ts`). */
+  askEvictions(): void
   /** Encodes the selection. Given `shared`, the caller owns the command buffer and calls the
    *  settlement back, `true` once it is queued, `false` if dropped: no readback before `true`. */
   dispatch(uniforms: SelectionUniforms, shared?: GPUCommandEncoder): SelectionSubmission | undefined

@@ -16,7 +16,8 @@
 /**
  * Layout of the `work` buffer, in words, as the kernel reads it — `blockBase()`,
  * `liveCounter()` and the twelve frame counters from `levelWgsl.ts`, then the camera's
- * per-view words (`viewsWgsl.ts`) and the frame count. Set HERE and
+ * per-view words (`viewsWgsl.ts`), the lists' group counts, and each key group's last use with the
+ * groups a cut raised (`lastUseWgsl.ts`). Set HERE and
  * nowhere else: the engine allocates it (`../resources.ts`) and benches that mount the
  * kernel by hand reread it, so a word added to the kernel cannot leave a caller
  * with a buffer that is too short — where out-of-bounds counters read as zero, and
@@ -25,13 +26,15 @@
  * Each list read indirectly keeps its dispatch argument's x then y behind its counter
  * (`openSlice`), which the arming kernel copies to the argument (`armWgsl.ts`).
  */
-export function dagWorkLayout(blockCount: number) {
+export function dagWorkLayout(blockCount: number, groupCount = 0) {
   // Block counts, block offsets and two words per block of the draw mask (`compactWgsl.ts`): no
   // word per page, so `work` never bounds the pages one binding holds (the kept ranks live in
   // `flags`, `differenceWgsl.ts`).
   const base = blockCount * WORK_BLOCK_WORDS,
     viewWords = base + FRAME_COUNTERS,
-    drawnGroupsMax = viewWords + VIEW_WORD_ROWS
+    drawnGroupsMax = viewWords + VIEW_WORD_ROWS,
+    lastUse = drawnGroupsMax + 13,
+    raised = lastUse + groupCount
   return {
     base,
     /** The draw mask, a bit a page, behind the block counts and offsets and the mask the cut
@@ -47,14 +50,22 @@ export function dagWorkLayout(blockCount: number) {
     drawnGroups: base + 10,
     /** The word behind the camera's per-view rows (`VIEW_WORD_ROWS`, one word each). */
     drawnGroupsMax,
-    /** The camera cuts run so far, the clock of each page's last use (`lastUseWgsl.ts`). */
-    frame: drawnGroupsMax + 1,
     /** The two kept lists' group counts, then the journal a swap writes back's, then the three
      *  descent queues', x and y each (`armWgsl.ts`). */
-    listGroups: drawnGroupsMax + 2,
-    words: drawnGroupsMax + 14,
+    listGroups: drawnGroupsMax + 1,
+    /** Each key group's last use, the frame it was last used in (`lastUseWgsl.ts`): kept from one
+     *  cut to the next, atomic, so a group raised by many threads is walked up by one. */
+    lastUse,
+    /** The groups a cut raised, its count then `RAISED_PER_GROUP` a group at most: what
+     *  `dagRaiseParents` walks up (`lastUseWgsl.ts`). */
+    raised,
+    words: raised + 1 + RAISED_PER_GROUP * groupCount,
   }
 }
+
+/** Times one cut may raise one group's last use: once to the view ahead's age, once to the frame
+ *  (`lastUseWgsl.ts`) — each raise lists it once. */
+export const RAISED_PER_GROUP = 2
 
 /** Words of the frame counters: the live list's counter and argument, three queue counters, the
  *  candidates' counter and argument, the drawn log's counter and argument, then the counter of the

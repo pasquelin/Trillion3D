@@ -59,12 +59,14 @@ export function createWebgpuRowSync(
     slots.apply(bounded ? budget : undefined)
     return true
   }
-  /** A readback a view adopted (`cut`, its identity new per readback): its rows stamped used, its
-   *  requests for instances without a row served at the next sync. */
-  const followCut = (cut: { readonly result: CutLists } | null | undefined) => {
+  /** A readback a view adopted (`cut`, its identity new per readback): its rows stamped used at the
+   *  frame it was cut at, its requests for instances without a row served at the next sync. */
+  const followCut = (
+    cut: { readonly result: CutLists; readonly uniforms?: { frame?: number } } | null | undefined,
+  ) => {
     if (!cut || cut === followed) return
     followed = cut
-    slots.follow(cut.result)
+    slots.follow(cut.result, cut.uniforms?.frame)
   }
   /** WebgpuRowState the time budget deferred to a later image. */
   const rowsOwed = () => slots.pending

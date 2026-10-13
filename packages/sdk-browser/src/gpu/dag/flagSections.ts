@@ -14,17 +14,14 @@ export const dagQueueWords = (packed: {
  *  running cut writes, `candCap` entries each (`shader/levelWgsl.ts`, `shader/liveWgsl.ts`). */
 const LIST_SECTIONS = 4
 
-/** Sections of a camera cut's `flags`: queue 0, the two lists, the other queues, then each content
- *  key's last use (`shader/lastUseWgsl.ts`). */
-export const FLAG_SECTIONS = 1 + LIST_SECTIONS + (LEVEL_QUEUES - 1) + 1
+/** Sections of a camera cut's `flags`: queue 0, the lists, then the other queues. */
+export const FLAG_SECTIONS = 1 + LIST_SECTIONS + (LEVEL_QUEUES - 1)
 
-/** What a cut's `flags` is laid out for: the words of each queue, the entries of each list, the
- *  content keys. */
-export type FlagShape = { queueWords: number; candCap: number; keyCount: number }
+/** What a cut's `flags` is laid out for: the words of each queue, the entries of each list. */
+export type FlagShape = { queueWords: number; candCap: number }
 
 /** The words of a `flags` of `shape` (`dagFlagsWords`). */
-export const flagShapeWords = (shape: FlagShape) =>
-  dagFlagsWords(shape.queueWords, shape.candCap, shape.keyCount)
+export const flagShapeWords = (shape: FlagShape) => dagFlagsWords(shape.queueWords, shape.candCap)
 
 /** The shape of `packed`'s flags. */
 export const dagFlagShape = (packed: {
@@ -33,9 +30,7 @@ export const dagFlagShape = (packed: {
   nodeCount?: number
   pageCount: number
   candCount?: number
-  keyCount?: number
 }): FlagShape => ({
   queueWords: dagQueueWords(packed),
   candCap: Math.max(1, packed.candCount ?? packed.pageCount),
-  keyCount: Math.max(1, packed.keyCount ?? packed.pageCount),
 })

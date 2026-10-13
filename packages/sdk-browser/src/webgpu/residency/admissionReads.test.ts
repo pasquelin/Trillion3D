@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
-import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts'
+import { ensurerOptions, orderedPool, pageOf } from './residentEnsurer.fixture.ts'
 import { run, world } from './admissionReads.fixture.ts'
 import { readGeometryAhead } from '../row/pageSlots.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
@@ -76,7 +76,7 @@ test('a job that throws still drops the reads it started', async () => {
   const pages = ['a', 'b'].map(pageOf)
   const tracking = createWebgpuPageTracking(pages)
   for (const page of pages) tracking.wanted.add(tracking.keyOf(page), page)
-  const cache = lruCache(2),
+  const cache = orderedPool(2),
     signals: AbortSignal[] = []
   cache.load = async () => {
     throw new Error('WEBGPU_LOST')
@@ -118,7 +118,7 @@ test('the lower tiers read ahead at prefetch priority, the camera at its own', a
   tracking.wanted.add(tracking.keyOf(seen), seen)
   const asked: [string, number | undefined][] = []
   await createWebgpuResidentEnsurer({
-    ...ensurerOptions(tracking, lruCache(2)),
+    ...ensurerOptions(tracking, orderedPool(2)),
     lowerTiers: () => [{ pages: [tier], has: (key) => key === tracking.keyOf(tier), revision: 0 }],
     prefetch: (page, _signal, priority) => asked.push([page.url, priority]),
   })([seen], 1, 1)
@@ -158,7 +158,7 @@ test('pages the queue gains while the job awaits a load are read before they are
   const tracking = createWebgpuPageTracking(pages)
   const queue = [pages[0], pages[1]]
   for (const page of pages) tracking.wanted.add(tracking.keyOf(page), page)
-  const cache = lruCache(4),
+  const cache = orderedPool(4),
     load = cache.load,
     log: string[] = []
   cache.load = async (url: string) => {

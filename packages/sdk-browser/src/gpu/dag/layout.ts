@@ -152,13 +152,28 @@ export const poolBase = (pageCount: number) => childBase(pageCount) + residentWo
 /** First word of the record keys, one per unique record: the content key it reads (`evict.ts`). */
 export const recordKeyBase = (pageCount: number) =>
   poolBase(pageCount) + 1 + selectionListCap(pageCount)
-/** What the cold table is laid out for: its pages, unique records and content keys. */
-type ColdShape = { pageCount: number; recordCount: number; keyCount: number }
+/** What the cold table is laid out for: its pages, unique records, content keys, and the groups
+ *  of those keys with the links to the groups that replace them (`evict.ts`). */
+type ColdShape = {
+  pageCount: number
+  recordCount: number
+  keyCount: number
+  groupCount: number
+  groupEdges: number
+}
 /** First word of the key words, one per content key: its canonical page and its coarsest level. */
-export const keyWordBase = (shape: Omit<ColdShape, 'keyCount'>) =>
+export const keyWordBase = (shape: Pick<ColdShape, 'pageCount' | 'recordCount'>) =>
   recordKeyBase(shape.pageCount) + Math.max(1, shape.recordCount)
-/** First cold record, behind the bit sets, the pool's list, the record keys and the key words. */
-export const coldBase = (shape: ColdShape) => keyWordBase(shape) + Math.max(1, shape.keyCount)
+/** First word of the key groups, one per content key: the group its last use is its group's. */
+export const keyGroupBase = (shape: Pick<ColdShape, 'pageCount' | 'recordCount' | 'keyCount'>) =>
+  keyWordBase(shape) + Math.max(1, shape.keyCount)
+/** First word of the groups' parents: `groupCount + 1` starts, then the parents they bound. */
+export const groupParentBase = (shape: Pick<ColdShape, 'pageCount' | 'recordCount' | 'keyCount'>) =>
+  keyGroupBase(shape) + Math.max(1, shape.keyCount)
+/** First cold record, behind the bit sets, the pool's list, the record keys, the key words, the key
+ *  groups and the groups' parents. */
+export const coldBase = (shape: ColdShape) =>
+  groupParentBase(shape) + shape.groupCount + 1 + shape.groupEdges
 
 /** Hot field ranks, in the order `struct Cluster` of the shader declares them. */
 export const HOT_SPHERE = 0,

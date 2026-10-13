@@ -8,13 +8,13 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 
 ## One cut rule per cluster
 
-| Mechanism                                       | Where                                                                         |
-| ----------------------------------------------- | ----------------------------------------------------------------------------- |
-| The predicate that draws or withholds a cluster | `page/cut/rule.ts:drawsCluster`                                               |
-| Its residency, by group and closed upward       | `page/cut/readiness.ts`                                                       |
-| The GPU kernel's copy and its CPU model         | `gpu/dag/readiness.ts`, `gpu/dag/oracle/oracle.fixture.ts`                    |
-| Whole groups asked of the cache                 | `page/cut/groupClosure.ts`                                                    |
-| The CPU cut, the kernel's oracle in the tests   | `page/cut/take.fixture.ts`, `page/cut/held.fixture.ts`                        |
+| Mechanism                                       | Where                                                      |
+| ----------------------------------------------- | ---------------------------------------------------------- |
+| The predicate that draws or withholds a cluster | `page/cut/rule.ts:drawsCluster`                            |
+| Its residency, by group and closed upward       | `page/cut/readiness.ts`                                    |
+| The GPU kernel's copy and its CPU model         | `gpu/dag/readiness.ts`, `gpu/dag/oracle/oracle.fixture.ts` |
+| Whole groups asked of the cache                 | `page/cut/groupClosure.ts`                                 |
+| The CPU cut, the kernel's oracle in the tests   | `page/cut/take.fixture.ts`, `page/cut/held.fixture.ts`     |
 
 - One predicate on one readiness, the threshold always the host's. The GPU cut is the engine's one
   cut, every view's (`gpu/dag/aside.ts`): the CPU cut is the kernel's reference in the tests alone.
@@ -39,7 +39,7 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 | WebGPU slots beside the vertex buffers, and a resize    | `webgpu/pages/io/memory.ts`, `webgpu/pages/prepare/growTables.ts` |
 | The pinned world top                                    | `scene/worldRoots.ts`                                             |
 | The world super-roots the cut draws                     | `scene/worldSuperRoots.ts`, `gpu/dag/worldMirror.ts`              |
-| Eviction by last use, parents after children            | `residency/lastUse.ts`                                            |
+| Eviction by last use, parents after children            | `gpu/dag/evict.ts`, `gpu/dag/shader/lastUseWgsl.ts`               |
 
 - Past the pool, the cut keeps the host's screen error: the pool loads what fits, coarsest first,
   and the cut rule draws the rest (`coverage-budget`). Memory never forces a cut the view refuses:
@@ -59,13 +59,21 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 | Requests ahead of a moving camera, a lower tier     | `gpu/core/aheadView.ts`, `webgpu/residency/lowerTier.ts`                      |
 | The main thread's share                             | `page/integration/frameBudget.ts`                                             |
 | The eviction queue the GPU cut publishes            | `gpu/dag/evict.ts`, `gpu/dag/poolList.ts`, `webgpu/residency/evictionFeed.ts` |
+| The cache's one hold: the root cover's pins         | `webgpu/residency/pinUpdater.ts`, `gpu/page/eviction.ts`                      |
 
 - A region keeps a complete resident representation until every replacement page is uploaded. A
   page's dependencies are requested with it ([FORMAT.md](FORMAT.md#cluster-dag)); until they
   arrive, it is not loaded.
-- The lower tier is never pinned, never evicts a camera page, and empties once the camera stops.
-- The GPU cut keeps no ranking of its own; on its path the cache evicts only from its queue, finer
-  level first, a key the latest cut read never listed.
+- Last use is the GPU's alone: every view's cut stamps, with the host's frame, the group of each
+  page it draws or asks for, and raises the groups replacing it up to the roots, so a group is
+  never older than one it replaces. The queue lists the pool's pages oldest use first, finer level
+  first among equal ages; a page any view used this frame or the one before is never listed. The
+  host keeps no clock: it pins the root cover alone, takes victims in the queue's order, never a
+  page arrived since the queue's cut, and none while the frames draw a held cut. A load refused for
+  lack of a place asks the GPU a new queue.
+- The lower tier is never pinned and never evicts a page a view used of late: its requests count
+  as used two frames ago, and it takes only the queue's old head. It empties once the camera
+  stops.
 - An instance is resident for the cut once its bytes are and it holds a row. The table holds what
   the cut draws and asks for, sized by the view, never by the placements: a request for an instance
   without a row takes a free row, or one no readback used for a while; one the table cannot serve
@@ -106,11 +114,11 @@ One rule for every pool (`residency/outOfMemory.ts:halvedPool`): a refused pool 
 half its bytes, down to its floor; the pool in place is never replaced by one the device refused,
 and no refusal loses the device.
 
-| Where it is refused  | How it is answered                                                              |
-| -------------------- | ------------------------------------------------------------------------------- |
-| WebGPU pools         | `webgpu/residency/poolGrants.ts`: a floor refused at prepare fails the session  |
-| WebGPU frame targets | `webgpu/pages/prepare/targetGrant.ts`: Hi-Z leaves first, then the frames hold  |
-| WebGPU row tables    | `webgpu/pages/prepare/growTables.ts`: pool and tables kept                      |
+| Where it is refused  | How it is answered                                                             |
+| -------------------- | ------------------------------------------------------------------------------ |
+| WebGPU pools         | `webgpu/residency/poolGrants.ts`: a floor refused at prepare fails the session |
+| WebGPU frame targets | `webgpu/pages/prepare/targetGrant.ts`: Hi-Z leaves first, then the frames hold |
+| WebGPU row tables    | `webgpu/pages/prepare/growTables.ts`: pool and tables kept                     |
 
 A lost device takes the loss path ([SDK.md](SDK.md#out-of-memory-is-absorbed)).
 

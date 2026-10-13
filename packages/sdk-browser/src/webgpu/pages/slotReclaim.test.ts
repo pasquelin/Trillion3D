@@ -10,6 +10,8 @@ import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { camera } from './testScenes.fixture.ts'
 import { twoCoarseQuadsScene } from './testOccluder.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
+import { EVICT_IN_USE } from '../../gpu/dag/evict.ts'
+import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 import { type ClusterManifest, type Primitive } from '../../../../sdk-core/src/index.ts'
 
 /** `twoCoarseQuadsScene`, its manifest completed with the cache-identity fields the fixture
@@ -95,11 +97,12 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
   }
   try {
     await backend.prepare()
-    for (let round = 0; round < 6; round++) {
-      look(round % 2 ? 100 : 0)
-      await backend.flush()
-      look(round % 2 ? 100 : 0)
-    }
+    // Each view held until the other's pages are out of use and their order read back.
+    for (let round = 0; round < 6; round++)
+      for (let image = 0; image <= EVICT_IN_USE + DAG_READBACK_SLOTS; image++) {
+        look(round % 2 ? 100 : 0)
+        await backend.flush()
+      }
     assert.ok(backend.metrics().cacheEvictions! > 0, 'the run has to recycle rows')
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')
     assert.ok(table, 'the page table is allocated once')

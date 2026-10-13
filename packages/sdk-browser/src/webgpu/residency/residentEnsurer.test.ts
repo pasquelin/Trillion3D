@@ -1,11 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuPageTracking, type WebgpuPageTracking } from '../row/pageTracking.ts'
-import { lruCache, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts'
+import { orderedPool, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts'
 
-/** A cache of three slots all pinned: the fourth page cannot enter. `spare` slots it says it has
- *  beside them: a load then fails by `error` alone. */
-function saturatedCache(resident: string[], error = 'ALL_PAGES_PINNED', spare = 0) {
+/** A cache of three slots, none the GPU's order gives up: the fourth page cannot enter. `spare`
+ *  places it says it has beside them: a load then fails by `error` alone. */
+function saturatedCache(resident: string[], error = 'POOL_FULL', spare = 0) {
   const held = new Set(resident)
   return {
     get: (url: string) => (held.has(url) ? { key: url } : undefined),
@@ -14,7 +14,7 @@ function saturatedCache(resident: string[], error = 'ALL_PAGES_PINNED', spare = 
       held.add(url)
     },
     pin() {},
-    unpinnedSlots: () => 3 - held.size + spare,
+    room: () => 3 - held.size + spare,
   }
 }
 
@@ -42,7 +42,7 @@ test('a page both lower tiers name is counted once: the slots it leaves are fill
   const pages = ['both', 'x', 'y'].map(pageOf)
   const [both, x, y] = pages
   const tracking = createWebgpuPageTracking(pages)
-  const cache = lruCache(3)
+  const cache = orderedPool(3)
   await cache.load('both')
   // A caster also ahead of the camera: one resident page, two free slots for the rest.
   await tierEnsurer(
@@ -59,16 +59,21 @@ test('shadow casters fill only what the camera leaves: never pinned, never evict
   const [cam0, cam1, cam2, , sh0, sh1, sh2] = pages
   const tracking = createWebgpuPageTracking(pages)
   for (const page of [cam0, cam1]) tracking.wanted.add(tracking.keyOf(page), page)
-  const cache = lruCache(4)
+  let lower = [sh0, sh1, sh2]
+  // The GPU's order: the camera's pages in use, the casters asked for not old.
+  const cache = orderedPool(
+    4,
+    (url) => tracking.wanted.has(tracking.pageCatalogIds.get(url)!),
+    (url) => lower.some((page) => page.url === url),
+  )
   await cache.load('old')
   await cache.load('sh0')
-  let lower = [sh0, sh1, sh2]
   const ensure = tierEnsurer(tracking, cache, () => lower)
   await ensure([cam0, cam1], 1, 1)
-  // The camera's two pages took the two free slots and are pinned; `old` and `sh0` remain.
-  // Two unpinned slots, one of them already a caster: one more caster enters, in `old`'s slot.
+  // The camera's two pages took the two free slots, in use; `old` and `sh0` remain. One old page:
+  // one more caster enters, in `old`'s slot.
   assert.deepEqual([...cache.resident.keys()].sort(), ['cam0', 'cam1', 'sh0', 'sh1'])
-  assert.deepEqual([...cache.pins].sort(), ['cam0', 'cam1'], 'no caster is pinned')
+  assert.equal(cache.pins.size, 0, 'nothing is pinned')
   // The camera wants a third page: it takes a caster's slot, and the casters still wanted keep
   // theirs — the one left over is not evicted for another caster.
   tracking.wanted.add(tracking.keyOf(cam2), cam2)
@@ -91,7 +96,7 @@ test('a burst of pages the pool holds settles in a few microtasks, none admitted
       loads++
     },
     pin() {},
-    unpinnedSlots: () => 1,
+    room: () => 1,
   }
   // The microtasks the pass takes, counted until it settles.
   let ticks = 0,

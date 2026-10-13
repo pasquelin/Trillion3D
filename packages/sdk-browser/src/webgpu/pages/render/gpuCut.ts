@@ -80,6 +80,8 @@ function adoptAndAdmit(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: nu
   cameraSelectionUniforms(cam, pixelError, viewport, uniforms, cutMotion(rt))
   // A pool short of the views' cuts has the GPU rank the requests by admission (`request.ts`).
   uniforms.admitByLevel = services.residency.short()
+  // The clock every view's cut of this frame stamps what it uses with (`../../../gpu/dag/evict.ts`).
+  uniforms.frame = run.frame
   // An image that adopts no readback moves no page; the adoption reports what it actually moved.
   run.pagesEntered = 0
   run.pagesExited = 0

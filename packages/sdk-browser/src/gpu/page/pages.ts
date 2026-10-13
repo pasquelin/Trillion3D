@@ -63,8 +63,19 @@ export function createGpuPageCache(
       return resident.get(key)
     },
     /** Evicts in `order` from now on: an arrival takes the slot of its first resident, unpinned page
-     *  not taken yet, never of a page it leaves out. `undefined` goes back to the least recent. */
+     *  not taken yet, never of a page it leaves out. `undefined`: no victim until the next one. */
     evictInOrder: (order?: EvictionOrder) => context.eviction.follow(order),
+    /** Pages committed so far: what an order made now names as its `arrivals`. */
+    get arrivals() {
+      return state.generation
+    },
+    /** True when a load was refused for lack of a place since the last call: the order in hand is
+     *  spent, and the GPU is to publish another (`../../webgpu/residency/evictionFeed.ts`). */
+    takeRefused() {
+      const refused = state.refused
+      state.refused = false
+      return refused
+    },
     /** Membership changes increase this counter; LRU touches do not. Callers with a verdict from
      * `get` can compare it instead of querying every page again. */
     /** How many pages are resident now. */
@@ -101,6 +112,7 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     bytesRead: 0,
     uploadedBytes: 0,
     evictions: 0,
+    refused: false,
   }
   const reader = createGpuPageReader(source, pageBytes, options.onDiagnostic)
   const { emit } = reader
