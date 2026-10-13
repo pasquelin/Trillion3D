@@ -6,22 +6,12 @@ import assert from 'node:assert/strict'
 import { createDeferredLighting } from './deferred.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { commandArgs } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
 
 test('a composition handed a bloom blend reads it through the bloom pipelines', async () => {
-  const { device, renderPipelines } = fakeDevice()
-  const passes: { pipeline?: GPURenderPipeline; groups: unknown[][] }[] = []
-  const encoder = {
-    beginRenderPass() {
-      const pass: (typeof passes)[number] = { groups: [] }
-      passes.push(pass)
-      return {
-        setPipeline: (pipeline: GPURenderPipeline) => void (pass.pipeline = pipeline),
-        setBindGroup: (...args: unknown[]) => void pass.groups.push(args),
-        draw() {},
-        end() {},
-      }
-    },
-  } as unknown as GPUCommandEncoder
+  const gpu = fakeDevice(),
+    { device, renderPipelines } = gpu
+  const encoder = device.createCommandEncoder()
   const view = () => ({}) as GPUTextureView
   const views = [view(), view(), view(), view()]
   const lighting = await createDeferredLighting(device)
@@ -43,12 +33,15 @@ test('a composition handed a bloom blend reads it through the bloom pipelines', 
     blend = { group: {} as GPUBindGroup, offset: 11 * 256 }
   lighting.compose(encoder, view(), [0, 0, 0, 1], undefined, { ...image, bloom: blend })
   lighting.compose(encoder, view(), [0, 0, 0, 1], undefined, image)
-  const label = (pass: (typeof passes)[number]) =>
-    (pass.pipeline as unknown as GPURenderPipelineDescriptor).fragment!.module.label
-  assert.deepEqual(passes.map(label), [
-    'UNLIT_COMPOSE_BLOOM_ACCUMULATED',
-    'UNLIT_COMPOSE_ACCUMULATED',
-  ])
+  // Each pass's pipeline and the groups it set, each as its arguments.
+  const passes = gpu.passes.map(({ commands }) => ({
+    pipeline: commandArgs(commands, 'setPipeline')[0][0] as GPURenderPipelineDescriptor,
+    groups: commandArgs(commands, 'setBindGroup'),
+  }))
+  assert.deepEqual(
+    passes.map(({ pipeline }) => pipeline.fragment!.module.label),
+    ['UNLIT_COMPOSE_BLOOM_ACCUMULATED', 'UNLIT_COMPOSE_ACCUMULATED'],
+  )
   assert.deepEqual(passes[0].groups[1], [1, blend.group, [blend.offset]])
   assert.equal(passes[1].groups.length, 1, 'no blend, no second group')
   assert.equal(passes[0].groups[0][1], passes[1].groups[0][1], 'one group per image read')

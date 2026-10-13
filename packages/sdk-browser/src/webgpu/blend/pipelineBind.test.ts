@@ -10,6 +10,7 @@ import { orderBlendPasses } from './order.ts'
 import { createWebgpuBlendState } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { commandArgs } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
 import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
 
 const FRONT = 'front' as unknown as GPURenderPipeline,
@@ -101,7 +102,7 @@ function joue(items: ReturnType<typeof item>[]) {
   // Each pipeline the pass set, in order; the rank of the RUN whose indirect argument each draw
   // rereads: one run per draw, and the instances of all its entries in sequence.
   const pipelines = gpu.passes.flatMap(({ commands }) =>
-    commands.filter(([name]) => name === 'setPipeline').map(([, [pipeline]]) => pipeline),
+    commandArgs(commands, 'setPipeline').map(([pipeline]) => pipeline),
   )
   const draws = gpu.draws.map(({ offset }) => offset! / 16)
   return { pipelines, draws, calls: rt.run.blendDrawCalls }

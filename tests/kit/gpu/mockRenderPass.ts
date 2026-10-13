@@ -37,6 +37,10 @@ export type MockPass = {
 /** A pass's commands, each in `commands` with its arguments as it is taken, then run. */
 export type PassCommands = Array<[string, unknown[]]>
 
+/** The arguments of each `name` command among `commands`, in order. */
+export const commandArgs = (commands: PassCommands, name: string) =>
+  commands.filter(([taken]) => taken === name).map(([, args]) => args)
+
 /** `pass` with each of its commands recorded in `commands` as it is taken, then run. */
 export function recordCommands<P extends Record<string, (...args: never[]) => unknown>>(
   pass: P,

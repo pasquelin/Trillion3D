@@ -7,6 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { commandArgs } from '../../../../tests/kit/gpu/mockRenderPass.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { createVsmResources } from './resources.ts'
@@ -162,9 +163,10 @@ test('a device aligning at 512 lays the chunks’ parameter slots 512 bytes apar
   // Every group set with a dynamic offset: the chunks' parameters, the candidates' at 0.
   const offsets = new Set(
     [...fake.computePasses, ...fake.passes]
-      .flatMap(({ commands }) => commands)
-      .filter(([name, [, , dynamic]]) => name === 'setBindGroup' && (dynamic as number[])?.length)
-      .map(([, [, , dynamic]]) => (dynamic as number[])[0]),
+      .flatMap(({ commands }) => commandArgs(commands, 'setBindGroup'))
+      .flatMap(([, , dynamic]) =>
+        (dynamic as number[] | undefined)?.length ? [(dynamic as number[])[0]] : [],
+      ),
   )
   const paramsBuffer = fake.buffers.find((b) => b.label === 'vsm.render.params')!
   assert.ok(paramsBuffer.size >= chunks * 512)
