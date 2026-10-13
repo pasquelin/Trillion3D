@@ -96,8 +96,8 @@ export function coarseQuadScene(error = 1) {
   }
 }
 
-/** The GPU image of the occluder scene equals the CPU raster of the cut, and only the front page
- *  survives in the visibility identifiers. */
+/** The GPU image of the occluder scene equals the CPU raster of the cut (one placement, every shown
+ *  page placed by root 0), and only the front page survives in the visibility identifiers. */
 export function assertOccluderImage(
   backend: ReturnType<typeof webgpuPagesEngine>,
   shown: PageRec[],
@@ -109,7 +109,6 @@ export function assertOccluderImage(
   const visPages = shown
     .filter((page) => page.array)
     .map((page) => ({ ...page, array: page.array! }))
-  // One placement: every shown page is placed by root 0.
   const locations = {
     roots,
     packed: visPages.map((_, i) => i),
