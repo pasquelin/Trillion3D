@@ -10,7 +10,6 @@ import {
   versApi,
   type ScenePreparee,
 } from '../kit/sharedSceneProof.ts'
-import { addBackdrop } from '../kit/backdropScene.ts'
 
 /** Half-width of the transparent tile: the sampling window depends on it, not the reverse. */
 const HALF = 0.35
@@ -25,7 +24,8 @@ export const translation = (x: number) => versApi(new G.Matrix4().makeTranslatio
  *  `shared-blend` through the unpaged path. */
 export function transformScene(paged: boolean): ScenePreparee {
   const builder = batisseur()
-  addBackdrop(builder, G.DOUBLE_SIDE)
+  const backdrop = G.basicSurface({ color: 0x1b3a5c, side: G.DOUBLE_SIDE })
+  builder.place(backdrop, 'exact-clusters', 4, [0, 0, -2]).name = 'background'
   const tile = G.mesh(
     square(HALF),
     G.basicSurface({ color: 0xff2020, transparent: true, opacity: 0.85, side: G.DOUBLE_SIDE }),

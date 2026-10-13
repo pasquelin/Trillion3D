@@ -1,6 +1,6 @@
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { encodeMaterialPasses } from '../../core/materialPasses.ts'
-import { VIS_MAX_PAGES } from '../../../visibility/buffer.ts'
+import { VIS_MAX_PAGES } from '../../../visibility/types.ts'
 import { encodeWebgpuPartition } from '../../visibility/partition.ts'
 import { sendDrawItemWords } from '../../visibility/itemWords.ts'
 import { encodeWebgpuVisibilityPasses } from '../../visibility/passes.ts'

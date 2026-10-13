@@ -1,5 +1,6 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import { FLAG_MASK, ROW_WORDS, VIS_TRIANGLE_BITS } from '../../visibility/buffer.ts'
+import { FLAG_MASK, ROW_WORDS } from '../../visibility/types.ts'
+import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 import { NO_HIZ_SLOT } from './noHizSlot.ts'
 
 /** Row word of the geometry's first vertex in the shared pools (`PageInfo.vertexBase`). */

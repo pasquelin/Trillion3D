@@ -3,7 +3,8 @@ import type { EngineDiagnostic } from '../../engine/types.ts'
 import { presentationColorDiagnostic } from '../../diagnostic/presentationDiagnostic.ts'
 import { sessionOf } from '../core/worldSession.ts'
 import { DEFAULT_CLEAR_COLOR } from '../../engine/common.ts'
-import { listenWorldNotices } from './worldNotices.ts'
+import { worldNoticeListeners } from './worldNotices.ts'
+import { createListeners } from '../../../../sdk-core/src/runtime/listeners.ts'
 
 /**
  * The `diagnostic` family: watching the engine work. A channel (`createDiagnosticChannel`) hands
@@ -16,25 +17,20 @@ export const diagnostic = {
    * @param p - Whether it says a summary or everything.
    */
   createChannel(p: { detail?: 'summary' | 'full' } = {}) {
-    const observers = new Set<(d: { kind: string; message: string }) => void>()
-    const deliver = (d: EngineDiagnostic) => {
-      for (const observer of observers) observer({ ...d, kind: d.phase })
-    }
-    const channel = createDiagnosticChannel(deliver, {
+    const observers = createListeners<[d: EngineDiagnostic]>()
+    const channel = createDiagnosticChannel(observers.emit, {
       detail: p.detail === 'full' ? 'trace' : 'summary',
     })
-    const unlisten = listenWorldNotices((notice) => channel.emit(notice))
+    const unlisten = worldNoticeListeners.subscribe((notice) => channel.emit(notice))
     const close = channel.close.bind(channel)
     return Object.assign(channel, {
       close() {
         unlisten()
         close()
       },
+      // Each observer is handed its own copy, named by its phase.
       observe(fn: (d: { kind: string; message: string }) => void) {
-        observers.add(fn)
-        return () => {
-          observers.delete(fn)
-        }
+        return observers.subscribe((d) => fn({ ...d, kind: d.phase }))
       },
     })
   },

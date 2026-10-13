@@ -143,7 +143,6 @@ export async function mesurerThree(
     selection: { source: null, ids: [] },
     metrics,
     network,
-    mathBatch: null,
     size: { width: w, height: h },
     lost,
     captureStatus: response.status,

@@ -9,7 +9,7 @@ import { TAA_SAMPLES } from './jitter.ts'
 import { taaWeightTable } from './weights.ts'
 import { TAA_VIEW, TAA_VIEW_BYTES } from './bindingsWgsl.ts'
 import { FLICKER_COUNT_RATE, flickerParallax } from './shadingHistoryWgsl.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import { stochasticSlot, type TaaFrameState } from './frameState.ts'
 
 const T = TAA_VIEW.at,

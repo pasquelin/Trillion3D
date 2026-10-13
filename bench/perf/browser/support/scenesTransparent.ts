@@ -9,6 +9,7 @@ import { uniformStride } from '../../../../packages/sdk-browser/src/residency/po
 import {
   createWebgpuBlendState,
   type BlendGpuItem,
+  type WebgpuBlendState,
 } from '../../../../packages/sdk-browser/src/webgpu/blend/state.ts'
 import {
   buildBlendStatics,
@@ -16,8 +17,6 @@ import {
 } from '../../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { planReference } from '../../../oracles/browser/transparent-orders.ts'
-
-type BlendState = ReturnType<typeof createWebgpuBlendState>
 
 /** The reduced item this bench builds: only the fields the blend order reads (no GPU buffers),
  *  picked from the engine's item so a renamed field fails the type check, not the bench run. */
@@ -138,7 +137,7 @@ for (let e = 0; e < spans.length / 2; e++) {
 
 /** One side of the bench: its blend state, its plan in the host format, and its output buffers. */
 export function benchSide(side: THREE.Side) {
-  const blendState: BlendState = createWebgpuBlendState()
+  const blendState: WebgpuBlendState = createWebgpuBlendState()
   // Reduced fixture, matching the pattern already used by `packages/sdk-browser/src/webgpu/blend/plan.test.ts`: only the
   // fields the blend order reads are populated, not a full GPU `BlendGpuItem`.
   blendState.blendGpu.push(...(batisItems(side) as unknown as BlendGpuItem[]))
@@ -149,7 +148,7 @@ export function benchSide(side: THREE.Side) {
     itemRanges: Uint32Array.from({ length: PAGINES * 2 }, (_, k) =>
       k % 2 ? CLUSTERS : (k >> 1) * CLUSTERS,
     ),
-  } as BlendState['table']
+  } as WebgpuBlendState['table']
   buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
   return {

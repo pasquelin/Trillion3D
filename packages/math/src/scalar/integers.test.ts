@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { alignUp, floorLog2, mipSize, nextPow2, uniqueSortedInPlace } from './integers.ts'
+import {
+  alignUp,
+  floorLog2,
+  isImageSize,
+  mipSize,
+  nextPow2,
+  uniqueSortedInPlace,
+} from './integers.ts'
 import { hasBit, setBit } from './bits.ts'
 import { firstTrue, lastAtMost, lastTrue } from './search.ts'
 import { HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
@@ -139,4 +146,18 @@ test('floorLog2 is floor(log2) on every side of 1 to 2³² − 1: a full mip cha
     sides.push(Math.floor(haltonSpan(i, 2, 1, 2 ** 32)), haltonSpan(i, 3, 1, 2 ** 32))
   for (const side of sides.filter((side) => side >= 1 && side < 2 ** 32))
     assert.equal(floorLog2(side), Math.floor(Math.log2(side)), `side ${side}`)
+})
+
+test('isImageSize holds two safe integers of one or more, and nothing else', () => {
+  assert.ok(isImageSize(1, 1) && isImageSize(3840, 2160))
+  for (const [w, h] of [
+    [0, 1],
+    [1, 0],
+    [-1, 4],
+    [1.5, 2],
+    [Number.NaN, 2],
+    [2, Infinity],
+    [2 ** 53, 1],
+  ])
+    assert.equal(isImageSize(w, h), false, `${w} × ${h}`)
 })

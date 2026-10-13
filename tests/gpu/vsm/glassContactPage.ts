@@ -4,6 +4,7 @@
 // (`glass-contact.gpu.ts`). The depth is generated: a floor, then once an opaque wall and once a
 // transparent pane in the same place; the view is orthographic, its world its NDC.
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
+import { createFrontDepth } from '../../../packages/sdk-browser/src/reflections/frontDepth.ts'
 import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'
 import {
   hizDepthBindEntries,
@@ -85,7 +86,10 @@ export async function testGlassContact(): Promise<GlassContact> {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('WebGPU must be available')
   const { device } = gpu
-  const { hiz } = await standaloneHiz(device, WIDTH, HEIGHT)
+  // The pane's depth lies where the engine's lies: the reflection's front depth, which the Hi-Z
+  // folds in.
+  const frontDepth = createFrontDepth(device, WIDTH, HEIGHT, true)
+  const { hiz } = await standaloneHiz(device, WIDTH, HEIGHT, () => frontDepth.foldedView)
   const pyramid = hiz.swap(undefined) as Pyramid
   hiz.swap(pyramid)
   const depth = hiz.depth()
@@ -140,10 +144,12 @@ export async function testGlassContact(): Promise<GlassContact> {
       WIDTH,
       HEIGHT,
     ])
-    device.queue.writeTexture({ texture: depth!.front }, front, { bytesPerRow: WIDTH * 4 }, [
-      WIDTH,
-      HEIGHT,
-    ])
+    device.queue.writeTexture(
+      { texture: frontDepth.carried!.folded },
+      front,
+      { bytesPerRow: WIDTH * 4 },
+      [WIDTH, HEIGHT],
+    )
     const encoder = device.createCommandEncoder()
     const build = encoder.beginComputePass()
     hiz!.encodeNearest({ pass: build })
@@ -160,6 +166,7 @@ export async function testGlassContact(): Promise<GlassContact> {
     wall = await cast('wall'),
     pane = await cast('pane')
   hiz.dispose()
+  frontDepth.dispose()
   const { court: adapter } = await gpu.fermer()
   return {
     adapter,

@@ -1,6 +1,5 @@
 import { KEY_HAS_BOX, KEY_RECORD_WORDS } from './orderWgsl.ts'
-import type { createWebgpuBlendState } from './state.ts'
-type BlendState = ReturnType<typeof createWebgpuBlendState>
+import type { WebgpuBlendState } from './state.ts'
 
 const RECORD_DOUBLES = KEY_RECORD_WORDS / 2
 
@@ -14,7 +13,7 @@ const RECORD_DOUBLES = KEY_RECORD_WORDS / 2
  * own item's box may move every frame (a deformed copy), and the kernel never reads it: its key
  * comes from the CPU.
  */
-export function writeKeyRecords(blendState: BlendState) {
+export function writeKeyRecords(blendState: WebgpuBlendState) {
   const items = blendState.blendGpu,
     doubles = items.length * RECORD_DOUBLES
   if (blendState.keyPacked.length < doubles) {

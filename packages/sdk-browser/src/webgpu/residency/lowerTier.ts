@@ -2,12 +2,10 @@ import type { PageRec } from '../../page/selection/selection.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import type { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
 import { pageAddress } from '../row/pageSlots.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import type { createAdmissionReads, createPageAdmission } from './admission.ts'
-type Cache = ReturnType<typeof createGpuPageCache>
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
 
 /**
  * A lower residency tier: pages a cut asked for below the camera's own — the pages ahead of the
@@ -106,8 +104,8 @@ function createLowerMerge(keyOf: (page: PageRec) => number) {
 }
 
 export type LowerPassOptions = {
-  getCache: () => Cache | undefined
-  tracking: Pick<Tracking, 'keyOf' | 'wanted'>
+  getCache: () => GpuPageCache | undefined
+  tracking: Pick<WebgpuPageTracking, 'keyOf' | 'wanted'>
   bootstrapKey: Uint8Array
   signal?: AbortSignal
   hasBytes: (page: PageRec) => boolean
@@ -134,13 +132,13 @@ export function createLowerPass(options: LowerPassOptions) {
   const pass: LowerPass = { ...options, skips }
   /** What the last touch of the lower pages was made for: the reports of the tiers and the pool. */
   let touchedReports = -1,
-    touchedCache: Cache | undefined
+    touchedCache: GpuPageCache | undefined
   const reports = () => lowerTiers().reduce((sum, tier) => sum + tier.revision, 0)
   return {
     list: () => mergeLower(lowerTiers()),
     load: async (
       lower: readonly PageRec[],
-      cache: Cache,
+      cache: GpuPageCache,
       cameraWaiting: () => boolean,
       reads: AbortSignal,
     ) => {
@@ -149,7 +147,7 @@ export function createLowerPass(options: LowerPassOptions) {
       await loadLowerTiers(pass, lower, cache, cameraWaiting, reads)
     },
     /** True when every lower tier page is held, or left to the camera: the tiers leave no work. */
-    held: (cache: Cache) =>
+    held: (cache: GpuPageCache) =>
       mergeLower(lowerTiers()).every((rec) => skips(rec) || !!cache.get(pageAddress(rec))),
     /** What a pass that finds nothing to do still does: the lower tiers' pages touched, so the
      *  pool's order of eviction is the one a pass would have left — once for each report of the
@@ -176,7 +174,7 @@ export function createLowerPass(options: LowerPassOptions) {
 async function loadLowerTiers(
   pass: LowerPass,
   lower: readonly PageRec[],
-  cache: Cache,
+  cache: GpuPageCache,
   cameraWaiting: () => boolean,
   reads: AbortSignal,
 ) {

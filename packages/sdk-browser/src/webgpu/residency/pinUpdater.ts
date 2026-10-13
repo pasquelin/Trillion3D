@@ -1,15 +1,11 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
-import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
+import type { WebgpuDiagnosticChannel } from '../pages/io/diagnostics.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import { createDenseKeySet } from '../cut/denseKeys.ts'
 import type { WebgpuResidencySets } from './sets.ts'
 import { createLastUse } from '../../residency/lastUse.ts'
 import { LAST_USE_WINDOW } from './lastUseWindow.ts'
-
-type Cache = ReturnType<typeof createGpuPageCache>
-type Trace = ReturnType<typeof createWebgpuDiagnostics>['traceDiagnostic']
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
 
 /**
  * Keeps the complete root cover and current cut pinned while admitting new detail.
@@ -21,7 +17,7 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>
  * walks the pinned set per image.
  */
 export function createWebgpuPinUpdater(options: {
-  tracking: Tracking
+  tracking: WebgpuPageTracking
   sets: WebgpuResidencySets
   /** Holders per key of the root cover: what the trace names. */
   bootstrapKey: Uint8Array
@@ -31,7 +27,7 @@ export function createWebgpuPinUpdater(options: {
   /** The pages a page depends on (`admission.ts`): they leave after it. */
   parentsOf: (rec: PageRec) => readonly PageRec[]
   traceEnabled: boolean
-  traceDiagnostic: Trace
+  traceDiagnostic: WebgpuDiagnosticChannel['traceDiagnostic']
 }) {
   const { tracking, sets, bootstrapKey, deferredDrops, byUrl } = options
   const { traceEnabled, traceDiagnostic } = options
@@ -66,7 +62,7 @@ export function createWebgpuPinUpdater(options: {
     onIdle: (key) => current.touch(tracking.pageCatalog[key]),
   })
   /** The cache of the running update, read by the callbacks built once above and below. */
-  let current: Cache
+  let current: GpuPageCache
   /** True when the key held a slot pinned: unpinning it gives that slot back. */
   const unpin = (key: number) => {
     waiting.remove(key)
@@ -84,7 +80,7 @@ export function createWebgpuPinUpdater(options: {
   const added: string[] = [],
     removed: string[] = []
   return (
-    cache: Cache | undefined,
+    cache: GpuPageCache | undefined,
     shown: PageRec[],
     frame: number,
     drop: (key: string) => void,
@@ -148,7 +144,7 @@ export function createWebgpuPinUpdater(options: {
 }
 
 /** The addresses of the root cover's pages, read off its holders: what a trace names. */
-function coverUrls(tracking: Tracking, holders: Uint8Array) {
+function coverUrls(tracking: WebgpuPageTracking, holders: Uint8Array) {
   const urls: string[] = []
   for (let key = 0; key < holders.length; key++)
     if (holders[key]) urls.push(tracking.pageCatalog[key])

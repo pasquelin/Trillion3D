@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { createExplorerMetrics } from './metrics.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
 const streamer = {
   stats: () => ({
@@ -18,7 +18,7 @@ const streamer = {
     hits: 0,
     misses: 0,
   }),
-} as unknown as ReturnType<typeof createPageStreamer>
+} as unknown as PageStreaming
 /** What an engine publishes of every frame (`EngineMetrics`), unmeasured. */
 const HELD = {
   clusters: null,

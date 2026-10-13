@@ -1,6 +1,7 @@
 import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
 import { VIS_UNIFORM } from '../../visibility/shader/uniformLayout.ts'
 import { uniformSlots, uniformStride, type UniformSlots } from '../../residency/pools.ts'
+import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
 
 /**
  * Binding numbers of the four WebGPU-path layouts, the single source of truth: the layout
@@ -28,7 +29,7 @@ export const atlasLayoutEntries = (
     visibility,
     texture: { sampleType: 'float', viewDimension: '2d-array' } as GPUTextureBindingLayout,
   })),
-  { binding: bindings.pages, visibility, buffer: readOnly },
+  computeBufferEntry(bindings.pages, 'read-only-storage', visibility),
 ]
 /** Bytes of the visibility-buffer uniform `Uniforms` (`VIS_UNIFORM`). */
 export const VIS_UNIFORM_BYTES = VIS_UNIFORM.words * 4

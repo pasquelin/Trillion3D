@@ -3,7 +3,7 @@ import { backgroundRgb } from './math.ts'
 import { createVisibilityFrame } from './frame.ts'
 import { shadePixel } from './shadePixel.ts'
 import { type VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
-import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/world.ts'
+import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/engine/common.ts'
 import { type PageLocations } from '../../../../packages/sdk-browser/src/page/selection/placements.ts'
 

@@ -9,7 +9,7 @@ import { deformationRuntime } from './deformationRuntime.fixture.ts'
 import { PALETTE_FLOATS, Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 import { HALF_PI } from '../../../math/src/constants.ts'
 

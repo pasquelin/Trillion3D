@@ -11,7 +11,6 @@ import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER, shadeCacheReadWgsl } from './sha
 import {
   Mat3,
   STRUCTS,
-  f,
   image,
   integer$b,
   scene,
@@ -25,7 +24,7 @@ export function cacheRun(width: number, height: number, none = false) {
   const { pages, words, pool, normals, uvs } = scene()
   const projection = perspectiveProjection(new Float64Array(16), 60, width / height, 0.1, 50)
   const uni = {
-    viewProj: new Mat([...projection].map(f)),
+    viewProj: new Mat([...projection].map(Math.fround)),
     viewport: [width, height],
     pixelRatio: 1,
   }
@@ -47,7 +46,7 @@ export function cacheRun(width: number, height: number, none = false) {
     (name: string) =>
     (...args: unknown[]) => {
       const out = decode[name](...args)
-      return Array.isArray(out) ? out.map(f) : out
+      return Array.isArray(out) ? out.map(Math.fround) : out
     }
   const geometry = Object.fromEntries(
     ['pageHeader', 'pageTriangle', 'pagePosition', 'pageUv', 'pageNormal'].map((name) => [

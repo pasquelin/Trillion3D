@@ -1,4 +1,4 @@
-import type { VisMaterial } from '../visibility/types.ts'
+import type { VisMaterial } from '../visibility/materialType.ts'
 import type { MovedBox } from '../page/selection/types.ts'
 
 export type HizPage = {

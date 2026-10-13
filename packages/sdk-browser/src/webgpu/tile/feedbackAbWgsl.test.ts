@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { SHADE_SHADER } from '../../visibility/buffer.ts'
+import { SHADE_SHADER } from '../../visibility/shader/shadeWgsl.ts'
 import { waterSurfaceWgsl } from '../water/surfaceWgsl.ts'
 import { unresolvedNames } from '../../gpu/core/wgslNames.fixture.ts'
 import { feedbackFreeEntry } from './feedbackAbWgsl.ts'

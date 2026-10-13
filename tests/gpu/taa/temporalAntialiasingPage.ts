@@ -7,13 +7,11 @@ import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/
 import {
   VIEWPORT,
   batisseur,
-  square,
   cameraFace as facingCamera,
   release as release,
   engine,
   versApi as toApiMatrix,
 } from '../kit/sharedSceneProof.ts'
-import { addBackdrop } from '../kit/backdropScene.ts'
 import { image, untilHeld } from '../kit/sceneImageProof.ts'
 import { runAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts'
 
@@ -23,12 +21,10 @@ const TURN = 0.33
 /** The background and the red tile. */
 function scene() {
   const builder = batisseur()
-  addBackdrop(builder)
-  const tile = G.mesh(square(0.6), G.basicSurface({ color: 0xff2020 }))
-  tile.name = 'tile'
-  tile.rotation.z = TURN
-  builder.source.add(tile)
-  builder.add(tile, 'exact-clusters', 0.6)
+  const backdrop = G.basicSurface({ color: 0x1b3a5c })
+  builder.place(backdrop, 'exact-clusters', 4, [0, 0, -2]).name = 'background'
+  const red = G.basicSurface({ color: 0xff2020 })
+  builder.place(red, 'exact-clusters', 0.6, [0, 0, 0], { z: TURN }).name = 'tile'
   return builder.fini()
 }
 

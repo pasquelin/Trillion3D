@@ -3,6 +3,7 @@ import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { FINITE_SENTINEL, HALF_MAX, HALF_OVERFLOW } from '../../../math/src/wgsl/constants.ts'
+import { computeTextureEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
 
 /** The bloom uniform: the shader's `Bloom` struct and the first word of each of its fields. */
 export const BLOOM_UNIFORM = fieldLayout('Bloom', [
@@ -83,13 +84,13 @@ export const bloomLevelLayout = oncePerDevice((device) => {
   return device.createBindGroupLayout({
     label: 'Trillion3D bloom level',
     entries: [
-      { binding: 0, visibility, texture: { sampleType: 'float' } },
+      computeTextureEntry(0, 'float', '2d', visibility),
       { binding: 1, visibility, sampler: { type: 'filtering' } },
-      {
-        binding: 2,
+      computeUniformEntry(
+        2,
+        { hasDynamicOffset: true, minBindingSize: BLOOM_UNIFORM_BYTES },
         visibility,
-        buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: BLOOM_UNIFORM_BYTES },
-      },
+      ),
     ],
   })
 })

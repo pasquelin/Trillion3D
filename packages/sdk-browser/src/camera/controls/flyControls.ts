@@ -1,5 +1,12 @@
 import { createChangeGate, createControlBase } from './base.ts'
-import { axisOf, trackKeys, trackPointers, type KeyAxis } from './input.ts'
+import {
+  ADVANCE_KEYS,
+  axisOf,
+  STRAFE_KEYS,
+  trackKeys,
+  trackPointers,
+  type KeyAxis,
+} from './input.ts'
 import { controlPose } from './pose.ts'
 import { moveLocal } from './math.ts'
 import {
@@ -73,9 +80,7 @@ export interface FlyCameraControls extends SteeredCameraControls {
 const PITCH: KeyAxis = [['ArrowUp'], ['ArrowDown']],
   YAW: KeyAxis = [['ArrowLeft'], ['ArrowRight']],
   ROLL: KeyAxis = [['KeyQ'], ['KeyE']],
-  STRAFE: KeyAxis = [['KeyD'], ['KeyA']],
-  RISE: KeyAxis = [['KeyR'], ['KeyF']],
-  ADVANCE: KeyAxis = [['KeyW'], ['KeyS']]
+  RISE: KeyAxis = [['KeyR'], ['KeyF']]
 
 /** A flight's default speeds, stick and look, which `world.controls` keeps as its own. */
 export const FLY_DEFAULTS = {
@@ -137,11 +142,11 @@ export function createFlyCameraControls(
           multiplyQuaternion(orientation, orientation, localTurnQuaternion(turn, pitch, yaw, roll)),
         )
       const step = api.movementSpeed * dt,
-        advance = axisOf(keys, ...ADVANCE)
+        advance = axisOf(keys, ...ADVANCE_KEYS)
       moveLocal(
         position,
         orientation,
-        axisOf(keys, ...STRAFE) * step,
+        axisOf(keys, ...STRAFE_KEYS) * step,
         axisOf(keys, ...RISE) * step,
         (api.autoForward ? Math.max(0, 1 + advance) : advance) * step,
       )
@@ -155,9 +160,9 @@ export function createFlyCameraControls(
     PITCH,
     YAW,
     ROLL,
-    STRAFE,
+    STRAFE_KEYS,
     RISE,
-    ADVANCE,
+    ADVANCE_KEYS,
   ])
   trackPointers(surface, base, {
     down: () => (held = true),

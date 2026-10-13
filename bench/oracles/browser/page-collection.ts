@@ -14,7 +14,7 @@ import type {
   PageRec,
   ClusterRoot,
 } from '../../../packages/sdk-browser/src/page/selection/types.ts'
-import { isTransmissive } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { isTransmissive } from '../../../packages/sdk-browser/src/visibility/shader/material.ts'
 import {
   streamPlacement,
   clusterErrorFields,

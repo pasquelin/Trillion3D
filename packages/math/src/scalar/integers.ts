@@ -37,6 +37,10 @@ export const mipSize = (size: number, level: number) => Math.max(1, size >>> Mat
 /** The exponent of the greatest power of two not over the integer `v`; 0 gives -1. */
 export const floorLog2 = (v: number) => 31 - Math.clz32(v)
 
+/** Whether `width` × `height` is an image size: two safe integers of one or more. */
+export const isImageSize = (width: number, height: number) =>
+  Number.isSafeInteger(width) && Number.isSafeInteger(height) && width >= 1 && height >= 1
+
 /** Whether the int32 `v` is a power of two, 1 included; 0 and negatives are not. */
 export const isPow2 = (v: number) => v > 0 && (v & (v - 1)) === 0
 

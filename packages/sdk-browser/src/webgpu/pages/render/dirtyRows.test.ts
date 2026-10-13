@@ -10,7 +10,7 @@ import { createDirtyRows } from '../../row/dirty.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadDirtyRows } from './dirtyRows.ts'
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 interface Write {

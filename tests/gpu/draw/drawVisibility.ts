@@ -2,7 +2,7 @@
 // (`visLayoutEntries`): a page table of one-triangle pages laid on a grid, each row written through
 // the engine's row words, and one uniform block per indirect slot plus one for the direct path.
 import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/src/visibility/visWords.ts'
-import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import {
   ROW_HIZ_SLOT_WORD,
   ROW_ID_BASE_WORD,

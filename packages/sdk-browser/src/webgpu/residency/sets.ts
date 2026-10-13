@@ -5,9 +5,7 @@ import { createKeyUnion } from '../cut/keyUnion.ts'
 import { createHeldKeys } from '../cut/heldKeys.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { createCoverHolders } from './coverHolders.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
-
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 
 export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>
 
@@ -25,7 +23,7 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>
  * ranks (`requestAdmission.ts`).
  */
 export function createWebgpuResidencySets(options: {
-  tracking: Tracking
+  tracking: WebgpuPageTracking
   /** Holders per key of the root cover, the session's set at open; `holdCover` moves the rest. */
   bootstrapKey: Uint8Array
   packedPages: PageList

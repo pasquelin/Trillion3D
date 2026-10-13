@@ -4,12 +4,12 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { MIN_RENDER_SCALE } from '../../../packages/sdk-browser/src/frame/renderScaleOption.ts'
 import { taaStillFrames, upscalePhases } from '../../../packages/sdk-browser/src/taa/jitter.ts'
-import { VIEWPORT, engine, release, type ScenePreparee } from './sharedSceneProof.ts'
+import { VIEWPORT, cameraFace, engine, release, type ScenePreparee } from './sharedSceneProof.ts'
+import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
+import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { project } from './cameraRig.ts'
 import { animationFrame } from './frame.ts'
 import type { Engine, EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
-import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 /** Renders a frame in an animation frame of the page (`animationFrame`), as a page draws, and
@@ -97,27 +97,40 @@ export function colorAt(
   return [pixels[i], pixels[i + 1], pixels[i + 2]]
 }
 
-/** The image `prepared` holds lit by the bench's sun, seen by `camera` through the real engine on
- *  `device`, `options` completing its context: whether it held, and its pixels — the last rendered
- *  when none held —, bottom row first. */
-export async function imageUnderSun(
+/** Public counters of a profile stage, or `null` when the host did not ask for it. */
+export function countsStep(
+  backend: Engine,
+  stage: string,
+): Readonly<Record<string, number>> | null {
+  const profile = backend.stageProfile?.()
+  return profile?.stages?.find((input) => input.stage === stage)?.counts ?? null
+}
+
+/**
+ * The real engine on `scene` (`engine`) lit by the bench sun alone, prepared, then `images` images
+ * drawn from the face-on camera (`image`); `options` complete the host context, its diagnostics go
+ * to `events`. `release` gives back the engine, its canvas and the scene, and resolves with the
+ * dispose; a preparation that fails releases them before it throws.
+ */
+export async function sunlitEngine(
+  scene: ScenePreparee,
   device: GPUDevice,
   events: unknown[],
-  prepared: ScenePreparee,
-  camera: G.Camera,
-  options: Partial<EngineContext> = {},
+  { images = 0, ...options }: Partial<EngineContext> & { images?: number } = {},
 ) {
   const sceneLights = createSceneLightStore()
   sceneLights.add(SUN)
-  const { backend, canvas } = engine(prepared, device, (e) => events.push(e), {
+  const { backend, canvas } = engine(scene, device, (e) => events.push(e), {
     sceneLights,
     ...options,
   })
+  const released = () => release(backend, canvas, scene)
   try {
     await backend.prepare()
-    const { held, rendered } = await untilHeld(backend, camera)
-    return { held: held !== null, pixels: Uint8Array.from(held ?? rendered ?? []) }
-  } finally {
-    release(backend, canvas, prepared)
+    for (let i = 0, camera = cameraFace(); i < images; i++) await image(backend, camera)
+  } catch (error) {
+    await released()
+    throw error
   }
+  return { backend, canvas, release: released }
 }

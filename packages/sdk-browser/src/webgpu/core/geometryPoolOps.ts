@@ -8,7 +8,13 @@ import {
   poolFloats,
   type PoolList,
 } from './geometryPoolLayout.ts'
-import { copyPoolStores, createPoolStores, releasePoolStores } from './geometryPoolStores.ts'
+import {
+  copyPoolStores,
+  createPoolStores,
+  releasePoolStores,
+  storesBytes,
+} from './geometryPoolStores.ts'
+import { pendingMade } from '../../gpu/core/tableGrowth.ts'
 import { fillScratch, releaseScratch, scratchFloats } from './geometryPoolScratch.ts'
 import { writeFloatAtlas } from './floatAtlas.ts'
 import { UV1_FLOATS, writeUv1Tail } from './uv1Tail.ts'
@@ -78,14 +84,17 @@ function ensure(p: Pool, need: number) {
   const next = size * nextPow2((used + need) / size)
   const wider = floatsOf(p, next)
   if (!poolFits(wider, device.limits)) return false
-  const made = createPoolStores(device, wider),
-    encoder = device.createCommandEncoder()
-  copyPoolStores(encoder, p.stores, made, [size, next, p.tailFloats], p.coloured)
-  device.queue.submit([encoder.finish()])
-  releasePoolStores(p.stores)
-  p.stores = made
-  p.size = next
-  p.floats = wider
+  const made = createPoolStores(device, wider)
+  pendingMade(made, storesBytes(made), releasePoolStores, () => {
+    const encoder = device.createCommandEncoder(),
+      held = p.stores
+    copyPoolStores(encoder, held, made, [size, next, p.tailFloats], p.coloured)
+    device.queue.submit([encoder.finish()])
+    p.stores = made
+    p.size = next
+    p.floats = wider
+    return held
+  }).commit()
   // The atlas's rows follow its size: every block's normals and second UV set are written
   // again, as placed.
   for (const [attributes, block] of p.blocks)

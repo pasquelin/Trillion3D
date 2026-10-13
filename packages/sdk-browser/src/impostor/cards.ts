@@ -28,7 +28,7 @@ import {
   type CardHolder,
   type CardSegment,
 } from './cardSlots.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
 
 /**

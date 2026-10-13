@@ -60,13 +60,9 @@ async function measure(
   frames: number,
 ): Promise<Reading> {
   const builder = batisseur()
-  const floor = G.mesh(
-    G.planeGeometry(2 * HALF, 2 * HALF),
-    G.basicSurface({ map: floorMap(anisotropy) }),
-  )
-  floor.rotation.x = -HALF_PI
-  builder.source.add(floor)
-  builder.add(floor, 'exact-clusters', HALF)
+  const floor = G.basicSurface({ map: floorMap(anisotropy) }),
+    plane = G.planeGeometry(2 * HALF, 2 * HALF)
+  builder.place(floor, 'exact-clusters', HALF, [0, 0, 0], { x: -HALF_PI }, plane)
   const scene = builder.fini()
   const { backend, canvas } = engine(scene, device, () => {}, {
     viewport: size,

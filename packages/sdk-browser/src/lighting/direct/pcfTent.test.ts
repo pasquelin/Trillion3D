@@ -15,12 +15,12 @@ test("the tent weights are develop's floor-and-fraction weights, bit for bit in 
   const shipped = /let below=vec4f\(([^)]*)\);let above=vec4f\(([^)]*)\);/.exec(SOURCE)!
   assert.match(SOURCE, /let wx=saturate\(min\(q\.x-below,above-q\.x\)\);/)
   const [below, above] = [shipped[1], shipped[2]].map((v) => v.split(',').map(Number))
-  const f = Math.fround
-  const tent = (q: number) => below.map((b, k) => saturate(Math.min(f(q - b), f(above[k] - q))))
+  const tent = (q: number) =>
+    below.map((b, k) => saturate(Math.min(Math.fround(q - b), Math.fround(above[k] - q))))
   const develop = (q: number) => {
     const c = Math.floor(q),
-      fr = f(q - c)
-    return [0, 1, 2, 3].map((k) => (k === c ? f(1 - fr) : 0) + (k === c + 1 ? fr : 0))
+      fr = Math.fround(q - c)
+    return [0, 1, 2, 3].map((k) => (k === c ? Math.fround(1 - fr) : 0) + (k === c + 1 ? fr : 0))
   }
   // Every f32 of [0, 4) a stride apart — a tap's coordinate lies in (0, 3): a base in [1, 2), a
   // tap within a texel —, and each column's weight compared by its bits.

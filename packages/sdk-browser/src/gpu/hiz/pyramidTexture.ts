@@ -1,6 +1,10 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { computeTextureEntry, computeUniformEntry } from '../core/computeBindings.ts'
+import {
+  computeTextureEntry,
+  computeUniformEntry,
+  sequentialEntries,
+} from '../core/computeBindings.ts'
 import { HIZ_MAX_LEVELS } from './uniforms.ts'
 import type { HizDepth } from './types.ts'
 
@@ -133,7 +137,7 @@ export const hizDepthEntries = (binding: number, visibility: number): GPUBindGro
 /** The bind-group entries of `depth` (`GpuHiz.depth`) from `binding`, the resources of
  *  `hizDepthEntries` in their order: the one place they are written. */
 export const hizDepthBindEntries = (binding: number, depth: HizDepth): GPUBindGroupEntry[] =>
-  depth.resources.map((resource, k) => ({ binding: binding + k, resource }))
+  sequentialEntries(depth.resources, binding)
 
 /**
  * The front-over-opaque fold, written once for every reader (`hizDepthWgsl`, the Hi-Z build): the

@@ -3,7 +3,7 @@ import { beginTaaFrame, encodeTaaPass, taaRenderMatrix } from './frame.ts'
 import { createTaaFrameState } from './frameState.ts'
 import { createScaleControl } from '../frame/scaleControl.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { TaaInputs } from './inputs.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 

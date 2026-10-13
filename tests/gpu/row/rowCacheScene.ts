@@ -15,7 +15,7 @@ import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/c
 import { writeEngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { createWebgpuRowState } from '../../../packages/sdk-browser/src/webgpu/row/state.ts'
 import { createWebgpuRowSync } from '../../../packages/sdk-browser/src/webgpu/row/sync.ts'
-import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { openSelectionKernel } from '../dag/selectionKernel.ts'

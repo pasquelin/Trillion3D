@@ -6,8 +6,6 @@
 import { PARTICLE_FLOATS } from '../../../sdk-core/src/fluids/particles.ts'
 import { written, type FakeWrite } from '../../../../tests/kit/gpu/fakeDevice.ts'
 
-const f = Math.fround
-
 /** The shader's body for slot `i`, `ring` its uniforms (first slot, count, capacity, then
  *  acceleration and `dt`): the record `k < count` from `staged`, or its particle in `state`,
  *  moved when alive. */
@@ -18,14 +16,14 @@ function move(state: ArrayLike<number>, staged: ArrayLike<number>, i: number, ri
     from = k < count ? staged : state
   const p = Array.from({ length: PARTICLE_FLOATS }, (_, n) => from[at + n]),
     a = ring.slice(3),
-    dt = f(a[3])
+    dt = Math.fround(a[3])
   if (p[3] < p[7]) {
     for (let c = 0; c < 3; c++) {
-      const gain = f(a[c] * dt)
-      p[c] = f(p[c] + f(f(p[4 + c] + f(0.5 * gain)) * dt))
-      p[4 + c] = f(p[4 + c] + gain)
+      const gain = Math.fround(a[c] * dt)
+      p[c] = Math.fround(p[c] + Math.fround(Math.fround(p[4 + c] + Math.fround(0.5 * gain)) * dt))
+      p[4 + c] = Math.fround(p[4 + c] + gain)
     }
-    p[3] = f(p[3] + dt)
+    p[3] = Math.fround(p[3] + dt)
   }
   return p
 }

@@ -1,61 +1,40 @@
-// The generated scene the memory proofs share: an opaque blue backdrop filling the view, and what
-// stands before it — nothing, a clear glass (a blend with water), or a polished metal mirror; and
-// the lit plane and the backdrop the scene proofs build theirs with.
+// The generated scene the glass, memory and dispose proofs share: an opaque blue backdrop filling
+// the view, and what stands before it — a clear glass (a blend with water), a polished metal
+// mirror, an opaque red tile —, each lit square a plane that carries its normals.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { batisseur, square } from './sharedSceneProof.ts'
+import { batisseur } from './sharedSceneProof.ts'
 
-export function backdropScene(front: 'none' | 'glass' | 'mirror' = 'none') {
+/** What stands before the backdrop: the glass, its centre at `at` on `x`, with a red volume that
+ *  stops blue within a few hundredths of a unit when `volume`; the mirror; the tile in front. */
+export interface Backdrop {
+  glass?: { at?: number; volume?: boolean }
+  mirror?: boolean
+  tile?: boolean
+}
+
+/** A clear glass: fully transmissive, index 1.5, half a unit thick. */
+const glass = (volume: boolean) =>
+  G.physicalSurface({
+    ...{ color: 0xffffff, metalness: 0, roughness: 0, transmission: 1, ior: 1.5 },
+    ...{ thickness: 0.5, transparent: true, side: G.DOUBLE_SIDE },
+    ...(volume ? { attenuationColor: 0xff0000, attenuationDistance: 0.05 } : {}),
+  })
+
+export function backdropScene({ glass: placed, mirror, tile }: Backdrop = {}) {
   const builder = batisseur()
-  const add = (surface: G.GraphSurface, pass: string, z: number, half: number) =>
-    addPlane(builder, surface, pass, z, half)
-  add(G.basicSurface({ color: 0x2244aa, side: G.DOUBLE_SIDE }), 'exact-clusters', -1, 4)
-  if (front === 'glass')
-    add(
-      G.physicalSurface({
-        ...{ color: 0xffffff, metalness: 0, roughness: 0, transmission: 1, ior: 1.5 },
-        ...{ thickness: 0.5, transparent: true, side: G.DOUBLE_SIDE },
-      }),
-      'clustered-blend',
-      0,
-      0.8,
-    )
-  if (front === 'mirror')
-    add(
+  const lit = (half: number) => G.planeGeometry(2 * half, 2 * half)
+  const place = (surface: G.GraphSurface, pass: string, half: number, x: number, z: number) =>
+    builder.place(surface, pass, half, [x, 0, z], {}, lit(half))
+  place(G.basicSurface({ color: 0x2244aa, side: G.DOUBLE_SIDE }), 'exact-clusters', 4, 0, -1)
+  if (placed) place(glass(!!placed.volume), 'clustered-blend', 0.8, placed.at ?? 0, 0)
+  if (mirror)
+    place(
       G.standardSurface({ color: 0xffffff, metalness: 1, roughness: 0.04, side: G.DOUBLE_SIDE }),
       'exact-clusters',
-      0,
       0.8,
+      0,
+      0,
     )
+  if (tile) place(G.basicSurface({ color: 0xcc2222 }), 'exact-clusters', 0.25, 0, 0.5)
   return builder.fini()
-}
-
-/** A lit square of half side `half` added to `builder` on `pass`, facing +z at depth `z`, its
- *  centre on `x`: the plane of the graph, which carries its normals, not the proofs' bare square. */
-export function addPlane(
-  builder: ReturnType<typeof batisseur>,
-  surface: G.GraphSurface,
-  pass: string,
-  z: number,
-  half: number,
-  x = 0,
-) {
-  const mesh = G.mesh(G.planeGeometry(2 * half, 2 * half), surface)
-  mesh.position.set(x, 0, z)
-  builder.source.add(mesh)
-  builder.add(mesh, pass, half)
-  return mesh
-}
-
-/** The proofs' blue backdrop, added to `builder`: a 4 m square named `background` two metres
- *  behind the origin, drawn exact, its surface on `side` when one is given. */
-export function addBackdrop(builder: ReturnType<typeof batisseur>, side?: number) {
-  const background = G.mesh(
-    square(4),
-    G.basicSurface(side === undefined ? { color: 0x1b3a5c } : { color: 0x1b3a5c, side }),
-  )
-  background.name = 'background'
-  background.position.z = -2
-  builder.source.add(background)
-  builder.add(background, 'exact-clusters', 4)
-  return background
 }

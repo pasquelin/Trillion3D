@@ -10,7 +10,7 @@ import {
   HALTON_SWEEP,
   haltonSpan,
 } from '../../../../math/src/sequence/sweep.fixture.ts'
-import type { VisMaterial } from '../types.ts'
+import type { VisMaterial } from '../materialType.ts'
 import { spriteAt } from './spriteWgsl.ts'
 
 type Sprite = NonNullable<VisMaterial['sprite']>

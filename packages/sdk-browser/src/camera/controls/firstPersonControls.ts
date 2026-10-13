@@ -1,9 +1,9 @@
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import { createChangeGate, createControlBase } from './base.ts'
-import { axisOf, trackKeys, type KeyAxis } from './input.ts'
+import { ADVANCE_KEYS, axisOf, STRAFE_KEYS, trackKeys, type KeyAxis } from './input.ts'
 import { controlPose } from './pose.ts'
 import { moveLocal, orbitOrientation } from './math.ts'
-import { createHead, HEAD_DEFAULTS, type PersonHead } from './look.ts'
+import { createHead, HEAD_DEFAULTS, headLock, type PersonHead } from './look.ts'
 import type { ControlCamera, SteeredCameraControls } from './types.ts'
 
 /**
@@ -19,9 +19,7 @@ import type { ControlCamera, SteeredCameraControls } from './types.ts'
  */
 export interface FirstPersonCameraControls extends SteeredCameraControls, PersonHead {}
 
-const STRAFE: KeyAxis = [['KeyD'], ['KeyA']],
-  RISE: KeyAxis = [['Space'], ['ShiftLeft']],
-  ADVANCE: KeyAxis = [['KeyW'], ['KeyS']]
+const RISE: KeyAxis = [['Space'], ['ShiftLeft']]
 
 export function createFirstPersonCameraControls(
   camera: ControlCamera,
@@ -40,9 +38,7 @@ export function createFirstPersonCameraControls(
     object: pose.object,
     movementSpeed: 1,
     ...HEAD_DEFAULTS,
-    locked: () => head.locked(),
-    lock: () => head.lock(),
-    unlock: () => head.unlock(),
+    ...headLock(() => head),
     update(delta = 0) {
       const dt = delta > 0 ? delta : 0
       pose.readPosition(position)
@@ -52,9 +48,9 @@ export function createFirstPersonCameraControls(
       moveLocal(
         position,
         orbitOrientation(walk, angles),
-        axisOf(keys, ...STRAFE) * step,
+        axisOf(keys, ...STRAFE_KEYS) * step,
         axisOf(keys, ...RISE) * step,
-        axisOf(keys, ...ADVANCE) * step,
+        axisOf(keys, ...ADVANCE_KEYS) * step,
       )
       pose.write(position, orientation)
       moved.set(position)
@@ -63,6 +59,6 @@ export function createFirstPersonCameraControls(
     },
   }
   const head = createHead(pose, surface, base, api)
-  const keys = trackKeys(surface, base, () => base.emit(), [STRAFE, RISE, ADVANCE])
+  const keys = trackKeys(surface, base, () => base.emit(), [STRAFE_KEYS, RISE, ADVANCE_KEYS])
   return api
 }

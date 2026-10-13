@@ -62,14 +62,6 @@ function live(flags: Map<string, string>, mio: (name: string) => number | null):
   return Object.values(budgets).some((v) => v !== undefined) ? budgets : null
 }
 
-/** Math calculation path forced for the campaign, or `auto`: governor arbitrates then. */
-function mathPathOf(flags: Map<string, string>) {
-  const value = flags.get('math-path') ?? 'auto'
-  if (value !== 'auto' && value !== 'js' && value !== 'wasm')
-    throw new Error('--math-path must be auto, js or wasm')
-  return value
-}
-
 /** The bench's sides by name, equipped from their flags (`--scene` first names their caches):
  *  the candidate always, the reference only if `--before` names it. Their `dist` is resolved
  *  afterwards (`resolveSides`), so an unread flag is refused before any build. The measured scene
@@ -154,8 +146,6 @@ export function readOptions(argv: string[], root: string) {
     instances: number('instances', 1),
     // `--isolation on` sets COOP/COEP on the harness server: page becomes cross-origin isolated.
     isolation: (flags.get('isolation') ?? 'off') === 'on',
-    // `--math-path js|wasm` forces batch calculation path for entire campaign.
-    mathPath: mathPathOf(flags),
   }
   const isolation = flags.get('isolation') ?? 'off'
   if (isolation !== 'on' && isolation !== 'off') throw new Error('--isolation must be on or off')

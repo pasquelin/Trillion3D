@@ -60,10 +60,11 @@ function compact(f: Frame) {
         if (survives(f, work[at])) kept++
       }
       work[tileWord(n, t)] = kept
-      if (t === 0) work[countWord(n)] = count
     }
-  // The scan over the lanes is a serial exclusive sum of the slot's tile counts, term for term.
+  // The scan owns each slot's count, read off the command before it rewrites it; over the lanes it
+  // is a serial exclusive sum of the slot's tile counts, term for term.
   for (let n = 0; n < f.restSlots; n++) {
+    work[countWord(n)] = Math.min(f.indirect[restSlotAt(n) * 4 + 1], f.tiles * TILE)
     let cursor = 0
     for (let t = 0; t < ceilDiv(work[countWord(n)], TILE); t++) {
       const kept = work[tileWord(n, t)]

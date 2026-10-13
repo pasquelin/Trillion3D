@@ -6,10 +6,10 @@
 // they stay rejected. Temporal antialiasing is on: its jitter once made rows trade halves every
 // image, and the image must still be held. Each held image is compared to a fresh engine's.
 import type { EngineDiagnostic, Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { cameraFace, countsStep } from '../kit/sharedSceneProof.ts'
-import { untilHeld } from '../kit/sceneImageProof.ts'
-import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
+import { cameraFace } from '../kit/sharedSceneProof.ts'
+import { countsStep, untilHeld } from '../kit/sceneImageProof.ts'
 import { occluderEngine, onOccluderScene, slabPixels } from './occluderScene.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
 type Camera = ReturnType<typeof cameraFace>
 

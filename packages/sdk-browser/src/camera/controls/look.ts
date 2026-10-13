@@ -51,6 +51,14 @@ export const HEAD_DEFAULTS = {
   maxPitch: HALF_PI - POLAR_EPSILON,
 }
 
+/** The pointer lock a person's controller publishes, read from its head (`createHead`) once made:
+ *  the head reads the controller's settings, so it is made after them. */
+export const headLock = (head: () => Pick<PersonHead, 'locked' | 'lock' | 'unlock'>) => ({
+  locked: () => head().locked(),
+  lock: () => head().lock(),
+  unlock: () => head().unlock(),
+})
+
 export function createHead(
   pose: ControlPose,
   surface: HTMLElement,

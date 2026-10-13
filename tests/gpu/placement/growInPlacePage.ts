@@ -12,11 +12,10 @@ import {
   type RowLink,
 } from '../../../packages/sdk-browser/src/partition/rows.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { batisseur, cameraFace, engine, release, square } from '../kit/sharedSceneProof.ts'
-import { addBackdrop } from '../kit/backdropScene.ts'
+import { batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
 import { drawnPixels, untilHeld } from '../kit/sceneImageProof.ts'
-import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
 /** Half-width of the tile, and the three places its rows put it. */
 const HALF = 0.3,
@@ -25,10 +24,9 @@ const HALF = 0.3,
 /** A background, and a tile drawn by rows of one placed mesh, its rows sized for `rows`. */
 function placedScene(rows: number) {
   const builder = batisseur()
-  addBackdrop(builder, G.DOUBLE_SIDE)
-  const tile = G.mesh(square(HALF), G.basicSurface({ color: 0xff2020, side: G.DOUBLE_SIDE }))
-  builder.source.add(tile)
-  builder.add(tile, 'exact-clusters', HALF)
+  const flat = (color: number) => G.basicSurface({ color, side: G.DOUBLE_SIDE })
+  builder.place(flat(0x1b3a5c), 'exact-clusters', 4, [0, 0, -2])
+  const tile = builder.place(flat(0xff2020), 'exact-clusters', HALF)
   const scene = builder.fini()
   const link = scene.associations.get(tile) as RowLink
   const mesh = placedMesh([link], [tile])
