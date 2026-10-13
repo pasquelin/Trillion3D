@@ -15,6 +15,10 @@ import {
   DOUBLE_HELPERS,
   countLeadingZeros,
 } from '../../../packages/sdk-browser/src/placement/composeDoubles.fixture.ts'
+import {
+  ENTRY_CORNERS_ENTRY,
+  ENTRY_CORNERS_WGSL,
+} from '../../../packages/sdk-browser/src/webgpu/transparent/entryCornersWgsl.ts'
 import type { ComputeBind } from './fakeCompute.ts'
 import { floats, words } from './fakeBuffers.ts'
 
@@ -41,11 +45,21 @@ const boundWords = (bind: ComputeBind, binding: number) =>
 
 const arrayLength = (ref: { get(): { length: number } }) => ref.get().length
 
+/** The double functions of a program that subtracts none: its text holds no `dSub`. */
+const WORLD_HELPERS = DOUBLE_HELPERS.filter((name) => name !== 'dSub')
+
 /** The functions of the rows pass a run names: its own and the library's it reaches. */
 const ROW_FUNCTIONS = [
   ...DOUBLE_HELPERS,
   ...['toF32', 'fromF32', 'splitDouble', 'affineAxis', 'dDiv', 'dLess', 'dRsqrt', 'dSqrt'],
-  ...['chebyshevRoot', 'maxStretchOf', 'composeSphere', 'clearRow', 'composeCorners'],
+  ...[
+    'chebyshevRoot',
+    'maxStretchOf',
+    'composeSphere',
+    'clearRow',
+    'writeCorners',
+    'composeCorners',
+  ],
   ...['lodCentre', 'composeLod', 'deriveRow'],
 ]
 
@@ -80,7 +94,7 @@ function simulateComposeWorlds(bind: ComputeBind) {
   }>(
     COMPOSE_WORLDS_WGSL,
     [
-      ...DOUBLE_HELPERS.filter((name) => name !== 'dSub'),
+      ...WORLD_HELPERS,
       ...['composed', 'affineAxis', 'dLess', 'dIsZero', 'dMin', 'dMax', 'carriedBox'],
       'composeBox',
     ],
@@ -105,8 +119,29 @@ function simulateComposeWorlds(bind: ComputeBind) {
   }
 }
 
-/** The replay of the kernel `entryPoint` names, when it is the rows pass or the worlds pass. */
+/** Replays a dispatch of the entries pass (`ENTRY_CORNERS_WGSL`): every entry its list names, or
+ *  every entry of the table. */
+function simulateEntryCorners(bind: ComputeBind) {
+  const [rootCount, listed, all] = boundWords(bind, 0)
+  const run = shaderRun<{ deriveEntry(entry: number): void }>(
+    ENTRY_CORNERS_WGSL,
+    [...WORLD_HELPERS, 'splitDouble', 'affineAxis', 'writeCorners', 'deriveEntry'],
+    {
+      countLeadingZeros,
+      arrayLength,
+      params: { rootCount, listed, all },
+      rootWorlds: pairs(boundWords(bind, 1)),
+      entryInputs: pairs(boundWords(bind, 2)),
+      corners: boundWords(bind, 3),
+    },
+  )
+  const list = boundWords(bind, 4)
+  for (let j = 0; j < listed; j++) run.deriveEntry(all ? j : list[j])
+}
+
+/** The replay of the kernel `entryPoint` names: the rows pass, the worlds pass or the entries'. */
 export const ROW_STAGES: Record<string, (bind: ComputeBind) => void> = {
   [DERIVE_ROWS_ENTRY]: simulateDeriveRows,
   [COMPOSE_WORLDS_ENTRY]: simulateComposeWorlds,
+  [ENTRY_CORNERS_ENTRY]: simulateEntryCorners,
 }

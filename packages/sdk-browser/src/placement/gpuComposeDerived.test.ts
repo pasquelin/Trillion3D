@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { refreshRootBox } from '../page/selection/batchBoxes.ts'
-import { packPageCorners } from '../webgpu/visibility/corners.ts'
+import { packPageCorners } from '../webgpu/visibility/corners.fixture.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { writeRowLod } from '../webgpu/shadow/rowLodWords.fixture.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
@@ -41,7 +41,15 @@ const derived = shaderRun<{
   composeLod(row: number, rank: number, world: Pair[]): void
 }>(
   DERIVE_ROWS_WGSL,
-  [...DOUBLE_HELPERS, ...SPLIT, ...STRETCH, 'composeCorners', 'lodCentre', 'composeLod'],
+  [
+    ...DOUBLE_HELPERS,
+    ...SPLIT,
+    ...STRETCH,
+    'writeCorners',
+    'composeCorners',
+    'lodCentre',
+    'composeLod',
+  ],
   {
     countLeadingZeros,
     ...rows,

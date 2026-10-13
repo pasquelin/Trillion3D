@@ -1,12 +1,12 @@
-import { CORNER_VALUES } from '../../gpu/partition/contract.ts'
 import { createTransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { packPageCorners } from '../visibility/corners.ts'
-import { neverCulled } from '../../visibility/shader/spriteWgsl.ts'
-import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
-import { setBit } from '../../../../math/src/scalar/bits.ts'
-
-type Table = NonNullable<WebgpuPagesRuntime['blendState']['table']>
+import {
+  createEntryCorners,
+  encodeEntryCorners,
+  ensureEntryInputs,
+  sendEntryInputs,
+  targetEntry,
+} from './entryCorners.ts'
 
 /**
  * Mounts the occlusion test of transparent clusters, once everything it borrows exists.
@@ -29,12 +29,11 @@ export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device
     occluded: () => blendState.compaction!.occludedBuffer,
   })
   if (!blendState.occlusion) return
-  blendState.occlusionCorners = new Float32Array(table.capacity * CORNER_VALUES)
   blendState.occlusionEpoch = -1
 }
 
 /**
- * The test made to cover the entries the table gained, and every corner sent again at the next
+ * The test made to cover the entries the table gained, and every corner derived again at the next
  * image: the entries joined behind the held ones, and the held ones were never rewritten, so the
  * table's age is the only thing that says they are to be.
  */
@@ -42,73 +41,51 @@ export function growTransparentOcclusion(rt: WebgpuPagesRuntime) {
   const { blendState } = rt,
     { table, occlusion } = blendState
   if (!table || !occlusion) return
-  if (occlusion.grow(table.capacity)) {
-    const corners = new Float32Array(table.capacity * CORNER_VALUES)
-    corners.set(blendState.occlusionCorners)
-    blendState.occlusionCorners = corners
-  }
+  occlusion.grow(table.capacity)
   blendState.occlusionEpoch = -1
 }
 
 /**
- * The eight world corners of every transparent-table entry, in the buffer the test reads.
+ * The eight world corners of every transparent-table entry, in the buffer the test reads, derived
+ * on the GPU from each entry's root's world (`entryCorners.ts`) just before the test, in the frame's
+ * command buffer.
  *
  * A transparent cluster claims no visibility-buffer row: its corners therefore do not travel with
  * the row table's dirty range, and it is here they leave. As for opaques, a corner changes only when
- * its page's world matrix changes, and the table's age names exactly that moment: a moving camera
- * rewrites none. The doubles are those of `pageCornersInto`, each carried by two single-precision
- * values — the rounding and its residue. The entries never culled (`neverCulled`) leave with them,
- * one bit each. A table of the same age sends again only the entries whose pages a rewrite bounded
- * elsewhere (`occlusionMoved`): a sea rewritten each frame sends its own, no other.
+ * its page's world matrix changes: a moving camera derives none, and a moving placement its own
+ * entries (`occlusionPosed`), never the table. A table of another age, or a corners buffer made
+ * anew, sends every entry's inputs and the entries never culled (`neverCulled`), one bit each, and
+ * derives every entry; a table of the same age sends again the inputs of the entries whose pages a
+ * rewrite bounded elsewhere (`occlusionMoved`): a sea rewritten each frame sends its own, no other.
  */
-export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
+export function refreshTransparentCorners(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { blendState, layout } = rt,
-    { table, occlusion, occlusionMoved: moved } = blendState
-  if (!table || !occlusion) return
-  const epoch = layout.rows.tableEpoch,
-    last = table.capacity - 1
-  if (blendState.occlusionEpoch === epoch) {
-    const to = Math.min(moved.to, last)
-    if (to >= moved.from) {
-      packEntries(rt, table, moved.from, to)
-      occlusion.uploadCorners(blendState.occlusionCorners, moved.from, to)
-    }
-  } else {
+    { table, occlusion, occlusionMoved: moved, occlusionPosed: posed } = blendState,
+    device = rt.gpu.device
+  if (!table || !occlusion || !device) return
+  const held = (blendState.occlusionEntries ??= createEntryCorners()),
+    epoch = layout.rows.tableEpoch,
+    last = table.capacity - 1,
+    named = posed.take()
+  const made = ensureEntryInputs(device, held, table.capacity)
+  if (made || blendState.occlusionEpoch !== epoch || held.corners !== occlusion.corners) {
     blendState.occlusionEpoch = epoch
     occlusion.unculledBits.fill(0)
-    packEntries(rt, table, 0, last)
-    occlusion.uploadCorners(blendState.occlusionCorners, 0, last)
+    sendEntryInputs(rt, held, { from: 0, to: last, bits: occlusion.unculledBits })
     occlusion.uploadUnculled()
+    held.all = true
+  } else {
+    const to = Math.min(moved.to, last)
+    if (to >= moved.from)
+      sendEntryInputs(rt, held, { from: moved.from, to, bits: occlusion.unculledBits })
+    for (let entry = moved.from; entry <= to; entry++) targetEntry(held, entry)
+    for (let k = 0; k < named.length; k++) if (named[k] <= last) targetEntry(held, named[k])
   }
   moved.from = Infinity
   moved.to = -1
-}
-
-/** Packs the corners of `table`'s entries `from` to `to`, and sets the bit of each one never
- *  culled. */
-function packEntries(rt: WebgpuPagesRuntime, table: Table, from: number, to: number) {
-  const { blendState, layout } = rt,
-    packed = blendState.occlusionCorners,
-    { recordOf, selectionRoots, placement } = layout,
-    bits = blendState.occlusion!.unculledBits
-  for (let entry = from; entry <= to; entry++) {
-    const base = entry * CORNER_VALUES,
-      page = table.pageOfEntry[entry]
-    // An alignment entry names no page: its corners stay zero, and compaction drops it even before
-    // reading its verdict.
-    if (page < 0) {
-      packed.fill(0, base, base + CORNER_VALUES)
-      continue
-    }
-    const rec = recordOf(page)
-    // A rank the catalogue does not hold names no record: its corners stay zero, as an alignment
-    // entry's, so no stale rectangle survives from a previous table.
-    if (!rec) {
-      packed.fill(0, base, base + CORNER_VALUES)
-      continue
-    }
-    const root = rootOf(selectionRoots, rootOfPacked(placement, page))
-    packPageCorners(packed, base, rec, root.world, root.reach)
-    if (neverCulled(rec.material)) setBit(bits, entry)
-  }
+  encodeEntryCorners(rt, device, encoder, {
+    held,
+    corners: occlusion.corners,
+    capacity: table.capacity,
+  })
 }

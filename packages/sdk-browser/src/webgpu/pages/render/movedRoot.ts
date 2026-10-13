@@ -15,6 +15,7 @@ export type MovedRootTarget = Pick<WebgpuPagesRuntime, 'rootWorlds'> & {
   blendState: {
     occlusionEpoch: number
     occlusionMoved?: { from: number; to: number }
+    occlusionPosed?: { mark(entry: number): void }
     table?: { entryOf(page: number): number }
   }
 }
@@ -27,7 +28,8 @@ export type MovedRootTarget = Pick<WebgpuPagesRuntime, 'rootWorlds'> & {
  * GPU cut's tree fits again the group of the pose its send says moved (`updateWorlds`). A world
  * that turned its winding swaps the face every row of it culls: its rows are written again
  * (`markRootRows`), their draw bins made for the new one. A transparent placement claims no
- * visibility row: its caster rows move with it, and its transparent corners are sent again. The
+ * visibility row: its caster rows move with it, and the corners of its own transparent entries are
+ * derived again (`occlusionPosed`), never the table's. The
  * occlusion history of its rows is kept: a stale rectangle only moves a row between the two halves
  * of the partition, never a pixel (`../../../gpu/partition/projectWgsl.ts`). Returns the rows
  * written again.
@@ -35,11 +37,27 @@ export type MovedRootTarget = Pick<WebgpuPagesRuntime, 'rootWorlds'> & {
 export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>, rank: number) {
   if (rt.run) noteWorldMoved(rt.run, rank)
   noteRootWorld(rt, rank)
-  if (root.pages[0]?.transparent) rt.blendState.occlusionEpoch = -1
+  if (root.pages[0]?.transparent) poseEntries(rt, root)
   const cw = matrixWindingCw(root.world.elements)
   if (root.windingCw === cw) return 0
   root.windingEpoch = undefined
   return markRootRows(rt, root, 0, root.pages.length - 1)
+}
+
+/** A blended root moved: the entries of its pages have their corners derived again from its world
+ *  (`../../transparent/entryCorners.ts`), every entry's without a table. */
+function poseEntries(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
+  const { blendState } = rt,
+    { table, occlusionPosed: posed } = blendState,
+    base = root.packedBase ?? -1
+  if (!table || !posed || base < 0) {
+    blendState.occlusionEpoch = -1
+    return
+  }
+  for (let page = 0; page < root.pages.length; page++) {
+    const entry = table.entryOf(base + page)
+    if (entry >= 0) posed.mark(entry)
+  }
 }
 
 /** A blended root's pages `from` to `to`, from packed rank `base`, bounded elsewhere: their own

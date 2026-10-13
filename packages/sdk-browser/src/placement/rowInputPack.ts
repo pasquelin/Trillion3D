@@ -30,6 +30,18 @@ export const ROW_HAS_RECORD = 32
 /** A row's box, flat, as the growth by its reach reads it. */
 const flat = new Float64Array(6)
 
+/** The box of page `rec` grown by its reach under a root of reach `rootReach` (`rowGrowth`), flat —
+ *  its low corner then its high one — into `into` from `o`: what its eight Hi-Z corners are made of,
+ *  a row's (`rowInputs`) and a transparent entry's (`../webgpu/transparent/entryCorners.ts`). */
+export function grownRowBox(into: Float64Array, o: number, rec: PageRec, rootReach?: number) {
+  const { min, max } = rowBox(rec)
+  for (let axis = 0; axis < 3; axis++) {
+    flat[axis] = min[axis]
+    flat[3 + axis] = max[axis]
+  }
+  boxGrow(into, o, flat, 0, rowGrowth(rec, rootReach))
+}
+
 /**
  * Row inputs `rec` of a root `root`, into `into` from `o`; the zero inputs for a row with no record.
  * `lod` false leaves the detail out — a blended caster's row has none.
@@ -48,12 +60,9 @@ export function rowInputs(
   const { min, max } = rowBox(rec),
     reach = rowGrowth(rec, root.reach)
   boxCenter(into, o + INPUT_CENTRE, min[0], min[1], min[2], max[0], max[1], max[2])
-  for (let axis = 0; axis < 3; axis++) {
+  for (let axis = 0; axis < 3; axis++)
     into[o + INPUT_HALF + axis] = (max[axis] - min[axis]) / 2 + reach
-    flat[axis] = min[axis]
-    flat[3 + axis] = max[axis]
-  }
-  boxGrow(into, o + INPUT_BOX, flat, 0, reach)
+  grownRowBox(into, o + INPUT_BOX, rec, root.reach)
   if (lod) rowLodInputs(into, o + INPUT_LOD, rec, root, ready, childReady)
   into[o + INPUT_FLAGS] += ROW_HAS_RECORD
 }

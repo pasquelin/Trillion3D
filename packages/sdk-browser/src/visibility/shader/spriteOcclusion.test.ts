@@ -30,6 +30,7 @@ import { buildHizPyramid } from '../../../../../bench/oracles/browser/hizPyramid
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { hasBit } from '../../../../math/src/scalar/bits.ts'
 import { PAGE_INFO } from '../pageInfo.ts'
+import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 const sprite = (sizeAttenuation: boolean) => ({ rotation: 0, sizeAttenuation })
@@ -116,9 +117,10 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
     material: { sprite: sprite(sizeAttenuation) },
   })
   let sent = false
+  const { device } = fakeDevice()
   const occlusion = {
+    corners: device.createBuffer({ size: 34 * 48 * 4, usage: GPUBufferUsage.STORAGE }),
     unculledBits: new Uint32Array(2),
-    uploadCorners() {},
     uploadUnculled: () => (sent = true),
   }
   const pages = [page(true), page(false)]
@@ -128,8 +130,9 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
       occlusion,
       occlusionEpoch: -1,
       occlusionMoved: { from: Infinity, to: -1 },
-      occlusionCorners: new Float32Array(34 * 48),
+      occlusionPosed: createChangedRuns(),
     },
+    gpu: { device },
     layout: {
       rows: { tableEpoch: 0 },
       packedPages: pages,
@@ -138,7 +141,7 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
       placement: identityRoots().placement,
     },
   } as unknown as WebgpuPagesRuntime
-  refreshTransparentCorners(rt)
+  refreshTransparentCorners(rt, device.createCommandEncoder())
   // Odd entries hold the constant-size sprite: bits 1, 3, …, 33.
   assert.deepEqual(Array.from(occlusion.unculledBits), [0xaaaaaaaa, 0b10])
   assert.ok(sent)

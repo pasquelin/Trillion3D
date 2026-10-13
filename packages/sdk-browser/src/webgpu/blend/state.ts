@@ -1,4 +1,6 @@
 import type { Primitive } from '../../../../sdk-core/src/index.ts'
+import type { EntryCorners } from '../transparent/entryCorners.ts'
+import { createChangedRuns } from '../residency/ranges.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
@@ -105,12 +107,15 @@ function tableState() {
     compaction: undefined as TransparentCompaction | undefined,
     /** Hi-Z test of transparent clusters, mounted after the pyramid it depends on. */
     occlusion: undefined as TransparentOcclusion | undefined,
-    /** World corners of each table entry, and the age of the table they come from. */
-    occlusionCorners: new Float32Array(0) as Float32Array<ArrayBuffer>,
+    /** The age of the table the entries' corners were derived at, the entries pass
+     *  (`../transparent/entryCorners.ts`), made at its first image. */
     occlusionEpoch: -1,
-    /** The entries whose pages a rewrite bounded elsewhere since the corners left, sent
-     *  again alone (`refreshTransparentCorners`); none when `to` is below `from`. */
+    occlusionEntries: undefined as EntryCorners | undefined,
+    /** The entries whose pages a rewrite bounded elsewhere since the corners were derived, their
+     *  inputs sent again alone (`refreshTransparentCorners`); none when `to` is below `from`. */
     occlusionMoved: { from: Infinity, to: -1 },
+    /** The entries whose placement moved since: derived again alone, from its world. */
+    occlusionPosed: createChangedRuns(),
     /** Table entries changed by the residency journal, awaiting a partial upload. */
     dirtySpans: new Set<number>(),
     /** What the transparent groups currently name: a moved identity voids them. Two are held,

@@ -42,22 +42,20 @@ fn affineAxis(w:array<vec2u,16>,i:u32,x:vec2u,y:vec2u,z:vec2u)->vec2u{
 }`,
 )
 
-const BASE = `let at=row*${ROW_INPUT_DOUBLES}u;`
-
-/** The eight corners of row `row`'s box at `world`, as `packPageCorners` writes them: corner `k`
- *  takes the maximum on `x` when bit 0 of `k` is set, on `y` for bit 1, on `z` for bit 2. */
-export const CORNERS_WGSL = wgslBlock(
-  'CORNERS_WGSL',
+/** The eight corners of the box of bounds `lo` and `hi` at `world`, from word `out` of `corners`, as
+ *  `pageCornersInto` derives them: corner `k` takes the maximum on `x` when bit 0 of `k` is set, on
+ *  `y` for bit 1, on `z` for bit 2; each coordinate two words, the single rounding then its residue.
+ *  A row's (`composeCorners`) and a transparent entry's (`../webgpu/transparent/entryCorners.ts`). */
+export const BOX_CORNERS_WGSL = wgslBlock(
+  'BOX_CORNERS_WGSL',
   [splitDouble, AFFINE_WGSL],
   `
-fn composeCorners(row:u32,world:array<vec2u,16>){
- ${BASE}
- let out=row*${CORNER_VALUES}u;
+fn writeCorners(out:u32,world:array<vec2u,16>,lo:array<vec2u,3>,hi:array<vec2u,3>){
  var p:array<vec2u,3>;
  for(var k=0u;k<8u;k++){
   for(var axis=0u;axis<3u;axis++){
-   p[axis]=inputs[at+6u+axis];
-   if(((k>>axis)&1u)!=0u){p[axis]=inputs[at+9u+axis];}
+   p[axis]=lo[axis];
+   if(((k>>axis)&1u)!=0u){p[axis]=hi[axis];}
   }
   for(var axis=0u;axis<3u;axis++){
    let s=splitDouble(affineAxis(world,axis,p[0],p[1],p[2]));
@@ -65,6 +63,20 @@ fn composeCorners(row:u32,world:array<vec2u,16>){
    corners[out+k*6u+3u+axis]=s.y;
   }
  }
+}`,
+)
+
+/** The eight corners of row `row`'s grown box (its inputs' from double 6) at `world`. */
+export const CORNERS_WGSL = wgslBlock(
+  'CORNERS_WGSL',
+  [BOX_CORNERS_WGSL],
+  `
+fn composeCorners(row:u32,world:array<vec2u,16>){
+ let at=row*${ROW_INPUT_DOUBLES}u;
+ var lo:array<vec2u,3>;
+ var hi:array<vec2u,3>;
+ for(var axis=0u;axis<3u;axis++){lo[axis]=inputs[at+6u+axis];hi[axis]=inputs[at+9u+axis];}
+ writeCorners(row*${CORNER_VALUES}u,world,lo,hi);
 }`,
 )
 

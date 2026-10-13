@@ -28,7 +28,7 @@ export type TransparentOcclusionSources = {
  * Occlusion of transparent clusters, done by the GPU, on the current frame's pyramid.
  *
  * It owns two buffers: the world corners of each transparent-table entry, as two
- * single-precision values, rewritten only when a world matrix changes, and one bit per entry that
+ * single-precision values, derived on the GPU only when a world matrix changes, and one bit per entry that
  * is never culled (`neverCulled`), which it never rejects. Everything else is
  * borrowed — pyramid, uniform, verdict buffer — so the rule applied to transparent clusters is
  * that of the opaques to the bit, and no frame pays two projections.
@@ -59,9 +59,11 @@ export async function createTransparentOcclusion(
       groups: workgroupCount(entryCount, PARTITION_WORKGROUP),
     }
     return {
-      /** World corners of entries `[from, to]`, on the only interval the table changed. */
-      uploadCorners: (packed: Float32Array, from: number, to: number) =>
-        uploadCorners(o, packed, from, to),
+      /** The world corners of each entry, the entries pass's (`../../webgpu/transparent/
+       *  entryCorners.ts`): made anew by a growth. */
+      get corners() {
+        return o.corners
+      },
       /** One bit per entry, set where the entry is never culled: filled by the owner, then sent
        *  whole by `uploadUnculled`. */
       get unculledBits() {
@@ -155,19 +157,6 @@ async function occlusionPipeline(device: GPUDevice) {
     compute: { module, entryPoint: 'testTransparentClusters' },
   })
   return { layout, pipeline }
-}
-
-const CORNER_BYTES = CORNER_VALUES * 4
-
-function uploadCorners(o: Occlusion, packed: Float32Array, from: number, to: number) {
-  if (o.disposed || to < from) return
-  o.device.queue.writeBuffer(
-    o.corners,
-    from * CORNER_BYTES,
-    packed.buffer as ArrayBuffer,
-    packed.byteOffset + from * CORNER_BYTES,
-    (to - from + 1) * CORNER_BYTES,
-  )
 }
 
 function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh: boolean) {
