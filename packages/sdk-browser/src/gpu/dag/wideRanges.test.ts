@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { writeRanges } from './split.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The bytes `count` scattered indices of `stride` words cost, written through `writeRanges`. */
 function sent(stride: number, indices: number[]) {
@@ -21,8 +22,7 @@ function sent(stride: number, indices: number[]) {
 }
 
 test('scattered moves write what moved, not the span between them, whatever the record', () => {
-  let seed = 5
-  const next = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+  const next = lcgRandom(5)
   const indices = [...new Set(Array.from({ length: 300 }, () => Math.floor(next() * 3e5)))].sort(
     (a, b) => a - b,
   )

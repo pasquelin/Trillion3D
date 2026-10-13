@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { rootWorlds, rootWorldsMoved } from './pack.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import type { DagRoot } from './types.ts'
 
 const rootsOf = (worlds: Float64Array[]) =>
@@ -19,7 +19,7 @@ function randomWorlds(next: () => number, count: number) {
 }
 
 test('the worlds sent are each root world in single precision', () => {
-  const next = random(918)
+  const next = lcgRandom(918)
   const roots = rootsOf(randomWorlds(next, 30)),
     worlds = new Float32Array(30 * 16)
   rootWorlds(worlds, roots)
@@ -32,7 +32,7 @@ test('the worlds sent are each root world in single precision', () => {
 })
 
 test('a pose left alone reads unmoved, one changed past single precision moved', () => {
-  const next = random(1831)
+  const next = lcgRandom(1831)
   let visible = 0
   for (let round = 0; round < 200; round++) {
     const roots = rootsOf(randomWorlds(next, 1 + Math.floor(next() * 40)))

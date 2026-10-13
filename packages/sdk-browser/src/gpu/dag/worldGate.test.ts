@@ -11,7 +11,7 @@ import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { oracleWorldCovers, oracleWorldPixels } from './oracle/worldGate.fixture.ts'
 import { dagViewFrames } from './oracle/math.fixture.ts'
 import { cameraSelectionUniforms, SELECTION_NONE as NONE } from '../core/selection.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { worldFadeScale } from './worldFade.ts'
@@ -28,7 +28,7 @@ function residency(s: WorldScene, placed: boolean[], held: boolean[]) {
 
 test('every object is drawn exactly once, by its placement or its world group', () => {
   const s = worldScene(),
-    next = random(1473)
+    next = lcgRandom(1473)
   let byPlacement = 0,
     byWorld = 0
   for (let frame = 0; frame < 400; frame++) {
@@ -69,7 +69,7 @@ test('a placement the world draws is never descended', () => {
 
 test("the kernel's own gate decides as its model does, its threshold faded", () => {
   const s = worldScene(),
-    next = random(1335)
+    next = lcgRandom(1335)
   const cold = new Uint32Array(s.packed.pageCones.buffer),
     link = s.packed.world!,
     shift = cold[link.linkBase - 1]

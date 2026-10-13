@@ -15,7 +15,7 @@ import { packDagSelection } from '../selection.ts'
 import { packed } from '../selectionHelpers.fixture.ts'
 import { dagFixture } from '../../../page/selection/dag.fixture.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
-import { random } from '../../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
 import { frustumExcludesBox } from '../../../../../sdk-core/src/index.ts'
 import { wgslSource } from '../../../../../math/src/wgsl/source.fixture.ts'
 import { encodeDagKernels } from '../encode.ts'
@@ -86,7 +86,7 @@ test('no kernel writes a placement’s row: its pose is made where it is read', 
 test("a never-culled primitive's open planes keep every box", () => {
   const open = new Float64Array(24)
   for (let p = 0; p < 6; p++) open[p * 4 + 3] = 1
-  const next = random(9),
+  const next = lcgRandom(9),
     edges = [NaN, -Infinity, -3.4e38, -1, -0, 0, 1, 3.4e38, Infinity]
   const values = [...edges, ...Array.from({ length: 40 }, () => (next() - 0.5) * 1e6)]
   for (let n = 0; n < 20_000; n++) {

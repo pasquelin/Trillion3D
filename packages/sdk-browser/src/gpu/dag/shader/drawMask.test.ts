@@ -9,7 +9,7 @@ import { DAG_SELECTION_SHADER } from './shader.ts'
 import { dagWorkLayout } from './floorWgsl.ts'
 import { wgslScope } from '../../../page/cut/wgslPredicate.fixture.ts'
 import { wgslConstants } from '../../../texture/shaderRule.fixture.ts'
-import { random } from '../../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
 
 const countOneBits = (word: number) => {
   let n = 0
@@ -63,7 +63,7 @@ function walkRanks(flags: Uint8Array) {
 }
 
 test('the mask rank is the walked rank, on every density and block edge', () => {
-  const next = random(922)
+  const next = lcgRandom(922)
   for (const count of [1, 31, 32, 33, 63, 64, 65, 127, 128, 129, 1000])
     for (const density of [0, 0.03, 0.5, 0.97, 1]) {
       const flags = Uint8Array.from({ length: count }, () => (next() < density ? 1 : 0))

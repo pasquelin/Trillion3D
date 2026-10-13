@@ -8,6 +8,7 @@ import { packDagSelection } from './selection.ts'
 import { createPlacementRows } from '../../placement/rows.ts'
 import { setRowCell } from '../../partition/rowCells.ts'
 import type { DagRoot } from './types.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The mean extent, over x and z, of the translations each group of 64 members spans. */
 function meanGroup(roots: readonly DagRoot[]) {
@@ -30,8 +31,7 @@ function meanGroup(roots: readonly DagRoot[]) {
 /** A field of 40² placements 6 m apart, their ranks shuffled: the rows' order is no place's. */
 function shuffled() {
   const roots = placementField(40, 6)
-  let seed = 3
-  const next = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+  const next = lcgRandom(3)
   for (let k = roots.length - 1; k > 0; k--) {
     const j = Math.floor(next() * (k + 1))
     ;[roots[k], roots[j]] = [roots[j], roots[k]]
