@@ -3,7 +3,11 @@ import { SHADE_BINDINGS, atlasLayoutEntries } from '../core/bindLayout.ts'
 import { RECEIVER_TARGET_FORMAT } from '../../visibility/shader/receiverTargetWgsl.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../scene/physicalLobes.ts'
 import { SUBSURFACE_FORMAT } from '../../scene/subsurface.ts'
-import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+} from '../../gpu/core/computeBindings.ts'
 /** The material pass's bind layout, which the feedback-free diagnostic pipelines share. */
 export function shadeLayout(device: GPUDevice) {
   const b = SHADE_BINDINGS
@@ -39,12 +43,12 @@ export function shadeLayout(device: GPUDevice) {
       },
       ...atlasLayoutEntries(b.color),
       { binding: b.sampler, visibility: fragment, sampler: { type: 'filtering' } },
-      {
-        binding: b.uniform,
-        // The class draws place their tiles in the viewport it holds (`materialTilesWgsl.ts`).
-        visibility: fragment | GPUShaderStage.VERTEX,
-        buffer: { type: 'uniform', minBindingSize: SHADE_UNIFORM_BYTES },
-      },
+      // The class draws place their tiles in the viewport it holds (`materialTilesWgsl.ts`).
+      computeUniformEntry(
+        b.uniform,
+        { minBindingSize: SHADE_UNIFORM_BYTES },
+        fragment | GPUShaderStage.VERTEX,
+      ),
       ...atlasLayoutEntries(b.data),
     ],
   })

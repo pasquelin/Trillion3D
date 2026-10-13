@@ -7,6 +7,7 @@ import {
   sequentialEntries,
   computeBufferEntry,
   computeTextureEntry,
+  computeUniformEntry,
 } from '../gpu/core/computeBindings.ts'
 
 /** Bytes of one level's 256 bins. */
@@ -27,7 +28,7 @@ const coverageProgram = oncePerDevice((device: GPUDevice) => {
   })
   const chooseLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility, buffer: { type: 'uniform', hasDynamicOffset: true } },
+      computeUniformEntry(0, { hasDynamicOffset: true }, visibility),
       computeBufferEntry(1, 'read-only-storage', visibility),
       computeBufferEntry(2, 'storage', visibility),
     ],

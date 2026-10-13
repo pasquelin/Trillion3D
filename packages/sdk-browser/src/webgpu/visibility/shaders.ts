@@ -16,7 +16,7 @@ import {
 } from '../../diagnostic/gpuGeometry.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
-import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
+import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 
 /** Zeros for `drawSlots` rows, which the untested passes bind where the tested ones read verdicts;
  *  made again when the table grows (`../pages/prepare/growTables.ts`). */
@@ -35,12 +35,12 @@ export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
       GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
     ),
     computeBufferEntry(b.flags, 'read-only-storage', GPUShaderStage.VERTEX),
-    {
-      binding: b.uniform,
-      // The fragment reads the texture level bias (`atlasLod`, `uni.mipBias`).
-      visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-      buffer: { type: 'uniform', minBindingSize: VIS_UNIFORM_BYTES },
-    },
+    // The fragment reads the texture level bias (`atlasLod`, `uni.mipBias`).
+    computeUniformEntry(
+      b.uniform,
+      { minBindingSize: VIS_UNIFORM_BYTES },
+      GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+    ),
     computeBufferEntry(b.uv, 'read-only-storage', GPUShaderStage.VERTEX),
     ...atlasLayoutEntries(b.color),
     { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
