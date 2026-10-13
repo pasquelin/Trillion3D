@@ -50,7 +50,7 @@ import {
   SURFACE_WORDS,
 } from '../../bounce/runtimeLayout.ts'
 import { NO_TINT, writeSurface } from '../../bounce/runtimeSurface.ts'
-import type { DagParts } from './split.ts'
+import { copyParts, type DagParts } from './split.ts'
 import { treeNodeCount } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
 
@@ -118,27 +118,14 @@ export type PoseHost = {
 /** A surface slot: the words it holds are those of a version of its record, under a tint. */
 type Held = { slot: number; version: number; at: number }
 
-/** The part of a table split in parts of `per` elements that holds elements `[first, first + count)`
- *  whole, or `undefined` where two parts share them. */
-function partOf(first: number, count: number, per: number) {
-  const part = Math.floor(first / per)
-  return Math.floor((first + Math.max(count, 1) - 1) / per) === part ? part : undefined
-}
-
 export function createProxyInstances({ device, packed, nodeParts, coldParts, frames }: Resources) {
   const tree = packed.placementTree
   const slots = Math.max(1, packed.worldCount)
-  // The tree is read from the parts that hold its nodes and its members' order; a tree that straddles
-  // two parts is not read, and its placements are walked as they come: the work budget bounds the walk.
-  const nodePart =
-      tree && partOf(tree.cellBase, treeNodeCount(tree), nodeParts.bytes / (DAG_NODE_FLOATS * 4)),
-    coldPart = tree && partOf(tree.members, tree.capacity, coldParts.bytes / 4)
-  const walksTree = nodePart !== undefined && coldPart !== undefined
-  // The tree's nodes and its members' order as the mirror holds them (`mirror`).
-  const treeWords = walksTree ? treeNodeCount(tree) * DAG_NODE_FLOATS : 0,
-    memberWords = walksTree ? tree!.capacity : 0
-  const nodesFirst = walksTree ? nodePart * (nodeParts.bytes / (DAG_NODE_FLOATS * 4)) : 0,
-    coldFirst = walksTree ? coldPart * (coldParts.bytes / 4) : 0
+  // The tree's nodes and its members' order as the mirror holds them (`mirror`), copied from the parts
+  // that hold them, one span a part where two share them (`copyParts`): the tree is always walked.
+  const walksTree = !!tree
+  const treeWords = tree ? treeNodeCount(tree) * DAG_NODE_FLOATS : 0,
+    memberWords = tree ? tree.capacity : 0
   let words = new Uint32Array(slots * INSTANCE_WORDS).fill(RUNTIME_NONE)
   // The instance a placement wears now, and the one it keeps while parked.
   const resolved = new Uint32Array(slots * INSTANCE_WORDS).fill(RUNTIME_NONE)
@@ -646,16 +633,18 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       worldsAll = false
       if (!walksTree || !tree || treeRevision === treeCopied) return
       treeCopied = treeRevision
-      encoder.copyBufferToBuffer(
-        nodeParts.buffers[nodePart!],
-        (tree.cellBase - nodesFirst) * DAG_NODE_FLOATS * 4,
+      copyParts(
+        encoder,
+        nodeParts,
+        tree.cellBase * DAG_NODE_FLOATS * 4,
         buffer,
         byteAt(layout.tree),
         treeWords * 4,
       )
-      encoder.copyBufferToBuffer(
-        coldParts.buffers[coldPart!],
-        (tree.members - coldFirst) * 4,
+      copyParts(
+        encoder,
+        coldParts,
+        tree.members * 4,
         buffer,
         byteAt(layout.members),
         memberWords * 4,
