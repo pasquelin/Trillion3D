@@ -58,7 +58,7 @@ export function runOver(
   epoch = 2,
   store: Store = makeStore(),
 ) {
-  const { packed, header } = w
+  const { header } = w
   const text =
     wgslModule(runtimeTraceWgsl(BINDINGS)) +
     'fn testWork()->u32{return rtWork+rtExtra;}\nfn testTests()->u32{return rtTests;}\nfn testReset(){rtWork=0u;rtTests=0u;}\nfn testPixel(x:u32,y:u32,n:u32){rtPixel=vec2u(x,y);rtCalls=0u;rtRank=n;}\n'

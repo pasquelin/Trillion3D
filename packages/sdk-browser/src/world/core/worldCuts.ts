@@ -4,7 +4,6 @@ import {
 } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { hostGeometry } from './worldGeometry.ts'
-import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'

@@ -40,7 +40,6 @@ export function createProxyPose(device: GPUDevice) {
   let orderBuffer: GPUBuffer | undefined
   let orderSent = 0
   let poseBuffer: GPUBuffer | undefined
-  let poseCapacity = 0
   // Made with the first pose, as the other buffers are: a scene with no deformed placement holds none.
   let params: GPUBuffer | undefined
   const groups = new Map<string, { key: unknown[]; group: GPUBindGroup }>()

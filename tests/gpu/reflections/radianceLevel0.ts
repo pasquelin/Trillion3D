@@ -4,6 +4,7 @@
 // sampled through the same sampler —, at taps over generated lit images, their drawn border and past
 // it, their coverage within one and zero past the drawn size as the lighting's clear leaves them.
 import { toHalf } from '../../../packages/math/src/float/half.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { wgslModule } from '../../../packages/math/src/wgsl/assemble.ts'
 import {
   createScreenReflection,
@@ -160,7 +161,7 @@ export async function level0(
       ],
     }),
   )
-  pass.dispatchWorkgroups(Math.ceil(width / 8), Math.ceil(height / 8))
+  pass.dispatchWorkgroups(ceilDiv(width, 8), ceilDiv(height, 8))
   pass.setPipeline(reading)
   pass.setBindGroup(
     0,
@@ -175,7 +176,7 @@ export async function level0(
     }),
   )
   pass.setBindGroup(REFLECTION_GROUP, group)
-  pass.dispatchWorkgroups(Math.ceil(count / 64))
+  pass.dispatchWorkgroups(ceilDiv(count, 64))
   pass.end()
   device.queue.submit([encoder.finish()])
   const [a, b] = [
