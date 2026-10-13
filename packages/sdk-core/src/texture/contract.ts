@@ -18,10 +18,10 @@ export type WrapMode = 'clamp' | 'repeat' | 'mirror'
 export type TextureFilter =
   | 'nearest'
   | 'linear'
-  | 'nearest-mip-nearest'
-  | 'nearest-mip-linear'
-  | 'linear-mip-nearest'
-  | 'linear-mip-linear'
+  | 'nearestMipNearest'
+  | 'nearestMipLinear'
+  | 'linearMipNearest'
+  | 'linearMipLinear'
 
 /** How the texels are encoded: a colour map carries an sRGB transfer curve, a data map does not. */
 export type TextureColorSpace = 'srgb' | 'linear'
@@ -76,10 +76,10 @@ export function uvTransformed(m: ArrayLike<number>) {
 
 /**
  * Anisotropy a texture is sampled with: a linear magnification over a chain mixed across levels —
- * every minification but `*-mip-nearest`, a filter without `mip` mixing the levels as the default
+ * every minification but `*MipNearest`, a filter without `mip` mixing the levels as the default
  * read does — takes it, clamped to `ceiling`; any other filter reads one tap.
  */
 export function grantedAnisotropy(texture: Texture, ceiling: number) {
-  if (texture.magFilter === 'nearest' || texture.minFilter.endsWith('mip-nearest')) return 1
+  if (texture.magFilter === 'nearest' || texture.minFilter.endsWith('MipNearest')) return 1
   return clamp(texture.anisotropy, 1, ceiling)
 }

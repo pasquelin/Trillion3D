@@ -11,7 +11,7 @@
  *   first coordinate set keeps the texture's rank;
  * - colour maps are sRGB, the rest linear; rows are not flipped.
  */
-import type { TableTextureSlot, TextureFilter, WrapMode } from '../../../../sdk-core/src/index.ts'
+import type { TableFilter, TableTextureSlot, WrapMode } from '../../../../sdk-core/src/index.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { GraphTexture } from '../graph/texture.ts'
@@ -27,7 +27,7 @@ import {
   HOST_WRAP_REPEAT,
 } from '../surfaceConstants.ts'
 
-const FILTERS: Record<TextureFilter, number> = {
+const FILTERS: Record<TableFilter, number> = {
   nearest: HOST_FILTER_NEAREST,
   linear: HOST_FILTER_LINEAR,
   'nearest-mip-nearest': HOST_FILTER_NEAREST_MIP_NEAREST,

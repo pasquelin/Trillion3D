@@ -20,10 +20,10 @@ import { AFFINE } from '../../../sdk-core/src/texture/contract.ts'
 /** Filtering the host declared; an unknown constant reads linear, as the binders already did. */
 function filterOf(filter: number): TextureFilter {
   if (filter === HOST_FILTER_NEAREST) return 'nearest'
-  if (filter === HOST_FILTER_NEAREST_MIP_NEAREST) return 'nearest-mip-nearest'
-  if (filter === HOST_FILTER_NEAREST_MIP_LINEAR) return 'nearest-mip-linear'
-  if (filter === HOST_FILTER_LINEAR_MIP_NEAREST) return 'linear-mip-nearest'
-  return filter === HOST_FILTER_LINEAR_MIP_LINEAR ? 'linear-mip-linear' : 'linear'
+  if (filter === HOST_FILTER_NEAREST_MIP_NEAREST) return 'nearestMipNearest'
+  if (filter === HOST_FILTER_NEAREST_MIP_LINEAR) return 'nearestMipLinear'
+  if (filter === HOST_FILTER_LINEAR_MIP_NEAREST) return 'linearMipNearest'
+  return filter === HOST_FILTER_LINEAR_MIP_LINEAR ? 'linearMipLinear' : 'linear'
 }
 
 type Editable = { -readonly [K in keyof Texture]: Texture[K] }

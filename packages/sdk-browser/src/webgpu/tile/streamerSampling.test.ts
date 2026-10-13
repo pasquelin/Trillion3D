@@ -82,7 +82,7 @@ test('the headers follow their hosts at each render, only what moved written', a
   colour.minFilter = G.HOST_FILTER_NEAREST_MIP_NEAREST
   colour.anisotropy = 8
   await follow(textures)
-  assert.equal(colourRecord.minFilter, 'nearest-mip-nearest', 'the filter written after it')
+  assert.equal(colourRecord.minFilter, 'nearestMipNearest', 'the filter written after it')
   assert.deepEqual(signalled, [[1]], 'the colour slot, as a landed tile')
   assert.equal(writes(), opened + 1)
   await follow(textures)

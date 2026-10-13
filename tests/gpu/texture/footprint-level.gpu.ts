@@ -24,9 +24,9 @@ const SIZE = 256,
 const FILTERS: Array<[TextureFilter, TextureFilter, number]> = [
   ['linear', 'linear', 1],
   ['nearest', 'nearest', 1],
-  ['nearest-mip-nearest', 'linear', 1],
-  ['linear-mip-nearest', 'nearest', 1],
-  ['linear-mip-linear', 'linear', 1],
+  ['nearestMipNearest', 'linear', 1],
+  ['linearMipNearest', 'nearest', 1],
+  ['linearMipLinear', 'linear', 1],
   ['linear', 'linear', 16],
 ]
 
@@ -60,7 +60,7 @@ test('every texture reads the level of its footprint, a filter without mip inclu
       const taps = Math.min(Math.ceil(Math.max(x, y) / Math.min(x, y) - 0.01), anisotropy)
       const raw = Math.log2(Math.max(x, y)) - Math.log2(taps)
       let lod = clamp(raw, 0, LAST)
-      if (minFilter.endsWith('mip-nearest')) lod = Math.floor(lod + 0.5)
+      if (minFilter.endsWith('MipNearest')) lod = Math.floor(lod + 0.5)
       const nearest = (raw <= 0 ? magFilter : minFilter).startsWith('nearest') ? 1 : 0
       cases.push({
         name: `${minFilter}/${magFilter} ×${anisotropy} at ${x}×${y}`,

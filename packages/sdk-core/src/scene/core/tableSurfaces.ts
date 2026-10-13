@@ -3,7 +3,7 @@
  * `packages/asset-compiler-rust/src/compiler_tables/materials.rs`): each material the prepared
  * scene wears, in the engine's own words, and the sampler state of each texture it samples.
  */
-import type { TextureFilter, WrapMode } from '../../texture/contract.ts'
+import type { WrapMode } from '../../texture/contract.ts'
 
 /** The six map slots the engine reads of a surface, in the engine's own field names. */
 export const TABLE_SLOTS = [
@@ -50,7 +50,17 @@ export interface TableTextureSlot {
     scale: readonly [number, number] | null
   } | null
 }
-/** Sampler state of one glTF texture, in the engine's words. */
+/** A filter as the compiler writes it (`compiler_tables/textures.rs`); the prepared loader turns it
+ *  into the engine's `TextureFilter` once, at load. */
+export type TableFilter =
+  | 'nearest'
+  | 'linear'
+  | 'nearest-mip-nearest'
+  | 'nearest-mip-linear'
+  | 'linear-mip-nearest'
+  | 'linear-mip-linear'
+
+/** Sampler state of one glTF texture, in the compiler's words. */
 export interface TableTexture {
   /** Its name. */
   name: string
@@ -63,9 +73,9 @@ export interface TableTexture {
   /** Repeat up. */
   wrapT: WrapMode
   /** Filter when bigger. */
-  magFilter: TextureFilter
+  magFilter: TableFilter
   /** Filter when smaller. */
-  minFilter: TextureFilter
+  minFilter: TableFilter
 }
 /**
  * A surface as the engine reads it. One glTF material is one entry per tangent variant: a primitive
