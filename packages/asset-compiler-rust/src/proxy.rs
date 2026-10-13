@@ -15,10 +15,8 @@ pub use trillion3d_page_codec::proxy::{
 };
 pub mod cut;
 pub mod encode;
-mod placement;
+pub mod placement;
 use placement::grow;
-pub use placement::mesh_scales;
-pub(crate) use placement::{place, primitives_by_mesh};
 pub(crate) mod tracer;
 
 /// Version of the "proxy" cache product. A proxy of another version is rejected, never guessed.
@@ -90,7 +88,7 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let world = world_matrices(inputs.g)?;
     let nodes = values(inputs.g, "nodes")?;
     let palette = albedo::material_albedo(inputs.g, inputs.previews);
-    let by_mesh = primitives_by_mesh(inputs.primitives);
+    let by_mesh = placement::primitives_by_mesh(inputs.primitives);
     // The largest scale each placed primitive is placed at, and the world extent of its placements.
     let mut scales: BTreeMap<usize, f64> = BTreeMap::new();
     let mut bounds = [

@@ -111,7 +111,7 @@ pub(super) fn stage_world_roots(
     }
     let world = world_matrices(published)?;
     let nodes = values(published, "nodes")?;
-    let by_mesh = crate::proxy::primitives_by_mesh(primitives);
+    let by_mesh = crate::proxy::placement::primitives_by_mesh(primitives);
     let mut instances = Vec::new();
     for (cell, members) in cells.iter().enumerate() {
         for (slot, &node) in members.iter().enumerate() {

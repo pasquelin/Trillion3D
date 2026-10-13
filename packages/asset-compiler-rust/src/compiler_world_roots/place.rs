@@ -6,7 +6,8 @@
 //! object's triangles turn back to the front: a world page is drawn under the identity.
 use super::*;
 use crate::compiler_world::cofactor_direction;
-use crate::proxy::{place, world_scale};
+use crate::proxy::placement::place;
+use crate::proxy::world_scale;
 use crate::shared_math::unit;
 use trillion3d_math::linear::determinant;
 use trillion3d_math::matrix::transform_point;

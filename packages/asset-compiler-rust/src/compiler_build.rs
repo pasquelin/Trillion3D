@@ -73,7 +73,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let cluster_start = Instant::now();
     // Compact per-page index storage is bounded independently from source size. Metadata is retained.
     // Each mesh's world scale, read before the loop: the proxy threshold is in metres.
-    let mesh_scales = proxy::mesh_scales(g, &chosen)?;
+    let mesh_scales = proxy::placement::mesh_scales(g, &chosen)?;
     let primitive_inputs = PrimitiveInputs {
         o,
         g,
