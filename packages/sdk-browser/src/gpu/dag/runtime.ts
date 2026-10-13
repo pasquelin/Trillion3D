@@ -145,6 +145,9 @@ function selectionOver(run: DagRun): GpuSelection {
     parkWorld: (w, parked) => live() && parkRoot(run, w, parked),
     // The mark travels behind the record shift (`primitiveFrameWords`).
     markWorld: (w, mark) => live() && writeMark(run, w, mark),
+    get proxyHostBytes() {
+      return run.proxies.hostBytes
+    },
     proxyBuffer: () => (live() ? run.proxies.buffer() : undefined),
     proxyMirror: (encoder) => live() && run.proxies.mirror(encoder),
     proxyPose: (encoder, host) => live() && run.proxies.pose(encoder, host),

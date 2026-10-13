@@ -683,6 +683,20 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     get revision() {
       return revision
     },
+    /** Bytes the CPU keeps for the proxy: the instance words as written and as resolved, the surface and copy
+     *  words, the world boxes and the flags of the mirror (the cuts' columns are the primitives', counted with
+     *  the scene proxy's cache object). What the streamer's reservation counts. */
+    get hostBytes() {
+      return (
+        words.byteLength +
+        resolved.byteLength +
+        surfaceWords.byteLength +
+        copyWorlds.byteLength +
+        seen.byteLength +
+        known.byteLength +
+        worldFlags.byteLength
+      )
+    },
     /** Bytes of the buffer: what the cut's memory budget counts. */
     get bytes() {
       return buffer?.size ?? 0
