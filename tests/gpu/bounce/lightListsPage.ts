@@ -4,7 +4,7 @@
 // lists — the very loop, every light (`bounceLightSlice`) —, both read back; each walk and the
 // lists' rebuild timed on the GPU, interleaved.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { BOUNCE_SETTINGS, createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
+import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { createGpuLightTiles } from '../../../packages/sdk-browser/src/lighting/tiles/tiles.ts'
@@ -20,6 +20,7 @@ import {
   BOUNCE_LIGHT_LIST_BINDING,
 } from '../../../packages/sdk-browser/src/bounce/lightCellWgsl.ts'
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
+import { BOUNCE_GRID_HEAD_WGSL } from '../../../packages/sdk-browser/src/bounce/gridWgsl.ts'
 import { TILE_STRIDE_WORDS } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { autoKernel } from '../kit/computeReadback.ts'
@@ -30,11 +31,12 @@ import { BASE, POINTS, SIDE, SPACING, lightsOf, pointsOf } from './lightListsSce
 const REPEATS = 9
 const NONE = 0xffffffff
 
-/** Point i's irradiance into word 4i, over the cascades' uniform and the light grid's buffer. */
+/** Point i's irradiance into word 4i, over the cascades' uniform (`BOUNCE_GRID_HEAD_WGSL`'s
+ *  `BounceGrid`) and the light grid's buffer. */
 const KERNEL = wgslProgram(
-  `struct BounceLevel{originSpacing:vec4f,base:vec4f,}
-struct BounceGrid{reach:vec4f,counts:vec4u,frame:vec4u,lists:vec4u,levels:array<BounceLevel,${BOUNCE_SETTINGS.cascadeLevels}>,}
-@group(0) @binding(0) var<uniform> bounce:BounceGrid;
+  `@group(0) @binding(0) var<uniform> bounce:BounceGrid;
+/** The atlas the grid's head reads, declared for it and never bound: nothing here reads a probe. */
+@group(1) @binding(0) var probes:texture_2d_array<f32>;
 @group(0) @binding(1) var<storage,read> points:array<vec4f>;
 @group(0) @binding(2) var<storage,read> directLights:DirectLights;
 @group(0) @binding(3) var<storage,read_write> sums:array<vec4f>;
@@ -46,7 +48,7 @@ fn main(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=arrayLength(&sums)){return;}
  sums[id.x]=vec4f(lightsIrradiance(points[2u*id.x].xyz,points[2u*id.x+1u].xyz,1000.0),0.0);
 }`,
-  [DIRECT_LIGHT_WGSL, LIGHTS_IRRADIANCE_WGSL, BOUNCE_LIGHT_CELL_WGSL],
+  [BOUNCE_GRID_HEAD_WGSL, DIRECT_LIGHT_WGSL, LIGHTS_IRRADIANCE_WGSL, BOUNCE_LIGHT_CELL_WGSL],
 )
 
 export type ListSet = { count: number; reach: number; coherent: boolean }
