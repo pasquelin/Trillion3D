@@ -8,9 +8,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { OPEN_CONE, type NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
-import { coneCullsPageWith } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
-import { coneContextFor } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
-import { createConeContext } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
+import {
+  coneContextFor,
+  coneCullsPageWith,
+  createConeContext,
+} from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
