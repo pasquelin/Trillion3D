@@ -1,23 +1,23 @@
 // The ray query's shipped WGSL run as JavaScript (`shaderRun`): a ray's filter admits the placements
-// its sorted list names, or every other one, as its include bit asks; the row index answers each
-// page of the table with its row, and none for a page no row draws.
+// its sorted list names, or every other one, as its include bit asks; the deformation index answers
+// each deformed page with its results' word and its row's base, and zeros for any other; the trace
+// binds eight storage buffers at most, its nodes in three parts.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { rayQueryWgsl } from './rayQueryWgsl.ts'
 import { FILTER_INCLUDE } from './rayRecord.ts'
+import { DEFORM_SLOT_WORDS } from './deformIndexWgsl.ts'
 
-const WHOLE = { per: Infinity, parts: 1 }
 const params = { filterWord: 10, hashWord: 32, hashMask: 15 }
-const query = new Array<number>(64).fill(0)
+const query = new Array<number>(128).fill(0)
 const run = shaderRun<{
   rqAdmits(w: number, first: number, word: number): boolean
-  rowOfPage(page: number): number
-}>(
-  rayQueryWgsl({ nodes: WHOLE, cold: WHOLE, ranges: [{ first: 0, count: 8 }] }),
-  ['rqAdmits', 'rowOfPage'],
-  { params, query },
-)
+  deformedOf(page: number): number[]
+}>(rayQueryWgsl({ nodes: { per: Infinity, parts: 1 } }), ['rqAdmits', 'deformedOf'], {
+  params,
+  query,
+})
 
 test('a filter admits its listed placements, or all others, as its include bit asks', () => {
   const listed = [2, 5, 9, 11]
@@ -31,22 +31,31 @@ test('a filter admits its listed placements, or all others, as its include bit a
   assert.equal(run.rqAdmits(4, 3, FILTER_INCLUDE), false, 'and meets nothing when it includes')
 })
 
-test('the row index answers each page its row, and none for a page no row draws', () => {
-  // The index as the insertion kernel leaves it: from the page's slot on, the first free slot.
+test('the deformation index answers each deformed page, and zeros for any other', () => {
+  // The index as the indexing kernel leaves it: from the page's slot on, the first free slot.
   const slots = params.hashMask + 1,
-    rows = new Map([
-      [7, 0],
-      [23, 1],
-      [39, 2],
-      [1, 3],
+    deformed = new Map([
+      [7, [101, 5]],
+      [23, [202, 0]],
+      [39, [303, 9]],
+      [1, [404, 2]],
     ])
-  query.fill(0, params.hashWord, params.hashWord + 2 * slots)
-  for (const [page, row] of rows) {
+  query.fill(0, params.hashWord, params.hashWord + DEFORM_SLOT_WORDS * slots)
+  for (const [page, words] of deformed) {
     let slot = ((page * 2654435761) % 2 ** 32) & params.hashMask
-    while (query[params.hashWord + 2 * slot]) slot = (slot + 1) & params.hashMask
-    query[params.hashWord + 2 * slot] = page + 1
-    query[params.hashWord + 2 * slot + 1] = row
+    while (query[params.hashWord + DEFORM_SLOT_WORDS * slot]) slot = (slot + 1) & params.hashMask
+    const at = params.hashWord + DEFORM_SLOT_WORDS * slot
+    query.splice(at, 3, page + 1, ...words)
   }
-  for (const [page, row] of rows) assert.equal(run.rowOfPage(page), row, `page ${page}`)
-  assert.equal(run.rowOfPage(8), 0xffffffff, 'a page without a row')
+  for (const [page, words] of deformed) assert.deepEqual([...run.deformedOf(page)], words)
+  assert.deepEqual([...run.deformedOf(8)], [0, 0], 'a page nothing deformed')
+})
+
+test('the trace binds eight storage buffers at most, its nodes in three parts, whatever the ranges', () => {
+  const text = rayQueryWgsl({ nodes: { per: 4096, parts: 3 } })
+  assert.equal(text.match(/var<storage/g)?.length, 8)
+  assert.equal(
+    rayQueryWgsl({ nodes: { per: Infinity, parts: 1 } }).match(/var<storage/g)?.length,
+    6,
+  )
 })

@@ -158,6 +158,10 @@ export async function createTransparentCompaction(device: GPUDevice, table: Tran
       get spanBuffer() {
         return held.spanBuffer
       },
+      /** The packed page each entry draws, `NO_INDEX` past the table: what names a span's page. */
+      get entriesBuffer() {
+        return held.entriesBuf
+      },
       get diagnosticBuffer() {
         return held.diagnosticBuffer
       },

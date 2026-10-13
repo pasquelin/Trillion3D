@@ -7,9 +7,11 @@ import { sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
  *  nodes' pages are counted from —, the open counts it holds of its own (`+ 5`, `heldOpen.ts`) and
  *  its page count (`+ 6`), as `primitiveFrameWords` lays them. */
 export const primitiveWordAt = (w: number) => w * FRAME_VEC4 * 4
-/** The frame words of a placement's root node, its mark, its first page and the open counts it holds
- *  (`primitiveWordAt`): what a pass beside the cut reads of a placement (`cutTablesWgsl.ts`). */
+/** The frame words of a placement's root node, its record shift, its mark, its first page and the
+ *  open counts it holds (`primitiveWordAt`): what a pass beside the cut reads of a placement
+ *  (`cutTablesWgsl.ts`). */
 export const ROOT_WORD = 1,
+  RECORD_SHIFT_WORD = 2,
   MARK_WORD = 3,
   PAGE_BASE_WORD = 4,
   HELD_BY_WORD = 5
@@ -106,7 +108,7 @@ export function writePrimitiveWords(
     frameInts = new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length)
   frameData[at] = packed.worldStretch[w]
   frameInts[at + ROOT_WORD] = packed.rootNodes[w]
-  frameInts[at + 2] = packed.recordShift[w]
+  frameInts[at + RECORD_SHIFT_WORD] = packed.recordShift[w]
   frameInts[at + MARK_WORD] = packed.mark?.[w] ?? 0
   frameInts[at + PAGE_BASE_WORD] = packed.cutLinks?.[w]?.pageBase ?? 0
   frameInts[at + HELD_BY_WORD] = packed.heldOpen?.heldBy(w) ?? 0

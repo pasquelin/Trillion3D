@@ -6,8 +6,10 @@ import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 import type { Intersection, RayFilter } from '../../world/query/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { rayFilterRanks } from './rayFilter.ts'
-import { createRayQuery, type RayQuery, type RaySources } from './rayQuery.ts'
+import { createRayQuery, type RayQuery } from './rayQuery.ts'
+import type { RaySources } from './rayQueryPass.ts'
 import { RAY_HIT, RAY_RECORD, RAY_REACH_MAX, readHit, writeRay } from './rayRecord.ts'
+import { createRayRecords, type RayRecords } from './rayRecords.ts'
 
 /** One ray cast and not answered yet: its doubles, its filter and its promise's settlement. */
 type Ask = {
@@ -24,17 +26,28 @@ const BATCH_RAYS = 1024
 /** Staging buffers the answers come back through: a batch a frame, three in flight. */
 const RING_BUFFERS = 3
 
-/** What the session's engine holds for a batch: none while it opens, after a loss or a dispose. */
-function sourcesOf({ run, gpu, vis, layout }: WebgpuPagesRuntime): RaySources | undefined {
+/** What the session's engine holds for a batch, the queue's records over it: none while it opens,
+ *  after a loss or a dispose. */
+function sourcesOf(rt: WebgpuPagesRuntime, records: RayRecords): RaySources | undefined {
+  const { run, gpu, vis, layout, blendState } = rt
   const selection = run.gpuSelection,
     tables = selection?.cutTables(),
     pageTable = vis.pageTable,
     geometry = gpu.cache?.buffer,
-    // A scene without float geometry binds the zero words in place of the float pool.
-    positions = vis.concatPos ?? vis.zeroFlags
+    // A scene without float geometry, or without blended entries, binds the zero words in their
+    // place.
+    zero = vis.zeroFlags,
+    positions = vis.concatPos ?? zero,
+    compaction = blendState.compaction,
+    entries = compaction?.entriesBuffer ?? zero,
+    spans = compaction?.spanBuffer ?? zero
   if (run.lost || !selection || !tables || !pageTable || !geometry || !positions) return undefined
-  const rows = layout.rows.packedCount
-  return { tables, ranges: selection.worldRanges, pageTable, geometry, positions, rows }
+  if (!entries || !spans) return undefined
+  const entryCount = compaction ? (blendState.table?.length ?? 0) : 0
+  return {
+    ...{ tables, ranges: selection.worldRanges, records, pageTable },
+    ...{ rows: layout.rows.packedCount, entries, spans, entryCount, geometry, positions },
+  }
 }
 
 /** The batch's words: each ray's record (`rayRecord.ts`), then their filter lists. */
@@ -82,7 +95,8 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const asks: Ask[] = [],
     flying = new Set<Ask[]>()
   let scheduled = false
-  const query: RayQuery = createRayQuery(device)
+  const query: RayQuery = createRayQuery(device),
+    records = createRayRecords(rt)
   const settleAll = (batch: readonly Ask[], hits?: ArrayBuffer) => {
     const words = hits && new Uint32Array(hits),
       floats = hits && new Float32Array(hits)
@@ -114,7 +128,7 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
   function flush() {
     scheduled = false
     if (!asks.length) return
-    const sources = sourcesOf(rt)
+    const sources = sourcesOf(rt, records)
     if (!sources) return settleAll(asks.splice(0))
     if (!query.compiled(sources, schedule, () => settleAll(asks.splice(0)))) return
     const batch = asks.splice(0, BATCH_RAYS)
@@ -152,6 +166,9 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
         schedule()
       })
     },
+    /** Packed page `page`'s address took pool slot `slotWords`, or left the pool: its record
+     *  follows (`rayRecords.ts`). */
+    moved: records.moved,
     /** Every ray cast answers none, and the queue's buffers are given back. */
     dispose() {
       settleAll(asks.splice(0))

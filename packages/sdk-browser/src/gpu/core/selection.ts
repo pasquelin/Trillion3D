@@ -11,7 +11,7 @@ import type { CameraMotion } from '../../camera/world.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
-import type { DagRoot } from '../dag/types.ts'
+import type { DagCutLinks, DagRoot } from '../dag/types.ts'
 import type { PoseHost, ProxyCopy } from '../dag/proxyInstances.ts'
 import type { ProxyBoxes } from '../../bounce/probeSync.ts'
 import type { DagParts } from '../dag/split.ts'
@@ -100,16 +100,19 @@ export type ResidencyChanges = { pages: Int32Array; count: number }
 type Visit = (page: number) => void
 /** What a pass beside the cut reads of its tables where they lie (`../../webgpu/rays/rayQuery.ts`):
  *  the nodes and the cold table as the device splits them (`../dag/cutTablesWgsl.ts`), the placement
- *  tree above the placements, the pages the residency bits are laid out for, the placements the
- *  packing holds live, and the world DAG's placement, `NO_INDEX` without one. Each range's frames
- *  and worlds are `GpuSelection.worldRanges`. */
+ *  tree above the placements, the placements the packing holds live, and the world DAG's placement,
+ *  `NO_INDEX` without one. Each range's frames and worlds are `GpuSelection.worldRanges`. */
 export type CutTables = {
   nodeParts: DagParts
   coldParts: DagParts
   tree: PlacementTree | undefined
-  pageCount: number
   placements: number
   worldPlacement: number
+  /** Each placement's first page and group links, its record shift, and the records the packing
+   *  holds room for: what names a page's shared record (`../dag/layout.ts`, `recordOf`). */
+  cutLinks: readonly DagCutLinks[]
+  recordShift: Uint32Array
+  recordCount: number
 }
 /** Told `true` when the shared command buffer reached the queue, `false` when the image dropped it. */
 export type SelectionSubmission = (submitted: boolean) => void

@@ -28,9 +28,11 @@ export const cutTablesOf = ({ nodeParts, coldParts, packed }: DagResources): Cut
   nodeParts,
   coldParts,
   tree: packed.placementTree,
-  pageCount: packed.pageCount,
   placements: packed.live?.worlds ?? packed.worldCount,
   worldPlacement: packed.world?.root ?? NO_INDEX,
+  cutLinks: packed.cutLinks,
+  recordShift: packed.recordShift,
+  recordCount: packed.recordCount,
 })
 
 /** The cut's buffers, pipelines and groups, or `undefined` when the device refuses them: why is

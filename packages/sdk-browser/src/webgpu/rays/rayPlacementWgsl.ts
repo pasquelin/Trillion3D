@@ -2,14 +2,9 @@ import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { invTranspose3Prep } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
-import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { WIDE_TRAVERSAL_WGSL, wideTraversal } from '../../bounce/traceWgsl.ts'
-import {
-  coldTableBlock,
-  nodeTableBlock,
-  rangeReader,
-  type TableLayout,
-} from '../../gpu/dag/cutTablesWgsl.ts'
+import { nodeTableBlock, type TableLayout } from '../../gpu/dag/cutTablesWgsl.ts'
 import {
   NODE_CHILD_COUNT,
   NODE_FIRST_CHILD,
@@ -20,46 +15,43 @@ import {
 } from '../../gpu/dag/nodeLayout.ts'
 import { TRANSLATION_AT_EYE_WGSL } from '../../gpu/dag/shader/worldPoseWgsl.ts'
 import { FRAME_ROW_WORDS } from '../../gpu/dag/types.ts'
-import { MARK_WORD, PAGE_BASE_WORD, ROOT_WORD } from '../../gpu/dag/worlds.ts'
+import { MARK_WORD, PAGE_BASE_WORD, RECORD_SHIFT_WORD, ROOT_WORD } from '../../gpu/dag/worlds.ts'
 import { RAY_PAGE_WGSL } from './rayPageWgsl.ts'
 import { FILTER_INCLUDE } from './rayRecord.ts'
-import { rayQueryBindingsWgsl } from './rowHashWgsl.ts'
+import { rayQueryBindingsWgsl } from './deformIndexWgsl.ts'
 
-/** How a device lays out the cut's tables a ray reads: `nodes` and `cold` in their parts, and each
- *  range of placements, its first and its count (`../../gpu/dag/frameRanges.ts`). */
-export type RayLayout = {
-  nodes: TableLayout
-  cold: TableLayout
-  ranges: readonly { first: number; count: number }[]
-}
+/** How a device lays out the cut's nodes a ray reads: in their parts (`../../gpu/dag/split.ts`). */
+export type RayLayout = { nodes: TableLayout }
 
 /** Visits a placement's hierarchy may make, and the nodes its stack holds: a balanced hierarchy of
  *  any width stacks a few of each level it descends. */
 const DAG_STEPS = 4096,
   DAG_STACK = 64
 
-/** The bindings of the ray query on `layout`: the cut's tables in group 0, at the cut's own bindings
- *  (`../../gpu/dag/cutTablesWgsl.ts`); in group 1 the query's uniform and buffer, the page table
- *  (`rayQueryBindingsWgsl`), the geometry pool's words, the float pool, then each range's frames and
- *  worlds, read through `rqFrame`, `rqMatrix` and `rqOrigin`. */
+/**
+ * The bindings of the ray query: the cut's nodes in group 0, at the cut's own bindings
+ * (`../../gpu/dag/cutTablesWgsl.ts`); in group 1 the query's uniform and buffer
+ * (`rayQueryBindingsWgsl`), the geometry pool's words, the float pool, then the frames and the worlds
+ * of the ONE range of placements the dispatch reads (`params.rangeFirst`, `rangeCount`): five storage
+ * buffers beside the nodes' parts, whatever the world's ranges — one dispatch a range.
+ */
 function rayTablesWgsl(layout: RayLayout) {
-  const counts = { nodes: layout.nodes.parts, cold: layout.cold.parts },
-    firsts = layout.ranges.map(({ first }) => first)
-  const declare = (binding: number, name: string) =>
-    `@group(1) @binding(${binding}) var<storage,read> ${name}:array<u32>;`
   return wgslBlock(
     `rayTablesWgsl(${JSON.stringify(layout)})`,
     [
-      nodeTableBlock(layout.nodes, 0, false, counts),
-      coldTableBlock(layout.cold, 0, counts),
+      nodeTableBlock(layout.nodes, 0, false, { nodes: layout.nodes.parts }),
       rayQueryBindingsWgsl(1, false),
     ],
-    `${declare(3, 'indices')}
-@group(1) @binding(4) var<storage,read> positions:array<f32>;
-${layout.ranges.map((_, r) => `${declare(5 + 2 * r, `frames${r}`)}\n${declare(6 + 2 * r, `worlds${r}`)}`).join('\n')}
-${rangeReader('rqFrame', 'frames', firsts, () => `i*${FRAME_ROW_WORDS}u+k`)}
-${rangeReader('rqMatrix', 'worlds', firsts, () => 'i*16u+k')}
-${rangeReader('rqOrigin', 'worlds', firsts, (r) => `${layout.ranges[r].count * 16}u+i*8u+k`)}`,
+    `@group(1) @binding(2) var<storage,read> indices:array<u32>;
+@group(1) @binding(3) var<storage,read> positions:array<f32>;
+@group(1) @binding(4) var<storage,read> frames:array<u32>;
+@group(1) @binding(5) var<storage,read> worlds:array<u32>;
+/** Word \`k\` of placement \`w\`'s frame row, of its world matrix, of its exact translation. */
+fn rqFrame(w:u32,k:u32)->u32{return frames[(w-params.rangeFirst)*${FRAME_ROW_WORDS}u+k];}
+fn rqMatrix(w:u32,k:u32)->u32{return worlds[(w-params.rangeFirst)*16u+k];}
+fn rqOrigin(w:u32,k:u32)->u32{return worlds[params.rangeCount*16u+(w-params.rangeFirst)*8u+k];}
+/** Whether placement \`w\` lies in the range this dispatch reads. */
+fn rqInRange(w:u32)->bool{return w>=params.rangeFirst&&w-params.rangeFirst<params.rangeCount;}`,
   )
 }
 
@@ -111,10 +103,17 @@ fn rqChild(n:u32,slot:u32,reach:f32,pageBase:u32)->ProxyChild{
 export const rayPlacementWgsl = (layout: RayLayout) =>
   wgslBlock(
     `rayPlacementWgsl(${JSON.stringify(layout)})`,
-    [rayTablesWgsl(layout), RAY_NODES_WGSL, RAY_PAGE_WGSL, invTranspose3Prep, worldMatrix3],
+    [
+      rayTablesWgsl(layout),
+      RAY_NODES_WGSL,
+      RAY_PAGE_WGSL,
+      NO_INDEX,
+      invTranspose3Prep,
+      worldMatrix3,
+    ],
     `${wgslConsts({
-      RQ_NONE: NO_INDEX,
       RQ_ROOT_WORD: ROOT_WORD,
+      RQ_SHIFT_WORD: RECORD_SHIFT_WORD,
       RQ_MARK_WORD: MARK_WORD,
       RQ_PAGE_BASE_WORD: PAGE_BASE_WORD,
       RQ_FILTER_INCLUDE: FILTER_INCLUDE,
@@ -126,7 +125,7 @@ var<private> rqCut:bool;
 struct RqRay{eyeXY:vec4u,eyeZ:vec2u,filterFirst:u32,filterWord:u32,direction:vec3f,reach:f32,}
 ${wideTraversal({
   name: 'rqDag',
-  params: ',root:u32,pageBase:u32,reach:f32,w:u32',
+  params: ',root:u32,pageBase:u32,shift:u32,reach:f32,w:u32',
   returns: 'RqHit',
   start: 'var best=RqHit(limit,0u,0u,0u,vec3f(0.0),false);',
   empty: '',
@@ -139,7 +138,7 @@ ${wideTraversal({
   stack: DAG_STACK,
   visit: '',
   stop: '',
-  test: 'best=rqPage(origin,direction,index,w,best);',
+  test: 'best=rqPage(origin,direction,index,index+shift,w,best);',
   overflow: 'rqCut=true;',
   answer: 'best',
 })}
@@ -158,9 +157,9 @@ fn rqAdmits(w:u32,first:u32,word:u32)->bool{
 }
 /** The nearer of \`best\` and what the ray meets of placement \`w\`. */
 fn rqEnter(w:u32,ray:RqRay,best:RqHit)->RqHit{
- if(w==params.worldPlacement||!rqAdmits(w,ray.filterFirst,ray.filterWord)){return best;}
+ if(!rqInRange(w)||w==params.worldPlacement||!rqAdmits(w,ray.filterFirst,ray.filterWord)){return best;}
  let root=rqFrame(w,RQ_ROOT_WORD);
- if(root==RQ_NONE){return best;}
+ if(root==NO_INDEX){return best;}
  let m=rqWorld(w,ray.eyeXY,vec4u(ray.eyeZ,0u,0u));
  let back=invTranspose3Prep(worldMatrix3(m));
  if(!back.regular){return best;}
@@ -169,11 +168,12 @@ fn rqEnter(w:u32,ray:RqRay,best:RqHit)->RqHit{
  let d=ray.direction*back.adj*back.scale;
  let reach=unpack2x16float(rqFrame(w,RQ_MARK_WORD)).y;
  let pageBase=rqFrame(w,RQ_PAGE_BASE_WORD);
+ let shift=rqFrame(w,RQ_SHIFT_WORD);
  var hit=RqHit(best.distance,0u,0u,0u,vec3f(0.0),false);
- if(nodeWord(root,RQ_CHILD_COUNT)!=0u){hit=rqDag(o,d,best.distance,root,pageBase,reach,w);}
+ if(nodeWord(root,RQ_CHILD_COUNT)!=0u){hit=rqDag(o,d,best.distance,root,pageBase,shift,reach,w);}
  else{
   let first=pageBase+nodeWord(root,RQ_FIRST_PAGE);
-  for(var k=0u;k<nodeWord(root,RQ_PAGE_COUNT);k++){hit=rqPage(o,d,first+k,w,hit);}
+  for(var k=0u;k<nodeWord(root,RQ_PAGE_COUNT);k++){hit=rqPage(o,d,first+k,first+k+shift,w,hit);}
  }
  if(hit.found&&hit.distance<best.distance){return hit;}
  return best;

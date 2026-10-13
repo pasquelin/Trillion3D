@@ -5,7 +5,7 @@ import {
 } from '../../placement/gpuComposeWgsl.ts'
 import { treeRefitWgsl } from '../dag/treeRefitWgsl.ts'
 import { rayQueryWgsl } from '../../webgpu/rays/rayQueryWgsl.ts'
-import { ROW_HASH_SHADER } from '../../webgpu/rays/rowHashWgsl.ts'
+import { DEFORM_INDEX_SHADER } from '../../webgpu/rays/deformIndexWgsl.ts'
 
 /** The texts of the passes beside the cut that read its tables — the GPU composition, the tree
  *  refit and the ray query —: the tables whole, and as a device that splits them lays them out
@@ -21,18 +21,7 @@ export const COMPOSE_SHADERS = {
     cold: { per: 4096, parts: 2 },
     frames: [0, 1024],
   }),
-  ROW_HASH_SHADER,
-  RAY_QUERY: rayQueryWgsl({
-    nodes: { per: Infinity, parts: 1 },
-    cold: { per: Infinity, parts: 1 },
-    ranges: [{ first: 0, count: 64 }],
-  }),
-  RAY_QUERY_SPLIT: rayQueryWgsl({
-    nodes: { per: 4096, parts: 2 },
-    cold: { per: 4096, parts: 2 },
-    ranges: [
-      { first: 0, count: 1024 },
-      { first: 1024, count: 512 },
-    ],
-  }),
+  DEFORM_INDEX_SHADER,
+  RAY_QUERY: rayQueryWgsl({ nodes: { per: Infinity, parts: 1 } }),
+  RAY_QUERY_SPLIT: rayQueryWgsl({ nodes: { per: 4096, parts: 3 } }),
 }

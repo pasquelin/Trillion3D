@@ -24,10 +24,11 @@ const TREE_STEPS = 1 << 16
  * walked by the engine's one walk of it (`placementTreeWalk`) on its world boxes, from the ray's
  * origin rounded to single precision — a packing too small for a tree tries its placements in turn.
  * Level 2 is each placement met: its hierarchy, its pages and their triangles, in its own space
- * from the ray's exact origin (`rayPlacementWgsl.ts`). The hit is written at the ray's rank: the
- * placement, the page and the triangle met, the distance, and the face normal brought to the world
- * by the inverse transpose of the placement's world, as its winding turns it — what the host turns
- * into an intersection (`rayQueue.ts`).
+ * from the ray's exact origin (`rayPlacementWgsl.ts`). A dispatch reads one range of placements'
+ * tables (`../../gpu/dag/frameRanges.ts`), the next carrying the hits it left (`rqCarried`). The hit
+ * is written at the ray's rank: the placement, the page and the triangle met, the distance, and the
+ * face normal brought to the world by the inverse transpose of the placement's world, as its
+ * winding turns it — what the host turns into an intersection (`rayQueue.ts`).
  */
 export const rayQueryWgsl = (layout: RayLayout) =>
   wgslProgram(
@@ -51,12 +52,23 @@ fn rqRay(k:u32)->RqRay{
   bitcast<vec3f>(vec3u(query[d],query[d+1u],query[d+2u])),
   bitcast<f32>(query[at+${RAY_RECORD.at.reach}u]));
 }
-/** Ray \`k\`'s hit, written at its rank (\`rayRecord.ts\`): the face normal in the world, unit. */
+/** What an earlier range's dispatch left at ray \`k\`'s hit: the nearest so far, its normal already
+ *  in the world, and whether that walk was cut short. A first range carries none. */
+fn rqCarried(k:u32,ray:RqRay)->RqHit{
+ let at=params.hitWord+k*RQ_HIT_WORDS;
+ let flags=query[at+${RAY_HIT.at.flags}u];
+ rqCut=params.carry!=0u&&(flags&RQ_CUT)!=0u;
+ if(params.carry==0u||(flags&RQ_FOUND)==0u){return RqHit(ray.reach,0u,0u,0u,vec3f(0.0),false);}
+ let n=at+${RAY_HIT.at.normal}u;
+ return RqHit(bitcast<f32>(query[at+${RAY_HIT.at.distance}u]),query[at+${RAY_HIT.at.placement}u],query[at+${RAY_HIT.at.page}u],query[at+${RAY_HIT.at.triangle}u],bitcast<vec3f>(vec3u(query[n],query[n+1u],query[n+2u])),true);
+}
+/** Ray \`k\`'s hit, written at its rank (\`rayRecord.ts\`): a hit this range's placement gave, its
+ *  face normal brought to the world, unit; one carried from an earlier range, as it lies. */
 fn rqAnswer(k:u32,best:RqHit){
  let at=params.hitWord+k*RQ_HIT_WORDS;
- var normal=vec3f(0.0);
- if(best.found){normal=unitOrZero(invTranspose3Apply(invTranspose3Prep(rqLinear(best.placement)),best.normal));}
  query[at+${RAY_HIT.at.flags}u]=select(0u,RQ_FOUND,best.found)|select(0u,RQ_CUT,rqCut);
+ if(!best.found||!rqInRange(best.placement)){return;}
+ let normal=unitOrZero(invTranspose3Apply(invTranspose3Prep(rqLinear(best.placement)),best.normal));
  query[at+${RAY_HIT.at.placement}u]=best.placement;
  query[at+${RAY_HIT.at.page}u]=best.page;
  query[at+${RAY_HIT.at.triangle}u]=best.triangle;
@@ -73,17 +85,17 @@ fn rqAnswer(k:u32,best:RqHit){
  // from its origin rounded so, its distances those of the exact origin.
  let origin=vec3f(bitcast<f32>(toF32(ray.eyeXY.xy)),bitcast<f32>(toF32(ray.eyeXY.zw)),bitcast<f32>(toF32(ray.eyeZ)));
  let inverse=rayInverseDirection(ray.direction);
- var best=RqHit(ray.reach,0u,0u,0u,vec3f(0.0),false);
- rqCut=false;
- if(params.treeRoot==RQ_NONE){
-  for(var w=0u;w<params.placements;w++){best=rqEnter(w,ray,best);}
+ var best=rqCarried(k,ray);
+ if(params.treeRoot==NO_INDEX){
+  let end=min(params.placements,params.rangeFirst+params.rangeCount);
+  for(var w=params.rangeFirst;w<end;w++){best=rqEnter(w,ray,best);}
  }else{
 ${placementTreeWalk({
   root: 'params.treeRoot',
   word: 'nodeWord',
   low: 'rqNodeLow',
   high: 'rqNodeHigh',
-  member: (slot) => `coldAt(params.members+${slot})`,
+  member: (slot) => `query[params.memberWord+${slot}]`,
   enter: 'best=rqEnter(w,ray,best);',
   stop: '',
   visit: '',

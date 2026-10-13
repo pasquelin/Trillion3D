@@ -1,88 +1,51 @@
-import type { CutTables, GpuSelection } from '../../gpu/core/selection.ts'
-import { nodeLayout } from '../../gpu/dag/treeRefit.ts'
-import { DAG_BINDING, dagPartEntries } from '../../gpu/dag/shader/bindings.ts'
-import { childBase } from '../../gpu/dag/layout.ts'
-import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
-import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
-import { dispatchRows, groupWidth } from '../../gpu/dispatch/grid.ts'
-import { preparedComputePipeline, preparedPipelines } from '../../lighting/deferred/fullscreen.ts'
-import { alignUp, ceilDiv, nextPow2 } from '../../../../math/src/scalar/integers.ts'
+import { copyParts } from '../../gpu/dag/split.ts'
+import { uniformStride } from '../../residency/pools.ts'
+import { alignUp, nextPow2 } from '../../../../math/src/scalar/integers.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { RAY_HIT } from './rayRecord.ts'
-import { RAY_LANES, rayQueryWgsl } from './rayQueryWgsl.ts'
-import type { RayLayout } from './rayPlacementWgsl.ts'
-import { RAY_PARAMS, ROW_HASH_SHADER } from './rowHashWgsl.ts'
+import type { RayRecords } from './rayRecords.ts'
+import { DEFORM_SLOT_WORDS, RAY_PARAMS } from './deformIndexWgsl.ts'
+import {
+  encodeRayPass,
+  RAY_QUERY_PASS,
+  rayKernelsCompiled,
+  type RayBatch,
+  type RaySources,
+} from './rayQueryPass.ts'
 
-const RAY_QUERY_PASS = 'Trillion3D ray query'
-
-/** What a batch of rays reads where it lies: the cut's tables and ranges, the page table and its
- *  visibility rows, the geometry pool's words and the float pool. */
-export type RaySources = {
-  tables: CutTables
-  ranges: GpuSelection['worldRanges']
-  pageTable: GPUBuffer
-  geometry: GPUBuffer
-  positions: GPUBuffer
-  rows: number
+/** Where a batch lies in the query's buffer, in words: the records first, kept from batch to batch,
+ *  the tree's member order, the rays and their filters, the hits, then the deformation index. */
+function queryLayout({ tables, records, rows, entryCount }: RaySources, batch: RayBatch) {
+  const memberWord = records.words.length,
+    rayWord = memberWord + (tables.tree?.capacity ?? 0),
+    hitWord = rayWord + batch.words.length,
+    hashWord = alignUp(hitWord + batch.rays * RAY_HIT.words, DEFORM_SLOT_WORDS),
+    slots = nextPow2(Math.max(32, 2 * (rows + entryCount)))
+  return {
+    memberWord,
+    rayWord,
+    hitWord,
+    hashWord,
+    slots,
+    words: hashWord + DEFORM_SLOT_WORDS * slots,
+  }
 }
-
-/** A batch: its rays' records then their filter lists, as words (`rayRecord.ts`), and its rays. */
-type RayBatch = { words: Uint32Array; rays: number; filterWord: number }
-
-/** How `sources` lay the cut's tables out on the device: what a trace kernel is made for. */
-const layoutOf = ({ tables, ranges }: RaySources): RayLayout => ({
-  nodes: nodeLayout(tables.nodeParts),
-  cold: { per: tables.coldParts.bytes / 4, parts: tables.coldParts.buffers.length },
-  ranges: ranges.map(({ first, count }) => ({ first, count })),
-})
-
-/** A compute pipeline of the query on `module`, prepared off the frame. */
-const computeOf = (device: GPUDevice, module: GPUShaderModule, entryPoint: string) =>
-  preparedComputePipeline(device, {
-    label: RAY_QUERY_PASS,
-    layout: 'auto',
-    compute: { module, entryPoint },
-  })
-
-/** The trace kernels of a device, one a layout, and its row index kernel, each made once. */
-const traceKernels = oncePerDevice((device: GPUDevice) =>
-  preparedPipelines(
-    (layout: RayLayout) =>
-      computeOf(
-        device,
-        device.createShaderModule({ label: RAY_QUERY_PASS, code: rayQueryWgsl(layout) }),
-        'traceRays',
-      ),
-    (layout) => JSON.stringify(layout),
-  ),
-)
-const hashKernel = oncePerDevice((device: GPUDevice) =>
-  computeOf(
-    device,
-    device.createShaderModule({ label: RAY_QUERY_PASS, code: ROW_HASH_SHADER }),
-    'insertRows',
-  ),
-)
-
-/** Slots of the row index over `rows` rows: twice them at least, a power of two. */
-const indexSlots = (rows: number) => nextPow2(Math.max(32, 2 * rows))
+type QueryLayout = ReturnType<typeof queryLayout>
 
 /**
- * THE RAY QUERY ON ONE DEVICE: a batch of rays encoded as two dispatches of one compute pass —
- * the row index made from the page table (`rowHashWgsl.ts`), then a thread a ray
- * (`rayQueryWgsl.ts`) — into a buffer of its own, grown to the largest batch: the rays, their filter
- * lists, their hits, then the index. Nothing waits: `encode` answers where the hits lie for the
- * caller's copy, or nothing while a kernel compiles (`compiled`).
+ * THE RAY QUERY ON ONE DEVICE: a batch of rays encoded in one compute pass — the deformation index
+ * made from the rows and the spans (`deformIndexWgsl.ts`), then a dispatch a range of placements
+ * (`rayQueryWgsl.ts`), each carrying the hits the one before left — over a buffer of its own: the
+ * records a ray decodes (`rayRecords.ts`), kept and written as they move, then what the batch
+ * brings. A trace binds the cut's nodes and five storage buffers whatever the world's ranges and the
+ * cold table's parts — the member order is copied in. Nothing waits: `encode` answers where the
+ * hits lie for the caller's copy; `compiled` says whether the kernels are made yet.
  */
 export function createRayQuery(device: GPUDevice) {
-  const params = device.createBuffer({
-    label: RAY_QUERY_PASS,
-    size: RAY_PARAMS.words * 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  const paramWords = new Uint32Array(RAY_PARAMS.words)
-  let query: GPUBuffer | undefined
-  /** The query's buffer, of `bytes` at least. */
+  const stride = uniformStride(device.limits),
+    paramWords = new Uint32Array(RAY_PARAMS.words)
+  let query: GPUBuffer | undefined, params: GPUBuffer | undefined, recordsIn: GPUBuffer | undefined
+  /** The query's buffer, of `bytes` at least: the records written whole into a new one. */
   const queryOf = (bytes: number) => {
     if (query && query.size >= bytes) return query
     query?.destroy()
@@ -92,96 +55,93 @@ export function createRayQuery(device: GPUDevice) {
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     }))
   }
+  /** The parameters' slots, one a range. */
+  const paramsOf = (ranges: number) => {
+    if (params && params.size >= ranges * stride) return params
+    params?.destroy()
+    return (params = device.createBuffer({
+      label: RAY_QUERY_PASS,
+      size: Math.max(1, ranges) * stride,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    }))
+  }
   return {
     /** Whether both kernels for `sources` are compiled: when not, their compile is started and
      *  `then` is called once it lands — `failed` if the device refuses it. */
-    compiled(sources: RaySources, then: () => void, failed: () => void) {
-      const kernels = [traceKernels(device).of(layoutOf(sources)), hashKernel(device)]
-      if (kernels.every((kernel) => kernel.ready)) return true
-      Promise.all(kernels.map((kernel) => kernel.prepare())).then(then, failed)
-      return false
-    },
+    compiled: (sources: RaySources, then: () => void, failed: () => void) =>
+      rayKernelsCompiled(device, sources, then, failed),
     /** Encodes `batch` into `encoder` over `sources`; returns where its hits lie in `buffer`. */
     encode(encoder: GPUCommandEncoder, sources: RaySources, batch: RayBatch) {
-      const trace = traceKernels(device).of(layoutOf(sources)).get(),
-        hash = hashKernel(device).get()
-      const slots = indexSlots(sources.rows),
-        hitWord = batch.words.length,
-        hashWord = alignUp(hitWord + batch.rays * RAY_HIT.words, 2)
-      const buffer = queryOf((hashWord + 2 * slots) * 4)
-      device.queue.writeBuffer(buffer, 0, batch.words)
-      writeParams(paramWords, sources, batch, { hitWord, hashWord, slots })
-      device.queue.writeBuffer(params, 0, paramWords)
-      encoder.clearBuffer(buffer, hashWord * 4, slots * 8)
-      const width = groupWidth(device.limits)
-      const pass = encoder.beginComputePass({ label: RAY_QUERY_PASS })
-      // No row, no index: a dispatch of no workgroup is refused, and every lookup finds none.
-      if (sources.rows > 0) {
-        pass.setPipeline(hash)
-        pass.setBindGroup(0, groupOf(device, hash, 0, [params, buffer, sources.pageTable]))
-        dispatchRows(pass, ceilDiv(sources.rows, 64), 1, width)
-      }
-      pass.setPipeline(trace)
-      pass.setBindGroup(0, tablesGroup(device, trace, sources.tables))
-      const perRange = sources.ranges.flatMap(({ frames, buffer: worlds }) => [frames, worlds])
-      const own = [params, buffer, sources.pageTable, sources.geometry, sources.positions]
-      pass.setBindGroup(1, groupOf(device, trace, 1, [...own, ...perRange]))
-      dispatchRows(pass, ceilDiv(batch.rays, RAY_LANES), 1, width)
-      pass.end()
-      return { buffer, offset: hitWord * 4, bytes: batch.rays * RAY_HIT.words * 4 }
+      const rebuilt = sources.records.sync(sources.tables)
+      const at = queryLayout(sources, batch),
+        buffer = queryOf(at.words * 4),
+        slots = paramsOf(sources.ranges.length)
+      writeRecords(device, sources.records, buffer, rebuilt || buffer !== recordsIn)
+      recordsIn = buffer
+      device.queue.writeBuffer(buffer, at.rayWord * 4, batch.words)
+      sources.ranges.forEach((range, r) => {
+        writeParams(paramWords, sources, batch, at, { ...range, carry: r > 0 })
+        device.queue.writeBuffer(slots, r * stride, paramWords)
+      })
+      const tree = sources.tables.tree
+      if (tree)
+        copyParts(
+          encoder,
+          sources.tables.coldParts,
+          tree.members * 4,
+          buffer,
+          at.memberWord * 4,
+          tree.capacity * 4,
+        )
+      encoder.clearBuffer(buffer, at.hashWord * 4, at.slots * DEFORM_SLOT_WORDS * 4)
+      encodeRayPass(device, encoder, sources, { buffer, slots, stride, rays: batch.rays })
+      return { buffer, offset: at.hitWord * 4, bytes: batch.rays * RAY_HIT.words * 4 }
     },
     dispose() {
-      params.destroy()
+      params?.destroy()
       query?.destroy()
     },
   }
 }
 export type RayQuery = ReturnType<typeof createRayQuery>
 
-/** The uniform of a batch (`RAY_PARAMS`). */
+/** The records into the query's buffer: every one into a new buffer or a table built anew, else
+ *  the runs written since. */
+function writeRecords(device: GPUDevice, records: RayRecords, buffer: GPUBuffer, whole: boolean) {
+  const runs = records.takeDirty(),
+    { words } = records
+  if (whole) return device.queue.writeBuffer(buffer, 0, words)
+  for (let i = 0; i < runs.length;) {
+    const first = runs[i]
+    let end = first + 1
+    while (++i < runs.length && runs[i] === end) end++
+    device.queue.writeBuffer(buffer, first * 16, words, first * 4, (end - first) * 4)
+  }
+}
+
+/** The uniform of one range's dispatch (`RAY_PARAMS`). */
 function writeParams(
   words: Uint32Array,
-  { tables, rows }: RaySources,
+  { tables, rows, entryCount }: RaySources,
   { rays, filterWord }: RayBatch,
-  at: { hitWord: number; hashWord: number; slots: number },
+  at: QueryLayout,
+  range: { first: number; count: number; carry: boolean },
 ) {
   const P = RAY_PARAMS.at
   words[P.rays] = rays
-  words[P.rayWord] = 0
+  words[P.rayWord] = at.rayWord
   words[P.hitWord] = at.hitWord
-  words[P.filterWord] = filterWord
+  words[P.filterWord] = at.rayWord + filterWord
+  words[P.recordWord] = 0
+  words[P.memberWord] = at.memberWord
   words[P.hashWord] = at.hashWord
   words[P.hashMask] = at.slots - 1
   words[P.rows] = rows
-  words[P.childBase] = childBase(tables.pageCount)
+  words[P.entries] = entryCount
   words[P.treeRoot] = tables.tree ? tables.tree.levels[0].base : NO_INDEX
-  words[P.members] = tables.tree?.members ?? 0
   words[P.placements] = tables.placements
   words[P.worldPlacement] = tables.worldPlacement
+  words[P.rangeFirst] = range.first
+  words[P.rangeCount] = range.count
+  words[P.carry] = range.carry ? 1 : 0
 }
-
-/** Group `group` of `pipeline`, its buffers at bindings 0 on. */
-const groupOf = (
-  device: GPUDevice,
-  pipeline: GPUComputePipeline,
-  group: number,
-  buffers: GPUBuffer[],
-) =>
-  device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(group),
-    entries: sequentialEntries(buffers.map((buffer) => ({ buffer }))),
-  })
-
-/** Group 0 of the trace: the cut's nodes and cold table at the cut's bindings, their parts after. */
-const tablesGroup = (device: GPUDevice, pipeline: GPUComputePipeline, t: CutTables) =>
-  device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      { binding: DAG_BINDING.nodes, resource: { buffer: t.nodeParts.buffers[0] } },
-      { binding: DAG_BINDING.cold, resource: { buffer: t.coldParts.buffers[0] } },
-      ...dagPartEntries({
-        nodes: t.nodeParts.buffers.slice(1),
-        cold: t.coldParts.buffers.slice(1),
-      }),
-    ],
-  })
