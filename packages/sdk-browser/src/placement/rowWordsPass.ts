@@ -22,11 +22,16 @@ import {
   PART_SPHERES,
 } from './rowWordsWgsl.ts'
 import { composeGroup } from './composeGroups.ts'
-import { createRowWordsGpu, partsMoved, rowEntries, type RowWordsGpu } from './rowWordsGpu.ts'
+import {
+  castsBound,
+  createRowWordsGpu,
+  partsMoved,
+  rowEntries,
+  type RowWordsGpu,
+} from './rowWordsGpu.ts'
 import { followComposedRows, sendList } from './composedRows.ts'
 import { forgetTargets, type RowWords } from './rowWords.ts'
 import { writeMovedRoots } from './rootPasses.ts'
-import { castsBound } from './rowWordsGpu.ts'
 import { reserveCasts } from '../webgpu/shadow/castChanges.ts'
 
 /** The rows kernel, once a device, compiled off the thread (`askRowWords`). */

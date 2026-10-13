@@ -7,8 +7,8 @@
  * dispatch from their count. Once read, the list is emptied in the same command buffer.
  */
 import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
-import type { CastChanges } from '../webgpu/shadow/castChanges.ts'
-import { consumedCasts } from '../webgpu/shadow/castChanges.ts'
+import { consumedCasts, type CastChanges } from '../webgpu/shadow/castChanges.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 import type { VsmCacheManager } from './cacheManager.ts'
 import {
   CAST_ARGS_ENTRY,
@@ -19,7 +19,7 @@ import {
 } from './castInvalidationWgsl.ts'
 import { VSM_INVALIDATION_SPECS } from './invalidationWgsl.ts'
 import type { VsmLayout } from './layout.ts'
-import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
+import { vsmComputePipe } from './passKit.ts'
 import { vsmBufferGroup, vsmEnsureBuffer, vsmRenderStorage } from './renderPass.ts'
 import {
   vsmBindGroupEntries,
@@ -34,18 +34,22 @@ import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 /** The pass that stales the rows' changes, its two kernels in it. */
 const CAST_LABEL = `${VSM_PASS_PREFIX}invalidateCastPages`
 
+/** The words `vsmCastMaps` writes, rewritten each plan and read by the frame that made them. */
+let mapWords = new Uint32Array(16)
+
 /** The maps that may hold cached pages, each a word (`MAP_ID`, `MAP_COVER`), ids the previous
  *  frame's: as the CPU's boxes filter them (`vsmInvalidationPhaseFromShadowBoxes`), less the range
  *  test, which the GPU makes per box. None when the cache holds nothing to stale. */
 export function vsmCastMaps(cache: VsmCacheManager): Uint32Array | null {
   if (!cache.acceptsInvalidations()) return null
-  const words: number[] = []
+  let count = 0
   for (const entry of cache.entries.values()) {
     if (!entry.mayHoldCachedPages()) continue
+    mapWords = resized(mapWords, count + entry.mapCaches.length)
     for (let i = 0; i < entry.mapCaches.length; i++)
-      words.push((entry.mapId + i) | (entry.useCover ? MAP_COVER : 0))
+      mapWords[count++] = (entry.mapId + i) | (entry.useCover ? MAP_COVER : 0)
   }
-  return words.length ? Uint32Array.from(words, (word) => word >>> 0) : null
+  return count ? mapWords.subarray(0, count) : null
 }
 
 /** The stale's kernel and the arguments' kernel for `layout`, made once a device and source. */
