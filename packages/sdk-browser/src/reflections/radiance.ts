@@ -289,6 +289,8 @@ export function createRadiancePyramid(device: GPUDevice, width: number, height: 
     /** The pyramid was built this image from the frame's HDR target, which is to become its
      *  level 0 once the image is encoded (`adoptRadianceImage`). */
     fresh: false,
+    /** Whether the last build hashed its image (`encodeRadiancePyramid`). */
+    hashed: false,
     levels,
     sampler: device.createSampler({
       label: 'Trillion3D reflection radiance',
@@ -377,7 +379,8 @@ const radianceGroups = (
  * its hash, then two levels a dispatch from the last made (`RADIANCE_SHADER`); what the pyramid
  * holds is then that image, for the next one's reflections, its level 0 the lit image itself once
  * the image is encoded (`fresh`, `adoptRadianceImage`). `inputs.view` is the lighting's view, whose
- * drawn size the first dispatch reads.
+ * drawn size the first dispatch reads. With `hashless` — a settled view, whose hash no sample reads
+ * (`settle.verified`) — the image is not hashed: the next image that is hashes the one before it too.
  */
 export function encodeRadiancePyramid(
   pass: GPUComputePassEncoder,
@@ -387,6 +390,7 @@ export function encodeRadiancePyramid(
   inputs: RadianceInputs,
   size: readonly [number, number],
   viewProjection: ArrayLike<number>,
+  hashless = false,
 ) {
   const { levels, held, build } = pyramid
   if (levels < 3) return
@@ -403,14 +407,15 @@ export function encodeRadiancePyramid(
     build.slots[slot] = buildGroups(device, pyramid, pipelines, inputs)
   const { groups, roll } = build.slots[slot]!
   // Drawn from where the image before it was: hashed, and the image before it too where that one
-  // moved and hashed nothing — still whole, the pyramid's level 0.
-  const hashedBefore = held.still,
+  // moved or was settled and hashed nothing — still whole, the pyramid's level 0.
+  const hashedBefore = pyramid.hashed,
     still =
       held.valid &&
       held.size[0] === size[0] &&
       held.size[1] === size[1] &&
-      sameElements(held.viewProjection, viewProjection)
-  const first = !still
+      sameElements(held.viewProjection, viewProjection),
+    hashing = still && !hashless
+  const first = !hashing
     ? pipelines.firstPipeline
     : hashedBefore
       ? pipelines.firstHashedPipeline
@@ -425,6 +430,7 @@ export function encodeRadiancePyramid(
     pass.dispatchWorkgroups(x, y)
   }
   held.still = still
+  pyramid.hashed = hashing
   held.valid = true
   copyMatrix4(held.viewProjection, viewProjection)
   held.size[0] = size[0]

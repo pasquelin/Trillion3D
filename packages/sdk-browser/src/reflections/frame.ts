@@ -131,13 +131,15 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     radianceInputs,
     gpu.targetSize,
     viewProj,
+    // A settled view samples no hash: its image is not hashed.
+    reflection.settle.verified,
   )
   pass.end()
   reflection.settle.image(
     encoder,
     reflection.tiles.args,
     reflection.tiles.list,
-    reflection.radiance.held.still,
+    reflection.radiance.hashed,
   )
 }
 
