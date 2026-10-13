@@ -161,9 +161,9 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // placements, moves the core by sixty bytes off, the package and its browser condition by
   // fourteen and eighteen on. The batch twins gone, the bundle is of the single product
   // `multiplyMatrix4`, the kernels' bits.
-  assert.equal(baseline.outputFiles[0].contents.length, 3_124)
-  assert.equal(proposed.outputFiles[0].contents.length, 1_464)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_188)
+  assert.equal(baseline.outputFiles[0].contents.length, 3_066)
+  assert.equal(proposed.outputFiles[0].contents.length, 1_406)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_124)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )
