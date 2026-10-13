@@ -81,6 +81,9 @@ test('water keeps the surface flags temporal antialiasing and the composition re
     'waterDepthView',
   ])
   assert.equal(WATER_BYTES_PER_PIXEL, 12, 'a half-float colour and a depth, no word of its own')
+  const usage = backdrop.color.usage
+  assert.ok(usage & GPUTextureUsage.STORAGE_BINDING, 'the compute copy stores the backdrop colour')
+  assert.ok(usage & GPUTextureUsage.TEXTURE_BINDING, 'the composite reads the backdrop colour')
 })
 
 test('a still frame binds nothing new: the group and the descriptors survive the image', async () => {

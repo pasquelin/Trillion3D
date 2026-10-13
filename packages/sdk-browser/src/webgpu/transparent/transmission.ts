@@ -46,18 +46,19 @@ export function createBackdrop(
   active: boolean,
 ): TransmissionBackdrop {
   const size = { width: active ? width : 1, height: active ? height : 1 }
-  const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
+  // The colour is written by the indirect backdrop copy (`../water/copy.ts`), a compute store; the
+  // depth by the restore drawn in the surface pass (`../water/depthRestore.ts`). Both are read.
   const color = device.createTexture({
     label: 'Trillion3D backdrop color',
     size,
     format: HDR_FORMAT,
-    usage,
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
   })
   const waterDepth = device.createTexture({
     label: 'Trillion3D water depth',
     size,
     format: DEPTH_FORMAT,
-    usage: usage | GPUTextureUsage.RENDER_ATTACHMENT,
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
   })
   return {
     color,
