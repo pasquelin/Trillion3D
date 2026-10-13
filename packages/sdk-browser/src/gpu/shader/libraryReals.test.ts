@@ -16,7 +16,6 @@ import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 import { wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
 import { rayInverseDirection, transformHalfExtent } from '../../../../math/src/wgsl/geometry.ts'
 import { floorMod as floorModTs } from '../../../../math/src/scalar/reals.ts'
-import { transformHalfExtent as halfExtentTs } from '../../../../math/src/geometry/box.ts'
 import { haltonSpan } from '../../../../math/src/sequence/sweep.fixture.ts'
 
 type V = number[]
@@ -97,7 +96,9 @@ test('transformHalfExtent is the processor transformHalfExtent on a world matrix
       haltonSpan(k * 16 + i, [2, 3, 5, 7][i % 4], -3, 3),
     )
     const e = [haltonSpan(k, 2, 0, 4), haltonSpan(k, 3, 0, 4), haltonSpan(k, 5, 0, 4)]
-    halfExtentTs(out, 0, m, e[0], e[1], e[2])
+    // The absolute rows of the linear part against the half extents, summed left to right.
+    for (let r = 0; r < 3; r++)
+      out[r] = Math.abs(m[r]) * e[0] + Math.abs(m[4 + r]) * e[1] + Math.abs(m[8 + r]) * e[2]
     assert.deepEqual(call('transformHalfExtent', new Mat(m), e), [...out], `${k}`)
   }
 })

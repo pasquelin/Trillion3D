@@ -1,30 +1,20 @@
-// The shipped sphere kernel (`composeSphere`, `placement/gpuComposeWgsl.ts`) run on a device over
-// generated worlds and boxes, and its words beside the CPU's (`placement/rowSphere.ts`, the same
-// formula in `Math.fround` steps): the centre's two singles and the radius, as the device holds them.
-import { runCompute } from '../kit/computeRun.ts'
-import { SPHERE_WGSL } from '../../../packages/sdk-browser/src/placement/gpuComposeWgsl.ts'
+import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { readBuffer } from '../kit/computeReadback.ts'
+import {
+  COMPOSE_ROWS_WGSL,
+  PART_SPHERES,
+} from '../../../packages/sdk-browser/src/placement/gpuComposeWgsl.ts'
 import { ROW_INPUT_DOUBLES } from '../../../packages/sdk-browser/src/placement/composedRowPack.ts'
 import { sphereRadius } from '../../../packages/sdk-browser/src/placement/rowSphere.ts'
-import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { ROW_PLACEMENT_WORD } from '../../../packages/sdk-browser/src/webgpu/row/rowPlacement.ts'
 import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
 import { generated } from '../../../packages/sdk-browser/src/placement/composeDoubles.fixture.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { packDoubles } from '../../../packages/math/src/float/splitDouble.ts'
 import { transformAffinePoint } from '../../../packages/sdk-core/src/index.ts'
 
 const CASES = 600
-
-const code = wgslProgram(
-  `@group(0) @binding(0) var<storage,read> worlds:array<vec2u>;
-@group(0) @binding(1) var<storage,read> inputs:array<vec2u>;
-@group(0) @binding(2) var<storage,read_write> spheres:array<f32>;
-@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u){
- let row=g.x;if(row>=${CASES}u){return;}
- var world:array<vec2u,16>;
- for(var k=0u;k<16u;k++){world[k]=worlds[row*16u+k];}
- composeSphere(row,world);
-}`,
-  [SPHERE_WGSL],
-)
 
 /** The device's words and the CPU's for `CASES` generated rows: how many differ, and by how much. */
 export async function runSphere() {
@@ -53,22 +43,73 @@ export async function runSphere() {
     row[3] = word(sphereRadius(w, centre, half))
     expected.push(...row)
   }
-  const run = await runCompute({
-    code,
-    bytes: CASES * 8 * 4,
-    workgroups: Math.ceil(CASES / 64),
-    options: { inputs: [worlds, inputs], words: 'u32' },
+  const gpu = await openGpuDevice()
+  if (!gpu) return { unavailable: true as const }
+  const { device } = gpu
+  const { module, compilation } = await gpu.compile(COMPOSE_ROWS_WGSL)
+  if (compilation.length) return { errors: compilation }
+  const buffer = (data: ArrayBufferView<ArrayBuffer> | number, usage = 0) => {
+    const size = typeof data === 'number' ? data : Math.max(16, data.byteLength)
+    const made = device.createBuffer({
+      size,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC | usage,
+    })
+    if (typeof data !== 'number') device.queue.writeBuffer(made, 0, data)
+    return made
+  }
+  // Every row's root is linked to slot 0, a parent at the identity: the composed world is its local.
+  const stride = PAGE_INFO_STRIDE / 4,
+    table = new Uint32Array(CASES * stride)
+  for (let i = 0; i < CASES; i++) table[i * stride + ROW_PLACEMENT_WORD] = i
+  const identity = new Float64Array(16)
+  for (let k = 0; k < 4; k++) identity[k * 5] = 1
+  const parents = new Uint32Array(32),
+    locals = worlds
+  packDoubles(parents, 0, identity)
+  const params = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  if (!run.values.length) return { errors: run.errors, adapter: run.adapter }
-  const device = run.values as number[]
+  device.queue.writeBuffer(params, 0, new Uint32Array([CASES, CASES, PART_SPHERES, 0]))
+  const spheres = buffer(CASES * 8 * 4)
+  const pipeline = await device.createComputePipelineAsync({
+    layout: 'auto',
+    compute: { module, entryPoint: 'main' },
+  })
+  const absent = () => buffer(16)
+  const group = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: params } },
+      { binding: 1, resource: { buffer: buffer(locals) } },
+      { binding: 2, resource: { buffer: buffer(new Uint32Array(CASES)) } },
+      { binding: 3, resource: { buffer: buffer(parents) } },
+      { binding: 4, resource: { buffer: buffer(table) } },
+      { binding: 5, resource: { buffer: spheres } },
+      { binding: 6, resource: { buffer: buffer(inputs) } },
+      { binding: 7, resource: { buffer: absent() } },
+      { binding: 8, resource: { buffer: absent() } },
+      { binding: 9, resource: { buffer: absent() } },
+    ],
+  })
+  const encoder = device.createCommandEncoder()
+  const pass = encoder.beginComputePass()
+  pass.setPipeline(pipeline)
+  pass.setBindGroup(0, group)
+  pass.dispatchWorkgroups(ceilDiv(CASES, 64))
+  pass.end()
+  device.queue.submit([encoder.finish()])
+  const read = await readBuffer(device, spheres, 0, CASES * 8 * 4)
+  const { court } = await gpu.fermer()
+  const words = Array.from(read),
+    run = { adapter: court, errors: gpu.errors }
   let centreDiffers = 0,
     radiusDiffers = 0,
-    radiusUlps = 0,
-    below = 0
+    radiusUlps = 0
   for (let i = 0; i < CASES; i++) {
     for (const k of [0, 1, 2, 4, 5, 6])
-      if (device[i * 8 + k] !== expected[i * 8 + k]) centreDiffers++
-    const d = device[i * 8 + 3],
+      if (words[i * 8 + k] !== expected[i * 8 + k]) centreDiffers++
+    const d = words[i * 8 + 3],
       e = expected[i * 8 + 3]
     if (d !== e) {
       radiusDiffers++
@@ -81,6 +122,5 @@ export async function runSphere() {
     centreDiffers,
     radiusDiffers,
     radiusUlps,
-    below,
   }
 }

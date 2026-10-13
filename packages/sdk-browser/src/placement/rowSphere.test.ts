@@ -20,8 +20,7 @@ test('the sphere holds every corner of the box in its world, tight on the farthe
       h = [0, 1, 2].map(() => 0.001 + next() * 5)
     const r = sphereRadius(w, c, h)
     // The offsets of the eight corners from the centre's image, in double.
-    let farthest = 0,
-      boxy = 0
+    let farthest = 0
     for (let s = 0; s < 8; s++) {
       const v = [0, 1, 2].map((a) =>
         [0, 1, 2].reduce((sum, j) => sum + w[j * 4 + a] * ((s >> j) & 1 ? h[j] : -h[j]), 0),
@@ -31,7 +30,7 @@ test('the sphere holds every corner of the box in its world, tight on the farthe
     const half = [0, 1, 2].map((a) =>
       [0, 1, 2].reduce((sum, j) => sum + Math.abs(w[j * 4 + a]) * h[j], 0),
     )
-    boxy = Math.hypot(half[0], half[1], half[2])
+    const boxy = Math.hypot(half[0], half[1], half[2])
     assert.ok(r >= farthest, `case ${i}: ${r} holds ${farthest}`)
     if (r <= farthest * (1 + 1e-5) + 1e-30) tight++
     assert.ok(r <= boxy * (1 + 1e-5) + 1e-6 * boxy, `case ${i}: no wider than the box's sphere`)

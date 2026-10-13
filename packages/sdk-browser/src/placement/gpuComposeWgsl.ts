@@ -146,7 +146,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  * of the box, in single precision and grown past every rounding: the one formula of `rowSphere.ts`,
  * the CPU's twin step for step.
  */
-export const SPHERE_WGSL = wgslBlock(
+const SPHERE_WGSL = wgslBlock(
   'SPHERE_WGSL',
   [dAdd, dSub, dMul, fromF32, toF32],
   `

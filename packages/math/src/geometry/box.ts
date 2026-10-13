@@ -382,23 +382,3 @@ export const boxDiagonal = (box: ArrayLike<number>, o = 0) =>
 /** The radius of the sphere about the box at `box[o]`, centred at the box's centre: half its
  *  diagonal, `boxDiagonal · 0.5`, the radius `sphereFromBounds` writes. No empty test. */
 export const boxRadius = (box: ArrayLike<number>, o = 0) => boxDiagonal(box, o) * 0.5
-
-/**
- * The half extents of the box of half extents `hx, hy, hz` carried by the linear part of the
- * column-major `m`, into `out[o..o + 2]`: per axis the absolute row of `m` against them,
- * `|m[r]|·hx + |m[4 + r]|·hy + |m[8 + r]|·hz`, summed left to right. The box about the image of a
- * box's centre with these half extents holds the image of the whole box.
- */
-export function transformHalfExtent<T extends NumberSink>(
-  out: T,
-  o: number,
-  m: ArrayLike<number>,
-  hx: number,
-  hy: number,
-  hz: number,
-) {
-  out[o] = Math.abs(m[0]) * hx + Math.abs(m[4]) * hy + Math.abs(m[8]) * hz
-  out[o + 1] = Math.abs(m[1]) * hx + Math.abs(m[5]) * hy + Math.abs(m[9]) * hz
-  out[o + 2] = Math.abs(m[2]) * hx + Math.abs(m[6]) * hy + Math.abs(m[10]) * hz
-  return out
-}
