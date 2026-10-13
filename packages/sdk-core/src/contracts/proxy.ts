@@ -30,6 +30,7 @@ export {
 export interface CutDeformation {
   /** Morph targets of the mesh. */
   targets: number
+  /** Each corner's record, `8 + 3 × targets` floats, in the proxy's triangle and corner order. */
   corners: Float32Array<ArrayBuffer>
 }
 

@@ -2,6 +2,9 @@ import type { BounceCascades } from './cascades.ts'
 import { cellsOf, dilate, mark, reduce, repeats } from './occupancyCells.ts'
 import { alignDown } from '../../../math/src/scalar/integers.ts'
 
+/** The placements a change touched, as runs of rows: `count` `[first, last]` pairs (`createChangedRuns`). */
+export type MovedRows = { readonly count: number; readonly pairs: ArrayLike<number> }
+
 /**
  * Where keeping a probe is worthwhile: cascade occupancy map.
  *
@@ -18,9 +21,6 @@ import { alignDown } from '../../../math/src/scalar/integers.ts'
  *
  * Nothing here names a scene or inspects the camera: extent, triangles, cells.
  */
-/** The placements a change touched, as runs of rows: `count` `[first, last]` pairs (`createChangedRuns`). */
-export type MovedRows = { readonly count: number; readonly pairs: ArrayLike<number> }
-
 export interface BounceOccupancy {
   /** Placements moved: `boxes` holds six world bounds per placement (an empty box for one that holds
    *  none), `rows` the runs of those that moved: the work follows them, never the placements' count. */
