@@ -15,6 +15,7 @@ import { FEEDBACK_EVERY, FEEDBACK_STRIDE, type WebgpuTileFeedback } from './feed
 import { GATHER_WGSL, GATHER_WORKGROUP, REDUCE_WGSL, REDUCE_WORKGROUP } from './reduceWgsl.ts'
 import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { TEXTURE_FEEDBACK_REDUCE_PASS } from '../../stage/passLabels.ts'
+import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import {
   computeBufferEntry,
   computeTextureEntry,
@@ -79,18 +80,16 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
   })
   const words = new Uint32Array(4),
     capWord = new Uint32Array(1)
-  // The groups follow the target and the buffers: rebuilt when either changes identity.
-  let group: GPUBindGroup | undefined, groupKey: [GPUTextureView, GPUBuffer, GPUBuffer] | undefined
-  let gathered: GPUBindGroup | undefined, gatheredKey: [GPUBuffer, GPUBuffer] | undefined
+  // The groups follow the target and the buffers: rebuilt when one moved (`bindIdentity.ts`).
+  const reduced = createWebgpuBindIdentity(),
+    gatherBound = createWebgpuBindIdentity()
+  let group: GPUBindGroup | undefined, gathered: GPUBindGroup | undefined
   return {
     encode(encoder, target, feedback, size, phaseWord) {
-      if (
-        !groupKey ||
-        groupKey[0] !== target ||
-        groupKey[1] !== feedback.buffer ||
-        groupKey[2] !== feedback.list
-      ) {
-        groupKey = [target, feedback.buffer, feedback.list]
+      reduced.next[0] = target
+      reduced.next[1] = feedback.buffer
+      reduced.next[2] = feedback.list
+      if (reduced.moved())
         group = device.createBindGroup({
           layout,
           entries: sequentialEntries([
@@ -100,7 +99,6 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
             { buffer: feedback.list },
           ]),
         })
-      }
       words[0] = size[0]
       words[1] = size[1]
       words[2] = phaseWord
@@ -115,12 +113,9 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
       pass.dispatchWorkgroups(ceilDiv(cols, REDUCE_WORKGROUP), ceilDiv(rows, REDUCE_WORKGROUP))
       // The dispatches of a pass run in order, the storage a reduction wrote read by the gather.
       if (feedback.capacity > 0) {
-        if (
-          !gatheredKey ||
-          gatheredKey[0] !== feedback.buffer ||
-          gatheredKey[1] !== feedback.list
-        ) {
-          gatheredKey = [feedback.buffer, feedback.list]
+        gatherBound.next[0] = feedback.buffer
+        gatherBound.next[1] = feedback.list
+        if (gatherBound.moved())
           gathered = device.createBindGroup({
             layout: gatherLayout,
             entries: sequentialEntries([
@@ -129,7 +124,6 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
               { buffer: gatherUniform },
             ]),
           })
-        }
         capWord[0] = feedback.capacity
         device.queue.writeBuffer(gatherUniform, 0, capWord)
         pass.setPipeline(gathering.get())

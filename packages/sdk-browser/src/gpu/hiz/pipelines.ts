@@ -11,6 +11,7 @@ import { shaderFailed } from '../core/shaderModule.ts'
 import { oncePerDevice } from '../core/oncePerDevice.ts'
 import { HIZ_SLOT_WORDS } from './uniforms.ts'
 import { sequentialEntries } from '../core/computeBindings.ts'
+import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 
 /**
  * The Hi-Z kernels — the build of each layer, one kernel specialized (`HIZ_NEAREST_BUILD`), and the
@@ -51,15 +52,16 @@ export const hizArgsGroup = (device: GPUDevice, layout: GPUBindGroupLayout, args
 /** The test's page-table group (group 1), remade only when the table changes identity (it grows):
  *  one per pyramid, never in the device's shared pipelines, where two pyramids would remake it. */
 export function hizPagesGroup(device: GPUDevice, layout: GPUBindGroupLayout) {
-  let bound: GPUBuffer | undefined, group: GPUBindGroup | undefined
+  const bound = createWebgpuBindIdentity()
+  let group: GPUBindGroup | undefined
   return (pages: GPUBuffer) => {
-    if (pages !== bound || !group)
+    bound.next[0] = pages
+    if (bound.moved())
       group = device.createBindGroup({
         layout,
         entries: sequentialEntries([{ buffer: pages }]),
       })
-    bound = pages
-    return group
+    return group!
   }
 }
 
