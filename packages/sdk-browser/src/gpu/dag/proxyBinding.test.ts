@@ -17,24 +17,32 @@ import {
   RUNTIME_WORLD_WORDS,
 } from '../../bounce/runtimeLayout.ts'
 
-/** The proxy of sixteen placements, each wearing one cut, over a device of `limits`, its world table laid
- *  in the ranges the culling lays it in there. */
-function proxyOver(limits: typeof LIMITS) {
+/** The proxy of `side`² placements, each wearing one cut, over a device of `limits`, its world table
+ *  laid in the ranges the culling lays it in there. */
+function proxyOver(limits: typeof LIMITS, side = 4) {
   installGpuGlobals()
-  const roots = placementField(4, 3),
+  const roots = placementField(side, 3),
     worn = { primitive: { runtimeProxy: cut(2, 1, 1) }, surface: surface(1) }
   roots.forEach((root) => (root.proxy = worn))
   const packed = packDagSelection(roots)
   const gpu = fakeDevice({ limits })
   const table = (bytes: number) => ({
-    buffers: [gpu.device.createBuffer({ size: bytes, usage: 0 })],
+    buffers: [
+      gpu.device.createBuffer({
+        size: bytes,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      }),
+    ],
     bytes,
   })
   const ranges = cameraFrameRanges(limits, Math.max(1, packed.worldCount))
   const frames = {
     ranges,
     worldBuffers: ranges.map(({ count }) =>
-      gpu.device.createBuffer({ size: count * WORLD_ROW_BYTES, usage: 0 }),
+      gpu.device.createBuffer({
+        size: count * WORLD_ROW_BYTES,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      }),
     ),
   }
   const proxies = createProxyInstances({
@@ -91,7 +99,8 @@ test('a world of one range: every placement’s row, the last included, is in th
 })
 
 test('the tree’s nodes go up when the refit moved them, its member order once and again when roots join', () => {
-  const { gpu, proxies, packed } = proxyOver(LIMITS)
+  // Ten by ten: past one group of placements, so the field packs a tree.
+  const { gpu, proxies, packed } = proxyOver(LIMITS, 10)
   assert.ok(packed.placementTree, 'the field packs a placement tree')
   const at = (name: 'treeWord' | 'membersWord') => (RUNTIME_HEADER_WORDS + region(gpu, name)) * 4
   const mirror = (revision: number) => {
