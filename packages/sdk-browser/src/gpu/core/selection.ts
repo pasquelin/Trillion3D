@@ -14,6 +14,8 @@ import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
 import type { PoseHost, ProxyCopy } from '../dag/proxyInstances.ts'
 import type { ProxyBoxes } from '../../bounce/probeSync.ts'
+import type { DagParts } from '../dag/split.ts'
+import type { PlacementTree } from '../dag/placementTree.ts'
 
 /** The step a cut takes on the tables before it encodes, under its uniforms, for its view — an
  *  object the main view holds for the selection's life, or each view aside its own, never another
@@ -96,6 +98,19 @@ export type GpuCut = {
  *  every page. */
 export type ResidencyChanges = { pages: Int32Array; count: number }
 type Visit = (page: number) => void
+/** What a pass beside the cut reads of its tables where they lie (`../../webgpu/rays/rayQuery.ts`):
+ *  the nodes and the cold table as the device splits them (`../dag/cutTablesWgsl.ts`), the placement
+ *  tree above the placements, the pages the residency bits are laid out for, the placements the
+ *  packing holds live, and the world DAG's placement, `NO_INDEX` without one. Each range's frames
+ *  and worlds are `GpuSelection.worldRanges`. */
+export type CutTables = {
+  nodeParts: DagParts
+  coldParts: DagParts
+  tree: PlacementTree | undefined
+  pageCount: number
+  placements: number
+  worldPlacement: number
+}
 /** Told `true` when the shared command buffer reached the queue, `false` when the image dropped it. */
 export type SelectionSubmission = (submitted: boolean) => void
 export type GpuSelection = {
@@ -166,6 +181,9 @@ export type GpuSelection = {
   /** The row cache now holds `rows` rows: the open counts placements hold follow it
    *  (`../dag/queueGrowth.ts`), grown before the next cut. */
   followRows?(rows: number): void
+  /** Its tables as a pass beside the cut reads them (`CutTables`), read again at each call: a growth
+   *  lays them out anew. None once released. */
+  cutTables(): CutTables | undefined
   /** The buffer a program reads the proxy through (`../dag/proxyInstances.ts`): none until a placement
    *  wears one, or none past one storage binding of the device (`proxyRefusal`). */
   proxyBuffer(): GPUBuffer | undefined

@@ -17,9 +17,21 @@ import { CUT_TABLE_BYTES } from '../../residency/cutTableBytes.ts'
 import type { CutSteps } from './cutSteps.ts'
 import { madeAsked, type CutAdmission } from './cutBuffers.ts'
 import { createMainReadbacks } from './mainReadbacks.ts'
+import type { CutTables } from '../core/selection.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** The DAG's GPU resources once made (`createDagResources`). */
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
+
+/** The tables of `resources` as a pass beside the cut reads them (`CutTables`), as they stand now. */
+export const cutTablesOf = ({ nodeParts, coldParts, packed }: DagResources): CutTables => ({
+  nodeParts,
+  coldParts,
+  tree: packed.placementTree,
+  pageCount: packed.pageCount,
+  placements: packed.live?.worlds ?? packed.worldCount,
+  worldPlacement: packed.world?.root ?? NO_INDEX,
+})
 
 /** The cut's buffers, pipelines and groups, or `undefined` when the device refuses them: why is
  *  told to `refused` by the device's own words, never swallowed. */

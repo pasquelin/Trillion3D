@@ -22,7 +22,7 @@ import {
   writeMark,
   type DagRun,
 } from './runtimeOps.ts'
-import type { DagResources } from './resources.ts'
+import { cutTablesOf, type DagResources } from './resources.ts'
 import { cutBytes } from './cutBuffers.ts'
 import { createProxyInstances } from './proxyInstances.ts'
 import { NO_PROXY_BOXES } from '../../bounce/probeSync.ts'
@@ -148,6 +148,7 @@ function selectionOver(run: DagRun): GpuSelection {
     parkWorld: (w, parked) => live() && parkRoot(run, w, parked),
     // The mark travels behind the record shift (`primitiveFrameWords`).
     markWorld: (w, mark) => live() && writeMark(run, w, mark),
+    cutTables: () => (live() ? cutTablesOf(resources) : undefined),
     get proxyHostBytes() {
       return run.proxies.hostBytes
     },
