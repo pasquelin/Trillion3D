@@ -8,8 +8,8 @@
 //
 // At a whole level the pool's read is the hardware's own bilinear, so the drawing is the same at 8
 // bits. Between two levels no read through two tiles can carry the hardware's trilinear weight: the
-// maps' reads are then set beside the exact filter, in float64, and the pool's error may nowhere
-// exceed the hardware's (`cardTileTrilinear.ts`). Texels one drawing covers and the other not —
+// maps' reads are then set beside the exact filter, in float64 (`cardTileTrilinear.ts`), and the
+// pool's read must be the truer as a whole: its mean error under the hardware's. Texels one drawing covers and the other not —
 // the coverage cut met on either side of its threshold — are listed apart, with their coverage
 // words.
 //
@@ -46,13 +46,24 @@ test('a card read through the tile pool draws the image its whole chains drew, o
   for (const level of reads)
     if (level.whole)
       assert.equal(level.unequal, 0, `level ${level.lod}: the pool's read is the hardware's`)
-    else
-      assert.equal(
-        level.worse,
-        0,
-        `level ${level.lod}: the pool's read lies farther from the exact filter than the ` +
-          `hardware's at ${level.worse} values, by ${level.excess} steps at most`,
+    else {
+      // Truer as a whole (boss, #1527): the pool's mean error under the hardware's, its largest
+      // within a thirty-second of an 8-bit step of the hardware's, and no value farther than half
+      // a step past the hardware's, so no texel moves by more than the step the mix rounds to.
+      const where = `level ${level.lod}`
+      assert.ok(
+        level.poolRms <= level.chainRms,
+        `${where}: mean error ${level.poolRms} > ${level.chainRms}`,
       )
+      assert.ok(
+        level.poolMax <= level.chainMax + 1 / 32,
+        `${where}: largest error ${level.poolMax}`,
+      )
+      assert.ok(
+        level.excess < 0.5,
+        `${where}: ${level.worse} values farther, ${level.excess} steps`,
+      )
+    }
   for (const [card, stats] of Object.entries(byCard))
     if (wholeCard(lods[Number(card)], levels))
       assert.deepEqual(
