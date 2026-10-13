@@ -22,6 +22,7 @@ import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { project } from '../kit/cameraRig.ts'
 import { worldPose, type PoseParams } from './lightingNormalCases.ts'
+import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 
 type Vec3 = [number, number, number]
 /** A case's pose: `PoseParams`, its world size, and whether it is mirrored. */
@@ -143,10 +144,10 @@ const pageOf = (lit: Case) => ({
 export const packCases = (cases: Case[]) =>
   packedWorldsToRenderOrigin(
     packDagSelection(
-      cases.map((lit): DagRoot => ({
-        world: lit.world,
-        pages: [{ ...pageOf(lit), parentError: null, sphere: [0, 0, 0, lit.worldSize] }],
-      })),
+      cases.map((lit): DagRoot => {
+        const pages = [{ ...pageOf(lit), parentError: null, sphere: [0, 0, 0, lit.worldSize] }]
+        return { world: lit.world, pages, culling: cullingInPlace(pages) }
+      }),
     ),
     cases.map((lit): DagRoot => ({ world: lit.world, pages: [] })),
     view.eye,

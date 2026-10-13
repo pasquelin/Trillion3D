@@ -18,7 +18,7 @@ export function inCullingOrder<C extends WorldRootsCluster>(dag: {
   const rank = new Array<number>(order.length)
   order.forEach((slot, at) => (rank[slot] = at))
   const ranked = Array.from(order, (slot, at) => ({ ...dag.clusters[slot], cluster: at }))
-  dag.clusters.splice(0, dag.clusters.length, ...ranked)
+  ranked.forEach((cluster, at) => (dag.clusters[at] = cluster))
   for (const group of dag.groups) {
     group.children = group.children.map((child) => rank[child])
     group.outputs = group.outputs.map((output) => rank[output])

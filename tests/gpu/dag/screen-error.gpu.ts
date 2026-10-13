@@ -18,6 +18,7 @@ import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gp
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { lois } from '../kit/randomDraw.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
+import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 
 const CLUSTERS = 20000,
   THRESHOLD = 0.75
@@ -93,7 +94,8 @@ function sample() {
 test('CPU and GPU take the same clusters, but within the f32 rounding band', async () => {
   const { camera, world, view, stretch, focal, uniforms, clusters, projected } = sample()
   // The kernel works in the render frame: the world is brought to the eye, as the engine does.
-  const packed = packDagSelection([{ world, pages: clusters }])
+  // Ranked in their hierarchy's order, in place: the oracle below reads the same ranks.
+  const packed = packDagSelection([{ world, pages: clusters, culling: cullingInPlace(clusters) }])
   packedWorldsToRenderOrigin(packed, [{ world, pages: [] }], uniforms.cameraWorld)
   const { adapter, readings } = await runSelectionKernel([{ name: 'sample', packed, uniforms }])
   const onGpu = new Uint8Array(CLUSTERS)
