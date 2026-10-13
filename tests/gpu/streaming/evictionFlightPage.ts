@@ -1,10 +1,9 @@
 // Page of the eviction-flight proof: a camera flies down a generated world larger than its pool, on
-// Dawn, through the engine's own GPU cut (`createGpuDagSelection`), page pool (`createGpuPageCache`),
-// eviction feed (`createEvictionFeed`), install order (`createPageAdmission`) and group closure —
-// loads landing between frames, at random delays, two frames read back behind. Each frame copies
-// the pool in its own command buffer, after its cut: what that frame read, whatever lands after
-// it. The proof reads, for every frame whose readback came: the pages it drew, the slots its tables
-// named them at, the pool as it read it, and the cut an unbounded pool draws at the same pose.
+// Dawn, through the engine's own GPU cut, page pool, eviction feed, install order and group closure,
+// loads landing between frames at random delays, two frames read back behind. Each frame copies the
+// pool in its own command buffer after its cut: what it read, whatever lands after. Read for every
+// frame whose readback came (`evictionFlightFrame.ts`): its drawn pages, the slots its tables named
+// them at, the pool as it read it, and the cut an unbounded pool draws at the same pose.
 import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { createGpuPageCache } from '../../../packages/sdk-browser/src/gpu/page/pages.ts'
 import { createEvictionFeed } from '../../../packages/sdk-browser/src/webgpu/residency/evictionFeed.ts'
@@ -19,29 +18,9 @@ import type { GpuCut } from '../../../packages/sdk-browser/src/gpu/core/selectio
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { animationFrame } from '../kit/frame.ts'
-import { evictionWorld } from './evictionWorld.ts'
-
-/** Words of a page's bytes: its rank, its complement, and two more. */
-const PAGE_WORDS = 4
-
-/** What one frame read back says. */
-export type FlightFrame = {
-  frame: number
-  /** Drawn pages, increasing. */
-  drawn: number[]
-  /** Drawn pages whose slot did not hold their bytes when the frame read it, or that its
-   *  residency did not name. */
-  torn: number[]
-  /** Leaf units, by copy, the cut covers zero times where the unbounded pool's covers them, or
-   *  twice. */
-  holes: number
-  overdraw: number
-  /** Pages the unbounded pool draws at this pose. */
-  reference: number[]
-  /** Pages resident, and the closure of what the cut asks for. */
-  resident: number
-  wanted: number
-}
+import { PAGE_BYTES, evictionWorld } from './evictionWorld.ts'
+import { readFlightFrame, type FlightFrame } from './evictionFlightFrame.ts'
+export type { FlightFrame } from './evictionFlightFrame.ts'
 
 /** The flight: a row of DAGs twenty times the pool, flown in `flight` frames, then held still. */
 const FLIGHT = { copies: 16, slots: 72, flight: 160, hold: 40, seed: 0xf1197 }
@@ -51,7 +30,7 @@ export async function runEvictionFlight(options: typeof FLIGHT = FLIGHT) {
   if (!gpu) return { unavailable: 'no WebGPU adapter' }
   const { device } = gpu
   const world = evictionWorld(options.copies)
-  const { packed, pages, roots, placement, units, copyOf } = world
+  const { packed, pages, roots, placement } = world
   const reference = packDagSelection(roots)
   const [selection, unbounded] = await Promise.all([
     createGpuDagSelection(device, packed),
@@ -59,30 +38,15 @@ export async function runEvictionFlight(options: typeof FLIGHT = FLIGHT) {
   ])
   if (!selection || !unbounded) return { error: 'GPU_SELECTION_UNAVAILABLE', errors: gpu.errors }
   unbounded.updateResidency(pageResidency(new Uint8Array(reference.pageCount).fill(1)))
-  const next = lcgRandom(options.seed),
-    rankOfAddress = new Map(pages.map((rec, rank) => [pageAddress(rec), rank])),
-    rankOf = new Map(pages.map((rec, rank) => [rec, rank]))
-  // Each page's bytes name it; they land at random delays, between frames.
-  const source = {
-    read: (key: string) =>
-      new Promise<Uint8Array>((done) => {
-        const rank = rankOfAddress.get(key)!
-        const words = Uint32Array.of(rank, ~rank >>> 0, 0x5157, rank ^ 0xa5a5)
-        setTimeout(() => done(new Uint8Array(words.buffer)), Math.floor(next() * 40))
-      }),
-  }
-  const tracking = createWebgpuPageTracking(pages)
-  const bootstrapKey = new Uint8Array(tracking.keyCount),
-    cover: string[] = []
-  roots.forEach((root, r) =>
-    root.pages.forEach((rec, p) => {
-      if ((root.structure?.owners[p] ?? -1) >= 0) return
-      bootstrapKey[tracking.keyOf(rec as never)] = 1
-      cover.push(pageAddress(pages[placement.baseOfRoot[r] + p]))
-    }),
-  )
+  const { rankOfAddress } = world,
+    rankOf = new Map(pages.map((rec, rank) => [rec, rank])),
+    source = world.source(lcgRandom(options.seed))
+  const tracking = createWebgpuPageTracking(pages),
+    bootstrapKey = new Uint8Array(tracking.keyCount),
+    { cover } = world
+  for (const address of cover) bootstrapKey[tracking.pageCatalogIds.get(address)!] = 1
   const cache = createGpuPageCache(device, source, {
-    pageBytes: PAGE_WORDS * 4,
+    pageBytes: PAGE_BYTES,
     slots: options.slots,
     cover: new Set(cover),
   })
@@ -135,34 +99,17 @@ export async function runEvictionFlight(options: typeof FLIGHT = FLIGHT) {
       at = submitted.get(frame)
     if (!at) return
     submitted.delete(frame)
-    for (const [older, gone] of submitted)
-      if (older < frame) (gone.pool.destroy(), submitted.delete(older))
+    for (const [older, gone] of submitted) {
+      if (older >= frame) continue
+      gone.pool.destroy()
+      submitted.delete(older)
+    }
     await at.pool.mapAsync(GPUMapMode.READ)
     const words = new Uint32Array(at.pool.getMappedRange().slice(0))
     at.pool.destroy()
-    const drawn = [...(cut.result.drawablePageIds ?? [])].sort((a, b) => a - b)
-    const torn = drawn.filter((page) => {
-      const offset = at.offsets[page]
-      return (
-        !at.flags[page] || offset < 0 || words[offset] !== page || words[offset + 1] !== ~page >>> 0
-      )
-    })
-    const ref = references.get(frame) ?? []
-    const covered = (list: readonly number[]) => {
-      const hits = new Map<number, number>()
-      for (const page of list)
-        for (let u = units[page][0]; u < units[page][1]; u++) {
-          const unit = copyOf(page) * world.dag.leaves + u
-          hits.set(unit, (hits.get(unit) ?? 0) + 1)
-        }
-      return hits
-    }
-    const got = covered(drawn),
-      want = covered(ref)
-    let holes = 0,
-      overdraw = 0
-    for (const unit of want.keys()) if (!got.has(unit)) holes++
-    for (const n of got.values()) if (n > 1) overdraw++
+    const drawn = [...(cut.result.drawablePageIds ?? [])].sort((a, b) => a - b),
+      ref = references.get(frame) ?? []
+    const { torn, holes, overdraw } = readFlightFrame(world, drawn, ref, at, words)
     frames.push({
       frame,
       drawn,
@@ -245,8 +192,8 @@ export async function runEvictionFlight(options: typeof FLIGHT = FLIGHT) {
     flight: options.flight,
     /** Each page's level, its copy's leaf units and its copy: what a dip in detail is read by. */
     levels: pages.map((rec) => rec.level ?? 0),
-    units,
-    copies: pages.map((_, page) => copyOf(page)),
+    units: world.units,
+    copies: pages.map((_, page) => world.copyOf(page)),
     leaves: world.dag.leaves,
     errors: gpu.errors,
   }

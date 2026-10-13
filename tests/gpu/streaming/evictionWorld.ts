@@ -14,6 +14,10 @@ import { writeEngineCamera } from '../../../packages/sdk-browser/src/camera/engi
 import { postPackedBases } from '../../../packages/sdk-browser/src/page/selection/placements.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 import type { GpuSelection } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
+import { pageAddress } from '../../../packages/sdk-browser/src/webgpu/row/pageSlots.ts'
+
+/** Bytes of a page: its rank, its complement, and two more words. */
+export const PAGE_BYTES = 16
 
 /** A world of `copies` DAGs of `leaves` leaves, `gap` units apart, each a primitive of its own. */
 export function evictionWorld(copies: number, leaves = 64, gap = 8) {
@@ -40,5 +44,24 @@ export function evictionWorld(copies: number, leaves = 64, gap = 8) {
   /** Each packed page's leaf units, by copy: what a cut covers (`coverFault`). */
   const units = pages.map((rec) => (rec as unknown as { units: [number, number] }).units)
   const copyOf = (page: number) => Math.floor(page / dag.pages.length)
-  return { dag, roots, packed, pages, placement, view, units, copyOf, spacing }
+  /** The root cover: the pages nothing replaces, the tops of the copies. */
+  const cover = pages
+    .filter((_, page) => (dag.structure.owners[page % dag.pages.length] ?? -1) < 0)
+    .map(pageAddress)
+  const rankOfAddress = new Map(pages.map((rec, rank) => [pageAddress(rec), rank]))
+  /** A page source whose bytes name each page, landing after a delay `next` draws, between
+   *  frames. */
+  const source = (next: () => number) => ({
+    read: (key: string) =>
+      new Promise<Uint8Array>((done) => {
+        const rank = rankOfAddress.get(key)!
+        const words = Uint32Array.of(rank, ~rank >>> 0, 0x5157, rank ^ 0xa5a5)
+        setTimeout(() => done(new Uint8Array(words.buffer)), Math.floor(next() * 40))
+      }),
+  })
+  return {
+    ...{ dag, roots, packed, pages, placement, view, units, copyOf, spacing, cover },
+    rankOfAddress,
+    source,
+  }
 }
