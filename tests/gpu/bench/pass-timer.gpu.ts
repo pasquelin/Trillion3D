@@ -6,7 +6,8 @@ import test from 'node:test'
 import { setTimeout as sleep } from 'node:timers/promises'
 import type { FrameGpu } from '../../../bench/dawn/passSpans.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
-import { kernelOn, openBenchDevice } from '../kit/benchDevice.ts'
+import { openBenchDevice } from '../kit/benchDevice.ts'
+import { kernelOn } from '../kit/computeReadback.ts'
 
 const SLOW = /* wgsl */ `
 @group(0) @binding(0) var<storage, read_write> out: array<f32>;

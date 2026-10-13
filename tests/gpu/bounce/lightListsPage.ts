@@ -21,7 +21,7 @@ import {
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
 import { TILE_STRIDE_WORDS } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
+import { autoKernel, readBuffer } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { BASE, POINTS, SIDE, SPACING, lightsOf, pointsOf } from './lightListsScene.ts'
 
@@ -56,10 +56,9 @@ export async function run(sets: ListSet[]) {
   const { device } = opened
   const r = lcgRandom(1521)
   const tiles = await createGpuLightTiles(device)
-  const pipeline = device.createComputePipeline({
-    layout: 'auto',
-    compute: { module: device.createShaderModule({ code: KERNEL }), entryPoint: 'main' },
-  })
+  const pipeline = device.createComputePipeline(
+    autoKernel(device.createShaderModule({ code: KERNEL })),
+  )
   const querySet = device.features.has('timestamp-query')
     ? device.createQuerySet({ type: 'timestamp', count: 2 })
     : undefined

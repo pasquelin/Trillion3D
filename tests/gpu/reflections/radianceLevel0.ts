@@ -17,7 +17,12 @@ import {
   reflectionLightViewWgsl,
 } from '../../../packages/sdk-browser/src/reflections/viewLayout.ts'
 import { createDeferredView } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
+import {
+  computeBufferEntry,
+  computeTextureEntry,
+  sequentialEntries,
+} from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
+import { autoKernel, groupZero, readBuffer } from '../kit/computeReadback.ts'
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
 
 /** The lit images of the level-0 proof: their size, and the drawn size inside it. */
@@ -116,10 +121,9 @@ export async function level0(
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(bounds, 0, new Uint32Array([drawn[0], drawn[1], 0, 0]))
-  const copying = device.createComputePipeline({
-    layout: 'auto',
-    compute: { module: device.createShaderModule({ code: COPY_SHADER }), entryPoint: 'main' },
-  })
+  const copying = device.createComputePipeline(
+    autoKernel(device.createShaderModule({ code: COPY_SHADER })),
+  )
   const taps = tapsOver(size),
     count = taps.length / 2
   const tapBuffer = device.createBuffer({
@@ -135,10 +139,10 @@ export async function level0(
   const [engine, copied] = [out(), out()]
   const readLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-      { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-      { binding: 3, visibility: GPUShaderStage.COMPUTE, texture: { sampleType: 'float' } },
+      computeBufferEntry(0, 'read-only-storage'),
+      computeBufferEntry(1, 'storage'),
+      computeBufferEntry(2, 'storage'),
+      computeTextureEntry(3, 'float'),
     ],
   })
   const reading = device.createComputePipeline({
@@ -152,14 +156,11 @@ export async function level0(
   pass.setPipeline(copying)
   pass.setBindGroup(
     0,
-    device.createBindGroup({
-      layout: copying.getBindGroupLayout(0),
-      entries: [
-        { binding: 0, resource: reflection.radiance.image.view },
-        { binding: 1, resource: copy.createView() },
-        { binding: 2, resource: { buffer: bounds } },
-      ],
-    }),
+    groupZero(device, copying, [
+      reflection.radiance.image.view,
+      copy.createView(),
+      { buffer: bounds },
+    ]),
   )
   pass.dispatchWorkgroups(ceilDiv(width, 8), ceilDiv(height, 8))
   pass.setPipeline(reading)
@@ -167,12 +168,12 @@ export async function level0(
     0,
     device.createBindGroup({
       layout: readLayout,
-      entries: [
-        { binding: 0, resource: { buffer: tapBuffer } },
-        { binding: 1, resource: { buffer: engine } },
-        { binding: 2, resource: { buffer: copied } },
-        { binding: 3, resource: copy.createView() },
-      ],
+      entries: sequentialEntries([
+        { buffer: tapBuffer },
+        { buffer: engine },
+        { buffer: copied },
+        copy.createView(),
+      ]),
     }),
   )
   pass.setBindGroup(REFLECTION_GROUP, group)
