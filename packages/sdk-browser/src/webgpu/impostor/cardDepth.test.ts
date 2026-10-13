@@ -9,6 +9,7 @@ import { multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { fieldCamera } from '../../gpu/dag/placementTree.fixture.ts'
 import { ulpBetween } from '../../../../../bench/core/ulp.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** `m · v` in single, each product and sum rounded, `m` column-major and already single. */
 function mulSingle(m: ArrayLike<number>, v: readonly number[]) {
@@ -21,8 +22,7 @@ function mulSingle(m: ArrayLike<number>, v: readonly number[]) {
 }
 
 test('a card at the eye keeps its depth within three ULP of the double, to 10⁵ m', () => {
-  let seed = 3
-  const next = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+  const next = lcgRandom(3)
   let before = 0,
     after = 0
   for (let i = 0; i < 400; i++) {

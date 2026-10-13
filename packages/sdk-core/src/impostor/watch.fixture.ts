@@ -4,6 +4,7 @@ import { impostorViewCosine } from './watch.ts'
 import { bakedMesh } from './bakedMesh.fixture.ts'
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 import type { ImpostorSection } from '../contracts/impostor.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 export const FOCAL = 1117
 export const TREE = { objectRadius: 4.2, rootTriangles: 2100, coverage: 0.43, frameSide: 128 }
@@ -21,8 +22,7 @@ export const COS = impostorViewCosine(PROJECTION)
 /** `count` trees at one per 400 m² on a disk about the origin, a few scaled or another mesh-less. */
 export function field(count: number): ImpostorRoot[] {
   const radius = Math.sqrt((count * 400) / Math.PI)
-  let seed = 7
-  const next = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+  const next = lcgRandom(7)
   return Array.from({ length: count }, (_, k) => {
     const r = radius * Math.sqrt(next()),
       a = 2 * Math.PI * next(),
