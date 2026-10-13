@@ -185,7 +185,6 @@ use compiler_publish::{publish, Publication};
 use compiler_ratio::with_ratio;
 use compiler_runtime::*;
 use compiler_scene::*;
-use compiler_select::*;
 use compiler_source::*;
 use compiler_storage::*;
 use compiler_tables::stage_scene_tables;

@@ -3,6 +3,7 @@
 //! machine.
 
 use crate::js::{lower, lower_f32, upper, upper_f32};
+use crate::real::Real;
 
 /// Extends bounding box by another box, axis by axis in axis order, by `lower` and `upper`: NaN
 /// in the read box leaves the bound as is, NaN in the bound is replaced by the coordinate. Min
@@ -147,6 +148,22 @@ pub fn longest_axis<const N: usize>(low: &[f64; N], high: &[f64; N]) -> usize {
 #[inline]
 pub fn diagonal<const N: usize>(low: [f64; N], high: [f64; N]) -> f64 {
     crate::vecn::length(crate::vecn::sub(high, low))
+}
+
+/// Half the surface of the box, `xy + yz + zx` of its sides `high − low`, in either precision:
+/// what a tree compares its boxes by. A side neither positive nor a number (an empty or flat box)
+/// counts `+0`.
+#[inline]
+pub fn half_area<T: Real + PartialOrd>(low: [T; 3], high: [T; 3]) -> T {
+    let [x, y, z] = [0, 1, 2].map(|axis| {
+        let side = high[axis] - low[axis];
+        if side > T::ZERO {
+            side
+        } else {
+            T::ZERO
+        }
+    });
+    x * y + y * z + z * x
 }
 
 /// Whether the ray from `origin`, its direction's reciprocal `inverse`, crosses the box `[low,

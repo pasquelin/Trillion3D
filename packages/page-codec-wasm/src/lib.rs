@@ -11,7 +11,8 @@
 //! one shipped resource, one instantiation and one linear memory on the browser side): the page
 //! encoder and the grid rules (`wasm_encode.rs`), the page decoder (`wasm_decode.rs`), the math-foundation batch kernels (`math.rs` and
 //! `trillion3d_math::matrix`, ABI and shared buffer in `wasm_math.rs`), the normal cone of the
-//! pages the world cuts at run time (`normal_cone.rs`, `wasm_cone.rs`).
+//! pages the world cuts at run time (`normal_cone.rs`, `wasm_cone.rs`), and the one hand-off of
+//! the answers sized only once built (`held.rs`).
 mod attributes;
 pub mod bits;
 pub mod clusters;
@@ -22,6 +23,8 @@ pub mod encode;
 #[doc(hidden)]
 pub mod fixtures;
 pub mod hash;
+#[cfg(target_arch = "wasm32")]
+mod held;
 mod page_error;
 pub use page_error::PageError;
 pub mod math;
@@ -29,6 +32,7 @@ pub mod min_ball;
 pub mod normal_cone;
 mod positions;
 pub mod proxy;
+pub mod simd;
 pub mod split;
 pub mod triangles;
 mod unpack;
@@ -46,7 +50,6 @@ mod wasm_encode;
 mod wasm_math;
 #[cfg(target_arch = "wasm32")]
 mod wasm_proxy;
-pub mod wide;
 pub mod writer;
 
 pub use attributes::{DecodedPage, Layout, OPTIONAL};

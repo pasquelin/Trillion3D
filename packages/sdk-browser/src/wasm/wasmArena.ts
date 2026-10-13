@@ -68,6 +68,32 @@ export interface Arena {
 }
 
 /**
+ * THE HAND-OFF of an answer the module sized only as it built it (`page-codec-wasm/src/held.rs`):
+ * the bytes its last build holds, cut into `parts` of the byte lengths given (the whole by
+ * default), each copied out of linear memory into a buffer of its own, then let go in the module.
+ * Called once the build returned, so read from the memory as it is then. Parts that do not add up
+ * to what the module holds name a layout the two sides disagree on: an error.
+ */
+export function takeHeld(
+  wasm: SdkWasm,
+  parts: readonly number[] = [wasm.held_length()],
+): ArrayBuffer[] {
+  const at = wasm.held_at()
+  const length = wasm.held_length()
+  try {
+    if (parts.reduce((sum, bytes) => sum + bytes, 0) !== length) throw new Error('WASM_HELD_LAYOUT')
+    let from = at
+    return parts.map((bytes) => {
+      const part = wasm.memory.buffer.slice(from, from + bytes)
+      from += bytes
+      return part
+    })
+  } finally {
+    wasm.held_free()
+  }
+}
+
+/**
  * Reserves the requested blocks in one allocation and returns their views. `null` when the
  * module refuses the size.
  */

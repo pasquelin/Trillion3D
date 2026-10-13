@@ -1,6 +1,5 @@
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
-import { reserveArena, type Arena } from '../../wasm/wasmArena.ts'
+import { reserveArena, takeHeld } from '../../wasm/wasmArena.ts'
 import { META, META_WORDS, REQUEST, REQUEST_WORDS } from '../../wasm/encodeAbi.ts'
 import { UV_EXPONENT } from '../../../../sdk-core/src/page/format.ts'
 import { isSkinJoint } from '../../../../sdk-core/src/page/pageInput.ts'
@@ -153,21 +152,8 @@ export function encodeGeometryPage(
       uncompressedBytes: meta[META.DECODED_BYTES],
       quantizationError,
     }
-    return { ...result, data: take(module, meta[META.BYTES]) }
+    return { ...result, data: new Uint8Array(takeHeld(module)[0]) }
   } finally {
     arena.freed()
-  }
-}
-
-/** The page the encoder holds, `bytes` long, copied out of the module's memory. */
-function take(module: SdkWasm, bytes: number) {
-  const out: Arena | null = reserveArena(module, [{ type: 'u32', length: ceilDiv(bytes, 4) }])
-  if (!out) throw memoryRefused()
-  try {
-    module.encode_page_take(out.blocks()[0].offset)
-    const [block] = out.blocks()
-    return new Uint8Array(block.view.buffer, block.offset, bytes).slice()
-  } finally {
-    out.freed()
   }
 }

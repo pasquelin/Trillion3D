@@ -1,10 +1,10 @@
 //! The CPU ray tracer over `proxy::bvh`'s flattened tree, the only one on the Rust side: the
 //! oracle traces the source scene with it (`oracle`), and the impostor bake the level-0 mesh
 //! (`impostor`), through a hit filter that lets a ray through a cut texel.
-use crate::proxy::PROXY_TRIANGLE_FLOATS;
 use trillion3d_math::aabb::ray_aabb;
 use trillion3d_math::triangle::{ray_triangle, triangle_cross};
 use trillion3d_math::vec3::unit_or_itself;
+use trillion3d_page_codec::proxy::PROXY_TRIANGLE_FLOATS;
 
 /// Triangles and their tree, with one word a triangle in the same order: the oracle's packed
 /// linear albedo (the source scene in world space, re-read without cuts, simplification or

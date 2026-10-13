@@ -9,6 +9,8 @@ pub mod bvh;
 pub mod simplify;
 pub mod wide;
 
+use trillion3d_math::aabb::longest_side;
+
 /// The node columns `build_columns` leaves besides the triangles and albedos it rewrites in place,
 /// and the rank each triangle of its leaf order had among the triangles it was given.
 pub struct Built {
@@ -69,6 +71,26 @@ pub struct CutColumns {
     pub cell: f64,
 }
 
+/// The rank of the sources among the columns of `CutColumns::column_words`, the last: what a
+/// run-time cut carries and the compiler's cache file does not.
+pub const PROXY_SOURCES_COLUMN: usize = 4;
+
+impl CutColumns {
+    /// The columns as words, in the one order every writer lays them out: the triangles, the
+    /// albedo, the node bounds, the node children, then the sources (`PROXY_SOURCES_COLUMN`). The
+    /// browser's hand-off (`wasm_proxy.rs`) answers them one after the other, the compiler's cache
+    /// file (`asset-compiler-rust/src/proxy/encode.rs`) each column of every mesh in turn.
+    pub fn column_words(&self) -> [Vec<u32>; PROXY_SOURCES_COLUMN + 1] {
+        [
+            self.triangles.iter().map(|v| v.to_bits()).collect(),
+            self.albedo.clone(),
+            self.node_bounds.iter().map(|v| v.to_bits()).collect(),
+            self.node_children.clone(),
+            self.sources.clone(),
+        ]
+    }
+}
+
 /// The proxy of one cut at run time, by the builder the compiler's meshes go through
 /// (`columns_of`): `indices` over `positions` are placed as triangles.
 pub fn cut_columns(indices: &[u32], positions: &[f32]) -> CutColumns {
@@ -87,10 +109,8 @@ pub fn cut_columns(indices: &[u32], positions: &[f32]) -> CutColumns {
 /// (`cut_columns`): one builder, one structure.
 pub fn columns_of(mut triangles: Vec<f32>, albedo: u32) -> CutColumns {
     triangles.truncate(triangles.len() / PROXY_TRIANGLE_FLOATS * PROXY_TRIANGLE_FLOATS);
-    let extent = bvh::extent(&triangles);
-    let longest = (0..3)
-        .map(|axis| extent[3 + axis] - extent[axis])
-        .fold(0.0, f64::max);
+    let [x, y, z, xx, yy, zz] = bvh::extent(&triangles);
+    let longest = longest_side([x, y, z], [xx, yy, zz]);
     let cell = simplify::plan_cell(
         &triangles,
         longest * PROXY_CUT_CELL_SHARE,

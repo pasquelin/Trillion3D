@@ -19,7 +19,7 @@ pub fn primitive_exponent(
     blended: bool,
     tile_log2: i32,
 ) -> i32 {
-    let bounds = crate::proxy::bvh::extent(pos);
+    let bounds = trillion3d_page_codec::proxy::bvh::extent(pos);
     let extent = longest_side(
         [bounds[0], bounds[1], bounds[2]],
         [bounds[3], bounds[4], bounds[5]],

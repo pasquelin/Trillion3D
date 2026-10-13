@@ -56,3 +56,11 @@ fn diagonal_is_the_root_of_the_squared_sides() {
     let by_vec3 = crate::vec3::length(crate::vec3::sub(high, low));
     assert_eq!(diagonal(low, high).to_bits(), by_vec3.to_bits());
 }
+
+#[test]
+fn half_area_sums_the_side_products_an_empty_side_counting_zero() {
+    assert_eq!(half_area(LOW, HIGH), 4.0 * 1.0 + 1.0 * 2.0 + 2.0 * 4.0);
+    assert_eq!(half_area([0.0f32; 3], [2.0, 3.0, 4.0]), 26.0);
+    assert_eq!(half_area([0.0, 0.0, 0.0], [2.0, -1.0, f64::NAN]), 0.0);
+    assert_eq!(half_area([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]), 0.0);
+}
