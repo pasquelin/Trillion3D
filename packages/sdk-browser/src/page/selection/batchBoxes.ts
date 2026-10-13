@@ -4,7 +4,7 @@ import {
   boxTransform,
   boxUnionBatch,
 } from '../../../../sdk-core/src/index.ts'
-import { boxTransformLot, type BoxTransformLot } from '../decode/batch/batchRuntime.ts'
+import { boxTransformLot, madeLot, type BoxTransformLot } from '../decode/batch/batchRuntime.ts'
 import { mathBatchModule } from '../decode/batch/batchState.ts'
 import type { ClusterRoot, PageRec } from './types.ts'
 
@@ -29,13 +29,6 @@ export function refreshRootBox(
     boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements)
 }
 
-/** A lot of `n` boxes in the module arrived, refused by name when the module refuses its size. */
-function madeLot(n: number) {
-  const lot = boxTransformLot(n)
-  if (!lot) throw new Error(`MATH_LOT_REFUSED: the module refused a lot of ${n} boxes`)
-  return lot
-}
-
 /** The boxes a union of none writes into: nothing is ever written. */
 const NO_BOXES = new Float64Array(0)
 
@@ -54,7 +47,7 @@ export function boxUnionCollector(
   lot: BoxTransformLot | null | undefined,
   n: number,
 ) {
-  const own = n > 0 && !lot?.holds(n) ? madeLot(n) : null
+  const own = n > 0 && !lot?.holds(n) ? madeLot(boxTransformLot(n), n) : null
   const used = own ?? (n > 0 ? lot : null)
   let i = 0
   return {
@@ -117,7 +110,7 @@ function moveInLot(
 export function rootBoxesFor(lot: BoxTransformLot | null, roots: readonly ClusterRoot<PageRec>[]) {
   if (lot && lot.n === roots.length && lot.holds(lot.n)) return lot
   lot?.release()
-  return roots.length ? madeLot(roots.length) : null
+  return roots.length ? madeLot(boxTransformLot(roots.length), roots.length) : null
 }
 
 /**

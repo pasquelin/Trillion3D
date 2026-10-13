@@ -76,14 +76,25 @@ export async function createBoxTransformLot(n: number) {
   return boxTransformLot(n)
 }
 
-/** A batch of `n` products `out[i] = a[i] · b[i]`, once the module has arrived; `null` when it
- *  refuses its size. */
-export async function createMultiplyLot(n: number): Promise<MultiplyLot | null> {
-  await mathBatchModule()
-  return threeBlockLot(
+/** A batch of `n` products `out[i] = a[i] · b[i]`, made at once in the module arrived; `null`
+ *  when it refuses its size. */
+export const multiplyLot = (n: number): MultiplyLot | null =>
+  threeBlockLot(
     n,
     [MATRIX_VALUES, MATRIX_VALUES, MATRIX_VALUES],
     ['a', 'b', 'out'],
     (wasm, [a, b, out], count) => wasm.math_multiply_matrix4_batch(out, a, b, count),
   )
+
+/** `multiplyLot`, once the module has arrived. */
+export async function createMultiplyLot(n: number) {
+  await mathBatchModule()
+  return multiplyLot(n)
+}
+
+/** `lot`, made for `n` elements: refused by name when the module refused its size. A lot is the
+ *  one path of its kernel: no loop of the single-element function stands in for it. */
+export function madeLot<T>(lot: T | null, n: number): T {
+  if (!lot) throw new Error(`MATH_LOT_REFUSED: the module refused a lot of ${n} elements`)
+  return lot
 }
