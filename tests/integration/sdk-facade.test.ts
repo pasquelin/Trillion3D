@@ -59,18 +59,19 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 702 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 704 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
   // PageHome, PageHomes, QualityResolution, TextureLevelAddress, TextureLevelStore,
-  // WorldQualityOptions and ModelScene; and the page cache a streamer reads through,
+  // WorldQualityOptions, ModelScene and the documented settings of `world.controls`
+  // (ControlSettings, CharacterSettings); and the page cache a streamer reads through,
   // `createPageCache` with its contract (PageCache, CacheSession, ReadRange, RangeAsk, ByteMeter);
   // it holds no CPU character capsule (Capsule, CapsuleContact, CapsulePush, TriangleTree,
   // CharacterCollision, TriangleCollision): Jolt is the one character body; and the frustum's
   // `FAR_PLANE_SLOT`, the slot a culling reader tests the far plane at. It holds no compute-path
   // governor either: the batches run their WebAssembly kernels alone.
-  assert.equal(inventory.exports.length, 702)
+  assert.equal(inventory.exports.length, 704)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
