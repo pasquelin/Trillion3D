@@ -21,14 +21,7 @@ async function presented() {
   const { device } = fakeDevice()
   const counts = { encoders: 0, taken: 0 }
   const encoder = device.createCommandEncoder.bind(device)
-  const pass = { setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }
-  device.createCommandEncoder = (descriptor) => {
-    counts.encoders++
-    return Object.assign(encoder(descriptor), {
-      beginRenderPass: () => pass,
-      copyTextureToBuffer() {},
-    })
-  }
+  device.createCommandEncoder = (descriptor) => (counts.encoders++, encoder(descriptor))
   const texture = () => (counts.taken++, { createView: () => ({}) })
   const context = { configure() {}, unconfigure() {}, getCurrentTexture: texture }
   const canvas = { width: 4, height: 4, getContext: () => context } as unknown as HTMLCanvasElement

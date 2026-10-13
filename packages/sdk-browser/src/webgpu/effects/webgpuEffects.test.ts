@@ -6,12 +6,20 @@ import assert from 'node:assert/strict'
 import { written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from '../../effects/bloomFilter.ts'
-import { input, loaded, recorder, floatsOf } from './webgpuEffects.fixture.ts'
+import {
+  floatsOf,
+  input,
+  loadOf,
+  loaded,
+  offsetOf,
+  recorder,
+  viewOf,
+} from './webgpuEffects.fixture.ts'
 import { uniformStride } from '../../residency/pools.ts'
 
 test('an empty chain returns its input and creates, writes and encodes nothing', async () => {
   const { gpu, effects } = await loaded()
-  const { encoder, passes } = recorder()
+  const { encoder, passes } = recorder(gpu)
   assert.equal(effects.encode(encoder, [], input, 64, 32), input)
   assert.deepEqual(
     [passes.length, gpu.textures.length, gpu.buffers.length, gpu.writes.length],
@@ -24,7 +32,7 @@ test('an empty chain returns its input and creates, writes and encodes nothing',
 test('a bloom compiles once, then draws 2 × levels passes into targets made once per size', async () => {
   const { gpu, effects } = await loaded()
   const bloom = effect.bloom({ intensity: 0.5 })
-  const { encoder, passes } = recorder()
+  const { encoder, passes } = recorder(gpu)
   assert.equal(effects.encode(encoder, [bloom], input, 64, 32), input, 'compiling: no chain yet')
   assert.equal(effects.loading, true)
   await effects.settled()
@@ -34,11 +42,11 @@ test('a bloom compiles once, then draws 2 × levels passes into targets made onc
   assert.equal(passes.length, 2 * levels)
   assert.equal(effects.draws, 2 * levels)
   assert.deepEqual(
-    passes.map((pass) => pass.load),
+    passes.map(loadOf),
     [...Array(levels).fill('clear'), ...Array(levels - 1).fill('load'), 'clear'],
     'down the levels, up adding into each, then the blend',
   )
-  assert.equal(passes.at(-1)!.view, output)
+  assert.equal(viewOf(passes.at(-1)!), output)
   assert.equal(effects.bytes, 64 * 32 * 8 + bloomLevelBytes(64, 32))
   const made = gpu.textures.length,
     writes = gpu.writes.length
@@ -69,7 +77,7 @@ test('a bloom compiles once, then draws 2 × levels passes into targets made onc
 
 test('two passes read each other through two targets in turn', async () => {
   const { gpu, effects } = await loaded()
-  const { encoder, passes } = recorder()
+  const { encoder, passes } = recorder(gpu)
   const chain = [effect.bloom(), effect.bloom()]
   effects.encode(encoder, chain, input, 64, 32)
   await effects.settled()
@@ -77,13 +85,17 @@ test('two passes read each other through two targets in turn', async () => {
   const each = 2 * bloomLevelSizes(64, 32).length
   assert.equal(gpu.textures.length, 3, 'two pass targets and the level chain')
   assert.equal(passes.length, 2 * each)
-  assert.notEqual(passes[each - 1].view, output, 'the first writes one target')
-  assert.equal(passes[2 * each - 1].view, output, 'the second the other, which composition reads')
+  assert.notEqual(viewOf(passes[each - 1]), output, 'the first writes one target')
+  assert.equal(
+    viewOf(passes[2 * each - 1]),
+    output,
+    'the second the other, which composition reads',
+  )
 })
 
 test('two blooms draw with their own settings, each from its own uniform range', async () => {
   const { gpu, effects } = await loaded()
-  const { encoder, passes } = recorder()
+  const { encoder, passes } = recorder(gpu)
   const chain = [effect.bloom({ intensity: 0.2 }), effect.bloom({ intensity: 0.8, radius: 2 })]
   effects.encode(encoder, chain, input, 64, 32)
   await effects.settled()
@@ -97,7 +109,7 @@ test('two blooms draw with their own settings, each from its own uniform range',
   const levels = bloomLevelSizes(64, 32).length,
     each = 2 * levels
   chain.forEach((bloom, n) => {
-    const at = passes[(n + 1) * each - 1].offset! / 4,
+    const at = offsetOf(passes[(n + 1) * each - 1])! / 4,
       { keep, glow } = bloomBlend(bloom.intensity, levels)
     assert.deepEqual(
       [...floats.subarray(at + 4, at + 7)],
@@ -109,7 +121,7 @@ test('two blooms draw with their own settings, each from its own uniform range',
 
 test('a fused chain leaves its last blend to the composition: one pass and one target fewer', async () => {
   const { gpu, effects } = await loaded()
-  const { encoder, passes, handed } = recorder()
+  const { encoder, passes, handed } = recorder(gpu)
   const bloom = effect.bloom({ intensity: 0.5 })
   effects.encode(encoder, [bloom], input, 64, 32)
   await effects.settled()
@@ -125,15 +137,15 @@ test('a fused chain leaves its last blend to the composition: one pass and one t
   )
   assert.equal(passes.length, 2 * levels - 1, 'no blend pass')
   assert.equal(effects.draws, 2 * levels - 1)
-  assert.ok(passes.every((pass) => pass.view !== input && pass.label === 'Trillion3D bloom'))
+  assert.ok(passes.every((pass) => viewOf(pass) !== input && pass.label === 'Trillion3D bloom'))
   const stride = uniformStride(gpu.device.limits)
   assert.equal(effects.blend!.offset, (2 * levels - 1) * stride, 'the blend reads its own slot')
   const fused = effects.blend,
-    kept = handed.size
+    kept = handed().size
   effects.encode(encoder, [bloom], input, 64, 32, true)
   assert.equal(effects.blend, fused, 'the same blend, kept from frame to frame')
   assert.equal(
-    handed.size,
+    handed().size,
     kept,
     'a frame hands the descriptor and offset arrays it had: none made',
   )
@@ -144,7 +156,7 @@ test('a fused chain leaves its last blend to the composition: one pass and one t
   passes.length = 0
   const output = effects.encode(encoder, chain, input, 64, 32, true)
   assert.equal(passes.length, 4 * levels - 1)
-  assert.equal(passes[2 * levels - 1].view, output, 'the first bloom wrote what the second read')
+  assert.equal(viewOf(passes[2 * levels - 1]), output, 'the first bloom wrote what the second read')
   assert.equal(effects.bytes, 64 * 32 * 8 + bloomLevelBytes(64, 32))
   assert.equal(effects.blend!.offset, (4 * levels - 1) * stride, 'the second bloom’s last slot')
   effects.encode(encoder, [bloom], input, 64, 32)

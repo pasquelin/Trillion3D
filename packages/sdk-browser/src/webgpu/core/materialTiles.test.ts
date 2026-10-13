@@ -11,7 +11,8 @@ import {
 } from '../../visibility/shader/materialTilesWgsl.ts'
 import { createMaterialTiles, materialTileDrawLayout } from './materialTiles.ts'
 import { encodeMaterialPasses } from './materialPasses.ts'
-import { resolveFixture } from './materialPasses.fixture.ts'
+import { drawsOf, resolveFixture } from './materialPasses.fixture.ts'
+import { commandArgs } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
 import { MATERIAL_COMPUTE_PASS } from '../../stage/passLabels.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -76,19 +77,17 @@ test('each class draws the tiles its slot lists, classified once before the surf
     [5, 9, 5, 2],
     [5, 9, 2],
   )
-  const groups: unknown[] = []
-  const begin = encoder.beginRenderPass.bind(encoder)
-  encoder.beginRenderPass = ((desc: GPURenderPassDescriptor) => {
-    const pass = begin(desc)
-    pass.setBindGroup = (at: number, group: unknown) => void groups.push([at, group])
-    return pass
-  }) as typeof encoder.beginRenderPass
   encodeMaterialPasses(rt, device, encoder)
+  const groups = commandArgs(passes[0].commands, 'setBindGroup')
   assert.deepEqual(tiles.assigned, [[5, 9, 2]])
   assert.equal(tiles.classified, 1)
-  assert.deepEqual(computePasses, [MATERIAL_COMPUTE_PASS], 'one compute pass, its own label')
+  assert.deepEqual(
+    computePasses.map(({ label }) => label),
+    [MATERIAL_COMPUTE_PASS],
+    'one compute pass, its own label',
+  )
   assert.deepEqual(tiles.slots, [0, 1, 2], 'class `at` of the keys draws slot `at`')
-  assert.equal(passes[0].draws, 3)
+  assert.equal(drawsOf(passes[0]), 3)
   assert.deepEqual(groups.slice(-2), [
     [0, 'bind group'],
     [1, 'tile group'],
