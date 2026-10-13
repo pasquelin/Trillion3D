@@ -10,7 +10,8 @@ const RETRY_FRAMES = 300,
 /** The controller's share of the render targets' memory cap (`createTargetCap`), and the clock its
  *  refusals are asked again by: the view size refused last, the wait it set, the frame it ends. */
 export function createScaleMemory(w: ScaleWindow, targets: ReturnType<typeof createTargetCap>) {
-  const refusal = { view: '', wait: 0, at: 0 }
+  // No refusal yet: a cap set otherwise is never lifted by the clock.
+  const refusal = { view: '', wait: 0, at: Infinity }
   const memory = {
     /** The scale the render targets of a `view` size are made at. */
     allocated: (view = '') => targets.allocated(w.bounds.max, view),
