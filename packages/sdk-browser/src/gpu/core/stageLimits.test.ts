@@ -1,5 +1,5 @@
-// Every program of the opaque resolve, the blends, the water pass, the reflections and the depth
-// pyramid binds no more of a kind in one stage than WebGPU guarantees a device that asks for
+// Every program of the opaque resolve, the blends, the water pass, the reflections, the depth
+// pyramid and the ray query binds no more of a kind in one stage than WebGPU guarantees a device that asks for
 // nothing: 16 sampled textures, 8 storage buffers, 4 storage textures — the engine runs on any
 // machine at the default limits. The kit's device, holding the defaults, refuses a pipeline layout
 // past them (`tests/kit/gpu/limitRules.ts`); each test reads every stage it built too.
@@ -22,6 +22,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { stageBindingCounts } from '../../../../../tests/kit/gpu/bindRules.ts'
 import { BLEND_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { WATER_BINDINGS } from '../../webgpu/water/compositeWgsl.ts'
+import { rayQueryWgsl } from '../../webgpu/rays/rayQueryWgsl.ts'
+import { DEFORM_INDEX_SHADER } from '../../webgpu/rays/deformIndexWgsl.ts'
 
 /** What WebGPU guarantees each stage of a device that asks for no more, by limit. */
 const WEBGPU_DEFAULTS: Readonly<Record<string, number>> = {
@@ -142,4 +144,22 @@ test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", a
   assert.ok(await createReflectionPipelines(device), 'the reflection kernels build')
   assert.ok(await createHizPipelines(device), 'the depth pyramid kernels build')
   withinDefaults(layouts, 'the reflections and the depth pyramid')
+})
+
+test("the ray query's kernels fit WebGPU's defaults, the cut's nodes whole or split", () => {
+  // Its kernels take their layout from their text ('auto'): every declaration is counted, a bound
+  // on what the layout holds. The trace reads the worlds and the placement tree in the culling's
+  // record tables (`../dag/worldTable.ts`, `../dag/treeTable.ts`), a sampled texture each, and binds
+  // one range's frames whatever the world's ranges.
+  const programs = {
+    'the trace, its nodes whole': rayQueryWgsl({ nodes: { per: Infinity, parts: 1 } }),
+    'the trace, its nodes in four parts': rayQueryWgsl({ nodes: { per: 4096, parts: 4 } }),
+    'the deformation index': DEFORM_INDEX_SHADER,
+  }
+  for (const [where, text] of Object.entries(programs)) {
+    const storage = text.match(/var<storage/g)?.length ?? 0,
+      sampled = text.match(/:texture_2d_array<u32>/g)?.length ?? 0
+    assert.ok(storage <= WEBGPU_DEFAULTS.maxStorageBuffersPerShaderStage, `${where}: ${storage}`)
+    assert.ok(sampled <= WEBGPU_DEFAULTS.maxSampledTexturesPerShaderStage, `${where}: ${sampled}`)
+  }
 })
