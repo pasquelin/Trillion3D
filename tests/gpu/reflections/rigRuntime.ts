@@ -28,7 +28,8 @@ function proxyWords(faces: readonly RigFace[]) {
     boundsAt = trianglesAt + 2 * n * TRIANGLE_FLOATS,
     childrenAt = boundsAt + n * NODE_FLOATS,
     worldsAt = childrenAt + n * NODE_WORDS,
-    total = worldsAt + n * 16
+    originsAt = worldsAt + n * 16,
+    total = originsAt + n * 8
   const words = new Uint32Array(RUNTIME_HEADER_WORDS + total + 1)
   const floats = new Float32Array(words.buffer)
   const at = RUNTIME_HEADER
@@ -43,6 +44,8 @@ function proxyWords(faces: readonly RigFace[]) {
   words[at.members] = n
   words[at.worldsWord] = worldsAt
   words[at.worldRows] = n
+  // The faces' exact translations, three doubles each: zeros, the identity's.
+  words[at.originsWord] = originsAt
   const base = RUNTIME_HEADER_WORDS
   faces.forEach(({ triangles, radiance }, k) => {
     // Instance: the node and triangle it starts at, the surface it wears, no mark.

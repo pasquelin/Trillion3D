@@ -11,7 +11,12 @@ import { dagRootCounts } from './pack.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { LIMITS, cut, open, region, surface, wordAt, writes } from './proxyInstances.fixture.ts'
-import { INSTANCE, INSTANCE_WORDS, RUNTIME_NONE } from '../../bounce/runtimeLayout.ts'
+import {
+  INSTANCE,
+  INSTANCE_WORDS,
+  RUNTIME_HEADER_WORDS,
+  RUNTIME_NONE,
+} from '../../bounce/runtimeLayout.ts'
 
 test('no placement wears a proxy: no buffer, nothing for the trace to read', async () => {
   const { gpu, selection } = await open(() => undefined)
@@ -135,26 +140,61 @@ test('a still world copies no byte into the proxy; a moved row copies its own an
   const { gpu, selection } = await open(() => ({ primitive: { runtimeProxy: c }, surface: s }))
   const rows = region(gpu, 'worldRows')
   assert.ok(rows >= 10, 'the world table holds the placements')
-  // The bytes the mirror copies into the worlds' region of the buffer, whatever else it copies (the tree).
-  const from = (16 + region(gpu, 'worldsWord')) * 4,
-    to = (16 + region(gpu, 'copyWorldsWord')) * 4
+  // The bytes the mirror copies into the worlds' region of the buffer, and into the exact translations'
+  // behind it, whatever else it copies (the tree).
+  const worldsFrom = (RUNTIME_HEADER_WORDS + region(gpu, 'worldsWord')) * 4,
+    originsFrom = (RUNTIME_HEADER_WORDS + region(gpu, 'originsWord')) * 4,
+    originsTo = (RUNTIME_HEADER_WORDS + region(gpu, 'copyWorldsWord')) * 4
   const mirror = () => {
-    const runs: number[] = []
+    const runs: number[] = [],
+      origins: number[] = []
     const encoder = {
       copyBufferToBuffer: (_a: unknown, _b: number, _c: unknown, at: number, size: number) => {
-        if (at >= from && at < to) runs.push(size)
+        if (at >= worldsFrom && at < originsFrom) runs.push(size)
+        else if (at >= originsFrom && at < originsTo) origins.push(size)
       },
     } as unknown as GPUCommandEncoder
     selection.proxyMirror(encoder)
-    return runs
+    return { runs, origins }
   }
-  assert.deepEqual(mirror(), [rows * 64], 'the buffer new made takes every row once')
-  assert.deepEqual(mirror(), [], 'a still world copies nothing')
-  assert.deepEqual(mirror(), [], 'and goes on copying nothing')
+  assert.deepEqual(mirror().runs, [rows * 64], 'the buffer new made takes every row once')
+  assert.deepEqual(mirror().runs, [], 'a still world copies nothing')
+  assert.deepEqual(mirror().runs, [], 'and goes on copying nothing')
   selection.worldsMovedOnGpu([3, 4])
-  assert.deepEqual(mirror(), [2 * 64], 'two neighbouring rows are one copy of their own bytes')
+  assert.deepEqual(
+    mirror(),
+    { runs: [2 * 64], origins: [2 * 32] },
+    'two neighbouring rows: their bytes',
+  )
   selection.worldsMovedOnGpu([1, 9])
-  assert.deepEqual(mirror(), [64, 64], 'two far rows are two copies, nothing between them')
-  assert.deepEqual(mirror(), [], 'still again')
+  assert.deepEqual(mirror().runs, [64, 64], 'two far rows are two copies, nothing between them')
+  assert.deepEqual(mirror().runs, [], 'still again')
+  selection.dispose()
+})
+
+test('a placement that moved by a translation alone is mirrored: its matrix words are no cut’s', async () => {
+  const c = cut(2, 1, 1),
+    s = surface(1)
+  const { gpu, selection, packed, roots } = await open(() => ({
+    primitive: { runtimeProxy: c },
+    surface: s,
+  }))
+  const from = (RUNTIME_HEADER_WORDS + region(gpu, 'originsWord')) * 4,
+    to = (RUNTIME_HEADER_WORDS + region(gpu, 'copyWorldsWord')) * 4
+  const origins = () => {
+    const sizes: number[] = []
+    const encoder = {
+      copyBufferToBuffer: (_a: unknown, _b: number, _c: unknown, at: number, size: number) => {
+        if (at >= from && at < to) sizes.push(size)
+      },
+    } as unknown as GPUCommandEncoder
+    selection.proxyMirror(encoder)
+    return sizes
+  }
+  origins()
+  assert.deepEqual(origins(), [], 'still')
+  ;(roots[5].world.elements as Float64Array)[12] += 40
+  selection.updateWorlds(Float32Array.from(packed.worlds))
+  assert.deepEqual(origins(), [32], 'the row of the placement moved, and no other')
   selection.dispose()
 })

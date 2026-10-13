@@ -135,6 +135,13 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
         dataOffset = 0,
         size?: number,
       ) {
+        // A window past the data is refused as the device refuses it.
+        const length =
+          data instanceof ArrayBuffer
+            ? data.byteLength
+            : (data as unknown as ArrayLike<number>).length
+        if (dataOffset + (size ?? length - dataOffset) > length)
+          throw new RangeError("size + dataOffset is larger than data's size")
         writes.push({
           buffer,
           offset,
