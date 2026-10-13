@@ -9,12 +9,9 @@ import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { createVsmClipmap } from './clipmap.ts'
 import { vsmPixelPageMarkingWgsl } from './markingWgsl.ts'
-import { createVsmResources } from './resources.ts'
-import { encodeVirtualShadowProjection } from './projectionPass.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { projectionKit } from './projectionKit.fixture.ts'
 import { orthographicProjection } from '../../../math/src/projection/camera.ts'
 import { vsmLayout } from './layout.ts'
-import { fakeHizDepth } from './hizDepth.fixture.ts'
 
 const PROJECTION = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, -0.1, 0]
 const VIEW = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
@@ -64,31 +61,15 @@ test('the camera kind decides the projection path: an orthographic matrix scaled
   const scaled = ortho.map((v) => v * 0.25)
   // The view uniform the projection pass uploads for its dispatch, read back from the queue.
   const word = (perspective: boolean) => {
-    const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
-    const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
-    const view = {} as GPUTextureView
+    const kit = projectionKit()
     // The passes' recorded commands are not read: only the upload.
-    encodeVirtualShadowProjection(
-      device.createCommandEncoder(),
-      res,
-      {
-        device,
-        depth: view,
-        hizDepth: fakeHizDepth,
-        normalRough: view,
-        flags: view,
-        mask: view,
-        maskTiles: view,
-        width: 64,
-        height: 64,
-        frameIndex: 0,
-        camera: { view: VIEW, projection: scaled, perspective },
-      },
-      [],
-    )
-    const write = writes.find(
-      (w) => (w.buffer as { label?: string }).label === 'vsm.projection.view',
-    )!
+    kit.project([], {
+      width: 64,
+      height: 64,
+      frameIndex: 0,
+      camera: { view: VIEW, projection: scaled, perspective },
+    })
+    const write = kit.upload()!
     const bytes = write.data as Uint8Array
     return new Uint32Array(bytes.buffer, bytes.byteOffset, 72)[71]
   }

@@ -7,19 +7,18 @@ import { readBuffer } from '../kit/computeReadback.ts'
 import { placementField } from '../../../packages/sdk-browser/src/gpu/dag/placementTree.fixture.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import {
-  memberBox,
   treeNodeCount,
   TREE_SPAN,
 } from '../../../packages/sdk-browser/src/gpu/dag/placementTree.ts'
-import { refitTree } from '../../../packages/sdk-browser/src/gpu/dag/treeRefitRun.fixture.ts'
+import {
+  refitTree,
+  treeChange,
+} from '../../../packages/sdk-browser/src/gpu/dag/treeRefitRun.fixture.ts'
 import { createTreeRefit } from '../../../packages/sdk-browser/src/gpu/dag/treeRefit.ts'
 import {
   DAG_NODE_FLOATS,
   FRAME_ROW_WORDS,
 } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import { SPRITE_UNCULLED } from '../../../packages/sdk-browser/src/visibility/shader/spriteWgsl.ts'
-
-const NONE = 0xffffffff
 
 /** The words of `data` in `parts` buffers of `per` words each but the last. */
 function inBuffers(device: GPUDevice, data: Uint32Array<ArrayBuffer>, per: number, parts: number) {
@@ -87,25 +86,7 @@ export async function runRefit(split: boolean) {
   refit.run(first, everyGroup)
   device.queue.submit([first.finish()])
   // The change: poses a long way off, a park, a mark that opens, a whole group parked.
-  const touched = new Set<number>()
-  const move = (w: number, x: number) => {
-    ;(roots[w].world.elements as Float64Array)[12] += x
-    memberBox(dag, tree, w)
-    touched.add(w)
-  }
-  for (const [w, x] of [
-    [3, 4000],
-    [70, -900],
-    [4000, 50],
-    [4001, 51],
-    [9999, 1e5],
-  ])
-    move(w, x)
-  dag.rootNodes[130] = NONE
-  dag.mark[200] = SPRITE_UNCULLED
-  dag.mark[7000] = 5 << 16
-  for (let k = 0; k < TREE_SPAN; k++) dag.rootNodes[tree.order[640 + k]] = NONE
-  for (const w of [130, 200, 7000, tree.order[640]]) touched.add(w)
+  const touched = treeChange(dag, roots)
   writeFrames()
   // The frame words the change moved go up, as the cut's run writes them.
   framesAt.forEach((first, r) => {

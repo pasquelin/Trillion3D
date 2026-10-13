@@ -1,7 +1,7 @@
 // The deferred lighting's frames, drawn on the kit's device: the program each draw is lit with.
-import type { createDeferredLighting } from './deferred.ts'
+import { createDeferredLighting } from './deferred.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
-import type { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 /** The frames of `lighting`, made on `gpu`, each lit with `direct`, and the label of each program
  *  `gpu` drew with. */
@@ -25,4 +25,17 @@ export function recorder(
     return lighting.usesContract
   }
   return { labels, draw }
+}
+
+/** A lighting on a kit device whose image wears no lobe: lit by the lobeless program, drawn twice
+ *  — before and after its programs settled. */
+export async function lobelessLighting() {
+  const gpu = fakeDevice(),
+    { device } = gpu
+  const lighting = await createDeferredLighting(device)
+  const { labels, draw } = recorder(gpu, lighting)
+  draw({ lobeless: true })
+  await lighting.settle()
+  draw({ lobeless: true })
+  return { gpu, device, lighting, labels, draw }
 }

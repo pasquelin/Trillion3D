@@ -8,8 +8,7 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../../page/surface.ts'
 import { askLobedPrograms } from './contractLight.ts'
-import { createDeferredLighting } from '../../../lighting/deferred/deferred.ts'
-import { recorder } from '../../../lighting/deferred/recorder.fixture.ts'
+import { lobelessLighting } from '../../../lighting/deferred/recorder.fixture.ts'
 import { createForwardVariants } from '../../../lighting/deferred/forwardVariants.ts'
 import { FULL_CONTRACT, variantLabel } from '../../../lighting/deferred/contractCuts.ts'
 import { pipelinesCompiling, pipelinesSettled } from '../../../lighting/deferred/compileLedger.ts'
@@ -43,13 +42,7 @@ const runtime = (parts: {
   }) as unknown as WebgpuPagesRuntime
 
 test('a row that wears a lobe holds the frame until the lobed resolve lands, then lights it', async () => {
-  const gpu = fakeDevice(),
-    { device } = gpu
-  const lighting = await createDeferredLighting(device)
-  const { labels, draw } = recorder(gpu, lighting)
-  draw({ lobeless: true })
-  await lighting.settle()
-  draw({ lobeless: true })
+  const { device, lighting, labels, draw } = await lobelessLighting()
   assert.equal(pipelinesCompiling(device), false)
   // Lobeless rows ask nothing.
   askLobedPrograms(runtime({ deferred: lighting }), device)

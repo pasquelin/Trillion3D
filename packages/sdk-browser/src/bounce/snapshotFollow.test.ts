@@ -10,10 +10,8 @@ import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER, snapshotGroups } from './probeWgsl.ts'
 import { PROBE_TEXELS } from './atlas.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { createGpuBounceProbes } from './probes.ts'
+import { floorProbes } from './floorProbes.fixture.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, BOUNCE_PASS } from '../stage/passLabels.ts'
-import { createGpuLightTiles } from '../lighting/tiles/tiles.ts'
 
 /** The lanes of a snapshot workgroup, read from the shader's `@workgroup_size`. */
 const LANES = Number(/@workgroup_size\((\d+)\)/.exec(BOUNCE_SNAPSHOT_SHADER)?.[1])
@@ -101,24 +99,7 @@ test('the update stores only the texels of the queued probe the follow-up copies
 })
 
 test('a working image copies no atlas: one bounce pass updates, then the snapshot follows', async () => {
-  const gpu = fakeDevice({
-    limits: { maxStorageBufferBindingSize: 1 << 30, maxBufferSize: 1 << 30 },
-  })
-  const lights = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
-  const tiles = await createGpuLightTiles(gpu.device)
-  const scene = {
-    buffer: () => lights,
-    boxes: () => ({ boxes: Float64Array.from([0, 0, 0, 8, 0.1, 4]), changed: Uint8Array.of(0) }),
-  }
-  const probes = await createGpuBounceProbes(
-    gpu.device,
-    [0, 0, 0, 8, 0.1, 4],
-    scene,
-    () => lights,
-    1000,
-    () => tiles,
-  )
-  const encoder = gpu.device.createCommandEncoder()
+  const { gpu, probes, encoder, tiles } = await floorProbes(true)
   /** What the encoder took, in order: each compute pass by its label, then its dispatches by entry
    *  point and groups; every other command as the kit names it. */
   const workOf = () => {
@@ -164,5 +145,5 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
   assert.equal(probes.encode(encoder, 1, [4, 4, 2]), true)
   assert.equal(workOf().slice(before).includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`), false)
   probes.dispose()
-  tiles.dispose()
+  tiles!.dispose()
 })
