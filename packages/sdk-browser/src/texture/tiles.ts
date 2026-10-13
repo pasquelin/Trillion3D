@@ -135,3 +135,11 @@ const ENTRY_SERVED = 0x80000000
 export const packEntry = (place: TilePlace, level: number) =>
   (ENTRY_SERVED | packPlace(place) | (level << 24)) >>> 0
 export const entryLevel = (word: number) => (word >>> 24) & 0x7f
+/** The pool index of the place a served entry names (`packPlace`, `placeOf` its inverse). */
+export const entryIndex = (word: number) => {
+  const axis = (1 << PLACE_AXIS_BITS) - 1
+  const layer = (word >>> (2 * PLACE_AXIS_BITS)) & ((1 << PLACE_LAYER_BITS) - 1)
+  return (
+    layer * TILES_PER_LAYER + ((word >>> PLACE_AXIS_BITS) & axis) * TILES_PER_ROW + (word & axis)
+  )
+}

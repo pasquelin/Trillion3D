@@ -33,7 +33,8 @@ export type WebgpuTileAtlas = {
   /** Lays the table out again at `feedbackOffset` (`regrownPageTable`), the views a new tuple:
    *  every group naming the atlas is rebuilt once. */
   relayout(feedbackOffset: number): void
-  /** Marks the tile seen if it resides; says whether that is so. */
+  /** Marks the tile seen if it resides — else the resident ancestor its pixels read in its place
+   *  —; says whether it resides. */
   touch(key: TileKey, frame: number): boolean
   /** A place for an arriving tile: free, or taken back from the least looked-at of its lane;
    *  `undefined` when everything the pool carries has been looked at in this image — refusal counted. */

@@ -1,4 +1,4 @@
-import { entryLevel } from '../../texture/tiles.ts'
+import { entryIndex, entryLevel } from '../../texture/tiles.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { createWebgpuTilePageTable } from './pageTable.ts'
 import { writeRgbaLevel, writeTail } from './write.ts'
@@ -137,9 +137,15 @@ export function createWebgpuTileAtlas(
     touch(key, frame) {
       const lane = lanes.of(key.slot),
         index = lane.resident.get(tileId(key))
-      if (index === undefined) return false
-      lane.pool.touch(index, frame)
-      return true
+      if (index !== undefined) {
+        lane.pool.touch(index, frame)
+        return true
+      }
+      // While the tile streams its pixels read the finest resident ancestor its entry names: that
+      // place is in use, and never the victim of the tile it stands in for. The tail is pinned.
+      const word = pages.entryOf(key)
+      if (word !== 0) lane.pool.touch(entryIndex(word), frame)
+      return false
     },
     roomFor(slot, frame) {
       const lane = lanes.of(slot)
