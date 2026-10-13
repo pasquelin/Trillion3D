@@ -51,8 +51,8 @@ test('the rest compaction dispatches the tiles of the tested rows only, and keep
     assert.equal(counts[k], kept.length, `slot ${k}: survivors`)
     assert.deepEqual(survivors[k], kept, `slot ${k}: the survivors, in order`)
   }
-  // No tested row: one tile per slot still runs and records the slot's count, so the scan never
-  // reads the tile words of the image before (a slot drawn with them filled the GPU's frame).
-  assert.deepEqual(empty.args, [1, 1, 2], 'no tested row: tile 0 alone, the two tested slots up z')
+  // No tested row: no count or scatter workgroup runs; the scan, which owns each slot's count,
+  // scans no tile, so it never sums the tile words of the image before.
+  assert.deepEqual(empty.args, [0, 1, 2], 'no tested row: no tile, the two tested slots up z')
   assert.deepEqual(empty.counts, [0, 0], 'no tested row: every tested slot draws nothing')
 })

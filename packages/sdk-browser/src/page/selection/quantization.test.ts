@@ -11,6 +11,7 @@ import { structureIndex } from './structure.ts'
 import { dagLevel } from '../../engine/pagesEngine.fixture.ts'
 import { QUAD_MANIFEST, quadIndices, quadScene } from '../../engine/pagesEngineScenes.fixture.ts'
 import type { ClusterManifest, PrimitiveQuantization } from '../../../../sdk-core/src/index.ts'
+import { graphDraws } from './drawSource.ts'
 
 const ERROR = 0.25
 const QUANTIZATION: PrimitiveQuantization = {
@@ -36,9 +37,15 @@ function scene(quantization: PrimitiveQuantization | null) {
     primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...level, quantization }],
   }
   const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
-  const collected = collectClusterPages(source, metadata, quadIndices(), associations, {
-    allowMissing: true,
-  })
+  const collected = collectClusterPages(
+    source,
+    graphDraws(source, associations),
+    metadata,
+    quadIndices(),
+    {
+      allowMissing: true,
+    },
+  )
   geometry.dispose()
   material.dispose()
   return { collected, level }

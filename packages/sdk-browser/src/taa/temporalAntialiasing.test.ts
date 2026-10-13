@@ -79,9 +79,8 @@ test('filtered histories fit portable attachment bytes and release every guide w
   const temporal = await createTemporalAntialiasing(device, [])
   temporal.resize(8, 4)
   const view = () => ({}) as GPUTextureView,
-    buffer = {} as GPUBuffer,
-    pass = { setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }
-  const encoder = { beginRenderPass: () => pass } as unknown as GPUCommandEncoder
+    buffer = {} as GPUBuffer
+  const encoder = device.createCommandEncoder()
   const inputs = { current: view(), depth: view(), ids: view(), pages: buffer, motion: buffer }
   const frame = { ...inputs, pool: buffer, positions: buffer, uvs: buffer }
   temporal.encode(encoder, { ...frame, filter: [view(), view()] })

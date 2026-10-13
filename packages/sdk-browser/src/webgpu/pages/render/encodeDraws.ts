@@ -1,5 +1,5 @@
 import { requestFrameTargets } from '../prepare/targetGrant.ts'
-import { ROW_WORDS } from '../../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../../visibility/types.ts'
 import { projectedPageError, rootOf } from '../../../page/selection/selection.ts'
 import { screenErrorRatio } from '../../../diagnostic/colors.ts'
 import { viewProj } from '../helpers.ts'
@@ -7,13 +7,14 @@ import { taaRenderMatrix } from '../../../taa/frame.ts'
 import { abandonFrameEncoder } from './encoder.ts'
 import { ensurePageTable } from './pageTable.ts'
 import { encodeVis } from './encodeVis.ts'
+import { uploadComposedRowInputs } from '../../../placement/composedRowInputs.ts'
 import { uploadRowCorners } from '../../visibility/corners.ts'
 import { refreshDrawItemWords } from '../../visibility/itemWords.ts'
 import { visLayerTop } from '../../visibility/uniforms.ts'
 import { uploadClusterSpheres, uploadDirtyRowMobility } from '../../shadow/bounds.ts'
 import { uploadRowLods } from '../../shadow/rowLods.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { uploadDirtyRows } from './dirtyRows.ts'
 import { castingLights } from './vsm/vsmPlan.ts'
 import { rootOfPacked } from '../../../page/selection/placements.ts'
@@ -82,6 +83,7 @@ export function followRows(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engin
   refreshDrawItemWords(rt, visLayerTop(vis), vis.gpuDraw)
   followShadowRows(rt, device)
   uploadRowCorners(rt)
+  uploadComposedRowInputs(rt, device)
   uploadDirtyRows(rt)
 }
 

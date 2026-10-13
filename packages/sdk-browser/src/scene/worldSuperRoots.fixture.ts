@@ -3,6 +3,7 @@
 import { worldRootDag } from './worldSuperRoots.ts'
 import { worldRootPages } from './worldPageServe.ts'
 import { worldPage, worldRootsDag } from './worldRootsPages.fixture.ts'
+import { inCullingOrder } from './worldCulling.fixture.ts'
 import type { RuleDag } from '../page/cut/cutRule.fixture.ts'
 import { cullingBounds } from '../page/cut/bounds.ts'
 
@@ -47,11 +48,12 @@ export function worldDag(alone = 0): RuleDag & { origins: Int32Array } {
   const cooked = worldRootsDag(),
     { clusters, groups } = cooked
   for (let at = 0; at < alone; at++) standAlone(cooked, cooked.leaves + at, 4 + at)
+  if (alone) inCullingOrder(cooked)
   const leaves = cooked.leaves + alone
   const owner = new Array<number | null>(clusters.length).fill(null)
   for (const [at, group] of groups.entries()) for (const child of group.children) owner[child] = at
   const root = worldRootDag(
-    { clusters, groups, payload: { url: 'world-roots.bin' }, pinned: 1 },
+    { clusters, groups, culling: cooked.culling, payload: { url: 'world-roots.bin' }, pinned: 1 },
     worldRootPages,
   )!
   // The cut's `RulePage` reads a world page as the cook names it: a cluster carries no manifest

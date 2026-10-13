@@ -15,15 +15,25 @@ export type PartitionSources = {
   pyramid: () => GPUTextureView | undefined
 }
 
-/** What the last frame sent the kernel, copied: the exact input of its projection. */
-export type KeptFrame = {
-  rows: number
+/** The view an image was drawn under, as the partition keeps it and the audits report it. */
+export type AuditView = {
+  /** Width in pixels. */
   width: number
+  /** Height in pixels. */
   height: number
+  /** Nearest distance. */
   near: number
+  /** View elements in double precision, as the image posted them. */
   view: Float64Array
+  /** The camera's view-projection. */
   viewProj: Float64Array
 }
+
+/** What the last frame sent the kernel, copied: the exact input of its projection. */
+export type KeptFrame = {
+  /** Rows checked. */
+  rows: number
+} & AuditView
 
 export type GpuPartition = {
   /** Input of the last encoded frame, or `undefined` before the first. */
@@ -63,6 +73,8 @@ export type GpuPartition = {
    *  then gives — the grown draw compact's and Hi-Z test's — from then on. Every row reads as
    *  never projected. */
   grow(rows: number, sources: () => Omit<PartitionSources, 'pyramid'>): PendingGrowth
+  /** Reads what `sources` gives from now on — a draw compact made again —, its rows kept. */
+  rebind(sources: () => Omit<PartitionSources, 'pyramid'>): void
   /** True when the periodic-sample interval has elapsed and none is in flight. */
   countsDue(frame: number): boolean
   /** Encodes the copy of the counters this frame just wrote, on a frame that counts. */

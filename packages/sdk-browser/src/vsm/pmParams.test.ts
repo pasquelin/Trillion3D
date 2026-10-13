@@ -3,6 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice, written } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { commandArgs } from '../../../../tests/kit/gpu/mockRenderPass.ts'
 import {
   encodeVsmPageCarry,
   encodeVsmAfterRaster,
@@ -24,7 +25,7 @@ const options = { fullMapCapacity: 127, sunMapCapacity: 35 }
 
 /** Every kernel of the physical pages declares the struct: the one text they share. */
 const kernelTexts = () =>
-  Object.values(vsmPhysicalPageKernels(vsmLayout(options, 2 ** 27), { stats: false })).map(
+  Object.values(vsmPhysicalPageKernels(vsmLayout(options), { stats: false })).map(
     (kernel) => kernel.code,
   )
 
@@ -74,21 +75,8 @@ function encodeAll(alignment = 256) {
       minUniformBufferOffsetAlignment: alignment,
     },
   })
-  const bound: { group: number; offset?: number }[] = []
-  const pass = new Proxy(
-    {},
-    {
-      get: (_, name) =>
-        name === 'setBindGroup'
-          ? (group: number, _set: unknown, offsets?: readonly number[]) =>
-              void bound.push({ group, offset: offsets?.[0] })
-          : () => undefined,
-    },
-  )
-  const encoder = {
-    beginComputePass: () => pass,
-    copyBufferToBuffer: () => undefined,
-  } as unknown as GPUCommandEncoder
+  const encoder = fake.device.createCommandEncoder(),
+    pass = encoder.beginComputePass()
   const res = createVsmResources(fake.device, { ...options, poolPages: 256 })
   const perPageBins = [3, 2, 1, 4].map((count, b) => ({ offset: 2 * b, count }))
   const writes: { offset: number; words: number[] }[] = []
@@ -114,7 +102,7 @@ function encodeAll(alignment = 256) {
         options: { stats },
       }
       for (let again = 0; again < 2; again++) {
-        counted(() => encodeVsmPageCarry(pass as GPUComputePassEncoder, res, frame))
+        counted(() => encodeVsmPageCarry(pass, res, frame))
         counted(() => encodeVsmPageMapping(encoder, res, frame))
         counted(() => encodeVsmAfterRaster(encoder, res, frame))
       }
@@ -126,6 +114,13 @@ function encodeAll(alignment = 256) {
         writes.push({ offset: w.offset, words: Array.from(new Uint32Array(copy.buffer)) })
       }
     }
+  // Each group set, with its dynamic offset.
+  const bound = fake.computePasses
+    .flatMap(({ commands }) => commandArgs(commands, 'setBindGroup'))
+    .map(([group, , offsets]) => ({
+      group: group as number,
+      offset: (offsets as readonly number[] | undefined)?.[0],
+    }))
   return { fake, bound, writes, perCall }
 }
 

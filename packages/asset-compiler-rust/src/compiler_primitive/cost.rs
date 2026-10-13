@@ -13,6 +13,7 @@ use crate::coplanar::ClusterPlane;
 use crate::dag::{DagCluster, DAG_CLUSTER_TRIANGLES};
 use crate::physics_cook::TILE_TRIANGLES;
 use std::mem::size_of;
+use trillion3d_page_codec::culling::CULLING_STRIDE;
 use trillion3d_page_codec::encode::cells::Cell;
 
 #[cfg(test)]

@@ -13,7 +13,7 @@ import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }, 2 ** 27)
+const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
 const CODE = vsmRenderRasterWgsl(LAYOUT)
 
 test('an unmasked row reads no page in the fragment: maskKeep keeps it whole', () => {

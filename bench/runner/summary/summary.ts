@@ -1,7 +1,6 @@
 // `resume.md`, for `bench.ts`: the counters, the cuts and the image deltas of a run, never a time.
 import { tableLines } from '../../core/table.ts'
 import { MIB } from '../../../packages/math/src/constants.ts'
-import { computePaths } from './summaryCompute.ts'
 import { textures } from './summaryTextures.ts'
 import { memoire } from './summaryMemory.ts'
 import { stalls } from './summaryDag.ts'
@@ -118,13 +117,6 @@ export function resume(report: BenchReport) {
     '"unmeasured" is not zero.',
     '',
     ...counters(report),
-    '## Batch compute path',
-    '',
-    'The published path is the one the governor chose by measurement, operation by operation:',
-    'no threshold is written in the code, and "unmeasured" is not zero.',
-    '',
-    ...computePaths(report),
-    '',
     '## GPU memory',
     '',
     'The total is what the engine allocated on the device and has not yet destroyed, computed from',

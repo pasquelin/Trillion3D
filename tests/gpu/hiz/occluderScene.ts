@@ -8,20 +8,13 @@ import type {
   Engine,
 } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { batisseur, square, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts'
+import { batisseur, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts'
 
 function occluderScene(): ScenePreparee {
   const builder = batisseur()
-  const wall = G.mesh(square(0.8), G.basicSurface({ color: 0xdedede, side: G.DOUBLE_SIDE }))
-  wall.name = 'wall'
-  wall.position.set(0, 0, 1)
-  builder.source.add(wall)
-  builder.add(wall, 'exact-clusters', 0.8)
-  const slab = G.mesh(square(0.25), G.basicSurface({ color: 0x20c040, side: G.DOUBLE_SIDE }))
-  slab.name = 'slab'
-  slab.position.set(0.9, 0, -3)
-  builder.source.add(slab)
-  builder.add(slab, 'exact-clusters', 0.25)
+  const flat = (color: number) => G.basicSurface({ color, side: G.DOUBLE_SIDE })
+  builder.place(flat(0xdedede), 'exact-clusters', 0.8, [0, 0, 1]).name = 'wall'
+  builder.place(flat(0x20c040), 'exact-clusters', 0.25, [0.9, 0, -3]).name = 'slab'
   return builder.fini()
 }
 

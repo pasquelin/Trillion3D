@@ -6,8 +6,6 @@ import { gap } from './diff.ts'
 import type { Counter } from './ulp.ts'
 import { resultRow, type Measurement, type ResultRow } from '../kit/measureTypes.ts'
 
-export { xorshiftRandom } from '../../packages/math/src/sequence/random.ts'
-
 /** One named input to measure, or to verify only when `measure` is `false`. */
 export interface MeasureCase<Entree = unknown> {
   name: string

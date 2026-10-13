@@ -41,7 +41,7 @@ function scene() {
   const sky = G.lightProbe()
   source.add(mesh, lamp, sky)
   const watch = createHostSceneWatch()
-  watch.observe(source, [{ sourceMesh: mesh }])
+  watch.observe(source, [{ drawSource: { node: mesh } }])
   watch.take()
   return { source, mesh, lamp, sky, watch }
 }

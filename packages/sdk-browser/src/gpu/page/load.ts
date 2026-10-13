@@ -1,6 +1,7 @@
 import type { GpuPageContext, ResidentPage } from './types.ts'
 import { commitGpuPage, evictResident } from './commit.ts'
 import { refusedStatus } from '../../cluster/checked.ts'
+import { PRIORITY_PREFETCH } from '../../streaming/priority.ts'
 
 /** A load that failed leaves the next ones their turn. */
 const ignore = () => {}
@@ -10,7 +11,8 @@ const ignore = () => {}
  *  read's. A page absent at the request is read at once — reads overlap, uploads stay in order —,
  *  its bytes left unused when the page is resident by its turn; a page resident at the request is
  *  read only if it left by its turn. A failure fails the load, and its source says when the page
- *  is asked again (`streaming/failures.ts`). */
+ *  is asked again (`streaming/failures.ts`). A page absent when the pool has no place to give —
+ *  free, or that the GPU's order gives up — is refused at once, read for nothing never: the refusal is noted (`takeRefused`), so the GPU is asked a new order. */
 export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
   const { resident, state, reader } = context
   const { emit, now } = reader
@@ -37,6 +39,11 @@ export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
       resident: resident.has(key),
       loading: state.loading,
     }))
+    const prefetch = priority === PRIORITY_PREFETCH
+    if (!resident.has(key) && placesFor(context, prefetch) <= 0) {
+      if (abortListener) signal!.removeEventListener('abort', abortListener)
+      return Promise.reject(refusal(context, key, 'eviction-queue-spent'))
+    }
     const job: Load = {
       key,
       signal,
@@ -114,7 +121,7 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
       context,
       key,
       bytes,
-      placeOf(context, key, bytes.byteLength),
+      placeOf(context, key, bytes.byteLength, job.priority === PRIORITY_PREFETCH),
       job.requestStarted,
     )
     if (pinned) pin(key)
@@ -136,11 +143,10 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
   }
 }
 
-/** The page already resident, made the most recent; undefined when absent. */
-function residentHit({ resident, eviction, reader }: GpuPageContext, key: string) {
+/** The page already resident; undefined when absent. */
+function residentHit({ resident, reader }: GpuPageContext, key: string) {
   const existing = resident.get(key)
   if (!existing) return undefined
-  eviction.touched(key)
   reader.emit?.('gpu-page-cache-hit', 'GPU page already resident', () => ({
     version: 1,
     key,
@@ -174,22 +180,32 @@ function checkRoom(context: GpuPageContext, key: string, bytes: Uint8Array) {
   throw new Error('PAGE_SIZE_MISMATCH')
 }
 
-/** The place of `key`'s page of `bytes`, its victims evicted; refused by name when every slot is pinned or the published
- *  order is spent. */
-function placeOf(context: GpuPageContext, key: string, bytes: number) {
-  const place = context.placement.slotFor(key, bytes)
-  if (typeof place === 'string') {
-    const { resident, slots, eviction } = context
-    context.reader.emit?.('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
-      version: 1,
-      key,
-      reason: place,
-      resident: resident.size,
-      slots,
-      pinned: eviction.pinnedCount,
-    }))
-    throw new Error('ALL_PAGES_PINNED')
-  }
+/** The place of `key`'s page of `bytes`, its victims evicted; refused by name when every slot is
+ *  pinned or the published order is spent. A `prefetch` takes the place of an old page alone
+ *  (`eviction.ts`): it never evicts one a view used of late. */
+function placeOf(context: GpuPageContext, key: string, bytes: number, prefetch: boolean) {
+  const place = context.placement.slotFor(key, bytes, prefetch)
+  if (typeof place === 'string') throw refusal(context, key, place)
   for (const victim of place.victims) evictResident(context, victim, 'capacity')
   return place
+}
+
+/** The places a load may take now: the free ones, and the pages the GPU's order still gives up — a
+ *  prefetch, its old head alone (`eviction.ts`). */
+export const placesFor = (context: GpuPageContext, prefetch = false) =>
+  context.placement.free + context.eviction.victims(prefetch)
+
+/** `key` refused for lack of a place, noted for the next order (`takeRefused`), and said. */
+function refusal(context: GpuPageContext, key: string, reason: string) {
+  const { resident, slots, eviction, state } = context
+  state.refused = true
+  context.reader.emit?.('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
+    version: 1,
+    key,
+    reason,
+    resident: resident.size,
+    slots,
+    pinned: eviction.pinnedCount,
+  }))
+  return new Error('POOL_FULL')
 }

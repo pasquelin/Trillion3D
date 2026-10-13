@@ -3,16 +3,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, quadBackend } from '../testScenes.fixture.ts'
 import { tagsIn } from '../../../gpu/core/sessionHandle.ts'
 
 test('a lost WebGPU device fails the backend without throwing from dispose', async () => {
   installGpuGlobals()
-  const { device, lose } = mockGpu()
+  const { device, lose } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device)
   await backend.prepare()
-  lose('destroyed')
+  lose({ reason: 'destroyed', message: 'destroyed' })
   await Promise.resolve()
   assert.throws(() => backend.render(camera()), /WEBGPU_LOST/)
   await backend.dispose()
@@ -22,7 +22,7 @@ test('a lost WebGPU device fails the backend without throwing from dispose', asy
 
 test('the lost promise unpublishes the composed canvas and names WEBGPU_LOST', async () => {
   installGpuGlobals()
-  const { device, lose } = mockGpu()
+  const { device, lose } = fakeDevice(BACKEND)
   let unconfigured = false
   const canvas = {
     width: 1,
@@ -50,7 +50,7 @@ test('the lost promise unpublishes the composed canvas and names WEBGPU_LOST', a
     backend.render(camera())
     assert.equal(backend.presentedSurface, canvas, 'the composed canvas is published')
     assert.equal(backend.metrics().gpuDeviceLost, null, 'a device that holds names no loss')
-    lose('destroyed')
+    lose({ reason: 'destroyed', message: 'destroyed' })
     await Promise.resolve()
     assert.equal(backend.presentedSurface, undefined, 'a lost device publishes no canvas')
     assert.equal(unconfigured, true, 'the drawing buffer is blanked')
@@ -72,7 +72,7 @@ test('the lost promise unpublishes the composed canvas and names WEBGPU_LOST', a
 test("an error of the session closed on the device is never the next one's loss", async (t) => {
   const warned = t.mock.method(console, 'warn', () => {})
   installGpuGlobals()
-  const gpu = mockGpu(),
+  const gpu = fakeDevice(BACKEND),
     { device } = gpu
   // The last label a session handed the device, its tag included.
   const lastOwn = () => gpu.labels.findLast((label) => label && tagsIn(label).length)!
@@ -112,7 +112,7 @@ test("an error of the session closed on the device is never the next one's loss"
 
 test('an error of its own objects fails a session while it opens', async () => {
   installGpuGlobals()
-  const gpu = mockGpu(),
+  const gpu = fakeDevice(BACKEND),
     { device } = gpu
   let label = ''
   const createBuffer = device.createBuffer
@@ -134,8 +134,8 @@ test('an error of its own objects fails a session while it opens', async () => {
 
 test("a session's first claim on a device already lost announces the loss and builds nothing", async () => {
   installGpuGlobals()
-  const { device, lose, textures } = mockGpu()
-  lose('destroyed')
+  const { device, lose, textures } = fakeDevice(BACKEND)
+  lose({ reason: 'destroyed', message: 'destroyed' })
   const phases: string[] = []
   const { fixture, backend } = quadBackend(device, { onDiagnostic: (e) => phases.push(e.phase) })
   await assert.rejects(backend.prepare(), /WEBGPU_LOST/)
@@ -150,7 +150,7 @@ test("a session's first claim on a device already lost announces the loss and bu
 
 test('sessions reopened on one device listen to `device.lost` once, not once each', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const lost = device.lost as Promise<unknown>,
     then = lost.then.bind(lost)
   let listeners = 0

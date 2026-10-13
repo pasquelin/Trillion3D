@@ -7,7 +7,7 @@ import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidencyQueue } from './queue.ts'
 import { createLowerPass, createLowerTier } from './lowerTier.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
-import { ensurerOptions, lowerPassOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts'
+import { ensurerOptions, lowerPassOptions, orderedPool, pageOf } from './residentEnsurer.fixture.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 
 function banc(slots: number, visible: string[], ahead: string[]) {
@@ -15,10 +15,16 @@ function banc(slots: number, visible: string[], ahead: string[]) {
     next = ahead.map(pageOf),
     pages = [...camera, ...next]
   const tracking = createWebgpuPageTracking(pages)
-  const cache = lruCache(slots),
+  const keyOf = (url: string) => tracking.pageCatalogIds.get(url)!
+  // The GPU's order: what the camera asks for in use, what the view ahead asks for not old.
+  const cache = orderedPool(
+      slots,
+      (url) => tracking.wanted.has(keyOf(url)),
+      (url) => tier.has(keyOf(url)),
+    ),
     load = cache.load,
     order: string[] = []
-  cache.load = async (url: string) => (order.push(url), load(url))
+  cache.load = async (...args: Parameters<typeof load>) => (order.push(args[0]), load(...args))
   const tier = createLowerTier({
     keyOf: tracking.keyOf,
     room: () => slots,
@@ -45,7 +51,7 @@ test('every visible page is admitted before any page ahead, which never evicts o
   b.want([v0, v1, v2])
   await b.ensure([v0, v1, v2], 1, 1)
   assert.deepEqual(b.order, ['v0', 'v1', 'v2', 'a0'], 'the camera first, then what it leaves')
-  assert.deepEqual([...b.cache.pins].sort(), ['v0', 'v1', 'v2'], 'nothing ahead is pinned')
+  assert.equal(b.cache.pins.size, 0, 'nothing is pinned: the GPU holds what the camera uses')
   // A camera page evicts a page ahead, never the reverse.
   b.want([v3])
   await b.ensure(b.camera, 2, 2)
@@ -114,6 +120,6 @@ test('after a stop, the pending set drains to full detail', async () => {
   queue.queueCuts({ cuts: [], first: null })
   await queue.pending
   assert.equal(queue.busy, false, 'nothing left queued')
-  for (const page of b.camera) assert.ok(b.cache.pins.has(page.url), `${page.url} resident`)
+  for (const page of b.camera) assert.ok(b.cache.resident.has(page.url), `${page.url} resident`)
   assert.deepEqual(b.order.slice(moving), ['v1'], 'and nothing ahead is asked for any more')
 })

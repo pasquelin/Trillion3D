@@ -4,7 +4,7 @@
 // perspective and orthographic views; boxes that contain
 // the eye, hence clip the near plane.
 import * as THREE from 'three'
-import { xorshiftRandom } from '../../../core/index.ts'
+import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { dansDe } from './scenesCore.ts'
 import { boxCenter } from '../../../../packages/math/src/geometry/box.ts'
 import { HALF_PI } from '../../../../packages/math/src/constants.ts'

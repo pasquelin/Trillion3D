@@ -26,9 +26,10 @@ test('only the program with lobes reads them and lights through them', () => {
 })
 
 test('an image with no lobed surface is lit by the lobeless program and compiles no lobe code', async () => {
-  const { device } = fakeDevice()
+  const gpu = fakeDevice(),
+    { device } = gpu
   const lighting = await createDeferredLighting(device)
-  const { labels, draw } = recorder(lighting)
+  const { labels, draw } = recorder(gpu, lighting)
   draw({ lobeless: true })
   await lighting.settle()
   // No lobe code compiled beside it: a lobed surface that arrives asks for its program then, and
@@ -38,7 +39,7 @@ test('an image with no lobed surface is lit by the lobeless program and compiles
   await lighting.settle()
   draw({ lobeless: false })
   draw({ lobeless: true })
-  assert.deepEqual(labels, [
+  assert.deepEqual(labels(), [
     'DIRECT_LOBELESS_LIGHTING',
     'DIRECT_LIGHTING',
     'DIRECT_LOBELESS_LIGHTING',

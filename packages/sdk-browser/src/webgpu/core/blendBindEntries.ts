@@ -6,7 +6,7 @@ import { atlasEntries, type AtlasResources } from './bindEntries.ts'
 export type BlendLighting = {
   directLights: GPUBuffer
   /** The virtual shadow maps a transparent samples (`BLEND_VSM_BINDINGS`), on the old shadow
-   *  numbers: page table, projection data, uniforms and the pool's dynamic slice. */
+   *  numbers: page table, projection data, uniforms and the pool's first slice. */
   shadowData: GPUBuffer
   shadowAtlas: GPUBuffer
   shadowSampler: GPUBuffer
@@ -14,6 +14,10 @@ export type BlendLighting = {
    *  stand-in. */
   shadowTransmittance: GPUTextureView
   shadowTranslucentDepth: GPUBuffer
+  /** What a fragment traces with past the maps (`BLEND_TRACE_BINDINGS`): the shadow projection's
+   *  view uniform and blue noise. */
+  shadowView: GPUBuffer
+  shadowNoise: GPUTextureView
   bounceGrid: GPUBuffer
   /** The probes' atlas (`../../bounce/atlas.ts`). */
   probes: GPUTextureView
@@ -86,6 +90,8 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   shadowSampler: ['fragment', UNIFORM],
   shadowTransmittance: ['fragment', { texture: { sampleType: 'uint', viewDimension: '2d-array' } }],
   shadowTranslucentDepth: ['fragment', STORAGE],
+  shadowView: ['fragment', UNIFORM],
+  shadowNoise: ['fragment', { texture: { sampleType: 'unfilterable-float' } }],
   bounceGrid: ['fragment', UNIFORM],
   probes: ['fragment', FLOAT_ARRAY],
   tileLights: ['fragment', STORAGE],

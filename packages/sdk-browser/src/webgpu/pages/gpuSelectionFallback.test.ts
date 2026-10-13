@@ -13,12 +13,13 @@ import {
 } from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts'
 import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from './testScenes.fixture.ts'
 import { rootPage, twoPrimitives } from './rootPages.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', async () => {
   installGpuGlobals()
@@ -40,15 +41,15 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
     rootPage('exact', [8, -1, 0], [10, 1, 0]),
   )
   const metadata: ClusterManifest = { ...metadataPartial, ...MANIFEST_IDENTITY }
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const packed = packDagSelection(collected.roots)
-  const { device } = mockGpu({ packed })
+  const { device } = fakeDevice({ ...BACKEND, packed })
   const viewport: [number, number] = [32, 32]
   const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
     gpuDevice: device,
     maxResidentPages: 4,
     viewport,
@@ -73,14 +74,14 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
 test('a failed GPU selection readback keeps the device: the cut is read again', async () => {
   installGpuGlobals()
   const { source, metadata, indices, associations, geometry, material } = quadScene()
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const packed = packDagSelection(collected.roots)
-  const { device } = mockGpu({ packed, failMap: true })
+  const { device } = fakeDevice({ ...BACKEND, packed, failMap: true })
   const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
@@ -96,13 +97,13 @@ test('a failed GPU selection readback keeps the device: the cut is read again', 
 
 test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => {
   installGpuGlobals()
-  const { device, textures } = mockGpu()
+  const { device, textures } = fakeDevice(BACKEND)
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],

@@ -50,11 +50,11 @@ export function cameraCutBuffers(
     PackedDag,
     'pageCount' | 'nodeCount' | 'worldCount' | 'clusters' | 'nodes' | 'pageCones'
   > &
-    Partial<Pick<PackedDag, 'entryCount' | 'candCount' | 'keyCount'>>,
+    Partial<Pick<PackedDag, 'entryCount' | 'candCount' | 'groupCount'>>,
   limits?: Parameters<typeof storageBufferCap>[0],
 ) {
   const blockCount = ceilDiv(packed.pageCount, SELECTION_WORKGROUP),
-    workLayout = dagWorkLayout(blockCount)
+    workLayout = dagWorkLayout(blockCount, packed.groupCount)
   const shape = dagFlagShape(packed),
     flagWords = flagShapeWords(shape)
   const split = dagSplit(limits, packed, {

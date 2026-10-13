@@ -7,7 +7,7 @@ import type { SessionState } from './sessionState.ts'
 import type { ExplorerSession } from '../session/session.ts'
 import type { createExplorerStreaming } from '../scene/streaming.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts'
 import type { HostCamera } from '../../camera/world.ts'
 
@@ -30,7 +30,7 @@ type Inputs = {
   metricsScratch: FrameMetrics
   profiler: EngineProfiler
   pageIdByUrl: Map<string, number>
-  streamer: ReturnType<typeof createPageStreamer>
+  streamer: PageStreaming
 }
 
 /** The `ExplorerSession` fields the frame render actually reads — narrower than the full

@@ -75,6 +75,9 @@ export function reparentTransformNode(tree: TransformTree, node: number, parent:
   noteSlotWrite(node)
 }
 
+/** `setNodeWorldLazy`: a leaf's world composed elsewhere is read where it is needed. */
+export const setNodeWorldLazy = structure.setNodeWorldLazy
+
 /** `removeTransformNode`, counted: a freed node leaves its parent. */
 export function removeTransformNode(tree: TransformTree, node: number) {
   structure.removeTransformNode(tree, node)

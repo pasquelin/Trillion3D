@@ -3,13 +3,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadBackend } from '../testScenes.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'
 
 test('a backend closed while it prepares stops there, and leaves nothing on the device', async () => {
   installGpuGlobals()
-  const { device, textures } = mockGpu()
+  const { device, textures, destroyed } = fakeDevice(BACKEND)
   const phases: string[] = []
   let closing: ReturnType<Engine['dispose']> | undefined
   const { fixture, backend } = quadBackend(device, {
@@ -21,7 +21,7 @@ test('a backend closed while it prepares stops there, and leaves nothing on the 
   await closing
   assert.ok(textures.length > 0)
   assert.deepEqual(
-    textures.filter((texture) => !texture.destroyed).map((texture) => texture.label),
+    textures.filter((texture) => !destroyed.includes(texture)).map((texture) => texture.label),
     [],
   )
   assert.ok(!phases.includes('webgpu-prepare-failed'), 'cancelled, not failed')
@@ -32,7 +32,7 @@ test('a backend closed while it prepares stops there, and leaves nothing on the 
 
 test('a backend closed before it prepares is cancelled, not lost', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const phases: string[] = []
   const { fixture, backend } = quadBackend(device, { onDiagnostic: (e) => phases.push(e.phase) })
   const closing = backend.dispose()
@@ -47,7 +47,7 @@ test('a backend closed before it prepares is cancelled, not lost', async () => {
 
 test('a backend closed during a step starts no further one', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const steps: string[] = []
   let closing: ReturnType<Engine['dispose']> | undefined
   const { fixture, backend } = quadBackend(device, {
@@ -65,7 +65,7 @@ test('a backend closed during a step starts no further one', async () => {
 
 test("a closed backend's reads answer nothing once the next session opens, and never throw", async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const first = quadBackend(device)
   await first.backend.prepare()
   const closing = first.backend.dispose()

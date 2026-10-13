@@ -15,7 +15,7 @@ import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
 import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { randomPage } from '../../page/codec/randomPages.fixture.ts'
 import { reference, POINT, type Header } from './pageHeaderReference.fixture.ts'
-import { DEFORM_IN_POOL, FLAG_CLUSTER_PAGE } from '../types.ts'
+import { DEFORM_SOURCE_IN_POOL, FLAG_CLUSTER_PAGE } from '../types.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
@@ -131,7 +131,12 @@ function firstDifference(code: string): string | null {
     uvs: [],
     positions: [tail.flags, tail.morphCount, 0, 2 * 6 + tail.influences * 2],
   })
-  const row = { pageOffset: 0, flags: 0, packedBase: 1, deformOutput: (DEFORM_IN_POOL | 1) >>> 0 }
+  const row = {
+    pageOffset: 0,
+    flags: 0,
+    packedBase: 1,
+    deformOutput: (DEFORM_SOURCE_IN_POOL | 1) >>> 0,
+  }
   const h = float.pageHeaderFor(row, false) as Header
   return Object.keys(tail).every((k) => h[k] === tail[k as keyof typeof tail])
     ? null

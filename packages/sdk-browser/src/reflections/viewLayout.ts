@@ -56,10 +56,15 @@ export const REFLECTION_DEPTH_BINDING = 3
 /** The binding of the deferred lighting's view in the reflection group (`View`). */
 export const REFLECTION_LIGHT_VIEW_BINDING = 7
 
+/** The binding of the radiance pyramid's level 0 in the reflection group: the lit image itself, the
+ *  HDR target the last image lit (`radiance.ts`). */
+export const REFLECTION_IMAGE_BINDING = 9
+
 /**
  * The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the
- * radiance pyramid and its trilinear sampler, the depth it marches, the engine's pyramid
- * (`hizDepthWgsl`). The program names the deferred lighting's view (`view`, the pixel's world point
+ * radiance pyramid — its level 0, the lit image (`reflectionImage`), and the levels after it
+ * (`reflectionRadiance`, level `k` at mip `k − 1`) — and its trilinear sampler, the depth it
+ * marches, the engine's pyramid (`hizDepthWgsl`). The program names the deferred lighting's view (`view`, the pixel's world point
  * `worldAt`, the eye `viewToEye`, the drawn size, the exposure, the display curve, the background)
  * itself: it already has it, or declares it in this group (`reflectionLightViewWgsl`).
  */
@@ -69,7 +74,8 @@ export const reflectionBindingsWgsl = (group: number) =>
     [REFLECTION_VIEW_WGSL, hizDepthWgsl(group, REFLECTION_DEPTH_BINDING), WORLD_AT_WGSL],
     `@group(${group}) @binding(0) var<uniform> reflectionView:ReflectionView;
 @group(${group}) @binding(1) var reflectionRadiance:texture_2d<f32>;
-@group(${group}) @binding(2) var reflectionSampler:sampler;`,
+@group(${group}) @binding(2) var reflectionSampler:sampler;
+@group(${group}) @binding(${REFLECTION_IMAGE_BINDING}) var reflectionImage:texture_2d<f32>;`,
   )
 
 /** The deferred lighting's view in the reflection group, for a program that has none of its own. */

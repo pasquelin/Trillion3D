@@ -6,7 +6,7 @@ import { emptyWorldBox, readHostBox } from '../../host/world/bounds.ts'
 import { type ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { BoxTransformLot } from '../../page/decode/batch/batchRuntime.ts'
 import { boxUnionCollector } from '../../page/selection/batchBoxes.ts'
-import type { EngineContext } from '../../engine/types.ts'
+import type { DrawAssociations } from '../../page/selection/drawSource.ts'
 import { hostWorldPlacements } from '../../host/world/placements.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -35,7 +35,7 @@ function ecritPage(out: Float64Array, at: number, item: ManifestPage) {
 
 /** The box a mesh placed by rows holds for every row (`host/prepared/placed.ts`): its pages
  *  bound one placement, and its own pose places none. */
-function placedBox(mesh: HostMesh, associations: EngineContext['associations']) {
+function placedBox(mesh: HostMesh, associations: DrawAssociations) {
   return associations.get(mesh)?.placements ? (mesh as HostBoundedNode).boundingBox : undefined
 }
 
@@ -43,7 +43,7 @@ function placedBox(mesh: HostMesh, associations: EngineContext['associations']) 
  * its box whether or not the view read its primitive yet. */
 function exactPagesCount(
   source: Object3D,
-  associations: EngineContext['associations'],
+  associations: DrawAssociations,
   metadata: ClusterManifest,
 ) {
   const primitiveOf = primitiveFinder(metadata.primitives)
@@ -62,7 +62,7 @@ function exactPagesCount(
  *  that returns. */
 export function pagesBounds(
   source: Object3D,
-  associations: EngineContext['associations'],
+  associations: DrawAssociations,
   metadata: ClusterManifest,
   onMissing: (mesh: HostMesh) => void,
   into = emptyWorldBox(),

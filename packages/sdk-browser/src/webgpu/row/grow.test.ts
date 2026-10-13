@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuRowSync } from './sync.ts'
 import { ROW_FLAGS_WORD } from './pageRow.ts'
-import { FLAG_BLEND_CASTER, ROW_WORDS } from '../../visibility/buffer.ts'
+import { FLAG_BLEND_CASTER, ROW_WORDS } from '../../visibility/types.ts'
 import { catalogue, mount } from './blendCasters.fixture.ts'
 import { closeAlone, MIRROR } from './rowCache.fixture.ts'
 

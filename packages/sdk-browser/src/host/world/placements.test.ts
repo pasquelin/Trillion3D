@@ -12,6 +12,7 @@ import { blendFixture } from '../../page/selection/blend.fixture.ts'
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts'
 import { chainWorld } from '../../../../../tests/kit/assert/chainWorld.ts'
 import { rootOf } from '../../page/selection/placements.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 /** A scene nobody has walked up: rotated root, parent with negative and non-uniform scale, leaf
  *  sheared by that scale, plus a node whose matrix is set. */
@@ -82,9 +83,9 @@ test('page records and cluster roots carry the tree world of their mesh', () => 
   fixture.mesh.position.set(4, -2, 7)
   const { roots, allPages, worlds } = collectClusterPages(
     parent,
+    graphDraws(parent, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const world = worlds.of(fixture.mesh)
   assert.equal(roots[0].world, world, 'the root carries the pose')

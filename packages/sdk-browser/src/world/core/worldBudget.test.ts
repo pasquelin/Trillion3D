@@ -3,11 +3,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { sessionPools, worldBudget, worldPools, type Pools } from './worldBudget.ts'
 import { DEFAULT_TEXTURE_POOL_BUDGET, DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts'
-import { DEFAULT_CPU_BUDGET } from '../../residency/memoryBudget.ts'
 import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts'
 import { createBounceCascades, type FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import { bounceProbeBytes } from '../../bounce/limits.ts'
+import { poolWindowSizes } from '../../vsm/layout.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from '../../residency/shadowBudgetBytes.ts'
 import {
   DEFAULT_GPU_BUDGET,
@@ -50,7 +50,7 @@ test('raycastTrees reads and sets the raycast tree cache budget', () => {
 test("the default totals split into each pool's own default", () => {
   const handle = budget(null)
   assert.equal(handle.gpu, DEFAULT_GPU_BUDGET)
-  assert.equal(handle.cpu, DEFAULT_CPU_BUDGET)
+  assert.equal(handle.cpu, DEFAULT_CACHED_BYTES)
   assert.deepEqual(handle.split, {
     shadowPool: SHADOW_POOL_BYTES,
     bounceProbes: BOUNCE_PROBE_BYTES,
@@ -66,18 +66,17 @@ test("the default totals split into each pool's own default", () => {
 
 test('the shadow share holds the virtual shadow maps of one sun, within a MiB', () => {
   const { layout, bytes } = oneSunShadowMaps()
-  // One page-table row; 2048 physical pages a slice, each slice one 128 MiB part.
+  // One page-table row; 2048 physical pages a slice, each slice one 128 MiB window.
   assert.equal(layout.pageTableRows, 1)
   assert.equal(layout.poolPages, 2048)
-  assert.equal(layout.poolPartsPerSlice, 1)
+  assert.deepEqual(poolWindowSizes(layout), [2 ** 27])
   assert.ok(bytes <= SHADOW_POOL_BYTES, `${bytes} bytes of maps, ${SHADOW_POOL_BYTES} held`)
   assert.ok(SHADOW_POOL_BYTES - bytes < MIB, `${SHADOW_POOL_BYTES - bytes} bytes beside the maps`)
   assert.equal(budget(null).split.shadowPool, SHADOW_POOL_BYTES)
 })
 
 test("the CPU total is the page cache's, whole: no shadow table is mirrored on the host", () => {
-  assert.equal(DEFAULT_CPU_BUDGET, DEFAULT_CACHED_BYTES)
-  for (const total of [1, DEFAULT_CPU_BUDGET, 4096 * MIB])
+  for (const total of [1, DEFAULT_CACHED_BYTES, 4096 * MIB])
     assert.equal(budget(null, { cpu: total }).split.pageCache, total, `${total}`)
 })
 
@@ -102,13 +101,12 @@ test('a GPU total redraws every pool by the split, and the pools never sum past 
 })
 
 // What the shadows take is sized inside `split.shadowPool` — the virtual shadow maps
-// of one sun, on any device: its binding limit splits the pool into parts, never grows it, and the
-// screen sizes none of it (the projection's mask is a frame target) —, and a total below 512 MiB
-// never lets the pools sum past it.
+// of one sun, the same on any device (the pool binds in windows every device holds), the screen
+// sizing none of it (the projection's mask is a frame target) —, and a total below 512 MiB never
+// lets the pools sum past it.
 test('the shadow maps fit their share on any device, and totals below 512 MiB never overflow', () => {
   const { shadowPool } = budget(null).split
-  for (const binding of [128 * MIB, 1024 * MIB, 4096 * MIB - 4])
-    assert.ok(oneSunShadowMaps(binding).bytes <= shadowPool, `${binding} bytes a binding`)
+  assert.ok(oneSunShadowMaps().bytes <= shadowPool)
   for (const total of [64 * MIB, 256 * MIB, 511 * MIB, FIXED - 1]) {
     const pools = worldPools()
     const handle = budget(null, {}, pools)

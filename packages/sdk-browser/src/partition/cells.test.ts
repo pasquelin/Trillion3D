@@ -113,13 +113,18 @@ test('a parent scaled down grows the rows in place, on an engine that takes it, 
   // no buffer, or refuses this growth, is left with its rows as they were and asks for a reopen.
   for (const grows of [true, false, undefined]) {
     const { cells, links, core, bytes } = world(0, 0)
-    const { port, held, outgrown, updates } = io(bytes)
+    const { port, held, outgrown, updates, rebind } = io(bytes)
+    let grownAt: number | undefined
     const grown: [PlacementRows, PlacementRows][] = [],
       asked: [number, number][] = []
     if (grows !== undefined)
       port.grow = {
         growsInPlace: (from, capacity) => (asked.push([from.length, capacity]), grows),
-        growPlacements: (from, to) => void grown.push([from, to]),
+        growPlacements: (from, to) => (
+          grown.push([from, to]),
+          rebind(from, to),
+          void (grownAt ??= updates.length)
+        ),
       }
     ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
     await opened(cells, bytes, 100)
@@ -143,7 +148,7 @@ test('a parent scaled down grows the rows in place, on an engine that takes it, 
       [0, 1].map((at) => [before[at], after[at]]),
     )
     // The engine is told of the grown buffers only: no row of the replaced ones is read again.
-    assert.ok(updates.every(([rows]) => after.includes(rows)))
+    assert.ok(updates.slice(grownAt).every(([rows]) => after.includes(rows)))
     assert.ok(after.every((rows) => rows.live.reduce((a, b) => a + b, 0) === 3))
   }
 })

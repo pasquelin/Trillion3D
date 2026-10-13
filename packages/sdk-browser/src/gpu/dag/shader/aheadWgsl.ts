@@ -55,7 +55,8 @@ fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
  let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
  let pixels=clusterPixels(cluster,e,stretch,focal);
  if(!selects(pixels,thresholdOf(w))){return;}
- emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,bmin,bmax));
+ // Asked for, it counts as used a little before now (\`stampAhead\`): kept after the old pages.
+ if(emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,bmin,bmax))){stampAhead(r);}
 }
 `,
 )

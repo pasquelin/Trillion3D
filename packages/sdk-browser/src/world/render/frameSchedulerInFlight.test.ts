@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { createExplorerFrameScheduler } from './frameScheduler.ts'
 import { frameQueue } from './frameQueue.fixture.ts'
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The scheduler's `FRAMES_IN_FLIGHT`: the cut's readback slots. */
 const FRAMES_IN_FLIGHT = DAG_READBACK_SLOTS
@@ -93,8 +94,7 @@ test('a GPU slower than the CPU always has the next frame queued, never more tha
 
 test('feedbacks settling out of order are consumed in order, each once, K at most in flight', async () => {
   // A fixed shuffle (a linear congruence): reproducible, every order of two or three met.
-  let seed = 7
-  const random = () => (seed = (seed * 48271) % 2147483647) / 2147483647
+  const random = lcgRandom(7)
   const answers: { frame: number; settle: () => void; settled: boolean }[] = []
   let renders = 0
   /** Feedbacks the loop still waits on: those after the oldest one not settled yet. */

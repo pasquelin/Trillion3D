@@ -30,6 +30,9 @@ import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
 /** The word the tile list starts at in the list buffer: the counters, then the list (`TRACE_LIST`). */
 const TILE_LIST = TRACE_LIST_FIRST
 
+/** The binding of the light grid's buffer in the trace's group 0: the world lists the proxy hits walk. */
+const LIGHT_LISTS_BINDING = 17
+
 /** The bindings of the proxy in the trace's group 0 (`runtimeTraceWgsl.ts`): its buffer and the world
  *  matrices, the trace's list with the frame's counters and the store of the answers. */
 const RUNTIME_BINDINGS: RuntimeBindings = {
@@ -65,6 +68,7 @@ export const TRACE_SHADER = wgslProgram(
 @group(0) @binding(6) var probes:texture_2d_array<f32>;
 @group(0) @binding(7) var<storage,read_write> work:array<atomic<u32>>;
 @group(0) @binding(10) var traceBase:texture_2d<f32>;
+@group(0) @binding(${LIGHT_LISTS_BINDING}) var<storage,read> tileLights:array<u32>;
 var<workgroup> reflecting:atomic<u32>;
 @compute @workgroup_size(${SIDE},${SIDE})
 fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -171,6 +175,7 @@ function traceLayouts(device: GPUDevice) {
       computeBufferEntry(RUNTIME_BINDINGS.list, 'storage'),
       storeEntry(RUNTIME_BINDINGS.store),
       computeTextureEntry(10, 'unfilterable-float'),
+      computeBufferEntry(LIGHT_LISTS_BINDING, 'read-only-storage'),
       ...Object.values(runtimeEntries),
     ]),
     classifyLayout: layout([
@@ -254,6 +259,8 @@ export type TraceInputs = {
   normals: GPUTextureView
   lobes: GPUTextureView
   lights: GPUBuffer
+  /** The light grid's buffer, whose world lists the proxy hits walk (`bounceLightSlice`). */
+  lightLists: GPUBuffer
   bounceGrid: GPUBuffer
   probes: GPUTextureView
   /** The proxy's buffers, or the empty one in each place (`gpu/dag/proxyInstances.ts`). */
@@ -303,6 +310,7 @@ function traceGroups(
     inputs.store,
     tiles.list,
     inputs.lightView,
+    inputs.lightLists,
     stages,
   )
   if (reflection.traceGroups && sameEntries(reflection.traceGroups.key, probe))
@@ -322,6 +330,7 @@ function traceGroups(
         { binding: RUNTIME_BINDINGS.list, resource: { buffer: tiles.list } },
         { binding: RUNTIME_BINDINGS.store, resource: inputs.store },
         { binding: 10, resource: inputs.base },
+        { binding: LIGHT_LISTS_BINDING, resource: { buffer: inputs.lightLists } },
         { binding: RUNTIME_BINDINGS.proxy, resource: { buffer: inputs.runtime.proxy } },
         { binding: RUNTIME_BINDINGS.worlds, resource: { buffer: inputs.runtime.worlds } },
       ],

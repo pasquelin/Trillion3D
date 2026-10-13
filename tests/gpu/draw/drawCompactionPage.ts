@@ -3,7 +3,7 @@
 // switched off as an adapter lacking it would leave it: each slot's start must come from storage,
 // never from the indirect command.
 import { createGpuDraw } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
-import { VIS_SHADER } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { VIS_SHADER } from '../../../packages/sdk-browser/src/visibility/shader/visWgsl.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { runCase, type DrawCase } from './drawCase.ts'
 import { setupVisibility } from './drawVisibility.ts'

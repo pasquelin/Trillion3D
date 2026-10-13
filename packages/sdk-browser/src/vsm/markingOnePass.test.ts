@@ -32,7 +32,7 @@ function tableOf(code: string, n: number) {
 }
 
 test('one walk clears each table as its own kernel did', () => {
-  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }, 2 ** 27)
+  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
   const fused = vsmResetPageTableWgsl(TARGETS, layout)
   for (const [n, target] of TARGETS.entries()) {
     const own = tableOf(vsmResetPageTableWgsl([target], layout), 0),
@@ -48,7 +48,7 @@ test('one walk clears each table as its own kernel did', () => {
 
 test('the clears by the maps they walk: every map’s tables, a receiver cover by its own maps', () => {
   const at = (receiver: 'directional' | 'none') =>
-    vsmMarkingClears({ ...vsmLayout({ fullMapCapacity: 7 }, 2 ** 27), coverMode: receiver })
+    vsmMarkingClears({ ...vsmLayout({ fullMapCapacity: 7 }), coverMode: receiver })
   assert.deepEqual(at('directional'), {
     all: TARGETS.slice(0, 3),
     directionalOnly: ['receiverCover'],

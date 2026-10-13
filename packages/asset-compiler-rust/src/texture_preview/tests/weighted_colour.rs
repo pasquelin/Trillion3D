@@ -107,7 +107,7 @@ fn every_chain_but_a_varying_coverage_one_keeps_the_develop_bytes() {
 // files and its sidecar word, so neither scene's levels serve the other.
 #[test]
 fn a_plain_and_a_coverage_chain_of_one_image_never_share_files() {
-    let dir = temp_dir("bake-coverage");
+    let dir = scratch("texture-preview", "bake-coverage");
     // Foliage: every 2×2 block half leaf, half transparent black — what weighting changes.
     let source = rgba_from(256, 256, |_, y| {
         if y.is_multiple_of(2) {
@@ -140,7 +140,7 @@ fn a_plain_and_a_coverage_chain_of_one_image_never_share_files() {
 // reader: the weighted one would be the same bytes under a second name.
 #[test]
 fn a_flat_alpha_image_read_as_coverage_bakes_the_plain_chain() {
-    let dir = temp_dir("bake-flat-coverage");
+    let dir = scratch("texture-preview", "bake-flat-coverage");
     rgba_from(256, 256, |x, _| [x as u8, 9, 9, 128])
         .save(dir.join("map.png"))
         .expect("save");

@@ -1,7 +1,7 @@
 import { DEFAULT_PAGE_WORKERS } from '../../engine/common.ts'
 import { configurePageWorkers } from '../../page/work/host.ts'
 import type { ExplorerScene } from './prepare.ts'
-import { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import { createPageStreamer, type PageStreaming } from '../../streaming/pageStreamer.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 import { asIndices } from '../../streaming/indexView.ts'
 import type { PageQueue } from '../../streaming/types.ts'
@@ -9,6 +9,8 @@ import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { Engine, MeasuredWorldOptions } from '../../engine/types.ts'
 import { indexManifestBundles, indexManifestPages } from '../../scene/manifestPageIndex.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import type { PartitionCells } from '../../partition/cells.ts'
+import type { WorldRootsHold } from '../../scene/worldRoots.ts'
 
 type Progress = (phase: string, completed: number, total: number, message: string) => void
 
@@ -19,7 +21,7 @@ type Stalled = (detail: string, failedPages: number) => void
 /** The index pages a session preloads whole (`preload: 'all'`), by url: read by its queue's batch
  *  request (`streamer`), through the page cache, each as it lands; none otherwise. */
 async function preloaded(
-  streamer: ReturnType<typeof createPageStreamer>,
+  streamer: PageStreaming,
   pages: readonly { url: string }[],
   preload: MeasuredWorldOptions['preload'],
   progress: Progress,
@@ -89,6 +91,16 @@ export function openExplorerPageSources(
  *  (`openExplorerPageSources`). */
 export type ExplorerPageSources = Awaited<ReturnType<typeof openExplorerPageSources>['sources']>
 
+/** `partitions`' index pages catalogued by `streamer`, and the world roots bound to it. */
+export function holdPartitions(
+  streamer: PageQueue,
+  partitions: readonly PartitionCells[],
+  worldRoots: readonly WorldRootsHold[],
+) {
+  streamer.admit(partitions.flatMap((cells) => cells.pages))
+  for (const roots of worldRoots) roots.bind(streamer)
+}
+
 /** The scene the session draws — `given`, else the one `load` reads —, read through `streamer`:
  *  its partitions' index pages catalogued, and its world roots bound to the queue. */
 export async function sceneThrough<T extends Pick<ExplorerScene, 'partitions' | 'worldRoots'>>(
@@ -97,8 +109,7 @@ export async function sceneThrough<T extends Pick<ExplorerScene, 'partitions' | 
   load: () => Promise<T>,
 ) {
   const scene = given ?? (await load())
-  streamer.admit(scene.partitions.flatMap((cells) => cells.pages))
-  for (const roots of scene.worldRoots) roots.bind(streamer)
+  holdPartitions(streamer, scene.partitions, scene.worldRoots)
   return scene
 }
 

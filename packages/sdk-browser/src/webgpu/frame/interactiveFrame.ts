@@ -18,6 +18,15 @@ export function measureWebgpuFrame(rt: WebgpuPagesRuntime) {
   return true
 }
 
+/**
+ * Whether the interactive loop leaves out the display frame that began, to hold its steady
+ * cadence (`ScaleControl.skips`, `../../frame/cadence.ts`): drawn on every `cadence`-th refresh
+ * while the GPU cannot hold each. Only the main view's loop frames: an explicit render, a capture
+ * or another view always draws.
+ */
+export const skipsWebgpuFrame = (rt: WebgpuPagesRuntime) =>
+  rt.views.active === rt.views.main && !rt.capture.capturing && rt.scale.skips(frameStart())
+
 /** Wait for feedback, never capture image pixels or bypass frame admission budgets. */
 export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis } = rt

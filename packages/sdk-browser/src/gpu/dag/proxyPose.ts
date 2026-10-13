@@ -9,7 +9,7 @@ import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.t
 import { createCheckedShaderModule } from '../core/shaderModule.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { nodeLevels } from '../../bounce/runtimePoseLevels.ts'
+import { poseOrder } from '../../bounce/runtimePoseLevels.ts'
 import { POSE_LANES, POSE_WORDS, RUNTIME_POSE_SHADER } from '../../bounce/runtimePoseWgsl.ts'
 import { PROXY_POSE_PASS } from '../../stage/passLabels.ts'
 
@@ -88,7 +88,7 @@ export function createProxyPose(device: GPUDevice) {
   function orderOf(cut: RuntimeCutProxy) {
     let at = orders.get(cut)
     if (at !== undefined) return at
-    const levels = nodeLevels(cut.nodeChildren)
+    const levels = poseOrder(cut.nodeChildren)
     at = orderWords.length
     const grown = new Uint32Array(at + levels.length)
     grown.set(orderWords)

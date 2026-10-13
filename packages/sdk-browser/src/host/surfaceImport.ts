@@ -18,7 +18,7 @@ import { isHostColour, type HostShadedMaterial } from './shadedMaterial.ts'
 import { importHostTexture } from './textureImport.ts'
 import type { Side, Texture } from '../../../sdk-core/src/index.ts'
 import { sideOf } from '../scene/materialSide.ts'
-import type { VisMaterial } from '../visibility/types.ts'
+import type { VisMaterial } from '../visibility/materialType.ts'
 import {
   SURFACE_MODEL,
   hostSurfaceModel,

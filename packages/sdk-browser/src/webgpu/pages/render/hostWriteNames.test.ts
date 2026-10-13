@@ -24,7 +24,7 @@ test('a pose written, then a pass of the page’s tree another reader ran: the r
 
 test('a hide reaches every root under the node, one a growth added in place included', () => {
   const { holder, roots, worlds, parks, image } = scene(50)
-  const grown = G.mesh(roots[0].pages[0].sourceMesh!.geometry as never)
+  const grown = G.mesh(roots[0].pages[0].drawSource!.node!.geometry as never)
   holder.add(grown)
   roots.push(selectionRoot(grown, [-1, -1, -1, 1, 1, 1], worlds))
   image()
@@ -56,8 +56,8 @@ test('a hide reads the see-through draws under the node alone, at 10² as at 10�
     const { meshes, blendGpu, image } = scene(count, true)
     let read = 0
     for (const item of blendGpu) {
-      const mesh = item.sourceMesh
-      Object.defineProperty(item, 'sourceMesh', { get: () => (read++, mesh) })
+      const source = item.drawSource
+      Object.defineProperty(item, 'drawSource', { get: () => (read++, source) })
     }
     // The first flip builds the draws' index once; the next reads those under its node alone.
     meshes[3].visible = false

@@ -15,8 +15,6 @@ import { createDeferredPlaceholders } from '../lighting/deferred/setup.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { vsmLayout } from './layout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-
-const f = Math.fround
 const K = wgslConstants(VSM_CONSTANTS_WGSL)
 /** A factor through the rgba16float store the mask was: round to nearest even. */
 const halfOf = (x: number) => {
@@ -28,7 +26,7 @@ const halfOf = (x: number) => {
   const d = q - r
   return (d > 0.5 || (d === 0.5 && r % 2 === 1) ? r + 1 : r) * step
 }
-const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
+const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
   subgroups: false,
 })
 type Result = { shadowFactor: number; rayCount: number }
@@ -43,7 +41,8 @@ function* results() {
   yield { shadowFactor: 1, rayCount: 0 }
   const most = Math.max(K.VSM_TRACE_RAYS_SUN, K.VSM_TRACE_RAYS_LOCAL, 8)
   for (let n = 1; n <= most; n++)
-    for (let k = 0; k <= n; k++) yield { shadowFactor: f(f(k) / f(n)), rayCount: n }
+    for (let k = 0; k <= n; k++)
+      yield { shadowFactor: Math.fround(Math.fround(k) / Math.fround(n)), rayCount: n }
 }
 
 test('a lane holds four bits of rays: every ray count the traces use fits', () => {
@@ -96,9 +95,9 @@ test('four lanes in a word: each light reads its own; a layer its tile did not s
   )
   assert.deepEqual([0, 1, 2, 3].map(vsmMaskFactor), [
     1,
-    halfOf(f(f(3) / f(7))),
+    halfOf(Math.fround(Math.fround(3) / Math.fround(7))),
     1,
-    halfOf(f(f(2) / f(5))),
+    halfOf(Math.fround(Math.fround(2) / Math.fround(5))),
   ])
   assert.equal(loads, 1, 'one load of the layer for its four lights')
   for (const channel of [4, 8, 63])

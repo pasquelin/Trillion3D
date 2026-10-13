@@ -1,6 +1,8 @@
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts'
 import type { PlacementRows } from './rows.ts'
+import type { DrawSource } from '../page/selection/drawSource.ts'
+import type { Primitive } from '../../../sdk-core/src/index.ts'
 import type { HostAttributes, HostMaterials } from '../host/resources.ts'
 import type { SelectionUniforms } from '../gpu/core/selection.ts'
 
@@ -41,9 +43,19 @@ export type PlacementGrowth = {
    *  (`growth.ts`). */
   growPlacements(from: PlacementRows, to: PlacementRows): void
   /** Whether `growPlacements` takes each of `from` grown to `capacity` rows, asked before the
-   *  owner replaces any: false leaves them as they are, and the owner opens the session again on
-   *  larger ones. */
+   *  owner replaces any: false leaves them as they are, the rows past them wait, and the owner says
+   *  it by name. */
   growsInPlace(from: readonly PlacementRows[], capacity: number): boolean
+  /** A source the session was not opened with — its rows, its surface — draws a primitive the
+   *  session holds: its records and roots join the cut, the surface's textures taken into the
+   *  atlas, no table rebuilt. `undefined` once joined; else the refusal, by name — a catalogue
+   *  past its keys, a device that refuses the pool or a pass —, nothing joined: the owner says it. */
+  addPlacements?(source: DrawSource, primitive: Primitive): Promise<string | undefined>
+  /** The world DAG a model joined with (a `WorldRootsHold`, its sources handed to `addPlacements`
+   *  first) is drawn from now on, its cells held far where the cut says: its root joins the cut
+   *  made over every root. `undefined` once it waits to join, or when there is nothing to draw —
+   *  the session draws one world DAG, another's —; else the refusal, by name. */
+  addWorldRoots?(roots: object): Promise<string | undefined>
 }
 
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */
@@ -57,16 +69,17 @@ export interface EngineSceneUpdates extends PlacementGrowth {
   updatePlacements(rows: PlacementRows, from: number, to: number): void
   /** Rows `links` follow `parent`, whose world is `world`; the engine composes them on the
    *  GPU. `whole`: they are every row that follows it, none unlinks it; otherwise rows it holds,
-   *  at a new local matrix. False when it cannot: the owner writes the rows itself. */
+   *  at a new local matrix. */
   composePlacements(
     parent: object,
     world: ArrayLike<number>,
     links: readonly { rows: PlacementRows; index: number; local: ArrayLike<number> }[],
     whole: boolean,
-  ): boolean
-  /** The cut's uniforms while it packs the world DAG (`GpuSelection.packsWorld`), which a
-   *  partition's plan projects its far cells with (#1332); `undefined` while none packs it. */
-  worldCut(): SelectionUniforms | undefined
+  ): void
+  /** The cut's uniforms while it packs the world DAG of `roots` (`GpuSelection.packsWorld`), which a
+   *  partition's plan projects its far cells with (#1332); `undefined` while none packs it, or
+   *  it packs another's: the cut draws one. */
+  worldCut(roots?: object): SelectionUniforms | undefined
   /** The lists `ranges` name of the host geometry whose attributes are `attributes` — a dynamic
    *  geometry's (#573) — were rewritten in place, its moved vertices within `box` (local, where
    *  they were and where they go), each vertex at most `reach` from where its page is bounded on
@@ -74,7 +87,7 @@ export interface EngineSceneUpdates extends PlacementGrowth {
    *  (`world/core/pageMotion.ts`), when given: the engine writes those vertices into the buffers
    *  it holds, grows every cut of their roots by `reach` as a deformation's, bounds each page's
    *  row by its box, and stales what they shadowed, no table rebuilt. True when taken; false, the
-   *  owner opens the session again. */
+   *  owner says it by name: those vertices are not drawn. */
   updateVertices(
     attributes: HostAttributes,
     ranges: readonly VertexRange[],
@@ -99,7 +112,7 @@ export interface EngineSceneUpdates extends PlacementGrowth {
   /** The host surfaces the session was opened with had their values rewritten in place, their
    *  version bumped (`world/core/worldSurface.ts`, `repaintHostSurface`): what reads them is read
    *  again at the next frame, no table rebuilt. False for this change — a map whose picture
-   *  changed size where its layout is fixed (#362) —, the owner opens the session again.
+   *  changed size where its layout is fixed (#362) —, the owner says it by name: it is not redrawn.
    *  `values` false when only their textures moved — a picture, a sampling, a placement —: the
    *  frame follows those itself, and nothing a value feeds, a page-table row, is written again.
    *  `alpha` when surfaces changed alpha mode or cutoff, a class change the engine said it takes

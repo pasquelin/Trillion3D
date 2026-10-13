@@ -14,6 +14,7 @@ import { changedRanges, copyRanges, LISTS, type VertexUploads } from './worldDyn
 import { createPageMotion, type PageMotion } from './pageMotion.ts'
 import { fits, heldBox, readInPlace, readingOf, type Reading } from './worldDynamicRead.ts'
 import type { Cut } from './worldCuts.ts'
+import { hostGeometry } from './worldGeometry.ts'
 
 /** THE PER-FRAME UPLOAD BUDGET OF DYNAMIC GEOMETRY, in bytes sent the GPU: past it an
  *  upload waits for the next frame, never dropped; a larger one still goes as a frame's first. Not
@@ -160,7 +161,10 @@ async function make(
     motion,
     reach: 0,
   }
-  return { key, drawn, runtime, users, held: false, dynamic } satisfies Cut
+  // A dynamic resource's vertices are rewritten in place: the engine reads them as floats.
+  const host = hostGeometry(drawn)
+  host.usage = 'dynamic'
+  return { key, drawn, geometry: host, runtime, users, held: false, dynamic } satisfies Cut
 }
 
 /** How a mesh's dynamic resource is read: its drawn options, its draw family, who hears a new one. */

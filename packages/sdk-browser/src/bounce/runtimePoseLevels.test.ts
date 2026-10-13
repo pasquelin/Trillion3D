@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PROXY_CHILD_WORDS, PROXY_CHILDREN, PROXY_NODE_WORDS } from '../../../sdk-core/src/index.ts'
-import { nodeLevels } from './runtimePoseLevels.ts'
+import { poseOrder } from './runtimePoseLevels.ts'
 
 /** A tree of `links` as `[parent, child]` pairs: a child slot's words say node (`1 << 24`, no triangles). */
 function tree(nodes: number, links: [number, number][]) {
@@ -17,7 +17,7 @@ function tree(nodes: number, links: [number, number][]) {
 }
 
 test('the levels list every node once, by depth, the root first', () => {
-  const order = nodeLevels(
+  const order = poseOrder(
     tree(5, [
       [0, 1],
       [0, 2],

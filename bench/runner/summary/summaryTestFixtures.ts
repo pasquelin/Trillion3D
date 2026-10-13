@@ -1,4 +1,4 @@
-// Shared fixtures for `summary/summary.test.ts`, `summary/summaryCoverage.test.ts` and `summary/summaryCompute.test.ts`:
+// Shared fixtures for `summary/summary.test.ts` and `summary/summaryCoverage.test.ts`:
 // split out to keep the files under the line budget.
 import type { BenchReport, Row } from '../report/types.ts'
 

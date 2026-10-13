@@ -6,7 +6,7 @@ import { encodeDagKernels } from './encode.ts'
 import { SELECTION_HEADER_WORDS, levelCountsWord } from './layout.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
-import type { createDagResources } from './resources.ts'
+import type { DagResources } from './resources.ts'
 import {
   holdSwap,
   inPlace,
@@ -24,7 +24,6 @@ import { pickSlot } from './readbackSlot.ts'
 import { encodeSwap } from './swapEncode.ts'
 import { createAsideSlots, type AsideSlots } from './asideSlots.ts'
 
-type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 /** What a view aside takes of the main cut: its owed copy (`dispatch.ts`, `copyOwed`), and the
  *  step every cut on the tables takes before it encodes (`runtime.ts`, `syncTables`). */
 type MainShare = {

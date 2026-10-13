@@ -1,45 +1,4 @@
-use crate::dag::bounds::enclosing_sphere;
-use crate::dag::{build_culling_bvh, DagCluster};
 use crate::shared_math::*;
-
-#[test]
-fn longest_axis_keeps_the_first_axis_on_a_tie() {
-    let axis = longest_axis(&[0.0, 0.0, 0.0], &[5.0, 5.0, 3.0]);
-    assert_eq!(axis, 0);
-}
-
-#[test]
-fn bisect_centres_sorts_an_even_group_and_splits_it_in_half() {
-    let centres = [
-        [10.0, 0.0, 0.0],
-        [10.0, 0.0, 0.0],
-        [5.0, 0.0, 0.0],
-        [20.0, 0.0, 0.0],
-    ];
-    let mut slice = [3usize, 1, 0, 2];
-    bisect_centres(&mut slice, &centres);
-    assert_eq!(slice, [2, 0, 1, 3]);
-    let middle = slice.len() / 2;
-    assert_eq!(&slice[..middle], &[2, 0]);
-    assert_eq!(&slice[middle..], &[1, 3]);
-}
-
-#[test]
-fn bisect_centres_splits_an_odd_group_with_the_larger_half_last() {
-    let centres = [
-        [30.0, 0.0, 0.0],
-        [10.0, 0.0, 0.0],
-        [20.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-        [5.0, 0.0, 0.0],
-    ];
-    let mut slice = [0usize, 1, 2, 3, 4];
-    bisect_centres(&mut slice, &centres);
-    assert_eq!(slice, [3, 4, 1, 2, 0]);
-    let middle = slice.len() / 2;
-    assert_eq!(&slice[..middle], &[3, 4]);
-    assert_eq!(&slice[middle..], &[1, 2, 0]);
-}
 
 #[test]
 fn pad_to_4_covers_every_remainder_and_the_top_of_usize() {
@@ -83,38 +42,4 @@ fn unit_and_the_oracle_unit_keep_their_own_guards() {
     assert_eq!(unit_or_itself([0.0, 0.0, 0.0]), [0.0, 0.0, 0.0]);
     assert_eq!(unit([f64::INFINITY, 0.0, 0.0]), None);
     assert!(unit_or_itself([f64::INFINITY, 0.0, 0.0])[0].is_nan());
-}
-
-/// `node_bounds` (`dag/culling.rs`) is private; it is exercised through the public
-/// `build_culling_bvh`, which calls it once for the root span and once per queued node — the two
-/// blocks the survey records as fused into it.
-#[test]
-fn node_bounds_merges_a_rejection_node_from_its_clusters() {
-    let positions: [f32; 6 * 3] = [
-        0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, // triangle A
-        10.0, 10.0, 10.0, 11.0, 10.0, 10.0, 10.0, 11.0, 10.0, // triangle B
-    ];
-    let sphere_a = [0.0, 0.0, 0.0, 1.0];
-    let sphere_b = [10.0, 10.0, 10.0, 0.5];
-    let cluster = |indices: Vec<u32>, level, sphere: [f64; 4], parent_error| DagCluster {
-        indices,
-        level,
-        lod_error: 0.0,
-        parent_error,
-        sphere: [0.0; 4],
-        parent_sphere: sphere,
-        source_rank: 0,
-        group: None,
-        source: None,
-    };
-    let clusters = vec![
-        cluster(vec![0, 1, 2], 0, sphere_a, 2.0),
-        cluster(vec![3, 4, 5], 1, sphere_b, 5.0),
-    ];
-    let (_, nodes) = build_culling_bvh(&positions, &clusters);
-    let root = &nodes[0];
-    assert_eq!(root.min, [0.0, 0.0, 0.0]);
-    assert_eq!(root.max, [11.0, 11.0, 10.0]);
-    assert_eq!(root.max_parent_error, 5.0);
-    assert_eq!(root.sphere, enclosing_sphere(&[sphere_a, sphere_b]));
 }

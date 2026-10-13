@@ -3,7 +3,7 @@ import { beginTaaFrame, encodeTaaPass, taaRenderMatrix } from './frame.ts'
 import { createTaaFrameState } from './frameState.ts'
 import { createScaleControl } from '../frame/scaleControl.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { TaaInputs } from './inputs.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 
@@ -53,7 +53,7 @@ export function runtime() {
     beginTaaFrame(rt, cam, quiet)
     taaRenderMatrix(rt, cam)
     const before = writes.length
-    encodeTaaPass(rt, device, {} as GPUCommandEncoder, cam, rt.gpu.hdrView!, asIs)
+    encodeTaaPass(rt, device, device.createCommandEncoder(), cam, rt.gpu.hdrView!, asIs)
     return writes.length > before ? (writes[writes.length - 1].data as Float32Array) : null
   }
   return { rt, cam, temporal, encoded, frame, flags }

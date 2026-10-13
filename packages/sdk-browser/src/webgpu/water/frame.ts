@@ -112,17 +112,19 @@ function bindWaterFrame(
   if (!gpu.colorView || !backdrop?.active || !deferred || !volumeBuffer) return false
   const named = frame.targets.next
   named[0] = surfaces
-  named[1] = hdrTexture
-  named[2] = depthView
-  named[3] = backdrop
-  named[4] = gpu.colorView
-  named[5] = hdrView
+  named[1] = depthView
+  named[2] = backdrop
+  named[3] = gpu.colorView
+  named.length = 4
   if (frame.targets.moved()) {
     frame.surfaces = surfaces
-    frame.freeze.bind(hdrTexture, backdrop)
     frame.restore.bind(depthView)
-    frame.passes.bind(surfaces, backdrop.waterDepthView, hdrView, gpu.colorView)
+    frame.passes.bind(surfaces, backdrop.waterDepthView, gpu.colorView)
   }
+  // The HDR target is one of two that take turns (`reflections/radiance.ts`): named each frame,
+  // in the descriptors alone, no group holds it.
+  frame.freeze.bind(hdrTexture, backdrop)
+  frame.passes.light(hdrView)
   const { identity, groups } = frame
   nameWaterResources(identity.next, gpu, uniform, lighting)
   const kept = identity.moved() ? undefined : groups[identity.slot]
@@ -169,7 +171,7 @@ function encodeWaterFrame(
   const rect = frame.freeze.encode(encoder, rt.blendState.waterBounds, rt.gpu.targetSize)
   const written = rt.vis.writesFeedback ? feedbackAttachment(rt) : undefined
   const pass = encoder.beginRenderPass(
-    passes.surface(lobed, frontAttachment(rt.gpu.reflection!.front), written),
+    passes.surface(lobed, frontAttachment(rt.gpu.reflection!.front, rect), written),
   )
   pass.setViewport(0, 0, rt.gpu.targetSize[0], rt.gpu.targetSize[1], 0, 1)
   scissorTo(pass, rect)
@@ -191,7 +193,8 @@ function encodeWaterFrame(
 }
 
 /**
- * The water pass's two render passes, built once and named again at `bind`: the surface pass —
+ * The water pass's two render passes, built once and named again at `bind` (the HDR target at
+ * `light`, each frame): the surface pass —
  * the three material surfaces, the water word (cleared: zero says "no water here" to the
  * composite), the lobes the lobed stage writes (loaded, a pixel's read only where its word is set,
  * by the fragment that set it), the feedback target, whose load `feedbackAttachment` decides per
@@ -223,18 +226,16 @@ function createWaterPasses() {
   }
   const target: GPURenderPassColorAttachment = { view: unnamed, loadOp: 'load', storeOp: 'store' }
   return {
-    bind(
-      surfaces: SurfaceBuffer,
-      waterDepth: GPUTextureView,
-      hdr: GPUTextureView,
-      color: GPUTextureView,
-    ) {
+    bind(surfaces: SurfaceBuffer, waterDepth: GPUTextureView, color: GPUTextureView) {
       depth.view = waterDepth
-      target.view = hdr
       word.view = color
       lobes.view = surfaces.lobesView
       attachments.length = 0
       attachments.push(...surfaceColorAttachments(surfaces).slice(0, 3), word)
+    },
+    /** The HDR target the composite lights the water into, this frame's. */
+    light(hdr: GPUTextureView) {
+      target.view = hdr
     },
     /** The surface pass, with the lobes target where `lobed`, the `front` depth and the feedback
      *  `written`. */

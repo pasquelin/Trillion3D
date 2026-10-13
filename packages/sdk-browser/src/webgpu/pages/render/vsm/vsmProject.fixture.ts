@@ -59,8 +59,7 @@ export function camera(i: number, active = true) {
 const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } }),
   res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 }),
   texture = {} as GPUTextureView,
-  pass = new Proxy({}, { get: () => () => {} }),
-  encoder = { beginComputePass: () => pass } as unknown as GPUCommandEncoder
+  encoder = device.createCommandEncoder()
 
 /** The f32 view header the projection pass uploads for `projection` (`VsmProjectionView`):
  *  shiftedToClip at word 0, shiftedToView 16, viewToClip 32, clipToShifted 48, the screen's
@@ -88,23 +87,35 @@ function header(projection: Float64Array, width: number, height: number) {
   return new Float32Array(bytes.buffer, bytes.byteOffset, 104).slice()
 }
 
-export const f = Math.fround
 /** `m · (x, y, z, w)` as the shader multiplies it, in f32: each product and sum rounded. */
 export const transform = (m: ArrayLike<number>, x: number, y: number, z: number, w: number) =>
   [0, 1, 2, 3].map((r) =>
-    f(f(f(f(m[r] * x) + f(m[4 + r] * y)) + f(m[8 + r] * z)) + f(m[12 + r] * w)),
+    Math.fround(
+      Math.fround(
+        Math.fround(Math.fround(m[r] * x) + Math.fround(m[4 + r] * y)) + Math.fround(m[8 + r] * z),
+      ) + Math.fround(m[12 + r] * w),
+    ),
   )
 
 /** `vsmViewDepthOfDeviceZ` of device depth `z` from the header's depth words (80-83), in f32. */
 export const viewDepth = (h: Float32Array, z: number) =>
-  f(f(f(z * h[80]) + h[81]) + f(1 / f(f(z * h[82]) - h[83])))
+  Math.fround(
+    Math.fround(Math.fround(z * h[80]) + h[81]) +
+      Math.fround(1 / Math.fround(Math.fround(z * h[82]) - h[83])),
+  )
 
 /** `vsmPixelToShifted` of pixel `(px, py)` at device depth `z`, under header `h`, in f32. */
 export function shifted(h: Float32Array, px: number, py: number, z: number) {
-  const u = f(f(px + 0.5) * h[94]),
-    v = f(f(py + 0.5) * h[95])
-  const c = transform(h.subarray(48, 64), f(f(u * 2) - 1), f(1 - f(v * 2)), z, 1)
-  return [f(c[0] / c[3]), f(c[1] / c[3]), f(c[2] / c[3])]
+  const u = Math.fround(Math.fround(px + 0.5) * h[94]),
+    v = Math.fround(Math.fround(py + 0.5) * h[95])
+  const c = transform(
+    h.subarray(48, 64),
+    Math.fround(Math.fround(u * 2) - 1),
+    Math.fround(1 - Math.fround(v * 2)),
+    z,
+    1,
+  )
+  return [Math.fround(c[0] / c[3]), Math.fround(c[1] / c[3]), Math.fround(c[2] / c[3])]
 }
 
 /** Camera `i`'s 64 samples of the screen: 16 pixels by 4 device depths, near plane to 2¹⁷ times
@@ -117,7 +128,7 @@ export function pixelSamples(i: number, width: number, height: number) {
     for (let n = 1; n <= 4; n++) {
       const key = i * 64 + j * 4 + n,
         t = halton(key, 5)
-      samples.push({ px, py, z: f(cam.perspective === 1 ? 2 ** (-t * 17) : t), key })
+      samples.push({ px, py, z: Math.fround(cam.perspective === 1 ? 2 ** (-t * 17) : t), key })
     }
   }
   return samples
@@ -127,7 +138,7 @@ export function pixelSamples(i: number, width: number, height: number) {
 function sunDirection(i: number) {
   const d = [37, 41, 43].map((b) => haltonSpan(i, b, -1, 1)),
     length = Math.hypot(d[0], d[1], d[2])
-  return d.map((x) => f(x / length))
+  return d.map((x) => Math.fround(x / length))
 }
 
 /** Every camera of the sweep, temporal accumulation on then off, with the f32 header of the old

@@ -5,12 +5,11 @@ import { engineReads } from './sessionReads.ts'
 import { createExplorerLifecycle } from '../session/lifecycle.ts'
 import { frameWaits } from '../session/familyUse.ts'
 import type { MeasuredWorldOptions } from '../session/options.ts'
-import type { ExplorerResources, prepareExplorer } from '../session/prepare.ts'
+import type { ExplorerResources, PreparedExplorer } from '../session/prepare.ts'
 import type { ExplorerSession } from '../session/session.ts'
 
-type Prepared = Awaited<ReturnType<typeof prepareExplorer>>
 type Inputs = {
-  prepared: Prepared
+  prepared: PreparedExplorer
   resources: ExplorerResources
   engine: Engine
 }
@@ -46,7 +45,7 @@ export function createSessionRuntime(session: ExplorerSession, inputs: Inputs) {
   const host = createSessionState(prepared, signal)
   const { state, ownedControls, lookAtTarget, check, setPose } = host
   const frame = createSessionFrame(session, { prepared, host, engine })
-  const { render, profiler, streaming } = frame
+  const { render, profiler, streaming, partitionsJoin } = frame
   const { dispose, flush, awaitPages } = createExplorerLifecycle(session, {
     ...{ check, state, gpuDevice, profiler, ownedControls, streaming, engine, source, camera },
     streamer: pageSources.streamer,
@@ -54,7 +53,7 @@ export function createSessionRuntime(session: ExplorerSession, inputs: Inputs) {
   return {
     ...{ options, camera, center, bounds, metadata, canvas, render, gpuDevice, dispose, setPose },
     ...{ awaitPages, flush, check, scope, viewport, context, lookAtTarget, radius, ownedControls },
-    ...{ profiler, state },
+    ...{ profiler, state, partitionsJoin },
     /** The session's one engine, the WebGPU page raster. */
     engine,
     /** The families the next frame draws with still on their way, `undefined` once none is: a

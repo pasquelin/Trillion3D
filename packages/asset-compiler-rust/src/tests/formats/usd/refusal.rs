@@ -1,6 +1,6 @@
 //! Hard refusals of `usd` driver: leaves nothing to compile, compiler
 //! refuses to guess. Reported items in `report.rs`.
-use super::driver::{plugin, temp_dir, wrap, QUAD};
+use super::driver::{plugin, wrap, QUAD};
 use super::*;
 use crate::plugins::scene::SceneRequest;
 
@@ -17,7 +17,7 @@ fn a_mesh_whose_counts_contradict_its_indices_is_refused_by_name() {
         uniform token subdivisionScheme = "none"
     }
 "#;
-    let dir = temp_dir("invalide");
+    let dir = scratch("usd", "invalide");
     let source = dir.join("scene.usda");
     fs::write(&source, wrap("", mesh)).expect("couche");
     assert_eq!(
@@ -31,7 +31,7 @@ fn a_mesh_whose_counts_contradict_its_indices_is_refused_by_name() {
 // not pick root layer for caller.
 #[test]
 fn a_directory_carrying_two_layers_is_refused_as_ambiguous() {
-    let dir = temp_dir("deux-couches");
+    let dir = scratch("usd", "deux-couches");
     for name in ["a.usda", "b.usda"] {
         fs::write(dir.join(name), wrap("", QUAD)).expect("couche");
     }
@@ -47,7 +47,7 @@ fn a_directory_carrying_two_layers_is_refused_as_ambiguous() {
 // name rather than partially served.
 #[test]
 fn a_cancelled_layer_is_refused_by_name_and_writes_nothing() {
-    let dir = temp_dir("annulation");
+    let dir = scratch("usd", "annulation");
     let source = dir.join("scene.usda");
     fs::write(&source, wrap("", QUAD)).expect("couche");
     let cache = dir.join("cache");

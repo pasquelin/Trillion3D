@@ -4,6 +4,7 @@ import { GUIDE_INSTANCE_FLOATS } from './guidePack.ts'
 import { GUIDE_UNIFORM_FLOATS, GUIDE_WGSL, writeGuideView } from './guideShaders.ts'
 import { preparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { GUIDE_PASS } from '../stage/passLabels.ts'
+import { sequentialEntries, computeTextureEntry } from '../gpu/core/computeBindings.ts'
 
 /** Label of the guide pass: its GPU time is read under this name, apart from the beauty passes. */
 
@@ -29,7 +30,7 @@ export function createWebgpuGuidePass(device: GPUDevice) {
         visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
         buffer: { type: 'uniform' },
       },
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
+      computeTextureEntry(1, 'depth', '2d', GPUShaderStage.FRAGMENT),
     ],
   })
   const pipeline = preparedPipeline(device, {
@@ -65,10 +66,7 @@ export function createWebgpuGuidePass(device: GPUDevice) {
     if (boundDepth === depth) return
     group = device.createBindGroup({
       layout,
-      entries: [
-        { binding: 0, resource: { buffer: uniform! } },
-        { binding: 1, resource: depth },
-      ],
+      entries: sequentialEntries([{ buffer: uniform! }, depth]),
     })
     boundDepth = depth
   }

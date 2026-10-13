@@ -59,17 +59,21 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 713 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 709 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
   // PageHome, PageHomes, QualityResolution, TextureLevelAddress, TextureLevelStore,
-  // WorldQualityOptions and ModelScene; and the page cache a streamer reads through,
+  // WorldQualityOptions, ModelScene and the documented settings of `world.controls`
+  // (ControlSettings, CharacterSettings); the sources a session draws and their association
+  // (DrawSource, DrawRanks, DrawAssociations) and the row a parent composes (PlacementLink); and the
+  // page cache a streamer reads through,
   // `createPageCache` with its contract (PageCache, CacheSession, ReadRange, RangeAsk, ByteMeter);
   // it holds no CPU character capsule (Capsule, CapsuleContact, CapsulePush, TriangleTree,
   // CharacterCollision, TriangleCollision): Jolt is the one character body; and the frustum's
-  // `FAR_PLANE_SLOT`, the slot a culling reader tests the far plane at.
-  assert.equal(inventory.exports.length, 713)
+  // `FAR_PLANE_SLOT`, the slot a culling reader tests the far plane at. It holds no compute-path
+  // governor either: the batches run their WebAssembly kernels alone.
+  assert.equal(inventory.exports.length, 709)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
@@ -142,14 +146,17 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // The aim's scratch buffers are marked pure, so a bundle that never aims a node drops them; the
   // length rule's range (hypot outside the normal band) is kept. The browser entry's camera
   // projections read `length2` from the vector module, whose lazy init it starts; its transform tree
-  // grows by the one growth rule (`resized`); the cache format's constants the compiler writes are
+  // grows by the one growth rule (`resized`), keeps a second list of the children whose world
+  // something else composes (`firstLazy`, `lastLazy`); the cache format's constants the compiler writes are
   // printed into one module (`contracts/writtenFormats.ts`), which the entry's chain now includes;
   // the render-origin module imports the matrix inverse and the culling batch the empty-bounds test,
   // two more module init calls in the chain (7 bytes, no function kept); the merged duplicate removals
-  // (runtime, language, code) move it by two bytes more.
-  assert.equal(baseline.outputFiles[0].contents.length, 3_195)
+  // (runtime, language, code) move it by two bytes more; the compute-path governor gone, its
+  // contract's module leaves the browser chain; the light settings' tap count, gone with the
+  // filtered shadow read, takes eleven off.
+  assert.equal(baseline.outputFiles[0].contents.length, 3_184)
   assert.equal(proposed.outputFiles[0].contents.length, 1_450)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_226)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_170)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )

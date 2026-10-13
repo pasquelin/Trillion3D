@@ -15,17 +15,19 @@ import type { EngineContext } from '../../../engine/types.ts'
 import type { PageRec, ClusterRoot } from '../../../page/selection/types.ts'
 import { indexPageRequests } from '../../../page/selection/requests.ts'
 import { worldSelectionRoot, worldWearers, type WorldHeld } from '../../../scene/worldRecords.ts'
+import type { DrawSource } from '../../../page/selection/drawSource.ts'
+import type { WorldRootsHold } from '../../../scene/worldRoots.ts'
 import { KEY_PAGE_MAX } from '../../../gpu/dag/evict.ts'
 import { PRIORITY_PREFETCH } from '../../../streaming/priority.ts'
 import { rowCell } from '../../../partition/rowCells.ts'
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
-import type { WebgpuPagesCore } from '../runtime.ts'
+import type { WebgpuPagesCore, WebgpuPagesRuntime } from '../runtime.ts'
 import type { WebgpuResidencySets } from '../../residency/sets.ts'
 
 type Collected = {
   roots: ClusterRoot<PageRec>[]
   allPages: PageRec[]
-  requestCount: number
+  requests: Map<string, number>
 }
 
 /** The world DAG's root among the cut's. */
@@ -34,23 +36,54 @@ const isWorldRoot = <R extends object>(root: R): root is R & WorldHeld => 'origi
 /** The world DAG the cut packs for `context`'s scene: the stream a partitioned world drew at load. */
 const drawnWorld = (context: Pick<EngineContext, 'worldRoots'>) => context.worldRoots?.drawn?.dag
 
+/** Whether the world DAG's pages and the pages every root places stay within the keys a page
+ *  names (`KEY_PAGE_MAX`): packed, the cut keeps them one key each. */
+export function worldFits(
+  dag: { readonly pages: readonly unknown[] },
+  roots: readonly ClusterRoot<PageRec>[],
+) {
+  const instances = roots.reduce((sum, root) => sum + root.pages.length, 0)
+  return instances + dag.pages.length <= KEY_PAGE_MAX
+}
+
+/**
+ * The cut's root of the world DAG `hold` draws: its pages worn by the sources of `draws`, drawn
+ * after every root of `roots`, at its model's pose; `undefined` when none of its pages is worn.
+ */
+export function worldDagRoot(
+  hold: WorldRootsHold,
+  draws: readonly DrawSource[],
+  roots: readonly ClusterRoot<PageRec>[],
+) {
+  const order = roots.reduce((most, root) => Math.max(most, root.pages[0]?.renderOrder ?? 0), 0)
+  return worldSelectionRoot(
+    hold.drawn!.dag!,
+    worldWearers(draws, hold.primitives),
+    order + 1,
+    hold.pose,
+  )
+}
+
 /**
  * `collected`, the host scene's roots and pages, with the world DAG as the last root and its pages
- * after every other, the request ranks indexed again; as it was without a world to draw.
+ * after every other, the request ranks indexed again; as it was without a world to draw. `draws`
+ * are the sources that wear its pages.
  */
-export function withWorldRoot<T extends Collected>(collected: T, context: EngineContext): T {
-  const dag = drawnWorld(context)
-  if (!dag) return collected
+export function withWorldRoot<T extends Collected>(
+  collected: T,
+  context: EngineContext,
+  draws: readonly DrawSource[],
+): T {
+  const hold = context.worldRoots,
+    dag = drawnWorld(context)
+  if (!hold || !dag) return collected
   const { roots, allPages } = collected
-  const instances = roots.reduce((sum, root) => sum + root.pages.length, 0)
-  if (instances + dag.pages.length > KEY_PAGE_MAX) return collected
-  const order = roots.reduce((most, root) => Math.max(most, root.pages[0]?.renderOrder ?? 0), 0)
-  const wear = worldWearers(context.source, context.metadata.primitives, context.associations)
-  const root = worldSelectionRoot(dag, wear, order + 1)
+  if (!worldFits(dag, roots)) return collected
+  const root = worldDagRoot(hold, draws, roots)
   if (!root) return collected
   roots.push(root)
   for (const page of root.pages) allPages.push(page)
-  return { ...collected, requestCount: indexPageRequests(allPages) }
+  return { ...collected, requests: indexPageRequests(allPages) }
 }
 
 /**
@@ -63,10 +96,9 @@ function objectOfRoot(context: EngineContext, root: ClusterRoot<PageRec>) {
     rec = root.pages[0]
   if (!objects || !placement || root.parked || !rec || rec.transparent) return -1
   const at = rowCell(placement.rows, placement.index),
-    association = rec.sourceMesh && context.associations.get(rec.sourceMesh)
-  if (!at || association?.meshes === undefined) return -1
-  const primitive = association.primitives ?? 0
-  return objects.objectOf(at.cell, at.node, association.meshes, primitive)
+    draw = rec.drawSource
+  if (!at || draw?.mesh === undefined) return -1
+  return objects.objectOf(at.cell, at.node, draw.mesh, draw.primitives ?? 0)
 }
 
 /** Each placement of `roots` the new `cut` packs draws the object its row places now, as a row
@@ -160,4 +192,12 @@ export function takeLandedPages(rt: Pick<WebgpuPagesCore, 'context' | 'gpu' | 's
   }
   const leave = stream.landed.subscribe(take)
   rt.signal.addEventListener('abort', leave, { once: true })
+}
+
+/** The cut that packs the world DAG of a model that joined is the session's (`webgpuAppendWorld.ts`):
+ *  the roots its held cells add follow the cells, and the pages a bundle read lands beside go to the
+ *  pool, as at the open. */
+export function followWorldRoot(rt: WebgpuPagesRuntime) {
+  coverHeldRoots(rt, rt.services.residencySets, rt.services.room)
+  takeLandedPages(rt)
 }

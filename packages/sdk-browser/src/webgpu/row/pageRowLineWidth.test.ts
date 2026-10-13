@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from '../pages/pages.ts'
-import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
 
 /** The `PageInfo.lineWidth` word of every drawn row, after one frame of `scene`. */
@@ -11,7 +11,7 @@ async function rowLineWidths(lineWidth: number | undefined) {
   installGpuGlobals()
   const scene = quadScene()
   if (lineWidth !== undefined) scene.material.lineWidth = lineWidth
-  const { device, buffers } = mockGpu()
+  const { device, buffers } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: device,

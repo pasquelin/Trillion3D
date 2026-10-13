@@ -10,7 +10,6 @@
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
@@ -20,6 +19,7 @@ import { randomLampScope } from './shadedLightScope.fixture.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Sum = (...args: unknown[]) => number[] | { lit: number[]; specular: number[] }
 const SHARED = [
@@ -63,7 +63,7 @@ const KEYS: Partial<ContractKey>[] = [
 const flat = (sum: ReturnType<Sum>) => (Array.isArray(sum) ? sum : [...sum.lit, ...sum.specular])
 
 test('each forward variant sums what the program with every code path sums, bit for bit, in f32', () => {
-  const r = random(1832),
+  const r = lcgRandom(1832),
     u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lit = 0,
     sums = 0

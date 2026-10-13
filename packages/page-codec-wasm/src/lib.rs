@@ -14,9 +14,13 @@
 //! pages the world cuts at run time (`normal_cone.rs`, `wasm_cone.rs`).
 mod attributes;
 pub mod bits;
+pub mod clusters;
+pub mod culling;
 pub mod cut_error;
 pub mod deform;
 pub mod encode;
+#[doc(hidden)]
+pub mod fixtures;
 pub mod hash;
 mod page_error;
 pub use page_error::PageError;
@@ -25,10 +29,15 @@ pub mod min_ball;
 pub mod normal_cone;
 mod positions;
 pub mod proxy;
+pub mod split;
 pub mod triangles;
 mod unpack;
 #[cfg(target_arch = "wasm32")]
+mod wasm_clusters;
+#[cfg(target_arch = "wasm32")]
 mod wasm_cone;
+#[cfg(target_arch = "wasm32")]
+mod wasm_culling;
 #[cfg(target_arch = "wasm32")]
 mod wasm_decode;
 #[cfg(target_arch = "wasm32")]

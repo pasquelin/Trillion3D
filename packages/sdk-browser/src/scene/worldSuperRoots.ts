@@ -8,7 +8,7 @@
  * far cell's super-roots in place of its per-instance roots when those are not resident, and draws
  * them again only once: the group relation between a cell's object roots (children) and its
  * super-roots (outputs) is the same "parent stands in for its children" term the cut already runs
- * inside a primitive, so there is no second selection path and no second BVH (rule 7).
+ * inside a primitive, so there is no second selection path and no second BVH (rule 7): its hierarchy is the cook's.
  *
  * The world pages are world-space geometry (`worldRootsPage`): the root's world matrix is the
  * identity, and the pages' `min`/`max`/`sphere` are their own world-space bounds. The
@@ -17,22 +17,24 @@
  */
 
 import type { DagRoot } from '../gpu/dag/types.ts'
-import type { ClusterGroup } from '../../../sdk-core/src/index.ts'
+import type { ClusterGroup, CullingHierarchy } from '../../../sdk-core/src/index.ts'
 import {
   WORLD_ROOTS_BIN,
   type WorldRootsCluster,
 } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { structureIndex } from '../page/selection/structure.ts'
-import { flatHierarchy } from '../gpu/dag/hierarchy.ts'
+import { cullingNodes } from '../page/selection/helpers.ts'
 import { IDENTITY_WORLD } from '../host/matrixElements.ts'
 import type { worldRootPages } from './worldPageServe.ts'
 
-/** The `clusters` and `groups` of a world-roots table, added by the cook without a version bump.
- *  A group's `children` and `outputs` name clusters by rank (`dag/levels.rs`, `merge.rs`).
- *  `pinned` counts the bundles of the pinned top (`WorldRoots.pinned`). */
+/** The `clusters`, `groups` and `culling` hierarchy of a world-roots DAG. A group's `children` and
+ *  `outputs` name clusters by rank, the rank of the hierarchy's order (`merge.rs`,
+ *  `in_culling_order`), whose nodes name ranges of ranks. `pinned` counts the bundles of the pinned
+ *  top (`WorldRoots.pinned`). */
 export type WorldRootsDagTable = {
   clusters?: readonly WorldRootsCluster[]
   groups?: ClusterGroup[]
+  culling?: CullingHierarchy
   payload?: { url: string }
   pinned: number
 }
@@ -51,7 +53,9 @@ export type WorldDagRoot = Omit<DagRoot, 'pages'> & {
 
 /**
  * The world `DagRoot` of a world-roots table (world-space, identity matrix): its clusters in their
- * cook rank, a `ClusterStructureIndex` from its groups, and a flat culling hierarchy over them. A
+ * cook rank, a `ClusterStructureIndex` from its groups, and the culling hierarchy the cook built
+ * over them, every bound raised by the world's quantization displacement as a primitive's is
+ * (`cullingNodes`). A
  * super-root's page is named by `payload.url` and its `bundle`/`offset`; an object root's is left
  * to its own stream (the cut reads its residency through the structure, its page through the
  * placement). The clusters nothing replaces are the structure's roots; those of the pinned bundles,
@@ -66,6 +70,7 @@ export function worldRootDag(
 ): WorldDagRoot | undefined {
   const { clusters, groups } = table
   if (!clusters?.length || !groups?.length) return undefined
+  // The cook writes every world's hierarchy (version 6): a DAG without one is refused when read.
   const url = table.payload?.url || WORLD_ROOTS_BIN
   const { roots, held, pages, origins, slack } = pagesOf(clusters, url, table.pinned)
   const structure = structureIndex({ version: 1, roots, groups }, pages.length, slack)
@@ -74,7 +79,7 @@ export function worldRootDag(
     pages,
     structure,
     // Its links are the cut's own, derived once per hierarchy (`linksFor`, `page/cut/links.ts`).
-    culling: flatHierarchy(pages),
+    culling: cullingNodes(table.culling, pages.length, slack),
     // Each object root's placed object, which its residency mirrors (`gpu/dag/residencyMirror.ts`).
     origins,
     held,

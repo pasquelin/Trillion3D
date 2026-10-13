@@ -4,7 +4,8 @@
 // pass to read them, and the cut would lose geometry without anything saying so.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts'
+import { hierarchyLevelSizes } from './hierarchy.ts'
+import { cullingInPlace } from './culling.fixture.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
@@ -49,15 +50,15 @@ test("a stage's count bounds its pass's queue, and the sum covers every node", (
 })
 
 test('packed-hierarchy stages are counted with the root included', () => {
-  // Thirty-three pages: two leaves of thirty-two and one, then their node. Two stages.
+  // Thirty-three pages: three median splits give the root eight leaves of four or five. Two stages.
   const pages = Array.from({ length: 33 }, (_, i) => ({ min: [i, 0, 0], max: [i + 1, 1, 1] }))
-  const { nodes, stride } = flatHierarchy(pages)
-  assert.deepEqual(hierarchyLevelSizes(nodes, stride), [1, 2])
+  const { nodes, stride } = cullingInPlace(pages)
+  assert.deepEqual(hierarchyLevelSizes(nodes, stride), [1, 8])
   // One leaf: the root IS the leaf, a single stage.
-  const small = flatHierarchy(pages.slice(0, 4))
+  const small = cullingInPlace(pages.slice(0, 4))
   assert.deepEqual(hierarchyLevelSizes(small.nodes, small.stride), [1])
   // No page: an empty leaf root, always one stage, never zero passes.
-  const empty = flatHierarchy([])
+  const empty = cullingInPlace([])
   assert.deepEqual(hierarchyLevelSizes(empty.nodes, empty.stride), [1])
   assert.deepEqual(hierarchyLevelSizes(new Float64Array(0), stride), [])
 })

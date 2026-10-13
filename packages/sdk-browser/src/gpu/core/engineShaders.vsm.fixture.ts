@@ -32,7 +32,7 @@ import { vsmLayout } from '../../vsm/layout.ts'
  *  target, the page management with and without its counters. The transmission's cull is the
  *  opaque cull with its dirty marking left out: fewer names, no new one. */
 export function vsmVariants() {
-  const layout = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27)
+  const layout = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
   const upper = (name: string) => name.replace(/[A-Z]/g, '_$&').toUpperCase()
   const variants: Record<string, string> = {
     VSM_MARKING_RECTS: vsmPageRectInitWgsl(layout),

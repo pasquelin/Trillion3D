@@ -43,6 +43,8 @@ export function dagRecords(
     | 'pageCount'
     | 'recordCount'
     | 'keyCount'
+    | 'groupCount'
+    | 'groupEdges'
     | 'recordShift'
     | 'rootBases'
     | 'pageIndex'

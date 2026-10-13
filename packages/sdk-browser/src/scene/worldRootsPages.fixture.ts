@@ -6,6 +6,7 @@ import {
 } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
 import { encodePage } from '../page/codec/encodePage.fixture.ts'
+import { inCullingOrder } from './worldCulling.fixture.ts'
 
 /** One super-root page as the cook writes it, a geometry page: a triangle of three vertices, `x`
  *  its offset, with its facts (`WorldRootsPageFacts`). */
@@ -46,7 +47,7 @@ export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => 
   const { bin, bundles } = packBundles(pages, sha256)
   const object = (dependencies: number[]) => ({ node: 0, primitive: 0, roots: [0], dependencies })
   const spec: WorldRootsSpec = {
-    version: 5,
+    version: 6,
     budgetBytes: 4 << 20,
     pinned: 1,
     pinnedTopBytes: bundles[0].bytes,
@@ -161,7 +162,7 @@ export function worldRootsDag() {
     children: [leaves, leaves + 1, leaves + 2],
     outputs: [top],
   })
-  return { clusters, groups, leaves }
+  return { ...inCullingOrder({ clusters, groups }), leaves }
 }
 
 /** The objects of `cell` as a load reads them, word by word (`first`, `size`, `objectNode`,

@@ -29,7 +29,7 @@ reversed-depth projections down +z of a light's shadow map; `projectionOracles.t
 (`halton.ts`; `random.ts`, the seeded generators, twins of the Rust crate's `random.rs`;
 `sweep.fixture.ts`, the Halton sweep and edge values every rewrite proof runs its old expression
 against), `batch/` and `wgsl/` (below); `index.ts` is the
-barrel `packages/sdk-core` re-exports, `wgsl/` left out of it. The path governor, the transform tree
+barrel `packages/sdk-core` re-exports, `wgsl/` left out of it. The transform tree
 and the shader programs are not primitives and live in `sdk-core` and `sdk-browser`.
 
 `scalar/`: counting and range helpers, and `uint64.ts`, the integer two little-endian
@@ -239,19 +239,14 @@ for (let i = 0; i < N; i++) {
 transformPointsBatch(viewCentres, frame.view, centres, m) // m === visible
 ```
 
-**Which path ran.** `boxTransformBatch` and `multiplyMatrix4Batch` have WebAssembly kernels
-(`packages/page-codec-wasm/src/math.rs` over `packages/math/rust/src/matrix.rs` and `box_transform.rs`), bit-identical to the
-JavaScript loop; a governor (`packages/sdk-core/src/runtime/path/governor.ts`, wired in
-`packages/sdk-browser/src/page/decode/batch/batchRuntime.ts`) plays the faster measured, per operation.
-`metric.frame(world).mathBatch` publishes `MathPathMetrics` (`MATH_PATH_CONTRACT` 1):
-`operations[name].path` is the path the next call plays, `jsNsPerElement` and `wasmNsPerElement` the
-sliding medians in nanoseconds per element (`null` while unmeasured — never zero), `switches` how
-many times the decision changed, `elements` the total processed; `clockCoarse` says the thread clock
-is too coarse to time one call (no cross-origin isolation), so the governor times pooled runs of ten
-clock steps instead. A host serving its page with the `Cross-Origin-Opener-Policy` and
-`Cross-Origin-Embedder-Policy` headers gets the fine clock back, one sample per call. A kernel is
-written only where a loop's measured share of the engine's frame passes 0.1 ms; batches serve hosts,
-no engine loop runs through one.
+**One path.** `boxTransformBatch` and `multiplyMatrix4Batch` have WebAssembly kernels
+(`packages/page-codec-wasm/src/math.rs` over `packages/math/rust/src/matrix.rs` and `box_transform.rs`),
+bit-identical to the JavaScript loop. The engine runs its lots
+(`packages/sdk-browser/src/page/decode/batch/batchRuntime.ts`) through the kernels alone: no timing
+picks a path, so two plays of one scene compute the same bits by the same code. A caller that holds
+no lot — none reserved yet, or one of another size — moves each element by the single-element
+function (`boxTransform`, `multiplyMatrix4`), the kernel's bits. The JavaScript loops serve hosts
+and the tests' oracle; no engine loop runs through one.
 
 ### The Rust twins and their reference values
 

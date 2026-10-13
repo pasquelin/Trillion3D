@@ -9,6 +9,7 @@ import {
   CONTRACT_SHADOW_BINDINGS,
   declaredLightingWgsl,
 } from '../../lighting/direct/lightingWgsl.ts'
+import { CONTRACT_TRACE_BINDINGS } from '../../lighting/direct/shadowWgsl.ts'
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
 import { BLEND_VIEW_WGSL } from '../blend/viewLayout.ts'
 import { WATER_LOBELESS_WGSL, WATER_LOBES_WGSL } from './waterLobesWgsl.ts'
@@ -39,7 +40,7 @@ export const WATER_BINDINGS = {
   probes: 12,
   /** The proxy's buffer and the culling's world matrices, which the reflection traces. */
   proxy: 13,
-  worlds: 34,
+  worlds: 36,
   backdrop: 14,
   backdropDepth: 15,
   /** The blend view uniform, as written for the blend pass: projection, eye, tiles, flags. */
@@ -48,6 +49,9 @@ export const WATER_BINDINGS = {
   /** The shadow pool's transmittance layer, on the deferred resolve's numbers. */
   shadowTransmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
   shadowTranslucentDepth: CONTRACT_SHADOW_BINDINGS.translucentDepth,
+  /** What a water pixel traces its shadow with past the maps (`vsmTraceFactor`). */
+  shadowView: CONTRACT_TRACE_BINDINGS.view,
+  shadowNoise: CONTRACT_TRACE_BINDINGS.noise,
 }
 
 /**
@@ -88,6 +92,7 @@ export const waterCompositeShader = (
   const lobes = !key.lobeless
   const bindings = {
     transmittance: WATER_BINDINGS.shadowTransmittance,
+    trace: CONTRACT_TRACE_BINDINGS,
   }
   return wgslProgram(
     `struct Volume{transmission:f32,eta:f32,thickness:f32,f0:f32,attenuation:vec4f,}

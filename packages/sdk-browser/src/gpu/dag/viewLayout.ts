@@ -50,6 +50,11 @@ const VIEW_FIELDS = [
   ['candCap', 'u32'],
   ['recordCount', 'u32'],
   ['keyCount', 'u32'],
+  // The keys' groups and the links to the groups replacing them, in the cold table (`evict.ts`);
+  // then the host's frame, the clock a use is stamped with (`shader/lastUseWgsl.ts`).
+  ['groupCount', 'u32'],
+  ['groupEdges', 'u32'],
+  ['frame', 'u32'],
   ['lightOriginHigh', 'vec4f'],
   ['lightOriginLow', 'vec4f'],
   ['lightPlanes', 'array<vec4f,6>'],

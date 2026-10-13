@@ -6,7 +6,7 @@ import { BOUNCE_CAPABILITY } from './prepare/bounce.ts'
 import type { EngineCapabilities, EngineContext } from '../../engine/types.ts'
 import { createWebgpuPagesServices, type WebgpuPagesServices } from './services.ts'
 import { createWebgpuDiagnostics } from './io/diagnostics.ts'
-import { createWebgpuBlendState } from '../blend/state.ts'
+import { createWebgpuBlendState, type WebgpuBlendState } from '../blend/state.ts'
 import { createWebgpuPagesSetup, type WebgpuDiagnostics } from './prepare/setup.ts'
 import { createWebgpuPagesLayout, type WebgpuPagesLayout } from './prepare/layout.ts'
 import { createWebgpuGpuState, type WebgpuGpuState } from './state/gpu.ts'
@@ -17,7 +17,7 @@ import { createWebgpuRunState, type WebgpuRunState } from './state/run.ts'
 import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts'
 import { createWebgpuViews, type WebgpuViews } from './state/view.ts'
 import { createScaleControl, type ScaleControl } from '../../frame/scaleControl.ts'
-import type { EngineCamera } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { createWebgpuTimingState, type WebgpuTimingState } from './state/timing.ts'
 import { WEBGPU_STAGES } from '../../stage/passDeclaration.ts'
 import type { WebgpuPagesSetup } from './prepare/setup.ts'
@@ -64,7 +64,7 @@ export interface WebgpuPagesRuntime {
   /** The render scale the page asked, its controller, and the scale of the image drawn. */
   scale: ScaleControl
   capabilities: EngineCapabilities
-  blendState: ReturnType<typeof createWebgpuBlendState>
+  blendState: WebgpuBlendState
   /** The nodes the host may write, listed by frame entry at a scene change only (`gateCore.ts`):
    *  built once, so an image hands over no new closure. */
   watchedSources: () => unknown[]

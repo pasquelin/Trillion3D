@@ -6,7 +6,7 @@ import test from 'node:test'
 import { setTimeout as sleep } from 'node:timers/promises'
 import type { FrameGpu } from '../../../bench/dawn/passSpans.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
-import { openBenchDevice } from '../kit/benchDevice.ts'
+import { kernelOn, openBenchDevice } from '../kit/benchDevice.ts'
 
 const SLOW = /* wgsl */ `
 @group(0) @binding(0) var<storage, read_write> out: array<f32>;
@@ -27,14 +27,7 @@ async function timed(
   const out = device.createBuffer({ size: 1 << 20, usage: GPUBufferUsage.STORAGE })
   const encoder = device.createCommandEncoder()
   const pass = (code: string, groups: number, label = code === SLOW ? 'slow' : 'light') => {
-    const pipeline = device.createComputePipeline({
-      layout: 'auto',
-      compute: { module: device.createShaderModule({ code }), entryPoint: 'main' },
-    })
-    const bind = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: [{ binding: 0, resource: { buffer: out } }],
-    })
+    const { pipeline, bind } = kernelOn(device, code, out)
     const p = encoder.beginComputePass({ label })
     p.setPipeline(pipeline)
     p.setBindGroup(0, bind)
@@ -90,14 +83,7 @@ test(
     const idle = await runOnDawn(async () => {
       const { gpu, device } = await openBenchDevice()
       const out = device.createBuffer({ size: 4096, usage: GPUBufferUsage.STORAGE })
-      const pipeline = device.createComputePipeline({
-        layout: 'auto',
-        compute: { module: device.createShaderModule({ code: LIGHT }), entryPoint: 'main' },
-      })
-      const bind = device.createBindGroup({
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [{ binding: 0, resource: { buffer: out } }],
-      })
+      const { pipeline, bind } = kernelOn(device, LIGHT, out)
       const submit = () => {
         const encoder = device.createCommandEncoder()
         const p = encoder.beginComputePass({ label: 'light' })

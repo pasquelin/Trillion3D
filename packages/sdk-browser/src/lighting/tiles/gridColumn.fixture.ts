@@ -7,8 +7,12 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { directLightWgsl } from '../direct/lightWgsl.ts'
-import { GRID_COMPACT_WGSL } from './compactWgsl.ts'
+import { gridCompactWgsl } from './compactWgsl.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
+
+/** The view grid's compaction: a column's depth slices. */
+const GRID_COMPACT_WGSL = gridCompactWgsl(LIGHT_SETTINGS.gridSlices)
 
 const W = { ...wgslConstants(directLightWgsl()), ...wgslConstants(GRID_COMPACT_WGSL) }
 export const { GRID_SLICES, TILE_SHADOWED, TILE_NO_SLICE, LANES, CACHE } = W

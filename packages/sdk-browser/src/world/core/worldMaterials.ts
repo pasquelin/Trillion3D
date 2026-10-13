@@ -7,6 +7,11 @@ import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { composesWithBackground } from '../../scene/materialBlending.ts'
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts'
 import { alphaMoves, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
+import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
+import type { GraphSurface } from '../../host/graph/surface.ts'
+import type { GraphTexture } from '../../host/graph/texture.ts'
+import { hostSurface, repaintHostSurface } from './worldSurface.ts'
+import { HOST_MAPS, type HostTextures } from './worldTextures.ts'
 
 /** The parameters a session lays out when it opens, and so the only ones never written in place:
  *  `kind` its family, `transparent`, `blending` and `transmission` its pass, `side`, `depthTest`
@@ -73,8 +78,64 @@ const opaque = (material: Material) =>
   !composesWithBackground(material.blending) &&
   !((material.transmission as number | undefined) ?? 0)
 
-/** An entry of the table: the parameters as they were when the entry was made or repainted. */
-export type MaterialEntry = { readonly id: number; key: string; readonly material: Material }
+/** An entry of the table: the parameters as they were when the entry was made or repainted, and
+ *  the surfaces built from them, one per way its wearers read it (`surfaceOf`). */
+export type MaterialEntry = {
+  readonly id: number
+  key: string
+  readonly material: Material
+  readonly surfaces: (GraphSurface | undefined)[]
+}
+
+/** What a resource's triangles are read as by the surface that draws them. */
+type Reading = 'faces' | 'lines' | 'sprite' | 'sheet'
+
+/** The surface of `entry` for the triangles `drawn`, built once and shared by every wearer: one
+ *  per material, a second one when the material asks for vertex colours and is worn by geometries
+ *  with and without them (the material decides, and a geometry with no colour has none to tint
+ *  by), a third when it is worn by lines (widened and lifted), a fourth by a sprite (its quad
+ *  turned to the camera), a fifth, and a sixth with vertex colours, by cloths (drawn on both
+ *  faces). */
+function surfaceFor(
+  state: MaterialsState,
+  entry: MaterialEntry,
+  drawn: DrawnTriangles,
+  twoSided: boolean,
+) {
+  const { material } = entry
+  const tinted = !!material.vertexColors && !!drawn.colors,
+    reading: Reading = drawn.lines
+      ? 'lines'
+      : drawn.spriteRadius !== undefined
+        ? 'sprite'
+        : twoSided
+          ? 'sheet'
+          : 'faces'
+  const rank =
+    reading === 'lines' ? 2 : reading === 'sprite' ? 3 : (reading === 'sheet' ? 4 : 0) + +tinted
+  return (entry.surfaces[rank] ??= hostSurface(material, tinted, state.textures, reading))
+}
+
+/** Gives back the surfaces of `entries`, and the textures only they wore. */
+function release(state: MaterialsState, entries: Iterable<MaterialEntry>) {
+  const { textures } = state
+  for (const entry of entries) {
+    for (const surface of entry.surfaces) surface?.dispose()
+    entry.surfaces.length = 0
+  }
+  const worn = new Set<GraphTexture>()
+  for (const entry of state.entries.values())
+    for (const surface of entry.surfaces)
+      for (const field of HOST_MAPS) {
+        const texture = surface?.[field] as GraphTexture | null | undefined
+        if (texture) worn.add(texture)
+      }
+  for (const [key, texture] of textures)
+    if (!worn.has(texture)) {
+      texture.dispose()
+      textures.delete(key)
+    }
+}
 
 /** How an entry was repainted: its values written or its pictures alone, its alpha moved. */
 type Repaint = { values: boolean; alpha?: Omit<AlphaChange, 'surfaces'> }
@@ -97,6 +158,7 @@ export function createWorldMaterials() {
     sources: new Map(),
     known: new WeakMap(),
     repainted: new Map(),
+    textures: new Map(),
     counts: { duplicates: 0 },
     ids: 0,
   }
@@ -104,6 +166,15 @@ export function createWorldMaterials() {
   return {
     counts: state.counts,
     entryOf: (material: Material): MaterialEntry => entryOf(state, material),
+    /** The surface `entry` is worn as by the triangles `drawn` (`surfaceFor`). */
+    surfaceOf: (entry: MaterialEntry, drawn: DrawnTriangles, twoSided: boolean) =>
+      surfaceFor(state, entry, drawn, twoSided),
+    /** Writes the repainted entries into the surfaces built for them, then has `refresh` — the
+     *  open session, if any — read them again: once, with the surfaces whose alpha moved the same
+     *  way, and once more, no value, for each other way (`AlphaChange`). False when the session
+     *  cannot. */
+    repaint: (painted: readonly RepaintedEntry[], refresh?: Refresh) =>
+      repaintSurfaces(painted, refresh),
     /** The entries repainted since the last call, handed over once; `values` false when only
      *  their textures moved — a picture, a sampling, a placement —, which no value reads;
      *  `alpha` when their alpha mode or cutoff moved. */
@@ -112,14 +183,22 @@ export function createWorldMaterials() {
       repainted.clear()
       return taken
     },
-    /** Forgets the entries no session and no mesh uses any more. */
+    /** Forgets the entries no session and no mesh uses any more, their surfaces given back. */
     keep(used: ReadonlySet<MaterialEntry>) {
+      const dropped: MaterialEntry[] = []
       for (const [key, entry] of entries)
         if (!used.has(entry)) {
           entries.delete(key)
           sources.delete(entry)
           repainted.delete(entry)
+          dropped.push(entry)
         }
+      release(state, dropped)
+    },
+    /** The world is gone: every surface and texture it built is given back. */
+    dispose() {
+      release(state, entries.values())
+      entries.clear()
     },
   }
 }
@@ -135,6 +214,8 @@ type MaterialsState = {
   /** The entries repainted since the last take, each with whether its values were written and,
    *  when its cutoff moved, its alpha mode before the first repaint and after the last. */
   repainted: Map<MaterialEntry, Repaint>
+  /** The textures its surfaces wear, each built once (`hostTexture`). */
+  textures: HostTextures
   counts: { duplicates: number }
   ids: number
 }
@@ -153,7 +234,8 @@ function entryOf(state: MaterialsState, material: Material): MaterialEntry {
     return held
   }
   let entry = entries.get(key)
-  if (!entry) entries.set(key, (entry = { id: state.ids++, key, material: material.clone() }))
+  if (!entry)
+    entries.set(key, (entry = { id: state.ids++, key, material: material.clone(), surfaces: [] }))
   else if (last?.entry !== entry) state.counts.duplicates++
   if (last && last.entry !== entry) sources.get(last.entry)?.delete(material)
   const from = sources.get(entry) ?? new Set<Material>()
@@ -200,4 +282,28 @@ function repaint(state: MaterialsState, material: Material, entry: MaterialEntry
     done.alpha = { from: before?.alpha?.from ?? from, to }
   repainted.set(entry, done)
   return true
+}
+
+/** How a session reads repainted surfaces again (`EngineSceneUpdates.refreshMaterials`). */
+type Refresh = (values: boolean, alpha?: AlphaChange) => boolean
+
+function repaintSurfaces(painted: readonly RepaintedEntry[], refresh?: Refresh) {
+  let written = false,
+    values = false
+  const moved = new Map<string, AlphaChange & { surfaces: GraphSurface[] }>()
+  for (const { entry, alpha, values: wrote } of painted) {
+    const worn = entry.surfaces.filter((surface): surface is GraphSurface => !!surface)
+    for (const surface of worn) repaintHostSurface(surface, entry.material)
+    if (!worn.length) continue
+    written = true
+    values ||= wrote
+    if (!alpha) continue
+    const way = `${alpha.from}>${alpha.to}`
+    const change = moved.get(way)
+    if (change) change.surfaces.push(...worn)
+    else moved.set(way, { ...alpha, surfaces: worn })
+  }
+  if (!refresh || !written) return true
+  const [first, ...others] = moved.values()
+  return refresh(values, first) && others.every((alpha) => refresh(false, alpha))
 }

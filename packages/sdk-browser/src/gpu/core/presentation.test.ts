@@ -6,8 +6,7 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 test('presentation acquires a fresh canvas target after resizing, shared by fused and copy paths', () => {
   const sizes: number[][] = [],
-    views: object[] = [],
-    passes: GPURenderPassDescriptor[] = []
+    views: object[] = []
   let configured: GPUCanvasConfiguration | undefined,
     unconfigured = false
   const canvas = {
@@ -32,13 +31,8 @@ test('presentation acquires a fresh canvas target after resizing, shared by fuse
       },
     }),
   } as unknown as HTMLCanvasElement
-  const { device } = fakeDevice()
-  const encoder = {
-    beginRenderPass(descriptor: GPURenderPassDescriptor) {
-      passes.push(descriptor)
-      return { setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }
-    },
-  } as unknown as GPUCommandEncoder
+  const { device, passes } = fakeDevice()
+  const encoder = device.createCommandEncoder()
   const presenter = createGpuPresenter(device, canvas)
   try {
     const first = presenter.targetView(32, 24),
@@ -51,7 +45,7 @@ test('presentation acquires a fresh canvas target after resizing, shared by fuse
     assert.equal(passes.length, 0, 'acquiring a target must not encode a copy pass')
     presenter.present(encoder, { createView: () => ({}) } as GPUTexture, 16, 12)
     assert.deepEqual(sizes.at(-1), [16, 12])
-    assert.equal(Array.from(passes[0].colorAttachments)[0]?.view, views[2])
+    assert.equal(passes[0].colors[0]?.view, views[2])
     assert.equal(configured?.format, 'bgra8unorm')
     assert.equal(configured?.alphaMode, 'opaque')
   } finally {
@@ -86,29 +80,23 @@ test('a view presents at its rectangle: the canvas keeps its size and what it sh
       unconfigure() {},
     }),
   } as unknown as HTMLCanvasElement
-  const calls: unknown[][] = [],
-    passes: GPURenderPassDescriptor[] = []
-  const record =
-    (name: string) =>
-    (...args: unknown[]) =>
-      void calls.push([name, ...args])
-  const encoder = {
-    beginRenderPass(descriptor: GPURenderPassDescriptor) {
-      passes.push(descriptor)
-      const [setViewport, setScissorRect, draw] = ['viewport', 'scissor', 'draw'].map(record)
-      return { setPipeline() {}, setBindGroup() {}, setViewport, setScissorRect, draw, end() {} }
-    },
-  } as unknown as GPUCommandEncoder
-  const presenter = createGpuPresenter(fakeDevice().device, canvas)
+  const { device, passes } = fakeDevice()
+  const encoder = device.createCommandEncoder()
+  /** The viewport, scissor and draws `pass` set, each with its arguments. */
+  const steps = (pass: (typeof passes)[number]) =>
+    pass.commands.flatMap(([name, args]) => {
+      const step = { setViewport: 'viewport', setScissorRect: 'scissor', draw: 'draw' }[name]
+      return step ? [[step, ...args]] : []
+    })
+  const presenter = createGpuPresenter(device, canvas)
   const image = { createView: () => ({}) } as GPUTexture
   presenter.present(encoder, image, 16, 8, { x: 40, y: 44, width: 32, height: 8 })
   assert.equal(passes.length, 0, 'no whole image this frame: the canvas keeps the last one')
   presenter.present(encoder, image, 64, 48)
-  calls.length = 0
   presenter.present(encoder, image, 16, 8, { x: 40, y: 44, width: 32, height: 8 })
   assert.deepEqual([canvas.width, canvas.height], [64, 48], 'the canvas is not resized')
-  assert.equal(Array.from(passes[1].colorAttachments)[0]?.loadOp, 'load')
-  assert.deepEqual(calls, [
+  assert.equal(passes[1].colors[0]?.loadOp, 'load')
+  assert.deepEqual(steps(passes[1]), [
     ['viewport', 40, 44, 24, 4, 0, 1],
     ['scissor', 40, 44, 24, 4],
     ['draw', 3, 1, 0, 40 + 44 * 65536],

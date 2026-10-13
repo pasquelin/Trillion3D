@@ -6,6 +6,9 @@ import { flatInstances, type PackedInstances } from './instances.ts'
 import { createDirtyRows } from './dirty.ts'
 import { growRowState } from './grow.ts'
 import { createRowPageState } from './pageState.ts'
+/** The page-table rows a session holds (`createWebgpuRowState`). */
+export type WebgpuRowState = ReturnType<typeof createWebgpuRowState>
+
 /**
  * Stable row and residency arrays shared by the cut, visibility pass, and cache journal.
  *

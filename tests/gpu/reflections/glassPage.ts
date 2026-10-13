@@ -7,10 +7,9 @@
 // tells where on the image the exact mirror rays of the panes' pixels meet what they meet.
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
-import { SUN } from '../../../bench/runner/lighting/lamps.ts'
-import { batisseur, engine, release, square } from '../kit/sharedSceneProof.ts'
-import { untilHeld } from '../kit/sceneImageProof.ts'
+import { batisseur } from '../kit/sharedSceneProof.ts'
+import { sunlitEngine, untilHeld } from '../kit/sceneImageProof.ts'
+import { flipRows } from '../kit/patternImage.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { EYE, HEIGHT, TARGET, WIDTH, crossing, mirror, pixelOf, rayOf } from './glassView.ts'
 import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
@@ -34,55 +33,32 @@ type Parts = { pane: boolean; base: boolean; a?: boolean; paneColor?: number; ba
  *  metal, so that what it reflects is what the proof reads. */
 export type GlassKind = 'blend' | 'transmission' | 'water'
 
-const glass = (color: number, kind: GlassKind) =>
-  kind === 'blend'
-    ? G.standardSurface({
-        color,
-        metalness: 1,
-        roughness: 0.04,
-        transparent: true,
-        opacity: 0.5,
-        depthWrite: false,
-        side: G.DOUBLE_SIDE,
-      })
-    : G.physicalSurface({
-        color,
-        metalness: 1,
-        roughness: 0.04,
-        transmission: 0.5,
-        ior: 1,
-        thickness: kind === 'water' ? 2 : 0,
-        ...(kind === 'water' ? { attenuationColor: 0xb0d8d0, attenuationDistance: 20 } : {}),
-        transparent: true,
-        opacity: 1,
-        depthWrite: false,
-        side: G.DOUBLE_SIDE,
-      })
+const glass = (color: number, kind: GlassKind) => {
+  const surface = {
+    ...{ color, metalness: 1, roughness: 0.04, transparent: true, depthWrite: false },
+    side: G.DOUBLE_SIDE,
+  }
+  if (kind === 'blend') return G.standardSurface({ ...surface, opacity: 0.5 })
+  const water = kind === 'water'
+  return G.physicalSurface({
+    ...surface,
+    ...{ transmission: 0.5, ior: 1, thickness: water ? 2 : 0, opacity: 1 },
+    ...(water ? { attenuationColor: 0xb0d8d0, attenuationDistance: 20 } : {}),
+  })
+}
 
 function scene(
   { pane, base, a = true, paneColor = PANE_B, baseColor = BASE_B.color }: Parts,
   kind: GlassKind,
 ) {
   const builder = batisseur()
-  const add = (
-    surface: G.GraphSurface,
-    pass: string,
-    half: number,
-    [x, y, z]: V3,
-    rotation: Partial<Record<'x' | 'y', number>>,
-  ) => {
-    const mesh = G.mesh(square(half), surface)
-    mesh.position.set(x, y, z)
-    mesh.rotation.set(rotation.x ?? 0, rotation.y ?? 0, 0)
-    builder.source.add(mesh)
-    builder.add(mesh, pass, half)
-  }
   const flat = (color: number) => G.basicSurface({ color, side: G.DOUBLE_SIDE })
-  add(flat(FLOOR), 'exact-clusters', 90, [0, 0, -4], { x: -HALF_PI })
-  add(flat(BASE_A.color), 'exact-clusters', BASE_A.half, BASE_A.at, { x: -HALF_PI })
-  if (base) add(flat(baseColor), 'exact-clusters', BASE_B.half, BASE_B.at, { x: -HALF_PI })
-  if (a) add(glass(0xffffff, kind), 'clustered-blend', A.half, A.at, { y: A.yaw })
-  if (pane) add(glass(paneColor, kind), 'clustered-blend', B.half, B.at, { y: B.yaw })
+  builder.place(flat(FLOOR), 'exact-clusters', 90, [0, 0, -4], { x: -HALF_PI })
+  builder.place(flat(BASE_A.color), 'exact-clusters', BASE_A.half, BASE_A.at, { x: -HALF_PI })
+  if (base)
+    builder.place(flat(baseColor), 'exact-clusters', BASE_B.half, BASE_B.at, { x: -HALF_PI })
+  if (a) builder.place(glass(0xffffff, kind), 'clustered-blend', A.half, A.at, { y: A.yaw })
+  if (pane) builder.place(glass(paneColor, kind), 'clustered-blend', B.half, B.at, { y: B.yaw })
   return builder.fini()
 }
 
@@ -95,28 +71,17 @@ function cameraOf() {
 }
 
 /** The held image of `parts`: RGBA bytes, the top row first. */
-async function imageOf(device: GPUDevice, events: unknown[], parts: Parts, kind: GlassKind) {
-  const prepared = scene(parts, kind),
-    camera = cameraOf()
-  const sceneLights = createSceneLightStore()
-  sceneLights.add(SUN)
-  const { backend, canvas } = engine(prepared, device, (e) => events.push(e), {
-    sceneLights,
+export async function imageOf(device: GPUDevice, events: unknown[], parts: Parts, kind: GlassKind) {
+  const camera = cameraOf()
+  const { backend, release } = await sunlitEngine(scene(parts, kind), device, events, {
     viewport: [WIDTH, HEIGHT],
   })
   try {
-    await backend.prepare()
     const { held, rendered } = await untilHeld(backend, camera)
-    const bottomUp = Uint8Array.from(held ?? rendered ?? [])
-    const pixels = new Uint8Array(bottomUp.length)
-    for (let y = 0; y < HEIGHT; y++)
-      pixels.set(
-        bottomUp.subarray((HEIGHT - 1 - y) * WIDTH * 4, (HEIGHT - y) * WIDTH * 4),
-        y * WIDTH * 4,
-      )
+    const pixels = flipRows(Uint8Array.from(held ?? rendered ?? []), WIDTH)
     return { held: held !== null, pixels: Array.from(pixels) }
   } finally {
-    release(backend, canvas, prepared)
+    await release()
   }
 }
 

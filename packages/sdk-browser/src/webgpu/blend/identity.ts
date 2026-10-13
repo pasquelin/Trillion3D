@@ -34,6 +34,8 @@ export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
       shadowSampler: () => rt.blendState.lighting?.shadowSampler,
       shadowTransmittance: () => rt.blendState.lighting?.shadowTransmittance,
       shadowTranslucentDepth: () => rt.blendState.lighting?.shadowTranslucentDepth,
+      shadowView: () => rt.blendState.lighting?.shadowView,
+      shadowNoise: () => rt.blendState.lighting?.shadowNoise,
       bounceGrid: () => rt.blendState.lighting?.bounceGrid,
       probes: () => rt.blendState.lighting?.probes,
       tileLights: () => rt.blendState.lighting?.tileLights,

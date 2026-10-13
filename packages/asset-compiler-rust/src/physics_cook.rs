@@ -11,9 +11,10 @@
 //! declare, a shapeless one given one convex hull (`hull.rs`) and the exact mass of its closed mesh
 //! (`mass.rs`), a breakable one also cut into weighed convex pieces (`pieces.rs`, `voronoi.rs`); and the soft bodies its nodes declare, each the engine's `SoftBodySharedSettings` as the
 //! physics worker would build them (`soft.rs`).
-use crate::dag::{CullingNode, DagCluster};
+use crate::dag::DagCluster;
 use crate::{CompilerError, Options, Result};
 use serde_json::{json, Value};
+use trillion3d_page_codec::culling::CullingNode;
 
 #[cfg(test)]
 mod bodies_tests;

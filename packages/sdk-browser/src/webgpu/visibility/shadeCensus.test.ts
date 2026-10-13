@@ -7,15 +7,21 @@ import { collectClusterPages } from '../../page/selection/selection.ts'
 import { createShadeCensus } from './shadeCensus.ts'
 import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { createPageRowWriter } from '../row/pageRowWriter.ts'
-import { ROW_WORDS } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { scene } from '../core/materialClasses.fixture.ts'
 import type * as G from '../../host/graph/graph.fixture.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 /** The fixture's pages, the blocks their rows read, and the class a row of the cut-out carries. */
 function opened() {
   const { source, metadata, indices, associations, meshes } = scene()
-  const { allPages, roots } = collectClusterPages(source, metadata, indices, associations)
+  const { allPages, roots } = collectClusterPages(
+    source,
+    graphDraws(source, associations),
+    metadata,
+    indices,
+  )
   const block = { vertexBase: 0, count: 3, hasUv: false, hasNormal: true, hasTangent: false }
   const geometryBlocks = new Map(
     roots.map((root) => [root.pages[0].attributes, { ...block, hasColor: false }]),

@@ -28,6 +28,9 @@ export type GpuPageCacheOptions = {
   onDiagnostic?: (d: EngineDiagnostic) => void
 }
 
+/** The GPU page cache (`createGpuPageCache`). */
+export type GpuPageCache = ReturnType<typeof createGpuPageCache>
+
 /** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host: each load
  * reads its page from `source` (`reader.ts`), which joins the reads of a page in flight and says
  * when a failed one is asked again. Queue writes are ordered; dispose waits for in-flight submits
@@ -55,13 +58,25 @@ export function createGpuPageCache(
      * into a buffer while it is being copied. The cache keeps held pins before ordinary pins.
      * Returns keys evicted for lack of room.
      */
-    resize: (slots: number) => resizeBehind(context, slots),
+    resize: (slots: number, grown?: { pageBytes: number; widths: ReadonlyMap<string, number> }) =>
+      resizeBehind(context, slots, grown),
     get(key: string) {
       return resident.get(key)
     },
     /** Evicts in `order` from now on: an arrival takes the slot of its first resident, unpinned page
-     *  not taken yet, never of a page it leaves out. `undefined` goes back to the least recent. */
+     *  not taken yet, never of a page it leaves out. `undefined`: no victim until the next one. */
     evictInOrder: (order?: EvictionOrder) => context.eviction.follow(order),
+    /** Pages committed so far: what an order made now names as its `arrivals`. */
+    get arrivals() {
+      return state.generation
+    },
+    /** True when a load was refused for lack of a place since the last call: the order in hand is
+     *  spent, and the GPU is to publish another (`../../webgpu/residency/evictionFeed.ts`). */
+    takeRefused() {
+      const refused = state.refused
+      state.refused = false
+      return refused
+    },
     /** Membership changes increase this counter; LRU touches do not. Callers with a verdict from
      * `get` can compare it instead of querying every page again. */
     /** How many pages are resident now. */
@@ -98,6 +113,7 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     bytesRead: 0,
     uploadedBytes: 0,
     evictions: 0,
+    refused: false,
   }
   const reader = createGpuPageReader(source, pageBytes, options.onDiagnostic)
   const { emit } = reader

@@ -3,6 +3,7 @@ import {
   type DrawnTriangles,
 } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { hostGeometry } from './worldGeometry.ts'
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts'
@@ -12,6 +13,7 @@ import { cutRuntimePrimitive, type RuntimePrimitive } from '../page/runtimePrimi
 import { packDrawn } from '../page/runtimeCut.ts'
 import type { CutWay } from '../page/runtimePack.ts'
 import { composesWithBackground } from '../../scene/materialBlending.ts'
+import { firstMaterial } from '../../scene/materialSide.ts'
 import { createWorldDynamic, type DynamicHeld } from './worldDynamic.ts'
 import type { WorldNotices } from '../diagnostic/worldNotices.ts'
 
@@ -23,14 +25,15 @@ import type { WorldNotices } from '../diagnostic/worldNotices.ts'
 export type Cut = {
   readonly key: string
   readonly drawn: DrawnTriangles
+  /** The triangles under the attribute names a draw reads, built once with the resource and
+   *  shared by everything that draws it; the vertices of a dynamic one are rewritten in place. */
+  readonly geometry: Geometry
   readonly runtime: RuntimePrimitive
   readonly users: Set<Mesh>
   held: boolean
   /** A dynamic geometry's resource: its vertices are rewritten in place (`worldDynamic.ts`). */
   readonly dynamic?: DynamicHeld
 }
-
-export const firstMaterial = (m: Material | Material[]) => (Array.isArray(m) ? m[0] : m)
 
 /**
  * What decides a mesh's triangles, beside its geometry: how it reads it, the material fields
@@ -44,7 +47,7 @@ export const firstMaterial = (m: Material | Material[]) => (Array.isArray(m) ? m
  * equal on these draw the same pages, whatever else they wear.
  */
 function readingOf(mesh: Mesh) {
-  const material = firstMaterial(mesh.material)
+  const material = firstMaterial(mesh.material)!
   const center = mesh instanceof Sprite ? mesh.center : undefined
   const options = {
     size: material.size as number | undefined,
@@ -136,6 +139,7 @@ type CutsState = {
 function release(state: CutsState, cut: Cut) {
   if (cut.users.size || cut.held) return
   cut.runtime.urls.forEach((url) => URL.revokeObjectURL(url))
+  cut.geometry.dispose()
   state.byKey.delete(cut.key)
   state.dynamic.forget(cut)
 }
@@ -167,7 +171,10 @@ function resourceOf({ byKey, counts }: CutsState, content: Content, fresh: boole
   // A content read again after its resource was released packs its triangles again.
   counts.cuts++
   pending = cutRuntimePrimitive(packed ?? packDrawn(drawn, blended, cut), drawn).then(
-    (runtime) => ({ key, drawn, runtime, users: new Set<Mesh>(), held: false }),
+    (runtime) => ({
+      ...{ key, drawn, runtime, geometry: hostGeometry(drawn) },
+      ...{ users: new Set<Mesh>(), held: false },
+    }),
     // A failed cut leaves no trace: the next mesh with this content tries again.
     () => {
       if (byKey.get(key) === pending) byKey.delete(key)

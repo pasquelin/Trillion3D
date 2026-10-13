@@ -1,6 +1,8 @@
 import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
 import { VIS_UNIFORM } from '../../visibility/shader/uniformLayout.ts'
 import { uniformSlots, uniformStride, type UniformSlots } from '../../residency/pools.ts'
+import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
+import { vsmForwardPoolBinding } from '../../vsm/resources.ts'
 
 /**
  * Binding numbers of the four WebGPU-path layouts, the single source of truth: the layout
@@ -28,7 +30,7 @@ export const atlasLayoutEntries = (
     visibility,
     texture: { sampleType: 'float', viewDimension: '2d-array' } as GPUTextureBindingLayout,
   })),
-  { binding: bindings.pages, visibility, buffer: readOnly },
+  computeBufferEntry(bindings.pages, 'read-only-storage', visibility),
 ]
 /** Bytes of the visibility-buffer uniform `Uniforms` (`VIS_UNIFORM`). */
 export const VIS_UNIFORM_BYTES = VIS_UNIFORM.words * 4
@@ -102,7 +104,7 @@ export const BLEND_BINDINGS = {
   tileLights: 23,
   /** The proxy's buffer and the culling's world matrices, which the reflection of the forward programs traces. */
   proxy: 24,
-  worlds: 29,
+  worlds: 31,
   /** Parameters of each transparent item, indexed by its rank in the scene: world matrix, colour,
    *  the six maps and their factors. They do not depend on the frame, so a draw has no
    *  dynamic offset or a bind group of its own. */
@@ -114,6 +116,10 @@ export const BLEND_BINDINGS = {
   /** The surfaces' anisotropic and clear-coat records, the opaque resolve's own table
    *  (`../visibility/physicalTable.ts`), read by the lobed programs (`../blend/physicalWgsl.ts`). */
   physical: 28,
+  /** What a fragment traces its shadow with past the maps (`BLEND_TRACE_BINDINGS`): the shadow
+   *  projection's view uniform and its blue noise. */
+  shadowView: 29,
+  shadowNoise: 30,
 }
 
 /**
@@ -140,5 +146,10 @@ export const BLEND_VSM_BINDINGS = {
   pageTable: BLEND_BINDINGS.shadowData,
   projectionData: BLEND_BINDINGS.shadowAtlas,
   uniforms: BLEND_BINDINGS.shadowSampler,
-  pool: BLEND_BINDINGS.shadowTranslucentDepth,
+  pool: vsmForwardPoolBinding(BLEND_BINDINGS.shadowTranslucentDepth),
+}
+/** What a transparent's fragment traces its shadow with (`directShadowWgsl`). */
+export const BLEND_TRACE_BINDINGS = {
+  view: BLEND_BINDINGS.shadowView,
+  noise: BLEND_BINDINGS.shadowNoise,
 }

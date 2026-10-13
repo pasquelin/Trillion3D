@@ -1,13 +1,9 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts'
-import { ROW_WORDS } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import { ROW_ID_BASE_WORD, ROW_OFFSET_WORD, packedRowBase, restampHizSlot } from './pageRow.ts'
-import { writeRowDeformation } from '../../deformation/slotLayout.ts'
-import type { createPageRowWriter } from './pageRowWriter.ts'
-import type { createWebgpuRowState } from './state.ts'
+import type { PageRowWriter } from './pageRowWriter.ts'
+import type { WebgpuRowState } from './state.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
-
-type Rows = ReturnType<typeof createWebgpuRowState>
-type Writer = ReturnType<typeof createPageRowWriter>
 
 /**
  * The only two ways a row-table rank changes occupant: a page is posted there, or a whole row is
@@ -15,7 +11,11 @@ type Writer = ReturnType<typeof createPageRowWriter>
  * `state.changed` so the image knows it must send the table again. A third write keeps the
  * occupant: its bytes moved in the pool (`replace`).
  */
-export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writePageRow: Writer) {
+export function createWebgpuRowWriters(
+  rows: WebgpuRowState,
+  packedPages: PageList,
+  writePageRow: PageRowWriter,
+) {
   const state = { changed: false }
   /** A packed rank back to its record: the one catalogue accessor (`../../page/selection/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages)
@@ -61,7 +61,6 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writeP
       base = row * ROW_WORDS
     rows.rowOffsetWords[row] = offsetWords
     ints[base + ROW_OFFSET_WORD] = offsetWords
-    writeRowDeformation(ints, base, recordOf(page)!.deformationOutput, offsetWords)
     rows.markRowDirty(row)
     state.changed = true
   }

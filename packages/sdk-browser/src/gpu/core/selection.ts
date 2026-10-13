@@ -7,7 +7,8 @@
  */
 import { FRUSTUM_PLANE_VALUES, maxStretch } from '../../../../sdk-core/src/index.ts'
 import { pixelScale as writePixelScale } from '../../../../math/src/projection/camera.ts'
-import type { CameraMotion, EngineCamera } from '../../camera/world.ts'
+import type { CameraMotion } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
@@ -42,6 +43,9 @@ export type SelectionUniforms = {
   /** The pool cannot hold the whole cut: the camera's requests rank by admission, the minimum
    *  capacity's pages then the coarsest level first (`../dag/request.ts`). */
   admitByLevel?: boolean
+  /** The host's frame, the clock each view's cut stamps what it uses with (`../dag/evict.ts`):
+   *  never compared — a cut standing still across frames is the same cut. */
+  frame?: number
 }
 /**
  * A resident cut's two lists — the camera's requests, the drawn pages — as the ranks the readback
@@ -62,6 +66,9 @@ export type SelectionResult = {
   drawablePageIds?: number[]
   /** A resident cut's eviction queue (`../dag/evict.ts`): canonical pages, first evicted first. */
   evictPageIds?: number[]
+  /** How many of its first pages are OLD: older than any page the view ahead asks for, the only
+   *  ones a page of the view ahead may take the place of. */
+  evictOld?: number
   /** The camera's requests counted by admission bucket (`../dag/readoutWords.ts`,
    *  `levelCountsWord`): where each level of a list ranked by admission starts. */
   levelCounts?: Uint32Array
@@ -107,7 +114,13 @@ export type GpuSelection = {
   readonly worldRevision: number
   /** The buffers of the cut's worlds, one per range of primitives (`../dag/frameRanges.ts`): what
    *  a GPU composition of the poses writes (`../../placement/gpuCompose.ts`). */
-  readonly worldRanges: readonly { first: number; count: number; buffer: GPUBuffer }[]
+  readonly worldRanges: readonly {
+    first: number
+    count: number
+    buffer: GPUBuffer
+    /** The range's frame words, whose first word of a root's row is its stretch. */
+    frames: GPUBuffer
+  }[]
   /** The poses the host holds: every placement's, as a walk wrote them — any may have moved —,
    *  or, `named` given, those it lists, increasing, the placements a call moved: those alone are
    *  compared and sent. The placements whose pose moved — the words a cut reads, or the exact
@@ -118,6 +131,12 @@ export type GpuSelection = {
    *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
    *  host holds is written again over the one its parent composed. */
   composedPlacement(world: number, composed: boolean): void
+  /** The member group of placement `world` in the placement tree, -1 outside it: what a
+   *  composition names the groups of the roots a parent moves by. */
+  groupOf(world: number): number
+  /** The groups `groups` name are fitted again before the next cut: the roots a parent
+   *  composes moved with it (`../dag/treeFollow.ts`). */
+  groupsMoved(groups: ArrayLike<number>): void
   /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
    *  them — the levels, the frustum and the raster split follow the composed poses. */
@@ -125,6 +144,9 @@ export type GpuSelection = {
   /** True while its list or its regions grow between two frames (`../dag/listCap.ts`): no root
    *  is appended meanwhile, and the appending caller asks again at its next frame. */
   readonly growing: boolean
+  /** True while no cut may run on its tables (`../dag/queueGrowth.ts`, `tablesHeld`): the frames
+   *  draw the last cut that ran whole, so no page it may draw leaves the pool meanwhile. */
+  readonly cutHeld: boolean
   /** The factor the main view's projected-error threshold is cut under: 1 but past the list one
    *  binding holds, where the cut coarsens until it fits (`../dag/coarsening.ts`). */
   readonly coarsen: number
@@ -173,6 +195,9 @@ export type GpuSelection = {
   isChildReady(page: number): boolean
   /** Each page the pool takes or gives back: the eviction queue lists what it holds. */
   notePool(page: number, held: boolean): void
+  /** The pool refused a page for lack of a place: the next dispatch cuts again, and its readback
+   *  brings a new eviction queue, the ages grown since (`../dag/evict.ts`). */
+  askEvictions(): void
   /** Encodes the selection. Given `shared`, the caller owns the command buffer and calls the
    *  settlement back, `true` once it is queued, `false` if dropped: no readback before `true`. */
   dispatch(uniforms: SelectionUniforms, shared?: GPUCommandEncoder): SelectionSubmission | undefined

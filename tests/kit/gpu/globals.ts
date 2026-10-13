@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { BASE_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
-import type { MockDraw } from './mockEncoder.ts'
+import type { MockDraw } from './mockRenderPass.ts'
 import { words } from './mockBuffers.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'

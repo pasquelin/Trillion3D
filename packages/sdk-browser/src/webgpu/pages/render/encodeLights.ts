@@ -1,4 +1,4 @@
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import {
   environmentExposure,
   DEFAULT_TONE_MAPPING,
@@ -57,6 +57,10 @@ export function encodeDirectLights(
   // The buffer goes to the GPU before the per-tile lists: the blend pass reads it directly, without
   // tiles, and must stay lit even on a device that could not fit the lists.
   uploadSceneLights(device, lights)
+  // The light grid's buffer at this image's size before the bounce lists its world grid into it:
+  // no pass of the image names a buffer the grid replaces later in it.
+  const [width, height] = rt.gpu.targetSize
+  if (lights.buffer) tiles?.ensure(width, height, lights.buffer, store.count)
   encodeBounce(rt, device, encoder, active, cam)
   // Kept bounce resources follow the placements even while bounce is toggled off.
   syncLightingProxies(rt)

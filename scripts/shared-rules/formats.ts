@@ -3,11 +3,11 @@
 // numbers of the manifest's binary, the resident proxy, the cutout answer sheet and the impostor
 // section, and `packages/sdk-core/src/contracts/writtenFormats.ts` carries them to the readers,
 // which re-export the ones their module is the home of.
-import { execFileSync } from 'node:child_process'
 import { posix } from 'node:path'
 import { REPOSITORY_ROOT } from '../repository-files.ts'
 import { comment, header } from './statements.ts'
 import { type RustConstant, rustConstants, rustString } from './rust.ts'
+import { git } from '../git-paths.ts'
 
 const COMPILER = 'packages/asset-compiler-rust/src'
 /** A written file's path from the repository root: the compiler's own, or a sibling crate's (`../../`). */
@@ -51,10 +51,7 @@ const joltDoc = [
 
 /** The commit the index pins the Jolt submodule to. */
 function joltCommit() {
-  const entry = execFileSync('git', ['ls-files', '-s', 'packages/physics-jolt-wasm/JoltPhysics'], {
-    cwd: REPOSITORY_ROOT,
-    encoding: 'utf8',
-  })
+  const entry = git(REPOSITORY_ROOT, 'ls-files', '-s', 'packages/physics-jolt-wasm/JoltPhysics')
   const commit = entry.split(/\s+/)[1]
   if (!/^[0-9a-f]{40}$/.test(commit ?? '')) throw new Error('the Jolt submodule has no pin')
   return commit

@@ -1,6 +1,6 @@
 import type { Side } from '../../../sdk-core/src/index.ts'
 import type { Blending } from '../../../sdk-core/src/world/constants/index.ts'
-import type { HostMaterial, HostMaterials } from '../host/resources.ts'
+import type { HostMaterials } from '../host/resources.ts'
 import { blendingOf } from './materialBlending.ts'
 
 /** The host face constants, in the order glTF and every rendering library built on it number
@@ -12,7 +12,7 @@ const HOST_SIDE_FRONT = 0,
 
 /** The material that decides for a mesh: the one declared, or the first of an array — an
  *  empty array declaring nothing (`undefined`). */
-export const firstMaterial = (material: HostMaterials): HostMaterial | undefined =>
+export const firstMaterial = <M>(material: M | M[]): M | undefined =>
   Array.isArray(material) ? material[0] : material
 
 /** The host side constant a material declares, the first of an array deciding; an empty

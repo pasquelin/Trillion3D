@@ -34,7 +34,7 @@ export const boundListCap = (byBinding: Bound) =>
   words(byBinding.get(DAG_BINDING.views)!.data)[viewWord('listCap')]
 
 /**
- * The DAG a cut's bound buffers hold, for a device no test handed one (`mockGpu({ packed })`):
+ * The DAG a cut's bound buffers hold, for a device no test handed one (`fakeDevice({ packed })`):
  * the tables as the host uploaded them, the counts as the camera's uniform block carries them, and
  * each primitive's words as its frame row holds them (`primitiveFrameWords`). What the kernels'
  * CPU doubles read of a packing, and nothing more: the GPU cut is the engine's one cut (#1483), so
@@ -79,6 +79,7 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
     mark: intsAt(3),
     levelSizes: new Uint32Array(0),
     nodeCount,
+    primitiveNodeCount: nodeCount,
     // Two words an entry in each queue (`levelWgsl.ts`).
     entryCount: views[viewWord('queueCap')] / 2,
     queueEntries: views[viewWord('queueCap')] / 2,
@@ -86,6 +87,8 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
     pageCount,
     recordCount: views[viewWord('recordCount')],
     keyCount: views[viewWord('keyCount')],
+    groupCount: views[viewWord('groupCount')],
+    groupEdges: views[viewWord('groupEdges')],
     candCount: views[viewWord('candCap')],
     pageIndex,
     rootCount: worldCount,

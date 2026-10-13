@@ -5,37 +5,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { appendDagRoots, dagRootCounts, packDagSelection, type DagCapacity } from './pack.ts'
+import { appendDagRoots, packDagSelection } from './pack.ts'
+import { scene, TABLES } from './packAppend.fixture.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { frontCamera } from '../../page/selection/dag.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import type { DagRoot } from './types.ts'
-
-/** Five placements of one pyramid along x, the last three parked as a growth leaves its rows. */
-function scene() {
-  const pages = scenePages(256, 4)
-  const worlds = [0, 1, 2, 3, 4].map((k) => new G.Matrix4().makeTranslation(k * 3, 0, 0))
-  const roots: DagRoot[] = sceneRoots(pages, worlds, true)
-  const counts = dagRootCounts(roots)
-  const capacity: DagCapacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 8 }
-  return { roots, counts, capacity }
-}
-
-const TABLES = [
-  'clusters',
-  'nodes',
-  'pageCones',
-  'worlds',
-  'worldStretch',
-  'rootNodes',
-  'rootBases',
-  'mark',
-  'recordShift',
-  'levelSizes',
-] as const
 
 test('roots appended into the room read as a packing of every root at that capacity', () => {
   const { roots, counts, capacity } = scene()
@@ -45,11 +22,21 @@ test('roots appended into the room read as a packing of every root at that capac
   const per = counts.pages / roots.length,
     nodes = counts.nodes / roots.length
   // No node appended: every placement reads its primitive's, packed once.
-  assert.deepEqual(added, {
-    pages: [2 * per, counts.pages],
-    worlds: [2, 5],
-    tree: { nodes: new Int32Array(0), members: [0, 0] },
-  })
+  assert.equal(added!.groups[0], added!.groups[1], 'no key group made')
+  assert.equal(added!.edges[0], added!.edges[1], 'no edge between them')
+  assert.deepEqual(
+    { ...added, groups: undefined, edges: undefined },
+    {
+      pages: [2 * per, counts.pages],
+      worlds: [2, 5],
+      nodes: [nodes, nodes],
+      records: [per, per],
+      keys: [],
+      groups: undefined,
+      edges: undefined,
+      tree: { nodes: new Int32Array(0), members: [0, 0] },
+    },
+  )
   for (const table of TABLES) assert.deepEqual(grown[table], whole[table], table)
   assert.deepEqual(grown.live, whole.live)
   assert.deepEqual(grown.live, { pages: counts.pages, nodes, worlds: 5, entries: counts.nodes })
@@ -72,7 +59,7 @@ test('roots past the room, or of a primitive the packing does not hold, are not 
   const { roots, capacity } = scene()
   const tight = packDagSelection(roots.slice(0, 2), { ...capacity, worlds: 3 })
   assert.equal(appendDagRoots(tight, roots.slice(2)), undefined, 'two placements too many')
-  const other = sceneRoots(scenePages(64, 3), [new G.Matrix4()], true)
+  const other = sceneRoots(scenePages(64, 3), [new G.Matrix4()])
   assert.equal(appendDagRoots(tight, other), undefined, 'a primitive it does not hold')
   assert.deepEqual(tight.live, packDagSelection(roots.slice(0, 2)).live, 'nothing moved')
 })

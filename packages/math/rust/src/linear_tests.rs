@@ -1,16 +1,9 @@
 use super::*;
 use crate::matrix::{compose_trs, scaling, translation, IDENTITY};
-
-/// Marsaglia's xorshift, the draws of the codec's tests.
-fn xorshift(state: &mut u64) -> u64 {
-    *state ^= *state << 13;
-    *state ^= *state >> 7;
-    *state ^= *state << 17;
-    *state
-}
+use crate::random::xorshift64;
 
 fn draw_matrix(state: &mut u64) -> [f64; 16] {
-    core::array::from_fn(|_| (xorshift(state) >> 11) as f64 / (1u64 << 53) as f64 * 4.0 - 2.0)
+    core::array::from_fn(|_| (xorshift64(state) >> 11) as f64 / (1u64 << 53) as f64 * 4.0 - 2.0)
 }
 
 #[test]

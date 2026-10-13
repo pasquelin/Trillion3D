@@ -26,6 +26,8 @@ mod alone_tests;
 mod attribute_tests;
 mod cells;
 mod cover;
+#[cfg(test)]
+mod culling_tests;
 mod dag_records;
 #[cfg(test)]
 mod decoded;
@@ -46,8 +48,9 @@ pub(crate) use cover::RootCover;
 
 /// Version of the world-roots products: 2 since their records, 3 since an object root names its
 /// object by its table rank, 4 since a placed object is one level-0 cluster and a super-root a
-/// `WGP3` page carrying its attributes, 5 since a cell names each node's first object.
-pub(crate) const WORLD_ROOTS_VERSION: u32 = 5;
+/// `WGP3` page carrying its attributes, 5 since a cell names each node's first object, 6 since the
+/// DAG lies in the order of the world's culling hierarchy and carries its nodes.
+pub(crate) const WORLD_ROOTS_VERSION: u32 = 6;
 /// The table a load reads: bundles, pages, cells and placed objects, as records (`records.rs`).
 pub(crate) const WORLD_ROOTS_FILE: &str = "world-roots.table";
 /// The world clusters and groups the world stream reads on its first use, as records.

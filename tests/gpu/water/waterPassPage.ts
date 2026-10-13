@@ -5,14 +5,14 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import {
   VIEWPORT,
   batisseur,
-  square,
   cameraFace,
   engine,
   release,
   type ScenePreparee,
 } from '../kit/sharedSceneProof.ts'
-import { difference, image } from '../kit/sceneImageProof.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { image } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
+import { recordPassLabels, runOnDevice } from '../kit/deviceProof.ts'
 import {
   BACKGROUND,
   CASES,
@@ -29,21 +29,10 @@ import {
 
 function scene(paged: boolean, kase: WaterCase): ScenePreparee {
   const builder = batisseur()
-  const ground = G.mesh(
-    square(4),
-    G.basicSurface({
-      color: new G.Color(GROUND.color),
-      side: G.DOUBLE_SIDE,
-    }),
-  )
-  ground.name = 'ground'
-  ground.position.set(kase.groundX, 0, -GROUND.depth)
-  builder.source.add(ground)
-  builder.add(ground, 'exact-clusters', 4)
-  const water = G.mesh(square(1), waterSurface(kase.transmission, kase.thickness))
-  water.name = 'water'
-  builder.source.add(water)
-  builder.add(water, paged ? 'clustered-blend' : 'shared-blend', 1)
+  const ground = G.basicSurface({ color: new G.Color(GROUND.color), side: G.DOUBLE_SIDE })
+  builder.place(ground, 'exact-clusters', 4, [kase.groundX, 0, -GROUND.depth]).name = 'ground'
+  const water = waterSurface(kase.transmission, kase.thickness)
+  builder.place(water, paged ? 'clustered-blend' : 'shared-blend', 1).name = 'water'
   return builder.fini()
 }
 
@@ -72,17 +61,7 @@ async function waterCase(
   kase: WaterCase,
   events: EngineDiagnostic[],
 ): Promise<CaseResult> {
-  const labels = new Set<string>()
-  const create = device.createCommandEncoder.bind(device)
-  device.createCommandEncoder = (descriptor) => {
-    const encoder = create(descriptor),
-      begin = encoder.beginRenderPass.bind(encoder)
-    encoder.beginRenderPass = (pass) => {
-      labels.add(pass.label ?? '')
-      return begin(pass)
-    }
-    return encoder
-  }
+  const { labels, restore } = recordPassLabels(device)
   const s = scene(paged, kase)
   const { backend, canvas } = engine(s, device, (e: EngineDiagnostic) => events.push(e), {
     clearColor: BACKGROUND,
@@ -103,7 +82,9 @@ async function waterCase(
         centre: centre(pixels),
         draws: metrics.transparentDrawCalls,
         held: metrics.frameHeld,
-        moved: frames.length ? difference(frames[frames.length - 1].pixels, pixels) : 0,
+        moved: frames.length
+          ? compareImages(frames[frames.length - 1].pixels, pixels).differentPixels
+          : 0,
         pixels,
       })
     }
@@ -124,7 +105,7 @@ async function waterCase(
       heldLast: frames[frames.length - 1].held,
     }
   } finally {
-    device.createCommandEncoder = create
+    restore()
     release(backend, canvas, s)
   }
 }

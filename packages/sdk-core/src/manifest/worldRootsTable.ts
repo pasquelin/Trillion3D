@@ -9,7 +9,7 @@
 import { uint64FromWords } from '../../../math/src/scalar/uint64.ts'
 import { hexOfBytes } from '../../../math/src/scalar/hex.ts'
 import { lastTrue } from '../../../math/src/scalar/search.ts'
-import type { ClusterGroup } from '../contracts/geometry.ts'
+import type { ClusterGroup, CullingHierarchy } from '../contracts/geometry.ts'
 import {
   WORLD_ROOTS_BIN,
   refuseWorldRoots as refuse,
@@ -19,10 +19,12 @@ import {
 } from './worldRoots.ts'
 
 /** The products' version this reader knows: another is refused. */
-const VERSION = 5
+const VERSION = 6
 /** Bytes of each header and record (`records.rs`). */
 const [TABLE_HEADER, BUNDLE, PAGE, CELL, OBJECT] = [80, 56, 24, 16, 24]
-const [DAG_HEADER, CLUSTER, GROUP] = [24, 176, 64]
+const [DAG_HEADER, CLUSTER, GROUP, NODE] = [24, 176, 64, 120]
+/** Numbers per culling node (`page-codec-wasm/src/culling.rs`, `CULLING_STRIDE`). */
+const NODE_STRIDE = 15
 /** An index word naming nothing. */
 const NONE = 0xffffffff
 
@@ -194,13 +196,15 @@ function pageFacts(view: DataView, at: number): WorldRootsPageFacts | null {
 
 /**
  * `bytes` as the world DAG, or `INVALID_CACHE`: every world cluster in the cook's rank, in the
- * shape the world stream reads (`WorldRootsCluster`), and the group list, its children and outputs
- * naming clusters of the DAG.
+ * shape the world stream reads (`WorldRootsCluster`), the group list, its children and outputs
+ * naming clusters of the DAG, and the world's culling hierarchy, its nodes naming ranges of those
+ * ranks (the cook ranks the clusters in its order, `compiler_world_roots/merge.rs`).
  */
 export function readWorldRootsDag(bytes: Uint8Array) {
   const { view, word, list } = opened(bytes, 'WRTD', DAG_HEADER, (w) => {
-    const records = DAG_HEADER + w(8) * CLUSTER + w(12) * GROUP
+    const records = DAG_HEADER + w(8) * CLUSTER + w(12) * GROUP + w(20) * NODE
     if (records + w(16) * 4 !== bytes.byteLength) refuse('DAG length')
+    if (w(8) > 0 && w(20) === 0) refuse('a DAG without its culling hierarchy')
     return records
   })
   const clusterCount = word(8)
@@ -236,5 +240,12 @@ export function readWorldRootsDag(bytes: Uint8Array) {
     const [error, ...sphere] = floats(at + 24, 5)
     return { level: word(at), error, sphere, children: [...children], outputs: [...outputs] }
   })
-  return { clusters, groups }
+  const nodesAt = groupsAt + word(12) * GROUP,
+    count = word(20)
+  const culling: CullingHierarchy = {
+    stride: NODE_STRIDE,
+    count,
+    nodes: floats(nodesAt, count * NODE_STRIDE),
+  }
+  return { clusters, groups, culling }
 }

@@ -11,8 +11,8 @@ import type { PageRec } from '../../page/selection/selection.ts'
 import { SELECTION_NONE } from '../../gpu/core/selection.ts'
 import { createCutDelta } from './delta.ts'
 import { differenceOf } from '../../gpu/dag/difference.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { countedCatalogue, published } from './readbackChain.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const PAGES = 300
 /** Records for the first `PAGES - 20` ids: the last twenty have none. */
@@ -37,7 +37,7 @@ function randomCut(next: () => number, from: number[]) {
  *  and the one before as it was published; both publish the same. Returns the lookups the claimed
  *  one took, and the bound the GPU's claims keep them under. */
 function follow(claims: (list: number[], before: number[], next: () => number) => Uint32Array) {
-  const next = random(831)
+  const next = lcgRandom(831)
   const { records, counted } = countedCatalogue(RECORDS)
   const hashedPages: PageRec[] = [],
     claimedPages: PageRec[] = []

@@ -5,10 +5,9 @@ import { test } from 'node:test'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
-import { listenWorldNotices } from '../diagnostic/worldNotices.ts'
+import { worldNoticeListeners } from '../diagnostic/worldNotices.ts'
 import { createWorldDynamic } from './worldDynamic.ts'
 import type { Cut } from './worldCuts.ts'
-import { takeContentReopens } from './worldRuntime.fixture.ts'
 import { dynamicWorld } from './worldDynamic.fixture.ts'
 
 test('a geometry rewritten 300 frames is never cut again nor reopened, and uploads its changed bytes alone', async () => {
@@ -55,7 +54,7 @@ test('a rewrite is no move: the row of its mesh is never sent again', async () =
 test('a geometry changed on consecutive frames turns dynamic by itself, and says so naming its mesh', async () => {
   const world = dynamicWorld()
   const heard: unknown[] = []
-  const stop = listenWorldNotices(
+  const stop = worldNoticeListeners.subscribe(
     (n) => void (n.phase === 'geometry-dynamic' && heard.push(n.context)),
   )
   const sheet = geometry.plane(1, 1, 4, 4),
@@ -74,7 +73,6 @@ test('a geometry changed on consecutive frames turns dynamic by itself, and says
   world.end()
   await new Promise(setImmediate)
   stop()
-  takeContentReopens() // the session stand-in mounts nothing: the dynamic resource opens it once
   assert.deepEqual(heard, [{ kind: 'lifecycle', mesh: 'sea', declared: false }])
   assert.deepEqual(cuts.slice(2), Array(8).fill(0), 'cut on its first changes, never after')
   assert.equal(world.rewrites.length, 8)
@@ -93,7 +91,6 @@ test("the session's own loop hands its frame hooks the upload bytes, and still d
   }
   world.end()
   await new Promise(setImmediate)
-  takeContentReopens() // the session stand-in mounts nothing: the dynamic resource opens it once
   assert.ok(
     bytes.every((b) => typeof b === 'number'),
     `every frame told: ${bytes}`,

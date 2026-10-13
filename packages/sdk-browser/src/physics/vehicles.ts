@@ -13,7 +13,7 @@ import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts'
 import type { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { createPhysicsBodies } from './bodies.ts'
 import { createSimulatedIds, engineIdOf } from './simulatedIds.ts'
-import { interpolateAll, landAll } from './drawnPoses.ts'
+import { extrapolateAll, interpolateAll, landAll, stepVelocitiesAll } from './drawnPoses.ts'
 import type { TickRecords } from './protocol.ts'
 import { createTwoSteps, eachRecord } from './twoSteps.ts'
 
@@ -34,17 +34,21 @@ type Made = {
 /** A wheel's turn as the worker sent it: composed with its rest in one write, an unchanged one
  *  notifies nobody. */
 const turned = new Quaternion()
-/** The wheels drawn, every one listed (`interpolateAll`), grown to the most a vehicle has. */
+/** The wheels drawn, every one listed (`interpolateAll`), and their velocities over their last step
+ *  while a tick is late (`stepVelocitiesAll`), grown to the most a vehicle has. */
 let wheels = new Int32Array(0),
   position = new Float64Array(0),
-  quaternion = new Float64Array(0)
+  quaternion = new Float64Array(0),
+  velocity = new Float64Array(0)
 
 /**
  * The vehicles of a session: which are made in the simulation, under which id (a slot and its
  * generation). A vehicle is made once its body is simulated, and taken out when the body leaves
  * or is rebuilt, or the vehicle is removed. Its speed, engine and gear are read from each tick's
  * state; its wheels are drawn at the bodies' time between their two states (`twoSteps.ts`), a
- * wheel's place on their line and its turn on their arc, as a body is (`interpolateAll`).
+ * wheel's place on their line and its turn on their arc, as a body is (`interpolateAll`); past the
+ * newest, while the next tick is late, moved on by the velocities of their last step by the body's
+ * own law (`extrapolateAll`).
  */
 export function createPhysicsVehicles(
   writer: CommandWriter,
@@ -65,9 +69,15 @@ export function createPhysicsVehicles(
     if (wheels.length < count) {
       wheels = Int32Array.from({ length: count }, (_, i) => i)
       ;[position, quaternion] = [new Float64Array(count * 3), new Float64Array(count * 4)]
+      velocity = new Float64Array(count * 6)
     }
     if (t === 1) landAll(wheels, count, to, position, quaternion)
-    else interpolateAll(wheels, count, from, to, arcs, t, position, quaternion)
+    else if (t < 1) interpolateAll(wheels, count, from, to, arcs, t, position, quaternion)
+    else {
+      // Late: on from the newest at the last step's velocities, a step ahead being 1.
+      stepVelocitiesAll(wheels, count, from, to, arcs, velocity)
+      extrapolateAll(wheels, count, to, velocity, t - 1, position, quaternion)
+    }
     for (let i = 0; i < count; i++) {
       const p = i * 3,
         q = i * 4

@@ -8,7 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { createUsageScope } from '../../../../../tests/kit/gpu/usageScope.ts'
+import { createUsageScope } from '../../../../../tests/kit/gpu/scopeRules.ts'
 import { createShadeCache, type ShadeCacheInputs } from './shadeCache.ts'
 import { createWebgpuShadePipelines } from './shadePipelines.ts'
 import {

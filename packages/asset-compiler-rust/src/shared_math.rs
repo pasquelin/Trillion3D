@@ -6,25 +6,8 @@
 
 pub(crate) mod abi;
 
-use trillion3d_math::aabb::aabb_of;
-pub(crate) use trillion3d_math::aabb::longest_axis;
 pub(crate) use trillion3d_math::linear::{linear_columns, uniform_scale};
 pub(crate) use trillion3d_math::vec3::{normalized_or, unit};
-
-/// Sorts group of ids on widest axis of centroids: median falls
-/// on `slice.len() / 2`, splitting group into two spatial halves.
-///
-/// Comparator sorts by coordinate (`total_cmp`, so NaN has a place), then by
-/// identifier: two coincident centroids keep same order from build to build.
-pub(crate) fn bisect_centres(slice: &mut [usize], centres: &[[f64; 3]]) {
-    let (low, high) = aabb_of(slice.iter().map(|&id| centres[id]));
-    let axis = longest_axis(&low, &high);
-    slice.sort_unstable_by(|&x, &y| {
-        centres[x][axis]
-            .total_cmp(&centres[y][axis])
-            .then(x.cmp(&y))
-    });
-}
 
 /// Padding bytes to reach next multiple of four: zero when already
 /// aligned. Alignment binary format requires of views.

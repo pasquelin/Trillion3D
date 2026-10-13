@@ -18,7 +18,7 @@ test('a frame that wanted more grows once to the power of two that holds it, eac
   a.held.wanted = undefined
   const C = VSM_TRANSMISSION_COUNTERS
   const read = async (counts: Partial<Record<keyof typeof C, number>>) => {
-    a.held.readFeedback({ copyBufferToBuffer() {} } as unknown as GPUCommandEncoder)
+    a.held.readFeedback(a.fake.device.createCommandEncoder())
     for (const b of a.fake.buffers)
       if (b.label === 'vsm.transmission.feedback') {
         const words = new Uint32Array(b.getMappedRange())

@@ -2,7 +2,7 @@
 import { generateMaterialMips } from './mipBatch.ts'
 import { mipLevelCountFor } from './tiles.ts'
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 
 /** The reduction's entry point. */
 export const REDUCE = 'reduceLevel'
@@ -19,7 +19,7 @@ export const oneChain = (
 /** A four-texel-wide working texture, as tiles of a host texture cut them. */
 export function scratch() {
   installGpuGlobals()
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const texture = gpu.device.createTexture({
     size: { width: 4, height: 4, depthOrArrayLayers: 1 },
     // Read in sRGB too, as a colour chain's levels are (`materialMipTexture`).

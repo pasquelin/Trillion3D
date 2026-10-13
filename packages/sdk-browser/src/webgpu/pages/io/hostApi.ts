@@ -3,7 +3,7 @@ import { readGpuImage } from '../../../gpu/core/readback.ts'
 import type { VisPage } from '../../../visibility/types.ts'
 import { renderWebgpuPages } from '../render/render.ts'
 import { frameTargetsAwaited } from '../prepare/targetGrant.ts'
-import { defaultEngineCamera } from '../../../camera/world.ts'
+import { defaultEngineCamera } from '../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 export { pendingUrls, retainedRanks } from './hostLists.ts'

@@ -48,7 +48,12 @@ function startOn(
     state: { disposed: false },
     pendingFrame: async () => false,
     familiesPending: () => undefined,
-    engine: { measureFrame: () => false, landings: () => 0, arriving: () => false },
+    engine: {
+      measureFrame: () => false,
+      skipsFrame: () => false,
+      landings: () => 0,
+      arriving: () => false,
+    },
   }
   const events = { emit() {}, diagnose() {} }
   const config = { ownControls: false, interactive: true }

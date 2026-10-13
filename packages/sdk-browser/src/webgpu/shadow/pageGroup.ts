@@ -1,7 +1,6 @@
 import { VIS_BINDINGS } from '../core/bindLayout.ts'
-import { visBindEntries, type VisBindResources } from '../core/bindEntries.ts'
 import { createWebgpuBindIdentity, entriesReady } from '../core/bindIdentity.ts'
-import { liveResources } from '../core/liveEntries.ts'
+import { visibilityEntries } from '../visibility/bindings.ts'
 import { visLayoutEntries } from '../visibility/shaders.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
@@ -28,23 +27,10 @@ export const shadowPageEntries = (): GPUBindGroupLayoutEntry[] =>
 export const shadowPageLayout = (device: GPUDevice) =>
   device.createBindGroupLayout({ entries: shadowPageEntries() })
 
-/** The page rows as the visibility pass binds them, less what the raster never reads. */
+/** The page rows as the visibility pass binds them (`visibilityEntries`), less what the raster
+ *  never reads. */
 const pageRowEntries = (rt: WebgpuPagesRuntime) =>
-  visBindEntries(
-    liveResources<VisBindResources>({
-      cache: () => rt.gpu.cache?.buffer,
-      position: () => rt.vis.concatPos,
-      uv: () => rt.vis.concatUv,
-      pageTable: () => rt.vis.pageTable,
-      flags: () => undefined,
-      uniform: () => undefined,
-      uniformOffset: () => undefined,
-      textures: () => rt.vis.textures,
-      sampler: () => rt.vis.mapsSampler,
-      instances: () => undefined,
-      slotOffsets: () => undefined,
-    }),
-  ).filter(({ binding }) => !UNREAD.has(binding))
+  visibilityEntries(rt, false).filter(({ binding }) => !UNREAD.has(binding))
 
 /** Each session's page rows group: its live entries and what they named, and the group made. */
 const rowGroups = new WeakMap<

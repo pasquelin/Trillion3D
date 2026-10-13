@@ -20,7 +20,6 @@ const SLOT_WORDS = HIZ_SLOT_WORDS
 
 /** The tests' seeded random, the lcg32 sequence: the same on every run. */
 export { layout, type Scene } from './buildScene.fixture.ts'
-export { lcgRandom as lcg } from '../../../../math/src/sequence/random.ts'
 
 /** A compute pass that records each dispatch as its uniform slot's first word, then its grid. */
 function recordingPass() {

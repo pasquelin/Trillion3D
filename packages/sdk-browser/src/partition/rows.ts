@@ -6,12 +6,8 @@
  * (`sizeRows`), for every node its view can hold at once (`sizing.ts`, #575): only a reach or a
  * parent's stretch past that grows them, in place, under the engine that draws them.
  */
-import {
-  createPlacementRows,
-  grownCapacity,
-  growPlacementRows,
-  type PlacementRows,
-} from '../placement/rows.ts'
+import { createPlacementRows, growPlacementRows, type PlacementRows } from '../placement/rows.ts'
+import { grownLength } from '../../../math/src/sequence/resized.ts'
 import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
 import { EngineError } from '../../../sdk-core/src/index.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -41,7 +37,7 @@ export const capacityOf = (mesh: PlacedMesh) => mesh.links[0]?.placements?.capac
 /** Sizes every buffer of each mesh rank of `needed` to hold that many rows at least, its rows
  *  kept: before its session's engines read them, or under one that grows them in place (`grow`,
  *  `placement/growth.ts`), mesh by mesh, all its buffers at once. False when that session left a
- *  mesh as it was: it only grows in a session opened again. */
+ *  mesh as it was: the cells past its rows wait. */
 export function sizeRows(
   meshes: ReadonlyMap<number, PlacedMesh>,
   needed: ReadonlyMap<number, number>,
@@ -54,7 +50,7 @@ export function sizeRows(
     const held = capacityOf(mesh)
     if (rows <= held) continue
     const from = mesh.links.map((link) => link.placements!)
-    if (grow && !grow.growsInPlace(from, grownCapacity(held, rows))) {
+    if (grow && !grow.growsInPlace(from, grownLength(held, rows))) {
       sized = false
       continue
     }

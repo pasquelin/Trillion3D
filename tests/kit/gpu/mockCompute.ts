@@ -53,11 +53,9 @@ export type ComputeBind = {
 export function simulateComputeDispatch(
   computePipeline: { entryPoint: string } | undefined,
   computeBind: ComputeBind | undefined,
-  computes: string[],
   packed?: PackedDag,
   offsets?: readonly number[],
 ) {
-  if (computePipeline?.entryPoint) computes.push(computePipeline.entryPoint)
   const transparent = TRANSPARENT_STAGES[computePipeline?.entryPoint ?? '']
   if (transparent && computeBind) return transparent(computeBind, offsets)
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind) {
@@ -147,7 +145,10 @@ export function simulateComputeDispatch(
   const frames = words(byBinding.get(DAG_BINDING.frames)!.data)
   const rootNodes = dag.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1])
   const result = evaluateDagSelectionKernel({ ...dag, worlds, rootNodes }, uniforms, resident)
-  mockEvictions(byBinding, dag).stamp([...result.pageIds, ...(result.drawablePageIds ?? [])])
+  mockEvictions(byBinding, dag).stamp(
+    [...result.pageIds, ...(result.drawablePageIds ?? [])],
+    result.aheadPageIds,
+  )
   // `dagMask` sets a draw bit for every drawn page: `dagDrawScatter` compacts them.
   const mask = writtenMask(byBinding.get(DAG_BINDING.work)!.data, dag.pageCount)
   mask.fill(0, 0, bitWords(dag.pageCount))

@@ -9,7 +9,7 @@ import { ENGINE_SHADERS } from './engineShaders.fixture.ts'
 import { reservedNames, topLevelNames, unresolvedNames } from './wgslNames.fixture.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_BINDING, PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
-import { VIS_SHADER } from '../../visibility/buffer.ts'
+import { VIS_SHADER } from '../../visibility/shader/visWgsl.ts'
 import { CLUSTER_DECODING_SHADER } from '../../../../../tests/gpu/cluster/decodingKernel.ts'
 import { FLOAT32_MAX } from '../../../../math/src/constants.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
@@ -86,7 +86,11 @@ const HANDED_IN = new Set([
 
 test('the list holds the text of every call that compiles a module', () => {
   // A pass added without its text on the list would escape the sweep above without a word.
-  const fixture = ['engineShaders.fixture.ts', 'engineShaders.vsm.fixture.ts']
+  const fixture = [
+    'engineShaders.fixture.ts',
+    'engineShaders.vsm.fixture.ts',
+    'engineShaders.compose.fixture.ts',
+  ]
     .map((name) => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8'))
     .join('\n')
   const listed = new Set(

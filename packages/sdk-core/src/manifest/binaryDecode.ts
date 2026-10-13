@@ -28,31 +28,12 @@ export function decodeManifestBinary(
       pageDepthLayer,
       pageCone,
     },
-    groups: {
-      groupLevel,
-      groupError,
-      groupSphere,
-      groupChildCount,
-      groupOutputCount,
-      groupChild,
-      groupOutput,
-      structureRoot,
-    },
+    groups: groupColumns,
     bundles,
     previews,
     cullingNodes,
     urls: { pagePrefix, pageSuffix, geometryPrefix, geometrySuffix, bundlePrefix, bundleSuffix },
   } = readManifestColumns(slim, buffer)
-  const groupColumns = {
-    groupLevel,
-    groupError,
-    groupSphere,
-    groupChildCount,
-    groupOutputCount,
-    groupChild,
-    groupOutput,
-    structureRoot,
-  }
   const cursors = { node: 0, group: 0, child: 0, output: 0, root: 0, bundle: 0, dependency: 0 }
   let page = 0
   const primitives: Primitive[] = slim.primitives.map((entry) => {

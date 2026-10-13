@@ -12,15 +12,16 @@ import { dagFixture, wideCamera } from './dag.fixture.ts'
 import { withBundles } from './helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
+import { graphDraws } from './drawSource.ts'
 
 test('a streaming bundle is one request that makes every cluster it carries drawable', () => {
   const fixture = dagFixture()
   const bundled = withBundles(fixture)
   const { roots, allPages } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     new Map(),
-    fixture.associations,
     { allowMissing: true },
   )
   const byUrl = indexPagesByUrl(allPages)
@@ -65,9 +66,9 @@ test('only the root bundle resident still covers the surface once', () => {
   const bundled = withBundles(fixture)
   const { roots, allPages, bootstrap } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     new Map(),
-    fixture.associations,
     { allowMissing: true },
   )
   assert.deepEqual(

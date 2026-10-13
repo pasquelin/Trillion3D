@@ -2,14 +2,14 @@ import type { GpuSelection, SelectionUniforms } from '../core/selection.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { createDagPoolList } from './poolList.ts'
 import { createDagDispatch } from './dispatch.ts'
-import { followRows } from './queueGrowth.ts'
+import { followRows, growthAsked } from './queueGrowth.ts'
 import { createDifferenceChain } from './differenceChain.ts'
 import { createDagRuntimeState, recutMain } from './runtimeState.ts'
 import { coarsenTick } from './coarsening.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { createWorldResidencyMirror } from './residencyMirror.ts'
 import { createAsideCut } from './aside.ts'
-import { createTreeFollower } from './treeFollow.ts'
+import { createTreeFollower, type ComposedLeaves } from './treeFollow.ts'
 import { createLinkFollower } from './worldFollow.ts'
 import {
   appendRoots,
@@ -19,9 +19,9 @@ import {
   updateRuntimeResidency,
   updateRuntimeWorlds,
   writeMark,
-  type DagResources,
   type DagRun,
 } from './runtimeOps.ts'
+import type { DagResources } from './resources.ts'
 import { cutBytes } from './cutBuffers.ts'
 import { createProxyInstances } from './proxyInstances.ts'
 
@@ -32,8 +32,8 @@ export function createDagRuntime(
   resources: DagResources,
   /** The pages the pool already holds, when the cut is made beside it (`poolList.ts`). */
   poolHeld?: (page: number) => boolean,
-  /** Whether a parent composes placement `w` on the GPU now: its tree group stays open. */
-  composed?: (w: number) => boolean,
+  /** The leaves a parent's composition writes into the tree's refit (`treeFollow.ts`). */
+  leaves?: ComposedLeaves,
 ): GpuSelection {
   const { device, packed } = resources
   const state = createDagRuntimeState()
@@ -50,7 +50,7 @@ export function createDagRuntime(
     // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
     // before #1333, and the rows' flags go up as they are.
     mirror: packed.world && createWorldResidencyMirror({ ...packed, world: packed.world }),
-    tree: createTreeFollower(resources, composed),
+    tree: createTreeFollower(resources, leaves),
     // What a ray can meet of the run-time cuts, one instance a placement (`proxyInstances.ts`).
     proxies: createProxyInstances(resources),
     // A link move with no residency behind it goes to the cut's residency as the rows last stood;
@@ -99,7 +99,11 @@ function selectionOver(run: DagRun): GpuSelection {
       return packed.live?.pages ?? pageCount
     },
     worldCapacity: packed.worldCount,
-    worldRanges: frames.ranges.map((range, r) => ({ ...range, buffer: frames.worldBuffers[r] })),
+    worldRanges: frames.ranges.map((range, r) => ({
+      ...range,
+      buffer: frames.worldBuffers[r],
+      frames: frames.buffers[r],
+    })),
     packsWorld: !!mirror,
     get worldRevision() {
       return state.worldRevision
@@ -109,6 +113,8 @@ function selectionOver(run: DagRun): GpuSelection {
       if (!composed && live()) rewritePlacement(run, w)
       run.tree?.touch(w)
     },
+    groupOf: (w) => run.tree?.groupOf(w) ?? -1,
+    groupsMoved: (groups) => run.tree?.groupsMoved(groups),
     placeObject: (w, object) => run.links?.place(w, object),
     get linkMoved() {
       return run.linkMoved
@@ -122,6 +128,10 @@ function selectionOver(run: DagRun): GpuSelection {
     },
     get growing() {
       return state.growing
+    },
+    // What `tablesHeld` says, asked without growing anything.
+    get cutHeld() {
+      return state.disposed || state.dead || state.growing || growthAsked(resources, state)
     },
     get coarsen() {
       return state.coarse.factor
@@ -142,6 +152,9 @@ function selectionOver(run: DagRun): GpuSelection {
     updateResidency: (next, changes, moved) => updateRuntimeResidency(run, next, changes, moved),
     isReady: (page) => uploadResidency.isReady(page),
     isChildReady: (page) => uploadResidency.isChildReady(page),
+    askEvictions() {
+      if (live()) recutMain(resources.swap, state)
+    },
     notePool(page, held) {
       // The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand
       // stays.
@@ -165,6 +178,7 @@ function selectionOver(run: DagRun): GpuSelection {
     dispose() {
       state.disposed = true
       state.dead = true
+      run.tree?.dispose()
       state.pending = state.pending.catch(() => {})
       run.proxies.dispose()
       for (const buffer of buffers) buffer.destroy()

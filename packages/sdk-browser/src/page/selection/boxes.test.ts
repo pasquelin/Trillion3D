@@ -10,6 +10,7 @@ import { culledDagRoots, HELD_EXACT_ASK } from './helpers.fixture.ts'
 import { blendFixture } from './blend.fixture.ts'
 import type { ClusterRoot } from './types.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
+import { graphDraws } from './drawSource.ts'
 
 // The wide camera sees the whole root of `culledDagRoots`: the descent sets `inside` from the
 // first node, and that is the only case where the declaration changes anything.
@@ -22,9 +23,9 @@ test('collection declares boxes, which is true of all its pages', () => {
   const fixture = blendFixture()
   const { roots, allPages } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   assert.ok(roots.length > 0)
   for (const root of roots) assert.equal(root.boxes, true)

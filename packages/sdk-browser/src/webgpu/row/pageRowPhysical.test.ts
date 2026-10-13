@@ -6,11 +6,13 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { blendFixture } from '../../page/selection/blend.fixture.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import { ROW_WORDS, PAGE_PHYSICAL_WORD, PHYSICAL_SECOND_UV } from '../../visibility/buffer.ts'
+import { ROW_WORDS, PAGE_PHYSICAL_WORD, PHYSICAL_SECOND_UV } from '../../visibility/types.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { ROW_MATERIAL_CLASS_WORD } from './pageRow.ts'
 import { createPageRowWriter } from './pageRowWriter.ts'
 import { createPhysicalTable } from '../visibility/physicalTable.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
+import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 const [template] = blendFixture().metadata.primitives[0].pages
 
@@ -26,13 +28,18 @@ function rowOf(surface: G.GraphSurface, hasUv1 = false) {
   const structure = { version: 1, roots: [0], groups: [] }
   const page = { ...template, url: 'p0', sha256: 'p0' }
   const metadata = {
-    primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', pages: [page], structure }],
+    primitives: [
+      {
+        ...{ mesh: 0, primitive: 0, pass: 'exact-clusters', pages: [page], structure },
+        culling: manifestCulling([page]),
+      },
+    ],
   } as unknown as ClusterManifest
   const [rec] = collectClusterPages(
     source,
+    graphDraws(source, new Map([[mesh, { meshes: 0, primitives: 0 }]])),
     metadata,
     new Map([['p0', Uint32Array.of(0, 1, 2)]]),
-    new Map([[mesh, { meshes: 0, primitives: 0 }]]),
   ).allPages
   const floats = new Float32Array(ROW_WORDS),
     ints = new Uint32Array(floats.buffer)

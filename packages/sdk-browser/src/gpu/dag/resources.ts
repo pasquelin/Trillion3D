@@ -17,6 +17,9 @@ import { CUT_TABLE_BYTES } from '../../residency/cutTableBytes.ts'
 import type { CutSteps } from './cutSteps.ts'
 import { madeAsked, type CutAdmission } from './cutBuffers.ts'
 
+/** The DAG's GPU resources once made (`createDagResources`). */
+export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
+
 /** The cut's buffers, pipelines and groups, or `undefined` when the device refuses them: why is
  *  told to `refused` by the device's own words, never swallowed. */
 export async function createDagResources(

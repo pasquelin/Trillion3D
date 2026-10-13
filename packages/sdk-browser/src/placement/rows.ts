@@ -12,7 +12,7 @@
  *
  * The capacity is the owner's decision; a resource that needs more rows than it holds is given a
  * larger buffer, which the session grows into in place where its engine can
- * (`growth.ts`), and is opened again with otherwise.
+ * (`growth.ts`), and waits otherwise, the owner saying it by name.
  */
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
@@ -22,9 +22,9 @@ import { grownLength } from '../../../math/src/sequence/resized.ts'
 /** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {
   /** Original owners of mirrored rows; their animation sources stay live when rows are reused. */
-  sources?: readonly (Mesh | null)[]
+  sources?: readonly (Mesh<object> | null)[]
   /** Meshes sharing this resource, including those waiting for a placement row. */
-  sourceModels?: ReadonlySet<Mesh>
+  sourceModels?: ReadonlySet<Mesh<object>>
   /** Sixteen column-major floats per row, written by the owner. */
   readonly matrices: Float64Array
   /** 1 where the row places the resource, 0 where it is parked. */
@@ -33,6 +33,10 @@ export type PlacementRows = {
   readonly shadowless: Uint8Array
   /** Rows that fit before it grows. */
   readonly capacity: number
+  /** The rows of the meshes of a loaded model (`world/core/worldModels.ts`): each is the model's
+   *  world times the mesh's world within the model's graph, whose bones stand in that graph's
+   *  frame, never in the world's: a palette is read there (`DeformedMesh.frame`). */
+  local?: true
   /** Where each row a partition placed lies (`../partition/rowCells.ts`): its cell and its rank
    *  among the cell's nodes; a column of its own, absent until a cell places one. */
   cells?: ({ cell: number; node: number } | undefined)[]
@@ -48,13 +52,10 @@ export function createPlacementRows(capacity: number): PlacementRows {
   }
 }
 
-/** The capacity a table holding `held` entries grows to when it needs `needed` (`grownLength`). */
-export const grownCapacity = grownLength
-
-/** A larger buffer for `needed` rows (`grownCapacity`): `before`'s rows copied first, the new
+/** A larger buffer for `needed` rows (`grownLength`): `before`'s rows copied first, the new
  *  ones parked. */
 export function growPlacementRows(before: PlacementRows | null, needed: number) {
-  const rows = createPlacementRows(grownCapacity(before?.capacity ?? 0, needed))
+  const rows = createPlacementRows(grownLength(before?.capacity ?? 0, needed))
   if (before) {
     rows.sources = before.sources
     rows.sourceModels = before.sourceModels

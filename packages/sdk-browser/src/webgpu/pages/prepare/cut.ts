@@ -4,7 +4,7 @@ import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 import { linkWorldObjects } from './worldRoot.ts'
 import type { DagCapacity } from '../../../gpu/dag/pack.ts'
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
-import { composedRoot } from '../../../placement/gpuCompose.ts'
+import { composedLeaves } from '../../../placement/gpuCompose.ts'
 import { admitCutTables } from './targetFunding.ts'
 import { log } from '../../../diagnostic/log.ts'
 
@@ -31,8 +31,8 @@ export async function prepareGpuCut(
 /** The session's GPU cut over `roots` — at open, exactly theirs, or beside the running one for a
  *  growth in place (`../../../placement/webgpuGrowth.ts`), at the grown `capacity` later growths
  *  append into, the pages the pool holds listed at once (`poolHeld`) —, or why the device refused
- *  it, said by name. Its placement tree opens the groups of the roots a parent composes on the GPU,
- *  read off the one compose state whenever it is refitted (`composedRoot`). */
+ *  it, said by name. Its placement tree is fitted over the leaves a parent's composition writes for
+ *  the roots it composes on the GPU (`composedLeaves`). */
 export async function createSessionCut(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
@@ -61,7 +61,7 @@ export async function createSessionCut(
       })
     },
     poolHeld,
-    composed: (rank) => composedRoot(rt, rank),
+    leaves: composedLeaves(rt),
     rows: rt.layout.rows.casterSlots,
     admit: (bytes) => admitCutTables(rt, bytes),
     progress,

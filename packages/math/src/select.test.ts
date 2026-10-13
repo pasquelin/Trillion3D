@@ -1,11 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { selectByKey } from './select.ts'
+import { lcgRandom } from './sequence/random.ts'
 
 /** `count` items of nearness drawn from `draw`, generated from a fixed seed. */
 function generated(count: number, draw: (r: number) => number) {
-  let seed = 7
-  const next = () => (seed = (seed * 48271) % 2147483647) / 2147483647
+  const next = lcgRandom(7)
   return Array.from({ length: count }, () => ({ near: draw(next()) }))
 }
 

@@ -9,7 +9,7 @@
 import { MATRIX_VALUES } from '../../../sdk-core/src/index.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { CellRows } from './cellDecode.ts'
-import { createPlacementWrites, type Placement } from './follow.ts'
+import { createPlacementWrites, type CellFrame, type Placement } from './follow.ts'
 import { createTouchedRows, releaseRow, rowsFree, takeRow, type PlacedMesh } from './rows.ts'
 import { setRowCell } from './rowCells.ts'
 
@@ -18,10 +18,11 @@ export function createCellPlacements(
   root: Object3D,
   parents: readonly Object3D[],
   meshes: ReadonlyMap<number, PlacedMesh>,
+  frame?: CellFrame,
 ) {
   const held = new Map<number, Placement[]>()
   const touched = createTouchedRows()
-  const { write, follow } = createPlacementWrites(touched)
+  const { write, follow, settle } = createPlacementWrites(touched, frame)
   return {
     /** The rows of each cell placed. */
     held: held as ReadonlyMap<number, readonly Placement[]>,
@@ -40,6 +41,10 @@ export function createCellPlacements(
         write(placements[node])
       }
       held.set(cell, placements)
+      settle(
+        held.values(),
+        placements.map((placement) => placement.parent),
+      )
       return true
     },
     /** Parks the rows of `cell`. */

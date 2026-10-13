@@ -6,25 +6,48 @@ import type { PageCache } from '../../streaming/pageCache.ts'
 /**
  * The one door for every model a world's scene loads: its format is read from its content, then
  * its loader — today the compiled manifest's alone — reads it (`modelFormat.ts`), once the world
- * holds its device. The first model leaves its baked images to the cache; the engine reads the
- * whole manifest until its session grows in place (#216).
+ * holds its device. A world that draws nothing yet opens its first session once the models asked
+ * for meanwhile are in its scene (`loading`): one session opens on all of them. The first of them
+ * leaves its baked images to the cache, the levels only the session opened on it reads; every
+ * other model reads its images. A world already holding a session (`held`) waits for nothing: a
+ * model it loads joins that session in place (`worldModelJoin.ts`).
  */
 export function worldModelLoader(
   ready: Promise<unknown>,
   signal: AbortSignal | undefined,
   /** The world's page cache, which its models and sessions read through. */
   pageCache: PageCache,
+  /** Whether a session is open or opening: it can no more be based on a model not yet loaded. */
+  held: () => boolean = () => false,
 ) {
   let models = 0
-  return async (url: string, load: LoadOptions) => {
-    await ready
+  /** The loads a session not yet opened waits for, each settled once its model is in the scene. */
+  const waited = new Set<Promise<void>>()
+  const load = async (url: string, options: LoadOptions) => {
+    const waits = !held(),
+      cached = models++ === 0 && waits
     const read = {
-      scope: load.scope === undefined ? undefined : load.scope === 'full' ? 'full' : 'slice',
-      signal: load.signal ?? signal,
-      onProgress: load.onProgress,
-      textureSource: models++ === 0 ? 'cache' : 'host',
+      scope: options.scope === undefined ? undefined : options.scope === 'full' ? 'full' : 'slice',
+      signal: options.signal ?? signal,
+      onProgress: options.onProgress,
+      textureSource: cached ? 'cache' : 'host',
       pageCache,
     } as const
-    return loadModelOfAnyFormat(url, read, { manifest: loadModel })
+    const loading = ready.then(() => loadModelOfAnyFormat(url, read, { manifest: loadModel }))
+    if (waits) {
+      // Settled once the scene added the model (a task after the load), loaded or not.
+      const added: Promise<void> = loading
+        .then(
+          () => new Promise<void>((done) => setTimeout(done)),
+          () => {},
+        )
+        .then(() => void waited.delete(added))
+      waited.add(added)
+    }
+    return loading
   }
+  return Object.assign(load, {
+    /** The loads a session about to open waits for; none when there are none. */
+    loading: () => (waited.size ? Promise.all([...waited]) : undefined),
+  })
 }

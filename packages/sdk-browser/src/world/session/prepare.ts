@@ -14,6 +14,7 @@ import { releaseOwned } from './lifecycle.ts'
 import { streamFailed } from '../scene/streaming.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
 import { primePartitions } from '../scene/partitionFrame.ts'
+import type { PartitionCells } from '../../partition/cells.ts'
 import { ARRIVAL_BUDGET_MS } from '../../engine/common.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { sessionFamilies } from './familyUse.ts'
@@ -44,7 +45,7 @@ export type ExplorerSource = {
   metadataUrl: string
   base: string
   metadata: import('../../../../sdk-core/src/index.ts').ClusterManifest
-  scene: ExplorerScene
+  scene: Omit<ExplorerScene, 'associations'>
   /** Puts the session's camera where the page draws from, before anything is read for it: a
    *  partitioned scene reads and sizes its cells for that camera, not the framing one. */
   placeCamera?: (camera: HostCamera) => void
@@ -54,7 +55,7 @@ export type ExplorerSource = {
 }
 
 type Inputs = {
-  scene?: ExplorerScene
+  scene?: ExplorerSource['scene']
   placeCamera?: ExplorerSource['placeCamera']
   manifestUrl: string
   metadataUrl: string
@@ -115,9 +116,9 @@ async function sessionScene(
 /** The pages and cells the first camera reaches, placed before the engine reads their rows: the
  *  first frame draws them (`partitionFrame.ts`, #575). That camera is the page's when it hands one
  *  in (a world), else the framing one, which sees the whole scene. */
-async function primeFirstView(
+export async function primeFirstView(
   session: ExplorerSession,
-  scene: ExplorerScene,
+  scene: { partitions: readonly PartitionCells[] },
   camera: HostCamera,
   streamer: ExplorerPageSources['streamer'],
 ) {
@@ -137,6 +138,9 @@ async function primeFirstView(
     cells: scene.partitions.map((cells) => cells.stats()),
   })
 }
+
+/** What `prepareExplorer` resolves to: a session's prepared engine and streams. */
+export type PreparedExplorer = Awaited<ReturnType<typeof prepareExplorer>>
 
 export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, metadata, signal, diagnosticChannel } = session
@@ -172,9 +176,19 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     sessionScene(session, inputs, opening.streamer, live),
   ])
   const { source } = loadedScene
-  await configureExplorer(session, { manifestUrl, metadataUrl, base, source, pageSources })
+  await configureExplorer(session, {
+    ...{ manifestUrl, metadataUrl, base },
+    draws: loadedScene.draws,
+    pageSources,
+  })
   // Framing replays the buffer reserved at load, then returns it: it is its last reader.
-  const cameraState = createExplorerCamera(source, canvas, options, loadedScene.framingLot)
+  const cameraState = createExplorerCamera(
+    source,
+    canvas,
+    options,
+    loadedScene.framingLot,
+    inputs.placeCamera !== undefined,
+  )
   loadedScene.framingLot?.release()
   inputs.placeCamera?.(cameraState.camera)
   await primeFirstView(session, loadedScene, cameraState.camera, pageSources.streamer)
@@ -184,7 +198,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   const { viewport, context, engine, hostBytes } = await prepareExplorerEngine(session, {
     ...{ source, pageSources, gpuDevice, factory, base, frameBudget },
     sceneLightingSource: loadedScene.sceneLightingSource,
-    associations: loadedScene.associations,
+    draws: loadedScene.draws,
     textureIndices: loadedScene.textureIndices,
     worldRoots: loadedScene.worldRoots,
   })
@@ -198,6 +212,8 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     capabilities,
     viewport,
     context,
+    /** The world roots the engine's host tables count (`hostBytes`): a model joining adds its own. */
+    worldRoots: loadedScene.worldRoots,
     frameBudget,
     engine,
     /** The CPU bytes the engine's host tables and the world roots hold now, which each frame

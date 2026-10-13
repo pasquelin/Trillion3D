@@ -1,6 +1,6 @@
 // Bench inputs, realistic and hostile, from a seeded generator: two runs see the exact same floats.
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { xorshiftRandom } from '../../../core/index.ts'
+import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 
 export function camera(z = 6, near = 0.1, aspect = 16 / 9) {
   const cam = G.perspectiveCamera(55, aspect, near, 200)

@@ -1,8 +1,16 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { mipSize, nextPow2, uniqueSortedInPlace } from './integers.ts'
+import {
+  alignUp,
+  floorLog2,
+  isImageSize,
+  mipSize,
+  nextPow2,
+  uniqueSortedInPlace,
+} from './integers.ts'
 import { hasBit, setBit } from './bits.ts'
 import { firstTrue, lastAtMost, lastTrue } from './search.ts'
+import { HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
 test('nextPow2 is exact on its whole domain: each power, either side of it, and reals', () => {
   for (let k = 1; k <= 32; k++) {
@@ -118,4 +126,38 @@ test('mipSize halves by integer division, one texel at least, as `Math.max(1, si
     }
   }
   assert.equal(mipSize(1000, 40), 1)
+})
+
+test('alignUp to four is the mask (offset + 3) & ~3 on every byte offset of 16 bits and at 2³¹', () => {
+  for (let offset = 0; offset < 1 << 16; offset++)
+    assert.equal(alignUp(offset, 4), (offset + 3) & ~3, `${offset}`)
+  for (const offset of [2 ** 31 - 8, 2 ** 31 - 5, 2 ** 31 - 4])
+    assert.equal(alignUp(offset, 4), (offset + 3) & ~3, `${offset}`)
+})
+
+test('floorLog2 is floor(log2) on every side of 1 to 2³² − 1: a full mip chain counts the same levels', () => {
+  // On that span `Math.clz32` reads the side whole, and below 2³² `Math.log2` keeps every integer
+  // apart from the power of two above it; a fractional side truncates in `clz32` as `Math.floor`
+  // rounds the logarithm. Every side to 2¹⁴, the powers of two and their neighbours, Halton sides.
+  const sides: number[] = [2 ** 32 - 1]
+  for (let side = 1; side <= 2 ** 14; side++) sides.push(side)
+  for (let k = 0; k < 32; k++) sides.push(2 ** k - 1, 2 ** k, 2 ** k + 1)
+  for (let i = 1; i <= HALTON_SWEEP; i++)
+    sides.push(Math.floor(haltonSpan(i, 2, 1, 2 ** 32)), haltonSpan(i, 3, 1, 2 ** 32))
+  for (const side of sides.filter((side) => side >= 1 && side < 2 ** 32))
+    assert.equal(floorLog2(side), Math.floor(Math.log2(side)), `side ${side}`)
+})
+
+test('isImageSize holds two safe integers of one or more, and nothing else', () => {
+  assert.ok(isImageSize(1, 1) && isImageSize(3840, 2160))
+  for (const [w, h] of [
+    [0, 1],
+    [1, 0],
+    [-1, 4],
+    [1.5, 2],
+    [Number.NaN, 2],
+    [2, Infinity],
+    [2 ** 53, 1],
+  ])
+    assert.equal(isImageSize(w, h), false, `${w} × ${h}`)
 })

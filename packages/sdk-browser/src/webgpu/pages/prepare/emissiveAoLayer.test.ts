@@ -7,19 +7,19 @@ import test from 'node:test'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { MATERIAL_SURFACES_PASS } from '../../../stage/passLabels.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, disposeQuadRun, quadScene } from '../testScenes.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { runtime } from './targets.fixture.ts'
 import { frameTargetAllocation } from './targetAllocation.ts'
 import { wantsEmissiveAo } from './emissiveAoLayer.ts'
 
-type Gpu = ReturnType<typeof mockGpu>
+type Gpu = ReturnType<typeof fakeDevice>
 const count = (list: string[], item: string) => list.filter((at) => at === item).length
 
 async function opened(emits: boolean) {
   installGpuGlobals()
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const fixture = quadScene()
   const material = G.standardSurface({ roughness: 0.5 })
   if (emits) (material.emissive as G.Color).setRGB(0.5, 0.25, 0)
@@ -42,7 +42,7 @@ async function opened(emits: boolean) {
 /** The live half-float surface targets' sizes, the resolve's pipelines and its last pass. */
 function surfacesOf(gpu: Gpu) {
   const layers = gpu.textures
-    .filter(({ label, destroyed }) => label === 'Trillion3D surface v1 rgba16float' && !destroyed)
+    .filter((t) => t.label === 'Trillion3D surface v1 rgba16float' && !gpu.destroyed.includes(t))
     .map(({ width, height }) => `${width}×${height}`)
   const shade = gpu.renderPipelines
     .filter(({ fragment }) => fragment?.entryPoint?.startsWith('shade_fs'))
@@ -86,7 +86,7 @@ test('an emitting surface keeps the layer, written by the pipelines of before', 
 test('a surface made to emit after open brings the layer before the image that draws it', async () => {
   const { gpu, fixture, backend, material } = await opened(false)
   const hdr = () =>
-    gpu.textures.filter(({ label, destroyed }) => label === 'Trillion3D HDR lighting' && !destroyed)
+    gpu.textures.filter((t) => t.label === 'Trillion3D HDR lighting' && !gpu.destroyed.includes(t))
   try {
     const lit = hdr(),
       before = surfacesOf(gpu).layers,
@@ -114,7 +114,11 @@ test('a surface made to emit after open brings the layer before the image that d
     assert.equal(shaded.at(-1)?.entryPoint, 'shade_vs', 'drawn whole, as before it emitted')
     assert.deepEqual(hdr(), lit, 'no frame target remade')
     backend.dispose()
-    assert.equal(standIn.destroyed, true, 'the stand-in goes with the buffer that took its place')
+    assert.equal(
+      gpu.destroyed.includes(standIn!),
+      true,
+      'the stand-in goes with the buffer that took its place',
+    )
   } finally {
     disposeQuadRun(backend, fixture)
   }

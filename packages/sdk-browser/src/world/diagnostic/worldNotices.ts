@@ -1,17 +1,11 @@
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
+import { createListeners } from '../../../../sdk-core/src/runtime/listeners.ts'
 import type { EngineDiagnostic } from '../../engine/types.ts'
 import { effectTargetExcess, type BudgetCanvas } from '../../residency/memoryBudget.ts'
 
-/** The page channels open now (`diagnostic.createChannel`): every world notice reaches each. */
-const listeners = new Set<(notice: EngineDiagnostic) => void>()
-
-/** Hands every world notice to `listener` until the returned function is called. */
-export function listenWorldNotices(listener: (notice: EngineDiagnostic) => void) {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
-}
+/** The page channels open now (`diagnostic.createChannel`): every world notice reaches each,
+ *  until the function `subscribe` returned is called. */
+export const worldNoticeListeners = createListeners<[notice: EngineDiagnostic]>()
 
 /** A world's channel (`createWorldNotices`): what its tables folded is said there once. */
 export type WorldNotices = ReturnType<typeof createWorldNotices>
@@ -22,12 +16,10 @@ export type WorldNotices = ReturnType<typeof createWorldNotices>
  * notice is said once per world and kind, never per frame.
  */
 export function createWorldNotices() {
-  const channel = createDiagnosticChannel(
-    (notice) => {
-      for (const listener of listeners) listener(notice)
-    },
-    { enabled: true, detail: 'summary' },
-  )
+  const channel = createDiagnosticChannel((notice) => worldNoticeListeners.emit(notice), {
+    enabled: true,
+    detail: 'summary',
+  })
   const said = new Set<string>()
   const say = (kind: string, message: string, context: Record<string, unknown> = {}) =>
     channel.emit({ phase: kind, message, context })
@@ -61,6 +53,20 @@ export function noticeFolds(
           `once and give it to every mesh that wears it`,
         { kind, count },
       )
+}
+
+/**
+ * What the session running cannot take in place, said by name on `content-refused`: `what` is the
+ * content (a batch, a model, a partition's rows, a picture), `reason` the limit it met — the
+ * catalogue's keys, a pool the device refuses, a pass it refuses. The session goes on drawing what
+ * it holds; the content is not drawn until the cause is lifted. It never opens the session again.
+ */
+export function noticeRefused(notices: Pick<WorldNotices, 'say'>, what: string, reason: string) {
+  notices.say('content-refused', `The session did not take ${what}: ${reason}`, {
+    kind: 'error',
+    what,
+    reason,
+  })
 }
 
 /**

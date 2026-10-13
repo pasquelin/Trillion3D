@@ -61,6 +61,25 @@ Every node is a slot of one transform tree, walked once a frame over what change
 `host/surfaceImport.ts`. The engine composes its own projection, reversed depth with an infinite far
 plane, one convention for every pass (`camera/depthConvention.ts`).
 
+A node whose parent moves and whose pose only follows it is composed once, on the GPU: its link is
+a node flag (`NODE_WORLD_LAZY`, `sdk-core/world/transform-tree/nodeFlags.ts`) that the tree's walk
+leaves alone, and the placement's compose slot is the parent's. The roots pass writes, in exact
+double arithmetic, the world, the stretch, the world box and the motion of each linked root; the
+rows pass writes the page-table world words, the sphere, the Hi-Z corners and the world-dependent
+levels of detail of its rows (`placement/gpuCompose.ts`); the members pass writes the leaf boxes the
+placement tree is fitted over, and the one tree refit (`gpu/dag/treeRefit.ts`, a pass any caller
+names its dirty groups to) fits them and every node above, bottom up. A CPU reader — an impostor
+card, transparent depth, a winding — reads the composed world once a frame (`composedWorld`, a
+product of the parent's and the local matrix kept by `state.version`), never a second multiply that
+is written back. Models and partition rows link before their rows are written, so no matrix is
+written for them. A link is never refused for what reads its row: waves, soft bodies and skeletons read the
+composed world of their root; rows no root reads — a blended surface's, or a root a growth has not
+built yet — are composed for their readers (`placement/composeReaders.ts`) and handed to the roots
+pass once their root exists. Only the pose a session opens on is written by an owner, before any
+engine exists (`partition/follow.ts`, `world/core/worldModels.ts`); every product of a parent's
+world and a local matrix on the CPU is the one function `composeWorld` (`placement/composeWorld.ts`). The refit and the members pass bind the cut's
+tables as the cut does, split tables in their parts (`gpu/dag/shader/bindings.ts`).
+
 ## WebGPU page raster
 
 `webgpuPagesEngine` (`webgpu/pages/pages.ts`) draws from the bounded page cache of
@@ -83,7 +102,8 @@ Lighting reads those surfaces and the depth; transparency and transmission are s
 Edges are recovered temporally: a jittered image, motion derived from the visibility buffer, a
 history clamped to its neighbours (`taa/`). A quiet image averages the final state alone, so a still
 image is exact and repeatable. The render scale is fitted to the display's refresh
-(`frame/scaleControl.ts`) and reconstructed by `taa/upscaleWgsl.ts`. The page's options are
+(`frame/scaleControl.ts`) and reconstructed by `taa/upscaleWgsl.ts`; where it cannot lower the cost
+any more, the loop holds a steady divisor of the refresh (`frame/cadence.ts`). The page's options are
 [SDK.md](SDK.md#canvas-camera-and-teardown).
 
 ## Effect chain
@@ -105,7 +125,11 @@ shadowed or rectangular light runs a program built without that code
 Dynamic, off by default: irradiance probes in nested cascades trace rays against the resident
 proxy the compiler writes ([FORMAT.md](FORMAT.md)), under a budget in milliseconds (`bounce/`). The
 probes and the environment share one basis
-(`sdk-core/scene/core/irradianceBasis.ts`).
+(`sdk-core/scene/core/irradianceBasis.ts`). Its points are lit by the one light function and loop, in their irradiance
+term, shadowed by proxy rays (`lighting/direct/lightLoopWgsl.ts`); each walks the lights of its cell
+of a world light grid that the light grid pass lists over the last cascade level, in the view
+grid's own buffer (`bounce/lightCellWgsl.ts`), again only when a light, that level or the buffer
+changes — the probe rays and the reflections' proxy hits walk the same lists.
 
 ## Fog
 
@@ -180,6 +204,12 @@ then tone-mapped and encoded to sRGB once, at composition.
 | Probes and proxy rays                     | [Light that bounces](#light-that-bounces)       |
 
 ## Rules across files
+
+- **The source contract**: a mesh, material, model, cell or world the scene gains joins the running
+  session in place (`addPlacements`, `PlacementGrowth`, `placement/webgpuGrowth.ts`), a world-DAG
+  model included (`world/core/worldModelJoin.ts`); one the device refuses is said once as
+  `content-refused` (`noticeRefused`) and the running cut kept. A session opens again for a lost
+  device and for an option, nothing else.
 
 - **One mechanism per concern**: one transform tree, one host boundary, one depth convention, one
   cut rule and one residency, one irradiance basis, one fog law, one two-step drawing of physics.

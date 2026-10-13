@@ -1,15 +1,17 @@
 // The pre-commit hook's formatting (`scripts/hooks/pre-commit.ts`): the staged files `format:check`
 // reads are written formatted and staged again, so a commit never carries a format the CI refuses.
-import { execFileSync } from 'node:child_process'
 import { formatPattern } from './changed-steps.ts'
 import { NATIVE_CRATES } from './native-crates.ts'
 import { runChecked } from './run.ts'
+import { git } from './git-paths.ts'
 
-const git = (...args: string[]) =>
-  execFileSync('git', args, { encoding: 'utf8' }).split('\n').filter(Boolean)
+const paths = (...args: string[]) =>
+  git(process.cwd(), ...args)
+    .split('\n')
+    .filter(Boolean)
 const run = (command: string, args: string[]) => runChecked(command, args, { inherit: true })
 
-const staged = git('diff', '--cached', '--name-only', '--diff-filter=ACMR')
+const staged = paths('diff', '--cached', '--name-only', '--diff-filter=ACMR')
 const prettier = staged.filter((file) => formatPattern.test(file))
 const crates = NATIVE_CRATES.map((crate) => crate.path).filter((crate) =>
   staged.some((file) => file.startsWith(`${crate}/`)),
@@ -17,7 +19,7 @@ const crates = NATIVE_CRATES.map((crate) => crate.path).filter((crate) =>
 const rust = staged.filter((file) => file.endsWith('.rs') && crates.some((c) => file.startsWith(c)))
 
 // A file also changed outside the index would have those changes staged with its format.
-const unstaged = new Set(git('diff', '--name-only'))
+const unstaged = new Set(paths('diff', '--name-only'))
 const partial = [...prettier, ...rust].filter((file) => unstaged.has(file))
 if (partial.length) {
   console.error(`format-staged: stage the whole file, the hook formats it: ${partial.join(', ')}`)

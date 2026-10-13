@@ -6,11 +6,15 @@
 // a measured number (`FRAME_RATES`): a MODEL, never a timing; a timing after the merge
 // is the proof. What no count here reaches is named in `UNCOUNTED`, never priced at zero in silence.
 //
-//   node bench/runner/counts/frameBudget.ts [--pose 1]
-import { parseArgs } from 'node:util'
+//   node bench/runner/counts/frameBudget.ts [--pose 1] [--width 3456] [--height 2234]
 import { MAX_SHADOW_SLICES } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
-import { ATRIUM_POSES, atriumDepth } from '../lighting/lightTileAtrium.ts'
+import {
+  ATRIUM_DISPLAY,
+  ATRIUM_POSES,
+  atriumCountArgs,
+  atriumDepth,
+} from '../lighting/lightTileAtrium.ts'
 import {
   RESOLVE_GBUFFER,
   countGrid,
@@ -24,7 +28,7 @@ import {
   CLASSES,
   DEMAND_MARKS,
   FRAME_RATES,
-  PCF_GATHERS,
+  MASK_TEXELS,
   SETUP_TEXELS,
   SPONZA_TRIANGLES,
   SURFACE_ACCESSES,
@@ -33,11 +37,14 @@ import {
   hizAccesses,
 } from './frameBudgetRates.ts'
 
-const DISPLAY = { width: 3456, height: 2234 }
 type Row = { stage: string; work: string; count: number; ms: number }
 
 /** Each stage's counted work at `width` × `height`, pose `pose`, and its modelled milliseconds. */
-export function frameBudget(pose = 1, width = DISPLAY.width, height = DISPLAY.height) {
+export function frameBudget(
+  pose = 1,
+  width = ATRIUM_DISPLAY.width,
+  height = ATRIUM_DISPLAY.height,
+) {
   const r = FRAME_RATES,
     N = width * height
   const texels = (count: number) => (count * r.texelPs) / 1e9
@@ -93,9 +100,9 @@ export function frameBudget(pose = 1, width = DISPLAY.width, height = DISPLAY.he
     ),
     row(
       'shadows',
-      `shadow reads, ${PCF_GATHERS} gathers`,
+      `shadow reads, ${MASK_TEXELS} mask texel`,
       work.shadows,
-      texels(work.shadows * PCF_GATHERS),
+      texels(work.shadows * MASK_TEXELS),
     ),
     row(
       'shadows',
@@ -110,9 +117,9 @@ export function frameBudget(pose = 1, width = DISPLAY.width, height = DISPLAY.he
 }
 
 async function main() {
-  const { values } = parseArgs({ options: { pose: { type: 'string', default: '1' } } })
-  const { rows, covered, total } = frameBudget(Number(values.pose))
-  console.log(`Boss's case, atrium pose ${values.pose}, 3456 × 2234, ${covered} covered pixels:`)
+  const { pose, width, height } = atriumCountArgs({ pose: 1 })
+  const { rows, covered, total } = frameBudget(pose, width, height)
+  console.log(`Boss's case, atrium pose ${pose}, ${width} × ${height}, ${covered} covered pixels:`)
   console.table(
     rows.map((row) => ({ ...row, count: Math.round(row.count), ms: row.ms.toFixed(3) })),
   )

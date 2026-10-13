@@ -4,15 +4,12 @@ import { pageAddress } from '../row/pageSlots.ts'
 import { createAdmissionReads, createPageAdmission } from './admission.ts'
 import { createLowerPass, type LowerList, type LowerPassOptions } from './lowerTier.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
-import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts'
-type Cache = ReturnType<typeof createGpuPageCache>
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
-type Trace = ReturnType<typeof createWebgpuDiagnostics>['traceDiagnostic']
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
+import type { WebgpuDiagnosticChannel } from '../pages/io/diagnostics.ts'
 type EnsureOptions = {
-  getCache: () => Cache | undefined
-  tracking: Tracking
+  getCache: () => GpuPageCache | undefined
+  tracking: WebgpuPageTracking
   bootstrapKey: Uint8Array
   signal?: AbortSignal
   hasBytes: (page: PageRec) => boolean
@@ -20,7 +17,7 @@ type EnsureOptions = {
   parentsOf: (page: PageRec) => readonly PageRec[]
   isLost: () => boolean
   traceEnabled: boolean
-  traceDiagnostic: Trace
+  traceDiagnostic: WebgpuDiagnosticChannel['traceDiagnostic']
   /** The lower tiers, served after the camera's: the casters the light cuts asked for, then the
    *  pages ahead of the camera, each highest priority first, without repeats (`lowerTier.ts`). */
   lowerTiers: () => readonly LowerList[]
@@ -42,7 +39,7 @@ type EnsureRun = {
   jobId: number
   started: number
   urls: string[]
-  cache: Cache
+  cache: GpuPageCache
   /** Wanted pages this pass left out of the pool. */
   missing: number
   /** The pool is full of pages the image holds: the burst stopped there. */
@@ -65,8 +62,7 @@ export function createWebgpuResidentEnsurer(options: EnsureOptions) {
   /**
    * `cameraWaiting` says a camera cut queued behind this job: the caster tier gives way to it.
    * Resolves true when the pass left nothing to do — every wanted page resident, every lower tier
-   * page held —: until what it reads moves (`revision`), another pass would only touch the lower
-   * tiers' pages (`touchLower`).
+   * page held —: until what it reads moves (`revision`), another pass would do nothing.
    */
   const ensure = (
     wanted: readonly PageRec[],
@@ -82,7 +78,6 @@ export function createWebgpuResidentEnsurer(options: EnsureOptions) {
       (getCache()?.residencyRevision ?? 0) +
       bytesRevision() +
       lowerTiers().reduce((sum, tier) => sum + tier.revision, 0),
-    touchLower: state.lower.touch,
   })
 }
 
@@ -141,7 +136,7 @@ async function admitWanted(
   const { tracking } = s
   const wants = (rec: PageRec) => tracking.wanted.has(tracking.keyOf(rec))
   const pool = run.cache,
-    room = pool.unpinnedSlots()
+    room = pool.room()
   // The cover lists no more of its missing pages than the slots that could take them — a pool its
   // pins fill, none —, each still counted missing (`needsAdmit`).
   const covering = s.coverMissing?.((rec) => !!pool.get(pageAddress(rec)), room) ?? []
@@ -153,7 +148,7 @@ async function admitWanted(
   const readAhead = () => {
     if (wanted.length === ahead) return
     ahead = wanted.length
-    s.readAhead?.(wanted, run.cache.unpinnedSlots(), wants, run.cache, reads)
+    s.readAhead?.(wanted, run.cache.room(), wants, run.cache, reads)
   }
   readAhead()
   for (const rec of covering)
@@ -203,7 +198,7 @@ async function admitOne(s: EnsureState, run: EnsureRun, rec: PageRec, landed: ()
     }
     budget.spend()
   } catch (error) {
-    if (!String(error).includes('ALL_PAGES_PINNED')) throw error
+    if (!String(error).includes('POOL_FULL')) throw error
     // Pool full of pages the image holds: the burst stops there, without dropping anything.
     // What stays wanted displays through its resident ancestor; cut admission (`admitGpuCut`)
     // only reports that the image asks for more than the slots hold.

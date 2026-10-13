@@ -7,6 +7,7 @@ import { Waves } from './waves.ts'
 import { WaterSurface } from './waterSurface.ts'
 import { BUOYANCY_WORDS, OP, PLANE_WORDS } from '../physics/layout.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
+import { hypot2 } from '../../../math/src/float/hypot.ts'
 
 test('steepness is normalised so that Σ Qᵢ·Aᵢ·kᵢ stays at most 1', () => {
   assert.ok(Math.abs(new Waves(OCEAN).steepness - 1) < 1e-12, 'eight waves at 0.9 scaled to 1')
@@ -106,5 +107,24 @@ test('every displacement of a rest rectangle lies in its displacement box, a poi
   waves.offset(3, -7, o)
   for (let c = 0; c < 3; c++) {
     assert.ok(Math.abs(box[c] - o[c]) < 1e-12 && Math.abs(box[c + 3] - o[c]) < 1e-12)
+  }
+})
+
+test('a wave direction is refused when it has no length: zero or NaN, at any magnitude', () => {
+  for (const direction of [
+    [0, 0],
+    [-0, 0],
+    [NaN, 1],
+    [1e-3, 0],
+    [Infinity, 1],
+    [1e200, 0],
+    [3e154, 4e154],
+    [1e-170, 0],
+    [3e-163, -4e-163],
+  ] as const) {
+    const refused = !(hypot2(direction[0], direction[1]) > 0)
+    const spec = { direction, wavelength: 1, amplitude: 1, steepness: 0.5 }
+    if (refused) assert.throws(() => new Waves([spec]), RangeError, `${direction}`)
+    else assert.doesNotThrow(() => new Waves([spec]), `${direction}`)
   }
 })

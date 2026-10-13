@@ -26,7 +26,7 @@ export type HostPoint = {
   /** Back to front. */ readonly z: number
 }
 
-/** A local or world box of the host, read by its two corners (`boxBounds.ts`). */
+/** A local or world box of the host, read by its two corners (`readHostBox`, `world/bounds.ts`). */
 export type HostBox = {
   /** The lowest corner. */ readonly min: HostPoint
   /** The highest corner. */ readonly max: HostPoint

@@ -1,5 +1,5 @@
 // What a steady visibility image encodes outside its render passes, on the device double that
-// records every command opening an encoder of its own (`mockGpu().commands`): each compute step
+// records every command opening an encoder of its own (`fakeDevice(BACKEND).commands`): each compute step
 // between two render passes is ONE compute pass, and none is cut by a buffer clear. A pass that
 // ends and a clear that starts each cost the frame an encoder change: the partition and the draw
 // compaction share a pass, so do the Hi-Z pyramid, its test and the tested half's compaction, and
@@ -10,7 +10,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { collectClusterPages } from '../../../page/selection/selection.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { occluderScene, preparedOccluderRun } from '../testOccluder.fixture.ts'
 import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../../sdk-core/src/index.ts'
 import {
@@ -23,10 +23,11 @@ import type { Engine } from '../../../engine/types.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { packDagSelection } from '../../../gpu/dag/selection.ts'
 import { camera, quadScene } from '../testScenes.fixture.ts'
+import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 test('each compute step of a visibility image is one pass, and nothing clears between them', async () => {
   installGpuGlobals()
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const scene = occluderScene()
   const metadata: ClusterManifest = {
     schema: 0,
@@ -39,7 +40,12 @@ test('each compute step of a visibility image is one pass, and nothing clears be
     totalNodes: 0,
     ...scene.metadata,
   }
-  const collected = collectClusterPages(scene.source, metadata, scene.indices, scene.associations)
+  const collected = collectClusterPages(
+    scene.source,
+    graphDraws(scene.source, scene.associations),
+    metadata,
+    scene.indices,
+  )
   const run = await preparedOccluderRun(scene, metadata, collected.roots, gpu.device, [32, 32])
   const backend = run.backend as Engine
   backend.render(run.cam)
@@ -66,8 +72,8 @@ test('the GPU cut is one compute pass, its arguments armed inside it, before the
   installGpuGlobals()
   const fixture = quadScene()
   const { source, metadata, indices, associations } = fixture
-  const collected = collectClusterPages(source, metadata, indices, associations)
-  const gpu = mockGpu({ packed: packDagSelection(collected.roots) })
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
+  const gpu = fakeDevice({ ...BACKEND, packed: packDagSelection(collected.roots) })
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: gpu.device,
@@ -93,7 +99,7 @@ test('the GPU cut is one compute pass, its arguments armed inside it, before the
   cam.updateMatrixWorld()
   const before = gpu.writes.length
   backend.render(cam)
-  const written = new Set(gpu.writes.slice(before).map((write) => write.label))
+  const written = new Set(gpu.writes.slice(before).map((write) => write.buffer.label))
   for (const unchanged of [
     'Trillion3D draw compaction uniform',
     'Trillion3D HiZ uniforms',

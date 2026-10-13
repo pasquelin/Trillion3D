@@ -1,5 +1,5 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { surfaceColorAttachments } from '../prepare/attachments.ts'
 import { createGpuRaster } from '../../../gpu/raster/raster.ts'
 import { ensureWebgpuVisibilityBindings } from '../../visibility/bindings.ts'
@@ -13,6 +13,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { DEPTH_CLEAR } from '../../../camera/depthConvention.ts'
 import { prepared } from '../state/prepared.ts'
 import { EMPTY_SURFACES_PASS } from '../../../stage/passLabels.ts'
+import { canCompute } from '../../../lighting/deferred/fullscreen.ts'
 
 /** An image with no drawable row still clears the surfaces, lights them and presents the result. */
 export function encodeEmptySurfaces(
@@ -62,7 +63,7 @@ const rasterInput = {} as GpuRasterInput
 export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt
   if (vis.gpuRaster || !requestsComputeRaster(rt.context?.diagnosticGpuVariant)) return
-  if (typeof device.createComputePipeline !== 'function')
+  if (!canCompute(device))
     throw new Error('COMPUTE_RASTER_UNAVAILABLE: raster-compute requested without a compute stage')
   const [width, height] = rt.gpu.targetSize
   vis.gpuRaster = createGpuRaster(device, width, height, rt.layout.rasterCapacity)

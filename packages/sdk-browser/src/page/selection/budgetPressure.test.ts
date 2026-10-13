@@ -6,6 +6,7 @@ import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { dagFixture, wideCamera } from './dag.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
+import { graphDraws } from './drawSource.ts'
 
 test('budget pressure down to the pinned roots still draws the surface once, by the root', () => {
   const cam = wideCamera(),
@@ -13,9 +14,9 @@ test('budget pressure down to the pinned roots still draws the surface once, by 
   const fixture = dagFixture()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   // Budget pressure evicted every intermediate level: only the pinned roots are resident. The cut
   // rule draws the nearest resident ancestor of what is missing: the root, once.
@@ -47,7 +48,12 @@ test('a primitive whose clusters carry no DAG error band is refused by name, not
     delete (page as { lodError?: number }).lodError
   assert.throws(
     () =>
-      collectClusterPages(fixture.source, fixture.metadata, fixture.indices, fixture.associations),
+      collectClusterPages(
+        fixture.source,
+        graphDraws(fixture.source, fixture.associations),
+        fixture.metadata,
+        fixture.indices,
+      ),
     (error: unknown) =>
       error instanceof EngineError &&
       error.code === 'STALE_CACHE' &&

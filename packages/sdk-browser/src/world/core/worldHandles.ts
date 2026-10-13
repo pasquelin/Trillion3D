@@ -34,7 +34,7 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null, debug?: bo
     state.error = cause
     console.error('[trillion3d] An optional family did not load', cause)
   }
-  familyRefusals.add(refused)
+  familyRefusals.subscribe(refused)
   return {
     /** What the page holds: the view mode, read and written; the sessions opened and why the
      *  last one failed, read only. */
@@ -42,7 +42,7 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null, debug?: bo
     notices,
     /** The world stopped: its notices close, and it hears no family refusal more. */
     close() {
-      familyRefusals.delete(refused)
+      familyRefusals.unsubscribe(refused)
       notices.close()
     },
     /** Puts the mode on a session just opened; the world's own, never the page's. A mode this

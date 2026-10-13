@@ -7,10 +7,13 @@ import { definePass, definePassFamily } from './passDeclaration.ts'
 /** What every pass of the virtual shadow maps' label opens with (`../vsm/`): all of them are timed
  *  with the Shadows stage, whatever their chunk or light. */
 export const VSM_PASS_PREFIX = 'vsm.'
-/** The placement's two compute passes: the roots' world matrices, then the rows'
- *  (`../placement/gpuCompose.ts`). */
+/** The placement's compute passes: the roots' world matrices, then the rows', and the leaf boxes
+ *  of the placement tree over the worlds composed (`../placement/gpuCompose.ts`); the tree's refit
+ *  (`../gpu/dag/treeRefit.ts`). */
 export const COMPOSE_ROOTS_PASS = 'Trillion3D compose roots'
 export const COMPOSE_ROWS_PASS = 'Trillion3D compose rows'
+export const COMPOSE_MEMBERS_PASS = 'Trillion3D compose members'
+export const TREE_REFIT_PASS = 'Trillion3D placement tree refit'
 /** The DAG selection's compute pass, and the swap of its masks (`../gpu/dag/`). */
 export const DAG_SELECTION_PASS = 'Trillion3D DAG selection'
 export const DAG_MASK_SWAP_PASS = 'Trillion3D DAG mask swap'
@@ -66,6 +69,9 @@ export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1'
 /** The bounce pass — the surface cache's sweep, then the probes' update and the snapshot's
  *  follow-up —; the "Bounce" step is read under this name, not by its rank. */
 export const BOUNCE_PASS = 'Trillion3D bounce v1'
+/** The light grid pass over the bounce's world lattice (`../lighting/tiles/tiles.ts`, `world`):
+ *  timed with the bounce, which reads its lists. */
+export const BOUNCE_LIGHT_LISTS_PASS = 'Trillion3D bounce light lists v1'
 /** The clear of a probe level the bounce grows (`../bounce/probeStorage.ts`). */
 export const BOUNCE_PROBE_CLEAR_PASS = 'Trillion3D bounce probe level clear'
 /** The reflections' compute pass: the depth pyramid's nearest mips, then the opaque surfaces'
@@ -110,6 +116,8 @@ export const VSM_PASSES = definePassFamily({
 export const ENGINE_PASSES = [
   definePass({ label: COMPOSE_ROOTS_PASS, stage: 'animations', block: 'other' }),
   definePass({ label: COMPOSE_ROWS_PASS, stage: 'animations', block: 'other' }),
+  definePass({ label: COMPOSE_MEMBERS_PASS, stage: 'selection', block: 'visibility' }),
+  definePass({ label: TREE_REFIT_PASS, stage: 'selection', block: 'visibility' }),
   definePass({ label: DAG_SELECTION_PASS, stage: 'selection', block: 'visibility' }),
   definePass({ label: DAG_MASK_SWAP_PASS, stage: 'selection', block: 'visibility' }),
   definePass({ label: PARTITION_PASS, stage: 'partition', block: 'visibility' }),
@@ -139,6 +147,7 @@ export const ENGINE_PASSES = [
   definePass({ label: PARTICLE_DRAW_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: LIGHT_TILES_PASS, stage: 'lightLists', block: 'other' }),
   definePass({ label: BOUNCE_PASS, stage: 'bounce', block: 'other' }),
+  definePass({ label: BOUNCE_LIGHT_LISTS_PASS, stage: 'bounce', block: 'other' }),
   definePass({ label: BOUNCE_PROBE_CLEAR_PASS, stage: 'bounce', block: 'other' }),
   definePass({ label: PROXY_POSE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_PASS, stage: 'reflections', block: 'other' }),

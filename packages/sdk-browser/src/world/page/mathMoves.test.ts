@@ -18,7 +18,8 @@ import {
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
 import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import { clusters } from './cutClusters.ts'
+import { clusterTriangles } from '../../page/codec/clusterTriangles.ts'
+import { sdkWasm } from '../../wasm/sdkWasm.fixture.ts'
 import { runtimeDeformation } from './runtimeDeformation.ts'
 
 test('the joint rest balls and target radii are the old ones in float32', () => {
@@ -130,7 +131,7 @@ function oldClusters(indices: Uint32Array, vertexCount: number, at: Float32Array
   return ranges
 }
 
-test('compact runs on length3 end every cluster where the old ones did', () => {
+test("the compiler's clusterer ends every compact run where the old cutter did", () => {
   for (let mesh = 1; mesh <= 16; mesh++) {
     // A grid of 64 × 64 cells jittered by Halton points, cut in row order: a strip that strays.
     const side = 65,
@@ -157,7 +158,7 @@ test('compact runs on length3 end every cluster where the old ones did', () => {
       )
     const list = Uint32Array.from(indices),
       count = side * side
-    const now = [...clusters(list, count, positions)]
+    const now = clusterTriangles(sdkWasm, list, positions.subarray(0, count * 3), 'compact').ranges
     assert.deepEqual(now, oldClusters(list, count, positions), `mesh ${mesh}`)
     assert.ok(now.length > list.length / 3 / 128, `mesh ${mesh} ends runs by their reach`)
   }

@@ -9,7 +9,6 @@
 import { lerp, saturate } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
@@ -17,6 +16,7 @@ import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
 import { randomLampScope } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
 type Sum = (...args: unknown[]) => number[]
@@ -60,7 +60,7 @@ function lobesOf(u: (lo: number, hi: number) => number, r: () => number, N: numb
 }
 
 test('the lobed pair gives the two sums of two lobed walks, its specular on a dielectric', () => {
-  const r = random(1483),
+  const r = lcgRandom(1483),
     u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lobed = 0
   for (let round = 0; round < 400; round++) {

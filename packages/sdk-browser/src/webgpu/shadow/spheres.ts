@@ -1,21 +1,19 @@
-import { ceilFloat32, writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
+import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { boxUnion, transformAffinePoint } from '../../../../sdk-core/src/index.ts'
-import { length3 } from '../../../../math/src/vector/vector.ts'
-import { boxCenter, transformHalfExtent } from '../../../../math/src/geometry/box.ts'
+import { sphereRadius } from '../../placement/rowSphere.ts'
+import { boxCenter } from '../../../../math/src/geometry/box.ts'
 import { rootOf, type PageRec } from '../../page/selection/selection.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { CLUSTER_SPHERE_FLOATS, clusterSpheres } from './rowBuffers.ts'
 import { rowBox, rowGrowth } from '../../hiz/corners.ts'
-import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /**
  * World sphere of a cluster: the centre of its local box transformed by its root's world, and the
- * radius of the sphere circumscribed to the transformed box, overestimated term by term. It is an
- * overestimate, never an underestimate — a cluster is dropped only by being certainly outside the
- * volume. A dynamic page's box is where its vertices are this frame (`moved`); another grows
- * by its root's deformation reach.
+ * radius of the sphere about it that holds the transformed box (`../../placement/rowSphere.ts`, the
+ * formula the compose rows pass evaluates). A dynamic page's box is where its vertices are this
+ * frame (`moved`); another grows by its root's deformation reach.
  */
 function writeClusterSphere(
   rec: PageRec,
@@ -28,21 +26,15 @@ function writeClusterSphere(
     e = root.world.elements,
     { min, max } = rowBox(rec),
     reach = rowGrowth(rec, root.reach)
-  // The local box's centre, then its world image in place.
-  const c = centreScratch
+  const c = centreScratch,
+    h = extentScratch
   boxCenter(c, 0, min[0], min[1], min[2], max[0], max[1], max[2])
-  const hx = (max[0] - min[0]) / 2 + reach,
-    hy = (max[1] - min[1]) / 2 + reach,
-    hz = (max[2] - min[2]) / 2 + reach
+  for (let axis = 0; axis < 3; axis++) h[axis] = (max[axis] - min[axis]) / 2 + reach
+  const radius = sphereRadius(e, c, h)
   transformAffinePoint(c, e, c[0], c[1], c[2], 0)
-  let centreError = 0
-  for (let axis = 0; axis < 3; axis++) {
+  for (let axis = 0; axis < 3; axis++)
     writeSplitDouble(out, base + axis, base + 4 + axis, centreScratch[axis])
-    centreError += (centreScratch[axis] - (out[base + axis] + out[base + 4 + axis])) ** 2
-  }
-  const h = transformHalfExtent(extentScratch, 0, e, hx, hy, hz)
-  const radius = length3(h[0], h[1], h[2])
-  out[base + 3] = ceilFloat32(radius + Math.sqrt(centreError))
+  out[base + 3] = radius
   out[base + 7] = 0
 }
 
@@ -92,69 +84,19 @@ function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
     { casterSlots } = rt.layout.rows
   if (lights.spheres && lights.spheres.rows === casterSlots) return lights.spheres
   lights.spheres?.buffer.destroy()
-  lights.spheres?.local?.destroy()
   lights.spheres = clusterSpheres(device, casterSlots)
   return lights.spheres
 }
 
-/** Words of a row's local box (`clusterSpheres`' `local`): six doubles, each two words. */
-const LOCAL_BOX_WORDS = 12
-const localScratch = new Float64Array(6)
-
-/** Writes the local boxes of rows `[from, to]` — centre, then half extent grown by the reach, as
- *  `writeClusterSphere` derives them —; a row without a record takes a zero box. */
-function packLocalBoxes(rt: WebgpuPagesRuntime, out: Uint32Array, from: number, to: number) {
-  const { rows, selectionRoots, placement } = rt.layout
-  for (let row = from; row <= to; row++) {
-    const rec = rows.packedRecs[row],
-      base = row * LOCAL_BOX_WORDS
-    if (!rec) {
-      out.fill(0, base, base + LOCAL_BOX_WORDS)
-      continue
-    }
-    const root = rootOf(selectionRoots, rootOfPacked(placement, rows.packedPageIndex[row])),
-      { min, max } = rowBox(rec),
-      reach = rowGrowth(rec, root.reach)
-    boxCenter(localScratch, 0, min[0], min[1], min[2], max[0], max[1], max[2])
-    for (let axis = 0; axis < 3; axis++)
-      localScratch[3 + axis] = (max[axis] - min[axis]) / 2 + reach
-    packDoubles(out, base, localScratch)
-  }
-}
-
-/** Sends the local boxes of rows `[from, to]`, once they are kept. */
-function uploadLocalBoxes(rt: WebgpuPagesRuntime, from: number, to: number) {
-  const { local, localPacked } = rt.lights.spheres!
-  if (!local || !localPacked) return
-  packLocalBoxes(rt, localPacked, from, to)
-  rt.gpu.device!.queue.writeBuffer(
-    local,
-    from * LOCAL_BOX_WORDS * 4,
-    localPacked,
-    from * LOCAL_BOX_WORDS,
-    (to - from + 1) * LOCAL_BOX_WORDS,
-  )
-}
-
 /**
  * The spheres the compose rows pass rewrites for the rows of roots linked to a parent
- * (`../../placement/gpuCompose.ts`), with each row's local box it makes them from: the boxes are
- * kept from the first frame a parent composes rows while a light casts — every row once, then the
- * rows each upload writes. Undefined while no light casts: no sphere is read.
+ * (`../../placement/gpuCompose.ts`), from the inputs each row keeps (`composedRowInputs.ts`).
+ * Undefined while no light casts: no sphere is read.
  */
-export function linkedRowSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
+export function linkedRowSpheres(rt: WebgpuPagesRuntime) {
   const spheres = rt.lights.spheres
   if (!spheres || spheres.rows === 0) return undefined
-  if (!spheres.local) {
-    spheres.localPacked = new Uint32Array(spheres.rows * LOCAL_BOX_WORDS)
-    spheres.local = device.createBuffer({
-      label: 'Trillion3D cluster local boxes',
-      size: spheres.localPacked.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-    uploadLocalBoxes(rt, 0, spheres.rows - 1)
-  }
-  return spheres as typeof spheres & { local: GPUBuffer }
+  return spheres
 }
 
 function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
@@ -164,7 +106,6 @@ function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
   packClusterSpheres(rows.packedRecs, selectionRoots, spheres.packed, from, to, (row) =>
     rootOfPacked(placement, rows.packedPageIndex[row]),
   )
-  uploadLocalBoxes(rt, from, to)
   // Offset and size counted in floats: that is what `writeBuffer` expects of a typed array.
   rt.gpu.device!.queue.writeBuffer(
     spheres.buffer,

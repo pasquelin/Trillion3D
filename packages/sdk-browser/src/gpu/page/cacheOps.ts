@@ -1,14 +1,14 @@
 import { evictResident } from './commit.ts'
 import { heldHomes } from './homes.ts'
-import { resizeGpuPages } from './resize.ts'
+import { resizeGpuPages, type GrownPages } from './resize.ts'
 import type { GpuPageContext } from './types.ts'
 
 /** Changes the pool size behind the loads in flight (`createGpuPageCache`, `resize`). */
-export function resizeBehind(context: GpuPageContext, slots: number) {
+export function resizeBehind(context: GpuPageContext, slots: number, grown?: GrownPages) {
   const { state } = context
   const operation = state.pending.then(() => {
     context.check()
-    return resizeGpuPages(context, slots)
+    return resizeGpuPages(context, slots, grown)
   })
   state.pending = operation.catch(() => {})
   return operation

@@ -54,10 +54,11 @@ fn reflectionLevelTrust(level:f32,top:f32)->f32{return 1.0-smoothstep(top-1.0,to
  * `reflectionDepthWeight`: 1 where the depth at `X` lies within the surface's thickness of its plane
  * carried to `X`, widened by the depth the plane spans from its pixel to `X`, falling smoothly to 0
  * two thicknesses farther. `reflectionLevelRead` reads one level at `uv`, weighted by the depth
- * there: level 0, the image itself, as the sampler interpolates it, sharp; a coarser one as a cubic
- * B-spline of its texels (four bilinear reads under one weight), smooth, so that a blurred
- * reflection is a round blob at every level, never a texel's square. `reflectionRadianceAt` reads a
- * fractional level between its two.
+ * there: level 0, the lit image itself (`reflectionImage`), as the sampler interpolates it, sharp,
+ * its coverage held within one; a coarser one (`reflectionRadiance`, level `k` at its mip `k − 1`)
+ * as a cubic B-spline of its texels (four bilinear reads under one weight), smooth, so that a
+ * blurred reflection is a round blob at every level, never a texel's square. `reflectionRadianceAt`
+ * reads a fractional level between its two.
  */
 export const reflectionFootprintWgsl = (group: number) =>
   wgslBlock(
@@ -79,17 +80,21 @@ fn reflectionDepthWeight(X:vec2f,surface:ReflectionSurface)->f32{
  return 1.0-smoothstep(0.0,2.0*surface.thickness,apart);
 }
 fn reflectionLevelColor(uv:vec2f,level:f32)->vec4f{
- if(level==0.0){return textureSampleLevel(reflectionRadiance,reflectionSampler,uv,0.0);}
- let size=vec2f(textureDimensions(reflectionRadiance,u32(level)));
+ if(level==0.0){
+  let lit=textureSampleLevel(reflectionImage,reflectionSampler,uv,0.0);
+  return vec4f(lit.rgb,clamp(lit.a,0.0,1.0));
+ }
+ let mip=level-1.0;
+ let size=vec2f(textureDimensions(reflectionRadiance,u32(mip)));
  let t=uv*size-vec2f(0.5);let i=floor(t);let f=t-i;
  let f2=f*f;let f3=f2*f;let e=vec2f(1.0)-f;
  let w0=e*e*e/6.0;let w1=(vec2f(4.0)-6.0*f2+3.0*f3)/6.0;let w3=f3/6.0;let w2=vec2f(1.0)-w0-w1-w3;
  let g0=w0+w1;let g1=w2+w3;
  let low=(i-vec2f(0.5)+w1/g0)/size;let high=(i+vec2f(1.5)+w3/g1)/size;
- return g0.x*g0.y*textureSampleLevel(reflectionRadiance,reflectionSampler,low,level)
-  +g1.x*g0.y*textureSampleLevel(reflectionRadiance,reflectionSampler,vec2f(high.x,low.y),level)
-  +g0.x*g1.y*textureSampleLevel(reflectionRadiance,reflectionSampler,vec2f(low.x,high.y),level)
-  +g1.x*g1.y*textureSampleLevel(reflectionRadiance,reflectionSampler,high,level);
+ return g0.x*g0.y*textureSampleLevel(reflectionRadiance,reflectionSampler,low,mip)
+  +g1.x*g0.y*textureSampleLevel(reflectionRadiance,reflectionSampler,vec2f(high.x,low.y),mip)
+  +g0.x*g1.y*textureSampleLevel(reflectionRadiance,reflectionSampler,vec2f(low.x,high.y),mip)
+  +g1.x*g1.y*textureSampleLevel(reflectionRadiance,reflectionSampler,high,mip);
 }
 fn reflectionLevelRead(sum:ptr<function,ReflectionTaps>,uv:vec2f,level:f32,share:f32,toView:vec4f,surface:ReflectionSurface){
  let w=share*reflectionDepthWeight(toView.xy+uv*toView.zw,surface);
@@ -107,7 +112,7 @@ fn reflectionRadianceAt(sum:ptr<function,ReflectionTaps>,uv:vec2f,level:f32,shar
 fn reflectionFootprint(Q:vec2f,hit:vec3f,pixel:f32,lobe:ReflectionLobe,cone:ReflectionCone,toView:vec4f,surface:ReflectionSurface)->ReflectionTaps{
  let taps=min(ceil(cone.long/cone.short),REFLECTION_TAPS);
  let level=min(cone.level,reflectionView.radiance.z);
- let texel=1.0/vec2f(textureDimensions(reflectionRadiance));
+ let texel=1.0/vec2f(textureDimensions(reflectionImage));
  var sum=ReflectionTaps(vec4f(0.0),0.0);
  if(taps<2.0){
   reflectionRadianceAt(&sum,Q*texel,level,1.0,toView,surface);

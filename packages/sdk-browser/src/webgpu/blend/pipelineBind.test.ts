@@ -10,6 +10,8 @@ import { orderBlendPasses } from './order.ts'
 import { createWebgpuBlendState } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { commandArgs } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
+import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
 
 const FRONT = 'front' as unknown as GPURenderPipeline,
   BACK = 'back' as unknown as GPURenderPipeline,
@@ -31,27 +33,16 @@ const item = (side: number, negatif = false, paged = false) => {
 const pagee = (side: number) => item(side, false, true)
 
 function joue(items: ReturnType<typeof item>[]) {
-  const pipelines: unknown[] = []
-  // Rank of the RUN whose indirect argument each draw rereads: one run per draw, and the
-  // instances of all its entries in sequence.
-  const draws: number[] = []
-  const pass = {
-    setViewport() {},
-    setBindGroup() {},
-    setPipeline(pipeline: unknown) {
-      pipelines.push(pipeline)
-    },
-    drawIndirect(_args: GPUBuffer, offset: number) {
-      draws.push(offset / 16)
-    },
-    end() {},
-  }
+  const gpu = fakeDevice()
   // Bind groups are rebuilt on the first pass, when lighting resources enter the key: the stub
   // gives enough for construction to succeed. Pipeline order is not decided in the encode
   // loop: it is baked in the static plan, one entry per face, built with the scene. It is therefore
   // built here the way prepare does.
   const blendState = Object.assign(createWebgpuBlendState(), {
-    argsBuffer: {} as GPUBuffer,
+    argsBuffer: gpu.device.createBuffer({
+      size: 4096,
+      usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    }),
     itemBuffer: {} as GPUBuffer,
     viewBuffer: {} as GPUBuffer,
   })
@@ -79,7 +70,7 @@ function joue(items: ReturnType<typeof item>[]) {
     },
     gpu: {
       // The front depth the blends write (`frontAttachment`).
-      reflection: { front: { view: {}, fresh: false } },
+      reflection: reflectionFront(),
       hdrView: {},
       colorView: {},
       depthView: {},
@@ -107,9 +98,13 @@ function joue(items: ReturnType<typeof item>[]) {
   } as unknown as WebgpuPagesRuntime
   // The lighting of the image, resolved once as `encodeBlend` does before any pass.
   blendState.lighting = blendLightResources(rt)
-  drawBlendPass(rt, fakeDevice().device, {
-    beginRenderPass: () => pass,
-  } as unknown as GPUCommandEncoder)
+  drawBlendPass(rt, gpu.device, gpu.device.createCommandEncoder())
+  // Each pipeline the pass set, in order; the rank of the RUN whose indirect argument each draw
+  // rereads: one run per draw, and the instances of all its entries in sequence.
+  const pipelines = gpu.passes.flatMap(({ commands }) =>
+    commandArgs(commands, 'setPipeline').map(([pipeline]) => pipeline),
+  )
+  const draws = gpu.draws.map(({ offset }) => offset! / 16)
   return { pipelines, draws, calls: rt.run.blendDrawCalls }
 }
 

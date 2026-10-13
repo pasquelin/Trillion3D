@@ -77,6 +77,7 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
         },
         () => lights.buffer!,
         bounce.budgetMs,
+        () => lights.tiles,
       )
     })
     .then((probes) => {

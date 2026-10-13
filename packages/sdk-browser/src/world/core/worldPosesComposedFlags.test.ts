@@ -16,6 +16,7 @@ import { composeRuntime } from '../../placement/composeRuntime.fixture.ts'
 import { MATRIX_DOUBLES, NONE } from '../../placement/gpuComposeWgsl.ts'
 import { createWorldPoses, type PoseComposer } from './worldPoses.ts'
 import type { Seat } from './worldBatches.ts'
+import { noModels } from './worldModels.fixture.ts'
 
 const N = 12000,
   SHOWN = 500
@@ -53,7 +54,7 @@ function galaxy(under?: Object3D) {
   // The session's follow of written rows: parks, takes, marks.
   const send = (written: typeof rows, from: number, to: number) =>
     void followPlacementRows(roots as never, written, from, to)
-  const frame = () => poses.apply(scene, seats, new Map(), send, composer)
+  const frame = () => poses.apply(scene, seats, noModels(), send, composer)
   return { scene, parent, rows, batch, seats, children, roots, rt, poses, composer, frame }
 }
 

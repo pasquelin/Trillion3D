@@ -5,7 +5,8 @@
 //! arbitrary.
 use super::super::image as registry;
 use super::{
-    assert_claims, assert_refusals, decoded_rgba8, fixture, rgba8, REFERENCE_RGB as REFERENCE,
+    assert_claims, assert_refusals, decoded_rgba8, fixture, rgba8, with_alpha,
+    REFERENCE_RGB as REFERENCE,
 };
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
@@ -18,14 +19,6 @@ const OPAQUE: [u8; 8] = [255; 8];
 /// Where the first image of `anime.gif` ends: thirteen bytes of header and screen descriptor,
 /// twenty-four of global colour table, then the nineteen of the first image block.
 const PREMIERE_IMAGE_FIN: usize = 13 + 24 + 19;
-
-fn expected(alpha: &[u8; 8]) -> Vec<u8> {
-    REFERENCE
-        .iter()
-        .zip(alpha)
-        .flat_map(|(colour, alpha)| [colour[0], colour[1], colour[2], *alpha])
-        .collect()
-}
 
 /// Image the registry yields for this fixture, dimensions checked along the way.
 fn rendered(name: &str) -> image::RgbaImage {
@@ -41,13 +34,13 @@ fn the_two_colour_tables_yield_the_same_pixels() {
     for name in ["palette-globale.gif", "palette-locale.gif"] {
         assert_eq!(
             rendered(name).as_raw(),
-            &expected(&OPAQUE),
+            &with_alpha(&REFERENCE, &OPAQUE),
             "{name}: pixels diverge from the reference"
         );
     }
     assert_eq!(
         rendered("transparence.gif").as_raw(),
-        &expected(&ALPHA_TRANSPARENT),
+        &with_alpha(&REFERENCE, &ALPHA_TRANSPARENT),
         "the transparent index touches only alpha, never the table colour"
     );
 }
@@ -73,14 +66,14 @@ fn a_gif_outside_policy_comes_out_as_a_report_reason_never_as_a_panic() {
     // of the blocks must cross it as well as 89a.
     let mut legacy = fixture("gif", "palette-globale.gif");
     legacy[..6].copy_from_slice(b"GIF87a");
-    assert_eq!(rendered_bytes(&legacy), expected(&OPAQUE));
+    assert_eq!(rendered_bytes(&legacy), with_alpha(&REFERENCE, &OPAQUE));
     // `anime.gif` cut at the end of its first image: no next block, and no terminator either.
     // The walk therefore does not conclude to animation, and the decoder reads the whole image
     // that remains — an image without a terminator is an image, not an animation.
     let anime = fixture("gif", "anime.gif");
     assert_eq!(
         rendered_bytes(&anime[..PREMIERE_IMAGE_FIN]),
-        expected(&OPAQUE)
+        with_alpha(&REFERENCE, &OPAQUE)
     );
     // Four bytes further, the second image separator is there and its descriptor is cut: that
     // is enough to prove the second image, and it is as animation that the file is refused.

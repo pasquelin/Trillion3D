@@ -10,7 +10,7 @@ import {
   WATER_COMPOSITE_PASS,
   WATER_SURFACE_PASS,
 } from '../../../packages/sdk-browser/src/webgpu/water/passLabels.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { recordPassLabels, runOnDevice } from '../kit/deviceProof.ts'
 import {
   ANISOTROPY_CASES,
   CLEARCOAT_CASES,
@@ -29,14 +29,7 @@ const LOBED_ATTACHMENT_BYTES = colorBytesPerSample(
 const transmitted = (transmission: number, cases: Record<string, G.SurfaceParameters>) =>
   runOnDevice<{ readings: Record<string, LobeReading> }>(
     async (device, events, result) => {
-      const labels = new Set<string>()
-      const create = device.createCommandEncoder.bind(device)
-      device.createCommandEncoder = (descriptor) => {
-        const encoder = create(descriptor),
-          begin = encoder.beginRenderPass.bind(encoder)
-        encoder.beginRenderPass = (pass) => (labels.add(pass.label ?? ''), begin(pass))
-        return encoder
-      }
+      const { labels, restore } = recordPassLabels(device)
       try {
         await readCases(device, events, result, cases, {
           blend: true,
@@ -50,7 +43,7 @@ const transmitted = (transmission: number, cases: Record<string, G.SurfaceParame
           },
         })
       } finally {
-        device.createCommandEncoder = create
+        restore()
       }
     },
     { maxColorAttachmentBytesPerSample: LOBED_ATTACHMENT_BYTES },

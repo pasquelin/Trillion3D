@@ -8,8 +8,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createGpuLightTiles } from './tiles.ts'
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
 import { shippedColumn, suns } from './gridColumn.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** 160 × 160 pixels: 3 × 3 columns of cells. */
 const COLUMNS = ceilDiv(160, LIGHT_SETTINGS.tileSize) ** 2
@@ -27,8 +27,7 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
   Object.assign(fake.device, { features: new Set() })
   const tiles = await createGpuLightTiles(fake.device)
   const lights = lightList(fake.device)
-  const pass = { setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {}, end() {} }
-  const encoder = { ...fake.device.createCommandEncoder(), beginComputePass: () => pass }
+  const encoder = fake.device.createCommandEncoder()
   const readback = fake.buffers.find((buffer) => buffer.label?.includes('pool readback'))!
   const state = fake.buffers.find((buffer) => buffer.label?.includes('pool v1'))!
   const pools = () => fake.writes.filter((write) => write.buffer === (state as never))
@@ -36,7 +35,7 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
   const frame = async (at: number, words?: number[]) => {
     tiles.ensure(160, 160, lights, LIGHT_SETTINGS.tileLights)
     tiles.update(new Float64Array(16), [0, 0, 0], 160, 160)
-    tiles.encode(encoder as unknown as GPUCommandEncoder, at)
+    tiles.encode(encoder, at)
     if (words) new Uint32Array(readback.getMappedRange()).set(words)
     tiles.submitted()
     await new Promise((settled) => setTimeout(settled))
@@ -98,7 +97,7 @@ test('a column of lights holding every slice fills that bound exactly; one word 
   }
   // Random columns of a view sharing its pool: none overflows.
   for (let seed = 1; seed <= 12; seed++) {
-    const r = random(seed),
+    const r = lcgRandom(seed),
       lights = 1 + Math.floor(r() * 3),
       columns = 8
     const capacity = await poolOf(columns * CELL, CELL, lights)

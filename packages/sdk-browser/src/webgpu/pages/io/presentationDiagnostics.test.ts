@@ -6,8 +6,9 @@ import { outputColorDiagnostic } from '../../../diagnostic/presentationDiagnosti
 import { collectClusterPages } from '../../../page/selection/selection.ts'
 import { packDagSelection } from '../../../gpu/dag/selection.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
+import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 test('the GPU readback diagnostic distinguishes the requested clear color from the rendered pixels', () => {
   const pixels = new Uint8Array([42, 48, 60, 255, 1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255])
@@ -40,7 +41,7 @@ test('WebGPU forwards its internal color diagnostics to the host report sink, ne
   t.after(() => void (had || delete page.window))
   const info = t.mock.method(console, 'info', () => {})
   const events: Array<{ phase: string; message: string; context: Record<string, unknown> }> = []
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device, {
     clearColor: 0x2a303c,
     onDiagnostic: (event) => events.push(event),
@@ -65,11 +66,11 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
   const fixture = quadScene()
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
-  const { device } = mockGpu({ packed: packDagSelection(collected.roots) })
+  const { device } = fakeDevice({ ...BACKEND, packed: packDagSelection(collected.roots) })
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
@@ -113,7 +114,7 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
 test('summary diagnostics keep frame traces disabled', async () => {
   installGpuGlobals()
   const events: Array<{ phase: string; message: string; context: Record<string, unknown> }> = []
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device, {
     diagnosticDetail: 'summary' as never,
     onDiagnostic: (event) => events.push(event),

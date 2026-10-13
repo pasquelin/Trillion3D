@@ -58,9 +58,8 @@ export async function plane(
 ) {
   const builder = batisseur()
   const shown = blend ? { ...surface, transparent: true, opacity: 0.6 } : surface
-  const mesh = G.mesh(geometry, G.physicalSurface(shown))
-  builder.source.add(mesh)
-  builder.add(mesh, blend ? 'clustered-blend' : 'exact-clusters', 1.2)
+  const pass = blend ? 'clustered-blend' : 'exact-clusters'
+  builder.place(G.physicalSurface(shown), pass, 1.2, [0, 0, 0], {}, geometry)
   const scene = builder.fini()
   const readGeometryPage = compiled ? compilePages(scene) : undefined
   const { backend, canvas } = engine(scene, device, (event) => void events.push(event), {

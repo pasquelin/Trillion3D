@@ -5,7 +5,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { PHYSICAL_TEXEL_WGSL } from '../../visibility/shader/physicalWgsl.ts'
 import { blendSurfaceWgsl } from '../blend/shaderSurface.ts'
 import { BLEND_PHYSICAL_WGSL } from '../blend/physicalWgsl.ts'
-import { REFLECTION_FRONT_WGSL } from '../../reflections/frontDepth.ts'
+import { REFLECTION_FRONT_WGSL, TRANSPARENT_FRONT } from '../../reflections/frontDepth.ts'
 
 /** The values of the surface stage, in their targets' order: the surface buffer, then, with
  *  `lobed`, the lobes target, then the front depth the reflections march. The virtual-texture
@@ -16,7 +16,7 @@ export const waterOutFields = (lobed: boolean): [string, string][] => [
     'vec4f',
   ]),
   ...(lobed ? [['lobes', 'vec4u'] as [string, string]] : []),
-  ['front', 'vec4f'],
+  TRANSPARENT_FRONT.out,
 ]
 
 /** One entry of the stage: `fsWater`, or with `lobed` `fsWaterLobed`, which reads the item's

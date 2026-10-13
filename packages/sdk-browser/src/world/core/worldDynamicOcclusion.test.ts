@@ -11,7 +11,8 @@ import { postPackedBases, type PageLocations } from '../../page/selection/placem
 import { buildHizPyramid } from '../../../../../bench/oracles/browser/hizPyramid.ts'
 import { filterUnoccluded } from '../../hiz/unoccluded.fixture.ts'
 import { visibilityDepth } from '../../hiz/visibilityDepth.fixture.ts'
-import { createEngineCamera, readCameraWorld } from '../../camera/world.ts'
+import { createEngineCamera } from '../../camera/engineCamera.ts'
+import { readCameraWorld } from '../../camera/world.ts'
 import { cameraAt } from '../../../../../tests/fixtures/hiz.ts'
 import type { ExplorerSource } from '../session/prepare.ts'
 import { dynamicWorld } from './worldDynamic.fixture.ts'
@@ -23,13 +24,9 @@ const SIZE: [number, number] = [64, 64]
  *  the roots whose rank each posts. */
 async function recordsOf(source: ExplorerSource) {
   const { scene, metadata } = source
-  const { allPages, roots } = collectClusterPages(
-    scene.source,
-    metadata,
-    new Map(),
-    scene.associations,
-    { allowMissing: true },
-  )
+  const { allPages, roots } = collectClusterPages(scene.source, scene.draws, metadata, new Map(), {
+    allowMissing: true,
+  })
   for (const rec of allPages)
     rec.array = new Uint32Array(await resolveObjectURL(rec.url)!.arrayBuffer())
   // Each record's placement, by its first packed rank: one record may serve several.

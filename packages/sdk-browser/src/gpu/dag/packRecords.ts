@@ -91,20 +91,35 @@ export function createRecordTable() {
   let hot = new Float32Array(0),
     cold = new Float32Array(0),
     count = 0
+  /** The words `pages` write, in the scratch. */
+  const written = (pages: DagRoot['pages'], owner: Uint32Array, nodeBase: number) => {
+    const n = pages.length
+    if (hot.length < n * CLUSTER_WORDS) {
+      hot = new Float32Array(n * CLUSTER_WORDS)
+      cold = new Float32Array(n * COLD_WORDS)
+    }
+    writeRecords(pages, owner, nodeBase, hot, cold)
+    return {
+      hotBits: new Uint32Array(hot.buffer, 0, n * CLUSTER_WORDS),
+      coldBits: new Uint32Array(cold.buffer, 0, n * COLD_WORDS),
+    }
+  }
   return {
     get count() {
       return count
     },
+    /** The first record of an earlier placement whose written words are these pages' exactly, or
+     *  -1: nothing is added. */
+    find(pages: DagRoot['pages'], shape: object, owner: Uint32Array, nodeBase: number) {
+      const { hotBits, coldBits } = written(pages, owner, nodeBase)
+      for (const block of byShape.get(shape) ?? [])
+        if (sameValues(block.hot, hotBits) && sameValues(block.cold, coldBits)) return block.base
+      return -1
+    },
     /** First record of this placement's pages, shared or new. */
     place(pages: DagRoot['pages'], shape: object, owner: Uint32Array, nodeBase: number) {
       const n = pages.length
-      if (hot.length < n * CLUSTER_WORDS) {
-        hot = new Float32Array(n * CLUSTER_WORDS)
-        cold = new Float32Array(n * COLD_WORDS)
-      }
-      writeRecords(pages, owner, nodeBase, hot, cold)
-      const hotBits = new Uint32Array(hot.buffer, 0, n * CLUSTER_WORDS),
-        coldBits = new Uint32Array(cold.buffer, 0, n * COLD_WORDS)
+      const { hotBits, coldBits } = written(pages, owner, nodeBase)
       const known = byShape.get(shape)
       for (const block of known ?? [])
         if (sameValues(block.hot, hotBits) && sameValues(block.cold, coldBits)) return block.base
@@ -115,11 +130,16 @@ export function createRecordTable() {
       else byShape.set(shape, [block])
       return block.base
     },
-    /** Copies every unique record into the final buffers, the cold ones from word `coldAt`. */
-    finish(clusters: Float32Array, pageCones: Float32Array, coldAt: number) {
-      const hotInts = new Uint32Array(clusters.buffer),
-        coldInts = new Uint32Array(pageCones.buffer)
-      for (const block of blocks) {
+    /** The unique blocks held: the first a later `finish` copies from. */
+    get blocks() {
+      return blocks.length
+    },
+    /** Copies every unique record into the final buffers, the cold ones from word `coldAt` — or,
+     *  from block `first` on, those a growth added. */
+    finish(clusters: Float32Array, pageCones: Float32Array, coldAt: number, first = 0) {
+      const hotInts = new Uint32Array(clusters.buffer, clusters.byteOffset),
+        coldInts = new Uint32Array(pageCones.buffer, pageCones.byteOffset)
+      for (const block of blocks.slice(first)) {
         hotInts.set(block.hot, block.base * CLUSTER_WORDS)
         coldInts.set(block.cold, coldAt + block.base * COLD_WORDS)
       }

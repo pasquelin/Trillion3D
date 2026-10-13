@@ -14,6 +14,7 @@ import {
 import { boxEquals, boxGrow } from '../../../math/src/geometry/box.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { ComposeState } from './gpuCompose.ts'
+import { NONE } from './gpuComposeWgsl.ts'
 
 const reachBox = new Float64Array(BOX_VALUES)
 
@@ -116,4 +117,11 @@ export function composedSlotBox(rt: WebgpuPagesRuntime, lead: number) {
   if (!state || lead >= state.slots || state.freeSlots.includes(lead)) return undefined
   slotWorldBox(state, lead, state.worlds.subarray(lead * 16, lead * 16 + 16), after)
   return boxIsEmpty(after, 0) ? undefined : after
+}
+
+/** Whether a parent composes root `rank` on the GPU now, read off the one compose state: its tree
+ *  group stays open while it does (`../gpu/dag/treeFollow.ts`). */
+export function composedRoot(rt: Pick<WebgpuPagesRuntime, 'compose'>, rank: number) {
+  const parentOf = rt.compose?.parentOf
+  return !!parentOf && rank < parentOf.length && parentOf[rank] !== NONE
 }

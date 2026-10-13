@@ -7,12 +7,11 @@ import type { HizPage } from '../../hiz/types.ts'
 import { countUnoccluded, createHizCounts } from '../../hiz/unoccluded.fixture.ts'
 import { cameraAt } from '../../../../../tests/fixtures/hiz.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice, BACKEND } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { webgpuPagesEngine } from '../../webgpu/pages/pages.ts'
 import { quadScene, camera } from '../../webgpu/pages/testScenes.fixture.ts'
-import { PAGE_INFO_STRIDE, ROW_WORDS } from '../buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../types.ts'
 import { HIZ_REJECTED_WGSL, ST_REJECTED } from '../../gpu/partition/contract.ts'
 import { ROW_HIZ_SLOT_WORD, restampHizSlot } from '../../webgpu/row/pageRow.ts'
 import { HIZ_SHADER, HIZ_TEST_PAGES_ENTRIES } from '../../gpu/hiz/shader.ts'
@@ -62,7 +61,7 @@ async function rowHizSlots(sizeAttenuation?: boolean) {
   const scene = quadScene()
   if (sizeAttenuation !== undefined)
     Object.assign(scene.material, { sprite: true, rotation: 0, sizeAttenuation })
-  const { device, buffers } = mockGpu()
+  const { device, buffers } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({ ...scene, gpuDevice: device, maxResidentPages: 4 })
   try {
     await backend.prepare()
@@ -141,7 +140,7 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
   // Odd entries hold the constant-size sprite: bits 1, 3, …, 33.
   assert.deepEqual(Array.from(occlusion.unculledBits), [0xaaaaaaaa, 0b10])
   assert.ok(sent)
-  const kernel = transparentOcclusionShader(34)
+  const kernel = transparentOcclusionShader()
   assert.ok(kernel.includes('let open=bitIsSet(unculled[bitWord(i)],i);'))
   assert.ok(kernel.includes('let reject=!open&&box.clips==0u&&'))
 })

@@ -1,4 +1,4 @@
-use crate::shared_math::bisect_centres;
+use trillion3d_page_codec::split::{bisect_centres, sort_along};
 
 pub fn group_clusters(
     centres: &[[f64; 3]],
@@ -21,8 +21,12 @@ pub fn group_clusters(
             continue;
         }
         let slice = &mut members[from..to];
-        bisect_centres(slice, centres);
+        let axis = bisect_centres(slice, centres);
         let middle = len / 2;
+        // The refinement visits the members in their order on the axis: each half sorted on it,
+        // the order a full sort of the group gives.
+        sort_along(&mut slice[..middle], centres, axis);
+        sort_along(&mut slice[middle..], centres, axis);
         for (i, &m) in slice.iter().enumerate() {
             side[m] = if i < middle { 0 } else { 1 };
         }

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { coarseQuadScene } from '../testOccluder.fixture.ts'
 import { camera, disposeQuadRun } from '../testScenes.fixture.ts'
@@ -15,7 +15,7 @@ import { settledImage } from '../settledImage.fixture.ts'
 /** The coarse quad over three 24-byte slots, one root, its leaves streamed on demand. */
 function budgetedQuad(geometryPoolBytes: number) {
   const fixture = coarseQuadScene(),
-    { device } = mockGpu()
+    { device } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,

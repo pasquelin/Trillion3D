@@ -13,7 +13,8 @@ import type { MemoryBudgets, MemoryBudgetsReport } from '../residency/pools.ts'
 import type { CpuStepSummary } from '../stage/profiler.ts'
 import type { HostCpuStep } from '../host/cpuProfile.ts'
 import type { EngineDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts'
-import type { PlacementRows } from '../placement/rows.ts'
+import type { DrawSource } from '../page/selection/drawSource.ts'
+import type { StreamPage } from '../streaming/types.ts'
 import type { EngineSceneUpdates } from '../placement/engineSceneUpdates.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { EngineProbes } from './probes.ts'
@@ -90,6 +91,9 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   /** The interactive loop's frame began: true where the engine holds it, drawing nothing, to
    *  measure the display (`../webgpu/frame/interactiveFrame.ts`); an explicit render never is. */
   measureFrame(): boolean
+  /** The interactive loop's display frame began: true where the engine leaves it out of its steady
+   *  cadence (`../frame/cadence.ts`) — nothing drawn, no frame counted; an explicit render never is. */
+  skipsFrame(): boolean
   /** What the view received so far — camera pages made resident, quiet images a still average not
    *  yet whole took —: the view still arriving, which spends no settle limit (#836). */
   landings(): number
@@ -110,8 +114,9 @@ export interface EngineContext {
   source: Object3D
   metadata: ClusterManifest
   indices: Map<string, Uint32Array>
-  /** Node → primitive; `placements`, the instance rows drawn in place of its pose (`rows.ts`). */
-  associations: Map<Object3D, { meshes?: number; primitives?: number; placements?: PlacementRows }>
+  /** What the session draws, source by source: its geometry, surface and primitive ranks, and the
+   *  instance rows that place it in place of a node's pose (`page/selection/drawSource.ts`). */
+  draws: readonly DrawSource[]
   /** glTF rank of each texture of the prepared scene, to tie an atlas layer to its preview. */
   textureIndices?: Map<HostTexture, number>
   /** Reader of texture levels baked in the cache; absent from a cache that has none. */
@@ -168,6 +173,12 @@ export interface EngineContext {
   /** Reads the cache's resident-proxy object once, at the first lit frame; absent without one. */
   readSceneProxy?: () => Promise<import('../../../sdk-core/src/index.ts').SceneProxy>
   readPage?: (url: string) => Promise<Uint32Array> // Validated reader of a page not yet in memory.
+  /** Catalogues the pages of a primitive added to the manifest after the open, before they are
+   *  read (`PageQueue.admit`). */
+  admitPages?: (pages: readonly StreamPage[]) => void
+  /** What the session running cannot take of the content it was handed, found after the hand-over
+   *  (`MeasuredWorldOptions.onContentRefused`): the engine keeps the cut it runs. */
+  onContentRefused?: (what: string, reason: string) => void
   /** Reader of the cache's geometry pages; absent from a cache that carries none, whose slots are
    *  written from the index pages the arrivals left in memory (`../webgpu/pages/readPage.ts`). */
   readGeometryPage?: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>

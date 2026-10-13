@@ -101,6 +101,8 @@ export function createFarCells(world: World | undefined, placed: Placed) {
       return plan
     },
     release,
+    /** The cells held far now. */
+    cells: () => [...far],
     /** What a frame waits on: the next far hold to land or fail, while one reads. */
     reads: holds.reads,
   }

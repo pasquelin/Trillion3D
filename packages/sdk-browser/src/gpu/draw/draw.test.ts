@@ -1,8 +1,7 @@
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice, BACKEND, writtenBytes } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { packDrawIndirect } from './cpu.fixture.ts'
 import {
   BASE_SLOTS,
@@ -125,13 +124,13 @@ test('a device without compute pipelines does not create GPU draw', async () => 
 
 test('a compact shader compilation error leaves GPU draw undefined', async () => {
   installGpuGlobals()
-  const { device } = mockGpu({ failCompile: true })
+  const { device } = fakeDevice({ ...BACKEND, failCompile: true })
   assert.equal(await createGpuDraw(device, 8, 1, 768), undefined)
 })
 
 test('GPU draw uploads each item once without a CPU compact and exposes GPU slot offsets', async () => {
   installGpuGlobals()
-  const { device, buffers, writes } = mockGpu()
+  const { device, buffers, writes } = fakeDevice(BACKEND)
   const gpu = await createGpuDraw(device, 8, 1, 768)
   assert.ok(gpu)
   assert.equal(gpu.indirectBuffer.size, BASE_SLOTS * DRAW_INDIRECT_STRIDE)
@@ -154,13 +153,13 @@ test('GPU draw uploads each item once without a CPU compact and exposes GPU slot
   gpu.uploadItems(items, 0, 2)
   gpu.encode(pass, 3)
   const itemWrites = writes.filter(
-    (write) => write.bytes.byteLength === 3 * DRAW_ITEM_U32 * 4,
+    (write) => writtenBytes(write).byteLength === 3 * DRAW_ITEM_U32 * 4,
   ).length
   assert.equal(itemWrites, 1, 'the item rows are uploaded once')
   writes.length = 0
   gpu.encode(pass, 3)
   assert.equal(
-    writes.some((write) => write.bytes.byteLength === 3 * DRAW_ITEM_U32 * 4),
+    writes.some((write) => writtenBytes(write).byteLength === 3 * DRAW_ITEM_U32 * 4),
     false,
     'an unchanged drawable set re-uploads no item row',
   )
@@ -168,7 +167,7 @@ test('GPU draw uploads each item once without a CPU compact and exposes GPU slot
   gpu.uploadItems(items, 0, 2)
   gpu.encode(pass, 2)
   assert.equal(
-    writes.filter((write) => write.bytes.byteLength === 3 * DRAW_ITEM_U32 * 4).length,
+    writes.filter((write) => writtenBytes(write).byteLength === 3 * DRAW_ITEM_U32 * 4).length,
     1,
     'every rewritten row is uploaded, drawn or not',
   )

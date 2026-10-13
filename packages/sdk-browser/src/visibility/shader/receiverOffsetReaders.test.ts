@@ -8,13 +8,13 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { receiverStoreWgsl, receiverTargetReadWgsl } from './receiverTargetWgsl.ts'
 import { integers } from '../../texture/integerVectors.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { PIXEL_CORNERS_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
 import { perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 test('the lighting calls one shared offset function and binds no offset target', () => {
   const readers: [string, string][] = []
@@ -106,7 +106,7 @@ test('the receiver target keeps the offset to 1/4095 of its largest component an
     ],
     scope,
   )
-  const r = random(1570)
+  const r = lcgRandom(1570)
   for (let i = 0; i < 5000; i++) {
     // Offsets over the shared exponent's range, 2^-26 to 2^4 m; planes of any length and side.
     const scale = 2 ** (r() * 30 - 26),

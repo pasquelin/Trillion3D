@@ -53,7 +53,7 @@ export const materialEpoch = (rt: WebgpuPagesRuntime) => materialEpochs.get(rt) 
  * frame, a canvas redrawn, a sampling —, no row reads them: the render follows the headers and
  * copies a moved picture into the pool itself (`../render/render.ts`, `../../tile/live.ts`),
  * which releases a held image, and the row table is left as it is. A picture whose size changed cannot be copied: its tiles were laid out
- * at the old one, and false asks the owner for a new session. Surfaces whose alpha moved (`alpha`)
+ * at the old one, and false tells the owner, which says it by name. Surfaces whose alpha moved (`alpha`)
  * — between opaque and masked, or to another cutoff — cut their shadow otherwise: the shadow pages
  * over their rows are drawn again. Those pages land in other pool slots than a session opened on the
  * new cutoff would give them, and a shadow read is texel-exact wherever its page lies: the
@@ -93,6 +93,6 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
  *  its variant for their geometry: a vertex-coloured one keeps its colours. */
 export function wearWebgpuSurface(rt: WebgpuPagesRuntime, { meshes }: SurfaceAssignment) {
   for (const rec of recordsOfMeshes(rt.setup.allPages, meshes))
-    wearDeclaration(rec, meshes.get(rec.sourceMesh!) as HostMaterials)
+    wearDeclaration(rec, meshes.get(rec.drawSource!) as HostMaterials)
   rt.vis.shadeCensus?.moved(true)
 }

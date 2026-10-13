@@ -1,4 +1,5 @@
-import { PART, fixture } from '../../../../../tests/kit/gpu/timingDevice.ts'
+import { timedDevice } from './imageTimer.fixture.ts'
+import { PART_ALIGN } from './encoder.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuTiming } from './timing.ts'
@@ -8,7 +9,7 @@ import { READBACKS } from './encoder.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 test('an image spanning two encoders yields one sample whose passes carry their own duration in submission order', async () => {
-  const f = fixture(),
+  const f = timedDevice(),
     samples: any[] = []
   const timer = createGpuTiming(f.device, {
     onSample(sample) {
@@ -21,17 +22,23 @@ test('an image spanning two encoders yields one sample whose passes carry their 
   const render = timer.createEncoder(1)
   render.beginRenderPass({ label: 'lighting', colorAttachments: [] }).end()
   render.finish()
-  assert.equal(f.descriptors[0].timestampWrites.beginningOfPassWriteIndex, 0)
-  assert.equal(f.descriptors[1].timestampWrites.beginningOfPassWriteIndex, PART)
-  assert.deepEqual(f.ops, [
-    'resolve 0 2 @0',
-    'copy 0 -> 0 x16',
-    'finish',
-    'resolve ' + PART + ' 2 @' + PART * 8,
-    `copy ${PART * 8} -> ${PART * 8} x16`,
-    'finish',
-  ])
+  assert.equal(f.passDescriptors[0]!.timestampWrites!.beginningOfPassWriteIndex, 0)
+  assert.equal(f.passDescriptors[1]!.timestampWrites!.beginningOfPassWriteIndex, PART_ALIGN)
+  const order = 'compute selection, resolve, copy, render lighting, resolve, copy'
+  assert.equal(f.commands.join(', '), order, 'each encoder resolves its part, then copies it')
+  const part = (k: number) => `${k} 2 @${k * 8} -> ${k * 8} x16`
+  assert.deepEqual(
+    f.resolves.map(
+      ({ first, count, offset }, k) =>
+        `${first} ${count} @${offset} -> ${f.copies[k].toOffset} x${f.copies[k].size}`,
+    ),
+    [part(0), part(PART_ALIGN)],
+  )
   assert.equal(timer.isSampled(selection), true)
+  // What the device measured: 1 → 3 ms, then 4 → 7 ms.
+  const values = new BigUint64Array(f.buffers[1].getMappedRange())
+  values.set([1000000n, 3000000n], 0)
+  values.set([4000000n, 7000000n], PART_ALIGN)
   timer.submitted(render, { submission: 7 })
   await timer.flush()
   assert.equal(samples.length, 1)
@@ -55,13 +62,13 @@ test('an image spanning two encoders yields one sample whose passes carry their 
   assert.equal(samples[0].idleBetweenMs, null)
   timer.dispose()
   assert.equal(
-    f.destroys(),
+    f.destroyed.length,
     ceilDiv(QUERY_COUNT, QUERY_SET_SIZE) + 1 + READBACKS,
     'the sets, the resolve buffer and the readbacks',
   )
 })
 test('unsupported timestamps allocate nothing and report no sample', () => {
-  const f = fixture(false),
+  const f = timedDevice(false),
     samples: any[] = []
   const timer = createGpuTiming(f.device, {
     onSample(sample) {
@@ -74,13 +81,13 @@ test('unsupported timestamps allocate nothing and report no sample', () => {
   timer.submitted(encoder, { frame: 1 })
   assert.equal(timer.supported, false)
   assert.equal(f.buffers.length, 0)
-  assert.equal(f.descriptors[0].timestampWrites, undefined)
+  assert.equal(f.passDescriptors[0]!.timestampWrites, undefined)
   assert.deepEqual(samples, [])
   assert.equal(timer.stats().skippedFrames.unsupported, 1)
   timer.dispose()
 })
 test('missing or reversed timestamps invalidate only that pass and the next image stays measurable', async () => {
-  const f = fixture(),
+  const f = timedDevice(),
     samples: any[] = []
   const timer = createGpuTiming(f.device, {
     onSample(sample) {
@@ -92,6 +99,7 @@ test('missing or reversed timestamps invalidate only that pass and the next imag
   encoder.beginComputePass({ label: 'lighting' }).end()
   encoder.finish()
   const values = new BigUint64Array(f.buffers[1].getMappedRange())
+  values[0] = 1000000n
   values[1] = 0n
   values[2] = 4000000n
   values[3] = 7000000n
@@ -102,19 +110,19 @@ test('missing or reversed timestamps invalidate only that pass and the next imag
   assert.equal(samples[0].passes[1].gpuMs, 3)
   assert.equal(samples[0].totalMs, null)
   assert.equal(timer.supported, true)
-  // The device runs the next image after the last, so its timestamps follow it.
-  values[0] = 8000000n
-  values[1] = 10000000n
   const next = timer.createEncoder(61)
   next.beginComputePass({ label: 'next' }).end()
   next.finish()
+  // The device runs the next image after the last, so its timestamps follow it.
+  values[0] = 8000000n
+  values[1] = 10000000n
   timer.submitted(next, { frame: 61 })
   await timer.flush()
   assert.equal(samples[1].totalMs, 2)
   timer.dispose()
 })
 test('an unsubmitted part, a busy readback and a failed mapping each leave the timing usable and counted', async () => {
-  const f = fixture(),
+  const f = timedDevice(),
     samples: any[] = []
   const timer = createGpuTiming(f.device, {
     onSample(sample) {
@@ -132,7 +140,7 @@ test('an unsubmitted part, a busy readback and a failed mapping each leave the t
   timer.submitted(render, { frame: 1 })
   const busy = timer.createEncoder(61)
   busy.beginComputePass({ label: 'busy' })
-  assert.equal(f.descriptors.at(-1).timestampWrites, undefined)
+  assert.equal(f.passDescriptors.at(-1)!.timestampWrites, undefined)
   await timer.flush()
   assert.equal(samples[0].totalMs, null)
   assert.equal(samples[0].truncated, true)
@@ -145,7 +153,7 @@ test('an unsubmitted part, a busy readback and a failed mapping each leave the t
   timer.dispose()
 })
 test('the sampling cadence bounds how many images are measured, each with its neighbour, and an observer failure never stops it', async () => {
-  const f = fixture(),
+  const f = timedDevice(),
     samples: any[] = []
   const timer = createGpuTiming(f.device, {
     sampleEveryFrames: 3,
@@ -175,7 +183,7 @@ test('the sampling cadence bounds how many images are measured, each with its ne
 })
 // The name a pass without label falls back to: no declaration names it (`passLabels.test.ts`).
 test('a timed pass without label is named after the method that began it', async () => {
-  const f = fixture(),
+  const f = timedDevice(),
     samples: any[] = []
   const timer = createGpuTiming(f.device, { onSample: (sample) => void samples.push(sample) })
   const encoder = timer.createEncoder(1)

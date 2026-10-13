@@ -44,7 +44,6 @@ export interface MeasureViewOptions {
   /** Fraction of the display per axis the frame is drawn at; `undefined` leaves the display's. */
   renderScale?: number
   temporalAntialiasing: boolean
-  mathPath: 'js' | 'wasm' | null
   movingNode: string | null
   movingNodeRadius: number
 }
@@ -64,7 +63,6 @@ interface MeasureViewSuccess {
   // held-pose loop, no compiler warnings of their own.
   settleFrames?: number | null
   liveTuning?: LiveTuning | null
-  mathBatch: FrameMetrics['mathBatch'] | null
   size: { width: number; height: number; dpr?: number }
   lost: string[]
   dagWarnings?: unknown

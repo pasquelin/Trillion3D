@@ -3,6 +3,7 @@
 // drapes and end walls, open to the sky over the court. Synthetic: it stands for sponza's depth
 // (near columns in front of far walls in the same tiles), never for its image. `atriumDepth`
 // ray-casts it as the engine's depth buffer holds it — reverse-Z, infinite far, 0 on the sky.
+import { parseArgs } from 'node:util'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { lerp } from '../../../packages/math/src/scalar/reals.ts'
 import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
@@ -13,6 +14,26 @@ import {
 } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts'
 import { slab, type Light } from './lightTileCity.ts'
+
+/** The display the counts over the atrium stand for: 1728 × 1117 at DPR 2, the bench's scale 1. */
+export const ATRIUM_DISPLAY = { width: 3456, height: 2234 }
+
+/** The command line of a count over the atrium, as numbers: `--width` and `--height`, the display
+ *  (`ATRIUM_DISPLAY` by default), and the count's own options at the defaults `own` gives. */
+export function atriumCountArgs<const Own extends Record<string, number>>(own: Own) {
+  const defaults: Record<string, number> = { ...ATRIUM_DISPLAY, ...own }
+  const { values } = parseArgs({
+    options: Object.fromEntries(
+      Object.entries(defaults).map(([name, value]) => [
+        name,
+        { type: 'string' as const, default: String(value) },
+      ]),
+    ),
+  })
+  return Object.fromEntries(
+    Object.keys(defaults).map((name) => [name, Number(values[name])]),
+  ) as typeof ATRIUM_DISPLAY & { [Name in keyof Own]: number }
+}
 
 type Box = { lo: Vec3; hi: Vec3 }
 const HALF_X = 15,

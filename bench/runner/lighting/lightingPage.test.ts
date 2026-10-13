@@ -105,7 +105,6 @@ async function mesurer(
     textureUploadMs: null,
     textureCompression: undefined,
     temporalAntialiasing: true,
-    mathPath: null,
     movingNode: null,
     movingNodeRadius: 1,
     captureFile: 'test.png',

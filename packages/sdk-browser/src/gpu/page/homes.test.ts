@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createGpuPageCache } from './pages.ts'
+import { createGpuPageCache, type GpuPageCache } from './pages.ts'
+import { giveUp } from './order.fixture.ts'
 import { pageHomes } from './homes.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
@@ -13,7 +14,7 @@ const WIDTHS = new Map([
   ['c', 8],
 ])
 const source = { read: async (key: string) => new Uint8Array(BYTES[key] ?? 13).fill(7) }
-const drained = (cache: ReturnType<typeof createGpuPageCache>) => {
+const drained = (cache: GpuPageCache) => {
   const keys: string[] = [],
     slots: number[] = []
   cache.drainResidencyChanges(keys, slots)
@@ -59,7 +60,7 @@ test('a pool holding the whole catalogue writes each page at its home and holds 
     ['c', 13],
     ['b', 3],
   ])
-  assert.equal(cache.unpinnedSlots(), 3, 'one home still empty, two pages unpinned')
+  assert.equal(cache.room(), 1, 'one home still empty: no order gives the others up')
   assert.equal(cache.unload('b'), true)
   await cache.load('b')
   assert.equal(cache.get('b')!.offset, 12, 'a page comes back to its own home')
@@ -127,6 +128,61 @@ test('a pool that comes to hold the catalogue moves each page home, and leaves i
     ['c', 0],
     ['b', 10],
   ])
+  giveUp(cache, 'b')
   await cache.load('a')
-  assert.ok(cache.get('a') && !cache.get('b'), 'fixed slots evict the least recent again')
+  assert.ok(cache.get('a') && !cache.get('b'), 'fixed slots evict what the order gives up again')
+})
+
+test('pages joining a pool that holds the catalogue take homes behind the others, every page where it was', async () => {
+  const { device, copies, buffers } = fakeDevice({ limits: LIMITS })
+  const cache = createGpuPageCache(device, source, {
+    pageBytes: 40,
+    slots: 3,
+    homes: pageHomes(WIDTHS),
+  })
+  await cache.load('c')
+  await cache.load('b')
+  drained(cache)
+  const evicted = await cache.resize(5, {
+    pageBytes: 40,
+    widths: new Map([
+      ['d', 16],
+      ['e', 8],
+    ]),
+  })
+  assert.deepEqual(evicted, [])
+  assert.equal(buffers.at(-1)!.size, 84, 'the homes of the three, then of the two')
+  assert.equal(copies.at(-1)!.size, 60, 'the pages held are copied as they lie')
+  assert.deepEqual(
+    [cache.get('c')!.offset, cache.get('b')!.offset],
+    [52, 12],
+    'no page moved, none told to the log',
+  )
+  assert.deepEqual(drained(cache), [])
+  BYTES.d = 16
+  await cache.load('d')
+  assert.equal(cache.get('d')!.offset, 60, 'the new page at the end of the homes')
+  assert.equal(cache.stats().slots, 5)
+})
+
+test('a slot made wider by the pages that joined takes every page to its place in the wider slots', async () => {
+  const { device, copies } = fakeDevice({ limits: LIMITS })
+  const cache = createGpuPageCache(device, source, { pageBytes: 12, slots: 2 })
+  BYTES.a = 12
+  BYTES.c = 8
+  await cache.load('a')
+  await cache.load('c')
+  const was = ['a', 'c'].map((key) => cache.get(key)!.offset)
+  drained(cache)
+  const evicted = await cache.resize(2, { pageBytes: 40, widths: new Map() })
+  assert.deepEqual(evicted, [])
+  assert.equal(cache.stats().allocatedBytes, 80)
+  for (const key of ['a', 'c'])
+    assert.equal(cache.get(key)!.offset, cache.get(key)!.slot * 40, `${key} at its wider slot`)
+  assert.equal(copies.length, 2, 'one copy a page')
+  assert.deepEqual(
+    drained(cache).map(([key]) => key),
+    ['a', 'c'].filter((key, i) => cache.get(key)!.offset !== was[i]),
+    'the log names the pages that moved',
+  )
 })

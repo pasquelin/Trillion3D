@@ -3,26 +3,13 @@
 //! Trap archives are built here, byte by byte: an archive that puts a reader to the test must
 //! not come from that reader. Nothing is written outside the case's throwaway directory.
 use super::*;
+use crate::tests::directories::scratch;
 use crate::tests::fixtures::files;
 use std::fs;
 
 mod package;
 mod usdz;
 mod zip;
-
-/// A throwaway directory, named by the case that uses it.
-fn scratch(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "trillion3d-conteneur-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    fs::create_dir_all(&dir).expect("test directory");
-    dir
-}
 
 /// What a container did with the bytes it was given.
 struct Outcome {
@@ -36,7 +23,7 @@ struct Outcome {
 
 /// Has this container read these bytes, in a throwaway directory of its own.
 fn outcome(tag: &str, plugin: &dyn ScenePlugin, name: &str, bytes: &[u8]) -> Outcome {
-    let dir = scratch(tag);
+    let dir = scratch("conteneur", tag);
     let source = dir.join(name);
     fs::write(&source, bytes).expect("test archive");
     let cache = dir.join("cache");

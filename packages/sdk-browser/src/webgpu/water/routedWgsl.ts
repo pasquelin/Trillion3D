@@ -1,4 +1,4 @@
-import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
+import { FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
 import { WATER_COLOR_WGSL } from './waterColorWgsl.ts'

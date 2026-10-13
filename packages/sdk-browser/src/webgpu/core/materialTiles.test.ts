@@ -1,10 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, dispatchedEntries, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import {
   MATERIAL_TILE_DRAW_WGSL,
   MATERIAL_TILE_SLOTS,
@@ -12,9 +11,11 @@ import {
 } from '../../visibility/shader/materialTilesWgsl.ts'
 import { createMaterialTiles, materialTileDrawLayout } from './materialTiles.ts'
 import { encodeMaterialPasses } from './materialPasses.ts'
-import { resolveFixture } from './materialPasses.fixture.ts'
+import { drawsOf, resolveFixture } from './materialPasses.fixture.ts'
+import { commandArgs } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
 import { MATERIAL_COMPUTE_PASS } from '../../stage/passLabels.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Fn = (...args: number[]) => number
 type Corner = (tile: number, i: number, tilesX: number) => { x: number; y: number }
@@ -76,19 +77,17 @@ test('each class draws the tiles its slot lists, classified once before the surf
     [5, 9, 5, 2],
     [5, 9, 2],
   )
-  const groups: unknown[] = []
-  const begin = encoder.beginRenderPass.bind(encoder)
-  encoder.beginRenderPass = ((desc: GPURenderPassDescriptor) => {
-    const pass = begin(desc)
-    pass.setBindGroup = (at: number, group: unknown) => void groups.push([at, group])
-    return pass
-  }) as typeof encoder.beginRenderPass
   encodeMaterialPasses(rt, device, encoder)
+  const groups = commandArgs(passes[0].commands, 'setBindGroup')
   assert.deepEqual(tiles.assigned, [[5, 9, 2]])
   assert.equal(tiles.classified, 1)
-  assert.deepEqual(computePasses, [MATERIAL_COMPUTE_PASS], 'one compute pass, its own label')
+  assert.deepEqual(
+    computePasses.map(({ label }) => label),
+    [MATERIAL_COMPUTE_PASS],
+    'one compute pass, its own label',
+  )
   assert.deepEqual(tiles.slots, [0, 1, 2], 'class `at` of the keys draws slot `at`')
-  assert.equal(passes[0].draws, 3)
+  assert.equal(drawsOf(passes[0]), 3)
   assert.deepEqual(groups.slice(-2), [
     [0, 'bind group'],
     [1, 'tile group'],
@@ -102,7 +101,7 @@ test('each class draws the tiles its slot lists, classified once before the surf
 })
 
 test("the pass's first dispatch zeroes every slot's draw, as the encoder's clear did", () => {
-  const r = random(3),
+  const r = lcgRandom(3),
     tileDraws = Array.from({ length: MATERIAL_TILE_SLOTS * 4 }, () => Math.floor(r() * 2 ** 32))
   const { clearTiles } = shaderRun<{ clearTiles: (slot: number) => void }>(
     MATERIAL_TILES_SHADER,
@@ -115,7 +114,7 @@ test("the pass's first dispatch zeroes every slot's draw, as the encoder's clear
 
 test('the slots follow the classes held; a list is drawn indirectly, a class past them whole', async () => {
   installGpuGlobals()
-  const { device, buffers, computes } = mockGpu()
+  const { device, buffers, dispatches } = fakeDevice(BACKEND)
   const tiles = await createMaterialTiles(device, materialTileDrawLayout(device))
   const table = () => {
     const data = buffers.find((b) => b.label === 'Trillion3D material tile slots')!.data
@@ -133,7 +132,7 @@ test('the slots follow the classes held; a list is drawn indirectly, a class pas
   tiles.layFor(100, 40)
   // The draws cleared then the tiles classified: two dispatches of the frame's pass.
   tiles.encode({ pass: encoder.beginComputePass() }, inputs)
-  assert.deepEqual(computes.slice(-2), ['clearTiles', 'classify'])
+  assert.deepEqual(dispatchedEntries(dispatches).slice(-2), ['clearTiles', 'classify'])
   const drawn: unknown[] = []
   const pass = {
     drawIndirect: (_: unknown, offset: number) => drawn.push(['indirect', offset]),
@@ -151,7 +150,7 @@ test('a device that refuses the classification draws every class full screen', a
   installGpuGlobals()
   class GPUPipelineError extends Error {}
   Object.assign(globalThis, { GPUPipelineError })
-  const { device, computes } = mockGpu()
+  const { device, dispatches } = fakeDevice(BACKEND)
   device.createComputePipeline = (() => {
     throw new GPUPipelineError('refused')
   }) as typeof device.createComputePipeline
@@ -165,7 +164,7 @@ test('a device that refuses the classification draws every class full screen', a
     },
   }
   tiles.encode(open, { vis: {}, pages: {}, uniform: {} } as never)
-  assert.deepEqual(computes, [])
+  assert.deepEqual(dispatchedEntries(dispatches), [])
   const drawn: unknown[] = []
   const pass = {
     draw: (vertices: number, instances: number) => drawn.push([vertices, instances]),
@@ -176,7 +175,7 @@ test('a device that refuses the classification draws every class full screen', a
 
 test('a classification that does not compile fails by name, never silently whole', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const refused = {
     getCompilationInfo: async () => ({ messages: [{ type: 'error', message: 'x' }] }),
   }

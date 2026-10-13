@@ -61,6 +61,11 @@ export type {
   PhysicsType,
 } from '../../sdk-core/src/physics/options.ts'
 export type { DiagnosticDetail, EngineDiagnostic } from '../../sdk-browser/src/diagnostic/types.ts'
+export type {
+  DrawAssociations,
+  DrawRanks,
+  DrawSource,
+} from '../../sdk-browser/src/page/selection/drawSource.ts'
 export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts'
 export type { EvictionOrder } from '../../sdk-browser/src/gpu/page/eviction.ts'
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts'
@@ -124,6 +129,7 @@ export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partition
 export type { PathRun } from '../../sdk-browser/src/camera/path.ts'
 export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts'
 export type { PlacementGrowth } from '../../sdk-browser/src/placement/engineSceneUpdates.ts'
+export type { PlacementLink } from '../../sdk-browser/src/placement/gpuCompose.ts'
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts'
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts'
 export type { RangeAsk, ReadRange } from '../../sdk-browser/src/cluster/ranged.ts'

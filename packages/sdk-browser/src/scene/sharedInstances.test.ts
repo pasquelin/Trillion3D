@@ -13,6 +13,7 @@ import {
 import { createWebgpuGpuState } from '../webgpu/pages/state/gpu.ts'
 import type { ClusterManifest, Primitive } from '../../../sdk-core/src/index.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 
 function blendGeometry(withUv: boolean) {
   const geometry = new G.Geometry()
@@ -27,7 +28,7 @@ function blendGeometry(withUv: boolean) {
 // of the same geometry share them, each is written only once and counted only once in
 // `vertexBytes`.
 test('two placements of the same transparent geometry share indices, UVs and normals', () => {
-  const { device, buffers: created, textures, writes, texelWrites, destroyed } = fakeDevice()
+  const { device, buffers: created, textures, writes, textureWrites, destroyed } = fakeDevice()
   const gpu = createWebgpuGpuState([1, 1])
   const shared = blendGeometry(true),
     other = blendGeometry(true)
@@ -50,7 +51,7 @@ test('two placements of the same transparent geometry share indices, UVs and nor
   for (const entry of created)
     assert.equal(writes.filter((write) => write.buffer === (entry as object)).length, 1)
   assert.equal(
-    texelWrites.filter((write) => (write.destination.texture as object) === textures[0]).length,
+    textureWrites.filter((write) => (write.destination.texture as object) === textures[0]).length,
     1,
   )
   const bytesOnce = gpu.vertexBytes
@@ -133,9 +134,9 @@ test('two instances share the DAG shape, never what places them', () => {
   fixture.associations.set(second, { meshes: 0, primitives: 0 })
   const { roots, allPages } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   assert.equal(roots.length, 2)
   // One record per primitive page per placement: this object has its own pages.

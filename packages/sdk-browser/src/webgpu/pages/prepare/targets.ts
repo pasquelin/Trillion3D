@@ -1,15 +1,22 @@
 import { wantsSubsurface } from '../../../scene/subsurface.ts'
 import { wantsPhysicalLobes } from './lobesTarget.ts'
-import { DISPLAY_FORMAT, FEEDBACK_FORMAT, holds } from '../../../scene/surfaceBuffer.ts'
+import {
+  DISPLAY_FORMAT,
+  FEEDBACK_FORMAT,
+  holds,
+  DEPTH_FORMAT,
+  HDR_FORMAT,
+  hdrUsage,
+} from '../../../scene/surfaceBuffer.ts'
 import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
-import { createBackdrop } from '../../transparent/transmission.ts'
+import { createBackdrop, holdsWater } from '../../transparent/transmission.ts'
 import { createScreenReflection } from '../../../reflections/gpu.ts'
 import { dropAside, releaseSet } from './targetsSet.ts'
 import { ensureTaaTargets } from '../../../taa/prepare.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { displayApart, type FrameSize } from '../state/renderScale.ts'
 import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts'
-import { makesDisplayColor, wantsFrontDepth } from './targetAllocation.ts'
+import { makesDisplayColor, sceneBlends } from './targetAllocation.ts'
 import { wantsProxyStore } from './proxyStore.ts'
 
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
@@ -18,6 +25,8 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
   return (
     !!gpu.hdrTexture &&
     !!gpu.colorTexture === makesDisplayColor(rt, size) &&
+    // The water pass's backdrop is full-size while the session holds a transmissive surface.
+    !!gpu.backdrop?.active === holdsWater(rt) &&
     gpu.allocatedSize[0] === size.renderWidth &&
     gpu.allocatedSize[1] === size.renderHeight &&
     gpu.displaySize[0] === size.width &&
@@ -27,6 +36,9 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     holds(gpu.surfaces, gpu.surfaces.subsurface, wantsSubsurface(rt)) &&
     // The lobes target is remade alone when it flips (`followLobes`), never the whole set.
     !!gpu.reflection &&
+    // The front depth the blends write is full-size once the session holds a blend: one that joined
+    // a session opened without remakes it (`sceneBlends`).
+    gpu.reflection.front.wanted === sceneBlends(rt) &&
     !!vis.visTexture
   )
 }
@@ -112,7 +124,7 @@ export function buildTargets(
   size: FrameSize,
   targetBytes: number,
 ) {
-  const { gpu, vis, blendState } = rt,
+  const { gpu, vis } = rt,
     { renderWidth: width, renderHeight: height } = size
   const sampled = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     usage = sampled | GPUTextureUsage.COPY_SRC
@@ -127,10 +139,11 @@ export function buildTargets(
     : undefined
   gpu.depthTexture = target(
     'Trillion3D opaque depth',
-    'depth32float',
+    DEPTH_FORMAT,
     usage | GPUTextureUsage.COPY_DST,
   )
-  gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float')
+  // One of the two HDR targets that take turns, the other the reflection's (`createRadiancePyramid`).
+  gpu.hdrTexture = target('Trillion3D HDR lighting', HDR_FORMAT, hdrUsage())
   if (vis.writesFeedback) makeFeedbackTarget(rt, device, width, height)
   gpu.surfaces = createSurfaceBuffer(device, width, height, {
     subsurface: wantsSubsurface(rt),
@@ -152,17 +165,17 @@ export function buildTargets(
     ? size.apart
       ? gpu.colorTexture.createView()
       : gpu.displayView
-    : blendState.transmissive > 0
+    : holdsWater(rt)
       ? gpu.displayView
       : undefined
   gpu.depthView = gpu.depthTexture.createView()
   gpu.hdrView = gpu.hdrTexture.createView()
-  gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0)
+  gpu.backdrop = createBackdrop(device, width, height, holdsWater(rt))
   gpu.reflection = createScreenReflection(
     device,
     width,
     height,
-    wantsFrontDepth(rt),
+    sceneBlends(rt),
     wantsProxyStore(rt),
   )
   // Temporal history follows the display size.

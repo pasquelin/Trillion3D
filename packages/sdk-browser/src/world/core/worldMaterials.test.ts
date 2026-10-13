@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
+import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
+import type { GraphSurface } from '../../host/graph/surface.ts'
 import { createWorldMaterials } from './worldMaterials.ts'
 
 // A material written every frame on a value — a pulsing lamp, a colour picker — keeps its
@@ -125,4 +127,62 @@ test('a dash, a gap or a scale written at run time repaints the entry in place',
   paint.roughness = 0.4
   assert.equal(table.entryOf(paint), painted)
   assert.equal('dashSize' in painted.material, false)
+})
+
+const triangle = (colors: boolean): DrawnTriangles => ({
+  positions: new Float32Array(9),
+  normals: new Float32Array(9),
+  uvs: null,
+  colors: colors ? new Float32Array(12).fill(0.5) : null,
+  indices: new Uint32Array([0, 1, 2]),
+})
+
+// The material decides, through `material.vertexColors`; a geometry's `color` attribute alone
+// tints nothing, and a geometry without one has nothing to tint by.
+test('a world surface tints by vertex colours only when its material asks', () => {
+  const surface = (vertexColors: boolean, colors: boolean) => {
+    const table = createWorldMaterials()
+    const entry = table.entryOf(material.meshStandard({ color: 0xffffff, vertexColors }))
+    return table.surfaceOf(entry, triangle(colors), false).vertexColors
+  }
+  assert.equal(surface(false, true), false, 'coloured geometry, material says no')
+  assert.equal(surface(true, true), true, 'coloured geometry, material says yes')
+  assert.equal(surface(true, false), false, 'no colour to tint by')
+  assert.equal(surface(false, false), false)
+})
+
+test('one material worn with and without colours gets one surface per case, both repainted', () => {
+  const table = createWorldMaterials()
+  const paint = material.meshStandard({ color: 0x3c8ce0, vertexColors: true })
+  const entry = table.entryOf(paint)
+  const [a, b, c] = [true, false, true].map((colors) =>
+    table.surfaceOf(entry, triangle(colors), false),
+  )
+  assert.equal(a, c, 'the coloured surface is shared')
+  assert.notEqual(a, b)
+  assert.equal(table.surfaceOf(entry, triangle(true), true) === a, false, 'a cloth is its own')
+  const versions = [a, b].map((surface) => surface.version)
+  paint.color.set(0xff0000)
+  table.entryOf(paint)
+  const refreshed: boolean[] = []
+  assert.equal(
+    table.repaint(table.takeRepainted(), (values) => refreshed.push(values) > 0),
+    true,
+  )
+  assert.deepEqual(refreshed, [true], 'the session reads them again once')
+  ;[a, b].forEach((surface: GraphSurface, i) => assert.ok(surface.version > versions[i]!))
+})
+
+test('the surfaces of an entry the table drops are given back, and the textures only they wore', () => {
+  const table = createWorldMaterials()
+  const kept = table.entryOf(material.meshStandard({ color: 0x111111 })),
+    dropped = table.entryOf(material.meshStandard({ color: 0x222222 }))
+  const surface = table.surfaceOf(dropped, triangle(false), false)
+  let given = 0
+  surface.released.add(() => given++)
+  table.surfaceOf(kept, triangle(false), false)
+  table.keep(new Set([kept]))
+  assert.equal(given, 1)
+  assert.equal(kept.surfaces.length > 0, true)
+  assert.equal(dropped.surfaces.length, 0)
 })

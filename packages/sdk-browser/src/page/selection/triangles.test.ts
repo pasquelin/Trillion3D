@@ -8,6 +8,7 @@ import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { dagFixture, wideCamera } from './dag.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
+import { graphDraws } from './drawSource.ts'
 
 /** The sum a sweep after the cut computes: left to right, without reassociation. */
 function sum(pages: readonly PageRec[]) {
@@ -20,9 +21,9 @@ test('returned triangle sums are those of the returned arrays, stand-ins include
   const fixture = dagFixture()
   const { roots, allPages } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const cam = wideCamera()
   // Every resident subset: the requested cut and the one the cut rule draws in its place both go

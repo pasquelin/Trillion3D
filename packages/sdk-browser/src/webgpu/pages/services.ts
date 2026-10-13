@@ -64,6 +64,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     pageSource,
     hasBytes,
     poolHolds,
+    room,
     residencySets,
     bootstrapState,
     ensureResident,

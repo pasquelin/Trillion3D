@@ -16,7 +16,7 @@ import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/s
 import { PARTITION_SHADER } from '../partition/shader.ts'
 import { RESOLVE, rasterSource } from '../raster/shader.ts'
 import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts'
-import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL } from '../../placement/gpuComposeWgsl.ts'
+import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
 import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER } from '../../bounce/probeWgsl.ts'
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
 import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts'
@@ -24,7 +24,7 @@ import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts'
 import { BLOOM_WGSL } from '../../webgpu/effects/bloomWgsl.ts'
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts'
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts'
-import { LIGHT_TILES_SHADER } from '../../lighting/tiles/shader.ts'
+import { lightTilesShader } from '../../lighting/tiles/shader.ts'
 import { taaShader } from '../../taa/shaderWgsl.ts'
 import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts'
 import {
@@ -32,7 +32,8 @@ import {
   COVERAGE_COUNT_WGSL,
   MATERIAL_MIP_WGSL,
 } from '../../texture/mipsWgsl.ts'
-import { SHADE_SHADER, shadeShader, VIS_SHADER, visShader } from '../../visibility/buffer.ts'
+import { SHADE_SHADER, shadeShader } from '../../visibility/shader/shadeWgsl.ts'
+import { VIS_SHADER, visShader } from '../../visibility/shader/visWgsl.ts'
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts'
 import { BLEND_ORDER_SHADER } from '../../webgpu/blend/orderWgsl.ts'
 import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts'
@@ -84,7 +85,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DEFORMATION_COMPUTE_WGSL,
   PRESENT_SHADER,
   PRESENT_AT_SHADER,
-  TRANSPARENT_OCCLUSION: transparentOcclusionShader(64),
+  TRANSPARENT_OCCLUSION: transparentOcclusionShader(),
   DAG_SELECTION_SHADER,
   DAG_SELECTION_SPLIT: SPLIT_CUT,
   DAG_ARM_SHADER,
@@ -101,8 +102,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   RASTER: rasterSource(4096, 16),
   RESOLVE,
   REST_COMPACT_SHADER,
-  COMPOSE_ROOTS_WGSL,
-  COMPOSE_ROWS_WGSL,
+  ...COMPOSE_SHADERS,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SNAPSHOT_SHADER,
   AS_IS_SHARE_SHADER,
@@ -130,7 +130,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
   ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
   ...compositions('UNLIT_COMPOSE_BLOOM', UNLIT_COMPOSITIONS.bloom),
-  LIGHT_TILES_SHADER,
+  LIGHT_TILES_SHADER: lightTilesShader('view'),
+  LIGHT_TILES_WORLD_SHADER: lightTilesShader('world'),
   TAA_SHADER,
   TAA_FLAGLESS_SHADER: taaShader(false),
   TAA_UPSCALE_SHADER: taaUpscaleShader(true),

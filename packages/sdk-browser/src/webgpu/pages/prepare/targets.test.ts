@@ -42,14 +42,14 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
   ]) {
     const base = frameTargetAllocation(rt, native(width, height))
     // The frame's targets, and the reflection's target and pyramids (`reflections/gpu.ts`).
-    // A scene with no blend: its front depth is a texel, in the pyramid and in the reflection.
+    // A scene with no blend: its front depth is a texel of the reflection's target.
     assert.equal(
       base,
-      frameTargetBytes(width, height, true, false) + reflectionBytes(width, height, false),
+      frameTargetBytes(width, height, true) + reflectionBytes(width, height, false),
     )
     assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL)
   }
-  assert.ok(frameTargetBytes(3840, 2160, true, true) > 288 * MIB, '4K exceeds the old ceiling')
+  assert.ok(frameTargetBytes(3840, 2160, true) > 288 * MIB, '4K exceeds the old ceiling')
   assert.deepEqual(resized, [
     [MEASURE_WIDTH, MEASURE_HEIGHT],
     [3840, 2160],
@@ -125,7 +125,7 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
       allocatedSize: [32, 32],
       displaySize: [32, 32],
       surfaces: { width: 32, height: 32, subsurface: { width: 1, height: 1 } },
-      reflection: {},
+      reflection: { front: { wanted: false } },
       targetGrant: undefined,
     },
     vis: { visTexture: {} },
@@ -148,7 +148,7 @@ test('a frame drawn below the display costs its render targets and the display c
     hdrTexture: {},
     displayTexture: {},
     surfaces: { width: 32, height: 16, subsurface: { width: 1, height: 1 } },
-    reflection: {},
+    reflection: { front: { wanted: false } },
     feedbackTexture: {},
     allocatedSize: [32, 16],
     displaySize: [64, 32],

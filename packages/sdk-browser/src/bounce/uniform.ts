@@ -2,8 +2,12 @@ import { BOUNCE_SETTINGS, type BounceCascades } from '../../../sdk-core/src/inde
 
 /** Four-byte words of a level in the uniform: two `vec4f`, origin and base cell. */
 const LEVEL_WORDS = 8
-/** Header words: range and diagnostic view, cascade sizes, frame state. */
-const HEADER_WORDS = 12
+/** No world light lists: `TILE_NO_SLICE`, which `bounceLightSlice` reads as every light. */
+const LISTS_NONE = 0xffffffff
+/** The header's word of the world light grid's start (`lists.x`). */
+const LISTS_WORD = 12
+/** Header words: range and diagnostic view, cascade sizes, frame state, the world light lists. */
+const HEADER_WORDS = 16
 
 /**
  * Bytes of `BounceGrid`, the single source of truth: this uniform, the WGSL struct the three
@@ -36,7 +40,24 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
   })
   floats[0] = cascades.reach
   integers.set([cascades.size, cascades.levels.length, cascades.probesPerLevel, cascades.probes], 4)
+  // No world light lists yet (`bounceLightSlice`): every light.
+  integers[LISTS_WORD] = LISTS_NONE
   const upload = () => device.queue.writeBuffer(buffer, 0, packed)
+  // Word by word: this write happens every encoded frame, and therefore allocates nothing.
+  const writeLevels = () => {
+    integers[5] = cascades.levels.length
+    cascades.levels.forEach((level, index) => {
+      const at = HEADER_WORDS + index * LEVEL_WORDS
+      floats[at + 3] = level.spacing
+      for (let axis = 0; axis < 3; axis++) {
+        // `originSpacing.xyz`: world centre of the base cell. `base.xyz`: that cell.
+        floats[at + axis] = (level.base[axis] + 0.5) * level.spacing
+        floats[at + 4 + axis] = level.base[axis]
+      }
+      // The cell's inverse side: a bounce point's cell of the world light grid.
+      floats[at + 7] = 1 / level.spacing
+    })
+  }
   upload()
   let view = false
   return {
@@ -57,16 +78,17 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
       integers[8] = generation
       integers[9] = groups
       integers[10] = frame
-      // Word by word: this write happens every encoded frame, and therefore allocates nothing.
-      cascades.levels.forEach((level, index) => {
-        const at = HEADER_WORDS + index * LEVEL_WORDS
-        floats[at + 3] = level.spacing
-        for (let axis = 0; axis < 3; axis++) {
-          // `originSpacing.xyz`: world centre of the base cell. `base.xyz`: that cell.
-          floats[at + axis] = (level.base[axis] + 0.5) * level.spacing
-          floats[at + 4 + axis] = level.base[axis]
-        }
-      })
+      writeLevels()
+      upload()
+    },
+    /** The world light grid's records' first word in the light grid's buffer, or `undefined`:
+     *  none, every point walking every light (`bounceLightSlice`). */
+    setLightLists(start: number | undefined) {
+      const word = start ?? LISTS_NONE
+      if (integers[LISTS_WORD] === word) return
+      integers[LISTS_WORD] = word
+      // The levels with it: the lattice the lists were listed on, even in a frame no update writes.
+      writeLevels()
       upload()
     },
     dispose() {

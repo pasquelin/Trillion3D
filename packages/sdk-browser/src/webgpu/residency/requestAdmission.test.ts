@@ -4,11 +4,10 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { PageRec } from '../../page/selection/selection.ts'
 import { createGroupClosure } from '../../page/cut/groupClosure.ts'
 import { createCutDelta } from '../cut/delta.ts'
 import { readbackOf, world } from './sets.fixture.ts'
-import { lruCache, pageOf, placement } from './residentEnsurer.fixture.ts'
+import { orderedPool, pageOf, placement } from './residentEnsurer.fixture.ts'
 import { createRequestAdmission } from './requestAdmission.ts'
 import { createWebgpuResidencyQueue } from './queue.ts'
 import { createWebgpuPinUpdater } from './pinUpdater.ts'
@@ -136,16 +135,15 @@ test('what the image draws never moves the room: a cut the pool holds is queued 
   assert.deepEqual(cut.queue(), ['m0'], 'past the pool, the room is still the pool')
 })
 
-test('a page the image keeps is pinned once it arrives', () => {
+test('a page the image keeps is never pinned: the GPU order holds it, the host only the cover', () => {
   const cut = gpuCut()
-  const cache = lruCache(8)
+  const cache = orderedPool(8)
   const pins = createWebgpuPinUpdater({
     tracking: cut.tracking,
     sets: cut.sets,
     bootstrapKey: new Uint8Array(0),
     deferredDrops: new Set(),
-    byUrl: new Map(),
-    parentsOf: () => [] as PageRec[],
+    relist: () => {},
     traceEnabled: false,
     traceDiagnostic: () => {},
   })
@@ -158,7 +156,7 @@ test('a page the image keeps is pinned once it arrives', () => {
     getFrame: () => 0,
     updatePins: () => pins(cache as never, [], 0, () => {}),
     closure: createGroupClosure([], { baseOfRoot: new Int32Array(0), packedCount: 0 }, cut.packed),
-    ensureResident: Object.assign(async () => {}, { revision: () => 0, touchLower() {} }),
+    ensureResident: Object.assign(async () => {}, { revision: () => 0 }),
     markLost() {},
     traceEnabled: false,
     traceDiagnostic: () => {},
@@ -167,8 +165,8 @@ test('a page the image keeps is pinned once it arrives', () => {
   // The image draws `c0` outside the queue before its bytes are in the pool.
   cut.image(8, 'f0', 'c0')
   queue.queueCuts({ cuts: [], first: null })
-  assert.equal(cache.pins.has('c0'), false, 'nothing to pin yet')
   void cache.load('c0')
   queue.queueCuts({ cuts: [], first: null })
-  assert.equal(cache.pins.has('c0'), true, 'pinned on the pin step after its arrival')
+  assert.ok(cut.tracking.keep.has(cut.tracking.keyOf(cut.packed.find((p) => p.url === 'c0')!)))
+  assert.equal(cache.pins.size, 0, 'kept, and pinned by no one')
 })

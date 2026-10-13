@@ -7,7 +7,7 @@ import { pageRecFixture } from '../../../../bench/perf/browser/support/pageRecFi
 import { createPageRowWriter } from '../webgpu/row/pageRowWriter.ts'
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from '../webgpu/blend/items.ts'
 import {
-  PAGE_INFO_STRIDE,
+  ROW_WORDS,
   PAGE_DEFORM_WORD,
   PAGE_DEFORM_COUNT_WORD,
   PAGE_DEFORM_OUTPUT_WORD,
@@ -25,7 +25,6 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
   const rec = pageRecFixture({
     triangles: 1,
     material: surfaceOf(material()),
-    deformationOutput: { from: 10, count: 3 },
   })
   const write = createPageRowWriter(
     {
@@ -39,11 +38,12 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
     () => {},
     [{ world: new G.Matrix4() }],
     () => 0,
+    () => ({ from: 10, count: 3 }),
   )
-  const floats = new Float32Array((PAGE_INFO_STRIDE / 4) * 2)
+  const floats = new Float32Array(ROW_WORDS * 2)
   const words = new Uint32Array(floats.buffer)
   write(rec, 0, 1, 100, floats, words)
-  const base = PAGE_INFO_STRIDE / 4
+  const base = ROW_WORDS
   assert.ok(floats.subarray(0, base).every((value) => value === 0))
   assert.equal(floats[base + 38], 0.5)
   assert.equal(floats[base + 39], 2)
@@ -54,7 +54,7 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
       words[base + PAGE_DEFORM_COUNT_WORD],
       words[base + PAGE_DEFORM_OUTPUT_WORD],
     ],
-    [123, 3, 111],
+    [123, 3, 11],
   )
 })
 

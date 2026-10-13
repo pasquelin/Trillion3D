@@ -1,6 +1,6 @@
 // The session the table growth tests open: the deep quad on a pool at its floor.
 import { createSceneLightStore, type SceneLight } from '../../../../../sdk-core/src/index.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { frontCamera } from '../../../engine/pagesEngineScenes.fixture.ts'
 import { deepQuadScene } from '../deepQuad.fixture.ts'
@@ -28,7 +28,7 @@ export const SUN: SceneLight = {
 export async function coarseSession(light?: SceneLight) {
   installGpuGlobals()
   const scene = deepQuadScene()
-  const gpu = mockGpu({ limits: SHADOW_LIMITS }),
+  const gpu = fakeDevice({ ...BACKEND, limits: SHADOW_LIMITS }),
     { device } = gpu
   const sceneLights = createSceneLightStore()
   if (light) sceneLights.add(light)

@@ -1,6 +1,7 @@
 //! Which shader the driver reads in a material graph, and what a textured emission is worth.
 use super::*;
-use output::{close, factors, material};
+use crate::tests::golden::material;
+use output::{close, factors};
 
 // Behaviour: it is the active output node that designates the material's shader. A
 // `Principled BSDF` that this output's `Surface` input does not reach does not describe the

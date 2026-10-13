@@ -1,9 +1,10 @@
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { TRANSPARENT_COMPACT_SHADER } from './shader.ts'
 import { dispatchRows } from '../../gpu/dispatch/grid.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
 import { TRANSPARENT_COMPACTION_PASS } from '../../stage/passLabels.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 const UNIFORM_WORDS = 8
 
@@ -28,58 +29,71 @@ function compactLayout(device: GPUDevice) {
   })
 }
 
-/** The compute half: the three passes that turn the frame's selection mask into instance lists. */
-async function compactPasses(
-  device: GPUDevice,
-  table: TransparentTable,
-  bound: readonly GPUBuffer[],
-  uniforms: GPUBuffer,
-) {
-  if (typeof device.createComputePipeline !== 'function') return undefined
+/** The compute half's kernels: the three passes that turn the frame's selection mask into instance
+ *  lists, compiled once whatever the table's size. Undefined on a device that refuses them. */
+async function compactKernels(device: GPUDevice) {
+  if (!canCompute(device)) return undefined
   const layout = compactLayout(device)
   const module = device.createShaderModule({ code: TRANSPARENT_COMPACT_SHADER })
   if (typeof module.getCompilationInfo === 'function') {
     const info = await module.getCompilationInfo()
     if (info.messages.some((message) => message.type === 'error')) return undefined
   }
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const entryPoints = [
     'countTransparentGroups',
     'prefixTransparentItems',
     'scatterTransparentGroups',
   ] as const
-  const stages = await buildComputeStages(device, pipelineLayout, module, entryPoints)
-  const pipelines = entryPoints.map((entry) => stages[entry])
-  const bindTo = (mask: GPUBuffer) =>
+  const stages = await buildComputeStages(device, [layout], module, entryPoints)
+  return { layout, pipelines: entryPoints.map((entry) => stages[entry]) }
+}
+
+type Kernels = NonNullable<Awaited<ReturnType<typeof compactKernels>>>
+type Held = ReturnType<typeof compactBuffers>
+
+/** The passes on the buffers `held` names, for the table as it stands at each image. */
+function compactPasses(
+  device: GPUDevice,
+  kernels: Kernels,
+  table: TransparentTable,
+  held: () => Held,
+) {
+  const { layout, pipelines } = kernels
+  const bindTo = (mask: GPUBuffer, made: Held) =>
     device.createBindGroup({
       layout,
-      entries: [
-        bound[0],
-        uniforms,
-        mask,
-        bound[1],
-        bound[2],
-        bound[3],
-        bound[4],
-        bound[5],
-        bound[6],
-      ].map((buffer, binding) => ({ binding, resource: { buffer } })),
+      entries: sequentialEntries(
+        [
+          made.entriesBuf,
+          made.uniforms,
+          mask,
+          made.groupCounts,
+          made.groupOffsets,
+          made.instanceBuffer,
+          made.indirectBuffer,
+          made.itemRangesBuf,
+          made.occludedBuffer,
+        ].map((buffer) => ({ buffer })),
+      ),
     })
-  let boundMask = bound[0],
-    bindGroup = bindTo(boundMask)
+  let boundMask: GPUBuffer | undefined,
+    boundTo: Held | undefined,
+    bindGroup: GPUBindGroup | undefined
   const uniData = new Uint32Array(UNIFORM_WORDS)
-  const groups = workgroupCount(table.length, TRANSPARENT_GROUP)
-  const items = Math.max(1, table.pagedItems.length)
-  // A thread a group, an item, an entry.
-  const launches = [ceilDiv(groups, 64), ceilDiv(items, 64), groups]
   return (encoder: GPUCommandEncoder, mask: GPUBuffer, maskOffset: number) => {
+    const made = held()
+    const groups = workgroupCount(table.length, TRANSPARENT_GROUP)
+    const items = Math.max(1, table.pagedItems.length)
+    // A thread a group, an item, an entry.
+    const launches = [ceilDiv(groups, 64), ceilDiv(items, 64), groups]
     uniData[0] = table.length
     uniData[1] = groups
     uniData[2] = table.pagedItems.length
     uniData[3] = maskOffset
     uniData[4] = table.maxVertexWords
-    if (mask !== boundMask) bindGroup = bindTo((boundMask = mask))
-    device.queue.writeBuffer(uniforms, 0, uniData)
+    if (!bindGroup || mask !== boundMask || made !== boundTo)
+      bindGroup = bindTo((boundMask = mask), (boundTo = made))
+    device.queue.writeBuffer(made.uniforms, 0, uniData)
     const pass = encoder.beginComputePass({ label: TRANSPARENT_COMPACTION_PASS })
     pass.setBindGroup(0, bindGroup)
     for (let step = 0; step < 3; step++) {
@@ -98,43 +112,84 @@ async function compactPasses(
  * spans move only when a page enters or leaves the cache, and the instance list is written by the
  * GPU from the selection mask of the frame being drawn. `encode` is absent on a device that
  * refuses the kernels, which then refuses the scene (`prepareWebgpuPages`).
+ *
+ * The table grows with the session (`TransparentTable.append`): `grow` writes the rows it added,
+ * and the buffers a full table outgrew are made once as long, their rows written from the table's.
  */
 export async function createTransparentCompaction(device: GPUDevice, table: TransparentTable) {
-  if (!table.length) return undefined
-  const buffers: GPUBuffer[] = []
+  let buffers: GPUBuffer[] = []
   try {
-    const made = compactBuffers(device, table, buffers)
-    const { instanceBuffer, occludedBuffer, spanBuffer, diagnosticBuffer, indirectBuffer } = made
-    device.queue.writeBuffer(made.entriesBuf, 0, table.entries)
-    device.queue.writeBuffer(made.itemRangesBuf, 0, table.itemRanges)
-    device.queue.writeBuffer(spanBuffer, 0, table.spans)
-    const encode = await compactPasses(
-      device,
-      table,
-      [
-        made.entriesBuf,
-        made.groupCounts,
-        made.groupOffsets,
-        instanceBuffer,
-        indirectBuffer,
-        made.itemRangesBuf,
-        occludedBuffer,
-      ],
-      made.uniforms,
-    )
+    const kernels = await compactKernels(device)
+    let held = compactBuffers(device, table, buffers)
+    let rows = { length: 0, items: 0 }
+    /** The table's rows from `rows` on written, or all of them in the buffers just made. */
+    const write = (whole: boolean) => {
+      const firstEntry = whole ? 0 : rows.length,
+        firstItem = whole ? 0 : rows.items
+      const entries = table.length - firstEntry,
+        itemWords = (table.pagedItems.length - firstItem) * 2
+      if (entries > 0)
+        device.queue.writeBuffer(
+          held.entriesBuf,
+          firstEntry * 4,
+          table.entries,
+          firstEntry,
+          entries,
+        )
+      if (itemWords > 0)
+        device.queue.writeBuffer(
+          held.itemRangesBuf,
+          firstItem * 8,
+          table.itemRanges,
+          firstItem * 2,
+          itemWords,
+        )
+      if (whole) device.queue.writeBuffer(held.spanBuffer, 0, table.spans)
+      rows = { length: table.length, items: table.pagedItems.length }
+    }
+    write(true)
+    const encode = kernels && compactPasses(device, kernels, table, () => held)
     return {
-      instanceBuffer,
-      occludedBuffer,
-      spanBuffer,
-      diagnosticBuffer,
-      indirectBuffer,
+      get instanceBuffer() {
+        return held.instanceBuffer
+      },
+      get occludedBuffer() {
+        return held.occludedBuffer
+      },
+      get spanBuffer() {
+        return held.spanBuffer
+      },
+      get diagnosticBuffer() {
+        return held.diagnosticBuffer
+      },
+      get indirectBuffer() {
+        return held.indirectBuffer
+      },
       encode,
+      /** The rows the table gained written; the buffers made over when it outgrew them, which
+       *  those that bind them read again (`instanceBuffer`, `indirectBuffer`, …). */
+      grow() {
+        const outgrown = table.capacity > held.capacity || table.itemRanges.length > held.items * 2
+        if (outgrown) {
+          const outgrownBuffers = buffers
+          buffers = []
+          held = compactBuffers(device, table, buffers)
+          write(true)
+          for (const buffer of outgrownBuffers) buffer.destroy()
+        } else write(false)
+      },
       /** Uploads the spans the last residency change rewrote, and nothing else. */
       uploadSpans(first: number, count: number) {
-        device.queue.writeBuffer(spanBuffer, first * 16, table.spans.buffer, first * 16, count * 16)
+        device.queue.writeBuffer(
+          held.spanBuffer,
+          first * 16,
+          table.spans.buffer,
+          first * 16,
+          count * 16,
+        )
       },
       uploadDiagnostic(source: Uint32Array<ArrayBuffer>) {
-        device.queue.writeBuffer(diagnosticBuffer, 0, source)
+        device.queue.writeBuffer(held.diagnosticBuffer, 0, source)
       },
       dispose() {
         for (const buffer of buffers) buffer.destroy()
@@ -160,7 +215,7 @@ function compactBuffers(device: GPUDevice, table: TransparentTable, buffers: GPU
     buffers.push(buffer)
     return buffer
   }
-  const items = Math.max(1, table.pagedItems.length)
+  const items = table.itemRanges.length / 2
   const entriesBuf = make('Trillion3D transparent entries', table.capacity * 4)
   const itemRangesBuf = make('Trillion3D transparent item ranges', items * 8)
   const uniforms = make(
@@ -188,6 +243,8 @@ function compactBuffers(device: GPUDevice, table: TransparentTable, buffers: GPU
     storage | GPUBufferUsage.INDIRECT,
   )
   return {
+    capacity: table.capacity,
+    items,
     entriesBuf,
     itemRangesBuf,
     uniforms,

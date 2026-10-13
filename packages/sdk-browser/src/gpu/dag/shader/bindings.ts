@@ -52,11 +52,17 @@ export function dagGroupEntries(
   const named = Object.entries(whole).map(([name, buffer]) => [name, { buffer }])
   return [
     ...namedBufferEntries(DAG_BINDING, { ...Object.fromEntries(named), range }),
-    ...dagPartBindings(countsOf(parts)).map(({ table, part, binding }) => ({
-      binding,
-      resource: { buffer: parts![table]![part - 1] },
-    })),
+    ...dagPartEntries(parts),
   ]
+}
+
+/** The entries of the further parts of the split tables `parts` lays out, each at the binding the
+ *  kernel gives it (`dagPartBindings`): what any pass over those tables binds them by. */
+export function dagPartEntries(parts?: DagExtraParts) {
+  return dagPartBindings(countsOf(parts)).map(({ table, part, binding }) => ({
+    binding,
+    resource: { buffer: parts![table]![part - 1] },
+  }))
 }
 
 /** Group-0 declarations of the selection kernel; its table accessors are the program's choice

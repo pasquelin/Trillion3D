@@ -1,6 +1,6 @@
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 
 /**
  * Fingerprint of an image view: the sixteen numbers of the view, the sixteen of the projection

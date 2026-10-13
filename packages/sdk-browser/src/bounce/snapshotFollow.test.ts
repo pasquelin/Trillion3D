@@ -12,7 +12,8 @@ import { PROBE_TEXELS } from './atlas.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createGpuBounceProbes } from './probes.ts'
-import { BOUNCE_PASS } from '../stage/passLabels.ts'
+import { BOUNCE_LIGHT_LISTS_PASS, BOUNCE_PASS } from '../stage/passLabels.ts'
+import { createGpuLightTiles } from '../lighting/tiles/tiles.ts'
 
 /** The lanes of a snapshot workgroup, read from the shader's `@workgroup_size`. */
 const LANES = Number(/@workgroup_size\((\d+)\)/.exec(BOUNCE_SNAPSHOT_SHADER)?.[1])
@@ -104,6 +105,7 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
     limits: { maxStorageBufferBindingSize: 1 << 30, maxBufferSize: 1 << 30 },
   })
   const lights = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
+  const tiles = await createGpuLightTiles(gpu.device)
   const scene = {
     buffers: () => ({ proxy: lights, worlds: lights }),
     boxes: () => ({ boxes: Float64Array.from([0, 0, 0, 8, 0.1, 4]), changed: Uint8Array.of(0) }),
@@ -114,11 +116,14 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
     scene,
     () => lights,
     1000,
+    () => tiles,
   )
   const work: string[] = []
   let entry = ''
   const encoder = {
     copyTextureToTexture: () => void work.push('copy'),
+    // The world lists' pool state, sampled for its growth (`lighting/tiles/pool.ts`).
+    copyBufferToBuffer: () => void work.push('sample'),
     beginRenderPass: (d: GPURenderPassDescriptor) => (
       work.push(`clear ${[...d.colorAttachments].length}`),
       { end() {} }
@@ -147,5 +152,15 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
     `updateProbes ${groups}`,
     `followSnapshot ${snapshotGroups(groups)}`,
   ])
+  // The world grid's lists before it, on the frame that lists them; a frame whose lights and
+  // lattice did not change lists nothing again.
+  assert.ok(
+    work.indexOf(`pass ${BOUNCE_LIGHT_LISTS_PASS}`) < at &&
+      work.includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`),
+  )
+  work.length = 0
+  assert.equal(probes.encode(encoder, 1, [4, 4, 2]), true)
+  assert.equal(work.includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`), false)
   probes.dispose()
+  tiles.dispose()
 })

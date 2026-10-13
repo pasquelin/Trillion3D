@@ -1,15 +1,12 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import { castsBlendShadow } from '../../gpu/shadow/transmittance.ts'
 import { ROW_BLEND_COVERAGE_WORD, ROW_INDEX_WORDS, ROW_TRANSMISSION_WORD } from './pageRow.ts'
-import type { createPageRowWriter } from './pageRowWriter.ts'
-import type { createWebgpuRowState } from './state.ts'
+import type { PageRowWriter } from './pageRowWriter.ts'
+import type { WebgpuRowState } from './state.ts'
 import { awaitsPageBytes } from './pageSlots.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
-
-type Rows = ReturnType<typeof createWebgpuRowState>
-type Writer = ReturnType<typeof createPageRowWriter>
 
 /**
  * The shadow casters of the blended clusters, WITHOUT a visibility row.
@@ -32,16 +29,16 @@ type Writer = ReturnType<typeof createPageRowWriter>
  * residency need not, since residency itself restales them.
  */
 export function createBlendCasterRows(
-  rows: Rows,
+  rows: WebgpuRowState,
   packedPages: PageList,
-  writePageRow: Writer,
+  writePageRow: PageRowWriter,
   onCoverageChange: (rec: PageRec, page: number) => void = () => {},
 ) {
   const c: Casters = {
     ...{ rows, writePageRow, onCoverageChange },
     /** A packed rank back to its record: the one catalogue accessor
      *  (`../../page/selection/catalogue.ts`). */
-    recordOf: createPageCatalogue(packedPages).recordOf,
+    ...createPageCatalogue(packedPages),
     ...{ first: -1, free: new Int32Array(0), freeCount: 0, short: 0 },
     waiting: createSparseInts(),
     ...{ table: undefined, epoch: -1 },
@@ -77,10 +74,11 @@ export function createBlendCasterRows(
 }
 
 type Casters = {
-  rows: Rows
-  writePageRow: Writer
+  rows: WebgpuRowState
+  writePageRow: PageRowWriter
   onCoverageChange: (rec: PageRec, page: number) => void
   recordOf: ReturnType<typeof createPageCatalogue>['recordOf']
+  outputOf: ReturnType<typeof createPageCatalogue>['outputOf']
   first: number
   free: Int32Array
   freeCount: number
@@ -158,7 +156,7 @@ function follow(c: Casters, page: number, restale: boolean) {
   const casts =
     rows.offsetOf(page) >= 0 &&
     !awaitsPageBytes(rec) &&
-    (castsBlendShadow(rec.material) || !!rec.deformationOutput)
+    (castsBlendShadow(rec.material) || !!c.outputOf(page))
   if (!casts) {
     if (row < 0) return
     release(c, page, row)

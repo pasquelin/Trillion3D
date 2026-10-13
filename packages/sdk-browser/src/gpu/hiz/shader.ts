@@ -97,7 +97,7 @@ export const HIZ_NEAREST_BUILD = 'HIZ_NEAREST_BUILD'
  *    of the four below it, level 1 of the nearest corner of each pixel's plane, half the slopes'
  *    sum in front of its depth. Built once the whole depth is drawn (`encodeNearest`), for the
  *    readers of the whole depth (`hizDepthWgsl`): a cell's two bounds, its plane at a pixel. Both
- *    reduce the depth with the nearest transparent surface's folded in (`Pyramid.front`): the one
+ *    reduce the depth with the nearest transparent surface's folded in (`Pyramid.frontView`): the one
  *    pyramid holds every surface a ray can meet.
  *
  * Per image of N pixels: the culling build reads level 0 once and writes 4N/3 words, the nearest

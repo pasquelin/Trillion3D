@@ -9,6 +9,7 @@ import { Object3D } from '../../packages/sdk-core/src/world/object/object3d.ts'
 import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worldPoses.ts'
 import { compiler, SPACING, world } from './world-partition.fixture.ts'
 import { assertNoneMissing, followed, served } from './world-partition-follow.fixture.ts'
+import { noModels } from '../../packages/sdk-browser/src/world/core/worldModels.fixture.ts'
 
 const skip = !existsSync(compiler)
 const PREFIX = 'world-partition-follow-'
@@ -43,7 +44,7 @@ test(
     district.scale.set(0.25, 0.25, 0.25)
     const poses = createWorldPoses()
     poses.moved(district)
-    poses.apply(scene, new Map(), new Map(), () => {})
+    poses.apply(scene, new Map(), noModels(), () => {})
     const after = await view.settle()
     const near = await assertNoneMissing(view, (translation) =>
       translation.map((value) => value * 0.25),

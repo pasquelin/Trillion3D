@@ -1,3 +1,4 @@
+import { isImageSize } from '../../../math/src/scalar/integers.ts'
 import { SUBSURFACE_TARGET } from './subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from './physicalLobes.ts'
 import { pyramidHeldBytes } from '../gpu/hiz/pyramid.ts'
@@ -23,6 +24,19 @@ export const SURFACE_FORMATS: GPUTextureFormat[] = [
 /** Bytes of the four surface targets per pixel, and the shadow receiver's the resolve writes for
  *  the virtual shadow maps' projection (`../visibility/shader/receiverTargetWgsl.ts`). */
 export const SURFACE_BYTES_PER_PIXEL = texelBytesOf(...SURFACE_FORMATS) + RECEIVER_TARGET_BYTES
+/** The HDR colour: what the lighting writes, and the transparents, the effects and the temporal
+ *  antialiasing read and write. */
+export const HDR_FORMAT: GPUTextureFormat = 'rgba16float'
+/** The HDR colour's usages: drawn into, sampled, copied from (the water's backdrop) and into (the
+ *  proofs that lay a lit image). Both HDR targets that take turns have them
+ *  (`../reflections/radiance.ts`). A function: `GPUTextureUsage` exists only beside a device. */
+export const hdrUsage = () =>
+  GPUTextureUsage.RENDER_ATTACHMENT |
+  GPUTextureUsage.TEXTURE_BINDING |
+  GPUTextureUsage.COPY_SRC |
+  GPUTextureUsage.COPY_DST
+/** The scene's depth: every opaque raster's, and every copy made of it. */
+export const DEPTH_FORMAT: GPUTextureFormat = 'depth32float'
 /** Display colour target, what the composition writes; before it, the water pass borrows it. */
 export const DISPLAY_FORMAT: GPUTextureFormat = 'rgba8unorm'
 /** Virtual-texture feedback target: the tile rank a pixel asks for, written by hardware
@@ -35,18 +49,17 @@ export const FEEDBACK_BYTES = texelBytesOf(FEEDBACK_FORMAT)
  *  visibility, the HDR colour and the texture feedback. */
 const FRAME_BYTES_PER_PIXEL = texelBytesOf(
   DISPLAY_FORMAT,
-  'depth32float',
+  DEPTH_FORMAT,
   'r32uint',
-  'rgba16float',
+  HDR_FORMAT,
   FEEDBACK_FORMAT,
 )
 /** Color, depth, visibility, HDR, material surfaces, the transparent texture feedback target and
- *  the optional Hi-Z pyramid, with the front depth of the scene's blends when it has any. */
-export function frameTargetBytes(width: number, height: number, withHiz: boolean, front: boolean) {
-  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
-    throw new Error('INVALID_SURFACE_SIZE')
+ *  the optional Hi-Z pyramid. */
+export function frameTargetBytes(width: number, height: number, withHiz: boolean) {
+  if (!isImageSize(width, height)) throw new Error('INVALID_SURFACE_SIZE')
   let bytes = width * height * (FRAME_BYTES_PER_PIXEL + SURFACE_BYTES_PER_PIXEL)
-  if (withHiz) bytes += pyramidHeldBytes(width, height, front)
+  if (withHiz) bytes += pyramidHeldBytes(width, height)
   return bytes + SUBSURFACE_TARGET.texelBytes + PHYSICAL_LOBES_TARGET.texelBytes
 }
 /** Per-pixel surface data of a frame, kept on the GPU: depth, normals, material. */
@@ -101,8 +114,7 @@ export function checkSurfaceSize(
   height: number,
   bytesPerPixel = SURFACE_BYTES_PER_PIXEL,
 ) {
-  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
-    throw new Error('INVALID_SURFACE_SIZE')
+  if (!isImageSize(width, height)) throw new Error('INVALID_SURFACE_SIZE')
   if (Math.max(width, height) > textureLimits(device.limits).side)
     throw new Error('SURFACE_DEVICE_LIMIT')
   const bytes = width * height * bytesPerPixel

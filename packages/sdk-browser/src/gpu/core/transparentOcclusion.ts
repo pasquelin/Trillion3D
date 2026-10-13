@@ -1,8 +1,8 @@
 import { CORNER_VALUES, PARTITION_WORKGROUP } from '../partition/contract.ts'
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputePipeline, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
-import { computeBufferEntry, computeTextureEntry } from './computeBindings.ts'
+import { computeBufferEntry, computeTextureEntry, sequentialEntries } from './computeBindings.ts'
 import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../dispatch/grid.ts'
 import { TRANSPARENT_OCCLUSION_PASS } from '../../stage/passLabels.ts'
@@ -16,7 +16,8 @@ export type TransparentOcclusion = NonNullable<
 export type TransparentOcclusionSources = {
   pyramid: () => GPUTextureView | undefined
   uniforms: GPUBuffer
-  occluded: GPUBuffer
+  /** The verdict buffer the compact owns, read at each image: it follows the compact's growth. */
+  occluded: () => GPUBuffer
 }
 
 /**
@@ -33,21 +34,23 @@ export async function createTransparentOcclusion(
   entryCount: number,
   sources: TransparentOcclusionSources,
 ) {
-  if (typeof device.createComputePipeline !== 'function' || entryCount < 1) return undefined
-  const { corners, unculledBits, unculled } = occlusionBuffers(device, entryCount)
+  if (!canCompute(device) || entryCount < 1) return undefined
+  const buffers = occlusionBuffers(device, entryCount)
   const destroy = () => {
-    corners.destroy()
-    unculled.destroy()
+    o.corners.destroy()
+    o.unculled.destroy()
   }
+  let o: Occlusion
   try {
-    const made = await occlusionPipeline(device, entryCount)
+    const made = await occlusionPipeline(device)
     if (!made) {
-      destroy()
+      buffers.corners.destroy()
+      buffers.unculled.destroy()
       return undefined
     }
-    const o: Occlusion = {
-      ...{ device, entryCount, sources, corners, unculled, ...made },
-      ...{ bound: undefined, bindGroup: undefined, disposed: false },
+    o = {
+      ...{ device, entryCount, sources, ...buffers, ...made },
+      ...{ bound: undefined, verdicts: undefined, bindGroup: undefined, disposed: false },
       // A thread an entry.
       groups: workgroupCount(entryCount, PARTITION_WORKGROUP),
     }
@@ -57,9 +60,25 @@ export async function createTransparentOcclusion(
         uploadCorners(o, packed, from, to),
       /** One bit per entry, set where the entry is never culled: filled by the owner, then sent
        *  whole by `uploadUnculled`. */
-      unculledBits,
+      get unculledBits() {
+        return o.unculledBits
+      },
       uploadUnculled() {
-        if (!o.disposed) device.queue.writeBuffer(unculled, 0, unculledBits)
+        if (!o.disposed) device.queue.writeBuffer(o.unculled, 0, o.unculledBits)
+      },
+      /** The entries the test covers: past them it reads nothing. */
+      get entryCount() {
+        return o.entryCount
+      },
+      /** The test made to cover `entries`, its buffers made over when it covers fewer: the pipeline
+       *  names no size. Returns whether they were — the corners and bits are then to be sent again. */
+      grow(entries: number) {
+        if (o.disposed || entries <= o.entryCount) return false
+        destroy()
+        Object.assign(o, occlusionBuffers(device, entries), { entryCount: entries })
+        o.groups = workgroupCount(entries, PARTITION_WORKGROUP)
+        o.bindGroup = undefined
+        return true
       },
       /**
        * Writes each entry's verdict for this frame. Without a fresh pyramid there is nothing to
@@ -74,7 +93,8 @@ export async function createTransparentOcclusion(
     }
   } catch {
     try {
-      destroy()
+      buffers.corners.destroy()
+      buffers.unculled.destroy()
     } catch {
       /* A partial GPU setup must leak nothing. */
     }
@@ -87,10 +107,12 @@ type Occlusion = NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>> & {
   entryCount: number
   sources: TransparentOcclusionSources
   corners: GPUBuffer
+  unculledBits: Uint32Array<ArrayBuffer>
   unculled: GPUBuffer
   /** The pyramid changes identity on every target resize: the bind group follows it, and a
    *  frame without a pyramid encodes nothing rather than reading a dead buffer. */
   bound: GPUTextureView | undefined
+  verdicts: GPUBuffer | undefined
   bindGroup: GPUBindGroup | undefined
   disposed: boolean
   groups: number
@@ -113,7 +135,7 @@ function occlusionBuffers(device: GPUDevice, entryCount: number) {
 }
 
 /** The test's layout and pipeline; undefined when its module fails. */
-async function occlusionPipeline(device: GPUDevice, entryCount: number) {
+async function occlusionPipeline(device: GPUDevice) {
   const layout = device.createBindGroupLayout({
     entries: [
       computeBufferEntry(0, 'read-only-storage'),
@@ -123,7 +145,7 @@ async function occlusionPipeline(device: GPUDevice, entryCount: number) {
       computeBufferEntry(4, 'read-only-storage'),
     ],
   })
-  const module = device.createShaderModule({ code: transparentOcclusionShader(entryCount) })
+  const module = device.createShaderModule({ code: transparentOcclusionShader() })
   if (await shaderFailed(module)) return undefined
   const pipeline = await buildComputePipeline(device, {
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
@@ -150,20 +172,22 @@ function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh:
   const { sources } = o
   const pyramid = pyramidFresh ? sources.pyramid() : undefined
   if (!pyramid) {
-    encoder.clearBuffer(sources.occluded, 0, o.entryCount * 4)
+    encoder.clearBuffer(sources.occluded(), 0, o.entryCount * 4)
     return
   }
-  if (pyramid !== o.bound || !o.bindGroup) {
+  const occluded = sources.occluded()
+  if (pyramid !== o.bound || occluded !== o.verdicts || !o.bindGroup) {
     o.bound = pyramid
+    o.verdicts = occluded
     o.bindGroup = o.device.createBindGroup({
       layout: o.layout,
-      entries: [
-        { binding: 0, resource: { buffer: o.corners } },
-        { binding: 1, resource: pyramid },
-        { binding: 2, resource: { buffer: sources.occluded } },
-        { binding: 3, resource: { buffer: sources.uniforms } },
-        { binding: 4, resource: { buffer: o.unculled } },
-      ],
+      entries: sequentialEntries([
+        { buffer: o.corners },
+        pyramid,
+        { buffer: occluded },
+        { buffer: sources.uniforms },
+        { buffer: o.unculled },
+      ]),
     })
   }
   const pass = encoder.beginComputePass({ label: TRANSPARENT_OCCLUSION_PASS })

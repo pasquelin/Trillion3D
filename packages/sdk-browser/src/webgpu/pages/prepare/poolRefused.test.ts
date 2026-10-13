@@ -2,8 +2,7 @@ import { MIB } from '../../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice, BACKEND } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadBackend } from '../testScenes.fixture.ts'
 import { setWebgpuMemoryBudgets } from '../io/memory.ts'
 import { texturePoolFor } from '../../residency/memoryBudgets.ts'
@@ -14,7 +13,7 @@ import { refusing } from './refusing.fixture.ts'
 
 test('a texture pool refused even at its floor at prepare is refused by name, never allocated in full', async () => {
   installGpuGlobals()
-  const { device, textures } = refusing('createTexture', 'texture pool')
+  const { device, textures, destroyed } = refusing('createTexture', 'texture pool')
   const events: EngineDiagnostic[] = []
   const { fixture, backend } = quadBackend(device, {
     onDiagnostic: (event: EngineDiagnostic) => events.push(event),
@@ -26,7 +25,7 @@ test('a texture pool refused even at its floor at prepare is refused by name, ne
     const pools = textures.filter((texture) => texture.label?.startsWith('Trillion3D texture pool'))
     assert.ok(pools.length > 0)
     assert.ok(
-      pools.every((texture) => texture.destroyed),
+      pools.every((texture) => destroyed.includes(texture)),
       'every pool the device refused is released; none is made outside the scope',
     )
   } finally {
@@ -51,7 +50,7 @@ test('a geometry pool refused even at its root cover at prepare is refused by na
 
 test('a geometry concatenation that fails at prepare refuses the scene, said once, never another image', async () => {
   installGpuGlobals()
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const device = gpu.device as unknown as Record<string, (d: { label?: string }) => unknown>
   const make = device.createBuffer
   device.createBuffer = function (this: unknown, descriptor: { label?: string }) {

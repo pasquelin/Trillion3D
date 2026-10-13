@@ -5,6 +5,7 @@ import {
   createBounceBudget,
   createBounceCascades,
   createBounceOccupancy,
+  type BounceCascades,
 } from '../../../sdk-core/src/index.ts'
 import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts'
 import { atlasBytes, probeAtlasExtent } from './atlas.ts'
@@ -17,9 +18,11 @@ import { syncBounceProbes } from './probeSync.ts'
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
 import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { BOUNCE_PASS } from '../stage/passLabels.ts'
+import type { GpuLightTiles } from '../lighting/tiles/tiles.ts'
+import { BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
 
 /** Cascade uniform, the proxy, lights, queue, frozen probes, output and the world matrices the proxy is placed by:
- *  the atlases of `atlas.ts`. */
+ *  the atlases of `atlas.ts` —, and the world grid's light lists (`BOUNCE_LIGHT_LIST_BINDING`). */
 const PROBE_TYPES: BounceSlot[] = [
   'uniform',
   'read-only-storage',
@@ -29,6 +32,47 @@ const PROBE_TYPES: BounceSlot[] = [
   'atlas-array-out',
   'read-only-storage',
 ]
+PROBE_TYPES[BOUNCE_LIGHT_LIST_BINDING] = 'read-only-storage'
+
+/**
+ * The world grid's light lists, which the cache texels and the probe and reflection hits walk
+ * (`lightCellWgsl.ts`): the light grid's world pass over the last cascade level's lattice
+ * (`createGpuLightTiles`), in the buffer every reader of a list binds, encoded on a frame where the
+ * lights, that lattice or the buffer changed — a still scene lists nothing again. Their start goes to
+ * the cascades' uniform (`setLightLists`); without a grid, none, and every point walks every light.
+ */
+function worldLightLists(
+  tiles: () => GpuLightTiles | undefined,
+  lights: () => GPUBuffer,
+  uniform: ReturnType<typeof createProbeStorage>['uniform'],
+) {
+  const corner = new Float32Array(3)
+  let listed: string | undefined
+  return {
+    /** A light changed: the lists are listed again at the next encode. */
+    stale() {
+      listed = undefined
+    },
+    /** The lists of `cascades`' last level over `count` lights, encoded when stale: the buffer that
+     *  holds them, or none. */
+    encode(encoder: GPUCommandEncoder, cascades: BounceCascades, count: number, frame: number) {
+      const grid = tiles()
+      if (!grid?.ensureWorld(cascades.size, lights(), count)) {
+        uniform.setLightLists(undefined)
+        return undefined
+      }
+      const level = cascades.levels[cascades.levels.length - 1]
+      const key = `${level.spacing}|${level.base.join(',')}|${count}|${grid.revision}`
+      if (key !== listed) {
+        for (let axis = 0; axis < 3; axis++) corner[axis] = level.base[axis] * level.spacing
+        grid.updateWorld(corner, level.spacing)
+        listed = grid.encodeWorld(encoder, frame) ? key : undefined
+      }
+      uniform.setLightLists(listed ? grid.worldStart : undefined)
+      return grid.buffer
+    },
+  }
+}
 
 /** What the probes read of the scene's proxy (`gpu/dag/proxyInstances.ts`, through the selection): the two
  *  buffers its rays are traced through, when a placement wears a proxy, and the world boxes of the placements
@@ -49,6 +93,8 @@ export async function createGpuBounceProbes(
   /** The declared-light buffer, read at each encode: it is replaced when the scene outgrows it. */
   lights: () => GPUBuffer,
   budgetMs: number,
+  /** The light grid, whose buffer holds the world grid's lists beside the view's. */
+  tiles: () => GpuLightTiles | undefined = () => undefined,
 ) {
   const first = scene.boxes()
   const cascades = createBounceCascades(bounds)
@@ -77,8 +123,12 @@ export async function createGpuBounceProbes(
   let boundLights: GPUBuffer
   let bound: { proxy: GPUBuffer; worlds: GPUBuffer } | undefined
   let layout: GPUBindGroupLayout
-  /** The probe group, on the light buffer and the proxy buffers of the moment (a growth of the proxy's tables
-   *  replaces its buffer); none while no placement wears a proxy. */
+  const lists = worldLightLists(tiles, lights, uniform)
+  // The lists' stand-in where no grid holds them: no point reads it (`setLightLists`).
+  const noLists = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
+  let boundLists: GPUBuffer = noLists
+  /** The probe group, on the light buffer, the proxy buffers and the world lists of the moment (a growth of
+   *  the proxy's tables replaces its buffer); none while no placement wears a proxy. */
   const bind = () => {
     const meshes = scene.buffers()
     if (!meshes) return (group = undefined)
@@ -94,6 +144,7 @@ export async function createGpuBounceProbes(
         snapshotView,
         probesView,
         meshes.worlds,
+        boundLists,
       ],
       PROBE_TYPES,
     ))
@@ -105,9 +156,9 @@ export async function createGpuBounceProbes(
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       compute: { module, entryPoint: 'updateProbes' },
     })
-    bind()
     follow = await createSnapshotFollow(device, uniform.buffer, queue, probesView, snapshotView)
   } catch (error) {
+    noLists.destroy()
     release()
     throw error
   }
@@ -124,6 +175,7 @@ export async function createGpuBounceProbes(
   const restart = () => {
     generation++
     schedule.restart()
+    lists.stale()
   }
   const invalidate = (levels: number) => void (clearOwed |= levels)
   const parts = { boxes: () => scene.boxes(), cascades, occupancy, invalidate, restart }
@@ -179,15 +231,24 @@ export async function createGpuBounceProbes(
       clearLevels(encoder, clearOwed)
       clearOwed = 0
       const meshes = scene.buffers()
-      if (
-        meshes?.proxy !== bound?.proxy ||
-        meshes?.worlds !== bound?.worlds ||
-        lights() !== boundLights
-      )
-        bind()
       occupancy.settle(boxes, placed)
       if (cascades.follow(viewpoint)) schedule.restart()
-      if (!group || !cascades.probes || !lightsActive || !working()) return false
+      // The world lists before every pass that reads them — this one, the reflections, the
+      // blends —, listed again only when a light, the last level or the grid's buffer changed.
+      const listing =
+        cascades.probes && lightsActive
+          ? lists.encode(encoder, cascades, lightsActive, frame)
+          : undefined
+      if (!meshes || !cascades.probes || !lightsActive || !working()) return false
+      if (
+        meshes.proxy !== bound?.proxy ||
+        meshes.worlds !== bound?.worlds ||
+        lights() !== boundLights ||
+        (listing ?? noLists) !== boundLists
+      ) {
+        boundLists = listing ?? noLists
+        bind()
+      }
       frame++
       const groups = schedule.plan(batch())
       if (groups) device.queue.writeBuffer(queue, 0, schedule.queue, 0, groups)
@@ -206,6 +267,7 @@ export async function createGpuBounceProbes(
       return true
     },
     dispose() {
+      noLists.destroy()
       release()
     },
   }

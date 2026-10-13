@@ -11,7 +11,7 @@ export const TRANSPARENT_GROUP = 64
 /** Padding entry: an index no cluster has, never selected, never drawn. */
 export const TRANSPARENT_NONE = 0xffffffff
 
-export type TransparentTable = ReturnType<typeof createTransparentTable>
+export type TransparentTable = ReturnType<typeof transparentTable>
 
 /** The draw rank of a transparent cluster: the rank its source recorded, the catalogue rank else. */
 const drawRank = (rec: PageRec) => rec.sourceOrder ?? rec.id
@@ -51,12 +51,15 @@ function visitOrder(root: ClusterRoot<PageRec>) {
 }
 
 /** Each paged item's catalogue ranks in draw order, and the entries they take once each item's is
- *  aligned on `TRANSPARENT_GROUP`. */
-function itemOrders(roots: ReadonlyArray<ClusterRoot<PageRec>>, paged: readonly BlendGpuItem[]) {
+ *  aligned on `TRANSPARENT_GROUP`. `roots` are ranked from packed rank `base` on. */
+function itemOrders(
+  roots: ReadonlyArray<ClusterRoot<PageRec>>,
+  paged: readonly BlendGpuItem[],
+  base: number,
+) {
   /** Where each root's pages start in the catalogue, and how the cut walks them, by the world of
    *  their root: a paged item and the root of its placement read the same one. */
   const rootOfPlacement = new Map<object, { base: number; root: ClusterRoot<PageRec> }>()
-  let base = 0
   for (const root of roots) {
     const first = root.pages[0]
     if (first?.transparent) rootOfPlacement.set(root.world, { base, root })
@@ -95,55 +98,98 @@ function itemOrders(roots: ReadonlyArray<ClusterRoot<PageRec>>, paged: readonly 
  *
  * Each item owns a range aligned on `TRANSPARENT_GROUP`, and its instance list is written in place
  * inside that range, so an item's base is known before the image starts and never moves.
+ *
+ * The table is the open's order of the items it holds, and `append` is the same function run on the
+ * items a session brings later: their ranges follow the held ones, so a table appended to is the
+ * table an open of all of them makes. A table full doubles; the rows it holds stay where they are.
  */
 export function createTransparentTable(
   roots: ReadonlyArray<ClusterRoot<PageRec>>,
   packedPages: PageList,
   items: readonly BlendGpuItem[],
 ) {
-  /** A packed rank back to its record: the one catalogue accessor (`../../page/selection/catalogue.ts`). */
-  const { recordOf } = createPageCatalogue(packedPages)
-  const paged = items.filter((item) => item.paged)
-  const { orders, length } = itemOrders(roots, paged)
-  let maxVertexWords = 0
-  const capacity = Math.max(TRANSPARENT_GROUP, length)
-  const entries = new Uint32Array(capacity).fill(TRANSPARENT_NONE)
-  /** Words of the resident page, then the index words it holds: what one instance draws. */
-  const spans = new Uint32Array(capacity * 4)
-  const pageOfEntry = new Int32Array(capacity).fill(-1)
+  const table = transparentTable(createPageCatalogue(packedPages).recordOf)
+  table.append(roots, 0, items)
+  return table
+}
+
+/** An empty table over the catalogue `recordOf` reads. */
+function transparentTable(recordOf: (packed: number) => PageRec | undefined) {
   // Each blended instance's entry, plus one: held for them alone, never one word a page.
   const entryPlus = createSparseInts()
-  const itemRanges = new Uint32Array(Math.max(1, paged.length) * 2)
-  let at = 0
-  for (let item = 0; item < paged.length; item++) {
-    const order = orders[item]
-    itemRanges[item * 2] = at
-    itemRanges[item * 2 + 1] = order.length
-    for (let i = 0; i < order.length; i++) {
-      const pageIndex = order[i],
-        entry = at + i,
-        words = recordOf(pageIndex)!.triangles * 3
-      entries[entry] = pageIndex
-      pageOfEntry[entry] = pageIndex
-      entryPlus.set(pageIndex, entry + 1)
-      if (words > maxVertexWords) maxVertexWords = words
-    }
-    at += alignUp(order.length, TRANSPARENT_GROUP)
-  }
-  return {
-    entries,
-    spans,
-    pageOfEntry,
+  const table = {
+    entries: new Uint32Array(0),
+    /** Words of the resident page, then the index words it holds: what one instance draws. */
+    spans: new Uint32Array(0),
+    pageOfEntry: new Int32Array(0),
+    itemRanges: new Uint32Array(2),
     /** The entry packed page `page` draws from, -1 when it is no blended instance. */
     entryOf: (page: number) => entryPlus.get(page) - 1,
-    itemRanges,
     /** Items the table describes, in the order the transparent pass draws them. */
-    pagedItems: paged,
+    pagedItems: [] as BlendGpuItem[],
     /** Entries in use, including alignment padding. */
-    length,
-    capacity,
-    groupCount: workgroupCount(capacity, TRANSPARENT_GROUP),
+    length: 0,
+    capacity: 0,
+    groupCount: 0,
     /** Vertices one instance draws: the longest index run any transparent cluster holds. */
-    maxVertexWords,
+    maxVertexWords: 0,
+    /**
+     * The paged items of `items` join the table behind those it holds, their pages ranked from
+     * packed rank `base` on in `roots`: O(entries added), and the rows of a table that fills are
+     * copied once into one twice as long.
+     */
+    append(
+      roots: ReadonlyArray<ClusterRoot<PageRec>>,
+      base: number,
+      items: readonly BlendGpuItem[],
+    ): void {
+      const paged = items.filter((item) => item.paged)
+      const { orders, length } = itemOrders(roots, paged, base)
+      growEntries(table, table.length + length)
+      growItems(table, table.pagedItems.length + paged.length)
+      let at = table.length
+      for (let item = 0; item < paged.length; item++) {
+        const order = orders[item],
+          rank = table.pagedItems.length
+        paged[item].pagedIndex = rank
+        table.pagedItems.push(paged[item])
+        table.itemRanges[rank * 2] = at
+        table.itemRanges[rank * 2 + 1] = order.length
+        for (let i = 0; i < order.length; i++) {
+          const pageIndex = order[i],
+            entry = at + i,
+            words = recordOf(pageIndex)!.triangles * 3
+          table.entries[entry] = pageIndex
+          table.pageOfEntry[entry] = pageIndex
+          entryPlus.set(pageIndex, entry + 1)
+          if (words > table.maxVertexWords) table.maxVertexWords = words
+        }
+        at += alignUp(order.length, TRANSPARENT_GROUP)
+      }
+      table.length = at
+    },
   }
+  return table
+}
+
+/** The entries of `table` made room for `needed` of them. */
+function growEntries(table: TransparentTable, needed: number) {
+  if (table.capacity && needed <= table.capacity) return
+  const capacity = Math.max(TRANSPARENT_GROUP, needed, table.length ? 2 * table.capacity : 0)
+  const entries = new Uint32Array(capacity).fill(TRANSPARENT_NONE)
+  entries.set(table.entries)
+  const spans = new Uint32Array(capacity * 4)
+  spans.set(table.spans)
+  const pageOfEntry = new Int32Array(capacity).fill(-1)
+  pageOfEntry.set(table.pageOfEntry)
+  Object.assign(table, { entries, spans, pageOfEntry, capacity })
+  table.groupCount = workgroupCount(capacity, TRANSPARENT_GROUP)
+}
+
+/** The item ranges of `table` made room for `needed` items. */
+function growItems(table: TransparentTable, needed: number) {
+  if (needed * 2 <= table.itemRanges.length) return
+  const ranges = new Uint32Array(Math.max(needed, 2 * table.pagedItems.length) * 2)
+  ranges.set(table.itemRanges)
+  table.itemRanges = ranges
 }

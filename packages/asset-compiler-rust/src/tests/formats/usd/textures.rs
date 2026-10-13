@@ -11,7 +11,7 @@ pub(in crate::tests) fn compile_files(
     layers: &[(&str, &str)],
     images: &[&str],
 ) -> GoldenRun {
-    let dir = super::driver::temp_dir(tag);
+    let dir = scratch("usd", tag);
     let checker = golden_dir("usd")
         .join("minuscule")
         .join("textures")

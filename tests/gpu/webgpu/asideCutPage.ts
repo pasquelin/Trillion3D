@@ -2,7 +2,8 @@
 // GPU, on the main cut's tables, with no other cut to fall back on; the main view, drawn again
 // after it, cuts again and holds the image it held before.
 import { cameraFace, engine, release, VIEWPORT } from '../kit/sharedSceneProof.ts'
-import { difference, redCount, untilHeld } from '../kit/sceneImageProof.ts'
+import { redCount, untilHeld } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { transformScene } from '../placement/transformScene.ts'
 
@@ -20,8 +21,9 @@ async function sequence(device: GPUDevice, events: unknown[], result: { scene?: 
       held: before.held !== null && after.held !== null,
       red: redCount(aside),
       bytes: aside.length,
-      main: before.held && after.held ? difference(before.held, after.held) : null,
-      moved: before.held ? difference(before.held, aside) : null,
+      main:
+        before.held && after.held ? compareImages(before.held, after.held).differentPixels : null,
+      moved: before.held ? compareImages(before.held, aside).differentPixels : null,
     }
   } finally {
     release(backend, canvas, scene)

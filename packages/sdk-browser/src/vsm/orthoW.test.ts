@@ -14,7 +14,6 @@ import { encodeVirtualShadowProjection } from './projectionPass.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { orthographicProjection } from '../../../math/src/projection/camera.ts'
 import { vsmLayout } from './layout.ts'
-import { MIB } from '../../../math/src/constants.ts'
 import { fakeHizDepth } from './hizDepth.fixture.ts'
 
 const PROJECTION = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, -0.1, 0]
@@ -49,7 +48,7 @@ test("every clipmap level's UV matrix has the w row (0, 0, 0, 1), exactly in f32
 })
 
 test('only the sun marks without the divide: a lamp keeps it', () => {
-  const code = vsmPixelPageMarkingWgsl(vsmLayout({ fullMapCapacity: 63 }, 128 * MIB))
+  const code = vsmPixelPageMarkingWgsl(vsmLayout({ fullMapCapacity: 63 }))
   assert.match(
     functionText(code, 'vsmMarkPage'),
     /if\(!ortho\)\{mapUvz=vec4f\(perspectiveDivide\(mapUvz\),mapUvz\.w\);\}/,
@@ -69,10 +68,8 @@ test('the camera kind decides the projection path: an orthographic matrix scaled
     const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
     const view = {} as GPUTextureView
     // The passes' recorded commands are not read: only the upload.
-    const pass = new Proxy({}, { get: () => () => {} })
-    const encoder = { beginComputePass: () => pass } as unknown as GPUCommandEncoder
     encodeVirtualShadowProjection(
-      encoder,
+      device.createCommandEncoder(),
       res,
       {
         device,

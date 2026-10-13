@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice, writtenBytes } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, streamingQuadBackend } from '../testScenes.fixture.ts'
 import { coarseQuadScene } from '../testOccluder.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'
@@ -12,7 +12,7 @@ import { settledImage } from '../settledImage.fixture.ts'
 test('clustered transparency submits only visible pages in one two-sided mesh draw', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device, draws, writes } = mockGpu()
+    { device, draws, writes } = fakeDevice(BACKEND)
   fixture.material.transparent = true
   fixture.material.side = G.DOUBLE_SIDE
   fixture.geometry.setAttribute(
@@ -48,7 +48,7 @@ test('clustered transparency submits only visible pages in one two-sided mesh dr
     const uploads = writes.length
     backend.render(camera())
     assert.equal(
-      writes.slice(uploads).filter((w) => w.bytes.byteLength === 12).length,
+      writes.slice(uploads).filter((w) => writtenBytes(w).byteLength === 12).length,
       0,
       'stable cuts do not upload indices again',
     )
@@ -68,7 +68,7 @@ test('clustered transparency reads the opaque geometry instead of copying it', a
   // would show up here as extra bytes.
   for (const pass of ['exact-clusters', 'clustered-blend']) {
     const fixture = quadScene(),
-      { device } = mockGpu()
+      { device } = fakeDevice(BACKEND)
     fixture.material.transparent = pass === 'clustered-blend'
     fixture.metadata.primitives[0].pass = pass
     const positions = new Float32Array(3000)
@@ -100,7 +100,7 @@ test('clustered transparency reads the opaque geometry instead of copying it', a
 test('clustered transparency switches LOD with resident coverage and retains both faces', async () => {
   installGpuGlobals()
   const fixture = coarseQuadScene(),
-    { device } = mockGpu()
+    { device } = fakeDevice(BACKEND)
   fixture.material.transparent = true
   fixture.material.side = G.DOUBLE_SIDE
   fixture.metadata.primitives[0].pass = 'clustered-blend'
@@ -156,7 +156,7 @@ test('clustered transparency switches LOD with resident coverage and retains bot
 test('a transparent switched to double-sided still expands all its instances', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device, draws, buffers } = mockGpu()
+    { device, draws, buffers } = fakeDevice(BACKEND)
   fixture.material.transparent = true
   // Single-sided at prepare: one plan entry, and half the room.
   fixture.material.side = G.FRONT_SIDE

@@ -1,6 +1,6 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts'
 import {
   MATERIAL_TILE_SLOTS,
@@ -10,18 +10,22 @@ import {
 import { createWebgpuBindIdentity } from './bindIdentity.ts'
 import type { OpenPass } from '../../gpu/core/lazyComputePass.ts'
 import type { RenderCommands } from '../../gpu/core/renderBundles.ts'
+import {
+  sequentialEntries,
+  computeBufferEntry,
+  computeTextureEntry,
+} from '../../gpu/core/computeBindings.ts'
 
 /** Bytes of one class's indirect draw: vertex count, instance count, first vertex, first instance. */
 const DRAW_BYTES = 16
 
 /** Group 1 of the class draws: the slot of each class key, and the tile lists. */
 export function materialTileDrawLayout(device: GPUDevice) {
-  const vertex = GPUShaderStage.VERTEX,
-    buffer: GPUBufferBindingLayout = { type: 'read-only-storage' }
+  const vertex = GPUShaderStage.VERTEX
   return device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: vertex, buffer },
-      { binding: 1, visibility: vertex, buffer },
+      computeBufferEntry(0, 'read-only-storage', vertex),
+      computeBufferEntry(1, 'read-only-storage', vertex),
     ],
   })
 }
@@ -30,27 +34,21 @@ export function materialTileDrawLayout(device: GPUDevice) {
  *  a device with no compute or that refuses them (`validated`). A shader that does not compile is
  *  a defect, thrown by name. */
 async function classifier(device: GPUDevice) {
-  if (typeof device.createComputePipeline !== 'function') return undefined
-  const compute = GPUShaderStage.COMPUTE,
-    storage: GPUBufferBindingLayout = { type: 'storage' },
-    readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' }
+  if (!canCompute(device)) return undefined
+  const compute = GPUShaderStage.COMPUTE
   return validated(device, async () => {
     const module = await createCheckedShaderModule(device, MATERIAL_TILES_SHADER, 'MATERIAL_TILES')
     const layout = device.createBindGroupLayout({
       entries: [
-        { binding: 0, visibility: compute, texture: { sampleType: 'uint' } },
-        { binding: 1, visibility: compute, buffer: readOnly },
-        { binding: 2, visibility: compute, buffer: { type: 'uniform' } },
-        { binding: 3, visibility: compute, buffer: readOnly },
-        { binding: 4, visibility: compute, buffer: storage },
-        { binding: 5, visibility: compute, buffer: storage },
+        computeTextureEntry(0, 'uint', '2d', compute),
+        computeBufferEntry(1, 'read-only-storage', compute),
+        computeBufferEntry(2, 'uniform', compute),
+        computeBufferEntry(3, 'read-only-storage', compute),
+        computeBufferEntry(4, 'storage', compute),
+        computeBufferEntry(5, 'storage', compute),
       ],
     })
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-    const stages = await buildComputeStages(device, pipelineLayout, module, [
-      'clearTiles',
-      'classify',
-    ])
+    const stages = await buildComputeStages(device, [layout], module, ['clearTiles', 'classify'])
     return { layout, ...stages }
   })
 }
@@ -151,10 +149,7 @@ function layFor(t: Tiles, width: number, height: number) {
     }))
     t.drawGroup = t.device.createBindGroup({
       layout: t.drawLayout,
-      entries: [
-        { binding: 0, resource: { buffer: t.slots } },
-        { binding: 1, resource: { buffer: lists } },
-      ],
+      entries: sequentialEntries([{ buffer: t.slots }, { buffer: lists }]),
     })
   }
   return t.drawGroup!
@@ -170,14 +165,14 @@ function encodeTiles(t: Tiles, open: OpenPass, inputs: MaterialTileInputs) {
   if (bound.moved() || !t.classifyGroup)
     t.classifyGroup = t.device.createBindGroup({
       layout: classify.layout,
-      entries: [
-        { binding: 0, resource: inputs.vis },
-        { binding: 1, resource: { buffer: inputs.pages } },
-        { binding: 2, resource: { buffer: inputs.uniform } },
-        { binding: 3, resource: { buffer: t.slots } },
-        { binding: 4, resource: { buffer: t.lists! } },
-        { binding: 5, resource: { buffer: t.draws } },
-      ],
+      entries: sequentialEntries([
+        inputs.vis,
+        { buffer: inputs.pages },
+        { buffer: inputs.uniform },
+        { buffer: t.slots },
+        { buffer: t.lists! },
+        { buffer: t.draws },
+      ]),
     })
   const pass = open.pass
   pass.setPipeline(classify.clearTiles)

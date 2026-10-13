@@ -9,7 +9,7 @@ import {
 } from '../../../scene/surfaceBuffer.ts'
 import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts'
 import { wantsAsIsShare } from './asIsShareTarget.ts'
-import { backdropBytes } from '../../transparent/transmission.ts'
+import { backdropBytes, holdsWater } from '../../transparent/transmission.ts'
 import { reflectionBytes } from '../../../reflections/gpu.ts'
 import { wantsProxyStore } from './proxyStore.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -19,13 +19,13 @@ import type { FrameSize } from '../state/renderScale.ts'
 const DISPLAY_BYTES = 4
 
 /**
- * Whether the scene has blends, which write the front depth the reflections march
- * (`../../../reflections/frontDepth.ts`): laid out when the session opens, none enters or leaves it
- * (`webgpuMaterialClassRefusal`). Any other scene keeps a texel of it, in the pyramid and in the
- * reflection, and draws what it drew before.
+ * Whether the scene has blends — water included —, which write the front depth the reflections
+ * march (`createFrontDepth`'s `blends`): laid out when the session opens, none enters or leaves it
+ * (`webgpuMaterialClassRefusal`). Any other scene keeps a texel of its target and nothing else, and
+ * draws what it drew before.
  */
-export const wantsFrontDepth = (rt: Pick<WebgpuPagesRuntime, 'blendState'>) =>
-  rt.blendState.blendGpu.length > 0
+export const sceneBlends = (rt: Pick<WebgpuPagesRuntime, 'blendState'>) =>
+  rt.blendState.blendGpu.length > 0 || !!rt.blendState.frontGranted
 
 /**
  * Whether a frame of `size` makes a display colour of its own at the render size (`Trillion3D
@@ -36,8 +36,7 @@ export const wantsFrontDepth = (rt: Pick<WebgpuPagesRuntime, 'blendState'>) =>
  */
 export const makesDisplayColor = (rt: WebgpuPagesRuntime, size: FrameSize) =>
   !size.apart ||
-  (rt.blendState.transmissive > 0 &&
-    (size.renderWidth !== size.width || size.renderHeight !== size.height))
+  (holdsWater(rt) && (size.renderWidth !== size.width || size.renderHeight !== size.height))
 
 /** Proposed image targets, passed to the existing global memory admission before allocation.
  * Device dimensions remain hard limits; streamable pools retain their coverage/tail minima.
@@ -45,14 +44,13 @@ export const makesDisplayColor = (rt: WebgpuPagesRuntime, size: FrameSize) =>
 export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, additional = 0) {
   // The view's Hi-Z pyramid, while it has one (`prepareVisibility`, dropped when refused).
   const hiz = !!rt.vis?.gpuHiz,
-    front = wantsFrontDepth(rt),
     gpuDevice = rt.gpu.device,
     { renderWidth: width, renderHeight: height } = size,
     display = size.apart ? size.width * size.height : 0
   if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE')
   checkSurfaceSize(gpuDevice, size.width, size.height, 1)
   return (
-    frameTargetBytes(width, height, hiz, front) -
+    frameTargetBytes(width, height, hiz) -
     (makesDisplayColor(rt, size) ? 0 : width * height * DISPLAY_BYTES) -
     // The feedback target, only while the pipelines write it (`feedbackVariant.ts`).
     (rt.vis.writesFeedback ? 0 : width * height * FEEDBACK_BYTES) +
@@ -68,7 +66,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     PHYSICAL_LOBES_TARGET.bytes(width, height, wantsPhysicalLobes(rt)) -
     PHYSICAL_LOBES_TARGET.texelBytes +
     // The reflection's target and radiance pyramid (`../../../reflections/gpu.ts`).
-    reflectionBytes(width, height, front, wantsProxyStore(rt)) +
+    reflectionBytes(width, height, sceneBlends(rt), wantsProxyStore(rt)) +
     display * DISPLAY_BYTES
   )
 }

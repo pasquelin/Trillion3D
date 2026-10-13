@@ -2,6 +2,7 @@ import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPageCache } from './pages.ts'
+import { giveUp } from './order.fixture.ts'
 
 const LIMITS = { maxBufferSize: 1024 }
 // A slot is the size of the largest cluster: a small page that reuses it writes only its bytes,
@@ -20,7 +21,12 @@ test('a reused GPU slot receives only the bytes of its page, padded to what the 
   }
   const source = { read: async (key: string) => new Uint8Array(octets[key]) }
   const cache = createGpuPageCache(device, source, { pageBytes: 8, slots: 1 })
-  const pages = [await cache.load('large'), await cache.load('small'), await cache.load('odd')]
+  // Each arrival takes the place of the one before, as the GPU's order gives it up.
+  const large = await cache.load('large')
+  giveUp(cache, 'large')
+  const small = await cache.load('small')
+  giveUp(cache, 'small')
+  const pages = [large, small, await cache.load('odd')]
   const envois = writes.map((write) => [...written(write)]),
     slot = pages[0].slot
   assert.deepEqual(envois, [octets.large, octets.small, octets.odd.slice(0, 4), [17, 0, 0, 0]])
@@ -138,14 +144,20 @@ test('the residency log keeps one entry a key, and nothing of a page the host ne
   await cache.load('a')
   assert.deepEqual(drained(), [['a', 0]])
   // Undrained, a thousand pages pass through the slot: `a`'s departure and the last arrival stay.
-  for (let i = 0; i < 1000; i++) await cache.load(`p${i}`)
+  for (let i = 0; i < 1000; i++) {
+    giveUp(cache, i ? `p${i - 1}` : 'a')
+    await cache.load(`p${i}`)
+  }
   assert.deepEqual(drained(), [
     ['a', -1],
     ['p999', 0],
   ])
   // A known page that leaves and comes back is told once, at its last place.
+  giveUp(cache, 'p999')
   await cache.load('a')
+  giveUp(cache, 'a')
   await cache.load('p999')
+  giveUp(cache, 'p999')
   await cache.load('a')
   assert.deepEqual(drained(), [
     ['p999', -1],

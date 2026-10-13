@@ -1,7 +1,7 @@
 import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import { structureIndex } from '../../page/selection/structure.ts'
 import type { ClusterRoot } from '../../page/selection/types.ts'
 import { createPageParents } from '../../page/selection/pageParents.ts'
@@ -10,6 +10,7 @@ import { createPageAdmission } from './admission.ts'
 import type { LowerList, LowerPassOptions } from './lowerTier.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { STREAMING_FRAME_MS } from '../../engine/common.ts'
+import { PRIORITY_PREFETCH } from '../../streaming/priority.ts'
 
 /** Fields the residency ensurer never reads: shared across every fixture page. */
 const IDENTITY = { elements: IDENTITY_MATRIX4 }
@@ -62,23 +63,38 @@ export function placement() {
   }
 }
 
-/** A pool of `slots` pages evicting its oldest unpinned page, as the GPU page cache does. */
-export function lruCache(slots: number) {
+/**
+ * A pool of `slots` pages giving up its oldest page as the GPU's order would
+ * (`../../gpu/page/eviction.ts`): never one pinned, nor one `inUse` says a view uses; to a prefetch
+ * (a lower tier's load), never one `ahead` says the view ahead asks for either — the old pages alone.
+ */
+export function orderedPool(
+  slots: number,
+  inUse: (url: string) => boolean = () => false,
+  ahead: (url: string) => boolean = () => false,
+) {
   const resident = new Map<string, { key: string }>(),
-    pins = new Set<string>()
+    pins = new Set<string>(),
+    /** The pages read for a place, in order. */
+    reads: string[] = []
   /** What arrived since a reader last took it, kept once one asks, as the GPU page cache keeps it. */
   let arrivals: string[] | undefined
   const pin = (url: string) => void pins.add(url)
+  const given = (lower: boolean) =>
+    [...resident.keys()].filter((key) => !pins.has(key) && !inUse(key) && !(lower && ahead(key)))
   return {
     resident,
     pins,
+    reads,
     get: (url: string) => resident.get(url),
-    async load(url: string, _signal?: AbortSignal, pinned?: boolean) {
-      if (resident.size >= slots) {
-        const victim = [...resident.keys()].find((key) => !pins.has(key))
-        if (victim === undefined) throw new Error('ALL_PAGES_PINNED')
+    async load(url: string, _signal?: AbortSignal, pinned?: boolean, priority?: number) {
+      if (resident.size >= slots && !resident.has(url)) {
+        // No place to give: refused before any read, as the cache refuses (`../../gpu/page/load.ts`).
+        const victim = given(priority === PRIORITY_PREFETCH)[0]
+        if (victim === undefined) throw new Error('POOL_FULL')
         resident.delete(victim)
       }
+      if (!resident.has(url)) reads.push(url)
       resident.set(url, { key: url })
       arrivals?.push(url)
       if (pinned) pin(url)
@@ -93,20 +109,13 @@ export function lruCache(slots: number) {
     unpin: (url: string) => pins.delete(url),
     takeUnpinned() {},
     stats: () => ({ pinned: pins.size }),
-    touch(url: string) {
-      const page = resident.get(url)
-      if (!page) return false
-      resident.delete(url)
-      resident.set(url, page)
-      return true
-    },
-    unpinnedSlots: () => slots - pins.size,
+    room: (lower = false) => slots - resident.size + given(lower).length,
   }
 }
 
 /** An ensurer's options over `cache`: no cover, every page's bytes at hand, no parents, no tier. */
 export const ensurerOptions = (
-  tracking: ReturnType<typeof createWebgpuPageTracking>,
+  tracking: WebgpuPageTracking,
   cache: unknown,
 ): Parameters<typeof createWebgpuResidentEnsurer>[0] => ({
   getCache: () => cache as never,
@@ -124,7 +133,7 @@ export const ensurerOptions = (
 /** The lower pass's options over `cache`, as the ensurer builds them, `lowerTiers` its tiers: no
  *  read ahead, and a share that never waits. */
 export function lowerPassOptions(
-  tracking: ReturnType<typeof createWebgpuPageTracking>,
+  tracking: WebgpuPageTracking,
   cache: unknown,
   lowerTiers: () => readonly LowerList[],
 ): LowerPassOptions {
@@ -140,7 +149,7 @@ export function lowerPassOptions(
 
 /** An ensurer over `cache` whose first lower tier is `firstPages`, and the second `nextPages`. */
 export const tierEnsurer = (
-  tracking: ReturnType<typeof createWebgpuPageTracking>,
+  tracking: WebgpuPageTracking,
   cache: unknown,
   firstPages: () => readonly PageRec[],
   nextPages: () => readonly PageRec[] = () => [],

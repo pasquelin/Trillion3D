@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { GpuPassTimings } from '../../../../sdk-core/src/index.ts'
-import { gpuPassBlockOf, gpuPassBlockTotals } from './passBlocks.ts'
+import { gpuPassBlockTotals } from './passBlocks.ts'
+import { gpuPassBlockOf } from '../../stage/mapping.ts'
 import { VSM_PASS_PREFIX } from '../../stage/passLabels.ts'
 
 const sample = (

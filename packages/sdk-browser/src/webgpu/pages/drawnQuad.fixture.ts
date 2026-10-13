@@ -1,6 +1,6 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from './testScenes.fixture.ts'
 import { createWebgpuPagesRuntime } from './runtime.ts'
 import { prepareWebgpuBackend } from './prepare/prepare.ts'
@@ -12,7 +12,7 @@ import type { EngineContext, EngineDiagnostic } from '../../engine/types.ts'
  *  to its context. */
 export async function drawnQuad(options: Partial<EngineContext> = {}) {
   installGpuGlobals()
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const fixture = quadScene(),
     events: EngineDiagnostic[] = []
   const rt = createWebgpuPagesRuntime({

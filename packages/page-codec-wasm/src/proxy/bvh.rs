@@ -65,7 +65,7 @@ fn split(triangles: &[f32], order: &mut [usize], range: (usize, usize), nodes: &
     if range.1 - range.0 <= PROXY_LEAF_TRIANGLES {
         return;
     }
-    // Axis choice differs from `shared_math::longest_axis`: `max_by` keeps last axis
+    // Axis choice differs from `trillion3d_math::aabb::longest_axis`: `max_by` keeps last axis
     // on tie where DAG's `>` keeps first, `total_cmp` ranks NaNs instead of
     // ignoring. Following split also differs — `select_nth_unstable_by` vs full sort.
     let axis = (0..3)

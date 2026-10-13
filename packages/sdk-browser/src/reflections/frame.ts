@@ -60,7 +60,7 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
   if (!hiz) return
   if (reflection && stages && depth && reflectionOver(rt)) {
     writeFrame(rt, reflection)
-    encodeFrontDepth(encoder, reflection, stages, depth.front, gpu.targetSize)
+    encodeFrontDepth(encoder, reflection, stages, gpu.targetSize)
   }
   if (!rt.run.depthDrawn) return
   hiz.encodeNearest(reflectionPass.begin(encoder))
@@ -96,6 +96,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.normals = views[1]
     inputs.lobes = surfaces.lobesView
     inputs.lights = lights.buffer!
+    inputs.lightLists = lights.tiles?.buffer ?? deferred.placeholders.tiles
     inputs.bounceGrid = contract.bounceGrid ?? deferred.placeholders.bounceGrid
     inputs.probes = contract.probes ?? deferred.placeholders.probes
     // What a ray can meet of the scene, else the empty stand-in.
@@ -112,8 +113,9 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
 }
 
 /** The radiance pyramid of the image's lit colour, once every surface drew into it and before
- *  the temporal resolve reads it: what the next image's reflections reproject their hits into. Its
- *  hash is copied while the view is unsettled (`RadianceSettle`). */
+ *  the temporal resolve reads it: what the next image's reflections reproject their hits into, the
+ *  lit image itself its level 0 once the image is encoded (`adoptRadianceImage`). Its hash is
+ *  copied while the view is unsettled (`RadianceSettle`). */
 export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu, vis } = rt,
     reflection = gpu.reflection,
@@ -133,7 +135,12 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     viewProj,
   )
   pass.end()
-  reflection.settle.image(encoder, reflection.tiles.args, reflection.tiles.list)
+  reflection.settle.image(
+    encoder,
+    reflection.tiles.args,
+    reflection.tiles.list,
+    reflection.radiance.held.still,
+  )
 }
 
 /** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */

@@ -3,7 +3,7 @@
 // for frame, gives the same pixels, so a difference between two versions is theirs.
 import { readFileSync } from 'node:fs'
 import { decodePng } from '../../packages/sdk-node/src/cutout/png.mts'
-import { pixelDifference } from './capture.ts'
+import { compareImages } from '../../packages/sdk-core/src/runtime/compareImages.ts'
 import type { BenchPlay } from './play.ts'
 import { spread, STABLE_SPREAD } from './summary.ts'
 
@@ -17,9 +17,12 @@ function mergeSegment(plays: readonly BenchPlay[], name: string) {
   const relative = gpu && gpu.n > 1 ? (gpu.max - gpu.min) / gpu.median : null
   const images = of.map((segment) => segment.image?.path)
   const first = images[0] ? pixels(images[0]) : null
-  const sameImages = images
-    .slice(1)
-    .map((path) => (first && path ? pixelDifference(first, pixels(path)) : null))
+  const sameImages = images.slice(1).map((path) => {
+    const other = first && path ? pixels(path) : null
+    return first && other?.length === first.length
+      ? compareImages(first, other, { alpha: false })
+      : null
+  })
   /** The plays' medians of one of a segment's numbers. */
   const across = (
     key:

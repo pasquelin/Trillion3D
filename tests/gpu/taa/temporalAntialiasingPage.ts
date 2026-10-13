@@ -6,8 +6,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import {
   VIEWPORT,
-  batisseur as sceneBuilder,
-  square,
+  batisseur,
   cameraFace as facingCamera,
   release as release,
   engine,
@@ -21,17 +20,11 @@ const TURN = 0.33
 
 /** The background and the red tile. */
 function scene() {
-  const builder = sceneBuilder()
-  const background = G.mesh(square(4), G.basicSurface({ color: 0x1b3a5c }))
-  background.name = 'background'
-  background.position.z = -2
-  builder.source.add(background)
-  builder.add(background, 'exact-clusters', 4)
-  const tile = G.mesh(square(0.6), G.basicSurface({ color: 0xff2020 }))
-  tile.name = 'tile'
-  tile.rotation.z = TURN
-  builder.source.add(tile)
-  builder.add(tile, 'exact-clusters', 0.6)
+  const builder = batisseur()
+  const backdrop = G.basicSurface({ color: 0x1b3a5c })
+  builder.place(backdrop, 'exact-clusters', 4, [0, 0, -2]).name = 'background'
+  const red = G.basicSurface({ color: 0xff2020 })
+  builder.place(red, 'exact-clusters', 0.6, [0, 0, 0], { z: TURN }).name = 'tile'
   return builder.fini()
 }
 

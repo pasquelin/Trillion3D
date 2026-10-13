@@ -9,7 +9,7 @@ export type V = number[]
 export type Tri = [V, V, V]
 export const f32 = (x: number) => Math.fround(x)
 /** The engine's layout for one sun. */
-export const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27)
+export const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
 /** Texels of a block, of a cell, cells a side, the memory's width (`transmissionWgsl.ts`). */
 export const BLOCK = 512
 export const CELL = 8

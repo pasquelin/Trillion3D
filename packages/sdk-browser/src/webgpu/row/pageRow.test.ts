@@ -6,12 +6,8 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { packedRowBase } from './pageRow.ts'
 import { emptyGeometryBlock, rowGeometry, rowMaterial } from './pageRowMaterial.ts'
 import { FLAG_COLOR, FLAG_UV } from '../../../../sdk-core/src/page/format.ts'
-import {
-  FLAG_CLUSTER_PAGE,
-  FLAG_HAS_COLOR,
-  FLAG_SAMPLED,
-  VIS_TRIANGLE_BITS,
-} from '../../visibility/buffer.ts'
+import { FLAG_CLUSTER_PAGE, FLAG_HAS_COLOR, FLAG_SAMPLED } from '../../visibility/types.ts'
+import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from '../tile/pageTable.ts'
 import { SAMPLE_MAG_NEAREST } from '../../texture/sampling.ts'

@@ -105,3 +105,13 @@ test('decayRate and decayFactor: the exponential decay, the factor of the rate r
   assert.equal(decayFactor(3, 0.25), Math.exp(-3 * 0.25))
   assert.ok(Math.abs(decayFactor(decayRate(0.01, 0.3), 0.3) - 0.01) < 1e-15)
 })
+
+test('quantileOf is the nearest rank ceil(q n) − 1 at every length, the median and the 95th alike', () => {
+  // A `floor(q n)` index is the same rank when `q n` is not a whole number and the one after when
+  // it is (the 95th of twenty: the 20th, not the 19th).
+  for (let n = 0; n <= 2000; n++) {
+    const t = Array.from({ length: n }, (_, i) => i)
+    for (const q of [0.5, 0.95])
+      assert.equal(quantileOf(t, q), t[Math.min(Math.ceil(n * q) - 1, n - 1)], `${q} of ${n}`)
+  }
+})

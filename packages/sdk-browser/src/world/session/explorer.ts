@@ -6,7 +6,12 @@ import { releaseOwned } from './lifecycle.ts'
 import { loadExplorerManifest } from './manifest.ts'
 import type { MeasuredWorldOptions } from '../../engine/types.ts'
 import { createExplorerSession, type ExplorerSession } from './session.ts'
-import { prepareExplorer, type ExplorerResources, type ExplorerSource } from './prepare.ts'
+import {
+  prepareExplorer,
+  type ExplorerResources,
+  type ExplorerSource,
+  type PreparedExplorer,
+} from './prepare.ts'
 import { createSessionRuntime, type SessionRuntime } from '../render/sessionRuntime.ts'
 import { createExplorerApi } from '../api/api.ts'
 import { referenceCapture, referenceOptions } from '../../frame/referenceMode.ts'
@@ -36,7 +41,7 @@ function sessionApi(
     opened: Opened
     original: MeasuredWorldOptions
     reference: Reference
-    prepared: Awaited<ReturnType<typeof prepareExplorer>>
+    prepared: PreparedExplorer
     preparationStart: number
     source?: ExplorerSource
   },

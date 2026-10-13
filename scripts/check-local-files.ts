@@ -1,16 +1,13 @@
-import { execFileSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { REPOSITORY_ROOT } from './repository-files.ts'
+import { gitPathsSync } from './git-paths.ts'
 
 /** Check the index too: force-adding an ignored file must not bypass the policy. */
 export function trackedIgnoredFiles(root: string): string[] {
-  return execFileSync(
-    'git',
+  return gitPathsSync(
     ['ls-files', '--cached', '--ignored', '--exclude-from=.gitignore', '-z'],
-    { cwd: root, encoding: 'utf8' },
+    root,
   )
-    .split('\0')
-    .filter(Boolean)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

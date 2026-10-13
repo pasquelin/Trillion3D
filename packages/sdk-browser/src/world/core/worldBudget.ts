@@ -6,7 +6,6 @@ import type { MeasuredWorld } from '../session/explorer.ts'
 import { DEFAULT_GEOMETRY_POOL_BUDGET, DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/pools.ts'
 import {
   DEFAULT_BUDGET_CANVAS,
-  DEFAULT_CPU_BUDGET,
   defaultGpuBudget,
   splitMemoryBudget,
   type BudgetCanvas,
@@ -36,7 +35,7 @@ const gpuOf = (pools: Pools, canvas = pools.canvas, active = pools.activeGpu) =>
   pools.gpu ?? defaultGpuBudget(canvas, active)
 /** The split of the totals as asked, the defaults for those not set. */
 const splitOf = (pools: Pools, gpu = gpuOf(pools), canvas = pools.canvas) =>
-  splitMemoryBudget(gpu, pools.cpu ?? DEFAULT_CPU_BUDGET, canvas, pools.activeGpu)
+  splitMemoryBudget(gpu, pools.cpu ?? DEFAULT_CACHED_BYTES, canvas, pools.activeGpu)
 
 /**
  * What a session opens with: the pools as asked, and the world's page cache. Its admission
@@ -59,7 +58,7 @@ export function sessionPools(pools: Pools) {
       (active: ActiveGpuMemory) => {
         const split = splitMemoryBudget(
           gpuOf(pools, pools.canvas, active),
-          pools.cpu ?? DEFAULT_CPU_BUDGET,
+          pools.cpu ?? DEFAULT_CACHED_BYTES,
           pools.canvas,
           active,
         )
@@ -171,7 +170,7 @@ export function worldBudget(
      *  transfer queue and the engine's cut tables together. A change applies at once: pages leave
      *  by last use until they fit. Never read from the machine. */
     get cpu() {
-      return pools.cpu ?? DEFAULT_CPU_BUDGET
+      return pools.cpu ?? DEFAULT_CACHED_BYTES
     },
     set cpu(bytes: number) {
       const { pageCache } = splitMemoryBudget(gpuOf(pools), bytes, pools.canvas)

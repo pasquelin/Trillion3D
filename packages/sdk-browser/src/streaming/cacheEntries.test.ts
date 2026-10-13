@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createCacheEntries } from './cacheEntries.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 /** Entries whose value is their weight, and the keys each eviction takes. */
 function entries() {
@@ -52,7 +52,7 @@ test('one eviction past P held entries checks over() twice and evicts the one vi
 
 test('random touches, drops, holds and evictions: the least recently touched entry not held leaves first', () => {
   for (const seed of [1, 7, 914, 2026]) {
-    const draw = random(seed)
+    const draw = lcgRandom(seed)
     const { cache, put, left } = entries()
     /** The model: the keys in recency order, their bytes, and how many hold each. */
     const order: string[] = [],

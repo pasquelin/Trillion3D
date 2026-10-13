@@ -84,7 +84,7 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
   *(1.0-smoothstep(0.5*REFLECTION_STEP_CAP,REFLECTION_STEP_CAP,travel));
  if(confidence==0.0){return seen;}
  let ratio=size/reflectionView.radiance.xy;
- let toView=vec4f(marched.pixel-Q*ratio,vec2f(textureDimensions(reflectionRadiance))*ratio);
+ let toView=vec4f(marched.pixel-Q*ratio,vec2f(textureDimensions(reflectionImage))*ratio);
  // The hit's surface: its plane across the image, a footprint's width deep on either side.
  let surface=ReflectionSurface(marched.pixel,marched.plane,max(depth-screenBack(depth,cone.long,reflectionView.slab),1e-30));
  let taps=reflectionFootprint(Q,hit,pixel,lobe,cone,toView,surface);
