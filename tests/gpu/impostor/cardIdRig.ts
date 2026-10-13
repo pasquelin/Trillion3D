@@ -2,8 +2,10 @@ import { CARD_VIEW_FLOATS } from '../../../packages/sdk-browser/src/webgpu/impos
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { CARD_FLOATS } from '../../../packages/sdk-browser/src/impostor/cardSlots.ts'
 import { bufferHolding } from '../kit/computeReadback.ts'
+import { CARD_MAPS, cardTileAtlases, chainOf } from './cardTileRig.ts'
 
-// The rig of the card identifier proof (`cardIdPage.ts`): the view, the records, the atlases, the readback.
+// The rig of the card identifier proof (`cardIdPage.ts`): the view, the records, the maps in the
+// tile pool, the readback.
 
 export const SIDE = 64
 const FRAMES = 4,
@@ -33,7 +35,8 @@ export function viewUniform(device: GPUDevice, skew: number) {
 }
 
 /** The records of cards at `centres` (z, radius), each a mesh of unit object radius whose pivot is
- *  its origin: the world is `radius`, the translation `(0, 0, z)`. */
+ *  its origin: the world is `radius`, the translation `(0, 0, z)`; card `k` reads colour map `k`
+ *  (`CARD_MAPS`). */
 export function cardRecords(device: GPUDevice, cards: Array<{ z: number; radius: number }>) {
   const data = new Float32Array(CARD_FLOATS * cards.length)
   cards.forEach(({ z, radius }, slot) => {
@@ -69,37 +72,24 @@ export function cardRecords(device: GPUDevice, cards: Array<{ z: number; radius:
     // Object radius, frames a side, the upper hemi-octahedron, a texel depth that asks mip 0.
     data.set([1, FRAMES, 1, 8], at + 36)
     data.set([0, 0, 0, radius], at + 40)
+    data.set([...CARD_MAPS(slot), 0], at + 44)
   })
   return bufferHolding(device, data, GPUBufferUsage.STORAGE)
 }
 
-/** An atlas of one colour in all its frames: the colour and coverage (sRGB), a flat normal at the
- *  middle depth, the packed ORM. */
-export function atlasGroup(
+/** The tile pool holding one colour and coverage map per colour of `colours`, one colour in all
+ *  its frames (sRGB), a flat normal at the middle depth and the packed ORM: its group in `layout`. */
+export function cardTiles(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   sampler: GPUSampler,
-  colour: [number, number, number],
+  colours: Array<[number, number, number]>,
 ) {
-  const make = (format: GPUTextureFormat, texel: number[]) => {
-    const texture = device.createTexture({
-      size: [ATLAS, ATLAS],
-      format,
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-    })
-    const bytes = new Uint8Array(ATLAS * ATLAS * 4)
-    for (let i = 0; i < ATLAS * ATLAS; i++) bytes.set(texel, i * 4)
-    device.queue.writeTexture({ texture }, bytes, { bytesPerRow: ATLAS * 4 }, [ATLAS, ATLAS])
-    return texture.createView()
-  }
-  return device.createBindGroup({
-    layout,
-    entries: [
-      { binding: 0, resource: make('rgba8unorm-srgb', [...colour, 255]) },
-      { binding: 1, resource: make('rgba8unorm', [128, 128, 255, 128]) },
-      { binding: 2, resource: make('rgba8unorm', [255, 128, 0, 255]) },
-      { binding: 3, resource: sampler },
-    ],
+  const flat = (texel: number[]) => chainOf(ATLAS, Math.log2(ATLAS) + 1, () => texel)
+  return cardTileAtlases(device, layout, sampler, {
+    colours: colours.map((colour) => flat([...colour, 255])),
+    normalDepth: flat([128, 128, 255, 128]),
+    orm: flat([255, 128, 0, 255]),
   })
 }
 
