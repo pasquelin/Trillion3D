@@ -16,10 +16,17 @@ export function createExplorerCamera(
   options: MeasuredWorldOptions,
   /** Framing-box buffer, reserved at load; `null` moves each box alone (`boxTransform`). */
   lot?: BoxTransformLot | null,
+  /** The page poses the camera itself and the scene has no node to frame: a unit ball about the
+   *  origin stands for its bounds. */
+  placed = false,
 ) {
   const flat = emptyWorldBox()
   hostWorldBounds(source, flat, lot)
   sphereFromBoundsBatch(framingSphere, flat, 1)
+  if (placed && !(framingSphere[3] > 0)) {
+    flat.set([-1, -1, -1, 1, 1, 1])
+    sphereFromBoundsBatch(framingSphere, flat, 1)
+  }
   const radius = framingSphere[3]
   const framing = framingFromBounds(radius, canvas.width / canvas.height)
   // The box and the centre go back to the host — `explorer.bounds` and `explorer.center` are its

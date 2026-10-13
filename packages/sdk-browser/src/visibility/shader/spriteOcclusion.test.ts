@@ -140,7 +140,7 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
   // Odd entries hold the constant-size sprite: bits 1, 3, …, 33.
   assert.deepEqual(Array.from(occlusion.unculledBits), [0xaaaaaaaa, 0b10])
   assert.ok(sent)
-  const kernel = transparentOcclusionShader(34)
+  const kernel = transparentOcclusionShader()
   assert.ok(kernel.includes('let open=bitIsSet(unculled[bitWord(i)],i);'))
   assert.ok(kernel.includes('let reject=!open&&box.clips==0u&&'))
 })

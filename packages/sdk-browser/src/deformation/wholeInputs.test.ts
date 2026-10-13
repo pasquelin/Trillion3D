@@ -14,7 +14,8 @@ import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { wholeDeformationInputs } from './wholeInputs.ts'
 import { createSessionDeformation } from './session.ts'
 import { createBlendCopyRecord } from '../cluster/blendCopyRecord.ts'
-import { meshSurface } from '../page/surface.ts'
+import { sourceSurface } from '../page/surface.ts'
+import { drawSourceOf } from '../page/selection/drawSource.ts'
 import { wholeDeformationPool } from './wholePool.ts'
 import { emptyGeometryBlock } from '../webgpu/row/pageRowMaterial.ts'
 import type { BlendGpuItem } from '../webgpu/blend/state.ts'
@@ -41,7 +42,12 @@ test('whole transmission keeps no pages and distinct placement outputs in the ex
   const a = new Mesh(g, surface),
     b = new Mesh(g, surface)
   const copies = [a, b].map((mesh) => {
-    const copy = createBlendCopyRecord(mesh, 0, mesh.matrixWorld, meshSurface(mesh))
+    const copy = createBlendCopyRecord(
+      drawSourceOf(mesh),
+      0,
+      mesh.matrixWorld,
+      sourceSurface(drawSourceOf(mesh)),
+    )
     copy.deformation = { joints: [], targets: [4] }
     return copy
   })
@@ -64,7 +70,7 @@ test('whole transmission keeps no pages and distinct placement outputs in the ex
   const rows = layout.upload(gpu.device, buffer, 64, () => ({
     ...emptyGeometryBlock(),
     vertexBase: 7,
-  }))
+  }))!
   assert.equal(rows.count, 2)
   assert.equal(items[0].deformInput, items[1].deformInput)
   assert.notEqual(items[0].deformOutput, items[1].deformOutput)

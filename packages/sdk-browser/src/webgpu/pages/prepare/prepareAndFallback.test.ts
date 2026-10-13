@@ -4,6 +4,7 @@ import { webgpuPagesEngine } from '../pages.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { assertBothQuadPagesDrawn, camera, quadBackend, quadScene } from '../testScenes.fixture.ts'
+import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 /** The quad prepared with no resident bytes, its first frame rendered. */
 async function firstFrameWithoutBytes() {
@@ -14,7 +15,7 @@ async function firstFrameWithoutBytes() {
     source,
     metadata,
     indices: new Map(),
-    associations,
+    draws: graphDraws(source, associations),
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
@@ -76,7 +77,7 @@ test('webgpu pages without a device fail prepare so the explorer can keep the ho
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
     maxResidentPages: 2,
     viewport: [32, 32],
   })

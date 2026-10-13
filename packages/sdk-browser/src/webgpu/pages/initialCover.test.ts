@@ -6,6 +6,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
 import { camera } from './testScenes.fixture.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 test('the initial cover also protects regions first discovered after a camera jump', async () => {
@@ -87,7 +88,7 @@ test('the initial cover also protects regions first discovered after a camera ju
     source,
     metadata,
     indices,
-    associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
+    draws: graphDraws(source, new Map([[mesh, { meshes: 0, primitives: 0 }]])),
     gpuDevice: device,
     maxResidentPages: 3,
     viewport: [32, 32],

@@ -59,7 +59,7 @@ test('page-authored placement uploads its own morph weights and resets history o
   // This row exercises morph only; its mirrored host intentionally has no source properties.
   measured.joints = []
   const root = {
-    pages: [{ sourceMesh: mirror }],
+    pages: [{ drawSource: { node: mirror } }],
     world: a.matrixWorld,
     placement: { rows, index: 0 },
     deformation: measured,

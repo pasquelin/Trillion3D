@@ -1,4 +1,4 @@
-import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
+import { createWebgpuBlendPipelines, type BlendedSurface } from '../../blend/pipelines.ts'
 import { ensureWebgpuShadeBindings } from '../../core/shadeBindings.ts'
 import type { createWebgpuVisibilityShaders } from '../../visibility/shaders.ts'
 import {
@@ -19,30 +19,41 @@ import { blendContext } from './contractLight.ts'
 type Shaders = Awaited<ReturnType<typeof createWebgpuVisibilityShaders>>
 type Variant = WebgpuPagesRuntime['context']['diagnosticGpuVariant']
 
-/** The blend pipelines; a refusal leaves the blends without a pipeline and says why. */
-export async function prepareBlendPipelines(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { vis, diag, blendState } = rt
+/** The blend pipelines of `items` and the water pass they bring, on `layout` when the session has
+ *  one; a refusal is said and builds none. */
+export async function buildBlendPipelines(
+  rt: WebgpuPagesRuntime,
+  gpuDevice: GPUDevice,
+  items: readonly BlendedSurface[],
+  layout?: GPUBindGroupLayout,
+) {
+  const { vis, diag } = rt
   try {
     const built = await createWebgpuBlendPipelines(
       gpuDevice,
-      blendState.blendGpu,
+      items,
       rt.context.diagnosticGpuVariant,
       vis.writesFeedback,
-      undefined,
+      layout,
       blendWritesShare(rt),
       blendContext(rt),
     )
-    vis.blendBindGroupLayout = built.blendBindGroupLayout
-    vis.blendPipelines = built.blendPipelines
-    blendState.water = built.water
     // A refused water pass leaves blends in place and reports the reason.
     if (built.waterRefused) diag.diagnosticFailure('water-pass-refused', built.waterRefused)
+    return built
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error)
-    vis.blendBindGroupLayout = undefined
-    vis.blendPipelines = undefined
-    blendState.water = undefined
+    return undefined
   }
+}
+
+/** The blend pipelines; a refusal leaves the blends without a pipeline and says why. */
+export async function prepareBlendPipelines(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
+  const { vis, blendState } = rt
+  const built = await buildBlendPipelines(rt, gpuDevice, blendState.blendGpu)
+  vis.blendBindGroupLayout = built?.blendBindGroupLayout
+  vis.blendPipelines = built?.blendPipelines
+  blendState.water = built?.water
 }
 
 /** The visibility raster's pipelines, refused by name. */
@@ -72,6 +83,37 @@ export async function prepareRasterPipelines(
   } = rasterPipelines)
 }
 
+/** The pipelines of the coplanar layers above 0, for `slots` layer slots, made from `module` and
+ *  `layout`; undefined, said, when the device refuses them: one layer is drawn then. */
+export async function buildLayerPipelines(
+  rt: WebgpuPagesRuntime,
+  gpuDevice: GPUDevice,
+  module: GPUShaderModule,
+  layout: GPUBindGroupLayout,
+  slots: number,
+  variant: Variant,
+) {
+  const { diag } = rt
+  try {
+    const pipelines = await createWebgpuCoplanarLayerPipelines(
+      gpuDevice,
+      module,
+      layout,
+      slots,
+      variant,
+    )
+    diag.engineDiagnostic('coplanar-layers-ready', 'Coplanar layers ready', {
+      layers: slots - 1,
+      pipelines: pipelines.length,
+      biasUnitsPerLayer: depthLayerUnits(1),
+    })
+    return pipelines
+  } catch (error) {
+    diag.diagnosticFailure('coplanar-layer-pipelines-failed', error)
+    return undefined
+  }
+}
+
 /** The coplanar layers' pipelines, when the scene carries layers; a refusal draws one layer. */
 export async function prepareLayerPipelines(
   rt: WebgpuPagesRuntime,
@@ -79,27 +121,19 @@ export async function prepareLayerPipelines(
   shaders: Shaders,
   variant: Variant,
 ) {
-  const { vis, diag } = rt
+  const { vis } = rt
   vis.visLayerPipelines.length = 0
   if (vis.drawLayerSlots <= 1) return
-  try {
-    vis.visLayerPipelines = await createWebgpuCoplanarLayerPipelines(
-      gpuDevice,
-      shaders.visModule,
-      shaders.visBindGroupLayout,
-      vis.drawLayerSlots,
-      variant,
-    )
-    diag.engineDiagnostic('coplanar-layers-ready', 'Coplanar layers ready', {
-      layers: vis.drawLayerSlots - 1,
-      pipelines: vis.visLayerPipelines.length,
-      biasUnitsPerLayer: depthLayerUnits(1),
-    })
-  } catch (error) {
-    diag.diagnosticFailure('coplanar-layer-pipelines-failed', error)
-    vis.visLayerPipelines = []
-    vis.drawLayerSlots = 1
-  }
+  const built = await buildLayerPipelines(
+    rt,
+    gpuDevice,
+    shaders.visModule,
+    shaders.visBindGroupLayout,
+    vis.drawLayerSlots,
+    variant,
+  )
+  if (built) vis.visLayerPipelines = built
+  else vis.drawLayerSlots = 1
 }
 
 /** Each resolve class of the census (`preparePages.ts`), read now that the atlases are laid out,

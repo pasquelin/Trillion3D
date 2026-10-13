@@ -1,25 +1,27 @@
 // A growth of the float pool moves the deformation block after the wider vertices (`wholePool.ts`,
 // `SessionDeformation.place`): every row that reads a record or a float-pool block, and every
-// transparent span that reads a block, is pointed at the new place; a slot's tail is left as is.
+// transparent span that reads a block, is pointed at the new place; a row with no results is left as it is.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { deformOutputWord, followPooledBlocks } from './slotLayout.ts'
+import { deformOutputWord, followPooledBlocks } from './outputs.ts'
 import { PAGE_DEFORM_OUTPUT_WORD, PAGE_DEFORM_WORD, ROW_WORDS } from '../visibility/types.ts'
 import type { HostAttributes } from '../host/resources.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 
-/** Three rows — a float-pool block, a slot's tail, the block again —, a placement each. */
+/** Four rows — a float-pool block, a page's own results, the block again, a row with none —, a placement each. */
 function rig() {
   const block = { from: 100, count: 9, pool: { attributes: {} as HostAttributes } },
-    tail = { from: 12, count: 3 }
-  const recs = [block, tail, block].map((deformationOutput) => ({ deformationOutput }) as PageRec)
-  const ints = new Uint32Array(3 * ROW_WORDS),
+    own = { from: 12, count: 3 }
+  const outputs = [block, own, block, undefined]
+  const recs = outputs.map(() => ({}) as PageRec)
+  const words = ROW_WORDS,
+    ints = new Uint32Array(4 * words),
     marked: number[] = []
   ints[ROW_WORDS + PAGE_DEFORM_OUTPUT_WORD] = 77
   const rows = {
     pageTableInts: ints,
     packedRecs: recs,
-    packedPageIndex: Int32Array.from([0, 1, 2]),
+    packedPageIndex: Int32Array.from([0, 1, 2, 3]),
     markRowWords: (r: number) => marked.push(r),
   }
   const spans = new Uint32Array(12),
@@ -35,32 +37,33 @@ function rig() {
   const rt = {
     layout: {
       rows,
-      recordOf: (page: number) => recs[page],
-      placement: { baseOfRoot: Int32Array.of(0, 1, 2), packedCount: 3 },
+      deformationOutputOf: (page: number) => outputs[page],
+      placement: { baseOfRoot: Int32Array.of(0, 1, 2, 3), packedCount: 4 },
     },
     blendState: { table: { pageOfEntry: Int32Array.from([0, 1, 2]), spans }, dirtySpans },
     vis: { deformation },
   } as unknown as Parameters<typeof followPooledBlocks>[0]
-  ints[ROW_WORDS + PAGE_DEFORM_WORD] = deformation.rowWord(1)
-  return { block, ints, marked, spans, dirtySpans, deformation, rt }
+  ints[words + PAGE_DEFORM_WORD] = deformation.rowWord(1)
+  return { block, own, ints, words, marked, spans, dirtySpans, deformation, rt }
 }
 
 test('the rows and spans of a moved float-pool block follow it; a tail stays', () => {
-  const { block, ints, marked, spans, dirtySpans, rt } = rig()
+  const { block, own, ints, words, marked, spans, dirtySpans, rt } = rig()
   block.from = 4000
   followPooledBlocks(rt)
-  const moved = deformOutputWord(block, 0)
-  assert.deepEqual(marked, [0, 2])
+  const moved = deformOutputWord(block)
+  assert.deepEqual(marked, [0, 1, 2])
   assert.equal(ints[PAGE_DEFORM_OUTPUT_WORD], moved)
-  assert.equal(ints[2 * ROW_WORDS + PAGE_DEFORM_OUTPUT_WORD], moved)
-  assert.equal(ints[ROW_WORDS + PAGE_DEFORM_OUTPUT_WORD], 77, "a tail's word is its slot's")
+  assert.equal(ints[2 * words + PAGE_DEFORM_OUTPUT_WORD], moved)
+  assert.equal(ints[words + PAGE_DEFORM_OUTPUT_WORD], deformOutputWord(own))
+  assert.equal(ints[3 * words + PAGE_DEFORM_OUTPUT_WORD], 0, 'a row with none names none')
   assert.deepEqual([spans[2], spans[10], [...dirtySpans]], [moved, 0, [0]])
 })
 
 test("a row's record word follows the moved records; a row with none, or unmoved, is not written", () => {
   const { ints, marked, deformation, rt } = rig()
   followPooledBlocks(rt)
-  assert.deepEqual(marked, [0, 2], 'records in place: only the blocks are written again')
+  assert.deepEqual(marked, [0, 1, 2], 'records in place: only the rows with results are written')
   marked.length = 0
   deformation.base = 9000
   followPooledBlocks(rt)

@@ -20,6 +20,7 @@ import {
   quadBackend,
   flushedGpuScene,
 } from '../testScenes.fixture.ts'
+import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 test('webgpu pages raster consumes the GPU cache and does not attach a mesh per visible page', async () => {
   installGpuGlobals()
@@ -28,7 +29,7 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
   })
   draws.length = 0
   backend.render(camera())
@@ -81,7 +82,7 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
   })
   draws.length = 0
   dispatches.length = 0

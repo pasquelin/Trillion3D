@@ -9,6 +9,7 @@ import { camera, quadScene } from '../pages/testScenes.fixture.ts'
 import { drawsOf, pipelinesOf, resolveFixture } from './materialPasses.fixture.ts'
 import type { MockPass } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
 import { MATERIAL_SURFACES_PASS } from '../../stage/passLabels.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 const passSummary = (passes: MockPass[]) => passes.map((pass) => [pass.label, drawsOf(pass)])
 
@@ -125,7 +126,7 @@ test('a backend makes no material depth, its class pipelines test no depth, and 
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],

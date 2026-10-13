@@ -11,6 +11,7 @@ import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { ROW_MATERIAL_CLASS_WORD } from './pageRow.ts'
 import { createPageRowWriter } from './pageRowWriter.ts'
 import { createPhysicalTable } from '../visibility/physicalTable.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 const [template] = blendFixture().metadata.primitives[0].pages
@@ -36,9 +37,9 @@ function rowOf(surface: G.GraphSurface, hasUv1 = false) {
   } as unknown as ClusterManifest
   const [rec] = collectClusterPages(
     source,
+    graphDraws(source, new Map([[mesh, { meshes: 0, primitives: 0 }]])),
     metadata,
     new Map([['p0', Uint32Array.of(0, 1, 2)]]),
-    new Map([[mesh, { meshes: 0, primitives: 0 }]]),
   ).allPages
   const floats = new Float32Array(ROW_WORDS),
     ints = new Uint32Array(floats.buffer)

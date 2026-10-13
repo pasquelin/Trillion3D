@@ -1,9 +1,8 @@
 import { BOX_VALUES, type ClusterManifest, type Primitive } from '../../../../sdk-core/src/index.ts'
-import { meshSurface, type PageSurface } from '../surface.ts'
+import { sourceSurface, wearsOneOf, type PageSurface } from '../surface.ts'
 import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts'
-import { meshes } from '../../scene/meshes.ts'
 import { refreshRootBox } from './batchBoxes.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
 import { createPrimitiveTemplates } from './template.ts'
@@ -13,8 +12,8 @@ import { linkBundleDependencies } from './bundleDependencies.ts'
 import { hostWorldPlacements } from '../../host/world/placements.ts'
 import type { PageRec, ClusterRoot } from './types.ts'
 import { placementsOf, type Placed } from '../../placement/roots.ts'
-import type { HostMesh } from '../../host/resources.ts'
-import { rowShadowless, type PlacementRows } from '../../placement/rows.ts'
+import type { DrawSource } from './drawSource.ts'
+import { rowShadowless } from '../../placement/rows.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { blendMoves, isAssignment, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
 /** Whether a primitive's pages are drawn blended at the open. A material moved between draw
@@ -34,12 +33,12 @@ export const drawsBlended = (
 ) => drawsCopies(primitive, surface) || pagesBlend(primitive, surface)
 /** The meshes whose pages a collection drew, whichever read them: a resource mounted in place
  *  (#572) is its own collection, and moves class with the open's records (#837). */
-const collected = new WeakSet<object>()
+const collected = new WeakSet<DrawSource>()
 
 /** One primitive drawn by pages: its source mesh, the surface it wears, its records and shape —
  *  shared by every placement. */
 type Drawn = {
-  mesh: HostMesh
+  source: DrawSource
   primitive: Primitive
   surface: PageSurface
   pages: PageRec[]
@@ -49,13 +48,17 @@ type Drawn = {
 /** One blended draw per placement, sharing the mesh's geometry and surface: each is ordered by its
  *  own depth, and a row's copy is skipped while the row is parked. */
 function blendCopiesOf(
-  { mesh, primitive, surface }: Omit<Drawn, 'pages' | 'shape'>,
+  {
+    source,
+    primitive,
+    surface,
+  }: { source: DrawSource; primitive: Primitive; surface: PageSurface },
   placed: readonly Placed[],
   order: number,
   copies: BlendCopy[],
 ) {
   for (const { world, placement } of placed) {
-    const copy = createBlendCopyRecord(mesh, order, world, surface, placement)
+    const copy = createBlendCopyRecord(source, order, world, surface, placement)
     copy.deformation = primitive.deformation
     copies.push(copy)
   }
@@ -77,7 +80,7 @@ function coverBootstrap({ pages, shape }: Drawn, covered: Set<PageRec>, bootstra
 /** One root per placement of a primitive drawn by pages: its world and box, the primitive's
  *  nodes, bounds and links shared by all. */
 function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<PageRec>[]) {
-  const { mesh, primitive, surface, pages, shape } = drawn,
+  const { source, primitive, surface, pages, shape } = drawn,
     { structure, culling } = shape
   const sharedCulling = culling && { ...culling, bounds: shape.bounds!, links: shape.links }
   for (const { world, parked, placement } of placed) {
@@ -100,7 +103,7 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
       mark:
         withShadowless(
           spriteMark(surface),
-          placement ? rowShadowless(placement) : !mesh.castShadow,
+          placement ? rowShadowless(placement) : !source.castShadow,
         ) || undefined,
     }
     refreshRootBox(root)
@@ -109,14 +112,13 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
 }
 
 /** Whether `alpha` moves the surface a record wears, or gives it another. */
-const wears = ({ sourceMesh: mesh }: PageRec, alpha: AlphaChange) =>
-  !!mesh &&
-  (isAssignment(alpha) ? alpha.meshes.has(mesh) : alpha.surfaces.includes(mesh.material as object))
+const wears = ({ drawSource: source }: PageRec, alpha: AlphaChange) =>
+  !!source && (isAssignment(alpha) ? alpha.meshes.has(source) : wearsOneOf(source, alpha.surfaces))
 
 /** Whether a record is drawn blended once `alpha` moved its surfaces, before or after they are
  *  written: the family a collection gives the class `alpha.to`, or the one it has. */
 const blendOf = (rec: PageRec, alpha: AlphaChange) =>
-  wears(rec, alpha) && collected.has(rec.sourceMesh!) ? alpha.to === 'blend' : rec.transparent
+  wears(rec, alpha) && collected.has(rec.drawSource!) ? alpha.to === 'blend' : rec.transparent
 
 /** The open's assignment, run again once a material moved into or out of blended inside the
  *  session (#846): each record takes `blendOf`; true when one moved. */
@@ -130,11 +132,31 @@ function reassignBlend(records: readonly PageRec[], alpha: AlphaChange) {
   return moved
 }
 
-export function collectClusterPages(
+/** What a collection fills: the roots, the records, the forward copies and the cover's records. */
+type Collected = {
+  roots: ClusterRoot<PageRec>[]
+  allPages: PageRec[]
+  blendCopies: BlendCopy[]
+  bootstrap: PageRec[]
+}
+/** An empty collection. */
+export const collectedSink = (): Collected => ({
+  roots: [],
+  allPages: [],
+  blendCopies: [],
+  bootstrap: [],
+})
+
+/**
+ * The collection of a scene's sources, one `add` each, placed where its node stands or at each row
+ * that places it. `source` is the graph the nodes of the sources live in, whose world matrices the
+ * engine reads in place. A source added later, to a session in place, runs the same function on
+ * its own content (`addPlacements`).
+ */
+export function createCollector(
   source: Object3D,
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
-  associations: Map<Object3D, { meshes?: number; primitives?: number; placements?: PlacementRows }>,
   options: {
     allowMissing?: boolean
     /** Leaves out a mesh placed by rows whose primitive is not read yet, mounted later (#751). */
@@ -142,48 +164,66 @@ export function collectClusterPages(
   } = {},
 ) {
   const worlds = hostWorldPlacements(source)
-  const roots: Array<ClusterRoot<PageRec>> = [],
-    allPages: PageRec[] = [],
-    blendCopies: BlendCopy[] = [],
-    bootstrap: PageRec[] = []
   const primitiveOf = primitiveFinder(metadata.primitives)
   // One template per source object, shared by all its placements: the DAG shape, its error
   // bands and cluster identities depend on no world matrix.
   const templates = createPrimitiveTemplates(indices, options.allowMissing === true)
   const covered = new Set<PageRec>()
+  /** The sources added, in order: those the open collected, then those that joined. */
+  const sources: DrawSource[] = []
   let order = 0
-  for (const mesh of meshes(source)) {
-    const association = associations.get(mesh)
-    const primitive = primitiveOf(association)
-    if (!primitive && options.pendingPlaced && association?.placements) continue
-    if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`)
-    // One root per placement: the node's pose, or each row its association carries (`placementRoots`).
-    const placed = placementsOf(association, () => worlds.of(mesh))
+  /** `draw`'s records and roots, into `into`; the primitive it draws, none when it is skipped. */
+  const add = (draw: DrawSource, into: Collected) => {
+    const primitive = primitiveOf({ meshes: draw.mesh, primitives: draw.primitives })
+    if (!primitive && options.pendingPlaced && draw.rows) return undefined
+    if (!primitive)
+      throw new Error(`Missing primitive association: ${draw.mesh}/${draw.primitives ?? 0}`)
+    sources.push(draw)
+    // One root per placement: the node's pose, or each row that places the source (`placementsOf`).
+    const placed = placementsOf({ placements: draw.rows ?? undefined }, () => worlds.of(draw.node!))
     // The surface the declaration wears, read at the boundary into the engine's own record:
     // from here on this collection and everything it feeds hold records, not host materials.
-    const surface = meshSurface(mesh)
+    const surface = sourceSurface(draw)
     if (drawsCopies(primitive, surface)) {
-      blendCopiesOf({ mesh, primitive, surface }, placed, order++, blendCopies)
-      continue
+      blendCopiesOf({ source: draw, primitive, surface }, placed, order++, into.blendCopies)
+      return primitive
     }
     const template = templates.pagesOf(primitive)
-    collected.add(mesh)
+    collected.add(draw)
     const transparent = pagesBlend(primitive, surface)
     const shape = templates.shapeOf(primitive, template)
     // ONE record per primitive page (#1235), shared by every placement of this source object: its
     // world, its row and its packed rank are the layout's, never a field here.
-    const pages = createPageRecords(primitive, template, mesh, surface, transparent, order)
-    for (const rec of pages) allPages.push(rec)
+    const pages = createPageRecords(primitive, template, draw, surface, transparent, order)
+    for (const rec of pages) into.allPages.push(rec)
     // One dependency list per object: every placement is installed after the same bundles.
     linkBundleDependencies(primitive, pages)
-    const drawn: Drawn = { mesh, primitive, surface, pages, shape }
-    coverBootstrap(drawn, covered, bootstrap)
-    rootsOf(drawn, placed, roots)
+    const drawn: Drawn = { source: draw, primitive, surface, pages, shape }
+    coverBootstrap(drawn, covered, into.bootstrap)
+    rootsOf(drawn, placed, into.roots)
     order++
+    return primitive
   }
+  return { add, worlds, primitiveOf, sources }
+}
+
+/** The records of `draws`, one source after another (`createCollector`). */
+export function collectClusterPages(
+  source: Object3D,
+  draws: readonly DrawSource[],
+  metadata: ClusterManifest,
+  indices: Map<string, Uint32Array>,
+  options: Parameters<typeof createCollector>[3] = {},
+) {
+  const collector = createCollector(source, metadata, indices, options)
+  const into = collectedSink()
+  const { roots, allPages, blendCopies, bootstrap } = into
+  for (const draw of draws) collector.add(draw, into)
+  const { worlds } = collector
   return {
     ...{ roots, allPages, worlds, blendCopies, blendOf, wears, reassignBlend, bootstrap },
-    requestCount: indexPageRequests(allPages),
+    collector,
+    requests: indexPageRequests(allPages),
     prepared: metadata.primitives.reduce((n, p) => n + p.pages.length, 0),
   }
 }

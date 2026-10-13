@@ -102,8 +102,11 @@ never whole (`partition/`, `world/scene/partitionFrame.ts`).
   (`gpu/dag/pack.ts`, `appendDagRoots`), or, past it, the cut made again over every root beside
   the running one at twice the capacity — once per image however many growths it brought, a
   logarithmic number of times —, the new rows drawn from the image that adopts them, whose first
-  main cut runs whole (`placement/webgpuGrowth.ts`); blended, transparent or deformed rows — the
-  owner reopens once (`onPartitionOutgrown`).
+  main cut runs whole (`placement/webgpuGrowth.ts`); the page table and the tables sized by its rows
+  grow a factor at a time (`rowsAhead`), the cut keeps room for the primitives and sources later
+  growths bring (`DagCapacity.ahead`). A session whose engine cannot grow them leaves the cells past
+  the rows waiting and says it by name (`onPartitionOutgrown`, `content-refused`): it is never opened
+  again.
 - A cell's super-roots stay while its objects are not drawable.
 
 ## Out of memory

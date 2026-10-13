@@ -45,7 +45,7 @@ export function createSessionRuntime(session: ExplorerSession, inputs: Inputs) {
   const host = createSessionState(prepared, signal)
   const { state, ownedControls, lookAtTarget, check, setPose } = host
   const frame = createSessionFrame(session, { prepared, host, engine })
-  const { render, profiler, streaming } = frame
+  const { render, profiler, streaming, partitionsJoin } = frame
   const { dispose, flush, awaitPages } = createExplorerLifecycle(session, {
     ...{ check, state, gpuDevice, profiler, ownedControls, streaming, engine, source, camera },
     streamer: pageSources.streamer,
@@ -53,7 +53,7 @@ export function createSessionRuntime(session: ExplorerSession, inputs: Inputs) {
   return {
     ...{ options, camera, center, bounds, metadata, canvas, render, gpuDevice, dispose, setPose },
     ...{ awaitPages, flush, check, scope, viewport, context, lookAtTarget, radius, ownedControls },
-    ...{ profiler, state },
+    ...{ profiler, state, partitionsJoin },
     /** The session's one engine, the WebGPU page raster. */
     engine,
     /** The families the next frame draws with still on their way, `undefined` once none is: a

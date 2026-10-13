@@ -20,6 +20,7 @@ import { createEngineCamera } from './engineCamera.ts'
 import { readCameraWorld, type CameraMotion, type HostCamera } from './world.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
 import { rasterVisibility } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 
 const VIEWPORT: [number, number] = [1280, 720],
   RASTER: [number, number] = [64, 36]
@@ -36,9 +37,9 @@ function dagPages(): { roots: ReturnType<typeof collectClusterPages>['roots']; v
   const fixture = dagFixture()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   // Dark and metallic: the specular, the only term that reads eye position, stays under 255.
   const material = G.standardSurface({

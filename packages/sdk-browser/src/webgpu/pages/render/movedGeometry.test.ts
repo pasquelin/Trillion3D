@@ -25,7 +25,7 @@ function dynamicRoots(pages = 1, shared = 1, transparent = false) {
     (_, id) =>
       ({
         id,
-        sourceMesh: mesh,
+        drawSource: { node: mesh },
         attributes,
         transparent,
         min: [id, 0, 0],

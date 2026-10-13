@@ -9,6 +9,7 @@ import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { dagFixture } from './dag.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
+import { graphDraws } from './drawSource.ts'
 
 /** DAG fixture, every page resident, tight view on the left half: right-hand clusters
  *  leave the frustum and get counted there. */
@@ -16,9 +17,9 @@ function coupe() {
   const fixture = dagFixture()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const pages = roots.flatMap((root) => root.pages)
   for (const page of pages) page.array = new Uint32Array([0, 1, 2])

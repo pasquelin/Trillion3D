@@ -10,6 +10,7 @@ import { collectClusterPages } from '../../../page/selection/selection.ts'
 import { packDagSelection } from '../../../gpu/dag/selection.ts'
 import { refusing } from './refusing.fixture.ts'
 import type { EngineDiagnostic } from '../../../engine/types.ts'
+import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 /** The label of the Hi-Z pyramid's level 0 (`gpu/hiz/pyramid.ts`). */
 const HI_Z_LEVEL_0 = 'Trillion3D Hi-Z level 0'
@@ -35,7 +36,12 @@ async function resized(
     },
     {
       packed: packDagSelection(
-        collectClusterPages(scene.source, scene.metadata, scene.indices, scene.associations).roots,
+        collectClusterPages(
+          scene.source,
+          graphDraws(scene.source, scene.associations),
+          scene.metadata,
+          scene.indices,
+        ).roots,
       ),
     },
   )

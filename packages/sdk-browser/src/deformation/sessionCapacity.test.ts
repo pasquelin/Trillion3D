@@ -21,7 +21,7 @@ test('a static batch reads its source capacities once and does not rescan them a
   rows.sources = owners
   rows.sourceModels = new Set(owners)
   const roots = owners.map((mesh, index) => ({
-    pages: [{ sourceMesh: mesh }],
+    pages: [{ drawSource: { node: mesh } }],
     world: mesh.matrixWorld,
     placement: { rows, index },
   })) as unknown as ClusterRoot<PageRec>[]

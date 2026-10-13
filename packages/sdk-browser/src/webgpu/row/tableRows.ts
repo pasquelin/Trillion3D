@@ -1,4 +1,5 @@
 import { alignUp } from '../../../../math/src/scalar/integers.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { PAGE_INFO_STRIDE, VIS_MAX_PAGES } from '../../visibility/types.ts'
 import { pageTableRows } from './pageTableRows.ts'
@@ -39,6 +40,33 @@ export function boundTableRows(
     blendSlots,
     bounded: { draw, blend, rows: held, bytes: held * PAGE_INFO_STRIDE },
   }
+}
+
+/**
+ * The rows a table grows to when it must (`grownTableRows`) take pages that join one after the
+ * other — a source added to a running session (`placement/webgpuAppend.ts`) —: `asked`, then a
+ * growth ahead of it, at most twice what is held (`grownCapacity`), within what a view holds
+ * (`VIEW_ROWS`, `ROW_STEP`: `viewRows`) and what a visibility ID names, and bounded by the device
+ * as every table is (`boundTableRows`). The tables sized by row — the page table, the Hi-Z and
+ * partition rows, the draw compact, the motion words — are then made again O(log) times for the
+ * pages a world gains, not once for each.
+ */
+export function rowsAhead(
+  limits: Parameters<typeof storageBufferCap>[0] | undefined,
+  asked: ReturnType<typeof boundTableRows>,
+  held: { blendFirst: number; casterSlots: number },
+  viewRows: number,
+) {
+  const heldBlend = held.casterSlots - held.blendFirst
+  const ahead = (needed: number, have: number) =>
+    needed > have
+      ? Math.max(needed, Math.min(grownLength(have, needed), VIS_MAX_PAGES, viewRows))
+      : needed
+  return boundTableRows(
+    limits,
+    ahead(asked.drawSlots, held.blendFirst),
+    ahead(asked.blendSlots, heldBlend),
+  )
 }
 
 /**

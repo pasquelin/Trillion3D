@@ -1,6 +1,7 @@
 // loading a scene.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/collect.ts'
+import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import { pagesBounds } from '../../../packages/sdk-browser/src/world/scene/pagesBounds.ts'
 import {
   indexManifestBundles,
@@ -80,13 +81,18 @@ const passeCollect =
   (input: ChargementScene) => {
     let output
     try {
-      output = fn(input.source, input.metadata, input.indices, input.associations)
+      output = fn(
+        input.source,
+        graphDraws(input.source, input.associations),
+        input.metadata,
+        input.indices,
+      )
     } catch (error) {
       return { refusal: error instanceof Error ? error.message : String(error) }
     }
     return {
       refusal: null,
-      requestCount: output.requestCount,
+      requestCount: output.requests.size,
       prepared: output.prepared,
       blendCopies: output.blendCopies.length,
       bootstrap: output.bootstrap.length,

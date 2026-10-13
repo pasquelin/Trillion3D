@@ -5,6 +5,7 @@ import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import { collectClusterPages } from './selection.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
+import { graphDraws } from './drawSource.ts'
 import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 export function dagFixture() {
@@ -126,13 +127,10 @@ export function dagFixture() {
   const indices = new Map(pages.map((page) => [page.url, new Uint32Array([0, 1, 2])]))
   for (let id = 0; id < 4; id++)
     indices.set(`leaf${id}`, new Uint32Array([id * 3, id * 3 + 1, id * 3 + 2]))
+  const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
   return {
-    geometry,
-    mesh,
-    source,
-    metadata,
-    indices,
-    associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
+    ...{ geometry, mesh, source, metadata, indices, associations },
+    draws: graphDraws(source, associations),
   }
 }
 
@@ -165,9 +163,9 @@ export function urls(
 ) {
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   return selectVisiblePages(roots, readCameraWorld(fixtureCam, cam), {
     pixelError,

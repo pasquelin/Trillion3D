@@ -7,10 +7,13 @@ import { definePass, definePassFamily } from './passDeclaration.ts'
 /** What every pass of the virtual shadow maps' label opens with (`../vsm/`): all of them are timed
  *  with the Shadows stage, whatever their chunk or light. */
 export const VSM_PASS_PREFIX = 'vsm.'
-/** The placement's two compute passes: the roots' world matrices, then the rows'
- *  (`../placement/gpuCompose.ts`). */
+/** The placement's compute passes: the roots' world matrices, then the rows', and the leaf boxes
+ *  of the placement tree over the worlds composed (`../placement/gpuCompose.ts`); the tree's refit
+ *  (`../gpu/dag/treeRefit.ts`). */
 export const COMPOSE_ROOTS_PASS = 'Trillion3D compose roots'
 export const COMPOSE_ROWS_PASS = 'Trillion3D compose rows'
+export const COMPOSE_MEMBERS_PASS = 'Trillion3D compose members'
+export const TREE_REFIT_PASS = 'Trillion3D placement tree refit'
 /** The DAG selection's compute pass, and the swap of its masks (`../gpu/dag/`). */
 export const DAG_SELECTION_PASS = 'Trillion3D DAG selection'
 export const DAG_MASK_SWAP_PASS = 'Trillion3D DAG mask swap'
@@ -110,6 +113,8 @@ export const VSM_PASSES = definePassFamily({
 export const ENGINE_PASSES = [
   definePass({ label: COMPOSE_ROOTS_PASS, stage: 'animations', block: 'other' }),
   definePass({ label: COMPOSE_ROWS_PASS, stage: 'animations', block: 'other' }),
+  definePass({ label: COMPOSE_MEMBERS_PASS, stage: 'selection', block: 'visibility' }),
+  definePass({ label: TREE_REFIT_PASS, stage: 'selection', block: 'visibility' }),
   definePass({ label: DAG_SELECTION_PASS, stage: 'selection', block: 'visibility' }),
   definePass({ label: DAG_MASK_SWAP_PASS, stage: 'selection', block: 'visibility' }),
   definePass({ label: PARTITION_PASS, stage: 'partition', block: 'visibility' }),

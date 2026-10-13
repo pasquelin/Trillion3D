@@ -127,6 +127,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   pagedBlendCopies.clear()
   blendState.visibleBlend.length = 0
   disposeBlendResources(blendState)
+  blendState.kernels = undefined
   gpu.volumeBuffer?.destroy()
   gpu.volumeBuffer = undefined
   gpu.zeroUv = undefined
@@ -151,7 +152,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.bounce.probes?.dispose()
   rt.bounce.probes = undefined
   rt.lights.spheres?.buffer.destroy()
-  rt.lights.spheres?.local?.destroy()
+  rt.compose?.inputs?.buffer.destroy()
+  rt.compose?.gpu?.dispose()
   rt.lights.spheres = undefined
   rt.lights.buffer?.destroy()
   const closing = gpu.cache?.dispose()

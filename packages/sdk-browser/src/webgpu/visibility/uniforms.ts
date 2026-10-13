@@ -13,7 +13,8 @@ import { SHADE_MODE } from '../../visibility/shader/shadeMode.ts'
 
 /** One entry per indirect draw slot, plus the direct path's. Size follows the scene's coplanar-layer
  *  count: with no layer, one layer's `BASE_SLOTS`. */
-export const visUniformSlots = (vis: WebgpuVisState) => slotCount(vis.drawLayerSlots) + 1
+export const visUniformSlots = (vis: Pick<WebgpuVisState, 'drawLayerSlots'>) =>
+  slotCount(vis.drawLayerSlots) + 1
 
 /** Highest coplanar layer an indirect slot names. The slot count is `1 + min(deepest layer,
  *  MAX_DEPTH_LAYER)` and falls back to 1 on any failure: it never goes below 1, so the top never goes

@@ -15,7 +15,6 @@ export {
 export {
   addTransformNode,
   createTransformTree,
-  NODE_AUTO_UPDATE,
   setNodeAutoUpdate,
   setNodeLocalMatrix,
   setNodePosition,
@@ -110,6 +109,7 @@ export {
   worldToRenderOrigin,
 } from '../../math/src/projection/renderOrigin.ts'
 export { matrixWindingCw } from '../../math/src/matrix/orientation.ts'
+export { NODE_AUTO_UPDATE } from '../../sdk-core/src/world/transform-tree/nodeFlags.ts'
 export {
   nodeWorldDirection,
   nodeWorldPosition,

@@ -31,17 +31,18 @@ export function updateWebgpuDeformation(
     frame = deformation.frame
   const moved = deformation.update(cam, rt.setup.viewport, rt.run.gate.pixelError, rt.run.frame)
   for (let i = 0; i < roots.length; i++) {
-    if (!frame.bases[i]) continue
+    const entry = deformation.entryOf(i)
+    if (!frame.bases[entry]) continue
     const root = roots[i],
       before = root.reach ?? 0
-    root.reach = frame.reach[i]
+    root.reach = frame.reach[entry]
     const grew = before !== root.reach
     rt.run.gpuSelection?.markWorld(i, markReach(root.mark ?? 0, root.reach))
     if (grew) moveRootRows(rt, root, i)
-    if (frame.dirty[i] || grew)
+    if (frame.dirty[entry] || grew)
       noteDeformed(rt, i, Math.max(before, root.reach) * worldStretch(root))
   }
-  updateWavePages(rt, frame)
+  updateWavePages(rt, deformation)
   updateWholeDeformationBounds(rt, deformation, worldsMoved)
   if (moved) device.queue.writeBuffer(pool, deformation.base * 4, frame.block)
   return moved

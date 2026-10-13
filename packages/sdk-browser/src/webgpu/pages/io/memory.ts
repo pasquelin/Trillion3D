@@ -20,6 +20,7 @@ import { vertexBytesOf } from './metrics.ts'
 import { ledgerReplacing } from '../../../gpu/core/deviceLedger.ts'
 import { growWebgpuTables } from '../prepare/growTables.ts'
 import { impostorCardsBytes } from '../../../impostor/cards.ts'
+import type { GrownPages } from '../../../gpu/page/resize.ts'
 
 /**
  * A geometry budget less the vertex buffers held beside its slots (`vertexBytesOf`, #487):
@@ -139,17 +140,20 @@ async function setTextureBudget(rt: WebgpuPagesRuntime, device: Device, budget: 
   return evictedTiles
 }
 
-/** The geometry pool drawn again for `budget`, the tables grown first when it needs more rows. */
+/** The geometry pool drawn again for `budget`, the tables grown first when it needs more rows. The
+ *  pages that joined the catalogue (`grown`) lay out its cache anew, in place, whatever the slots. */
 async function setGeometryBudget(
   rt: WebgpuPagesRuntime,
   device: Device,
   budget: number,
   origin: 'host' | 'prepare-targets',
+  grown?: GrownPages,
 ) {
   const { setup, gpu, run, diag } = rt
   let evictedPages = 0,
     transientBytes = 0,
-    tables: MemoryBudgetsReport['tables'] = null
+    tables: MemoryBudgetsReport['tables'] = null,
+    applied = !grown
   const { bytes, declared } = geometryBudgetBeside(rt, budget)
   // A pool above the tables waits for a running prepare: the tables it builds are those that grow.
   if (setup.preparing && setup.geometryPoolFor(bytes).slots > setup.cap) {
@@ -163,7 +167,7 @@ async function setGeometryBudget(
     tables = await growWebgpuTables(rt, pool.slots)
     if (tables?.refused) pool = undefined
   }
-  if (pool && pool.slots !== setup.slots && gpu.cache && device && !run.lost) {
+  if (pool && (pool.slots !== setup.slots || grown) && gpu.cache && device && !run.lost) {
     // The probe stands for the pool that replaces the one in place (`ledgerReplacing`).
     const held = setup.geometryPool.allocatedBytes,
       bare = geometryProbe(device)
@@ -172,17 +176,39 @@ async function setGeometryBudget(
       grantedGeometryPool(device, bytes, setup.geometryPoolFor, diag.engineDiagnostic, probe),
     )
   }
-  if (pool && pool.slots !== setup.slots && gpu.cache && !run.lost) {
+  if (pool && (pool.slots !== setup.slots || grown) && gpu.cache && !run.lost) {
     transientBytes = setup.geometryPool.allocatedBytes + pool.allocatedBytes
     // The root cover keeps its place before any other page: the pool never goes below it, and a
     // cut can only be completed from it.
-    const evicted = await gpu.cache.resize(pool.slots)
+    const evicted = await gpu.cache.resize(pool.slots, grown)
+    applied = true
     // A pinned page that has just been evicted is told by the cache: the pin step puts it back in
     // the queue if the image still keeps it.
     evictedPages = evicted.length
   }
   if (pool) setup.geometryPool = declared(pool)
-  return { evictedPages, transientBytes, tables }
+  return { evictedPages, transientBytes, tables, applied }
+}
+
+/** The renewals of one session, one after the other, each drawn from the catalogue as it stands. */
+const renewals = new WeakMap<WebgpuPagesRuntime, Promise<unknown>>()
+
+/**
+ * The geometry pool drawn again for the pages that joined the session's catalogue
+ * (`catalogueGrowth.ts`): its budget kept, its cache laid out for them in place — every page it
+ * holds where it was, or moved on the GPU —, the tables sized by drawable page grown first when the
+ * pool asks more. True once the cache holds them; false where the device refuses the pool, which
+ * keeps the one in place.
+ */
+export function growWebgpuPagePool(rt: WebgpuPagesRuntime, grown: GrownPages) {
+  const renewal = (renewals.get(rt) ?? Promise.resolve())
+    .catch(() => {})
+    .then(() =>
+      setGeometryBudget(rt, rt.gpu.device, rt.setup.geometryPool.budgetBytes, 'host', grown),
+    )
+    .then((report) => report.applied)
+  renewals.set(rt, renewal)
+  return renewal
 }
 
 /**

@@ -2,17 +2,10 @@ import { keepCanvasImage, releaseCanvasImage } from '../../gpu/core/canvasHandov
 import type { WorldNotices } from '../diagnostic/worldNotices.ts'
 import type { MeasuredWorldOptions } from '../session/options.ts'
 
-/** Why a world's session opens again. A lost device and an option the engine cannot take in place
- *  still need it; every other cause is a content change the session should take in place, and a
- *  Reopen for it a defect (`defect: true`). */
-export type ReopenCause =
-  | 'device-lost'
-  | 'option'
-  | 'scene-change'
-  | 'repaint-refused'
-  | 'partition-outgrown'
-  | 'vertices-refused'
-const NEEDED: ReadonlySet<ReopenCause> = new Set(['device-lost', 'option'])
+/** Why a world's session opens again: a lost device, or an option the engine cannot take in place
+ *  (a budget split, a scope). Content never does: every mesh, material, model and partition joins
+ *  the session running, and what it cannot take is refused by name (`noticeRefused`). */
+export type ReopenCause = 'device-lost' | 'option'
 
 /** The measure of a reopen in flight: its causes, its start, the display frames it lasted. */
 type Reopening = { causes: Set<ReopenCause>; start: number; frames: number; tick(): void }
@@ -48,12 +41,10 @@ export function worldReopens(
     const by = reopening
     if (!by) return
     reopening = null
-    const causes = [...by.causes],
-      defect = causes.some((cause) => !NEEDED.has(cause))
+    const causes = [...by.causes]
     notices.say('session-reopen', `The world's session opened again (${causes.join(', ')})`, {
-      kind: defect ? 'error' : 'lifecycle',
+      kind: 'lifecycle',
       cause: causes.join('+'),
-      defect,
       drawn,
       durationMs: performance.now() - by.start,
       framesWithoutImage: by.frames,
@@ -68,14 +59,10 @@ export function worldReopens(
   const drew = () => settle(true)
   return {
     request,
-    /** `request` for `cause`, as a hook to hand on. */
-    asks: (cause: ReopenCause) => () => request(cause),
-    /** A session's options: its frames end the reopen, a partition's view it cannot take in place
-     *  asks the next. */
+    /** A session's options: its frames end the reopen. */
     options: (given: MeasuredWorldOptions): MeasuredWorldOptions => ({
       ...given,
       onFrame: (metrics) => (drew(), given.onFrame?.(metrics)),
-      onPartitionOutgrown: () => request('partition-outgrown'),
     }),
     /** A pass begins, `previous` the session it closes, if any: that one is a reopen. */
     closing(previous: object | null) {

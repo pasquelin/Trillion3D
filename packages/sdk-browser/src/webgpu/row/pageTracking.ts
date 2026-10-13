@@ -13,16 +13,27 @@ export type WebgpuPageTracking = ReturnType<typeof createWebgpuPageTracking>
 /** Stable numeric page keys keep the hot residency path out of string hash tables. The catalogue
  *  is the list of pool ADDRESSES (`pageAddress`), which is what the cache holds and pins. */
 export function createWebgpuPageTracking(allPages: PageRec[]) {
-  const pageCatalog = [...new Set(allPages.map(pageAddress))]
-  const pageCatalogIds = new Map(pageCatalog.map((url, index) => [url, index]))
+  const pageCatalog: string[] = []
+  const pageCatalogIds = new Map<string, number>()
   const pageRefs = (urls: string[]) => urls.map((url) => pageCatalogIds.get(url) ?? url)
-  const keyCount = Math.max(1, pageCatalog.length)
   // The highest DAG level of the catalogue: admission ranks the minimum capacity above it.
   let topLevel = 0
-  for (const page of allPages) {
-    page.keyIndex = pageCatalogIds.get(pageAddress(page))
-    topLevel = Math.max(topLevel, page.level ?? 0)
+  /** Numbers the addresses of `pages` the catalogue does not hold yet, behind those it holds: the
+   *  open's records, then the records of a source added to the session (`addPlacements`). */
+  const append = (pages: readonly PageRec[]) => {
+    for (const page of pages) {
+      const address = pageAddress(page)
+      let key = pageCatalogIds.get(address)
+      if (key === undefined) {
+        key = pageCatalog.length
+        pageCatalog.push(address)
+        pageCatalogIds.set(address, key)
+      }
+      page.keyIndex = key
+      topLevel = Math.max(topLevel, page.level ?? 0)
+    }
   }
+  append(allPages)
   const keyOf = (rec: PageRec) => {
     const key = rec.keyIndex ?? pageCatalogIds.get(pageAddress(rec))
     if (key === undefined) throw new Error(`RESIDENCY_KEY_UNKNOWN: ${pageAddress(rec)}`)
@@ -43,9 +54,14 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
     pageCatalog,
     pageCatalogIds,
     pageRefs,
-    keyCount,
+    append,
+    get keyCount() {
+      return Math.max(1, pageCatalog.length)
+    },
     keyOf,
-    topLevel,
+    get topLevel() {
+      return topLevel
+    },
     wanted,
     wantedPages,
     keep,

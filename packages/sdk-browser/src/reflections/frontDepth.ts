@@ -205,6 +205,8 @@ export function createFrontDepth(
     clearValue: [0, 0, 0, 0],
   }
   return {
+    /** Whether it holds the full target: the scene had a blend when it was made. */
+    wanted: blends,
     written,
     view,
     attachment,

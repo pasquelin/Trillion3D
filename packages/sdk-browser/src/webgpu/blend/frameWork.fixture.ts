@@ -2,7 +2,7 @@
 // kernels made on a fake device over the plan of a blend scene.
 import * as G from '../../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import { createBlendExpand } from './expand.ts'
+import { compileBlendExpand, mountBlendExpand } from './expand.ts'
 import { planWords, scratchWords } from './planLayout.ts'
 import type { BlendGpuItem, WebgpuBlendState } from './state.ts'
 
@@ -36,8 +36,9 @@ export async function expandable(device: GPUDevice, blendState: WebgpuBlendState
     device.createBuffer({ label, size: 16, usage: GPUBufferUsage.STORAGE })
   blendState.expandedBuffer = output('expanded')
   blendState.argsBuffer = output('args')
-  blendState.expand = await createBlendExpand(
+  blendState.expand = mountBlendExpand(
     device,
+    await compileBlendExpand(device),
     {
       items: ITEMS,
       entries,

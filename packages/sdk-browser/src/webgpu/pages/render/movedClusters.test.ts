@@ -34,10 +34,10 @@ function arc(i: number) {
   }
   return { min, max }
 }
-const clusters = (sourceMesh?: object) =>
+const clusters = (node?: object) =>
   Array.from(
     { length: CLUSTERS },
-    (_, i) => ({ sourceMesh, level: 0, ...arc(i) }) as unknown as PageRec,
+    (_, i) => ({ drawSource: node && { node }, level: 0, ...arc(i) }) as unknown as PageRec,
   )
 
 /** The ring turned as a named node: what it declares. */

@@ -6,7 +6,15 @@ import {
   markTransformNode,
   type TransformTree,
 } from './transformTree.ts'
-import { hangDepths, linkTransformNode, nextInSubtree, unlinkTransformNode } from './links.ts'
+import {
+  hangDepths,
+  linkTransformNode,
+  nextInSubtree,
+  putOnList,
+  takeOffList,
+  unlinkTransformNode,
+} from './links.ts'
+import { NODE_WORLD_LAZY } from './nodeFlags.ts'
 
 /**
  * Hierarchy structure: subtree walk, removal, release, reparenting. Every operation reads the
@@ -42,6 +50,30 @@ export function visitSubtree(
 }
 
 /**
+ * `node`'s world is composed by something else, or no longer (`NODE_WORLD_LAZY`): a leaf under a
+ * parent moves between the parent's children and its lazy list, so no walk of the children steps
+ * over it, and a read of its world refreshes it. False — nothing changed — for a root or a node
+ * with children. A node that is no longer lazy goes back among the children, listed for the next
+ * pass to recalculate its world.
+ */
+export function setNodeWorldLazy(tree: TransformTree, node: number, lazy: boolean) {
+  assertNode(tree, node)
+  const parent = tree.parent[node],
+    held = (tree.flags[node] & NODE_WORLD_LAZY) !== 0
+  if (held === lazy) return true
+  if (parent < 0 || tree.firstChild[node] >= 0 || tree.firstLazy[node] >= 0) return false
+  takeOffList(tree, node, parent, held)
+  putOnList(tree, node, parent, lazy)
+  if (lazy) tree.flags[node] |= NODE_WORLD_LAZY
+  else {
+    tree.flags[node] &= ~NODE_WORLD_LAZY
+    hangDepths(tree, node)
+    markTransformNode(tree, node, NODE_LOCAL_CHANGED)
+  }
+  return true
+}
+
+/**
  * Removes `node` and all its descendants; their indices will be reused. To detach a
  * subtree while keeping it, `reparentTransformNode(tree, node, -1)`.
  */
@@ -63,11 +95,23 @@ export function releaseTransformNode(tree: TransformTree, node: number) {
     markTransformNode(tree, child, NODE_LOCAL_CHANGED)
     hangDepths(tree, child)
   }
+  for (let child = tree.firstLazy[node]; child >= 0; child = tree.nextSibling[child]) {
+    tree.parent[child] = -1
+    tree.flags[child] &= ~NODE_WORLD_LAZY
+    markTransformNode(tree, child, NODE_LOCAL_CHANGED)
+    hangDepths(tree, child)
+  }
+  tree.firstLazy[node] = tree.lastLazy[node] = -1
   freeNode(tree, node)
 }
 
-/** A freed slot keeps only its place in `listed`, which the frame pass skips. */
+/** A freed slot keeps only its place in `listed`, which the frame pass skips; the lazy leaves
+ *  under it, which no subtree walk reaches, go with it. */
 function freeNode(tree: TransformTree, node: number) {
+  for (let child = tree.firstLazy[node]; child >= 0; child = tree.nextSibling[child]) {
+    tree.flags[child] &= NODE_LISTED
+    tree.free[tree.freeCount++] = child
+  }
   tree.flags[node] &= NODE_LISTED
   tree.free[tree.freeCount++] = node
 }

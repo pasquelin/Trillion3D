@@ -13,6 +13,7 @@ import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { Engine } from '../../engine/types.ts'
 import { EVICT_IN_USE } from '../../gpu/dag/evict.ts'
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 test('a host eviction deferred for coverage is applied once the GPU order gives the page up', async () => {
   installGpuGlobals()
@@ -127,9 +128,9 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
   const fixture = quadScene()
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const packed = packDagSelection(collected.roots)
   const { device, draws, buffers } = fakeDevice({ ...BACKEND, packed })

@@ -3,7 +3,7 @@
 import * as THREE from 'three'
 import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
 import type { ClusterManifest } from '../../../packages/sdk-core/src/index.ts'
-import type { EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { DrawAssociations } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 
@@ -11,7 +11,7 @@ import type { Object3D } from '../../../packages/sdk-core/src/world/object/objec
  *  find it: one `find` over the primitives. */
 export function referencePrimitiveOf(
   metadata: ClusterManifest,
-  associations: EngineContext['associations'],
+  associations: ReadonlyMap<unknown, { meshes?: number; primitives?: number }>,
   mesh: HostMesh,
 ) {
   const association = associations.get(mesh)
@@ -24,7 +24,7 @@ export function referencePrimitiveOf(
 /** `pagesBounds`: one `find` per mesh, three objects per exact page. */
 export function referenceExactPagesBounds(
   source: Object3D,
-  associations: EngineContext['associations'],
+  associations: DrawAssociations,
   metadata: ClusterManifest,
   onMissing: (mesh: HostMesh) => void,
   into = new THREE.Box3(),

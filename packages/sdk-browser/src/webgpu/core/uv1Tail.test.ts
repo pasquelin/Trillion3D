@@ -64,7 +64,7 @@ function assertSecondSetAtTail(
     )
 }
 
-test('the pool writes a second UV set at its atlas tail, and refuses one it was opened without', () => {
+test('the pool writes a second UV set at its atlas tail, and is laid out wider for one it was opened without', () => {
   const { device, textureWrites, textures } = fakeDevice()
   const attributes = secondSet()
   const blocks = new Map()
@@ -74,8 +74,12 @@ test('the pool writes a second UV set at its atlas tail, and refuses one it was 
   const texels = lastAtlasTexels(textures)
   assert.ok(texels >= 3 * 9, 'the atlas holds the normals and the tail')
   assertSecondSetAtTail(textureWrites, texels)
-  const without = createVertexPool(device, 3, false, new Map(), 0, undefined, false)
-  assert.equal(without.place(attributes), undefined, 'a pool without a second set refuses one')
+  const told: number[] = []
+  const withoutBlocks = new Map()
+  const without = createVertexPool(device, 3, false, withoutBlocks, 0, (size) => told.push(size))
+  assert.equal(without.place(attributes)?.hasUv1, true, 'a pool without a second set takes one')
+  assert.deepEqual(told, [3], 'the owners are told once, at the pool’s size')
+  assert.ok(lastAtlasTexels(textures) >= 3 * 9, 'its atlas holds the normals and the tail')
 })
 
 test("a transparent's own atlas is written once, its second set at the tail", () => {

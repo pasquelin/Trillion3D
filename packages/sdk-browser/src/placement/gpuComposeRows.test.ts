@@ -2,12 +2,12 @@
 // nothing moved on the GPU alone: a group of crystals turns once and its children are linked with
 // the rows' own CPU write (`../world/core/worldPoses.ts`), then the scene stays still. Every word of
 // every row the CPU path leaves is compared with the words the compose rows pass (`composeRow`, the
-// shipped WGSL) leaves over the same CPU write. A parent turned on the GPU then makes the row's
-// corners stale: it takes no Hi-Z verdict until the CPU writes it again.
+// shipped WGSL) leaves over the same CPU write. A parent turned on the GPU makes the row's world words
+// the CPU's of that turn, and nothing else: its Hi-Z slot stays the row's own, its corners being
+// derived from the composed world (`gpuComposeDerived.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
-import { NO_HIZ_SLOT } from '../webgpu/row/noHizSlot.ts'
 import { MATRIX_DOUBLES } from './gpuComposeWgsl.ts'
 import { composeRows, cpuTable, crystals, N } from './gpuComposeRows.fixture.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
@@ -34,19 +34,12 @@ test('a group turned once and linked by its rows own write leaves every row word
   composed = composeRows(composed, group.matrixWorld.elements, locals)
   assert.deepEqual(differing(cpu, composed), [], 'a still frame after it')
 
-  // The group turns on the GPU alone: the world words are the CPU's world of that turn, and the
-  // corners the row keeps are the last write's, so no occlusion test judges it.
+  // The group turns on the GPU alone: the row words are those the CPU writes for that turn, the
+  // Hi-Z slot the row's own.
   group.rotation.y = -0.2
   settle()
   const turned = cpuTable(meshes)
   composed = composeRows(composed, group.matrixWorld.elements, locals)
-  const moved = differing(turned, composed)
-  assert.equal(moved.length, N, 'only the Hi-Z slot differs, on every row')
-  assert.ok(moved.every((at) => at.endsWith(`word ${ROW_HIZ_SLOT_WORD}`)))
-  for (let row = 0; row < N; row++)
-    assert.equal(composed[row * ROW_WORDS + ROW_HIZ_SLOT_WORD], NO_HIZ_SLOT)
-  composed = composeRows(composed, group.matrixWorld.elements, locals)
-  assert.equal(composed[ROW_HIZ_SLOT_WORD], NO_HIZ_SLOT, 'still stale on the next still frame')
-  // The CPU writes the rows again (a full write): they are its rows once more.
-  assert.deepEqual(differing(turned, composeRows(turned, group.matrixWorld.elements, locals)), [])
+  assert.deepEqual(differing(turned, composed), [], 'every word of every row')
+  for (let row = 0; row < N; row++) assert.equal(composed[row * ROW_WORDS + ROW_HIZ_SLOT_WORD], row)
 })

@@ -1,6 +1,15 @@
 import { EngineError } from '../../contracts/cache.ts'
 import { IDENTITY_MATRIX4, copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { linkTransformNode } from './links.ts'
+import {
+  NODE_ALIVE,
+  NODE_AUTO_UPDATE,
+  NODE_LISTED,
+  NODE_LOCAL_CHANGED,
+  NODE_TRS_DIRTY,
+} from './nodeFlags.ts'
+
+export * from './nodeFlags.ts'
 import { reserve } from './storage.ts'
 
 /**
@@ -34,6 +43,12 @@ export interface TransformTree {
   /** Each node's children as a linked list, −1 for none: a subtree walk costs the subtree. */
   firstChild: Int32Array
   /** Last child, where an attach links. */ lastChild: Int32Array
+  /** The children whose world something else composes (`NODE_WORLD_LAZY`) as a second list, kept
+   *  off the first so no walk of the tree steps over them: first, and last where one links. A
+   *  child is in one list, the same sibling links serving both. */
+  firstLazy: Int32Array
+  /** Last of the lazy list, where a link goes. */
+  lastLazy: Int32Array
   /** Next child of the same parent. */ nextSibling: Int32Array
   /** Previous child of the same parent. */ previousSibling: Int32Array
   /** Each node's number of ancestors: the frame pass takes parents before children by it. */
@@ -53,18 +68,6 @@ export interface TransformTree {
    *  owner holding views of them points them at the new ones (`world/object/objectPose.ts`). */
   grew?: (position: Float64Array, quaternion: Float64Array, scale: Float64Array) => void
 }
-
-/** `matrixAutoUpdate`: the local matrix is recomposed from position, rotation, scale. */
-export const NODE_AUTO_UPDATE = 1
-/** Pose or local matrix written since the last composition. */
-export const NODE_TRS_DIRTY = 2
-/** Local matrix or parent changed since the last world-matrix calculation. */
-export const NODE_LOCAL_CHANGED = 4
-/** The world-needs-update mark, which only the update rule reads. */
-export const NODE_WORLD_NEEDS_UPDATE = 8
-export const NODE_ALIVE = 16
-/** Held in `listed` until the next frame pass, kept by a freed slot so a reuse lists it once. */
-export const NODE_LISTED = 32
 
 /** An empty hierarchy, ready for `capacity` nodes without growth. */
 export function createTransformTree(capacity = 64): TransformTree {
@@ -108,7 +111,7 @@ export function addTransformNode(tree: TransformTree, parent = -1) {
     node = tree.end++
   }
   tree.parent[node] = -1
-  tree.firstChild[node] = tree.lastChild[node] = -1
+  tree.firstChild[node] = tree.lastChild[node] = tree.firstLazy[node] = tree.lastLazy[node] = -1
   linkTransformNode(tree, node, parent)
   // A freed slot keeps its place in `listed` alone: what a stale handle marked after the free goes.
   tree.flags[node] &= NODE_LISTED

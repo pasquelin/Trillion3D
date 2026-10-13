@@ -8,6 +8,7 @@ import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import { assertOccluderImage, occluderScene, preparedOccluderRun } from '../testOccluder.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'
 import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../../sdk-core/src/index.ts'
+import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', async () => {
   installGpuGlobals()
@@ -28,7 +29,7 @@ test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', as
     ...scene.metadata,
   }
   const viewport: [number, number] = [32, 32]
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const run = await preparedOccluderRun(scene, metadata, collected.roots, device, viewport)
   const { cam, cpu } = run,
     backend = run.backend as Engine
@@ -57,7 +58,7 @@ test("a visibility pass the device fails is the image's failure, said once: no o
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],

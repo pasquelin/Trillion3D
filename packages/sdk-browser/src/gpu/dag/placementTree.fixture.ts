@@ -10,15 +10,17 @@ import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { dagOracleDescent } from './oracle/descent.fixture.ts'
 import { dagViewFrames } from './oracle/math.fixture.ts'
+import { refitTree } from './treeRefitRun.fixture.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 /** `side`² placements of the strip, `gap` apart on x and z, the first at the origin. */
 export function placementField(side: number, gap: number) {
   const fixture = dagFixture()
   const [root] = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   ).roots
   const roots: DagRoot[] = []
   for (let k = 0; k < side * side; k++) {
@@ -39,6 +41,13 @@ export function fieldCamera(eye: number[], at: number[], far = 400) {
   return cam
 }
 
+const fitted = new WeakSet<object>()
+function fitOnce(dag: ReturnType<typeof packDagSelection>) {
+  if (fitted.has(dag)) return
+  fitted.add(dag)
+  refitTree(dag)
+}
+
 /** The cut the oracle draws over `roots` under `camera`, packed with its tree or without one, and
  *  the placements whose root the descent reached: what a frame prepares. */
 export function fieldCut(
@@ -47,6 +56,8 @@ export function fieldCut(
   tree: boolean,
   dag = packDagSelection(roots),
 ) {
+  // The pack leaves the tree open: its first fit is the refit's (`treeRefitRun.fixture.ts`).
+  if (tree && dag.placementTree) fitOnce(dag)
   const packed = tree ? dag : { ...dag, placementTree: undefined }
   const uniforms = kernelUniforms(packed, roots, camera, 1)
   const result = evaluateDagSelectionKernel(packed, uniforms)

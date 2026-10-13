@@ -1,5 +1,5 @@
 import type { Primitive } from '../../../../sdk-core/src/index.ts'
-import type { HostMesh } from '../../host/resources.ts'
+import type { DrawSource } from '../../page/selection/drawSource.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { PlacementOf } from '../../placement/rows.ts'
@@ -10,7 +10,7 @@ import type { BlendOverdraw } from './overdraw.ts'
 import type { TransparentCompaction } from '../transparent/compact.ts'
 import type { TransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts'
 import type { TransparentTable } from '../transparent/table.ts'
-import type { BlendExpand } from './expand.ts'
+import type { BlendExpand, BlendKernels } from './expand.ts'
 import { createWaterBounds } from '../water/bounds.ts'
 import type { WaterPass } from '../water/waterPass.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
@@ -49,7 +49,7 @@ export type BlendGpuItem = {
   /** True while the host hides the source mesh or one of its ancestors: skipped as a parked
    *  row's item is (`placement/hidden.ts`). */
   hidden?: boolean
-  sourceMesh?: HostMesh
+  drawSource?: DrawSource
   sourceGeometry: Geometry
   /** World box of the item, six bounds flat (`packages/math/src/geometry/box.ts`); absent, the item is not rejected. */
   bounds?: Float64Array
@@ -130,6 +130,12 @@ function waterState() {
      *  does not exist of the scene. `transmissiveInView` is how many the frustum kept this image:
      *  zero, and the pass is not encoded (`order.ts`). */
     transmissive: 0,
+    /** A source that brings a transmissive surface asked for the water pass before its items join:
+     *  the targets it draws over are made for it (`holdsWater`). */
+    waterGranted: false,
+    /** A source that brings a blend asked for it before its items join: the front depth the blend
+     *  pass writes is made full size (`sceneBlends`). */
+    frontGranted: false,
     transmissiveInView: 0,
     waterBounds: createWaterBounds(),
     /** Volume of each transmissive item, at its water rank, written with the records. */
@@ -172,6 +178,8 @@ function planState() {
     /** Kernel that expands the sorted plan, and the two buffers it writes: the instance list the
      *  shader reads, and one indirect argument per run. */
     expand: undefined as BlendExpand | undefined,
+    /** The kernels the expansion is mounted on, compiled once whatever the items the session holds. */
+    kernels: undefined as BlendKernels | undefined,
     expandedBuffer: undefined as GPUBuffer | undefined,
     argsBuffer: undefined as GPUBuffer | undefined,
     /** What the vertex index shifts to name the first instance of its run, and the vertices of a

@@ -10,6 +10,7 @@ import { rapport } from '../../core/index.ts'
 import type { Measurement } from '../../core/index.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/selection.ts'
+import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { createWebgpuPagesRuntime } from '../../../packages/sdk-browser/src/webgpu/pages/runtime.ts'
 import { prepareWebgpuBackend } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts'
@@ -28,9 +29,9 @@ installGpuGlobals()
 const scene = cutFrameScene(SIDE)
 const { roots } = collectClusterPages(
   scene.source,
+  graphDraws(scene.source, scene.associations),
   scene.metadata,
   scene.indices,
-  scene.associations,
 )
 const dag = packDagSelection(roots)
 const gpu = fakeDevice({
@@ -40,6 +41,7 @@ const gpu = fakeDevice({
 })
 const rt = createWebgpuPagesRuntime({
   ...scene,
+  draws: graphDraws(scene.source, scene.associations),
   indices: new Map(),
   readPage: async (url: string) => scene.indices.get(url)!,
   gpuDevice: gpu.device,

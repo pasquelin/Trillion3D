@@ -9,7 +9,7 @@ import {
 } from '../../../scene/surfaceBuffer.ts'
 import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts'
 import { wantsAsIsShare } from './asIsShareTarget.ts'
-import { backdropBytes } from '../../transparent/transmission.ts'
+import { backdropBytes, holdsWater } from '../../transparent/transmission.ts'
 import { reflectionBytes } from '../../../reflections/gpu.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { FrameSize } from '../state/renderScale.ts'
@@ -24,7 +24,7 @@ const DISPLAY_BYTES = 4
  * draws what it drew before.
  */
 export const sceneBlends = (rt: Pick<WebgpuPagesRuntime, 'blendState'>) =>
-  rt.blendState.blendGpu.length > 0
+  rt.blendState.blendGpu.length > 0 || !!rt.blendState.frontGranted
 
 /**
  * Whether a frame of `size` makes a display colour of its own at the render size (`Trillion3D
@@ -35,8 +35,7 @@ export const sceneBlends = (rt: Pick<WebgpuPagesRuntime, 'blendState'>) =>
  */
 export const makesDisplayColor = (rt: WebgpuPagesRuntime, size: FrameSize) =>
   !size.apart ||
-  (rt.blendState.transmissive > 0 &&
-    (size.renderWidth !== size.width || size.renderHeight !== size.height))
+  (holdsWater(rt) && (size.renderWidth !== size.width || size.renderHeight !== size.height))
 
 /** Proposed image targets, passed to the existing global memory admission before allocation.
  * Device dimensions remain hard limits; streamable pools retain their coverage/tail minima.

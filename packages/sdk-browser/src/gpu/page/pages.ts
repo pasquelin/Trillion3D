@@ -58,7 +58,8 @@ export function createGpuPageCache(
      * into a buffer while it is being copied. The cache keeps held pins before ordinary pins.
      * Returns keys evicted for lack of room.
      */
-    resize: (slots: number) => resizeBehind(context, slots),
+    resize: (slots: number, grown?: { pageBytes: number; widths: ReadonlyMap<string, number> }) =>
+      resizeBehind(context, slots, grown),
     get(key: string) {
       return resident.get(key)
     },

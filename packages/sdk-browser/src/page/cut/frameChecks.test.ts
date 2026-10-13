@@ -9,6 +9,7 @@ import { dagFixture, wideCamera } from '../selection/dag.fixture.ts'
 import { dagCulling } from '../selection/helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from './held.fixture.ts'
+import { graphDraws } from '../selection/drawSource.ts'
 
 /** A sound near plane: the unsound frames below break one scalar at a time. */
 const NEAR = 0.1 + 2 ** -40
@@ -28,9 +29,9 @@ function rootsOf(culling: boolean, flat = false) {
   }
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   fixture.geometry.dispose()
   return roots

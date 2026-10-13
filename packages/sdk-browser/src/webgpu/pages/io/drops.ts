@@ -1,5 +1,4 @@
 import type { WebgpuRunState } from '../state/run.ts'
-import { markWebgpuLost } from './lost.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** The previous image's occluders no longer describe this one. */
@@ -10,16 +9,6 @@ export function invalidateOccluderHistory(run: WebgpuRunState) {
 /** A capability now served: it leaves the list of what the backend declares unsupported. */
 export function grantCapability(capabilities: WebgpuPagesRuntime['capabilities'], item: string) {
   capabilities.unsupported = capabilities.unsupported.filter((entry) => entry !== item)
-}
-
-/**
- * The GPU cut failed — a readback the device could not map, a send or an encode it refused. It is
- * the engine's one cut (#1483): nothing else draws, so the device is declared lost as for any error
- * of its own (`./lost.ts`), and the host opens the session again on a new one.
- */
-export function loseGpuSelection(rt: WebgpuPagesRuntime, reason: string, error?: unknown) {
-  const message = error === undefined ? reason : `${reason}: ${String(error)}`
-  markWebgpuLost(rt, { reason: 'gpu-selection', message })
 }
 
 /** Releases the GPU cut, at dispose. */
@@ -81,6 +70,7 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
   vis.shadeCache = undefined
   vis.shadeBindGroupLayout = undefined
   vis.visBindGroupLayout = undefined
+  vis.visModule = undefined
   vis.mapsSampler = undefined
   vis.blendBindGroupLayout = undefined
   vis.blendPipelines = undefined
@@ -109,6 +99,7 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
   vis.textures?.destroy()
   vis.textures = undefined
   vis.vertexPool = undefined
+  vis.extendGeometry = undefined
   vis.concatPos =
     vis.concatUv =
     vis.concatNrm =

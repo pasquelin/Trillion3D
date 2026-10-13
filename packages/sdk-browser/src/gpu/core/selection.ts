@@ -113,7 +113,13 @@ export type GpuSelection = {
   readonly worldRevision: number
   /** The buffers of the cut's worlds, one per range of primitives (`../dag/frameRanges.ts`): what
    *  a GPU composition of the poses writes (`../../placement/gpuCompose.ts`). */
-  readonly worldRanges: readonly { first: number; count: number; buffer: GPUBuffer }[]
+  readonly worldRanges: readonly {
+    first: number
+    count: number
+    buffer: GPUBuffer
+    /** The range's frame words, whose first word of a root's row is its stretch. */
+    frames: GPUBuffer
+  }[]
   /** The poses the host holds: every placement's, as a walk wrote them — any may have moved —,
    *  or, `named` given, those it lists, increasing, the placements a call moved: those alone are
    *  compared and sent. The placements whose pose moved — the words a cut reads, or the exact
@@ -124,6 +130,12 @@ export type GpuSelection = {
    *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
    *  host holds is written again over the one its parent composed. */
   composedPlacement(world: number, composed: boolean): void
+  /** The member group of placement `world` in the placement tree, -1 outside it: what a
+   *  composition names the groups of the roots a parent moves by. */
+  groupOf(world: number): number
+  /** The groups `groups` name are fitted again before the next cut: the roots a parent
+   *  composes moved with it (`../dag/treeFollow.ts`). */
+  groupsMoved(groups: ArrayLike<number>): void
   /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
    *  them — the levels, the frustum and the raster split follow the composed poses. */

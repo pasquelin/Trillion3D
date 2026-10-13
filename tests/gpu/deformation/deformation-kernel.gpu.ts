@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { OCT_BYTE_STEP } from '../../../packages/math/src/constants.ts'
-import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/slotLayout.ts'
+import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/outputs.ts'
 import { MOVED, REST, waves } from './deformationKernelCases.ts'
 import { deformationRecords } from './deformationKernelRun.ts'
 

@@ -40,7 +40,7 @@ test('the transparent passes draw one coplanar layer over the opaque depth, ever
 
 test('the transparent occlusion test lifts its bound by at least the transparent layer', () => {
   assert.ok(
-    transparentOcclusionShader(4).includes(
+    transparentOcclusionShader().includes(
       `projectBox(i,max(uni.layerTop,${TRANSPARENT_DEPTH_LAYER}u))`,
     ),
   )

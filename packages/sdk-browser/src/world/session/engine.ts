@@ -15,7 +15,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 type Inputs = {
   source: Object3D
   sceneLightingSource?: Object3D
-  associations: EngineContext['associations']
+  draws: EngineContext['draws']
   textureIndices: Map<HostTexture, number>
   pageSources: ExplorerPageSources
   gpuDevice?: GPUDevice
@@ -100,7 +100,9 @@ function engineContext(
   const { indices, streamer, pageCache } = inputs.pageSources
   // The world roots the scene's own manifest opened ride the context; their pages are read through
   // the one geometry reader, built here once.
-  const worldRoots = inputs.worldRoots.find((hold) => hold.metadata === metadata)
+  // The cut draws one world DAG: the first a model of the scene holds, drawn (`WorldRootsHold.drawn`);
+  // its table names its primitives as the scene ranks them (`WorldRootsHold.rank`).
+  const worldRoots = inputs.worldRoots.find((hold) => hold.drawn)
   return {
     ...optionContext(session),
     source: inputs.source,
@@ -108,10 +110,12 @@ function engineContext(
     indices,
     // The session's reads: the engine's own signal when it has one, the session's life at least.
     readPage: (url) => streamer.read(url, streamer.signal),
-    readGeometryPage: worldOrGeometryReader(worldRoots, streamer.readBytes, streamer.signal),
+    admitPages: (pages) => streamer.admit(pages),
+    onContentRefused: session.options.onContentRefused,
+    readGeometryPage: worldOrGeometryReader(inputs.worldRoots, streamer.readBytes, streamer.signal),
     worldRoots,
     pageRoundTripMs: streamer.roundTripMs,
-    associations: inputs.associations,
+    draws: inputs.draws,
     textureIndices: inputs.textureIndices,
     signal,
     onDiagnostic: diagnosticChannel.enabled ? diagnosticChannel.emit : undefined,

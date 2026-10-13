@@ -9,7 +9,7 @@ import { coarsenTick } from './coarsening.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { createWorldResidencyMirror } from './residencyMirror.ts'
 import { createAsideCut } from './aside.ts'
-import { createTreeFollower } from './treeFollow.ts'
+import { createTreeFollower, type ComposedLeaves } from './treeFollow.ts'
 import { createLinkFollower } from './worldFollow.ts'
 import {
   appendRoots,
@@ -28,8 +28,8 @@ export function createDagRuntime(
   resources: DagResources,
   /** The pages the pool already holds, when the cut is made beside it (`poolList.ts`). */
   poolHeld?: (page: number) => boolean,
-  /** Whether a parent composes placement `w` on the GPU now: its tree group stays open. */
-  composed?: (w: number) => boolean,
+  /** The leaves a parent's composition writes into the tree's refit (`treeFollow.ts`). */
+  leaves?: ComposedLeaves,
 ): GpuSelection {
   const { device, packed } = resources
   const state = createDagRuntimeState()
@@ -46,7 +46,7 @@ export function createDagRuntime(
     // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
     // before #1333, and the rows' flags go up as they are.
     mirror: packed.world && createWorldResidencyMirror({ ...packed, world: packed.world }),
-    tree: createTreeFollower(resources, composed),
+    tree: createTreeFollower(resources, leaves),
     // A link move with no residency behind it goes to the cut's residency as the rows last stood;
     // each move is told to the run's listener (`linkMoved`).
     links: createLinkFollower(resources, {
@@ -92,7 +92,11 @@ function selectionOver(run: DagRun): GpuSelection {
       return packed.live?.pages ?? pageCount
     },
     worldCapacity: packed.worldCount,
-    worldRanges: frames.ranges.map((range, r) => ({ ...range, buffer: frames.worldBuffers[r] })),
+    worldRanges: frames.ranges.map((range, r) => ({
+      ...range,
+      buffer: frames.worldBuffers[r],
+      frames: frames.buffers[r],
+    })),
     packsWorld: !!mirror,
     get worldRevision() {
       return state.worldRevision
@@ -102,6 +106,8 @@ function selectionOver(run: DagRun): GpuSelection {
       if (!composed && live()) rewritePlacement(run, w)
       run.tree?.touch(w)
     },
+    groupOf: (w) => run.tree?.groupOf(w) ?? -1,
+    groupsMoved: (groups) => run.tree?.groupsMoved(groups),
     placeObject: (w, object) => run.links?.place(w, object),
     get linkMoved() {
       return run.linkMoved
@@ -158,6 +164,7 @@ function selectionOver(run: DagRun): GpuSelection {
     dispose() {
       state.disposed = true
       state.dead = true
+      run.tree?.dispose()
       state.pending = state.pending.catch(() => {})
       for (const buffer of buffers) buffer.destroy()
     },

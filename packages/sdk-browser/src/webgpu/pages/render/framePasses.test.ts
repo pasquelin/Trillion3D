@@ -23,6 +23,7 @@ import type { Engine } from '../../../engine/types.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { packDagSelection } from '../../../gpu/dag/selection.ts'
 import { camera, quadScene } from '../testScenes.fixture.ts'
+import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 test('each compute step of a visibility image is one pass, and nothing clears between them', async () => {
   installGpuGlobals()
@@ -39,7 +40,12 @@ test('each compute step of a visibility image is one pass, and nothing clears be
     totalNodes: 0,
     ...scene.metadata,
   }
-  const collected = collectClusterPages(scene.source, metadata, scene.indices, scene.associations)
+  const collected = collectClusterPages(
+    scene.source,
+    graphDraws(scene.source, scene.associations),
+    metadata,
+    scene.indices,
+  )
   const run = await preparedOccluderRun(scene, metadata, collected.roots, gpu.device, [32, 32])
   const backend = run.backend as Engine
   backend.render(run.cam)
@@ -66,7 +72,7 @@ test('the GPU cut is one compute pass, its arguments armed inside it, before the
   installGpuGlobals()
   const fixture = quadScene()
   const { source, metadata, indices, associations } = fixture
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const gpu = fakeDevice({ ...BACKEND, packed: packDagSelection(collected.roots) })
   const backend = webgpuPagesEngine({
     ...fixture,

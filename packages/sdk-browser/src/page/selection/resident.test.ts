@@ -7,14 +7,15 @@ import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { blendFixture, camera } from './blend.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
+import { graphDraws } from './drawSource.ts'
 
 test('the cut follows its residency rule: without an index array, the page is requested but not shown', () => {
   const fixture = blendFixture()
   const { roots, allPages } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   for (const page of allPages) page.array = undefined
   const cam = camera()

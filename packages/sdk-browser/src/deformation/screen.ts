@@ -8,7 +8,7 @@ import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 
-type Roots = readonly ClusterRoot<PageRec>[]
+type Roots = readonly (ClusterRoot<PageRec> | undefined)[]
 
 const centre = new Float64Array(3)
 

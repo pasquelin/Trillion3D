@@ -12,6 +12,7 @@ import { createEngineCamera } from '../camera/engineCamera.ts'
 import { readCameraWorld } from '../camera/world.ts'
 import type { TextureLevelReader, TextureLevelRequest } from '../texture/levelReader.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 export const VIEWPORT: [number, number] = [1280, 720]
@@ -59,9 +60,9 @@ export function impostorScene() {
   const fixture = dagFixture()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   for (const root of roots) root.mesh = MESH
   return { fixture, roots, reader, asked }

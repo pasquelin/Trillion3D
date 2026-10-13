@@ -5,7 +5,8 @@ import { hostPageSurface } from '../../host/pageObjects.ts'
 import { surfaceVariantOf, variantFields, variantKey } from '../../host/prepared/materials.ts'
 import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
 import { firstMaterial } from '../../scene/materialSide.ts'
-import type { HostMesh } from '../../host/resources.ts'
+import type { DrawSource } from '../../page/selection/drawSource.ts'
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import {
   invalid,
   MASK_CUTOFF,
@@ -48,7 +49,7 @@ export const PLAIN = variantKey({ vertexColors: false, flatShading: false })
 
 /** A created material's surface in the variant `geometry` asks for, cloned from its plain one
  *  the first time. */
-function variantOf(variants: Map<string, GraphSurface>, geometry: HostMesh['geometry']) {
+function variantOf(variants: Map<string, GraphSurface>, geometry: Geometry) {
   const variant = surfaceVariantOf(geometry),
     key = variantKey(variant)
   let surface = variants.get(key)
@@ -63,13 +64,13 @@ function variantOf(variants: Map<string, GraphSurface>, geometry: HostMesh['geom
 /** Created material `variants` given to the meshes `drawn`: each wears the variant its geometry
  *  asks for, as the open gave it its own; the meshes may wear surfaces of several classes, and
  *  `from` is one that moves across blended if any does. */
-export function assignment(variants: Map<string, GraphSurface>, drawn: ReadonlySet<HostMesh>) {
-  const meshes = new Map<HostMesh, GraphSurface>(),
+export function assignment(variants: Map<string, GraphSurface>, drawn: ReadonlySet<DrawSource>) {
+  const meshes = new Map<DrawSource, GraphSurface>(),
     to = alphaModeOf(variants.get(PLAIN)!)
   let from: AlphaMode | undefined
   for (const mesh of drawn) {
     meshes.set(mesh, variantOf(variants, mesh.geometry))
-    const mode = alphaModeOf(firstMaterial(mesh.material)!)
+    const mode = alphaModeOf(firstMaterial(mesh.declaration)!)
     if (from === undefined || (mode === 'blend') !== (to === 'blend')) from = mode
   }
   return { surfaces: [...new Set(meshes.values())], meshes, from: from!, to }

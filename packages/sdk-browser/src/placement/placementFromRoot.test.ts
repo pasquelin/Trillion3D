@@ -122,7 +122,9 @@ test('rows, draw items and cut of repeated and moved placements are those of dev
     // Grown in place on the GPU cut (#1483): the table holds the GPU cut's readout, so every taken
     // leaf draws — develop's five-row table left the two new placements out. Recorded on #1483's
     // first run with the grown cut adopted: its seven rows are those the homes test below names.
-    '4f119f25497adc84',
+    // The tables grow ahead of the rows (`rowsAhead`): the digest holds their spare rows too, so it
+    // was recorded again at their new length — the seven rows alone digest as they did.
+    '897933baa11308dc',
   ])
 })
 

@@ -16,7 +16,7 @@ import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/s
 import { PARTITION_SHADER } from '../partition/shader.ts'
 import { RESOLVE, rasterSource } from '../raster/shader.ts'
 import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts'
-import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL } from '../../placement/gpuComposeWgsl.ts'
+import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
 import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER } from '../../bounce/probeWgsl.ts'
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts'
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
@@ -86,7 +86,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DEFORMATION_COMPUTE_WGSL,
   PRESENT_SHADER,
   PRESENT_AT_SHADER,
-  TRANSPARENT_OCCLUSION: transparentOcclusionShader(64),
+  TRANSPARENT_OCCLUSION: transparentOcclusionShader(),
   DAG_SELECTION_SHADER,
   DAG_SELECTION_SPLIT: SPLIT_CUT,
   DAG_ARM_SHADER,
@@ -103,8 +103,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   RASTER: rasterSource(4096, 16),
   RESOLVE,
   REST_COMPACT_SHADER,
-  COMPOSE_ROOTS_WGSL,
-  COMPOSE_ROWS_WGSL,
+  ...COMPOSE_SHADERS,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SNAPSHOT_SHADER,
   BOUNCE_SURFACE_SHADER,

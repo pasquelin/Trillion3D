@@ -13,6 +13,7 @@ import {
   beginPartitionFrame,
   encodePartition,
   growPartition,
+  rebindPartition,
   regroupPartition,
   type Partition,
 } from './partitionFrame.ts'
@@ -139,6 +140,7 @@ function partitionApi(p: Partition): GpuPartition {
     },
     uniforms: allocated.uniforms,
     grow: (rows, next) => growPartition(p, rows, next),
+    rebind: (next) => rebindPartition(p, next),
     forgetRows(from: number, to: number) {
       if (to >= from) p.forgotten.push(from, to)
     },

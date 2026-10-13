@@ -22,7 +22,7 @@ function twoModels(hooked = true) {
   const worlds = hostWorldPlacements(source),
     { rt, run } = runtime(source, [], worlds)
   if (hooked) {
-    run.gate.readScene(source, [{ sourceMesh: a }, { sourceMesh: b }])
+    run.gate.readScene(source, [{ drawSource: { node: a } }, { drawSource: { node: b } }])
     run.gate.updateWorlds(worlds)
   }
   return { source, a, b, worlds, rt, run }
@@ -56,7 +56,7 @@ test('A written by the host, an image held before its world pass, then B moved: 
   const { source, a, b, worlds, rt, run } = twoModels()
   a.position.x = 100
   // The scan reports the write, then the image returns early (readback in flight): no pass ran.
-  run.gate.readScene(source, [{ sourceMesh: a }, { sourceMesh: b }])
+  run.gate.readScene(source, [{ drawSource: { node: a } }, { drawSource: { node: b } }])
   setWebgpuTransform(rt, 'B', moved)
   assert.equal(worlds.of(a).elements[12], 100, 'the move walks the whole index')
   assert.ok(run.gate.updateWorlds(worlds), 'and the next image reads it')

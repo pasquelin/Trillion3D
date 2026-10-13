@@ -391,8 +391,10 @@ in order, each replacing the last. A scene editor needs these three doors and no
 A material written on `color`, `emissive`, `emissiveIntensity`, `metalness` or `roughness` is
 repainted in place, the session kept (a colour picker dragged for ten seconds keeps one session). A
 change it cannot hold in place — a texture, a kind, a side, transparency, values another material
-object shares — is copied on write and reopens the session, once per burst;
-`world.diagnostic.sessions` counts the sessions a world opened.
+object shares — is copied on write: the copy is a new material, and the meshes that wear it join
+the running session as any mesh added to the scene does, the session never opened again for it.
+`world.diagnostic.sessions` counts the sessions a world opened: one, unless the device was lost or
+an option changed (`session-reopen`, `cause`).
 
 `material.meshPhysical` accepts `anisotropy` (strength, 0–1), `anisotropyRotation` (radians),
 `clearcoat` and `clearcoatRoughness`, drawn with `anisotropyMap` (RG the direction, B the
@@ -548,7 +550,9 @@ shelf.add(crate).updateWorldMatrix()
 engine's graph extend it. Every write through a node is heard as it is made; numbers written
 straight into a kept `matrix.elements` are announced with `matrixWorldNeedsUpdate = true`, a light's
 colour channels written straight with `needsUpdate = true`: a still scene reads nothing per frame.
-An update or walk costs its subtree only; a dropped object frees its slot when collected.
+An update or walk costs its subtree only; a dropped object frees its slot when collected. A node
+the session poses under a moving parent is composed on the GPU: its `matrixWorld` is read composed
+once per frame, and `updateMatrixWorld` has nothing of it to do.
 
 The graph classes are `Object3D`, `Group`, `Mesh`, `Scene`, `Camera` and `Light` (its `kind`; a
 `rectArea` for a rectangle, a `probe` with 27 coefficients in `sh`). A light hears its colours and
@@ -780,8 +784,13 @@ waiting on a shadow pool or frame targets is held, never drawn without its shado
 A lost device is recovered without a reload: the session reopens on a new
 device and rebuilds from the decoded-page cache, fetching nothing it still holds, the canvas keeping
 its last image (`gpu-device-recovered`, `recoveryMs`). Each session reopen is said once as
-`session-reopen`: `cause` (`device-lost`, `option`, or a content change with `defect: true`),
-`durationMs`, `framesWithoutImage`.
+`session-reopen`: `cause` (`device-lost` or `option`, nothing else: no change to the scene's content
+opens a session again), `durationMs`, `framesWithoutImage`. A mesh, a material, a model with its
+cells or a world the scene gains joins the running session in place, and one it loses is parked.
+What the session cannot take in place — a catalogue past its keys (`KEY_PAGE_MAX`), a pool or a pass
+the device refuses, a picture that changed size where the atlas layout is fixed — is said by name,
+once, as `content-refused` (`kind: 'error'`, `what`, `reason`); the rest of the scene is drawn as it
+was.
 
 ## Captures and image checks
 

@@ -24,9 +24,14 @@ export const VOLUME_MARKED_WGSL = wgslBlock(
   `fn volumeMarked(vol:Volume,bit:u32)->bool{return (u32(vol.attenuation.w)&bit)!=0u;}`,
 )
 
+/** Whether the session's targets hold the water pass's: a transmissive item is held, or a source
+ *  that brings one was granted the pass (`blendState.waterGranted`). */
+export const holdsWater = ({ blendState }: Pick<WebgpuPagesRuntime, 'blendState'>) =>
+  blendState.transmissive > 0 || !!blendState.waterGranted
+
 /** What the water pass adds to the image budget, zero with no transmissive surface. */
 export function backdropBytes(rt: WebgpuPagesRuntime, width: number, height: number) {
-  return rt.blendState.transmissive ? width * height * WATER_BYTES_PER_PIXEL : 0
+  return holdsWater(rt) ? width * height * WATER_BYTES_PER_PIXEL : 0
 }
 
 /**
@@ -97,6 +102,21 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     packed[base + 7] = (mat.fog === false ? VOLUME_FOG_FREE : 0) | (item.lobed ? VOLUME_LOBED : 0)
   }
   device.queue.writeBuffer(gpu.volumeBuffer, 0, packed)
+}
+
+/** The volume table made to hold the transmissive items the session holds now: the records it has
+ *  stay at their rank, a table that fills is copied once into one twice as long. */
+export function growVolumes(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { gpu, blendState } = rt,
+    held = blendState.volumePacked
+  const words = blendState.transmissive * VOLUME_WORDS
+  if (words <= held.length) return
+  const packed = new Float32Array(Math.max(words, 2 * held.length))
+  packed.set(held)
+  blendState.volumePacked = packed
+  const outgrown = gpu.volumeBuffer
+  gpu.volumeBuffer = createVolumeBuffer(device, packed.length / VOLUME_WORDS)
+  outgrown?.destroy()
 }
 
 /** Volume buffer, sized to the scene's transmissive-item count. */

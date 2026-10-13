@@ -1,4 +1,4 @@
-import { deformationSlotBytes } from '../../../deformation/slotLayout.ts'
+import type { DeformationOutput } from '../../../page/selection/types.ts'
 import { indexSourceBytes } from '../io/catalogue.ts'
 import { describePageSlots, pageAddress } from '../../row/pageSlots.ts'
 import { pageHomes } from '../../../gpu/page/homes.ts'
@@ -15,6 +15,10 @@ import { sessionGeometryPool } from '../../../residency/sessionPool.ts'
 import { floorDiagnostic } from '../../../residency/minimumCapacity.ts'
 import { DEFAULT_PIXEL_RATIO } from '../../../engine/common.ts'
 import { bootstrapFields, setupPages } from './setupCatalogue.ts'
+import { DAG_CLUSTER_TRIANGLES } from '../../../../../sdk-core/src/page/format.ts'
+
+/** The corners of the widest cluster the format holds. */
+const CLUSTER_MAX_CORNERS = 3 * DAG_CLUSTER_TRIANGLES
 export type WebgpuDiagnostics = WebgpuDiagnosticChannel & {
   traceEnabled: boolean
 }
@@ -25,27 +29,35 @@ export type WebgpuPagesSetup = ReturnType<typeof createWebgpuPagesSetup>
 export function createWebgpuPagesSetup(context: EngineContext, diag: WebgpuDiagnostics) {
   const clearColor = announceClearColor(context, diag)
   const pages = setupPages(context, diag)
-  const { requestCount, requestUrls, blendCopies } = pages
+  const { requests, requestUrls, blendCopies } = pages
   const slots = setupSlots(context, diag, pages)
   const { geometry } = slots
   return {
     source: context.source,
+    draws: context.draws,
     // Index of the engine's world matrices: what the image walks, and what a moved node recomputes.
     // Rows, roots and transparent copies carry the matrices.
     worlds: pages.worlds,
     viewport: context.viewport ?? [1, 1],
     pixelRatio: context.pixelRatio ?? (() => DEFAULT_PIXEL_RATIO),
     roots: pages.roots,
+    /** What collected the roots, which collects a source added later (`addPlacements`). */
+    collector: pages.collector,
     allPages: pages.allPages,
+    /** The blocks of floats the deformation writes its results in, in the float pool's tail: one a
+     *  deformed page of a placement (`assignDeformationOutputs`). */
+    deformationBlocks: [] as DeformationOutput[],
     blendCopies,
     pagedBlendCopies: pages.pagedBlendCopies,
     ...bootstrapFields(pages),
     // Dedup of request keys without a hash table, shared by the two lists the host asks after the
     // render: their rank is posted once and for all by the catalogue.
-    requestStamps: new RequestStamps(requestCount),
+    requestStamps: new RequestStamps(requestUrls.length),
     requestUrls,
+    /** Rank of each request key, which a source added later is ranked on (`growCatalogue`). */
+    requests,
     // What the host pins, held from one image to the next and published as a rank delta.
-    hostRanks: createHostRankDelta(requestCount, requestUrls),
+    hostRanks: createHostRankDelta(requestUrls.length, requestUrls),
     // The slots the tables sized by drawable page are sized for: the starting pool's, then each
     // larger pool they grew for (`growTables.ts`).
     cap: geometry.pool.slots,
@@ -63,6 +75,10 @@ export function createWebgpuPagesSetup(context: EngineContext, diag: WebgpuDiagn
     preparing: undefined as Promise<void> | undefined,
     get slots(): number {
       return this.geometryPool.slots
+    },
+    /** The pages the pool must hold whatever the view: the root cover's and those its groups replace. */
+    get floorPages(): number {
+      return this.floorUrls.size
     },
   }
 }
@@ -90,16 +106,11 @@ function setupSlots(
   diag: WebgpuDiagnostics,
   pages: ReturnType<typeof setupPages>,
 ) {
-  const { allPages, roots, floorPages, coverUrls } = pages
+  const { allPages, floorUrls, coverUrls } = pages
+  const floorPages = floorUrls.size
   const uniquePages = Math.max(1, new Set(allPages.map(pageAddress)).size)
-  const {
-    geometryUrls,
-    pageBytes: sourcePageBytes,
-    homes: widths,
-    maxCorners,
-    ...clusterSides
-  } = describePageSlots(allPages)
-  const pageBytes = deformationSlotBytes(allPages, sourcePageBytes, roots, widths)
+  const census = describePageSlots(allPages)
+  const { geometryUrls, pageBytes, homes: widths, maxCorners, ...clusterSides } = census
   // Each page at its own width while the pool holds the whole catalogue (`gpu/page/homes.ts`).
   const homes = pageHomes(widths)
   // Said out loud, never silently: an opaque or masked cluster the cache gave no geometry page
@@ -124,7 +135,10 @@ function setupSlots(
     { pageBytes, uniquePages, homeBytes, rootPages: floorPages, maxResidentPages, limits },
     context.geometryPoolBytes,
   )
-  return { geometryUrls, pageBytes, homes, maxCorners, sourceBytes, geometry }
+  return {
+    ...{ census, geometryUrls, pageBytes, homes, sourceBytes, geometry },
+    maxCorners: Math.max(maxCorners, CLUSTER_MAX_CORNERS),
+  }
 }
 
 /** The setup's fields of the page slots and the transfer budgets. */
@@ -132,8 +146,12 @@ function slotFields(slots: ReturnType<typeof setupSlots>, context: EngineContext
   return {
     pageBytes: slots.pageBytes,
     homes: slots.homes,
-    // Largest corner count of the catalogue: the ceiling of every page draw and of the compute
-    // raster's triangle budget.
+    /** What the pages described so far weigh, which pages joining the session add to. */
+    census: slots.census,
+    /** The catalogue the geometry pool is drawn for, read at each draw (`sessionGeometryPool`). */
+    geometryShape: slots.geometry.shape,
+    // The ceiling of every page draw and of the compute raster's triangle budget: the widest
+    // cluster the format holds, whatever the catalogue, so a page joining the session later fits.
     maxCorners: slots.maxCorners,
     sourceBytes: slots.sourceBytes,
     // Geometry page url of every cluster drawn from one, by cluster address: what the pool reads

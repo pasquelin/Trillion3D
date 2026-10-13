@@ -51,12 +51,16 @@ test("a linked row's world sphere follows its parent's turn on the GPU, around t
         ),
       )
     assert.ok(left > 0.5, `row ${row}: the sphere left the pose of the last CPU write`)
-    assert.ok(gap < 1e-12, `row ${row}: its centre is the CPU's at the composed world, ${gap} off`)
-    assert.ok(out[s + 3] >= cpu[s + 3] + gap, `row ${row}: it holds the CPU's sphere`)
-    assert.ok(
-      out[s + 3] <= cpu[s + 3] * (1 + 1e-5),
-      `row ${row}: and no more than a rounding past it`,
+    // The centre, a double sum split in two singles, is the CPU's word for word; the radius is the
+    // same formula, its single-precision steps run here in double: equal to a rounding (the CPU's
+    // are `rowSphere.ts`'s, held by `rowSphere.test.ts`).
+    const words = [0, 1, 2, 4, 5, 6, 7]
+    assert.deepEqual(
+      words.map((k) => out[s + k]),
+      words.map((k) => cpu[s + k]),
+      `row ${row}: the centre is the CPU's at the composed world (${gap} apart)`,
     )
+    assert.ok(Math.abs(out[s + 3] - cpu[s + 3]) <= cpu[s + 3] * 4e-6, `row ${row}: the radius`)
     assert.equal(out[s + 7], 0)
   }
   // No light casts: the pass leaves every sphere as it was.

@@ -15,13 +15,15 @@
  * `prime`, before the first frame, sizes the rows for the first camera's view (`sizing.ts`; every
  * node when no owner can reopen the session), then reads the pages on its way and the cells it
  * reaches (#575). A reach past those rows, or a parent shrunk or stretched unevenly, grows them in
- * place, else asks the owner to open the session again (`placement/growth.ts`).
+ * place, else tells the owner (`outgrown`) and the cells past the rows wait (`placement/growth.ts`).
  */
 import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { createCellBoxes } from './boxes.ts'
+import type { CellFrame } from './follow.ts'
+import { composeWorld } from '../placement/composeWorld.ts'
 import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts'
 import type { CellRows } from './cellDecode.ts'
 import { createDecodes, takeDecoded } from './decodes.ts'
@@ -57,7 +59,8 @@ export function createPartitionCells(inputs: Inputs) {
     pageDecodes = createDecodes<IndexPage, PageBody>()
   const pins = createPlanPins()
   const holds = createCellHolds(world)
-  const rows = createCellPlacements(root, parents, meshes)
+  const frame: CellFrame = {}
+  const rows = createCellPlacements(root, parents, meshes, frame)
   const { held, touched } = rows
   const far = createFarCells(world, held)
   /** Cells waiting for rows; the rung the rows are sized for (`RUNGS`: all); the widest asked. */
@@ -67,8 +70,15 @@ export function createPartitionCells(inputs: Inputs) {
     sized = -1,
     wanted = -1
   /** Where the camera at `eye` stands in the cells' frame, and the rung its view asks. */
+  const framed = new Float64Array(16)
+  /** The scene root's world, in the frame it hangs in (`pose`). */
+  const rootWorld = () => {
+    const world = resolveCameraWorld(root).worldMatrix,
+      outer = frame.world?.()
+    return outer ? composeWorld(framed, outer, world) : world
+  }
   const view = (eye: ArrayLike<number>, reach: number) => {
-    const local = inCellFrame(resolveCameraWorld(root).worldMatrix, eye, reach)
+    const local = inCellFrame(rootWorld(), eye, reach)
     boxes.refresh()
     const rung = rungOf(heldSide(local.reach, partition.cube, boxes.stretch), partition.cube)
     return { ...local, rung }
@@ -93,6 +103,14 @@ export function createPartitionCells(inputs: Inputs) {
   /** A cell held far lets its super-roots go (`farCells.ts`), a placed one its rows and pages. */
   const leave = (cell: number) => far.release(cell) || (rows.leave(cell), holds.release(cell))
   const partitionCells = {
+    /** The scene hangs in the world `world()` gives, its model's: the rows are that world times
+     *  their own, the camera is read in the scene's frame through it. */
+    pose(world: () => Float64Array) {
+      frame.world = world
+    },
+    /** The world roots its far cells are drawn from (`createFarCells`): the cut's lens serves
+     *  the cells of the one world DAG it packs. */
+    world: world as object | undefined,
     /** The files the streamer's catalogue holds at a session's open: every one the index names now
      *  (`cellIndex.ts`, `named`). */
     get pages() {
@@ -130,6 +148,9 @@ export function createPartitionCells(inputs: Inputs) {
         forget(urls: readonly string[]): void
         update(rows: PlacementRows, from: number, to: number): void
         grow?: PlacementGrowth
+        /** The session's composition (`Engine.composePlacements`): rows linked to the scene's frame
+         *  follow it on the GPU (`CellFrame`). */
+        compose?: CellFrame['compose']
         outgrown?: () => void
         /** The cut's lens while it packs the world DAG, structurally a `SuperRootLens`. */
         lens?: {
@@ -142,6 +163,7 @@ export function createPartitionCells(inputs: Inputs) {
       },
       budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
     ) {
+      frame.compose = io.compose
       rows.follow()
       const local = view(eye, reach)
       if (local.rung > Math.max(sized, wanted)) {
@@ -217,6 +239,23 @@ export function createPartitionCells(inputs: Inputs) {
       plan.visible.forEach((cell, at) => place(cell, decoded[at], seen))
       touched.clear()
       return bytes
+    },
+    /** The partition is let go — the world left the scene it hung from —: every cell placed or
+     *  held far gives its rows back, parked, and its bundles, the files its plan pinned are
+     *  unpinned; `update` is told the rows written. The cells place again at the next `frame`, were
+     *  it followed anew. */
+    close(io: {
+      update(rows: PlacementRows, from: number, to: number): void
+      pin(url: string): void
+      unpin(url: string): void
+    }) {
+      for (const cell of far.cells()) far.release(cell)
+      for (const cell of [...held.keys()]) leave(cell)
+      pageDecodes.keep([], [])
+      decodes.keep([], [])
+      pins.cells([], tookCells, cellUrl, io)
+      pins.pages([], tookPages, io)
+      touched.flush(io.update)
     },
     /** What a frame waits on: the next hold, placed or far, to land or fail, while one reads. */
     reads: () => [...holds.reads(), ...far.reads()],

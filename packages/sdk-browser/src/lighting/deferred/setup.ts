@@ -59,7 +59,12 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
         visibility: GPUShaderStage.FRAGMENT,
         buffer: { type: 'uniform' },
       },
-      texture(CONTRACT_TRACE_BINDINGS.noise, 'unfilterable-float'),
+      computeTextureEntry(
+        CONTRACT_TRACE_BINDINGS.noise,
+        'unfilterable-float',
+        '2d',
+        GPUShaderStage.FRAGMENT,
+      ),
     )
   if (direct && resolve) entries.push(...resolveLayoutEntries())
   // Probe grid and their coefficients: bound only by the bounce program, so a session without

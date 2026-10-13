@@ -72,6 +72,10 @@ export type {
 export type { EngineDiagnostic, PointOfInterest, DiagnosticDetail } from './engine/types.ts'
 /** Placement rows, a cell's decoded rows and how a frame grows them in place, from the scene. */
 export type { PlacementRows } from './placement/rows.ts'
+/** A row of a scene's instance buffer that follows its parent, composed on the GPU. */
+export type { PlacementLink } from './placement/gpuCompose.ts'
+/** What the engine draws, source by source (`page/selection/drawSource.ts`). */
+export type { DrawAssociations, DrawRanks, DrawSource } from './page/selection/drawSource.ts'
 export type { CellRows } from './partition/cellDecode.ts'
 export type { PlacementGrowth } from './placement/engineSceneUpdates.ts'
 /** Host resources the engine reads and never builds (`host/resources.ts`): a host declares them

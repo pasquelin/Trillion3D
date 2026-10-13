@@ -17,13 +17,13 @@ export type LevelFiling = ReturnType<typeof createLevelFiling>
 export function createLevelFiling(
   keyOf: WebgpuPageTracking['keyOf'],
   covers: (key: number) => boolean,
-  topLevel: number,
+  levels: Pick<WebgpuPageTracking, 'topLevel'>,
   merged: ReturnType<typeof createReadbackMerge>['merged'],
 ) {
   return {
     keyOf,
     covers,
-    topLevel,
+    levels,
     merged,
     /** Per key the walk filed, one plus its filing rank. */
     filedBy: createSparseInts(),
@@ -50,7 +50,7 @@ export function createLevelFiling(
 export function openFiling(f: LevelFiling, room: number, ranked: boolean) {
   f.ranked = ranked
   f.room = room
-  f.lift = 2 * f.topLevel + 2
+  f.lift = 2 * f.levels.topLevel + 2
   f.visits = 0
   f.straddle = f.cursor = -1
   f.filedBy.clear()
@@ -66,7 +66,8 @@ export function filePage(f: LevelFiling, rec: PageRec) {
     f.filedLevel = resized(f.filedLevel, visits + 1)
   }
   f.keys[visits] = key
-  f.filedLevel[visits] = admissionLevel(rec, f.topLevel) + (f.cursor < f.merged.first ? f.lift : 0)
+  f.filedLevel[visits] =
+    admissionLevel(rec, f.levels.topLevel) + (f.cursor < f.merged.first ? f.lift : 0)
   f.pages[visits] = rec
   f.visits = visits + 1
   f.filedBy.set(key, f.visits)

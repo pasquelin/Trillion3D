@@ -18,6 +18,9 @@ import { webgpuVertexApi } from './dynamicVertices.ts'
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts'
 import { hostTableBytesOf, setWebgpuMemoryBudgets } from './io/memory.ts'
 import { runtimeMaterialApi } from './io/runtimeMaterialApi.ts'
+import { addWebgpuPlacements } from '../../placement/webgpuAppend.ts'
+import type { WorldRootsHold } from '../../scene/worldRoots.ts'
+import { addWebgpuWorldRoots } from '../../placement/webgpuAppendWorld.ts'
 import { setWebgpuClearColor } from './io/clearColor.ts'
 import * as materials from './io/refreshMaterials.ts'
 import { installGpuDeviceLedger, gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
@@ -54,12 +57,17 @@ export function backendSetters(rt: WebgpuPagesRuntime) {
     ...webgpuPlacementApi(rt),
     composePlacements: (parent, world, links, whole) =>
       composeWebgpuPlacements(rt, parent, world, links, whole),
-    worldCut: () => (run.gpuSelection?.packsWorld ? run.selectionUniforms : undefined),
+    worldCut: (roots) =>
+      run.gpuSelection?.packsWorld && roots && rt.context.worldRoots === roots
+        ? run.selectionUniforms
+        : undefined,
     ...webgpuVertexApi(rt),
     refreshMaterials: (values, alpha) => materials.refreshWebgpuMaterials(rt, values, alpha),
     materialClassRefusal: (alpha) => materials.webgpuMaterialClassRefusal(alpha, rt.setup.allPages),
     wearSurface: (assignment) => materials.wearWebgpuSurface(rt, assignment),
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
+    addPlacements: (source, primitive) => addWebgpuPlacements(rt, source, primitive),
+    addWorldRoots: (roots) => addWebgpuWorldRoots(rt, roots as WorldRootsHold),
     ...runtimeMaterialApi(rt),
     setClearColor: (hex) => setWebgpuClearColor(rt, hex),
   } satisfies Partial<Engine>

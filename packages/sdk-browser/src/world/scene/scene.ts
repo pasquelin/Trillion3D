@@ -17,6 +17,7 @@ import type { ByteMeter } from '../../cluster/byteMeter.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { hostWorldPlacements } from '../../host/world/placements.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 /** What a load that counts bytes adds: the meter of each read, and who hears the tables read. */
 type Metered = {
@@ -202,6 +203,8 @@ export async function loadPreparedScene(
     sceneLightingSource,
     /** The meshes and primitives each node of the scene stands for, by node. */
     associations,
+    /** What the scene draws, one source for each drawn node in the graph's order. */
+    draws: graphDraws(source, associations),
     /** The rank of each texture of the scene in the table the shaders index. */
     textureIndices,
     /** The lot the camera framing takes the scene's bounds in, `null` when no node is bounded;

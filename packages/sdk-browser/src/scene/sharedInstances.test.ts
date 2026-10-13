@@ -13,6 +13,7 @@ import {
 import { createWebgpuGpuState } from '../webgpu/pages/state/gpu.ts'
 import type { ClusterManifest, Primitive } from '../../../sdk-core/src/index.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 
 function blendGeometry(withUv: boolean) {
   const geometry = new G.Geometry()
@@ -133,9 +134,9 @@ test('two instances share the DAG shape, never what places them', () => {
   fixture.associations.set(second, { meshes: 0, primitives: 0 })
   const { roots, allPages } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   assert.equal(roots.length, 2)
   // One record per primitive page per placement: this object has its own pages.

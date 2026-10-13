@@ -24,13 +24,9 @@ const SIZE: [number, number] = [64, 64]
  *  the roots whose rank each posts. */
 async function recordsOf(source: ExplorerSource) {
   const { scene, metadata } = source
-  const { allPages, roots } = collectClusterPages(
-    scene.source,
-    metadata,
-    new Map(),
-    scene.associations,
-    { allowMissing: true },
-  )
+  const { allPages, roots } = collectClusterPages(scene.source, scene.draws, metadata, new Map(), {
+    allowMissing: true,
+  })
   for (const rec of allPages)
     rec.array = new Uint32Array(await resolveObjectURL(rec.url)!.arrayBuffer())
   // Each record's placement, by its first packed rank: one record may serve several.

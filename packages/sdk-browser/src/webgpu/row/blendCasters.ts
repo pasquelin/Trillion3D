@@ -38,7 +38,7 @@ export function createBlendCasterRows(
     ...{ rows, writePageRow, onCoverageChange },
     /** A packed rank back to its record: the one catalogue accessor
      *  (`../../page/selection/catalogue.ts`). */
-    recordOf: createPageCatalogue(packedPages).recordOf,
+    ...createPageCatalogue(packedPages),
     ...{ first: -1, free: new Int32Array(0), freeCount: 0, short: 0 },
     waiting: createSparseInts(),
     ...{ table: undefined, epoch: -1 },
@@ -78,6 +78,7 @@ type Casters = {
   writePageRow: PageRowWriter
   onCoverageChange: (rec: PageRec, page: number) => void
   recordOf: ReturnType<typeof createPageCatalogue>['recordOf']
+  outputOf: ReturnType<typeof createPageCatalogue>['outputOf']
   first: number
   free: Int32Array
   freeCount: number
@@ -155,7 +156,7 @@ function follow(c: Casters, page: number, restale: boolean) {
   const casts =
     rows.offsetOf(page) >= 0 &&
     !awaitsPageBytes(rec) &&
-    (castsBlendShadow(rec.material) || !!rec.deformationOutput)
+    (castsBlendShadow(rec.material) || !!c.outputOf(page))
   if (!casts) {
     if (row < 0) return
     release(c, page, row)

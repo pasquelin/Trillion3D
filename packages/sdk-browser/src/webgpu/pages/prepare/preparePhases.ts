@@ -1,5 +1,8 @@
 import { loadUnpaged } from '../../core/positions.ts'
-import { prepareDeformationGeometry } from '../../../deformation/prepare.ts'
+import {
+  prepareDeformationCompute,
+  prepareDeformationGeometry,
+} from '../../../deformation/prepare.ts'
 import { prepareWebgpuBlend } from '../../blend/prepare.ts'
 import { createTransparentTable } from '../../transparent/table.ts'
 import { prepareBlendResources } from '../../blend/resources.ts'
@@ -50,10 +53,10 @@ export async function prepareGeometryAndBlend(
   // The transparent draw order is the scene's, settled here once: an image only picks survivors.
   const table = createTransparentTable(selectionRoots, packedPages, blendState.blendGpu)
   blendState.table = table
-  for (let i = 0; i < blendState.table.pagedItems.length; i++)
-    blendState.table.pagedItems[i].pagedIndex = i
-  blendState.compaction = await step('transparent compaction', () =>
-    createTransparentCompaction(gpuDevice, table),
+  // A scene with no blended page has no compaction to make: a source that brings some makes it
+  // (`prepareBlendGrowth`).
+  blendState.compaction = await step('transparent compaction', async () =>
+    table.length ? createTransparentCompaction(gpuDevice, table) : undefined,
   )
   // Transparent clusters are compacted on the GPU alone, from the GPU cut's mask (#1483).
   if (table.length && !blendState.compaction?.encode)
@@ -100,11 +103,7 @@ export async function prepareMaterials(
   vis.writesEmissiveAo = wantsEmissiveAo(rt)
   await grantFrameTargets(rt, gpuDevice)
   // A refused deformation import is a geometry failure, told below: no compute without its code.
-  const deformationCode = vis.deformationCode
-  vis.deformationCompute =
-    deformationCode && (allPages.some((page) => page.deformationOutput) || !!vis.wholeDeformation)
-      ? await deformationCode.createDeformationCompute(gpuDevice)
-      : undefined
+  await prepareDeformationCompute(rt, gpuDevice)
   try {
     if (geometryFailure) throw geometryFailure.error
     await step('textures', () => prepareWebgpuTextures(rt, gpuDevice, census))

@@ -14,6 +14,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { webgpuPagesEngine } from '../pages/pages.ts'
 import { SHADOW_LIMITS, mixedBinScene } from '../pages/testScenes.fixture.ts'
+import type { DrawAssociations } from '../../page/selection/drawSource.ts'
 
 /** The backend over the floor and the caster, lit by `light`, with whatever `options` add, the
  *  caster placed by the rows of `placements` when given; prepared. */
@@ -29,14 +30,9 @@ export async function floorCasterBackend(
   }
   const [caster, floor] = scene.source.children
   caster.name = 'caster'
-  const links: EngineContext['associations'] = scene.associations
+  const links: DrawAssociations = scene.associations
   if (placements) links.get(caster)!.placements = placements
-  const { roots } = collectClusterPages(
-    scene.source,
-    scene.metadata,
-    scene.indices,
-    scene.associations,
-  )
+  const { roots } = collectClusterPages(scene.source, scene.draws, scene.metadata, scene.indices)
   const gpu = fakeDevice({ ...BACKEND, packed: packDagSelection(roots), limits: SHADOW_LIMITS })
   const lights = createSceneLightStore()
   lights.add(light)

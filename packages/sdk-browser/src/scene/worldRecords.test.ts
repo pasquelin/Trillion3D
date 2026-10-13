@@ -9,10 +9,12 @@ import * as G from '../host/graph/graph.fixture.ts'
 import { worldRootDag } from './worldSuperRoots.ts'
 import { worldRootPages } from './worldPageServe.ts'
 import { worldSelectionRoot, worldWearers } from './worldRecords.ts'
-import { meshSurface } from '../page/surface.ts'
+import { sourceSurface } from '../page/surface.ts'
+import { drawSourceOf } from '../page/selection/drawSource.ts'
 import { rootCoverOf } from '../webgpu/pages/prepare/rootCover.ts'
 import { pageAddress } from '../webgpu/row/pageSlots.ts'
 import { createWebgpuPageTracking } from '../webgpu/row/pageTracking.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 
 /** The cook's world DAG, every cluster wearing primitive 0. */
 function dag() {
@@ -25,9 +27,10 @@ function dag() {
 
 test("a super-root is a geometry page worn in its primitive's surface", () => {
   const mesh = G.triangleMesh(G.standardSurface()),
-    surface = meshSurface(mesh)
+    drawSource = drawSourceOf(mesh),
+    surface = sourceSurface(drawSource)
   const world = dag(),
-    root = worldSelectionRoot(world, (p) => (p === 0 ? { mesh, surface } : undefined), 7)!
+    root = worldSelectionRoot(world, (p) => (p === 0 ? { drawSource, surface } : undefined), 7)!
   assert.equal(root.pages.length, world.pages.length)
   root.pages.forEach((rec, rank) => {
     const page = world.pages[rank]
@@ -69,8 +72,8 @@ test('a world page is worn by the mesh of its primitive, never a blended one', (
     { mesh: 2, primitive: 0, pass: 'clustered-blend' },
     { mesh: 3, primitive: 0, pass: 'clustered' },
   ] as Primitive[]
-  const wear = worldWearers(source, primitives, associations)
-  assert.equal(wear(0)?.mesh, opaque)
+  const wear = worldWearers(graphDraws(source, associations), primitives)
+  assert.equal(wear(0)?.drawSource.node, opaque)
   assert.equal(wear(1), undefined, 'its surface blends')
   assert.equal(wear(2), undefined, 'its primitive blends')
   assert.equal(wear(3), undefined, 'no mesh draws it')
@@ -78,14 +81,15 @@ test('a world page is worn by the mesh of its primitive, never a blended one', (
 
 test('a world root no mesh wears is no page: the cover and the floor take no slot for it', () => {
   const mesh = G.triangleMesh(G.standardSurface()),
-    surface = meshSurface(mesh)
+    drawSource = drawSourceOf(mesh),
+    surface = sourceSurface(drawSource)
   const world = dag(),
     top = world.pages.length - 1
   ;(world.pages as { primitive: number | null }[])[top].primitive = 1
-  const root = worldSelectionRoot(world, (p) => (p === 0 ? { mesh, surface } : undefined), 7)!
+  const root = worldSelectionRoot(world, (p) => (p === 0 ? { drawSource, surface } : undefined), 7)!
   assert.equal(root.pages[top].url, '', 'the pinned top no mesh wears')
   const cover = rootCoverOf([root], createWebgpuPageTracking(root.pages))
-  assert.ok(cover.bootstrap.length > 0 || cover.floorPages > 0)
+  assert.ok(cover.bootstrap.length > 0 || cover.floorUrls.size > 0)
   assert.ok(
     !cover.bootstrap.some((page) => pageAddress(page) === ''),
     'no page read at an empty address',

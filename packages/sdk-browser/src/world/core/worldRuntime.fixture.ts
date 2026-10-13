@@ -10,17 +10,21 @@ import '../../wasm/sdkWasm.fixture.ts'
 const saved = { location: Reflect.get(globalThis, 'location') }
 Reflect.set(globalThis, 'location', new URL('http://engine.test/'))
 Reflect.set(globalThis, 'ProgressEvent', globalThis.ProgressEvent ?? Event)
-/** Every reopen a content change caused in these tests' runtimes: each one a defect. */
-const contentReopens: unknown[] = []
+/** Every content the session refused in these tests' runtimes, said on `content-refused`, and every
+ *  reopen for a cause but a lost device or an option: each one a defect. */
+const contentRefusals: unknown[] = []
 const stopListening = worldNoticeListeners.subscribe(({ phase, context }) => {
-  if (phase === 'session-reopen' && context?.defect) contentReopens.push(context)
+  if (phase === 'content-refused') contentRefusals.push(context)
+  if (
+    phase === 'session-reopen' &&
+    (context?.defect ||
+      !/^(device-lost|option)(\+(device-lost|option))*$/.test(`${context?.cause}`))
+  )
+    contentRefusals.push(context)
 })
-/** The content reopens heard since the last call, for a test that asks one on purpose: taken,
- *  they are no longer counted a defect of these tests. */
-export const takeContentReopens = () => contentReopens.splice(0)
 after(() => {
   stopListening()
-  assert.deepEqual(contentReopens, [], 'a content change reopened a session')
+  assert.deepEqual(contentRefusals, [], 'a content change was refused by the session')
   Reflect.set(globalThis, 'location', saved.location)
 })
 

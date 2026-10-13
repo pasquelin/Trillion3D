@@ -26,7 +26,10 @@ export function deformationRuntime(
   const rt = {
     // A zero pixel error skips no placement (`screen.ts`).
     vis: {
-      deformation: { any: true, frame, base: 0, update: () => frame.update(() => false) },
+      deformation: {
+        ...{ any: true, frame, base: 0, entryOf: (rank: number) => rank },
+        update: () => frame.update(() => false),
+      },
       concatPos: {},
     },
     gpu: { device: { queue: { writeBuffer() {} } } },

@@ -14,7 +14,7 @@ test("a parent's turn advances the cut's world revision on the frame it moved, a
   const parent = {},
     local = turn(0.4)
   const links = [0, 1].map((index) => ({ rows, index, local }))
-  assert.equal(composeWebgpuPlacements(rt, parent, turn(0), links, true), true)
+  composeWebgpuPlacements(rt, parent, turn(0), links, true)
   assert.equal(frame(), 0, 'the link frame: the rows were written whole, the CPU worlds moved')
   assert.equal(frame(), 0, 'a still parent moves nothing')
   composeWebgpuPlacements(rt, parent, turn(0.1), [], false)
@@ -33,12 +33,21 @@ test('a parent unlinked and linked anew starts from its new world: no motion fro
     links = [0, 1].map((index) => ({ rows, index, local: turn(0) }))
   composeWebgpuPlacements(rt, parent, turn(0), links, true)
   frame()
-  assert.equal(composeWebgpuPlacements(rt, parent, turn(0), [], true), true, 'unlinked')
+  composeWebgpuPlacements(rt, parent, turn(0), [], true)
   assert.deepEqual([...rt.compose!.parentOf], [NONE, NONE])
-  assert.equal(composeWebgpuPlacements(rt, parent, turn(1), [], false), false, 'holds none')
+  composeWebgpuPlacements(rt, parent, turn(1), [], false)
   composeWebgpuPlacements(rt, parent, turn(2), links.slice(1), true)
   assert.deepEqual([...rt.compose!.parentOf], [NONE, 0], 'its slot taken again, one root')
   assert.equal(frame(), 0, 'linked at its new world: nothing moved on the GPU')
+})
+
+/** A table of `count` rows holding no page: the rows' inputs are zero. */
+const tableOf = (count: number) => ({
+  rowCount: count,
+  packedRecs: [],
+  packedPageIndex: [],
+  blendFirst: count,
+  forEachDirtyRun: () => {},
 })
 
 test('the compose kernels are asked once a parent links rows, the frames held until they compiled off the thread', async () => {
@@ -60,7 +69,7 @@ test('the compose kernels are asked once a parent links rows, the frames held un
       }),
     },
   })
-  Object.assign(rt.layout, { rows: { rowCount: 2 } })
+  Object.assign(rt.layout, { rows: tableOf(2) })
   encodeComposedRows(rt, device, encoder)
   assert.deepEqual(compiled, { sync: 0, async: 2 }, 'both kernels compiled off the frame, once')
 })
@@ -78,7 +87,7 @@ test('the compose passes make their groups once, then only when a buffer one nam
       }),
     },
   })
-  Object.assign(rt.layout, { rows: { rowCount: 2 } })
+  Object.assign(rt.layout, { rows: tableOf(2) })
   const image = () => {
     frame()
     encodeComposedRows(rt, device, encoder)

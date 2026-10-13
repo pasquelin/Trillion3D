@@ -1,5 +1,6 @@
 import {
   NODE_ALIVE,
+  NODE_WORLD_LAZY,
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
@@ -10,6 +11,7 @@ import {
   reparentTransformNode,
   setNodeAutoUpdate,
   setNodeLocalMatrix,
+  setNodeWorldLazy,
 } from './nodeEdits.ts'
 import { updateNodeWorldMatrix } from '../../world/transform-tree/update.ts'
 import { attachSceneNode } from './nodeAttach.ts'
@@ -74,7 +76,25 @@ export class SceneNode {
   /** Current world matrix, valid while the node lives; updateWorldMatrix after a pose change. */
   get worldMatrix(): Readonly<Float64Array> {
     this.assertAlive()
-    return this.state.tree.worldViews[this.index]
+    const { tree } = this.state
+    // A leaf whose world is composed elsewhere (`NODE_WORLD_LAZY`) is refreshed where it is read.
+    if (tree.flags[this.index] & NODE_WORLD_LAZY)
+      updateNodeWorldMatrix(tree, this.index, true, false)
+    return tree.worldViews[this.index]
+  }
+
+  /**
+   * Its world matrix is composed by something else — the GPU, under its parent — or no longer: a
+   * leaf under a parent only. The frame pass then leaves it out and `worldMatrix` refreshes it on
+   * every read (`NODE_WORLD_LAZY`). False when it cannot be: a root, or a node with children.
+   */
+  _setWorldLazy(lazy: boolean) {
+    this.assertAlive()
+    const { tree } = this.state
+    // A leaf taken back keeps the world it was read at: refreshed before the pass takes it again.
+    if (!lazy && tree.flags[this.index] & NODE_WORLD_LAZY)
+      updateNodeWorldMatrix(tree, this.index, true, false)
+    return setNodeWorldLazy(tree, this.index, lazy)
   }
 
   /** Adds a child. */ add(child: SceneNode) {

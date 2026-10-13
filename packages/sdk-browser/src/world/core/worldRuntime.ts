@@ -1,6 +1,5 @@
 import { createRequestLoop } from './requestLoop.ts'
 import { createWorldContents } from './worldContents.ts'
-import { releaseWorldMirror } from './worldMirror.ts'
 import { createWorldLights } from './worldLights.ts'
 import { createWorldLink } from './worldLink.ts'
 import { createWorldBackground } from './worldBackground.ts'
@@ -20,8 +19,8 @@ import {
 
 /** The session drawing a world, fed by a per-frame change list: what the scene asks is resolved
  *  off the frame (`worldContents.ts`), applied once before each frame — rows taken, parked or grown
- *  (`placement/growth.ts`), poses, background —, and opened again once per burst for what it
- *  lacks: a model, a resource it was not opened with, or what its engine cannot take in place. */
+ *  (`placement/growth.ts`), models and their partitions joined (`worldModelJoin.ts`), poses,
+ *  background —; and opened again for a lost device or an option alone (`worldReopen.ts`). */
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera } = inputs
   const contents = createWorldContents(scene, inputs.diagnostic.notices),
@@ -31,8 +30,6 @@ export function createWorldRuntime(inputs: Inputs) {
   const track = worldReopens(canvas, inputs.diagnostic.notices, () => reopens.request())
   const state: WorldRuntimeState = {
     explorer: null,
-    mirror: null,
-    twins: new Map(),
     resolving: null,
     structureChanged: false,
     seatWanted: false,
@@ -130,6 +127,10 @@ function runtimeHandle(
     moveNamed: parts.moveNamed,
     /** A session option changed, or the device was lost: the next opening takes it. */
     renew: track.request,
+    /** Whether a session is open or opening. */
+    get holdsSession() {
+      return state.explorer !== null || reopens.running !== null
+    },
     /** Settles once `session` has closed: what waited on it carries on with the next one. */
     ended: track.ended,
     /** Exposure or curve changed: written with the lights before the next frame. */
@@ -139,7 +140,8 @@ function runtimeHandle(
     },
     /** Settles once the session reflects every change made so far. */
     async settled() {
-      while (state.resolving || reopens.running) await (state.resolving ?? reopens.running)
+      while (state.resolving || reopens.running || contents.joining)
+        await (state.resolving ?? reopens.running ?? contents.joining)
       await state.explorer?.familiesPending() // a family on its way: a change not drawn yet
     },
     /** A frame, `ahead` stepping first: drawn now, or once the world can (`worldAskedFrame.ts`). */
@@ -159,8 +161,8 @@ function runtimeHandle(
       state.disposed = true
       state.explorer?.dispose()
       track.dispose(state.explorer)
-      if (state.mirror) releaseWorldMirror(state.mirror.root)
       contents.cuts.dispose()
+      contents.dispose()
       scene.traverse((node) => (node._link = null))
     },
   }

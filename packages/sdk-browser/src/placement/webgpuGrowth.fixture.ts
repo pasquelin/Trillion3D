@@ -20,6 +20,7 @@ import { readoutRow } from '../gpu/dag/bufferTable.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { growthOf, webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 
 /** A ground triangle, and the two primitives of the mesh the partition places (`cells.fixture`),
  *  each a triangle of one root cluster, on the rows of `links`. */
@@ -51,7 +52,14 @@ function placedScene(links: readonly RowLink[]) {
     [leaves[1], links[1]],
   ])
   const dispose = () => [...geometries, surface].forEach((item) => item.dispose())
-  return { source, metadata, indices, associations, dispose }
+  return {
+    source,
+    metadata,
+    indices,
+    associations,
+    draws: graphDraws(source, associations),
+    dispose,
+  }
 }
 
 /** Pages the scene packs, grown: the ground and four leaf rows of two pages. */
@@ -72,9 +80,9 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
   const scene = placedScene(links)
   const collected = collectClusterPages(
     scene.source,
+    graphDraws(scene.source, scene.associations),
     scene.metadata,
     scene.indices,
-    scene.associations,
   )
   // A binding of `bindingRows` table rows, no smaller than the GPU cut's readout at the scene's list
   // cap, grown or not: the cut is the engine's one cut, and a device that cannot hold it refuses
@@ -93,11 +101,14 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
     maxResidentPages: 3,
     viewport: [1, 1], // The intentionally tiny storage limit also bounds receiver offsets.
   })
-  const { port, held, outgrown: reopened } = io(bytes)
+  const { port, held, outgrown: reopened, rebind } = io(bytes)
   ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
   port.update = (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to)
   const { growsInPlace, growPlacements } = webgpuPlacementApi(rt)
-  port.grow = { growsInPlace, growPlacements }
+  port.grow = {
+    growsInPlace,
+    growPlacements: (from, to) => (growPlacements(from, to), rebind(from, to)),
+  }
   const view = cameraAt(0, 30)
   const draw = async () => {
     renderWebgpuPages(rt, view)

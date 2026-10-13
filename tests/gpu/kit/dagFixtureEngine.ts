@@ -19,7 +19,7 @@ export function dagFixtureEngine(
     source: fixture.source,
     metadata: fixture.metadata,
     indices: fixture.indices,
-    associations: fixture.associations,
+    draws: fixture.draws,
     gpuDevice: device,
     viewport: [128, 128],
     pixelError: 0,

@@ -20,7 +20,7 @@ function graphe() {
 }
 
 /** The reread nodes: the source models of what is drawn, the lamps, and their ancestors. */
-const drawn = (...meshes: G.Object3D[]) => meshes.map((sourceMesh) => ({ sourceMesh }))
+const drawn = (...meshes: G.Object3D[]) => meshes.map((node) => ({ drawSource: { node } }))
 
 function veille(source: G.Object3D, ...meshes: G.Object3D[]) {
   const watch = createHostSceneWatch()

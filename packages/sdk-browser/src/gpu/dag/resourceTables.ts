@@ -74,14 +74,15 @@ export function uploadDagTables(
     bytes: buffers.length > 1 ? list[0].size : Number.MAX_SAFE_INTEGER,
   })
   const nodeParts = partsOf(tables.nodes, parts.nodes),
-    coldParts = partsOf(tables.cold, parts.pageCones)
+    coldParts = partsOf(tables.cold, parts.pageCones),
+    clusterParts = partsOf(tables.clusters, parts.clusters)
   for (const [target, source] of [
-    [partsOf(tables.clusters, parts.clusters), packed.clusters],
+    [clusterParts, packed.clusters],
     [nodeParts, packed.nodes],
     [coldParts, packed.pageCones],
   ] as const) {
     const { buffer, byteOffset, byteLength } = source
     writeParts(device, target, 0, buffer as ArrayBuffer, byteOffset, byteLength)
   }
-  return { nodeParts, coldParts }
+  return { nodeParts, coldParts, clusterParts }
 }

@@ -10,6 +10,8 @@ import type { PlacementTree } from './placementTree.ts'
 import type { PackedWorld } from './worldLinks.ts'
 import type { HeldOpen } from './heldOpen.ts'
 import type { PlacementIndex } from '../../page/selection/placements.ts'
+import type { createRecordTable } from './packRecords.ts'
+import type { ContentKeys } from './evict.ts'
 
 /** The view one run of the kernel serves: the camera's uniforms. */
 export type DagViewUniforms = SelectionUniforms
@@ -20,6 +22,8 @@ export type DagViewUniforms = SelectionUniforms
 export const DAG_NODE_FLOATS = 24,
   FRAME_VEC4 = 2,
   CULL_STRIDE = 15
+/** Words of a placement's row of `frames`. */
+export const FRAME_ROW_WORDS = FRAME_VEC4 * 4
 type DagCluster = {
   url: string
   /** Its quantized page: with `url`, the content key the pool holds it under (`evict.ts`). */
@@ -84,6 +88,13 @@ export type DagPackShared = {
   /** Per node array, where its nodes lie in the node table — one copy for every placement of
    *  the primitive — and the node owning each of its pages there. */
   nodeBlocks: Map<Float64Array, { nodeBase: number; nodeCount: number; owner: Uint32Array }>
+  /** The unique records written, which a page array of another source of a packed primitive is
+   *  looked up in: its records are an earlier placement's when their words are the same. */
+  records?: ReturnType<typeof createRecordTable>
+  /** The content keys written, which an appended array's pages are named by. */
+  keys?: ContentKeys
+  /** Where the cold records begin in the cold words: what a growth writes the records it adds by. */
+  coldAt?: number
 }
 export type PackedDag = {
   kind: 'dag'
@@ -123,8 +134,10 @@ export type PackedDag = {
   /** What a later placement of a packed primitive reads to be appended in place
    *  (`appendDagRoots`): absent for a packing without room past its roots. */
   shared?: DagPackShared
-  /** Unique records behind the `pageCount` pages. */
+  /** Unique records behind the `pageCount` pages, and the room kept for those a growth adds. */
   recordCount: number
+  /** Nodes the primitives take, the room kept for a growth's included: the placement tree's follow. */
+  primitiveNodeCount: number
   /** Content keys behind the records, one per page address (`evict.ts`). */
   keyCount: number
   /** The groups of those keys, and the links from each group to the groups replacing it: what a

@@ -13,6 +13,7 @@ import {
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import type { RasterView } from '../runtime.ts'
 import { assertOccluderImage, occluderScene, preparedOccluderRun } from '../testOccluder.fixture.ts'
+import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the disoccluded vis pass', async () => {
   installGpuGlobals()
@@ -30,7 +31,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
     totalNodes: 0,
   }
   const viewport: [number, number] = [32, 32]
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const { device, passes, dispatches, textures, draws } = fakeDevice({
     ...BACKEND,
     packed: packDagSelection(collected.roots),
@@ -73,7 +74,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
 test('a device that refuses the draw compaction refuses the scene by name', async () => {
   installGpuGlobals()
   const { source, metadata, indices, associations, geometry, material } = quadScene()
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const { device } = fakeDevice({
     ...BACKEND,
     packed: packDagSelection(collected.roots),
@@ -83,7 +84,7 @@ test('a device that refuses the draw compaction refuses the scene by name', asyn
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],

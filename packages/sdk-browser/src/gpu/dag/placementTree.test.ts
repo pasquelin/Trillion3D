@@ -3,7 +3,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
-import { refitPlacementTree } from './placementTree.ts'
+import { memberBox, refitLevels } from './placementTree.ts'
+import { refitTree } from './treeRefitRun.fixture.ts'
 import { packDagSelection } from './selection.ts'
 import { appendDagRoots, dagRootCounts } from './pack.ts'
 import { SELECTION_WORKGROUP } from '../core/selection.ts'
@@ -47,7 +48,7 @@ test("a frame reads the placements its kept groups hold, never the world's", () 
   assert.ok(cuts[0].tree.reached < cuts[0].count / 2)
 })
 
-test('moving, parking or opening one placement refits its group and its cell, at any size', () => {
+test('moving, parking or opening one placement refits its group and its cell, at any size: the fit names a node per level', () => {
   for (const side of [40, 160]) {
     const roots = placementField(side, 6),
       { dag } = fieldCut(roots, views[0], true),
@@ -58,7 +59,14 @@ test('moving, parking or opening one placement refits its group and its cell, at
     const before = box()
     // Placement 70 moves 1 km away: its group's box follows, and only a node per tree level is rewritten.
     ;(roots[70].world.elements as Float64Array)[12] = 1000
-    assert.equal(refitPlacementTree(dag, tree, [70]).length, tree.depth)
+    const group = Math.floor(tree.slot[70] / SELECTION_WORKGROUP)
+    assert.deepEqual(
+      refitLevels(tree, [group]).map(({ ids }) => ids.length),
+      Array(tree.depth).fill(1),
+      'a node per level of the tree',
+    )
+    memberBox(dag, tree, 70)
+    refitTree(dag, [group])
     assert.ok(box()[4] >= 1000 && box()[4] > before[4])
     // Its cut is the flat one's at the new pose.
     const moved = fieldCut(roots, fieldCamera([990, 2, 0], [1000, 0, -50]), true, dag)
@@ -69,12 +77,13 @@ test('moving, parking or opening one placement refits its group and its cell, at
     assert.ok(moved.pages.length > 0, 'the moved placement is drawn where it went')
     // Parked, its box no longer holds the far pose.
     dag.rootNodes[70] = 0xffffffff
-    refitPlacementTree(dag, tree, [70])
+    memberBox(dag, tree, 70)
+    refitTree(dag, [group])
     assert.ok(box()[4] < 1000)
     // Never culled, it opens its group.
     dag.rootNodes[70] = dag.rootBases[70]
     dag.mark[70] = SPRITE_UNCULLED
-    refitPlacementTree(dag, tree, [70])
+    refitTree(dag, [group])
     assert.ok(box()[0] < -1e38 && box()[4] > 1e38)
   }
 })
@@ -116,6 +125,9 @@ test("a growth's placements join the tree in place, the cut the flat one's", () 
   assert.equal(tree.count, 128 + 20)
   for (let w = 0; w < 100; w++) assert.equal(tree.order[tree.slot[w]], w, `placement ${w}`)
   assert.deepEqual(added.tree.members, [128, 148])
+  // The new members' leaves are taken as the follower takes them (`TreeRefit.leaf`), their groups fit.
+  for (let w = 80; w < 100; w++) memberBox(dag, tree, w)
+  refitTree(dag)
   for (const camera of views) {
     const cut = fieldCut(roots, camera, true, dag)
     assert.deepEqual(cut.pages, fieldCut(roots, camera, false, dag).pages)
@@ -137,7 +149,6 @@ test('an open group opens every node above it, by its flag, its bounds past ever
     group = Math.floor(tree.slot[70] / SELECTION_WORKGROUP)
   const cell = tree.levels[0].base + Math.floor(group / SELECTION_WORKGROUP)
   for (const node of [tree.levels.at(-1)!.base + group, cell]) {
-    assert.equal(tree.nodeOpen[node - tree.cellBase], 1)
     assert.deepEqual(
       Array.from(dag.nodes.subarray(node * 24, node * 24 + 7)).filter((_, a) => a !== 3),
       [-3.4e38, -3.4e38, -3.4e38, 3.4e38, 3.4e38, 3.4e38].map(Math.fround),
@@ -178,6 +189,8 @@ test("a growth's batch far from the packed placements fills its own groups: none
   const capacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 160 }
   const dag = packDagSelection(near, capacity)
   assert.ok(appendDagRoots(dag, far))
+  for (let w = 80; w < 100; w++) memberBox(dag, dag.placementTree!, w)
+  refitTree(dag)
   const at = fieldCamera([10_012, 30, 20], [10_012, 0, -12], 200)
   const seen = fieldCut([...near, ...far], at, true, dag).placements
   assert.ok(

@@ -2,7 +2,10 @@ import type { Engine } from '../../engine/types.ts'
 import { createDrawFrame } from './draw.ts'
 import type { createSessionState } from './sessionState.ts'
 import { createExplorerMetrics } from '../diagnostic/metrics.ts'
-import type { PreparedExplorer } from '../session/prepare.ts'
+import { primeFirstView, type PreparedExplorer } from '../session/prepare.ts'
+import { holdPartitions } from '../session/pageSources.ts'
+import type { PartitionCells } from '../../partition/cells.ts'
+import type { WorldRootsHold } from '../../scene/worldRoots.ts'
 import { createExplorerRender } from './render.ts'
 import type { ExplorerSession } from '../session/session.ts'
 import { createExplorerStreaming } from '../scene/streaming.ts'
@@ -49,6 +52,17 @@ export function createSessionFrame(session: ExplorerSession, inputs: Inputs) {
     renew: options.onPartitionOutgrown,
     budget: frameBudget,
   })
+  // Partitions joining the session while it runs: their pages catalogued, their roots counted and
+  // bound, the cells the view reaches placed, as the open does (`prepareExplorer`).
+  const partitionsJoin = {
+    async prime(cells: readonly PartitionCells[], roots: readonly WorldRootsHold[]) {
+      holdPartitions(streamer, cells, roots)
+      prepared.worldRoots.push(...roots)
+      await primeFirstView(session, { partitions: cells }, camera, streamer)
+    },
+    follow: followCells.follow,
+    leave: followCells.leave,
+  }
   const render = createExplorerRender(session, {
     check,
     followCells,
@@ -67,5 +81,5 @@ export function createSessionFrame(session: ExplorerSession, inputs: Inputs) {
     pageIdByUrl,
     streamer,
   })
-  return { render, profiler, streaming, followCells }
+  return { render, profiler, streaming, followCells, partitionsJoin }
 }

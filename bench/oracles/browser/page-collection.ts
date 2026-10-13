@@ -9,7 +9,7 @@ import {
   primitiveUsesClusterErrors,
   type ClusterManifest,
 } from '../../../packages/sdk-core/src/index.ts'
-import type { EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { DrawSource } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import type {
   PageRec,
   ClusterRoot,
@@ -26,7 +26,6 @@ import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds
 import { indexPageRequests } from '../../../packages/sdk-browser/src/page/selection/requests.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
-import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
 import { referencePrimitiveOf } from './bounds-and-index.ts'
 
 type Primitive = ClusterManifest['primitives'][number]
@@ -43,11 +42,17 @@ type ReferenceRoot = Omit<ClusterRoot<PageRec>, 'worldBox' | 'localBox'> & {
  *  Three.js objects per page for the box union. */
 export function referenceCollectClusterPages(
   source: Object3D,
+  draws: readonly DrawSource[],
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
-  associations: EngineContext['associations'],
   options: { allowMissing?: boolean } = {},
 ) {
+  const associations = new Map(
+    draws.map((draw) => [
+      draw.node,
+      { meshes: draw.mesh, primitives: draw.primitives, placements: draw.rows },
+    ]),
+  )
   const roots: ReferenceRoot[] = [],
     allPages: PageRec[] = [],
     blendCopies: HostMesh[] = [],
@@ -184,7 +189,7 @@ export function referenceCollectClusterPages(
     allPages,
     blendCopies,
     bootstrap,
-    requestCount: indexPageRequests(allPages),
+    requests: indexPageRequests(allPages),
     prepared: metadata.primitives.reduce((n, p) => n + p.pages.length, 0),
   }
 }

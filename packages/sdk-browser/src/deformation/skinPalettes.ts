@@ -3,6 +3,9 @@ import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts
 import { keepNumbers } from '../../../math/src/vector/vector.ts'
 import type { Deformed } from './frame.ts'
 
+/** The world a placement's palette is made in: that of its bones. */
+const frameOf = (entry: Deformed) => entry.mesh.frame ?? entry.world.elements
+
 /** True when the `size` floats at `a` and at `b` of `block` differ. */
 export function differs(block: Float32Array, a: number, b: number, size: number) {
   for (let k = 0; k < size; k++) if (block[a + k] !== block[b + k]) return true
@@ -12,7 +15,7 @@ export function differs(block: Float32Array, a: number, b: number, size: number)
 /** What one placement's palette holds of its inputs and its last write. */
 type Held = {
   skeleton: Skeleton | null
-  /** The placement's world as last read. */
+  /** The world the palette is made in, as last read. */
   world: Float64Array
   /** The palette's reach as last measured. */
   reach: number
@@ -35,20 +38,32 @@ type Held = {
  * new skeleton. Each placement holds as many joints as its record.
  */
 export function createSkinPalettes(placed: readonly (Deformed | null)[], block: Float32Array) {
-  const starts = new Uint32Array(placed.length + 1)
-  placed.forEach((entry, i) => (starts[i + 1] = starts[i] + (entry?.shape.joints ?? 0)))
-  const joints = starts[placed.length],
-    held: Held[] = placed.map(() => ({
-      skeleton: null,
-      world: new Float64Array(16),
-      reach: 0,
-      settled: false,
-      whole: false,
-      last: -2,
-    })),
+  const starts: number[] = [0],
+    held: Held[] = [],
     // Each bone as last read, and its world's count then.
-    bones: (object | null)[] = new Array<object | null>(joints).fill(null),
-    versions = new Uint32Array(joints)
+    bones: (object | null)[] = [],
+    versions: number[] = []
+  let kept = block
+  /** The placements `entries` follow the ones held: their joints rank behind the others'. */
+  const append = (entries: readonly (Deformed | null)[]) => {
+    for (const entry of entries) {
+      const joints = entry?.shape.joints ?? 0
+      starts.push(starts[starts.length - 1] + joints)
+      held.push({
+        skeleton: null,
+        world: new Float64Array(16),
+        reach: 0,
+        settled: false,
+        whole: false,
+        last: -2,
+      })
+      for (let j = 0; j < joints; j++) {
+        bones.push(null)
+        versions.push(0)
+      }
+    }
+  }
+  append(placed)
   /** True when bone `j` of placement `i` is the world held for it, which it is from here on. */
   const holdBone = (i: number, j: number, skeleton: Skeleton) => {
     const at = starts[i] + j,
@@ -80,12 +95,12 @@ export function createSkinPalettes(placed: readonly (Deformed | null)[], block: 
     own.skeleton = skeleton
     if (!enough && moving > -2 && moving < count) {
       const same =
-        moving < 0 ? keepNumbers(own.world, entry.world.elements) : holdBone(i, moving, skeleton)
+        moving < 0 ? keepNumbers(own.world, frameOf(entry)) : holdBone(i, moving, skeleton)
       if (!same) return true
     }
     own.whole = false
     own.last = -1
-    if (!keepNumbers(own.world, entry.world.elements)) {
+    if (!keepNumbers(own.world, frameOf(entry))) {
       if (enough) return true
       changed = true
     }
@@ -98,23 +113,28 @@ export function createSkinPalettes(placed: readonly (Deformed | null)[], block: 
     return changed
   }
   return {
+    append,
+    /** The block the palettes are written into: a larger one replaces it when the records grew. */
+    use(grown: Float32Array) {
+      kept = grown
+    },
     /** Placement `i`'s palette reach, as last measured. */
     reachOf: (i: number) => held[i].reach,
     /** Placement `i`'s palette, `floats` long from `at`, kept as the last frame's beside it. */
     keep(i: number, at: number, floats: number) {
       const own = held[i]
-      if (!own.settled) block.copyWithin(at + floats, at, at + floats)
+      if (!own.settled) kept.copyWithin(at + floats, at, at + floats)
       own.settled = true
     },
     /** Placement `i`'s palette of this frame from `at` (`keep` first), the last frame's taken for
      *  it when `cold`; returns whether the record moved: `moved`, or the palette did. */
     write(i: number, entry: Deformed, at: number, floats: number, cold: boolean, moved: boolean) {
       if (!changed(i, entry) && !cold) return moved
-      entry.mesh.skeleton!.palette(entry.world.elements, block, at)
+      entry.mesh.skeleton!.palette(frameOf(entry), kept, at)
       const own = held[i]
-      own.reach = paletteReach(block, at, entry.shape.joints, entry.reach.joints)
-      if (cold) block.copyWithin(at + floats, at, at + floats)
-      else if (moved || differs(block, at, at + floats, floats)) {
+      own.reach = paletteReach(kept, at, entry.shape.joints, entry.reach.joints)
+      if (cold) kept.copyWithin(at + floats, at, at + floats)
+      else if (moved || differs(kept, at, at + floats, floats)) {
         own.settled = false
         return true
       }

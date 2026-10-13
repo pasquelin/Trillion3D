@@ -35,3 +35,43 @@ test("a cell's rows cast as their host mesh says, and follow its castShadow once
     'both primitives rewrite their rows, sent before the frame',
   )
 })
+
+test('the rows under a core parent follow its world on the GPU: the first rows are written and linked whole, the next cells linked in place, a move sends one world', async () => {
+  const { cells, bytes, core } = world(0, null)
+  cells.pose(() => frame)
+  const frame = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+  await opened(cells, bytes, 1e5, false)
+  const calls: { parent: object; links: number; whole: boolean; world: number[] }[] = []
+  const { port, updates } = io(bytes)
+  port.compose = (parent, world, given, whole) =>
+    void calls.push({ parent, links: given.length, whole, world: Array.from(world) })
+  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  assert.deepEqual(
+    calls.map(({ links: count, whole }) => [count, whole]).sort(),
+    [
+      [2, true],
+      [4, true],
+    ],
+    'the rows of each parent, linked whole, at the session’s first frame',
+  )
+  assert.equal(new Set(calls.map(({ parent }) => parent)).size, 2, 'a slot a parent')
+  const first = calls.length,
+    sent = updates.length
+  frame[12] = 40
+  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  assert.deepEqual(
+    calls.slice(first).map(({ links: count, whole, world }) => [count, whole, world[12]]),
+    [
+      [0, false, 40],
+      [0, false, 40],
+    ],
+    'the frame moved: each parent’s world, no row',
+  )
+  assert.equal(updates.length, sent, 'no row written')
+  core.position.set(0, 20, 0)
+  const moved = calls.length
+  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  assert.equal(calls.length, moved + 1, 'a core parent moved: its world alone')
+  assert.equal(updates.length, sent, 'no row written')
+  assert.equal(calls.at(-1)!.world[13], 20, 'its world in the frame')
+})

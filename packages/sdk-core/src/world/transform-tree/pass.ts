@@ -1,4 +1,4 @@
-import { NODE_ALIVE, NODE_LISTED, type TransformTree } from './transformTree.ts'
+import { NODE_ALIVE, NODE_LISTED, NODE_WORLD_LAZY, type TransformTree } from './transformTree.ts'
 import { nextStamp } from './structure.ts'
 import { nextInSubtree } from './links.ts'
 import { refreshNode } from './update.ts'
@@ -52,7 +52,8 @@ export function updateTransformTree(tree: TransformTree) {
     const node = order[k],
       bits = flags[node]
     flags[node] = bits & ~NODE_LISTED
-    if (!(bits & NODE_ALIVE) || stamp[node] === walked) continue
+    // A leaf whose world is composed elsewhere keeps its marks for the read that refreshes it.
+    if (!(bits & NODE_ALIVE) || bits & NODE_WORLD_LAZY || stamp[node] === walked) continue
     for (let j = node; j >= 0; j = nextInSubtree(tree, j, node), visited++) {
       refreshNode(tree, j, true)
       stamp[j] = walked

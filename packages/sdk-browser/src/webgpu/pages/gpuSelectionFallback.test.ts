@@ -19,6 +19,7 @@ import { rootPage, twoPrimitives } from './rootPages.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', async () => {
   installGpuGlobals()
@@ -40,7 +41,7 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
     rootPage('exact', [8, -1, 0], [10, 1, 0]),
   )
   const metadata: ClusterManifest = { ...metadataPartial, ...MANIFEST_IDENTITY }
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const packed = packDagSelection(collected.roots)
   const { device } = fakeDevice({ ...BACKEND, packed })
   const viewport: [number, number] = [32, 32]
@@ -48,7 +49,7 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
     gpuDevice: device,
     maxResidentPages: 4,
     viewport,
@@ -73,14 +74,14 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
 test('a failed GPU selection readback keeps the device: the cut is read again', async () => {
   installGpuGlobals()
   const { source, metadata, indices, associations, geometry, material } = quadScene()
-  const collected = collectClusterPages(source, metadata, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const packed = packDagSelection(collected.roots)
   const { device } = fakeDevice({ ...BACKEND, packed, failMap: true })
   const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
@@ -102,7 +103,7 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
     source,
     metadata,
     indices,
-    associations,
+    draws: graphDraws(source, associations),
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
