@@ -85,7 +85,9 @@ export async function differenceRig(cap: number, placements = 40) {
     cutNext: (cut: RigCut) => (next = cut),
     /** The main view's readback ring's buffers (`mainReadbacks.ts`). */
     readbackSlots: () =>
-      fake.buffers.filter(({ label }) => label === 'Trillion3D DAG readback slot') as GPUBuffer[],
+      fake.buffers.filter(
+        ({ label }) => label === 'Trillion3D DAG readback slot',
+      ) as unknown as GPUBuffer[],
     /** Snapshots copied into a readback slot so far. */
     copies: () => fake.copies.filter(({ to }) => to.usage & GPUBufferUsage.MAP_READ).length,
     /** The kernels encoded since the last call, flat or indirect. */
