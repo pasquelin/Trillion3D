@@ -17,6 +17,7 @@ import {
   type HizPipelines,
   type HizState,
 } from './hizOps.ts'
+import { canCompute } from '../../lighting/deferred/fullscreen.ts'
 
 /** The frame's depth pyramid (`shader.ts`): reverse-Z, its farthest layer for the occlusion, its
  *  nearest for the readers of the whole depth. Without compute, returns `undefined`. `front` says
@@ -29,8 +30,7 @@ export async function createGpuHiz(
   maxBounds: number,
   front = true,
 ): Promise<GpuHiz | undefined> {
-  if (typeof device.createComputePipeline !== 'function' || width < 1 || height < 1)
-    return undefined
+  if (!canCompute(device) || width < 1 || height < 1) return undefined
   const buffers: GPUBuffer[] = []
   let h: HizState | undefined
   try {

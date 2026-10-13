@@ -1,7 +1,7 @@
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { TRANSPARENT_COMPACT_SHADER } from './shader.ts'
 import { dispatchRows } from '../../gpu/dispatch/grid.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
 import { TRANSPARENT_COMPACTION_PASS } from '../../stage/passLabels.ts'
 
@@ -35,20 +35,19 @@ async function compactPasses(
   bound: readonly GPUBuffer[],
   uniforms: GPUBuffer,
 ) {
-  if (typeof device.createComputePipeline !== 'function') return undefined
+  if (!canCompute(device)) return undefined
   const layout = compactLayout(device)
   const module = device.createShaderModule({ code: TRANSPARENT_COMPACT_SHADER })
   if (typeof module.getCompilationInfo === 'function') {
     const info = await module.getCompilationInfo()
     if (info.messages.some((message) => message.type === 'error')) return undefined
   }
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const entryPoints = [
     'countTransparentGroups',
     'prefixTransparentItems',
     'scatterTransparentGroups',
   ] as const
-  const stages = await buildComputeStages(device, pipelineLayout, module, entryPoints)
+  const stages = await buildComputeStages(device, [layout], module, entryPoints)
   const pipelines = entryPoints.map((entry) => stages[entry])
   const bindTo = (mask: GPUBuffer) =>
     device.createBindGroup({

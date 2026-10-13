@@ -1,6 +1,6 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts'
 import {
   MATERIAL_TILE_SLOTS,
@@ -30,7 +30,7 @@ export function materialTileDrawLayout(device: GPUDevice) {
  *  a device with no compute or that refuses them (`validated`). A shader that does not compile is
  *  a defect, thrown by name. */
 async function classifier(device: GPUDevice) {
-  if (typeof device.createComputePipeline !== 'function') return undefined
+  if (!canCompute(device)) return undefined
   const compute = GPUShaderStage.COMPUTE,
     storage: GPUBufferBindingLayout = { type: 'storage' },
     readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' }
@@ -46,11 +46,7 @@ async function classifier(device: GPUDevice) {
         { binding: 5, visibility: compute, buffer: storage },
       ],
     })
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-    const stages = await buildComputeStages(device, pipelineLayout, module, [
-      'clearTiles',
-      'classify',
-    ])
+    const stages = await buildComputeStages(device, [layout], module, ['clearTiles', 'classify'])
     return { layout, ...stages }
   })
 }

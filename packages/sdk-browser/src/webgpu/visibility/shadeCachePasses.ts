@@ -1,6 +1,6 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from '../../gpu/dispatch/grid.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
 
@@ -10,7 +10,7 @@ export const CACHED = { SHADE_CACHE: 1 }
 /** The passes' pipelines and layouts, for what the session caches; none on a device with no
  *  compute or that refuses them. */
 export async function cachePasses(device: GPUDevice) {
-  if (typeof device.createComputePipeline !== 'function') return
+  if (!canCompute(device)) return
   const compute = GPUShaderStage.COMPUTE,
     readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' },
     storage: GPUBufferBindingLayout = { type: 'storage' }
@@ -41,17 +41,15 @@ export async function cachePasses(device: GPUDevice) {
         },
       ] as GPUBindGroupLayoutEntry[],
     })
-    const layoutOf = (layout: GPUBindGroupLayout) =>
-      device.createPipelineLayout({ bindGroupLayouts: [layout] })
     const [rows, triangles] = await Promise.all([
       buildComputeStages(
         device,
-        layoutOf(rowsLayout),
+        [rowsLayout],
         rowsModule,
         ['shade_clear', 'shade_marks', 'shade_rows'],
         { ...CACHED, ...(span !== DEFAULT_GROUP_WIDTH && { GROUP_WIDTH: span }) },
       ),
-      buildComputeStages(device, layoutOf(trisLayout), trisModule, ['shade_tris'], CACHED),
+      buildComputeStages(device, [trisLayout], trisModule, ['shade_tris'], CACHED),
     ])
     const work = device.createBuffer({
       label: 'Trillion3D material cache dispatch',

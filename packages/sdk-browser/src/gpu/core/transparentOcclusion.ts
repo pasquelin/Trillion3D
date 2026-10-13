@@ -1,5 +1,5 @@
 import { CORNER_VALUES, PARTITION_WORKGROUP } from '../partition/contract.ts'
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputePipeline, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
 import { computeBufferEntry, computeTextureEntry } from './computeBindings.ts'
@@ -33,7 +33,7 @@ export async function createTransparentOcclusion(
   entryCount: number,
   sources: TransparentOcclusionSources,
 ) {
-  if (typeof device.createComputePipeline !== 'function' || entryCount < 1) return undefined
+  if (!canCompute(device) || entryCount < 1) return undefined
   const { corners, unculledBits, unculled } = occlusionBuffers(device, entryCount)
   const destroy = () => {
     corners.destroy()

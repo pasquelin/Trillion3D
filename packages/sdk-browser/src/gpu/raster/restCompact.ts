@@ -1,5 +1,9 @@
 import { REST_COMPACT_SHADER, REST_COMPACT_WORKGROUP } from './restCompactWgsl.ts'
-import { buildComputePipeline, buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import {
+  buildComputePipeline,
+  buildComputeStages,
+  canCompute,
+} from '../../lighting/deferred/fullscreen.ts'
 import { validated } from '../core/errorScope.ts'
 import { cleanupFailedHiz } from '../hiz/pipelines.ts'
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
@@ -52,7 +56,7 @@ export async function createGpuRestCompact(
   device: GPUDevice,
   sources: RestCompactSources,
 ): Promise<GpuRestCompact | undefined> {
-  if (typeof device.createComputePipeline !== 'function') return undefined
+  if (!canCompute(device)) return undefined
   let owned: GPUBuffer[] = []
   try {
     const uniforms = device.createBuffer({
@@ -124,9 +128,8 @@ async function restPipelines(device: GPUDevice) {
       computeBufferEntry(8, 'storage'),
     ],
   })
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const [stages, argsPipeline] = await Promise.all([
-    buildComputeStages(device, pipelineLayout, module, ['restCount', 'restScan', 'restScatter']),
+    buildComputeStages(device, [layout], module, ['restCount', 'restScan', 'restScatter']),
     buildComputePipeline(device, {
       layout: device.createPipelineLayout({ bindGroupLayouts: [argsLayout] }),
       compute: { module, entryPoint: 'restArgs' },
