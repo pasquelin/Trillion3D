@@ -1,3 +1,6 @@
+import { controlSettingAccessors, type ControlSettings } from './worldControlsAccessors.ts'
+import type { CharacterSettings } from './worldCharacterAccessors.ts'
+import { CONTROL_SETTINGS, type ControlSetting } from './worldControlsSettings.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
@@ -165,4 +168,16 @@ test('`world.controls` as a character stands where it was put until the physics 
   assert.equal(controls.onGround, true)
   assert.ok(camera.position.z < 0, `walked to ${camera.position.z}`)
   controls.dispose()
+})
+
+test('every kept control setting has its documented accessor, and every accessor its setting', () => {
+  type Documented = keyof (ControlSettings & CharacterSettings)
+  const same: [ControlSetting] extends [Documented]
+    ? [Documented] extends [ControlSetting]
+      ? true
+      : false
+    : false = true
+  const handle = controlSettingAccessors({ ...CONTROL_SETTINGS }, () => {})
+  assert.deepEqual(Object.keys(handle), Object.keys(CONTROL_SETTINGS))
+  assert.equal(same, true)
 })
