@@ -138,7 +138,8 @@ function rangeBuffers(
     own({
       label: 'Trillion3D DAG worlds',
       size: count * WORLD_ROW_BYTES,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+      // COPY_SRC: the reflection proxy's world mirror copies the rows written since its last copy.
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     }),
   )
   const bounds = own({
