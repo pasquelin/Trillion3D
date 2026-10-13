@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { surfaceOf, type PageSurface } from '../page/surface.ts'
+import { surfaceOf } from '../page/surface.ts'
 import { rowMaterial } from '../webgpu/row/pageRowMaterial.ts'
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from '../webgpu/blend/items.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'

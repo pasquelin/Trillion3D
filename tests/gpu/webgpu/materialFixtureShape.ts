@@ -1,6 +1,5 @@
 // The shape of a material fixture (`materialFixtures.ts`): the viewport it is drawn in, the one
 // light of the lit fixtures, the renderers that draw it and what a fixture declares.
-import type * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { VIEWPORT } from '../kit/sharedSceneProof.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts'
 import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
