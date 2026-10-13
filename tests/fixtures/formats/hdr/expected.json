@@ -35,10 +35,10 @@
   "rule": "A float texture fails no compilation and is never cut down to eight bits: the progressive previews are RGBA8 sRGB, the texture is counted, no preview is produced, and the reason image-float-unsupported is named in the report.",
   "scene": {
     "formatVersion": 11,
-    "manifestBinaryVersion": 11,
+    "manifestBinaryVersion": 12,
     "primitives": 1,
     "selectedTriangles": 2,
-    "sidecarSha256": "973382564ae9f74d61a7186d4126960444c4cfd8bc0b9cd98788cb37e2bcfe30",
+    "sidecarSha256": "0b7ac368f26380c4aeebc9b89cd421eb6164649b236207c22d1ca5b05f9aa35f",
     "texturePreviewBytes": 0
   }
 }

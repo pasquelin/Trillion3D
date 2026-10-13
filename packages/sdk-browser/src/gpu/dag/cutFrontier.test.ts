@@ -25,26 +25,18 @@ import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
 
 const pages = scenePages(16384, 8)
-/**
- * Two hierarchies, because top-down reject is not the same on both: the one packing
- * gives a primitive without a manifest (`flatHierarchy`, page slices in array order)
- * and the one the compiler produces (`build_culling_bvh`, one node per detail level
- * under the root). The second is PURE PER LEVEL, the first is not.
- */
-function montage(byLevels: boolean) {
+/** The hierarchy every cache and cut carries (`build_culling_bvh`): one node per detail level under
+ *  the root, each level its own spatial tree, PURE PER LEVEL. */
+function montage() {
   const roots = sceneRoots(
     pages,
     Array.from({ length: 12 }, () => new G.Matrix4()),
-    byLevels,
   )
   // Packing derives page bounds and stores the floor in the node
   // (`packNodes.ts`): counted descent reads it where the GPU reads it, not beside it.
   return { roots, packed: packDagSelection(roots) }
 }
-const MONTAGES = [
-  ['packing hierarchy', montage(false)],
-  ['compiler hierarchy (one node per level)', montage(true)],
-] as const
+const MONTAGES = [['compiler hierarchy (one node per level)', montage()]] as const
 const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200)
 
 /** One frame: camera set, world matrices rebased on the eye, then counted descent. */

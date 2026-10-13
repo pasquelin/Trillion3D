@@ -1,8 +1,9 @@
 //! Tighter projection spheres (`tight.rs`): equivalence on its edge
 //! cases, then on whole DAGs of smooth meshes.
 use super::*;
-use tight::{ball_of_balls, point_sphere};
+use tight::point_sphere;
 use trillion3d_math::vec3::{length, point, sub};
+use trillion3d_page_codec::min_ball::ball_of_balls;
 
 /// Deterministic uniform draws in [-1, 1).
 fn draws(seed: u64) -> impl FnMut() -> f64 {

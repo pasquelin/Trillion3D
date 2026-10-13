@@ -125,6 +125,7 @@ pub(super) fn world_dag(
         );
     }
     world.stand_alone()?;
+    world.in_culling_order();
     let vertices = world.positions.len() / 3;
     for attribute in world.carried.iter_mut().filter(|a| !a.values.is_empty()) {
         attribute.values.resize(vertices * attribute.width, 0.0);

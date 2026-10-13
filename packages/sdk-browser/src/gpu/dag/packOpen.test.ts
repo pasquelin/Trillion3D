@@ -35,7 +35,7 @@ function world(placements: number, primitives: number, reads: Reads) {
     counted(scenePages(64 + 16 * u, 4), reads),
   )
   // The placements of a primitive share its pages and its hierarchy, as a manifest gives them.
-  const templates = arrays.map((pages) => sceneRoots(pages, [new G.Matrix4()], true)[0])
+  const templates = arrays.map((pages) => sceneRoots(pages, [new G.Matrix4()])[0])
   return Array.from({ length: placements }, (_, w) => ({
     ...templates[w % primitives],
     world: new G.Matrix4().makeTranslation(w, 0, 0),

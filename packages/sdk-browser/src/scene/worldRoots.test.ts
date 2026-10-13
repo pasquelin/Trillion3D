@@ -97,8 +97,8 @@ test("a server that ignores the Range is read whole once through the page cache:
 })
 
 test('the world DAG names its pages through the one source, from what is held', async (t) => {
-  const { clusters, groups } = worldRootsDag()
-  const { manifest, ranges, whole } = served(t, { dag: { clusters, groups } })
+  const { clusters, groups, culling } = worldRootsDag()
+  const { manifest, ranges, whole } = served(t, { dag: { clusters, groups, culling } })
   const { roots, queue } = await opened(t, manifest)
   // A partitioned world — three cells — reads its DAG at load: the cut packs it.
   assert.deepEqual(whole, ['table', 'dag'], 'the DAG is read once, at load')
@@ -143,12 +143,12 @@ test('a cache without its DAG file opens a stream with no DAG', async (t) => {
 test("the stream bounds each cell's super-roots, an object root in its object's cell", async (t) => {
   // The table lists one object in cell 0, two in cell 1, one in cell 2: an object root's `origin`
   // is its object's rank there, as the cook writes it.
-  const { clusters, groups } = worldRootsDag()
+  const { clusters, groups, culling } = worldRootsDag()
   const cellOf = (origin: number) => Math.floor(origin / 4)
   const ranked = clusters.map((c) =>
     c.origin === null ? c : { ...c, origin: [0, 1, 3][cellOf(c.origin)] },
   )
-  const { manifest } = served(t, { dag: { clusters: ranked, groups } })
+  const { manifest } = served(t, { dag: { clusters: ranked, groups, culling } })
   const roots = (await modelOpened(manifest))!
   const { superRoots } = await roots.stream()
   assert.deepEqual(superRoots, cellSuperRoots(clusters, cellOf, 3))

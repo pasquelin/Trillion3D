@@ -77,9 +77,9 @@ test('the engine packing holds a manifest root and the world DAG in one cut', ()
 })
 
 test('the world DAG is read in the cook’s rank order, never re-sorted', () => {
-  const { clusters, groups } = worldRootsDag()
+  const { clusters, groups, culling } = worldRootsDag()
   const root = worldRootDag(
-    { clusters, groups, payload: { url: 'world-roots.bin' }, pinned: 1 },
+    { clusters, groups, culling, payload: { url: 'world-roots.bin' }, pinned: 1 },
     worldRootPages,
   )!
   // Rank r is cluster r: a super-root names its page at its bundle, an object root none.

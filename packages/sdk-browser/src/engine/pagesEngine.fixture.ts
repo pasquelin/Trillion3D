@@ -1,4 +1,5 @@
 import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../sdk-core/src/index.ts'
+import { manifestCulling } from '../gpu/dag/culling.fixture.ts'
 
 export type Cluster = {
   id: number
@@ -20,20 +21,22 @@ export function clusterSphere(page: { min: number[]; max: number[] }) {
 /** Level-0 clusters that nothing replaces, each one a root: the smallest legal DAG. A cluster keeps
  *  the fields it carries beyond the manifest's. */
 export function dagRoots<T extends Cluster>(pages: T[], starts?: number[]) {
+  const ranked = pages.map((page, index) => ({
+    ...page,
+    role: 'exact' as const,
+    start: starts?.[index] ?? index * 3,
+    level: 0,
+    lodError: 0,
+    sphere: clusterSphere(page),
+    parentError: null,
+    parentSphere: null,
+    group: null,
+    source: null,
+  }))
   return {
-    pages: pages.map((page, index) => ({
-      ...page,
-      role: 'exact' as const,
-      start: starts?.[index] ?? index * 3,
-      level: 0,
-      lodError: 0,
-      sphere: clusterSphere(page),
-      parentError: null,
-      parentSphere: null,
-      group: null,
-      source: null,
-    })),
+    pages: ranked,
     structure: { version: 1, roots: pages.map((_, index) => index), groups: [] },
+    culling: manifestCulling(ranked),
   }
 }
 
@@ -46,45 +49,47 @@ export function dagLevel<T extends Cluster>(
 ) {
   const sphere = coarse.length ? clusterSphere(coarse[0]) : [0, 0, 0, 1]
   const byId = (page: T) => page.id
+  const ranked = [
+    ...leaves.map((page) => ({
+      ...page,
+      role: 'exact' as const,
+      start: page.start ?? page.id * 3,
+      level: 0,
+      lodError: 0,
+      sphere: clusterSphere(page),
+      parentError: error,
+      parentSphere: sphere,
+      group: 0,
+      source: null,
+    })),
+    ...coarse.map((page) => ({
+      ...page,
+      role: 'coarse' as const,
+      start: page.start ?? 0,
+      level: 1,
+      lodError: error,
+      sphere,
+      parentError: null,
+      parentSphere: null,
+      group: null,
+      source: 0,
+    })),
+    ...roots.map((page) => ({
+      ...page,
+      role: 'exact' as const,
+      start: page.start ?? page.id * 3,
+      level: 0,
+      lodError: 0,
+      sphere: clusterSphere(page),
+      parentError: null,
+      parentSphere: null,
+      group: null,
+      source: null,
+    })),
+  ].sort((a, b) => a.id - b.id)
   return {
-    pages: [
-      ...leaves.map((page) => ({
-        ...page,
-        role: 'exact' as const,
-        start: page.start ?? page.id * 3,
-        level: 0,
-        lodError: 0,
-        sphere: clusterSphere(page),
-        parentError: error,
-        parentSphere: sphere,
-        group: 0,
-        source: null,
-      })),
-      ...coarse.map((page) => ({
-        ...page,
-        role: 'coarse' as const,
-        start: page.start ?? 0,
-        level: 1,
-        lodError: error,
-        sphere,
-        parentError: null,
-        parentSphere: null,
-        group: null,
-        source: 0,
-      })),
-      ...roots.map((page) => ({
-        ...page,
-        role: 'exact' as const,
-        start: page.start ?? page.id * 3,
-        level: 0,
-        lodError: 0,
-        sphere: clusterSphere(page),
-        parentError: null,
-        parentSphere: null,
-        group: null,
-        source: null,
-      })),
-    ].sort((a, b) => a.id - b.id),
+    pages: ranked,
+    culling: manifestCulling(ranked),
     structure: {
       version: 1,
       roots: [...coarse, ...roots].map(byId),

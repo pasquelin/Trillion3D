@@ -18,6 +18,7 @@ import {
 } from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { unpackVisibilityId } from '../../../../../bench/oracles/browser/cpu-image/ids.ts'
+import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 export function occluderScene() {
   const geometry = new G.Geometry()
@@ -66,6 +67,7 @@ export function occluderScene() {
         pass: 'exact-clusters',
         pages,
         structure: { version: 1, roots: [0, 1], groups: [] },
+        culling: manifestCulling(pages),
       },
     ],
   }

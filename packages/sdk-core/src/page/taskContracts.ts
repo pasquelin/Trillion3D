@@ -1,9 +1,10 @@
-import type { Page } from '../contracts/geometry.ts'
+import type { CullingHierarchy, Page } from '../contracts/geometry.ts'
 import type { readCellPage } from '../scene/core/tablePartition.ts'
 
 /**
- * Off-main-thread page-task contract, version 9: `cut` turns drawn triangles into pages, which
- * come back as bytes with their descriptors and their normal cone, the packed triangles carrying
+ * Off-main-thread page-task contract, version 10: `cut` turns drawn triangles into pages, which
+ * come back as bytes with their descriptors and their normal cone, in the order of the culling
+ * hierarchy that comes back with them (version 10), the packed triangles carrying
  * whether their pages keep one; `cells` reads a partition's cell file into the rows it places, and
  * `cellPage` a page of its cell index (#575). No geometry page is decoded on the CPU: the GPU reads
  * it in place (#1483), and a fetched page's digest is taken where it lands (`crypto.subtle`, which
@@ -19,7 +20,7 @@ import type { readCellPage } from '../scene/core/tablePartition.ts'
  * synchronous fallback) returns exactly the same values: the contract does not say how the work
  * travels, only what it returns.
  */
-export const PAGE_TASK_PROTOCOL = 9
+export const PAGE_TASK_PROTOCOL = 10
 
 /** `cut`: drawn triangles, packed as five lengths, whether their pages keep a cone, whether a
  *  blended material wears them, then five four-byte arrays (`packDrawn`), cut into pages. `cells`:
@@ -47,7 +48,9 @@ export interface PageCutPage {
 }
 /** What a `cut` returns: its pages, and the grids they were quantized on. */
 export interface PageCutPayload {
-  /** The pages written. */ pages: PageCutPage[]
+  /** The pages written, in the order of their culling hierarchy. */ pages: PageCutPage[]
+  /** Their culling hierarchy, in the manifest's node layout (`page-codec-wasm/src/culling.rs`). */
+  culling: CullingHierarchy
   /** Grid step of positions, as a power of two. */ positionExponent: number
   /** Grid step of texture coordinates, as a power of two. */ uvExponent: number
   /** Largest position error on that grid. */ maxPositionError: number

@@ -15,6 +15,7 @@ import {
   triangleGeometry,
 } from '../../engine/pagesEngineScenes.fixture.ts'
 import { rootPage, twoPrimitives } from './rootPages.fixture.ts'
+import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
 export function quadScene() {
@@ -39,6 +40,7 @@ export function quadScene() {
         pass: 'exact-clusters',
         pages,
         structure: { version: 1, roots: [0, 1], groups: [] },
+        culling: manifestCulling(pages),
       },
     ],
   }
