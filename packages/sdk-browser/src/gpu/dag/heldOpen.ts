@@ -1,8 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { mixWord as mixWordWgsl } from '../../../../math/src/wgsl/sampling.ts'
-import { mixWord } from '../../../../math/src/scalar/integers.ts'
+import * as sampling from '../../../../math/src/wgsl/sampling.ts'
+import { halfLoadSlots, mixWord } from '../../../../math/src/scalar/integers.ts'
 import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
-import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * THE OPEN COUNTS A PLACEMENT HOLDS OF ITS OWN, beside its primitive's shared nodes.
@@ -32,7 +31,7 @@ const HELD_PROBES = 32
  *  `bytes` when given — half a readout binding (`resources.ts`): a table it cannot hold whole
  *  leaves more counts at their node's, never a list short. */
 export const heldOpenSlots = (entries: number, bytes = Infinity) => {
-  let slots = nextPow2(2 * Math.max(1, entries))
+  let slots = halfLoadSlots(entries)
   while (slots > 1 && slots * HELD_SLOT_WORDS * 4 > bytes) slots /= 2
   return slots
 }
@@ -179,7 +178,7 @@ export type HeldOpen = ReturnType<typeof createHeldOpen>
  *  slot. */
 export const DAG_HELD_OPEN_WGSL = wgslBlock(
   'DAG_HELD_OPEN_WGSL',
-  [mixWordWgsl],
+  [sampling.mixWord],
   `const HELD_PROBES:u32=${HELD_PROBES}u;
 fn heldHash(w:u32,node:u32)->u32{return mixWord(w^mixWord(node))&views[0u].heldMask;}
 fn openOf(w:u32,node:u32,blank:u32)->u32{

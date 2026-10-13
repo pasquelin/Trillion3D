@@ -31,6 +31,7 @@ import {
   wideSub,
 } from './doubleWords.ts'
 import { lowBits, wideProduct } from './integer.ts'
+import { fromF32, toF32 } from './f32.ts'
 
 /**
  * The double nearest `m·2^(scale−1078)`, ties to even. `m` carries the significand and three bits
@@ -279,5 +280,19 @@ export const dMax = wgslFn(
   `fn dMax(a:vec2u,b:vec2u)->vec2u{
  if(dIsZero(a)&&dIsZero(b)){return vec2u(a.x&b.x,0u);}
  return select(a,b,dLess(a,b));
+}`,
+)
+
+/** A double as the CPU's `writeSplitDouble` stores it into a `Float32Array`
+ *  (`../float/splitDouble.ts`): its rounding to single precision, then what it left. A word of zero
+ *  exponent has none left. */
+export const splitDouble = wgslFn(
+  'splitDouble',
+  [dSub, fromF32, toF32],
+  `fn splitDouble(x:vec2u)->vec2u{
+ let high=toF32(x);
+ var low=0u;
+ if(((high>>23u)&0xffu)!=0u){low=toF32(dSub(x,fromF32(high)));}
+ return vec2u(high,low);
 }`,
 )

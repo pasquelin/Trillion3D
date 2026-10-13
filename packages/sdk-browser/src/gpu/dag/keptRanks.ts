@@ -1,5 +1,5 @@
 import type { DagBufferRow } from './bufferTable.ts'
-import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
+import { halfLoadSlots } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * EACH KEPT LIST'S TABLE OF RANKS: the rank each page of the kept snapshot holds, open-addressed by
@@ -11,13 +11,10 @@ import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 export const KEPT_RANK_HEAD = 2
 const SLOT_WORDS = 3
 
-/** Slots of a table for a list of `listCap` ranks: the shader's `keptSlots`. */
-const keptRankSlots = (listCap: number) => nextPow2(2 * Math.max(1, listCap))
-
-/** Kept list `l`'s table for a list of `listCap` ranks. */
+/** Kept list `l`'s table for a list of `listCap` ranks, its slots the shader's `keptSlots`. */
 export const keptRankRow = (l: number, listCap: number): DagBufferRow => ({
   label: `Trillion3D DAG kept ranks ${l}`,
-  size: (KEPT_RANK_HEAD + SLOT_WORDS * keptRankSlots(listCap)) * 4,
+  size: (KEPT_RANK_HEAD + SLOT_WORDS * halfLoadSlots(listCap)) * 4,
 })
 
 /** The most ranks a list may hold whose table fits `bytes`: the largest power-of-two slots it

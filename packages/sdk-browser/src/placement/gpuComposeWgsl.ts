@@ -22,7 +22,7 @@ import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
-import { dAdd, dMul, dSub } from '../../../math/src/wgsl/double.ts'
+import { dAdd, dMul, dSub, splitDouble } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { STRETCH_WGSL } from './gpuStretchWgsl.ts'
@@ -152,7 +152,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  */
 const SPHERE_WGSL = wgslBlock(
   'SPHERE_WGSL',
-  [dAdd, dSub, dMul, fromF32, toF32],
+  [dAdd, dMul, splitDouble, toF32],
   `
 const SPHERE_GROWTH:f32=${SPHERE_GROWTH};
 const SPHERE_MARGIN:f32=${SPHERE_MARGIN};
@@ -176,11 +176,9 @@ fn composeSphere(row:u32,world:array<vec2u,16>){
   }
   centre=dAdd(centre,world[12u+i]);
   size+=abs(bitcast<f32>(toF32(world[12u+i])));
-  let high=toF32(centre);
-  var low=0u;
-  if(((high>>23u)&0xffu)!=0u){low=toF32(dSub(centre,fromF32(high)));}
-  spheres[s+i]=bitcast<f32>(high);
-  spheres[s+4u+i]=bitcast<f32>(low);
+  let split=splitDouble(centre);
+  spheres[s+i]=bitcast<f32>(split.x);
+  spheres[s+4u+i]=bitcast<f32>(split.y);
   sums+=l1*l1;
  }
  var r2=0.0;

@@ -20,6 +20,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { dAdd, dDiv, dLess, dMul, dSqrt, dRsqrt, dSub } from '../../../math/src/wgsl/double.ts'
 import { dIsZero } from '../../../math/src/wgsl/doubleWords.ts'
 import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
+import { isFiniteWord } from '../../../math/src/wgsl/integer.ts'
 
 /** The largest root of `4t³ − 3t = x`, `x` in [−1, 1], in double precision. */
 const CHEBYSHEV_WGSL = wgslBlock(
@@ -112,11 +113,11 @@ export const STRETCH_DOUBLE_WGSL = wgslBlock(
  */
 export const STRETCH_WGSL = wgslBlock(
   'STRETCH_WGSL',
-  [fromF32, toF32, STRETCH_DOUBLE_WGSL],
+  [fromF32, toF32, isFiniteWord, STRETCH_DOUBLE_WGSL],
   `fn maxStretchBits(w:array<u32,16>)->u32{
  var m:array<vec2u,16>;
  for(var k=0u;k<16u;k++){
-  if(((w[k]>>23u)&0xffu)==0xffu){return 0xffffffffu;}
+  if(!isFiniteWord(w[k])){return 0xffffffffu;}
   m[k]=fromF32(w[k]);
  }
  return toF32(maxStretchOf(m));
