@@ -63,7 +63,6 @@ fn main(@builtin(global_invocation_id) id:vec3u){
  shadowFootprint=0.01;
  let lit=contractLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,normalize(s.normalRough.xyz),normalize(s.eyeFlag.xyz),s.pointAo.xyz,s.pointAo.w,0u);
  sums[id.x]=vec4u(bitcast<vec3u>(lit),0u);
-}
 }`,
     [VIEW_WGSL, CONTRACT_BINDINGS_WGSL],
   )

@@ -20,7 +20,9 @@ export const tileKindWgsl = (k: string, pool: WgslDecl) =>
  return TileSlot(sizeOf(${k}Pages[h]),${k}Pages[h+1u],last&0xffu,${k}Pages[3]+slot*PAGE_LEVELS,tail&0xffffffu,tail>>24u,word&${(1 << SAMPLE_WRAP_SHIFT) - 1}u,word>>${SAMPLE_WRAP_SHIFT}u);
 }
 /** The tap read in the pool of the texture's lane: lossless (0), RGBA blocks (1), or two
- *  channels with Y in the second channel (2) or in the alpha (3). */
+ *  channels with Y in the second channel (2) or in the alpha (3). One hardware sample of the
+ *  pool's level 0 — its own bilinear, at the weights it takes in the texture's level
+ *  (\`poolAxis\`) —, its footprint in the tile, whose gutter holds the texels past its edge. */
 fn ${k}Tap(tap:u32,t:TileTap)->vec4f{
  if(tap==0u){return textureSampleLevel(${k}Pool0,mapsSampler,t.uv,t.layer,0.0);}
  if(tap>=2u){

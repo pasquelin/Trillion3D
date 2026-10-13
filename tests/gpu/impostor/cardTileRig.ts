@@ -3,6 +3,7 @@
 // and an ORM map — the card records name them by slot (`CARD_MAPS`). Each map is a square chain of
 // RGBA8 levels, level 0 first: its streamed tiles written as the streamer writes a decoded level's
 // tile, gutter included, its tail pinned from its bytes.
+import { length2 } from '../../../packages/math/src/vector/vector.ts'
 import { previewLevelSize } from '../../../packages/sdk-core/src/index.ts'
 import { createWebgpuTileAtlas } from '../../../packages/sdk-browser/src/webgpu/tile/atlas.ts'
 import { cardTileEntries } from '../../../packages/sdk-browser/src/webgpu/tile/cardReads.ts'
@@ -14,6 +15,11 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/tile/write.ts'
 import { poolEncoding } from '../../../packages/sdk-browser/src/texture/blockFormats.ts'
 import { tileLayout, tilesAt } from '../../../packages/sdk-browser/src/texture/tiles.ts'
+
+/** Frames a side of the proofs' atlas, and the levels of its maps' chains. */
+export const MAP_FRAMES = 4,
+  MAP_LEVELS = 3
+const FRAME_SIDE = 48
 
 /** A square map: its side and its levels' RGBA8 texels, level 0 first. */
 export type Chain = { side: number; levels: Uint8Array<ArrayBuffer>[] }
@@ -45,7 +51,7 @@ function crop(level: Uint8Array, width: number, region: ReturnType<typeof tileRe
 }
 
 /** The atlases holding `colours`, `normalDepth` and `orm`, every tile resident; the group over
- *  them in `layout`, the card pass's tile group. */
+ *  them in `layout`, the card pass's tile group, and the two atlases themselves. */
 export function cardTileAtlases(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
@@ -102,6 +108,8 @@ export function cardTileAtlases(
   })
   return {
     group,
+    color,
+    data,
     destroy() {
       color.destroy()
       data.destroy()
@@ -135,4 +143,31 @@ export function chainOf(
     chain.push(out)
   }
   return { side, levels: chain }
+}
+
+/** The proofs' maps: in each frame a covered disc of colour gradients, a normal and depth that
+ *  swing, and an ORM; any bytes do, as long as both reads read the same. */
+const atlasSide = MAP_FRAMES * FRAME_SIDE
+const inDisc = (x: number, y: number) =>
+  length2((x % FRAME_SIDE) - FRAME_SIDE / 2, (y % FRAME_SIDE) - FRAME_SIDE / 2) < 20
+const wave = (v: number) => Math.round(128 + 100 * Math.sin(v))
+export const proofMaps = {
+  colour: chainOf(atlasSide, MAP_LEVELS, (x, y) => [
+    (x * 5) & 255,
+    (y * 3 + x) & 255,
+    wave(x * 0.21 + y * 0.13),
+    inDisc(x, y) ? 255 : 0,
+  ]),
+  normalDepth: chainOf(atlasSide, MAP_LEVELS, (x, y) => [
+    wave(x * 0.17),
+    wave(y * 0.11),
+    230,
+    wave((x + y) * 0.05),
+  ]),
+  orm: chainOf(atlasSide, MAP_LEVELS, (x, y) => [
+    wave(x * 0.07 + 1),
+    wave(y * 0.09),
+    (x * y) & 255,
+    255,
+  ]),
 }

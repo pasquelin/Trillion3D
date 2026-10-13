@@ -3,8 +3,10 @@
 // another direction — another three frames, other weights — and at another level, fractions and
 // one past the chain's last level included; the engine's card pipelines read the pool
 // (`cardTileRig.ts`), the reference the three whole chains with the hardware sampler
-// (`cardTilesReference.ts`). Both write the four surfaces, read back and compared at 8 bits.
-import { length2, length3 } from '../../../packages/math/src/vector/vector.ts'
+// (`cardTilesReference.ts`). Both write the four surfaces, read back and compared at 8 bits; the
+// maps' reads themselves are set beside the exact filter (`cardTileReads.ts`,
+// `cardTileTrilinear.ts`).
+import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { lend } from '../../../packages/sdk-browser/src/impostor/borrowed.ts'
 import * as lent from '../../../packages/sdk-browser/src/webgpu/impostor/lent.ts'
 import {
@@ -16,38 +18,15 @@ import { CARD_FLOATS } from '../../../packages/sdk-browser/src/impostor/cardSlot
 import { bufferHolding, readTexture } from '../kit/computeReadback.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { viewUniform } from './cardIdRig.ts'
-import { CARD_MAPS, cardTileAtlases, chainOf } from './cardTileRig.ts'
+import { CARD_MAPS, MAP_FRAMES, MAP_LEVELS, cardTileAtlases, proofMaps } from './cardTileRig.ts'
 import { referenceGroup, referencePipelines } from './cardTilesReference.ts'
 import { compareSurfaces, surfaceBytes } from './cardTilesCompare.ts'
+import { READ_POINTS, cardTileReads, readTaps } from './cardTileReads.ts'
+import { compareReads } from './cardTileTrilinear.ts'
 
-const SIDE = 128,
-  FRAMES = 4,
-  FRAME_SIDE = 48,
-  LEVELS = 3
+const SIDE = 128
 /** Each card's levels: whole, between two, and one past the last (2), clamped as a sampler clamps. */
 const LODS = [0, 0.25, 0.5, 0.75, 1, 1.4, 1.9, 2.5, 3.3]
-
-/** The atlas's maps: in each frame a covered disc of colour gradients, a normal and depth that
- *  swing, and an ORM; any bytes do, as long as both reads read the same. */
-const atlas = FRAMES * FRAME_SIDE
-const inDisc = (x: number, y: number) =>
-  length2((x % FRAME_SIDE) - FRAME_SIDE / 2, (y % FRAME_SIDE) - FRAME_SIDE / 2) < 20
-const wave = (v: number) => Math.round(128 + 100 * Math.sin(v))
-const maps = {
-  colour: chainOf(atlas, LEVELS, (x, y) => [
-    (x * 5) & 255,
-    (y * 3 + x) & 255,
-    wave(x * 0.21 + y * 0.13),
-    inDisc(x, y) ? 255 : 0,
-  ]),
-  normalDepth: chainOf(atlas, LEVELS, (x, y) => [
-    wave(x * 0.17),
-    wave(y * 0.11),
-    230,
-    wave((x + y) * 0.05),
-  ]),
-  orm: chainOf(atlas, LEVELS, (x, y) => [wave(x * 0.07 + 1), wave(y * 0.09), (x * y) & 255, 255]),
-}
 
 /** Card `k` of a 3 × 3 grid at 5 m, turned about x and y by its own angles, of world radius 0.8,
  *  its texel depth set so the card pass reads level `LODS[k]` (`card_vs`: log2 of the distance less
@@ -73,7 +52,10 @@ function records(device: GPUDevice) {
       }
     data.set([...t, 1], at + 12)
     data[at + 35] = 1
-    data.set([1, FRAMES, 0, Math.log2(length3(t[0], t[1], t[2])) - lod], at + 36)
+    // Level 0 is asked half a level below, which the card's `max(0, …)` makes exactly 0, where a
+    // computed zero would land a rounding to either side.
+    const asked = lod > 0 ? lod : -0.5
+    data.set([1, MAP_FRAMES, 0, Math.log2(length3(t[0], t[1], t[2])) - asked], at + 36)
     data.set([0, 0, 0, radius], at + 40)
     data.set([...CARD_MAPS(0), 0], at + 44)
   })
@@ -83,7 +65,7 @@ function records(device: GPUDevice) {
 type Stages = { vis: GPURenderPipeline; surface: GPURenderPipeline; maps: GPUBindGroup }
 
 /** The cards drawn by `stages` — their visibility stage, then their surface stage —, the four
- *  surfaces read back. */
+ *  surfaces read back, then the identifiers the visibility stage kept. */
 async function drawn(
   device: GPUDevice,
   stages: Stages,
@@ -133,7 +115,10 @@ async function drawn(
   surface.draw(4, LODS.length)
   surface.end()
   device.queue.submit([encoder.finish()])
-  return Promise.all(surfaces.map((texture, k) => readTexture(device, texture, surfaceBytes[k])))
+  return Promise.all([
+    ...surfaces.map((texture, k) => readTexture(device, texture, surfaceBytes[k])),
+    readTexture(device, idTexture, 4),
+  ])
 }
 
 export function runCardTiles() {
@@ -151,11 +136,16 @@ export function runCardTiles() {
       mipmapFilter: 'linear',
     })
     const tiles = cardTileAtlases(device, pipes.tilesLayout, sampler, {
-      colours: [maps.colour],
-      normalDepth: maps.normalDepth,
-      orm: maps.orm,
+      colours: [proofMaps.colour],
+      normalDepth: proofMaps.normalDepth,
+      orm: proofMaps.orm,
     })
-    const reference = await referencePipelines(device, pipes.imageLayout, pipes.idsLayout, LEVELS)
+    const reference = await referencePipelines(
+      device,
+      pipes.imageLayout,
+      pipes.idsLayout,
+      MAP_LEVELS,
+    )
     const image = device.createBindGroup({
       layout: pipes.imageLayout,
       entries: [
@@ -174,14 +164,22 @@ export function runCardTiles() {
       {
         vis: reference.vis,
         surface: reference.surface,
-        maps: referenceGroup(device, reference.tilesLayout, sampler, maps),
+        maps: referenceGroup(device, reference.tilesLayout, sampler, proofMaps),
       },
       image,
       pipes.idsLayout,
     )
+    const taps = readTaps(LODS, MAP_LEVELS)
+    const reads = await cardTileReads(device, tiles, sampler, proofMaps, taps)
     const failure = await device.popErrorScope()
     if (failure) throw new Error(`validation: ${failure.message}`)
     tiles.destroy()
-    Object.assign(result, { cards: LODS.length, ...compareSurfaces(pool, chains, SIDE * SIDE) })
+    Object.assign(result, {
+      cards: LODS.length,
+      lods: LODS,
+      levels: MAP_LEVELS,
+      ...compareSurfaces(pool, chains, SIDE),
+      reads: compareReads(taps, reads, proofMaps, READ_POINTS),
+    })
   })
 }

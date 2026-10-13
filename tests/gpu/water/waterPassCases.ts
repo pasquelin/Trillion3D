@@ -19,24 +19,21 @@ export const WATER: WaterMaterial = {
   attenuationColor: [0.35, 0.72, 0.68],
 }
 
-/** The water surface: `WATER`, transmitting `transmission` through a declared `thickness`. */
+/** The water surface: `WATER`, transmitting `transmission` through a declared `thickness` — its
+ *  volume declared with the rest, so the record holds it in the engine's words. */
 export const waterSurface = (transmission: number, thickness: number) =>
-  Object.assign(
-    G.physicalSurface({
-      color: new G.Color(WATER.tint),
-      transparent: true,
-      opacity: 1,
-      side: G.DOUBLE_SIDE,
-      roughness: 0.05,
-    }),
-    {
-      transmission,
-      ior: WATER.ior,
-      thickness,
-      attenuationDistance: WATER.attenuationDistance,
-      attenuationColor: new G.Color(WATER.attenuationColor),
-    },
-  )
+  G.physicalSurface({
+    color: new G.Color(WATER.tint),
+    transparent: true,
+    opacity: 1,
+    side: G.DOUBLE_SIDE,
+    roughness: 0.05,
+    transmission,
+    ior: WATER.ior,
+    thickness,
+    attenuationDistance: WATER.attenuationDistance,
+    attenuationColor: new G.Color(WATER.attenuationColor),
+  })
 
 /** The colour bytes per sample the water surface stage writes, from its own targets: the limit
  *  a device must grant for the water pass to run. */

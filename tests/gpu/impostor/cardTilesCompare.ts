@@ -24,24 +24,56 @@ function shown(s: Uint8Array[], t: number) {
   ]
 }
 
-/** How the two drawings differ: the texels a card wrote in either, those differing at 8 bits and by
- *  how many steps at most, and those whose half-float words differ at all. */
-export function compareSurfaces(a: Uint8Array[], b: Uint8Array[], texels: number) {
+/** The identifier word the visibility stage kept at texel `t` of a drawing (the fifth readback,
+ *  `VIS_CARD_BASE | slot`, zero where no card covers it): the coverage word. */
+const idAt = (s: Uint8Array[], t: number) =>
+  new DataView(s[4].buffer, s[4].byteOffset).getUint32(t * 4, true)
+
+/** What a texel covered in one drawing alone shows of each: its coverage word and surface flags. */
+type Flip = { card: number; x: number; y: number; pool: number[]; chains: number[] }
+
+/** How the two drawings `a` (the pool's) and `b` (the chains') of a `side`² image differ: the
+ *  texels a card wrote in either; the FLIPS, covered in one drawing alone — the card's coverage
+ *  cut met on either side of its threshold —, listed with their coverage words; and among the
+ *  texels both cover, those differing at 8 bits and by how many steps at most — in all and by
+ *  card slot —, and those whose half-float words differ at all. */
+export function compareSurfaces(a: Uint8Array[], b: Uint8Array[], side: number) {
   let covered = 0,
     differ8 = 0,
     maxStep = 0,
     exact = 0
-  for (let t = 0; t < texels; t++) {
+  const byCard: Record<
+    number,
+    { covered: number; differ8: number; maxStep: number; flips: number }
+  > = {}
+  const flips: Flip[] = []
+  for (let t = 0; t < side * side; t++) {
     if (!a[3][t] && !b[3][t]) continue
     covered++
+    const card = (idAt(a, t) || idAt(b, t)) & 0xffff
+    const stats = (byCard[card] ??= { covered: 0, differ8: 0, maxStep: 0, flips: 0 })
+    stats.covered++
+    if (!a[3][t] || !b[3][t]) {
+      stats.flips++
+      flips.push({
+        card,
+        x: t % side,
+        y: Math.floor(t / side),
+        pool: [idAt(a, t), a[3][t]],
+        chains: [idAt(b, t), b[3][t]],
+      })
+      continue
+    }
     const [x, y] = [shown(a, t), shown(b, t)]
     const step = Math.max(...x.map((v, k) => Math.abs(v - y[k])))
     if (step > 0) differ8++
     maxStep = Math.max(maxStep, step)
+    if (step > 0) stats.differ8++
+    stats.maxStep = Math.max(stats.maxStep, step)
     if (
       [0, 1, 2].some((k) => a[k].subarray(t * 8, t * 8 + 8).some((v, i) => v !== b[k][t * 8 + i]))
     )
       exact++
   }
-  return { covered, differ8, maxStep, exact }
+  return { covered, differ8, maxStep, exact, byCard, flips }
 }
