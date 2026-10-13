@@ -199,9 +199,11 @@ function writeSpan(
   writeParts(f.device, parts, fromWord * 4, bytes, data.byteOffset + fromWord * 4, words * 4)
 }
 
-function writeWord({ frameInts, pending }: Frames, w: number, slot: number, value: number) {
-  frameInts[primitiveWordAt(w) + slot] = value
-  pending.listed.add(w)
+/** A word staged counts as a write from now: it goes up at the next flush, before any cut reads it. */
+function writeWord(f: Frames, w: number, slot: number, value: number) {
+  f.frameInts[primitiveWordAt(w) + slot] = value
+  f.pending.listed.add(w)
+  f.writes++
 }
 
 function flushWords(f: Frames) {
