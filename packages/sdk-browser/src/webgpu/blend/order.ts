@@ -1,7 +1,7 @@
-import { cullBlendHierarchy } from './hierarchyCull.ts'
 import { sortSeedsFarToNear } from './sortPlan.ts'
 import { assignOwnSlots } from './runs.ts'
 import { eyeKey } from './eyeKey.ts'
+import { FRAME_HEAD } from './frameHead.ts'
 import type { WebgpuBlendState } from './state.ts'
 
 /**
@@ -25,8 +25,10 @@ import type { WebgpuBlendState } from './state.ts'
  */
 
 /**
- * The frame data the order kernel reads (`frameLayout`): the eye, each own item's key — a NaN as
- * the GPU's one NaN pattern, all ones —, then each pass's own seeds in paint order and their slots.
+ * The frame data the kernels read (`frameLayout`, `frameHead.ts`): the eye, the frustum planes and
+ * the item count the verdict tests (`verdictWgsl.ts`), each own item's key — a NaN as the GPU's one
+ * NaN pattern, all ones —, then each pass's own seeds in paint order and their slots. The water
+ * pass writes its own words of the head (`../water/frameWords.ts`).
  */
 function writeOrderFrame(blendState: WebgpuBlendState, eye: ArrayLike<number>) {
   const { frameDoubles: doubles, frameWords: words, frameLayout: layout } = blendState
@@ -34,6 +36,8 @@ function writeOrderFrame(blendState: WebgpuBlendState, eye: ArrayLike<number>) {
   doubles[1] = eye[1]
   doubles[2] = eye[2]
   doubles[3] = 0
+  doubles.set(blendState.blendPlanes, FRAME_HEAD.planes / 2)
+  words[FRAME_HEAD.items] = blendState.blendGpu.length
   const own = blendState.ownItems,
     keys = blendState.orderKeys,
     first = layout.ownKeys / 2
@@ -49,29 +53,18 @@ function writeOrderFrame(blendState: WebgpuBlendState, eye: ArrayLike<number>) {
 }
 
 /**
- * The frame's share of the CPU in the order: the frustum verdict, the own entries' keys and paint
- * order, the frame data for the GPU, and the slots each pass draws. Returns the number of items the
- * frustum rejected.
+ * The frame's share of the CPU in the order: the own entries' keys and paint order, the frame data
+ * for the GPU, and the slots each pass draws. The frustum verdict is the GPU's, in the same
+ * submission (`verdictWgsl.ts`): the CPU reads no item's box here but the own items' keys.
  *
  * WITHOUT AN EYE, NOTHING IS PAINTED: a frame without a camera has no paint order, and no slot.
- *
- * `cull` is the frustum verdict: the box tree, or develop's item walk the equivalence test ranks the
- * same scene with (`hierarchyOracle.fixture.ts`). It stays on the CPU: the water pass, its scissor,
- * the frame signature and the published metrics read it, and none may wait for the
- * GPU.
  */
-export function orderBlendPasses(
-  blendState: WebgpuBlendState,
-  eye: ArrayLike<number> | undefined,
-  cull: (blendState: WebgpuBlendState) => number = cullBlendHierarchy,
-) {
+export function orderBlendPasses(blendState: WebgpuBlendState, eye: ArrayLike<number> | undefined) {
   if (!eye || !blendState.blendGpu.length) {
     blendState.runCount[0] = 0
     blendState.runCount[1] = 0
-    blendState.transmissiveInView = 0
-    return 0
+    return
   }
-  const rejected = cull(blendState)
   const { blendGpu: items, ownItems, orderKeys } = blendState
   for (let k = 0; k < ownItems.length; k++)
     orderKeys[ownItems[k]] = eyeKey(items[ownItems[k]], eye[0], eye[1], eye[2])
@@ -90,5 +83,4 @@ export function orderBlendPasses(
     blendState.runCount[pass] = blendState.slotCounts[pass]
   }
   writeOrderFrame(blendState, eye)
-  return rejected
 }

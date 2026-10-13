@@ -64,6 +64,9 @@ const LAYOUT = fieldLayout('BlendItem', BLEND_ITEM_FIELDS)
 /** Each field's first word in the record: constants, read by the writer as literal offsets were. */
 const ITEM = LAYOUT.at
 export const BLEND_ITEM_WORDS = LAYOUT.words
+/** The first word of the record's world matrix, sixteen single-precision words column-major: what
+ *  the water rectangle reads of an item's pose (`../water/rectWgsl.ts`). */
+export const BLEND_ITEM_WORLD = ITEM.world
 
 /** Atlas tables the record cites: each texture's slot, per atlas, and the atlases; the session's
  *  GPU deformation, whose record a paged item of a deformed placement names (#357); the physical

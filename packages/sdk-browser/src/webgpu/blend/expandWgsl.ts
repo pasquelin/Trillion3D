@@ -40,9 +40,10 @@ export function blendExpandDispatch(out: number[], entries: number, runs: number
  * EXPANSION OF THE SORTED PLAN, ON THE GPU.
  *
  * The paint order and the runs of its slots are the order kernel's (`orderWgsl.ts`), the frustum
- * verdict, one bit per item, the CPU's. The rest — how many instances each entry carries, where
- * each goes in the list, and each run's indirect argument — is computed here, from the counts
- * transparent compaction has just written in the same submission.
+ * verdict, one bit per item, the verdict kernel's in the same pass (`verdictWgsl.ts`). The rest —
+ * how many instances each entry carries, where each goes in the list, and each run's indirect
+ * argument — is computed here, from the counts transparent compaction has just written in the same
+ * submission.
  *
  * Four dispatches: one thread group per entry packet, which counts and scans the packet locally;
  * the running sum over packets, at two levels; each entry's absolute place followed by writing

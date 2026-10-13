@@ -56,7 +56,7 @@ const COMPOSE_ENTRIES = [
 ]
 
 /**
- * The composite pipelines of one pass: a fullscreen triangle into the HDR target, blended exactly
+ * The composite pipelines of one pass: the water rectangle's quad into the HDR target, blended exactly
  * as the forward transmission pass was — source alpha over what the frame already holds, which at a
  * water pixel is the frozen backdrop itself; a pixel with no water discards, and the target keeps
  * its value. What the scene reaches (`reach`) is compiled here, off the frame: the plain composite,
@@ -91,7 +91,7 @@ export async function createWaterComposites(
     const bindGroupLayouts = [layout, reflection, ...(filtered ? [displayMaskLayout(device)] : [])]
     return {
       layout: device.createPipelineLayout({ bindGroupLayouts }),
-      vertex: { module: code, entryPoint: 'fullscreen' },
+      vertex: { module: code, entryPoint: 'waterQuad' },
       fragment: {
         module: code,
         entryPoint,

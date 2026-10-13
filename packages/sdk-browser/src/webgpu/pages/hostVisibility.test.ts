@@ -5,7 +5,8 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { camera, flushedGpuScene, quadScene } from './testScenes.fixture.ts'
 import { prepared } from '../water/pass.fixture.ts'
 import { uploadWorlds } from './render/worldUpload.ts'
-import { orderBlendPasses } from '../blend/order.ts'
+import { writeKeyRecords } from '../blend/keyRecords.ts'
+import { KEY_DRAWN, KEY_RECORD_WORDS, KEY_WORD } from '../blend/keyLayout.ts'
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
 import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
@@ -96,8 +97,14 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.deepEqual(asked(), [0], 'its rows, derived again, stale its shadow pages')
   assert.deepEqual(changed, [], 'no box declared on the CPU')
   assert.deepEqual(touched, [0], "its rows' words are written anew: the casters skip them")
-  orderBlendPasses(blendState, [0, 0, 0])
-  assert.equal(blendState.keepPacked[0] & 1, 0, 'the frustum verdict keeps it out')
+  // The flip is noted on the item's key record, whose drawn bit the GPU verdict reads.
+  const drawnBit = () => writeKeyRecords(blendState)[KEY_WORD.flags] & KEY_DRAWN
+  assert.deepEqual(blendState.keyMoved, { from: 0, to: 0 }, 'its key record goes up')
+  assert.equal(drawnBit(), 0, 'the frustum verdict keeps it out')
+  assert.equal(
+    writeKeyRecords(blendState)[KEY_RECORD_WORDS + KEY_WORD.flags] & KEY_DRAWN,
+    KEY_DRAWN,
+  )
   uploadWorlds(rt)
   assert.equal(asked().length, 1, 'a revision that changes nothing stales nothing')
   group.visible = true
@@ -109,8 +116,8 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.equal(item.hidden, false)
   assert.equal(asked().length, 2, 'shown again, its shadow is drawn again')
   assert.deepEqual(touched, [0, 0])
-  orderBlendPasses(blendState, [0, 0, 0])
-  assert.equal(blendState.keepPacked[0] & 1, 1)
+  assert.deepEqual(blendState.keyMoved, { from: 0, to: 0 })
+  assert.equal(drawnBit(), KEY_DRAWN)
   // #456: a node set to cast no shadow leaves every light cut; its shadow pages are drawn again.
   node.castShadow = false
   uploadWorlds(rt)

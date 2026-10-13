@@ -1,5 +1,6 @@
-// The transparent kernels a fake device replays: compaction of the paged items, the paint order,
-// then expansion of the sorted plan, each through the CPU oracle the shader implements.
+// The transparent kernels a fake device replays: compaction of the paged items, the frustum
+// verdict, the paint order, then expansion of the sorted plan, each through the CPU oracle the
+// shader implements.
 import { evaluateTransparentCompaction } from '../../../packages/sdk-browser/src/webgpu/transparent/compactCpu.fixture.ts'
 import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.fixture.ts'
 import { RUN_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
@@ -7,11 +8,19 @@ import { EXPAND_UNI } from '../../../packages/sdk-browser/src/webgpu/blend/expan
 import { EXPAND_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts'
 import { maskBit } from './globals.ts'
 import {
-  KEY_HAS_BOX,
-  KEY_RECORD_WORDS,
   ORDER_BINDING,
   ORDER_UNI,
 } from '../../../packages/sdk-browser/src/webgpu/blend/orderWgsl.ts'
+import {
+  KEY_DRAWN,
+  KEY_HAS_BOX,
+  KEY_RECORD_WORDS,
+  KEY_WORD,
+} from '../../../packages/sdk-browser/src/webgpu/blend/keyLayout.ts'
+import { FRAME_HEAD } from '../../../packages/sdk-browser/src/webgpu/blend/frameHead.ts'
+import { VERDICT } from '../../../packages/sdk-browser/src/webgpu/blend/verdictLayout.ts'
+import { VERDICT_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/verdictWgsl.ts'
+import { frustumExcludesBox } from '../../../packages/sdk-core/src/index.ts'
 import { PLAN_SHIFT } from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts'
 import { placeBlendSlots } from '../../../packages/sdk-browser/src/webgpu/blend/runs.fixture.ts'
 import { precedes } from '../../../packages/sdk-browser/src/webgpu/blend/paintOrder.ts'
@@ -100,9 +109,9 @@ function simulateBlendOrder(bind: ComputeBind, offsets?: readonly number[]) {
   const eye = [0, 2, 4].map((at) => doubleAt(frame, at))
   const keyOf = (seed: number) => {
     const at = (seeds[seed] >>> PLAN_SHIFT) * KEY_RECORD_WORDS,
-      own = keyed[at + 13]
+      own = keyed[at + KEY_WORD.own]
     if (own !== NO_INDEX) return doubleAt(frame, uni[ORDER_UNI.ownKeyBase] + own * 2)
-    const box = (keyed[at + 12] & KEY_HAS_BOX) !== 0
+    const box = (keyed[at + KEY_WORD.flags] & KEY_HAS_BOX) !== 0
     for (let i = 0; i < (box ? 6 : 3); i++) keyBox[i] = doubleAt(keyed, at + i * 2)
     if (box) boxCenterFrom(keyGap, 0, keyBox, 0, eye[0], eye[1], eye[2])
     else for (let axis = 0; axis < 3; axis++) keyGap[axis] = keyBox[axis] - eye[axis]
@@ -128,6 +137,53 @@ function simulateBlendOrder(bind: ComputeBind, offsets?: readonly number[]) {
   )
 }
 
+/** The frame's planes and an item's box, read from the frame and its key record. */
+const planes = new Float64Array(24),
+  itemBox = new Float64Array(6)
+
+/**
+ * Replays the frustum verdict (`judgeBlendItems`, `verdictWgsl.ts`) on the words it reads: a drawn
+ * item kept unless unpaged with a box the frustum excludes (`frustumExcludesBox`, the CPU's doubles,
+ * which the kernel's emulated ones equal to the bit, `verdictWgsl.test.ts`), its counts and each
+ * water rank's word written where the kernel writes them.
+ */
+function simulateBlendVerdict(bind: ComputeBind) {
+  const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]))
+  const at = (binding: number) => words(byBinding.get(binding)!.data)
+  const keyed = at(VERDICT_BINDING.keyed),
+    draws = at(VERDICT_BINDING.draws),
+    counts = at(VERDICT_BINDING.counts),
+    frame = at(VERDICT_BINDING.frame),
+    keep = at(VERDICT_BINDING.keep),
+    verdict = at(VERDICT_BINDING.verdict)
+  for (let k = 0; k < 24; k++) planes[k] = doubleAt(frame, FRAME_HEAD.planes + 2 * k)
+  const items = frame[FRAME_HEAD.items]
+  keep.fill(0, 0, Math.ceil(items / 32))
+  for (let item = 0; item < items; item++) {
+    const record = item * KEY_RECORD_WORDS,
+      flags = keyed[record + KEY_WORD.flags],
+      water = keyed[record + KEY_WORD.water],
+      paged = draws[item * 4] !== NO_INDEX
+    const waterWord = VERDICT.waterDraws + water - 1
+    if (!(flags & KEY_DRAWN)) {
+      if (water) verdict[waterWord] = 0
+      continue
+    }
+    for (let k = 0; k < 6; k++) itemBox[k] = doubleAt(keyed, record + 2 * k)
+    const [x0, y0, z0, x1, y1, z1] = itemBox
+    const excluded =
+      (flags & KEY_HAS_BOX) !== 0 &&
+      (!paged || water !== 0) &&
+      frustumExcludesBox(planes, x0, y0, z0, x1, y1, z1)
+    const held = paged ? counts[draws[item * 4] * 4 + 1] !== 0 : !excluded
+    if (paged || !excluded) keep[item >>> 5] |= 1 << (item & 31)
+    if (!held) verdict[VERDICT.rejected]++
+    if (!water) continue
+    if (!excluded) verdict[VERDICT.inView]++
+    verdict[waterWord] = held ? 1 : 0
+  }
+}
+
 /** The transparent kernels the double replays, by the entry point of their last dispatch: each
  *  replay runs once everything that kernel reads is there. */
 export const TRANSPARENT_STAGES: Record<
@@ -135,6 +191,7 @@ export const TRANSPARENT_STAGES: Record<
   ((bind: ComputeBind, offsets?: readonly number[]) => void) | undefined
 > = {
   scatterTransparentGroups: simulateTransparentCompaction,
+  judgeBlendItems: simulateBlendVerdict,
   placeBlendSlots: simulateBlendOrder,
   writeBlendRuns: simulateBlendExpansion,
 }

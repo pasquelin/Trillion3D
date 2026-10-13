@@ -1,4 +1,4 @@
-import { frustumExcludesBox, type FrameMetrics } from '../../../sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../sdk-core/src/index.ts'
 import { enginePose } from '../camera/world.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { families } from '../host/families.ts'
@@ -31,27 +31,12 @@ const viewPose = (cam: EngineCamera) => ({
   far: cam.far,
 })
 
-/** Counts once per snapshot the commands whose box is entirely out of frustum.
- * This lower bound does not invent GPU-mask results and does not change any selection. */
+/** The frame's costs once per snapshot. The transparents the frustum left out are the GPU
+ * verdict's count, read back a few images late (`verdictRead.ts`): no CPU walk repeats it, and no
+ * selection changes. */
 export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
   if (!frameCostAuditEnabled()) return undefined
-  let outsideItems = 0,
-    outsideDraws = 0,
-    unknownBounds = 0
   const { blendState, run, timing } = rt
-  for (const item of blendState.visibleBlend) {
-    const box = item.bounds
-    if (!box) {
-      unknownBounds++
-      continue
-    }
-    if (!frustumExcludesBox(blendState.blendPlanes, box[0], box[1], box[2], box[3], box[4], box[5]))
-      continue
-    outsideItems++
-    // The item's surface record says both: a double-sided blend is two draws unless the host
-    // declared the single pass.
-    outsideDraws += item.surface.doubleSided && !item.surface.forceSinglePass ? 2 : 1
-  }
   return {
     selection: 'gpu',
     // The published pose is the engine camera’s, which frame entry has just copied:
@@ -65,9 +50,7 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
     transparentPrepareMs: timing.transparentPrepareMs,
     transparentDrawMs: timing.transparentDrawMs,
     transparentSpanUploadBytes: timing.transparentSpanUploadBytes,
-    listedOutsideFrustum: outsideItems,
-    outsideDrawsIfTextured: outsideDraws,
-    unknownBounds,
+    listedOutsideFrustum: run.blendFrustumRejected,
     gpuEmptyDraws: null,
     pagedItems: blendState.table?.pagedItems.length ?? 0,
     compactionEntriesWithPadding: blendState.table?.length ?? 0,

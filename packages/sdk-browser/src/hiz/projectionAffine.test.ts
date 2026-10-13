@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { HIZ_BOUNDS_VALUES } from './corners.ts'
-import { projectCornersInto } from './corners.ts'
+import { projectCornersInto } from './projection.fixture.ts'
 
 const camera = () => {
   const cam = G.perspectiveCamera(50, 1280 / 720, 0.1, 5000)

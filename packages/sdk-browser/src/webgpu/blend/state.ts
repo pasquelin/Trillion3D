@@ -10,12 +10,11 @@ import type { BlendLighting } from '../core/blendBindEntries.ts'
 import type { BlendOverdraw } from './overdraw.ts'
 import type { TransparentCompaction } from '../transparent/compact.ts'
 import type { TransparentTable } from '../transparent/table.ts'
-import type { BlendExpand, BlendKernels } from './expand.ts'
-import { createWaterBounds } from '../water/bounds.ts'
+import type { BlendExpand } from './expand.ts'
+import type { BlendKernels } from './expandKernels.ts'
 import type { WaterPass } from '../water/waterPass.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
-import { createBlendHierarchy } from './hierarchy.ts'
 import { createBlendOrderState } from './orderState.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { FloatAtlas } from '../core/floatAtlas.ts'
@@ -26,6 +25,9 @@ export type BlendGpuItem = {
   deformInput?: number
   deformOutput?: number
   deformBounds?: Float64Array
+  /** Its local box grown by the deformation's reach, `deformBounds` before its pose: what its
+   *  deformed vertices stay in, and the water rectangle encloses (`../water/waterItems.ts`). */
+  deformLocal?: Float64Array
   /** The material transmits: the item is drawn in the transmission pass, not in the blend. */
   transmissive?: boolean
   /** Its surface carries an anisotropic or clear-coat lobe, set with its record
@@ -120,8 +122,7 @@ function tableState() {
 function waterState() {
   return {
     /** How many transparent items transmit: zero means no backdrop is allocated, and the water pass
-     *  does not exist of the scene. `transmissiveInView` is how many the frustum kept this image:
-     *  zero, and the pass is not encoded (`order.ts`). */
+     *  does not exist of the scene. */
     transmissive: 0,
     /** A source that brings a transmissive surface asked for the water pass before its items join:
      *  the targets it draws over are made for it (`holdsWater`). */
@@ -132,8 +133,11 @@ function waterState() {
     /** The compaction and the occlusion test being made for the first blended pages the session
      *  gains (`mountTransparent`), until they are. */
     mounting: undefined as Promise<boolean> | undefined,
-    transmissiveInView: 0,
-    waterBounds: createWaterBounds(),
+    /** This image wants water, its head words written (`../water/pass.ts`); its rectangle's
+     *  kernels ran (`expansionFrame.ts`); or no water can draw it, and nothing of it is encoded. */
+    waterWanted: false,
+    waterBound: false,
+    waterQuiet: false,
     /** Volume of each transmissive item, at its water rank, written with the records. */
     volumePacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
     /** The water pass — surface pipelines and composite — of a scene that transmits, mounted with
@@ -168,7 +172,7 @@ function recordState(view: Float32Array<ArrayBuffer>) {
   }
 }
 
-/** The plan's expansion, its sizes and regions, the frustum verdict and the box tree it walks. */
+/** The plan's expansion, its sizes and regions, and what moves the GPU's frustum verdict. */
 function planState() {
   return {
     /** Kernel that expands the sorted plan, and the two buffers it writes: the instance list the
@@ -189,12 +193,11 @@ function planState() {
      *  argument buffers (`planLayout.ts`). */
     maxPlanEntries: 1,
     planRegions: [] as { seeds: number; order: number; runs: number; args: number }[],
-    /** One bit per item: the frustum verdict of the frame, and true as long as a word of the mask
-     *  has changed since the last write to the GPU. */
-    keepPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
-    keepMoved: true,
-    /** Box tree the frustum verdict walks: built per item list, refit on a move (`hierarchy.ts`). */
-    hierarchy: createBlendHierarchy(),
+    /** What the GPU verdict reads moved this many times (`expansionFrame.ts`): its counts come
+     *  back under it, and a count read under the current one still holds. */
+    verdictEpoch: 0,
+    /** The frustum planes the last verdict judged with. */
+    judgedPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),
   }
 }
 

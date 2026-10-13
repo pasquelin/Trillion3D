@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { drawBlendPass } from '../blend/draw.ts'
-import { orderBlendPasses } from '../blend/order.ts'
 import { encodeWaterPass } from './pass.ts'
 import { createWaterPass } from './waterPass.ts'
 import { WATER_BINDINGS } from './compositeWgsl.ts'
@@ -51,7 +50,7 @@ test('the water pass follows the blends: frozen backdrop, surfaces, then one com
   )
   assert.deepEqual(drawn(passes[0]), [0, 2], 'blends draw the two non-transmissive items')
   assert.deepEqual(drawn(passes[1]), [1], 'the surface stage draws the transmissive one')
-  assert.equal(textureCopies.length, 1, 'the lit image; the surface pass restores the opaque depth')
+  assert.equal(textureCopies.length, 0, 'the backdrop is a compute copy over the GPU rectangle')
   assert.equal(rt.run.blendDrawCalls, 3, 'the surface draws count as transparent draws')
   assert.equal(rt.run.gpuDrawCalls, 5, 'plus the depth restore and the composite')
 })
@@ -93,7 +92,11 @@ test('a still frame binds nothing new: the group and the descriptors survive the
   assert.equal(groups.created, built, 'the second image builds no group')
   rt.gpu.backdrop = { ...rt.gpu.backdrop!, colorView: {} as never }
   encodeWaterPass(rt, encoder)
-  assert.equal(groups.created, built + 2, 'a resized backdrop rebuilds depth and composite groups')
+  assert.equal(
+    groups.created,
+    built + 3,
+    'a resized backdrop rebuilds the depth restore, backdrop copy and composite groups',
+  )
 })
 
 test("the shadow maps' double-buffered tables taking turns build one composite group each, once", async () => {
@@ -114,13 +117,11 @@ test("the shadow maps' double-buffered tables taking turns build one composite g
   assert.equal(shadowData.buffer, tables[1])
 })
 
-test('glass behind the camera: no copy, no surface pass, no composite', async () => {
+test('an image whose rectangle kernels did not run encodes nothing of the pass', async () => {
   const { rt, encoder, passes, textureCopies, blendState } = await mounted()
-  // A frustum whose near plane faces +z rejects a box that lies entirely beyond z = -1.
-  blendState.blendPlanes.set([0, 0, -1, -1])
-  blendState.blendGpu[1].bounds = new Float64Array([-1, -1, 5, 1, 1, 6])
-  orderBlendPasses(blendState, [0, 0, 0])
-  assert.equal(blendState.transmissiveInView, 0, 'the only transmissive item is out of view')
+  // No transmissive item in view while nothing moved (`expansionFrame.ts`): the verdict's kernels
+  // did not bound the water, and the slice draws as one more blend.
+  blendState.waterBound = false
   assert.equal(encodeWaterPass(rt, encoder), false)
   assert.equal(textureCopies.length, 0)
   assert.deepEqual(passes, [])
@@ -137,7 +138,12 @@ test('without the pass, or without a backdrop, nothing of it is encoded', () => 
     capture: {},
   } as unknown as WebgpuPagesRuntime
   assert.equal(encodeWaterPass(rt, encoder as never), false, 'no pass')
-  blendState.water = { surfaces: [{}, {}, {}] as never, frame: {} as never, lobed: {} as never }
+  blendState.water = {
+    surfaces: [{}, {}, {}] as never,
+    frame: {} as never,
+    lobed: {} as never,
+    rect: {} as never,
+  }
   gpu.backdrop = undefined
   assert.equal(encodeWaterPass(rt, encoder as never), false, 'no backdrop')
 })
@@ -149,6 +155,7 @@ test('disposing the visibility path disposes the water pass with the blend pipel
     surfaces: [{}, {}, {}] as never,
     frame: { dispose: () => disposed++ } as never,
     lobed: {} as never,
+    rect: {} as never,
   }
   const vis = createWebgpuVisState()
   const rt = {

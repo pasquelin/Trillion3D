@@ -58,7 +58,7 @@ function followHidden<E extends { hidden?: boolean }>(
  * says (`castShadow`, its shadowless bit); a row says for its own (`followPlacementRows`). `flip`
  * hears the rank of each root that flipped: its rows, derived again, stale the shadow pages it left
  * or entered (`rowCastWgsl.ts`). A see-through draw of a hidden node takes `hidden`, which its
- * selection reads (`notDrawn`), and `seeThrough.flipped` hears it. Read once per scene revision,
+ * selection reads (`notDrawn`), and `seeThrough.flipped` hears it and its rank. Read once per scene revision,
  * never per frame. `under`, when given, names the roots and the see-through draws to read — those
  * under the nodes the host flipped —, the others standing as they are.
  */
@@ -70,7 +70,7 @@ export function followHostVisibility<
   seeThrough: {
     entries: readonly S[]
     sourceOf: (entry: S) => Object3D | undefined
-    flipped?: (entry: S) => void
+    flipped?: (entry: S, rank: number) => void
   },
   flip?: (rank: number, root: ClusterRoot<T>) => void,
   under?: { roots: Subset; seeThrough: Subset },
@@ -98,7 +98,7 @@ export function followHostVisibility<
   followHidden(
     seeThrough.entries,
     seeThrough.sourceOf,
-    (entry) => seeThrough.flipped?.(entry),
+    (entry, rank) => seeThrough.flipped?.(entry, rank),
     under?.seeThrough,
   )
 }

@@ -16,7 +16,7 @@ import { clipToFramebuffer, pixelToNdc, unprojectPoint } from '../../../math/src
 import { REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 
-const { min, max } = Math
+const { min } = Math
 import type { ReflectionPipelines, ScreenReflection } from './gpu.ts'
 import { REFLECTION_VIEW_BYTES, REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 
@@ -246,6 +246,18 @@ function frontDescriptors(width: number, height: number, blends: boolean) {
       size: RECT_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     },
+    // The rectangle and the scatter's workgroups of an image whose only transparent pass was the
+    // water's: copied from the GPU's water rectangle (`frontFromWater`).
+    waterRect: {
+      label: LABEL,
+      size: RECT_BYTES,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    },
+    waterArgs: {
+      label: LABEL,
+      size: ARGS_BYTES,
+      usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
+    },
     // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread it and write it.
     folded: {
       label: LABEL,
@@ -269,6 +281,8 @@ export function frontBytes(width: number, height: number, blends: boolean) {
     (carried
       ? carried.buffer.size +
         carried.rect.size +
+        carried.waterRect.size +
+        carried.waterArgs.size +
         carried.box.size +
         carried.args.size +
         textureBytesOf(carried.folded)!
@@ -299,6 +313,8 @@ export function createFrontDepth(
   const carried = descriptors.carried && {
     buffer: device.createBuffer(descriptors.carried.buffer),
     rect: device.createBuffer(descriptors.carried.rect),
+    waterRect: device.createBuffer(descriptors.carried.waterRect),
+    waterArgs: device.createBuffer(descriptors.carried.waterArgs),
     box: device.createBuffer(descriptors.carried.box),
     args: device.createBuffer(descriptors.carried.args),
     folded: device.createTexture(descriptors.carried.folded),
@@ -327,17 +343,23 @@ export function createFrontDepth(
     foldedView: carried?.folded.createView(),
     fresh: false,
     held: false,
-    /** The scatter's and the fold's group and the boxes', under the identity of what they name
-     *  (`createWebgpuBindIdentity`). */
+    /** The water pass is the only transparent pass that wrote since the target was cleared: its
+     *  rectangle is the GPU's (`frontFromWater`). */
+    water: false,
+    /** The scatter's and the fold's group, the scatter's over the water's rectangle, and the
+     *  boxes', under the identity of what they name (`createWebgpuBindIdentity`). */
     groups: {
       identity: createWebgpuBindIdentity(),
       group: undefined as GPUBindGroup | undefined,
+      waterGroup: undefined as GPUBindGroup | undefined,
       boxGroup: undefined as GPUBindGroup | undefined,
     },
     dispose() {
       written.destroy()
       carried?.buffer.destroy()
       carried?.rect.destroy()
+      carried?.waterRect.destroy()
+      carried?.waterArgs.destroy()
       carried?.box.destroy()
       carried?.args.destroy()
       carried?.folded.destroy()
@@ -345,21 +367,6 @@ export function createFrontDepth(
   }
 }
 export type FrontDepth = ReturnType<typeof createFrontDepth>
-
-/** The attachment of a transparent pass for the front depth, over `rect` (`[x0, y0, x1, y1]`, the
- *  pass's scissor; the whole target without): the image's first such pass clears it. */
-export function frontAttachment(front: FrontDepth, rect?: ArrayLike<number>) {
-  const first = !front.fresh,
-    to = front.rect
-  front.fresh = true
-  front.attachment.loadOp = first ? 'clear' : 'load'
-  const whole = !rect
-  for (let k = 0; k < 4; k++) {
-    const side = whole ? (k < 2 ? 0 : Infinity) : rect[k]
-    to[k] = first ? side : k < 2 ? min(to[k], side) : max(to[k], side)
-  }
-  return front.attachment
-}
 
 /**
  * The front depth the transparents of the last image wrote, carried to this image's pixels when
@@ -390,18 +397,21 @@ export function encodeFrontDepth(
   next[4] = front.foldedView
   next.length = 5
   if (groups.identity.moved() || !groups.group || !groups.boxGroup) {
-    groups.group = device.createBindGroup({
-      label: LABEL,
-      layout: stages.frontLayout,
-      entries: sequentialEntries([
-        { buffer: reflection.uniform },
-        front.view,
-        { buffer: carried.buffer },
-        { buffer: carried.rect },
-        { buffer: carried.box },
-        front.foldedView!,
-      ]),
-    })
+    const scatterGroup = (rect: GPUBuffer) =>
+      device.createBindGroup({
+        label: LABEL,
+        layout: stages.frontLayout,
+        entries: sequentialEntries([
+          { buffer: reflection.uniform },
+          front.view,
+          { buffer: carried.buffer },
+          { buffer: rect },
+          { buffer: carried.box },
+          front.foldedView!,
+        ]),
+      })
+    groups.group = scatterGroup(carried.rect)
+    groups.waterGroup = scatterGroup(carried.waterRect)
     groups.boxGroup = device.createBindGroup({
       label: LABEL,
       layout: stages.frontBoxLayout,
@@ -410,7 +420,12 @@ export function encodeFrontDepth(
   }
   const { group, boxGroup } = groups
   const pass = encoder.beginComputePass({ label: FRONT_DEPTH_PASS })
-  if (carries) {
+  if (carries && front.water) {
+    // The water's rectangle and workgroups, as the GPU wrote them: none when no water drew.
+    pass.setPipeline(stages.frontPipeline)
+    pass.setBindGroup(0, groups.waterGroup!)
+    pass.dispatchWorkgroupsIndirect(carried.waterArgs, 0)
+  } else if (carries) {
     const [width, height] = reflection.radiance.held.size,
       { rect, scattered } = front
     const x0 = min(rect[0], width),

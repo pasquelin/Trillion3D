@@ -1,4 +1,4 @@
-import { frontAttachment } from '../../reflections/frontDepth.ts'
+import { frontAttachment } from '../../reflections/frontAttachment.ts'
 import { bindForwardReflection } from '../../reflections/gpu.ts'
 import { feedbackAttachment } from '../pages/prepare/attachments.ts'
 import { blendEntries } from './identity.ts'
@@ -13,7 +13,6 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
 import { directLightResources } from '../pages/prepare/lightResources.ts'
 import { DISPLAY_MASK_PASS, TRANSMISSION_PASS, TRANSPARENTS_PASS } from '../../stage/passLabels.ts'
-import { hasBit } from '../../../../math/src/scalar/bits.ts'
 
 /**
  * Bind group of a blend pass: vertex buffers, item records, atlases and lighting. A paged item
@@ -40,9 +39,9 @@ function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGp
  * ranked (`order.ts`). Draw primitives are rasterized instance by instance, in order: the paint
  * order is the one a draw per item gives — without the draws.
  *
- * The loop does no matrix product, no material read, no frustum test: an own entry wholly out of
- * view is not encoded at all; a main slot holds too many entries to query one by one — the GPU
- * zeros their instances, and a draw with no instance sets nothing.
+ * The loop does no matrix product, no material read, no frustum test: the frustum verdict is the
+ * GPU's (`verdictWgsl.ts`), which zeros the instances of what it rejects — an own entry wholly out
+ * of view draws no instance, and a draw with no instance sets nothing.
  *
  * `slice` says which pass is encoded — blends, or the water surfaces — and `pipelines` what
  * draws it, with the display layers `filter` attached and its mask bound; the bind groups are the
@@ -80,7 +79,6 @@ export function drawBlendRuns(
       item: BlendGpuItem | undefined
     if (own >= 0) {
       const entry = seeds[ownSeeds[own]]
-      if (!hasBit(blendState.keepPacked, planItem(entry))) continue
       pipelineRank = planPipeline(entry)
       item = items[planItem(entry)]
     }

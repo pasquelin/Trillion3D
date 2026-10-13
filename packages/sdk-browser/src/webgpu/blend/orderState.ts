@@ -1,7 +1,8 @@
 import type { OrderStep } from './orderSteps.ts'
 
-/** What the transparent passes hold of their encoding plan and paint order (`plan.ts`,
- *  `order.ts`, `runs.ts`): reused from one image to the next, rebuilt with the plan. */
+/** What the transparent passes hold of their encoding plan, paint order and the records the
+ *  kernels read (`plan.ts`, `order.ts`, `runs.ts`, `keyRecords.ts`): reused from one image to the
+ *  next, rebuilt with the plan. */
 export const createBlendOrderState = () => ({
   /** Static tables of the encoding plan (`plan.ts`). */
   drawsPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
@@ -42,6 +43,15 @@ export const createBlendOrderState = () => ({
   /** Key records of the items, two views of one buffer (`keyRecords.ts`). */
   keyPacked: new Float64Array(0) as Float64Array<ArrayBuffer>,
   keyWords: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+  /** The records noted stale between two plans (`noteKeyRecord`); none when `to` is below
+   *  `from`. */
+  keyMoved: { from: Infinity, to: -1 },
+  /** What the water rectangle reads of each transmissive item, by water rank, two views of one
+   *  buffer, written with the key records (`../water/waterItems.ts`). */
+  waterItemPacked: new Float64Array(0) as Float64Array<ArrayBuffer>,
+  waterItemWords: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+  /** A deformed water item's grown local box moved since the records were sent (`wholeBounds`). */
+  waterItemsMoved: false,
   /** The plan changed since the GPU last received it: seeds, dispatches, key records. */
   planMoved: true,
 })

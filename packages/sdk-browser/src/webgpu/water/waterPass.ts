@@ -7,15 +7,18 @@ import { createWaterFrame, type WaterFrame } from './frame.ts'
 import { createWaterSurfacePipelines } from './pipelines.ts'
 import { createLobedWaterStage, type LobedWaterStage } from './lobedStage.ts'
 import { waterOutFields } from './surfaceWgsl.ts'
+import { createWaterRect, type WaterRect } from './rect.ts'
 import type { Reach } from '../blend/reach.ts'
 import type { ForwardLit } from '../../lighting/deferred/forwardVariants.ts'
 
-/** The water pass of a scene: its surface pipelines and its frame side, built at prepare; the
- *  surface stage of an image whose transmissive surface carries a lobe (`lobedStage.ts`). */
+/** The water pass of a scene: its surface pipelines, its frame side and its rectangle's kernels
+ *  (`rect.ts`), built at prepare; the surface stage of an image whose transmissive surface carries
+ *  a lobe (`lobedStage.ts`). */
 export interface WaterPass {
   surfaces: BlendPipelines
   lobed: LobedWaterStage
   frame: WaterFrame
+  rect: WaterRect
 }
 
 /** The blend module's `code`, carrying `fsWater` — and `fsWaterLobed` with `lobes`
@@ -58,11 +61,12 @@ export async function createWaterPass(
   reach?: Reach,
   lobes: WaterLobes = { module: async () => module, now: false },
 ): Promise<WaterPass> {
-  const [surfaces, frame] = await Promise.all([
+  const [surfaces, frame, rect] = await Promise.all([
     createWaterSurfacePipelines(device, module, layout, feedback),
     createWaterFrame(device, feedback, lit, reach),
+    createWaterRect(device),
   ])
   const lobed = createLobedWaterStage(device, lobes.module, layout, feedback, frame.restore)
   if (lobes.now) await lobed.prepare()
-  return { surfaces, lobed, frame }
+  return { surfaces, lobed, frame, rect }
 }

@@ -1,8 +1,4 @@
-import {
-  CONTRACT_BINDINGS_WGSL,
-  FULLSCREEN_VERTEX,
-  surfaceBindingsWgsl,
-} from '../../lighting/deferred/shaders.ts'
+import { CONTRACT_BINDINGS_WGSL, surfaceBindingsWgsl } from '../../lighting/deferred/shaders.ts'
 import { VIEW_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import {
@@ -19,10 +15,11 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { REFLECTION_GROUP } from '../../reflections/viewLayout.ts'
 import { forwardReflectionWgsl } from '../../reflections/weight.ts'
+import { waterQuadWgsl } from './quadWgsl.ts'
 
 /** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
  *  the contract, the probe grid, the proxy — then what only water reads: the frozen backdrop, the
- *  opaque depth, the blend view uniform and the material volumes. */
+ *  opaque depth, the blend view uniform, the material volumes and the rectangle its quad covers. */
 export const WATER_BINDINGS = {
   baseMetal: 0,
   normalRough: 1,
@@ -45,6 +42,8 @@ export const WATER_BINDINGS = {
   /** The blend view uniform, as written for the blend pass: projection, eye, tiles, flags. */
   uniform: 16,
   volumes: 17,
+  /** The verdict, whose water rectangle the composite's quad covers (`quadWgsl.ts`). */
+  rect: 36,
   /** The shadow pool's transmittance layer, on the deferred resolve's numbers. */
   shadowTransmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
   shadowTranslucentDepth: CONTRACT_SHADOW_BINDINGS.translucentDepth,
@@ -54,7 +53,8 @@ export const WATER_BINDINGS = {
 }
 
 /**
- * Fullscreen composite of the water pass. A pixel the surface stage wrote is lit once here: the
+ * Composite of the water pass, drawn on the water rectangle's quad (`quadWgsl.ts`): every pixel a
+ * surface may have written, and none past them. A pixel the surface stage wrote is lit once here: the
  * transmitted backdrop, refracted by the material IOR and attenuated over the distance the ray
  * travels in the volume; the specular of the declared lights and what the surface reflects
  * (`reflectedRadiance`, `../../reflections/weight.ts`, traced once for both shares), weighted by
@@ -120,7 +120,7 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
       BLEND_VIEW_WGSL,
       surfaceBindingsWgsl('waterWord:texture_2d<f32>'),
       CONTRACT_BINDINGS_WGSL,
-      FULLSCREEN_VERTEX,
+      waterQuadWgsl(WATER_BINDINGS.rect),
       ...(lobes ? [] : [WATER_LOBELESS_WGSL]),
       ...(route ? [route] : []),
     ],

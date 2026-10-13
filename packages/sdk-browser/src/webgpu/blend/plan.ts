@@ -1,13 +1,12 @@
-import { ceilDiv, bitWords } from '../../../../math/src/scalar/integers.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts'
 import { surfaceSide, type PageSurface } from '../../page/surface.ts'
 import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { filtersDisplay } from './equations.ts'
-import { buildBlendHierarchy } from './hierarchy.ts'
 import { EXPAND_PASSES, blendChunkWords, blendVertexShift, planRegions } from './planLayout.ts'
 import { slotCount } from './runs.ts'
-import { FRAME_EYE_WORDS, orderFrameWords } from './orderWgsl.ts'
+import { FRAME_HEAD, orderFrameWords } from './frameHead.ts'
 import { orderStepCount, planOrderSteps } from './orderSteps.ts'
 import type { BlendGpuItem, WebgpuBlendState } from './state.ts'
 import {
@@ -116,8 +115,6 @@ export function buildBlendStatics(blendState: WebgpuBlendState, uniformStride: n
   blendState.instanceBase[1] = room[0]
   blendState.instanceCapacity = Math.max(1, room[0] + room[1])
   blendState.drawsPacked = draws
-  blendState.keepPacked = new Uint32Array(Math.max(1, bitWords(items.length)))
-  buildBlendHierarchy(blendState)
   // Same worst case for the plan tables, its slots and the frame data, and for the same reason.
   const entries = Math.max(1, items.length) * MAX_SIDES
   blendState.maxPlanEntries = entries
@@ -232,7 +229,7 @@ function splitBlendClasses(blendState: WebgpuBlendState) {
 /** Where the frame data puts the own keys and seeds, and the order kernel's dispatches. */
 function planBlendOrder(blendState: WebgpuBlendState) {
   const layout = blendState.frameLayout
-  layout.ownKeys = FRAME_EYE_WORDS
+  layout.ownKeys = FRAME_HEAD.words
   let at = layout.ownKeys + 2 * blendState.ownItems.length
   let step = 0
   for (let pass = 0; pass < EXPAND_PASSES; pass++) {

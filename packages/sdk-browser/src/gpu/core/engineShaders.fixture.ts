@@ -37,6 +37,9 @@ import { SHADE_SHADER, shadeShader } from '../../visibility/shader/shadeWgsl.ts'
 import { VIS_SHADER, visShader } from '../../visibility/shader/visWgsl.ts'
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts'
 import { BLEND_ORDER_SHADER } from '../../webgpu/blend/orderWgsl.ts'
+import { BLEND_VERDICT_SHADER } from '../../webgpu/blend/verdictWgsl.ts'
+import { WATER_RECT_SHADER } from '../../webgpu/water/rectWgsl.ts'
+import { WATER_COPY_SHADER } from '../../webgpu/water/copyWgsl.ts'
 import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts'
 import { GATHER_WGSL, REDUCE_WGSL } from '../../webgpu/tile/reduceWgsl.ts'
 import { TILE_SORT_WGSL } from '../../webgpu/tile/evictSortWgsl.ts'
@@ -72,7 +75,6 @@ import { vsmVariants } from './engineShaders.vsm.fixture.ts'
 
 const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]))
-
 /** The cut kernel of a layout whose tables split across bindings (`dagSelectionShader`). */
 const SPLIT_CUT = dagSelectionShader(
   dagSplit(
@@ -171,6 +173,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   BLEND_LOBELESS: blendShader({ lobeless: true }),
   BLEND_EXPAND_SHADER,
   BLEND_ORDER_SHADER,
+  BLEND_VERDICT_SHADER,
   REDUCE_WGSL,
   GATHER_WGSL,
   TILE_SORT_WGSL,
@@ -187,6 +190,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   WATER_COMPOSITE_LOBELESS: waterCompositeShader({ lobeless: true }),
   WATER_ROUTED_UNSHADOWED: waterRoutedShader({ unshadowed: true }),
   WATER_DEPTH_RESTORE_SHADER,
+  WATER_RECT_SHADER,
+  WATER_COPY_SHADER,
   PARTICLES_WGSL: particlesWgsl(false),
   PARTICLES_SUBGROUPS: particlesWgsl(true),
   PARTICLE_DRAW_WGSL,

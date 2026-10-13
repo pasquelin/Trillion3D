@@ -1,6 +1,8 @@
 import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 import { PLAN_SHIFT } from './planEntry.ts'
-import { EXPAND_PASSES, RUN_WORDS } from './planLayout.ts'
+import { RUN_WORDS } from './planLayout.ts'
+import { KEYED_WGSL } from './keyLayout.ts'
+import { FRAME_HEAD_WGSL } from './frameHead.ts'
 import { dAdd, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -35,15 +37,6 @@ import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
  *  workgroup memory, half the default limit. */
 export const SORT_BLOCK = 512
 const SORT_THREADS = SORT_BLOCK / 2
-/** Words of an item's key record (`keyRecords.ts`): six doubles, then its flags and its own rank. */
-export const KEY_RECORD_WORDS = 16
-export const KEY_HAS_BOX = 1
-/** Words of the frame data before the own keys: the eye, four doubles. */
-export const FRAME_EYE_WORDS = 8
-/** Words of the frame data a scene of `items` items, `entries` entries a pass, can send at most:
- *  the eye, a key per item, a seed and a slot per entry of each pass (`order.ts`). */
-export const orderFrameWords = (items: number, entries: number) =>
-  FRAME_EYE_WORDS + 2 * items + 2 * EXPAND_PASSES * entries
 
 /** The kernel's three entry points: a block sort or merge, a step across blocks, the slots. */
 export const BLEND_ORDER_ENTRIES = ['sortBlendBlocks', 'sortBlendStep', 'placeBlendSlots'] as const
@@ -111,8 +104,6 @@ export const BLEND_ORDER_SHADER = wgslProgram(
 @group(0) @binding(${ORDER_BINDING.sorted}) var<storage,read_write> sorted:array<vec4u>;
 @group(0) @binding(${ORDER_BINDING.placed}) var<storage,read_write> placed:array<u32>;
 var<workgroup> held:array<vec4u,${SORT_BLOCK}>;
-fn keyedDouble(at:u32)->vec2u{return vec2u(keyed[at+1u],keyed[at]);}
-fn frameDouble(at:u32)->vec2u{return vec2u(frame[at+1u],frame[at]);}
 /** One axis of the eye-to-box-centre gap: each bound brought to the eye, then the two averaged. */
 fn boxAxis(low:vec2u,high:vec2u,eye:vec2u)->vec2u{return dMul(dAdd(dSub(low,eye),dSub(high,eye)),vec2u(0x3fe00000u,0u));}
 /**
@@ -121,8 +112,8 @@ fn boxAxis(low:vec2u,high:vec2u,eye:vec2u)->vec2u{return dMul(dAdd(dSub(low,eye)
  * CPU ordered it with.
  */
 fn itemKey(item:u32)->vec2u{
- let at=item*${KEY_RECORD_WORDS}u;
- let own=keyed[at+13u];
+ let at=item*KEY_RECORD_WORDS;
+ let own=keyed[at+KEY_OWN];
  if(own!=NO_INDEX){return frameDouble(uni.ownKeyBase+own*2u);}
  let ex=frameDouble(0u);
  let ey=frameDouble(2u);
@@ -130,7 +121,7 @@ fn itemKey(item:u32)->vec2u{
  var x=vec2u(0u,0u);
  var y=vec2u(0u,0u);
  var z=vec2u(0u,0u);
- if((keyed[at+12u]&${KEY_HAS_BOX}u)!=0u){
+ if((keyed[at+KEY_FLAGS]&KEY_HAS_BOX)!=0u){
   x=boxAxis(keyedDouble(at),keyedDouble(at+6u),ex);
   y=boxAxis(keyedDouble(at+2u),keyedDouble(at+8u),ey);
   z=boxAxis(keyedDouble(at+4u),keyedDouble(at+10u),ez);
@@ -237,5 +228,15 @@ fn placeBlendSlots(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgrou
  if(k==uni.ownCount-1u){writeRun(slot+1u,at+1u,uni.entryCount-at-1u);}
 }
 `,
-  [orderUniformWgsl(), dAdd, dSub, dMul, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX],
+  [
+    orderUniformWgsl(),
+    dAdd,
+    dSub,
+    dMul,
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    NO_INDEX,
+    KEYED_WGSL,
+    FRAME_HEAD_WGSL,
+  ],
 )

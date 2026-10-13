@@ -11,7 +11,6 @@ import {
   orderEye,
   refreshEyeKeys,
 } from '../../../../packages/sdk-browser/src/webgpu/blend/expandCpu.fixture.ts'
-import { planItem } from '../../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
 import { instanceItem } from '../../../oracles/browser/instanceItem.ts'
 import { slotCapacity } from '../../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
 import {
@@ -29,39 +28,23 @@ import {
   classementReference,
   encodeReference,
 } from '../../../oracles/browser/transparent-orders.ts'
-import { hasBit } from '../../../../packages/math/src/scalar/bits.ts'
+import { blendVerdictCpu } from '../../../../packages/sdk-browser/src/webgpu/blend/verdict.fixture.ts'
 
 /** What the encode loop counted on the last lap: read by the sample, not by the lap. */
 let counts = 0
 const encodedCalls = () => counts
 
 /**
- * THE ENCODE LOOP, counted: an own slot whose item the frustum rejects is not encoded; a slot of
- * the main class always is (`packages/sdk-browser/src/webgpu/blend/draw.ts`).
- *
- * It is in ITS function, as in the engine, where it lives in the draw pass and not in
- * ranking. Written inline in the lap, it slowed the sort the lap calls and that the
- * loop does not touch: from +7.6% to −7.6% on the double-sided camera jump, at strictly
- * identical work. A bench that measures something other than the shipped form measures nothing.
+ * THE ENCODE LOOP, counted: every slot is encoded, the frustum verdict being the GPU's — a slot
+ * whose items it rejects draws no instance (`packages/sdk-browser/src/webgpu/blend/draw.ts`).
  */
-function callCount(blendState: BenchSide['blendState']) {
-  const seeds = blendState.seeds[0],
-    own = blendState.ownSeeds[0],
-    slotOwns = blendState.slotOwns[0],
-    keep = blendState.keepPacked,
-    count = blendState.runCount[0]
-  let encodes = 0
-  for (let slot = 0; slot < count; slot++) {
-    const rank = slotOwns[slot]
-    if (rank < 0 || hasBit(keep, planItem(seeds[own[rank]]))) encodes++
-  }
-  return encodes
-}
+const callCount = (blendState: BenchSide['blendState']) => blendState.runCount[0]
 
 /** The CPU model of the order and its expansion, reread as index ranges: what the rasterizer would
  *  see. */
 function etale(
   side: BenchSide,
+  keep: Uint32Array,
   mirror: { expanded: Uint32Array; args: Uint32Array },
   output: Uint32Array,
 ) {
@@ -74,7 +57,7 @@ function etale(
     runs: cpuModel(blendState).runs[0],
     runCount: blendState.runCount[0],
     draws: blendState.drawsPacked,
-    keep: blendState.keepPacked,
+    keep,
     itemCounts: scene.itemCounts!,
     instances: scene.instances!,
     maxVertexWords: blendState.maxVertexWords,
@@ -114,18 +97,20 @@ function tours(before: BenchSide, after: BenchSide) {
     }
     return output
   }
-  /** The batch path: frustum and own entries on the CPU, then one call per slot. */
+  /** The batch path: the own entries on the CPU, the frustum verdict the GPU's (its CPU model,
+   *  `verdict.fixture.ts`, for what the image draws), then one call per slot. */
   const optimised = (images: Frame[], sequence: boolean) => {
     const output = []
     for (const image of images) {
       pose(after, image)
-      const rejections = orderBlendPasses(blendState, image.eye)
+      orderBlendPasses(blendState, image.eye)
+      const verdict = blendVerdictCpu(blendState, after.scene.itemCounts)
       if (sequence) {
-        output.push(after.output.subarray(0, etale(after, mirror, after.output)))
+        output.push(after.output.subarray(0, etale(after, verdict.keep, mirror, after.output)))
         continue
       }
       counts = callCount(blendState)
-      output.push(rejections)
+      output.push(verdict.rejected)
     }
     return output
   }
