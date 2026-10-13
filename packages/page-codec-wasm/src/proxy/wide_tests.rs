@@ -12,6 +12,7 @@ pub(crate) fn twin() -> Twin {
         about: "a proxy BVH child record (asset-compiler-rust proxy/wide.rs pack; read by sdk-browser bounce nodeWgsl.ts proxyChild): per axis the child's bounds in its parent's span, times 255, floored low and ceiled high, a flat or non-finite axis the full width; word 0 low x, y, z and high x bytes, word 1 high y, z bytes, count and the presence bit, word 2 the offset",
         inputs: "parent low: 3 f32, parent high: 3 f32, child low: 3 f32, child high: 3 f32, count: u32, offset: u32",
         outputs: "3 u32",
+        ulps: 0,
         cases,
         compute: |v| {
             let f = |at: usize| [0, 1, 2].map(|c| v[at + c].f32());

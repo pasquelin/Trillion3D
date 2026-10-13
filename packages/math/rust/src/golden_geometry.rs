@@ -13,6 +13,7 @@ pub(crate) fn twins() -> Vec<Twin> {
             about: "normalizeVector3 (math vector/vector.ts), unit_or_itself (math/rust vec3.rs): each axis times 1 / length, a zero vector as it is; inputs in the normal band, where the two lengths agree",
             inputs: "v: 3 f64",
             outputs: "3 f64",
+            ulps: 0,
             cases: unit_cases,
             compute: |v| f64s(&unit_or_itself([v[0].f64(), v[1].f64(), v[2].f64()])),
         },
@@ -22,6 +23,7 @@ pub(crate) fn twins() -> Vec<Twin> {
             about: "sphereUnion (math geometry/sphere.ts), merge_spheres (math/rust sphere.rs): the sphere enclosing two, an empty one (negative radius) given up; centres apart",
             inputs: "left: 4 f64 (x, y, z, radius), right: 4 f64",
             outputs: "4 f64",
+            ulps: 0,
             cases: sphere_cases,
             compute: |v| {
                 let x: Vec<f64> = v.iter().map(|x| x.f64()).collect();

@@ -13,6 +13,7 @@ pub(crate) fn twins() -> Vec<Twin> {
             about: "mipSize (math scalar/integers.ts, WGSL mipSize in wgsl/integer.ts), mip_size (math/rust scalar.rs): the side halved level times by integer division, one texel at least",
             inputs: "size: u32 (an int32), level: u32",
             outputs: "1 u32",
+            ulps: 0,
             cases: mip_cases,
             compute: |v| vec![Value::U32(mip_size(v[0].u32(), v[1].u32()))],
         },
@@ -22,6 +23,7 @@ pub(crate) fn twins() -> Vec<Twin> {
             about: "srgbToLinear (math color/color.ts), srgb_to_linear (math/rust color.rs): the sRGB decoding of the 256 bytes, the thresholds' neighbours, then ordinary values",
             inputs: "c: f64",
             outputs: "1 f64",
+            ulps: 1,
             cases: srgb_cases,
             compute: |v| f64s(&[crate::color::srgb_to_linear(v[0].f64())]),
         },
@@ -31,6 +33,7 @@ pub(crate) fn twins() -> Vec<Twin> {
             about: "hermiteBasis (math scalar/hermite.ts), hermite_basis (math/rust scalar.rs): the four weights at w, by w2 = w*w and w3 = w2*w",
             inputs: "w: f64",
             outputs: "4 f64",
+            ulps: 0,
             cases: hermite_cases,
             compute: |v| f64s(&hermite_basis(v[0].f64())),
         },
@@ -40,6 +43,7 @@ pub(crate) fn twins() -> Vec<Twin> {
             about: "lerp (math scalar/reals.ts), lerp (math/rust scalar.rs): a + (b - a) * t, exact at t = 0",
             inputs: "a: f64, b: f64, t: f64",
             outputs: "1 f64",
+            ulps: 0,
             cases: interpolation_cases,
             compute: |v| f64s(&[lerp(v[0].f64(), v[1].f64(), v[2].f64())]),
         },
@@ -49,6 +53,7 @@ pub(crate) fn twins() -> Vec<Twin> {
             about: "mix (math scalar/reals.ts), mix (math/rust scalar.rs): a * (1 - t) + b * t, exact at both ends",
             inputs: "a: f64, b: f64, t: f64",
             outputs: "1 f64",
+            ulps: 0,
             cases: interpolation_cases,
             compute: |v| f64s(&[mix(v[0].f64(), v[1].f64(), v[2].f64())]),
         },
@@ -58,6 +63,7 @@ pub(crate) fn twins() -> Vec<Twin> {
             about: "xorshiftRandom (math sequence/random.ts), xorshift32 (math/rust random.rs): one step of the 32-bit xorshift from a nonzero state",
             inputs: "state: u32",
             outputs: "1 u32",
+            ulps: 0,
             cases: step_cases,
             compute: |v| {
                 let mut state = v[0].u32();
@@ -70,6 +76,7 @@ pub(crate) fn twins() -> Vec<Twin> {
             about: "lcgRandom (math sequence/random.ts), lcg32 (math/rust random.rs): one step of the 32-bit congruential generator",
             inputs: "state: u32",
             outputs: "1 u32",
+            ulps: 0,
             cases: step_cases,
             compute: |v| {
                 let mut state = v[0].u32();

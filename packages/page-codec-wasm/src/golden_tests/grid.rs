@@ -14,6 +14,7 @@ pub(crate) fn twins() -> [Twin; 4] {
             about: "the finest grid on which a positive span fits a page's field, at most 2^23 steps: ceil(log2(span)) - 23 by Rust's saturating `as i32`, clamped to ±64 (page-codec-wasm bits/grid.rs finest_exponent, run by the SDK module, wasm_encode.rs)",
             inputs: "span: f64",
             outputs: "1 i32",
+            ulps: 0,
             cases: finest_cases,
             compute: |v| vec![Value::I32(finest_exponent(v[0].f64()))],
         },
@@ -23,6 +24,7 @@ pub(crate) fn twins() -> [Twin; 4] {
             about: "a tile's width, 2 m of the world, as a power of two in the object units the largest world scale gives, rounded down; a missing, zero or non-finite scale a metre per unit (page-codec-wasm bits/grid.rs tile_log2, run by the SDK module, wasm_encode.rs)",
             inputs: "has_scale: u32 (0 none), scale: f64",
             outputs: "1 i32",
+            ulps: 0,
             cases: tile_cases,
             compute: |v| vec![Value::I32(tile_log2(scale(v)))],
         },
@@ -32,6 +34,7 @@ pub(crate) fn twins() -> [Twin; 4] {
             about: "the position grid of a primitive: a blended one the finest its pages hold, any other its widest extent capped at its tile in 2^16 steps or an eighth of its DAG's finest error, the finer, never finer than its widest page fits (page-codec-wasm bits/grid.rs primitive_grid_exponent and grid_exponent, run by the SDK module, wasm_encode.rs)",
             inputs: "extent: f64, has_error: u32 (0 none), finest_error: f64, blended: u32, tile_log2: i32",
             outputs: "1 i32",
+            ulps: 0,
             cases: primitive_cases,
             compute: |v| {
                 let error = (v[1].u32() != 0).then(|| v[2].f64());
@@ -46,6 +49,7 @@ pub(crate) fn twins() -> [Twin; 4] {
             about: "the texture grid of a primitive whose texture coordinates span `span`: the format's 2^-14, or for a blended one the finest grid that span fits, never coarser (page-codec-wasm bits/grid.rs uv_grid_exponent, run by the SDK module, wasm_encode.rs)",
             inputs: "span: f64, blended: u32",
             outputs: "1 i32",
+            ulps: 0,
             cases: uv_cases,
             compute: |v| vec![Value::I32(uv_grid_exponent(v[0].f64(), v[1].u32() != 0))],
         },
