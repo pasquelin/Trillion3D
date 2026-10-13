@@ -4,7 +4,7 @@ import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
 import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { residentProxyWgsl } from './nodeWgsl.ts'
 import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts'
-import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
+import { PROBE_RAY_WGSL } from './surfaceRayWgsl.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
 import { GOLDEN_ANGLE, TWO_PI } from '../../../math/src/wgsl/constants.ts'
@@ -190,7 +190,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
     GOLDEN_ANGLE,
     hashUnit,
     sinFromCos,
-    SURFACE_RAY_WGSL,
+    PROBE_RAY_WGSL,
   ],
 )
 

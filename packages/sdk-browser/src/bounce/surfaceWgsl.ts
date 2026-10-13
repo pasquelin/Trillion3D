@@ -1,4 +1,5 @@
-import { LIGHTS_IRRADIANCE_WGSL } from '../lighting/direct/lightLoopWgsl.ts'
+import { lightsIrradianceWgsl } from '../lighting/direct/lightLoopWgsl.ts'
+import { BOUNCE_LIGHT_CELL_WGSL } from './lightCellWgsl.ts'
 import { atlasBytes } from './atlas.ts'
 import { atlasExtent } from '../webgpu/core/floatAtlas.ts'
 import { surfaceCacheTexels } from './sizes.ts'
@@ -71,7 +72,8 @@ fn updateSurface(@builtin(global_invocation_id) id:vec3u){
     BOUNCE_GRID_WGSL,
     BOUNCE_TRACE_WGSL,
     PROXY_ALBEDO_WGSL,
-    LIGHTS_IRRADIANCE_WGSL,
+    lightsIrradianceWgsl(true),
+    BOUNCE_LIGHT_CELL_WGSL,
     INVERSE_PI_BOUNCE,
   ],
 )

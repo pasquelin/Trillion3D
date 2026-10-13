@@ -49,12 +49,12 @@ export function createTileLightPool(device: GPUDevice) {
     },
     /**
      * Pool words for `tiles` columns of the light grid over `lights` lights. A column lists each
-     * light at most once in each of its `gridSlices` slices (`./compactWgsl.ts`): `gridSlices ×
+     * light at most once in each of its `slices` cells (the view's `gridSlices`) (`./compactWgsl.ts`): `gridSlices ×
      * lights` words hold its lists whole, so a view starts at that bound when it is below
      * `START_WORDS_PER_TILE`, and no column of it ever overflows.
      */
-    words(tiles: number, lights: number) {
-      const start = Math.min(START_WORDS_PER_TILE, LIGHT_SETTINGS.gridSlices * Math.max(1, lights))
+    words(tiles: number, lights: number, slices: number = LIGHT_SETTINGS.gridSlices) {
+      const start = Math.min(START_WORDS_PER_TILE, slices * Math.max(1, lights))
       return clamp(asked, tiles * start, tiles * MOST_WORDS_PER_TILE)
     },
     /** Opens the frame's pool at word `start`, `capacity` words: nothing reserved, no overflow. */

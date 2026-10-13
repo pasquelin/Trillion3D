@@ -148,9 +148,14 @@ const shadeStatement = (pair: boolean) => `
  * without the reject (#1249). The irradiance always rejects: a light in range there costs a ray
  * through the proxy, which the sphere test's few words do not weigh.
  */
-export const sliceLightingWgsl = (reject: boolean, pair = false, term: LightTerm = 'surface') =>
+export const sliceLightingWgsl = (
+  reject: boolean,
+  pair = false,
+  term: LightTerm = 'surface',
+  listed = true,
+) =>
   wgslBlock(
-    `sliceLightingWgsl(${reject}, ${pair}, ${term})`,
+    `sliceLightingWgsl(${reject}, ${pair}, ${term}, ${listed})`,
     [],
     term === 'surface'
       ? lightLoop(
@@ -159,7 +164,7 @@ export const sliceLightingWgsl = (reject: boolean, pair = false, term: LightTerm
  var result=${zero(pair)};
  let shading=lobeSurface(rgb,metal,rough,N,V);${pair ? '\n let dielectric=lobeSurface(vec3f(0.0),0.0,rough,N,V);' : ''}`,
           'slice.y',
-          'var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}',
+          LISTED_PICK,
           reject,
           pair
             ? PAIR_SUM
@@ -167,10 +172,10 @@ export const sliceLightingWgsl = (reject: boolean, pair = false, term: LightTerm
         )
       : lightLoop(
           'lightsIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f',
-          `
+          `${listed ? '\n let slice=bounceLightSlice(P);' : ''}
  var result=vec3f(0.0);`,
-          'directLights.count',
-          'let light=index;',
+          listed ? 'slice.y' : 'directLights.count',
+          listed ? LISTED_PICK : 'let light=index;',
           reject,
           'result+=declaredIrradiance(directLights.items[light],P,N,reach);',
         ),
@@ -194,6 +199,9 @@ fn ${head}{${start}
  return result;
 }`
 
+/** A listed light's rank: the list's word, or, from \`TILE_NO_SLICE\`, every light in turn. */
+const LISTED_PICK = 'var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}'
+
 /** \`sliceLighting\` with \`pair\`: each sum in the same order as its own walk's. */
 const PAIR_SUM = `let term=declaredLightPair(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading,dielectric);
   result.lit+=term.lit;result.specular+=term.specular;`
@@ -203,10 +211,21 @@ const RANGE_REJECT_TEST = `
   let offset=sphere.xyz-P;
   if(!isSunKind(directLights.items[light].params.x)&&dot(offset,offset)>sphere.w*sphere.w*RANGE_REJECT){continue;}`
 
-/** A bounce point's irradiance of every declared light (\`lightsIrradiance\`): the light term and its
- *  loop, with the range reject. */
-export const LIGHTS_IRRADIANCE_WGSL = wgslBlock(
-  'LIGHTS_IRRADIANCE_WGSL',
-  [declaredLightWgsl({}, { term: 'irradiance' }), sliceLightingWgsl(true, false, 'irradiance')],
-  '',
-)
+/**
+ * A bounce point's irradiance (\`lightsIrradiance\`): the light term and its loop, with the range
+ * reject. \`listed\`: the lights of the point's cell of the bounce's world grid
+ * (\`bounceLightSlice\`, \`../../bounce/lightCellWgsl.ts\`), which its module declares; else every
+ * declared light — the same sum, a light no list of the cell holds adding an exact zero there.
+ */
+export const lightsIrradianceWgsl = (listed: boolean) =>
+  wgslBlock(
+    `lightsIrradianceWgsl(${listed})`,
+    [
+      declaredLightWgsl({}, { term: 'irradiance' }),
+      sliceLightingWgsl(true, false, 'irradiance', listed),
+    ],
+    '',
+  )
+
+/** The irradiance of every declared light: a module with no world grid's lists. */
+export const LIGHTS_IRRADIANCE_WGSL = lightsIrradianceWgsl(false)

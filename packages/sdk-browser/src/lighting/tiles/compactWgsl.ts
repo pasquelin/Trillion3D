@@ -1,5 +1,4 @@
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { LANE_SCAN_WGSL, laneRunSum, laneRunWalk } from '../../gpu/core/laneScanWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { bitMask, bitWord, highHalf, lowBits, lowHalf } from '../../../../math/src/wgsl/integer.ts'
@@ -8,7 +7,6 @@ import { bitMask, bitWord, highHalf, lowBits, lowHalf } from '../../../../math/s
 export const GRID_LANES = 64
 /** Runs a column keeps between its two walks: a column of more kept lights tests the rest again. */
 const GRID_CACHE = 512
-const SLICES = LIGHT_SETTINGS.gridSlices
 
 /**
  * The lists of a column's cells, in two walks of its kept lights, each a batch of 64 at a
@@ -22,17 +20,22 @@ const SLICES = LIGHT_SETTINGS.gridSlices
  * light (`TILE_NO_SLICE`). The first walk keeps the runs it found, `GRID_CACHE` at most: the second
  * walk reads them, and tests again only the lights past them. All of it is integer: the counts,
  * cursors and lists are the single-thread loop's (`gridColumn.test.ts`).
+ *
+ * A column holds `slices` cells (`COLUMN_SLICES`): the view's columns their depth slices
+ * (`gridSlices`), the bounce's world columns their cells along z (`cascadeSize`, `./shader.ts`).
  */
-export const GRID_COMPACT_WGSL = wgslBlock(
-  'GRID_COMPACT_WGSL',
-  [LANE_SCAN_WGSL, lowHalf, highHalf, bitMask, bitWord, lowBits],
-  `${wgslConsts({
-    LANES: GRID_LANES,
-    CACHE: GRID_CACHE,
-  })}
+export const gridCompactWgsl = (slices: number) =>
+  wgslBlock(
+    `gridCompactWgsl(${slices})`,
+    [LANE_SCAN_WGSL, lowHalf, highHalf, bitMask, bitWord, lowBits],
+    `${wgslConsts({
+      LANES: GRID_LANES,
+      CACHE: GRID_CACHE,
+      COLUMN_SLICES: slices,
+    })}
 /** A run \`first | last << 16\` that holds no slice; the one that holds them all. */
 const EMPTY_RUN:u32=0xffffu;
-const FULL_RUN:u32=${(SLICES - 1) << 16}u;
+const FULL_RUN:u32=${(slices - 1) << 16}u;
 /** \`resume\` before a batch past the cache's room. */
 const ALL_CACHED:u32=0xffffffffu;
 struct TilePool{start:u32,capacity:u32,head:atomic<u32>,overflow:atomic<u32>,}
@@ -40,14 +43,14 @@ struct TilePool{start:u32,capacity:u32,head:atomic<u32>,overflow:atomic<u32>,}
 /** The batch: each lane's light, its shadow slot in the high bit, and its run. */
 var<workgroup> chunk:array<vec2u,LANES>;
 /** Per slice, the lanes of the batch whose run holds it; the lanes holding a shadow slot. */
-var<workgroup> masks:array<atomic<u32>,${2 * SLICES}u>;
+var<workgroup> masks:array<atomic<u32>,${2 * slices}u>;
 /** The lanes whose entry holds every slice: their bit stands for every slice's mask. */
 var<workgroup> full:array<atomic<u32>,2>;
 var<workgroup> slotted:array<atomic<u32>,2>;
 var<workgroup> keptLanes:array<atomic<u32>,2>;
 /** Per slice, its count (the high bit: a shadow slot listed), then where its list is written. */
-var<workgroup> counts:array<u32,GRID_SLICES>;
-var<workgroup> cursor:array<u32,GRID_SLICES>;
+var<workgroup> counts:array<u32,COLUMN_SLICES>;
+var<workgroup> cursor:array<u32,COLUMN_SLICES>;
 var<workgroup> cache:array<vec2u,CACHE>;
 /** The runs cached; the first light the cache does not hold. */
 var<workgroup> cached:u32;
@@ -89,7 +92,7 @@ fn markEntry(lane:u32,entry:vec2u){
 fn countSlices(lane:u32){
  let shadow=vec2u(atomicLoad(&slotted[0]),atomicLoad(&slotted[1]));
  let whole=vec2u(atomicLoad(&full[0]),atomicLoad(&full[1]));
- for(var slice=lane;slice<GRID_SLICES;slice+=LANES){
+ for(var slice=lane;slice<COLUMN_SLICES;slice+=LANES){
   let mask=whole|vec2u(atomicLoad(&masks[slice*2u]),atomicLoad(&masks[slice*2u+1u]));
   counts[slice]+=countOneBits(mask.x)+countOneBits(mask.y);
   if(any((mask&shadow)!=vec2u(0u))){counts[slice]|=TILE_SHADOWED;}
@@ -99,7 +102,7 @@ fn countSlices(lane:u32){
 /** The slices lane \`lane\` owns write the batch's lights of their mask in increasing order. */
 fn writeSlices(lane:u32){
  let whole=vec2u(atomicLoad(&full[0]),atomicLoad(&full[1]));
- for(var slice=lane;slice<GRID_SLICES;slice+=LANES){
+ for(var slice=lane;slice<COLUMN_SLICES;slice+=LANES){
   var at=cursor[slice];
   for(var word=0u;word<2u;word++){
    var mask=whole[word]|atomicLoad(&masks[slice*2u+word]);
@@ -146,4 +149,4 @@ fn dealRoom(span:vec2u,before:u32,start:u32){
  var next=start+before;
  ${laneRunWalk('slice', 'span', 'next', 'counts[slice]&~TILE_SHADOWED', 'cursor[slice]=select(TILE_NO_SLICE,next,start!=TILE_NO_SLICE)')}
 }`,
-)
+  )

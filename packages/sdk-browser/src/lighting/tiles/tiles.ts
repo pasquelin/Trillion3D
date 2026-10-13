@@ -1,13 +1,13 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { BOUNCE_SETTINGS, LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { tileViewInverse } from './tileFrame.ts'
-import { LIGHT_TILES_SHADER } from './shader.ts'
+import { lightTilesShader, type LightGridKind } from './shader.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
 import { createTileLightPool } from './pool.ts'
 import { buildComputePipeline } from '../deferred/fullscreen.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
-import { LIGHT_TILES_PASS } from '../../stage/passLabels.ts'
+import { BOUNCE_LIGHT_LISTS_PASS, LIGHT_TILES_PASS } from '../../stage/passLabels.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
@@ -31,6 +31,8 @@ type TileParts = {
   rows: Float64Array
   /** The light buffer the group names. */
   bound: ReturnType<typeof createWebgpuBindIdentity>
+  /** The pass's label: the view's lists, or the bounce's. */
+  label: string
 }
 /** The grid buffer, its group, its columns and rows, its pool's words and how often it grew. */
 type TileState = {
@@ -42,14 +44,23 @@ type TileState = {
   growths: number
 }
 
+/** A column's cells: the view's depth slices, or the bounce lattice's cells along z. */
+const slicesOf = (kind: LightGridKind) =>
+  kind === 'view' ? LIGHT_SETTINGS.gridSlices : BOUNCE_SETTINGS.cascadeSize
+
 /**
  * The light grid's pass (`./shader.ts`). The grid buffer — the cell records, then the pool
  * of their lists (`./pool.ts`) — is allocated for the current target and reallocated only when it
  * changes size or the pool grows; the group follows the light buffer, which grows with the scene;
- * encoding allocates nothing. The pass reads no depth: its cells are the view's own.
+ * encoding allocates nothing. The pass reads no depth: its cells are the view's own — or, of `kind`
+ * `world`, the bounce lattice's (`updateWorld`), which no view moves.
  */
-export async function createGpuLightTiles(device: GPUDevice) {
-  const module = await createCheckedShaderModule(device, LIGHT_TILES_SHADER, 'LIGHT_TILES_SHADER')
+export async function createGpuLightTiles(device: GPUDevice, kind: LightGridKind = 'view') {
+  const module = await createCheckedShaderModule(
+    device,
+    lightTilesShader(kind),
+    kind === 'view' ? 'LIGHT_TILES_SHADER' : 'LIGHT_TILES_WORLD_SHADER',
+  )
   const layout = device.createBindGroupLayout({
     entries: [
       computeUniformEntry(0),
@@ -80,7 +91,7 @@ export async function createGpuLightTiles(device: GPUDevice) {
     throw error
   }
   const bound = createWebgpuBindIdentity()
-  return lightTiles({
+  return lightTiles(kind, {
     device,
     layout,
     uniform,
@@ -91,11 +102,13 @@ export async function createGpuLightTiles(device: GPUDevice) {
     origin,
     rows,
     bound,
+    label: kind === 'view' ? LIGHT_TILES_PASS : BOUNCE_LIGHT_LISTS_PASS,
   })
 }
 
 /** The pass's calls (`createGpuLightTiles`) on what it is made of. */
-function lightTiles(parts: TileParts) {
+function lightTiles(kind: LightGridKind, parts: TileParts) {
+  const slices = slicesOf(kind)
   const { device, uniform, pool, packed, inverse, origin, rows } = parts
   const state: TileState = { tilesX: 0, tilesY: 0, poolWords: 0, growths: 0 }
   return {
@@ -122,7 +135,20 @@ function lightTiles(parts: TileParts) {
     /** Ensures the grid buffer, its pool sized for `count` lights, and the bind group; `true` if
      *  the pass is ready. */
     ensure: (width: number, height: number, lights: GPUBuffer, count: number) =>
-      ensureTiles(parts, state, width, height, lights, count),
+      ensureTiles(parts, state, [tilesOn(width), tilesOn(height), slices], lights, count),
+    /** The world grid's `ensure`: `side` × `side` columns of `side` cells (`kind` `world`). */
+    ensureWorld: (side: number, lights: GPUBuffer, count: number) =>
+      ensureTiles(parts, state, [side, side, slices], lights, count),
+    /** The world grid's lattice: its lowest corner and a cell's side, the same every frame. */
+    updateWorld(corner: ArrayLike<number>, cell: number) {
+      packed.fill(0)
+      packed[18] = state.tilesX
+      packed[19] = state.tilesY
+      packed.set(corner, 20)
+      packed[23] = cell
+      device.queue.writeBuffer(uniform, 0, packed)
+      pool.open(state.tilesX * state.tilesY * slices * TILE_STRIDE_WORDS, state.poolWords)
+    },
     /** The render matrix (jitter included) and the eye, both absolute and in f64. */
     update(
       viewProjection: ArrayLike<number>,
@@ -156,22 +182,19 @@ function lightTiles(parts: TileParts) {
   }
 }
 
-/** The pass's `ensure`: the grid buffer, reallocated when the view's columns change or the pool
- *  wants more words, and the group, rebuilt when the buffer or the light buffer it names does. */
+/** The pass's `ensure`: the grid buffer, reallocated when the columns change or the pool wants
+ *  more words, and the group, rebuilt when the buffer or the light buffer it names does. */
 function ensureTiles(
   { device, layout, uniform, pool, bound }: TileParts,
   state: TileState,
-  width: number,
-  height: number,
+  [wantedX, wantedY, slices]: [number, number, number],
   lights: GPUBuffer,
   count: number,
 ) {
-  const wantedX = tilesOn(width),
-    wantedY = tilesOn(height),
-    records = wantedX * wantedY * LIGHT_SETTINGS.gridSlices * TILE_STRIDE_WORDS
+  const records = wantedX * wantedY * slices * TILE_STRIDE_WORDS
   // The pool never takes the buffer past what the device binds: a cell with no room walks all.
   const room = Math.floor(storageBufferCap(device.limits) / 4) - records
-  const wantedPool = clampLowWins(pool.words(wantedX * wantedY, count), 0, room)
+  const wantedPool = clampLowWins(pool.words(wantedX * wantedY, count, slices), 0, room)
   const { tilesX, tilesY, poolWords } = state
   if (!state.tiles || wantedX !== tilesX || wantedY !== tilesY || wantedPool > poolWords) {
     state.tiles?.destroy()
@@ -206,14 +229,14 @@ function ensureTiles(
 
 /** The pass's `encode` (`createGpuLightTiles`). */
 function encodeTiles(
-  { pipeline, pool }: TileParts,
+  { pipeline, pool, label }: TileParts,
   state: TileState,
   encoder: GPUCommandEncoder,
   frame: number,
 ) {
   const { group } = state
   if (!group) return false
-  const pass = encoder.beginComputePass({ label: LIGHT_TILES_PASS })
+  const pass = encoder.beginComputePass({ label })
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, group)
   pass.dispatchWorkgroups(state.tilesX, state.tilesY, 1)
