@@ -9,7 +9,14 @@ import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
 import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { REFLECTION_FORMAT } from './constants.ts'
 import { HDR_FORMAT } from '../scene/surfaceBuffer.ts'
-import { FRONT_SHADER, createFrontDepth, frontBytes, frontLayout } from './frontDepth.ts'
+import {
+  FRONT_BOX_SHADER,
+  FRONT_SHADER,
+  createFrontDepth,
+  frontBoxLayout,
+  frontBytes,
+  frontLayout,
+} from './frontDepth.ts'
 import {
   RADIANCE_SHADER,
   createRadiancePyramid,
@@ -61,7 +68,7 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
 })
 
 /** The reflection's kernels — the frame state, the opaque trace and its tile classification, the
- *  radiance pyramid's two, the front depth's scatter — compiled once a device under one validation scope. */
+ *  radiance pyramid's two, the front depth's scatter, boxes and fold — compiled once a device under one validation scope. */
 export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
   validated(device, async () => {
     const modules = {
@@ -81,11 +88,16 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
         label: 'Trillion3D reflection front depth',
         code: FRONT_SHADER,
       }),
+      frontBox: device.createShaderModule({
+        label: 'Trillion3D reflection front depth boxes',
+        code: FRONT_BOX_SHADER,
+      }),
     }
     for (const made of Object.values(modules)) if (await shaderFailed(made)) return undefined
     const layouts = radianceLayouts(device)
-    const frontLayouts = frontLayout(device)
-    const [trace, first, down, roll, front] = await Promise.all([
+    const frontLayouts = frontLayout(device),
+      frontBoxLayouts = frontBoxLayout(device)
+    const [trace, first, down, roll, front, box] = await Promise.all([
       createTraceStages(device, modules, reflectionLayout(device)),
       buildComputeStages(device, [layouts.firstLayout], modules.radiance, [
         'radianceFirst',
@@ -94,7 +106,8 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
       ]),
       buildComputeStages(device, [layouts.downLayout], modules.radiance, ['radianceDown']),
       buildComputeStages(device, [layouts.rollLayout], modules.radiance, ['radianceRoll']),
-      buildComputeStages(device, [frontLayouts], modules.front, ['frontScatter']),
+      buildComputeStages(device, [frontLayouts], modules.front, ['frontScatter', 'frontFold']),
+      buildComputeStages(device, [frontBoxLayouts], modules.frontBox, ['frontBox']),
     ])
     return {
       ...trace,
@@ -106,6 +119,9 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
       rollPipeline: roll.radianceRoll,
       frontLayout: frontLayouts,
       frontPipeline: front.frontScatter,
+      frontFoldPipeline: front.frontFold,
+      frontBoxLayout: frontBoxLayouts,
+      frontBoxPipeline: box.frontBox,
     }
   }),
 )
