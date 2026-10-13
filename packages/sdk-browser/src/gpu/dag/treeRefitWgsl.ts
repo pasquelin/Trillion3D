@@ -30,6 +30,7 @@ import { SELECTION_NONE } from '../core/selection.ts'
 import { FRAME_ROW_WORDS, DAG_NODE_FLOATS } from './types.ts'
 import { MARGIN, OPEN, TREE_SPAN } from './placementTree.ts'
 import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
+import { REFIT_LANES } from './treeRefitLevels.ts'
 
 /** Where a placement's root and its mark lie in its frame row (`primitiveFrameWords`). */
 const FRAME_ROOT = 1,
@@ -212,8 +213,8 @@ export function treeRefitWgsl(layout: RefitLayout = WHOLE_LAYOUT) {
 @group(1) @binding(0) var<uniform> params:Params;
 @group(1) @binding(1) var<storage,read> ids:array<u32>;
 @group(1) @binding(2) var<storage,read> members:array<vec2u>;
-@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(g,n,64u);if(i>=params.count){return;}
+@compute @workgroup_size(${REFIT_LANES}) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(g,n,${REFIT_LANES}u);if(i>=params.count){return;}
  let j=ids[params.first+i];
  if(params.cells==0u){fitGroup(j);}else{fitCell(j);}
 }`,

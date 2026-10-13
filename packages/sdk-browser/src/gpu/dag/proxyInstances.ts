@@ -93,7 +93,6 @@ type Posed = {
   placed: Placed
   node: number
   triangle: number
-  fresh: boolean
 }
 
 /** What the pose reads of the deformation (`deformation/session.ts`): the float pool its records lie in, each
@@ -140,6 +139,13 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   const posed = new Map<number, Posed>()
   const pose = createProxyPose(device)
   let posedRevision = -1
+  // The poses as the pose reads them, kept while the copies and where they lie stay (`poseLayout`):
+  // laid again when a copy is made or given back, or the tables are laid out again.
+  const poseEntries: PoseEntry[] = [],
+    poseRoots: DagRoot[] = []
+  let poseLayout = 0,
+    entriesLayout = -1,
+    poseFresh = false
   let copies: readonly ProxyCopy[] = [],
     copyCount = 0,
     copyWorlds = new Float32Array(0),
@@ -274,6 +280,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       surfaceWords = next
     }
     layout = layoutOf()
+    poseLayout++
     const old = buffer
     buffer = undefined
     if (!old) return
@@ -363,8 +370,10 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     send(made, byteAt(layout.triangles + got.triangle * PROXY_TRIANGLE_FLOATS), cut.triangles)
     send(made, byteAt(layout.bounds + got.node * PROXY_NODE_FLOATS), cut.nodeBounds)
     send(made, byteAt(layout.children + got.node * PROXY_NODE_WORDS), cut.nodeChildren)
-    const copy = { cut, placed, node: got.node, triangle: got.triangle, fresh: true }
+    const copy = { cut, placed, node: got.node, triangle: got.triangle }
     posed.set(w, copy)
+    poseLayout++
+    poseFresh = true
     return copy
   }
 
@@ -375,6 +384,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     triangles.release(copy.triangle, copy.placed.triangles)
     nodes.release(copy.node, copy.placed.nodes)
     posed.delete(w)
+    poseLayout++
   }
 
   /** A surface's slot under a tint (none: its own), its words written the first time and each time its
@@ -608,23 +618,27 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
      */
     pose(encoder: GPUCommandEncoder, host: PoseHost) {
       if (!buffer || !posed.size || !host.pool) return
-      let due = host.revision !== posedRevision
-      const entries: PoseEntry[] = []
-      for (const [w, copy] of posed) {
-        const root = packed.worldSources[w] as DagRoot
-        due ||= copy.fresh
-        entries.push({
-          cut: copy.cut,
-          restTriangle: copy.placed.triangle,
-          posedTriangle: copy.triangle,
-          posedNode: copy.node,
-          corners: RUNTIME_HEADER_WORDS + layout.deform + copy.placed.corner!,
-          record: host.recordOf(root.world),
-        })
+      if (host.revision === posedRevision && !poseFresh) return
+      if (entriesLayout !== poseLayout) {
+        entriesLayout = poseLayout
+        poseEntries.length = poseRoots.length = 0
+        for (const [w, copy] of posed) {
+          poseRoots.push(packed.worldSources[w] as DagRoot)
+          poseEntries.push({
+            cut: copy.cut,
+            restTriangle: copy.placed.triangle,
+            posedTriangle: copy.triangle,
+            posedNode: copy.node,
+            corners: layout.deform + copy.placed.corner!,
+            record: 0,
+          })
+        }
       }
-      if (!due || !pose.run(encoder, buffer, host.pool, entries)) return
+      for (let k = 0; k < poseEntries.length; k++)
+        poseEntries[k].record = host.recordOf(poseRoots[k].world)
+      if (!pose.run(encoder, buffer, host.pool, poseEntries, poseLayout)) return
       posedRevision = host.revision
-      for (const copy of posed.values()) copy.fresh = false
+      poseFresh = false
       revision++
     },
     /** The meshes' proxies of a compiled scene arrived (`RootProxy.primitive.runtimeProxy` was set): every
