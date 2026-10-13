@@ -23,11 +23,14 @@ import {
   PROXY_TRIANGLE_FLOATS,
 } from '../../../../sdk-core/src/index.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
-import { length3 } from '../../../../math/src/vector/vector.ts'
 import { SQRT3 } from '../../../../math/src/constants.ts'
 import { boxTransform } from '../../../../math/src/geometry/box.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
-import { sameElements, sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
+import {
+  longestColumn,
+  sameElements,
+  sameMatrixFloat32,
+} from '../../../../math/src/matrix/matrixElements.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
 import { constructGpuResources } from '../core/errorScope.ts'
@@ -426,12 +429,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
 
   /** The error of a proxy at a pose: the distance a ray leaves a surface off its normal. */
   function noteError(cell: number, m: ArrayLike<number>, at: number) {
-    const scale = Math.max(
-      length3(m[at], m[at + 1], m[at + 2]),
-      length3(m[at + 4], m[at + 5], m[at + 6]),
-      length3(m[at + 8], m[at + 9], m[at + 10]),
-    )
-    const world = cell * CELL_ERROR_FACTOR * scale
+    const world = cell * CELL_ERROR_FACTOR * longestColumn(m, at)
     if (world > error) {
       error = world
       dirty = true
