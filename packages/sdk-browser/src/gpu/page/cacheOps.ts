@@ -1,5 +1,4 @@
 import { evictResident } from './commit.ts'
-import { retire } from '../core/frameRetire.ts'
 import { heldHomes } from './homes.ts'
 import { resizeGpuPages, type GrownPages } from './resize.ts'
 import type { GpuPageContext } from './types.ts'
@@ -59,10 +58,12 @@ export function pageCacheStats(context: GpuPageContext) {
   }
 }
 
-/** Releases the pool: its pages forgotten at once, its buffer retired once the loads in flight
- *  settled — destroyed after the frame's submit, which may name it (`frameRetire.ts`). */
+/** Releases the pool: its pages forgotten at once, its buffer destroyed once the loads in flight
+ *  settled. A pool is released at a session's teardown, or before its first image when a later
+ *  budget won (`../../webgpu/pages/prepare/cache.ts`): no image follows to name it, nor to empty
+ *  the frame-end retire list, and WebGPU frees it once the work submitted before is done. */
 export function disposePageCache(context: GpuPageContext) {
-  const { state, resident, device } = context
+  const { state, resident } = context
   if (state.disposed) return state.pending.then(() => {})
   context.reader.emit?.('gpu-page-dispose', 'GPU cache released', () => ({
     version: 1,
@@ -74,6 +75,6 @@ export function disposePageCache(context: GpuPageContext) {
   context.abort.abort()
   resident.clear()
   context.eviction.clear()
-  state.pending = state.pending.catch(() => {}).then(() => retire(device, context.buffer))
+  state.pending = state.pending.catch(() => {}).then(() => context.buffer.destroy())
   return state.pending
 }
