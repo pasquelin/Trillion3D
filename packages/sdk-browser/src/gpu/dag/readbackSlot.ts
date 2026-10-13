@@ -3,8 +3,7 @@ import { parseDagOutput, type DagOutputScratch } from './uniforms.ts'
 import { grownListCap, listDemand } from './listCap.ts'
 import { coarsenAfter, type Coarsening } from './coarsening.ts'
 import type { Limits } from './deviceListCap.ts'
-import type { FlagShape } from './flagSections.ts'
-import { grownFlagShape } from './queueGrowth.ts'
+import { grownFlagShape, type FlagShape } from './flagSections.ts'
 
 /** Where a readback's lists lie and what they are read into: the bytes copied, the drawn list's
  *  first word, the cap of the list they were cut on, the read's arrays, and the word of the

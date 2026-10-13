@@ -8,7 +8,7 @@ import { recutView } from './runtimeState.ts'
 import { createCoarsening, type Coarsening } from './coarsening.ts'
 import { readDagSlot } from './readbackSlot.ts'
 import { createReadbackRing, ReadbackRefused } from '../core/readbackRing.ts'
-import { widerFlagShape } from './queueGrowth.ts'
+import { widerFlagShape } from './flagSections.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 

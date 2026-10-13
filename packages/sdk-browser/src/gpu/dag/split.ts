@@ -6,7 +6,7 @@ import { type TableSplit, splitTable, flagSectionStart, flagCuts } from './split
 import { coalesceRanges, type RangeRule } from '../../webgpu/residency/ranges.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
-import { dagFlagShape, type FlagShape } from './flagSections.ts'
+import { type FlagShape } from './flagSections.ts'
 
 /** How a camera cut lays its tables: `flagCuts`, the flag sections each part of
  *  `flags` after the first starts at (`flagSectionStart`). */
@@ -26,10 +26,10 @@ export function flagPartWords(cuts: readonly number[], shape: FlagShape, words: 
   return starts.map((start, k) => (starts[k + 1] ?? words) - start)
 }
 
-/** The split of a camera cut on this device, its flags cut at its sections (`dagFlagShape`). */
+/** The split of a camera cut on this device, its flags of `shape` cut at its sections. */
 export function dagSplit(
   limits: Parameters<typeof storageBufferCap>[0],
-  packed: Parameters<typeof dagFlagShape>[0],
+  shape: FlagShape,
   sizes: { clusters: number; nodes: number; cold: number },
 ): DagSplit {
   const cap = storageBufferCap(limits),
@@ -39,7 +39,7 @@ export function dagSplit(
     clusters: table('clusters'),
     nodes: table('nodes'),
     cold: table('cold'),
-    flagCuts: flagCuts(dagFlagShape(packed), cap),
+    flagCuts: flagCuts(shape, cap),
   }
 }
 

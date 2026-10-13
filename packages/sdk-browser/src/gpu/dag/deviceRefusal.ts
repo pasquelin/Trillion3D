@@ -15,11 +15,12 @@ type DagDeviceLimits = Limits & { maxStorageBuffersPerShaderStage?: number }
  * buffer past one binding would fail on the device — a bind group refused — and the GPU cut would
  * be gone without a word. Refused here, before any buffer, the host names it and refuses the scene.
  * `frames` is not checked: it splits in ranges (`frameRanges.ts`), and a primitive's pass runs once
- * per range; the worlds are a record texture (`worldTable.ts`), no storage binding. `clusters`, `nodes`, `pageCones` and `flags` split in parts, bound at
- * once (`split.ts`): refused only when one part is still past a binding — one element, one flag
- * section —, or when the device cannot bind every part in one stage. No dispatch is: each runs in
- * rows (`../dispatch/grid.ts`). The readout starts within one
- * binding and grows no further (`listCap.ts`): refused only if not one rank fits.
+ * per range; the worlds are a record texture (`worldTable.ts`), no storage binding. `clusters`,
+ * `nodes`, `pageCones` and `flags` split in parts, bound at once (`split.ts`): refused only when one
+ * part is still past a binding — one element, or queue 0's root slots, each flag section starting
+ * within one (`dagFlagShape`) —, or when the device cannot bind every part in one stage. No
+ * dispatch is: each runs in rows (`../dispatch/grid.ts`). The readout starts within one binding and
+ * grows no further (`listCap.ts`): refused only if not one rank fits.
  */
 export function dagDeviceRefusal(limits: DagDeviceLimits, packed: PackedDag) {
   const table = cameraCutBuffers(packed, limits)

@@ -79,7 +79,7 @@ const compositions = (label: string, sources: Record<string, string>) =>
 const SPLIT_CUT = dagSelectionShader(
   dagSplit(
     { maxStorageBufferBindingSize: 4096 },
-    { pageCount: 1000, nodeCount: 10 },
+    { queueWords: 20, candCap: 1000 },
     { clusters: 48 * 200, nodes: 96 * 10, cold: 4 * 1500 },
   ),
 )

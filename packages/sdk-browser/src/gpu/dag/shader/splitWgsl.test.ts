@@ -6,10 +6,11 @@ import { dagBindEntries } from './bindings.ts'
 import { DAG_SELECTION_SHADER } from './shader.ts'
 import { dagSelectionShader } from './splitWgsl.ts'
 import { dagPartCounts, dagSplit } from '../split.ts'
+import { dagFlagShape } from '../flagSections.ts'
 import { entryBufferBindings, wgslBufferBindings } from '../../core/wgslBindings.fixture.ts'
 import { unresolvedNames } from '../../core/wgslNames.fixture.ts'
 
-const shape = { pageCount: 1000, nodeCount: 10, worldCount: 10 },
+const shape = dagFlagShape({ pageCount: 1000, nodeCount: 10 }),
   sizes = { clusters: 48 * 200, nodes: 96 * 10, cold: 4 * 1500 }
 
 test('a whole cut keeps the shipped kernel', () => {

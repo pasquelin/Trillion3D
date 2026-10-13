@@ -47,8 +47,12 @@ test('a table past one binding splits in parts the device binds at once, instead
     undefined,
     'flags in parts of whole sections',
   )
+  // A list starts within one binding and grows no further (`flagSectionCaps`); queue 0 keeps a root
+  // slot a placement, and those past one binding refuse the device.
   const section = { maxStorageBufferBindingSize: 2048, maxStorageBuffersPerShaderStage: 64 }
-  assert.match(dagDeviceRefusal(section, dag())?.buffer ?? '', /^flags/, 'a list section past')
+  assert.equal(dagDeviceRefusal(section, dag()), undefined, 'each list within the binding')
+  const roots = { ...dag(), worldCount: 1000, nodeCount: 1000 }
+  assert.match(dagDeviceRefusal(section, roots)?.buffer ?? '', /^flags/, 'the roots past it')
 })
 
 test('`work` holds no word per page: a binding past one list section holds the cut', () => {
@@ -65,11 +69,10 @@ test('`work` holds no word per page: a binding past one list section holds the c
     [],
     'no ranks',
   )
-  assert.match(
-    dagDeviceRefusal({ ...limits, maxStorageBufferBindingSize: 11996 }, dag())?.buffer ?? '',
-    /^flags/,
-    'one live word past the binding is the ceiling',
-  )
+  // One live word past the binding: the lists start one entry shorter, and grow no further.
+  const narrow = { ...limits, maxStorageBufferBindingSize: 11996 }
+  assert.equal(dagDeviceRefusal(narrow, dag()), undefined, 'the lists start within the binding')
+  assert.equal(cameraCutBuffers(dag(), narrow).shape.candCap, 999)
 })
 
 test('a dispatch past the workgroups of one dimension is not refused: it runs in rows', () => {

@@ -4,7 +4,7 @@ import { MAIN_VIEW, noteWhole, stampMatches } from './swap.ts'
 import { recutMain, type DagRuntimeState } from './runtimeState.ts'
 import { readDagSlot } from './readbackSlot.ts'
 import { ReadbackRefused } from '../core/readbackRing.ts'
-import { widerFlagShape } from './queueGrowth.ts'
+import { widerFlagShape } from './flagSections.ts'
 import type { MainCut } from './dispatch.ts'
 
 // The readback side of the main view's dispatch (`dispatch.ts`): a buffer of its ring taken, the

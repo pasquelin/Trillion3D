@@ -1,5 +1,4 @@
 import { validationScope } from '../core/errorScope.ts'
-import { storageBufferCap } from '../../residency/pools.ts'
 import { cameraCutBuffers, makeDagBuffer } from './bufferTable.ts'
 import type { FlagShape } from './flagSections.ts'
 import { JOURNAL_SECTION, flagSectionPlace } from './splitFlags.ts'
@@ -14,52 +13,8 @@ import {
 } from './listCap.ts'
 import { regionsWanted } from './swap.ts'
 import { recutMain, recutView, type DagRuntimeState } from './runtimeState.ts'
-import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
 import type { CutTablesAt } from './uniforms.ts'
 import type { DagResources } from './resources.ts'
-
-/**
- * THE QUEUES AND LISTS A CUT GROWS TO. A cut's descent queues and its candidate and live lists are
- * sized for a view's reach when it is made (`layout.ts`, `QUEUE_ENTRIES_START`), never for the
- * world. A cut that passes one drops the work past it and says which (`shader/viewsWgsl.ts`,
- * `QUEUE_DROPPED`, `LIST_DROPPED`): it is not drawn (`shader/commitWgsl.ts`) — the frame draws the
- * last cut that ran whole — and never adopted, and what was full doubles here, the next cut cutting
- * again on it. A queue never holds more than every entry, a list more than every page, nor a
- * section more than one binding: past that, `undefined`, and the view coarsens instead
- * (`coarsening.ts`), as it does past the readout's list (`listCap.ts`).
- */
-export function grownFlagShape(
-  limits: Parameters<typeof storageBufferCap>[0],
-  bounds: { entryCount: number; pageCount: number },
-  shape: FlagShape,
-  dropped: number,
-): FlagShape | undefined {
-  const words = storageBufferCap(limits) / 4
-  // A queue entry is two words; the live list's, the widest list, three (`shader/liveWgsl.ts`).
-  const queueWords =
-      dropped & QUEUE_DROPPED
-        ? Math.min(
-            2 * Math.max(1, bounds.entryCount),
-            2 * shape.queueWords,
-            2 * Math.floor(words / 2),
-          )
-        : shape.queueWords,
-    candCap =
-      dropped & LIST_DROPPED
-        ? Math.min(Math.max(1, bounds.pageCount), 2 * shape.candCap, Math.floor(words / 3))
-        : shape.candCap
-  if (queueWords <= shape.queueWords && candCap <= shape.candCap) return undefined
-  return { ...shape, queueWords, candCap }
-}
-
-/** The wider of two shapes asked, field by field: two views that dropped work ask both. */
-export const widerFlagShape = (a: FlagShape | undefined, b: FlagShape): FlagShape =>
-  a
-    ? {
-        queueWords: Math.max(a.queueWords, b.queueWords),
-        candCap: Math.max(a.candCap, b.candCap),
-      }
-    : b
 
 /** Where `resources`' tables lie for its kernels: the open counts in `out`, its flags' shape. */
 export const cutTablesAt = (resources: {

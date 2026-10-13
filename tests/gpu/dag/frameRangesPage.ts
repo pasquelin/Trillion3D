@@ -15,6 +15,7 @@ import {
 import { PRIMITIVE_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/cameraRanges.ts'
 import { dagDeviceRefusal } from '../../../packages/sdk-browser/src/gpu/dag/deviceRefusal.ts'
 import { selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+import { cutTablesAt } from '../../../packages/sdk-browser/src/gpu/dag/queueGrowth.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { residentAll } from '../../../packages/sdk-browser/src/gpu/dag/residentAll.fixture.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -61,7 +62,17 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
     const cuts = []
     for (const pixelError of pixelErrors) {
       const block = new Float32Array(DAG_UNIFORM_BYTES / 4)
-      writeDagUniforms(block, packed, { ...uniforms, pixelError }, resources.listCap)
+      // The tables as the cut laid them on this device (`cutTablesAt`), as the engine writes them.
+      const at = cutTablesAt(resources)
+      writeDagUniforms(
+        block,
+        packed,
+        { ...uniforms, pixelError },
+        resources.listCap,
+        undefined,
+        1,
+        at,
+      )
       device.queue.writeBuffer(resources.uniforms, 0, block)
       const encoder = device.createCommandEncoder()
       encodeDagKernels(encoder, resources)

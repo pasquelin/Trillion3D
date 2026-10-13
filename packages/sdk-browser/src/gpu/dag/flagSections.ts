@@ -1,4 +1,6 @@
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
+import { storageBufferCap } from '../../residency/pools.ts'
+import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
 import { dagFlagsWords } from './shader/lastUseWgsl.ts'
 
 /** Words of each descent queue of a packing: two an entry, the node then the placement reading it
@@ -23,14 +25,72 @@ export type FlagShape = { queueWords: number; candCap: number }
 /** The words of a `flags` of `shape` (`dagFlagsWords`). */
 export const flagShapeWords = (shape: FlagShape) => dagFlagsWords(shape.queueWords, shape.candCap)
 
-/** The shape of `packed`'s flags. */
-export const dagFlagShape = (packed: {
-  queueEntries?: number
-  entryCount?: number
-  nodeCount?: number
-  pageCount: number
-  candCount?: number
-}): FlagShape => ({
-  queueWords: dagQueueWords(packed),
-  candCap: Math.max(1, packed.candCount ?? packed.pageCount),
-})
+/** The most one section of a `flags` holds on a device of `limits`: a queue's words, two an entry,
+ *  and a list's entries, the live list's three words each, the widest (`shader/liveWgsl.ts`). A
+ *  cut starts within it (`dagFlagShape`) and grows no further (`grownFlagShape`). */
+export function flagSectionCaps(limits?: Parameters<typeof storageBufferCap>[0]) {
+  const words = storageBufferCap(limits) / 4
+  return { queueWords: 2 * Math.floor(words / 2), candCap: Math.floor(words / 3) }
+}
+
+/** The shape of `packed`'s flags as a cut starts on a device of `limits`: a view's reach, each
+ *  section within one binding (`flagSectionCaps`) — a reach past it is grown into on demand, never
+ *  refused up front. Queue 0 keeps a root slot a placement (`pack.ts`): a device too narrow for
+ *  them refuses the cut (`pastBinding`). */
+export function dagFlagShape(
+  packed: {
+    queueEntries?: number
+    entryCount?: number
+    nodeCount?: number
+    worldCount?: number
+    pageCount: number
+    candCount?: number
+  },
+  limits?: Parameters<typeof storageBufferCap>[0],
+): FlagShape {
+  const cap = flagSectionCaps(limits),
+    queueWords = dagQueueWords(packed),
+    roots = Math.min(queueWords, 2 * (packed.worldCount ?? 0))
+  return {
+    queueWords: Math.max(Math.min(queueWords, cap.queueWords), roots),
+    candCap: Math.max(1, Math.min(packed.candCount ?? packed.pageCount, cap.candCap)),
+  }
+}
+
+/**
+ * THE QUEUES AND LISTS A CUT GROWS TO. A cut's descent queues and its candidate and live lists are
+ * sized for a view's reach when it is made (`layout.ts`, `QUEUE_ENTRIES_START`), never for the
+ * world. A cut that passes one drops the work past it and says which (`shader/viewsWgsl.ts`,
+ * `QUEUE_DROPPED`, `LIST_DROPPED`): it is not drawn (`shader/commitWgsl.ts`) — the frame draws the
+ * last cut that ran whole — and never adopted, and what was full doubles here, the next cut cutting
+ * again on it. A queue never holds more than every entry, a list more than every page, nor a
+ * section more than one binding: past that, `undefined`, and the view coarsens instead
+ * (`coarsening.ts`), as it does past the readout's list (`listCap.ts`).
+ */
+export function grownFlagShape(
+  limits: Parameters<typeof storageBufferCap>[0],
+  bounds: { entryCount: number; pageCount: number },
+  shape: FlagShape,
+  dropped: number,
+): FlagShape | undefined {
+  const cap = flagSectionCaps(limits)
+  const queueWords =
+      dropped & QUEUE_DROPPED
+        ? Math.min(2 * Math.max(1, bounds.entryCount), 2 * shape.queueWords, cap.queueWords)
+        : shape.queueWords,
+    candCap =
+      dropped & LIST_DROPPED
+        ? Math.min(Math.max(1, bounds.pageCount), 2 * shape.candCap, cap.candCap)
+        : shape.candCap
+  if (queueWords <= shape.queueWords && candCap <= shape.candCap) return undefined
+  return { ...shape, queueWords, candCap }
+}
+
+/** The wider of two shapes asked, field by field: two views that dropped work ask both. */
+export const widerFlagShape = (a: FlagShape | undefined, b: FlagShape): FlagShape =>
+  a
+    ? {
+        queueWords: Math.max(a.queueWords, b.queueWords),
+        candCap: Math.max(a.candCap, b.candCap),
+      }
+    : b

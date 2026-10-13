@@ -55,9 +55,9 @@ export function cameraCutBuffers(
 ) {
   const blockCount = ceilDiv(packed.pageCount, WORKGROUP_THREADS),
     workLayout = dagWorkLayout(blockCount, packed.groupCount)
-  const shape = dagFlagShape(packed),
+  const shape = dagFlagShape(packed, limits),
     flagWords = flagShapeWords(shape)
-  const split = dagSplit(limits, packed, {
+  const split = dagSplit(limits, shape, {
     clusters: packed.clusters.byteLength,
     nodes: packed.nodes.byteLength,
     cold: packed.pageCones.byteLength,
