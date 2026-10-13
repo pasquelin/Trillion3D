@@ -132,7 +132,7 @@ test('a list of ids alone lists every id once, its marks following the ids it ho
     far = 1e9
   delta.apply([far, 4, far, 2])
   assert.deepEqual(listOf(delta), [far, 4, 2], 'each id once, in list order')
-  assert.deepEqual([...delta.ids].slice(0, delta.count), [far, 4, 2])
+  assert.deepEqual(Array.from(delta.ids).slice(0, delta.count), [far, 4, 2])
   delta.apply([2, 7])
   assert.deepEqual(listOf(delta), [7])
   assert.deepEqual(goneOf(delta), [far, 4], 'exits in the held order')
