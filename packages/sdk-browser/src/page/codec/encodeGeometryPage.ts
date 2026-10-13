@@ -2,7 +2,8 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
 import { reserveArena, type Arena } from '../../wasm/wasmArena.ts'
 import { META, META_WORDS, REQUEST, REQUEST_WORDS } from '../../wasm/encodeAbi.ts'
-import { isSkinJoint, UV_EXPONENT } from '../../../../sdk-core/src/page/format.ts'
+import { UV_EXPONENT } from '../../../../sdk-core/src/page/format.ts'
+import { isSkinJoint } from '../../../../sdk-core/src/page/pageInput.ts'
 import type {
   PageAttribute,
   PageAttributes,

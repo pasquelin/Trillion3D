@@ -24,3 +24,7 @@ export interface PageTarget {
   POSITION: PageAttribute
   NORMAL?: PageAttribute
 }
+
+/** Whether `joint` is a skin joint index a page holds: an integer of 16 bits, 0 to 65535. */
+export const isSkinJoint = (joint: number) =>
+  Number.isInteger(joint) && joint >= 0 && joint <= 65535

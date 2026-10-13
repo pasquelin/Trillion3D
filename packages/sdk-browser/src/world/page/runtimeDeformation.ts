@@ -1,7 +1,7 @@
 import { boxCenter, boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import { isSkinJoint } from '../../../../sdk-core/src/page/format.ts'
+import { isSkinJoint } from '../../../../sdk-core/src/page/pageInput.ts'
 
 /** A joint box's centre, module scratch. */
 const centre = new Float64Array(3)
