@@ -201,6 +201,8 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   // world copies nothing. A buffer new made holds none of them (`ensure`), and takes them all.
   const mirrored = createChangedRuns(slots, WORLD_RUN_GAP, WORLD_RUNS)
   let worldsAll = true
+  // The tree's revision the mirror last copied (`TreeFollower.revision`): a still tree copies nothing.
+  let treeCopied = NaN
 
   // The placements' world boxes, for the probes' occupancy map (`bounce/probes.ts`), kept from call to call:
   // a placement's box is its mesh's root bounds through the world it stands at, made again only for a row
@@ -257,6 +259,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   function ensure() {
     if (buffer) return buffer
     worldsAll = true
+    treeCopied = NaN
     mirrored.clear()
     // Made in the device's ledger, as every resource the engine allocates (`constructGpuResources`).
     const made = constructGpuResources(device, () =>
@@ -617,7 +620,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
      * the culling's refit left them, and the order of its members, a few hundred kilobytes at a quarter of a
      * million placements; no tree copies nothing to walk.
      */
-    mirror(encoder: GPUCommandEncoder) {
+    mirror(encoder: GPUCommandEncoder, treeRevision: number) {
       if (!buffer) return
       const rows = worldRows(),
         source = frames.worldBuffers[0]
@@ -640,7 +643,8 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       }
       mirrored.clear()
       worldsAll = false
-      if (!walksTree || !tree) return
+      if (!walksTree || !tree || treeRevision === treeCopied) return
+      treeCopied = treeRevision
       encoder.copyBufferToBuffer(
         nodeParts.buffers[nodePart!],
         (tree.cellBase - nodesFirst) * DAG_NODE_FLOATS * 4,

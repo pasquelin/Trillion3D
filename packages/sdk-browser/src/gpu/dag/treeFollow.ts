@@ -67,8 +67,13 @@ export function createTreeFollower(
   const touch = (w: number) => {
     if (w < tree.slot.length) dirty.listed.add(w)
   }
+  let revision = 0
   return {
     touch,
+    /** Rises with every refit encoded: what reads the tree's nodes copies them again when it moved. */
+    get revision() {
+      return revision
+    },
     /** Placement `w`'s mark moved from `before`: its group fits again where it opens or closes. */
     marked(w: number, before: number) {
       if (opensTree(packed.mark[w]) !== opensTree(before)) touch(w)
@@ -103,6 +108,7 @@ export function createTreeFollower(
       leaves?.encode(encoder, { members: refit.members, nodeParts })
       refit.run(encoder, fit)
       device.queue.submit([encoder.finish()])
+      revision++
     },
     dispose: refit.dispose,
   }
