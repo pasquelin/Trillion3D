@@ -95,7 +95,12 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
   orderBlendPasses(blendState, [0, 0, 0])
-  Object.assign(blendState, { argsBuffer: {}, itemBuffer: {}, viewBuffer: {} })
+  // The indirect arguments the transparents' draws read, a buffer of the device.
+  const argsBuffer = device.createBuffer({
+    size: 4096,
+    usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
+  Object.assign(blendState, { argsBuffer, itemBuffer: {}, viewBuffer: {} })
   const rt = {
     vis,
     gpu: {
@@ -146,21 +151,12 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   }
   // Both constructors of `blendBindGroupLayout`: the group ALL paged items share, then that of
   // an unpaged item, on its own buffers.
-  const stub = (noms: string[]) =>
-    Object.fromEntries(noms.map((nom) => [nom, () => {}])) as unknown as GPURenderPassEncoder
-  const pass = stub(['setViewport', 'setBindGroup', 'setPipeline', 'draw', 'drawIndirect', 'end'])
+  const encoder = device.createCommandEncoder()
   blendState.lighting = blendLightResources(rt)
-  drawBlendPass(rt, device, { beginRenderPass: () => pass } as unknown as GPUCommandEncoder)
+  drawBlendPass(rt, device, encoder)
 
   // The unique constructor of the small-triangle software raster, fifth pair of the path: it
   // reads the same colour pool and the same page table as the other passes.
-  const smallPass = stub(['setBindGroup', 'setPipeline', 'dispatchWorkgroups', 'end'])
-  const smallEncoder = {
-    clearBuffer() {},
-    copyBufferToBuffer() {},
-    beginComputePass: () => ({ ...smallPass, dispatchWorkgroupsIndirect() {} }),
-    beginRenderPass: () => pass,
-  } as unknown as GPUCommandEncoder
   const raster = createGpuRaster(device, 4, 4, 8)
   const buffer = {} as GPUBuffer,
     view = {} as GPUTextureView
@@ -181,8 +177,8 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     groups: [],
     groupKey: 0,
   }
-  raster.encodeOccluders(smallEncoder, rasterInput)
-  raster.encodeIds(smallEncoder, rasterInput)
+  raster.encodeOccluders(encoder, rasterInput)
+  raster.encodeIds(encoder, rasterInput)
   const counted = groups.map((group) => [group.entries.length, group.layout.entries.length])
   assert.equal(counted.length, 6, 'the five constructors ran, the resolver included')
   for (const [built, expected] of counted)
