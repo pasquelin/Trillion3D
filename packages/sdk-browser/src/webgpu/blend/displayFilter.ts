@@ -7,6 +7,7 @@ import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { DISPLAY_FILTER_PASS } from '../../stage/passLabels.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 
 /**
  * The display layers: the reference display multiplies and subtracts on a canvas of
@@ -140,8 +141,9 @@ function displayApply(
   drawn: GPUBuffer,
   share: Float32Array<ArrayBuffer>,
 ) {
-  // The raw layers, or either temporal history: one group each, kept as long as its tint view.
-  const groups = new WeakMap<GPUTextureView, GPUBindGroup>()
+  // The raw layers, or either temporal history: three held, a group each (`bindIdentity.ts`).
+  const identity = createWebgpuBindIdentity(3),
+    groups: GPUBindGroup[] = []
   return (
     encoder: GPUCommandEncoder,
     source: readonly [GPUTextureView, GPUTextureView],
@@ -155,12 +157,14 @@ function displayApply(
       ;[share[0], share[1]] = [x, y]
       device.queue.writeBuffer(drawn, 0, share)
     }
-    let group = groups.get(source[0])
-    if (!group) {
-      const resources = [...source, sampler, { buffer: drawn }]
-      const entries = sequentialEntries(resources)
-      groups.set(source[0], (group = device.createBindGroup({ layout, entries })))
-    }
+    identity.next[0] = source[0]
+    identity.next[1] = source[1]
+    if (identity.moved())
+      groups[identity.slot] = device.createBindGroup({
+        layout,
+        entries: sequentialEntries([...source, sampler, { buffer: drawn }]),
+      })
+    const group = groups[identity.slot]
     const pass = encoder.beginRenderPass({
       label: DISPLAY_FILTER_PASS,
       colorAttachments: presentation ? [load(target), load(presentation)] : [load(target)],

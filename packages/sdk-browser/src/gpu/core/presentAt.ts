@@ -28,6 +28,8 @@ export function createPresentAt(
       primitive: { topology: 'triangle-list' },
     }))
   }
+  // One group an image, kept as long as the image: every view presents its own each frame
+  // (`webgpu/core/bindIdentity.ts`, its one exception).
   const groups = new WeakMap<GPUTexture, GPUBindGroup>()
   const group = (image: GPUTexture) => {
     let made = groups.get(image)
@@ -41,6 +43,9 @@ export function createPresentAt(
     return made
   }
   return {
+    /** The group that samples `image`, made once an image: the whole canvas's present binds it
+     *  too, on the same layout (`presentation.ts`). */
+    group,
     /** Compiles the program off the frame, before a view placed on the canvas presents. */
     prepare: () => program().prepare(),
     /** `canvas` is the canvas's size: the part of `at` past its right or bottom edge is not drawn,

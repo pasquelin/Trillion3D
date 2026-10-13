@@ -4,7 +4,7 @@ import { preparedPipeline, started } from '../../lighting/deferred/fullscreen.ts
 import { createPresentAt, type PresentRect } from './presentAt.ts'
 import { canvasImageKept, canvasImageReplaced, closeCanvasImage } from './canvasHandover.ts'
 import { DIRECT_PRESENT_PASS } from '../../stage/passLabels.ts'
-import { sequentialEntries, computeTextureEntry } from './computeBindings.ts'
+import { computeTextureEntry } from './computeBindings.ts'
 
 /** Configures `context` on `device` itself — WebGPU refuses a session's handle, no `GPUDevice` —:
  *  configuring blanks the canvas, so the image of a closed session stays until this one draws. */
@@ -159,7 +159,6 @@ function presenterOf(
   hold: ReturnType<typeof canvasHold>,
 ) {
   const { layout, pipeline } = presentProgram(device, format)
-  let texture: GPUTexture | undefined, group: GPUBindGroup | undefined
   const presentAt = createPresentAt(device, layout, format)
   return {
     canvas,
@@ -192,20 +191,12 @@ function presenterOf(
         return
       }
       const view = hold.targetView(width, height)
-      if (texture !== image) {
-        texture = image
-        group = device.createBindGroup({
-          layout,
-          entries: sequentialEntries([image.createView()]),
-        })
-      }
-      drawWhole(encoder, view, pipeline.get(), group!)
+      drawWhole(encoder, view, pipeline.get(), presentAt.group(image))
       hold.composed(image, width, height)
     },
     /** Withdraws the image: nothing that samples the canvas afterwards reads a frame of this
      *  device — at once, or once no session follows on a kept canvas (`closeCanvasImage`). */
     dispose() {
-      group = texture = undefined
       hold.release()
       if (hold.configured) withdraw(canvas, context)
     },
