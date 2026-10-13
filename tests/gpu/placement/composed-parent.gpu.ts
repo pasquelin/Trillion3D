@@ -19,6 +19,7 @@ for (const [name, method] of [
   ['scaled unevenly and turned', 'runShear'],
   ['moved behind a wall', 'runBehind'],
   ['scaled under a light that casts', 'runShadows'],
+  ['moved from far outside the sun’s clipmap into it, no shadow pair dropped', 'runSunFar'],
 ] as const)
   test(`a rig of composed meshes ${name} draws as a world opened there`, async () => {
     const result = (await runPageProof(

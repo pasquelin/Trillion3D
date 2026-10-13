@@ -35,7 +35,7 @@ function pose(rig: ReturnType<typeof object.group>, p: Pose) {
 
 /** The scene every case starts from: a rig of crates and balls in a grid, a wall across the
  *  middle of the view, and, with `shadows`, a light that casts. The rig is returned, at `at`. */
-function scene(world: World, at: Pose, shadows: boolean) {
+function scene(world: World, at: Pose, shadows: boolean, grid: [number, number] = [12, 6]) {
   // Detail is judged by the screen error: the stretch of a placement decides how much it draws.
   world.pixelError = 8
   if (shadows)
@@ -44,10 +44,10 @@ function scene(world: World, at: Pose, shadows: boolean) {
   wall.position.set(0, 1.5, 1.5)
   world.scene.add(wall)
   const rig = object.group()
-  for (let i = 0; i < 12; i++)
-    for (let j = 0; j < 6; j++) {
+  for (let i = 0; i < grid[0]; i++)
+    for (let j = 0; j < grid[1]; j++) {
       const mesh = object.mesh(j % 2 ? ball : crate, paints[(i + j) % 3 === 0 ? 0 : 2])
-      mesh.position.set((i - 5.5) * 1.3, 0.5, -j * 1.4)
+      mesh.position.set((i - (grid[0] - 1) / 2) * 1.3, 0.5, -j * 1.4)
       rig.add(mesh)
     }
   pose(rig, at)
@@ -59,11 +59,11 @@ function scene(world: World, at: Pose, shadows: boolean) {
  *  `to`: the images, and the sessions the first was opened with. The rig moves once first, to
  *  `from`'s neighbour: that move writes its rows and links them to their parent, the next ones are
  *  the GPU's. */
-async function moved(from: Pose, to: Pose, shadows = false) {
+async function moved(from: Pose, to: Pose, shadows = false, grid?: [number, number]) {
   const grown = open()
   try {
     await grown.world.ready
-    const rig = scene(grown.world, AT_REST, shadows)
+    const rig = scene(grown.world, AT_REST, shadows, grid)
     const first = await changed(grown.world, '')
     pose(rig, from)
     // The rig drawn where it starts, composed under its parent from here on.
@@ -74,7 +74,7 @@ async function moved(from: Pose, to: Pose, shadows = false) {
     const reference = open()
     try {
       await reference.world.ready
-      scene(reference.world, to, shadows)
+      scene(reference.world, to, shadows, grid)
       const opened = await changed(reference.world, '')
       return { before, after, opened, sessions: [sessions, grown.world.diagnostic.sessions] }
     } finally {
@@ -120,4 +120,16 @@ export const runShadows = () =>
     { position: [0, 0.3, 0], rotation: [0, 0, 0], scale: [1.1, 1.1, 1.1] },
     { position: [1, 0, -1], rotation: [0, 0.5, 0], scale: [2, 2, 2] },
     true,
+  )
+
+/** A dense rig stands far from the view, outside every level of the sun's clipmap, and its parent
+ *  moves it into them in one move: the rows the shadow raster is sized from — the CPU copy of their
+ *  spheres — are those of the pose the GPU composed (`placement/composedSpheres.ts`), so every
+ *  (row, page) pair is rendered, none dropped: the shadows are the world opened there. */
+export const runSunFar = () =>
+  moved(
+    { position: [900, 0.3, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+    { position: [0, 0, -2], rotation: [0, 0.3, 0], scale: [1, 1, 1] },
+    true,
+    [24, 24],
   )

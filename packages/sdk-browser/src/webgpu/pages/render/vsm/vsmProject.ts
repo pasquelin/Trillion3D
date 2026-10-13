@@ -1,4 +1,5 @@
 // The frame's shadow-map raster and projection (`vsmEncode.ts`).
+import { refreshComposedSpheres } from '../../../../placement/composedSpheres.ts'
 import type { EngineCamera } from '../../../../camera/world.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import {
@@ -37,6 +38,8 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
   const { spheres, mobilityRows, rowLods, pageLayout } = lights
   if (!pageGroup || !spheres || !mobilityRows || !rowLods || !pageLayout || !vis.pageTable) return
   vsm.renderedPlan = plan
+  // The chunks are sized from the CPU copy of the spheres: a composed row's is made current.
+  refreshComposedSpheres(rt)
   vsm.stats.render = encodeVsmRenderAndTransmission(
     rt,
     vsm,
