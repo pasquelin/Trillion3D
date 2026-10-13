@@ -10,7 +10,7 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { linearToSrgb, srgbToLinear } from '../../../math/src/color/color.ts'
 import { DISPLAY_VALUE_WGSL } from './toneMappingWgsl.ts'
-import { toneUnmap } from './toneUnmap.ts'
+import { toneUnmap } from './toneInverse.ts'
 
 type Curve = (c: number[]) => number[]
 const run = shaderRun<{

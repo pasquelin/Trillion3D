@@ -58,7 +58,7 @@ export const shut = ({ gpu, run }: WebgpuPagesRuntime) =>
   !gpu.device || run.lost || !run.gpuSelection
 
 /** The check after each await of a join: an aborted session throws, a shut one is `CLOSED`. */
-export function closed(rt: WebgpuPagesRuntime) {
+function closed(rt: WebgpuPagesRuntime) {
   rt.signal.throwIfAborted()
   return shut(rt)
 }

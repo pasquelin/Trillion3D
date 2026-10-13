@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDisplay } from './frameQueue.fixture.ts'
-import { SETTLE_LIMIT } from './frameScheduler.ts'
+import { SETTLE_LIMIT } from './settleLimit.ts'
 
 for (const late of [1, 2, 3, 10])
   test(`feedbacks ${late} ticks late: every tick draws while pages arrive, then the limit stops it`, async () => {

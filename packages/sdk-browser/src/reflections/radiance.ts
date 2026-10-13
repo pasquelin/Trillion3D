@@ -221,7 +221,7 @@ type RadianceStages = ReturnType<typeof radianceLayouts> & {
 
 /** The pyramid's levels at `width × height`: an odd count, level 0 and two a dispatch, as many as
  *  the image holds up to `RADIANCE_LEVELS`. */
-export const radianceLevels = (width: number, height: number) => {
+const radianceLevels = (width: number, height: number) => {
   const levels = Math.min(RADIANCE_LEVELS, mipLevelCountFor(width, height))
   return levels - ((levels + 1) % 2)
 }

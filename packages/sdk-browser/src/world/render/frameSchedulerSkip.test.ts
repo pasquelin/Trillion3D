@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDisplay } from './frameQueue.fixture.ts'
-import { SETTLE_LIMIT } from './frameScheduler.ts'
+import { SETTLE_LIMIT } from './settleLimit.ts'
 
 test('a loop skipping every other tick draws on the others, its limit counted in frames drawn', async () => {
   for (const late of [1, 3]) {

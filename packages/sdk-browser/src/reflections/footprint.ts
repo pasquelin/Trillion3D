@@ -1,7 +1,7 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
 import { SQRT2 } from '../../../math/src/wgsl/constants.ts'
-import { REFLECTION_CONSTANTS_WGSL } from './constants.ts'
+import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_LOBE_WGSL } from './field.ts'
 import { reflectionBindingsWgsl } from './viewLayout.ts'
 

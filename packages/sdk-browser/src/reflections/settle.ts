@@ -2,10 +2,10 @@ import { createReadbackRing } from '../gpu/core/readbackRing.ts'
 import { TRACE_LIST } from '../bounce/runtimeLayout.ts'
 
 /** Bytes of the hash: the lit image's two words, then the image before it's. */
-export const RADIANCE_HASH_BYTES = 16
+const RADIANCE_HASH_BYTES = 16
 /** Bytes of a sample: the hash, then the count of tiles the trace listed that image, then the run-time
  *  proxy's workgroups that hold a pixel left for a later image (`runtimeLayout.ts`). */
-export const SAMPLE_BYTES = RADIANCE_HASH_BYTES + 8
+const SAMPLE_BYTES = RADIANCE_HASH_BYTES + 8
 /** Samples in flight at most: an image's copy waits for none, and takes none when all are in flight. */
 const SAMPLES = 3
 /** Bytes the settle holds (`createRadianceSettle`): the hash and its samples in flight. */

@@ -1,6 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
-import { REFLECTION_CONSTANTS_WGSL } from './constants.ts'
+import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_LOBE_WGSL } from './field.ts'
 import { REFLECTION_CONE_WGSL } from './footprint.ts'
 import { REFLECTION_DEPTH_BINDING, reflectionBindingsWgsl } from './viewLayout.ts'

@@ -301,7 +301,7 @@ export const drawnAlways = (mark: number) =>
 
 /** The reach a placement of mark `mark` grows its leaf by, in its own space: the half its root test
  *  grows its planes by (`reachOf`), none past every finite one — `drawnAlways` draws it. */
-export const leafReach = (mark: number) => {
+const leafReach = (mark: number) => {
   const bits = mark >>> 16
   return bits && bits < REACH_UNBOUNDED ? fromHalf(bits) : 0
 }

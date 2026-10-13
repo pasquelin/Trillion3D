@@ -118,7 +118,7 @@ export interface WebgpuRunState extends WebgpuBudgetState {
 }
 
 /** What the session's memory funding holds between two asks. */
-export interface WebgpuFunding {
+interface WebgpuFunding {
   /** The device ledger's bytes the targets were last funded at: a refusal is said once a ledger
    *  state, not every frame. */
   ledgerBytes: number | undefined

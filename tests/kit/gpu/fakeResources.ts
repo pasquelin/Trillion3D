@@ -1,6 +1,6 @@
 // The creations of `fakeDevice()` beside its buffers (`fakeBuffers.ts`): a texture as the device
 // makes it, a pipeline's group layouts, and the refusal a test asks of an allocation.
-import { textureExtent } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
+import { textureExtent } from '../../../packages/sdk-browser/src/gpu/core/textureExtent.ts'
 import type { FakeDeviceOptions, FakeTexture } from './fakeRecords.ts'
 import { untag } from './fakeWebgpuDevice.ts'
 

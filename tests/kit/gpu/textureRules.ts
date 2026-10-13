@@ -1,5 +1,5 @@
 import { floorLog2 } from '../../../packages/math/src/scalar/integers.ts'
-import { textureExtent } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
+import { textureExtent } from '../../../packages/sdk-browser/src/gpu/core/textureExtent.ts'
 import { TEXTURE, aspectFormat, srgbPair, usageRefusedBy, type Features } from './formats.ts'
 
 /**

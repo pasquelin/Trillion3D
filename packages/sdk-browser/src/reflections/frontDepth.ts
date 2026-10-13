@@ -13,7 +13,8 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { clipToFramebuffer, pixelToNdc, unprojectPoint } from '../../../math/src/wgsl/projection.ts'
-import { REFLECTION_CONSTANTS_WGSL, REFLECTION_SIDE } from './constants.ts'
+import { REFLECTION_SIDE } from './constants.ts'
+import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 
 const { min, max } = Math
 import type { ReflectionPipelines, ScreenReflection } from './gpu.ts'
