@@ -73,11 +73,12 @@ test('generated inventory and explicit facade files are current', async () => {
   // CharacterCollision, TriangleCollision): Jolt is the one character body; and the frustum's
   // `FAR_PLANE_SLOT`, the slot a culling reader tests the far plane at. It holds no compute-path
   // governor either: the batches run their WebAssembly kernels alone, and no JavaScript twin of the
-  // two (boxTransformBatch, multiplyMatrix4Batch) stands beside them; nor a second page source
-  // beside the streaming (httpPageSource): `page.httpSource` reads through a streamer. The run-time proxy a placement
+  // two (boxTransformBatch, multiplyMatrix4Batch, boxTransformUnionBatch) stands beside them; nor a
+  // second page source beside the streaming (httpPageSource): `page.httpSource` reads through a
+  // streamer. The run-time proxy a placement
   // wears carries its deformation (CutDeformation, CORNER_INFLUENCES), and the bounce occupancy names
   // the rows it is told moved (MovedRows).
-  assert.equal(inventory.exports.length, 709)
+  assert.equal(inventory.exports.length, 708)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   SPHERE_VALUES,
-  boxTransformUnionBatch,
   boxUnionBatch,
   frustumKeepsBoxBatch,
   linearToSrgbBatch,
@@ -61,19 +60,12 @@ test('transformDirectionsBatch: ignores translation and normalizes', () => {
   assert.equal(out[2], 0)
 })
 
-test('boxUnionBatch and boxTransformUnionBatch: bounds union', () => {
+test('boxUnionBatch: bounds union', () => {
   const boxes = new Float64Array([0, 0, 0, 1, 1, 1, -2, -2, -2, 0, 0, 0])
   const into = new Float64Array([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity])
   boxUnionBatch(into, boxes, 2)
   assert.equal(into[0], -2)
   assert.equal(into[3], 1)
-
-  const into2 = new Float64Array([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity])
-  const m = new Float64Array(16)
-  composeMatrix4(m, [1, 1, 1], [0, 0, 0, 1], [1, 1, 1])
-  boxTransformUnionBatch(into2, boxes, [m, m], 2)
-  assert.equal(into2[0], -1)
-  assert.equal(into2[3], 2)
 })
 
 test('sphereFromBoundsBatch: derives sphere centre and radius', () => {
