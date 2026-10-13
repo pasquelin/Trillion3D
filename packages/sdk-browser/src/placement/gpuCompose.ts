@@ -106,6 +106,8 @@ function composeGroup(device: GPUDevice, held: HeldGroup, pipeline: GPUComputePi
 /** The world range `r` of the cut this frame, and its first `count` worlds' words as a binding
  *  of `bytes` each. */
 const rangeOf = (gpu: ComposeGpu, r: number) => gpu.frame.ranges[r]
+/** The ranges the record holds between two passes: none. */
+const NO_RANGES: GpuSelection['worldRanges'] = []
 const rangeBytes = (gpu: ComposeGpu, r: number, bytes: number) => () =>
   rangeOf(gpu, r).count * bytes
 
@@ -721,7 +723,7 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
      *  world ranges, the motion the roots bind, the members the tree's fit hands, the rows' table
      *  and the parts they write — a stand-in each where the part is not made. */
     frame: {
-      ranges: [] as GpuSelection['worldRanges'],
+      ranges: NO_RANGES,
       motion: undefined as GPUBuffer | undefined,
       members: undefined as GPUBuffer | undefined,
       table: undefined as GPUBuffer | undefined,
@@ -888,6 +890,7 @@ export function composedLeaves(rt: WebgpuPagesRuntime): ComposedLeaves {
         pass.setBindGroup(0, held.group!)
         dispatchRows(pass, ceilDiv(listed, 64))
       }
+      gpu.frame.ranges = NO_RANGES
       pass.end()
       rt.run.gpuComputeDispatches += ranges.length
     },
@@ -1006,6 +1009,8 @@ export function encodeComposedRoots(
     held.identity.entries[0] ??= rootEntries(device, gpu, r)
     if (composeGroup(device, held, pipeline)) bound = true
   }
+  // The groups are made: the cut's ranges are not held past them, so a cut swapped out goes.
+  gpu.frame.ranges = NO_RANGES
   // Every word this pass writes is the one it wrote last, unless something it reads moved, a host
   // write put its own words there (`frameWrites`), or the motion is not settled: a still view of a
   // composed scene costs no pass.

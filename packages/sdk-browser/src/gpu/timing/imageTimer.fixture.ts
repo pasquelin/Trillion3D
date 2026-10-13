@@ -25,8 +25,10 @@ export function timer(sampleEveryFrames = 1) {
     const sampled = timing.isSampled(encoder)
     // Its readback: the buffer its last part's timestamps were copied into, as the ring gave it.
     const target = sampled ? f.copies.at(-1)?.to : undefined
-    const read = new BigUint64Array(target?.getMappedRange() ?? new ArrayBuffer(8))
-    passes.forEach(([begin, end], i) => read.set([BigInt(begin) * MS, BigInt(end) * MS], i * 2))
+    if (target) {
+      const read = new BigUint64Array(target.getMappedRange())
+      passes.forEach(([begin, end], i) => read.set([BigInt(begin) * MS, BigInt(end) * MS], i * 2))
+    }
     timing.submitted(encoder, { frame })
     return sampled
   }
