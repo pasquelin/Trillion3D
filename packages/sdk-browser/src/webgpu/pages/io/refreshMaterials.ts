@@ -39,12 +39,6 @@ const assignsBlended = (assignment: SurfaceAssignment, pages: readonly PageRec[]
   assignment.to === 'blend' ||
   recordsOfMeshes(pages, assignment.meshes).some((rec) => rec.transparent)
 
-const materialEpochs = new WeakMap<WebgpuPagesRuntime, number>()
-
-/** How many writes of material values `rt` took: what the blends' resources reread with each
- *  (`../../blend/resources.ts`). */
-export const materialEpoch = (rt: WebgpuPagesRuntime) => materialEpochs.get(rt) ?? 0
-
 /**
  * Host surfaces rewritten in place. When their values moved, every row is written again at
  * the next frame, and the writer rereads each surface whose version moved
@@ -72,9 +66,9 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
   }
   if (values) {
     rt.layout.rows.tableEpoch++
+    rt.layout.rows.materialEpoch++
     // The next frame entry takes the census again (`../../frame/framePipelines.ts`).
     rt.vis.shadeCensus?.moved()
-    materialEpochs.set(rt, materialEpoch(rt) + 1)
     // The scene revision moved: the next image writes the transparent records again, once
     // (`../render/render.ts`, `refreshBlendScene`), each off its refreshed surface.
     rt.run.gate.movedInPlace()
