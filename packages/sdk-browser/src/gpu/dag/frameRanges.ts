@@ -5,9 +5,11 @@ import { FRAME_VEC4 } from './types.ts'
 import { primitiveWordAt } from './worlds.ts'
 import { worldStretch } from '../../page/selection/rootWorld.ts'
 import { dagGroupEntries } from './shader/bindings.ts'
-import { PRIMITIVE_BYTES, WORLD_ROW_BYTES, cameraFrameRanges } from './cameraRanges.ts'
+import { PRIMITIVE_BYTES, cameraFrameRanges } from './cameraRanges.ts'
 import { writeParts, writeRanges } from './split.ts'
 import { createChangedRuns, type ChangedRuns } from '../../webgpu/residency/ranges.ts'
+import { createRecordTexture, type RecordTexture } from '../core/recordTexture.ts'
+import { WORLD_TABLE } from './worldTable.ts'
 /** Floats of one host row (`primitiveFrameWords`). */
 const ROW_FLOATS = FRAME_VEC4 * 4
 
@@ -16,7 +18,8 @@ const ROW_FLOATS = FRAME_VEC4 * 4
  * each bind group its range: `{first, count}` at the range's aligned offset, written once. The
  * host keeps its rows whole (`frameData`, indexed by primitive); each write lands in the range
  * that holds the primitive, at its row there. No work per frame: a write follows a change. The
- * world matrices follow the same ranges, one `worlds` buffer each, read at `rowOf(w)`.
+ * worlds are one record table, every range's (`worldTable.ts`), made by `make` — the cut's
+ * admission (`resources.ts`) —, read and written in place by every pass and copied by none.
  */
 export function createCameraFrames(
   device: GPUDevice,
@@ -25,34 +28,41 @@ export function createCameraFrames(
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
   worlds: Float32Array,
   sources: PackedDag['worldSources'],
+  make?: (descriptor: GPUTextureDescriptor, bytes: number) => GPUTexture,
 ) {
   const ranges = cameraFrameRanges(device.limits, worldCount),
     slots = uniformSlots(device.limits, ranges.length, 2)
+  // Written by the host and by the composition of the poses (`../../placement/gpuComposeWgsl.ts`).
+  const usage =
+    GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.STORAGE_BINDING
   const f: Frames = {
     ...{ device, frameData, ranges, per: ranges[0].count },
     ...rangeBuffers(device, slots, ranges, own),
+    worlds: createRecordTexture(device, WORLD_TABLE, worldCount, usage, make),
     frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
     sources,
     pending: createChangedRuns(),
     writes: 0,
   }
-  const { buffers, worldBuffers, bounds } = f
-  const origins = createWorldOrigins(device, ranges, worldBuffers, sources)
-  /** Range `r`'s bind group: `group`, its `frames`, its `worlds`, its `range`. */
+  const { buffers, bounds } = f
+  const origins = createWorldOrigins(device, worldCount, f.worlds.target('Origin'), sources)
+  /** Range `r`'s bind group: `group`, its `frames`, the worlds, its `range`. */
   const bindGroup = (layout: GPUBindGroupLayout, group: DagGroup, r: number) =>
     device.createBindGroup({
       layout,
       entries: dagGroupEntries(
-        { ...group, frames: buffers[r], worlds: worldBuffers[r] },
+        { ...group, frames: buffers[r], worlds: f.worlds.view },
         { buffer: bounds, offset: slots.offset(r)[0], size: 16 },
       ),
     })
   const table = {
     ranges,
     buffers,
-    worldBuffers,
+    /** The worlds' record table (`worldTable.ts`): the one every pass reads and the composition
+     *  writes. */
+    worlds: f.worlds,
     /** Every placement's exact translation — or those of `named`, increasing —, its doubles to
-     *  its range, where each cut reads it at its own eye (`shader/worldPoseWgsl.ts`); those that
+     *  its record, where each cut reads it at its own eye (`shader/worldPoseWgsl.ts`); those that
      *  moved (`createWorldOrigins`). */
     writeWorldOrigins: (named?: Int32Array) => {
       const sent = origins.write(named)
@@ -78,13 +88,13 @@ export function createCameraFrames(
       for (let k = 0; k < count; k++) restretch(f, named[k])
       writeNamed(f, f.buffers, ROW_FLOATS, f.frameData, named, count)
     },
-    /** The world matrices in `next` of primitives `[from, to)` — every one by default —, each run
-     *  to its range. */
+    /** The world matrices in `next` of primitives `[from, to)` — every one by default —, to
+     *  their records. */
     writeWorlds: (next: Float32Array, from = 0, to = Infinity) => writeWorlds(f, next, from, to),
     /** The world matrices in `next` of the `count` increasing primitives of `named`: the ones a
-     *  call moved, each run to its range (`writeRanges`). */
+     *  call moved, each run to its records (`writeRanges`). */
     writeNamedWorlds: (next: Float32Array, named: Int32Array, count: number) =>
-      writeNamed(f, worldBuffers, 16, next, named, count),
+      writeNamedWorlds(f, next, named, count),
     /** Word `slot` of primitive `w`'s frame words, set in the host's row; its range receives the
      *  row at the next `flushWords`. */
     writeWord: (w: number, slot: number, value: number) => writeWord(f, w, slot, value),
@@ -114,7 +124,7 @@ type Frames = {
   /** Primitives of a full range: the first range a word lands in is found by division. */
   per: number
   buffers: GPUBuffer[]
-  worldBuffers: GPUBuffer[]
+  worlds: RecordTexture
   bounds: GPUBuffer
   /** The primitives whose row holds a word not yet sent. */
   pending: ChangedRuns
@@ -138,8 +148,8 @@ function writeNamed(
   writeRanges(f.device, parts, named, count, source)
 }
 
-/** Each range's `frames` and `worlds`, and the uniform of every range's `{first, count}`, written
- *  once at its aligned offset. */
+/** Each range's `frames`, and the uniform of every range's `{first, count}`, written once at its
+ *  aligned offset. */
 function rangeBuffers(
   device: GPUDevice,
   slots: UniformSlots,
@@ -153,14 +163,6 @@ function rangeBuffers(
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     }),
   )
-  const worldBuffers = ranges.map(({ count }) =>
-    own({
-      label: 'Trillion3D DAG worlds',
-      size: count * WORLD_ROW_BYTES,
-      // COPY_SRC: the reflection proxy's world mirror copies the rows written since its last copy.
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-    }),
-  )
   const bounds = own({
     label: 'Trillion3D DAG frame ranges',
     size: slots.bytes,
@@ -170,7 +172,7 @@ function rangeBuffers(
   for (let r = 0; r < ranges.length; r++)
     words.set([ranges[r].first, ranges[r].count], r * slots.strideWords)
   device.queue.writeBuffer(bounds, 0, words)
-  return { buffers, worldBuffers, bounds }
+  return { buffers, bounds }
 }
 
 function writeRows(f: Frames, from: number, to: number) {
@@ -181,7 +183,17 @@ function writeRows(f: Frames, from: number, to: number) {
 
 function writeWorlds(f: Frames, next: Float32Array, from: number, to: number) {
   const worlds = Math.min(to, primitives(f), next.length / 16) - from
-  writeSpan(f, f.worldBuffers, 16, next, from * 16, worlds * 16)
+  if (worlds <= 0) return
+  f.writes++
+  f.worlds.write('Matrix', from, worlds, next.buffer as ArrayBuffer, next.byteOffset + from * 64)
+}
+
+/** The world matrices in `next` of the `count` increasing primitives of `named`, each run to its
+ *  records (`writeRanges`). */
+function writeNamedWorlds(f: Frames, next: Float32Array, named: Int32Array, count: number) {
+  if (count) f.writes++
+  const source = { data: next, sourceBase: 0, targetBase: 0, stride: 16 }
+  writeRanges(f.device, f.worlds.target('Matrix'), named, count, source)
 }
 
 /** The primitives the ranges hold. */

@@ -13,9 +13,17 @@ export async function floorProbes(tiled = false) {
   })
   const lights = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
   const tiles = tiled ? await createGpuLightTiles(gpu.device) : undefined
-  // One placement wears a proxy: its buffer, and its box over the floor the probes keep.
+  // One placement wears a proxy: its buffer and instances, the worlds it is placed by and the tree
+  // its rays walk, and its box over the floor the probes keep.
+  const texel = (format: GPUTextureFormat) =>
+    gpu.device
+      .createTexture({ size: [1, 1, 1], format, usage: GPUTextureUsage.TEXTURE_BINDING })
+      .createView({ dimension: '2d-array' })
+  const worlds = texel('rgba32uint'),
+    tree = texel('r32uint'),
+    instances = texel('rgba32uint')
   const scene = {
-    buffer: () => lights,
+    proxy: () => ({ buffer: lights, instances, worlds, tree }),
     boxes: () => ({
       boxes: Float64Array.from([0, 0, 0, 8, 0.1, 4]),
       moved: { count: 0, pairs: new Int32Array(0) },

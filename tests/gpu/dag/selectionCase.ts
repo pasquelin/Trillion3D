@@ -25,7 +25,8 @@ import {
   dagFlagShape,
   flagShapeWords,
 } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
-import { worldBufferWords } from '../../../packages/sdk-browser/src/gpu/dag/worldBuffer.fixture.ts'
+import { worldTableOn } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.fixture.ts'
+import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
 import {
   childBase,
   savedJournalWord,
@@ -111,7 +112,6 @@ function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: Sel
     worldCount,
     clusters: packed.clusters,
     nodes: packed.nodes,
-    worlds: worldBufferWords(packed.worlds, packed.worldSources),
     cold,
     /** The host's row per primitive, then what `dagPrepare` derives behind it. */
     frames: primitiveFrameWords(packed),
@@ -134,7 +134,7 @@ export function bindCase(
   stage?: StageOutput,
 ) {
   const at = caseBuffers(selection)
-  const made: GPUBuffer[] = []
+  const made: { destroy(): void }[] = []
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
   const buffer = (size: number, data?: ArrayBufferView, usage = storage) => {
     const created = device.createBuffer({ size: Math.max(16, size, data?.byteLength ?? 0), usage })
@@ -153,14 +153,18 @@ export function bindCase(
     flags: buffer(at.flagsWords * 4),
     out: buffer(at.outBytes, out),
     work: buffer(at.work.words * 4),
-    worlds: buffer(64, at.worlds),
     frames: buffer(at.framesBytes, at.frames),
     cold: buffer(48, at.cold),
     range: buffer(16, at.range, uniform),
   }
+  // The worlds' table, as the engine's host writes it (`worldTable.ts`).
+  const worlds = worldTableOn(device, selection.packed.worlds, selection.packed.worldSources)
+  // The placement tree's table, as the engine makes it (`treeTable.ts`).
+  const tree = createTreeTable(device, selection.packed.placementTree)
+  made.push(worlds, tree)
   const group = device.createBindGroup({
     layout,
-    entries: namedEntries(DAG_BINDING, buffers),
+    entries: namedEntries(DAG_BINDING, { ...buffers, worlds: worlds.view, tree: tree.view }),
   })
   return { at, buffers, group, destroy: () => made.forEach((created) => created.destroy()) }
 }

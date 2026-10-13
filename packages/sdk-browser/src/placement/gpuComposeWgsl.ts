@@ -19,9 +19,13 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../math/src/wgsl/constants.ts'
 import { isNanWord } from '../../../math/src/wgsl/integer.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { worldTableWgsl } from '../gpu/dag/worldTable.ts'
 
 /** Doubles of one matrix, each two words. */
 export const MATRIX_DOUBLES = 16
+/** The binding of the cut's worlds in the roots pass: a write-only storage texture, the worlds'
+ *  record table (`../gpu/dag/worldTable.ts`). */
+export const COMPOSE_WORLDS_BINDING = 3
 
 /** Element `k` (column-major) of `parent · local`, both read as doubles from their first word:
  *  column `k >> 2`, row `k & 3`, the shift and mask being the division and remainder by four of
@@ -83,8 +87,9 @@ fn sameWord(a:u32,b:u32)->bool{
 
 /**
  * One thread per root a parent composes (`ranks`, the composition's dense list of them), those of a
- * range of the cut's worlds alone at work: its composed world as the worlds pass wrote it — its
- * exact translation kept behind the range's matrices, as the host's are (`worldOrigins.ts`), which
+ * range of the cut's frame words alone at work: its composed world as the worlds pass wrote it, into
+ * the root's record of the cut's worlds (`../gpu/dag/worldTable.ts`), written whole — its matrix as
+ * the host writes it, its exact translation beside it, as the host's is (`worldOrigins.ts`), which
  * each cut reads at its own eye —, and,
  * once the temporal pass has decided (`motionMode`), the root's motion as `../taa/motion.ts` writes
  * it from the root's single-precision world — the row's words — and the one it held at the last
@@ -98,7 +103,6 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> rootWorlds:array<vec2u>;
 @group(0) @binding(2) var<storage,read> parentOf:array<u32>;
-@group(0) @binding(3) var<storage,read_write> worlds:array<u32>;
 @group(0) @binding(4) var<storage,read_write> motion:array<u32>;
 @group(0) @binding(5) var<uniform> motionMode:MotionMode;
 @group(0) @binding(6) var<storage,read_write> previous:array<u32>;
@@ -107,20 +111,20 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
  let rank=ranks[j];
  if(rank<params.first||rank>=params.first+params.count||rank>=params.rootCount){return;}
- let i=rank-params.first;
  let p=parentOf[rank];
  if(p==NO_INDEX){return;}
  var world:array<u32,16>;
+ var origin:array<u32,8>;
  for(var k=0u;k<16u;k++){
   let value=rootWorlds[rank*16u+k];
   world[k]=toF32(value);
-  // The translation is the exact one behind the range's matrices, which each cut reads at its own
-  // eye (\`../gpu/dag/shader/worldPoseWgsl.ts\`): words 12 to 14 of the row are no cut's.
-  if(k>=12u&&k<15u){
-   let at=params.count*16u+i*8u+2u*(k-12u);
-   worlds[at]=value.x;worlds[at+1u]=value.y;
-  }else{worlds[i*16u+k]=world[k];}
+  // The exact translation beside the matrix, which each cut reads at its own eye
+  // (\`../gpu/dag/shader/worldPoseWgsl.ts\`), high word then low word.
+  if(k>=12u&&k<15u){origin[2u*(k-12u)]=value.x;origin[2u*(k-12u)+1u]=value.y;}
  }
+ for(var t=0u;t<4u;t++){worldsMatrixStore(rank,t,vec4u(world[t*4u],world[t*4u+1u],world[t*4u+2u],world[t*4u+3u]));}
+ worldsOriginStore(rank,0u,vec4u(origin[0],origin[1],origin[2],origin[3]));
+ worldsOriginStore(rank,1u,vec4u(origin[4],origin[5],0u,0u));
  let mode=motionMode.mode;
  if(mode==${MOTION_SKIP}u){return;}
  var held:array<u32,16>;
@@ -138,5 +142,13 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  }
  for(var k=0u;k<16u;k++){motion[rank*16u+k]=words[k];}
 }`,
-  [toF32, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX, SAME_WORD_WGSL, MOTION_WGSL],
+  [
+    toF32,
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    NO_INDEX,
+    SAME_WORD_WGSL,
+    MOTION_WGSL,
+    worldTableWgsl('worlds', { group: 0, binding: COMPOSE_WORLDS_BINDING, access: 'write' }),
+  ],
 )

@@ -9,44 +9,29 @@
  * taken nor kept on the CPU. The pass is the one entry point of a refit — the placement tree's, and
  * whatever else bounds its boxes the same way.
  *
- * The pass binds the cut's tables as the cut does: a table the device splits across bindings is read
- * through its parts at the bindings the kernel gives them (`dagPartEntries`), the frames through
+ * The pass reads and writes the tree's record table in place (`treeTable.ts`), the frames through
  * their ranges. Nothing is ever left unfitted, and no group is held open for want of a binding.
  */
 import { TREE_REFIT_PASS } from '../../stage/passLabels.ts'
 import { refitLevels, treeNodeCount, type PlacementTree } from './placementTree.ts'
 import { REFIT_PARAM_WORDS, treeRefitWgsl, type RefitLayout } from './treeRefitWgsl.ts'
-import { DAG_BINDING, dagPartEntries } from './shader/bindings.ts'
-import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
-import type { DagParts } from './split.ts'
+import type { PackedDag } from './types.ts'
 import { preparedComputePipeline, preparedPipelines } from '../../lighting/deferred/fullscreen.ts'
 import { oncePerDevice } from '../core/oncePerDevice.ts'
 import { sequentialEntries } from '../core/computeBindings.ts'
 import { createRefitLevels } from './treeRefitLevels.ts'
 
-/** What a refit reads and writes: the tree's nodes and the order of its members as the device lays
- *  them out, and the frames of each range of placements. */
+/** What a refit reads and writes: the tree's record table (`treeTable.ts`), and the frames of each
+ *  range of placements. */
 export type RefitTables = {
-  nodeParts: DagParts
-  coldParts: DagParts
+  tree: GPUTextureView
   frames: { buffers: GPUBuffer[]; ranges: readonly { first: number }[] }
 }
 
-/** How the device lays the tree's nodes out: the nodes a part holds, the parts — what a kernel
- *  reading them is made for (`nodeTableBlock`). */
-export const nodeLayout = (nodeParts: DagParts): RefitLayout['nodes'] => ({
-  per: nodeParts.bytes / (DAG_NODE_FLOATS * 4),
-  parts: nodeParts.buffers.length,
+/** How `tables` lay the frames out: the first placement of each range. */
+const layoutOf = ({ frames }: RefitTables): RefitLayout => ({
+  frames: frames.ranges.map(({ first }) => first),
 })
-
-/** How `tables` lay the refit's tables out: the elements a part holds, the parts, the ranges. */
-function layoutOf({ nodeParts, coldParts, frames }: RefitTables): RefitLayout {
-  return {
-    nodes: nodeLayout(nodeParts),
-    cold: { per: coldParts.bytes / 4, parts: coldParts.buffers.length },
-    frames: frames.ranges.map(({ first }) => first),
-  }
-}
 
 export function createTreeRefit(
   device: GPUDevice,
@@ -83,10 +68,9 @@ export function createTreeRefit(
           here = tree.levels[level]
         extra[0] = here.base
         extra[1] = tree.count
-        extra[2] = tree.members
-        extra[3] = below?.base ?? 0
-        extra[4] = below?.count ?? 0
-        extra[5] = below ? 1 : 0
+        extra[2] = below?.base ?? 0
+        extra[3] = below?.count ?? 0
+        extra[4] = below ? 1 : 0
         steps.set(step, at, ids.length, extra)
         device.queue.writeBuffer(program.ids, at * 4, ids)
         at += ids.length
@@ -120,7 +104,7 @@ const refitKernels = oncePerDevice((device: GPUDevice) =>
           entryPoint: 'main',
         },
       }),
-    (layout) => JSON.stringify(layout, (_, v) => (v === Infinity ? 'whole' : v)),
+    (layout) => JSON.stringify(layout),
   ),
 )
 
@@ -129,7 +113,7 @@ const refitKernels = oncePerDevice((device: GPUDevice) =>
 function refitProgram(
   device: GPUDevice,
   tree: PlacementTree,
-  { nodeParts, coldParts, frames }: RefitTables,
+  { tree: table, frames }: RefitTables,
   members: GPUBuffer,
   pipeline: GPUComputePipeline,
 ) {
@@ -144,17 +128,10 @@ function refitProgram(
     tree.levels.length,
     REFIT_PARAM_WORDS,
   )
-  // The cut's tables, each at its binding and its parts after the kernel's own range binding.
+  // The tree's record table, read and written in place.
   const tables = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      { binding: DAG_BINDING.nodes, resource: { buffer: nodeParts.buffers[0] } },
-      { binding: DAG_BINDING.cold, resource: { buffer: coldParts.buffers[0] } },
-      ...dagPartEntries({
-        nodes: nodeParts.buffers.slice(1),
-        cold: coldParts.buffers.slice(1),
-      }),
-    ],
+    entries: [{ binding: 0, resource: table }],
   })
   const groups = tree.levels.map((_, step) =>
     device.createBindGroup({

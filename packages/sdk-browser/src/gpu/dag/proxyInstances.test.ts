@@ -11,12 +11,21 @@ import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { dagRootCounts } from './pack.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { LIMITS, cut, open, region, surface, wordAt, writes } from './proxyInstances.fixture.ts'
-import { INSTANCE, INSTANCE_WORDS, RUNTIME_HEADER_WORDS } from '../../bounce/runtimeLayout.ts'
+import {
+  LIMITS,
+  cut,
+  instanceAt,
+  open,
+  region,
+  surface,
+  wordAt,
+  writes,
+} from './proxyInstances.fixture.ts'
+import { INSTANCE } from '../../bounce/runtimeLayout.ts'
 
 test('no placement wears a proxy: no buffer, nothing for the trace to read', async () => {
   const { gpu, selection } = await open(() => undefined)
-  assert.equal(selection.proxyBuffer(), undefined)
+  assert.equal(selection.proxy(), undefined)
   assert.equal(writes(gpu).length, 0)
   selection.dispose()
 })
@@ -33,9 +42,8 @@ test('placements of one cut share its columns; each names its cut, its surface a
         ? { primitive: { runtimeProxy: other }, surface: plain }
         : undefined,
   )
-  assert.ok(selection.proxyBuffer()!.size > 0)
-  const instance = (w: number, k: number) =>
-    wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + k)
+  assert.ok(selection.proxy()!.buffer.size > 0)
+  const instance = (w: number, k: number) => instanceAt(gpu, w, k)
   // Twelve placements of the first cut: the same node and triangle, the first surface.
   for (let w = 0; w < 12; w++) {
     assert.equal(instance(w, INSTANCE.node), 0)
@@ -80,10 +88,8 @@ test('a parked placement draws no proxy until it is taken back, and a mark follo
   const c = cut(2, 1, 1),
     s = surface(1)
   const { gpu, selection } = await open(() => ({ primitive: { runtimeProxy: c }, surface: s }))
-  const node = (w: number) =>
-    wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + INSTANCE.node)
-  const mark = (w: number) =>
-    wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + INSTANCE.mark)
+  const node = (w: number) => instanceAt(gpu, w, INSTANCE.node)
+  const mark = (w: number) => instanceAt(gpu, w, INSTANCE.mark)
   selection.parkWorld(3, true)
   assert.equal(node(3), NO_INDEX)
   selection.parkWorld(3, false)
@@ -108,8 +114,7 @@ test('roots appended behind the others join with their instances', async () => {
   const gpu = fakeDevice({ ...BACKEND, packed, limits: LIMITS })
   const selection = (await createGpuDagSelection(gpu.device, packed))!
   assert.equal(selection.appendRoots(roots.slice(10)), true)
-  const node = (w: number) =>
-    wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + INSTANCE.node)
+  const node = (w: number) => instanceAt(gpu, w, INSTANCE.node)
   for (const w of [0, 9, 10, 15]) assert.equal(node(w), 0, `placement ${w}`)
   selection.dispose()
 })
@@ -121,76 +126,32 @@ test('past its first tables the arena grows, the columns it held carried over by
   const { gpu, selection } = await open((w) =>
     w < 6 ? { primitive: { runtimeProxy: cuts[w] }, surface: s } : undefined,
   )
-  assert.ok(selection.proxyBuffer()!.size > 0)
+  assert.ok(selection.proxy()!.buffer.size > 0)
   // Every placement still names its own cut's first triangle.
-  const triangles = Array.from({ length: 6 }, (_, w) =>
-    wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + INSTANCE.triangle),
-  )
+  const triangles = Array.from({ length: 6 }, (_, w) => instanceAt(gpu, w, INSTANCE.triangle))
   assert.deepEqual(triangles, [0, 1000, 2000, 3000, 4000, 5000])
   selection.dispose()
 })
 
-test('a still world copies no byte into the proxy; a moved row copies its own and no other', async () => {
-  const c = cut(2, 1, 1),
-    s = surface(1)
-  const { gpu, selection } = await open(() => ({ primitive: { runtimeProxy: c }, surface: s }))
-  const rows = region(gpu, 'instances')
-  assert.ok(rows >= 10, 'one range of the world table holds every placement')
-  // The bytes the mirror copies into the worlds' region of the buffer, and into the exact translations'
-  // behind it, whatever else it copies (the tree).
-  const worldsFrom = (RUNTIME_HEADER_WORDS + region(gpu, 'worldsWord')) * 4,
-    originsFrom = (RUNTIME_HEADER_WORDS + region(gpu, 'originsWord')) * 4,
-    originsTo = (RUNTIME_HEADER_WORDS + region(gpu, 'copyWorldsWord')) * 4
-  const mirror = () => {
-    const runs: number[] = [],
-      origins: number[] = []
-    const encoder = {
-      copyBufferToBuffer: (_a: unknown, _b: number, _c: unknown, at: number, size: number) => {
-        if (at >= worldsFrom && at < originsFrom) runs.push(size)
-        else if (at >= originsFrom && at < originsTo) origins.push(size)
-      },
-    } as unknown as GPUCommandEncoder
-    selection.proxyMirror(encoder)
-    return { runs, origins }
-  }
-  assert.deepEqual(mirror().runs, [rows * 64], 'the buffer new made takes every row once')
-  assert.deepEqual(mirror().runs, [], 'a still world copies nothing')
-  assert.deepEqual(mirror().runs, [], 'and goes on copying nothing')
-  selection.worldsMovedOnGpu([3, 4])
-  assert.deepEqual(
-    mirror(),
-    { runs: [2 * 64], origins: [2 * 32] },
-    'two neighbouring rows: their bytes',
-  )
-  selection.worldsMovedOnGpu([1, 9])
-  assert.deepEqual(mirror().runs, [64, 64], 'two far rows are two copies, nothing between them')
-  assert.deepEqual(mirror().runs, [], 'still again')
-  selection.dispose()
-})
-
-test('a placement that moved by a translation alone is mirrored: its matrix words are no cut’s', async () => {
+test('the trace reads the culling’s worlds and tree: a moved placement sends no byte into the proxy', async () => {
   const c = cut(2, 1, 1),
     s = surface(1)
   const { gpu, selection, packed, roots } = await open(() => ({
     primitive: { runtimeProxy: c },
     surface: s,
   }))
-  const from = (RUNTIME_HEADER_WORDS + region(gpu, 'originsWord')) * 4,
-    to = (RUNTIME_HEADER_WORDS + region(gpu, 'copyWorldsWord')) * 4
-  const origins = () => {
-    const sizes: number[] = []
-    const encoder = {
-      copyBufferToBuffer: (_a: unknown, _b: number, _c: unknown, at: number, size: number) => {
-        if (at >= from && at < to) sizes.push(size)
-      },
-    } as unknown as GPUCommandEncoder
-    selection.proxyMirror(encoder)
-    return sizes
-  }
-  origins()
-  assert.deepEqual(origins(), [], 'still')
+  const proxy = selection.proxy()!
+  assert.equal(proxy.worlds, selection.worlds, 'the cut’s own table, read in place')
+  assert.equal(
+    (proxy.tree as unknown as { texture: { label: string } }).texture.label,
+    'Trillion3D placement tree',
+    'and the cut’s tree, in its own table',
+  )
+  const sent = writes(gpu).length
   ;(roots[5].world.elements as Float64Array)[12] += 40
+  ;(roots[6].world.elements as Float64Array)[0] = 2
   selection.updateWorlds(Float32Array.from(packed.worlds))
-  assert.deepEqual(origins(), [32], 'the row of the placement moved, and no other')
+  selection.worldsMovedOnGpu([3, 4])
+  assert.equal(writes(gpu).length, sent, 'no write')
   selection.dispose()
 })

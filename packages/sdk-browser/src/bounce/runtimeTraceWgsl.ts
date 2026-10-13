@@ -5,7 +5,7 @@ import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
 import { inverseTranspose3, unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
-import { runtimeSceneWgsl, type SceneBindings } from './runtimeSceneWgsl.ts'
+import { runtimeSceneWgsl, sceneKey, type SceneBindings } from './runtimeSceneWgsl.ts'
 import {
   RAY_ERROR_FLOOR,
   RAY_LAYERS,
@@ -28,7 +28,7 @@ import {
  */
 export const runtimeRadianceWgsl = (scene: SceneBindings) =>
   wgslBlock(
-    `runtimeRadianceWgsl(${scene.group}, ${scene.proxy})`,
+    `runtimeRadianceWgsl(${sceneKey(scene)})`,
     [
       runtimeSceneWgsl(scene),
       SURFACE_RAY_WGSL,
@@ -145,7 +145,7 @@ export type RuntimeBindings = SceneBindings & { list: number }
  */
 export const runtimeTraceWgsl = ({ list, ...scene }: RuntimeBindings) =>
   wgslBlock(
-    `runtimeTraceWgsl(${scene.group}, ${scene.proxy}, ${list})`,
+    `runtimeTraceWgsl(${sceneKey(scene)}, ${list})`,
     [runtimeRadianceWgsl(scene)],
     `
 ${wgslConsts({ RT_SPENT: TRACE_LIST.spent })}

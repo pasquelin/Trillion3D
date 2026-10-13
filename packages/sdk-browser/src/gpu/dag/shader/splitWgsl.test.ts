@@ -23,8 +23,11 @@ test('a split kernel declares the bindings its layout makes, and every name it r
   const counts = dagPartCounts(split)
   assert.deepEqual(counts, { clusters: 3, nodes: 1, cold: 2, flags: 6 })
   const text = dagSelectionShader(split)
-  assert.equal(wgslBufferBindings(text).length, 10 + 2 + 1 + 5)
-  assert.deepEqual(entryBufferBindings(dagBindEntries(counts)), wgslBufferBindings(text))
+  assert.equal(wgslBufferBindings(text).length, 9 + 2 + 1 + 5)
+  assert.deepEqual(
+    entryBufferBindings(dagBindEntries(counts).filter((entry) => entry.buffer)),
+    wgslBufferBindings(text),
+  )
   assert.deepEqual(unresolvedNames(text), [])
   for (const read of ['clusters2[i-170u]', 'cold1[i-1024u]', 'flags5[i-flagSection(6u)]=v'])
     assert.ok(text.includes(read), read)

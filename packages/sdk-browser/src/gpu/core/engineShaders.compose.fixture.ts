@@ -6,8 +6,8 @@ import { ENTRY_CORNERS_WGSL } from '../../webgpu/transparent/entryCornersWgsl.ts
 import { treeRefitWgsl } from '../dag/treeRefitWgsl.ts'
 
 /** The texts of the GPU composition, of the root boxes and rows passes, of the tree's leaves and of
- *  its refit: the tables whole, and as a device that splits them lays them out (`treeRefitWgsl.ts`,
- *  `nodeTableBlock`). */
+ *  its refit: the tables whole, and as a device that splits them lays them out (`nodeTableWgsl.ts`,
+ *  `nodeTableBlock`; the frames' ranges). */
 export const COMPOSE_SHADERS = {
   TREE_LEAVES: treeLeavesWgsl(),
   TREE_LEAVES_SPLIT: treeLeavesWgsl({ per: 4096, parts: 2 }),
@@ -17,9 +17,5 @@ export const COMPOSE_SHADERS = {
   DERIVE_ROWS_WGSL,
   ENTRY_CORNERS_WGSL,
   TREE_REFIT: treeRefitWgsl(),
-  TREE_REFIT_SPLIT: treeRefitWgsl({
-    nodes: { per: 4096, parts: 2 },
-    cold: { per: 4096, parts: 2 },
-    frames: [0, 1024],
-  }),
+  TREE_REFIT_SPLIT: treeRefitWgsl({ frames: [0, 1024] }),
 }

@@ -17,9 +17,8 @@ import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
 import { fakeTileSort, isTileSort } from './fakeTileEvict.ts'
 import { boundListCap, packedFromBindings, readDagUniforms } from './fakeDag.ts'
-import { worldsAtEye } from './fakeWorldPose.ts'
+import { viewTexture, worldsAtEye } from './fakeWorldPose.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
-
 import {
   residentFlags,
   writeTriangleTotals,
@@ -49,6 +48,7 @@ const DAG_STAGES = new Set([
 ])
 
 export type ComputeBind = {
+  /** A buffer's binding, or a view's — the worlds' table (`viewTexture`). */
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>
 }
 
@@ -109,7 +109,7 @@ export function simulateComputeDispatch(
   // A tile pool's queue, on its sort's own group (`fakeTileEvict.ts`).
   if (stage === 'poolScatter' && isTileSort(computeBind.entries))
     return fakeTileSort(computeBind.entries, offsets)
-  // The selection binds one buffer per `DAG_BINDING` slot: one missing is a validation error. The
+  // The selection binds one table per `DAG_BINDING` slot: one missing is a validation error. The
   // pool sort's last dispatch is the geometry queue's only on the selection's group.
   const slots = Object.keys(DAG_BINDING).length
   if (stage === 'poolScatter' && computeBind.entries.length !== slots) return
@@ -118,8 +118,9 @@ export function simulateComputeDispatch(
   const byBinding = new Map(
     computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
   )
+  const boundWorlds = computeBind.entries.find((e) => e.binding === DAG_BINDING.worlds)!.resource
   // A test that hands no DAG reads the one the session uploaded (`fakeDag.ts`).
-  const dag = packed ?? packedFromBindings(byBinding),
+  const dag = packed ?? packedFromBindings(byBinding, boundWorlds),
     listCap = boundListCap(byBinding)
   if (stage === 'dagSortRequests') return sortStagedRequests(byBinding, listCap)
   if (mirrorListStage(stage!, byBinding, dag, listCap)) return // the lists' and the journals' mirror
@@ -143,12 +144,12 @@ export function simulateComputeDispatch(
     ready: residentFlags(cold, dag.pageCount),
     childReady: residentFlags(cold, dag.pageCount, childBase(dag.pageCount)),
   }
-  // World matrices are read IN THE BOUND BUFFER, where the shader reads them, each translation at
+  // World matrices are read IN THE BOUND TABLE, where the shader reads them, each translation at
   // the eye of the same uniform block as the kernel reads it (`fakeWorldPose.ts`): the view and
   // planes are of that frame. A copy made at packing would put absolute worlds under a view with no
   // translation — two frames in one formula, and not a single page kept.
   const worlds = worldsAtEye(
-    byBinding.get(DAG_BINDING.worlds)!.data,
+    viewTexture(boundWorlds),
     byBinding.get(DAG_BINDING.views)!.data,
     dag.worlds.length,
   )

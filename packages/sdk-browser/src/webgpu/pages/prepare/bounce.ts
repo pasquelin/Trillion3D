@@ -72,7 +72,7 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
         device,
         proxy.bounds,
         {
-          buffer: () => rt.run.gpuSelection?.proxyBuffer(),
+          proxy: () => rt.run.gpuSelection?.proxy(),
           boxes: () => rt.run.gpuSelection?.proxyBoxes() ?? NO_PROXY_BOXES,
         },
         () => lights.buffer!,
@@ -110,8 +110,6 @@ function publish(rt: WebgpuPagesRuntime) {
     proxyNodes: bounce.proxy?.nodes ?? null,
     proxyErrorMetres: bounce.proxy?.errorMetres ?? null,
     proxyCellMetres: bounce.proxy?.cellMetres ?? null,
-    // A proxy past one storage binding of the device is made by none: its rays read stand-ins.
-    proxyRefused: rt.run.gpuSelection?.proxyRefusal ?? null,
     cascadeLevels: probes?.cascades.levels.length ?? null,
     cascadeSize: probes?.cascades.size ?? null,
     cascadeSpacings: probes?.cascades.levels.map((level) => level.spacing) ?? null,

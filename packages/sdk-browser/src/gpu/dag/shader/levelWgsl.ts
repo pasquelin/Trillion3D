@@ -142,15 +142,16 @@ fn levelStep(src:u32,s:u32){
  if(entry==NO_INDEX){return;}
  vi=entryView(entry);
  let index=entryIndex(entry);
- // Past the nodes, a member a kept group of the tree deposited (\`placementTreeWgsl.ts\`).
+ // Past the nodes, a member a kept group of the tree deposited; past the placements' own nodes, a
+ // node of the tree (\`placementTreeWgsl.ts\`).
  if(index>=views[0u].nodeCount){placementStep(src,index-views[0u].nodeCount);return;}
+ if(hasTree()&&index>=views[0u].cellBase){treeStep(src,index-views[0u].cellBase);return;}
  nodeStep(src,index,flagAt(queueBase(src)+2u*s+1u));
 }
-/** Node \`index\` of the queue \`src\` under the view \`vi\`: a node of the placement tree, or of the
- *  shared hierarchy placement \`w\` reads, whose root its gate already opened (\`opensRoot\`). */
+/** Node \`index\` of the queue \`src\` under the view \`vi\`: a node of the shared hierarchy
+ *  placement \`w\` reads, whose root its gate already opened (\`opensRoot\`). */
 fn nodeStep(src:u32,index:u32,w:u32){
  let node=nodeAt(index);
- if(node.kind!=0u){treeStep(src,node);return;}
  if(!inRange(w)){return;}
  deformReach=reachOf(w);
  // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.

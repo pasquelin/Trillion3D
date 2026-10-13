@@ -54,7 +54,7 @@ test('moving, parking or opening one placement refits its group and its cell, at
       tree = dag.placementTree!
     // A group bounds one workgroup's lanes of placements.
     const groupNode = tree.levels.at(-1)!.base + Math.floor(tree.slot[70] / WORKGROUP_THREADS)
-    const box = () => Array.from(dag.nodes.subarray(groupNode * 24, groupNode * 24 + 7))
+    const box = () => Array.from(tree.nodes.subarray(groupNode * 24, groupNode * 24 + 7))
     const before = box()
     // Placement 70 moves 1 km away: its group's box follows, and only a node per tree level is rewritten.
     ;(roots[70].world.elements as Float64Array)[12] = 1000
@@ -136,13 +136,13 @@ test('a member drawn whatever the view is listed apart: every box stays finite, 
     const g = Math.floor(tree.slot[w] / WORKGROUP_THREADS),
       group = tree.levels.at(-1)!.base + g,
       cell = tree.levels[0].base + Math.floor(g / WORKGROUP_THREADS)
-    const box = dag.nodes.subarray(group * 24, group * 24 + 7),
+    const box = tree.nodes.subarray(group * 24, group * 24 + 7),
       leaf = leaves.subarray(w * 6, w * 6 + 6)
     for (let a = 0; a < 3; a++)
       assert.ok(box[a] <= leaf[a] && box[4 + a] >= leaf[3 + a], `member ${w}, axis ${a}`)
     for (const node of [group, cell])
       assert.ok(
-        Array.from(dag.nodes.subarray(node * 24, node * 24 + 7)).every((v) => Math.abs(v) < 1e38),
+        Array.from(tree.nodes.subarray(node * 24, node * 24 + 7)).every((v) => Math.abs(v) < 1e38),
         `node ${node} finite`,
       )
   }

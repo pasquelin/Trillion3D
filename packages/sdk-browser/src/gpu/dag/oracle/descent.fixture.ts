@@ -10,7 +10,8 @@ import { thresholdOf, type DagViewFrames } from './math.fixture.ts'
 export const AHEAD_LEAF = 3
 
 /** One view's verdict on node `n` read by placement `w`: `-1` rejected — outside, too fine or too
- *  coarse —, else its children. `open`, the placement's open count there (`dagNodeFloor`). */
+ *  coarse —, else its children. `open`, the placement's open count there (`dagNodeFloor`). A node of
+ *  the placement tree is read in the tree (`treeNode`). */
 function keeps(
   frames: DagViewFrames,
   packed: Descended,
@@ -18,8 +19,12 @@ function keeps(
   n: number,
   w: number,
 ) {
-  const { nodes } = packed
-  if (nodeInts[n * DAG_NODE_FLOATS + NODE_KIND]) return dagTreeVerdict(frames, nodes, nodeInts, n)
+  const { nodes } = packed,
+    t = treeNode(packed, n)
+  if (t >= 0) {
+    const tree = packed.placementTree!
+    return dagTreeVerdict(frames, tree.nodes, treeInts(tree), t)
+  }
   const children = dagNodeVerdict(frames, nodes, nodeInts, n, w)
   if (children < 0) return -1
   const open = packed.heldOpen?.get(w, n)
@@ -60,14 +65,30 @@ type Descended = {
   heldOpen?: { get(w: number, node: number): number | undefined }
 }
 
+/** Node `n` of the descent as a node of the placement tree — past the placements' own nodes, from
+ *  `cellBase` on (`../shader/placementTreeWgsl.ts`) —, or -1. */
+const treeNode = (packed: Descended, n: number) => {
+  const tree = packed.placementTree
+  return tree && n >= tree.cellBase ? n - tree.cellBase : -1
+}
+/** The words of the tree's nodes. */
+const treeInts = (tree: PlacementTree) =>
+  new Uint32Array(tree.nodes.buffer, tree.nodes.byteOffset, tree.nodes.length)
+
 /**
- * The first child a kept node opens: a group of the placement tree opens its members, entries past
- * the nodes (`../shader/placementTreeWgsl.ts`); every other node its child nodes.
+ * The first child a kept node opens: a cell of the placement tree its child nodes, past the
+ * placements' own; a group its members, entries past the nodes (`../shader/placementTreeWgsl.ts`);
+ * every other node its child nodes.
  */
 function firstChild(packed: Descended, nodeInts: Uint32Array, n: number) {
-  const base = n * DAG_NODE_FLOATS,
-    first = nodeInts[base + NODE_FIRST_CHILD]
-  return nodeInts[base + NODE_KIND] === TREE_GROUP ? packed.nodeCount + first : first
+  const t = treeNode(packed, n)
+  if (t < 0) return nodeInts[n * DAG_NODE_FLOATS + NODE_FIRST_CHILD]
+  const tree = packed.placementTree!,
+    ints = treeInts(tree),
+    first = ints[t * DAG_NODE_FLOATS + NODE_FIRST_CHILD]
+  return ints[t * DAG_NODE_FLOATS + NODE_KIND] === TREE_GROUP
+    ? packed.nodeCount + first
+    : tree.cellBase + first
 }
 
 /** Whether the world DAG draws a placement in its place (`./worldGate.fixture.ts`). */
@@ -125,7 +146,7 @@ export function dagOracleDescent(
   for (const w of opened)
     if (placementRoot(packed, w, covers) >= 0) frontier.push(packed.rootNodes[w], w, 0, 0)
   const top = tree?.levels[0]
-  for (let c = 0; c < (top?.count ?? 0); c++) frontier.push(top!.base + c, 0, 0, 0)
+  for (let c = 0; c < (top?.count ?? 0); c++) frontier.push(tree!.cellBase + top!.base + c, 0, 0, 0)
   // The entries each level's queue holds, as the kernel counts them: queue 0 a slot a root (a
   // placement's without a tree, the top nodes and the world DAG's with one); and the candidates.
   const work = {
@@ -142,7 +163,7 @@ export function dagOracleDescent(
       if (member.root < 0) continue
       ;({ w, root: n } = member)
     }
-    if (!nodeInts[n * DAG_NODE_FLOATS + NODE_KIND]) nodeFlags.read(w)
+    if (treeNode(packed, n) < 0) nodeFlags.read(w)
     let children = aheadOnly ? -1 : keeps(frames, packed, nodeInts, n, w)
     if (children < 0 && ahead) {
       children = keeps(ahead, packed, nodeInts, n, w)
@@ -158,6 +179,8 @@ export function dagOracleDescent(
       work.levels[level + 1] = (work.levels[level + 1] ?? 0) + children
       continue
     }
+    // A group of the tree with no member yet opens nothing: it is no leaf.
+    if (treeNode(packed, n) >= 0) continue
     nodeFlags.set(w, n, aheadOnly ? AHEAD_LEAF : 0)
     work.candidates += nodeInts[n * DAG_NODE_FLOATS + NODE_PAGE_COUNT]
   }

@@ -1,6 +1,7 @@
 // A camera cut's `frames` past what one storage buffer binds: the host side of the split —
-// ranges, buffers, bind groups, stages, writes, copies and dispatches. That the split cuts as the
-// whole table is the GPU's to prove (`tests/gpu/dag/frame-ranges.gpu.ts`).
+// ranges, buffers, bind groups, stages, writes, copies and dispatches —, the worlds one record table
+// every range binds. That the split cuts as the whole table is the GPU's to prove
+// (`tests/gpu/dag/frame-ranges.gpu.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { storageBufferCap } from '../../residency/pools.ts'
@@ -13,16 +14,15 @@ import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { DAG_BINDING } from './shader/bindings.ts'
-import { PRIMITIVE_BYTES, WORLD_ROW_BYTES, cameraFrameRanges } from './cameraRanges.ts'
+import { PRIMITIVE_BYTES, cameraFrameRanges } from './cameraRanges.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { FRAME_VEC4 } from './types.ts'
 
 test('the ranges cover every primitive once, each within one binding', () => {
   const limits = { maxBufferSize: 64 << 20, maxStorageBufferBindingSize: 128 << 20 }
   const ranges = cameraFrameRanges(limits, 1_000_000)
-  // A range is as many primitives as one binding holds of the wider table, `worlds`.
-  assert.ok(WORLD_ROW_BYTES > PRIMITIVE_BYTES)
-  assert.equal(ranges.length, ceilDiv(1_000_000, Math.floor((64 << 20) / WORLD_ROW_BYTES)))
+  // A range is as many primitives as one binding holds of `frames`: the worlds are no range's.
+  assert.equal(ranges.length, ceilDiv(1_000_000, Math.floor((64 << 20) / PRIMITIVE_BYTES)))
   let next = 0
   for (const { first, count } of ranges) {
     assert.equal(first, next, 'no gap, no overlap')
@@ -37,7 +37,7 @@ test('the ranges cover every primitive once, each within one binding', () => {
 async function split(per: number) {
   const [root] = packed(dagFixture()).roots
   const dag = packDagSelection(Array.from({ length: 48 }, () => root))
-  const limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: per * WORLD_ROW_BYTES }
+  const limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: per * PRIMITIVE_BYTES }
   // Its lists split `flags` in parts too (`split.ts`): the device binds them all at once.
   const fake = fakeDevice({
     limits: {
@@ -51,7 +51,7 @@ async function split(per: number) {
   return { fake, resources }
 }
 
-test('each range is its own buffer and bind group, and the stages know the split', async () => {
+test('each range is its own buffer and bind group over the one worlds table, and the stages know the split', async () => {
   const { fake, resources } = await split(20)
   const { frames, ranges } = resources
   const line = (values: ArrayLike<unknown>) => Array.from(values).join(' ')
@@ -66,7 +66,7 @@ test('each range is its own buffer and bind group, and the stages know the split
     const entries = Array.from((bindGroup as unknown as GPUBindGroupDescriptor).entries)
     const at = (binding: number) => entries.find((e) => e.binding === binding)!.resource
     assert.equal((at(DAG_BINDING.frames) as GPUBufferBinding).buffer, frames.buffers[r])
-    assert.equal((at(DAG_BINDING.worlds) as GPUBufferBinding).buffer, frames.worldBuffers[r])
+    assert.equal(at(DAG_BINDING.worlds), frames.worlds.view, 'every range binds the one table')
     assert.equal((at(DAG_BINDING.range) as GPUBufferBinding).offset, r * 256)
     bounds = (at(DAG_BINDING.range) as GPUBufferBinding).buffer
   }
@@ -90,11 +90,12 @@ test("the host's rows and words land in their range, at their row there", async 
   const row = (w: (typeof rows)[number]) =>
     `${at(w.buffer)}:${w.dataOffset / rowBytes}+${w.size! / rowBytes}`
   assert.equal(rows.map(row).join(' '), '0:0+20 1:20+20 2:40+8')
-  // The world matrices follow the same ranges, 64 bytes a primitive.
-  const world = (w: (typeof rows)[number]) =>
-    `${frames.worldBuffers.indexOf(w.buffer)}:${w.dataOffset / 64}+${w.size! / 64}`
-  const worlds = fake.writes.filter((w) => frames.worldBuffers.includes(w.buffer))
-  assert.equal(worlds.map(world).join(' '), '0:0+20 1:20+20 2:40+8')
+  // The worlds follow no range: one write of the 48 matrices, four texels each, and one of their
+  // exact translations, two texels each, beside them in the table's row (`worldTable.ts`).
+  const worlds = fake.textureWrites.filter((w) => w.destination.texture === frames.worlds.texture)
+  const texels = (w: (typeof worlds)[number]) =>
+    `${(w.destination.origin as number[])[0]}+${(w.size as number[])[0]}`
+  assert.equal(worlds.map(texels).join(' '), '0+192 4096+96')
   frames.writeWord(25, 1, 7)
   frames.flushWords()
   const word = fake.writes.at(-1)!

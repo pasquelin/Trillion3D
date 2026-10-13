@@ -8,6 +8,7 @@ import { reflectionProxyWgsl } from './proxy.ts'
 import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
 import type { ProxyBindings } from './proxy.ts'
+import { sceneKey } from '../bounce/runtimeSceneWgsl.ts'
 
 /**
  * THE REFLECTION: ONE SYSTEM FOR EVERY SURFACE. What a surface reflects along its mirror direction
@@ -104,7 +105,7 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  */
 export const reflectedRadianceWgsl = (group: number, runtime: ProxyBindings) =>
   wgslBlock(
-    `reflectedRadianceWgsl(${group}, ${runtime.proxy}, ${'list' in runtime})`,
+    `reflectedRadianceWgsl(${group}, ${sceneKey(runtime)}, ${'list' in runtime})`,
     [
       reflectionSeenWgsl(group),
       reflectionProxyWgsl(group, runtime),

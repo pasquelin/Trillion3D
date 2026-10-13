@@ -13,8 +13,7 @@ import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { PRIMITIVE_BYTES } from '../gpu/dag/cameraRanges.ts'
 import { DAG_BINDING, dagPartEntries } from '../gpu/dag/shader/bindings.ts'
-import { nodeLayout } from '../gpu/dag/treeRefit.ts'
-import type { RefitLayout } from '../gpu/dag/treeRefitWgsl.ts'
+import { nodeLayout, type NodeTableLayout } from '../gpu/dag/nodeTableWgsl.ts'
 import type { TreeFrames, TreeLeaves } from '../gpu/dag/treeFollow.ts'
 import { preparedComputePipeline, preparedPipelines } from '../lighting/deferred/fullscreen.ts'
 import { uniformStride } from '../residency/pools.ts'
@@ -28,7 +27,7 @@ import { treeLeavesWgsl } from './treeLeavesWgsl.ts'
 /** The leaves kernel for each layout of the nodes it reads, made once a device. */
 export const leafKernels = oncePerDevice((device) =>
   preparedPipelines(
-    (nodes: RefitLayout['nodes']) =>
+    (nodes: NodeTableLayout) =>
       preparedComputePipeline(device, {
         label: TREE_LEAVES_PASS,
         layout: 'auto',

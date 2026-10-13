@@ -31,7 +31,9 @@ test('a point of light read through the chain at a coarse level is round, never 
       surface: object,
     ) => void
   }>(
-    wgslModule(reflectedRadianceWgsl(1, { group: 0, proxy: 20 })),
+    wgslModule(
+      reflectedRadianceWgsl(1, { group: 0, proxy: 20, worlds: 21, tree: 22, instances: 23 }),
+    ),
     ['reflectionRadianceAt', 'reflectionLevelRead', 'reflectionLevelColor'],
     {
       reflectionRadiance: radiance,

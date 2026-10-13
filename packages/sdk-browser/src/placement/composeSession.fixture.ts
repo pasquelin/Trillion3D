@@ -35,16 +35,20 @@ export function session() {
       {
         first: 0,
         count: 2,
-        buffer: device.createBuffer({
-          size: 128,
-          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-        }),
         frames: device.createBuffer({
           size: 64,
           usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         }),
       },
     ],
+    // The cut's worlds' table (`../gpu/dag/worldTable.ts`), which the roots pass writes.
+    worlds: device
+      .createTexture({
+        size: [6144, 1, 1],
+        format: 'rgba32uint',
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+      })
+      .createView({ dimension: '2d-array' }),
     worldsMovedOnGpu: () => void revision++,
     composedPlacement() {},
     groupOf: () => -1,

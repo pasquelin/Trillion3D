@@ -89,7 +89,7 @@ export function reflectionRunner(
     ) => { color: number[]; weight: number }
   }>(
     wgslModule(
-      reflectedRadianceWgsl(1, { group: 0, proxy: 20 }),
+      reflectedRadianceWgsl(1, { group: 0, proxy: 20, worlds: 21, tree: 22, instances: 23 }),
       reflectionLightViewWgsl(REFLECTION_GROUP),
     ),
     [

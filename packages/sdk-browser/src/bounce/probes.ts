@@ -10,7 +10,7 @@ import {
 import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts'
 import { atlasBytes, probeAtlasExtent } from './atlas.ts'
 import { ensureBounceFits } from './limits.ts'
-import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
+import { BOUNCE_PROBE_SHADER, PROBE_PROXY } from './probeWgsl.ts'
 import { createSnapshotFollow, type SnapshotFollow } from './snapshotFollow.ts'
 import { createBounceSchedule } from './schedule.ts'
 import { createProbeStorage } from './probeStorage.ts'
@@ -22,9 +22,11 @@ import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import type { GpuLightTiles } from '../lighting/tiles/tiles.ts'
 import { BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
+import type { ProxyResources } from '../gpu/core/selection.ts'
 
-/** Cascade uniform, the proxy, lights, queue, frozen probes and output — the atlases of `atlas.ts` —, and the
- *  world grid's light lists (`BOUNCE_LIGHT_LIST_BINDING`). */
+/** Cascade uniform, the proxy, lights, queue, frozen probes and output — the atlases of `atlas.ts` —, the
+ *  world grid's light lists (`BOUNCE_LIGHT_LIST_BINDING`), and the culling's worlds the proxy is placed by
+ *  and its placement tree, and its instances (`PROBE_PROXY`). */
 const PROBE_TYPES: BounceSlot[] = [
   'uniform',
   'read-only-storage',
@@ -34,6 +36,9 @@ const PROBE_TYPES: BounceSlot[] = [
   'atlas-array-out',
 ]
 PROBE_TYPES[BOUNCE_LIGHT_LIST_BINDING] = 'read-only-storage'
+PROBE_TYPES[PROBE_PROXY.worlds] = 'records'
+PROBE_TYPES[PROBE_PROXY.tree] = 'records'
+PROBE_TYPES[PROBE_PROXY.instances] = 'records'
 
 /**
  * The world grid's light lists, which the cache texels and the probe and reflection hits walk
@@ -85,11 +90,11 @@ function worldLightLists(
   }
 }
 
-/** What the probes read of the scene's proxy (`gpu/dag/proxyInstances.ts`, through the selection): the buffer
- *  its rays are traced through, when a placement wears a proxy, and the world boxes of the placements
- *  that do, which the occupancy map keeps. */
+/** What the probes read of the scene's proxy (`gpu/dag/proxyInstances.ts`, through the selection): what its
+ *  rays are traced through, when a placement wears a proxy, and the world boxes of the placements that do,
+ *  which the occupancy map keeps. */
 export type ProbeScene = {
-  buffer(): GPUBuffer | undefined
+  proxy(): ProxyResources | undefined
   boxes(): ProxyBoxes
 }
 
@@ -135,23 +140,27 @@ export async function createGpuBounceProbes(
   const lists = worldLightLists(tiles, lights, uniform)
   // The lists' stand-in where no grid holds them: no point reads it (`setLightLists`).
   const noLists = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
-  /** What the probe group names (`createWebgpuBindIdentity`): the proxy buffer, the light buffer
-   *  and the world lists of the moment — a growth of the proxy's tables replaces its buffer. */
+  /** What the probe group names (`createWebgpuBindIdentity`): the proxy's buffer, instances, worlds and tree, the
+   *  light buffer and the world lists of the moment — a growth of the proxy's tables replaces its buffer. */
   const bound = createWebgpuBindIdentity()
-  /** The probe group over `meshes`, the lights and `listed`, made again when one of them moved. */
-  const bind = (meshes: GPUBuffer, listed: GPUBuffer) => {
+  /** The probe group over `proxy`, the lights and `listed`, made again when one of them moved. */
+  const bind = (proxy: ProxyResources, listed: GPUBuffer) => {
     const light = lights(),
       { next } = bound
-    next[0] = meshes
+    next[0] = proxy.buffer
     next[1] = light
     next[2] = listed
-    if (bound.moved())
-      group = bounceGroup(
-        device,
-        layout,
-        [uniform.buffer, meshes, light, queue, snapshotView, probesView, listed],
-        PROBE_TYPES,
-      )
+    next[3] = proxy.worlds
+    next[4] = proxy.tree
+    next[5] = proxy.instances
+    if (bound.moved()) {
+      const resources = [uniform.buffer, proxy.buffer, light, queue, snapshotView, probesView]
+      resources[BOUNCE_LIGHT_LIST_BINDING] = listed
+      resources[PROBE_PROXY.worlds] = proxy.worlds
+      resources[PROBE_PROXY.tree] = proxy.tree
+      resources[PROBE_PROXY.instances] = proxy.instances
+      group = bounceGroup(device, layout, resources, PROBE_TYPES)
+    }
   }
   try {
     const module = await createCheckedShaderModule(device, BOUNCE_PROBE_SHADER, 'BOUNCE_PROBE')
@@ -230,7 +239,7 @@ export async function createGpuBounceProbes(
       updates = 0
       clearLevels(encoder, clearOwed)
       clearOwed = 0
-      const meshes = scene.buffer()
+      const proxy = scene.proxy()
       occupancy.settle(boxes, placed)
       if (cascades.follow(viewpoint)) schedule.restart()
       // The world lists before every pass that reads them — this one, the reflections, the
@@ -239,8 +248,8 @@ export async function createGpuBounceProbes(
         cascades.probes && lightsActive
           ? lists.encode(encoder, cascades, lightsActive, frame)
           : undefined
-      if (!meshes || !cascades.probes || !lightsActive || !working()) return false
-      bind(meshes, listing ?? noLists)
+      if (!proxy || !cascades.probes || !lightsActive || !working()) return false
+      bind(proxy, listing ?? noLists)
       frame++
       const groups = schedule.plan(batch())
       if (groups) device.queue.writeBuffer(queue, 0, schedule.queue, 0, groups)

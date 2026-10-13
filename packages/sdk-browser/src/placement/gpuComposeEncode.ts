@@ -98,6 +98,7 @@ function encodeRootsPass(
     pipeline = composeKernels(device).roots.get()
   writeRangeParams(device, gpu.rootParams, ranges, state.roots, listed)
   gpu.frame.ranges = ranges
+  gpu.frame.worlds = selection.worlds
   gpu.frame.motion = motionBuffer
   let bound = false
   for (let r = 0; r < ranges.length; r++) {
@@ -105,8 +106,10 @@ function encodeRootsPass(
     held.identity.entries[0] ??= rootEntries(rt, device, gpu, r)
     if (composeGroup(device, held, pipeline)) bound = true
   }
-  // The groups are made: the cut's ranges are not held past them, so a cut swapped out goes.
+  // The groups are made: the cut's ranges and worlds are not held past them, so a cut swapped out
+  // goes.
   gpu.frame.ranges = NO_RANGES
+  gpu.frame.worlds = undefined
   // Every word this pass writes is the one it wrote last, unless something it reads moved, a host
   // write put its own words there (`frameWrites`), or the motion is not settled: a still view of a
   // composed scene costs no pass.

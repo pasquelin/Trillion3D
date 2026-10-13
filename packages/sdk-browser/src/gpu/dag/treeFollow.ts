@@ -8,24 +8,13 @@
  * names the placements whose leaves are written and the groups to fit, and holds no box.
  */
 import { drawnAlways, treeMarkMoved, TREE_SPAN } from './placementTree.ts'
-import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
-import { writeRanges, type DagParts } from './split.ts'
-import { mirrorKey, mirroredWords, takeMirrored } from '../../webgpu/cut/denseKeys.ts'
+import { type PackedDag } from './types.ts'
+import type { DagParts } from './split.ts'
+import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
 import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
 import { createTreeRefit, type RefitTables } from './treeRefit.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
-
-/** Writes the tree nodes `nodes` names, ascending, in the cut's one run writer's ranges: an
- *  append's (`../dag/runtimeOps.ts`). */
-export function uploadNodes(
-  device: GPUDevice,
-  nodeParts: DagParts,
-  packed: PackedDag,
-  nodes: Int32Array,
-) {
-  const source = { data: packed.nodes, sourceBase: 0, targetBase: 0, stride: DAG_NODE_FLOATS }
-  writeRanges(device, nodeParts, nodes, nodes.length, source)
-}
+import type { TreeTable } from './treeTable.ts'
 
 /** The one writer of the tree's leaves (`../../placement/treeLeaves.ts`): each placement's root
  *  node box, grown by its reach, carried by the world the GPU holds of it. `encode` writes into
@@ -56,15 +45,15 @@ export function createTreeFollower(
     device: GPUDevice
     packed: PackedDag
     nodeParts: DagParts
-    coldParts: DagParts
+    treeTable: TreeTable
     frames: RefitTables['frames'] & TreeFrames
   },
   leaves?: TreeLeaves,
 ) {
-  const { device, packed, nodeParts, coldParts, frames } = resources,
+  const { device, packed, nodeParts, treeTable, frames } = resources,
     tree = packed.placementTree
   if (!tree) return undefined
-  const refit = createTreeRefit(device, packed, tree, { nodeParts, coldParts, frames })
+  const refit = createTreeRefit(device, packed, tree, { tree: treeTable.view, frames })
   // What moved since the tree was last read, each placement once, and the groups a composition
   // moved: fitted once, before the next cut reads the tree.
   // The first cut fits every group: the tree packs open (`packPlacementTree`), the refit is the
@@ -84,13 +73,8 @@ export function createTreeFollower(
   const touch = (w: number) => {
     if (w < tree.slot.length) dirty.mark(w)
   }
-  let revision = 0
   return {
     touch,
-    /** Rises with every refit encoded: what reads the tree's nodes copies them again when it moved. */
-    get revision() {
-      return revision
-    },
     /** Placement `w`'s mark moved from `before`: its leaf fits again where its reach moved, and it
      *  joins or leaves the members drawn whatever the view (`drawnAlways`). */
     marked(w: number, before: number) {
@@ -119,15 +103,8 @@ export function createTreeFollower(
      *  writer of leaves, or before the worlds they read are on the GPU, nothing fits: the nodes
      *  keep the boxes they hold — the whole world before the first fit, which no plane rejects. */
     sync() {
-      // The members drawn whatever the view, their places moved since sent behind the order.
-      if (tree.always.moves.count) {
-        const moved = takeMirrored(tree.always),
-          source = { data: mirroredWords(tree.always), sourceBase: 0, stride: 1 }
-        writeRanges(device, coldParts, moved, moved.length, {
-          ...source,
-          targetBase: tree.alwaysAt,
-        })
-      }
+      // The members drawn whatever the view, their places moved since sent.
+      treeTable.writeAlways()
       if (!leaves?.ready()) return
       const placements = dirty.count ? dirty.take() : undefined
       if (!placements?.length && !groups.size) return
@@ -149,7 +126,6 @@ export function createTreeFollower(
       whole = false
       refit.run(encoder, fit)
       device.queue.submit([encoder.finish()])
-      revision++
     },
     dispose: refit.dispose,
   }

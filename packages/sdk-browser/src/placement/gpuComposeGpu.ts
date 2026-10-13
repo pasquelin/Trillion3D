@@ -58,9 +58,11 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
     rootGroups: [] as HeldGroup[],
     worldsGroup: heldGroup(),
     /** What the groups' entries read live (`liveBuffer`), written at each pass's start: the cut's
-     *  world ranges and the motion the roots bind. */
+     *  world ranges, its worlds — the one table every range's roots are written into — and the
+     *  motion the roots bind. */
     frame: {
       ranges: NO_RANGES,
+      worlds: undefined as GPUTextureView | undefined,
       motion: undefined as GPUBuffer | undefined,
     },
     dispose() {

@@ -62,21 +62,8 @@ export function cameraCutBuffers(
     nodes: packed.nodes.byteLength,
     cold: packed.pageCones.byteLength,
   })
-  // The placement tree's nodes and members are copied out for the proxy's readers (`proxyInstances.ts`).
-  const table = (
-    label: string,
-    bytes: number,
-    least: number,
-    part: TableSplit,
-    element: number,
-    copySource = false,
-  ) =>
-    partRows(
-      { label, size: Math.max(least, bytes), ...(copySource ? { copySource } : {}) },
-      bytes,
-      part.per * element,
-      part.parts,
-    )
+  const table = (label: string, bytes: number, least: number, part: TableSplit, element: number) =>
+    partRows({ label, size: Math.max(least, bytes) }, bytes, part.per * element, part.parts)
   const parts = {
     clusters: table(
       'Trillion3D DAG clusters',
@@ -91,7 +78,6 @@ export function cameraCutBuffers(
       64,
       split.nodes,
       ELEMENT_BYTES.nodes,
-      true,
     ),
     pageCones: table(
       'Trillion3D DAG page cones',
@@ -99,7 +85,6 @@ export function cameraCutBuffers(
       48,
       split.cold,
       ELEMENT_BYTES.cold,
-      true,
     ),
     flags: flagRows('Trillion3D DAG flags', split.flagCuts, shape, flagWords, true),
   }

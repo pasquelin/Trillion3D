@@ -3,28 +3,22 @@
  * group made once, and again only when a buffer it names is replaced.
  */
 import { uniformStride } from '../residency/pools.ts'
-import { liveBuffer } from '../webgpu/core/liveEntries.ts'
+import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
-import { WORLD_ORIGIN_BYTES } from '../gpu/dag/worldOrigins.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { ComposeGpu } from './gpuComposeGpu.ts'
-
-/** The world range `r` of the cut this frame, and its first `count` worlds' words as a binding
- *  of `bytes` each. */
-const rangeOf = (gpu: ComposeGpu, r: number) => gpu.frame.ranges[r]
-const rangeBytes = (gpu: ComposeGpu, r: number, bytes: number) => () =>
-  rangeOf(gpu, r).count * bytes
+import { COMPOSE_WORLDS_BINDING } from './gpuComposeWgsl.ts'
 
 /** The roots pass's entries over range `r` (`COMPOSE_ROOTS_WGSL`), read live: its parameters'
- *  slot, the roots' double worlds, the parents' indices, its worlds, the motion and its mode, the
- *  previous worlds and the roots' list. */
+ *  slot, the roots' double worlds, the parents' indices, the cut's worlds, the motion and its mode,
+ *  the previous worlds and the roots' list. */
 export const rootEntries = (
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   gpu: ComposeGpu,
   r: number,
-) =>
-  sequentialEntries([
+) => [
+  ...sequentialEntries([
     liveBuffer(
       () => gpu.rootParams.buffer,
       () => r * uniformStride(device.limits),
@@ -32,16 +26,18 @@ export const rootEntries = (
     ),
     liveBuffer(() => rt.rootWorlds?.worlds),
     liveBuffer(() => gpu.parentOf),
-    liveBuffer(
-      () => rangeOf(gpu, r).buffer,
-      undefined,
-      rangeBytes(gpu, r, 64 + WORLD_ORIGIN_BYTES),
-    ),
-    liveBuffer(() => gpu.frame.motion ?? gpu.noMotion),
-    liveBuffer(() => gpu.motionMode),
-    liveBuffer(() => gpu.previous),
-    liveBuffer(() => gpu.rankList),
-  ])
+  ]),
+  resourceEntry(COMPOSE_WORLDS_BINDING, () => gpu.frame.worlds),
+  ...sequentialEntries(
+    [
+      liveBuffer(() => gpu.frame.motion ?? gpu.noMotion),
+      liveBuffer(() => gpu.motionMode),
+      liveBuffer(() => gpu.previous),
+      liveBuffer(() => gpu.rankList),
+    ],
+    COMPOSE_WORLDS_BINDING + 1,
+  ),
+]
 
 /** The worlds pass's entries (`COMPOSE_WORLDS_WGSL`), read live: its parameters, the links, the
  *  parents' indices, the parents, the roots' double worlds and the roots' list. */

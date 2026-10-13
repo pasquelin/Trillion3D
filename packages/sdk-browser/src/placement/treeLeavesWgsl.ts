@@ -17,7 +17,7 @@
 import { CARRIED_BOX_WGSL } from './gpuComposeDerivedWgsl.ts'
 import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
 import { REACH_UNBOUNDED } from '../gpu/dag/placementTree.ts'
-import { nodeTableBlock, WHOLE_LAYOUT, type RefitLayout } from '../gpu/dag/treeRefitWgsl.ts'
+import { nodeTableBlock, WHOLE_NODES, type NodeTableLayout } from '../gpu/dag/nodeTableWgsl.ts'
 import { dAdd, dSub } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { FRAME_ROW_WORDS } from '../gpu/dag/types.ts'
@@ -27,7 +27,7 @@ import { NO_INDEX } from '../../../math/src/constants.ts'
 
 /** The pass's text for a layout of the tree's nodes (`nodeTableBlock`): one thread a placement,
  *  each writing its leaf (`writeLeaf`, placement `w` at row `i` of its range's frames). */
-export const treeLeavesWgsl = (nodes: RefitLayout['nodes'] = WHOLE_LAYOUT.nodes) =>
+export const treeLeavesWgsl = (nodes: NodeTableLayout = WHOLE_NODES) =>
   wgslProgram(
     `struct Params{rootCount:u32,first:u32,count:u32,listed:u32,whole:u32,pad0:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(0) var<uniform> params:Params;
@@ -67,6 +67,6 @@ fn writeLeaf(w:u32,i:u32){
       dAdd,
       dSub,
       CARRIED_BOX_WGSL,
-      nodeTableBlock(nodes, 1, false),
+      nodeTableBlock(nodes, 1),
     ],
   )

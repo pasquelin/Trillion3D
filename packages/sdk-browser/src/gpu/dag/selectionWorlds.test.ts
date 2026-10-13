@@ -12,6 +12,9 @@ import { primitiveWordAt } from './worlds.ts'
 import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
 import { moveRoot } from './pack.fixture.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
+import { viewTexture } from '../../../../../tests/kit/gpu/fakeWorldPose.ts'
+import { recordWordAt } from '../core/recordTexture.fixture.ts'
+import { WORLD_TABLE } from './worldTable.ts'
 
 test('updating an instance world matrix leaves the old GPU cut one pose late', async () => {
   const { fixture, dag, uniforms, selection } = await cutOnce()
@@ -57,14 +60,9 @@ test('a root mark written once per change reaches the frame word the cut reads',
 test('worlds the GPU rewrote are cut again once announced, never under the last CPU write', async () => {
   // A parent's turn composed on the GPU (`../../placement/gpuCompose.ts`) changes no CPU world.
   const { fixture, dag, uniforms, selection } = await cutOnce()
-  const [range] = selection.worldRanges
-  const bytes = (range.buffer as unknown as { data: Uint8Array }).data
   // Its exact translation, which the cut reads at its eye, composed far away.
-  packDoubles(
-    new Uint32Array(bytes.buffer, bytes.byteOffset, range.count * 24),
-    range.count * 16,
-    [1000, 0, 0],
-  )
+  const worlds = viewTexture(selection.worlds)
+  packDoubles(worlds.words!, recordWordAt(WORLD_TABLE, worlds, 'Origin', 0), [1000, 0, 0])
   assert.equal(selection.updateWorlds(dag.worlds.slice()).length, 0, 'no CPU world moved')
   selection.dispatch(uniforms)
   assert.equal((await selection.flush())?.pageIds.length, 4, 'unannounced: the stale cut')
