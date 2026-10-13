@@ -1,10 +1,10 @@
 /** The materials a page creates: what it may name, the surface built from it, and that
  *  surface in each geometry variant a drawable asks of it (`materialApi.ts`). */
-import type { GraphSurface } from '../../host/graph/surface.ts'
-import { hostPageSurface } from '../../host/pageObjects.ts'
-import { surfaceVariantOf, variantFields, variantKey } from '../../host/prepared/materials.ts'
+import { surfaceOf, type PageSurface } from '../../page/surface.ts'
+import { copySurface } from '../../page/surfaceRecord.ts'
+import { materialSurface } from '../../host/pageObjects.ts'
+import { surfaceVariantOf, variantKey, wearVariant } from '../../host/prepared/materials.ts'
 import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
-import { firstMaterial } from '../../scene/materialSide.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import {
@@ -47,15 +47,14 @@ export function validateCreated(id: string, props: CreatedMaterial) {
 /** A created material's surfaces by variant (`variantKey`), the plain one under this key. */
 export const PLAIN = variantKey({ vertexColors: false, flatShading: false })
 
-/** A created material's surface in the variant `geometry` asks for, cloned from its plain one
+/** A created material's surface in the variant `geometry` asks for, copied from its plain one
  *  the first time. */
-function variantOf(variants: Map<string, GraphSurface>, geometry: Geometry) {
+function variantOf(variants: Map<string, PageSurface>, geometry: Geometry) {
   const variant = surfaceVariantOf(geometry),
     key = variantKey(variant)
   let surface = variants.get(key)
   if (!surface) {
-    const fields = variantFields(variant)
-    surface = Object.assign(variants.get(PLAIN)!.clone(), fields, { needsUpdate: true })
+    surface = wearVariant(copySurface(variants.get(PLAIN)!), variant)
     variants.set(key, surface)
   }
   return surface
@@ -64,20 +63,20 @@ function variantOf(variants: Map<string, GraphSurface>, geometry: Geometry) {
 /** Created material `variants` given to the meshes `drawn`: each wears the variant its geometry
  *  asks for, as the open gave it its own; the meshes may wear surfaces of several classes, and
  *  `from` is one that moves across blended if any does. */
-export function assignment(variants: Map<string, GraphSurface>, drawn: ReadonlySet<DrawSource>) {
-  const meshes = new Map<DrawSource, GraphSurface>(),
+export function assignment(variants: Map<string, PageSurface>, drawn: ReadonlySet<DrawSource>) {
+  const meshes = new Map<DrawSource, PageSurface>(),
     to = alphaModeOf(variants.get(PLAIN)!)
   let from: AlphaMode | undefined
   for (const mesh of drawn) {
     meshes.set(mesh, variantOf(variants, mesh.geometry))
-    const mode = alphaModeOf(firstMaterial(mesh.declaration)!)
+    const mode = alphaModeOf(surfaceOf(mesh.declaration))
     if (from === undefined || (mode === 'blend') !== (to === 'blend')) from = mode
   }
   return { surfaces: [...new Set(meshes.values())], meshes, from: from!, to }
 }
 
 /** A created material where the page names nothing: glTF's material defaults, metal 1 among
- *  them (a host surface's own default, `metalRough`, is 0). */
+ *  them (a surface's own default is 0). */
 const CREATED_DEFAULTS = {
   baseColor: [1, 1, 1],
   opacity: 1,
@@ -89,15 +88,12 @@ const CREATED_DEFAULTS = {
   alphaCutoff: MASK_CUTOFF,
 } as const
 
-/** The host surface of a created material: what the page named, glTF's default elsewhere, drawn
- *  as a repainted primitive is (`hostPageSurface`). */
+/** The surface record of a created material: what the page named, glTF's default elsewhere,
+ *  drawn as a repainted primitive is (`materialSurface`). */
 export function createdSurface({ name, map: _map, ...props }: CreatedMaterial) {
   // Maps are admitted separately; undefined values keep the glTF defaults.
   const named = Object.entries(props).filter(([, value]) => value !== undefined)
-  const surface = hostPageSurface(
-    { ...CREATED_DEFAULTS, ...Object.fromEntries(named) },
-    false,
-  ) as unknown as GraphSurface
+  const surface = materialSurface({ ...CREATED_DEFAULTS, ...Object.fromEntries(named) }, false)
   if (name) surface.name = name
   return surface
 }

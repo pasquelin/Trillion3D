@@ -85,7 +85,8 @@ export {
   gpuPassStageOf,
 } from '../../sdk-browser/src/diagnostic/gpuPasses.ts'
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts'
-export { GraphSurface } from '../../sdk-browser/src/host/graph/surface.ts'
+export { declareSurface } from '../../sdk-browser/src/page/surfaceRecord.ts'
+export type { SurfaceDeclaration } from '../../sdk-browser/src/page/surfaceDeclaration.ts'
 export type {
   GravityInput,
   WorldPhysicsOptions,
@@ -104,7 +105,6 @@ export type {
   HostBox,
   HostColour,
   HostDisposable,
-  HostMaterial,
   HostMaterials,
   HostMesh,
   HostPoint,
@@ -183,4 +183,4 @@ export type {
 } from '../../sdk-browser/src/camera/engineCamera.ts'
 export { enginePose, readCameraWorld } from '../../sdk-browser/src/camera/world.ts'
 export type { HostCamera } from '../../sdk-browser/src/camera/world.ts'
-export { materialSide, sideOf } from '../../sdk-browser/src/scene/materialSide.ts'
+export { sideOf } from '../../sdk-browser/src/scene/materialSide.ts'

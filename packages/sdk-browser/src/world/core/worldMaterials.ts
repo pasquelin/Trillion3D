@@ -8,7 +8,7 @@ import { composesWithBackground } from '../../scene/materialBlending.ts'
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts'
 import { alphaMoves, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import type { GraphSurface } from '../../host/graph/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import { hostSurface, repaintHostSurface } from './worldSurface.ts'
 
 /** The parameters a session lays out when it opens, and so the only ones never written in place:
@@ -82,7 +82,7 @@ export type MaterialEntry = {
   readonly id: number
   key: string
   readonly material: Material
-  readonly surfaces: (GraphSurface | undefined)[]
+  readonly surfaces: (PageSurface | undefined)[]
 }
 
 /** What a resource's triangles are read as by the surface that draws them. */
@@ -273,9 +273,9 @@ type Refresh = (values: boolean, alpha?: AlphaChange) => boolean
 function repaintSurfaces(painted: readonly RepaintedEntry[], refresh?: Refresh) {
   let written = false,
     values = false
-  const moved = new Map<string, AlphaChange & { surfaces: GraphSurface[] }>()
+  const moved = new Map<string, AlphaChange & { surfaces: PageSurface[] }>()
   for (const { entry, alpha, values: wrote } of painted) {
-    const worn = entry.surfaces.filter((surface): surface is GraphSurface => !!surface)
+    const worn = entry.surfaces.filter((surface): surface is PageSurface => !!surface)
     for (const surface of worn) repaintHostSurface(surface, entry.material)
     if (!worn.length) continue
     written = true

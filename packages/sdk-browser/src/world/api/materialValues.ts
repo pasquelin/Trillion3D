@@ -1,12 +1,11 @@
-/** The values of a scene material a page reads and sets, and how they cross a host surface
+/** The values of a scene material a page reads and sets, and how they cross its surface record
  *  (`materialApi.ts`). */
 import { EngineError, type Material } from '../../../../sdk-core/src/index.ts'
 import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
-import type { Color } from '../../../../sdk-core/src/world/math/color.ts'
-import type { GraphSurface } from '../../host/graph/surface.ts'
+import { surfaceSide, type PageSurface } from '../../page/surface.ts'
+import { surfaceWritten } from '../../page/surfaceWrites.ts'
 import { materialTextures } from '../../scene/meshes.ts'
-import { sideOf } from '../../scene/materialSide.ts'
-import { importHostSurface } from '../../host/surfaceImport.ts'
+import { metalRoughFamily } from '../../scene/surfaceModel.ts'
 import { alphaModeFields } from '../../host/prepared/materials.ts'
 
 /** The cutoff a material turned masked takes when the page names none: glTF's default. */
@@ -35,22 +34,21 @@ export type SceneMaterialPatch = Partial<
   }
 >
 
-/** A material as the engine draws it now, read where every engine path reads a host surface
- *  (`importHostSurface`), so a family without metal or glow lists what is drawn. */
-export function read(id: number | string, surface: GraphSurface): SceneMaterial {
-  const drawn = importHostSurface(surface)!
+/** A material as the engine draws it now, read off the surface record every engine path reads,
+ *  so a family without metal or glow lists what is drawn; its colours are copies. */
+export function read(id: number | string, surface: PageSurface): SceneMaterial {
   const map = materialTextures(surface).next().value
   return {
     id: String(id),
     name: surface.name,
-    baseColor: drawn.baseColor,
+    baseColor: [...surface.baseColor],
     opacity: surface.opacity,
-    metalness: drawn.metalness,
-    roughness: drawn.roughness,
-    emissive: drawn.emissive,
-    side: sideOf(surface),
+    metalness: surface.metalness,
+    roughness: surface.roughness,
+    emissive: [...surface.emissive],
+    side: surfaceSide(surface),
     alphaMode: alphaModeOf(surface),
-    alphaCutoff: drawn.alphaTest,
+    alphaCutoff: surface.alphaTest,
     tiling: map ? [map.repeat.x, map.repeat.y] : null,
   }
 }
@@ -105,25 +103,22 @@ export function validate(
   vector('tiling', 2, (n) => Number.isFinite(n) && n !== 0)
 }
 
-/** Writes the patch into one surface in place — drawn in alpha mode `mode` from now on when its
- *  alpha moved — and bumps its version: every reader takes it again at its next read, as a World's
- * live edit does (`../core/worldSurface.ts`). */
-export function write(surface: GraphSurface, patch: SceneMaterialPatch, mode?: AlphaMode) {
-  if (patch.baseColor) (surface.color as Color).setRGB(...patch.baseColor)
+/** Writes the patch into one surface record in place — drawn in alpha mode `mode` from now on
+ *  when its alpha moved — and journals it: every reader takes it at its next read, as a World's
+ *  live edit does (`../core/worldSurface.ts`). A family without metal or glow keeps neither;
+ *  colours are new arrays, never written into ones a variant shares. */
+export function write(surface: PageSurface, patch: SceneMaterialPatch, mode?: AlphaMode) {
+  const metalRough = metalRoughFamily(surface.family)
+  if (patch.baseColor) surface.baseColor = [...patch.baseColor]
   if (patch.opacity !== undefined) surface.opacity = patch.opacity
-  if (patch.metalness !== undefined && typeof surface.metalness === 'number')
-    surface.metalness = patch.metalness
-  if (patch.roughness !== undefined && typeof surface.roughness === 'number')
-    surface.roughness = patch.roughness
-  if (patch.emissive && surface.emissive) {
-    ;(surface.emissive as Color).setRGB(...patch.emissive)
-    surface.emissiveIntensity = 1
-  }
+  if (patch.metalness !== undefined && metalRough) surface.metalness = patch.metalness
+  if (patch.roughness !== undefined && metalRough) surface.roughness = patch.roughness
+  if (patch.emissive && surface.lit) surface.emissive = [...patch.emissive]
   // As the open draws a table entry: the cutoff kept, or the page's, or glTF's for a new cutout.
   const cutoff = patch.alphaCutoff ?? (surface.alphaTest || MASK_CUTOFF)
   if (mode) Object.assign(surface, alphaModeFields(mode, cutoff))
   // A placement written on the record itself: every consumer's journal hears it.
   if (patch.tiling)
     for (const texture of materialTextures(surface)) texture.repeat.set(...patch.tiling)
-  surface.needsUpdate = true
+  surfaceWritten(surface)
 }

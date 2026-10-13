@@ -1,6 +1,6 @@
 import { EngineError } from '../../../../sdk-core/src/index.ts'
 import type { Engine } from '../../engine/types.ts'
-import type { GraphSurface } from '../../host/graph/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import { read, type SceneMaterial } from './materialValues.ts'
 import {
   createdSurface,
@@ -27,7 +27,7 @@ function refuseCeiling(held: number) {
 
 /** What a created material holds on the engine: its admission, marked before it starts so a
  *  failed one also rolls back, and given back with the rest (`forget`) on release. */
-function ownership(engine: Engine, surface: GraphSurface, forget: () => void) {
+function ownership(engine: Engine, surface: PageSurface, forget: () => void) {
   let admitted = false
   return {
     admit: () => ((admitted = true), engine.admitMaterial(surface)),
@@ -56,7 +56,7 @@ async function admit(
 
 /** Created surfaces and their map admissions, bounded before allocation and owned until drop. */
 export function runtimeMaterials(check: () => void, engine: Engine) {
-  const created = new Map<string, Map<string, GraphSurface>>()
+  const created = new Map<string, Map<string, PageSurface>>()
   const releases = new Map<string, () => void>()
   const maps = runtimeMaps()
   let next = 0,

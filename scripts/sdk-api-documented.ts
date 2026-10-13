@@ -24,7 +24,6 @@ export const DOCUMENTED_GAPS: ExportRow[] = [
   gap('enginePose', 'value', 'packages/sdk-browser/src/camera/world.ts', 'browser'),
   gap('holdCameraWorld', 'value', 'packages/sdk-browser/src/camera/engineCamera.ts', 'browser'),
   gap('OrthographicBox', 'type', 'packages/sdk-browser/src/camera/engineCamera.ts', 'browser'),
-  gap('materialSide', 'value', 'packages/sdk-browser/src/scene/materialSide.ts', 'browser'),
   gap('normalizedLinearDeterminant', 'value', 'packages/math/src/matrix/singular.ts', 'core'),
   gap('readCameraWorld', 'value', 'packages/sdk-browser/src/camera/world.ts', 'browser'),
   gap('sideOf', 'value', 'packages/sdk-browser/src/scene/materialSide.ts', 'browser'),

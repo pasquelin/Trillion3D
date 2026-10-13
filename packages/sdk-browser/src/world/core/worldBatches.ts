@@ -5,7 +5,7 @@ import type { PlacementGrowth } from '../../placement/engineSceneUpdates.ts'
 import type { Cut } from './worldCuts.ts'
 import type { MaterialEntry } from './worldMaterials.ts'
 import { drawnTwoSided } from '../../../../sdk-core/src/physics/soft.ts'
-import type { GraphSurface } from '../../host/graph/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
 import type { WorldRanks } from './worldRanks.ts'
 /**
@@ -22,7 +22,7 @@ export type Batch = DrawSource & {
   readonly twoSided: boolean
   /** The surface its rows are worn as (`worldMaterials.ts`), built once with the batch; the one
    *  it is drawn in (`DrawSource.wear`) from the day a page gives its drawables another. */
-  surface: GraphSurface
+  surface: PageSurface
   /** Its rank among the world's batches, given at its first seat and kept: the order it is
    *  drawn in among the others of its depth. */
   readonly order: number
@@ -120,7 +120,7 @@ export function createWorldBatches(
 
 /** What a world's batches hold (`createWorldBatches`). */
 /** The surface a resource is worn as by a material entry (`MaterialsTable.surfaceOf`). */
-export type BatchWear = (entry: MaterialEntry, cut: Cut, twoSided: boolean) => GraphSurface
+export type BatchWear = (entry: MaterialEntry, cut: Cut, twoSided: boolean) => PageSurface
 
 type BatchState = {
   touched: (batch: Batch, row: number) => void
@@ -165,7 +165,7 @@ function batchOf(state: BatchState, cut: Cut, entry: MaterialEntry, mesh: Mesh) 
         get declaration() {
           return this.surface
         },
-        wear(surface: GraphSurface) {
+        wear(surface: PageSurface) {
           this.surface = surface
         },
         castShadow: true,

@@ -18,7 +18,7 @@ import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/ta
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { camera, light, pose, uniqueNames, weigh } from './nodes.ts'
 import { drawnByCloth, surfaceVariantOf, type SurfaceVariant } from './materials.ts'
-import type { GraphSurface } from '../graph/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { isDrawnNode } from '../graph/kinds.ts'
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -39,7 +39,7 @@ type Inputs = {
   tables: PreparedSceneTables
   meshes: TableDocument['meshes']
   geometryOf: (mesh: number, primitive: number) => Geometry
-  materialOf: (rank: number, variant: SurfaceVariant) => Promise<GraphSurface>
+  materialOf: (rank: number, variant: SurfaceVariant) => Promise<PageSurface>
   /** Whether a cloth draws the primitive (`drawnTwoSided`), once its manifest lists it. */
   clothOf?: (mesh: number, primitive: number) => Promise<boolean>
 }

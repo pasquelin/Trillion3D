@@ -1,56 +1,76 @@
 /**
- * The surface record a page carries: everything the engine path reads of a material, in the
- * engine's own words, and nothing of the host object it was read from.
+ * The surface record a mesh wears: everything the engine path reads of a material, in the
+ * engine's own words — one record per material, written by its owner (`surfaceRecord.ts`) and read
+ * IN PLACE by every reader on the way to the image: the cut's normal cones, the row writer, the
+ * coplanar layer batches, the frame audit, the transparent items, the witness that draws the same
+ * scene. Comparing two surfaces is comparing two references; a write is journaled
+ * (`surfaceWrites.ts`) and moves the record's version, which the memos keyed on it compare.
  *
- * A page does not carry the host material declaration itself: every reader on the
- * way to the image — the cut's normal cones, the row writer, the coplanar layer batches, the
- * frame audit, the transparent items — takes a side, a transparency flag, a colour from this
- * record. The record below is read ONCE per declaration, at
- * the two boundaries that own that read (`../host/surfaceImport.ts` for the shaded fields,
- * `../scene/materialSide.ts` for the raster ones); downstream no file of the engine path names a
- * host material again.
- *
- * Its shaded fields are exactly the ones the cache's material table declares (
- * `packages/sdk-core/src/scene/core/tableSurfaces.ts`), and the host declaration it is read from
- * is itself built from that table (`../host/prepared/materials.ts`).
- *
- * A record is held BY its declaration and refilled IN PLACE, so every page of every placement of
- * one surface shares a single record and comparing two surfaces is comparing two references. A
- * page keeps the record alone, never the host declaration it was read from.
+ * Its shaded fields are exactly the ones the cache's material table declares
+ * (`packages/sdk-core/src/scene/core/tableSurfaces.ts`); the raster facts beside them say how it is
+ * composed; the few facts the engine draws through its one model but a family carries — a Phong
+ * surface's exponent and highlight, the frame its normal factors were written for, its depth state
+ * — are kept on it as declared, for a renderer that draws the family as it is.
  */
 import { saturate } from '../../../math/src/scalar/reals.ts'
 import type { Side } from '../../../sdk-core/src/index.ts'
+import type { Blending } from '../../../sdk-core/src/world/constants/index.ts'
 import type { HostMaterials } from '../host/resources.ts'
+import type { Releasable } from '../host/graph/resource.ts'
 import { isAssignment, type AlphaChange } from '../placement/engineSceneUpdates.ts'
-import type { HostShadedMaterial } from '../host/shadedMaterial.ts'
-import { unreadMapRefusal } from '../scene/surfaceModel.ts'
-import {
-  firstMaterial,
-  materialRaster,
-  sideOf,
-  type MaterialRaster,
-} from '../scene/materialSide.ts'
-import { visMaterial } from '../visibility/shader/material.ts'
 import type { VisMaterial } from '../visibility/materialType.ts'
+import { declareSurface } from './surfaceRecord.ts'
 
-/** The shaded fields of a surface, and the raster facts declared beside them. */
-export type PageSurface = VisMaterial & MaterialRaster
+/** The families a surface is declared in: a scene's unlit, standard and physical ones, and the
+ *  others a world draws. The surface model reads the family (`../scene/surfaceModel.ts`). */
+export type SurfaceFamily =
+  'basic' | 'standard' | 'physical' | 'lambert' | 'phong' | 'toon' | 'normal' | 'matcap' | 'depth'
 
-/**
- * The side a record declares, in the engine's own enum, AS THE HOST DECLARES IT NOW.
- *
- * Every reader of the side goes through this pair, and both reread the declaration first: a host
- * switches a surface to double-sided by writing `side` on the declaration it shares with its mesh,
- * without bumping any version, and the readers that answer with it decide what is drawn — the
- * pipelines and their face culling (`../webgpu/pages/prepare/pipelineFor.ts`), the cut's normal cones
- * (`../gpu/core/selection.ts`, `cone/cone.ts`, `../webgpu/pages/prepare/preparePages.ts`) and the transparent plan. A front-only
- * page carries a closed cone; read a stale `front` on a surface the host has just opened and the
- * cone rejects the page — its faces leave the image.
- */
-export const surfaceSide = (surface: PageSurface): Side => {
-  const now = refreshSide(surface)
-  return now.doubleSided ? 'double' : now.backSide ? 'back' : 'front'
+/** The raster facts declared beside the shaded fields, and what a family keeps as declared. */
+type SurfaceFacts = {
+  /** Bumped by every write (`surfaceWritten`). */
+  version: number
+  /** Its name. */
+  name: string
+  /** The family it was declared in. */
+  family: SurfaceFamily
+  /** How opaque it is, its colour factor's alpha. */
+  opacity: number
+  /** Whether it is drawn blended. */
+  transparent: boolean
+  /** How it composes over what is behind it. */
+  blending: Blending
+  /** A double-sided blended surface drawn in one pass instead of back then front. */
+  forceSinglePass: boolean
+  /** Whether it casts a shadow while blended; unsaid, it casts none. */
+  transparentShadow: boolean
+  /** Whether it tests and writes depth, and is shaded flat. */
+  depthTest: boolean
+  depthWrite: boolean
+  flatShading: boolean
+  /** Whether its normal factors were written for vertex tangents; unsaid, unknown. */
+  forVertexTangents?: boolean
+  /** A Phong surface's exponent and highlight colour, as declared. */
+  shininess?: number
+  specular?: [number, number, number]
 }
+
+/** The record a mesh wears: the shaded fields, the raster facts, and its release. */
+export type PageSurface = VisMaterial & SurfaceFacts & Releasable
+
+/** What a declaration of no surface at all (`material: []`) is drawn with: white, opaque, front,
+ *  unlit. One record, never written. */
+const NOTHING = declareSurface({ family: 'basic' })
+
+/** The record `material` declares: the one surface it wears, or the first of a list — a list
+ *  declaring nothing drawing as `NOTHING`. */
+export const surfaceOf = (material: HostMaterials): PageSurface =>
+  Array.isArray(material) ? (material[0] ?? NOTHING) : material
+
+/** The side a record declares, in the engine's own enum: what the pipelines and their face
+ *  culling, the cut's normal cones and the transparent plan compare against. */
+export const surfaceSide = (surface: PageSurface): Side =>
+  surface.doubleSided ? 'double' : surface.backSide ? 'back' : 'front'
 /** True when only the front faces are drawn: the one case a normal cone may reject a page. */
 export const surfaceFrontOnly = (surface: PageSurface) => surfaceSide(surface) === 'front'
 
@@ -58,72 +78,13 @@ export const surfaceFrontOnly = (surface: PageSurface) => surfaceSide(surface) =
  *  its colour map's alpha, and what a masked one multiplies that alpha by before its cutoff. */
 export const surfaceOpacity = (surface: { opacity: number }) => saturate(surface.opacity)
 
-const held = new WeakMap<object, PageSurface>()
-const declarations = new WeakMap<PageSurface, HostMaterials>()
-
-/** Fills a record from a declaration, reusing the object so every holder sees the new fields. A
- *  map its model never reads is refused by name (`unreadMapRefusal`). */
-function fill(into: PageSurface, material: HostMaterials): PageSurface {
-  const host = firstMaterial(material) as HostShadedMaterial | undefined,
-    unread = host && unreadMapRefusal(host)
-  if (unread) throw new Error(unread)
-  return materialRaster(material, Object.assign(into, visMaterial(material)))
-}
-
-/**
- * The engine record of a host declaration, built at its first page and reread when the host
- * rewrites the declaration in place. Called at the boundaries that hold a host material — the
- * collection, a witness that repaints its pages, the refresh of surfaces a page changed the alpha
- * of — and nowhere else.
- */
-export function surfaceOf(material: HostMaterials): PageSurface {
-  const kept = held.get(material as object)
-  if (kept) return refreshSurface(kept)
-  const surface = fill({} as PageSurface, material)
-  held.set(material as object, surface)
-  declarations.set(surface, material)
-  return surface
-}
-
-/** The record of a source's declaration: the collection's only door to a host material. */
+/** The record of a source's declaration: the collection's only door to a material. */
 export const sourceSurface = (source: { declaration: HostMaterials }) =>
   surfaceOf(source.declaration)
 
-/**
- * Rereads the SIDE of a record from the declaration it was built from; a record built outside this
- * module — a fixture's — keeps the fields it was given. Two field writes and a lookup: this is the
- * per-page, per-draw read the engine would otherwise make on the host declaration itself.
- */
-function refreshSide(surface: PageSurface): PageSurface {
-  const material = declarations.get(surface)
-  if (!material) return surface
-  const side = sideOf(material)
-  surface.doubleSided = side === 'double'
-  surface.backSide = side === 'back'
-  return surface
-}
-
-/**
- * Rereads a record whose declaration the host has rewritten, and returns it either way; a record
- * built outside this module — a fixture's — is returned untouched.
- *
- * The raster facts are reread on every call: a host writes `side`, `alphaTest` or `opacity` on
- * the declaration it shares with its mesh without bumping any version, and the transparent plan
- * (`../webgpu/blend/plan.ts`) has to see it between two images. The shaded fields, which walk the
- * six map slots, are reread only when the version moved — the comparison the page row already
- * made before writing.
- */
-export function refreshSurface(surface: PageSurface): PageSurface {
-  const material = declarations.get(surface)
-  if (!material) return surface
-  if ((firstMaterial(material)?.version ?? 0) !== surface.version) return fill(surface, material)
-  refreshSide(surface)
-  return materialRaster(material, surface)
-}
-
-/** Whether `source` wears one of `surfaces`: the declaration a repaint or an assignment names. */
+/** Whether `source` wears one of `surfaces`: the record a repaint or an assignment names. */
 export const wearsOneOf = (source: { declaration: HostMaterials }, surfaces: readonly object[]) =>
-  surfaces.includes(source.declaration as object)
+  surfaces.includes(sourceSurface(source))
 
 /** The records of the source meshes a created material was assigned to. */
 export const recordsOfMeshes = <T extends { drawSource?: object }>(
@@ -140,7 +101,7 @@ export function unpagedRefusal(records: readonly { drawSource?: object }[], alph
   if (unpaged.size) return 'the drawable is drawn as a forward copy laid out when the session opens'
 }
 
-/** A record wears `declaration` from now on: its surface record, read at this boundary. */
+/** A record wears `declaration` from now on: its surface record. */
 export function wearDeclaration(rec: { material: PageSurface }, declaration: HostMaterials) {
   rec.material = surfaceOf(declaration)
 }

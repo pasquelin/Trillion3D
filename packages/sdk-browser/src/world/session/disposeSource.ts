@@ -1,5 +1,5 @@
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import type { HostGraphMaterial } from '../../host/scene/graphResources.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { materialTextures, meshes as objects } from '../../scene/meshes.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -8,7 +8,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
  *  the images they decoded. Each is freed once — several meshes share one surface. */
 export function disposeSource(source: Object3D) {
   const geometries = new Set<Geometry>(),
-    materials = new Set<HostGraphMaterial>(),
+    materials = new Set<PageSurface>(),
     textures = new Set<Texture>()
   for (const mesh of objects(source)) {
     geometries.add(mesh.geometry)

@@ -307,8 +307,7 @@ far plane, the adaptive threshold and the shadow range.
 | Function                                    | Computes                                                                                                                                                               | Witness call                          | Proof                  |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ---------------------- |
 | `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, cone, pipeline and blend-plan decision compares against it                                                           | `FrontSide`, `BackSide`, `DoubleSide` | `materialSide.test.ts` |
-| `sideOf(material)`                          | the `Side` a host material declares, the first of an array deciding, an empty array front — read once at the import boundary, the only place naming the host constants | the host's double-side test           | `materialSide.test.ts` |
-| `materialSide(material)`                    | the host constant itself, for the diagnostic materials still built with the host library                                                                               | —                                     | `materialSide.test.ts` |
+| `sideOf(material)`                          | the `Side` a mesh's surface record declares, the first of an array deciding, an empty array front                                                                      | the host's double-side test           | `materialSide.test.ts` |
 
 ### Batch functions
 

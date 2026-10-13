@@ -1,6 +1,6 @@
 import type { Engine } from '../../engine/types.ts'
 import { runtimeMaterials } from './runtimeMaterials.ts'
-import type { GraphSurface } from '../../host/graph/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { tableRankOf } from '../../host/prepared/materials.ts'
 import { materialTextures } from '../../scene/meshes.ts'
@@ -50,13 +50,13 @@ const refreshed = (engine: Engine, alpha?: AlphaChange) =>
 /** The scene's materials by table rank: the surfaces built from each, the ranks each texture
  *  serves, the drawables by the primitive name a page gives, and the values the file carried. */
 function materialIndex(draws: readonly DrawSource[]) {
-  const worn = new Map<number, Set<GraphSurface>>()
+  const worn = new Map<number, Set<PageSurface>>()
   const wearers = new Map<Texture, Set<number>>()
   const drawables = new Map<string, Set<DrawSource>>()
   for (const draw of draws) {
     const name = primitiveName({ meshes: draw.mesh, primitives: draw.primitives })
     if (name) drawables.set(name, (drawables.get(name) ?? new Set()).add(draw))
-    for (const surface of [draw.declaration as GraphSurface | GraphSurface[]].flat()) {
+    for (const surface of [draw.declaration].flat()) {
       const rank = tableRankOf(surface)
       if (rank === undefined) continue
       worn.set(rank, (worn.get(rank) ?? new Set()).add(surface))
@@ -76,7 +76,7 @@ type MaterialIndex = ReturnType<typeof materialIndex>
 function refuseSharedTiling(
   id: string,
   rank: number | string,
-  worn: readonly GraphSurface[],
+  worn: readonly PageSurface[],
   wearers: MaterialIndex['wearers'],
   tiling: SceneMaterialPatch['tiling'],
 ) {
@@ -96,7 +96,7 @@ function refuseSharedTiling(
 type Writes = {
   engine: Engine
   scene: () => MaterialIndex
-  created: Map<string, Map<string, GraphSurface>>
+  created: Map<string, Map<string, PageSurface>>
   wearing: Map<DrawSource, string>
   wearers: Map<string, number>
 }
@@ -120,7 +120,7 @@ function wear({ wearing, wearers }: Writes, mesh: DrawSource, id: string) {
  */
 function setMaterial(
   writes: Writes,
-  worn: GraphSurface[],
+  worn: PageSurface[],
   rank: number | string,
   id: string,
   patch: SceneMaterialPatch,

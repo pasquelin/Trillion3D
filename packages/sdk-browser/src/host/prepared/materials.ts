@@ -1,7 +1,6 @@
 /**
- * The host surfaces of the prepared scene, built from the material table under the rules the host
- * loader applied, so that the engine reads from them exactly what it read before
- * (`../surfaceImport.ts`, `../../scene/materialSide.ts`) and a host renderer draws them alike:
+ * The surface records of the prepared scene, declared from the material table under the rules the
+ * host loader applied (`../../page/surfaceRecord.ts`), so a host renderer draws them alike:
  *
  * - `unlit` is the host's basic surface, `physical` its physical one, anything else standard;
  * - a blended surface is transparent and writes no depth, a masked one cuts at `alphaTest`;
@@ -14,12 +13,16 @@ import type { TableMaterial, TableTextureSlot, Texture } from '../../../../sdk-c
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 import type { AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
 import { COLOUR_MAPS, MATERIAL_COLOURS } from '../../../../sdk-core/src/world/material/material.ts'
-import { GraphSurface } from '../graph/surface.ts'
-import { hostSide } from '../../scene/materialSide.ts'
-import { linearColour } from '../graph/surfaceFields.ts'
+import { Color } from '../../../../sdk-core/src/world/math/color.ts'
+import type { PageSurface } from '../../page/surface.ts'
+import { declareSurface } from '../../page/surfaceRecord.ts'
+import type { SurfaceDeclaration } from '../../page/surfaceDeclaration.ts'
 
 type Slot = (slot: TableTextureSlot, colour: boolean) => Promise<Texture | null>
 type Params = Record<string, unknown>
+
+/** A colour of three linear components, as the table declares it. */
+const linearColour = (rgb: readonly number[]) => new Color().setRGB(rgb[0], rgb[1], rgb[2])
 
 /** How a surface draws its alpha mode, at open and when a page changes it
  *  (`../../world/api/materialValues.ts`): blended, it composes and writes no depth; masked, it cuts
@@ -56,13 +59,15 @@ export const surfaceVariantOf = (geometry: { attributes: Record<string, unknown>
   twoSided: twoSidedGeometries.has(geometry),
 })
 
-/** The surface fields a variant sets over its plain surface; a plain variant sets none. */
-export function variantFields({ vertexColors, flatShading, twoSided }: SurfaceVariant) {
-  const fields: Params = {}
-  if (vertexColors) fields.vertexColors = true
-  if (flatShading) fields.flatShading = true
-  if (twoSided) fields.side = hostSide('double')
-  return fields
+/** Writes over a plain surface what its variant sets: a plain variant sets nothing. */
+export function wearVariant(
+  surface: PageSurface,
+  { vertexColors, flatShading, twoSided }: SurfaceVariant,
+) {
+  if (vertexColors) surface.vertexColors = true
+  if (flatShading) surface.flatShading = true
+  if (twoSided) Object.assign(surface, { doubleSided: true, backSide: false })
+  return surface
 }
 
 function extensionParams(
@@ -87,8 +92,8 @@ function extensionParams(
 
 /** The table rank each prepared surface was built from: the scene's own material id, which a
  *  page lists and sets by (`../../world/api/materialApi.ts`); a surface built elsewhere has none. */
-const tableRanks = new WeakMap<GraphSurface, number>()
-export const tableRankOf = (surface: GraphSurface) => tableRanks.get(surface)
+const tableRanks = new WeakMap<PageSurface, number>()
+export const tableRankOf = (surface: PageSurface) => tableRanks.get(surface)
 
 async function build(
   materials: readonly TableMaterial[],
@@ -130,19 +135,18 @@ async function build(
     params.attenuationColor = linearColour(entry.attenuationColor)
   }
   // Which frame the normal factors were written for: an engine pass that reads no tangent turns
-  // the second one of a surface written for vertex tangents (`../surfaceImport.ts`).
+  // the second one of a surface written for vertex tangents (`../../page/surfaceRecord.ts`).
   params.forVertexTangents = !entry.derivativeTangents
-  if (entry.doubleSided) params.side = hostSide('double')
+  if (entry.doubleSided) params.side = 'double'
   Object.assign(
     params,
     alphaModeFields(entry.alphaMode.toLowerCase() as AlphaMode, entry.alphaTest),
-    variantFields(variant),
   )
   await Promise.all(pending)
-  const family =
+  params.family =
     entry.kind === 'unlit' ? 'basic' : entry.kind === 'physical' ? 'physical' : 'standard'
-  const material = new GraphSurface(family, params)
-  if (entry.name) material.name = entry.name
+  if (entry.name) params.name = entry.name
+  const material = wearVariant(declareSurface(params as SurfaceDeclaration), variant)
   tableRanks.set(material, rank)
   return material
 }
@@ -152,7 +156,7 @@ async function build(
  * wears it: a record the engine holds per surface is then held once per surface.
  */
 export function preparedMaterials(materials: readonly TableMaterial[], slot: Slot) {
-  const built = new Map<string, Promise<GraphSurface>>()
+  const built = new Map<string, Promise<PageSurface>>()
   return (rank: number, variant: SurfaceVariant) => {
     const key = `${rank}:${variantKey(variant)}`
     let material = built.get(key)

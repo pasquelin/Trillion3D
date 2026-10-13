@@ -3,7 +3,7 @@ import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { rootedUnder } from '../../host/world/rooted.ts'
 import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import type { GraphSurface } from '../../host/graph/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import type { HostMesh } from '../../host/resources.ts'
 import { meshes } from '../../scene/meshes.ts'
 import { drawSourceOf, type DrawRanks, type DrawSource } from '../../page/selection/drawSource.ts'
@@ -54,7 +54,7 @@ class ModelMeshSource implements DrawSource {
   get frustumCulled() {
     return this.drawn.frustumCulled
   }
-  wear(surface: GraphSurface) {
+  wear(surface: PageSurface) {
     this.drawn.material = surface
   }
   /** The mesh's world within its graph: the local matrix the model's composition links its row by. */

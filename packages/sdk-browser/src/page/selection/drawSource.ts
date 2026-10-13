@@ -10,7 +10,7 @@
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { HostAttributes, HostMaterials, HostMesh } from '../../host/resources.ts'
-import type { GraphSurface } from '../../host/graph/surface.ts'
+import type { PageSurface } from '../surface.ts'
 import { meshes } from '../../scene/meshes.ts'
 import type { PlacementRows } from '../../placement/rows.ts'
 
@@ -46,7 +46,7 @@ export type DrawSource = {
   /** Whether the host lets it be skipped outside the view. */
   readonly frustumCulled: boolean
   /** The source wears `surface` from now on, in place of its declaration. */
-  wear(surface: GraphSurface): void
+  wear(surface: PageSurface): void
   /** The instance rows that place it, one root each, parked rows included. */
   readonly rows?: PlacementRows | null
   /** Its mesh rank in the manifest. */
@@ -73,7 +73,7 @@ class MeshSource implements DrawSource {
   get declaration() {
     return this.node.material
   }
-  wear(surface: GraphSurface) {
+  wear(surface: PageSurface) {
     this.node.material = surface
   }
   get castShadow() {
