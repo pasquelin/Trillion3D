@@ -4,38 +4,22 @@
 // asked to open again: no cause of a reopen is left but a lost device and an option.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import { Material } from '../../../../sdk-core/src/world/material/material.ts'
-import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Primitive } from '../../../../sdk-core/src/index.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
-import { LoadedModel } from './loadedModel.ts'
+import type { LoadedModel } from './loadedModel.ts'
 import { createModelJoins, type ModelSession } from './worldModelJoin.ts'
 import { createWorldModels } from './worldModels.ts'
 import { createWorldPoses } from './worldPoses.ts'
 import { createWorldRanks } from './worldRanks.ts'
+import { loadedModel, meshLinks } from './worldModels.fixture.ts'
 
-/** A model of `count` meshes: the shape of a loaded one a world reads — its manifest's primitives,
- *  its graph and each mesh's association —, nothing of its pages. */
-function model(count: number, textureSource: 'cache' | 'host' = 'host', partitions: object[] = []) {
-  const source = new Group(),
-    drawn = Array.from(
-      { length: count },
-      () => new Mesh(new Geometry(), new Material('meshStandard')),
-    )
-  source.add(...drawn)
-  const associations = new Map(drawn.map((mesh, i) => [mesh, { meshes: i }]))
-  const primitives = drawn.map((_, i) => ({ mesh: i, primitive: 0, pages: [] }))
-  return new LoadedModel({
-    base: 'file:///cache/',
-    manifestUrl: 'file:///cache/manifest.json',
-    metadataUrl: 'file:///cache/clusters.json',
-    textureSource,
-    metadata: { primitives } as never,
-    scene: { source, associations, partitions } as never,
-  })
-}
+/** A model of `count` meshes (`loadedModel`). */
+const model = (
+  count: number,
+  textureSource: 'cache' | 'host' = 'host',
+  partitions: object[] = [],
+) => loadedModel(meshLinks(count), { textureSource, partitions }).loaded
 
 /** The joins of a world on a scene, and a session that records what it is handed, in order. */
 function world(refusal?: string) {

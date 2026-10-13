@@ -1,5 +1,5 @@
 import type { LoadOptions } from './scene.ts'
-import { loadModel } from './loadedModel.ts'
+import { loadModel, type LoadedModel } from './loadedModel.ts'
 import { loadModelOfAnyFormat } from './modelFormat.ts'
 import type { PageCache } from '../../streaming/pageCache.ts'
 
@@ -23,6 +23,8 @@ export function worldModelLoader(
   let models = 0
   /** The loads a session not yet opened waits for, each settled once its model is in the scene. */
   const waited = new Set<Promise<void>>()
+  /** What settles each of those once the scene says it holds the model (`added`). */
+  const holding = new Map<LoadedModel, () => void>()
   const load = async (url: string, options: LoadOptions) => {
     const waits = !held(),
       cached = models++ === 0 && waits
@@ -35,19 +37,23 @@ export function worldModelLoader(
     } as const
     const loading = ready.then(() => loadModelOfAnyFormat(url, read, { manifest: loadModel }))
     if (waits) {
-      // Settled once the scene added the model (a task after the load), loaded or not.
-      const added: Promise<void> = loading
-        .then(
-          () => new Promise<void>((done) => setTimeout(done)),
-          () => {},
-        )
-        .then(() => void waited.delete(added))
+      // Settled once the scene added the model (`added`), or once its load failed.
+      let settle!: () => void
+      const added: Promise<void> = new Promise<void>((done) => (settle = done)).then(
+        () => void waited.delete(added),
+      )
       waited.add(added)
+      loading.then((model) => void holding.set(model, settle), settle)
     }
     return loading
   }
   return Object.assign(load, {
     /** The loads a session about to open waits for; none when there are none. */
     loading: () => (waited.size ? Promise.all([...waited]) : undefined),
+    /** The scene holds `model` (`Scene.load`): a session waiting for it may open. */
+    added(model: LoadedModel) {
+      holding.get(model)?.()
+      holding.delete(model)
+    },
   })
 }

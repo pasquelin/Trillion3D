@@ -18,9 +18,9 @@ export type ModelSession = PlacementGrowth & {
   leavePartitions?(cells: readonly PartitionCells[]): void
 }
 
-/** Where a model stands in the session: being joined, refused by it, or held — drawn, or parked
- *  (it left the scene: its rows are down and its cells let go). */
-type Held = { joining: boolean; refused: boolean; parked: boolean }
+/** Where a model stands in the session: being joined, refused by it, or held — drawn (`shown`),
+ *  or parked (it left the scene: its rows are down and its cells let go). */
+type Held = { state: 'joining' | 'refused' | 'parked' | 'shown' }
 
 type Inputs = {
   scene: Object3D
@@ -54,19 +54,15 @@ export function createModelJoins({ scene, models, poses, refused }: Inputs) {
     model.updateWorldMatrix(true, false)
     poses.writeModel(models, model, shownUnder(model, scene))
   }
-  /** Parks `model`, which the scene lost: rows down, cells given back. */
-  const park = (model: LoadedModel, entry: Held, session: ModelSession) => {
+  /** Parks `model`, which the scene lost — rows down, cells given back —, or draws it again, the
+   *  scene took it back. */
+  const setParked = (model: LoadedModel, entry: Held, session: ModelSession, parked: boolean) => {
     const { partitions } = model.record.scene
-    entry.parked = true
+    entry.state = parked ? 'parked' : 'shown'
     write(model)
-    if (partitions.length) session.leavePartitions?.(partitions)
-  }
-  /** Draws `model` again, the scene took it back. */
-  const unpark = (model: LoadedModel, entry: Held, session: ModelSession) => {
-    const { partitions } = model.record.scene
-    entry.parked = false
-    write(model)
-    if (partitions.length) session.followPartitions?.(partitions)
+    if (!partitions.length) return
+    if (parked) session.leavePartitions?.(partitions)
+    else session.followPartitions?.(partitions)
   }
   /** Why `model` cannot be handed to the session, if it cannot. */
   const unfit = (model: LoadedModel, session: ModelSession) =>
@@ -88,7 +84,7 @@ export function createModelJoins({ scene, models, poses, refused }: Inputs) {
       partitions = model.record.scene.partitions
     const refuse = (reason: string) => {
       if (held.get(model) !== entry) return // a session opened meanwhile holds the model by its open
-      entry.refused = true
+      entry.state = 'refused'
       refused(`the model ${model.record.manifestUrl}`, reason)
     }
     const why = unfit(model, session)
@@ -113,21 +109,17 @@ export function createModelJoins({ scene, models, poses, refused }: Inputs) {
       }
     } catch (error) {
       return void refuse(String(error))
-    } finally {
-      entry.joining = false
     }
     // A session opened meanwhile holds the model by its own open (`opened`).
     if (held.get(model) !== entry) return
     // It left the scene while it joined: parked as any model that leaves.
-    if (members.has(model)) unpark(model, entry, session)
-    else park(model, entry, session)
+    setParked(model, entry, session, !members.has(model))
   }
   return {
     /** A session opens on `members`: every one of them is in it. */
     opened(members: Iterable<LoadedModel>) {
       held.clear()
-      for (const model of members)
-        held.set(model, { joining: false, refused: false, parked: false })
+      for (const model of members) held.set(model, { state: 'shown' })
     },
     /** Settles once the joins in flight have; none, nothing. */
     get flying() {
@@ -140,15 +132,14 @@ export function createModelJoins({ scene, models, poses, refused }: Inputs) {
       for (const model of members) {
         const entry = held.get(model)
         if (!entry) {
-          const entry = { joining: true, refused: false, parked: true }
-          held.set(model, entry)
-          const done = join(model, entry, session, members).finally(() => flights.delete(done))
+          const joining: Held = { state: 'joining' }
+          held.set(model, joining)
+          const done = join(model, joining, session, members).finally(() => flights.delete(done))
           flights.add(done)
-        } else if (entry.parked && !entry.joining && !entry.refused) unpark(model, entry, session)
+        } else if (entry.state === 'parked') setParked(model, entry, session, false)
       }
       for (const [model, entry] of held)
-        if (!members.has(model) && !entry.parked && !entry.joining && !entry.refused)
-          park(model, entry, session)
+        if (!members.has(model) && entry.state === 'shown') setParked(model, entry, session, true)
     },
   }
 }

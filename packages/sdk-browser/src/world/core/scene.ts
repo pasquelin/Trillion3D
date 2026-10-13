@@ -32,6 +32,11 @@ export interface LoadOptions {
   onProgress?: (event: JobProgress) => void
 }
 
+/** What reads the models `Scene.load` adds; `added` hears each once the scene holds it. */
+export type SceneLoader = ((url: string, options: LoadOptions) => Promise<LoadedModel>) & {
+  added?: (model: LoadedModel) => void
+}
+
 /** What a world hears from its scene: a node's changes, its background and its fog set or
  *  written. */
 export type WorldSceneLink = SceneLink & { background(): void; fog(): void }
@@ -60,9 +65,9 @@ export class Scene extends Object3D {
   /** Called once the scene is drawn; none by default. */
   declare onAfterRender?: () => void
   // Written only when used, as `reading` is: a scene the engine builds holds neither.
-  declare private readonly loader?: (url: string, options: LoadOptions) => Promise<LoadedModel>
+  declare private readonly loader?: SceneLoader
   /** A scene; `loader` reads the models `load` adds, and a scene built without one loads none. */
-  constructor(loader?: (url: string, options: LoadOptions) => Promise<LoadedModel>) {
+  constructor(loader?: SceneLoader) {
     super()
     if (loader) this.loader = loader
     this.type = 'Scene'
@@ -116,12 +121,17 @@ export class Scene extends Object3D {
         'This scene loads no model: it has no world',
       )
     const model = await this.loader(manifestUrl, options)
-    const at = options.position
-    if (at) {
-      if (Array.isArray(at)) model.position.set(at[0], at[1], at[2])
-      else model.position.copy(at as { x: number; y: number; z: number })
+    try {
+      const at = options.position
+      if (at) {
+        if (Array.isArray(at)) model.position.set(at[0], at[1], at[2])
+        else model.position.copy(at as { x: number; y: number; z: number })
+      }
+      this.add(model)
+    } finally {
+      // Held by the scene, or not at all: the loader stops waiting for it (`worldLoader.ts`).
+      this.loader.added?.(model)
     }
-    this.add(model)
     return model
   }
   /** The scene as plain JSON, versioned: its objects, shapes by the call that built them,

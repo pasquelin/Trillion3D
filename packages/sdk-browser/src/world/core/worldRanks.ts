@@ -9,27 +9,21 @@ import type { Primitive } from '../../../../sdk-core/src/index.ts'
  * are the same manifest, ties between blended draws included.
  */
 export function createWorldRanks() {
-  const cuts = new WeakMap<Cut, number>(),
-    models = new WeakMap<LoadedModel, number>(),
-    primitives = new WeakMap<Cut, Primitive>()
+  const primitives = new WeakMap<Cut, Primitive>(),
+    models = new WeakMap<LoadedModel, number>()
   let next = 0
-  const rankOf = (cut: Cut) => {
-    let rank = cuts.get(cut)
-    if (rank === undefined) cuts.set(cut, (rank = next++))
-    return rank
+  /** The primitive of `cut` at its rank, made the first time it is asked. */
+  const primitiveOf = (cut: Cut) => {
+    let primitive = primitives.get(cut)
+    if (!primitive) primitives.set(cut, (primitive = { ...cut.runtime.primitive, mesh: next++ }))
+    return primitive
   }
   return {
     /** The rank of the primitive of `cut`. */
-    cut: rankOf,
+    cut: (cut: Cut) => primitiveOf(cut).mesh,
     /** The primitive of `cut` at its rank: the one object a session opens on and the one a session
      *  already open is handed, its pages the resource's own. */
-    primitive(cut: Cut) {
-      let primitive = primitives.get(cut)
-      if (!primitive) {
-        primitives.set(cut, (primitive = { ...cut.runtime.primitive, mesh: rankOf(cut) }))
-      }
-      return primitive
-    },
+    primitive: primitiveOf,
     /** The first rank of `model`'s block; `span` its meshes' ranks past it, read at its first
      *  seat only. */
     model(model: LoadedModel, span: () => number) {

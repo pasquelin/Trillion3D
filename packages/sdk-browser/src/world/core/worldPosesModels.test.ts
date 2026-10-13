@@ -10,11 +10,11 @@ import { modelNode } from './modelNodes.ts'
 import { createWorldModels } from './worldModels.ts'
 import { createWorldRanks } from './worldRanks.ts'
 import { createWorldPoses, type PoseComposer } from './worldPoses.ts'
-import { model } from './worldModels.fixture.ts'
+import { loadedModel } from './worldModels.fixture.ts'
 
 function rig() {
   const models = createWorldModels(createWorldRanks()),
-    { loaded, drawn } = model([{ meshes: 0 }, { meshes: 1 }])
+    { loaded, drawn } = loadedModel([{ meshes: 0 }, { meshes: 1 }])
   const scene = new Object3D()
   scene.add(loaded)
   scene.updateMatrixWorld(true)
