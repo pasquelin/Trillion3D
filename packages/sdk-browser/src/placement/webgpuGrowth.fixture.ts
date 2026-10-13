@@ -17,6 +17,9 @@ import { renderWebgpuPages } from '../webgpu/pages/render/render.ts'
 import { flushWebgpuPages } from '../webgpu/pages/render/flush.ts'
 import { PAGE_INFO_STRIDE } from '../visibility/types.ts'
 import { readoutRow } from '../gpu/dag/bufferTable.ts'
+import { dagWorkLayout } from '../gpu/dag/shader/floorWgsl.ts'
+import { WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
@@ -85,9 +88,11 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
     scene.indices,
   )
   // A binding of `bindingRows` table rows, no smaller than the GPU cut's readout at the scene's list
-  // cap, grown or not: the cut is the engine's one cut, and a device that cannot hold it refuses
-  // the scene (#1483).
-  const binding = Math.max(bindingRows * PAGE_INFO_STRIDE, readoutRow(SCENE_PAGES).size)
+  // cap nor its `work` — the eviction sort's constant words included —, grown or not, a key group
+  // a page at most of a capacity grown twice (`grownCutCapacity`): the cut is the engine's one cut, and a device that cannot hold it
+  // refuses the scene (#1483).
+  const work = 4 * dagWorkLayout(ceilDiv(2 * SCENE_PAGES, WORKGROUP_THREADS), 2 * SCENE_PAGES).words
+  const binding = Math.max(bindingRows * PAGE_INFO_STRIDE, readoutRow(SCENE_PAGES).size, work)
   // The double runs the cut on the DAG the session uploads, the grown one too (`fakeDag.ts`).
   const gpu = fakeDevice({
     ...BACKEND,
