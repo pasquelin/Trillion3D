@@ -22,7 +22,7 @@ import { WORLD_BOX_WGSL } from './gpuComposeDerivedWgsl.ts'
 import { STRETCH_WGSL } from './gpuStretchWgsl.ts'
 
 /** The pass's entry point. */
-export const ROOT_BOXES_ENTRY = 'rootBoxes'
+export const ROOT_BOXES_ENTRY = 'deriveRootBoxes'
 /** Words of the pass's parameters. */
 export const ROOT_BOXES_PARAM_WORDS = 8
 

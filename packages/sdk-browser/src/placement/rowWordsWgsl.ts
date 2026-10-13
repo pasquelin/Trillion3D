@@ -137,11 +137,11 @@ fn deriveRow(row:u32,emit:bool){
  let base=row*${ROW_WORDS}u;
  if(at+${ROW_INPUT_DOUBLES}u>arrayLength(&inputs)||base+${ROW_WORDS}u>arrayLength(&table)){return;}
  let sphered=(params.parts&${PART_SPHERES}u)!=0u&&(row+1u)*8u<=arrayLength(&spheres);
- let cast=emit&&sphered&&(params.parts&${PART_CASTS}u)!=0u;
+ let casting=emit&&sphered&&(params.parts&${PART_CASTS}u)!=0u;
  var was:array<f32,8>;
- if(cast){for(var k=0u;k<8u;k++){was[k]=spheres[row*8u+k];}}
+ if(casting){for(var k=0u;k<8u;k++){was[k]=spheres[row*8u+k];}}
  if((inputs[at+${INPUT_FLAGS}u].x&${ROW_HAS_RECORD}u)==0u){
-  if(cast){castRow(row,was,false,false);}
+  if(casting){castRow(row,was,false,false);}
   clearRow(row);
   return;
  }
@@ -159,7 +159,7 @@ fn deriveRow(row:u32,emit:bool){
   composeSphere(row,world);
   if((params.parts&${PART_CASTS}u)!=0u){spheres[row*8u+7u]=castCode(row);}
  }
- if(cast){castRow(row,was,worldSame,true);}
+ if(casting){castRow(row,was,worldSame,true);}
  if((params.parts&${PART_CORNERS}u)!=0u&&(row+1u)*${CORNER_VALUES}u<=arrayLength(&corners)){composeCorners(row,world);}
  if((params.parts&${PART_LODS}u)!=0u&&(row+1u)*${ROW_LOD_FLOATS}u<=arrayLength(&lods)){composeLod(row,rank,world);}
 }
