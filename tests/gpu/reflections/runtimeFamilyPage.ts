@@ -2,15 +2,13 @@
 // it is held — a moving case moved and held again —, the reflection target the engine wrote read back at a
 // grid of its pixels, and the frames timed.
 import { fromHalf } from '../../../packages/math/src/float/half.ts'
-import { TRACE_LIST } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import { proofCanvas } from '../kit/renderHarness.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { readTexture } from '../kit/computeReadback.ts'
-import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { listenToWorldDevices } from '../kit/worldErrors.ts'
+import { latestMade, listenToWorldDevices } from '../kit/worldErrors.ts'
 import { familyCase, GRID } from './runtimeFamilyCases.ts'
-import { familyWorld } from './runtimeFamilyWorld.ts'
+import { familyWorld, traceCounters } from './runtimeFamilyWorld.ts'
 
 export type FamilyReading = {
   width: number
@@ -50,9 +48,7 @@ async function draw(index: number, limit: number) {
     await animationFrame()
     frames += await hold(world, limit)
   }
-  const target = [...textures]
-    .reverse()
-    .find(([label]) => /^Trillion3D reflection( @t3d:\d+)?$/.test(label))?.[1]
+  const target = latestMade(textures, (label) => /^Trillion3D reflection( @t3d:\d+)?$/.test(label))
   if (!target) throw new Error(`no reflection target among ${[...textures.keys()].join(' | ')}`)
   const { width, height } = target
   const raw = await readTexture(canvasDevice(canvas), target, 8)
@@ -63,12 +59,7 @@ async function draw(index: number, limit: number) {
       const at = (j * width + i) * 4
       samples.push(fromHalf(half[at]), fromHalf(half[at + 1]), fromHalf(half[at + 2]))
     }
-  const list = [...made]
-    .reverse()
-    .find(([label]) => label.startsWith('Trillion3D reflection tile list'))?.[1]
-  const counters = list
-    ? (await readGpuBuffer(canvasDevice(canvas), list, 5 * 4))!
-    : new Uint32Array(5)
+  const { spent, left } = (await traceCounters(canvasDevice(canvas), made)) ?? { spent: 0, left: 0 }
   world.dispose()
   canvas.remove()
   return {
@@ -77,8 +68,8 @@ async function draw(index: number, limit: number) {
     samples,
     frames,
     worldErrors,
-    spent: counters[TRACE_LIST.spent],
-    left: counters[TRACE_LIST.left],
+    spent,
+    left,
   }
 }
 

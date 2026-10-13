@@ -32,3 +32,7 @@ export function listenToWorldDevices() {
   }
   return { errors, made, textures }
 }
+
+/** The newest resource of `made` (a list `listenToWorldDevices` keeps) whose label passes `test`. */
+export const latestMade = <T>(made: Map<string, T>, test: (label: string) => boolean) =>
+  [...made].reverse().find(([label]) => test(label))?.[1]
