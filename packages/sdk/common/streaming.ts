@@ -87,12 +87,7 @@ export {
 } from '../../sdk-core/src/texture/previewFormat.ts'
 export type { TextureBlockFormat, TextureLayout } from '../../sdk-core/src/texture/previewFormat.ts'
 export { readPagedManifest } from '../../sdk-core/src/manifest/paged.ts'
-export type {
-  Texture,
-  TextureColorSpace,
-  TextureFilter,
-  WrapMode,
-} from '../../sdk-core/src/texture/contract.ts'
+export type { Texture, TextureFilter, WrapMode } from '../../sdk-core/src/texture/contract.ts'
 export type { TextureFrameMetrics } from '../../sdk-core/src/texture/metricsContracts.ts'
 export { textureLevelFormat, textureLevelUrl } from '../../sdk-core/src/texture/levelUrl.ts'
 export type { TextureLevelFormat } from '../../sdk-core/src/texture/levelUrl.ts'
