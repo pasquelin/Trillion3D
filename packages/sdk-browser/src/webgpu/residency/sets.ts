@@ -2,7 +2,6 @@ import type { PageRec } from '../../page/selection/selection.ts'
 import type { CutDelta, IdDelta } from '../cut/delta.ts'
 import { createDenseKeySet } from '../cut/denseKeys.ts'
 import { createKeyUnion } from '../cut/keyUnion.ts'
-import { createHeldKeys } from '../cut/heldKeys.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { createCoverHolders } from './coverHolders.ts'
 import type { WebgpuPageTracking } from '../row/pageTracking.ts'
@@ -32,8 +31,6 @@ export function createWebgpuResidencySets(options: {
   const { keyCount, keyOf, wanted, wantedPages } = tracking
   /** A packed rank back to its record: the one catalogue accessor (`../../page/selection/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages)
-  /** A packed page's cache key, cached on its record by the tracking (`PageRec.keyIndex`). */
-  const keyOfId = (id: number) => keyOf(recordOf(id)!)
   /** What joined and left the root cover since the pin step last ran (`pinUpdater.ts`): the
    *  session's cover at open, then each cell's. */
   const coverEntering = createDenseKeySet(),
@@ -76,19 +73,20 @@ export function createWebgpuResidencySets(options: {
     acceptedRevision++
     keep.release(key)
   }
-  /** What the cut asks the cache for, and what the image actually draws. The second is not a subset
-   *  of the first: a cluster whose replacement is missing is drawn from a resident ancestor the cut
-   *  never asked for, and the cache must not reclaim it while it is on screen. */
-  const askedKeys = createHeldKeys({
-    keyOf: keyOfId,
-    retain: (key, id) => requested.retain(key, recordOf(id)),
-    release: (key) => requested.release(key),
-  })
-  const drawnKeys = createHeldKeys({
-    keyOf: keyOfId,
-    retain: (key: number, id: number) => keep.retain(key, recordOf(id)),
-    release: (key: number) => keep.release(key),
-  })
+  /**
+   * A cut's difference into `union`: each placement that entered holds its page's cache key — cached
+   * on its record by the tracking (`PageRec.keyIndex`) — and each that left lets it go. Several
+   * placements of one page share a key: the union counts them with its other holders, so a key is
+   * listed with its first holder and unlisted with its last, and an image that moves no page
+   * touches nothing.
+   */
+  const follow = (union: typeof requested, delta: IdDelta) => {
+    for (let i = 0; i < delta.exitedCount; i++) union.release(keyOf(recordOf(delta.exited[i])!))
+    for (let i = 0; i < delta.enteredCount; i++) {
+      const page = recordOf(delta.entered[i])!
+      union.retain(keyOf(page), page)
+    }
+  }
   /** Makes the queue the first `count` of `keys`, beside their records, unless it already holds
    *  those keys: new holds are taken before old ones are let go of, so a key in both never leaves
    *  `keep`, and a queue ranked again to the same pages changes nothing. */
@@ -136,8 +134,6 @@ export function createWebgpuResidencySets(options: {
         coverLeaving.byteLength +
         requested.byteLength +
         keep.byteLength +
-        askedKeys.byteLength +
-        drawnKeys.byteLength +
         wanted.byteLength +
         cover.byteLength
       )
@@ -157,7 +153,7 @@ export function createWebgpuResidencySets(options: {
     /** Applies one difference of what the cut asks for — its pages and the groups they close over
      *  (`../../page/cut/groupClosure.ts`): only the pages that entered and left are touched. */
     applyCut(delta: IdDelta) {
-      askedKeys.apply(delta)
+      follow(requested, delta)
     },
     /** `pages` gain a holder, `held`, or lose one (`coverHolders.ts`). */
     holdCover(pages: readonly PageRec[], held: boolean) {
@@ -169,9 +165,11 @@ export function createWebgpuResidencySets(options: {
     },
     coverMissing: cover.missing,
     coverLacking: cover.lacking,
-    /** Applies one difference of the drawable cut, which is what the image must not lose. */
+    /** Applies one difference of the drawable cut, which is what the image must not lose. It is not
+     *  a subset of what the cut asks for: a cluster whose replacement is missing is drawn from a
+     *  resident ancestor the cut never asked for, and the cache must not reclaim it on screen. */
     applyDrawn(delta: CutDelta) {
-      drawnKeys.apply(delta)
+      follow(keep, delta)
     },
     wantedPages,
   }

@@ -3,9 +3,10 @@ import type { DenseKeySet } from './denseKeys.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 
 /**
- * The union of several sources of page keys, held from one image to the next. A source holds a key at
- * most once, the union counts it once however many sources hold it, and a source therefore changes it
- * by difference alone. Keys marked `covered` — the root cover, which every image asks for — count
+ * The union of several sources of page keys, held from one image to the next: the one reference
+ * count of the residency's keys. It counts every holder — a source, or each placement of a page a
+ * cut's difference names (`../residency/sets.ts`) — and lists a key once however many hold it, so a
+ * source changes it by difference alone. Keys marked `covered` — the root cover, which every image asks for — count
  * towards `size` but stay out of `members`, so `members` lists exactly what the residency queue
  * still has to fetch; a key that joins or leaves the cover (`cover`) leaves or rejoins `members`
  * while a source holds it. `onListed`/`onUnlisted` report the moment a key joins or leaves
