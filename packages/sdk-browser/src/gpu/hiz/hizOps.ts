@@ -110,7 +110,7 @@ function sendHizBuild(h: HizState, { passes, words, levelWords }: Pyramid['drawn
 /** Verdict flags for `rows` rows, made now and put in place by `commit` (`GpuHiz.growFlags`). */
 export function hizGrowFlags(h: HizState, gpu: GpuHiz, rows: number) {
   const next = hizFlags(h.device, rows)
-  return pendingBuffers([next], () => {
+  return pendingBuffers(h.device, [next], () => {
     const old = h.flags
     h.buffers[h.buffers.indexOf(old)] = gpu.flags = h.flags = next
     h.cap = rows

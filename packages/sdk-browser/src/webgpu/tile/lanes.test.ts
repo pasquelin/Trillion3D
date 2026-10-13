@@ -6,6 +6,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { poolEncoding, WHITE_TAIL } from '../../texture/blockFormats.ts'
 import { textureDevice } from './textureDevice.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 
 installGpuGlobals()
 
@@ -46,6 +47,7 @@ test('each texture lives in the pool of its lane, and an empty lane has a stand-
     evicted: 0,
     replaced: 1,
   })
+  destroyRetired(gpu)
   assert.equal(destroyed(), 1, 'only the lane whose layers changed gets a new pool')
   atlas.destroy()
   assert.equal(destroyed(), 4, 'both pools and the stand-in')

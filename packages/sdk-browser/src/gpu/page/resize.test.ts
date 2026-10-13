@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createGpuPageCache } from './pages.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuDeviceLedger } from '../core/deviceLedger.ts'
+import { destroyRetired } from '../core/frameRetire.ts'
 
 const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 }
 
@@ -27,7 +28,9 @@ test('the page pool shrinks while keeping its pages: copy, move, eviction of the
   assert.equal(cache.stats().slots, 3)
   assert.equal(cache.stats().allocatedBytes, 24)
   assert.notEqual(cache.buffer, before)
-  assert.equal(destroyed.length, 1, 'the old buffer is destroyed')
+  assert.equal(destroyed.length, 0, 'the old buffer lives until the frame is submitted')
+  destroyRetired(gpu)
+  assert.equal(destroyed.length, 1, 'the old buffer is destroyed after it')
   assert.equal(copies[0].size, 24, 'the common prefix is copied in one go')
   assert.deepEqual(evicted.sort(), ['b', 'c', 'd'])
   assert.ok(cache.get('e') && cache.get('f'))
@@ -157,6 +160,7 @@ test('a pool shrunk under a budget at its limit is admitted as the replacement i
   const evicted = await cache.resize(3)
   assert.deepEqual(evicted, [])
   assert.equal(cache.stats().allocatedBytes, 24)
+  destroyRetired(gpu)
   assert.equal(destroyed.length, 1, 'the old pool is freed')
   assert.equal(ledger.refusal, undefined, 'no refusal of the session')
 })

@@ -10,7 +10,7 @@ import {
   type PoolList,
   type Stores,
 } from './geometryPoolLayout.ts'
-import { createPoolStores, releasePoolStores } from './geometryPoolStores.ts'
+import { createPoolStores, poolResources } from './geometryPoolStores.ts'
 import { fillScratch, releaseScratch, scratchFloats } from './geometryPoolScratch.ts'
 import { writeFloatAtlas } from './floatAtlas.ts'
 import {
@@ -84,7 +84,7 @@ export function createVertexPool(
      *  short (`reserveTail`); false when the device refuses. */
     reserve: (tail: number) => reserveTail(p, tail),
     /** Frees the pool's stores: the pool is dropped. */
-    destroy: () => releasePoolStores(p.stores),
+    destroy: () => poolResources(p.stores).forEach((resource) => resource.destroy()),
     /** Places each geometry of `sourced`, dynamic or not, and uploads the buffers whole: the
      *  open's one packing. */
     pack: (sourced: ReadonlyMap<HostAttributes, boolean>) => packPool(p, sourced),

@@ -63,7 +63,7 @@ export function growShadowRows(
   if (lights.spheres) {
     const next = clusterSpheres(device, casterSlots)
     grown.push(
-      pendingBuffers([next.buffer], () => {
+      pendingBuffers(device, [next.buffer], () => {
         const old = lights.spheres
         lights.spheres = next
         return [old?.buffer]
@@ -73,7 +73,7 @@ export function growShadowRows(
   if (lights.mobilityRows) {
     const next = mobilityRows(device, casterSlots)
     grown.push(
-      pendingBuffers([next], () => {
+      pendingBuffers(device, [next], () => {
         const old = lights.mobilityRows
         lights.mobilityRows = next
         return [old]

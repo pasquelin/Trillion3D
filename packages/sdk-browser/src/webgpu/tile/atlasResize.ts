@@ -15,10 +15,11 @@ import { pendingMade } from '../../gpu/core/tableGrowth.ts'
  * Returns the new pool and the evicted-tile count. The one growth transaction
  * (`../../gpu/core/tableGrowth.ts`): the new pool made first — the device asked for it beforehand
  * (`grantedTexturePool`), a refusal here throws with the pool in place and its table untouched —,
- * then copied, put in place, and the old pool destroyed once the copy is submitted.
+ * then copied, put in place, and the old pool retired: destroyed after the frame's submit, which
+ * may name it (`../../gpu/core/frameRetire.ts`).
  */
 export function resizeTileAtlas(
-  device: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
+  device: GPUDevice,
   options: TilePoolOptions,
   tap: number,
   pool: WebgpuTilePool,
@@ -28,15 +29,10 @@ export function resizeTileAtlas(
 ): { pool: WebgpuTilePool; evicted: number } {
   const next = createWebgpuTilePool(device, options)
   let evicted = 0
-  pendingMade(
-    next,
-    next.bytes,
-    (held) => held.destroy(),
-    () => {
-      evicted = moveTiles(device, options, tap, { pool, next, pages, resident }, onEvicted)
-      return pool
-    },
-  ).commit()
+  pendingMade(device, [next], next.bytes, () => {
+    evicted = moveTiles(device, options, tap, { pool, next, pages, resident }, onEvicted)
+    return [pool]
+  }).commit()
   return { pool: next, evicted }
 }
 

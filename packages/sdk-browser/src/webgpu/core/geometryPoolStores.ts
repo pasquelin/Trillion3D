@@ -46,16 +46,13 @@ export function copyPoolStores(
         encoder.copyBufferToBuffer(held[key], source * 4, made[key], destination * 4, count * 4)
 }
 
-/** Frees the two storage buffers: the normal atlas stays. */
-export function releasePoolBuffers(held: PoolStores) {
-  for (const key of BUFFERS) held[key].destroy()
-}
 /** The bytes the stores hold: their buffers and the normal atlas. */
 export const storesBytes = (held: PoolStores) =>
   BUFFERS.reduce((total, key) => total + held[key].size, held.concatNrm.bytes)
 
-/** Frees the stores. */
-export function releasePoolStores(held: PoolStores) {
-  releasePoolBuffers(held)
-  held.concatNrm.texture.destroy()
-}
+/** What the stores hold on the device, freed together: the two storage buffers, and the normal
+ *  atlas's texture unless `atlas` is false — a pool whose atlas stays frees the buffers alone. */
+export const poolResources = (held: PoolStores, atlas = true) => [
+  ...BUFFERS.map((key) => held[key]),
+  ...(atlas ? [held.concatNrm.texture] : []),
+]

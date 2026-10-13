@@ -4,6 +4,7 @@ import { createWebgpuTilePool, type WebgpuTilePool } from './pool.ts'
 import type { WebgpuTilePageTable } from './pageTable.ts'
 import { type LaneCounts, type PoolEncoding, type PoolLane } from '../../texture/blockFormats.ts'
 import { resizeTileAtlas } from './atlasResize.ts'
+import { retire } from '../../gpu/core/frameRetire.ts'
 
 /** A lane's pool, and the tiles resident in it by id. */
 export type Lane = { pool: WebgpuTilePool; resident: Map<number, number> }
@@ -67,11 +68,7 @@ export function createTileLanes(
     /** Every lane whose layers change gets a new pool that keeps its tiles, a lane that had none
      *  its first — a texture appended after open took it; returns the evicted tiles and how many
      *  pools were replaced — none when the layers are those already held. */
-    resize(
-      target: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
-      layers: LaneCounts,
-      pages: WebgpuTilePageTable,
-    ) {
+    resize(target: GPUDevice, layers: LaneCounts, pages: WebgpuTilePageTable) {
       let evicted = 0,
         replaced = 0
       for (const name of PREVIEW_LAYOUT_NAMES)
@@ -83,7 +80,8 @@ export function createTileLanes(
         if (layers[name] === lane.pool.layers) continue
         replaced++
         if (layers[name] === 0 && lane.pool.resident === 0) {
-          lane.pool.destroy()
+          // Groups this image encoded may still name its view: retired, as a replaced pool.
+          retire(target, lane.pool)
           lanes.delete(name)
           continue
         }

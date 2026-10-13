@@ -102,7 +102,7 @@ export function growDraw(d: Draw, rows: number) {
   const next = constructGpuResources(device, () =>
     createGpuDrawBuffers(device, rows, layerSlots, perRow),
   )
-  return pendingBuffers(next.all, () => {
+  return pendingBuffers(device, next.all, () => {
     const old = d.held
     d.held = next
     d.slotCap = rows

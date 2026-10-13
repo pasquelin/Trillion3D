@@ -12,8 +12,7 @@ import {
   copyPoolStores,
   createPoolBuffers,
   createPoolStores,
-  releasePoolBuffers,
-  releasePoolStores,
+  poolResources,
   storesBytes,
   type PoolStores,
 } from './geometryPoolStores.ts'
@@ -99,8 +98,7 @@ function remake(p: Pool, size: number, tail: number, carried: Carried = p) {
       ? createPoolStores(device, wider)
       : { ...createPoolBuffers(device, wider), concatNrm: p.stores.concatNrm }
   // A pool whose atlas stays frees the buffers alone.
-  const free = (held: PoolStores) => (resized ? releasePoolStores(held) : releasePoolBuffers(held))
-  pendingMade(made, storesBytes(made), free, () => {
+  pendingMade(device, poolResources(made, resized), storesBytes(made), () => {
     const encoder = device.createCommandEncoder(),
       held = p.stores
     copyPoolStores(encoder, held, made, [p.size, size, p.tailFloats], p.coloured)
@@ -111,7 +109,7 @@ function remake(p: Pool, size: number, tail: number, carried: Carried = p) {
     p.floats = wider
     p.coloured = carried.coloured
     p.secondUv = carried.secondUv
-    return held
+    return poolResources(held, resized)
   }).commit()
   if (!resized) return true
   // The atlas's rows follow its size: every block's normals and second UV set are written

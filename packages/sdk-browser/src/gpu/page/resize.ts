@@ -168,7 +168,7 @@ export function resizeGpuPages(
     free.splice(0, displaced.length)
     context.placement = slotPlacement(pageBytes, wholeSlots(free), context.eviction, resident)
   }
-  pendingBuffers([next], () => {
+  pendingBuffers(device, [next], () => {
     device.queue.submit([encoder.finish()])
     const held = context.buffer
     context.buffer = next

@@ -26,16 +26,20 @@ export function gpuGrowth(
     // The draw compact's entries, `perRow` a visibility row: the tested half's copy and rows.
     compacted = drawSlots * (draw?.perRow ?? 1)
   return pendingAll([
-    replaced(vis.zeroFlags && zeroFlagsBuffer(device, drawSlots), (next) => {
+    replaced(device, vis.zeroFlags && zeroFlagsBuffer(device, drawSlots), (next) => {
       const old = vis.zeroFlags
       vis.zeroFlags = next
       return old
     }),
-    replaced(pageTable && pageTableBuffer(device, casterSlots * PAGE_INFO_STRIDE), (next) => {
-      const old = vis.pageTable
-      vis.pageTable = next
-      return old
-    }),
+    replaced(
+      device,
+      pageTable && pageTableBuffer(device, casterSlots * PAGE_INFO_STRIDE),
+      (next) => {
+        const old = vis.pageTable
+        vis.pageTable = next
+        return old
+      },
+    ),
     draw?.grow(drawSlots),
     hiz?.growFlags(drawSlots),
     // The draw compact and the Hi-Z test it reads, as they stood: a drop meanwhile throws nothing.
@@ -47,8 +51,9 @@ export function gpuGrowth(
 
 /** `next`, made now, put in place by `adopt`, which returns the buffer it replaced. */
 function replaced(
+  device: GPUDevice,
   next: GPUBuffer | undefined,
   adopt: (next: GPUBuffer) => GPUBuffer | undefined,
 ): PendingGrowth | undefined {
-  return next && pendingBuffers([next], () => [adopt(next)])
+  return next && pendingBuffers(device, [next], () => [adopt(next)])
 }

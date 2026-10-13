@@ -256,7 +256,7 @@ export function growVsmTables(
   const { made } = res
   const tableBuffers: GPUBuffer[] = []
   const tables = createVsmTables(device, layout, tableBuffers)
-  pendingBuffers(tableBuffers, () => {
+  pendingBuffers(device, tableBuffers, () => {
     const parity = res.current === res.frames[0] ? 0 : 1
     const prev = tables.frames[1 - parity]
     const encoder = device.createCommandEncoder({ label: 'vsm.growTables' })

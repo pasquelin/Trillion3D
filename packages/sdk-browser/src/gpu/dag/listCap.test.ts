@@ -16,6 +16,7 @@ import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { deviceListCap } from './deviceListCap.ts'
+import { destroyRetired } from '../core/frameRetire.ts'
 import { idleKernels, writtenReadbacks } from './differenceRig.fixture.ts'
 
 test('the list a device holds is the largest whose readout one binding holds', () => {
@@ -76,8 +77,13 @@ test('a cut past its list grows it and stays on the GPU, every drawn cluster lis
   assert.equal(grown?.result.truncated, false, 'the truncated readout is not handed over')
   assert.equal(resources.output.size, stagedOutputBytes(20))
   assert.ok(
+    !old.some((buffer) => fake.destroyed.includes(buffer)),
+    'the old readout retired: the image encoded may still name it',
+  )
+  destroyRetired(fake.device)
+  assert.ok(
     old.every((buffer) => fake.destroyed.includes(buffer)),
-    'the old readout released',
+    'the old readout released after the frame is submitted',
   )
   assert.ok(!resources.buffers.some((buffer) => old.includes(buffer)))
   // The readback ring takes the grown size at its next copy, its buffer made again to hold it.

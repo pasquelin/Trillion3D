@@ -66,7 +66,7 @@ export function growPartition(
 ) {
   const { device, allocated } = p
   const grown = constructGpuResources(device, () => createGpuPartitionRows(device, rows))
-  return pendingBuffers(grown.all, () => {
+  return pendingBuffers(device, grown.all, () => {
     const old = [allocated.corners, allocated.rowData, allocated.tested]
     const all = [...grown.all, allocated.state, allocated.uniforms]
     Object.assign(allocated, grown, { all })

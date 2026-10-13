@@ -63,7 +63,7 @@ async function grant(rt: WebgpuPagesRuntime, device: GPUDevice, slots: number) {
       size: visUniformLayout(device.limits, visUniformSlots({ drawLayerSlots: slots })).bytes,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     })
-    return pendingBuffers([next], () => {
+    return pendingBuffers(device, [next], () => {
       const old = vis.visUniform
       vis.visUniform = next
       return [old]

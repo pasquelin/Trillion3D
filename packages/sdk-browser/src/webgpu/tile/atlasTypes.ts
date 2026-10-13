@@ -47,9 +47,6 @@ export type WebgpuTileAtlas = {
   flush(device: Pick<GPUDevice, 'queue'>): void
   /** Changes each lane's layers while keeping its tiles; returns the evicted tiles and how many
    *  pools were replaced. */
-  resize(
-    device: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
-    layers: LaneCounts,
-  ): { evicted: number; replaced: number }
+  resize(device: GPUDevice, layers: LaneCounts): { evicted: number; replaced: number }
   destroy(): void
 }

@@ -1,6 +1,5 @@
 import { oncePerDevice } from './oncePerDevice.ts'
 import { pendingMade } from './tableGrowth.ts'
-import { retire } from './frameRetire.ts'
 import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 
 /**
@@ -16,6 +15,7 @@ import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
  *   growth transaction (`tableGrowth.ts`): the new one made first — refused, the held one stays —,
  *   the outgrown one retired, destroyed after the frame's submit, which may name it
  *   (`frameRetire.ts`).
+ * - `drop` destroys what a slot holds once its holder is gone.
  */
 export function heldBuffers(idleMs?: number) {
   const holdOf = oncePerDevice(() => ({
@@ -71,12 +71,17 @@ export function heldBuffers(idleMs?: number) {
       // The power of two at or above `size`, never 0 bytes (`2 **`, not `1 <<`: past 1 GiB a shift
       // turns negative; `nextPow2` is exact for an integer size).
       const buffer = device.createBuffer({ label, size: nextPow2(size), usage })
-      const free = (outgrown: GPUBuffer | undefined) => outgrown && retire(device, outgrown)
-      pendingMade<GPUBuffer | undefined>(buffer, buffer.size, free, () => {
+      pendingMade(device, [buffer], buffer.size, () => {
         held.set(label, buffer)
-        return kept
+        return [kept]
       }).commit()
       return buffer
+    },
+    /** Destroys the buffer held under `slot`, if any, and forgets it: its holder is disposed. */
+    drop(device: GPUDevice, slot: string) {
+      const { held } = holdOf(device)
+      held.get(slot)?.destroy()
+      held.delete(slot)
     },
   }
 }

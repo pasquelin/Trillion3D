@@ -121,7 +121,7 @@ function writeHeldOpen(resources: DagResources, grown: boolean) {
 /**
  * Gives the camera cut a list of `listCap` ranks, `regions` saved journals and `heldSlots` slots of
  * open counts, between two frames and with no readback in flight: a new readout, the bind groups
- * that name it, and the old ones destroyed — the readback ring takes the new size at its next copy. Made under an out-of-memory scope, within one binding: a device that
+ * that name it, and the old ones retired — the readback ring takes the new size at its next copy. Made under an out-of-memory scope, within one binding: a device that
  * cannot grant them keeps the old readout whole and says `false`, so the next truncated readout
  * coarsens its cut (`coarsening.ts`) — or the views aside cut without a region — rather than end on an
  * error of the whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's list, in
@@ -188,7 +188,7 @@ export const cutGrowth = (
   replaced: readonly GPUBuffer[],
   adopt: () => void,
 ) =>
-  pendingBuffers(made, () => {
+  pendingBuffers(resources.device, made, () => {
     adopt()
     resources.buffers.push(...made)
     for (const buffer of replaced) resources.buffers.splice(resources.buffers.indexOf(buffer), 1)

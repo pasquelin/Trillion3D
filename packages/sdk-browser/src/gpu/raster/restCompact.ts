@@ -156,7 +156,7 @@ function restCompactOps(c: RestState): GpuRestCompact {
       const words = workWords(nextWords, restSlots, rows)
       if (c.work && c.work.size >= words * 4) return undefined
       const next = workBuffer(c.device, words)
-      return pendingBuffers([next], () => {
+      return pendingBuffers(c.device, [next], () => {
         const old = c.work
         c.work = next
         c.owned = [c.uniforms, c.tileArgs, next]

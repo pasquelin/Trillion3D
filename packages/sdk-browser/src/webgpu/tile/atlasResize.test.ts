@@ -8,6 +8,7 @@ import { tileLayout, TILE_PITCH, TILES_PER_LAYER, POOL_LAYER_SIDE } from '../../
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
 import { textureDevice } from './textureDevice.fixture.ts'
+import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 
 installGpuGlobals()
 
@@ -46,7 +47,9 @@ test('shrinking the pool keeps surviving layers in one copy, slot for slot, and 
   const { evicted } = atlas.resize(gpu, lossless(1))
   assert.equal(atlas.pools[0].layers, 1)
   assert.notEqual(atlas.views, views, 'a new view tuple: the bind groups keyed on it rebuild')
-  assert.equal(destroyed(), 1, 'the old pool is destroyed')
+  assert.equal(destroyed(), 0, 'the old pool lives until the frame is submitted')
+  destroyRetired(gpu)
+  assert.equal(destroyed(), 1, 'the old pool is destroyed after it')
   assert.equal(evicted, 5, 'the five tiles of the vanished layer: nothing free for them')
   assert.equal(atlas.pools[0].resident, TILES_PER_LAYER)
   assert.deepEqual(copies(), [

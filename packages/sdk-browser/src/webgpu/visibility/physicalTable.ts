@@ -6,7 +6,6 @@ import { PHYSICAL_SECOND_UV } from '../../visibility/types.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { extendSpan, type Span } from '../../../../math/src/sequence/span.ts'
 import { pendingMade } from '../../gpu/core/tableGrowth.ts'
-import { retire } from '../../gpu/core/frameRetire.ts'
 import { PHYSICAL_RECORD_WORDS, writePhysicalRecord } from './physicalRecord.ts'
 
 /** Records a row of the table texture holds, three `rgba32uint` texels each: a row is 768 texels,
@@ -161,13 +160,12 @@ function grow(
     format: 'rgba32uint',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
   })
-  const free = (held: GPUTexture | undefined) => held && retire(device, held)
-  pendingMade<GPUTexture | undefined>(next, rows * ROW_BYTES, free, () => {
+  pendingMade(device, [next], rows * ROW_BYTES, () => {
     const old = p.texture
     p.texture = next
     table.view = next.createView()
     if (p.held) [p.written.from, p.written.to] = [0, p.held - 1]
-    return old
+    return [old]
   }).commit()
 }
 
