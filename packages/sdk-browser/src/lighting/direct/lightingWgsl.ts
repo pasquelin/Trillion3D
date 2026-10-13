@@ -16,7 +16,6 @@ import {
 } from './shadowWgsl.ts'
 import { shadowKindsOf } from './shadowKinds.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
-import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
 import { FOG_WGSL } from '../fogShader.ts'
 import {
@@ -149,7 +148,7 @@ fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emiss
 /** The opaque resolve's bindings (`lightingBase`). */
 const DIRECT_BINDINGS: LightingBindings = {
   transmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
-  resolveTransmission: VSM_TRANSMISSION_RESOLVE_BINDING,
+  resolveTransmission: DEFERRED_BINDINGS.transmissionResolve,
 }
 
 /**

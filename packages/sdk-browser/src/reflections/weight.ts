@@ -76,11 +76,9 @@ export const forwardReflectionWgsl = (group: number, lobes: boolean, scene: Scen
 }`,
   )
 
-/** The opaque resolve's binding of the reflection target the compute pass wrote (`trace.ts`). */
-export const REFLECTION_TARGET_BINDING = DEFERRED_BINDINGS.reflection
 /** The reflection target, read by load alone by the opaque resolve. */
 export const REFLECTION_TARGET = loadOnlyTarget(
-  REFLECTION_TARGET_BINDING,
+  DEFERRED_BINDINGS.reflection,
   'rgba16float',
   'reflectionTarget',
 )

@@ -1,4 +1,5 @@
-import { PHYSICAL_LOBES_BINDING, PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
+import { DEFERRED_BINDINGS } from '../../lighting/deferred/bindings.ts'
+import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { WATER_BINDINGS } from './compositeWgsl.ts'
 import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts'
 import { readOnly } from '../core/bindLayout.ts'
@@ -119,6 +120,6 @@ export function waterCompositeEntries(
       const held = of(sources)
       return { binding, resource: (buffer[at] ? { buffer: held } : held) as GPUBindingResource }
     }),
-    { binding: PHYSICAL_LOBES_BINDING, resource: surfaces.lobesView },
+    { binding: DEFERRED_BINDINGS.lobes, resource: surfaces.lobesView },
   ]
 }

@@ -6,13 +6,12 @@ import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 
 /** Independent diffuse transmission, disabled by black and restricted to thin double-sided matter. */
 export const SUBSURFACE_FLAG = 32
-export const SUBSURFACE_BINDING = DEFERRED_BINDINGS.subsurface
 /** The thin transmission colour's format, written by the shade pass and loaded by the lighting. */
 export const SUBSURFACE_FORMAT: GPUTextureFormat = 'rgba16float'
 /** The lighting's read of the thin transmission colour, by load alone; its bytes, one texel per
  *  pixel when wanted, a 1×1 placeholder otherwise (`bytes`). */
 export const SUBSURFACE_TARGET = loadOnlyTarget(
-  SUBSURFACE_BINDING,
+  DEFERRED_BINDINGS.subsurface,
   SUBSURFACE_FORMAT,
   'subsurfaceColor',
 )

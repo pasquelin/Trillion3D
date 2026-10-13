@@ -19,11 +19,13 @@ export const DEFERRED_BINDINGS = {
   uniforms: 10,
   bounceGrid: 11,
   probes: 12,
+  /** The translucent casters' transmission: the old shadow requests' number, free since the VSM. */
   transmissionResolve: 14,
   transmittance: 18,
   pool: 19,
   subsurface: 22,
   receiver: 23,
+  /** The shadow mask's tile words (`vsmMaskFactor`), past the receiver's. */
   maskTiles: 29,
   lobes: 32,
   reflection: 33,
