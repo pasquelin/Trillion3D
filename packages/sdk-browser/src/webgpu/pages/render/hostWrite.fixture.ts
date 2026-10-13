@@ -7,12 +7,16 @@ import { hostWorldPlacements } from '../../../host/world/placements.ts'
 import { uploadWorlds } from './worldUpload.ts'
 
 /** A scene of `count` meshes under one holder group, each a selection root and, `blend` true, the
- *  source of a see-through draw; its first image taken. */
+ *  source of a see-through draw, all wearing the one surface record of their one material; its first
+ *  image taken. */
 export function hostScene(count: number, blend = false) {
   const source = new G.Group(),
     holder = new G.Group(),
     first = G.mesh()
-  const meshes = [first, ...Array.from({ length: count - 1 }, () => G.mesh(first.geometry))]
+  const meshes = [
+    first,
+    ...Array.from({ length: count - 1 }, () => G.mesh(first.geometry, first.material)),
+  ]
   source.add(holder)
   for (const mesh of meshes) holder.add(mesh)
   meshes.forEach((mesh, k) => (mesh.name = `m${k}`))
