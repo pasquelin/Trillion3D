@@ -4,7 +4,7 @@
 // closure (`../../page/cut/groupClosure.ts`) on generated frames.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { requestScene } from './requestScene.fixture.ts'
@@ -28,7 +28,7 @@ const START = 10
  *  frame and reads back. */
 async function residentCutOf(packed: ReturnType<typeof packDagSelection>, uniforms: object) {
   installGpuGlobals()
-  const gpu = mockGpu({ packed })
+  const gpu = fakeDevice({ ...BACKEND, packed })
   const selection = await createGpuDagSelection(gpu.device, packed)
   assert.ok(selection)
   selection.updateResidency(pageResidency(new Uint32Array(packed.pageCount).fill(1)))

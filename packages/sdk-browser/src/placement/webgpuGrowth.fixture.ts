@@ -8,7 +8,7 @@ import { cameraAt } from '../webgpu/pages/twoPlaces.fixture.ts'
 import { cellUrl, io, noBudget, opened, settled, world } from '../partition/cells.fixture.ts'
 import type { RowLink } from '../partition/rows.ts'
 import { collectClusterPages } from '../page/selection/selection.ts'
-import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
 import { createWebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { prepareWebgpuBackend } from '../webgpu/pages/prepare/prepare.ts'
@@ -89,7 +89,8 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
   // the scene (#1483).
   const binding = Math.max(bindingRows * PAGE_INFO_STRIDE, readoutRow(SCENE_PAGES).size)
   // The double runs the cut on the DAG the session uploads, the grown one too (`mockDag.ts`).
-  const gpu = mockGpu({
+  const gpu = fakeDevice({
+    ...BACKEND,
     limits: { maxBufferSize: Math.max(1 << 20, binding), maxStorageBufferBindingSize: binding },
   })
   const sceneLights = createSceneLightStore()

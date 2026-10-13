@@ -23,8 +23,7 @@ import { createGpuDagSelection } from './selection.ts'
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND, dispatchedEntries, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 /** The double functions the pose's subtraction reaches: those of the compose passes but the
  *  product's. */
@@ -87,7 +86,7 @@ test('the main view and a view aside, each at its own eye, run no pass over ever
   installGpuGlobals()
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
-  const gpu = mockGpu({ packed: dag })
+  const gpu = fakeDevice({ ...BACKEND, packed: dag })
   const selection = (await createGpuDagSelection(gpu.device, dag))!
   const aside = selection.aside()
   const main = kernelUniforms(dag, roots, wideCamera(), 0)
@@ -100,8 +99,11 @@ test('the main view and a view aside, each at its own eye, run no pass over ever
     gpu.device.queue.submit([encoder.finish()])
     await aside.flush()
   }
-  assert.ok(gpu.computes.includes('dagPrepare'), 'the cuts ran')
-  assert.ok(!gpu.computes.includes('rebaseWorlds'), 'no pass brings the worlds to an eye')
+  assert.ok(dispatchedEntries(gpu.dispatches).includes('dagPrepare'), 'the cuts ran')
+  assert.ok(
+    !dispatchedEntries(gpu.dispatches).includes('rebaseWorlds'),
+    'no pass brings the worlds to an eye',
+  )
   selection.dispose()
   fixture.geometry.dispose()
 })
