@@ -10,8 +10,9 @@ import {
   release,
   type ScenePreparee,
 } from '../kit/sharedSceneProof.ts'
-import { difference, image } from '../kit/sceneImageProof.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { image } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
+import { recordPassLabels, runOnDevice } from '../kit/deviceProof.ts'
 import {
   BACKGROUND,
   CASES,
@@ -60,17 +61,7 @@ async function waterCase(
   kase: WaterCase,
   events: EngineDiagnostic[],
 ): Promise<CaseResult> {
-  const labels = new Set<string>()
-  const create = device.createCommandEncoder.bind(device)
-  device.createCommandEncoder = (descriptor) => {
-    const encoder = create(descriptor),
-      begin = encoder.beginRenderPass.bind(encoder)
-    encoder.beginRenderPass = (pass) => {
-      labels.add(pass.label ?? '')
-      return begin(pass)
-    }
-    return encoder
-  }
+  const { labels, restore } = recordPassLabels(device)
   const s = scene(paged, kase)
   const { backend, canvas } = engine(s, device, (e: EngineDiagnostic) => events.push(e), {
     clearColor: BACKGROUND,
@@ -91,7 +82,9 @@ async function waterCase(
         centre: centre(pixels),
         draws: metrics.transparentDrawCalls,
         held: metrics.frameHeld,
-        moved: frames.length ? difference(frames[frames.length - 1].pixels, pixels) : 0,
+        moved: frames.length
+          ? compareImages(frames[frames.length - 1].pixels, pixels).differentPixels
+          : 0,
         pixels,
       })
     }
@@ -112,7 +105,7 @@ async function waterCase(
       heldLast: frames[frames.length - 1].held,
     }
   } finally {
-    device.createCommandEncoder = create
+    restore()
     release(backend, canvas, s)
   }
 }

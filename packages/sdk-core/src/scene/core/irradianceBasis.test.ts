@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { irradianceShader, radianceProjectionShader } from './irradianceBasis.ts'
 import { IRRADIANCE_TERMS } from './irradianceTerms.ts'
 import { IRRADIANCE_BAND } from './environment.ts'
+import { unit } from '../../../../math/src/vector/vectorTuple.ts'
 
 type Vector = { x: number; y: number; z: number }
 
@@ -42,11 +43,12 @@ const sphere = (count: number) =>
     return { x: radius * Math.cos(angle), y: radius * Math.sin(angle), z }
   })
 
-const unit = (x: number, y: number, z: number) => {
-  const length = Math.hypot(x, y, z)
-  return { x: x / length, y: y / length, z: z / length }
+/** The unit vector along `(x, y, z)`, as a point. */
+const along = (x: number, y: number, z: number) => {
+  const [ux, uy, uz] = unit([x, y, z])
+  return { x: ux, y: uy, z: uz }
 }
-const normals = [unit(0, 0, 1), unit(1, 0, 0), unit(0, -1, 0), unit(1, 2, -3), unit(-2, 1, 1)]
+const normals = [along(0, 0, 1), along(1, 0, 0), along(0, -1, 0), along(1, 2, -3), along(-2, 1, 1)]
 
 test('each band factor is its closed form, to the last bit of a double', () => {
   const closed = {
@@ -82,7 +84,7 @@ test('a single direction gives the order-2 truncation of its clamped cosine', ()
   // band sum `Φ · Σ_l Â_l (2l + 1) / 4π · P_l(n·s)`,
   // written with Legendre polynomials rather than the basis the engine evaluates.
   const power = [3, 1, 0.25]
-  const source = unit(0.3, -0.5, 0.8)
+  const source = along(0.3, -0.5, 0.8)
   const sh = project([{ direction: source, rgb: power, weight: 1 }])
   const legendre = (t: number) =>
     0.25 + (2 / 3) * (3 / 4) * t + (1 / 4) * (5 / 4) * ((3 * t * t - 1) / 2)

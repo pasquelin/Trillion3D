@@ -10,6 +10,7 @@ import { BOUNCE_TRACE_WGSL } from '../../../packages/sdk-browser/src/bounce/trac
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import type { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { bufferHolding } from '../kit/computeReadback.ts'
 
 /** Farther than any ray of the proof travels. */
 const REACH = 200
@@ -45,11 +46,7 @@ export function createTraceRig(gpu: Gpu, proxy: GPUBuffer, data: Float32Array<Ar
   const { device } = gpu
   const compilation: string[] = []
   const usage = GPUBufferUsage
-  const rays = device.createBuffer({
-    size: data.byteLength,
-    usage: usage.STORAGE | usage.COPY_DST,
-  })
-  device.queue.writeBuffer(rays, 0, data)
+  const rays = bufferHolding(device, data, usage.STORAGE)
   const hits = device.createBuffer({
     size: data.byteLength,
     usage: usage.STORAGE | usage.COPY_SRC,

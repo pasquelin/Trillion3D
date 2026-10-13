@@ -12,6 +12,7 @@ import { runOnDawn } from '../kit/onDawn.ts'
 import { countBundles, withDirectBundles } from '../kit/directBundles.ts'
 import { settle } from '../world/proofWorld.ts'
 import { openBenchWorld } from './shadowScene.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
 /** A bundle replays the very commands the pass would encode, at any size: every pass the view runs
  *  — raster, surfaces, shadow pages — runs at this one, and its 57 600 pixels still span the facade
@@ -37,8 +38,6 @@ async function settledView() {
 }
 
 async function bundledAgainstDirect() {
-  // Read once Dawn is installed: the image kit loads engine modules.
-  const { difference } = await import('../kit/sceneImageProof.ts')
   const bundled = await settledView(),
     again = await settledView()
   const direct = await withDirectBundles(settledView)
@@ -46,8 +45,8 @@ async function bundledAgainstDirect() {
     held: [bundled.held, again.held, direct.held],
     executed: bundled.executed,
     labels: bundled.labels,
-    stable: difference(bundled.pixels, again.pixels),
-    gap: difference(bundled.pixels, direct.pixels),
+    stable: compareImages(bundled.pixels, again.pixels).differentPixels,
+    gap: compareImages(bundled.pixels, direct.pixels).differentPixels,
     pixels: bundled.pixels.length / 4,
   }
 }

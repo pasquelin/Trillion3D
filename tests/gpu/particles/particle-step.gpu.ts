@@ -41,7 +41,6 @@ async function step({ words, staged, capacity, runs }: Steps) {
     }),
   )
   const { UNIFORM, STORAGE, INDIRECT, COPY_DST, COPY_SRC } = GPUBufferUsage
-  const buffer = (size: number, usage: number) => device.createBuffer({ size, usage })
   const groups = particleGroups(capacity) + particleGroups(staged.length / 8),
     read = PARTICLE_STATE_HEAD + 8 * 32
   const byFold: { subgroups: boolean; window: number[]; particles: number[] }[][] = []
@@ -57,11 +56,14 @@ async function step({ words, staged, capacity, runs }: Steps) {
       }),
     )
     const [uniform, records, state, partials, args] = [
-      buffer(32, UNIFORM | COPY_DST),
-      buffer(staged.length * 4, STORAGE | COPY_DST),
-      buffer(PARTICLE_STATE_HEAD + capacity * 32, STORAGE | INDIRECT | COPY_DST | COPY_SRC),
-      buffer(groups * PARTICLE_PARTIAL_BYTES, STORAGE),
-      buffer(PARTICLE_ARGS_BYTES, STORAGE | INDIRECT | COPY_DST),
+      device.createBuffer({ size: 32, usage: UNIFORM | COPY_DST }),
+      device.createBuffer({ size: staged.length * 4, usage: STORAGE | COPY_DST }),
+      device.createBuffer({
+        size: PARTICLE_STATE_HEAD + capacity * 32,
+        usage: STORAGE | INDIRECT | COPY_DST | COPY_SRC,
+      }),
+      device.createBuffer({ size: groups * PARTICLE_PARTIAL_BYTES, usage: STORAGE }),
+      device.createBuffer({ size: PARTICLE_ARGS_BYTES, usage: STORAGE | INDIRECT | COPY_DST }),
     ]
     device.queue.writeBuffer(records, 0, new Float32Array(staged))
     device.queue.writeBuffer(state, 0, new Uint32Array([DISC_VERTICES]))

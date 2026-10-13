@@ -9,6 +9,7 @@ import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { batisseur } from '../kit/sharedSceneProof.ts'
 import { sunlitEngine, untilHeld } from '../kit/sceneImageProof.ts'
+import { flipRows } from '../kit/patternImage.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { EYE, HEIGHT, TARGET, WIDTH, crossing, mirror, pixelOf, rayOf } from './glassView.ts'
 import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
@@ -77,13 +78,7 @@ async function imageOf(device: GPUDevice, events: unknown[], parts: Parts, kind:
   })
   try {
     const { held, rendered } = await untilHeld(backend, camera)
-    const bottomUp = Uint8Array.from(held ?? rendered ?? [])
-    const pixels = new Uint8Array(bottomUp.length)
-    for (let y = 0; y < HEIGHT; y++)
-      pixels.set(
-        bottomUp.subarray((HEIGHT - 1 - y) * WIDTH * 4, (HEIGHT - y) * WIDTH * 4),
-        y * WIDTH * 4,
-      )
+    const pixels = flipRows(Uint8Array.from(held ?? rendered ?? []), WIDTH)
     return { held: held !== null, pixels: Array.from(pixels) }
   } finally {
     await release()

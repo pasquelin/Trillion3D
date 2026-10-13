@@ -5,7 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { copyMatrix4 } from '../../../packages/math/src/matrix/matrix4.ts'
-import { xorshiftRandom, measure } from '../../core/index.ts'
+import { measure } from '../../core/index.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { counter, note } from '../../core/ulp.ts'
 
 /** Elements per line: enough to leave the JIT warm and the caches cold, like a frame's batches. */

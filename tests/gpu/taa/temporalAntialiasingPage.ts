@@ -6,7 +6,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import {
   VIEWPORT,
-  batisseur as sceneBuilder,
+  batisseur,
   cameraFace as facingCamera,
   release as release,
   engine,
@@ -20,7 +20,7 @@ const TURN = 0.33
 
 /** The background and the red tile. */
 function scene() {
-  const builder = sceneBuilder()
+  const builder = batisseur()
   const backdrop = G.basicSurface({ color: 0x1b3a5c })
   builder.place(backdrop, 'exact-clusters', 4, [0, 0, -2]).name = 'background'
   const red = G.basicSurface({ color: 0xff2020 })

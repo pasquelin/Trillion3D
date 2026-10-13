@@ -9,7 +9,8 @@ import {
 } from '../../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts'
 import { noteResidenceChange } from '../../../../packages/sdk-browser/src/webgpu/shadow/bounds.ts'
 import { createWebgpuLightState } from '../../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts'
-import * as ancien from '../../../oracles/browser/core-math.ts'
+import { referenceProjectVisibilityVertex } from '../../../oracles/browser/core-math.ts'
+import { matrixWindingCw } from '../../../../packages/math/src/matrix/orientation.ts'
 import { SPHERE_FLOATS, referenceClusterSphere } from '../../../oracles/browser/lamp-shadows.ts'
 import { affines, matrices, points } from './scenesCore.ts'
 import { enregistrements } from './scenesCoreConsumers.ts'
@@ -86,7 +87,7 @@ export async function lignesConsommateursBrowser() {
       'packages/sdk-browser/src/webgpu/pages/render/winding.ts',
       'hostile matrices',
       matrices,
-      (l) => l.map((e) => ancien.referenceWindingCw(e)),
+      (l) => l.map((e) => matrixWindingCw(e)),
       parElement((_: Float64Array, i) => {
         setWindingEpoch(i + 1)
         return windingCw(hostileRoots, i)
@@ -102,7 +103,7 @@ export async function lignesConsommateursBrowser() {
           points
             .slice(0, 40)
             .map((_, v) =>
-              ancien.referenceProjectVisibilityVertex(
+              referenceProjectVisibilityVertex(
                 new THREE.Matrix4().fromArray(m),
                 attribut,
                 v,

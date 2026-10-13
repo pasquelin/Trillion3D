@@ -1,4 +1,5 @@
-import { GeometryBuilder, normalize } from './builder.ts'
+import { GeometryBuilder } from './builder.ts'
+import { unit } from '../../../../math/src/vector/vectorTuple.ts'
 import { flatGeometry } from './drawnFlat.ts'
 import { length2 } from '../../../../math/src/vector/vector.ts'
 import { PI, TAU } from '../../../../math/src/constants.ts'
@@ -19,7 +20,7 @@ export function polyhedron(vertices: number[], indices: number[], radius = 1, de
   const corner = (i: number): V3 => [vertices[i * 3], vertices[i * 3 + 1], vertices[i * 3 + 2]]
   const cuts = Math.max(0, Math.floor(detail)) + 1
   const put = (p: V3) => {
-    const n = normalize(p[0], p[1], p[2])
+    const n = unit([p[0], p[1], p[2]])
     const u = Math.atan2(n[2], -n[0]) / TAU + 0.5,
       v = Math.atan2(n[1], length2(n[0], n[2])) / PI + 0.5
     return b.vertex([n[0] * radius, n[1] * radius, n[2] * radius], n, [u, v])

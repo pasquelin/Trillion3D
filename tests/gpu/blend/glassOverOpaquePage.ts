@@ -4,8 +4,9 @@
 // and the same tile without the glass; the glass moved out of view; and the backdrop alone.
 import { cameraFace } from '../kit/sharedSceneProof.ts'
 import { backdropScene, type Backdrop } from '../kit/backdropScene.ts'
-import { colorAt, difference, sunlitEngine, untilHeld } from '../kit/sceneImageProof.ts'
+import { colorAt, sunlitEngine, untilHeld } from '../kit/sceneImageProof.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
 /** The held image of `layout`: its pixels at the centre, and all of them (kept in the page). */
 async function imageOf(device: GPUDevice, events: unknown[], layout: Backdrop) {
@@ -45,5 +46,5 @@ export const run = () =>
     result.frontAlone = (await shot({ tile: true })).image
     const away = await shot({ glass: { at: 40, volume: false } })
     result.away = away.image
-    result.awayChanged = difference(away.pixels, bare.pixels)
+    result.awayChanged = compareImages(away.pixels, bare.pixels).differentPixels
   })

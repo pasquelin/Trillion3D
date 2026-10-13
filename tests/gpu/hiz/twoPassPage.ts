@@ -7,8 +7,9 @@
 // image, and the image must still be held. Each held image is compared to a fresh engine's.
 import type { EngineDiagnostic, Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { cameraFace } from '../kit/sharedSceneProof.ts'
-import { countsStep, difference, untilHeld } from '../kit/sceneImageProof.ts'
+import { countsStep, untilHeld } from '../kit/sceneImageProof.ts'
 import { occluderEngine, onOccluderScene, slabPixels } from './occluderScene.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
 type Camera = ReturnType<typeof cameraFace>
 
@@ -67,7 +68,7 @@ export function runTwoPass() {
         withdrawn: held.withdrawn,
         rejected: held.rejected,
         slab: slabPixels(held.pixels),
-        gap: difference(held.pixels, witness),
+        gap: compareImages(held.pixels, witness).differentPixels,
         rows: countsStep(backend, 'partition')?.rows ?? null,
       })
     }

@@ -1,7 +1,7 @@
 // The hot-path math of packages/math frozen: the oracles its optimised forms must
 // match bit for bit (`bench/witnesses/three/parity/core/math/primitives/{cone,coneDevelop,box}.test.ts`,
 // `bench/witnesses/three/parity/core/math/frustum/box.test.ts`), with the seeded inputs they are fed.
-import { xorshiftRandom } from '../../core/measure.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts'
 import { coneRejects } from '../../../packages/math/src/projection/projectionOracles.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'

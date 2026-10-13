@@ -1,13 +1,10 @@
 // The engine a bench run measures: a checkout of the repository, by default this one, and a clean
 // commit of it — a run reads the sources as they are on disk, and a file another session is
 // writing would make its numbers no commit's. Two checkouts of two commits, one scenario: an A/B.
-import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
-
-const git = (root: string, ...args: string[]) =>
-  execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim()
+import { git } from '../../scripts/git-paths.ts'
 
 /** What the engine and the pages it runs are read from. */
 export type EngineRoot = { root: string; commit: string; subject: string; dirty: string[] }

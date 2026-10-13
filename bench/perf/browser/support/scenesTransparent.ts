@@ -15,7 +15,7 @@ import {
   buildBlendStatics,
   refreshBlendPlan,
 } from '../../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
-import { xorshiftRandom } from '../../../core/index.ts'
+import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { planReference } from '../../../oracles/browser/transparent-orders.ts'
 
 /** The reduced item this bench builds: only the fields the blend order reads (no GPU buffers),

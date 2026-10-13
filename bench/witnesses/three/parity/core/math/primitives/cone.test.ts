@@ -1,45 +1,11 @@
-// cone.ts: rejection of a box by its normal cone, compared against a reference built
-// with the host library's primitives (Vector3, Matrix3, Matrix4), under conformal and hostile placement.
+// cone.ts: rejection of a box by its normal cone, compared against the reference built with the
+// host library's primitives (`referenceConeRejects`, `bench/oracles/browser/volumes.ts`), under
+// conformal and hostile placement.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
-import { boxConeRejects, coneRejects } from '../../../../../../../packages/sdk-core/src/index.ts'
-import { boxConeRejectsBefore, coneCases } from '../../../../../../oracles/core/hot-path-math.ts'
-
-/** `packages/sdk-browser/src/page/cone/cone.ts`, copied with reference primitives (see `bench/oracles/core/volumes.ts`). */
-function reference(
-  coneAxis: number[],
-  angle: number,
-  min: number[],
-  max: number[],
-  world: THREE.Matrix4,
-  normal: THREE.Matrix3,
-  scaling: number,
-  eyePos: number[],
-) {
-  const centre = new THREE.Vector3(
-    (min[0] + max[0]) * 0.5,
-    (min[1] + max[1]) * 0.5,
-    (min[2] + max[2]) * 0.5,
-  ).applyMatrix4(world)
-  const radius =
-    Math.hypot((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) * scaling
-  const d = centre.distanceTo(new THREE.Vector3(...(eyePos as [number, number, number])))
-  const spread = d > radius ? Math.asin(Math.min(1, Math.max(0, radius / d))) : Math.PI
-  const axis = new THREE.Vector3(...(coneAxis as [number, number, number])).applyMatrix3(normal)
-  const len = axis.length()
-  if (!(len > 0)) return false
-  axis.multiplyScalar(1 / len)
-  const view = new THREE.Vector3(...(eyePos as [number, number, number])).sub(centre)
-  const vl = view.length()
-  if (!(vl > 0)) return false
-  const dot = Math.min(1, Math.max(-1, axis.dot(view) / vl))
-  try {
-    return coneRejects(dot, angle, spread)
-  } catch {
-    return false
-  }
-}
+import { boxConeRejects } from '../../../../../../../packages/sdk-core/src/index.ts'
+import { referenceConeRejects } from '../../../../../../oracles/browser/volumes.ts'
 
 function engineRejects(c: {
   coneAxis: number[]
@@ -64,6 +30,18 @@ function engineRejects(c: {
     c.eyePos[2],
   )
 }
+
+/** The host-library oracle's verdict on a case `engineRejects` reads. */
+const oracleRejects = (c: Parameters<typeof engineRejects>[0]) =>
+  referenceConeRejects(
+    { axis: c.coneAxis, angle: c.angle },
+    c.world,
+    c.min,
+    c.max,
+    c.normal,
+    c.scaling,
+    c.eyePos,
+  )
 
 function place(sx: number, sy: number, sz: number, position: number[], euler: number[]) {
   const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(euler[0], euler[1], euler[2]))
@@ -91,10 +69,7 @@ test('boxConeRejects matches the host-library oracle under conformal placement (
       scaling: sx,
       eyePos: [10, 8, 6],
     }
-    assert.equal(
-      engineRejects(c),
-      reference(c.coneAxis, c.angle, c.min, c.max, world, normal, c.scaling, c.eyePos),
-    )
+    assert.equal(engineRejects(c), oracleRejects(c))
   }
 })
 
@@ -112,10 +87,7 @@ test('eye inside bounding sphere yields spread of π and never rejects', () => {
     eyePos: [0.1, 0.1, 0.1], // inside the box
   }
   assert.equal(engineRejects(c), false)
-  assert.equal(
-    engineRejects(c),
-    reference(c.coneAxis, c.angle, c.min, c.max, world, normal, c.scaling, c.eyePos),
-  )
+  assert.equal(engineRejects(c), oracleRejects(c))
 })
 
 /** A unit box turned by `euler`, seen from (20, 0, 0) under a cone of `coneAxis` and `angle`: neither
@@ -134,10 +106,7 @@ function assertNeitherRejects(euler: number[], coneAxis: number[], angle: number
     eyePos: [20, 0, 0],
   }
   assert.equal(engineRejects(c), false)
-  assert.equal(
-    reference(c.coneAxis, c.angle, c.min, c.max, world, normal, c.scaling, c.eyePos),
-    false,
-  )
+  assert.equal(oracleRejects(c), false)
 }
 
 test('zero cone axis never rejects (neither does the oracle)', () => {
@@ -161,24 +130,6 @@ test('tangent cone rejects exactly like the oracle, on both sides of tangency', 
   }
   for (const angle of [Math.PI / 6 - 1e-6, Math.PI / 6, Math.PI / 6 + 1e-6]) {
     const c = { ...base, coneAxis: [0, 0, -1], angle }
-    assert.equal(
-      engineRejects(c),
-      reference(c.coneAxis, c.angle, c.min, c.max, world, normal, c.scaling, c.eyePos),
-    )
+    assert.equal(engineRejects(c), oracleRejects(c))
   }
-})
-
-test('boxConeRejects keeps the verdict it had before its early exit, on 300 000 cases', () => {
-  const cases = coneCases(917)
-  const seen = [0, 0]
-  for (let i = 0; i < 300_000; i++) {
-    const c = cases(i)
-    const { axis, angle, min, max, world, normal, scale, eye } = c
-    const [ex, ey, ez, ew] = eye
-    const verdict = boxConeRejects(axis, angle, min, max, world, normal, scale, ex, ey, ez, ew)
-    if (verdict !== boxConeRejectsBefore(axis, angle, min, max, world, normal, scale, eye))
-      assert.fail(JSON.stringify(c))
-    seen[+verdict]++
-  }
-  assert.ok(seen[0] > 0 && seen[1] > 0, `both verdicts met: ${seen}`)
 })

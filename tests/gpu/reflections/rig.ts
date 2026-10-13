@@ -14,7 +14,7 @@ import {
 } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
 import { encodeRadiancePyramid } from '../../../packages/sdk-browser/src/reflections/radiance.ts'
 import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/trace.ts'
-import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/factory.ts'
+import { standaloneHiz } from '../kit/standaloneHiz.ts'
 import { PROBE_TEXELS, emptyAtlas } from '../../../packages/sdk-browser/src/bounce/atlas.ts'
 import { PROXY_HEADER_BYTES } from '../../../packages/sdk-browser/src/bounce/sizes.ts'
 import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts'
@@ -51,13 +51,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   // No pixel carries the physical lobes: their target is a texel the trace never reads.
   const lobes = texture('rgba32uint', sampled, frame.lobes ? [width, height] : [1, 1])
   // The engine's depth pyramid, its level 0 as the visibility leaves it: the image's depth.
-  const hiz = await createGpuHiz(device, width, height, 1)
-  if (!hiz) throw new Error('the Hi-Z kernels do not build')
-  // The partition's tested boxes and state, which the pyramid's group names: none tested here.
-  const partition = [0, 1].map(() =>
-    device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE }),
-  )
-  hiz.attach(partition[0], partition[1])
+  const { hiz, partition } = await standaloneHiz(device, width, height)
   const depth = hiz.depth()!
   const write = (
     target: GPUTexture,

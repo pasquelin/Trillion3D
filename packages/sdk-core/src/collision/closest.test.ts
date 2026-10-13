@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { closestSegmentTriangle } from './closest.ts'
 import { onSegment } from './segment.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
+import { dotVector3 } from '../../../math/src/vector/vector.ts'
 
 // The closed forms against a dense sampling of the segment and the triangle: the true distance is
 // never above the nearest sampled pair, and never further below it than the sampling step.
@@ -33,14 +34,19 @@ function onTriangle(p: ArrayLike<number>, v: number[], eps = 1e-9) {
   const u = [0, 1, 2].map((k) => v[3 + k] - v[k]),
     w = [0, 1, 2].map((k) => v[6 + k] - v[k]),
     r = [0, 1, 2].map((k) => p[k] - v[k])
-  const dot = (x: number[], y: number[]) => x[0] * y[0] + x[1] * y[1] + x[2] * y[2]
-  const [uu, uw, ww, ru, rw] = [dot(u, u), dot(u, w), dot(w, w), dot(r, u), dot(r, w)]
+  const [uu, uw, ww, ru, rw] = [
+    dotVector3(u, u),
+    dotVector3(u, w),
+    dotVector3(w, w),
+    dotVector3(r, u),
+    dotVector3(r, w),
+  ]
   const det = uu * ww - uw * uw
   if (det === 0) return true
   const a = (ru * ww - rw * uw) / det,
     b = (rw * uu - ru * uw) / det
   const off = [0, 1, 2].map((k) => r[k] - a * u[k] - b * w[k])
-  return a >= -eps && b >= -eps && a + b <= 1 + eps && dot(off, off) <= eps
+  return a >= -eps && b >= -eps && a + b <= 1 + eps && dotVector3(off, off) <= eps
 }
 
 function check(segment: number[], v: number[], label: string) {

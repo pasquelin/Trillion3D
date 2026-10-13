@@ -2,7 +2,7 @@
 // formula that would only hold on well-behaved matrices would fail here — negative and
 // non-uniform scales, singular matrices, NaN, signed zeros, infinities, denormals.
 import * as THREE from 'three'
-import { xorshiftRandom } from '../../../core/index.ts'
+import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 
 const alea = xorshiftRandom(0x50c1e)
 /** Values a float can take that a formula must traverse without smoothing them. */

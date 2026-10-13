@@ -3,7 +3,7 @@
 // depth pyramid and does not darken the floor behind it — a pane's shadow is the maps' transmission
 // (`glass-contact.gpu.ts`). The depth is generated: a floor, then once an opaque wall and once a
 // transparent pane in the same place; the view is orthographic, its world its NDC.
-import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/factory.ts'
+import { standaloneHiz } from '../kit/standaloneHiz.ts'
 import { createFrontDepth } from '../../../packages/sdk-browser/src/reflections/frontDepth.ts'
 import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'
 import {
@@ -23,7 +23,7 @@ import { vsmProjectionWgsl } from '../../../packages/sdk-browser/src/vsm/project
 import { functionText } from '../../../packages/sdk-browser/src/bounce/wgslBody.fixture.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { clipToFramebuffer } from '../../../packages/math/src/wgsl/projection.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
+import { bufferHolding, readBuffer } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 const WIDTH = 64,
@@ -89,13 +89,7 @@ export async function testGlassContact(): Promise<GlassContact> {
   // The pane's depth lies where the engine's lies: the reflection's front depth, which the Hi-Z
   // folds in.
   const frontDepth = createFrontDepth(device, WIDTH, HEIGHT, true)
-  const built = await createGpuHiz(device, WIDTH, HEIGHT, 1, () => frontDepth.foldedView)
-  if (!built) throw new Error('the Hi-Z does not build')
-  const hiz = built
-  hiz.attach(
-    device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE }),
-    device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE }),
-  )
+  const { hiz } = await standaloneHiz(device, WIDTH, HEIGHT, () => frontDepth.foldedView)
   const pyramid = hiz.swap(undefined) as Pyramid
   hiz.swap(pyramid)
   const depth = hiz.depth()
@@ -106,11 +100,7 @@ export async function testGlassContact(): Promise<GlassContact> {
   view.set(identity, VSM_PROJECTION_VIEW_WORD.shiftedToClip)
   view.set([WIDTH, HEIGHT, 1 / WIDTH, 1 / HEIGHT], VSM_PROJECTION_VIEW_WORD.viewPixels)
   view.set(screenSlab(identity, HEIGHT), VSM_PROJECTION_VIEW_WORD.screenSlab)
-  const uniform = device.createBuffer({
-    size: view.byteLength,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(uniform, 0, view)
+  const uniform = bufferHolding(device, view, GPUBufferUsage.UNIFORM)
   const result = device.createBuffer({
     size: 32,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,

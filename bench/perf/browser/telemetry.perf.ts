@@ -3,7 +3,8 @@
 import { frameStatistics } from '../../../packages/sdk-core/src/index.ts'
 import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
 import { FrameProfile } from '../../../packages/sdk-browser/src/diagnostic/frameProfile.ts'
-import { xorshiftRandom, measure, rapport } from '../../core/index.ts'
+import { measure, rapport } from '../../core/index.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceIntervals } from '../../oracles/browser/telemetry.ts'
 
 const alea = xorshiftRandom(83)

@@ -1,6 +1,6 @@
-// Reading a rendered frame back: pixels, the frame-held wait, and the pixel comparisons the
-// engine proofs share. Split from `sharedSceneProof.ts` (scene construction and mounting)
-// to keep each file under the line gate.
+// Reading a rendered frame back: pixels, the frame-held wait, and the pixel counts the engine
+// proofs share; two images are compared by `compareImages`. Split from `sharedSceneProof.ts`
+// (scene construction and mounting) to keep each file under the line gate.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { MIN_RENDER_SCALE } from '../../../packages/sdk-browser/src/frame/renderScaleOption.ts'
 import { taaStillFrames, upscalePhases } from '../../../packages/sdk-browser/src/taa/jitter.ts'
@@ -52,15 +52,6 @@ export async function untilHeld(
     count++
   }
   return { rendered, held: null, count }
-}
-
-/** How many RGBA quadruplets differ between two images of the same size. */
-export function difference(a: Uint8Array | number[], b: Uint8Array | number[]): number {
-  let n = 0
-  for (let i = 0; i < a.length; i += 4)
-    if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2] || a[i + 3] !== b[i + 3])
-      n++
-  return n
 }
 
 /** Pixels of an image that differ from its corner pixel, the cleared background: an image where

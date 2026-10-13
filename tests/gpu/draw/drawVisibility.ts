@@ -15,6 +15,7 @@ import {
   VIS_UNIFORM_BYTES,
 } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts'
 import { visLayoutEntries } from '../../../packages/sdk-browser/src/webgpu/visibility/shaders.ts'
+import { bufferHolding } from '../kit/computeReadback.ts'
 
 /** Pages in the table, laid `COLUMNS` × `ROWS` over a target of `WIDTH` × `HEIGHT`. */
 const PAGES = 147,
@@ -59,12 +60,8 @@ export function setupVisibility(
   { instances, slotOffsets }: { instances: GPUBuffer; slotOffsets: GPUBuffer },
   slots: number,
 ) {
-  const buffer = (size: number, usage: GPUBufferUsageFlags) => device.createBuffer({ size, usage })
-  const upload = (data: Float32Array<ArrayBuffer> | Uint32Array<ArrayBuffer>) => {
-    const made = buffer(data.byteLength, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST)
-    device.queue.writeBuffer(made, 0, data)
-    return made
-  }
+  const upload = (data: Float32Array<ArrayBuffer> | Uint32Array<ArrayBuffer>) =>
+    bufferHolding(device, data, GPUBufferUsage.STORAGE)
   const table = upload(pageTable()),
     indices = upload(Uint32Array.of(0, 1, 2)),
     positions = upload(Float32Array.of(-1, -1, 0.5, 1, -1, 0.5, 0, 1, 0.5)),
@@ -102,7 +99,10 @@ export function setupVisibility(
     new Float32Array(block).set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
     ints[DRAW_SLOT_WORD] = slot % slots
     ints[INDIRECT_WORD] = slot < slots ? 1 : 0
-    const uniform = buffer(VIS_UNIFORM_BYTES, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST)
+    const uniform = device.createBuffer({
+      size: VIS_UNIFORM_BYTES,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    })
     device.queue.writeBuffer(uniform, 0, block)
     return device.createBindGroup({
       layout,

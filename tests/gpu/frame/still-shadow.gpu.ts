@@ -9,7 +9,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { animationFrame, runOnDawn } from '../kit/onDawn.ts'
-import { difference } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { FACING, openFacingWorld } from './facingWorld.ts'
 
 const FRAMES = 24
@@ -36,7 +36,7 @@ test('a still view under a shadowed sun draws one image, frame after frame', asy
   const errors: string[] = []
   const images = await runOnDawn(frames, null, errors)
   assert.deepEqual(errors, [])
-  const changes = images.slice(1).map((image, i) => difference(image, images[i]))
+  const changes = images.slice(1).map((image, i) => compareImages(image, images[i]).differentPixels)
   console.log(JSON.stringify({ changes }))
   assert.deepEqual(changes, Array(FRAMES - 1).fill(0))
 })
