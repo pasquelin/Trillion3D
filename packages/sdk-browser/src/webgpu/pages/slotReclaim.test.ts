@@ -6,7 +6,7 @@ import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera } from './testScenes.fixture.ts'
 import { twoCoarseQuadsScene } from './testOccluder.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
@@ -36,7 +36,7 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
     fixture.associations,
   )
   const packed = packDagSelection(collected.roots)
-  const { device, draws, buffers } = mockGpu({ packed })
+  const { device, draws, buffers } = fakeDevice({ ...BACKEND, packed })
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
@@ -77,7 +77,7 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
 
 test('a recycled page-table row describes its new cluster and reaches the GPU before the image reads it', async () => {
   installGpuGlobals()
-  const { device, writes, buffers, submits } = mockGpu(),
+  const { device, writes, buffers, submits } = fakeDevice(BACKEND),
     fixture = scene()
   // Eight clusters share six rows, four of them the floor, so every jump between the two primitives recycles rows on eviction.
   const backend = webgpuPagesEngine({
@@ -138,7 +138,9 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
       seen.size > 0 && seen.size <= backend.metrics().residentPages!,
       `live rows ${seen.size}`,
     )
-    const lastRowWrite = writes.filter((write) => write.label === 'Trillion3D page table').at(-1)
+    const lastRowWrite = writes
+      .filter((write) => write.buffer.label === 'Trillion3D page table')
+      .at(-1)
     assert.ok(lastRowWrite, 'rows are uploaded')
     assert.ok(
       lastRowWrite.seq < submits.at(-1)!,

@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, disposeQuadRun, quadScene } from './testScenes.fixture.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { createGuideSet } from '../../guides/guideSet.ts'
@@ -18,7 +18,7 @@ import { gateCompiles } from '../../lighting/deferred/gatedDevice.fixture.ts'
 /** The executing device, whose compiles land off the thread a task after they are asked, and which
  *  counts each synchronous compile made inside `frame`. */
 function offThreadGpu() {
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const { compiled } = gateCompiles(gpu.device, { auto: true })
   const counted = {
     inFrame: 0,

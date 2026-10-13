@@ -1,6 +1,6 @@
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, quadScene } from '../testScenes.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 
@@ -8,7 +8,7 @@ import { webgpuPagesEngine } from '../pages.ts'
  *  one image drawn and flushed — the state a change made after it is measured from. */
 export async function mappedQuadRun(map: G.GraphTexture) {
   installGpuGlobals()
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   map.needsUpdate = true
   const fixture = quadScene()
   const surface = fixture.material as G.GraphSurface

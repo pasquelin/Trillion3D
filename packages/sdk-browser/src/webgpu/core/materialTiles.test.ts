@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import {
@@ -115,7 +115,7 @@ test("the pass's first dispatch zeroes every slot's draw, as the encoder's clear
 
 test('the slots follow the classes held; a list is drawn indirectly, a class past them whole', async () => {
   installGpuGlobals()
-  const { device, buffers, computes } = mockGpu()
+  const { device, buffers, computes } = fakeDevice(BACKEND)
   const tiles = await createMaterialTiles(device, materialTileDrawLayout(device))
   const table = () => {
     const data = buffers.find((b) => b.label === 'Trillion3D material tile slots')!.data
@@ -151,7 +151,7 @@ test('a device that refuses the classification draws every class full screen', a
   installGpuGlobals()
   class GPUPipelineError extends Error {}
   Object.assign(globalThis, { GPUPipelineError })
-  const { device, computes } = mockGpu()
+  const { device, computes } = fakeDevice(BACKEND)
   device.createComputePipeline = (() => {
     throw new GPUPipelineError('refused')
   }) as typeof device.createComputePipeline
@@ -176,7 +176,7 @@ test('a device that refuses the classification draws every class full screen', a
 
 test('a classification that does not compile fails by name, never silently whole', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const refused = {
     getCompilationInfo: async () => ({ messages: [{ type: 'error', message: 'x' }] }),
   }

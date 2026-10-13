@@ -5,7 +5,7 @@ import { webgpuPagesEngine } from '../pages.ts'
 import { collectClusterPages } from '../../../page/selection/selection.ts'
 import { packDagSelection } from '../../../gpu/dag/selection.ts'
 import { indirectDraws, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import type { RasterView } from '../runtime.ts'
 import { assertOccluderImage, occluderScene, preparedOccluderRun } from '../testOccluder.fixture.ts'
@@ -27,7 +27,8 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   }
   const viewport: [number, number] = [32, 32]
   const collected = collectClusterPages(source, metadata, indices, associations)
-  const { device, passes, computes, textures, draws } = mockGpu({
+  const { device, passes, computes, textures, draws } = fakeDevice({
+    ...BACKEND,
     packed: packDagSelection(collected.roots),
   })
   const run = await preparedOccluderRun(scene, metadata, collected.roots, device, viewport)
@@ -69,7 +70,11 @@ test('a device that refuses the draw compaction refuses the scene by name', asyn
   installGpuGlobals()
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const collected = collectClusterPages(source, metadata, indices, associations)
-  const { device } = mockGpu({ packed: packDagSelection(collected.roots), failCompact: true })
+  const { device } = fakeDevice({
+    ...BACKEND,
+    packed: packDagSelection(collected.roots),
+    failCompact: true,
+  })
   const backend = webgpuPagesEngine({
     source,
     metadata,
@@ -88,15 +93,15 @@ test('a device that refuses the draw compaction refuses the scene by name', asyn
 
 test('normal GPU rendering never copies the image to CPU staging buffers', async () => {
   installGpuGlobals()
-  const { device, imageCopies } = mockGpu()
+  const { device, textureBufferCopies } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device)
   try {
     await backend.prepare()
     backend.render(camera())
     await backend.flush()
-    imageCopies.length = 0
+    textureBufferCopies.length = 0
     for (let i = 0; i < 3; i++) backend.render(camera())
-    assert.equal(imageCopies.length, 0, 'beauty must not enqueue image readback')
+    assert.equal(textureBufferCopies.length, 0, 'beauty must not enqueue image readback')
   } finally {
     backend.dispose()
     fixture.geometry.dispose()

@@ -1,131 +1,58 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { simulateComputeDispatch, type ComputeBind } from './mockCompute.ts'
 import { createUsageScope } from './usageScope.ts'
-import { replayBundles } from './fakeBundles.ts'
+import type {
+  FakeCopy,
+  FakeResolve,
+  FakeTextureBufferCopy,
+  FakeTextureCopy,
+} from './fakeRecords.ts'
+import { renderPass, type MockDraw, type MockPass } from './mockRenderPass.ts'
 
-export type MockDraw = {
-  vertexCount: number
-  instanceCount?: number
-  firstInstance?: number
-  bindOffset?: number
-  instanceBuffer?: unknown
-  slotOffsetsBuffer?: unknown
-  indirect?: boolean
-  entryPoint?: string
-  fragment?: string
-  /** The blend of the pipeline's first colour target, as it was made. */
-  blend?: GPUBlendState
-}
-export type MockPass = {
-  label?: string
-  colorLoad?: string
-  colorClear?: GPUColor
-  depthLoad?: string
-  colorCount: number
-  formats: string[]
-}
-
-export function createMockCommandEncoderFactory(inputs: {
+/** What the encoders of one device record, in the order they were encoded. */
+export type EncoderRecords = {
   draws: MockDraw[]
   passes: MockPass[]
+  /** Every pass descriptor begun, render and compute, in order. */
+  passDescriptors: Array<GPURenderPassDescriptor | GPUComputePassDescriptor | undefined>
   /** Every command that opens a GPU encoder of its own, in order: `compute <label>`, `render
-   *  <label>`, `clear`, `copy` — what a test counts passes and their boundaries on. */
+   *  <label>`, `clear`, `copy`, `resolve` — what a test counts passes and their boundaries on. */
   commands: string[]
+  /** The entry point of each compute dispatch, in order. */
   computes: string[]
-  imageCopies: unknown[]
-  /** The usage of each buffer-to-buffer copy's destination, in order. */
-  copyUsages: number[]
-  packed?: PackedDag
-  failVisPass: boolean
-}) {
-  const { draws, passes, commands, computes, imageCopies, copyUsages, packed, failVisPass } = inputs
-  let currentRenderEntry = '',
-    currentFragment = '',
-    currentBlend: GPUBlendState | undefined
-  let currentBind: unknown,
-    computeBind: ComputeBind | undefined,
+  copies: FakeCopy[]
+  textureCopies: FakeTextureCopy[]
+  textureBufferCopies: FakeTextureBufferCopy[]
+  resolves: FakeResolve[]
+}
+
+/**
+ * The command encoders of `fakeDevice()`: each records what it encodes in `records`, copies and
+ * clears move the buffers' bytes, and each compute dispatch runs its kernel's CPU double
+ * (`mockCompute.ts`) on the bound buffers — `packed` the DAG the selection reads when the session
+ * uploads none. `failVisPass` refuses the first visibility pass at its beginning.
+ */
+export function createMockCommandEncoderFactory(
+  records: EncoderRecords,
+  { packed, failVisPass = false }: { packed?: PackedDag; failVisPass?: boolean },
+) {
+  const { passDescriptors, commands, computes, copies, textureCopies } = records
+  let computeBind: ComputeBind | undefined,
     computeOffsets: readonly number[] | undefined,
     computePipeline: { entryPoint: string } | undefined,
     visPassFails = failVisPass
   return () => ({
-    beginRenderPass: (desc?: {
-      label?: string
-      // An empty slot is `null`, as WebGPU takes it (the blend pass's share).
-      colorAttachments?: Array<{
-        loadOp?: string
-        clearValue?: GPUColor
-        view?: { format?: string }
-      } | null>
-      depthStencilAttachment?: { depthLoadOp?: string }
-    }) => {
+    beginRenderPass: (desc?: GPURenderPassDescriptor) => {
       if (visPassFails && desc?.label === 'Trillion3D visibility primary') {
         visPassFails = false
         throw new Error('VIS_FAIL')
       }
-      const colors = desc?.colorAttachments ?? []
+      passDescriptors.push(desc)
       commands.push(`render ${desc?.label ?? ''}`)
-      // The device's usage scope of the pass: an indirect buffer bound writable is refused.
-      const scope = createUsageScope('render')
-      passes.push({
-        label: desc?.label,
-        colorLoad: colors[0]?.loadOp,
-        colorClear: colors[0]?.clearValue,
-        depthLoad: desc?.depthStencilAttachment?.depthLoadOp,
-        colorCount: colors.length,
-        formats: colors.map((color) => color?.view?.format ?? ''),
-      })
-      const pass = {
-        setPipeline(pipeline: { entryPoint?: string; fragment?: string; blend?: GPUBlendState }) {
-          currentRenderEntry = pipeline.entryPoint ?? ''
-          currentFragment = pipeline.fragment ?? ''
-          currentBlend = pipeline.blend
-        },
-        setBindGroup(i: number, group: unknown, offsets?: readonly number[]) {
-          currentBind = group
-          scope.setBindGroup(i, group, offsets)
-        },
-        setViewport() {},
-        setScissorRect() {},
-        setVertexBuffer() {},
-        draw(vertexCount: number, instanceCount = 1, _firstVertex = 0, firstInstance = 0) {
-          draws.push({
-            vertexCount,
-            instanceCount,
-            firstInstance,
-            entryPoint: currentRenderEntry,
-            fragment: currentFragment,
-            ...(currentBlend && { blend: currentBlend }),
-          })
-          void currentBind
-        },
-        drawIndirect(buffer: { data?: Uint8Array }, offset: number) {
-          scope.indirect(buffer, currentRenderEntry)
-          const words = new Uint32Array(buffer.data!.buffer, buffer.data!.byteOffset + offset, 4)
-          const entries = (
-            currentBind as
-              { entries?: Array<{ binding: number; resource: { offset?: number } }> } | undefined
-          )?.entries
-          const page = entries?.find((entry) => entry.binding === 2)
-          const instances = entries?.find((entry) => entry.binding === 8),
-            offsets = entries?.find((entry) => entry.binding === 9)
-          draws.push({
-            vertexCount: words[0],
-            instanceCount: words[1],
-            firstInstance: words[3],
-            bindOffset: page?.resource?.offset ?? 0,
-            instanceBuffer: instances?.resource,
-            slotOffsetsBuffer: offsets?.resource,
-            indirect: true,
-            entryPoint: currentRenderEntry,
-          })
-        },
-        // A bundle's commands run in the pass, its usage scope included.
-        executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(pass, bundles),
-        end: () => scope.end(),
-      }
-      return pass
+      return renderPass(desc, records)
     },
-    beginComputePass: (desc?: { label?: string }) => {
+    beginComputePass: (desc?: GPUComputePassDescriptor) => {
+      passDescriptors.push(desc)
       commands.push(`compute ${desc?.label ?? ''}`)
       // Each dispatch is a usage scope: one reading its arguments from a buffer a group set binds
       // writable is refused.
@@ -156,6 +83,8 @@ export function createMockCommandEncoderFactory(inputs: {
             )
           simulateComputeDispatch(computePipeline, computeBind, computes, packed, computeOffsets)
         },
+        pushDebugGroup() {},
+        popDebugGroup() {},
         end() {},
       }
     },
@@ -164,26 +93,51 @@ export function createMockCommandEncoderFactory(inputs: {
       buffer.data?.fill(0, offset, size === undefined ? buffer.data.length : offset + size)
     },
     copyBufferToBuffer(
-      src: { data?: Uint8Array },
-      s: number,
-      dst: { data?: Uint8Array; usage?: number },
-      d: number,
+      from: GPUBuffer,
+      fromOffset: number,
+      to: GPUBuffer,
+      toOffset: number,
       size: number,
     ) {
       commands.push('copy')
-      copyUsages.push(dst.usage ?? 0)
-      if (src.data && dst.data) dst.data.set(src.data.subarray(s, s + size), d)
+      copies.push({ from, fromOffset, to, toOffset, size })
+      const source = (from as { data?: Uint8Array }).data,
+        target = (to as { data?: Uint8Array }).data
+      if (source && target) target.set(source.subarray(fromOffset, fromOffset + size), toOffset)
     },
-    copyTextureToBuffer(...args: unknown[]) {
+    copyTextureToBuffer(
+      source: GPUTexelCopyTextureInfo,
+      destination: GPUTexelCopyBufferInfo,
+      size: GPUExtent3D,
+    ) {
       commands.push('copy')
-      imageCopies.push(args)
+      records.textureBufferCopies.push({ source, destination, size })
     },
-    copyTextureToTexture() {
+    copyBufferToTexture(
+      source: GPUTexelCopyBufferInfo,
+      destination: GPUTexelCopyTextureInfo,
+      size: GPUExtent3D,
+    ) {
       commands.push('copy')
+      records.textureBufferCopies.push({ source, destination, size })
     },
-    copyBufferToTexture(...args: unknown[]) {
+    copyTextureToTexture(
+      from: GPUTexelCopyTextureInfo,
+      to: GPUTexelCopyTextureInfo,
+      size: GPUExtent3D,
+    ) {
       commands.push('copy')
-      imageCopies.push(args)
+      textureCopies.push({ from, to, size })
+    },
+    resolveQuerySet(
+      querySet: GPUQuerySet,
+      first: number,
+      count: number,
+      destination: GPUBuffer,
+      offset: number,
+    ) {
+      commands.push('resolve')
+      records.resolves.push({ querySet, first, count, destination, offset })
     },
     finish: () => ({}),
   })

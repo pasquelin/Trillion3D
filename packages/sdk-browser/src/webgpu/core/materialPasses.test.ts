@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { encodeMaterialPasses } from './materialPasses.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { webgpuPagesEngine } from '../pages/pages.ts'
 import { camera, quadScene } from '../pages/testScenes.fixture.ts'
 import { resolveFixture } from './materialPasses.fixture.ts'
@@ -119,7 +119,7 @@ test('a resolve without its bind group fails by name instead of drawing nothing'
 
 test('a backend makes no material depth, its class pipelines test no depth, and disposing destroys the visibility target', async () => {
   installGpuGlobals()
-  const { device, textures, renderPipelines } = mockGpu()
+  const { device, textures, renderPipelines, destroyed } = fakeDevice(BACKEND)
   const { source, metadata, indices, associations } = quadScene()
   const backend = webgpuPagesEngine({
     source,
@@ -141,7 +141,7 @@ test('a backend makes no material depth, its class pipelines test no depth, and 
     assert.equal(depthStencil, undefined, `${fragment?.entryPoint} tests no depth`)
   assert.ok(!renderPipelines.some(({ fragment }) => fragment?.entryPoint === 'material_depth_fs'))
   const [ids] = textures.filter(({ label }) => label === 'Trillion3D visibility')
-  assert.equal(ids.destroyed, false)
+  assert.equal(destroyed.includes(ids), false)
   backend.dispose()
-  assert.equal(ids.destroyed, true)
+  assert.equal(destroyed.includes(ids), true)
 })

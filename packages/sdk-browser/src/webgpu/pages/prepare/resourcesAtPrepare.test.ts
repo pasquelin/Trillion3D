@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import type { EngineDiagnostic } from '../../../engine/types.ts'
 import type { Engine } from '../../../engine/types.ts'
@@ -14,7 +14,7 @@ test('trace failure diagnostics retain bounded stack and cause context', async (
   installGpuGlobals()
   const events: EngineDiagnostic[] = []
   const fixture = quadScene(),
-    { device } = mockGpu()
+    { device } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...fixture,
     indices: new Map(),
@@ -42,7 +42,7 @@ test('trace failure diagnostics retain bounded stack and cause context', async (
 
 test('texture queues are pinned at prepare, and a texture that fits in its queue streams nothing', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const fixture = quadScene()
   const color = G.dataTexture(new Uint8Array(16).fill(255), 2, 2),
     normal = G.dataTexture(new Uint8Array(16).fill(128), 2, 2)
@@ -97,22 +97,24 @@ test('texture queues are pinned at prepare, and a texture that fits in its queue
 
 test('vis pipeline layout stores the page table at binding 2', async () => {
   installGpuGlobals()
-  const { device, layouts } = mockGpu()
+  const { device, bindGroupLayouts: layouts } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device)
   await backend.prepare()
   const visLayout = layouts.find(
     (layout) =>
-      layout.entries.some((entry) => entry.binding === 4 && entry.buffer?.type === 'uniform') &&
-      layout.entries.some(
+      [...layout.entries].some(
+        (entry) => entry.binding === 4 && entry.buffer?.type === 'uniform',
+      ) &&
+      [...layout.entries].some(
         (entry) => entry.binding === 2 && entry.buffer?.type === 'read-only-storage',
       ),
   )
   assert.ok(visLayout)
   assert.equal(
-    visLayout.entries.find((entry) => entry.binding === 2)?.buffer?.type,
+    [...visLayout.entries].find((entry) => entry.binding === 2)?.buffer?.type,
     'read-only-storage',
   )
-  assert.equal(visLayout.entries.find((entry) => entry.binding === 4)?.buffer?.type, 'uniform')
+  assert.equal([...visLayout.entries].find((entry) => entry.binding === 4)?.buffer?.type, 'uniform')
   backend.dispose()
   fixture.geometry.dispose()
   fixture.material.dispose()
@@ -121,7 +123,7 @@ test('vis pipeline layout stores the page table at binding 2', async () => {
 // The indirect slots instance every packed row of the page table: their counts are the GPU's.
 test('vis draws instance each packed page from the page table', async () => {
   installGpuGlobals()
-  const { device, draws } = mockGpu()
+  const { device, draws } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device)
   await backend.prepare()
   backend.render(camera())
@@ -144,7 +146,7 @@ test('vis draws instance each packed page from the page table', async () => {
 // layer deep.
 test('texture pools are allocated at the first map, copy destinations at the size it fills', async () => {
   installGpuGlobals()
-  const { device, textures } = mockGpu()
+  const { device, textures } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device)
   const pools = () =>
     textures.filter(({ width, label }) => width === 4096 && label?.includes('texture pool'))

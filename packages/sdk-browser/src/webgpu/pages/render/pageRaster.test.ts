@@ -8,7 +8,7 @@ import {
   indirectDraws,
   installGpuGlobals,
 } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import {
   quadScene,
   camera,
@@ -105,7 +105,7 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
 // is raised to it, by name, and the image is complete — never refused.
 test('a budget under root coverage is raised to it, by name, and the image prepares', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device, {
     maxResidentPages: 1,
   })

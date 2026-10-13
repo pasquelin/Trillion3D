@@ -5,7 +5,7 @@
 // time while the passes that ran have theirs: `summarizeTimestamps` spans the valid pairs.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PART } from '../../../../../tests/kit/gpu/timingDevice.ts'
+import { PART_ALIGN } from './encoder.ts'
 import { MS, timer } from './imageTimer.fixture.ts'
 import { summarizeTimestamps } from './sample.ts'
 import { createSlotMemory } from './slotMemory.ts'
@@ -121,7 +121,7 @@ test('two submissions the device overlaps cover their overlap once: no sum of sp
   render.finish()
   const values = new BigUint64Array(f.buffers[1].getMappedRange())
   values.set([1n * MS, 10n * MS], 0)
-  values.set([8n * MS, 14n * MS, 15n * MS, 20n * MS], PART)
+  values.set([8n * MS, 14n * MS, 15n * MS, 20n * MS], PART_ALIGN)
   timing.submitted(render, {})
   await timing.flush()
   const [sample] = samples
@@ -162,7 +162,7 @@ test('a pair of two stale timestamps is unwritten, one stale or reversed is inva
 })
 
 test('a truncated image has no span whatever its pairs, and says so', async () => {
-  const { timing, samples } = timer()
+  const { f, timing, samples } = timer()
   const first = timing.createEncoder(1)
   first.beginComputePass({ label: 'a' }).end()
   const second = timing.createEncoder(1)
@@ -171,6 +171,9 @@ test('a truncated image has no span whatever its pairs, and says so', async () =
   first.beginComputePass({ label: 'c' }).end()
   first.finish()
   second.finish()
+  const values = new BigUint64Array(f.buffers[1].getMappedRange())
+  values.set([1n * MS, 3n * MS], 0)
+  values.set([4n * MS, 7n * MS], PART_ALIGN)
   timing.submitted(second, {})
   await timing.flush()
   assert.equal(samples[0].truncated, true)

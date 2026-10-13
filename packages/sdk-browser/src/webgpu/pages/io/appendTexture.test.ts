@@ -10,14 +10,14 @@ import type { HostTexture } from '../../../host/resources.ts'
 import type { Engine } from '../../../engine/types.ts'
 import type { EngineDiagnostic } from '../../../engine/types.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, quadBackend } from '../testScenes.fixture.ts'
 
 type Group = { entries: Array<{ resource?: { buffer?: unknown } }> }
 
 test('a texture appended after open joins the atlas, regrows its table and rebinds once', async () => {
   installGpuGlobals()
-  const { device, buffers } = mockGpu()
+  const { device, buffers } = fakeDevice(BACKEND)
   const groups: Group[] = []
   const createBindGroup = device.createBindGroup.bind(device)
   device.createBindGroup = (descriptor) => (

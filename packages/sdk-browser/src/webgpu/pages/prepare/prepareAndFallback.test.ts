@@ -2,13 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from '../pages.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { assertBothQuadPagesDrawn, camera, quadBackend, quadScene } from '../testScenes.fixture.ts'
 
 /** The quad prepared with no resident bytes, its first frame rendered. */
 async function firstFrameWithoutBytes() {
   installGpuGlobals()
-  const { device, draws } = mockGpu()
+  const { device, draws } = fakeDevice(BACKEND)
   const { source, metadata, associations, geometry, material } = quadScene()
   const backend = webgpuPagesEngine({
     source,
@@ -88,7 +88,7 @@ test('webgpu pages without a device fail prepare so the explorer can keep the ho
 
 test('the visibility-buffer path also clears with the host scene background', async () => {
   installGpuGlobals()
-  const { device, passes } = mockGpu()
+  const { device, passes } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device, {
     clearColor: 0x2d4059,
   })

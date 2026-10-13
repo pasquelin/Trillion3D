@@ -11,7 +11,7 @@ import { surfaceOf } from '../../page/surface.ts'
 import { hostTextureWritten, importHostTexture } from '../../host/textureImport.ts'
 import type { HostTexture } from '../../host/resources.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 
 test('a surface switched from masked to opaque after prepare reduces its hosted map again', async () => {
@@ -24,7 +24,14 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   readers.read(surfaceOf(material))
   const map = importHostTexture(host as unknown as HostTexture),
     encoding = poolEncoding(undefined)
-  const { device, computePipelines, textures: made, computes, textureWrites } = mockGpu()
+  const {
+    device,
+    computePipelines,
+    textures: made,
+    computes,
+    textureWrites,
+    destroyed,
+  } = fakeDevice(BACKEND)
   const signalled: number[][] = []
   const lossless = { lossless: 2, rgba: 0, 'two-channel': 0 }
   const textures = createWebgpuTileStreamer({
@@ -54,7 +61,7 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   assert.deepEqual(rules(), [1, 0], 'opaque now: reduced again, plain')
   assert.deepEqual(signalled, [[1]], 'its places copied again, as a landed tile')
   assert.ok(
-    scratches().every((texture) => texture.destroyed),
+    scratches().every((texture) => destroyed.includes(texture)),
     'the working texture returned',
   )
   textures.followSampling()
