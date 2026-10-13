@@ -4,14 +4,18 @@
 //! cluster its group names, never a copy.
 use super::place::Roots;
 use super::*;
+use crate::dag::bounds::culling_clusters;
 use crate::dag::{DagCluster, DagGroup};
 use crate::qem::compact_region;
+use trillion3d_page_codec::culling::{build_culling_bvh, CullingNode};
 use trillion3d_page_codec::encode::Attribute;
 
 /// Every cluster of the world, on one world-space vertex buffer and the attributes of `LAYOUT` on
 /// it — each empty while no build carries it, zero on a vertex whose build does not. Level 0 is
 /// the placed objects, each with its `origin`, the instance it places; every other cluster is a
-/// super-root, written in its `layout`. `cells` names, per cluster, the cells it covers.
+/// super-root, written in its `layout`. `cells` names, per cluster, the cells it covers. Once built,
+/// the clusters lie in the order of the world's culling hierarchy (`culling`, `in_culling_order`),
+/// each of its nodes owning a contiguous range of them.
 #[derive(Default)]
 pub(super) struct WorldDag {
     pub positions: Vec<f32>,
@@ -22,6 +26,7 @@ pub(super) struct WorldDag {
     pub layouts: Vec<u32>,
     pub cells: Vec<Vec<usize>>,
     pub origins: Vec<Option<usize>>,
+    pub culling: Vec<CullingNode>,
 }
 
 /// One build's key: its material and layout, and its cell when it is a cell's.
@@ -120,6 +125,35 @@ impl WorldDag {
             self.push_group(group);
         }
         ids
+    }
+
+    /// Builds the world's culling hierarchy (`build_culling_bvh`, the one a primitive's is built
+    /// by) and renumbers every cluster into its order, the groups' children and outputs with them:
+    /// the rank a cluster takes is the rank every product names it by, and the nodes the runtime
+    /// descends name ranges of those ranks.
+    pub(super) fn in_culling_order(&mut self) {
+        let (order, nodes) = build_culling_bvh(&culling_clusters(&self.positions, &self.clusters));
+        let mut rank_of = vec![0usize; order.len()];
+        for (rank, &slot) in order.iter().enumerate() {
+            rank_of[slot] = rank;
+        }
+        fn permuted<T>(values: &mut Vec<T>, order: &[usize]) {
+            let mut taken: Vec<Option<T>> = std::mem::take(values).into_iter().map(Some).collect();
+            *values = order
+                .iter()
+                .map(|&slot| taken[slot].take().expect("a permutation"))
+                .collect();
+        }
+        permuted(&mut self.clusters, &order);
+        permuted(&mut self.materials, &order);
+        permuted(&mut self.layouts, &order);
+        permuted(&mut self.cells, &order);
+        permuted(&mut self.origins, &order);
+        for group in &mut self.groups {
+            group.children.iter_mut().for_each(|c| *c = rank_of[*c]);
+            group.outputs.iter_mut().for_each(|c| *c = rank_of[*c]);
+        }
+        self.culling = nodes;
     }
 
     pub(super) fn push(&mut self, cluster: DagCluster, (material, layout, cell, origin): Placed) {

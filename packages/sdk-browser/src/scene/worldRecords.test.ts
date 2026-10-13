@@ -18,9 +18,9 @@ import { graphDraws } from '../page/selection/drawSource.ts'
 
 /** The cook's world DAG, every cluster wearing primitive 0. */
 function dag() {
-  const { clusters, groups } = worldRootsDag()
+  const { clusters, groups, culling } = worldRootsDag()
   return worldRootDag(
-    { clusters, groups, payload: { url: 'world-roots.bin' }, pinned: 1 },
+    { clusters, groups, culling, payload: { url: 'world-roots.bin' }, pinned: 1 },
     worldRootPages,
   )!
 }

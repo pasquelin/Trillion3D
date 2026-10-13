@@ -6,12 +6,12 @@
 //! object's triangles turn back to the front: a world page is drawn under the identity.
 use super::*;
 use crate::compiler_world::cofactor_direction;
-use crate::dag::tight::ball_of_balls;
 use crate::proxy::{place, world_scale};
 use crate::shared_math::unit;
 use trillion3d_math::linear::determinant;
 use trillion3d_math::matrix::transform_point;
 use trillion3d_page_codec::encode::{Attribute, FLAG_COLOR, FLAG_NORMAL};
+use trillion3d_page_codec::min_ball::ball_of_balls;
 
 /// The attributes a world vertex may carry, in the order a page writes them, at the width a world
 /// page stores each: the page format's own.

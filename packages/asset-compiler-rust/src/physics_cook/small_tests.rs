@@ -70,7 +70,9 @@ fn a_tile_of_small_triangles_keeps_its_surface() {
 fn a_refused_collider_is_named_not_fatal() {
     let pos = [0., 0., 0., 0., 1., 0., 0., 2., 0.];
     let dag = [cluster(0, 0.0, f64::INFINITY)];
-    let (order, culling) = crate::dag::build_culling_bvh(&pos, &dag);
+    let (order, culling) = trillion3d_page_codec::culling::build_culling_bvh(
+        &crate::dag::bounds::culling_clusters(&pos, &dag),
+    );
     let o = crate::texture_preview::tests::options(&std::env::temp_dir());
     let collision = cook_primitive(&o, &dag, &order, &culling, &pos, &[0, 1, 2]).unwrap();
     let reason = collision["refused"].as_str().expect("refused");

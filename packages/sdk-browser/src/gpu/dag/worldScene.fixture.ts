@@ -5,7 +5,7 @@ import { worldDag } from '../../scene/worldSuperRoots.fixture.ts'
 import { packDagSelection } from './pack.ts'
 import { stripCamera } from '../../page/cut/cutRuleBackends.fixture.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
-import { flatHierarchy } from './hierarchy.ts'
+import { cullingInPlace } from './culling.fixture.ts'
 import { structureIndex } from '../../page/selection/structure.ts'
 import type { DagRoot } from './types.ts'
 
@@ -28,7 +28,7 @@ export function worldScene(alone = 0) {
     const pages = [{ ...page, url: `object${u}` }]
     const elements = Float64Array.of(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, u, 0, 0, 1)
     const structure = structureIndex({ version: 1, roots: [0], groups: [] }, 1)
-    return { world: { elements }, pages, culling: flatHierarchy(pages), structure }
+    return { world: { elements }, pages, culling: cullingInPlace(pages), structure }
   })
   const roots = [...placements, world as unknown as DagRoot]
   const packed = packDagSelection(roots)

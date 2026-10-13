@@ -87,8 +87,8 @@ test('a table that breaks its contract is refused whole', () => {
 })
 
 test('the DAG reads every cluster and group back, in the cook’s rank', () => {
-  const { clusters, groups } = worldRootsDag()
-  const read = readWorldRootsDag(encodeWorldRootsDag({ clusters, groups }))
+  const { clusters, groups, culling } = worldRootsDag()
+  const read = readWorldRootsDag(encodeWorldRootsDag({ clusters, groups, culling }))
   assert.deepEqual(
     read.clusters,
     clusters.map(({ units: _, ...cluster }) => cluster),
@@ -97,8 +97,11 @@ test('the DAG reads every cluster and group back, in the cook’s rank', () => {
   const outside = groups.map((g) => ({ ...g, children: [...g.children] }))
   outside[0].children.push(clusters.length)
   assert.throws(
-    () => readWorldRootsDag(encodeWorldRootsDag({ clusters, groups: outside })),
+    () => readWorldRootsDag(encodeWorldRootsDag({ clusters, groups: outside, culling })),
     refused,
   )
-  assert.throws(() => readWorldRootsDag(encodeWorldRootsDag({ clusters, groups }, 1)), refused)
+  assert.throws(
+    () => readWorldRootsDag(encodeWorldRootsDag({ clusters, groups, culling }, 1)),
+    refused,
+  )
 })

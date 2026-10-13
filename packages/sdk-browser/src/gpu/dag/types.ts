@@ -75,11 +75,10 @@ export type DagCutLinks = {
   nodeBase: number
   nodeCount: number
 }
-/** What placing a root reads again for the next placement of its primitive (`pack.ts`): the
- *  hierarchy packing gives a page array without one, per node array its level sizes and bounds, and
- *  per page array its first placement's page base, record base, node array and root-cluster count. */
+/** What placing a root reads again for the next placement of its primitive (`pack.ts`): per node
+ *  array its level sizes and bounds, and per page array its first placement's page base, record
+ *  base, node array and root-cluster count. */
 export type DagPackShared = {
-  flats: Map<DagRoot['pages'], NonNullable<DagRoot['culling']>>
   levelSizesOf: Map<Float64Array, readonly number[]>
   boundsOf: Map<Float64Array, Float64Array>
   firstOf: Map<

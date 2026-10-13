@@ -20,8 +20,8 @@ export function twoPrimitives(
     errorModel: 'dag-group-qem-v3',
     clusterStrategy: 'dag-groups',
     primitives: [
-      { mesh: 0, primitive: 0, pass: 'exact-clusters', pages: dagRoots([pageA]).pages, structure },
-      { mesh: 1, primitive: 0, pass: 'exact-clusters', pages: dagRoots([pageB]).pages, structure },
+      { mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots([pageA]), structure },
+      { mesh: 1, primitive: 0, pass: 'exact-clusters', ...dagRoots([pageB]), structure },
     ],
   }
   const indices = new Map([

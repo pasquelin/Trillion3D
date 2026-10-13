@@ -156,7 +156,7 @@ fn the_table_and_its_dag_are_fixed_size_records_and_their_pools() {
         counts.map(|c| c as u32),
         [8, 12, 16].map(|at| words(dag, at))
     );
-    assert_eq!(dag.len(), 24 + counts[0] * 176 + counts[1] * 64 + pool * 4);
+    // Its length, the culling nodes included, is read by `culling_tests.rs`.
     // A root's parent error is NaN; a super-root names its bundle, an object root none.
     let root = table["clusters"]
         .as_array()

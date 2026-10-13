@@ -4,7 +4,7 @@
  * then the `u32` pool their lists lie in.
  */
 import { uint64Words } from '../../../math/src/scalar/uint64.fixture.ts'
-import type { ClusterGroup } from '../contracts/geometry.ts'
+import type { ClusterGroup, CullingHierarchy } from '../contracts/geometry.ts'
 import type { WorldRoots, WorldRootsCluster } from './worldRoots.ts'
 
 /** One placed primitive of a world cell as the cook writes it: the world bundles its roots need,
@@ -108,10 +108,19 @@ export function encodeWorldRoots(spec: WorldRootsSpec) {
   ])
 }
 
-/** `clusters` and `groups` as `world-roots.dag`, version `version`. */
+/** `clusters`, `groups` and their `culling` hierarchy (none written without) as
+ *  `world-roots.dag`, version `version`. */
 export function encodeWorldRootsDag(
-  { clusters, groups }: { clusters: readonly WorldRootsCluster[]; groups: readonly ClusterGroup[] },
-  version = 5,
+  {
+    clusters,
+    groups,
+    culling,
+  }: {
+    clusters: readonly WorldRootsCluster[]
+    groups: readonly ClusterGroup[]
+    culling?: CullingHierarchy
+  },
+  version = 6,
 ) {
   const r = writer('WRTD')
   const index = (value: number | null) => value ?? NONE
@@ -132,5 +141,12 @@ export function encodeWorldRootsDag(
     r.word(0)
     r.float(g.error, ...g.sphere)
   }
-  return r.end((poolWords) => [version, clusters.length, groups.length, poolWords, 0])
+  if (culling) r.float(...culling.nodes)
+  return r.end((poolWords) => [
+    version,
+    clusters.length,
+    groups.length,
+    poolWords,
+    culling?.count ?? 0,
+  ])
 }

@@ -84,7 +84,7 @@ test('a source appended writes what it adds — its pages and placements — wha
 
 test('a primitive the packing does not hold appends into the room it kept, as a packing of all reads', () => {
   const { roots } = scene()
-  const other = sceneRoots(scenePages(64, 3), [new G.Matrix4().makeTranslation(40, 0, 0)], true)
+  const other = sceneRoots(scenePages(64, 3), [new G.Matrix4().makeTranslation(40, 0, 0)])
   const all = [...roots, ...other]
   const exact = packDagSelection(all)
   const capacity = {
@@ -110,7 +110,7 @@ test('a primitive the packing does not hold appends into the room it kept, as a 
 
 test('a primitive past the nodes, records or keys the room kept is not appended', () => {
   const { roots } = scene()
-  const other = sceneRoots(scenePages(64, 3), [new G.Matrix4()], true)
+  const other = sceneRoots(scenePages(64, 3), [new G.Matrix4()])
   const exact = packDagSelection([...roots, ...other])
   const room = {
     pages: 2 * exact.pageCount,

@@ -1,6 +1,7 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
+import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 const page = (id: number, url: string, start: number) => ({
   id,
@@ -51,6 +52,7 @@ export function scene() {
       clusterStrategy: 'dag-groups' as const,
       pages: [page(0, `p${index}`, 0)],
       structure: { version: 1, roots: [0], groups: [] },
+      culling: manifestCulling([page(0, `p${index}`, 0)]),
     }
   })
   source.updateMatrixWorld(true)

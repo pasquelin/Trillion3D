@@ -26,7 +26,6 @@ import type { PageRec, ClusterRoot } from '../page/selection/types.ts'
 import type { PageSurface } from '../page/surface.ts'
 import { cullingBounds } from '../page/cut/bounds.ts'
 import { cullingLinks } from '../page/cut/links.ts'
-import { flatHierarchy } from '../gpu/dag/hierarchy.ts'
 import { IDENTITY_WORLD } from '../host/matrixElements.ts'
 import { BOX_VALUES } from '../../../sdk-core/src/index.ts'
 import type { worldRootDag } from './worldSuperRoots.ts'
@@ -104,9 +103,10 @@ export function worldSelectionRoot(
     // No wearer: a record without a page, worn as any other only to stay a record.
     return worldRecord(wearer ? page : { ...page, url: '' }, rank, wearer ?? fallback, order)
   })
-  // The world box: the root node's of the hierarchy over its pages, as a primitive's local box.
-  const nodes = flatHierarchy(pages),
-    worldBox = nodes.nodes.slice(0, BOX_VALUES),
+  // The world box: the root node's of the cook's hierarchy, as a primitive's local box.
+  const nodes = dag.culling
+  if (!nodes) throw new Error('WORLD_CULLING_MISSING')
+  const worldBox = nodes.nodes.slice(0, BOX_VALUES),
     held = new Map<number, PageRec[]>()
   // The roots each bundle holds for its cell, those with a page alone: a record without one is
   // not a page, never held nor covered.
@@ -121,7 +121,8 @@ export function worldSelectionRoot(
     pages,
     structure: dag.structure,
     culling: {
-      ...nodes,
+      nodes: nodes.nodes,
+      stride: nodes.stride,
       bounds: cullingBounds(nodes, pages),
       links: cullingLinks(nodes, pages.length),
     },

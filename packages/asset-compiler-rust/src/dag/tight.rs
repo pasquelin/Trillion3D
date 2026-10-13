@@ -10,19 +10,11 @@
 //!   children's: the invariant the cut's monotonicity rests on.
 //!
 //! Every sphere is also kept no larger than the one it replaces, which falls back bit for bit.
-use super::bounds::{bounding_sphere, enclosing_sphere};
+use super::bounds::bounding_sphere;
 use super::{DagCluster, DagGroup};
 use rayon::prelude::*;
-use trillion3d_math::aabb::{aabb_of_boxes, centre};
 use trillion3d_math::vec3::{length, point, sub};
-use trillion3d_math::vecn::lerp;
-use trillion3d_page_codec::min_ball::min_ball;
-
-/// Iterations of the centre pull toward the farthest ball, with a shrinking step.
-const WALK_STEPS: usize = 64;
-/// Relative margin a tightened sphere is inflated by, of its coordinates' magnitude: containment
-/// then survives the float64 rounding of any re-check (8.5e-14 m outside without it at 1 km).
-const CONTAINMENT_MARGIN: f64 = 1e-12;
+use trillion3d_page_codec::min_ball::{ball_of_balls, min_ball};
 
 /// The smallest sphere of `indices`' vertices, never larger than [`bounding_sphere`]'s.
 pub fn point_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
@@ -44,69 +36,6 @@ pub fn point_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
         [c[0], c[1], c[2], radius]
     } else {
         base
-    }
-}
-
-/// The radius a sphere centred on `c` needs to enclose every live sphere of `spheres`.
-fn radius_for(c: [f64; 3], spheres: &[[f64; 4]]) -> f64 {
-    spheres
-        .iter()
-        .map(|s| length(sub([s[0], s[1], s[2]], c)) + s[3])
-        .fold(0.0, f64::max)
-}
-
-/// A sphere enclosing `spheres` (those of negative radius are absent), never larger than
-/// [`enclosing_sphere`]'s: the smallest of that merge's centre, the centre of the spheres' box
-/// and the steps of a centre pull toward the far point of the farthest ball. Each radius is
-/// recomputed as `max |c_i - C| + r_i`, the rule the runtime's containment proof reads.
-pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
-    let merged = enclosing_sphere(spheres);
-    let live: Vec<[f64; 4]> = spheres.iter().copied().filter(|s| s[3] >= 0.0).collect();
-    if live.len() < 2 {
-        return merged;
-    }
-    let mut best = merged;
-    let consider = |c: [f64; 3], best: &mut [f64; 4]| {
-        let r = radius_for(c, &live);
-        if r < best[3] {
-            *best = [c[0], c[1], c[2], r];
-        }
-    };
-    consider([merged[0], merged[1], merged[2]], &mut best);
-    let (lo, hi) = aabb_of_boxes(live.iter().map(|s| {
-        (
-            [0, 1, 2].map(|a| s[a] - s[3]),
-            [0, 1, 2].map(|a| s[a] + s[3]),
-        )
-    }));
-    consider(centre(lo, hi), &mut best);
-    // Pull the centre toward the far point of the farthest ball, by 1/(k + 1) of the way at step k.
-    let mut c = [best[0], best[1], best[2]];
-    for k in 1..=WALK_STEPS {
-        let far = live
-            .iter()
-            .map(|s| (length(sub([s[0], s[1], s[2]], c)) + s[3], s))
-            .max_by(|a, b| a.0.total_cmp(&b.0))
-            .map(|(_, s)| *s)
-            .expect("two live spheres");
-        let dir = sub([far[0], far[1], far[2]], c);
-        let l = length(dir);
-        let reach = if l > 0.0 { far[3] / l } else { 0.0 };
-        let target = [0, 1, 2].map(|a| far[a] + dir[a] * reach);
-        let t = 1.0 / (k as f64 + 1.0);
-        c = lerp(c, target, t);
-        consider(c, &mut best);
-    }
-    let magnitude = best[0]
-        .abs()
-        .max(best[1].abs())
-        .max(best[2].abs())
-        .max(best[3]);
-    best[3] += magnitude * CONTAINMENT_MARGIN;
-    if best[3] < merged[3] {
-        best
-    } else {
-        merged
     }
 }
 

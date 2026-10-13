@@ -28,10 +28,10 @@ pub(super) fn encode_primitive(
                     .ok_or_else(|| bad("primitive.culling.nodes is absent"))?,
                 "primitive.culling.nodes",
             )?;
-            if stride != crate::CULLING_STRIDE {
+            if stride != trillion3d_page_codec::culling::CULLING_STRIDE {
                 return Err(bad(format!(
                     "primitive.culling.stride is {stride}, expected {}",
-                    crate::CULLING_STRIDE
+                    trillion3d_page_codec::culling::CULLING_STRIDE
                 )));
             }
             if nodes.len() != count * stride {

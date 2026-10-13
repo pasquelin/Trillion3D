@@ -7,6 +7,7 @@ import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
 import { camera } from './testScenes.fixture.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
+import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 test('the initial cover also protects regions first discovered after a camera jump', async () => {
   installGpuGlobals()
@@ -74,6 +75,7 @@ test('the initial cover also protects regions first discovered after a camera ju
         pass: 'exact-clusters',
         pages,
         structure: { version: 1, roots: [0, 1, 2], groups: [] },
+        culling: manifestCulling(pages),
       },
     ],
   }

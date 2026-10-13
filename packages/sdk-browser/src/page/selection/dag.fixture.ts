@@ -6,6 +6,7 @@ import { collectClusterPages } from './selection.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
 import { graphDraws } from './drawSource.ts'
+import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 export function dagFixture() {
   const positions: number[] = []
@@ -119,6 +120,7 @@ export function dagFixture() {
         pages,
         hierarchy: null,
         structure,
+        culling: manifestCulling(pages),
       },
     ],
   } as unknown as ClusterManifest

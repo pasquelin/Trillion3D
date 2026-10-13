@@ -16,6 +16,7 @@ import {
 } from '../../engine/pagesEngineScenes.fixture.ts'
 import { rootPage, twoPrimitives } from './rootPages.fixture.ts'
 import { graphDraws, type DrawAssociations } from '../../page/selection/drawSource.ts'
+import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
 /** `scene` with the sources of its graph's drawn nodes, as a session is handed them. */
@@ -45,6 +46,7 @@ export function quadScene() {
         pass: 'exact-clusters',
         pages,
         structure: { version: 1, roots: [0, 1], groups: [] },
+        culling: manifestCulling(pages),
       },
     ],
   }

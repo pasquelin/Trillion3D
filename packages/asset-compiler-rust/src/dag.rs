@@ -11,7 +11,7 @@
 //! simplification error (`attributes.rs`), and the cook refuses a DAG whose error drops from a
 //! cluster to its parent or whose coarse level bends a normal past its bound (`quality.rs`).
 use crate::perf::{Phase, Timer};
-use crate::qem::{compact_region, simplify_with_locked_vertices};
+use crate::qem::simplify_with_locked_vertices;
 use crate::{invalid, Result};
 use rayon::prelude::*;
 use trillion3d_page_codec::hash::{word_map, WordMap, WordSet};
@@ -133,32 +133,12 @@ struct GroupReductionInput<'a> {
     /// Per vertex, the extent of its part in the source (`vanished::part_extents`).
     extents: &'a [f64],
 }
-pub const CULLING_BRANCHING: usize = 8;
-pub const CULLING_LEAF: usize = 8;
-/// One node of the per-primitive culling hierarchy.
-///
-/// `sphere` encloses every `parent_sphere` of the subtree and `max_parent_error` is the largest
-/// `parent_error` in it, so a single projection bounds the whole subtree from above: when that bound
-/// already fits the pixel budget, no cluster below can be selected and the subtree is skipped.
-#[derive(Clone, Debug, Default)]
-pub struct CullingNode {
-    pub min: [f64; 3],
-    pub max: [f64; 3],
-    pub sphere: [f64; 4],
-    pub max_parent_error: f64,
-    pub first_child: usize,
-    pub child_count: usize,
-    pub first_cluster: usize,
-    pub cluster_count: usize,
-}
-
 pub(crate) mod attributes;
 pub(crate) mod border;
 pub(crate) mod bounds;
 mod build;
 pub(crate) mod charts;
 pub(crate) mod clusters;
-mod culling;
 mod diagnosis;
 pub(crate) mod groups;
 mod grown;
@@ -182,7 +162,6 @@ pub use attributes::DagAttributes;
 use bounds::*;
 pub use build::{build_dag_from_roots, build_dag_tallied, DagBuild};
 use clusters::*;
-pub use culling::build_culling_bvh;
 use groups::*;
 pub use grown::Grown;
 use reduce::*;

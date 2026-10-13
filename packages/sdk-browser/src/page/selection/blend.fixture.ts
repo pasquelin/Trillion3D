@@ -1,6 +1,7 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import { graphDraws } from './drawSource.ts'
+import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 export function blendFixture(
   material: G.GraphSurface = G.basicSurface({
@@ -67,6 +68,7 @@ export function blendFixture(
         clusterStrategy: 'dag-groups' as const,
         pages,
         structure: { version: 1, roots: [0, 1], groups: [] },
+        culling: manifestCulling(pages),
       },
     ],
   } as unknown as ClusterManifest

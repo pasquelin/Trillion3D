@@ -9,7 +9,7 @@ import type { DagRoot } from './types.ts'
 export function scene() {
   const pages = scenePages(256, 4)
   const worlds = [0, 1, 2, 3, 4].map((k) => new G.Matrix4().makeTranslation(k * 3, 0, 0))
-  const roots: DagRoot[] = sceneRoots(pages, worlds, true)
+  const roots: DagRoot[] = sceneRoots(pages, worlds)
   const counts = dagRootCounts(roots)
   const capacity: DagCapacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 8 }
   return { roots, counts, capacity }

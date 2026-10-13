@@ -3,6 +3,7 @@
 import type { TestContext } from 'node:test'
 import type { ClusterManifest, Primitive } from '../../../../../sdk-core/src/index.ts'
 import { worldRootsDag } from '../../../scene/worldRootsPages.fixture.ts'
+import { inCullingOrder } from '../../../scene/worldCulling.fixture.ts'
 import { opened, served } from '../../../scene/worldRoots.fixture.ts'
 import { worldOrGeometryReader } from '../../../scene/worldRoots.ts'
 import * as G from '../../../host/graph/graph.fixture.ts'
@@ -14,10 +15,10 @@ import { drawSourceOf } from '../../../page/selection/drawSource.ts'
 /** The served world, opened, and a scene whose one mesh wears its primitive; with `alone`, one
  *  lone object past its cells, its copies in bundle 1, which cell 0 holds. */
 export async function scene(t: TestContext, alone = false) {
-  const cooked = worldRootsDag(),
-    { clusters, groups } = cooked
-  if (alone) standAlone(cooked, cooked.leaves, 1)
-  const { manifest, bin, table } = served(t, { dag: { clusters, groups } })
+  const cooked = worldRootsDag()
+  if (alone) inCullingOrder((standAlone(cooked, cooked.leaves, 1), cooked))
+  const { clusters, groups, culling } = cooked
+  const { manifest, bin, table } = served(t, { dag: { clusters, groups, culling } })
   const metadata = {
     ...manifest,
     primitives: [{ mesh: 0, primitive: 0, pass: 'clustered' }] as Primitive[],
