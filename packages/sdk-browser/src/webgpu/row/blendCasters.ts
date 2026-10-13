@@ -1,12 +1,12 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import { castsBlendShadow } from '../../gpu/shadow/transmittance.ts'
-import { ROW_BLEND_COVERAGE_WORD, ROW_INDEX_WORDS, ROW_TRANSMISSION_WORD } from './pageRow.ts'
 import type { PageRowWriter } from './pageRowWriter.ts'
 import type { WebgpuRowState } from './state.ts'
 import { awaitsPageBytes } from './pageSlots.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /**
  * The shadow casters of the blended clusters, WITHOUT a visibility row.
@@ -117,9 +117,9 @@ function write(c: Casters, page: number, row: number, held: boolean) {
   const { rows } = c
   const rec = c.recordOf(page)!,
     ints = rows.pageTableInts!,
-    coverage = row * ROW_WORDS + ROW_BLEND_COVERAGE_WORD,
+    coverage = row * ROW_WORDS + PAGE_INFO.at.blendCoverage,
     before = ints[coverage],
-    wasTransmissive = rows.pageTableFloats![row * ROW_WORDS + ROW_TRANSMISSION_WORD] > 0
+    wasTransmissive = rows.pageTableFloats![row * ROW_WORDS + PAGE_INFO.at.transmission] > 0
   rows.packedRecs[row] = rec
   rows.packedPageIndex[row] = page
   const offsetWords = rows.offsetOf(page)
@@ -133,7 +133,7 @@ function release(c: Casters, page: number, row: number) {
   rows.setBlendRowOf(page, -1)
   rows.packedRecs[row] = undefined
   // A list built before the release may still name the row: it then draws no corner.
-  rows.pageTableInts![row * ROW_WORDS + ROW_INDEX_WORDS] = 0
+  rows.pageTableInts![row * ROW_WORDS + PAGE_INFO.at.indexCount] = 0
   rows.markRowDirty(row)
   c.free[c.freeCount++] = row
 }

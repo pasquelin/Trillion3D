@@ -6,11 +6,11 @@ import assert from 'node:assert/strict'
 import { sphereRadius } from '../../placement/rowSphere.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { FLAG_BLEND_CASTER, FLAG_MASK, ROW_WORDS } from '../../visibility/types.ts'
-import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../row/pageRow.ts'
 import { shadowsFollowSurfaces, shadowsFollowTextures } from '../pages/prepare/lightResources.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { indexOfRanks } from '../../page/selection/placements.fixture.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 const leaves = {} as PageSurface,
   bark = {} as PageSurface
@@ -36,14 +36,14 @@ function record(x: number, material = bark, moving = false) {
 function table() {
   const ints = new Uint32Array(4 * ROW_WORDS),
     base = roots.length
-  ints[0 * ROW_WORDS + ROW_FLAGS_WORD] = FLAG_MASK
-  ints[0 * ROW_WORDS + ROW_MAP_LAYER_WORD] = 3
-  ints[1 * ROW_WORDS + ROW_FLAGS_WORD] = 0
-  ints[1 * ROW_WORDS + ROW_MAP_LAYER_WORD] = 3
-  ints[2 * ROW_WORDS + ROW_FLAGS_WORD] = FLAG_MASK
-  ints[2 * ROW_WORDS + ROW_MAP_LAYER_WORD] = 5
-  ints[3 * ROW_WORDS + ROW_FLAGS_WORD] = FLAG_BLEND_CASTER
-  ints[3 * ROW_WORDS + ROW_MAP_LAYER_WORD] = 7
+  ints[0 * ROW_WORDS + PAGE_INFO.at.flags] = FLAG_MASK
+  ints[0 * ROW_WORDS + PAGE_INFO.at.mapIndex] = 3
+  ints[1 * ROW_WORDS + PAGE_INFO.at.flags] = 0
+  ints[1 * ROW_WORDS + PAGE_INFO.at.mapIndex] = 3
+  ints[2 * ROW_WORDS + PAGE_INFO.at.flags] = FLAG_MASK
+  ints[2 * ROW_WORDS + PAGE_INFO.at.mapIndex] = 5
+  ints[3 * ROW_WORDS + PAGE_INFO.at.flags] = FLAG_BLEND_CASTER
+  ints[3 * ROW_WORDS + PAGE_INFO.at.mapIndex] = 7
   const packedRecs = [record(0), record(100, leaves), record(10), record(-20, leaves)]
   return {
     rowCount: 3,

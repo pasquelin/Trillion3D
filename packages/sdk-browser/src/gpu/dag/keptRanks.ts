@@ -1,5 +1,6 @@
 import type { DagBufferRow } from './bufferTable.ts'
-import { halfLoadSlots } from '../../../../math/src/scalar/integers.ts'
+import { halfLoadSlots, slotsWithin } from '../../../../math/src/scalar/integers.ts'
+import { OPEN_SLOT_WORDS } from './heldOpen.ts'
 
 /**
  * EACH KEPT LIST'S TABLE OF RANKS: the rank each page of the kept snapshot holds, open-addressed by
@@ -9,20 +10,16 @@ import { halfLoadSlots } from '../../../../math/src/scalar/integers.ts'
  * page, the rank —; made zero, a table holds nothing until its first keep.
  */
 export const KEPT_RANK_HEAD = 2
-const SLOT_WORDS = 3
 
 /** Kept list `l`'s table for a list of `listCap` ranks, its slots the shader's `keptSlots`. */
 export const keptRankRow = (l: number, listCap: number): DagBufferRow => ({
   label: `Trillion3D DAG kept ranks ${l}`,
-  size: (KEPT_RANK_HEAD + SLOT_WORDS * halfLoadSlots(listCap)) * 4,
+  size: (KEPT_RANK_HEAD + OPEN_SLOT_WORDS * halfLoadSlots(listCap)) * 4,
 })
 
 /** The most ranks a list may hold whose table fits `bytes`: the largest power-of-two slots it
  *  holds, half of them — past 2³² ranks no list is named. */
 export function keptRankCapHeld(bytes: number) {
-  const fit = Math.min(2 ** 33, Math.floor((bytes / 4 - KEPT_RANK_HEAD) / SLOT_WORDS))
-  if (fit < 2) return 0
-  let slots = 2
-  while (slots * 2 <= fit) slots *= 2
-  return slots / 2
+  const slots = Math.min(2 ** 33, slotsWithin(bytes - KEPT_RANK_HEAD * 4, OPEN_SLOT_WORDS * 4))
+  return slots < 2 ? 0 : slots / 2
 }

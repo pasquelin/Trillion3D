@@ -1,10 +1,4 @@
-import {
-  PAGE_INFO_STRIDE,
-  ROW_WORDS,
-  PAGE_DEFORM_WORD,
-  PAGE_DEFORM_COUNT_WORD,
-  PAGE_DEFORM_OUTPUT_WORD,
-} from '../visibility/types.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../visibility/types.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
@@ -20,6 +14,7 @@ import { wholeDeformationPool } from './wholePool.ts'
 import { emptyGeometryBlock } from '../webgpu/row/pageRowMaterial.ts'
 import type { BlendGpuItem } from '../webgpu/blend/state.ts'
 import { fakeDevice, written } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 function sample() {
   const g = new Geometry()
@@ -82,10 +77,10 @@ test('whole transmission keeps no pages and distinct placement outputs in the ex
   assert.equal(table.byteLength, items.length * PAGE_INFO_STRIDE)
   for (let i = 0; i < items.length; i++) {
     const at = i * ROW_WORDS
-    assert.equal(words[at + PAGE_DEFORM_WORD], session.wordOfWorld(items[i].matrix))
-    assert.equal(words[at + PAGE_DEFORM_COUNT_WORD], 1)
-    assert.equal(words[at + PAGE_DEFORM_OUTPUT_WORD], items[i].deformOutput)
-    assert.equal(words[at + 38], 0, 'no overwrite of physical transmission')
+    assert.equal(words[at + PAGE_INFO.at.deform], session.wordOfWorld(items[i].matrix))
+    assert.equal(words[at + PAGE_INFO.at.deformCount], 1)
+    assert.equal(words[at + PAGE_INFO.at.deformOutput], items[i].deformOutput)
+    assert.equal(words[at + PAGE_INFO.at.transmission], 0, 'no overwrite of physical transmission')
   }
 })
 

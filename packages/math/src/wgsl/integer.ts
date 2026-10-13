@@ -36,6 +36,14 @@ export const bitLength = wgslFn(
   'fn bitLength(x:u32)->u32{return 32u-countLeadingZeros(x);}',
 )
 
+/** Slots of an open-addressed table that holds `entries` at a load of one half at most: a power
+ *  of two, two at least (`halfLoadSlots`, `../scalar/integers.ts`), for up to 2³¹ entries. */
+export const halfLoadSlots = wgslFn(
+  'halfLoadSlots',
+  [bitLength],
+  'fn halfLoadSlots(entries:u32)->u32{return 1u<<bitLength(2u*max(entries,1u)-1u);}',
+)
+
 /** The exponent of the greatest power of two not over `x` (`floorLog2`); 0 gives 0xffffffff, the
  *  word of the processor's −1 and of `firstLeadingBit(0u)`. */
 export const floorLog2 = wgslFn(

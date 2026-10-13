@@ -1,10 +1,11 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import { CAST, CAST_WORDS, MISS } from '../../../sdk-core/src/physics/layout.ts'
+import { CAST, CAST_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import type { Intersection } from '../../../sdk-core/src/world/object/raycast.ts'
 import type { Ray } from '../../../sdk-core/src/world/math/volumes.ts'
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { PhysicsSession } from './session/session.ts'
+import { NO_INDEX } from '../../../math/src/constants.ts'
 
 /** A shape swept along a ray (`world.raycast(at, { shape })`): what it first touches is the hit. */
 type SweptShape =
@@ -56,10 +57,10 @@ export async function physicsRaycast(
   else if (shape?.type === 'box')
     floats.set([shape.halfExtents.x, shape.halfExtents.y, shape.halfExtents.z], 7)
   else if (shape) floats.set([shape.halfHeight, shape.radius], 7)
-  const ignored = options.ignore ? session.engineIdOf(options.ignore) : MISS
-  words[10] = ignored < 0 ? MISS : ignored
+  const ignored = options.ignore ? session.engineIdOf(options.ignore) : NO_INDEX
+  words[10] = ignored < 0 ? NO_INDEX : ignored
   const hit = await session.cast(words)
-  const object: Object3D | null = hit[0] === MISS ? null : session.objectOf(hit[0])
+  const object: Object3D | null = hit[0] === NO_INDEX ? null : session.objectOf(hit[0])
   if (!object) return null
   const f = new Float32Array(hit.buffer)
   return {

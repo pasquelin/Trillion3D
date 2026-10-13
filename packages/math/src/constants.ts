@@ -36,6 +36,11 @@ export const SQRT3 = 1.7320508075688772
 export const GOLDEN_ANGLE = 2.399963229728653
 /** One float32 step at magnitude 1, `2 ** -23`: the GPU draws every world in float32. */
 export const FLOAT32_STEP = 1.1920928955078125e-7
+/** The values of a 32-bit word, `2 ** 32`: a word over it lies in `[0, 1)`, exactly. */
+export const WORD_RANGE = 4294967296
+/** An index word naming nothing, all its bits set (`2 ** 32 - 1`): no slot, rank, entry, link or
+ *  body, past any table a 32-bit index addresses. Its shader twin is `wgsl/constants.ts`'s. */
+export const NO_INDEX = 4294967295
 /** One mebibyte, `1024 * 1024` bytes. */
 export const MIB = 1048576
 /** The golden ratio's fraction in 32 bits, `⌊GOLDEN_FRACTION · 2³²⌋` = 0x9e3779b9: an odd salt with

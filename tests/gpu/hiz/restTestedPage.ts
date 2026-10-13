@@ -16,13 +16,12 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { PAGE_INFO } from '../../../packages/sdk-browser/src/visibility/pageInfo.ts'
 
 /** Rows the table holds, far more than the image tests. */
 const TABLE_ROWS = 20_000
 /** Instances a tested row takes at most. */
 const PER_ROW = 2
-/** Word of a page row holding its Hi-Z slot (`PageInfo.hizSlot`). */
-const HIZ_SLOT_WORD = 31
 
 export async function testRestCompaction() {
   const gpu = await openGpuDevice()
@@ -67,7 +66,7 @@ export async function testRestCompaction() {
   )
   device.queue.writeBuffer(verdicts, 0, verdictWords)
   const pageWords = new Uint32Array(tested * ROW_WORDS)
-  for (let row = 0; row < tested; row++) pageWords[row * ROW_WORDS + HIZ_SLOT_WORD] = row
+  for (let row = 0; row < tested; row++) pageWords[row * ROW_WORDS + PAGE_INFO.at.hizSlot] = row
   device.queue.writeBuffer(restPages, 0, pageWords)
   const counted = new Uint32Array(STATE_WORDS)
   counted[ST_TESTED] = tested

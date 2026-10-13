@@ -84,7 +84,6 @@ import {
 import {
   VSM_TRANSMISSION_CLEAR_SPECS,
   VSM_TRANSMISSION_HEADER_BYTES,
-  VSM_TRANSMISSION_NONE,
   VSM_TRANSMISSION_PAGE_BYTES,
   VSM_TRANSMISSION_PAGE_GROUP,
   VSM_TRANSMISSION_PAGES_SPECS,
@@ -114,6 +113,7 @@ import {
   type VsmTransmissionCaps,
 } from './transmissionLayout.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
+import { NO_INDEX } from '../../../math/src/constants.ts'
 
 /** What the transmission's pass, pipes and buffers are labelled under. */
 const TRANSMISSION_LABEL = `${VSM_PASS_PREFIX}transmission`
@@ -125,7 +125,7 @@ const CHUNK_ROWS = 64
 export interface VsmTransmission {
   layout: VsmLayout
   caps: VsmTransmissionCaps
-  /** Page × slice → first block (none: `VSM_TRANSMISSION_NONE`), persistent. */
+  /** Page × slice → first block (none: `NO_INDEX`), persistent. */
   table: GPUBuffer
   /** [free count, spare, free blocks…]. */
   pool: GPUBuffer
@@ -218,7 +218,7 @@ function transmissionBuffers(device: GPUDevice, pages: number, caps: VsmTransmis
     })
   // Two slices a physical page: dynamic, static.
   const table = storage('table', 2 * pages * 4)
-  device.queue.writeBuffer(table, 0, new Uint32Array(2 * pages).fill(VSM_TRANSMISSION_NONE))
+  device.queue.writeBuffer(table, 0, new Uint32Array(2 * pages).fill(NO_INDEX))
   const pool = storage('pool', (caps.blocks + 2) * 4)
   const free = new Uint32Array(caps.blocks + 2)
   free[0] = caps.blocks
@@ -256,7 +256,7 @@ function transmissionMemory(device: GPUDevice, layout: VsmLayout, blocks: number
   const rows = headerRows(layout.poolPages)
   device.queue.writeTexture(
     { texture: memory },
-    new Uint32Array(4 * VSM_TRANSMISSION_WIDTH * rows).fill(VSM_TRANSMISSION_NONE),
+    new Uint32Array(4 * VSM_TRANSMISSION_WIDTH * rows).fill(NO_INDEX),
     { bytesPerRow: 16 * VSM_TRANSMISSION_WIDTH, rowsPerImage: rows },
     [VSM_TRANSMISSION_WIDTH, rows],
   )

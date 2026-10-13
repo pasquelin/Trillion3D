@@ -36,10 +36,10 @@ import { rowCell } from '../../partition/rowCells.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { boxTransform } from '../../../../sdk-core/src/index.ts'
-import { SELECTION_NONE as NONE, SELECTION_WORKGROUP } from '../core/selection.ts'
+import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
-import { FINITE_SENTINEL } from '../../../../math/src/constants.ts'
+import { FINITE_SENTINEL, NO_INDEX } from '../../../../math/src/constants.ts'
 import { fromHalf } from '../../../../math/src/float/half.ts'
 import { boxGrow } from '../../../../math/src/geometry/box.ts'
 import { createMirroredKeys, mirrorKey, type MirroredKeys } from '../../webgpu/cut/denseKeys.ts'
@@ -67,8 +67,8 @@ type TreeLevel = { base: number; count: number }
 /**
  * Where the tree lies in the packing: its `levels`, top first, the last its groups, nodes from
  * `cellBase` on; `depth` the levels it sets above a member's root. `order[k]` is the placement
- * member `k` names (`NONE` past the `count` live members, up to `capacity`), `slot[w]` the member
- * placement `w` is (`NONE` for the world DAG), and the order lies in the cold table from word
+ * member `k` names (`NO_INDEX` past the `count` live members, up to `capacity`), `slot[w]` the member
+ * placement `w` is (`NO_INDEX` for the world DAG), and the order lies in the cold table from word
  * `members` on — a member slot a growth left before its new groups names none.
  */
 export type PlacementTree = {
@@ -125,8 +125,8 @@ export function placementTreeShape(
 ): PlacementTree | undefined {
   if (!groupsPlacements(capacity.members)) return undefined
   const members = membersOf(roots, world),
-    order = new Uint32Array(capacity.members).fill(NONE),
-    slot = new Uint32Array(capacity.worlds).fill(NONE)
+    order = new Uint32Array(capacity.members).fill(NO_INDEX),
+    slot = new Uint32Array(capacity.worlds).fill(NO_INDEX)
   order.set(placementOrder(roots, members))
   for (let k = 0; k < members.length; k++) slot[order[k]] = k
   const levels = treeLevels(capacity.members, cellBase)
@@ -317,7 +317,7 @@ const box = new Float64Array(12)
  *  its world, taken when it moved, the refit joining the kept one. A parked member, or one without
  *  a root, keeps none. */
 export function memberBox(packed: TreeSource, tree: PlacementTree, w: number) {
-  if (w === NONE || packed.rootNodes[w] === NONE) return
+  if (w === NO_INDEX || packed.rootNodes[w] === NO_INDEX) return
   const root = packed.rootBases[w] * DAG_NODE_FLOATS,
     nodes = packed.nodes
   for (let a = 0; a < 3; a++) {

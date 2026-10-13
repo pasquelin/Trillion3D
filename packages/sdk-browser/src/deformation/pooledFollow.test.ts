@@ -4,9 +4,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { deformOutputWord, followPooledBlocks } from './outputs.ts'
-import { PAGE_DEFORM_OUTPUT_WORD, PAGE_DEFORM_WORD, ROW_WORDS } from '../visibility/types.ts'
+import { ROW_WORDS } from '../visibility/types.ts'
 import type { HostAttributes } from '../host/resources.ts'
 import type { PageRec } from '../page/selection/selection.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 /** Four rows — a float-pool block, a page's own results, the block again, a row with none —, a placement each. */
 function rig() {
@@ -17,7 +18,7 @@ function rig() {
   const words = ROW_WORDS,
     ints = new Uint32Array(4 * words),
     marked: number[] = []
-  ints[ROW_WORDS + PAGE_DEFORM_OUTPUT_WORD] = 77
+  ints[ROW_WORDS + PAGE_INFO.at.deformOutput] = 77
   const rows = {
     pageTableInts: ints,
     packedRecs: recs,
@@ -43,7 +44,7 @@ function rig() {
     blendState: { table: { pageOfEntry: Int32Array.from([0, 1, 2]), spans }, dirtySpans },
     vis: { deformation },
   } as unknown as Parameters<typeof followPooledBlocks>[0]
-  ints[words + PAGE_DEFORM_WORD] = deformation.rowWord(1)
+  ints[words + PAGE_INFO.at.deform] = deformation.rowWord(1)
   return { block, own, ints, words, marked, spans, dirtySpans, deformation, rt }
 }
 
@@ -53,10 +54,10 @@ test('the rows and spans of a moved float-pool block follow it; a tail stays', (
   followPooledBlocks(rt)
   const moved = deformOutputWord(block)
   assert.deepEqual(marked, [0, 1, 2])
-  assert.equal(ints[PAGE_DEFORM_OUTPUT_WORD], moved)
-  assert.equal(ints[2 * words + PAGE_DEFORM_OUTPUT_WORD], moved)
-  assert.equal(ints[words + PAGE_DEFORM_OUTPUT_WORD], deformOutputWord(own))
-  assert.equal(ints[3 * words + PAGE_DEFORM_OUTPUT_WORD], 0, 'a row with none names none')
+  assert.equal(ints[PAGE_INFO.at.deformOutput], moved)
+  assert.equal(ints[2 * words + PAGE_INFO.at.deformOutput], moved)
+  assert.equal(ints[words + PAGE_INFO.at.deformOutput], deformOutputWord(own))
+  assert.equal(ints[3 * words + PAGE_INFO.at.deformOutput], 0, 'a row with none names none')
   assert.deepEqual([spans[2], spans[10], [...dirtySpans]], [moved, 0, [0]])
 })
 
@@ -67,7 +68,7 @@ test("a row's record word follows the moved records; a row with none, or unmoved
   marked.length = 0
   deformation.base = 9000
   followPooledBlocks(rt)
-  assert.equal(ints[ROW_WORDS + PAGE_DEFORM_WORD], 9040, 'the record read at its new place')
-  assert.deepEqual([ints[PAGE_DEFORM_WORD], ints[2 * ROW_WORDS + PAGE_DEFORM_WORD]], [0, 0])
+  assert.equal(ints[ROW_WORDS + PAGE_INFO.at.deform], 9040, 'the record read at its new place')
+  assert.deepEqual([ints[PAGE_INFO.at.deform], ints[2 * ROW_WORDS + PAGE_INFO.at.deform]], [0, 0])
   assert.deepEqual(marked, [0, 1, 2])
 })

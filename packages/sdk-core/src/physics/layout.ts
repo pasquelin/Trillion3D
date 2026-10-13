@@ -68,7 +68,7 @@ export const PART_WORDS = 11
 /**
  * A scene query (`jolt_cast`): `kind, origin x, y, z, travel x, y, z, a, b, c, ignored` — a ray,
  * or a sphere (radius `a`), box (half extents `a, b, c`) or capsule (half height `a`, radius `b`)
- * swept along `travel`, through the body whose engine id is `ignored` (`MISS`: none). Its hit: `engine id, fraction, point x, y, z, normal x, y, z`; a miss names no
+ * swept along `travel`, through the body whose engine id is `ignored` (`NO_INDEX`, `../../../math/src/constants.ts`: none). Its hit: `engine id, fraction, point x, y, z, normal x, y, z`; a miss names no
  * body (`0xFFFFFFFF`). A tile's glTF material is its collider's, read from `physics.json`.
  */
 export const CAST_WORDS = 11
@@ -77,7 +77,6 @@ export const HIT_WORDS = 8
 export const RESTORE_WORDS = 3
 export const RELEASE_WORDS = 2
 export const CAST = { ray: 0, sphere: 1, box: 2, capsule: 3 } as const
-export const MISS = 0xffffffff
 
 /** Joint kinds of the JOINT command, each one of the module's two-body constraints. */
 export const JOINT = {
@@ -99,7 +98,7 @@ export const MOTOR = { off: 0, velocity: 1, position: 2 } as const
 /**
  * Words of JOINT: `op, joint id, kind, engine id a, engine id b, motor mode, motor axis, extra
  * count`, then for `a` and for `b` its frame — `point x, y, z, axis x, y, z, normal x, y, z` in
- * that body's own frame, the world's when the engine id is `MISS` — then `limit min, limit max,
+ * that body's own frame, the world's when the engine id is `NO_INDEX` — then `limit min, limit max,
  * spring frequency, spring damping, motor target, motor max force, break force`, then the kind's
  * own `extra count` words: a swing-twist's swing half angle; a six-DOF's `min, max` per axis (`x,
  * y, z`, then turns about them; min +∞ locks one); a path's `loop, follow, point count` and per

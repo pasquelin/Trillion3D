@@ -1,6 +1,6 @@
 import { ROW_WORDS } from '../../visibility/types.ts'
-import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { rowsMoved, type RowsReading } from '../row/dirty.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /** Which classes an image draws: a stamp per class key, the keys stamped by the last walk, and
  *  the rows that walk read. */
@@ -27,7 +27,7 @@ export function markPresentClasses(
   const stamp = ++into.stamp
   into.keys.length = 0
   for (let row = 0; row < packedCount; row++) {
-    const key = ints[row * ROW_WORDS + ROW_MATERIAL_CLASS_WORD]
+    const key = ints[row * ROW_WORDS + PAGE_INFO.at.materialClass]
     if (into.stamps[key] === stamp) continue
     into.stamps[key] = stamp
     into.keys.push(key)

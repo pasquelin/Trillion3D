@@ -9,6 +9,9 @@ import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
  *  its list holds a shadow slot, the per-cell fact the moving resolve reads once —, then
  *  where its list starts in the view's pool. */
 export const TILE_STRIDE_WORDS = 2
+/** A cell with no list of its own (`TILE_NO_SLICE`): the pool had no room, the cell lies past the
+ *  grid, or no grid is built — the cell walks every light of the scene (`cellSlice`). */
+export const TILE_NO_SLICE = 0xffffffff
 
 /**
  * Whether a local light may light a point at `offset` from it (its centre minus the point): the
@@ -58,7 +61,7 @@ ${wgslConsts({
 })}
 /** The count word's high bit: a light of the list holds a shadow slot. */
 const TILE_SHADOWED:u32=0x80000000u;
-const TILE_NO_SLICE:u32=0xffffffffu;
+const TILE_NO_SLICE:u32=0x${TILE_NO_SLICE.toString(16)}u;
 /** The slice of a depth \`z\` (reverse-Z, 1 at the near plane): the doublings of its view depth
  *  past the near plane, \`SLICES_PER_OCTAVE\` a doubling; the background falls in the last. */
 fn gridSlice(z:f32)->u32{return u32(clamp(-log2(max(z,1e-30))*SLICES_PER_OCTAVE,0.0,f32(GRID_SLICES-1u)));}

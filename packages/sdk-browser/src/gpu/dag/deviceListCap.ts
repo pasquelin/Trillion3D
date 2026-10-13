@@ -1,6 +1,6 @@
 import { storageBufferCap } from '../../residency/pools.ts'
 import { listCapHeld } from './layout.ts'
-import { HELD_SLOT_WORDS } from './heldOpen.ts'
+import { OPEN_SLOT_WORDS } from './heldOpen.ts'
 import { keptRankCapHeld } from './keptRanks.ts'
 
 export type Limits = Parameters<typeof storageBufferCap>[0]
@@ -10,6 +10,6 @@ export type Limits = Parameters<typeof storageBufferCap>[0]
  *  tables of ranks one binding holds each (`keptRanks.ts`). */
 export const deviceListCap = (limits: Limits, heldSlots = 0) =>
   Math.min(
-    listCapHeld(storageBufferCap(limits) - heldSlots * HELD_SLOT_WORDS * 4),
+    listCapHeld(storageBufferCap(limits) - heldSlots * OPEN_SLOT_WORDS * 4),
     keptRankCapHeld(storageBufferCap(limits)),
   )

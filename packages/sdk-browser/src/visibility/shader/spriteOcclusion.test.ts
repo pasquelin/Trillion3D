@@ -13,7 +13,7 @@ import { webgpuPagesEngine } from '../../webgpu/pages/pages.ts'
 import { quadScene, camera } from '../../webgpu/pages/testScenes.fixture.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../types.ts'
 import { HIZ_REJECTED_WGSL, ST_REJECTED } from '../../gpu/partition/contract.ts'
-import { ROW_HIZ_SLOT_WORD, restampHizSlot } from '../../webgpu/row/pageRow.ts'
+import { restampHizSlot } from '../../webgpu/row/pageRow.ts'
 import { HIZ_SHADER, HIZ_TEST_PAGES_ENTRIES } from '../../gpu/hiz/shader.ts'
 import { transparentOcclusionShader } from '../../gpu/core/transparentOcclusionWgsl.ts'
 import { refreshTransparentCorners } from '../../webgpu/transparent/occlusionHost.ts'
@@ -27,9 +27,10 @@ import { orderBlendPasses } from '../../webgpu/blend/order.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { identityRoots } from '../../page/selection/placements.fixture.ts'
 import { buildHizPyramid } from '../../../../../bench/oracles/browser/hizPyramid.ts'
-import { NO_HIZ_SLOT } from '../../webgpu/row/noHizSlot.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { hasBit } from '../../../../math/src/scalar/bits.ts'
+import { PAGE_INFO } from '../pageInfo.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 const sprite = (sizeAttenuation: boolean) => ({ rotation: 0, sizeAttenuation })
 const spriteSurface = (sizeAttenuation: boolean, parameters = {}) =>
@@ -71,7 +72,8 @@ async function rowHizSlots(sizeAttenuation?: boolean) {
     const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
     const slots: number[] = []
     for (let row = 0; row < table.size / PAGE_INFO_STRIDE; row++)
-      if (ints[row * ROW_WORDS + 25]) slots.push(ints[row * ROW_WORDS + ROW_HIZ_SLOT_WORD])
+      if (ints[row * ROW_WORDS + PAGE_INFO.at.indexCount])
+        slots.push(ints[row * ROW_WORDS + PAGE_INFO.at.hizSlot])
     return slots
   } finally {
     await backend.dispose()
@@ -83,21 +85,21 @@ async function rowHizSlots(sizeAttenuation?: boolean) {
 test('a constant-size sprite row carries no Hi-Z slot, which every GPU reader draws unjudged', async () => {
   const constant = await rowHizSlots(false)
   assert.ok(constant.length > 0)
-  for (const slot of constant) assert.equal(slot, NO_HIZ_SLOT)
+  for (const slot of constant) assert.equal(slot, NO_INDEX)
   assert.deepEqual(await rowHizSlots(true), [0, 1], 'an attenuated sprite keeps its rank')
   assert.ok(wgslSource(HIZ_REJECTED_WGSL).includes('hizSlot!=0xffffffffu&&'))
   // A row moved to another rank keeps having none; any other row takes its new rank.
   const ints = new Uint32Array(64)
-  ints[ROW_HIZ_SLOT_WORD] = NO_HIZ_SLOT
-  ints[32 + ROW_HIZ_SLOT_WORD] = 1
+  ints[PAGE_INFO.at.hizSlot] = NO_INDEX
+  ints[32 + PAGE_INFO.at.hizSlot] = 1
   restampHizSlot(ints, 0, 7)
   restampHizSlot(ints, 32, 7)
-  assert.deepEqual([ints[ROW_HIZ_SLOT_WORD], ints[32 + ROW_HIZ_SLOT_WORD]], [NO_HIZ_SLOT, 7])
+  assert.deepEqual([ints[PAGE_INFO.at.hizSlot], ints[32 + PAGE_INFO.at.hizSlot]], [NO_INDEX, 7])
 })
 
 test('the GPU Hi-Z test counts no reject for a row with no Hi-Z slot, which it keeps', () => {
   const kernel = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn testHiz'))
-  const noVerdict = kernel.indexOf(`pages[row].hizSlot==0x${NO_HIZ_SLOT.toString(16)}u||`),
+  const noVerdict = kernel.indexOf(`pages[row].hizSlot==0x${NO_INDEX.toString(16)}u||`),
     kept = kernel.indexOf('return;}', noVerdict)
   // The row's slot sends it down the branch that keeps a row the pyramid cannot judge, before
   // the verdict and the reject counters.

@@ -4,6 +4,7 @@ import { BASE_SLOTS, HALF_SLOTS, slotCount } from './contract.ts'
 import { prefixSerial } from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 // The counting and scattering kernels moved from one thread per (group, slot) — each walking the
 // group's 64 items in the storage buffer — to one workgroup per group, each lane reading its own
@@ -12,7 +13,6 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 // same order, on random frames: partial groups, selection masks, empty slots, overflow.
 
 const GROUP = 64
-const NO_SLOT = 0xffffffff
 
 type Frame = {
   bins: number[]
@@ -34,7 +34,7 @@ const selected = (f: Frame, i: number) => !f.mask || f.mask[i] !== 0
 const matches = (f: Frame, i: number, slot: number) => slotOf(f, i) === slot && selected(f, i)
 /** Transcribes WGSL `slotAt`. */
 const slotAt = (f: Frame, i: number, end: number) =>
-  i >= end || !selected(f, i) ? NO_SLOT : slotOf(f, i)
+  i >= end || !selected(f, i) ? NO_INDEX : slotOf(f, i)
 
 function countBefore(f: Frame, groups: number, slots: number) {
   const counts = new Uint32Array(groups * slots)
@@ -54,7 +54,7 @@ function countAfter(f: Frame, groups: number, slots: number) {
     const tally = new Uint32Array(slots)
     for (let lane = 0; lane < GROUP; lane++) {
       const s = slotAt(f, group * GROUP + lane, Math.min(f.count, f.slotCap))
-      if (s !== NO_SLOT) tally[s]++
+      if (s !== NO_INDEX) tally[s]++
     }
     for (let slot = 0; slot < slots; slot++)
       counts[group * slots + slot] = f.slotUsed[slot] === 0 ? 0 : tally[slot]
@@ -63,7 +63,7 @@ function countAfter(f: Frame, groups: number, slots: number) {
 }
 
 function scatterBefore(f: Frame, groups: number, slots: number, offsets: Uint32Array) {
-  const instances = new Uint32Array(f.count + 1).fill(NO_SLOT)
+  const instances = new Uint32Array(f.count + 1).fill(NO_INDEX)
   for (let i = 0; i < groups * GROUP; i++) {
     if (i >= f.count || f.count > f.slotCap || !selected(f, i)) continue
     const slot = slotOf(f, i),
@@ -76,7 +76,7 @@ function scatterBefore(f: Frame, groups: number, slots: number, offsets: Uint32A
 }
 
 function scatterAfter(f: Frame, groups: number, slots: number, offsets: Uint32Array) {
-  const instances = new Uint32Array(f.count + 1).fill(NO_SLOT)
+  const instances = new Uint32Array(f.count + 1).fill(NO_INDEX)
   if (f.count > f.slotCap) return instances
   for (let group = 0; group < groups; group++) {
     const laneSlots = Array.from({ length: GROUP }, (_, lane) =>
@@ -84,7 +84,7 @@ function scatterAfter(f: Frame, groups: number, slots: number, offsets: Uint32Ar
     )
     for (let lane = 0; lane < GROUP; lane++) {
       const s = laneSlots[lane]
-      if (s === NO_SLOT) continue
+      if (s === NO_INDEX) continue
       let rank = 0
       for (let j = 0; j < lane; j++) if (laneSlots[j] === s) rank++
       instances[offsets[group * slots + s] + rank] = f.pages[group * GROUP + lane]

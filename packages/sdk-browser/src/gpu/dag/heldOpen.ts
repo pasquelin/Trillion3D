@@ -1,6 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import * as sampling from '../../../../math/src/wgsl/sampling.ts'
-import { halfLoadSlots, mixWord } from '../../../../math/src/scalar/integers.ts'
+import { halfLoadSlots, mixWord, slotsWithin } from '../../../../math/src/scalar/integers.ts'
 import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
 
 /**
@@ -21,20 +21,18 @@ import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
  * the row cache's growth makes (`resize`): what the view holds, never the placements.
  *
  * Three words a slot, in the readout behind its regions (`layout.ts`, `savedJournalWord`): the
- * placement plus one (zero, an empty slot), the node, the count.
+ * placement plus one (zero, an empty slot), the node, the count. The kept ranks' tables
+ * (`keptRanks.ts`) lay their slots out alike: a key, an item, its value.
  */
-export const HELD_SLOT_WORDS = 3
+export const OPEN_SLOT_WORDS = 3
 /** The longest probe a lookup walks; the host places no entry past it. */
 const HELD_PROBES = 32
 
 /** Slots of a table holding `entries` at a load of one half at most: a power of two, within
  *  `bytes` when given — half a readout binding (`resources.ts`): a table it cannot hold whole
  *  leaves more counts at their node's, never a list short. */
-export const heldOpenSlots = (entries: number, bytes = Infinity) => {
-  let slots = halfLoadSlots(entries)
-  while (slots > 1 && slots * HELD_SLOT_WORDS * 4 > bytes) slots /= 2
-  return slots
-}
+export const heldOpenSlots = (entries: number, bytes = Infinity) =>
+  Math.max(1, Math.min(halfLoadSlots(entries), slotsWithin(bytes, OPEN_SLOT_WORDS * 4)))
 
 /** The home slot of (`w`, `node`) in a table of `mask + 1` slots: the shader's `heldHash`. */
 function heldHash(w: number, node: number, mask: number) {
@@ -46,7 +44,7 @@ function heldHash(w: number, node: number, mask: number) {
 export function createHeldOpen(capacity: number) {
   let slots = capacity,
     mask = slots - 1,
-    words = new Uint32Array(new ArrayBuffer(slots * HELD_SLOT_WORDS * 4))
+    words = new Uint32Array(new ArrayBuffer(slots * OPEN_SLOT_WORDS * 4))
   const held = new Map<number, number>(),
     touched = createSortedKeys(),
     placements = createSortedKeys()
@@ -54,7 +52,7 @@ export function createHeldOpen(capacity: number) {
   const find = (w: number, node: number) => {
     let s = heldHash(w, node, mask)
     for (let k = 0; k < Math.min(HELD_PROBES, slots); k++, s = (s + 1) & mask) {
-      const at = s * HELD_SLOT_WORDS
+      const at = s * OPEN_SLOT_WORDS
       if (words[at] === 0 || (words[at] === w + 1 && words[at + 1] === node)) return s
     }
     return -1
@@ -69,15 +67,15 @@ export function createHeldOpen(capacity: number) {
    *  shift), so no probe ever crosses a hole. */
   const remove = (s: number) => {
     for (let hole = s, j = (s + 1) & mask; ; j = (j + 1) & mask) {
-      const at = j * HELD_SLOT_WORDS
+      const at = j * OPEN_SLOT_WORDS
       if (words[at] === 0) {
-        words.fill(0, hole * HELD_SLOT_WORDS, hole * HELD_SLOT_WORDS + HELD_SLOT_WORDS)
+        words.fill(0, hole * OPEN_SLOT_WORDS, hole * OPEN_SLOT_WORDS + OPEN_SLOT_WORDS)
         touched.listed.add(hole)
         return
       }
       const home = heldHash(words[at] - 1, words[at + 1], mask)
       if (((j - home) & mask) >= ((j - hole) & mask)) {
-        words.copyWithin(hole * HELD_SLOT_WORDS, at, at + HELD_SLOT_WORDS)
+        words.copyWithin(hole * OPEN_SLOT_WORDS, at, at + OPEN_SLOT_WORDS)
         touched.listed.add(hole)
         hole = j
       }
@@ -101,12 +99,12 @@ export function createHeldOpen(capacity: number) {
     /** Placement `w`'s own count at `node`, `undefined` when it reads its node's. */
     get(w: number, node: number) {
       const s = find(w, node)
-      return s >= 0 && words[s * HELD_SLOT_WORDS] ? words[s * HELD_SLOT_WORDS + 2] : undefined
+      return s >= 0 && words[s * OPEN_SLOT_WORDS] ? words[s * OPEN_SLOT_WORDS + 2] : undefined
     },
     /** Placement `w`'s count at `node` becomes `value`, `undefined` its node's own. */
     set(w: number, node: number, value: number | undefined) {
       const s = find(w, node),
-        at = s * HELD_SLOT_WORDS
+        at = s * OPEN_SLOT_WORDS
       if (s >= 0 && words[at]) {
         if (value === undefined) {
           entries--
@@ -156,13 +154,13 @@ export function createHeldOpen(capacity: number) {
       const old = words
       slots = capacity
       mask = slots - 1
-      words = new Uint32Array(new ArrayBuffer(slots * HELD_SLOT_WORDS * 4))
+      words = new Uint32Array(new ArrayBuffer(slots * OPEN_SLOT_WORDS * 4))
       for (const w of held.keys()) placements.listed.add(w)
       held.clear()
       entries = 0
       const left = [...spill].flatMap(([w, own]) => [...own].map(([node, v]) => [w, node, v]))
       spill.clear()
-      for (let at = 0; at < old.length; at += HELD_SLOT_WORDS)
+      for (let at = 0; at < old.length; at += OPEN_SLOT_WORDS)
         if (old[at]) table.set(old[at] - 1, old[at + 1], old[at + 2])
       for (const [w, node, value] of left) table.set(w, node, value)
       takeSorted(touched)
@@ -185,7 +183,7 @@ fn openOf(w:u32,node:u32,blank:u32)->u32{
  if(heldByOf(w)==0u){return blank;}
  var s=heldHash(w,node);
  for(var k=0u;k<HELD_PROBES;k++){
-  let at=views[0u].heldBase+${HELD_SLOT_WORDS}u*s;
+  let at=views[0u].heldBase+${OPEN_SLOT_WORDS}u*s;
   let key=out.pages[at];
   if(key==0u){return blank;}
   if(key==w+1u&&out.pages[at+1u]==node){return out.pages[at+2u];}

@@ -5,6 +5,7 @@ import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /** The `PageInfo.lineWidth` word of every drawn row, after one frame of `scene`. */
 async function rowLineWidths(lineWidth: number | undefined) {
@@ -27,7 +28,8 @@ async function rowLineWidths(lineWidth: number | undefined) {
     const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
     const widths: number[] = []
     for (let row = 0; row < table.size / PAGE_INFO_STRIDE; row++)
-      if (ints[row * ROW_WORDS + 25]) widths.push(floats[row * ROW_WORDS + 61])
+      if (ints[row * ROW_WORDS + PAGE_INFO.at.indexCount])
+        widths.push(floats[row * ROW_WORDS + PAGE_INFO.at.lineWidth])
     return widths
   } finally {
     await backend.dispose()

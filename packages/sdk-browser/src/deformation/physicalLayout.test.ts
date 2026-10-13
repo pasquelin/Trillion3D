@@ -6,12 +6,8 @@ import { surfaceOf } from '../page/surface.ts'
 import { pageRecFixture } from '../../../../bench/perf/browser/support/pageRecFixture.ts'
 import { createPageRowWriter } from '../webgpu/row/pageRowWriter.ts'
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from '../webgpu/blend/items.ts'
-import {
-  ROW_WORDS,
-  PAGE_DEFORM_WORD,
-  PAGE_DEFORM_COUNT_WORD,
-  PAGE_DEFORM_OUTPUT_WORD,
-} from '../visibility/types.ts'
+import { ROW_WORDS } from '../visibility/types.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 const material = () =>
   new G.GraphSurface('physical', {
@@ -50,9 +46,9 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
   assert.deepEqual([floats[base + 52], floats[base + 53], floats[base + 58]], [0.25, 0.5, 0.75])
   assert.deepEqual(
     [
-      words[base + PAGE_DEFORM_WORD],
-      words[base + PAGE_DEFORM_COUNT_WORD],
-      words[base + PAGE_DEFORM_OUTPUT_WORD],
+      words[base + PAGE_INFO.at.deform],
+      words[base + PAGE_INFO.at.deformCount],
+      words[base + PAGE_INFO.at.deformOutput],
     ],
     [123, 3, 11],
   )

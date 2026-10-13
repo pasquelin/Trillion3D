@@ -5,10 +5,7 @@
  * return, made once where a scene is laid out, and give a number in `[0, 1)`, the word over 2³².
  * Never for anything that must be unpredictable.
  */
-import { GOLDEN_U32 } from '../constants.ts'
-
-/** 2³²: a 32-bit word over it lies in `[0, 1)`, exactly. */
-const WORD_RANGE = 4294967296
+import { GOLDEN_U32, WORD_RANGE } from '../constants.ts'
 
 /** One step of the 32-bit xorshift (13, 17, 5): the state moved, as an unsigned word. */
 function xorshift32(state: number) {

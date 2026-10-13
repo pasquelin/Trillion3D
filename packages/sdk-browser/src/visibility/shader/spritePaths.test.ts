@@ -12,9 +12,9 @@ import { VIS_SHADER } from './visWgsl.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { rasterSource } from '../../gpu/raster/shader.ts'
 import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts'
-import { ROW_SPRITE_WORD } from '../../webgpu/row/pageRow.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
+import { PAGE_INFO } from '../pageInfo.ts'
 
 test('a surface writes its sprite words: its turn and its size rule, zeros when it is none', () => {
   const words = [9, 9, 9, 9]
@@ -31,7 +31,7 @@ test('every raster turns a sprite page, the shadow vertex stage is as before', (
     wgslSource(PAGE_INFO_STRUCT_WGSL),
     /normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32/,
   )
-  assert.equal(ROW_SPRITE_WORD, 36, 'the row words of PageInfo.sprite')
+  assert.equal(PAGE_INFO.at.sprite, 36, 'the row words of PageInfo.sprite')
   assert.ok(wgslSource(PAGE_SCREEN_WGSL).includes(SPRITE_WGSL.text))
   // The compute raster and the hardware skip test read `pageClip`, which turns a sprite page.
   assert.ok(

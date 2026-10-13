@@ -1,5 +1,6 @@
 import { alignUp } from '../../../../math/src/scalar/integers.ts'
-import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts'
+import { TRANSPARENT_GROUP } from './table.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /**
  * The compaction the GPU performs, written once in plain arithmetic.
@@ -19,7 +20,7 @@ export function evaluateTransparentCompaction(input: {
 }) {
   const { entries, itemRanges, entryCount, itemCount, vertexCount } = input
   const keeps = (entry: number) =>
-    entry < entryCount && entries[entry] !== TRANSPARENT_NONE && input.selected(entries[entry])
+    entry < entryCount && entries[entry] !== NO_INDEX && input.selected(entries[entry])
   const instances = new Uint32Array(entries.length)
   const indirect = new Uint32Array(Math.max(1, itemCount) * 4)
   for (let item = 0; item < itemCount; item++) {

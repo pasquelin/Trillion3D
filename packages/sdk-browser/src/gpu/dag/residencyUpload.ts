@@ -3,7 +3,7 @@ import { childBase, residentBase, residentWords } from './layout.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { PackedDag } from './types.ts'
 import type { CameraFrames } from './frameRanges.ts'
-import { HELD_SLOT_WORDS, type HeldOpen } from './heldOpen.ts'
+import { OPEN_SLOT_WORDS, type HeldOpen } from './heldOpen.ts'
 import { heldOpenAt } from './listCap.ts'
 import { SELECTION_HEADER_WORDS } from './layout.ts'
 import { HELD_BY_WORD } from './worlds.ts'
@@ -89,7 +89,7 @@ export function createDagResidencyUpload(
   const { device, packed, coldParts } = resources,
     pageCount = packed.pageCount
   const readiness = createDagReadiness(packed, resources.heldSlots)
-  const sendHeld = heldSender(device, resources, readiness.heldOpen)
+  const sendHeld = heldSender(device, resources, packed.heldOpen!)
   // The bits extend the cold records in their buffer: one view, mirror and write source.
   const bits = new Uint32Array(
     packed.pageCones.buffer,
@@ -161,7 +161,7 @@ export function createDagResidencyUpload(
     hostBytes: {
       get: () =>
         readiness.hostBytes +
-        readiness.heldOpen.words.byteLength +
+        packed.heldOpen!.words.byteLength +
         touched.byteLength +
         changed.pages.byteLength,
     },
@@ -195,7 +195,7 @@ function heldSender(device: GPUDevice, target: Partial<HeldTarget>, held: HeldOp
     const at = (heldOpenAt(target as HeldTarget).base + SELECTION_HEADER_WORDS) * 4
     const send: RangeTarget = (offset, data, dataOffset, size) =>
       device.queue.writeBuffer(output, at + offset, data, dataOffset, size)
-    const source = { data: held.words, sourceBase: 0, targetBase: 0, stride: HELD_SLOT_WORDS }
+    const source = { data: held.words, sourceBase: 0, targetBase: 0, stride: OPEN_SLOT_WORDS }
     writeRanges(device, send, slots, slots.length, source)
     for (const w of placements) frames.writeWord(w, HELD_BY_WORD, held.heldBy(w))
     if (placements.length) frames.flushWords()
