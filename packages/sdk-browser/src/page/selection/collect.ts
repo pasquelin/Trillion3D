@@ -3,7 +3,7 @@ import { meshSurface, type PageSurface } from '../surface.ts'
 import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts'
-import { objects } from './helpers.ts'
+import { meshes } from '../../scene/meshes.ts'
 import { refreshRootBox } from './batchBoxes.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
 import { createPrimitiveTemplates } from './template.ts'
@@ -152,7 +152,7 @@ export function collectClusterPages(
   const templates = createPrimitiveTemplates(indices, options.allowMissing === true)
   const covered = new Set<PageRec>()
   let order = 0
-  for (const mesh of objects(source)) {
+  for (const mesh of meshes(source)) {
     const association = associations.get(mesh)
     const primitive = primitiveOf(association)
     if (!primitive && options.pendingPlaced && association?.placements) continue

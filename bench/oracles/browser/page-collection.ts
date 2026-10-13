@@ -16,11 +16,11 @@ import type {
 } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 import { isTransmissive } from '../../../packages/sdk-browser/src/visibility/shader/material.ts'
 import {
-  objects,
   streamPlacement,
   clusterErrorFields,
   cullingNodes,
 } from '../../../packages/sdk-browser/src/page/selection/helpers.ts'
+import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
 import { structureIndex } from '../../../packages/sdk-browser/src/page/selection/structure.ts'
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts'
 import { indexPageRequests } from '../../../packages/sdk-browser/src/page/selection/requests.ts'
@@ -55,7 +55,7 @@ export function referenceCollectClusterPages(
   // `meshes` resolved the host subtree before batch 8; the witness now resolves it
   // itself, since it reads `matrixWorld` — what it computes does not change by a bit.
   source.updateMatrixWorld(true)
-  for (const sourceMesh of objects(source)) {
+  for (const sourceMesh of meshes(source)) {
     const mesh = sourceMesh
     const association = associations.get(mesh),
       primitive = metadata.primitives.find(

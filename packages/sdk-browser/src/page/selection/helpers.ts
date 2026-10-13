@@ -130,7 +130,3 @@ export function streamPlacement(
     ? (placement as Array<{ url: string; offset: number }>)
     : undefined
 }
-
-/** Meshes of a resolved host graph. One traversal in the package, that of
- *  `../../scene/meshes.ts`: selection reads the same one, word for word. */
-export { meshes as objects } from '../../scene/meshes.ts'
