@@ -3,7 +3,6 @@
 import { textureExtent } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 import type { FakeDeviceOptions, FakeTexture } from './fakeRecords.ts'
 import { untag } from './fakeWebgpuDevice.ts'
-import { extentOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 
 /** What a creation that refuses leaves, by `refuse`: a throw, or an out-of-memory error in the
  *  innermost scope open. */

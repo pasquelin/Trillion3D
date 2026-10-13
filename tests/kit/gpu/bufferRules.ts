@@ -1,6 +1,5 @@
 import { textureExtent } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 import { BUFFER, TEXTURE, srgbPair } from './formats.ts'
-import { extentOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 import type { TextureInfo } from './textureRules.ts'
 
 /**

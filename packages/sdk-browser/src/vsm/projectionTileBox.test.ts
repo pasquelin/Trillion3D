@@ -38,7 +38,7 @@ test('the box test never drops a light a pixel of the tile is in, even with the 
     }>(PROJECTION_CODE, NAMES.slice(6, 14), {
       // The float tests in binary32, as a GPU runs them, the box's root against them.
       ...F32_SCOPE,
-      ...SCOPE,
+      ...PROJECTION_SCOPE,
       VSM_PROJECTION_KINDS: 0,
       vsmView: { lights },
       ...roots,
@@ -90,7 +90,7 @@ test('a lit point not finite makes every light a candidate: its own test is the 
     l.kind === DIRECTIONAL ? { ...l, kind: POINT } : l,
   )
   const scope = {
-    ...SCOPE,
+    ...PROJECTION_SCOPE,
     VSM_PROJECTION_KINDS: 0,
     vsmView: { lights },
     vsmTileBounds: [0, 0, 0, 0, 0, 0],

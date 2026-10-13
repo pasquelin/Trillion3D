@@ -36,7 +36,7 @@ export function shipped(pixels: Pixel[], lights: Light[], oneLight: boolean, kin
   let tileLayers = -1
   let lane = 0
   const scope = {
-    ...SCOPE,
+    ...PROJECTION_SCOPE,
     VSM_PROJECTION_ONE_LIGHT: oneLight,
     VSM_PROJECTION_KINDS: kinds,
     vsmView: { lights, lightCount: lights.length },
@@ -89,7 +89,7 @@ export function reference(pixels: Pixel[], lights: Light[], oneLight: boolean) {
       'vsmMaskCode',
     ],
     {
-      ...SCOPE,
+      ...PROJECTION_SCOPE,
       VSM_PROJECTION_KINDS: 0,
       vsmView: { lights },
     },
