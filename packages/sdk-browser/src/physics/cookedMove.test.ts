@@ -126,13 +126,13 @@ test('a body inside a dynamic body’s subtree keeps its node’s tile out when 
   const { model, writer, bodies } = modelStreamer({}, 1, [crate, inner])
   const [top] = model.children
   model._nodeAt = (i: number) => (i === 0 ? { node: top, indices: [0, 2], radius: 1 } : null)
-  const rigid = createCookedBodies(
+  const rigid = createCookedBodies({
     writer,
     bodies,
-    sharedShapes(writer, bodies),
-    () => {},
-    assert.fail,
-  )
+    shapes: sharedShapes(writer, bodies),
+    invalidate: () => {},
+    failed: assert.fail,
+  })
   rigid.open(model, [crate, inner], new AbortController().signal)
   await landed()
   const holds = () => [0, 1, 2].map((node) => rigid.holds(model, node))

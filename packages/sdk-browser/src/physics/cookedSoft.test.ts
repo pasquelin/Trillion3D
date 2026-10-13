@@ -85,7 +85,13 @@ test('a compiled model’s cooked cloth is made from its settings alone and move
 
 /** The cooked soft bodies of a session over `writer` and `bodies`, a refusal failing the test. */
 const cookedSofts = (...[writer, bodies]: Parameters<typeof sharedShapes>) =>
-  createCookedSoftBodies(writer, bodies, sharedShapes(writer, bodies), () => {}, assert.fail)
+  createCookedSoftBodies({
+    writer,
+    bodies,
+    shapes: sharedShapes(writer, bodies),
+    invalidate: () => {},
+    failed: assert.fail,
+  })
 
 test('a model opened again before its settings arrive holds its cooked cloth once', async () => {
   const { model, writer, bodies } = await opened()

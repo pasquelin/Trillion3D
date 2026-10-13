@@ -4,14 +4,12 @@ import {
   BODY_INDEX,
   ObjectPhysics,
   physicsMatterOf,
-  type CommandWriter,
   type CookedSoftBody,
 } from '../../../sdk-core/src/physics/index.ts'
-import { flagsOf, type createPhysicsBodies } from './bodies.ts'
+import { flagsOf } from './bodies.ts'
 import { createOpenings } from './modelOpenings.ts'
 import { fits, rescaledSoft, writeSoftBody } from './softBodies.ts'
-import { holdObjects, letGoAll, type HeldObjects } from './cookedObjects.ts'
-import type { SharedShapes } from './sharedShapes.ts'
+import { holdObjects, letGoAll, type HeldObjects, type CookedParts } from './cookedObjects.ts'
 import { tilePose, type Model } from './tilePlace.ts'
 
 /** The settings object a cooked soft body is made from. */
@@ -34,13 +32,8 @@ export type CookedMade = {
  * model's visibility for its own. The physics module scales no soft body once made: a model placed at another
  * scale than the one it was cooked at has its soft bodies refused, by name.
  */
-export function createCookedSoftBodies(
-  writer: CommandWriter,
-  bodies: Pick<ReturnType<typeof createPhysicsBodies>, 'claim' | 'release'>,
-  shapes: SharedShapes,
-  invalidate: () => void,
-  failed: (error: EngineError) => void,
-) {
+export function createCookedSoftBodies(parts: CookedParts) {
+  const { writer, bodies, shapes, invalidate, failed } = parts
   /** Each open model's opening: its soft bodies made, those refused at another scale, the
    *  settings they are made from — held (`cookedObjects.ts`), read once by URL for every body and
    *  model naming them and kept while held: a body made again never waits on the network —, and
