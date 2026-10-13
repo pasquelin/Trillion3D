@@ -2,60 +2,82 @@ import type { SelectionUniforms } from '../core/selection.ts'
 import { levelCountsWord } from './layout.ts'
 import { MAIN_VIEW, noteWhole, stampMatches } from './swap.ts'
 import { recutMain, type DagRuntimeState } from './runtimeState.ts'
-import { readDagSlot, SlotMapRefused } from './readbackSlot.ts'
+import { readDagSlot } from './readbackSlot.ts'
+import { ReadbackRefused } from '../core/readbackRing.ts'
 import { widerFlagShape } from './queueGrowth.ts'
 import type { MainCut } from './dispatch.ts'
 
-// The landing side of the main view's dispatch (`dispatch.ts`): the readback a slot copied, read
-// behind the reads in flight, landed in the chain and adopted when it may be.
+// The readback side of the main view's dispatch (`dispatch.ts`): a buffer of its ring taken, the
+// copy read behind the reads in flight, landed in the chain and adopted when it may be.
 
 /** True when the readback copied last is `next`'s, on the residency and the poses in place. The
  *  cut submitted last is the main view's in the swap (`sameCut`). */
 export const readFor = (state: DagRuntimeState, next: SelectionUniforms) =>
   stampMatches(state.readback, next, state)
 
-/** What a slot was copied from: the main cut `serial`, under `captured` and the factor `coarsen`
- *  (`listCap.ts`). */
-type MainCopy = { captured: SelectionUniforms; serial: number; coarsen: number }
+/** What a main readback was copied from: the cut `serial` under `captured` and the factor
+ *  `coarsen` (`listCap.ts`), and — stamped at its submit (`readMain`) — the poses and the
+ *  residency in place; `cut`, the main view's it lands in. */
+export type MainCopy = {
+  cut: MainCut
+  captured: SelectionUniforms
+  serial: number
+  coarsen: number
+  world: number
+  residency: number
+}
 
-/** Slot `i`, copied from `copy`, read behind the reads in flight. */
-export function readMain(cut: MainCut, i: number, copy: MainCopy) {
-  const { state } = cut,
-    world = state.worldRevision,
-    residency = state.residencyRevision
+/** A copy taken: the ring's buffer (`resources.readbacks`) and what it is copied from. */
+export type Copy = { buffer: GPUBuffer; tag: MainCopy }
+
+/** A buffer of the ring for the main cut's lists, copied from the cut `serial` under `captured`
+ *  and the factor in place; none when the ring has none. */
+export function takeCopy(cut: MainCut, captured: SelectionUniforms, serial = -1): Copy | undefined {
+  const { resources, state } = cut,
+    tag: MainCopy = { cut, captured, serial, coarsen: state.coarse.factor, world: 0, residency: 0 }
+  const buffer = resources.readbacks.take(tag, resources.readbackBytes)
+  return buffer && { buffer, tag }
+}
+
+/** The copy into `buffer` under `tag`, its encoder submitted: stamped with the poses and the
+ *  residency in place, and mapped behind the reads in flight (`chainMain`). */
+export function readMain(cut: MainCut, { buffer, tag }: Copy) {
+  tag.world = cut.state.worldRevision
+  tag.residency = cut.state.residencyRevision
+  cut.resources.readbacks.submitted(buffer)
+}
+
+/** The main ring's chain (`createReadbackRing`): each read runs behind the reads and growths in
+ *  flight (`state.pending`), in the order the copies were submitted. */
+export function chainMain(read: () => Promise<void>, { cut: { state } }: MainCopy) {
   state.pending = state.pending
     .catch(() => {})
     .then(async () => {
       try {
-        // `dispose` destroyed the buffers: a read queued behind the other slot's maps nothing,
-        // since mapping a destroyed buffer is a validation error on the device (#334).
-        if (!state.disposed) await adoptMain(cut, i, { ...copy, world, residency })
+        await read()
       } catch (error) {
         // A mapping refused — a device lost says so on its own (`device.lost`) — reads nothing:
         // the next dispatch copies the cut again. Any other error is the engine's: it surfaces.
         state.readback = undefined
-        if (!(error instanceof SlotMapRefused)) throw error
-      } finally {
-        state.mapped[i] = false
+        if (!(error instanceof ReadbackRefused)) throw error
       }
     })
 }
 
-/** Slot `i` mapped and parsed, landed in the chain, adopted when it may be. */
-async function adoptMain(
-  { resources, state, chain, scratch }: MainCut,
-  i: number,
-  read: MainCopy & { world: number; residency: number },
-) {
-  const { readback, outputBytes, readbackBytes: copied, listCap, device, packed } = resources
+/** A main readback mapped (the ring's `read`): parsed into the arrays of its turn, landed in the
+ *  chain, adopted when it may be. */
+export function landMain(range: ArrayBuffer, _staging: GPUBuffer, read: MainCopy) {
+  const { cut } = read,
+    { resources, state, chain, scratch } = cut
+  const { outputBytes, readbackBytes: copied, listCap, device, packed } = resources
   const { listFull } = state
-  const { parsed, grown, grownFlags, moved, retried } = await readDagSlot(
-    readback[i],
+  const { parsed, grown, grownFlags, moved, retried } = readDagSlot(
+    range,
     {
       bytes: copied,
       drawnWordOffset: outputBytes / 4,
       listCap,
-      scratch: scratch[i],
+      scratch: scratch[cut.reads++ % scratch.length],
       levelsWord: levelCountsWord(listCap),
     },
     {

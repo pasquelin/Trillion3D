@@ -4,7 +4,7 @@ import {
   DAG_READBACK_SLOTS,
   KEPT_HEADER_WORDS,
   OUT_COUNT,
-  SELECTION_HEADER_WORDS as HEAD,
+  SELECTION_HEADER_WORDS,
   savedJournalWord,
   keptSnapshotWord,
   residentReadbackBytes,
@@ -70,30 +70,23 @@ export function listDemand(bytes: ArrayBuffer, drawnWordOffset: number) {
 
 /** The readout of a cut whose list holds `listCap` ranks and `regions` saved journals
  *  (`swap.ts`), the `heldSlots` slots of the open counts placements hold behind them
- *  (`heldOpen.ts`): the buffer the kernels write, the readback slots the frame copies it into, and
- *  each kept list's table of ranks (`keptRanks.ts`), which its kernels bind as `work`, each made by
- *  `own` (`resources.ts`). */
+ *  (`heldOpen.ts`): the buffer the kernels write, the bytes a frame copies of it into its readback
+ *  ring (`resources.readbacks`, sized at each take), and each kept list's table of ranks
+ *  (`keptRanks.ts`), which its kernels bind as `work`, each made by `own` (`resources.ts`). */
 export function createDagList(
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
   listCap: number,
   regions = 0,
   heldSlots = 0,
 ) {
-  const outputBytes = (HEAD + listCap) * 4,
+  const outputBytes = (SELECTION_HEADER_WORDS + listCap) * 4,
     // The requests, the drawn list and one burst of the eviction queue (`EVICTION_BURST`).
     readbackBytes = residentReadbackBytes(listCap)
   // Behind the eviction queue, the requests wait for their sort, outside what the frame copies
   // (`shader/snapshotWgsl.ts`).
   const output = makeDagBuffer(own, readoutRow(listCap, regions, heldSlots))
-  const readback = Array.from({ length: DAG_READBACK_SLOTS }, () =>
-    own({
-      label: 'Trillion3D DAG readback slot',
-      size: readbackBytes,
-      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-    }),
-  )
   const ranks = [0, 1].map((l) => makeDagBuffer(own, keptRankRow(l, listCap)))
-  return { listCap, outputBytes, readbackBytes, output, readback, heldSlots, ranks }
+  return { listCap, outputBytes, readbackBytes, output, heldSlots, ranks }
 }
 
 /** Where the open counts placements hold lie for the kernels — the first word in `out.pages`, the
@@ -103,7 +96,7 @@ export const heldOpenAt = (resources: {
   heldSlots: number
   swap: { regions: number }
 }) => ({
-  base: savedJournalWord(resources.listCap, resources.swap.regions) - HEAD,
+  base: savedJournalWord(resources.listCap, resources.swap.regions) - SELECTION_HEADER_WORDS,
   mask: Math.max(0, resources.heldSlots - 1),
 })
 
@@ -121,14 +114,14 @@ function writeHeldOpen(resources: DagResources, grown: boolean) {
     resources.frames.flushWords()
   }
   if (held.slots !== resources.heldSlots) return
-  const at = (heldOpenAt(resources).base + HEAD) * 4
+  const at = (heldOpenAt(resources).base + SELECTION_HEADER_WORDS) * 4
   resources.device.queue.writeBuffer(resources.output, at, held.words)
 }
 
 /**
  * Gives the camera cut a list of `listCap` ranks, `regions` saved journals and `heldSlots` slots of
- * open counts, between two frames and with no readback in flight: a new readout and its slots, the
- * bind groups that name it, and the old ones destroyed. Made under an out-of-memory scope, within one binding: a device that
+ * open counts, between two frames and with no readback in flight: a new readout, the bind groups
+ * that name it, and the old ones destroyed — the readback ring takes the new size at its next copy. Made under an out-of-memory scope, within one binding: a device that
  * cannot grant them keeps the old readout whole and says `false`, so the next truncated readout
  * coarsens its cut (`coarsening.ts`) — or the views aside cut without a region — rather than end on an
  * error of the whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's list, in
@@ -145,20 +138,25 @@ export async function growDagList(
   if (bytes > storageBufferCap(resources.device.limits)) return false
   const made: GPUBuffer[] = []
   // What the readout replaces leaves the share: the new one is made within what remains.
-  const replaced = [resources.output, ...resources.readback, ...resources.ranks]
-  const make = madeWithin(resources, replaced, made)
+  const replaced = [resources.output, ...resources.ranks]
+  // The ring's next copies take the grown size: kept in the share, asked now (`mainReadbacks.ts`).
+  const ring = DAG_READBACK_SLOTS * residentReadbackBytes(listCap) - resources.readbacks.bytes
+  const make = madeWithin(resources, replaced, made, Math.max(0, ring))
   let list: ReturnType<typeof createDagList> | undefined
   try {
     const { value, error } = await validationScope(
       resources.device,
-      () => createDagList(make, listCap, regions, heldSlots),
+      () => {
+        if (ring > 0) resources.admit(ring)
+        return createDagList(make, listCap, regions, heldSlots)
+      },
       'out-of-memory',
     )
     if (!error) list = value
   } catch {
     /* A creation the device throws on is a refusal too. */
   }
-  const old = [resources.output, ...resources.readback, ...resources.ranks]
+  const old = [resources.output, ...resources.ranks]
   const growth = cutGrowth(resources, made, old, () => {
     const from = { output: resources.output, listCap: resources.listCap },
       grown = heldSlots > resources.heldSlots
@@ -249,15 +247,18 @@ export function rankGroups(resources: {
 
 /**
  * A maker of the buffers that replace `replaced`, each noted in `made`: one that would take the cut
- * past its share — what it holds, less what it replaces, with what is made — is never made, and the
- * growth is refused by name (`pastShare`): the view coarsens instead (`coarsening.ts`).
+ * past its share — what it holds, less what it replaces, with what is made and the `reserved` bytes
+ * a growth keeps for later — is never made, and the growth is refused by name (`pastShare`): the
+ * view coarsens instead (`coarsening.ts`).
  */
 export function madeWithin(
   resources: DagResources,
   replaced: readonly GPUBuffer[],
   made: GPUBuffer[],
+  reserved = 0,
 ) {
-  const kept = cutBytes(resources) - replaced.reduce((sum, buffer) => sum + buffer.size, 0)
+  const kept =
+    cutBytes(resources) - replaced.reduce((sum, buffer) => sum + buffer.size, 0) + reserved
   return (descriptor: GPUBufferDescriptor) => {
     const held = kept + made.reduce((sum, buffer) => sum + buffer.size, 0)
     const buffer = madeAsked(resources.device, resources.admit, held, resources.share, descriptor)

@@ -1,5 +1,4 @@
 import type { GpuCut } from '../core/selection.ts'
-import { DAG_READBACK_SLOTS } from './layout.ts'
 import { MAIN_VIEW, type CutStamp, type MaskSwap } from './swap.ts'
 import { createCoarsening, type Coarsening } from './coarsening.ts'
 import type { FlagShape } from './flagSections.ts'
@@ -16,9 +15,7 @@ export type DagRuntimeState = {
   dead: boolean
   worldRevision: number
   residencyRevision: number
-  mapped: boolean[]
-  slot: number
-  /** Serial of the main cut whose lists `out` holds and no slot copied yet; -1 none
+  /** Serial of the main cut whose lists `out` holds and no readback copied yet; -1 none
    *  (`dispatch.ts`, `copyOwed`). */
   owed: number
   /** The list cap a truncated readout asked for, taken once no readback is in flight; 0: none. */
@@ -53,8 +50,6 @@ export const createDagRuntimeState = (): DagRuntimeState => ({
   dead: false,
   worldRevision: 0,
   residencyRevision: 0,
-  mapped: new Array<boolean>(DAG_READBACK_SLOTS).fill(false),
-  slot: 0,
   owed: -1,
   grow: 0,
   growing: false,
