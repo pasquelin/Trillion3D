@@ -1,6 +1,7 @@
 import { validationScope } from '../core/errorScope.ts'
 import { pendingBuffers } from '../core/tableGrowth.ts'
 import {
+  DAG_READBACK_SLOTS,
   KEPT_HEADER_WORDS,
   OUT_COUNT,
   SELECTION_HEADER_WORDS as HEAD,
@@ -138,12 +139,17 @@ export async function growDagList(
   const made: GPUBuffer[] = []
   // What the readout replaces leaves the share: the new one is made within what remains.
   const replaced = [resources.output, ...resources.ranks]
-  const make = madeWithin(resources, replaced, made)
+  // The ring's next copies take the grown size: kept in the share, asked now (`mainReadbacks.ts`).
+  const ring = DAG_READBACK_SLOTS * residentReadbackBytes(listCap) - resources.readbacks.bytes
+  const make = madeWithin(resources, replaced, made, Math.max(0, ring))
   let list: ReturnType<typeof createDagList> | undefined
   try {
     const { value, error } = await validationScope(
       resources.device,
-      () => createDagList(make, listCap, regions, heldSlots),
+      () => {
+        if (ring > 0) resources.admit(ring)
+        return createDagList(make, listCap, regions, heldSlots)
+      },
       'out-of-memory',
     )
     if (!error) list = value
@@ -241,15 +247,18 @@ export function rankGroups(resources: {
 
 /**
  * A maker of the buffers that replace `replaced`, each noted in `made`: one that would take the cut
- * past its share — what it holds, less what it replaces, with what is made — is never made, and the
- * growth is refused by name (`pastShare`): the view coarsens instead (`coarsening.ts`).
+ * past its share — what it holds, less what it replaces, with what is made and the `reserved` bytes
+ * a growth keeps for later — is never made, and the growth is refused by name (`pastShare`): the
+ * view coarsens instead (`coarsening.ts`).
  */
 export function madeWithin(
   resources: DagResources,
   replaced: readonly GPUBuffer[],
   made: GPUBuffer[],
+  reserved = 0,
 ) {
-  const kept = cutBytes(resources) - replaced.reduce((sum, buffer) => sum + buffer.size, 0)
+  const kept =
+    cutBytes(resources) - replaced.reduce((sum, buffer) => sum + buffer.size, 0) + reserved
   return (descriptor: GPUBufferDescriptor) => {
     const held = kept + made.reduce((sum, buffer) => sum + buffer.size, 0)
     const buffer = madeAsked(resources.device, resources.admit, held, resources.share, descriptor)
