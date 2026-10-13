@@ -49,8 +49,10 @@ same bytes.
 
 `manifest-page-<sha256>.bin`: per-cluster numbers as typed-array columns, mapped, not parsed.
 
-- Version: `MANIFEST_BINARY_VERSION` 11, with the `texturePreviewBc7`, `texturePreviewAstc` and
-  `texturePreviewEtc2` block columns (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`).
+- Version: `MANIFEST_BINARY_VERSION` 12, with the `texturePreviewBc7`, `texturePreviewAstc` and
+  `texturePreviewEtc2` block columns (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`);
+  12 builds the culling tree, which the page order follows, by the one builder
+  (`codec/culling.rs`, each split on the axis of least surface).
 - Writes `rust/manifest_binary.rs:columns`; reads `core/manifest/binaryRead.ts:readManifestColumns`,
   `core/manifest/binaryDecode.ts:decodeManifestBinary`.
 
@@ -62,7 +64,9 @@ bundles whose dependencies close up to the pinned roots.
 - Types: `core/contracts/geometry.ts` (`Page`, `ClusterStructure`, `StreamCatalogue`); the cut,
   `browser/page/cut/rule.ts:drawsCluster`.
 - Writes `rust/dag.rs`, `rust/compiler_primitive_bundle/pack.rs:pack_bundles`,
-  `rust/compiler_bundle_dependencies.rs`; normal cones `codec/normal_cone.rs`.
+  `rust/compiler_bundle_dependencies.rs`; normal cones `codec/normal_cone.rs`; the culling tree
+  `codec/culling.rs:build_culling_bvh`, the one builder of a primitive's, the world's
+  (`world-roots.dag`) and a run-time cut's hierarchy.
 
 ## Pages
 

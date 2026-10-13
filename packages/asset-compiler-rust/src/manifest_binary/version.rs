@@ -23,7 +23,10 @@
 /// the head's the texture previews alone.
 /// Version 11 widens a preview entry to fifteen words and adds a block column after ASTC's: the
 /// ETC2 family, the third a device may sample; a version-10 reader would stride wrongly.
-pub const MANIFEST_BINARY_VERSION: u32 = 11;
+/// Version 12 keeps every column and builds the culling tree a page order follows by the one
+/// builder of `page-codec-wasm/src/culling.rs`, each split on the axis of least surface: the nodes
+/// and the pages' order differ from a version-11 cook's for the same source.
+pub const MANIFEST_BINARY_VERSION: u32 = 12;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 pub const MANIFEST_BINARY_HEADER_WORDS: usize = 4;
