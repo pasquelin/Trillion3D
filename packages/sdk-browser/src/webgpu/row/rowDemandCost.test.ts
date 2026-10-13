@@ -79,11 +79,14 @@ test('per readback, the row table is read per change, never per id named', () =>
   assert.ok(rowReads < named / 4, `${rowReads} row reads for ${named} ids named`)
 })
 
-test('the lists hold bytes by the ids they hold, never by the largest: one asked at 10⁹', () => {
+test('the demand holds bytes by the pages it holds, never by the largest: one asked at 10⁹', () => {
   const far = 1e9,
-    demand = createRowDemand(pageStateOf(far + 1), createRowUse(8), () => false, closeAlone)
+    demand = createRowDemand(pageStateOf(far + 1), createRowUse(8), () => true, closeAlone)
   demand.follow({ drawablePageIds: [far, 3], pageIds: [far], aheadPageIds: [far - 1] })
+  assert.ok(demand.wanted(far), 'the far page is asked for')
   demand.follow({ drawablePageIds: [3], pageIds: [far - 2], aheadPageIds: [] })
-  // A mark per id up to the largest named would weigh a gigabyte a list.
-  assert.ok(demand.bytes < 1 << 16, `${demand.bytes} bytes for four ids held`)
+  assert.ok(demand.wanted(far - 2) && !demand.wanted(far))
+  // A mark per id up to the largest named — the lists' or the demand's flags — would weigh a
+  // gigabyte each.
+  assert.ok(demand.bytes < 1 << 16, `${demand.bytes} bytes for four pages held`)
 })
