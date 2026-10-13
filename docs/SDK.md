@@ -229,6 +229,22 @@ function tick() {
 tick()
 ```
 
+`world.beforeFrame(hook)` runs `hook({ delta, time })` ahead of each drawn frame, after the
+physics drew its bodies at that frame's time and the scene's clips advanced; `world.onFrame(hook)`
+runs after the frame was drawn. A camera that follows something that moves — a chase camera behind
+a vehicle, a view over a character — is written in `beforeFrame`: there it reads the pose this
+frame draws, and the two are drawn together. Written in `onFrame`, it is drawn a frame later than
+the body it follows, and the view judders against it at every uneven frame.
+
+```js
+world.beforeFrame(() => {
+  const { position, quaternion } = car.body // the pose this frame draws
+  // 6 m behind the car and 2 m above it, looking at it.
+  world.camera.position.set(0, 2, 6).applyQuaternion(quaternion).add(position)
+  world.camera.lookAt(position)
+})
+```
+
 `world.render()` runs the loop's frame — clips, physics and `beforeFrame` hooks advance; only the
 camera's controller is left to the host. A world you lead draws in `render()` alone: a change or a
 resize asks no frame, and the next `render()` draws every change made since the last one (an object
@@ -335,7 +351,8 @@ never a jump.
 `handbrake`) and hands it to `world.controls.vehicle.drive(input)` on each change. Any object with
 `drive` can be driven, the physics' vehicles first (`vehicle.car`,
 [PHYSICS.md](PHYSICS.md#vehicles)). `kind = 'vehicle'` while `vehicle` is `null` throws
-`NO_VEHICLE`. The camera does not follow: the page moves it.
+`NO_VEHICLE`. The camera does not follow: the page moves it in `world.beforeFrame` ([Loop](#loop)),
+never in `onFrame`, a frame late.
 
 ### Picking, moving and saving
 
