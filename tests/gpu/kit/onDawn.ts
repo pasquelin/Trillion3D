@@ -35,9 +35,6 @@ export function installProofGpu() {
   setInterval(() => browser.frame(performance.now()), 1000 / 60).unref()
 }
 
-/** The page's next animation frame, written once for both the proofs' GPUs (`frame.ts`). */
-export { animationFrame } from './frame.ts'
-
 /**
  * Loads the page module `input` on Dawn from its sources and installs it as `globalThis[name]`,
  * the name the proof's callback reads it by. Returns the module.

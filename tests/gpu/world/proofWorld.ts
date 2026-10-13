@@ -7,7 +7,7 @@ import { ASSETS, assetsManifest } from '../../../bench/runner/assets/scene.ts'
 import { openDefaultWorld } from '../kit/defaultWorld.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
 import type { CameraPose, SceneLight } from '../../../packages/sdk-core/src/index.ts'
-import { animationFrame } from '../kit/onDawn.ts'
+import { animationFrame } from '../kit/frame.ts'
 import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts'
 
 /** Frames a pose gets to be held before the proof gives up on it. */

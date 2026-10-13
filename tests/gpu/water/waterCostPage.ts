@@ -5,7 +5,7 @@ import type {
   EngineFactory,
 } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { summarize } from '../../../packages/sdk-core/src/runtime/stats.ts'
-import { animationFrame } from '../kit/onDawn.ts'
+import { animationFrame } from '../kit/frame.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { engine, releaseScene } from '../kit/sharedSceneProof.ts'
 import {

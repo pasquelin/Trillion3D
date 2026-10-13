@@ -17,7 +17,7 @@ import { light } from '../../../packages/sdk-core/src/world/light/index.ts'
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import type { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
-import { animationFrame } from '../kit/onDawn.ts'
+import { animationFrame } from '../kit/frame.ts'
 import { drawnPixels } from '../kit/sceneImageProof.ts'
 import { coplanarModel } from './generatedModels.ts'
 
