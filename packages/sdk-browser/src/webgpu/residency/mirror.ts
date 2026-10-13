@@ -1,9 +1,8 @@
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
-import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
+import type { WebgpuDiagnosticChannel } from '../pages/io/diagnostics.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import type { PackedInstances } from '../row/instances.ts'
 
-type Cache = ReturnType<typeof createGpuPageCache>
 type MirrorOptions = {
   /** Packed ranks by pool address, and each address's slot: read live, as pages join in place. */
   table: {
@@ -12,9 +11,9 @@ type MirrorOptions = {
     setAddressOffset(address: string, words: number): void
     clearAddressOffsets(): void
   }
-  tracking: ReturnType<typeof createWebgpuPageTracking>
-  engineDiagnostic: ReturnType<typeof createWebgpuDiagnostics>['engineDiagnostic']
-  getCache: () => Cache | undefined
+  tracking: WebgpuPageTracking
+  engineDiagnostic: WebgpuDiagnosticChannel['engineDiagnostic']
+  getCache: () => GpuPageCache | undefined
   getFrame: () => number
   onOffsetChange?: (page: number, offset: number) => void
 }

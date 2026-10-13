@@ -19,9 +19,9 @@ import {
   updateRuntimeResidency,
   updateRuntimeWorlds,
   writeMark,
-  type DagResources,
   type DagRun,
 } from './runtimeOps.ts'
+import type { DagResources } from './resources.ts'
 import { cutBytes } from './cutBuffers.ts'
 
 export function createDagRuntime(

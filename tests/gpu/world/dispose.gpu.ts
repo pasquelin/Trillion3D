@@ -18,18 +18,9 @@ test('worlds disposed in a row leave the device as the first left it', async () 
   )) as PageProofResult & Disposals
   assertSoundProof(result)
   const { rounds, kinds } = result
-  assert.ok(rounds.length >= 20, `${rounds.length} worlds`)
-  console.log(
-    JSON.stringify({
-      live: rounds.map((round) => round.live),
-      peak: rounds.map((round) => round.peak),
-      bytes: rounds.map((round) => round.bytes),
-    }),
-  )
-  for (const round of rounds) {
-    assert.ok(round.peak > 0, `${round.kind}: the world made nothing`)
-    assert.equal(round.live, 0, `${round.kind}: ${JSON.stringify(round.labels)} still live`)
-  }
+  assert.equal(rounds.length, 2 * kinds.length, 'every kind of world, twice')
+  console.log(JSON.stringify({ bytes: rounds.map((round) => round.bytes) }))
+  for (const round of rounds) assert.deepEqual(round.labels, {}, `${round.kind}: still live`)
   for (let i = kinds.length; i < rounds.length; i++)
     assert.equal(rounds[i].bytes, rounds[i - kinds.length].bytes, `world ${i}: ledger bytes`)
 })

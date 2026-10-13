@@ -19,6 +19,8 @@ import {
 } from '../../vsm/projectionWgsl.ts'
 import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
 import { REFLECTION_TARGET } from '../../reflections/weight.ts'
+import { REFLECTION_FORMAT } from '../../reflections/constants.ts'
+import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
 /** Empty proxy header: no proxy ray without resident nodes. */
 const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16
@@ -31,19 +33,14 @@ const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16
  * resolve's own entries.
  */
 export function deferredLayoutEntries(direct: boolean, bounce = false, resolve = true) {
-  const B = DEFERRED_BINDINGS
-  const texture = (binding: number, sampleType: GPUTextureSampleType) => ({
-    binding,
-    visibility: GPUShaderStage.FRAGMENT,
-    texture: { sampleType },
-  })
+  const fragment = GPUShaderStage.FRAGMENT
   const entries: GPUBindGroupLayoutEntry[] = [
-    texture(B.baseMetal, 'unfilterable-float'),
-    texture(B.normalRough, 'unfilterable-float'),
-    texture(B.emissiveAo, 'unfilterable-float'),
-    texture(B.flags, 'uint'),
-    texture(B.depth, 'depth'),
-    { binding: B.view, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+    computeTextureEntry(DEFERRED_BINDINGS.baseMetal, 'unfilterable-float', '2d', fragment),
+    computeTextureEntry(DEFERRED_BINDINGS.normalRough, 'unfilterable-float', '2d', fragment),
+    computeTextureEntry(DEFERRED_BINDINGS.emissiveAo, 'unfilterable-float', '2d', fragment),
+    computeTextureEntry(DEFERRED_BINDINGS.flags, 'uint', '2d', fragment),
+    computeTextureEntry(DEFERRED_BINDINGS.depth, 'depth', '2d', fragment),
+    computeBufferEntry(DEFERRED_BINDINGS.view, 'uniform', GPUShaderStage.FRAGMENT),
   ]
   if (direct) entries.push(...contractLayoutEntries())
   // The pool a non-mask read samples: the water composite's alone, the resolve reading the mask
@@ -60,12 +57,13 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
   // storage buffer of the eight.
   if (bounce)
     entries.push(
-      { binding: B.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-      {
-        binding: B.probes,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
-      },
+      computeBufferEntry(DEFERRED_BINDINGS.bounceGrid, 'uniform', GPUShaderStage.FRAGMENT),
+      computeTextureEntry(
+        DEFERRED_BINDINGS.probes,
+        'unfilterable-float',
+        '2d-array',
+        GPUShaderStage.FRAGMENT,
+      ),
     )
   return entries
 }
@@ -111,11 +109,12 @@ function contractLayoutEntries(): GPUBindGroupLayoutEntry[] {
     },
     // The opaque resolve's compact shadow mask (`vsmMaskFactor`); the water composite's
     // translucent casters' transmission on the same number: both words.
-    {
-      binding: CONTRACT_SHADOW_BINDINGS.transmittance,
-      visibility: GPUShaderStage.FRAGMENT,
-      texture: { sampleType: 'uint', viewDimension: '2d-array' },
-    },
+    computeTextureEntry(
+      CONTRACT_SHADOW_BINDINGS.transmittance,
+      'uint',
+      '2d-array',
+      GPUShaderStage.FRAGMENT,
+    ),
   ]
 }
 
@@ -132,18 +131,15 @@ function resolveLayoutEntries(): GPUBindGroupLayoutEntry[] {
     // The anisotropic and clear-coat lobes (`../../scene/physicalLobes.ts`).
     PHYSICAL_LOBES_TARGET.layoutEntry(),
     // The translucent casters' transmission (the mask holds the transmittance's number).
-    {
-      binding: VSM_TRANSMISSION_RESOLVE_BINDING,
-      visibility: GPUShaderStage.FRAGMENT,
-      texture: { sampleType: 'uint', viewDimension: '2d-array' },
-    },
+    computeTextureEntry(
+      VSM_TRANSMISSION_RESOLVE_BINDING,
+      'uint',
+      '2d-array',
+      GPUShaderStage.FRAGMENT,
+    ),
     // The share of the radiance the reflection trace wrote (`../../reflections/trace.ts`).
     REFLECTION_TARGET.layoutEntry(),
-    {
-      binding: VSM_MASK_TILES_BINDING,
-      visibility: GPUShaderStage.FRAGMENT,
-      texture: { sampleType: 'uint' },
-    },
+    computeTextureEntry(VSM_MASK_TILES_BINDING, 'uint', '2d', GPUShaderStage.FRAGMENT),
   ]
 }
 
@@ -195,7 +191,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   const reflection = device.createTexture({
     label: 'Trillion3D empty reflection',
     size: [1, 1],
-    format: 'rgba16float',
+    format: REFLECTION_FORMAT,
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
   return {

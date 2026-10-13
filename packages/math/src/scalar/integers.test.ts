@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { mipSize, nextPow2, uniqueSortedInPlace } from './integers.ts'
+import { isImageSize, mipSize, nextPow2, uniqueSortedInPlace } from './integers.ts'
 import { hasBit, setBit } from './bits.ts'
 import { firstTrue, lastAtMost, lastTrue } from './search.ts'
 
@@ -118,4 +118,18 @@ test('mipSize halves by integer division, one texel at least, as `Math.max(1, si
     }
   }
   assert.equal(mipSize(1000, 40), 1)
+})
+
+test('isImageSize holds two safe integers of one or more, and nothing else', () => {
+  assert.ok(isImageSize(1, 1) && isImageSize(3840, 2160))
+  for (const [w, h] of [
+    [0, 1],
+    [1, 0],
+    [-1, 4],
+    [1.5, 2],
+    [Number.NaN, 2],
+    [2, Infinity],
+    [2 ** 53, 1],
+  ])
+    assert.equal(isImageSize(w, h), false, `${w} × ${h}`)
 })

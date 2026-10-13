@@ -187,6 +187,21 @@ export function trackKeys(
 /** The two key groups of one axis: what drives it positive, what drives it negative. */
 export type KeyAxis = [string[], string[]]
 
+/** W and S, D and A by `KeyboardEvent.code`: forward and sideways, for a flight or a walk. */
+export const ADVANCE_KEYS: KeyAxis = [['KeyW'], ['KeyS']],
+  STRAFE_KEYS: KeyAxis = [['KeyD'], ['KeyA']]
+
+/** The same two axes with the arrows beside the letters: a body or a vehicle driven by either
+ *  hand. */
+export const ADVANCE_ARROW_KEYS: KeyAxis = [
+    ['KeyW', 'ArrowUp'],
+    ['KeyS', 'ArrowDown'],
+  ],
+  STRAFE_ARROW_KEYS: KeyAxis = [
+    ['KeyD', 'ArrowRight'],
+    ['KeyA', 'ArrowLeft'],
+  ]
+
 /** `+1` when the first group is held, `-1` for the second, `0` for both or neither. */
 export function axisOf(pressed: Set<string>, positive: string[], negative: string[]) {
   const up = positive.some((code) => pressed.has(code)) ? 1 : 0

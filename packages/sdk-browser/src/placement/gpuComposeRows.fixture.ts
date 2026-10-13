@@ -7,14 +7,13 @@ import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { updateTransformTree } from '../../../sdk-core/src/world/transform-tree/pass.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
-import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../visibility/types.ts'
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
 import { COMPOSE_ROWS_WGSL } from './gpuComposeWgsl.ts'
 import { DOUBLE_HELPERS, countLeadingZeros, pair } from './composeDoubles.fixture.ts'
 
-export const WORDS = PAGE_INFO_STRIDE / 4,
-  N = 120
+export const N = 120
 const pairs = (values: ArrayLike<number>) => Array.from(values, pair)
 
 /** A group of `N` crystals placed as the instances page places them, each on its own row. */
@@ -49,8 +48,8 @@ export function cpuTable(meshes: readonly { matrixWorld: { elements: ArrayLike<n
     floats = new Float32Array(buffer),
     ints = new Uint32Array(buffer)
   meshes.forEach((mesh, row) => {
-    const base = row * WORDS
-    for (let k = 16; k < WORDS; k++) ints[base + k] = (row * 2654435761 + k * 40503) >>> 0
+    const base = row * ROW_WORDS
+    for (let k = 16; k < ROW_WORDS; k++) ints[base + k] = (row * 2654435761 + k * 40503) >>> 0
     floats.set(mesh.matrixWorld.elements, base)
     ints[base + ROW_PLACEMENT_WORD] = row
     ints[base + ROW_HIZ_SLOT_WORD] = row

@@ -1,16 +1,15 @@
 import { DISPLAY_FORMAT, FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../scene/physicalLobes.ts'
-import { FRONT_TARGET } from '../../reflections/frontDepth.ts'
+import { TRANSPARENT_FRONT } from '../../reflections/frontDepth.ts'
 
 /** The targets of the surface stage: the three material surfaces, the water word in the display
- *  colour it borrows, with `lobes` the lobes target (`surfaceWgsl.ts`), the front depth the
- *  reflections march — the blends' own target, nearest by the same `max` (`frontDepth.ts`) —, then
- *  the virtual-texture feedback. */
+ *  colour it borrows, with `lobes` the lobes target (`surfaceWgsl.ts`), the front depth every
+ *  transparent surface writes (`TRANSPARENT_FRONT`), then the virtual-texture feedback. */
 export const waterSurfaceTargets = (feedback: boolean, lobes = false): GPUColorTargetState[] => [
   ...SURFACE_FORMATS.slice(0, 3).map((format) => ({ format })),
   { format: DISPLAY_FORMAT },
   ...(lobes ? [{ format: PHYSICAL_LOBES_FORMAT }] : []),
-  FRONT_TARGET,
+  TRANSPARENT_FRONT.target,
   ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
 ]
 

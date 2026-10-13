@@ -15,7 +15,6 @@ export const CODE = vsmProjectionWgsl(
   vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27),
   { subgroups: false },
 )
-export const f = Math.fround
 export type V3 = [number, number, number]
 export interface Light {
   shiftedPosition: V3
@@ -44,7 +43,7 @@ export type Result = { shadowFactor: number; rayCount: number }
 
 const unit = (v: number[]) => {
   const l = Math.hypot(...v)
-  return v.map((x) => f(x / l)) as V3
+  return v.map((x) => Math.fround(x / l)) as V3
 }
 
 /** A frame of `count` lights around a tile near the origin: suns, points, spots, rectangles;
@@ -54,9 +53,9 @@ const unit = (v: number[]) => {
 export function lightsOf(rand: () => number, count: number, edge: V3[], corner?: V3): Light[] {
   return Array.from({ length: count }, (_, k) => {
     const kind = [DIRECTIONAL, POINT, SPOT, RECT, POINT, SPOT][Math.floor(rand() * 6)]
-    let at: V3 = [0, 1, 2].map(() => f((rand() - 0.5) * 40)) as V3
+    let at: V3 = [0, 1, 2].map(() => Math.fround((rand() - 0.5) * 40)) as V3
     if (corner && rand() < 0.5)
-      at = corner.map((c) => f(c - (0.1 + rand()) * (0.5 + rand() * 8))) as V3
+      at = corner.map((c) => Math.fround(c - (0.1 + rand()) * (0.5 + rand() * 8))) as V3
     let radius = 0.5 + rand() * 20
     if (kind !== DIRECTIONAL && rand() < (corner ? 0.6 : 0.3)) {
       // Its sphere through a pixel of the tile, give or take a few units in the last place.
@@ -64,12 +63,12 @@ export function lightsOf(rand: () => number, count: number, edge: V3[], corner?:
       const d = Math.hypot(at[0] - p[0], at[1] - p[1], at[2] - p[2])
       radius = d * (1 + (Math.floor(rand() * 9) - 4) * 2 ** -23)
     }
-    const cosCone = f(Math.cos(0.2 + rand() * 1.2))
+    const cosCone = Math.fround(Math.cos(0.2 + rand() * 1.2))
     return {
       shiftedPosition: at,
-      radius: f(radius),
+      radius: Math.fround(radius),
       direction: unit([rand() - 0.5, rand() - 0.5, rand() - 0.5]),
-      sourceRadius: f(rand() * 0.5),
+      sourceRadius: Math.fround(rand() * 0.5),
       cosCone: kind === SPOT ? cosCone : -2,
       mapId: k,
       kind,
@@ -92,9 +91,9 @@ export function pixelsOf(rand: () => number, group: [number, number], kind: stri
     const valid = inRect && lit
     const shifted: V3 = valid
       ? ([
-          f(origin[0] + (x / 8) * scale),
-          f(origin[1] + (y / 8) * scale),
-          f(origin[2] + (kind === 'corner' ? (x + y) / 16 : rand()) * scale * 0.3),
+          Math.fround(origin[0] + (x / 8) * scale),
+          Math.fround(origin[1] + (y / 8) * scale),
+          Math.fround(origin[2] + (kind === 'corner' ? (x + y) / 16 : rand()) * scale * 0.3),
         ] as V3)
       : [0, 0, 0]
     if (valid && kind === 'infinite' && i === 9) shifted[1] = Infinity

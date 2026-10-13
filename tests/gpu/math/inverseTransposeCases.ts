@@ -16,10 +16,8 @@ import { createConeContext } from '../../../packages/sdk-browser/src/page/cone/c
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import {
-  createEngineCamera,
-  readCameraWorld,
-} from '../../../packages/sdk-browser/src/camera/world.ts'
+import { createEngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
+import { readCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { project } from '../kit/cameraRig.ts'

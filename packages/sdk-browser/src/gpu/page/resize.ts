@@ -1,5 +1,6 @@
 import type { GpuPageContext, ResidentPage } from './types.ts'
 import { ledgerReplacing } from '../core/deviceLedger.ts'
+import { pendingBuffers } from '../core/tableGrowth.ts'
 import { evictResident } from './commit.ts'
 import type { Eviction } from './eviction.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
@@ -153,10 +154,13 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
     free.splice(0, displaced.length)
     context.placement = slotPlacement(pageBytes, wholeSlots(free), context.eviction, resident)
   }
-  device.queue.submit([encoder.finish()])
-  context.buffer.destroy()
-  context.buffer = next
-  context.slots = slots
+  pendingBuffers([next], () => {
+    device.queue.submit([encoder.finish()])
+    const held = context.buffer
+    context.buffer = next
+    context.slots = slots
+    return [held]
+  }).commit()
   return evicted
 }
 

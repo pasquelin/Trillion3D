@@ -3,8 +3,7 @@ import { setBit } from '../../../../math/src/scalar/bits.ts'
 import { notDrawn } from '../../placement/hidden.ts'
 import { currentBlendHierarchy } from './hierarchy.ts'
 import { includeWaterItem } from '../water/bounds.ts'
-import type { createWebgpuBlendState } from './state.ts'
-type BlendState = ReturnType<typeof createWebgpuBlendState>
+import type { WebgpuBlendState } from './state.ts'
 
 /** Counts of the frame, module scratch so the walk allocates nothing. */
 const tally = { rejected: 0, water: 0 }
@@ -15,7 +14,7 @@ const tally = { rejected: 0, water: 0 }
  * would be too (`hierarchy.ts`), and is not tested.
  */
 function judge(
-  blendState: BlendState,
+  blendState: WebgpuBlendState,
   rank: number,
   planes: Float64Array,
   mask: Uint32Array,
@@ -47,7 +46,7 @@ function judge(
  * holds the invariant, `hierarchy.test.ts` checks it against develop's walk). A rejected node's
  * items are still visited, for the parked test the reject count needs, but no box is tested.
  */
-export function cullBlendHierarchy(blendState: BlendState) {
+export function cullBlendHierarchy(blendState: WebgpuBlendState) {
   const planes = blendState.blendPlanes,
     tree = currentBlendHierarchy(blendState)
   const { mask, loose, leaves, first, counts, skip, boxes } = tree

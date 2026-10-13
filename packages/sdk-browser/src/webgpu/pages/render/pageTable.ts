@@ -1,4 +1,4 @@
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** The GPU page table of `bytes` bytes: the rows every pass binds whole. */

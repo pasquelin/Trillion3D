@@ -2,12 +2,10 @@ import type { PageRec } from '../../page/selection/selection.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import type { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
 import { pageAddress } from '../row/pageSlots.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import type { createAdmissionReads, createPageAdmission } from './admission.ts'
-type Cache = ReturnType<typeof createGpuPageCache>
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
 
 /**
  * A lower residency tier: pages a cut asked for below the camera's own — the pages ahead of the
@@ -106,8 +104,8 @@ function createLowerMerge(keyOf: (page: PageRec) => number) {
 }
 
 export type LowerPassOptions = {
-  getCache: () => Cache | undefined
-  tracking: Pick<Tracking, 'keyOf' | 'wanted'>
+  getCache: () => GpuPageCache | undefined
+  tracking: Pick<WebgpuPageTracking, 'keyOf' | 'wanted'>
   bootstrapKey: Uint8Array
   signal?: AbortSignal
   hasBytes: (page: PageRec) => boolean
@@ -136,12 +134,12 @@ export function createLowerPass(options: LowerPassOptions) {
     list: () => mergeLower(lowerTiers()),
     load: (
       lower: readonly PageRec[],
-      cache: Cache,
+      cache: GpuPageCache,
       cameraWaiting: () => boolean,
       reads: AbortSignal,
     ) => loadLowerTiers(pass, lower, cache, cameraWaiting, reads),
     /** True when every lower tier page is held, or left to the camera: the tiers leave no work. */
-    held: (cache: Cache) =>
+    held: (cache: GpuPageCache) =>
       mergeLower(lowerTiers()).every((rec) => skips(rec) || !!cache.get(pageAddress(rec))),
   }
 }
@@ -157,7 +155,7 @@ export function createLowerPass(options: LowerPassOptions) {
 async function loadLowerTiers(
   pass: LowerPass,
   lower: readonly PageRec[],
-  cache: Cache,
+  cache: GpuPageCache,
   cameraWaiting: () => boolean,
   reads: AbortSignal,
 ) {

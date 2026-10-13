@@ -7,7 +7,7 @@ import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createGpuPresenter } from '../../gpu/core/presentation.ts'
 import { markWebgpuLost } from '../../webgpu/pages/io/lost.ts'
-import { listenWorldNotices } from '../diagnostic/worldNotices.ts'
+import { worldNoticeListeners } from '../diagnostic/worldNotices.ts'
 import type { MeasuredWorld } from '../session/explorer.ts'
 import { Scene } from './scene.ts'
 import { awaitViewPages } from './worldSession.ts'
@@ -50,7 +50,7 @@ function displayFrames() {
 /** The notices said so far under `phase`. */
 function said(phase: string) {
   const heard: Record<string, unknown>[] = []
-  const stop = listenWorldNotices((notice) => {
+  const stop = worldNoticeListeners.subscribe((notice) => {
     if (notice.phase === phase) heard.push(notice.context ?? {})
   })
   return { heard, stop }

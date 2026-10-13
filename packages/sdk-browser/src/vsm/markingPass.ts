@@ -43,6 +43,7 @@ import {
   computeBufferEntry,
   computeTextureEntry,
   computeUniformEntry,
+  sequentialEntries,
 } from '../gpu/core/computeBindings.ts'
 import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
 import { writeChanged, writeChangedSlots } from '../gpu/core/writeChanged.ts'
@@ -428,11 +429,13 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       layout: p.groups[0],
       entries: [
         ...vsmBindGroupEntries(res, VSM_CLEAR_SPECS),
-        { binding: 3, resource: { buffer: perPage, size: 16 } },
-        ...targets.map((target, n) => ({
-          binding: 4 + n,
-          resource: { buffer: res.current[target] },
-        })),
+        ...sequentialEntries(
+          [
+            { buffer: perPage, size: 16 },
+            ...targets.map((target) => ({ buffer: res.current[target] })),
+          ],
+          3,
+        ),
       ],
     }))
     const list = bins[set]

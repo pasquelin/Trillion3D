@@ -3,7 +3,7 @@ import { perspectiveBary } from './math.ts'
 import { attr2, barycentric, sampleLinear, sampleMap } from './math.ts'
 import { shadeLit } from './lighting.ts'
 import type { VisibilityFrame } from './frame.ts'
-import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/world.ts'
+import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 
 type Rgb = [number, number, number]
 

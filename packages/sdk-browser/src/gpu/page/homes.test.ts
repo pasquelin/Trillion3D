@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createGpuPageCache } from './pages.ts'
+import { createGpuPageCache, type GpuPageCache } from './pages.ts'
 import { giveUp } from './order.fixture.ts'
 import { pageHomes } from './homes.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -14,7 +14,7 @@ const WIDTHS = new Map([
   ['c', 8],
 ])
 const source = { read: async (key: string) => new Uint8Array(BYTES[key] ?? 13).fill(7) }
-const drained = (cache: ReturnType<typeof createGpuPageCache>) => {
+const drained = (cache: GpuPageCache) => {
   const keys: string[] = [],
     slots: number[] = []
   cache.drainResidencyChanges(keys, slots)

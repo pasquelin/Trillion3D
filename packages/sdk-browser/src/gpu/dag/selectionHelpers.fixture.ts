@@ -1,4 +1,5 @@
-import { createEngineCamera, readCameraWorld, type HostCamera } from '../../camera/world.ts'
+import { readCameraWorld, type HostCamera } from '../../camera/world.ts'
+import { createEngineCamera } from '../../camera/engineCamera.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'

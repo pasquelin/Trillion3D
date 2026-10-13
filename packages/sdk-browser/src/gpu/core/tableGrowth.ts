@@ -1,5 +1,6 @@
 /**
- * THE GROWTH OF A TABLE SIZED BY DRAWABLE ROW, IN TWO STEPS. Its new buffers are made first and
+ * THE GROWTH OF A RESOURCE BY COPY, IN TWO STEPS — a table sized by drawable row, the cut's lists,
+ * the vertex pool, the shadow tables, the page pool. Its new buffers are made first and
  * held apart — the device grants them under an out-of-memory scope while the old ones still live
  * (`../../webgpu/pages/prepare/growTables.ts`) —; only once every one is granted does `commit`
  * put them in place and free those they replace. `destroy` frees them and leaves the table as it
@@ -17,14 +18,31 @@ export function pendingAll(list: ReadonlyArray<PendingGrowth | undefined>): Pend
   }
 }
 
+/**
+ * The growth of `made`, `bytes` large: `adopt` installs it and returns what it replaces, which
+ * `free` then frees; `destroy` frees `made` instead. The one transaction of every resource grown by
+ * copy: made aside, copied, swapped in, the old freed — or freed itself, the old kept.
+ */
+export function pendingMade<T>(
+  made: T,
+  bytes: number,
+  free: (held: T) => void,
+  adopt: () => T,
+): PendingGrowth {
+  return { bytes, commit: () => free(adopt()), destroy: () => free(made) }
+}
+
+const destroyAll = (buffers: readonly (GPUBuffer | undefined)[]) =>
+  buffers.forEach((buffer) => buffer?.destroy())
+
 /** The growth of `buffers`: `adopt` installs them and returns those they replace, then freed. */
-export function pendingBuffers(
+export const pendingBuffers = (
   buffers: readonly GPUBuffer[],
   adopt: () => readonly (GPUBuffer | undefined)[],
-): PendingGrowth {
-  return {
-    bytes: buffers.reduce((total, buffer) => total + buffer.size, 0),
-    commit: () => adopt().forEach((buffer) => buffer?.destroy()),
-    destroy: () => buffers.forEach((buffer) => buffer.destroy()),
-  }
-}
+): PendingGrowth =>
+  pendingMade<readonly (GPUBuffer | undefined)[]>(
+    buffers,
+    buffers.reduce((total, buffer) => total + buffer.size, 0),
+    destroyAll,
+    adopt,
+  )

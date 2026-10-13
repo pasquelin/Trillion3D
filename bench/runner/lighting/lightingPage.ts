@@ -138,7 +138,6 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     network,
     settleFrames,
     liveTuning,
-    mathBatch: last?.mathBatch ?? null,
     size,
     lost,
     // Compiler warnings the engine reported at open; `null` with none.

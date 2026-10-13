@@ -4,7 +4,7 @@
 // front-only transparent tile, both turned to show their back; below them two masked tiles, one
 // whose opacity passes its cutoff and one whose opacity does not, and a hidden transparent tile.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { batisseur, cameraFace, engine, release, square } from '../kit/sharedSceneProof.ts'
+import { batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
 import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 
@@ -20,51 +20,31 @@ export const AT = {
   bare: [0, 1],
 } as const
 
-/** A tile of half-side `half` at `(x, y, z)`, in `surface`, drawn by `pass`. */
-function tile(
-  builder: ReturnType<typeof batisseur>,
-  surface: G.GraphSurface,
-  pass: string,
-  [x, y, z]: number[],
-  half = 0.3,
-) {
-  const mesh = G.mesh(square(half), surface)
-  mesh.position.set(x, y, z)
-  builder.source.add(mesh)
-  builder.add(mesh, pass, half)
-  return mesh
-}
-
 const blended = (color: number, side = G.DOUBLE_SIDE, opacity = 0.5) =>
   G.basicSurface({ color, transparent: true, opacity, depthWrite: false, side })
+
+/** The half-side of the side, mask and hidden tiles. */
+const TILE = 0.3
 
 /** The scene: the backdrop, the two overlapping tiles — the red one at `redZ`, the green one at
  *  `greenZ` —, and with `rest` the side, mask and hidden tiles. */
 function scene(redZ: number, greenZ: number, rest: boolean) {
   const builder = batisseur()
-  tile(
-    builder,
-    G.basicSurface({ color: 0x0000ff, side: G.DOUBLE_SIDE }),
-    'exact-clusters',
-    [0, 0, -2],
-    4,
-  )
-  tile(builder, blended(0xff0000), 'clustered-blend', [-0.25, 0, redZ], 0.5)
-  tile(builder, blended(0x00ff00), 'clustered-blend', [0.25, 0, greenZ], 0.5)
+  const backdrop = G.basicSurface({ color: 0x0000ff, side: G.DOUBLE_SIDE })
+  builder.place(backdrop, 'exact-clusters', 4, [0, 0, -2])
+  builder.place(blended(0xff0000), 'clustered-blend', 0.5, [-0.25, 0, redZ])
+  builder.place(blended(0x00ff00), 'clustered-blend', 0.5, [0.25, 0, greenZ])
   if (rest) {
-    const turned = [
-      tile(builder, blended(0xffff00, G.DOUBLE_SIDE, 0.6), 'clustered-blend', [
-        ...AT.doubleSided,
-        0,
-      ]),
-      tile(builder, blended(0xffff00, G.FRONT_SIDE, 0.6), 'clustered-blend', [...AT.frontOnly, 0]),
-    ]
-    for (const mesh of turned) mesh.rotation.y = Math.PI
+    // Both turned to show their back.
+    const back = { y: Math.PI }
+    const yellow = (side: number) => blended(0xffff00, side, 0.6)
+    builder.place(yellow(G.DOUBLE_SIDE), 'clustered-blend', TILE, [...AT.doubleSided, 0], back)
+    builder.place(yellow(G.FRONT_SIDE), 'clustered-blend', TILE, [...AT.frontOnly, 0], back)
     const masked = (opacity: number) =>
       G.basicSurface({ color: 0xff0000, alphaTest: 0.5, opacity, side: G.DOUBLE_SIDE })
-    tile(builder, masked(0.8), 'exact-clusters', [...AT.masked, 0])
-    tile(builder, masked(0.3), 'exact-clusters', [...AT.cut, 0])
-    tile(builder, blended(0xff0000), 'clustered-blend', [...AT.hidden, 0]).visible = false
+    builder.place(masked(0.8), 'exact-clusters', TILE, [...AT.masked, 0])
+    builder.place(masked(0.3), 'exact-clusters', TILE, [...AT.cut, 0])
+    builder.place(blended(0xff0000), 'clustered-blend', TILE, [...AT.hidden, 0]).visible = false
   }
   return builder.fini()
 }

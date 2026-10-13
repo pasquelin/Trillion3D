@@ -2,12 +2,12 @@ import { EngineError } from '../../../../sdk-core/src/index.ts'
 import { PAGE_REQUEST_BATCH } from '../../engine/common.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { HostCamera } from '../../camera/world.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 import type { createExplorerStreaming } from '../scene/streaming.ts'
 
 type Inputs = {
   camera: HostCamera
-  streamer: ReturnType<typeof createPageStreamer>
+  streamer: PageStreaming
   streaming: ReturnType<typeof createExplorerStreaming>
   engine: Engine
   /** The CPU bytes the engine's host tables and the world roots hold now. */

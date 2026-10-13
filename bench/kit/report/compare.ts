@@ -12,7 +12,7 @@ export function comparison(
 ) {
   if (!a || !b || a.id === b.id) return { status: 'choose', delta: null, percent: null } as const
   const reasons: string[] = []
-  if (!['engine', 'version', 'lightShadows', 'temporalAntialiasing', 'mathPath'].includes(variable))
+  if (!['engine', 'version', 'lightShadows', 'temporalAntialiasing'].includes(variable))
     reasons.push('settings')
   if (
     !a.provenance?.machine?.id ||

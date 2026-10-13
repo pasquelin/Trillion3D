@@ -1,4 +1,4 @@
-import { clusterHash } from '../../visibility/buffer.ts'
+import { clusterHash } from '../../visibility/math.ts'
 import { refreshSurface, type PageSurface } from '../../page/surface.ts'
 
 /** What a material brings to a page row: its read fields. */

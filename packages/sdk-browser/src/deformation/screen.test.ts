@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDeformationSkip } from './screen.ts'
-import { createEngineCamera } from '../camera/world.ts'
+import { createEngineCamera } from '../camera/engineCamera.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/selection.ts'
 

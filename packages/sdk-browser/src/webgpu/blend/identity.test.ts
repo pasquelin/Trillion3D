@@ -1,13 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { voidStaleBlendGroups } from './identity.ts'
-import { createWebgpuBlendState } from './state.ts'
+import { createWebgpuBlendState, type WebgpuBlendState } from './state.ts'
 import type { BlendLighting } from '../core/blendBindEntries.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /** The paged group of the identity the last `voidStaleBlendGroups` named. */
-const pagedGroup = ({ identity, pagedGroups }: ReturnType<typeof createWebgpuBlendState>) =>
-  pagedGroups[identity.slot]
+const pagedGroup = ({ identity, pagedGroups }: WebgpuBlendState) => pagedGroups[identity.slot]
 
 test('blend identity follows translucent depth independently of transmittance', () => {
   const blendState = createWebgpuBlendState()

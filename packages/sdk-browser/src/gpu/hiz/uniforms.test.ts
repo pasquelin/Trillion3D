@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HIZ_SLOT_WORDS, hizTestSlot, hizUniformSlots } from './uniforms.ts'
-import { createGpuHiz } from './hiz.ts'
+import { createGpuHiz } from './factory.ts'
 import { pyramidLayout } from './pyramid.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 

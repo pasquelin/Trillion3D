@@ -8,7 +8,7 @@ import { packDagSelection } from './pack.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
-import { createDagResources } from './resources.ts'
+import { createDagResources, type DagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { stagedOutputBytes } from './layout.ts'
 import { viewWord } from './viewLayout.ts'
@@ -55,7 +55,7 @@ export async function worldCut(deviceCap: number) {
     },
   })
   // The tables, once made: the readbacks read the list in place and the uniforms written last.
-  const held = {} as { resources: NonNullable<Awaited<ReturnType<typeof createDagResources>>> }
+  const held = {} as { resources: DagResources }
   let viewed!: SelectionUniforms
   const threshold = () => held.resources.uniformData[viewWord('pixelError')]
   // Each readback mapped: the image it came in and the threshold it was cut under.

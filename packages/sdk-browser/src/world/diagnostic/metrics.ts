@@ -1,11 +1,10 @@
-import { mathBatchMetrics } from '../../page/decode/batch/batchState.ts'
 import { pageIntegrationStats } from '../../page/integration/host.ts'
 import { pageWorkStats } from '../../page/work/host.ts'
 import { EngineProfiler } from '../../diagnostic/telemetry.ts'
 import type { FrameMetrics, ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
 import { ENGINE_METRIC_KEYS, type EngineMetrics } from '../../diagnostic/metricKeys.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
 type State = () => {
   loaded: number
@@ -24,7 +23,7 @@ function publishMetric<K extends (typeof ENGINE_METRIC_KEYS)[number]>(
 
 /** The host sample before any frame: every measurement `null` — not held —, none zero but the
  *  frame time and the counts the open carries in. */
-const UNMEASURED: FrameMetrics = {
+export const UNMEASURED: FrameMetrics = {
   rafIntervalMs: null,
   displayRefreshMs: null,
   cpuFrameMs: 0,
@@ -87,7 +86,6 @@ const UNMEASURED: FrameMetrics = {
   textureBytesLastFrame: null,
   pagesChecked: null,
   pageCheckMs: null,
-  mathBatch: null,
 }
 
 /** The host sample of `engine`'s frames: `fillMetrics` copies the last frame's into it. */
@@ -95,7 +93,7 @@ export function createExplorerMetrics(
   engine: Engine,
   metadata: ClusterManifest,
   options: MeasuredWorldOptions,
-  streamer: ReturnType<typeof createPageStreamer>,
+  streamer: PageStreaming,
   loaded: number,
   pageBytesRead: number,
   state: State,
@@ -136,7 +134,6 @@ export function createExplorerMetrics(
     const work = pageWorkStats()
     metricsScratch.pagesChecked = work.checked
     metricsScratch.pageCheckMs = work.checkMs
-    metricsScratch.mathBatch = mathBatchMetrics()
     const integration = pageIntegrationStats()
     metricsScratch.pagesPlannedOffThread = integration.offThread
     metricsScratch.pagePlanMs = integration.planMs

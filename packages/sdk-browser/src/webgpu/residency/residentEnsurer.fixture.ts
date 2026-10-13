@@ -1,7 +1,7 @@
 import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import { structureIndex } from '../../page/selection/structure.ts'
 import type { ClusterRoot } from '../../page/selection/types.ts'
 import { createPageParents } from '../../page/selection/pageParents.ts'
@@ -115,7 +115,7 @@ export function orderedPool(
 
 /** An ensurer's options over `cache`: no cover, every page's bytes at hand, no parents, no tier. */
 export const ensurerOptions = (
-  tracking: ReturnType<typeof createWebgpuPageTracking>,
+  tracking: WebgpuPageTracking,
   cache: unknown,
 ): Parameters<typeof createWebgpuResidentEnsurer>[0] => ({
   getCache: () => cache as never,
@@ -133,7 +133,7 @@ export const ensurerOptions = (
 /** The lower pass's options over `cache`, as the ensurer builds them, `lowerTiers` its tiers: no
  *  read ahead, and a share that never waits. */
 export function lowerPassOptions(
-  tracking: ReturnType<typeof createWebgpuPageTracking>,
+  tracking: WebgpuPageTracking,
   cache: unknown,
   lowerTiers: () => readonly LowerList[],
 ): LowerPassOptions {
@@ -149,7 +149,7 @@ export function lowerPassOptions(
 
 /** An ensurer over `cache` whose first lower tier is `firstPages`, and the second `nextPages`. */
 export const tierEnsurer = (
-  tracking: ReturnType<typeof createWebgpuPageTracking>,
+  tracking: WebgpuPageTracking,
   cache: unknown,
   firstPages: () => readonly PageRec[],
   nextPages: () => readonly PageRec[] = () => [],

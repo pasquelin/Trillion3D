@@ -4,6 +4,7 @@ import { cardPipelines } from './pipelines.ts'
 import { CARD_FLOATS } from '../../impostor/cardSlots.ts'
 import { createImpostorFeed } from './feed.ts'
 import type { TextureLevelReader } from '../../texture/levelReader.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /**
  * What the card pass holds beside its pipelines (`cardPipelines`, checked where the session
@@ -33,11 +34,11 @@ export function createImpostorPass(
     visPipeline,
     feed: createImpostorFeed(device, atlasLayout, reader, feedOptions),
     viewBuffer,
-    /** The image's group over a card buffer of at least `cards` records (`grownCapacity`). */
+    /** The image's group over a card buffer of at least `cards` records (`grownLength`). */
     imageGroup(cards: number) {
       const bytes = Math.max(1, cards) * CARD_FLOATS * 4
       if (!cardBuffer || cardBuffer.size < bytes) {
-        const size = core.grownCapacity(cardBuffer?.size ?? 0, bytes)
+        const size = core.grownLength(cardBuffer?.size ?? 0, bytes)
         cardBuffer?.destroy()
         cardBuffer = device.createBuffer({
           label: 'Trillion3D impostor cards',
@@ -48,10 +49,7 @@ export function createImpostorPass(
         image.group = device.createBindGroup({
           label: 'Trillion3D impostor image',
           layout: imageLayout,
-          entries: [
-            { binding: 0, resource: { buffer: viewBuffer } },
-            { binding: 1, resource: { buffer: cardBuffer } },
-          ],
+          entries: sequentialEntries([{ buffer: viewBuffer }, { buffer: cardBuffer }]),
         })
       }
       return image
@@ -64,7 +62,7 @@ export function createImpostorPass(
           group: device.createBindGroup({
             label: 'Trillion3D impostor identifiers',
             layout: idsLayout,
-            entries: [{ binding: 0, resource: view }],
+            entries: sequentialEntries([view]),
           }),
         }
       return idsOf.group

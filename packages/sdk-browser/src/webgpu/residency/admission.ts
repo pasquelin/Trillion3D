@@ -1,10 +1,9 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 
-type PoolCache = Pick<ReturnType<typeof createGpuPageCache>, 'get' | 'load'>
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
+type PoolCache = Pick<GpuPageCache, 'get' | 'load'>
 
 /**
  * Install order, the one rule of every path that fills the pool: a page is loaded only after the
@@ -30,7 +29,7 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>
  */
 export function createPageAdmission(options: {
   getCache: () => PoolCache | undefined
-  tracking: Pick<Tracking, 'keyOf'>
+  tracking: Pick<WebgpuPageTracking, 'keyOf'>
   bootstrapKey: Uint8Array
   signal?: AbortSignal
   isLost: () => boolean

@@ -1,13 +1,9 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
-import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
+import type { WebgpuDiagnosticChannel } from '../pages/io/diagnostics.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import { createDenseKeySet } from '../cut/denseKeys.ts'
 import type { WebgpuResidencySets } from './sets.ts'
-
-type Cache = ReturnType<typeof createGpuPageCache>
-type Trace = ReturnType<typeof createWebgpuDiagnostics>['traceDiagnostic']
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
 
 /**
  * Keeps the ROOT COVER pinned — the one hold the host keeps of the pool: what any view uses, and
@@ -20,7 +16,7 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>
  * image. A request whose drop waited (`deferredDrops`) is asked again at each step.
  */
 export function createWebgpuPinUpdater(options: {
-  tracking: Tracking
+  tracking: WebgpuPageTracking
   sets: WebgpuResidencySets
   /** Holders per key of the root cover: what the trace names. */
   bootstrapKey: Uint8Array
@@ -28,14 +24,14 @@ export function createWebgpuPinUpdater(options: {
   /** The page at `address` was pinned or unpinned: the GPU's pool list follows. */
   relist: (address: string) => void
   traceEnabled: boolean
-  traceDiagnostic: Trace
+  traceDiagnostic: WebgpuDiagnosticChannel['traceDiagnostic']
 }) {
   const { tracking, sets, bootstrapKey, deferredDrops, relist } = options
   const { traceEnabled, traceDiagnostic } = options
   /** Covered keys the cache cannot pin yet: their bytes have not arrived. */
   const waiting = createDenseKeySet()
   /** The cache of the running update. */
-  let current: Cache
+  let current: GpuPageCache
   const pinKey = (key: number) => {
     const url = tracking.pageCatalog[key]
     current.pin(url)
@@ -62,7 +58,7 @@ export function createWebgpuPinUpdater(options: {
   const added: string[] = [],
     removed: string[] = []
   return (
-    cache: Cache | undefined,
+    cache: GpuPageCache | undefined,
     shown: PageRec[],
     frame: number,
     /** Drops a request, asked again (`../pages/io/pageApi.ts`, `dropPage`). */
@@ -105,7 +101,7 @@ export function createWebgpuPinUpdater(options: {
 }
 
 /** The addresses of the root cover's pages, read off its holders: what a trace names. */
-function coverUrls(tracking: Tracking, holders: Uint8Array) {
+function coverUrls(tracking: WebgpuPageTracking, holders: Uint8Array) {
   const urls: string[] = []
   for (let key = 0; key < holders.length; key++)
     if (holders[key]) urls.push(tracking.pageCatalog[key])

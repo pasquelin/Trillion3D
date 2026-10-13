@@ -1,7 +1,7 @@
 import { createChangeGate, createControlBase } from './base.ts'
-import { axisOf, trackKeys, type KeyAxis } from './input.ts'
+import { ADVANCE_ARROW_KEYS, axisOf, STRAFE_ARROW_KEYS, trackKeys } from './input.ts'
 import { controlPose } from './pose.ts'
-import { createHead, HEAD_DEFAULTS, type PersonHead } from './look.ts'
+import { createHead, HEAD_DEFAULTS, headLock, type PersonHead } from './look.ts'
 import { createCharacterEye } from '../../../../sdk-core/src/collision/characterEye.ts'
 import {
   HUMAN_BODY,
@@ -48,15 +48,7 @@ export interface CharacterCameraControls extends CameraControlBase, PersonHead, 
   update(delta?: number): boolean
 }
 
-const STRAFE: KeyAxis = [
-    ['KeyD', 'ArrowRight'],
-    ['KeyA', 'ArrowLeft'],
-  ],
-  ADVANCE: KeyAxis = [
-    ['KeyW', 'ArrowUp'],
-    ['KeyS', 'ArrowDown'],
-  ],
-  SPRINT = ['ShiftLeft', 'ShiftRight'],
+const SPRINT = ['ShiftLeft', 'ShiftRight'],
   JUMP = 'Space'
 
 export function createCharacterCameraControls(
@@ -88,15 +80,13 @@ export function createCharacterCameraControls(
     get stride() {
       return eye.stride
     },
-    locked: () => head.locked(),
-    lock: () => head.lock(),
-    unlock: () => head.unlock(),
+    ...headLock(() => head),
     update(delta = 0) {
       pose.readPosition(at)
       if (!sameValues(at, written)) body.place(at[0], at[1] - api.eyeHeight, at[2])
       const yaw = head.turn(orientation)
-      const strafe = axisOf(keys, ...STRAFE),
-        advance = axisOf(keys, ...ADVANCE)
+      const strafe = axisOf(keys, ...STRAFE_ARROW_KEYS),
+        advance = axisOf(keys, ...ADVANCE_ARROW_KEYS)
       const sin = Math.sin(yaw),
         cos = Math.cos(yaw),
         length = length2(strafe, advance) || 1
@@ -148,7 +138,7 @@ export function createCharacterCameraControls(
       jumpHeld = keys.has(JUMP)
       base.emit()
     },
-    [STRAFE, ADVANCE, SPRINT, [JUMP]],
+    [STRAFE_ARROW_KEYS, ADVANCE_ARROW_KEYS, SPRINT, [JUMP]],
   )
   return api
 }

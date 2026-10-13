@@ -11,7 +11,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { tableRowsFor } from './growTables.ts'
 import { pageTableRows } from '../../row/pageTableRows.ts'
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 const MIB = 1 << 20

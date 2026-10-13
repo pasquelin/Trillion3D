@@ -8,8 +8,9 @@ import { uniformSlots } from '../../residency/pools.ts'
 import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
 import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
 import { BLOOM_PASS } from '../../stage/passLabels.ts'
+import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { sequentialEntries, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
-const FORMAT: GPUTextureFormat = 'rgba16float'
 /** Words of one uniform slot, the `Bloom` struct a pass binds. */
 const SLOT_WORDS = BLOOM_UNIFORM_BYTES / 4
 type Size = readonly [number, number]
@@ -29,18 +30,18 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
   const visibility = GPUShaderStage.FRAGMENT
   const imageLayout = device.createBindGroupLayout({
     label: `${BLOOM_PASS} scene`,
-    entries: [{ binding: 0, visibility, texture: { sampleType: 'unfilterable-float' } }],
+    entries: [computeTextureEntry(0, 'unfilterable-float', '2d', visibility)],
   })
   const layouts = { level: bloomLevelLayout(device), scene: imageLayout }
   const module = await createCheckedShaderModule(device, BLOOM_WGSL, BLOOM_PASS)
   const add: GPUBlendComponent = { srcFactor: 'one', dstFactor: 'one', operation: 'add' }
   const [down, up, composite] = await Promise.all([
-    makeFullscreenPipeline(device, module, layouts.level, 'down', [{ format: FORMAT }]),
+    makeFullscreenPipeline(device, module, layouts.level, 'down', [{ format: HDR_FORMAT }]),
     makeFullscreenPipeline(device, module, layouts.level, 'up', [
-      { format: FORMAT, blend: { color: add, alpha: add } },
+      { format: HDR_FORMAT, blend: { color: add, alpha: add } },
     ]),
     makeFullscreenPipeline(device, module, [layouts.level, layouts.scene], 'composite', [
-      { format: FORMAT },
+      { format: HDR_FORMAT },
     ]),
   ])
   const sampler = device.createSampler({
@@ -68,18 +69,14 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
   const levelGroup = (view: GPUTextureView) =>
     device.createBindGroup({
       layout: layouts.level,
-      entries: [
-        { binding: 0, resource: view },
-        { binding: 1, resource: sampler },
-        { binding: 2, resource: { buffer: uniform!, size: BLOOM_UNIFORM_BYTES } },
-      ],
+      entries: sequentialEntries([view, sampler, { buffer: uniform!, size: BLOOM_UNIFORM_BYTES }]),
     })
   const inputGroups = (view: GPUTextureView) => {
     let bound = inputs.get(view)
     if (!bound) {
       const scene = device.createBindGroup({
         layout: layouts.scene,
-        entries: [{ binding: 0, resource: view }],
+        entries: sequentialEntries([view]),
       })
       inputs.set(view, (bound = { level: levelGroup(view), scene }))
     }
@@ -171,7 +168,7 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
         label: `${BLOOM_PASS} levels`,
         size: { width: sizes[0][0], height: sizes[0][1] },
         mipLevelCount: sizes.length,
-        format: FORMAT,
+        format: HDR_FORMAT,
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
       })
       slots = uniformSlots(device.limits, passes * sizes.length * 2, SLOT_WORDS)

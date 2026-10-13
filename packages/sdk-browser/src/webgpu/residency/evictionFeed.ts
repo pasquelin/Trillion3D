@@ -1,14 +1,11 @@
 import type { GpuSelection } from '../../gpu/core/selection.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
 import type { EvictionOrder } from '../../gpu/page/eviction.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { EVICT_IN_USE } from '../../gpu/dag/evict.ts'
 
-type Cache = Pick<
-  ReturnType<typeof createGpuPageCache>,
-  'evictInOrder' | 'arrivals' | 'takeRefused'
->
+type Cache = Pick<GpuPageCache, 'evictInOrder' | 'arrivals' | 'takeRefused'>
 
 /** Frames the cache's arrivals are remembered for: past the readback slots a cut is read back
  *  behind (`../../gpu/dag/layout.ts`, `DAG_READBACK_SLOTS`), with room. */

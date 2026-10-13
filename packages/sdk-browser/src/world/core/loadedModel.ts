@@ -39,14 +39,11 @@ export type ModelRecord = {
   textureSource: 'host' | 'cache'
 }
 
-/** The world roots a model's scene opened, and their keeping by its load: friends of the class
+/** The world roots `model`'s scene opened — its world's sessions draw from them and bind them to
+ *  their queue (`worldSource.ts`) —, and their keeping by its load: friends of the class
  *  (`static`), so they stay out of its public members. */
-let worldRootsOf: (model: LoadedModel) => readonly WorldRootsHold[]
+export let modelWorldRoots: (model: LoadedModel) => readonly WorldRootsHold[]
 let keepWorldRoots: (model: LoadedModel, roots: readonly WorldRootsHold[]) => void
-
-/** The world roots `model`'s scene opened: its world's sessions draw from them and bind them to
- *  their queue (`worldSource.ts`). */
-export const modelWorldRoots = (model: LoadedModel) => worldRootsOf(model)
 
 /**
  * A compiled model added to a scene like any other object: its pages stream by what the frame
@@ -77,7 +74,7 @@ export class LoadedModel extends Object3D {
   /** The world roots its scene opened (`modelWorldRoots`), kept by its load. */
   #worldRoots: readonly WorldRootsHold[] = []
   static {
-    worldRootsOf = (model) => model.#worldRoots
+    modelWorldRoots = (model) => model.#worldRoots
     keepWorldRoots = (model, roots) => {
       model.#worldRoots = roots
     }

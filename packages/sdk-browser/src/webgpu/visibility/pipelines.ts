@@ -8,6 +8,7 @@ import {
   visVariantFragment,
 } from '../../diagnostic/gpuGeometry.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
+import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
 
 /** A slot's face modes, in its bins' order (`CULL_BINS`): a mirrored placement draws in the bin
  *  of the side it shows (`visBin`), so no clockwise pipeline is made. */
@@ -32,7 +33,7 @@ export async function scoped<T>(device: GPUDevice, run: () => Promise<T>): Promi
 export const VIS_TARGETS: GPUColorTargetState[] = [{ format: 'r32uint' }, { format: 'r32float' }]
 /** The visibility raster's depth: written, tested as every opaque raster. */
 export const VIS_DEPTH: GPUDepthStencilState = {
-  format: 'depth32float',
+  format: DEPTH_FORMAT,
   depthWriteEnabled: true,
   depthCompare: DEPTH_COMPARE,
 }

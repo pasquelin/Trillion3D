@@ -3,6 +3,12 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { COVERAGE_CHOOSE_WGSL, COVERAGE_COUNT_WGSL } from './mipsWgsl.ts'
 import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import {
+  sequentialEntries,
+  computeBufferEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+} from '../gpu/core/computeBindings.ts'
 
 /** Bytes of one level's 256 bins. */
 export const LEVEL_BIN_BYTES = 1024
@@ -15,16 +21,16 @@ const coverageProgram = oncePerDevice((device: GPUDevice) => {
   const visibility = GPUShaderStage.COMPUTE
   const layout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility, texture: { sampleType: 'float' } },
-      { binding: 1, visibility, buffer: { type: 'uniform' } },
-      { binding: 2, visibility, buffer: { type: 'storage' } },
+      computeTextureEntry(0, 'float', '2d', visibility),
+      computeBufferEntry(1, 'uniform', visibility),
+      computeBufferEntry(2, 'storage', visibility),
     ],
   })
   const chooseLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility, buffer: { type: 'uniform', hasDynamicOffset: true } },
-      { binding: 1, visibility, buffer: { type: 'read-only-storage' } },
-      { binding: 2, visibility, buffer: { type: 'storage' } },
+      computeUniformEntry(0, { hasDynamicOffset: true }, visibility),
+      computeBufferEntry(1, 'read-only-storage', visibility),
+      computeBufferEntry(2, 'storage', visibility),
     ],
   })
   const pipeline = (code: string, bindGroupLayout: GPUBindGroupLayout, entryPoint: string) =>
@@ -66,11 +72,11 @@ export function coverageGroups(device: GPUDevice, chain: CoverageChain, levels: 
   return Array.from({ length: levels }, (_, block) =>
     device.createBindGroup({
       layout,
-      entries: [
-        { binding: 0, resource: views[Math.max(0, block - 1)] },
-        { binding: 1, resource: { buffer: uniforms, offset: (first + block) * stride, size: 32 } },
-        { binding: 2, resource: bins },
-      ],
+      entries: sequentialEntries([
+        views[Math.max(0, block - 1)],
+        { buffer: uniforms, offset: (first + block) * stride, size: 32 },
+        bins,
+      ]),
     }),
   )
 }
@@ -93,11 +99,11 @@ export function pickGroup(device: GPUDevice, uniforms: GPUBuffer, bins: GPUBuffe
   if (held?.bins === bins) return held.group
   const group = device.createBindGroup({
     layout: coverageProgram(sharedGpuDevice(device)).chooseLayout,
-    entries: [
-      { binding: 0, resource: { buffer: uniforms, size: 16 } },
-      { binding: 1, resource: { buffer: uniforms } },
-      { binding: 2, resource: { buffer: bins } },
-    ],
+    entries: sequentialEntries([
+      { buffer: uniforms, size: 16 },
+      { buffer: uniforms },
+      { buffer: bins },
+    ]),
   })
   picked.set(uniforms, { bins, group })
   return group

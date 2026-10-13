@@ -1,4 +1,4 @@
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts'
 import { prefetchHorizonMs } from '../../../engine/common.ts'
 import { mirrorDrawnFromShown } from '../helpers.ts'

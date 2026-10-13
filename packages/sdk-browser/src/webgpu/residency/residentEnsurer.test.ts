@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import { createWebgpuPageTracking, type WebgpuPageTracking } from '../row/pageTracking.ts'
 import { orderedPool, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts'
 
 /** A cache of three slots, none the GPU's order gives up: the fourth page cannot enter. `spare`
@@ -18,7 +18,7 @@ function saturatedCache(resident: string[], error = 'POOL_FULL', spare = 0) {
   }
 }
 
-const ensurer = (tracking: ReturnType<typeof createWebgpuPageTracking>, cache: unknown) =>
+const ensurer = (tracking: WebgpuPageTracking, cache: unknown) =>
   tierEnsurer(tracking, cache, () => [])
 
 test('a full pool stops the burst without dropping the image; any other error bubbles up', async () => {

@@ -1,13 +1,10 @@
 import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts'
-import type { createDagResources } from './resources.ts'
+import type { DagResources } from './resources.ts'
 import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
 import { encodeDifference } from './encodeDifference.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { DAG_SELECTION_PASS } from '../../stage/passLabels.ts'
-
-/** The cut's resources, as it encodes them. */
-export type DagView = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
 const DAG_PASS: GPUComputePassDescriptor = { label: DAG_SELECTION_PASS }
 
@@ -31,7 +28,11 @@ const DAG_PASS: GPUComputePassDescriptor = { label: DAG_SELECTION_PASS }
  * 1,959,792 for 21,955 useful on the twelve-instance bench, when a level's stage hugs its queue:
  * an armed count is traded against threads, and the trade only pays if the bound is tight.
  */
-export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagView, differ = false) {
+export function encodeDagKernels(
+  encoder: GPUCommandEncoder,
+  resources: DagResources,
+  differ = false,
+) {
   // A DIAGNOSTIC variant alone re-encodes the cut. The repeat PRECEDES the cut that counts: each
   // kernel restarts from the clear, the final state is therefore that of a single run, and the
   // frame delta measures what the repeat actually cost — waits between dispatches included, which
@@ -46,7 +47,7 @@ export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagView,
 
 function encodeOnce(
   encoder: GPUCommandEncoder,
-  resources: DagView,
+  resources: DagResources,
   headOnly: boolean,
   clear: boolean,
   differ = false,
@@ -148,7 +149,7 @@ function encodeOnce(
  * back in place: the kernels that follow bind it, and a range's own when there are several
  * (`perRange`).
  */
-function arm(pass: GPUComputePassEncoder, { armPipeline, armGroup, ranges }: DagView) {
+function arm(pass: GPUComputePassEncoder, { armPipeline, armGroup, ranges }: DagResources) {
   pass.setPipeline(armPipeline)
   pass.setBindGroup(0, armGroup)
   pass.dispatchWorkgroups(1)
@@ -160,7 +161,7 @@ function arm(pass: GPUComputePassEncoder, { armPipeline, armGroup, ranges }: Dag
  * placement tree, its own placements; with one, the head range the tree's top nodes, the world DAG's
  * range its root, and every range reads those few entries whole (`placementTreeWgsl.ts`).
  */
-function prepareEntries({ packed, ranges }: DagView, r: number) {
+function prepareEntries({ packed, ranges }: DagResources, r: number) {
   const tree = packed.placementTree,
     world = packed.world?.root ?? -1
   if (!tree) return ranges[r].count
@@ -169,7 +170,7 @@ function prepareEntries({ packed, ranges }: DagView, r: number) {
 }
 
 /** The entries of queue 0 range `r`'s pass 0 reads (`prepareEntries`). */
-function levelEntries({ packed, ranges }: DagView, r: number) {
+function levelEntries({ packed, ranges }: DagResources, r: number) {
   const tree = packed.placementTree
   if (!tree) return ranges[r].count
   return tree.levels[0].count + ((packed.world?.root ?? -1) >= 0 ? 1 : 0)
@@ -182,10 +183,10 @@ function levelEntries({ packed, ranges }: DagView, r: number) {
  */
 function perRange(
   pass: GPUComputePassEncoder,
-  view: DagView,
+  view: DagResources,
   pipeline: GPUComputePipeline,
   width: number,
-  threads: number | ((view: DagView, r: number) => number),
+  threads: number | ((view: DagResources, r: number) => number),
   firstFloor = 0,
 ) {
   const { ranges } = view
@@ -203,7 +204,7 @@ function perRange(
 /** A list kernel once per range, each indirect on the armed record at `offset` of `args`. */
 function perRangeIndirect(
   pass: GPUComputePassEncoder,
-  ranges: DagView['ranges'],
+  ranges: DagResources['ranges'],
   pipeline: GPUComputePipeline,
   args: GPUBuffer,
   offset: number,

@@ -2,7 +2,7 @@ import { createReflectionPipelines } from '../../../reflections/gpu.ts'
 import { createWebgpuVisibilityShaders } from '../../visibility/shaders.ts'
 import { visUniformSlots } from '../../visibility/uniforms.ts'
 import { MAX_DEPTH_LAYER } from '../../../../../sdk-core/src/index.ts'
-import { createGpuHiz } from '../../../gpu/hiz/hiz.ts'
+import { createGpuHiz } from '../../../gpu/hiz/factory.ts'
 import type { GpuHiz } from '../../../gpu/hiz/types.ts'
 import { validated } from '../../../gpu/core/errorScope.ts'
 import { createGpuDraw } from '../../../gpu/draw/draw.ts'
@@ -10,7 +10,6 @@ import { createGpuPartition } from '../../../gpu/partition/factory.ts'
 import { createGpuRestCompact } from '../../../gpu/raster/restCompact.ts'
 import { prepareTransparentOcclusion } from '../../transparent/occlusionHost.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { wantsFrontDepth } from './targetAllocation.ts'
 import {
   bindShade,
   prepareBlendPipelines,
@@ -58,7 +57,14 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
  *  size refuses the scene by name, as one that cannot build the raster that writes it. */
 async function createHizFor(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const [width, height] = rt.setup.viewport
-  const hiz = await createGpuHiz(gpuDevice, 1, 1, rt.layout.drawSlots, wantsFrontDepth(rt))
+  // The front depth it folds in is the drawn view's reflection's, whichever view is drawn.
+  const hiz = await createGpuHiz(
+    gpuDevice,
+    1,
+    1,
+    rt.layout.drawSlots,
+    () => rt.gpu.reflection?.front.foldedView,
+  )
   const size = () => hiz?.resize(gpuDevice, Math.max(1, width), Math.max(1, height)) || undefined
   if (!hiz || !(await validated(gpuDevice, size, 'out-of-memory'))) {
     hiz?.dispose()
