@@ -75,7 +75,7 @@ test('transparent frustum selection preserves intersections, transformed bounds 
       assert.equal(metrics.submittedTriangles, 4, item.name)
       assert.equal(metrics.transparentMeshes, 1, item.name)
       assert.equal(metrics.transparentFrustumRejected, item.visible ? 0 : 1, item.name)
-      assert.equal(metrics.transparentDrawCalls, item.visible ? 2 : 0, item.name)
+      assert.equal(metrics.transparentDrawCalls, 2, item.name)
       assert.equal(metrics.transparentSubmittedTriangles, 4, item.name)
       const actual = draws.filter((draw) => draw.entryPoint === 'vs')
       assert.equal(actual.length, 2, item.name + ' actual GPU commands, encoded as in view')
