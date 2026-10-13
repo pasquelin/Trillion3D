@@ -81,7 +81,7 @@ export function createTreeRefit(
       const levels = refitLevels(tree, groups)
       if (!levels.length) return
       program ??= refitProgram(device, tree, tables, members, kernel.get())
-      const { groups, steps } = program
+      const { groups: bound, steps } = program
       let at = 0
       for (let step = 0; step < levels.length; step++) {
         const { level, ids } = levels[step]
@@ -100,7 +100,7 @@ export function createTreeRefit(
       const pass = encoder.beginComputePass({ label: TREE_REFIT_PASS })
       pass.setPipeline(program.pipeline)
       pass.setBindGroup(0, program.tables)
-      steps.encode(pass, levels.length, (open, step) => open.setBindGroup(1, groups[step]))
+      steps.encode(pass, levels.length, (open, step) => open.setBindGroup(1, bound[step]))
       pass.end()
     },
     dispose() {
