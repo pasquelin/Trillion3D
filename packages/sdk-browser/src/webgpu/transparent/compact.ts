@@ -1,7 +1,8 @@
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { TRANSPARENT_COMPACT_SHADER } from './shader.ts'
 import { dispatchRows } from '../../gpu/dispatch/grid.ts'
-import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
+import { shaderFailed } from '../../gpu/core/shaderModule.ts'
+import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
 import { TRANSPARENT_COMPACTION_PASS } from '../../stage/passLabels.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
@@ -32,13 +33,9 @@ function compactLayout(device: GPUDevice) {
 /** The compute half's kernels: the three passes that turn the frame's selection mask into instance
  *  lists, compiled once whatever the table's size. Undefined on a device that refuses them. */
 async function compactKernels(device: GPUDevice) {
-  if (!canCompute(device)) return undefined
   const layout = compactLayout(device)
   const module = device.createShaderModule({ code: TRANSPARENT_COMPACT_SHADER })
-  if (typeof module.getCompilationInfo === 'function') {
-    const info = await module.getCompilationInfo()
-    if (info.messages.some((message) => message.type === 'error')) return undefined
-  }
+  if (await shaderFailed(module)) return undefined
   const entryPoints = [
     'countTransparentGroups',
     'prefixTransparentItems',

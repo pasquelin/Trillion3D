@@ -1,6 +1,6 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
-import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from '../../gpu/dispatch/grid.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
@@ -8,10 +8,9 @@ import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeB
 /** The pipeline constant that turns the cache on in the shade and the triangles passes. */
 export const CACHED = { SHADE_CACHE: 1 }
 
-/** The passes' pipelines and layouts, for what the session caches; none on a device with no
- *  compute or that refuses them. */
+/** The passes' pipelines and layouts, for what the session caches; none on a device that refuses
+ *  them. */
 export async function cachePasses(device: GPUDevice) {
-  if (!canCompute(device)) return
   const compute = GPUShaderStage.COMPUTE
   const span = groupWidth(device.limits)
   return validated(device, async () => {

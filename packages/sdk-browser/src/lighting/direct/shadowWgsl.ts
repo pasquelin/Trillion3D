@@ -2,7 +2,7 @@ import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { SHADOW_VIEW_WGSL } from './shadowViewWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from '../../vsm/constants.ts'
 import { VSM_UNIFORMS_WGSL } from '../../vsm/uniforms.ts'
-import { VSM_FORWARD_LAYOUT, vsmForwardPoolBinding, vsmPoolLoadOf } from '../../vsm/resources.ts'
+import { VSM_FORWARD_LAYOUT, vsmPoolLoadOf } from '../../vsm/resources.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
@@ -32,7 +32,8 @@ import {
 } from './shadowKinds.ts'
 
 /** Where a pass binds the virtual shadow maps a consumer samples (`vsmLocate`): the page
- *  table, the projection data, the uniforms and the pool's first slice (`vsmForwardPoolBinding`). */
+ *  table, the projection data, the uniforms and the pool's first slice, its one window
+ *  (`VSM_FORWARD_LAYOUT`). */
 export interface VsmConsumerBindings {
   pageTable: number
   projectionData: number
@@ -45,7 +46,7 @@ export const CONTRACT_VSM_BINDINGS: VsmConsumerBindings = {
   pageTable: DEFERRED_BINDINGS.pageTable,
   projectionData: DEFERRED_BINDINGS.projectionData,
   uniforms: DEFERRED_BINDINGS.uniforms,
-  pool: vsmForwardPoolBinding(DEFERRED_BINDINGS.pool),
+  pool: DEFERRED_BINDINGS.pool,
 }
 /** The water composite's trace bindings (`vsmTraceFactor`), on the deferred numbers. */
 export const CONTRACT_TRACE_BINDINGS: VsmTraceBindings = {
@@ -152,7 +153,7 @@ fn vsmLocate(id:u32,directional:bool,fromEye:vec3f)->VsmLocated{
  * exactly zero before any shadow read (`declaredLight`, `incidence.w`), as the lists rest on.
  *
  * `resolveTransmission` is the opaque resolve's binding of the translucent casters' transmission
- * (`VSM_TRANSMISSION_RESOLVE_BINDING`), null in a blend or water pass; `maskBinding` the resolve's
+ * (`DEFERRED_BINDINGS.transmissionResolve`), null in a blend or water pass; `maskBinding` the resolve's
  * mask array, and in the other passes, which declare no mask, their transmission. `trace`, the
  * bindings a blend or water pass traces with (the water's, `CONTRACT_TRACE_BINDINGS`, unless given). The names the passes write (footprint, receiver
  * offset and plane, view) are kept, so their bodies need no change. The block lists what it calls,

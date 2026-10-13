@@ -1,7 +1,7 @@
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 /** Frames the loop draws on its own, nothing arriving, before it pauses; an invalidate resets the
  *  count. */
-const SETTLE_LIMIT = 120
+export const SETTLE_LIMIT = 120
 
 /**
  * Frames whose feedback the loop awaits at once: the readback slots the cut alternates between

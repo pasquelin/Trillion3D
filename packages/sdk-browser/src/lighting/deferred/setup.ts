@@ -1,7 +1,6 @@
 import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
-import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts'
 import { receiverLayoutEntries, receiverPlaceholders } from '../../webgpu/visibility/receiver.ts'
 import { arrayView } from '../../gpu/core/textureViews.ts'
 import { PROBE_TEXELS, emptyAtlas } from '../../bounce/atlas.ts'
@@ -11,7 +10,6 @@ import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts'
 import { STORE_LAYERS } from '../../bounce/runtimeLayout.ts'
 import { RUNTIME_HEADER_WORDS } from '../../bounce/runtimeLayout.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
-import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import {
   VSM_MASK_TILES_BINDING,
   VSM_PROJECTION_MASK_FORMAT,
@@ -131,13 +129,13 @@ function contractLayoutEntries(): GPUBindGroupLayoutEntry[] {
  */
 function resolveLayoutEntries(): GPUBindGroupLayoutEntry[] {
   return [
-    ...receiverLayoutEntries(LIGHTING_RECEIVER_BINDING, GPUShaderStage.FRAGMENT),
+    ...receiverLayoutEntries(DEFERRED_BINDINGS.receiver, GPUShaderStage.FRAGMENT),
     SUBSURFACE_TARGET.layoutEntry(),
     // The anisotropic and clear-coat lobes (`../../scene/physicalLobes.ts`).
     PHYSICAL_LOBES_TARGET.layoutEntry(),
     // The translucent casters' transmission (the mask holds the transmittance's number).
     computeTextureEntry(
-      VSM_TRANSMISSION_RESOLVE_BINDING,
+      DEFERRED_BINDINGS.transmissionResolve,
       'uint',
       '2d-array',
       GPUShaderStage.FRAGMENT,

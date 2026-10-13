@@ -9,7 +9,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
-import { CASES, SCOPE, pixelsOf, type Pixel } from './projectionTiles.fixture.ts'
+import { CASES, PROJECTION_SCOPE, pixelsOf, type Pixel } from './projectionTiles.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
@@ -38,7 +38,7 @@ function groupWords(code: string, pixels: Pixel[], size: number) {
     code,
     ['vsmTileBound', 'vsmOrderedKey', 'isFiniteWord'],
     {
-      ...SCOPE,
+      ...PROJECTION_SCOPE,
       ...words,
       subgroupMax,
       atomicOr: (p: { get: () => number; set: (v: number) => void }, v: number) =>

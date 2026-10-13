@@ -42,8 +42,6 @@ import { type PlacementRows } from './rows.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { dagRootCounts, type DagCapacity } from '../gpu/dag/pack.ts'
 
-type Root = ClusterRoot<PageRec>
-
 /** The rows the session follows and grows in place (`EngineSceneUpdates`). */
 export const webgpuPlacementApi = (rt: WebgpuPagesRuntime) => ({
   updatePlacements: (rows: PlacementRows, from: number, to: number) =>
@@ -55,7 +53,7 @@ export const webgpuPlacementApi = (rt: WebgpuPagesRuntime) => ({
  *  them is asked, the cut being made, the pages the pool moved since it began, and the one ready —
  *  made, or the running one that took them (`inPlace`) —, until adopted. */
 type Growth = {
-  roots: Root[]
+  roots: ClusterRoot<PageRec>[]
   /** The blended and transmissive copies of the sources added, which join the pass once their
    *  roots hold their ranks (`growBlend`). */
   copies: BlendCopy[]
@@ -119,7 +117,7 @@ function rekeyPagedCopies(held: Map<MatrixElements, BlendCopy>, rebound: Rebound
  *  (`addWebgpuPlacements`). */
 export function joinGrownRoots(
   rt: WebgpuPagesRuntime,
-  roots: readonly Root[],
+  roots: readonly ClusterRoot<PageRec>[],
   copies: readonly BlendCopy[],
 ) {
   const growth = growths.get(rt) ?? { roots: [], copies: [], appended: 0, made: 0, asked: false }
@@ -167,7 +165,7 @@ export function startGrownCut(rt: WebgpuPagesRuntime) {
 /** The capacity a cut over `roots` is packed at: twice the pages and placements the session held
  *  at least (`grownLength`), nodes in the pages' proportion, and room for the primitives and
  *  sources later growths bring (`ahead`). */
-function grownCutCapacity(rt: WebgpuPagesRuntime, roots: readonly Root[]) {
+function grownCutCapacity(rt: WebgpuPagesRuntime, roots: readonly ClusterRoot<PageRec>[]) {
   const needed = dagRootCounts(roots),
     pages = grownLength(rt.layout.packedPages.length, needed.pages)
   return {

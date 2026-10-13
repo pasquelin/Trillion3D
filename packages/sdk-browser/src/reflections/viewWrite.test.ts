@@ -3,7 +3,7 @@
 // nothing in them turning with the frame.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { REFLECTION_VIEW_AT as AT, REFLECTION_VIEW_WRITTEN_WORDS } from './viewLayout.ts'
+import { REFLECTION_VIEW_AT as AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 import type { HeldImage } from './radiance.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 
@@ -43,7 +43,12 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
   assert.equal(words[AT.radianceViewProj], 2, "the held image's view-projection")
   assert.equal(traced[AT.traced], 0, 'no held image: the environment alone')
   assert.deepEqual([...words.slice(AT.proxy, AT.proxy + 1)], [Math.fround(0.1)])
-  assert.equal(words.length, REFLECTION_VIEW_WRITTEN_WORDS, 'the surroundings are not written')
+  assert.equal(words.length, REFLECTION_VIEW_WORDS, 'every word, the surroundings with them')
+  assert.deepEqual(
+    [...words.slice(AT.surroundings, AT.surroundings + 4)],
+    [0, 0, 0, 0],
+    'no background declared: a ray that leaves the scene reaches the environment',
+  )
   write(frame, { ...held, valid: true }, 8)
   assert.equal(new Uint32Array(written[1].buffer)[AT.traced], 1)
   write({ ...frame, depthDrawn: false }, { ...held, valid: true }, 8)

@@ -11,9 +11,12 @@ import {
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 
-export const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
-  subgroups: false,
-})
+export const PROJECTION_CODE = vsmProjectionWgsl(
+  vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }),
+  {
+    subgroups: false,
+  },
+)
 export type V3 = [number, number, number]
 export interface Light {
   shiftedPosition: V3
@@ -119,8 +122,8 @@ export function pixelsOf(rand: () => number, group: [number, number], kind: stri
 /** What a run of the kernel's pieces reads beside them: the module's constants, an inverse square
  *  root, and a vector's bits as floats. Its integer words stay exact: no binary32 rounding of
  *  their arithmetic (\`F32_SCOPE\` rounds every sum). */
-export const SCOPE = {
-  ...wgslConstants(CODE),
+export const PROJECTION_SCOPE = {
+  ...wgslConstants(PROJECTION_CODE),
   inverseSqrt: (x: number) => 1 / Math.sqrt(x),
   bitcast_vec3f: builtins.bitcast_f32,
 }

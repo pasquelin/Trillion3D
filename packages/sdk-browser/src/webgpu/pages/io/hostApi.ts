@@ -6,8 +6,6 @@ import { frameTargetsAwaited } from '../prepare/targetGrant.ts'
 import { defaultEngineCamera } from '../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
-export { pendingUrls, retainedRanks } from './hostLists.ts'
-
 /**
  * The contract's light store has changed. Nothing is recomputed here: the next image rereads the
  * store, pushes the buffer again if its revision moved, and the shadow scheduler takes over. The

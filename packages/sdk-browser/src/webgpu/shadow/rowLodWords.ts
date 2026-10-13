@@ -79,13 +79,14 @@ export function rowLodInputs(
     const grow = rowGrowth(rec, root.reach),
       reach = 2 * (root.reach ?? 0),
       sphere = rec.moved ? movedSphere(rec.moved) : rec.sphere
-    into.set(sphere.slice(0, 3), o + LOD_SPHERE)
+    for (let axis = 0; axis < 3; axis++) into[o + LOD_SPHERE + axis] = sphere[axis]
     into[o + LOD_SPHERE + 3] = sphere[3] + grow
     into[o + LOD_OWN] = rec.lodError + ((rec.level ?? 0) > 0 ? reach : 0)
     const parent = rec.parentError ?? -1
     if (parent >= 0 && rec.parentSphere) {
       flags |= LOD_HAS_PARENT
-      into.set(rec.parentSphere.slice(0, 3), o + LOD_PARENT_SPHERE)
+      const parentSphere = rec.parentSphere
+      for (let axis = 0; axis < 3; axis++) into[o + LOD_PARENT_SPHERE + axis] = parentSphere[axis]
       into[o + LOD_PARENT_SPHERE + 3] = rec.parentSphere[3] + grow
       into[o + LOD_PARENT] = parent + reach
     }

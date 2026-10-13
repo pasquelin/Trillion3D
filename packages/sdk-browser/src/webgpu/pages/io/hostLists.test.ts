@@ -7,7 +7,7 @@ import { RequestStamps, type PageRec } from '../../../page/selection/selection.t
 import { createCutDelta } from '../../cut/delta.ts'
 import { createCutPending } from '../../cut/pending.ts'
 import { createHostRankDelta } from '../../../streaming/hostRanks.ts'
-import { pendingUrls, retainedRanks } from './hostApi.ts'
+import { pendingUrls, retainedRanks } from './hostLists.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 const rec = (url: string, requestIndex: number, chargee = true) =>

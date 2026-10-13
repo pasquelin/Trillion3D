@@ -131,8 +131,9 @@ export type FakeDeviceOptions = {
   /** The device's `limits`, absent when not given. */
   limits?: Record<string, number>
   refuse?: (descriptor: GPUBufferDescriptor | GPUTextureDescriptor) => Refusal
-  /** `false`: the device has no compute pipelines, as a device without compute. */
-  compute?: boolean
+  /** Every compute pipeline is refused (`NO_COMPUTE`), as a device refuses a stage it cannot
+   *  build: the asynchronous build rejects, the immediate one throws. */
+  failCompute?: boolean
   /** `false`: the device builds its pipelines at the call alone, offering no `…Async`. */
   asyncPipelines?: boolean
   /** Every buffer's `mapAsync` settles when this does; at once when not given. */

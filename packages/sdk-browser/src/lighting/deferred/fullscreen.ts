@@ -24,9 +24,6 @@ export const buildComputePipeline = (
     ? device.createComputePipelineAsync(descriptor)
     : Promise.resolve(device.createComputePipeline(descriptor))
 
-/** Whether `device` makes compute pipelines: a test device without the stage does not. */
-export const canCompute = (device: GPUDevice) => typeof device.createComputePipeline === 'function'
-
 /** The compute stages of one module on one layout, by entry point, compiled together off the
  *  thread: prepare never builds its pipelines one after another. The pipeline layout is made of
  *  the bind-group layouts `layouts`, group by group. */

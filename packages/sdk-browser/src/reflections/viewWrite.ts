@@ -5,7 +5,7 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import { frontPitch } from './frontDepth.ts'
 import type { HeldImage } from './radiance.ts'
-import { REFLECTION_VIEW_AT as AT, REFLECTION_VIEW_WRITTEN_WORDS } from './viewLayout.ts'
+import { REFLECTION_VIEW_AT as AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 
 /** What an image tells its reflection view (`createReflectionViewWriter`). */
 export type ReflectionFrame = {
@@ -19,10 +19,12 @@ export type ReflectionFrame = {
   proxyError: number
   /** The run-time proxy's epoch (`proxyStore.ts`, `follow`): what its answers are stamped with. */
   epoch?: number
+  /** The radiance a ray that leaves the scene reaches (`createSurroundings`): zero when absent. */
+  surroundings?: ArrayLike<number>
 }
 
 /** The words of the view that the CPU writes, in 16-word runs (`sameElements`). */
-const RUNS = ceilDiv(REFLECTION_VIEW_WRITTEN_WORDS, 16)
+const RUNS = ceilDiv(REFLECTION_VIEW_WORDS, 16)
 
 /** Whether every run of `staged` is what `sent` holds. */
 function unchanged(sent: Float32Array, runs: Float32Array[]) {
@@ -36,14 +38,13 @@ function unchanged(sent: Float32Array, runs: Float32Array[]) {
  * image's drawn size, the geometry of a surface's thickness (`screenSlab`) with the world size of a
  * pixel at a unit clip `w` — 2 /
  * (height · |row y of the view-projection|), the projection's vertical scale —, whether the screen
- * is traced and the resident proxy's error; all but the surroundings, which the GPU
- * writes from the lighting's view. It writes the buffer when what it staged is not what it sent
+ * is traced, the resident proxy's error and the surroundings. It writes the buffer when what it staged is not what it sent
  * last: a still view writes once, and nothing in it is a frame index or a seed. Nothing is
  * allocated by a call.
  */
 export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer) {
-  const staged = new Float32Array(REFLECTION_VIEW_WRITTEN_WORDS)
-  const sent = new Float32Array(REFLECTION_VIEW_WRITTEN_WORDS)
+  const staged = new Float32Array(REFLECTION_VIEW_WORDS)
+  const sent = new Float32Array(REFLECTION_VIEW_WORDS)
   const traced = new Uint32Array(staged.buffer, AT.traced * 4, 4)
   const runtime = new Uint32Array(staged.buffer, AT.runtime * 4, 4)
   const inverse = new Float64Array(16)
@@ -64,6 +65,8 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     traced[3] = frontPitch(frame.size[0])
     staged[AT.proxy] = frame.proxyError
     runtime[0] = frame.epoch ?? 0
+    if (frame.surroundings) staged.set(frame.surroundings, AT.surroundings)
+    else staged.fill(0, AT.surroundings, AT.surroundings + 4)
     if (unchanged(sent, runs)) return
     sent.set(staged)
     device.queue.writeBuffer(buffer, 0, staged)

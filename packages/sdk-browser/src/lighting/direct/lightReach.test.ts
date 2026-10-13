@@ -15,7 +15,7 @@ import { directLightingWgsl } from './lightingWgsl.ts'
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts'
 import { vsmPixelPageMarkingWgsl } from '../../vsm/markingWgsl.ts'
 import { vsmLayout } from '../../vsm/layout.ts'
-import { CODE as PROJECTION } from '../../vsm/projectionTiles.fixture.ts'
+import { PROJECTION_CODE } from '../../vsm/projectionTiles.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { LIGHTS, casesOf, recordOf, type V3 } from './lightReach.fixture.ts'
 import { listsOf, projectionOf, reachOf, shadesOf } from './lightReachReaders.fixture.ts'
@@ -26,7 +26,7 @@ const BOUNCE = BOUNCE_PROBE_SHADER
 
 test('the predicate has one home: the marking and the projection hold its one text, the lighting and the bounce one incidence', () => {
   const home = functionText(localLightReaches, 'localLightReaches')
-  for (const code of [MARKING, PROJECTION]) {
+  for (const code of [MARKING, PROJECTION_CODE]) {
     assert.equal(code.split('fn localLightReaches(').length, 2, 'one definition')
     assert.equal(functionText(code, 'localLightReaches'), home)
   }

@@ -19,10 +19,8 @@ import type { GrownPages } from '../../../gpu/page/resize.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { coverPagesOf } from './rootCover.ts'
 
-type Root = ClusterRoot<PageRec>
-
 /** What a collection of a source brings the catalogue (`createCollector`). */
-export type Brought = { allPages: PageRec[]; roots: Root[] }
+export type Brought = { allPages: PageRec[]; roots: ClusterRoot<PageRec>[] }
 
 /** The bytes a page takes in its pool slot, padded to a word. */
 const paddedBytes = (page: PageRec) => {
@@ -108,7 +106,7 @@ export function growCatalogue(rt: WebgpuPagesRuntime, brought: Brought) {
 
 /** The cover the roots added hold whatever the view, listed by the catalogue; the pages its groups
  *  replace raise the pool's floor. */
-function growCover(setup: WebgpuPagesRuntime['setup'], roots: readonly Root[]) {
+function growCover(setup: WebgpuPagesRuntime['setup'], roots: readonly ClusterRoot<PageRec>[]) {
   const { bootstrap, children } = coverPagesOf(roots)
   const covered = bootstrap.filter((page) => !setup.coverUrls.has(pageAddress(page)))
   for (const page of covered) {

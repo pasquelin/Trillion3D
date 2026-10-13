@@ -117,11 +117,24 @@ function lightTiles(device: GPUDevice, layout: GPUBindGroupLayout, view: Grid, w
     rows = new Float64Array(8)
   const state = { tiles: undefined as GPUBuffer | undefined, revision: 0 }
   const grids = [view, world]
-  /** The buffer for both grids' columns and pools; `true` when each grid's group is ready. */
+  /** The grid's group over the buffer and the lights it was last given, made again when either
+   *  moved: a buffer the other grid's growth replaced is bound again by the next pass. */
+  const bind = (grid: Grid) => {
+    if (grid.bound.moved() || !grid.group)
+      grid.group = device.createBindGroup({
+        layout,
+        entries: sequentialEntries([
+          { buffer: grid.uniform },
+          { buffer: grid.bound.next[0] as GPUBuffer },
+          { buffer: state.tiles! },
+          { buffer: grid.pool.state },
+        ]),
+      })
+  }
+  /** The buffer for both grids' columns and pools; `true` when the grid's group is ready. */
   const ensure = (grid: Grid, [x, y]: [number, number], lights: GPUBuffer, count: number) => {
-    const others = grids
-      .filter((g) => g !== grid)
-      .reduce((n, g) => n + recordsOf(g) + g.poolWords, 0)
+    const other = grid === view ? world : view,
+      others = recordsOf(other) + other.poolWords
     const records = x * y * grid.slices * TILE_STRIDE_WORDS
     // The pool never takes the buffer past what the device binds: a cell with no room walks all.
     const room = Math.floor(storageBufferCap(device.limits) / 4) - records - others
@@ -136,16 +149,7 @@ function lightTiles(device: GPUDevice, layout: GPUBindGroupLayout, view: Grid, w
       reallocate()
     }
     grid.bound.next[0] = lights
-    if (grid.bound.moved() || !grid.group)
-      grid.group = device.createBindGroup({
-        layout,
-        entries: sequentialEntries([
-          { buffer: grid.uniform },
-          { buffer: lights },
-          { buffer: state.tiles! },
-          { buffer: grid.pool.state },
-        ]),
-      })
+    bind(grid)
     return !!grid.group
   }
   /** Both grids in a new buffer: the view's, then the world's. */
@@ -232,9 +236,10 @@ function lightTiles(device: GPUDevice, layout: GPUBindGroupLayout, view: Grid, w
     },
     /** Encodes the view grid's pass of image `frame`, one workgroup a column; its pool state is
      *  sampled after. */
-    encode: (encoder: GPUCommandEncoder, frame: number) => encodeGrid(view, encoder, frame),
+    encode: (encoder: GPUCommandEncoder, frame: number) => encodeGrid(view, bind, encoder, frame),
     /** Encodes the world grid's pass. */
-    encodeWorld: (encoder: GPUCommandEncoder, frame: number) => encodeGrid(world, encoder, frame),
+    encodeWorld: (encoder: GPUCommandEncoder, frame: number) =>
+      encodeGrid(world, bind, encoder, frame),
     /** Requests mapping of the pools' samples, once the frame that copied them is submitted. */
     submitted() {
       view.pool.submitted()
@@ -252,8 +257,16 @@ function lightTiles(device: GPUDevice, layout: GPUBindGroupLayout, view: Grid, w
   }
 }
 
-/** A grid's pass (`createGpuLightTiles`). */
-function encodeGrid(grid: Grid, encoder: GPUCommandEncoder, frame: number) {
+/** A grid's pass (`createGpuLightTiles`), its group bound again first when its buffer moved
+ *  (`bind`); none for a grid never sized. */
+function encodeGrid(
+  grid: Grid,
+  bind: (grid: Grid) => void,
+  encoder: GPUCommandEncoder,
+  frame: number,
+) {
+  if (!grid.group && !grid.bound.next[0]) return false
+  bind(grid)
   if (!grid.group) return false
   const pass = encoder.beginComputePass({ label: grid.label })
   pass.setPipeline(grid.pipeline)

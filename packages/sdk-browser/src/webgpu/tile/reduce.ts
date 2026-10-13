@@ -13,7 +13,7 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE, type WebgpuTileFeedback } from './feedback.ts'
 import { GATHER_WGSL, GATHER_WORKGROUP, REDUCE_WGSL, REDUCE_WORKGROUP } from './reduceWgsl.ts'
-import { preparedComputePipeline, started, canCompute } from '../../lighting/deferred/fullscreen.ts'
+import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { TEXTURE_FEEDBACK_REDUCE_PASS } from '../../stage/passLabels.ts'
 import {
   computeBufferEntry,
@@ -36,10 +36,8 @@ export type WebgpuTileReduce = {
   destroy(): void
 }
 
-/** `undefined` on a device without a compute stage: transparents then keep their queues, and the
- *  prepare diagnostic says so. */
-export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | undefined {
-  if (!canCompute(device)) return undefined
+/** The reduction of the image's request target, its pipelines compiled off the frame. */
+export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
   const layout = device.createBindGroupLayout({
     entries: [
       computeTextureEntry(0, 'uint'),

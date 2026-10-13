@@ -35,8 +35,6 @@ import { buildBlendPipelines } from '../pages/prepare/visibilitySteps.ts'
 import { prepareWebgpuBlend } from './prepare.ts'
 import { mountBlendResources, prepareBlendKernels } from './resources.ts'
 
-type Root = ClusterRoot<PageRec>
-
 /** Why the transparent pass cannot take a surface where the session stands, said by name; none
  *  when it can. */
 export function blendRefusal(rt: WebgpuPagesRuntime) {
@@ -83,24 +81,16 @@ export const waitsForWater = (rt: WebgpuPagesRuntime, copies: readonly BlendCopy
 export const waitsForFrontDepth = (rt: WebgpuPagesRuntime, copies: readonly BlendCopy[]) =>
   copies.length > 0 && !rt.gpu.reflection?.front.wanted
 
-/** The compaction and the occlusion test being made for the first blended pages the session gains. */
-const mounting = new WeakMap<WebgpuPagesRuntime, Promise<boolean>>()
-
 /** The compaction, and the occlusion test over it, made on an empty table: the copies' entries
  *  join it with the rest (`growBlend`). False when the device refuses the kernels. */
 function mountTransparent(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { blendState } = rt
-  let made = mounting.get(rt)
-  if (!made) {
-    made = (async () => {
-      blendState.compaction ??= await createTransparentCompaction(device, blendState.table!)
-      if (!blendState.compaction?.encode) return false
-      if (!blendState.occlusion) await prepareTransparentOcclusion(rt, device)
-      return true
-    })().finally(() => mounting.delete(rt))
-    mounting.set(rt, made)
-  }
-  return made
+  return (blendState.mounting ??= (async () => {
+    blendState.compaction ??= await createTransparentCompaction(device, blendState.table!)
+    if (!blendState.compaction?.encode) return false
+    if (!blendState.occlusion) await prepareTransparentOcclusion(rt, device)
+    return true
+  })().finally(() => (blendState.mounting = undefined)))
 }
 
 /**
@@ -135,7 +125,7 @@ export function growBlend(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   copies: readonly BlendCopy[],
-  roots: readonly Root[],
+  roots: readonly ClusterRoot<PageRec>[],
   base: number,
 ) {
   const { blendState, gpu, setup } = rt,
