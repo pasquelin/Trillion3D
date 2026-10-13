@@ -21,6 +21,9 @@ function writeRoots(rt: WebgpuPagesRuntime, compose: boolean) {
   const device = rt.gpu.device
   if (!device || rt.run.lost) return
   sendRootWorlds(rt, device)
+  // Nothing to compose and no root moved: no command buffer.
+  const moved = rt.rootWorlds!.roots
+  if (!(compose && rt.compose?.parentIds.size) && !moved.whole && !moved.count) return
   const encoder = device.createCommandEncoder({ label: 'Trillion3D roots' })
   const done = compose ? encodeComposedRoots(rt, device, encoder) : 0
   const boxed = encodeRootBoxes(rt, device, encoder, (done & COMPOSED) !== 0)
