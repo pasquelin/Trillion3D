@@ -54,8 +54,6 @@ import {
 } from './projectionView.ts'
 import {
   VSM_PROJECTION_BINDING,
-  VSM_PROJECTION_KINDS_DIRECTIONAL,
-  VSM_PROJECTION_KINDS_LOCAL,
   VSM_PROJECTION_MASK_FORMAT,
   VSM_PROJECTION_RECEIVER_GROUP,
   VSM_PROJECTION_TILE_FORMAT,
@@ -64,13 +62,17 @@ import {
   vsmProjectionWgsl,
 } from './projectionWgsl.ts'
 import {
+  VSM_PROJECTION_KINDS_DIRECTIONAL,
+  VSM_PROJECTION_KINDS_LOCAL,
+} from './receiverTraceWgsl.ts'
+import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
   vsmPerFrameSet,
   type VsmFrameBuffers,
   type VsmResources,
 } from './resources.ts'
-import type { VsmLayout } from './layout.ts'
+import { poolWindowSizes, type VsmLayout } from './layout.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
 /** The camera the pixels are reconstructed with. */
@@ -401,6 +403,16 @@ export function vsmProjectionReserve(device: GPUDevice, res: VsmResources) {
   return state
 }
 
+/** The view uniform and the blue noise the projection of `res` reads: what a blended surface's and
+ *  the water's trace reads too (`vsmTraceFactor`), the same view and noise. None before the set's
+ *  first reservation. */
+export function vsmProjectionShared(res: VsmResources) {
+  const state = states.get(res)
+  return state?.uniform && state.blueNoiseView
+    ? { view: state.uniform, noise: state.blueNoiseView }
+    : undefined
+}
+
 /** Frees what the projection of `res` holds, with the set (`destroyEngineVsm`). */
 export function releaseVsmProjection(res: VsmResources) {
   const state = states.get(res)
@@ -481,7 +493,7 @@ function projectionPassLayout(device: GPUDevice) {
 function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, receiver: boolean) {
   let made = pipelines.get(device)
   if (!made) pipelines.set(device, (made = new Map()))
-  const key = `${subgroups}|${receiver}|${layout.poolPartsPerSlice}|${layout.poolPartTexelShift}|${layout.poolTexelsXY[0]}`
+  const key = `${subgroups}|${receiver}|${poolWindowSizes(layout).length}|${layout.poolRowShift}`
   let p = made.get(key)
   if (p) return p
   const vsmLayout = device.createBindGroupLayout({

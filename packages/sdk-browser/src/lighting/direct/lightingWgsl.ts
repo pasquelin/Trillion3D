@@ -13,6 +13,7 @@ import {
   directShadowWgsl,
   type VsmConsumerBindings,
   vsmBindingsLabel,
+  type VsmTraceBindings,
 } from './shadowWgsl.ts'
 import { shadowKindsOf } from './shadowKinds.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
@@ -32,7 +33,7 @@ import {
  *  (`directShadowWgsl`) —, and the pool the water reads. */
 export const CONTRACT_SHADOW_BINDINGS = {
   transmittance: DEFERRED_BINDINGS.transmittance,
-  translucentDepth: CONTRACT_VSM_BINDINGS.pool,
+  translucentDepth: DEFERRED_BINDINGS.pool,
 }
 
 /** A cell's list of lights — what the resolves walk, and the virtual shadow maps' marking
@@ -73,14 +74,15 @@ fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileL
  * the resident proxy, which the shadow rays trace (`bounce/traceWgsl.ts`), the translucent
  * casters' transmittance and the virtual shadow maps' (`CONTRACT_VSM_BINDINGS` unless given). The
  * opaque resolve reads its mask and, at `resolveTransmission`, the translucent casters'
- * transmission; the blend and water passes, without it, read the transmission alone
- * (`directShadowWgsl`).
+ * transmission; the blend and water passes, without it, read the transmission alone, and trace
+ * their fragments with `trace` (`directShadowWgsl`).
  */
 export type LightingBindings = {
   proxy: number
   transmittance: number
   vsm?: VsmConsumerBindings
   resolveTransmission?: number
+  trace?: VsmTraceBindings
 }
 
 /** The bindings as a block name reads them, in their declared order, the defaults resolved. */
@@ -89,8 +91,9 @@ const bindingsLabel = ({
   transmittance,
   vsm = CONTRACT_VSM_BINDINGS,
   resolveTransmission,
+  trace,
 }: LightingBindings) =>
-  `${proxy}, ${transmittance}, ${vsmBindingsLabel(vsm)}, ${resolveTransmission ?? null}`
+  `${proxy}, ${transmittance}, ${vsmBindingsLabel(vsm)}, ${resolveTransmission ?? null}, ${trace ? Object.values(trace).join(' ') : null}`
 
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
@@ -119,6 +122,7 @@ const lightingBase = (
         resolveTransmission: bindings.resolveTransmission ?? null,
         vsm: bindings.vsm ?? CONTRACT_VSM_BINDINGS,
         kinds: shadowKindsOf(key),
+        trace: bindings.trace,
       }),
       FOG_WGSL,
       declaredLightWgsl(key, { pair }),
@@ -237,6 +241,7 @@ export const declaredLightingWgsl = (
     `
 fn declaredLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->${pair ? 'LightPair' : 'vec3f'}{
  let cell=gridCell(pixel,z,vec2u(uni.lightTiles));
+ vsmTraceAt(pixel);
  var slice=vec2u(TILE_NO_SLICE,directLights.count);
  if(cell!=TILE_NO_SLICE){slice=cellSlice(cell);}
  return sliceLighting${pair ? 'Pair' : ''}(rgb,metal,rough,N,V,P,ao,slice);

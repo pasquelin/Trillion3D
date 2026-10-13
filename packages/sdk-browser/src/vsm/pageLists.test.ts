@@ -13,7 +13,7 @@ import { vsmPhysicalPageKernels } from './physicalPagesWgsl.ts'
 import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
-const KERNELS = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7 }, 2 ** 27))
+const KERNELS = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7 }))
 const LISTS = ['pmListStart', 'pmListItem', 'pmSetListItem', 'pmListCount', 'pmSetListCount']
 
 /** Lists of `n` pages: each list's items then its count (`pmListStart`). */

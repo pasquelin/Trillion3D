@@ -13,9 +13,9 @@ import { vsmTransmissionBytes, vsmTransmissionFirstCaps } from './transmissionLa
 const BINDING = 1 << 27
 /** The engine's one-sun set (`engineVsmOptions`): two page-table rows, the mask for two suns. */
 const SUN: VsmResourceOptions = { fullMapCapacity: 127, sunMapCapacity: 35 }
-const bytesAt = (poolPages: number) => vsmResourceBytes(vsmLayout({ ...SUN, poolPages }, BINDING))
+const bytesAt = (poolPages: number) => vsmResourceBytes(vsmLayout({ ...SUN, poolPages }))
 const pagesWithin = (budget: number, options = SUN) =>
-  vsmPoolWithin(budget, options, BINDING)?.layout.poolPages
+  vsmPoolWithin(budget, options)?.layout.poolPages
 
 test('the whole pool when its bytes fit, the next half one byte short of each', () => {
   assert.equal(pagesWithin(bytesAt(2048)), 2048)
@@ -33,7 +33,7 @@ test('the pool drawn says why it is short, and holds what the device is asked fo
     [bytesAt(2048) - 1, 'ceiling'],
     [bytesAt(256), 'minimum'],
   ] as const) {
-    const pool = vsmPoolWithin(budget, SUN, BINDING)!
+    const pool = vsmPoolWithin(budget, SUN)!
     assert.equal(pool.clamp, clamp)
     assert.equal(pool.budgetBytes, budget)
     const fake = fakeDevice({ limits: { maxStorageBufferBindingSize: BINDING } })
@@ -72,7 +72,7 @@ test('vsmTransmissionBytes is every byte the ledger counts of a transmission', (
     for (const scale of [1, 4]) {
       const fake = fakeDevice({ limits: { maxStorageBufferBindingSize: BINDING } })
       const ledger = installGpuDeviceLedger(fake.device)
-      const layout = vsmLayout({ ...SUN, poolPages: pages }, BINDING)
+      const layout = vsmLayout({ ...SUN, poolPages: pages })
       const first = vsmTransmissionFirstCaps(pages)
       const caps = { ...first, blocks: first.blocks * scale, records: first.records * scale }
       const trans = createVsmTransmission(fake.device, layout, caps)

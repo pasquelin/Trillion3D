@@ -13,7 +13,7 @@ import { vsmLayout } from './layout.ts'
 import { TAU } from '../../../math/src/constants.ts'
 
 export type Draw = ReturnType<typeof inputs>
-const LAYOUT = vsmLayout({ fullMapCapacity: 63 }, 1 << 27)
+const LAYOUT = vsmLayout({ fullMapCapacity: 63 })
 /** The two shipped modules the shared box cull is compiled into, on the one layout. */
 export const INVALIDATION = vsmInvalidationWgsl(LAYOUT),
   RENDER = vsmRenderCullWgsl(LAYOUT)

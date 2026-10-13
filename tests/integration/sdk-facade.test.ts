@@ -152,8 +152,9 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // the render-origin module imports the matrix inverse and the culling batch the empty-bounds test,
   // two more module init calls in the chain (7 bytes, no function kept); the merged duplicate removals
   // (runtime, language, code) move it by two bytes more; the compute-path governor gone, its
-  // contract's module leaves the browser chain.
-  assert.equal(baseline.outputFiles[0].contents.length, 3_195)
+  // contract's module leaves the browser chain; the light settings' tap count, gone with the
+  // filtered shadow read, takes eleven off.
+  assert.equal(baseline.outputFiles[0].contents.length, 3_184)
   assert.equal(proposed.outputFiles[0].contents.length, 1_450)
   assert.equal(browserProposed.outputFiles[0].contents.length, 3_170)
   assert.ok(

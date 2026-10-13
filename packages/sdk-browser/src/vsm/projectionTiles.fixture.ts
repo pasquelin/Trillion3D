@@ -11,10 +11,9 @@ import {
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 
-export const CODE = vsmProjectionWgsl(
-  vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27),
-  { subgroups: false },
-)
+export const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
+  subgroups: false,
+})
 export type V3 = [number, number, number]
 export interface Light {
   shiftedPosition: V3

@@ -26,7 +26,7 @@ const halfOf = (x: number) => {
   const d = q - r
   return (d > 0.5 || (d === 0.5 && r % 2 === 1) ? r + 1 : r) * step
 }
-const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
+const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
   subgroups: false,
 })
 type Result = { shadowFactor: number; rayCount: number }

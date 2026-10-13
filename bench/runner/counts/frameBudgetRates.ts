@@ -1,6 +1,5 @@
 // What the whole-frame budget of the reference case (`counts/frameBudget.ts`) prices its counts at,
 // and the per-pixel accesses it counts where no counter walks the shipped shader.
-import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'
 import { hizLevelSizes } from '../../../packages/sdk-browser/src/gpu/hiz/levelSizes.ts'
 import { benchLights } from '../lighting/lamps.ts'
 import { LIGHTING_RATES } from '../lighting/lightGridCount.ts'
@@ -35,10 +34,11 @@ export const SURFACE_ACCESSES = { visibility: 1, page: 1, vertex: 12, maps: 3, t
 /** A shadow setup's texels: eight neighbour depths and the receiver offset's visibility texel,
  *  triangle indices and positions (`shadowSetup`, `receiverOffsetWgsl.ts`). */
 export const SETUP_TEXELS = 8 + 7
-/** The PCF's depth gathers a shadow read: its taps (`PCF_TAPS_WGSL`). */
-export const PCF_GATHERS = LIGHT_SETTINGS.pcfTaps
-/** Page-table accesses the marking pass spends a light it marks: its home page and the PCF's
- *  neighbours across a page edge (`vsm/markingWgsl.ts`). */
+/** The texels a shadow read of the opaque resolve takes: the light's lane of the projection's mask
+ *  (`vsmMaskFactor`); the trace itself is the projection pass's. */
+export const MASK_TEXELS = 1
+/** Page-table accesses the marking pass spends a light it marks: its home page and its neighbours
+ *  across a page edge (`vsm/markingWgsl.ts`). */
 export const DEMAND_MARKS = 4
 
 export const UNCOUNTED = [

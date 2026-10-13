@@ -14,14 +14,14 @@ import {
   VSM_LIGHT_KIND_RECT as RECT,
   VSM_LIGHT_KIND_SPOT as SPOT,
 } from './constants.ts'
+import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import {
   VSM_PROJECTION_KINDS_DIRECTIONAL as SUN,
   VSM_PROJECTION_KINDS_LOCAL as LAMP,
-  vsmProjectionWgsl,
-} from './projectionWgsl.ts'
+} from './receiverTraceWgsl.ts'
 import { vsmLayout } from './layout.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27)
+const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
 const CODE = vsmProjectionWgsl(LAYOUT, { subgroups: false })
 
 test('each light of a pass takes its own kind branch, whatever kinds the pass is compiled with', () => {

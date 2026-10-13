@@ -25,7 +25,7 @@ const options = { fullMapCapacity: 127, sunMapCapacity: 35 }
 
 /** Every kernel of the physical pages declares the struct: the one text they share. */
 const kernelTexts = () =>
-  Object.values(vsmPhysicalPageKernels(vsmLayout(options, 2 ** 27), { stats: false })).map(
+  Object.values(vsmPhysicalPageKernels(vsmLayout(options), { stats: false })).map(
     (kernel) => kernel.code,
   )
 

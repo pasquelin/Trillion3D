@@ -5,6 +5,7 @@ import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { residentProxyWgsl } from './nodeWgsl.ts'
 import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts'
 import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
+import { BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
 import { GOLDEN_ANGLE, TWO_PI } from '../../../math/src/wgsl/constants.ts'
@@ -72,6 +73,7 @@ export const BOUNCE_PROBE_SHADER = wgslProgram(
 @group(0) @binding(4) var probes:texture_2d_array<f32>;
 @group(0) @binding(5) var probesOut:texture_storage_2d_array<rgba32float,write>;
 @group(0) @binding(6) var surface:texture_2d<f32>;
+@group(0) @binding(${BOUNCE_LIGHT_LIST_BINDING}) var<storage,read> tileLights:array<u32>;
 ${wgslConsts({
   RAYS_PER_PROBE: BOUNCE_SETTINGS.raysPerProbe,
   WORKGROUP: BOUNCE_WORKGROUP,

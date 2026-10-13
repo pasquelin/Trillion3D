@@ -1,12 +1,13 @@
 // The surface cache's direct term traced a shadow ray for the first four shadow-casting
 // lights only; from the fifth on, a light behind a wall lit the cell through it, and the bounce
-// carried that light into the room. The shipped `directIrradiance` runs here against a flat wall.
+// carried that light into the room. The engine's one light loop, in its irradiance term
+// (`lightsIrradiance`, `../lighting/direct/lightLoopWgsl.ts`), runs here against a flat wall.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun, type Vec } from '../texture/shaderRun.fixture.ts'
-import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts'
+import { LIGHTS_IRRADIANCE_WGSL } from '../lighting/direct/lightLoopWgsl.ts'
 
-type Light = { height: number; energy: number; casts?: boolean }
+type Light = { height: number; energy: number; casts?: boolean; range?: number }
 type Items = { params: Vec; positionRange: Vec; colorIntensity: Vec }[]
 
 /** The cell at the origin, facing up, lit by point lights straight above it at `height`; a wall
@@ -14,12 +15,18 @@ type Items = { params: Vec; positionRange: Vec; colorIntensity: Vec }[]
  *  energies that reach the cell. `rays` counts the shadow rays traced. */
 const scene = { wall: 0, rays: 0 }
 const directLights = { count: 0, items: [] as Items }
-const { directIrradiance } = shaderRun<{
-  directIrradiance: (P: Vec, N: Vec, reach: number) => Vec
-}>(SURFACE_IRRADIANCE_WGSL, ['directIrradiance'], {
+const { lightsIrradiance } = shaderRun<{
+  lightsIrradiance: (P: Vec, N: Vec, reach: number) => Vec
+}>(LIGHTS_IRRADIANCE_WGSL, ['lightsIrradiance', 'declaredIrradiance'], {
   directLights,
+  RANGE_REJECT: 1.0001,
   isRect: () => false,
   isSun: () => false,
+  isSunKind: () => false,
+  // No world lists: every light, the loop's fallback (`bounceLightSlice`).
+  TILE_NO_SLICE: 0xffffffff,
+  bounceLightSlice: () => [0xffffffff, directLights.count],
+  tileLights: [],
   rectIrradiance: () => [0, 0, 0, 0],
   directIncidence: () => [0, 1, 0, 1],
   proxyBlocked: (origin: Vec, direction: Vec, span: number) => {
@@ -30,14 +37,14 @@ const { directIrradiance } = shaderRun<{
 })
 
 function irradiance(lights: Light[], wall: number) {
-  directLights.items = lights.map(({ height, energy, casts = true }) => ({
+  directLights.items = lights.map(({ height, energy, casts = true, range = 100 }) => ({
     params: [0, 0, casts ? 1 : 0, 0],
-    positionRange: [0, height, 0, 100],
+    positionRange: [0, height, 0, range],
     colorIntensity: [energy, energy, energy, 1],
   }))
   directLights.count = lights.length
   Object.assign(scene, { wall, rays: 0 })
-  return directIrradiance([0, 0, 0], [0, 1, 0], 100)[0]
+  return lightsIrradiance([0, 0, 0], [0, 1, 0], 100)[0]
 }
 
 const SIX = [2, 3, 4, 5, 6, 7].map((height, i) => ({ height, energy: 2 ** i }))
@@ -58,4 +65,9 @@ test('a light that casts no shadow still lights the cell through the wall, as it
 test('a light that adds nothing at the cell traces no shadow ray', () => {
   assert.equal(irradiance([...SIX, { height: 3, energy: 0 }], 10), 63)
   assert.equal(scene.rays, SIX.length)
+})
+
+test('a light past its range is rejected on its sphere: no ray, no light', () => {
+  assert.equal(irradiance([...SIX, { height: 9, energy: 64, range: 8 }], 10), 63)
+  assert.equal(scene.rays, SIX.length, 'the out-of-range light traces nothing')
 })

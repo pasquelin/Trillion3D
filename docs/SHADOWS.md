@@ -62,11 +62,16 @@ into the dynamic slice (`VSM_STILL_FRAMES`).
 
 ## Reading the shadow
 
-Opaque surfaces read the mask. Blended surfaces and water read the page table and the pool
-directly, sixteen filtered taps a texel apart (`lighting/direct/shadowWgsl.ts`); they bind the
-pool's first part alone, so a device that splits a slice into parts gives them no shadow past
-it. A page not drawn hands its point to the next coarser level mapped; where none holds it, it is
-lit.
+One estimator shades every surface: the receiver's trace (`vsm/receiverTraceWgsl.ts`) — the
+normal bias, a screen ray for the contact, then rays across the light's disk or sphere marched
+through the stored depths. Opaque surfaces read it from the mask, where the projection pass traced
+it 64 pixels a workgroup, its 32-pixel halves voting their ray count. Blended surfaces and water
+trace their own fragment with it on the same view, noise, maps and depth pyramid
+(`lighting/direct/shadowWgsl.ts:vsmTraceFactor`), lone: no vote, so a fragment stops early only on
+its own narrow contact and never traces fewer rays than a voting pixel. Every pass reads the pool
+through the same windows: buffers of WebGPU's guaranteed binding size, the same on every device
+(`vsm/layout.ts:poolWindowSizes`, `vsm/resources.ts`). A page not drawn hands its point to the next coarser level mapped; where none
+holds it, it is lit.
 
 ## Metrics
 

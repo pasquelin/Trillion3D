@@ -542,9 +542,11 @@ fn vsmSunRayMisses(rayState:ptr<function,VsmSunRay>,stepCount:i32,stepJitter:f32
  * rays left trace nothing. A half stops at the first vote or the umbra one only, so the group
  * asks there, unless the loop ends anyway (`projectionGroupExit.test.ts`).
  */
-const rayCountStatement = (
-  guard: string,
-) => /* wgsl */ `  if(${guard}&&i==0u&&running&&hit&&narrow){stopped=true;}
+const rayCountStatement = (guard: string, lone: boolean) =>
+  lone
+    ? `  if(${guard}&&i==0u&&running&&hit&&narrow){stopped=true;}
+`
+    : /* wgsl */ `  if(${guard}&&i==0u&&running&&hit&&narrow){stopped=true;}
   if(${guard}){
    var halfStops=false;
    if(i==0u){halfStops=vsmVoteAllTrue(!running||!hit||narrow,voteSplit);}
@@ -565,9 +567,9 @@ const rayCountStatement = (
  * Reads the view `vsmView` the module declares, the pages of `pool` (`vsmPoolLoad`) and the noise
  * pair `noise` provides (`vsmNoiseTwo`).
  */
-export const vsmTraceWgsl = (pool: WgslDecl, noise: WgslDecl) =>
+export const vsmTraceWgsl = (pool: WgslDecl, noise: WgslDecl, lone = false) =>
   wgslBlock(
-    'vsmTraceWgsl',
+    `vsmTraceWgsl(${lone})`,
     [
       VSM_CONSTANTS_WGSL,
       Frame3,
@@ -585,7 +587,7 @@ export const vsmTraceWgsl = (pool: WgslDecl, noise: WgslDecl) =>
       vsmTraceLocalWgsl(pool),
       VSM_TRACE_RESULT_WGSL,
       vsmRayNoiseWgsl(noise),
-      clipmapRayMissesWgsl(pool),
+      ...(lone ? [] : [clipmapRayMissesWgsl(pool)]),
     ],
     `/** Traces the sun's rays. 'participating' = the lane takes part in the group's votes. */
 fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition:vec3f,startOffset:f32,noise:f32,worldNormal:vec3f,participating:bool,voteSplit:bool)->VsmTraceResult{
@@ -646,7 +648,7 @@ fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition
    var rayState=vsmSunRayBegin(pd,originInMap,rayDir,rayLength,startOffset,uvDepthSlope,texelShift,settings.slopeCapSetting);
    // The projection proves its first ray alone (\`vsmSunRayMisses\`): a later one runs in
    // a half where a lane hit, whose march its lanes wait for, so a proof would save nothing.
-   let proven=i==0u&&vsmSunRayMisses(&rayState,settings.stepsPerRay,noise);
+   ${lone ? 'let proven=false;' : 'let proven=i==0u&&vsmSunRayMisses(&rayState,settings.stepsPerRay,noise);'}
    if(!proven){
     let march=vsmMarchSun(&rayState,settings.stepsPerRay,noise,extrapolate);
     hit=march.hitFound;
@@ -654,7 +656,7 @@ fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition
    }
    if(!hit){missCount+=1u;}
   }
-${rayCountStatement('settings.voteAfter>0')} }
+${rayCountStatement('settings.voteAfter>0', lone)} }
  if(traced){
   let rayCount=select(rayCap,min(stopIndex+1u,rayCap),stopped);
   result.shadowFactor=f32(missCount)/f32(rayCount);
@@ -742,7 +744,7 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
   }
   // Whether any lane's start face differs from its end face, point lights only.
   var anyCrossing=false;
-  if(!isSpot){anyCrossing=!vsmVoteAllTrue(!(running&&startFace.id!=endFace.id),voteSplit);}
+  if(!isSpot){anyCrossing=${lone ? 'running&&startFace.id!=endFace.id' : '!vsmVoteAllTrue(!(running&&startFace.id!=endFace.id),voteSplit)'};}
   if(running){
    var march:VsmMarchHit;
    if(isSpot){
@@ -757,7 +759,7 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
    }
    if(march.hitFound){hit=true;}else{missCount+=1u;}
   }
-${rayCountStatement('rayCap>1u&&settings.voteAfter>0')}  if(running&&!stopped){stepJitter=f32(vsmNextRayJitter(bitcast<u32>(stepJitter))>>8u)*5.96046447754e-08;}
+${rayCountStatement('rayCap>1u&&settings.voteAfter>0', lone)}  if(running&&!stopped){stepJitter=f32(vsmNextRayJitter(bitcast<u32>(stepJitter))>>8u)*5.96046447754e-08;}
   // The top 24 bits of the next word as a fraction: 5.96046447754e-08 is 2^-24, and an f32 holds
   // k · 2^-24 exactly for every k < 2^24.
  }

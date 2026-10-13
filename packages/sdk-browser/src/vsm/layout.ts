@@ -74,10 +74,6 @@ export interface VsmLayout {
   coverWords: number
   /** The slot count · 8 (one rect per mip), rounded up to a power of two. */
   pageRectCount: number
-  /** Physical pool: page rows per binding part, parts per slice, log2 texels per part. */
-  poolPageRowsPerPart: number
-  poolPartsPerSlice: number
-  poolPartTexelShift: number
 }
 
 /**
@@ -102,11 +98,9 @@ function mipChain(width: number, height: number, mips: number) {
   return { offsets, words }
 }
 
-/** Pure sizing; no device needed except for the binding limit. */
-export function vsmLayout(
-  options: VsmResourceOptions,
-  maxStorageBufferBindingSize: number,
-): VsmLayout {
+/** Pure sizing; no device needed: the pool binds in windows every device holds
+ *  (`poolWindowSizes`). */
+export function vsmLayout(options: VsmResourceOptions): VsmLayout {
   const maxDim = VSM_TABLE_ROW_WIDTH
   const cacheEnabled = options.cacheEnabled ?? true
   // The physical pool: fixed power-of-two row width, height for the requested page count.
@@ -150,13 +144,6 @@ export function vsmLayout(
 
   const mapSlots = VSM_SINGLE_PAGE_MAP_SLOTS + maxFull
 
-  // Pool parts: whole page rows, a power of two of them, each part within the binding limit.
-  const rowWords = poolTexelsXY[0] * VSM_PAGE_TEXELS
-  const rowsFit = Math.floor(maxStorageBufferBindingSize / (rowWords * 4))
-  if (rowsFit < 1) throw new Error('VSM: one physical page row exceeds maxStorageBufferBindingSize')
-  const poolPageRowsPerPart = Math.min(2 ** floorLog2(rowsFit), nextPow2(physicalPagesY))
-  const poolPartsPerSlice = ceilDiv(physicalPagesY, poolPageRowsPerPart)
-
   return {
     poolPages,
     poolPagesXY: [physicalPagesX, physicalPagesY],
@@ -180,9 +167,6 @@ export function vsmLayout(
     coverMipOffsets: masks.offsets,
     coverWords: masks.words,
     pageRectCount: nextPow2(mapSlots * VSM_MIPS),
-    poolPageRowsPerPart,
-    poolPartsPerSlice,
-    poolPartTexelShift: floorLog2(poolPageRowsPerPart * rowWords),
   }
 }
 
@@ -242,16 +226,22 @@ export const tableBufferSizes = (layout: VsmLayout) => ({
   perPageIds: layout.mapSlots * 4,
 })
 
-/** The bytes asked for each part of one pool slice: whole page rows, the last part the rest. */
-export function poolPartSizes(layout: VsmLayout) {
-  const rowWords = layout.poolTexelsXY[0] * VSM_PAGE_TEXELS
-  return Array.from({ length: layout.poolPartsPerSlice }, (_, p) => {
-    const rows = Math.min(
-      layout.poolPageRowsPerPart,
-      layout.poolPagesXY[1] - p * layout.poolPageRowsPerPart,
-    )
-    return rows * rowWords * 4
-  })
+/**
+ * A window of the pool: WebGPU's guaranteed `maxStorageBufferBindingSize`, the largest binding every
+ * device holds. A slice is made of buffers a window each, the last the rest, every one bound whole:
+ * the same buffers, bindings and addressing on every device, every pass reading a texel's window
+ * from its word (`VSM_POOL_WINDOW_SHIFT`). A window holds whole page rows (8 MiB a row).
+ */
+const VSM_POOL_WINDOW_BYTES = 2 ** 27
+/** log2 of a window's words: a texel's word (`vsmPoolTexelIndexWgsl`) shifted by it is its window. */
+export const VSM_POOL_WINDOW_SHIFT = floorLog2(VSM_POOL_WINDOW_BYTES / 4)
+
+/** The bytes of each window of one pool slice: a window each, the last the rest. */
+export function poolWindowSizes(layout: VsmLayout) {
+  const slice = layout.poolTexelsXY[0] * layout.poolTexelsXY[1] * 4
+  return Array.from({ length: ceilDiv(slice, VSM_POOL_WINDOW_BYTES) }, (_, k) =>
+    Math.min(VSM_POOL_WINDOW_BYTES, slice - k * VSM_POOL_WINDOW_BYTES),
+  )
 }
 
 /**
@@ -260,7 +250,7 @@ export function poolPartSizes(layout: VsmLayout) {
  */
 export function vsmResourceBytes(layout: VsmLayout) {
   let bytes = vsmTableBytes(layout)
-  for (const size of poolPartSizes(layout)) bytes += VSM_POOL_SLICES * bufferBytes(size)
+  for (const size of poolWindowSizes(layout)) bytes += VSM_POOL_SLICES * bufferBytes(size)
   for (const size of Object.values(setBufferSizes(layout))) bytes += bufferBytes(size)
   return bytes
 }
@@ -288,11 +278,10 @@ type VsmPool = ShrunkPool & { layout: VsmLayout }
 export function vsmPoolWithin(
   budgetBytes: number,
   options: VsmResourceOptions,
-  maxStorageBufferBindingSize: number,
 ): VsmPool | undefined {
   const asked = options.poolPages ?? VSM_POOL_PAGES
   for (let pages = asked; pages >= asked / 8; pages /= 2) {
-    const layout = vsmLayout({ ...options, poolPages: pages }, maxStorageBufferBindingSize)
+    const layout = vsmLayout({ ...options, poolPages: pages })
     const allocatedBytes = vsmResourceBytes(layout)
     if (allocatedBytes > budgetBytes) continue
     const clamp = pages === asked ? null : pages <= asked / 8 ? 'minimum' : 'ceiling'

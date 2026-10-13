@@ -5,6 +5,7 @@ import { atlasExtent } from '../webgpu/core/floatAtlas.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { BOUNCE_SURFACE_SHADER, SURFACE_WORKGROUP, surfaceCacheBytes } from './surfaceWgsl.ts'
 import { surfaceCacheTexels } from './sizes.ts'
+import { BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
 import type { GpuBounceProxy } from './proxy.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
@@ -12,7 +13,8 @@ import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { ceilDiv, workgroupCount } from '../../../math/src/scalar/integers.ts'
 
 /** What the cache pass binds: the grid, the proxy and its albedo, lights, frozen probes, the
- *  cache — the two atlases of `atlas.ts`. */
+ *  cache — the two atlases of `atlas.ts` —, its span, and the world grid's light lists
+ *  (`BOUNCE_LIGHT_LIST_BINDING`). */
 const SURFACE_TYPES: BounceSlot[] = [
   'uniform',
   'read-only-storage',
@@ -22,6 +24,7 @@ const SURFACE_TYPES: BounceSlot[] = [
   'atlas-out',
   'uniform',
 ]
+SURFACE_TYPES[BOUNCE_LIGHT_LIST_BINDING] = 'read-only-storage'
 
 export type GpuBounceSurface = Awaited<ReturnType<typeof createGpuBounceSurface>>
 
@@ -67,19 +70,20 @@ async function surfacePipeline(device: GPUDevice, release: () => void) {
   }
 }
 
-/** The sweep's group of the resources `bound` names for a light buffer, made again when the light
- *  buffer it names was replaced. */
+/** The sweep's group of the resources `bound` names for a light buffer and its world lists, made
+ *  again when either it names was replaced. */
 function surfaceGroups(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
-  bound: (lights: GPUBuffer) => (GPUBuffer | GPUTextureView)[],
+  bound: (lights: GPUBuffer, lists: GPUBuffer) => (GPUBuffer | GPUTextureView)[],
 ) {
   const identity = createWebgpuBindIdentity()
   let group: GPUBindGroup | undefined
-  return (current: GPUBuffer) => {
+  return (current: GPUBuffer, lists: GPUBuffer) => {
     identity.next[0] = current
+    identity.next[1] = lists
     if (identity.moved() || !group)
-      group = bounceGroup(device, layout, bound(current), SURFACE_TYPES)
+      group = bounceGroup(device, layout, bound(current, lists), SURFACE_TYPES)
     return group
   }
 }
@@ -131,7 +135,7 @@ export async function createGpuBounceSurface(
   const bytes = surfaceCacheBytes(proxy.triangleCount, side)
   const { view, span, release } = surfaceTargets(device, texels, side)
   const { layout, pipeline } = await surfacePipeline(device, release)
-  const groupOf = surfaceGroups(device, layout, (current) => [
+  const groupOf = surfaceGroups(device, layout, (current, lists) => [
     grid.uniform,
     proxy.buffer,
     proxy.albedo,
@@ -139,6 +143,7 @@ export async function createGpuBounceSurface(
     grid.snapshot,
     view,
     span,
+    lists,
   ])
   const sweep = surfaceSweep(texels)
   return {
@@ -166,12 +171,13 @@ export async function createGpuBounceSurface(
     },
     /**
      * Encodes a cell batch whose size is the fraction of the ceiling the millisecond budget
-     * kept, as a dispatch of the bounce's open compute `pass`, before the probes read the cache.
+     * kept, as a dispatch of the bounce's open compute `pass`, before the probes read the cache;
+     * its points walk the lights of their cell of the world grid's `lists`.
      */
-    encode(pass: GPUComputePassEncoder, load: number) {
+    encode(pass: GPUComputePassEncoder, load: number, lists: GPUBuffer) {
       device.queue.writeBuffer(span, 0, spanWords(sweep, texels, load))
       pass.setPipeline(pipeline)
-      pass.setBindGroup(0, groupOf(lights()))
+      pass.setBindGroup(0, groupOf(lights(), lists))
       pass.dispatchWorkgroups(ceilDiv(sweep.batch, SURFACE_WORKGROUP), 1, 1)
       advance(sweep, texels)
     },

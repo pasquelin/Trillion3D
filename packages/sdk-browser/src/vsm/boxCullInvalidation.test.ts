@@ -14,7 +14,7 @@ import { VSM_BOX_MOVING, VSM_BOX_CASTS, vsmInvalidationWgsl } from './invalidati
 import { inputs, sameBits } from './sameBits.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
-const INVALIDATION = vsmInvalidationWgsl(vsmLayout({ fullMapCapacity: 63 }, 1 << 27))
+const INVALIDATION = vsmInvalidationWgsl(vsmLayout({ fullMapCapacity: 63 }))
 const CASES = 12000
 const HELPERS = [
   ...['vsmStaleBoxPages', 'vsmTouchesMappedPage', 'vsmMarksMatch'],

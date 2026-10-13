@@ -10,7 +10,7 @@ import * as F from '../types.ts'
 import { ROWS } from './pointHeader.fixture.ts'
 import { vsmLayout } from '../../vsm/layout.ts'
 
-const VSM_CODE = vsmRenderRasterWgsl(vsmLayout({ fullMapCapacity: 63, poolPages: 256 }, 1 << 27))
+const VSM_CODE = vsmRenderRasterWgsl(vsmLayout({ fullMapCapacity: 63, poolPages: 256 }))
 
 // The shadow cutout of an unmasked row keeps every fragment before it reads a UV or a map: the
 // UV its stage does not hand on changes no texel of the pool.

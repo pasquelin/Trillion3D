@@ -96,8 +96,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   const surface = texture('rgba32float', sampled, [texels, 1])
   if (frame.proxy) write(surface, frame.proxy.surface, 16, [texels, 1])
   const over = { lightView: lightView.buffer, surface: surface.createView() }
-  // No bounce probes: the cascades' empty grid, whose field is zero, and an atlas of one probe;
-  // the grid carries the reach of a proxy ray.
+  // No bounce probes: an empty grid (no level, no light list read) holding a proxy ray's reach.
   const bounceGrid = device.createBuffer({
     size: BOUNCE_GRID_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -114,6 +113,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     probes: probes.createView({ dimension: '2d-array' }),
     proxy,
     lightView: lightView.buffer,
+    lightLists: device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE }),
   }
   return {
     reflection,
