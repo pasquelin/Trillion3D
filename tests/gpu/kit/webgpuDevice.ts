@@ -4,7 +4,6 @@
 // which it exceeds (eighteen sampled textures in a fragment stage where the default grants sixteen).
 
 import { requestExplorerDevice } from '../../../packages/sdk-browser/src/world/session/gpuDevice.ts'
-import { releaseReadback } from '../../../packages/sdk-browser/src/gpu/core/heldReadback.ts'
 
 /**
  * Opens the engine's device, hooks collection of uncaptured errors, and returns what is needed to
@@ -18,10 +17,9 @@ import { releaseReadback } from '../../../packages/sdk-browser/src/gpu/core/held
  *   `error`, WGSL compiler warnings not being correctness discrepancies.
  * - `buffer(size, usage)` makes an unlabelled buffer of the proof's: `fermer` destroys it with the
  *   device.
- * - `fermer()` waits for the queue (`onSubmittedWorkDone`) before reading `adapter.info`, releasing
- *   the buffer the engine's readbacks hold (`releaseReadback`) and destroying the device, then
- *   returns the GPU reading in its two forms: `court` (vendor and architecture) and `complet` (the
- *   four filled fields).
+ * - `fermer()` waits for the queue (`onSubmittedWorkDone`) before reading `adapter.info` and
+ *   destroying the device, then returns the GPU reading in its two forms: `court` (vendor and
+ *   architecture) and `complet` (the four filled fields).
  */
 export async function openGpuDevice(
   features: GPUFeatureName[] = [],
@@ -64,7 +62,6 @@ export async function openGpuDevice(
     },
     async fermer() {
       await device.queue.onSubmittedWorkDone()
-      releaseReadback(device)
       const info = adapter.info ?? {}
       const fields = (['vendor', 'architecture', 'device', 'description'] as const).map(
         (c) => info[c],

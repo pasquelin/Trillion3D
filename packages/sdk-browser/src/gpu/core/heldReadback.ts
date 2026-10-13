@@ -22,9 +22,6 @@ export const takeReadback = (device: GPUDevice, size: number, label: string) =>
     label,
   })
 
-/** Destroys the buffer held for `device`'s captures, at once: a device closed holds none. */
-export const releaseReadback = (device: GPUDevice) => readbacks.release(device)
-
 /** Gives back `buffer`, unmapped, read in full: held for the next capture, the one it replaces
  *  destroyed; destroyed too once idle. */
 export const giveReadback = (device: GPUDevice, buffer: GPUBuffer) =>

@@ -12,7 +12,6 @@ import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
  * - `grow` keeps a buffer that rewrites itself in queue order and is never lent, grown to the next
  *   power of two when outgrown — a stream of slightly larger asks reallocates rarely —, the
  *   outgrown one destroyed once the work submitted so far, which may read it, is done.
- * - `release` destroys what the hold keeps for a device, at once: its owner closes it.
  */
 export function heldBuffers(idleMs?: number) {
   const holdOf = oncePerDevice(() => ({
@@ -59,14 +58,6 @@ export function heldBuffers(idleMs?: number) {
         hold.held.set(slot, buffer)
       }
       rest(hold)
-    },
-    /** Destroys every buffer held for `device` and stops its idle time: what a closing owner calls
-     *  once the device's work is done. */
-    release(device: GPUDevice) {
-      const hold = holdOf(device)
-      clearTimeout(hold.idle)
-      for (const buffer of hold.held.values()) buffer.destroy()
-      hold.held.clear()
     },
     /** The buffer kept under `label`, of `size` bytes at least: made, or grown, when it is not. */
     grow(device: GPUDevice, label: string, size: number, usage: number) {
