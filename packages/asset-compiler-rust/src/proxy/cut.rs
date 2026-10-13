@@ -35,7 +35,7 @@ fn triangles_at(dag: &[DagCluster], threshold: f64) -> usize {
 pub struct CutDemand {
     /// Starting threshold in object space: caller mapped it by world scale.
     pub threshold: f64,
-    /// Triangles this primitive allows itself in scene proxy.
+    /// Triangles this primitive allows itself in the scene's proxies.
     pub budget: usize,
 }
 
@@ -45,9 +45,8 @@ pub struct CutDemand {
 /// it doubles — stops doubling when it removes nothing, because DAG roots
 /// are a floor that proxy simplification will cross, not cut.
 ///
-/// Generic size rule, no scene name: primitive drawn 1000 times
-/// receives 1000x smaller share and comes out 1000x coarser, small part keeps
-/// starting threshold. Actually obtained threshold published.
+/// Generic size rule, no scene name: the share is the primitive's weight among the scene's meshes,
+/// a small part keeps the starting threshold. Actually obtained threshold published.
 ///
 /// Threshold expressed in object space: caller divided it by largest world scale of
 /// node placing primitive, so it equals meters once cut is placed.
@@ -88,9 +87,8 @@ pub fn coarse_cut(dag: &[DagCluster], positions: &[f32], demand: CutDemand) -> (
 ///
 /// Published world threshold mapped to object space by largest scale placing
 /// primitive — missing or zero scale leaves as is, nothing guessed. Share is
-/// proportional to primitive weight in scene once all instances placed:
-/// instance factor cancels out, since 1000-instance primitive weighs 1000x more and
-/// per-instance share is 1000x smaller. Never less than one cluster: nothing
+/// proportional to the primitive's weight among the scene's meshes, each counted once: a primitive
+/// drawn 1000 times is one proxy and keeps its whole share. Never less than one cluster: nothing
 /// disappears from proxy, even in 100,000 object scene.
 pub fn cut_demand(
     scale: Option<f64>,

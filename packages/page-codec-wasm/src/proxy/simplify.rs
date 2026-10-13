@@ -1,29 +1,21 @@
-//! Proxy-specific simplification: bounded size triangles, under meter threshold.
+//! Proxy-specific simplification: bounded size triangles, on a grid.
 //!
-//! DAG cut stops at root level: when root weighs more than budget,
-//! doubling threshold changes nothing and proxy retains millions of triangles. Proxy
-//! simplifies itself by rule independent of DAG: vertices snapped to
-//! grid step `c`, degenerate triangles from snapping disappear, duplicates
-//! merge, and what remains larger than `c` is subdivided until its longest side
-//! falls below `c`.
+//! A mesh's own cut stops at its DAG roots: when the roots weigh more than the proxy allows,
+//! doubling the threshold changes nothing and the proxy would retain millions of triangles. The proxy
+//! simplifies itself by a rule independent of the DAG: vertices are snapped to a grid of step `c`,
+//! the triangles that snapping flattens disappear and duplicates merge. Nothing is subdivided: a
+//! triangle wider than `c` stays one triangle, the subdivision of a plane being planar and adding no
+//! precision, only bytes — a ray lights its hit where it lands.
 //!
-//! Both directions count. Downwards, merge reduces triangle count. Upwards,
-//! subdivision gives surface cache known-size meshes: light per
-//! triangle makes sense only if triangle is small compared to room it illuminates.
-//!
-//! Added geometric error bounded by mesh cell half-diagonal, published with
-//! proxy. Subdivision is planar: adds no error.
+//! The geometric error this adds is bounded by the half-diagonal of a grid cell, published with the
+//! proxy.
 use super::PROXY_TRIANGLE_FLOATS;
 use std::collections::HashSet;
-use trillion3d_math::triangle::longest_edge;
 
 /// Grid step doublings before giving up: known bound, like `cut.rs` scale.
 const CELL_LADDER: usize = 24;
 /// Unit cube half-diagonal: max vertex displacement joining grid cell corner.
 pub const CELL_ERROR_FACTOR: f64 = 0.866_025_403_784_438_6;
-/// One-sided subdivisions at most: known bound, preventing giant triangle
-/// explosion during step search.
-const MAX_DIVISIONS: usize = 4096;
 
 /// Vertex grid cell: three integers, nearest grid corner step `size`.
 fn cell_of(vertex: &[f32], size: f64) -> [i32; 3] {
@@ -32,14 +24,6 @@ fn cell_of(vertex: &[f32], size: f64) -> [i32; 3] {
         (vertex[1] as f64 / size).round() as i32,
         (vertex[2] as f64 / size).round() as i32,
     ]
-}
-
-/// Side subdivisions: `n` gives `n²` subtriangles, `n` bounded.
-fn divisions(edge: f64, size: f64) -> usize {
-    if !(edge.is_finite() && size > 0.0) {
-        return 1;
-    }
-    ((edge / size).ceil() as usize).clamp(1, MAX_DIVISIONS)
 }
 
 /// Three grid cells of triangle, canonical order: duplicate key. Triangle
@@ -70,14 +54,13 @@ fn snap(t: &[f32], size: f64) -> [f32; PROXY_TRIANGLE_FLOATS] {
     out
 }
 
-/// Triangles step `size` retains: those with non-zero area and not duplicated,
-/// snapped to grid, with subdivision count required by longest side. Single
-/// proxy read pass: counting and building follow identical rule.
+/// Triangles step `size` retains: those with non-zero area and not duplicated, snapped to the
+/// grid, with the rank of the source triangle that supplied each. Single proxy read pass: counting
+/// and building follow the identical rule.
 fn kept(
     triangles: &[f32],
     size: f64,
-    split: bool,
-) -> impl Iterator<Item = (usize, [f32; PROXY_TRIANGLE_FLOATS], usize)> + '_ {
+) -> impl Iterator<Item = (usize, [f32; PROXY_TRIANGLE_FLOATS])> + '_ {
     let mut seen: HashSet<[[i32; 3]; 3]> = HashSet::new();
     triangles
         .as_chunks::<PROXY_TRIANGLE_FLOATS>()
@@ -89,24 +72,15 @@ fn kept(
             if !seen.insert(key) {
                 return None;
             }
-            let snapped = snap(t, size);
-            Some((
-                index,
-                snapped,
-                if split {
-                    divisions(longest_edge(&snapped, &[0, 1, 2]), size)
-                } else {
-                    1
-                },
-            ))
+            Some((index, snap(t, size)))
         })
 }
 
 /// How many triangles step `size` would leave without building. Stops on overflow.
-fn count_at(triangles: &[f32], size: f64, budget: usize, split: bool) -> usize {
+fn count_at(triangles: &[f32], size: f64, budget: usize) -> usize {
     let mut total = 0usize;
-    for (_, _, n) in kept(triangles, size, split) {
-        total = total.saturating_add(n.saturating_mul(n));
+    for _ in kept(triangles, size) {
+        total += 1;
         if total > budget {
             return total;
         }
@@ -118,10 +92,10 @@ fn count_at(triangles: &[f32], size: f64, budget: usize, split: bool) -> usize {
 ///
 /// Generic size rule, no scene name: small part keeps floor, city takes
 /// multiple, taken step published with proxy.
-pub fn plan_cell(triangles: &[f32], floor: f64, budget: usize, split: bool) -> f64 {
+pub fn plan_cell(triangles: &[f32], floor: f64, budget: usize) -> f64 {
     let mut size = floor.max(1e-4);
     for _ in 0..CELL_LADDER {
-        if count_at(triangles, size, budget, split) <= budget {
+        if count_at(triangles, size, budget) <= budget {
             break;
         }
         size *= 2.0;
@@ -129,61 +103,15 @@ pub fn plan_cell(triangles: &[f32], floor: f64, budget: usize, split: bool) -> f
     size
 }
 
-/// Subtriangles of triangle subdivided into `n` per side, in barycentric coords.
-fn subdivide(t: &[f32], n: usize, out: &mut Vec<f32>) {
-    let at = |u: f64, v: f64| {
-        let w = 1.0 - u - v;
-        [0usize, 1, 2].map(|axis| {
-            (t[axis] as f64 * w + t[3 + axis] as f64 * u + t[6 + axis] as f64 * v) as f32
-        })
-    };
-    let step = 1.0 / n as f64;
-    for row in 0..n {
-        for column in 0..(n - row) {
-            let (u, v) = (row as f64 * step, column as f64 * step);
-            out.extend_from_slice(&at(u, v));
-            out.extend_from_slice(&at(u + step, v));
-            out.extend_from_slice(&at(u, v + step));
-            if column + 1 < n - row {
-                out.extend_from_slice(&at(u + step, v));
-                out.extend_from_slice(&at(u + step, v + step));
-                out.extend_from_slice(&at(u, v + step));
-            }
-        }
-    }
-}
-
-/// Original triangle supplying each subdivided cell; deduplication keeps the first source.
-///
-/// `split` is the one difference between the two callers, and it follows from what each keeps the proxy
-/// for. The compiler's scene (`split`) keeps one radiance per proxy triangle (the surface cache), so a
-/// triangle wider than the grid cell is cut to cell-sized ones: a 40 m paving at a 0.5 m cell is 80² ×
-/// 2 triangles, a few hundred kilobytes in a scene of millions, and the cache's resolution. A run-time
-/// cut (`cut_columns`) lights its hit where the ray lands, no cache: the same split of the same paving at
-/// its own grid, 40 m / 1024, would be 2 000 000 triangles, and the 16 384 the cut allows would then
-/// coarsen the grid to about 1.1 m for a plane that is twelve triangles — 850 KB, 1 000× the bytes, the
-/// build time and the tracing for no gain, the subdivision being planar and adding no precision. It
-/// snaps and merges only: its bytes are those of the cut.
-pub fn simplify_sources(
-    triangles: &mut Vec<f32>,
-    albedo: &mut Vec<u32>,
-    size: f64,
-    split: bool,
-) -> Vec<usize> {
-    let mut sources = Vec::new();
+/// Snaps `triangles` to the grid `size` in place, dropping what has no area and what repeats: the
+/// first of equal triangles stays, and `albedo` follows it.
+pub fn simplify_sources(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, size: f64) {
     let mut out: Vec<f32> = Vec::with_capacity(triangles.len());
     let mut colours: Vec<u32> = Vec::with_capacity(albedo.len());
-    for (index, snapped, n) in kept(triangles, size, split) {
-        let before = out.len();
-        subdivide(&snapped, n, &mut out);
-        sources.resize(out.len() / PROXY_TRIANGLE_FLOATS, index);
-        let colour = albedo.get(index).copied().unwrap_or(0xffff_ffff);
-        colours.resize(
-            colours.len() + (out.len() - before) / PROXY_TRIANGLE_FLOATS,
-            colour,
-        );
+    for (index, snapped) in kept(triangles, size) {
+        out.extend_from_slice(&snapped);
+        colours.push(albedo.get(index).copied().unwrap_or(0xffff_ffff));
     }
     *triangles = out;
     *albedo = colours;
-    sources
 }

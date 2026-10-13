@@ -44,7 +44,7 @@ export const MANIFEST_BINARY_HEADER_WORDS = 4
 /**
  * Version of the "proxy" cache product. A proxy of another version is rejected, never guessed.
  */
-export const SCENE_PROXY_VERSION = 5
+export const SCENE_PROXY_VERSION = 6
 
 /**
  * 'W','G','P','X' read as an unsigned 32-bit integer little-endian.
@@ -52,9 +52,10 @@ export const SCENE_PROXY_VERSION = 5
 export const SCENE_PROXY_MAGIC = 0x58504757
 
 /**
- * Header integers: v3 ownership header, then shape, stored-triangle and placement counts.
+ * Header integers: magic, version, the meshes the table names, then the triangles and the nodes
+ * all of them hold, and one reserved word.
  */
-export const SCENE_PROXY_HEADER_WORDS = 11
+export const SCENE_PROXY_HEADER_WORDS = 6
 
 /**
  * Numbers per proxy triangle: three world vertices, no normal — it is deduced from the triangle.

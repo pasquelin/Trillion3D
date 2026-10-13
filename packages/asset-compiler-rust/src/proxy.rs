@@ -10,49 +10,51 @@ pub mod albedo;
 /// The proxy's pure geometry — snapping, BVH, wide collapse — and its layout numbers live in the page codec,
 /// the crate the browser's one WebAssembly module and the compiler share: one builder.
 pub use trillion3d_page_codec::proxy::{
-    build_columns, bvh, simplify, wide, Built, PROXY_CELL_METRES, PROXY_CHILDREN,
-    PROXY_CHILD_WORDS, PROXY_ERROR_METRES, PROXY_LEAF_TRIANGLES, PROXY_NODE_FLOATS,
-    PROXY_NODE_WORDS, PROXY_TRIANGLE_BUDGET, PROXY_TRIANGLE_FLOATS,
+    bvh, columns_of, simplify, wide, CutColumns, PROXY_CHILDREN, PROXY_CHILD_WORDS,
+    PROXY_ERROR_METRES, PROXY_LEAF_TRIANGLES, PROXY_NODE_FLOATS, PROXY_NODE_WORDS,
+    PROXY_TRIANGLE_BUDGET, PROXY_TRIANGLE_FLOATS,
 };
-pub(crate) mod assemble;
 pub mod cut;
 pub mod encode;
-pub mod provenance;
-pub mod share;
 pub(crate) mod tracer;
 
 /// Version of the "proxy" cache product. A proxy of another version is rejected, never guessed.
-pub const SCENE_PROXY_VERSION: u32 = 5;
+pub const SCENE_PROXY_VERSION: u32 = 6;
 /// 'W','G','P','X' read as an unsigned 32-bit integer little-endian.
 pub const SCENE_PROXY_MAGIC: u32 = 0x5850_4757;
-/// Header integers: v3 ownership header, then shape, stored-triangle and placement counts.
-pub const SCENE_PROXY_HEADER_WORDS: usize = 11;
+/// Header integers: magic, version, the meshes the table names, then the triangles and the nodes
+/// all of them hold, and one reserved word.
+pub const SCENE_PROXY_HEADER_WORDS: usize = 6;
 /// Product name in cache key folder, next to `clusters.json`.
 pub const SCENE_PROXY_FILE: &str = "proxy.bin";
 
-/// Scene proxy, ready for column output.
+/// Scene proxy, ready for column output: ONE PROXY A COMPILED MESH, in the mesh's own space, whatever
+/// the number of nodes that place it. The engine places it where a node does, by the node's live
+/// world (`sdk-browser/src/gpu/dag/proxyInstances.ts`): an instance is four words, not a copy.
 #[derive(Default)]
 pub struct SceneProxy {
+    /// The world extent of the placements, three lower bounds then three upper.
     pub bounds: [f64; 6],
-    /// Max threshold primitive took to fit budget share, plus
-    /// proxy simplification addition.
+    /// Max threshold a cut took to fit its budget share, plus the grid addition of the coarsest
+    /// proxy at the largest scale it is placed at.
     pub error_metres: f64,
-    /// Grid step simplification took, in meters: proxy triangle size,
-    /// surface cache cell size.
+    /// That grid step, in metres.
     pub cell_metres: f64,
-    pub triangles: Vec<f32>,
-    pub albedo: Vec<u32>,
-    pub node_bounds: Vec<f32>,
-    pub node_children: Vec<u32>,
-    pub provenance: provenance::Provenance,
-    pub sharing: share::Sharing,
+    /// One entry per compiled primitive, in primitive order; a primitive no shown node places holds none.
+    pub meshes: Vec<CutColumns>,
 }
 impl SceneProxy {
     pub fn triangle_count(&self) -> usize {
-        self.triangles.len() / PROXY_TRIANGLE_FLOATS
+        self.meshes
+            .iter()
+            .map(|mesh| mesh.triangles.len() / PROXY_TRIANGLE_FLOATS)
+            .sum()
     }
     pub fn node_count(&self) -> usize {
-        self.node_children.len() / PROXY_NODE_WORDS
+        self.meshes
+            .iter()
+            .map(|mesh| mesh.node_children.len() / PROXY_NODE_WORDS)
+            .sum()
     }
 }
 
@@ -108,55 +110,85 @@ pub(crate) fn primitives_by_mesh(primitives: &[Value]) -> BTreeMap<u64, Vec<usiz
     by_mesh
 }
 
-/// Places each coarse cut in world, once per carrying node, then builds
-/// BVH. Primitive placed 10 times yields 10 triangle sets: proxy is a scene, not
-/// object catalog, ray has no matrix to apply.
+/// The proxy of each compiled primitive a shown node places, once: its coarse cut built into a wide
+/// tree in the primitive's own space (`columns_of`, the builder the browser's cuts go through), with the
+/// colour of its material. A primitive placed ten times is one proxy: the engine places it, a ray has the
+/// node's world to apply.
 pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let world = world_matrices(inputs.g)?;
     let nodes = values(inputs.g, "nodes")?;
     let palette = albedo::material_albedo(inputs.g, inputs.previews);
-    let mut triangles: Vec<f32> = Vec::new();
-    let mut colours: Vec<u32> = Vec::new();
-    let mut owners = Vec::new();
     let by_mesh = primitives_by_mesh(inputs.primitives);
+    // The largest scale each placed primitive is placed at, and the world extent of its placements.
+    let mut scales: BTreeMap<usize, f64> = BTreeMap::new();
+    let mut bounds = [
+        f64::INFINITY,
+        f64::INFINITY,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+    ];
     for node_id in inputs.shown {
         let node = item(nodes, *node_id, "node")?;
         let old_mesh = required_index(node.get("mesh"), "node.mesh")?;
         let Some(mesh_index) = inputs.mesh_map.get(&old_mesh).copied() else {
             continue;
         };
-        let matrix = world[*node_id];
         let Some(indices) = by_mesh.get(&(mesh_index as u64)) else {
             continue;
         };
+        let matrix = &world[*node_id];
+        let scale = world_scale(matrix);
         for index in indices.iter().copied() {
-            let Some(cut) = inputs.cuts.get(index) else {
+            let Some(cut) = inputs.cuts.get(index).filter(|cut| !cut.is_empty()) else {
                 continue;
             };
-            let colour = palette.of(inputs.primitives[index].get("material"));
-            place(cut, &matrix, &mut triangles);
-            colours.resize(triangles.len() / PROXY_TRIANGLE_FLOATS, colour);
-            owners.resize(colours.len(), *node_id as u32);
+            let slot = scales.entry(index).or_insert(0.0);
+            if scale > *slot {
+                *slot = scale;
+            }
+            grow(&mut bounds, matrix, &bvh::extent(cut));
         }
     }
-    let mut proxy =
-        assemble::assemble_owned(inputs.thresholds, triangles, colours, &owners, &world);
-    proxy.provenance.source_parents = vec![-1; world.len()];
-    for id in 0..nodes.len() {
-        for child in crate::compiler_nodes::children_of(nodes, id)? {
-            proxy.provenance.source_parents[child] = id as i32;
-        }
-    }
-    // The compiled mesh (`mesh_map`) each node places: a cell node casts as it says.
-    proxy.provenance.source_meshes = nodes
+    let mut meshes: Vec<CutColumns> = inputs
+        .primitives
         .iter()
-        .map(|node| {
-            let mesh = node.get("mesh").and_then(Value::as_u64);
-            mesh.and_then(|m| inputs.mesh_map.get(&(m as usize)))
-                .map_or(-1, |m| *m as i32)
-        })
+        .map(|_| CutColumns::default())
         .collect();
-    Ok(proxy)
+    let mut cell_metres = 0.0f64;
+    for (index, scale) in &scales {
+        let colour = palette.of(inputs.primitives[*index].get("material"));
+        let columns = columns_of(inputs.cuts[*index].clone(), colour);
+        cell_metres = cell_metres.max(columns.cell * scale);
+        meshes[*index] = columns;
+    }
+    if bounds[0] > bounds[3] {
+        bounds = [0.0; 6];
+    }
+    let cut_error = inputs
+        .thresholds
+        .iter()
+        .copied()
+        .fold(PROXY_ERROR_METRES, f64::max);
+    Ok(SceneProxy {
+        bounds,
+        error_metres: cut_error + cell_metres * simplify::CELL_ERROR_FACTOR,
+        cell_metres,
+        meshes,
+    })
+}
+
+/// `bounds` grown by the extent `extent` of a mesh seen through `matrix`: its eight corners placed.
+fn grow(bounds: &mut [f64], matrix: &Mat4, extent: &[f64; 6]) {
+    for corner in 0..8 {
+        let at = |axis: usize| extent[axis + 3 * ((corner >> axis) & 1)];
+        let world = transform_point(matrix, [at(0), at(1), at(2)]);
+        for axis in 0..3 {
+            bounds[axis] = bounds[axis].min(world[axis]);
+            bounds[axis + 3] = bounds[axis + 3].max(world[axis]);
+        }
+    }
 }
 
 /// Cut vertices, transformed once by placing node.

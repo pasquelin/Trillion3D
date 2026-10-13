@@ -9,32 +9,21 @@ pub mod bvh;
 pub mod simplify;
 pub mod wide;
 
-/// What `build_columns` leaves besides the triangles and albedos it rewrites in place: the node
-/// columns, the original rank of each retained triangle before the BVH order (`retained`) and the
-/// BVH order itself (`order`), for the compiler's parallel provenance columns.
+/// The node columns `build_columns` leaves besides the triangles and albedos it rewrites in place.
 pub struct Built {
-    pub retained: Vec<usize>,
-    pub order: Vec<usize>,
     pub node_bounds: Vec<f32>,
     pub node_children: Vec<u32>,
 }
 
-/// THE PROXY BUILDER, one for the compiler's scene and the browser's cut: snaps `triangles` to the
-/// grid `cell` (`simplify::plan_cell` chose it), dropping what has no area and what repeats —
-/// subdividing what is wider than `cell` where `split` — builds the BVH, reorders the triangles and
-/// `albedo` into its leaves' order, and collapses it to the wide node columns.
-pub fn build_columns(
-    triangles: &mut Vec<f32>,
-    albedo: &mut Vec<u32>,
-    cell: f64,
-    split: bool,
-) -> Built {
-    let retained = simplify::simplify_sources(triangles, albedo, cell, split);
-    let (tree, order) = bvh::build_ordered(triangles, albedo);
+/// THE PROXY BUILDER, one for the compiler's meshes and the browser's cuts: snaps `triangles` to the
+/// grid `cell` (`simplify::plan_cell` chose it), dropping what has no area and what repeats, builds
+/// the BVH, reorders the triangles and `albedo` into its leaves' order, and collapses it to the wide
+/// node columns.
+pub fn build_columns(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, cell: f64) -> Built {
+    simplify::simplify_sources(triangles, albedo, cell);
+    let (tree, _) = bvh::build_ordered(triangles, albedo);
     let (node_bounds, node_children) = wide::collapse(&tree);
     Built {
-        retained,
-        order,
         node_bounds,
         node_children,
     }
@@ -42,14 +31,11 @@ pub fn build_columns(
 
 /// Max certified geometric error of retained cluster, in meters. Published setting.
 pub const PROXY_ERROR_METRES: f64 = 0.05;
-/// Proxy mesh floor, in meters: triangle size after simplification,
-/// surface cache resolution. Triangle budget doubles if needed.
-pub const PROXY_CELL_METRES: f64 = 0.5;
 /// BVH leaf triangles: leaf loop bounded by this count engine side.
 pub const PROXY_LEAF_TRIANGLES: usize = 8;
-/// Triangles entire scene proxy allows itself, all instances placed. Budget
-/// decides actually obtained threshold: 10M triangle scene outputs 30x
-/// coarser than single room, threshold published in manifest.
+/// Triangles all the meshes' proxies of a scene allow themselves together, each mesh once whatever
+/// its instances. The budget decides the threshold actually obtained: a scene of 10M triangles of
+/// unique meshes outputs 30x coarser than a single room, the threshold published in the manifest.
 pub const PROXY_TRIANGLE_BUDGET: usize = 300_000;
 /// Triangles a cut's own proxy allows itself (`cut_columns`): a mesh of more is snapped to a grid
 /// that holds it, never subdivided. 52 bytes a triangle on the GPU.
@@ -67,8 +53,9 @@ pub const PROXY_CHILD_WORDS: usize = 3;
 /// Integers per node: its four children concatenated.
 pub const PROXY_NODE_WORDS: usize = PROXY_CHILDREN * PROXY_CHILD_WORDS;
 
-/// A cut's proxy columns, in the cut's own space: the triangles, their albedo (white: the instance
-/// carries the material's), the wide nodes, and the grid step taken (`cell`, metres of the cut's units).
+/// A mesh's proxy columns, in its own space: the triangles, their albedo (one value a mesh, white for a
+/// cut the world made: its instance carries the material), the wide nodes, and the grid step taken (`cell`, metres of the cut's units).
+#[derive(Default)]
 pub struct CutColumns {
     pub triangles: Vec<f32>,
     pub albedo: Vec<u32>,
@@ -77,16 +64,23 @@ pub struct CutColumns {
     pub cell: f64,
 }
 
-/// The proxy of one cut at run time, by the builder the compiler's scene goes through
-/// (`build_columns`): `indices` over `positions` are placed as triangles, the grid is the finest of
-/// `PROXY_CUT_CELL_SHARE` of the longest extent that leaves at most `PROXY_CUT_TRIANGLES`, no
-/// triangle subdivided.
+/// The proxy of one cut at run time, by the builder the compiler's meshes go through
+/// (`columns_of`): `indices` over `positions` are placed as triangles.
 pub fn cut_columns(indices: &[u32], positions: &[f32]) -> CutColumns {
     let mut triangles = Vec::with_capacity(indices.len() * 3);
     for corner in indices {
         let at = *corner as usize * 3;
         triangles.extend_from_slice(positions.get(at..at + 3).unwrap_or(&[0.0; 3]));
     }
+    columns_of(triangles, 0xffff_ffff)
+}
+
+/// THE PROXY OF A MESH, in the mesh's own space: `triangles` (three vertices each) of one `albedo`,
+/// snapped to the finest grid of `PROXY_CUT_CELL_SHARE` of the longest extent that leaves at most
+/// `PROXY_CUT_TRIANGLES`, no triangle subdivided, built into the wide tree. The compiler calls it for
+/// each compiled mesh (`proxy.bin`), the browser for each cut the world makes at run time
+/// (`cut_columns`): one builder, one structure.
+pub fn columns_of(mut triangles: Vec<f32>, albedo: u32) -> CutColumns {
     triangles.truncate(triangles.len() / PROXY_TRIANGLE_FLOATS * PROXY_TRIANGLE_FLOATS);
     let extent = bvh::extent(&triangles);
     let longest = (0..3)
@@ -96,13 +90,12 @@ pub fn cut_columns(indices: &[u32], positions: &[f32]) -> CutColumns {
         &triangles,
         longest * PROXY_CUT_CELL_SHARE,
         PROXY_CUT_TRIANGLES,
-        false,
     );
-    let mut albedo = vec![0xffff_ffff; triangles.len() / PROXY_TRIANGLE_FLOATS];
-    let built = build_columns(&mut triangles, &mut albedo, cell, false);
+    let mut colours = vec![albedo; triangles.len() / PROXY_TRIANGLE_FLOATS];
+    let built = build_columns(&mut triangles, &mut colours, cell);
     CutColumns {
         triangles,
-        albedo,
+        albedo: colours,
         node_bounds: built.node_bounds,
         node_children: built.node_children,
         cell,

@@ -176,9 +176,18 @@ The input: a folder with a source manifest, a folder with one glTF or GLB, or th
 
 ## Resident lighting proxy
 
-`proxy.bin`: simplified world-space triangles light rays hit, their wide BVH and owners.
+`proxy.bin`: one proxy a compiled mesh, in the mesh's own space — its coarse cut snapped to a grid and built
+into a 4-wide BVH by the one builder the browser's run-time cuts go through (`page-codec-wasm/src/proxy.rs`,
+`columns_of`) — which a ray meets through the world of the node that places it. No instance is written: the
+engine's placements are the instances (`browser/gpu/dag/proxyInstances.ts`).
 
-- Version: `SCENE_PROXY_VERSION` (`rust/proxy.rs`, `core/contracts/proxy.ts`).
+- Version: `SCENE_PROXY_VERSION` (`rust/proxy.rs`, `core/contracts/proxy.ts`): 6.
+- Layout, little-endian words: the header (`SCENE_PROXY_HEADER_WORDS`: magic, version, mesh count, triangle
+  total, node total, reserved); a table of three words a mesh, in compiled-primitive order — its triangles, its
+  nodes, its grid step as an `f32` — (a primitive no shown node places holds zero of both); then every mesh's
+  triangles (nine floats), their packed albedo, the nodes' exact bounds (six floats) and the nodes' children
+  (twelve words), each column of all the meshes in table order. A mesh's links name its own triangles and nodes,
+  from zero.
 - Writes `rust/proxy/encode.rs:SceneProxy::encode`; reads `core/scene/core/proxy.ts:decodeSceneProxy`.
 
 ## Impostor atlases
