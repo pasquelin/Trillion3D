@@ -1,8 +1,6 @@
+import { f32Bits, fromF32Bits } from '../../../math/src/float/bits.ts'
 import { referenceBiasedDepthBits as biasedDepthBits } from '../../../../bench/oracles/core/coplanar-layers.ts'
 import { FLOAT32_STEP } from '../../../math/src/constants.ts'
-
-const scratch = new Float32Array(1),
-  scratchWords = new Uint32Array(scratch.buffer)
 
 /**
  * How much the bound is raised before it is rounded to single precision.
@@ -36,7 +34,5 @@ export function hizNearestBound(nearest: number, depthLayer: number) {
   if (!(nearest > 0)) return nearest
   const above = Math.fround(nearest * GROW)
   if (!depthLayer) return above
-  scratch[0] = above
-  scratchWords[0] = biasedDepthBits(scratchWords[0], depthLayer)
-  return scratch[0]
+  return fromF32Bits(biasedDepthBits(f32Bits(above), depthLayer))
 }

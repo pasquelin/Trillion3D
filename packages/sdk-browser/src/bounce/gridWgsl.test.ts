@@ -1,5 +1,6 @@
 // Shared formulas: the Lambert 1/π constant and the order-2 spherical-harmonics basis are
 // written once, and every shader that needs them carries that one text.
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
@@ -23,7 +24,7 @@ test('INVERSE_PI_BOUNCE declares the 1/π the bounce passes always read, one ulp
   assert.ok(literal, INVERSE_PI_BOUNCE.text)
   // The f32 the passes' literal `0.31830989` named before the library wrote it, to the bit.
   assert.ok(Object.is(Math.fround(Number(literal)), Math.fround(0.31830989)))
-  const words = new Uint32Array(new Float32Array([Number(literal), 1 / Math.PI]).buffer)
+  const words = [Number(literal), 1 / Math.PI].map(f32Bits)
   assert.equal(words[0] - words[1], 1)
 })
 

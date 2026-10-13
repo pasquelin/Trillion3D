@@ -4,6 +4,7 @@
 // eyes and on the edges; no pass over every placement runs, whatever the views and their eyes; a
 // pose sent writes its own words alone; and a root its parent stops composing takes back the pose
 // the host holds.
+import { f32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -34,8 +35,6 @@ const run = shaderRun<{
 }>(DAG_WORLD_POSE_WGSL, [...SUBTRACTION, 'toF32', 'atEye', 'translationAtEye'], {
   countLeadingZeros,
 })
-const f32Bits = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
-
 test('a translation the kernel reads at the eye is the rebased one, bit for bit', () => {
   const next = lcgRandom(1473)
   const EDGES = [NaN, 0, -0, Infinity, -Infinity, 1e39, -1e39, 1e-45, 5e-324, 2 ** 24 + 1, 1e300]

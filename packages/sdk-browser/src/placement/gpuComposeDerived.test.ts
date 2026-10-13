@@ -74,7 +74,7 @@ function page(next: () => number, scale: number) {
   return rec
 }
 
-const f32Bits = (words: Float32Array) => [...new Uint32Array(words.buffer)]
+const wordsOf = (words: Float32Array) => [...new Uint32Array(words.buffer)]
 const doubleOf = (p: Pair) => {
   const cell = new Uint32Array([p[1] >>> 0, p[0] >>> 0])
   return new Float64Array(cell.buffer)[0]
@@ -131,14 +131,14 @@ test('the corners, the detail and the world box a parent’s move derives are th
     derived.composeCorners(0, doubles)
     assert.deepEqual(
       rows.corners.map((w) => w >>> 0),
-      f32Bits(cornersCpu),
+      wordsOf(cornersCpu),
       `corners, case ${i}`,
     )
     rows.lods.length = ROW_LOD_FLOATS
     derived.composeLod(0, 0, doubles)
     assert.deepEqual(
       rows.lods.map((w) => w >>> 0),
-      f32Bits(lodCpu),
+      wordsOf(lodCpu),
       `detail, case ${i}`,
     )
   }

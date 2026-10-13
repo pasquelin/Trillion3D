@@ -3,6 +3,7 @@
 // read, in binary32, on worlds of every kind the inverse transpose separates — regular, mirrored,
 // sheared, flattened to rank 2 or 1, tiny, huge — and asks of each row the very bits the pixel
 // composes without it; a row no pixel reads is not composed.
+import { f32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -64,7 +65,7 @@ const WORLDS = [
 
 /** A frame's floats as their bits, and its flags: equal bit for bit, not to a tolerance. */
 const bits = (frame: Frame) => [
-  ...new Uint32Array(new Float32Array([...frame.invT.adj.flat(), frame.invT.scale]).buffer),
+  ...[...frame.invT.adj.flat(), frame.invT.scale].map(f32Bits),
   frame.invT.regular,
   frame.positive,
 ]

@@ -2,21 +2,18 @@
 // `VSM_PRESSURE_BIAS_FLOOR` it is 0, where its f32 decay alone stops on a
 // subnormal for good. The floor moves no level: under 2^-54 a bias leaves every level the CPU's
 // local mip (f64) and the GPU's marking (f32) compute where it was, and the bound is tight.
+import { f32Bits, fromF32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VSM_PRESSURE_BIAS_FLOOR, vsmLocalMipLevel } from './constants.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { lerp } from '../../../math/src/scalar/reals.ts'
-const F32 = new Float32Array(1),
-  U32 = new Uint32Array(F32.buffer)
-const bitsOf = (x: number) => ((F32[0] = x), U32[0])
-const ofBits = (b: number) => ((U32[0] = b >>> 0), F32[0])
 const F64 = new Float64Array(1),
   B64 = new BigInt64Array(F64.buffer)
 /** The double right below `x` (x > 0). */
 const below = (x: number) => ((F64[0] = x), (B64[0] -= 1n), F64[0])
 /** The largest f32 under 2^-54: the largest bias the bound lets through. */
-const G = ofBits(bitsOf(2 ** -54) - 1)
+const G = fromF32Bits(f32Bits(2 ** -54) - 1)
 
 test('after an overload the bias falls back to exactly 0, its last step at the floor or above', () => {
   const cache = new VsmCacheManager()
@@ -75,10 +72,10 @@ test('under 2^-54 the bias moves no level on the GPU: the f32 sums of the markin
   // Every f32 in the 2^14 steps on each side of every integer 0..23.
   const moved: number[] = []
   for (let n = 0; n <= 23; n++) {
-    const b = bitsOf(n)
+    const b = f32Bits(n)
     for (let k = -(1 << 14); k <= 1 << 14; k++) {
       if (n === 0 && k < 0) continue
-      const s = ofBits(b + k)
+      const s = fromF32Bits(b + k)
       for (const e of extras) if (level(s, G, e) !== level(s, 0, e)) moved.push(s, e)
     }
   }
@@ -86,7 +83,7 @@ test('under 2^-54 the bias moves no level on the GPU: the f32 sums of the markin
   // Elsewhere the sum is left as it is: from 2^-29 up, G is under half the f32 step on either side
   // of a binade's edge; under 2^-29 the sum stays within (-1, 1), floored to -1 or 0.
   for (let e = -29; e <= 4; e++)
-    for (const s of [2 ** e, -(2 ** e), ofBits(bitsOf(2 ** (e + 1)) - 1)])
+    for (const s of [2 ** e, -(2 ** e), fromF32Bits(f32Bits(2 ** (e + 1)) - 1)])
       assert.equal(Math.fround(s + G), s)
   assert.notEqual(Math.fround(-(2 ** -30) + G), -(2 ** -30))
   // In f32 a level keeps its floor up to 2^-25: that lifts 1 - 2^-24 to 1.

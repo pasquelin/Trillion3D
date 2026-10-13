@@ -1,3 +1,4 @@
+import { f32Bits } from '../../../packages/math/src/float/bits.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { autoKernel, bufferHolding, groupZero, readBuffer } from '../kit/computeReadback.ts'
 import { IDENTITY_MATRIX4 } from '../../../packages/math/src/matrix/matrix4.ts'
@@ -23,9 +24,6 @@ export async function runSphere() {
   const worlds = new Uint32Array(CASES * 32),
     inputs = new Uint32Array(CASES * ROW_INPUT_DOUBLES * 2)
   const expected: number[] = []
-  const f32 = new Float32Array(1),
-    bits = new Uint32Array(f32.buffer)
-  const word = (x: number) => ((f32[0] = x), bits[0])
   const c = new Float64Array(3)
   for (let i = 0; i < CASES; i++) {
     const far = [10, 1e3, 1e6][i % 3],
@@ -38,10 +36,10 @@ export async function runSphere() {
     const row = new Array(8).fill(0)
     for (let a = 0; a < 3; a++) {
       const high = Math.fround(c[a])
-      row[a] = word(high)
-      row[4 + a] = word(Math.fround(c[a] - high))
+      row[a] = f32Bits(high)
+      row[4 + a] = f32Bits(Math.fround(c[a] - high))
     }
-    row[3] = word(sphereRadius(w, centre, half))
+    row[3] = f32Bits(sphereRadius(w, centre, half))
     expected.push(...row)
   }
   const gpu = await openGpuDevice()

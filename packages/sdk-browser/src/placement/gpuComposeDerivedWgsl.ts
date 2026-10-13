@@ -14,6 +14,7 @@
  * An affine world — its last row `(0, 0, 0, 1)`, as every product of the poses a node tree makes
  * is — takes the corners' divide by `w` as the CPU does: it is 1.
  */
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { dAdd, dLess, dMax, dMin, dMul, dSqrt, dSub } from '../../../math/src/wgsl/double.ts'
 import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
@@ -122,7 +123,7 @@ fn composeBox(rank:u32,at:u32,world:array<vec2u,16>){
 }`,
 )
 
-const SENTINEL_BITS = new Uint32Array(new Float32Array([FINITE_SENTINEL]).buffer)[0]
+const SENTINEL_BITS = f32Bits(FINITE_SENTINEL)
 
 /** Row `row`'s detail words at `world` (`applyRowLod`): the errors and their centres by the stretch of
  *  the world, the radii, the radius of the root's world box, the residency folded in. */

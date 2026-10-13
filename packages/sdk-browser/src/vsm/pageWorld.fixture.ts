@@ -24,11 +24,6 @@ function hash(...words: number[]) {
 /** A hash in [0, 1). */
 export const unit = (...words: number[]) => hash(...words) / 2 ** 32
 
-const WORD = new Float32Array(1),
-  BITS = new Uint32Array(WORD.buffer)
-/** An f32's bits. */
-export const f32Bits = (x: number) => ((WORD[0] = x), BITS[0])
-
 /** Each structure `source` declares, as its constructor: the arguments in member order. */
 export function constructors(source: string) {
   const out: Record<string, (...args: unknown[]) => object> = {}
