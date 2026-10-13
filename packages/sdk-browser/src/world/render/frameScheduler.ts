@@ -30,6 +30,11 @@ const FRAMES_IN_FLIGHT = DAG_READBACK_SLOTS
  * last page instead of pausing on a coarse cut. The loop draws no frame of its own once the rounds
  * spent and the frames drawn since, not yet consumed, reach the limit: a still view nothing
  * reaches draws exactly the limit, then pauses.
+ *
+ * One rule paces the ticks themselves: a tick `skip` leaves out — the engine's steady cadence, on
+ * every second refresh while the GPU cannot hold each (`../../frame/cadence.ts`) — is no frame:
+ * nothing is drawn, counted or asked, and the next tick is asked in its place. Without `skip`,
+ * every tick draws.
  */
 export function createExplorerFrameScheduler(inputs: {
   request: (callback: FrameRequestCallback) => number
@@ -40,6 +45,7 @@ export function createExplorerFrameScheduler(inputs: {
   limited: () => void
   progress?: () => number
   arriving?: () => boolean
+  skip?: () => boolean
 }) {
   let frame: number | undefined,
     disposed = false,
@@ -110,6 +116,11 @@ export function createExplorerFrameScheduler(inputs: {
     frame = undefined
     if (disposed) return
     try {
+      // A tick out of the cadence: the next one is asked, nothing else happens in this one.
+      if (inputs.skip?.()) {
+        frame = inputs.request(draw)
+        return
+      }
       asked = false
       revision++
       owed++

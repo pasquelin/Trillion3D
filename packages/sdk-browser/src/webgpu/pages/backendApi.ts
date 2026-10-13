@@ -32,6 +32,7 @@ import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts'
 import {
   measureWebgpuFrame,
   pendingWebgpuFrame,
+  skipsWebgpuFrame,
   webgpuArriving,
   webgpuLandings,
 } from '../frame/interactiveFrame.ts'
@@ -139,6 +140,7 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     feedbackAbSpatial: async () => (await views()).feedbackAbSpatial(rt),
     pendingFrame: () => pendingWebgpuFrame(rt),
     measureFrame: () => measureWebgpuFrame(rt),
+    skipsFrame: () => skipsWebgpuFrame(rt),
     landings: () => webgpuLandings(rt),
     arriving: () => webgpuArriving(rt),
     flush(options?: { image?: boolean }) {

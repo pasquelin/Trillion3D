@@ -16,7 +16,10 @@ test('a point of light read through the chain at a coarse level is round, never 
     const { coarser, coarsest } = k.down(levels.at(-1)!)
     levels.push(coarser, coarsest)
   }
-  const radiance = {}
+  // The lit image, level 0, and the coarse levels, level `k` at their mip `k − 1`.
+  const radiance = {},
+    lit = {}
+  const levelOf = (t: unknown, lod: number) => (t === lit ? 0 : lod + 1)
   type Taps = { color: number[]; weight: number }
   const { reflectionRadianceAt } = shaderRun<{
     reflectionRadianceAt: (
@@ -32,12 +35,16 @@ test('a point of light read through the chain at a coarse level is round, never 
     ['reflectionRadianceAt', 'reflectionLevelRead', 'reflectionLevelColor'],
     {
       reflectionRadiance: radiance,
+      reflectionImage: lit,
       reflectionSampler: {},
       // Every tap on the hit's surface: the chain alone.
       reflectionDepthWeight: () => 1,
-      textureDimensions: (_: unknown, level: number) => [levels[level].width, levels[level].height],
-      textureSampleLevel: (_: unknown, __: unknown, uv: number[], level: number) =>
-        bilinear(levels[level], uv),
+      textureDimensions: (t: unknown, lod = 0) => {
+        const level = levels[levelOf(t, lod)]
+        return [level.width, level.height]
+      },
+      textureSampleLevel: (t: unknown, __: unknown, uv: number[], lod: number) =>
+        bilinear(levels[levelOf(t, lod)], uv),
     },
   )
   // The point's centre, in pixels: 128.5, where the blob stays centred at every level — a box

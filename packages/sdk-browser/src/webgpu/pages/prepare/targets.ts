@@ -6,6 +6,7 @@ import {
   holds,
   DEPTH_FORMAT,
   HDR_FORMAT,
+  hdrUsage,
 } from '../../../scene/surfaceBuffer.ts'
 import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
 import { createBackdrop, holdsWater } from '../../transparent/transmission.ts'
@@ -140,7 +141,8 @@ export function buildTargets(
     DEPTH_FORMAT,
     usage | GPUTextureUsage.COPY_DST,
   )
-  gpu.hdrTexture = target('Trillion3D HDR lighting', HDR_FORMAT)
+  // One of the two HDR targets that take turns, the other the reflection's (`createRadiancePyramid`).
+  gpu.hdrTexture = target('Trillion3D HDR lighting', HDR_FORMAT, hdrUsage())
   if (vis.writesFeedback) makeFeedbackTarget(rt, device, width, height)
   gpu.surfaces = createSurfaceBuffer(device, width, height, {
     subsurface: wantsSubsurface(rt),

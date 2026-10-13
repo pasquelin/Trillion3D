@@ -129,7 +129,8 @@ wheelless.
 
 - **Wheels** are meshes, children of the body, placed at their centre as they rest on flat ground,
   axle along the body's x; radius and width come from their bounds, and each step turns, steers and
-  lifts them on the suspension, drawn at the bodies' time as the body is.
+  lifts them on the suspension, drawn at the bodies' time as the body is: past a late tick, moved
+  on from their last state by the body's own law, at the velocities of their last step.
 - **Body.** The centre of mass is lowered to the shape's bottom, midway between the wheels, and
   restored when the vehicle leaves. While a vehicle, its running gear is solid: a box over the
   wheels' footprint, from the body's bottom to their lowest point raised by the suspension travel,

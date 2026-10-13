@@ -36,16 +36,15 @@ export function bilinear(level: Image, uv: number[]) {
   )
 }
 
-/** The shipped kernels over `finer` into `coarser`, `coarsest` (and `copy`), `drawn` the image's
- *  drawn size. A workgroup runs as the device runs it: every thread's tents (`radianceFill`) into
+/** The shipped kernels over `finer` into `coarser`, `coarsest`, `drawn` the image's drawn size. A workgroup runs as the device runs it: every thread's tents (`radianceFill`) into
  *  its tile, then — past the barrier — every thread's sum (`radianceSum`) from it. */
 export function radianceKernels(drawn: number[]) {
-  const binding = { finer: {}, coarser: {}, coarsest: {}, copy: {} }
+  const binding = { finer: {}, coarser: {}, coarsest: {}, previous: {} }
   const io: Record<keyof typeof binding, Image> = {
     finer: blank(1, 1),
     coarser: blank(1, 1),
     coarsest: blank(1, 1),
-    copy: blank(1, 1),
+    previous: blank(1, 1),
   }
   const of = (t: object) =>
     io[(Object.keys(binding) as (keyof typeof binding)[]).find((k) => binding[k] === t)!]
@@ -53,13 +52,13 @@ export function radianceKernels(drawn: number[]) {
   const run = shaderRun<{
     radianceFill: (lane: number, wg: number[], bounds: number[]) => void
     radianceSum: (lid: number[], wg: number[]) => void
-    radianceCopy: (c: number[]) => number[]
+    radianceFold: (image: object, c: number[]) => number[]
   }>(
     RADIANCE_SHADER,
     [
       'radianceFill',
       'radianceSum',
-      'radianceCopy',
+      'radianceFold',
       'radianceTent',
       'tent',
       'radianceHash',
@@ -78,20 +77,27 @@ export function radianceKernels(drawn: number[]) {
       },
     },
   )
-  /** The workgroups over `groups` a side, each as the device runs it; `copy` the first kernel's,
-   *  which also folds the image into its hash: the sum of its threads', two words. */
-  const dispatch = (groups: number[], bounds: number[], copy: boolean) => {
-    const hash = [0, 0]
+  /** The workgroups over `groups` a side, each as the device runs it; `hashed` the first kernel's
+   *  of a still image, which also folds the image into its hash — and, `both`, the image before it
+   *  into the words beside —: the sum of its threads', two words each. */
+  const dispatch = (groups: number[], bounds: number[], hashed: boolean, both = false) => {
+    const hash = [0, 0, 0, 0]
     for (let y = 0; y < groups[1]; y++)
       for (let x = 0; x < groups[0]; x++) {
         for (let lane = 0; lane < 64; lane++) run.radianceFill(lane, [x, y], bounds)
         for (let lane = 0; lane < 64; lane++) {
           const lid = [lane % 8, Math.floor(lane / 8)]
           run.radianceSum(lid, [x, y])
-          if (copy) {
-            const sum = run.radianceCopy([x * 8 + lid[0], y * 8 + lid[1]])
+          const c = [x * 8 + lid[0], y * 8 + lid[1]]
+          if (hashed) {
+            const sum = run.radianceFold(binding.finer, c)
             hash[0] = (hash[0] + sum[0]) >>> 0
             hash[1] = (hash[1] + sum[1]) >>> 0
+          }
+          if (both) {
+            const sum = run.radianceFold(binding.previous, c)
+            hash[2] = (hash[2] + sum[0]) >>> 0
+            hash[3] = (hash[3] + sum[1]) >>> 0
           }
         }
       }
@@ -99,14 +105,24 @@ export function radianceKernels(drawn: number[]) {
   }
   return {
     /** The first kernel over `source`, in `groups` workgroups a side (the shipped dispatch,
-     *  `radianceGroups`, else whole). */
-    first(source: Image, groups = [Math.ceil(source.width / 32), Math.ceil(source.height / 32)]) {
+     *  `radianceGroups`, else whole), hashing it; with `before`, the one that hashes the image
+     *  before it too (`radianceFirstBoth`), its words in `before`. */
+    first(
+      source: Image,
+      groups = [Math.ceil(source.width / 32), Math.ceil(source.height / 32)],
+      before?: Image,
+    ) {
       io.finer = source
-      io.copy = blank(source.width, source.height)
+      io.previous = before ?? blank(1, 1)
       io.coarser = blank(source.width >> 1, source.height >> 1)
       io.coarsest = blank(source.width >> 2, source.height >> 2)
-      const hash = dispatch(groups, drawn, true)
-      return { copy: io.copy, coarser: io.coarser, coarsest: io.coarsest, hash }
+      const words = dispatch(groups, drawn, true, !!before)
+      return {
+        coarser: io.coarser,
+        coarsest: io.coarsest,
+        hash: words.slice(0, 2),
+        before: words.slice(2),
+      }
     },
     down(source: Image) {
       io.finer = source

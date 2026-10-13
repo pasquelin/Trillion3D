@@ -229,6 +229,22 @@ function tick() {
 tick()
 ```
 
+`world.beforeFrame(hook)` runs `hook({ delta, time })` ahead of each drawn frame, after the
+physics drew its bodies at that frame's time and the scene's clips advanced; `world.onFrame(hook)`
+runs after the frame was drawn. A camera that follows something that moves — a chase camera behind
+a vehicle, a view over a character — is written in `beforeFrame`: there it reads the pose this
+frame draws, and the two are drawn together. Written in `onFrame`, it is drawn a frame later than
+the body it follows, and the view judders against it at every uneven frame.
+
+```js
+world.beforeFrame(() => {
+  const { position, quaternion } = car.body // the pose this frame draws
+  // 6 m behind the car and 2 m above it, looking at it.
+  world.camera.position.set(0, 2, 6).applyQuaternion(quaternion).add(position)
+  world.camera.lookAt(position)
+})
+```
+
 `world.render()` runs the loop's frame — clips, physics and `beforeFrame` hooks advance; only the
 camera's controller is left to the host. A world you lead draws in `render()` alone: a change or a
 resize asks no frame, and the next `render()` draws every change made since the last one (an object
@@ -268,7 +284,11 @@ capture needs. A write applies next frame, no session reopened; a read says what
 the display drawn before temporal antialiasing rebuilds the image: `'auto'` lets the frame budget
 (the display's refresh interval) choose between 0.5 and 1, from the GPU frame time or, without
 timestamps, the frame interval; `{ min, max }` bounds it, a number fixes it. A read is the last
-image's scale.
+image's scale. Where the scale is fixed, or at its floor, and the GPU frame still outlasts the
+refresh, the loop draws on every second refresh (every n-th on a faster display, never under 60
+images a second), so each image is shown for the same time instead of one refresh or two as it
+lands; it draws on every refresh again once the GPU frame falls to 0.81 of the faster budget. A
+scene that holds the refresh is never touched, and the world's time steps by the refreshes shown.
 
 `world.effects` is the ordered chain of passes after temporal antialiasing, before the canvas.
 `effect.bloom({ intensity, radius })` is an energy-conserving glow on the linear
@@ -331,7 +351,8 @@ never a jump.
 `handbrake`) and hands it to `world.controls.vehicle.drive(input)` on each change. Any object with
 `drive` can be driven, the physics' vehicles first (`vehicle.car`,
 [PHYSICS.md](PHYSICS.md#vehicles)). `kind = 'vehicle'` while `vehicle` is `null` throws
-`NO_VEHICLE`. The camera does not follow: the page moves it.
+`NO_VEHICLE`. The camera does not follow: the page moves it in `world.beforeFrame` ([Loop](#loop)),
+never in `onFrame`, a frame late.
 
 ### Picking, moving and saving
 

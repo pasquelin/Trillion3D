@@ -102,8 +102,9 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
 }
 
 /** The radiance pyramid of the image's lit colour, once every surface drew into it and before
- *  the temporal resolve reads it: what the next image's reflections reproject their hits into. Its
- *  hash is copied while the view is unsettled (`RadianceSettle`). */
+ *  the temporal resolve reads it: what the next image's reflections reproject their hits into, the
+ *  lit image itself its level 0 once the image is encoded (`adoptRadianceImage`). Its hash is
+ *  copied while the view is unsettled (`RadianceSettle`). */
 export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu, vis } = rt,
     reflection = gpu.reflection,
@@ -123,7 +124,7 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     viewProj,
   )
   pass.end()
-  reflection.settle.image(encoder, reflection.tiles.args)
+  reflection.settle.image(encoder, reflection.tiles.args, reflection.radiance.held.still)
 }
 
 /** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */
