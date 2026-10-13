@@ -2,8 +2,8 @@
  * WHAT A SESSION WRITES OF ITS ROOTS ON THE GPU BEFORE EVERY CUT (`RootsOnGpu`,
  * `../gpu/dag/runtime.ts`): the worlds the host moved, sent (`rootWorlds.ts`); the composition's
  * passes, a composed world multiplied once (`gpuComposeEncode.ts`); the moved roots' world boxes and
- * stretches (`rootBoxes.ts`) — in a command buffer of their own, submitted at once —; then the
- * tree's leaves, in the refit's (`treeLeaves.ts`), which follows. Each reads what the one before it
+ * stretches (`rootBoxes.ts`) — in a command buffer of their own, submitted at once, timed with the
+ * image it goes before —; then the tree's leaves, in the refit's (`treeLeaves.ts`), which follows. Each reads what the one before it
  * wrote, in the queue's order: the CPU never waits on the GPU, and no pass composes a world again.
  * The cut, and the frame's rows pass after it, read every word of them.
  */
@@ -13,6 +13,7 @@ import { COMPOSED, ENCODED, encodeComposedRoots } from './gpuComposeEncode.ts'
 import { encodeRootBoxes, rootBoxesKernel } from './rootBoxes.ts'
 import { sendRootWorlds } from './rootWorlds.ts'
 import { leafKernels, treeLeaves } from './treeLeaves.ts'
+import { createImagePart } from '../webgpu/pages/render/encoder.ts'
 
 /** Runtime `rt`'s roots brought level on the GPU — the composition's passes first when `compose` —,
  *  their own command buffer submitted when it holds a pass: nothing in a frame where nothing moved
@@ -24,7 +25,11 @@ function writeRoots(rt: WebgpuPagesRuntime, compose: boolean) {
   // Nothing to compose and no root moved: no command buffer.
   const moved = rt.rootWorlds!.roots
   if (!(compose && rt.compose?.parentIds.size) && !moved.whole && !moved.count) return
-  const encoder = device.createCommandEncoder({ label: 'Trillion3D roots' })
+  // A part of the image it goes before, timed with it (`createImagePart`); a cut no image follows
+  // (a waiting selection's) times nothing.
+  const encoder = rt.timing.frameEncoder
+    ? createImagePart(rt, device)
+    : device.createCommandEncoder({ label: 'Trillion3D roots' })
   const done = compose ? encodeComposedRoots(rt, device, encoder) : 0
   const boxed = encodeRootBoxes(rt, device, encoder, (done & COMPOSED) !== 0)
   if (boxed || done & ENCODED) device.queue.submit([encoder.finish()])

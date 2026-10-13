@@ -167,9 +167,7 @@ test('a truncated image has no span whatever its pairs, and says so', async () =
   first.beginComputePass({ label: 'a' }).end()
   const second = timing.createEncoder(1)
   second.beginComputePass({ label: 'b' }).end()
-  // The first encoder's next pass would take the slots behind the second's: left untimed.
-  first.beginComputePass({ label: 'c' }).end()
-  first.finish()
+  // The first encoder is never finished: its pass is never resolved, so the image's end is unknown.
   second.finish()
   const values = new BigUint64Array(f.buffers[1].getMappedRange())
   values.set([1n * MS, 3n * MS], 0)
@@ -179,6 +177,6 @@ test('a truncated image has no span whatever its pairs, and says so', async () =
   assert.equal(samples[0].truncated, true)
   assert.equal(samples[0].frameMs, null)
   assert.equal(samples[0].frameMsReason, 'truncated')
-  assert.deepEqual(samples[0].pairs, { valid: 2, unwritten: 0, invalid: 0 })
+  assert.deepEqual(samples[0].pairs, { valid: 1, unwritten: 0, invalid: 0 })
   timing.dispose()
 })

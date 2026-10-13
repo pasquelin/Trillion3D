@@ -32,7 +32,7 @@ export function createTimedEncoder(state: TimingState, frame: number): GPUComman
     state.skippedFrames.parts++
     return encoder
   }
-  const part: TimingPart = { slot: image.parts.size, base: -1, names: [], resolved: false }
+  const part: TimingPart = { at: [], names: [], order: -1, resolved: false }
   const wrapper = instrumentTimingEncoder(encoder, part, image, state.resources!, QUERY_COUNT)
   image.parts.set(wrapper, part)
   return wrapper
@@ -68,7 +68,7 @@ function openImage(state: TimingState, frame: number) {
     state.emit(failedSample(frame, false, String(error)))
     return false
   }
-  state.active = { frame, parts: new Map(), truncated: false, cursor: 0, read, tag }
+  state.active = { frame, parts: new Map(), truncated: false, cursor: 0, finished: 0, read, tag }
   if (!second) state.lastFrame = frame
   state.tally.sampledFrames++
   return true
