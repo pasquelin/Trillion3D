@@ -113,3 +113,17 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
     },
   }
 }
+
+/** Hands `streamer` the ranks an engine retains — the delta applied before another read of the
+ *  engine can turn it into an empty one —, then `visit` each address they hold. */
+export function retainHeldUrls(
+  streamer: { retainRanks(ranks: HostRetentionDelta): void },
+  ranks: HostRetentionDelta,
+  visit: (url: string) => void,
+) {
+  streamer.retainRanks(ranks)
+  for (let i = 0; i < ranks.heldCount; i++) {
+    const url = ranks.urls[ranks.held[i]]
+    if (url !== undefined) visit(url)
+  }
+}

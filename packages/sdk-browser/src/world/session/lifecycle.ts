@@ -8,6 +8,7 @@ import type { SessionState } from '../render/sessionState.ts'
 import type { ExplorerSession } from './session.ts'
 import type { createExplorerStreaming } from '../scene/streaming.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'
+import { retainHeldUrls } from '../../streaming/hostRanks.ts'
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts'
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts'
 
@@ -52,13 +53,9 @@ function holdPages(
   hold: (url: string) => void,
 ) {
   const lacking = new Set(missing)
-  const ranks = engine.retainedRanks()
-  // Apply this delta before another read of the engine can turn it into an empty hold.
-  streamer.retainRanks(ranks)
-  for (let i = 0; i < ranks.heldCount; i++) {
-    const url = ranks.urls[ranks.held[i]]
-    if (url !== undefined && !lacking.has(url) && streamer.has(url)) hold(url)
-  }
+  retainHeldUrls(streamer, engine.retainedRanks(), (url) => {
+    if (!lacking.has(url) && streamer.has(url)) hold(url)
+  })
 }
 
 /** The session's teardown: once, its owned controls, reads, workers, engine and resources. */
