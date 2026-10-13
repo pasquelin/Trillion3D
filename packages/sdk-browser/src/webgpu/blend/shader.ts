@@ -29,7 +29,6 @@ import { forwardReflectionWgsl } from '../../reflections/weight.ts'
 const blendProgram = (key: Partial<ContractKey>) => {
   const lobes = !key.lobeless
   const bindings = {
-    proxy: BLEND_BINDINGS.proxy,
     transmittance: BLEND_BINDINGS.shadowTransmittance,
     vsm: BLEND_VSM_BINDINGS,
   }
@@ -41,7 +40,11 @@ const blendProgram = (key: Partial<ContractKey>) => {
       declaredLightingWgsl(bindings, key),
       bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes),
       blendSurfaceWgsl(lobes),
-      forwardReflectionWgsl(REFLECTION_GROUP, lobes),
+      forwardReflectionWgsl(REFLECTION_GROUP, lobes, {
+        group: 0,
+        proxy: BLEND_BINDINGS.proxy,
+        worlds: BLEND_BINDINGS.worlds,
+      }),
       reflectionLightViewWgsl(REFLECTION_GROUP),
       REFLECTION_FRONT_WGSL,
       f0Of,

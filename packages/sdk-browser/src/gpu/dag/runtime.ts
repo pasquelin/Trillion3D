@@ -25,6 +25,9 @@ import {
 import { cutBytes } from './cutBuffers.ts'
 import { createProxyInstances } from './proxyInstances.ts'
 
+/** No placement wears a proxy: no box. */
+const EMPTY_BOXES = { boxes: new Float64Array(0), changed: new Uint8Array(0) }
+
 export function createDagRuntime(
   resources: DagResources,
   /** The pages the pool already holds, when the cut is made beside it (`poolList.ts`). */
@@ -130,6 +133,9 @@ function selectionOver(run: DagRun): GpuSelection {
     // The mark travels behind the record shift (`primitiveFrameWords`).
     markWorld: (w, mark) => live() && writeMark(run, w, mark),
     proxyBuffers: () => (live() ? run.proxies.buffers() : undefined),
+    proxyMirror: (encoder) => live() && run.proxies.mirror(encoder),
+    proxyArrived: () => live() && run.proxies.arrived(),
+    proxyBoxes: () => (live() ? run.proxies.worldBoxes() : EMPTY_BOXES),
     proxyCopies: (copies) => live() && run.proxies.setCopies(copies),
     proxyRevision: () => run.proxies.revision * 4096 + state.worldRevision,
     updateResidency: (next, changes, moved) => updateRuntimeResidency(run, next, changes, moved),

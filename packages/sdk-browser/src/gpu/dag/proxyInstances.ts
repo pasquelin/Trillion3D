@@ -1,13 +1,15 @@
 /**
- * THE RUN-TIME PROXY KEPT TO THE PLACEMENTS IT TRACES: what a ray can meet of the meshes the world cut
- * at run time, beyond the visible cut (`bounce/runtimeTraceWgsl.ts`). One buffer
- * (`bounce/runtimeLayout.ts`) holds an instance of four words a placement — written next to the
- * culling's own rows, the same `w` —, one for each blended copy the forward family draws (the
- * members after the placements, their worlds in the buffer: they are no member of the culling's
- * tree), a surface a drawn material and the arena of the cuts' proxies, each uploaded once, when a
- * placement or a copy first wears it. The placements' worlds, and the tree above them, are the
- * culling's: the buffers are the cut's, read where they lie (`buffers`) — the part of a split table
- * that holds the tree, a tree no part holds whole walked as the placements it orders.
+ * THE PROXY KEPT TO THE PLACEMENTS IT TRACES: what a ray can meet of the scene beyond the visible cut
+ * (`bounce/runtimeSceneWgsl.ts`) — the meshes the compiler built a proxy for (`proxy.bin`) and the cuts the
+ * world made at run time, one structure. One buffer (`bounce/runtimeLayout.ts`) holds an instance of four
+ * words a placement — written next to the culling's own rows, the same `w` —, one for each blended copy the
+ * forward family draws (the members after the placements, their worlds in the buffer: they are no member of
+ * the culling's tree), a surface a drawn material, the arena of the meshes' proxies, each uploaded once, when
+ * a placement or a copy first wears it, and the mirror of the culling's placement tree (`mirror`). The
+ * placements' worlds are the culling's: that buffer is read where it lies (`buffers`).
+ *
+ * A mesh's proxy reaches a placement through its primitive (`RootProxy.primitive`): a cut's at its making, a
+ * compiled mesh's when the cache object arrives (`arrived`), which writes every instance again.
  *
  * A member of the run (`runtime.ts`): its operations tell it what moved — roots appended, a
  * placement parked or marked — and each cut refreshes the surfaces a host edited and the copies that
@@ -63,8 +65,14 @@ export type ProxyCopy = {
   placement?: PlacementOf
 }
 
-/** Where a cut lies in the arena: its first node and triangle, and what it holds. */
+/** The tint of a mesh's proxy that is not a cut's white: the compiler's material colour (`proxy/albedo.rs`). */
+const WHITE = 0xffffffff
+
+/** Where a proxy lies in the arena: its first node and triangle, and what it holds. */
 type Placed = { node: number; triangle: number; nodes: number; triangles: number }
+
+/** A surface slot: the words it holds are those of a version of its record, under a tint. */
+type Held = { slot: number; version: number; at: number }
 
 /** The part of a table split in parts of `per` elements that holds elements `[first, first + count)`
  *  whole, or `undefined` where two parts share them. */
@@ -82,13 +90,17 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       tree && partOf(tree.cellBase, treeNodeCount(tree), nodeParts.bytes / (DAG_NODE_FLOATS * 4)),
     coldPart = tree && partOf(tree.members, tree.capacity, coldParts.bytes / 4)
   const walksTree = nodePart !== undefined && coldPart !== undefined
+  // The tree's nodes and its members' order as the mirror holds them (`mirror`).
+  const treeWords = walksTree ? treeNodeCount(tree) * DAG_NODE_FLOATS : 0,
+    memberWords = walksTree ? tree!.capacity : 0
   const nodesFirst = walksTree ? nodePart * (nodeParts.bytes / (DAG_NODE_FLOATS * 4)) : 0,
     coldFirst = walksTree ? coldPart * (coldParts.bytes / 4) : 0
   let words = new Uint32Array(slots * INSTANCE_WORDS).fill(RUNTIME_NONE)
   // The instance a placement wears now, and the one it keeps while parked.
   const resolved = new Uint32Array(slots * INSTANCE_WORDS).fill(RUNTIME_NONE)
   const cuts = new Map<RuntimeCutProxy, Placed>(),
-    surfaces = new Map<PageSurface, { slot: number; version: number; at: number }>()
+    surfaces = new Map<PageSurface, Map<number, Held>>()
+  let surfaceCount = 0
   const triangles = createSpans(START.triangles),
     nodes = createSpans(START.nodes)
   let copies: readonly ProxyCopy[] = [],
@@ -108,7 +120,9 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       surfacesAt = copyWorldsAt + copies.length * WORLD_WORDS,
       trianglesAt = surfacesAt + surfaceCapacity * SURFACE_WORDS,
       boundsAt = trianglesAt + triangles.capacity * PROXY_TRIANGLE_FLOATS,
-      childrenAt = boundsAt + nodes.capacity * PROXY_NODE_FLOATS
+      childrenAt = boundsAt + nodes.capacity * PROXY_NODE_FLOATS,
+      treeAt = childrenAt + nodes.capacity * PROXY_NODE_WORDS,
+      membersAt = treeAt + treeWords
     return {
       instances,
       copyWorlds: copyWorldsAt,
@@ -116,7 +130,9 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       triangles: trianglesAt,
       bounds: boundsAt,
       children: childrenAt,
-      total: childrenAt + nodes.capacity * PROXY_NODE_WORDS,
+      tree: treeAt,
+      members: membersAt,
+      total: membersAt + memberWords,
     }
   }
   const byteAt = (word: number) => (RUNTIME_HEADER_WORDS + word) * 4
@@ -138,13 +154,13 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     head[at.boundsWord] = layout.bounds
     head[at.childrenWord] = layout.children
     head[at.treeRoot] = walksTree ? tree!.levels[0].base : RUNTIME_NONE
-    head[at.membersWord] = walksTree ? tree!.members : 0
+    head[at.treeFirst] = walksTree ? tree!.cellBase : 0
+    head[at.treeWord] = layout.tree
+    head[at.membersWord] = layout.members
     head[at.members] = walksTree ? tree!.count : packed.worldSources.length
     head[at.worldStride] = WORLD_WORDS
     head[at.worldRows] = frames.ranges[0]?.count ?? 0
     new Float32Array(head.buffer)[at.error] = error
-    head[at.nodeFirst] = nodesFirst
-    head[at.coldFirst] = coldFirst
     head[at.copies] = copies.length
     return head
   }
@@ -222,24 +238,34 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     return placed
   }
 
-  /** A surface's slot, its words written the first time and each time its record moved on. */
-  function surfaceSlot(host: PageSurface) {
+  /** A surface's slot under a tint (none: its own), its words written the first time and each time its
+   *  record moved on. */
+  function surfaceSlot(host: PageSurface, tint?: number) {
     // The record the host last wrote: read again when its version moved.
     const surface = refreshSurface(host)
-    let held = surfaces.get(host)
+    let tints = surfaces.get(host)
+    if (!tints) surfaces.set(host, (tints = new Map()))
+    let held = tints.get(tint ?? WHITE)
     if (!held) {
-      if (surfaces.size === surfaceCapacity)
+      if (surfaceCount === surfaceCapacity)
         relayout({ triangles: 0, nodes: 0, surfaces: surfaceCapacity * 2 })
-      held = { slot: surfaces.size, version: NaN, at: surfaces.size * SURFACE_WORDS }
-      surfaces.set(host, held)
+      held = { slot: surfaceCount, version: NaN, at: surfaceCount * SURFACE_WORDS }
+      surfaceCount++
+      tints.set(tint ?? WHITE, held)
     }
     if (held.version !== surface.version || !Number.isFinite(held.version)) {
       held.version = surface.version
-      writeSurface(surfaceWords, held.at, surface)
+      writeSurface(surfaceWords, held.at, surface, tint)
       if (buffer)
         send(buffer, byteAt(layout.surfaces + held.at), surfaceWords, held.at, SURFACE_WORDS)
     }
     return held.slot
+  }
+
+  /** The tint a mesh's proxy brings: the compiler's colour of its material, none for a cut's white. */
+  function tintOf(cut: RuntimeCutProxy) {
+    const colour = cut.albedo.length ? cut.albedo[0] : WHITE
+    return colour === WHITE ? undefined : colour
   }
 
   /** The error of a proxy at a pose: the distance a ray leaves a surface off its normal. */
@@ -261,17 +287,18 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     const root = packed.worldSources[w] as DagRoot | undefined,
       at = w * INSTANCE_WORDS
     const proxy = root?.proxy
-    const placed = proxy && place(proxy.cut)
-    if (!proxy || !placed) {
+    const cut = proxy?.primitive.runtimeProxy
+    const placed = cut && place(cut)
+    if (!proxy || !cut || !placed) {
       resolved.fill(RUNTIME_NONE, at, at + INSTANCE_WORDS)
       resolved[at + INSTANCE.mark] = 0
       return
     }
     resolved[at + INSTANCE.node] = placed.node
     resolved[at + INSTANCE.triangle] = placed.triangle
-    resolved[at + INSTANCE.surface] = surfaceSlot(proxy.surface)
+    resolved[at + INSTANCE.surface] = surfaceSlot(proxy.surface, tintOf(cut))
     resolved[at + INSTANCE.mark] = packed.mark[w] ?? 0
-    noteError(proxy.cut.cellMetres, packed.worlds, w * 16)
+    noteError(cut.cellMetres, packed.worlds, w * 16)
   }
 
   /** Placements `[from, to)` written: what they wear, parked ones none until they are taken back. */
@@ -304,10 +331,11 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     copies.forEach((copy, k) => {
       const at = (slots + k) * INSTANCE_WORDS,
         proxy = copy.proxy
-      const placed = proxy && place(proxy.cut)
+      const cut = proxy?.primitive.runtimeProxy
+      const placed = cut && place(cut)
       const shown = !!placed && !copy.hidden && !rowParked(copy.placement)
       const next = shown
-        ? [placed.node, placed.triangle, surfaceSlot(proxy.surface), 0]
+        ? [placed.node, placed.triangle, surfaceSlot(proxy.surface, tintOf(cut)), 0]
         : [RUNTIME_NONE, 0, 0, 0]
       for (let j = 0; j < INSTANCE_WORDS; j++)
         if (words[at + j] !== next[j]) {
@@ -321,7 +349,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
           copyWorlds[k * WORLD_WORDS + j] = world[j]
           moved = true
         }
-      noteError(proxy.cut.cellMetres, world, 0)
+      noteError(cut.cellMetres, world, 0)
     })
     if (!moved || !copies.length || !(buffer || cuts.size)) return
     const made = ensure()
@@ -338,16 +366,81 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   const live = () => packed.live?.worlds ?? packed.worldSources.length
   write(0, live())
 
+  // The placements' world boxes, for the probes' occupancy map: a placement's mesh bounds through the world
+  // it stands at now, a box rebuilt only for the placement whose world moved since the last call.
+  const seen = new Float64Array(slots * 12),
+    known = new Uint8Array(slots)
+  const LINEAR_AND_TRANSLATION = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
+  function worldBoxes() {
+    const out: number[] = [],
+      changed: number[] = []
+    for (let w = 0; w < live(); w++) {
+      const root = packed.worldSources[w] as DagRoot | undefined
+      const cut = root?.proxy?.primitive.runtimeProxy
+      if (!root || !cut || !cut.nodeBounds.length || packed.rootNodes[w] === RUNTIME_NONE) {
+        known[w] = 0
+        continue
+      }
+      const m = root.world.elements
+      let moved = !known[w]
+      LINEAR_AND_TRANSLATION.forEach((element, j) => {
+        if (seen[w * 12 + j] !== m[element]) moved = true
+        seen[w * 12 + j] = m[element]
+      })
+      known[w] = 1
+      const box = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]
+      const b = cut.nodeBounds
+      for (let corner = 0; corner < 8; corner++) {
+        const x = b[corner & 1 ? 3 : 0],
+          y = b[corner & 2 ? 4 : 1],
+          z = b[corner & 4 ? 5 : 2]
+        for (let axis = 0; axis < 3; axis++) {
+          const at = m[12 + axis] + m[axis] * x + m[4 + axis] * y + m[8 + axis] * z
+          box[axis] = Math.min(box[axis], at)
+          box[3 + axis] = Math.max(box[3 + axis], at)
+        }
+      }
+      out.push(...box)
+      changed.push(moved ? 1 : 0)
+    }
+    return { boxes: Float64Array.from(out), changed: Uint8Array.from(changed) }
+  }
+
   return {
-    /** The buffers the trace reads, or none: this stage then reads the stand-ins. */
+    /** The two buffers a program reads the proxy through, or none: it then reads the stand-ins. */
     buffers() {
       if (!buffer) return undefined
-      return {
-        proxy: buffer,
-        nodes: nodeParts.buffers[nodePart ?? 0],
-        cold: coldParts.buffers[coldPart ?? 0],
-        worlds: frames.worldBuffers[0],
-      }
+      return { proxy: buffer, worlds: frames.worldBuffers[0] }
+    },
+    /**
+     * The placement tree copied into the proxy's buffer, in `encoder`, before the first program of the image
+     * that walks it: its nodes, as the culling's refit left them, and the order of its members. Two copies of
+     * a few hundred kilobytes at a quarter of a million placements; none without a tree to walk.
+     */
+    mirror(encoder: GPUCommandEncoder) {
+      if (!buffer || !walksTree || !tree) return
+      encoder.copyBufferToBuffer(
+        nodeParts.buffers[nodePart!],
+        (tree.cellBase - nodesFirst) * DAG_NODE_FLOATS * 4,
+        buffer,
+        byteAt(layout.tree),
+        treeWords * 4,
+      )
+      encoder.copyBufferToBuffer(
+        coldParts.buffers[coldPart!],
+        (tree.members - coldFirst) * 4,
+        buffer,
+        byteAt(layout.members),
+        memberWords * 4,
+      )
+    },
+    /** The world box of each placement that wears a proxy, and which of them are new or moved since the last
+     *  call: what the probes' occupancy map keeps (`bounce/probes.ts`). */
+    worldBoxes,
+    /** The meshes' proxies of a compiled scene arrived (`RootProxy.primitive.runtimeProxy` was set): every
+     *  placement wears what its primitive holds now. */
+    arrived() {
+      write(0, live())
     },
     /** Roots `[from, to)` were appended behind the others: their instances, and the tree's members. */
     appended: write,
@@ -387,7 +480,8 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     /** The surfaces a host edited and the copies that moved since the last cut, written again. */
     refresh() {
       if (!buffer && !copies.length) return
-      for (const [surface] of surfaces) surfaceSlot(surface)
+      for (const [surface, tints] of surfaces)
+        for (const tint of tints.keys()) surfaceSlot(surface, tint === WHITE ? undefined : tint)
       syncCopies()
       if (buffer && dirty) {
         send(buffer, 0, header())

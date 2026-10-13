@@ -55,14 +55,11 @@ export const REFLECTION_DEPTH_BINDING = 3
 
 /** The binding of the deferred lighting's view in the reflection group (`View`). */
 export const REFLECTION_LIGHT_VIEW_BINDING = 7
-/** The binding of the proxy's surface cache in the reflection group (`bounce/surface.ts`). */
-export const REFLECTION_SURFACE_BINDING = 8
 
 /**
  * The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the
  * radiance pyramid and its trilinear sampler, the depth it marches, the engine's pyramid
- * (`hizDepthWgsl`), and the radiance the resident proxy's surfaces hold (`surface`, the cache the
- * bounce sweeps). The program names the deferred lighting's view (`view`, the pixel's world point
+ * (`hizDepthWgsl`). The program names the deferred lighting's view (`view`, the pixel's world point
  * `worldAt`, the eye `viewToEye`, the drawn size, the exposure, the display curve, the background)
  * itself: it already has it, or declares it in this group (`reflectionLightViewWgsl`).
  */
@@ -72,8 +69,7 @@ export const reflectionBindingsWgsl = (group: number) =>
     [REFLECTION_VIEW_WGSL, hizDepthWgsl(group, REFLECTION_DEPTH_BINDING), WORLD_AT_WGSL],
     `@group(${group}) @binding(0) var<uniform> reflectionView:ReflectionView;
 @group(${group}) @binding(1) var reflectionRadiance:texture_2d<f32>;
-@group(${group}) @binding(2) var reflectionSampler:sampler;
-@group(${group}) @binding(${REFLECTION_SURFACE_BINDING}) var surface:texture_2d<f32>;`,
+@group(${group}) @binding(2) var reflectionSampler:sampler;`,
   )
 
 /** The deferred lighting's view in the reflection group, for a program that has none of its own. */

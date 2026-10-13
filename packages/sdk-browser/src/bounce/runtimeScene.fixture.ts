@@ -3,6 +3,8 @@
 import * as G from '../host/graph/graph.fixture.ts'
 import { scenePages, sceneRoots } from '../gpu/dag/cutFrontierScene.fixture.ts'
 import { packDagSelection } from '../gpu/dag/selection.ts'
+import { treeNodeCount } from '../gpu/dag/placementTree.ts'
+import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
 import { sdkWasm } from '../wasm/sdkWasm.fixture.ts'
 import {
   PROXY_NODE_FLOATS,
@@ -43,9 +45,6 @@ export function world(
     surfaceOf?: (w: number) => number
     /** Blended copies, members after the placements, each a cube at the pose given. */
     copies?: G.Matrix4[]
-    /** The tree's nodes and members' order as a part of a split table holds them: the part begins at
-     *  this node and this word of the table, which the header names. */
-    shift?: { nodes: number; cold: number }
   } = {},
 ) {
   const random = stream(seed),
@@ -89,7 +88,12 @@ export function world(
     trianglesAt = surfacesAt + surfaces.length * SURFACE_WORDS,
     boundsAt = trianglesAt + triangles * PROXY_TRIANGLE_FLOATS,
     childrenAt = boundsAt + nodes * PROXY_NODE_FLOATS
-  const words = new Uint32Array(childrenAt + nodes * PROXY_NODE_WORDS)
+  // The placement tree as the proxy's buffer mirrors it: its nodes, then the order of its members.
+  const tree = packed.placementTree
+  const treeNodes = treeNodeCount(tree),
+    treeAt = childrenAt + nodes * PROXY_NODE_WORDS,
+    membersAt = treeAt + treeNodes * DAG_NODE_FLOATS
+  const words = new Uint32Array(membersAt + (tree?.capacity ?? 0))
   for (let w = 0; w < count + copies.length; w++)
     words.set([0, 0, options.surfaceOf?.(w) ?? 0, 0], instancesAt + w * INSTANCE_WORDS)
   copies.forEach((m, k) =>
@@ -103,7 +107,26 @@ export function world(
   words.set(new Uint32Array(cut.triangles.buffer), trianglesAt)
   words.set(new Uint32Array(cut.nodeBounds.buffer), boundsAt)
   words.set(cut.nodeChildren, childrenAt)
-  const tree = packed.placementTree
+  if (tree) {
+    const nodeWords = new Uint32Array(
+      packed.nodes.buffer,
+      packed.nodes.byteOffset,
+      packed.nodes.length,
+    )
+    const coldWords = new Uint32Array(
+      packed.pageCones.buffer,
+      packed.pageCones.byteOffset,
+      packed.pageCones.length,
+    )
+    words.set(
+      nodeWords.subarray(
+        tree.cellBase * DAG_NODE_FLOATS,
+        (tree.cellBase + treeNodes) * DAG_NODE_FLOATS,
+      ),
+      treeAt,
+    )
+    words.set(coldWords.subarray(tree.members, tree.members + tree.capacity), membersAt)
+  }
   const header = {
     instances: count,
     instancesWord: instancesAt,
@@ -113,13 +136,13 @@ export function world(
     boundsWord: boundsAt,
     childrenWord: childrenAt,
     treeRoot: tree ? tree.levels[0].base : RUNTIME_NONE,
-    membersWord: tree?.members ?? 0,
+    treeFirst: tree?.cellBase ?? 0,
+    treeWord: treeAt,
+    membersWord: membersAt,
     members: tree ? tree.count : count,
     worldStride: 16,
     worldRows: count,
     error: 0,
-    nodeFirst: options.shift?.nodes ?? 0,
-    coldFirst: options.shift?.cold ?? 0,
     copies: copies.length,
     words,
   }
@@ -134,27 +157,11 @@ export function world(
       { node: 0, triangle: 0, triangles },
     ]),
   )
-  // The tables as the shader's bindings hold them: the part of the culling's, after the shift.
-  const shift = options.shift ?? { nodes: 0, cold: 0 }
-  const nodeWords = new Uint32Array(
-    packed.nodes.buffer,
-    packed.nodes.byteOffset,
-    packed.nodes.length,
-  )
-  const coldWords = new Uint32Array(
-    packed.pageCones.buffer,
-    packed.pageCones.byteOffset,
-    packed.pageCones.length,
-  )
-  const nodesPart = nodeWords.subarray(shift.nodes * 24),
-    coldPart = coldWords.subarray(shift.cold)
   const copyWorlds = new Float32Array(copies.length * 16)
   copies.forEach((m, k) => copyWorlds.set(m.elements, k * 16))
   return {
     packed,
     header,
-    nodes: nodesPart,
-    cold: coldPart,
     scene: { packed, columns, instances, copyBase: count, copyWorlds } satisfies OracleScene,
   }
 }

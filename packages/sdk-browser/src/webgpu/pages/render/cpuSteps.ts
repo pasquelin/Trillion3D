@@ -35,8 +35,6 @@ function recordStages(rt: WebgpuPagesRuntime) {
     probesUpdated: bounce.probesUpdated,
     raysPerFrame: bounce.raysLaunched,
     cascadeProbes: bounce.probes?.cascades.probes ?? 0,
-    texelsUpdated: bounce.encoded ? (bounce.probes?.surface.lastTexels ?? 0) : 0,
-    cachedTexels: bounce.probes?.surface.texels ?? 0,
     // Fraction of the ceiling the millisecond budget holds, in thousandths: a count is an integer,
     // and it is the duration that decides this count, never the reverse.
     budgetFraction: Math.round((bounce.probes?.budget.load ?? 0) * 1000),

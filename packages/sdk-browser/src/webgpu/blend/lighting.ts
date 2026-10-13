@@ -23,6 +23,7 @@ export function blendLightResources(
     bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,
     probes: contract.probes ?? placeholders.probes,
     tileLights: contract.tiles ?? placeholders.tiles,
-    proxy: contract.proxy ?? placeholders.proxy,
+    proxy: contract.proxy ?? placeholders.runtime,
+    worlds: contract.worlds ?? placeholders.runtime,
   }
 }

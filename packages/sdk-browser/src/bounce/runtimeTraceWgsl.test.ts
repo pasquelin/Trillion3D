@@ -67,22 +67,3 @@ test('blended copies, members after the placements, are met as the oracle meets 
     'copies are members',
   )
 })
-
-test('a tree held in the part of a split table is walked from the part, as the whole table is', () => {
-  const whole = world(300, 2),
-    tree = whole.packed.placementTree!,
-    part = world(300, 2, { shift: { nodes: tree.cellBase, cold: tree.members } })
-  const random = stream(3)
-  const a = runOver(whole),
-    b = runOver(part)
-  for (let ray = 0; ray < 80; ray++) {
-    const origin: Vec = [random() * 50, 5, random() * 50]
-    const direction: Vec = [random() - 0.5, -1, random() - 0.5]
-    a.testReset()
-    b.testReset()
-    const one = a.rtScene(origin, direction, 100),
-      two = b.rtScene(origin, direction, 100)
-    assert.deepEqual(two, one, `ray ${ray}`)
-    assert.equal(b.testWork(), a.testWork())
-  }
-})

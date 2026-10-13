@@ -62,7 +62,7 @@ fn rtAnswer(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
  }
  if(atomicLoad(&rtList[RT_SPENT])<RT_FRAME_WORK){
   let seen=rtRadiance(origin,direction,reach,tangent);
-  atomicAdd(&rtList[RT_SPENT],rtWork);
+  atomicAdd(&rtList[RT_SPENT],rtWork+rtExtra);
   if(first){
    atomicMax(&rtList[RT_CURSOR],rtRank+1u);
    rtCellWrite(rtPixel,seen,stamp);

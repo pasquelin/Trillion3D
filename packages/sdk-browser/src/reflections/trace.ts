@@ -13,7 +13,6 @@ import { LOBES_DECODE_WGSL, LOBES_LIGHTING_WGSL } from '../lighting/direct/lobes
 import { STANDARD_LIGHTING_WGSL } from '../lighting/standardLighting.ts'
 import { TONE_UNMAPPING_WGSL } from '../lighting/toneMappingWgsl.ts'
 import { BOUNCE_GRID_WGSL } from '../bounce/gridWgsl.ts'
-import { residentProxyWgsl } from '../bounce/nodeWgsl.ts'
 import { SURFACE_MODEL_LIGHT_WGSL, surfaceReflects } from '../scene/surfaceModel.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../scene/physicalLobes.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
@@ -31,16 +30,12 @@ import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
 /** The word the tile list starts at in the list buffer: the counters, then the list (`TRACE_LIST`). */
 const TILE_LIST = TRACE_LIST_FIRST
 
-/** The binding of the resident proxy in the trace's group 0. */
-const PROXY_BINDING = 11
-/** The bindings of the run-time proxy in the trace's group 0 (`runtimeTraceWgsl.ts`): its buffer, the
- *  culling's nodes and cold table, the world matrices. */
+/** The bindings of the proxy in the trace's group 0 (`runtimeTraceWgsl.ts`): its buffer and the world
+ *  matrices, the trace's list with the frame's counters and the store of the answers. */
 const RUNTIME_BINDINGS: RuntimeBindings = {
   group: 0,
-  proxy: 12,
-  nodes: 13,
-  cold: 14,
-  worlds: 15,
+  proxy: 11,
+  worlds: 12,
   list: 8,
   store: 9,
 }
@@ -114,7 +109,6 @@ fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) row
     LOBES_LIGHTING_WGSL,
     LOBES_DECODE_WGSL,
     BOUNCE_GRID_WGSL,
-    residentProxyWgsl(PROXY_BINDING),
     reflectionLightViewWgsl(REFLECTION_GROUP),
     reflectionShareWgsl(REFLECTION_GROUP, true, RUNTIME_BINDINGS),
     FLAT_INDEX_WGSL,
@@ -156,11 +150,9 @@ fn reflectionBegin(){
 /** Bytes of the indirect arguments: the workgroups along x and y, 1, then the count of tiles. */
 export const TRACE_ARGS_BYTES = 16
 
-/** The run-time proxy's four read-only storage bindings. */
+/** The proxy's two read-only storage bindings. */
 const runtimeEntries = {
   proxy: computeBufferEntry(RUNTIME_BINDINGS.proxy, 'read-only-storage'),
-  nodes: computeBufferEntry(RUNTIME_BINDINGS.nodes, 'read-only-storage'),
-  cold: computeBufferEntry(RUNTIME_BINDINGS.cold, 'read-only-storage'),
   worlds: computeBufferEntry(RUNTIME_BINDINGS.worlds, 'read-only-storage'),
 }
 
@@ -179,7 +171,6 @@ function traceLayouts(device: GPUDevice) {
       computeBufferEntry(RUNTIME_BINDINGS.list, 'storage'),
       storeEntry(RUNTIME_BINDINGS.store),
       computeTextureEntry(10, 'unfilterable-float'),
-      computeBufferEntry(PROXY_BINDING, 'read-only-storage'),
       ...Object.values(runtimeEntries),
     ]),
     classifyLayout: layout([
@@ -265,9 +256,8 @@ export type TraceInputs = {
   lights: GPUBuffer
   bounceGrid: GPUBuffer
   probes: GPUTextureView
-  proxy: GPUBuffer
-  /** The run-time proxy's buffers, or the empty one in each place (`bounce/runtimeProxy.ts`). */
-  runtime: { proxy: GPUBuffer; nodes: GPUBuffer; cold: GPUBuffer; worlds: GPUBuffer }
+  /** The proxy's buffers, or the empty one in each place (`gpu/dag/proxyInstances.ts`). */
+  runtime: { proxy: GPUBuffer; worlds: GPUBuffer }
   /** The store of the run-time proxy's answers, or its stand-in (`proxyStore.ts`). */
   store: GPUTextureView
   lightView: GPUBuffer
@@ -308,10 +298,7 @@ function traceGroups(
     inputs.lights,
     inputs.bounceGrid,
     inputs.probes,
-    inputs.proxy,
     inputs.runtime.proxy,
-    inputs.runtime.nodes,
-    inputs.runtime.cold,
     inputs.runtime.worlds,
     inputs.store,
     tiles.list,
@@ -335,10 +322,7 @@ function traceGroups(
         { binding: RUNTIME_BINDINGS.list, resource: { buffer: tiles.list } },
         { binding: RUNTIME_BINDINGS.store, resource: inputs.store },
         { binding: 10, resource: inputs.base },
-        { binding: PROXY_BINDING, resource: { buffer: inputs.proxy } },
         { binding: RUNTIME_BINDINGS.proxy, resource: { buffer: inputs.runtime.proxy } },
-        { binding: RUNTIME_BINDINGS.nodes, resource: { buffer: inputs.runtime.nodes } },
-        { binding: RUNTIME_BINDINGS.cold, resource: { buffer: inputs.runtime.cold } },
         { binding: RUNTIME_BINDINGS.worlds, resource: { buffer: inputs.runtime.worlds } },
       ],
     }),

@@ -4,8 +4,7 @@ import {
   PROXY_CHILDREN,
   PROXY_TRIANGLE_FLOATS,
 } from '../../../sdk-core/src/index.ts'
-import { PROXY_OWNER_WGSL } from './ownerWgsl.ts'
-import { BOUNCE_NODE_WGSL } from './nodeWgsl.ts'
+import { WIDE_NODE_WGSL } from './nodeWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import {
   rayBoxEntry,
@@ -49,10 +48,8 @@ const hook = (statement: string, indent: number) =>
 /**
  * The one traversal of a wide tree, from which every ray of the engine is cast: written from this
  * text with the way a tree is read and what a hit is (`WideTraversal`) given by its caller. The
- * resident proxy's two (`traceProxy` answers the nearest triangle hit, `proxyBlocked` — a shadow
- * does not need the nearest — whether any triangle cuts the segment, returning at the first one: with
- * no hit recorded, the distance every box and triangle is tested against stays `limit`) and the
- * run-time cuts' (`runtimeTraceWgsl.ts`) are its instances.
+ * proxy's walk of one mesh (`rtTraceCut`, `runtimeSceneWgsl.ts`) is its instance, nearest hit or, for a
+ * shadow, the first one.
  */
 export const wideTraversal = (t: WideTraversal) => `
 fn ${t.name}(origin:vec3f,direction:vec3f,limit:f32${t.params})->${t.returns}{
@@ -97,54 +94,20 @@ fn ${t.name}(origin:vec3f,direction:vec3f,limit:f32${t.params})->${t.returns}{
  return ${t.answer};
 }`
 
-/** The resident proxy's traversal, nearest hit or any hit: nodes and triangles read where the cache
- *  put them, a triangle under each of its owners' poses, bounded by the tree's own steps. */
-const proxyTraversal = (name: string, anyHit: boolean) =>
-  wideTraversal({
-    name,
-    params: '',
-    returns: anyHit ? 'bool' : 'ProxyHit',
-    start: 'var best=ProxyHit(limit,0u,0u,false);',
-    empty: `if(proxyNodeCount()==0u){return ${anyHit ? 'false' : 'best'};}`,
-    steps: 'proxySteps()',
-    box: 'nodeBox(node)',
-    child: 'proxyChild(node,slot,frame)',
-    visit: '',
-    stop: '',
-    test: `let owners=proxyOwners(index,child.owned);
-     for(var owner=owners.x;owner<owners.y;owner++){
-      let distance=rayTriangleDistance(origin,direction,proxyOwnerVertex(index,0u,owner),proxyOwnerVertex(index,1u,owner),proxyOwnerVertex(index,2u,owner),best.distance);
-      if(distance<best.distance){${anyHit ? 'return true;' : 'best=ProxyHit(distance,index,owner,true);'}}
-     }`,
-    answer: anyHit ? 'false' : 'best',
-  })
-
 /**
- * Traversal of the resident proxy: a four-child BVH, ordered by distance, with early
- * exit.
- *
- * A node tests its four boxes at once, descends immediately on the nearest and stacks the
- * others. A popped node is retested against the distance of the nearest triangle already
- * hit: as soon as a ray has hit something, everything behind it drops without being
- * opened. That is what replaces the one-step-per-node descent of the binary tree, where
- * the traversal bound ran out before the leaf on a city's proxy.
- *
- * Three bounds known before the frame: visited nodes (the built tree's bound plus the
- * nodes a refit let into a ray, written with the tree: `proxy.steps`), triangles of a leaf,
- * and stack depth — a wide node stacks three at most, and the tree is balanced by
- * construction, so the stack does not overflow; if it did, the extra child would be dropped, which darkens and never leaks.
+ * The constants of a wide traversal and the blocks it reads: the leaf's triangles, the numbers of a triangle,
+ * the children of a node, the stack. Three bounds known before the frame: visited nodes (the walk's own
+ * steps), triangles of a leaf, and stack depth — a wide node stacks three at most, and the tree is balanced by
+ * construction, so the stack does not overflow; if it did, the extra child would be dropped, which darkens and
+ * never leaks.
  */
-export const BOUNCE_TRACE_WGSL = wgslBlock(
-  'BOUNCE_TRACE_WGSL',
-  [BOUNCE_NODE_WGSL, PROXY_OWNER_WGSL, rayInverseDirection, rayBoxEntry, rayTriangleDistance],
-  `
-${wgslConsts({
-  LEAF_TRIANGLES: BOUNCE_SETTINGS.proxyLeafTriangles,
-  TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
-  CHILDREN: PROXY_CHILDREN,
-  STACK_DEPTH: BOUNCE_SETTINGS.traversalStack,
-})}
-struct ProxyHit{distance:f32,triangle:u32,owner:u32,found:bool,}
-${proxyTraversal('traceProxy', false)}
-${proxyTraversal('proxyBlocked', true)}`,
+export const WIDE_TRAVERSAL_WGSL = wgslBlock(
+  'WIDE_TRAVERSAL_WGSL',
+  [WIDE_NODE_WGSL, rayInverseDirection, rayBoxEntry, rayTriangleDistance],
+  wgslConsts({
+    LEAF_TRIANGLES: BOUNCE_SETTINGS.proxyLeafTriangles,
+    TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
+    CHILDREN: PROXY_CHILDREN,
+    STACK_DEPTH: BOUNCE_SETTINGS.traversalStack,
+  }),
 )

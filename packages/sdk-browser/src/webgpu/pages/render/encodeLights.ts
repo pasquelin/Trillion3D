@@ -5,8 +5,7 @@ import {
   TONE_MAPPING_RANK,
 } from '../../../../../sdk-core/src/scene/core/environment.ts'
 import { uploadSceneLights } from '../state/lightBuffer.ts'
-import { syncPageProxy, syncLightingProxies } from '../prepare/proxyMotion.ts'
-import { ensureBounce } from '../prepare/bounce.ts'
+import { ensureBounce, syncLightingProxies } from '../prepare/bounce.ts'
 import { planVsmFrame } from './vsm/vsmPlan.ts'
 import { encodeVsmFrame } from './vsm/vsmEncode.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -59,6 +58,7 @@ export function encodeDirectLights(
   // tiles, and must stay lit even on a device that could not fit the lists.
   uploadSceneLights(device, lights)
   encodeBounce(rt, device, encoder, active, cam)
+  // Kept bounce resources follow the placements even while bounce is toggled off.
   syncLightingProxies(rt)
   const listed = encodeTileLists(rt, encoder, viewProjection, cam.eye)
   encodeVsmFrame(rt, device, encoder, cam)
@@ -116,7 +116,7 @@ function encodeBounce(
   const irradiance = lights.store.lightingView === 'bounce'
   rt.gpu.deferred?.setRawOutput(irradiance)
   if (!probes) return
-  syncPageProxy(rt, probes)
+  syncLightingProxies(rt)
   probes.setIrradianceView(irradiance)
   // The store revision rises as soon as a light is added, set or removed: that is the only signal
   // the grid needs to restart, and it costs no read. A change of fog alone is not one.

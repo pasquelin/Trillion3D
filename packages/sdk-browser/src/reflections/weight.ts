@@ -6,7 +6,8 @@ import { LTC_WGSL } from '../lighting/direct/rectLightWgsl.ts'
 import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
-import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
+import type { SceneBindings } from '../bounce/runtimeTraceWgsl.ts'
+import type { ProxyBindings } from './proxy.ts'
 
 /**
  * What a lit surface keeps of the radiance it reflects, and how it traces it. `reflectionWeight`
@@ -22,9 +23,9 @@ import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
  * (`lobeThrough`), and the coat's added; `reflectedShare` traces and weighs on one reflectance. A
  * program without lobes has no coat and a round lobe.
  */
-export const reflectionShareWgsl = (group: number, lobes: boolean, runtime?: RuntimeBindings) =>
+export const reflectionShareWgsl = (group: number, lobes: boolean, runtime: ProxyBindings) =>
   wgslBlock(
-    `reflectionShareWgsl(${group}, ${lobes}, ${runtime ? 'runtime' : 'cooked'})`,
+    `reflectionShareWgsl(${group}, ${lobes}, ${runtime.proxy}, ${runtime.worlds}, ${'store' in runtime})`,
     [reflectedRadianceWgsl(group, runtime), LTC_WGSL, LOBE_AXIS_WGSL, ndotvClamped, DIELECTRIC_F0],
     `struct Reflected{base:vec3f,coat:vec3f,}
 fn reflectionWeight(f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
@@ -65,10 +66,10 @@ fn reflectedShare(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
  *  bind group `group`: `surfaceReflection` the blend's, traced here and weighed on the reflectance
  *  `f0` as the opaque trace's is (`reflectedShare`); the water traces once (`reflectionTrace`)
  *  and weighs the one trace on two reflectances (`reflectionShare`). */
-export const forwardReflectionWgsl = (group: number, lobes: boolean) =>
+export const forwardReflectionWgsl = (group: number, lobes: boolean, scene: SceneBindings) =>
   wgslBlock(
-    `forwardReflectionWgsl(${group}, ${lobes})`,
-    [reflectionShareWgsl(group, lobes), surfaceReflects],
+    `forwardReflectionWgsl(${group}, ${lobes}, ${scene.proxy}, ${scene.worlds})`,
+    [reflectionShareWgsl(group, lobes, scene), surfaceReflects],
     `fn surfaceReflection(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
  if(!surfaceReflects(surfaceModel)){return vec3f(0.0);}
  return reflectedShare(f0,rough,N,V,P);

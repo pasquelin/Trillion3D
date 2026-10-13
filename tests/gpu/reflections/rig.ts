@@ -1,9 +1,9 @@
 // The engine side of the reflection proofs: a synthetic still frame — the surface flags and normals,
-// the base colour, the depth, the lit image, the physical lobes and the resident proxy of the scene
+// the base colour, the depth, the lit image, the physical lobes and the proxy of the scene
 // where it has them — laid in the engine's inputs, its kernels run on it as an image runs them: the
 // depth pyramid, the view, the surroundings and the trace (`reflections/frame.ts`), then the radiance
 // pyramid. Consecutive still images, whose reflection targets are read back to the bit.
-import { noRuntimeProxy } from './rigRuntime.ts'
+import { rigProxy } from './rigRuntime.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import {
   createReflectionPipelines,
@@ -15,8 +15,6 @@ import { encodeRadiancePyramid } from '../../../packages/sdk-browser/src/reflect
 import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/trace.ts'
 import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/hiz.ts'
 import { PROBE_TEXELS, emptyAtlas } from '../../../packages/sdk-browser/src/bounce/atlas.ts'
-import { PROXY_HEADER_BYTES } from '../../../packages/sdk-browser/src/bounce/sizes.ts'
-import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts'
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
 import { createDeferredView } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
 import {
@@ -74,7 +72,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   if (frame.environment) store.setEnvironment({ exposure: 1, irradiance: frame.environment })
   const lights = createSceneLightContractBuffer(device, store)
   uploadSceneLights(device, { store, buffer: lights, uploadedEpoch: -1 } as WebgpuLightState)
-  const reflection = createScreenReflection(device, width, height, true)
+  const reflection = createScreenReflection(device, width, height, true, !!frame.proxy)
   const inverse = new Float64Array(16)
   invertMatrix4(inverse, frame.viewProjection)
   // The lighting's view of the image: the eye, the background, an exposure of one, no display
@@ -91,23 +89,14 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     direct,
     0,
   )
-  // The resident proxy and its surfaces' radiance; else no proxy, a header of zeros, which reads as
-  // a tree with no node, and one texel of surface cache.
-  const resident = frame.proxy && createGpuBounceProxy(device, frame.proxy.scene)
-  const proxy =
-    resident?.buffer ??
-    device.createBuffer({ size: PROXY_HEADER_BYTES + 16, usage: GPUBufferUsage.STORAGE })
-  const texels = frame.proxy ? frame.proxy.surface.length / 4 : 1
-  const surface = texture('rgba32float', sampled, [texels, 1])
-  if (frame.proxy) write(surface, frame.proxy.surface, 16, [texels, 1])
-  const over = { lightView: lightView.buffer, surface: surface.createView() }
-  // No bounce probes: the cascades' empty grid, whose field is zero, and an atlas of one probe;
-  // the grid carries the reach of a proxy ray.
+  // The scene's proxy and the radiance its faces give; else no proxy, a header of zeros, which reads as
+  // no placement.
+  const over = { lightView: lightView.buffer }
+  // No bounce probes: the cascades' empty grid, whose field is zero, and an atlas of one probe.
   const bounceGrid = device.createBuffer({
     size: BOUNCE_GRID_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  device.queue.writeBuffer(bounceGrid, 0, new Float32Array([frame.proxy?.reach ?? 0]))
   const probes = emptyAtlas(device, 'reflection proof probes', PROBE_TEXELS)
   const inputs = {
     base: base.createView(),
@@ -117,8 +106,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     lights,
     bounceGrid,
     probes: probes.createView({ dimension: '2d-array' }),
-    proxy,
-    ...noRuntimeProxy(device, reflection),
+    ...rigProxy(device, reflection, frame.proxy?.faces),
     lightView: lightView.buffer,
   }
   return {
@@ -131,7 +119,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
           viewProjection: frame.viewProjection,
           size: frame.size,
           depthDrawn: true,
-          proxyError: resident?.errorMetres ?? 0,
+          proxyError: 0,
         },
         reflection.radiance.held,
         reflection.radiance.levels,
@@ -191,10 +179,8 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
       probes.destroy()
       hiz.dispose()
       lightView.dispose()
-      if (resident) resident.dispose()
-      else proxy.destroy()
       for (const made of partition) made.destroy()
-      for (const made of [base, flags, normals, hdr, lobes, surface]) made.destroy()
+      for (const made of [base, flags, normals, hdr, lobes]) made.destroy()
     },
   }
 }

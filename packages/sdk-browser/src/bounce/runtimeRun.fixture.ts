@@ -34,8 +34,11 @@ const FUNCTIONS = [
   'rtTreeWord',
   'rtTreeLow',
   'rtTreeHigh',
+  'rtBlocked',
+  'rtLit',
+  'rtProbeRay',
 ]
-const BINDINGS = { group: 0, proxy: 12, nodes: 13, cold: 14, worlds: 15, list: 8, store: 9 }
+const BINDINGS = { group: 0, proxy: 12, worlds: 13, list: 8, store: 9 }
 
 /** The store of the answers as the shader reads it: two layers of words a pixel, keyed by texel. */
 export function makeStore() {
@@ -55,10 +58,10 @@ export function runOver(
   epoch = 2,
   store: Store = makeStore(),
 ) {
-  const { packed, header, nodes, cold } = w
+  const { packed, header } = w
   const text =
     wgslModule(runtimeTraceWgsl(BINDINGS)) +
-    'fn testWork()->u32{return rtWork;}\nfn testTests()->u32{return rtTests;}\nfn testReset(){rtWork=0u;rtTests=0u;}\nfn testPixel(x:u32,y:u32,n:u32){rtPixel=vec2u(x,y);rtCalls=0u;rtRank=n;}\n'
+    'fn testWork()->u32{return rtWork+rtExtra;}\nfn testTests()->u32{return rtTests;}\nfn testReset(){rtWork=0u;rtTests=0u;}\nfn testPixel(x:u32,y:u32,n:u32){rtPixel=vec2u(x,y);rtCalls=0u;rtRank=n;}\n'
   return shaderRun<{
     rtScene: (o: Vec, d: Vec, limit: number) => Hit
     rtRadiance: (
@@ -76,11 +79,11 @@ export function runOver(
     testReset: () => void
   }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testReset', 'testPixel'], {
     rtProxy: header,
-    rtNodes: nodes,
-    rtCold: cold,
     rtWorlds: packed.worlds,
     rtWork: 0,
     rtTests: 0,
+    rtExtra: 0,
+    rtAnyHit: false,
     rtPixel: [0, 0],
     rtCalls: 0,
     rtRank: 0,
@@ -100,18 +103,11 @@ export function runOver(
     RtRadiance: (color: Vec, confidence: number) => ({ color, confidence }),
     RtCell: (premult: Vec, confidence: number, stamp: number) => ({ premult, confidence, stamp }),
     Box: (low: Vec, high: Vec) => ({ low, high }),
-    ProxyChild: (
-      box: unknown,
-      offset: number,
-      count: number,
-      present: boolean,
-      owned: boolean,
-    ) => ({
+    ProxyChild: (box: unknown, offset: number, count: number, present: boolean) => ({
       box,
       offset,
       count,
       present,
-      owned,
     }),
     RtWorld: (a: Vec, b: Vec, c: Vec, t: Vec) => ({ a, b, c, t }),
     RtInverse: (r0: Vec, r1: Vec, r2: Vec) => ({ r0, r1, r2 }),

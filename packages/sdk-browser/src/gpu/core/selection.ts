@@ -136,10 +136,15 @@ export type GpuSelection = {
   /** The row cache now holds `rows` rows: the open counts placements hold follow it
    *  (`../dag/queueGrowth.ts`), grown before the next cut. */
   followRows?(rows: number): void
-  /** The buffers the reflections' trace reads to meet the meshes the world cut at run time
-   *  (`../dag/proxyInstances.ts`): none until a placement wears a proxy. */
-  proxyBuffers():
-    { proxy: GPUBuffer; nodes: GPUBuffer; cold: GPUBuffer; worlds: GPUBuffer } | undefined
+  /** The two buffers a program reads the proxy through (`../dag/proxyInstances.ts`): none until a placement
+   *  wears one. */
+  proxyBuffers(): { proxy: GPUBuffer; worlds: GPUBuffer } | undefined
+  /** The placement tree copied into the proxy's buffer, before the first program of the image that walks it. */
+  proxyMirror(encoder: GPUCommandEncoder): void
+  /** The compiled meshes' proxies arrived: every placement wears what its primitive holds now. */
+  proxyArrived(): void
+  /** The world boxes of the placements that wear a proxy, and which are new or moved since the last call. */
+  proxyBoxes(): { boxes: Float64Array; changed: Uint8Array }
   /** The blended copies the forward family draws, members of the same proxy after the placements
    *  (`../dag/proxyInstances.ts`): their poses are read again at each cut. */
   proxyCopies(copies: readonly ProxyCopy[]): void

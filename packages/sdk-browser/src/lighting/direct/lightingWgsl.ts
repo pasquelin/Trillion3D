@@ -1,5 +1,4 @@
 import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
-import { RESIDENT_PROXY_BINDING, residentProxyWgsl } from '../../bounce/nodeWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { directLightWgsl } from './lightWgsl.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
@@ -16,7 +15,6 @@ import {
 } from './shadowWgsl.ts'
 import { shadowKindsOf } from './shadowKinds.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
-import { BOUNCE_TRACE_WGSL } from '../../bounce/traceWgsl.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
 import { FOG_WGSL } from '../fogShader.ts'
@@ -70,14 +68,12 @@ fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileL
   )
 /**
  * The **ranks** of the bindings a lighting program reads, which the layouts number differently:
- * the resident proxy, which the shadow rays trace (`bounce/traceWgsl.ts`), the translucent
- * casters' transmittance and the virtual shadow maps' (`CONTRACT_VSM_BINDINGS` unless given). The
+ * the translucent casters' transmittance and the virtual shadow maps' (`CONTRACT_VSM_BINDINGS` unless given). The
  * opaque resolve reads its mask and, at `resolveTransmission`, the translucent casters'
  * transmission; the blend and water passes, without it, read the transmission alone
  * (`directShadowWgsl`).
  */
 export type LightingBindings = {
-  proxy: number
   transmittance: number
   vsm?: VsmConsumerBindings
   resolveTransmission?: number
@@ -85,12 +81,10 @@ export type LightingBindings = {
 
 /** The bindings as a block name reads them, in their declared order, the defaults resolved. */
 const bindingsLabel = ({
-  proxy,
   transmittance,
   vsm = CONTRACT_VSM_BINDINGS,
   resolveTransmission,
-}: LightingBindings) =>
-  `${proxy}, ${transmittance}, ${vsmBindingsLabel(vsm)}, ${resolveTransmission ?? null}`
+}: LightingBindings) => `${transmittance}, ${vsmBindingsLabel(vsm)}, ${resolveTransmission ?? null}`
 
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
@@ -113,8 +107,6 @@ const lightingBase = (
       ...(key.lobeless ? [LOBELESS_LIGHTING_WGSL] : [LOBES_LIGHTING_WGSL]),
       INVERSE_PI,
       directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined),
-      residentProxyWgsl(bindings.proxy),
-      BOUNCE_TRACE_WGSL,
       directShadowWgsl(bindings.transmittance, {
         resolveTransmission: bindings.resolveTransmission ?? null,
         vsm: bindings.vsm ?? CONTRACT_VSM_BINDINGS,
@@ -151,7 +143,6 @@ fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emiss
 
 /** The opaque resolve's bindings (`lightingBase`). */
 const DIRECT_BINDINGS: LightingBindings = {
-  proxy: RESIDENT_PROXY_BINDING,
   transmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
   resolveTransmission: VSM_TRANSMISSION_RESOLVE_BINDING,
 }

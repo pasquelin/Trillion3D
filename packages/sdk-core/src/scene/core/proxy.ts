@@ -7,23 +7,19 @@ import {
   SCENE_PROXY_HEADER_WORDS,
   SCENE_PROXY_MAGIC,
   SCENE_PROXY_VERSION,
+  type RuntimeCutProxy,
   type SceneProxy,
-  type SceneProxyColumns,
   type SceneProxyDescriptor,
 } from '../../contracts/proxy.ts'
-import {
-  PROXY_TRANSFORM_FLOATS,
-  expandShapes,
-  placedTriangles,
-  type ProxyShapes,
-} from './proxyShapes.ts'
-import { decodeProxyOwnership } from './proxyOwnership.ts'
 import { EngineError } from '../../contracts/index.ts'
 import { invalidProxy as bad } from './proxyError.ts'
 
 /** The triangle count in bits 16–23 of a child's second word: a leaf's triangles, 0 for an inner
  *  child, whose link names a node. */
 export const proxyChildCount = (word: number) => (word >>> 16) & 255
+
+/** Words of a mesh's entry in the table: its triangles, its nodes, its grid step. */
+const TABLE_WORDS = 3
 
 /**
  * Rejects a proxy descriptor this engine could not read, before a single byte is
@@ -45,7 +41,7 @@ export function assertSceneProxy(value: unknown): asserts value is SceneProxyDes
       throw new EngineError('UNSUPPORTED_FORMAT', `The scene proxy descriptor misses ${key}`, {
         key,
       })
-  for (const key of ['bytes', 'triangles', 'nodes', 'groups', 'owners', 'instances'] as const)
+  for (const key of ['bytes', 'triangles', 'nodes', 'meshes'] as const)
     if (!Number.isSafeInteger(descriptor[key]) || descriptor[key]! < 0)
       throw new EngineError('UNSUPPORTED_FORMAT', `The scene proxy descriptor misses ${key}`, {
         key,
@@ -58,35 +54,39 @@ export function assertSceneProxy(value: unknown): asserts value is SceneProxyDes
 }
 
 /**
- * Each present child names either a node further in the array, or an interval of
+ * Each present child of a mesh names either a node further in its own array, or an interval of its own
  * triangles that exists. An absent child is not read: its presence bit is zero.
  */
-function checkChildren(descriptor: SceneProxyDescriptor, columns: SceneProxyColumns) {
-  const { nodeChildren } = columns
-  for (let node = 0; node < descriptor.nodes; node++)
+function checkChildren(mesh: number, children: Uint32Array, nodes: number, triangles: number) {
+  for (let node = 0; node < nodes; node++)
     for (let slot = 0; slot < PROXY_CHILDREN; slot++) {
       const base = node * PROXY_NODE_WORDS + slot * PROXY_CHILD_WORDS
-      const words = nodeChildren[base + 1],
-        offset = nodeChildren[base + 2]
+      const words = children[base + 1],
+        offset = children[base + 2]
       if (words >>> 24 === 0) continue
       const count = proxyChildCount(words)
       if (count === 0 && offset <= node)
-        throw bad('A scene proxy child does not point forward', { node, slot, offset })
-      if (count === 0 && offset >= descriptor.nodes)
-        throw bad('A scene proxy child names a node it does not have', { node, slot, offset })
-      if (count > 0 && offset + count > descriptor.triangles)
-        throw bad('A scene proxy leaf names triangles it does not have', { node, offset, count })
+        throw bad('A scene proxy child does not point forward', { mesh, node, slot, offset })
+      if (count === 0 && offset >= nodes)
+        throw bad('A scene proxy child names a node it does not have', { mesh, node, slot, offset })
+      if (count > 0 && offset + count > triangles)
+        throw bad('A scene proxy leaf names triangles it does not have', {
+          mesh,
+          node,
+          offset,
+          count,
+        })
     }
 }
 
 /**
  * The proxy reread and rechecked before a single ray touches it.
  *
- * Layout: eleven little-endian header words, followed by shared/loose geometry, tree columns
- * and versioned ownership, read in the order the compiler writes them (`SceneProxy::encode`,
- * `packages/asset-compiler-rust/src/proxy/encode.rs`).
- * Each section has a length the header imposes; a file of another size is rejected in
- * bulk, because a node that named a missing triangle would make the shader read anything.
+ * Layout: six little-endian header words, a table of three words a mesh, then every mesh's triangles, albedo,
+ * node bounds and node children, each column of all the meshes in table order, read in the order the compiler
+ * writes them (`SceneProxy::encode`, `packages/asset-compiler-rust/src/proxy/encode.rs`). Each section has a
+ * length the header imposes; a file of another size is rejected in bulk, because a node that named a missing
+ * triangle would make the shader read anything. The columns are views of the buffer.
  */
 export function decodeSceneProxy(
   descriptor: SceneProxyDescriptor,
@@ -106,58 +106,64 @@ export function decodeSceneProxy(
     throw bad('The scene proxy object has no WGPX signature', { magic: words[0] })
   if (
     words[1] !== SCENE_PROXY_VERSION ||
-    words[2] !== descriptor.triangles ||
-    words[3] !== descriptor.nodes ||
-    words[4] !== descriptor.groups ||
-    words[5] !== descriptor.owners ||
-    words[6] !== descriptor.instances ||
-    words[7] !== 0
+    words[2] !== descriptor.meshes ||
+    words[3] !== descriptor.triangles ||
+    words[4] !== descriptor.nodes ||
+    words[5] !== 0
   )
     throw bad('The scene proxy object disagrees with its manifest', {
       version: words[1],
-      triangles: words[2],
-      nodes: words[3],
+      meshes: words[2],
+      triangles: words[3],
+      nodes: words[4],
     })
-  const [, , triangles, nodes, , , , , shapeCount, shapeTriangles, placements] = words
-  const tables =
+  const [, , meshes, triangles, nodes] = words
+  const wanted =
     header +
-    (shapeCount +
-      shapeTriangles * (PROXY_TRIANGLE_FLOATS + 1) +
-      placements * (1 + PROXY_TRANSFORM_FLOATS)) *
+    (meshes * TABLE_WORDS +
+      triangles * (PROXY_TRIANGLE_FLOATS + 1) +
+      nodes * (PROXY_NODE_FLOATS + PROXY_NODE_WORDS)) *
       4
-  if (buffer.byteLength < tables) throw wrongLength(tables)
-  let at = header
+  if (buffer.byteLength !== wanted) throw wrongLength(wanted)
+  const table = new Uint32Array(buffer, header, meshes * TABLE_WORDS)
+  const cells = new Float32Array(buffer, header, meshes * TABLE_WORDS)
+  let at = header + meshes * TABLE_WORDS * 4
   const floats = (n: number) => ((at += n * 4), new Float32Array(buffer, at - n * 4, n))
   const integers = (n: number) => ((at += n * 4), new Uint32Array(buffer, at - n * 4, n))
-  const shapes: ProxyShapes = {
-    counts: integers(shapeCount),
-    triangles: floats(shapeTriangles * PROXY_TRIANGLE_FLOATS),
-    albedo: integers(shapeTriangles),
-    shapeOf: integers(placements),
-    maps: floats(placements * PROXY_TRANSFORM_FLOATS),
-  }
-  const placed = placedTriangles(shapes),
-    loose = triangles - placed
-  const wanted =
-    tables +
-    (placed +
-      loose * (PROXY_TRIANGLE_FLOATS + 1) +
-      nodes * (PROXY_NODE_FLOATS + PROXY_NODE_WORDS) +
-      triangles +
-      descriptor.groups +
-      1 +
-      descriptor.owners * 2) *
-      4 +
-    descriptor.instances * (4 + 4 + 16 * 8)
-  if (loose < 0 || buffer.byteLength !== wanted) throw wrongLength(wanted)
-  const positions = integers(placed)
-  const flat = { triangles: floats(loose * PROXY_TRIANGLE_FLOATS), albedo: integers(loose) }
-  const data: SceneProxyColumns = {
-    ...(placements === 0 ? flat : expandShapes(triangles, shapes, positions, flat)),
+  const columns = {
+    triangles: floats(triangles * PROXY_TRIANGLE_FLOATS),
+    albedo: integers(triangles),
     nodeBounds: floats(nodes * PROXY_NODE_FLOATS),
     nodeChildren: integers(nodes * PROXY_NODE_WORDS),
-    ...decodeProxyOwnership(descriptor, buffer, at),
   }
-  checkChildren(descriptor, data)
-  return { ...descriptor, data }
+  let triangleAt = 0,
+    nodeAt = 0
+  const list: RuntimeCutProxy[] = []
+  for (let mesh = 0; mesh < meshes; mesh++) {
+    const count = table[mesh * TABLE_WORDS],
+      nodeCount = table[mesh * TABLE_WORDS + 1]
+    const children = columns.nodeChildren.subarray(
+      nodeAt * PROXY_NODE_WORDS,
+      (nodeAt + nodeCount) * PROXY_NODE_WORDS,
+    )
+    checkChildren(mesh, children, nodeCount, count)
+    list.push({
+      triangles: columns.triangles.subarray(
+        triangleAt * PROXY_TRIANGLE_FLOATS,
+        (triangleAt + count) * PROXY_TRIANGLE_FLOATS,
+      ) as Float32Array<ArrayBuffer>,
+      albedo: columns.albedo.subarray(triangleAt, triangleAt + count) as Uint32Array<ArrayBuffer>,
+      nodeBounds: columns.nodeBounds.subarray(
+        nodeAt * PROXY_NODE_FLOATS,
+        (nodeAt + nodeCount) * PROXY_NODE_FLOATS,
+      ) as Float32Array<ArrayBuffer>,
+      nodeChildren: children as Uint32Array<ArrayBuffer>,
+      cellMetres: cells[mesh * TABLE_WORDS + 2],
+    })
+    triangleAt += count
+    nodeAt += nodeCount
+  }
+  if (triangleAt !== triangles || nodeAt !== nodes)
+    throw bad('The scene proxy table disagrees with its header', { triangleAt, nodeAt })
+  return { ...descriptor, data: { meshes: list } }
 }

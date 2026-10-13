@@ -4,17 +4,20 @@
 export const RUNTIME_NONE = 0xffffffff
 
 /**
- * THE RUN-TIME PROXY'S BUFFER: one storage binding holding, in this order, the header, an instance
- * per placement, a surface per drawn material, then the arena of the cuts' own proxies — the columns
- * of a `proxy.bin` (`page-codec-wasm/src/proxy.rs`), one cut's after another, in the cut's own space.
- * The placement tree and the worlds it places are the culling's (`gpu/dag`), read where they lie.
+ * THE PROXY'S BUFFER: one storage binding holding, in this order, the header, an instance per placement, a
+ * surface per drawn material, then the arena of the meshes' own proxies — the columns of a `proxy.bin`
+ * (`page-codec-wasm/src/proxy.rs`), one mesh's after another, in the mesh's own space —, the mirror of the
+ * placement tree's nodes and the mirror of its member order. The world matrices the instances are placed by
+ * are the culling's, read where they lie, in a binding of their own; the tree above the placements is the
+ * culling's too, copied here each frame (`mirror`), so that a program reads the whole proxy through two
+ * bindings.
  *
  * Header words: the placements the instances hold (the blended copies' follow them), then the word rank
- * of each region — the copies' worlds a region of their own —, the tree's
- * root node (`RUNTIME_NONE` for a packing without a tree: the placements are then its few members), the
- * rank of the tree's member order in the cold table, the live members, the words of a world row, the
- * rows the world table's first range holds and the greatest world error of a cut's proxy, in metres, as
- * an `f32`'s bits: the distance a ray leaves a surface off its normal.
+ * of each region — the copies' worlds a region of their own —, the tree's root node (`RUNTIME_NONE` for a
+ * packing without a tree: the placements are then its few members), the id of the first node the mirror holds,
+ * the words of its nodes and of its members, the live members, the words of a world row, the rows the world
+ * table's first range holds, the greatest world error of a proxy, in metres, as an `f32`'s bits: the distance a
+ * ray leaves a surface off its normal, and the blended copies.
  */
 export const RUNTIME_HEADER = {
   instances: 0,
@@ -25,13 +28,13 @@ export const RUNTIME_HEADER = {
   boundsWord: 5,
   childrenWord: 6,
   treeRoot: 7,
-  membersWord: 8,
-  members: 9,
-  worldStride: 10,
-  worldRows: 11,
-  error: 12,
-  nodeFirst: 13,
-  coldFirst: 14,
+  treeFirst: 8,
+  treeWord: 9,
+  membersWord: 10,
+  members: 11,
+  worldStride: 12,
+  worldRows: 13,
+  error: 14,
   copies: 15,
 } as const
 export const RUNTIME_HEADER_WORDS = 16

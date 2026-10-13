@@ -32,14 +32,13 @@ import {
   REFLECTION_DEPTH_BINDING,
   REFLECTION_GROUP,
   REFLECTION_LIGHT_VIEW_BINDING,
-  REFLECTION_SURFACE_BINDING,
   REFLECTION_VIEW_BYTES,
 } from './viewLayout.ts'
 import { REFLECTION_TARGET } from './weight.ts'
 
 /** The reflection group's layout (`reflectionBindingsWgsl`), once a device: the view uniform, the
  *  radiance pyramid and its sampler, then the depth pyramid (`hizDepthEntries`), the lighting's
- *  view and the proxy's surface cache, read by compute and fragment stages. */
+ *  view, read by compute and fragment stages. */
 export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
   const visibility = COMPUTE | GPUShaderStage.FRAGMENT
   return device.createBindGroupLayout({
@@ -53,7 +52,6 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
       { binding: 2, visibility, sampler: { type: 'filtering' } },
       ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
       computeBufferEntry(REFLECTION_LIGHT_VIEW_BINDING, 'uniform', visibility),
-      computeTextureEntry(REFLECTION_SURFACE_BINDING, 'unfilterable-float', '2d', visibility),
     ],
   })
 })
@@ -193,9 +191,8 @@ export function createScreenReflection(
 export type ScreenReflection = ReturnType<typeof createScreenReflection>
 
 /** What the reflection group holds beside the view's own buffers, the radiance pyramid and the
- *  depth: the deferred lighting's view, and the surface cache of the resident proxy (a texel of
- *  zero without a proxy). */
-export type ReflectionOver = { lightView: GPUBuffer; surface: GPUTextureView }
+ *  depth: the deferred lighting's view. */
+export type ReflectionOver = { lightView: GPUBuffer }
 
 /** The reflection group of `reflection` over the depth pyramid `depth` (`GpuHiz.depth`) and
  *  `over`, made once a pyramid and while they stay. */
@@ -205,7 +202,7 @@ export function reflectionGroup(
   over: ReflectionOver,
 ) {
   const kept = reflection.groups.get(depth.pyramid)
-  if (kept && kept.over[0] === over.lightView && kept.over[1] === over.surface) return kept.group
+  if (kept && kept.over[0] === over.lightView) return kept.group
   const { device } = reflection
   const group = device.createBindGroup({
     label: 'Trillion3D reflection',
@@ -216,10 +213,9 @@ export function reflectionGroup(
       { binding: 2, resource: reflection.radiance.sampler },
       ...hizDepthBindEntries(REFLECTION_DEPTH_BINDING, depth),
       { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: over.lightView } },
-      { binding: REFLECTION_SURFACE_BINDING, resource: over.surface },
     ],
   })
-  reflection.groups.set(depth.pyramid, { group, over: [over.lightView, over.surface] })
+  reflection.groups.set(depth.pyramid, { group, over: [over.lightView] })
   return group
 }
 
@@ -227,21 +223,16 @@ export function reflectionGroup(
 export type ReflectionHost = {
   gpu: {
     reflection?: ScreenReflection
-    deferred?: { uniform: GPUBuffer; placeholders: { reflection: GPUTextureView } }
+    deferred?: { uniform: GPUBuffer }
   }
   vis: { gpuHiz?: GpuHiz }
-  bounce: { probes?: { surface: { view: GPUTextureView } } }
 }
 
-/** The reflection group's other resources: the lighting's view, the proxy's surface cache else a
- *  zero texel. Undefined while the lighting is not made. */
-export function reflectionOver({ gpu, bounce }: ReflectionHost): ReflectionOver | undefined {
+/** The reflection group's other resource: the lighting's view. Undefined while the lighting is not made. */
+export function reflectionOver({ gpu }: ReflectionHost): ReflectionOver | undefined {
   const { deferred } = gpu
   if (!deferred) return undefined
-  return {
-    lightView: deferred.uniform,
-    surface: bounce.probes?.surface.view ?? deferred.placeholders.reflection,
-  }
+  return { lightView: deferred.uniform }
 }
 
 /** Binds, in the forward `pass`, the reflection group (`REFLECTION_GROUP`): the view's reflection

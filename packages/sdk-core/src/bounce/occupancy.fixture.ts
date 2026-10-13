@@ -2,21 +2,16 @@ import assert from 'node:assert/strict'
 import { createBounceCascades, type BounceCascades } from './cascades.ts'
 import { createBounceOccupancy, type BounceOccupancy } from './occupancy.ts'
 import { BOUNCE_SETTINGS } from './contracts.ts'
-import type { SceneProxy } from '../contracts/proxy.ts'
-import { ownedProxy } from '../scene/core/proxy.fixture.ts'
 
 export type Box = readonly number[]
 
-/** A proxy of `boxes` (low and high corners, one triangle spanning each) over `bounds`. */
+/** The occupancy of `boxes` (low and high corners, one placement spanning each) over `bounds`. */
 export function scene(bounds: number[], boxes: Box[]) {
-  const proxy = ownedProxy()
-  proxy.bounds = bounds as SceneProxy['bounds']
-  // A triangle from the box's low corner to its high corner, and back, covers the box.
-  proxy.data.triangles = new Float32Array(
-    boxes.flatMap((box) => [...box.slice(0, 3), ...box.slice(3), ...box.slice(0, 3)]),
-  )
   const cascades = createBounceCascades(bounds)
-  return { proxy, cascades, occupancy: createBounceOccupancy(proxy, cascades) }
+  return {
+    cascades,
+    occupancy: createBounceOccupancy(bounds, boxes.flat(), cascades),
+  }
 }
 
 export const point = (at: number[]): Box => [...at, ...at]

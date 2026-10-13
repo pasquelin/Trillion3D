@@ -7,7 +7,7 @@ import { reflectionRayWgsl } from './ray.ts'
 import { reflectionProxyWgsl } from './proxy.ts'
 import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
-import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
+import type { ProxyBindings } from './proxy.ts'
 
 /**
  * THE REFLECTION: ONE SYSTEM FOR EVERY SURFACE. What a surface reflects along its mirror direction
@@ -102,9 +102,9 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  * α along it (`w`; the roughness's α on a round lobe, `lobeAlpha`): the material's anisotropic GGX
  * parameters (`reflectionLobeOf`).
  */
-export const reflectedRadianceWgsl = (group: number, runtime?: RuntimeBindings) =>
+export const reflectedRadianceWgsl = (group: number, runtime: ProxyBindings) =>
   wgslBlock(
-    `reflectedRadianceWgsl(${group}, ${runtime ? 'runtime' : 'cooked'})`,
+    `reflectedRadianceWgsl(${group}, ${runtime.proxy}, ${runtime.worlds}, ${'store' in runtime})`,
     [
       reflectionSeenWgsl(group),
       reflectionProxyWgsl(group, runtime),

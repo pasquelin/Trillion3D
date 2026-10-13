@@ -57,7 +57,7 @@ function blendCopiesOf(
   for (const { world, placement } of placed) {
     const copy = createBlendCopyRecord(mesh, order, world, surface, placement)
     copy.deformation = primitive.deformation
-    if (primitive.runtimeProxy) copy.proxy = { cut: primitive.runtimeProxy, surface }
+    copy.proxy = { primitive, surface }
     copies.push(copy)
   }
 }
@@ -95,8 +95,8 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
       boxes: true,
       parked,
       placement,
-      // What a ray meets of it past the visible cut, a run-time cut's own proxy (`proxy`).
-      ...(primitive.runtimeProxy ? { proxy: { cut: primitive.runtimeProxy, surface } } : {}),
+      // What a ray meets of it past the visible cut: its primitive's proxy, once it has one (`proxy`).
+      proxy: { primitive, surface },
       // How far its GPU deformation can move a vertex, measured by the compiler (#357).
       ...(primitive.deformation ? { deformation: primitive.deformation } : {}),
       // A row says whether its placement casts; a node placed at its own world, its mesh.

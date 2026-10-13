@@ -1,5 +1,4 @@
 import { BOUNCE_SETTINGS, type SceneProxy } from '../../../../../sdk-core/src/index.ts'
-import { syncPageProxy } from './proxyMotion.ts'
 import { bounceProbeBytes } from '../../../bounce/limits.ts'
 import { createGpuBounceProbes } from '../../../bounce/probes.ts'
 import { grantCapability } from '../io/drops.ts'
@@ -12,13 +11,12 @@ const BOUNCE_APPROXIMATIONS = [
   'the cascades interpolate irradiance between eight probes, so a detail smaller than a cell is lost',
   'order-2 spherical harmonics carry the irradiance, so a sharp directional change is smoothed',
   'probe visibility uses six mean distances per probe, not a full distance map',
-  'the resident proxy carries a certified geometric error, so a bounce leaves the coarse surface',
+  'the proxy carries a certified geometric error, so a bounce leaves the coarse surface',
   'the proxy carries diffuse albedo only: emission, transparency and specular are not bounced',
   'a probe update reads the cascades as they stand, so one update may see a neighbour already updated',
   'a probe ray that exhausts the published traversal bound reports no hit, which darkens',
   'a shadow ray that exhausts that bound reports no blocker, which lights a cell that should be dark',
-  'the surface cache holds one radiance per proxy triangle and face, so lighting is constant over a cell',
-  'static surface cells refresh on a budget; after geometry motion owner hits evaluate lighting directly',
+  'a probe ray lights the surface it lands on at the point it lands, every light and its shadow, so the cost of a ray grows with the lights',
   'a probe buried in a surface or lost in open sky goes to sleep and is skipped until a light changes',
   'the millisecond budget follows a timestamp read several frames late, and only every third or twelfth frame',
   'a point no cascade level reaches gets exactly zero bounce, never a guess',
@@ -64,19 +62,27 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
     return
   }
   bounce.pending = context.readSceneProxy!()
-    .then((proxy: SceneProxy) =>
-      createGpuBounceProbes(device, proxy, () => lights.buffer!, bounce.budgetMs),
-    )
+    .then((proxy: SceneProxy) => {
+      if (rt.gpu.device !== device) throw new Error('GPU_DEVICE_CHANGED')
+      // The compiled meshes' proxies reach the placements through their primitives, and every placement wears
+      // what its primitive holds now (`gpu/dag/proxyInstances.ts`).
+      wearProxies(rt, proxy)
+      bounce.proxy = proxy
+      return createGpuBounceProbes(
+        device,
+        proxy.bounds,
+        {
+          buffers: () => rt.run.gpuSelection?.proxyBuffers(),
+          boxes: () => rt.run.gpuSelection?.proxyBoxes() ?? EMPTY_BOXES,
+        },
+        () => lights.buffer!,
+        bounce.budgetMs,
+      )
+    })
     .then((probes) => {
       if (rt.gpu.device !== device) {
         probes.dispose()
         return
-      }
-      try {
-        syncPageProxy(rt, probes, true)
-      } catch (error) {
-        probes.dispose()
-        throw error
       }
       bounce.probes = probes
       grantCapability(rt.capabilities, BOUNCE_CAPABILITY)
@@ -98,14 +104,11 @@ function publish(rt: WebgpuPagesRuntime) {
   diag.engineDiagnostic('bounce-lighting', 'Bouncing light rigged', {
     version: 1,
     settings: { ...BOUNCE_SETTINGS },
-    proxyTriangles: probes?.proxy.triangleCount ?? null,
-    proxyNodes: probes?.proxy.nodeCount ?? null,
-    proxyBytes: probes?.proxy.bytes ?? null,
-    proxyErrorMetres: probes?.proxy.errorMetres ?? null,
-    proxyCellMetres: probes?.proxy.cellMetres ?? null,
-    surfaceTexels: probes?.surface.texels ?? null,
-    surfaceBytes: probes?.surface.bytes ?? null,
-    surfaceSweepFrames: probes?.surface.sweepFrames ?? null,
+    proxyMeshes: bounce.proxy?.meshes ?? null,
+    proxyTriangles: bounce.proxy?.triangles ?? null,
+    proxyNodes: bounce.proxy?.nodes ?? null,
+    proxyErrorMetres: bounce.proxy?.errorMetres ?? null,
+    proxyCellMetres: bounce.proxy?.cellMetres ?? null,
     cascadeLevels: probes?.cascades.levels.length ?? null,
     cascadeSize: probes?.cascades.size ?? null,
     cascadeSpacings: probes?.cascades.levels.map((level) => level.spacing) ?? null,
@@ -126,3 +129,33 @@ function publish(rt: WebgpuPagesRuntime) {
     approximations: BOUNCE_APPROXIMATIONS,
   })
 }
+
+/** No placement wears a proxy yet: no box. */
+const EMPTY_BOXES = { boxes: new Float64Array(0), changed: new Uint8Array(0) }
+
+/** The meshes' proxies of a compiled scene set on the primitives that wear them, one a compiled primitive in
+ *  the manifest's order, and the placements told: the scene's proxy is one structure, whether the compiler
+ *  or the world built the mesh's proxy. */
+function wearProxies(rt: WebgpuPagesRuntime, proxy: SceneProxy) {
+  const { primitives } = rt.context.metadata
+  if (primitives.length !== proxy.data.meshes.length)
+    throw new Error('the proxy names another count of primitives than the manifest does')
+  primitives.forEach((primitive, at) => {
+    const mesh = proxy.data.meshes[at]
+    if (mesh.triangles.length) primitive.runtimeProxy = mesh
+  })
+  rt.run.gpuSelection?.proxyArrived()
+}
+
+/** Probes follow the placements: the first image after one moved or arrived replans the cascades over their
+ *  extent, marks their cells and restarts the series (`bounce/probeSync.ts`). One look at the scene's
+ *  revision when nothing was written. */
+export function syncLightingProxies(rt: WebgpuPagesRuntime) {
+  const { probes } = rt.bounce
+  if (!probes) return
+  const epoch = rt.run.gate.revisions.scene
+  if (seen.get(rt.bounce) === epoch) return
+  seen.set(rt.bounce, epoch)
+  probes.sync()
+}
+const seen = new WeakMap<object, number>()

@@ -20,7 +20,7 @@ const b = WATER_BINDINGS
  *  identity (`nameWaterResources`) are all made of it. The water word — a colour, in the surface
  *  flags' place —, the water depth, the lights and their shadows — the virtual shadow maps on the
  *  contract's numbers (`CONTRACT_VSM_BINDINGS`), the translucent depth made and dropped with the
- *  transmittance —, the probes and the proxy, the frozen backdrop and its depth, the blend view
+ *  transmittance —, the probes and the proxy with the worlds it is placed by, the frozen backdrop and its depth, the blend view
  *  and the volumes. */
 const HELD: readonly Held[] = [
   [b.word, ({ gpu }) => gpu.colorView, { texture: { sampleType: 'unfilterable-float' } }],
@@ -35,7 +35,8 @@ const HELD: readonly Held[] = [
   [b.shadowTranslucentDepth, ({ lighting }) => lighting.shadowTranslucentDepth],
   [b.bounceGrid, ({ lighting }) => lighting.bounceGrid],
   [b.probes, ({ lighting }) => lighting.probes],
-  [b.proxy, ({ lighting }) => lighting.proxy],
+  [b.proxy, ({ lighting }) => lighting.proxy, { buffer: readOnly }],
+  [b.worlds, ({ lighting }) => lighting.worlds, { buffer: readOnly }],
   [
     b.backdrop,
     ({ gpu }) => gpu.backdrop!.colorView,

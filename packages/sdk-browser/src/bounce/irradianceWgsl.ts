@@ -1,16 +1,15 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
-/** The same centroid lighting for resident cache cells and displaced owner hits. */
+/** The lighting of the declared lights at a point, which a probe's or a reflection's ray lands on. */
 export const SURFACE_IRRADIANCE_WGSL = wgslBlock(
   'SURFACE_IRRADIANCE_WGSL',
   [],
   `
 /**
- * Irradiance of the declared lights at a texel point. Shadows are traced against the proxy,
+ * Irradiance of the declared lights at a point a ray landed on. Shadows are traced against the proxy,
  * which keeps a closed door closed for bounce as for the direct term. Every shadow-casting light
  * that adds light at the point is tested: one left untested would shine through the wall.
- * In the surface cache and probe passes the bounce budget holds the cost by updating fewer cells,
- * a probe ray landing on an owned leaf (\`rayRadiance\`) included.
+ * The bounce budget holds the cost of the probe pass by updating fewer probes.
  */
 fn directIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
  var total=vec3f(0.0);
@@ -28,7 +27,7 @@ fn directIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
   if(all(lit==vec3f(0.0))){continue;}
   if(light.params.z>0.5){
    let span=select(length(light.positionRange.xyz-P),reach,isSun(light));
-   if(proxyBlocked(offset,incidence.xyz,span)){continue;}
+   if(rtBlocked(offset,incidence.xyz,span)){continue;}
   }
   total+=lit;
  }
