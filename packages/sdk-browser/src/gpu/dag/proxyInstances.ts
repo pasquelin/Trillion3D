@@ -486,6 +486,13 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     }
   }
 
+  /** Instance word `at` set to `word`: whether it moved. */
+  function setWord(at: number, word: number) {
+    if (words[at] === word) return false
+    words[at] = word
+    return true
+  }
+
   /** The copies' instances and poses, as the host holds them now: written where one moved, was shown or
    *  hidden, or wears another cut. */
   function syncCopies() {
@@ -496,15 +503,11 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       const cut = proxy?.primitive.runtimeProxy
       const placed = cut && place(cut)
       const shown = !!placed && !copy.hidden && !rowParked(copy.placement)
-      const set = (field: number, word: number) => {
-        if (words[at + field] === word) return
-        words[at + field] = word
-        moved = true
-      }
-      set(INSTANCE.node, shown ? placed.node : RUNTIME_NONE)
-      set(INSTANCE.triangle, shown ? placed.triangle : 0)
-      set(INSTANCE.surface, shown ? surfaceSlot(proxy.surface, tintOf(cut)) : 0)
-      set(INSTANCE.mark, 0)
+      moved = setWord(at + INSTANCE.node, shown ? placed.node : RUNTIME_NONE) || moved
+      moved = setWord(at + INSTANCE.triangle, shown ? placed.triangle : 0) || moved
+      moved =
+        setWord(at + INSTANCE.surface, shown ? surfaceSlot(proxy.surface, tintOf(cut)) : 0) || moved
+      moved = setWord(at + INSTANCE.mark, 0) || moved
       if (!shown) return
       const world = copy.matrix.elements
       if (!sameMatrixFloat32(copyWorlds, world, k * WORLD_WORDS)) {
