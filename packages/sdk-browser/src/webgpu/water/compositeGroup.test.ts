@@ -1,8 +1,9 @@
 // The water composite's layout is made of the bindings it holds (`compositeGroup.ts`): the opaque
 // resolve's deferred bounce layout with the pool where the composite reads a binding as the resolve
-// does, its own where it does not — the water word, a colour in the flags' place, the backdrop and
-// its depth, the blend view, the volumes, and for the vertex stage the verdict its quad reads —, then
-// the lobes target. The very entries the layout was written as by hand.
+// does, its own where it does not — the water word, a colour in the flags' place, the proxy's record
+// tables, the backdrop and its depth, the blend view, the volumes, and for the vertex stage the
+// verdict its quad reads —, then the lobes target. The very entries the layout was written as by
+// hand.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
@@ -28,6 +29,12 @@ test('the water composite layout is the one its bindings name, laid out as the r
     { binding: b.backdrop, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
     { binding: b.backdropDepth, visibility: fragment, texture: { sampleType: 'depth' } },
     { binding: b.proxy, visibility: fragment, buffer: readOnly },
+    // The proxy's record tables: its instances, the culling's worlds and the placement tree.
+    ...[b.proxyWorlds, b.proxyInstances, b.proxyTree].map((binding) => ({
+      binding,
+      visibility: fragment,
+      texture: { sampleType: 'uint', viewDimension: '2d-array' },
+    })),
     { binding: b.uniform, visibility: fragment, buffer: { type: 'uniform' } },
     { binding: b.volumes, visibility: fragment, buffer: readOnly },
     { binding: b.rect, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
