@@ -115,9 +115,8 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
     maxResidentPages: 6,
     viewport: [32, 32],
   })
-  // Triangles the image actually drew: the encode plan no longer moves from one image to the
-  // next, it is the instance count the cut writes that falls to zero. A double-sided item draws
-  // its triangles twice, once per face pass.
+  // Triangles the image drew: the instance count the cut writes falls to zero, the encode plan
+  // never moves. A double-sided item draws its triangles twice, once per face pass.
   const dessines = () =>
     draws
       .splice(0, draws.length)

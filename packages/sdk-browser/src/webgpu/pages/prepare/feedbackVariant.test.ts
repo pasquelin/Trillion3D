@@ -102,7 +102,7 @@ test('a texture that comes after open brings the target in place, the other targ
   const { gpu, fixture, backend } = await opened(false)
   const hdr = () => gpu.textures.filter(({ label }) => label === 'Trillion3D HDR lighting')
   try {
-    const [before] = hdr()
+    const before = hdr()
     const map = importHostTexture(G.dataTexture(new Uint8Array(64), 4, 4) as unknown as HostTexture)
     await backend.appendTexture(map, 'color')
     // The image asks the variant that writes the feedback; the one in place draws meanwhile.
@@ -118,8 +118,8 @@ test('a texture that comes after open brings the target in place, the other targ
       [[32, 32, false]],
     )
     assert.equal(seen.lastPass?.at(4), 'r32uint')
-    assert.deepEqual(hdr(), [before], 'no target remade: the frame set stays in place')
-    assert.equal(gpu.destroyed.includes(before), false)
+    assert.deepEqual(hdr(), before, 'no target remade: the frame set stays in place')
+    assert.equal(before.some((target) => gpu.destroyed.includes(target)), false)
     assert.ok(seen.shade.some((pipeline) => pipeline.entry === 'shade_fs' && pipeline.r32))
   } finally {
     disposeQuadRun(backend, fixture)

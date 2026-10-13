@@ -70,7 +70,8 @@ async function session(refusals = 0) {
 test('a scale change with targets in place is made aside: never held, old ones freed at the swap', async () => {
   const s = await session()
   try {
-    const old = s.live(HDR)[0],
+    const [old] = s.live(HDR),
+      oldSet = s.live(HDR),
       history = s.live(HISTORY),
       temporal = s.rt.gpu.temporal
     assert.equal(old.width, DISPLAY[0])
@@ -87,8 +88,13 @@ test('a scale change with targets in place is made aside: never held, old ones f
     assert.deepEqual(asked, [false, false, false, false], 'no frame waits for the grant')
     assert.equal(drawnIn[0], DISPLAY[0], 'the frames draw in the targets in place meanwhile')
     assert.deepEqual(s.rt.gpu.allocatedSize, [ASKED, renderExtent(DISPLAY[1], 0.75)])
-    assert.equal(s.gpu.destroyed.includes(old), true, 'freed once swapped out')
-    assert.deepEqual(s.live(HDR), [s.rt.gpu.hdrTexture], 'one set left')
+    assert.ok(
+      oldSet.every((target) => s.gpu.destroyed.includes(target)),
+      'freed once swapped out',
+    )
+    // The two lit images that take turns: the frame's, and the reflection pyramid's.
+    assert.equal(s.live(HDR).length, 2, 'one set left')
+    assert.ok(s.live(HDR).includes(s.rt.gpu.hdrTexture!))
     assert.equal(s.rt.gpu.temporal, temporal)
     assert.deepEqual(s.live(HISTORY), history, 'the same history, at the same display size')
   } finally {
@@ -105,7 +111,7 @@ test('targets refused aside fall back to the held grant, then drawn at the size 
     assert.equal(asked[0], false, 'asked aside first')
     assert.ok(asked.includes(true), `refused there, the frame is held for the grant: ${asked}`)
     assert.equal(s.rt.gpu.allocatedSize[0], ASKED)
-    assert.equal(s.live(HDR).length, 1)
+    assert.equal(s.live(HDR).length, 2, 'the two lit images of one set')
   } finally {
     s.dispose()
   }
