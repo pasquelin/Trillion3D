@@ -27,7 +27,11 @@ test('the blend fragment stage writes nothing to memory', () => {
   // No writable storage binding, wherever it is declared: the driver reads the declaration,
   // not the use, to decide early rejection.
   assert.doesNotMatch(BLEND_SHADER, /var<storage,\s*read_write>/)
-  assert.match(BLEND_SHADER, /var<storage,read> proxy:/, 'the proxy stays read, the ray is traced')
+  assert.match(
+    BLEND_SHADER,
+    /var<storage,read> rtProxy:/,
+    'the proxy stays read, the ray is traced',
+  )
 })
 
 test('the blend layout declares no writable storage buffer', async () => {

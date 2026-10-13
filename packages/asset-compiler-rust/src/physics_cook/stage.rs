@@ -73,7 +73,7 @@ pub(crate) fn stage_physics(
     let (colliders, slot, refused) = gathered(primitives, collisions);
     let (soft_bodies, soft_refused, soft) = soft_bodies(o, (g, bin), shown, &world)?;
     let (bodies, bodies_refused) = declared_bodies(o, (g, bin), (shown, &soft), &world)?;
-    let by_mesh = crate::proxy::primitives_by_mesh(primitives);
+    let by_mesh = crate::proxy::placement::primitives_by_mesh(primitives);
     let (mut instances, mut unplaced) = (Vec::new(), 0usize);
     // Every drawn node but a soft body is static ground, as drawn: a node the source declares
     // moving is placed too, beside its `bodies` entry, until the page restores that body.

@@ -27,6 +27,7 @@ test('the water composite layout is the one its bindings name, laid out as the r
     ),
     { binding: b.backdrop, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
     { binding: b.backdropDepth, visibility: fragment, texture: { sampleType: 'depth' } },
+    { binding: b.proxy, visibility: fragment, buffer: readOnly },
     { binding: b.uniform, visibility: fragment, buffer: { type: 'uniform' } },
     { binding: b.volumes, visibility: fragment, buffer: readOnly },
     PHYSICAL_LOBES_TARGET.layoutEntry(),

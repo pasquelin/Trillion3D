@@ -41,7 +41,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     } = select_nodes(o, &loaded.g, &scene_nodes)?;
     let shown: BTreeSet<usize> = chosen.difference(&hidden).copied().collect();
     // What the cuts of the proxy share its budget over: the meshes, each once, not their instances.
-    let unique_triangles = compiler_nodes::unique_triangles(&loaded.g, &chosen)?;
+    let unique_triangles = compiler_select::unique_triangles(&loaded.g, &chosen)?;
     // Decided cutouts go to masked before any material is read (`cutout.rs`).
     let cutouts = cutout::apply_decisions(&mut loaded.g, bin, &image_root, &meshes, &decisions)?;
     let g = &loaded.g;
@@ -73,7 +73,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let cluster_start = Instant::now();
     // Compact per-page index storage is bounded independently from source size. Metadata is retained.
     // Each mesh's world scale, read before the loop: the proxy threshold is in metres.
-    let mesh_scales = proxy::mesh_scales(g, &chosen)?;
+    let mesh_scales = proxy::placement::mesh_scales(g, &chosen)?;
     let primitive_inputs = PrimitiveInputs {
         o,
         g,
