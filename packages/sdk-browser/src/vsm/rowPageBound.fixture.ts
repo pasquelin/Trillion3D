@@ -5,7 +5,7 @@
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { CLUSTER_SPHERE_FLOATS as STRIDE } from '../gpu/shadow/sphereContract.ts'
+import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { vector } from '../texture/shaderRunBuiltins.fixture.ts'
@@ -39,7 +39,7 @@ export function sphereRows(
   at: (i: number) => number[],
   radius: (i: number) => number,
 ): VsmRowSpheres {
-  const packed = new Float32Array(n * STRIDE)
+  const packed = new Float32Array(n * CLUSTER_SPHERE_FLOATS)
   for (let i = 0; i < n; i++) writeRow(packed, i, at(i), radius(i))
   return { packed, written: { epoch: 0, runs: [] } }
 }
@@ -60,10 +60,11 @@ export function scene(
   )
 }
 export function writeRow(packed: Float32Array, i: number, c: number[], r: number) {
-  for (let a = 0; a < 3; a++) writeSplitDouble(packed, i * STRIDE + a, i * STRIDE + 4 + a, c[a])
+  const at = i * CLUSTER_SPHERE_FLOATS
+  for (let a = 0; a < 3; a++) writeSplitDouble(packed, at + a, at + 4 + a, c[a])
   // The radius stored as the engine stores it (`webgpu/shadow/spheres.ts`): its single, a bound by
   // construction there.
-  packed[i * STRIDE + 3] = r
+  packed[at + 3] = r
 }
 
 /** A sun's clipmap around `eye`, as the frame's light (`VsmBoundLight`). */
@@ -139,7 +140,7 @@ const pagesRect = ([x0, y0, x1, y1]: number[]) =>
 /** Per row, the pairs (pages of every level's rect, at most `pages`) and the commands (levels
  *  whose rect is not empty) the shipped cull gives it — every page valid, nothing cached. */
 export function bruteForce(rows: VsmRowSpheres, light: VsmBoundLight, pages: number) {
-  const n = rows.packed.length / STRIDE,
+  const n = rows.packed.length / CLUSTER_SPHERE_FLOATS,
     p = rows.packed
   const pairs = new Float64Array(n),
     cmds = new Float64Array(n)
@@ -147,7 +148,7 @@ export function bruteForce(rows: VsmRowSpheres, light: VsmBoundLight, pages: num
     const pd = entry.projectionData
     const m = clipOf(pd.shiftedToMapUv)
     for (let i = 0; i < n; i++) {
-      const b = i * STRIDE,
+      const b = i * CLUSTER_SPHERE_FLOATS,
         r = p[b + 3]
       const c = [0, 1, 2].map((a) => p[b + a] + p[b + 4 + a] + pd.originShift[a])
       const box = cull.vsmShiftedBoxOrtho(c, [r, r, r], m, false)
@@ -165,7 +166,7 @@ export function bruteForce(rows: VsmRowSpheres, light: VsmBoundLight, pages: num
 /** The same under a local light's maps (`localAt`): range, the perspective box, then a command
  *  and the rect's pages per mip whose rect is not empty. Pairs not capped. */
 export function bruteForceLocal(rows: VsmRowSpheres, light: VsmBoundLight) {
-  const n = rows.packed.length / STRIDE,
+  const n = rows.packed.length / CLUSTER_SPHERE_FLOATS,
     p = rows.packed
   const pairs = new Float64Array(n),
     cmds = new Float64Array(n)
@@ -174,7 +175,7 @@ export function bruteForceLocal(rows: VsmRowSpheres, light: VsmBoundLight) {
     const m = clipOf(pd.shiftedToMapUv),
       viewToClip = new Mat([...pd.lightViewToClip])
     for (let i = 0; i < n; i++) {
-      const b = i * STRIDE,
+      const b = i * CLUSTER_SPHERE_FLOATS,
         r = p[b + 3]
       const c = [0, 1, 2].map((a) => p[b + a] + p[b + 4 + a] + pd.originShift[a])
       if (Math.hypot(c[0], c[1], c[2]) > pd.lightRange + r) continue
