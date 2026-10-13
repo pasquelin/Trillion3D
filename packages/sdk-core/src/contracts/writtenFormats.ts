@@ -31,9 +31,10 @@
  * the head's the texture previews alone.
  * Version 11 widens a preview entry to fifteen words and adds a block column after ASTC's: the
  * ETC2 family, the third a device may sample; a version-10 reader would stride wrongly.
- * Version 12 keeps every column and builds the culling tree a page order follows by the one
- * builder of `page-codec-wasm/src/culling.rs`, each split on the axis of least surface: the nodes
- * and the pages' order differ from a version-11 cook's for the same source.
+ * Version 12 keeps every column; the clusters are cut by the one clusterer of
+ * `page-codec-wasm/src/clusters.rs` (the spatial rule) and the culling tree a page order follows
+ * is built by the one builder of `page-codec-wasm/src/culling.rs`, each split on the axis of least
+ * cost: the DAG, its nodes and its pages differ from a version-11 cook's for the same source.
  */
 export const MANIFEST_BINARY_VERSION = 12
 

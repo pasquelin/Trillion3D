@@ -5,15 +5,12 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
 import { encodeVirtualShadowProjection, type VsmProjectionLight } from './projectionPass.ts'
 import { fakeHizDepth } from './hizDepth.fixture.ts'
+import { camera } from './projectionScene.fixture.ts'
 
 type Frame = Parameters<typeof encodeVirtualShadowProjection>[2]
 
 /** The camera the proofs look through: at the origin, a perspective of near 0.1. */
-const PROOF_CAMERA: Frame['camera'] = {
-  view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-  projection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0],
-  perspective: true,
-}
+const PROOF_CAMERA: Frame['camera'] = camera
 
 /** The kit's device and its shadow resources; `project` encodes the projection of `lights` on its
  *  one encoder, the frame `PROOF_CAMERA`'s, frame 1, 64 × 32, unless `frame` says otherwise; the
