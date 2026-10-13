@@ -52,7 +52,14 @@ const TREE_DEPTH = 8
 export const runtimeSceneWgsl = ({ group, proxy }: SceneBindings) =>
   wgslBlock(
     `runtimeSceneWgsl(${group}, ${proxy})`,
-    [WIDE_TRAVERSAL_WGSL, toF32, invTranspose3Prep, worldMatrix3, transformHalfExtent],
+    [
+      RUNTIME_PROXY_WGSL,
+      WIDE_TRAVERSAL_WGSL,
+      toF32,
+      invTranspose3Prep,
+      worldMatrix3,
+      transformHalfExtent,
+    ],
     `
 ${wgslConsts({
   RT_NONE: RUNTIME_NONE,
@@ -77,7 +84,6 @@ ${wgslConsts({
   RT_ORIGIN_WORDS: RUNTIME_ORIGIN_WORDS,
   RT_TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
 })}
-${RUNTIME_PROXY_WGSL}
 @group(${group}) @binding(${proxy}) var<storage,read> rtProxy:RuntimeProxy;
 /** The ray's spending: box tests and node visits in \`rtWork\`, triangle tests in \`rtTests\`. */
 var<private> rtWork:u32;

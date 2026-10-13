@@ -30,6 +30,7 @@ function bytesAt(count: number) {
   const rt = {
     services: { hostTableBytes: () => 0 },
     bounce: {},
+    run: {},
     gpu: { impostors: cards },
   } as unknown as WebgpuPagesRuntime
   return { host: hostTableBytesOf(rt), records: cards.slots.records.byteLength, ...ownBytes(cards) }

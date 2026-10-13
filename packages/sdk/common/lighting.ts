@@ -9,7 +9,7 @@ export type { BounceBudget } from '../../sdk-core/src/bounce/budget.ts'
 export { createBounceCascades } from '../../sdk-core/src/bounce/cascades.ts'
 export type { BounceCascadeLevel, BounceCascades } from '../../sdk-core/src/bounce/cascades.ts'
 export { createBounceOccupancy } from '../../sdk-core/src/bounce/occupancy.ts'
-export type { BounceOccupancy } from '../../sdk-core/src/bounce/occupancy.ts'
+export type { BounceOccupancy, MovedRows } from '../../sdk-core/src/bounce/occupancy.ts'
 export { cloneSceneLight } from '../../sdk-core/src/scene/light/clone.ts'
 export { CORNER_INFLUENCES } from '../../sdk-core/src/contracts/proxy.ts'
 export type {

@@ -113,7 +113,10 @@ test('the frame targets hold the share only while a debug view reads it', () => 
 test('targets that fit ask nothing of the device: the steady frame is free', () => {
   const rt = {
     setup: { viewport: [32, 32] },
-    run: { diagnostic: 'beauty' },
+    run: {
+      diagnostic: 'beauty',
+      funding: { refreshing: undefined, cutAsked: 0, renewal: Promise.resolve() },
+    },
     layout: { rows: { packedCount: 0, packedRecs: [] } },
     blendState: { blendGpu: [] },
     context: {},

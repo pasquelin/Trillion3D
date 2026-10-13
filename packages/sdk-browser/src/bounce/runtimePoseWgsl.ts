@@ -74,7 +74,6 @@ ${wgslConsts({
   TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
   CHILDREN: PROXY_CHILDREN,
 })}
-${RUNTIME_PROXY_WGSL}
 @group(0) @binding(0) var<storage,read_write> arena:RuntimeProxy;
 @group(0) @binding(1) var<storage,read> pool:array<f32>;
 @group(0) @binding(2) var<storage,read> poses:array<u32>;
@@ -171,5 +170,5 @@ fn fitNodes(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:ve
   arena.words[at+1u]=packed.y;
  }
 }`,
-  [DEFORM_AT_WGSL, WIDE_CHILD_PACK_WGSL, FLAT_INDEX_WGSL, FINITE_SENTINEL],
+  [RUNTIME_PROXY_WGSL, DEFORM_AT_WGSL, WIDE_CHILD_PACK_WGSL, FLAT_INDEX_WGSL, FINITE_SENTINEL],
 )

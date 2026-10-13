@@ -1,6 +1,7 @@
 // The layout of the run-time proxy's buffer, kept apart from the passes that read it (`runtimeSceneWgsl.ts`)
 // and the object that writes it (`gpu/dag/proxyInstances.ts`): both read it from here.
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** No instance, no node: a word every table spells the absence of a link with. */
 export const RUNTIME_NONE = 0xffffffff
@@ -50,7 +51,7 @@ const HEADER = fieldLayout(
 export const RUNTIME_HEADER = HEADER.at
 export const RUNTIME_HEADER_WORDS = HEADER.words
 /** The proxy's buffer as the shaders read it: the header's fields, then every word past them. */
-export const RUNTIME_PROXY_WGSL = HEADER.wgsl
+export const RUNTIME_PROXY_WGSL = wgslBlock('RUNTIME_PROXY_WGSL', [], HEADER.wgsl)
 
 /** Words of one placement's world as the proxy mirrors it: sixteen of the matrix, of which the translation's
  *  three are no cut's, and eight of its exact translation, three doubles (`gpu/dag/worldOrigins.ts`), the

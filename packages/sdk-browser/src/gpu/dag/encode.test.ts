@@ -102,7 +102,10 @@ test('with a placement tree, prepare and pass 0 run over its top and the world D
   // root, never a thread per placement.
   const base = cutResources(2),
     ranges = [0, 1].map((r) => ({ first: r * 65_536, count: r ? 34_464 : 65_536, bindGroup: {} }))
-  const packed = { placementTree: { levels: [{ count: 1 }] }, world: { root: 70_000 } }
+  const packed = {
+    placementTree: { levels: [{ count: 1 }], always: { set: { count: 0 } } },
+    world: { root: 70_000 },
+  }
   const cut = { ...base, blockCount: 1, ranges, packed } as unknown as typeof base
   const witness = witnessEncoder()
   encodeDagKernels(witness.encoder, cut)

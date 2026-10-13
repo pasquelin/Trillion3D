@@ -59,7 +59,7 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 711 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 712 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -73,8 +73,9 @@ test('generated inventory and explicit facade files are current', async () => {
   // CharacterCollision, TriangleCollision): Jolt is the one character body; and the frustum's
   // `FAR_PLANE_SLOT`, the slot a culling reader tests the far plane at. It holds no compute-path
   // governor either: the batches run their WebAssembly kernels alone. The run-time proxy a placement
-  // wears carries its deformation (CutDeformation, CORNER_INFLUENCES).
-  assert.equal(inventory.exports.length, 711)
+  // wears carries its deformation (CutDeformation, CORNER_INFLUENCES), and the bounce occupancy names
+  // the rows it is told moved (MovedRows).
+  assert.equal(inventory.exports.length, 712)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
