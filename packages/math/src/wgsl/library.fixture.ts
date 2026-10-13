@@ -5,6 +5,8 @@ import * as basis from './basis.ts'
 import * as color from './color.ts'
 import * as constants from './constants.ts'
 import * as double from './double.ts'
+import * as doubleOrder from './doubleOrder.ts'
+import * as doubleRound from './doubleRound.ts'
 import * as doubleWords from './doubleWords.ts'
 import * as f32 from './f32.ts'
 import * as geometry from './geometry.ts'
@@ -25,6 +27,8 @@ const MODULES = {
   color,
   constants,
   double,
+  doubleOrder,
+  doubleRound,
   doubleWords,
   f32,
   geometry,
