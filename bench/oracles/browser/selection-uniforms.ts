@@ -71,7 +71,6 @@ const FIELDS = [
   ['worldRoot', 'u', 1],
   ['treeTop', 'u', 1],
   ['cellBase', 'u', 1],
-  ['members', 'u', 1],
   ['lightOriginHigh', 'f', 4],
   ['lightOriginLow', 'f', 4],
   ['lightPlanes', 'f', 24],
