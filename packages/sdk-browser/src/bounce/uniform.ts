@@ -1,5 +1,5 @@
 import { BOUNCE_SETTINGS, type BounceCascades } from '../../../sdk-core/src/index.ts'
-import { TILE_NO_SLICE } from '../lighting/direct/lightWgsl.ts'
+import { TILE_NO_SLICE } from '../lighting/tiles/noSlice.ts'
 
 /** Four-byte words of a level in the uniform: two `vec4f`, origin and base cell. */
 const LEVEL_WORDS = 8

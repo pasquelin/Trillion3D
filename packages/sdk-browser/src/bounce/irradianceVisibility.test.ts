@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
 import { LIGHTS_IRRADIANCE_WGSL } from '../lighting/direct/lightLoopWgsl.ts'
-import { TILE_NO_SLICE } from '../lighting/direct/lightWgsl.ts'
+import { TILE_NO_SLICE } from '../lighting/tiles/noSlice.ts'
 
 type Light = { height: number; energy: number; casts?: boolean; range?: number }
 type Items = { params: Vec; positionRange: Vec; colorIntensity: Vec }[]

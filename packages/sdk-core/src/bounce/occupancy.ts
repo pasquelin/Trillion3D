@@ -3,7 +3,12 @@ import { cellsOf, dilate, mark, reduce, repeats } from './occupancyCells.ts'
 import { alignDown } from '../../../math/src/scalar/integers.ts'
 
 /** The placements a change touched, as runs of rows: `count` `[first, last]` pairs (`createChangedRuns`). */
-export type MovedRows = { readonly count: number; readonly pairs: ArrayLike<number> }
+export type MovedRows = {
+  /** How many runs `pairs` holds. */
+  readonly count: number
+  /** The runs, `[first, last]` row pairs, first-inclusive and last-inclusive. */
+  readonly pairs: ArrayLike<number>
+}
 
 /**
  * Where keeping a probe is worthwhile: cascade occupancy map.

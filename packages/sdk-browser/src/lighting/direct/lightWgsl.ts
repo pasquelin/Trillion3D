@@ -1,3 +1,4 @@
+import { TILE_NO_SLICE } from '../tiles/noSlice.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../../../../sdk-core/src/index.ts'
 import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts'
@@ -9,9 +10,6 @@ import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
  *  its list holds a shadow slot, the per-cell fact the moving resolve reads once —, then
  *  where its list starts in the view's pool. */
 export const TILE_STRIDE_WORDS = 2
-/** A cell with no list of its own (`TILE_NO_SLICE`): the pool had no room, the cell lies past the
- *  grid, or no grid is built — the cell walks every light of the scene (`cellSlice`). */
-export const TILE_NO_SLICE = 0xffffffff
 
 /**
  * Whether a local light may light a point at `offset` from it (its centre minus the point): the
