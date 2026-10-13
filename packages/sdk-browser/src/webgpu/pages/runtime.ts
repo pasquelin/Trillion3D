@@ -1,5 +1,5 @@
 import type { ComposeState } from '../../placement/gpuCompose.ts'
-import type { PlacementGrowth } from '../../placement/webgpuGrowth.ts'
+import type { GrowthInFlight } from '../../placement/webgpuGrowth.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { TAA_CAPABILITIES } from '../../taa/capability.ts'
@@ -75,7 +75,7 @@ export interface WebgpuPagesRuntime {
   compose?: ComposeState
   /** The rows grown in place and the roots waiting to join the cut, until a cut holds them
    *  (`../../placement/webgpuGrowth.ts`). */
-  growth?: PlacementGrowth
+  growth?: GrowthInFlight
 }
 
 export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRuntime {

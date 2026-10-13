@@ -52,7 +52,7 @@ export const webgpuPlacementApi = (rt: WebgpuPagesRuntime) => ({
 /** The roots waiting to join, how many of them the running cut took in place, whether a cut over
  *  them is asked, the cut being made, the pages the pool moved since it began, and the one ready —
  *  made, or the running one that took them (`inPlace`) —, until adopted. */
-export type PlacementGrowth = {
+export type GrowthInFlight = {
   roots: ClusterRoot<PageRec>[]
   /** The blended and transmissive copies of the sources added, which join the pass once their
    *  roots hold their ranks (`growBlend`). */
@@ -177,7 +177,7 @@ function grownCutCapacity(rt: WebgpuPagesRuntime, roots: readonly ClusterRoot<Pa
 /** The GPU cut over the session's roots and those waiting, made beside the running one; a later
  *  growth makes another, and this one is dropped. The pool's slots that move meanwhile are logged
  *  (`logTouched`) and replayed alone at the swap (`webgpuGrownCut.ts`). */
-async function makeCut(rt: WebgpuPagesRuntime, growth: PlacementGrowth): Promise<void> {
+async function makeCut(rt: WebgpuPagesRuntime, growth: GrowthInFlight): Promise<void> {
   const made = ++growth.made,
     roots = [...rt.layout.selectionRoots, ...growth.roots],
     { rows } = rt.layout,
