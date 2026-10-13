@@ -1,9 +1,11 @@
 import {
   READBACKS,
-  createTimingResources,
+  createTimingQueries,
   instrumentTimingEncoder,
+  type TimedRead,
   type TimingPart,
 } from './encoder.ts'
+import { timingReadbacks } from './closeImage.ts'
 import { failedSample } from './sample.ts'
 import { destroyTimingResources, type TimingState } from './timingState.ts'
 import { PARTS, QUERY_COUNT } from './queries.ts'
@@ -22,10 +24,7 @@ export function createTimedEncoder(state: TimingState, frame: number): GPUComman
     return encoder
   }
   // A frame left open never got its closing submission; it is dropped rather than mixed into this one.
-  if (state.active && state.active.frame !== frame) {
-    state.active = undefined
-    state.tally.droppedSamples++
-  }
+  if (state.active && state.active.frame !== frame) dropActive(state)
   if (!state.active && !openImage(state, frame)) return encoder
   const image = state.active!
   if (image.parts.size >= PARTS) {
@@ -48,22 +47,41 @@ function openImage(state: TimingState, frame: number) {
     state.skippedFrames.interval++
     return false
   }
-  if (state.inFlight.size >= (second ? READBACKS : 1)) {
+  if (readsInFlight(state) >= (second ? READBACKS : 1)) {
     state.tally.droppedSamples++
     state.skippedFrames.busy++
     return false
   }
+  const tag: TimedRead = { frame, entries: [], truncated: false, used: 0, metadata: {} }
+  let read: GPUBuffer | undefined
   try {
-    state.resources ??= createTimingResources(state.device, QUERY_COUNT)
+    state.resources ??= {
+      ...createTimingQueries(state.device, QUERY_COUNT),
+      readbacks: timingReadbacks(state, QUERY_COUNT * 8),
+    }
+    read = state.resources.readbacks.take(tag)
+    // A buffer free that the device does not make, or cannot map: no image is ever read back.
+    if (!read) throw new Error('GPU_TIMING_READBACK_REFUSED')
   } catch (error) {
     state.enabled = false
     destroyTimingResources(state)
     state.emit(failedSample(frame, false, String(error)))
     return false
   }
-  const read = state.resources.reads.find((buffer) => !state.inFlight.has(buffer))!
-  state.active = { frame, parts: new Map(), truncated: false, cursor: 0, read }
+  state.active = { frame, parts: new Map(), truncated: false, cursor: 0, read, tag }
   if (!second) state.lastFrame = frame
   state.tally.sampledFrames++
   return true
+}
+
+/** Readbacks submitted and not yet read: what the ring holds, less the open image's. */
+export const readsInFlight = (state: TimingState) =>
+  (state.resources?.readbacks.held() ?? 0) - (state.active ? 1 : 0)
+
+/** The open image is dropped, its readback given back unread. */
+export function dropActive(state: TimingState) {
+  if (!state.active) return
+  state.resources?.readbacks.dropped(state.active.read)
+  state.active = undefined
+  state.tally.droppedSamples++
 }

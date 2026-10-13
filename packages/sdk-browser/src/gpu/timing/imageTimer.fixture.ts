@@ -23,9 +23,9 @@ export function timer(sampleEveryFrames = 1) {
     for (const _ of passes) encoder.beginComputePass({ label: 'pass' }).end()
     encoder.finish()
     const sampled = timing.isSampled(encoder)
-    // Its readback: the first (`buffers[1]`, after the resolve buffer) when none is in flight,
-    // the second beside one in flight.
-    const read = new BigUint64Array(f.buffers[1 + timing.stats().pending]?.getMappedRange() ?? 8)
+    // Its readback: the buffer its last part's timestamps were copied into, as the ring gave it.
+    const target = sampled ? f.copies.at(-1)?.to : undefined
+    const read = new BigUint64Array(target?.getMappedRange() ?? new ArrayBuffer(8))
     passes.forEach(([begin, end], i) => read.set([BigInt(begin) * MS, BigInt(end) * MS], i * 2))
     timing.submitted(encoder, { frame })
     return sampled

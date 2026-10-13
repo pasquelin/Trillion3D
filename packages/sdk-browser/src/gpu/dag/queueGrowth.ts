@@ -191,7 +191,7 @@ export const growthAsked = (resources: DagResources, state: DagRuntimeState) =>
 export function tablesHeld(resources: DagResources, state: DagRuntimeState) {
   if (state.disposed || state.dead || state.growing) return true
   if (!growthAsked(resources, state)) return false
-  if (!state.mapped.includes(true)) queueDagGrowth(resources, state)
+  if (!resources.readbacks.held()) queueDagGrowth(resources, state)
   return true
 }
 

@@ -191,6 +191,7 @@ function selectionOver(run: DagRun): GpuSelection {
       run.tree?.dispose()
       state.pending = state.pending.catch(() => {})
       run.proxies.dispose()
+      resources.readbacks.destroy()
       for (const buffer of buffers) buffer.destroy()
     },
   }

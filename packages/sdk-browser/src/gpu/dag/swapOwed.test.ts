@@ -1,7 +1,7 @@
 // What a dispatch claims of the swap is held as the few values it moves and given back when its
 // command buffer is dropped (`swap.ts`, `holdSwap`). A view aside never cuts again a cut it read
 // back short: its lists, still in `out`, are copied again at their size. The main cut's lists no
-// slot took are copied before a view aside cuts on `out` (`dispatch.ts`, `copyOwed`): the main
+// readback took are copied before a view aside cuts on `out` (`dispatch.ts`, `copyOwed`): the main
 // view's readback then needs no cut, and its mask comes back from its region.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -64,14 +64,14 @@ test('a view aside read back short of its cut copies its lists again, without cu
   assert.equal(rig.copies(), whole, 'nothing copied again')
 })
 
-test('the main lists no slot copied are copied before a view aside cuts on them', async () => {
+test('the main lists no readback copied are copied before a view aside cuts on them', async () => {
   const rig = await asideRig(64)
-  const { selection, resources } = rig
+  const { selection } = rig
   // Both main slots held mapped until the gate opens. The reads chain one behind the other and each
   // maps only once the one before is read: a map asked after the gate opened goes straight through.
   let open = () => {}
   const gate = new Promise<void>((done) => (open = done))
-  for (const slot of resources.readback) {
+  for (const slot of rig.readbackSlots()) {
     const map = slot.mapAsync.bind(slot)
     slot.mapAsync = async (mode: GPUMapModeFlags) => (await gate, map(mode))
   }

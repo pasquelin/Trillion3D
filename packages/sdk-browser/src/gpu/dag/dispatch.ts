@@ -17,26 +17,27 @@ import {
   saveRegionFor,
 } from './swap.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
-import { pickSlot } from './readbackSlot.ts'
-import { readFor, readMain } from './dispatchRead.ts'
+import { readFor, readMain, takeCopy, type Copy } from './dispatchRead.ts'
 import { encodeSwap } from './swapEncode.ts'
 
 type Chain = ReturnType<typeof createDifferenceChain>
 /** What the main view's dispatches share: the tables, the state, the chain the readbacks land in,
- *  and one set of arrays per readback slot. */
+ *  one set of arrays per readback in flight, and the readbacks read so far — whose arrays the next
+ *  one takes, in turn. */
 export type MainCut = {
   resources: DagResources
   state: DagRuntimeState
   chain: Chain
   scratch: DagOutputScratch[]
+  reads: number
 }
 
 /**
  * The main view's cut and the copy of its readback (`GpuSelection['dispatch']`), and `copyOwed`:
- * a view aside about to cut on `out` first copies the main cut's lists no slot took yet. One set of
- * arrays per slot: the snapshot rewrites them instead of reallocating; the pair handed to the
- * caller stays new on every readback, so it always tells two snapshots apart by identity — what
- * adoption compares to know if the cut moved.
+ * a view aside about to cut on `out` first copies the main cut's lists no readback took yet. One
+ * set of arrays per readback in flight: the snapshot rewrites them instead of reallocating; the
+ * pair handed to the caller stays new on every readback, so it always tells two snapshots apart by
+ * identity — what adoption compares to know if the cut moved.
  */
 export function createDagDispatch(resources: DagResources, state: DagRuntimeState, chain: Chain) {
   const cut: MainCut = {
@@ -44,20 +45,21 @@ export function createDagDispatch(resources: DagResources, state: DagRuntimeStat
     state,
     chain,
     scratch: Array.from({ length: SLOTS }, createDagOutputScratch),
+    reads: 0,
   }
   const dispatch: GpuSelection['dispatch'] = (next, shared) => dispatchMain(cut, next, shared)
   return { dispatch, copyOwed: (encoder: GPUCommandEncoder) => copyOwed(cut, encoder) }
 }
 
 /** The main view's dispatch: it cuts when its inputs moved, brings its mask back from its region
- *  when its cut stands, and copies the readback the host has not had yet when a slot is free. */
+ *  when its cut stands, and copies the readback the host has not had yet when the ring has room. */
 function dispatchMain(cut: MainCut, next: SelectionUniforms, shared?: GPUCommandEncoder) {
   const { resources, state } = cut
   if (tablesHeld(resources, state)) return undefined
   const { swap } = resources
   let compute = !sameCut(swap, MAIN_VIEW, next, state)
   const needsReadback = !readFor(state, next),
-    i = needsReadback ? pickSlot(state.mapped, state.slot) : -1
+    room = needsReadback && resources.readbacks.available()
   // The mask, or the lists a copy reads, are a view's drawn aside (`swap.ts`): the main view's
   // mask comes back from its journal when its cut stands, or it cuts again.
   if (swap.owner !== MAIN_VIEW || (needsReadback && swap.outOwner !== MAIN_VIEW)) {
@@ -65,25 +67,31 @@ function dispatchMain(cut: MainCut, next: SelectionUniforms, shared?: GPUCommand
     const back = !compute && !needsReadback && restorable(swap, MAIN_VIEW)
     if (back && swap.cuts[MAIN_VIEW - 1]?.whole) return encodeSwap(resources, MAIN_VIEW, shared)
     // The mask in place is this very cut's, its lists another view's: they come back by a cut,
-    // once a slot can take their copy — not image after image before.
-    if (!compute && i < 0 && inPlace(swap, MAIN_VIEW)) return undefined
+    // once the ring can take their copy — not image after image before.
+    if (!compute && !room && inPlace(swap, MAIN_VIEW)) return undefined
     compute = true
   }
-  if (!compute && i < 0) return undefined
-  const encoder = shared ?? resources.device.createCommandEncoder()
-  const undo = holdDispatch(swap, state)
+  if (!compute && !room) return undefined
   // One copy of the uniforms a dispatch, shared by all that keeps them: none is written after.
   const snap = copySelectionUniforms(next)
-  if (compute) cutMain(cut, encoder, snap, i >= 0)
+  // Taken before the cut is encoded: its difference rides in the cut's last pass only when a copy
+  // follows. A buffer the device refuses leaves the cut owed.
+  const copy = room ? takeCopy(cut, snap) : undefined
+  if (!compute && !copy) return undefined
+  const encoder = shared ?? resources.device.createCommandEncoder()
+  const undo = holdDispatch(swap, state)
+  if (compute) cutMain(cut, encoder, snap, !!copy)
   else encodeDagDifference(encoder, resources)
-  if (i >= 0) claimCopy(cut, encoder, i, snap)
-  const settled = { encoder, shared, i, captured: snap, serial: swap.cut, undo }
-  return settleMain(cut, { ...settled, coarsen: state.coarse.factor })
+  if (copy) {
+    copy.tag.serial = swap.cut
+    claimCopy(cut, encoder, copy)
+  }
+  return settleMain(cut, { encoder, shared, copy, undo })
 }
 
-/** The main cut's lists, still in `out` and copied by no slot, copied into `encoder` before a view
- *  aside cuts on `out` (`aside.ts`): its readback then needs no cut again. None owed, the residency
- *  or the poses moved since, or no slot free: nothing. */
+/** The main cut's lists, still in `out` and copied by no readback, copied into `encoder` before a
+ *  view aside cuts on `out` (`aside.ts`): its readback then needs no cut again. None owed, the
+ *  residency or the poses moved since, or no buffer free: nothing. */
 function copyOwed(cut: MainCut, encoder: GPUCommandEncoder): SelectionSubmission | undefined {
   const { resources, state } = cut,
     { swap } = resources,
@@ -91,19 +99,16 @@ function copyOwed(cut: MainCut, encoder: GPUCommandEncoder): SelectionSubmission
   if (!main || state.owed < 0 || state.owed !== main.serial) return undefined
   if (swap.outOwner !== MAIN_VIEW || main.residency !== state.residencyRevision) return undefined
   if (main.world !== state.worldRevision) return undefined
-  const captured = main.uniforms,
-    i = pickSlot(state.mapped, state.slot)
-  if (i < 0) return undefined
-  const undo = holdClaims(state),
-    serial = state.owed
+  const copy = takeCopy(cut, main.uniforms, state.owed)
+  if (!copy) return undefined
+  const undo = holdClaims(state)
   encodeDagDifference(encoder, resources)
-  claimCopy(cut, encoder, i, captured)
-  const coarsen = state.coarse.factor
-  return settleMain(cut, { encoder, shared: encoder, i, captured, serial, coarsen, undo })
+  claimCopy(cut, encoder, copy)
+  return settleMain(cut, { encoder, shared: encoder, copy, undo })
 }
 
 /** The main view cuts under `snap` into `encoder`, its difference in the cut's last pass when a
- *  copy follows; a cut no slot copies is owed (`copyOwed`). */
+ *  copy follows; a cut no readback copies is owed (`copyOwed`). */
 function cutMain(cut: MainCut, encoder: GPUCommandEncoder, snap: SelectionUniforms, copy: boolean) {
   const { resources, state } = cut,
     { swap, uniformData, packed, listCap } = resources
@@ -127,65 +132,52 @@ function cutMain(cut: MainCut, encoder: GPUCommandEncoder, snap: SelectionUnifor
   state.owed = copy ? -1 : swap.cut
 }
 
-/** Slot `i` takes `out`'s lists, under `captured`, into `encoder`. */
-function claimCopy(
-  { resources, state }: MainCut,
-  encoder: GPUCommandEncoder,
-  i: number,
-  captured: SelectionUniforms,
-) {
-  encoder.copyBufferToBuffer(resources.output, 0, resources.readback[i], 0, resources.readbackBytes)
+/** `copy` takes `out`'s lists into `encoder`. */
+function claimCopy({ resources, state }: MainCut, encoder: GPUCommandEncoder, copy: Copy) {
+  encoder.copyBufferToBuffer(resources.output, 0, copy.buffer, 0, resources.readbackBytes)
   state.readback = {
-    uniforms: captured,
+    uniforms: copy.tag.captured,
     residency: state.residencyRevision,
     world: state.worldRevision,
   }
-  state.mapped[i] = true
-  state.slot = (i + 1) % SLOTS
   state.owed = -1
 }
 
-/** The submission of a dispatch: slot `i` (-1 none), copied from the main cut `serial` under
- *  `captured` and the factor `coarsen` (`coarsening.ts`), read once the buffer ran; everything
- *  claimed given back (`undo`) when it is dropped. Without `shared`, submitted here. */
+/** The submission of a dispatch: its `copy` (none without) read once the buffer ran; everything
+ *  claimed given back (`undo`), and the copy's buffer to the ring, when it is dropped. Without
+ *  `shared`, submitted here. */
 function settleMain(
   cut: MainCut,
   done: {
     encoder: GPUCommandEncoder
     shared: GPUCommandEncoder | undefined
-    i: number
-    captured: SelectionUniforms
-    serial: number
-    coarsen: number
+    copy: Copy | undefined
     undo: () => void
   },
 ): SelectionSubmission | undefined {
-  const { encoder, shared, i, undo } = done
-  const read = { captured: done.captured, serial: done.serial, coarsen: done.coarsen }
+  const { encoder, shared, copy, undo } = done
   if (!shared) {
     cut.resources.device.queue.submit([encoder.finish()])
-    if (i >= 0) readMain(cut, i, read)
+    if (copy) readMain(cut, copy)
     return undefined
   }
   let settled = false
   return (submitted: boolean) => {
     if (settled) return
     settled = true
-    if (submitted) return void (i >= 0 && readMain(cut, i, read))
+    if (submitted) return void (copy && readMain(cut, copy))
     undo()
-    if (i >= 0) cut.state.mapped[i] = false
+    if (copy) cut.resources.readbacks.dropped(copy.buffer)
   }
 }
 
-/** What a dispatch claims of the state — the readback stamp by its pointer, the slot, the owed
- *  cut — given back by the returned function when its command buffer is dropped: a copy that never
- *  runs would leave its slot mapped for ever, and must not be remembered as read. The cut submitted
- *  is the swap's, held by `holdSwap`. */
+/** What a dispatch claims of the state — the readback stamp by its pointer, the owed cut — given
+ *  back by the returned function when its command buffer is dropped: a copy that never runs must
+ *  not be remembered as read. The cut submitted is the swap's, held by `holdSwap`. */
 function holdClaims(state: DagRuntimeState) {
-  const { readback, slot, owed } = state
+  const { readback, owed } = state
   return () => {
     state.readback = readback
-    state.slot = slot
     state.owed = owed
   }
 }
