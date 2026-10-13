@@ -16,7 +16,7 @@ import {
   targets,
   writesOf,
 } from '../../water/pass.fixture.ts'
-import type { MockPass } from '../../../../../../tests/kit/gpu/mockRenderPass.ts'
+import type { FakePass } from '../../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { reflectionFront } from '../../../reflections/frontDepth.fixture.ts'
 
@@ -39,11 +39,11 @@ function blendedImage() {
   return { rt, encoder: gpuDevice.createCommandEncoder(), passes, gpuDevice, textures, destroyed }
 }
 /** The label of each pass begun. */
-const labelsOf = (passes: MockPass[]) => passes.map(({ label }) => label)
+const labelsOf = (passes: FakePass[]) => passes.map(({ label }) => label)
 /** The commands the last pass took, by name. */
-const lastCommands = (passes: MockPass[]) => passes.at(-1)!.commands.map(([name]) => name)
+const lastCommands = (passes: FakePass[]) => passes.at(-1)!.commands.map(([name]) => name)
 /** Each pass's first target's load and clear. */
-const loadsOf = (passes: MockPass[]) =>
+const loadsOf = (passes: FakePass[]) =>
   passes.map(({ colors: [target] }) => [target?.loadOp, target?.clearValue])
 
 test('a blended scene with no debug view runs no share pass and makes no share target', () => {

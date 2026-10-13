@@ -11,7 +11,7 @@ import { orderBlendPasses } from '../blend/order.ts'
 import { triangleGeometry } from '../../engine/pagesEngineScenes.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { commandArgs, type MockPass } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
+import { commandArgs, type FakePass } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
@@ -132,11 +132,11 @@ export function targets(gpu: WebgpuGpuState) {
 /** The pipelines of every rank and every key a replayed pass draws with. */
 const anyPipelines = (): unknown => ({ at: () => ({}), lit: anyPipelines, reach: () => undefined })
 /** The views pass `pass` writes, slot by slot (an empty one undefined). */
-export const writesOf = (pass: MockPass) => pass.colors.map((color) => color?.view)
+export const writesOf = (pass: FakePass) => pass.colors.map((color) => color?.view)
 /** Each scissor rectangle `pass` set, in order. */
-export const scissorsOf = (pass: MockPass) => commandArgs(pass.commands, 'setScissorRect')
+export const scissorsOf = (pass: FakePass) => commandArgs(pass.commands, 'setScissorRect')
 /** What `pass` draws with, in order: `pipeline:<fragment entry>`, `draw` and `indirect`. */
-export const stepsOf = (pass: MockPass) =>
+export const stepsOf = (pass: FakePass) =>
   pass.commands.flatMap(([name, [pipeline]]) =>
     name === 'setPipeline'
       ? [`pipeline:${(pipeline as GPURenderPipelineDescriptor).fragment?.entryPoint}`]
@@ -157,7 +157,7 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
   const items = blendState.blendGpu
   const { device: own, passes, textureCopies } = fakeDevice()
   const encoder = own.createCommandEncoder()
-  const drawn = (pass: MockPass) =>
+  const drawn = (pass: FakePass) =>
     commandArgs(pass.commands, 'setBindGroup')
       .map(([, group]) => items.findIndex((item) => item.groups?.includes(group as GPUBindGroup)))
       .filter((rank) => rank >= 0)

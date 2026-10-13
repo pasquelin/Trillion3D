@@ -4,13 +4,13 @@ import { createPresentClasses } from './materialPasses.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { RenderBundles } from '../../gpu/core/renderBundles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { commandArgs, type MockPass } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
+import { commandArgs, type FakePass } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 
 /** The pipelines `pass` set, in order. */
-export const pipelinesOf = (pass: MockPass) =>
+export const pipelinesOf = (pass: FakePass) =>
   commandArgs(pass.commands, 'setPipeline').map(([pipeline]) => pipeline)
 /** How many draws `pass` made, its bundles' among them. */
-export const drawsOf = (pass: MockPass) => commandArgs(pass.commands, 'draw').length
+export const drawsOf = (pass: FakePass) => commandArgs(pass.commands, 'draw').length
 
 /** A runtime reduced to what the resolve reads, on the kit's device and one of its encoders: its
  *  render passes and compute passes are the device's records. Its class set holds

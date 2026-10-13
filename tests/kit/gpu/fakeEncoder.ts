@@ -1,4 +1,4 @@
-import { simulateComputeDispatch, type ComputeBind } from './mockCompute.ts'
+import { simulateComputeDispatch, type ComputeBind } from './fakeCompute.ts'
 import { createUsageScope } from './scopeRules.ts'
 import type {
   FakeCopy,
@@ -11,15 +11,15 @@ import type {
 import {
   recordCommands,
   renderPass,
-  type MockDraw,
-  type MockPass,
+  type FakeDraw,
+  type FakePass,
   type PassCommands,
-} from './mockRenderPass.ts'
+} from './fakeRenderPass.ts'
 
 /** What the encoders of one device record, in the order they were encoded. */
 export type EncoderRecords = {
-  draws: MockDraw[]
-  passes: MockPass[]
+  draws: FakeDraw[]
+  passes: FakePass[]
   /** Each compute pass, by its label, and every command it took, with its arguments. */
   computePasses: Array<{ label?: string; commands: PassCommands }>
   /** Every pass descriptor begun, render and compute, in order. */
@@ -39,12 +39,12 @@ export type EncoderRecords = {
 /**
  * The command encoders of `fakeDevice()`: each records what it encodes in `records`, copies and
  * clears move the buffers' bytes, and each compute dispatch runs its kernel's CPU double
- * (`mockCompute.ts`) on the bound buffers — `packed` the DAG the selection reads when the session
+ * (`fakeCompute.ts`) on the bound buffers — `packed` the DAG the selection reads when the session
  * uploads none, `kernel` a test's own double. `failVisPass` refuses the first visibility pass at its
  * beginning. Every pass is encoded under the device's usage scopes (`scopeRules.ts`); a `deferred`
  * device runs the work when its command buffer is submitted.
  */
-export function createMockCommandEncoderFactory(
+export function createFakeCommandEncoderFactory(
   records: EncoderRecords,
   {
     packed,

@@ -1,7 +1,7 @@
 // What the effect-chain tests share: the kit device's encoder and its passes, and a chain on it.
 import assert from 'node:assert/strict'
 import { fakeDevice, written, type FakeWrite } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { commandArgs, type MockPass } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
+import { commandArgs, type FakePass } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { createWebgpuEffects } from './webgpuEffects.ts'
 
 /** A write's words as the floats the bloom's slots hold. */
@@ -11,10 +11,10 @@ export const floatsOf = (write: FakeWrite) => {
 }
 
 /** The first target of `pass`: its view and its load. */
-export const viewOf = (pass: MockPass) => pass.colors[0]?.view
-export const loadOf = (pass: MockPass) => pass.colors[0]?.loadOp
+export const viewOf = (pass: FakePass) => pass.colors[0]?.view
+export const loadOf = (pass: FakePass) => pass.colors[0]?.loadOp
 /** The dynamic offset `pass` set its first bind group at. */
-export const offsetOf = (pass: MockPass) =>
+export const offsetOf = (pass: FakePass) =>
   (
     commandArgs(pass.commands, 'setBindGroup').find(([index]) => !index)?.[2] as
       Uint32Array | undefined

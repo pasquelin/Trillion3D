@@ -12,7 +12,7 @@ import {
 import { createMaterialTiles, materialTileDrawLayout } from './materialTiles.ts'
 import { encodeMaterialPasses } from './materialPasses.ts'
 import { drawsOf, resolveFixture } from './materialPasses.fixture.ts'
-import { commandArgs } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
+import { commandArgs } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { MATERIAL_COMPUTE_PASS } from '../../stage/passLabels.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
