@@ -41,7 +41,7 @@ export type NoVictim = 'eviction-queue-spent'
  * keyed `K`, each resident key's entry `V`.
  */
 export function createEviction<K = string, V extends Held = ResidentPage>(
-  resident: ReadonlyMap<K, V>,
+  resident: Pick<ReadonlyMap<K, V>, 'get'>,
 ) {
   const pins = new Set<K>()
   let order: EvictionOrder<K> | undefined,
