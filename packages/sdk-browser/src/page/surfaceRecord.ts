@@ -25,22 +25,23 @@ import {
   unreadMapRefusal,
 } from '../scene/surfaceModel.ts'
 import type { PageSurface, SurfaceFamily } from './surface.ts'
-import type { Colour, Slot, SurfaceDeclaration } from './surfaceDeclaration.ts'
+import type { Slot, SurfaceDeclaration } from './surfaceDeclaration.ts'
+import type { HostColour } from '../host/resources.ts'
 import { surfaceWritten } from './surfaceWrites.ts'
 
 type Rgb = [number, number, number]
 
-const WHITE: Colour = { r: 1, g: 1, b: 1 }
+const WHITE: HostColour = { r: 1, g: 1, b: 1 }
 /** A Phong surface's highlight colour when it declares none. */
 const PHONG_SPECULAR = new Color(0x111111)
 /** The families that carry a base colour: a normal or depth surface shows something else. */
 const UNCOLOURED = new Set<SurfaceFamily>(['normal', 'depth'])
 
-const rgb = (colour: Colour): Rgb => [colour.r, colour.g, colour.b]
+const rgb = (colour: HostColour): Rgb => [colour.r, colour.g, colour.b]
 const mapIf = (on: boolean, texture: Slot) => (on ? (texture ?? undefined) : undefined)
 const valueIf = (on: boolean, value: number | undefined, fallback: number, off = 0) =>
   on ? (value ?? fallback) : off
-const colourIf = (on: boolean, colour: Colour | undefined, fallback: number): Rgb =>
+const colourIf = (on: boolean, colour: HostColour | undefined, fallback: number): Rgb =>
   on && colour ? rgb(colour) : [fallback, fallback, fallback]
 
 /** What a surface of `family` reads, decided once per declaration. */
