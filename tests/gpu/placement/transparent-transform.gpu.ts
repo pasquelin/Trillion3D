@@ -47,8 +47,12 @@ test('a transparent follows setTransform, paged and unpaged', async () => {
     assert.ok(!out.red[LEFT] && !out.red[RIGHT], say('out-of-view', 'the transparent stayed'))
     assert.ok(out.rejected >= 1, say('out-of-view', 'the frustum did not reject it'))
     const back = at('back')
+    // The draws of the image the move rendered: the later ones, unchanged, are held and encode
+    // nothing (`frame/hold.ts`), while the reject count comes back.
+    const moved = at('out-of-view-0')
+    assert.equal(moved.held, false, say('out-of-view-0', 'the move did not break the held image'))
     assert.equal(
-      out.draws,
+      moved.draws,
       back.draws,
       say('out-of-view', 'the slots are not the ones drawn in view: the CPU judged an item'),
     )
