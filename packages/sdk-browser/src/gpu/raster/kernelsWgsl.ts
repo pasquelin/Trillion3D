@@ -50,11 +50,11 @@ const LIST_L:u32=LIST+${LIST_HEADER + capacity}u;
 @compute @workgroup_size(WORKGROUP_THREADS) fn clear(@builtin(global_invocation_id) gid:vec3u,@builtin(num_workgroups) n:vec3u){
  let offset=flatIndex(gid,n,WORKGROUP_THREADS);let pixels=pixelCount();if(offset>=pixels){return;}
  // Reverse-Z: the buffer starts at FAR, and the GREATEST wins afterwards.
- atomicStore(&work[offset],bitcast<u32>(${wgslF32(DEPTH_CLEAR)}));atomicStore(&work[pixels+offset],0xffffffffu);
+ atomicStore(&work[offset],bitcast<u32>(${wgslF32(DEPTH_CLEAR)}));atomicStore(&work[pixels+offset],NO_INDEX);
 }
 /** Verdict of a row, the contract's VERDICT_*; a row without a Hi-Z slot is an occluder. */
 fn rowVerdict(page:PageInfo)->u32{
- if(page.hizSlot==0xffffffffu){return ${VERDICT_OCCLUDER}u;}
+ if(page.hizSlot==NO_INDEX){return ${VERDICT_OCCLUDER}u;}
  return hizFlags[page.hizSlot];
 }
 fn modeKeeps(mode:u32,verdict:u32)->bool{

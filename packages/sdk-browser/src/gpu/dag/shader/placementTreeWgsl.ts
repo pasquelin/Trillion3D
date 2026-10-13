@@ -1,6 +1,7 @@
 import { REACH_UNBOUNDED, TREE_GROUP } from '../placementTree.ts'
 import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
 import { outsidePlanesFn } from './outsidePlanesWgsl.ts'
 import { LEVEL_QUEUES } from './levelWgsl.ts'
@@ -25,13 +26,13 @@ import { LEVEL_QUEUES } from './levelWgsl.ts'
  */
 export const DAG_TREE_PREPARE_WGSL = wgslBlock(
   'DAG_TREE_PREPARE_WGSL',
-  [],
+  [NO_INDEX],
   `/** Whether the cut descends a placement tree (\`treeTop\`, its top level's nodes). */
 fn hasTree()->bool{return views[0u].treeTop>0u;}
 /** Queue 0's entries a view opens: one root per placement without a tree; with one, its top
  *  nodes, the world DAG's root when it is packed, then the members drawn whatever the view. */
 fn rootSlots()->u32{
- let world=select(0u,1u,views[0u].worldRoot!=0xffffffffu);
+ let world=select(0u,1u,views[0u].worldRoot!=NO_INDEX);
  return select(views[0u].worldCount,views[0u].treeTop+world+views[0u].alwaysCount,hasTree());
 }
 /** Whether placement \`w\` is drawn whatever the view, as \`drawnAlways\` says of its mark: never
@@ -40,10 +41,10 @@ fn drawnAlways(w:u32)->bool{let mark=markOf(w);return (mark&${SPRITE_UNCULLED}u)
 /** The one gate of a placement's root, whoever opens it — \`dagPrepare\` an ungrouped one, its kept
  *  group a member (\`placementStep\`): parked, drawn by its impostor card, or drawn by the world DAG
  *  in its place (\`worldCovers\`), it opens nothing. */
-fn opensRoot(w:u32)->bool{return rootOf(w)!=0xffffffffu&&(markOf(w)&${CARD_ROOT}u)==0u&&!worldCovers(w);}
+fn opensRoot(w:u32)->bool{return rootOf(w)!=NO_INDEX&&(markOf(w)&${CARD_ROOT}u)==0u&&!worldCovers(w);}
 /** Placement \`w\`'s root, at entry \`at\` of queue 0 under the view \`vi\`, or none. */
 fn openRoot(at:u32,w:u32){
- putEntry(queueBase(0u),at,select(0xffffffffu,packEntry(vi,rootOf(w)),opensRoot(w)),w);
+ putEntry(queueBase(0u),at,select(NO_INDEX,packEntry(vi,rootOf(w)),opensRoot(w)),w);
 }
 /** \`dagPrepare\`'s thread \`i\` of the bound range, with a tree: the head range writes its top
  *  nodes, the world DAG's range that root behind them, and each member drawn whatever the view is
@@ -53,11 +54,11 @@ fn prepareTreeRoots(i:u32){
  let top=select(0u,views[0u].treeTop,rangeFirst()==0u);
  if(i<top){putEntry(queueBase(0u),i,packEntry(0u,views[0u].cellBase+i),0u);return;}
  let w=views[0u].worldRoot;
- if(i==top){if(w!=0xffffffffu&&inRange(w)){vi=0u;openRoot(views[0u].treeTop,w);}return;}
+ if(i==top){if(w!=NO_INDEX&&inRange(w)){vi=0u;openRoot(views[0u].treeTop,w);}return;}
  let j=i-top-1u;
  if(j>=views[0u].alwaysCount){return;}
  let m=coldAt(views[0u].always+j);
- if(inRange(m)){vi=0u;openRoot(views[0u].treeTop+select(0u,1u,w!=0xffffffffu)+j,m);}
+ if(inRange(m)){vi=0u;openRoot(views[0u].treeTop+select(0u,1u,w!=NO_INDEX)+j,m);}
 }
 `,
 )
@@ -65,14 +66,14 @@ fn prepareTreeRoots(i:u32){
 /** The tree's share of the level descent (`levelWgsl.ts`), on its queues in rotation. */
 export const DAG_TREE_DESCENT_WGSL = wgslBlock(
   'DAG_TREE_DESCENT_WGSL',
-  [boxBehindPlane],
+  [boxBehindPlane, NO_INDEX],
   `const TREE_GROUP:u32=${TREE_GROUP}u;
 /** Member \`k\` of the tree's order (\`members\`, behind the cold records), deposited by its kept group
  *  under the view \`vi\`: its root tested as pass 0 tests an ungrouped one, unless its gate closes
  *  it (\`opensRoot\`) or queue 0 opened it already (\`drawnAlways\`). */
 fn placementStep(src:u32,k:u32){
  let w=coldAt(views[0u].members+k);
- if(w==0xffffffffu||!inRange(w)||!opensRoot(w)||drawnAlways(w)){return;}
+ if(w==NO_INDEX||!inRange(w)||!opensRoot(w)||drawnAlways(w)){return;}
  nodeStep(src,rootOf(w),w);
 }
 /** A cell or a group of the tree: its world box under the camera, then under the view ahead. Its

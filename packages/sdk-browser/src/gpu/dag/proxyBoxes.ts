@@ -4,12 +4,12 @@
  * it stands at, made again for a row marked since (`mark`), the rows whose box moved listed, the extent kept as
  * the boxes change. A row that wears no proxy, or stands parked, holds the empty box.
  */
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { boxTransform } from '../../../../math/src/geometry/box.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
 import type { ProxyBoxes } from '../../bounce/probeSync.ts'
-import { RUNTIME_NONE } from '../../bounce/runtimeLayout.ts'
 import type { DagRoot, PackedDag } from './types.ts'
 
 /** The boxes of the `slots` placements of `packed`, the `live()` first of them standing. */
@@ -33,7 +33,7 @@ export function createProxyBoxes(packed: PackedDag, slots: number, live: () => n
     const cut = root?.proxy?.primitive.runtimeProxy
     const at = w * 6
     const wears =
-      w < live() && !!root && !!cut?.nodeBounds.length && packed.rootNodes[w] !== RUNTIME_NONE
+      w < live() && !!root && !!cut?.nodeBounds.length && packed.rootNodes[w] !== NO_INDEX
     if (!wears) {
       if (!boxedCuts[w]) return false
       boxedCuts[w] = undefined

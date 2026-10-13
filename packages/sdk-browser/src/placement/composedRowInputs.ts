@@ -15,6 +15,7 @@
  * linked or unlinked — and listed again whole only when the list starts following a table
  * (`MirroredKeys`).
  */
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import { rootOf, rootOfPacked } from '../page/selection/placements.ts'
 import { ROW_INPUT_DOUBLES, packInputs, rowInputs } from './composedRowPack.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -27,7 +28,6 @@ import {
 import { grownLength, resized } from '../../../math/src/sequence/resized.ts'
 import { writeRanges } from '../gpu/dag/split.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
-import { NONE } from './gpuComposeWgsl.ts'
 import type { ComposeState } from './gpuCompose.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
@@ -75,8 +75,8 @@ export function sendList(
 
 /** Row `row` in the rows list or out of it: in while the root the table names it by is composed. */
 function followRow(state: ComposeState, ints: Uint32Array, rowCount: number, row: number) {
-  const rank = row < rowCount ? ints[row * ROW_WORDS + PAGE_INFO.at.placement] : NONE
-  mirrorKey(state.rowList, row, rank < state.roots && state.parentOf[rank] !== NONE)
+  const rank = row < rowCount ? ints[row * ROW_WORDS + PAGE_INFO.at.placement] : NO_INDEX
+  mirrorKey(state.rowList, row, rank < state.roots && state.parentOf[rank] !== NO_INDEX)
 }
 
 /** Rows `[from, to]` of the table followed into the rows list. */

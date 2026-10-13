@@ -1,10 +1,10 @@
 // A growth appends roots behind those a parent composes: every link stays, the new roots link as
 // any; a list shortened unlinks every root through the one unlink path. On a generated session of
 // two composed roots, grown root by root to forty.
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { composeWebgpuPlacements } from './gpuCompose.ts'
-import { NONE } from './gpuComposeWgsl.ts'
 import { createPlacementRows } from './rows.ts'
 import { forgetRowRoots } from './update.ts'
 import { session, turn } from './composeSession.fixture.ts'
@@ -41,7 +41,7 @@ test('a growth keeps every link; a shortened list unlinks them all', () => {
   const parentOf = rt.compose!.parentOf
   assert.deepEqual([parentOf[0], parentOf[1]], [0, 0], 'the first parent still poses its two')
   assert.equal(parentOf[39], 1, 'the new root follows its own parent')
-  assert.ok(parentOf.subarray(2, 39).every((p) => p === NONE))
+  assert.ok(parentOf.subarray(2, 39).every((p) => p === NO_INDEX))
   assert.deepEqual(unlinked, [], 'nothing unlinked')
   // Another, shorter list: every root unlinked, through the one path.
   roots.length = 2

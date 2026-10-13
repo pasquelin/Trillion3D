@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 
 /**
@@ -58,7 +59,7 @@ export const CAND_LIVE_WORDS = 7
 
 export const DAG_LEVEL_WGSL = wgslBlock(
   'DAG_LEVEL_WGSL',
-  [FLAT_INDEX_WGSL, OPEN_SLICE_WGSL, WORKGROUP_THREADS_WGSL],
+  [FLAT_INDEX_WGSL, OPEN_SLICE_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX],
   `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].candCap*${CAND_LIVE_WORDS}u,0u,q==0u);}
 /** Entries a queue holds: two words each, the node then the placement that reads it. */
 fn queueEntries()->u32{return views[0u].queueCap/2u;}
@@ -138,7 +139,7 @@ fn levelStep(src:u32,s:u32){
  if(s==0u){let q=(src+2u)%${LEVEL_QUEUES}u;atomicStore(&work[queueCounter(q)],0u);resetGrid(queueGroups(q));}
  if(s>=min(atomicLoad(&work[queueCounter(src)]),queueEntries())){return;}
  let entry=flagAt(queueBase(src)+2u*s);
- if(entry==0xffffffffu){return;}
+ if(entry==NO_INDEX){return;}
  vi=entryView(entry);
  let index=entryIndex(entry);
  // Past the nodes, a member a kept group of the tree deposited (\`placementTreeWgsl.ts\`).

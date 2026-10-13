@@ -1,6 +1,7 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { toF32 } from '../../../math/src/wgsl/f32.ts'
+import { NO_INDEX } from '../../../math/src/wgsl/constants.ts'
 import { BOUNCE_SETTINGS, PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/index.ts'
 import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
 import { invTranspose3Prep } from '../../../math/src/wgsl/inverseTranspose.ts'
@@ -21,7 +22,6 @@ import {
   INSTANCE_WORDS,
   RAY_TRIANGLES,
   RAY_WORK,
-  RUNTIME_NONE,
   RUNTIME_ORIGIN_WORDS,
   RUNTIME_PROXY_WGSL,
   RUNTIME_WORLD_WORDS,
@@ -55,6 +55,7 @@ export const runtimeSceneWgsl = ({ group, proxy }: SceneBindings) =>
     [
       RUNTIME_PROXY_WGSL,
       WIDE_TRAVERSAL_WGSL,
+      NO_INDEX,
       toF32,
       invTranspose3Prep,
       worldMatrix3,
@@ -62,7 +63,6 @@ export const runtimeSceneWgsl = ({ group, proxy }: SceneBindings) =>
     ],
     `
 ${wgslConsts({
-  RT_NONE: RUNTIME_NONE,
   RT_WORK: RAY_WORK,
   RT_TRIANGLES: RAY_TRIANGLES,
   RT_STEPS: BOUNCE_SETTINGS.traversalSteps,
@@ -146,7 +146,7 @@ fn rtInstanceWord(w:u32,k:u32)->u32{return rtProxy.words[rtProxy.instancesWord+w
  *  a ray that misses it is one unit spent — then the cut's tree with the ray taken to its space. */
 fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
  let node0=rtInstanceWord(w,RT_INSTANCE_NODE);
- if(node0==RT_NONE){return best;}
+ if(node0==NO_INDEX){return best;}
  let m=rtWorldOf(w);
  let linear=worldMatrix3(m);
  let local=rtBox(node0);
@@ -181,7 +181,7 @@ fn rtScene(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
  var best=RtHit(limit,0u,0u,false);
  if(rtProxy.instances==0u){return best;}
  let inverse=rayInverseDirection(direction);
- if(rtProxy.treeRoot==RT_NONE){
+ if(rtProxy.treeRoot==NO_INDEX){
   for(var w=0u;w<rtProxy.members;w++){
    if(rtSpent()){break;}
    rtWork+=1u;
@@ -210,7 +210,7 @@ fn rtScene(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
    let first=rtTreeWord(node,RT_NODE_FIRST);
    if(rtTreeWord(node,RT_NODE_KIND)==RT_TREE_GROUP){
     let w=rtProxy.words[rtProxy.membersWord+first+k];
-    if(w!=RT_NONE){
+    if(w!=NO_INDEX){
      best=rtEnter(w,origin,direction,inverse,best);
      if(rtAnyHit&&best.found){return best;}
     }

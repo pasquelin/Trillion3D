@@ -4,6 +4,7 @@
  * parent's move declares at its last world and its new one, and which `settle` declares where the
  * parent now holds it (`../webgpu/shadow/mobility.ts`). No row is read: one box per slot.
  */
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import {
   BOX_VALUES,
   boxEmpty,
@@ -14,7 +15,6 @@ import {
 import { boxEquals, boxGrow } from '../../../math/src/geometry/box.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { ComposeState } from './gpuCompose.ts'
-import { NONE } from './gpuComposeWgsl.ts'
 
 const reachBox = new Float64Array(BOX_VALUES)
 
@@ -123,5 +123,5 @@ export function composedSlotBox(rt: WebgpuPagesRuntime, lead: number) {
  *  group stays open while it does (`../gpu/dag/treeFollow.ts`). */
 export function composedRoot(rt: Pick<WebgpuPagesRuntime, 'compose'>, rank: number) {
   const parentOf = rt.compose?.parentOf
-  return !!parentOf && rank < parentOf.length && parentOf[rank] !== NONE
+  return !!parentOf && rank < parentOf.length && parentOf[rank] !== NO_INDEX
 }

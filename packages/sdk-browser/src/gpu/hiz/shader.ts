@@ -16,6 +16,7 @@ import { HIZ_HIDES_WGSL } from './rectWgsl.ts'
 import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
+import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 import { SURFACE_SLOPE_WGSL } from '../../lighting/deferred/footprintWgsl.ts'
@@ -261,7 +262,7 @@ fn testBox(i:u32){
  // A tested row the pyramid cannot judge stays drawn: kept, never an occluder — the compute
  // raster draws occluders in its other mode. A row with no verdict slot (never culled) is not
  // judged either: no reject is counted for a row that draws.
- if(pages[row].hizSlot==0xffffffffu||(b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=${VERDICT_KEPT}u;return;}
+ if(pages[row].hizSlot==NO_INDEX||(b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=${VERDICT_KEPT}u;return;}
  // Reverse-Z: a box is rejected when its NEAREST point stays behind the pyramid's farthest,
  // hence when it is SMALLER. The coarse mip the partition packed is read first (\`pyramidHides\`).
  let reject=select(0u,1u,pyramidHides(b.minX,b.minY,b.maxX,b.maxY,b.fineOffset,b.fineWidth,b.nearest,b.coarseOffset,b.coarseWidth,b.coarseShift));
@@ -277,6 +278,7 @@ fn testBox(i:u32){
     FLAT_INDEX_WGSL,
     GROUP_GRID_WGSL,
     WORKGROUP_THREADS_WGSL,
+    NO_INDEX,
     ceilDiv,
     STATE_TALLY_WGSL,
     HIZ_HIDES_WGSL,

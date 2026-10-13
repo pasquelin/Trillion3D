@@ -7,6 +7,7 @@ import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL } from '../../visibility/shade
 import { SMALL_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { RASTER_TRI_WGSL } from './triWgsl.ts'
 import { RASTER_PIXEL_WGSL, pixelCount, pixelOffset } from './pixelWgsl.ts'
+import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { rasterKernels } from './kernelsWgsl.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
@@ -56,6 +57,7 @@ ${rasterKernels(capacity)}`,
       FLAT_INDEX_WGSL,
       GROUP_GRID_WGSL,
       WORKGROUP_THREADS_WGSL,
+      NO_INDEX,
       ceilDiv,
     ],
   )
@@ -79,8 +81,8 @@ export const RESOLVE = wgslProgram(
 struct One{@location(0) id:u32,@builtin(frag_depth) depth:f32,}
 struct Two{@location(0) id:u32,@location(1) hiz:f32,@builtin(frag_depth) depth:f32,}
 struct Hiz{@location(0) hiz:f32,@builtin(frag_depth) depth:f32,}
-@fragment fn one(@builtin(position) pos:vec4f)->One{let i=pixelOffset(vec2u(pos.xy));let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}return One(id,bitcast<f32>(frame[i]));}
-@fragment fn two(@builtin(position) pos:vec4f)->Two{let i=pixelOffset(vec2u(pos.xy));let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}let depth=bitcast<f32>(frame[i]);return Two(id,depth,depth);}
+@fragment fn one(@builtin(position) pos:vec4f)->One{let i=pixelOffset(vec2u(pos.xy));let id=frame[pixelCount()+i];if(id==NO_INDEX){discard;}return One(id,bitcast<f32>(frame[i]));}
+@fragment fn two(@builtin(position) pos:vec4f)->Two{let i=pixelOffset(vec2u(pos.xy));let id=frame[pixelCount()+i];if(id==NO_INDEX){discard;}let depth=bitcast<f32>(frame[i]);return Two(id,depth,depth);}
 @fragment fn hiz(@builtin(position) pos:vec4f)->Hiz{let d=bitcast<f32>(frame[pixelOffset(vec2u(pos.xy))]);if(d<=${wgslF32(DEPTH_CLEAR)}){discard;}return Hiz(d,d);}`,
-  [VIS_UNIFORMS_WGSL, pixelCount, pixelOffset],
+  [VIS_UNIFORMS_WGSL, pixelCount, pixelOffset, NO_INDEX],
 )

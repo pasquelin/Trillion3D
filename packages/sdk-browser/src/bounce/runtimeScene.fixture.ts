@@ -1,5 +1,6 @@
 // The scene the run-time proxy's tests run over: cubes turned and stretched, packed with the culling's
 // tree, and the proxy's buffer as the shader reads it.
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import * as G from '../host/graph/graph.fixture.ts'
 import { scenePages, sceneRoots } from '../gpu/dag/cutFrontierScene.fixture.ts'
 import { packDagSelection } from '../gpu/dag/selection.ts'
@@ -15,7 +16,6 @@ import { buildCutProxy } from '../world/page/runtimeProxy.ts'
 import { cubeGeometry } from '../world/page/cube.fixture.ts'
 import {
   INSTANCE_WORDS,
-  RUNTIME_NONE,
   RUNTIME_ORIGIN_WORDS,
   RUNTIME_WORLD_WORDS,
   SURFACE_WORDS,
@@ -151,7 +151,7 @@ export function world(
     copyWorldsWord: copyWorldsAt,
     boundsWord: boundsAt,
     childrenWord: childrenAt,
-    treeRoot: tree ? tree.levels[0].base : RUNTIME_NONE,
+    treeRoot: tree ? tree.levels[0].base : NO_INDEX,
     treeFirst: tree?.cellBase ?? 0,
     treeWord: treeAt,
     membersWord: membersAt,
