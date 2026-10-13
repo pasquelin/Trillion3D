@@ -4,6 +4,7 @@ import { pageTableBuffer } from '../render/pageTable.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
 import { deviceMade } from '../../../gpu/core/errorScope.ts'
 import { pendingAll } from '../../../gpu/core/tableGrowth.ts'
+import { forgetReflectedImages } from '../../../reflections/forget.ts'
 import { gpuGrowth } from './growGpuTables.ts'
 import { queueTableGrowth } from './growthQueue.ts'
 import type { TableGrowthReport } from '../../../residency/pools.ts'
@@ -122,6 +123,9 @@ async function growTables(
     })
   // Origin of the resource change: the tables the image reads were replaced.
   run.gate.resourcesChanged()
+  // The rows that waited draw now: the lit image the images meanwhile left lacks them, and the series
+  // the reflections converge to restarts from the one that holds them.
+  forgetReflectedImages(rt)
   const durationMs = performance.now() - started
   const report = { drawSlots, casterSlots, bytes: made.bytes, refused: false, durationMs }
   diag.engineDiagnostic('page-tables-grown', 'Page tables grown in place', report)
