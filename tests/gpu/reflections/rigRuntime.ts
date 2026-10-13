@@ -1,4 +1,4 @@
-// What the reflection rig binds in place of the run-time proxy (`runtimeProxyPage.ts` proves it): its empty
+// What the reflection rig binds in place of the run-time proxy (`runtime-proxy.gpu.ts` proves it): its empty
 // header in each of its four places, no history, and the radiance hash its epoch follows.
 import { HISTORY_HEADER_WORDS } from '../../../packages/sdk-browser/src/reflections/proxyHistory.ts'
 import { RUNTIME_HEADER_WORDS } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'

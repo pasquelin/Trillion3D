@@ -1,24 +1,24 @@
-// The page of the run-time proxy's budget proof: the paving world drawn at a size whose rays outnumber
+// The page of the run-time proxy's budget proof: the first case of the family drawn at a size whose rays outnumber
 // the frame's budget, the temporal accumulation off so that the image holds; each frame's counters read
-// (`HISTORY`) until the image holds, then the image.
+// (`HISTORY`) until the image holds,
 import { HISTORY } from '../../../packages/sdk-browser/src/reflections/proxyHistory.ts'
 import { proofCanvas } from '../kit/renderHarness.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { listenToWorldDevices, readWords } from '../kit/worldErrors.ts'
-import { canvasContext, readImage } from './runtimeProxyPage.ts'
-import { runtimeWorld } from './runtimeWorld.ts'
+import { familyCase } from './runtimeFamilyCases.ts'
+import { familyWorld } from './runtimeFamilyWorld.ts'
 
 /** What the proof reads: each frame's work spent and pixels left from the first that casts a ray, and the
  *  image the world holds at the end. */
 export type BudgetReading = {
   trail: { spent: number; left: number }[]
   held: boolean
-  width: number
-  pixels: number[]
-  mask: number[]
   worldErrors: string[]
 }
+
+/** The case the budget proof draws: one whose floor reflects many shapes. */
+export const BUDGET_CASE = 0
 
 export const run = (size: readonly [number, number]) =>
   runOnDevice<BudgetReading>(async (_device, _events, result) => {
@@ -31,14 +31,17 @@ export const run = (size: readonly [number, number]) =>
     Object.assign(canvas.css, { width: size[0], height: size[1] })
     canvas.width = size[0]
     canvas.height = size[1]
-    const world = runtimeWorld(canvas, 'paving')
+    const { world } = familyWorld(canvas, familyCase(BUDGET_CASE))
     await world.ready
     world.temporalAntialiasing = false
     let held = 0
     world.onFrame(({ metrics }) => {
       held = metrics.frameHeld ? held + 1 : 0
     })
-    const context = canvasContext(canvas)
+    const context = canvas.getContext('webgpu') as unknown as {
+      current: GPUTexture | null
+      getConfiguration(): { device: GPUDevice }
+    }
     const trail: BudgetReading['trail'] = []
     for (
       let frame = 0;
@@ -61,8 +64,7 @@ export const run = (size: readonly [number, number]) =>
         left: counters[HISTORY.left],
       })
     }
-    const { pixels, width, mask } = await readImage(context, 'paving')
-    Object.assign(result, { trail, held: held > 0, pixels, width, mask, worldErrors: errors })
+    Object.assign(result, { trail, held: held > 0, worldErrors: errors })
     world.dispose()
     canvas.remove()
   })

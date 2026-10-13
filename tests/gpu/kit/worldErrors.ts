@@ -3,10 +3,11 @@
 // is made; the proof asserts the list is empty.
 
 /** Listens on every device the page's WebGPU grants from now on; the errors it raises fill the list, and
- *  the buffers it makes are kept by label (`made`), for a proof that reads one. */
+ *  the buffers and textures it makes are kept by label (`made`, `textures`), for a proof that reads one. */
 export function listenToWorldDevices() {
   const errors: string[] = [],
-    made = new Map<string, GPUBuffer>()
+    made = new Map<string, GPUBuffer>(),
+    textures = new Map<string, GPUTexture>()
   const gpu = navigator.gpu
   const requestAdapter = gpu.requestAdapter.bind(gpu)
   gpu.requestAdapter = async (...args) => {
@@ -22,11 +23,17 @@ export function listenToWorldDevices() {
         if (descriptor.label) made.set(descriptor.label, buffer)
         return buffer
       }
+      const createTexture = device.createTexture.bind(device)
+      device.createTexture = (descriptor) => {
+        const texture = createTexture(descriptor)
+        if (descriptor.label) textures.set(descriptor.label, texture)
+        return texture
+      }
       return device
     }
     return adapter
   }
-  return { errors, made }
+  return { errors, made, textures }
 }
 
 /** The first `count` words of `buffer`, read back on `device` (a buffer made with `COPY_SRC`). */

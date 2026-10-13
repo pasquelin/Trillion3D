@@ -1,8 +1,9 @@
-// The page of the run-time proxy's memory proof: the generated world of the reflection proof
-// (`../reflections/runtimeWorld.ts`) drawn at two sizes, the engine's allocation ledger read by label once it
+// The page of the run-time proxy's memory proof: the generated world of the reflection proof's first case
+// (`../reflections/runtimeFamilyWorld.ts`) drawn at two sizes, the engine's allocation ledger read by label once it
 // is held, in bytes per pixel. The proxy's history follows the screen: eight bytes a pixel, asked of the
 // frame's allocation when the first placement that wears a proxy is drawn.
-import { runtimeWorld } from '../reflections/runtimeWorld.ts'
+import { familyCase } from '../reflections/runtimeFamilyCases.ts'
+import { familyWorld } from '../reflections/runtimeFamilyWorld.ts'
 import { proofCanvas } from '../kit/renderHarness.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
@@ -25,7 +26,7 @@ export const run = () =>
       Object.assign(canvas.css, { width, height })
       canvas.width = width
       canvas.height = height
-      const world = runtimeWorld(canvas)
+      const { world } = familyWorld(canvas, familyCase(0))
       await world.ready
       let held = 0,
         labels: Record<string, number> = {}

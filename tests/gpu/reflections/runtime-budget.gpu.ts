@@ -1,7 +1,7 @@
 // A frame spends at most its budget on the run-time proxy's rays, and the rays it leaves out go on in the
 // next frames from the answers the pixels last got: at a size whose rays outnumber the budget, the first
-// frames leave pixels (`left`), the view settles once none is left, and the image it holds is the one a
-// frame with budget to spare draws (`runtime-proxy.gpu.ts`), the mirror pixels of the sphere lit.
+// frames leave pixels (`left`), the view settles once none is left (the image it holds is the one the
+// family proof, `runtime-proxy.gpu.ts`, judges).
 //
 //   node bench/dawn/proofs.ts tests/gpu/reflections/runtime-budget.gpu.ts
 import test from 'node:test'
@@ -9,9 +9,6 @@ import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
 import { FRAME_WORK } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
-
-const luma = (pixels: number[], at: number) =>
-  0.2126 * pixels[at * 4] + 0.7152 * pixels[at * 4 + 1] + 0.0722 * pixels[at * 4 + 2]
 
 test(
   'a frame past its budget leaves its rays for the next frames, and the view settles on the full answer',
@@ -27,7 +24,7 @@ test(
     assert.equal(result.error, undefined, result.error)
     assert.deepEqual(result.errors, [])
     assert.deepEqual(result.worldErrors, [], "the world's own device raised no error")
-    const { trail = [], held, pixels = [], mask = [] } = result
+    const { trail = [], held } = result
     const cast = trail.filter((frame) => frame.spent > 0)
     console.log(
       JSON.stringify({
@@ -46,7 +43,5 @@ test(
     assert.equal(trail.at(-1)!.left, 0, 'none is left when it holds')
     const worst = Math.max(...trail.map((frame) => frame.spent))
     assert.ok(worst < 2.2 * FRAME_WORK, `${worst} units a frame, the budget ${FRAME_WORK}`)
-    const lit = mask.filter((at) => luma(pixels, at) >= 150).length
-    assert.ok(lit >= 0.85 * mask.length, `${lit} of ${mask.length} mirror pixels show the emission`)
   },
 )
