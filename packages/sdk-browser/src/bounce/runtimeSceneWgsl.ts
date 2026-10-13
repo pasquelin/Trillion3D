@@ -3,6 +3,9 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { BOUNCE_SETTINGS, PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/index.ts'
 import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
+import { invTranspose3Prep } from '../../../math/src/wgsl/inverseTranspose.ts'
+import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
+import { transformHalfExtent } from '../../../math/src/wgsl/geometry.ts'
 import {
   NODE_CHILD_COUNT,
   NODE_FIRST_CHILD,
@@ -47,7 +50,7 @@ const TREE_DEPTH = 8
 export const runtimeSceneWgsl = ({ group, proxy }: SceneBindings) =>
   wgslBlock(
     `runtimeSceneWgsl(${group}, ${proxy})`,
-    [WIDE_TRAVERSAL_WGSL],
+    [WIDE_TRAVERSAL_WGSL, invTranspose3Prep, worldMatrix3, transformHalfExtent],
     `
 ${wgslConsts({
   RT_NONE: RUNTIME_NONE,
@@ -104,29 +107,15 @@ ${wideTraversal({
      if(distance<best.distance){best=RtHit(distance,placement,tri0+index,true);if(rtAnyHit){return best;}}`,
   answer: 'best',
 })}
-/** Placement \`w\`'s world: its linear columns \`a\`, \`b\`, \`c\` and its translation \`t\`. */
-struct RtWorld{a:vec3f,b:vec3f,c:vec3f,t:vec3f,}
-fn rtWorldOf(w:u32)->RtWorld{
- // A placement's world is the culling's, mirrored in the proxy's buffer; a blended copy's, the proxy's own,
- // past the placements.
+/** Placement \`w\`'s world, column-major: a placement's is the culling's, mirrored in the proxy's
+ *  buffer; a blended copy's, the proxy's own, past the placements. */
+fn rtWorldOf(w:u32)->mat4x4f{
  let at=select(rtProxy.worldsWord+w*RT_WORLD_WORDS,rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS,w>=rtProxy.instances);
- return RtWorld(
-  vec3f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u)),
-  vec3f(rtFloat(at+4u),rtFloat(at+5u),rtFloat(at+6u)),
-  vec3f(rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u)),
-  vec3f(rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u)));
+ return mat4x4f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u),rtFloat(at+3u),
+  rtFloat(at+4u),rtFloat(at+5u),rtFloat(at+6u),rtFloat(at+7u),
+  rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u),rtFloat(at+11u),
+  rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u),rtFloat(at+15u));
 }
-/** The rows of the inverse of a world's linear part, over its determinant: \`inverse * v\` is the dot
- *  of each with \`v\`. Zero where the world is singular. */
-struct RtInverse{r0:vec3f,r1:vec3f,r2:vec3f,}
-fn rtInverseOf(m:RtWorld)->RtInverse{
- let r0=cross(m.b,m.c);
- let det=dot(m.a,r0);
- if(abs(det)<1e-30){return RtInverse(vec3f(0.0),vec3f(0.0),vec3f(0.0));}
- let scale=1.0/det;
- return RtInverse(r0*scale,cross(m.c,m.a)*scale,cross(m.a,m.b)*scale);
-}
-fn rtInverseApply(i:RtInverse,v:vec3f)->vec3f{return vec3f(dot(i.r0,v),dot(i.r1,v),dot(i.r2,v));}
 fn rtInstanceWord(w:u32,k:u32)->u32{return rtProxy.words[rtProxy.instancesWord+w*RT_INSTANCE_WORDS+k];}
 /** The ray against placement \`w\`: its world box, the root of its cut's tree through the world, first —
  *  a ray that misses it is one unit spent — then the cut's tree with the ray taken to its space. */
@@ -134,15 +123,18 @@ fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
  let node0=rtInstanceWord(w,RT_INSTANCE_NODE);
  if(node0==RT_NONE||(w<rtProxy.instances&&w>=rtProxy.worldRows)){return best;}
  let m=rtWorldOf(w);
+ let linear=worldMatrix3(m);
  let local=rtBox(node0);
- let centre=(local.low+local.high)*0.5;
- let half=(local.high-local.low)*0.5;
- let c=m.a*centre.x+m.b*centre.y+m.c*centre.z+m.t;
- let extent=abs(m.a)*half.x+abs(m.b)*half.y+abs(m.c)*half.z;
+ let c=linear*((local.low+local.high)*0.5)+m[3].xyz;
+ let extent=transformHalfExtent(m,(local.high-local.low)*0.5);
  if(rayBoxEntry(c-extent,c+extent,origin,inverse,best.distance)>best.distance){return best;}
- let back=rtInverseOf(m);
- let o=rtInverseApply(back,origin-m.t);
- let d=rtInverseApply(back,direction);
+ // The ray taken to the mesh's space by the inverse of the world's linear part: a row vector times
+ // the engine's inverse-transpose (\`invTranspose3Prep\`). A singular world holds no volume a ray
+ // can enter.
+ let back=invTranspose3Prep(linear);
+ if(!back.regular){return best;}
+ let o=(origin-m[3].xyz)*back.adj*back.scale;
+ let d=direction*back.adj*back.scale;
  let hit=rtTraceCut(o,d,best.distance,node0,rtInstanceWord(w,RT_INSTANCE_TRIANGLE),w);
  if(hit.found&&hit.distance<best.distance){return hit;}
  return best;

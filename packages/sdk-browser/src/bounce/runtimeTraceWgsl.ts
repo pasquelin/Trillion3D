@@ -1,6 +1,9 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
+import { inverseTranspose3, unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
+import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
+import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { RUNTIME_ANSWER_WGSL } from './runtimeAnswerWgsl.ts'
 import { runtimeSceneWgsl, type SceneBindings } from './runtimeSceneWgsl.ts'
 import {
@@ -25,7 +28,14 @@ import {
 export const runtimeRadianceWgsl = (scene: SceneBindings) =>
   wgslBlock(
     `runtimeRadianceWgsl(${scene.group}, ${scene.proxy})`,
-    [runtimeSceneWgsl(scene), SURFACE_RAY_WGSL],
+    [
+      runtimeSceneWgsl(scene),
+      SURFACE_RAY_WGSL,
+      inverseTranspose3,
+      unitOrZero,
+      faceNormal,
+      worldMatrix3,
+    ],
     `
 ${wgslConsts({
   RT_LAYERS: RAY_LAYERS,
@@ -51,11 +61,8 @@ fn rtSurfaceOf(index:u32)->RtSurface{
 /** The light a hit's surface returns, seen from \`direction\`: its tint lit at the point by the lights
  *  (\`surfaceLit\`), on the face that looks at the ray. */
 fn rtLit(hit:RtHit,origin:vec3f,direction:vec3f,surface:RtSurface,reach:f32)->vec3f{
- let w=hit.placement;
- let m=rtWorldOf(w);
- let back=rtInverseOf(m);
- let n=cross(rtVertex(hit.triangle,1u)-rtVertex(hit.triangle,0u),rtVertex(hit.triangle,2u)-rtVertex(hit.triangle,0u));
- var N=normalize(back.r0*n.x+back.r1*n.y+back.r2*n.z);
+ let n=faceNormal(rtVertex(hit.triangle,0u),rtVertex(hit.triangle,1u),rtVertex(hit.triangle,2u));
+ var N=unitOrZero(inverseTranspose3(worldMatrix3(rtWorldOf(hit.placement)),n));
  if(dot(N,direction)>0.0){N=-N;}
  return surfaceLit(surface.tint,origin+direction*hit.distance,N,reach);
 }
@@ -86,7 +93,7 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
   let surface=rtSurfaceOf(rtInstanceWord(hit.placement,RT_INSTANCE_SURFACE));
   let spread=hit.distance*tangent+0.01;
   let marked=unpack2x16float(rtInstanceWord(hit.placement,RT_INSTANCE_MARK)>>16u).x;
-  let known=spread/(spread+marked*length(rtWorldOf(hit.placement).a));
+  let known=spread/(spread+marked*length(rtWorldOf(hit.placement)[0].xyz));
   let opacity=select(1.0,surface.opacity,surface.blended)*known;
   color+=through*opacity*rtShade(hit,start,direction,surface,reach);
   through*=1.0-opacity;

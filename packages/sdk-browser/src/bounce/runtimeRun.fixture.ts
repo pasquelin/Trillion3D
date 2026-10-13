@@ -29,8 +29,6 @@ const FUNCTIONS = [
   'rtBox',
   'rtChild',
   'rtWorldOf',
-  'rtInverseOf',
-  'rtInverseApply',
   'rtInstanceWord',
   'rtTreeWord',
   'rtTreeLow',
@@ -109,8 +107,7 @@ export function runOver(
       count,
       present,
     }),
-    RtWorld: (a: Vec, b: Vec, c: Vec, t: Vec) => ({ a, b, c, t }),
-    RtInverse: (r0: Vec, r1: Vec, r2: Vec) => ({ r0, r1, r2 }),
+    InvT3: (adj: unknown, scale: number, regular: boolean) => ({ adj, scale, regular }),
     RtHit: (distance: number, placement: number, triangle: number, found: boolean) => ({
       distance,
       placement,
