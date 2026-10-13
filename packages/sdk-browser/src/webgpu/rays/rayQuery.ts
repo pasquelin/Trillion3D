@@ -6,7 +6,7 @@ import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { dispatchRows, groupWidth } from '../../gpu/dispatch/grid.ts'
 import { preparedComputePipeline, preparedPipelines } from '../../lighting/deferred/fullscreen.ts'
-import { alignUp, ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { alignUp, ceilDiv, nextPow2 } from '../../../../math/src/scalar/integers.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { RAY_HIT } from './rayRecord.ts'
 import { RAY_LANES, rayQueryWgsl } from './rayQueryWgsl.ts'
@@ -65,7 +65,7 @@ const hashKernel = oncePerDevice((device: GPUDevice) =>
 )
 
 /** Slots of the row index over `rows` rows: twice them at least, a power of two. */
-const indexSlots = (rows: number) => 2 ** Math.ceil(Math.log2(Math.max(32, 2 * rows)))
+const indexSlots = (rows: number) => nextPow2(Math.max(32, 2 * rows))
 
 /**
  * THE RAY QUERY ON ONE DEVICE: a batch of rays encoded as two dispatches of one compute pass —
@@ -88,7 +88,7 @@ export function createRayQuery(device: GPUDevice) {
     query?.destroy()
     return (query = device.createBuffer({
       label: RAY_QUERY_PASS,
-      size: 2 ** Math.ceil(Math.log2(Math.max(256, bytes))),
+      size: nextPow2(Math.max(256, bytes)),
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     }))
   }
