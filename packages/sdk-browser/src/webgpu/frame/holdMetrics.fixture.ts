@@ -53,9 +53,11 @@ export function heldFrame() {
     cpuSample: { version: 1 },
     partitionCounts: {},
   }
+  // The main view drawn: its share of the GPU group is the runtime's (`viewGpu`).
+  const main = {}
   const rt = {
     run,
-    views: { active: {} },
+    views: { active: main, main },
     timing,
     context: {},
     scale: createScaleControl(undefined),

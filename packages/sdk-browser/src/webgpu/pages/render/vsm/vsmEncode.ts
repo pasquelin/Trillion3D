@@ -29,9 +29,9 @@ const forwardZViewToClip = new Float32Array(16)
 /** This image's render projection, the TAA jitter in it (`taaRenderProjection`). */
 const renderProjection = new Float64Array(16)
 
-/** What a set's frames rebuild in place (`frameScratch`): the per-page entries and their bins, the
- *  suns' ids and the lights the projection reads. */
-interface FrameScratch {
+/** What a set's frames rebuild in place (`frameScratch`, kept on `EngineVsm.frameScratch`): the
+ *  per-page entries and their bins, the suns' ids and the lights the projection reads. */
+export interface VsmFrameScratch {
   perPage: VsmPerPageFrame
   suns: Uint32Array<ArrayBuffer>
   projected: VsmProjectionLight[]
@@ -39,42 +39,35 @@ interface FrameScratch {
   marking: VsmMarkingFrame
   markingView: VsmMarkingView
 }
-const SCRATCH = new WeakMap<EngineVsm, FrameScratch>()
-const frameScratch = (vsm: EngineVsm) => {
-  let scratch = SCRATCH.get(vsm)
-  if (!scratch)
-    SCRATCH.set(
-      vsm,
-      (scratch = {
-        perPage: vsmPerPageFrame(),
-        suns: new Uint32Array(vsm.directionalIds.size / 4),
-        projected: [],
-        marking: {
-          fullMapCount: 0,
-          singlePageMapCount: 0,
-          perPage: undefined as never,
-          perspective: true,
-          view: undefined,
-        },
-        markingView: {
-          depth: undefined as never,
-          normalRough: undefined as never,
-          flags: undefined as never,
-          view: undefined as never,
-          directLights: undefined as never,
-          tileLights: undefined as never,
-          lightVsmIds: undefined as never,
-          sunMapIds: undefined as never,
-          sunMapCount: 0,
-          viewRectMin: [0, 0],
-          viewSize: [0, 0],
-          viewToClip: forwardZViewToClip,
-          originShift: [0, 0, 0],
-        },
-      }),
-    )
-  return scratch
-}
+const frameScratch = (vsm: EngineVsm) =>
+  (vsm.frameScratch ??= {
+    perPage: vsmPerPageFrame(),
+    suns: new Uint32Array(vsm.directionalIds.size / 4),
+    projected: [],
+    marking: {
+      fullMapCount: 0,
+      singlePageMapCount: 0,
+      perPage: undefined as never,
+      perspective: true,
+      view: undefined,
+    },
+    markingView: {
+      depth: undefined as never,
+      normalRough: undefined as never,
+      flags: undefined as never,
+      view: undefined as never,
+      directLights: undefined as never,
+      tileLights: undefined as never,
+      lightVsmIds: undefined as never,
+      sunMapIds: undefined as never,
+      sunMapCount: 0,
+      viewRectMin: [0, 0],
+      viewSize: [0, 0],
+      viewToClip: forwardZViewToClip,
+      originShift: [0, 0, 0],
+    },
+  })
+
 /**
  * The frame's GPU work of the virtual shadow maps, after the light lists and before the lighting:
  * invalidation, page management, marking, allocation, raster, post-render and projection.
@@ -142,7 +135,7 @@ export function encodeVsmFrame(
  *  and the light ids go up only where they changed. */
 function encodeVsmMarking(
   { rt, device, encoder, cam, projection, vsm, plan }: VsmFrame,
-  scratch: FrameScratch,
+  scratch: VsmFrameScratch,
   perPage: ReturnType<typeof vsmCachePerPageBins>,
   pmFrame: VsmPageManagementFrame,
 ) {

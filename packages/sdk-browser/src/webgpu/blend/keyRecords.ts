@@ -6,7 +6,7 @@ const RECORD_DOUBLES = KEY_RECORD_WORDS / 2
 /**
  * WHAT THE ORDER KERNEL KEYS AN ITEM FROM (`itemKey`, `orderWgsl.ts`): the six doubles of its
  * world box, or the three of its world origin when it has none, then its flags and its own rank —
- * the rank of its CPU key in the frame data when it draws its own slot (`runs.ts`), `NOT_OWN`
+ * the rank of its CPU key in the frame data when it draws its own slot (`runs.ts`), `NO_INDEX`
  * otherwise. The doubles are copied bit for bit: the kernel computes on the CPU's numbers.
  *
  * Rewritten with the plan (`refreshBlendScene`), which follows every box a matrix move rebuilt; an

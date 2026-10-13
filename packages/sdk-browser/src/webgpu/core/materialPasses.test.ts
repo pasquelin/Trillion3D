@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { encodeMaterialPasses } from './materialPasses.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -10,6 +9,7 @@ import { drawsOf, pipelinesOf, resolveFixture } from './materialPasses.fixture.t
 import type { FakePass } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { MATERIAL_SURFACES_PASS } from '../../stage/passLabels.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 const passSummary = (passes: FakePass[]) => passes.map((pass) => [pass.label, drawsOf(pass)])
 
@@ -49,7 +49,7 @@ test('a cached direct class is used only for that sole present class', () => {
   assert.deepEqual(passSummary(passes), [[MATERIAL_SURFACES_PASS, 2]])
   assert.deepEqual(pipelinesOf(passes[0]), [ordinary.get(5), ordinary.get(9)])
   assert.ok(!pipelinesOf(passes[0]).includes(direct.get(5)))
-  rt.layout.rows.pageTableInts![ROW_MATERIAL_CLASS_WORD] = 9
+  rt.layout.rows.pageTableInts![PAGE_INFO.at.materialClass] = 9
   rt.layout.rows.packedCount = 1
   passes.length = 0
   encodeMaterialPasses(rt, device, encoder)
@@ -71,7 +71,7 @@ test('the same classes replay the surfaces bundle, a class that leaves records i
   assert.equal(bundles.length, 1, 'recorded by the first image, replayed by the second')
   // Recorded for the pass's attachments: the four surfaces and the feedback target.
   assert.equal([...bundles[0].descriptor.colorFormats].length, passes[0].colors.length)
-  rt.layout.rows.pageTableInts![ROW_MATERIAL_CLASS_WORD] = 9
+  rt.layout.rows.pageTableInts![PAGE_INFO.at.materialClass] = 9
   rt.layout.rows.packedCount = 1
   encodeMaterialPasses(rt, device, encoder)
   assert.equal(bundles.length, 2, 'one class left: its stream is recorded again')

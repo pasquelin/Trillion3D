@@ -18,8 +18,8 @@ export type TimingState = {
   lastFrame: number
   resources: TimingResources | undefined
   active: (TimingImage & { frame: number; parts: Map<GPUCommandEncoder, TimingPart> }) | undefined
-  /** The readbacks in flight, by the readback buffer each holds. */
-  inFlight: Map<GPUBuffer, Promise<void>>
+  /** Held once every image read back so far is read (`closeImage.ts`). */
+  reading: Promise<void>
   tally: {
     sampledFrames: number
     completedSamples: number
@@ -54,7 +54,7 @@ export function createTimingState(
     lastFrame: -Infinity,
     resources: undefined,
     active: undefined,
-    inFlight: new Map(),
+    reading: Promise.resolve(),
     tally: {
       sampledFrames: 0,
       completedSamples: 0,
@@ -72,6 +72,6 @@ export function destroyTimingResources(state: TimingState) {
   const { resources } = state
   for (const set of resources?.sets ?? []) set.destroy()
   resources?.resolve.destroy()
-  for (const read of resources?.reads ?? []) read.destroy()
+  resources?.readbacks.destroy()
   state.resources = undefined
 }

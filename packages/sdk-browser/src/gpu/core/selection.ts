@@ -20,8 +20,7 @@ import type { ProxyBoxes } from '../../bounce/probeSync.ts'
  *  view's — (`../dag/runtime.ts`, `syncTables`). */
 export type TableSync = (uniforms: SelectionUniforms, view: object) => void
 
-export const SELECTION_NONE = 0xffffffff,
-  SELECTION_WORKGROUP = 64
+export const SELECTION_WORKGROUP = 64
 
 /**
  * `cameraStretch` is the camera half of the cut's object-to-view stretch, `perspective` the
@@ -51,7 +50,7 @@ export type SelectionUniforms = {
 /**
  * A resident cut's two lists — the camera's requests, the drawn pages — as the ranks the readback
  * in hand claims for them in the GPU list the host adopted last (`../dag/differenceChain.ts`): for
- * rank `s`, the rank its page holds there, `SELECTION_NONE` for a page one of the snapshots since
+ * rank `s`, the rank its page holds there, `NO_INDEX` for a page one of the snapshots since
  * did not hold. Claims, checked against the list held before they are believed.
  */
 export type CutClaims = { asked: Uint32Array; drawn: Uint32Array }
@@ -168,8 +167,10 @@ export type GpuSelection = {
    *  (`../dag/queueGrowth.ts`), grown before the next cut. */
   followRows?(rows: number): void
   /** The buffer a program reads the proxy through (`../dag/proxyInstances.ts`): none until a placement
-   *  wears one. */
+   *  wears one, or none past one storage binding of the device (`proxyRefusal`). */
   proxyBuffer(): GPUBuffer | undefined
+  /** Why no buffer holds the proxy a placement wears, by name: its bytes past one storage binding. */
+  readonly proxyRefusal: string | undefined
   /** Bytes the CPU keeps for the proxy (`../dag/proxyInstances.ts`): the streamer's reservation counts them. */
   readonly proxyHostBytes: number
   /** The placement tree copied into the proxy's buffer, before the first program of the image that walks it. */

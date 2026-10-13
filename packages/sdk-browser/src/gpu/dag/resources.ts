@@ -16,6 +16,7 @@ import { VIEW_ROWS } from '../../webgpu/row/tableRows.ts'
 import { CUT_TABLE_BYTES } from '../../residency/cutTableBytes.ts'
 import type { CutSteps } from './cutSteps.ts'
 import { madeAsked, type CutAdmission } from './cutBuffers.ts'
+import { createMainReadbacks } from './mainReadbacks.ts'
 
 /** The DAG's GPU resources once made (`createDagResources`). */
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
@@ -94,7 +95,9 @@ export async function createDagResources(
       share,
       admit,
     }
-    return { ...resources, rankGroups: rankGroups(resources) }
+    // The frame's copies of the lists, read back in order: made last, within what the tables leave.
+    const readbacks = createMainReadbacks(device, resources, made.readbackBytes)
+    return { ...resources, readbacks, rankGroups: rankGroups(resources) }
   } catch (error) {
     refused(error instanceof Error ? error.message : String(error))
     for (const buffer of buffers)

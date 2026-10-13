@@ -6,6 +6,7 @@ import {
   isImageSize,
   mipSize,
   nextPow2,
+  slotsWithin,
   uniqueSortedInPlace,
 } from './integers.ts'
 import { hasBit, setBit } from './bits.ts'
@@ -160,4 +161,20 @@ test('isImageSize holds two safe integers of one or more, and nothing else', () 
     [2 ** 53, 1],
   ])
     assert.equal(isImageSize(w, h), false, `${w} × ${h}`)
+})
+
+test('slotsWithin is the largest power of two of slots the bytes hold, as the doubling loop found it', () => {
+  const doubled = (bytes: number, slotBytes: number) => {
+    const fit = Math.floor(bytes / slotBytes)
+    if (fit < 1) return 0
+    let slots = 1
+    while (slots * 2 <= fit) slots *= 2
+    return slots
+  }
+  const sizes = [-12, 0, 1, 11, 12, 13, 24, 47, 48, 1000, 2 ** 27, 2 ** 31 - 1, 2 ** 40 + 5]
+  for (const slotBytes of [1, 4, 12])
+    for (const b of sizes) assert.equal(slotsWithin(b, slotBytes), doubled(b, slotBytes), `${b}`)
+  assert.equal(slotsWithin(2 ** 36 - 1, 1), 2 ** 35)
+  assert.equal(slotsWithin(Infinity, 12), Infinity)
+  assert.equal(slotsWithin(NaN, 12), 0)
 })

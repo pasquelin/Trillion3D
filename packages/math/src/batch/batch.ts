@@ -1,11 +1,11 @@
 import { BOX_VALUES, boxTransform, boxUnion } from '../geometry/box.ts'
-import { multiplyMatrix4 } from '../matrix/matrix4.ts'
 
 /**
  * Math foundation operations executed IN BATCHES: `n` flat elements, a single function
- * entry, no allocation. The WebAssembly kernels in `packages/page-codec-wasm/src/math.rs` (over
- * `packages/math/rust`'s `matrix.rs` and `box_transform.rs`) replicate `boxTransformBatch` and
- * `multiplyMatrix4Batch` term by term; the engine's lots run those kernels, never these loops.
+ * entry, no allocation. A box moved by its matrix and a matrix product in batches are the
+ * WebAssembly kernels' alone (`packages/page-codec-wasm/src/math.rs`, over `packages/math/rust`'s
+ * `matrix.rs` and `box_transform.rs`), which the engine's lots run
+ * (`packages/sdk-browser/src/page/decode/batch/batchRuntime.ts`): no JavaScript loop beside them.
  *
  * Matrices are passed as SUB-VIEWS of sixteen numbers, not offsets: `multiplyMatrix4` and
  * `boxCornersInto` read their inputs at constant indices, and a parameter offset would
@@ -36,32 +36,6 @@ export {
   transformPointsByMatricesBatch,
 } from './points.ts'
 export { linearToSrgbBatch, srgbToLinearBatch } from './color.ts'
-
-/**
- * `n` boxes transformed by `n` matrices: `out[i] = boxTransform(boxes[i], mats[i])`. `out` and
- * `boxes` carry six numbers per element, `mats` a sub-view of sixteen per element.
- */
-export function boxTransformBatch(
-  out: Float64Array,
-  boxes: ArrayLike<number>,
-  mats: readonly ArrayLike<number>[],
-  n: number,
-) {
-  for (let i = 0; i < n; i++) {
-    const at = i * BOX_VALUES
-    boxTransform(out, at, boxes, at, mats[i])
-  }
-}
-
-/** `n` products `out[i] = a[i] · b[i]`, all three sides given as sub-views of sixteen numbers. */
-export function multiplyMatrix4Batch(
-  out: readonly Float64Array[],
-  a: readonly Float64Array[],
-  b: readonly Float64Array[],
-  n: number,
-) {
-  for (let i = 0; i < n; i++) multiplyMatrix4(out[i], a[i], b[i])
-}
 
 /**
  * Reduces `n` bounding boxes into `into` by progressive union: `into = into ∪ boxes[0] ∪ … ∪ boxes[n - 1]`.

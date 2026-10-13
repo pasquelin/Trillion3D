@@ -4,7 +4,6 @@
  * with the other placements of its primitive. No rank is rewritten here: they are `layout.ts`'s,
  * so none can diverge from the one the GPU reads.
  */
-import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import type { PackedDag } from './types.ts'
 import {
   CLUSTER_WORDS,
@@ -23,6 +22,7 @@ import {
   coldBase,
 } from './layout.ts'
 import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 export type DagRecords = {
   hot: Float32Array
@@ -74,7 +74,7 @@ export const flagsOf = (r: DagRecords, i: number) =>
 /** Cut node that owns the page: the placement's first node plus the record's relative owner. */
 export function ownerOf(r: DagRecords, i: number) {
   const local = r.coldInts[coldOf(r, i) + COLD_OWNER]
-  return local === NONE ? NONE : r.rootBases[worldOf(r, i)] + local
+  return local === NO_INDEX ? NO_INDEX : r.rootBases[worldOf(r, i)] + local
 }
 export const hasBoxOf = (r: DagRecords, i: number) => r.cold[coldOf(r, i) + COLD_HAS_BOX]
 /** Cluster triangles, as an integer word: the shader's `trianglesOf` is the mirror. */

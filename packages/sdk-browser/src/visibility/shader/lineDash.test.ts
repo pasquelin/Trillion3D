@@ -11,11 +11,11 @@ import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { rasterSource } from '../../gpu/raster/shader.ts'
 import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts'
-import { ROW_DASH_WORD } from '../../webgpu/row/pageRow.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { floorMod } from '../../../../math/src/wgsl/reals.ts'
+import { PAGE_INFO } from '../pageInfo.ts'
 
 type Dash = (at: number, dash: number[]) => boolean
 const DASHES: Record<string, Dash> = {
@@ -65,7 +65,7 @@ test('every path that draws a line reads the dash, and a solid surface keeps eve
   // Both WebGPU rasters and the shadow cut through `maskKeep`, which a dashed row enters.
   assert.ok(wgslModule(PAGE_GEOMETRY_WGSL).includes(LINE_DASH_WGSL.text))
   assert.match(wgslSource(PAGE_INFO_STRUCT_WGSL), /packedBase:u32,dash:vec2f,clusterHash/)
-  assert.equal(ROW_DASH_WORD, 28, 'the row words of PageInfo.dash')
+  assert.equal(PAGE_INFO.at.dash, 28, 'the row words of PageInfo.dash')
   const keep = maskKeepWgsl(maskAlphaWgsl(false)).text.replace(/\s+\/\/[^\n]*/g, '')
   assert.ok(
     keep.includes(

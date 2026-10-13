@@ -17,6 +17,7 @@ import {
   type WorldRootsCluster,
   type WorldRootsPageFacts,
 } from './worldRoots.ts'
+import { NO_INDEX } from '../../../math/src/constants.ts'
 
 /** The products' version this reader knows: another is refused. */
 const VERSION = 6
@@ -25,8 +26,6 @@ const [TABLE_HEADER, BUNDLE, PAGE, CELL, OBJECT] = [80, 56, 24, 16, 24]
 const [DAG_HEADER, CLUSTER, GROUP, NODE] = [24, 176, 64, 120]
 /** Numbers per culling node (`page-codec-wasm/src/culling.rs`, `CULLING_STRIDE`). */
 const NODE_STRIDE = 15
-/** An index word naming nothing. */
-const NONE = 0xffffffff
 
 /** `bytes`' view, its `u32` words, and its pool from where `poolAt` reads it starts: `poolAt`
  *  refuses a file its records do not fill exactly. */
@@ -111,7 +110,7 @@ function tableCells(
     const count = word(cellsAt + cell * CELL + 4)
     if (word(cellsAt + cell * CELL) !== next) refuse(`cell ${cell} objects`)
     for (const first of list(cellsAt + cell * CELL + 8))
-      if (first !== NONE && first >= count) refuse(`cell ${cell} nodes`)
+      if (first !== NO_INDEX && first >= count) refuse(`cell ${cell} nodes`)
     next += count
   }
   if (next !== objectCount) refuse('cells and objects')
@@ -126,7 +125,7 @@ function tableCells(
       const at = cellsAt + cell * CELL
       if (node >= word(at + 12)) return -1
       const first = pool[word(at + 8) + node]
-      return first !== NONE ? first : -1
+      return first !== NO_INDEX ? first : -1
     },
     objectNode: (object) => word(objectsAt + object * OBJECT),
     objectPrimitive: (object) => word(objectsAt + object * OBJECT + 4),
@@ -210,7 +209,7 @@ export function readWorldRootsDag(bytes: Uint8Array) {
   const clusterCount = word(8)
   const floats = (at: number, count: number) =>
     Array.from({ length: count }, (_, i) => view.getFloat64(at + i * 8, true))
-  const named = (at: number) => (word(at) === NONE ? null : word(at))
+  const named = (at: number) => (word(at) === NO_INDEX ? null : word(at))
   const clusters: WorldRootsCluster[] = Array.from({ length: clusterCount }, (_, cluster) => {
     const at = DAG_HEADER + cluster * CLUSTER,
       parentError = view.getFloat64(at + 32, true),

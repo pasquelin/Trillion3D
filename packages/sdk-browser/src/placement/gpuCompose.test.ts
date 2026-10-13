@@ -9,7 +9,7 @@ import { decideComposedMotion, MOTION_SCAN, MOTION_SKIP } from './composedMotion
 import { NONE } from './gpuComposeWgsl.ts'
 import { session, turn } from './composeSession.fixture.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
-import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 test("a parent's turn advances the cut's world revision on the frame it moved, and only then", () => {
   const { rt, rows, frame } = session()
@@ -46,7 +46,8 @@ test('a parent unlinked and linked anew starts from its new world: no motion fro
 /** A table of `count` rows holding no page, row `i` naming root `i`: the rows' inputs are zero. */
 const tableOf = (count: number) => {
   const pageTableInts = new Uint32Array(count * ROW_WORDS)
-  for (let row = 0; row < count; row++) pageTableInts[row * ROW_WORDS + ROW_PLACEMENT_WORD] = row
+  for (let row = 0; row < count; row++)
+    pageTableInts[row * ROW_WORDS + PAGE_INFO.at.placement] = row
   return {
     rowCount: count,
     packedRecs: [],

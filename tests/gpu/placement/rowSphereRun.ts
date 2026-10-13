@@ -10,12 +10,12 @@ import {
 import { ROW_INPUT_DOUBLES } from '../../../packages/sdk-browser/src/placement/composedRowPack.ts'
 import { sphereRadius } from '../../../packages/sdk-browser/src/placement/rowSphere.ts'
 import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
-import { ROW_PLACEMENT_WORD } from '../../../packages/sdk-browser/src/webgpu/row/rowPlacement.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { generated } from '../../../packages/sdk-browser/src/placement/composeDoubles.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { packDoubles } from '../../../packages/math/src/float/splitDouble.ts'
 import { transformAffinePoint } from '../../../packages/sdk-core/src/index.ts'
+import { PAGE_INFO } from '../../../packages/sdk-browser/src/visibility/pageInfo.ts'
 
 const CASES = 600
 
@@ -53,7 +53,7 @@ export async function runSphere() {
   // Every row's root is linked to slot 0, a parent at the identity: the composed world is its local.
   const stride = ROW_WORDS,
     table = new Uint32Array(CASES * stride)
-  for (let i = 0; i < CASES; i++) table[i * stride + ROW_PLACEMENT_WORD] = i
+  for (let i = 0; i < CASES; i++) table[i * stride + PAGE_INFO.at.placement] = i
   const parents = new Uint32Array(32),
     locals = worlds
   packDoubles(parents, 0, IDENTITY_MATRIX4)

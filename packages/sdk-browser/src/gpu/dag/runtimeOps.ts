@@ -1,8 +1,4 @@
-import {
-  SELECTION_NONE as NONE,
-  type ResidencyChanges,
-  type SelectionUniforms,
-} from '../core/selection.ts'
+import { type ResidencyChanges, type SelectionUniforms } from '../core/selection.ts'
 import {
   refreshMovedStretch,
   changedWorlds,
@@ -34,6 +30,7 @@ import { uploadNodes, type TreeFollower } from './treeFollow.ts'
 import type { ProxyInstances } from './proxyInstances.ts'
 import type { LinkFollower } from './worldFollow.ts'
 import type { PageResidency } from '../core/selection.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** What a camera cut's methods share (`runtime.ts`): its tables, its state, the difference chain,
  *  the residency upload, the pool list, the world mirror, the tree's and links' followers, and the
@@ -223,7 +220,7 @@ export function updateRuntimeResidency(
  *  lets through, or lacks some it does: another cut from here. */
 export function parkRoot({ resources, state, tree, proxies }: DagRun, w: number, parked: boolean) {
   const { packed, frames } = resources
-  const node = parked ? NONE : packed.rootBases[w]
+  const node = parked ? NO_INDEX : packed.rootBases[w]
   if (packed.rootNodes[w] === node) return
   packed.rootNodes[w] = node
   // The root travels behind the stretch in the frame buffer (`resources.ts`).

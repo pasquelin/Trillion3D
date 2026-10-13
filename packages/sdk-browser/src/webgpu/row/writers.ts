@@ -1,9 +1,10 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
-import { ROW_ID_BASE_WORD, ROW_OFFSET_WORD, packedRowBase, restampHizSlot } from './pageRow.ts'
+import { packedRowBase, restampHizSlot } from './pageRow.ts'
 import type { PageRowWriter } from './pageRowWriter.ts'
 import type { WebgpuRowState } from './state.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /**
  * The only two ways a row-table rank changes occupant: a page is posted there, or a whole row is
@@ -39,7 +40,7 @@ export function createWebgpuRowWriters(
       page = rows.packedPageIndex[from],
       base = to * ROW_WORDS
     rows.pageTableFloats!.copyWithin(base, from * ROW_WORDS, (from + 1) * ROW_WORDS)
-    ints[base + ROW_ID_BASE_WORD] = packedRowBase(to)
+    ints[base + PAGE_INFO.at.packedBase] = packedRowBase(to)
     restampHizSlot(ints, base, to)
     rows.packedRecs[to] = rows.packedRecs[from]
     rows.packedPageIndex[to] = page
@@ -60,7 +61,7 @@ export function createWebgpuRowWriters(
     const ints = rows.pageTableInts!,
       base = row * ROW_WORDS
     rows.rowOffsetWords[row] = offsetWords
-    ints[base + ROW_OFFSET_WORD] = offsetWords
+    ints[base + PAGE_INFO.at.pageOffset] = offsetWords
     rows.markRowDirty(row)
     state.changed = true
   }

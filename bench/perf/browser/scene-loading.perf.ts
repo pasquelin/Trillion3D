@@ -1,4 +1,5 @@
 // loading a scene.
+import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/collect.ts'
 import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'

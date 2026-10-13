@@ -137,9 +137,12 @@ test('placements holding their own open counts cut as each alone, a table short 
   }))
   const resident = new Uint8Array(roots.length * root.pages.length).fill(1)
   // Every page resident: each placement holds counts of its own, the table's to keep.
-  const readiness = createDagReadiness(packDagSelection(roots), 1 << 10)
-  readiness.apply(pageResidency(resident))
-  assert.ok(readiness.heldOpen.entries >= roots.length, 'no count of its own: the proof is empty')
+  const packedRoots = packDagSelection(roots)
+  createDagReadiness(packedRoots, 1 << 10).apply(pageResidency(resident))
+  assert.ok(
+    packedRoots.heldOpen!.entries >= roots.length,
+    'no count of its own: the proof is empty',
+  )
   const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 400)
   camera.position.set(0, 2, 10)
   camera.lookAt(0, 0, -5)

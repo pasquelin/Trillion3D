@@ -27,8 +27,8 @@ import {
   RUNTIME_WORLD_WORDS,
 } from './runtimeLayout.ts'
 
-/** The bindings of the proxy in a program that casts its rays: its own buffer (`runtimeLayout.ts`), which holds
- *  the placement tree it walks, and the world matrices of the first range (`gpu/dag/frameRanges.ts`). */
+/** The binding of the proxy in a program that casts its rays: its own buffer (`runtimeLayout.ts`), which holds
+ *  the placement tree it walks and every placement's world (`gpu/dag/frameRanges.ts`, one range). */
 export type SceneBindings = { group: number; proxy: number }
 
 /** Tree levels a ray walks down at most: a tree of 64-way nodes holds 2⁴² members in seven. */
@@ -146,7 +146,7 @@ fn rtInstanceWord(w:u32,k:u32)->u32{return rtProxy.words[rtProxy.instancesWord+w
  *  a ray that misses it is one unit spent — then the cut's tree with the ray taken to its space. */
 fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
  let node0=rtInstanceWord(w,RT_INSTANCE_NODE);
- if(node0==RT_NONE||(w<rtProxy.instances&&w>=rtProxy.worldRows)){return best;}
+ if(node0==RT_NONE){return best;}
  let m=rtWorldOf(w);
  let linear=worldMatrix3(m);
  let local=rtBox(node0);

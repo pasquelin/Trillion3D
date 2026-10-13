@@ -7,8 +7,8 @@ import { TAA_DEFORM_WGSL } from './deformWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { TAA_WEIGHTS } from './filterWeights.ts'
 import { YCOCG_WGSL } from './ycocgWgsl.ts'
-import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 /** The reprojection fragment as the resolve assembled it: from `placementOf` to `previousUv`. */
 const TAA_REPROJECT_WGSL = TAA_SHADER.slice(
@@ -34,7 +34,7 @@ test('the temporal shader assembles each fragment once, on the shared page recor
     const size = type === 'mat4x4f' ? 16 : type === 'vec4f' ? 4 : type === 'vec2f' ? 2 : 1
     for (let i = 0; i < size; i++) words.push(name)
   }
-  assert.equal(words[ROW_PLACEMENT_WORD], 'placement')
+  assert.equal(words[PAGE_INFO.at.placement], 'placement')
   assert.match(
     TAA_REPROJECT_WGSL,
     /fn placementOf\(id:u32\)->u32\{return pages\[\(id>>8u\)-1u\]\.placement;\}/,

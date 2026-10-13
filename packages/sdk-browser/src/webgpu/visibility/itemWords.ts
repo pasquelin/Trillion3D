@@ -1,11 +1,12 @@
 import { CULL_BINS, DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts'
-import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts'
+import { rowCutout } from '../row/pageRow.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import { visBin } from '../pages/prepare/pipelineFor.ts'
 import { createDirtyRows, forEachRewrittenRun } from '../row/dirty.ts'
 import type { GpuDraw } from '../../gpu/draw/draw.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /**
  * The five words of a draw record — the row, its pipeline bin, its page index in the catalogue, its
@@ -81,7 +82,7 @@ function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
     // Triangles the row draws are those of its page-table row — what the GPU actually draws — not
     // those the cluster declares. The GPU partition weighs an occlusion reject with them, and the
     // table total follows without a per-image walk.
-    const triangles = ints ? ints[row * ROW_WORDS + ROW_INDEX_WORDS] / 3 : 0
+    const triangles = ints ? ints[row * ROW_WORDS + PAGE_INFO.at.indexCount] / 3 : 0
     drawItemWords[word + 4] = triangles
     hold.total += triangles - hold.triangles[row]
     hold.triangles[row] = triangles

@@ -10,6 +10,8 @@ import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts'
 import { createShadowResidence } from '../../shadow/residence.ts'
 import { createShadowMobility, type ShadowMobility } from '../../shadow/mobility.ts'
 import type { ShadowRowLods } from '../../shadow/rowLods.ts'
+import type { MobilitySource } from '../../shadow/bounds.ts'
+import type { VsmFrameLight } from '../../../vsm/frameSetup.ts'
 import type { clusterSpheres } from '../../shadow/rowBuffers.ts'
 import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts'
 
@@ -47,6 +49,13 @@ export interface WebgpuLightState {
   vsm?: EngineVsm
   /** Why the last set asked was not made, until one is (`../render/vsm/vsmGrant.ts`). */
   vsmRefusal?: VsmRefusal
+  /** The store's lights as the shadow maps read them, rewritten in place: the plan's, and the
+   *  reserve's (`vsmReserveBytes`), apart so that neither rewrites the other's while it is read
+   *  (`../render/vsm/vsmPlan.ts`). */
+  vsmLights?: { plan: VsmFrameLight[]; reserve: VsmFrameLight[] }
+  /** What the caster rows' mobility words are written from (`../../shadow/bounds.ts`), built once
+   *  for the session. */
+  mobilitySource?: MobilitySource
 }
 
 export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightState {

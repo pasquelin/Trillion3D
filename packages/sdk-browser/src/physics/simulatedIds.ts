@@ -1,16 +1,12 @@
-import {
-  BODY_INDEX,
-  GENERATION_SHIFT,
-  GENERATIONS,
-  MISS,
-} from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX, GENERATION_SHIFT, GENERATIONS } from '../../../sdk-core/src/physics/index.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { hasBody } from './bodied.ts'
 import type { createPhysicsBodies } from './bodies.ts'
+import { NO_INDEX } from '../../../math/src/constants.ts'
 
-/** The engine id of `node`'s body: `MISS` for no node (the world), -1 while it is not simulated. */
+/** The engine id of `node`'s body: `NO_INDEX` for no node (the world), -1 while it is not simulated. */
 export function engineIdOf(bodies: ReturnType<typeof createPhysicsBodies>, node: Object3D | null) {
-  if (!node) return MISS
+  if (!node) return NO_INDEX
   const index = hasBody(node) ? node.physics._index : -1
   if (index < 0) return -1
   const id = index | (bodies.generation[index] << GENERATION_SHIFT)

@@ -10,6 +10,7 @@ import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { HIZ_REJECTED_WGSL } from '../../gpu/partition/contract.ts'
 import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../../gpu/raster/contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 
 /** The vertex stage of the hardware raster: `hiz` also drops a page whose slot the Hi-Z test rejected
@@ -26,7 +27,7 @@ const visVertex = (name: string, hiz: boolean) => {
 ${hizDrop} if(hardwareIdle(page,corner)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let h=pageHeaderFor(page,pageSurfaceRead(page));
  let id=hardwareCorner(page,h,corner);
- if(id==HARDWARE_SKIP){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ if(id==NO_INDEX){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let p=pagePosition(page,h,id);
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
@@ -64,15 +65,14 @@ struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) i
 fn hardwareIdle(page:PageInfo,vertexIndex:u32)->bool{
  return vertexIndex>=page.indexCount||uni.computeSpan>=${COMPUTE_ALL};
 }
-/** The page corner this vertex draws, or \`HARDWARE_SKIP\` when hardware leaves its triangle to the
- *  compute raster, which takes it: without a share, only the vertex's own corner is decoded, with
- *  one, its triangle once, which the test and the corner both read. */
-const HARDWARE_SKIP=0xffffffffu;
+/** The page corner this vertex draws, or none (\`NO_INDEX\`) when hardware leaves its triangle to
+ *  the compute raster, which takes it: without a share, only the vertex's own corner is decoded,
+ *  with one, its triangle once, which the test and the corner both read. */
 fn hardwareCorner(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->u32{
  if(uni.computeSpan<=0.0){return pageCorner(page,h,vertexIndex);}
  let corners=pageTriangle(page,h,vertexIndex/3u);let ia=corners.x;let ib=corners.y;let ic=corners.z;
  let vp=uni.viewProj*page.world;
- if(computeTakes(pageClip(vp,page,h,ia),pageClip(vp,page,h,ib),pageClip(vp,page,h,ic))){return HARDWARE_SKIP;}
+ if(computeTakes(pageClip(vp,page,h,ia),pageClip(vp,page,h,ib),pageClip(vp,page,h,ic))){return NO_INDEX;}
  return corners[vertexIndex%3u];
 }
 ${visVertex('vis_vs', false)}${visVertex('vis_hiz_vs', true)}struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
@@ -97,6 +97,7 @@ ${visVertex('vis_vs', false)}${visVertex('vis_hiz_vs', true)}struct VisHizOut{@l
       maskKeepWgsl(maskAlphaWgsl(false)),
       PAGE_GEOMETRY_WGSL,
       COMPUTE_TAKES_WGSL,
+      NO_INDEX,
       ...(diagnostic ? [diagnostic] : []),
     ],
   )

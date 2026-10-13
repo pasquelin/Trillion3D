@@ -54,8 +54,8 @@ export function emitInstalledBrowserBundle({
   mkdirSync(outputRoot, { recursive: true })
   writeFileSync(
     explorer,
-    `import { createWorld,pose,metric,capture,readPagedManifest,multiplyMatrix4Batch } from '${packageName}';\n` +
-      `globalThis.__installedSdk={createWorld,pose,metric,capture,readPagedManifest,multiplyMatrix4Batch};\n`,
+    `import { createWorld,pose,metric,capture,readPagedManifest,multiplyMatrix4 } from '${packageName}';\n` +
+      `globalThis.__installedSdk={createWorld,pose,metric,capture,readPagedManifest,multiplyMatrix4};\n`,
   )
   run(
     bundler,

@@ -38,7 +38,7 @@ enum Error : uint32_t { NONE = 0, BODY_LIMIT = 1, UNKNOWN_BODY = 2, BAD_SHAPE = 
 /// so a record naming a body that left is never read as the one that took its slot.
 constexpr uint32_t INDEX_MASK = 16777215u;
 
-/// A query's miss and the id of no body (layout.ts MISS).
+/// A query's miss and the id of no body (math constants.ts NO_INDEX).
 constexpr uint32_t MISS = 4294967295u;
 
 /// Words of each command, record and table, and the vehicle tables' sizes (layout.ts,

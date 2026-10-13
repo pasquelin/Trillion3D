@@ -13,6 +13,7 @@ pub(crate) fn twins() -> [Twin; 1] {
         about: "the culling hierarchy of clusters given as records (box, replacement sphere, replacement error, level): the node count, every node in the manifest's 15-number layout, then the cluster order (page-codec-wasm culling.rs build_culling_bvh, run by the SDK module, wasm_culling.rs)",
         inputs: "count: u32, then per cluster 12 f64: min, max, parent sphere, parent error (inf for a root), level",
         outputs: "nodes: u32, nodes x 15 f64, count u32",
+        ulps: 0,
         cases,
         compute,
     }]

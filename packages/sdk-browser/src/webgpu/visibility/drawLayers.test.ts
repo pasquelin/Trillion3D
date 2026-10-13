@@ -10,7 +10,6 @@ import {
   MAX_DRAW_SLOTS,
   slotCount,
 } from '../../gpu/draw/draw.ts'
-import { ROW_INDEX_WORDS } from '../row/pageRow.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createWebgpuVisState, type WebgpuVisState } from '../pages/state/vis.ts'
@@ -21,6 +20,7 @@ import { drawVis } from './drawer.ts'
 import { visUniformSlots } from './uniforms.ts'
 import { createWebgpuVisibilityShaders } from './shaders.ts'
 import { createWebgpuCoplanarLayerPipelines } from './pipelines.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 // Follow-up of `../pages/layersState.test.ts`: the per-image draw modules, where the coplanar-
 // layer lot was reapplied too. `../row/pageRowWriter.ts` stays covered by `../row/pageRowDepthBias.test.ts` and has
@@ -37,8 +37,8 @@ test("a row's coplanar layer goes into its record word, capped, and its triangle
     }) as unknown as PageRec
   // The two page-table rows carry the three indices each page draws.
   const pageTableInts = new Uint32Array(2 * ROW_WORDS)
-  pageTableInts[ROW_INDEX_WORDS] = 3
-  pageTableInts[ROW_WORDS + ROW_INDEX_WORDS] = 9
+  pageTableInts[PAGE_INFO.at.indexCount] = 3
+  pageTableInts[ROW_WORDS + PAGE_INFO.at.indexCount] = 9
   const layout = {
     rows: {
       packedCount: 2,

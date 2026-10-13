@@ -21,7 +21,6 @@ import { CENTRE_ERROR, SPHERE_GROWTH, SPHERE_MARGIN } from './rowSphere.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
-import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { dAdd, dMul, dSub, splitDouble } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
@@ -32,6 +31,7 @@ import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { isNanWord } from '../../../math/src/wgsl/integer.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 /** The parent slot of a root that follows none. */
 export const NONE = 0xffffffff
@@ -221,7 +221,7 @@ export const COMPOSE_ROWS_WGSL = wgslProgram(
 @group(0) @binding(10) var<storage,read> rowList:array<u32>;
 fn composeRow(row:u32){
  let base=row*${ROW_WORDS}u;
- let rank=table[base+${ROW_PLACEMENT_WORD}u];
+ let rank=table[base+${PAGE_INFO.at.placement}u];
  if(rank>=params.rootCount){return;}
  let p=parentOf[rank];
  if(p==${NONE}u){return;}

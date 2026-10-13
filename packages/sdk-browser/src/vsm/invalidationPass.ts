@@ -177,16 +177,21 @@ interface Pipe {
   /** Group 0 over the tables of a frame set (`res.current`, the two in turn), made once a set. */
   tables: VsmPerFrameSet<GPUBindGroup>
 }
-/** The pipe each `res` was given: its WGSL is built and looked up once, not every frame. */
-const RES_PIPES = new WeakMap<VsmResources, Pipe>()
+/** What the invalidation of a set holds (`VsmResources.invalidation`): the pipe it was given, its
+ *  WGSL built and looked up once, not every frame, and the upload buffers of its phase slots. */
+export interface VsmInvalidationState {
+  pipe?: Pipe
+  slots: Slot[]
+}
+
+const invalidationOf = (res: VsmResources) => (res.invalidation ??= { slots: [] })
 
 function pipe(device: GPUDevice, res: VsmResources): Pipe {
-  let p = RES_PIPES.get(res)
-  if (!p) {
-    p = { pipe: vsmInvalidationPipe(device, res.layout), device, tables: vsmFrameSetHeld() }
-    RES_PIPES.set(res, p)
-  }
-  return p
+  return (invalidationOf(res).pipe ??= {
+    pipe: vsmInvalidationPipe(device, res.layout),
+    device,
+    tables: vsmFrameSetHeld(),
+  })
 }
 
 /** Group 0 of `p` over the tables of `res.current` (`vsmPerFrameSet`). */
@@ -201,24 +206,22 @@ interface Slot {
   device: GPUDevice
   params: GPUBuffer
   buffers: Partial<Record<'instances' | 'items', GPUBuffer>>
-  /** Group 1 over the slot's buffers (its pipe is the set's, `RES_PIPES`): made again when a list
-   *  grew (`vsmEnsureBuffer`). */
+  /** Group 1 over the slot's buffers (its pipe is the set's, `VsmInvalidationState`): made again
+   *  when a list grew (`vsmEnsureBuffer`). */
   group?: GPUBindGroup
 }
-const SLOTS = new WeakMap<VsmResources, Slot[]>()
 
 /** Frees the upload buffers of `res`'s invalidation phases, with the set (`destroyEngineVsm`). */
 export function releaseVsmInvalidation(res: VsmResources) {
-  for (const slot of SLOTS.get(res) ?? []) {
+  for (const slot of res.invalidation?.slots ?? []) {
     slot.params.destroy()
     for (const buffer of Object.values(slot.buffers)) buffer.destroy()
   }
-  SLOTS.delete(res)
+  res.invalidation = undefined
 }
 
 function slotOf(device: GPUDevice, res: VsmResources, k: number) {
-  let slots = SLOTS.get(res)
-  if (!slots) SLOTS.set(res, (slots = []))
+  const { slots } = invalidationOf(res)
   while (slots.length <= k)
     slots.push({
       device,

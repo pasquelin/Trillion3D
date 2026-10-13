@@ -24,11 +24,8 @@ import {
 import { CLUSTER_LEVEL_SHIFT, CLUSTER_ROOT_CHILD, CLUSTER_TRANSPARENT } from '../clusterFlags.ts'
 import type { PackedDag } from '../types.ts'
 import type { CutRuleAt } from './predicates.fixture.ts'
-import {
-  SELECTION_NONE,
-  type SelectionResult,
-  type SelectionUniforms,
-} from '../../core/selection.ts'
+import { type SelectionResult, type SelectionUniforms } from '../../core/selection.ts'
+import { NO_INDEX } from '../../../../../math/src/constants.ts'
 
 /**
  * Node oracle for the kernel, in the same shape the shader uses. Not called by the renderer.
@@ -120,7 +117,7 @@ export function evaluateDagSelectionKernel(
   for (let i = 0; i < livePages; i++) {
     const w = worldOf(records, i)
     // Room past the roots, as a table read back from the GPU holds it: no placement, no cut.
-    if (w === SELECTION_NONE) continue
+    if (w === NO_INDEX) continue
     if (!visible(i)) {
       frustumRejected++
       wantAhead(i)
@@ -140,7 +137,7 @@ export function evaluateDagSelectionKernel(
   const drawablePageIds: number[] = []
   for (let i = 0; i < livePages; i++) {
     const w = worldOf(records, i)
-    if (w === SELECTION_NONE || !visible(i) || coneRejects(i, w)) continue
+    if (w === NO_INDEX || !visible(i) || coneRejects(i, w)) continue
     const ready = !resident || !!resident.ready[i],
       childReady = !resident || !!resident.childReady[i]
     if (!draws(i, thresholdOf(frames, w), ready, childReady)) continue

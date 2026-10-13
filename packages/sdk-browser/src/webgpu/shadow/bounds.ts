@@ -3,7 +3,7 @@ import type { PageRec } from '../../page/selection/selection.ts'
 import type { WebgpuLightState } from '../pages/state/lights.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
-import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts'
+import { rowCutout } from '../row/pageRow.ts'
 import { mobilityRows } from './rowBuffers.ts'
 import type { RowRunVisitor } from '../row/dirty.ts'
 import { CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts'
@@ -15,14 +15,16 @@ import {
 } from '../../page/selection/placements.ts'
 
 export { growClusterBox, uploadClusterSpheres } from './spheres.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /**
- * What `mobility.writeRows` reads of the table, built once per runtime: the table, its roots and its
- * placements are the layout's own objects for the session (`../pages/prepare/layout.ts`), and the buffer is
- * read from the lights when a run is pushed, so no run and no image builds a closure. `device` is
- * the one the call in progress uploads on.
+ * What `mobility.writeRows` reads of the table, built once per runtime and kept on its lights
+ * (`mobilitySource`): the table, its roots and its placements are the layout's own objects for the
+ * session (`../pages/prepare/layout.ts`), and the buffer is read from the lights when a run is
+ * pushed, so no run and no image builds a closure. `device` is the one the call in progress
+ * uploads on.
  */
-type MobilitySource = {
+export type MobilitySource = {
   rt: WebgpuPagesRuntime
   device: GPUDevice
   worldOf: (rank: number) => ArrayLike<number>
@@ -33,10 +35,8 @@ type MobilitySource = {
   shadowless: (rank: number) => boolean
 }
 
-const sources = new WeakMap<WebgpuPagesRuntime, MobilitySource>()
-
 function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const built = sources.get(rt)
+  const built = rt.lights.mobilitySource
   if (built) {
     built.device = device
     return built
@@ -59,14 +59,14 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
       ),
     // A row the table does not hold yet is sized as the scene's largest: never a triangle short.
     corners: (row) =>
-      rows.pageTableInts?.[row * ROW_WORDS + ROW_INDEX_WORDS] ?? rt.setup.maxCorners,
+      rows.pageTableInts?.[row * ROW_WORDS + PAGE_INFO.at.indexCount] ?? rt.setup.maxCorners,
     cutout: (row) => !!rows.pageTableInts && rowCutout(rows.pageTableInts, row),
     shadowless: (rank) => {
       const root = selectionRoots[rank]
       return !root || !!root.parked || ((root.mark ?? 0) & CASTS_NO_SHADOW) !== 0
     },
   }
-  sources.set(rt, source)
+  lights.mobilitySource = source
   return source
 }
 

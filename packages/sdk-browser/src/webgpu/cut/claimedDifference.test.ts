@@ -8,11 +8,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import v8 from 'node:v8'
 import type { PageRec } from '../../page/selection/selection.ts'
-import { SELECTION_NONE } from '../../gpu/core/selection.ts'
 import { createCutDelta } from './delta.ts'
 import { differenceOf } from '../../gpu/dag/difference.fixture.ts'
 import { countedCatalogue, published } from './readbackChain.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 const PAGES = 300
 /** Records for the first `PAGES - 20` ids: the last twenty have none. */
@@ -66,7 +66,7 @@ test("the GPU's claims publish the hashed difference and look up only what was n
 })
 
 test('any claims publish the hashed difference: none, another list, noise', () => {
-  const none = (list: number[]) => new Uint32Array(list.length).fill(SELECTION_NONE)
+  const none = (list: number[]) => new Uint32Array(list.length).fill(NO_INDEX)
   let older: number[] = []
   const stale = (list: number[], before: number[]) => {
     const claims = differenceOf(list, older)
@@ -77,7 +77,7 @@ test('any claims publish the hashed difference: none, another list, noise', () =
   const noise = (list: number[], _: number[], next: () => number) => {
     const drawn = new Map<number, number>()
     for (const id of list)
-      if (!drawn.has(id)) drawn.set(id, next() < 0.5 ? Math.floor(next() * 60) : SELECTION_NONE)
+      if (!drawn.has(id)) drawn.set(id, next() < 0.5 ? Math.floor(next() * 60) : NO_INDEX)
     return Uint32Array.from(list, (id) => drawn.get(id)!)
   }
   for (const claims of [none, stale, noise]) follow(claims)
@@ -103,7 +103,7 @@ test('a held page the claims missed is found by its mark, and stays', () => {
   const delta = createCutDelta(records, [])
   delta.apply([1, 2, 3, 4])
   // Page 3 is held at rank 2, but no claim names it: the GPU lost sight of it in between.
-  delta.apply([4, 3, 9], undefined, Uint32Array.from([3, SELECTION_NONE, SELECTION_NONE]))
+  delta.apply([4, 3, 9], undefined, Uint32Array.from([3, NO_INDEX, NO_INDEX]))
   assert.deepEqual([...delta.entered.subarray(0, delta.enteredCount)], [9])
   assert.deepEqual([...delta.exited.subarray(0, delta.exitedCount)], [1, 2])
   assert.equal(delta.has(3) && delta.has(4) && delta.has(9) && !delta.has(1), true)

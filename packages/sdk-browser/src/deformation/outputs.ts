@@ -2,16 +2,10 @@ import { FLAG_MORPH, FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/p
 import type { ClusterRoot, DeformationOutput } from '../page/selection/types.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 import type { HostAttributes } from '../host/resources.ts'
-import {
-  DEFORM_SOURCE_IN_POOL,
-  DEFORM_NO_HEADER,
-  PAGE_DEFORM_COUNT_WORD,
-  PAGE_DEFORM_OUTPUT_WORD,
-  PAGE_DEFORM_WORD,
-  ROW_WORDS,
-} from '../visibility/types.ts'
+import { DEFORM_SOURCE_IN_POOL, DEFORM_NO_HEADER, ROW_WORDS } from '../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { rootOfPacked } from '../page/selection/placements.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 /** Current position, previous position and current normal: eleven words per vertex, including owner and frame tags. */
 export const DEFORM_VERTEX_WORDS = 11
@@ -40,8 +34,8 @@ export function writeRowDeformation(
   at: number,
   output: DeformationOutput | undefined,
 ) {
-  ints[at + PAGE_DEFORM_COUNT_WORD] = deformCountWord(output)
-  ints[at + PAGE_DEFORM_OUTPUT_WORD] = deformOutputWord(output)
+  ints[at + PAGE_INFO.at.deformCount] = deformCountWord(output)
+  ints[at + PAGE_INFO.at.deformOutput] = deformOutputWord(output)
 }
 
 /** Names `output` in the transparent span `entry` (output word, then count word), zero when the
@@ -132,8 +126,8 @@ export function followPooledBlocks(rt: Pick<WebgpuPagesRuntime, 'layout' | 'blen
       // The record word the row writer gives the row's placement (`pageRowWriter.ts`).
       record = deformation?.rowWord(rootOfPacked(placement, page)) ?? 0,
       output = deformationOutputOf(page)
-    if (!output && record === ints[at + PAGE_DEFORM_WORD]) continue
-    ints[at + PAGE_DEFORM_WORD] = record
+    if (!output && record === ints[at + PAGE_INFO.at.deform]) continue
+    ints[at + PAGE_INFO.at.deform] = record
     writeRowDeformation(ints, at, output)
     rows.markRowWords(row)
   }

@@ -17,6 +17,7 @@ import {
   VSM_RENDER_ARGS_STRIDE_WORDS,
   VSM_RENDER_ARGS_WGSL,
   VSM_RENDER_COUNTS_HEAD,
+  VSM_RENDER_PARAMS,
 } from './renderCullWgsl.ts'
 import { uniformStride } from '../residency/pools.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
@@ -85,6 +86,7 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
     fake.writes.filter((w) => w.buffer === (paramsBuffer as unknown as GPUBuffer)),
   )
   const slot = (c: number) => slots.subarray((c * uniformStride(device.limits)) / 4)
+  const { at } = VSM_RENDER_PARAMS
   const params = {
     chunk: 0,
     chunkRows: 0,
@@ -95,8 +97,9 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
   }
   const read = (c: number) =>
     Object.assign(params, {
-      ...{ viewCount: slot(c)[24], chunk: slot(c)[25], chunkRows: slot(c)[27] },
-      ...{ chunkCount: slot(c)[28], cmdCapacity: slot(c)[29], pairCapacity: slot(c)[30] },
+      ...{ viewCount: slot(c)[at.viewCount], chunk: slot(c)[at.chunk] },
+      ...{ chunkRows: slot(c)[at.chunkRows], chunkCount: slot(c)[at.chunkCount] },
+      ...{ cmdCapacity: slot(c)[at.cmdCapacity], pairCapacity: slot(c)[at.pairCapacity] },
     })
   // u32 words: a store truncates as WGSL's integer division does (`shaderRun` divides in doubles).
   const counts = new Uint32Array(VSM_RENDER_COUNTS_HEAD + 4 * stats.chunks)

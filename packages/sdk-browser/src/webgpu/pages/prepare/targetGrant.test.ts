@@ -132,7 +132,7 @@ test('frame targets refused at prepare are refused by name', async () => {
 })
 
 // A refused grant holds the frame, draws nothing into targets not granted, and is asked again after
-// its wait (`retryAfterRefusal`), never every frame: then the frame is drawn complete. And
+// its wait (`ScaleControl.memoryRefused`), never every frame: then the frame is drawn complete. And
 // `world/session-startup`: the page reads `frameHeld` as "nothing more to draw", so a frame held
 // while the device answers must not say it.
 test('a refused target grant holds the frame, asks again after its wait, then draws it complete', async () => {

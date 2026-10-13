@@ -2,7 +2,7 @@ import { storageBufferCap } from '../../residency/pools.ts'
 import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { stagedOutputBytes } from './layout.ts'
-import { HELD_SLOT_WORDS } from './heldOpen.ts'
+import { OPEN_SLOT_WORDS } from './heldOpen.ts'
 import { dagFlagShape, flagShapeWords, type FlagShape } from './flagSections.ts'
 import { type PackedDag } from './types.ts'
 import { ELEMENT_BYTES, dagSplit, flagPartWords } from './split.ts'
@@ -142,7 +142,7 @@ function flagRows(
  *  it (`listCap.ts`). */
 export const readoutRow = (listCap: number, regions = 0, heldSlots = 0): DagBufferRow => ({
   label: 'Trillion3D DAG readback',
-  size: stagedOutputBytes(listCap, regions) + heldSlots * HELD_SLOT_WORDS * 4,
+  size: stagedOutputBytes(listCap, regions) + heldSlots * OPEN_SLOT_WORDS * 4,
   copySource: true,
 })
 

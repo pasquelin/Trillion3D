@@ -1,6 +1,7 @@
 // The physics word layouts printed (`../generate-shared-rules.ts`): the opcodes, the error codes
 // and the word counts of the command, pose and event buffers, into the physics module's C++ header.
 import * as layout from '../../packages/sdk-core/src/physics/layout.ts'
+import { NO_INDEX } from '../../packages/math/src/constants.ts'
 import {
   SOFT_STATE_WORDS,
   SOFT_VERTEX_WORDS,
@@ -108,8 +109,8 @@ enum Error : uint32_t { ${errors.join(', ')} };
 /// so a record naming a body that left is never read as the one that took its slot.
 constexpr uint32_t INDEX_MASK = ${layout.BODY_INDEX}u;
 
-/// A query's miss and the id of no body (layout.ts MISS).
-constexpr uint32_t MISS = ${layout.MISS}u;
+/// A query's miss and the id of no body (math constants.ts NO_INDEX).
+constexpr uint32_t MISS = ${NO_INDEX}u;
 
 /// Words of each command, record and table, and the vehicle tables' sizes (layout.ts,
 /// softLayout.ts, vehicleLayout.ts).

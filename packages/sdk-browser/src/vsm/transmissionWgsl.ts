@@ -94,6 +94,7 @@ import {
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { NO_INDEX } from '../../../math/src/constants.ts'
 
 /** The share of an edge value's terms' magnitude the cover test allows for rounding, 2⁻²⁰. */
 const EDGE_SLACK = 2 ** -20
@@ -114,8 +115,6 @@ const HEADER_SHIFT = WIDTH_SHIFT + 1
 /** A slice's first texels: the cell headers, then the chain. */
 const HEADER_TEXELS = CELL_COUNT / 4
 const RECORDS_TEXEL = HEADER_TEXELS + VSM_TRANSMISSION_CHAIN / 4
-/** No block, no slice number, no list entry. */
-export const VSM_TRANSMISSION_NONE = 0xffffffff
 /** Bytes of a command's header in the chunk's page list (row, map | mip | flags, first page, page
  *  count) and of one of its pages (slice key, virtual page). */
 export const VSM_TRANSMISSION_HEADER_BYTES = 16
@@ -158,7 +157,6 @@ const frameWgsl = (layout: VsmLayout) => {
       VSM_T_DIRTY: r.dirty,
       VSM_T_ORDER: r.order,
       VSM_T_KEY_COUNT: 2 * P,
-      VSM_T_NONE: VSM_TRANSMISSION_NONE,
       VSM_T_CELLS: CELL_COUNT,
       VSM_T_CHAIN: VSM_TRANSMISSION_CHAIN,
       VSM_T_BLOCK_TEXELS: VSM_TRANSMISSION_BLOCK_TEXELS,
@@ -241,8 +239,8 @@ fn vsmTransmissionRelease(index:u32,slice:u32){
   atomicStore(&build[VSM_T_PATCH+key],0u);
  }
  var b=table[key];
- if((redrawn||!allocated)&&b!=VSM_T_NONE){
-  table[key]=VSM_T_NONE;
+ if((redrawn||!allocated)&&b!=${NO_INDEX}u){
+  table[key]=${NO_INDEX}u;
   for(var n=0u;n<VSM_T_CHAIN&&b<frame.blocks;n++){
    let at=atomicAdd(&pool[0],1u);
    atomicStore(&pool[2u+at],b);
@@ -302,9 +300,9 @@ fn vsmTHeader(index:u32,h:vec4u){list[4u*index]=h.x;list[4u*index+1u]=h.y;list[4
 fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:u32)->u32{
  let offset=vsmTableEntryAt(levelOffset,mip,vPage);
  let page=vsmTableEntryAtOffset(offset);
- if(!page.thisLevelDrawable||(vsmPageMarkWord(offset)&markMask)==0u){return VSM_T_NONE;}
+ if(!page.thisLevelDrawable||(vsmPageMarkWord(offset)&markMask)==0u){return ${NO_INDEX}u;}
  let key=2u*(page.physicalAddress.y*${layout.poolPagesXY[0]}u+page.physicalAddress.x)+(slice&1u);
- if(build[VSM_T_STAMPS+key]!=frame.stamp){return VSM_T_NONE;}
+ if(build[VSM_T_STAMPS+key]!=frame.stamp){return ${NO_INDEX}u;}
  return key;
 }
 @compute @workgroup_size(${VSM_TRANSMISSION_COMMAND_GROUP}) fn vsmTransmissionPages(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -325,7 +323,7 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
  // The pool slice the raster writes: the static slice for a static-cached instance.
  let slice=select(0u,vsm.staticSlice,c.staticLayer);
  for(var i=lane;i<size.x*size.y;i+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
-  if(vsmTPageKey(levelOffset,c.mip,rectCell(c.rect,size,i),c.markMask,slice)!=VSM_T_NONE){atomicAdd(&wgFound,1u);}
+  if(vsmTPageKey(levelOffset,c.mip,rectCell(c.rect,size,i),c.markMask,slice)!=${NO_INDEX}u){atomicAdd(&wgFound,1u);}
  }
  workgroupBarrier();
  if(lane==0u){
@@ -339,7 +337,7 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
  for(var i=lane;i<size.x*size.y;i+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
   let vPage=rectCell(c.rect,size,i);
   let key=vsmTPageKey(levelOffset,c.mip,vPage,c.markMask,slice);
-  if(key==VSM_T_NONE){continue;}
+  if(key==${NO_INDEX}u){continue;}
   let at=base+atomicAdd(&wgFound,1u);
   if(at>=frame.pairs){continue;}
   list[4u*frame.cmds+2u*at]=key;
@@ -865,12 +863,12 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
    if(held[2]==0u){atomicAdd(&build[VSM_TC_BLOCKSSHORT],blocks);}
    else{
     for(var j=0u;j<VSM_T_CHAIN;j++){
-     var b=VSM_T_NONE;
+     var b=${NO_INDEX}u;
      if(j<blocks){b=atomicLoad(&pool[2u+free-blocks+j]);}
      chain[j]=b;
     }
     for(var j=0u;j<blocks;j++){
-     var next=VSM_T_NONE;
+     var next=${NO_INDEX}u;
      if(j+1u<blocks){next=chain[j+1u];}
      links[chain[j]]=next;
     }
@@ -963,7 +961,7 @@ fn vsmTMemBlock(b:u32,t:u32)->vec2u{
 /** The two first blocks (dynamic, static) of physical page \`page\`: none both without translucent
  *  casters (the one-texel stand-in). */
 fn vsmTransmissionBlocks(page:vec2u)->vec2u{
- if(textureDimensions(vsmTransmissionMemory).x<=1u){return vec2u(${VSM_TRANSMISSION_NONE}u);}
+ if(textureDimensions(vsmTransmissionMemory).x<=1u){return vec2u(${NO_INDEX}u);}
  let index=page.y*vsm.poolPagesXY.x+page.x;
  let t=index>>1u;
  let w=vsmTLoad(vec2u(t&${VSM_TRANSMISSION_WIDTH - 1}u,t>>${WIDTH_SHIFT}u));
@@ -1044,8 +1042,8 @@ fn vsmTScanSlice(b0:u32,r:VsmTReceiver,after:vec2f,scan:VsmTScan)->VsmTScan{
 }
 fn vsmTScanPage(blocks:vec2u,r:VsmTReceiver,after:vec2f)->VsmTScan{
  var scan=VsmTScan(0u,vec3f(1.0),vec2f(0.0),0u,vec3f(1.0));
- if(blocks.x!=${VSM_TRANSMISSION_NONE}u){scan=vsmTScanSlice(blocks.x,r,after,scan);}
- if(blocks.y!=${VSM_TRANSMISSION_NONE}u){scan=vsmTScanSlice(blocks.y,r,after,scan);}
+ if(blocks.x!=${NO_INDEX}u){scan=vsmTScanSlice(blocks.x,r,after,scan);}
+ if(blocks.y!=${NO_INDEX}u){scan=vsmTScanSlice(blocks.y,r,after,scan);}
  return scan;
 }
 /** What the translucent casters let through to the receiver of sample \`sm\`: \`fromMap\` the
@@ -1053,7 +1051,7 @@ fn vsmTScanPage(blocks:vec2u,r:VsmTReceiver,after:vec2f)->VsmTScan{
  *  position (directional). The axis is the sample's own level's, as its records were binned. */
 fn vsmTransmissionThrough(sm:VsmMapRead,fromMap:vec3f,fromEye:vec3f,eye:vec3f,directional:bool)->vec3f{
  let blocks=vsmTransmissionBlocks(sm.poolTexel>>vec2u(${floorLog2(VSM_PAGE_TEXELS)}u));
- if(all(blocks==vec2u(${VSM_TRANSMISSION_NONE}u))){return vec3f(1.0);}
+ if(all(blocks==vec2u(${NO_INDEX}u))){return vec3f(1.0);}
  let M=vsmProjectionOf(sm.handle).shiftedToMapUv;
  let axis=normalize(vec3f(M[0].z,M[1].z,M[2].z));
  let r=VsmTReceiver(vec2f(sm.poolTexel&vec2u(${VSM_PAGE_TEXELS - 1}u))+fract(sm.mapTexelPos),directional,axis,dot(fromEye,axis)+dot(eye,axis),fromMap);
@@ -1070,6 +1068,6 @@ fn vsmTransmissionThrough(sm:VsmMapRead,fromMap:vec3f,fromEye:vec3f,eye:vec3f,di
 }
 /** Whether sample \`sm\` lies in a page with a translucent slice. */
 fn vsmTransmissionPaned(sm:VsmMapRead)->bool{
- return sm.valid&&any(vsmTransmissionBlocks(sm.poolTexel>>vec2u(${floorLog2(VSM_PAGE_TEXELS)}u))!=vec2u(${VSM_TRANSMISSION_NONE}u));
+ return sm.valid&&any(vsmTransmissionBlocks(sm.poolTexel>>vec2u(${floorLog2(VSM_PAGE_TEXELS)}u))!=vec2u(${NO_INDEX}u));
 }`,
   )

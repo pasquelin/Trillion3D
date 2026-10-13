@@ -59,7 +59,7 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 712 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 709 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -72,10 +72,12 @@ test('generated inventory and explicit facade files are current', async () => {
   // it holds no CPU character capsule (Capsule, CapsuleContact, CapsulePush, TriangleTree,
   // CharacterCollision, TriangleCollision): Jolt is the one character body; and the frustum's
   // `FAR_PLANE_SLOT`, the slot a culling reader tests the far plane at. It holds no compute-path
-  // governor either: the batches run their WebAssembly kernels alone. The run-time proxy a placement
+  // governor either: the batches run their WebAssembly kernels alone, and no JavaScript twin of the
+  // two (boxTransformBatch, multiplyMatrix4Batch) stands beside them; nor a second page source
+  // beside the streaming (httpPageSource): `page.httpSource` reads through a streamer. The run-time proxy a placement
   // wears carries its deformation (CutDeformation, CORNER_INFLUENCES), and the bounce occupancy names
   // the rows it is told moved (MovedRows).
-  assert.equal(inventory.exports.length, 712)
+  assert.equal(inventory.exports.length, 709)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
@@ -124,7 +126,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const bundle = (entry: string) =>
     build({
       stdin: {
-        contents: `import { multiplyMatrix4Batch } from '${entry}'; console.log(multiplyMatrix4Batch);`,
+        contents: `import { multiplyMatrix4 } from '${entry}'; console.log(multiplyMatrix4);`,
         resolveDir: new URL('../..', import.meta.url).pathname,
       },
       bundle: true,
@@ -139,9 +141,9 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const proposed = await bundle('./packages/sdk/index.ts')
   const browserProposed = await bundle('./packages/sdk/browser.ts')
   const inputs = Object.keys(proposed.metafile.inputs)
-  assert.ok(inputs.some((path) => path.endsWith('/math/src/batch/batch.ts')))
+  assert.ok(inputs.some((path) => path.endsWith('/math/src/matrix/matrix4.ts')))
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
-  // The minified bytes of a bundle of `multiplyMatrix4Batch` alone, through each entry: the engine
+  // The minified bytes of a bundle of `multiplyMatrix4` alone, through each entry: the engine
   // core, its node writes noted in their journal and its stage labels, the screen reflections and
   // the image effects among them; the package, with
   // the machine-independent quaternion normalisation and arc trigonometry; its browser condition.
@@ -157,7 +159,8 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // contract's module leaves the browser chain; the light settings' tap count, gone with the
   // filtered shadow read, takes eleven off; the run-time proxy's contract, posed for deformed
   // placements, moves the core by sixty bytes off, the package and its browser condition by
-  // fourteen and eighteen on.
+  // fourteen and eighteen on. The batch twins gone, the bundle is of the single product
+  // `multiplyMatrix4`, the kernels' bits.
   assert.equal(baseline.outputFiles[0].contents.length, 3_124)
   assert.equal(proposed.outputFiles[0].contents.length, 1_464)
   assert.equal(browserProposed.outputFiles[0].contents.length, 3_188)

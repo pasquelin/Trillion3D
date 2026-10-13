@@ -1,4 +1,4 @@
-import { DRAW_UNPAGED, planItem, planPipeline } from './plan.ts'
+import { planItem, planPipeline } from './plan.ts'
 import { PLAN_PIPELINE_MASK } from './planEntry.ts'
 import { instanceWord, placeBlendSlots } from './runs.fixture.ts'
 import { RUN_WORDS, slotCapacity } from './planLayout.ts'
@@ -6,6 +6,7 @@ import { sortSeedsFarToNear } from './sortPlan.ts'
 import { eyeKey } from './eyeKey.ts'
 import type { WebgpuBlendState } from './state.ts'
 import { hasBit } from '../../../../math/src/scalar/bits.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** The cull mode the vertex stage applies to an entry's instances, read back from the pipeline the
  *  entry sets (`planPipeline`): zero when the pipeline culls. */
@@ -68,14 +69,14 @@ export function expandBlendPlan(x: BlendExpansion) {
     // unpaged item draws its chunks, at the stride its geometry gave it.
     const owner = planItem(order[first])
     const vertexCount =
-      entries === 1 && draws[owner * 4] === DRAW_UNPAGED ? draws[owner * 4 + 3] : x.maxVertexWords
+      entries === 1 && draws[owner * 4] === NO_INDEX ? draws[owner * 4 + 3] : x.maxVertexWords
     for (let k = 0; k < entries; k++) {
       const entry = order[first + k],
         item = planItem(entry)
       if (!hasBit(keep, item)) continue
       const word = instanceWord(item, planVertexCull(entry))
       const paged = draws[item * 4]
-      if (paged === DRAW_UNPAGED) {
+      if (paged === NO_INDEX) {
         const words = draws[item * 4 + 3],
           chunks = draws[item * 4 + 1]
         for (let j = 0; j < chunks; j++) {

@@ -42,8 +42,9 @@ export const families = {
   worldStream: family('world stream', () => import('../scene/worldPageServe.ts')),
   /** The impostor draw: card plan, pipelines, atlas feed. */
   impostors: family('impostors', () => import('../impostor/impostorCode.ts')),
-  /** The CPU geometry-page decoder behind the public `page.decode`: the engine itself decodes no
-   *  page on the CPU (the GPU reads them in place), so only a page that asks downloads it. */
+  /** The CPU geometry-page decoder behind the public `page.decode`, and the format's gate
+   *  `page.httpSource` checks each page by: the engine itself decodes no page on the CPU (the GPU
+   *  reads them in place), so only a page that asks downloads it. */
   pageCodec: family('page decoder', async () => {
     // The decoder is the SDK module's (`wasm_decode.rs`): the chunk arrives once the module has.
     await requireSdkWasm()

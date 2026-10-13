@@ -13,6 +13,7 @@ pub(super) fn twins() -> [Twin; 3] {
             about: "a page attribute on its grid of 2^exponent: each value divided by the step and rounded half away from zero, the page minimum and the bits of each component's range, then each vertex's offsets; no output when refused (page-codec-wasm bits/quant.rs quantize, the compiler's)",
             inputs: "exponent: i32, values: 3 f32 per vertex",
             outputs: "min: 3 f32, bits: 3 u32, offsets: 3 u32 per vertex; none when refused",
+            ulps: 0,
             cases: || attributes().into_iter().map(|(e, values)| quantize_inputs(e, &values)).collect(),
             compute: |v| {
                 let values: Vec<f32> = v[1..].iter().map(|x| x.f32()).collect();
@@ -31,6 +32,7 @@ pub(super) fn twins() -> [Twin; 3] {
             about: "a grid value back to its float, min + q * step, the product exact and the sum rounded once (page-codec-wasm bits/quant.rs dequant, the page readers)",
             inputs: "min: f32, q: u32, step: f32",
             outputs: "1 f32",
+            ulps: 0,
             cases: dequant_cases,
             compute: |v| f32s(&[dequant(v[0].f32(), v[1].u32(), v[2].f32())]),
         },
@@ -40,6 +42,7 @@ pub(super) fn twins() -> [Twin; 3] {
             about: "the round trip's error bound a page header carries: the largest distance between a value and its dequantized offset, in f64, rounded up to an f32 (page-codec-wasm bits/quant.rs quantization_error)",
             inputs: "exponent: i32, min: 3 f32, then per vertex values: 3 f32 and offsets: 3 u32",
             outputs: "1 f32",
+            ulps: 0,
             cases: error_cases,
             compute: |v| {
                 // The bound reads the minimum and the step, never the widths.

@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { worldScene } from './worldScene.fixture.ts'
 import { appendDagRoots, dagRootCounts, packDagSelection } from './pack.ts'
-import { SELECTION_NONE as NONE } from '../core/selection.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 test('a packing of the world DAG keeps room: placements append in place, linked as the others', () => {
   const { roots } = worldScene()
@@ -30,5 +30,5 @@ test('a packing of the world DAG keeps room: placements append in place, linked 
     assert.deepEqual(grown[table], whole[table], table)
   assert.equal(grown.world!.root, before.length - 1, 'the world DAG where it was packed')
   assert.equal(grown.world!.links.length, capacity.worlds, 'a link slot per placement slot')
-  assert.ok(grown.world!.links.every((link) => link === NONE))
+  assert.ok(grown.world!.links.every((link) => link === NO_INDEX))
 })

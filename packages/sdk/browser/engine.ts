@@ -39,7 +39,7 @@ export type {
   DiagnosticChannelOptions,
   DiagnosticObserver,
 } from '../../sdk-browser/src/diagnostic/channel.ts'
-export { createGpuPageCache, httpPageSource } from '../../sdk-browser/src/gpu/page/pages.ts'
+export { createGpuPageCache } from '../../sdk-browser/src/gpu/page/pages.ts'
 export type { GpuPageCacheOptions } from '../../sdk-browser/src/gpu/page/pages.ts'
 export { createPageStreamer } from '../../sdk-browser/src/streaming/pageStreamer.ts'
 export type { DecodedGeometryPage } from '../../sdk-browser/src/page/codec/geometryPage.ts'

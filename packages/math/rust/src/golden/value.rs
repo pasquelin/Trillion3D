@@ -67,6 +67,20 @@ impl Value {
     }
 
     /// The same value: the same kind and bits, or two NaN of one width.
+    /// The same value, or with `ulps`, an `f64` of one sign at most that many steps away.
+    pub(super) fn matches_within(self, other: Value, ulps: u32) -> bool {
+        if self.matches(other) {
+            return true;
+        }
+        match (self, other) {
+            (Value::F64(a), Value::F64(b)) if ulps > 0 && a.is_finite() && b.is_finite() => {
+                a.is_sign_negative() == b.is_sign_negative()
+                    && a.abs().to_bits().abs_diff(b.abs().to_bits()) <= u64::from(ulps)
+            }
+            _ => false,
+        }
+    }
+
     pub(super) fn matches(self, other: Value) -> bool {
         match (self, other) {
             (Value::F64(a), Value::F64(b)) => {

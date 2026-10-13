@@ -1,5 +1,7 @@
 // The WGSL of the machine's kernels (`machineKernels.ts`): each streams or launches a fixed amount of
 // work, 128 MiB or `THREAD_GROUPS` workgroups, whose time gives a rate.
+import { wgslProgram } from '../../packages/math/src/wgsl/assemble.ts'
+import { mixWord } from '../../packages/math/src/wgsl/sampling.ts'
 
 export const READ = /* wgsl */ `
 @group(0) @binding(0) var<storage, read> src: array<vec4f>;
@@ -90,11 +92,11 @@ var<workgroup> tile: array<vec4f, 256>;
   if (sum.x == -1.0) { sink[id.x] = sum; }
 }`
 /** A full-target triangle a fragment of noise to each of four attachments: 64 bits a texel, which
- *  no framebuffer compression shrinks. */
-export const FILL_MRT4 = /* wgsl */ `
+ *  no framebuffer compression shrinks. The noise is the engine's one integer hash (`mixWord`). */
+export const FILL_MRT4 = wgslProgram(
+  /* wgsl */ `
 struct Out { @location(0) c0: vec4f, @location(1) c1: vec4f, @location(2) c2: vec4f, @location(3) c3: vec4f }
-fn mix32(x: u32) -> u32 { var h = x; h = (h ^ (h >> 16u)) * 0x7feb352du; h = (h ^ (h >> 15u)) * 0x846ca68bu; return h ^ (h >> 16u); }
-fn noise(p: vec2u, k: u32) -> vec4f { let h = mix32(p.x ^ mix32(p.y ^ mix32(k))); return vec4f(unpack2x16unorm(h), unpack2x16unorm(mix32(h))); }
+fn noise(p: vec2u, k: u32) -> vec4f { let h = mixWord(p.x ^ mixWord(p.y ^ mixWord(k))); return vec4f(unpack2x16unorm(h), unpack2x16unorm(mixWord(h))); }
 @vertex fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
   let p = array(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0));
   return vec4f(p[i], 0.0, 1.0);
@@ -102,7 +104,9 @@ fn noise(p: vec2u, k: u32) -> vec4f { let h = mix32(p.x ^ mix32(p.y ^ mix32(k)))
 @fragment fn fs(@builtin(position) at: vec4f) -> Out {
   let p = vec2u(at.xy);
   return Out(noise(p, 0u), noise(p, 1u), noise(p, 2u), noise(p, 3u));
-}`
+}`,
+  [mixWord],
+)
 /** One triangle a pixel of a 2048² target, its corners pulled from the vertex index, each covering
  *  its pixel's centre; the fragment writes the triangle's rank. */
 export const TRIANGLES = /* wgsl */ `

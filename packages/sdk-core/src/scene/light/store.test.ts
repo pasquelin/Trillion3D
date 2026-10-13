@@ -107,3 +107,38 @@ test('300 lights: every one is published, in the grown table the GPU reads', () 
   store.remove('l0')
   assert.equal(store.packed[baseOf(0) + LIGHT_FIELD.position], 299, 'the last took its slot')
 })
+
+// The lit programs' key walked every light of the store at each epoch to learn these kinds.
+test('the store counts its shadowed suns, shadowed local lights and rectangles as they change', () => {
+  const store = createSceneLightStore()
+  const kinds = () => [store.shadowedSuns, store.shadowedLocals, store.rects]
+  const { color, intensity } = LIGHT
+  store.add({ ...LIGHT })
+  store.add({
+    id: 'sun',
+    kind: 'directional',
+    color,
+    intensity,
+    direction: [0, -1, 0],
+    castsShadow: false,
+  })
+  store.add({
+    id: 'panel',
+    kind: 'rect',
+    castsShadow: false,
+    color,
+    intensity,
+    position: [0, 2, 0],
+    range: 5,
+    direction: [0, -1, 0],
+    right: [1, 0, 0],
+    size: [1, 1],
+  })
+  assert.deepEqual(kinds(), [0, 1, 1], 'a sun casting none is not counted')
+  store.set('sun', { castsShadow: true })
+  store.set('l0', { castsShadow: false })
+  assert.deepEqual(kinds(), [1, 0, 1], 'a change moves the counts')
+  store.remove('sun')
+  store.remove('panel')
+  assert.deepEqual(kinds(), [0, 0, 0])
+})

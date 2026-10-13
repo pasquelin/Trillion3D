@@ -3,9 +3,9 @@ import assert from 'node:assert/strict'
 import { instanceItem } from '../../../../../bench/oracles/browser/instanceItem.ts'
 import { blendChunkWords, blendVertexShift, RUN_WORDS } from './planLayout.ts'
 import { expandBlendPlan } from './expandCpu.fixture.ts'
-import { DRAW_UNPAGED } from './plan.ts'
 import { planEntry } from './planEntry.ts'
 import { hasBit } from '../../../../math/src/scalar/bits.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** A plan entry: item rank, share bit, pipeline. */
 const entryOf = (item: number, shared: boolean, pipeline = 1) => planEntry(item, pipeline, shared)
@@ -19,7 +19,7 @@ function scene() {
     draws[item * 4 + 2] = item * 4
   }
   // The fourth carries its own indices: eighteen words, six per instance, hence three chunks.
-  draws[12] = DRAW_UNPAGED
+  draws[12] = NO_INDEX
   draws[13] = 3
   draws[15] = 6
   const instances = Uint32Array.from({ length: 12 }, (_, k) => 100 + k)

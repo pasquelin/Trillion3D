@@ -23,6 +23,10 @@ import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { writeChangedCopy } from '../gpu/core/writeChanged.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { pendingBuffers } from '../gpu/core/tableGrowth.ts'
+import type { VsmProjectionState } from './projectionPass.ts'
+import type { VsmRenderContext } from './renderPass.ts'
+import type { VsmPageManagementContext } from './pageManagementPass.ts'
+import type { VsmInvalidationState } from './invalidationPass.ts'
 import {
   bufferBytes,
   frameBufferSizes,
@@ -88,6 +92,16 @@ export interface VsmResources {
   prevFrameKept: boolean
   /** Extraction point: the frame just rendered becomes `prev`. */
   swapFrames(): void
+  /** The set's buffers, to free: those its tables take (`growVsmTables`), and the rest. */
+  made: { tables: GPUBuffer[]; rest: GPUBuffer[] }
+  /** What the passes made for this set and hold while it lives, each freed by its own release
+   *  with the set (`destroyEngineVsm`): the projection's view uniform and blue noise
+   *  (`releaseVsmProjection`), the raster's context (`releaseVsmRender`), the page management's
+   *  (`releaseVsmPageManagement`), the invalidation's pipe and slots (`releaseVsmInvalidation`). */
+  projection?: VsmProjectionState
+  render?: VsmRenderContext
+  pageManagement?: VsmPageManagementContext
+  invalidation?: VsmInvalidationState
   destroy(): void
   bytes: number
 }
@@ -113,9 +127,6 @@ function vsmPoolTexelIndexWgsl(name: string, rowShift: string) {
 }
 
 const S = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-
-/** A set's buffers, to free: those its tables take (`growVsmTables`), and the rest. */
-const madeBuffers = new WeakMap<VsmResources, { tables: GPUBuffer[]; rest: GPUBuffer[] }>()
 
 /** Makes `size` bytes labelled `vsm.<label>`, into `into`. */
 const makeBuffer = (
@@ -203,13 +214,12 @@ export function createVsmResources(device: GPUDevice, options: VsmResourceOption
       res.current = res.prev
       res.prev = c
     },
+    made: { tables: tableBuffers, rest },
     destroy() {
-      const made = madeBuffers.get(res)!
-      for (const b of [...made.tables, ...made.rest]) b.destroy()
+      for (const b of [...res.made.tables, ...res.made.rest]) b.destroy()
     },
     bytes: bytesOf(tableBuffers) + bytesOf(rest),
   }
-  madeBuffers.set(res, { tables: tableBuffers, rest })
   return res
 }
 
@@ -243,7 +253,7 @@ export function growVsmTables(
   const layout = vsmLayout({ ...options, poolPages: held.poolPages })
   if (layout.fullMapCapacity <= held.fullMapCapacity && layout.coverWords <= held.coverWords)
     return undefined
-  const made = madeBuffers.get(res)!
+  const { made } = res
   const tableBuffers: GPUBuffer[] = []
   const tables = createVsmTables(device, layout, tableBuffers)
   pendingBuffers(tableBuffers, () => {

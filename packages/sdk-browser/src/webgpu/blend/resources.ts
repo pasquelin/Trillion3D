@@ -7,7 +7,6 @@ import { EXPAND_PASSES, planWords, scratchWords, slotCapacity } from './planLayo
 import { writeKeyRecords } from './keyRecords.ts'
 import { writeVolumeRecords } from '../transparent/transmission.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { materialEpoch } from '../pages/io/refreshMaterials.ts'
 import { uniformStride } from '../../residency/pools.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { BLEND_ORDER_PASS } from '../../stage/passLabels.ts'
@@ -130,7 +129,7 @@ export function disposeBlendResources(blendState: WebgpuPagesRuntime['blendState
  * This is the ONLY remaining loop over items, and a camera that moves does not trigger it: it
  * only restarts on a matrix move or a resource mount. With `posesOnly` — a frame whose scene moved
  * (`../pages/render/render.ts`) —, the records are written whole only when a material's values
- * moved since they last were (`materialEpoch`): otherwise only the poses can have, and each item
+ * moved since they last were (`rows.materialEpoch`): otherwise only the poses can have, and each item
  * compares its sixteen matrix words, the moved ones sent as one span (`writeBlendPoses`). What a
  * record reads besides — material, flags, maps, its lobe and deformation words — moves with a
  * material, a texture's sampling (a whole rewrite, `followSampling`) or a new scene (`prepare`).
@@ -143,7 +142,7 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
     blendState.lobed = blendState.waterLobed = false
     return
   }
-  const epoch = materialEpoch(rt),
+  const epoch = rt.layout.rows.materialEpoch,
     whole = !posesOnly || blendState.recordEpoch !== epoch
   if (whole) writeBlendRecords(rt, device.queue, buffer, epoch)
   else writeBlendPoses(blendState, device.queue, buffer)

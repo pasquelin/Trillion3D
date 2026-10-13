@@ -12,6 +12,7 @@ fn twins() -> Vec<Twin> {
             about: "multiplyMatrix4 (math matrix4.ts), multiply_matrix4_one (math/rust matrix.rs): a * b, column-major, each term the sum of four products in step order, no initial zero",
             inputs: "a: 16 f64, b: 16 f64",
             outputs: "16 f64",
+            ulps: 0,
             cases: product_cases,
             compute: |v| {
                 let a: Vec<f64> = v[..MATRIX_VALUES].iter().map(|x| x.f64()).collect();
@@ -27,6 +28,7 @@ fn twins() -> Vec<Twin> {
             about: "Math.hypot of 2, 3 or 4 values (math hypot.ts hypot2, hypot3, hypot4), hypot (math/rust js.rs)",
             inputs: "2 to 4 f64",
             outputs: "1 f64",
+            ulps: 0,
             cases: hypot_cases,
             compute: |v| {
                 let x: Vec<f64> = v.iter().map(|x| x.f64()).collect();
@@ -43,6 +45,7 @@ fn twins() -> Vec<Twin> {
             about: "fdlibm's arc cosine (math/rust acos.rs, math trig.ts)",
             inputs: "x: f64",
             outputs: "1 f64",
+            ulps: 0,
             cases: acos_cases,
             compute: |v| f64s(&[crate::acos::acos(v[0].f64())]),
         },
@@ -52,6 +55,7 @@ fn twins() -> Vec<Twin> {
             about: "fdlibm's sine below 2^20 * pi/2 (math/rust trig.rs, math trig.ts fdlibmSin)",
             inputs: "x: f64",
             outputs: "1 f64",
+            ulps: 0,
             cases: sin_cases,
             compute: |v| f64s(&[crate::trig::sin(v[0].f64())]),
         },
@@ -62,6 +66,7 @@ fn twins() -> Vec<Twin> {
             about: "normalizeQuaternion (sdk-core quaternion.ts), normalize (math/rust quaternion.rs): the compensated squares between 2^-900 and 2^900, Math.hypot outside, a zero or NaN length taken as 1",
             inputs: "q: 4 f64 (x, y, z, w)",
             outputs: "4 f64",
+            ulps: 0,
             cases: normalize_cases,
             compute: |v| {
                 let mut q: Vec<f64> = v.iter().map(|x| x.f64()).collect();

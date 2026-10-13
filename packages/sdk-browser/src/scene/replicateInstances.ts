@@ -1,7 +1,7 @@
 import type { HostMesh } from '../host/resources.ts'
 import { hostMeshCopy } from '../host/scene/graphObjects.ts'
-import { MATRIX_VALUES, boxIsEmpty, multiplyMatrix4 } from '../../../sdk-core/src/index.ts'
-import type { MultiplyLot } from '../page/decode/batch/batchRuntime.ts'
+import { MATRIX_VALUES, boxIsEmpty } from '../../../sdk-core/src/index.ts'
+import { madeLot, multiplyLot, type MultiplyLot } from '../page/decode/batch/batchRuntime.ts'
 import { ENGINE_OWNED } from '../host/scene/watch.ts'
 import { hostWorldBounds } from '../host/world/bounds.ts'
 import { meshes as objects } from './meshes.ts'
@@ -10,13 +10,12 @@ import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { Group, type Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 /**
- * Three owned buffers of replication: group pose, placed pose of copy,
- * and their product. Core reads and writes only `Float64Array` (`packages/math/src/matrix/matrix4.ts`); the matrices
- * a host node carries are plain arrays, copied on input and output.
+ * Two owned buffers of replication: group pose and placed pose of copy; their products are the
+ * lot's. Core reads and writes only `Float64Array` (`packages/math/src/matrix/matrix4.ts`); the
+ * matrices a host node carries are plain arrays, copied on input and output.
  */
 const groupWorld = new Float64Array(16),
-  placed = new Float64Array(16),
-  product = new Float64Array(16)
+  placed = new Float64Array(16)
 
 /** Replicate transforms only. Geometry, materials and textures remain shared. */
 export function replicateInstances(
@@ -25,7 +24,7 @@ export function replicateInstances(
   count: 1 | 4 | 9 | 12,
   /** Flat world bounds `[minX, minY, minZ, maxX, maxY, maxZ]`, when caller already has them. */
   preparedBounds?: ArrayLike<number>,
-  /** Product buffer, when caller reserved it at exact size of copies. */
+  /** Product buffer, when caller reserved it at exact size of copies; else one is made for them. */
   lot?: MultiplyLot | null,
 ) {
   if (![1, 4, 9, 12].includes(count)) throw new Error('Replica count must be 1, 4, 9 or 12')
@@ -39,9 +38,11 @@ export function replicateInstances(
   const [columns, rows] = count === 12 ? [4, 3] : [Math.sqrt(count), Math.sqrt(count)],
     group = new Group(),
     meshes = objects(source)
-  // Products run IN BATCHES by the module's kernel when buffer holds exactly one copy per slot.
-  // Otherwise each product runs in place, by `multiplyMatrix4` on same inputs: the kernel's bits.
-  const enLot = lot?.holds(rows * columns * meshes.length) ? lot : null
+  // Products run IN BATCHES by the module's kernel, the one path: in `lot` when it holds exactly one
+  // copy per slot, else in one remade at the copies' count and released once read.
+  const n = rows * columns * meshes.length,
+    own = n > 0 && !lot?.holds(n) ? madeLot(multiplyLot(n), n) : null,
+    products = own ?? (n > 0 ? lot : null)
   const copies: HostMesh[] = []
   // Group world pose does not change between copies: copied once.
   copyMatrix4(groupWorld, group.matrixWorld.elements)
@@ -60,22 +61,22 @@ export function replicateInstances(
         // Group and its copies belong to engine: world matrix of copy is product
         // of group matrix by its placed matrix, same one reference calculated by traversing
         // entire group. Core writes it term by term without second pass.
-        if (enLot) {
-          const at = copies.length * MATRIX_VALUES
-          enLot.a.set(groupWorld, at)
-          enLot.b.set(placed, at)
-          copies.push(copy)
-        } else copyMatrix4(copy.matrixWorld.elements, multiplyMatrix4(product, groupWorld, placed))
+        const at = copies.length * MATRIX_VALUES
+        products!.a.set(groupWorld, at)
+        products!.b.set(placed, at)
+        copies.push(copy)
         const association = associations.get(mesh)
         if (association) associations.set(copy, association)
         group.add(copy)
       }
-  if (!enLot) return group
-  enLot.run()
+  if (!products) return group
+  products.run()
+  const out = products.out
   for (let i = 0; i < copies.length; i++) {
     const world = copies[i].matrixWorld.elements,
       at = i * MATRIX_VALUES
-    for (let k = 0; k < MATRIX_VALUES; k++) world[k] = enLot.out[at + k]
+    for (let k = 0; k < MATRIX_VALUES; k++) world[k] = out[at + k]
   }
+  own?.release()
   return group
 }

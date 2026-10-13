@@ -6,11 +6,11 @@ import * as G from '../../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { refreshWebgpuMaterials } from './refreshMaterials.ts'
 import { FLAG_MASK, PAGE_INFO_STRIDE, ROW_WORDS } from '../../../visibility/types.ts'
-import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../../row/pageRow.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice, writtenBytes } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../testScenes.fixture.ts'
 import { surfaceOf } from '../../../page/surface.ts'
+import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 
 test('a blended surface rewritten in place reaches its item record at the values refresh', async () => {
   installGpuGlobals()
@@ -62,9 +62,9 @@ test('an opaque surface turned masked cuts every row of its material', async () 
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
     const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
     const rows = Array.from({ length: table.size / PAGE_INFO_STRIDE }, (_, row) => row * ROW_WORDS)
-    const drawn = rows.filter((base) => ints[base + ROW_INDEX_WORDS] > 0)
+    const drawn = rows.filter((base) => ints[base + PAGE_INFO.at.indexCount] > 0)
     assert.ok(drawn.length, 'the quad has rows')
-    return drawn.every((base) => (ints[base + ROW_FLAGS_WORD] & FLAG_MASK) !== 0)
+    return drawn.every((base) => (ints[base + PAGE_INFO.at.flags] & FLAG_MASK) !== 0)
   }
   try {
     await backend.prepare()
@@ -105,6 +105,7 @@ test('an alpha move is taken in place under a casting light, the shadow over its
     layout: {
       rows: {
         tableEpoch: 1,
+        materialEpoch: 0,
         rowCount: 1,
         blendFirst: 1,
         casterSlots: 1,

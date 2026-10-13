@@ -34,6 +34,8 @@ import {
 } from '../gpu/core/readbackRing.ts'
 import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
 import { spheresOverlap } from '../../../math/src/geometry/sphere.ts'
+import type { VsmClipmap } from './clipmap.ts'
+import type { VsmLocalLightSetup } from './localLight.ts'
 
 /** Frames a light stays active after its last change: its mobility factor falls over them. */
 const VSM_LIGHT_ACTIVE_FRAME_COUNT = 10
@@ -155,6 +157,10 @@ export class VsmLightCache {
   /** Rough bounds for invalidation culling, metres; radius < 0 = infinite. */
   lightOrigin: [number, number, number] = [0, 0, 0]
   lightRange = -1
+  /** A sun's clipmap (`buildVsmClipmap`), a local light's setup (`addVsmLocalLightShadow`): kept
+   *  with the entry, rewritten in place every frame, made anew with a new entry. */
+  clipmap?: VsmClipmap
+  localSetup?: VsmLocalLightSetup
 
   readonly lightId: string
 

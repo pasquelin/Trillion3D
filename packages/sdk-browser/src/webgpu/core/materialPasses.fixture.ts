@@ -1,10 +1,10 @@
 import { ROW_WORDS } from '../../visibility/types.ts'
-import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { createPresentClasses } from './materialPasses.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { RenderBundles } from '../../gpu/core/renderBundles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { commandArgs, type FakePass } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /** The pipelines `pass` set, in order. */
 export const pipelinesOf = (pass: FakePass) =>
@@ -18,7 +18,7 @@ export const drawsOf = (pass: FakePass) => commandArgs(pass.commands, 'draw').le
  *  (`PreparedPipeline.get`). */
 export function resolveFixture(classes: number[], compiled: number[], single: number[] = []) {
   const ints = new Uint32Array(ROW_WORDS * classes.length)
-  classes.forEach((key, row) => (ints[row * ROW_WORDS + ROW_MATERIAL_CLASS_WORD] = key))
+  classes.forEach((key, row) => (ints[row * ROW_WORDS + PAGE_INFO.at.materialClass] = key))
   const made: number[] = []
   const tiles = { assigned: [] as number[][], classified: 0, slots: [] as number[] }
   const pipeline = (key: number) => ({ key }),

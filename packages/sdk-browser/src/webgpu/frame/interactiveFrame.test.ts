@@ -20,7 +20,7 @@ async function lightTurnedOn() {
   const rt = settledRt()
   const store = {
     count: 0,
-    // Bumped by every light added, as the engine's store does (`lightKinds` reads it per epoch).
+    // Bumped by every light added, as the engine's store does.
     epoch: 1,
     unlit: true,
     packed: new Float32Array(64),

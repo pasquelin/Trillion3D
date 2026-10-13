@@ -9,7 +9,6 @@ import { maskBit } from './globals.ts'
 import {
   KEY_HAS_BOX,
   KEY_RECORD_WORDS,
-  NOT_OWN,
   ORDER_BINDING,
   ORDER_UNI,
 } from '../../../packages/sdk-browser/src/webgpu/blend/orderWgsl.ts'
@@ -19,6 +18,7 @@ import { precedes } from '../../../packages/sdk-browser/src/webgpu/blend/paintOr
 import { boxCenterFrom } from '../../../packages/math/src/geometry/box.ts'
 import type { ComputeBind } from './fakeCompute.ts'
 import { words } from './fakeBuffers.ts'
+import { NO_INDEX } from '../../../packages/math/src/constants.ts'
 
 /** Replays the transparent compaction: the same oracle the shader implements. */
 function simulateTransparentCompaction(bind: ComputeBind) {
@@ -101,7 +101,7 @@ function simulateBlendOrder(bind: ComputeBind, offsets?: readonly number[]) {
   const keyOf = (seed: number) => {
     const at = (seeds[seed] >>> PLAN_SHIFT) * KEY_RECORD_WORDS,
       own = keyed[at + 13]
-    if (own !== NOT_OWN) return doubleAt(frame, uni[ORDER_UNI.ownKeyBase] + own * 2)
+    if (own !== NO_INDEX) return doubleAt(frame, uni[ORDER_UNI.ownKeyBase] + own * 2)
     const box = (keyed[at + 12] & KEY_HAS_BOX) !== 0
     for (let i = 0; i < (box ? 6 : 3); i++) keyBox[i] = doubleAt(keyed, at + i * 2)
     if (box) boxCenterFrom(keyGap, 0, keyBox, 0, eye[0], eye[1], eye[2])

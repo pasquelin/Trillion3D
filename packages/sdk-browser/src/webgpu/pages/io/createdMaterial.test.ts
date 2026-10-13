@@ -6,11 +6,11 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { FLAG_HAS_COLOR, PAGE_INFO_STRIDE, ROW_WORDS } from '../../../visibility/types.ts'
-import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../../row/pageRow.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../testScenes.fixture.ts'
 import { createExplorerMaterialApi } from '../../../world/api/materialApi.ts'
+import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 
 /** The quad opened on WebGPU, its material API, and what its drawn rows say: colour, flags. */
 function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => {}) {
@@ -37,11 +37,11 @@ function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => 
     const floats = new Float32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
     const ints = new Uint32Array(floats.buffer, floats.byteOffset, floats.length)
     const bases = Array.from({ length: table.size / PAGE_INFO_STRIDE }, (_, row) => row * ROW_WORDS)
-    const drawn = bases.filter((base) => ints[base + ROW_INDEX_WORDS] > 0)
+    const drawn = bases.filter((base) => ints[base + PAGE_INFO.at.indexCount] > 0)
     assert.ok(drawn.length, 'the quad has rows')
     return {
       colours: new Set(drawn.map((base) => [...floats.subarray(base + 16, base + 19)].join())),
-      coloured: drawn.every((base) => (ints[base + ROW_FLAGS_WORD] & FLAG_HAS_COLOR) !== 0),
+      coloured: drawn.every((base) => (ints[base + PAGE_INFO.at.flags] & FLAG_HAS_COLOR) !== 0),
     }
   }
   const close = () => {

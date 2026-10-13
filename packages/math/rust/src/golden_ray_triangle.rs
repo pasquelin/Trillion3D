@@ -10,6 +10,7 @@ pub(crate) fn twin() -> Twin {
             about: "rayTriangle (math geometry/rayTriangle.ts), ray_triangle (math/rust triangle.rs), rayTriangleDistance (math wgsl/geometry.ts): the distance of a two-sided Moller-Trumbore hit within (near, far), none for a miss",
             inputs: "origin: 3 f64, direction: 3 f64, a: 3 f64, b: 3 f64, c: 3 f64, near: f64, far: f64",
             outputs: "the distance as 1 f64, none for a miss",
+            ulps: 0,
             cases: ray_triangle_cases,
             compute: |v| {
                 let at = |k: usize| [v[k].f64(), v[k + 1].f64(), v[k + 2].f64()];

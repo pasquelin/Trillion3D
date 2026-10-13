@@ -9,6 +9,7 @@ import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { FLAG_HAS_COLOR, FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_MASK, FLAG_SAMPLED } from '../types.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 type Vec = number[]
 type Out = { tc: Vec }
@@ -54,7 +55,7 @@ const run = shaderRun<Run>(
     pageHeaderFor: () => ({}),
     pageSurfaceRead: () => true,
     hardwareCorner: (_page: unknown, _h: unknown, vertex: number) => vertex,
-    HARDWARE_SKIP: 0xffffffff,
+    NO_INDEX,
     hizRejected: () => false,
     pagePosition: () => [0, 0, 0],
     pageUv: () => (reads.uv++, [...UV]),

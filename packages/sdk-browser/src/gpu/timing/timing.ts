@@ -1,7 +1,7 @@
 import type { GpuTimingSample } from './types.ts'
 export type { GpuTimingSample } from './types.ts'
 import { READBACKS } from './encoder.ts'
-import { createTimedEncoder } from './admission.ts'
+import { createTimedEncoder, dropActive, readsInFlight } from './admission.ts'
 import { closeTimedImage } from './closeImage.ts'
 import { createTimingState, destroyTimingResources } from './timingState.ts'
 import { PARTS, QUERY_COUNT, TIMED_PASSES } from './queries.ts'
@@ -27,14 +27,9 @@ export function createGpuTiming(
     submitted(encoder: GPUCommandEncoder, metadata: Record<string, unknown>) {
       closeTimedImage(state, encoder, metadata)
     },
-    cancelUnsubmitted() {
-      if (state.active) {
-        state.active = undefined
-        state.tally.droppedSamples++
-      }
-    },
+    cancelUnsubmitted: () => dropActive(state),
     async flush() {
-      await Promise.all(state.inFlight.values())
+      await state.reading
     },
     stats() {
       const { tally } = state
@@ -48,7 +43,7 @@ export function createGpuTiming(
         invalidSamples: tally.invalidSamples,
         unresolvedParts: tally.unresolvedParts,
         skippedFrames: { ...state.skippedFrames },
-        pending: state.inFlight.size,
+        pending: readsInFlight(state),
         maxPending: READBACKS,
         maxPasses: TIMED_PASSES,
         maxParts: PARTS,

@@ -1,65 +1,24 @@
 import { nextPow2, workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import { saturate, clamp } from '../../../../math/src/scalar/reals.ts'
-import { PHYSICAL_MAP_FIELDS, type VisMaterial } from '../../visibility/materialType.ts'
+import type { VisMaterial } from '../../visibility/materialType.ts'
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { PHYSICAL_SECOND_UV } from '../../visibility/types.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { extendSpan, type Span } from '../../../../math/src/sequence/span.ts'
+import { pendingMade } from '../../gpu/core/tableGrowth.ts'
+import { retire } from '../../gpu/core/frameRetire.ts'
+import { PHYSICAL_RECORD_WORDS, writePhysicalRecord } from './physicalRecord.ts'
 
-/** Words of one record (`physicalTableWgsl`, `../../visibility/shader/physicalWgsl.ts`): the four
- *  factors, the coat normal's two scales, the maps' UV channels, a pad, the four map slots. */
-const PHYSICAL_RECORD_WORDS = 12
 /** Records a row of the table texture holds, three `rgba32uint` texels each: a row is 768 texels,
  *  within every device's side, and a record's index splits into its row and column by a shift. */
 export const PHYSICAL_ROW_RECORDS = 256
 const ROW_TEXELS = PHYSICAL_ROW_RECORDS * 3,
   ROW_BYTES = ROW_TEXELS * 16
 
-/** One record, filled before it is compared with the table's: a row write allocates nothing. */
-const scratch = new Float32Array(PHYSICAL_RECORD_WORDS)
-const scratchInts = new Uint32Array(scratch.buffer)
-
 /** A physical word (`PageInfo.physical`, a blend item's): the record's rank plus one `record`, its
  *  high bit set where the geometry is read as floats and carries a second UV set (`vertUv1`). */
 export const physicalWord = (record: number, floatSecondUv: boolean) =>
   record && floatSecondUv ? (record | PHYSICAL_SECOND_UV) >>> 0 : record
-
-/**
- * Writes the record of `mat` at word `at`: its factors as the material declares them, clamped as
- * the lobes read them (a strength and a coat in [0, 1], a coat roughness in [floor, 1]); its maps'
- * slots in the data atlas, in `PHYSICAL_MAP_FIELDS` order, 0 for none; bit `i` of the channels word
- * set where map `i` reads the second UV set. Returns whether a word changed.
- */
-function writePhysicalRecord(
-  ints: Uint32Array,
-  at: number,
-  mat: VisMaterial,
-  dataLayer: ReadonlyMap<Texture, number>,
-) {
-  scratch[0] = saturate(mat.anisotropy ?? 0)
-  scratch[1] = mat.anisotropyRotation ?? 0
-  scratch[2] = saturate(mat.clearcoat ?? 0)
-  scratch[3] = clamp(mat.clearcoatRoughness ?? 0, ROUGHNESS_FLOOR, 1)
-  scratch[4] = mat.clearcoatNormalScale?.[0] ?? 1
-  scratch[5] = mat.clearcoatNormalScale?.[1] ?? 1
-  let channels = 0
-  for (let i = 0; i < PHYSICAL_MAP_FIELDS.length; i++) {
-    const map = mat[PHYSICAL_MAP_FIELDS[i]]
-    scratchInts[8 + i] = map ? (dataLayer.get(map) ?? 0) : 0
-    if (map?.channel === 1) channels |= 1 << i
-  }
-  scratchInts[6] = channels
-  scratchInts[7] = 0
-  let changed = false
-  for (let i = 0; i < PHYSICAL_RECORD_WORDS; i++)
-    if (ints[at + i] !== scratchInts[i]) {
-      ints[at + i] = scratchInts[i]
-      changed = true
-    }
-  return changed
-}
 
 /**
  * The physical records of a session's surfaces, one per surface that carries a lobe
@@ -163,21 +122,7 @@ function write(p: Records, mat: VisMaterial, dataLayer: Layers) {
 
 function upload(p: Records, table: { view: GPUTextureView | undefined }, device: GPUDevice) {
   const rows = workgroupCount(p.held, PHYSICAL_ROW_RECORDS)
-  if (!p.texture || p.texture.height < rows) {
-    // A pass this image encoded earlier — the opaque resolve before the blends grew the table —
-    // still binds the old texture, its command buffer not yet submitted: destroyed now, that submit
-    // would fail. It goes once the queue's work is done, the frame's submit long since made.
-    const old = p.texture
-    if (old) void device.queue.onSubmittedWorkDone().then(() => old.destroy())
-    p.texture = device.createTexture({
-      label: 'Trillion3D physical records',
-      size: [ROW_TEXELS, nextPow2(rows)],
-      format: 'rgba32uint',
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-    })
-    table.view = p.texture.createView()
-    if (p.held) [p.written.from, p.written.to] = [0, p.held - 1]
-  }
+  if (!p.texture || p.texture.height < rows) grow(p, table, device, nextPow2(rows))
   const { from: low, to: high } = p.written
   if (low > high) return table.view!
   const first = Math.floor(low / PHYSICAL_ROW_RECORDS),
@@ -186,7 +131,8 @@ function upload(p: Records, table: { view: GPUTextureView | undefined }, device:
   const x = first === last ? (low % PHYSICAL_ROW_RECORDS) * 3 : 0,
     width = first === last ? (high - low + 1) * 3 : ROW_TEXELS
   device.queue.writeTexture(
-    { texture: p.texture, origin: [x, first] },
+    // Made above when it was not, or too short.
+    { texture: p.texture!, origin: [x, first] },
     p.ints,
     { offset: first * ROW_BYTES + x * 16, bytesPerRow: ROW_BYTES },
     [width, last - first + 1],
@@ -195,4 +141,34 @@ function upload(p: Records, table: { view: GPUTextureView | undefined }, device:
   p.written.to = -1
   return table.view!
 }
+
+/**
+ * The table grown to `rows` rows by the growth transaction (`../../gpu/core/tableGrowth.ts`): the
+ * new texture made first — refused, the old one stays in place, its records still to send —, then
+ * put in place with every record to send again. A pass this image encoded earlier — the opaque
+ * resolve before the blends grew the table — still binds the old texture, its command buffer not
+ * yet submitted: it is retired, destroyed after the frame's submit (`frameRetire.ts`).
+ */
+function grow(
+  p: Records,
+  table: { view: GPUTextureView | undefined },
+  device: GPUDevice,
+  rows: number,
+) {
+  const next = device.createTexture({
+    label: 'Trillion3D physical records',
+    size: [ROW_TEXELS, rows],
+    format: 'rgba32uint',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+  })
+  const free = (held: GPUTexture | undefined) => held && retire(device, held)
+  pendingMade<GPUTexture | undefined>(next, rows * ROW_BYTES, free, () => {
+    const old = p.texture
+    p.texture = next
+    table.view = next.createView()
+    if (p.held) [p.written.from, p.written.to] = [0, p.held - 1]
+    return old
+  }).commit()
+}
+
 export type PhysicalTable = ReturnType<typeof createPhysicalTable>

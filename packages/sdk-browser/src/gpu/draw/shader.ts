@@ -4,7 +4,7 @@ import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitAt, bitWord, ceilDiv } from '../../../../math/src/wgsl/integer.ts'
-import { NO_SLOT } from '../../../../math/src/wgsl/constants.ts'
+import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { DRAW_MASK_WGSL } from '../dag/shader/drawMaskWgsl.ts'
 
 /**
@@ -93,11 +93,11 @@ fn batchesOf(item:DrawItem)->u32{
 var<workgroup> laneSlots:array<u32,64>;
 var<workgroup> laneBatches:array<u32,64>;
 var<workgroup> slotTally:array<atomic<u32>,${slots}>;
-/** The slot item \`i\` draws in, or \`NO_SLOT\` when it lies at or past \`end\` or is not selected. */
+/** The slot item \`i\` draws in, or \`NO_INDEX\` when it lies at or past \`end\` or is not selected. */
 fn slotAt(i:u32,end:u32)->u32{
- if(i>=end){return NO_SLOT;}
+ if(i>=end){return NO_INDEX;}
  let item=items[i];
- if(!selected(item)){return NO_SLOT;}
+ if(!selected(item)){return NO_INDEX;}
  return slotOf(i,item);
 }
 @compute @workgroup_size(64)
@@ -108,7 +108,7 @@ fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) 
  // \`slotTally\` starts at zero: WGSL zero-initializes workgroup memory for each workgroup.
  let i=group*64u+lane;
  let s=slotAt(i,min(uni.count,uni.slotCap));
- if(s!=NO_SLOT){atomicAdd(&slotTally[s],batchesOf(items[i]));}
+ if(s!=NO_INDEX){atomicAdd(&slotTally[s],batchesOf(items[i]));}
  workgroupBarrier();
  for(var slot=lane;slot<${slots}u;slot+=64u){
   groupCounts[group*${slots}u+slot]=select(atomicLoad(&slotTally[slot]),0u,slotUsed[slot]==0u);
@@ -143,11 +143,11 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
  // the group's stable order.
  let s=slotAt(i,uni.count);
  var batches=0u;
- if(s!=NO_SLOT){batches=batchesOf(items[i]);}
+ if(s!=NO_INDEX){batches=batchesOf(items[i]);}
  laneSlots[lane]=s;
  laneBatches[lane]=batches;
  workgroupBarrier();
- if(s==NO_SLOT){return;}
+ if(s==NO_INDEX){return;}
  var rank=0u;
  for(var j=0u;j<lane;j++){if(laneSlots[j]==s){rank=rank+laneBatches[j];}}
  // A row's batches follow one another, so its triangles reach the raster in their page order.
@@ -164,7 +164,7 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
       bitWord,
       bitAt,
       DRAW_MASK_WGSL,
-      NO_SLOT,
+      NO_INDEX,
     ],
   )
 }

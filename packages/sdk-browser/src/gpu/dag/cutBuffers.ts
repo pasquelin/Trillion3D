@@ -38,6 +38,10 @@ export const cutLedgerBytes = (byLabel: Readonly<Record<string, number>>) =>
     0,
   )
 
-/** Bytes the cut's buffers hold. */
-export const cutBytes = (resources: { buffers: readonly GPUBuffer[] }) =>
-  resources.buffers.reduce((sum, buffer) => sum + buffer.size, 0)
+/** Bytes the cut's buffers hold, its readback ring's with them (`mainReadbacks.ts`). */
+export const cutBytes = (resources: {
+  buffers: readonly GPUBuffer[]
+  readbacks?: { readonly bytes: number }
+}) =>
+  resources.buffers.reduce((sum, buffer) => sum + buffer.size, 0) +
+  (resources.readbacks?.bytes ?? 0)

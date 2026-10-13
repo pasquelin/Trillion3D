@@ -1,5 +1,4 @@
 import { coneCullsPage } from '../../../page/cone/cone.fixture.ts'
-import { SELECTION_NONE as NONE } from '../../core/selection.ts'
 import type { PackedDag } from '../types.ts'
 import { CLUSTER_NEVER } from '../clusterFlags.ts'
 import {
@@ -18,6 +17,7 @@ import { dagScratch, projectedError } from './math.fixture.ts'
 import { drawsCluster } from '../../../page/cut/rule.fixture.ts'
 import type { MatrixElements } from '../../../host/matrixElements.ts'
 import type { DescentFlags } from './descent.fixture.ts'
+import { NO_INDEX } from '../../../../../math/src/constants.ts'
 
 /** The cut rule as the oracle applies it on page `page`: `drawsCluster`'s operands, then the page. */
 export type CutRuleAt = (
@@ -72,7 +72,7 @@ export function createDagOraclePredicates(context: PredicateContext) {
     const node = ownerOf(records, index),
       w = worldOf(records, index)
     if (flagsOf(records, index) & CLUSTER_NEVER) return false
-    if (node !== NONE && nodeFlags.at(w, node)) return false
+    if (node !== NO_INDEX && nodeFlags.at(w, node)) return false
     const { min, max } = dagScratch
     boxInto(records, index, min, max)
     return !frustumExcludesBox(planes[w], min[0], min[1], min[2], max[0], max[1], max[2])

@@ -10,9 +10,10 @@ import assert from 'node:assert/strict'
 import { objectCovers, worldScene } from './worldScene.fixture.ts'
 import { ruleResidency, pageResidency } from './readiness.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
-import { cameraSelectionUniforms, SELECTION_NONE as NONE } from '../core/selection.ts'
+import { cameraSelectionUniforms } from '../core/selection.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { createWorldResidencyMirror } from './residencyMirror.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** The scene with one lone object, the last, its world cluster, its copies, and the mirror. */
 function lone() {
@@ -58,7 +59,7 @@ function cut(s: Lone, cell: Cell, threshold: number, covers: boolean[], held: bo
   for (const rank of s.copies) rows[base + rank] = cell.held ? 1 : 0
   rows[object] = cell.placed && cell.cover ? 1 : 0
   // Placed or left as `placeObject` moves a link (`worldFollow.ts`).
-  const c = cell.placed ? s.link : NONE
+  const c = cell.placed ? s.link : NO_INDEX
   if (world.links[object] !== c) {
     world.links[object] = c
     world.linksMoved?.(Int32Array.of(object), 1)

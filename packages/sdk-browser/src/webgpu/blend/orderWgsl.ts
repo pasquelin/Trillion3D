@@ -5,6 +5,7 @@ import { dAdd, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /**
  * THE PAINT ORDER OF A TRANSPARENT PASS, SORTED ON THE GPU.
@@ -39,8 +40,6 @@ export const SLOT_GROUP = 64
 /** Words of an item's key record (`keyRecords.ts`): six doubles, then its flags and its own rank. */
 export const KEY_RECORD_WORDS = 16
 export const KEY_HAS_BOX = 1
-/** Own rank of an item the GPU keys itself. */
-export const NOT_OWN = 0xffffffff
 /** Words of the frame data before the own keys: the eye, four doubles. */
 export const FRAME_EYE_WORDS = 8
 /** Words of the frame data a scene of `items` items, `entries` entries a pass, can send at most:
@@ -126,7 +125,7 @@ fn boxAxis(low:vec2u,high:vec2u,eye:vec2u)->vec2u{return dMul(dAdd(dSub(low,eye)
 fn itemKey(item:u32)->vec2u{
  let at=item*${KEY_RECORD_WORDS}u;
  let own=keyed[at+13u];
- if(own!=${NOT_OWN}u){return frameDouble(uni.ownKeyBase+own*2u);}
+ if(own!=${NO_INDEX}u){return frameDouble(uni.ownKeyBase+own*2u);}
  let ex=frameDouble(0u);
  let ey=frameDouble(2u);
  let ez=frameDouble(4u);

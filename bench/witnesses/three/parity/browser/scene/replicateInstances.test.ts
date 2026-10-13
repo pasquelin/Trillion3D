@@ -1,6 +1,7 @@
 // replicateInstances.ts: world matrices of copies calculated by core's
 // `multiplyMatrix4`, flat bounds. Compared bit-by-bit (Object.is) to legacy path
 // (a matrix copy then a walk of the host group's graph), including hostile hierarchy.
+import '../../../../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'

@@ -13,7 +13,7 @@ const wasm = await prepareSdkWasm(
   readFileSync(join(import.meta.dirname, '../../../wasm/kernels.wasm')),
 )
 
-test('multiplyMatrix4Batch in WebAssembly returns the bits of its Rust twin on every case', async () => {
+test('the multiply lot in WebAssembly returns the bits of its Rust twin on every case', async () => {
   assert.equal(wasm?.math_simd(), 1, 'the shipped module carries the simd128 product')
   const lot = await createMultiplyLot(1)
   assert.ok(lot)

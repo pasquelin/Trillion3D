@@ -1,5 +1,4 @@
-/** 2^32: a 32-bit word read as the fraction of its bits. */
-const WORD_RANGE = 4294967296
+import { WORD_RANGE } from '../constants.ts'
 
 /**
  * The `index`-th term (from 1) of the van der Corput sequence in base `base`, in [0, 1): the

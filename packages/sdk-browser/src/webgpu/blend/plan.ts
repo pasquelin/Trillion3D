@@ -7,7 +7,7 @@ import { filtersDisplay } from './equations.ts'
 import { buildBlendHierarchy } from './hierarchy.ts'
 import { EXPAND_PASSES, blendChunkWords, blendVertexShift, planRegions } from './planLayout.ts'
 import { slotCount } from './runs.ts'
-import { FRAME_EYE_WORDS, NOT_OWN, orderFrameWords } from './orderWgsl.ts'
+import { FRAME_EYE_WORDS, orderFrameWords } from './orderWgsl.ts'
 import { orderStepCount, planOrderSteps } from './orderSteps.ts'
 import type { BlendGpuItem, WebgpuBlendState } from './state.ts'
 import {
@@ -18,6 +18,7 @@ import {
   planEntry,
 } from './planEntry.ts'
 import { planCull } from './planCull.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** The three cull ranks of a pass's pipelines: a plan entry picks them without a test, and the
  *  rank, plus three per blend mode (`BLEND_MODES`), indexes the pipelines of the pass
@@ -32,8 +33,6 @@ const planVertexCull = (entry: number) =>
 /** Pipeline the entry sets: its mode's one that culls nothing when the vertex stage culls for it. */
 export const planPipeline = (entry: number) => (entry & PLAN_PIPELINE_MASK) - planVertexCull(entry)
 const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0
-/** No paged primitive behind this item: it draws its own indices, in chunks. */
-export const DRAW_UNPAGED = 0xffffffff
 /** Plan entries an item can set at most: the back and the face of a double-sided material. */
 const MAX_SIDES = 2
 
@@ -99,7 +98,8 @@ export function buildBlendStatics(blendState: WebgpuBlendState, uniformStride: n
         ? table.itemRanges[item.pagedIndex * 2]
         : 0
     const known = item.paged && table && item.pagedIndex !== undefined
-    draws[i * 4] = known ? item.pagedIndex! : DRAW_UNPAGED
+    // An unpaged item names no paged primitive: it draws its own indices, in chunks.
+    draws[i * 4] = known ? item.pagedIndex! : NO_INDEX
     draws[i * 4 + 2] = item.tableBase
     if (known) {
       // Instances a plan entry can expand at most: what the table holds for this item. The kernel
@@ -200,7 +200,8 @@ export function refreshBlendPlan(blendState: WebgpuBlendState) {
  * The own entries start in source order, the order the CPU then keeps sorting in place.
  */
 function splitBlendClasses(blendState: WebgpuBlendState) {
-  const ranks = blendState.ownRanks.fill(NOT_OWN),
+  // An item the GPU keys itself has no own rank.
+  const ranks = blendState.ownRanks.fill(NO_INDEX),
     owned: number[] = []
   for (let pass = 0; pass < EXPAND_PASSES; pass++) {
     const seeds = blendState.seeds[pass],
@@ -215,7 +216,7 @@ function splitBlendClasses(blendState: WebgpuBlendState) {
       if (planShared(entry) && planPipeline(entry) === main) continue
       own.push(seed)
       const item = planItem(entry)
-      if (ranks[item] === NOT_OWN) ranks[item] = owned.push(item) - 1
+      if (ranks[item] === NO_INDEX) ranks[item] = owned.push(item) - 1
       if (own.length === 1 || planItem(seeds[own[own.length - 2]]) !== item) items++
     }
     blendState.mainPipeline[pass] = main

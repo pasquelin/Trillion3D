@@ -1,5 +1,6 @@
-import { failedSample, timingEntries, type TimingEntry } from './sample.ts'
-import { readImageTimestamps } from './readImage.ts'
+import { createReadbackRing, ReadbackRefused } from '../core/readbackRing.ts'
+import { failedSample, summarizeTimestamps, timingEntries } from './sample.ts'
+import { READBACKS, type TimedRead } from './encoder.ts'
 import type { TimingState } from './timingState.ts'
 
 /** Closes the image: `encoder` is its last submission, and every part resolved so far is read. */
@@ -14,61 +15,55 @@ export function closeTimedImage(
   const collected = timingEntries(image.parts.values(), image.truncated)
   const { entries, truncated } = collected
   state.tally.unresolvedParts += collected.unresolvedParts
-  if (!entries.length || !state.resources) return
-  const staging = image.read,
-    used = image.cursor * 8
-  const readback = readImage(
-    state,
-    staging,
-    used,
-    entries,
-    truncated,
-    image.frame,
-    metadata,
-  ).finally(() => {
-    state.inFlight.delete(staging)
-  })
-  state.inFlight.set(staging, readback)
+  const readbacks = state.resources?.readbacks
+  if (!entries.length) return void readbacks?.dropped(image.read)
+  Object.assign(image.tag, { entries, truncated, used: image.cursor * 8, metadata })
+  readbacks?.submitted(image.read)
 }
 
-/** Reads one image's timestamps and emits its sample; a failure disables the timing and emits the
- *  failed sample instead, unless the timing was disposed meanwhile. Always unmaps `staging`. */
-async function readImage(
-  state: TimingState,
-  staging: GPUBuffer,
-  used: number,
-  entries: TimingEntry[],
-  truncated: boolean,
-  frame: number,
-  metadata: Record<string, unknown>,
-) {
-  try {
-    const read = await readImageTimestamps(
-      staging,
-      used,
-      entries,
-      truncated,
-      frame,
-      state.slots,
-      state.timeline,
-      () => state.disposed,
-    )
-    if (!read) return
-    const { sample, idleBetweenMs } = read
-    state.tally.invalidSamples += sample.pairs.invalid
-    state.emit({ ...metadata, frame, ...sample, idleBetweenMs })
-    state.tally.completedSamples++
-  } catch (error) {
-    if (!state.disposed) {
-      state.enabled = false
-      state.emit({ ...metadata, ...failedSample(frame, truncated, String(error)) })
-      state.tally.completedSamples++
-    }
-  } finally {
-    try {
-      staging.unmap()
-    } catch {
-      /* Disposal or device loss can cancel a mapping. */
-    }
-  }
+/**
+ * The ring an image's timestamps come back through (`../core/readbackRing.ts`): `READBACKS`
+ * buffers of `bytes`, each read in place once mapped and its sample emitted; a read that fails —
+ * its mapping refused, or its summary — disables the timing and emits the failed sample instead,
+ * unless the timing was disposed meanwhile. `state.reading` is held once every read is done.
+ */
+export function timingReadbacks(state: TimingState, bytes: number) {
+  const label = 'Trillion3D timestamp readback'
+  return createReadbackRing<TimedRead>(
+    state.device,
+    {
+      label,
+      bytes,
+      count: READBACKS,
+      eager: true,
+      chain(read, image) {
+        const done = read().catch((error) => failed(state, image, error))
+        state.reading = state.reading.then(() => done)
+      },
+    },
+    (mapped, _staging, image) => emitImage(state, mapped, image),
+  )
+}
+
+/** One image's timestamps, mapped, summarised and emitted. */
+function emitImage(state: TimingState, mapped: ArrayBuffer, image: TimedRead) {
+  const { frame, used } = image
+  // Only the timestamps the image wrote are read.
+  const values = new BigUint64Array(mapped, 0, used / 8)
+  const { entries, truncated } = image
+  const { sample, span } = summarizeTimestamps(entries, values, truncated, state.slots.read(frame))
+  const idleBetweenMs = state.timeline.read(frame, span)
+  state.tally.invalidSamples += sample.pairs.invalid
+  state.emit({ ...image.metadata, frame, ...sample, idleBetweenMs })
+  state.tally.completedSamples++
+}
+
+/** A read that failed: the timing disabled and the failed sample emitted, by the device's own words
+ *  when it refused the mapping, unless disposed. */
+function failed(state: TimingState, image: TimedRead, error: unknown) {
+  if (state.disposed) return
+  state.enabled = false
+  const why = String(error instanceof ReadbackRefused ? error.cause : error)
+  state.emit({ ...image.metadata, ...failedSample(image.frame, image.truncated, why) })
+  state.tally.completedSamples++
 }

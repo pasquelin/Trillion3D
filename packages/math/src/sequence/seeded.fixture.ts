@@ -4,9 +4,7 @@
  * doubles (the product rounds above 2⁵³) or masked to 31 bits. Test inputs only; the engine's
  * generators are `random.ts`.
  */
-
-/** 2³²: a 32-bit word over it lies in `[0, 1)`, exactly. */
-const WORD_RANGE = 4294967296
+import { WORD_RANGE } from '../constants.ts'
 
 /** One step of the recurrence `x · 1103515245 + 12345` on `Math.imul`, wrapping: the state moved, as
  *  an unsigned word. */

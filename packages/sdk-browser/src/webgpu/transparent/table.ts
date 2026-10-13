@@ -4,12 +4,11 @@ import type { ClusterRoot } from '../../page/selection/types.ts'
 import type { BlendGpuItem } from '../blend/state.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** Entries one counting group of the compaction covers. Item ranges are aligned on it, so a group
  *  never spans two items and the per-item prefix is a walk over whole groups. */
 export const TRANSPARENT_GROUP = 64
-/** Padding entry: an index no cluster has, never selected, never drawn. */
-export const TRANSPARENT_NONE = 0xffffffff
 
 export type TransparentTable = ReturnType<typeof transparentTable>
 
@@ -176,7 +175,8 @@ function transparentTable(recordOf: (packed: number) => PageRec | undefined) {
 function growEntries(table: TransparentTable, needed: number) {
   if (table.capacity && needed <= table.capacity) return
   const capacity = Math.max(TRANSPARENT_GROUP, needed, table.length ? 2 * table.capacity : 0)
-  const entries = new Uint32Array(capacity).fill(TRANSPARENT_NONE)
+  // Padding entries name no cluster: never selected, never drawn.
+  const entries = new Uint32Array(capacity).fill(NO_INDEX)
   entries.set(table.entries)
   const spans = new Uint32Array(capacity * 4)
   spans.set(table.spans)

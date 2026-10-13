@@ -28,9 +28,9 @@ function scene() {
 
 /** The entries a table large enough for every count holds, on `dag`'s own residency. */
 function allEntries(dag: ReturnType<typeof scene>['dag'], resident: Uint32Array) {
-  const readiness = createDagReadiness({ ...dag }, 1 << 16)
-  readiness.apply(pageResidency(resident))
-  return readiness.heldOpen.entries
+  const packed = { ...dag }
+  createDagReadiness(packed, 1 << 16).apply(pageResidency(resident))
+  return packed.heldOpen!.entries
 }
 
 test('the open counts follow the row cache: a small table refuses nothing, a grown one holds every count', async () => {

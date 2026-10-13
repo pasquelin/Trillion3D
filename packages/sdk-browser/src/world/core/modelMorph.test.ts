@@ -1,3 +1,4 @@
+import '../../wasm/sdkWasm.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { animation } from '../../../../sdk-core/src/world/animation/family.ts'

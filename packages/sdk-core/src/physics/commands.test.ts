@@ -161,7 +161,7 @@ test('JOINT carries its ids and frames, its motor, then its own words; MOTOR its
   const { words, floats } = read(writer.take())
   const joint = words.subarray(2),
     jointFloats = floats.subarray(2)
-  // `op, id, kind, a, b (-1: the world's MISS), motor mode, motor axis, extra count`.
+  // `op, id, kind, a, b (-1: the world's NO_INDEX), motor mode, motor axis, extra count`.
   assert.deepEqual([...joint.subarray(0, 8)], [OP.joint, 23, 8, 31, 0xffffffff, 2, 5, extra.length])
   assert.deepEqual(
     [...jointFloats.subarray(8, JOINT_WORDS + extra.length)],

@@ -1,7 +1,7 @@
-import { SELECTION_NONE as NONE } from '../../core/selection.ts'
 import { bandError, bandSphere, dagRecords } from '../records.fixture.ts'
 import { projectedError, thresholdOf, type DagViewFrames } from './math.fixture.ts'
 import type { PackedDag } from '../types.ts'
+import { NO_INDEX } from '../../../../../math/src/constants.ts'
 
 /** The parent band of world cluster `c` — its world group's error — projected in the world DAG's
  *  frame, as `worldCovers` projects it. */
@@ -42,7 +42,7 @@ export function oracleWorldCovers(
   const pixels = oracleWorldPixels(packed, frames)
   return (w: number) => {
     const c = world.links[w]
-    if (c === NONE) return false
+    if (c === NO_INDEX) return false
     if (ready && !ready[c]) return true
     return !(pixels(c) > thresholdOf(frames, world.root))
   }

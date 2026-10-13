@@ -5,10 +5,10 @@ import {
   composeMatrix4Batch,
   decomposeMatrix4Batch,
   invertMatrix4Batch,
-  multiplyMatrix4Batch,
   normalMatrix3Batch,
 } from '../index.ts'
 import { composeMatrix4 } from '../matrix/matrix4Trs.ts'
+import { multiplyMatrix4 } from '../matrix/matrix4.ts'
 
 test('invertMatrix4Batch: inverts regular matrices and sets identity on singular', () => {
   const m1 = new Float64Array(16)
@@ -23,7 +23,7 @@ test('invertMatrix4Batch: inverts regular matrices and sets identity on singular
   assert.equal(singular[0], 0)
   assert.equal(singular[1], 1)
   const prod = new Float64Array(16)
-  multiplyMatrix4Batch([prod], [m1], [out[0]], 1)
+  multiplyMatrix4(prod, m1, out[0])
   assert.ok(Math.abs(prod[0] - 1) < 1e-10)
   assert.ok(Math.abs(prod[12]) < 1e-10)
   assert.equal(out[1][0], 1)

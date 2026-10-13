@@ -37,7 +37,7 @@ export function createPhysicsJoints(
       invalidate()
     },
   }
-  /** The engine id of a joint end: `MISS` for the world, -1 while its body is not simulated. */
+  /** The engine id of a joint end: `NO_INDEX` for the world, -1 while its body is not simulated. */
   const idOf = (node: Object3D | null) => engineIdOf(bodies, node)
   const drop = (joint: Joint) => {
     writer.unjoint(joint._id)
