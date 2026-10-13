@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import * as sampling from '../../../../math/src/wgsl/sampling.ts'
 import { halfLoadSlots, mixWord, slotsWithin } from '../../../../math/src/scalar/integers.ts'
+import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
 
 /**
@@ -32,7 +33,7 @@ const HELD_PROBES = 32
  *  `bytes` when given — half a readout binding (`resources.ts`): a table it cannot hold whole
  *  leaves more counts at their node's, never a list short. */
 export const heldOpenSlots = (entries: number, bytes = Infinity) =>
-  Math.max(1, Math.min(halfLoadSlots(entries), slotsWithin(bytes, OPEN_SLOT_WORDS * 4)))
+  clampLowWins(halfLoadSlots(entries), 1, slotsWithin(bytes, OPEN_SLOT_WORDS * 4))
 
 /** The home slot of (`w`, `node`) in a table of `mask + 1` slots: the shader's `heldHash`. */
 function heldHash(w: number, node: number, mask: number) {

@@ -21,16 +21,17 @@ export function createMainReadbacks(
   cut: { buffers: readonly GPUBuffer[]; admit: CutAdmission; share: number },
   bytes: number,
 ): ReadbackRing<MainCopy> {
-  let ring: ReadbackRing<MainCopy> | undefined,
-    first = 0,
+  // The ring once made: its buffers count themselves from then on (`cutBytes`).
+  const made: { ring?: ReadbackRing<MainCopy> } = {}
+  let first = 0,
     refusal: unknown
   const funded = {
     createBuffer(descriptor: GPUBufferDescriptor) {
       // The ring counts its own once made; while it makes its first buffers, they are counted here.
-      const held = cutBytes({ buffers: cut.buffers, readbacks: ring }) + (ring ? 0 : first)
+      const held = cutBytes({ buffers: cut.buffers, readbacks: made.ring }) + (made.ring ? 0 : first)
       try {
-        const buffer = madeAsked(device, ring ? asked : cut.admit, held, cut.share, descriptor)
-        if (!ring) first += buffer.size
+        const buffer = madeAsked(device, made.ring ? asked : cut.admit, held, cut.share, descriptor)
+        if (!made.ring) first += buffer.size
         return buffer
       } catch (error) {
         refusal ??= error
@@ -40,11 +41,11 @@ export function createMainReadbacks(
   }
   const label = 'Trillion3D DAG readback slot',
     count = DAG_READBACK_SLOTS
-  ring = createReadbackRing(
+  const ring = (made.ring = createReadbackRing(
     funded,
     { label, bytes, count, eager: true, chain: chainMain },
     landMain,
-  )
+  ))
   if (refusal === undefined) return ring
   ring.destroy()
   throw refusal
