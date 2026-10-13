@@ -2,6 +2,7 @@ import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from '../dispatch/grid.ts'
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import type { CutSteps } from './cutSteps.ts'
+import { POOL_SORT_STAGES, poolSortPipelines } from '../pool/sort.ts'
 import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
 
 /** Every selection stage of `module` on `layout`; a split table's stages are its own (`SPLIT`,
@@ -33,7 +34,8 @@ export async function createDagStages(
     'dagCommitMask',
     'dagDrawScatter',
     'dagSortRequests',
-    'dagListEvictions',
+    'dagRaiseParents',
+    ...POOL_SORT_STAGES,
     ...DIFFERENCE_STAGES,
     ...KEEP_STAGES,
     ...REKEEP_STAGES,
@@ -70,7 +72,10 @@ export async function createDagStages(
     /** The cut's mask and drawn log made the frame's, when no work was dropped. */
     commitPipeline: stage.dagCommitMask,
     requestSortPipeline: stage.dagSortRequests,
-    evictPipeline: stage.dagListEvictions,
+    /** The groups replacing the groups the cut raised, raised with them (`shader/lastUseWgsl.ts`). */
+    raisePipeline: stage.dagRaiseParents,
+    /** The eviction queue: the pool's sort (`shader/evictWgsl.ts`). */
+    evictSort: poolSortPipelines(stage),
     /** Each kept list's difference, then its keep (`shader/differenceWgsl.ts`). */
     differencePipelines: DIFFERENCE_STAGES.map((name) => stage[name]),
     keepPipelines: KEEP_STAGES.map((name) => stage[name]),

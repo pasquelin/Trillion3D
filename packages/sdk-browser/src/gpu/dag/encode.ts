@@ -3,6 +3,8 @@ import type { DagResources } from './resources.ts'
 import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
 import { encodeDifference } from './encodeDifference.ts'
+import { encodePoolSort } from '../pool/sort.ts'
+import { selectionListCap } from './layout.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { DAG_SELECTION_PASS } from '../../stage/passLabels.ts'
 
@@ -67,7 +69,8 @@ function encodeOnce(
     drawScatterPipeline,
     commitPipeline,
     requestSortPipeline,
-    evictPipeline,
+    raisePipeline,
+    evictSort,
   } = resources
   // Flat dispatches run in rows of the device's width.
   const width = groupWidth(resources.device?.limits)
@@ -113,7 +116,7 @@ function encodeOnce(
   if (headOnly) {
     // The groups it stamped raise their parents, as a whole cut's do (`shader/lastUseWgsl.ts`): the
     // cut repeated after it finds them stamped, and raises no group again.
-    pass.setPipeline(evictPipeline)
+    pass.setPipeline(raisePipeline)
     pass.dispatchWorkgroups(1)
     pass.end()
     return
@@ -143,8 +146,10 @@ function encodeOnce(
   )
   pass.setPipeline(requestSortPipeline)
   pass.dispatchWorkgroups(1)
-  pass.setPipeline(evictPipeline)
+  pass.setPipeline(raisePipeline)
   pass.dispatchWorkgroups(1)
+  // A thread a slot of the pool's list, whose entries the list cap bounds (`../poolList.ts`).
+  encodePoolSort(pass, evictSort, selectionListCap(resources.pageCount), width)
   if (differ) encodeDifference(pass, resources)
   pass.end()
 }

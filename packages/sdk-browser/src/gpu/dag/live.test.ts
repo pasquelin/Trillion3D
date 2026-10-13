@@ -42,7 +42,10 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
     'dagDrawPrefix',
     'dagCommitMask',
     'dagSortRequests',
-    'dagListEvictions',
+    'dagRaiseParents',
+    'poolCount',
+    'poolPlace',
+    'poolScatter',
   ])
 })
 

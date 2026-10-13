@@ -1,5 +1,5 @@
 // The EVICTION QUEUE a resident GPU cut publishes: run on the Node device, which replays the
-// stamps, their raise up the groups and `dagListEvictions` through their CPU mirrors
+// stamps, their raise up the groups and the pool sort (`../pool/sortWgsl.ts`) through their CPU mirrors
 // (`tests/kit/gpu/fakeEvict.ts`); the mirrors themselves checked against the cut rule's own
 // closure (`../../page/cut/groupClosure.ts`) on generated frames.
 import test from 'node:test'

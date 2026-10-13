@@ -1,6 +1,6 @@
 // Page of the eviction-rank proof: the engine's real GPU cut (`createGpuDagSelection`) on Dawn,
 // every page resident and in the pool, cut frame after frame at generated poses and clocks — the
-// stamps of what it draws and asks for, their raise up the groups and `dagListEvictions`, all on
+// stamps of what it draws and asks for, their raise up the groups and the pool sort, all on
 // the GPU — beside the CPU oracle of the same rules (`evict.fixture.ts`) fed the same readbacks.
 import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import {

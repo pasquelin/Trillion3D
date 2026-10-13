@@ -17,7 +17,7 @@
  * Layout of the `work` buffer, in words, as the kernel reads it — `blockBase()`,
  * `liveCounter()` and the twelve frame counters from `levelWgsl.ts`, then the camera's
  * per-view words (`viewsWgsl.ts`), the lists' group counts, and each key group's last use with the
- * groups a cut raised (`lastUseWgsl.ts`). Set HERE and
+ * groups a cut raised (`lastUseWgsl.ts`), and the eviction sort's words (`evictWgsl.ts`). Set HERE and
  * nowhere else: the engine allocates it (`../resources.ts`) and benches that mount the
  * kernel by hand reread it, so a word added to the kernel cannot leave a caller
  * with a buffer that is too short — where out-of-bounds counters read as zero, and
@@ -34,7 +34,8 @@ export function dagWorkLayout(blockCount: number, groupCount = 0) {
     viewWords = base + FRAME_COUNTERS,
     drawnGroupsMax = viewWords + VIEW_WORD_ROWS,
     lastUse = drawnGroupsMax + 13,
-    raised = lastUse + groupCount
+    raised = lastUse + groupCount,
+    poolSort = raised + 1 + RAISED_PER_GROUP * groupCount
   return {
     base,
     /** The draw mask, a bit a page, behind the block counts and offsets and the mask the cut
@@ -59,7 +60,10 @@ export function dagWorkLayout(blockCount: number, groupCount = 0) {
     /** The groups a cut raised, its count then `RAISED_PER_GROUP` a group at most: what
      *  `dagRaiseParents` walks up (`lastUseWgsl.ts`). */
     raised,
-    words: raised + 1 + RAISED_PER_GROUP * groupCount,
+    /** The eviction sort's counts then places (`POOL_SORT_WORDS`, `evictWgsl.ts`): zero at
+     *  creation, the counts zeroed again by each sort. */
+    poolSort,
+    words: poolSort + POOL_SORT_WORDS,
   }
 }
 
@@ -77,6 +81,7 @@ const FRAME_COUNTERS = 13
 export const WORK_BLOCK_WORDS = 2 + (2 * SELECTION_WORKGROUP) / 32
 
 import { VIEW_WORD_ROWS } from './viewsWgsl.ts'
+import { POOL_SORT_WORDS } from '../../pool/sort.ts'
 import { SELECTION_WORKGROUP } from '../../core/selection.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { DAG_INF } from './infDecl.ts'

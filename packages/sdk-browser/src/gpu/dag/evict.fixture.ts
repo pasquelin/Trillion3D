@@ -44,7 +44,7 @@ export function raiseGroups(
 export const aheadClock = (now: number) => Math.max(now, EVICT_IN_USE) - EVICT_IN_USE
 
 /**
- * CPU mirror of `dagListEvictions`: the pool's listed content keys (`poolList.ts`) no view uses, by
+ * CPU mirror of the geometry queue's pool sort (`shader/evictWgsl.ts`): the pool's listed content keys (`poolList.ts`) no view uses, by
  * `poolRank` through `sortStaged`, the first `cap`, each as its canonical page — within a rank,
  * page order —, and how many of them form the OLD head (`OLD_STEP`).
  */

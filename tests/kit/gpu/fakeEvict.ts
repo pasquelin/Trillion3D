@@ -25,8 +25,8 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/evict.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
-/** The groups' last uses and `dagListEvictions`, replayed on the words the kernels read
- *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`): the clock is the frame the camera's uniform
+/** The groups' last uses and the geometry queue's pool sort, replayed on the words the kernels read
+ *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`, `pool/sortWgsl.ts`): the clock is the frame the camera's uniform
  *  block carries, the words live in `work`. */
 export function fakeEvictions(byBinding: Map<number, { data: Uint8Array }>, packed: PackedDag) {
   const [work, cold, out, views] = (['work', 'cold', 'out', 'views'] as const).map((name) =>
