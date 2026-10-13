@@ -1,4 +1,5 @@
-import { BOX_VALUES, boxEmpty, boxIsEmpty, boxUnionBatch } from '../../../sdk-core/src/index.ts'
+import { boxEmpty, boxIsEmpty } from '../../../sdk-core/src/index.ts'
+import { rootBoxUnion } from './update.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
 import { rowParked, type PlacementOf } from './rows.ts'
 import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
@@ -56,10 +57,8 @@ function followHidden<E extends { hidden?: boolean }>(
   }
 }
 
-/** The box the roots that flipped cover, as one union, and its two corners. */
-const moved = new Float64Array(BOX_VALUES),
-  movedMin = moved.subarray(0, 3),
-  movedMax = moved.subarray(3, 6)
+/** The box the roots that flipped cover. */
+const moved = rootBoxUnion()
 
 /**
  * Brings the roots and the see-through draws level with the visibility the host wrote on the
@@ -89,7 +88,7 @@ export function followHostVisibility<
   moves?: (rank: number) => boolean,
   under?: { roots: Subset; seeThrough: Subset },
 ) {
-  boxEmpty(moved, 0)
+  boxEmpty(moved.box, 0)
   let movingOnly = true
   const flipped = (rank: number, root: ClusterRoot<T>) => {
     movingOnly &&= !!moves?.(rank)
@@ -103,7 +102,7 @@ export function followHostVisibility<
       if (parked === !!root.parked) return
       root.parked = parked
       flipped(rank, root)
-      if (root.worldBox) boxUnionBatch(moved, root.worldBox, 1)
+      moved.add(root)
     },
     under?.roots,
   )
@@ -115,7 +114,7 @@ export function followHostVisibility<
       node = rootSource(root)
     if (root.placement || !node || !markShadowless(root, !node.castShadow)) continue
     flipped(rank, root)
-    if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1)
+    moved.add(root, root.parked)
   }
   followHidden(
     seeThrough.entries,
@@ -123,5 +122,5 @@ export function followHostVisibility<
     (entry) => seeThrough.flipped?.(entry),
     under?.seeThrough,
   )
-  return boxIsEmpty(moved, 0) ? null : { min: movedMin, max: movedMax, movingOnly }
+  return boxIsEmpty(moved.box, 0) ? null : { min: moved.min, max: moved.max, movingOnly }
 }
