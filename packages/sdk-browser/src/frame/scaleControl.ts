@@ -130,8 +130,7 @@ export function createScaleControl(option: RenderScale | undefined) {
     },
     /** Whether the interactive loop leaves out the display frame that begins at `now`, ms, its rAF
      *  timestamp, to hold its steady cadence: it draws nothing and counts no frame. */
-    skips: (now: number) =>
-      refresh.settled && skipsDisplayFrame(cadence, now, refresh.display, control.still),
+    skips: (now: number) => skipsDisplayFrame(cadence, refresh, now, control.still),
     observe(gpuMs: number | null, scale: unknown, steered = true) {
       if (gpuMs === null) return
       sampleCadence(cadence, gpuMs)

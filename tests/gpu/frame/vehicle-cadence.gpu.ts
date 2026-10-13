@@ -10,7 +10,7 @@
 //  - the chase camera aims at the car as the frame draws it: written in `world.beforeFrame`, it
 //    reads the pose this frame draws, never the last one's.
 //
-//   node bench/dawn/proofs.ts tests/gpu/frame/vehicleCadence.gpu.ts
+//   node bench/dawn/proofs.ts tests/gpu/frame/vehicle-cadence.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'

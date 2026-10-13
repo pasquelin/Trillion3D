@@ -76,57 +76,57 @@ export function sampleCadence(c: Cadence, gpuMs: number) {
   } else if (gpuMs > c.second) c.second = gpuMs
 }
 
-/** The GPU time the rule reads: the window's second costliest, or its one. */
-const windowCost = (c: Cadence) => (c.count > 1 ? c.second : c.first)
+/** What the cadence reads of the refresh clock (`refreshClock.ts`), its fields loaded in place: a
+ *  fractional number passed to a call, or returned by one, is a new box each frame. */
+type Refresh = { readonly gap: number; readonly display: number; readonly settled: boolean }
 
 /** Whether the display frame that begins at `now` is left out of the cadence: under a divisor
- *  above 1, sooner than `divisor − ½` refreshes `refresh` after the last drawn — the half takes
- *  the timestamps' jitter —, after a moving image (`still` false). */
-export const skipsDisplayFrame = (c: Cadence, now: number, refresh: number, still: boolean) =>
-  c.divisor > 1 && !still && now - c.drawnAt < (c.divisor - 0.5) * refresh
+ *  above 1, sooner than `divisor − ½` refreshes of the display (`refresh`, once it is known)
+ *  after the last drawn — the half takes the timestamps' jitter —, after a moving image (`still`
+ *  false). */
+export const skipsDisplayFrame = (c: Cadence, refresh: Refresh, now: number, still: boolean) =>
+  c.divisor > 1 &&
+  refresh.settled &&
+  !still &&
+  now - c.drawnAt < (c.divisor - 0.5) * refresh.display
 
 /**
- * A display frame the loop draws began at `now`, `gap` ms after the last one it drew, on a
- * display of refresh `refresh` (NaN: none known). `judged`: the image before it moved, drawn at
- * the GPU's pace, and the interval is no pause (`tickScale`); `floor`: the render scale cannot
- * lower the cost any more — fixed, or at its floor —, the only case the cadence slows in, so a
- * page whose scale is free keeps the scale's own answer. Counts it, and gives the window's verdict.
+ * A display frame the loop draws began `refresh.gap` ms after the last one it drew (its start
+ * written in `drawnAt` by the caller, in place), on the display the refresh clock measured
+ * (`refresh.display`, while `settled`). `judged`: the image before it moved, drawn at the GPU's
+ * pace, and the interval is no pause (`tickScale`); `floor`: the render scale cannot lower the
+ * cost any more — fixed, or at its floor —, the only case the cadence slows in, so a page whose
+ * scale is free keeps the scale's own answer. Counts it, and gives the window's verdict. The GPU
+ * time the rule reads is the window's second costliest, or its one. Numbers are read from fields
+ * and written to fields, none passed nor returned: a frame boxes none.
  */
-export function judgeCadence(
-  c: Cadence,
-  now: number,
-  gap: number,
-  refresh: number,
-  judged: boolean,
-  floor: boolean,
-) {
-  c.drawnAt = now
-  if (!(refresh > 0)) {
+export function judgeCadence(c: Cadence, refresh: Refresh, judged: boolean, floor: boolean) {
+  if (!refresh.settled) {
     resetCadence(c)
     return
   }
-  if (!(Math.abs(refresh - c.at) <= GRID_TOLERANCE * c.at)) {
+  if (!(Math.abs(refresh.display - c.at) <= GRID_TOLERANCE * c.at)) {
     resetCadence(c)
-    c.at = refresh
+    c.at = refresh.display
   }
-  const d = c.divisor
+  const d = c.divisor,
+    period = refresh.display
   if (judged) {
     c.frames++
-    if (Math.round(gap / refresh) > d) c.late++
+    if (Math.round(refresh.gap / period) > d) c.late++
   }
   if (
     floor &&
     c.late > 1 &&
     c.count > 1 &&
-    windowCost(c) > HEADROOM * d * refresh &&
-    (d + 1) * refresh <= (1 + GRID_TOLERANCE) * SLOWEST_MS
+    c.second > HEADROOM * d * period &&
+    (d + 1) * period <= (1 + GRID_TOLERANCE) * SLOWEST_MS
   ) {
     c.divisor++
     restart(c)
     return
   }
-  if (c.frames * d * refresh < SECOND_MS) return
-  if (d > 1 && c.late <= 1 && c.count >= SUPPORT && windowCost(c) <= RISE * (d - 1) * refresh)
-    c.divisor--
+  if (c.frames * d * period < SECOND_MS) return
+  if (d > 1 && c.late <= 1 && c.count >= SUPPORT && c.second <= RISE * (d - 1) * period) c.divisor--
   restart(c)
 }

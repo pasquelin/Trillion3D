@@ -125,11 +125,10 @@ export function tickScale(p: ScaleParts, image: DrawnImage, now: number, timed: 
   w.fresh = false
   // The cadence judges the moving images the loop drew at the GPU's pace; it slows only where the
   // scale cannot lower the cost any more: fixed, or at its floor.
+  p.cadence.drawnAt = now
   judgeCadence(
     p.cadence,
-    now,
-    gap,
-    refresh.settled ? refresh.display : Number.NaN,
+    refresh,
     fresh && !image.still && gap < INTERVAL_PAUSE_MS,
     !w.bounds.auto || w.s <= w.bounds.min,
   )

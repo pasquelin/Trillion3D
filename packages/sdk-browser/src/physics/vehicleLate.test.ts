@@ -12,6 +12,10 @@ import {
 } from '../../../math/src/quaternion/quaternion.ts'
 import { vehicleRig } from './vehicles.fixture.ts'
 
+/** How far a drawn pose may lie from the carried-on step: a node's pose is stored in float32, the
+ *  expectation is not — a few of its roundings, 2⁻²³ of a unit each. */
+const STORED = 1e-6
+
 type Pose = { p: number[]; q: Float64Array }
 
 const poseOf = (wheel: {
@@ -46,7 +50,7 @@ test('a car driven at speed draws its wheels past a late tick as their last step
       for (let k = 0; k < 3; k++) {
         const on = newest[i].p[k] + (late - 1) * (newest[i].p[k] - before[i].p[k])
         assert.ok(
-          Math.abs(drawn.p[k] - on) <= 1e-9,
+          Math.abs(drawn.p[k] - on) <= STORED,
           `wheel ${i}, ${late}, axis ${k}: ${drawn.p[k]} ${on}`,
         )
       }
@@ -58,7 +62,7 @@ test('a car driven at speed draws its wheels past a late tick as their last step
       const sign = expected.reduce((dot, value, k) => dot + value * drawn.q[k], 0) < 0 ? -1 : 1
       for (let k = 0; k < 4; k++)
         assert.ok(
-          Math.abs(sign * drawn.q[k] - expected[k]) <= 1e-9,
+          Math.abs(sign * drawn.q[k] - expected[k]) <= STORED,
           `wheel ${i}, ${late}, ${k}: ${drawn.q[k]} ${expected[k]}`,
         )
       // Not frozen: the spin went on past the newest.
