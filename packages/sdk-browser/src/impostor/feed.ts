@@ -1,8 +1,8 @@
 /**
- * THE PER-MESH ATLAS FEED, one for both GPU paths: each baked mesh's three maps, read through the
- * session's one held-level read the tiles use (`atlas.ts`), handed once decoded to the path's
- * `make`, which copies them into its textures and binds them. Its bytes are texture memory held
- * within the one texture budget: `room` is what that budget leaves them. An atlas past the room is
+ * THE PER-MESH ATLAS FEED: each baked mesh's three maps, read through the session's one
+ * held-level read the tiles use (`atlas.ts`), handed once decoded to the renderer's `make`,
+ * which copies them into its textures and binds them. Its bytes are texture memory held within the
+ * one texture budget: `room` is what that budget leaves them. An atlas past the room is
  * not read; within it the atlases drawn least recently leave first, one the frame draws or one
  * being made never (`streaming/cacheEntries.ts`), keyed by mesh number: no string is built a
  * frame. Until its binding exists, `group` answers nothing and the root keeps its clusters — never
