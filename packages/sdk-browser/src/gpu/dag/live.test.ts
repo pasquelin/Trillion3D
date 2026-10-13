@@ -55,9 +55,10 @@ test('wait between launches depends only on depth, not on cluster count', () => 
   encodeDagKernels(witness.encoder, cutResources())
   const { dispatches } = witness.read()
   // Log clear, prepare, one pass per level (three), candidates, mask, prefix, compaction, the
-  // commit of the cut's mask, the request sort and the eviction queue: the cut rule decides each
-  // cluster once, in the mask, with no round per primitive before it.
-  assert.equal(dispatches.length, 12)
+  // commit of the cut's mask, the request sort, the parents' raise and the eviction queue's pool
+  // sort (count, place, scatter): the cut rule decides each cluster once, in the mask, with no
+  // round per primitive before it.
+  assert.equal(dispatches.length, 15)
   const kernels = dispatches.map((l) => l.kernel)
   assert.ok(!kernels.includes('dagArgs') && !kernels.includes('dagDrawCount'))
   assert.equal(kernels[0], 'dagClearDrawn')
