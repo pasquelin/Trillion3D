@@ -2,6 +2,7 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { BOUNCE_SETTINGS, PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/index.ts'
 import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import {
   NODE_CHILD_COUNT,
   NODE_FIRST_CHILD,
@@ -12,7 +13,14 @@ import {
 import { TREE_GROUP } from '../gpu/dag/placementTree.ts'
 import { wideNodeFns } from './nodeWgsl.ts'
 import { WIDE_TRAVERSAL_WGSL, wideTraversal } from './traceWgsl.ts'
-import { INSTANCE_WORDS, RAY_TRIANGLES, RAY_WORK, RUNTIME_NONE } from './runtimeLayout.ts'
+import {
+  INSTANCE,
+  INSTANCE_WORDS,
+  RAY_TRIANGLES,
+  RAY_WORK,
+  RUNTIME_NONE,
+  RUNTIME_PROXY_WGSL,
+} from './runtimeLayout.ts'
 
 /** The bindings of the proxy in a program that casts its rays: its own buffer (`runtimeLayout.ts`), which holds
  *  the placement tree it walks, and the world matrices of the first range (`gpu/dag/frameRanges.ts`). */
@@ -56,16 +64,14 @@ ${wgslConsts({
   RT_NODE_COUNT: NODE_CHILD_COUNT,
   RT_NODE_KIND: NODE_KIND,
   RT_INSTANCE_WORDS: INSTANCE_WORDS,
-  RT_WORLD_WORDS: 16,
+  RT_INSTANCE_NODE: INSTANCE.node,
+  RT_INSTANCE_TRIANGLE: INSTANCE.triangle,
+  RT_INSTANCE_SURFACE: INSTANCE.surface,
+  RT_INSTANCE_MARK: INSTANCE.mark,
+  RT_WORLD_WORDS: MATRIX_VALUES,
   RT_TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
 })}
-struct RuntimeProxy{
- instances:u32,instancesWord:u32,surfacesWord:u32,trianglesWord:u32,
- copyWorldsWord:u32,boundsWord:u32,childrenWord:u32,treeRoot:u32,
- treeFirst:u32,treeWord:u32,membersWord:u32,members:u32,
- worldsWord:u32,worldRows:u32,error:f32,copies:u32,
- words:array<u32>,
-}
+${RUNTIME_PROXY_WGSL}
 @group(${group}) @binding(${proxy}) var<storage,read> rtProxy:RuntimeProxy;
 /** The ray's spending: box tests and node visits in \`rtWork\`, triangle tests in \`rtTests\`. */
 var<private> rtWork:u32;
@@ -125,7 +131,7 @@ fn rtInstanceWord(w:u32,k:u32)->u32{return rtProxy.words[rtProxy.instancesWord+w
 /** The ray against placement \`w\`: its world box, the root of its cut's tree through the world, first —
  *  a ray that misses it is one unit spent — then the cut's tree with the ray taken to its space. */
 fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
- let node0=rtInstanceWord(w,0u);
+ let node0=rtInstanceWord(w,RT_INSTANCE_NODE);
  if(node0==RT_NONE||(w<rtProxy.instances&&w>=rtProxy.worldRows)){return best;}
  let m=rtWorldOf(w);
  let local=rtBox(node0);
@@ -137,7 +143,7 @@ fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
  let back=rtInverseOf(m);
  let o=rtInverseApply(back,origin-m.t);
  let d=rtInverseApply(back,direction);
- let hit=rtTraceCut(o,d,best.distance,node0,rtInstanceWord(w,1u),w);
+ let hit=rtTraceCut(o,d,best.distance,node0,rtInstanceWord(w,RT_INSTANCE_TRIANGLE),w);
  if(hit.found&&hit.distance<best.distance){return hit;}
  return best;
 }

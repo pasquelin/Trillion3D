@@ -1,7 +1,7 @@
 import { composesWithBackground } from '../scene/materialBlending.ts'
 import type { PageSurface } from '../page/surface.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
-import { SURFACE_BLENDED, SURFACE_WORDS } from './runtimeLayout.ts'
+import { SURFACE, SURFACE_BLENDED, SURFACE_WORDS } from './runtimeLayout.ts'
 
 /**
  * A surface's words in the run-time proxy (`runtimeLayout.ts`), from the record the engine holds of
@@ -22,9 +22,11 @@ export function writeSurface(words: Uint32Array, at: number, surface: PageSurfac
     tint === undefined || !surface.lit
       ? [r * scattered, g * scattered, b * scattered]
       : [tint & 255, (tint >>> 8) & 255, (tint >>> 16) & 255].map((byte) => byte / 255)
-  floats.set([...diffuse, saturate(surface.opacity), er, eg, eb])
+  floats.set(diffuse, SURFACE.tint)
+  floats[SURFACE.opacity] = saturate(surface.opacity)
+  floats.set([er, eg, eb], SURFACE.emission)
   const blended =
     surface.transparent ||
     (surface.blending !== undefined && composesWithBackground(surface.blending))
-  words[at + 7] = blended ? SURFACE_BLENDED : 0
+  words[at + SURFACE.flags] = blended ? SURFACE_BLENDED : 0
 }

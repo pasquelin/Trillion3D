@@ -18,6 +18,7 @@ const FUNCTIONS = [
   'rtUnpackShared',
   'rtStamp',
   'rtSurfaceOf',
+  'rtSurfaceVec',
   'rtShade',
   'rtScene',
   'rtEnter',

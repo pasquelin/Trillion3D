@@ -1,5 +1,7 @@
 // The layout of the run-time proxy's buffer, kept apart from the passes that read it (`runtimeSceneWgsl.ts`)
 // and the object that writes it (`gpu/dag/proxyInstances.ts`): both read it from here.
+import { fieldLayout } from '../gpu/core/fieldLayout.ts'
+
 /** No instance, no node: a word every table spells the absence of a link with. */
 export const RUNTIME_NONE = 0xffffffff
 
@@ -13,42 +15,57 @@ export const RUNTIME_NONE = 0xffffffff
  * that a program reads the whole proxy through one storage binding: the forward programs, whose fragment stage
  * binds the eight WebGPU guarantees, have no room for a second.
  *
- * Header words: the placements the instances hold (the blended copies' follow them), then the word rank
- * of each region — the copies' worlds a region of their own —, the tree's root node (`RUNTIME_NONE` for a
- * packing without a tree: the placements are then its few members), the id of the first node the mirror holds,
- * the words of its nodes and of its members, the live members, the word rank of the placements' worlds, the rows the world
- * table's first range holds, the greatest world error of a proxy, in metres, as an `f32`'s bits: the distance a
- * ray leaves a surface off its normal, and the blended copies.
+ * Header words, one table the writer's words and the shader's struct (`RUNTIME_PROXY_WGSL`) are both drawn
+ * from (`fieldLayout`): the placements the instances hold (the blended copies' follow them), then the word
+ * rank of each region — the copies' worlds a region of their own —, the tree's root node (`RUNTIME_NONE` for
+ * a packing without a tree: the placements are then its few members), the id of the first node the mirror
+ * holds, the words of its nodes and of its members, the live members, the word rank of the placements'
+ * worlds, the rows the world table's first range holds, the greatest world error of a proxy, in metres, as an
+ * `f32`'s bits: the distance a ray leaves a surface off its normal, and the blended copies.
  */
-export const RUNTIME_HEADER = {
-  instances: 0,
-  instancesWord: 1,
-  surfacesWord: 2,
-  trianglesWord: 3,
-  copyWorldsWord: 4,
-  boundsWord: 5,
-  childrenWord: 6,
-  treeRoot: 7,
-  treeFirst: 8,
-  treeWord: 9,
-  membersWord: 10,
-  members: 11,
-  worldsWord: 12,
-  worldRows: 13,
-  error: 14,
-  copies: 15,
-} as const
-export const RUNTIME_HEADER_WORDS = 16
+const HEADER = fieldLayout(
+  'RuntimeProxy',
+  [
+    ['instances', 'u32'],
+    ['instancesWord', 'u32'],
+    ['surfacesWord', 'u32'],
+    ['trianglesWord', 'u32'],
+    ['copyWorldsWord', 'u32'],
+    ['boundsWord', 'u32'],
+    ['childrenWord', 'u32'],
+    ['treeRoot', 'u32'],
+    ['treeFirst', 'u32'],
+    ['treeWord', 'u32'],
+    ['membersWord', 'u32'],
+    ['members', 'u32'],
+    ['worldsWord', 'u32'],
+    ['worldRows', 'u32'],
+    ['error', 'f32'],
+    ['copies', 'u32'],
+  ] as const,
+  'words:array<u32>,',
+)
+export const RUNTIME_HEADER = HEADER.at
+export const RUNTIME_HEADER_WORDS = HEADER.words
+/** The proxy's buffer as the shaders read it: the header's fields, then every word past them. */
+export const RUNTIME_PROXY_WGSL = HEADER.wgsl
 
-/** Words of one placement's instance: its cut's first node and first triangle in the arena
- *  (`RUNTIME_NONE` where it draws no proxy), the surface it wears, and its frame word — the mark
- *  with the deformation's reach above it (`markReach`). */
-export const INSTANCE_WORDS = 4
+/** One placement's instance: its cut's first node and first triangle in the arena (`RUNTIME_NONE`
+ *  where it draws no proxy), the surface it wears, and its frame word — the mark with the
+ *  deformation's reach above it (`markReach`). */
 export const INSTANCE = { node: 0, triangle: 1, surface: 2, mark: 3 } as const
+export const INSTANCE_WORDS = Object.keys(INSTANCE).length
 
-/** Words of one surface: the diffuse tint (linear), the opacity, the emission (linear radiance) and
- *  a flags word; floats but the last. */
-export const SURFACE_WORDS = 8
+/** One surface, its words laid as WGSL lays the fields (`fieldLayout`): the diffuse tint
+ *  (linear), the opacity, the emission (linear radiance) and a flags word. */
+const SURFACE_LAYOUT = fieldLayout('RuntimeSurface', [
+  ['tint', 'vec3f'],
+  ['opacity', 'f32'],
+  ['emission', 'vec3f'],
+  ['flags', 'u32'],
+] as const)
+export const SURFACE = SURFACE_LAYOUT.at
+export const SURFACE_WORDS = SURFACE_LAYOUT.words
 export const SURFACE_BLENDED = 1
 
 /**
