@@ -36,6 +36,7 @@ test('a parent with no row held and none given has nothing to follow: no refusal
 test('a row no root reads is composed for its readers, and a root a growth brings takes it over', () => {
   const { rt, rows } = session()
   const extra = createPlacementRows(3),
+    pending = createPlacementRows(2),
     parent = {}
   // A blended item reads row 1 of `extra` through its view, as the blend pass reads its copies.
   const item = { placement: { rows: extra, index: 1 }, matrix: placementWorld(extra, 1) }
@@ -43,20 +44,30 @@ test('a row no root reads is composed for its readers, and a root a growth bring
   const links = [
     { rows, index: 0, local: turn(0) },
     { rows: extra, index: 1, local: local(5) },
+    // A row whose root a growth has not built yet: no view reads it.
+    { rows: pending, index: 0, local: local(7) },
   ]
   composeWebgpuPlacements(rt, parent, turn(0.3), links, true)
   assert.deepEqual(Array.from(item.matrix.elements), product(turn(0.3), local(5)))
   // The parent turns: the reader's row follows it, composed when it is read.
   composeWebgpuPlacements(rt, parent, turn(0.6), [], false)
   assert.deepEqual(Array.from(item.matrix.elements), product(turn(0.6), local(5)))
-  // A growth builds the root of that row: the roots pass composes it from now on.
+  // A growth builds the roots of both rows: the roots pass composes them from now on. The row a
+  // blended copy reads stays composed for that copy too (`linkedRanks`): the other leaves this
+  // module.
   const roots = rt.layout.selectionRoots as unknown as object[]
+  roots.push({ placement: { rows: pending, index: 0 }, world: placementWorld(pending, 0) })
   roots.push({ placement: { rows: extra, index: 1 }, world: placementWorld(extra, 1) })
   forgetRowRoots(roots as never)
   rebindComposedWorlds(rt)
-  assert.deepEqual([...rt.compose!.parentOf].slice(0, 3), [0, NO_INDEX, 0])
-  assert.equal(rt.compose!.readers.size, 0, 'no reader is left to this module')
-  assert.equal(Object.getOwnPropertyDescriptor(item.matrix, 'elements')?.get, undefined)
+  assert.deepEqual([...rt.compose!.parentOf].slice(0, 4), [0, NO_INDEX, 0, 0])
+  const held = [...rt.compose!.readers.values()].flat()
+  assert.deepEqual(
+    held.map(({ rows: read, index }) => [read === extra, index]),
+    [[true, 1]],
+    'the blended copy’s row alone is left to this module',
+  )
+  assert.deepEqual(Array.from(item.matrix.elements), product(turn(0.6), local(5)))
 })
 
 test("a parent's move composes no reader's row: the product waits for a read, one a read", () => {
