@@ -40,7 +40,7 @@ export const families = {
   measurement: family('measurement', () => import('../measurement/measurementCode.ts')),
   /** The world pages' server, under their detached source (`../scene/worldRoots.ts`, `stream`). */
   worldStream: family('world stream', () => import('../scene/worldPageServe.ts')),
-  /** The impostor draw: card plan, pipelines, atlas feed. */
+  /** The impostor draw: card plan, pipelines and their encodes; the maps are the tile pool's. */
   impostors: family('impostors', () => import('../impostor/impostorCode.ts')),
   /** The CPU geometry-page decoder behind the public `page.decode`, and the format's gate
    *  `page.httpSource` checks each page by: the engine itself decodes no page on the CPU (the GPU

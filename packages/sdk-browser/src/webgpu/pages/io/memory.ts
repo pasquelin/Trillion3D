@@ -37,9 +37,9 @@ export function geometryBudgetBeside(rt: WebgpuPagesRuntime, budgetBytes: number
 }
 
 /** Texture bytes held beside the texture pool, outside it, within the one texture budget: the live
- *  textures' working textures (#362) and the resident impostor atlases (#1335). */
-export const textureBytesBeside = (rt: Pick<WebgpuPagesRuntime, 'vis' | 'gpu'>) =>
-  (rt.vis.textures?.sources.liveBytes ?? 0) + (rt.gpu.impostors?.pass.feed.bytes ?? 0)
+ *  textures' working textures (#362). The impostor maps are tiles of the pool itself (#1527). */
+export const textureBytesBeside = (rt: Pick<WebgpuPagesRuntime, 'vis'>) =>
+  rt.vis.textures?.sources.liveBytes ?? 0
 
 /** Host bytes the session holds for the streamer's reservation: the cut's tables and residency,
  *  plus the impostor tier's tables (`impostorCardsBytes`) and the proxy's instance words
@@ -122,9 +122,8 @@ async function setTextureBudget(rt: WebgpuPagesRuntime, device: Device, budget: 
     setup.texturePoolBudget = budget
     return 0
   }
-  // A live texture's working texture (#362) and an impostor atlas (#1335) are texture memory
-  // too: the pool is drawn from what the budget leaves it, the budget recorded staying the one
-  // declared.
+  // A live texture's working texture (#362) is texture memory too: the pool is drawn from what
+  // the budget leaves it, the budget recorded staying the one declared.
   const live = textureBytesBeside(rt),
     { bytes, deducted } = budgetBeside(budget, live)
   pools.liveBytes = live
@@ -210,8 +209,8 @@ export function growWebgpuPagePool(rt: WebgpuPagesRuntime, grown: GrownPages) {
 }
 
 /**
- * A texture turned live (#362) or an impostor atlas landed or left (#1335) since the pool was
- * drawn: the pool is drawn again under the same budget, less the bytes held beside it, as
+ * A texture turned live (#362) since the pool was drawn: the pool is drawn again under the same
+ * budget, less the bytes held beside it, as
  * `setMemoryBudgets` draws it — tiles kept, out of memory absorbed. Once per change; a still scene
  * reads one number.
  */

@@ -1,7 +1,7 @@
 /**
  * One baked impostor over the DAG fixture's root, as the runtime tests read it
- * (`webgpu/impostor/frame.test.ts`): its section, its roots, a level
- * reader answering decoded levels, and the cameras and cut they are seen with.
+ * (`webgpu/impostor/frame.test.ts`): its section, its roots, and the cameras and cut they are seen
+ * with.
  */
 import type { ImpostorSection } from '../../../sdk-core/src/index.ts'
 import { collectClusterPages } from '../page/selection/selection.ts'
@@ -10,8 +10,6 @@ import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
 import { dagFixture, frontCamera } from '../page/selection/dag.fixture.ts'
 import { createEngineCamera } from '../camera/engineCamera.ts'
 import { readCameraWorld } from '../camera/world.ts'
-import type { TextureLevelReader, TextureLevelRequest } from '../texture/levelReader.ts'
-import { createPageCache } from '../streaming/pageCache.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
@@ -46,17 +44,11 @@ export const impostorSection: ImpostorSection = {
     },
   ],
 }
-/** The three levels' urls, in the order the atlas asks them. */
-export const ATLAS_URLS = ['a', 'b', 'c'].map((name) => `../../objects/${name}.png`)
+/** The hooks of a session whose card maps all reside: every card drawn as soon as it switches. */
+export const RESIDENT = { tilesOf: () => [1, 2, 3] as const, ready: () => true }
 
-/** The DAG fixture's roots, each standing for `MESH`, and a reader answering decoded levels. */
+/** The DAG fixture's roots, each standing for `MESH`. */
 export function impostorScene() {
-  const asked: TextureLevelRequest[] = []
-  const read = async (request: TextureLevelRequest) => {
-    asked.push(request)
-    return { width: 8, height: 8, close() {} } as ImageBitmap
-  }
-  const reader = Object.assign(read, { store: createPageCache(), key: 'k' }) as TextureLevelReader
   const fixture = dagFixture()
   const { roots } = collectClusterPages(
     fixture.source,
@@ -65,7 +57,7 @@ export function impostorScene() {
     fixture.indices,
   )
   for (const root of roots) root.mesh = MESH
-  return { fixture, roots, reader, asked }
+  return { fixture, roots }
 }
 
 /** The engine camera on the axis at `z`, looking at the root. */
@@ -73,8 +65,6 @@ export const engineAt = (z: number) => readCameraWorld(createEngineCamera(), fro
 /** The CPU camera cut of `roots` from `z`. */
 export const cutAt = (roots: ReturnType<typeof impostorScene>['roots'], z: number) =>
   selectVisiblePages(roots, engineAt(z), { pixelError: 0, viewport: VIEWPORT })
-/** Lets the levels asked land: each image lands what the one before asked. */
-export const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 /** `count` objects at one per 400 m² on a disk about the origin: the near ones whole, most far. */
 export function cardField(count: number) {

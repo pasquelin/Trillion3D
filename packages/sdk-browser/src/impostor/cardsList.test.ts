@@ -6,14 +6,12 @@ import assert from 'node:assert/strict'
 import './lent.fixture.ts'
 import { createImpostorCards, planImpostorCards } from './cards.ts'
 import { CARD_FLOATS } from './cardSlots.ts'
-import { engineAt, impostorScene, impostorSection, VIEWPORT } from './section.fixture.ts'
+import { engineAt, impostorScene, impostorSection, VIEWPORT, RESIDENT } from './section.fixture.ts'
 import { CARD_ROOT } from '../visibility/shader/spriteWgsl.ts'
-
-const GROUP = { atlas: 1 }
 
 test('a new root list clears the card bits the old one set', () => {
   const { fixture, roots } = impostorScene(),
-    state = createImpostorCards<typeof GROUP>(impostorSection, { atlasOf: () => GROUP })
+    state = createImpostorCards(impostorSection, RESIDENT)
   planImpostorCards(state, roots, engineAt(200), VIEWPORT)
   assert.equal(roots[0].mark, CARD_ROOT, 'far away, the root is its card')
   // The same roots in a new list, the camera near: the root draws its clusters again.
@@ -26,7 +24,7 @@ test('a new root list clears the card bits the old one set', () => {
 
 test('a root appended to the list in place takes its card at its own radius', () => {
   const { fixture, roots } = impostorScene(),
-    state = createImpostorCards<typeof GROUP>(impostorSection, { atlasOf: () => GROUP })
+    state = createImpostorCards(impostorSection, RESIDENT)
   planImpostorCards(state, roots, engineAt(200), VIEWPORT)
   assert.equal(state.count, 1)
   // A second placement of the mesh beside the first, joined into the same list.

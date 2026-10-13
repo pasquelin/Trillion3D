@@ -137,7 +137,8 @@ fn tileEntry(texel:vec2f,lsize:vec2f)->u32{return u32(texel.y/TEXEL_TILE)*u32(ce
 /** The pool of the camera's passes — visibility, compute raster, surfaces, transparents —, whose
  *  uniform `uni` carries the frame's texture level offset. */
 export const TILE_POOL_WGSL = tilePoolWgsl('uni.mipBias')
-/** The pool of the shadow passes, which read at no level offset. */
+/** The pool read at no level offset: the shadow passes', and the impostor cards', which read at
+ *  their card's own level (`cardReads.ts`). */
 export const SHADOW_TILE_POOL_WGSL = tilePoolWgsl('0.0')
 
 /** An atlas's sample, `${k}Sample(slot, uv, ddx, ddy, sampled)`, on the textures of `pool`: the
@@ -194,15 +195,16 @@ export const DATA_SAMPLE_WGSL = wgslBlock(
   '',
 )
 
-/** Atlas declarations: one pool per lane and the page table, at the bindings the layout gives. */
-export const tileDeclarations = (bindings: AtlasBindings, name: string) =>
+/** Atlas declarations: one pool per lane and the page table, at the bindings the layout gives, in
+ *  `group`. */
+export const tileDeclarations = (bindings: AtlasBindings, name: string, group = 0) =>
   `${bindings.lanes
     .map(
       (binding, lane) =>
-        `@group(0) @binding(${binding}) var ${name}Pool${lane}:texture_2d_array<f32>;`,
+        `@group(${group}) @binding(${binding}) var ${name}Pool${lane}:texture_2d_array<f32>;`,
     )
     .join('\n')}
-@group(0) @binding(${bindings.pages}) var<storage,read> ${name}Pages:array<u32>;`
+@group(${group}) @binding(${bindings.pages}) var<storage,read> ${name}Pages:array<u32>;`
 
 /** What a pass that reads a page's materials declares in group 0: the uvs, the colour atlas and
  *  the sampler of the maps, at the visibility layout's bindings. */

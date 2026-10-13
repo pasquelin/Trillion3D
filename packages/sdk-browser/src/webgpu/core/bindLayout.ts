@@ -10,13 +10,13 @@ import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
  * once, never on one alone — the defect merging lots 1 and 2 cost.
  */
 
-/** Four bindings of a virtual-texture atlas: one pool per lane, in `PREVIEW_LAYOUT_NAMES` order, then its
- *  page table. */
-const atlas = (base: number) => ({
+/** Four bindings of a virtual-texture atlas from `base`: one pool per lane, in
+ *  `PREVIEW_LAYOUT_NAMES` order, then its page table. */
+export const atlasBindings = (base: number) => ({
   lanes: PREVIEW_LAYOUT_NAMES.map((_, index) => base + index),
   pages: base + PREVIEW_LAYOUT_NAMES.length,
 })
-export type AtlasBindings = ReturnType<typeof atlas>
+export type AtlasBindings = ReturnType<typeof atlasBindings>
 
 /** Two binding shapes the layouts repeat, written once and for all. */
 export const readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' }
@@ -47,7 +47,7 @@ export const VIS_BINDINGS = {
   flags: 3,
   uniform: 4,
   uv: 5,
-  color: atlas(6),
+  color: atlasBindings(6),
   sampler: 10,
   instances: 11,
   slotOffsets: 12,
@@ -60,10 +60,10 @@ export const SHADE_BINDINGS = {
   uv: 3,
   normal: 4,
   pageTable: 5,
-  color: atlas(6),
+  color: atlasBindings(6),
   sampler: 10,
   uniform: 11,
-  data: atlas(12),
+  data: atlasBindings(12),
   subsurface: 17,
   /** The shadow receiver target the resolve writes (`receiverTargetWgsl.ts`). */
   receiver: 18,
@@ -80,9 +80,9 @@ export const BLEND_BINDINGS = {
   positions: 1,
   uvs: 2,
   uniform: 3,
-  color: atlas(4),
+  color: atlasBindings(4),
   sampler: 8,
-  data: atlas(9),
+  data: atlasBindings(9),
   normals: 13,
   /** Declared contract lights, the very ones the opaque resolve rereads (P6). */
   directLights: 14,
@@ -132,7 +132,7 @@ export const SMALL_BINDINGS = {
   hizFlags: 3,
   uniform: 4,
   uvs: 5,
-  color: atlas(6),
+  color: atlasBindings(6),
   sampler: 10,
   work: 11,
   selectionMask: 12,

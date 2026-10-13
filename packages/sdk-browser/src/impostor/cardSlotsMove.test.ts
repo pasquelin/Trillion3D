@@ -8,13 +8,13 @@ import { CARD_FLOATS, createCardSlots, slotAtEnd, uploaded, type CardSegment } f
 
 test('a segment moved to the end writes its own records, not every record', () => {
   const slots = createCardSlots(),
-    segments: CardSegment<string>[] = []
-  const take = (segment: CardSegment<string>) => {
+    segments: CardSegment[] = []
+  const take = (segment: CardSegment) => {
     slotAtEnd(slots, segments, segment)
     segment.count++
   }
   for (let mesh = 0; mesh < 40; mesh++) {
-    const segment = { start: 0, capacity: 0, count: 0 } as CardSegment<string>
+    const segment = { start: 0, capacity: 0, count: 0 } as CardSegment
     segments.push(segment)
     for (let k = 0; k < 64; k++) take(segment)
   }

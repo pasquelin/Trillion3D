@@ -1,21 +1,26 @@
-import { IMPOSTOR_CARD_WGSL } from '../../visibility/shader/impostorWgsl.ts'
+import { impostorCardWgsl } from '../../visibility/shader/impostorWgsl.ts'
 import { core } from '../../impostor/borrowed.ts'
 import { CARD_COVERAGE_CUT } from '../../impostor/cards.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { tangentImpostor } from '../../../../math/src/wgsl/basis.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 
 /** Floats of the pass's view uniform: the image's render view-projection and the camera's own, both
  *  at the eye, then the eye in two singles a component — the high words with the focal length's
- *  logarithm, the rest. */
+ *  logarithm, the rest with the feedback's phase word (`phaseWord`), its bits. */
 export const CARD_VIEW_FLOATS = 40
+/** Maps a pixel may ask a tile of: colour and coverage, normal and depth, ORM. */
+const CARD_MAPS = 3
 /** The surface flag of a lit physical surface the resolve shades (`shadeWgsl.ts`). */
 const LIT_SURFACE_FLAG = 2
 
 /**
  * THE CARD PASS: the impostor drawn as a masked surface of the one lighting model, as the
  * reference draws an impostor in its base pass. Group 0 is the image's (view and the session's card
- * records), group 1 a mesh's atlas (`feed.ts`). The records hold no view (`../../impostor/
+ * records), group 1 the tile pool (`reads`, the card's maps read there at its own level,
+ * `../tile/cardReads.ts`): every card of every mesh reads the one pool, its record naming its three
+ * maps, so no draw binds anything of its own. The records hold no view (`../../impostor/
  * cardSlots.ts`): the vertex stage takes the eye off each card's translation in double-single
  * (`cardOrigin`, the render frame's rule: the card is drawn at the eye), turns its quad to the
  * camera by the shared sprite basis (`spriteAt`, at half-extent `R`), and derives once per card what
@@ -27,22 +32,20 @@ const LIT_SURFACE_FLAG = 2
  * offset), into the depth and the pyramid's level 0, so a card occludes as its mesh. After the
  * material passes, `card_fs` writes its surface where the identifier kept is its own — an integer
  * the visibility stage wrote, which no rounding of a depth formula reaches —, so the lighting, the
- * shadows and every later pass read it as they read a cluster.
+ * shadows and every later pass read it as they read a cluster; `card_feedback_fs` beside it posts
+ * the tile its pixel reads (`cardRequest`), when the frame's pipelines write the feedback.
  */
-export const cardPassWgsl = () =>
+export const cardPassWgsl = (reads: WgslDecl) =>
   wgslProgram(
     `
 struct CardView{viewProj:mat4x4f,basis:mat4x4f,eyeHigh:vec4f,eyeLow:vec4f}
 /** \`world\`: the world's linear part, its translation's high words. \`low\`: the rest of the
  *  translation. \`shape\`: object radius, frames a side, hemi (0 or 1), log2 of the texel depth at
- *  unit focal length. \`pivot\`: object-space bounding-sphere centre, then the world radius. */
-struct Card{world:mat4x4f,low:vec4f,inverse:mat4x4f,shape:vec4f,pivot:vec4f}
+ *  unit focal length. \`pivot\`: object-space bounding-sphere centre, then the world radius.
+ *  \`maps\`: the slots of its three maps in the tile atlases, as singles. */
+struct Card{world:mat4x4f,low:vec4f,inverse:mat4x4f,shape:vec4f,pivot:vec4f,maps:vec4f}
 @group(0) @binding(0) var<uniform> view:CardView;
 @group(0) @binding(1) var<storage,read> cards:array<Card>;
-@group(1) @binding(0) var impostorColour:texture_2d<f32>;
-@group(1) @binding(1) var impostorNormalDepth:texture_2d<f32>;
-@group(1) @binding(2) var impostorOrm:texture_2d<f32>;
-@group(1) @binding(3) var impostorSampler:sampler;
 /** The surface stage's alone: the identifiers the visibility stage kept. */
 @group(2) @binding(0) var cardIds:texture_2d<u32>;
 /** The card's world translation at the eye: the high words' difference, then the low words'. */
@@ -97,18 +100,44 @@ struct CardVary{
   na,nb,nc,normalMatrix[0],normalMatrix[1],normalMatrix[2]);
 }
 /** The card's surface at this pixel, and its depth: the blended surface point, at the eye,
- *  projected. A texel under the coverage cut is no surface: the pixel is discarded, in every stage
- *  alike. */
-struct CardPixel{blend:ImpBlend,depth:f32}
+ *  projected; with the maps it read and the three taps, which its request names. A texel under the
+ *  coverage cut is no surface: the pixel is discarded, in every stage alike. */
+struct CardPixel{blend:ImpBlend,depth:f32,maps:CardMaps,a:vec2f,b:vec2f,c:vec2f}
 fn cardPixel(in:CardVary)->CardPixel{
  let eye=in.eyeRadius.xyz;let radius=in.eyeRadius.w;let lod=in.weightsLod.w;let cell=in.cCell.z;
  let ray=normalize(in.point-eye);
- let b=impBlend(impTap(in.ab.xy,in.xa,in.na,eye,ray,radius,cell,lod),impTap(in.ab.zw,in.xb,in.nb,eye,ray,radius,cell,lod),
-  impTap(in.cCell.xy,in.xc,in.nc,eye,ray,radius,cell,lod),in.weightsLod.xyz,lod);
- if(b.colour.a<${CARD_COVERAGE_CUT}){discard;}
  let c=cards[in.card];
+ let m=CardMaps(colorSlot(u32(c.maps.x)),dataSlot(u32(c.maps.y)),dataSlot(u32(c.maps.z)));
+ let ta=impTap(m,in.ab.xy,in.xa,in.na,eye,ray,radius,cell,lod);let tb=impTap(m,in.ab.zw,in.xb,in.nb,eye,ray,radius,cell,lod);
+ let tc=impTap(m,in.cCell.xy,in.xc,in.nc,eye,ray,radius,cell,lod);
+ let b=impBlend(m,ta,tb,tc,in.weightsLod.xyz,lod);
+ if(b.colour.a<${CARD_COVERAGE_CUT}){discard;}
  let clip=view.viewProj*vec4f(worldMatrix3(c.world)*(b.point+c.pivot.xyz)+cardOrigin(c),1.0);
- return CardPixel(b,clip.z/clip.w);
+ return CardPixel(b,clip.z/clip.w,m,ta.uv,tb.uv,tc.uv);
+}
+/** The tile rank pick \`p\` of a card pixel names, plus one, or zero: map \`p.sel\` at the tap of frame
+ *  \`p.along\`, at the level \`lod\` the read takes, or the next one the blend mixes in. */
+fn cardPick(px:CardPixel,p:RequestPick,lod:f32,missing:bool)->u32{
+ let uv=select(select(px.a,px.b,p.along==1u),px.c,p.along==2u);
+ let level=u32(floor(lod))+select(0u,1u,p.next&&lod-floor(lod)>0.0);
+ if(p.sel==0u){return colorRequestAt(px.maps.colour,uv,level,missing);}
+ if(p.sel==1u){return dataRequestAt(px.maps.normalDepth,uv,level,missing);}
+ return dataRequestAt(px.maps.orm,uv,level,missing);
+}
+/** The tile rank this card pixel asks, plus one, or zero, under the rule every surface asks by
+ *  (\`FEEDBACK_RULE_WGSL\`): on a convergence's asking rows the first of its picks whose tile is
+ *  missing, else its own. */
+fn cardRequest(px:CardPixel,pos:vec2f,lod:f32)->u32{
+ let word=bitcast<u32>(view.eyeLow.w);
+ if(!feedbackPhase(pos,word)){return 0u;}
+ let at=impLod(px.maps.colour,lod);
+ if(feedbackMissing(pos,word)){
+  for(var turn=0u;turn<${CARD_MAPS}u*PICK_TURNS;turn++){
+   let rank=cardPick(px,everyPick(pos,${CARD_MAPS}u,turn),at,true);
+   if(rank!=0u){return rank;}
+  }
+ }
+ return cardPick(px,requestPick(pos,${CARD_MAPS}u,word),at,false);
 }
 /** The identifier of card slot \`slot\`'s pixels. */
 fn cardId(slot:u32)->u32{return ${core.VIS_CARD_BASE}u|slot;}
@@ -122,15 +151,28 @@ struct CardVisHiz{@location(0) id:u32,@location(1) hiz:f32,@builtin(frag_depth) 
  let px=cardPixel(in);
  return CardVisHiz(cardId(in.card),px.depth,px.depth);
 }
-struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32}
-@fragment fn card_fs(in:CardVary)->CardOut{
- // Where this card was the nearest the visibility stage kept: its identifier is there, whole.
- if(textureLoad(cardIds,vec2i(in.clip.xy),0).r!=cardId(in.card)){discard;}
- let px=cardPixel(in);let b=px.blend;
+struct CardSurface{baseMetal:vec4f,normalRough:vec4f,emissiveAo:vec4f,flags:u32}
+/** The surface of this card's pixel, where this card was the nearest the visibility stage kept:
+ *  its identifier is there, whole. */
+fn cardSurface(in:CardVary,px:CardPixel)->CardSurface{
+ let b=px.blend;
  let n=normalize(mat3x3f(in.n0,in.n1,in.n2)*b.normal);
  let ao=b.orm.x;
  let flag=${LIT_SURFACE_FLAG}u|select(0u,${core.EMISSIVE_AO_SURFACE_FLAG}u,ao!=1.0);
- return CardOut(vec4f(b.colour.rgb,b.orm.z),vec4f(n,b.orm.y),vec4f(0.0,0.0,0.0,ao),flag);
+ return CardSurface(vec4f(b.colour.rgb,b.orm.z),vec4f(n,b.orm.y),vec4f(0.0,0.0,0.0,ao),flag);
+}
+fn cardKept(in:CardVary)->bool{return textureLoad(cardIds,vec2i(in.clip.xy),0).r==cardId(in.card);}
+struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32}
+@fragment fn card_fs(in:CardVary)->CardOut{
+ if(!cardKept(in)){discard;}
+ let s=cardSurface(in,cardPixel(in));
+ return CardOut(s.baseMetal,s.normalRough,s.emissiveAo,s.flags);
+}
+struct CardFedOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,@location(4) feedback:u32}
+@fragment fn card_feedback_fs(in:CardVary)->CardFedOut{
+ if(!cardKept(in)){discard;}
+ let px=cardPixel(in);let s=cardSurface(in,px);
+ return CardFedOut(s.baseMetal,s.normalRough,s.emissiveAo,s.flags,cardRequest(px,in.clip.xy,in.weightsLod.w));
 }`,
-    [IMPOSTOR_CARD_WGSL, tangentImpostor, core.SPRITE_WGSL, worldMatrix3],
+    [impostorCardWgsl(reads), tangentImpostor, core.SPRITE_WGSL, worldMatrix3],
   )

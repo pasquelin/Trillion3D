@@ -7,13 +7,12 @@ import assert from 'node:assert/strict'
 import './lent.fixture.ts'
 import { createImpostorCards, planImpostorCards } from './cards.ts'
 import { uploaded } from './cardSlots.ts'
-import { cardField as field, impostorSection, MESH } from './section.fixture.ts'
+import { cardField as field, impostorSection, RESIDENT } from './section.fixture.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { fieldCamera } from '../gpu/dag/placementTree.fixture.ts'
 import { CARD_ROOT } from '../visibility/shader/spriteWgsl.ts'
 
 const VIEWPORT = [1280, 720]
-const GROUP = { atlas: MESH }
 
 /** Image `k` of a camera swaying a metre about the origin, `turn` sweeping its view. */
 const swayAt = (k: number, turn = 0) => {
@@ -28,8 +27,8 @@ function lawOf(count: number) {
     read = 0
   // Each root read is asked once whether it may take a card: the reads counted there.
   const roots = field(count),
-    state = createImpostorCards<typeof GROUP>(impostorSection, {
-      atlasOf: () => GROUP,
+    state = createImpostorCards(impostorSection, {
+      ...RESIDENT,
       moved: () => moved++,
       carded: () => (read++, true),
     })

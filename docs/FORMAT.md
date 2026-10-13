@@ -209,7 +209,7 @@ The manifest's `impostors`: a verdict per drawn mesh and, when baked, an octahed
 
 - Version: `IMPOSTOR_VERSION` (`rust/impostor/stage.rs`, `core/contracts/impostor.ts`).
 - Writes `rust/impostor/stage.rs:stage_stand_ins`, `rust/impostor/octahedron.rs`.
-- Reads `core/contracts/impostor.ts:assertImpostorSection`, `browser/impostor/atlas.ts`.
+- Reads `core/contracts/impostor.ts:assertImpostorSection`, `browser/webgpu/tile/cardMaps.ts` (each map a texture of the tile pool, each level its own file).
 
 ## Deformation in geometry page format 7
 

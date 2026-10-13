@@ -58,6 +58,7 @@ import {
 } from './shaderTexts.fixture.ts'
 import '../../impostor/lent.fixture.ts'
 import { cardPassWgsl } from '../../webgpu/impostor/cardWgsl.ts'
+import { cardTileWgsl } from '../../webgpu/tile/cardReads.ts'
 import { shadeWithoutFeedbackCode } from '../../webgpu/visibility/shaders.ts'
 import { vsmVariants } from './engineShaders.vsm.fixture.ts'
 
@@ -189,6 +190,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PARTICLES_WGSL: particlesWgsl(false),
   PARTICLES_SUBGROUPS: particlesWgsl(true),
   PARTICLE_DRAW_WGSL,
-  CARD_PASS_WGSL: cardPassWgsl(),
+  CARD_PASS_WGSL: cardPassWgsl(cardTileWgsl()),
   ...vsmVariants(),
 }

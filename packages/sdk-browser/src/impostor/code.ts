@@ -7,8 +7,8 @@ import type { Lent } from './borrowed.ts'
  * path: imported by a session whose cache has baked impostors, and awaited where it prepares — the
  * pages' (`preparePages.ts`) —, as deformation's and transmission's are, so its first image already draws the cards; never by
  * another. A refused import (`FAMILY_LOAD_FAILED`, told by the loader) is no refused scene: without
- * its code the session plans no card, and every root keeps its clusters, as one whose atlas still
- * streams. The family arrives lent the core's pieces (`lent`, `borrowed.ts`).
+ * its code the session plans no card, and every root keeps its clusters, as one whose maps still
+ * stream. The family arrives lent the core's pieces (`lent`, `borrowed.ts`).
  */
 export const loadImpostorCode = (context: Pick<EngineContext, 'metadata'>, lent: Lent) =>
   context.metadata.impostors?.baked

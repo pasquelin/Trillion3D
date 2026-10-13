@@ -5,7 +5,26 @@ import { TILE_READ_WGSL } from '../../texture/samplingFootprint.ts'
 import { TILE_POOL_WGSL } from './wgsl.ts'
 import { tileKindWgsl } from './kindWgsl.ts'
 import { samplingReadWgsl } from './atlasReadWgsl.ts'
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { type WgslDecl, wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+
+/**
+ * The feedback rank of the tile of atlas `k` a read of texture `s` at `uv` and `level` takes, plus
+ * one, or zero: none in the tail; when `missing`, none either for a tile the table holds at its
+ * level. The one rule of every pass that asks tiles, at the level its read chose — a surface's
+ * footprint (`tileRequestIndexWgsl`), an impostor card's own (`cardReads.ts`) —, on `pool`.
+ */
+export const tileRequestAtWgsl = (k: string, pool: WgslDecl) =>
+  wgslFn(
+    `${k}RequestAt`,
+    [pool, tileKindWgsl(k, pool)],
+    `fn ${k}RequestAt(s:TileSlot,uv:vec2f,level:u32,missing:bool)->u32{
+ if(level>=s.tail){return 0u;}
+ let entry=${k}Entry(s,uv,level);
+ let word=${k}Pages[entry];
+ if(missing&&word!=0u&&((word>>24u)&0x7fu)==level){return 0u;}
+ return entry-${k}Pages[2]+${k}Pages[0]+1u;
+}`,
+  )
 
 /**
  * Virtual-texture image feedback: the rank of the tile a pixel ASKS for, posted in the image's
@@ -29,6 +48,7 @@ const tileRequestIndexWgsl = (k: string) =>
       TILE_READ_WGSL,
       tileKindWgsl(k, TILE_POOL_WGSL),
       samplingReadWgsl(k, TILE_POOL_WGSL),
+      tileRequestAtWgsl(k, TILE_POOL_WGSL),
     ],
     `fn ${k}RequestIndex(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,next:bool,along:u32,aniso:bool,sampled:bool,missing:bool)->u32{
  let s=${k}Slot(slot);
@@ -39,11 +59,7 @@ const tileRequestIndexWgsl = (k: string) =>
   at=r.uv+r.axis*tapOffset(along*(r.taps-1u)/2u,r.taps);lod=r.lod;
  }else{lod=slotLod(s,ddx,ddy);}
  let level=u32(floor(lod))+select(0u,1u,next&&lod-floor(lod)>0.0);
- if(level>=s.tail){return 0u;}
- let entry=${k}Entry(s,slotWrapped(s,at),level);
- let word=${k}Pages[entry];
- if(missing&&word!=0u&&((word>>24u)&0x7fu)==level){return 0u;}
- return entry-${k}Pages[2]+${k}Pages[0]+1u;
+ return ${k}RequestAt(s,slotWrapped(s,at),level,missing);
 }`,
   )
 
