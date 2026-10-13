@@ -14,7 +14,7 @@ export type HalvedPool = 'geometry' | 'texture' | 'shadow'
  * root cover of the geometry, the tails of each texture lane, the eighth of the shadow pages —
  * undefined.
  */
-export function halvedPool<P extends ShrunkPool>(pool: P, draw: (budgetBytes: number) => P) {
+function halvedPool<P extends ShrunkPool>(pool: P, draw: (budgetBytes: number) => P) {
   const half = Math.floor(Math.min(pool.budgetBytes, pool.allocatedBytes) / 2)
   const smaller = half < 1 ? undefined : draw(half)
   return smaller && smaller.allocatedBytes < pool.allocatedBytes ? smaller : undefined

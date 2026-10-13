@@ -27,7 +27,7 @@ import {
 
 /** Where the reduction stamps the places its pixels read (`stampWgsl.ts`): the clock, and the
  *  colour then the data atlas — its table and its places' words. */
-export type TileStamp = {
+type TileStamp = {
   clock: number
   atlases: readonly Pick<WebgpuTileAtlas, 'pages' | 'slotUse'>[]
 }

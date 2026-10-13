@@ -19,7 +19,7 @@ import { reaches, walkGrid } from './lightGridWalk.ts'
 import { ATRIUM_POSES, atriumCountArgs, atriumDepth, atriumLamps } from './lightTileAtrium.ts'
 import type { Light } from './lightTileCity.ts'
 
-export type Work = { setup: number; shaded: number; shadows: number; demand: number }
+type Work = { setup: number; shaded: number; shadows: number; demand: number }
 
 /** Sums over the covered pixels of `view`; `slotted[rank]` whether a light holds a shadow slot. */
 export function countResolveWork(

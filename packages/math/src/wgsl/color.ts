@@ -29,7 +29,7 @@ const LUMA_WEIGHTS = wgslConst(
   `const LUMA_WEIGHTS:vec3f=vec3f(${[0.2126, 0.7152, 0.0722].map(wgslF32)});`,
 )
 
-export const luminance = wgslFn(
+const luminance = wgslFn(
   'luminance',
   [LUMA_WEIGHTS],
   'fn luminance(rgb:vec3f)->f32{return dot(rgb,LUMA_WEIGHTS);}',
