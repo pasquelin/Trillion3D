@@ -84,8 +84,9 @@ function encodeTileLists(
   const { lights, gpu } = rt,
     { tiles } = lights,
     [width, height] = gpu.targetSize
+  // Sized before the bounce listed its world grid (`encodeDirectLights`); a buffer the world's growth
+  // replaced since is bound again by the pass.
   if (!tiles || !lights.buffer) return false
-  if (!tiles.ensure(width, height, lights.buffer, lights.store.count)) return false
   tiles.update(viewProjection, eye, width, height)
   return tiles.encode(encoder, rt.run.frame)
 }
