@@ -2,7 +2,6 @@ import { WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE, FEEDBACK_STRIDE_MASK } from './feedback.ts'
 import { TILE_STAMP_WGSL } from './stampWgsl.ts'
-import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /** Phase pixels on one side of a workgroup of the reduction (`reduce.ts`). */
 export const REDUCE_WORKGROUP = 8
