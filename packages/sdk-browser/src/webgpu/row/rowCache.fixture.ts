@@ -70,8 +70,8 @@ export function rowCache(instances: number, slots: number) {
         depthLayer: 0,
       }) as unknown as PageRec,
   )
-  const held = slotTable()
-  const rows = createWebgpuRowState(pages, slots, 0, undefined, held.read)
+  const resident = slotTable()
+  const rows = createWebgpuRowState(pages, slots, 0, undefined, resident.read)
   rows.pageTableFloats = new Float32Array(slots * ROW_WORDS)
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer)
   // A row names its instance, one past it, where the GPU would read the record.
@@ -87,7 +87,7 @@ export function rowCache(instances: number, slots: number) {
   /** The instances `ids` take their bytes (`offset` a slot) or give them back (-1). */
   const land = (ids: Iterable<number>, offset = 16) => {
     for (const page of ids) {
-      held.set(pageAddress(pages[page]), offset < 0 ? -1 : page * offset)
+      resident.set(pageAddress(pages[page]), offset < 0 ? -1 : page * offset)
       rows.touchPage(page)
     }
   }
