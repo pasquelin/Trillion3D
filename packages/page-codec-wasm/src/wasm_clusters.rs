@@ -8,10 +8,12 @@
 use crate::clusters::{ordered::ordered, spatial::spatial, Caps};
 use crate::held::hold;
 
-/// The rule `cluster_build` takes: the spatial one, the ordered one, the ordered one with its runs
-/// held compact.
+/// The rule `cluster_build` takes for compact patches in any index order (`clusters/spatial.rs`).
 pub const CLUSTER_SPATIAL: u32 = 0;
+/// The rule `cluster_build` takes for consecutive triangles in source order (`clusters/ordered.rs`).
 pub const CLUSTER_ORDERED: u32 = 1;
+/// The ordered rule with its runs held compact: a run stops where it would reach past a compact
+/// cluster of its triangles.
 pub const CLUSTER_ORDERED_COMPACT: u32 = 2;
 
 /// Clusters the triangles `indices` (`index_count` words) draw over `positions` (`vertex_count`

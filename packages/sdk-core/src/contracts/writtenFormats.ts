@@ -2,6 +2,9 @@
 //   packages/asset-compiler-rust/src/manifest_binary/version.rs
 //   packages/asset-compiler-rust/src/proxy.rs
 //   packages/page-codec-wasm/src/proxy.rs
+//   packages/page-codec-wasm/src/wasm_proxy.rs
+//   packages/page-codec-wasm/src/culling.rs
+//   packages/page-codec-wasm/src/wasm_clusters.rs
 //   packages/asset-compiler-rust/src/cutout.rs
 //   packages/asset-compiler-rust/src/impostor/stage.rs
 //   packages/asset-compiler-rust/src/texture_preview.rs
@@ -85,6 +88,42 @@ export const PROXY_CHILD_WORDS = 3
  * Integers per node: its four children concatenated.
  */
 export const PROXY_NODE_WORDS = 12
+
+/**
+ * Words of the block `proxy_build` answers in: the triangle count, the node count, the grid step
+ * as an `f32`'s bits.
+ */
+export const PROXY_META_WORDS = 4
+
+/**
+ * Numbers per node in the flat layout the manifest and the run-time cut carry: box, sphere,
+ * replacement error ceiling (-1 over a subtree holding a root), first child, child count, first
+ * cluster, cluster count.
+ */
+export const CULLING_STRIDE = 15
+
+/**
+ * Numbers per cluster record, the run-time cut's input (`wasm_culling.rs`): the box's least corner
+ * then its greatest, the sphere of what replaces it, its replacement error (infinite for a root)
+ * and its level.
+ */
+export const CULLING_RECORD_FLOATS = 12
+
+/**
+ * The rule `cluster_build` takes for compact patches in any index order (`clusters/spatial.rs`).
+ */
+export const CLUSTER_SPATIAL = 0
+
+/**
+ * The rule `cluster_build` takes for consecutive triangles in source order (`clusters/ordered.rs`).
+ */
+export const CLUSTER_ORDERED = 1
+
+/**
+ * The ordered rule with its runs held compact: a run stops where it would reach past a compact
+ * cluster of its triangles.
+ */
+export const CLUSTER_ORDERED_COMPACT = 2
 
 /**
  * The version of the cut-out answer sheet this runtime reads.

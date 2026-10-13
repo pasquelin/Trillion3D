@@ -1,11 +1,10 @@
 import type { CullingHierarchy } from '../../../../sdk-core/src/index.ts'
+import {
+  CULLING_RECORD_FLOATS,
+  CULLING_STRIDE,
+} from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import { reserveArena, takeHeld } from '../../wasm/wasmArena.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
-
-/** Numbers per node of the hierarchy (`page-codec-wasm/src/culling.rs`, `CULLING_STRIDE`). */
-const STRIDE = 15
-/** Numbers per cluster record `culling_build` reads (`wasm_culling.rs`, `CULLING_RECORD_FLOATS`). */
-const RECORD = 12
 
 /** One cluster as the hierarchy builder takes it: its box, and for a cluster something replaces,
  *  its level and the band of that replacement; a root, which nothing replaces, has none. */
@@ -31,7 +30,7 @@ export function buildCullingHierarchy(
 ): { order: Uint32Array; culling: CullingHierarchy } {
   const count = clusters.length
   const input = reserveArena(module, [
-    { type: 'f64', length: Math.max(1, count * RECORD) },
+    { type: 'f64', length: Math.max(1, count * CULLING_RECORD_FLOATS) },
     { type: 'u32', length: 1 },
   ])
   if (!input) throw new Error('CULLING_BUILDER_MEMORY')
@@ -39,7 +38,7 @@ export function buildCullingHierarchy(
   try {
     const [records] = input.blocks()
     clusters.forEach((cluster, k) => {
-      const at = k * RECORD,
+      const at = k * CULLING_RECORD_FLOATS,
         root = cluster.parentError === null || cluster.parentError === undefined,
         band = cluster.parentSphere
       records.view.set(cluster.min as ArrayLike<number>, at)
@@ -54,10 +53,10 @@ export function buildCullingHierarchy(
   } finally {
     input.freed()
   }
-  // The held answer: the nodes, `STRIDE` doubles each, then one rank a cluster.
-  const [flat, ranks] = takeHeld(module, [nodes * STRIDE * 8, count * 4])
+  // The held answer: the nodes, `CULLING_STRIDE` doubles each, then one rank a cluster.
+  const [flat, ranks] = takeHeld(module, [nodes * CULLING_STRIDE * 8, count * 4])
   return {
     order: new Uint32Array(ranks),
-    culling: { stride: STRIDE, count: nodes, nodes: Array.from(new Float64Array(flat)) },
+    culling: { stride: CULLING_STRIDE, count: nodes, nodes: Array.from(new Float64Array(flat)) },
   }
 }

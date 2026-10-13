@@ -4,14 +4,11 @@ import {
   PROXY_TRIANGLE_FLOATS,
 } from '../../../../sdk-core/src/index.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
+import { PROXY_META_WORDS } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import type { DrawnDeformation } from '../../../../sdk-core/src/world/geometry/drawnDeformation.ts'
 import { cornerDeformation } from './runtimeDeform.ts'
 import { reserveArena, takeHeld } from '../../wasm/wasmArena.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
-
-/** Words of the answer block of `proxy_build` (`page-codec-wasm/src/wasm_proxy.rs`): the triangle
- *  count, the node count, the grid step's bits. */
-const META_WORDS = 4
 
 /**
  * The proxy of a cut, in the cut's own space, by the builder the compiler's resident proxy goes
@@ -29,7 +26,7 @@ export function buildCutProxy(
   const input = reserveArena(module, [
     { type: 'u32', length: indices.length },
     { type: 'f32', length: positions.length },
-    { type: 'u32', length: META_WORDS },
+    { type: 'u32', length: PROXY_META_WORDS },
   ])
   if (!input) throw new Error('PROXY_BUILDER_MEMORY')
   let triangles: number, nodes: number, cell: number
