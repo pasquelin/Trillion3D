@@ -167,8 +167,10 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // placements, moves the core by sixty bytes off, the package and its browser condition by
   // fourteen and eighteen on. The batch twins gone, the bundle is of the single product
   // `multiplyMatrix4`, the kernels' bits. The light settings' samples a pixel, gone with the sampled
-  // resolve, and the proxy's one ray budget of two milliseconds take nineteen off the core.
-  assert.equal(baseline.outputFiles[0].contents.length, 3_047)
+  // resolve, and the proxy's one ray budget of two milliseconds take nineteen off the core. The
+  // batch union of moved boxes gone to the WebAssembly lot, its module scratch box with it, takes
+  // thirty-five more off.
+  assert.equal(baseline.outputFiles[0].contents.length, 3_012)
   assert.equal(proposed.outputFiles[0].contents.length, 1_406)
   assert.equal(browserProposed.outputFiles[0].contents.length, 3_124)
   assert.ok(
