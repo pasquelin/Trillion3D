@@ -13,6 +13,7 @@
 import {
   checkAllocation,
   ledgerSnapshot,
+  ledgerSweep,
   ledgerTransaction,
   observeCreates,
   type Admission,
@@ -38,7 +39,14 @@ export interface GpuDeviceLedger {
   /** Runs `build` — synchronous — for a caller with a smaller fallback: an allocation past the
    *  limit throws as ever, but the session is not refused for it (`refusal` stays as it was). */
   tentative<T>(build: () => T): T
+  /** Runs `build` — synchronous — for an allocation that replaces `bytes` the caller frees once it
+   *  is filled — a pool drawn again, its pages copied over —: the limit admits it beside what is
+   *  held less those bytes, the state the replacement leaves, never the moment both live. */
+  replacing<T>(bytes: number, build: () => T): T
   transaction(): { commit(): void; rollback(): void }
+  /** Destroys every allocation this ledger still counts — never its base's — and returns their
+   *  labels: a session's handle closing gives back what it holds, and its leaks are named. */
+  sweep(): string[]
 }
 
 const ledgers = new WeakMap<LedgerDevice, GpuDeviceLedger>()
@@ -64,6 +72,7 @@ export function installGpuDeviceLedger(
     liveBytes: 0,
     refusal: undefined,
     tentative: 0,
+    replacing: 0,
     admissions: new Set(),
     transactions: new Set(),
     held: undefined,
@@ -117,7 +126,16 @@ function ledgerOver(
         books.tentative--
       }
     },
+    replacing(bytes, build) {
+      books.replacing += bytes
+      try {
+        return build()
+      } finally {
+        books.replacing -= bytes
+      }
+    },
     transaction: () => ledgerTransaction(books),
+    sweep: () => ledgerSweep(books),
     snapshot: () => ledgerSnapshot(books),
   }
   return ledger
@@ -130,6 +148,19 @@ export const gpuDeviceLedgerOf = (device: LedgerDevice | undefined) =>
 /** Bytes the device's ledger still admits (`GpuDeviceLedger.room`): unbounded without a ledger. */
 export const ledgerRoom = (device: LedgerDevice | undefined) =>
   gpuDeviceLedgerOf(device)?.room ?? Infinity
+
+/** `build` as the replacement of `bytes` (`GpuDeviceLedger.replacing`); as is without a ledger. */
+export const ledgerReplacing = <T>(
+  device: LedgerDevice | undefined,
+  bytes: number,
+  build: () => T,
+): T => {
+  const ledger = gpuDeviceLedgerOf(device)
+  return ledger ? ledger.replacing(bytes, build) : build()
+}
+
+/** Whether `error` is a budget's refusal (`checkAllocation`): the limit, never the device. */
+export const budgetRefused = (error: unknown) => String(error).includes('GPU_BUDGET_EXCEEDED')
 
 /** `build` run tentatively on the device's ledger (`GpuDeviceLedger.tentative`), or as is without
  *  one. */

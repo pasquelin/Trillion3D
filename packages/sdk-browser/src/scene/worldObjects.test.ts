@@ -5,7 +5,7 @@
 // table of four cells.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
 import type { Primitive } from '../../../sdk-core/src/index.ts'

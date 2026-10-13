@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { encodePage } from './encodePage.fixture.ts'
 import { decodeGeometryPage } from './geometryPage.ts'
 
 const attr = (values: number[], itemSize: number) => ({
@@ -8,7 +8,7 @@ const attr = (values: number[], itemSize: number) => ({
   itemSize,
 })
 function page(weights = Array(8).fill(0.125)) {
-  return encodeGeometryPage(
+  return encodePage(
     [0, 1, 2],
     {
       POSITION: attr([0, 0, 0, 1, 0, 0, 0, 1, 0], 3),

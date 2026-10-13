@@ -7,9 +7,10 @@
 // from its own placement alone, no evicted occupant in its place.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { forEachRewrittenRun } from '../../../packages/sdk-browser/src/webgpu/row/dirty.ts'
 import { rowIdleSpan } from '../../../packages/sdk-browser/src/webgpu/row/rowCache.fixture.ts'
-import { ROW_WORDS, rowCacheScene, settleView } from './rowCacheScene.ts'
+import { rowCacheScene, settleView } from './rowCacheScene.ts'
 
 /** Rows the table holds: far fewer than the placements' instances, more than one view asks. */
 const TABLE = 512
@@ -42,7 +43,7 @@ test('a row evicted for another placement names its new occupant to every reader
       page + 1,
       `row ${row}'s record names ${page}`,
     )
-    assert.equal(rows.rowOfPage[page], row, `${page} reads its row`)
+    assert.equal(rows.rowOf(page), row, `${page} reads its row`)
     assert.ok(
       rewritten.has(row),
       `row ${row} is rewritten for the draw items, corners and partition`,
@@ -50,7 +51,7 @@ test('a row evicted for another placement names its new occupant to every reader
   }
   // Every page the moved view draws holds a row whose record names it.
   for (const page of moved.drawn) {
-    const row = rows.rowOfPage[page]
+    const row = rows.rowOf(page)
     assert.ok(
       row >= 0 && rows.pageTableInts![row * ROW_WORDS] === page + 1,
       `${page} holds its row`,

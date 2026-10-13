@@ -1,4 +1,4 @@
-import { fieldLayout } from './fieldLayout.ts'
+import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -18,7 +18,6 @@ const BLEND_VIEW_FIELDS = [
   ['pixelScale', 'f32'],
   ['viewport', 'vec2f'],
   ['eye', 'vec3f'],
-  ['frameNoise', 'f32'],
   ['pixelRatio', 'f32'],
   ['mipBias', 'f32'],
   ['exposure', 'f32'],

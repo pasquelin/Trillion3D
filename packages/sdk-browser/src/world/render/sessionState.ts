@@ -1,7 +1,5 @@
 import type { CameraPose, DiagnosticMode } from '../../../../sdk-core/src/index.ts'
-import type { prepareExplorer } from '../session/prepare.ts'
-
-type Prepared = Awaited<ReturnType<typeof prepareExplorer>>
+import type { PreparedExplorer } from '../session/prepare.ts'
 
 /** The mutable state of one session; every service reads and writes this same object. */
 export type SessionState = {
@@ -14,15 +12,18 @@ export type SessionState = {
   pageBytesRead: number
 }
 
-export function createSessionState(prepared: Prepared, signal?: AbortSignal) {
+export function createSessionState(prepared: PreparedExplorer, signal?: AbortSignal) {
   const { camera, center } = prepared
+  // What the session read before its first frame — the pages it preloads among them — its queue
+  // counted.
+  const { loaded, bytesRead } = prepared.pageSources.streamer.stats()
   const state: SessionState = {
     disposed: false,
     diagnostic: 'beauty',
     capturingSurface: false,
     frame: 0,
-    loaded: prepared.pageSources.loaded,
-    pageBytesRead: prepared.pageSources.pageBytesRead,
+    loaded,
+    pageBytesRead: bytesRead,
   }
   /** What the session owns beside its engine — controls, listeners —, disposed with it. */
   const ownedControls: { dispose(): void }[] = []

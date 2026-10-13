@@ -1,9 +1,4 @@
-import {
-  SELECTION_NONE as NONE,
-  type ResidencyChanges,
-  type SelectionUniforms,
-} from '../core/selection.ts'
-import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
+import { type ResidencyChanges, type SelectionUniforms } from '../core/selection.ts'
 import {
   refreshMovedStretch,
   changedWorlds,
@@ -17,16 +12,25 @@ import type { createDagDispatch } from './dispatch.ts'
 import { readFor } from './dispatchRead.ts'
 import type { createDifferenceChain } from './differenceChain.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
-import type { createDagResources } from './resources.ts'
-import type { createWorldResidencyMirror } from './worldMirror.ts'
+import type { DagResources } from './resources.ts'
+import type { createWorldResidencyMirror } from './residencyMirror.ts'
 import { MAIN_VIEW } from './swap.ts'
 import { appendDagRoots, type DagAppended } from './pack.ts'
-import { keyBase } from './layout.ts'
-import { writeParts } from './split.ts'
+import { writeParts, writeRanges } from './split.ts'
+import {
+  COLD_WORDS,
+  CLUSTER_WORDS,
+  groupParentBase,
+  keyGroupBase,
+  keyWordBase,
+  recordKeyBase,
+} from './layout.ts'
+import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
 import { uploadNodes, type TreeFollower } from './treeFollow.ts'
+import type { ProxyInstances } from './proxyInstances.ts'
 import type { LinkFollower } from './worldFollow.ts'
-
-export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
+import type { PageResidency } from '../core/selection.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** What a camera cut's methods share (`runtime.ts`): its tables, its state, the difference chain,
  *  the residency upload, the pool list, the world mirror, the tree's and links' followers, and the
@@ -40,6 +44,8 @@ export type DagRun = ReturnType<typeof createDagDispatch> & {
   mirror: ReturnType<typeof createWorldResidencyMirror> | undefined
   /** The placement tree's follower (`treeFollow.ts`), none without a tree. */
   tree: TreeFollower | undefined
+  /** The run-time cuts' instances, one a placement (`proxyInstances.ts`). */
+  proxies: ProxyInstances
   /** The world links' follower (`worldFollow.ts`), none without a world DAG. */
   links: LinkFollower | undefined
   /** Told of each placement whose link moved (`GpuSelection.linkMoved`). */
@@ -63,6 +69,7 @@ export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int
   if (next.byteLength !== packed.worlds.byteLength) throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED')
   if (named) return updateNamedWorlds(run, next, named)
   const origins = frames.writeWorldOrigins()
+  run.proxies.worldsWritten(origins)
   // `packed.worlds` is what this selection last received, and only this method writes it:
   // the worlds the next send is compared with, without a second copy of them beside it. The rows
   // whose read words moved go up, they alone: a translation goes up through the origins.
@@ -121,6 +128,8 @@ function updateNamedWorlds(run: DagRun, next: Float32Array, all: Int32Array) {
   while (held && all[held - 1] >= packed.worldSources.length) held--
   const named = held === all.length ? all : all.subarray(0, held)
   const origins = frames.writeWorldOrigins(named)
+  // A translation alone is no cut's matrix word: the proxy mirrors it from the origins.
+  run.proxies.worldsWritten(origins)
   movedScratch = resized(movedScratch, named.length)
   let moved = 0
   for (const w of named) if (worldChangedAt(packed.worlds, next, w)) movedScratch[moved++] = w
@@ -131,8 +140,8 @@ function updateNamedWorlds(run: DagRun, next: Float32Array, all: Int32Array) {
  *  refreshed where their linear part moved, before their copy (`refreshMovedStretch`), their
  *  worlds copied into those held and sent, each run to its range, with the rows whose stretch
  *  moved; their count. */
-function sendMoved({ resources }: DagRun, next: Float32Array, moved: number) {
-  const { packed, frames, frameData } = resources
+function sendMoved(run: DagRun, next: Float32Array, moved: number) {
+  const { packed, frames, frameData } = run.resources
   stretchedScratch = resized(stretchedScratch, moved)
   const stretched = refreshMovedStretch(
     packed.worlds,
@@ -147,7 +156,10 @@ function sendMoved({ resources }: DagRun, next: Float32Array, moved: number) {
     const w = movedScratch[i]
     packed.worlds.set(next.subarray(w * 16, w * 16 + 16), w * 16)
   }
-  if (moved) frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
+  if (moved) {
+    frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
+    run.proxies.worldsWritten(movedScratch, moved)
+  }
   if (stretched) frames.writeNamedRows(stretchedScratch, stretched)
   return moved
 }
@@ -155,27 +167,33 @@ function sendMoved({ resources }: DagRun, next: Float32Array, moved: number) {
 /** `GpuSelection.composedPlacement`, unlinked: placement `w`'s parent no longer poses it, and the
  *  pose it composed on the GPU — words the host never wrote — is replaced by the host's own, its
  *  world and its exact translation written again whatever the caches held. */
-export function rewritePlacement({ resources, state }: DagRun, w: number) {
+export function rewritePlacement({ resources, state, proxies }: DagRun, w: number) {
   const { packed, frames } = resources
   if (w >= packed.worldSources.length) return
   frames.forgetOrigin(w)
   rewritten[0] = w
   frames.writeWorldOrigins(rewritten)
   frames.writeNamedWorlds(packed.worlds, rewritten, 1)
+  proxies.worldsWritten(rewritten, 1)
+  // Its stretch too: the GPU's composition wrote the one of the pose its parent gave it.
+  frames.writeNamedRows(rewritten, 1)
   state.worldRevision++
 }
 
 /** `GpuSelection.appendRoots`: roots packed behind the others, their words sent. */
-export function appendRoots(
-  { resources, state, uploadResidency }: DagRun,
-  roots: readonly DagRoot[],
-) {
+export function appendRoots(run: DagRun, roots: readonly DagRoot[]) {
+  const { resources, state, uploadResidency, tree } = run
   if (state.disposed || state.dead || state.growing) return false
   const added = appendDagRoots(resources.packed, roots)
   if (!added) return false
   // Their nodes' open counts first: the node words go up once, with them.
   uploadResidency.append()
   writeAppended(resources, added)
+  // Their groups are fitted at the next cut, over the leaves of the placements they hold.
+  const [first, end] = added.worlds
+  for (let w = first; w < end; w++) tree?.touch(w)
+  run.proxies.appended(first, end)
+  run.proxies.worldsRange(first, end)
   voidCuts(state)
   return true
 }
@@ -183,7 +201,7 @@ export function appendRoots(
 /** `GpuSelection.updateResidency`: the pool's residency, through the world mirror when one packs. */
 export function updateRuntimeResidency(
   { resources, state, uploadResidency, mirror, links }: DagRun,
-  next: Uint32Array,
+  next: PageResidency,
   changes?: ResidencyChanges,
   moved?: (page: number) => void,
 ) {
@@ -200,25 +218,27 @@ export function updateRuntimeResidency(
 
 /** Primitive `w`'s root parked or put back. The cut in hand holds pages the new word no longer
  *  lets through, or lacks some it does: another cut from here. */
-export function parkRoot({ resources, state, tree }: DagRun, w: number, parked: boolean) {
+export function parkRoot({ resources, state, tree, proxies }: DagRun, w: number, parked: boolean) {
   const { packed, frames } = resources
-  const node = parked ? NONE : packed.rootBases[w]
+  const node = parked ? NO_INDEX : packed.rootBases[w]
   if (packed.rootNodes[w] === node) return
   packed.rootNodes[w] = node
   // The root travels behind the stretch in the frame buffer (`resources.ts`).
   frames.writeWord(w, 1, node)
+  proxies.park(w, parked)
   tree?.touch(w)
   voidCuts(state)
 }
 
 /** Primitive `w`'s mark, as `parkRoot`. */
-export function writeMark({ resources, state, tree }: DagRun, w: number, mark: number) {
+export function writeMark({ resources, state, tree, proxies }: DagRun, w: number, mark: number) {
   const { packed, frames } = resources
   const before = packed.mark[w]
   if (before === mark) return
   packed.mark[w] = mark
   // The mark travels behind the record shift (`primitiveFrameWords`).
   frames.writeWord(w, 3, mark)
+  proxies.mark(w, mark)
   tree?.marked(w, before)
   voidCuts(state)
 }
@@ -231,12 +251,13 @@ export async function flushRuntime(
   cut: (uniforms: SelectionUniforms) => void,
 ) {
   await state.pending
-  // A cut past its list grows it, or past the device coarsens (`listCap.ts`): the drain grows it,
-  // then cuts again on it, rather than hand back the cut before; a factor that moved back cuts
-  // again under it too. It rises √2 at least to its coarsest, and falls only to a factor that did
-  // not overflow for the view as it stands (`coarsening.ts`): the drain ends.
+  // A cut past its list grows it, a cut that dropped work its queues or lists (`queueGrowth.ts`),
+  // or past the device it coarsens (`listCap.ts`): the drain grows them, then cuts again on them,
+  // rather than hand back the cut before; a factor that moved back cuts again under it too. It
+  // rises √2 at least to its coarsest, and falls only to a factor that did not overflow for the
+  // view as it stands (`coarsening.ts`): the drain ends.
   const { cuts } = resources.swap
-  const again = () => (state.grow || state.factorMoved) && !state.dead
+  const again = () => (state.grow || state.growFlags || state.factorMoved) && !state.dead
   for (const asked = cuts[MAIN_VIEW - 1]?.uniforms; asked && again();) {
     cut(asked)
     await state.pending
@@ -259,24 +280,46 @@ export async function flushRuntime(
   return last?.worldRevision === state.worldRevision ? last.result : null
 }
 
-/** What `appendDagRoots` wrote, sent: the appended nodes, their pages' placement words and content
- *  keys, their primitives' frame rows, worlds and origins, and the placement tree's nodes and member
- *  words they joined. Nothing else of the tables moved. */
+/** What `appendDagRoots` wrote, sent: the appended placements' primitive words, frame rows, worlds
+ *  and origins, and the placement tree's nodes and member words they joined. Nothing else of the
+ *  tables moved: their nodes, records and content keys are their primitives', already there. */
 function writeAppended(resources: DagResources, added: DagAppended) {
-  const { device, packed, nodeParts, coldParts, frames, frameData } = resources,
-    cones = packed.pageCones,
-    nodeBytes = DAG_NODE_FLOATS * 4
+  const { device, packed, nodeParts, coldParts, clusterParts, frames, frameData } = resources,
+    cones = packed.pageCones
   const send = (target: typeof nodeParts, source: Float32Array, from: number, bytes: number) =>
     bytes > 0 &&
     writeParts(device, target, from, source.buffer as ArrayBuffer, source.byteOffset + from, bytes)
-  const [n0, n1] = added.nodes,
-    [p0, p1] = added.pages,
-    [w0, w1] = added.worlds
-  send(nodeParts, packed.nodes, n0 * nodeBytes, (n1 - n0) * nodeBytes)
-  send(coldParts, cones, p0 * 4, (p1 - p0) * 4)
-  send(coldParts, cones, (keyBase(packed.pageCount) + p0) * 4, (p1 - p0) * 4)
+  const [w0, w1] = added.worlds
   const tree = packed.placementTree,
     [m0, m1] = added.tree.members
+  // The primitives it brought: their nodes, hot and cold records, the keys their records read by
+  // and the key words they named or moved — written once, as a packing of every root wrote them.
+  const [n0, n1] = added.nodes,
+    [r0, r1] = added.records,
+    nodeBytes = DAG_NODE_FLOATS * 4
+  send(nodeParts, packed.nodes, n0 * nodeBytes, (n1 - n0) * nodeBytes)
+  send(clusterParts, packed.clusters, r0 * CLUSTER_WORDS * 4, (r1 - r0) * CLUSTER_WORDS * 4)
+  const coldAt = packed.shared!.coldAt!
+  send(coldParts, cones, (coldAt + r0 * COLD_WORDS) * 4, (r1 - r0) * COLD_WORDS * 4)
+  send(coldParts, cones, (recordKeyBase(packed.pageCount) + r0) * 4, (r1 - r0) * 4)
+  // The keys' words and groups, each table's in the cut's one run writer's ranges.
+  if (added.keys.length) {
+    const keys = Int32Array.from(new Set(added.keys)).sort(),
+      words = new Uint32Array(cones.buffer, cones.byteOffset, cones.length)
+    for (const base of [keyWordBase(packed), keyGroupBase(packed)])
+      writeRanges(device, coldParts, keys, keys.length, {
+        data: words,
+        sourceBase: base,
+        targetBase: base,
+        stride: 1,
+      })
+  }
+  // The key groups they made: the parent starts of each, and the edges behind the live ones.
+  const parentAt = groupParentBase(packed),
+    [g0, g1] = added.groups,
+    [e0, e1] = added.edges
+  send(coldParts, cones, (parentAt + g0 + 1) * 4, (g1 - g0) * 4)
+  send(coldParts, cones, (parentAt + packed.groupCount + 1 + e0) * 4, (e1 - e0) * 4)
   // The tree nodes joined, in the run writer's ranges.
   uploadNodes(device, nodeParts, packed, added.tree.nodes)
   if (tree) send(coldParts, cones, (tree.members + m0) * 4, (m1 - m0) * 4)

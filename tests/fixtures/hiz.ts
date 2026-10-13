@@ -1,8 +1,8 @@
 import { surfaceOf } from '../../packages/sdk-browser/src/page/surface.ts'
 import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import type { VisPage } from '../../packages/sdk-browser/src/visibility/buffer.ts'
+import type { VisPage } from '../../packages/sdk-browser/src/visibility/types.ts'
 import { engineCamera } from '../../packages/sdk-browser/src/camera/camera.fixture.ts'
-import type { EngineCamera } from '../../packages/sdk-browser/src/camera/world.ts'
+import type { EngineCamera } from '../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { identityLocations } from '../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
 import type { HizPage } from '../../packages/sdk-browser/src/hiz/types.ts'
 import type { HizBounds } from '../../bench/oracles/browser/hizRejects.ts'
@@ -68,7 +68,11 @@ export function projectBoxToScreen(
 ): HizBounds {
   projectBoxesFlat(
     [{ min, max }],
-    { roots: [{ world: matrix }], packed: [0], rootOfPacked: Int32Array.from([0]) },
+    {
+      roots: [{ world: matrix }],
+      packed: [0],
+      placement: { baseOfRoot: Int32Array.of(0), packedCount: 1 },
+    },
     1,
     engineCamera(camera),
     viewport,

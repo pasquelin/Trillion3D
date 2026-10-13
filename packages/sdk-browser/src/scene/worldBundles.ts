@@ -29,9 +29,10 @@ import {
   type WorldRootsPage,
 } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { waited } from '../../../sdk-core/src/runtime/sharedRead.ts'
+import { createListeners, type Listeners } from '../../../sdk-core/src/runtime/listeners.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
-import type { PageQueue } from '../streaming/types.ts'
-import { bundlePages, readAtOpen, readBundle, type SpanRead } from './worldRuns.ts'
+import type { PageQueue, StreamPage } from '../streaming/types.ts'
+import { bundlePages, readBundle, readWhole } from './worldRuns.ts'
 import { createCoverShare } from './worldCoverShare.ts'
 
 /** How a cell holds: the read priority of its bundles, and the signal that lets its hold go — the
@@ -48,7 +49,7 @@ type Watcher = (bundle: number, held: boolean) => void
  *  bundle the cells start or stop holding. */
 function createBundleCounts(
   table: WorldRoots,
-  watchers: Set<Watcher>,
+  watchers: Listeners<Parameters<Watcher>>,
   cellBundles: ReturnType<typeof createCellBundles>,
 ) {
   const held = new Map<number, Held>()
@@ -66,15 +67,13 @@ function createBundleCounts(
         bytes += table.bundles[bundle].bytes
       }
       own.holds++
-      if (byCell && own.byCells++ === 0 && !own.failed)
-        for (const watcher of watchers) watcher(bundle, true)
+      if (byCell && own.byCells++ === 0 && !own.failed) watchers.emit(bundle, true)
       return own
     },
     letGo(bundle: number, byCell = false) {
       const own = held.get(bundle)
       if (!own) return
-      if (byCell && --own.byCells === 0 && !own.failed)
-        for (const watcher of watchers) watcher(bundle, false)
+      if (byCell && --own.byCells === 0 && !own.failed) watchers.emit(bundle, false)
       if (--own.holds > 0) return
       held.delete(bundle)
       bytes -= table.bundles[bundle].bytes
@@ -85,7 +84,7 @@ function createBundleCounts(
       const own = held.get(bundle)
       if (!own || own.failed) return
       own.failed = true
-      if (own.byCells > 0) for (const watcher of watchers) watcher(bundle, false)
+      if (own.byCells > 0) watchers.emit(bundle, false)
     },
     /** Whether a cell holds `bundle`. */
     byCells: (bundle: number) => (held.get(bundle)?.byCells ?? 0) > 0,
@@ -122,8 +121,8 @@ function createCellBundles(table: WorldRoots) {
   return Object.assign(of, { forget: (cell: number) => void lists.delete(cell) })
 }
 
-/** The session's queue a world's bundles are read through: bound by each session, let go as it
- *  closes; a read asked while none is bound waits for the next (`next`). */
+/** The queue a world's bundles are read through: bound by each session — or a world's model as it
+ *  loads —, let go as it closes; a read asked while none is bound waits for the next (`next`). */
 function createBinding(table: WorldRoots, url: string) {
   let queue: PageQueue | undefined, bind!: (session: PageQueue) => void
   let bound = new Promise<PageQueue>((resolve) => (bind = resolve))
@@ -160,7 +159,7 @@ export function createWorldBundles(
   top: WorldRootsPage[][],
   rootsIn: (bundle: number) => number = () => 0,
 ) {
-  const watchers = new Set<Watcher>(),
+  const watchers = createListeners<Parameters<Watcher>>(),
     cellBundles = createCellBundles(table),
     counts = createBundleCounts(table, watchers, cellBundles),
     { held, take, letGo, listed } = counts
@@ -194,18 +193,24 @@ export function createWorldBundles(
     )
     return Promise.all(reads)
   }
-  /** The pages of `bundles`, held as `owns`, read as `asked`: a read its session's close stopped
-   *  is asked again of the next session's queue. */
-  const read = async (bundles: readonly number[], owns: Held[], asked: WorldHold) => {
+  /** What `use` reads through the queue bound now, else the next one bound, till `signal` lets
+   *  go: a read its session's close stopped is asked again of the next session's queue. */
+  const onBound = async <T>(
+    signal: AbortSignal | undefined,
+    use: (session: PageQueue) => Promise<T>,
+  ) => {
     for (;;) {
-      const session = await binding.next(asked.signal)
+      const session = await binding.next(signal)
       try {
-        return void (await readOn(session, bundles, owns, asked))
+        return await use(session)
       } catch (error) {
-        if (!session.signal.aborted || asked.signal?.aborted) throw error
+        if (!session.signal.aborted || signal?.aborted) throw error
       }
     }
   }
+  /** The pages of `bundles`, held as `owns`, read as `asked`. */
+  const read = (bundles: readonly number[], owns: Held[], asked: WorldHold) =>
+    onBound(asked.signal, (session) => readOn(session, bundles, owns, asked))
   return {
     /** `cell` is placed: the bundles its objects' roots need past the top are held, those neither
      *  read nor on their way read. Each hold is released once (`release`), landed or not: a hold
@@ -223,12 +228,6 @@ export function createWorldBundles(
       counts.release(cell)
       if (!counts.holds(cell)) cover.forget(cell)
     },
-    /** `cell`'s bundles read in their runs by `read` and held for the scene's life: what a world's
-     *  model not partitioned, one cell, holds from its load, before any session. */
-    async keep(cell: number, read: SpanRead) {
-      const bundles = listed(cell)
-      await readAtOpen(bundles, bundles.map(byCell), read)
-    },
     /** A bundle's pages: the pinned top's, else held for the one request while it reads, as a cell
      *  holds it, till `signal` — its askers' — lets it go, and let go once read (the GPU page pool
      *  keeps what it uploads). */
@@ -242,15 +241,19 @@ export function createWorldBundles(
         letGo(bundle)
       }
     },
+    /** The file `page` names — the world's DAG —, read whole through the queue bound on `signal`
+     *  (`readWhole`). */
+    file: (page: StreamPage, signal?: AbortSignal) =>
+      onBound(signal, (session) => readWhole(session, page, signal ?? session.signal)),
     has: (bundle: number) => held.has(bundle),
     /** The bundles past the top the cells hold now, ascending, those refused for good left out. */
     held: () => [...held.keys()].filter(counts.followed).sort((a, b) => a - b),
     /** Tells `watcher` each bundle the cells hold from now on, those held already first; returns
      *  what stops it. */
     watch(watcher: Watcher) {
-      watchers.add(watcher)
+      const stop = watchers.subscribe(watcher)
       for (const bundle of held.keys()) if (counts.followed(bundle)) watcher(bundle, true)
-      return () => void watchers.delete(watcher)
+      return stop
     },
     /** The room the cut's cache leaves the roots the held cells add, and whether a cell may be
      *  held far within it (`worldCoverShare.ts`), the roots `rootsIn` counts per bundle. */

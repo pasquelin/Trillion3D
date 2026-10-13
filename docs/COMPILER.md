@@ -336,8 +336,8 @@ The code is the contract: each module's head states its rules and their reasons.
 | Scene loading | Decodes transport compression, keeps the rendered scene's nodes, expands GPU instancing | `compiler_source.rs`, `compressed/mod.rs`, `compiler_nodes.rs`, `compiler_instancing.rs` |
 | Admission | Refuses a job above its budget, cuts primitives and images into waves that fit | `compiler_plan.rs`, `compiler_budget.rs` |
 | Simplification and DAG | Level 0 clusters, then groups simplified with borders locked and re-split, each measured and diagnosed | `dag.rs`, `dag/`, `qem.rs`, `qem_solve.rs`; corpus `tests/corpus/mod.rs` |
-| Pages | Quantized cluster pages, streaming bundles with closed dependency lists, the paged manifest | `geometry_page.rs`, `compiler_bundle_dependencies.rs`, `compiler_manifest_pages.rs` |
-| Deformation | Joints, weights, morph targets and soft-body ids carried into the pages with their bounds | `geometry_page_deform.rs` |
+| Pages | Quantized cluster pages, streaming bundles with closed dependency lists, the paged manifest | `page-codec-wasm/src/encode.rs`, `compiler_bundle_dependencies.rs`, `compiler_manifest_pages.rs` |
+| Deformation | Joints, weights, morph targets and soft-body ids carried into the pages with their bounds | `page-codec-wasm/src/encode/deformation.rs`, `geometry_page_deform.rs` |
 | Coplanar cuts | One order for surfaces sharing a plane | `coplanar.rs` |
 | Textures | Every mip level, lossless and the gated block family, keyed by the image's SHA-256 | `compiler_textures.rs`, `texture_preview.rs` |
 | Cutouts | Alpha measured during the texture decode; only answered entries applied | `cutout.rs` |

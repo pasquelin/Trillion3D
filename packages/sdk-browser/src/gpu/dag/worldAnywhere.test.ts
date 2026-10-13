@@ -5,7 +5,7 @@
 // three cells of four objects packed between them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWorldResidencyMirror } from './worldMirror.ts'
+import { createWorldResidencyMirror } from './residencyMirror.ts'
 import { packDagSelection } from './pack.ts'
 import { ruleDag } from '../../page/cut/cutRule.fixture.ts'
 import { worldDag } from '../../scene/worldSuperRoots.fixture.ts'
@@ -16,6 +16,7 @@ import { stripCamera } from '../../page/cut/cutRuleBackends.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import type { DagRoot } from './types.ts'
+import { pageResidency } from './readiness.fixture.ts'
 
 /** Six placements, the world DAG, six more: a growth's packing. */
 function scene() {
@@ -35,10 +36,11 @@ test('a world DAG packed between placements is mirrored where it sits', () => {
     after = packed.cutLinks[7].pageBase
   rows[after] = 1
   world.origins.forEach((origin, rank) => origin < 0 && (rows[pageBase + rank] = 1))
-  const { flags } = mirror.update(rows)
-  assert.equal(flags[after], 1, 'a page of a placement packed after the world is a scene page')
+  const { flags } = mirror.update(pageResidency(rows))
+  assert.equal(flags.flag(after), 1, 'a page of a placement packed after the world is a scene page')
   for (let rank = 0; rank < pageCount; rank++)
-    if (world.origins[rank] >= 0) assert.equal(flags[pageBase + rank], 0, 'no object is placed')
+    if (world.origins[rank] >= 0)
+      assert.equal(flags.flag(pageBase + rank), 0, 'no object is placed')
 })
 
 test("the world DAG's threshold is its own wherever it sits, the last placement the frame's", () => {

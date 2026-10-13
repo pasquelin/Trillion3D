@@ -1,6 +1,7 @@
 //! The attribute tables a reduction reads: seams, identical copies, a corner's own normal.
 use super::*;
-use crate::geometry_page::{Attribute, FLAG_COLOR, FLAG_NORMAL};
+use trillion3d_page_codec::encode::Attribute;
+use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL};
 
 // Behaviour: a position written under two texture coordinates is a seam, all its copies with it.
 #[test]

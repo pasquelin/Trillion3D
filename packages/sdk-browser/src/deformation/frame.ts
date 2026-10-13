@@ -1,7 +1,8 @@
 import { paletteStretch, PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
-import { wavesChanged, writeWaves, WAVE_STRETCH_FLOATS } from './waveFrame.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
+import { createWaveHeld, wavesChanged, writeWaves, type WaveHeld } from './waveFrame.ts'
 import { writeSoftSource, type SoftSource } from './softSource.ts'
 import { createSkinPalettes, differs } from './skinPalettes.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
@@ -21,6 +22,9 @@ export type DeformedMesh = {
   morphTargetInfluences?: number[]
   waves?: WaterSurface | null
   softSource?: SoftSource
+  /** The world its skeleton's bones are read in, when it is not the one its placement stands in:
+   *  the mesh's own within the model's graph (`PlacementRows.local`). */
+  readonly frame?: ArrayLike<number>
 }
 
 /** One deformed placement: where it stands, its mesh, the counts its record holds and how far
@@ -35,59 +39,97 @@ export type Deformed = {
 /** The records of a session's placements and what writes them: each record's first float plus
  *  one and its layout, the block and its words, each placement's reach, whether it moves and
  *  whether its record is to upload, its staleness read this frame, the mesh each was written for, its waves' stretch, the skin
- *  palettes, whether no frame was written yet, and the uploaded revision. */
+ *  palettes, whether no frame was written yet, and the uploaded revision. The per-placement arrays
+ *  hold places for the placements and the block the floats the records span, both grown by the
+ *  engine's one rule (`resized`) when placements join (`appendRecords`). */
 type Records = ReturnType<typeof deformationRecords>
 
-function deformationRecords(placed: readonly (Deformed | null)[]) {
-  const bases = new Uint32Array(placed.length)
-  let floats = 0
-  // A record's shape is fixed with the session: its layout is measured once.
-  const layouts = placed.map((entry, i) => {
-    if (!entry) return null
-    const layout = recordLayout(entry.shape)
-    bases[i] = floats + 1
-    // Records lie end to end: the stage reads the block float by float (`deformWgsl.ts`).
-    floats += layout.floats
-    return layout
-  })
-  const block = new Float32Array(Math.max(1, floats)),
-    words = new Uint32Array(block.buffer)
-  // A record's counts are fixed with the session too: its head is written once.
-  placed.forEach((entry, i) => {
-    if (!entry) return
-    const at = bases[i] - 1
-    words[at + 2] = entry.shape.joints
-    words[at + 3] = entry.shape.targets
-    words[at + 4] = entry.shape.waves
-    words[at + 5] = entry.shape.soft ?? 0
-  })
+/** An owner no mesh is: a record not written yet is written for another mesh than the one it meets. */
+const UNWRITTEN = {}
+
+function deformationRecords() {
+  const block = new Float32Array(1)
   return {
-    placed,
-    bases,
-    layouts,
+    placed: [] as (Deformed | null)[],
+    /** Placements with a record. */
+    deforming: 0,
+    /** Floats the records span, the block holding at least as many. */
+    floats: 0,
     block,
-    words,
-    reach: new Float64Array(placed.length),
-    moving: new Uint8Array(placed.length),
-    dirty: new Uint8Array(placed.length),
+    words: new Uint32Array(block.buffer),
+    bases: new Uint32Array(0),
+    layouts: [] as (ReturnType<typeof recordLayout> | null)[],
+    reach: new Float64Array(0),
+    moving: new Uint8Array(0),
+    dirty: new Uint8Array(0),
     // Each placement's `stale` answer once read this frame: 0 not yet, 1 fresh, 2 stale; noted
     // for frame `knownFor` alone, -1 for none.
-    known: new Uint8Array(placed.length),
+    known: new Uint8Array(0),
     knownFor: -1,
-    // The least stretch of each wave placement's world matrix, and the matrix it was read for.
-    waveStretch: placed.map((entry) =>
-      entry?.shape.waves ? new Float64Array(WAVE_STRETCH_FLOATS) : null,
-    ),
-    owners: new Array<object | null | undefined>(placed.length),
-    skins: createSkinPalettes(placed, block),
+    waveHeld: [] as (WaveHeld | null)[],
+    owners: [] as (object | null | undefined)[],
+    skins: createSkinPalettes([], block),
     first: true,
     revision: 0,
   }
 }
 
+/**
+ * Placements `entries` join the records behind the ones held, by the rule the open laid them out
+ * with: a record's shape is fixed when it is made, its head written once, its floats end to end
+ * after the others'. The arrays and the block grow by `resized` when they are full. Returns the
+ * first new placement's rank.
+ */
+function appendRecords(r: Records, entries: readonly (Deformed | null)[]) {
+  const first = r.placed.length,
+    count = first + entries.length
+  r.bases = resized(r.bases, count)
+  r.reach = resized(r.reach, count)
+  r.moving = resized(r.moving, count)
+  r.dirty = resized(r.dirty, count)
+  r.known = resized(r.known, count)
+  // A record's shape is fixed with the session: its layout is measured once.
+  const added = entries.map((entry, k) => {
+    if (!entry) return null
+    const layout = recordLayout(entry.shape)
+    r.bases[first + k] = r.floats + 1
+    // Records lie end to end: the stage reads the block float by float (`deformWgsl.ts`).
+    r.floats += layout.floats
+    r.deforming++
+    return layout
+  })
+  const block = resized(r.block, r.floats)
+  if (block !== r.block) {
+    r.block = block
+    r.words = new Uint32Array(block.buffer)
+    r.skins.use(block)
+  }
+  // A record's counts are fixed with the session too: its head is written once.
+  entries.forEach((entry, k) => {
+    if (!entry) return
+    const at = r.bases[first + k] - 1
+    r.words[at + 2] = entry.shape.joints
+    r.words[at + 3] = entry.shape.targets
+    r.words[at + 4] = entry.shape.waves
+    r.words[at + 5] = entry.shape.soft ?? 0
+  })
+  entries.forEach((entry, k) => {
+    r.placed.push(entry)
+    r.layouts.push(added[k])
+    r.waveHeld.push(entry?.shape.waves ? createWaveHeld() : null)
+    r.owners.push(UNWRITTEN)
+  })
+  r.skins.append(entries)
+  return first
+}
+
 /** Whether placement `i`'s morph weights or waves moved since its record was written: what a
  *  mixer or a clock changes without moving a node, which no scene revision announces. */
-function stale({ layouts, bases, owners, words, block }: Records, i: number, entry: Deformed) {
+function stale(
+  { layouts, bases, owners, words, block, waveHeld }: Records,
+  i: number,
+  entry: Deformed,
+) {
   const layout = layouts[i]!,
     at = bases[i] - 1
   if (owners[i] !== entry.mesh.sourceIdentity) return true
@@ -95,7 +137,7 @@ function stale({ layouts, bases, owners, words, block }: Records, i: number, ent
   const weights = entry.mesh.morphTargetInfluences
   for (let t = 0; weights && t < entry.shape.targets; t++)
     if (Math.fround(weights[t] ?? 0) !== block[at + layout.weights + t]) return true
-  return wavesChanged(block, entry, at + layout.world, at + layout.wave)
+  return wavesChanged(block, entry, at + layout.world, at + layout.wave, waveHeld[i]!)
 }
 
 /** `stale`, read once a frame: `pending` notes each answer it reads for the frame it names, the
@@ -172,7 +214,7 @@ function writeRecord(
     kinds |= KIND_MORPH
   }
   if (shape.waves && mesh.waves) {
-    most += writeWaves(block, entry, at + layout.world, at + layout.wave, cold, r.waveStretch[i]!)
+    most += writeWaves(block, entry, at + layout.world, at + layout.wave, cold, r.waveHeld[i]!)
     kinds |= KIND_WAVE
   }
   if (shape.soft && mesh.softSource) {
@@ -220,32 +262,61 @@ function updateRecords(
  * reach projects below the error drawn is drawn at rest, its reach zero. A palette is written only
  * when an input it reads changed (`skinPalettes.ts`). Nothing is allocated after it is made.
  */
-export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
-  const r = deformationRecords(placed),
-    { block, words, bases, reach, moving, dirty } = r
+export function createDeformationFrame(placed: readonly (Deformed | null)[] = []) {
+  const r = deformationRecords()
+  appendRecords(r, placed)
   return {
+    /** Placements `entries` join the records, behind the others': their floats follow the
+     *  others', the block grown by `resized` when it is full. Returns the first one's rank. */
+    append: (entries: readonly (Deformed | null)[]) => appendRecords(r, entries),
+    /** Placement `i`'s world is now `world`: its row is another buffer's, the same row. */
+    rebind(i: number, world: MatrixElements) {
+      const entry = r.placed[i]
+      if (entry) entry.world = world
+    },
+    /** Placements with a record. */
+    get deforming() {
+      return r.deforming
+    },
+    /** The floats the records span. */
+    get floats() {
+      return r.floats
+    },
     /** Revision of uploaded source poses, including deformation settling. */
     get revision() {
       return r.revision
     },
-    block,
-    words,
-    bases,
-    reach,
-    moving,
-    dirty,
+    /** The block: at least `floats` long, replaced by a larger one when the records outgrow it. */
+    get block() {
+      return r.block
+    },
+    get words() {
+      return r.words
+    },
+    get bases() {
+      return r.bases
+    },
+    get reach() {
+      return r.reach
+    },
+    get moving() {
+      return r.moving
+    },
+    get dirty() {
+      return r.dirty
+    },
     /** For placement `i` whose record holds waves alone — no joint, target or soft source —, the
      *  waves that carry it this frame, or `null` while it is drawn at rest; `undefined` for any
      *  other placement (`wavePages.ts`). */
     wavesAlone(i: number) {
-      const entry = placed[i],
+      const entry = r.placed[i],
         shape = entry?.shape
       if (!shape?.waves || shape.joints || shape.targets || shape.soft) return undefined
-      return words[bases[i] - 1] & KIND_WAVE ? (entry!.mesh.waves?.waveModel ?? null) : null
+      return r.words[r.bases[i] - 1] & KIND_WAVE ? (entry!.mesh.waves?.waveModel ?? null) : null
     },
     /** How many waves placement `i`'s record draws: its count when the session opened. */
     drawnWaves(i: number) {
-      return placed[i]?.shape.waves ?? 0
+      return r.placed[i]?.shape.waves ?? 0
     },
     /** Whether the next frame's records differ from this one's, or this one moved from the last:
      *  a frame that cannot be held, nor count as quiet. The answers are noted for `frame`'s
@@ -253,9 +324,9 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     pending(frame?: number) {
       r.known.fill(0)
       r.knownFor = frame ?? -1
-      for (let i = 0; i < placed.length; i++) {
-        const entry = placed[i]
-        if (entry && (moving[i] === 1 || staleOnce(r, i, entry))) return true
+      for (let i = 0; i < r.placed.length; i++) {
+        const entry = r.placed[i]
+        if (entry && (r.moving[i] === 1 || staleOnce(r, i, entry))) return true
       }
       return false
     },
@@ -276,6 +347,3 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
       updateRecords(r, skipped, frame),
   }
 }
-
-/** A session's deformation records, one block (`createDeformationFrame`). */
-export type DeformationFrame = ReturnType<typeof createDeformationFrame>

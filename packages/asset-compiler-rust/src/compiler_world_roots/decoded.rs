@@ -40,10 +40,7 @@ impl Reader<'_> {
     }
     fn digest(&mut self) -> String {
         self.at += 32;
-        self.bytes[self.at - 32..self.at]
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect()
+        crate::hex_of(&self.bytes[self.at - 32..self.at])
     }
     /// A pooled list: its first word and length, read in the pool.
     fn pooled(&mut self) -> Value {
@@ -100,7 +97,8 @@ fn table(bytes: &[u8]) -> Value {
         "payload":{"bytes":length,"sha256":sha256},"bundles":bundles,"pages":pages,"cells":cells})
 }
 
-/// The DAG's clusters and groups, as `encode_dag` lays them.
+/// The DAG's clusters and groups, as `encode_dag` lays them; its culling nodes are read by
+/// `table_tests.rs`.
 fn dag(bytes: &[u8]) -> (Value, Value) {
     assert_eq!(&bytes[..4], DAG_MAGIC);
     let mut r = Reader {
@@ -108,9 +106,9 @@ fn dag(bytes: &[u8]) -> (Value, Value) {
         at: 4,
         pool: 0,
     };
-    let [version, clusters, groups, _pool, _zero] = [(); 5].map(|_| r.word() as usize);
+    let [version, clusters, groups, _pool, nodes] = [(); 5].map(|_| r.word() as usize);
     assert_eq!(version, WORLD_ROOTS_VERSION as usize);
-    r.pool = 24 + clusters * 176 + groups * 64;
+    r.pool = 24 + clusters * 176 + groups * 64 + nodes * 120;
     let clusters: Vec<Value> = (0..clusters)
         .map(|slot| {
             let mut c = json!({"cluster":slot,"level":r.word(),"triangles":r.word(),

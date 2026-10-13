@@ -3,11 +3,12 @@
 // it applies the proof's writes, stamps the image number, dispatches one group and reads back the
 // three vertex records the frame names. Each buffer lands at the binding its shader name has in
 // the stage's own text.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import {
   DEFORMATION_COMPUTE_WGSL,
   deformationBindings,
 } from '../../../packages/sdk-browser/src/deformation/computeWgsl.ts'
-import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/slotLayout.ts'
+import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/outputs.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import type { BufferName, Frame } from './deformationKernelCases.ts'
 
@@ -41,7 +42,7 @@ export async function run({
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     compute: { module, entryPoint: 'deform' },
   })
-  const { STORAGE, UNIFORM, COPY_DST, COPY_SRC, MAP_READ } = GPUBufferUsage
+  const { STORAGE, UNIFORM, COPY_DST, COPY_SRC } = GPUBufferUsage
   const buffer = (words: number[], usage: number) => {
     const made = device.createBuffer({
       size: words.length * 4,
@@ -75,7 +76,6 @@ export async function run({
       { binding: BINDING.normals, resource: normals.createView({ dimension: '2d-array' }) },
     ],
   })
-  const read = device.createBuffer({ size: READ_BYTES, usage: MAP_READ | COPY_DST })
   const records: number[][] = []
   for (const [index, { writes, read: from }] of frames.entries()) {
     for (const { buffer: name, at, words } of writes)
@@ -87,11 +87,12 @@ export async function run({
     pass.setBindGroup(0, group)
     pass.dispatchWorkgroups(1)
     pass.end()
-    encoder.copyBufferToBuffer(named[from.buffer], from.at * 4, read, 0, READ_BYTES)
     device.queue.submit([encoder.finish()])
-    await read.mapAsync(GPUMapMode.READ)
-    records.push([...new Float32Array(read.getMappedRange())])
-    read.unmap()
+    records.push([
+      ...new Float32Array(
+        (await readGpuBuffer(device, named[from.buffer], READ_BYTES, from.at * 4))!.buffer,
+      ),
+    ])
   }
   const adapter = (await gpu.fermer()).court
   return { adapter, records, errors: gpu.errors }

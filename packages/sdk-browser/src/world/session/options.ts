@@ -1,11 +1,5 @@
 import type { AdmitGpuMemory } from '../../residency/activeMemory.ts'
-import type {
-  AssetScope,
-  CameraPose,
-  MathPathMode,
-  PreparationProgress,
-  ScreenErrorVariant,
-} from '../../../../sdk-core/src/index.ts'
+import type { AssetScope, CameraPose, PreparationProgress } from '../../../../sdk-core/src/index.ts'
 import type { EngineDiagnostic, EngineFactory, DiagnosticDetail } from '../../engine/types.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -24,10 +18,14 @@ export interface MeasuredWorldOptions {
   interactive?: boolean
   /** Called before every frame the interactive session draws: the host writes its scene then. */
   beforeFrame?: () => void
-  /** Asked once a partitioned scene's view outgrew what the open session can take in place — rows
-   *  its engine cannot grow, or a mesh the view read it cannot mount —: the owner opens the session
-   *  again, sized for that view, on the manifest the view holds by then. */
+  /** Asked once a partitioned scene's view outgrew the rows the open session can grow in place —
+   *  its engine cannot grow them —: the cells past those rows wait, and the owner says it by name.
+   *  Given, the rows are sized for the first view, not for every node. */
   onPartitionOutgrown?: () => void
+  /** Asked when the session running cannot take content it was handed after its opening, in a
+   *  step that ends after the hand-over (a cut the device refuses): `what` the content, `reason`
+   *  the limit. The session goes on with the cut it runs; the owner says it by name. */
+  onContentRefused?: (what: string, reason: string) => void
   /** False: the interactive session installs no camera controller of its own. */
   ownControls?: boolean
   /** Called after every frame the session draws, with that frame's metrics. */
@@ -50,7 +48,6 @@ export interface MeasuredWorldOptions {
    *  without loading the renderer family. Absent, the session loads that family. */
   engine?: EngineFactory
   maxResidentPages?: number
-  maxCachedPages?: number
   /** The decoded-page cache the session reads through, and the CPU total it counts against: the
    *  world's, kept across its sessions, so a session reopened fetches nothing it holds. Set by the
    *  world itself (its CPU total is `world.budget.cpu`); a session without one reads through a
@@ -144,14 +141,5 @@ export interface MeasuredWorldOptions {
   /** Declare the lights the source file carried, read from the cache. On by default: an
    *  imported scene arrives with its lights. `false` opens the scene with none of them. */
   importedLights?: boolean
-  /** Path of batched compute operations: `'auto'` by default, measurement arbitrating
-   *  between reference JavaScript and the WebAssembly module. `'js'` or `'wasm'` impose it
-   *  for a campaign; `'wasm'` falls back on `'js'` where the module is missing, and says so
-   *  in the metrics. */
-  mathPath?: MathPathMode
-  /** A measurement experiment (`../../../../sdk-core/src/lod/screenErrorVariant.ts`): the cluster
-   *  screen-error metric. `'certifiee'` by default, the certified bound; `'reference'` the plain
-   *  projection `ε·stretch·f/depth`, CPU and GPU to the same result to f32. */
-  screenError?: ScreenErrorVariant
   logInterval?: number
 }

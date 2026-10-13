@@ -2,8 +2,8 @@ import { buildCentreTree, centreTreeNodes } from './centreTree.ts'
 
 /**
  * A STATIC TRIANGLE TREE: a bounding-volume hierarchy over triangles, built once and asked for
- * every triangle whose box meets a query box — the broad phase of a capsule — or for the nearest
- * one a ray crosses (`triangleQuery.ts`).
+ * every triangle whose box meets a query box, or for the nearest one a ray crosses
+ * (`triangleQuery.ts`).
  *
  * BUILD. The shared median split over the triangles' centres (`../math/centreTree.ts`): a
  * balanced tree, so a query's stack is a fixed array. Triangles are then copied in leaf order: a
@@ -20,7 +20,7 @@ import { buildCentreTree, centreTreeNodes } from './centreTree.ts'
  *  a query, never its result. */
 const LEAF_TRIANGLES = 4
 
-/** A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`. Built once by `buildTriangleTree`, read-only afterwards. */
+/** A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind the exact raycast. Built once by `buildTriangleTree`, read-only afterwards. */
 export interface TriangleTree {
   /** Nine numbers per triangle — three corners — in leaf order. */
   readonly triangles: Float32Array

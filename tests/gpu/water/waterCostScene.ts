@@ -1,8 +1,8 @@
 // The water-cost scene: controlled water coverage, its geometry identical with the tile
-// parked offscreen. Measured by `bench/runner/waterCost.ts` (`waterCostPage.ts`), bounded by
+// parked offscreen. Measured by `bench/dawn/waterCost.ts` (`waterCostPage.ts`), bounded by
 // `packages/sdk-browser/src/webgpu/water/bounds.test.ts`.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { batisseur, square } from '../kit/sharedSceneProof.ts'
+import { batisseur } from '../kit/sharedSceneProof.ts'
 import { BACKGROUND, GROUND, waterSurface } from './waterPassCases.ts'
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
@@ -31,12 +31,9 @@ export function waterCostScene(fraction: number, enabled: boolean) {
     material: G.GraphSurface,
     pass: string,
   ) => {
-    const mesh = G.mesh(square(1), material)
+    const mesh = builder.place(material, pass, 1, [x, y, z])
     mesh.name = name
-    mesh.position.set(x, y, z)
     mesh.scale.set(sx, sy, 1)
-    builder.source.add(mesh)
-    builder.add(mesh, pass, 1)
   }
   add(
     'ground',

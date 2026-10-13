@@ -1,11 +1,10 @@
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import {
-  DEFAULT_TONE_MAPPING,
-  TONE_MAPPING_RANK,
+  environmentCurve,
+  environmentExposure,
 } from '../../../../../sdk-core/src/scene/core/environment.ts'
 import { uploadSceneLights } from '../state/lightBuffer.ts'
-import { syncPageProxy, syncLightingProxies } from '../prepare/proxyMotion.ts'
-import { ensureBounce } from '../prepare/bounce.ts'
+import { ensureBounce, syncLightingProxies } from '../prepare/bounce.ts'
 import { planVsmFrame } from './vsm/vsmPlan.ts'
 import { encodeVsmFrame } from './vsm/vsmEncode.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -37,8 +36,8 @@ export function encodeDirectLights(
   directParams.fill(0)
   // Exposure is not a light: it sets conversion of radiance into an image, and cannot light anything
   // the declared lights do not already light.
-  directParams[3] = environment ? environment.exposure : 1
-  directParams[4] = TONE_MAPPING_RANK[environment?.toneMapping ?? DEFAULT_TONE_MAPPING]
+  directParams[3] = environmentExposure(environment)
+  directParams[4] = environmentCurve(environment)
   // The eye itself, under any projection: an orthographic camera's view point is a direction.
   directParams.set(cam.eye, 5)
   // The unlit view reads neither light lists nor a shadow map: it therefore encodes none of them.
@@ -57,7 +56,12 @@ export function encodeDirectLights(
   // The buffer goes to the GPU before the per-tile lists: the blend pass reads it directly, without
   // tiles, and must stay lit even on a device that could not fit the lists.
   uploadSceneLights(device, lights)
+  // The light grid's buffer at this image's size before the bounce lists its world grid into it:
+  // no pass of the image names a buffer the grid replaces later in it.
+  const [width, height] = rt.gpu.targetSize
+  if (lights.buffer) tiles?.ensure(width, height, lights.buffer, store.count)
   encodeBounce(rt, device, encoder, active, cam)
+  // Kept bounce resources follow the placements even while bounce is toggled off.
   syncLightingProxies(rt)
   const listed = encodeTileLists(rt, encoder, viewProjection, cam.eye)
   encodeVsmFrame(rt, device, encoder, cam)
@@ -80,8 +84,9 @@ function encodeTileLists(
   const { lights, gpu } = rt,
     { tiles } = lights,
     [width, height] = gpu.targetSize
+  // Sized before the bounce listed its world grid (`encodeDirectLights`); a buffer the world's growth
+  // replaced since is bound again by the pass.
   if (!tiles || !lights.buffer) return false
-  if (!tiles.ensure(width, height, lights.buffer, lights.store.count)) return false
   tiles.update(viewProjection, eye, width, height)
   return tiles.encode(encoder, rt.run.frame)
 }
@@ -115,7 +120,7 @@ function encodeBounce(
   const irradiance = lights.store.lightingView === 'bounce'
   rt.gpu.deferred?.setRawOutput(irradiance)
   if (!probes) return
-  syncPageProxy(rt, probes)
+  syncLightingProxies(rt)
   probes.setIrradianceView(irradiance)
   // The store revision rises as soon as a light is added, set or removed: that is the only signal
   // the grid needs to restart, and it costs no read. A change of fog alone is not one.

@@ -1,5 +1,5 @@
 // Defect 6's cases (`inverseTranspose3`, DAG selection kernel): geometry, camera, raw orientation
-// and CPU decision, shared by its proof, defect 10's (`pages/culled-face-reflection.gpu.ts`) and
+// and CPU decision, shared by its proof, defect 10's (`pages/culled-face-mirrored.gpu.ts`) and
 // the engine's own draw (`engineDraws.ts`).
 import { boxCenter } from '../../../packages/math/src/geometry/box.ts'
 import { triangleCone } from '../../kit/reference/cone.ts'
@@ -16,14 +16,13 @@ import { createConeContext } from '../../../packages/sdk-browser/src/page/cone/c
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import {
-  createEngineCamera,
-  readCameraWorld,
-} from '../../../packages/sdk-browser/src/camera/world.ts'
+import { createEngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
+import { readCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { project } from '../kit/cameraRig.ts'
 import { worldPose, type PoseParams } from './lightingNormalCases.ts'
+import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 
 type Vec3 = [number, number, number]
 /** A case's pose: `PoseParams`, its world size, and whether it is mirrored. */
@@ -145,10 +144,10 @@ const pageOf = (lit: Case) => ({
 export const packCases = (cases: Case[]) =>
   packedWorldsToRenderOrigin(
     packDagSelection(
-      cases.map((lit): DagRoot => ({
-        world: lit.world,
-        pages: [{ ...pageOf(lit), parentError: null, sphere: [0, 0, 0, lit.worldSize] }],
-      })),
+      cases.map((lit): DagRoot => {
+        const pages = [{ ...pageOf(lit), parentError: null, sphere: [0, 0, 0, lit.worldSize] }]
+        return { world: lit.world, pages, culling: cullingInPlace(pages) }
+      }),
     ),
     cases.map((lit): DagRoot => ({ world: lit.world, pages: [] })),
     view.eye,

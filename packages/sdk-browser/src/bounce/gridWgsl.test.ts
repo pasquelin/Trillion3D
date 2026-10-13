@@ -1,11 +1,12 @@
 // Shared formulas: the Lambert 1/π constant and the order-2 spherical-harmonics basis are
 // written once, and every shader that needs them carries that one text.
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
 import { BOUNCE_APPLY_WGSL } from './applyWgsl.ts'
-import { BOUNCE_SURFACE_SHADER } from './surfaceWgsl.ts'
+import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
 import { directLightingWgsl } from '../lighting/direct/lightingWgsl.ts'
 import {
@@ -23,13 +24,13 @@ test('INVERSE_PI_BOUNCE declares the 1/π the bounce passes always read, one ulp
   assert.ok(literal, INVERSE_PI_BOUNCE.text)
   // The f32 the passes' literal `0.31830989` named before the library wrote it, to the bit.
   assert.ok(Object.is(Math.fround(Number(literal)), Math.fround(0.31830989)))
-  const words = new Uint32Array(new Float32Array([Number(literal), 1 / Math.PI]).buffer)
+  const words = [Number(literal), 1 / Math.PI].map(f32Bits)
   assert.equal(words[0] - words[1], 1)
 })
 
-test('INVERSE_PI_BOUNCE appears once in the application and once in the surface cache', () => {
+test('INVERSE_PI_BOUNCE appears once in the application and once in the surface a ray lights', () => {
   assert.equal(occurrences(wgslModule(BOUNCE_APPLY_WGSL), INVERSE_PI_BOUNCE.text), 1)
-  assert.equal(occurrences(BOUNCE_SURFACE_SHADER, INVERSE_PI_BOUNCE.text), 1)
+  assert.equal(occurrences(wgslModule(SURFACE_RAY_WGSL), INVERSE_PI_BOUNCE.text), 1)
 })
 
 test('every probe shader projects and evaluates the one order-2 basis', () => {
@@ -38,7 +39,6 @@ test('every probe shader projects and evaluates the one order-2 basis', () => {
   // environment.
   const probeEvaluation = irradianceShader((k) => `probeAt(probe,${k}u).xyz`, 'n')
   assert.ok(wgslModule(BOUNCE_APPLY_WGSL).includes(probeEvaluation))
-  assert.ok(BOUNCE_SURFACE_SHADER.includes(probeEvaluation))
   assert.ok(
     BOUNCE_PROBE_SHADER.includes(radianceProjectionShader((k) => `sums[${k}]`, 'sample.rgb', 'd')),
   )

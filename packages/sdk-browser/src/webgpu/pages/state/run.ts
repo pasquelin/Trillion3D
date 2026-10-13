@@ -6,6 +6,7 @@ import type { AsideCut } from '../../../gpu/core/aside.ts'
 import type { FrameGateCore } from '../../../frame/gateCore.ts'
 import type { WebgpuBudgetState } from '../../residency/budgetState.ts'
 import type { MovedWorlds } from '../render/movedWorlds.ts'
+import type { DeviceGrant } from '../../../gpu/core/errorScope.ts'
 
 export { createWebgpuRunState } from './runState.ts'
 
@@ -32,6 +33,9 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   gpuSelection: GpuSelection | undefined
   /** Hi-Z pyramid built this submission: the transparent test never strips another image's. */
   hizPyramidFresh: boolean
+  /** Level 0 of the Hi-Z holds this image's whole opaque depth: the pyramid's nearest layer,
+   *  which the reflections march, can be built from it (`../../../reflections/frame.ts`). */
+  depthDrawn: boolean
   gpuMetricsReady: boolean
   deferredDrops: Set<string>
   /** Triangles of the transparent clusters the cut holds, counted once whatever the pass count. */
@@ -81,7 +85,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** Array of the list returned to the host, for it alone: render tracking writes into the other, and
    *  a list held from one image to the next would not survive that sharing. */
   hostPendingScratch: string[]
-  urlScratch: string[]
   /** True when adoption reread the sample already held: `desired` and `shown` have not moved. */
   cutHeld: boolean
   /** Age of the cut's lists: rises as soon as an adoption rewrites them, rendered or not. What a
@@ -92,7 +95,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** What each list returned to the host describes: the state that produced it, or `-1` if it is to
    *  be remade. A list is kept only if everything it depends on is still that one. */
   pendingHeld: { epoch: number; cut: number; limited: boolean; ready: boolean }
-  urlsHeld: { epoch: number; cut: number; limited: boolean }
   ranksHeld: { epoch: number; cut: number; limited: boolean }
   /** Image entry: revisions, view origin, reread of the source graph, walk of world matrices and
    *  held-image witness. See `../../../frame/gateCore.ts`. */
@@ -111,4 +113,21 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** Ordered signature of the tested half: two images that share it share their occluders, therefore
    *  the partition the next one inherits. */
   occluderSignature: number
+  /** The session's memory funding (`../prepare/targetFunding.ts`, `../io/memory.ts`). */
+  funding: WebgpuFunding
+}
+
+/** What the session's memory funding holds between two asks. */
+interface WebgpuFunding {
+  /** The device ledger's bytes the targets were last funded at: a refusal is said once a ledger
+   *  state, not every frame. */
+  ledgerBytes: number | undefined
+  /** The pools funded again beside targets already in place, one at a time. */
+  refreshing: DeviceGrant | undefined
+  /** Bytes of the cut's table about to be made, funded with what the tables hold, 0 between two
+   *  admissions (`admitCutTables`). */
+  cutAsked: number
+  /** The geometry pool's renewals, one after the other, each drawn from the catalogue as it
+   *  stands (`growWebgpuPagePool`). */
+  renewal: Promise<unknown>
 }

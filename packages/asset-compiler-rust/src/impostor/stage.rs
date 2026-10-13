@@ -8,15 +8,18 @@ use super::mesh::Traceable;
 use crate::compiler_primitive_warn::root_cover_triangles;
 use crate::compiler_validate::values;
 use crate::compiler_world::{world_matrices, Mat4};
-use crate::proxy::{bvh, primitives_by_mesh, stage_proxy, world_scale, ProxyInputs, SceneProxy};
+use crate::proxy::placement::primitives_by_mesh;
+use crate::proxy::{stage_proxy, ProxyInputs, SceneProxy};
 use crate::shared_math::linear_columns;
 use crate::{Options, Result};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use trillion3d_math::aabb::diagonal;
+use trillion3d_math::linear::longest_column;
 use trillion3d_math::matrix::transform_point;
+use trillion3d_page_codec::proxy::bvh;
 
-/// Report contract: the atlas layout, its maps and their chains. A change moves it.
+/// Format of the `impostors` section a runtime reads, baked by the compiler.
 pub(crate) const IMPOSTOR_VERSION: u32 = 1;
 
 /// What the stage reads beyond the proxy's inputs: the job, the source binary, the skinned
@@ -63,7 +66,7 @@ fn hemi(mesh: &Traceable, placements: &[Mat4], floor: f64) -> bool {
                 .iter()
                 .all(|v| v.abs() <= 1e-9 * y[1]);
         let base = transform_point(m, [mesh.centre[0], low, mesh.centre[2]])[1];
-        let texel = 2.0 * mesh.radius * world_scale(m) / PROBE_SIDE as f64;
+        let texel = 2.0 * mesh.radius * longest_column(m) / PROBE_SIDE as f64;
         upright && base <= floor + texel
     })
 }
@@ -172,7 +175,7 @@ fn stage_impostors(
         };
         let mut entry = entry(o, candidate, || {
             let traceable = Traceable::read(inputs.g, bin, mesh, inputs.previews)?;
-            let scale = placements.iter().map(world_scale).fold(0.0, f64::max);
+            let scale = placements.iter().map(longest_column).fold(0.0, f64::max);
             let hemi = hemi(&traceable, &placements, b[1]);
             Ok((traceable, scale, hemi))
         })?;

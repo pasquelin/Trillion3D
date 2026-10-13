@@ -1,26 +1,22 @@
+import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts'
-import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts'
+import { PIXEL_FOOTPRINT_WGSL, SHADOW_VIEW_AT_WGSL } from './footprintWgsl.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
 import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../../scene/physicalLobes.ts'
 import { readLobesStatement } from '../direct/lobesWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
-/** First binding of what the resolve's receiver offset reads (`RECEIVER_BINDINGS`). */
-export const LIGHTING_RECEIVER_BINDING = 23
-
-/** The lighting's entry, its camera fog and its mirror term: the texts the reflection source
- *  output finds in it (`reflections/sourceOutputWgsl.ts`). */
+/** The lighting's entry and its camera fog. */
 export const LIGHT_SURFACE_ENTRY =
   '@fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{'
-export const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}`
-export const MIRROR_TERM = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)'
+const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}`
 
 /**
  * What a shadow read needs of its pixel: the pixel the frame's shadow mask is read at
  * (`vsmMaskPixel`), and, where the frame holds translucent casters, what their transmission's
- * point read takes (`vsmShadowFactor`, its one reader in the resolve): the pixel's footprint at its
+ * located sample takes (`vsmLocate`, its one reader in the resolve): the pixel's footprint at its
  * unjittered centre, whence its view, and its receiver, moved by its shading-point offset,
  * and its triangle's plane the bias follows (`shadowReceiver`, from the visibility buffer).
  * The mask carries the opaque shadow from the receiver the projection read
@@ -36,33 +32,36 @@ const SHADOW_SETUP_WGSL = wgslBlock(
  vsmMaskAt(coord);
  if(vsmTranslucentCasters()){
   shadowFootprint=pixelFootprint(coord,pixel.xy,z,P);
-  shadowSetView(view.camera.xyz,view.viewport.x,pixel.xy,u32(view.jitter.w),shadowFootprint,worldAt(view.viewport.xy*0.5,z));
+  shadowViewAt(shadowFootprint,z);
   let receiver=shadowReceiver(pixel.xy);shadowReceiverOffset=receiver.offset;shadowReceiverPlane=receiver.plane;
  }
 }`,
 )
 
-/** What the bounce program adds to the direct sum, the mirror term last, and its diagnostic view of
- *  the bounced light alone; the direct program adds the mirror term only. */
+/** What the bounce program adds to the direct sum, and its diagnostic view of the bounced light
+ *  alone; the direct program adds nothing. */
 const SURFACE_TERMS = {
   bounce: {
-    sum: `+bounceSurfaceLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a)*lobeThrough()+thinBounce(N,P,emissive.a)${MIRROR_TERM}`,
+    bounce: 'bounceLighting(base.rgb,base.a,N,P,emissive.a)',
+    thin: 'thinBounce(N,P,emissive.a)+',
     diagnostic: 'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
   },
-  direct: { sum: MIRROR_TERM, diagnostic: '' },
+  direct: { bounce: 'vec3f(0.0)', thin: '', diagnostic: '' },
 }
 
 /** The surface of the contract programs, with `bounce` the bounce program's: it reads its lobes
- *  where its flag says so, and the environment goes under their coat (`../direct/lobesWgsl.ts`) —
+ *  where its flag says so, and the environment and the reflection (`resolvedReflection`, its
+ *  program's) go under their coat (`../direct/lobesWgsl.ts`) —
  *  in a lobeless program, or on a pixel without lobes, a call that reads nothing and a
  *  multiplication by one, which changes no bit. */
 export const contractSurfaceBody = (bounce: boolean) => {
-  const { sum, diagnostic } = SURFACE_TERMS[bounce ? 'bounce' : 'direct']
+  const { bounce: bounced, thin, diagnostic } = SURFACE_TERMS[bounce ? 'bounce' : 'direct']
   return wgslBlock(
     `contractSurfaceBody(${bounce})`,
     [
-      receiverOffsetWgsl(LIGHTING_RECEIVER_BINDING),
+      receiverOffsetWgsl(DEFERRED_BINDINGS.receiver),
       PIXEL_FOOTPRINT_WGSL,
+      SHADOW_VIEW_AT_WGSL,
       SURFACE_EMISSIVE_AO_WGSL,
       SHADOW_SETUP_WGSL,
     ],
@@ -79,16 +78,15 @@ export const contractSurfaceBody = (bounce: boolean) => {
  // The pixel's cell of the light grid, read once: its shadow flag, then its list.
  let cell=pixelCell(pixel.xy,z);let shadowed=cellShadowed(cell);
  if(shadowed){shadowSetup(coord,pixel,z,P);}
- let V=normalize(view.camera.xyz-P*view.camera.w);let N=normalize(normal.xyz);
+ let V=viewToEye(P);let N=normalize(normal.xyz);
  surfaceModel=flag;
  thinSubsurface=vec3f(0.0);
  if((surfaceFlag&${SUBSURFACE_FLAG}u)!=0u){thinSubsurface=textureLoad(subsurfaceColor,coord).rgb;}
  ${readLobesStatement(PHYSICAL_SURFACE_FLAG)}
  ${diagnostic}
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy,cell,shadowed);
- var ambient=environmentLighting(base.rgb,base.a,N,emissive.a)*lobeThrough();
- if(any(thinSubsurface>vec3f(0.0))){ambient+=environmentLighting(thinSubsurface,0.0,-N,emissive.a);}
- var rgb=lit+ambient+emissive.rgb${sum};${CAMERA_FOG}
+ var rgb=litSurface(lit,${bounced},environmentLighting(base.rgb,base.a,N,emissive.a),resolvedReflection(coord),emissive.rgb);
+ if(any(thinSubsurface>vec3f(0.0))){rgb+=${thin}environmentLighting(thinSubsurface,0.0,-N,emissive.a);}${CAMERA_FOG}
  return vec4f(rgb,1.0);
 }`,
   )

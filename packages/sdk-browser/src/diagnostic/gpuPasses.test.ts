@@ -18,7 +18,7 @@ test('the public pass mapping reads the debug code: unknown, unmeasured until it
     ],
   }
   assert.equal(gpuPassBlockOf('Trillion3D DAG selection'), 'other')
-  assert.equal(gpuPassStageOf(SHADOW_PASS), 'geometry')
+  assert.equal(gpuPassStageOf(SHADOW_PASS), undefined)
   assert.deepEqual(gpuPassBlockTotals(sample), {
     visibilityMs: null,
     materialsMs: null,

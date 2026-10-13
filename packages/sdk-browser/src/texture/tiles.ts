@@ -1,9 +1,10 @@
-import { alignUp, ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
+import { alignUp, ceilDiv, isImageSize, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import {
   previewFirstLevel,
   previewLastLevel,
   previewLevelSize,
 } from '../../../sdk-core/src/index.ts'
+import { TILE_BORDER, TILE_SIZE } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 
 /**
@@ -27,8 +28,7 @@ import { textureLimits } from '../gpu/core/textureLimits.ts'
  * prepare. A missing streamed tile therefore always shows at least the tail — the same
  * pyramid the sidecar already carries in the manifest.
  */
-export const TILE_SIZE = 128
-export const TILE_BORDER = 4
+export { TILE_BORDER, TILE_SIZE }
 export const TILE_PITCH = TILE_SIZE + 2 * TILE_BORDER
 const TILES_PER_ROW = 30
 /**
@@ -49,16 +49,13 @@ export const poolLayerBytes = (texelBytes: number) => POOL_LAYER_SIDE * POOL_LAY
 /** Most levels a texture may have: 2^15 texels a side, the device limit. */
 export const MAX_LEVELS = 16
 
-/** Dimensions of a texture's `level`, never less than one texel per side. */
-export const levelSize = previewLevelSize
-
 /** Full mip chain length for a texture of the given size, down to 1×1: both GPU paths' chains. */
 export const mipLevelCountFor = (width: number, height: number) =>
   previewLastLevel(width, height) + 1
 
 /** Tiles of a streamed level, columns then rows. */
 export function tilesAt(width: number, height: number, level: number): [number, number] {
-  const [w, h] = levelSize(width, height, level)
+  const [w, h] = previewLevelSize(width, height, level)
   return [ceilDiv(w, TILE_SIZE), ceilDiv(h, TILE_SIZE)]
 }
 
@@ -79,25 +76,31 @@ export type TileLayout = {
   last: number
   /** First table entry of each streamed level in the texture table. */
   offsets: number[]
+  /** Tile columns and rows of each streamed level. */
+  across: number[]
+  down: number[]
   /** Texture table entries: one per tile of each streamed level. */
   entries: number
 }
 
 export function tileLayout(width: number, height: number): TileLayout {
-  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
-    throw new Error('INVALID_TEXTURE_SIZE')
+  if (!isImageSize(width, height)) throw new Error('INVALID_TEXTURE_SIZE')
   // The tail starts at the level whose both sides fit under 64 texels, and ends at one texel.
   const tail = previewFirstLevel(width, height),
     last = previewLastLevel(width, height)
   if (last >= MAX_LEVELS) throw new Error('TEXTURE_TOO_LARGE')
-  const offsets: number[] = []
+  const offsets: number[] = [],
+    across: number[] = [],
+    down: number[] = []
   let entries = 0
   for (let level = 0; level < tail; level++) {
     offsets.push(entries)
     const [tw, th] = tilesAt(width, height, level)
+    across.push(tw)
+    down.push(th)
     entries += tw * th
   }
-  return { width, height, tail, last, offsets, entries }
+  return { width, height, tail, last, offsets, across, down, entries }
 }
 
 /** A pool slot: tile column, row and layer. */

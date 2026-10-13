@@ -6,20 +6,27 @@ import { geometry } from '../../../sdk-core/src/world/geometry/index.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { updateTransformTree } from '../../../sdk-core/src/world/transform-tree/pass.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
-import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
-import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
-import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
-import { COMPOSE_ROWS_WGSL } from './gpuComposeWgsl.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../visibility/types.ts'
+import { COMPOSE_ROWS_WGSL, PART_SPHERES } from './gpuComposeWgsl.ts'
+import { ROW_INPUT_DOUBLES } from './composedRowPack.ts'
 import { DOUBLE_HELPERS, countLeadingZeros, pair } from './composeDoubles.fixture.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
-export const WORDS = PAGE_INFO_STRIDE / 4,
-  N = 120
+export const N = 120
 const pairs = (values: ArrayLike<number>) => Array.from(values, pair)
+/** The rows' inputs of the sphere boxes `boxes` (centre, then half extent, six doubles a row): the
+ *  rest of each row's inputs is zero. */
+const inputsOf = (boxes: ArrayLike<number>) =>
+  Array.from({ length: N * ROW_INPUT_DOUBLES }, (_, k) => {
+    const row = Math.floor(k / ROW_INPUT_DOUBLES),
+      at = k % ROW_INPUT_DOUBLES
+    return pair(at < 6 ? boxes[row * 6 + at] : 0)
+  })
 
 /** A group of `N` crystals placed as the instances page places them, each on its own row. */
 export function crystals() {
-  const next = random(11),
+  const next = lcgRandom(11),
     scene = object.group(),
     group = object.group(),
     shape = geometry.box(0.1, 0.1, 0.1)
@@ -49,11 +56,11 @@ export function cpuTable(meshes: readonly { matrixWorld: { elements: ArrayLike<n
     floats = new Float32Array(buffer),
     ints = new Uint32Array(buffer)
   meshes.forEach((mesh, row) => {
-    const base = row * WORDS
-    for (let k = 16; k < WORDS; k++) ints[base + k] = (row * 2654435761 + k * 40503) >>> 0
+    const base = row * ROW_WORDS
+    for (let k = 16; k < ROW_WORDS; k++) ints[base + k] = (row * 2654435761 + k * 40503) >>> 0
     floats.set(mesh.matrixWorld.elements, base)
-    ints[base + ROW_PLACEMENT_WORD] = row
-    ints[base + ROW_HIZ_SLOT_WORD] = row
+    ints[base + PAGE_INFO.at.placement] = row
+    ints[base + PAGE_INFO.at.hizSlot] = row
   })
   return ints
 }
@@ -71,13 +78,10 @@ export function composeRows(
     [...DOUBLE_HELPERS, 'toF32', 'fromF32', 'composed', 'composeSphere', 'composeRow'],
     {
       countLeadingZeros,
-      params: { rootCount: N, rowCount: N, spheres: spheres?.cast ? 1 : 0 },
-      // The shader's two constants, `1 + 2⁻²⁰` and `2⁻⁴⁴`, as its f32 literals hold them.
-      SPHERE_GROWTH: 1 + 2 ** -20,
-      CENTRE_ERROR: 2 ** -44,
+      params: { rootCount: N, rowCount: N, parts: spheres?.cast ? PART_SPHERES : 0 },
       arrayLength: (ref: { get(): unknown[] }) => ref.get().length,
       spheres: spheres?.out ?? [],
-      localBoxes: spheres ? pairs(spheres.boxes) : [],
+      inputs: spheres ? inputsOf(spheres.boxes) : [],
       parentOf: new Array(N).fill(0),
       parents: pairs(parent),
       locals: locals.flatMap((local) => pairs(local)),

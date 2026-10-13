@@ -14,22 +14,32 @@ import {
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
-import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts'
+import { PRIMITIVE_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/cameraRanges.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
-import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
-import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts'
+import { namedEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 import { createDagReadiness } from '../../../packages/sdk-browser/src/gpu/dag/readiness.ts'
+import { heldOpenSlots } from '../../../packages/sdk-browser/src/gpu/dag/heldOpen.ts'
+import { heldOpenAt } from '../../../packages/sdk-browser/src/gpu/dag/listCap.ts'
+import { readoutRow } from '../../../packages/sdk-browser/src/gpu/dag/bufferTable.ts'
+import {
+  dagFlagShape,
+  flagShapeWords,
+} from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
 import { worldBufferWords } from '../../../packages/sdk-browser/src/gpu/dag/worldBuffer.fixture.ts'
 import {
   childBase,
+  savedJournalWord,
   residentBase,
   selectionListCap,
-  stagedOutputBytes,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { setBit } from '../../../packages/math/src/scalar/bits.ts'
+import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
+
+/** Slots of the open counts a case's placements hold: every count of the cases fits. */
+const HELD_SLOTS = heldOpenSlots(1 << 16)
 
 /** One cut to run: a packed scene, the camera's uniforms and each page's residency, every page
  *  resident when none is given. */
@@ -38,6 +48,8 @@ export interface SelectionCase {
   packed: PackedDag
   uniforms: SelectionUniforms
   resident?: ArrayLike<number>
+  /** Slots of the open counts its placements hold, every count fitting when none is given. */
+  heldSlots?: number
 }
 
 /** `camera` looking at the scene's origin from (`x`, 0, `z`), and `roots` packed for it: the kernel
@@ -56,11 +68,12 @@ export function posedSelection(
   return { packed, uniforms }
 }
 
-/** The cut rule's two residency bit sets over a copy of the cold words, and each node's open
- *  count written into `packed`, as the engine's host uploads them (`gpu/dag/residencyUpload.ts`). */
-function withResidency(packed: PackedDag, resident: ArrayLike<number>) {
-  const readiness = createDagReadiness(packed)
-  readiness.apply(resident)
+/** The cut rule's two residency bit sets over a copy of the cold words, and the open counts each
+ *  placement holds kept in `packed.heldOpen`, as the engine's host uploads them
+ *  (`gpu/dag/residencyUpload.ts`). */
+function withResidency(packed: PackedDag, resident: ArrayLike<number>, slots: number) {
+  const readiness = createDagReadiness(packed, slots)
+  readiness.apply(pageResidency(resident))
   const { buffer, byteOffset, length } = packed.pageCones
   const cold = new Uint32Array(buffer, byteOffset, length).slice()
   const sets = [
@@ -76,19 +89,26 @@ function withResidency(packed: PackedDag, resident: ArrayLike<number>) {
 
 /** What the kernel binds for `selectionCase`, each buffer under its WGSL name, with the sizes the
  *  engine gives the ones it writes. */
-function caseBuffers({ packed, uniforms, resident }: SelectionCase) {
-  // Before the node words are read: readiness writes each node's open count into them.
-  const cold = withResidency(packed, resident ?? new Uint8Array(packed.pageCount).fill(1))
+function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: SelectionCase) {
+  // Before the frame words are read: readiness keeps the open counts each placement holds.
+  const all = new Uint8Array(packed.pageCount).fill(1)
+  const cold = withResidency(packed, resident ?? all, heldSlots)
   const listCap = selectionListCap(packed.pageCount)
   const views = new Float32Array(DAG_UNIFORM_BYTES / 4)
-  writeDagUniforms(views, packed, uniforms, listCap)
+  // The open counts behind the readout's lists, as the engine lays them (`listCap.ts`).
+  const held = { listCap, heldSlots, swap: { regions: 0 } }
+  writeDagUniforms(views, packed, uniforms, listCap, undefined, undefined, heldOpenAt(held))
   const blockCount = ceilDiv(Math.max(1, packed.pageCount), SELECTION_WORKGROUP),
     worldCount = Math.max(1, packed.worldCount)
   return {
     work: dagWorkLayout(blockCount),
-    flagsWords: dagFlagsWords(packed.nodeCount, packed.pageCount),
-    /** `out` with the staged requests behind the readout, for a list of `listCap` ranks. */
-    outBytes: stagedOutputBytes(listCap),
+    flagsWords: flagShapeWords(dagFlagShape(packed)),
+    /** `out` with the staged requests behind the readout, for a list of `listCap` ranks, then the
+     *  open counts the placements hold. */
+    outBytes: readoutRow(listCap, 0, heldSlots).size,
+    /** Where those counts lie in `out`, in bytes, and their words. */
+    heldAt: savedJournalWord(listCap, 0) * 4,
+    heldWords: packed.heldOpen!.words,
     listCap,
     worldCount,
     clusters: packed.clusters,
@@ -97,7 +117,7 @@ function caseBuffers({ packed, uniforms, resident }: SelectionCase) {
     cold,
     /** The host's row per primitive, then what `dagPrepare` derives behind it. */
     frames: primitiveFrameWords(packed),
-    framesBytes: framesBytes(worldCount),
+    framesBytes: worldCount * PRIMITIVE_BYTES,
     /** One range holds every primitive (`frameRanges.ts`): `{first, count}`. */
     range: new Uint32Array([0, worldCount, 0, 0]),
     views,
@@ -124,8 +144,9 @@ export function bindCase(
     made.push(created)
     return { buffer: created }
   }
-  let out: Uint32Array | undefined
-  if (stage) stage((out = new Uint32Array(at.outBytes / 4)), at)
+  const out = new Uint32Array(at.outBytes / 4)
+  out.set(at.heldWords, at.heldAt / 4)
+  stage?.(out, at)
   const uniform = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
   const buffers = {
     clusters: buffer(64, at.clusters),
@@ -141,7 +162,7 @@ export function bindCase(
   }
   const group = device.createBindGroup({
     layout,
-    entries: namedBufferEntries(DAG_BINDING, buffers),
+    entries: namedEntries(DAG_BINDING, buffers),
   })
   return { at, buffers, group, destroy: () => made.forEach((created) => created.destroy()) }
 }

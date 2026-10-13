@@ -1,6 +1,7 @@
 // A moved model forgets and sends its own rows, not the terrain rows between them. The
 // table must not keep one dirty interval: a model whose rows sit at both ends of the table would
 // drop the occlusion history of every row in between and send them all again, each image it moved.
+import { runsOf } from '../row/dirty.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadRowCorners, createCornerUploadHold } from './corners.ts'
@@ -10,7 +11,7 @@ import { moveRootRows } from '../pages/render/movedRoot.ts'
 import { createSortedKeys } from '../cut/denseKeys.ts'
 import { createWebgpuRowState } from '../row/state.ts'
 import { CORNER_VALUES } from '../../gpu/partition/contract.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -40,13 +41,13 @@ function scatteredScene() {
     packedBase: 0,
   }
   const rows = createWebgpuRowState(pages, ROWS)
-  rows.pageTableFloats = new Float32Array((ROWS * PAGE_INFO_STRIDE) / 4)
+  rows.pageTableFloats = new Float32Array(ROWS * ROW_WORDS)
   for (let row = 0; row < ROWS; row++) {
-    rows.rowOfPage[row] = row
+    rows.setRowOf(row, row)
     rows.packedPageIndex[row] = row
   }
   MODEL_ROWS.forEach((row, packed) => {
-    rows.rowOfPage[packed] = row
+    rows.setRowOf(packed, row)
     rows.packedPageIndex[row] = packed
   })
   rows.packedCount = ROWS
@@ -74,7 +75,7 @@ function scatteredScene() {
       // Every packed rank names the one placement.
       placement: {
         baseOfRoot: Int32Array.of(0),
-        rootOfPacked: Int32Array.from({ length: ROWS }, () => 0),
+        packedCount: ROWS,
       },
     },
     run: { noOccluderHistory: false, movedWorlds: createSortedKeys() },
@@ -105,8 +106,9 @@ test('a model scattered across the table forgets and sends its own rows, run by 
   const { rt, model, forgotten, corners, table, spheres, sum } = scatteredScene()
   assert.equal(moveRootRows(rt, model, 0), MODEL_ROWS.length)
   const { rows } = rt.layout
-  // The span still bounds the marks: first and last rows of the model.
-  assert.deepEqual([rows.dirtyFrom, rows.dirtyTo], [3, 997])
+  // The runs reach the first and last rows of the model.
+  const dirty = runsOf(rows.forEachDirtyRun)
+  assert.deepEqual([dirty[0][0], dirty.at(-1)![1]], [3, 997])
   uploadClusterSpheres(rt, rt.gpu.device!)
   uploadRowCorners(rt)
   uploadDirtyRows(rt)
@@ -115,8 +117,7 @@ test('a model scattered across the table forgets and sends its own rows, run by 
   assert.deepEqual(corners, [2, 3, 1], 'the same 6 rows of corners sent')
   assert.deepEqual(table(), [2, 3, 1], 'the same 6 rows of the table sent')
   assert.equal(rt.timing.encodeCounts.rowsUploaded, sum(table()))
-  assert.equal(rows.dirtyTo, -1, 'every mark consumed')
-  assert.equal(rows.dirtyMarks.indexOf(1), -1)
+  assert.equal(rows.dirtyCount, 0, 'every mark consumed')
   // A still image: nothing marked, nothing forgotten, nothing sent.
   uploadRowCorners(rt)
   uploadDirtyRows(rt)

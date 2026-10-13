@@ -13,7 +13,6 @@ import {
 } from '../../../../../../../packages/sdk-core/src/index.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
 import { aPlat, box3 } from '../../../../../../oracles/core/volumes.ts'
-import { boxTransformBefore, hostileFloats } from '../../../../../../oracles/core/hot-path-math.ts'
 
 test('boxEmpty sets inverted bounds at infinity', () => {
   const out = new Float64Array(6)
@@ -154,17 +153,4 @@ test('boxCornersInto matches the host-library matrix applied to each corner', ()
   const actual = new Float64Array(24)
   boxCornersInto(actual, 0, b[0], b[1], b[2], b[3], b[4], b[5], m.elements)
   assertBits(actual, expected)
-})
-
-test('boxTransform folds the corners boxCornersInto writes, bit for bit, on 200 000 hostile cases', () => {
-  const f = hostileFloats(9171)
-  const out = new Float64Array(6)
-  for (let i = 0; i < 200_000; i++) {
-    const m = Array.from({ length: 16 }, (_, k) => (i % 2 && k % 4 === 3 ? +(k === 15) : f()))
-    const lo = [f(), f(), f()]
-    const box = [...lo, ...lo.map((v) => v + Math.abs(f()))]
-    boxTransform(out, 0, box, 0, m)
-    const before = boxTransformBefore(box, m)
-    if (!before.every((v, k) => Object.is(v, out[k]))) assert.fail(`box ${box}, matrix ${m}`)
-  }
 })

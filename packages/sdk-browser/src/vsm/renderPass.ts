@@ -29,7 +29,12 @@
  *              → vsmRenderArgsDraw → raster pass, one drawIndirect into a 128×128 dummy target.
  */
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
-import { preparedPipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
+import {
+  preparedPipeline,
+  preparedPipelines,
+  type PreparedPipeline,
+} from '../lighting/deferred/fullscreen.ts'
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import {
   VSM_MIPS,
@@ -39,16 +44,16 @@ import {
   VSM_RENDER_PAIR_BYTES,
   VSM_RENDER_PAIR_CAPACITY,
 } from './constants.ts'
+import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
 import {
-  vsmBufferEntry,
-  vsmComputePipe,
-  vsmDynamicUniformEntry,
-  type VsmComputePipe,
-} from './passKit.ts'
+  computeBufferEntry,
+  computeUniformEntry,
+  sequentialEntries,
+} from '../gpu/core/computeBindings.ts'
 import { ledgerRoom } from '../gpu/core/deviceLedger.ts'
 import { madeTextureBytes, textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import { vsmWriteChanged, vsmWriteChangedSlots } from './writeChanged.ts'
+import { writeChanged, writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import {
   createVsmRowBound,
   vsmBoundChunk,
@@ -69,6 +74,7 @@ import {
   VSM_RENDER_CULL_SPECS,
   VSM_RENDER_EXPAND_SPECS,
   VSM_RENDER_GROUP,
+  VSM_RENDER_PARAMS,
   VSM_RENDER_VIEW_DIRECTIONAL,
   vsmRenderCandidatesWgsl,
   vsmRenderCullWgsl,
@@ -81,7 +87,8 @@ import {
   vsmRenderRasterWgsl,
 } from './renderRasterWgsl.ts'
 import {
-  type VsmFrameBuffers,
+  type VsmPerFrameSet,
+  vsmFrameSetHeld,
   type VsmResources,
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
@@ -91,6 +98,10 @@ import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import { uniformSlots, type UniformSlots } from '../residency/pools.ts'
 import { clamp, clampLowWins } from '../../../math/src/scalar/reals.ts'
 import type { VsmLayout } from './layout.ts'
+import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
+
+/** What the raster's passes, pipes and lists are labelled under. */
+const RENDER_LABEL = `${VSM_PASS_PREFIX}render`
 
 /** The main view whose level of detail the casters take (the level of detail the main view draws). */
 interface VsmRenderCamera {
@@ -149,12 +160,11 @@ export interface VsmRenderStats {
 }
 
 /** Bytes of the parameters a kernel binds from its chunk's slot (`VsmRenderParams`). */
-const VSM_RENDER_PARAMS_BYTES = 128
-const PARAMS_WORDS = VSM_RENDER_PARAMS_BYTES / 4
+const VSM_RENDER_PARAMS_BYTES = VSM_RENDER_PARAMS.words * 4
 /** The chunks' parameter slots on a device of `limits`, as many as a frame's chunks (`offset`
  *  makes each the first time it is asked): the raster's and the transmission's. */
 export const vsmChunkParamSlots = (limits: Parameters<typeof uniformSlots>[0]) =>
-  uniformSlots(limits, 0, PARAMS_WORDS, true)
+  uniformSlots(limits, 0, VSM_RENDER_PARAMS.words, true)
 /** Usage of the lists the kernels fill. */
 export const vsmRenderStorage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 
@@ -167,7 +177,7 @@ export interface VsmChunkKernels {
   args: { cull: VsmComputePipe; expand: VsmComputePipe; draw: VsmComputePipe }
 }
 
-interface Ctx extends VsmChunkKernels {
+export interface VsmRenderContext extends VsmChunkKernels {
   device: GPUDevice
   layout: VsmLayout
   pageLayout: GPUBindGroupLayout
@@ -188,18 +198,16 @@ interface Ctx extends VsmChunkKernels {
   bound: WebgpuBindIdentity
   /** The groups over the scene's rows and the lists alone, made again when one of them moved. */
   groups?: ReturnType<typeof vsmChunkListGroups>
-  /** The groups over the tables of a frame set (`res.current`, the two in turn), made once a set
+  /** The groups over the tables of a frame set (`res.current`, the two in turn) and `groups`,
    *  and again when the lists moved. */
-  tables: WeakMap<VsmFrameBuffers, RasterTables>
+  tables: VsmPerFrameSet<RasterTables>
   /** Where the rows are, binned for the chunks' bound. */
   rowBound: VsmRowBound
 }
 
-const contexts = new WeakMap<VsmResources, Ctx>()
-
 /** The parameters' binding: the chunk's slot, by dynamic offset. */
 export const vsmRenderParamsEntry = (binding: number) =>
-  vsmDynamicUniformEntry(binding, VSM_RENDER_PARAMS_BYTES)
+  computeUniformEntry(binding, { hasDynamicOffset: true, minBindingSize: VSM_RENDER_PARAMS_BYTES })
 
 /** The cull (`cullCode`), expand and argument kernels, labelled under `label`: pipes made once a
  *  device and source (`vsmComputePipe`), so a pass whose kernel is another's shares its pipe — the
@@ -223,22 +231,26 @@ export function vsmChunkKernels(
     vsmBindGroupLayoutEntries(VSM_RENDER_CULL_SPECS, layout, C),
     [
       P(0),
-      vsmBufferEntry(1, C, 'read-only-storage'),
-      vsmBufferEntry(2, C, 'read-only-storage'),
-      vsmBufferEntry(3, C, 'storage'),
-      vsmBufferEntry(4, C, 'storage'),
+      computeBufferEntry(1, 'read-only-storage', C),
+      computeBufferEntry(2, 'read-only-storage', C),
+      computeBufferEntry(3, 'storage', C),
+      computeBufferEntry(4, 'storage', C),
     ],
   ])
   const expand = pipe('expand', vsmRenderExpandWgsl(layout), 'vsmRenderExpand', [
     vsmBindGroupLayoutEntries(VSM_RENDER_EXPAND_SPECS, layout, C),
     [
       P(0),
-      vsmBufferEntry(1, C, 'read-only-storage'),
-      vsmBufferEntry(2, C, 'storage'),
-      vsmBufferEntry(3, C, 'storage'),
+      computeBufferEntry(1, 'read-only-storage', C),
+      computeBufferEntry(2, 'storage', C),
+      computeBufferEntry(3, 'storage', C),
     ],
   ])
-  const argsEntries = [P(0), vsmBufferEntry(1, C, 'storage'), vsmBufferEntry(2, C, 'storage')]
+  const argsEntries = [
+    P(0),
+    computeBufferEntry(1, 'storage', C),
+    computeBufferEntry(2, 'storage', C),
+  ]
   const args = (entryPoint: string) => pipe('args', VSM_RENDER_ARGS_WGSL, entryPoint, [argsEntries])
   return {
     cull,
@@ -256,50 +268,40 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
   const C = GPUShaderStage.COMPUTE
   const candidates = vsmComputePipe(
     device,
-    'vsm.render.candidates',
+    `${RENDER_LABEL}.candidates`,
     vsmRenderCandidatesWgsl(),
     'vsmRenderCandidates',
     [
       [
         vsmRenderParamsEntry(0),
-        ...[1, 2, 3, 4].map((b) => vsmBufferEntry(b, C, 'read-only-storage')),
-        vsmBufferEntry(5, C, 'storage'),
-        vsmBufferEntry(6, C, 'storage'),
+        ...[1, 2, 3, 4].map((b) => computeBufferEntry(b, 'read-only-storage', C)),
+        computeBufferEntry(5, 'storage', C),
+        computeBufferEntry(6, 'storage', C),
       ],
     ],
   )
   return {
     candidates,
-    ...vsmChunkKernels(device, layout, 'vsm.render', vsmRenderCullWgsl(layout)),
+    ...vsmChunkKernels(device, layout, RENDER_LABEL, vsmRenderCullWgsl(layout)),
   }
 }
 
-/** Each device's raster pipelines, by the shadow page group's layout and the raster's text. */
-const RASTERS = new WeakMap<GPUDevice, WeakMap<GPUBindGroupLayout, Map<string, Ctx['raster']>>>()
+/** What a raster pipeline is made for: the raster's text of a layout, on the shadow page group. */
+interface RasterSource {
+  code: string
+  layout: VsmLayout
+  pageLayout: GPUBindGroupLayout
+}
 
-/**
- * The raster's render pipeline for `layout` on the shadow page group `pageLayout`
- * (`webgpu/shadow/pageGroup.ts`, made at load) and its group 1's layout: described once a device,
- * page layout and raster text, compiled the engine's one way (`preparedPipeline`) — by the prepare
- * step for the set the casting lights are first granted (`prepareVsmPipelines`), at once by a frame
- * that binds it unprepared. `pipeline` is read where it is bound.
- */
-export function vsmRasterPipe(
+/** The raster's render pipeline of `code` and its group 1's layout (`vsmRasterPipe`). */
+function makeRaster(
   device: GPUDevice,
-  layout: VsmLayout,
-  pageLayout: GPUBindGroupLayout,
-): Ctx['raster'] {
-  let byPage = RASTERS.get(device)
-  if (!byPage) RASTERS.set(device, (byPage = new WeakMap()))
-  let byCode = byPage.get(pageLayout)
-  if (!byCode) byPage.set(pageLayout, (byCode = new Map()))
-  const code = vsmRenderRasterWgsl(layout)
-  const held = byCode.get(code)
-  if (held) return held
+  { code, layout, pageLayout }: RasterSource,
+): VsmRenderContext['raster'] {
   const layout1 = device.createBindGroupLayout({
-    label: 'vsm.render.raster1',
+    label: `${RENDER_LABEL}.raster1`,
     entries: [
-      vsmBufferEntry(0, GPUShaderStage.VERTEX, 'read-only-storage'),
+      computeBufferEntry(0, 'read-only-storage', GPUShaderStage.VERTEX),
       ...vsmBindGroupLayoutEntries(VSM_RENDER_RASTER_VERTEX_SPECS, layout, GPUShaderStage.VERTEX),
       ...vsmBindGroupLayoutEntries(
         VSM_RENDER_RASTER_FRAGMENT_SPECS,
@@ -308,9 +310,9 @@ export function vsmRasterPipe(
       ),
     ],
   })
-  const module = device.createShaderModule({ label: 'vsm.render.raster', code })
+  const module = device.createShaderModule({ label: `${RENDER_LABEL}.raster`, code })
   const prepared = preparedPipeline(device, {
-    label: 'vsm.render.raster',
+    label: `${RENDER_LABEL}.raster`,
     layout: device.createPipelineLayout({ bindGroupLayouts: [pageLayout, layout1] }),
     vertex: { module, entryPoint: 'vsmRenderVs' },
     fragment: { module, entryPoint: 'vsmRenderFs', targets: [] },
@@ -321,19 +323,44 @@ export function vsmRasterPipe(
       depthCompare: 'always',
     },
   })
-  const raster = {
+  return {
     layout1,
     prepared,
     get pipeline() {
       return prepared.get()
     },
   }
-  byCode.set(code, raster)
-  return raster
 }
 
-function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupLayout): Ctx {
-  const existing = contexts.get(res)
+/** Each device's raster pipelines, by the raster's text, made once a device. */
+const rasters = oncePerDevice((device: GPUDevice) =>
+  preparedPipelines(
+    (source: RasterSource) => makeRaster(device, source),
+    ({ code }) => code,
+  ),
+)
+
+/**
+ * The raster's render pipeline for `layout` on the shadow page group `pageLayout` — the device's
+ * one (`shadowPageLayout`, `webgpu/shadow/pageGroup.ts`, made once a device) — and its group 1's
+ * layout: described once a device and raster text, compiled the engine's one way
+ * (`preparedPipeline`) — by the prepare step for the set the casting lights are first granted
+ * (`prepareVsmPipelines`), at once by a frame that binds it unprepared. `pipeline` is read where
+ * it is bound.
+ */
+export const vsmRasterPipe = (
+  device: GPUDevice,
+  layout: VsmLayout,
+  pageLayout: GPUBindGroupLayout,
+): VsmRenderContext['raster'] =>
+  rasters(device).of({ code: vsmRenderRasterWgsl(layout), layout, pageLayout })
+
+function context(
+  res: VsmResources,
+  device: GPUDevice,
+  pageLayout: GPUBindGroupLayout,
+): VsmRenderContext {
+  const existing = res.render
   if (
     existing &&
     existing.device === device &&
@@ -345,10 +372,7 @@ function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupL
   // A context made again for the same device keeps its lists; its old target is freed.
   if (existing?.device === device) existing.targetTexture.destroy()
   const targetTexture = device.createTexture(renderTarget())
-  // The chunks' parameter slots lie at the device's dynamic-offset alignment.
-  const slots = vsmChunkParamSlots(device.limits)
-
-  const ctx: Ctx = {
+  const ctx: VsmRenderContext = {
     device,
     layout,
     pageLayout,
@@ -357,13 +381,9 @@ function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupL
     target: targetTexture.createView(),
     targetTexture,
     buffers: existing?.device === device ? existing.buffers : {},
-    slots,
-    passes: vsmChunkPasses('vsm.render', slots),
-    bound: createWebgpuBindIdentity(),
-    tables: new WeakMap(),
-    rowBound: existing?.rowBound ?? createVsmRowBound(),
+    ...vsmChunkContext<RasterTables>(RENDER_LABEL, device.limits, existing),
   }
-  contexts.set(res, ctx)
+  res.render = ctx
   return ctx
 }
 
@@ -378,15 +398,13 @@ export function vsmReleaseContext(ctx: {
 
 /** Frees the raster's context of `res`, with the set it was made for (`destroyEngineVsm`). */
 export function releaseVsmRender(res: VsmResources) {
-  const ctx = contexts.get(res)
-  if (ctx) vsmReleaseContext(ctx)
-  contexts.delete(res)
+  if (res.render) vsmReleaseContext(res.render)
+  res.render = undefined
 }
 
 /** Bytes the raster's context of `res` holds on the device: its lists and its dummy target. */
 export function vsmRenderContextBytes(res: VsmResources) {
-  const ctx = contexts.get(res)
-  return ctx ? vsmContextBytes(ctx) : 0
+  return res.render ? vsmContextBytes(res.render) : 0
 }
 
 /** Bytes a draw context holds on the device: its lists and its dummy target, if any. */
@@ -549,10 +567,16 @@ interface VsmRenderParamsImage {
   u: Uint32Array<ArrayBuffer>
 }
 const eye = new Float32Array(8)
+/** The first words of the world-to-view rotation rows. */
+const VIEW_ROWS = [
+  VSM_RENDER_PARAMS.at.viewRow0,
+  VSM_RENDER_PARAMS.at.viewRow1,
+  VSM_RENDER_PARAMS.at.viewRow2,
+]
 
 /** The parameter slots of `chunking.chunks` chunks (`VsmRenderParams`), `slots` apart: the
  *  frame's values in every slot, the chunk's own index and range — into `image` (its words past the
- *  slots' 32 left as they are: zero, as nothing else writes them). */
+ *  struct's left as they are: zero, as nothing else writes them). */
 function vsmRenderParams(
   camera: VsmRenderCamera,
   chunking: VsmRenderChunking,
@@ -562,34 +586,36 @@ function vsmRenderParams(
   const { chunks, chunkRows } = chunking
   const slotWords = slots.strideWords
   const { f, u } = image
+  const { at } = VSM_RENDER_PARAMS
   for (let a = 0; a < 3; a++) writeSplitDouble(eye, a, 4 + a, camera.eye[a])
   for (let c = 0; c < chunks; c++) {
     const o = c * slotWords
     for (let a = 0; a < 3; a++) {
-      f[o + a] = eye[a]
-      f[o + 4 + a] = eye[4 + a]
+      f[o + at.eyeHigh + a] = eye[a]
+      f[o + at.eyeLow + a] = eye[4 + a]
     }
-    f[o + 3] = camera.perspective ? 1 : 0
-    f[o + 7] = camera.focalPixels
+    f[o + at.perspective] = camera.perspective ? 1 : 0
+    f[o + at.focal] = camera.focalPixels
     // World-to-view rotation rows (column-major m[c*4+r]).
     for (let r = 0; r < 3; r++) {
-      f[o + 8 + r * 4] = camera.view[r]
-      f[o + 9 + r * 4] = camera.view[4 + r]
-      f[o + 10 + r * 4] = camera.view[8 + r]
-      f[o + 11 + r * 4] = 0
+      const row = o + VIEW_ROWS[r]
+      f[row] = camera.view[r]
+      f[row + 1] = camera.view[4 + r]
+      f[row + 2] = camera.view[8 + r]
+      f[row + 3] = 0
     }
-    f[o + 20] = camera.near
-    f[o + 21] = camera.threshold
-    f[o + 22] = VSM_SMALL_CASTER_SQ
-    u[o + 23] = chunking.rowCount
-    u[o + 24] = chunking.viewCount
-    u[o + 25] = c
-    u[o + 26] = c * chunkRows
-    u[o + 27] = chunkRows
-    u[o + 28] = chunks
-    u[o + 29] = chunking.cmdCapacity
-    u[o + 30] = chunking.pairCapacity
-    u[o + 31] = 1 // `pad`: unread, kept at its old value (`planUploads.test.ts` pins the bytes).
+    f[o + at.near] = camera.near
+    f[o + at.threshold] = camera.threshold
+    f[o + at.smallCasterSq] = VSM_SMALL_CASTER_SQ
+    u[o + at.rowCount] = chunking.rowCount
+    u[o + at.viewCount] = chunking.viewCount
+    u[o + at.chunk] = c
+    u[o + at.chunkFirst] = c * chunkRows
+    u[o + at.chunkRows] = chunkRows
+    u[o + at.chunkCount] = chunks
+    u[o + at.cmdCapacity] = chunking.cmdCapacity
+    u[o + at.pairCapacity] = chunking.pairCapacity
+    u[o + at.pad] = 1 // `pad`: unread, kept at its old value (`planUploads.test.ts` pins the bytes).
   }
 }
 
@@ -727,7 +753,7 @@ const renderSizes =
 
 /** The raster's dummy target (`context`): one page of depth. */
 const renderTarget = () => ({
-  label: 'vsm.render.dummyTarget',
+  label: `${RENDER_LABEL}.dummyTarget`,
   size: [VSM_PAGE_TEXELS, VSM_PAGE_TEXELS],
   format: VSM_RENDER_TARGET_FORMAT,
   usage: GPUTextureUsage.RENDER_ATTACHMENT,
@@ -765,7 +791,7 @@ export function vsmRenderFloorBytes(
 
 // The frame's scratch of the raster and the transmission's draw (one after the other, never
 // nested): their views, parameter slots and chunking, rewritten each frame (what reaches a buffer
-// is what `vsmWriteChanged` holds for it, per buffer).
+// is what `writeChanged` holds for it, per buffer).
 const viewList: number[] = []
 let viewWords = new Uint32Array(0)
 const paramsImage: VsmRenderParamsImage = {
@@ -819,6 +845,24 @@ export function vsmSetChunking(
 
 /** The pass labels of a chunked raster under `prefix`, and chunk `c`'s parameter offset in `slots`:
  *  made once for every frame (the raster's and the transmission's). */
+/** What a pass named `label` holds of its chunk lists on a device of `limits`: the chunks'
+ *  parameter slots at the device's dynamic-offset alignment, their passes, the bind identity, the
+ *  tables, and the row bound `existing` kept. */
+export function vsmChunkContext<Tables>(
+  label: string,
+  limits: GPUSupportedLimits,
+  existing?: { rowBound: VsmRowBound },
+) {
+  const slots = vsmChunkParamSlots(limits)
+  return {
+    slots,
+    passes: vsmChunkPasses(label, slots),
+    bound: createWebgpuBindIdentity(),
+    tables: vsmFrameSetHeld<Tables>(),
+    rowBound: existing?.rowBound ?? createVsmRowBound(),
+  }
+}
+
 export function vsmChunkPasses(prefix: string, slots: UniformSlots) {
   const held: { cullPass: GPUComputePassDescriptor; raster: string; offset: number[] }[] = []
   return {
@@ -874,7 +918,7 @@ function vsmEncodeChunks(
 }
 
 /** The parameter slots of `vsmChunking`, laid in `slots`, and the views `views` up to their
- *  buffers: each slot's words where they changed alone (`vsmWriteChangedSlots`). */
+ *  buffers: each slot's words where they changed alone (`writeChangedSlots`). */
 export function vsmWriteChunkParams(
   device: GPUDevice,
   camera: VsmRenderCamera,
@@ -886,11 +930,11 @@ export function vsmWriteChunkParams(
   const { chunks } = vsmChunking
   vsmGrowParamsImage(paramsImage, chunks * slots.strideWords)
   vsmRenderParams(camera, vsmChunking, paramsImage, slots)
-  vsmWriteChangedSlots(device, paramsBuffer, paramsImage.u, slots, 0, chunks)
+  writeChangedSlots(device, paramsBuffer, paramsImage.u, slots, 0, chunks)
   if (viewWords.length < views.length)
     viewWords = new Uint32Array(ensuredBytes(views.length * 4) / 4)
   for (let k = 0; k < views.length; k++) viewWords[k] = views[k]
-  vsmWriteChanged(device, viewsBuffer, viewWords, 0, views.length)
+  writeChanged(device, viewsBuffer, viewWords, 0, views.length)
 }
 
 /**
@@ -970,10 +1014,7 @@ export function vsmBufferGroup(
 ) {
   return device.createBindGroup({
     layout,
-    entries: resources.map((r, binding) => ({
-      binding,
-      resource: 'buffer' in r ? r : { buffer: r },
-    })),
+    entries: sequentialEntries(resources.map((r) => ('buffer' in r ? r : { buffer: r }))),
   })
 }
 
@@ -994,7 +1035,7 @@ interface RasterTables {
 }
 
 /** The raster's groups over the tables of `res.current` and `ctx.groups` (`vsmPerFrameSet`). */
-function rasterTables(res: VsmResources, ctx: Ctx): RasterTables {
+function rasterTables(res: VsmResources, ctx: VsmRenderContext): RasterTables {
   const { device } = ctx,
     groups = ctx.groups!
   return {
@@ -1015,7 +1056,7 @@ function rasterTables(res: VsmResources, ctx: Ctx): RasterTables {
     raster1: device.createBindGroup({
       layout: ctx.raster.layout1,
       entries: [
-        { binding: 0, resource: { buffer: groups.pairs } },
+        ...sequentialEntries([{ buffer: groups.pairs }]),
         ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_VERTEX_SPECS),
         ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_FRAGMENT_SPECS),
       ],
@@ -1027,13 +1068,11 @@ function rasterTables(res: VsmResources, ctx: Ctx): RasterTables {
  * The raster's groups this frame: those over the scene's rows and the lists (`ctx.groups`) made
  * again only when one of them moved, those over the VSM tables once a frame set (`rasterTables`).
  */
-function renderGroups(ctx: Ctx, res: VsmResources, scene: VsmRenderScene) {
-  if (vsmSceneRowsMoved(ctx.bound, scene, ctx.buffers as Required<Ctx['buffers']>)) {
+function renderGroups(ctx: VsmRenderContext, res: VsmResources, scene: VsmRenderScene) {
+  if (vsmSceneRowsMoved(ctx.bound, scene, ctx.buffers as Required<VsmRenderContext['buffers']>))
     ctx.groups = undefined
-    ctx.tables = new WeakMap()
-  }
   ctx.groups ??= vsmChunkListGroups(ctx.device, ctx, ctx.candidates.groups[0], ctx.bound.next)
-  return vsmPerFrameSet(ctx.tables, res, rasterTables, ctx)
+  return vsmPerFrameSet(ctx.tables, res, rasterTables, ctx, ctx.groups)
 }
 
 /**
@@ -1074,7 +1113,7 @@ export function encodeVsmRender(
   if (!size) return { chunks: 0, chunkRows, roomLimited }
   const chunks = ceilDiv(scene.rowCount, chunkRows)
 
-  const { params, views: viewsBuffer, counts, args } = vsmEnsureLists(ctx, 'vsm.render', size)
+  const { params, views: viewsBuffer, counts, args } = vsmEnsureLists(ctx, RENDER_LABEL, size)
   vsmSetChunking({ rowCount: scene.rowCount, viewCount, chunks, chunkRows }, chosen)
   vsmWriteChunkParams(device, scene.camera, params, viewsBuffer, views, ctx.slots)
   encoder.clearBuffer(counts, 0, size.counts)

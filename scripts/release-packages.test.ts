@@ -1,11 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { COMPILER_PLATFORMS } from '../packages/sdk-node/src/compiler/platform.mts'
 import type { Run } from './installed-package/contracts.ts'
 import { packRelease, publishRelease, readRelease, releaseNames } from './release-packages.ts'
+import { readJson } from './repository-files.ts'
 
 /** A checkout as the pack job holds it: six manifests at `version`, each compiler downloaded
  *  without its execute bit, `skip` left out. */
@@ -34,7 +35,7 @@ function fakePack(extra: string[] = []) {
   const packed: Record<string, { private?: boolean }> = {}
   const packers: Record<string, string> = {}
   const run: Run = (command, args, cwd = '') => {
-    const manifest = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8'))
+    const manifest = readJson(join(cwd, 'package.json'))
     packers[manifest.name] = command
     const filename = join(args[args.length - 1], `${manifest.name.replace(/\W/g, '-')}.tgz`)
     writeFileSync(filename, '')
@@ -88,7 +89,7 @@ test('the pack restores the execute bit and removes private only when asked', ()
       [...Array(5).fill('npm'), 'pnpm'],
     )
     assert.equal(packed.trillion3d.private, publishable ? undefined : true)
-    assert.equal(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).private, true)
+    assert.equal(readJson(join(root, 'package.json')).private, true)
     assert.equal(readRelease(out).publishable, publishable)
     rmSync(root, { recursive: true })
   }

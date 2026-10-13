@@ -1,3 +1,5 @@
+import { f32Bits } from './bits.ts'
+
 /** One float64 and its two 32-bit words, the buffer `fromHalf` builds a normal half through. */
 const f64 = new Float64Array(1),
   f64Words = new Uint32Array(f64.buffer)
@@ -25,10 +27,6 @@ export function fromHalf(bits: number) {
   return f64[0]
 }
 
-/** One float32 and its bits, the buffer `toHalf` rounds through. */
-const f32 = new Float32Array(1),
-  u32 = new Uint32Array(f32.buffer)
-
 /**
  * The nearest half float of `value`, its sixteen bits (IEEE 754 binary16, ties to even; NaN stays
  * a quiet NaN of the same sign): no allocation, a per-frame reader calls it. The float32 bits are
@@ -36,8 +34,7 @@ const f32 = new Float32Array(1),
  * of the tie it lies on, so no double rounding.
  */
 export function toHalf(value: number) {
-  f32[0] = value
-  const bits = u32[0],
+  const bits = f32Bits(value),
     sign = (bits >>> 16) & 0x8000,
     magnitude = bits & 0x7fffffff
   if (magnitude >= 0x47800000) return sign | (magnitude > 0x7f800000 ? 0x7e00 : 0x7c00)
@@ -49,9 +46,10 @@ export function toHalf(value: number) {
   const kept = normal ? magnitude - 0x38000000 : (magnitude & 0x7fffff) | 0x800000,
     half = 1 << (shift - 1),
     rest = kept & (2 * half - 1)
+  const rounded = Math.fround(value)
   const up =
     rest > half ||
     (rest === half &&
-      (f32[0] === value ? (kept >>> shift) & 1 : Math.abs(value) > Math.abs(f32[0])))
+      (rounded === value ? (kept >>> shift) & 1 : Math.abs(value) > Math.abs(rounded)))
   return sign | ((kept >>> shift) + (up ? 1 : 0))
 }

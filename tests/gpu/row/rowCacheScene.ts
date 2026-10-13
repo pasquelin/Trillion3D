@@ -15,14 +15,14 @@ import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/c
 import { writeEngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { createWebgpuRowState } from '../../../packages/sdk-browser/src/webgpu/row/state.ts'
 import { createWebgpuRowSync } from '../../../packages/sdk-browser/src/webgpu/row/sync.ts'
-import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { openSelectionKernel } from '../dag/selectionKernel.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
+import { pageAddress } from '../../../packages/sdk-browser/src/webgpu/row/pageSlots.ts'
 
 /** Words of one page-table row: the record writer below names its page in the first. */
-export const ROW_WORDS = PAGE_INFO_STRIDE / 4
 /** Placements apart along -x: one view sees one of them. */
 const SPACING = 1e4
 
@@ -45,7 +45,7 @@ export function rowCacheScene(copies: number, table: number) {
   rows.pageTableFloats = new Float32Array(table * ROW_WORDS)
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer)
   pages.forEach((_, page) => {
-    rows.residentOffsetWords[page] = page * 16
+    rows.setAddressOffset(pageAddress(pages[page]), page * 16)
     rows.touchPage(page)
   })
   const sync = createWebgpuRowSync(
@@ -87,7 +87,7 @@ export function settleView(scene: ReturnType<typeof rowCacheScene>, back = 0, ro
     let drawn: number[] = [],
       wanted: number[] = []
     for (let round = 0; round < rounds; round++) {
-      const resident = rows.residentFlags.slice()
+      const resident = Uint8Array.from({ length: packed.pageCount }, (_, p) => rows.residentFlag(p))
       const reading = await kernel.cut({ name: `round ${round}`, packed, uniforms, resident })
       ;({ drawn, pages: wanted } = reading)
       if (drawn.join() === wanted.join()) break

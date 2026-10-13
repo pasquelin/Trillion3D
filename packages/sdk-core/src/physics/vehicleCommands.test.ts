@@ -4,8 +4,15 @@ import { CommandWriter } from './commands.ts'
 import { OP } from './layout.ts'
 import { vehicle, type Vehicle } from './vehicle.ts'
 import { writeDrive, writeUnvehicle, writeVehicle } from './vehicleCommands.ts'
-import { MAX_GEARS, TORQUE_POINTS, VEHICLE, WHEEL_ROLE } from './vehicleLayout.ts'
-import { DRIVE_WORDS, VEHICLE_WORDS, WHEEL_WORDS } from './wire.fixture.ts'
+import {
+  DRIVE_WORDS,
+  MAX_GEARS,
+  TORQUE_POINTS,
+  VEHICLE,
+  VEHICLE_WORDS,
+  WHEEL_ROLE,
+  WHEEL_WORDS,
+} from './vehicleLayout.ts'
 import { BIKE, FOUR, HULL, rig } from './vehicle.fixture.ts'
 import { near } from '../../../math/src/float/near.fixture.ts'
 

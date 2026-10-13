@@ -57,10 +57,10 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   // The root's node stands for a mesh, which casts unless set otherwise.
   node.castShadow = true
   const [item, kept] = blendState.blendGpu
-  item.sourceMesh = node as never
-  kept.sourceMesh = other as never
+  item.drawSource = { node } as never
+  kept.drawSource = { node: other } as never
   const root = {
-    pages: [{ sourceMesh: node }],
+    pages: [{ drawSource: { node } }],
     worldBox: new Float64Array([-1, -2, -3, 1, 2, 3]),
   } as unknown as ClusterRoot<PageRec>
   const parks: [number, boolean][] = [],

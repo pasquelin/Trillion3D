@@ -1,3 +1,4 @@
+import { isImageSize } from '../../../../math/src/scalar/integers.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { EngineError } from '../../../../sdk-core/src/index.ts'
 import type { MeasuredWorldOptions } from './options.ts'
@@ -7,7 +8,7 @@ export function interactiveSize(canvas: HTMLCanvasElement, options: MeasuredWorl
   const width = options.width ?? Math.floor(canvas.clientWidth)
   const height = options.height ?? Math.floor(canvas.clientHeight)
   const pixelRatio = options.pixelRatio ?? canvas.ownerDocument.defaultView?.devicePixelRatio ?? 1
-  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
+  if (!isImageSize(width, height))
     throw new EngineError(
       'INVALID_VIEWPORT',
       'Give the canvas a positive CSS size or explicit dimensions',

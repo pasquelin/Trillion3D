@@ -6,6 +6,7 @@ import {
   type Primitive,
   type StreamCatalogue,
 } from '../../../../sdk-core/src/index.ts'
+import type { PageRec } from './types.ts'
 
 /**
  * The largest distance the primitive's grid moved one of its source positions, in object units
@@ -82,15 +83,10 @@ const NO_CLUSTER_ERROR = {
 export function clusterErrorFields(
   page: Page,
   quantizationError = 0,
-): {
-  level?: number
-  lodError?: number
-  sphere?: number[]
-  parentError?: number | null
-  parentSphere?: number[] | null
-  group?: number | null
-  source?: number | null
-} {
+): Pick<
+  PageRec,
+  'level' | 'lodError' | 'sphere' | 'parentError' | 'parentSphere' | 'group' | 'source'
+> {
   if (!pageCarriesClusterError(page)) return NO_CLUSTER_ERROR
   const parent =
     typeof page.parentError === 'number' && Number.isFinite(page.parentError)
@@ -134,7 +130,3 @@ export function streamPlacement(
     ? (placement as Array<{ url: string; offset: number }>)
     : undefined
 }
-
-/** Meshes of a resolved host graph. One traversal in the package, that of
- *  `../../scene/meshes.ts`: selection reads the same one, word for word. */
-export { meshes as objects } from '../../scene/meshes.ts'

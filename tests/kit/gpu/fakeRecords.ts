@@ -1,36 +1,66 @@
 /** What `fakeDevice()` records and the options it takes, apart so the device stays readable. */
+import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 
 export type Numbers =
   Float32Array | Float64Array | Int32Array | Uint32Array | Uint16Array | Uint8Array
 
-/** A buffer as the fake creates it: its descriptor, and a mapped range made on first read. */
+/** A buffer as the fake creates it: its descriptor, its bytes — what writes, copies, clears and
+ *  the kernels the device runs leave there —, mapped in place. */
 export type FakeBuffer = {
   label?: string
   size: number
   usage: number
+  data: Uint8Array
   mapAsync(): Promise<void>
   getMappedRange(): ArrayBuffer
   unmap(): void
   destroy(): void
 }
-/** A texture as the fake creates it: its descriptor with its size read out, a view that carries
- *  its format. */
+/** A texture as the fake creates it: its descriptor with its size read out, and the views made of
+ *  it, each its descriptor over the texture's format. */
 export type FakeTexture = GPUTextureDescriptor & {
   width: number
   height: number
   depthOrArrayLayers: number
   mipLevelCount: number
-  createView(): { format: GPUTextureFormat }
+  views: GPUTextureViewDescriptor[]
+  createView(descriptor?: GPUTextureViewDescriptor): GPUTextureViewDescriptor
   destroy(): void
 }
-/** One `queue.writeBuffer`: `data` is a copy taken at the call, an `ArrayBuffer` as bytes. */
+/** One `queue.writeBuffer`: `data` a copy of what it sent — the window `dataOffset` and `size`
+ *  (elements of the source, bytes of an `ArrayBuffer`) cut out of its source —; `seq` its rank among
+ *  the queue's writes and submits. */
 export type FakeWrite = {
   buffer: GPUBuffer
   offset: number
   data: Numbers
   dataOffset: number
   size?: number
+  seq: number
 }
+/** One `queue.writeTexture`: its destination, a copy of its bytes, its layout and extent, and its
+ *  rank among the queue's writes and submits. */
+export type FakeTextureWrite = {
+  destination: GPUTexelCopyTextureInfo
+  data: Numbers
+  layout: GPUTexelCopyBufferLayout
+  size: GPUExtent3D
+  seq: number
+}
+/** One compute dispatch an encoder recorded, in order: its pass (its index in `passDescriptors`),
+ *  its pipeline's entry point, and the buffer and byte offset an indirect one reads its arguments
+ *  from, or the groups of a direct one along x, and its rows along y when there are several. */
+export type FakeDispatch = {
+  pass: number
+  entryPoint: string
+  buffer?: GPUBuffer
+  offset?: number
+  direct?: number
+  rows?: number
+}
+/** The entry points of `dispatches`, in order. */
+export const dispatchedEntries = (dispatches: readonly FakeDispatch[]) =>
+  dispatches.map(({ entryPoint }) => entryPoint)
 /** One `copyBufferToBuffer` an encoder recorded, in the order it was encoded. */
 export type FakeCopy = {
   from: GPUBuffer
@@ -45,11 +75,31 @@ export type FakeTextureCopy = {
   to: GPUTexelCopyTextureInfo
   size: GPUExtent3D
 }
+/** One `copyTextureToBuffer` or `copyBufferToTexture` an encoder recorded, in order. */
+export type FakeTextureBufferCopy = {
+  source: GPUTexelCopyTextureInfo | GPUTexelCopyBufferInfo
+  destination: GPUTexelCopyTextureInfo | GPUTexelCopyBufferInfo
+  size: GPUExtent3D
+}
+/** One `resolveQuerySet` an encoder recorded, in order. */
+export type FakeResolve = {
+  querySet: GPUQuerySet
+  first: number
+  count: number
+  destination: GPUBuffer
+  offset: number
+}
+/** What a device's loss says, as WebGPU's `GPUDeviceLostInfo`. */
 export type LostInfo = { reason: string; message: string }
 
 /** The window of `data` a write sent: `dataOffset` and `size` count elements of `data`. */
-export const written = ({ data, dataOffset, size }: FakeWrite) =>
-  data.subarray(dataOffset, size === undefined ? undefined : dataOffset + size)
+export const written = ({ data }: FakeWrite) => data
+
+/** The bytes a write sent, where they sit in its copy (`written`, read as bytes). */
+export const writtenBytes = (write: FakeWrite) => {
+  const data = written(write)
+  return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+}
 
 /** Applies the writes to `bytes`, the buffer's own copy, in order, then forgets them. */
 export function replayWrites(bytes: ArrayBuffer, writes: FakeWrite[]) {
@@ -64,6 +114,15 @@ export function replayWrites(bytes: ArrayBuffer, writes: FakeWrite[]) {
 export const copyOf = (data: BufferSource): Numbers =>
   data instanceof ArrayBuffer ? new Uint8Array(data.slice(0)) : (data as Numbers).slice()
 
+/** A copy of the window a `writeBuffer` sends out of `data`: `dataOffset` and `size` count its
+ *  elements, bytes for an `ArrayBuffer`. */
+export const windowOf = (data: BufferSource, dataOffset = 0, size?: number): Numbers => {
+  const end = size === undefined ? undefined : dataOffset + size
+  return data instanceof ArrayBuffer
+    ? new Uint8Array(data.slice(dataOffset, end))
+    : (data as Numbers).slice(dataOffset, end)
+}
+
 /** A buffer or texture creation `refuse` is asked about, and how it fails: `'throw'` throws
  *  `NO_MEMORY` at the call; `'oom'` returns the resource and leaves an out-of-memory error in the
  *  innermost error scope open, as a driver does. */
@@ -72,10 +131,42 @@ export type FakeDeviceOptions = {
   /** The device's `limits`, absent when not given. */
   limits?: Record<string, number>
   refuse?: (descriptor: GPUBufferDescriptor | GPUTextureDescriptor) => Refusal
-  /** `false`: the device has no compute pipelines, as a device without compute. */
-  compute?: boolean
+  /** Every compute pipeline is refused (`NO_COMPUTE`), as a device refuses a stage it cannot
+   *  build: the asynchronous build rejects, the immediate one throws. */
+  failCompute?: boolean
+  /** `false`: the device builds its pipelines at the call alone, offering no `…Async`. */
+  asyncPipelines?: boolean
   /** Every buffer's `mapAsync` settles when this does; at once when not given. */
   mapping?: Promise<void>
+  /** Every mapping refuses (`MAP_FAILED`), the explicit capture's but. */
+  failMap?: boolean
   /** The features the device granted; none when not given. */
   features?: readonly GPUFeatureName[]
+  /** The DAG the selection kernels the device runs read when the session uploads none. */
+  packed?: PackedDag
+  /** A render pipeline whose first target is `r32uint` is refused (`NO_R32UINT`). */
+  rejectR32?: boolean
+  /** The first visibility pass is refused at its beginning (`VIS_FAIL`). */
+  failVisPass?: boolean
+  /** The transparent compaction's pipeline is refused (`NO_COMPACT`). */
+  failCompact?: boolean
+  /** Every shader module reports a compilation error. */
+  failCompile?: boolean
+  /** An encoder's copies, clears and kernels run when its command buffer is submitted, as on a GPU;
+   *  one never submitted runs nothing. Otherwise they run as they are encoded. */
+  deferred?: boolean
+  /** A test's own double of the kernel `entryPoint` dispatched with group `bind`, called as it is
+   *  encoded: the work it returns runs in the kit's double's place, none for the kit's own. */
+  kernel?: (
+    entryPoint: string,
+    bind: unknown,
+    offsets?: readonly number[],
+  ) => (() => void) | undefined
+}
+
+/** A pages backend run whole on the device: a MiB a buffer and a binding, its pipelines built at
+ *  the call, as a software adapter does. */
+export const BACKEND: FakeDeviceOptions = {
+  limits: { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
+  asyncPipelines: false,
 }

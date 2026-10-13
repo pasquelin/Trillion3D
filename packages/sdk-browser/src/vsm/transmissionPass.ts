@@ -1,7 +1,8 @@
+import { arrayView } from '../gpu/core/textureViews.ts'
 /**
  * Host side of the translucent casters' transmission (`transmissionWgsl.ts`): made with the first
  * blended caster, then encoded each frame after the opaque VSM raster and before the projection,
- * in one compute pass, `vsm.transmission`:
+ * in one compute pass, `TRANSMISSION_LABEL`:
  *
  *   the clear (a redrawn slice stamped, a redrawn or freed slice's blocks given back)
  *   → the bin (candidates, then per chunk of blended rows the opaque raster's cull, each command's
@@ -27,20 +28,20 @@
  * the power of two that holds it.
  */
 import {
-  createVsmRowBound,
   vsmWorstChunk,
   type VsmBoundLight,
   type VsmChunk,
   type VsmRowBound,
 } from './rowPageBound.ts'
-import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import { vsmBufferEntry, vsmComputePipe } from './passKit.ts'
+import type { WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { vsmComputePipe } from './passKit.ts'
+import { computeBufferEntry, sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import type { VsmLayout } from './layout.ts'
 import { storageBufferCap, type UniformSlots } from '../residency/pools.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
-import { createVsmReadbackRing } from './readbackRing.ts'
-import { vsmWriteChanged } from './writeChanged.ts'
+import { createReadbackRing } from '../gpu/core/readbackRing.ts'
+import { writeChanged } from '../gpu/core/writeChanged.ts'
 import { shadowPageEntries } from '../webgpu/shadow/pageGroup.ts'
 import {
   VSM_RENDER_ARGS_EXPAND,
@@ -55,6 +56,7 @@ import {
   vsmChunkKernels,
   vsmChunkListGroups,
   vsmChunkListSizes,
+  vsmChunkContext,
   vsmChunkPasses,
   vsmChunkParamSlots,
   vsmChunkRows,
@@ -73,7 +75,8 @@ import {
   type VsmRenderScene,
 } from './renderPass.ts'
 import {
-  type VsmFrameBuffers,
+  type VsmPerFrameSet,
+  vsmFrameSetHeld,
   type VsmResources,
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
@@ -82,7 +85,6 @@ import {
 import {
   VSM_TRANSMISSION_CLEAR_SPECS,
   VSM_TRANSMISSION_HEADER_BYTES,
-  VSM_TRANSMISSION_NONE,
   VSM_TRANSMISSION_PAGE_BYTES,
   VSM_TRANSMISSION_PAGE_GROUP,
   VSM_TRANSMISSION_PAGES_SPECS,
@@ -111,6 +113,11 @@ import {
   vsmTransmissionRegions,
   type VsmTransmissionCaps,
 } from './transmissionLayout.ts'
+import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
+import { NO_INDEX } from '../../../math/src/constants.ts'
+
+/** What the transmission's pass, pipes and buffers are labelled under. */
+const TRANSMISSION_LABEL = `${VSM_PASS_PREFIX}transmission`
 
 /** Blended candidates a chunk takes: its page list holds this many times the pool's pages. */
 const CHUNK_ROWS = 64
@@ -119,7 +126,7 @@ const CHUNK_ROWS = 64
 export interface VsmTransmission {
   layout: VsmLayout
   caps: VsmTransmissionCaps
-  /** Page × slice → first block (none: `VSM_TRANSMISSION_NONE`), persistent. */
+  /** Page × slice → first block (none: `NO_INDEX`), persistent. */
   table: GPUBuffer
   /** [free count, spare, free blocks…]. */
   pool: GPUBuffer
@@ -147,6 +154,9 @@ export interface VsmTransmission {
   afterSubmit(): void
   /** Every byte it asked the device for (`vsmTransmissionBytes`). */
   bytes: number
+  /** Its draw context (`context`), which a grown transmission keeps (`grownFrom`): freed by
+   *  `releaseVsmTransmission`. */
+  context?: VsmTransmissionContext
   destroy(): void
 }
 
@@ -203,13 +213,13 @@ function vsmTransmissionWanted(
 function transmissionBuffers(device: GPUDevice, pages: number, caps: VsmTransmissionCaps) {
   const storage = (label: string, bytes: number, extra = 0) =>
     device.createBuffer({
-      label: `vsm.transmission.${label}`,
+      label: `${TRANSMISSION_LABEL}.${label}`,
       size: bytes,
       usage: vsmRenderStorage() | extra,
     })
   // Two slices a physical page: dynamic, static.
   const table = storage('table', 2 * pages * 4)
-  device.queue.writeBuffer(table, 0, new Uint32Array(2 * pages).fill(VSM_TRANSMISSION_NONE))
+  device.queue.writeBuffer(table, 0, new Uint32Array(2 * pages).fill(NO_INDEX))
   const pool = storage('pool', (caps.blocks + 2) * 4)
   const free = new Uint32Array(caps.blocks + 2)
   free[0] = caps.blocks
@@ -222,12 +232,12 @@ function transmissionBuffers(device: GPUDevice, pages: number, caps: VsmTransmis
     GPUBufferUsage.COPY_SRC,
   )
   const args = device.createBuffer({
-    label: 'vsm.transmission.args',
+    label: `${TRANSMISSION_LABEL}.args`,
     size: VSM_TRANSMISSION_ARGS_WORDS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
   })
   const uniform = device.createBuffer({
-    label: 'vsm.transmission.frame',
+    label: `${TRANSMISSION_LABEL}.frame`,
     size: VSM_TRANSMISSION_UNIFORM_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
@@ -247,7 +257,7 @@ function transmissionMemory(device: GPUDevice, layout: VsmLayout, blocks: number
   const rows = headerRows(layout.poolPages)
   device.queue.writeTexture(
     { texture: memory },
-    new Uint32Array(4 * VSM_TRANSMISSION_WIDTH * rows).fill(VSM_TRANSMISSION_NONE),
+    new Uint32Array(4 * VSM_TRANSMISSION_WIDTH * rows).fill(NO_INDEX),
     { bytesPerRow: 16 * VSM_TRANSMISSION_WIDTH, rowsPerImage: rows },
     [VSM_TRANSMISSION_WIDTH, rows],
   )
@@ -276,10 +286,10 @@ export function createVsmTransmission(
     { build } = buffers
   const memory = transmissionMemory(device, layout, caps.blocks)
   // The counters, read back a few frames late.
-  const feedback = createVsmReadbackRing(
+  const feedback = createReadbackRing(
     device,
     {
-      label: 'vsm.transmission.feedback',
+      label: `${TRANSMISSION_LABEL}.feedback`,
       bytes: VSM_TRANSMISSION_FEEDBACK_BYTES,
       count: 2,
       eager: true,
@@ -291,7 +301,7 @@ export function createVsmTransmission(
     caps,
     ...buffers,
     memory,
-    view: memory.createView({ dimension: '2d-array' }),
+    view: arrayView(memory),
     storageView: memory.createView({ dimension: '2d' }),
     full: 0,
     capped: false,
@@ -307,15 +317,14 @@ export function createVsmTransmission(
       for (const buffer of Object.values(buffers)) buffer.destroy()
       memory.destroy()
     },
+    context: grownFrom?.context,
   }
-  const kept = grownFrom && contexts.get(grownFrom)
-  if (kept) contexts.set(trans, kept)
   return trans
 }
 
 type Pipe = ReturnType<typeof vsmComputePipe>
 
-interface Ctx extends VsmChunkKernels {
+export interface VsmTransmissionContext extends VsmChunkKernels {
   device: GPUDevice
   clear: Pipe
   candidates: Pipe
@@ -338,8 +347,9 @@ interface Ctx extends VsmChunkKernels {
   bound: WebgpuBindIdentity
   /** The chunk groups over those alone, made again when one of them moved. */
   lists?: ChunkLists
-  /** The chunk groups over the tables of a frame set (`res.current`), made once a set. */
-  tables: WeakMap<VsmFrameBuffers, ChunkTables>
+  /** The chunk groups over the tables of a frame set (`res.current`, the two in turn) and
+   *  `lists`, made again when one of them moved. */
+  tables: VsmPerFrameSet<ChunkTables>
   /** Where the blended rows are, binned for the chunks' bound. */
   rowBound: VsmRowBound
 }
@@ -348,33 +358,29 @@ interface Ctx extends VsmChunkKernels {
 interface TransmissionGroups {
   trans: VsmTransmission
   /** The clear's group of the VSM tables, by the frame's tables it binds. */
-  clear0: WeakMap<VsmFrameBuffers, GPUBindGroup>
+  clear0: VsmPerFrameSet<GPUBindGroup>
   clear1: GPUBindGroup
   number: GPUBindGroup
   place: GPUBindGroup
   resolve: GPUBindGroup
 }
 
-const contexts = new WeakMap<VsmTransmission, Ctx>()
-
 /** Bytes the draw context of `trans` holds on the device: its lists. */
 export function vsmTransmissionContextBytes(trans: VsmTransmission) {
-  const ctx = contexts.get(trans)
-  return ctx ? vsmContextBytes(ctx) : 0
+  return trans.context ? vsmContextBytes(trans.context) : 0
 }
 
 /** Frees the draw context of `trans`, which a grown transmission keeps (`grownFrom`). */
 export function releaseVsmTransmission(trans: VsmTransmission) {
-  const ctx = contexts.get(trans)
-  if (ctx) vsmReleaseContext(ctx)
-  contexts.delete(trans)
+  if (trans.context) vsmReleaseContext(trans.context)
+  trans.context = undefined
 }
 
 /** The group layout entries the transmission's kernels bind over `layout`, one table a kernel —
  *  the resolve's shared by its two entry points. */
 function transmissionGroupTables(layout: VsmLayout) {
   const C = GPUShaderStage.COMPUTE
-  const buf = (binding: number, type: GPUBufferBindingType) => vsmBufferEntry(binding, C, type)
+  const buf = (binding: number, type: GPUBufferBindingType) => computeBufferEntry(binding, type, C)
   const resolve = [
     [
       buf(0, 'uniform'),
@@ -437,7 +443,7 @@ function transmissionGroupTables(layout: VsmLayout) {
 function vsmTransmissionPipes(device: GPUDevice, layout: VsmLayout) {
   const groups = transmissionGroupTables(layout)
   const pipe = (name: string, code: string, entry: string, tables: GPUBindGroupLayoutEntry[][]) =>
-    vsmComputePipe(device, `vsm.transmission.${name}`, code, entry, tables)
+    vsmComputePipe(device, `${TRANSMISSION_LABEL}.${name}`, code, entry, tables)
   const resolveCode = vsmTransmissionResolveWgsl(layout)
   return {
     clear: pipe('clear', vsmTransmissionClearWgsl(layout), 'vsmTransmissionClear', groups.clear),
@@ -461,29 +467,23 @@ function vsmTransmissionPipes(device: GPUDevice, layout: VsmLayout) {
   }
 }
 
-function context(trans: VsmTransmission, device: GPUDevice): Ctx {
-  const existing = contexts.get(trans)
+function context(trans: VsmTransmission, device: GPUDevice): VsmTransmissionContext {
+  const existing = trans.context
   if (existing && existing.device === device) return existing
   const { layout } = trans
-  // The chunks' parameter slots lie at the device's dynamic-offset alignment.
-  const slots = vsmChunkParamSlots(device.limits)
-  const ctx: Ctx = {
+  const ctx: VsmTransmissionContext = {
     device,
     ...vsmTransmissionPipes(device, layout),
     ...vsmChunkKernels(
       device,
       layout,
-      'vsm.transmission',
+      TRANSMISSION_LABEL,
       vsmRenderCullWgsl(layout, { marksDirty: false }),
     ),
     buffers: {},
-    slots,
-    passes: vsmChunkPasses('vsm.transmission', slots),
-    bound: createWebgpuBindIdentity(),
-    tables: new WeakMap(),
-    rowBound: existing?.rowBound ?? createVsmRowBound(),
+    ...vsmChunkContext<ChunkTables>(TRANSMISSION_LABEL, device.limits, existing),
   }
-  contexts.set(trans, ctx)
+  trans.context = ctx
   return ctx
 }
 
@@ -512,7 +512,7 @@ interface BinPlan {
 }
 
 /** The transmission's one compute pass: its clear, its bin and its resolve. */
-const TRANSMISSION_PASS: GPUComputePassDescriptor = { label: 'vsm.transmission' }
+const TRANSMISSION_PASS: GPUComputePassDescriptor = { label: TRANSMISSION_LABEL }
 
 /**
  * Clears, bins and resolves the transmission slices this frame redraws. Between `encodeVsmRender`
@@ -540,7 +540,7 @@ export function encodeVsmTransmission(
   uniformImage[6] = regions.patches
   uniformImage[7] = plan?.within.size ? plan.cmds : 0
   uniformImage[8] = plan?.within.size ? plan.pairs : 0
-  vsmWriteChanged(device, trans.uniform, uniformImage, 0, uniformImage.length)
+  writeChanged(device, trans.uniform, uniformImage, 0, uniformImage.length)
 
   const groups = transmissionGroups(device, ctx, trans)
   // The encoder's clears first: the clear, the bin and the resolve are then one compute pass, each
@@ -549,7 +549,7 @@ export function encodeVsmTransmission(
   const bin = plan?.within.size ? binLists(encoder, ctx, trans, res, scene, plan) : undefined
   const pass = encoder.beginComputePass(TRANSMISSION_PASS)
   pass.setPipeline(ctx.clear.pipeline)
-  pass.setBindGroup(0, clearTablesGroup(device, ctx, groups, res))
+  pass.setBindGroup(0, vsmPerFrameSet(groups.clear0, res, clearTables, ctx))
   pass.setBindGroup(1, groups.clear1)
   // ⌈poolPages / 256⌉ groups: one row for the largest pool (`poolDispatch.test.ts`).
   pass.dispatchWorkgroups(ceilDiv(layout.poolPages, VSM_TRANSMISSION_PAGE_GROUP))
@@ -581,45 +581,37 @@ const viewList: number[] = []
 
 /** The groups of the clear, the number, the place and the resolve of `trans`: made once per
  *  transmission. */
-function transmissionGroups(device: GPUDevice, ctx: Ctx, trans: VsmTransmission) {
+function transmissionGroups(
+  device: GPUDevice,
+  ctx: VsmTransmissionContext,
+  trans: VsmTransmission,
+) {
   if (ctx.groups?.trans === trans) return ctx.groups
   const { uniform, build, table, pool, links } = trans
   return (ctx.groups = {
     trans,
-    clear0: new WeakMap(),
+    clear0: vsmFrameSetHeld(),
     clear1: vsmBufferGroup(device, ctx.clear.groups[1], [uniform, build, table, pool, links]),
     number: vsmBufferGroup(device, ctx.number.groups[0], [uniform, build, trans.args]),
     place: vsmBufferGroup(device, ctx.place.groups[0], [uniform, build]),
     resolve: device.createBindGroup({
       layout: ctx.resolve.groups[0],
       entries: [
-        ...[uniform, build, table, pool, links].map((buffer, binding) => ({
-          binding,
-          resource: { buffer },
-        })),
-        { binding: 5, resource: trans.storageView },
+        ...sequentialEntries([
+          ...[uniform, build, table, pool, links].map((buffer) => ({ buffer })),
+          trans.storageView,
+        ]),
       ],
     }),
   })
 }
 
-/** The clear's group of the VSM tables this frame reads (`res.current`), made once per set. */
-function clearTablesGroup(
-  device: GPUDevice,
-  ctx: Ctx,
-  groups: TransmissionGroups,
-  res: VsmResources,
-) {
-  let group = groups.clear0.get(res.current)
-  if (!group) {
-    group = device.createBindGroup({
-      layout: ctx.clear.groups[0],
-      entries: vsmBindGroupEntries(res, VSM_TRANSMISSION_CLEAR_SPECS),
-    })
-    groups.clear0.set(res.current, group)
-  }
-  return group
-}
+/** The clear's group of the VSM tables this frame reads (`res.current`, `vsmPerFrameSet`). */
+const clearTables = (res: VsmResources, ctx: VsmTransmissionContext) =>
+  ctx.device.createBindGroup({
+    layout: ctx.clear.groups[0],
+    entries: vsmBindGroupEntries(res, VSM_TRANSMISSION_CLEAR_SPECS),
+  })
 
 /** The transmission's lists for a chunk of `rows` of its `used` blended rows, by buffer: the
  *  render lists, their parameter slots `slots`, its page list holding a header a
@@ -654,7 +646,7 @@ export function vsmTransmissionFloorBytes(
   )
 }
 
-/** The chunk groups over the scene's rows, the lists and the transmission alone (`Ctx.lists`). */
+/** The chunk groups over the scene's rows, the lists and the transmission alone (`VsmTransmissionContext.lists`). */
 interface ChunkLists {
   trans: VsmTransmission
   cand: GPUBindGroup
@@ -663,14 +655,18 @@ interface ChunkLists {
   pages1: GPUBindGroup
 }
 
-/** The chunk groups over the tables of `res.current` (`Ctx.tables`). */
+/** The chunk groups over the tables of `res.current` (`VsmTransmissionContext.tables`). */
 interface ChunkTables {
   cull0: GPUBindGroup
   pages0: GPUBindGroup
   bin1: GPUBindGroup
 }
 
-function chunkLists(ctx: Ctx, trans: VsmTransmission, bound: readonly unknown[]): ChunkLists {
+function chunkLists(
+  ctx: VsmTransmissionContext,
+  trans: VsmTransmission,
+  bound: readonly unknown[],
+): ChunkLists {
   const { device } = ctx
   const { params, counts, pairs, cand, cull1, args } = vsmChunkListGroups(
     device,
@@ -695,7 +691,7 @@ function chunkLists(ctx: Ctx, trans: VsmTransmission, bound: readonly unknown[])
   }
 }
 
-function chunkTables(res: VsmResources, ctx: Ctx): ChunkTables {
+function chunkTables(res: VsmResources, ctx: VsmTransmissionContext): ChunkTables {
   const { device } = ctx,
     { trans } = ctx.lists!
   return {
@@ -721,24 +717,26 @@ function chunkTables(res: VsmResources, ctx: Ctx): ChunkTables {
  * (`ctx.lists`) made again only when one of them moved, those over the VSM tables once a frame
  * set: the opaque raster's mechanism (`renderPass.ts: renderGroups`).
  */
-function chunkGroups(ctx: Ctx, trans: VsmTransmission, res: VsmResources, scene: VsmRenderScene) {
-  const b = ctx.buffers as Required<Ctx['buffers']>
+function chunkGroups(
+  ctx: VsmTransmissionContext,
+  trans: VsmTransmission,
+  res: VsmResources,
+  scene: VsmRenderScene,
+) {
+  const b = ctx.buffers as Required<VsmTransmissionContext['buffers']>
   const bound = ctx.bound.next
   bound[11] = trans.uniform
   bound[12] = trans.build
   bound[13] = trans.args
-  if (vsmSceneRowsMoved(ctx.bound, scene, b, 3)) {
-    ctx.lists = undefined
-    ctx.tables = new WeakMap()
-  }
+  if (vsmSceneRowsMoved(ctx.bound, scene, b, 3)) ctx.lists = undefined
   const lists = (ctx.lists ??= chunkLists(ctx, trans, bound))
-  return { lists, tables: vsmPerFrameSet(ctx.tables, res, chunkTables, ctx) }
+  return { lists, tables: vsmPerFrameSet(ctx.tables, res, chunkTables, ctx, lists) }
 }
 
 /** The frame's bin: the blended rows' chunks the GPU budget's room holds (`vsmChunkRowsWithin`),
  *  none when not even one row's lists fit; undefined without a view or a row. */
 function binPlan(
-  ctx: Ctx,
+  ctx: VsmTransmissionContext,
   trans: VsmTransmission,
   frame: VsmTransmissionFrame,
   scene: VsmRenderScene,
@@ -794,13 +792,13 @@ function binPlan(
  *  before the transmission's pass opens. */
 function binLists(
   encoder: GPUCommandEncoder,
-  ctx: Ctx,
+  ctx: VsmTransmissionContext,
   trans: VsmTransmission,
   res: VsmResources,
   scene: VsmRenderScene,
   plan: BinPlan,
 ) {
-  const { params, views, counts, args } = vsmEnsureLists(ctx, 'vsm.transmission', plan.within.size!)
+  const { params, views, counts, args } = vsmEnsureLists(ctx, TRANSMISSION_LABEL, plan.within.size!)
   vsmWriteChunkParams(ctx.device, scene.camera, params, views, plan.views, ctx.slots)
   encoder.clearBuffer(counts, 0, plan.within.size!.counts)
   return { args, ...chunkGroups(ctx, trans, res, scene) }
@@ -810,7 +808,7 @@ function binLists(
  *  cull, its commands' redrawn pages and the bin. */
 function encodeBin(
   pass: GPUComputePassEncoder,
-  ctx: Ctx,
+  ctx: VsmTransmissionContext,
   scene: VsmRenderScene,
   plan: BinPlan,
   { args, lists, tables }: ReturnType<typeof binLists>,

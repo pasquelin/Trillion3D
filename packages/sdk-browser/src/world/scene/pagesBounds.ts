@@ -2,11 +2,11 @@ import { meshes as objects } from '../../scene/meshes.ts'
 import type { HostBoundedNode } from '../../host/scene/graphNodes.ts'
 import type { HostMesh } from '../../host/resources.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
-import { emptyWorldBox } from '../../host/world/bounds.ts'
+import { emptyWorldBox, readHostBox } from '../../host/world/bounds.ts'
 import { type ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { BoxTransformLot } from '../../page/decode/batch/batchRuntime.ts'
 import { boxUnionCollector } from '../../page/selection/batchBoxes.ts'
-import type { EngineContext } from '../../engine/types.ts'
+import type { DrawAssociations } from '../../page/selection/drawSource.ts'
 import { hostWorldPlacements } from '../../host/world/placements.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -35,7 +35,7 @@ function ecritPage(out: Float64Array, at: number, item: ManifestPage) {
 
 /** The box a mesh placed by rows holds for every row (`host/prepared/placed.ts`): its pages
  *  bound one placement, and its own pose places none. */
-function placedBox(mesh: HostMesh, associations: EngineContext['associations']) {
+function placedBox(mesh: HostMesh, associations: DrawAssociations) {
   return associations.get(mesh)?.placements ? (mesh as HostBoundedNode).boundingBox : undefined
 }
 
@@ -43,7 +43,7 @@ function placedBox(mesh: HostMesh, associations: EngineContext['associations']) 
  * its box whether or not the view read its primitive yet. */
 function exactPagesCount(
   source: Object3D,
-  associations: EngineContext['associations'],
+  associations: DrawAssociations,
   metadata: ClusterManifest,
 ) {
   const primitiveOf = primitiveFinder(metadata.primitives)
@@ -62,7 +62,7 @@ function exactPagesCount(
  *  that returns. */
 export function pagesBounds(
   source: Object3D,
-  associations: EngineContext['associations'],
+  associations: DrawAssociations,
   metadata: ClusterManifest,
   onMissing: (mesh: HostMesh) => void,
   into = emptyWorldBox(),
@@ -81,8 +81,7 @@ export function pagesBounds(
     // The world matrix is the one the engine computed for this mesh, read once.
     const world = worlds.of(mesh).elements
     if (placed) {
-      const { min, max } = placed
-      union.boxes.set([min.x, min.y, min.z, max.x, max.y, max.z], union.at)
+      readHostBox(placed, union.boxes, union.at)
       union.pose(world)
       continue
     }
@@ -92,5 +91,5 @@ export function pagesBounds(
         union.pose(world)
       }
   }
-  return union.ferme()
+  return union.close()
 }

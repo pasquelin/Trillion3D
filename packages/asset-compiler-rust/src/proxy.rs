@@ -1,76 +1,62 @@
 use crate::compiler_validate::{item, required_index, values};
-use crate::compiler_world::{world_matrices, Mat4};
+use crate::compiler_world::world_matrices;
 use crate::texture_preview::TexturePreview;
 use crate::Result;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
-use trillion3d_math::matrix::transform_point;
+use trillion3d_math::aabb::{grow_flat, EMPTY_FLAT};
+use trillion3d_math::box_transform::{box_transform, BOX_VALUES};
+use trillion3d_math::linear::longest_column;
+// The proxy's pure geometry — snapping, BVH, wide collapse — and its layout numbers live in the
+// page codec, the crate the browser's one WebAssembly module and the compiler share: one builder.
+use trillion3d_page_codec::proxy::{
+    bvh, columns_of, simplify, CutColumns, PROXY_ERROR_METRES, PROXY_NODE_WORDS,
+    PROXY_TRIANGLE_FLOATS,
+};
 
 pub mod albedo;
-pub(crate) mod assemble;
-pub mod bvh;
 pub mod cut;
 pub mod encode;
-pub mod provenance;
-pub mod share;
-pub mod simplify;
+pub mod placement;
 pub(crate) mod tracer;
-pub mod wide;
 
-/// Product contract. Moving cut, sections or node order requires incrementing.
-pub const SCENE_PROXY_VERSION: u32 = 5;
-/// 'W','G','P','X' read as 32-bit little-endian unsigned int.
+/// Version of the "proxy" cache product. A proxy of another version is rejected, never guessed.
+pub const SCENE_PROXY_VERSION: u32 = 6;
+/// 'W','G','P','X' read as an unsigned 32-bit integer little-endian.
 pub const SCENE_PROXY_MAGIC: u32 = 0x5850_4757;
-/// Header: v3 ownership header, then shape, stored-triangle and placement counts.
-pub const SCENE_PROXY_HEADER_WORDS: usize = 11;
+/// Header integers: magic, version, the meshes the table names, then the triangles and the nodes
+/// all of them hold, and one reserved word.
+pub const SCENE_PROXY_HEADER_WORDS: usize = 6;
 /// Product name in cache key folder, next to `clusters.json`.
 pub const SCENE_PROXY_FILE: &str = "proxy.bin";
-/// Max certified geometric error of retained cluster, in meters. Published setting.
-pub const PROXY_ERROR_METRES: f64 = 0.05;
-/// Proxy mesh floor, in meters: triangle size after simplification,
-/// surface cache resolution. Triangle budget doubles if needed.
-pub const PROXY_CELL_METRES: f64 = 0.5;
-/// BVH leaf triangles: leaf loop bounded by this count engine side.
-pub const PROXY_LEAF_TRIANGLES: usize = 8;
-/// Triangles entire scene proxy allows itself, all instances placed. Budget
-/// decides actually obtained threshold: 10M triangle scene outputs 30x
-/// coarser than single room, threshold published in manifest.
-pub const PROXY_TRIANGLE_BUDGET: usize = 300_000;
-/// Numbers per triangle: three world vertices. Normal derived from triangle, un-stored.
-pub const PROXY_TRIANGLE_FLOATS: usize = 9;
-/// Numbers per node: min then max exact bounds, reference for child
-/// quantized boxes.
-pub const PROXY_NODE_FLOATS: usize = 6;
-/// BVH node children: four boxes tested at once, closest kept for next step.
-pub const PROXY_CHILDREN: usize = 4;
-/// Integers per child: two quantized box and link words, link itself.
-pub const PROXY_CHILD_WORDS: usize = 3;
-/// Integers per node: four children end to end.
-pub const PROXY_NODE_WORDS: usize = PROXY_CHILDREN * PROXY_CHILD_WORDS;
 
-/// Scene proxy, ready for column output.
+/// Scene proxy, ready for column output: ONE PROXY A COMPILED MESH, in the mesh's own space, whatever
+/// the number of nodes that place it. The engine places it where a node does, by the node's live
+/// world (`sdk-browser/src/gpu/dag/proxyInstances.ts`): an instance is four words, not a copy.
 #[derive(Default)]
 pub struct SceneProxy {
+    /// The world extent of the placements, three lower bounds then three upper.
     pub bounds: [f64; 6],
-    /// Max threshold primitive took to fit budget share, plus
-    /// proxy simplification addition.
+    /// Max threshold a cut took to fit its budget share, plus the grid addition of the coarsest
+    /// proxy at the largest scale it is placed at.
     pub error_metres: f64,
-    /// Grid step simplification took, in meters: proxy triangle size,
-    /// surface cache cell size.
+    /// That grid step, in metres.
     pub cell_metres: f64,
-    pub triangles: Vec<f32>,
-    pub albedo: Vec<u32>,
-    pub node_bounds: Vec<f32>,
-    pub node_children: Vec<u32>,
-    pub provenance: provenance::Provenance,
-    pub sharing: share::Sharing,
+    /// One entry per compiled primitive, in primitive order; a primitive no shown node places holds none.
+    pub meshes: Vec<CutColumns>,
 }
 impl SceneProxy {
     pub fn triangle_count(&self) -> usize {
-        self.triangles.len() / PROXY_TRIANGLE_FLOATS
+        self.meshes
+            .iter()
+            .map(|mesh| mesh.triangles.len() / PROXY_TRIANGLE_FLOATS)
+            .sum()
     }
     pub fn node_count(&self) -> usize {
-        self.node_children.len() / PROXY_NODE_WORDS
+        self.meshes
+            .iter()
+            .map(|mesh| mesh.node_children.len() / PROXY_NODE_WORDS)
+            .sum()
     }
 }
 
@@ -88,102 +74,67 @@ pub struct ProxyInputs<'a> {
     pub previews: &'a [TexturePreview],
 }
 
-/// World matrix scale factor: longest of three linear columns.
-/// Object error multiplier when becoming world error, up to upper bound.
-pub use trillion3d_math::linear::longest_column as world_scale;
-
-/// A length of `metres` in the object units of a primitive: the rule the tile grid shares.
-pub use trillion3d_page_codec::bits::grid::object_units;
-
-/// Max world scale under which each source mesh placed. Primitive placed
-/// twice at two scales takes largest: cut finer than needed for
-/// other instance, never coarser than threshold allows.
-pub fn mesh_scales(g: &Value, chosen: &BTreeSet<usize>) -> Result<BTreeMap<usize, f64>> {
-    let world = world_matrices(g)?;
-    let nodes = values(g, "nodes")?;
-    let mut scales: BTreeMap<usize, f64> = BTreeMap::new();
-    for node_id in chosen {
-        let node = item(nodes, *node_id, "node")?;
-        let mesh = required_index(node.get("mesh"), "node.mesh")?;
-        let scale = world_scale(&world[*node_id]);
-        let slot = scales.entry(mesh).or_insert(0.0);
-        if scale > *slot {
-            *slot = scale;
-        }
-    }
-    Ok(scales)
-}
-
-/// Compiled primitives of each mesh, in original order: without table, each
-/// retained node would sweep all scene primitives to find own.
-pub(crate) fn primitives_by_mesh(primitives: &[Value]) -> BTreeMap<u64, Vec<usize>> {
-    let mut by_mesh: BTreeMap<u64, Vec<usize>> = BTreeMap::new();
-    for (index, primitive) in primitives.iter().enumerate() {
-        if let Some(mesh) = primitive.get("mesh").and_then(Value::as_u64) {
-            by_mesh.entry(mesh).or_default().push(index);
-        }
-    }
-    by_mesh
-}
-
-/// Places each coarse cut in world, once per carrying node, then builds
-/// BVH. Primitive placed 10 times yields 10 triangle sets: proxy is a scene, not
-/// object catalog, ray has no matrix to apply.
+/// The proxy of each compiled primitive a shown node places, once: its coarse cut built into a wide
+/// tree in the primitive's own space (`columns_of`, the builder the browser's cuts go through), with the
+/// colour of its material. A primitive placed ten times is one proxy: the engine places it, a ray has the
+/// node's world to apply.
 pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let world = world_matrices(inputs.g)?;
     let nodes = values(inputs.g, "nodes")?;
     let palette = albedo::material_albedo(inputs.g, inputs.previews);
-    let mut triangles: Vec<f32> = Vec::new();
-    let mut colours: Vec<u32> = Vec::new();
-    let mut owners = Vec::new();
-    let by_mesh = primitives_by_mesh(inputs.primitives);
+    let by_mesh = placement::primitives_by_mesh(inputs.primitives);
+    // The largest scale each placed primitive is placed at, and the world extent of its placements.
+    let mut scales: BTreeMap<usize, f64> = BTreeMap::new();
+    let mut bounds = EMPTY_FLAT;
     for node_id in inputs.shown {
         let node = item(nodes, *node_id, "node")?;
         let old_mesh = required_index(node.get("mesh"), "node.mesh")?;
         let Some(mesh_index) = inputs.mesh_map.get(&old_mesh).copied() else {
             continue;
         };
-        let matrix = world[*node_id];
         let Some(indices) = by_mesh.get(&(mesh_index as u64)) else {
             continue;
         };
+        let matrix = &world[*node_id];
+        // The world scale of the placement: the error a cut makes in its own units grows by it.
+        let scale = longest_column(matrix);
         for index in indices.iter().copied() {
-            let Some(cut) = inputs.cuts.get(index) else {
+            let Some(cut) = inputs.cuts.get(index).filter(|cut| !cut.is_empty()) else {
                 continue;
             };
-            let colour = palette.of(inputs.primitives[index].get("material"));
-            place(cut, &matrix, &mut triangles);
-            colours.resize(triangles.len() / PROXY_TRIANGLE_FLOATS, colour);
-            owners.resize(colours.len(), *node_id as u32);
+            let slot = scales.entry(index).or_insert(0.0);
+            if scale > *slot {
+                *slot = scale;
+            }
+            let mut placed = [0.0; BOX_VALUES];
+            box_transform(&mut placed, &bvh::extent(cut), matrix);
+            grow_flat(&mut bounds, &placed);
         }
     }
-    let mut proxy =
-        assemble::assemble_owned(inputs.thresholds, triangles, colours, &owners, &world);
-    proxy.provenance.source_parents = vec![-1; world.len()];
-    for id in 0..nodes.len() {
-        for child in crate::compiler_nodes::children_of(nodes, id)? {
-            proxy.provenance.source_parents[child] = id as i32;
-        }
-    }
-    // The compiled mesh (`mesh_map`) each node places: a cell node casts as it says.
-    proxy.provenance.source_meshes = nodes
+    let mut meshes: Vec<CutColumns> = inputs
+        .primitives
         .iter()
-        .map(|node| {
-            let mesh = node.get("mesh").and_then(Value::as_u64);
-            mesh.and_then(|m| inputs.mesh_map.get(&(m as usize)))
-                .map_or(-1, |m| *m as i32)
-        })
+        .map(|_| CutColumns::default())
         .collect();
-    Ok(proxy)
-}
-
-/// Cut vertices, transformed once by placing node.
-pub(crate) fn place(cut: &[f32], matrix: &Mat4, out: &mut Vec<f32>) {
-    out.reserve(cut.len());
-    for vertex in cut.as_chunks::<3>().0 {
-        let world = transform_point(matrix, vertex.map(f64::from));
-        out.push(world[0] as f32);
-        out.push(world[1] as f32);
-        out.push(world[2] as f32);
+    let mut cell_metres = 0.0f64;
+    for (index, scale) in &scales {
+        let colour = palette.of(inputs.primitives[*index].get("material"));
+        let columns = columns_of(inputs.cuts[*index].clone(), colour);
+        cell_metres = cell_metres.max(columns.cell * scale);
+        meshes[*index] = columns;
     }
+    if bounds[0] > bounds[3] {
+        bounds = [0.0; 6];
+    }
+    let cut_error = inputs
+        .thresholds
+        .iter()
+        .copied()
+        .fold(PROXY_ERROR_METRES, f64::max);
+    Ok(SceneProxy {
+        bounds,
+        error_metres: cut_error + cell_metres * simplify::CELL_ERROR_FACTOR,
+        cell_metres,
+        meshes,
+    })
 }

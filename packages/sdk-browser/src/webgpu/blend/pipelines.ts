@@ -23,6 +23,7 @@ import {
 } from '../../diagnostic/gpuVariant.ts'
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
 import { blendTargets } from './blendTargets.ts'
+import { TRANSPARENT_FRONT } from '../../reflections/frontDepth.ts'
 import { createForwardVariants, type ForwardLit } from '../../lighting/deferred/forwardVariants.ts'
 import {
   FULL_CONTRACT,
@@ -31,14 +32,17 @@ import {
   type ContractKey,
 } from '../../lighting/deferred/contractCuts.ts'
 
+/** What the pass reads of an item to be drawn: its surface, and whether it transmits. */
+export type BlendedSurface = Pick<BlendGpuItem, 'surface' | 'transmissive'>
+
 /** A blend program: its module, and the pipelines drawn with it. */
 type BlendProgram = { module: GPUShaderModule; pipelines: BlendModePipelines }
 
 /** The blend fragment's values, in their order: what a feedback-free entry keeps. */
-const BLEND_OUT: [string, string][] = ['color', 'asIs', 'tint', 'add'].map((name) => [
-  name,
-  'vec4f',
-])
+const BLEND_OUT: [string, string][] = [
+  ...['color', 'asIs', 'tint', 'add'].map((name): [string, string] => [name, 'vec4f']),
+  TRANSPARENT_FRONT.out,
+]
 const FRAGMENT_IN = ['in:VSOut,@builtin(front_facing) front:bool', 'in,front'] as const
 
 /** The transmission code a scene that transmits imports (`families.transmission`). */
@@ -60,21 +64,16 @@ type ForwardVariants<P> = Awaited<ReturnType<typeof createForwardVariants<P>>>
 type RoutedPipelines = ReturnType<typeof createRoutedPipelines>
 
 /** Builds the forward-material pipelines for transparent draws, and the water pass of a scene
- *  that transmits; a reference session's water walks its mirror ray whole (`unboundedReflections`,
- *  #1279): the session's `context`. Both light with the code the scene's lights need, as the opaque
+ *  that transmits. Both light with the code the scene's lights need, as the opaque
  *  resolve (`createForwardVariants`): `lit` and `waterLit`, the keys their first frames ask for. */
 export async function createWebgpuBlendPipelines(
   device: GPUDevice,
-  items: BlendGpuItem[],
+  items: readonly BlendedSurface[],
   variant?: DiagnosticGpuVariant,
   feedback = true,
   sharedLayout?: GPUBindGroupLayout,
   share = false,
-  {
-    unboundedReflections,
-    lit,
-    waterLit,
-  }: { unboundedReflections?: boolean; lit?: ForwardLit; waterLit?: ForwardLit } = {},
+  { lit, waterLit }: { lit?: ForwardLit; waterLit?: ForwardLit } = {},
 ) {
   // The forward materials' layout, which the feedback-free diagnostic pipelines share: the
   // group's table (`blendLayoutEntries`), the view uniform at its size.
@@ -108,8 +107,7 @@ export async function createWebgpuBlendPipelines(
     programs: () => programs,
   }
   const programs = await createForwardVariants((key) => blendProgram(setup, key), lit)
-  const unbounded = unboundedReflections === true
-  const { water, waterRefused } = await blendWater(setup, programs, unbounded, waterLit)
+  const { water, waterRefused } = await blendWater(setup, programs, waterLit)
   return { blendBindGroupLayout, blendPipelines: programs.twin.pipelines, water, waterRefused }
 }
 
@@ -118,7 +116,6 @@ export async function createWebgpuBlendPipelines(
 async function blendWater(
   { device, layout, waterCode, feedback, reach }: BlendProgramSetup,
   programs: ForwardVariants<BlendProgram>,
-  unbounded: boolean,
   waterLit: ForwardLit | undefined,
 ) {
   // The water's lobed stage is an entry of the lobed twin's module (`waterSurfaceWgsl`): the twin's
@@ -130,16 +127,7 @@ async function blendWater(
   }
   let waterRefused: Error | undefined
   const water: WaterPass | undefined = await waterCode
-    ?.createWaterPass(
-      device,
-      programs.twin.module,
-      layout,
-      feedback,
-      unbounded,
-      waterLit,
-      reach,
-      lobes,
-    )
+    ?.createWaterPass(device, programs.twin.module, layout, feedback, waterLit, reach, lobes)
     .catch((error: unknown) => {
       waterRefused = error instanceof Error ? error : new Error(String(error))
       return undefined

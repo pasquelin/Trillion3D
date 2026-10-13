@@ -8,13 +8,8 @@ import {
 import { trackViewCamera } from './viewCamera.ts'
 import { createViewHold, type ViewHold } from './viewRevision.ts'
 import { createHostSceneWatch, type WatchedSources } from '../host/scene/watch.ts'
-import {
-  createEngineCamera,
-  readCameraWorld,
-  type CameraMotion,
-  type EngineCamera,
-  type HostCamera,
-} from '../camera/world.ts'
+import { createEngineCamera, type EngineCamera } from '../camera/engineCamera.ts'
+import { readCameraWorld, type CameraMotion, type HostCamera } from '../camera/world.ts'
 import { resolvePixelError } from '../page/selection/selection.ts'
 import type { HostWorldPlacements } from '../host/world/placements.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -38,8 +33,9 @@ type GateState = {
   /** A host write no world pass has read yet: announced by the scan, or unread when the engine
    *  wrote. */
   hostPosesOwed: boolean
-  /** The scene changed shape since the last world pass — the first image, a node added or
-   *  reparented, an engine edit that is not a pose —: the next one walks every root. */
+  /** The scene changed shape since the last world pass — the first image, a node destroyed, an
+   *  engine edit that is not a pose —: the next one walks every root. A node the host reparented
+   *  walks the roots under it alone (`takeWritten`, `takeFlipped`). */
   reshaped: boolean
   /** What the last world pass read, rewritten by the next. */
   write: HostWrite
@@ -208,7 +204,8 @@ function readScene(core: GateState, source: Object3D, drawn: FrameGateSources) {
     // The list is rebuilt in this very frame: a node the reshape brought in is hooked before
     // the host can write it again, so no write falls between the reshape and the rebuild.
     if (verdict === 'reshaped') {
-      core.reshaped = true
+      // Only a node destroyed owes every root; one reparented names the roots under it.
+      if (core.sceneWatch.takeDestroyed()) core.reshaped = true
       observe(core, source, drawn)
     }
   }

@@ -5,18 +5,16 @@
 // measurement loop, on Three's WebGPU renderer (`witness/threeRenderer.ts`). Served to the page
 // (mount `/runner/`), it imports only `three` from `/vendor/three/` — never from the engine.
 //
-// What it measures: the CPU time of `render`, the GPU time of each frame from Three's timestamp
-// queries (the sum of its passes, resolved without the frame loop waiting; Three gives no split
-// per pass, so `gpuPassSamples` stays empty), the rAF interval in a profile loop, the draws and
-// triangles of `renderer.info`, the geometry and texture bytes it holds, preparation and the
-// network, and its capture for the pixel delta.
+// What it measures: the draws and triangles of `renderer.info`, the geometry and texture bytes it
+// holds, the network, and its capture for the pixel delta.
 import * as THREE from 'three/webgpu'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { lamp, octets } from './threeBareScene.ts'
-import { createWitnessRenderer, gpuFrameTimes, readWitnessImage } from './threeRenderer.ts'
+import { createWitnessRenderer, readWitnessImage } from './threeRenderer.ts'
 import { movableLampPosition, posterCapture, networkFrom } from '../harness/measurePage.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
 import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts'
+import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
 
 function placer(camera: THREE.PerspectiveCamera, pose: CameraPose, aspect: number) {
   camera.fov = pose.fov
@@ -60,9 +58,8 @@ export async function mesurerThree(
   const lost: string[] = (globalThis.gpuIncidents = [])
   performance.setResourceTimingBufferSize(1_000_000)
   const resourcesBefore = performance.getEntriesByType('resource').length
-  const preparationStart = performance.now()
   const { width, height } = options
-  const renderer = await createWitnessRenderer(canvas, { width, height, timestamps: true, lost })
+  const renderer = await createWitnessRenderer(canvas, { width, height, lost })
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.setClearColor(0x2a303c, 1)
   const shadows = options.lights?.some((l) => l.castsShadow !== false) === true
@@ -93,7 +90,6 @@ export async function mesurerThree(
   poser(options.pose)
   await renderer.compileAsync(scene, camera)
   renderer.render(scene, camera)
-  const preparationMs = performance.now() - preparationStart
   const moving = options.moving
   const moveLight = (frame: number) => {
     if (moving) lamps.get(moving.id)?.position.fromArray(movableLampPosition(moving, frame))
@@ -101,25 +97,14 @@ export async function mesurerThree(
   let current = options.pose
   const poseAt = (frame: number) =>
     (current = options.poses ? options.poses[frame % options.poses.length] : options.pose)
-  const gpu = gpuFrameTimes(renderer)
   for (let i = 0; i < options.warmup; i++) renderer.render(scene, camera)
   await renderer.waitForGPU()
-  await gpu.drain()
-  const cpuFrameMs: number[] = []
-  const rafIntervalMs: number[] = []
-  let previousRaf: number | null = null
   for (let i = 0; i < options.frames; i++) {
-    const now = await new Promise<number>((done) => requestAnimationFrame(done))
-    if (previousRaf !== null && i > 2) rafIntervalMs.push(now - previousRaf)
-    previousRaf = now
+    await animationFrame()
     moveLight(i)
     poser(poseAt(i))
-    const t = performance.now()
     renderer.render(scene, camera)
-    cpuFrameMs.push(performance.now() - t)
-    gpu.sample()
   }
-  await gpu.drain()
   poser(current)
   // The capture, bottom-to-top rows as `explorer.capture()` returns them: the bench server flips
   // them when encoding the PNG, and compares the buffers as-is. Its frame is the one the counters
@@ -152,20 +137,12 @@ export async function mesurerThree(
   renderer.dispose()
   canvas.remove()
   return {
-    cpuFrameMs,
-    gpuFrameMs: gpu.gpuFrameMs,
-    syncFrameMs: [],
-    rafIntervalMs,
     importedLights: null,
     witnessLights: { count: lamps.size, shadows, ids: [...lamps.keys()], bare: true },
     movingNode: null,
-    stageProfile: null,
-    gpuPassSamples: [],
     selection: { source: null, ids: [] },
     metrics,
-    preparationMs,
     network,
-    mathBatch: null,
     size: { width: w, height: h },
     lost,
     captureStatus: response.status,

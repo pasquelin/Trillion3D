@@ -30,12 +30,29 @@ export function nextPow2(v: number) {
   throw new RangeError(`nextPow2: ${v} is past 2^32`)
 }
 
+/** Slots of an open-addressed table that holds `entries` at a load of one half at most: a power
+ *  of two, two slots at least. */
+export const halfLoadSlots = (entries: number) => nextPow2(2 * Math.max(1, entries))
+
+/** The most slots of `slotBytes` bytes each that `bytes` holds, a power of two: 0 when it holds
+ *  none, `Infinity` for unbounded bytes. Exact up to 2^64 slots. */
+export function slotsWithin(bytes: number, slotBytes: number) {
+  const fit = Math.floor(bytes / slotBytes)
+  if (!(fit >= 1)) return 0
+  if (fit === Infinity) return Infinity
+  return fit < 2 ** 32 ? 2 ** floorLog2(fit) : 2 ** (32 + floorLog2(Math.floor(fit / 2 ** 32)))
+}
+
 /** Side of mip level `level` of a texture whose base side is `size`, a non-negative int32: `size`
  *  halved `level` times by integer division, one texel at least; a level past 31 gives one texel. */
 export const mipSize = (size: number, level: number) => Math.max(1, size >>> Math.min(level, 31))
 
 /** The exponent of the greatest power of two not over the integer `v`; 0 gives -1. */
 export const floorLog2 = (v: number) => 31 - Math.clz32(v)
+
+/** Whether `width` × `height` is an image size: two safe integers of one or more. */
+export const isImageSize = (width: number, height: number) =>
+  Number.isSafeInteger(width) && Number.isSafeInteger(height) && width >= 1 && height >= 1
 
 /** Whether the int32 `v` is a power of two, 1 included; 0 and negatives are not. */
 export const isPow2 = (v: number) => v > 0 && (v & (v - 1)) === 0
@@ -55,4 +72,14 @@ export function uniqueSortedInPlace(values: number[] | Int32Array | Uint32Array)
     if (i === 0 || values[i] !== values[i - 1]) values[count++] = values[i]
   if (Array.isArray(values)) values.length = count
   return count
+}
+
+/** The twin of the shader's `mixWord` (`../wgsl/sampling.ts`): the 32-bit word hash, every product
+ *  wrapped, every shift unsigned. */
+export function mixWord(x: number) {
+  let h = Math.imul(x, 0x9e3779b1)
+  h ^= h >>> 15
+  h = Math.imul(h, 0x85ebca77)
+  h ^= h >>> 13
+  return h >>> 0
 }

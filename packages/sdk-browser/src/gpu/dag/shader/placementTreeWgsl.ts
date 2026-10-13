@@ -1,7 +1,8 @@
-import { TREE_GROUP } from '../placementTree.ts'
-import { CARD_ROOT } from '../../../visibility/shader/spriteWgsl.ts'
+import { REACH_UNBOUNDED, TREE_GROUP } from '../placementTree.ts'
+import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
+import { outsidePlanesFn } from './outsidePlanesWgsl.ts'
 import { LEVEL_QUEUES } from './levelWgsl.ts'
 
 /**
@@ -13,13 +14,14 @@ import { LEVEL_QUEUES } from './levelWgsl.ts'
  * (`cameraWorld`), under the camera, then — rejected there — under the view ahead, as any node
  * (`aheadWgsl.ts`). A kept cell deposits its children; a kept group deposits its members as
  * entries past the nodes (`nodeCount + k`, `k` a rank of the tree's order). The level that reads a
- * placement's entry prepares it — the planes and matrices `dagPrepare` derives, in the camera's
- * slot (`preparePlacement`) — then tests its root node in the same thread, so a placement no kept
- * group holds costs nothing: no planes, no matrix, no root test.
+ * placement's entry tests its root node, making its planes and matrices as it reads them
+ * (`primitiveWgsl.ts`), so a placement no kept group holds costs nothing: no planes, no matrix, no
+ * root test.
  *
  * With a tree, queue 0 holds its top nodes, then the world DAG's root — the one placement the tree
- * leaves out, wherever the packing put it (`worldRoot`) —, and `dagPrepare` writes those alone.
- * Without one, it holds one root per placement, as it always did.
+ * leaves out, wherever the packing put it (`worldRoot`) —, then the members drawn whatever the view
+ * (`always`, `../placementTree.ts`: never culled, or deformed past every finite reach), which no
+ * group opens; `dagPrepare` writes those alone. Without one, it holds one root per placement.
  */
 export const DAG_TREE_PREPARE_WGSL = wgslBlock(
   'DAG_TREE_PREPARE_WGSL',
@@ -27,36 +29,35 @@ export const DAG_TREE_PREPARE_WGSL = wgslBlock(
   `/** Whether the cut descends a placement tree (\`treeTop\`, its top level's nodes). */
 fn hasTree()->bool{return views[0u].treeTop>0u;}
 /** Queue 0's entries a view opens: one root per placement without a tree; with one, its top
- *  nodes, then the world DAG's root when it is packed. */
+ *  nodes, the world DAG's root when it is packed, then the members drawn whatever the view. */
 fn rootSlots()->u32{
  let world=select(0u,1u,views[0u].worldRoot!=0xffffffffu);
- return select(views[0u].worldCount,views[0u].treeTop+world,hasTree());
+ return select(views[0u].worldCount,views[0u].treeTop+world+views[0u].alwaysCount,hasTree());
 }
+/** Whether placement \`w\` is drawn whatever the view, as \`drawnAlways\` says of its mark: never
+ *  culled, or deformed past every finite reach (\`reachOf\` infinite). */
+fn drawnAlways(w:u32)->bool{let mark=markOf(w);return (mark&${SPRITE_UNCULLED}u)!=0u||(mark>>16u)>=${REACH_UNBOUNDED}u;}
 /** The one gate of a placement's root, whoever opens it — \`dagPrepare\` an ungrouped one, its kept
  *  group a member (\`placementStep\`): parked, drawn by its impostor card, or drawn by the world DAG
  *  in its place (\`worldCovers\`), it opens nothing. */
 fn opensRoot(w:u32)->bool{return rootOf(w)!=0xffffffffu&&(markOf(w)&${CARD_ROOT}u)==0u&&!worldCovers(w);}
-/** Placement \`w\`'s root, at entry \`at\` of queue 0 under the view \`vi\`, or none; the placement
- *  prepared either way. */
+/** Placement \`w\`'s root, at entry \`at\` of queue 0 under the view \`vi\`, or none. */
 fn openRoot(at:u32,w:u32){
- setFlag(queueBase(0u)+at,select(0xffffffffu,packEntry(vi,rootOf(w)),opensRoot(w)));
- preparePlacement(w);
+ putEntry(queueBase(0u),at,select(0xffffffffu,packEntry(vi,rootOf(w)),opensRoot(w)),w);
 }
 /** \`dagPrepare\`'s thread \`i\` of the bound range, with a tree: the head range writes its top
- *  nodes, the world DAG's range that root behind them. */
+ *  nodes, the world DAG's range that root behind them, and each member drawn whatever the view is
+ *  written behind it by the range that holds it — thread \`top + 1 + j\` of every range, member
+ *  \`j\`. */
 fn prepareTreeRoots(i:u32){
  let top=select(0u,views[0u].treeTop,rangeFirst()==0u);
- if(i<top){setFlag(queueBase(0u)+i,packEntry(0u,views[0u].cellBase+i));return;}
+ if(i<top){putEntry(queueBase(0u),i,packEntry(0u,views[0u].cellBase+i),0u);return;}
  let w=views[0u].worldRoot;
- if(i==top&&w!=0xffffffffu&&inRange(w)){vi=0u;openRoot(views[0u].treeTop,w);}
-}
-/** What \`dagPrepare\` derives for placement \`w\` under the camera: its planes in its slot, its
- *  \`view·world\`, its normal matrix and the view ahead's (\`preparePrimitive\`). */
-fn preparePlacement(w:u32){
- let pose=worldPose(w);let m=transpose(pose);deformReach=reachOf(w);
- // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
- let open=unculledOf(w);
- putPlanes(slotOf(w)*FRAME,m,vi,open);preparePrimitive(w,pose,m,open);
+ if(i==top){if(w!=0xffffffffu&&inRange(w)){vi=0u;openRoot(views[0u].treeTop,w);}return;}
+ let j=i-top-1u;
+ if(j>=views[0u].alwaysCount){return;}
+ let m=coldAt(views[0u].always+j);
+ if(inRange(m)){vi=0u;openRoot(views[0u].treeTop+select(0u,1u,w!=0xffffffffu)+j,m);}
 }
 `,
 )
@@ -67,13 +68,12 @@ export const DAG_TREE_DESCENT_WGSL = wgslBlock(
   [boxBehindPlane],
   `const TREE_GROUP:u32=${TREE_GROUP}u;
 /** Member \`k\` of the tree's order (\`members\`, behind the cold records), deposited by its kept group
- *  under the view \`vi\`: its placement prepared, then its root tested as pass 0 tests an ungrouped
- *  one, unless its gate closes it (\`opensRoot\`). */
+ *  under the view \`vi\`: its root tested as pass 0 tests an ungrouped one, unless its gate closes
+ *  it (\`opensRoot\`) or queue 0 opened it already (\`drawnAlways\`). */
 fn placementStep(src:u32,k:u32){
  let w=coldAt(views[0u].members+k);
- if(w==0xffffffffu||!inRange(w)||!opensRoot(w)){return;}
- let view=vi;vi=0u;preparePlacement(w);vi=view;
- nodeStep(src,rootOf(w));
+ if(w==0xffffffffu||!inRange(w)||!opensRoot(w)||drawnAlways(w)){return;}
+ nodeStep(src,rootOf(w),w);
 }
 /** A cell or a group of the tree: its world box under the camera, then under the view ahead. Its
  *  world is the first (\`NODE_WORLD\`), so one range's dispatch reads it. */
@@ -91,15 +91,11 @@ fn treeStep(src:u32,node:CullNode){
 }
 /** View \`v\`'s frustum test of a render-frame box, as \`outsideFrustum\` tests a primitive's: an
  *  infinite far plane (a NaN plane, \`farless\`) rejects nothing. */
-fn outsideView(v:u32,lo:vec3f,hi:vec3f)->bool{
- let skip=select(6u,FAR_PLANE,farlessOf(v));
- for(var i=0u;i<6u;i++){if(i!=skip&&boxBehindPlane(views[v].planes[i],lo,hi)){return true;}}
- return false;
-}
+${outsidePlanesFn('outsideView', '', (i) => `views[v].planes[${i}]`)}
 /** A kept cell opens its groups, a kept group its placements, in the next queue. */
 fn descendTree(src:u32,node:CullNode){
  let first=select(node.firstChild,views[0u].nodeCount+node.firstChild,node.kind==TREE_GROUP);
- queueAppend((src+1u)%${LEVEL_QUEUES}u,first,node.childCount);
+ queueAppend((src+1u)%${LEVEL_QUEUES}u,first,node.childCount,0u);
 }
 `,
 )

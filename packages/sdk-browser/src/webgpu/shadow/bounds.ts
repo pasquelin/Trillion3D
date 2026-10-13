@@ -1,26 +1,30 @@
 import { boxEmpty } from '../../../../sdk-core/src/index.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { Placements } from '../../page/selection/placements.ts'
 import type { WebgpuLightState } from '../pages/state/lights.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
-import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
+import { rowCutout } from '../row/pageRow.ts'
 import { mobilityRows } from './rowBuffers.ts'
-import { forEachDirtyRun, type RowRunVisitor } from '../row/dirty.ts'
+import type { RowRunVisitor } from '../row/dirty.ts'
 import { CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts'
 import { growClusterBox } from './spheres.ts'
+import {
+  rootOfPacked,
+  type PlacementIndex,
+  type Placements,
+} from '../../page/selection/placements.ts'
 
 export { growClusterBox, uploadClusterSpheres } from './spheres.ts'
-
-const ROW_WORDS = PAGE_INFO_STRIDE / 4
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /**
- * What `mobility.writeRows` reads of the table, built once per runtime: the table, its roots and its
- * placements are the layout's own objects for the session (`../pages/prepare/layout.ts`), and the buffer is
- * read from the lights when a run is pushed, so no run and no image builds a closure. `device` is
- * the one the call in progress uploads on.
+ * What `mobility.writeRows` reads of the table, built once per runtime and kept on its lights
+ * (`mobilitySource`): the table, its roots and its placements are the layout's own objects for the
+ * session (`../pages/prepare/layout.ts`), and the buffer is read from the lights when a run is
+ * pushed, so no run and no image builds a closure. `device` is the one the call in progress
+ * uploads on.
  */
-type MobilitySource = {
+export type MobilitySource = {
   rt: WebgpuPagesRuntime
   device: GPUDevice
   worldOf: (rank: number) => ArrayLike<number>
@@ -31,10 +35,8 @@ type MobilitySource = {
   shadowless: (rank: number) => boolean
 }
 
-const sources = new WeakMap<WebgpuPagesRuntime, MobilitySource>()
-
 function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const built = sources.get(rt)
+  const built = rt.lights.mobilitySource
   if (built) {
     built.device = device
     return built
@@ -46,7 +48,7 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
     device,
     worldOf: (rank) => selectionRoots[rank].world.elements,
     placementOf: (row) =>
-      rows.packedRecs[row] ? placement.rootOfPacked[rows.packedPageIndex[row]] : -1,
+      rows.packedRecs[row] ? rootOfPacked(placement, rows.packedPageIndex[row]) : -1,
     push: (first, count) =>
       source.device.queue.writeBuffer(
         lights.mobilityRows!,
@@ -57,14 +59,14 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
       ),
     // A row the table does not hold yet is sized as the scene's largest: never a triangle short.
     corners: (row) =>
-      rows.pageTableInts?.[row * ROW_WORDS + ROW_INDEX_WORDS] ?? rt.setup.maxCorners,
+      rows.pageTableInts?.[row * ROW_WORDS + PAGE_INFO.at.indexCount] ?? rt.setup.maxCorners,
     cutout: (row) => !!rows.pageTableInts && rowCutout(rows.pageTableInts, row),
     shadowless: (rank) => {
       const root = selectionRoots[rank]
       return !root || !!root.parked || ((root.mark ?? 0) & CASTS_NO_SHADOW) !== 0
     },
   }
-  sources.set(rt, source)
+  lights.mobilitySource = source
   return source
 }
 
@@ -124,7 +126,7 @@ export function uploadRowMobility(
 export function uploadDirtyRowMobility(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { rows } = rt.layout
   uploadRowMobility(rt, device, 0, -1)
-  forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, rows.dirtyTo, sourceOf(rt, device), mobilityRun)
+  rows.forEachDirtyRun(sourceOf(rt, device), mobilityRun)
 }
 
 /** Two flat world boxes and their halves, allocated once, that a change is declared with: the
@@ -153,7 +155,7 @@ export const recordMoves = ({ mobility }: WebgpuLightState, rank: number) =>
 export function noteResidenceChange(
   lights: WebgpuLightState,
   roots: Placements,
-  rootOfPacked: Int32Array,
+  placement: PlacementIndex,
   packed: number,
   rec: PageRec,
   moving?: boolean,
@@ -161,7 +163,7 @@ export function noteResidenceChange(
 ) {
   const { store, changes } = lights
   if (!store.count) return
-  const rank = rootOfPacked[packed] ?? -1
+  const rank = rootOfPacked(placement, packed) ?? -1
   const onlyMoving = moving ?? recordMoves(lights, rank)
   const { box, min, max } = changeBoxes[+onlyMoving]
   boxEmpty(box, 0)

@@ -8,9 +8,8 @@ import {
   FLAG_DIAGNOSTIC_VIEW,
   FLAG_DIAGNOSTIC_WIREFRAME,
   FLAG_UNLIT_VIEW,
-} from '../../visibility/buffer.ts'
+} from '../../visibility/types.ts'
 import { writeBlendDiagnostic } from './diagnostic.ts'
-import { stillTurn } from '../../taa/frameState.ts'
 import { directTiles } from '../pages/render/encodeLights.ts'
 import { wantsContractLighting } from '../pages/prepare/lightResources.ts'
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts'
@@ -57,7 +56,7 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
     blendState,
     rt.layout.packedPages,
     rt.layout.selectionRoots,
-    rt.layout.placement.rootOfPacked,
+    rt.layout.placement,
     diagnostic,
     eye && run.gate.cam,
     rt.setup.viewport,
@@ -90,7 +89,7 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /** The view's words this image sets past its camera and its lamp tiles: the flags, the
- *  texture-feedback phase, the target, the fog's eye, the noise turn, the pixel ratio, the
+ *  texture-feedback phase, the target, the fog's eye, the pixel ratio, the
  *  texture level offset and the display curve. */
 function writeViewFrame(rt: WebgpuPagesRuntime, tiles: ReturnType<typeof directTiles>) {
   const { run, blendState } = rt,
@@ -112,8 +111,6 @@ function writeViewFrame(rt: WebgpuPagesRuntime, tiles: ReturnType<typeof directT
   packed[VIEW.eye] = tiles[5]
   packed[VIEW.eye + 1] = tiles[6]
   packed[VIEW.eye + 2] = tiles[7]
-  // The turn the blended surfaces' noise takes this image (`translucentReflectionOffset`).
-  packed[VIEW.frameNoise] = stillTurn(rt.gpu.temporal?.frame)
   // Render pixels per CSS pixel: a line's width counts CSS pixels (`lineClip`).
   packed[VIEW.pixelRatio] = renderPixelRatio(rt)
   // Texture level offset of a frame drawn below the display (`tilePoolWgsl`).

@@ -10,19 +10,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { assertSoundProof, runPageProof } from '../kit/enginePageProof.ts'
-import { difference } from '../kit/sceneImageProof.ts'
-import type { LobeReading } from '../visibility/physicalLobesPage.ts'
+import { lobeReadings, lobeSpread } from '../kit/enginePageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
-const readingsOf = async (method: string) => {
-  const result = await runPageProof(
-    resolve(import.meta.dirname, 'lobesWaterPage.ts'),
-    'lobesWater',
-    method,
-  )
-  assertSoundProof(result)
-  return (result as typeof result & { readings: Record<string, LobeReading> }).readings
-}
+const readingsOf = (method: string) =>
+  lobeReadings(resolve(import.meta.dirname, 'lobesWaterPage.ts'), 'lobesWater', method)
 
 test('a transmissive clear coat draws its highlight, and its zero map the uncoated image', async () => {
   const { none, coat, coatMapZero } = await readingsOf('clearcoat')
@@ -31,7 +23,7 @@ test('a transmissive clear coat draws its highlight, and its zero map the uncoat
     `the coat's highlight: ${coat.centre} over ${none.centre}`,
   )
   assert.equal(
-    difference(coatMapZero.pixels, none.pixels),
+    compareImages(coatMapZero.pixels, none.pixels).differentPixels,
     0,
     'a zero coat map: the uncoated image',
   )
@@ -39,12 +31,11 @@ test('a transmissive clear coat draws its highlight, and its zero map the uncoat
 
 test('a transmissive anisotropic highlight stretches along its direction, and its zero map is isotropic', async () => {
   const { none, along, turned, strengthMapZero } = await readingsOf('anisotropy')
-  const say = (r: LobeReading) => `x ${r.alongX}, y ${r.alongY}, centre ${r.centre}`
-  assert.ok(Math.abs(none.alongX - none.alongY) <= 2, `isotropic: ${say(none)}`)
-  assert.ok(along.alongX > along.alongY + 10, `along the tangent: ${say(along)}`)
-  assert.ok(turned.alongY > turned.alongX + 10, `turned a quarter: ${say(turned)}`)
+  assert.ok(Math.abs(none.alongX - none.alongY) <= 2, `isotropic: ${lobeSpread(none)}`)
+  assert.ok(along.alongX > along.alongY + 10, `along the tangent: ${lobeSpread(along)}`)
+  assert.ok(turned.alongY > turned.alongX + 10, `turned a quarter: ${lobeSpread(turned)}`)
   assert.equal(
-    difference(strengthMapZero.pixels, none.pixels),
+    compareImages(strengthMapZero.pixels, none.pixels).differentPixels,
     0,
     'a zero strength map: the isotropic image',
   )

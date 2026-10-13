@@ -43,9 +43,9 @@ pub fn parse_compiler_args(
         }
     }
     let (scope,triangle_budget,threads,ram_budget_mb,resource_base,simplification)=match args.len(){
-  5=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,2,256,args[4].clone(),"none".into()),
-  7=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,number(Some(&args[4]),2,"threads")?,number(Some(&args[5]),256,"RAM_MB")?,args[6].clone(),"none".into()),
-  8=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,number(Some(&args[4]),2,"threads")?,number(Some(&args[5]),256,"RAM_MB")?,args[6].clone(),args[7].clone()),
+  5=>(args[2].clone(),number(Some(&args[3]),DEFAULT_TRIANGLE_BUDGET,"triangles")?,DEFAULT_THREADS,DEFAULT_RAM_BUDGET_MB,args[4].clone(),"none".into()),
+  7=>(args[2].clone(),number(Some(&args[3]),DEFAULT_TRIANGLE_BUDGET,"triangles")?,number(Some(&args[4]),DEFAULT_THREADS,"threads")?,number(Some(&args[5]),DEFAULT_RAM_BUDGET_MB,"RAM_MB")?,args[6].clone(),"none".into()),
+  8=>(args[2].clone(),number(Some(&args[3]),DEFAULT_TRIANGLE_BUDGET,"triangles")?,number(Some(&args[4]),DEFAULT_THREADS,"threads")?,number(Some(&args[5]),DEFAULT_RAM_BUDGET_MB,"RAM_MB")?,args[6].clone(),args[7].clone()),
   _=>return Err("Usage: trillion3d-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL\n       trillion3d-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints] [--textures-format=all|bc7|astc|etc2|none]\n       SOURCE is a directory or a file in one of the formats --version lists".into()),
  };
     if !["none", "qem-endpoints"].contains(&simplification.as_str()) {

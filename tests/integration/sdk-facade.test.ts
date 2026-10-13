@@ -44,43 +44,6 @@ test('importing each facade starts no browser resource or native process', () =>
   }
 })
 
-test('the five-import hierarchy example composes parents before children', () => {
-  const {
-    HIERARCHY_ROOT,
-    MATRIX_VALUES,
-    POSITION_VALUES,
-    QUATERNION_VALUES,
-    hierarchyUpdateBatch,
-  } = common
-  const count = 3
-  // The guide's five-import example, run as written.
-  // jscpd:ignore-start
-  const views = (buffer: Float64Array, stride: number): Float64Array[] =>
-    Array.from({ length: count }, (_, index) =>
-      buffer.subarray(index * stride, (index + 1) * stride),
-    )
-  const world = new Float64Array(count * MATRIX_VALUES)
-  const positions = new Float64Array(count * POSITION_VALUES)
-  const rotations = new Float64Array(count * QUATERNION_VALUES)
-  const scales = new Float64Array(count * POSITION_VALUES).fill(1)
-  // jscpd:ignore-end
-  const parents = new Uint32Array([HIERARCHY_ROOT, 0, 1])
-  rotations[3] = rotations[7] = rotations[11] = 1
-  positions[0] = 2
-  positions[3] = 3
-  positions[6] = 5
-  hierarchyUpdateBatch(
-    views(world, MATRIX_VALUES),
-    views(positions, POSITION_VALUES),
-    views(rotations, QUATERNION_VALUES),
-    views(scales, POSITION_VALUES),
-    parents,
-    count,
-    new Float64Array(MATRIX_VALUES),
-  )
-  assert.deepEqual([world[12], world[28], world[44]], [2, 5, 10])
-})
-
 interface InventoryEntry {
   name: string
   kind: string
@@ -96,12 +59,25 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 719 exports: the public API holds neither WGSL text (the shaders' maths library declares
-  // it), a shadow atlas, a CPU transport, nested Hi-Z oracles, example-only helpers, the world
+  // 709 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
-  // decoding and comparison layout; it holds the names the public signatures carry: PageHome,
-  // PageHomes, QualityResolution and WorldQualityOptions.
-  assert.equal(inventory.exports.length, 719)
+  // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
+  // PageHome, PageHomes, QualityResolution, TextureLevelAddress, TextureLevelStore,
+  // WorldQualityOptions, ModelScene and the documented settings of `world.controls`
+  // (ControlSettings, CharacterSettings); the sources a session draws and their association
+  // (DrawSource, DrawRanks, DrawAssociations) and the row a parent composes (PlacementLink); and the
+  // page cache a streamer reads through,
+  // `createPageCache` with its contract (PageCache, CacheSession, ReadRange, RangeAsk, ByteMeter);
+  // it holds no CPU character capsule (Capsule, CapsuleContact, CapsulePush, TriangleTree,
+  // CharacterCollision, TriangleCollision): Jolt is the one character body; and the frustum's
+  // `FAR_PLANE_SLOT`, the slot a culling reader tests the far plane at. It holds no compute-path
+  // governor either: the batches run their WebAssembly kernels alone, and no JavaScript twin of the
+  // two (boxTransformBatch, multiplyMatrix4Batch) stands beside them; nor a second page source
+  // beside the streaming (httpPageSource): `page.httpSource` reads through a streamer. The run-time proxy a placement
+  // wears carries its deformation (CutDeformation, CORNER_INFLUENCES), and the bounce occupancy names
+  // the rows it is told moved (MovedRows).
+  assert.equal(inventory.exports.length, 709)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
@@ -150,7 +126,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const bundle = (entry: string) =>
     build({
       stdin: {
-        contents: `import { hierarchyUpdateBatch } from '${entry}'; console.log(hierarchyUpdateBatch);`,
+        contents: `import { multiplyMatrix4 } from '${entry}'; console.log(multiplyMatrix4);`,
         resolveDir: new URL('../..', import.meta.url).pathname,
       },
       bundle: true,
@@ -165,17 +141,29 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const proposed = await bundle('./packages/sdk/index.ts')
   const browserProposed = await bundle('./packages/sdk/browser.ts')
   const inputs = Object.keys(proposed.metafile.inputs)
-  assert.ok(inputs.some((path) => path.endsWith('/math/src/batch/batch.ts')))
+  assert.ok(inputs.some((path) => path.endsWith('/math/src/matrix/matrix4.ts')))
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
-  // The minified bytes of a bundle of `hierarchyUpdateBatch` alone, through each entry: the engine
-  // core, its node writes noted in their journal; the package, with the machine-independent quaternion normalisation and arc trigonometry;
-  // its browser condition. The aim's scratch buffers are marked pure, so a bundle that never aims a
-  // node drops them; the length rule's range (hypot outside the normal band) is kept. The browser
-  // entry's camera projections read `length2` from the vector module, whose lazy init it starts;
-  // its transform tree grows by the one growth rule (`resized`).
-  assert.equal(baseline.outputFiles[0].contents.length, 3_759)
-  assert.equal(proposed.outputFiles[0].contents.length, 2_006)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_829)
+  // The minified bytes of a bundle of `multiplyMatrix4` alone, through each entry: the engine
+  // core, its node writes noted in their journal and its stage labels, the screen reflections and
+  // the image effects among them; the package, with
+  // the machine-independent quaternion normalisation and arc trigonometry; its browser condition.
+  // The aim's scratch buffers are marked pure, so a bundle that never aims a node drops them; the
+  // length rule's range (hypot outside the normal band) is kept. The browser entry's camera
+  // projections read `length2` from the vector module, whose lazy init it starts; its transform tree
+  // grows by the one growth rule (`resized`), keeps a second list of the children whose world
+  // something else composes (`firstLazy`, `lastLazy`); the cache format's constants the compiler writes are
+  // printed into one module (`contracts/writtenFormats.ts`), which the entry's chain now includes;
+  // the render-origin module imports the matrix inverse and the culling batch the empty-bounds test,
+  // two more module init calls in the chain (7 bytes, no function kept); the merged duplicate removals
+  // (runtime, language, code) move it by two bytes more; the compute-path governor gone, its
+  // contract's module leaves the browser chain; the light settings' tap count, gone with the
+  // filtered shadow read, takes eleven off; the run-time proxy's contract, posed for deformed
+  // placements, moves the core by sixty bytes off, the package and its browser condition by
+  // fourteen and eighteen on. The batch twins gone, the bundle is of the single product
+  // `multiplyMatrix4`, the kernels' bits.
+  assert.equal(baseline.outputFiles[0].contents.length, 3_066)
+  assert.equal(proposed.outputFiles[0].contents.length, 1_406)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_124)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )

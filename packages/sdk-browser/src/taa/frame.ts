@@ -2,13 +2,13 @@ import { jitterViewProjection, taaJitter, taaStillFrames, upscalePhases } from '
 import { writeTaaView } from './view.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { SAMPLED_RANKS } from '../lighting/direct/lightSamplingWgsl.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { AccumulatedImage } from '../lighting/deferred/program.ts'
 import { writtenFilter } from '../webgpu/blend/displayFilter.ts'
 import { drawFrameAt } from '../webgpu/pages/state/renderScale.ts'
 import { renderExtent } from '../frame/renderScaleOption.ts'
-import { restartTaaAverage, restartTaaOnLanding, restartTaaOnShadowLanding } from './landing.ts'
+import { restartTaaAverage, restartTaaOnShadowLanding } from './landing.ts'
 import {
   decideComposedMotion,
   MOTION_KEEP,
@@ -79,6 +79,7 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   taaJitter(state.sample + offset, state.jitter, state.phases)
   state.jitterGrid[0] = targetSize[0]
   state.jitterGrid[1] = targetSize[1]
+  state.cameraViewProjection.set(cam.viewProjection)
   jitterViewProjection(
     state.viewProjection,
     cam.viewProjection,
@@ -154,7 +155,7 @@ export function encodeTaaPass(
     temporal.motion.moved || !!rt.compose?.moving,
     !!inputs.filter && filterHistory.written,
     !!vis.deformationCompute,
-    rt.lights.store?.environment?.exposure,
+    rt.lights.store?.environment,
   )
   inputs.upscale = targetSize[0] !== displaySize[0] || targetSize[1] !== displaySize[1]
   inputs.current = current
@@ -193,16 +194,6 @@ export const taaArrivals = (rt: WebgpuPagesRuntime) => rt.gpu.temporal?.frame.st
 /** Jitter phases a still image averages: one without temporal accumulation. */
 export const taaPhaseCount = (rt: WebgpuPagesRuntime) =>
   rt.gpu.temporal?.frame.active ? rt.gpu.temporal.frame.phases : 1
-
-/** Reflections refine a quiet image under its average — the one source a quiet image lets change
- *  (`holdWebgpuFrame`): once they settle, the average restarts on the final scene, as on a landing,
- *  so no image drawn before stays in it at 1/N. `refining`: they still refine this image. */
-export function restartTaaOnSettle(rt: WebgpuPagesRuntime, refining: boolean) {
-  const frame = rt.gpu.temporal?.frame
-  if (!frame) return
-  restartTaaOnLanding(rt, frame.refining && !refining ? 1 : 0)
-  frame.refining = refining
-}
 
 /** Rank of this image among those whose lighting is SAMPLED (moving, on a history that averages
  *  its draws), or zero: a still image, or one nothing averages, shades every light. */

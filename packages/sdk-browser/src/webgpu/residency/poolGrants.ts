@@ -1,7 +1,9 @@
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
 import { deviceMade } from '../../gpu/core/errorScope.ts'
+import { budgetRefused, ledgerTentative } from '../../gpu/core/deviceLedger.ts'
 import { createPageBuffer } from '../../gpu/page/resize.ts'
 import { tilePoolTexture } from '../tile/pool.ts'
-import { POOL_LANES, type PoolEncoding } from '../../texture/blockFormats.ts'
+import type { PoolEncoding } from '../../texture/blockFormats.ts'
 import type { GeometryPool } from '../../residency/pools.ts'
 import type { TexturePool, TexturePools } from './memoryBudgets.ts'
 import {
@@ -39,11 +41,31 @@ async function grantedPool<P extends ShrunkPool, R extends Made>(options: {
   diagnose: Diagnose
 }): Promise<Granted<P, R> | undefined> {
   const { device, name, draw, make, diagnose } = options
-  let pool = draw(options.budgetBytes)
+  try {
+    return await grantedWithin(device, name, draw(options.budgetBytes), draw, make, diagnose)
+  } catch (error) {
+    // The budget refused the pool beside what it holds: no device memory was refused, so no
+    // smaller pool is drawn, and the pool in place stays — the session is never refused for it.
+    if (budgetRefused(error)) return undefined
+    throw error
+  }
+}
+
+/** `grantedPool`'s halvings from `pool`, each asked of the device under the budget, tentatively
+ *  (`ledgerTentative`): a budget refusal throws, the device's halves the pool. */
+async function grantedWithin<P extends ShrunkPool, R extends Made>(
+  device: GPUDevice,
+  name: RefusedPool,
+  first: P,
+  draw: (budgetBytes: number) => P,
+  make: (pool: P) => R,
+  diagnose: Diagnose,
+): Promise<Granted<P, R> | undefined> {
+  let pool = first
   const requestedBytes = pool.allocatedBytes
   let made: R | undefined,
     halvings = 0
-  while (!(made = await deviceMade(device, () => make(pool)))) {
+  while (!(made = await deviceMade(device, () => ledgerTentative(device, () => make(pool))))) {
     const smaller = halvedPool(pool, draw)
     if (!smaller) {
       const refused = outOfMemoryContext(name, requestedBytes)
@@ -111,7 +133,7 @@ export const textureProbe =
   (device: GPUDevice, encoding: PoolEncoding) =>
   (pool: TexturePool): Made => {
     const textures = (['color', 'data'] as const).flatMap((kind) =>
-      POOL_LANES.filter((lane) => pool.layers[kind][lane] > 0).map((lane) =>
+      PREVIEW_LAYOUT_NAMES.filter((lane) => pool.layers[kind][lane] > 0).map((lane) =>
         device.createTexture({
           ...tilePoolTexture({
             kind,
@@ -138,5 +160,5 @@ export async function probed<P>(granted: Promise<Granted<P, Made> | undefined>) 
 /** True when two texture pools hold the same layers in every lane: nothing to replace. */
 export const sameLayers = (a: TexturePool, b: TexturePool) =>
   (['color', 'data'] as const).every((kind) =>
-    POOL_LANES.every((lane) => a.layers[kind][lane] === b.layers[kind][lane]),
+    PREVIEW_LAYOUT_NAMES.every((lane) => a.layers[kind][lane] === b.layers[kind][lane]),
   )

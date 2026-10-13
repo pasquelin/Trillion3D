@@ -1,6 +1,6 @@
 import { sampleWebgpuFrame } from './signature.ts'
 import { CPU_STEP } from '../pages/render/cpuStepTable.ts'
-import { beginTaaFrame, restartTaaOnSettle, taaSettled } from '../../taa/frame.ts'
+import { beginTaaFrame, taaSettled } from '../../taa/frame.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { effectsMoved } from '../pages/render/encodeEffects.ts'
 import { guidesMoved } from '../pages/render/encodeGuides.ts'
@@ -8,7 +8,7 @@ import { particlesMoved } from '../particles/webgpuParticleFrame.ts'
 import { frameTargetsAwaited } from '../pages/prepare/targetGrant.ts'
 import { asidePending, swapAsideTargets } from '../pages/prepare/targetsAside.ts'
 import { deviceAnswering } from './deviceAnswer.ts'
-import { REFLECTIONS_PENDING, unsettledMask } from './unsettled.ts'
+import { unsettledMask } from './unsettled.ts'
 import { traceDrawnFrame } from './holdTrace.ts'
 /**
  * What a held frame actually did, published as such.
@@ -32,7 +32,7 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
   timing.lastGpuHostGapMs = null
   timing.lastGpuIdleMs = null
   timing.lastSubmitMs = submitMs
-  const steps = timing.cpuProfile.row
+  const steps = timing.profiler.row
   steps.fill(0)
   // No tile was pumped: the textures stage stays unmeasured, as on an image with nothing to serve.
   steps[CPU_STEP.tilesPumpMs] = NaN
@@ -64,9 +64,8 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     awaited = frameTargetsAwaited(rt),
     answered = !deviceAnswering(rt)
   if ((answered && !awaited) || rt.capture.capturing) {
-    // Reflection refinement delays holding, but a still source keeps the full TAA scale/lights.
     const unsettled = unsettledMask(rt, run.frame)
-    const quiet = run.gate.held() && (unsettled & ~REFLECTIONS_PENDING) === 0
+    const quiet = run.gate.held() && unsettled === 0
     // Targets the device granted aside enter here, before anything is drawn: this frame is drawn
     // into them, never held on a display colour they never had. Its stillness is the scene's.
     const swapped = !awaited && answered && swapAsideTargets(rt, device)
@@ -74,7 +73,6 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     if (
       swapped ||
       !quiet ||
-      unsettled & REFLECTIONS_PENDING ||
       !taaSettled(rt) ||
       guidesMoved(rt) ||
       effectsMoved(rt) ||
@@ -82,7 +80,6 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     ) {
       if (rt.diag.traceEnabled) traceDrawnFrame(rt, unsettled, swapped)
       // Only an image that is drawn enters the accumulation: a held one leaves it as is (#26).
-      restartTaaOnSettle(rt, (unsettled & REFLECTIONS_PENDING) !== 0)
       beginTaaFrame(rt, run.gate.cam, quiet)
       run.frameHeld = false
       return false

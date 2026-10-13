@@ -3,7 +3,7 @@ import { createTransparentOcclusion } from '../../gpu/core/transparentOcclusion.
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { packPageCorners } from '../visibility/corners.ts'
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts'
-import { rootOf } from '../../page/selection/placements.ts'
+import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
 import { setBit } from '../../../../math/src/scalar/bits.ts'
 
 type Table = NonNullable<WebgpuPagesRuntime['blendState']['table']>
@@ -21,14 +21,32 @@ export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device
     { table, compaction } = blendState
   const hiz = vis.gpuHiz,
     partition = vis.gpuPartition
-  if (!hiz || !partition || !table || !compaction?.encode || !table.length) return
+  if (!hiz || !partition || !table || !compaction?.encode) return
   blendState.occlusion = await createTransparentOcclusion(device, table.capacity, {
-    pyramid: () => hiz.pyramidBuffer(),
+    pyramid: () => hiz.pyramidView(),
     uniforms: partition.uniforms,
-    occluded: compaction.occludedBuffer,
+    // The compaction's, read at each image: its buffers are made over when the table outgrows them.
+    occluded: () => blendState.compaction!.occludedBuffer,
   })
   if (!blendState.occlusion) return
   blendState.occlusionCorners = new Float32Array(table.capacity * CORNER_VALUES)
+  blendState.occlusionEpoch = -1
+}
+
+/**
+ * The test made to cover the entries the table gained, and every corner sent again at the next
+ * image: the entries joined behind the held ones, and the held ones were never rewritten, so the
+ * table's age is the only thing that says they are to be.
+ */
+export function growTransparentOcclusion(rt: WebgpuPagesRuntime) {
+  const { blendState } = rt,
+    { table, occlusion } = blendState
+  if (!table || !occlusion) return
+  if (occlusion.grow(table.capacity)) {
+    const corners = new Float32Array(table.capacity * CORNER_VALUES)
+    corners.set(blendState.occlusionCorners)
+    blendState.occlusionCorners = corners
+  }
   blendState.occlusionEpoch = -1
 }
 
@@ -89,7 +107,7 @@ function packEntries(rt: WebgpuPagesRuntime, table: Table, from: number, to: num
       packed.fill(0, base, base + CORNER_VALUES)
       continue
     }
-    const root = rootOf(selectionRoots, placement.rootOfPacked[page])
+    const root = rootOf(selectionRoots, rootOfPacked(placement, page))
     packPageCorners(packed, base, rec, root.world, root.reach)
     if (neverCulled(rec.material)) setBit(bits, entry)
   }

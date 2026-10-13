@@ -2,8 +2,9 @@
 // file imports. The engine names each pass by a string; this finds where the string lives, and —
 // when it is a constant — the file that uses the constant to begin the pass. Paths are the
 // checkout's own, relative to its root, never the machine's.
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { filesUnder } from '../../scripts/repository-files.ts'
 import { passKey } from './summary.ts'
 
 /** Where a pass is encoded: the checkout's file and line, its function, and its shader modules. */
@@ -16,17 +17,12 @@ const BEGINS = /begin(Render|Compute)Pass/
 
 /** Every engine source of `root`, as `[path relative to root, text]`. */
 export function engineSources(root: string) {
-  const files: [string, string][] = []
-  const walk = (dir: string) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name)
-      if (entry.isDirectory()) walk(path)
-      else if (entry.name.endsWith('.ts') && !SKIP.test(entry.name))
-        files.push([relative(root, path), readFileSync(path, 'utf8')])
-    }
-  }
-  for (const folder of FOLDERS) walk(join(root, folder))
-  return files
+  return FOLDERS.flatMap((folder) =>
+    filesUnder(join(root, folder), (_, name) => SKIP.test(name)).flatMap(
+      (path): [string, string][] =>
+        path.endsWith('.ts') ? [[relative(root, path), readFileSync(path, 'utf8')]] : [],
+    ),
+  )
 }
 
 /** A pass label without the batch number and the engine's prefix: the string its code holds. */

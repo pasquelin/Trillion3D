@@ -1,10 +1,9 @@
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../../visibility/types.ts'
 import type { ClusterRoot } from '../../../page/selection/types.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { WebgpuPagesLayout } from '../prepare/layout.ts'
 import { noteWorldMoved } from './movedWorlds.ts'
-
-const ROW_WORDS = PAGE_INFO_STRIDE / 4
+import { extendSpan } from '../../../../../math/src/sequence/span.ts'
 
 /** What a moved root rewrites: its rows and the memos its world feeds, and the runtime's list of
  *  moved placements, which names it (`movedWorlds.ts`). */
@@ -14,7 +13,7 @@ export type MovedRootTarget = {
   blendState: {
     occlusionEpoch: number
     occlusionMoved?: { from: number; to: number }
-    table?: { readonly entryOfPage: Int32Array }
+    table?: { entryOf(page: number): number }
   }
 }
 
@@ -53,10 +52,9 @@ function reboundCorners(
     return
   }
   for (let page = from; page <= to; page++) {
-    const entry = table.entryOfPage[base + page] ?? -1
+    const entry = table.entryOf(base + page)
     if (entry < 0) continue
-    moved.from = Math.min(moved.from, entry)
-    moved.to = Math.max(moved.to, entry)
+    extendSpan(moved, entry)
   }
 }
 
@@ -85,7 +83,7 @@ export function markRootRows(
     const index = base + page,
       transparent = !!root.pages[page].transparent
     // A blended cluster moves its caster row (`../../row/blendCasters.ts`), which is its own.
-    const row = transparent ? rows.blendRowOf[index] : rows.rowOfPage[index]
+    const row = transparent ? rows.blendRowOf(index) : rows.rowOf(index)
     if (!floats || row < 0) continue
     // A row the cache gave back may name another page since: only a row that is this page's.
     if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue

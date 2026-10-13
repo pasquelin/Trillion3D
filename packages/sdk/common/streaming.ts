@@ -21,7 +21,6 @@ export type {
 export {
   blocksAcross,
   levelBlockBytes,
-  PREVIEW_BASE,
   previewBlockBytes,
   previewFirstLevel,
   previewIsWhole,
@@ -53,14 +52,9 @@ export {
 } from '../../sdk-core/src/page/integrationPlan.ts'
 export type { PageIntegrationPlan } from '../../sdk-core/src/page/integrationPlan.ts'
 export { decodeManifestBinary } from '../../sdk-core/src/manifest/binaryDecode.ts'
-export {
-  GEOMETRY_PAGE_CODEC,
-  GEOMETRY_PAGE_FORMAT_VERSION,
-  MANIFEST_BINARY_MAGIC,
-  MANIFEST_BINARY_VERSION,
-  COLUMN_KIND,
-} from '../../sdk-core/src/manifest/binaryFormat.ts'
+export { GEOMETRY_PAGE_CODEC, COLUMN_KIND } from '../../sdk-core/src/manifest/binaryFormat.ts'
 export type { ColumnKind } from '../../sdk-core/src/manifest/binaryFormat.ts'
+export { GEOMETRY_PAGE_FORMAT_VERSION } from '../../sdk-core/src/page/format.ts'
 export {
   PAGE_INTEGRATION_FAILURES,
   PAGE_INTEGRATION_PROTOCOL,
@@ -90,7 +84,6 @@ export {
   PREVIEW_BLOCK_SIDE,
   PREVIEW_LAYOUT_NAMES,
   PREVIEW_LOSSLESS_FORMAT,
-  TEXTURE_PREVIEW_VERSION,
 } from '../../sdk-core/src/texture/previewFormat.ts'
 export type { TextureBlockFormat, TextureLayout } from '../../sdk-core/src/texture/previewFormat.ts'
 export { readPagedManifest } from '../../sdk-core/src/manifest/paged.ts'

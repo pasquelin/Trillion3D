@@ -1,4 +1,5 @@
 import { withEmissiveAo } from '../../../scene/surfaceAllocation.ts'
+import { holdsWater } from '../../transparent/transmission.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** A diagnostic GPU variant, or the feedback A/B's session: their stages have no twin without an
@@ -15,9 +16,9 @@ export const keepsEveryOutput = ({ context }: Pick<WebgpuPagesRuntime, 'context'
  * the image until the classes that write the layer are compiled (`../../frame/framePipelines.ts`).
  */
 export function wantsEmissiveAo(rt: WebgpuPagesRuntime) {
-  const { blendState, gpu, vis } = rt
+  const { gpu, vis } = rt
   if (keepsEveryOutput(rt)) return true
-  if (blendState.transmissive > 0 || gpu.impostorCode) return true
+  if (holdsWater(rt) || gpu.impostorCode) return true
   return !!vis.shadeCensus?.emits
 }
 

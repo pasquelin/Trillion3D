@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { grownListCap, initialListCap } from './listCap.ts'
-import { SELECTION_LIST_CAP, stagedOutputBytes } from './layout.ts'
+import { SELECTION_LIST_CAP, residentReadbackBytes, stagedOutputBytes } from './layout.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { packDagSelection } from './selection.ts'
@@ -16,7 +16,7 @@ import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { deviceListCap } from './deviceListCap.ts'
-import { writtenReadbacks } from './differenceRig.fixture.ts'
+import { idleKernels, writtenReadbacks } from './differenceRig.fixture.ts'
 
 test('the list a device holds is the largest whose readout one binding holds', () => {
   const limits = { maxStorageBufferBindingSize: 128 << 20 }
@@ -41,14 +41,15 @@ test('a truncated list doubles past what the cut asked, within the catalogue and
 async function cut(cap: number, options: Parameters<typeof fakeDevice>[0] = {}) {
   const [root] = packed(dagFixture()).roots
   const dag = packDagSelection(Array.from({ length: 48 }, () => root))
-  const fake = fakeDevice(options)
+  const fake = fakeDevice({ kernel: idleKernels, ...options })
   // Every readback maps what the kernels would have written for `drawn` on the list in place: the
   // drain cuts again on a grown list by itself (`runtime.ts`).
   let drawn: number[] = []
   // The list in place when a readback maps: it grows only with none in flight (`dispatch.ts`).
   let held = () => cap
   writtenReadbacks(fake.device, () => ({ cap: held(), cut: { asked: drawn, drawn } }))
-  const resources = await createDagResources(fake.device, dag, null, cap)
+  // No table of open counts behind the lists: the readout is the lists alone (`heldOpen.ts`).
+  const resources = await createDagResources(fake.device, dag, null, cap, undefined, 0)
   assert.ok(resources)
   held = () => resources.listCap
   const selection = createDagRuntime(resources)
@@ -65,7 +66,7 @@ async function cut(cap: number, options: Parameters<typeof fakeDevice>[0] = {}) 
 
 test('a cut past its list grows it and stays on the GPU, every drawn cluster listed', async () => {
   const { fake, resources, selection, frame } = await cut(4)
-  const old = [resources.output, ...resources.readback]
+  const old = [resources.output, ...resources.ranks]
   const drawn = Array.from({ length: 10 }, (_, page) => page)
   const grown = await frame(drawn)
   assert.equal(resources.listCap, 20, 'the drain grew the list and cut again on it')
@@ -79,6 +80,10 @@ test('a cut past its list grows it and stays on the GPU, every drawn cluster lis
     'the old readout released',
   )
   assert.ok(!resources.buffers.some((buffer) => old.includes(buffer)))
+  // The readback ring takes the grown size at its next copy, its buffer made again to hold it.
+  const copied = fake.copies.filter(({ to }) => to.label === 'Trillion3D DAG readback slot').at(-1)!
+  assert.equal(copied.size, residentReadbackBytes(20), 'the copy is the grown list’s')
+  assert.ok(copied.to.size >= copied.size && !fake.destroyed.includes(copied.to))
   const outOf = (group: GPUBindGroup) =>
     [...(group as unknown as GPUBindGroupDescriptor).entries].find(
       (e) => e.binding === DAG_BINDING.out,
@@ -113,7 +118,7 @@ test('a larger list the device refuses keeps the old one and coarsens the cut in
   const { fake, resources, selection, frame } = await cut(4, {
     refuse: (descriptor) => (descriptor.size === refused ? 'oom' : undefined),
   })
-  const old = [resources.output, ...resources.readback]
+  const old = [resources.output, ...resources.ranks]
   const drawn = Array.from({ length: 10 }, (_, page) => page)
   assert.equal((await frame(drawn))?.result.truncated, true, 'at its coarsest, its head')
   assert.ok(selection.coarsen > 1, 'the cut coarsened past the list refused')

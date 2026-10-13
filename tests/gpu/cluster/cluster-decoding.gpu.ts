@@ -1,5 +1,5 @@
 // The WGSL decode of a quantized cluster page, run through the accessors the engine's raster,
-// shadow and resolve stages call — a page-table row over a pool slot —, against the JavaScript
+// shadow and resolve stages call — a page-table row over a pool slot —, against the SDK module's
 // decoder of the same bytes, a flat-shaded page among them (its positions stored once and read
 // through each vertex's link): positions, texture coordinates and colours bit for bit — the
 // format's arithmetic is one multiply and one add, both correctly rounded in WGSL —, normals within
@@ -8,16 +8,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/codec/geometryPage.ts'
-import { encodeGeometryPage } from '../../../packages/page-codec/src/geometryPage.ts'
+import { encodePage } from '../../../packages/sdk-browser/src/page/codec/encodePage.fixture.ts'
 import type {
   PageAttribute,
   PageAttributes,
-} from '../../../packages/page-codec/src/pageAttributes.ts'
+} from '../../../packages/sdk-core/src/page/pageInput.ts'
 import { ringMesh } from '../../../packages/sdk-browser/src/page/codec/ringMesh.fixture.ts'
 import { crossVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { decodeOnGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodingKernel.ts'
 
-/** A ring page of `triangles` at `exponent`, flat-shaded or not, with the JavaScript decode. */
+/** A ring page of `triangles` at `exponent`, flat-shaded or not, with the SDK module's decode. */
 function page(triangles: number, exponent: number, flat = false) {
   const ring = ringMesh(triangles, exponent)
   const { encoded, indices } = flat ? flatShaded(ring, exponent) : ring
@@ -46,7 +46,7 @@ function flatShaded(
       return [name, { itemSize, array: new Float32Array(values) }]
     }),
   )
-  const encoded = encodeGeometryPage(corners, flat, exponent),
+  const encoded = encodePage(corners, flat, exponent),
     words = new DataView(encoded.data.buffer, encoded.data.byteOffset)
   assert.ok(words.getUint32(88, true) < words.getUint32(8, true), 'positions stored once')
   return { encoded, indices: corners }

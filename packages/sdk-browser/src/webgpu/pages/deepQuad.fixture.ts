@@ -1,4 +1,5 @@
 import { coarseQuadScene } from './testOccluder.fixture.ts'
+import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 /**
  * The coarse quad under one more root, `3`, of twice its error: the group of the root holds the
@@ -31,6 +32,7 @@ export function deepQuadScene(): ReturnType<typeof coarseQuadScene> {
           ...primitive,
           pages: pages as typeof primitive.pages,
           structure: { version: 1, roots: [3], groups },
+          culling: manifestCulling(pages),
         },
       ],
     },

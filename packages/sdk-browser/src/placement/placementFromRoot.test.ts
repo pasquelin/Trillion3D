@@ -6,9 +6,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
+import { ROW_WORDS } from '../visibility/types.ts'
 import { placedSession, scaleDown } from './webgpuGrowth.fixture.ts'
-import { rootOf } from '../page/selection/placements.ts'
+import { rootOf, rootOfPacked } from '../page/selection/placements.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../webgpu/shadow/rowBuffers.ts'
 import { MOBILITY_CORNER_SHIFT, MOBILITY_MOVING } from '../gpu/shadow/mobilityBits.ts'
 import { transformAffinePoint, type SceneLight } from '../../../sdk-core/src/index.ts'
@@ -26,12 +26,11 @@ function digest({ rt }: Session) {
   const hash = createHash('sha256')
   // Padding words hold physical-surface fields; the placement oracle compares
   // the original row contract, leaving those independently tested material words out.
-  const originalWords = 64,
-    stride = PAGE_INFO_STRIDE / 4
-  const table = new Float32Array((rows.pageTableFloats!.length / stride) * originalWords)
+  const originalWords = 64
+  const table = new Float32Array((rows.pageTableFloats!.length / ROW_WORDS) * originalWords)
   for (let row = 0; row < table.length / originalWords; row++)
     table.set(
-      rows.pageTableFloats!.subarray(row * stride, row * stride + originalWords),
+      rows.pageTableFloats!.subarray(row * ROW_WORDS, row * ROW_WORDS + originalWords),
       row * originalWords,
     )
   for (let row = 0; row < table.length; row += originalWords)
@@ -54,7 +53,7 @@ const homes = ({ rt }: Session) => {
   const { rows } = rt.layout
   return Array.from(
     { length: rows.packedCount },
-    (_, row) => rows.pageTableInts![row * (PAGE_INFO_STRIDE / 4) + OFFSET_WORD],
+    (_, row) => rows.pageTableInts![row * ROW_WORDS + OFFSET_WORD],
   )
 }
 
@@ -75,7 +74,7 @@ function casterRows({ rt }: Session) {
     spheres = new Float32Array(held(lights.spheres.buffer))
   return Array.from({ length: rows.packedCount }, (_, row) => {
     const rec = rows.packedRecs[row]!,
-      rank = placement.rootOfPacked[rows.packedPageIndex[row]],
+      rank = rootOfPacked(placement, rows.packedPageIndex[row]),
       at = row * CLUSTER_SPHERE_FLOATS
     return {
       url: rec.url,
@@ -123,7 +122,9 @@ test('rows, draw items and cut of repeated and moved placements are those of dev
     // Grown in place on the GPU cut (#1483): the table holds the GPU cut's readout, so every taken
     // leaf draws — develop's five-row table left the two new placements out. Recorded on #1483's
     // first run with the grown cut adopted: its seven rows are those the homes test below names.
-    '4f119f25497adc84',
+    // The tables grow ahead of the rows (`rowsAhead`): the digest holds their spare rows too, so it
+    // was recorded again at their new length — the seven rows alone digest as they did.
+    '897933baa11308dc',
   ])
 })
 

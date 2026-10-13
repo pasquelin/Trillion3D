@@ -17,6 +17,8 @@ import { boxDistance } from './plan.ts'
 
 /** A page of the index: its file, its boxes, and once opened the pages it lists or its cells. */
 export type IndexPage = Declared & {
+  /** Its number among the pages the index made, for the plan's pins (`planPins.ts`). */
+  id: number
   slot: StreamPage
   body: { pages: IndexPage[] } | { cells: number[] } | null
 }
@@ -29,8 +31,10 @@ export type PageBody = ReturnType<typeof readCellPage>
 export function createCellIndex(slots: readonly TableSlot[], base: string, boxes: CellBoxes) {
   const cells = new Map<number, Cell>()
   let opened = 0,
+    made = 0,
     forgotten: string[] = []
   const pageOf = ({ page, bounds, parents }: TableSlot): IndexPage => ({
+    id: made++,
     slot: { ...page, url: new URL(page.url, base).href },
     declared: bounds,
     parents,
@@ -39,6 +43,11 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
     body: null,
   })
   const top = slots.map(pageOf)
+  /** The file of a cell the index holds, as the catalogue takes it. */
+  const fileOf = (cell: number): StreamPage => {
+    const { url, bytes, sha256 } = cells.get(cell)!
+    return { url, bytes, sha256 }
+  }
   const distance = (cell: number, eye: ArrayLike<number>) =>
     boxDistance(boxes.bounds(cells.get(cell)!.item), eye)
   /** Whether `page` holds no cell of `held`. */
@@ -64,8 +73,20 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
       }
   }
   return {
-    /** The root's pages, the files the streamer's catalogue holds at open. */
-    slots: top.map((page) => page.slot),
+    /** Every file the index names now — the root's pages, those its opened pages list, their cells'
+     *  files —: what a session's catalogue holds at open, the index kept from a session before
+     *  included, whose opened pages its prime walks no more. */
+    named() {
+      const named: StreamPage[] = [],
+        walk = [...top]
+      for (let page = walk.pop(); page; page = walk.pop()) {
+        named.push(page.slot)
+        if (!page.body) continue
+        if ('pages' in page.body) walk.push(...page.body.pages)
+        else for (const cell of page.body.cells) named.push(fileOf(cell))
+      }
+      return named
+    },
     /** The record of a cell the index holds. */
     cell: (cell: number): TableCell => cells.get(cell)!,
     /** How many pages the index holds opened, and cells. */
@@ -86,10 +107,7 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
         return id
       })
       page.body = { cells: ids }
-      return ids.map((id) => {
-        const { url, bytes, sha256 } = cells.get(id)!
-        return { url, bytes, sha256 }
-      })
+      return ids.map(fileOf)
     },
     /**
      * Walks the pages from the root: visits each cell with a box within `radius` of `eye`, with

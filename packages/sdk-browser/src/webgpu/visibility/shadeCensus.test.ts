@@ -5,17 +5,23 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { createShadeCensus } from './shadeCensus.ts'
-import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { createPageRowWriter } from '../row/pageRowWriter.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { scene } from '../core/materialClasses.fixture.ts'
 import type * as G from '../../host/graph/graph.fixture.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /** The fixture's pages, the blocks their rows read, and the class a row of the cut-out carries. */
 function opened() {
   const { source, metadata, indices, associations, meshes } = scene()
-  const { allPages, roots } = collectClusterPages(source, metadata, indices, associations)
+  const { allPages, roots } = collectClusterPages(
+    source,
+    graphDraws(source, associations),
+    metadata,
+    indices,
+  )
   const block = { vertexBase: 0, count: 3, hasUv: false, hasNormal: true, hasTangent: false }
   const geometryBlocks = new Map(
     roots.map((root) => [root.pages[0].attributes, { ...block, hasColor: false }]),
@@ -27,10 +33,10 @@ function opened() {
     roots,
     (packed) => packed,
   )
-  const ints = new Uint32Array(PAGE_INFO_STRIDE / 4)
+  const ints = new Uint32Array(ROW_WORDS)
   const rowClass = () => {
     writeRow(roots[0].pages[0], 0, 0, 0, new Float32Array(ints.buffer), ints)
-    return ints[ROW_MATERIAL_CLASS_WORD]
+    return ints[PAGE_INFO.at.materialClass]
   }
   const census = createShadeCensus(allPages, geometryBlocks, layers)
   const cutout = meshes[0].material as unknown as {

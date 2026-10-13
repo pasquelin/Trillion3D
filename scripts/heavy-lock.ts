@@ -1,15 +1,8 @@
-import { execFileSync } from 'node:child_process'
-import {
-  linkSync,
-  mkdirSync,
-  readFileSync,
-  realpathSync,
-  renameSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, realpathSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { getPriority, setPriority } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { readJson } from './repository-files.ts'
+import { git } from './git-paths.ts'
 
 // The heavy local steps (a test run, `build`, `build:native`, `compile:caches`) of
 // every worktree on the machine run one at a time, at low priority: several agents checking at once
@@ -27,12 +20,8 @@ const LOW_PRIORITY = 10
  *  outside a Git checkout. */
 export function heavyLockPath(cwd = process.cwd()): string | undefined {
   try {
-    const common = execFileSync('git', ['rev-parse', '--git-common-dir'], {
-      cwd,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-    const main = dirname(realpathSync(resolve(cwd, common.trim())))
+    const common = git(cwd, 'rev-parse', '--git-common-dir')
+    const main = dirname(realpathSync(resolve(cwd, common)))
     return join(main, '.worktrees', 'logs', 'heavy-step.lock')
   } catch {
     return undefined
@@ -50,31 +39,40 @@ function alive(pid: number): boolean {
 
 function holder(path: string): { pid: number; step: string; cwd: string } | undefined {
   try {
-    return JSON.parse(readFileSync(path, 'utf8'))
+    return readJson(path)
   } catch {
     return undefined
   }
 }
 
+/** A takeover guard older than this was left by a process killed inside its few file operations. */
+const GUARD_STALE_MS = 10_000
+
 /**
- * Removes the lock at `path` of the dead process `dead`. The lock is first moved aside, which only
- * one waiter can do to a given file; a lock that is not the dead one's (another waiter took
- * it over first and was granted it) is put back, unless the lock was taken again meanwhile.
+ * Removes the lock at `path` if it is still the dead process `dead`'s. One waiter at a time holds
+ * the guard file beside the lock; under it the lock is read again and removed only if it is the
+ * dead one's. A live lock is never moved or removed, so it is never absent while it is held, and
+ * nobody can create the lock between the check and the removal (the dead lock is still there).
  */
 export function takeOver(path: string, dead: number): void {
-  const aside = `${path}.${process.pid}.stale`
+  const guard = `${path}.takeover`
   try {
-    renameSync(path, aside)
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
-    throw error
-  }
-  try {
-    if (holder(aside)?.pid !== dead) linkSync(aside, path)
+    writeFileSync(guard, String(process.pid), { flag: 'wx' })
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+    try {
+      if (Date.now() - statSync(guard).mtimeMs > GUARD_STALE_MS) unlinkSync(guard)
+    } catch {
+      // the guard was released meanwhile
+    }
+    return
+  }
+  try {
+    if (holder(path)?.pid === dead) unlinkSync(path)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
   } finally {
-    unlinkSync(aside)
+    unlinkSync(guard)
   }
 }
 

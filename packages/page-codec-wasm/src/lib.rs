@@ -1,37 +1,56 @@
-//! Decoder of a `WGP3` geometry page — quantized cluster geometry —, exact mirror of
-//! `packages/sdk-browser/src/page/codec/geometryPage.ts` and of the WGSL routines of
-//! `packages/sdk-browser/src/cluster/decodeWgsl.ts`.
-//!
-//! The decoder serves the native compiler, which encodes with the format's own definitions
-//! (`bits.rs`) and proves that what it writes rereads identically. Refusals carry the same causes,
-//! in the same order, as the JavaScript decoder: a byte that passes here passes there, a byte that
-//! falls here falls there. The browser decodes no page on the CPU: the GPU reads them in place.
+//! The `WGP3` geometry page — quantized cluster geometry —: its format, its one encoder, its one
+//! decoder. The encoder (`encode.rs`) writes every page, the native compiler's and, through the
+//! SDK's one WebAssembly module (`wasm_encode.rs`), the run-time cut's; the decoder (`unpack.rs`)
+//! reads every page, the compiler's round-trip test's and, through the same module
+//! (`wasm_decode.rs`), the public `page.decode`'s. The constants of this file,
+//! `bits.rs`, `deform.rs`, `triangles.rs` and `bits/grid.rs` are printed into the TypeScript
+//! readers and the WGSL built from them (`scripts/generate-shared-rules.ts`).
 //!
 //! The keep-set, by build. The `rlib` is the native compiler's: the page codec and every kernel
 //! below. The `cdylib` is the SDK's one WebAssembly module, `kernels.wasm` (`pnpm run build:wasm`,
-//! one shipped resource, one instantiation and one linear memory on the browser side), and it
-//! exports math kernels only — never the page decoder: the math-foundation batch kernels
-//! (`math.rs` and `trillion3d_math::matrix`, ABI and shared buffer in `wasm_math.rs`), the normal
-//! cone of the pages the world cuts at run time (`normal_cone.rs`, ABI in `wasm_cone.rs`) and the
-//! animation sampler (`anim.rs`, `wasm_anim.rs`). The JavaScript decoder is the public
-//! `page.decode`, a chunk of its own the browser downloads on that call alone.
-pub mod anim;
+//! one shipped resource, one instantiation and one linear memory on the browser side): the page
+//! encoder and the grid rules (`wasm_encode.rs`), the page decoder (`wasm_decode.rs`), the math-foundation batch kernels (`math.rs` and
+//! `trillion3d_math::matrix`, ABI and shared buffer in `wasm_math.rs`), the normal cone of the
+//! pages the world cuts at run time (`normal_cone.rs`, `wasm_cone.rs`), and the one hand-off of
+//! the answers sized only once built (`held.rs`).
 mod attributes;
 pub mod bits;
+pub mod clusters;
+pub mod culling;
 pub mod cut_error;
 pub mod deform;
+pub mod encode;
+#[doc(hidden)]
+pub mod fixtures;
+pub mod hash;
+mod header_parse;
+#[cfg(target_arch = "wasm32")]
+mod held;
+mod page_error;
+pub use page_error::PageError;
 pub mod math;
 pub mod min_ball;
 pub mod normal_cone;
 mod positions;
+pub mod proxy;
+pub mod simd;
+pub mod split;
 pub mod triangles;
 mod unpack;
 #[cfg(target_arch = "wasm32")]
-mod wasm_anim;
+mod wasm_clusters;
 #[cfg(target_arch = "wasm32")]
 mod wasm_cone;
 #[cfg(target_arch = "wasm32")]
+mod wasm_culling;
+#[cfg(target_arch = "wasm32")]
+mod wasm_decode;
+#[cfg(target_arch = "wasm32")]
+mod wasm_encode;
+#[cfg(target_arch = "wasm32")]
 mod wasm_math;
+#[cfg(target_arch = "wasm32")]
+mod wasm_proxy;
 pub mod writer;
 
 pub use attributes::{DecodedPage, Layout, OPTIONAL};
@@ -40,6 +59,8 @@ pub use deform::{Morph, Skin, FLAG_MORPH, FLAG_SKIN};
 pub use unpack::decode;
 
 pub const MAGIC: u32 = 0x3350_4757;
+/// The geometry-page format a version-11 sidecar names, as the manifest's `geometryPages` declares
+/// it once and every page header opens with.
 pub const VERSION: u32 = 7;
 /// Twenty-five little-endian words open a page: counts, flags, the quantization records of the
 /// four vector attributes, the error, the bits of the corner stream, the count of distinct
@@ -57,17 +78,6 @@ pub const FLAG_COLOR: u32 = 8;
 /// The index/weight streams name simulated vertices, never joints. Requires FLAG_SKIN.
 pub const FLAG_SOFT_SOURCE: u32 = 64;
 pub const FLAGS_ALL: u32 = 127;
-
-/// Refusal causes, in the order the JavaScript decoder raises them. The numeric values cross the
-/// WebAssembly ABI: the JS loader retranslates them into `GEOMETRY_PAGE_*` messages.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u32)]
-pub enum PageError {
-    Header = 1,
-    Version = 2,
-    Bounds = 3,
-    Index = 4,
-}
 
 /// A page header, once its twenty-five words, and the records of its morph targets, have been
 /// read and every bound accepted.
@@ -120,69 +130,6 @@ impl Header {
         w[24] = self.skin.influences as u32;
         w.extend(self.morphs.iter().flat_map(Morph::words));
         w
-    }
-
-    /// The header words and the JS decoder's bounds, refused in the same order; the byte
-    /// length must be exactly what the streams need and the decoded page under the budget.
-    pub fn parse(data: &[u8], max_decoded_bytes: usize) -> Result<Self, PageError> {
-        if data.len() < HEADER_BYTES {
-            return Err(PageError::Header);
-        }
-        let mut w = [0u32; HEADER_WORDS];
-        for (word, value) in w.iter_mut().zip(bits::le_words(&data[..HEADER_BYTES])) {
-            *word = value;
-        }
-        if w[0] != MAGIC || w[1] != VERSION {
-            return Err(PageError::Version);
-        }
-        let f = f32::from_bits;
-        let records = (
-            Quant::unpack(w[5], [f(w[6]), f(w[7]), f(w[8])]),
-            Quant::unpack(w[9], [f(w[10]), f(w[11])]),
-            Quant::unpack(w[12], [f(w[13]), f(w[14])]),
-            Quant::unpack(w[15], [f(w[16]), f(w[17]), f(w[18]), f(w[19])]),
-        );
-        let (Some(position), Some(uv), Some(uv1), Some(color)) = records else {
-            return Err(PageError::Bounds);
-        };
-        let Some((skin, morphs)) = deform::parse(w[4], w[23], data) else {
-            return Err(PageError::Bounds);
-        };
-        let header = Self {
-            vertex_count: w[2] as usize,
-            index_count: w[3] as usize,
-            flags: w[4],
-            position,
-            uv,
-            uv1,
-            color,
-            quantization_error: f(w[20]),
-            corner_bits: w[21] as usize,
-            position_count: w[22] as usize,
-            skin,
-            morphs,
-        };
-        let layout = Layout::of(&header);
-        let (table, v, n) = (layout.triangles[1] * 4, w[2] as usize, w[3] as usize);
-        let sane = (1..=MAX_VERTICES).contains(&header.vertex_count)
-            && (1..=header.vertex_count).contains(&header.position_count)
-            && (3..=max_decoded_bytes / 4).contains(&header.index_count)
-            && header.index_count.is_multiple_of(3)
-            && header.corner_bits <= header.index_count.saturating_mul(triangles::MAX_WIDTH)
-            && header.flags & !FLAGS_ALL == 0
-            && (header.flags & FLAG_SOFT_SOURCE == 0 || header.flags & FLAG_SKIN != 0)
-            && header.quantization_error.is_finite()
-            && header.quantization_error >= 0.0
-            && header.decoded_bytes() <= max_decoded_bytes
-            && layout.bytes() == data.len()
-            && layout.morphs_at(&header)
-            && deform::finite(&data[header.bytes()..], &header, &layout)
-            && layout.corners.fits(&data[header.bytes()..][..table], v, n)
-            && positions::links_fit(&data[header.bytes()..], &layout, &header);
-        if !sane {
-            return Err(PageError::Bounds);
-        }
-        Ok(header)
     }
 }
 

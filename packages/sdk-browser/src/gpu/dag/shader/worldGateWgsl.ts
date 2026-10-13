@@ -11,7 +11,7 @@ export const DAG_WORLD_GATE_WGSL = wgslBlock(
   [],
   `/** The world cluster that stands in for placement \`w\` (\`../worldLinks.ts\`), or none. */
 fn worldLinkOf(w:u32)->u32{return select(0xffffffffu,coldAt(views[0u].worldLinks+w),views[0u].worldLinks!=0u);}
-/** \`view · world\` of the world DAG under the view \`vi\`, as \`preparePrimitive\` derives it: its
+/** \`view · world\` of the world DAG under the view \`vi\`, as \`viewWorld\` makes a placement's: its
  *  world is the identity, its origin taken to the eye as a placement's is (\`worldPoseWgsl.ts\`). */
 fn worldViewOf()->mat4x4f{
  let o=-views[0u].cameraWorld;

@@ -4,8 +4,8 @@
  * each reduced to the digest of its decoded block and its page bytes.
  */
 import { createHash } from 'node:crypto'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
-import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts'
+import { encodePage } from './encodePage.fixture.ts'
+import type { PageAttributes } from '../../../../sdk-core/src/page/pageInput.ts'
 import { decodeGeometryPage } from './geometryPage.ts'
 import { xorshiftRandom } from '../../../../math/src/sequence/random.ts'
 
@@ -104,7 +104,7 @@ export function cases(): [string, Mesh][] {
 /** What a mesh becomes: the digest of the decoded block and the page bytes, or the refusal. */
 export function outcome({ indices, attributes, exponent }: Mesh): [string, number] {
   try {
-    const { data } = encodeGeometryPage(indices, attributes, exponent)
+    const { data } = encodePage(indices, attributes, exponent)
     const decoded = decodeGeometryPage(data as Uint8Array, 1 << 28)
     const block = new Uint8Array(decoded.indices.buffer)
     return [createHash('sha256').update(block).digest('hex').slice(0, 16), data.length]

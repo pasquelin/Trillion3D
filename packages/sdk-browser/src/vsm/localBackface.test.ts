@@ -4,6 +4,7 @@
 // that took the unit direction and added 1 m² where the shared one adds 1 cm² — the nearInverse of a
 // light at a distance of one metre whatever its distance —, so it culled differently (an approved
 // image change: which grazing back faces the marking skips, hence which pages it marks).
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
@@ -11,11 +12,10 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../lighting/shaderRunF32.fixture.ts'
 import { vsmPixelPageMarkingWgsl } from './markingWgsl.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
-import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }, 2 ** 27)
+const LAYOUT = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
 const MARKING = vsmPixelPageMarkingWgsl(LAYOUT),
   PROJECTION = vsmProjectionWgsl(LAYOUT, { subgroups: false })
 type V3 = [number, number, number]
@@ -27,11 +27,10 @@ const run = (code: string) =>
 
 /** The marking's copy before: its nearInverse of 1 m², fed the unit direction. */
 const before = (d: V3, n: V3, r: number) => {
-  const f = Math.fround
   const len = Math.hypot(...d)
-  const u = d.map((x) => f(x / len))
-  const rangeSq = f(u[0] * u[0] + u[1] * u[1] + u[2] * u[2])
-  const emitterSin = Math.sqrt(saturate(f(r * r) / (rangeSq + 1)))
+  const u = d.map((x) => Math.fround(x / len))
+  const rangeSq = Math.fround(u[0] * u[0] + u[1] * u[1] + u[2] * u[2])
+  const emitterSin = Math.sqrt(saturate(Math.fround(r * r) / (rangeSq + 1)))
   return n[0] * u[0] + n[1] * u[1] + n[2] * u[2] < -emitterSin
 }
 
@@ -53,7 +52,7 @@ test('the marking and the trace call the one back-face test, with the vector to 
 test('on generated points, normals and lamps, the marking skips exactly the faces the trace does', () => {
   const marking = run(MARKING),
     trace = run(PROJECTION)
-  const rand = seeded(1305)
+  const rand = mulberry32(1305)
   let changed = 0,
     culled = 0
   for (let k = 0; k < 4000; k++) {

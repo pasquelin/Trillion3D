@@ -1,10 +1,8 @@
-import { encodeReflectionSource } from '../../reflections/encode.ts'
-import type { ScreenReflection } from '../../reflections/gpu.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { UNLIT_COMPOSITIONS, UNLIT_LIGHTING_PROGRAM } from './shaders.ts'
 import { createContractVariants, type LitPrograms } from './contractVariants.ts'
 import { cutsIn } from './contractCuts.ts'
-import { createDeferredPlaceholders, type DeferredPlaceholders } from './setup.ts'
+import { createDeferredPlaceholders } from './setup.ts'
 import {
   createDeferredProgram,
   type ComposedImage,
@@ -12,8 +10,12 @@ import {
   type DeferredProgram,
   type DirectLightResources,
 } from './program.ts'
-import { ZERO_DIRECT, createDeferredView } from './view.ts'
-import { DEFERRED_LIGHTING_PASS } from '../../stage/passLabels.ts'
+import { type ClearColor, ZERO_DIRECT, createDeferredView } from './view.ts'
+import {
+  DEFERRED_LIGHTING_PASS,
+  HDR_COMPOSITION_PASS,
+  HDR_PRESENT_PASS,
+} from '../../stage/passLabels.ts'
 export { FULLSCREEN_VERTEX } from './shaders.ts'
 
 /** Whether these resources light with the bounce program. */
@@ -40,7 +42,7 @@ const unlitProgram = (device: GPUDevice, bindings: DeferredBindings) =>
   createDeferredProgram(
     device,
     {
-      lighting: () => UNLIT_LIGHTING_PROGRAM,
+      lighting: UNLIT_LIGHTING_PROGRAM,
       compose: UNLIT_COMPOSITIONS,
       label: 'UNLIT',
       direct: false,
@@ -88,13 +90,13 @@ export async function createDeferredLighting(
     /** Writes the view uniform of this image (`view.ts`). */
     update: viewUpdate(state, view),
     /** Select and lazily compile the active lighting program. */
-    bind: programBind(state, variants, placeholders),
+    bind: programBind(state, variants),
     settle: () => variants.settle(),
     /** What a frame lit with these resources waits for: the lit program's compile while no ready
      *  one can light it, else nothing (`contractVariants.ts`). */
     awaited: (direct: DirectLightResources) =>
       variants.awaited(bounceOf(direct), !!direct.narrow, cutsIn(direct)),
-    /** Draws the lighting; returns the passes drawn (`lightPass`). */
+    /** Draws the lighting (`lightPass`). */
     light: lightPass(state),
     /** True once the frame's program composes the chain's last bloom in (#963); the first call
      *  compiles what it needs, and `fail` hears why it cannot. */
@@ -119,7 +121,7 @@ function viewUpdate(state: LightingState, view: DeferredView) {
     camera: readonly number[],
     width: number,
     height: number,
-    clearColor: number,
+    clear: ClearColor,
     diagnostic: boolean,
     direct: ArrayLike<number> = ZERO_DIRECT,
     sampledRank = 0,
@@ -127,16 +129,12 @@ function viewUpdate(state: LightingState, view: DeferredView) {
     const raw = diagnostic || state.rawOutput
     state.drawn[0] = width
     state.drawn[1] = height
-    view.write(inverseViewProjection, camera, width, height, clearColor, raw, direct, sampledRank)
+    view.write(inverseViewProjection, camera, width, height, clear, raw, direct, sampledRank)
   }
 }
 
 /** The lighting's `bind`: selects, and lazily compiles, the frame's program, and binds it. */
-function programBind(
-  state: LightingState,
-  variants: ContractVariants,
-  placeholders: DeferredPlaceholders,
-) {
+function programBind(state: LightingState, variants: ContractVariants) {
   return (
     surface: SurfaceBuffer,
     depth: GPUTextureView,
@@ -153,35 +151,33 @@ function programBind(
       unlit
     state.active = active
     active.bind(surface, depth, hdr, direct)
-    // A program reading a shadow mask: its decode table is filled, in its own submit, before
-    // this frame's (`projectionMaskTable.ts`).
-    if (active !== unlit && direct.vsmMask) placeholders.vsmMaskTable.fill()
   }
 }
 
-/** The lighting's `light`: draws the lighting, after the reflection source when the frame's
- *  program reflects, the next image's source then written beside it; returns the passes drawn
- *  (#1157). */
+/** The lighting's `light`: draws the lighting, one pass; its descriptor is kept, its target named
+ *  again each image. */
 function lightPass(state: LightingState) {
-  return (encoder: GPUCommandEncoder, target: GPUTextureView, reflection?: ScreenReflection) => {
+  const target: GPURenderPassColorAttachment = {
+    view: undefined as unknown as GPUTextureView,
+    loadOp: 'clear',
+    storeOp: 'store',
+    clearValue: [0, 0, 0, 0],
+  }
+  const descriptor: GPURenderPassDescriptor = {
+    label: DEFERRED_LIGHTING_PASS,
+    colorAttachments: [target],
+  }
+  return (encoder: GPUCommandEncoder, view: GPUTextureView) => {
     const { active, drawn } = state
     const group = active.lightGroup
     if (!group) throw new Error('SURFACE_NOT_BOUND')
-    const reflected = reflection?.active && active.reflection
-    if (reflected) encodeReflectionSource(encoder, target, reflection, reflected, group, drawn)
-    const colorAttachments: GPURenderPassColorAttachment[] = [
-      { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
-    ]
-    const source = reflected && reflection.source?.target
-    if (source) colorAttachments.push({ ...colorAttachments[0], view: source })
-    const pass = encoder.beginRenderPass({ label: DEFERRED_LIGHTING_PASS, colorAttachments })
+    target.view = view
+    const pass = encoder.beginRenderPass(descriptor)
     pass.setViewport(0, 0, drawn[0], drawn[1], 0, 1)
-    pass.setPipeline(reflected ? reflected.final : active.light)
-    if (reflected) pass.setBindGroup(1, reflection.group)
+    pass.setPipeline(active.light)
     pass.setBindGroup(0, group)
     pass.draw(3)
     pass.end()
-    return reflected ? (reflection.history && !reflection.history.reuse ? 4 : 2) : 1
   }
 }
 
@@ -189,9 +185,23 @@ function lightPass(state: LightingState) {
  *  effect chain's, with the bloom blend it left; reading no as-is share when `asIs` says none is in
  *  the frame. */
 function composePass(state: LightingState) {
+  const target: GPURenderPassColorAttachment = {
+    view: undefined as unknown as GPUTextureView,
+    loadOp: 'clear',
+    storeOp: 'store',
+  }
+  const shown: GPURenderPassColorAttachment = { ...target }
+  const plain: GPURenderPassDescriptor = {
+    label: HDR_COMPOSITION_PASS,
+    colorAttachments: [target],
+  }
+  const presented: GPURenderPassDescriptor = {
+    label: HDR_PRESENT_PASS,
+    colorAttachments: [target, shown],
+  }
   return (
     encoder: GPUCommandEncoder,
-    target: GPUTextureView,
+    view: GPUTextureView,
     clear: GPUColor,
     presentation?: GPUTextureView,
     composed?: ComposedImage,
@@ -200,14 +210,13 @@ function composePass(state: LightingState) {
     const { active } = state
     const composition = active.composition(composed, asIs)
     if (!composition) throw new Error('SURFACE_NOT_BOUND')
-    const colorAttachments: GPURenderPassColorAttachment[] = [
-      { view: target, loadOp: 'clear', storeOp: 'store', clearValue: clear },
-    ]
-    if (presentation) colorAttachments.push({ ...colorAttachments[0], view: presentation })
-    const pass = encoder.beginRenderPass({
-      label: presentation ? 'Trillion3D HDR composition + present' : 'Trillion3D HDR composition',
-      colorAttachments,
-    })
+    target.view = view
+    target.clearValue = clear
+    if (presentation) {
+      shown.view = presentation
+      shown.clearValue = clear
+    }
+    const pass = encoder.beginRenderPass(presentation ? presented : plain)
     const blend = composed?.bloom,
       { draw, present } = active.compositions.pipelines(composition.input, !!blend)
     pass.setPipeline(presentation ? present : draw)

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeWaterPass } from './pass.ts'
 import { createWaterPass } from './waterPass.ts'
-import { prepared, replay, targets } from './pass.fixture.ts'
+import { prepared, replay, scissorsOf, stepsOf, targets } from './pass.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { waterSurfaceTargets } from './surfaceTargets.ts'
 import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from './passLabels.ts'
@@ -13,7 +13,7 @@ async function recorded() {
   const { blendState, gpu } = prepared()
   targets(gpu)
   const fake = fakeDevice()
-  blendState.water = await createWaterPass(fake.device, {} as never, {} as never, true, false)
+  blendState.water = await createWaterPass(fake.device, {} as never, {} as never, true)
   const restore = fake.renderPipelines.find((p) => p.fragment?.entryPoint === 'restore_fs')!
   const bounds = blendState.waterBounds
   bounds.active = true
@@ -22,8 +22,8 @@ async function recorded() {
 
 /** The lit image's copy from (`at`, `at`), `side` texels square. */
 const hdrCopy = (at: number, side: number) => ({
-  a: { texture: {}, origin: { x: at, y: at } },
-  b: { texture: {}, origin: { x: at, y: at } },
+  from: { texture: {}, origin: { x: at, y: at } },
+  to: { texture: {}, origin: { x: at, y: at } },
   size: { width: side, height: side },
 })
 
@@ -47,29 +47,27 @@ test('the surface pass restores the opaque depth itself, scissored, before any s
     waterSurfaceTargets(true).map((target) => ({ ...target, writeMask: 0 })),
   )
   for (const { surface, backdrop, rect, copy } of CASES) {
-    r.passes.length = r.copies.length = 0
+    r.passes.length = r.textureCopies.length = 0
     r.bounds.surface.set(surface)
     r.bounds.backdrop.set(backdrop)
     const drawCalls = r.rt.run.gpuDrawCalls
     assert.equal(encodeWaterPass(r.rt, r.encoder), true)
-    assert.deepEqual(r.copies, [copy], 'the lit image alone')
+    assert.deepEqual(r.textureCopies, [copy], 'the lit image alone')
     assert.deepEqual(
       r.passes.map((p) => p.label),
       [WATER_SURFACE_PASS, WATER_COMPOSITE_PASS],
     )
-    assert.deepEqual(
-      r.passes.map((p) => p.scissors),
-      [[rect], [rect]],
-    )
-    const [{ descriptor, commands }] = r.passes
-    const depth = descriptor.depthStencilAttachment!
+    assert.deepEqual(r.passes.map(scissorsOf), [[rect], [rect]])
+    const [pass] = r.passes,
+      commands = stepsOf(pass)
+    const depth = pass.depth!
     assert.deepEqual(
       [depth.depthLoadOp, depth.depthClearValue, depth.depthStoreOp],
       ['clear', 0, 'store'],
     )
     assert.deepEqual(commands.slice(0, 3), ['pipeline:restore_fs', 'draw', 'pipeline:fsWater'])
     assert.ok(commands.slice(3).includes('indirect'), 'the surfaces draw after the restore')
-    assert.equal([...descriptor.colorAttachments][3]!.loadOp, 'clear', 'word clear full-target')
+    assert.equal(pass.colors[3]!.loadOp, 'clear', 'word clear full-target')
     // The surface draw, the restore draw and the composite.
     assert.equal(r.rt.run.gpuDrawCalls - drawCalls, 3)
   }

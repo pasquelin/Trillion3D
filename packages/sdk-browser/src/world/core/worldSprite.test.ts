@@ -6,16 +6,16 @@ import assert from 'node:assert/strict'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import type { HostMesh } from '../../host/resources.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
 import { importHostSurface } from '../../host/surfaceImport.ts'
 import { hostSide } from '../../scene/materialSide.ts'
-import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts'
+import { createPlacementRows } from '../../placement/rows.ts'
 import { hostSurface, repaintHostSurface } from './worldSurface.ts'
-import { buildWorldMirror } from './worldMirror.ts'
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { createWorldMaterials } from './worldMaterials.ts'
 import { createWorldPoses } from './worldPoses.ts'
 import type { Cut } from './worldCuts.ts'
+import { hostGeometry } from './worldGeometry.ts'
 import type { Seat } from './worldBatches.ts'
 import { boxTransform } from '../../../../sdk-core/src/index.ts'
 import { SPRITE_UNCULLED, spriteAt } from '../../visibility/shader/spriteWgsl.ts'
@@ -76,13 +76,13 @@ test("a sprite's size rule written at run time is a new entry, whose roots carry
 /** The host mesh a world builds for a sprite whose picture sits on its bottom-left corner. */
 function spriteMesh() {
   const drawn = drawnTriangles(object.sprite().geometry, 'sprite', { center: [0, 0] })!
-  const cut = { key: 's', drawn, runtime: {} as never, users: new Set(), held: false } as Cut
-  const { root } = buildWorldMirror({
-    placed: [{ cut, material: material.sprite(), rows: {} as PlacementRows, name: 's' }],
-    models: [],
-    rankOf: () => 0,
-  })
-  return root.children[0] as HostMesh
+  const cut = {
+    ...{ key: 's', drawn, geometry: hostGeometry(drawn), runtime: {} as never },
+    ...{ users: new Set(), held: false },
+  } as Cut
+  const table = createWorldMaterials()
+  const surface = table.surfaceOf(table.entryOf(material.sprite()), drawn, false)
+  return new Mesh(cut.geometry, surface)
 }
 
 test("a sprite's host mesh wears the sprite surface and is bounded by its radius", () => {

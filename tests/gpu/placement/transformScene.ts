@@ -7,7 +7,7 @@ import {
   cameraFace,
   square,
   engine,
-  versApi,
+  toApiMatrix,
   type ScenePreparee,
 } from '../kit/sharedSceneProof.ts'
 
@@ -18,17 +18,14 @@ export const TILE = 'tile',
   PIVOT = 'pivot'
 
 /** A world matrix for `setTransform`: a pure translation along `x`. */
-export const translation = (x: number) => versApi(new G.Matrix4().makeTranslation(x, 0, 0))
+export const translation = (x: number) => toApiMatrix(new G.Matrix4().makeTranslation(x, 0, 0))
 
 /** `paged` chooses the tile's pass: `clustered-blend` sends it through the DAG pages,
  *  `shared-blend` through the unpaged path. */
 export function transformScene(paged: boolean): ScenePreparee {
   const builder = batisseur()
-  const background = G.mesh(square(4), G.basicSurface({ color: 0x1b3a5c, side: G.DOUBLE_SIDE }))
-  background.name = 'background'
-  background.position.z = -2
-  builder.source.add(background)
-  builder.add(background, 'exact-clusters', 4)
+  const backdrop = G.basicSurface({ color: 0x1b3a5c, side: G.DOUBLE_SIDE })
+  builder.place(backdrop, 'exact-clusters', 4, [0, 0, -2]).name = 'background'
   const tile = G.mesh(
     square(HALF),
     G.basicSurface({ color: 0xff2020, transparent: true, opacity: 0.85, side: G.DOUBLE_SIDE }),

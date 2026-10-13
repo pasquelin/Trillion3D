@@ -11,18 +11,19 @@ import {
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 
-export const CODE = vsmProjectionWgsl(
-  vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27),
-  { subgroups: false },
+export const PROJECTION_CODE = vsmProjectionWgsl(
+  vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }),
+  {
+    subgroups: false,
+  },
 )
-export const f = Math.fround
 export type V3 = [number, number, number]
 export interface Light {
   shiftedPosition: V3
-  invRadius: number
+  radius: number
   direction: V3
   sourceRadius: number
-  spotAngles: [number, number]
+  cosCone: number
   mapId: number
   kind: number
 }
@@ -40,23 +41,23 @@ export interface Pixel {
   screenRayWorld: number
   noise: number
 }
-export type Result = { valid: boolean; shadowFactor: number; rayCount: number }
+export type Result = { shadowFactor: number; rayCount: number }
 
 const unit = (v: number[]) => {
   const l = Math.hypot(...v)
-  return v.map((x) => f(x / l)) as V3
+  return v.map((x) => Math.fround(x / l)) as V3
 }
 
-/** A frame of `count` lights around a tile near the origin: suns, points, spots, rectangles,
- *  unbounded lamps; some lamps' spheres end a few units in the last place past or short of a
- *  pixel of the tile (`edge`) — with `corner`, the tile's least corner, half of them beyond it,
- *  where that pixel is the box's nearest point. */
+/** A frame of `count` lights around a tile near the origin: suns, points, spots, rectangles;
+ *  some lamps' spheres end a few units in the last place past or short of a pixel of the tile
+ *  (`edge`) — with `corner`, the tile's least corner, half of them beyond it, where that pixel is
+ *  the box's nearest point. */
 export function lightsOf(rand: () => number, count: number, edge: V3[], corner?: V3): Light[] {
   return Array.from({ length: count }, (_, k) => {
     const kind = [DIRECTIONAL, POINT, SPOT, RECT, POINT, SPOT][Math.floor(rand() * 6)]
-    let at: V3 = [0, 1, 2].map(() => f((rand() - 0.5) * 40)) as V3
+    let at: V3 = [0, 1, 2].map(() => Math.fround((rand() - 0.5) * 40)) as V3
     if (corner && rand() < 0.5)
-      at = corner.map((c) => f(c - (0.1 + rand()) * (0.5 + rand() * 8))) as V3
+      at = corner.map((c) => Math.fround(c - (0.1 + rand()) * (0.5 + rand() * 8))) as V3
     let radius = 0.5 + rand() * 20
     if (kind !== DIRECTIONAL && rand() < (corner ? 0.6 : 0.3)) {
       // Its sphere through a pixel of the tile, give or take a few units in the last place.
@@ -64,14 +65,13 @@ export function lightsOf(rand: () => number, count: number, edge: V3[], corner?:
       const d = Math.hypot(at[0] - p[0], at[1] - p[1], at[2] - p[2])
       radius = d * (1 + (Math.floor(rand() * 9) - 4) * 2 ** -23)
     }
-    const unbounded = kind !== DIRECTIONAL && rand() < 0.05
-    const cosOuter = f(Math.cos(0.2 + rand() * 1.2))
+    const cosCone = Math.fround(Math.cos(0.2 + rand() * 1.2))
     return {
       shiftedPosition: at,
-      invRadius: unbounded ? 0 : f(1 / radius),
+      radius: Math.fround(radius),
       direction: unit([rand() - 0.5, rand() - 0.5, rand() - 0.5]),
-      sourceRadius: f(rand() * 0.5),
-      spotAngles: kind === SPOT ? [cosOuter, f(1 / (1 - cosOuter))] : [-2, 1],
+      sourceRadius: Math.fround(rand() * 0.5),
+      cosCone: kind === SPOT ? cosCone : -2,
       mapId: k,
       kind,
     }
@@ -93,9 +93,9 @@ export function pixelsOf(rand: () => number, group: [number, number], kind: stri
     const valid = inRect && lit
     const shifted: V3 = valid
       ? ([
-          f(origin[0] + (x / 8) * scale),
-          f(origin[1] + (y / 8) * scale),
-          f(origin[2] + (kind === 'corner' ? (x + y) / 16 : rand()) * scale * 0.3),
+          Math.fround(origin[0] + (x / 8) * scale),
+          Math.fround(origin[1] + (y / 8) * scale),
+          Math.fround(origin[2] + (kind === 'corner' ? (x + y) / 16 : rand()) * scale * 0.3),
         ] as V3)
       : [0, 0, 0]
     if (valid && kind === 'infinite' && i === 9) shifted[1] = Infinity
@@ -122,8 +122,8 @@ export function pixelsOf(rand: () => number, group: [number, number], kind: stri
 /** What a run of the kernel's pieces reads beside them: the module's constants, an inverse square
  *  root, and a vector's bits as floats. Its integer words stay exact: no binary32 rounding of
  *  their arithmetic (\`F32_SCOPE\` rounds every sum). */
-export const SCOPE = {
-  ...wgslConstants(CODE),
+export const PROJECTION_SCOPE = {
+  ...wgslConstants(PROJECTION_CODE),
   inverseSqrt: (x: number) => 1 / Math.sqrt(x),
   bitcast_vec3f: builtins.bitcast_f32,
 }
@@ -139,7 +139,7 @@ export const NAMES = [
   'vsmOrderedKey',
   'vsmOrderedValue',
   'vsmLightIsDirectional',
-  'vsmSpotCone',
+  'localLightReaches',
   'vsmFacesAwayFromSun',
   'vsmFacesAwayFromLocal',
   'vsmMaskCode',

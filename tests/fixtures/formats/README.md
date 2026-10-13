@@ -45,7 +45,7 @@ Test paths below are relative to `packages/asset-compiler-rust/`.
 | `ktx2` | `base.ktx2`, `base-zstd.ktx2`, `tronque.ktx2`, `scene.*`, `expected.json` | CC0-1.0, same notice | written here from Khronos "KTX File Format Specification, version 2.0"; `tronque.ktx2` is forty bytes of `basis.ktx2` |
 | `ma` | `minuscule/scene.ma` | CC0-1.0, [`LICENSE.txt`](ma/LICENSE.txt) | written here from Autodesk's public MEL command documentation |
 | `ma` | `minuscule/textures/checker.png` | CC0-1.0, same notice | corpus, as `usd/minuscule/textures/checker.png` |
-| `material-classes` | three `.gltf` + `.bin` | repository | written here |
+| `material-classes` | `emetteur-sphere.gltf` + `.bin` | repository | written here |
 | `obj` | `minuscule/scene.obj`, `scene.mtl`, `textures/*.png` | CC0-1.0, [`LICENSE.txt`](obj/LICENSE.txt) | written here from the OBJ and MTL specification; PNGs by a minimal PNG encoder |
 | `png` | the `.png` | CC0-1.0 | written here from W3C "PNG Specification (Second Edition)" (ISO/IEC 15948:2004), W3C "APNG Specification" and "ICC.1:2001-04" |
 | `previews` | `atlas-couleur/` | repository | generated here by `src/tests/textures/previews_source.rs` |
@@ -169,11 +169,8 @@ instance by `parent -add`, a `lambert` and a `standardSurface` textured by
 
 ## material-classes
 
-Minimal scenes carrying the material classes the engine distinguishes, no texture:
-`classes-materiaux` (opaque, `MASK` cutout, `BLEND`), `transmission` (a
-`KHR_materials_transmission` water plane over a ground and blocks) and `emetteur-sphere` (a point
-lamp inside an emissive envelope, with one occluder inside its radius and one outside), read by
-`src/tests/lights/lamp_emitter.rs`.
+`emetteur-sphere`: a point lamp inside an emissive envelope, with one occluder inside its radius and
+one outside, no texture; read by `src/tests/lights/lamp_emitter.rs`.
 
 ## obj
 

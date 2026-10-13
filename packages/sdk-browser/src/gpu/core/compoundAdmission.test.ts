@@ -16,7 +16,7 @@ for (const kind of ['draw', 'partition'] as const) {
       flags: previous,
       restBits: previous,
       slotUsed: previous,
-      pyramid: () => previous,
+      pyramid: () => ({}) as GPUTextureView,
     }
     if (kind === 'draw') assert.equal(await createGpuDraw(gpu.device, 1, 1, 3), undefined)
     else await assert.rejects(createGpuPartition(gpu.device, 1, sources), /GPU_BUDGET_EXCEEDED/)
@@ -37,7 +37,7 @@ for (const kind of ['draw', 'partition'] as const) {
       flags: previous,
       restBits: previous,
       slotUsed: previous,
-      pyramid: () => previous,
+      pyramid: () => ({}) as GPUTextureView,
     }
     const made =
       kind === 'draw'

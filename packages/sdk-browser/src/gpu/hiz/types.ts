@@ -7,8 +7,12 @@ export type GpuHiz = {
   level0: GPUTexture
   level0View: GPUTextureView
   flags: GPUBuffer
-  /** The build of the drawn pyramid, as dispatches of the frame's compute pass. */
+  /** The build of the drawn pyramid's farthest layer from the depth drawn so far — the occluders'
+   *  —, as dispatches of the frame's compute pass. */
   encodePyramid(open: OpenPass): void
+  /** The build of its nearest layer — each pixel's plane, each cell's nearest — and of the
+   *  finished depth's farthest layer, once level 0 holds the whole depth, as dispatches of the open compute pass. */
+  encodeNearest(open: OpenPass): void
   /**
    * Adopts the tested boxes and the frame state the GPU partition writes. It is mounted after the
    * pyramid — it reads `flags` — so the bind group only knows them here. Without this call,
@@ -20,13 +24,18 @@ export type GpuHiz = {
   /** Pyramid mips, offset and width: what the partition reads to express a screen
    *  rectangle in texels of the mip that covers it exactly. */
   levels(): Array<{ offset: number; width: number }>
-  /** The pyramid buffer itself, which the transparent occlusion test walks with
-   *  the `levels()` table. It changes identity on every target resize. */
-  pyramidBuffer(): GPUBuffer | undefined
+  /** The pyramid texture's view, whose farthest layer the partition's cull and the transparent
+   *  occlusion test walk with the `levels()` table. It changes identity on every target resize. */
+  pyramidView(): GPUTextureView | undefined
+  /** What a reader of the whole depth binds (`hizDepthEntries`, `hizDepthWgsl`): level 0, the
+   *  pyramid, its levels uniform and its front depth, in that order: a new object whenever one
+   *  changes, which a reader's bind group follows. */
+  depth(): HizDepth | undefined
   /**
    * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after
-   * the pyramid's build in the same pass; their count lives in the state, and the CPU does
-   * not read it. `maxRows` bounds the dispatch — any drawable row may have been tested. Nothing is
+   * the pyramid's build in the same pass; their count lives in the state, the CPU does
+   * not read it, and the dispatch is sized by it (`testHizArgs`), not by the rows the table
+   * holds. `maxRows`, the table's drawable rows, bounds what the uniform declares. Nothing is
    * cleared first: the partition wrote every drawable row's verdict this frame (`classifyRows`),
    * `0` for an occluder, and the test rewrites each tested row's. `pages` is the page table: a row
    * whose Hi-Z slot is none (never culled) is kept and counts no reject. Rejects are counted only
@@ -53,6 +62,12 @@ export type GpuHiz = {
    */
   swap(next: HizPyramid | undefined): HizPyramid | undefined
   dispose(): void
+}
+
+/** The resources of `GpuHiz.depth`, the last the front depth (`createGpuHiz`). A new object
+ *  whenever one of them changes: a reader's bind group follows its identity. */
+export type HizDepth = {
+  resources: [GPUTextureView, GPUTextureView, GPUBufferBinding, GPUTextureView]
 }
 
 /** One view's pyramid, at that view's size, held by the view while another is drawn. */

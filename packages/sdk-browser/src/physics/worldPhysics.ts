@@ -17,6 +17,7 @@ import {
   type GravityInput,
   type WorldPhysicsOptions,
 } from './worldPhysicsOptions.ts'
+import { log } from '../diagnostic/log.ts'
 
 /** What the world's physics holds: its scene and envelopes, its gravity, joints and carried
  *  meshes, the session running — if any — and what the handle set. */
@@ -77,7 +78,7 @@ const setGravity = ({ gravity }: PhysicsState, g: GravityInput) =>
 
 function failed(s: PhysicsState, cause: EngineError, fatal = false) {
   s.error = cause
-  console.error(cause)
+  log.error('physics failed', cause)
   // The simulation stopped: its session ends and sends nothing more; `enabled` reads false.
   if (fatal) enable(s, false)
 }

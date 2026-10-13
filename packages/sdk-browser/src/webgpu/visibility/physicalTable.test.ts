@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPhysicalTable, PHYSICAL_ROW_RECORDS } from './physicalTable.ts'
+import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { visMaterial } from '../../visibility/shader/material.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
@@ -35,7 +36,7 @@ test('a surface without a lobe takes no record; one with a lobe takes its rank p
 })
 
 test('a record holds the clamped factors, the coat normal scales, the slots and the UV channels', () => {
-  const { device, texelWrites } = fakeDevice()
+  const { device, textureWrites } = fakeDevice()
   const table = createPhysicalTable()
   const anisotropyMap = map(1),
     clearcoatNormalMap = map(0)
@@ -55,24 +56,24 @@ test('a record holds the clamped factors, the coat normal scales, the slots and 
   }
   table.rowWord(surface, layer)
   const view = table.upload(device)
-  assert.equal(texelWrites.length, 1)
+  assert.equal(textureWrites.length, 1)
   // One record: three texels of the first row.
-  assert.deepEqual(texelWrites[0].size, [3, 1])
-  const recordLength = recordWords(texelWrites[0])
+  assert.deepEqual(textureWrites[0].size, [3, 1])
+  const recordLength = recordWords(textureWrites[0])
   // The one record's write is its own texels: four words each.
-  assert.equal(recordLength, (texelWrites[0].size as number[])[0] * 4)
-  const words = new Uint32Array(texelWrites[0].data.buffer, 0, recordLength)
+  assert.equal(recordLength, (textureWrites[0].size as number[])[0] * 4)
+  const words = new Uint32Array(textureWrites[0].data.buffer, 0, recordLength)
   const floats = new Float32Array(words.buffer, 0, recordLength)
   assert.deepEqual([...floats.slice(0, 6)], [1, 0.25, 0, Math.fround(ROUGHNESS_FLOOR), 2, -1])
   assert.deepEqual([...words.slice(6)], [0b0001, 0, 3, 0, 0, 7])
   // Nothing changed: nothing goes up again, and the texture stays.
   table.rowWord(surface, layer)
   assert.equal(table.upload(device), view)
-  assert.equal(texelWrites.length, 1)
+  assert.equal(textureWrites.length, 1)
 })
 
 test('the table grows by doubling its rows, its texture with it, every record sent up again', () => {
-  const { device, texelWrites, textures } = fakeDevice()
+  const { device, textureWrites, textures } = fakeDevice()
   const table = createPhysicalTable()
   const layer = new Map<Texture, number>()
   table.rowWord({ ...lit, clearcoat: 1 }, layer)
@@ -85,13 +86,13 @@ test('the table grows by doubling its rows, its texture with it, every record se
   // Three rows hold the records; the texture doubles to four.
   assert.equal(textures.at(-1)!.height, 4)
   assert.equal(textures.at(-1)!.width, PHYSICAL_ROW_RECORDS * 3)
-  assert.deepEqual(texelWrites.at(-1)!.size, [PHYSICAL_ROW_RECORDS * 3, 3])
+  assert.deepEqual(textureWrites.at(-1)!.size, [PHYSICAL_ROW_RECORDS * 3, 3])
   // The data covers every row written: a row is its records' three texels of 16 bytes.
-  assert.ok(texelWrites.at(-1)!.data.byteLength >= 3 * PHYSICAL_ROW_RECORDS * 3 * 16)
+  assert.ok(textureWrites.at(-1)!.data.byteLength >= 3 * PHYSICAL_ROW_RECORDS * 3 * 16)
   table.dispose()
 })
 
-test('a grown table destroys its old texture only once the queue has done its submitted work', async () => {
+test('a grown table destroys its old texture only once the frame is submitted', () => {
   const { device, textures, destroyed, fences } = fakeDevice()
   const table = createPhysicalTable()
   const layer = new Map<Texture, number>()
@@ -103,14 +104,14 @@ test('a grown table destroys its old texture only once the queue has done its su
   // A pass of this image encoded earlier still binds the old view: its submit comes after.
   assert.notEqual(textures.at(-1), old)
   assert.equal(destroyed.includes(old), false, 'not destroyed while the image is encoded')
-  assert.equal(fences(), 1, 'its destroy waits for the queue')
-  await device.queue.onSubmittedWorkDone()
-  assert.equal(destroyed.includes(old), true, 'destroyed once the submitted work is done')
+  assert.equal(fences(), 0, 'no promise per texture: the frame-end retire list holds it')
+  destroyRetired(device)
+  assert.equal(destroyed.includes(old), true, 'destroyed once the frame is submitted')
   table.dispose()
 })
 
 test('a surface whose version and atlas held keeps its word: no record is compared again', () => {
-  const { device, texelWrites } = fakeDevice()
+  const { device, textureWrites } = fakeDevice()
   const table = createPhysicalTable()
   const layer = new Map<Texture, number>()
   const surface = { ...lit, clearcoat: 1, version: 3 }
@@ -125,7 +126,7 @@ test('a surface whose version and atlas held keeps its word: no record is compar
   assert.equal(table.rowWord(surface, layer), 1)
   assert.equal(table.pending, true)
   table.upload(device)
-  assert.equal(new Float32Array(texelWrites.at(-1)!.data.buffer)[2], 0.5)
+  assert.equal(new Float32Array(textureWrites.at(-1)!.data.buffer)[2], 0.5)
   // A slot that moved under the same count (a texture released, another appended) is read again
   // once the atlas says so (`forget`), not before.
   const map = { channel: 0 } as Texture
@@ -140,12 +141,12 @@ test('a surface whose version and atlas held keeps its word: no record is compar
   table.forget()
   table.rowWord(surface, layer)
   table.upload(device)
-  const last = texelWrites.at(-1)!
+  const last = textureWrites.at(-1)!
   assert.equal(new Uint32Array(last.data.buffer, last.layout.offset)[9], 2)
 })
 
 test('an upload sends the span of the records written since, not the whole table', () => {
-  const { device, texelWrites } = fakeDevice()
+  const { device, textureWrites } = fakeDevice()
   const table = createPhysicalTable()
   const layer = new Map<Texture, number>()
   const surfaces = Array.from({ length: 5 }, (_, i) => ({ ...lit, clearcoat: 1, version: i }))
@@ -158,7 +159,7 @@ test('an upload sends the span of the records written since, not the whole table
   table.rowWord(surfaces[2], layer)
   table.rowWord(surfaces[3], layer)
   table.upload(device)
-  const sent = texelWrites.at(-1)!
+  const sent = textureWrites.at(-1)!
   assert.deepEqual(
     [sent.destination.origin, sent.size],
     [

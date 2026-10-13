@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { publierRapport } from './publishReport.ts'
+import { readJson } from '../../../scripts/repository-files.ts'
 
 test('a campaign replaces the one report, keeps the other files, and validates evidence before copying', () => {
   const root = mkdtempSync(join(tmpdir(), 'trillion3d-publish-'))
@@ -25,15 +26,13 @@ test('a campaign replaces the one report, keeps the other files, and validates e
     writeFileSync(join(source, 'source.json'), '{}')
     assert.equal(publierRapport(source, dest), join(dest, 'reports/test'))
     assert.equal(readFileSync(join(dest, 'index.html'), 'utf8'), 'kept')
-    assert.equal(JSON.parse(readFileSync(join(dest, 'reports/index.json'), 'utf8'))[0].id, 'test')
+    assert.equal(readJson(join(dest, 'reports/index.json'))[0].id, 'test')
     assert.throws(() => publierRapport(source, dest), /already published/)
     writeFileSync(join(source, 'report.json'), JSON.stringify({ ...report, id: 'next' }))
     assert.equal(publierRapport(source, dest), join(dest, 'reports/next'))
     assert.equal(existsSync(join(dest, 'reports/test')), false, 'the previous campaign is gone')
     assert.deepEqual(
-      JSON.parse(readFileSync(join(dest, 'reports/index.json'), 'utf8')).map(
-        (item: { id: string }) => item.id,
-      ),
+      readJson(join(dest, 'reports/index.json')).map((item: { id: string }) => item.id),
       ['next'],
     )
   } finally {

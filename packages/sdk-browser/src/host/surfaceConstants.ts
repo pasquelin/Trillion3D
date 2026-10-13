@@ -13,7 +13,7 @@
  * linear, then its two. The host numbers that whole set as one dense run, which is why a wrap
  * constant and a filter constant share it. `HOST_MAPPING_UV` is the one mapping a glTF texture
  * can declare: the sampler reads the UV set the material names, and nothing is derived from a
- * reflection vector. `HOST_BLENDING_NORMAL` is source-over, the only blend equation glTF's
+ * view direction. `HOST_BLENDING_NORMAL` is source-over, the only blend equation glTF's
  * `BLEND` alpha mode defines; the other modes are the world API's. `HOST_NORMAL_MAP_TANGENT_SPACE` is glTF's normal texture, whose
  * vectors are expressed in the surface's tangent frame.
  *

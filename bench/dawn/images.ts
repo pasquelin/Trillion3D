@@ -1,13 +1,14 @@
 // The browser's image decoding in the bench's Node process: `createImageBitmap`, `Image` and a 2D
 // `OffscreenCanvas` that reads pixels back, as the engine's loaders use them. PNG is decoded by the
-// bench's reader (`pngRead.ts`); JPEG, WebP and the rest by macOS's `sips`, once per file content. The
-// pixels are the file's, with no colour conversion and no premultiplication unless asked.
+// Node adapter's reader (`decodePng`); JPEG, WebP and the rest by macOS's `sips`, once per file
+// content. The pixels are the file's, with no colour conversion and no premultiplication unless
+// asked.
 import { execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { measureOutput } from '../core/paths.ts'
-import { readPng } from './pngRead.ts'
+import { decodePng } from '../../packages/sdk-node/src/cutout/png.mts'
+import { sha256 } from '../../packages/sdk-node/src/compiler/provenance.mts'
 
 /** A decoded image: its size and its RGBA rows, top row first. */
 export class BenchBitmap {
@@ -26,17 +27,17 @@ const PNG = [137, 80, 78, 71]
 
 /** `bytes` decoded: PNG at once, anything else through `sips` to a PNG kept by its content. */
 function decode(bytes: Uint8Array) {
-  if (PNG.every((byte, i) => bytes[i] === byte)) return readPng(bytes)
+  if (PNG.every((byte, i) => bytes[i] === byte)) return decodePng(bytes)
   const dir = measureOutput('bench-gpu', 'images')
   mkdirSync(dir, { recursive: true })
-  const name = createHash('sha256').update(bytes).digest('hex').slice(0, 24)
+  const name = sha256(bytes).slice(0, 24)
   const png = join(dir, `${name}.png`)
   if (!existsSync(png)) {
     const source = join(dir, `${name}.source`)
     writeFileSync(source, bytes)
     execFileSync('sips', ['-s', 'format', 'png', source, '--out', png], { stdio: 'ignore' })
   }
-  return readPng(readFileSync(png))
+  return decodePng(readFileSync(png))
 }
 
 /** A bitmap's pixels as a copy or a decode asks them — rows bottom up, alpha multiplied in, red

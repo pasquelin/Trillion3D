@@ -32,11 +32,17 @@ const at = (k: number) => {
 type Run = Record<string, (...args: unknown[]) => unknown>
 /** Every case from `first` on: `is` answers what `was` answered to the arguments `argsOf` draws,
  *  and about one case in two touches a page (a test that never hits proves nothing). */
-function sameTouches(was: Run, is: Run, first: number, argsOf: (d: Draw) => unknown[]) {
+function sameTouches(
+  was: Run,
+  is: Run,
+  first: number,
+  argsOf: (d: Draw) => unknown[],
+  name = 'vsmTouchesMappedPage',
+) {
   let overlaps = 0
   for (let k = 0; k < CASES; k++) {
     const args = argsOf(at(first + k).d)
-    const result = is.vsmTouchesMappedPage(...args)
+    const result = is[name](...args)
     assert.equal(result, was.vsmTouchesMappedPage(...args), `case ${k}`)
     overlaps += Number(result)
   }
@@ -59,15 +65,14 @@ test("the overlap of a pixel rect with valid pages is the render cull's, receive
   const names = ['vsmTouchesMappedPage', 'vsmMaskRectHits', 'vsmBitRun']
   const shared = ['vsmMarksMatch', 'vsmLevelHoldingRect', 'floorLog2']
   const was = run(RENDER_BEFORE, [...names, ...shared]),
-    is = run(RENDER, [...names, ...shared, 'vsmRectMarks'])
-  sameTouches(was, is, 10 ** 5, (d) => [
-    handle(d),
-    d.int(0, 7),
-    pageRect(d, 16383),
-    d.int(0, 15),
-    d.bool(),
-    d.bool(),
-  ])
+    is = run(RENDER, [...names, 'vsmTouchesMappedPixels', ...shared, 'vsmRectMarks'])
+  sameTouches(
+    was,
+    is,
+    10 ** 5,
+    (d) => [handle(d), d.int(0, 7), pageRect(d, 16383), d.int(0, 15), d.bool(), d.bool()],
+    'vsmTouchesMappedPixels',
+  )
 })
 
 test("the allocated rect, the radius and the detail geometry are each module's own, bit for bit", () => {

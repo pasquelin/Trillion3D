@@ -1,4 +1,4 @@
-import { grantPending, startGrant, type DeviceGrant } from '../../../gpu/core/errorScope.ts'
+import { grantPending, startGrant } from '../../../gpu/core/errorScope.ts'
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts'
 import { vsmAskedBytes, vsmReserveBytes } from '../render/vsm/vsmPlan.ts'
 import { shadowHeldBytes } from '../render/vsm/vsmStats.ts'
@@ -11,20 +11,17 @@ import { frameExtraBytes, frameTargetAllocation } from './targetAllocation.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { frameSizeOf, type FrameSize } from '../state/renderScale.ts'
 import { viewGpu, type WebgpuView } from '../state/view.ts'
+import { cutLedgerBytes } from '../../../gpu/dag/cutBuffers.ts'
 
 /** Admit proposed targets before makeTargets creates any resource. Pool floors use
  * the same constructors as normal residency, so root coverage and texture tails
  * cannot be silently enlarged after this budget transaction. */
-const funded = new WeakMap<WebgpuPagesRuntime, number>()
-/** The pools funded again beside targets already in place, one at a time. */
-const refreshing = new WeakMap<WebgpuPagesRuntime, DeviceGrant>()
-
 function refreshTargetFunding(rt: WebgpuPagesRuntime, size: FrameSize) {
   if (!rt.context.admitGpuMemory) return
   const bytes = gpuDeviceLedgerOf(rt.gpu.device)?.bytes
-  if (bytes === undefined || bytes === funded.get(rt)) return
+  if (bytes === undefined || bytes === rt.run.funding.ledgerBytes) return
   // Asked once per ledger state, granted or refused: a refusal is said once, not every frame.
-  funded.set(rt, bytes)
+  rt.run.funding.ledgerBytes = bytes
   try {
     return fundFrameTargets(rt, size, 0, true)
   } catch (error) {
@@ -105,10 +102,14 @@ export function fundFrameTargets(
   // Auxiliary buffers, other views/captures and proxy resources are already live.
   // Credit only the active view being replaced and the separately charged pools;
   // the device ledger is the existing ownership accounting, not a second budget.
+  // The cuts' tables hold their own share, funded before the pools: what the ledger counts of them
+  // (`cutLedgerBytes`), and the buffer one is about to make (`admitCutTables`).
+  const cutHeld = ledger ? cutLedgerBytes(ledger.byLabel) : 0
   const separatelyHeld =
     gpu.targetBytes +
     shadowHeld +
     bounceProbes +
+    cutHeld +
     effectTargets +
     setup.geometryPool.allocatedBytes +
     vertexBytes +
@@ -126,11 +127,12 @@ export function fundFrameTargets(
     effectTargets,
     geometryMinimum,
     textureMinimum,
+    cutTables: cutHeld + rt.run.funding.cutAsked,
   })
   // This call may run inside prepare itself: the host report's wait would await
   // this very target grant. Admission only redistributes the existing tables.
   const record = () => {
-    funded.set(rt, gpuDeviceLedgerOf(gpu.device)?.bytes ?? 0)
+    rt.run.funding.ledgerBytes = gpuDeviceLedgerOf(gpu.device)?.bytes ?? 0
   }
   if (
     pools.geometryPoolBytes !== setup.geometryPool.budgetBytes ||
@@ -140,9 +142,29 @@ export function fundFrameTargets(
   record()
 }
 
+/** The frame's size the cut's admission funds the targets at, written by `admitCutTables`. */
+const cutFrame = {} as FrameSize
+
+/**
+ * THE CUT'S TABLES ASK THE BUDGET before each buffer of theirs is made (`../../../gpu/dag/resources.ts`,
+ * `CutAdmission`): the session is funded again with `bytes` more of them beside what they hold
+ * (`ActiveGpuMemory.cutTables`) — the default total grows by them, a total the page set presses the
+ * pools —, or it throws, by its own name (`GPU_BUDGET_UNDER_MINIMUM`), and that buffer is not made.
+ * A session without a budget funds nothing and asks nothing.
+ */
+export function admitCutTables(rt: WebgpuPagesRuntime, bytes: number) {
+  rt.run.funding.cutAsked = bytes
+  try {
+    void fundFrameTargets(rt, frameSizeOf(rt, cutFrame), 0, true)
+  } finally {
+    rt.run.funding.cutAsked = 0
+  }
+}
+
 /** The pools' funding beside the frames still in flight, if any: no frame waits for it, but a
  *  target grant and a capture do, so two fundings never move the pools at once. */
-export const poolFundingPending = (rt: WebgpuPagesRuntime) => grantPending(refreshing.get(rt))
+export const poolFundingPending = (rt: WebgpuPagesRuntime) =>
+  grantPending(rt.run.funding.refreshing)
 
 /**
  * The targets in place fit: the pools are funded again beside the frames, never holding one — a
@@ -159,6 +181,6 @@ export function refreshTargetGrant(
   const refresh = refreshTargetFunding(rt, size)
   if (!refresh) return
   const grant = startGrant(refresh.catch(refuse))
-  refreshing.set(rt, grant)
+  rt.run.funding.refreshing = grant
   return grant.done
 }

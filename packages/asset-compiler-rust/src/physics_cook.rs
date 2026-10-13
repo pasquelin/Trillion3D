@@ -11,9 +11,10 @@
 //! declare, a shapeless one given one convex hull (`hull.rs`) and the exact mass of its closed mesh
 //! (`mass.rs`), a breakable one also cut into weighed convex pieces (`pieces.rs`, `voronoi.rs`); and the soft bodies its nodes declare, each the engine's `SoftBodySharedSettings` as the
 //! physics worker would build them (`soft.rs`).
-use crate::dag::{CullingNode, DagCluster};
+use crate::dag::DagCluster;
 use crate::{CompilerError, Options, Result};
 use serde_json::{json, Value};
+use trillion3d_page_codec::culling::CullingNode;
 
 #[cfg(test)]
 mod bodies_tests;
@@ -51,7 +52,7 @@ pub(crate) use stage::stage_physics;
 
 /// The stage contract: its name and version, which enter `physics.json` and the cache key.
 pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
-pub const PHYSICS_COOK_VERSION: u32 = 9;
+pub const PHYSICS_COOK_VERSION: u32 = 10;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 2;
 /// Version of a `physics.json` whose bodies carry pieces (`pieces.rs`): a reader of format 2 alone
@@ -62,7 +63,7 @@ pub const JOLT_COMMIT: &str = env!("JOLT_COMMIT");
 /// Name of the product beside the manifest.
 pub const PHYSICS_FILE: &str = "physics.json";
 /// Words of each soft body vertex, `x, y, z, mass`: the worker's and the builder's stride
-/// (`SOFT_VERTEX_WORDS`, `packages/physics-jolt-wasm/src/words.h`).
+/// (`SOFT_VERTEX_WORDS`, `packages/physics-jolt-wasm/src/layout.h`).
 const SOFT_VERTEX_WORDS: usize = 4;
 
 /// The collision of one primitive (`cut::cook_primitive`), or `{"refused": reason}` when the engine

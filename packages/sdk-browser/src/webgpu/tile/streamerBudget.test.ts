@@ -1,11 +1,13 @@
+import { previewLevelSize } from '../../../../sdk-core/src/index.ts'
 // The tile pass stops copying once its millisecond budget is spent and defers the rest to the
 // next pass, most looked-at first; a barrier lifts the budget; the worst budgeted pass is kept.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTileStreamer } from './streamer.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
-import { levelSize, tileLayout } from '../../texture/tiles.ts'
+import { tileLayout } from '../../texture/tiles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 /** Milliseconds each fake copy costs on the test's own clock — the budget is read on it — and
  *  what the shadows that follow the landed colour tiles cost after the last copy. */
@@ -32,7 +34,7 @@ function streamer(budgetMs: number) {
   const layout = tileLayout(256, 256)
   const tail: Uint8Array<ArrayBuffer>[] = []
   for (let level = layout.tail; level <= layout.last; level++) {
-    const [w, h] = levelSize(256, 256, level)
+    const [w, h] = previewLevelSize(256, 256, level)
     tail.push(new Uint8Array(w * h * 4))
   }
   const blocks = { bc7: [], astc: [], etc2: [] }
@@ -59,10 +61,13 @@ function streamer(budgetMs: number) {
     budgetBytes: Number.MAX_SAFE_INTEGER,
     budgetMs,
     now,
-    readLevel: async ({ level }) => {
-      const [width, height] = levelSize(256, 256, level)
-      return { width, height, close() {} } as ImageBitmap
-    },
+    readLevel: Object.assign(
+      async ({ level }: { level: number }) => {
+        const [width, height] = previewLevelSize(256, 256, level)
+        return { width, height, close() {} } as ImageBitmap
+      },
+      { store: createPageCache(), key: 'k' },
+    ),
     onFailure: (phase, error) => assert.fail(`${phase}: ${String(error)}`),
     onColorChanged: follow,
   })

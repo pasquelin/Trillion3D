@@ -23,7 +23,6 @@
     "tests/**/*.mts",
     "bench/**/*.ts",
     "packages/**/*.test.ts",
-    "packages/page-codec/**/*.ts",
     "packages/sdk-node/**/*.ts",
     "knip.config.ts",
     "knip.production.config.ts",

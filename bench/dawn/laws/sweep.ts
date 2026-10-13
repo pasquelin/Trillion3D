@@ -6,7 +6,7 @@
 // Laws: world, runtime, pixels, lights, distance. Each run measures the machine once and keeps it
 // (`../machine.ts`). Waits for the machine's bench lock. Tables land in
 // `.mesure/out/laws/`, each run's report in `.mesure/out/bench-gpu/`.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { measureOutput } from '../../core/paths.ts'
@@ -17,6 +17,7 @@ import { stamp } from '../options.ts'
 import { cookPoint } from './cook.ts'
 import { lawTable, pointRow, type PointRow } from './lawTable.ts'
 import { lawOf, type Law } from './points.ts'
+import { readJson } from '../../../scripts/repository-files.ts'
 
 const here = (file: string) => new URL(file, import.meta.url).pathname
 
@@ -60,7 +61,7 @@ async function measure(law: Law) {
       failed.push(`${point.x}: ended ${child.status ?? child.signal}`)
       continue
     }
-    rows.push(pointRow(point.x, JSON.parse(readFileSync(`${report}.json`, 'utf8')) as BenchReport))
+    rows.push(pointRow(point.x, readJson(`${report}.json`) as BenchReport))
     if (child.status !== 0) failed.push(`${point.x}: GPU errors`)
   }
   const out = measureOutput('laws')

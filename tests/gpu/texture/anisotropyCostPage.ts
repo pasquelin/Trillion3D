@@ -1,4 +1,4 @@
-// Page of the anisotropy cost measure (`bench/runner/counts/anisotropyCost.ts`): one textured
+// Page of the anisotropy cost measure (`bench/dawn/anisotropyCost.ts`): one textured
 // floor seen at a grazing angle, drawn by the WebGPU engine at each anisotropy asked, the GPU time
 // of each image read from the engine's own timer. The camera slides by a hair at every image, so
 // no image is held and each one pays its reads. Loaded on Dawn: its engine modules read the WebGPU
@@ -7,7 +7,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { batisseur, engine, release } from '../kit/sharedSceneProof.ts'
-import { quantileFloorOf } from '../../kit/stats/quantile.ts'
+import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 /** Half side of the floor, in scene units: the far edge reaches the horizon of the view. */
@@ -27,7 +27,7 @@ interface Reading {
   samples: number
 }
 
-const p50 = (values: number[]) => (values.length ? (quantileFloorOf(values, 0.5) as number) : null)
+const p50 = (values: number[]) => (values.length ? (quantileOf(values, 0.5) as number) : null)
 
 /** A picture with detail at every texel — a seeded noise, so the reads cannot share a cache line
  *  — repeated, mipmapped and filtered trilinearly at `anisotropy`. */
@@ -60,13 +60,9 @@ async function measure(
   frames: number,
 ): Promise<Reading> {
   const builder = batisseur()
-  const floor = G.mesh(
-    G.planeGeometry(2 * HALF, 2 * HALF),
-    G.basicSurface({ map: floorMap(anisotropy) }),
-  )
-  floor.rotation.x = -HALF_PI
-  builder.source.add(floor)
-  builder.add(floor, 'exact-clusters', HALF)
+  const floor = G.basicSurface({ map: floorMap(anisotropy) }),
+    plane = G.planeGeometry(2 * HALF, 2 * HALF)
+  builder.place(floor, 'exact-clusters', HALF, [0, 0, 0], { x: -HALF_PI }, plane)
   const scene = builder.fini()
   const { backend, canvas } = engine(scene, device, () => {}, {
     viewport: size,

@@ -4,14 +4,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidencyQueue } from './queue.ts'
-import { lruCache, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts'
+import { orderedPool, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts'
 
 test('the ensurer hears each camera page it lands, never a lower tier page', async () => {
   const pages = ['a', 'b', 'c', 'ahead'].map(pageOf)
   const tracking = createWebgpuPageTracking(pages)
   const camera = pages.slice(0, 3)
   for (const page of camera) tracking.wanted.add(tracking.keyOf(page), page)
-  const cache = lruCache(4)
+  const cache = orderedPool(4)
   await cache.load('a')
   let landed = 0
   const ensure = tierEnsurer(
@@ -43,7 +43,7 @@ const queueOf = (pass: (...args: Parameters<Ensure>) => ReturnType<Ensure>) =>
     getCache: () => undefined,
     getFrame: () => 0,
     updatePins() {},
-    ensureResident: Object.assign(pass, { revision: () => 0, touchLower() {} }),
+    ensureResident: Object.assign(pass, { revision: () => 0 }),
     markLost() {},
     traceEnabled: false,
     traceDiagnostic() {},

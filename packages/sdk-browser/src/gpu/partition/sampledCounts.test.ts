@@ -8,7 +8,6 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { structZero } from '../../texture/shaderRunStructs.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { PARTITION_SHADER } from './shader.ts'
 import { HIZ_SHADER } from '../hiz/shader.ts'
@@ -16,6 +15,7 @@ import { createGpuPartition } from './factory.ts'
 import * as C from './contract.ts'
 import { HALF_SLOTS, slotCount } from '../draw/contract.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Fn = (...args: unknown[]) => unknown
 type Ref = { get: () => number; set: (value: number) => void }
@@ -27,7 +27,7 @@ const bitsOf = (x: number) => (Number.isInteger(x) ? x >>> 0 : builtins.bitcast_
 
 /** `rows` random rows: what each held from the previous image, its item, its projected box. */
 function frameOf(seed: number, rows: number) {
-  const r = random(seed),
+  const r = lcgRandom(seed),
     int = (n: number) => Math.floor(r() * n)
   return {
     rowData: Array.from({ length: rows * C.ROW_DATA_U32 }, (_, k) =>
@@ -160,30 +160,29 @@ test('every counter but the allocator goes through the tally; the kernels flush 
 })
 
 test('the partition copies its counters on the frame that counted, and only then', async () => {
-  const { device } = fakeDevice()
+  const fake = fakeDevice(),
+    { device } = fake
   const buffer = (label: string) => ({ label, size: 4, destroy() {} }) as unknown as GPUBuffer
   let at = 0
   // A frame from 40 to 44 has no pyramid: it runs no kernel, counts nothing, and its sample waits.
   const partition = (await createGpuPartition(device, 4, {
     ...{ items: buffer('i'), flags: buffer('f'), restBits: buffer('r'), slotUsed: buffer('s') },
-    pyramid: () => (at < 40 || at > 44 ? buffer('pyramid') : undefined),
+    pyramid: () => (at < 40 || at > 44 ? ({} as GPUTextureView) : undefined),
   }))!
+  /** The frames whose encoding copied. */
   const copies: number[] = []
-  const pass = { setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {}, end() {} }
-  const encoder = {
-    clearBuffer() {},
-    beginComputePass: () => pass,
-    copyBufferToBuffer: () => void copies.push(at),
-  } as unknown as GPUCommandEncoder
+  const encoder = device.createCommandEncoder()
   const matrix = new Float64Array(16),
     sizes = { width: 8, height: 8, levels: [], layerTop: 0, hasRest: true, viewMoved: false }
   const frame = { view: matrix, viewProj: matrix, anchor: [0, 0, 0] as const, near: 1, rows: 4 }
   for (; at < 60; at++) {
     // The caller's one `countsDue` answer: the frame's `counting`.
     const counting = partition.countsDue(at)
+    const copied = fake.copies.length
     partition.beginFrame(encoder, { ...frame, ...sizes, counting })
     assert.equal(partition.counting, counting && (at < 40 || at > 44), `frame ${at}`)
     partition.encodeCounts(encoder, at)
+    if (fake.copies.length > copied) copies.push(at)
     partition.countsSubmitted()
     // The sample maps once the frame is submitted: the next is due fifteen frames on.
     await new Promise((settled) => setTimeout(settled))

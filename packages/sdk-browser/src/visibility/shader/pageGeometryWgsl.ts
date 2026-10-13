@@ -2,7 +2,7 @@ import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import {
   DEFORM_ADDRESS,
-  DEFORM_IN_POOL,
+  DEFORM_SOURCE_IN_POOL,
   DEFORM_NO_HEADER,
   FLAG_CLUSTER_PAGE,
   FLAG_HAS_COLOR,
@@ -10,7 +10,7 @@ import {
   FLAG_MASK,
   PHYSICAL_SECOND_UV,
 } from '../types.ts'
-import { FLAG_UV1 } from '../../cluster/format.ts'
+import { FLAG_UV1 } from '../../../../sdk-core/src/page/format.ts'
 import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts'
 import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from './lineWgsl.ts'
 import { SPRITE_WGSL } from './spriteWgsl.ts'
@@ -51,9 +51,9 @@ export const UV_READ = FLAG_HAS_UV | FLAG_MASK
 const PAGE_POINT_WGSL = wgslBlock(
   'PAGE_POINT_WGSL',
   [],
-  `/** Whether the row's results are a whole copy's: in the float pool, after a source header. */
+  `/** Whether the row's source is a whole copy's: in the float pool, after a source header. */
 fn deformWholeCopy(page:PageInfo)->bool{
- return (page.deformOutput&${(DEFORM_IN_POOL | DEFORM_NO_HEADER) >>> 0}u)==${DEFORM_IN_POOL}u;
+ return (page.deformOutput&${(DEFORM_SOURCE_IN_POOL | DEFORM_NO_HEADER) >>> 0}u)==${DEFORM_SOURCE_IN_POOL}u;
 }
 fn pageHeader(page:PageInfo)->ClusterHeader{return pageHeaderFor(page,true);}
 /** Whether a raster's corner reads a surface attribute of its page: a line's direction
@@ -98,12 +98,11 @@ fn pagePreviousPosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
  if(page.deformOutput!=0u){return pageDeformed(page,vertex,3u);}
  return pageRestPosition(page,h,vertex);
 }
-/** A computed result stored in the resident geometry slot's tail, or in the float pool (high bit):
- *  a whole copy's, read after its source header, or a float page's block, which has none (next bit). */
+/** A computed result, stored in the float pool: a page's own, a whole copy's, read after its source
+ *  header, or a float page's block, which has none (next bit). */
 fn pageDeformed(page:PageInfo,vertex:u32,field:u32)->vec3f{
  let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+vertex*11u+field;
- if((page.deformOutput&${DEFORM_IN_POOL}u)!=0u){return vec3f(positions[at],positions[at+1u],positions[at+2u]);}
- return vec3f(bitcast<f32>(indices[at]),bitcast<f32>(indices[at+1u]),bitcast<f32>(indices[at+2u]));
+ return vec3f(positions[at],positions[at+1u],positions[at+2u]);
 }`,
 )
 

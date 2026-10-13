@@ -1,19 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { ProxySync } from '../../../sdk-core/src/scene/core/proxyMotion.ts'
 import { syncBounceProbes } from './probeSync.ts'
 
 /** Probe-side parts that record what a sync asked of them. */
-function parts(change: ProxySync) {
+function parts(boxes: number[], moved: number[], extent: number[]) {
   const calls: string[] = []
   return {
     calls,
-    resident: {
-      sync: () => change,
-      bounds: [0, 0, 0, 1, 1, 1],
-      triangleBoxes: new Float64Array(6),
-      changedTriangles: new Uint8Array(1),
-    },
+    boxes: () => ({
+      boxes: Float64Array.from(boxes),
+      moved: { count: moved.length / 2, pairs: Int32Array.from(moved) },
+      extent,
+    }),
     cascades: { replan: () => (calls.push('replan'), true), invalidLevels: 1 },
     occupancy: { moved: () => void calls.push('occupancy') },
     invalidate: () => void calls.push('invalidate'),
@@ -21,23 +19,12 @@ function parts(change: ProxySync) {
   }
 }
 
-test('a settle uploads its triangles and flags only: no replan, no stale occupancy, no restart', () => {
-  const settled = parts('settled')
-  assert.equal(
-    syncBounceProbes(settled, () => undefined),
-    'settled',
-  )
-  assert.deepEqual(settled.calls, [])
-  const still = parts(null)
-  assert.equal(
-    syncBounceProbes(still, () => undefined),
-    null,
-  )
+test('nothing moved, nothing is touched; a moved placement replans, marks and restarts', () => {
+  const still = parts([0, 0, 0, 1, 1, 1], [], [0, 0, 0, 1, 1, 1])
+  assert.equal(syncBounceProbes(still), undefined)
   assert.deepEqual(still.calls, [])
-  const moved = parts('moved')
-  assert.equal(
-    syncBounceProbes(moved, () => undefined),
-    'moved',
-  )
+  const moved = parts([0, 0, 0, 1, 1, 1, 5, 5, 5, 6, 7, 8], [1, 1], [0, 0, 0, 6, 7, 8])
+  const change = syncBounceProbes(moved)
   assert.deepEqual(moved.calls, ['replan', 'invalidate', 'occupancy', 'restart'])
+  assert.deepEqual(change?.extent, [0, 0, 0, 6, 7, 8])
 })

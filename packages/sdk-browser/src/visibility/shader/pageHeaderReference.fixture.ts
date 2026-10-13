@@ -1,7 +1,12 @@
-// The header of a `WGP3` page written from the format alone (`cluster/format.ts`): the words of
+// The header of a `WGP3` page written from the format alone (`sdk-core/src/page/format.ts`): the words of
 // the header and the stream order, never the shader (`pageHeaderReference.test.ts`).
-import { BLOCK_CORNERS, CLUSTER_HEADER_WORDS, MORPH_WORDS } from '../../cluster/format.ts'
-import { TRIANGLE_BLOCK, WIDTH_BITS } from '../../cluster/format.ts'
+import { fromF32Bits } from '../../../../math/src/float/bits.ts'
+import {
+  BLOCK_CORNERS,
+  CLUSTER_HEADER_WORDS,
+  MORPH_WORDS,
+} from '../../../../sdk-core/src/page/format.ts'
+import { TRIANGLE_BLOCK, WIDTH_BITS } from '../../../../sdk-core/src/page/format.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 export type Header = Record<string, number | number[]>
@@ -11,7 +16,7 @@ const words32 = (count: number, bits: number) => Math.ceil((count * bits) / 32)
 /** The header of the page at `base` of `words`, field by field, as the format lays it out. */
 export function reference(words: Uint32Array, base: number): Header {
   const w = (i: number) => words[base + i]
-  const f32 = (i: number) => new Float32Array(new Uint32Array([w(i)]).buffer)[0]
+  const f32 = (i: number) => fromF32Bits(w(i))
   const widths = (word: number, n: number) =>
     Array.from({ length: n }, (_, c) => (word >>> (6 * c)) & 63)
   const step = (word: number) => 2 ** (word >> 24)

@@ -1,73 +1,40 @@
 // The water planes of a step's pieces (`jolt_water_query`), from the wave model the page draws
 // (`packages/sdk-core/src/fluids/surface.ts`, `waves.ts`): each piece gets the exact height of the
 // surface above its centre and the slope of the four surface points its rest square is carried
-// to. The same double-precision operations in the same order as the TypeScript model, so the
-// planes, rounded to the BUOYANCY command's floats, are the ones it gave (`waterPlanes.test.ts`).
+// to. The same double-precision operations in the same order as the TypeScript model — its rest
+// point printed from it (`waveModel.h`) —, so the planes, rounded to the BUOYANCY command's
+// floats, are the ones it gave (`waterPlanes.test.ts`).
+#include "waveModel.h"
 #include "words.h"
 
 #include <cmath>
 #include <vector>
 
 using trillion::f32;
-using trillion::PIECE_WORDS;
+using trillion::WATER_PIECE_WORDS;
 using trillion::PLANE_WORDS;
-
-namespace {
-
-/// Doubles of one wave, as `jolt_wave_buffer` takes them: direction x, z, wave number, amplitude,
-/// lateral amplitude, phase at the step's time.
-constexpr uint32_t WAVE_DOUBLES = 6;
-/// Newton iterations of the rest point (`surface.ts` HEIGHT_ITERATIONS).
-constexpr int HEIGHT_ITERATIONS = 3;
-
-struct Wave {
-  double dx, dz, k, amplitude, lateral, phase;
-};
-
-std::vector<Wave> waves;
-std::vector<uint32_t> planes;
+using trillion::Wave;
+using trillion::WAVE_DOUBLES;
 
 #ifdef __EMSCRIPTEN__
 /// musl's `sincos`: the argument reduction and kernels of its `sin` and `cos`, so both values are
 /// theirs bit for bit, for one reduction instead of two. Declared under another name: clang splits
 /// a call it knows as `sincos` back into `sin` and `cos`.
 extern "C" void muslSinCos(double x, double *s, double *c) __asm__("sincos");
-void sinCos(double x, double &s, double &c) { muslSinCos(x, &s, &c); }
+void trillion::sinCos(double x, double &s, double &c) { muslSinCos(x, &s, &c); }
 #else
-void sinCos(double x, double &s, double &c) {
+void trillion::sinCos(double x, double &s, double &c) {
   s = std::sin(x);
   c = std::cos(x);
 }
 #endif
 
-/// `surface.ts` `waveRest`: the rest point the waves carry to the world position `(x, z)`.
-void restPoint(uint32_t count, double x, double z, double &px, double &pz) {
-  px = x;
-  pz = z;
-  for (int n = 0; n < HEIGHT_ITERATIONS; n++) {
-    double fx = px - x, fz = pz - z, sxx = 0, sxz = 0, szz = 0;
-    for (uint32_t i = 0; i < count; i++) {
-      const Wave &w = waves[i];
-      double f = w.k * (w.dx * px + w.dz * pz) - w.phase;
-      double s, c;
-      sinCos(f, s, c);
-      double qs = w.lateral * w.k * s;
-      fx += w.lateral * w.dx * c;
-      fz += w.lateral * w.dz * c;
-      sxx += qs * w.dx * w.dx;
-      sxz += qs * w.dx * w.dz;
-      szz += qs * w.dz * w.dz;
-    }
-    double a = 1 - sxx, d = 1 - szz, det = a * d - sxz * sxz;
-    if (!(det > 1e-6)) {
-      px -= fx;
-      pz -= fz;
-      continue;
-    }
-    px -= (d * fx + sxz * fz) / det;
-    pz -= (sxz * fx + a * fz) / det;
-  }
-}
+namespace {
+
+using trillion::sinCos;
+
+std::vector<Wave> waves;
+std::vector<uint32_t> planes;
 
 /// The former `surface.ts` `wavePatch` (frozen in `waterPlanes.test.ts`): the points the rest square `(px ± hx, pz ± hz)` is carried to, into
 /// `corners` ((−,−), (+,−), (−,+), (+,+)), and the height of its centre, returned.
@@ -76,19 +43,19 @@ double patch(uint32_t count, double px, double pz, double hx, double hz, double 
   for (int k = 0; k < 12; k++) corners[k] = 0;
   for (uint32_t i = 0; i < count; i++) {
     const Wave &w = waves[i];
-    double f = w.k * (w.dx * px + w.dz * pz) - w.phase;
+    double f = w.k * (w.dirX * px + w.dirZ * pz) - w.phase;
     double s, c, sa, ca, sb, cb;
     sinCos(f, s, c);
-    sinCos(w.k * w.dx * hx, sa, ca);
-    sinCos(w.k * w.dz * hz, sb, cb);
+    sinCos(w.k * w.dirX * hx, sa, ca);
+    sinCos(w.k * w.dirZ * hz, sb, cb);
     y += w.amplitude * s;
     for (int corner = 0; corner < 4; corner++) {
       double sx = corner & 1 ? 1 : -1, sz = corner & 2 ? 1 : -1;
       double sinD = sx * sa * cb + sz * ca * sb, cosD = ca * cb - sx * sz * sa * sb;
       double cosF = c * cosD - s * sinD;
-      corners[corner * 3] += w.lateral * w.dx * cosF;
+      corners[corner * 3] += w.lateral * w.dirX * cosF;
       corners[corner * 3 + 1] += w.amplitude * (s * cosD + c * sinD);
-      corners[corner * 3 + 2] += w.lateral * w.dz * cosF;
+      corners[corner * 3 + 2] += w.lateral * w.dirZ * cosF;
     }
   }
   for (int corner = 0; corner < 4; corner++) {
@@ -141,12 +108,12 @@ uint32_t *jolt_water_planes(const uint32_t *pieces, uint32_t count, double level
   planes.resize(size_t(count) * PLANE_WORDS);
   double corner[12];
   for (uint32_t i = 0; i < count; i++) {
-    const uint32_t *from = pieces + i * PIECE_WORDS;
+    const uint32_t *from = pieces + i * WATER_PIECE_WORDS;
     uint32_t *to = planes.data() + i * PLANE_WORDS;
     double x = f32(from + 2), z = f32(from + 3);
     double hx = atLeast(f32(from + 4), sample), hz = atLeast(f32(from + 5), sample);
     double px, pz;
-    restPoint(waveCount, x, z, px, pz);
+    trillion::waveRest(waves.data(), waveCount, x, z, px, pz);
     double y = patch(waveCount, px, pz, hx, hz, corner);
     // (P₂ − P₁) × (P₃ − P₀): upwards for the square (−,−), (+,−), (−,+), (+,+).
     double ax = corner[6] - corner[3], ay = corner[7] - corner[4], az = corner[8] - corner[5];

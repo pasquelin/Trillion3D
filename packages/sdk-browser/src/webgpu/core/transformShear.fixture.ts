@@ -2,6 +2,7 @@
 // `WebgpuPagesRuntime` reduced to what `setWebgpuTransform` reads and writes, a selection root, and
 // two small comparison helpers. Extracted from `transformShear.test.ts` so
 // `transformFiniteTransform.test.ts` reuses them without copying.
+import '../../wasm/sdkWasm.fixture.ts'
 import { SHADOW_CHANGE_BOXES } from '../../../../sdk-core/src/scene/light-shadow/changes.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -50,7 +51,7 @@ export function selectionRoot(mesh: G.Object3D, local: number[], worlds: HostWor
   boxTransform(worldBox, 0, localBox, 0, world.elements)
   return {
     world,
-    pages: [{ sourceMesh: mesh } as unknown as PageRec],
+    pages: [{ drawSource: { node: mesh } } as unknown as PageRec],
     worldBox,
     localBox,
   } as ClusterRoot<PageRec>
@@ -65,7 +66,7 @@ export function runtime(
     // Rows no page holds yet: a moved root rewrites none.
     layout = {
       selectionRoots: roots,
-      rows: { tableEpoch: 0, rowOfPage: Int32Array.of(-1), packedCount: 0 },
+      rows: { tableEpoch: 0, rowOf: () => -1, packedCount: 0 },
     },
     // Engine image state, as the runtime carries it: `setWebgpuTransform` increments the scene revision
     // there and aligns `worldsRevision`. A partial state would hide that contract.

@@ -93,6 +93,8 @@
     "check:structure": "tsc -p tsconfig.core.json --noEmit",
     "check:types:browser": "tsc -p tsconfig.browser.json --noEmit",
     "check:sdk-facade": "node scripts/generate-sdk-facade.ts --check",
+    "generate:shared-rules": "node scripts/generate-shared-rules.ts",
+    "check:shared-rules": "node scripts/generate-shared-rules.ts --check",
     "compile:caches": "node scripts/scene-caches.ts",
     "check:english": "node scripts/check-english.ts",
     "check:bundle-size": "node scripts/check-bundle-size.ts",
@@ -113,14 +115,7 @@
     "reporters": [
       "console"
     ],
-    "exitCode": 1,
-    "ignore": [
-      "bench/perf/**",
-      "bench/oracles/**",
-      "bench/core/**",
-      "packages/math/src/batch/**",
-      "**/*Before.fixture.ts"
-    ]
+    "exitCode": 1
   },
   "optionalDependencies": {
     "@trillion3d/compiler-darwin-arm64": "workspace:*",

@@ -4,15 +4,15 @@
 // from the arguments its subgroup's lanes gave at the same call, on generated tiles — lit, sky,
 // mixed, a point not finite —: the group's words are those every lane joining them alone gives
 // (the variant without subgroups).
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
-import { CASES, SCOPE, pixelsOf, type Pixel } from './projectionTiles.fixture.ts'
-import { seeded } from './planFrames.fixture.ts'
+import { CASES, PROJECTION_SCOPE, pixelsOf, type Pixel } from './projectionTiles.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27)
+const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
 type Bound = (valid: boolean, p: number[], lane: number) => void
 
 /** The group's words after every lane of `pixels` joined them through `code`'s `vsmTileBound`, the
@@ -38,7 +38,7 @@ function groupWords(code: string, pixels: Pixel[], size: number) {
     code,
     ['vsmTileBound', 'vsmOrderedKey', 'isFiniteWord'],
     {
-      ...SCOPE,
+      ...PROJECTION_SCOPE,
       ...words,
       subgroupMax,
       atomicOr: (p: { get: () => number; set: (v: number) => void }, v: number) =>
@@ -60,7 +60,7 @@ test('a subgroup joins its lanes first, its first lane the group: the same words
   const withSubgroups = vsmProjectionWgsl(LAYOUT, { subgroups: true }),
     without = vsmProjectionWgsl(LAYOUT, { subgroups: false })
   assert.ok(withSubgroups.includes('held=subgroupMax(held);'))
-  const rand = seeded(77)
+  const rand = mulberry32(77)
   for (let round = 0; round < 42; round++) {
     const pixels = pixelsOf(rand, [round, 0], CASES[round % CASES.length])
     const alone = groupWords(without, pixels, 1)

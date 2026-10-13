@@ -1,15 +1,15 @@
-import { createEngineCamera, readCameraWorld } from '../../camera/world.ts'
+import { createEngineCamera } from '../../camera/engineCamera.ts'
+import { readCameraWorld } from '../../camera/world.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import assert from 'node:assert/strict'
 import { compareImages, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
 import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts'
 import { webgpuPagesEngine } from './pages.ts'
-import { type ClusterRoot } from '../../page/selection/selection.ts'
+import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts'
 import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { dagLevel, dagRoots } from '../../engine/pagesEngine.fixture.ts'
-import { camera, quadScene } from './testScenes.fixture.ts'
+import { camera, quadScene, withDraws } from './testScenes.fixture.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import {
   backendRasterRgba,
@@ -17,6 +17,7 @@ import {
 } from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { unpackVisibilityId } from '../../../../../bench/oracles/browser/cpu-image/ids.ts'
+import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 export function occluderScene() {
   const geometry = new G.Geometry()
@@ -65,6 +66,7 @@ export function occluderScene() {
         pass: 'exact-clusters',
         pages,
         structure: { version: 1, roots: [0, 1], groups: [] },
+        culling: manifestCulling(pages),
       },
     ],
   }
@@ -73,7 +75,7 @@ export function occluderScene() {
     ['back', new Uint32Array([4, 5, 6, 4, 6, 7])],
   ])
   const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
-  return { geometry, material, source, metadata, indices, associations }
+  return withDraws({ geometry, material, source, metadata, indices, associations })
 }
 
 /** The quad, with its two clusters replaced by a single coarse cluster of the given screen error. */
@@ -94,8 +96,8 @@ export function coarseQuadScene(error = 1) {
   }
 }
 
-/** The GPU image of the occluder scene equals the CPU raster of the cut, and only the front page
- *  survives in the visibility identifiers. */
+/** The GPU image of the occluder scene equals the CPU raster of the cut (one placement, every shown
+ *  page placed by root 0), and only the front page survives in the visibility identifiers. */
 export function assertOccluderImage(
   backend: ReturnType<typeof webgpuPagesEngine>,
   shown: PageRec[],
@@ -107,11 +109,10 @@ export function assertOccluderImage(
   const visPages = shown
     .filter((page) => page.array)
     .map((page) => ({ ...page, array: page.array! }))
-  // One placement: every shown page is placed by root 0.
   const locations = {
     roots,
     packed: visPages.map((_, i) => i),
-    rootOfPacked: new Int32Array(visPages.length),
+    placement: { baseOfRoot: Int32Array.of(0), packedCount: visPages.length },
   }
   assert.equal(
     compareImages(
@@ -154,21 +155,22 @@ export function twoCoarseQuadsScene(
       url: 'b' + page.url,
     })),
   }
-  return {
+  const associations = new Map([...a.associations, [mesh, { meshes: 1, primitives: 0 }]])
+  return withDraws({
     source: a.source,
     metadata: { primitives: [...a.metadata.primitives, primitive] },
     indices: new Map([
       ...a.indices,
       ...[...b.indices].map(([url, bytes]) => ['b' + url, bytes] as const),
     ]),
-    associations: new Map([...a.associations, [mesh, { meshes: 1, primitives: 0 }]]),
+    associations,
     dispose() {
       for (const scene of [a, b]) {
         scene.geometry.dispose()
         scene.material.dispose()
       }
     },
-  }
+  })
 }
 
 /** The occluder scene on a pages backend over `device`, four resident pages, prepared with
@@ -180,12 +182,12 @@ export async function preparedOccluderRun(
   device: GPUDevice,
   viewport: [number, number],
 ) {
-  const { source, indices, associations } = scene
+  const { source, indices, draws } = scene
   const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,
-    associations,
+    draws,
     gpuDevice: device,
     maxResidentPages: 4,
     viewport,

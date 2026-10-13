@@ -8,6 +8,7 @@
 // image's records. Both folds of a workgroup's lanes, by subgroup where the device has them and through
 // workgroup memory, give the same window. The words are the engine's: the pool stages the
 // records, `createStepWords` writes the uniform; only this proof reads the state back.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ParticlePool } from '../../../packages/sdk-core/src/fluids/particles.ts'
@@ -22,6 +23,7 @@ import {
 import { createStepWords } from '../../../packages/sdk-browser/src/particles/stepWords.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 
 type Steps = { words: number[][]; staged: number[]; capacity: number; runs: number[][] }
 
@@ -32,17 +34,13 @@ async function step({ words, staged, capacity, runs }: Steps) {
   if (!gpu) throw new Error('no WebGPU adapter')
   const { device } = gpu
   const folds = [false, ...(device.features.has('subgroups') ? [true] : [])]
-  const { COMPUTE } = GPUShaderStage
   const slots = ['uniform', 'read-only-storage', 'storage', 'storage', 'storage'] as const
   const [layout, boundLayout] = [4, 5].map((count) =>
     device.createBindGroupLayout({
-      entries: slots
-        .slice(0, count)
-        .map((type, binding) => ({ binding, visibility: COMPUTE, buffer: { type } })),
+      entries: slots.slice(0, count).map((type, binding) => computeBufferEntry(binding, type)),
     }),
   )
-  const { UNIFORM, STORAGE, INDIRECT, COPY_DST, COPY_SRC, MAP_READ } = GPUBufferUsage
-  const buffer = (size: number, usage: number) => device.createBuffer({ size, usage })
+  const { UNIFORM, STORAGE, INDIRECT, COPY_DST, COPY_SRC } = GPUBufferUsage
   const groups = particleGroups(capacity) + particleGroups(staged.length / 8),
     read = PARTICLE_STATE_HEAD + 8 * 32
   const byFold: { subgroups: boolean; window: number[]; particles: number[] }[][] = []
@@ -57,13 +55,15 @@ async function step({ words, staged, capacity, runs }: Steps) {
         compute: { module, entryPoint },
       }),
     )
-    const [uniform, records, state, partials, args, out] = [
-      buffer(32, UNIFORM | COPY_DST),
-      buffer(staged.length * 4, STORAGE | COPY_DST),
-      buffer(PARTICLE_STATE_HEAD + capacity * 32, STORAGE | INDIRECT | COPY_DST | COPY_SRC),
-      buffer(groups * PARTICLE_PARTIAL_BYTES, STORAGE),
-      buffer(PARTICLE_ARGS_BYTES, STORAGE | INDIRECT | COPY_DST),
-      buffer(read, MAP_READ | COPY_DST),
+    const [uniform, records, state, partials, args] = [
+      device.createBuffer({ size: 32, usage: UNIFORM | COPY_DST }),
+      device.createBuffer({ size: staged.length * 4, usage: STORAGE | COPY_DST }),
+      device.createBuffer({
+        size: PARTICLE_STATE_HEAD + capacity * 32,
+        usage: STORAGE | INDIRECT | COPY_DST | COPY_SRC,
+      }),
+      device.createBuffer({ size: groups * PARTICLE_PARTIAL_BYTES, usage: STORAGE }),
+      device.createBuffer({ size: PARTICLE_ARGS_BYTES, usage: STORAGE | INDIRECT | COPY_DST }),
     ]
     device.queue.writeBuffer(records, 0, new Float32Array(staged))
     device.queue.writeBuffer(state, 0, new Uint32Array([DISC_VERTICES]))
@@ -92,16 +92,13 @@ async function step({ words, staged, capacity, runs }: Steps) {
         pass.dispatchWorkgroups(1)
       }
       pass.end()
-      encoder.copyBufferToBuffer(state, 0, out, 0, read)
       device.queue.submit([encoder.finish()])
-      await out.mapAsync(GPUMapMode.READ)
-      const range = out.getMappedRange()
+      const range = (await readGpuBuffer(device, state, read))!.buffer
       images.push({
         subgroups,
         window: Array.from(new Uint32Array(range, 0, 8)),
         particles: Array.from(new Float32Array(range, PARTICLE_STATE_HEAD, 64)),
       })
-      out.unmap()
     }
     byFold.push(images)
   }

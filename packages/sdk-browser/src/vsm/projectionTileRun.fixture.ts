@@ -2,10 +2,9 @@
 // pieces, every trace call and store recorded, and the kernel before tiles on the same inputs.
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import {
-  CODE,
+  PROJECTION_CODE,
   NAMES,
-  SCOPE,
-  f,
+  PROJECTION_SCOPE,
   type Light,
   type Pixel,
   type Result,
@@ -14,9 +13,12 @@ import {
 
 /** A light's result at a lane: what the trace would count, a function of what it is handed. */
 const traced = (lane: number, k: number, participating: boolean): Result => {
-  if (!participating) return { valid: false, shadowFactor: 1, rayCount: 0 }
+  if (!participating) return { shadowFactor: 1, rayCount: 0 }
   const n = 1 + ((lane * 7 + k * 13) % 7)
-  return { valid: true, shadowFactor: f(f((lane + k) % (n + 1)) / f(n)), rayCount: n }
+  return {
+    shadowFactor: Math.fround(Math.fround((lane + k) % (n + 1)) / Math.fround(n)),
+    rayCount: n,
+  }
 }
 
 export interface Run {
@@ -34,7 +36,7 @@ export function shipped(pixels: Pixel[], lights: Light[], oneLight: boolean, kin
   let tileLayers = -1
   let lane = 0
   const scope = {
-    ...SCOPE,
+    ...PROJECTION_SCOPE,
     VSM_PROJECTION_ONE_LIGHT: oneLight,
     VSM_PROJECTION_KINDS: kinds,
     vsmView: { lights, lightCount: lights.length },
@@ -60,7 +62,7 @@ export function shipped(pixels: Pixel[], lights: Light[], oneLight: boolean, kin
   }
   const { vsmProjection } = shaderRun<{
     vsmProjection: (groupId: number[], groupIndex: number) => void
-  }>(CODE, NAMES, scope)
+  }>(PROJECTION_CODE, NAMES, scope)
   for (let turn = 0; turn < 4; turn++) {
     calls = []
     stores = new Map()
@@ -77,17 +79,17 @@ export function reference(pixels: Pixel[], lights: Light[], oneLight: boolean) {
     vsmLightParticipates: (k: number, info: Pixel['info'], p: V3) => boolean
     vsmMaskCode: (r: Result) => number
   }>(
-    CODE,
+    PROJECTION_CODE,
     [
       'vsmLightParticipates',
       'vsmLightIsDirectional',
-      'vsmSpotCone',
+      'localLightReaches',
       'vsmFacesAwayFromSun',
       'vsmFacesAwayFromLocal',
       'vsmMaskCode',
     ],
     {
-      ...SCOPE,
+      ...PROJECTION_SCOPE,
       VSM_PROJECTION_KINDS: 0,
       vsmView: { lights },
     },

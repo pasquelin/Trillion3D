@@ -13,7 +13,7 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { addressFlag } from '../../../host/addressFlag.ts'
 import type { GpuTimingSample } from '../../../gpu/timing/types.ts'
-import { vsmProjectionCanUseSubgroups } from '../../../vsm/projectionPass.ts'
+import { VSM_PROJECTION_PASS, vsmProjectionCanUseSubgroups } from '../../../vsm/projectionPass.ts'
 import { VSM_PROJECTION_GROUP_SIZE } from '../../../vsm/projectionWgsl.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { passOwnMs } from '../../../stage/mapping.ts'
@@ -77,7 +77,7 @@ export function createGpuLog(device: GPUDevice) {
         (typeof sample.renderScale === 'number'
           ? ` timed at scale ${sample.renderScale.toFixed(3)}`
           : '') +
-        (own.has('vsm.projection')
+        (own.has(VSM_PROJECTION_PASS)
           ? ` projection ${x}x${y} groups = ${x * side}x${y * side} = ${x * y * side * side} px`
           : ' no projection') +
         (sample.truncated ? ' (truncated)' : '') +

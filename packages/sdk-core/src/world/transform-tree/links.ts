@@ -1,3 +1,4 @@
+import { NODE_WORLD_LAZY } from './nodeFlags.ts'
 import type { TransformTree } from './transformTree.ts'
 
 /**
@@ -13,24 +14,38 @@ export function linkTransformNode(tree: TransformTree, node: number, parent: num
   tree.nextSibling[node] = -1
   hangDepths(tree, node)
   if (parent < 0) return void (tree.previousSibling[node] = -1)
-  const last = tree.lastChild[parent]
-  tree.previousSibling[node] = last
-  if (last < 0) tree.firstChild[parent] = node
-  else tree.nextSibling[last] = node
-  tree.lastChild[parent] = node
+  putOnList(tree, node, parent, false)
 }
 
-/** Takes `node` off its parent's children; it becomes a root. */
+/** Takes `node` off its parent's children; it becomes a root, and no longer lazy. */
 export function unlinkTransformNode(tree: TransformTree, node: number) {
   const parent = tree.parent[node]
   if (parent < 0) return
+  takeOffList(tree, node, parent, (tree.flags[node] & NODE_WORLD_LAZY) !== 0)
+  tree.flags[node] &= ~NODE_WORLD_LAZY
+  tree.parent[node] = -1
+}
+
+/** `node` out of its parent's list: the lazy one, or the children. */
+export function takeOffList(tree: TransformTree, node: number, parent: number, lazy: boolean) {
+  const [first, last] = lazy ? [tree.firstLazy, tree.lastLazy] : [tree.firstChild, tree.lastChild]
   const previous = tree.previousSibling[node],
     next = tree.nextSibling[node]
-  if (previous < 0) tree.firstChild[parent] = next
+  if (previous < 0) first[parent] = next
   else tree.nextSibling[previous] = next
-  if (next < 0) tree.lastChild[parent] = previous
+  if (next < 0) last[parent] = previous
   else tree.previousSibling[next] = previous
-  tree.parent[node] = -1
+}
+
+/** `node` last in its parent's list: the lazy one, or the children. */
+export function putOnList(tree: TransformTree, node: number, parent: number, lazy: boolean) {
+  const [first, last] = lazy ? [tree.firstLazy, tree.lastLazy] : [tree.firstChild, tree.lastChild]
+  const end = last[parent]
+  tree.previousSibling[node] = end
+  tree.nextSibling[node] = -1
+  if (end < 0) first[parent] = node
+  else tree.nextSibling[end] = node
+  last[parent] = node
 }
 
 /** The node after `node` in a parents-first walk of `top`'s subtree, −1 once it is done. */

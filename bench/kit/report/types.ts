@@ -70,7 +70,6 @@ interface ReportRecordData {
   gpuFrameMs?: TimingStat
   cpuFrameMs?: TimingStat
   imageSyncMs?: TimingStat | null
-  errorMetric?: 'certifiee' | 'reference' | null
   frameHeld?: boolean
   stageProfile?: {
     gpuMethod?: string
@@ -78,7 +77,6 @@ interface ReportRecordData {
     stages?: StageTiming[]
   }
   passesGpu?: { passes?: GpuPassTiming[] }
-  mathBatch?: { clockCoarse?: boolean }
   cutAnalysis?: CutAnalysis
 }
 

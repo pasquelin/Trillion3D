@@ -11,7 +11,7 @@ import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createPartitionCells } from '../../partition/cells.ts'
 import { placedMesh } from '../../partition/rows.ts'
 import { paged } from '../../partition/paged.fixture.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 import { createPartitionFrame, primePartitions } from './partitionFrame.ts'
 
 /** No arrival budget: what a test places never depends on the time the machine takes. */
@@ -56,9 +56,11 @@ function grid(side: number) {
     getBytes: (url: string) => bodies.get(url),
     failed: () => false,
     request: async () => {},
+    pin() {},
+    unpin() {},
     admit() {},
     forget() {},
-  } as unknown as ReturnType<typeof createPageStreamer>
+  } as unknown as PageStreaming
   const root = new Group()
   const partitioned = createPartitionCells({
     partition,
@@ -87,6 +89,7 @@ test('on an engine that grows no buffer, a walk never leaves a cell waiting for 
     engine: {
       worldCut: () => undefined,
       updatePlacements() {},
+      composePlacements: () => false,
       growPlacements() {},
       growsInPlace: () => false,
     } as unknown as Engine,

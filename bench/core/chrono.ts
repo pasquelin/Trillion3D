@@ -3,7 +3,7 @@
 // an order that alternates every round, so neither always runs first on a cold cache.
 import v8 from 'node:v8'
 import vm from 'node:vm'
-import { median, medianOf, quantile } from '../../packages/math/src/scalar/quantile.ts'
+import { quantileOf, summaryOf } from '../../packages/math/src/scalar/quantile.ts'
 import type { Stats } from '../kit/measureTypes.ts'
 import { ceilDiv } from '../../packages/math/src/scalar/integers.ts'
 
@@ -79,8 +79,8 @@ async function series(calculation: (input: unknown) => unknown, input: unknown):
 }
 
 export function stats(durees: number[]): Stats {
-  const t = durees.slice().sort((a, b) => a - b)
-  return { medianeMs: median(t), p95Ms: quantile(t, 0.95)!, minMs: t[0], tours: t.length }
+  const { p50, p95, min, n } = summaryOf(durees)!
+  return { medianeMs: p50, p95Ms: p95, minMs: min, tours: n }
 }
 
 /** The median of the per-round quotients calculation / witness, minus one: each quotient reads two
@@ -88,7 +88,7 @@ export function stats(durees: number[]): Stats {
  *  when no round has a finite quotient (a stopped clock). */
 function pairedGap(calculation: number[], witness: number[]) {
   const q = calculation.map((c, i) => c / witness[i]).filter(Number.isFinite)
-  return q.length ? medianOf(q) - 1 : null
+  return q.length ? quantileOf(q, 0.5)! - 1 : null
 }
 
 const depuisMs = (debut: bigint) => Number(process.hrtime.bigint() - debut) / 1e6

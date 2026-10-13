@@ -24,7 +24,6 @@ const config: KnipConfig = {
         'packages/sdk-browser/src/index.ts',
         'packages/sdk-node/src/index.mts',
         'packages/sdk/{index,browser,node}.{ts,mts}',
-        'packages/page-codec/src/geometryPage.ts',
         // The second pass of `check:unused` (`scripts/check-unused.ts`), read by knip itself.
         'knip.production.config.ts',
         // Every unit test runs by `node --test`: an entry by rule.
@@ -41,11 +40,13 @@ const config: KnipConfig = {
         'scripts/format-staged.ts',
         'bench/runner/bench.ts',
         // The GPU bench in Node (`pnpm run bench:gpu`, `bench:gpu:suite`), its recorder, and the
-        // first module of its worker threads, started by URL (`bench/dawn/worker.ts`).
-        'bench/dawn/{run,suite,recorder,workerBoot}.ts',
+        // first module of its worker threads, started by URL (`bench/kit/worker.ts`).
+        'bench/dawn/{run,suite,recorder}.ts',
+        'bench/kit/workerBoot.ts',
         // The cost model's command lines: the scale laws' sweeps, the model itself.
         'bench/dawn/{laws/sweep,laws/cook,laws/table,model/run}.ts',
-        'bench/runner/feedback/feedbackTargetAb.ts',
+        // The water and anisotropy costs on Dawn, launched by hand.
+        'bench/dawn/{waterCost,anisotropyCost}.ts',
         'bench/runner/trajectory/trajectory.ts',
         'bench/runner/references/reference.ts',
         // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
@@ -62,31 +63,24 @@ const config: KnipConfig = {
         'bench/runner/harness/measurePage.ts',
         'bench/runner/fluids/fluidsPage.ts',
         // Recette imports these measurement/reference modules by URL (bench/runner/README.md).
-        'bench/runner/witness/deformationEnvelope.ts',
         'bench/runner/witness/deformationWitness.ts',
-        'bench/runner/feedback/feedbackTargetPage.ts',
         'bench/runner/gaze/gazeNetworkPage.ts',
         'bench/runner/harness/limits.ts',
         'bench/runner/screenError/screenErrorPage.ts',
         // The witness entry: bundled into `dist/witnesses/measurement.js` and imported by URL by those
         // pages; it re-exports the engine's measurement seam.
         'bench/witnesses/measurement.ts',
-        // Full campaign and its report, launched manually.
-        'bench/runner/campaign.ts',
+        // The report's export, launched manually.
         'bench/runner/summary/summaryGlobal.ts',
         'bench/runner/counts/pageQuantization.ts',
         'bench/runner/references/oracle.ts',
-        'bench/runner/counts/anisotropyCost.ts',
         // What the public scenes' caches guarantee (`node --test`, off the unit suite: no assets).
-        'bench/runner/waterCost.ts',
         'bench/runner/screenError/screenError.ts',
         'bench/perf/*/*.perf.ts',
         'bench/runner/perf/*.ts',
-        // Tests by rule: unit and integration tests, the GPU proofs (render proofs and kebab-case
-        // probes), the page modules they load by path, and the public-API fixtures
-        // the type-check test compiles by path. Kit, support and fixture helpers are not entries: an
-        // export no test imports is reported.
-        'tests/**/*.test.ts',
+        // The GPU proofs (render proofs and kebab-case probes), the page modules they load by path,
+        // and the public-API fixtures the type-check test compiles by path. Kit, support and fixture
+        // helpers are not entries: an export no test imports is reported.
         'tests/gpu/**/*.gpu.ts',
         'tests/gpu/**/*.chrome.ts',
         'tests/gpu/**/*Page.ts',
@@ -102,15 +96,22 @@ const config: KnipConfig = {
       paths: {
         '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
       },
-      // The harness server maps this browser URL to the page entry above.
-      ignoreUnresolved: ['/runner/feedback/feedbackTargetPage.ts'],
       // Rust and its formatter, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as
       // one) are platform tools. The tap runner is a Stryker plugin, loaded by name
       // (`scripts/test-mutation.ts`).
       ignoreDependencies: ['@stryker-mutator/tap-runner'],
       // `ioreg` and `sips`: macOS's own, the GPU bench reads how busy other programs keep the GPU
       // and decodes the images its pages load.
-      ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config', /^c\+\+$/, 'ioreg', 'sips'],
+      ignoreBinaries: [
+        'rustc',
+        'rustfmt',
+        'emcmake',
+        'cmake',
+        'em-config',
+        /^c\+\+$/,
+        'ioreg',
+        'sips',
+      ],
     },
   },
 }

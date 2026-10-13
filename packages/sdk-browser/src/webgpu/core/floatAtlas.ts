@@ -1,3 +1,4 @@
+import { arrayView } from '../../gpu/core/textureViews.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { GUARANTEED_SIDE, textureLimits } from '../../gpu/core/textureLimits.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -21,7 +22,7 @@ type AtlasLimits = Parameters<typeof textureLimits>[0]
 /** Width and height of a one-layer atlas of `texels` texels: the fewest rows of at most `side`
  *  texels, filled evenly, so that under one texel per row is padding. Its readers take the width
  *  from the texture itself. */
-export function atlasExtent(texels: number, side: number): [number, number] {
+function atlasExtent(texels: number, side: number): [number, number] {
   const count = Math.max(1, texels)
   const height = ceilDiv(count, side)
   return [ceilDiv(count, height), height]
@@ -61,7 +62,7 @@ export function createFloatAtlas(device: GPUDevice, label: string, floats: numbe
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
   })
   const bytes = extent[0] * extent[1] * extent[2] * 4
-  return { texture, extent, bytes, view: texture.createView({ dimension: '2d-array' }) }
+  return { texture, extent, bytes, view: arrayView(texture) }
 }
 export type FloatAtlas = ReturnType<typeof createFloatAtlas>
 

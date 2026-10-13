@@ -19,9 +19,6 @@ export const DEVELOP_FULL_CUT: Record<number, string> = {
   1: '14:701c5fb6',
 }
 
-/** A reproducible sequence in [0, 1): the lcg32 sequence of the maths package. */
-export const random = lcgRandom
-
 export function ruleChecks(dag: RuleDag) {
   const isRoot = (page: number) => dag.pages[page].group === null
 
@@ -81,7 +78,7 @@ export function ruleChecks(dag: RuleDag) {
 
   /** Forty frames, pages removed at random, the three invariants checked on each. */
   function randomFrames(cut: CutBackend) {
-    const next = random(486)
+    const next = lcgRandom(486)
     for (let frame = 0; frame < 40; frame++) {
       const keep = 0.3 + 0.6 * next()
       const resident = full().map((_, p) => (isRoot(p) || next() < keep ? 1 : 0))

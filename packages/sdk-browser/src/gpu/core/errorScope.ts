@@ -49,11 +49,21 @@ export async function validated<T>(
   build: () => T | undefined | Promise<T | undefined>,
   filter: GPUErrorFilter = 'validation',
 ): Promise<T | undefined> {
+  return (await validatedOrWhy(device, build, filter)).value
+}
+
+/** `validated`, with why the device refused: the scope's error, or the refused pipeline's, by its
+ *  own message. A `build` that makes nothing is refused without a message of the device's. */
+export async function validatedOrWhy<T>(
+  device: GPUDevice,
+  build: () => T | undefined | Promise<T | undefined>,
+  filter: GPUErrorFilter = 'validation',
+): Promise<{ value?: T; refused?: string }> {
   try {
     const { value, error } = await validationScope(device, build, filter)
-    return error ? undefined : value
+    return error ? { refused: error.message } : { value }
   } catch (error) {
-    if (pipelineRefused(error)) return undefined
+    if (pipelineRefused(error)) return { refused: (error as GPUPipelineError).message }
     throw error
   }
 }

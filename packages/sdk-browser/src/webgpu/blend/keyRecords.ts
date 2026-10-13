@@ -1,20 +1,19 @@
 import { KEY_HAS_BOX, KEY_RECORD_WORDS } from './orderWgsl.ts'
-import type { createWebgpuBlendState } from './state.ts'
-type BlendState = ReturnType<typeof createWebgpuBlendState>
+import type { WebgpuBlendState } from './state.ts'
 
 const RECORD_DOUBLES = KEY_RECORD_WORDS / 2
 
 /**
  * WHAT THE ORDER KERNEL KEYS AN ITEM FROM (`itemKey`, `orderWgsl.ts`): the six doubles of its
  * world box, or the three of its world origin when it has none, then its flags and its own rank —
- * the rank of its CPU key in the frame data when it draws its own slot (`runs.ts`), `NOT_OWN`
+ * the rank of its CPU key in the frame data when it draws its own slot (`runs.ts`), `NO_INDEX`
  * otherwise. The doubles are copied bit for bit: the kernel computes on the CPU's numbers.
  *
  * Rewritten with the plan (`refreshBlendScene`), which follows every box a matrix move rebuilt; an
  * own item's box may move every frame (a deformed copy), and the kernel never reads it: its key
  * comes from the CPU.
  */
-export function writeKeyRecords(blendState: BlendState) {
+export function writeKeyRecords(blendState: WebgpuBlendState) {
   const items = blendState.blendGpu,
     doubles = items.length * RECORD_DOUBLES
   if (blendState.keyPacked.length < doubles) {

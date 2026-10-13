@@ -1,4 +1,4 @@
-// Shared fixtures for `series/series.test.ts`, `series/seriesHiz.test.ts` and `series/seriesCompute.test.ts`: split out
+// Shared fixtures for `series/series.test.ts` and `series/seriesHiz.test.ts`: split out
 // to keep the files under the line budget.
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -13,9 +13,6 @@ import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
 export function page(metrics: Record<string, unknown>): Page {
   return {
     evaluate: async () => ({
-      cpuFrameMs: [],
-      gpuFrameMs: [],
-      stageProfile: null,
       importedLights: null,
       witnessLights: null,
       movingNode: null,
@@ -65,7 +62,6 @@ export async function contexte(settings: Partial<RunContext['settings']> = {}) {
       source: 'cache',
     },
     variant: null,
-    errorMetric: null,
   } as unknown as Side
   return { ctx, side, OUT }
 }

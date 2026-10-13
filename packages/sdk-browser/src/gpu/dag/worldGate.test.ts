@@ -10,11 +10,12 @@ import { ruleResidency } from './readiness.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { oracleWorldCovers, oracleWorldPixels } from './oracle/worldGate.fixture.ts'
 import { dagViewFrames } from './oracle/math.fixture.ts'
-import { cameraSelectionUniforms, SELECTION_NONE as NONE } from '../core/selection.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { cameraSelectionUniforms } from '../core/selection.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { worldFadeScale } from './worldFade.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** A frame's residency: the objects `placed` (each its cluster, its world object with it), the
  *  super-roots `held`, the world top always. */
@@ -28,7 +29,7 @@ function residency(s: WorldScene, placed: boolean[], held: boolean[]) {
 
 test('every object is drawn exactly once, by its placement or its world group', () => {
   const s = worldScene(),
-    next = random(1473)
+    next = lcgRandom(1473)
   let byPlacement = 0,
     byWorld = 0
   for (let frame = 0; frame < 400; frame++) {
@@ -69,7 +70,7 @@ test('a placement the world draws is never descended', () => {
 
 test("the kernel's own gate decides as its model does, its threshold faded", () => {
   const s = worldScene(),
-    next = random(1335)
+    next = lcgRandom(1335)
   const cold = new Uint32Array(s.packed.pageCones.buffer),
     link = s.packed.world!,
     shift = cold[link.linkBase - 1]
@@ -116,12 +117,12 @@ test("the kernel's own gate decides as its model does, its threshold faded", () 
     Object.assign(views[0], { pixelError: threshold })
     for (let w = 0; w < s.roots.length; w++) {
       const c = link.links[w]
-      const expected = c !== NONE && (!ready[c] || !(Math.fround(projected(c)) > held))
+      const expected = c !== NO_INDEX && (!ready[c] || !(Math.fround(projected(c)) > held))
       assert.equal(kernel.worldCovers(w), expected, `placement ${w}, ${held} px`)
-      if (c !== NONE) assert.equal(model(w), !ready[c] || !(projected(c) > held))
+      if (c !== NO_INDEX) assert.equal(model(w), !ready[c] || !(projected(c) > held))
     }
   }
-  assert.equal(link.links[s.world.leaves], NONE, 'the world DAG itself is linked to nothing')
+  assert.equal(link.links[s.world.leaves], NO_INDEX, 'the world DAG itself is linked to nothing')
 })
 
 test('a hand-over is dithered in time: within the band, by turns, never both', () => {

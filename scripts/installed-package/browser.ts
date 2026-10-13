@@ -1,6 +1,6 @@
 import type { Browser } from 'playwright'
 import { launchChrome } from '../../bench/runner/harness/chrome.ts'
-import { evaluateInstalledPage } from './browser-page.ts'
+import { evaluateInstalledPage, hexModuleSource } from './browser-page.ts'
 import { installedBrowserResult, type InstalledBrowserProof } from './browser-result.ts'
 import { evidenceRequests, installedServer, type RequestRecord } from './server.ts'
 import { installedWorkerRequests, runInstalledWorkers } from './workers.ts'
@@ -49,6 +49,7 @@ export async function runInstalledBrowser({
       manifestUrl,
       replayUrl: `http://localhost:${port}${replayUrl}`,
       commonWorkerPath,
+      hexSource: hexModuleSource(),
     })
     const workers = await page.evaluate(runInstalledWorkers, {
       pageWorkerUrl: `http://127.0.0.1:${port}${pageWorkerPath}`,

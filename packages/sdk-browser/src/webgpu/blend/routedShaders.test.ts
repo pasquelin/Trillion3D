@@ -3,12 +3,13 @@
 // and maps the tint and the added value by its display colour, elsewhere it draws unchanged.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { close, display, srgb } from './blendModel.fixture.ts'
 import { ACES, ROUTE_FUNCTIONS, routeScope } from './displayRun.fixture.ts'
 import { PARTICLE_DRAW_WGSL } from '../particles/particlesWgsl.ts'
 import { waterRoutedShader } from '../water/routedWgsl.ts'
-import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
+import { FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { FOG_FREE_MODEL_BIT, MODEL_SHIFT } from '../../scene/surfaceModel.ts'
 import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
@@ -109,6 +110,7 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
         blendGrads: () => ({}),
         blendBase: () => [0, 0, 0, 1],
         blendKeeps: () => true,
+        reflectionFrontOut: () => [0, 0, 0, 0],
         // The lobed program's: an item that names no physical record sets nothing.
         blendPhysicalBegin: () => undefined,
         blendSurface: () => surface,

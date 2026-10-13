@@ -4,11 +4,12 @@
 
 use super::TILE_EXTENT_LOG2;
 use crate::dag::{build_dag_tallied, DagAttributes, DagStrategy};
-use crate::geometry_page::encode;
-use crate::geometry_page_quant::{primitive_exponent, UV_EXPONENT};
+use crate::geometry_page_quant::primitive_exponent;
 use crate::tests::fixtures::grid_indices;
 use crate::tests::random::Xorshift;
 use trillion3d_page_codec::bits::grid::finest_exponent;
+use trillion3d_page_codec::bits::grid::UV_EXPONENT;
+use trillion3d_page_codec::encode::encode;
 
 /// A terrain of `quads × quads` cells over `size` metres, its relief drawn from the seed.
 fn terrain(size: f32, quads: usize) -> (Vec<f32>, Vec<u32>) {

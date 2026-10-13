@@ -1,4 +1,5 @@
 import { ceilDiv, mipSize } from '../../../../math/src/scalar/integers.ts'
+import { textureExtent } from './textureExtent.ts'
 
 /** Bytes per texel of the uncompressed formats the engine may allocate. */
 const BYTES_PER_TEXEL: Partial<Record<GPUTextureFormat, number>> = {
@@ -48,12 +49,6 @@ const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
   'eac-rg11unorm': 16,
 }
 
-function extent(size: GPUExtent3D): [number, number, number] {
-  if (Array.isArray(size)) return [size[0] ?? 1, size[1] ?? 1, size[2] ?? 1]
-  const s = size as GPUExtent3DDict
-  return [s.width, s.height ?? 1, s.depthOrArrayLayers ?? 1]
-}
-
 /** Bytes of a texture, every mip level included; `null` on a format outside the table. */
 export function textureBytesOf(
   descriptor: Partial<GPUTextureDescriptor> & Pick<GPUTextureDescriptor, 'size' | 'format'>,
@@ -61,7 +56,7 @@ export function textureBytesOf(
   const perTexel = BYTES_PER_TEXEL[descriptor.format]
   const perBlock = BYTES_PER_BLOCK[descriptor.format]
   if (perTexel === undefined && perBlock === undefined) return null
-  const [width, height, depth] = extent(descriptor.size)
+  const [width, height, depth] = textureExtent(descriptor.size)
   const levels = descriptor.mipLevelCount ?? 1
   const volume = descriptor.dimension === '3d'
   let bytes = 0
@@ -85,16 +80,3 @@ export const madeTextureBytes = (texture: GPUTexture) =>
     sampleCount: texture.sampleCount,
     dimension: texture.dimension,
   }) ?? 0
-
-/** Bytes of levels 1 and up of a `levels`-level chain: the mips beside a level 0 held elsewhere. */
-export function mipTailBytes(
-  width: number,
-  height: number,
-  format: GPUTextureFormat,
-  levels: number,
-): number {
-  const size: GPUExtent3D = [width, height]
-  return (
-    textureBytesOf({ size, format, mipLevelCount: levels })! - textureBytesOf({ size, format })!
-  )
-}

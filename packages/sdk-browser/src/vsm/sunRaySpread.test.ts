@@ -5,7 +5,8 @@
 // on screen than it says, and one lands within a hundredth of it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun, Mat } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { CODE, constructors, IDENTITY, unit } from './pageWorld.fixture.ts'
 import { FLOAT32_MAX } from '../../../math/src/constants.ts'
 

@@ -4,8 +4,9 @@ use super::attributes::key;
 use super::placed::Local;
 use super::welds::{Columns, Welds};
 use super::{DagAttributes, GroupReduction, GroupReductionInput};
-use crate::geometry_page::{Attribute as Carried, FLAG_UV, FLAG_UV1};
-use crate::shared_math::WordMap;
+use trillion3d_page_codec::encode::Attribute as Carried;
+use trillion3d_page_codec::hash::WordMap;
+use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
 
 /// The source's positions and carried attributes followed by every placed vertex. The pages,
 /// the cook's checks, the collider and the proxy read these; `source.bin` never does.

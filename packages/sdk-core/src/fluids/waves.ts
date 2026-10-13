@@ -56,9 +56,53 @@ function trigSpan(a: number, b: number, out: Float64Array) {
 /** A cosine's least and greatest then a sine's, rewritten by each wave of `displacementBox`. */
 const spans = new Float64Array(4)
 
-/** Doubles of one wave the module's planes read (`jolt_wave_buffer`, `waterPlanes.cpp`):
- *  `direction x, z, wave number, amplitude, lateral amplitude, phase` at the step's time. */
-export const WAVE_DOUBLES = 6
+/** The arrays of one wave, in the order the module's planes read its doubles (`jolt_wave_buffer`,
+ *  `waterPlanes.cpp`): direction x, z, wave number, amplitude, lateral amplitude, phase at the
+ *  step's time. */
+export const WAVE_FIELDS = ['dirX', 'dirZ', 'k', 'amplitude', 'lateral', 'phase'] as const
+/** Doubles of one wave the module's planes read. */
+export const WAVE_DOUBLES = WAVE_FIELDS.length
+
+/** The slots of a wave's terms (`waveTerms`): the displacement it adds, then what it takes from the
+ *  surface's unnormalised normal; the rest point's (`waveRest.ts`) exported. */
+export const OFFSET_X = 0,
+  OFFSET_Z = 2,
+  NORMAL_Y = 4
+const OFFSET_Y = 1,
+  NORMAL_X = 3,
+  NORMAL_Z = 5
+/** Slots of a wave's terms. */
+export const TERM_COUNT = NORMAL_Z + 1
+/** The slots of a wave's terms by what they sum into: the displacement, then the normal. */
+export const TERM_SLOTS = {
+  offset: [OFFSET_X, OFFSET_Y, OFFSET_Z],
+  normal: [NORMAL_X, NORMAL_Y, NORMAL_Z],
+} as const
+
+/**
+ * The terms of wave `i` of `waves` at the rest point `(x, z)`, into `out` at their slots: the
+ * displacement it adds (`OFFSET_X` to `OFFSET_Z`), then what it takes from the surface's
+ * unnormalised normal (`NORMAL_X` to `NORMAL_Z`). The one formula of a wave: `Waves.offset` and
+ * `Waves.normal` sum it, and the GPU deformation its WGSL print (`scripts/generate-shared-rules.ts`).
+ */
+export function waveTerms(waves: Waves, i: number, x: number, z: number, out: Float64Array) {
+  const dx = waves.dirX[i],
+    dz = waves.dirZ[i],
+    k = waves.k[i],
+    amplitude = waves.amplitude[i],
+    lateral = waves.lateral[i]
+  const f = k * (dx * x + dz * z) - waves.phase[i]
+  const c = Math.cos(f),
+    s = Math.sin(f)
+  out[OFFSET_X] = lateral * dx * c
+  out[OFFSET_Y] = amplitude * s
+  out[OFFSET_Z] = lateral * dz * c
+  out[NORMAL_X] = dx * k * amplitude * c
+  out[NORMAL_Y] = k * lateral * s
+  out[NORMAL_Z] = dz * k * amplitude * c
+}
+/** One wave's terms, rewritten by each wave of `offset` and `normal`. */
+const terms = new Float64Array(TERM_COUNT)
 
 /**
  * A set of trochoidal waves, clocked by `setTime`. Per wave `i`: its direction `(dx, dz)`, its wave
@@ -146,11 +190,10 @@ export class Waves {
       oy = 0,
       oz = 0
     for (let i = 0; i < this.count; i++) {
-      const f = this.k[i] * (this.dirX[i] * x + this.dirZ[i] * z) - this.phase[i]
-      const c = Math.cos(f)
-      ox += this.lateral[i] * this.dirX[i] * c
-      oy += this.amplitude[i] * Math.sin(f)
-      oz += this.lateral[i] * this.dirZ[i] * c
+      waveTerms(this, i, x, z, terms)
+      ox += terms[OFFSET_X]
+      oy += terms[OFFSET_Y]
+      oz += terms[OFFSET_Z]
     }
     out[0] = ox
     out[1] = oy
@@ -201,12 +244,10 @@ export class Waves {
       ny = 1,
       nz = 0
     for (let i = 0; i < this.count; i++) {
-      const f = this.k[i] * (this.dirX[i] * x + this.dirZ[i] * z) - this.phase[i]
-      const ka = this.k[i] * this.amplitude[i],
-        c = Math.cos(f)
-      nx -= this.dirX[i] * ka * c
-      ny -= this.k[i] * this.lateral[i] * Math.sin(f)
-      nz -= this.dirZ[i] * ka * c
+      waveTerms(this, i, x, z, terms)
+      nx -= terms[NORMAL_X]
+      ny -= terms[NORMAL_Y]
+      nz -= terms[NORMAL_Z]
     }
     out[0] = nx
     out[1] = ny

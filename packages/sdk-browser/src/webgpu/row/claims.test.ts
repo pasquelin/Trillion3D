@@ -10,7 +10,7 @@ let now = 0
 const slowPlace = () => ((now += 3), true)
 
 const owed = () => {
-  const claims = createWebgpuRowClaims(4)
+  const claims = createWebgpuRowClaims()
   for (const page of [3, 1, 2, 0]) claims.add(page)
   return claims
 }

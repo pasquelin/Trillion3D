@@ -6,6 +6,7 @@
  */
 import { lerp } from '../../../math/src/scalar/reals.ts'
 import {
+  arcAngularVelocity,
   normalizeQuaternionAt,
   slerpOnArc,
   turnByAngularVelocity,
@@ -62,13 +63,19 @@ export function interpolateAll(
   }
 }
 
-/** The `count` slots listed in `list` moved on from their newest states (`target`) by `ahead`
- *  simulated seconds of their velocities (`velocity`, 6 numbers a slot: linear, then angular). */
+/**
+ * THE ONE LAW OF A LATE TICK. The `count` slots listed in `list` moved on from their newest states
+ * (`target`) by `ahead` of their velocities (`velocity`, 6 numbers a slot: linear, then angular, per
+ * unit of `ahead`): on the line at their velocity, and turned about their angular velocity's axis
+ * at its rate (`turnByAngularVelocity`, the exact turn), as a step moves and turns a body. A body
+ * goes on at the velocities the simulation gave it (`poses.ts`); a thing the simulation gives no
+ * velocity, a wheel, at those of its own last step (`stepVelocitiesAll`).
+ */
 export function extrapolateAll(
   list: Int32Array,
   count: number,
-  target: Float32Array,
-  velocity: Float32Array,
+  target: ArrayLike<number>,
+  velocity: ArrayLike<number>,
   ahead: number,
   position: Float64Array,
   quaternion: Float64Array,
@@ -81,7 +88,29 @@ export function extrapolateAll(
       p = index * 3,
       q = index * 4
     for (let k = 0; k < 3; k++) position[p + k] = target[o + k] + velocity[v + k] * ahead
-    // The turn at angular velocity ω over `ahead`: q += ½ (ω, 0) ⊗ q · ahead.
+    // The turn at angular velocity ω over `ahead`: about ω's axis by |ω| · ahead.
     turnByAngularVelocity(quaternion, q, target, o + 3, velocity, v + 3, h)
+  }
+}
+
+/** The velocities, per step, of the `count` slots listed in `list` over their last step: from their
+ *  state a step before (`from`) to their newest (`to`), on the line `to − from` and about the arc
+ *  between their turns (`arcs`, `slerpArc`'s 3 numbers a slot) at its rate (`arcAngularVelocity`),
+ *  into `velocity` (6 numbers a slot) — what `extrapolateAll` moves them on by, a step ahead being
+ *  1, as `interpolateAll` would go on past the step's end. */
+export function stepVelocitiesAll(
+  list: Int32Array,
+  count: number,
+  from: ArrayLike<number>,
+  to: ArrayLike<number>,
+  arcs: Float64Array,
+  velocity: Float64Array,
+) {
+  for (let i = 0; i < count; i++) {
+    const index = list[i],
+      o = index * 7,
+      v = index * 6
+    for (let k = 0; k < 3; k++) velocity[v + k] = to[o + k] - from[o + k]
+    arcAngularVelocity(velocity, v + 3, from, o + 3, to, o + 3, arcs, index * 3, 1)
   }
 }

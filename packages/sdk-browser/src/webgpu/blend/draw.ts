@@ -1,3 +1,5 @@
+import { frontAttachment } from '../../reflections/frontDepth.ts'
+import { bindForwardReflection } from '../../reflections/gpu.ts'
 import { feedbackAttachment } from '../pages/prepare/attachments.ts'
 import { blendEntries } from './identity.ts'
 import { createBlendOverdraw } from './overdraw.ts'
@@ -6,11 +8,12 @@ import type { BlendGpuItem } from './state.ts'
 import type { BlendModePipelines, RankedPipelines } from './stagePipelines.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { planItem, planPipeline } from './plan.ts'
-import { itemKept } from './hierarchyCull.ts'
 import { routedFilter, type DisplayFilter } from './displayFilter.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
 import { directLightResources } from '../pages/prepare/lightResources.ts'
+import { DISPLAY_MASK_PASS, TRANSMISSION_PASS, TRANSPARENTS_PASS } from '../../stage/passLabels.ts'
+import { hasBit } from '../../../../math/src/scalar/bits.ts'
 
 /**
  * Bind group of a blend pass: vertex buffers, item records, atlases and lighting. A paged item
@@ -62,7 +65,7 @@ export function drawBlendRuns(
     main = blendState.mainPipeline[slice],
     count = blendState.runCount[slice],
     args = blendState.argsBuffer!
-  if (rt.gpu.reflection) pass.setBindGroup(1, rt.gpu.reflection.group)
+  bindForwardReflection(pass, rt)
   if (filter) pass.setBindGroup(2, filter.maskGroup)
   // The groups of the identity the frame named (`voidStaleBlendGroups`), not a draw slot.
   const held = blendState.identity.slot,
@@ -77,7 +80,7 @@ export function drawBlendRuns(
       item: BlendGpuItem | undefined
     if (own >= 0) {
       const entry = seeds[ownSeeds[own]]
-      if (!itemKept(blendState.keepPacked, planItem(entry))) continue
+      if (!hasBit(blendState.keepPacked, planItem(entry))) continue
       pipelineRank = planPipeline(entry)
       item = items[planItem(entry)]
     }
@@ -139,7 +142,7 @@ export function drawBlendPass(
     ? (blendState.overdraw ??= createBlendOverdraw(device))
     : undefined
   const pass = encoder.beginRenderPass({
-    label: transmissive ? 'Trillion3D transmission' : 'Trillion3D transparents',
+    label: transmissive ? TRANSMISSION_PASS : TRANSPARENTS_PASS,
     occlusionQuerySet: overdraw?.set,
     colorAttachments: [
       {
@@ -152,7 +155,9 @@ export function drawBlendPass(
       // The share a debug view or the temporal pass reads; an empty slot otherwise.
       share ? { view: share.view, loadOp: 'load', storeOp: 'store' } : null,
       // The display layers of an image whose blends filter (`displayFilter.ts`).
-      ...(filter ? filter.attachments() : []),
+      ...(filter ? filter.attachments() : [null, null]),
+      // The nearest transparent surface of each pixel, the reflections' (`frontDepth.ts`).
+      frontAttachment(gpu.reflection!.front),
     ],
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
   })
@@ -176,7 +181,7 @@ function drawDisplayMask(
 ) {
   const { gpu, run } = rt
   const pass = encoder.beginRenderPass({
-    label: 'Trillion3D display mask',
+    label: DISPLAY_MASK_PASS,
     colorAttachments: [...Array<null>(mask.slot).fill(null), filter.maskAttachment()],
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
   })

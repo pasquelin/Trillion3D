@@ -11,9 +11,9 @@
 //! the lookup can never answer with another brick metres away. Each coarse triangle is sampled at
 //! its corners, its edge midpoints and its centroid, as the geometric distance is (`measured.rs`).
 use super::measured::Surface;
-use crate::shared_math::WordMap;
 use lookup::Lookup;
 use rayon::prelude::*;
+use trillion3d_page_codec::hash::WordMap;
 
 mod lookup;
 

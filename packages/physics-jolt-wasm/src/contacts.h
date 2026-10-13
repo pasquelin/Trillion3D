@@ -12,7 +12,7 @@ namespace trillion {
 uint64_t pairKey(uint32_t a, uint32_t b);
 /// Set on a pair's count once its enter reached the event buffer: only then is a leave owed.
 constexpr uint32_t ENTERED = 0x80000000u;
-/// Writes one event record (1 enter, 2 leave); false when the event buffer is full.
+/// Writes one event record (`EventType`); false when the event buffer is full.
 bool pushEvent(uint32_t type, uint32_t a, uint32_t b, float impulse, JPH::Vec3 point);
 /// A leave the buffer cannot take waits for the next step: an enter the page saw always ends.
 void pushLeave(uint64_t key);

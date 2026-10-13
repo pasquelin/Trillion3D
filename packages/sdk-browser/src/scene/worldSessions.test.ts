@@ -3,14 +3,10 @@
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
-import {
-  worldRootsDag,
-  worldRootsFixture,
-} from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldRootsDag, worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
-import { heldBy, opened, served, sha } from './worldRoots.fixture.ts'
-import { openWorldRoots } from './worldRoots.ts'
+import { heldBy, modelOpened, opened, served, sha } from './worldRoots.fixture.ts'
 
 const turns = async (count = 4) => {
   for (let i = 0; i < count; i++) await new Promise(setImmediate)
@@ -20,14 +16,14 @@ test('a session closed before it binds is refused: a hold waits for the next one
   const { manifest } = served(t)
   const { roots, queue } = await opened(t, manifest)
   queue.dispose() // the device is lost
-  const dead = createPageStreamer([], 'http://world/')
+  const dead = createPageStreamer([], 'http://world/', { cache: createPageCache() })
   dead.dispose() // the next session's signal aborts during its capability probe
   roots.bind(dead)
   let landed = false
   const held = roots.hold(1).then(() => (landed = true))
   await turns()
   assert.equal(landed, false, 'it waits, bound to nothing')
-  const next = createPageStreamer([], 'http://world/')
+  const next = createPageStreamer([], 'http://world/', { cache: createPageCache() })
   t.after(() => next.dispose())
   roots.bind(next)
   await held
@@ -62,19 +58,20 @@ test('a load let go while the whole binary downloads stops it: the page cache ke
   const { manifest, asked, release } = wholeOnRelease(t)
   const cache = createPageCache(),
     load = new AbortController()
-  const loading = openWorldRoots(manifest, 'http://world/', load.signal, undefined, true, { cache })
+  const loading = modelOpened(manifest, { signal: load.signal, whole: true }, cache)
   while (!asked.length) await turns(1) // the table read and checked: the binary asked
   load.abort()
   await assert.rejects(loading, { name: 'AbortError' })
   release()
   await turns()
-  assert.equal(cache.besideBytes, 0, 'no binary kept, no reader held')
+  assert.equal(cache.bytes, 0, 'neither the binary nor the table kept')
 })
 
 test("a page a closed session's engine asked is let go with its signal: it never waits on a bind", async (t) => {
-  const { clusters, groups } = worldRootsDag()
-  const { manifest } = served(t, { dag: { clusters, groups } })
-  const roots = (await openWorldRoots(manifest, 'http://world/'))! // a world's model: no session yet
+  const { clusters, groups, culling } = worldRootsDag()
+  const { manifest } = served(t, { dag: { clusters, groups, culling } })
+  // A world's model: no session yet.
+  const roots = (await modelOpened(manifest))!
   const stream = await roots.stream()
   const [, far] = stream.dag!.pages.filter((page) => page.url) // bundle 2's super-root
   const engine = new AbortController()

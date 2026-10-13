@@ -1,7 +1,6 @@
 import {
-  HIERARCHY_ROOT,
   createSceneRoot,
-  hierarchyUpdateBatch,
+  multiplyMatrix4,
   type CameraPose,
   type JobSnapshot,
   type SceneNode,
@@ -27,9 +26,8 @@ export const sceneRootOf = (state: SceneState) => state.root
 const invalidPose: CameraPose = { ...home, position: [0, 1] }
 
 export const commonContract = {
-  HIERARCHY_ROOT,
   child,
-  hierarchyUpdateBatch,
   invalidPose,
+  multiplyMatrix4,
   scene,
 }

@@ -1,4 +1,4 @@
-import { reflectionLayout } from '../../reflections/layout.ts'
+import { reflectionLayout } from '../../reflections/gpu.ts'
 import { waterSurfaceEntry, waterSurfaceTargets } from './surfaceTargets.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
@@ -63,33 +63,32 @@ const COMPOSE_ENTRIES = [
  * the one routed through the display layers (`waterRoutedShader`: the tint and the added value of a
  * normal layer) and the ones carrying the reactive value (`asIsShare.ts`) as a last output; one that
  * appears later starts its compile at the change, and a frame that gets there first makes it.
- * A reference session's (`unbounded`) walk the mirror ray whole (`waterCompositeShader`). The
- * light code is the one `key` leaves in, as the opaque resolve's (`createLitVariants`, `frame.ts`).
+ * The light code is the one `key` leaves in, as the opaque resolve's (`createLitVariants`, `frame.ts`).
  */
 export async function createWaterComposites(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
-  unbounded = false,
   key: Partial<ContractKey> = {},
   reach: Reach = createReach({ modes: [], share: false, filtered: false }),
 ) {
-  const suffix = `${unbounded ? '_UNBOUNDED' : ''}${variantLabel(key)}`
+  const suffix = variantLabel(key)
   const module = await createCheckedShaderModule(
     device,
-    waterCompositeShader(unbounded, key),
+    waterCompositeShader(key),
     `WATER_COMPOSITE${suffix}`,
   )
-  const layouts = [layout, reflectionLayout(device)]
   const routedLabel = `WATER_ROUTED${suffix}`
   let routedModule: GPUShaderModule | undefined
   const describe = (filtered: boolean, share: boolean, entryPoint: string) => {
     const code = filtered
       ? (routedModule ??= device.createShaderModule({
           label: routedLabel,
-          code: waterRoutedShader(unbounded, key),
+          code: waterRoutedShader(key),
         }))
       : module
-    const bindGroupLayouts = filtered ? [...layouts, displayMaskLayout(device)] : layouts
+    // The reflection's group (`REFLECTION_GROUP`), then the display mask's when routed.
+    const reflection = reflectionLayout(device)
+    const bindGroupLayouts = [layout, reflection, ...(filtered ? [displayMaskLayout(device)] : [])]
     return {
       layout: device.createPipelineLayout({ bindGroupLayouts }),
       vertex: { module: code, entryPoint: 'fullscreen' },

@@ -2,8 +2,7 @@ import type { GuideSet } from '../../guides/guideSet.ts'
 import { createScaleControl } from '../../frame/scaleControl.ts'
 import { createFrameGateCore } from '../../frame/gateCore.ts'
 import { HOLD_SIGNATURE_VALUES } from './signature.ts'
-import { createCpuStepProfile } from '../../stage/cpuProfile.ts'
-import { CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts'
+import { createWebgpuTimingState } from '../pages/state/timing.ts'
 import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { WebgpuEffects } from '../effects/webgpuEffects.ts'
@@ -46,8 +45,7 @@ export function settledRt() {
   }
   const rows = {
     rowsChanged: false,
-    dirtyTo: -1,
-    dirtyFrom: 0,
+    dirtyCount: 0,
     rowsEpoch: 1,
     tableEpoch: 1,
     rowsDenied: 0,
@@ -81,7 +79,7 @@ export function settledRt() {
       partitionCounts: { occluders: 0, tested: 0, previousOccluders: 0 },
       // `recordHeldFrameWork` writes the row of a held frame in the real profile, as in production: a
       // hand-built object would not have the exact width of `CPU_STEP`.
-      cpuProfile: createCpuStepProfile(CPU_STEP_NAMES),
+      profiler: createWebgpuTimingState().profiler,
       rowFilled: false,
       cpuSample: undefined as Record<string, unknown> | undefined,
       lastGpuPassMs: null as number | null,
@@ -129,7 +127,7 @@ export function deferredLightingHarness() {
   device.createRenderPipelineAsync = async (descriptor) => {
     const label = descriptor.fragment?.module.label ?? ''
     if (label.startsWith('DIRECT') || label.startsWith('BOUNCE')) await gate
-    return compile(descriptor)
+    return compile.call(device, descriptor)
   }
   return {
     device,

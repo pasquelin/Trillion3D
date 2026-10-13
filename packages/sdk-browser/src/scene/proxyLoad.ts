@@ -13,13 +13,14 @@ const decoded = new WeakMap<ArrayBuffer, SceneProxy>()
 
 /**
  * Read the resident proxy's cache object, next to the manifest that names it, and keep it whole in
- * `cache`, the decoded-page cache the world keeps across sessions (`PageCache.keep`): its announced
- * bytes come off the CPU total from the moment it is asked, no page evicts it, and a session reopened
- * after a device loss reads it from there, fetching nothing. Its own request, beside the page queue:
- * it neither waits for the pages nor holds them back, and it is not a page the streamer counts.
- * A refusal another request would meet again — a 404 — is asked once (`checked`). The kept read is
- * not the session's: a session closed on a device loss leaves it to the next one, and only a scene
- * gone (`keepOnly`) cancels it. Without a world's cache, the read is the session's (`signal`).
+ * `cache`, the session's page cache, the one its pages and texture levels are read through
+ * (`../world/session/pageSources.ts`) — its world's, kept across sessions, or the session's own
+ * (`PageCache.keep`, which says how long it stays): a session reopened after a device loss reads it
+ * from there, fetching nothing. Its own request, beside the page queue: it neither waits for the
+ * pages nor holds them back, and it is not a page the streamer counts. A refusal another request
+ * would meet again — a 404 — is asked once (`checked`). The kept read is the cache's, not the
+ * session's: a session closed on a device loss leaves it to the next one, and only a scene gone
+ * (`keepOnly`) cancels it.
  *
  * It is never read at prepare time: a scene that declares no light has nothing to bounce,
  * and its tens of megabytes would delay the first frame for nothing. The engine asks for it
@@ -32,58 +33,38 @@ const decoded = new WeakMap<ArrayBuffer, SceneProxy>()
 export function createSceneProxyReader(
   proxy: ClusterManifest['proxy'],
   base: string,
-  cache: PageCache | undefined,
+  cache: PageCache,
   signal?: AbortSignal,
 ) {
   if (!proxy) {
-    cache?.keepOnly()
+    cache.keepOnly()
     return undefined
   }
   assertSceneProxy(proxy)
   const url = new URL(proxy.url, base).href
   const key = `${url}#${proxy.sha256}`
-  cache?.keepOnly(key)
-  const read = (readSignal = signal) => fetchVerified(url, proxy, readSignal)
-  let pending: Promise<ArrayBuffer> | undefined
+  cache.keepOnly(key)
+  const read = (readSignal: AbortSignal) => fetchVerified(url, proxy, readSignal)
   return async (): Promise<SceneProxy> => {
-    const buffer = await (cache
-      ? cache.keep(key, proxy.bytes, read)
-      : (pending ??= read().catch((error: unknown) => {
-          pending = undefined
-          throw error
-        })))
+    const buffer = await cache.keep(key, proxy.bytes, read)
     // The kept read outlives its session, its caller does not: an engine disposed meanwhile builds
     // nothing on the device from it, which nothing would release.
     signal?.throwIfAborted()
-    // Tree/ownership columns may view the bytes; shared triangles and unaligned matrices are
-    // allocated once. All columns remain immutable; dynamic refits own separate copies.
+    // The columns view the bytes and stay immutable.
     let result = decoded.get(buffer)
     if (!result) {
       result = decodeSceneProxy(proxy, buffer)
       decoded.set(buffer, result)
     }
-    for (const field of [
-      'version',
-      'bytes',
-      'triangles',
-      'nodes',
-      'groups',
-      'owners',
-      'instances',
-    ] as const)
+    for (const field of ['version', 'bytes', 'triangles', 'nodes', 'meshes'] as const)
       if (proxy[field] !== result[field])
         throw new EngineError(
           'INVALID_CACHE',
           'The scene proxy object disagrees with its manifest',
           { field },
         )
-    const allocations = new Set(Object.values(result.data).map((column) => column.buffer))
-    allocations.delete(buffer)
-    const expandedBytes = [...allocations].reduce(
-      (sum, allocation) => sum + allocation.byteLength,
-      0,
-    )
-    cache?.resizeKept(key, buffer.byteLength + expandedBytes)
+    // The columns are views of the kept bytes: nothing is expanded, the cache weighs what it holds.
+    cache.weigh(key, buffer.byteLength)
     return { ...proxy, data: result.data }
   }
 }

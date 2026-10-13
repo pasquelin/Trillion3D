@@ -1,10 +1,10 @@
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts'
 import { prefetchHorizonMs } from '../../../engine/common.ts'
 import { mirrorDrawnFromShown } from '../helpers.ts'
 import { abandonFrameEncoder, openFrameEncoder } from './encoder.ts'
 import { encodeComposedRoots } from '../../../placement/gpuCompose.ts'
-import { encodeDraws } from './encodeDraws.ts'
+import { encodeDraws, followRows } from './encodeDraws.ts'
 import { admitGpuCut } from './gpuCutAdmission.ts'
 import { dispatchCut, dispatchWaitingSelection, streamCutResidency } from './gpuCutStream.ts'
 import { keepWebgpuFrame } from '../../frame/hold.ts'
@@ -34,7 +34,6 @@ export function renderGpuCut(
   cam: EngineCamera,
   pixelError: number,
   cpuStart: number,
-  lightsEnd: number,
 ) {
   const { run, gpu, services } = rt,
     gpuDevice = gpu.device,
@@ -45,7 +44,6 @@ export function renderGpuCut(
     return
   }
   marks.cpuStart = cpuStart
-  marks.lightsEnd = lightsEnd
   adoptAndAdmit(rt, cam, pixelError)
   if (run.gpuSelection && !services.bootstrapState.ready) {
     // The root cover is not resident yet: nothing can be drawn, nor held. Once it is, every surface
@@ -60,7 +58,7 @@ export function renderGpuCut(
     return
   }
   streamCutResidency(rt, gpuDevice)
-  if (cutFrame(rt, gpuDevice)) encodeImage(rt, gpuDevice, cam)
+  if (cutFrame(rt, gpuDevice, cam)) encodeImage(rt, gpuDevice, cam)
 }
 
 /** The camera's motion the view's cut reads its view ahead from: the main view's alone, which
@@ -82,6 +80,8 @@ function adoptAndAdmit(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: nu
   cameraSelectionUniforms(cam, pixelError, viewport, uniforms, cutMotion(rt))
   // A pool short of the views' cuts has the GPU rank the requests by admission (`request.ts`).
   uniforms.admitByLevel = services.residency.short()
+  // The clock every view's cut of this frame stamps what it uses with (`../../../gpu/dag/evict.ts`).
+  uniforms.frame = run.frame
   // An image that adopts no readback moves no page; the adoption reports what it actually moved.
   run.pagesEntered = 0
   run.pagesExited = 0
@@ -90,17 +90,16 @@ function adoptAndAdmit(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: nu
   // no cut to move — held, or a still view of unpaged surfaces alone would never be.
   if (!run.gpuSelection) run.gpuMetricsReady = run.cutHeld = true
   marks.adoptEnd = performance.now()
-  // One cut covers both passes: the image sweeps no DAG of its own for the transparents any more.
-  marks.transparentSelectEnd = marks.adoptEnd
   admitGpuCut(rt)
   marks.admissionEnd = performance.now()
 }
 
-/** The frame's encoder opened and the cut dispatched into it; false when the image stops there. */
-function cutFrame(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
+/** The frame's encoder opened, the rows followed, and the cut dispatched into it; false when the image stops there. */
+function cutFrame(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, cam: EngineCamera) {
   let cut: boolean
   try {
     const encoder = openFrameEncoder(rt, gpuDevice)
+    followRows(rt, gpuDevice, cam)
     rt.vis.deformationCode?.encodeDeformation(rt, encoder)
     encodeComposedRoots(rt, gpuDevice, encoder)
     cut = dispatchCut(rt, encoder)

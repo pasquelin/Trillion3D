@@ -25,9 +25,12 @@ import {
 import { vsmProjectionWords, writeVsmProjectionData } from './projectionData.ts'
 import type { VsmResources } from './resources.ts'
 import { writeVsmUniforms, type VsmFrameUniforms } from './uniforms.ts'
-import { vsmWriteChanged, vsmWriteChangedRecords } from './writeChanged.ts'
+import { writeChanged, writeChangedRecords } from '../gpu/core/writeChanged.ts'
 import {
   VsmCacheManager,
+  advanceLightMobility,
+  newLightMobility,
+  type LightMobility,
   type VsmIdAllocator,
   type VsmNextMap,
   type VsmLightCache,
@@ -145,8 +148,8 @@ function nextMapWords(image: ArrayBuffer) {
  * The planes every point the frame lights lies within, in world space (`frustum.ts` order): the
  * view's frustum one pixel wider on each side of `width` × `height` — a jittered sample stays
  * within half a pixel of it — and its near plane as much nearer; no far plane where the projection
- * has none. The opaque, blend and water passes read a shadow only at their own pixels (a
- * reflection reads the lit image, bounce traces its proxy): a light no such point is in reach of
+ * has none. The opaque, blend and water passes read a shadow only at their own pixels (bounce
+ * traces its proxy): a light no such point is in reach of
  * has no shadow anyone reads.
  */
 export function vsmSeenPlanes(
@@ -173,6 +176,11 @@ export function vsmLightSeen(light: SceneLight, planes: Float64Array) {
     light.range + F32_ROOM * (light.range + Math.max(Math.abs(x), Math.abs(y), Math.abs(z)))
   return !frustumExcludesSphere(planes, x, y, z, reach)
 }
+
+/** Whether the frame shadows `l`: it casts, and a lit point of the frame is in reach of it
+ *  (`vsmLightSeen`). What the maps, their tables and the mask are sized by: the view's lights, never
+ *  the world's. */
+export const vsmShadowed = (l: VsmFrameLight) => l.light.castsShadow && (l.visible ?? true)
 
 /** Where each light's maps landed this frame. */
 export interface VsmLightAllocation {
@@ -224,13 +232,13 @@ export interface VsmFrameState {
   ids: VsmMapIds
 }
 
-/** A light's shape as last seen (its kind and numeric fields), the frame it was last seen and the
- *  mobility factor this frame gave it: compared and rewritten in place, never rebuilt per frame. */
-interface VsmLightShape {
+/** A light's shape as last seen (its kind and numeric fields), the frame it was last seen and its
+ *  mobility (the one map of lights' memory): compared and rewritten in place, never rebuilt per
+ *  frame. */
+interface VsmLightShape extends LightMobility {
   kind: SceneLight['kind']
   values: Float64Array
   seen: number
-  mobility: number
 }
 const SHAPE_VALUES = 13
 
@@ -292,6 +300,8 @@ function putShape(v: Float64Array, k: number, x: number | undefined) {
 const castingScratch: VsmFrameLight[] = []
 const clipmapScratch: { light: SceneLight; clipmap: VsmClipmap }[] = []
 const localScratch: { light: SceneLight; setup: VsmLocalLightSetup }[] = []
+// The plan's lights, rebuilt in place: a plan lives until its frame ends.
+const allocationScratch: VsmLightAllocation[] = []
 
 /** True when a cache entry got no id this frame: the page table is short. */
 function anyUnallocated(cache: VsmCacheManager) {
@@ -307,30 +317,23 @@ function trackLightShapes(state: VsmFrameState, lights: readonly VsmFrameLight[]
     shapes = state.lightShapes
   for (const { light } of lights) {
     let shape = shapes.get(light.id)
+    // A new light is an update whatever its fields.
+    let updated = !shape
     if (!shape) {
       shape = {
-        kind: light.kind,
+        kind: '' as SceneLight['kind'],
         values: new Float64Array(SHAPE_VALUES).fill(Number.NaN),
         seen: 0,
-        mobility: 0,
+        ...newLightMobility(),
       }
       shapes.set(light.id, shape)
-      // A new light is an update whatever its fields.
-      shape.kind = '' as SceneLight['kind']
     }
     shape.seen = frame
-    shape.mobility = updateShape(shape, light) ? 1 : 0
+    updated = updateShape(shape, light) || updated
+    advanceLightMobility(shape, updated, frame)
   }
   cache.dropRemovedLights((id) => shapes.get(id)?.seen !== frame)
-  for (const [id, shape] of shapes)
-    if (shape.seen !== frame) {
-      shapes.delete(id)
-      cache.removeLightMobility(id)
-    }
-  for (const { light } of lights) {
-    const shape = shapes.get(light.id)!
-    shape.mobility = cache.updateLightMobility(light.id, shape.mobility === 1)
-  }
+  for (const [id, shape] of shapes) if (shape.seen !== frame) shapes.delete(id)
 }
 
 /** The directional lights' shadows: one clipmap each, into `clipmaps`. */
@@ -339,7 +342,6 @@ function setupDirectionalLights(
   casting: readonly VsmFrameLight[],
   camera: VsmCameraInput,
   viewport: VsmViewport,
-  mobilityOf: (id: string) => number,
 ) {
   for (const { light } of casting) {
     if (light.kind !== 'directional' || !light.direction) continue
@@ -348,7 +350,6 @@ function setupDirectionalLights(
       { id: light.id, direction: light.direction },
       camera,
       viewport,
-      mobilityOf(light.id),
     )
     clipmapScratch.push({ light, clipmap })
   }
@@ -389,7 +390,8 @@ function setupLocalLights(
 /** The id allocation: directional, local, then unreferenced entries. */
 function allocateLightIds(state: VsmFrameState) {
   const ids = state.ids.reset()
-  const allocations: VsmLightAllocation[] = []
+  const allocations = allocationScratch
+  allocations.length = 0
   for (const { light, clipmap } of clipmapScratch) {
     const entry = clipmap.cacheEntry
     entry.moveToMapId(ids.allocateDirectional(entry.mapCaches.length))
@@ -423,7 +425,7 @@ function allocateLightIds(state: VsmFrameState) {
 }
 
 /** The marking pass's input: every cache entry's projection data at its id, the single-page
- *  maps' records then the full maps', where they changed alone (`vsmWriteChanged`): a still view
+ *  maps' records then the full maps', where they changed alone (`writeChanged`): a still view
  *  and still lights send nothing. */
 function uploadProjectionData(state: VsmFrameState, ids: VsmMapIds) {
   const { cache, resources, device } = state,
@@ -436,14 +438,8 @@ function uploadProjectionData(state: VsmFrameState, ids: VsmMapIds) {
   const words = vsmProjectionWords(image),
     record = VSM_PROJECTION_RECORD_BYTES / 4,
     full = VSM_SINGLE_PAGE_MAP_SLOTS * record
-  vsmWriteChanged(
-    device,
-    resources.current.projectionData,
-    words,
-    0,
-    ids.singlePageMapCount * record,
-  )
-  vsmWriteChanged(
+  writeChanged(device, resources.current.projectionData, words, 0, ids.singlePageMapCount * record)
+  writeChanged(
     device,
     resources.current.projectionData,
     words,
@@ -459,7 +455,7 @@ let touchedIds = new Int32Array(64)
  *  records and takes this frame's: below the count, the words a whole write would send; those that
  *  changed go up. Only the records of the ids dropped or taken can change — the full maps' ids
  *  start past the single-page slots, so the table is wide and those few —: they alone are compared
- *  (`vsmWriteChangedRecords`). */
+ *  (`writeChangedRecords`). */
 function uploadNextMaps(state: VsmFrameState, ids: VsmMapIds) {
   const { u, i } = nextMapWords(state.nextMapsImage),
     held = state.nextMapsHeld,
@@ -483,7 +479,7 @@ function uploadNextMaps(state: VsmFrameState, ids: VsmMapIds) {
   state.nextMapsHeldCount = taken
   const touched = touchedIds.subarray(0, dropped + taken)
   const distinct = uniqueSortedInPlace(touched)
-  vsmWriteChangedRecords(
+  writeChangedRecords(
     state.device,
     state.resources.nextMaps,
     u,
@@ -494,15 +490,12 @@ function uploadNextMaps(state: VsmFrameState, ids: VsmMapIds) {
 }
 
 /** The frame's uniform counts. */
-function frameUniforms(state: VsmFrameState, ids: VsmMapIds, camera: VsmCameraInput) {
+function frameUniforms(state: VsmFrameState, ids: VsmMapIds) {
   const uniforms: VsmFrameUniforms = {
     fullMapCount: ids.fullMapCount,
     singlePageMapCount: ids.singlePageMapCount,
     frameStamp: state.frameStamp,
     pressureBias: state.cache.pressureBias,
-    // The tangent of the view's half vertical field: the traced read of a blended surface scales
-    // its screen ray by it.
-    viewTanHalfFovY: 1 / camera.projection[5],
   }
   return uniforms
 }
@@ -527,18 +520,18 @@ export function planVirtualShadowFrame(
   cache.frameStamp = state.frameStamp
   cache.poolPages = layout.poolPages
   trackLightShapes(state, lights)
-  const mobilityOf = (id: string) => state.lightShapes.get(id)?.mobility ?? 0
+  const mobilityOf = (id: string) => state.lightShapes.get(id)?.mobilityFactor ?? 0
   // The distant light refresh schedule.
   cache.scheduleFarLights()
   const casting = castingScratch
   casting.length = 0
-  for (const l of lights) if (l.light.castsShadow && (l.visible ?? true)) casting.push(l)
+  for (const l of lights) if (vsmShadowed(l)) casting.push(l)
   clipmapScratch.length = 0
   localScratch.length = 0
-  setupDirectionalLights(state, casting, camera, viewport, mobilityOf)
+  setupDirectionalLights(state, casting, camera, viewport)
   setupLocalLights(state, casting, camera, viewport, mobilityOf)
   const { ids, allocations } = allocateLightIds(state)
-  const uniforms = frameUniforms(state, ids, camera)
+  const uniforms = frameUniforms(state, ids)
   const fullMaps = Math.max(ids.fullMapCount, ids.nextMapCount - VSM_SINGLE_PAGE_MAP_SLOTS)
   if (fullMaps > layout.fullMapCapacity && grow?.(fullMaps)) layout = resources.layout
   const plan: VsmFramePlan = {

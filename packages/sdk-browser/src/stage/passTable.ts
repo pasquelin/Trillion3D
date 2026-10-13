@@ -1,83 +1,56 @@
 import {
-  BOUNCE_PASS,
-  DEFERRED_LIGHTING_PASS,
-  HIZ_PASS,
-  LIGHT_TILES_PASS,
-  MATERIAL_COMPUTE_PASS,
-  MATERIAL_SURFACES_PASS,
-  PARTICLES_PASS,
-  PARTITION_PASS,
-  PARTICLE_DRAW_PASS,
-  TAA_PASS,
-} from './passLabels.ts'
-import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from '../webgpu/water/passLabels.ts'
+  WEBGPU_STAGES,
+  type GpuPassBlock,
+  type PassDeclaration,
+  type PassFiling,
+  type WebgpuStage,
+} from './passDeclaration.ts'
+import { ENGINE_PASSES, VSM_PASSES } from './passLabels.ts'
+import { WATER_PASSES } from '../webgpu/water/passLabels.ts'
+import { MIPS_PASSES } from '../texture/mipsPass.ts'
+import { DEFORMATION_PASSES } from '../deformation/pass.ts'
+
+/** A pass's row: its stage, that stage's index in `WEBGPU_STAGES`, and its block. */
+type PassRow = {
+  readonly stage: WebgpuStage
+  readonly at: number
+  readonly block: GpuPassBlock
+}
 
 /**
- * The two blocks of a frame that can be set against a published profile, and nothing else.
- * `visibility` is building the visibility buffer: selection, partition, Hi-Z and raster.
- * `materials` is writing surfaces from that buffer. Everything else is `other`: shadows, light
- * lists, bounce, transparents, deferred lighting and present — putting any of those in a block
- * would inflate a comparison instead of serving it, so they stay outside AND named, each pass
- * keeping its duration.
+ * Every pass the engine begins, as its label module declares it (`passDeclaration.ts`). The labels
+ * come from the label modules the passes read their own from: an import of the passes would put
+ * them and their shaders in the CDN core, ahead of the renderer's own chunk, which the page
+ * downloads beside the scene (#1353).
  */
-export type GpuPassBlock = 'visibility' | 'materials' | 'other'
+const DECLARED_PASSES: readonly PassDeclaration[] = [
+  ...ENGINE_PASSES,
+  ...WATER_PASSES,
+  ...MIPS_PASSES,
+  ...DEFORMATION_PASSES,
+]
 
-/** A shadow page's GPU cost: choosing its casters, then drawing them. Sampling is in `lighting`. */
-type ShadowPart = 'cull' | 'raster'
+const rowOf = ({ stage, block }: PassFiling): PassRow =>
+  Object.freeze({ stage, at: WEBGPU_STAGES.indexOf(stage), block })
 
-/** A pass's row: its stage and block, plus its shadow part when it serves shadow pages. */
-export type PassRow = readonly [stage: string, block: GpuPassBlock, part?: ShadowPart]
+const ROWS = new Map(DECLARED_PASSES.map((pass) => [pass.label, rowOf(pass)]))
+const FAMILIES = [VSM_PASSES].map((family) => ({ prefix: family.prefix, row: rowOf(family) }))
+/** The row each undeclared label read so far took by prefix, `null` for none: a frame's chunked
+ *  labels come back every frame. Emptied past `FOUND_LABELS`, so no run of labels grows it. */
+const found = new Map<string, PassRow | null>()
+const FOUND_LABELS = 1024
 
 /**
- * Profile stage, comparison block and shadow part of each GPU pass, read from the label the pass
- * already carries. This is the only read of deposit labels: direct-light durations, the per-stage
- * profile and the blocks share it. An unknown label joins `geometry`, the only stage that draws
- * without a name of its own, and `other`, so a new pass does not silently swell a compared block.
- * The labels come from `passLabels.ts`, which every pass reads its own from: an import of the
- * passes would put them and their shaders in the CDN core, ahead of the renderer's own chunk,
- * which the page downloads beside the scene (#1353).
+ * Profile stage and comparison block of a GPU pass, read from the label it carries: its declared
+ * row, or its family's by the prefix its label opens with. This is the only read of deposit
+ * labels: direct-light durations, the per-stage profile and the blocks share it. A label no
+ * declaration names has no row: it joins no stage and no block, so it never swells either.
  */
-export const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
-  'Trillion3D DAG selection': ['selection', 'visibility'],
-  [PARTITION_PASS]: ['partition', 'visibility'],
-  [HIZ_PASS]: ['hiZ', 'visibility'],
-  'Trillion3D clear': ['geometry', 'visibility'],
-  'Trillion3D visibility primary': ['geometry', 'visibility'],
-  'Trillion3D visibility secondary': ['geometry', 'visibility'],
-  'Trillion3D small triangle binning': ['geometry', 'visibility'],
-  'Trillion3D small triangle raster': ['geometry', 'visibility'],
-  'Trillion3D hybrid visibility resolve': ['geometry', 'visibility'],
-  // Compute raster (`../gpu/raster/raster.ts`, `../gpu/raster/resolve.ts`): it builds the same buffer.
-  'Trillion3D raster target and lists': ['geometry', 'visibility'],
-  'Trillion3D raster dispatch': ['geometry', 'visibility'],
-  'Trillion3D raster binning': ['geometry', 'visibility'],
-  'Trillion3D raster occluder depth': ['geometry', 'visibility'],
-  'Trillion3D raster tested depth': ['geometry', 'visibility'],
-  'Trillion3D raster identifiers': ['geometry', 'visibility'],
-  'Trillion3D raster occluder hiz': ['hiZ', 'visibility'],
-  'Trillion3D raster resolve': ['geometry', 'visibility'],
-  'Trillion3D empty surfaces': ['geometry', 'materials'],
-  [MATERIAL_COMPUTE_PASS]: ['geometry', 'materials'],
-  [MATERIAL_SURFACES_PASS]: ['geometry', 'materials'],
-  'Trillion3D transparents': ['transparents', 'other'],
-  'Trillion3D transmission': ['transparents', 'other'],
-  [WATER_SURFACE_PASS]: ['transparents', 'other'],
-  [WATER_COMPOSITE_PASS]: ['transparents', 'other'],
-  'Trillion3D transparent compaction': ['transparents', 'other'],
-  [PARTICLE_DRAW_PASS]: ['transparents', 'other'],
-  'Trillion3D shadow cull': ['shadows', 'other', 'cull'],
-  'Trillion3D shadow page pyramids': ['shadows', 'other', 'cull'],
-  'Trillion3D shadow occlusion': ['shadows', 'other', 'cull'],
-  [LIGHT_TILES_PASS]: ['lightLists', 'other'],
-  [BOUNCE_PASS]: ['bounce', 'other'],
-  [PARTICLES_PASS]: ['physics', 'other'],
-  [DEFERRED_LIGHTING_PASS]: ['lighting', 'other'],
-  [TAA_PASS]: ['antialiasing', 'other'],
-  'Trillion3D HDR composition': ['present', 'other'],
-  'Trillion3D HDR composition + present': ['present', 'other'],
-  'Trillion3D direct present': ['present', 'other'],
-  'Trillion3D explicit capture': ['present', 'other'],
-})
-
-/** Shadow part of a pass, by its label. A pass that serves no shadow page is `other`. */
-export const gpuShadowPartOf = (name: string) => PASSES[name]?.[2] ?? 'other'
+export function passRowOf(label: string): PassRow | undefined {
+  const known = ROWS.get(label) ?? found.get(label)
+  if (known !== undefined) return known ?? undefined
+  const row = FAMILIES.find(({ prefix }) => label.startsWith(prefix))?.row ?? null
+  if (found.size === FOUND_LABELS) found.clear()
+  found.set(label, row)
+  return row ?? undefined
+}

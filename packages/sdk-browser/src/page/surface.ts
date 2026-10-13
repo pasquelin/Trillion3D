@@ -31,7 +31,7 @@ import {
   type MaterialRaster,
 } from '../scene/materialSide.ts'
 import { visMaterial } from '../visibility/shader/material.ts'
-import type { VisMaterial } from '../visibility/types.ts'
+import type { VisMaterial } from '../visibility/materialType.ts'
 
 /** The shaded fields of a surface, and the raster facts declared beside them. */
 export type PageSurface = VisMaterial & MaterialRaster
@@ -85,8 +85,9 @@ export function surfaceOf(material: HostMaterials): PageSurface {
   return surface
 }
 
-/** The record of a drawn mesh's declaration: the collection's only door to a host material. */
-export const meshSurface = (mesh: { material: HostMaterials }) => surfaceOf(mesh.material)
+/** The record of a source's declaration: the collection's only door to a host material. */
+export const sourceSurface = (source: { declaration: HostMaterials }) =>
+  surfaceOf(source.declaration)
 
 /**
  * Rereads the SIDE of a record from the declaration it was built from; a record built outside this
@@ -120,18 +121,22 @@ export function refreshSurface(surface: PageSurface): PageSurface {
   return materialRaster(material, surface)
 }
 
+/** Whether `source` wears one of `surfaces`: the declaration a repaint or an assignment names. */
+export const wearsOneOf = (source: { declaration: HostMaterials }, surfaces: readonly object[]) =>
+  surfaces.includes(source.declaration as object)
+
 /** The records of the source meshes a created material was assigned to. */
-export const recordsOfMeshes = <T extends { sourceMesh?: object }>(
+export const recordsOfMeshes = <T extends { drawSource?: object }>(
   records: readonly T[],
   meshes: ReadonlyMap<object, unknown>,
-) => records.filter((rec) => !!rec.sourceMesh && meshes.has(rec.sourceMesh))
+) => records.filter((rec) => !!rec.drawSource && meshes.has(rec.drawSource))
 
 /** Why neither engine gives an assigned mesh another surface: none of its records is a page's,
  *  it is drawn as a forward copy the open laid out, off the surface the copy took then. */
-export function unpagedRefusal(records: readonly { sourceMesh?: object }[], alpha: AlphaChange) {
+export function unpagedRefusal(records: readonly { drawSource?: object }[], alpha: AlphaChange) {
   if (!isAssignment(alpha)) return
   const unpaged = new Set(alpha.meshes.keys())
-  for (const rec of records) if (rec.sourceMesh) unpaged.delete(rec.sourceMesh)
+  for (const rec of records) if (rec.drawSource) unpaged.delete(rec.drawSource)
   if (unpaged.size) return 'the drawable is drawn as a forward copy laid out when the session opens'
 }
 

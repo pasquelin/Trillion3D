@@ -1,4 +1,5 @@
 use super::*;
+use crate::compiler_format::SOURCE_FORMAT_VERSION;
 
 #[test]
 fn compile_omits_images_when_the_gltf_has_none() {

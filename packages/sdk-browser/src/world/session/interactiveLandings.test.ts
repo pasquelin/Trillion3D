@@ -24,7 +24,12 @@ test('pages the engine makes resident without a fetch keep the loop drawing past
     state: { disposed: false },
     pendingFrame: async () => true,
     familiesPending: () => undefined,
-    engine: { measureFrame: () => false, landings: () => landings },
+    engine: {
+      measureFrame: () => false,
+      skipsFrame: () => false,
+      landings: () => landings,
+      arriving: () => false,
+    },
   }
   // Two hundred pages landed from memory, one per frame: the fetch count never moves.
   const explorer = { render: () => (++drawn <= 200 && landings++, { pageLoads: 7 }), resize() {} }

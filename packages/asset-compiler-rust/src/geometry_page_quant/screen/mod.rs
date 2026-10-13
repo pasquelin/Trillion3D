@@ -15,11 +15,11 @@ mod tests;
 mod vegetation;
 
 use crate::compiler_primitive_dag::{build_dag_primitive, DagResult};
-use crate::geometry_page::Attribute;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use trillion3d_math::vec3::{length, point, sub};
 use trillion3d_page_codec::cut_error::{node_ceiling_error, Lens};
+use trillion3d_page_codec::encode::Attribute;
 
 /// Focal length in pixels of 1080 lines under a 60° vertical field.
 const FOCAL: f64 = 540.0 / 0.577_350_269_189_625_8;
@@ -63,14 +63,14 @@ fn displacement(bytes: &[u8], slice: &[u32], positions: &[f32]) -> f64 {
 
 /// Every page of `primitive`, compiled into a scratch cache and measured back from it.
 fn measure(primitive: &Primitive) -> Vec<Page> {
-    let root = crate::texture_preview::tests::temp_dir("screen-error");
+    let root = crate::tests::directories::scratch("geometry-page", "screen-error");
     let mut o = crate::texture_preview::tests::options(&root);
     o.simplification = "qem-endpoints".into();
     std::fs::create_dir_all(o.cache.join("native/objects")).expect("objects");
     let triangles = primitive.indices.len() / 3;
     let demand = crate::proxy::cut::cut_demand(
         primitive.scale,
-        crate::proxy::PROXY_TRIANGLE_BUDGET,
+        trillion3d_page_codec::proxy::PROXY_TRIANGLE_BUDGET,
         triangles,
         triangles,
     );

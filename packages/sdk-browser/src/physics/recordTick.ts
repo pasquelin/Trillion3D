@@ -4,6 +4,7 @@ import {
   WHEEL_STATE_WORDS,
 } from '../../../sdk-core/src/physics/index.ts'
 import type { TickRecords } from './protocol.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 
 /** The earlier-state word of a record its tick met once: its id word inverted, naming none
  *  (`keptBefore`). */
@@ -89,13 +90,8 @@ function createRecordTick(head: number, item: number) {
         if (to === undefined) {
           at.set(id, (to = length))
           length += size
-          if (length > words.length) {
-            const grown = Math.max(length, words.length * 2)
-            const [w, b] = [new Uint32Array(grown), new Uint32Array(grown)]
-            w.set(words)
-            b.set(befores)
-            ;[words, befores] = [w, b]
-          }
+          words = resized(words, length)
+          befores = resized(befores, length)
           words.set(fresh.subarray(from, from + size), to)
           befores[to] = noBefore(id)
         } else {

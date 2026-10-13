@@ -5,6 +5,7 @@ import type { PlacementIndex } from '../selection/placements.ts'
 import type { IdDelta } from '../../webgpu/cut/delta.ts'
 import { createSparseInts } from './sparseInts.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
+import { rootOfPacked } from '../selection/placements.ts'
 
 /**
  * What the cache must hold for the cut to draw what it asks for: whole groups, closed upward.
@@ -118,8 +119,7 @@ function reach(w: Walk, r: number, g: number) {
 function enter(w: Walk, id: number) {
   const rec = w.recordOf(id)
   if (!rec) return
-  const { rootOfPacked } = w.placement
-  const placed = id >= 0 && id < rootOfPacked.length ? rootOfPacked[id] : -1
+  const placed = rootOfPacked(w.placement, id)
   if (placed < 0 || !w.roots[placed]) return touchId(w, id, rec)
   const r = w.perInstance ? placed : holderOf(w, placed),
     page = id - baseOf(w, placed),

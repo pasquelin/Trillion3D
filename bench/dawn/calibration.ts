@@ -1,8 +1,9 @@
 // The bench's unit: a fixed copy kernel timed alone on the engine's device, whose duration says how
 // fast the GPU runs right now. A frame's cost divided by it compares across days and clock states.
+import { readGpuBuffer } from '../../packages/sdk-browser/src/gpu/core/readback.ts'
 import type { BenchGpu } from './device.ts'
-import { readBack } from './readBack.ts'
 import { ceilDiv } from '../../packages/math/src/scalar/integers.ts'
+import { validationScope } from '../../packages/sdk-browser/src/gpu/core/errorScope.ts'
 
 /** The calibration's work: one display of 4112 × 2294 pixels, 16 bytes read and 16 written each. */
 export const CALIBRATION_BYTES = 4112 * 2294 * 16
@@ -19,42 +20,45 @@ const CALIBRATION_WGSL = /* wgsl */ `
 
 /** The calibration on the engine's device, its commands uncounted; throws if the device refuses it. */
 export async function createCalibration(gpu: BenchGpu, device: GPUDevice) {
-  device.pushErrorScope('validation')
-  const made = gpu.quiet(() => {
-    const usage = GPUBufferUsage
-    const set = device.createQuerySet({ type: 'timestamp', count: 2 })
-    const resolved = device.createBuffer({ size: 16, usage: usage.QUERY_RESOLVE | usage.COPY_SRC })
-    const read = device.createBuffer({ size: 16, usage: usage.MAP_READ | usage.COPY_DST })
-    const pipeline = device.createComputePipeline({
-      layout: 'auto',
-      compute: {
-        module: device.createShaderModule({ code: CALIBRATION_WGSL }),
-        entryPoint: 'main',
-      },
-    })
-    const halves = [0, 1].map(() => {
-      const inputs = device.createBuffer({ size: HALF_BYTES, usage: usage.STORAGE })
-      const outputs = device.createBuffer({ size: HALF_BYTES, usage: usage.STORAGE })
-      const bind = device.createBindGroup({
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: { buffer: inputs } },
-          { binding: 1, resource: { buffer: outputs } },
-        ],
+  const { value: made, error: refused } = await validationScope(device, () =>
+    gpu.quiet(() => {
+      const usage = GPUBufferUsage
+      const set = device.createQuerySet({ type: 'timestamp', count: 2 })
+      const resolved = device.createBuffer({
+        size: 16,
+        usage: usage.QUERY_RESOLVE | usage.COPY_SRC,
       })
-      return { inputs, outputs, bind }
-    })
-    return { set, resolved, read, pipeline, halves }
-  })
-  const refused = await device.popErrorScope()
+      const pipeline = device.createComputePipeline({
+        layout: 'auto',
+        compute: {
+          module: device.createShaderModule({ code: CALIBRATION_WGSL }),
+          entryPoint: 'main',
+        },
+      })
+      const halves = [0, 1].map(() => {
+        const inputs = device.createBuffer({ size: HALF_BYTES, usage: usage.STORAGE })
+        const outputs = device.createBuffer({ size: HALF_BYTES, usage: usage.STORAGE })
+        const bind = device.createBindGroup({
+          layout: pipeline.getBindGroupLayout(0),
+          entries: [
+            { binding: 0, resource: { buffer: inputs } },
+            { binding: 1, resource: { buffer: outputs } },
+          ],
+        })
+        return { inputs, outputs, bind }
+      })
+      return { set, resolved, pipeline, halves }
+    }),
+  )
   if (refused) throw new Error(`BENCH_CALIBRATION: ${refused.message}`)
-  const { set, resolved, read, pipeline, halves } = made
+  const { set, resolved, pipeline, halves } = made
   const workgroups = ceilDiv(HALF_BYTES / 16, 256)
   return {
     /** One copy of the calibration's bytes, timed alone on an idle queue: ms. */
     async time() {
       await device.queue.onSubmittedWorkDone()
-      const stamps = await readBack(gpu, device, read, 16, (encoder) => {
+      const stamps = await gpu.quiet(() => {
+        const encoder = device.createCommandEncoder({ label: 'bench calibration' })
         const pass = encoder.beginComputePass({
           timestampWrites: { querySet: set, beginningOfPassWriteIndex: 0, endOfPassWriteIndex: 1 },
         })
@@ -65,13 +69,14 @@ export async function createCalibration(gpu: BenchGpu, device: GPUDevice) {
         }
         pass.end()
         encoder.resolveQuerySet(set, 0, 2, resolved, 0)
-        encoder.copyBufferToBuffer(resolved, 0, read, 0, 16)
+        device.queue.submit([encoder.finish()])
+        return readGpuBuffer(device, resolved, 16)
       })
-      const [begin, end] = new BigInt64Array(stamps)
+      const [begin, end] = new BigInt64Array(stamps!.buffer)
       return Number(end - begin) / 1e6
     },
     destroy() {
-      for (const held of [set, resolved, read, ...halves.flatMap((h) => [h.inputs, h.outputs])])
+      for (const held of [set, resolved, ...halves.flatMap((h) => [h.inputs, h.outputs])])
         held.destroy()
     },
   }

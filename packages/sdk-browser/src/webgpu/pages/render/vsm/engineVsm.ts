@@ -1,3 +1,4 @@
+import { arrayView } from '../../../../gpu/core/textureViews.ts'
 /**
  * The engine's shadows: the virtual shadow maps (`../../../../vsm/`), in their frame order,
  * encoded in the direct-lighting step after the visibility and
@@ -31,7 +32,9 @@ import {
   type VsmFrameLight,
   type VsmFramePlan,
   type VsmFrameState,
+  vsmShadowed,
 } from '../../../../vsm/frameSetup.ts'
+import { createVsmProjectionHold } from './vsmProjectionHold.ts'
 import { VsmFeedbackReadback, vsmFeedbackReadbackBytes } from '../../../../vsm/cacheManager.ts'
 import { createVsmMarking, vsmMarkingBytes, type VsmMarking } from '../../../../vsm/markingPass.ts'
 import {
@@ -46,13 +49,17 @@ import {
   VSM_PROJECTION_TILE_FORMAT,
   vsmProjectionTiles,
 } from '../../../../vsm/projectionWgsl.ts'
+import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionView.ts'
 import { madeTextureBytes, textureBytesOf } from '../../../../gpu/core/textureBytes.ts'
 import {
   releaseVsmTransmission,
   vsmTransmissionContextBytes,
   type VsmTransmission,
 } from '../../../../vsm/transmissionPass.ts'
-import { createVsmReadbackRing, type VsmReadbackRing } from '../../../../vsm/readbackRing.ts'
+import {
+  createReadbackRing,
+  type ReadbackRing as VsmReadbackRing,
+} from '../../../../gpu/core/readbackRing.ts'
 import { createVsmSettle, landVsmStats, type VsmSettle } from '../../state/vsmSettle.ts'
 import {
   VSM_SUN_FINEST_LEVEL,
@@ -67,6 +74,7 @@ import {
   VSM_COUNT_STATIC_KEPT,
 } from '../../../../vsm/constants.ts'
 import type { VsmResourceOptions } from '../../../../vsm/layout.ts'
+import type { VsmFrameScratch } from './vsmEncode.ts'
 
 /** Directional clipmap levels a sun takes. */
 const CLIPMAP_LEVELS = VSM_SUN_COARSEST_LEVEL - VSM_SUN_FINEST_LEVEL + 1
@@ -100,6 +108,8 @@ export interface EngineVsm {
   lightIdsData: Uint32Array<ArrayBuffer>
   directionalIds: GPUBuffer
   mask: VsmMask | undefined
+  /** What the mask was last projected from (`vsmProjectionHold.ts`). */
+  projectionHold: ReturnType<typeof createVsmProjectionHold>
   /** This frame's plan, until `finishVsmFrame`. */
   plan: VsmFramePlan | undefined
   /** The plan whose pages the raster drew (or that had none to draw): another one's pages are not
@@ -125,6 +135,8 @@ export interface EngineVsm {
   countersOn: boolean
   /** Whether the maps have settled, and their contents' version (`../../state/vsmSettle.ts`). */
   settle: VsmSettle
+  /** What its frames rebuild in place (`./vsmEncode.ts`), made at its first frame. */
+  frameScratch?: VsmFrameScratch
   /** Diagnostics of the last frame. */
   stats: {
     lights: number
@@ -148,22 +160,23 @@ export interface EngineVsm {
 const mapsOf = (kind: VsmFrameLight['light']['kind']) =>
   kind === 'directional' ? CLIPMAP_LEVELS : kind === 'point' ? 6 : kind === 'spot' ? 1 : 0
 
-/** Full maps the frame's casting lights need, with room for the unreferenced entries the cache
- *  keeps ten frames, rounded to whole page-table rows: one row at least, which holds a sun and
- *  six more maps with that room. */
+/** Full maps a set is first made for: its suns' clipmap levels, with room for the unreferenced
+ *  entries the cache keeps ten frames, rounded to whole page-table rows — one row at least, which
+ *  holds a sun and six more maps with that room. A local light takes a full map only while its
+ *  view asks finer than one page (`localLight.ts`), else a single-page slot, whose ids the tables
+ *  reserve: the full maps a frame plans follow the lights near its eye, never those it sees, and
+ *  the plan grows the tables to them in the same frame (`planVirtualShadowFrame`, `grow`). */
 export function fullMapsFor(lights: readonly VsmFrameLight[]) {
   let maps = 0
-  for (const { light } of lights) {
-    if (!light.castsShadow) continue
-    maps += mapsOf(light.kind)
-  }
+  for (const entry of lights)
+    if (vsmShadowed(entry) && entry.light.kind === 'directional') maps += CLIPMAP_LEVELS
   return wholeTableRows(2 * maps + 16)
 }
 
-/** The frame's lights that cast a shadow: the mask takes a layer per four of them. */
+/** The frame's lights it shadows (`vsmShadowed`): the mask takes a layer per four of them. */
 export function castingCount(lights: readonly VsmFrameLight[]) {
   let count = 0
-  for (const { light } of lights) if (light.castsShadow) count++
+  for (const entry of lights) if (vsmShadowed(entry)) count++
   return count
 }
 
@@ -172,9 +185,10 @@ export function castingCount(lights: readonly VsmFrameLight[]) {
 export function renderViewBound(lights: readonly VsmFrameLight[]) {
   let views = 0,
     mips = 0
-  for (const { light } of lights) {
-    if (!light.castsShadow) continue
-    const maps = mapsOf(light.kind)
+  for (const entry of lights) {
+    if (!vsmShadowed(entry)) continue
+    const { light } = entry,
+      maps = mapsOf(light.kind)
     views += maps
     mips += light.kind === 'directional' ? maps : maps * VSM_MIPS
   }
@@ -183,7 +197,7 @@ export function renderViewBound(lights: readonly VsmFrameLight[]) {
 
 export function directionalCount(lights: readonly VsmFrameLight[]) {
   let count = 0
-  for (const { light } of lights) if (light.castsShadow && light.kind === 'directional') count++
+  for (const entry of lights) if (vsmShadowed(entry) && entry.light.kind === 'directional') count++
   return Math.max(1, count)
 }
 
@@ -275,6 +289,7 @@ export function createEngineVsm(device: GPUDevice, options: VsmResourceOptions):
       lightIdsData: new Uint32Array(LIGHT_SLOTS),
       directionalIds,
       mask: undefined,
+      projectionHold: createVsmProjectionHold(),
       plan: undefined,
       renderedPlan: undefined,
       transmissionDenied: false,
@@ -283,7 +298,7 @@ export function createEngineVsm(device: GPUDevice, options: VsmResourceOptions):
       regrowFrame: 0,
       pendingBoxes: null,
       prevSlots: 0,
-      statsReadback: createVsmReadbackRing(
+      statsReadback: createReadbackRing(
         device,
         { label: 'vsm.engine.statsReadback', bytes: VSM_COUNTERS * 4, count: STATS_READBACKS },
         (mapped, staging) => landVsmStats(settle, staging, readVsmStats(stats, mapped)),
@@ -344,8 +359,10 @@ export function unshadowLights(store: WebgpuPagesRuntime['lights']['store']) {
   for (let slot = 0; slot < store.count; slot++) store.assignSlice(slot, -1)
 }
 
-/** The mask array's layers for `lights` shadowed lights: one per four, one at least. */
-export const maskLayersFor = (lights: number) => workgroupCount(lights, VSM_PROJECTION_MAX_LIGHTS)
+/** The mask array's layers for `lights` shadowed lights: one per four, one at least, and no more
+ *  than the projection's one pass reads (`VSM_PROJECTION_MAX_PASS_LIGHTS`, `vsmProject.ts`). */
+export const maskLayersFor = (lights: number) =>
+  workgroupCount(Math.min(lights, VSM_PROJECTION_MAX_PASS_LIGHTS), VSM_PROJECTION_MAX_LIGHTS)
 
 const maskDescriptor = (width: number, height: number, layers: number) => ({
   label: 'vsm.engine.shadowMask',
@@ -431,7 +448,7 @@ export function ensureMask(
     const tiles = device.createTexture(maskTilesDescriptor(width, height))
     return {
       array,
-      view: array.createView({ dimension: '2d-array' }),
+      view: arrayView(array),
       tiles,
       tilesView: tiles.createView(),
     }

@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRoundTrip } from './roundTrip.ts'
 import { createPageStreamer } from './pageStreamer.ts'
+import { createPageCache } from './pageCache.ts'
 import { servedPages } from './servedPages.fixture.ts'
 
 test('the round trip takes its first measure, then an eighth of each lateness', () => {
@@ -35,7 +36,10 @@ test('a streamer measures its reads until the bytes land, and a cached page adds
       arrayBuffer: async () => ((clock += 12), body),
     })
   })
-  const streamer = createPageStreamer(pages, 'http://cache/', { workerCount: 1 })
+  const streamer = createPageStreamer(pages, 'http://cache/', {
+    cache: createPageCache(),
+    workerCount: 1,
+  })
   t.after(() => streamer.dispose())
   assert.equal(streamer.roundTripMs(), 0)
   await streamer.readBytes('a.bin', streamer.signal)

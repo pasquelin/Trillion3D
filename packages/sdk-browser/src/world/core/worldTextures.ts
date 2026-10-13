@@ -5,7 +5,7 @@
  * for a version only, the sampler and the placement are written as fields, read by the import at
  * the next image (`../../host/surfaceImport.ts`).
  */
-import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
+import { COLOUR_MAPS, type Material } from '../../../../sdk-core/src/world/material/material.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { TABLE_SLOTS } from '../../../../sdk-core/src/scene/core/tableSurfaces.ts'
 import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts'
@@ -55,10 +55,6 @@ export const HOST_MAPS = [
   'subsurfaceMap',
   ...PHYSICAL_MAP_FIELDS,
 ]
-/** The maps that hold a colour: the only ones whose sRGB image is decoded. The others hold data —
- *  a direction, a roughness, an occlusion — read as stored whatever the image declares, as the
- *  WebGPU path reads them. */
-export const COLOUR_MAPS = new Set(['map', 'emissiveMap', 'matcap', 'subsurfaceMap'])
 /** Surface textures already built, by engine texture and whether it is read as colour: a texture
  *  worn by several surfaces is uploaded once. */
 export type HostTextures = Map<string, GraphTexture>

@@ -1,4 +1,5 @@
 import type { ComposeState } from '../../placement/gpuCompose.ts'
+import type { GrowthInFlight } from '../../placement/webgpuGrowth.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { TAA_CAPABILITIES } from '../../taa/capability.ts'
@@ -6,7 +7,7 @@ import { BOUNCE_CAPABILITY } from './prepare/bounce.ts'
 import type { EngineCapabilities, EngineContext } from '../../engine/types.ts'
 import { createWebgpuPagesServices, type WebgpuPagesServices } from './services.ts'
 import { createWebgpuDiagnostics } from './io/diagnostics.ts'
-import { createWebgpuBlendState } from '../blend/state.ts'
+import { createWebgpuBlendState, type WebgpuBlendState } from '../blend/state.ts'
 import { createWebgpuPagesSetup, type WebgpuDiagnostics } from './prepare/setup.ts'
 import { createWebgpuPagesLayout, type WebgpuPagesLayout } from './prepare/layout.ts'
 import { createWebgpuGpuState, type WebgpuGpuState } from './state/gpu.ts'
@@ -17,12 +18,9 @@ import { createWebgpuRunState, type WebgpuRunState } from './state/run.ts'
 import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts'
 import { createWebgpuViews, type WebgpuViews } from './state/view.ts'
 import { createScaleControl, type ScaleControl } from '../../frame/scaleControl.ts'
-import type { EngineCamera } from '../../camera/world.ts'
-import {
-  createWebgpuStageProfiler,
-  createWebgpuTimingState,
-  type WebgpuTimingState,
-} from './state/timing.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { createWebgpuTimingState, type WebgpuTimingState } from './state/timing.ts'
+import { WEBGPU_STAGES } from '../../stage/passDeclaration.ts'
 import type { WebgpuPagesSetup } from './prepare/setup.ts'
 import type { FeedbackAbState } from './diagnostic/feedbackAb.ts'
 import type { VisPage } from '../../visibility/types.ts'
@@ -67,14 +65,17 @@ export interface WebgpuPagesRuntime {
   /** The render scale the page asked, its controller, and the scale of the image drawn. */
   scale: ScaleControl
   capabilities: EngineCapabilities
-  blendState: ReturnType<typeof createWebgpuBlendState>
+  blendState: WebgpuBlendState
   /** The nodes the host may write, listed by frame entry at a scene change only (`gateCore.ts`):
    *  built once, so an image hands over no new closure. */
   watchedSources: () => unknown[]
   /** Residency machinery, built once the state exists; it reads the runtime lazily. */
   services: WebgpuPagesServices
-  /** POC: placements composed on the GPU under a moved parent (`../../placement/gpuCompose.ts`). */
+  /** Placements composed on the GPU under a moved parent (`../../placement/gpuCompose.ts`). */
   compose?: ComposeState
+  /** The rows grown in place and the roots waiting to join the cut, until a cut holds them
+   *  (`../../placement/webgpuGrowth.ts`). */
+  growth?: GrowthInFlight
 }
 
 export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRuntime {
@@ -132,7 +133,7 @@ export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRun
     capture: createWebgpuCaptureState(),
     views: createWebgpuViews({ run, gpu, vis, setup }),
     timing: createWebgpuTimingState(
-      explorerSwitch(context, 'stageProfile') ? createWebgpuStageProfiler() : undefined,
+      explorerSwitch(context, 'stageProfile') ? WEBGPU_STAGES : undefined,
       () => layout.selectionRoots.length,
     ),
     scale: createScaleControl(context.renderScale),

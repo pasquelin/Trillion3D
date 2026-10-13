@@ -2,6 +2,7 @@
 // an unmasked row — whose `maskKeep` keeps every fragment at its first test — reads no page, and a
 // depth no greater than the pool's word already held writes nothing (`vsmPoolAtomicMax`): a word
 // only grows, so it ends the max of every depth drawn into it, whatever their order.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
@@ -9,11 +10,10 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { FLAG_MASK } from '../visibility/types.ts'
 import { vsmBindingsWgsl } from './resources.ts'
 import { VSM_RENDER_RASTER_FRAGMENT_SPECS, vsmRenderRasterWgsl } from './renderRasterWgsl.ts'
-import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }, 2 ** 27)
+const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
 const CODE = vsmRenderRasterWgsl(LAYOUT)
 
 test('an unmasked row reads no page in the fragment: maskKeep keeps it whole', () => {
@@ -51,7 +51,7 @@ test('the pool max writes only a greater depth, and every word ends the max of i
     assert.match(body, /^if\(atomicLoad\(&(\w+)\[i\]\)<value\)\{atomicMax\(&\1\[i\],value\);\}$/)
   // The body run on random depths in random orders: the word, and the writes it took.
   let writes = 0
-  const rand = seeded(5)
+  const rand = mulberry32(5)
   for (let round = 0; round < 200; round++) {
     const word = [0]
     const run = shaderRun<{ join: (value: number) => void }>(

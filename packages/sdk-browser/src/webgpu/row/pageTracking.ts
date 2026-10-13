@@ -7,19 +7,33 @@ const TRACE_SAMPLE = 16
 /** A record list as a sample reads it: the row table holds empty slots. */
 type PageList = ArrayLike<PageRec | undefined>
 
+/** The pages a session tracks (`createWebgpuPageTracking`). */
+export type WebgpuPageTracking = ReturnType<typeof createWebgpuPageTracking>
+
 /** Stable numeric page keys keep the hot residency path out of string hash tables. The catalogue
  *  is the list of pool ADDRESSES (`pageAddress`), which is what the cache holds and pins. */
 export function createWebgpuPageTracking(allPages: PageRec[]) {
-  const pageCatalog = [...new Set(allPages.map(pageAddress))]
-  const pageCatalogIds = new Map(pageCatalog.map((url, index) => [url, index]))
+  const pageCatalog: string[] = []
+  const pageCatalogIds = new Map<string, number>()
   const pageRefs = (urls: string[]) => urls.map((url) => pageCatalogIds.get(url) ?? url)
-  const keyCount = Math.max(1, pageCatalog.length)
   // The highest DAG level of the catalogue: admission ranks the minimum capacity above it.
   let topLevel = 0
-  for (const page of allPages) {
-    page.keyIndex = pageCatalogIds.get(pageAddress(page))
-    topLevel = Math.max(topLevel, page.level ?? 0)
+  /** Numbers the addresses of `pages` the catalogue does not hold yet, behind those it holds: the
+   *  open's records, then the records of a source added to the session (`addPlacements`). */
+  const append = (pages: readonly PageRec[]) => {
+    for (const page of pages) {
+      const address = pageAddress(page)
+      let key = pageCatalogIds.get(address)
+      if (key === undefined) {
+        key = pageCatalog.length
+        pageCatalog.push(address)
+        pageCatalogIds.set(address, key)
+      }
+      page.keyIndex = key
+      topLevel = Math.max(topLevel, page.level ?? 0)
+    }
   }
+  append(allPages)
   const keyOf = (rec: PageRec) => {
     const key = rec.keyIndex ?? pageCatalogIds.get(pageAddress(rec))
     if (key === undefined) throw new Error(`RESIDENCY_KEY_UNKNOWN: ${pageAddress(rec)}`)
@@ -27,41 +41,30 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
     return key
   }
   /**
-   * The three sets the residency path carries from one image to the next. They are dense sets, not
+   * The sets the residency path carries from one image to the next. They are dense sets, not
    * per-image rebuilds: an image that changes no page touches none of them.
    * `wanted` is what the upload queue still has to fetch, `wantedPages` the record it fetches each key
-   * by; `keep` is what the image forbids the cache to reclaim; `pinned` is what the cache actually
-   * holds pinned for it.
+   * by; `keep` is what the image forbids the cache to reclaim. The pages the cache holds pinned
+   * are the cache's to say (`GpuPageCache.isPinned`).
    */
   const wantedPages: PageRec[] = []
   const wanted = createDenseKeySet(wantedPages)
   const keep = createDenseKeySet()
-  const pinned = createDenseKeySet()
-  /**
-   * Keys something outside the residency path unpinned — a host page drop. The pin step drains this
-   * and puts back the ones the image still keeps, so a dropped page that comes back is pinned again.
-   */
-  const unpinned: number[] = []
-  const markPinned = (key: number) => {
-    pinned.add(key)
-  }
-  const unmarkPinned = (key: number) => {
-    if (pinned.remove(key)) unpinned.push(key)
-  }
   return {
     pageCatalog,
     pageCatalogIds,
     pageRefs,
-    keyCount,
+    append,
+    get keyCount() {
+      return Math.max(1, pageCatalog.length)
+    },
     keyOf,
-    topLevel,
+    get topLevel() {
+      return topLevel
+    },
     wanted,
     wantedPages,
     keep,
-    pinned,
-    unpinned,
-    markPinned,
-    unmarkPinned,
     ...createTraceSamples(pageCatalog, pageRefs),
   }
 }

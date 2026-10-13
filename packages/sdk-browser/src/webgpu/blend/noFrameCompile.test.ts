@@ -77,7 +77,7 @@ test('the water composites follow what is reached: the plain one, then each late
   const mount = mountDevice()
   const layout = createWaterCompositeLayout(mount.device)
   const reach = createReach({ modes: [], share: false, filtered: false })
-  const composites = await createWaterComposites(mount.device, layout, false, {}, reach)
+  const composites = await createWaterComposites(mount.device, layout, {}, reach)
   assert.equal(mount.renderPipelines.length, 1, 'the plain composite alone')
   const calls = watch(mount.device)
   assert.ok(composites.at(false, false))

@@ -32,7 +32,7 @@ function tableOf(code: string, n: number) {
 }
 
 test('one walk clears each table as its own kernel did', () => {
-  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }, 2 ** 27)
+  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
   const fused = vsmResetPageTableWgsl(TARGETS, layout)
   for (const [n, target] of TARGETS.entries()) {
     const own = tableOf(vsmResetPageTableWgsl([target], layout), 0),
@@ -47,9 +47,8 @@ test('one walk clears each table as its own kernel did', () => {
 })
 
 test('the clears by the maps they walk: every map’s tables, a receiver cover by its own maps', () => {
-  const at = (receiver: 'local' | 'directional' | 'none') =>
-    vsmMarkingClears({ ...vsmLayout({ fullMapCapacity: 7 }, 2 ** 27), coverMode: receiver })
-  assert.deepEqual(at('local'), { all: TARGETS, directionalOnly: [] })
+  const at = (receiver: 'directional' | 'none') =>
+    vsmMarkingClears({ ...vsmLayout({ fullMapCapacity: 7 }), coverMode: receiver })
   assert.deepEqual(at('directional'), {
     all: TARGETS.slice(0, 3),
     directionalOnly: ['receiverCover'],
@@ -73,6 +72,7 @@ test('the marking records into the pass it is given: its clears, rects and coars
   marking.encode(pass, {
     fullMapCount: 1,
     singlePageMapCount: 0,
+    perspective: true,
     perPage: {
       ids: new Uint32Array(2),
       all: [bin, none, none, none],
@@ -106,6 +106,7 @@ test('a device aligning at 512 lays the per-page slots 512 bytes apart', () => {
   marking.encode(pass, {
     fullMapCount: 1,
     singlePageMapCount: 0,
+    perspective: true,
     perPage: { ids: new Uint32Array(20), all: bins, directionalOnly: bins },
   })
   const perPage = fake.buffers.find((b) => b.label === 'vsm.marking.perPage')!

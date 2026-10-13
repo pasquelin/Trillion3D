@@ -1,6 +1,7 @@
-import { SELECTION_NONE as NONE, type CutClaims } from '../core/selection.ts'
+import { type CutClaims } from '../core/selection.ts'
 import { differenceWord } from './layout.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** What the host holds of the readbacks the chain follows: no GPU list, the readback in hand, or
  *  an older one the claims name ranks in. */
@@ -54,8 +55,8 @@ export function createDifferenceChain() {
     const via = since[l]
     for (let s = 0; s < count; s++) {
       let r = ints[at + s]
-      if (r !== NONE && sinceLast) r = via[r]
-      out[s] = r === NONE || !through ? r : through[r]
+      if (r !== NO_INDEX && sinceLast) r = via[r]
+      out[s] = r === NO_INDEX || !through ? r : through[r]
     }
   }
   return {

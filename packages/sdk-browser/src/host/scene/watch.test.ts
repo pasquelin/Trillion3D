@@ -20,7 +20,7 @@ function graphe() {
 }
 
 /** The reread nodes: the source models of what is drawn, the lamps, and their ancestors. */
-const drawn = (...meshes: G.Object3D[]) => meshes.map((sourceMesh) => ({ sourceMesh }))
+const drawn = (...meshes: G.Object3D[]) => meshes.map((node) => ({ drawSource: { node } }))
 
 function veille(source: G.Object3D, ...meshes: G.Object3D[]) {
   const watch = createHostSceneWatch()
@@ -55,6 +55,26 @@ test('visibility written directly by the host is seen; a reparent reshapes', () 
   new G.Group().add(mesh)
   assert.equal(watch.take(), 'reshaped', 'the ancestor chain changed')
   assert.equal(watch.take(), 0)
+})
+
+test('a node reparented is written and flipped, so its roots alone follow; a node destroyed is not', () => {
+  const { source, mesh } = graphe()
+  const watch = veille(source, mesh)
+  watch.take()
+  watch.takeWritten()
+  watch.takeFlipped()
+  new G.Group().add(mesh)
+  assert.equal(watch.take(), 'reshaped')
+  assert.deepEqual([...watch.takeWritten()], [mesh])
+  assert.deepEqual([...watch.takeFlipped()], [mesh])
+  assert.equal(watch.takeDestroyed(), false, 'a reparent owes no walk of every root')
+  const gone = graphe()
+  const second = veille(gone.source, gone.mesh)
+  second.take()
+  gone.mesh.destroy()
+  second.take()
+  assert.equal(second.takeDestroyed(), true)
+  assert.equal(second.takeDestroyed(), false, 'said once')
 })
 
 test("a lamp's intensity, colour, range and pose are seen", () => {

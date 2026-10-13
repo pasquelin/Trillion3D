@@ -1,15 +1,16 @@
-import { clamp } from '../../../../math/src/scalar/reals.ts'
-import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from '../../engine/common.ts'
+import { DEFAULT_PAGE_WORKERS } from '../../engine/common.ts'
 import { configurePageWorkers } from '../../page/work/host.ts'
 import type { ExplorerScene } from './prepare.ts'
-import { createPageStreamerWith } from '../../streaming/pageStreamer.ts'
+import { createPageStreamer, type PageStreaming } from '../../streaming/pageStreamer.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
+import { asIndices } from '../../streaming/indexView.ts'
 import type { PageQueue } from '../../streaming/types.ts'
-import { worldRootsOf } from '../../scene/worldRoots.ts'
-import { loadClusterPages } from '../../cluster/pages.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { Engine, MeasuredWorldOptions } from '../../engine/types.ts'
 import { indexManifestBundles, indexManifestPages } from '../../scene/manifestPageIndex.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import type { PartitionCells } from '../../partition/cells.ts'
+import type { WorldRootsHold } from '../../scene/worldRoots.ts'
 
 type Progress = (phase: string, completed: number, total: number, message: string) => void
 
@@ -17,35 +18,34 @@ type Progress = (phase: string, completed: number, total: number, message: strin
  *  and how many reads fail now (`streamFailed`). */
 type Stalled = (detail: string, failedPages: number) => void
 
-/** The pages a session preloads whole (`preload: 'all'`), read beside its queue, and what they
- *  cost; none otherwise. */
+/** The index pages a session preloads whole (`preload: 'all'`), by url: read by its queue's batch
+ *  request (`streamer`), through the page cache, each as it lands; none otherwise. */
 async function preloaded(
-  pages: Parameters<typeof loadClusterPages>[0],
-  options: MeasuredWorldOptions,
-  base: string,
-  signal: AbortSignal | undefined,
+  streamer: PageStreaming,
+  pages: readonly { url: string }[],
+  preload: MeasuredWorldOptions['preload'],
   progress: Progress,
 ) {
   const indices = new Map<string, Uint32Array>()
-  if ((options.preload ?? 'visible') !== 'all') {
+  if (preload !== 'all') {
     progress('pages', 0, pages.length, 'Hierarchy ready · pages on demand')
-    return { loaded: 0, pageBytesRead: 0, indices }
+    return indices
   }
-  const all = await loadClusterPages(
-    pages,
-    base,
-    signal,
-    (completed, total) =>
-      progress('pages', completed, total, 'Reading and checking exact and LOD pages'),
-    options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
-  )
-  for (const [url, array] of all.indices) indices.set(url, array)
-  return { loaded: all.loaded, pageBytesRead: all.pageBytesRead, indices }
+  const urls = pages.map((page) => page.url)
+  await streamer.request(urls, {
+    signal: streamer.signal,
+    onPage(url, bytes) {
+      indices.set(url, asIndices(bytes))
+      progress('pages', indices.size, urls.length, 'Reading and checking exact and LOD pages')
+    },
+  })
+  return indices
 }
 
 /** The session's page sources: its queue at once (`streamer`), which its scene loads through, and
- *  the rest once the pages it preloads have landed (`sources`). A read that fails for good or first
- *  waits the longest is told to `stalled`. */
+ *  the rest once the pages it preloads have landed (`sources`), among them the page cache the queue
+ *  reads through (`pageCache`) and the index pages preloaded (`indices`). A read that fails for
+ *  good or first waits the longest is told to `stalled`. */
 export function openExplorerPageSources(
   metadata: ClusterManifest,
   options: MeasuredWorldOptions,
@@ -58,57 +58,58 @@ export function openExplorerPageSources(
   stalled: Stalled = () => {},
 ) {
   const { pages, geometryPages, pageIdByUrl } = indexManifestPages(metadata)
-  const exactPages = pages.filter((page) => (page.role ?? 'exact') !== 'coarse')
-  // What the streamer keeps in cache; the WebGPU engine holds its own pool in bytes. A cluster DAG
-  // keeps twice its bundles; a flat cache the pages the view may read, within the default ceiling.
   const bundles = indexManifestBundles(metadata)
-  const flatPages =
-    options.maxResidentPages ?? Math.max(1024, exactPages.length * (options.replicaCount ?? 1))
-  const cacheCap =
-    options.maxCachedPages ??
-    (bundles.length > 0
-      ? Math.max(8192, bundles.length * 2)
-      : clamp(flatPages, 8192, DEFAULT_CACHED_PAGES))
   // The page worker pool never exceeds the already-in-force transfer admission.
   configurePageWorkers(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
-  const streamer = createPageStreamerWith([...pages, ...geometryPages, ...bundles], base, {
-    cache: options.pageCache,
+  // The one cache every reader of the session shares — its world's, kept across a device loss, or
+  // the session's own —: the texture levels are held among its pages, their files read through
+  // it (`createTextureLevelReader`), and the scene's proxy is kept whole there
+  // (`createSceneProxyReader`). The session's own cache ends with it: emptied, its kept read
+  // cancelled, as the session closes.
+  const pageCache = options.pageCache ?? createPageCache()
+  if (!options.pageCache) signal?.addEventListener('abort', () => pageCache.clear(), { once: true })
+  const streamer = createPageStreamer([...pages, ...geometryPages, ...bundles], base, {
+    cache: pageCache,
     signal,
     workerCount: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
-    maxPages: cacheCap,
     onEvict: (url) => engine()?.dropPage(url),
     maxTransferBytes: options.maxPageTransferBytes,
     onDiagnostic:
       diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
         ? diagnosticChannel.emit
         : undefined,
-    onStalled: ({ url, cause }) => stalled(`${url}: ${String(cause)}`, streamer.stats().failed),
+    onStalled: ({ key, cause }) => stalled(`${key}: ${String(cause)}`, streamer.stats().failed),
   })
   const preload = options.preload ?? 'visible'
-  const sources = preloaded(pages, options, base, signal, progress).then((read) => ({
-    ...{ pages, geometryPages, pageIdByUrl, preload, cacheCap, streamer },
-    ...read,
+  const sources = preloaded(streamer, pages, preload, progress).then((indices) => ({
+    ...{ pages, geometryPages, pageIdByUrl, preload, streamer, pageCache, indices },
   }))
   return { streamer, sources }
 }
 
-/** The session's page sources, once those it preloads have landed (`openExplorerPageSources`). */
-export const createExplorerPageSources = (...args: Parameters<typeof openExplorerPageSources>) =>
-  openExplorerPageSources(...args).sources
+/** What a session reads its pages through, once those it preloads have landed
+ *  (`openExplorerPageSources`). */
+export type ExplorerPageSources = Awaited<ReturnType<typeof openExplorerPageSources>['sources']>
 
-/** What a session reads its pages through. */
-export type ExplorerPageSources = Awaited<ReturnType<typeof createExplorerPageSources>>
+/** `partitions`' index pages catalogued by `streamer`, and the world roots bound to it. */
+export function holdPartitions(
+  streamer: PageQueue,
+  partitions: readonly PartitionCells[],
+  worldRoots: readonly WorldRootsHold[],
+) {
+  streamer.admit(partitions.flatMap((cells) => cells.pages))
+  for (const roots of worldRoots) roots.bind(streamer)
+}
 
 /** The scene the session draws — `given`, else the one `load` reads —, read through `streamer`:
- *  its partitions' index pages catalogued, and its world roots bound to the queue (`worldRootsOf`). */
+ *  its partitions' index pages catalogued, and its world roots bound to the queue. */
 export async function sceneThrough<T extends Pick<ExplorerScene, 'partitions' | 'worldRoots'>>(
   streamer: PageQueue,
   given: T | undefined,
   load: () => Promise<T>,
 ) {
   const scene = given ?? (await load())
-  streamer.admit(scene.partitions.flatMap((cells) => cells.pages))
-  for (const shown of scene.worldRoots) worldRootsOf(shown)?.bind(streamer)
+  holdPartitions(streamer, scene.partitions, scene.worldRoots)
   return scene
 }
 

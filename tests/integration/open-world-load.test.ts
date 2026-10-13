@@ -14,10 +14,11 @@
 //
 //   T3D_OPEN_WORLD=<cache>/native/full/manifest.json node --test tests/integration/open-world-load.test.ts
 import test from 'node:test'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { compiler } from './world-partition.fixture.ts'
 import { assertOpensUnderCap } from './view-rows-load.fixture.ts'
+import { readJson } from '../../scripts/repository-files.ts'
 
 /** The renderer's memory cap, in MB: the JS heap and its array buffers, the mock device's own
  *  buffers out. */
@@ -29,7 +30,7 @@ const HEAP_MB = 2048
 function openWorld() {
   const manifest = process.env.T3D_OPEN_WORLD
   if (!manifest || !existsSync(manifest)) return undefined
-  const { url } = JSON.parse(readFileSync(manifest, 'utf8')) as { url: string }
+  const { url } = readJson(manifest) as { url: string }
   return existsSync(join(dirname(manifest), dirname(url), 'world-roots.table'))
     ? manifest
     : undefined

@@ -1,6 +1,6 @@
 // The difference kernels' mirror (`shader/differenceWgsl.ts`): each list's difference and keep
 // on the readout's words, with a map where the kernels read each page's kept rank back off the kept
-// list — what the GPU double replays (`tests/kit/gpu/mockCompute.ts`) and what the cut's tests take
+// list — what the GPU double replays (`tests/kit/gpu/fakeCompute.ts`) and what the cut's tests take
 // differences with. A page repeated in the kept list is named at one of its ranks: the last, here,
 // as the last write of a keep kernel may be.
 import {
@@ -10,13 +10,13 @@ import {
   differenceWord,
   keptSnapshotWord,
 } from './layout.ts'
-import { SELECTION_NONE } from '../core/selection.ts'
-import { DIFFERENCE_STAGES, KEEP_STAGES } from './shader/differenceWgsl.ts'
+import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** `list`'s difference against `kept`: the rank each page held there, or none. */
 export function differenceOf(list: ArrayLike<number>, kept: ArrayLike<number>) {
   const rankOf = new Map(Array.from(kept, (page, rank) => [page, rank]))
-  return Uint32Array.from(list, (page) => rankOf.get(page) ?? SELECTION_NONE)
+  return Uint32Array.from(list, (page) => rankOf.get(page) ?? NO_INDEX)
 }
 
 /** The two lists a readout of `listCap` ranks carries, and the two it keeps behind their lengths
@@ -55,8 +55,13 @@ function keepSnapshot(out: Uint32Array, listCap: number) {
   out.set(drawn.now, kept + KEPT_HEADER_WORDS + listCap)
 }
 
-/** Every kernel of the difference: each list's, then each list's keep. */
-export const DIFFERENCE_KERNELS: readonly string[] = [...DIFFERENCE_STAGES, ...KEEP_STAGES]
+/** Every kernel of the difference: each list's, then each list's keep, and each kept list ranked
+ *  again in a grown readout — which the map, read off the kept list, needs not. */
+export const DIFFERENCE_KERNELS: readonly string[] = [
+  ...DIFFERENCE_STAGES,
+  ...KEEP_STAGES,
+  ...REKEEP_STAGES,
+]
 
 /** The mirror of kernel `stage` on `out`, true when it is one of the difference kernels: both lists
  *  at once on the first list's, which run before the second's (`../encode.ts`). */

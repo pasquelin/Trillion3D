@@ -1,6 +1,6 @@
 // A camera cut split on a small binding cuts on the GPU as the whole cut does: the shipped
 // kernels and resources, the device the engine opens, and that same device reporting a binding
-// half the primitives' `frames` — two ranges of `frames`, its tables in parts
+// two thirds of the primitives' ranges hold — two ranges of `frames`, its tables in parts
 // (`frameRangesPage.ts`). The engine's own device check must accept the split device first: a
 // device it refuses is refused by name, and proves nothing here.
 import test from 'node:test'
@@ -32,7 +32,8 @@ test('a cut in two ranges and table parts cuts as the whole cut, on the GPU', as
   assert.ok(whole && split, 'the cut does not mount')
   assert.equal(whole.ranges, 1)
   assert.equal(split.ranges, 2, '`frames` splits in two ranges')
-  assert.ok(split.parts.nodes > 1 && split.parts.flags > 1, 'the tables split in parts')
+  // The nodes are each primitive's once, shared by its placements: they hold in one part here.
+  assert.ok(split.parts.flags > 1, 'the tables split in parts')
   for (const [k, cut] of whole.cuts.entries()) {
     assert.ok(cut.pageIds.length > 0, `the scene draws at ${cut.pixelError} px`)
     assert.ok(cut.frustumRejected > 0, 'some of it lies outside the view')

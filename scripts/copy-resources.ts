@@ -5,10 +5,9 @@
 // silently fall back to their JavaScript twins. The committed file is authoritative: this step
 // compiles nothing, it copies (`pnpm run build:wasm` is what rebuilds it).
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
-const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..')
 const RESSOURCES: [string, string][] = [
   ['sdk-browser/src/wasm', 'kernels.wasm'],
   ['sdk-browser/src/physics', 'joltPhysics.wasm'],
@@ -20,9 +19,9 @@ const RESSOURCES: [string, string][] = [
 
 let copies = 0
 for (const [paquet, nom] of RESSOURCES) {
-  const source = join(RACINE, 'packages', paquet, nom)
+  const source = join(REPOSITORY_ROOT, 'packages', paquet, nom)
   if (!existsSync(source)) throw new Error(`ressource absente : packages/${paquet}/${nom}`)
-  const dossier = join(RACINE, 'dist', paquet)
+  const dossier = join(REPOSITORY_ROOT, 'dist', paquet)
   mkdirSync(dossier, { recursive: true })
   copyFileSync(source, join(dossier, nom))
   copies++

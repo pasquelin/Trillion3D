@@ -143,7 +143,7 @@ test('the blends draw with the program of the frame’s key, its water composite
     assert.equal(loop.includes('isRect(light)'), !key.rectless, JSON.stringify(key))
     assert.equal(loop.includes('shadowFactor('), !key.unshadowed, JSON.stringify(key))
     // The shadow reads hold the branch of each kind the key keeps (`ShadowKinds`).
-    const read = functionsOf(code(blendPipelines.lit(key, true).at(0)), ['vsmShadowFiltered'])
+    const read = functionsOf(code(blendPipelines.lit(key, true).at(0)), ['vsmLocate'])
     assert.equal(read.includes('vsmHandleFromIdDirectional('), !key.sunless, JSON.stringify(key))
     assert.equal(read.includes('vsmCubeFace('), !key.localless, JSON.stringify(key))
   }

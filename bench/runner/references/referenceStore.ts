@@ -7,6 +7,7 @@ import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
 import type { BenchSettings } from '../harness/benchSettings.ts'
+import { readJson } from '../../../scripts/repository-files.ts'
 
 /** The published references, one folder per scene: its `reference.json`, in git. */
 export const REFERENCES_DIR = resolve(import.meta.dirname, '../../references')
@@ -87,7 +88,7 @@ export const settingsMismatch = (record: ReferenceRecord, settings: BenchSetting
 /** A scene's record, or `null` when it has no reference in `dir`. */
 export function readReference(scene: string, dir = REFERENCES_DIR): ReferenceRecord | null {
   const file = join(dir, scene, 'reference.json')
-  return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as ReferenceRecord) : null
+  return existsSync(file) ? (readJson(file) as ReferenceRecord) : null
 }
 
 /** A view's reference image as a capture, bottom row first as the GPU reads it (a PNG is top row

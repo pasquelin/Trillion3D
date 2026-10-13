@@ -11,7 +11,7 @@ import { MIB } from '../../../math/src/constants.ts'
 import { alignUp } from '../../../math/src/scalar/integers.ts'
 
 /**
- * The virtual shadow maps of one sun on a device whose storage bindings hold `binding` bytes, at
+ * The virtual shadow maps of one sun, on any device (the pool binds in windows every device holds), at
  * the default pool — `vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })`, one
  * page-table row (`fullMapsFor`) and 2048 physical pages in two slices —: every buffer of the set
  * (`vsmResourceBytes`, `../vsm/layout.ts`), the raster's pair and command lists at their ceiling
@@ -20,15 +20,15 @@ import { alignUp } from '../../../math/src/scalar/integers.ts'
  * The projection's mask, sized by the canvas, is a frame target. Only the shadows' size modules,
  * never a pass: the core holds this budget, and no shadow pass (`scripts/core-sources.ts`).
  */
-function oneSunShadowMaps(binding = 128 * MIB) {
-  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }, binding)
+function oneSunShadowMaps() {
+  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
   const lists = VSM_RENDER_PAIR_CAPACITY * (VSM_RENDER_PAIR_BYTES + VSM_RENDER_CMD_BYTES)
   return { layout, bytes: vsmResourceBytes(layout) + lists + vsmTransmissionBytes(layout) }
 }
 
 /**
- * THE SHADOWS' GPU SHARE: the virtual shadow maps of one sun at the default pool and a 128 MiB
- * binding (`oneSunShadowMaps`), rounded up to whole MiB. Derived from the maps' own sizes, so it
+ * THE SHADOWS' GPU SHARE: the virtual shadow maps of one sun at the default pool
+ * (`oneSunShadowMaps`), rounded up to whole MiB. Derived from the maps' own sizes, so it
  * cannot drift from them; `world/core/worldBudget.test.ts` holds it, within a MiB, to the same maps
  * summed again from their parts (`budget.fixture.ts`).
  */

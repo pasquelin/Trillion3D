@@ -4,12 +4,12 @@
 //! a hit on a cut texel lets the ray through, as the engine's mask discards it.
 use super::surface::Surface;
 use crate::dag::bounds::bounding_sphere;
-use crate::proxy::bvh;
 use crate::proxy::tracer::{normal_of, trace_where, World};
 use crate::shared_math::normalized_or;
 use trillion3d_math::triangle::barycentric_weights;
 use trillion3d_math::vec3::{dot, scale};
 use trillion3d_math::vecn::weighted_sum;
+use trillion3d_page_codec::proxy::bvh;
 
 /// Texture coordinate sets a triangle carries: a texture naming a higher set reads the last.
 pub(crate) const SETS: usize = 2;

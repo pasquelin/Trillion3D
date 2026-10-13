@@ -23,7 +23,7 @@ const POSES: Array<[string, number, number, number]> = [
 ]
 /** Pruning's sole guard: disarmed, the descent walks every subtree. */
 const GUARD =
-  'fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)->bool{\n'
+  'fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32,t:f32)->bool{\n'
 
 test('pruning drops candidates and keeps exactly the same pages', async () => {
   assert.ok(DAG_SELECTION_SHADER.includes(GUARD), 'the `floorPrunes` guard has changed shape')
@@ -36,7 +36,6 @@ test('pruning drops candidates and keeps exactly the same pages', async () => {
       Array.from({ length: 4 }, (_, w) =>
         new G.Matrix4().makeTranslation((w % 2) * 6.5 - 3.25, Math.floor(w / 2) * 6.5 - 3.25, 0),
       ),
-      true,
     )
     const { packed, uniforms } = posedSelection(camera, [x, z, threshold], VIEWPORT, roots)
     return { name, packed, uniforms }

@@ -13,14 +13,14 @@ import { ruleDag } from '../../page/cut/cutRule.fixture.ts'
 import { worldDag } from '../../scene/worldSuperRoots.fixture.ts'
 import { createSelectionUniforms } from '../core/selection.ts'
 import { worldFadeScale } from './worldFade.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
-import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import type { DagRoot } from './types.ts'
 
 /** The followed selection over `roots`, its view aside made and its regions asked by one main
  *  image; `side`: one image of the view aside alone. */
 async function asideOver(roots: DagRoot[]) {
   const packed = packDagSelection(roots),
-    gpu = mockGpu({ packed })
+    gpu = fakeDevice({ ...BACKEND, packed })
   const resources = (await createDagResources(gpu.device, packed))!
   const selection = createDagRuntime(resources)
   const aside = selection.aside()
@@ -38,7 +38,7 @@ async function asideOver(roots: DagRoot[]) {
   const side = () => image(aside)
   /** The bytes the GPU holds of `buffer`. */
   const held = (buffer: GPUBuffer) => (buffer as unknown as { data: Uint8Array }).data
-  return { packed, resources, selection, side, image, held }
+  return { packed, resources, selection, side, image, held, gpu }
 }
 
 const bytes = (view: ArrayBufferView, from = 0, to = view.byteLength) =>
@@ -46,20 +46,22 @@ const bytes = (view: ArrayBufferView, from = 0, to = view.byteLength) =>
 
 test('a view aside cut alone reads the tree refitted and the root word of a parked placement', async () => {
   const roots = placementField(20, 6)
-  const { packed, resources, selection, side, held } = await asideOver(roots)
-  const tree = packed.placementTree!
-  // The field's far corner moved a kilometre on: its group's box and the boxes above it grow.
-  const before = packed.nodes.slice(),
-    next = packed.worlds.slice()
+  const { packed, resources, selection, side, held, gpu } = await asideOver(roots)
+  // The field's far corner moved a kilometre on: its leaf box is sent, and the GPU refit of its group
+  // and the nodes above it is encoded in the aside cut's own command buffer.
+  const next = packed.worlds.slice()
   ;(roots[399].world.elements as Float64Array)[12] += 1000
   next[399 * 16 + 12] += 1000
   selection.updateWorlds(next, Int32Array.of(399))
   selection.parkWorld(5, true)
+  const leaves = () =>
+    gpu.writes.filter(({ buffer }) => buffer.label === 'Trillion3D placement tree leaf boxes')
+  const sent = leaves().length,
+    refits = () =>
+      gpu.commands.filter((c) => c === 'compute Trillion3D placement tree refit').length
   await side()
-  const nodes = held(resources.nodeParts.buffers[0])
-  const from = tree.cellBase * packed.nodes.BYTES_PER_ELEMENT * DAG_NODE_FLOATS
-  assert.notDeepEqual(bytes(packed.nodes, from), bytes(before, from), 'the refit moved nodes')
-  assert.deepEqual(nodes.subarray(from, packed.nodes.byteLength), bytes(packed.nodes, from))
+  assert.ok(leaves().length > sent, 'the moved placement’s leaf box sent')
+  assert.ok(refits() > 0, 'the tree refit pass encoded')
   const frames = held(resources.frames.buffers[0]),
     rows = bytes(
       resources.frameData,

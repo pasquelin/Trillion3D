@@ -9,13 +9,20 @@ import {
   rasterEntry,
 } from './contract.ts'
 import { RESOLVE, rasterSource } from './shader.ts'
-import { SMALL_BINDINGS, atlasLayoutEntries, readOnly } from '../../webgpu/core/bindLayout.ts'
+import { SMALL_BINDINGS, atlasLayoutEntries } from '../../webgpu/core/bindLayout.ts'
 import { createRasterBindings } from './bindings.ts'
 import { createRasterResolves } from './resolve.ts'
 import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import type { GpuRasterInput } from './types.ts'
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../dispatch/grid.ts'
+import {
+  RASTER_BINNING_PASS,
+  RASTER_IDENTIFIERS_PASS,
+  RASTER_OCCLUDER_DEPTH_PASS,
+  RASTER_TESTED_DEPTH_PASS,
+} from '../../stage/passLabels.ts'
+import { computeBufferEntry } from '../core/computeBindings.ts'
 
 /**
  * Compute raster of the opaque and masked cut.
@@ -50,12 +57,12 @@ export function createGpuRaster(
       encodeOccluders(r, encoder, input),
     /** Surviving tested half, after the pyramid verdict. */
     encodeRest(encoder: GPUCommandEncoder) {
-      encodeMode(r, encoder, MODE_DEPTH_REST, 'Trillion3D raster tested depth')
+      encodeMode(r, encoder, MODE_DEPTH_REST, RASTER_TESTED_DEPTH_PASS)
       return RASTER_CLASSES.length
     },
     /** Identifier resolve over everything that was drawn, and the frame closed. */
     encodeIds(encoder: GPUCommandEncoder, input: GpuRasterInput) {
-      encodeMode(r, encoder, MODE_ID, 'Trillion3D raster identifiers')
+      encodeMode(r, encoder, MODE_ID, RASTER_IDENTIFIERS_PASS)
       r.resolves.encodeFinal(encoder, input, width, height)
       return RASTER_CLASSES.length
     },
@@ -102,16 +109,16 @@ function rasterPipelines(device: GPUDevice, capacity: number, listOffset: number
   const compute = GPUShaderStage.COMPUTE
   const computeLayout = device.createBindGroupLayout({
     entries: [
-      { binding: b.indices, visibility: compute, buffer: readOnly },
-      { binding: b.positions, visibility: compute, buffer: readOnly },
-      { binding: b.pages, visibility: compute, buffer: readOnly },
-      { binding: b.hizFlags, visibility: compute, buffer: readOnly },
-      { binding: b.uniform, visibility: compute, buffer: { type: 'uniform' } },
-      { binding: b.uvs, visibility: compute, buffer: readOnly },
+      computeBufferEntry(b.indices, 'read-only-storage', compute),
+      computeBufferEntry(b.positions, 'read-only-storage', compute),
+      computeBufferEntry(b.pages, 'read-only-storage', compute),
+      computeBufferEntry(b.hizFlags, 'read-only-storage', compute),
+      computeBufferEntry(b.uniform, 'uniform', compute),
+      computeBufferEntry(b.uvs, 'read-only-storage', compute),
       ...atlasLayoutEntries(b.color, compute),
       { binding: b.sampler, visibility: compute, sampler: {} },
-      { binding: b.work, visibility: compute, buffer: { type: 'storage' } },
-      { binding: b.selectionMask, visibility: compute, buffer: readOnly },
+      computeBufferEntry(b.work, 'storage', compute),
+      computeBufferEntry(b.selectionMask, 'read-only-storage', compute),
     ],
   })
   const computeModule = device.createShaderModule({ code: rasterSource(capacity, listOffset / 4) })
@@ -151,7 +158,7 @@ function encodeOccluders(r: Raster, encoder: GPUCommandEncoder, input: GpuRaster
   const { width, height, work, listOffset } = r
   const group = (r.group = r.bindings(input))
   encoder.clearBuffer(work, listOffset, HEADER_CLEAR_BYTES)
-  const binning = encoder.beginComputePass({ label: 'Trillion3D raster binning' })
+  const binning = encoder.beginComputePass({ label: RASTER_BINNING_PASS })
   binning.setBindGroup(0, group)
   binning.setPipeline(r.clear.get())
   // A thread a pixel.
@@ -166,7 +173,7 @@ function encodeOccluders(r: Raster, encoder: GPUCommandEncoder, input: GpuRaster
   // One pass per raster dispatch: two consecutive dispatches already see each other's
   // writes, so every class has written its depth before any chooses an identifier. An
   // identifier chosen before a class has written its depth would name a losing triangle.
-  encodeMode(r, encoder, MODE_DEPTH_OCCLUDER, 'Trillion3D raster occluder depth')
+  encodeMode(r, encoder, MODE_DEPTH_OCCLUDER, RASTER_OCCLUDER_DEPTH_PASS)
   if (input.tested) r.resolves.encodeHiz(encoder, input, width, height)
   return 3 + RASTER_CLASSES.length
 }

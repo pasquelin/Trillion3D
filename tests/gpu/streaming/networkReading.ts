@@ -79,19 +79,23 @@ export async function readOverNetwork(manifestUrl: string, poses: number, holdMs
     onDiagnostic,
   })
   try {
-    const frame = async (pose: number) => {
+    // A drawn frame; flushed or not. The hold loop never flushes: the barrier's images are drawn
+    // for the pending work and keep the reflections from ever verifying two consecutive lit images
+    // (`RadianceSettle`), so a flush after every frame would never see the image held.
+    const frame = async (pose: number, flush: boolean) => {
       world.setPose(poseAt(world.bounds, pose))
       const metrics = world.render()
-      await world.flush()
+      if (flush) await world.flush()
       return metrics.frameHeld
     }
-    let held = await frame(0)
+    let held = await frame(0, false)
     for (const until = performance.now() + holdMs; !held && performance.now() < until;) {
       await sleep(20)
-      held = await frame(0)
+      held = await frame(0, false)
     }
+    await world.flush()
     moving = true
-    for (let pose = 1; pose <= poses; pose++) await frame(pose)
+    for (let pose = 1; pose <= poses; pose++) await frame(pose, true)
     return { admitted, horizons, failures, held }
   } finally {
     world.dispose()

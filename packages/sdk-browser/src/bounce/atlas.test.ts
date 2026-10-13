@@ -1,4 +1,4 @@
-// The bounce probes and surface cache left their storage buffers for float atlases, so the
+// The bounce probes left their storage buffers for a float atlas, so the
 // deferred lighting with bounce holds the eight storage buffers WebGPU guarantees. Defects these
 // tests catch: two probe vectors written to one texel (a probe then reads its neighbour's
 // coefficients), an atlas that drops the last entries or outgrows the 2D texture limit, a value
@@ -6,12 +6,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BOUNCE_SETTINGS, createBounceCascades } from '../../../sdk-core/src/index.ts'
-import { ownedProxy } from '../../../sdk-core/src/scene/core/proxy.fixture.ts'
-import { shaderRun, type Vec } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { GUARANTEED_SIDE as ATLAS_DIMENSION } from '../gpu/core/textureLimits.ts'
 import { PROBE_TEXELS, atlasBytes, probeAtlasExtent } from './atlas.ts'
-import { atlasExtent } from '../webgpu/core/floatAtlas.ts'
 import { bounceProbeBytes, ensureBounceFits } from './limits.ts'
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
 
@@ -61,7 +60,7 @@ test('every probe vector has a texel of its own, read back bit for bit where it 
 })
 
 test('the probe atlas holds a level per layer and weighs what the buffer did', () => {
-  const cascades = createBounceCascades(ownedProxy().bounds)
+  const cascades = createBounceCascades([0, 0, 0, 20, 3, 3])
   const extent = probeAtlasExtent(cascades.size, BOUNCE_SETTINGS.cascadeLevels)
   assert.equal(extent[0] * extent[1], cascades.probesPerLevel * PROBE_TEXELS, 'a level a layer')
   assert.equal(extent[2], BOUNCE_SETTINGS.cascadeLevels)
@@ -69,21 +68,14 @@ test('the probe atlas holds a level per layer and weighs what the buffer did', (
   assert.ok(extent[0] <= ATLAS_DIMENSION && extent[1] <= ATLAS_DIMENSION)
 })
 
-// Behaviour: the surface cache's rows are as wide as the device grants; past its side it is refused.
-test('a surface cache atlas keeps every texel within the 2D limit, and a larger one is refused', () => {
-  for (const side of [ATLAS_DIMENSION, 2 * ATLAS_DIMENSION])
-    for (const texels of [1, 2, 8191, 8192, 8193, 2_000_003, side ** 2]) {
-      const [width, height] = atlasExtent(texels, side)
-      assert.ok(width <= side && height <= side, `${texels} on ${side}: within the limit`)
-      assert.ok(width * height >= texels, `${texels}: no texel lost`)
-      assert.ok(width * height - texels < height, `${texels}: under a texel of padding per row`)
-    }
+// Behaviour: the probes' atlas is as wide as the device grants; past its side it is refused.
+test('a probe atlas within the 2D limit is made, and a larger one is refused', () => {
   const device = (maxTextureDimension2D: number) =>
     fakeDevice({ limits: { maxTextureDimension2D, maxTextureArrayLayers: 256 } }).device
-  const proxy = { ...ownedProxy(), triangles: ATLAS_DIMENSION ** 2 / 2 + 1 }
+  const wide = [ATLAS_DIMENSION + 1, 1, 1]
   assert.throws(
-    () => ensureBounceFits(device(ATLAS_DIMENSION), proxy, [1, 1, 1], 16),
-    /bounce atlas "surface cache" needs .* over this device's maxTextureDimension2D of 8192/,
+    () => ensureBounceFits(device(ATLAS_DIMENSION), wide, 16),
+    /bounce atlas "probes" needs .* over this device's maxTextureDimension2D of 8192/,
   )
-  assert.doesNotThrow(() => ensureBounceFits(device(2 * ATLAS_DIMENSION), proxy, [1, 1, 1], 16))
+  assert.doesNotThrow(() => ensureBounceFits(device(2 * ATLAS_DIMENSION), wide, 16))
 })

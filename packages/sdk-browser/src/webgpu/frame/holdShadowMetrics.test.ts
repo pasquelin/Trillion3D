@@ -5,6 +5,8 @@ import assert from 'node:assert/strict'
 import { holdWebgpuFrame } from './hold.ts'
 import { metricsOf } from '../pages/io/metrics.ts'
 import { heldFrame } from './holdMetrics.fixture.ts'
+import { VSM_PASS_PREFIX } from '../../stage/passLabels.ts'
+import { VSM_PROJECTION_PASS } from '../../vsm/projectionPass.ts'
 
 test('a cut page waiting for its bytes forbids holding the frame', () => {
   const { rt, device } = heldFrame()
@@ -39,10 +41,10 @@ test("the shadow counters of a frame are the virtual shadow maps', under their p
     },
   }
   const passes: { name: string; gpuMs: number | null }[] = [
-    { name: 'vsm.markPagesFromPixels', gpuMs: 0.25 },
-    { name: 'vsm.render.raster', gpuMs: 1 },
-    { name: 'vsm.render.cull', gpuMs: 0.5 },
-    { name: 'vsm.projection', gpuMs: null },
+    { name: `${VSM_PASS_PREFIX}markPagesFromPixels`, gpuMs: 0.25 },
+    { name: `${VSM_PASS_PREFIX}render.raster`, gpuMs: 1 },
+    { name: `${VSM_PASS_PREFIX}render.cull`, gpuMs: 0.5 },
+    { name: VSM_PROJECTION_PASS, gpuMs: null },
   ]
   timing.lastGpuPassMs = { ...timing.lastGpuPassMs, passes }
   // The stage times are named per stage (`vsmFrameMetrics`), a record the metrics type leaves open.

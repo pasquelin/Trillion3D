@@ -4,31 +4,17 @@
 // source, a wave, and a whole copy skinned out of the float pool and written back into it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { resolve } from 'node:path'
 import { OCT_BYTE_STEP } from '../../../packages/math/src/constants.ts'
-import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/slotLayout.ts'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
-import { BUFFERS, FRAMES, MOVED, REST, waves } from './deformationKernelCases.ts'
-import type { run } from './deformationKernelPage.ts'
-
-declare global {
-  var deformationKernel: { run: typeof run }
-}
+import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/outputs.ts'
+import { MOVED, REST, waves } from './deformationKernelCases.ts'
+import { deformationRecords } from './deformationKernelRun.ts'
 
 /** A vertex's record field — position at 0, previous position at 3, normal at 6 — in a frame. */
 const field = (frame: number[], vertex: number, from: number) =>
   frame.slice(vertex * DEFORM_VERTEX_WORDS + from, vertex * DEFORM_VERTEX_WORDS + from + 3)
 
 test('the deformation kernel decodes, deforms and keeps the history the engine declares', async () => {
-  await loadPage(resolve(import.meta.dirname, 'deformationKernelPage.ts'), 'deformationKernel')
-  const pageErrors: string[] = []
-  const { adapter, records, errors } = await runOnDawn(
-    (input) => globalThis.deformationKernel.run(input),
-    { buffers: BUFFERS, frames: FRAMES },
-    pageErrors,
-  )
-  assert.deepEqual([...errors, ...pageErrors], [], `WebGPU errors on ${adapter}`)
-  const [skin, dynamic, moved, still, soft, waving, copied] = records
+  const [skin, dynamic, moved, still, soft, waving, copied] = await deformationRecords()
   for (let v = 0; v < 3; v++) {
     const rest = REST.slice(v * 3, v * 3 + 3)
     assert.deepEqual(field(skin, v, 0), [rest[0] + 2, rest[1], 1], `skin and morph, vertex ${v}`)

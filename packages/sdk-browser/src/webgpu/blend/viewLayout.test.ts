@@ -10,7 +10,7 @@ import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 test('the view table yields the shipped struct and its WGSL offsets', () => {
   assert.equal(
     wgslSource(BLEND_VIEW_WGSL),
-    'struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec3f,frameNoise:f32,pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,}',
+    'struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec3f,pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,}',
   )
   assert.equal(BLEND_VIEW_SIZE, 144)
   assert.deepEqual(
@@ -18,8 +18,8 @@ test('the view table yields the shipped struct and its WGSL offsets', () => {
     [0, 16, 20, 22, 23, 24],
   )
   assert.deepEqual(
-    [VIEW.pixelScale, VIEW.viewport, VIEW.eye, VIEW.frameNoise, VIEW.pixelRatio, VIEW.mipBias],
-    [25, 26, 28, 31, 32, 33],
+    [VIEW.pixelScale, VIEW.viewport, VIEW.eye, VIEW.pixelRatio, VIEW.mipBias],
+    [25, 26, 28, 31, 32],
   )
-  assert.deepEqual([VIEW.exposure, VIEW.toneCurve], [34, 35])
+  assert.deepEqual([VIEW.exposure, VIEW.toneCurve], [33, 34])
 })

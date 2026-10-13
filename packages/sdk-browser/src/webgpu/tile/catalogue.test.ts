@@ -11,6 +11,7 @@ import { PREVIEW_ATLAS_COVERAGE } from '../../../../sdk-core/src/texture/preview
 import { previewLevels } from '../../../../../tests/fixtures/manifest/manifestBinary.ts'
 import { previewsByAtlas, tileCatalogue } from './catalogue.ts'
 import { poolEncoding, WHITE_TAIL } from '../../texture/blockFormats.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 const preview = (width: number, height: number, bakedLevels: number): TexturePreview => ({
   texture: 0,
@@ -30,9 +31,12 @@ const map = () => {
   texture.image = { data: new Uint8Array(4 * 4 * 4), width: 4, height: 4 }
   return importHostTexture(texture)
 }
-const reader = async () => {
-  throw new Error('never read here')
-}
+const reader = Object.assign(
+  async () => {
+    throw new Error('never read here')
+  },
+  { store: createPageCache(), key: 'k' },
+)
 
 // Behaviour: a tail carries every encoding the sidecar holds, the fill slot the white texel in
 // each, and every texture takes the lane of its chain's layout in the session's family — the

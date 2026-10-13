@@ -1,12 +1,12 @@
 // The mobility words follow the table's dirty runs, not its span: two models moving at both
 // ends of the table write their own rows, and the GPU holds, word for word, what the span wrote.
+import { runsOf } from '../row/dirty.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadDirtyRowMobility, uploadRowMobility } from './bounds.ts'
 import { createShadowMobility } from './mobility.ts'
 import { createWebgpuRowState } from '../row/state.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
-import { ROW_INDEX_WORDS } from '../row/pageRow.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import {
   MOBILITY_CORNER_SHIFT,
   MOBILITY_MOVING,
@@ -15,15 +15,19 @@ import {
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { fakeDevice, replayWrites } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 const ROWS = 1000,
-  PLACEMENTS = 8
+  PLACEMENTS = 8,
+  /** Each placement's pages, consecutive. */
+  SPAN = ROWS / PLACEMENTS
 
 /** A table of `ROWS` rows over `PLACEMENTS` placements, and the bytes its mobility buffer holds. */
 function twin() {
   const pages = Array.from({ length: ROWS }, (_, i) => ({ url: `p${i}` }) as unknown as PageRec)
   const rows = createWebgpuRowState(pages, ROWS)
-  rows.pageTableInts = new Uint32Array((ROWS * PAGE_INFO_STRIDE) / 4)
+  rows.pageTableInts = new Uint32Array(ROWS * ROW_WORDS)
   for (let row = 0; row < ROWS; row++) {
     rows.packedPageIndex[row] = row
     rows.packedRecs[row] = pages[row]
@@ -37,7 +41,7 @@ function twin() {
     layout: {
       rows,
       selectionRoots: roots,
-      placement: { rootOfPacked: Int32Array.from({ length: ROWS }, (_, p) => p % PLACEMENTS) },
+      placement: { baseOfRoot: Int32Array.from(roots, (_, r) => r * SPAN), packedCount: ROWS },
     },
     lights: { mobility: createShadowMobility() },
     setup: { maxCorners: 96 },
@@ -59,7 +63,9 @@ test('the mobility words of a scattered change are its runs, and the words the s
   const sides = [span, runs]
   // The span's path, then the runs' path; each table's marks then consumed, as the image does.
   const upload = () => {
-    uploadRowMobility(span.rt, span.rt.gpu.device!, span.rows.dirtyFrom, span.rows.dirtyTo)
+    const dirty = runsOf(span.rows.forEachDirtyRun)
+    const [from, to] = dirty.length ? [dirty[0][0], dirty.at(-1)![1]] : [0, -1]
+    uploadRowMobility(span.rt, span.rt.gpu.device!, from, to)
     uploadDirtyRowMobility(runs.rt, runs.rt.gpu.device!)
     for (const { rows } of sides) rows.clearDirty()
   }
@@ -70,10 +76,10 @@ test('the mobility words of a scattered change are its runs, and the words the s
   for (const { rt, rows, roots } of sides) {
     const ints = rows.pageTableInts!
     for (const row of [2, 3, 997]) {
-      ints[row * (PAGE_INFO_STRIDE / 4) + ROW_INDEX_WORDS] = 3 * row
+      ints[row * ROW_WORDS + PAGE_INFO.at.indexCount] = 3 * row
       rows.markRowWords(row)
     }
-    rt.layout.placement.rootOfPacked[500] = 3
+    rows.packedPageIndex[500] = 3 * SPAN
     rows.markRowWords(500)
     rt.lights.mobility.move(3, roots[3].world.elements, true)
     ;(roots[5] as { parked?: boolean }).parked = true
@@ -103,8 +109,7 @@ test('the words after a sequence of dirty runs are the rows own, from closures b
     written: Array<Parameters<typeof writeRows>> = []
   mobility.ensure = (...args) => (ensured.push(args[2]), ensure(...args))
   mobility.writeRows = (...args) => (written.push(args), writeRows(...args))
-  const ints = rows.pageTableInts!,
-    words = PAGE_INFO_STRIDE / 4
+  const ints = rows.pageTableInts!
   const upload = () => {
     uploadDirtyRowMobility(rt, rt.gpu.device!)
     rows.clearDirty()
@@ -115,10 +120,10 @@ test('the words after a sequence of dirty runs are the rows own, from closures b
   // Each image marks rows at both ends of the table and in its middle: several runs to write.
   for (let image = 1; image <= 4; image++) {
     for (const row of [image, image + 1, 400 + image, 990 - image]) {
-      ints[row * words + ROW_INDEX_WORDS] = 7 * row + image
+      ints[row * ROW_WORDS + PAGE_INFO.at.indexCount] = 7 * row + image
       rows.markRowWords(row)
     }
-    rt.layout.placement.rootOfPacked[500 + image] = image
+    rows.packedPageIndex[500 + image] = image * SPAN
     rows.markRowWords(500 + image)
     mobility.move(image, roots[image].world.elements, true)
     moved.add(image)
@@ -128,11 +133,12 @@ test('the words after a sequence of dirty runs are the rows own, from closures b
       parked.add(image + 3)
     }
     upload()
-    const placementOf = (row: number) => rt.layout.placement.rootOfPacked[row]
+    const placementOf = (row: number) =>
+      rootOfPacked(rt.layout.placement, rows.packedPageIndex[row])
     const expected = Array.from(
       { length: ROWS },
       (_, row) =>
-        (ints[row * words + ROW_INDEX_WORDS] << MOBILITY_CORNER_SHIFT) |
+        (ints[row * ROW_WORDS + PAGE_INFO.at.indexCount] << MOBILITY_CORNER_SHIFT) |
         (moved.has(placementOf(row)) ? MOBILITY_MOVING : 0) |
         (parked.has(placementOf(row)) ? MOBILITY_SHADOWLESS : 0),
     )

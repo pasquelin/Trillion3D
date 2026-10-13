@@ -1,14 +1,14 @@
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { encodeMaterialPasses } from '../../core/materialPasses.ts'
-import { VIS_MAX_PAGES } from '../../../visibility/buffer.ts'
+import { VIS_MAX_PAGES } from '../../../visibility/types.ts'
 import { encodeWebgpuPartition } from '../../visibility/partition.ts'
 import { sendDrawItemWords } from '../../visibility/itemWords.ts'
 import { encodeWebgpuVisibilityPasses } from '../../visibility/passes.ts'
 import { createRenderEncoder, openFrameEncoder, submitColorCopy } from './encoder.ts'
 import { encodeComposedRows } from '../../../placement/gpuCompose.ts'
 import { encodeSurfaceLighting } from './surfaceLighting.ts'
-import { followDirtyRows } from './encodeDraws.ts'
 import { followLobes } from '../prepare/lobesTarget.ts'
+import { followProxyStore } from '../../../reflections/proxyStore.ts'
 import {
   encodeEmptySurfaces,
   computeRasterStages,
@@ -43,13 +43,9 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   const idsView = vis.visView,
     depthTarget = gpu.depthView
   const [width, height] = gpu.targetSize
-  // Row words, spheres, mobility and corners follow only the row table: this image's dirty rows.
-  // An image with no visibility row sends them too: the blended casters' rows, behind, still feed
-  // its shadows, and rows left dirty would keep the frame from being held.
-  timing.encodeCounts.itemsUploaded = 0
-  followDirtyRows(rt, device)
   encodeComposedRows(rt, device, timing.frameEncoder ?? openFrameEncoder(rt, device))
   followLobes(rt) // Every image's, one of transmissive lobed surfaces alone too.
+  followProxyStore(rt)
   if (!rows.packedCount) return encodeEmptySurfaces(rt, device, cam, depthTarget)
   ensureGpuRaster(rt, device)
   // Corners of the widest page of the catalogue, never the slot's word count: the slot holds a

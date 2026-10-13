@@ -79,12 +79,12 @@ export const oracleBackend = (dag: RuleDag, threshold: number) => kernelBackend(
  * residency reads `isResident(i)` and `childResident(i)` on the bit sets the host uploaded into the
  * cold buffer, and the rule itself. Only the projection is the model's: its screen errors are
  * passed where the kernel projects. `dagWanted` keeps the rule's two comparisons in the page's cone
- * word (`setFlag(coneCache(i),…);`), then `dagMask`'s `let all=…;` and `draw=drawsCompared(…);`
- * decide on that word.
+ * word, in its live entry (`liveAppend(entry,w,…);`), then `dagMask`'s `draw=drawsCompared(…);`
+ * decides on that word.
  */
 export function wgslBackend(dag: RuleDag, threshold: number, source = DAG_SELECTION_SHADER) {
   const camera = /\bdraw=(drawsCompared\([^;]+\));/.exec(source),
-    word = /\bsetFlag\(coneCache\(i\),([^;]+)\);/.exec(source)
+    word = /\bliveAppend\(entry,w,([^;]+)\);/.exec(source)
   if (!camera || !word) throw new Error('WGSL_CALL_SITE_MISSING: dagMask')
   return kernelBackend(dag, threshold, (packed) => {
     const cold = new Uint32Array(
@@ -104,11 +104,10 @@ export function wgslBackend(dag: RuleDag, threshold: number, source = DAG_SELECT
     const kept = scope.expression(word[1], ['rejected', 'pixels', 't']),
       draw = scope.expression(camera[1], ['i', 'word'])
     return (_ready, parentPixels, ownPixels, _childReady, t, page) => {
-      const f32 = Math.fround
       const bits = kept({
         rejected: false,
-        pixels: { x: f32(parentPixels), y: f32(ownPixels) },
-        t: f32(t),
+        pixels: { x: Math.fround(parentPixels), y: Math.fround(ownPixels) },
+        t: Math.fround(t),
       })
       return draw({ i: page, word: bits }) === true
     }
@@ -143,12 +142,16 @@ export function placements(dag: RuleDag, copies: number, spacing = 0) {
  *  a candidate unless the rule opens its node. */
 export function floorPrunedPages(dag: RuleDag, threshold: number) {
   const { packed, uniforms } = stripUniforms(dag, threshold)
+  // Every page resident: each node's open count is the one full residency leaves.
+  ruleResidency(packed, new Uint8Array(packed.pageCount).fill(1))
   const frames = dagViewFrames(packed, uniforms)
   const ints = new Uint32Array(packed.nodes.buffer)
+  /** Placement 0's own count at `node`, its node's when it holds none (`heldOpen.ts`). */
+  const open = (node: number) => packed.heldOpen?.get(0, node)
   return dag.pages
     .map((_, page) => page)
     .filter((page) => {
       const node = dag.culling.links.leafOfPage[page]
-      return node >= 0 && dagNodeFloor(frames, packed.nodes, ints, node) > threshold
+      return node >= 0 && dagNodeFloor(frames, packed.nodes, ints, node, 0, open(node)) > threshold
     })
 }

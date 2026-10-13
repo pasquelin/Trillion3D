@@ -1,11 +1,13 @@
 // A chain's levels reduce on the device without waiting for it: held uniforms grown by powers of
 // two, one pipeline a rule, sRGB levels read decoded, one labelled pass, views and groups made once.
 import test from 'node:test'
+import { destroyRetired } from '../gpu/core/frameRetire.ts'
 import assert from 'node:assert/strict'
 import { generateMaterialMips } from './mipBatch.ts'
 import { mipLevelCountFor } from './tiles.ts'
 import { TEXTURE_MIPS_PASS } from './mipsPass.ts'
 import { REDUCE, oneChain, scratch, wider } from './mips.fixture.ts'
+import { writtenBytes } from '../../../../tests/kit/gpu/fakeDevice.ts'
 
 test('reduction submits without waiting for the device and keeps its buffers', () => {
   const { device, texture, buffers, submits } = scratch()
@@ -21,28 +23,26 @@ test('reduction submits without waiting for the device and keeps its buffers', (
 })
 
 // A batch outgrowing the held uniforms grows them to the next power of two, the outgrown buffer
-// destroyed once the work already submitted, which may read it, is done.
+// retired: destroyed after the frame's submit (`frameRetire.ts`), as the work it encoded may read it.
 test('uniforms take a block a level, at the alignment, grown by powers of two', async () => {
-  const { device, texture, buffers, writes } = scratch()
+  const { device, texture, buffers, writes, destroyed } = scratch()
   oneChain(device, texture, 'rgba8unorm', false)
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256)
-  assert.equal(writes[0].bytes.byteLength, mipLevelCountFor(4, 4) * stride)
+  assert.equal(writtenBytes(writes[0]).byteLength, mipLevelCountFor(4, 4) * stride)
   const sixteen = wider(device, texture, 16)
   generateMaterialMips(device, [
     { texture: sixteen, format: 'rgba8unorm', width: 16, height: 16, weighted: false },
   ])
-  const uniforms = (
-    buffers as unknown as { label: string; size: number; destroyed: boolean }[]
-  ).filter(({ label }) => label === 'Trillion3D texture mips uniforms')
+  const uniforms = buffers.filter(({ label }) => label === 'Trillion3D texture mips uniforms')
   assert.deepEqual(
     uniforms.map(({ size }) => size),
     [1024, 2048],
     '3 then 5 blocks of 256 bytes',
   )
-  assert.equal(uniforms[0].destroyed, false, 'kept while the queue may read it')
-  await new Promise((done) => setImmediate(done))
+  assert.equal(destroyed.includes(uniforms[0]), false, 'kept while the queue may read it')
+  destroyRetired(device)
   assert.deepEqual(
-    uniforms.map(({ destroyed }) => destroyed),
+    uniforms.map((buffer) => destroyed.includes(buffer)),
     [true, false],
   )
 })

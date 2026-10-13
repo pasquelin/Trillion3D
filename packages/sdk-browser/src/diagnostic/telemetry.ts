@@ -3,6 +3,7 @@ import type { TelemetryReport } from './telemetryTypes.ts'
 import type { FrameProfile } from './frameProfile.ts'
 import { debugMode, setDebugMode } from '../host/debugMode.ts'
 import { families } from '../host/families.ts'
+import { log } from './log.ts'
 export type { TelemetryReport } from './telemetryTypes.ts'
 
 /** What the report says before the debug code has arrived. */
@@ -88,7 +89,7 @@ export class EngineProfiler {
 
   /** Prints that summary to the console. */
   printReport() {
-    if (typeof console !== 'undefined' && console.log) console.log(this.formatReport())
+    log.info(this.formatReport())
   }
 
   /** Prints it every few seconds, in debug mode, which alone files the report; returns a stop. */

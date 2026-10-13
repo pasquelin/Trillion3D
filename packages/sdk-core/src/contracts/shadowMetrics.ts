@@ -67,16 +67,8 @@ export interface ShadowFrameMetrics {
   tileLightPoolOverflowed?: boolean | null
   /** Times the pool grew to what an overflowing frame asked, since the explorer opened. */
   tileLightPoolGrowths?: number | null
-  /** GPU time of the Shadows stage, exactly the shadow passes of the engine's pass table: the
-   *  shadow atlas, its static layer, the transmittance layer's clear and pass, the per-page cull,
-   *  the page pyramids and the occlusion test. The light cut is its own stage (`shadowCasters`);
-   *  no pass outside the shadow work is counted in it. */
+  /** GPU time of the Shadows stage: every pass of the virtual shadow maps, and no other pass. */
   gpuShadowsMs?: number | null
-  /** GPU time of choosing the casters of the shadow pages a frame draws: the light cut, the
-   *  per-page cull, and the occlusion test of moving casters with the pyramids it reads. */
-  gpuShadowCullMs?: number | null
-  /** GPU time of drawing those casters into the pages: the static layer, then the pool. */
-  gpuShadowRasterMs?: number | null
   /** GPU time of lighting. */
   gpuLightingMs?: number | null
 }

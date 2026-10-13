@@ -1,6 +1,6 @@
 // The water composite's lobed program (`lobesWgsl.ts`, a key without `lobeless`) walks its lights
 // once for two sums (`declaredLightingPair`): its lit colour through the pixel's lobes, and its
-// reflection's specular on a null albedo — whose anisotropic lobe takes a dielectric's reflectance
+// specular on a null albedo — whose anisotropic lobe takes a dielectric's reflectance
 // (`DIELECTRIC_F0`), not the surface's the lobes were set for. The shipped pair loop runs as
 // JavaScript (`shaderRun`) against the blend pass's lobed single loop called twice — on the surface
 // with its lobes, then on a null albedo under the same lobes —: the same numbers, bit
@@ -9,7 +9,6 @@
 import { lerp, saturate } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
@@ -17,13 +16,14 @@ import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
 import { randomLampScope } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
 type Sum = (...args: unknown[]) => number[]
-const LOBED = waterCompositeShader(false, {})
-const PLAIN = waterCompositeShader(false, { lobeless: true })
+const LOBED = waterCompositeShader({})
+const PLAIN = waterCompositeShader({ lobeless: true })
 const SINGLE = wgslModule(
-  declaredLightingWgsl({ proxy: 13, transmittance: 18 }, { lobeless: false }),
+  declaredLightingWgsl({ transmittance: 18 }, { lobeless: false }),
   STANDARD_LIGHTING_WGSL,
 )
 const K = wgslConstants(LOBED)
@@ -60,7 +60,7 @@ function lobesOf(u: (lo: number, hi: number) => number, r: () => number, N: numb
 }
 
 test('the lobed pair gives the two sums of two lobed walks, its specular on a dielectric', () => {
-  const r = random(1483),
+  const r = lcgRandom(1483),
     u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lobed = 0
   for (let round = 0; round < 400; round++) {
@@ -83,6 +83,7 @@ test('the lobed pair gives the two sums of two lobed walks, its specular on a di
       coatNdotV = Math.max(dot(set.coatN, V), 1e-4)
     const lobes = {
       ...set,
+      skewed: set.strength > 0,
       through: 1 - set.coat * (0.04 + 0.96 * grazing ** 5),
       at,
       ab: alpha,
@@ -115,7 +116,7 @@ test('the lobed pair gives the two sums of two lobed walks, its specular on a di
     const off = pairOf(LOBED, { on: false }, [...PAIR, ...LOBE])
     const nothing = pairOf(
       LOBED,
-      { on: true, strength: 0, coat: 0, coatRough: 0.5, coatN: N, through: 1 },
+      { on: true, skewed: false, coat: 0, coatRough: 0.5, coatN: N, through: 1 },
       [...PAIR, ...LOBE],
     )
     for (const slice of [

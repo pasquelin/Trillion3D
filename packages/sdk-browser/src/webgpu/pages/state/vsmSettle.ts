@@ -2,8 +2,8 @@ import type { VsmFramePlan } from '../../../vsm/frameSetup.ts'
 
 /**
  * WHETHER THE VIRTUAL SHADOW MAPS HAVE SETTLED, and their contents' version, from their own state:
- * what a capture waits for (`shadowsUnsettled`) and what restarts a still temporal average or the
- * reflections' history (`shadowEpoch`). The pages the raster drew are counted on the GPU
+ * what a capture waits for (`shadowsUnsettled`) and what restarts a still temporal average
+ * (`shadowEpoch`). The pages the raster drew are counted on the GPU
  * (`VSM_COUNT_CLEARED`) and read back a few frames late, each copy stamped with its frame.
  *
  * A frame is a cause when it can draw pages the image has not shown yet: an invalidation, a light

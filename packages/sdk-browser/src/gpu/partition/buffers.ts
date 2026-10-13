@@ -7,6 +7,7 @@ import {
   TESTED_U32,
   UNIFORM_U32,
 } from './contract.ts'
+import { computeBufferEntry, computeTextureEntry } from '../core/computeBindings.ts'
 
 /**
  * Buffers the GPU partition owns: they depend only on the drawable-row count, never on the frame.
@@ -53,7 +54,11 @@ export function createGpuPartitionRows(device: GPUDevice, slotCap: number) {
 
 type Binding = keyof typeof PARTITION_BINDING
 export type PartitionKernel = keyof typeof PARTITION_KERNEL_BINDINGS
-const BINDING_TYPE: Record<Binding, GPUBufferBindingType> = {
+/** The partition's resources by name: its buffers, and the Hi-Z pyramid's view. */
+export type PartitionResources = Record<Exclude<Binding, 'pyramid'>, GPUBuffer> & {
+  pyramid: GPUTextureView
+}
+const BINDING_TYPE: Record<Exclude<Binding, 'pyramid'>, GPUBufferBindingType> = {
   corners: 'read-only-storage',
   items: 'read-only-storage',
   flags: 'storage',
@@ -63,31 +68,31 @@ const BINDING_TYPE: Record<Binding, GPUBufferBindingType> = {
   slotUsed: 'storage',
   state: 'storage',
   uniforms: 'uniform',
-  pyramid: 'read-only-storage',
 }
-/** The bind layout of one kernel: its buffers alone, at the module's binding numbers. */
+/** The bind layout of one kernel: its resources alone, at the module's binding numbers — its
+ *  buffers, and the pyramid texture whose farthest layer it reads. */
 export function createGpuPartitionLayout(device: GPUDevice, kernel: PartitionKernel) {
   return device.createBindGroupLayout({
-    entries: PARTITION_KERNEL_BINDINGS[kernel].map((name) => ({
-      binding: PARTITION_BINDING[name],
-      visibility: GPUShaderStage.COMPUTE,
-      buffer: { type: BINDING_TYPE[name] },
-    })),
+    entries: PARTITION_KERNEL_BINDINGS[kernel].map((name) =>
+      name === 'pyramid'
+        ? computeTextureEntry(PARTITION_BINDING[name], 'uint', '2d-array')
+        : computeBufferEntry(PARTITION_BINDING[name], BINDING_TYPE[name]),
+    ),
   })
 }
 
-/** The bind group of one kernel, from the buffers by name. */
+/** The bind group of one kernel, from the resources by name. */
 export function createGpuPartitionGroup(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   kernel: PartitionKernel,
-  buffers: Record<Binding, GPUBuffer>,
+  resources: PartitionResources,
 ) {
   return device.createBindGroup({
     layout,
     entries: PARTITION_KERNEL_BINDINGS[kernel].map((name) => ({
       binding: PARTITION_BINDING[name],
-      resource: { buffer: buffers[name] },
+      resource: name === 'pyramid' ? resources.pyramid : { buffer: resources[name] },
     })),
   })
 }

@@ -2,6 +2,8 @@ import type { PartitionFrame } from './uniform.ts'
 
 /** A buffer of four bytes that only carries its label. */
 export const buffer = (label: string) => ({ label, size: 4, destroy() {} }) as unknown as GPUBuffer
+/** A texture view the tests name: the Hi-Z pyramid's. */
+export const view = (label: string) => ({ label }) as unknown as GPUTextureView
 
 /** A still frame of `rows` rows on an 8 by 8 view with one level. */
 export const frame = (rows: number): PartitionFrame => ({

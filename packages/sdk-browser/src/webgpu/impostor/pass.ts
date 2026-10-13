@@ -4,6 +4,7 @@ import { cardPipelines } from './pipelines.ts'
 import { CARD_FLOATS } from '../../impostor/cardSlots.ts'
 import { createImpostorFeed } from './feed.ts'
 import type { TextureLevelReader } from '../../texture/levelReader.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /**
  * What the card pass holds beside its pipelines (`cardPipelines`, checked where the session
@@ -14,7 +15,7 @@ export function createImpostorPass(
   reader: TextureLevelReader,
   feedOptions: Parameters<typeof createImpostorFeed>[3],
 ) {
-  const { imageLayout, atlasLayout, pipeline, visPipeline } = cardPipelines(device)
+  const { imageLayout, atlasLayout, idsLayout, pipeline, visPipeline } = cardPipelines(device)
   const viewBuffer = device.createBuffer({
     label: 'Trillion3D impostor view',
     size: CARD_VIEW_FLOATS * 4,
@@ -26,16 +27,18 @@ export function createImpostorPass(
     buffer: undefined as unknown as GPUBuffer,
   }
   let cardBuffer: GPUBuffer | undefined
+  // The identifiers the visibility stage kept: a group for the view they are in, made again when it is.
+  let idsOf: { view: GPUTextureView; group: GPUBindGroup } | undefined
   return {
     pipeline,
     visPipeline,
     feed: createImpostorFeed(device, atlasLayout, reader, feedOptions),
     viewBuffer,
-    /** The image's group over a card buffer of at least `cards` records (`grownCapacity`). */
+    /** The image's group over a card buffer of at least `cards` records (`grownLength`). */
     imageGroup(cards: number) {
       const bytes = Math.max(1, cards) * CARD_FLOATS * 4
       if (!cardBuffer || cardBuffer.size < bytes) {
-        const size = core.grownCapacity(cardBuffer?.size ?? 0, bytes)
+        const size = core.grownLength(cardBuffer?.size ?? 0, bytes)
         cardBuffer?.destroy()
         cardBuffer = device.createBuffer({
           label: 'Trillion3D impostor cards',
@@ -46,13 +49,23 @@ export function createImpostorPass(
         image.group = device.createBindGroup({
           label: 'Trillion3D impostor image',
           layout: imageLayout,
-          entries: [
-            { binding: 0, resource: { buffer: viewBuffer } },
-            { binding: 1, resource: { buffer: cardBuffer } },
-          ],
+          entries: sequentialEntries([{ buffer: viewBuffer }, { buffer: cardBuffer }]),
         })
       }
       return image
+    },
+    /** The group over the identifiers texture `view`, group 2 of the surface stage. */
+    idsGroup(view: GPUTextureView) {
+      if (idsOf?.view !== view)
+        idsOf = {
+          view,
+          group: device.createBindGroup({
+            label: 'Trillion3D impostor identifiers',
+            layout: idsLayout,
+            entries: sequentialEntries([view]),
+          }),
+        }
+      return idsOf.group
     },
     dispose() {
       this.feed.dispose()

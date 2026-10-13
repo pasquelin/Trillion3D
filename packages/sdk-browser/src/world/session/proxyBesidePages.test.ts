@@ -1,7 +1,7 @@
 import { MIB } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { base, openSession, servedScene } from './proxySession.fixture.ts'
+import { base, keptProxy, openSession, servedScene } from './proxySession.fixture.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 
 test('a proxy above the transfer budget, asked while pages stream, lands beside them, reserved in flight and not counted as a page', async () => {
@@ -21,7 +21,11 @@ test('a proxy above the transfer budget, asked while pages stream, lands beside 
   // Two pages in flight: the proxy is asked at once, not after them.
   const reading = session.context.readSceneProxy!()
   await asked(`${base}proxy.bin`)
-  assert.equal(pageCache.keptBytes, proxyBytes, 'its announced bytes are reserved while in flight')
+  assert.equal(
+    keptProxy(pageCache, metadata),
+    proxyBytes,
+    'its announced bytes are reserved while in flight',
+  )
   // A page asked while the proxy is in flight is not held back by it.
   const third = streamer.request([urls[2]], { signal: streamer.signal })
   await asked(base + urls[2])

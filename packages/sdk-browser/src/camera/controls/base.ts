@@ -1,4 +1,5 @@
-import type { CameraControlBase, ChangeListener } from './types.ts'
+import type { CameraControlBase } from './types.ts'
+import { createListeners } from '../../../../sdk-core/src/runtime/listeners.ts'
 
 /**
  * The socle every camera controller is built on: the `change` emitter the host listens to,
@@ -34,7 +35,7 @@ export interface ControlBase {
 
 export function createControlBase(): ControlBase {
   const removals: Array<() => void> = []
-  const listeners = new Set<ChangeListener>(),
+  const changes = createListeners(),
     pauses: Array<() => void> = []
   let gone = false,
     paused = false
@@ -51,14 +52,14 @@ export function createControlBase(): ControlBase {
     undo,
     onPause: (action) => void pauses.push(action),
     emit() {
-      for (const listener of [...listeners]) listener()
+      changes.emit()
     },
     api: {
       addEventListener(type, listener) {
-        if (type === 'change') listeners.add(listener)
+        if (type === 'change') changes.subscribe(listener)
       },
       removeEventListener(type, listener) {
-        if (type === 'change') listeners.delete(listener)
+        if (type === 'change') changes.unsubscribe(listener)
       },
       pause(on) {
         if (paused === on) return
@@ -69,7 +70,7 @@ export function createControlBase(): ControlBase {
         if (gone) return
         gone = true
         for (const remove of removals.splice(0)) remove()
-        listeners.clear()
+        changes.clear()
       },
     },
   }

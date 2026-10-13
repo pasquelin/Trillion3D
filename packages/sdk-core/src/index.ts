@@ -29,7 +29,6 @@ export { readPagedManifest } from './manifest/paged.ts'
 export { textureLevelFormat, textureLevelUrl, type TextureLevelFormat } from './texture/levelUrl.ts'
 export {
   GEOMETRY_PAGE_CODEC,
-  GEOMETRY_PAGE_FORMAT_VERSION,
   PREVIEW_ATLAS_COLOR,
   PREVIEW_ATLAS_COVERAGE,
   PREVIEW_ATLAS_DATA,
@@ -42,6 +41,7 @@ export {
   type TextureBlockFormat,
   type TextureLayout,
 } from './manifest/binaryFormat.ts'
+export { GEOMETRY_PAGE_FORMAT_VERSION } from './page/format.ts'
 export { blocksAcross, levelBlockBytes, previewBlockBytes } from './texture/previewLevels.ts'
 export type {
   ManifestBinaryDescriptor,
@@ -80,9 +80,14 @@ export {
   sortPages,
 } from './page/integrationPlan.ts'
 export type { PageIntegrationPlan } from './page/integrationPlan.ts'
-export * from './lod/oracles.ts'
+export {
+  clusterErrorPixels,
+  clusterErrorAtDepth,
+  screenErrorBound,
+} from './lod/screenErrorBound.ts'
+export { maxStretch, coneRejects } from '../../math/src/projection/projectionOracles.ts'
+export { matrixWindingCw } from '../../math/src/matrix/orientation.ts'
 export * from '../../math/src/index.ts'
-export * from './runtime/path/index.ts'
 export * from './world/transform-tree/index.ts'
 export { SceneNode, type SceneNodeOptions } from './scene/core/node.ts'
 export { SCENE_MODEL_VERSION } from './scene/core/nodeContracts.ts'

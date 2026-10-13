@@ -16,8 +16,9 @@ import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/sele
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
-import { lois } from '../kit/randomDraw.ts'
+import { draws } from '../kit/randomDraw.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
+import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 
 const CLUSTERS = 20000,
   THRESHOLD = 0.75
@@ -36,7 +37,8 @@ interface Cluster {
 }
 
 function sample() {
-  const { hasard: chance, between: between, log } = lois(xorshiftRandom(0x2545f491))
+  const chance = xorshiftRandom(0x2545f491)
+  const { between, log } = draws(chance)
   const camera = G.perspectiveCamera(75, VIEWPORT[0] / VIEWPORT[1], 0.05, 2000)
   camera.position.set(3, -2, 7)
   camera.lookAt(-4, 1, -20)
@@ -93,7 +95,8 @@ function sample() {
 test('CPU and GPU take the same clusters, but within the f32 rounding band', async () => {
   const { camera, world, view, stretch, focal, uniforms, clusters, projected } = sample()
   // The kernel works in the render frame: the world is brought to the eye, as the engine does.
-  const packed = packDagSelection([{ world, pages: clusters }])
+  // Ranked in their hierarchy's order, in place: the oracle below reads the same ranks.
+  const packed = packDagSelection([{ world, pages: clusters, culling: cullingInPlace(clusters) }])
   packedWorldsToRenderOrigin(packed, [{ world, pages: [] }], uniforms.cameraWorld)
   const { adapter, readings } = await runSelectionKernel([{ name: 'sample', packed, uniforms }])
   const onGpu = new Uint8Array(CLUSTERS)

@@ -1,9 +1,10 @@
 import { askedTableRows, rowScratch } from './layout.ts'
-import { grownTableRows, viewRowsFor } from '../../row/tableRows.ts'
+import { grownTableRows, rowsAhead, viewRowsFor } from '../../row/tableRows.ts'
 import { pageTableBuffer } from '../render/pageTable.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
 import { deviceMade } from '../../../gpu/core/errorScope.ts'
 import { pendingAll } from '../../../gpu/core/tableGrowth.ts'
+import { forgetReflectedImages } from '../../../reflections/forget.ts'
 import { gpuGrowth } from './growGpuTables.ts'
 import { queueTableGrowth } from './growthQueue.ts'
 import type { TableGrowthReport } from '../../../residency/pools.ts'
@@ -66,8 +67,13 @@ async function growTables(
 ): Promise<TableGrowthReport | null> {
   const { layout, setup, gpu, run, diag } = rt,
     { rows } = layout
-  const started = performance.now(),
-    asked = tableRowsFor(rt, slots),
+  const started = performance.now()
+  // What the catalogue needs; when the tables must grow, a growth ahead of it (`rowsAhead`).
+  const needed = tableRowsFor(rt, slots),
+    grows =
+      needed.drawSlots > rows.blendFirst || needed.blendSlots > rows.casterSlots - rows.blendFirst
+  const limits = rt.context.gpuDevice?.limits
+  const asked = grows ? rowsAhead(limits, needed, rows, layout.viewRows) : needed,
     { drawSlots, casterSlots } = grownTableRows(asked, rows)
   if (drawSlots === rows.blendFirst && casterSlots === rows.casterSlots) {
     setup.cap = Math.max(setup.cap, slots)
@@ -102,6 +108,8 @@ async function growTables(
   const lost = run.lost
   if (lost) granted.destroy()
   rows.grow(drawSlots, casterSlots - drawSlots)
+  // The open counts the cut's placements hold follow the rows (`../../../gpu/dag/queueGrowth.ts`).
+  run.gpuSelection?.followRows?.(casterSlots)
   Object.assign(layout, rowScratch(drawSlots, setup.pageBytes))
   if (!lost) {
     granted.commit()
@@ -115,6 +123,9 @@ async function growTables(
     })
   // Origin of the resource change: the tables the image reads were replaced.
   run.gate.resourcesChanged()
+  // The rows that waited draw now: the lit image the images meanwhile left lacks them, and the series
+  // the reflections converge to restarts from the one that holds them.
+  forgetReflectedImages(rt)
   const durationMs = performance.now() - started
   const report = { drawSlots, casterSlots, bytes: made.bytes, refused: false, durationMs }
   diag.engineDiagnostic('page-tables-grown', 'Page tables grown in place', report)
@@ -135,8 +146,10 @@ function follow(rt: WebgpuPagesRuntime) {
     vis.pageTable = pageTableBuffer(rt.gpu.device, floats.byteLength)
   }
   if (gpuHiz && gpuPartition) gpuHiz.attach(gpuPartition.tested, gpuPartition.state)
-  if (gpuDraw && gpuHiz)
+  if (gpuDraw && gpuHiz && gpuPartition)
     vis.gpuRestCompact?.rebind({
+      state: gpuPartition.state,
+      perRow: gpuDraw.perRow,
       instances: gpuDraw.instanceBuffer,
       indirect: gpuDraw.indirectBuffer,
       slotOffsets: gpuDraw.slotOffsetsBuffer,

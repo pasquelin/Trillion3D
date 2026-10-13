@@ -1,22 +1,23 @@
-import { wantsReflections } from '../../../reflections/gpu.ts'
 import { requestFrameTargets } from '../prepare/targetGrant.ts'
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../../visibility/types.ts'
 import { projectedPageError, rootOf } from '../../../page/selection/selection.ts'
 import { screenErrorRatio } from '../../../diagnostic/colors.ts'
 import { viewProj } from '../helpers.ts'
 import { taaRenderMatrix } from '../../../taa/frame.ts'
-import { abandonFrameEncoder, openFrameEncoder } from './encoder.ts'
+import { abandonFrameEncoder } from './encoder.ts'
 import { ensurePageTable } from './pageTable.ts'
 import { encodeVis } from './encodeVis.ts'
+import { uploadComposedRowInputs } from '../../../placement/composedRowInputs.ts'
 import { uploadRowCorners } from '../../visibility/corners.ts'
 import { refreshDrawItemWords } from '../../visibility/itemWords.ts'
 import { visLayerTop } from '../../visibility/uniforms.ts'
 import { uploadClusterSpheres, uploadDirtyRowMobility } from '../../shadow/bounds.ts'
 import { uploadRowLods } from '../../shadow/rowLods.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { uploadDirtyRows } from './dirtyRows.ts'
 import { castingLights } from './vsm/vsmPlan.ts'
+import { rootOfPacked } from '../../../page/selection/placements.ts'
 
 /**
  * The caster rows' shadow data — world spheres, mobility words, detail — exists and follows the
@@ -46,58 +47,30 @@ function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /**
- * Brings every reader of the row table's dirty marks up to date — draw records, spheres, mobility,
- * corners —, then uploads the rows and clears the marks: a reader skipped would keep another
- * occupant's words (#198). Each costs the rows that changed.
+ * Brings the row table up to date, once an image and before anything reads it — the deformation,
+ * the cut, the raster: the table made, the screen-error view's words written, then every reader of
+ * the row table's dirty marks followed — draw records, spheres, mobility, corners — and the rows
+ * uploaded, the marks cleared. A reader skipped would keep another occupant's words (#198). Each
+ * costs the rows that changed. An image with no visibility row follows them too: the blended
+ * casters' rows, behind, still feed its shadows, and rows left dirty would keep the frame from
+ * being held.
  */
-export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  refreshDrawItemWords(rt, visLayerTop(rt.vis), rt.vis.gpuDraw)
-  followShadowRows(rt, device)
-  uploadRowCorners(rt)
-  uploadDirtyRows(rt)
-}
-
-/** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */
-export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
-  const { gpu, vis, run, timing, blendState, diag } = rt,
+export function followRows(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
+  const { run, vis, timing } = rt,
     { rows } = rt.layout,
     { viewport } = rt.setup
-  run.gpuDrawCalls = 0
-  run.gpuComputeDispatches = 0
-  run.blendDrawCalls = 0
-  run.blendFrustumRejected = 0
-  timing.transparentEncodeMs = 0
-  timing.transparentSelectMs = 0
-  timing.transparentPrepareMs = 0
-  timing.transparentDrawMs = 0
-  timing.transparentSpanUploadBytes = 0
-  if (!gpu.cache || !gpu.depthView) return 0
-  // Frustum planes and view-projection are those image entry posted: the engine has one depth
-  // convention (`../../../camera/depthConvention.ts`), so nothing is converted along the path.
-  blendState.blendPlanes.set(cam.planes)
-  // The render matrix carries temporal-antialiasing jitter; the camera knows nothing of it.
-  viewProj.set(taaRenderMatrix(rt, cam))
+  timing.encodeCounts.itemsUploaded = 0
   ensurePageTable(rt, device)
-  if (run.rowsSyncedFrame !== run.frame) {
-    rt.services.syncRows(!run.textureConverging)
-    run.rowsSyncedFrame = run.frame
-  }
-  if (gpu.reflection && gpu.reflection.active !== wantsReflections(rt)) {
-    abandonFrameEncoder(rt)
-    void requestFrameTargets(rt, device)
-    return 0
-  }
   if (run.diagnostic === 'screen-error' && rows.pageTableFloats) {
-    const rowWords = PAGE_INFO_STRIDE / 4
     for (let row = 0; row < rows.packedCount; row++) {
       const rec = rows.packedRecs[row]
       if (!rec) continue
-      rows.pageTableFloats[row * rowWords + 56] = screenErrorRatio(
+      rows.pageTableFloats[row * ROW_WORDS + 56] = screenErrorRatio(
         projectedPageError(
           rec,
           rootOf(
             rt.layout.selectionRoots,
-            rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]],
+            rootOfPacked(rt.layout.placement, rows.packedPageIndex[row]),
           ).world,
           cam,
           viewport,
@@ -107,8 +80,34 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       rows.markRowWords(row)
     }
   }
-  if (vis.deformationCompute)
-    vis.deformationCode!.encodeDeformation(rt, timing.frameEncoder ?? openFrameEncoder(rt, device))
+  refreshDrawItemWords(rt, visLayerTop(vis), vis.gpuDraw)
+  followShadowRows(rt, device)
+  uploadRowCorners(rt)
+  uploadComposedRowInputs(rt, device)
+  uploadDirtyRows(rt)
+}
+
+/** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */
+export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
+  const { gpu, vis, run, timing, blendState, diag } = rt
+  run.gpuDrawCalls = 0
+  run.gpuComputeDispatches = 0
+  run.blendDrawCalls = 0
+  run.blendFrustumRejected = 0
+  timing.transparentEncodeMs = 0
+  timing.transparentPrepareMs = 0
+  timing.transparentDrawMs = 0
+  timing.transparentSpanUploadBytes = 0
+  if (!gpu.cache || !gpu.depthView) return 0
+  // Frustum planes and view-projection are those image entry posted: the engine has one depth
+  // convention (`../../../camera/depthConvention.ts`), so nothing is converted along the path.
+  blendState.blendPlanes.set(cam.planes)
+  // The render matrix carries temporal-antialiasing jitter; the camera knows nothing of it.
+  viewProj.set(taaRenderMatrix(rt, cam))
+  if (run.rowsSyncedFrame !== run.frame) {
+    rt.services.syncRows(!run.textureConverging)
+    run.rowsSyncedFrame = run.frame
+  }
   // The engine draws through the visibility pass alone (#1483): pipelines a prepare left missing
   // are its failure, never another image.
   if (!vis.visPipelineBack || !vis.shadeClasses)

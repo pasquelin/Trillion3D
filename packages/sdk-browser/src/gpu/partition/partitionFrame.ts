@@ -27,7 +27,7 @@ export type Partition = {
   device: GPUDevice
   allocated: Allocated
   inputs: PartitionSources
-  buffers: Allocated & Omit<PartitionSources, 'pyramid'> & { pyramid: GPUBuffer }
+  buffers: Allocated & Omit<PartitionSources, 'pyramid'> & { pyramid: GPUTextureView }
   layouts: GPUBindGroupLayout[]
   pipelines: GPUComputePipeline[]
   /** Each kernel's group on the buffers of the moment, in `KERNELS` order. */
@@ -50,6 +50,14 @@ export function regroupPartition(p: Partition) {
   )
 }
 
+/** The partition reads what `next` gives from now on, its groups made again (`GpuPartition.rebind`). */
+export function rebindPartition(p: Partition, next: () => Omit<PartitionSources, 'pyramid'>) {
+  const read = next()
+  Object.assign(p.inputs, read)
+  Object.assign(p.buffers, read)
+  regroupPartition(p)
+}
+
 /** The rows grown to `rows`, put in place by the pending growth's commit (`GpuPartition.grow`). */
 export function growPartition(
   p: Partition,
@@ -62,10 +70,8 @@ export function growPartition(
     const old = [allocated.corners, allocated.rowData, allocated.tested]
     const all = [...grown.all, allocated.state, allocated.uniforms]
     Object.assign(allocated, grown, { all })
-    const read = next()
-    Object.assign(p.inputs, read)
-    Object.assign(p.buffers, grown, read)
-    regroupPartition(p)
+    Object.assign(p.buffers, grown)
+    rebindPartition(p, next)
     // The new rows hold nothing: every one reads as never projected.
     p.forgotten.length = 0
     return old

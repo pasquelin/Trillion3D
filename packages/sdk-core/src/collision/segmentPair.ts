@@ -6,9 +6,6 @@ import { distanceSqVector3, dotScalar3 } from '../../../math/src/vector/vector.t
 
 type Numbers = ArrayLike<number>
 
-/** A parameter held to `[0, 1]` by two comparisons: −0 and NaN go through as they come. */
-const unit = (value: number) => clampCompare(value, 0, 1)
-
 /** `(first's end − second's start)·d2`: the second's unclamped parameter against the first's end, times `|d2|²`. */
 const endParameter = (first: Numbers, second: Numbers, dx: number, dy: number, dz: number) =>
   dotScalar3(first[3] - second[0], first[4] - second[1], first[5] - second[2], dx, dy, dz)
@@ -39,16 +36,16 @@ export function closestBetweenSegments(out: Float64Array, first: Numbers, second
   let s = 0,
     t = 0
   if (a === 0 && e === 0) s = t = 0
-  else if (a === 0) t = unit(f / e)
-  else if (e === 0) s = unit(-c / a)
+  else if (a === 0) t = clampCompare(f / e, 0, 1)
+  else if (e === 0) s = clampCompare(-c / a, 0, 1)
   else {
     const denominator = a * e - b * b
-    s = denominator > 0 ? unit((b * f - c * e) / denominator) : 0
+    s = denominator > 0 ? clampCompare((b * f - c * e) / denominator, 0, 1) : 0
     t = s === 1 ? endParameter(first, second, d2x, d2y, d2z) / e : (b * s + f) / e
     // At exactly 0 or 1, `s` already is its recomputation.
     // Stryker disable EqualityOperator: t exactly 0 or 1
-    if (t < 0) [t, s] = [0, unit(-c / a)]
-    else if (t > 1) [t, s] = [1, unit((b - c) / a)]
+    if (t < 0) [t, s] = [0, clampCompare(-c / a, 0, 1)]
+    else if (t > 1) [t, s] = [1, clampCompare((b - c) / a, 0, 1)]
     // Stryker restore EqualityOperator
   }
   for (let k = 0; k < 3; k++) {

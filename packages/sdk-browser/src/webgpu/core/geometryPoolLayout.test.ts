@@ -9,7 +9,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { shaderRun, type Vec } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import type { Vec } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { normalAtlasWgsl } from '../../visibility/shader/pageWgsl.ts'
 import { GUARANTEED_SIDE } from '../../gpu/core/textureLimits.ts'
 import { createVertexPool } from './geometryPool.ts'
@@ -44,7 +45,7 @@ type Vertex = {
 /** The atlas the texture writes left, as the shared text reads it (`normalAtlasWgsl`). */
 function replayAtlas(gpu: ReturnType<typeof fakeDevice>, texture: object, width: number) {
   const texels = new Map<number, number>()
-  for (const { destination, data, layout, size } of gpu.texelWrites) {
+  for (const { destination, data, layout, size } of gpu.textureWrites) {
     if (destination.texture !== texture) continue
     const [x, y, layer] = destination.origin as number[]
     const [w, h] = size as number[]

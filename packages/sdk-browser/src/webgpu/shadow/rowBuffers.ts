@@ -34,11 +34,9 @@ export function clusterSpheres(device: GPUDevice, casterSlots: number) {
     written: { epoch: 0, runs: [] as number[] },
     /** The runs the upload under way writes. */
     writing: undefined as number[] | undefined,
-    /** Each row's local box, centre then half extent, as six doubles, and its CPU copy: made once
-     *  a parent composes rows on the GPU, whose rows pass writes their spheres from it
-     *  (`linkedRowSpheres`). */
-    local: undefined as GPUBuffer | undefined,
-    localPacked: undefined as Uint32Array<ArrayBuffer> | undefined,
+    /** The composition's version the copies of its rows were made at, 0 before any
+     *  (`../../placement/composedSpheres.ts`). */
+    composedVersion: 0,
   }
 }
 
@@ -68,7 +66,7 @@ export function growShadowRows(
       pendingBuffers([next.buffer], () => {
         const old = lights.spheres
         lights.spheres = next
-        return [old?.buffer, old?.local]
+        return [old?.buffer]
       }),
     )
   }

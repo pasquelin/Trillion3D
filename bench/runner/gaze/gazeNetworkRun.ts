@@ -1,4 +1,5 @@
 import type { Page } from 'playwright'
+import { tableLines } from '../../core/table.ts'
 import { VIEWS, trajectoryPoses } from '../trajectory/poses.ts'
 import { measurePayload } from '../series/seriesPage.ts'
 import { gazeNetworkCounter } from './gazeNetworkCounter.ts'
@@ -88,15 +89,32 @@ export function gazeNetworkLines(rows?: GazeNetworkReading[], frames?: number) {
     '',
     `Ordinary camera frames only (${frames} per trajectory); no image-settling barrier. Chrome encoded transfer bytes include response overhead; cached responses count as zero.`,
     '',
-    '| view | pixelError | side | texture MB | other MB | texture requests | failed | unfinished | unknown redirects | reading |',
-    '|---|---|---|---|---|---|---|---|---|---|',
+    ...tableLines(
+      [
+        'view',
+        'pixelError',
+        'side',
+        'texture MB',
+        'other MB',
+        'texture requests',
+        'failed',
+        'unfinished',
+        'unknown redirects',
+        'reading',
+      ],
+      rows.map((row) => [
+        row.view,
+        row.pixelError,
+        row.side,
+        (row.textureBytes / 1e6).toFixed(2),
+        (row.otherBytes / 1e6).toFixed(2),
+        row.textureRequests,
+        row.failedRequests,
+        row.unfinishedRequests,
+        row.unmeasuredRedirects,
+        complete(row) ? 'complete' : 'incomplete',
+      ]),
+    ),
   ]
-  for (const row of rows)
-    lines.push(
-      `| ${row.view} | ${row.pixelError} | ${row.side} | ` +
-        `${(row.textureBytes / 1e6).toFixed(2)} | ${(row.otherBytes / 1e6).toFixed(2)} | ` +
-        `${row.textureRequests} | ${row.failedRequests} | ${row.unfinishedRequests} | ` +
-        `${row.unmeasuredRedirects} | ${complete(row) ? 'complete' : 'incomplete'} |`,
-    )
   return [...lines, '']
 }

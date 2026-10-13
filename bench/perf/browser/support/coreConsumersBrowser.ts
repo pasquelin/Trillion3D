@@ -2,8 +2,6 @@
 // the foundation, opposed to the host-library code it replaces, copied in `oracles/socle-math*.ts`.
 // A single different value and the line fails: the attachment changes no bit.
 import * as THREE from 'three'
-import { srgbToLinear } from '../../../../packages/sdk-core/src/index.ts'
-import { fromUnorm8, linearToSrgb8 } from '../../../../packages/math/src/color/color.ts'
 import { projectVisibilityVertex } from '../../../oracles/browser/cpu-image/projection.ts'
 import {
   setWindingEpoch,
@@ -11,10 +9,11 @@ import {
 } from '../../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts'
 import { noteResidenceChange } from '../../../../packages/sdk-browser/src/webgpu/shadow/bounds.ts'
 import { createWebgpuLightState } from '../../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts'
-import * as ancien from '../../../oracles/browser/core-math.ts'
+import { referenceProjectVisibilityVertex } from '../../../oracles/browser/core-math.ts'
+import { matrixWindingCw } from '../../../../packages/math/src/matrix/orientation.ts'
 import { SPHERE_FLOATS, referenceClusterSphere } from '../../../oracles/browser/lamp-shadows.ts'
 import { affines, matrices, points } from './scenesCore.ts'
-import { enregistrements, octets } from './scenesCoreConsumers.ts'
+import { enregistrements } from './scenesCoreConsumers.ts'
 import { ligne } from './coreLine.ts'
 import { parElement } from '../../../core/index.ts'
 
@@ -35,18 +34,17 @@ lumieres.store.add({
 export async function lignesConsommateursBrowser() {
   const { list, roots, ranks } = enregistrements
   // Each record is placed by its original rank.
-  const rootOfPacked = Int32Array.from({ length: roots.length }, (_, i) => i)
+  const placement = { baseOfRoot: Int32Array.from(roots, (_, i) => i), packedCount: roots.length }
   const hostileRoots = matrices.map((e) => ({ world: new THREE.Matrix4().fromArray(e) }))
   const attribut = new THREE.BufferAttribute(Float32Array.from(points.flat()), 3)
   // The compared subject is the projection of a vertex, not the read of a convention: the
   // view-projection/convention pairs are built once, outside the measured loops.
   const projectedViews = matrices.map((e) => ({ viewProjection: e }))
   // The engine side's inputs and outputs, built once and never under the clock: each vertex's
-  // model matrix and rank, each case's box, each sRGB pair.
+  // model matrix and rank, each case's box.
   const modeles = affines.slice(0, 60).map((m) => new THREE.Matrix4().fromArray(m))
   const vertices = modeles.flatMap((_, i) => points.slice(0, 40).map((_, v) => [i, v] as const))
-  const boxes = list.map((): number[] => []),
-    encodages = octets.map(() => [0, 0])
+  const boxes = list.map((): number[] => [])
   // Built once, so the timed call reuses its output array instead of building one.
   const projected = parElement(([i, v]: readonly [number, number]) =>
     projectVisibilityVertex(
@@ -80,7 +78,7 @@ export async function lignesConsommateursBrowser() {
       parElement((r: (typeof list)[number], i) => {
         target = boxes[i]
         target.length = 0
-        noteResidenceChange(lumieres, roots, rootOfPacked, ranks.get(r) ?? 0, r)
+        noteResidenceChange(lumieres, roots, placement, ranks.get(r) ?? 0, r)
         return target
       }),
     ),
@@ -89,7 +87,7 @@ export async function lignesConsommateursBrowser() {
       'packages/sdk-browser/src/webgpu/pages/render/winding.ts',
       'hostile matrices',
       matrices,
-      (l) => l.map((e) => ancien.referenceWindingCw(e)),
+      (l) => l.map((e) => matrixWindingCw(e)),
       parElement((_: Float64Array, i) => {
         setWindingEpoch(i + 1)
         return windingCw(hostileRoots, i)
@@ -105,7 +103,7 @@ export async function lignesConsommateursBrowser() {
           points
             .slice(0, 40)
             .map((_, v) =>
-              ancien.referenceProjectVisibilityVertex(
+              referenceProjectVisibilityVertex(
                 new THREE.Matrix4().fromArray(m),
                 attribut,
                 v,
@@ -116,19 +114,6 @@ export async function lignesConsommateursBrowser() {
             ),
         ),
       () => projected(vertices),
-    ),
-    await ligne(
-      'sRGB: byte table and 8-bit encoding',
-      'packages/math/src/color/color.ts',
-      '256 bytes and hostile values',
-      octets,
-      (l) =>
-        l.map((c, i) => [ancien.referenceSrgb8Linear(i % 256), ancien.referenceLinearToSrgb8(c)]),
-      parElement((c: number, i) => {
-        const sortie = encodages[i]
-        ;[sortie[0], sortie[1]] = [srgbToLinear(fromUnorm8(i % 256)), linearToSrgb8(c)]
-        return sortie
-      }),
     ),
   ]
 }

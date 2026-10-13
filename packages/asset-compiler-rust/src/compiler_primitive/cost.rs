@@ -11,9 +11,10 @@
 use super::*;
 use crate::coplanar::ClusterPlane;
 use crate::dag::{DagCluster, DAG_CLUSTER_TRIANGLES};
-use crate::geometry_page_cells::Cell;
 use crate::physics_cook::TILE_TRIANGLES;
 use std::mem::size_of;
+use trillion3d_page_codec::culling::CULLING_STRIDE;
+use trillion3d_page_codec::encode::cells::Cell;
 
 #[cfg(test)]
 mod tests;
@@ -64,7 +65,7 @@ const TILE_BYTES: usize = TILE_TRIANGLES
     * (3 * (size_of::<u32>() + 3 * size_of::<f32>() + hashed(size_of::<(u32, u32)>()))
         + JOLT_TRIANGLE_BYTES);
 /// A bundle being packed: its payload, one page over and above it, and that page being encoded
-/// (`geometry_page::encode`): per corner, its local and remapped indices; per vertex, its source
+/// (`encode::encode`): per corner, its local and remapped indices; per vertex, its source
 /// index and remap entry, its cell, its unique copy and rank entry, its remap and its output bits,
 /// its distinct position and rank entry, its stored copy and its link (`stored_positions`).
 const BUNDLE_BYTES: usize = STREAM_BUNDLE_BYTES

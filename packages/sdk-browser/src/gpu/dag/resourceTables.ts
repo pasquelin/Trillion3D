@@ -24,8 +24,7 @@ export function dagTables(device: GPUDevice, packed: PackedDag, own: Own) {
     // Descent queue 0, then draw flags, then the cone word `dagWanted` keeps for `dagMask` (the
     // cone verdict and the cut rule's two comparisons), then the live-cluster list, then the
     // candidate list — which also serves as the previous frame's drawn journal —, then the
-    // remaining queues, then each page's last use (`shader/lastUseWgsl.ts`): never read by the
-    // CPU, which still only copies draw flags. Split, each part holds whole sections: the draw
+    // remaining queues: never read by the CPU, which still only copies draw flags. Split, each part holds whole sections: the draw
     // mask lies in one (`split.ts`).
     flags: make(parts.flags),
     cold: make(parts.pageCones),
@@ -75,14 +74,15 @@ export function uploadDagTables(
     bytes: buffers.length > 1 ? list[0].size : Number.MAX_SAFE_INTEGER,
   })
   const nodeParts = partsOf(tables.nodes, parts.nodes),
-    coldParts = partsOf(tables.cold, parts.pageCones)
+    coldParts = partsOf(tables.cold, parts.pageCones),
+    clusterParts = partsOf(tables.clusters, parts.clusters)
   for (const [target, source] of [
-    [partsOf(tables.clusters, parts.clusters), packed.clusters],
+    [clusterParts, packed.clusters],
     [nodeParts, packed.nodes],
     [coldParts, packed.pageCones],
   ] as const) {
     const { buffer, byteOffset, byteLength } = source
     writeParts(device, target, 0, buffer as ArrayBuffer, byteOffset, byteLength)
   }
-  return { nodeParts, coldParts }
+  return { nodeParts, coldParts, clusterParts }
 }

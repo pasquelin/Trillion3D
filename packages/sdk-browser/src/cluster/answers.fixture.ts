@@ -11,7 +11,7 @@ type Asked = { url: string; init: RequestInit }
 
 /** A request held until `signal` aborts, already aborted or later: it then rejects with the
  *  signal's reason, as `fetch` does. */
-export const untilAborted = (signal: AbortSignal | null | undefined) =>
+const untilAborted = (signal: AbortSignal | null | undefined) =>
   new Promise<never>((_, reject) => {
     const fail = () => reject(signal?.reason ?? new DOMException('Aborted', 'AbortError'))
     if (signal?.aborted) fail()

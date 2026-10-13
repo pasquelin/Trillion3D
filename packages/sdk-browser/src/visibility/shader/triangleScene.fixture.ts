@@ -4,19 +4,19 @@
 // triangles, slivers, lone pixels, the background, rows past the table and triangles past their
 // page. With the stand-ins `shaderRun` lacks: WGSL's 3×3, the structures the text builds by name,
 // integer division for the page decode (`homesDecode.test.ts`).
-import { Mat } from '../../texture/shaderRun.fixture.ts'
+import { f32Bits } from '../../../../math/src/float/bits.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { FLAG_CLUSTER_PAGE } from '../types.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 export type V = number[]
 export type Fn = (...args: unknown[]) => unknown
-export const f = Math.fround
 const random = lcgFloatRandom(11)
 const floats = (n: number, at: (i: number) => number) =>
-  Array.from({ length: n }, (_, i) => f(at(i)))
+  Array.from({ length: n }, (_, i) => Math.fround(at(i)))
 
 /** WGSL's 3×3 by its columns, multiplied in binary32. */
 export class Mat3 {
@@ -27,7 +27,12 @@ export class Mat3 {
 }
 const mat3x3f = (...columns: V[]) => new Mat3(columns)
 export const times = (m: Mat3, v: V) =>
-  [0, 1, 2].map((r) => f(f(f(m[0][r] * v[0]) + f(m[1][r] * v[1])) + f(m[2][r] * v[2])))
+  [0, 1, 2].map((r) =>
+    Math.fround(
+      Math.fround(Math.fround(m[0][r] * v[0]) + Math.fround(m[1][r] * v[1])) +
+        Math.fround(m[2][r] * v[2]),
+    ),
+  )
 export const STRUCTS = {
   mat3x3f,
   determinant: (m: Mat3) => F32_SCOPE.dot(m[0], F32_SCOPE.cross(m[1], m[2])),
@@ -62,7 +67,7 @@ export function scene() {
     normals: number[] = []
   const quantized = (vertices: number) => {
     const at = words.length
-    const page = encodeGeometryPage(
+    const page = encodePage(
       Array.from({ length: vertices * 3 }, (_, i) =>
         i < vertices ? i : Math.floor(random() * vertices),
       ),
@@ -84,8 +89,7 @@ export function scene() {
   /** A deformation tail of `vertices` records of eleven floats: position, previous, normal. */
   const tail = (into: number[], vertices: number, bits: boolean) => {
     const at = into.length
-    for (const x of floats(vertices * 11, () => random() * 4 - 2))
-      into.push(bits ? new Uint32Array(new Float32Array([x]).buffer)[0] : x)
+    for (const x of floats(vertices * 11, () => random() * 4 - 2)) into.push(bits ? f32Bits(x) : x)
     return at + 1
   }
   const source = (vertices: number) => {
@@ -96,7 +100,7 @@ export function scene() {
     normals.push(...floats(vertices * 7, () => random() * 2 - 1))
     return { flags: 0, pageOffset: offset, indexCount: vertices * 3, vertexBase }
   }
-  const world = (m: V) => new Mat(m.map(f))
+  const world = (m: V) => new Mat(m.map(Math.fround))
   const SHEAR = world([1.5, 0, 0.2, 0, 0, 0.8, 0, 0, 0, 0.3, 1.2, 0, 0.2, -0.1, -6, 1])
   const MIRROR = world([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.5, 0, -7, 1])
   const row = <Page extends object>(page: Page, over: object = {}) => ({

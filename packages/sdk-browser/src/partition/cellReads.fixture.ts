@@ -1,5 +1,5 @@
 import type { TestContext } from 'node:test'
-import { packBundles, worldPage } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { packBundles, worldPage } from '../scene/worldRootsPages.fixture.ts'
 import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
 import type { TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts'
@@ -21,7 +21,7 @@ function gridRoots(count: number) {
     dependencies: [0, 1 + 2 * cell, 2 + 2 * cell],
   })
   const bytes = encodeWorldRoots({
-    ...{ version: 5, budgetBytes: 4 << 20, pinned: 1, pinnedTopBytes: bundles[0].bytes },
+    ...{ version: 6, budgetBytes: 4 << 20, pinned: 1, pinnedTopBytes: bundles[0].bytes },
     payload: { url: 'world-roots.bin', sha256: sha(bin), bytes: bin.byteLength },
     bundles,
     pages: bundles.map(({ bytes }, bundle) => ({

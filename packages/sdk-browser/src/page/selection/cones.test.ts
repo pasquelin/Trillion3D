@@ -9,6 +9,7 @@ import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { blendFixture, camera } from './blend.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { OPEN_CONE, type NormalCone } from '../cone/cone.ts'
+import { graphDraws } from './drawSource.ts'
 
 /** A cone that looks opposite the camera: honoured, it rejects its page; open, the page stays. */
 const COOKED: NormalCone = { axis: [0, 0, -1], angle: 0 }
@@ -21,7 +22,12 @@ function collectedWith<T>(
   const fixture = blendFixture(material)
   ;(fixture.metadata.primitives[0].pages[0] as { cone?: NormalCone }).cone = COOKED
   const found = read(
-    collectClusterPages(fixture.source, fixture.metadata, fixture.indices, fixture.associations),
+    collectClusterPages(
+      fixture.source,
+      graphDraws(fixture.source, fixture.associations),
+      fixture.metadata,
+      fixture.indices,
+    ),
   )
   fixture.geometry.dispose()
   fixture.material.dispose()

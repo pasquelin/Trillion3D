@@ -1,11 +1,13 @@
 // The exact transmission read's proofs (`transmissionWgsl.ts`), its shipped WGSL run by
 // `shaderRun`: generated scenes, a slice laid out as the resolve writes it, a brute-force cast and
 // the texel store the read replaced.
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { VSM_TRANSMISSION_NONE, vsmTransmissionReadWgsl } from './transmissionWgsl.ts'
+import { vsmTransmissionReadWgsl } from './transmissionWgsl.ts'
 import { type Tri, type V, BLOCK, geometry } from './transmissionSheets.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import { NO_INDEX } from '../../../math/src/constants.ts'
 
 const WIDTH = 1024
 
@@ -16,8 +18,6 @@ export interface Caster {
   q: number
 }
 
-const NONE = VSM_TRANSMISSION_NONE
-
 /** The memory a resolve writes for physical page 0's dynamic slice of `casters` (page headers,
  *  cell headers, chain, records, cell lists), as texels by "x,y". */
 export function memoryOf(casters: Caster[]) {
@@ -25,11 +25,10 @@ export function memoryOf(casters: Caster[]) {
   const rows = 1
   const slice: V[] = []
   const records = casters.map(({ tri, d, q }) => {
-    const bits = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
     return [
-      [bits(tri[0][0]), bits(tri[0][1]), bits(tri[1][0]), bits(tri[1][1])],
-      [bits(tri[2][0]), bits(tri[2][1]), bits(d[0]), bits(d[1])],
-      [bits(d[2]), 0, q, 0],
+      [f32Bits(tri[0][0]), f32Bits(tri[0][1]), f32Bits(tri[1][0]), f32Bits(tri[1][1])],
+      [f32Bits(tri[2][0]), f32Bits(tri[2][1]), f32Bits(d[0]), f32Bits(d[1])],
+      [f32Bits(d[2]), 0, q, 0],
       [0, 0, 0, 0],
     ]
   })
@@ -56,7 +55,7 @@ export function memoryOf(casters: Caster[]) {
   }
   for (let t = 0; t < 64; t++) slice[t] = headers.slice(4 * t, 4 * t + 4)
   const blocks = ceilDiv(at, BLOCK)
-  const chain = Array.from({ length: 32 }, (_, j) => (j < blocks ? j : NONE))
+  const chain = Array.from({ length: 32 }, (_, j) => (j < blocks ? j : NO_INDEX))
   for (let t = 0; t < 8; t++) slice[64 + t] = chain.slice(4 * t, 4 * t + 4)
   records.forEach((r, l) => r.forEach((w, t) => (slice[recordsAt + 4 * l + t] = w)))
   slice.forEach((w, v) => {
@@ -64,7 +63,7 @@ export function memoryOf(casters: Caster[]) {
     const x = (b & 1) * BLOCK + (v % BLOCK)
     memory.set(`${x},${rows + (b >> 1)}`, w)
   })
-  memory.set('0,0', [0, NONE, NONE, NONE])
+  memory.set('0,0', [0, NO_INDEX, NO_INDEX, NO_INDEX])
   return memory
 }
 

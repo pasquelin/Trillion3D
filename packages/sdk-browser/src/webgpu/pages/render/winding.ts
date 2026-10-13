@@ -21,13 +21,20 @@ export function setWindingEpoch(valeur: number) {
 
 /** The winding of the root of rank `rank` in `roots`. */
 export function windingCw(
-  roots: readonly Pick<ClusterRoot<unknown>, 'world' | 'windingCw' | 'windingEpoch'>[],
+  roots: readonly Pick<
+    ClusterRoot<unknown>,
+    'world' | 'windingCw' | 'windingEpoch' | 'windingStamp'
+  >[],
   rank: number,
 ) {
   const root = rootOf(roots, rank)
-  if (root.windingEpoch === epoque && root.windingCw !== undefined) return root.windingCw
+  // A root a parent composes carries the composition's stamp: the memo holds while it does.
+  const stamp = (root.world as { stamp?: number }).stamp
+  if (root.windingEpoch === epoque && root.windingCw !== undefined && root.windingStamp === stamp)
+    return root.windingCw
   const cw = matrixWindingCw(root.world.elements)
   root.windingEpoch = epoque
+  root.windingStamp = stamp
   root.windingCw = cw
   return cw
 }

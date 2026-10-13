@@ -6,7 +6,7 @@
 // pass, and lighting; no shader is substituted.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { HALF_PI, createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
-import { runOnDevice as withDevice } from '../kit/deviceProof.ts'
+import { runOnDevice } from '../kit/deviceProof.ts'
 import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
 import { VIEWPORT, batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
 import { compilePages } from './compiledPages.ts'
@@ -58,9 +58,8 @@ export async function plane(
 ) {
   const builder = batisseur()
   const shown = blend ? { ...surface, transparent: true, opacity: 0.6 } : surface
-  const mesh = G.mesh(geometry, G.physicalSurface(shown))
-  builder.source.add(mesh)
-  builder.add(mesh, blend ? 'clustered-blend' : 'exact-clusters', 1.2)
+  const pass = blend ? 'clustered-blend' : 'exact-clusters'
+  builder.place(G.physicalSurface(shown), pass, 1.2, [0, 0, 0], {}, geometry)
   const scene = builder.fini()
   const readGeometryPage = compiled ? compilePages(scene) : undefined
   const { backend, canvas } = engine(scene, device, (event) => void events.push(event), {
@@ -173,7 +172,7 @@ export const ANISOTROPY_CASES: Record<string, G.SurfaceParameters> = {
 
 /** Each case's opaque plane, read. */
 const opaque = (cases: Record<string, G.SurfaceParameters>) =>
-  withDevice<{ readings: Record<string, LobeReading> }>((device, events, result) =>
+  runOnDevice<{ readings: Record<string, LobeReading> }>((device, events, result) =>
     readCases(device, events, result, cases),
   )
 

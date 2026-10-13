@@ -8,8 +8,12 @@ import { collectClusterPages } from '../page/selection/selection.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
 import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
 import { dagFixture, frontCamera } from '../page/selection/dag.fixture.ts'
-import { createEngineCamera, readCameraWorld } from '../camera/world.ts'
+import { createEngineCamera } from '../camera/engineCamera.ts'
+import { readCameraWorld } from '../camera/world.ts'
 import type { TextureLevelReader, TextureLevelRequest } from '../texture/levelReader.ts'
+import { createPageCache } from '../streaming/pageCache.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 export const VIEWPORT: [number, number] = [1280, 720]
 /** Deliberately not the root's rank: the card names the mesh, the cut reads the rank. */
@@ -48,16 +52,17 @@ export const ATLAS_URLS = ['a', 'b', 'c'].map((name) => `../../objects/${name}.p
 /** The DAG fixture's roots, each standing for `MESH`, and a reader answering decoded levels. */
 export function impostorScene() {
   const asked: TextureLevelRequest[] = []
-  const reader = (async (request: TextureLevelRequest) => {
+  const read = async (request: TextureLevelRequest) => {
     asked.push(request)
     return { width: 8, height: 8, close() {} } as ImageBitmap
-  }) as TextureLevelReader
+  }
+  const reader = Object.assign(read, { store: createPageCache(), key: 'k' }) as TextureLevelReader
   const fixture = dagFixture()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   for (const root of roots) root.mesh = MESH
   return { fixture, roots, reader, asked }
@@ -74,8 +79,7 @@ export const settle = () => new Promise((resolve) => setImmediate(resolve))
 /** `count` objects at one per 400 m² on a disk about the origin: the near ones whole, most far. */
 export function cardField(count: number) {
   const radius = Math.sqrt((count * 400) / Math.PI)
-  let seed = 11
-  const next = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+  const next = lcgRandom(11)
   return Array.from({ length: count }, () => {
     const r = radius * Math.sqrt(next()),
       a = 2 * Math.PI * next()

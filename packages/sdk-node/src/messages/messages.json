@@ -2556,8 +2556,8 @@
       "id": "T3D-E089",
       "code": "PNG_UNSUPPORTED",
       "level": "error",
-      "message": "A PNG image is not a whole 8-bit RGBA, non-interlaced file.",
-      "cause": "The Node adapter's PNG reader (cutout previews, reference images) reads 8-bit RGBA, non-interlaced PNG files only, every row present.",
+      "message": "A PNG image is not a whole 8-bit, non-interlaced file of a colour type the reader takes.",
+      "cause": "The Node adapter's PNG reader (cutout previews, reference images, the bench's textures) reads 8-bit grey, grey with alpha, RGB, palette and RGBA, non-interlaced PNG files only, every row present.",
       "action": "Save the image again as 8-bit RGBA without interlacing; for a cutout preview, delete the cache folder's cutout previews and compile again."
     },
     {

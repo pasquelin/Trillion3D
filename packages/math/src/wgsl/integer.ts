@@ -12,11 +12,36 @@ import { wgslFn } from './decl.ts'
  *  2³² − n, as every site's sum did. */
 export const ceilDiv = wgslFn('ceilDiv', [], 'fn ceilDiv(a:u32,n:u32)->u32{return (a+n-1u)/n;}')
 
+/** The side of mip level `level` of a texture whose base side is `size`: `size` halved `level`
+ *  times by integer division, one texel at least (`mipSize`, `../scalar/integers.ts`); a level past
+ *  31 gives one texel, where a shift by 32 or more would wrap. Held to the processor's by
+ *  `golden/mip_size.json`. */
+const mipSize = wgslFn(
+  'mipSize',
+  [],
+  'fn mipSize(size:u32,level:u32)->u32{return max(size>>min(level,31u),1u);}',
+)
+
+/** `mipSize` of both sides of a texture. */
+export const mipSize2 = wgslFn(
+  'mipSize2',
+  [mipSize],
+  'fn mipSize2(size:vec2u,level:u32)->vec2u{return vec2u(mipSize(size.x,level),mipSize(size.y,level));}',
+)
+
 /** The bits that hold `x`: 0 for 0, 32 from 2³¹ on. */
 export const bitLength = wgslFn(
   'bitLength',
   [],
   'fn bitLength(x:u32)->u32{return 32u-countLeadingZeros(x);}',
+)
+
+/** Slots of an open-addressed table that holds `entries` at a load of one half at most: a power
+ *  of two, two at least (`halfLoadSlots`, `../scalar/integers.ts`), for up to 2³¹ entries. */
+export const halfLoadSlots = wgslFn(
+  'halfLoadSlots',
+  [bitLength],
+  'fn halfLoadSlots(entries:u32)->u32{return 1u<<bitLength(2u*max(entries,1u)-1u);}',
 )
 
 /** The exponent of the greatest power of two not over `x` (`floorLog2`); 0 gives 0xffffffff, the

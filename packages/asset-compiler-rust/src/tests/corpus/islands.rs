@@ -26,7 +26,7 @@ pub(super) fn check_islands(case: &Case, indices: &[u32], built: &Built, label: 
                 // Only a primitive a solve touched may draw a triangle across islands under a pixel.
                 let solved = !built.origin.is_empty();
                 let under_pixel =
-                    crate::dag::charts::longest_edge(positions, tri) <= cluster.lod_error;
+                    trillion3d_math::triangle::longest_edge(positions, tri) <= cluster.lod_error;
                 assert!(
                     (a == b && b == c) || (solved && under_pixel),
                     "{label}: a coarse triangle at level {} spans two {name} islands",

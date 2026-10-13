@@ -6,12 +6,12 @@ import { CORNER_VALUES } from '../../../gpu/partition/contract.ts'
 import { DRAW_ITEM_U32 } from '../../../gpu/draw/draw.ts'
 import { createCornerUploadHold } from '../../visibility/corners.ts'
 import { createDrawItemWordsHold } from '../../visibility/itemWords.ts'
-import { VIS_MAX_PAGES } from '../../../visibility/buffer.ts'
+import { VIS_MAX_PAGES } from '../../../visibility/types.ts'
 import { boundTableRows, ROW_STEP, VIEW_ROWS } from '../../row/tableRows.ts'
 import type { WebgpuPagesSetup } from './setup.ts'
 import type { BoxTransformLot } from '../../../page/decode/batch/batchRuntime.ts'
 import { postPackedBases } from '../../../page/selection/placements.ts'
-import { createPackedPages, createPageCatalogue } from './catalogue.ts'
+import { createPackedPages, createPageCatalogue } from '../../../page/selection/catalogue.ts'
 import { createPackedInstances } from '../../row/instances.ts'
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>
@@ -77,7 +77,7 @@ export function askedTableRows(
  *  requests ask more rows (`growTables.ts`). */
 export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSupportedLimits) {
   const { roots, bootstrap, cap: slots, pageBytes } = setup
-  // The world DAG is one more opaque root, wherever it sits (`../../../gpu/dag/worldMirror.ts`).
+  // The world DAG is one more opaque root, wherever it sits (`../../../gpu/dag/residencyMirror.ts`).
   const opaqueRoots = roots.filter((root) => !root.pages[0]?.transparent),
     transparentRoots = roots.filter((root) => root.pages[0]?.transparent)
   // One cluster catalogue for one cut: the opaque primitives first, then the transparent ones. The
@@ -124,6 +124,9 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     packedPages,
     /** The packed rank of a page to its record: the engine's one catalogue accessor. */
     recordOf: catalogue.recordOf,
+    /** The packed rank of a page to where its placement's deformation writes its results, none for
+     *  a page that is not deformed (`../../../deformation/outputs.ts`). */
+    deformationOutputOf: catalogue.outputOf,
     /** The root rank of each packed rank, and the packed base of each root (#1235): one object for
      *  the session, read-only here, which a growth rewrites in place (`postPackedBases(roots, into)`)
      *  so the readers built once — the closure, the page parents, the held residency — follow it. */
@@ -148,7 +151,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     rows,
     /** The rows the scene asked when one binding of the device held fewer, else null. */
     pageTableBound: bounded,
-    /** The growth of the tables under way, which the next one waits for (`growTables.ts`). */
+    /** The growth under way — the tables', the layers', an atlas lane's —, which the next one
+     *  waits for (`growthQueue.ts`). */
     growing: undefined as Promise<unknown> | undefined,
     ...rowScratch(drawSlots, pageBytes),
   }

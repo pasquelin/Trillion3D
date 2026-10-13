@@ -14,6 +14,8 @@ import { families } from '../../host/families.ts'
 import { PARTICLE_DRAW_PASS as P } from '../../stage/passLabels.ts'
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+/** The device the pools' step states are made on. */
+const { device: states } = fakeDevice()
 
 /** Smoke 2 m ahead with three stepped particles, fire 20 m ahead with two, an empty pool at 50 m. */
 function scene() {
@@ -37,30 +39,38 @@ test('a pool 10 km out is drawn from its origin: the words hold to the millimetr
   assert.deepEqual(got, [-0.001, 0, 1, 0.001, 0.001, 0.5, 1, 0.8, 0.5, 1, 0.5].map(Math.fround))
 })
 
-/** An encoder that logs its render passes, and each draw's pipeline and indirect arguments. */
+/** One of the kit's encoders, and what its render passes took: each pass's label, then each
+ *  indirect draw as `pipeline buffer offset` (`log`); the views each pass attaches. */
 function renderRecorder() {
-  const log: string[] = [],
-    attached: unknown[][] = []
-  const beginRenderPass = ({ label, colorAttachments }: GPURenderPassDescriptor) => {
-    let pipeline: GPURenderPipeline
-    log.push(`${label}`)
-    attached.push([...colorAttachments].map((attachment) => attachment?.view))
-    return {
-      setPipeline: (set: GPURenderPipeline) => void (pipeline = set),
-      setBindGroup() {},
-      setViewport() {},
-      drawIndirect: (args: GPUBuffer, at: number) =>
-        void log.push([pipeline.label, args.label, at].join(' ')),
-      end() {},
-    }
-  }
-  return { encoder: { beginRenderPass } as unknown as GPUCommandEncoder, log, attached }
+  const kit = fakeDevice()
+  const log = () =>
+    kit.passes.flatMap(({ label, commands }) => {
+      let pipeline: GPURenderPipeline | undefined
+      return [
+        `${label}`,
+        ...commands.flatMap(([name, [first, at]]) => {
+          if (name === 'setPipeline') pipeline = first as GPURenderPipeline
+          return name === 'drawIndirect'
+            ? [[pipeline?.label, (first as GPUBuffer).label, at].join(' ')]
+            : []
+        }),
+      ]
+    })
+  const attached = () => kit.passes.map(({ colors }) => colors.map((color) => color?.view))
+  return { encoder: kit.device.createCommandEncoder(), log, attached }
 }
 
 const view = {} as GPUTextureView,
   reactive = { label: 'reactive' } as unknown as GPUTextureView,
   // A pool's step state: the draw reads its instances from the window its step wrote there.
-  kept = () => ({ state: { label: 'state' } }) as never
+  kept = () =>
+    ({
+      state: states.createBuffer({
+        label: 'state',
+        size: 64,
+        usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE,
+      }),
+    }) as never
 const frame = (encoder: GPUCommandEncoder) => ({
   encoder,
   target: view,
@@ -78,11 +88,11 @@ test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none wi
   await tick()
   const { encoder, log, attached } = renderRecorder()
   assert.equal(draw.draw([], frame(encoder)) + draw.draw([pools[2]], frame(encoder)), 0)
-  assert.deepEqual(log, [], 'no particle alive: no pass, no pixel')
+  assert.deepEqual(log(), [], 'no particle alive: no pass, no pixel')
   assert.equal(draw.draw(pools, frame(encoder)), 2)
-  assert.deepEqual(log, [P, `${P} additive state 0`, `${P} premultiplied state 0`], 'far to near')
+  assert.deepEqual(log(), [P, `${P} additive state 0`, `${P} premultiplied state 0`], 'far to near')
   // The lit image, then the reactive value their coverage is written in (#833).
-  assert.deepEqual(attached, [[view, reactive]])
+  assert.deepEqual(attached(), [[view, reactive]])
   const blends = gpu.renderPipelines.map(({ fragment }) => {
     const { color, alpha } = (fragment!.targets as GPUColorTargetState[])[0].blend!
     return [color.dstFactor, alpha.srcFactor, alpha.dstFactor].join(' ')
@@ -106,7 +116,7 @@ test('WebGPU: the routed draw is asked off the frame, and the image that routes 
   const filter = { attachments: () => [], maskGroup: {} } as never
   const { encoder, log } = renderRecorder()
   assert.equal(draw.draw(pools, { ...frame(encoder), filter }), 2)
-  assert.equal(log.length, 3, 'one pass, two routed draws')
+  assert.equal(log().length, 3, 'one pass, two routed draws')
   assert.equal(routedMade().length, 2, 'one per blend')
   assert.equal(gpu.compiled.sync, 0, 'compiled off the frame')
 })
@@ -121,7 +131,7 @@ test('WebGPU: a draw that cannot compile is heard, and the next step keeps its p
   const { encoder, log } = renderRecorder()
   assert.equal(step.draw([smoke], frame(encoder)), 0)
   step.run([smoke], encoder)
-  assert.deepEqual([heard.length, smoke.refused, log.length], [1, true, 0])
+  assert.deepEqual([heard.length, smoke.refused, log().length], [1, true, 0])
 })
 
 test('WebGPU: the pools step once a frame, on the main view; another view draws them as they are', () => {
@@ -131,7 +141,8 @@ test('WebGPU: the pools step once a frame, on the main view; another view draws 
     views = { main, active: {} },
     gpu = { particles: { run: () => (steps++, 1) } },
     rt = { context: { particles: [smoke] }, gpu, run: {}, views }
-  const encode = () => encodeParticles(rt as never, fakeDevice().device, {} as GPUCommandEncoder)
+  const { device } = fakeDevice()
+  const encode = () => encodeParticles(rt as never, device, device.createCommandEncoder())
   encode()
   assert.equal(steps, 0, 'another view steps nothing')
   views.active = main

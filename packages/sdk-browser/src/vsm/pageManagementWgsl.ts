@@ -7,7 +7,7 @@
  * covers mip 0 (read) and the hierarchy (atomicOr).
  */
 import type { VsmBindingSpec } from './resources.ts'
-import { type VsmPmKernel, vsmPmModule } from './physicalPagesWgsl.ts'
+import { type VsmPmKernel, vsmPmKernel } from './physicalPagesWgsl.ts'
 import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { VSM_COVER_GATHER_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL } from './pageTableWgsl.ts'
@@ -127,13 +127,7 @@ fn vsmPageFlagPyramid(@builtin(global_invocation_id) id:vec3u){
 }
 `,
   )
-  return {
-    label: 'PageFlagPyramid',
-    entryPoint: 'vsmPageFlagPyramid',
-    specs,
-    perPage: false,
-    code: vsmPmModule(layout, specs, body),
-  }
+  return vsmPmKernel(layout, 'PageFlagPyramid', specs, body)
 }
 
 /** The mapped mip propagator, per-page dispatch. */
@@ -226,13 +220,7 @@ fn vsmFillCoarserFallbacks(@builtin(global_invocation_id) dispatchThreadId:vec3u
 }
 `,
   )
-  return {
-    label: 'FillCoarserFallbacks',
-    entryPoint: 'vsmFillCoarserFallbacks',
-    specs,
-    perPage: true,
-    code: vsmPmModule(layout, specs, body, { perPage: true }),
-  }
+  return vsmPmKernel(layout, 'FillCoarserFallbacks', specs, body, { perPage: true })
 }
 
 /** Every PM kernel for `layout`. */

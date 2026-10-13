@@ -51,7 +51,7 @@ fn texture_previews_round_trip_through_the_binary_columns() {
     let (_, bytes) = split(&json!({"primitives": []}), &TEMPLATES, &previews).expect("split");
     let word = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
     let column = |index: usize| {
-        let at = (HEADER_WORDS + index * 2) * 4;
+        let at = (MANIFEST_BINARY_HEADER_WORDS + index * 2) * 4;
         (word(at) as usize, word(at + 4) as usize)
     };
     let (words_off, words_len) = column(TEXTURE_PREVIEW_U32);

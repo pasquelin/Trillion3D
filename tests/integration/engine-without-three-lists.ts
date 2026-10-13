@@ -64,4 +64,11 @@ export const BENCH_READS_DECLARATION = /^bench\/(?:witnesses|oracles|perf)\//
 
 export const DECLARATION: Record<string, string> = {
   'page/surface': 'boundary: a record wears a new declaration, its surface read with it',
+  'page/selection/drawSource': 'the source declares what its surface is read from, once',
+  'world/core/worldBatches': 'a batch is a source: its surface is what it declares',
+  'world/core/worldModels': 'a model mesh is a source: its graph surface is what it declares',
+  'world/session/capabilities': 'boundary: the most detail sets every texture its sources declare',
+  'world/api/materialApi': 'boundary: a page edits the host surfaces its drawables wear',
+  'world/api/createdMaterials':
+    'boundary: a created material is given to the drawables that wear it',
 }

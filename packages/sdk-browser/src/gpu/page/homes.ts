@@ -18,7 +18,7 @@ export type PageHomes = {
 /**
  * The pool's layout when the whole catalogue fits: each page at its own width — its bytes padded
  * to a word, raised to the end of its own deformation tails, which stay at their offset
- * (`../../deformation/slotLayout.ts`) — one after the other in the catalogue's order, where a
+ * (`../../deformation/outputs.ts`) — one after the other in the catalogue's order, where a
  * fixed slot gives every page the width of the widest. Every reader reaches a page through its
  * offset (`../../webgpu/residency/mirror.ts`); a decode that reads a word past a page's end
  * keeps none of its bits (`homesDecode.test.ts`), so what lies after a page, a neighbour or
@@ -33,6 +33,25 @@ export function pageHomes(widths: ReadonlyMap<string, number>): PageHomes | unde
     bytes += width
   }
   return bytes > 0 ? { homes, bytes } : undefined
+}
+
+/** `homes`, a home added behind the others for each address of `widths` it does not name: the
+ *  pages it holds keep their rank, their offset and their width, and the pool that holds the
+ *  catalogue grows by the bytes added. `homes` is the owner's, written in place; none is made
+ *  of an empty catalogue (`pageHomes`) but by it. An address named already, wider here, is
+ *  refused: a page that grew keeps no place. */
+export function extendHomes(homes: PageHomes, widths: ReadonlyMap<string, number>) {
+  const held = homes.homes as Map<string, PageHome>
+  for (const [key, width] of widths) {
+    if (!Number.isSafeInteger(width) || width < 0 || width % 4) throw new Error('INVALID_PAGE_HOME')
+    const home = held.get(key)
+    if (home) {
+      if (width > home.bytes) throw new Error('PAGE_HOME_OUTGROWN')
+      continue
+    }
+    held.set(key, { rank: held.size, offset: homes.bytes, bytes: width })
+    homes.bytes += width
+  }
 }
 
 /** The homes a pool of `slots` places its pages in: those of the whole catalogue when it holds

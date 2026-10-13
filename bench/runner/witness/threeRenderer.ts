@@ -1,16 +1,13 @@
 // Three's WebGPU renderer, as every Three witness draws with it: the bare and level-of-detail pages
 // (`threeMeasurePage.ts`), the deformation reference (`deformationWitness.ts`) and the material
 // proof (`tests/gpu/webgpu/materialPixelsRender.ts`). Initialised before its first frame, sRGB
-// output at exposure 1, its image read back from the GPU and its GPU time read from its timestamp
-// queries. Served to the page under `/runner/`, it imports only `three` — never the engine.
+// output at exposure 1 and its image read back from the GPU. Served to the page under `/runner/`, it imports only `three` — never the engine.
 import * as THREE from 'three/webgpu'
-import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
+import { readTexture } from '../../../tests/gpu/kit/computeReadback.ts'
 
 export interface WitnessRendererOptions {
   width: number
   height: number
-  /** Timestamp queries around each pass, read by `gpuFrameTimes`, when the adapter offers them. */
-  timestamps?: boolean
   /** Where a lost device is written down as it happens, beside the library's own report. */
   lost?: string[]
 }
@@ -18,13 +15,12 @@ export interface WitnessRendererOptions {
 /** A witness renderer on `canvas`, its device acquired: ready to compile and draw. */
 export async function createWitnessRenderer(
   canvas: HTMLCanvasElement,
-  { width, height, timestamps = false, lost }: WitnessRendererOptions,
+  { width, height, lost }: WitnessRendererOptions,
 ) {
   const renderer = new THREE.WebGPURenderer({
     canvas,
     antialias: false,
     powerPreference: 'high-performance',
-    trackTimestamp: timestamps,
   })
   const report = renderer.onDeviceLost.bind(renderer)
   renderer.onDeviceLost = (info) => {
@@ -65,62 +61,12 @@ export async function readWitnessImage(
   }
   const backend = renderer.backend as unknown as BackendInternals
   const { device } = backend
+  const rows = await readTexture(device, backend.get(target.texture).texture, 4)
   const row = width * 4,
-    stride = alignUp(row, 256)
-  const buffer = device.createBuffer({
-    size: stride * height,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  })
-  const encoder = device.createCommandEncoder()
-  encoder.copyTextureToBuffer(
-    { texture: backend.get(target.texture).texture },
-    { buffer, bytesPerRow: stride },
-    { width, height },
-  )
-  device.queue.submit([encoder.finish()])
-  await buffer.mapAsync(GPUMapMode.READ)
-  const rows = new Uint8Array(buffer.getMappedRange())
-  const pixels = new Uint8Array(row * height)
+    pixels = new Uint8Array(row * height)
   // The texture's first row is the top of the image; the capture's is the bottom.
   for (let y = 0; y < height; y++)
-    pixels.set(rows.subarray(y * stride, y * stride + row), (height - 1 - y) * row)
-  buffer.unmap()
-  buffer.destroy()
+    pixels.set(rows.subarray(y * row, (y + 1) * row), (height - 1 - y) * row)
   target.dispose()
   return pixels
-}
-
-/**
- * The GPU time of each frame, from the library's timestamp queries — the sum of the passes it
- * drew; the library gives no split per pass. `sample()` after each frame starts a resolve when
- * none is in flight, so the frame loop never waits on the GPU; a resolve covers every frame since
- * the one before it and is read as their mean. `drain()` waits for the resolve in flight and
- * empties the queries, so that warm-up frames count for nothing. For a renderer created with
- * `timestamps`: on an adapter without timestamp queries, nothing is read and nothing is published.
- */
-export function gpuFrameTimes(renderer: THREE.WebGPURenderer) {
-  const enabled = Boolean(renderer.hasFeature('timestamp-query'))
-  const gpuFrameMs: number[] = []
-  let frames = 0,
-    pending: Promise<void> | null = null
-  const resolve = (covered: number) =>
-    renderer.resolveTimestampsAsync(THREE.TimestampQuery.RENDER).then((ms) => {
-      if (covered > 0 && typeof ms === 'number') gpuFrameMs.push(ms / covered)
-    })
-  return {
-    gpuFrameMs,
-    sample() {
-      if (!enabled) return
-      frames++
-      if (pending) return
-      pending = resolve(frames).finally(() => (pending = null))
-      frames = 0
-    },
-    async drain() {
-      if (!enabled) return
-      await pending
-      await resolve(0)
-      frames = 0
-    },
-  }
 }

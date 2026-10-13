@@ -8,10 +8,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { invertMatrix4, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
 import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { TAA_SAMPLES, jitterViewProjection, taaJitter } from '../../taa/jitter.ts'
 import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts'
-import { shadowJitterWords } from './jitterWords.ts'
+import { viewJitterWords } from './jitterWords.ts'
 import { DEG2RAD } from '../../../../math/src/constants.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
@@ -34,6 +35,7 @@ const run = shaderRun<{
     'pixelFootprint',
     'unjitteredDepth',
     'surfaceSlope',
+    'surfaceSlopeOf',
     'footprintDepth',
     'clampToExtent',
     'worldAt',
@@ -81,7 +83,7 @@ function phase(sample: number, thin = false) {
   const jitter = taaJitter(sample, new Float64Array(2))
   const vp = jitterViewProjection(new Float64Array(16), VIEW_PROJECTION, jitter[0], jitter[1], W, H)
   live.view.inverseViewProjection = new Mat([...invertMatrix4(new Float64Array(16), vp)])
-  live.view.jitter = shadowJitterWords(jitter)
+  live.view.jitter = viewJitterWords(jitter)
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       const near = run.worldAt([x + 0.5, y + 0.5], 1),
@@ -153,7 +155,7 @@ test('on a strip one pixel wide, background on both sides, the level is the same
 
 test('with no jitter, the footprint is develop’s, to the bit', () => {
   phase(0)
-  live.view.jitter = shadowJitterWords(null)
+  live.view.jitter = viewJitterWords(null)
   for (let i = W * 20; i < W * 21; i++) {
     const x = i % W,
       y = Math.floor(i / W),

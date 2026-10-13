@@ -12,14 +12,11 @@
 // not run, and nothing says so. What cannot run here is declared below with its reason — excluded
 // out loud, never in silence.
 import { spawnSync } from 'node:child_process'
-import { readdirSync } from 'node:fs'
-import { join, sep } from 'node:path'
+import { join, relative } from 'node:path'
 import { isUnitTest } from '../../scripts/unit-tests.ts'
 import { entryPath, underNodeTest } from '../core/entryPoint.ts'
 import { LOCK_OWNER, takeBenchLock } from './lock.ts'
-
-/** The repository, which proof paths are relative to. */
-const ROOT = join(import.meta.dirname, '..', '..')
+import { REPOSITORY_ROOT, filesUnder, posixPath } from '../../scripts/repository-files.ts'
 
 /** Where the proofs live, one folder per engine area; `kit/` holds what they share. */
 export const PROOFS = 'tests/gpu'
@@ -45,68 +42,13 @@ export const STALE_DUPLICATE = 'stale duplicate'
  * a Dawn and a Chrome proof never share a name.
  * A `REGRESSION` entry is an open debt, not a waiver: it is removed by fixing the engine.
  */
-export const EXCLUDED = new Map<string, [string, string]>([
-  [
-    'placement/transparent-transform',
-    [
-      REGRESSION,
-      'TODO: since 2779442f37 the paged pass encodes the main class draw slot when every transparent row is out of view — an empty drawIndirect counted as a draw (the image is right)',
-    ],
-  ],
-  [
-    'lighting/narrow-resolve',
-    [REGRESSION, 'TODO #1369: the rectless program is not bit-equal to the full one (1 to 3 ulp)'],
-  ],
-  [
-    'lighting/sampled-resolve',
-    [REGRESSION, 'TODO #1369: the rectless program is not bit-equal to the full one (1 ulp)'],
-  ],
-  [
-    'reflections/screen-mirror',
-    [
-      REGRESSION,
-      'TODO: since 7e41da11f0 flush does not await targets made aside (a render-then-flush loop never draws); since badf03022f the analytic mirror reflection is black',
-    ],
-  ],
-  [
-    'vsm/camera-stop',
-    [
-      REGRESSION,
-      'TODO: speckles in the first still frame (7 to 10 pixels) the settled frame does not have — shadow code frozen for the clean-room pass',
-    ],
-  ],
-  [
-    'webgpu/page-tangents',
-    [
-      STALE_DUPLICATE,
-      'its unpaged twin scenes now compile paged (the compiler decides unpaged from the material alone); the recipe in bench/runner/scenes/tangentScenes.ts must be rewritten',
-    ],
-  ],
-  [
-    'taa/temporal-antialiasing',
-    [
-      STALE_DUPLICATE,
-      'hand-written 16 to 24 hold frames where the engine holds after taaStillFrames (66), and a new camera object per pan frame, which the engine reads as a view cut',
-    ],
-  ],
-  [
-    'lighting/sampled-lighting',
-    [
-      STALE_DUPLICATE,
-      'its moving-image threshold (max >= 3) already failed on develop; the threshold is unproven',
-    ],
-  ],
-  [
-    'partition/conservative-partition',
-    [SETUP, 'port to Dawn unfinished: its only run hung with a promise still pending'],
-  ],
-])
+export const EXCLUDED = new Map<string, [string, string]>([])
 
 /** Every proof on disk ending in `suffix`, excluded ones included, as repository paths: the
  *  folder's reference. */
 export function listProofFiles(suffix = PROOF_SUFFIX) {
-  return readdirSync(join(ROOT, PROOFS), { recursive: true, encoding: 'utf8' })
-    .map((file) => file.split(sep).join('/'))
+  return filesUnder(join(REPOSITORY_ROOT, PROOFS))
+    .map((file) => posixPath(relative(join(REPOSITORY_ROOT, PROOFS), file)))
     .filter((file) => file.endsWith(suffix))
     .sort()
     .map((file) => `${PROOFS}/${file}`)
@@ -175,7 +117,7 @@ export async function runProofs(args = process.argv.slice(2)) {
   // The proofs open the GPU under this run's lock (`installProofGpu`), never beside it.
   const result = spawnSync(process.execPath, proofArgs(targets, suffix), {
     stdio: 'inherit',
-    cwd: ROOT,
+    cwd: REPOSITORY_ROOT,
     env: { ...process.env, [LOCK_OWNER]: String(process.pid) },
   })
   if (result.error) throw result.error

@@ -1,10 +1,11 @@
-import { COMPUTE } from '../../gpu/core/computeBindings.ts'
+import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 import { PLAN_SHIFT } from './planEntry.ts'
 import { EXPAND_PASSES, RUN_WORDS } from './planLayout.ts'
 import { dAdd, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /**
  * THE PAINT ORDER OF A TRANSPARENT PASS, SORTED ON THE GPU.
@@ -39,8 +40,6 @@ export const SLOT_GROUP = 64
 /** Words of an item's key record (`keyRecords.ts`): six doubles, then its flags and its own rank. */
 export const KEY_RECORD_WORDS = 16
 export const KEY_HAS_BOX = 1
-/** Own rank of an item the GPU keys itself. */
-export const NOT_OWN = 0xffffffff
 /** Words of the frame data before the own keys: the eye, four doubles. */
 export const FRAME_EYE_WORDS = 8
 /** Words of the frame data a scene of `items` items, `entries` entries a pass, can send at most:
@@ -89,33 +88,30 @@ export const ORDER_BINDING = {
   sorted: 4,
   placed: 5,
 } as const
-const B = ORDER_BINDING
 
 /** Group-0 layout entries of the order kernel, read from the names above: the uniform at its
  *  dynamic offset, then its five storage buffers. */
 export function blendOrderBindEntries(): GPUBindGroupLayoutEntry[] {
-  const storage = (type: GPUBufferBindingType) => ({ visibility: COMPUTE, buffer: { type } })
   return [
-    {
-      binding: B.uni,
-      visibility: COMPUTE,
-      buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: ORDER_UNI_WORDS * 4 },
-    },
-    { binding: B.plan, ...storage('storage') },
-    { binding: B.keyed, ...storage('read-only-storage') },
-    { binding: B.frame, ...storage('read-only-storage') },
-    { binding: B.sorted, ...storage('storage') },
-    { binding: B.placed, ...storage('storage') },
+    computeUniformEntry(ORDER_BINDING.uni, {
+      hasDynamicOffset: true,
+      minBindingSize: ORDER_UNI_WORDS * 4,
+    }),
+    computeBufferEntry(ORDER_BINDING.plan, 'storage'),
+    computeBufferEntry(ORDER_BINDING.keyed, 'read-only-storage'),
+    computeBufferEntry(ORDER_BINDING.frame, 'read-only-storage'),
+    computeBufferEntry(ORDER_BINDING.sorted, 'storage'),
+    computeBufferEntry(ORDER_BINDING.placed, 'storage'),
   ]
 }
 
 export const BLEND_ORDER_SHADER = wgslProgram(
-  `@group(0) @binding(${B.uni}) var<uniform> uni:OrderUni;
-@group(0) @binding(${B.plan}) var<storage,read_write> plan:array<u32>;
-@group(0) @binding(${B.keyed}) var<storage,read> keyed:array<u32>;
-@group(0) @binding(${B.frame}) var<storage,read> frame:array<u32>;
-@group(0) @binding(${B.sorted}) var<storage,read_write> sorted:array<vec4u>;
-@group(0) @binding(${B.placed}) var<storage,read_write> placed:array<u32>;
+  `@group(0) @binding(${ORDER_BINDING.uni}) var<uniform> uni:OrderUni;
+@group(0) @binding(${ORDER_BINDING.plan}) var<storage,read_write> plan:array<u32>;
+@group(0) @binding(${ORDER_BINDING.keyed}) var<storage,read> keyed:array<u32>;
+@group(0) @binding(${ORDER_BINDING.frame}) var<storage,read> frame:array<u32>;
+@group(0) @binding(${ORDER_BINDING.sorted}) var<storage,read_write> sorted:array<vec4u>;
+@group(0) @binding(${ORDER_BINDING.placed}) var<storage,read_write> placed:array<u32>;
 var<workgroup> held:array<vec4u,${SORT_BLOCK}>;
 fn keyedDouble(at:u32)->vec2u{return vec2u(keyed[at+1u],keyed[at]);}
 fn frameDouble(at:u32)->vec2u{return vec2u(frame[at+1u],frame[at]);}
@@ -129,7 +125,7 @@ fn boxAxis(low:vec2u,high:vec2u,eye:vec2u)->vec2u{return dMul(dAdd(dSub(low,eye)
 fn itemKey(item:u32)->vec2u{
  let at=item*${KEY_RECORD_WORDS}u;
  let own=keyed[at+13u];
- if(own!=${NOT_OWN}u){return frameDouble(uni.ownKeyBase+own*2u);}
+ if(own!=${NO_INDEX}u){return frameDouble(uni.ownKeyBase+own*2u);}
  let ex=frameDouble(0u);
  let ey=frameDouble(2u);
  let ez=frameDouble(4u);

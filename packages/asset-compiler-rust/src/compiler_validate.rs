@@ -36,8 +36,12 @@ pub(super) fn item<'a>(items: &'a [Value], id: usize, field: &str) -> Result<&'a
         .get(id)
         .ok_or_else(|| invalid(format!("{field} index {id} is out of bounds")))
 }
+/// The lowercase hexadecimal of a digest's bytes: the one spelling of a content address.
+pub(super) fn hex_of(digest: impl AsRef<[u8]>) -> String {
+    digest.as_ref().iter().map(|b| format!("{b:02x}")).collect()
+}
 pub(super) fn hash(b: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(b))
+    hex_of(Sha256::digest(b))
 }
 pub(super) fn hash_file(p: &Path) -> Result<String> {
     Ok(hash_file_read(p)?.0)
@@ -73,7 +77,7 @@ pub(super) fn hash_open(mut f: File) -> Result<(String, Option<u8>, u64)> {
         last = Some(block[n - 1]);
         bytes += n as u64;
     }
-    Ok((format!("{:x}", h.finalize()), last, bytes))
+    Ok((hex_of(h.finalize()), last, bytes))
 }
 /// Whether `name` is one relative path segment, as a source file and its sidecar must be: no
 /// `/`, `\`, `..` or NUL, under 256 bytes. Anything else, a path escape first, is refused.

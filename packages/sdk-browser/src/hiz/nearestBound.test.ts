@@ -1,28 +1,20 @@
 // REVERSE-Z: a box is hidden only if its nearest bound is SMALLER than the farthest occluder
 // of its footprint. A safe bound therefore OVERSTATES what the cluster will write — the exact
 // inverse of the sense it had in forward-Z.
+import { f32Bits, fromF32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DEPTH_LAYER_BIAS_UNITS } from '../../../sdk-core/src/lod/depthLayer.ts'
 import { hizNearestBound } from './nearestBound.fixture.ts'
-import type { HizPyramid } from './types.ts'
+import type { FlatHizPyramid } from './types.ts'
 import { hizRejects, type HizBounds } from '../../../../bench/oracles/browser/hizRejects.ts'
 import { FLOAT32_STEP } from '../../../math/src/constants.ts'
 import { lerp } from '../../../math/src/scalar/reals.ts'
 
-const f32 = new Float32Array(1),
-  bits = new Uint32Array(f32.buffer)
-const patternOf = (value: number) => {
-  f32[0] = value
-  return bits[0]
-}
-
 /** Two neighbouring `float32`s, and a double between them whose round-to-nearest **goes down**. */
 function voisins() {
-  f32[0] = 0.75
-  const low = f32[0]
-  bits[0] += 1
-  const high = f32[0]
+  const low = Math.fround(0.75)
+  const high = fromF32Bits(f32Bits(low) + 1)
   return { low, high, between: lerp(low, high, 0.2) }
 }
 
@@ -53,8 +45,8 @@ test('a coplanar layer adds to the bound exactly the units by which it advances 
   for (const layer of [1, 2, 7, 15]) {
     const bound = hizNearestBound(nearest, layer)
     assert.equal(
-      patternOf(bound),
-      patternOf(hizNearestBound(nearest, 0)) + layer * DEPTH_LAYER_BIAS_UNITS,
+      f32Bits(bound),
+      f32Bits(hizNearestBound(nearest, 0)) + layer * DEPTH_LAYER_BIAS_UNITS,
       `layer ${layer}`,
     )
     assert.ok(bound > nearest)
@@ -64,7 +56,7 @@ test('a coplanar layer adds to the bound exactly the units by which it advances 
 })
 
 /** A one-texel pyramid whose depth is `far`. */
-function pyramide(far: number): HizPyramid {
+function pyramide(far: number): FlatHizPyramid {
   return {
     data: Float32Array.from([far]),
     offsets: Int32Array.from([0]),
@@ -94,9 +86,7 @@ test('the corrected bound can only make more be drawn, never less', () => {
   assert.equal(hizRejects(pyramid, box(hizNearestBound(low - (high - low) * 64, 0))), true)
   // A layer-1 cluster whose corner is behind the occluder by exactly its layer bias will be
   // drawn in front of it: without the correction it would be rejected, with it it is not.
-  const derriere = new Float32Array(1)
-  derriere[0] = high
-  new Uint32Array(derriere.buffer)[0] -= DEPTH_LAYER_BIAS_UNITS
-  assert.equal(hizRejects(pyramid, box(derriere[0])), true)
-  assert.equal(hizRejects(pyramid, box(hizNearestBound(derriere[0], 1))), false)
+  const derriere = fromF32Bits(f32Bits(high) - DEPTH_LAYER_BIAS_UNITS)
+  assert.equal(hizRejects(pyramid, box(derriere)), true)
+  assert.equal(hizRejects(pyramid, box(hizNearestBound(derriere, 1))), false)
 })

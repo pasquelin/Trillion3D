@@ -2,8 +2,8 @@ import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { worldControls, type WorldControls } from './worldCamera.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { CONTROL_SETTINGS, type ControlSetting, type Controller } from './worldControlsSettings.ts'
-import { controlSettingAccessors } from './worldControlsAccessors.ts'
-import { characterSettingAccessors } from './worldCharacterAccessors.ts'
+import { controlSettingAccessors, type ControlSettings } from './worldControlsAccessors.ts'
+import type { CharacterSettings } from './worldCharacterAccessors.ts'
 import { controlTargets, noVehicle, type CharacterSource } from './worldControlTargets.ts'
 
 /**
@@ -18,10 +18,8 @@ import { controlTargets, noVehicle, type CharacterSource } from './worldControlT
  * `minPitch` and `maxPitch` first person and the character, the turn speeds, the stick inputs,
  * `inputResponse`, `autoForward` and `pointerLook` flight, `rotateSpeed` and `zoomSpeed` the pivot controllers, the body,
  * speeds, jump and hooks the character — so a page may set them before or after it picks its
- * controller. The character's `colliders` are kept the same way: the triangle tree is built
- * once when they are set, handed to every character `kind` makes, and rebuilt only on
- * `rebuildColliders()`. With the world's physics on, the character's body is Jolt's and meets
- * the simulation's bodies instead (`physics` below). A cruising flight or a turning orbit moves on every frame, so the
+ * controller. The character's body is Jolt's, in the world's physics, and meets the
+ * simulation's bodies (`physics` below); until the physics runs it stands where it was put. A cruising flight or a turning orbit moves on every frame, so the
  * handle asks for the first one; a paused controller, or any other kind, leaves the scene
  * still.
  */
@@ -150,11 +148,8 @@ export function worldControlsHandle(
   // The settings are accessors of their own module; they join the handle as accessors, live.
   const kept = {
     ...Object.getOwnPropertyDescriptors(controlSettingAccessors(settings, setting)),
-    ...Object.getOwnPropertyDescriptors(characterSettingAccessors(settings, setting)),
     ...Object.getOwnPropertyDescriptors(targets.accessors),
   }
-  type Kept = ReturnType<typeof controlSettingAccessors> &
-    ReturnType<typeof characterSettingAccessors> &
-    typeof targets.accessors
+  type Kept = ControlSettings & CharacterSettings & typeof targets.accessors
   return Object.defineProperties(handle, kept) as typeof handle & Kept
 }

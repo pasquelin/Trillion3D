@@ -1,4 +1,4 @@
-import { LIGHT_KIND, LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts'
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts'
 import type { LitPrograms } from '../../../lighting/deferred/contractVariants.ts'
 import {
@@ -14,7 +14,6 @@ import {
   vsmShadowMaskTiles,
   vsmTransmissionView,
 } from '../render/vsm/vsmConsumers.ts'
-import { castsShadow } from '../../../../../sdk-core/src/scene/light-shadow/casters.ts'
 import { lobesHeld, rowsWearLobes } from './lobesTarget.ts'
 import { track } from '../../../lighting/deferred/compileLedger.ts'
 
@@ -58,7 +57,6 @@ export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
   bounce: rt.bounce.wanted,
   key: keyFor('opaque', rt),
   onFailure: (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
-  unboundedReflections: rt.context.unboundedReflections === true,
 })
 
 /** What the blend and water programs are built with (`createWebgpuBlendPipelines`): the session's
@@ -75,8 +73,8 @@ export const blendContext = (rt: WebgpuPagesRuntime) => {
 }
 
 /**
- * The contract program a frame lights with, keyed on stable state alone, the store walked once
- * per epoch (#1362, `lightKinds`): narrow while the scene's lights fit a tile list (#849); shadow
+ * The contract program a frame lights with, keyed on stable state alone, the kinds the store
+ * counts as its lights change (#1362, `createLightKinds`): narrow while the scene's lights fit a tile list (#849); shadow
  * code while a light declares a shadow and `shadowed`, the shadow raster is fitted (#1249), the
  * read of a kind of light (a sun's, a local light's) while a light of that kind declares one
  * (`ShadowKinds`); rectangle code while a light is a rectangle (#1369); lobe code while a surface
@@ -90,7 +88,9 @@ function contractKey(
   lobed: boolean,
   key: Partial<ContractKey> = {},
 ) {
-  const { sun, local, rect } = lightKinds(store)
+  const sun = store.shadowedSuns > 0,
+    local = store.shadowedLocals > 0,
+    rect = store.rects > 0
   key.narrow = store.count <= LIGHT_SETTINGS.tileLights
   key.unshadowed = !shadowed || !(sun || local)
   key.rectless = !rect
@@ -101,32 +101,6 @@ function contractKey(
 }
 
 type LightStore = WebgpuPagesRuntime['lights']['store']
-/** The kinds a store's lights declare, at the epoch they were read at. */
-type LightKinds = { epoch: number; sun: boolean; local: boolean; rect: boolean }
-const kindsHeld = new WeakMap<LightStore, LightKinds>()
-
-/** Whether a light casting a shadow is a sun, one is a local light, a light is a rectangle: the
- *  store walked once per epoch (bumped by every add, change and removal), O(1) on every other call. */
-function lightKinds(store: LightStore) {
-  let kinds = kindsHeld.get(store)
-  if (kinds !== undefined && kinds.epoch === store.epoch) return kinds
-  kinds ??= { epoch: 0, sun: false, local: false, rect: false }
-  kindsHeld.set(store, kinds)
-  let sun = false,
-    local = false,
-    rect = false
-  for (let slot = 0; slot < store.count && !(sun && local && rect); slot++) {
-    const kind = store.kindOf(slot)
-    if (castsShadow(store, slot)) {
-      if (kind === LIGHT_KIND.directional) sun = true
-      else local = true
-    }
-    rect ||= kind === LIGHT_KIND.rect
-  }
-  Object.assign(kinds, { epoch: store.epoch, sun, local, rect })
-  return kinds
-}
-
 /** The lit program the frame waits for (#1362): while the image wants the contract and no compiled
  *  program can light it, its compile — never the unlit stand-in meanwhile —, else nothing. */
 export function litProgramPending(rt: WebgpuPagesRuntime) {
@@ -187,8 +161,11 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   const bounce = active && rt.bounce.wanted ? rt.bounce.probes : undefined
   contractResources.bounceGrid = bounce?.uniform
   contractResources.probes = bounce?.probes
-  contractResources.surfaceCache = bounce?.surface.view
   // What the shadow receiver offset is recomputed from: the frame's visibility buffer (#1410).
   contractResources.receiver = active ? receiverResources(rt) : undefined
+  // The share of the radiance the opaque trace wrote this image (`../../../reflections/frame.ts`),
+  // and the proxy the forward passes trace.
+  contractResources.reflection = active ? rt.gpu.reflection?.targetView : undefined
+  contractResources.proxy = active ? rt.run.gpuSelection?.proxyBuffer() : undefined
   return contractResources
 }

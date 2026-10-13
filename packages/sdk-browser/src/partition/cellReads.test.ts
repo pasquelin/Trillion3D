@@ -4,7 +4,7 @@
 // seldom, never once a frame, the holds waiting meanwhile.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { worldPage } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldPage } from '../scene/worldRootsPages.fixture.ts'
 import { noBudget, opened } from './cells.fixture.ts'
 import { cellAt, gridWorld } from './cellReads.fixture.ts'
 import { heldBy } from '../scene/worldRoots.fixture.ts'
@@ -84,7 +84,7 @@ test('a reader refusing past N pending is asked again after 0.5 s · 2^k up to 8
       flying--
       return respond()
     },
-    ({ url }) => void said.push(url),
+    ({ key }) => void said.push(key),
   )
   /** Frames every 250 ms until `end`, each after the waits over by then told their turn. */
   const frames = async (end: number, until = () => false) => {

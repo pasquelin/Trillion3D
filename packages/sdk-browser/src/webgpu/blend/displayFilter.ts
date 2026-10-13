@@ -1,10 +1,13 @@
-import { TONE_MAPPING_WGSL } from '../../lighting/toneMappingWgsl.ts'
+import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { DISPLAY_VALUE_WGSL } from '../../lighting/toneMappingWgsl.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts'
 import { programOf } from './displayFilterProgram.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
+import { DISPLAY_FILTER_PASS } from '../../stage/passLabels.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 
 /**
  * The display layers: the reference display multiplies and subtracts on a canvas of
@@ -37,12 +40,12 @@ export const displayTargets = (mode: Blending): GPUColorTargetState[] => [
  *  value `shown`, the composition's chain: exposure, curve unless unlit, sRGB. */
 export const DISPLAY_ROUTE_WGSL = wgslBlock(
   'DISPLAY_ROUTE_WGSL',
-  [TONE_MAPPING_WGSL, linearToSrgb],
+  [DISPLAY_VALUE_WGSL],
   `override DISPLAY_ROUTE:u32=0u;
 struct Route{keep:f32,tint:vec4f,add:vec4f,}
 fn displayRoute(rgb:vec3f,exposure:f32,curve:u32,unlit:bool,alpha:f32,masked:f32)->Route{
  if(DISPLAY_ROUTE==0u){return Route(1.0,vec4f(1.0),vec4f(0.0));}
- let shown=linearToSrgb(select(toneMap(rgb*exposure,curve),rgb,unlit));
+ let shown=displayValue(select(rgb*exposure,rgb,unlit),select(curve,${TONE_MAPPING_RANK.none}u,unlit));
  if(DISPLAY_ROUTE==1u){let a=alpha*masked;return Route(1.0-masked,vec4f(0.0,0.0,0.0,a),vec4f(shown*a,a));}
  return Route(1.0,vec4f(shown,1.0),vec4f(shown,1.0));
 }`,
@@ -97,7 +100,7 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
     bytes: width * height * DISPLAY_LAYER_BYTES_PER_PIXEL,
     maskGroup: device.createBindGroup({
       layout: program.mask,
-      entries: [{ binding: 0, resource: mask }],
+      entries: sequentialEntries([mask]),
     }),
     /** Set from `open` to the composition: the transparent passes attach the layers meanwhile. */
     active: false,
@@ -138,8 +141,9 @@ function displayApply(
   drawn: GPUBuffer,
   share: Float32Array<ArrayBuffer>,
 ) {
-  // The raw layers, or either temporal history: one group each, kept as long as its tint view.
-  const groups = new WeakMap<GPUTextureView, GPUBindGroup>()
+  // The raw layers, or either temporal history: three held, a group each (`bindIdentity.ts`).
+  const identity = createWebgpuBindIdentity(3),
+    groups: GPUBindGroup[] = []
   return (
     encoder: GPUCommandEncoder,
     source: readonly [GPUTextureView, GPUTextureView],
@@ -153,14 +157,16 @@ function displayApply(
       ;[share[0], share[1]] = [x, y]
       device.queue.writeBuffer(drawn, 0, share)
     }
-    let group = groups.get(source[0])
-    if (!group) {
-      const resources = [...source, sampler, { buffer: drawn }]
-      const entries = resources.map((resource, binding) => ({ binding, resource }))
-      groups.set(source[0], (group = device.createBindGroup({ layout, entries })))
-    }
+    identity.next[0] = source[0]
+    identity.next[1] = source[1]
+    if (identity.moved())
+      groups[identity.slot] = device.createBindGroup({
+        layout,
+        entries: sequentialEntries([...source, sampler, { buffer: drawn }]),
+      })
+    const group = groups[identity.slot]
     const pass = encoder.beginRenderPass({
-      label: 'Trillion3D display filter',
+      label: DISPLAY_FILTER_PASS,
       colorAttachments: presentation ? [load(target), load(presentation)] : [load(target)],
     })
     pass.setBindGroup(0, group)

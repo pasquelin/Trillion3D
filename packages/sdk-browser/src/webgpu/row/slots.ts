@@ -1,10 +1,10 @@
 import { createWebgpuRowWriters } from './writers.ts'
 import { createWebgpuRowClaims } from './claims.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { rowHasGeometry } from './pageRow.ts'
-import type { createPageRowWriter } from './pageRowWriter.ts'
-import type { createWebgpuRowState } from './state.ts'
+import type { PageRowWriter } from './pageRowWriter.ts'
+import type { WebgpuRowState } from './state.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import { createRowUse } from './rowUse.ts'
 import { createRowDemand, type InstanceClosure } from './rowDemand.ts'
@@ -17,8 +17,6 @@ import {
   rewriteRows,
   type RowSlots,
 } from './slotOps.ts'
-type Rows = ReturnType<typeof createWebgpuRowState>
-type Writer = ReturnType<typeof createPageRowWriter>
 /**
  * Ranks of the row table: a CACHE of what the GPU cut draws (#1483), sized by the view, never by
  * the placements (#1232). An instance is resident for the cut once its bytes are AND it holds a row
@@ -34,9 +32,9 @@ type Writer = ReturnType<typeof createPageRowWriter>
  * it: no hole, only a late page. A table grown in place (`grow.ts`) keeps every rank it held.
  */
 export function createWebgpuRowSlots(
-  rows: Rows,
+  rows: WebgpuRowState,
   packedPages: PageList,
-  writePageRow: Writer,
+  writePageRow: PageRowWriter,
   onResidenceChange: (rec: PageRec, page: number) => void,
   /** A counted closure over the instances, per placement: a request's readiness needs its
    *  groups' rows (`rowDemand.ts`). */
@@ -48,7 +46,6 @@ export function createWebgpuRowSlots(
     const rec = recordOf(page)!
     return !rec.transparent && rowHasGeometry(rec)
   }
-  const pages = packedPages.length
   const s: RowSlots = {
     rows,
     packedPages,
@@ -57,8 +54,8 @@ export function createWebgpuRowSlots(
     onResidenceChange,
     use,
     free: { rows: new Int32Array(0), count: 0 },
-    claims: createWebgpuRowClaims(pages),
-    demand: createRowDemand(rows, use, drawsRow, packedPages, closure),
+    claims: createWebgpuRowClaims(),
+    demand: createRowDemand(rows, use, drawsRow, closure),
     writers: createWebgpuRowWriters(rows, packedPages, writePageRow),
     count: 0,
     candidates: 0,

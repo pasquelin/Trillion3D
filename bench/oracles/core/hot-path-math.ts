@@ -1,15 +1,10 @@
 // The hot-path math of packages/math frozen: the oracles its optimised forms must
 // match bit for bit (`bench/witnesses/three/parity/core/math/primitives/{cone,coneDevelop,box}.test.ts`,
 // `bench/witnesses/three/parity/core/math/frustum/box.test.ts`), with the seeded inputs they are fed.
-import { xorshiftRandom } from '../../core/measure.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts'
 import { coneRejects } from '../../../packages/math/src/projection/projectionOracles.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
-import {
-  boxCornersInto,
-  boxEmpty,
-  boxExpandByPoint,
-} from '../../../packages/math/src/geometry/box.ts'
 
 /** Seeded floats: one in eight hostile or maximal, the others of every sign and scale. */
 export function hostileFloats(seed: number) {
@@ -145,15 +140,4 @@ export function frustumClipBoxBefore(planes: ArrayLike<number>, box: ArrayLike<n
   for (let p = 0; p < 24; p += 4) if (side(p, 1)) return 0
   for (let p = 0; p < 24; p += 4) if (side(p, 0)) return 1
   return 2
-}
-
-/** `boxTransform` unoptimised on a non-empty box: the corners written out, then folded. */
-export function boxTransformBefore(box: ArrayLike<number>, m: ArrayLike<number>) {
-  const corners = new Float64Array(24),
-    out = new Float64Array(6)
-  boxCornersInto(corners, 0, box[0], box[1], box[2], box[3], box[4], box[5], m)
-  boxEmpty(out, 0)
-  for (let at = 0; at < 24; at += 3)
-    boxExpandByPoint(out, 0, corners[at], corners[at + 1], corners[at + 2])
-  return out
 }

@@ -6,7 +6,7 @@ use super::merge::WorldDag;
 use super::records::{index, nullable, Records, DAG_MAGIC};
 use super::*;
 use crate::dag::bounds::cluster_bounds;
-use crate::geometry_page::Encoded;
+use trillion3d_page_codec::encode::Encoded;
 
 /// Where each super-root's page lies in the binary, and the page itself; none for a placed object.
 pub(super) type Pages<'a> = (&'a [Option<(usize, usize)>], &'a [Option<Encoded>]);
@@ -78,14 +78,16 @@ fn cluster(
     page_facts(r, encoded[slot].as_ref())
 }
 
-/// `world-roots.dag` of `world`'s clusters and groups: a 24-byte header (magic, version, the two
-/// counts, the pool's length, zero), then 176-byte clusters — level, triangles, then the primitive
+/// `world-roots.dag` of `world`'s clusters, groups and culling nodes: a 24-byte header (magic,
+/// version, the two counts, the pool's length, the node count), then 176-byte clusters, in the
+/// order of the world's culling hierarchy (`WorldDag::in_culling_order`) — level, triangles, then the primitive
 /// it wears, bundle, offset and origin (`u32::MAX` for none), then as `f64` the error, the
 /// parent's (NaN for a root), the sphere, the parent's (NaN for a root), the minimum and the
 /// maximum, then its page's length, vertex count, index count, attribute flags and decoded bytes,
 /// and its quantization error as an `f32` (all zero for a placed object, which has no page) —,
 /// 64-byte groups — level, its children and outputs in the pool, zero, then as `f64` its error and
-/// sphere — and the pool.
+/// sphere —, 120-byte culling nodes — the fifteen `f64` of a primitive's (`CullingNode::flat`) — and
+/// the pool.
 pub(super) fn encode_dag(
     placed: (&WorldDag, &[Instance]),
     pages: Pages,
@@ -99,7 +101,7 @@ pub(super) fn encode_dag(
         world.clusters.len() as u32,
         world.groups.len() as u32,
         0,
-        0,
+        index(world.culling.len())?,
     ] {
         r.word(value);
     }
@@ -113,6 +115,12 @@ pub(super) fn encode_dag(
         r.word(0);
         r.float(group.error);
         r.floats(Some(&group.sphere));
+    }
+    // Written as they are: a ceiling of -1 marks a subtree holding a root.
+    for node in &world.culling {
+        node.flat()
+            .into_iter()
+            .for_each(|value| r.out.extend(value.to_le_bytes()));
     }
     Ok(r.end(16))
 }

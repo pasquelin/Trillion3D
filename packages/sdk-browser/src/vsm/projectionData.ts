@@ -5,7 +5,7 @@
  *
  * The layout is the WGSL struct's (`VsmProjectionRecord`, `projectionDataWgsl.ts`); `RECORD_OFFSET`
  * follows it, and `projectionData.test.ts` holds the two together. Its order is by role: a record is
- * uploaded by the words that changed (`vsmWriteChanged`), and the words between two changed ones
+ * uploaded by the words that changed (`writeChanged`), and the words between two changed ones
  * go up with them: the words a light keeps while it lives (its kind, emitter, finest mip and level)
  * open the record, those its view and its turn move follow, the origin shift and the clipmap's
  * origin, which move with the eye every frame, lie together, and the corner, the range and the pad
@@ -103,7 +103,7 @@ const viewsOf = (out: ArrayBuffer) => {
     )
   return views
 }
-/** The words of an image of records, as an upload sends them (`vsmWriteChanged`). */
+/** The words of an image of records, as an upload sends them (`writeChanged`). */
 export const vsmProjectionWords = (image: ArrayBuffer) => viewsOf(image).u
 
 /** Writes record `index` (the VSM id) of the projection data buffer image `out`. */

@@ -1,8 +1,8 @@
 import { rootOf } from '../../page/selection/selection.ts'
-import { forEachDirtyRun } from '../row/dirty.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { ROW_LOD_FLOATS, writeRowLod } from './rowLodWords.ts'
 import { rowBufferBytes } from './rowBuffers.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /** One row's detail words per row of `casterSlots` rows, and their CPU copy. */
 const rowLodBuffer = (device: GPUDevice, casterSlots: number) => ({
@@ -25,7 +25,7 @@ function uploadRowLodRun(rt: WebgpuPagesRuntime, from: number, to: number) {
   for (let row = from; row <= to; row++) {
     const page = rows.packedPageIndex[row],
       rec = row < rows.blendFirst ? rows.packedRecs[row] : undefined,
-      root = rec && rootOf(selectionRoots, placement.rootOfPacked[page])
+      root = rec && rootOf(selectionRoots, rootOfPacked(placement, page))
     const ready = selection?.isReady(page) ?? true,
       childReady = selection?.isChildReady(page) ?? true
     writeRowLod(packed, row, rec, root, ready, childReady)
@@ -58,11 +58,5 @@ export function uploadRowLods(rt: WebgpuPagesRuntime, device: GPUDevice) {
     if (casterSlots > 0) uploadRowLodRun(rt, 0, casterSlots - 1)
     return
   }
-  forEachDirtyRun(
-    rows.dirtyMarks,
-    rows.dirtyFrom,
-    Math.min(rows.dirtyTo, casterSlots - 1),
-    rt,
-    uploadRowLodRun,
-  )
+  rows.forEachDirtyRun(rt, uploadRowLodRun, casterSlots - 1)
 }

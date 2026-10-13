@@ -2,10 +2,15 @@ import { maxStretch } from '../../../../sdk-core/src/index.ts'
 import { FRAME_VEC4, type PackedDag } from './types.ts'
 import { sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
 
-/** First per-primitive word of primitive `w` in the frame buffer, behind its six planes: the
- *  stretch, then the root (`+ 1`), the record shift (`+ 2`) and the never-culled mark (`+ 3`), as
- *  `primitiveFrameWords` lays them. */
-export const primitiveWordAt = (w: number) => (w * FRAME_VEC4 + 6) * 4
+/** First word of primitive `w` in the frame buffer, its row: the stretch, then the root (`+ 1`),
+ *  the record shift (`+ 2`), the never-culled mark (`+ 3`), its first page (`+ 4`) — what its shared
+ *  nodes' pages are counted from —, the open counts it holds of its own (`+ 5`, `heldOpen.ts`) and
+ *  its page count (`+ 6`), as `primitiveFrameWords` lays them. */
+export const primitiveWordAt = (w: number) => w * FRAME_VEC4 * 4
+/** The frame words of a placement's first page and of the open counts it holds (`primitiveWordAt`). */
+const PAGE_BASE_WORD = 4,
+  PAGE_COUNT_WORD = 6
+export const HELD_BY_WORD = 5
 
 /**
  * Object-to-view stretch of the `count` primitives of `moved` whose linear part moved, recomputed
@@ -79,7 +84,7 @@ export function changedWorlds(
  */
 export function primitiveFrameWords(
   packed: Pick<PackedDag, 'worldCount' | 'worldStretch' | 'rootNodes' | 'recordShift'> &
-    Partial<Pick<PackedDag, 'mark'>>,
+    Partial<Pick<PackedDag, 'mark' | 'cutLinks' | 'heldOpen'>>,
 ) {
   const worldCount = Math.max(1, packed.worldCount)
   const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4)
@@ -87,11 +92,11 @@ export function primitiveFrameWords(
   return frameData
 }
 
-/** Primitive `w`'s four frame words (`primitiveFrameWords`), written into `frameData`. */
+/** Primitive `w`'s frame words (`primitiveFrameWords`), written into `frameData`. */
 export function writePrimitiveWords(
   frameData: Float32Array,
   packed: Pick<PackedDag, 'worldStretch' | 'rootNodes' | 'recordShift'> &
-    Partial<Pick<PackedDag, 'mark'>>,
+    Partial<Pick<PackedDag, 'mark' | 'cutLinks' | 'heldOpen'>>,
   w: number,
 ) {
   const at = primitiveWordAt(w),
@@ -100,4 +105,7 @@ export function writePrimitiveWords(
   frameInts[at + 1] = packed.rootNodes[w]
   frameInts[at + 2] = packed.recordShift[w]
   frameInts[at + 3] = packed.mark?.[w] ?? 0
+  frameInts[at + PAGE_BASE_WORD] = packed.cutLinks?.[w]?.pageBase ?? 0
+  frameInts[at + HELD_BY_WORD] = packed.heldOpen?.heldBy(w) ?? 0
+  frameInts[at + PAGE_COUNT_WORD] = packed.cutLinks?.[w]?.pageCount ?? 0
 }

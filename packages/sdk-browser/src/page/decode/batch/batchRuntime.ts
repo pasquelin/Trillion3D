@@ -1,24 +1,18 @@
-import {
-  BOX_VALUES,
-  MATRIX_VALUES,
-  boxTransformBatch,
-  multiplyMatrix4Batch,
-} from '../../../../../sdk-core/src/index.ts'
-import { f64, runTimed, size, batchBuffer, f64Views, type MathLot } from './batchLot.ts'
+import { BOX_VALUES, MATRIX_VALUES } from '../../../../../sdk-core/src/index.ts'
+import { f64, size, batchBuffer, type MathLot } from './batchLot.ts'
+import type { SdkWasm } from '../../../wasm/sdkWasm.ts'
+import { mathBatchModule } from './batchState.ts'
 
 /**
  * Initial two batches: box transformation and 4×4 matrix product, both operations
- * whose engine cost is proportional to element count. `batchLot.ts` holds buffer,
- * timed execution, and common shape.
+ * whose engine cost is proportional to element count, each run by its WebAssembly kernel
+ * (`packages/page-codec-wasm/src/wasm_math.rs`), the bits of `boxTransform` and `multiplyMatrix4`.
+ * `batchLot.ts` holds buffer and common shape.
  *
  * Buffers are exposed via ACCESSORS rather than fixed fields: each read re-queries views from
  * buffer, which rebuilds them if module memory grew in between. A caller thus always writes
  * to live bytes without needing to know that memory growth occurred.
  */
-
-/** Names under which governor holds medians, and keys of published report. */
-const BOX_TRANSFORM_BATCH = 'boxTransformBatch'
-const MULTIPLY_MATRIX4_BATCH = 'multiplyMatrix4Batch'
 
 /** A batch of boxes to move by matrices, with its buffers. */
 export interface BoxTransformLot extends MathLot {
@@ -40,65 +34,67 @@ export interface MultiplyLot extends MathLot {
   readonly out: Float64Array
 }
 
-/** A batch of `n` boxes transformed by `n` matrices. */
-export async function createBoxTransformLot(n: number): Promise<BoxTransformLot> {
-  const { wasm, blocks, release } = await batchBuffer([
-    { type: 'f64', length: n * BOX_VALUES },
-    { type: 'f64', length: n * MATRIX_VALUES, stride: MATRIX_VALUES },
-    { type: 'f64', length: n * BOX_VALUES },
-  ])
-  const [inputOffset, matrices, outputOffset] = blocks().map((block) => block.offset)
-  const wasmRun = wasm
-    ? () => wasm.math_box_transform_batch(outputOffset, inputOffset, matrices, n)
-    : null
-  return {
+/** A batch of `n` elements over three `f64` blocks of `values` numbers an element, read through
+ *  the views `names` (re-queried at each read); it holds `count` elements when its first block
+ *  does, and `kernel` runs it on the blocks' offsets over its first `count` elements, never past
+ *  `n`. Made at once, in the module arrived (`mathBatchModule`); `null` when it refuses its size. */
+function threeBlockLot<K extends string>(
+  n: number,
+  values: readonly [number, number, number],
+  names: readonly [K, K, K],
+  kernel: (wasm: SdkWasm, offsets: readonly number[], count: number) => void,
+) {
+  const buffer = batchBuffer(values.map((v) => ({ type: 'f64', length: n * v }) as const))
+  if (!buffer) return null
+  const { wasm, blocks, release } = buffer
+  const offsets = blocks().map((block) => block.offset)
+  const lot = {
     n,
-    shared: wasm !== null,
-    get boxes() {
-      return f64(blocks()[0])
-    },
-    get mats() {
-      return f64(blocks()[1])
-    },
-    get out() {
-      return f64(blocks()[2])
-    },
-    holds: (count) => count > 0 && size(blocks(), 0) === count * BOX_VALUES,
-    run: () => {
-      const b = blocks()
-      return runTimed(BOX_TRANSFORM_BATCH, n, wasmRun, () =>
-        boxTransformBatch(f64(b[2]), f64(b[0]), f64Views(b[1]), n),
-      )
-    },
+    holds: (count: number) => count > 0 && size(blocks(), 0) === count * values[0],
+    run: (count = n) => kernel(wasm, offsets, Math.min(count, n)),
     release,
   }
+  names.forEach((name, at) =>
+    Object.defineProperty(lot, name, { get: () => f64(blocks()[at]), enumerable: true }),
+  )
+  return lot as MathLot & Readonly<Record<K, Float64Array>>
 }
 
-/** A batch of `n` products `out[i] = a[i] · b[i]`. */
-export async function createMultiplyLot(n: number): Promise<MultiplyLot> {
-  const request = { type: 'f64', length: n * MATRIX_VALUES, stride: MATRIX_VALUES } as const
-  const { wasm, blocks, release } = await batchBuffer([request, request, request])
-  const [left, right, outputOffset] = blocks().map((block) => block.offset)
-  const wasmRun = wasm ? () => wasm.math_multiply_matrix4_batch(outputOffset, left, right, n) : null
-  return {
+/** A batch of `n` boxes transformed by `n` matrices, made at once in the module arrived; `null`
+ *  when it refuses its size. */
+export const boxTransformLot = (n: number): BoxTransformLot | null =>
+  threeBlockLot(
     n,
-    shared: wasm !== null,
-    get a() {
-      return f64(blocks()[0])
-    },
-    get b() {
-      return f64(blocks()[1])
-    },
-    get out() {
-      return f64(blocks()[2])
-    },
-    holds: (count) => count > 0 && size(blocks(), 0) === count * MATRIX_VALUES,
-    run: () => {
-      const b = blocks()
-      return runTimed(MULTIPLY_MATRIX4_BATCH, n, wasmRun, () =>
-        multiplyMatrix4Batch(f64Views(b[2]), f64Views(b[0]), f64Views(b[1]), n),
-      )
-    },
-    release,
-  }
+    [BOX_VALUES, MATRIX_VALUES, BOX_VALUES],
+    ['boxes', 'mats', 'out'],
+    (wasm, [boxes, mats, out], count) => wasm.math_box_transform_batch(out, boxes, mats, count),
+  )
+
+/** `boxTransformLot`, once the module has arrived. */
+export async function createBoxTransformLot(n: number) {
+  await mathBatchModule()
+  return boxTransformLot(n)
+}
+
+/** A batch of `n` products `out[i] = a[i] · b[i]`, made at once in the module arrived; `null`
+ *  when it refuses its size. */
+export const multiplyLot = (n: number): MultiplyLot | null =>
+  threeBlockLot(
+    n,
+    [MATRIX_VALUES, MATRIX_VALUES, MATRIX_VALUES],
+    ['a', 'b', 'out'],
+    (wasm, [a, b, out], count) => wasm.math_multiply_matrix4_batch(out, a, b, count),
+  )
+
+/** `multiplyLot`, once the module has arrived. */
+export async function createMultiplyLot(n: number) {
+  await mathBatchModule()
+  return multiplyLot(n)
+}
+
+/** `lot`, made for `n` elements: refused by name when the module refused its size. A lot is the
+ *  one path of its kernel: no loop of the single-element function stands in for it. */
+export function madeLot<T>(lot: T | null, n: number): T {
+  if (!lot) throw new Error(`MATH_LOT_REFUSED: the module refused a lot of ${n} elements`)
+  return lot
 }

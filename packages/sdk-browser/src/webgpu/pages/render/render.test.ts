@@ -1,6 +1,7 @@
 // The occluder history follows the drawn view's fingerprint (`../../../frame/viewRevision.ts`): a
 // still view keeps it, a moved view, projection or viewport lets every row leave the occluders
 // again, and a motion a held image read stays owed to the next drawn one.
+import { runsOf } from '../../row/dirty.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
@@ -9,8 +10,8 @@ import { createFrameGateCore } from '../../../frame/gateCore.ts'
 import { engineCamera } from '../../../camera/camera.fixture.ts'
 import { moveRootRows } from './movedRoot.ts'
 import { createWebgpuRowState } from '../../row/state.ts'
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
+import { ROW_WORDS } from '../../../visibility/types.ts'
 
 const VIEWPORT: [number, number] = [800, 600]
 
@@ -81,7 +82,6 @@ test('invalidateOccluderHistory drops the occluder history', () => {
 // A moved model rewrites its own rows, not the scene's. The table's age must not advance on
 // every move: that would write every row, every corner and every transparent corner again, and
 // drop the whole scene's occlusion history, each image a model moved.
-const ROW_WORDS = PAGE_INFO_STRIDE / 4
 
 /** A root of `count` clusters, all placed by the same world. */
 function root(name: string, count: number, transparent = false): ClusterRoot<PageRec> {
@@ -107,7 +107,7 @@ function scene(terrain: number, model: number, blendSlots = 0) {
   const rows = createWebgpuRowState(pages, terrain + model, blendSlots)
   rows.pageTableFloats = new Float32Array(rows.casterSlots * ROW_WORDS)
   for (let row = 0; row < terrain + model; row++) {
-    rows.rowOfPage[row] = row
+    rows.setRowOf(row, row)
     rows.packedPageIndex[row] = row
   }
   rows.packedCount = terrain + model
@@ -123,8 +123,7 @@ test('a model of N rows moved in a scene of M rows rewrites N rows', () => {
   ;(moving.world.elements as Float64Array)[12] = 3
   assert.equal(moveRootRows(rt, moving, 0), model)
   // The table travels for the model's rows alone, and keeps its age.
-  assert.equal(rows.dirtyFrom, terrain)
-  assert.equal(rows.dirtyTo, terrain + model - 1)
+  assert.deepEqual(runsOf(rows.forEachDirtyRun), [[terrain, terrain + model - 1]])
   assert.equal(rows.tableEpoch, 1)
   const after = rows.pageTableFloats!
   for (let row = 0; row < terrain + model; row++) {
@@ -145,18 +144,18 @@ test('a model of N rows moved in a scene of M rows rewrites N rows', () => {
 test('a transparent model claims no row: its corners are sent again, no row is', () => {
   const { rt, rows, glass } = scene(4, 2)
   assert.equal(moveRootRows(rt, glass, 0), 0)
-  assert.equal(rows.dirtyTo, -1)
+  assert.equal(rows.dirtyCount, 0)
   assert.equal(rt.blendState.occlusionEpoch, -1)
 })
 
 test('a moved blended model moves its shadow caster rows, and those alone', () => {
   const { rt, rows, glass } = scene(4, 2, 2)
   // The glass casts from the rows behind the visibility rows, in reverse order.
-  rows.blendRowOf[6] = 7
-  rows.blendRowOf[7] = 6
+  rows.setBlendRowOf(6, 7)
+  rows.setBlendRowOf(7, 6)
   ;(glass.world.elements as Float64Array)[12] = 5
   assert.equal(moveRootRows(rt, glass, 0), 2)
-  assert.deepEqual([rows.dirtyFrom, rows.dirtyTo], [6, 7], 'the caster rows travel, no other')
+  assert.deepEqual(runsOf(rows.forEachDirtyRun), [[6, 7]], 'the caster rows travel, no other')
   for (let row = 0; row < rows.casterSlots; row++)
     assert.equal(rows.pageTableFloats![row * ROW_WORDS + 12], row >= 6 ? 5 : 0, `row ${row}`)
 })

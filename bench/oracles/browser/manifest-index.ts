@@ -9,7 +9,7 @@ import type {
 type PageWithGeometry = Page & { geometry: GeometryPageDescriptor }
 const hasGeometry = (page: Page): page is PageWithGeometry => !!page.geometry
 
-/** `createExplorerPageSources`: four `flatMap` over every page of the manifest. */
+/** `openExplorerPageSources`: four `flatMap` over every page of the manifest. */
 export function referenceIndexManifestPages(metadata: ClusterManifest) {
   const pages = [
     ...new Map(metadata.primitives.flatMap((p) => p.pages).map((p) => [p.url, p])).values(),

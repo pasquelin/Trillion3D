@@ -1,15 +1,14 @@
 // Each pass's GPU time per frame on the bench's own timer, every pass of every frame the engine did
 // not time itself, by label: its work apart from its wait, whether its timer can be trusted, and
 // what it encoded (workgroups, invocations, vertices, bytes).
-import { PASSES } from '../../packages/sdk-browser/src/stage/passTable.ts'
+import { gpuPassStageOf } from '../../packages/sdk-browser/src/stage/mapping.ts'
 import type { FrameRecord } from './frames.ts'
 import { emptyWork, type PassWork } from './passWorkHooks.ts'
 import { passKey, spread } from './summary.ts'
 
-/** The stage a bench-timed pass belongs to, by its label: the engine's table, `shadows` for a
- *  virtual shadow map pass, else `unlabelled` — a pass the engine names nowhere. */
-const stageOfLabel = (label: string) =>
-  PASSES[label]?.[0] ?? (label.startsWith('vsm.') ? 'shadows' : 'unlabelled')
+/** The stage a bench-timed pass belongs to, by its label: the engine's declaration, else
+ *  `unlabelled` — a pass the engine declares nowhere. */
+const stageOfLabel = (label: string) => gpuPassStageOf(label) ?? 'unlabelled'
 
 const WORK_KEYS = Object.keys(emptyWork()) as (keyof PassWork)[]
 

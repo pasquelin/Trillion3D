@@ -7,9 +7,9 @@ import { startServer, type Capture } from '../../../tests/kit/server/staticServe
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import { fingerprintBuild } from '../../../scripts/write-build-provenance.ts'
 import { assetIdentity } from '../report/provenance.ts'
-import { readOptions, resolveMounts, equipSide, sdkEntryUrl } from '../harness/options.ts'
-import { isDist } from '../harness/dists.ts'
-import { isEngine, resolveCache, sideReport } from '../harness/sideOptions.ts'
+import { readOptions, resolveMounts } from '../harness/options.ts'
+import { equipSide, isEngine, resolveCache, sideReport } from '../harness/sideOptions.ts'
+import { sdkEntryUrl, isDist } from '../harness/dists.ts'
 import { ASSETS, DEFAULT_SCENE, sceneDerived, sceneOf } from '../assets/scene.ts'
 import { PATH_POSES, PATH_VERSION, poseAt, trajectoryPoses } from './poses.ts'
 import { readStreet } from '../street/street.ts'
@@ -17,9 +17,9 @@ import { benchLights } from '../lighting/lamps.ts'
 import { measurePayload, withGpuIncidents } from '../series/seriesPage.ts'
 import { checkpointIndices, trajectoryVerdict } from './trajectoryProof.ts'
 import type { captureTrajectory } from './trajectoryPage.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
 async function main() {
-  const root = resolve(import.meta.dirname, '../../..')
   const { flags, settings, out, resources } = readOptions(
     [
       '--engine',
@@ -30,7 +30,7 @@ async function main() {
       'cache',
       ...process.argv.slice(2),
     ],
-    root,
+    REPOSITORY_ROOT,
   )
   const indices = checkpointIndices(settings.frames, Number(flags.get('checkpoint-every') ?? 60))
   if (settings.pixelErrors.length !== 1) throw new Error('trajectory requires one pixelError')
@@ -42,17 +42,16 @@ async function main() {
     throw new Error('use --cache for the identical cache on both sides')
   if (settings.movingLight || settings.movingNode || settings.livePools)
     throw new Error('trajectory supports camera motion only, with fixed memory budgets')
-  settings.stageProfile = false
   const named = flags.get('scene')
   const cache = resolveCache(flags.get('cache') ?? sceneDerived(named ?? DEFAULT_SCENE, ASSETS))!
   // A `--cache` alone names its scene: the evidence never records Sponza for another cache.
   const scene = named ?? sceneOf(cache)
   const sides = names.map((name) => {
-    const dist = resolve(flags.get(name) ?? join(root, 'dist'))
+    const dist = resolve(flags.get(name) ?? join(REPOSITORY_ROOT, 'dist'))
     flags.set(`cache-${name}`, cache)
     const side = equipSide({ name, dist, from: 'folder' }, flags, settings)
     side.manifestUrl = `/cache/${name}/native/full/manifest.json`
-    if (!isEngine(side.engine) || side.variant || side.errorMetric)
+    if (!isEngine(side.engine) || side.variant)
       throw new Error('trajectory requires the standard WebGPU engine on both sides')
     if (!isDist(dist)) throw new Error(`built SDK missing: ${dist}`)
     return side
@@ -77,13 +76,13 @@ async function main() {
     errors: [] as string[],
   }
   // Refuse to overwrite goldens or previous evidence.
-  const outputPath = relative(join(root, '.mesure/out'), out)
+  const outputPath = relative(join(REPOSITORY_ROOT, '.mesure/out'), out)
   if (!outputPath || outputPath.startsWith('..'))
     throw new Error('--out must be under .mesure/out/')
   await mkdir(dirname(out), { recursive: true })
   await mkdir(out, { recursive: false })
   const { server, port } = await startServer({
-    mounts: resolveMounts(root, sides, resources),
+    mounts: resolveMounts(REPOSITORY_ROOT, sides, resources),
     captures,
     isolation: settings.isolation,
   })

@@ -24,9 +24,10 @@ test("the narrow resolve bounds its light array, the rest of its program the wid
 })
 
 test('a narrow scene is lit by the narrow program, a wide one never is', async () => {
-  const { device } = fakeDevice()
+  const gpu = fakeDevice(),
+    { device } = gpu
   const lighting = await createDeferredLighting(device)
-  const { labels, draw } = recorder(lighting)
+  const { labels, draw } = recorder(gpu, lighting)
   const frame = (narrow: boolean) => draw({ narrow })
   assert.equal(frame(true), false, 'unlit while the narrow program compiles')
   await lighting.settle()
@@ -35,7 +36,11 @@ test('a narrow scene is lit by the narrow program, a wide one never is', async (
   // never by the narrow program.
   assert.equal(frame(false), true, 'the wide twin is ready with the narrow program')
   assert.equal(frame(true), true)
-  assert.deepEqual(labels, ['DIRECT_NARROW_LIGHTING', 'DIRECT_LIGHTING', 'DIRECT_NARROW_LIGHTING'])
+  assert.deepEqual(labels(), [
+    'DIRECT_NARROW_LIGHTING',
+    'DIRECT_LIGHTING',
+    'DIRECT_NARROW_LIGHTING',
+  ])
   lighting.dispose()
 })
 
@@ -43,9 +48,10 @@ test('a scene with no shadow slot is lit with no shadow code, a shadowed one nev
   const unshadowed = contractLightingShader(false, { unshadowed: true, lobeless: true })
   assert.doesNotMatch(unshadowed, /shade=shadowFactor\(|shadowTransmission;/, 'no shadow read')
   assert.match(contractLightingShader(false), /let shade=shadowFactor\(/)
-  const { device } = fakeDevice()
+  const gpu = fakeDevice(),
+    { device } = gpu
   const lighting = await createDeferredLighting(device)
-  const { labels, draw } = recorder(lighting)
+  const { labels, draw } = recorder(gpu, lighting)
   const frame = (unshadowed: boolean) => draw({ unshadowed })
   frame(true)
   await lighting.settle()
@@ -53,7 +59,7 @@ test('a scene with no shadow slot is lit with no shadow code, a shadowed one nev
   frame(true)
   frame(false)
   frame(true)
-  assert.deepEqual(labels, [
+  assert.deepEqual(labels(), [
     'DIRECT_UNSHADOWED_LIGHTING',
     'DIRECT_LIGHTING',
     'DIRECT_UNSHADOWED_LIGHTING',

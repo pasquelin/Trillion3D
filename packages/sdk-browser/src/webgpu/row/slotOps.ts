@@ -2,9 +2,9 @@ import { sortPages } from '../../../../sdk-core/src/index.ts'
 import { closeHoles, type createWebgpuRowWriters } from './writers.ts'
 import { serveClaims, type createWebgpuRowClaims } from './claims.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { PageList } from '../pages/prepare/catalogue.ts'
+import type { PageList } from '../../page/selection/catalogue.ts'
 import { awaitsPageBytes } from './pageSlots.ts'
-import type { createWebgpuRowState } from './state.ts'
+import type { WebgpuRowState } from './state.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { createRowUse } from './rowUse.ts'
 import type { createRowDemand } from './rowDemand.ts'
@@ -12,7 +12,7 @@ import type { createRowDemand } from './rowDemand.ts'
 /** What the row cache's passes share (`slots.ts`): the table, the catalogue, the ranks freed, the
  *  claims, the rows' use, the cut's demand, the writers, and the counts of the pass. */
 export type RowSlots = {
-  rows: ReturnType<typeof createWebgpuRowState>
+  rows: WebgpuRowState
   packedPages: PageList
   recordOf: (page: number) => PageRec | undefined
   drawsRow: (page: number) => boolean
@@ -34,10 +34,10 @@ export type RowSlots = {
 
 /** True when a page's rank really carries its current place in the cache. */
 function rowWritten({ rows }: RowSlots, page: number) {
-  const row = rows.rowOfPage[page]
+  const row = rows.rowOf(page)
   return (
     row >= 0 &&
-    rows.rowOffsetWords[row] === rows.residentOffsetWords[page] &&
+    rows.rowOffsetWords[row] === rows.offsetOf(page) &&
     rows.rowEpoch[row] === rows.tableEpoch
   )
 }
@@ -47,9 +47,9 @@ function rowWritten({ rows }: RowSlots, page: number) {
 function setResident(s: RowSlots, page: number, resident: boolean) {
   const { rows } = s
   const value = resident ? 1 : 0
-  if (rows.residentFlags[page] === value) return
+  if (rows.residentFlag(page) === value) return
   const rec = s.recordOf(page)!
-  rows.residentFlags[page] = value
+  rows.setResidentFlag(page, value)
   rows.noteResidencyChange(page)
   s.onResidenceChange(rec, page)
   if (!rec.transparent) s.candidates += resident ? 1 : -1
@@ -62,8 +62,8 @@ function setResident(s: RowSlots, page: number, resident: boolean) {
  *  range and the image its resources. */
 function followPlace(s: RowSlots, page: number) {
   const { rows, writers } = s
-  const row = rows.rowOfPage[page],
-    offset = rows.residentOffsetWords[page]
+  const row = rows.rowOf(page),
+    offset = rows.offsetOf(page)
   if (row < 0 || rows.rowEpoch[row] !== rows.tableEpoch || rows.rowOffsetWords[row] === offset)
     return
   writers.replace(row, page, offset)
@@ -76,14 +76,14 @@ function followPlace(s: RowSlots, page: number) {
 export function releaseRow(s: RowSlots, page: number) {
   const { rows, free } = s
   const rec = s.recordOf(page)!
-  const resident = rows.residentOffsetWords[page] >= 0 && !awaitsPageBytes(rec)
+  const resident = rows.offsetOf(page) >= 0 && !awaitsPageBytes(rec)
   const wantsRow = resident && s.drawsRow(page)
   if (wantsRow) followPlace(s, page)
   setResident(s, page, resident && (!wantsRow || rowWritten(s, page)))
-  if (wantsRow) return !rows.residentFlags[page]
-  const row = rows.rowOfPage[page]
+  if (wantsRow) return !rows.residentFlag(page)
+  const row = rows.rowOf(page)
   if (row < 0) return false
-  rows.rowOfPage[page] = -1
+  rows.setRowOf(page, -1)
   free.rows[free.count++] = row
   s.use.forget(row)
   s.writers.state.changed = true
@@ -95,7 +95,7 @@ function evictRow(s: RowSlots) {
   const row = s.use.victim(s.count)
   if (row < 0) return -1
   const page = s.rows.packedPageIndex[row]
-  s.rows.rowOfPage[page] = -1
+  s.rows.setRowOf(page, -1)
   setResident(s, page, false)
   return row
 }
@@ -104,14 +104,14 @@ function evictRow(s: RowSlots) {
  *  cut — a rank no cut used for a while; its flag rises after. False when no rank is left. */
 export function placeRow(s: RowSlots, page: number) {
   const { rows, free } = s
-  const own = rows.rowOfPage[page],
+  const own = rows.rowOf(page),
     asked = s.demand.wanted(page)
   let row = own
   if (row < 0)
     row = free.count ? free.rows[--free.count] : s.count < rows.blendFirst ? s.count++ : -1
   if (row < 0 && asked) row = evictRow(s)
   if (row < 0) return false
-  s.writers.assign(row, page, rows.residentOffsetWords[page])
+  s.writers.assign(row, page, rows.offsetOf(page))
   // A row a readback's closure holds is in use while it holds it (`rowUse.ts`).
   if (s.demand.holds(page)) s.use.hold(row)
   else if (asked) s.use.stamp(row)
@@ -131,7 +131,7 @@ export function closeFreeRows(s: RowSlots) {
 export function rebuildRows(s: RowSlots) {
   const { rows } = s
   const held = heldPages(s)
-  rows.rowOfPage.fill(-1)
+  rows.clearRows()
   s.count = 0
   s.free.count = 0
   s.use.reset()
@@ -140,11 +140,10 @@ export function rebuildRows(s: RowSlots) {
   // Every resident instance while the table has room, in catalogue order: `place` cannot refuse
   // below its end. An instance neither in the pool nor flagged has nothing to release: two
   // words read, not its record.
-  const { residentOffsetWords, residentFlags } = rows
   for (let page = 0; page < s.packedPages.length && s.count < rows.blendFirst; page++)
-    if ((residentOffsetWords[page] >= 0 || residentFlags[page]) && s.release(page)) s.place(page)
+    if ((rows.offsetOf(page) >= 0 || rows.residentFlag(page)) && s.release(page)) s.place(page)
   let dropped = 0
-  for (const page of held) if (rows.rowOfPage[page] < 0) held[dropped++] = page
+  for (const page of held) if (rows.rowOf(page) < 0) held[dropped++] = page
   s.demand.touched(held, dropped)
   s.demand.restart()
 }
@@ -155,7 +154,7 @@ function heldPages({ rows, count }: RowSlots) {
   let n = 0
   for (let row = 0; row < count; row++) {
     const page = rows.packedPageIndex[row]
-    if (rows.rowOfPage[page] === row) pages[n++] = page
+    if (rows.rowOf(page) === row) pages[n++] = page
   }
   return pages.subarray(0, n)
 }
@@ -166,7 +165,7 @@ export function rewriteRows(s: RowSlots) {
   for (let row = 0; row < s.count; row++) {
     const page = rows.packedPageIndex[row]
     // Its own row: `place` cannot refuse it.
-    if (rows.rowOfPage[page] === row && s.release(page)) s.place(page)
+    if (rows.rowOf(page) === row && s.release(page)) s.place(page)
   }
 }
 
@@ -179,7 +178,7 @@ export function followArrivals(s: RowSlots, budget?: FrameClock) {
     const page = rows.touched.pages[i]
     if (!s.release(page)) continue
     const room = s.count - free.count + claims.count < rows.blendFirst
-    if (rows.rowOfPage[page] >= 0 || demand.wanted(page) || room) claims.add(page)
+    if (rows.rowOf(page) >= 0 || demand.wanted(page) || room) claims.add(page)
   }
   // No rank left: an arrival no cut asked for waits for none; one asked for counts as denied.
   const refused = (page: number) => void (demand.wanted(page) && s.denied++)

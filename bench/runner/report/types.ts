@@ -1,15 +1,10 @@
 // Shared shapes of the harness measurement: what `series/series.ts` builds, `bench.ts` assembles into
-// `measure.json`, and everything under `bench/runner/` (`summary/summary.ts`, `summary/summaryCompute.ts`,
+// `measure.json`, and everything under `bench/runner/` (`summary/summary.ts`,
 // `summary/summaryMemory.ts`, `summary/summaryTextures.ts`, `report/`) reads back. One record type here, typed
 // once from the engine contracts, rather than cast at every reader.
-import type {
-  CameraPose,
-  FrameMetrics,
-  StageProfile,
-} from '../../../packages/sdk-core/src/index.ts'
+import type { CameraPose, FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
 import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/src/index.ts'
-import type { Distribution, PassesGpu } from '../summary/summaryPasses.ts'
-import type { BenchSettings } from '../harness/options.ts'
+import type { BenchSettings } from '../harness/benchSettings.ts'
 import type { Bounds } from '../trajectory/poses.ts'
 import type { LightsPlan } from '../lighting/lamps.ts'
 import type { LimitsRecord } from '../harness/limits.ts'
@@ -102,19 +97,11 @@ export type ImageDiff =
 
 /** One row of the series table: one side, one view, one threshold (`series/series.ts::runSeries`). */
 export interface Row {
-  cpuFrameMs: Distribution
   engine: string
-  gpuFrameMs: Distribution
-  imageSyncMs: Distribution
-  rafIntervalMs: Distribution
-  stageProfile: StageProfile | null
-  passesGpu: PassesGpu | null
-  preparationMs: number | null
   settleFrames: number | null
   liveTuning: LiveTuning | null
   network: NetworkBytes | null
   variant: string | null
-  errorMetric: string
   selectedTriangles: number | null
   uncoveredTriangles: number | null
   drawnTriangles: number | null
@@ -127,19 +114,16 @@ export interface Row {
   geometryBytes: number | null
   pageBudget: PageBudget
   geometryPool: GeometryPool
-  mathBatch: FrameMetrics['mathBatch'] | null
   lights: LightsSummary | null
   importedLights: { count: number; ids: string[] } | null
   /** The lights a Three witness placed (`witness/threeMeasurePage.ts`); null on the engine's side,
    *  which draws its own light store. */
   witnessLights: unknown
   movingNode: MovingNode
-  load: { start: number[]; end: number[] }
   png: string | null
   captureStatus: number
   gpuIncidents: string[] | null
   dagWarnings: unknown
-  cpuBounds: unknown
   canvas: { width: number; height: number; dpr?: number }
   metrics: Partial<FrameMetrics> & Record<string, unknown>
   cutAnalysis?: unknown
@@ -167,16 +151,14 @@ interface SideIdentity {
   cache: string | null
   engine: string
   variant: string | null
-  errorMetric: string
   assetKey?: string
   buildHash?: string
 }
 
 /** The whole harness report: `measure.json`, built by `bench.ts` and read by `summary/summary.ts`. */
-export interface Report {
+export interface BenchReport {
   startedAt: string
   provenance: { machine: unknown; browser: unknown; displayCapHz: number | null }
-  campaignIdentity: string | null
   command: string
   head: string
   scene: string

@@ -17,6 +17,9 @@ export function createCoverHolders(options: {
   keyOf: (page: PageRec) => number
   requested: Union
   keep: Union
+  /** A key joined the cover, or left it: the pins follow (`pinUpdater.ts`). */
+  joined: (key: number) => void
+  left: (key: number) => void
 }) {
   const { holders, keyOf, requested, keep } = options
   /** Keys with a holder: the pool slots the cover takes, a key an address. */
@@ -33,6 +36,7 @@ export function createCoverHolders(options: {
     keep.retain(key, page)
     requested.cover(key, true, page)
     lacking.add(key, page)
+    options.joined(key)
     return true
   }
   /** `page` loses a holder: with its last, it leaves the cover. */
@@ -43,6 +47,7 @@ export function createCoverHolders(options: {
     requested.cover(key, false, page)
     keep.release(key)
     lacking.remove(key)
+    options.left(key)
     return true
   }
   /** What `missing` hands out when the pool lacks nothing: no list made a frame. */
@@ -54,16 +59,19 @@ export function createCoverHolders(options: {
       for (const page of pages) moved = (held ? join(page) : leave(page)) || moved
       return moved
     },
-    /** The pages a later holder brought into the cover that the pool lacks, as `holds` says:
-     *  those it holds leave the list. A list of its own, read across the awaits of a burst. */
-    missing(holds: (page: PageRec) => boolean): readonly PageRec[] {
+    /** The pages a later holder brought into the cover that the pool lacks, as `holds` says, at
+     *  most `limit` — the slots that could take them: those it holds leave the list. A list of its
+     *  own, read across the awaits of a burst. */
+    missing(holds: (page: PageRec) => boolean, limit = Infinity): readonly PageRec[] {
       if (lacking.count === 0) return none
       const out: PageRec[] = []
-      for (let i = lacking.count - 1; i >= 0; i--)
+      for (let i = lacking.count - 1; i >= 0 && out.length < limit; i--)
         if (holds(missingPages[i])) lacking.remove(lacking.list[i])
         else out.push(missingPages[i])
       return out
     },
+    /** How many pages a later holder brought that the pool may lack still. */
+    lacking: () => lacking.count,
     /** The pool slots the cover takes now. */
     get covered() {
       return covered

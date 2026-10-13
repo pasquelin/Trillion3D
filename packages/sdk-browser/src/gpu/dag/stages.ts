@@ -1,7 +1,8 @@
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from '../dispatch/grid.ts'
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
-import { DIFFERENCE_STAGES, KEEP_STAGES } from './shader/differenceWgsl.ts'
+import type { CutSteps } from './cutSteps.ts'
+import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
 
 /** Every selection stage of `module` on `layout`; a split table's stages are its own (`SPLIT`,
  *  `shader/viewsWgsl.ts`), and a device whose dispatch width is not WebGPU's default sets its own
@@ -12,6 +13,7 @@ export async function createDagStages(
   layout: GPUBindGroupLayout,
   module: GPUShaderModule,
   split: boolean,
+  steps?: CutSteps,
 ) {
   const width = groupWidth(device.limits)
   const set = {
@@ -19,28 +21,39 @@ export async function createDagStages(
     ...(width !== DEFAULT_GROUP_WIDTH && { GROUP_WIDTH: width }),
   }
   const constants = Object.keys(set).length ? set : undefined
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => `dagLevel${q}`)
+  const entries = [
+    ...levels,
+    'dagRootLevel',
+    'dagPrepare',
+    'dagClearDrawn',
+    'dagWanted',
+    'dagMask',
+    'dagDrawPrefix',
+    'dagCommitMask',
+    'dagDrawScatter',
+    'dagSortRequests',
+    'dagListEvictions',
+    ...DIFFERENCE_STAGES,
+    ...KEEP_STAGES,
+    ...REKEEP_STAGES,
+    'dagRestoreJournal',
+  ] as const
+  // What each pipeline handed back tells, and those still asked: a compile that never answers is
+  // named by the opening that waits on it.
+  const waiting = new Set<string>(entries)
   const stage = await buildComputeStages(
     device,
-    pipelineLayout,
+    [layout],
     module,
-    [
-      ...levels,
-      'dagRootLevel',
-      'dagPrepare',
-      'dagClearDrawn',
-      'dagWanted',
-      'dagMask',
-      'dagDrawPrefix',
-      'dagDrawScatter',
-      'dagSortRequests',
-      'dagListEvictions',
-      ...DIFFERENCE_STAGES,
-      ...KEEP_STAGES,
-      'dagRestoreJournal',
-    ],
+    entries,
     constants,
+    (entry, ms) => {
+      waiting.delete(entry)
+      const rest = waiting.size ? `; waiting on ${[...waiting].join(' ')}` : ''
+      const done = entries.length - waiting.size
+      steps?.note(`${done}/${entries.length}, ${entry} after ${Math.round(ms)} ms${rest}`)
+    },
   )
   const levelPipelines = levels.map((level) => stage[level])
   return {
@@ -54,11 +67,15 @@ export async function createDagStages(
     maskPipeline: stage.dagMask,
     drawPrefixPipeline: stage.dagDrawPrefix,
     drawScatterPipeline: stage.dagDrawScatter,
+    /** The cut's mask and drawn log made the frame's, when no work was dropped. */
+    commitPipeline: stage.dagCommitMask,
     requestSortPipeline: stage.dagSortRequests,
     evictPipeline: stage.dagListEvictions,
     /** Each kept list's difference, then its keep (`shader/differenceWgsl.ts`). */
     differencePipelines: DIFFERENCE_STAGES.map((name) => stage[name]),
     keepPipelines: KEEP_STAGES.map((name) => stage[name]),
+    /** Each kept list ranked in a readout made again (`listCap.ts`). */
+    rekeepPipelines: REKEEP_STAGES.map((name) => stage[name]),
     /** A view's saved journal written back with its draw flags (`shader/swapWgsl.ts`). */
     restorePipeline: stage.dagRestoreJournal,
   }

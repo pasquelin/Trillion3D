@@ -73,7 +73,7 @@ fn sponza_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
     let chosen: BTreeSet<usize> = (0..nodes.len())
         .filter(|&n| nodes[n].get("mesh").is_some())
         .collect();
-    let scales = crate::proxy::mesh_scales(&g, &chosen).unwrap();
+    let scales = crate::proxy::placement::mesh_scales(&g, &chosen).unwrap();
     let materials = crate::values(&g, "materials").unwrap();
     let validated = BTreeSet::new();
     let mut pages = Vec::new();

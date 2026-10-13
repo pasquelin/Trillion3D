@@ -54,7 +54,7 @@ const CASES: [string, VsmResourceOptions, number?][] = [
   ['127 maps, every one directional', { fullMapCapacity: 127 }],
   ['255 maps, the pool in parts', { fullMapCapacity: 255 }, 8 * MIB],
   ['a 4096-page pool', { fullMapCapacity: 127, poolPages: 4096 }],
-  ['local masks, no cache slice', { fullMapCapacity: 63, coverMode: 'local', cacheEnabled: false }],
+  ['no masks, no cache slice', { fullMapCapacity: 63, coverMode: 'none', cacheEnabled: false }],
 ]
 
 for (const [name, options, binding] of CASES)
@@ -64,7 +64,7 @@ for (const [name, options, binding] of CASES)
     const made = fake.buffers.reduce((sum, buffer) => sum + buffer.size, 0)
     assert.equal(res.bytes, made, 'res.bytes is what the device was asked for')
     assert.equal(vsmResourceBytes(res.layout), made)
-    assert.equal(vsmResourceBytes(vsmLayout(options, binding ?? 128 * MIB)), made)
+    assert.equal(vsmResourceBytes(vsmLayout(options)), made)
   })
 
 test('the page table, receiver covers and uncached rects are one buffer for both frames', () => {
@@ -126,7 +126,7 @@ test("a swap exchanges the doubled members and keeps the shared ones; prev binds
 })
 
 test("no pass binds a shared member as last frame's: such a spec is refused at its shader", () => {
-  const layout = vsmLayout({ fullMapCapacity: 127 }, 128 * MIB)
+  const layout = vsmLayout({ fullMapCapacity: 127 })
   for (const resource of SHARED)
     assert.throws(
       () => vsmBindingsWgsl(0, [{ resource, binding: 0, prev: true }], layout),

@@ -1,13 +1,36 @@
+import { TILE_NO_SLICE } from '../tiles/noSlice.ts'
+import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../../../../sdk-core/src/index.ts'
 import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 
 /** Words of a cell record of the light grid: its count — the high bit set when a light of
  *  its list holds a shadow slot, the per-cell fact the moving resolve reads once —, then
  *  where its list starts in the view's pool. */
 export const TILE_STRIDE_WORDS = 2
+
+/**
+ * Whether a local light may light a point at `offset` from it (its centre minus the point): the
+ * shadow passes' test, at their own points, of where the lighting gives it energy — `directIncidence`
+ * and `rectView`, zero past its `range` (`rangeWindow`), at or outside a spot's cone of cosine
+ * `cosEdge` around `forward` (its fade), and on a rectangle's (`rect`) back, `forward` the direction
+ * it emits along. No divide: the range on the squared distance, the cone against the distance
+ * scaled by its cosine, tested only for a light that has one — `cosEdge` is −2 for any other, which
+ * no cosine reaches. A point no comparison orders (NaN) is reached, left to the lighting.
+ */
+export const localLightReaches = wgslFn(
+  'localLightReaches',
+  [],
+  `fn localLightReaches(offset:vec3f,range:f32,cosEdge:f32,forward:vec3f,rect:bool)->bool{
+ let lengthSquared=dot(offset,offset);
+ if(lengthSquared>range*range){return false;}
+ if(rect){return !(dot(offset,forward)>=0.0);}
+ if(cosEdge<-1.0){return true;}
+ return !(dot(-offset,forward)<=cosEdge*sqrt(lengthSquared));
+}`,
+)
 
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
@@ -30,11 +53,13 @@ const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
 const GRID_SLICES:u32=${LIGHT_SETTINGS.gridSlices}u;
 const SLICES_PER_OCTAVE:f32=${LIGHT_SETTINGS.gridSlicesPerOctave}.0;
 /** A list's length past which a moving image sums it in full, and the lights of a narrow scene. */
-const TILE_LIGHTS:u32=${LIGHT_SETTINGS.tileLights}u;
-const TILE_STRIDE:u32=${TILE_STRIDE_WORDS}u;
+${wgslConsts({
+  TILE_LIGHTS: LIGHT_SETTINGS.tileLights,
+  TILE_STRIDE: TILE_STRIDE_WORDS,
+})}
 /** The count word's high bit: a light of the list holds a shadow slot. */
 const TILE_SHADOWED:u32=0x80000000u;
-const TILE_NO_SLICE:u32=0xffffffffu;
+const TILE_NO_SLICE:u32=0x${TILE_NO_SLICE.toString(16)}u;
 /** The slice of a depth \`z\` (reverse-Z, 1 at the near plane): the doublings of its view depth
  *  past the near plane, \`SLICES_PER_OCTAVE\` a doubling; the background falls in the last. */
 fn gridSlice(z:f32)->u32{return u32(clamp(-log2(max(z,1e-30))*SLICES_PER_OCTAVE,0.0,f32(GRID_SLICES-1u)));}

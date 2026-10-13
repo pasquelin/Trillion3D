@@ -31,7 +31,7 @@ test('the GPU cut reaches the cut the view wants through its row cache, past the
     )
     assert.ok(rows.packedCount <= TABLE, 'the rows stay within the table')
     assert.equal(rows.rowsDenied, 0, 'no request the table could not serve')
-    for (const page of wanted) assert.ok(rows.rowOfPage[page] >= 0, `${page} holds a row`)
+    for (const page of wanted) assert.ok(rows.rowOf(page) >= 0, `${page} holds a row`)
   }
   // The view asks the same rows of twice the placements: its own pages, at its own ranks.
   const local = ({ drawn, visible }: typeof few) => drawn.map((page) => page - visible)

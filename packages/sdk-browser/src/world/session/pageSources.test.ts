@@ -9,8 +9,7 @@ import { streamFailed } from '../scene/streaming.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { Engine, MeasuredWorldOptions } from '../../engine/types.ts'
-import { openWorldRoots } from '../../scene/worldRoots.ts'
-import { served } from '../../scene/worldRoots.fixture.ts'
+import { modelOpened, served } from '../../scene/worldRoots.fixture.ts'
 
 /** A queue that records what it is told. */
 function queue() {
@@ -24,13 +23,12 @@ function queue() {
   return { port, told }
 }
 
-test("a scene read catalogues its partitions' pages and binds the world roots its record shows", async (t) => {
+test("a scene read catalogues its partitions' pages and binds its world roots", async (t) => {
   const { port, told } = queue()
   const page = { url: 'scene-page.json', bytes: 1, sha256: '' }
-  // A world's model: its roots opened by its load, before any session; its record shows their count.
-  const roots = (await openWorldRoots(served(t).manifest, 'http://world/'))!
-  const shown: { pinned: { bundles: number; bytes: number }; bytes(): number } = roots
-  const scene = { partitions: [{ pages: [page] }], worldRoots: [shown] }
+  // A world's model: its roots opened by its load, before any session.
+  const roots = (await modelOpened(served(t).manifest))!
+  const scene = { partitions: [{ pages: [page] }], worldRoots: [roots] }
   assert.equal(await sceneThrough(port, undefined, async () => scene as never), scene)
   const bundles = roots.table.bundles
     .slice(1)

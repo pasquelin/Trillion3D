@@ -1,14 +1,12 @@
-import { cpSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { cpSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, relative } from 'node:path'
 import type { Metafile } from 'esbuild'
-import {
-  proveBundledInstalledBrowser as runBundledBrowser,
-  proveInstalledBrowser,
-} from './browser-modes.ts'
+import { proveBundledInstalledBrowser, proveInstalledBrowser } from './browser-modes.ts'
 import type { InstalledBrowserProof } from './browser-result.ts'
 import type { Run } from './contracts.ts'
 import { missingBeside } from './beside.ts'
 import { proveCdnBrowser, unpackCdn, type UnpackedCdn } from './cdn.ts'
+import { readJson, filesUnder } from '../repository-files.ts'
 
 const sceneCaches = ['native-cache-primer', 'native-cache-replay']
 
@@ -17,14 +15,8 @@ interface BundleAsset {
   size: number
 }
 
-function filesAt(root: string, directory = root): BundleAsset[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name)
-    return entry.isDirectory()
-      ? filesAt(root, path)
-      : [{ path: path.slice(root.length + 1), size: statSync(path).size }]
-  })
-}
+const filesAt = (root: string): BundleAsset[] =>
+  filesUnder(root).map((path) => ({ path: relative(root, path), size: statSync(path).size }))
 
 export interface EmittedBrowserBundle {
   outputRoot: string
@@ -62,8 +54,8 @@ export function emitInstalledBrowserBundle({
   mkdirSync(outputRoot, { recursive: true })
   writeFileSync(
     explorer,
-    `import { createWorld,pose,metric,capture,readPagedManifest,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES } from '${packageName}';\n` +
-      `globalThis.__installedSdk={createWorld,pose,metric,capture,readPagedManifest,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES};\n`,
+    `import { createWorld,pose,metric,capture,readPagedManifest,multiplyMatrix4 } from '${packageName}';\n` +
+      `globalThis.__installedSdk={createWorld,pose,metric,capture,readPagedManifest,multiplyMatrix4};\n`,
   )
   run(
     bundler,
@@ -123,7 +115,7 @@ export function emitInstalledBrowserBundle({
   return {
     outputRoot,
     assets,
-    metafile: JSON.parse(readFileSync(metafile, 'utf8')) as Metafile,
+    metafile: readJson(metafile) as Metafile,
     cdn: unpackCdn(fixture, run),
   }
 }
@@ -132,7 +124,7 @@ async function proveBundledInstalledOutput(
   options: BrowserModesOptions,
 ): Promise<{ bundle: EmittedBrowserBundle; proof: InstalledBrowserProof }> {
   const bundle = emitInstalledBrowserBundle(options)
-  const proof = await runBundledBrowser({
+  const proof = await proveBundledInstalledBrowser({
     outputRoot: bundle.outputRoot,
     manifestUrl: '/native-cache-primer/native/slice/manifest.json',
     replayUrl: '/native-cache-replay/native/slice/manifest.json',

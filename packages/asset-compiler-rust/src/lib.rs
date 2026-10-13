@@ -5,8 +5,6 @@ pub mod coplanar;
 pub mod cutout;
 mod dag;
 mod eac_modifiers;
-mod geometry_page;
-mod geometry_page_cells;
 mod geometry_page_deform;
 mod geometry_page_quant;
 pub mod import;
@@ -39,9 +37,10 @@ use std::{
     },
     time::Instant,
 };
+use trillion3d_page_codec::encode;
 mod compiler_format;
 mod compiler_identity;
-pub use compiler_format::{CLUSTERED_BLEND_FORMAT_VERSION, FORMAT_VERSION, SOURCE_FORMAT_VERSION};
+pub use shared_math::abi::*;
 pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Per-cluster DAG identity: absolute group QEM error weighing positions, normals and every
 /// texture set, clamped to the group's extent, raised to what each part it removes whole costs
@@ -50,9 +49,6 @@ pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// v2 published the quadric error alone; their caches are refused, never reinterpreted.
 pub const DAG_ERROR_MODEL: &str = "dag-group-qem-v3";
 pub const DAG_CLUSTER_STRATEGY: &str = "dag-groups";
-/// Numbers per culling node: min[3], max[3], sphere[4], maxParentError, firstChild, childCount,
-/// firstPage, pageCount. `maxParentError` is -1 when the subtree holds a cluster with no replacement.
-pub const CULLING_STRIDE: usize = 15;
 /// Target size of one streaming bundle. Clusters remain individually addressable through offsets.
 pub const STREAM_BUNDLE_BYTES: usize = 128 * 1024;
 pub const STRUCTURE_VERSION: u32 = 1;
@@ -154,6 +150,7 @@ mod compiler_reuse;
 mod compiler_reuse_proof;
 mod compiler_runtime;
 mod compiler_scene;
+mod compiler_select;
 mod compiler_source;
 mod compiler_storage;
 mod compiler_tables;
@@ -179,7 +176,6 @@ use compiler_lights::stage_scene_lights;
 use compiler_lock::CacheLock;
 use compiler_manifest_pages::write_mesh_pages;
 use compiler_materials::*;
-use compiler_nodes::*;
 use compiler_plan::*;
 use compiler_primitive::*;
 use compiler_primitive_bundle::*;

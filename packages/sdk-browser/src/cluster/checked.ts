@@ -38,8 +38,9 @@ export const letGo = (response: Response) => void response.body?.cancel().catch(
 /** What an optional file's absence answers: a 404, or the 403 of a store that hides what it lacks. */
 const ABSENT = new Set([403, 404])
 
-/** The attempts of a caller that retries on its own terms — the page streamer, the GPU page
- *  cache, the physics tiles, the world bundles a cell holds: one request. */
+/** The attempts of a caller that retries on its own terms — the page streamer, the baked texture
+ *  levels and the HTTP page source by the one failure policy (`../streaming/failures.ts`), the
+ *  physics tiles, the world bundles a cell holds: one request. */
 export const ONE_REQUEST = 1
 /** The requests `checked` makes by default: the first, and one more when it may pass. The
  *  families' on-demand loader tries each import as many times (`../host/onDemand.ts`). */

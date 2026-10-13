@@ -8,11 +8,11 @@ import { packDagSelection } from './pack.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
-import { createDagResources } from './resources.ts'
+import { createDagResources, type DagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { stagedOutputBytes } from './layout.ts'
 import { viewWord } from './viewLayout.ts'
-import { writtenReadbacks } from './differenceRig.fixture.ts'
+import { idleKernels, writtenReadbacks } from './differenceRig.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { SelectionUniforms } from '../core/selection.ts'
 
@@ -49,13 +49,14 @@ export function world() {
 export async function worldCut(deviceCap: number) {
   const scene = world()
   const fake = fakeDevice({
+    kernel: idleKernels,
     limits: {
       maxStorageBufferBindingSize: stagedOutputBytes(deviceCap),
       maxStorageBuffersPerShaderStage: 1024,
     },
   })
   // The tables, once made: the readbacks read the list in place and the uniforms written last.
-  const held = {} as { resources: NonNullable<Awaited<ReturnType<typeof createDagResources>>> }
+  const held = {} as { resources: DagResources }
   let viewed!: SelectionUniforms
   const threshold = () => held.resources.uniformData[viewWord('pixelError')]
   // Each readback mapped: the image it came in and the threshold it was cut under.
@@ -65,7 +66,8 @@ export async function worldCut(deviceCap: number) {
     readouts.push({ image: images, threshold: threshold() })
     return { cap: held.resources.listCap, cut: scene.lists(viewed, threshold()) }
   })
-  const resources = await createDagResources(fake.device, scene.dag, null)
+  // No table of open counts behind the lists: the readout is the lists alone (`heldOpen.ts`).
+  const resources = await createDagResources(fake.device, scene.dag, null, undefined, undefined, 0)
   if (!resources) throw new Error('the fake device refused the tables')
   held.resources = resources
   const selection = createDagRuntime(resources)

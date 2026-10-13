@@ -11,7 +11,7 @@ export const createBlendOrderState = () => ({
   seeds: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
   /** Pipeline of each pass's main class, -1 for a pass without one (`runs.ts`). */
   mainPipeline: [-1, -1],
-  /** The items that draw their own slots, and each item's rank among them, `NOT_OWN` for the
+  /** The items that draw their own slots, and each item's rank among them, `NO_INDEX` for the
    *  others (`runs.ts`). */
   ownItems: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
   ownRanks: new Uint32Array(0) as Uint32Array<ArrayBuffer>,

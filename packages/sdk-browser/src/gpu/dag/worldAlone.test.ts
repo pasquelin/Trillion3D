@@ -8,11 +8,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { objectCovers, worldScene } from './worldScene.fixture.ts'
-import { ruleResidency } from './readiness.fixture.ts'
+import { ruleResidency, pageResidency } from './readiness.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
-import { cameraSelectionUniforms, SELECTION_NONE as NONE } from '../core/selection.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
-import { createWorldResidencyMirror } from './worldMirror.ts'
+import { cameraSelectionUniforms } from '../core/selection.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { createWorldResidencyMirror } from './residencyMirror.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** The scene with one lone object, the last, its world cluster, its copies, and the mirror. */
 function lone() {
@@ -58,12 +59,12 @@ function cut(s: Lone, cell: Cell, threshold: number, covers: boolean[], held: bo
   for (const rank of s.copies) rows[base + rank] = cell.held ? 1 : 0
   rows[object] = cell.placed && cell.cover ? 1 : 0
   // Placed or left as `placeObject` moves a link (`worldFollow.ts`).
-  const c = cell.placed ? s.link : NONE
+  const c = cell.placed ? s.link : NO_INDEX
   if (world.links[object] !== c) {
     world.links[object] = c
     world.linksMoved?.(Int32Array.of(object), 1)
   }
-  const { flags } = s.mirror.update(rows)
+  const { flags } = s.mirror.update(pageResidency(rows))
   const uniforms = cameraSelectionUniforms(s.cam, threshold, [1280, 720])
   return (
     evaluateDagSelectionKernel(packed, uniforms, ruleResidency(packed, flags)).drawablePageIds ?? []
@@ -103,7 +104,7 @@ test("across its cell's hold and release, a lone object is drawn by its copies, 
 
 test('a placed lone object is drawn by its placement or both copies, never both, never neither', () => {
   const s = lone(),
-    next = random(7919),
+    next = lcgRandom(7919),
     seen = { placement: 0, copies: 0 }
   const draw = () => Array.from({ length: s.world.pages.length }, () => next() < 0.75)
   for (let frame = 0; frame < 400; frame++) {

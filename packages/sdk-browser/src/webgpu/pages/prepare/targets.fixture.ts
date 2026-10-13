@@ -1,10 +1,8 @@
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
-import { standardSurface } from '../../../host/graph/graph.fixture.ts'
-import { surfaceOf } from '../../../page/surface.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** An engine reduced to its targets, with a dummy temporal pass that notes its resizes. */
-export function runtime(reflective = false) {
+export function runtime() {
   const resized: number[][] = [],
     failures: string[] = []
   const temporal = {
@@ -21,12 +19,7 @@ export function runtime(reflective = false) {
     // A textured scene's: its pipelines write the feedback (`feedbackVariant.ts`).
     vis: { gpuHiz: {}, writesFeedback: true, writesEmissiveAo: true },
     run: { diagnostic: 'beauty' },
-    layout: {
-      rows: {
-        packedCount: reflective ? 1 : 0,
-        packedRecs: reflective ? [{ material: surfaceOf(standardSurface({ roughness: 0 })) }] : [],
-      },
-    },
+    layout: { rows: { packedCount: 0, packedRecs: [] } },
     blendState: { blendGpu: [] },
     context: {},
     gpu: { device: fakeDevice({ limits: { maxTextureDimension2D: 8192 } }).device, temporal },

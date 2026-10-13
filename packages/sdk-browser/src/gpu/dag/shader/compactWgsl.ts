@@ -1,4 +1,4 @@
-import { LANE_SCAN_WGSL } from '../../core/laneScanWgsl.ts'
+import { LANE_SCAN_WGSL, laneRunOffsets } from '../../core/laneScanWgsl.ts'
 import { SELECTION_HEADER_WORDS } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
@@ -32,15 +32,19 @@ export const DAG_COMPACT_WGSL = wgslBlock(
   [LANE_SCAN_WGSL, ceilDiv, bitWord, bitMask, FLAT_INDEX_WGSL],
   `const BLOCK:u32=64u;
 const HEAD:u32=${SELECTION_HEADER_WORDS}u;
-fn drawFlag(i:u32)->u32{return flagAt(views[0u].queueCap+i);}
 fn blockCount()->u32{return ceilDiv(views[0u].clusterCount,BLOCK);}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */
 fn blockBase()->u32{return 0u;}
 /** Two words per block behind the block offsets: bit \`i & 63\` of block \`i / 64\` is page \`i\`'s draw
- *  flag, set by \`dagMask\` with the flag itself, cleared by \`dagPrepare\` with the block count. */
+ *  flag as the running cut decides it, set by \`dagMask\`, cleared by \`dagPrepare\` with the block
+ *  count. The mask the draw, the raster and the blended pass read lies behind (\`liveMaskBase\`). */
 fn drawMaskBase()->u32{return blockCount()*2u;}
 /** The mask word that holds page \`i\`'s bit, and that bit. */
 fn drawMaskWord(i:u32)->u32{return drawMaskBase()+bitWord(i);}
+/** The mask the frame draws, behind the one the cut writes: the last cut that ran whole's
+ *  (\`dagCommitMask\`), or the view a swap brought back (\`swapWgsl.ts\`). */
+fn liveMaskBase()->u32{return blockCount()*4u;}
+fn liveMaskWord(i:u32)->u32{return liveMaskBase()+bitWord(i);}
 fn drawBit(i:u32)->u32{return bitMask(i);}
 /** The drawn pages of \`mask\`, page \`i\`'s word, below page \`i\`. */
 fn drawnBefore(i:u32,mask:u32)->u32{return countOneBits(mask&(drawBit(i)-1u));}
@@ -49,14 +53,7 @@ fn drawnBefore(i:u32,mask:u32)->u32{return countOneBits(mask&(drawBit(i)-1u));}
 fn dagDrawPrefix(@builtin(local_invocation_index) lane:u32){
  let count=blockCount();let base=blockBase();
  let run=laneRun(lane,count);
- var total=0u;
- for(var b=run.x;b<run.y;b++){total=total+atomicLoad(&work[base+b]);}
- var cursor=laneScan(lane,total)-total;
- for(var b=run.x;b<run.y;b++){
-  let n=atomicLoad(&work[base+b]);
-  atomicStore(&work[base+count+b],cursor);
-  cursor=cursor+n;
- }
+ ${laneRunOffsets('b', 'run', 'lane', '', 'atomicLoad(&work[base+b])', 'atomicStore(&work[base+count+b],cursor)')}
  // The last lane's run ends the list, empty or not: its cursor is the total.
  if(lane==63u){out.pages[views[0u].listCap]=cursor;armList(1u,min(cursor,views[0u].listCap));if(cursor>views[0u].listCap){atomicOr(&out.overflow,1u);}}
 }
@@ -65,7 +62,7 @@ fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  let s=flatIndex(id,n,64u);if(s>=liveCount()){return;}
  // Only live clusters carry a non-zero draw flag; those of the block that are not in the list
  // are zero and add nothing to the rank, exactly as in yesterday's full walk.
- let i=entryIndex(liveAt(s));if(drawFlag(i)==0u){return;}
+ let i=entryIndex(liveAt(s));if((atomicLoad(&work[drawMaskWord(i)])&drawBit(i))==0u){return;}
  // Rank in the block: the drawn pages before \`i\`, read off the block's mask — the sum of the
  // same 0/1 flags, in one or two words instead of up to sixty-three. A page of the block's second
  // half counts the whole first word too.

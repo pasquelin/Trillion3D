@@ -1,10 +1,13 @@
 import type { GpuPassTimings } from '../../../../../sdk-core/src/index.ts'
 import type { createGpuTiming } from '../../../gpu/timing/timing.ts'
 import type { SelectionSubmission } from '../../../gpu/core/selection.ts'
-import { createCpuStepProfile } from '../../../stage/cpuProfile.ts'
-import { CPU_STEP_NAMES } from '../render/cpuStepTable.ts'
-import { createStageProfiler, type StageProfiler } from '../../../stage/profiler.ts'
-import { WEBGPU_STAGES } from '../../../stage/mapping.ts'
+import { CPU_STEP_NAMES, CPU_STEP_STAGES } from '../render/cpuStepTable.ts'
+import {
+  createStageProfiler,
+  type CpuStepWindow,
+  type StageProfiler,
+} from '../../../stage/profiler.ts'
+import type { WEBGPU_STAGES } from '../../../stage/passDeclaration.ts'
 import { WEBGPU_ENGINE_ID } from '../../../engine/factory.ts'
 
 /** GPU pass timing, the CPU step profile of the image, and the one command buffer an image owns. */
@@ -15,9 +18,7 @@ type GpuCutMarks = Record<
   | 'tilesEnd'
   | 'blendStart'
   | 'cpuStart'
-  | 'lightsEnd'
   | 'adoptEnd'
-  | 'transparentSelectEnd'
   | 'admissionEnd'
   | 'queueEnd'
   | 'rowsEnd'
@@ -41,8 +42,13 @@ export interface WebgpuTimingState {
   logFrame: ((cpuMs: number, rafMs: number | null) => void) | undefined
   /** Duration of the image's only `queue.submit`: encode does not carry it. */
   lastQueueSubmitMs: number
-  /** Per-stage profile published by `stageProfile()`; absent when the host has not asked for it. */
-  stages: StageProfiler | undefined
+  /** The image's CPU bounds, and the per-stage profile published by `stageProfile()` when the host
+   *  has asked for it (`profiler.stages`). */
+  profiler: StageProfiler
+  /** The bounds' window the engine's CPU diagnostic reads on its cadence. */
+  publishedSteps: CpuStepWindow
+  /** The bounds' window the host opens again (`resetStageProfile`) and reads (`cpuSteps`). */
+  hostSteps: CpuStepWindow
   // Encode-side step durations of the current image, reported by the `cpu-timing` diagnostic.
   /** What encoding the partition cost the CPU: the corners the table just changed, one view-projection
    *  matrix, and two compute dispatches. Never a row. */
@@ -74,11 +80,6 @@ export interface WebgpuTimingState {
     /** Compute-raster dispatches, counted separately: they are not draw calls. */
     computeDispatches: number
   }
-  /** CPU bounds of the last images, on the publish cadence of the `cpu-timing` diagnostic. */
-  cpuProfile: ReturnType<typeof createCpuStepProfile>
-  /** The same bounds over the window a host opens with `resetStageProfile()` and reads once with
-   *  `cpuSteps()`: the same row, filed twice, so neither window forgets for the other. */
-  cpuWindow: ReturnType<typeof createCpuStepProfile>
   /** True when the image has filled its bound row and waits to be filed by the host. */
   rowFilled: boolean
   marks: GpuCutMarks
@@ -86,7 +87,6 @@ export interface WebgpuTimingState {
   lastCpuLogFrame: number
   cpuSample: Record<string, unknown> | undefined
   transparentEncodeMs: number
-  transparentSelectMs: number
   transparentPrepareMs: number
   transparentDrawMs: number
   transparentSpanUploadBytes: number
@@ -100,25 +100,27 @@ export interface WebgpuTimingState {
   frameSelection: SelectionSubmission | undefined
 }
 
-/** Per-stage profile of the WebGPU engine, mounted only when the host has asked for it. */
-export function createWebgpuStageProfiler(): StageProfiler {
-  const stages = createStageProfiler({
+/** Profile of the WebGPU engine; its per-stage profile is mounted on `stages` only when the host
+ *  has asked for it. */
+function createWebgpuProfiler(stages: typeof WEBGPU_STAGES | undefined): StageProfiler {
+  const profiler = createStageProfiler({
     backend: WEBGPU_ENGINE_ID,
-    stages: WEBGPU_STAGES,
+    steps: { names: CPU_STEP_NAMES, stages: CPU_STEP_STAGES },
+    stages,
     gpuMethod: 'timestamp-query',
   })
-  stages.setReason('coplanar', {
+  profiler.stages?.setReason('coplanar', {
     cpu: 'decided by the cut, with no bound of their own',
     gpu: 'drawn in the geometry passes, with no pass of their own',
   })
-  return stages
+  return profiler
 }
 
 export function createWebgpuTimingState(
-  stages?: StageProfiler,
+  stages?: typeof WEBGPU_STAGES,
   roots: () => number = () => 0,
 ): WebgpuTimingState {
-  const cpuProfile = createCpuStepProfile(CPU_STEP_NAMES)
+  const profiler = createWebgpuProfiler(stages)
   return {
     gpuTiming: undefined,
     lastGpuPassMs: null,
@@ -128,7 +130,9 @@ export function createWebgpuTimingState(
     lastSubmitMs: null,
     logFrame: undefined,
     lastQueueSubmitMs: 0,
-    stages,
+    profiler,
+    publishedSteps: profiler.openWindow(),
+    hostSteps: profiler.openWindow(),
     lastPartitionMs: 0,
     partitionCounts: {
       rows: 0,
@@ -152,8 +156,6 @@ export function createWebgpuTimingState(
       blendDrawCalls: 0,
       computeDispatches: 0,
     },
-    cpuProfile,
-    cpuWindow: createCpuStepProfile(CPU_STEP_NAMES, { row: cpuProfile.row }),
     rowFilled: false,
     marks: {
       preStart: 0,
@@ -161,9 +163,7 @@ export function createWebgpuTimingState(
       tilesEnd: 0,
       blendStart: 0,
       cpuStart: 0,
-      lightsEnd: 0,
       adoptEnd: 0,
-      transparentSelectEnd: 0,
       admissionEnd: 0,
       queueEnd: 0,
       rowsEnd: 0,
@@ -176,7 +176,6 @@ export function createWebgpuTimingState(
     lastCpuLogFrame: -1,
     cpuSample: undefined,
     transparentEncodeMs: 0,
-    transparentSelectMs: 0,
     transparentPrepareMs: 0,
     transparentDrawMs: 0,
     transparentSpanUploadBytes: 0,

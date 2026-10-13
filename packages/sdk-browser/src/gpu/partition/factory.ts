@@ -13,6 +13,7 @@ import {
   beginPartitionFrame,
   encodePartition,
   growPartition,
+  rebindPartition,
   regroupPartition,
   type Partition,
 } from './partitionFrame.ts'
@@ -29,8 +30,7 @@ export async function createGpuPartition(
 ): Promise<GpuPartition | undefined> {
   const inputs = { ...sources },
     pyramid = sources.pyramid()
-  if (typeof device.createComputePipeline !== 'function' || slotCap < 1 || !pyramid)
-    return undefined
+  if (slotCap < 1 || !pyramid) return undefined
   const allocated = constructGpuResources(device, () => createGpuPartitionBuffers(device, slotCap))
   try {
     const made = await compilePartition(device)
@@ -58,7 +58,7 @@ function partitionState(
   made: Pick<Partition, 'layouts' | 'pipelines'>,
   allocated: Partition['allocated'],
   inputs: PartitionSources,
-  pyramid: GPUBuffer,
+  pyramid: GPUTextureView,
 ): Partition {
   // The pyramid changes identity on every target resize: the projection's group follows it,
   // remade only then. A fresh pyramid is all zeros — the far plane — and hides nothing.
@@ -140,6 +140,7 @@ function partitionApi(p: Partition): GpuPartition {
     },
     uniforms: allocated.uniforms,
     grow: (rows, next) => growPartition(p, rows, next),
+    rebind: (next) => rebindPartition(p, next),
     forgetRows(from: number, to: number) {
       if (to >= from) p.forgotten.push(from, to)
     },

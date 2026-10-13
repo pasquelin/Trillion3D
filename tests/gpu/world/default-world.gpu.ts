@@ -11,9 +11,9 @@ import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts'
 import { manifestUrlOf } from '../../kit/scenes/caches.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
-import { benchManifest, defaultWorldImage, drawnPixels } from './proofWorld.ts'
-
-const ROOT = resolve(import.meta.dirname, '../../..')
+import { benchManifest, defaultWorldImage } from './proofWorld.ts'
+import { drawnPixels } from '../kit/sceneImageProof.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
 /** The default world of `manifestUrl` on Dawn, lit by `lights`: the texture source it opened
  *  with, and the pixels its image draws, with the errors nothing caught. */
@@ -35,7 +35,7 @@ test(
   { timeout: 120_000 },
   async () => {
     const garden = manifestUrlOf('tests/fixtures/scenes/kinetic-garden').slice(1)
-    const opened = await defaultOnDawn(pathToFileURL(resolve(ROOT, garden)).href)
+    const opened = await defaultOnDawn(pathToFileURL(resolve(REPOSITORY_ROOT, garden)).href)
     assert.equal(opened.textureSource, 'cache')
   },
 )

@@ -14,7 +14,7 @@
  * lit ones as the surface flag (`MODEL_FLAG`) the resolve reads.
  */
 import type { HostShadedMaterial } from '../host/shadedMaterial.ts'
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { lambertAlbedoMul } from '../../../math/src/wgsl/lighting.ts'
 import { signedToUnit3 } from '../../../math/src/wgsl/reals.ts'
 
@@ -28,13 +28,22 @@ export const SURFACE_MODEL = {
 } as const
 /** Bits of the page row's flags word that carry the model; below them, the material flags. */
 export const MODEL_SHIFT = 17
-/** Surface-buffer flags of the lit models the resolve shades apart: 2 stays the physical one. */
-export const MODEL_FLAG = { diffuse: 4, toon: 5 } as const
+/** Surface-buffer flags of the lit models: the physical one, the only one with a specular lobe (a
+ *  reflection is traced for it alone), and the two the resolve shades apart. */
+export const MODEL_FLAG = { physical: 2, diffuse: 4, toon: 5 } as const
 /** Surface-buffer flag of a debug view, a normal or depth surface: shown as-is, never fogged,
  *  and composed with neither exposure nor the display curve (`shownAsIs`). */
 export const AS_IS_FLAG = 3
 /** Low three G-buffer bits identify the surface model; higher bits are independent marks. */
 export const SURFACE_MODEL_MASK = 7
+/** Whether a surface of surface-buffer flags `flags` reflects: the physical model alone has a
+ *  specular lobe, the one rule of the opaque trace (the flags it reads) and the forward programs
+ *  (their `surfaceModel`, the flag itself). */
+export const surfaceReflects = wgslFn(
+  'surfaceReflects',
+  [],
+  `fn surfaceReflects(flags:u32)->bool{return (flags&${SURFACE_MODEL_MASK}u)==${MODEL_FLAG.physical}u;}`,
+)
 /** The r8 surface target's high bit carries a material's fog opt-out. */
 export const FOG_FREE_SURFACE_FLAG = 128
 /** The surface target's mark of an emission-and-occlusion texel other than `(0, 0, 0, 1)`

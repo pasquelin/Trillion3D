@@ -1,5 +1,7 @@
 import { PRESENT_AT_SHADER } from './presentWgsl.ts'
 import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { VIEW_PRESENT_PASS } from '../../stage/passLabels.ts'
+import { sequentialEntries } from './computeBindings.ts'
 
 /** A rectangle of the canvas, in canvas pixels from the top left. */
 export type PresentRect = { x: number; y: number; width: number; height: number }
@@ -26,19 +28,24 @@ export function createPresentAt(
       primitive: { topology: 'triangle-list' },
     }))
   }
+  // One group an image, kept as long as the image: every view presents its own each frame
+  // (`webgpu/core/bindIdentity.ts`, its one exception).
   const groups = new WeakMap<GPUTexture, GPUBindGroup>()
   const group = (image: GPUTexture) => {
     let made = groups.get(image)
     if (!made) {
       made = device.createBindGroup({
         layout,
-        entries: [{ binding: 0, resource: image.createView() }],
+        entries: sequentialEntries([image.createView()]),
       })
       groups.set(image, made)
     }
     return made
   }
   return {
+    /** The group that samples `image`, made once an image: the whole canvas's present binds it
+     *  too, on the same layout (`presentation.ts`). */
+    group,
     /** Compiles the program off the frame, before a view placed on the canvas presents. */
     prepare: () => program().prepare(),
     /** `canvas` is the canvas's size: the part of `at` past its right or bottom edge is not drawn,
@@ -54,7 +61,7 @@ export function createPresentAt(
         height = Math.min(at.height, canvas.height - at.y)
       if (width <= 0 || height <= 0 || at.x < 0 || at.y < 0) return
       const pass = encoder.beginRenderPass({
-        label: 'Trillion3D view present',
+        label: VIEW_PRESENT_PASS,
         colorAttachments: [{ view, loadOp: 'load', storeOp: 'store' }],
       })
       pass.setPipeline(program().get())

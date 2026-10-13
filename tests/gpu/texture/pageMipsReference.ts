@@ -7,7 +7,7 @@ import {
   COVERAGE_SCALE_WGSL,
 } from '../../../packages/sdk-browser/src/texture/coverageRule.ts'
 import { FULLSCREEN_XY } from '../../../packages/sdk-browser/src/gpu/shader/fullscreenTriangle.ts'
-import { levelSize } from '../../../packages/sdk-browser/src/texture/tiles.ts'
+import { previewLevelSize } from '../../../packages/sdk-core/src/index.ts'
 import { wgslModule, wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../packages/math/src/wgsl/decl.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
@@ -52,8 +52,8 @@ const CHOOSE_WGSL = wgslBlock(
  @compute @workgroup_size(1) fn choose(){
   let c=level.extent.z;var covered=0u;
   for(var b=c;b<256u;b++){covered+=atomicLoad(&cover[b]);}
-  let n0=sizeOf(0u);let nk=sizeOf(level.base.z);let texels=vec2u(n0.x*n0.y,nk.x*nk.y);
-  let goal=wide(covered,texels.y);var best=vec4u(0xffffffffu,0xffffffffu,255u,c);var above=0u;
+  let n0=mipSize2(level.base.xy,0u);let nk=mipSize2(level.base.xy,level.base.z);let texels=vec2u(n0.x*n0.y,nk.x*nk.y);
+  let goal=wideProduct(covered,texels.y);var best=vec4u(0xffffffffu,0xffffffffu,255u,c);var above=0u;
   for(var t=255u;t>0u;t--){
    above+=atomicLoad(&cover[level.base.z*256u+t]);
    let next=pickKey(c,t,above,texels,goal);
@@ -80,7 +80,7 @@ export function encodeReferenceChain(
   const packed = new Uint32Array(levels * 64)
   for (let level = 0; level < levels; level++)
     packed.set(
-      [...levelSize(width, height, Math.max(0, level - 1)), cutoff, 0, width, height, level],
+      [...previewLevelSize(width, height, Math.max(0, level - 1)), cutoff, 0, width, height, level],
       level * 64,
     )
   device.queue.writeBuffer(uniforms, 0, packed)
@@ -135,7 +135,7 @@ export function encodeReferenceChain(
         dispatch([width, height])
       }
       pass.setBindGroup(0, countGroup(level, level - 1))
-      dispatch(levelSize(width, height, level))
+      dispatch(previewLevelSize(width, height, level))
       pass.setPipeline(choose)
       pass.dispatchWorkgroups(1)
       pass.end()

@@ -5,13 +5,18 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { families } from '../host/families.ts'
 import { prepareDeformationGeometry } from './prepare.ts'
 
-/** A WebGPU session's prepare state, over `pages`, with no root nor copy. */
-const session = (pages: object[]) => ({
+/** A WebGPU session's prepare state, over `pages` and `roots`, with no copy. */
+const session = (pages: object[], roots: object[] = []) => ({
   vis: { geometryBlocks: new Map() } as Record<string, unknown> & {
     geometryBlocks: Map<never, never>
   },
-  layout: { selectionRoots: [] },
-  setup: { worlds: { of: () => undefined }, blendCopies: [], allPages: pages },
+  layout: { selectionRoots: roots },
+  setup: {
+    worlds: { of: () => undefined },
+    blendCopies: [],
+    allPages: pages,
+    deformationBlocks: [],
+  },
   blendState: { blendGpu: [] },
   run: { gate: { resourcesChanged() {} } },
 })
@@ -23,9 +28,11 @@ test('a session that deforms nothing loads no deformation code; one whose page d
   await families.deformation.settled()
   assert.deepEqual([still.vis.deformationCode, families.deformation.arrived], [undefined, false])
   assert.ok(still.vis.concatPos, 'its vertices are pooled all the same')
-  const skinned = session([
-    { attributes: G.triangleAttributes(), deformationOutput: { from: 0, count: 3 } },
-  ])
+  const page = {
+    attributes: G.triangleAttributes(),
+    drawSource: { node: { morphTargetInfluences: [0] }, dynamic: false },
+  }
+  const skinned = session([page], [{ pages: [page], world: {} }])
   await prepareDeformationGeometry(skinned as never, device)
   assert.equal(skinned.vis.deformationCode, families.deformation.get(), 'awaited at prepare')
 })

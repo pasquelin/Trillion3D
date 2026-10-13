@@ -1,11 +1,9 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import { admissionLevel } from '../../residency/minimumCapacity.ts'
 import type { createReadbackMerge } from './readbackMerge.ts'
-
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
 
 /**
  * What an admission's walk files (`requestAdmission.ts`): each key it reached, at its admission
@@ -17,15 +15,15 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>
 export type LevelFiling = ReturnType<typeof createLevelFiling>
 
 export function createLevelFiling(
-  keyOf: Tracking['keyOf'],
+  keyOf: WebgpuPageTracking['keyOf'],
   covers: (key: number) => boolean,
-  topLevel: number,
+  levels: Pick<WebgpuPageTracking, 'topLevel'>,
   merged: ReturnType<typeof createReadbackMerge>['merged'],
 ) {
   return {
     keyOf,
     covers,
-    topLevel,
+    levels,
     merged,
     /** Per key the walk filed, one plus its filing rank. */
     filedBy: createSparseInts(),
@@ -52,7 +50,7 @@ export function createLevelFiling(
 export function openFiling(f: LevelFiling, room: number, ranked: boolean) {
   f.ranked = ranked
   f.room = room
-  f.lift = 2 * f.topLevel + 2
+  f.lift = 2 * f.levels.topLevel + 2
   f.visits = 0
   f.straddle = f.cursor = -1
   f.filedBy.clear()
@@ -68,7 +66,8 @@ export function filePage(f: LevelFiling, rec: PageRec) {
     f.filedLevel = resized(f.filedLevel, visits + 1)
   }
   f.keys[visits] = key
-  f.filedLevel[visits] = admissionLevel(rec, f.topLevel) + (f.cursor < f.merged.first ? f.lift : 0)
+  f.filedLevel[visits] =
+    admissionLevel(rec, f.levels.topLevel) + (f.cursor < f.merged.first ? f.lift : 0)
   f.pages[visits] = rec
   f.visits = visits + 1
   f.filedBy.set(key, f.visits)
@@ -88,7 +87,7 @@ export function filingFull(f: LevelFiling) {
  * —, so the levels are counted over what it filed, bounded by the room and one level, never the
  * view's whole request list. Returns how many the queue takes.
  */
-export function rankFiling(f: LevelFiling, wanted: Tracking['wanted']) {
+export function rankFiling(f: LevelFiling, wanted: WebgpuPageTracking['wanted']) {
   const { floor, taken, end } = countLevels(f)
   if (f.queue.length < end) f.queue = resized(f.queue, end)
   if (f.order.length < f.visits) f.order = resized(f.order, f.visits)

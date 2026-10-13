@@ -30,7 +30,7 @@ test('a device that refuses the water pipelines keeps the blends, and the refusa
   const create = mount.device.createRenderPipelineAsync
   mount.device.createRenderPipelineAsync = async (descriptor: GPURenderPipelineDescriptor) => {
     if (descriptor.fragment?.entryPoint === 'fsWater') throw new Error('DEVICE_SAYS_NO')
-    return create(descriptor)
+    return create.call(mount.device, descriptor)
   }
   const built = await createWebgpuBlendPipelines(mount.device, items(2, true))
   assert.equal(built.water, undefined, 'no water pass')
@@ -43,14 +43,14 @@ test('a device that refuses the water pipelines keeps the blends, and the refusa
 test('without the pass, the transmission slice draws as one more blend', () => {
   const { blendState, gpu } = prepared()
   targets(gpu)
-  const { rt, encoder, passes, counters } = replay(blendState, gpu)
+  const { rt, encoder, passes, textureCopies, drawn } = replay(blendState, gpu)
   // What `encodeBlend` does after the blends: the pass, or the slice as a blend.
   const composed = encodeWaterPass(rt, encoder)
   if (blendState.transmissive && !composed) drawBlendPass(rt, device, encoder, true)
   assert.equal(composed, false)
-  assert.equal(counters.copies, 0, 'no backdrop copy without the pass')
+  assert.equal(textureCopies.length, 0, 'no backdrop copy without the pass')
   assert.deepEqual(
-    passes.map(({ label, drawn }) => ({ label, drawn })),
+    passes.map((pass) => ({ label: pass.label, drawn: drawn(pass) })),
     [{ label: 'Trillion3D transmission', drawn: [1] }],
     'the slice, as a blend',
   )
@@ -81,25 +81,4 @@ test('a mode first drawn after the pass was built compiles its three pipelines t
   assert.equal(built.blendPipelines.at(multiplyBack), pipeline, 'compiled once')
   assert.equal(plain.pipelines.length, 6)
   assert.throws(() => built.blendPipelines.at(15), /names no blending mode/)
-})
-
-test("a reference session's water pass is mounted with the whole mirror walk", async () => {
-  const composite = async (unboundedReflections: boolean) => {
-    const mount = mountDevice()
-    await createWebgpuBlendPipelines(
-      mount.device,
-      items(1, true),
-      undefined,
-      true,
-      undefined,
-      false,
-      {
-        unboundedReflections,
-      },
-    )
-    const pipeline = mount.renderPipelines.find((p) => p.fragment!.entryPoint === 'composeWater')
-    return (pipeline!.fragment!.module as { label: string }).label
-  }
-  assert.equal(await composite(false), 'WATER_COMPOSITE')
-  assert.equal(await composite(true), 'WATER_COMPOSITE_UNBOUNDED')
 })

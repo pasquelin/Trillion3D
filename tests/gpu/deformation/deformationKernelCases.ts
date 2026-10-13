@@ -3,8 +3,8 @@
 // between them. Every page-table word is named by the field `PageInfo` declares
 // (`PAGE_INFO_STRUCT_WGSL`), never by a copied offset; each record is laid out by `recordLayout`.
 import { Waves } from '../../../packages/sdk-core/src/fluids/waves.ts'
-import { encodeGeometryPage } from '../../../packages/page-codec/src/geometryPage.ts'
-import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../packages/sdk-browser/src/cluster/format.ts'
+import { encodePage } from '../../../packages/sdk-browser/src/page/codec/encodePage.fixture.ts'
+import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../packages/sdk-core/src/page/format.ts'
 import {
   KIND_MORPH,
   KIND_SKIN,
@@ -13,9 +13,9 @@ import {
   RECORD_HEAD,
   recordLayout,
 } from '../../../packages/sdk-browser/src/deformation/layout.ts'
-import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/slotLayout.ts'
+import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/outputs.ts'
 import {
-  DEFORM_IN_POOL,
+  DEFORM_SOURCE_IN_POOL,
   FLAG_CLUSTER_PAGE,
   FLAG_DYNAMIC,
 } from '../../../packages/sdk-browser/src/visibility/types.ts'
@@ -46,7 +46,7 @@ const bits = (floats: Float32Array) => [
 
 export const REST = [0, 0, 0, 1, 0, 0, 0, 1, 0],
   MOVED = REST.map((c, i) => (i % 3 === 2 ? 2 : c))
-const page = encodeGeometryPage(
+const page = encodePage(
   [0, 1, 2],
   {
     POSITION: { array: REST, itemSize: 3 },
@@ -58,10 +58,10 @@ const page = encodeGeometryPage(
   -14,
   [{ POSITION: { array: [0, 0, 1, 0, 0, 1, 0, 0, 1], itemSize: 3 } }],
 )
-/** The page's slot in the cache, and its vertices' records just after it, past two tag words. */
+/** The page's slot in the cache, and its vertices' results in the float pool, past two tag words. */
 const SLOT = 17,
-  OUTPUT = SLOT + page.data.length / 4 + 2
-const pool = new Array<number>(OUTPUT + 3 * DEFORM_VERTEX_WORDS).fill(0)
+  OUTPUT = 220
+const pool = new Array<number>(SLOT + page.data.length / 4).fill(0)
 pool.splice(SLOT, page.data.length / 4, ...new Uint32Array(page.data.buffer, page.data.byteOffset))
 
 /** The skin and morph record: one joint moving +2 along x, one target at full weight. */
@@ -119,7 +119,7 @@ whole.set([FLAG_SKIN, MORPHS, 3, SOURCE_FLOATS], HEADER)
 for (let v = 0; v < 3; v++)
   whole.set([0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0], HEADER + 4 + v * SOURCE_FLOATS)
 
-const atOutput = { buffer: 'indices', at: OUTPUT } as const
+const atOutput = { buffer: 'positions', at: OUTPUT } as const
 export const FRAMES: Frame[] = [
   { writes: [], read: atOutput },
   // A dynamic float source at rest: its previous position is its rest one.
@@ -161,7 +161,7 @@ export const FRAMES: Frame[] = [
           flags: 0,
           packedBase: HEADER + 1,
           deform: 17,
-          deformOutput: (WHOLE_OUTPUT + 1) | DEFORM_IN_POOL,
+          deformOutput: (WHOLE_OUTPUT + 1) | DEFORM_SOURCE_IN_POOL,
         }),
       },
       { buffer: 'positions', at: 0, words: bits(whole) },
@@ -174,7 +174,10 @@ export const FRAMES: Frame[] = [
  *  normals (seven floats a vertex: the normal, then a tangent), and the page's row. */
 export const BUFFERS = {
   indices: pool,
-  positions: bits(record),
+  positions: [
+    ...bits(record),
+    ...new Array<number>(OUTPUT + 3 * DEFORM_VERTEX_WORDS - 160).fill(0),
+  ],
   normals: [0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
   pages: row(clusterRow),
 }

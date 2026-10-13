@@ -3,13 +3,14 @@
 // readout's cap (`layout.ts`); the catalogue-sized readout it replaced, `16 + pageCount·4` bytes
 // per list, is measured on a buffer of that size, the kernels' encode unchanged, so the gap between
 // the two is the price of copying the worst case. The read is serialised here — copy, submit,
-// `mapAsync`, read — where the engine double-buffers it: a frame's total work, not its stall.
+// map, read — where the engine double-buffers it: a frame's total work, not its stall.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts'
-import { DAG_VIEW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
+import { VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { quantileFloorOf } from '../../kit/stats/quantile.ts'
+import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { sceneView } from './cutScene.ts'
 
@@ -49,7 +50,7 @@ async function measure(
 ) {
   const cut = await createDagResources(device, packed)
   if (!cut) return undefined
-  const block = new Float32Array(DAG_VIEW_WORDS)
+  const block = new Float32Array(VIEW_BLOCK_WORDS)
   const setThreshold = (pixelError: number) => {
     writeDagUniforms(block, packed, { ...uniforms, pixelError }, cut.listCap)
     device.queue.writeBuffer(cut.uniforms, 0, block)
@@ -60,21 +61,13 @@ async function measure(
     size: worstBytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   })
-  const target = device.createBuffer({
-    size: Math.max(worstBytes, cut.readbackBytes),
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  })
   /** A whole frame: the kernels, then `bytes` of `source` copied and read; the count it read. */
   const frame = async (bytes: number, source: GPUBuffer) => {
     const encoder = device.createCommandEncoder()
     encodeDagKernels(encoder, cut)
-    if (bytes) encoder.copyBufferToBuffer(source, 0, target, 0, bytes)
     device.queue.submit([encoder.finish()])
     if (!bytes) return void (await device.queue.onSubmittedWorkDone())
-    await target.mapAsync(GPUMapMode.READ)
-    const count = new Uint32Array(target.getMappedRange(0, bytes))[0]
-    target.unmap()
-    return count
+    return (await readGpuBuffer(device, source, bytes))![0]
   }
   const batch = async (bytes: number, source: GPUBuffer, count: number) => {
     const start = performance.now()
@@ -99,7 +92,7 @@ async function measure(
       if (!round) await batch(bytes, source, Math.max(2, frames >> 2))
       times[v].push(await batch(bytes, source, frames))
     }
-  for (const buffer of [...cut.buffers, target, worst]) buffer.destroy()
+  for (const buffer of [...cut.buffers, worst]) buffer.destroy()
   return {
     pages: packed.pageCount,
     listCap: cut.listCap,
@@ -108,7 +101,7 @@ async function measure(
     worstBytes,
     variants: variants.map(({ name }, v) => ({
       name,
-      ms: Number((quantileFloorOf(times[v], 0.5) as number).toFixed(4)),
+      ms: Number((quantileOf(times[v], 0.5) as number).toFixed(4)),
       // The rounds' spread: a gap inside it is no gap.
       spread: Number((Math.max(...times[v]) - Math.min(...times[v])).toFixed(4)),
     })),

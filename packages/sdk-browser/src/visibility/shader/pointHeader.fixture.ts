@@ -1,15 +1,16 @@
 // The scene the tests of the shipped stages run over: quantized pages of 1 to 128 triangles
 // under every row kind, a source-buffer page, far from the origin; `stages` runs a shipped text
 // over it.
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts'
 import * as F from '../types.ts'
-import { NO_HIZ_SLOT } from '../../webgpu/row/noHizSlot.ts'
 import { perspectiveProjection } from '../../../../sdk-core/src/index.ts'
-import type { Vec } from '../../texture/shaderRun.fixture.ts'
+import type { Vec } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 const random = lcgFloatRandom(831)
 const floats = (n: number, at: () => number) => Float32Array.from({ length: n }, at)
@@ -30,7 +31,7 @@ function encoded(triangles: number, vertices: number, full: boolean, shared: boo
       }
     : {}
   const POSITION = { itemSize: 3, array: position }
-  const data = encodeGeometryPage(indices, { POSITION, ...attributes }).data as Uint8Array
+  const data = encodePage(indices, { POSITION, ...attributes }).data as Uint8Array
   return new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4)
 }
 
@@ -63,7 +64,7 @@ function scene() {
             ...{ world: pages.length % 3 ? FAR : MIRROR, sprite: [0, 0], lineWidth },
             ...{ flags: flags | F.FLAG_CLUSTER_PAGE, pageOffset: at, indexCount: triangles * 3 },
             ...{ vertexBase: 0, packedBase: pages.length << 8, deformOutput: 0 },
-            hizSlot: NO_HIZ_SLOT,
+            hizSlot: NO_INDEX,
           })
       }
   const offset = words.length
@@ -72,7 +73,7 @@ function scene() {
   pages.push({
     ...{ world: FAR, sprite: [0, 0], lineWidth: 0, flags: F.FLAG_HAS_UV | F.FLAG_MASK },
     ...{ pageOffset: offset, indexCount: 36, vertexBase: 0, packedBase: 0, deformOutput: 0 },
-    hizSlot: NO_HIZ_SLOT,
+    hizSlot: NO_INDEX,
   })
   return { words, pages, pool, uvs: Array.from(floats(64, random)) }
 }
@@ -112,7 +113,7 @@ export const VIS_VS_NAMES = ['vis_vs', 'vis_hiz_vs', 'drawBatch', 'instanceRow']
   ['screenBox', 'boxOf', 'pageLine', 'lineClip'],
 )
 export const VIS_VS_SCOPE = {
-  ...{ HARDWARE_SKIP: 0xffffffff, pageSprite: () => [0, 0, 0, 1] },
+  ...{ NO_INDEX, pageSprite: () => [0, 0, 0, 1] },
   ScreenBox: (lo: Vec, hi: Vec, q0: Vec, q1: Vec, span: number) => ({ lo, hi, q0, q1, span }),
 }
 const { words, pages, pool, uvs } = scene()

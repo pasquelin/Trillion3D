@@ -6,10 +6,11 @@
 // marks; what nothing covered is the promise `uploadDirtyRows` makes to the frame — a row that did
 // not change is not uploaded, and the marks it did change are cleared exactly once, so the next image
 // uploads nothing. Without that promise every resting scene would rewrite its whole page table.
+import { createDirtyRows } from '../../row/dirty.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadDirtyRows } from './dirtyRows.ts'
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 interface Write {
@@ -25,17 +26,19 @@ const session = (marks: number[], length = 8) => {
   const writes: Write[] = []
   const floats = new Float32Array(marks.length * PAGE_INFO_STRIDE)
   let cleared = 0
+  const dirty = createDirtyRows(marks.length)
+  marks.forEach((marked, row) => marked && dirty.markWords(row))
   const rt = {
     layout: {
       rows: {
-        dirtyMarks: Uint8Array.from(marks),
-        dirtyFrom: 0,
-        dirtyTo: marks.length - 1,
+        get dirtyCount() {
+          return dirty.count
+        },
+        forEachDirtyRun: dirty.forEachRun,
         pageTableFloats: floats,
         clearDirty: () => {
           cleared++
-          rt.layout.rows.dirtyMarks.fill(0)
-          rt.layout.rows.dirtyTo = -1
+          dirty.clear()
         },
       },
     },

@@ -2,12 +2,13 @@ import type { SelectionSubmission } from '../core/selection.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
 import { viewWord } from './viewLayout.ts'
 import { swapRegionsWord } from './shader/swapWgsl.ts'
-import type { DagView } from './encode.ts'
+import type { DagResources } from './resources.ts'
 import { holdSwap, saveRegionFor } from './swap.ts'
+import { DAG_MASK_SWAP_PASS } from '../../stage/passLabels.ts'
 
 /** The camera block's region word (`swapRegions`): the host copy, then that one word of the
  *  buffer, nothing allocated. */
-function writeRegions(resources: DagView, save: number, back: number) {
+function writeRegions(resources: DagResources, save: number, back: number) {
   const word = viewWord('swapRegions')
   resources.uniformWords[word] = swapRegionsWord(save, back)
   resources.device.queue.writeBuffer(resources.uniforms, word * 4, resources.uniformWords, word, 1)
@@ -20,7 +21,7 @@ function writeRegions(resources: DagView, save: number, back: number) {
  * `shared`, the caller's command buffer: the swap is given back if it is dropped.
  */
 export function encodeSwap(
-  resources: DagView,
+  resources: DagResources,
   view: number,
   shared?: GPUCommandEncoder,
 ): SelectionSubmission | undefined {
@@ -28,7 +29,7 @@ export function encodeSwap(
     undo = holdSwap(swap, view)
   writeRegions(resources, saveRegionFor(swap, view), view - 1)
   const encoder = shared ?? device.createCommandEncoder()
-  const pass = encoder.beginComputePass({ label: 'Trillion3D DAG mask swap' })
+  const pass = encoder.beginComputePass({ label: DAG_MASK_SWAP_PASS })
   const arm = () => {
     pass.setPipeline(resources.armPipeline)
     pass.setBindGroup(0, resources.armGroup)

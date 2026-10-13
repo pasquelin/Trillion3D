@@ -18,9 +18,18 @@ export function measureWebgpuFrame(rt: WebgpuPagesRuntime) {
   return true
 }
 
+/**
+ * Whether the interactive loop leaves out the display frame that began, to hold its steady
+ * cadence (`ScaleControl.skips`, `../../frame/cadence.ts`): drawn on every `cadence`-th refresh
+ * while the GPU cannot hold each. Only the main view's loop frames: an explicit render, a capture
+ * or another view always draws.
+ */
+export const skipsWebgpuFrame = (rt: WebgpuPagesRuntime) =>
+  rt.views.active === rt.views.main && !rt.capture.capturing && rt.scale.skips(frameStart())
+
 /** Wait for feedback, never capture image pixels or bypass frame admission budgets. */
 export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
-  const { run, gpu, vis, services } = rt
+  const { run, gpu, vis } = rt
   if (run.lost) throw new Error('WEBGPU_LOST')
   // A frame held to measure the display's refresh waits for nothing (`ScaleControl.held`).
   if (rt.scale.held) return true
@@ -40,8 +49,6 @@ export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
     textures = vis.textures?.settled()
   await Promise.all([work, cut, textures])
   if (gpu.deferred && wantsContractLighting(rt)) await gpu.deferred.settle()
-  // The next page the job lands, not its last: the frames draw while a long job loads.
-  await services.residency.progress()
   // An image drawn while the effect programs compile is drawn again once, when they arrive,
   // rather than on every frame meanwhile, which would spend the loop's rounds. Waited
   // last: the feedback above is not held back by a compilation.
@@ -55,3 +62,7 @@ export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
  *  either spends none of the settle limit, so the loop draws a still image to its hold. */
 export const webgpuLandings = (rt: WebgpuPagesRuntime) =>
   rt.services.residency.landings + taaArrivals(rt)
+
+/** A residency job still loads pages: the view is still arriving, so the loop spends none of its
+ *  settle limit and draws on every display tick meanwhile (`frameScheduler.ts`). */
+export const webgpuArriving = (rt: WebgpuPagesRuntime) => rt.services.residency.busy

@@ -4,7 +4,11 @@ import { restSlotCount } from '../../gpu/draw/contract.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { ComputeRasterStages } from '../pages/render/encodeVisSetup.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
-import { HIZ_PASS } from '../../stage/passLabels.ts'
+import {
+  HIZ_PASS,
+  VISIBILITY_PRIMARY_PASS,
+  VISIBILITY_SECONDARY_PASS,
+} from '../../stage/passLabels.ts'
 import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
 import { prepared } from '../pages/state/prepared.ts'
 
@@ -59,9 +63,10 @@ function encodeHizMidFrame(rt: WebgpuPagesRuntime, device: GPUDevice, encoder: G
 
 /**
  * The visibility buffer, in this order: the primary hardware pass and the impostor
- * cards, the occluder half of the compute raster blended into it, the pyramid and its test, the secondary pass, the tested
- * half of compute, then its identifiers. Without `compute` — no compute raster — hardware alone
- * produces the same attachments, and each compute step is simply absent.
+ * cards, the occluder half of the compute raster blended into it, the pyramid's farthest layer and
+ * its test, the secondary pass, the tested half of compute, then its identifiers. Without
+ * `compute` — no compute raster — hardware alone produces the same attachments, and each compute
+ * step is simply absent.
  */
 export function encodeWebgpuVisibilityPasses(
   rt: WebgpuPagesRuntime,
@@ -97,7 +102,7 @@ export function encodeWebgpuVisibilityPasses(
     ]
   }
   const visPass = encoder.beginRenderPass({
-    label: 'Trillion3D visibility primary',
+    label: VISIBILITY_PRIMARY_PASS,
     colorAttachments: visColors('clear'),
     depthStencilAttachment: {
       view: depthTarget,
@@ -114,11 +119,17 @@ export function encodeWebgpuVisibilityPasses(
   compute?.occluders(encoder)
   rt.run.hizPyramidFresh = false
   const compacted = twoPass && encodeHizMidFrame(rt, device, encoder)
+  // An image in one pass tests nothing, and its occluders drew the whole depth: the pyramid's
+  // farthest layer is still built from it, which the readers of the whole depth bound cells with.
+  if (!twoPass) {
+    gpuHiz.encodePyramid(hizPass.begin(encoder))
+    hizPass.end()
+  }
   // The only diagnostic variant that touches encoded commands: it leaves the tested half out of
   // the image to weigh the occluders alone, and therefore yields an incomplete image.
   if (twoPass && !skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) {
     const restPass = encoder.beginRenderPass({
-      label: 'Trillion3D visibility secondary',
+      label: VISIBILITY_SECONDARY_PASS,
       colorAttachments: visColors('load'),
       depthStencilAttachment: { view: depthTarget, depthLoadOp: 'load', depthStoreOp: 'store' },
     })
@@ -128,4 +139,7 @@ export function encodeWebgpuVisibilityPasses(
     compute?.rest(encoder)
   }
   compute?.ids(encoder)
+  // Level 0 now holds every opaque pixel's depth: what the pyramid's nearest layer is built from,
+  // in the reflections' pass (`../../reflections/frame.ts`).
+  rt.run.depthDrawn = true
 }

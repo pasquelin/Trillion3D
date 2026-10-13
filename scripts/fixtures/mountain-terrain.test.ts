@@ -1,11 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
+import { REPOSITORY_ROOT } from '../repository-files.ts'
 import { assertSourceReproduced, compiledManifest } from './source-reproduced.ts'
 import { mountainTerrain, terrainHeight } from './mountain-terrain/model.ts'
 import { writeMountainTerrain } from './mountain-terrain/write.ts'
-const root = resolve(import.meta.dirname, '../..'),
-  committed = resolve(root, 'tests/fixtures/scenes/mountain-terrain')
+const committed = resolve(REPOSITORY_ROOT, 'tests/fixtures/scenes/mountain-terrain')
 
 test('mountain terrain is deterministic with deep relief, strata, and a river', () => {
   const first = mountainTerrain(),

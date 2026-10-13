@@ -4,6 +4,7 @@ import * as G from '../host/graph/graph.fixture.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
 import { collectClusterPages } from '../page/selection/selection.ts'
 import { dagRoots, DAG } from './pagesEngine.fixture.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 
 test('transmissive materials stay as unsplit source meshes even when the cache pass is exact-clusters', () => {
   const geometry = new G.Geometry()
@@ -34,14 +35,14 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
   }
   const indices = new Map([['0', new Uint32Array([0, 1, 2])]]),
     associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
-  const collected = collectClusterPages(source, manifest, indices, associations)
+  const collected = collectClusterPages(source, graphDraws(source, associations), manifest, indices)
   assert.equal(collected.allPages.length, 0)
   assert.equal(collected.blendCopies.length, 1)
   // The collection hands out the ENGINE's own record: the geometry and the surface record of the
   // source mesh, and the mesh itself only as the identity the record stands for.
   const record = collected.blendCopies[0]
   assert.equal(record.geometry, geometry)
-  assert.equal(record.userData.sourceMesh, mesh)
+  assert.equal(record.userData.drawSource?.node, mesh)
   assert.equal(record.surface.transmission, 1)
   geometry.dispose()
   material.dispose()

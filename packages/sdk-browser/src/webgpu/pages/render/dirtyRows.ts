@@ -1,13 +1,12 @@
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
-import { forEachDirtyRun } from '../../row/dirty.ts'
+import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** Uploads the rows whose bytes changed, run by run, and nothing when none did. */
 export function uploadDirtyRows(rt: WebgpuPagesRuntime) {
   const { rows } = rt.layout
   rt.timing.encodeCounts.rowsUploaded = 0
-  if (rows.dirtyTo < rows.dirtyFrom || !rt.vis.pageTable || !rows.pageTableFloats) return
-  forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, rows.dirtyTo, rt, uploadRun)
+  if (!rows.dirtyCount || !rt.vis.pageTable || !rows.pageTableFloats) return
+  rows.forEachDirtyRun(rt, uploadRun)
   rows.clearDirty()
 }
 

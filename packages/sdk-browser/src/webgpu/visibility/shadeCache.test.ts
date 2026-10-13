@@ -8,7 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { createUsageScope } from '../../../../../tests/kit/gpu/usageScope.ts'
+import { createUsageScope } from '../../../../../tests/kit/gpu/scopeRules.ts'
 import { createShadeCache, type ShadeCacheInputs } from './shadeCache.ts'
 import { createWebgpuShadePipelines } from './shadePipelines.ts'
 import {
@@ -160,23 +160,6 @@ test('the pass runs the marks, the rows, then the triangles over the row table, 
   assert.equal(bindGroups.length, 2, 'two groups, made once')
   cache.encode({ pass }, inputs)
   assert.equal(bindGroups.length, 2, 'kept while the inputs do not move')
-})
-
-test('without a compute stage the pixels compute their own, and no pass is encoded', async () => {
-  const { device } = fakeDevice({ compute: false })
-  const cache = await createShadeCache(device)
-  assert.deepEqual(cache.constants, {})
-  cache.layFor(10, 36, 64, 64)
-  assert.equal(cache.buffer.size, SHADE_CACHE_HEADER_WORDS * 4, 'the header alone, still bound')
-  // No dispatch: the frame's pass is not even asked for.
-  cache.encode(
-    {
-      get pass(): GPUComputePassEncoder {
-        throw new Error('no dispatch, no pass')
-      },
-    },
-    INPUTS,
-  )
 })
 
 test('every class pipeline reads what the cache composes, single or tiled', async () => {

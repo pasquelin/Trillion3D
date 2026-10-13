@@ -1,9 +1,10 @@
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { advanceMixers } from '../../../../sdk-core/src/world/animation/mixer.ts'
-import { lendAnimationSampler } from '../../animation/batchAnimation.ts'
+import { lendAnimationSampler } from '../../animation/animationSampler.ts'
 import { frameStart } from '../../frame/scheduling.ts'
 import { createFrameGrid } from './worldFrameGrid.ts'
+import { UNMEASURED } from '../diagnostic/metrics.ts'
 
 /** What the loop steps ahead of a frame: `world.controls`. */
 type Stepped = { autoUpdate: boolean; update(delta: number): void }
@@ -46,22 +47,11 @@ function named(m: FrameMetrics): WorldFrameMetrics {
 /**
  * What a page reads before the world's first frame: a host-led loop asks for the metrics right
  * after `render()`, which draws nothing until the engine is ready. No frame ran, so nothing was
- * spent, loaded or drawn: the counts that a frame measures are `null`, the totals are zero.
+ * spent, loaded or drawn: every metric key is there, the ones a frame measures `null`, the totals
+ * zero — the host sample before any frame (`UNMEASURED`), and no cluster culled.
  */
 export const NOT_DRAWN: Readonly<WorldFrameMetrics> = Object.freeze({
-  rafIntervalMs: null,
-  cpuFrameMs: 0,
-  cpuSubmitMs: null,
-  drawCalls: null,
-  triangles: null,
-  clusters: null,
-  selectedTriangles: null,
-  residentPages: null,
-  geometryAllocationBytes: null,
-  vramBytes: null,
-  pageLoads: 0,
-  pageBytesRead: 0,
-  gpuFrameMs: null,
+  ...UNMEASURED,
   hizCulled: null,
 })
 
@@ -112,8 +102,8 @@ function member<T>(hooks: Set<(info: T) => void>, hook: (info: T) => void) {
 /** The per-frame hooks of a world, in the order they were added: `before` ones ahead of each
  *  drawn frame, the others after it. */
 export function createWorldFrames() {
-  // The mixers sample through the WebAssembly sampler once the module is there.
-  void lendAnimationSampler()
+  // The mixers take their samples ahead on a worker where the page can start one.
+  lendAnimationSampler()
   // The world's time is its frames' (`frameStart`), on the display's grid while it holds one.
   const state: FramesState = {
     hooks: new Set(),

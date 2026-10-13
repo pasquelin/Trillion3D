@@ -1,9 +1,9 @@
 //! The corners of a page, coded by delta to their block's smallest vertex (CMP-09).
 //!
-//! Triangles go by blocks of `BLOCK`, in page order. A block's record holds its smallest corner
+//! Triangles go by blocks of `TRIANGLE_BLOCK`, in page order. A block's record holds its smallest corner
 //! (`base`, at the index width), the `width` each of its corners takes as its distance to that
 //! base, and `prefix`, the sum of the widths of the blocks before it: the block's first corner
-//! lies at bit `3 * BLOCK * prefix` of the corner stream: any corner is one record and one field
+//! lies at bit `3 * TRIANGLE_BLOCK * prefix` of the corner stream: any corner is one record and one field
 //! away, in O(1), as a shader reads it in place. The code is lossless — `base + delta == index`,
 //! in order, which the tests prove on every input —, and pages number vertices by first use.
 
@@ -12,9 +12,9 @@ use crate::writer::BitWriter;
 use crate::PageError;
 
 /// Triangles per block.
-pub const BLOCK: usize = 8;
-/// Corners per full block: a block's bits are `CORNERS * width`, so a prefix of widths locates it.
-const CORNERS: usize = 3 * BLOCK;
+pub const TRIANGLE_BLOCK: usize = 8;
+/// Corners per full block: a block's bits are `BLOCK_CORNERS * width`, so a prefix of widths locates it.
+pub const BLOCK_CORNERS: usize = 3 * TRIANGLE_BLOCK;
 /// Bits of a block's width, 0 to 16: a local index never needs more than 16.
 pub const WIDTH_BITS: u32 = 5;
 pub const MAX_WIDTH: usize = 16;
@@ -35,8 +35,8 @@ impl CornerCode {
     pub fn of(vertex_count: usize, index_count: usize, bits: usize) -> Self {
         Self {
             index_bits: bits_for(vertex_count.saturating_sub(1) as u32),
-            prefix_bits: bits_for((bits / CORNERS) as u32),
-            blocks: (index_count / 3).div_ceil(BLOCK),
+            prefix_bits: bits_for((bits / BLOCK_CORNERS) as u32),
+            blocks: (index_count / 3).div_ceil(TRIANGLE_BLOCK),
             bits,
         }
     }
@@ -55,7 +55,7 @@ impl CornerCode {
         (
             base,
             width,
-            record.read(self.prefix_bits) as usize * CORNERS,
+            record.read(self.prefix_bits) as usize * BLOCK_CORNERS,
         )
     }
 
@@ -66,7 +66,7 @@ impl CornerCode {
         let words: Vec<u32> = le_words(table).collect();
         (0..self.blocks).all(|b| {
             let (base, width, start) = self.record(&words, 0, b);
-            let corners = (index_count - b * CORNERS).min(CORNERS);
+            let corners = (index_count - b * BLOCK_CORNERS).min(BLOCK_CORNERS);
             (base as usize) < vertex_count
                 && width <= self.index_bits
                 && start + corners * width as usize <= self.bits
@@ -86,7 +86,7 @@ impl CornerCode {
         out: &mut [u32],
     ) -> Result<(), PageError> {
         let mut largest = 0;
-        for (b, block) in out.chunks_mut(CORNERS).enumerate() {
+        for (b, block) in out.chunks_mut(BLOCK_CORNERS).enumerate() {
             let (base, width, start) = self.record(words, table, b);
             let mut corners = BitReader::at(words, stream * 32 + start);
             for corner in block {
@@ -112,7 +112,7 @@ pub struct Spans {
 impl Spans {
     pub fn of(indices: &[u32]) -> Self {
         let (mut spans, mut bits) = (Vec::new(), 0);
-        for block in indices.chunks(CORNERS) {
+        for block in indices.chunks(BLOCK_CORNERS) {
             let base = block.iter().copied().min().unwrap_or(0);
             let width = bits_for(block.iter().copied().max().unwrap_or(0) - base);
             bits += block.len() * width as usize;
@@ -131,7 +131,7 @@ impl Spans {
             prefix += width;
         }
         out.close();
-        for (block, &(base, width)) in indices.chunks(CORNERS).zip(&self.spans) {
+        for (block, &(base, width)) in indices.chunks(BLOCK_CORNERS).zip(&self.spans) {
             for &corner in block {
                 out.push(corner - base, width);
             }

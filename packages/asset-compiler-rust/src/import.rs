@@ -57,7 +57,7 @@ impl std::hash::Hash for CornerKey {
         }
     }
 }
-type CornerMap = crate::shared_math::WordMap<CornerKey, u32>;
+type CornerMap = trillion3d_page_codec::hash::WordMap<CornerKey, u32>;
 /// Binary of an intermediate scene under construction, shared with scene drivers
 /// that write their own glTF: one view per byte block, aligned to four.
 #[derive(Default)]
@@ -175,4 +175,4 @@ pub(crate) use primitive::{primitive, Vertices};
 pub use runner::import_source;
 pub(crate) use tables::{readable, SceneTables};
 use textures::*;
-pub(crate) use write::{write_scene, Tables};
+pub(crate) use write::{borrowed_tables, scene_source, write_scene, Converted, Tables};

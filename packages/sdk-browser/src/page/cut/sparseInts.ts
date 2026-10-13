@@ -1,4 +1,5 @@
-import { floorLog2 } from '../../../../math/src/scalar/integers.ts'
+import { mixWord } from '../../../../math/src/scalar/integers.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
 /**
  * Integer values keyed by non-negative integer ids, held only for the ids that carry one: what the
  * cut's per-page state is kept in, so its size follows what the view and the pool hold, never the
@@ -13,7 +14,7 @@ const EMPTY = -1
 const MIN_SLOTS = 16
 
 export function createSparseInts() {
-  const t: Table = { keys: new Int32Array(0), values: new Int32Array(0), shift: 32, size: 0 }
+  const t: Table = { keys: new Int32Array(0), values: new Int32Array(0), size: 0 }
   const map = {
     get size() {
       return t.size
@@ -54,10 +55,10 @@ export function createSparseInts() {
   return map
 }
 
-/** The two tables of a map, the shift its hash takes, and how many entries it holds. */
-type Table = { keys: Int32Array; values: Int32Array; shift: number; size: number }
+/** The two tables of a map and how many entries it holds. */
+type Table = { keys: Int32Array; values: Int32Array; size: number }
 
-const home = (t: Table, key: number) => Math.imul(key, 0x9e3779b1) >>> t.shift
+const home = (t: Table, key: number) => mixWord(key) & (t.keys.length - 1)
 
 function find(t: Table, key: number) {
   const { keys } = t
@@ -72,7 +73,6 @@ function allocate(t: Table, slots: number) {
     oldValues = t.values
   const keys = (t.keys = new Int32Array(slots).fill(EMPTY))
   const values = (t.values = new Int32Array(slots))
-  t.shift = 32 - floorLog2(slots)
   for (let i = 0; i < oldKeys.length; i++)
     if (oldKeys[i] !== EMPTY) {
       const at = find(t, oldKeys[i])
@@ -105,7 +105,6 @@ function removeAt(t: Table, at: number) {
 function release(t: Table) {
   t.keys = new Int32Array(0)
   t.values = new Int32Array(0)
-  t.shift = 32
   t.size = 0
 }
 
@@ -114,7 +113,7 @@ function slotFor(t: Table, key: number) {
   if ((t.size + 1) * 2 > t.keys.length) {
     const at = t.keys.length ? find(t, key) : -1
     if (at >= 0 && t.keys[at] === key) return at
-    allocate(t, Math.max(MIN_SLOTS, t.keys.length * 2))
+    allocate(t, grownLength(t.keys.length, MIN_SLOTS))
   }
   return find(t, key)
 }

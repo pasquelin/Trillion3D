@@ -1,6 +1,10 @@
 import type { EngineDiagnostic } from '../../../engine/types.ts'
 import { sendEngineDiagnostic } from '../../../diagnostic/engineDiagnostic.ts'
 import { isCancelled } from '../../../engine/common.ts'
+import { log } from '../../../diagnostic/log.ts'
+
+/** The backend's diagnostic channel (`createWebgpuDiagnostics`). */
+export type WebgpuDiagnosticChannel = ReturnType<typeof createWebgpuDiagnostics>
 
 /**
  * The backend's diagnostic channel. What the session says once its `signal` is aborted — the
@@ -134,7 +138,7 @@ function failure(f: Failures, phase: string, error: unknown) {
   f.occurrences.set(phase, occurrence)
   // A failed path is said on the console too, once per kind: with no diagnostic channel open —
   // the default — it would otherwise leave a blank or degraded image and nothing to read.
-  if (occurrence === 1) console.warn(`[trillion3d] WebGPU ${phase}: ${details.error}`)
+  if (occurrence === 1) log.warn(`WebGPU ${phase}: ${details.error}`)
   if (f.traceEnabled) {
     f.traceDiagnostic(phase, 'WebGPU path failed', () => ({
       ...details,

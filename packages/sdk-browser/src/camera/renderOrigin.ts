@@ -1,4 +1,5 @@
 import {
+  FAR_PLANE_SLOT,
   FRUSTUM_PLANE_VALUES,
   frustumFarPlane,
   frustumPlanesFromMatrix,
@@ -53,7 +54,7 @@ export function updateRenderOriginFrame(
   viewToRenderOrigin(frame.viewRelative, view)
   multiplyMatrix4(frame.viewProjectionRelative, projection, frame.viewRelative)
   frustumPlanesFromMatrix(frame.planesRelative, frame.viewProjectionRelative)
-  frustumFarPlane(frame.planesRelative, 16, frame.viewRelative, far, true)
+  frustumFarPlane(frame.planesRelative, FAR_PLANE_SLOT * 4, frame.viewRelative, far, true)
   return frame
 }
 

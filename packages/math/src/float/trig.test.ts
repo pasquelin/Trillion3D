@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { fdlibmAcos, fdlibmSin } from './trig.ts'
 
-// `libm` 0.2.16's own `sin` and `acos` (the Rust crate the WebAssembly sampler transcribes too),
+// `libm` 0.2.16's own `sin` and `acos` (the Rust crate),
 // as bit patterns: x, sin x, acos x. On every branch of the reduction below 2^20 · π/2 — the
 // kernels, one to four quarter turns, the near multiples of π/2 — and of the arc cosine.
 const LIBM: [string, string, string][] = [

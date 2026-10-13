@@ -2,27 +2,26 @@ import { awaitEnginePages } from '../../engine/awaitEnginePages.ts'
 import { releasePageWorkers } from '../../page/work/host.ts'
 import { releasePageIntegration } from '../../page/integration/host.ts'
 import { disposeSource } from './disposeSource.ts'
-import { retainVisiblePages } from '../../streaming/retainVisiblePages.ts'
 import type { EngineContext, Engine } from '../../engine/types.ts'
 import type { HostCamera } from '../../camera/world.ts'
 import type { SessionState } from '../render/sessionState.ts'
 import type { ExplorerSession } from './session.ts'
 import type { createExplorerStreaming } from '../scene/streaming.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
+import { retainHeldUrls } from '../../streaming/hostRanks.ts'
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts'
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts'
 
 /** How `awaitPages` waits: with or without a picture, and who hears the pages land. */
 type PageWait = { image?: boolean; onProgress?: (event: JobProgress) => void }
 
-type Streamer = ReturnType<typeof createPageStreamer>
 type Inputs = {
   check: () => void
   state: SessionState
   gpuDevice?: GPUDevice
   profiler: EngineProfiler
   ownedControls: { dispose(): void }[]
-  streamer: Streamer
+  streamer: PageStreaming
   streaming: ReturnType<typeof createExplorerStreaming>
   engine: Engine
   source: EngineContext['source']
@@ -49,26 +48,25 @@ export function releaseOwned(
  *  residency uploading it — is not counted twice. */
 function holdPages(
   engine: Engine,
-  streamer: Streamer,
+  streamer: PageStreaming,
   missing: readonly string[],
   hold: (url: string) => void,
 ) {
   const lacking = new Set(missing)
-  const ranks = engine.retainedRanks()
-  // Apply this delta before another read of the engine can turn it into an empty hold.
-  streamer.retainRanks(ranks)
-  for (let i = 0; i < ranks.heldCount; i++) {
-    const url = ranks.urls[ranks.held[i]]
-    if (url !== undefined && !lacking.has(url) && streamer.has(url)) hold(url)
-  }
+  retainHeldUrls(streamer, engine.retainedRanks(), (url) => {
+    if (!lacking.has(url) && streamer.has(url)) hold(url)
+  })
 }
 
-/** The session's teardown: once, its owned controls, reads, workers, engine and resources. */
+/** The session's teardown: once, its owned controls, reads, workers, engine and resources. It
+ *  returns the engine's release (`Engine.dispose`), which resolves once the engine gave back all it
+ *  held — its session's handle swept included —, every later call the same one. */
 function sessionDisposal(session: ExplorerSession, inputs: Inputs) {
   const { scope, diagnosticChannel, diagnose } = session
   const { state, profiler, ownedControls, streaming, streamer, engine } = inputs
+  let released: Promise<void> | void
   return () => {
-    if (state.disposed) return
+    if (state.disposed) return released
     diagnose('dispose-start', 'MeasuredWorld disposal started', { kind: 'lifecycle', scope })
     diagnosticChannel.flushSync()
     state.disposed = true
@@ -85,11 +83,12 @@ function sessionDisposal(session: ExplorerSession, inputs: Inputs) {
     streamer.dispose()
     releasePageWorkers()
     releasePageIntegration()
-    engine.dispose()
+    released = engine.dispose()
     releaseOwned(session, inputs)
     diagnose('dispose-complete', 'MeasuredWorld disposal completed', { kind: 'lifecycle', scope })
     diagnosticChannel.flushSync()
     diagnosticChannel.close()
+    return released
   }
 }
 
@@ -130,7 +129,7 @@ function pageAwaiter(inputs: Inputs) {
         }
       }
       await awaitEnginePages(engine, camera, load, wait)
-      retainVisiblePages(engine, streamer)
+      streamer.retainRanks(engine.retainedRanks())
       report(true)
     } finally {
       read.stop()

@@ -8,6 +8,7 @@ import {
 } from '../../../gpu/raster/contract.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { quadScene, camera, disposeQuadRun, flushedGpuScene } from '../testScenes.fixture.ts'
+import { dispatchedEntries } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 
 // The compute raster is created only under `raster-compute` or `raster-hybrid`: the cut then goes
 // to compute — binning, occluder depth, the rest, identifiers — between the hardware passes that
@@ -15,15 +16,15 @@ import { quadScene, camera, disposeQuadRun, flushedGpuScene } from '../testScene
 test('the raster-compute variant hands the whole cut to the compute raster', async () => {
   installGpuGlobals()
   const fixture = quadScene()
-  const { draws, computes, buffers, packed, backend } = await flushedGpuScene(fixture, {
+  const { draws, dispatches, buffers, packed, backend } = await flushedGpuScene(fixture, {
     diagnosticDetail: 'trace',
     diagnosticGpuVariant: 'raster-compute',
   })
   draws.length = 0
-  computes.length = 0
+  dispatches.length = 0
   backend.render(camera())
-  assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1])
-  const at = (entry: string) => computes.indexOf(entry)
+  assert.deepEqual(drawnPageIds(buffers, packed), [0, 1])
+  const at = (entry: string) => dispatchedEntries(dispatches).indexOf(entry)
   const bin = at('bin'),
     occluder = at(rasterEntry('fine', MODE_DEPTH_OCCLUDER)),
     rest = at(rasterEntry('fine', MODE_DEPTH_REST)),

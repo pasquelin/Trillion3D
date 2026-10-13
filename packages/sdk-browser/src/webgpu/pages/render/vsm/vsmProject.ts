@@ -1,30 +1,31 @@
 // The frame's shadow-map raster and projection (`vsmEncode.ts`).
-import type { EngineCamera } from '../../../../camera/world.ts'
+import { refreshComposedSpheres } from '../../../../placement/composedSpheres.ts'
+import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import {
   encodeVirtualShadowProjection,
   type VsmProjectionLight,
 } from '../../../../vsm/projectionPass.ts'
-import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionWgsl.ts'
+import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionView.ts'
 import { shadowPageGroup } from '../../../shadow/pageGroup.ts'
-import { taaRenderProjection } from '../../../../taa/frame.ts'
+import { stochasticPhase } from '../../../../taa/frameState.ts'
+import { shadowEpoch } from '../../state/shadowEpoch.ts'
+import { shadowsUnsettled } from '../../state/lights.ts'
 import { focalPixels } from '../../../../../../math/src/projection/camera.ts'
 import { ensureMask, maskLayersFor, type EngineVsm } from './engineVsm.ts'
 import { projectionLight } from './vsmPlan.ts'
 import { encodeVsmRenderAndTransmission } from './vsmTransmission.ts'
 
-/** The projection the raster drew this image with, the TAA jitter in it (`taaRenderProjection`):
- *  the depth the projection reconstructs each pixel from was drawn jittered, so the projection
- *  reconstructs it with the jittered projection (#1363). */
-const rasterProjection = new Float64Array(16)
-
-/** What a frame's VSM steps read: the engine, the device, the encoder, the camera, the shadow
+/** What a frame's VSM steps read: the engine, the device, the encoder, the camera, the projection
+ *  the raster drew this image with (the TAA jitter in it, `taaRenderProjection`: the depth the
+ *  marking and the projection reconstruct each pixel from was drawn jittered, #1363), the shadow
  *  maps and their plan. */
 export interface VsmFrame {
   rt: WebgpuPagesRuntime
   device: GPUDevice
   encoder: GPUCommandEncoder
   cam: EngineCamera
+  projection: Float64Array
   vsm: EngineVsm
   plan: NonNullable<EngineVsm['plan']>
 }
@@ -37,6 +38,8 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
   const { spheres, mobilityRows, rowLods, pageLayout } = lights
   if (!pageGroup || !spheres || !mobilityRows || !rowLods || !pageLayout || !vis.pageTable) return
   vsm.renderedPlan = plan
+  // The chunks are sized from the CPU copy of the spheres: a composed row's is made current.
+  refreshComposedSpheres(rt)
   vsm.stats.render = encodeVsmRenderAndTransmission(
     rt,
     vsm,
@@ -67,13 +70,15 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
 /** Projection: one pass, every light a channel reads (`planVsmFrame`: the first 64), four a layer
  *  of the mask array. None when the plan holds no light — every lamp culled, its cache entries
  *  still counted —: every light then reads no shadow (`planVsmFrame` assigns −1), so no pixel
- *  reads the mask, and a pass of no light would store no texel of it. True when it ran. */
+ *  reads the mask, and a pass of no light would store no texel of it. A frame whose inputs are the
+ *  last projection's, the shadow pages settled, runs none: its mask is that projection's
+ *  (`vsmProjectionHold.ts`). The passes it ran: 0 or 1. */
 export function encodeVsmProjection(
-  { rt, device, encoder, cam, vsm, plan }: VsmFrame,
+  { rt, device, encoder, cam, projection, vsm, plan }: VsmFrame,
   projected: VsmProjectionLight[],
   views: GPUTextureView[],
 ) {
-  const { lights, gpu, run } = rt
+  const { lights, gpu } = rt
   const [width, height] = gpu.targetSize
   const store = lights.store
   const reads = Math.min(plan.lights.length, VSM_PROJECTION_MAX_PASS_LIGHTS)
@@ -82,16 +87,31 @@ export function encodeVsmProjection(
     const l = plan.lights[k]
     projected[k] = projectionLight(store.light(l.id)!, l.firstId)
   }
-  if (!projected.length) return false
+  if (!projected.length) return 0
   const layers = maskLayersFor(projected.length)
   // At the targets' size, as the scene textures are at theirs: the view rect is its
   // top-left, and a dynamic-resolution step does not remake it.
   const mask = ensureMask(device, vsm, gpu.allocatedSize[0], gpu.allocatedSize[1], layers)
+  const phase = stochasticPhase(rt.gpu.temporal?.frame)
+  const { inputs } = vsm.projectionHold
+  inputs.view = cam.view
+  inputs.projection = projection
+  inputs.revisions = rt.run.gate.revisions
+  inputs.lightsEpoch = store.epoch
+  inputs.shadowEpoch = shadowEpoch(lights)
+  inputs.phase = phase
+  inputs.size = gpu.allocatedSize
+  inputs.lights = projected
+  const held = vsm.projectionHold.held(mask.array)
+  if (held && !shadowsUnsettled(lights)) return 0
+  // The depth the screen ray marches, its pyramid complete (`encodeDepthPyramid`).
+  const hizDepth = rt.vis.gpuHiz?.depth()
+  if (!hizDepth) return 0
   // The engine's shadow receiver, as the resolve wrote it (`receiverTargetWgsl.ts`).
   const receiver = gpu.surfaces!.receiverView
   const camera = {
     view: cam.view,
-    projection: taaRenderProjection(rt, cam, rasterProjection),
+    projection,
     perspective: cam.perspective === 1,
   }
   encodeVirtualShadowProjection(
@@ -100,19 +120,19 @@ export function encodeVsmProjection(
     {
       device,
       depth: gpu.depthView!,
+      hizDepth,
       normalRough: views[1],
       flags: views[3],
       width,
       height,
-      bufferWidth: gpu.allocatedSize[0],
-      bufferHeight: gpu.allocatedSize[1],
       camera,
-      frameIndex: run.frame,
+      frameIndex: phase,
       mask: mask.view,
       maskTiles: mask.tilesView,
       receiver,
     },
     projected,
   )
-  return true
+  vsm.projectionHold.keep(mask.array)
+  return 1
 }

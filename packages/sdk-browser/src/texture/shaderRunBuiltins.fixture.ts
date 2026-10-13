@@ -1,20 +1,14 @@
 // The WGSL built-ins and operators `shaderRun` (`shaderRun.fixture.ts`) runs a shader with, in
 // JavaScript double precision.
+import { f32Bits, fromF32Bits } from '../../../math/src/float/bits.ts'
 import { cross } from '../../../math/src/vector/vectorTuple.ts'
+import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
+import { SCALAR } from './shaderRunOperators.fixture.ts'
+import { Mat, Mat3, matrixProduct } from './shaderRunMatrix.fixture.ts'
 
 /** A vector: its components. A boolean vector holds booleans. */
 export type Vec = Array<number | boolean>
-/** A column-major 4×4 matrix. */
-export class Mat {
-  readonly m: readonly number[]
-  readonly [column: number]: readonly number[]
-  constructor(m: readonly number[]) {
-    this.m = m
-    for (let column = 0; column < 4; column++)
-      Object.defineProperty(this, column, { value: m.slice(column * 4, column * 4 + 4) })
-  }
-}
-type Value = number | boolean | Vec | Mat
+type Value = number | boolean | Vec | Mat | Mat3
 type Scalar = number | boolean
 
 const LETTERS = { x: 0, y: 1, z: 2, w: 3, r: 0, g: 1, b: 2, a: 3 } as Record<string, number>
@@ -31,31 +25,11 @@ export const each =
   }
 
 const n = (value: Scalar) => Number(value)
-const SCALAR: Record<string, (a: number, b: number) => Scalar> = {
-  '+': (a, b) => a + b,
-  '-': (a, b) => a - b,
-  '*': (a, b) => a * b,
-  '/': (a, b) => a / b,
-  '%': (a, b) => a % b,
-  '<': (a, b) => a < b,
-  '>': (a, b) => a > b,
-  '<=': (a, b) => a <= b,
-  '>=': (a, b) => a >= b,
-  '==': (a, b) => a === b,
-  '!=': (a, b) => a !== b,
-  '>>': (a, b) => a >>> b,
-  '<<': (a, b) => (a << b) >>> 0,
-  '&': (a, b) => (a & b) >>> 0,
-  '|': (a, b) => (a | b) >>> 0,
-  '^': (a, b) => (a ^ b) >>> 0,
-}
 
 /** A binary operator: a matrix times a vector, otherwise component-wise. */
 function $b(op: string, a: Value, b: Value): Value {
-  if (a instanceof Mat) {
-    const v = b as number[]
-    return [0, 1, 2, 3].map((row) => v.reduce((sum, x, col) => sum + a.m[col * 4 + row] * x, 0))
-  }
+  const product = matrixProduct(a, b)
+  if (product) return product
   // Two scalars, the most of what a kernel's integer work runs: no vector to broadcast.
   if (!Array.isArray(a) && !Array.isArray(b)) return SCALAR[op](n(a as Scalar), n(b as Scalar))
   return each((x, y) => SCALAR[op](n(x), n(y)))(a, b)
@@ -98,10 +72,8 @@ const int = (x: Scalar) => Math.trunc(Number(x))
 
 const numeric = (f: (...x: number[]) => number) => each((...x) => f(...x.map(n)))
 /** A float's 32 bits as an unsigned integer, and back: `bitcast`. */
-const WORD = new Float32Array(1),
-  BITS = new Uint32Array(WORD.buffer)
-const toBits = each((x) => ((WORD[0] = n(x)), BITS[0]))
-const toFloat = each((x) => ((BITS[0] = n(x)), WORD[0]))
+const toBits = each((x) => f32Bits(n(x)))
+const toFloat = each((x) => fromF32Bits(n(x)))
 const vec = (value: Value) => value as number[]
 
 /** A pointer: what `&x` gives an atomic (`shaderRun.fixture.ts`). */
@@ -137,6 +109,8 @@ export const builtins = {
   }),
   // The lowest set bit's rank; all ones (-1 as `i32`) for zero.
   firstTrailingBit: each((x) => (n(x) ? 31 - Math.clz32(n(x) & -n(x)) : 0xffffffff)),
+  mat3x3f: (...columns: number[][]) => new Mat3(columns),
+  mat4x4f: (...values: Array<number | number[]>) => new Mat(values.flat()),
   vec2f: vector(2, float),
   vec3f: vector(3, float),
   vec4f: vector(4, float),
@@ -147,6 +121,7 @@ export const builtins = {
   vec4u: vector(4, (x) => int(x) >>> 0),
   bitcast_u32: toBits,
   bitcast_vec3u: toBits,
+  bitcast_vec4u: toBits,
   bitcast_f32: toFloat,
   f32: each(float),
   i32: each(int),
@@ -167,6 +142,13 @@ export const builtins = {
   asin: numeric(Math.asin),
   atan: numeric(Math.atan),
   sqrt: numeric(Math.sqrt),
+  inverseSqrt: numeric((x) => 1 / Math.sqrt(x)),
+  // Two halves in one word, the first in the low bits, and back.
+  pack2x16float: (v: Value) => (toHalf(vec(v)[0]) | (toHalf(vec(v)[1]) << 16)) >>> 0,
+  unpack2x16float: (word: Value) => [
+    fromHalf(n(word as Scalar) & 0xffff),
+    fromHalf(n(word as Scalar) >>> 16),
+  ],
   log: numeric(Math.log),
   log2: numeric(Math.log2),
   exp2: numeric((x) => 2 ** x),

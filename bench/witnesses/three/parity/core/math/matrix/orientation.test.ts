@@ -1,4 +1,4 @@
-// The reflection rule is now written only once: `matrixWindingCw` replaces
+// The mirror rule is now written only once: `matrixWindingCw` replaces
 // `matrix.determinant() < 0` on the 4x4 of the lit CPU raster and blend pass.
 //
 // BOTH VERDICTS COMPARED, word for word:
@@ -33,15 +33,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { matrixWindingCw } from '../../../../../../../packages/math/src/matrix/orientation.ts'
-
-/** Deterministic sequence: same sweep on every run, on this machine and elsewhere. */
-function sequence(seed: number) {
-  let state = seed >>> 0
-  return () => {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0
-    return state / 4294967296
-  }
-}
+import { lcgRandom } from '../../../../../../../packages/math/src/sequence/random.ts'
 
 /**
  * Conditioning of a pose: |det 3x3| over product of norms of its three columns.
@@ -61,7 +53,7 @@ function conditioning(e: ArrayLike<number>) {
 
 /** A population: `n` matrices filled by `fill`, both verdicts counted on each. */
 function sweep(n: number, seed: number, fill: (m: THREE.Matrix4, s: () => number) => void) {
-  const next = sequence(seed)
+  const next = lcgRandom(seed)
   const m = new THREE.Matrix4()
   const tally = { n, cw: 0, disagreements: 0, worstDisagreement: 0, worstAgreement: 1 }
   for (let i = 0; i < n; i++) {

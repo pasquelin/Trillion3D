@@ -1,11 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from '../pages/pages.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 // Behaviour 22: writePageRow writes the bias in positive units at the table row's depthBias
 // slot; a layer-0 row keeps that field at zero.
@@ -15,7 +16,7 @@ test('writePageRow writes the layer bias in positive units at the table row dept
   // The quad's second cluster carries the layer the coplanar step would have assigned; the first
   // stays at layer 0 (a missing field equals 0, as decoding leaves it).
   ;(scene.metadata.primitives[0].pages[1] as { depthLayer?: number }).depthLayer = 5
-  const { device, buffers } = mockGpu()
+  const { device, buffers } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: device,
@@ -29,7 +30,6 @@ test('writePageRow writes the layer bias in positive units at the table row dept
     await backend.flush?.()
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')
     assert.ok(table, 'the page table is allocated once')
-    const words = PAGE_INFO_STRIDE / 4
     const rows = new Uint32Array(
       table!.data.buffer,
       table!.data.byteOffset,
@@ -38,10 +38,10 @@ test('writePageRow writes the layer bias in positive units at the table row dept
     let sawPositiveBias = false,
       sawZeroBias = false
     for (let row = 0; row < table!.size / PAGE_INFO_STRIDE; row++) {
-      const base = row * words,
-        indexCount = rows[base + 25]
+      const base = row * ROW_WORDS,
+        indexCount = rows[base + PAGE_INFO.at.indexCount]
       if (!indexCount) continue
-      const bias = rows[base + 60]
+      const bias = rows[base + PAGE_INFO.at.depthBias]
       if (bias === 0) {
         sawZeroBias = true
         continue

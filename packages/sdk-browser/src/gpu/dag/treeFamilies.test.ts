@@ -15,7 +15,7 @@ import { dagOracleDescent } from './oracle/descent.fixture.ts'
 import { dagViewFrames } from './oracle/math.fixture.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import type { CameraMotion } from '../../camera/motion.ts'
 import type { DagRoot } from './types.ts'
 
@@ -23,7 +23,7 @@ const VIEWPORT: [number, number] = [1280, 720]
 
 /** `count` placements of the field's primitive laid out by `at`, each of its own height. */
 function family(count: number, at: (k: number) => [number, number]) {
-  const next = random(count),
+  const next = lcgRandom(count),
     template = placementField(1, 1)[0]
   return Array.from({ length: count }, (_, k): DagRoot => {
     const [x, z] = at(k),
@@ -35,7 +35,7 @@ function family(count: number, at: (k: number) => [number, number]) {
 const FAMILIES: Array<[string, DagRoot[], number]> = [
   ['a grid of 900', placementField(30, 6), 180],
   ['a grid of 4900', placementField(70, 3), 210],
-  ['a scatter of 3000', family(3000, ((n) => () => [n() * 300, -n() * 300])(random(7))), 300],
+  ['a scatter of 3000', family(3000, ((n) => () => [n() * 300, -n() * 300])(lcgRandom(7))), 300],
   [
     'clumps of 2500',
     family(2500, (k) => {
@@ -90,7 +90,8 @@ test('on every family the tree cuts as the flat descent and tests no more placem
               : undefined
           const flags = dagOracleDescent(packed, frames, ahead)
           let reached = 0
-          for (let w = 0; w < roots.length; w++) if (flags[packed.rootBases[w]] !== 1) reached++
+          for (let w = 0; w < roots.length; w++)
+            if (flags.at(w, packed.rootBases[w]) !== 1) reached++
           const lists = [result.drawablePageIds ?? [], result.pageIds, result.aheadPageIds ?? []]
           return { lists: lists.map((ids) => [...ids].sort((a, b) => a - b)), reached }
         }

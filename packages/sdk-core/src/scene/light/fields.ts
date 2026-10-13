@@ -41,7 +41,7 @@ export const LIGHT_FIELD = {
   angularRadius: 16,
 } as const
 /** A point tests no cone, and a spot without penumbra no inner cone: this cosine never bounds. */
-const NO_CONE = -2
+export const NO_CONE = -2
 
 function writeVector(packed: Float32Array, at: number, value: readonly number[]) {
   packed[at] = value[0]

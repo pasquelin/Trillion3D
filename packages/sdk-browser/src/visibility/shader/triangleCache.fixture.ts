@@ -3,7 +3,8 @@
 // pass and `SHADE_CACHE` false —, then the shipped `pixelTriangle` and
 // `decodeTriangle`. The page decode runs on integers, its results in
 // binary32; the rest of the decode in binary32 (`F32_SCOPE`); the cache passes on words.
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { perspectiveProjection } from '../../../../sdk-core/src/index.ts'
@@ -11,7 +12,6 @@ import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER, shadeCacheReadWgsl } from './sha
 import {
   Mat3,
   STRUCTS,
-  f,
   image,
   integer$b,
   scene,
@@ -25,7 +25,7 @@ export function cacheRun(width: number, height: number, none = false) {
   const { pages, words, pool, normals, uvs } = scene()
   const projection = perspectiveProjection(new Float64Array(16), 60, width / height, 0.1, 50)
   const uni = {
-    viewProj: new Mat([...projection].map(f)),
+    viewProj: new Mat([...projection].map(Math.fround)),
     viewport: [width, height],
     pixelRatio: 1,
   }
@@ -47,7 +47,7 @@ export function cacheRun(width: number, height: number, none = false) {
     (name: string) =>
     (...args: unknown[]) => {
       const out = decode[name](...args)
-      return Array.isArray(out) ? out.map(f) : out
+      return Array.isArray(out) ? out.map(Math.fround) : out
     }
   const geometry = Object.fromEntries(
     ['pageHeader', 'pageTriangle', 'pagePosition', 'pageUv', 'pageNormal'].map((name) => [
@@ -59,6 +59,7 @@ export function cacheRun(width: number, height: number, none = false) {
     SHADE_TRIS_SHADER,
     [
       'decodeTriangle',
+      'decodeCorners',
       'transformedNormals',
       'framebuffer',
       'clipToFramebuffer',

@@ -8,10 +8,21 @@ import {
   poolFloats,
   type PoolList,
 } from './geometryPoolLayout.ts'
-import { copyPoolStores, createPoolStores, releasePoolStores } from './geometryPoolStores.ts'
+import {
+  copyPoolStores,
+  createPoolBuffers,
+  createPoolStores,
+  releasePoolBuffers,
+  releasePoolStores,
+  storesBytes,
+  type PoolStores,
+} from './geometryPoolStores.ts'
+import { pendingMade } from '../../gpu/core/tableGrowth.ts'
 import { fillScratch, releaseScratch, scratchFloats } from './geometryPoolScratch.ts'
 import { writeFloatAtlas } from './floatAtlas.ts'
 import { UV1_FLOATS, writeUv1Tail } from './uv1Tail.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
+import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 
 /** The lists of the normal atlas, written again at a growth. */
 const ATLAS_LISTS: readonly PoolList[] = ['normal', 'uv1']
@@ -31,8 +42,12 @@ export type Pool = {
   stores: ReturnType<typeof createPoolStores>
 }
 
+/** The lists a pool carries beside the positions and the normals (`poolFloats`). */
+type Carried = Pick<Pool, 'coloured' | 'secondUv'>
+
 /** Floats of each store of a pool of `count` vertices. */
-const floatsOf = (p: Pool, count: number) => poolFloats(count, p.tailFloats, p.coloured, p.secondUv)
+const floatsOf = (p: Carried, count: number, tail: number) =>
+  poolFloats(count, tail, p.coloured, p.secondUv)
 
 /** Writes `n` floats of the scratch at float `at` of list `name`'s store. */
 function upload(p: Pool, name: PoolList, at: number, n: number) {
@@ -68,24 +83,37 @@ export function put(
 const weigh = (p: Pool, attributes: HostAttributes, name: PoolList, count: number) =>
   holds(p, attributes, name) ? count * LAYOUT[name].stride * 4 : 0
 
-/** Makes the room for `need` more vertices in place when the pool is short: the buffers are
- *  made wider, what they hold copied into them, the old ones freed, the owners told. False when
- *  the device refuses the size — the caller then opens the session, as it did before (#1293). */
-function ensure(p: Pool, need: number) {
-  const { device, used, size } = p
-  if (used + need <= size) return true
-  let next = size
-  while (next < used + need) next *= 2
-  const wider = floatsOf(p, next)
+/** The pool laid out for `size` vertices and a tail of `tail` floats, in place, carrying the lists
+ *  of `carried` (the lists it holds, or more: `widen`): the buffers made over, what the held ones
+ *  hold copied into them (positions, colours, the tail as it stood), the old ones freed. A pool of
+ *  another size, or one that gains a second UV set, makes its normal atlas over too, whose rows
+ *  follow its size and whose tail is the set, and every block's normals and second UV set are
+ *  written again, as placed; one of the same layout keeps it. False when the device refuses the
+ *  size. */
+function remake(p: Pool, size: number, tail: number, carried: Carried = p) {
+  const { device } = p
+  const wider = floatsOf(carried, size, tail)
   if (!poolFits(wider, device.limits)) return false
-  const made = createPoolStores(device, wider),
-    encoder = device.createCommandEncoder()
-  copyPoolStores(encoder, p.stores, made, [size, next, p.tailFloats], p.coloured)
-  device.queue.submit([encoder.finish()])
-  releasePoolStores(p.stores)
-  p.stores = made
-  p.size = next
-  p.floats = wider
+  const resized = size !== p.size || carried.secondUv !== p.secondUv,
+    made: PoolStores = resized
+      ? createPoolStores(device, wider)
+      : { ...createPoolBuffers(device, wider), concatNrm: p.stores.concatNrm }
+  // A pool whose atlas stays frees the buffers alone.
+  const free = (held: PoolStores) => (resized ? releasePoolStores(held) : releasePoolBuffers(held))
+  pendingMade(made, storesBytes(made), free, () => {
+    const encoder = device.createCommandEncoder(),
+      held = p.stores
+    copyPoolStores(encoder, held, made, [p.size, size, p.tailFloats], p.coloured)
+    device.queue.submit([encoder.finish()])
+    p.stores = made
+    p.size = size
+    p.tailFloats = tail
+    p.floats = wider
+    p.coloured = carried.coloured
+    p.secondUv = carried.secondUv
+    return held
+  }).commit()
+  if (!resized) return true
   // The atlas's rows follow its size: every block's normals and second UV set are written
   // again, as placed.
   for (const [attributes, block] of p.blocks)
@@ -93,7 +121,39 @@ function ensure(p: Pool, need: number) {
       if (holds(p, attributes, name))
         put(p, attributes, name, { vertex: block.vertexBase, from: 0, n: block.count })
   releaseScratch() // a growth's largest list is not kept, as the open's
+  return true
+}
+
+/** Makes the room for `need` more vertices in place when the pool is short (`remake`), the owners
+ *  told. False when the device refuses the size — the caller then opens the session, as it did
+ *  before (#1293). */
+function ensure(p: Pool, need: number) {
+  const { used, size } = p
+  if (used + need <= size) return true
+  const next = size * nextPow2((used + need) / size)
+  if (!remake(p, next, p.tailFloats)) return false
   p.grown?.(next)
+  return true
+}
+
+/** Room for a tail of `tail` floats after the positions, grown by the engine's rule when the pool
+ *  is short (`remake`). False when the device refuses the size. The owners are told by the caller,
+ *  which draws the tail again. */
+export function reserveTail(p: Pool, tail: number) {
+  return tail <= p.tailFloats || remake(p, p.size, grownLength(p.tailFloats, tail))
+}
+
+/** The pool carries the lists `attributes` has — colours, a second UV set — which it was opened
+ *  without: laid out wider by the open's own rule (`poolFloats`), what it holds copied, the owners
+ *  told. False when the device refuses the size. */
+function widen(p: Pool, attributes: HostAttributes) {
+  const carried = {
+    coloured: p.coloured || !!attributes.color,
+    secondUv: p.secondUv || !!attributes.uv1,
+  }
+  if (carried.coloured === p.coloured && carried.secondUv === p.secondUv) return true
+  if (!remake(p, p.size, p.tailFloats, carried)) return false
+  p.grown?.(p.size)
   return true
 }
 
@@ -101,9 +161,7 @@ function ensure(p: Pool, need: number) {
  *  bounds the size. */
 export function claim(p: Pool, attributes: HostAttributes, dynamic: boolean) {
   const count = attributes.position?.count ?? 0
-  // A list the pool was opened without — colours, a second UV set — opens the session again.
-  if ((attributes.color && !p.coloured) || (attributes.uv1 && !p.secondUv) || !ensure(p, count))
-    return undefined
+  if (!widen(p, attributes) || !ensure(p, count)) return undefined
   const block: GeometryBlock = {
     ...{ vertexBase: p.used, count, hasUv: !!attributes.uv, hasNormal: !!attributes.normal },
     ...{ hasTangent: !!attributes.tangent, hasColor: !!attributes.color, dynamic },

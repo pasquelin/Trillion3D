@@ -1,5 +1,4 @@
-import { addCpuSteps } from '../../../stage/cpuSteps.ts'
-import { CPU_STEP, CPU_STEP_STAGES } from './cpuStepTable.ts'
+import { CPU_STEP } from './cpuStepTable.ts'
 import {
   frameCostAuditEnabled,
   gpuFrameCostSnapshot,
@@ -9,12 +8,11 @@ import type { HostCpuStep } from '../../../host/cpuProfile.ts'
 import { debugMode } from '../../../host/debugMode.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
-/** Deposits the image's CPU bounds into the public per-stage profile, when it is mounted. */
+/** Attaches the image's counters to the public per-stage profile, when it is mounted. */
 function recordStages(rt: WebgpuPagesRuntime) {
   const { timing, lights, bounce } = rt,
-    stages = timing.stages
+    { stages } = timing.profiler
   if (!stages) return
-  stages.frameCpu((add) => addCpuSteps(CPU_STEP_STAGES, timing.cpuProfile.row, add))
   const tiles = rt.vis.textures?.counters
   if (tiles)
     stages.setCounts('textures', {
@@ -37,8 +35,6 @@ function recordStages(rt: WebgpuPagesRuntime) {
     probesUpdated: bounce.probesUpdated,
     raysPerFrame: bounce.raysLaunched,
     cascadeProbes: bounce.probes?.cascades.probes ?? 0,
-    texelsUpdated: bounce.encoded ? (bounce.probes?.surface.lastTexels ?? 0) : 0,
-    cachedTexels: bounce.probes?.surface.texels ?? 0,
     // Fraction of the ceiling the millisecond budget holds, in thousandths: a count is an integer,
     // and it is the duration that decides this count, never the reverse.
     budgetFraction: Math.round((bounce.probes?.budget.load ?? 0) * 1000),
@@ -87,7 +83,7 @@ function publishCpuProfile(rt: WebgpuPagesRuntime) {
   timing.lastCpuLogFrame = run.frame
   const details = {
     ...timing.cpuSample,
-    steps: timing.cpuProfile.summary(),
+    steps: timing.publishedSteps.read(),
     audit: gpuFrameCostSnapshot(rt),
   }
   diag.engineDiagnostic('cpu-timing', 'CPU timings measured in the engine', details)
@@ -96,7 +92,7 @@ function publishCpuProfile(rt: WebgpuPagesRuntime) {
 
 /** Deposits the duration of a host-sampled step: arrivals, wait, retain, submit. */
 export function hostCpuStep(rt: WebgpuPagesRuntime, step: HostCpuStep, ms: number) {
-  rt.timing.cpuProfile.row[CPU_STEP[step]] = ms
+  rt.timing.profiler.row[CPU_STEP[step]] = ms
 }
 
 /**
@@ -110,10 +106,9 @@ export function endCpuFrame(rt: WebgpuPagesRuntime) {
   const { timing, run } = rt
   if (!timing.rowFilled) return
   timing.rowFilled = false
-  if (!(timing.stages || rt.diag.listened || debugMode() || frameCostAuditEnabled())) return
-  const total = timing.cpuProfile.row[CPU_STEP.totalMs]
-  timing.cpuProfile.record(run.frame, total)
-  timing.cpuWindow.record(run.frame, total)
+  const { profiler } = timing
+  if (!(profiler.stages || rt.diag.listened || debugMode() || frameCostAuditEnabled())) return
+  profiler.record(run.frame, profiler.row[CPU_STEP.totalMs])
   recordStages(rt)
   publishCpuProfile(rt)
 }

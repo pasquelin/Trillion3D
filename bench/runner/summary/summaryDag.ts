@@ -2,7 +2,8 @@
 // (`worstStalls`, the ten primitives that kept the most level-0 triangles as roots, with the cause
 // it named), as the engine's `dag-warnings` diagnostic carries it, in the compiler's order.
 import type { PrimitiveDagStall } from '../../../packages/sdk-core/src/index.ts'
-import type { Report } from '../report/types.ts'
+import type { BenchReport } from '../report/types.ts'
+import { tableLines } from '../../core/table.ts'
 
 /** The `dag-warnings` diagnostic a side recorded, as `harness/measurePage.ts` keeps it. */
 interface DagWarnings {
@@ -10,7 +11,7 @@ interface DagWarnings {
 }
 
 /** One section: a table per side, or a line saying the side's cache has no stalled primitive. */
-export function stalls(report: Report) {
+export function stalls(report: BenchReport) {
   const lines = [
     '## DAG stalls',
     '',
@@ -23,20 +24,24 @@ export function stalls(report: Report) {
     const recorded = report.series
       .map((series) => series.sides[side]?.dagWarnings as DagWarnings | null | undefined)
       .find((warnings) => warnings?.stalled)
-    const table = recorded?.stalled ?? []
-    if (!table.length) {
+    const stalled = recorded?.stalled ?? []
+    if (!stalled.length) {
       lines.push(`- ${side}: no stall recorded`, '')
       continue
     }
     lines.push(
       `### ${side}`,
       '',
-      '| mesh/primitive | level-0 triangles kept as roots | cause | seam | locked | islands |',
-      '|---|---|---|---|---|---|',
-      ...table.map(
-        (w) =>
-          `| ${w.mesh}/${w.primitive} | ${w.rootTriangles} | ${w.cause ?? '—'} ` +
-          `| ${w.seamVertices} | ${w.lockedVertices} | ${w.uvIslands} |`,
+      ...tableLines(
+        ['mesh/primitive', 'level-0 triangles kept as roots', 'cause', 'seam', 'locked', 'islands'],
+        stalled.map((w) => [
+          `${w.mesh}/${w.primitive}`,
+          w.rootTriangles,
+          w.cause ?? '—',
+          w.seamVertices,
+          w.lockedVertices,
+          w.uvIslands,
+        ]),
       ),
       '',
     )

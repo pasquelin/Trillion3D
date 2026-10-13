@@ -13,7 +13,6 @@
  * projection data handed to the GPU is in metres (see `clipmap.ts`).
  */
 import {
-  VSM_CACHE_ON,
   VSM_SUN_DEPTH_KEEP,
   VSM_PRESSURE_LOAD,
   VSM_PRESSURE_BIAS_MAX,
@@ -29,9 +28,14 @@ import {
 } from './constants.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { vsmDefaultProjectionData, type VsmProjectionDataValues } from './projectionData.ts'
-import { createVsmReadbackRing, type VsmReadbackRing } from './readbackRing.ts'
+import {
+  createReadbackRing,
+  type ReadbackRing as VsmReadbackRing,
+} from '../gpu/core/readbackRing.ts'
 import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
 import { spheresOverlap } from '../../../math/src/geometry/sphere.ts'
+import type { VsmClipmap } from './clipmap.ts'
+import type { VsmLocalLightSetup } from './localLight.ts'
 
 /** Frames a light stays active after its last change: its mobility factor falls over them. */
 const VSM_LIGHT_ACTIVE_FRAME_COUNT = 10
@@ -153,6 +157,10 @@ export class VsmLightCache {
   /** Rough bounds for invalidation culling, metres; radius < 0 = infinite. */
   lightOrigin: [number, number, number] = [0, 0, 0]
   lightRange = -1
+  /** A sun's clipmap (`buildVsmClipmap`), a local light's setup (`addVsmLocalLightShadow`): kept
+   *  with the entry, rewritten in place every frame, made anew with a new entry. */
+  clipmap?: VsmClipmap
+  localSetup?: VsmLocalLightSetup
 
   readonly lightId: string
 
@@ -207,11 +215,11 @@ export class VsmLightCache {
   }
 
   /** Updates a clipmap's cache entry. */
-  updateClipmap(key: VsmSunCacheKey, forceInvalidate: boolean, useCover: boolean) {
+  updateClipmap(key: VsmSunCacheKey, forceInvalidate: boolean) {
     const k = this.clipmapCacheKey
     const changed =
       !sameValues(key.lightDirection, k.lightDirection) || key.firstLevel !== k.firstLevel
-    this.updateCommon(changed, forceInvalidate, useCover)
+    this.updateCommon(changed, forceInvalidate, true)
     if (changed) {
       copyInto(k.lightDirection, key.lightDirection)
       k.firstLevel = key.firstLevel
@@ -226,7 +234,6 @@ export class VsmLightCache {
     lightOrigin: [number, number, number],
     lightRange: number,
     forceInvalidate: boolean,
-    useCover: boolean,
   ) {
     const k = this.localCacheKey
     const changed =
@@ -234,7 +241,7 @@ export class VsmLightCache {
       !sameValues(key.lightOriginShift, k.lightOriginShift) ||
       key.isCachedFarLight !== k.isCachedFarLight ||
       !sameValues(key.shape, k.shape)
-    this.updateCommon(changed, forceInvalidate, useCover)
+    this.updateCommon(changed, forceInvalidate, false)
     if (changed) {
       copyInto(k.worldToLight, key.worldToLight)
       copyInto(k.lightOriginShift, key.lightOriginShift)
@@ -265,11 +272,47 @@ export interface VsmInvalidationBatch {
   instances: VsmInstanceInvalidation[]
 }
 
-/** The per-light cache state the scene renderer reads: the light mobility. */
-interface LightMobility {
+/** A light's mobility state, which the scene renderer reads as its factor: `firstActiveFrame` the
+ *  frame its activity began, −1 before the first frame that reads it. */
+export interface LightMobility {
   firstActiveFrame: number
   mobilityFactor: number
   active: boolean
+}
+
+/** A light's mobility state at the start: not active. */
+export const newLightMobility = (): LightMobility => ({
+  firstActiveFrame: -1,
+  mobilityFactor: 0,
+  active: false,
+})
+
+/**
+ * Advances a light's mobility at `frame`, once per frame per light, with `updated` true when the
+ * light was added or changed: the factor is 1 then, and falls to 0 over the next
+ * `VSM_LIGHT_ACTIVE_FRAME_COUNT` frames. Returns the factor. Lights are movable (stationary lights
+ * are treated as movable).
+ */
+export function advanceLightMobility(m: LightMobility, updated: boolean, frame: number) {
+  if (updated) {
+    m.firstActiveFrame = -1
+    m.active = true
+    m.mobilityFactor = 1
+  }
+  if (m.active) {
+    if (m.firstActiveFrame === -1) {
+      m.firstActiveFrame = frame
+      m.mobilityFactor = 1
+    } else if (frame - m.firstActiveFrame < VSM_LIGHT_ACTIVE_FRAME_COUNT) {
+      m.mobilityFactor = Math.fround(
+        1 - saturate((frame - m.firstActiveFrame) / VSM_LIGHT_ACTIVE_FRAME_COUNT),
+      )
+    } else {
+      m.active = false
+      m.mobilityFactor = 0
+    }
+  }
+  return m.active ? m.mobilityFactor : 0
 }
 
 interface VsmCacheManagerOptions {
@@ -296,10 +339,8 @@ export class VsmCacheManager {
     singlePageMapCount: number
   } | null = null
 
-  private mobility = new Map<string, LightMobility>()
-
   constructor(options: VsmCacheManagerOptions = {}) {
-    this.cacheEnabled = options.cacheEnabled ?? (VSM_CACHE_ON as number) !== 0
+    this.cacheEnabled = options.cacheEnabled ?? true
     this.poolPages = options.poolPages ?? VSM_POOL_PAGES
   }
 
@@ -406,44 +447,6 @@ export class VsmCacheManager {
     oldest?.markScheduled(frame)
   }
 
-  /**
-   * Call once per frame per light with `updated` true when the light was added or changed. Returns
-   * the light's mobility factor. Lights are movable (stationary lights are treated as movable).
-   */
-  updateLightMobility(lightId: string, updated: boolean) {
-    let m = this.mobility.get(lightId)
-    if (!m) {
-      m = { firstActiveFrame: -1, mobilityFactor: 0, active: false }
-      this.mobility.set(lightId, m)
-      updated = true // an added light is updated like a known one
-    }
-    if (updated) {
-      m.firstActiveFrame = -1
-      m.active = true
-      m.mobilityFactor = 1
-    }
-    if (m.active) {
-      const frame = this.frameStamp | 0
-      if (m.firstActiveFrame === -1) {
-        m.firstActiveFrame = frame
-        m.mobilityFactor = 1
-      } else if (frame - m.firstActiveFrame < VSM_LIGHT_ACTIVE_FRAME_COUNT) {
-        m.mobilityFactor = Math.fround(
-          1 - saturate((frame - m.firstActiveFrame) / VSM_LIGHT_ACTIVE_FRAME_COUNT),
-        )
-      } else {
-        m.active = false
-        m.mobilityFactor = 0
-      }
-    }
-    return m.active ? m.mobilityFactor : 0
-  }
-
-  /** Forgets the mobility state of removed lights. */
-  removeLightMobility(lightId: string) {
-    this.mobility.delete(lightId)
-  }
-
   /** Free AVAILABLE pages of the last status message read back (diagnostics). */
   lastFreePages = 0
 
@@ -454,25 +457,20 @@ export class VsmCacheManager {
    */
   readPoolFeedback(freePages: number, lastPressureBias: number) {
     this.lastFreePages = freePages
-    const maxPageAllocation = VSM_PRESSURE_LOAD,
-      biasCap = VSM_PRESSURE_BIAS_MAX
-    const f = Math.fround
-    if (maxPageAllocation > 0) {
-      const frameStamp = this.frameStamp >>> 0
-      const currentAllocation = f(1 - f(freePages / this.poolPages))
-      const allocationRatio = f(currentAllocation / f(maxPageAllocation))
-      const targetBias = f(Math.max(0, lastPressureBias + Math.log2(allocationRatio)))
-      if (
-        currentAllocation <= f(maxPageAllocation) &&
-        (frameStamp - this.lastFrameOverBudget) >>> 0 > VSM_PRESSURE_CALM_FRAMES
-      ) {
-        this.pressureBias = f(lerp(this.pressureBias, targetBias, VSM_PRESSURE_FALL))
-      } else if (currentAllocation > f(maxPageAllocation)) {
-        this.lastFrameOverBudget = frameStamp
-        this.pressureBias = f(lerp(this.pressureBias, targetBias, VSM_PRESSURE_RISE))
-      }
+    const frameStamp = this.frameStamp >>> 0
+    const currentAllocation = Math.fround(1 - Math.fround(freePages / this.poolPages))
+    const allocationRatio = Math.fround(currentAllocation / Math.fround(VSM_PRESSURE_LOAD))
+    const targetBias = Math.fround(Math.max(0, lastPressureBias + Math.log2(allocationRatio)))
+    if (
+      currentAllocation <= Math.fround(VSM_PRESSURE_LOAD) &&
+      (frameStamp - this.lastFrameOverBudget) >>> 0 > VSM_PRESSURE_CALM_FRAMES
+    ) {
+      this.pressureBias = Math.fround(lerp(this.pressureBias, targetBias, VSM_PRESSURE_FALL))
+    } else if (currentAllocation > Math.fround(VSM_PRESSURE_LOAD)) {
+      this.lastFrameOverBudget = frameStamp
+      this.pressureBias = Math.fround(lerp(this.pressureBias, targetBias, VSM_PRESSURE_RISE))
     }
-    const bias = clamp(this.pressureBias, 0, biasCap)
+    const bias = clamp(this.pressureBias, 0, VSM_PRESSURE_BIAS_MAX)
     // In f32, nine tenths of k·2^-149 round back to it for k <= 4: the decay would stop there.
     this.pressureBias = bias < VSM_PRESSURE_BIAS_FLOOR ? 0 : bias
     return this.pressureBias
@@ -492,7 +490,7 @@ export class VsmFeedbackReadback {
   private readonly ring: VsmReadbackRing
 
   constructor(device: GPUDevice, cache: VsmCacheManager, maxInFlight = 3) {
-    this.ring = createVsmReadbackRing(
+    this.ring = createReadbackRing(
       device,
       { label: 'vsm.feedbackReadback', bytes: 16, count: maxInFlight },
       (mapped) => {

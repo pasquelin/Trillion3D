@@ -12,10 +12,10 @@ import {
   releasePageWorkers,
   verifyPageBytes,
 } from './host.ts'
+import { NodeWorker } from '../../../../../bench/kit/worker.ts'
 import {
   DeadNodeWorker,
   FlakyNodeWorker,
-  NodeDomWorker,
   withNodeWorkerShim,
 } from '../../../../../bench/oracles/browser/pageWorkNodeWorker.ts'
 
@@ -54,7 +54,7 @@ test('a page is checked where it landed: its digest, its bytes untouched, counte
 })
 
 test('pool size is bounded by cores, the cap and admission, and is readable in the metrics', () =>
-  withNodeWorkerShim(NodeDomWorker, () =>
+  withNodeWorkerShim(NodeWorker, () =>
     withCores(8, async () => {
       releasePageWorkers()
       configurePageWorkers(2)
@@ -66,7 +66,7 @@ test('pool size is bounded by cores, the cap and admission, and is readable in t
   ))
 
 test('a worker dead at start never loses a task: the main thread reads it', () =>
-  withNodeWorkerShim(DeadNodeWorker as unknown as typeof NodeDomWorker, async () => {
+  withNodeWorkerShim(DeadNodeWorker as unknown as typeof NodeWorker, async () => {
     releasePageWorkers()
     configurePageWorkers(1)
     assert.equal((await patientTask('cells', emptyCells())).ok, true)
@@ -76,7 +76,7 @@ test('a worker dead at start never loses a task: the main thread reads it', () =
   }))
 
 test('a task whose worker vanished is read on the main thread from the bytes it kept', () =>
-  withNodeWorkerShim(FlakyNodeWorker as unknown as typeof NodeDomWorker, async () => {
+  withNodeWorkerShim(FlakyNodeWorker as unknown as typeof NodeWorker, async () => {
     releasePageWorkers()
     configurePageWorkers(1)
     await patientTask('cells', emptyCells()) // the one answer the flaky worker gives

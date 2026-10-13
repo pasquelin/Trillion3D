@@ -2,7 +2,7 @@
 import { box, cylinder } from '../world/geometry/basic.ts'
 import { Material } from '../world/material/material.ts'
 import { Mesh } from '../world/object/mesh.ts'
-import { WHEEL_WORDS } from './wire.fixture.ts'
+import { WHEEL_WORDS } from './vehicleLayout.ts'
 import { HALF_PI } from '../../../math/src/constants.ts'
 
 const stuff = () => new Material('meshStandard')

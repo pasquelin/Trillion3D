@@ -1,6 +1,7 @@
 // A bench report as Markdown: what was played and how, each segment's frame (GPU, CPU, hitches,
 // stability, same images), its GPU by stage and pass and its commands, the CPU by engine step and
 // by function, the engine's counters, and what went wrong.
+import { table } from '../core/table.ts'
 import { MIB } from '../../packages/math/src/constants.ts'
 import { REFRESH_MS } from './frames.ts'
 import type { BenchReport } from './merge.ts'
@@ -15,12 +16,6 @@ const range = (s: Spread | null) => (s ? `${ms(s.median)} (${ms(s.min)}–${ms(s
 export const mib = (bytes: number, digits = 0) => (bytes / MIB).toFixed(digits)
 export const percent = (share: number | null) =>
   share === null ? '—' : `${(share * 100).toFixed(1)} %`
-export const table = (head: string[], rows: (string | number)[][]) =>
-  [
-    `| ${head.join(' | ')} |`,
-    `|${head.map(() => '---').join('|')}|`,
-    ...rows.map((row) => `| ${row.join(' | ')} |`),
-  ].join('\n')
 
 /** The frames per second a GPU time allows on a 120 Hz display, a frame that misses its refresh
  *  waiting for the next: the GPU alone, the browser's compositing not counted. */
@@ -32,9 +27,9 @@ type Segment = BenchReport['segments'][number]
 export const sameImages = (segment: Segment) =>
   segment.sameImages.length === 0
     ? '—'
-    : segment.sameImages.every((d) => d && d.pixels === 0)
+    : segment.sameImages.every((d) => d && d.differentPixels === 0)
       ? 'identical'
-      : segment.sameImages.map((d) => (d ? `${d.pixels} px` : '?')).join(', ')
+      : segment.sameImages.map((d) => (d ? `${d.differentPixels} px` : '?')).join(', ')
 
 export function reportText(report: BenchReport, insights?: Insights) {
   const { bench } = report

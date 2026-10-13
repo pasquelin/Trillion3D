@@ -41,9 +41,7 @@ export const DEFAULT_FOV = 55,
    * to full detail after a stop. A page the camera reaches within it is asked for now, so the
    * queue that fills a stopped view in that time has it when the view does (`../gpu/core/aheadView.ts`).
    */
-  PREFETCH_HORIZON_MS = 250,
-  DEFAULT_CACHED_PAGES = 16384,
-  DEFAULT_CLEAR_COLOR = 0x171d28
+  PREFETCH_HORIZON_MS = 250
 /**
  * How far ahead of a moving camera the cut requests pages, in milliseconds: the published horizon
  * plus the pages' measured round trip (`../streaming/roundTrip.ts`) — a page asked for now lands a
@@ -70,10 +68,10 @@ export const devicePixels = (logical: number, pixelRatio: number | undefined) =>
  *    (`water-pass-refused`).
  *  - A count, the most bindings of that kind one stage of the engine's layouts holds: the device
  *    asks no more than it binds, and a layout that outgrows the count fails its unit test
- *    (`gpu/core/stageLimits.test.ts`) before any device sees it. Sampled textures: the opaque
- *    resolve with bounce, 12 in its own group (`deferredLayoutEntries`, its targets read by load
- *    alone being read-only storage textures) and 4 in the reflection group
- *    (`reflections/layout.ts`): WebGPU's guaranteed 16, which every adapter grants. */
+ *    (`gpu/core/stageLimits.test.ts`) before any device sees it. Sampled textures: WebGPU's
+ *    guaranteed 16, which every adapter grants; the opaque resolve with bounce binds 11 in its own
+ *    group (`deferredLayoutEntries`, its targets read by load alone being read-only storage
+ *    textures). */
 export const WEBGPU_REQUIRED_LIMITS = {
   maxTextureDimension2D: Infinity,
   maxTextureArrayLayers: Infinity,

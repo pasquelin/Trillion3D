@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import ts from 'typescript'
+import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
-const ROOT = resolve(import.meta.dirname, '../..')
 const FACADES = ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts']
 
 /** A named signature contract: the compiler assigns it one canonical `Type` per declaration,
@@ -36,7 +36,7 @@ function isPrivate(declaration: ts.Declaration): boolean {
 }
 
 function missingNamedContracts(file: string): string[] {
-  const program = ts.createProgram([resolve(ROOT, file)], {
+  const program = ts.createProgram([resolve(REPOSITORY_ROOT, file)], {
     allowImportingTsExtensions: true,
     module: ts.ModuleKind.NodeNext,
     moduleResolution: ts.ModuleResolutionKind.NodeNext,
@@ -45,7 +45,7 @@ function missingNamedContracts(file: string): string[] {
     types: ['node', '@webgpu/types'],
   })
   const checker = program.getTypeChecker()
-  const source = program.getSourceFile(resolve(ROOT, file))
+  const source = program.getSourceFile(resolve(REPOSITORY_ROOT, file))
   if (!source) throw new Error(`${file}: not part of the program`)
   const module = checker.getSymbolAtLocation(source)
   if (!module) throw new Error(`${file}: has no module symbol`)

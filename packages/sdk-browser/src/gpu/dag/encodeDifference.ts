@@ -1,7 +1,8 @@
 import { DAG_ARGS } from './shader/armWgsl.ts'
-import type { DagView } from './encode.ts'
+import type { DagResources } from './resources.ts'
+import { DAG_SELECTION_PASS } from '../../stage/passLabels.ts'
 
-const DAG_PASS: GPUComputePassDescriptor = { label: 'Trillion3D DAG selection' }
+const DAG_PASS: GPUComputePassDescriptor = { label: DAG_SELECTION_PASS }
 
 /** Each kept list's argument record (`shader/armWgsl.ts`). */
 const LIST_ARGS = [DAG_ARGS.list0, DAG_ARGS.list1]
@@ -15,7 +16,7 @@ const LIST_ARGS = [DAG_ARGS.list0, DAG_ARGS.list1]
  * (`dagSortRequests`, `dagDrawPrefix`), copied here by the arming kernel, in the pass. The cut's
  * own group is bound again behind them.
  */
-export function encodeDifference(pass: GPUComputePassEncoder, resources: DagView) {
+export function encodeDifference(pass: GPUComputePassEncoder, resources: DagResources) {
   pass.setPipeline(resources.armPipeline)
   pass.setBindGroup(0, resources.armGroup)
   pass.dispatchWorkgroups(1)
@@ -30,7 +31,7 @@ export function encodeDifference(pass: GPUComputePassEncoder, resources: DagView
 
 /** A dispatch that copies the snapshot in hand without cutting: its difference in a pass of its
  *  own, on each list's group (`rankGroups`). */
-export function encodeDagDifference(encoder: GPUCommandEncoder, resources: DagView) {
+export function encodeDagDifference(encoder: GPUCommandEncoder, resources: DagResources) {
   const pass = encoder.beginComputePass(DAG_PASS)
   encodeDifference(pass, resources)
   pass.end()

@@ -11,13 +11,14 @@ import { type WebgpuPagesRuntime } from '../runtime.ts'
  */
 function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, slots: number) {
   const { diag, run, services } = rt,
-    { pageBytes, homes } = rt.setup
+    { pageBytes, homes, coverUrls: cover } = rt.setup
   const options = (
     diag.traceEnabled
       ? {
           pageBytes,
           slots,
           homes,
+          cover,
           onDiagnostic: (event: {
             phase: string
             message: string
@@ -28,7 +29,7 @@ function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, sl
               frame: run.frame,
             })),
         }
-      : { pageBytes, slots, homes }
+      : { pageBytes, slots, homes, cover }
   ) as Parameters<typeof createGpuPageCache>[2]
   return createGpuPageCache(gpuDevice, services.pageSource, options)
 }

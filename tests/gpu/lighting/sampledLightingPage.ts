@@ -7,16 +7,9 @@ import {
   createSceneLightStore,
   type SceneLightStore,
 } from '../../../packages/sdk-core/src/index.ts'
-import {
-  VIEWPORT,
-  batisseur as sceneBuilder,
-  square,
-  cameraFace as facingCamera,
-  release as release,
-  engine,
-} from '../kit/sharedSceneProof.ts'
+import { VIEWPORT, batisseur, cameraFace, release, engine } from '../kit/sharedSceneProof.ts'
 import { image, untilHeld } from '../kit/sceneImageProof.ts'
-import { runAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts'
+import { runAccumulation } from '../kit/deviceProof.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
 
 /** Moving images rendered under the shake: enough for the history to settle again. */
@@ -27,14 +20,9 @@ const LIGHTS = 8
 
 /** One grey, rough, lit square facing the camera. */
 function scene() {
-  const builder = sceneBuilder()
-  const plane = G.mesh(
-    square(1.2),
-    G.standardSurface({ color: 0x9a9a9a, roughness: 0.7, metalness: 0 }),
-  )
-  plane.name = 'plane'
-  builder.source.add(plane)
-  builder.add(plane, 'exact-clusters', 1.2)
+  const builder = batisseur()
+  const grey = G.standardSurface({ color: 0x9a9a9a, roughness: 0.7, metalness: 0 })
+  builder.place(grey, 'exact-clusters', 1.2).name = 'plane'
   return builder.fini()
 }
 
@@ -65,14 +53,14 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
   })
   try {
     await backend.prepare()
-    const { held, count } = await untilHeld(backend, facingCamera())
+    const { held, count } = await untilHeld(backend, cameraFace())
     // The shake: a hair to the left, then to the right, a hundredth of a pixel at this distance.
     // Every image moves, none is held, and the pose never leaves the still one.
     let first: number[] = [],
       last: number[] = [],
       heldWhileShaken = 0
     for (let i = 1; i <= SHAKES; i++) {
-      const frame = await image(backend, facingCamera(i % 2 ? 0.0003 : -0.0003))
+      const frame = await image(backend, cameraFace(i % 2 ? 0.0003 : -0.0003))
       if (i === 1) first = Array.from(frame.pixels)
       if (i === SHAKES) last = Array.from(frame.pixels)
       if (frame.metrics.frameHeld) heldWhileShaken++
@@ -86,5 +74,5 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
 /** Without accumulation, with it, and with it again as the A/A witness; the viewport and the light
  *  count. */
 export async function run() {
-  return { viewport: VIEWPORT, lights: LIGHTS, ...(await withAndWithoutAccumulation(fullRun)) }
+  return { viewport: VIEWPORT, lights: LIGHTS, ...(await runAccumulation(fullRun)) }
 }

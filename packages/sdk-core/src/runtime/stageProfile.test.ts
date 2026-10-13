@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { stageQuantiles, stageLabel, disabledStageProfile, STAGE_LABELS } from './stageProfile.ts'
-import { WEBGPU_STAGES } from '../../../sdk-browser/src/stage/mapping.ts'
+import { WEBGPU_STAGES } from '../../../sdk-browser/src/stage/passDeclaration.ts'
 
 test('stageQuantiles returns null for an empty series: unmeasured, not zero', () => {
   assert.equal(stageQuantiles([]), null)
@@ -13,8 +13,16 @@ test('stageQuantiles distinguishes a measured zero from the unmeasured', () => {
   assert.notEqual(quantiles, null)
 })
 
-test('stageQuantiles computes p50 and p95 from the series', () => {
+test('stageQuantiles computes p50 and p95 from the series, in any order, typed or not', () => {
   assert.deepEqual(stageQuantiles([10, 20, 30, 40, 60]), { p50: 30, p95: 60 })
+  assert.deepEqual(stageQuantiles(Float64Array.of(60, 10, 40, 30, 20)), { p50: 30, p95: 60 })
+})
+
+test('stageQuantiles reads the nearest rank: the 95th of twenty values is the nineteenth', () => {
+  assert.deepEqual(stageQuantiles(Array.from({ length: 20 }, (_, i) => i + 1)), {
+    p50: 10,
+    p95: 19,
+  })
 })
 
 test('every stage the engine records reads as its own words, and every label names such a stage', () => {
@@ -34,7 +42,7 @@ test('a stage no engine names is shown as it is', () => {
 })
 
 test('disabledStageProfile measures nothing: counters at zero, quantiles and method at null', () => {
-  const profile = disabledStageProfile('webgpu', 'per-stage profile not requested by the host')
+  const profile = disabledStageProfile('webgpu')
   assert.deepEqual(profile, {
     version: 1,
     enabled: false,

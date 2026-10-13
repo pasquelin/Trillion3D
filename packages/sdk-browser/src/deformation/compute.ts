@@ -10,6 +10,7 @@ import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { DEFORMATION_PASS } from './pass.ts'
 import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { uniformSlots } from '../residency/pools.ts'
+import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 
 /** The stage's image records, one per dispatch at its own aligned offset (`slot`): the image
  *  number, then the rows that dispatch deforms — its padding groups leave past them. */
@@ -61,15 +62,15 @@ export async function createDeformationCompute(device: GPUDevice) {
         buffers: [...buffers],
         group: device.createBindGroup({
           layout,
-          entries: [...buffers, image.buffer].map((resource, binding) => ({
-            binding,
-            resource:
-              binding === DEFORMATION_NORMALS
+          entries: sequentialEntries(
+            [...buffers, image.buffer].map((resource, at) =>
+              at === DEFORMATION_NORMALS
                 ? (resource as GPUTextureView)
                 : resource === image.buffer
                   ? image.entry(slot)
                   : { buffer: resource as GPUBuffer },
-          })),
+            ),
+          ),
         }),
       }
     return held[slot].group

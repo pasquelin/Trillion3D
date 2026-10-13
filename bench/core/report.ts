@@ -2,7 +2,7 @@
 // domain baseline, fragment stored in `.measure/perf/` and row printed to console.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   FAILURE_THRESHOLD,
@@ -11,9 +11,10 @@ import {
   compareBaseline,
   relativeGap,
 } from './baseline.ts'
-import { FRAGMENTS, RACINE, fragmentPath } from './paths.ts'
+import { FRAGMENTS, fragmentPath } from './paths.ts'
 import { ligneMd } from './table.ts'
 import type { Measurement } from '../kit/measureTypes.ts'
+import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
 
 /** A domain fragment deposited under `.measure/perf/`, for the report's two readers. */
 export interface Fragment {
@@ -27,7 +28,7 @@ function verifyFiles(measurements: Measurement[]) {
   for (const m of measurements) {
     const chemins = Array.isArray(m.fichier) ? m.fichier : [m.fichier]
     for (const path of chemins)
-      if (!existsSync(join(RACINE, path)))
+      if (!existsSync(join(REPOSITORY_ROOT, path)))
         throw new Error(`Bench ${m.name}: measured file "${path}" does not exist`)
   }
 }
@@ -106,7 +107,7 @@ export function lisFragments(): Fragment[] {
   try {
     return readdirSync(FRAGMENTS)
       .filter((n) => n.endsWith('.json'))
-      .map((n) => JSON.parse(readFileSync(join(FRAGMENTS, n), 'utf8')) as Fragment)
+      .map((n) => readJson(join(FRAGMENTS, n)) as Fragment)
       .filter((f) => f.version === 3)
   } catch {
     return []

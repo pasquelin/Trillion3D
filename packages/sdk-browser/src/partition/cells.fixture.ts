@@ -1,3 +1,4 @@
+import { composeStandIn } from './composeStandIn.fixture.ts'
 import { readCellPage, type TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { cellRows, decodeCellFile } from './cellDecode.ts'
@@ -131,21 +132,37 @@ export function io(bytes: (url: string) => Uint8Array) {
     updates: [PlacementRows, number, number][] = [],
     admitted: StreamPage[] = [],
     forgotten: string[] = []
+  /** The owners each file has: what the plan pins and has not unpinned. */
+  const pinned = new Map<string, number>()
   const held = new Set<string>(),
     outgrown = { count: 0 }
   const page = (url: string) => url.includes('/scene-page-')
+  const compose = composeStandIn((rows, from, to) => port.update(rows, from, to))
   const port: PartitionIo = {
     bytes: (url) => (page(url) || held.has(url) ? bytes(url) : undefined),
     decode: decodeHere,
     decodePage: async (read, url) => readCellPage(read, url),
     failed: () => false,
     request: (urls) => void asked.push(...urls),
+    pin: (url) => void pinned.set(url, (pinned.get(url) ?? 0) + 1),
+    unpin: (url) => void pinned.set(url, pinned.get(url)! - 1),
     admit: (pages) => void admitted.push(...pages),
     forget: (urls) => void forgotten.push(...urls),
     update: (rows, from, to) => updates.push([rows, from, to]),
     outgrown: () => void outgrown.count++,
+    compose,
   }
-  return { port, asked, updates, held, admitted, forgotten, outgrown }
+  return {
+    port,
+    asked,
+    updates,
+    held,
+    admitted,
+    forgotten,
+    outgrown,
+    pinned,
+    rebind: compose.rebind,
+  }
 }
 
 /** A reach past both cells. */

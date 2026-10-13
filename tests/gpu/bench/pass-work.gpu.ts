@@ -3,9 +3,10 @@
 // nothing, a render bundle or an indirect dispatch the bench cannot size.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { installGpu } from '../../../bench/dawn/device.ts'
 import type { FrameGpu } from '../../../bench/dawn/passSpans.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
+import { openBenchDevice } from '../kit/benchDevice.ts'
+import { autoKernel, groupZero } from '../kit/computeReadback.ts'
 
 const KERNEL = /* wgsl */ `
 override WG: u32 = 64;
@@ -17,9 +18,7 @@ test(
   { timeout: 120_000 },
   async () => {
     const frame = await runOnDawn(async () => {
-      const gpu = installGpu({ limits: null, featuresOff: [] })
-      const adapter = (await navigator.gpu.requestAdapter())!
-      const device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'] })
+      const { gpu, device } = await openBenchDevice()
       const out = device.createBuffer({ size: 1 << 16, usage: GPUBufferUsage.STORAGE })
       const args = device.createBuffer({
         size: 12,
@@ -28,19 +27,13 @@ test(
       device.queue.writeBuffer(args, 0, new Uint32Array([2, 1, 1]))
       const module = device.createShaderModule({ code: KERNEL })
       const make = (constants?: Record<string, number>) =>
-        device.createComputePipeline({
-          layout: 'auto',
-          compute: { module, entryPoint: 'main', constants },
-        })
+        device.createComputePipeline(autoKernel(module, 'main', constants))
       const run = (
         pipeline: GPUComputePipeline,
         label: string,
         encode: (p: GPUComputePassEncoder) => void,
       ) => {
-        const bind = device.createBindGroup({
-          layout: pipeline.getBindGroupLayout(0),
-          entries: [{ binding: 0, resource: { buffer: out } }],
-        })
+        const bind = groupZero(device, pipeline, [{ buffer: out }])
         const encoder = device.createCommandEncoder()
         const pass = encoder.beginComputePass({ label })
         pass.setPipeline(pipeline)
@@ -75,9 +68,7 @@ test(
   { timeout: 120_000 },
   async () => {
     const frame = await runOnDawn(async () => {
-      const gpu = installGpu({ limits: null, featuresOff: [] })
-      const adapter = (await navigator.gpu.requestAdapter())!
-      const device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'] })
+      const { gpu, device } = await openBenchDevice()
       const module = device.createShaderModule({ code: DRAW })
       const pipeline = device.createRenderPipeline({
         layout: 'auto',

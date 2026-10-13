@@ -1,6 +1,8 @@
 import type { createGpuPageReader } from './reader.ts'
-import { type EvictionOrder } from './slotEvictionOrder.ts'
 import type { PageHomes } from './homes.ts'
+import type { Eviction } from './eviction.ts'
+import type { Placement } from './placement.ts'
+import type { ResidencyLog } from './residencyLog.ts'
 
 /** One page held in the GPU page pool. */
 export interface ResidentPage {
@@ -23,32 +25,28 @@ export type GpuPageContext = {
   homes?: PageHomes
   buffer: GPUBuffer
   resident: Map<string, ResidentPage>
-  pins: Set<string>
-  held: Set<string>
-  free: number[]
+  /** The root cover's pages: a pool never goes below them (`resize.ts`). */
+  cover: ReadonlySet<string>
   abort: AbortController
-  fetches: Map<string, Promise<Uint8Array>>
   state: {
     pending: Promise<unknown>
     disposed: boolean
+    /** Loads in flight: each takes a slot when it lands. */
+    loading: number
     generation: number
     bytesRead: number
     uploadedBytes: number
     evictions: number
+    /** A load was refused for lack of a place since the host last asked (`takeRefused`). */
+    refused: boolean
   }
-  /** The order slots are given back in, when a GPU cut publishes one (`../dag/evict.ts`), its next
-   *  entry and those set aside (`commit.ts`), and the orders published; else the least recent. */
-  eviction: {
-    order?: EvictionOrder
-    at: number
-    epoch: number
-    lower: Map<string, number>
-    held: string[]
-    late: string[]
-    lateAt: number
-  }
-  changeKeys: string[]
-  changeSlots: number[]
+  /** Which unpinned page gives its slot back, in fixed slots (`eviction.ts`). */
+  eviction: Eviction
+  /** Where an arrival lands: its home, a free slot or a victim's, and the slots free
+   *  (`placement.ts`). */
+  placement: Placement
+  /** The changes the host has not drained yet (`residencyLog.ts`). */
+  changes: ResidencyLog
   reader: ReturnType<typeof createGpuPageReader>
   check: (signal?: AbortSignal) => void
 }

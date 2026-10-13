@@ -22,7 +22,7 @@
 //! is a loss, so it is rejected before any decode, by name. Compressions that wrap another format
 //! (`BI_JPEG`, `BI_PNG`) and those outside the read format (`BI_ALPHABITFIELDS`, the CMYK
 //! variants) are named the same way.
-use super::{crate_image, ImageDecoded, ImageDecoder, Plugin};
+use super::{crate_image, u16_at, u32_at, ImageDecoded, ImageDecoder, Plugin};
 
 pub(super) static BMP: Bmp = Bmp;
 pub(super) struct Bmp;
@@ -168,14 +168,4 @@ fn mask_width(mask: u32) -> u32 {
     } else {
         0
     }
-}
-
-fn u16_at(bytes: &[u8], at: usize) -> Option<u16> {
-    let field = bytes.get(at..at + 2)?;
-    Some(u16::from_le_bytes([field[0], field[1]]))
-}
-
-fn u32_at(bytes: &[u8], at: usize) -> Option<u32> {
-    let field = bytes.get(at..at + 4)?;
-    Some(u32::from_le_bytes([field[0], field[1], field[2], field[3]]))
 }

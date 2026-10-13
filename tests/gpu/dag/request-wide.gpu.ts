@@ -2,6 +2,7 @@
 // page, then its priority — and `dagSortRequests` writes the page alone, a whole word, into the
 // snapshot the frame copies (`gpu/dag/request.ts`). On Dawn, the shipped sort over requests past
 // the twenty-two bits a word shared with the priority held: every page comes back whole, ranked.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { stagedRequestsWord } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
@@ -10,7 +11,6 @@ import {
   SELECTION_HEADER_WORDS as HEAD,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { requestScene } from '../../../packages/sdk-browser/src/gpu/dag/requestScene.fixture.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openSelectionKernel } from './selectionKernel.ts'
 
@@ -36,7 +36,7 @@ async function sortOnDawn(staged: [number, number][]) {
     })
   })
   kernel.sort(group)
-  const read = await readBuffer(kernel.device, buffers.out.buffer, 0, (HEAD + staged.length) * 4)
+  const read = (await readGpuBuffer(kernel.device, buffers.out.buffer, (HEAD + staged.length) * 4))!
   destroy()
   return { adapter: await kernel.close(), pages: Array.from(read.subarray(HEAD)) }
 }

@@ -1,0 +1,60 @@
+/**
+ * The pool's residency changes since the host last drained them, so a host mirrors the cache page
+ * by page instead of asking for its whole catalogue every frame: one entry a key, its last place —
+ * the slot's words offset, or -1 once it left. A page that arrives and leaves between two drains
+ * leaves no entry: the host never knew it. The log so holds at most the pages resident now and
+ * those the host knew at its last drain, however long it goes undrained.
+ */
+export function createResidencyLog() {
+  const changes = new Map<string, number>()
+  /** The keys the host holds resident: those it drained last as arrived. */
+  const known = new Set<string>()
+  /** The keys that arrived since a reader last took them, kept once one asks. */
+  let arrivals: string[] | undefined
+  /** The pinned pages that left, which no one unpinned, since a reader last took them. */
+  const unpinned = new Set<string>()
+  return {
+    /** `key`'s page now starts at `offset` bytes. */
+    placed(key: string, offset: number) {
+      changes.set(key, offset / 4)
+    },
+    /** `key`'s page arrived. */
+    arrived(key: string) {
+      arrivals?.push(key)
+    },
+    /** Each key that arrived since the last call, told once, in order: what a reader that waits on
+     *  pages follows instead of asking for every one it waits on. Kept from the first call. */
+    takeArrivals(visit: (key: string) => void) {
+      arrivals ??= []
+      for (let i = 0; i < arrivals.length; i++) visit(arrivals[i])
+      arrivals.length = 0
+    },
+    /** `key`'s page left while pinned: its pin went with it. */
+    unpinned(key: string) {
+      unpinned.add(key)
+    },
+    /** Each pinned page that left since the last call, told once: what a reader that keeps pages
+     *  pinned puts back. */
+    takeUnpinned(visit: (key: string) => void) {
+      for (const key of unpinned) visit(key)
+      unpinned.clear()
+    },
+    /** `key`'s page left. */
+    left(key: string) {
+      if (known.has(key)) changes.set(key, -1)
+      else changes.delete(key)
+    },
+    /** Moves the changes into the caller's arrays, then empties the log. */
+    drain(keys: string[], slots: number[]) {
+      for (const [key, words] of changes) {
+        keys.push(key)
+        slots.push(words)
+        if (words < 0) known.delete(key)
+        else known.add(key)
+      }
+      changes.clear()
+    },
+  }
+}
+
+export type ResidencyLog = ReturnType<typeof createResidencyLog>

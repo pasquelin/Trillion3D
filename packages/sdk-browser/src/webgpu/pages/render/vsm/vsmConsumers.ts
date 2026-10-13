@@ -1,11 +1,14 @@
 // What the lighting and the other shadow reads take from this frame's shadow maps, or nothing.
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
+import { vsmProjectionShared } from '../../../../vsm/projectionPass.ts'
 
 const consumer = {} as {
   pageTable: GPUBuffer
   projectionData: GPUBuffer
   uniforms: GPUBuffer
   pool: GPUBuffer
+  view: GPUBuffer
+  noise: GPUTextureView
 }
 
 /** The engine's maps when this frame projects some, else none. */
@@ -14,15 +17,19 @@ function projectedVsm(rt: WebgpuPagesRuntime) {
   return vsm?.plan && vsm.plan.projectionCount > 0 ? vsm : undefined
 }
 
-/** This frame's buffers a non-mask read samples (blend, water, reflections), or none: the pool
- *  must be one binding (the device's binding limit holds a whole slice). */
+/** This frame's resources a non-mask read takes (blend, water): the maps, the pool's first slice —
+ *  its one window (`VSM_FORWARD_LAYOUT`) — and the projection's view and noise its fragments trace
+ *  with (`vsmTraceFactor`), or none. */
 export function vsmConsumerResources(rt: WebgpuPagesRuntime) {
   const vsm = projectedVsm(rt)
-  if (!vsm || vsm.res.layout.poolPartsPerSlice !== 1) return undefined
+  const shared = vsm && vsmProjectionShared(vsm.res)
+  if (!vsm || !shared) return undefined
   consumer.pageTable = vsm.res.current.pageTable
   consumer.projectionData = vsm.res.current.projectionData
   consumer.uniforms = vsm.res.current.uniforms
   consumer.pool = vsm.res.pagePool[0][0]
+  consumer.view = shared.view
+  consumer.noise = shared.noise
   return consumer
 }
 

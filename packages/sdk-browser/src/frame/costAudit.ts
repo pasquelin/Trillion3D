@@ -1,8 +1,10 @@
 import { frustumExcludesBox, type FrameMetrics } from '../../../sdk-core/src/index.ts'
-import { enginePose, type EngineCamera } from '../camera/world.ts'
+import { enginePose } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import { families } from '../host/families.ts'
 import { addressFlag } from '../host/addressFlag.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { log } from '../diagnostic/log.ts'
 
 /** Opt-in audit, no per-frame trace: add `trillion3dFrameAudit=1` to the host URL. */
 export const frameCostAuditEnabled = addressFlag(
@@ -14,7 +16,7 @@ export function logFrameCostAudit(context: Record<string, unknown>) {
   if (!frameCostAuditEnabled()) return
   queueMicrotask(() => {
     try {
-      console.info('[Trillion3D frame audit]', JSON.stringify(context))
+      log.info('frame audit', JSON.stringify(context))
     } catch {
       // An observer must never interrupt the render.
     }
@@ -60,7 +62,6 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
     transparentCandidates: blendState.blendGpu.length,
     transparentListed: blendState.visibleBlend.length,
     transparentEncodedDraws: run.blendDrawCalls,
-    transparentSelectMs: timing.transparentSelectMs,
     transparentPrepareMs: timing.transparentPrepareMs,
     transparentDrawMs: timing.transparentDrawMs,
     transparentSpanUploadBytes: timing.transparentSpanUploadBytes,

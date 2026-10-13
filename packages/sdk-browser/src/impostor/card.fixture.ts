@@ -8,7 +8,7 @@
  */
 import { spriteAt } from '../visibility/shader/spriteWgsl.ts'
 import { copyMatrix4, IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
-import type { VisMaterial } from '../visibility/types.ts'
+import type { VisMaterial } from '../visibility/materialType.ts'
 
 const CARD_SPRITE: NonNullable<VisMaterial['sprite']> = { rotation: 0, sizeAttenuation: true }
 /** The corner signs in call order, scaled by `radius`: `(-R,-R)`, `(+R,-R)`, `(+R,+R)`, `(-R,+R)`. */

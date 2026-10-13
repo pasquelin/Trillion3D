@@ -1,5 +1,5 @@
-import type { PageRec } from './types.ts'
-import type { PlacementIndex } from './placements.ts'
+import type { DeformationOutput, PageRec } from './types.ts'
+import { rootOfPacked, type PlacementIndex } from './placements.ts'
 
 /**
  * The packed instances of a layout, stored as nothing per instance (#1235): a rank is resolved
@@ -9,6 +9,9 @@ import type { PlacementIndex } from './placements.ts'
 type PackedPages = {
   readonly length: number
   recordOf(packed: number): PageRec | undefined
+  /** Where the instance's deformation writes the results of its page, none for a page that is not
+   *  deformed (`ClusterRoot.deformationOutputs`). */
+  outputOf?(packed: number): DeformationOutput | undefined
 }
 
 /** A list of packed pages: a flat array (a fixture) or a layout's view. */
@@ -17,17 +20,26 @@ export type PageList = readonly PageRec[] | PackedPages
 /** The packed pages of `roots` as `placement` ranks them, read live: a growth that rewrites the
  *  tables in place (`postPackedBases(roots, placement)`) is followed with no copy. */
 export function createPackedPages(
-  roots: readonly { readonly pages: readonly PageRec[] }[],
+  roots: readonly {
+    readonly pages: readonly PageRec[]
+    readonly deformationOutputs?: readonly (DeformationOutput | undefined)[]
+  }[],
   placement: PlacementIndex,
 ): PackedPages {
   return {
     get length() {
-      return placement.rootOfPacked.length
+      return placement.packedCount
     },
     recordOf(packed: number) {
-      if (!(packed >= 0 && packed < placement.rootOfPacked.length)) return undefined
-      const root = placement.rootOfPacked[packed]
+      const root = rootOfPacked(placement, packed)
+      if (root < 0) return undefined
       return roots[root]?.pages[packed - placement.baseOfRoot[root]]
+    },
+    outputOf(packed: number) {
+      const root = rootOfPacked(placement, packed)
+      return root < 0
+        ? undefined
+        : roots[root]?.deformationOutputs?.[packed - placement.baseOfRoot[root]]
     },
   }
 }
@@ -49,5 +61,9 @@ export function createPageCatalogue(packedPages: PageList) {
     'recordOf' in packedPages
       ? packedPages.recordOf
       : (packed: number) => (packed >= 0 ? packedPages[packed] : undefined)
-  return { recordOf }
+  const outputOf =
+    'outputOf' in packedPages && packedPages.outputOf
+      ? packedPages.outputOf
+      : (): DeformationOutput | undefined => undefined
+  return { recordOf, outputOf }
 }

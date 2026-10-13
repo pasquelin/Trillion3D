@@ -7,7 +7,8 @@
 import { WebGPUCoordinateSystem } from 'three'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { cameraFace, release, engine } from '../kit/sharedSceneProof.ts'
-import { difference, image, redCount } from '../kit/sceneImageProof.ts'
+import { image, redCount } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { runPasses } from '../kit/deviceProof.ts'
 import { TILE, transformScene } from '../placement/transformScene.ts'
 
@@ -55,8 +56,8 @@ async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
     return {
       frames,
       red: redCount(own),
-      toWebgpu: difference(own, webgpu),
-      back: difference(own, back),
+      toWebgpu: compareImages(own, webgpu).differentPixels,
+      back: compareImages(own, back).differentPixels,
     }
   } finally {
     release(backend, canvas, scene)

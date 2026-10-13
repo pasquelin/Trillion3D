@@ -5,9 +5,9 @@ import {
   PREVIEW_BLOCK_BYTES,
   PREVIEW_BLOCK_SIDE,
 } from '../../../../sdk-core/src/index.ts'
-import { levelSize, type TilePlace } from '../../texture/tiles.ts'
+import { type TilePlace } from '../../texture/tiles.ts'
 import { LevelBytesError } from '../../texture/heldLevels.ts'
-import { cellOrigin, tailOrigin, type TileRegion } from './write.ts'
+import { cellOrigin, type TailLevelWriter, type TileRegion } from './write.ts'
 
 /**
  * Gestures that post block-compressed texels into a pool tile: the same rectangles as
@@ -58,18 +58,8 @@ export function writeTileFromBlocks(
   writeBlocks(queue, pool, origin, record, [region.width, region.height])
 }
 
-/** Queue levels, from the first to 1×1, each at its block-aligned place in the tile. */
-export function writeTailFromBlocks(
-  queue: GPUQueue,
-  pool: GPUTexture,
-  place: TilePlace,
-  size: [number, number],
-  tail: number,
-  levels: readonly Uint8Array[],
-) {
-  levels.forEach((blocks, rank) => {
-    const level = levelSize(size[0], size[1], tail + rank)
-    checkLevelBlocks(blocks, level)
-    writeBlocks(queue, pool, tailOrigin(place, rank), blocks, level)
-  })
+/** A block-compressed tail level, at its block-aligned place (`writeTail`). */
+export const writeBlocksLevel: TailLevelWriter = (queue, pool, origin, blocks, level) => {
+  checkLevelBlocks(blocks, level)
+  writeBlocks(queue, pool, origin, blocks, level)
 }

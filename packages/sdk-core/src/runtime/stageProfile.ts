@@ -79,11 +79,12 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   geometry: 'Geometry',
   coplanar: 'Coplanar layers',
   shadows: 'Shadows',
-  shadowCasters: 'Shadow casters (the light cut)',
   lightLists: 'Light lists',
   bounce: 'Bounce (irradiance probes)',
+  reflections: 'Screen reflections',
   lighting: 'Lighting (resolve)',
   antialiasing: 'Temporal antialiasing',
+  effects: 'Image effects (bloom)',
   present: 'Present',
 })
 
@@ -91,13 +92,16 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
 export const stageLabel = (stage: string) => STAGE_LABELS[stage] ?? stage
 
 /** p50 and p95 of a series, or `null` if it is empty: nothing is inferred from a missing series. */
-export function stageQuantiles(values: readonly number[]): StageQuantiles {
-  const summary = summarize(values)
+export function stageQuantiles(values: ArrayLike<number>): StageQuantiles {
+  const summary = summarize(Array.from(values))
   return summary ? { p50: summary.p50, p95: summary.p95 } : null
 }
 
+/** Why a disabled profile measures nothing. */
+const NOT_REQUESTED = 'per-stage profile not requested by the host'
+
 /** Profile of an engine that keeps none: everything is "unmeasured", nothing is zero. */
-export function disabledStageProfile(backend: string, reason: string): StageProfile {
+export function disabledStageProfile(backend: string): StageProfile {
   return {
     version: 1,
     enabled: false,
@@ -106,7 +110,7 @@ export function disabledStageProfile(backend: string, reason: string): StageProf
     gpuSamples: 0,
     windowFrames: 0,
     gpuMethod: null,
-    gpuReason: reason,
+    gpuReason: NOT_REQUESTED,
     gpuImageMs: null,
     overheadMs: null,
     stages: [],

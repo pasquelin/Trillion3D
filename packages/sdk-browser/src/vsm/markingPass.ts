@@ -21,8 +21,6 @@ import {
   VSM_LIGHT_KIND_DIRECTIONAL,
   VSM_SINGLE_PAGE_MAP_SLOTS,
   VSM_MIPS,
-  VSM_SUN_PAGE_MARGIN,
-  VSM_LOCAL_PAGE_MARGIN,
   VSM_MARK_STRIDE_X,
   VSM_MARK_STRIDE_Y,
   vsmWriteDepthFromDeviceZ,
@@ -34,14 +32,21 @@ import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
   type VsmBindingSpec,
-  type VsmFrameBuffers,
+  vsmFrameSetHeld,
   type VsmResources,
   vsmPerFrameSet,
 } from './resources.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { bufferEntry, resourceEntry } from '../webgpu/core/liveEntries.ts'
-import { vsmBufferEntry, vsmComputePipe, type VsmComputePipe } from './passKit.ts'
-import { vsmWriteChanged, vsmWriteChangedSlots } from './writeChanged.ts'
+import {
+  COMPUTE,
+  computeBufferEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+  sequentialEntries,
+} from '../gpu/core/computeBindings.ts'
+import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
+import { writeChanged, writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import {
   VSM_CLEAR_SPECS,
   VSM_COARSE_SPECS,
@@ -217,7 +222,7 @@ export function vsmForwardZViewToClip(projection: ArrayLike<number>, out = new F
 // ---- Pass inputs -------------------------------------------------------------------------------
 
 /** What the per-pixel marking reads of the engine's frame (the shadow demand pass's inputs). */
-interface VsmMarkingView {
+export interface VsmMarkingView {
   depth: GPUTextureView
   normalRough: GPUTextureView
   flags: GPUTextureView
@@ -230,41 +235,25 @@ interface VsmMarkingView {
   /** The u32 ids of this view's directional (clipmap) maps. */
   sunMapIds: GPUBuffer
   sunMapCount: number
-  viewRectMin: readonly [number, number]
-  viewSize: readonly [number, number]
+  viewRectMin: [number, number]
+  viewSize: [number, number]
   /** The +z-forward view-to-clip (`vsmForwardZViewToClip`). */
   viewToClip: ArrayLike<number>
   /** The map view's origin shift (−camera position), double precision, split high/low. */
-  originShift: readonly [number, number, number]
+  originShift: [number, number, number]
 }
 
 export interface VsmMarkingFrame {
   fullMapCount: number
   singlePageMapCount: number
   perPage: VsmPerPageBins
+  /** The camera's kind as the engine knows it, never a matrix test (`projectionPass.ts`). */
+  perspective: boolean
   /** Absent: no pixel marking (pixel page marking off). */
   view?: VsmMarkingView
 }
 
 // ---- Pipelines (cached per device) ------------------------------------------------------------
-
-/** GPUShaderStage.COMPUTE, read at call time (no WebGPU global needed to import this module). */
-const C = () => GPUShaderStage.COMPUTE
-const uniformEntry = (binding: number, hasDynamicOffset = false): GPUBindGroupLayoutEntry => ({
-  binding,
-  visibility: C(),
-  buffer: { type: 'uniform', hasDynamicOffset },
-})
-const storageEntry = (binding: number, type: GPUBufferBindingType) =>
-  vsmBufferEntry(binding, C(), type)
-const textureEntry = (
-  binding: number,
-  sampleType: GPUTextureSampleType,
-): GPUBindGroupLayoutEntry => ({
-  binding,
-  visibility: C(),
-  texture: { sampleType },
-})
 
 // ---- Pipes -------------------------------------------------------------------------------------
 
@@ -277,7 +266,7 @@ const RECT_LABEL = 'vsm.initPageRects',
  *  when first asked and kept: its WGSL is built and hashed the first time only. */
 export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
   const entries = (specs: readonly VsmBindingSpec[]) =>
-    vsmBindGroupLayoutEntries(specs, layout, C())
+    vsmBindGroupLayoutEntries(specs, layout, COMPUTE)
   const clears = vsmMarkingClears(layout)
   const held: Partial<Record<ClearSet | 'rect' | 'coarse' | 'pixels', VsmComputePipe>> = {}
   const clear = (set: ClearSet) =>
@@ -289,8 +278,8 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
       [
         [
           ...entries(VSM_CLEAR_SPECS),
-          uniformEntry(3, true),
-          ...clears[set].map((_, n) => storageEntry(4 + n, 'storage')),
+          computeUniformEntry(3, { hasDynamicOffset: true }),
+          ...clears[set].map((_, n) => computeBufferEntry(4 + n, 'storage')),
         ],
       ],
     ))
@@ -305,7 +294,7 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
         RECT_LABEL,
         vsmPageRectInitWgsl(layout),
         'vsmInitPageRects',
-        [[...entries(VSM_INIT_RECT_SPECS), uniformEntry(4)]],
+        [[...entries(VSM_INIT_RECT_SPECS), computeUniformEntry(4)]],
       )),
     coarse: () =>
       (held.coarse ??= vsmComputePipe(
@@ -313,7 +302,7 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
         COARSE_LABEL,
         vsmCoarseMarkingWgsl(layout),
         'vsmMarkCoarse',
-        [[...entries(VSM_COARSE_SPECS), uniformEntry(4)]],
+        [[...entries(VSM_COARSE_SPECS), computeUniformEntry(4)]],
       )),
     pixels: () =>
       (held.pixels ??= vsmComputePipe(
@@ -324,15 +313,15 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
         [
           entries(VSM_PIXELS_SPECS),
           [
-            textureEntry(0, 'depth'),
-            textureEntry(1, 'unfilterable-float'),
-            textureEntry(2, 'uint'),
-            uniformEntry(3),
-            storageEntry(4, 'read-only-storage'),
-            storageEntry(5, 'read-only-storage'),
-            storageEntry(6, 'read-only-storage'),
-            storageEntry(7, 'read-only-storage'),
-            uniformEntry(8),
+            computeTextureEntry(0, 'depth'),
+            computeTextureEntry(1, 'unfilterable-float'),
+            computeTextureEntry(2, 'uint'),
+            computeUniformEntry(3),
+            computeBufferEntry(4, 'read-only-storage'),
+            computeBufferEntry(5, 'read-only-storage'),
+            computeBufferEntry(6, 'read-only-storage'),
+            computeBufferEntry(7, 'read-only-storage'),
+            computeUniformEntry(8),
           ],
         ],
       )),
@@ -348,6 +337,8 @@ export interface VsmMarking {
 }
 
 const DISPATCHERS = 2
+/** The marking's pixel stride, clamped to [1, 128] as the shader reads it (`VSM_MARK_STRIDE`). */
+const MARK_STRIDE = [clamp(VSM_MARK_STRIDE_X, 1, 128), clamp(VSM_MARK_STRIDE_Y, 1, 128)]
 /** The marking's groups over the tables of a frame set (`vsmPerFrameSet`), made as asked. */
 interface TableGroups {
   clear: Partial<Record<ClearSet, GPUBindGroup>>
@@ -394,35 +385,25 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     const v = frame.view
     if (v) {
       copyMatrix4(f, v.viewToClip)
-      // From the f32 matrix just written, the one the shader holds; a perspective by its M[3][3].
-      vsmWriteDepthFromDeviceZ(f, 16, f, f[15] < 1)
+      vsmWriteDepthFromDeviceZ(f, 16, f, frame.perspective)
       for (let k = 0; k < 3; k++) writeSplitDouble(f, 20 + k, 24 + k, v.originShift[k])
       u[28] = v.viewRectMin[0]
       u[29] = v.viewRectMin[1]
       u[30] = v.viewSize[0]
       u[31] = v.viewSize[1]
-      u[34] = v.sunMapCount
+      u[23] = v.sunMapCount
     }
-    f[23] = VSM_SUN_PAGE_MARGIN
-    f[27] = VSM_LOCAL_PAGE_MARGIN
-    // The pixel stride is clamped to [1, 128].
-    u[32] = clamp(VSM_MARK_STRIDE_X, 1, 128)
-    u[33] = clamp(VSM_MARK_STRIDE_Y, 1, 128)
-    // A pixel facing away from a light marks no page of it (its own back shadows it).
-    u[35] = 1
     // The number of page rects to clear.
-    u[36] = (frame.fullMapCount + frame.singlePageMapCount) * VSM_MIPS
-    // A local map asks for its last mip's page: a far receiver always finds one.
-    u[37] = 1
-    vsmWriteChanged(device, params, paramU32, 0, paramU32.length)
+    u[27] = (frame.fullMapCount + frame.singlePageMapCount) * VSM_MIPS
+    writeChanged(device, params, paramU32, 0, paramU32.length)
   }
 
   /** Per-bin args, written for both dispatchers. */
   function writePerPage(bins: VsmPerPageBins) {
     if (bins.ids.length > res.layout.mapSlots)
       throw new Error('VSM: per-page ids exceed res.perPageIds')
-    // The ids only when they changed: a new set's buffer starts zeroed (`vsmWriteChanged`).
-    vsmWriteChanged(device, res.perPageIds, bins.ids, 0, bins.ids.length)
+    // The ids only when they changed: a new set's buffer starts zeroed (`writeChanged`).
+    writeChanged(device, res.perPageIds, bins.ids, 0, bins.ids.length)
     // Every slot's words are written again: nothing is cleared first.
     const words = slots.strideWords
     for (let b = 0; b < VSM_PER_PAGE_BIN_COUNT; b++) {
@@ -434,7 +415,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
         b,
       )
     }
-    vsmWriteChangedSlots(device, perPage, perPageData, slots)
+    writeChangedSlots(device, perPage, perPageData, slots)
   }
 
   /** The clears of the tables `set` walks the maps of: one dispatch per non-empty bin. */
@@ -448,11 +429,13 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       layout: p.groups[0],
       entries: [
         ...vsmBindGroupEntries(res, VSM_CLEAR_SPECS),
-        { binding: 3, resource: { buffer: perPage, size: 16 } },
-        ...targets.map((target, n) => ({
-          binding: 4 + n,
-          resource: { buffer: res.current[target] },
-        })),
+        ...sequentialEntries(
+          [
+            { buffer: perPage, size: 16 },
+            ...targets.map((target) => ({ buffer: res.current[target] })),
+          ],
+          3,
+        ),
       ],
     }))
     const list = bins[set]
@@ -469,7 +452,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     }
   }
 
-  const tables = new WeakMap<VsmFrameBuffers, TableGroups>()
+  const tables = vsmFrameSetHeld<TableGroups>()
   const tableGroups = () => vsmPerFrameSet(tables, res, newTableGroups, undefined)
   /** Group 0 of `p` over the tables `specs` name and the parameters at `paramsBinding`. */
   const tablesGroup = (
@@ -550,8 +533,8 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       dispatch(pass, coarse, groups.coarse, undefined, ceilDiv(mapCount, VSM_GROUP_WIDTH))
       const v = frame.view
       if (v) {
-        const stridedX = ceilDiv(v.viewSize[0], paramU32[32]),
-          stridedY = ceilDiv(v.viewSize[1], paramU32[33])
+        const stridedX = ceilDiv(v.viewSize[0], MARK_STRIDE[0]),
+          stridedY = ceilDiv(v.viewSize[1], MARK_STRIDE[1])
         const pixels = pipes.pixels()
         groups.pixels ??= tablesGroup(PIXELS_LABEL, pixels, VSM_PIXELS_SPECS)
         dispatch(

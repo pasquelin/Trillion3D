@@ -18,7 +18,8 @@
  */
 import { VSM_GROUP_WIDTH } from './constants.ts'
 import { vsmPageManagementKernels } from './pageManagementWgsl.ts'
-import { vsmComputePipe, vsmDynamicUniformEntry, type VsmComputePipe } from './passKit.ts'
+import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
+import { computeUniformEntry, sequentialEntries } from '../gpu/core/computeBindings.ts'
 import type { VsmPerPageBin } from './markingPass.ts'
 import {
   vsmPerPageDispatcherBytes,
@@ -36,8 +37,9 @@ import {
 import { type VsmResources, vsmBindGroupEntries, vsmBindGroupLayoutEntries } from './resources.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../residency/pools.ts'
-import { vsmWriteChangedSlots } from './writeChanged.ts'
+import { writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import type { VsmLayout } from './layout.ts'
+import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
 /** Options of the page management passes. */
 interface VsmPageManagementOptions {
@@ -76,7 +78,7 @@ interface Pipe {
   groups: [GPUBindGroup | undefined, GPUBindGroup | undefined]
 }
 
-interface Ctx {
+export interface VsmPageManagementContext {
   device: GPUDevice
   stats: boolean
   pipes: Record<KernelName, Pipe>
@@ -90,8 +92,6 @@ interface Ctx {
   dispatcher: VsmPerPageDispatcher
 }
 
-const contexts = new WeakMap<VsmResources, Ctx>()
-
 /** Bytes a set's page management context holds on a device of `limits`: its parameter slots, its
  *  per-page dispatch slots — both the device's `uniformStride` apart, as `context` lays them — and
  *  its cleared indirect arguments. */
@@ -100,23 +100,25 @@ export const vsmPmContextBytes = (limits: { minUniformBufferOffsetAlignment?: nu
 
 /** Frees the page management context of `res`, with the set (`destroyEngineVsm`). */
 export function releaseVsmPageManagement(res: VsmResources) {
-  const ctx = contexts.get(res)
+  const ctx = res.pageManagement
   if (!ctx) return
   ctx.params.destroy()
   ctx.argsInit.destroy()
   ctx.dispatcher.destroy()
-  contexts.delete(res)
+  res.pageManagement = undefined
 }
 /** The tables of `res` grew (`growVsmTables`): its groups bind them again, its pipelines, state
  *  and parameters kept. */
 export function rebindVsmPageManagement(res: VsmResources) {
-  const ctx = contexts.get(res)
+  const ctx = res.pageManagement
   if (!ctx) return
   for (const pipe of Object.values(ctx.pipes)) pipe.groups = [undefined, undefined]
   ctx.dispatcher.rebind(res)
 }
 /** The parameters' group: one dynamic slot of `VsmPmParams`. */
-const paramsEntries = () => [vsmDynamicUniformEntry(0, VSM_PM_PARAMS_BYTES)]
+const paramsEntries = () => [
+  computeUniformEntry(0, { hasDynamicOffset: true, minBindingSize: VSM_PM_PARAMS_BYTES }),
+]
 
 /** Every page management kernel of `layout` and its pipe, made once a device and source
  *  (`vsmComputePipe`): its tables' group, the parameters' and, per page, the dispatch setup's. */
@@ -145,9 +147,9 @@ export function vsmPageManagementPipes(device: GPUDevice, layout: VsmLayout, sta
   return pipes
 }
 
-function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
+function context(res: VsmResources, frame: VsmPageManagementFrame): VsmPageManagementContext {
   const stats = !!frame.options?.stats
-  const existing = contexts.get(res)
+  const existing = res.pageManagement
   if (existing && existing.device === frame.device && existing.stats === stats) return existing
   const device = frame.device
   // Every slot, the parameters' and the per-page dispatch's, at the device's alignment.
@@ -166,7 +168,7 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
   const paramsGroup = device.createBindGroup({
     label: 'vsm.pm.params',
     layout: paramsLayout,
-    entries: [{ binding: 0, resource: { buffer: params, offset: 0, size: VSM_PM_PARAMS_BYTES } }],
+    entries: sequentialEntries([{ buffer: params, offset: 0, size: VSM_PM_PARAMS_BYTES }]),
   })
   // Cleared indirect args: initialize and tile depths (16, 0, 1, 0); post-process merge (16, 0, 1, 0)
   // + filter set (0, 1, 1, 0).
@@ -183,7 +185,7 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
   existing?.params.destroy()
   existing?.argsInit.destroy()
   existing?.dispatcher.destroy()
-  const ctx: Ctx = {
+  const ctx: VsmPageManagementContext = {
     device,
     stats,
     pipes,
@@ -194,12 +196,12 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
     argsInit,
     dispatcher,
   }
-  contexts.set(res, ctx)
+  res.pageManagement = ctx
   return ctx
 }
 
 /** Group 0 of `pipe` for the current frame parity (rebuilt lazily after `swapFrames`). */
-function group0(ctx: Ctx, res: VsmResources, pipe: Pipe) {
+function group0(ctx: VsmPageManagementContext, res: VsmResources, pipe: Pipe) {
   const parity = res.current === res.frames[0] ? 0 : 1
   let g = pipe.groups[parity]
   if (!g) {
@@ -215,7 +217,7 @@ function group0(ctx: Ctx, res: VsmResources, pipe: Pipe) {
 
 /** Writes slots [first, end) only: each encoder owns its slots, so encoders sharing a submit never clobber each other. */
 function writeParams(
-  ctx: Ctx,
+  ctx: VsmPageManagementContext,
   frame: VsmPageManagementFrame,
   cacheValid: boolean,
   first: number,
@@ -229,11 +231,11 @@ function writeParams(
   }
   // What changed of the slots' structs, in one write: never the padding, never more writes than
   // the whole slots sent.
-  vsmWriteChangedSlots(ctx.device, ctx.params, u, slots, first, end, 'one')
+  writeChangedSlots(ctx.device, ctx.params, u, slots, first, end, 'one')
 }
 
 function bind(
-  ctx: Ctx,
+  ctx: VsmPageManagementContext,
   res: VsmResources,
   pass: GPUComputePassEncoder,
   name: KernelName,
@@ -246,7 +248,7 @@ function bind(
 }
 
 function run(
-  ctx: Ctx,
+  ctx: VsmPageManagementContext,
   res: VsmResources,
   pass: GPUComputePassEncoder,
   name: KernelName,
@@ -258,7 +260,12 @@ function run(
   pass.dispatchWorkgroups(groups)
 }
 
-function runPerPage(ctx: Ctx, res: VsmResources, pass: GPUComputePassEncoder, name: KernelName) {
+function runPerPage(
+  ctx: VsmPageManagementContext,
+  res: VsmResources,
+  pass: GPUComputePassEncoder,
+  name: KernelName,
+) {
   bind(ctx, res, pass, name, SLOT_MAIN)
   ctx.dispatcher.encode(pass, VSM_PM_GROUP_PER_PAGE)
 }
@@ -300,7 +307,7 @@ export function encodeVsmPageMapping(
   // The indirect dispatch args, 1D, in (16, pages, 1) form.
   encoder.copyBufferToBuffer(ctx.argsInit, 0, res.clearArgs, 0, 16)
 
-  const pass = encoder.beginComputePass({ label: 'vsm.pageMapping' })
+  const pass = encoder.beginComputePass({ label: `${VSM_PASS_PREFIX}pageMapping` })
   // Update cached or newly invalidated pages against the new requests.
   run(ctx, res, pass, 'sortPool', SLOT_MAIN, maxGroups)
   // The available pages compacted, the newly empty ones at their end: allocated before the pages
@@ -331,7 +338,7 @@ export function encodeVsmAfterRaster(
   encoder.copyBufferToBuffer(ctx.argsInit, 16, res.mergeArgs, 0, 32)
   // The tile depths' pages in (16, pages, 1) form.
   encoder.copyBufferToBuffer(ctx.argsInit, 0, res.tileArgs, 0, 16)
-  const pass = encoder.beginComputePass({ label: 'vsm.afterRaster' })
+  const pass = encoder.beginComputePass({ label: `${VSM_PASS_PREFIX}afterRaster` })
   run(ctx, res, pass, 'foldRasterMarks', SLOT_MAIN, maxGroups)
   bind(ctx, res, pass, 'mergeStatic', SLOT_MAIN)
   pass.dispatchWorkgroupsIndirect(res.mergeArgs, 0)

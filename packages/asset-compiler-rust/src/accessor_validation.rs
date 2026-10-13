@@ -1,4 +1,7 @@
-use crate::{invalid, item, optional_index, required_index, values, Result};
+use crate::{
+    compiler_accessor_types::index_value, invalid, item, optional_index, required_index, values,
+    Result,
+};
 use serde_json::Value;
 
 fn range(
@@ -107,13 +110,14 @@ pub fn validate(g: &Value, bin: &[u8], id: usize) -> Result<()> {
         let vals = sparse
             .get("values")
             .ok_or_else(|| invalid("sparse.values is required"))?;
-        let index_bytes =
-            match required_index(indices.get("componentType"), "sparse.indices.componentType")? {
-                5121 => 1,
-                5123 => 2,
-                5125 => 4,
-                _ => return Err(invalid("sparse indices component is invalid")),
-            };
+        let index_component =
+            required_index(indices.get("componentType"), "sparse.indices.componentType")?;
+        let index_bytes = match index_component {
+            5121 => 1,
+            5123 => 2,
+            5125 => 4,
+            _ => return Err(invalid("sparse indices component is invalid")),
+        };
         let iv = item(
             views,
             required_index(indices.get("bufferView"), "sparse.indices.bufferView")?,
@@ -157,11 +161,9 @@ pub fn validate(g: &Value, bin: &[u8], id: usize) -> Result<()> {
         let mut previous = None;
         for k in 0..sparse_count {
             let at = base + k * index_bytes;
-            let index = match index_bytes {
-                1 => bin[at] as usize,
-                2 => u16::from_le_bytes([bin[at], bin[at + 1]]) as usize,
-                _ => u32::from_le_bytes([bin[at], bin[at + 1], bin[at + 2], bin[at + 3]]) as usize,
-            };
+            let index = index_value(index_component, &bin[at..])
+                .ok_or_else(|| invalid("sparse indices are out of bounds"))?
+                as usize;
             if index >= count || previous.is_some_and(|p| index <= p) {
                 return Err(invalid(
                     "sparse indices must be strictly increasing and in range",

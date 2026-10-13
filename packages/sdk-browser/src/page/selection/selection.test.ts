@@ -9,20 +9,21 @@ import { blendFixture, camera } from './blend.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
 import { evaluateDagSelectionKernel } from '../../gpu/dag/oracle/oracle.fixture.ts'
+import { graphDraws } from './drawSource.ts'
 
 test('clustered blend pages retain their source and only select the intersecting part of a mesh', () => {
   const fixture = blendFixture()
   const { roots, allPages, blendCopies } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   assert.equal(blendCopies.length, 0)
   assert.equal(allPages.length, 2)
   for (const page of allPages) {
     assert.equal(page.transparent, true)
-    assert.equal(page.sourceMesh, fixture.mesh)
+    assert.equal(page.drawSource?.node, fixture.mesh)
   }
   const selected = selectVisiblePages(roots, engineCamera(camera()), {
     pixelError: 100,
@@ -48,9 +49,9 @@ test('clustered blend never reports missing exact coverage as resident', () => {
   fixture.indices.delete('near')
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
     { allowMissing: true },
   )
   const selected = selectVisiblePages(roots, engineCamera(camera()), {
@@ -70,9 +71,9 @@ test('double-sided blend pages survive backface cones in CPU and packed GPU sele
   const fixture = blendFixture()
   const { roots, allPages } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   allPages[0].cone = { axis: [0, 0, -1], angle: 0 }
   const cam = camera(),
@@ -95,9 +96,9 @@ test('clustered blend classification remains explicit if material transparency w
   const fixture = blendFixture(G.basicSurface())
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   assert.equal(collected.allPages[0].transparent, true)
   fixture.geometry.dispose()
@@ -109,9 +110,9 @@ test('a transparent material on `exact-clusters` pages is collected as transpare
   fixture.metadata.primitives[0].pass = 'exact-clusters'
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   assert.equal(collected.allPages[0].transparent, true)
   fixture.geometry.dispose()
@@ -128,9 +129,9 @@ test('shared blend and runtime transmission keep their full source fallback', ()
     fixture.metadata.primitives[0].pass = pass
     const collected = collectClusterPages(
       fixture.source,
+      graphDraws(fixture.source, fixture.associations),
       fixture.metadata,
       fixture.indices,
-      fixture.associations,
     )
     assert.equal(collected.allPages.length, 0)
     assert.equal(collected.roots.length, 0)

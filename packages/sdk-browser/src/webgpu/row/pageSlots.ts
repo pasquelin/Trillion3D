@@ -1,4 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts'
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * The address one pool slot is held, pinned and read under, for one cluster record.
@@ -12,6 +13,18 @@ import type { PageRec } from '../../page/selection/selection.ts'
  */
 export const pageAddress = (rec: Pick<PageRec, 'url' | 'geometryPage'>) =>
   rec.geometryPage?.url ?? rec.url
+
+/** The bytes a page takes in its pool slot, padded to a word: its geometry page's, else its
+ *  index bytes. */
+export const paddedPageBytes = (page: Pick<PageRec, 'geometryPage' | 'array' | 'indexBytes'>) =>
+  alignUp(
+    page.geometryPage ? page.geometryPage.bytes : (page.array?.byteLength ?? page.indexBytes),
+    4,
+  )
+
+/** The corners a page draws: its geometry page's indices, else three a triangle. */
+export const pageCorners = (page: Pick<PageRec, 'geometryPage' | 'triangles'>) =>
+  page.geometryPage ? page.geometryPage.indexCount : page.triangles * 3
 
 /**
  * Starts the read of a cluster's geometry page ahead of its admission (`../residency/admission.ts`)
@@ -30,7 +43,8 @@ export const readGeometryAhead =
   }
 
 /**
- * What the geometry pool holds for the scene, walked once from the catalogue.
+ * What the geometry pool holds for the scene, walked once from the catalogue, then from the
+ * records of each source added to the session (`held`, the census so far).
  *
  * A slot holds a cluster's quantized geometry page where the cache carries one, its index page
  * otherwise, and it is as wide as the widest of them, so any admitted page fits. That width is a
@@ -46,46 +60,40 @@ export const readGeometryAhead =
  * that invariant said out loud, on the one walk where both sides are read together.
  *
  * `homes` is each address's own width, its bytes padded to a word: what the pool gives the page
- * when the whole catalogue fits (`../../gpu/page/homes.ts`), the deformation tails raised in after
- * (`../../deformation/slotLayout.ts`).
+ * when the whole catalogue fits (`../../gpu/page/homes.ts`).
  */
-export function describePageSlots(allPages: readonly PageRec[]) {
-  const geometryUrls = new Map<string, string>(),
-    seenUrls = new Set<string>(),
-    homes = new Map<string, number>()
-  let pageBytes = 4,
-    maxCorners = 1,
-    fromGeometryPage = 0,
-    fromSourceGeometry = 0,
-    transparentClusters = 0
+export function describePageSlots(allPages: readonly PageRec[], held = pageSlotCensus()) {
+  const { geometryUrls, homes } = held
   for (const page of allPages) {
     const geometry = page.geometryPage,
       address = pageAddress(page)
-    if (seenUrls.has(address) && geometryUrls.get(address) !== geometry?.url)
+    if (homes.has(address) && geometryUrls.get(address) !== geometry?.url)
       throw new Error(`CLUSTER_PAGE_DISAGREEMENT: ${address}`)
-    seenUrls.add(address)
     if (geometry) {
       geometryUrls.set(address, geometry.url)
-      fromGeometryPage++
-    } else if (page.transparent) transparentClusters++
-    else fromSourceGeometry++
-    const n = geometry ? geometry.bytes : (page.array?.byteLength ?? page.indexBytes)
-    const padded = n + (n % 4 ? 4 - (n % 4) : 0)
-    if (padded > pageBytes) pageBytes = padded
+      held.fromGeometryPage++
+    } else if (page.transparent) held.transparentClusters++
+    else held.fromSourceGeometry++
+    const padded = paddedPageBytes(page)
+    if (padded > held.pageBytes) held.pageBytes = padded
     if (padded > (homes.get(address) ?? 0)) homes.set(address, padded)
-    const corners = geometry ? geometry.indexCount : page.triangles * 3
-    if (corners > maxCorners) maxCorners = corners
+    const corners = pageCorners(page)
+    if (corners > held.maxCorners) held.maxCorners = corners
   }
-  return {
-    geometryUrls,
-    pageBytes,
-    homes,
-    maxCorners,
-    fromGeometryPage,
-    fromSourceGeometry,
-    transparentClusters,
-  }
+  return held
 }
+
+/** What `describePageSlots` has described so far: nothing. A source added to the session later
+ *  is described on the census the open made. */
+const pageSlotCensus = () => ({
+  geometryUrls: new Map<string, string>(),
+  pageBytes: 4,
+  homes: new Map<string, number>(),
+  maxCorners: 1,
+  fromGeometryPage: 0,
+  fromSourceGeometry: 0,
+  transparentClusters: 0,
+})
 
 /**
  * True while this cluster still waits for bytes it cannot draw without.

@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 /**
  * Coloured shadows through translucent casters on top of the virtual shadow maps: the plain VSM
  * casts no shadow from a translucent material, the engine does.
@@ -54,21 +55,19 @@ import {
   lowHalf,
   rectCell,
 } from '../../../math/src/wgsl/integer.ts'
-import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { bilinear3 } from '../../../math/src/wgsl/sampling.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_BINDING, PAGE_INFO_WGSL, maskKeepWgsl } from '../visibility/shader/pageWgsl.ts'
-import { FLAG_BLEND_CASTER, FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_MASK } from '../visibility/types.ts'
-import { VIS_BINDINGS } from '../webgpu/core/bindLayout.ts'
+import { FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_MASK } from '../visibility/types.ts'
 import {
   colorSampleWgsl,
   maskAlphaWgsl,
   SHADOW_TILE_POOL_WGSL,
-  tileDeclarations,
+  materialDeclarations,
 } from '../webgpu/tile/wgsl.ts'
 import { blendTransmittanceWgsl } from '../gpu/shadow/transmittanceWgsl.ts'
-import { MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
-import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE, VSM_PAGE_TEXELS } from './constants.ts'
+import { VSM_CONSTANTS_WGSL, VSM_PAGE_TEXELS } from './constants.ts'
+import { VSM_CASTER_PROJECTION_WGSL } from './renderRasterWgsl.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
@@ -76,7 +75,11 @@ import {
   VSM_PAGE_LOOKUP_WGSL,
 } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
-import { VSM_RENDER_GROUP, VSM_RENDER_PARAMS_WGSL, VSM_RENDER_ROWS_WGSL } from './renderCullWgsl.ts'
+import {
+  VSM_RENDER_COMMAND_WGSL,
+  VSM_RENDER_ROWS_WGSL,
+  vsmCandidatesKernel,
+} from './renderCullWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
 import {
@@ -91,6 +94,7 @@ import {
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { NO_INDEX } from '../../../math/src/constants.ts'
 
 /** The share of an edge value's terms' magnitude the cover test allows for rounding, 2⁻²⁰. */
 const EDGE_SLACK = 2 ** -20
@@ -111,10 +115,6 @@ const HEADER_SHIFT = WIDTH_SHIFT + 1
 /** A slice's first texels: the cell headers, then the chain. */
 const HEADER_TEXELS = CELL_COUNT / 4
 const RECORDS_TEXEL = HEADER_TEXELS + VSM_TRANSMISSION_CHAIN / 4
-/** No block, no slice number, no list entry. */
-export const VSM_TRANSMISSION_NONE = 0xffffffff
-/** The resolve's binding of the memory: the old shadow requests' number, free since the VSM. */
-export const VSM_TRANSMISSION_RESOLVE_BINDING = 14
 /** Bytes of a command's header in the chunk's page list (row, map | mip | flags, first page, page
  *  count) and of one of its pages (slice key, virtual page). */
 export const VSM_TRANSMISSION_HEADER_BYTES = 16
@@ -148,21 +148,22 @@ const frameWgsl = (layout: VsmLayout) => {
   return wgslBlock(
     `vsmTransmissionFrame(${P})`,
     [FRAME_STRUCT_WGSL, COUNTERS_WGSL, FLAT_INDEX_WGSL],
-    `const VSM_T_STAMPS:u32=${r.stamps}u;
-const VSM_T_FIRST:u32=${r.first}u;
-const VSM_T_COUNTS:u32=${r.counts}u;
-const VSM_T_PATCH:u32=${r.patchCounts}u;
-const VSM_T_KEYS:u32=${r.sliceKeys}u;
-const VSM_T_DIRTY:u32=${r.dirty}u;
-const VSM_T_ORDER:u32=${r.order}u;
-const VSM_T_KEY_COUNT:u32=${2 * P}u;
-const VSM_T_NONE:u32=${VSM_TRANSMISSION_NONE}u;
-const VSM_T_CELLS:u32=${CELL_COUNT}u;
-const VSM_T_CHAIN:u32=${VSM_TRANSMISSION_CHAIN}u;
-const VSM_T_BLOCK_TEXELS:u32=${VSM_TRANSMISSION_BLOCK_TEXELS}u;
-const VSM_T_RECORDS_TEXEL:u32=${RECORDS_TEXEL}u;
-const VSM_T_RECORD_WORDS:u32=${VSM_TRANSMISSION_RECORD_WORDS}u;
-const VSM_T_HEADER_ROWS:u32=${headerRows(P)}u;
+    `${wgslConsts({
+      VSM_T_STAMPS: r.stamps,
+      VSM_T_FIRST: r.first,
+      VSM_T_COUNTS: r.counts,
+      VSM_T_PATCH: r.patchCounts,
+      VSM_T_KEYS: r.sliceKeys,
+      VSM_T_DIRTY: r.dirty,
+      VSM_T_ORDER: r.order,
+      VSM_T_KEY_COUNT: 2 * P,
+      VSM_T_CELLS: CELL_COUNT,
+      VSM_T_CHAIN: VSM_TRANSMISSION_CHAIN,
+      VSM_T_BLOCK_TEXELS: VSM_TRANSMISSION_BLOCK_TEXELS,
+      VSM_T_RECORDS_TEXEL: RECORDS_TEXEL,
+      VSM_T_RECORD_WORDS: VSM_TRANSMISSION_RECORD_WORDS,
+      VSM_T_HEADER_ROWS: headerRows(P),
+    })}
 /** Where block \`b\`'s texel \`t\` lies in the readable memory. */
 fn vsmTBlockTexel(b:u32,t:u32)->vec2u{return vec2u((b&1u)*VSM_T_BLOCK_TEXELS+t,VSM_T_HEADER_ROWS+(b>>1u));}`,
   )
@@ -187,21 +188,7 @@ fn vsmTArgs(at:u32,n:u32){let g=groupGrid(n);args[at]=g.x;args[at+1u]=g.y;args[a
 export const vsmTransmissionCandidatesWgsl = () =>
   wgslProgram(
     `@group(0) @binding(7) var<uniform> frame:VsmTransmissionFrame;
-@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmTransmissionCandidates(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let i=flatIndex(wid,nwg,1u)*${VSM_RENDER_GROUP}u+lane;
- if(i>=params.rowCount){return;}
- let row=frame.rowFirst+i;
- let page=pages[row];
- if(page.indexCount==0u||(page.flags&${FLAG_BLEND_CASTER}u)==0u||page.sprite.y!=0.0||(mobility[row]&${MOBILITY_SHADOWLESS}u)!=0u){return;}
- let lod=lods[row];
- let parentPixels=vsmRenderMainPixels(lod.parent,lod.parentLow,lod.radii.y);
- let ownPixels=vsmRenderMainPixels(lod.own,lod.ownLow,lod.radii.x);
- if(!drawsCluster(true,parentPixels,ownPixels,true,params.threshold)){return;}
- let s=spheres[row];
- let at=atomicAdd(&counts[0],1u);
- candidates[at]=VsmRenderCandidate(s.c,s.l.xyz,row,page.indexCount,vsmRenderCandidateFlags(mobility[row],page.deformOutput),0u,0u);
-}
-`,
+${vsmCandidatesKernel('vsmTransmissionCandidates', true)}`,
     [VSM_RENDER_ROWS_WGSL, FRAME_STRUCT_WGSL, FLAT_INDEX_WGSL],
   )
 
@@ -252,8 +239,8 @@ fn vsmTransmissionRelease(index:u32,slice:u32){
   atomicStore(&build[VSM_T_PATCH+key],0u);
  }
  var b=table[key];
- if((redrawn||!allocated)&&b!=VSM_T_NONE){
-  table[key]=VSM_T_NONE;
+ if((redrawn||!allocated)&&b!=${NO_INDEX}u){
+  table[key]=${NO_INDEX}u;
   for(var n=0u;n<VSM_T_CHAIN&&b<frame.blocks;n++){
    let at=atomicAdd(&pool[0],1u);
    atomicStore(&pool[2u+at],b);
@@ -302,9 +289,6 @@ const VSM_TRANSMISSION_COMMAND_GROUP = 64
 export const vsmTransmissionPagesWgsl = (layout: VsmLayout) =>
   wgslProgram(
     `
-@group(1) @binding(0) var<uniform> params:VsmRenderParams;
-@group(1) @binding(1) var<storage,read> cmds:array<vec4u>;
-@group(1) @binding(2) var<storage,read_write> counts:array<atomic<u32>>;
 @group(1) @binding(3) var<storage,read_write> list:array<u32>;
 @group(1) @binding(4) var<storage,read> build:array<u32>;
 @group(1) @binding(5) var<uniform> frame:VsmTransmissionFrame;
@@ -316,16 +300,16 @@ fn vsmTHeader(index:u32,h:vec4u){list[4u*index]=h.x;list[4u*index+1u]=h.y;list[4
 fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:u32)->u32{
  let offset=vsmTableEntryAt(levelOffset,mip,vPage);
  let page=vsmTableEntryAtOffset(offset);
- if(!page.thisLevelDrawable||(vsmPageMarkWord(offset)&markMask)==0u){return VSM_T_NONE;}
+ if(!page.thisLevelDrawable||(vsmPageMarkWord(offset)&markMask)==0u){return ${NO_INDEX}u;}
  let key=2u*(page.physicalAddress.y*${layout.poolPagesXY[0]}u+page.physicalAddress.x)+(slice&1u);
- if(build[VSM_T_STAMPS+key]!=frame.stamp){return VSM_T_NONE;}
+ if(build[VSM_T_STAMPS+key]!=frame.stamp){return ${NO_INDEX}u;}
  return key;
 }
 @compute @workgroup_size(${VSM_TRANSMISSION_COMMAND_GROUP}) fn vsmTransmissionPages(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let index=flatIndex(wid,nwg,1u);
  if(index>=frame.cmds){return;}
  if(lane==0u){
-  wgCommands=min(atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,0u)]),params.cmdCapacity);
+  wgCommands=vsmRenderCommandCount();
   atomicStore(&wgFound,0u);
  }
  if(index>=workgroupUniformLoad(&wgCommands)){
@@ -333,16 +317,13 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
   return;
  }
  let cmd=cmds[index];
- let id=cmd.y&0xFFFFu;
- let mip=(cmd.y>>16u)&7u;
- let rect=vec4u(cmd.z&0x7Fu,(cmd.z>>7u)&0x7Fu,(cmd.z>>14u)&0x7Fu,(cmd.z>>21u)&0x7Fu);
- let markMask=(cmd.w>>16u)&0xFFu;
- let levelOffset=vsmTableLevelOrigin(vsmHandleFromId(id),mip);
- let size=(rect.zw+vec2u(1u))-rect.xy;
+ let c=vsmRenderCommandOf(cmd);
+ let levelOffset=vsmTableLevelOrigin(vsmHandleFromId(c.id),c.mip);
+ let size=(c.rect.zw+vec2u(1u))-c.rect.xy;
  // The pool slice the raster writes: the static slice for a static-cached instance.
- let slice=select(0u,vsm.staticSlice,bitIsSet(cmd.y,19u));
+ let slice=select(0u,vsm.staticSlice,c.staticLayer);
  for(var i=lane;i<size.x*size.y;i+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
-  if(vsmTPageKey(levelOffset,mip,rectCell(rect,size,i),markMask,slice)!=VSM_T_NONE){atomicAdd(&wgFound,1u);}
+  if(vsmTPageKey(levelOffset,c.mip,rectCell(c.rect,size,i),c.markMask,slice)!=${NO_INDEX}u){atomicAdd(&wgFound,1u);}
  }
  workgroupBarrier();
  if(lane==0u){
@@ -354,9 +335,9 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
  }
  let base=workgroupUniformLoad(&wgBase);
  for(var i=lane;i<size.x*size.y;i+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
-  let vPage=rectCell(rect,size,i);
-  let key=vsmTPageKey(levelOffset,mip,vPage,markMask,slice);
-  if(key==VSM_T_NONE){continue;}
+  let vPage=rectCell(c.rect,size,i);
+  let key=vsmTPageKey(levelOffset,c.mip,vPage,c.markMask,slice);
+  if(key==${NO_INDEX}u){continue;}
   let at=base+atomicAdd(&wgFound,1u);
   if(at>=frame.pairs){continue;}
   list[4u*frame.cmds+2u*at]=key;
@@ -370,10 +351,9 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
       vsmBindingsWgsl(0, VSM_TRANSMISSION_PAGES_SPECS, layout),
       VSM_PAGE_LOOKUP_WGSL,
       VSM_PAGE_MARKS_GATHER_WGSL,
-      VSM_RENDER_PARAMS_WGSL,
+      VSM_RENDER_COMMAND_WGSL,
       frameWgsl(layout),
       rectCell,
-      bitIsSet,
     ],
   )
 
@@ -478,9 +458,7 @@ export const vsmTransmissionBinWgsl = (layout: VsmLayout) => {
 ${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
-@group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
-${tileDeclarations(VIS_BINDINGS.color, 'color')}
-@group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
+${materialDeclarations()}
 @group(1) @binding(0) var<storage,read> list:array<u32>;
 @group(1) @binding(1) var<storage,read> vsmProjectionData:array<VsmProjectionRecord>;
 @group(1) @binding(2) var<uniform> frame:VsmTransmissionFrame;
@@ -581,27 +559,21 @@ struct VsmTTri{h:array<vec4f,4>,uv:array<vec2f,4>,shape:vec4f,box:vec4f,ray:vec3
 fn vsmTProject(page:PageInfo,h:ClusterHeader,t:u32,view:u32,raw:VsmProjectionRecord)->VsmTTri{
  var out:VsmTTri;
  let tri=pageTriangle(page,h,t);
- let w=page.world;
  let M=raw.shiftedToMapUv;
  let isOrtho=raw.lightViewToClip[3][3]>=1.0;
  let flatten=bitIsSet(view,20u);
  let mapped=(page.flags&${FLAG_HAS_UV}u)!=0u;
  var world:array<vec3f,3>;var shifted:array<vec3f,3>;var corners:array<VsmTCorner,3>;
  for(var i=0u;i<3u;i++){
-  let p=(w*vec4f(pagePosition(page,h,tri[i]),1.0)).xyz;
-  world[i]=p;
-  shifted[i]=(p+raw.originShiftHigh)+raw.originShiftLow;
-  var m=M*vec4f(shifted[i],1.0);
+  world[i]=vsmRenderWorld(page,h,tri[i]);
+  shifted[i]=vsmRenderShifted(raw,world[i]);
   // A sun level's corner in front of its near plane is flattened onto it, as the opaque raster
-  // flattens it (1 − 2^-24, \`renderRasterWgsl.ts\`); an orthographic corner's depth is read no further.
-  if(flatten&&m.z>m.w){m=vec4f(m.xy,${VSM_F32_BELOW_ONE},1.0);}
-  corners[i]=VsmTCorner(m,select(vec2f(0.0),pageUv(page,h,tri[i]),mapped));
+  // flattens it; an orthographic corner's depth is read no further.
+  corners[i]=VsmTCorner(vsmRenderClip(raw,shifted[i],flatten),select(vec2f(0.0),pageUv(page,h,tri[i]),mapped));
  }
  // Both faces; the volume rule needs the side facing the light.
- var n=faceNormal(world[0],world[1],world[2]);
- if(matrixWindingCw(w)){n=-n;}
  let axis=vec3f(M[0].z,M[1].z,M[2].z);
- let front=dot(n,select(-shifted[0],axis,isOrtho))>0.0;
+ let front=vsmRenderFacesLight(page,raw,world[0],world[1],world[2],shifted[0]);
  if(!volumeBoundary(page,front)){return out;}
  out.ray=select(shifted[0],axis,isOrtho);
  if(!vsmTVaries(page)){
@@ -685,9 +657,9 @@ var<workgroup> wgCommand:array<u32,5>;
       maskKeepWgsl(maskAlpha),
       VSM_CONSTANTS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
+      VSM_CASTER_PROJECTION_WGSL,
       frameWgsl(layout),
       VSM_TRANSMISSION_COVER_WGSL,
-      matrixWindingCw,
       PAGE_GEOMETRY_WGSL,
       blendTransmittanceWgsl(maskAlpha, colorSampleWgsl(SHADOW_TILE_POOL_WGSL)),
       FLOAT32_MAX,
@@ -891,12 +863,12 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
    if(held[2]==0u){atomicAdd(&build[VSM_TC_BLOCKSSHORT],blocks);}
    else{
     for(var j=0u;j<VSM_T_CHAIN;j++){
-     var b=VSM_T_NONE;
+     var b=${NO_INDEX}u;
      if(j<blocks){b=atomicLoad(&pool[2u+free-blocks+j]);}
      chain[j]=b;
     }
     for(var j=0u;j<blocks;j++){
-     var next=VSM_T_NONE;
+     var next=${NO_INDEX}u;
      if(j+1u<blocks){next=chain[j+1u];}
      links[chain[j]]=next;
     }
@@ -957,10 +929,11 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  * position along the map's unit axis at the point, barycentric, against the receiver's, by more
  * than ε = 2⁻²⁰ of the larger (f32 rounds each about eight times: 2⁻²¹, doubled); local: the
  * fraction of the way from the receiver to the light where the ray meets the triangle's plane,
- * above ε = 2⁻²⁰ of the larger of |P| and |w| over |n·P|. The receiver is the point read's own,
- * moved off its surface by the normal bias: a surface's own triangle is never above it. Up to two
- * crossings multiply in any order to the same bits; three or more multiply in increasing distance
- * (then by their quantised value), so the result is the same whatever the list order.
+ * above ε = 2⁻²⁰ of the larger of |P| and |w| over |n·P|. The receiver is the located one
+ * (`vsmLocate`), moved off its surface by the normal bias: a surface's own triangle is never
+ * above it. Up to two crossings multiply in any order to the same bits; three or more multiply in
+ * increasing distance (then by their quantised value), so the result is the same whatever the
+ * list order.
  * Lists `vsmProjectionOf` and the maths library's `bilinear3`; reads its host's `VsmMapRead` (the
  * page sampling) and `vsm` uniform.
  */
@@ -988,7 +961,7 @@ fn vsmTMemBlock(b:u32,t:u32)->vec2u{
 /** The two first blocks (dynamic, static) of physical page \`page\`: none both without translucent
  *  casters (the one-texel stand-in). */
 fn vsmTransmissionBlocks(page:vec2u)->vec2u{
- if(textureDimensions(vsmTransmissionMemory).x<=1u){return vec2u(${VSM_TRANSMISSION_NONE}u);}
+ if(textureDimensions(vsmTransmissionMemory).x<=1u){return vec2u(${NO_INDEX}u);}
  let index=page.y*vsm.poolPagesXY.x+page.x;
  let t=index>>1u;
  let w=vsmTLoad(vec2u(t&${VSM_TRANSMISSION_WIDTH - 1}u,t>>${WIDTH_SHIFT}u));
@@ -1069,8 +1042,8 @@ fn vsmTScanSlice(b0:u32,r:VsmTReceiver,after:vec2f,scan:VsmTScan)->VsmTScan{
 }
 fn vsmTScanPage(blocks:vec2u,r:VsmTReceiver,after:vec2f)->VsmTScan{
  var scan=VsmTScan(0u,vec3f(1.0),vec2f(0.0),0u,vec3f(1.0));
- if(blocks.x!=${VSM_TRANSMISSION_NONE}u){scan=vsmTScanSlice(blocks.x,r,after,scan);}
- if(blocks.y!=${VSM_TRANSMISSION_NONE}u){scan=vsmTScanSlice(blocks.y,r,after,scan);}
+ if(blocks.x!=${NO_INDEX}u){scan=vsmTScanSlice(blocks.x,r,after,scan);}
+ if(blocks.y!=${NO_INDEX}u){scan=vsmTScanSlice(blocks.y,r,after,scan);}
  return scan;
 }
 /** What the translucent casters let through to the receiver of sample \`sm\`: \`fromMap\` the
@@ -1078,7 +1051,7 @@ fn vsmTScanPage(blocks:vec2u,r:VsmTReceiver,after:vec2f)->VsmTScan{
  *  position (directional). The axis is the sample's own level's, as its records were binned. */
 fn vsmTransmissionThrough(sm:VsmMapRead,fromMap:vec3f,fromEye:vec3f,eye:vec3f,directional:bool)->vec3f{
  let blocks=vsmTransmissionBlocks(sm.poolTexel>>vec2u(${floorLog2(VSM_PAGE_TEXELS)}u));
- if(all(blocks==vec2u(${VSM_TRANSMISSION_NONE}u))){return vec3f(1.0);}
+ if(all(blocks==vec2u(${NO_INDEX}u))){return vec3f(1.0);}
  let M=vsmProjectionOf(sm.handle).shiftedToMapUv;
  let axis=normalize(vec3f(M[0].z,M[1].z,M[2].z));
  let r=VsmTReceiver(vec2f(sm.poolTexel&vec2u(${VSM_PAGE_TEXELS - 1}u))+fract(sm.mapTexelPos),directional,axis,dot(fromEye,axis)+dot(eye,axis),fromMap);
@@ -1095,6 +1068,6 @@ fn vsmTransmissionThrough(sm:VsmMapRead,fromMap:vec3f,fromEye:vec3f,eye:vec3f,di
 }
 /** Whether sample \`sm\` lies in a page with a translucent slice. */
 fn vsmTransmissionPaned(sm:VsmMapRead)->bool{
- return sm.valid&&any(vsmTransmissionBlocks(sm.poolTexel>>vec2u(${floorLog2(VSM_PAGE_TEXELS)}u))!=vec2u(${VSM_TRANSMISSION_NONE}u));
+ return sm.valid&&any(vsmTransmissionBlocks(sm.poolTexel>>vec2u(${floorLog2(VSM_PAGE_TEXELS)}u))!=vec2u(${NO_INDEX}u));
 }`,
   )

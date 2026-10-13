@@ -7,7 +7,7 @@ import { ASSETS, assetsManifest } from '../../../bench/runner/assets/scene.ts'
 import { openDefaultWorld } from '../kit/defaultWorld.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
 import type { CameraPose, SceneLight } from '../../../packages/sdk-core/src/index.ts'
-import { animationFrame } from '../kit/onDawn.ts'
+import { animationFrame } from '../kit/frame.ts'
 import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts'
 
 /** Frames a pose gets to be held before the proof gives up on it. */
@@ -20,12 +20,13 @@ export const SDK_URL = pathToFileURL(
 
 /** Renders `pose` (the current one without) and flushes, frame after frame, until the image is
  *  held: that frame's metrics, or `null` when it never is. A held frame waits for the pages its
- *  cut lacks (`cutPending`): no page wait of the host's is needed between two frames. */
+ *  cut lacks (`cutPending`): no page wait of the host's is needed between two frames — and none is
+ *  made: `flush` draws barrier images (`settlePose`) that are drawn for the pending work, which
+ *  keep the reflections' two consecutive lit images (`RadianceSettle`) from ever being verified. */
 export async function settle(world: MeasuredWorld, pose?: CameraPose) {
   for (let i = 0; i < SETTLE_FRAMES; i++) {
     await animationFrame()
     const metrics = world.render(pose)
-    await world.flush()
     // The engine's own metrics object, rewritten by every frame: copied while it is this one's.
     if (metrics.frameHeld) return { ...metrics }
   }
@@ -36,9 +37,6 @@ export async function settle(world: MeasuredWorld, pose?: CameraPose) {
  *  `bench/runner/README.md` § Assets) as a file address; a scene not compiled there throws. */
 export const benchManifest = (scene: string) =>
   pathToFileURL(join(ASSETS, assetsManifest(scene, true).slice('/benchmark-assets/'.length))).href
-
-/** The pixels an image draws over its background, read where the image proofs read it. */
-export { drawnPixels } from '../kit/sceneImageProof.ts'
 
 /**
  * `manifestUrl` opened with no `engine` option — the session's own engine —, lit by

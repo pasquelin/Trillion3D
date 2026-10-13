@@ -3,16 +3,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { eventually } from '../streaming/eventually.fixture.ts'
-import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts'
-import {
-  worldRootsDag,
-  worldRootsFixture,
-} from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
+import { worldRootsDag, worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { openWorldRoots } from './worldRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
 import { decodeGeometryPage } from '../page/codec/geometryPage.ts'
-import { heldBy, opened, rangeOf, served } from './worldRoots.fixture.ts'
-import { createPageStreamer, createPageStreamerWith } from '../streaming/pageStreamer.ts'
+import { heldBy, modelOpened, opened, rangeOf, served } from './worldRoots.fixture.ts'
+import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 
 test('the pinned set is the world top alone; a placed cell holds its bundles past it', async (t) => {
@@ -49,71 +46,68 @@ test('a bundle whose bytes are not those its table names waits its turn, its hol
   assert.deepEqual(heldBy(roots), [], 'released, it holds nothing')
 })
 
-test('the top read at open and a bundle read through the queue are refused alike, naming the bundle that differs', async (t) => {
+test('the top read at open and a bundle a cell holds are refused alike, naming the bundle that differs', async (t) => {
   const { bin } = worldRootsFixture()
   const world = served(t, { bin }),
     at = (bundle: number) => world.table.bundles[bundle].offset
   const expected = (bundle: number) => world.table.bundles[bundle].sha256
   const refusals: string[] = []
-  const roots = (await openWorldRoots(world.manifest, 'http://world/'))!
   const queue = createPageStreamer([], 'http://world/', {
+    cache: createPageCache(),
     onDiagnostic: ({ phase, context }) =>
       phase === 'page-retry' && refusals.push(String((context as { error: string }).error)),
   })
   t.after(() => queue.dispose())
-  roots.bind(queue)
+  const roots = (await openWorldRoots(world.manifest, 'http://world/', queue))!
   bin[at(3)] ^= 1
   const leaving = new AbortController()
   roots.hold(0, { signal: leaving.signal }).catch(() => {})
   await eventually(() => refusals.length > 0)
-  assert.equal(refusals.length, 1, 'through the queue')
-  assert.ok(refusals[0].includes(`${expected(3)} announced`))
+  assert.ok(refusals[0].includes(`${expected(3)} announced`), 'a cell bundle, through the queue')
   leaving.abort()
   bin[at(3)] ^= 1
   bin[at(0)] ^= 1
-  await assert.rejects(openWorldRoots(world.manifest, 'http://world/'), (error: Error) => {
-    const refusal = error as EngineError
-    return refusal.code === 'INVALID_CACHE' && refusal.details.expectedSha256 === expected(0)
-  })
+  const load = new AbortController()
+  const opening = openWorldRoots(world.manifest, 'http://world/', queue, { signal: load.signal })
+  await eventually(() => refusals.length > 1)
+  assert.ok(refusals[1].includes(`${expected(0)} announced`), 'the top, through the same queue')
+  load.abort()
+  await assert.rejects(opening, { name: 'AbortError' })
 })
 
-test("a server that ignores the Range is read whole once by the cache's one reader: by a world's load and its sessions alike", async (t) => {
+test("a server that ignores the Range is read whole once through the page cache: by a world's load and its sessions alike", async (t) => {
   const { manifest, ranges, bin } = served(t, { ignoresRange: true })
-  const metered: string[] = []
-  const meter = {
-    plan() {},
-    settle() {},
-    read: (response: Response, url: string) => (metered.push(url), response),
-  }
   const cache = createPageCache()
-  // A world's model loads before any session, through its page cache's reader.
-  const roots = (await openWorldRoots(manifest, 'http://world/', undefined, meter, true, {
-    cache,
-  }))!
+  // A world's model loads before any session, through a queue of its own over its page cache.
+  const roots = (await modelOpened(manifest, { whole: true }, cache))!
+  // Its top and cell 0's bundles 1 and 3 copied out, the binary is kept whole, one entry: the
+  // table, read for its decode, is never one.
+  assert.equal(cache.bytes, bin.byteLength, 'counted once')
   for (const cell of [1, 2]) {
-    const session = createPageStreamerWith([], 'http://world/', { cache })
+    const session = createPageStreamer([], 'http://world/', { cache })
     roots.bind(session)
     await roots.hold(cell)
-    assert.ok(session.stats().cpuBytes >= bin.byteLength, 'the kept binary, counted by the cache')
     session.dispose() // the device is lost: the next session reads on
   }
   assert.deepEqual(heldBy(roots), [1, 2, 3])
+  assert.equal(cache.bytes, bin.byteLength, 'kept whole, counted once, till the budget evicts it')
   assert.equal(ranges.length, 1, `the whole ${bin.byteLength}-byte binary, asked once`)
-  assert.deepEqual(
-    metered,
-    ['http://world/world-roots.table', 'http://world/world-roots.bin'],
-    "the load's read of the binary is counted as it arrives, as the table is",
-  )
   const bundles = heldBy(roots).reduce((sum, at) => sum + roots.table.bundles[at].bytes, 0)
   assert.equal(roots.bytes(), roots.pinned.bytes + bundles, 'never counted twice')
 })
 
 test('the world DAG names its pages through the one source, from what is held', async (t) => {
-  const { clusters, groups } = worldRootsDag()
-  const { manifest, ranges, whole } = served(t, { dag: { clusters, groups } })
-  const { roots } = await opened(t, manifest)
+  const { clusters, groups, culling } = worldRootsDag()
+  const { manifest, ranges, whole } = served(t, { dag: { clusters, groups, culling } })
+  const { roots, queue } = await opened(t, manifest)
   // A partitioned world — three cells — reads its DAG at load: the cut packs it.
   assert.deepEqual(whole, ['table', 'dag'], 'the DAG is read once, at load')
+  const files = ['table', 'dag'].map((file) => `http://world/world-roots.${file}`)
+  assert.deepEqual(
+    files.flatMap((url) => [queue.catalogued(url), queue.has(url)]),
+    [false, false, false, false],
+    'decoded, neither is kept in the page cache nor stays catalogued',
+  )
   const stream = await roots.stream()
   assert.equal(stream, roots.drawn, 'the stream the cut draws from')
   assert.equal(stream, await roots.stream(), 'opened once')
@@ -141,7 +135,7 @@ test('the world DAG names its pages through the one source, from what is held', 
 
 test('a cache without its DAG file opens a stream with no DAG', async (t) => {
   const { manifest } = served(t)
-  const roots = (await openWorldRoots(manifest, 'http://world/'))!
+  const roots = (await modelOpened(manifest))!
   const stream = await roots.stream()
   assert.deepEqual([stream.dag, stream.superRoots], [undefined, undefined])
 })
@@ -149,24 +143,25 @@ test('a cache without its DAG file opens a stream with no DAG', async (t) => {
 test("the stream bounds each cell's super-roots, an object root in its object's cell", async (t) => {
   // The table lists one object in cell 0, two in cell 1, one in cell 2: an object root's `origin`
   // is its object's rank there, as the cook writes it.
-  const { clusters, groups } = worldRootsDag()
+  const { clusters, groups, culling } = worldRootsDag()
   const cellOf = (origin: number) => Math.floor(origin / 4)
   const ranked = clusters.map((c) =>
     c.origin === null ? c : { ...c, origin: [0, 1, 3][cellOf(c.origin)] },
   )
-  const { manifest } = served(t, { dag: { clusters: ranked, groups } })
-  const roots = (await openWorldRoots(manifest, 'http://world/'))!
+  const { manifest } = served(t, { dag: { clusters: ranked, groups, culling } })
+  const roots = (await modelOpened(manifest))!
   const { superRoots } = await roots.stream()
   assert.deepEqual(superRoots, cellSuperRoots(clusters, cellOf, 3))
 })
 
 test('a scene not partitioned holds its one cell from its open, read with the top', async (t) => {
   const { manifest, ranges, table } = served(t)
-  const roots = (await openWorldRoots(manifest, 'http://world/', undefined, undefined, true))!
+  const roots = (await modelOpened(manifest, { whole: true }))!
   assert.deepEqual(heldBy(roots), [1, 3], 'cell 0, before any session binds its queue')
   assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 2), rangeOf(table, 3, 4)])
 })
 
 test('a cache that publishes no world roots pins nothing', async () => {
-  assert.equal(await openWorldRoots({} as ClusterManifest, 'http://world/'), undefined)
+  const none = await modelOpened({} as ClusterManifest)
+  assert.equal(none, undefined)
 })

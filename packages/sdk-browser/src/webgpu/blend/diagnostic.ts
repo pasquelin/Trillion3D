@@ -1,4 +1,4 @@
-import type { EngineCamera } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts'
 import {
   projectedPageError,
@@ -7,11 +7,10 @@ import {
   type PageRec,
 } from '../../page/selection/selection.ts'
 import { screenErrorRatio } from '../../diagnostic/colors.ts'
-import { clusterHash } from '../../visibility/buffer.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
-import type { createWebgpuBlendState } from './state.ts'
-
-type BlendState = ReturnType<typeof createWebgpuBlendState>
+import { clusterHash } from '../../visibility/math.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
+import type { WebgpuBlendState } from './state.ts'
+import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
 
 /**
  * The cluster identity every transparent instance colours itself with, one word per catalogue entry.
@@ -21,10 +20,10 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>
  * re-written per image only for that one mode — and never at all in beauty.
  */
 export function writeBlendDiagnostic(
-  blendState: BlendState,
+  blendState: WebgpuBlendState,
   packedPages: PageList,
   roots: readonly ClusterRoot<PageRec>[],
-  rootOfPacked: Int32Array,
+  placement: PlacementIndex,
   diagnostic: DiagnosticMode,
   cam: EngineCamera | undefined,
   viewport: readonly [number, number],
@@ -53,7 +52,12 @@ export function writeBlendDiagnostic(
       diagnostic === 'screen-error' && cam
         ? Math.round(
             screenErrorRatio(
-              projectedPageError(rec, rootOf(roots, rootOfPacked[page]).world, cam, viewport),
+              projectedPageError(
+                rec,
+                rootOf(roots, rootOfPacked(placement, page)).world,
+                cam,
+                viewport,
+              ),
               diagnosticPixelError,
             ) * 127,
           )

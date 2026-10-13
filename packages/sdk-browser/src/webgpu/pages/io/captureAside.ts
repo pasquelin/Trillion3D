@@ -1,17 +1,18 @@
 import type { HostCamera } from '../../../camera/world.ts'
 import { renderWebgpuPages } from '../render/render.ts'
-import { grantFrameTargets } from '../prepare/targetGrant.ts'
+import { frameTargetsAwaited, grantFrameTargets } from '../prepare/targetGrant.ts'
 import { poolFundingPending } from '../prepare/targetFunding.ts'
 import { deviceAnswer } from '../../frame/deviceAnswer.ts'
 import { grantPending } from '../../../gpu/core/errorScope.ts'
-import { createWebgpuView, type WebgpuView } from '../state/view.ts'
+import { createWebgpuView, viewGpu, type WebgpuView } from '../state/view.ts'
+import { heldTargetGrant } from '../state/gpu.ts'
 import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** Targets asked of the device, or pools funded again beside them, while a capture draws:
  *  it waits for them and draws again, never reading pages a funding moved. */
 const targetsMoving = (rt: WebgpuPagesRuntime) =>
-  rt.gpu.targetGrant !== undefined || poolFundingPending(rt) !== undefined
+  frameTargetsAwaited(rt) || poolFundingPending(rt) !== undefined
 
 /**
  * Runs `work` in a view of its own at `width × height`, once the device has answered for what the
@@ -36,7 +37,7 @@ export async function captureAside<T>(
     await rt.services.residency.pending
     await rt.gpu.device?.queue.onSubmittedWorkDone()
     // The main view's grant in flight settles before the switch, on the main view.
-    await grantPending(rt.gpu.targetGrant)
+    await grantPending(heldTargetGrant(rt.gpu))
     await poolFundingPending(rt)
     // A session closed meanwhile draws nothing.
     rt.context.signal?.throwIfAborted()
@@ -94,7 +95,7 @@ function captureSettled(rt: WebgpuPagesRuntime) {
   for (let i = 0; i < run.desired.length; i++) {
     const rec = run.desired[i]
     if (!services.residencySets.accepts(rec)) continue
-    if (!services.poolHolds(rec) || !rows.residentFlags[run.desiredPacked[i]]) return false
+    if (!services.poolHolds(rec) || !rows.residentFlag(run.desiredPacked[i])) return false
   }
   return true
 }
@@ -132,7 +133,7 @@ export async function drawResidentCut(
  * view, never against the restored main view's mutable GPU state. Cleanup holds on rejection. */
 export async function releaseSettledCapture(rt: WebgpuPagesRuntime, view: WebgpuView) {
   try {
-    await grantPending(rt.views.active === view ? rt.gpu.targetGrant : view.gpu.targetGrant)
+    await grantPending(heldTargetGrant(viewGpu(rt, view)))
     await poolFundingPending(rt)
   } finally {
     releaseWebgpuView(rt, view)

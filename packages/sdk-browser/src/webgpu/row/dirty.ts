@@ -1,17 +1,27 @@
+import { createChangedRuns } from '../residency/ranges.ts'
+
+/** A reader of row runs; `ctx` spares it a closure allocated per image. */
+export type RowRunVisitor<C> = (ctx: C, from: number, to: number) => void
+/** What walks the runs of dirty rows, the rows past `last` left out. */
+type DirtyRuns = <C>(ctx: C, visit: RowRunVisitor<C>, last?: number) => void
+
 /**
- * Rows whose table words changed since the last upload, row by row. The span `[from, to]` bounds
- * them for the readers that take one interval; the marks name each row exactly, so a model whose
- * rows are scattered across the table sends those rows and no row of the terrain between them.
+ * Rows whose table words changed since the last upload, row by row: the engine's one changed list
+ * (`createChangedRuns`), neighbouring rows in one run, every run apart. A model whose rows are
+ * scattered across the table sends those rows and no row of the terrain between them; a reader
+ * walks the runs, never the table.
  */
 export function createDirtyRows(drawSlots: number) {
-  const span = { from: drawSlots, to: -1 }
+  const changed = createChangedRuns(drawSlots, 1)
   let writes = 0
   const dirty = {
-    marks: new Uint8Array(drawSlots),
-    span,
     /** Occupant writes since the table was made, never cleared: what `rowsMoved` compares. */
     get writes() {
       return writes
+    },
+    /** How many rows are dirty. */
+    get count() {
+      return changed.count
     },
     /**
      * Declares rows `[from, to]` dirty whose occupant, surface and class are kept — a pose, a
@@ -19,29 +29,24 @@ export function createDirtyRows(drawSlots: number) {
      * moves every image does not walk every row again.
      */
     markWords(from: number, to = from) {
-      if (to === from) dirty.marks[from] = 1
-      else dirty.marks.fill(1, from, to + 1)
-      if (from < span.from) span.from = from
-      if (to > span.to) span.to = to
+      for (let row = from; row <= to; row++) changed.mark(row)
     },
     /** Declares rows `[from, to]` dirty: an occupant, a surface or a class may have changed. */
     mark(from: number, to = from) {
       writes++
       dirty.markWords(from, to)
     },
-    /** Every row uploaded: the marks cleared on the span alone. */
-    clear() {
-      if (span.to >= span.from) dirty.marks.fill(0, span.from, span.to + 1)
-      span.from = dirty.marks.length
-      span.to = -1
-    },
+    /** Calls `visit` once per run of neighbouring dirty rows, in increasing order, the rows past
+     *  `last` left out. */
+    forEachRun: (<C>(ctx: C, visit: RowRunVisitor<C>, last = Infinity) => {
+      const { count, pairs } = changed.runs()
+      for (let run = 0; run < count && pairs[run * 2] <= last; run++)
+        visit(ctx, pairs[run * 2], Math.min(pairs[run * 2 + 1], last))
+    }) satisfies DirtyRuns,
+    /** Every row uploaded: the marks cleared. */
+    clear: changed.clear,
     /** The table grew to `rows` (`grow.ts`): the marks held so far are kept. */
-    grow(rows: number) {
-      const marks = new Uint8Array(rows)
-      marks.set(dirty.marks)
-      dirty.marks = marks
-      if (span.to < span.from) span.from = rows
-    },
+    grow: changed.grow,
   }
   return dirty
 }
@@ -69,42 +74,19 @@ export function rowsMoved(
   return true
 }
 
-/** A reader of row runs; `ctx` spares it a closure allocated per image. */
-export type RowRunVisitor<C> = (ctx: C, from: number, to: number) => void
-
-/** Calls `visit` once per maximal run of marked rows within `[from, to]`, in increasing order. */
-export function forEachDirtyRun<C>(
-  marks: Uint8Array,
-  from: number,
-  to: number,
-  ctx: C,
-  visit: RowRunVisitor<C>,
-) {
-  let row = Math.max(0, from)
-  while (row <= to) {
-    const start = marks.indexOf(1, row)
-    if (start < 0 || start > to) return
-    const after = marks.indexOf(0, start)
-    const end = after < 0 || after > to ? to : after - 1
-    visit(ctx, start, end)
-    row = end + 1
-  }
-}
-
 /**
  * Rows a witness of the table must rewrite, run by run: every dirty run within the drawable rank,
  * then the rows the rank just grew by beyond the `held` the witness holds. A stale witness has no
  * dirty run to trust and is left to its caller, which rewrites the whole rank.
  */
 export function forEachRewrittenRun<C>(
-  rows: { dirtyMarks: Uint8Array; dirtyFrom: number; dirtyTo: number; packedCount: number },
+  rows: { forEachDirtyRun: DirtyRuns; packedCount: number },
   held: number,
   ctx: C,
   visit: RowRunVisitor<C>,
 ) {
   const last = rows.packedCount - 1,
     grown = rows.packedCount > held
-  const to = Math.min(rows.dirtyTo, grown ? held - 1 : last)
-  forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, to, ctx, visit)
+  rows.forEachDirtyRun(ctx, visit, grown ? held - 1 : last)
   if (grown) visit(ctx, held, last)
 }

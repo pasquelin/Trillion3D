@@ -1,4 +1,4 @@
-import { SUBSURFACE_TARGET } from './subsurface.ts'
+import { SUBSURFACE_FORMAT, SUBSURFACE_TARGET } from './subsurface.ts'
 import { PHYSICAL_LOBES_FORMAT, PHYSICAL_LOBES_TARGET } from './physicalLobes.ts'
 import { EMISSIVE_AO_BYTES } from './surfaceEmission.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
@@ -25,7 +25,7 @@ const surfaceTarget = (device: GPUDevice, format: GPUTextureFormat, size: GPUExt
 /** The targets of the buffer read by load alone (`../gpu/core/loadOnlyTarget.ts`): full-size when
  *  wanted, a 1×1 otherwise — the shadow receiver always full-size —, each with its usage. */
 const OPTIONAL_TARGETS = {
-  subsurface: ['thin transmission', 'rgba16float', () => loadOnlyUsage() | copies()],
+  subsurface: ['thin transmission', SUBSURFACE_FORMAT, () => loadOnlyUsage() | copies()],
   receiver: ['shadow receiver', RECEIVER_TARGET_FORMAT, loadOnlyUsage],
   // Written as a colour too, by the water's lobed surface stage (`../webgpu/water/lobedStage.ts`).
   lobes: [

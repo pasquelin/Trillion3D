@@ -4,17 +4,12 @@
 
 #include <Jolt/Jolt.h>
 
+#include "layout.h"
+
 #include <cstdint>
 #include <cstring>
 
 namespace trillion {
-
-/// Words of an ADD command before its mesh data (layout.ts).
-constexpr uint32_t ADD_WORDS = 25;
-/// Words of each soft body vertex (softLayout.ts): `x, y, z, mass`.
-constexpr uint32_t SOFT_VERTEX_WORDS = 4;
-/// Words of one water piece (layout.ts WATER_PIECE_WORDS) and of one BUOYANCY plane (PLANE_WORDS).
-constexpr uint32_t PIECE_WORDS = 6, PLANE_WORDS = 8;
 
 inline float f32(const uint32_t *w) {
   float value;

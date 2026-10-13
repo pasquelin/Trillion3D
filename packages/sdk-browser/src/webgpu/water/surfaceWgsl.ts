@@ -5,15 +5,18 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { PHYSICAL_TEXEL_WGSL } from '../../visibility/shader/physicalWgsl.ts'
 import { blendSurfaceWgsl } from '../blend/shaderSurface.ts'
 import { BLEND_PHYSICAL_WGSL } from '../blend/physicalWgsl.ts'
+import { REFLECTION_FRONT_WGSL, TRANSPARENT_FRONT } from '../../reflections/frontDepth.ts'
 
 /** The values of the surface stage, in their targets' order: the surface buffer, then, with
- *  `lobed`, the lobes target. The virtual-texture feedback follows them (`waterSurfaceTargets`). */
+ *  `lobed`, the lobes target, then the front depth the reflections march. The virtual-texture
+ *  feedback follows them (`waterSurfaceTargets`). */
 export const waterOutFields = (lobed: boolean): [string, string][] => [
   ...['baseMetal', 'normalRough', 'emissiveAo', 'word'].map((name): [string, string] => [
     name,
     'vec4f',
   ]),
   ...(lobed ? [['lobes', 'vec4u'] as [string, string]] : []),
+  TRANSPARENT_FRONT.out,
 ]
 
 /** One entry of the stage: `fsWater`, or with `lobed` `fsWaterLobed`, which reads the item's
@@ -30,7 +33,7 @@ function waterEntry(lobed: boolean) {
  if(!blendKeeps(in,base,front)){discard;return ${name}Out(${zero});}
  ${lobed ? 'blendPhysicalBegin(in,g);' : ''}
  let s=blendSurface(in,front,g,base);
- return ${name}Out(vec4f(s.rgb,s.metal),vec4f(s.N,s.rough),vec4f(s.emissive,s.ao),waterSurfaceWord(in,s),${lobed ? 'waterLobedTexel(in,front,g,s),' : ''}s.request);
+ return ${name}Out(vec4f(s.rgb,s.metal),vec4f(s.N,s.rough),vec4f(s.emissive,s.ao),waterSurfaceWord(in,s),${lobed ? 'waterLobedTexel(in,front,g,s),' : ''}reflectionFrontOut(in.position,s.alpha),s.request);
 }`
 }
 
@@ -46,7 +49,12 @@ function waterEntry(lobed: boolean) {
 export const waterSurfaceWgsl = (lobes: boolean) =>
   wgslBlock(
     'waterSurfaceWgsl',
-    [blendSurfaceWgsl(lobes), waterSurfaceWordWgsl(lobes), ...(lobes ? [WATER_LOBED_WGSL] : [])],
+    [
+      blendSurfaceWgsl(lobes),
+      waterSurfaceWordWgsl(lobes),
+      REFLECTION_FRONT_WGSL,
+      ...(lobes ? [WATER_LOBED_WGSL] : []),
+    ],
     `
 ${waterEntry(false)}`,
   )

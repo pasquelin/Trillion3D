@@ -10,12 +10,16 @@
  * and its `maxParentError` bounds every `parentError` below it, so the selected set is identical
  * with or without the hierarchy.
  */
+import { cutSteps, type CutProgress, type CutSteps } from './cutSteps.ts'
 import type { GpuSelection } from '../core/selection.ts'
 import type { PackedDag } from './types.ts'
 import { selectionRepeat, type DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { createDagResources } from './resources.ts'
+import type { ComposedLeaves } from './treeFollow.ts'
 import { createDagRuntime } from './runtime.ts'
 import { dagDeviceRefusal } from './deviceRefusal.ts'
+import { cutHeldSlots } from './listCap.ts'
+import type { CutAdmission } from './cutBuffers.ts'
 export { packDagSelection } from './pack.ts'
 export type { PackedDag } from './types.ts'
 
@@ -28,8 +32,18 @@ export async function createGpuDagSelection(
     onRefused?: (reason: string, details?: Record<string, unknown>) => void
     /** The pages the pool already holds: a cut made beside a running one (a growth in place). */
     poolHeld?: (page: number) => boolean
-    /** Whether a parent composes placement `w` on the GPU now: its tree group stays open. */
-    composed?: (w: number) => boolean
+    /** The leaves a parent's composition writes into the placement tree's refit. */
+    leaves?: ComposedLeaves
+    /** The rows the session's row cache holds: the open counts placements hold follow them. */
+    rows?: number
+    /** The most its tables may hold (`../../residency/cutTableBytes.ts`): past it, refused. */
+    share?: number
+    /** The session's budget, asked before each buffer of its tables is made (`CutAdmission`). */
+    admit?: CutAdmission
+    /** Told each sub-step of the making as it begins (`cutSteps.ts`). */
+    progress?: CutProgress
+    /** Told what each sub-step took once the making is over, made or refused. */
+    timed?: (steps: ReturnType<CutSteps['end']>) => void
   } = {},
 ): Promise<GpuSelection | undefined> {
   if (packed.pageCount < 1) return undefined
@@ -38,14 +52,25 @@ export async function createGpuDagSelection(
     options.onRefused?.('camera cut past the device limits', refusal)
     return undefined
   }
+  let why = ''
+  const steps = cutSteps(options.progress)
   const resources = await createDagResources(
     device,
     packed,
     selectionRepeat(options.diagnosticGpuVariant),
+    undefined,
+    (reason) => (why = reason),
+    options.rows === undefined
+      ? undefined
+      : cutHeldSlots(device.limits, packed.live?.pages ?? packed.pageCount, options.rows),
+    options.share,
+    options.admit,
+    steps,
   )
+  options.timed?.(steps.end())
   if (!resources) {
-    options.onRefused?.('camera cut creation failed')
+    options.onRefused?.(`camera cut creation failed: ${why}`, { why })
     return undefined
   }
-  return createDagRuntime(resources, options.poolHeld, options.composed)
+  return createDagRuntime(resources, options.poolHeld, options.leaves)
 }

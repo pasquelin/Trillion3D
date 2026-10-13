@@ -10,21 +10,19 @@ import { rootCoverOf } from './rootCover.ts'
 
 /** The catalogue's pages, its blended copies, its request index and its root cover. */
 export function setupPages(context: EngineContext, diag: WebgpuDiagnostics) {
-  const { source, metadata, indices, associations } = context
+  const { source, draws, metadata, indices } = context
   // The world DAG beside the scene's pages as the cut's last root, when the scene streams one
   // (`../../../scene/worldRecords.ts`).
-  const collected = withWorldRoot(
-    collectClusterPages(source, metadata, indices, associations, { allowMissing: true }),
-    context,
-  )
-  const { roots, allPages, blendCopies, requestCount } = collected
+  const scene = collectClusterPages(source, draws, metadata, indices, { allowMissing: true })
+  const collected = withWorldRoot(scene, context, scene.collector.sources)
+  const { roots, allPages, blendCopies, requests } = collected
   const sharedBlendMeshes = blendCopies.length
-  const pagedBlendCopies = pagedBlendCopiesOf(roots, blendCopies)
+  const pagedBlendCopies = new Map<MatrixElements, BlendCopy>()
+  blendCopies.push(...pagedBlendCopiesOf(roots, pagedBlendCopies))
+  blendCopies.sort(byRenderOrder)
   // Request rank → address, posted once for the scene's life: the delta the host receives after the
   // render carries only integers, and it is this table that translates them.
-  const requestUrls: string[] = new Array<string>(requestCount)
-  for (const { requestIndex: rank, streamUrl, url } of allPages)
-    if (rank !== undefined && rank >= 0 && rank < requestCount) requestUrls[rank] = streamUrl ?? url
+  const requestUrls = [...requests.keys()]
   const tracking = createWebgpuPageTracking(allPages)
   diag.traceDiagnostic('page-catalog', 'Stable WebGPU page catalogue', {
     count: tracking.pageCatalog.length,
@@ -40,16 +38,23 @@ export function setupPages(context: EngineContext, diag: WebgpuDiagnostics) {
   }
 }
 
+/** Draw order of the forward copies: their source's rank. */
+export const byRenderOrder = (a: BlendCopy, b: BlendCopy) => a.renderOrder - b.renderOrder
+
 /** Transparent pages share selection/residency with opaque pages, but retain one forward draw
  *  per placement (all back faces, then all front faces), keyed by the world of the root that
- *  places its pages: the source mesh's own, or one row of its instance buffer. */
-function pagedBlendCopiesOf(roots: SetupPages['roots'], blendCopies: BlendCopy[]) {
-  const pagedBlendCopies = new Map<MatrixElements, BlendCopy>()
+ *  places its pages: the source mesh's own, or one row of its instance buffer. The copies of
+ *  `roots` not made yet — `held` names those that are, by world — are returned and held. */
+export function pagedBlendCopiesOf(
+  roots: SetupPages['roots'],
+  held: Map<MatrixElements, BlendCopy>,
+) {
+  const made: BlendCopy[] = []
   for (const { world, placement, pages } of roots) {
     const rec = pages[0]
-    if (!rec?.transparent || !rec.sourceMesh || pagedBlendCopies.has(world)) continue
+    if (!rec?.transparent || !rec.drawSource || held.has(world)) continue
     const copy = createBlendCopyRecord(
-      rec.sourceMesh,
+      rec.drawSource,
       rec.renderOrder,
       world,
       rec.material,
@@ -58,21 +63,20 @@ function pagedBlendCopiesOf(roots: SetupPages['roots'], blendCopies: BlendCopy[]
     copy.userData.pagedBlend = true
     // The compiler writes a geometry page for every cluster of a primitive, or for none.
     copy.userData.pageGeometry = !!rec.geometryPage
-    pagedBlendCopies.set(world, copy)
-    blendCopies.push(copy)
+    held.set(world, copy)
+    made.push(copy)
   }
-  blendCopies.sort((a, b) => a.renderOrder - b.renderOrder)
-  return pagedBlendCopies
+  return made
 }
 
 type SetupPages = ReturnType<typeof collectClusterPages>
 
 /** The setup's fields of the catalogue's tracking and root cover. */
 export function bootstrapFields(pages: ReturnType<typeof setupPages>) {
-  const { tracking, bootstrap, coverPages, bootstrapKey, floorPages } = pages
+  const { tracking, bootstrap, coverUrls, bootstrapKey, floorUrls, requests } = pages
   // `byUrl` is indexed by REQUEST key: the streaming bundle when the cache publishes one, the cluster
   // object otherwise. One request therefore hands bytes to every cluster that shares it. The GPU page
   // cache stays keyed by pool address (`pageAddress`), the granularity it uploads and pins.
   const byUrl = indexPagesByUrl(pages.allPages)
-  return { tracking, bootstrap, coverPages, bootstrapKey, floorPages, byUrl }
+  return { tracking, bootstrap, coverUrls, bootstrapKey, floorUrls, byUrl, requests }
 }

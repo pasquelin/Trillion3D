@@ -16,6 +16,8 @@ import type {
   Page,
   Primitive,
 } from '../../../packages/sdk-core/src/index.ts'
+import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
+import { manifestCulling } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 
 export const VIEWPORT: [number, number] = [96, 96]
 
@@ -31,10 +33,10 @@ export function square(half: number): G.Geometry {
   return geometry
 }
 
-/**
- * Builder of a prepared scene: each added mesh becomes a primitive of two level-0
- * clusters that nothing replaces — the smallest legal DAG — one triangle each.
- */
+/** Builder of a prepared scene: each added mesh becomes a primitive of two level-0 clusters that
+ *  nothing replaces — the smallest legal DAG — one triangle each, with the culling hierarchy the
+ *  compiler writes (`manifestCulling`). `place` adds a square of half-side `half` (`square`, or a
+ *  lit plane's `geometry`) wearing `surface`, at `position`, turned by `turn`, drawn in `pass`. */
 export function batisseur() {
   const source = new G.Group(),
     indices = new Map<string, Uint32Array>(),
@@ -42,8 +44,23 @@ export function batisseur() {
     primitives: Primitive[] = [],
     geometries: G.Geometry[] = [],
     materials: G.GraphSurface[] = []
-  return {
+  const builder = {
     source,
+    place(
+      surface: G.GraphSurface,
+      pass: string,
+      half: number,
+      [x, y, z]: readonly number[] = [0, 0, 0],
+      turn: Partial<Record<'x' | 'y' | 'z', number>> = {},
+      geometry = square(half),
+    ) {
+      const mesh = G.mesh(geometry, surface)
+      mesh.position.set(x, y, z)
+      mesh.rotation.set(turn.x ?? 0, turn.y ?? 0, turn.z ?? 0)
+      source.add(mesh)
+      builder.add(mesh, pass, half)
+      return mesh
+    },
     add(mesh: G.HostMesh, pass: string, half: number) {
       const rank = primitives.length,
         radius = half * Math.SQRT2
@@ -65,14 +82,14 @@ export function batisseur() {
         group: null,
         source: null,
       }))
-      const structure: ClusterStructure = { version: 1, roots: [0, 1], groups: [] }
       primitives.push({
         mesh: rank,
         primitive: 0,
         pass,
         clusterStrategy: 'dag-groups',
         pages,
-        structure,
+        structure: { version: 1, roots: [0, 1], groups: [] } satisfies ClusterStructure,
+        culling: manifestCulling(pages),
       })
       const triangles = mesh.geometry.index!.array
       for (const page of pages)
@@ -83,9 +100,8 @@ export function batisseur() {
     },
     fini() {
       source.updateMatrixWorld(true)
-      // The identity fields (`schema`, `status`, `key`, `scope`, the triangle/node counts) are
-      // not read by this rig; `DAG` and these placeholders are the same minimal manifest the
-      // engine's own scene fixtures use (`packages/sdk-browser/src/engine/pagesEngine.fixture.ts`).
+      // The identity fields are not read by this rig: `DAG` and these placeholders are the minimal
+      // manifest of the engine's own scene fixtures (`pagesEngine.fixture.ts`).
       const metadata: ClusterManifest = {
         ...DAG,
         schema: 1,
@@ -103,18 +119,20 @@ export function batisseur() {
         metadata,
         indices,
         associations,
+        draws: graphDraws(source, associations),
         geometries,
         materials,
       }
     },
   }
+  return builder
 }
 
 /** A prepared scene as `batisseur().fini()` returns it. */
 export type ScenePreparee = ReturnType<ReturnType<typeof batisseur>['fini']>
 
 /** A host-library matrix, column-major, ready for `setTransform`. */
-export const versApi = (matrice: G.Matrix4): Float32Array => new Float32Array(matrice.elements)
+export const toApiMatrix = (matrix: G.Matrix4): Float32Array => new Float32Array(matrix.elements)
 
 /** The proofs camera: face-on, translated on `x` without changing the optical axis — a pure
  *  slide, where parallax alone separates near from far. */
@@ -126,11 +144,10 @@ export function cameraFace(x = 0): G.Camera {
   return camera
 }
 
-/** The real WebGPU engine mounted on a built scene, with its own canvas. `options` completes
- *  the host context — `stageProfile: true` to read the public per-stage counters. Proofs
- *  here compare images pixel for pixel and wait for a held image in a few frames:
- *  temporal antialiasing is off, except for the proof that chooses it. `factory` is another
- *  revision's engine, for a measure that compares two. */
+/** The real WebGPU engine mounted on a built scene, with its own canvas. `options` completes the
+ *  host context — `stageProfile: true` to read the public per-stage counters. Proofs here compare
+ *  images pixel for pixel and wait for a held image in a few frames: temporal antialiasing is off,
+ *  except for the proof that chooses it. `factory` is another revision's engine, to compare two. */
 export function engine(
   scene: ScenePreparee,
   device: GPUDevice,
@@ -144,7 +161,7 @@ export function engine(
     source: scene.source,
     metadata: scene.metadata,
     indices: scene.indices,
-    associations: scene.associations,
+    draws: scene.draws,
     gpuDevice: device,
     gpuCanvas: canvas,
     maxResidentPages: 16,
@@ -158,30 +175,21 @@ export function engine(
   return { backend, canvas }
 }
 
-/** Public counters of a profile stage, or `null` when the host did not ask for it. */
-export function countsStep(
-  backend: Engine,
-  stage: string,
-): Readonly<Record<string, number>> | null {
-  const profile = backend.stageProfile?.()
-  return profile?.stages?.find((input) => input.stage === stage)?.counts ?? null
-}
-
-/** Releases the engine of a proof and its scene: geometries, materials and their textures. */
-export function release(backend: Engine, canvas: HTMLCanvasElement, scene: ScenePreparee): void {
-  backend.dispose()
+/** Releases the engine of a proof and its scene: geometries, materials and their textures; the
+ *  engine's dispose, which may finish later, is returned. */
+export function release(backend: Engine, canvas: HTMLCanvasElement, scene: ScenePreparee) {
+  const disposed = backend.dispose()
   canvas.remove()
   releaseScene(scene)
+  return disposed
 }
 
 /** Releases a prepared scene: its geometries, its materials and their textures. */
 export function releaseScene(scene: ScenePreparee): void {
   for (const g of scene.geometries) g.dispose()
   for (const m of scene.materials) {
-    // A material's texture-valued properties are not typed generically by the witness library: read as
-    // `unknown` and narrow at this one boundary.
-    const values: unknown[] = Object.values(m)
-    for (const value of values) {
+    // A material's texture-valued properties are untyped in the witness library: narrowed here.
+    for (const value of Object.values(m) as unknown[]) {
       const texture = value as { isTexture?: boolean; dispose?: () => void } | undefined
       if (texture?.isTexture) texture.dispose?.()
     }

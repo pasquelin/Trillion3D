@@ -1,46 +1,9 @@
 // A read that failed and may pass waits, twice as long each time up to 8 s, one request a wait,
-// its askers still waiting on it; one that never passes (a 404) is refused for good while its page
-// is catalogued. The waits are one heap and one timer, whatever the failures.
-import test, { type TestContext } from 'node:test'
+// its askers still waiting on it; one that never passes (a 404) is refused for good. The waits are
+// one heap and one timer, whatever the failures; a stall is said once.
+import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createPageStreamer } from './pageStreamer.ts'
-import { eventually } from './eventually.fixture.ts'
-
-/** Waits till `streamer` reads nothing and queues nothing: every read it was asked landed, failed
- *  or waits its turn — the events themselves, however slow the machine. */
-const idle = (streamer: ReturnType<typeof createPageStreamer>) =>
-  eventually(() => streamer.stats().loading === 0 && streamer.stats().queued === 0)
-
-/** A streamer of the pages `urls` the server answers with `status`, the clock and its timers in
- *  the test's hands: the requests sent, when, and the failures said. */
-function refusing(t: TestContext, status: number, urls = ['a.bin'], headers?: HeadersInit) {
-  const clock = { now: 0 }
-  t.mock.method(performance, 'now', () => clock.now)
-  t.mock.timers.enable({ apis: ['setTimeout'] })
-  const sent: number[] = [],
-    said: string[] = []
-  t.mock.method(globalThis, 'fetch', async () => {
-    sent.push(clock.now)
-    return new Response('', { status, headers })
-  })
-  const pages = urls.map((url) => ({ url, bytes: 4, sha256: '' }))
-  const streamer = createPageStreamer(pages, 'http://cache/', {
-    onStalled: ({ url }) => void said.push(url),
-  })
-  t.after(() => streamer.dispose())
-  /** Its reads settled: landed, failed, or waiting their turn. */
-  const settle = () => idle(streamer)
-  /** The clock moved to `end` in steps of 250 ms, the timers with it, each step's reads settled
-   *  before the next. */
-  const until = async (end: number) => {
-    for (; clock.now < end;) {
-      clock.now += 250
-      t.mock.timers.tick(250)
-      await settle()
-    }
-  }
-  return { streamer, sent, said, until, clock, settle }
-}
+import { refusing, sha } from './failures.fixture.ts'
 
 test('a read that may pass is asked once a wait, 0.5 s · 2^k up to 8 s, its asker still waiting', async (t) => {
   const { streamer, sent, said, until, settle } = refusing(t, 503)
@@ -93,31 +56,6 @@ test('a read waiting its turn whose last asker lets go is dropped: never asked a
   assert.deepEqual([sent, streamer.loading('a.bin')], [[0], false])
 })
 
-test('a failure outlives its page while its wait runs, then leaves; one for good leaves with it', async (t) => {
-  const { streamer, sent, until, clock, settle } = refusing(t, 503)
-  const page = { url: 'a.bin', bytes: 4, sha256: '' }
-  const leaving = new AbortController()
-  void streamer.readBytes('a.bin', leaving.signal).catch(() => {})
-  await settle()
-  leaving.abort()
-  streamer.forget(['a.bin'])
-  streamer.admit([page])
-  void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
-  await settle()
-  assert.deepEqual(sent, [0], 'admitted again within its wait: it waits it out')
-  await until(500)
-  assert.deepEqual(sent, [0, 500], 'asked once its wait ended')
-  assert.equal(clock.now, 500)
-})
-
-test('a refusal for good leaves with its page: nothing asks it any more', async (t) => {
-  const { streamer } = refusing(t, 404)
-  await streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
-  assert.deepEqual([streamer.failed('a.bin'), streamer.stats().failed], [true, 1])
-  streamer.forget(['a.bin'])
-  assert.deepEqual([streamer.failed('a.bin'), streamer.stats().failed], [false, 0])
-})
-
 test('a hundred thousand failed reads wait on one timer, each asked once a wait', async (t) => {
   const urls = Array.from({ length: 100_000 }, (_, i) => `p${i}.bin`)
   const { streamer, sent, until, settle } = refusing(t, 503, urls)
@@ -166,34 +104,3 @@ test('a stall is said once, and again only once its page landed and stalls anew'
   await until(32_000)
   assert.deepEqual(said, ['a.bin', 'a.bin'], 'stalled anew: said again')
 })
-
-test('a page forgotten while its read transfers ends with it, failed or not: never asked again', async (t) => {
-  const clock = { now: 0 }
-  t.mock.method(performance, 'now', () => clock.now)
-  t.mock.timers.enable({ apis: ['setTimeout'] })
-  let release = () => {}
-  const gate = new Promise<void>((resolve) => (release = resolve))
-  let sent = 0
-  t.mock.method(globalThis, 'fetch', async () => {
-    sent++
-    await gate
-    return new Response('', { status: 503 })
-  })
-  const streamer = createPageStreamer([{ url: 'a.bin', bytes: 4, sha256: '' }], 'http://cache/')
-  t.after(() => streamer.dispose())
-  void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
-  await eventually(() => sent === 1) // under way
-  streamer.forget(['a.bin']) // its cell's page closed while the read is under way
-  release()
-  await idle(streamer)
-  for (clock.now = 250; clock.now <= 2_000; clock.now += 250) {
-    t.mock.timers.tick(250)
-    await idle(streamer)
-  }
-  assert.deepEqual([sent, streamer.loading('a.bin'), streamer.stats().failed], [1, false, 0])
-})
-
-async function sha(bytes: Uint8Array) {
-  const { sha256Hex } = await import('./sha256Hex.ts')
-  return sha256Hex(bytes.slice().buffer)
-}

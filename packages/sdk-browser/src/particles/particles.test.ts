@@ -11,25 +11,14 @@ import { createWebgpuParticles } from '../webgpu/particles/webgpuParticles.ts'
 import { webgpuModel } from './stepModels.fixture.ts'
 import { PARTICLES_PASS } from '../stage/passLabels.ts'
 
-/** An encoder that records its compute passes and their dispatches, `window` for one the GPU
- *  sizes. */
-function computeRecorder() {
-  const passes: { label?: string; dispatches: (number | 'window')[] }[] = []
-  const encoder = {
-    beginComputePass: ({ label }: GPUComputePassDescriptor) => {
-      const pass = { label, dispatches: [] as (number | 'window')[] }
-      passes.push(pass)
-      return {
-        setPipeline() {},
-        setBindGroup() {},
-        dispatchWorkgroups: (x: number) => void pass.dispatches.push(x),
-        dispatchWorkgroupsIndirect: () => void pass.dispatches.push('window'),
-        end() {},
-      }
-    },
-  } as unknown as GPUCommandEncoder
-  return { encoder, passes }
-}
+/** Each compute pass `gpu` began: its label and its dispatches, `window` for one the GPU sizes. */
+const computePassesOf = (gpu: ReturnType<typeof fakeDevice>) =>
+  gpu.computePasses.map(({ label, commands }) => ({
+    label,
+    dispatches: commands.flatMap(([name, [x]]) =>
+      name === 'dispatchWorkgroups' ? [x] : name === 'dispatchWorkgroupsIndirect' ? ['window'] : [],
+    ),
+  }))
 
 test('WebGPU: one timed pass writes the step words and the staged records, once', async () => {
   const gpu = fakeDevice()
@@ -37,13 +26,13 @@ test('WebGPU: one timed pass writes the step words and the staged records, once'
   const pool = new ParticlePool({ capacity: 1000, emitPerFrame: 1000 })
   for (let i = 0; i < 3; i++) pool.emit(i, 1, 2, 3, 4, 5, 6)
   pool.advance(0.01)
-  const { encoder, passes } = computeRecorder()
+  const encoder = gpu.device.createCommandEncoder()
   assert.equal(particles.run([pool], encoder), 0, 'compiling: the pool waits, its records kept')
   await tick()
   assert.equal(particles.run([pool], encoder), 3)
   // The live window, sized by the GPU; the emitted slots; then the one workgroup that writes the
   // draw's window.
-  assert.deepEqual(passes, [{ label: PARTICLES_PASS, dispatches: ['window', 1, 1] }])
+  assert.deepEqual(computePassesOf(gpu), [{ label: PARTICLES_PASS, dispatches: ['window', 1, 1] }])
   const [step, records] = gpu.writes
   const words = new Uint8Array(written(step)).buffer
   assert.deepEqual(
@@ -60,31 +49,30 @@ test('WebGPU: one timed pass writes the step words and the staged records, once'
 })
 
 test('WebGPU: a pool whose time runs before its first particle dispatches no empty workgroup grid', async () => {
-  const particles = createWebgpuParticles(fakeDevice().device, (error) =>
-    assert.fail(String(error)),
-  )
+  const gpu = fakeDevice()
+  const particles = createWebgpuParticles(gpu.device, (error) => assert.fail(String(error)))
   const pool = new ParticlePool({ capacity: 1000, emitPerFrame: 1000 })
-  const { encoder, passes } = computeRecorder()
+  const encoder = gpu.device.createCommandEncoder()
   particles.run([pool], encoder)
   await tick()
   pool.advance(0.01)
   // Time, and no slot: a dispatch would ask zero workgroups, which the device warns about.
   assert.equal(particles.run([pool], encoder), 0)
-  assert.equal(passes.length, 0, 'no pass, no dispatch')
+  assert.equal(gpu.computePasses.length, 0, 'no pass, no dispatch')
   pool.emit(0, 1, 2, 3, 4, 5, 6)
   pool.advance(0.01)
   assert.equal(particles.run([pool], encoder), 3)
-  assert.deepEqual(passes[0].dispatches, ['window', 1, 1])
+  assert.deepEqual(computePassesOf(gpu)[0].dispatches, ['window', 1, 1])
 })
 
 test('WebGPU: a step that cannot compile is heard, and its pools stop asking frames', async () => {
   const heard: unknown[] = [],
-    { device } = fakeDevice({ compute: false })
+    { device } = fakeDevice({ failCompute: true })
   const particles = createWebgpuParticles(device, (error) => heard.push(error))
   const pool = new ParticlePool({ capacity: 8 })
   pool.emit(0, 0, 0, 0, 1, 0, 2)
   await tick()
-  assert.equal(particles.run([pool], computeRecorder().encoder), 0)
+  assert.equal(particles.run([pool], device.createCommandEncoder()), 0)
   assert.deepEqual([heard.length, pool.moving, pool.emit(0, 0, 0, 0, 1, 0, 2)], [1, false, false])
 })
 
@@ -121,7 +109,7 @@ test('the step words carry a reference emission along each ballistic path', asyn
   await tick()
   const pool = new ParticlePool(spec),
     model = webgpuModel(spec.capacity)
-  const { encoder } = computeRecorder()
+  const encoder = gpu.device.createCommandEncoder()
   for (let frame = 0; frame < frames; frame++) {
     emitReference([pool], frame)
     pool.advance(1 / 64)
@@ -153,7 +141,8 @@ test('the step words carry a reference emission along each ballistic path', asyn
 test('WebGPU: a pool past the device storage binding is refused by name, told once', async () => {
   const heard: unknown[] = [],
     limits = { maxStorageBufferBindingSize: 1024, maxBufferSize: 1 << 20 }
-  const particles = createWebgpuParticles(fakeDevice({ limits }).device, (e) => heard.push(e))
+  const { device } = fakeDevice({ limits })
+  const particles = createWebgpuParticles(device, (e) => heard.push(e))
   const [wide, held] = [100, 8].map((capacity) => new ParticlePool({ capacity }))
   await tick()
   for (let frame = 0; frame < 2; frame++) {
@@ -161,7 +150,7 @@ test('WebGPU: a pool past the device storage binding is refused by name, told on
       pool.emit(0, 0, 0, 0, 1, 0, 2)
       pool.advance(0.01)
     }
-    particles.run([wide, held], computeRecorder().encoder)
+    particles.run([wide, held], device.createCommandEncoder())
   }
   const told = "Error: PARTICLE_CAPACITY: 100 particles, past the device's binding"
   assert.deepEqual(heard.map(String), [told])

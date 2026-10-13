@@ -9,6 +9,7 @@ import {
 import { blendFixture, camera } from './blend.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
+import { graphDraws } from './drawSource.ts'
 
 /** Two frames of one view agree on what they show, want and reject. */
 function assertSameCut(first: SelectionResult<PageRec>, second: SelectionResult<PageRec>) {
@@ -29,9 +30,9 @@ test('a cut frame reuses its flat table, result and arrays: it allocates nothing
   const fixture = blendFixture()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const table = roots[0].culling,
     shown: PageRec[] = [],
@@ -75,7 +76,12 @@ test('an invalid cluster band is rejected at prepare, not in the middle of a fra
   page.parentSphere = [0, 0, 0, -1]
   assert.throws(
     () =>
-      collectClusterPages(fixture.source, fixture.metadata, fixture.indices, fixture.associations),
+      collectClusterPages(
+        fixture.source,
+        graphDraws(fixture.source, fixture.associations),
+        fixture.metadata,
+        fixture.indices,
+      ),
     /Invalid cluster parameters/,
   )
   fixture.geometry.dispose()
@@ -86,9 +92,9 @@ test('two successive calls with the same camera select the same set of clusters'
   const fixture = blendFixture()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const cam = camera()
   const shown1: PageRec[] = []
@@ -115,9 +121,9 @@ test('selection working arrays are reused from one frame to the next', () => {
   const fixture = blendFixture()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const cam = camera(),
     ask = {

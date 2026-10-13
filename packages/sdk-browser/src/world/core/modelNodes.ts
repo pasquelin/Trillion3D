@@ -1,5 +1,5 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
+import { sphereFromBoundsBatch } from '../../../../math/src/batch/culling.ts'
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts'
 
 /** A node that may carry a mesh's morph weights. */
@@ -78,6 +78,6 @@ export function graphSubtree(nodes: readonly Object3D[], index: number) {
     if (at !== undefined) indices.push(at)
   })
   const b = hostWorldBounds(nodes[index], emptyWorldBox())
-  sphereFromBounds(sphere, 0, b[0], b[1], b[2], b[3], b[4], b[5])
+  sphereFromBoundsBatch(sphere, b, 1)
   return { indices, radius: Math.max(0, sphere[3]) }
 }

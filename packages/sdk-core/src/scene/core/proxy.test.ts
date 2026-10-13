@@ -1,92 +1,114 @@
-// The resident proxy file: the compiler's shared file comes back as the flat proxy it
-// simplified, bit for bit, and a file that places a triangle twice or names a shape it lacks is
-// refused before any ray reads it.
+// The proxy file: one proxy a compiled mesh in its own space comes back column by column, and a file whose
+// header, table or links disagree with what it holds is refused before any ray reads it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import {
+  PROXY_CHILD_WORDS,
+  PROXY_NODE_FLOATS,
+  PROXY_NODE_WORDS,
+  PROXY_TRIANGLE_FLOATS,
+  SCENE_PROXY_HEADER_WORDS,
   SCENE_PROXY_MAGIC,
   SCENE_PROXY_VERSION,
   type SceneProxyDescriptor,
 } from '../../contracts/proxy.ts'
 import { decodeSceneProxy } from './proxy.ts'
 
-const decode = (buffer: ArrayBuffer) => {
-  const [, , triangles, nodes, groups, owners, instances] = new Uint32Array(buffer, 0, 7)
+/** A mesh of `triangles` triangles under one node that holds them all in one leaf. */
+function mesh(triangles: number, seed: number) {
+  const nodeChildren = new Uint32Array(triangles ? PROXY_NODE_WORDS : 0)
+  if (triangles) {
+    // The first child present, a leaf of all the triangles from the first.
+    nodeChildren[1] = (1 << 24) | (triangles << 16)
+    nodeChildren[2] = 0
+  }
+  return {
+    triangles: Float32Array.from({ length: triangles * PROXY_TRIANGLE_FLOATS }, (_, k) => seed + k),
+    albedo: Uint32Array.from({ length: triangles }, (_, k) => 0xff000000 + seed + k),
+    nodeBounds: Float32Array.from(
+      { length: triangles ? PROXY_NODE_FLOATS : 0 },
+      (_, k) => seed - k,
+    ),
+    nodeChildren,
+    cell: 0.25 * (seed + 1),
+  }
+}
+
+/** The bytes the compiler writes for `meshes` (`SceneProxy::encode`), and the descriptor naming them. */
+function file(meshes: ReturnType<typeof mesh>[]) {
+  const triangles = meshes.reduce((sum, m) => sum + m.triangles.length / PROXY_TRIANGLE_FLOATS, 0),
+    nodes = meshes.reduce((sum, m) => sum + m.nodeChildren.length / PROXY_NODE_WORDS, 0)
+  const words = [SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, meshes.length, triangles, nodes, 0]
+  const table = new Float32Array(1)
+  for (const m of meshes) {
+    table[0] = m.cell
+    words.push(
+      m.triangles.length / PROXY_TRIANGLE_FLOATS,
+      m.nodeChildren.length / PROXY_NODE_WORDS,
+      new Uint32Array(table.buffer)[0],
+    )
+  }
+  const bits = (column: Float32Array | Uint32Array) =>
+    Array.from(new Uint32Array(column.buffer, column.byteOffset, column.length))
+  for (const m of meshes) words.push(...bits(m.triangles))
+  for (const m of meshes) words.push(...bits(m.albedo))
+  for (const m of meshes) words.push(...bits(m.nodeBounds))
+  for (const m of meshes) words.push(...bits(m.nodeChildren))
+  const buffer = Uint32Array.from(words).buffer
   const descriptor: SceneProxyDescriptor = {
     ...{ version: SCENE_PROXY_VERSION, url: 'proxy.bin', sha256: 'x', bytes: buffer.byteLength },
-    ...{ errorMetres: 0, errorFloorMetres: 0, cellMetres: 1, triangleBudget: 1, triangles, nodes },
-    groups,
-    owners,
-    instances,
-    bounds: [0, 0, 0, 1, 1, 1],
+    ...{ errorMetres: 0, errorFloorMetres: 0, cellMetres: 1, triangleBudget: 1 },
+    ...{ triangles, nodes, meshes: meshes.length, bounds: [0, 0, 0, 1, 1, 1] },
   }
-  return decodeSceneProxy(descriptor, buffer)
+  return { buffer, descriptor }
 }
-const fixture = (name: string) =>
-  new Uint8Array(readFileSync(new URL(`fixtures/${name}`, import.meta.url))).buffer
 
-test('the compiler’s shared file expands to its flat file, word for word', () => {
-  // Both written by `proxy::encode::tests` in the compiler: 60 copies of one triangle, some
-  // turned, mirrored or off the grid, and the eighth turns that stay flat.
-  const { data } = decode(fixture('proxy-v5.bin'))
-  const flat = new Uint32Array(fixture('proxy-flat.bin'))
-  const columns = [
-    data.triangles,
-    data.albedo,
-    data.nodeBounds,
-    data.nodeChildren,
-    data.triangleGroups,
-    data.groupOffsets,
-    data.owners,
-    data.sourceParents,
-    data.sourceMeshes,
-    data.bindWorlds,
-  ]
-  const actual = columns.flatMap((column) =>
-    Array.from(new Uint8Array(column.buffer, column.byteOffset, column.byteLength)),
+test('each mesh comes back with its own triangles, albedo, nodes and grid step', () => {
+  const meshes = [mesh(3, 1), mesh(0, 0), mesh(2, 5)]
+  const { buffer, descriptor } = file(meshes)
+  const { data } = decodeSceneProxy(descriptor, buffer)
+  assert.equal(data.meshes.length, 3)
+  meshes.forEach((want, k) => {
+    const got = data.meshes[k]
+    assert.deepEqual(Array.from(got.triangles), Array.from(want.triangles))
+    assert.deepEqual(Array.from(got.albedo), Array.from(want.albedo))
+    assert.deepEqual(Array.from(got.nodeBounds), Array.from(want.nodeBounds))
+    assert.deepEqual(Array.from(got.nodeChildren), Array.from(want.nodeChildren))
+    assert.equal(got.cellMetres, want.cell)
+  })
+})
+
+test('a file whose header, signature or length disagrees with the manifest is refused', () => {
+  const { buffer, descriptor } = file([mesh(2, 1)])
+  assert.throws(() => decodeSceneProxy({ ...descriptor, triangles: 3 }, buffer), /disagrees/)
+  assert.throws(() => decodeSceneProxy({ ...descriptor, meshes: 2 }, buffer), /disagrees/)
+  assert.throws(() => decodeSceneProxy({ ...descriptor, bytes: 8 }, buffer), /length/)
+  const signed = buffer.slice(0)
+  new Uint32Array(signed)[0] = 0
+  assert.throws(() => decodeSceneProxy(descriptor, signed), /WGPX/)
+  assert.throws(
+    () => decodeSceneProxy({ ...descriptor, version: SCENE_PROXY_VERSION - 1 }, buffer),
+    /version/,
   )
-  assert.deepEqual(actual, Array.from(new Uint8Array(flat.buffer, 32)))
 })
 
-/** One shape triangle placed twice at `positions`, and one loose triangle in the gap. */
-function file(positions: number[], shapeOf = [0, 0]) {
-  const f = (values: number[]) => Array.from(new Uint32Array(new Float32Array(values).buffer))
-  const map = f([1, 0, 0, 4, 0, 1, 0, 0, 0, 0, 1, 0])
-  const words = [
-    ...[SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, 3, 0, 1, 1, 1, 0, 1, 1, shapeOf.length, 1],
-    ...[...f([0, 0, 0, 1, 0, 0, 0, 1, 0]), 1, ...shapeOf, ...map, ...map, ...positions],
-    ...[...f([7, 7, 7, 8, 7, 7, 7, 8, 7]), 2],
-    ...[0, 0, 0, 0, 1, 0, 1, 0xffffffff, 0xffffffff],
-    ...new Uint32Array(new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]).buffer),
-  ]
-  return () => decode(new Uint32Array(words).buffer)
-}
-
-test('a file that places a triangle twice, or names a shape it lacks, is refused', () => {
-  assert.doesNotThrow(file([2, 0]))
-  assert.throws(file([1, 1]), /places a triangle twice or nowhere/)
-  assert.throws(file([1, 3]), /places a triangle twice or nowhere/)
-  assert.throws(file([1, 0], [0, 1]), /names a shape it does not have/)
+test('a leaf that names triangles its mesh lacks, or a node that does not point forward, is refused', () => {
+  const lacking = mesh(2, 1)
+  lacking.nodeChildren[1] = (1 << 24) | (3 << 16)
+  assert.throws(
+    () => decodeSceneProxy(file([lacking]).descriptor, file([lacking]).buffer),
+    /triangles it does not have/,
+  )
+  const looping = mesh(2, 1)
+  looping.nodeChildren[1] = 1 << 24
+  looping.nodeChildren[2] = 0
+  assert.throws(
+    () => decodeSceneProxy(file([looping]).descriptor, file([looping]).buffer),
+    /forward/,
+  )
 })
 
-test('shared headers, empty shapes and nonfinite maps are refused before expansion', () => {
-  const reject = (corrupt: (words: Uint32Array) => void, reason: RegExp) => {
-    const buffer = fixture('proxy-v5.bin')
-    corrupt(new Uint32Array(buffer))
-    assert.throws(() => decode(buffer), reason)
-  }
-  reject((words) => {
-    words[8] = 0xffffffff
-  }, /length/)
-  reject((words) => {
-    words[11] = 0
-  }, /shape is empty/)
-  reject((words) => {
-    const maps = 11 + words[8] + words[9] * 10 + words[10]
-    words[maps] = 0x7fc00000
-  }, /map is non-finite/)
-  reject((words) => {
-    words[1] = 3
-  }, /disagrees with its manifest/)
+test('a child holds three words, the link the third, and the header six', () => {
+  assert.equal(PROXY_CHILD_WORDS, 3)
+  assert.equal(SCENE_PROXY_HEADER_WORDS, 6)
 })

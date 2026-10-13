@@ -9,8 +9,9 @@
 //! renormalised; a value the solve left non-finite is its source's.
 use super::clusters::position_key;
 use super::*;
-use crate::geometry_page::{Attribute as Carried, FLAG_UV, FLAG_UV1};
 use crate::qem::solve::SolvedRegion;
+use trillion3d_page_codec::encode::Attribute as Carried;
+use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
 
 /// The region after the solve, over its `n` source vertices then its placed ones.
 pub(super) struct Local<'r> {

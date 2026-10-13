@@ -13,14 +13,14 @@ import { IDENTITY, constructors, unit } from './pageWorld.fixture.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27)
+const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
 const SHIPPED = vsmProjectionWgsl(LAYOUT, { subgroups: false })
 const STRUCTS = constructors(SHIPPED)
 const AT_COUNT = 'else if(i==u32(settings.voteAfter)){halfStops='
 /** The traces with the umbra vote asked at every ray from the adaptive count on. */
 const EVERY_RAY = SHIPPED.replaceAll(AT_COUNT, 'else if(i>=u32(settings.voteAfter)){halfStops=')
 
-type Result = { valid: boolean; shadowFactor: number; rayCount: number }
+type Result = { shadowFactor: number; rayCount: number }
 type Trace = (...args: unknown[]) => Result
 /** The lane running, its group's case, its ray and its cube-face reads in that ray. */
 type Cursor = { lane: number; group: number; ray: number; face: number }
@@ -64,7 +64,6 @@ function sun(code: string, votes: object, at: Cursor) {
       vsmProjectionOf: () => PD,
       vsmSunRaySpread: () => [10, 0],
       vsmView: { shiftedToView: IDENTITY, originShiftHigh: NO, originShiftLow: NO, frameIndex: 0 },
-      vsm: { traceReachSun: 1.5 },
       vsmSunDepthGradientUv: () => [0, 0],
       vsmSubtractHighLow: () => NO,
       vsmRayNoise4: (_p: unknown, _f: unknown, i: number) => ((at.ray = i), [0.5, 0.5, 0.5, 0.5]),
@@ -103,7 +102,7 @@ function local(code: string, votes: object, at: Cursor, spot: boolean) {
       vsmSubtractHighLow: () => NO,
       vsmLocalDepthGradientUv: () => [0, 0],
       vsmReceiverPixelSize: () => 0.01,
-      vsm: { tracePlaneBiasCapLocal: 1 },
+      VSM_TRACE_PLANE_BIAS_CAP_LOCAL: 1,
       frameAround: () => ({ x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }),
       intoFrame: (_m: unknown, v: number[]) => v,
       vsmLocalMipAt: () => 0,
@@ -120,8 +119,8 @@ function local(code: string, votes: object, at: Cursor, spot: boolean) {
     },
   )
   const light = {
-    ...{ shiftedPosition: [0, 3, 0], invRadius: 0.1, direction: [0, -1, 0], sourceRadius: 0.1 },
-    ...{ spotAngles: spot ? [0.5, 2] : [-2, 1], mapId: 0, kind: spot ? 2 : 1 },
+    ...{ shiftedPosition: [0, 3, 0], radius: 10, direction: [0, -1, 0], sourceRadius: 0.1 },
+    ...{ cosCone: spot ? 0.5 : -2, mapId: 0, kind: spot ? 2 : 1 },
   }
   return (lane: number) =>
     vsmTraceLocal(0, light, [lane, 0], 2, NO, 0.01, 0.5, [0, 0, 1], participating(at.group, lane))

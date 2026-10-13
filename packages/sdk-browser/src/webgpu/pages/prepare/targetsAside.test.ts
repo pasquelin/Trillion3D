@@ -13,6 +13,7 @@ import { flushWebgpuPages } from '../render/flush.ts'
 import { disposeWebgpuPages } from '../io/metrics.ts'
 import { renderExtent } from '../../../frame/renderScaleOption.ts'
 import { refusing } from './refusing.fixture.ts'
+import { frameTargetsAwaited } from './targetGrant.ts'
 import { installGpuDeviceLedger } from '../../../gpu/core/deviceLedger.ts'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { importHostTexture } from '../../../host/textureImport.ts'
@@ -51,12 +52,12 @@ async function session(refusals = 0) {
   const frames = async (count: number, seen: (asked: boolean) => void = () => {}) => {
     for (let k = 0; k < count; k++) {
       renderWebgpuPages(rt, camera())
-      seen(rt.gpu.targetGrant !== undefined)
+      seen(frameTargetsAwaited(rt))
       await flushWebgpuPages(rt, { image: false })
     }
   }
   const live = (label: string) =>
-    gpu.textures.filter((t) => !!t.label?.startsWith(label) && !t.destroyed)
+    gpu.textures.filter((t) => !!t.label?.startsWith(label) && !gpu.destroyed.includes(t))
   const dispose = () => {
     disposeWebgpuPages(rt)
     scene.geometry.dispose()
@@ -70,24 +71,35 @@ async function session(refusals = 0) {
 test('a scale change with targets in place is made aside: never held, old ones freed at the swap', async () => {
   const s = await session()
   try {
-    const old = s.live(HDR)[0],
+    const [old] = s.live(HDR),
+      oldSet = s.live(HDR),
       history = s.live(HISTORY),
       temporal = s.rt.gpu.temporal
     assert.equal(old.width, DISPLAY[0])
     assert.ok(history.length > 0)
     s.rt.scale.set({ min: 0.5, max: 0.75 })
     const asked: boolean[] = [],
-      drawnIn: number[] = []
+      drawnIn: number[] = [],
+      modes: (string | undefined)[] = []
     await s.frames(4, (held) => {
       asked.push(held)
+      modes.push(s.rt.gpu.targetGrant?.mode)
       drawnIn.push(s.rt.gpu.allocatedSize[0])
-      if (s.rt.gpu.allocatedSize[0] === DISPLAY[0]) assert.equal(old.destroyed, false)
+      if (s.rt.gpu.allocatedSize[0] === DISPLAY[0])
+        assert.equal(s.gpu.destroyed.includes(old), false)
     })
     assert.deepEqual(asked, [false, false, false, false], 'no frame waits for the grant')
+    assert.equal(modes[0], 'aside', "the view's one grant record, asked aside")
+    assert.equal(s.rt.gpu.targetGrant, undefined, 'gone once swapped in')
     assert.equal(drawnIn[0], DISPLAY[0], 'the frames draw in the targets in place meanwhile')
     assert.deepEqual(s.rt.gpu.allocatedSize, [ASKED, renderExtent(DISPLAY[1], 0.75)])
-    assert.equal(old.destroyed, true, 'freed once swapped out')
-    assert.deepEqual(s.live(HDR), [s.rt.gpu.hdrTexture], 'one set left')
+    assert.ok(
+      oldSet.every((target) => s.gpu.destroyed.includes(target)),
+      'freed once swapped out',
+    )
+    // The two lit images that take turns: the frame's, and the reflection pyramid's.
+    assert.equal(s.live(HDR).length, 2, 'one set left')
+    assert.ok(s.live(HDR).some((texture) => (texture as unknown) === s.rt.gpu.hdrTexture))
     assert.equal(s.rt.gpu.temporal, temporal)
     assert.deepEqual(s.live(HISTORY), history, 'the same history, at the same display size')
   } finally {
@@ -104,7 +116,7 @@ test('targets refused aside fall back to the held grant, then drawn at the size 
     assert.equal(asked[0], false, 'asked aside first')
     assert.ok(asked.includes(true), `refused there, the frame is held for the grant: ${asked}`)
     assert.equal(s.rt.gpu.allocatedSize[0], ASKED)
-    assert.equal(s.live(HDR).length, 1)
+    assert.equal(s.live(HDR).length, 2, 'the two lit images of one set')
   } finally {
     s.dispose()
   }

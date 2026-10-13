@@ -132,7 +132,7 @@ pub(super) fn compile_primitive(
     };
     let mut deformation =
         compiler_page_object::page_deformation(g, bin, p, positions.count, validated)?;
-    deformation.soft_source(g, *old, &pos)?;
+    geometry_page_deform::declare_soft(&mut deformation, g, *old, &pos)?;
     let carried = carried_attributes(&attributes, material);
     let uv_exponent = geometry_page_quant::primitive_uv_exponent(&carried, clustered_blend);
     let store = |slice: &[u32], pos: &[f32], carried: &[&_], origin: &[u32], exponent: i32| {
@@ -151,7 +151,7 @@ pub(super) fn compile_primitive(
     let scale = mesh_scales.get(old).copied();
     let demand = crate::proxy::cut::cut_demand(
         scale,
-        crate::proxy::PROXY_TRIANGLE_BUDGET,
+        trillion3d_page_codec::proxy::PROXY_TRIANGLE_BUDGET,
         triangle_count,
         *scene_triangles,
     );
@@ -188,7 +188,7 @@ pub(super) fn compile_primitive(
     progress(event);
     let quantization =
         compiler_page_object::quantization_report(&pages, position_exponent, uv_exponent);
-    let reach = deformation.reach_for_pass(&pos, unsplit);
+    let reach = geometry_page_deform::reach_for_pass(&deformation, &pos, unsplit);
     Ok(CompiledPrimitive {
         cluster_planes,
         proxy_cut,

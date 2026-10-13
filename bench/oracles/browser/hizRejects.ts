@@ -1,6 +1,6 @@
 import { hizRejectsFlat } from './hizOcclusion.ts'
 import { HIZ_BOUNDS_VALUES } from '../../../packages/sdk-browser/src/hiz/corners.ts'
-import type { HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts'
+import type { FlatHizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts'
 
 /** One box as an object, the shape the oracles and the GPU comparisons write; `hizRejectsFlat`
  *  reads the flat layout (`HIZ_BOUNDS_VALUES`). */
@@ -16,7 +16,7 @@ export type HizBounds = {
 const boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES)
 /** The CPU verdict on one box given as an object: `hizRejectsFlat` on the flat layout, what the
  *  oracles and the GPU comparisons ask. */
-export function hizRejects(pyramid: HizPyramid, bounds: HizBounds, bias = 0) {
+export function hizRejects(pyramid: FlatHizPyramid, bounds: HizBounds, bias = 0) {
   boundsScratch[0] = bounds.minX
   boundsScratch[1] = bounds.minY
   boundsScratch[2] = bounds.maxX

@@ -37,22 +37,22 @@
  *    not by the world; a far cell places no object (`partition/farCells.ts`), so `V_covered` is
  *    bounded by the placed cells.
  * No term follows the placements rather than the view: a moving eye costs the CPU nothing, and each
- * placement a cut prepares takes the eye off its exact translation once — `p` above holds one
- * double subtraction an axis, 24 B read (`shader/worldPoseWgsl.ts`), its pages' cone tests reading
- * the translation it prepared (`preparedPose`) —, never a pass over the `N` placements.
+ * thread that reads a placement takes the eye off its exact translation once — one double
+ * subtraction an axis, 24 B read (`shader/worldPoseWgsl.ts`, `shader/primitiveWgsl.ts`) —, never a
+ * pass over the `N` placements.
  */
-import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import type { DagCutLinks, DagRoot } from './types.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** The world DAG's placement, its `origins`, and per placement the world cluster that stands in for
- *  it (`NONE` without), held at `linkBase` in the cold table behind the world DAG's record shift;
+ *  it (`NO_INDEX` without), held at `linkBase` in the cold table behind the world DAG's record shift;
  *  the placements whose link moved are handed to the residency mirror (`linksMoved`). */
 export type PackedWorld = {
   root: number
   origins: Int32Array
   /** The world cluster of each object, by its `origin`, -1 for none: one cluster per object. */
   clusterOf: Int32Array
-  /** The link a placement of `object` takes: its world cluster's packed page, `NONE` for none. */
+  /** The link a placement of `object` takes: its world cluster's packed page, `NO_INDEX` for none. */
   linkOf: (object: number) => number
   links: Uint32Array
   linkBase: number
@@ -94,11 +94,11 @@ export function packWorldLinks(
   const origins = roots[world].origins!,
     clusterOf = objectClusters(origins),
     base = cutLinks[world].pageBase
-  const links = new Uint32Array(Math.max(slots, roots.length)).fill(NONE)
+  const links = new Uint32Array(Math.max(slots, roots.length)).fill(NO_INDEX)
   cold.set(links, linkBase)
   const linkOf = (object: number) => {
     const rank = object >= 0 ? (clusterOf[object] ?? -1) : -1
-    return rank >= 0 ? base + rank : NONE
+    return rank >= 0 ? base + rank : NO_INDEX
   }
   return { root: world, origins, clusterOf, linkOf, links, linkBase, scale: 1 }
 }

@@ -4,7 +4,6 @@ import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { RowUse } from './rowUse.ts'
 import { serveInOrder } from './claims.ts'
 import { createListDifference } from './listDifference.ts'
-import type { PageList } from '../pages/prepare/catalogue.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
 import type { IdDelta } from '../cut/delta.ts'
 
@@ -59,14 +58,11 @@ const STOP = () => true
  * the P live entries a serve left. A still camera adopts no readback and lands nothing: zero.
  */
 export function createRowDemand(
-  /** The row table, its arrays read at each readback: they are replaced as pages are added. */
-  table: { readonly rowOfPage: Int32Array; readonly residentFlags: Uint32Array },
+  /** The row table, read at each readback: each page's row and residency flag. */
+  table: DemandTable,
   use: RowUse,
   /** Whether a packed instance draws from a visibility row once resident: opaque, with geometry. */
   drawsRow: (page: number) => boolean,
-  /** The packed instances the readbacks name: their count sizes the marks, and no record of
-   *  theirs is read. */
-  packedPages: PageList,
   /** A new counted closure over the instances, per placement. */
   closure: () => InstanceClosure,
 ) {
@@ -79,8 +75,7 @@ export function createRowDemand(
     },
     held: closure(),
     asking: closure(),
-    marks: new Uint8Array(Math.max(1, packedPages.length)),
-    listed: new Uint8Array(Math.max(1, packedPages.length)),
+    marks: new Uint8Array(0),
     list: new Int32Array(8),
     by: new Int32Array(8),
     waitingBy: createSparseInts(),
@@ -93,7 +88,7 @@ export function createRowDemand(
   d.serving.placed = (page) => placedAt(d, page)
   return {
     /** The readback just adopted: its differences followed, its new demand behind the last. */
-    follow: (cut: CutLists) => follow(d, cut),
+    follow: (cut: CutLists, frame?: number) => follow(d, cut, frame),
     /** Pages whose bytes or slot moved (the row journal): a wanted page not ready asks again. */
     touched(pages: ArrayLike<number>, count: number) {
       for (let i = 0; i < count; i++) {
@@ -105,7 +100,7 @@ export function createRowDemand(
       }
     },
     /** Whether the requests' closure holds `page` and the cut does not read it resident. */
-    wanted: (page: number) => d.marks[page] === 1 && !readsResident(d, page),
+    wanted: (page: number) => isWanted(d, page) && !readsResident(d, page),
     /** Whether a readback's closure holds `page`: its row is in use. */
     holds: (page: number) => d.held.delta.has(page),
     /** The live demand is served again: the table grew or was rebuilt. */
@@ -137,7 +132,6 @@ export function createRowDemand(
       const { drawn, asked, ahead } = d.lists
       return (
         d.marks.byteLength +
-        d.listed.byteLength +
         d.list.byteLength +
         d.by.byteLength +
         d.waitingBy.byteLength +
@@ -155,8 +149,16 @@ export function createRowDemand(
   }
 }
 
+/** What the demand reads of the row table: each page's row, -1 none, and whether the cut reads it
+ *  resident — read per id at each readback, off the sparse maps (`pageState.ts`). */
+type DemandTable = {
+  rowOf(page: number): number
+  hasRow(page: number): boolean
+  readsResident(page: number): boolean
+}
+
 type DemandState = {
-  table: { readonly rowOfPage: Int32Array; readonly residentFlags: Uint32Array }
+  table: DemandTable
   use: RowUse
   drawsRow: (page: number) => boolean
   /** Each list's difference from the readback followed before. */
@@ -165,9 +167,10 @@ type DemandState = {
   held: InstanceClosure
   /** The closure of the requests: the instances wanted. */
   asking: InstanceClosure
-  /** 1 on a wanted instance; on one in `list`, 1 too in `listed`. */
+  /** Per instance, `WANTED` while the requests' closure holds it, `LISTED` while it is in `list`:
+   *  a byte an instance up to the largest the readbacks named, read per id at each readback with
+   *  no probe (`listDifference.ts` keeps its marks so too). */
   marks: Uint8Array
-  listed: Uint8Array
   list: Int32Array
   /** Per entry of `list`, the request it came in with: itself, or the one its group-mate asked. */
   by: Int32Array
@@ -193,26 +196,38 @@ type DemandState = {
   }
 }
 
+/** An instance's demand flags (`DemandState.flags`). */
+const WANTED = 1,
+  LISTED = 2
+
+/** Instance `page`'s demand flag `bit` set or cleared, the marks grown to it. */
+function mark(d: DemandState, page: number, bit: number, on: boolean) {
+  if (page >= d.marks.length) {
+    if (!on) return
+    d.marks = resized(d.marks, page + 1)
+  }
+  if (on) d.marks[page] |= bit
+  else d.marks[page] &= ~bit
+}
+
+/** Whether the requests' closure holds `page`. */
+const isWanted = (d: DemandState, page: number) => ((d.marks[page] ?? 0) & WANTED) !== 0
+
 /** Whether the cut reads `page` resident: a row of its own, and its bytes there. */
-const readsResident = (d: DemandState, page: number) =>
-  d.table.rowOfPage[page] >= 0 && d.table.residentFlags[page] > 0
+const readsResident = (d: DemandState, page: number) => d.table.readsResident(page)
 
 /** `page`, wanted by the requests' closure: asked for unless the cut reads it resident — a row
  *  whose record is owed is asked as a missing one is —, behind the demand already listed, with the
  *  request `by` it came in with. */
 function want(d: DemandState, page: number, by = page) {
   if (readsResident(d, page) || !d.drawsRow(page)) return
-  if (page >= d.marks.length) {
-    d.marks = resized(d.marks, page + 1)
-    d.listed = resized(d.listed, page + 1)
-  }
-  d.marks[page] = 1
-  if (d.listed[page]) return
+  mark(d, page, WANTED, true)
+  if (d.marks[page] & LISTED) return
   if (d.count === d.list.length) {
     d.list = resized(d.list, d.count + 1)
     d.by = resized(d.by, d.list.length)
   }
-  d.listed[page] = 1
+  mark(d, page, LISTED, true)
   if (d.waitingBy.size) d.waitingBy.set(page, 0)
   d.by[d.count] = by
   d.list[d.count++] = page
@@ -224,14 +239,11 @@ function want(d: DemandState, page: number, by = page) {
 function followUse(d: DemandState, delta: IdDelta) {
   d.held.apply(delta)
   const { entered, exited, enteredCount, exitedCount } = d.held.delta
-  for (let i = 0; i < enteredCount; i++) {
-    const row = d.table.rowOfPage[entered[i]] ?? -1
-    if (row >= 0) d.use.hold(row)
-  }
-  for (let i = 0; i < exitedCount; i++) {
-    const row = d.table.rowOfPage[exited[i]] ?? -1
-    if (row >= 0) d.use.release(row)
-  }
+  // A page with no row is passed on its mark: the row table is read for those that hold one.
+  for (let i = 0; i < enteredCount; i++)
+    if (d.table.hasRow(entered[i])) d.use.hold(d.table.rowOf(entered[i]))
+  for (let i = 0; i < exitedCount; i++)
+    if (d.table.hasRow(exited[i])) d.use.release(d.table.rowOf(exited[i]))
 }
 
 /** Whether the readback just followed asks for `page` itself: a request, not a group-mate. */
@@ -252,7 +264,7 @@ function followAsks(d: DemandState, delta: IdDelta) {
   }
   for (let i = 0; i < exitedCount; i++) {
     const page = exited[i]
-    if (page < d.marks.length) d.marks[page] = 0
+    mark(d, page, WANTED, false)
     if (d.waitingBy.size) d.waitingBy.set(page, 0)
   }
 }
@@ -264,11 +276,11 @@ function compact(d: DemandState) {
     rowless = 0
   for (let i = d.next; i < d.count; i++) {
     const page = d.list[i]
-    if (d.marks[page] !== 1 || readsResident(d, page)) {
-      d.listed[page] = 0
+    if (!isWanted(d, page) || readsResident(d, page)) {
+      mark(d, page, LISTED, false)
       continue
     }
-    if (d.table.rowOfPage[page] < 0) rowless++
+    if (!d.table.hasRow(page)) rowless++
     d.by[kept] = d.by[i]
     d.list[kept++] = page
   }
@@ -311,10 +323,11 @@ function rerank(d: DemandState) {
 
 const NONE: readonly number[] = []
 
-function follow(d: DemandState, cut: CutLists) {
+function follow(d: DemandState, cut: CutLists, frame?: number) {
   // Entries the last serve left: what this readback asks is ranked with them.
   const behind = d.count > d.next
-  d.use.tick()
+  // The rows' clock is the frame the readback was cut at, the pool's (`rowUse.ts`).
+  d.use.tick(frame)
   const { drawn, asked, ahead } = d.lists
   drawn.apply(cut.drawablePageIds ?? NONE)
   asked.apply(cut.pageIds)
@@ -337,12 +350,12 @@ function follow(d: DemandState, cut: CutLists) {
  *  passes leaves the list, waiting for its bytes with its request kept when they are not there. */
 function claimsAt(d: DemandState, page: number) {
   const by = d.by[d.serving.at++]
-  if (d.marks[page] !== 1) {
-    d.listed[page] = 0
+  if (!isWanted(d, page)) {
+    mark(d, page, LISTED, false)
     return false
   }
   if (d.serving.release(page)) return true
-  d.listed[page] = 0
+  mark(d, page, LISTED, false)
   if (!readsResident(d, page)) d.waitingBy.set(page, by + 1)
   return false
 }
@@ -350,7 +363,7 @@ function claimsAt(d: DemandState, page: number) {
 /** Entry `page` written at a row (`place`): it leaves the list. */
 function placedAt(d: DemandState, page: number) {
   if (!d.serving.place(page)) return false
-  d.listed[page] = 0
+  mark(d, page, LISTED, false)
   return true
 }
 

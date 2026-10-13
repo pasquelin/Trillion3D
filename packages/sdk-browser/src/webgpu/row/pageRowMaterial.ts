@@ -3,10 +3,10 @@ import type { Texture } from '../../../../sdk-core/src/index.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { slotSampled } from '../tile/samplingHeaders.ts'
 import { materialClassKey } from '../../visibility/shader/materialClass.ts'
-import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts'
+import { PHYSICAL_MAP_FIELDS, type VisMaterial } from '../../visibility/materialType.ts'
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 import { MODEL_SHIFT } from '../../scene/surfaceModel.ts'
-import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1 } from '../../cluster/format.ts'
+import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1 } from '../../../../sdk-core/src/page/format.ts'
 import {
   FLAG_CLUSTER_PAGE,
   FLAG_LIT,
@@ -23,8 +23,7 @@ import {
   FLAG_SAMPLED,
   FLAG_FOG_FREE,
   FLAG_DYNAMIC,
-  type VisMaterial,
-} from '../../visibility/buffer.ts'
+} from '../../visibility/types.ts'
 
 export type GeometryBlock = {
   vertexBase: number

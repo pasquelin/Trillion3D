@@ -10,20 +10,25 @@ import {
   VSM_LIGHT_KEEP_FRAMES,
   VSM_MAP_UNSEEN,
 } from './constants.ts'
-import { VsmCacheManager } from './cacheManager.ts'
+import { VsmCacheManager, advanceLightMobility, newLightMobility } from './cacheManager.ts'
 import { createShadowMobility } from '../webgpu/shadow/mobility.ts'
 
 test('the global LOD bias: down fast past 85 % of the pool, up slowly after 10 calm frames, in [0, 2]', () => {
   const cache = new VsmCacheManager()
-  const f = Math.fround
   /** The bias rule, restated: the bias the next frame reads. */
   const target = (free: number, last: number) =>
-    f(Math.max(0, last + Math.log2(f(f(1 - f(free / 2048)) / f(0.85)))))
+    Math.fround(
+      Math.max(
+        0,
+        last +
+          Math.log2(Math.fround(Math.fround(1 - Math.fround(free / 2048)) / Math.fround(0.85))),
+      ),
+    )
   // Full pool: allocation 1 > 0.85 → half way to log2(1 / 0.85).
   cache.frameStamp = 1
   let bias = cache.readPoolFeedback(0, 0)
   assert.ok(Math.abs(bias - 0.5 * Math.log2(1 / 0.85)) < 1e-6)
-  assert.equal(bias, f(0 + (target(0, 0) - 0) * 0.5))
+  assert.equal(bias, Math.fround(0 + (target(0, 0) - 0) * 0.5))
   // An overflowing pool pushes it on, never past 2.
   for (let n = 2; n < 40; n++) {
     cache.frameStamp = n
@@ -37,7 +42,7 @@ test('the global LOD bias: down fast past 85 % of the pool, up slowly after 10 c
   }
   cache.frameStamp = 40 + VSM_PRESSURE_CALM_FRAMES
   const up = cache.readPoolFeedback(1024, bias)
-  assert.equal(up, f(2 + (target(1024, 2) - 2) * 0.1), 'a tenth of the way')
+  assert.equal(up, Math.fround(2 + (target(1024, 2) - 2) * 0.1), 'a tenth of the way')
   assert.ok(up < 2 && up > 1.9)
   // An empty pool lets it fall to 0, not below.
   for (let n = 51; n < 400; n++) {
@@ -48,16 +53,13 @@ test('the global LOD bias: down fast past 85 % of the pool, up slowly after 10 c
 })
 
 test("a light's mobility factor: 1 when it changes, down to 0 over the next 10 frames", () => {
-  const cache = new VsmCacheManager()
+  const sun = newLightMobility()
   const factors: number[] = []
-  for (let n = 0; n < 12; n++) {
-    cache.frameStamp = n
-    factors.push(cache.updateLightMobility('sun', false))
-  }
+  // The first frame is a new light's, an update.
+  for (let n = 0; n < 12; n++) factors.push(advanceLightMobility(sun, n === 0, n))
   assert.deepEqual(factors.slice(0, 3), [1, Math.fround(0.9), Math.fround(0.8)])
   assert.deepEqual(factors.slice(10), [0, 0])
-  cache.frameStamp = 12
-  assert.equal(cache.updateLightMobility('sun', true), 1, 'moved again')
+  assert.equal(advanceLightMobility(sun, true, 12), 1, 'moved again')
 })
 
 test('a light no longer seen keeps its maps, unreferenced, 10 frames, then goes', () => {

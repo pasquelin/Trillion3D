@@ -3,7 +3,7 @@
 // and of the whole runs in `shaderRun` over pages of every kind — plain, a line's, a cutout's,
 // a deformed one's (skin and morph targets), positions shared by several vertices, one vertex —
 // and each field it fills is compared word for word with a reference of the format written
-// here, from the header's words and the format's stream order (`cluster/format.ts`), never from
+// here, from the header's words and the format's stream order (`sdk-core/src/page/format.ts`), never from
 // the shader. A read of the wrong word or a stream out of order moves a field, and the corners
 // and positions decoded through the part differ from the JavaScript decoder's.
 import test from 'node:test'
@@ -12,10 +12,10 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { PAGE_GEOMETRY_WGSL as PAGE_GEOMETRY } from './pageGeometryWgsl.ts'
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts'
 import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { randomPage } from '../../page/codec/randomPages.fixture.ts'
 import { reference, POINT, type Header } from './pageHeaderReference.fixture.ts'
-import { DEFORM_IN_POOL, FLAG_CLUSTER_PAGE } from '../types.ts'
+import { DEFORM_SOURCE_IN_POOL, FLAG_CLUSTER_PAGE } from '../types.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
@@ -37,7 +37,7 @@ function pool() {
   }
   const indices = [0, 1, 2, 2, 3, 4, 4, 5, 6, 6, 7, 8, 8, 1, 0]
   const POSITION = { itemSize: 3, array: position }
-  const deformed = encodeGeometryPage(
+  const deformed = encodePage(
     indices,
     {
       ...{ POSITION, ...base },
@@ -51,16 +51,16 @@ function pool() {
       NORMAL: { itemSize: 3, array: floats(n * 3, () => random() - 0.5) },
     })),
   ).data
-  const shared = encodeGeometryPage([0, 1, 2, 2, 1, 3], {
+  const shared = encodePage([0, 1, 2, 2, 1, 3], {
     POSITION: { itemSize: 3, array: floats(12, (i) => [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0][i]) },
     TEXCOORD_0: { itemSize: 2, array: floats(8, (i) => i / 8) },
   }).data
-  const lone = encodeGeometryPage([0, 0, 0], {
+  const lone = encodePage([0, 0, 0], {
     POSITION: { itemSize: 3, array: floats(3, () => 2) },
   }).data
-  const plain = encodeGeometryPage(indices, { POSITION }).data
-  const masked = encodeGeometryPage(indices, { POSITION, ...base }).data
-  const lines = encodeGeometryPage(indices, { POSITION, NORMAL: base.NORMAL }).data
+  const plain = encodePage(indices, { POSITION }).data
+  const masked = encodePage(indices, { POSITION, ...base }).data
+  const lines = encodePage(indices, { POSITION, NORMAL: base.NORMAL }).data
   const kinds = { plain, lines, masked, deformed, shared, lone }
   const larger = [3, 40, 300].map((v) => randomPage(random, v))
   larger.forEach((page, i) => Object.assign(kinds, { [`random${i}`]: page }))
@@ -131,7 +131,12 @@ function firstDifference(code: string): string | null {
     uvs: [],
     positions: [tail.flags, tail.morphCount, 0, 2 * 6 + tail.influences * 2],
   })
-  const row = { pageOffset: 0, flags: 0, packedBase: 1, deformOutput: (DEFORM_IN_POOL | 1) >>> 0 }
+  const row = {
+    pageOffset: 0,
+    flags: 0,
+    packedBase: 1,
+    deformOutput: (DEFORM_SOURCE_IN_POOL | 1) >>> 0,
+  }
   const h = float.pageHeaderFor(row, false) as Header
   return Object.keys(tail).every((k) => h[k] === tail[k as keyof typeof tail])
     ? null

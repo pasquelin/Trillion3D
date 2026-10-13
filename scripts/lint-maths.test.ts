@@ -3,10 +3,10 @@
 // declared oracles.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { resolve } from 'node:path'
 import { ESLint } from 'eslint'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
-const eslint = new ESLint({ cwd: resolve(import.meta.dirname, '..') })
+const eslint = new ESLint({ cwd: REPOSITORY_ROOT })
 
 /** The maths findings of `code` linted as the file `path`. */
 async function findings(code: string, path: string) {

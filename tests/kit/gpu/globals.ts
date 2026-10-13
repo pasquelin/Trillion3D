@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { BASE_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
-import type { MockDraw } from './mockEncoder.ts'
-import { words } from './mockBuffers.ts'
+import type { FakeDraw } from './fakeRenderPass.ts'
+import { words } from './fakeBuffers.ts'
+import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
 
 /** A storage binding's offset alignment every WebGPU device grants (`minStorageBufferOffsetAlignment`). */
 const STORAGE_OFFSET_ALIGN = 256
@@ -12,7 +15,7 @@ const STORAGE_OFFSET_ALIGN = 256
  * per slot, first instance at zero, page table bound at an aligned offset. Each test keeps only what
  * is its own — instances, bins, buffers.
  */
-export function indirectDraws(draws: readonly MockDraw[]) {
+export function indirectDraws(draws: readonly FakeDraw[]) {
   // The material classes draw their tiles indirectly too (`materialTiles.ts`): not the raster's.
   const vis = draws.filter((draw) => draw.indirect && draw.entryPoint !== 'shade_tile_vs')
   assert.ok(vis.length >= 1 && vis.length <= BASE_SLOTS)
@@ -66,36 +69,41 @@ export function bytesOf(data: GPUAllowSharedBufferSource, dataOffset = 0, size?:
  * increasing order, like the kernels of `../../../packages/sdk-browser/src/gpu/dag/shader/compactWgsl.ts`. It extends the sample, behind the
  * wanted pages, in the same buffer.
  */
-export function compactDrawnPages(
-  flagBytes: Uint8Array,
-  outBytes: Uint8Array,
-  nodeCount: number,
-  pageCount: number,
-) {
-  const marks = words(flagBytes),
+export function compactDrawnPages(workBytes: Uint8Array, outBytes: Uint8Array, pageCount: number) {
+  const marks = writtenMask(workBytes, pageCount),
     out = words(outBytes)
   const head = SELECTION_HEADER_WORDS,
     base = head + pageCount
   let found = 0
-  for (let id = 0; id < pageCount; id++) if (marks[nodeCount + id]) out[base + head + found++] = id
+  for (let id = 0; id < pageCount; id++) if (hasBit(marks, id)) out[base + head + found++] = id
   out[base] = found
 }
 
+/** The cut's draw mask in its `work` words, a bit a page — the frame's (`drawMask`), the one the
+ *  running cut writes (`writtenMask`) — (`compactWgsl.ts`), and page `id`'s bit. */
+export const drawMask = (workBytes: Uint8Array, pageCount: number) =>
+  words(workBytes).subarray(dagWorkLayout(ceilDiv(Math.max(1, pageCount), 64)).drawMask)
+export const writtenMask = (workBytes: Uint8Array, pageCount: number) =>
+  words(workBytes).subarray(2 * ceilDiv(Math.max(1, pageCount), 64))
+/** Page `id`'s bit of the draw mask at word `offset` of `words` (`compactWgsl.ts`). */
+export const maskBit = (words: Uint32Array, offset: number, id: number) =>
+  hasBit(words.subarray(offset), id)
+
 /**
- * Pages the CURRENT IMAGE's mask names, read where the GPU posts them: `flags[nodeCount + id]` in
- * the cut buffer. That is the selection the image draws, whichever raster consumes it — hardware by
+ * Pages the CURRENT IMAGE's mask names, read where the GPU posts them: the draw mask's bits in the
+ * cut's `work` (`drawMask`). That is the selection the image draws, whichever raster consumes it — hardware by
  * its indirect commands, or compute in place under the `raster-compute` variant — and not a past
  * image's sample.
  */
 export function drawnPageIds(
   buffers: ReadonlyArray<{ label?: string; data: Uint8Array }>,
-  nodeCount: number,
-  pageCount: number,
+  packed: { pageCount: number },
 ) {
-  const buffer = buffers.find((entry) => entry.label === 'Trillion3D DAG flags')
-  if (!buffer) throw new Error('Trillion3D DAG flags buffer absent')
-  const marks = words(buffer.data)
+  const { pageCount } = packed
+  const buffer = buffers.find((entry) => entry.label === 'Trillion3D DAG work')
+  if (!buffer) throw new Error('Trillion3D DAG work buffer absent')
+  const marks = drawMask(buffer.data, pageCount)
   const ids: number[] = []
-  for (let id = 0; id < pageCount; id++) if (marks[nodeCount + id]) ids.push(id)
+  for (let id = 0; id < pageCount; id++) if (hasBit(marks, id)) ids.push(id)
   return ids
 }

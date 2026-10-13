@@ -12,9 +12,15 @@ import { loadClusterManifest } from '../../scene/manifestLoad.ts'
 import { byteMeter, unmetered } from '../../cluster/byteMeter.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
 import type { PageCache } from '../../streaming/pageCache.ts'
+import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts'
 import type { ExplorerScene } from '../session/prepare.ts'
+import type { WorldRootsHold } from '../../scene/worldRoots.ts'
 import { findGraphNode, graphSubtree, modelNode } from './modelNodes.ts'
+
+/** A model's scene as its record shows it: the graph its loader built, without the world roots it
+ *  opened, which the model keeps to itself for its world's sessions. */
+export type ModelScene = Omit<ExplorerScene, 'worldRoots'>
 
 /** A compiled model as the world holds it: its manifest, and the graph its loader built. */
 export type ModelRecord = {
@@ -27,11 +33,17 @@ export type ModelRecord = {
   /** The compiled manifest itself: primitives, pages and their sizes. */
   metadata: ClusterManifest
   /** The scene graph built from the cache's scene tables. */
-  scene: ExplorerScene
+  scene: ModelScene
   /** Where its images were read: `cache` left the baked ones to the levels the session reads,
    *  `host` read them all (`loadModel`). */
   textureSource: 'host' | 'cache'
 }
+
+/** The world roots `model`'s scene opened — its world's sessions draw from them and bind them to
+ *  their queue (`worldSource.ts`) —, and their keeping by its load: friends of the class
+ *  (`static`), so they stay out of its public members. */
+export let modelWorldRoots: (model: LoadedModel) => readonly WorldRootsHold[]
+let keepWorldRoots: (model: LoadedModel, roots: readonly WorldRootsHold[]) => void
 
 /**
  * A compiled model added to a scene like any other object: its pages stream by what the frame
@@ -59,6 +71,14 @@ export class LoadedModel extends Object3D {
   readonly record: ModelRecord
   /** The nodes its source file carried, told apart from those a page placed under it. */
   private readonly carried = new WeakSet<Object3D>()
+  /** The world roots its scene opened (`modelWorldRoots`), kept by its load. */
+  #worldRoots: readonly WorldRootsHold[] = []
+  static {
+    modelWorldRoots = (model) => model.#worldRoots
+    keepWorldRoots = (model, roots) => {
+      model.#worldRoots = roots
+    }
+  }
   /** Whether `node` came with the source file: a saved scene leaves it to the file. */
   _fromFile(node: Object3D) {
     return this.carried.has(node)
@@ -136,8 +156,9 @@ export async function loadModel(
     signal?: AbortSignal
     textureSource: 'host' | 'cache'
     onProgress?: (event: JobProgress) => void
-    /** The world's page cache: its one reader of each binary serves the model's world roots. */
-    pageCache?: PageCache
+    /** The world's page cache: the model's world roots are read through it, as every session's
+     *  pages are. */
+    pageCache: PageCache
   },
 ): Promise<LoadedModel> {
   const { signal, textureSource, onProgress } = options
@@ -152,14 +173,17 @@ export async function loadModel(
   const { metadata, metadataUrl, base, declared } = loaded,
     scope = metadata.scope
   onProgress?.({ phase: 'manifest', completed: 1, total: 1, message: `Read ${metadataUrl}` })
+  // The model reads its world roots through a queue of its own over the world's page cache, as a
+  // session reads through its own: let go once the model is read.
+  const queue = createPageStreamer([], base, { cache: options.pageCache, signal })
   const [scene, imported] = await Promise.all([
     loadPreparedScene(
       {
         manifestUrl,
         textureSource,
         meter,
-        pageCache: options.pageCache,
-        onTables: () => meter.plan(plannedFiles(declared, base, metadata)),
+        queue,
+        onTables: () => meter.plan(plannedFiles(declared, base)),
         onPreparation: (event) => onProgress?.({ ...event }),
       },
       metadata,
@@ -174,16 +198,18 @@ export async function loadModel(
       return read
     }),
     loadImportedLights(base, signal, meter),
-  ])
+  ]).finally(() => queue.dispose())
   meter.settle()
+  const { worldRoots, ...shown } = scene
   const model = new LoadedModel({
     manifestUrl,
     metadataUrl,
     base,
     metadata,
-    scene: { ...scene, framingLot: null },
+    scene: { ...shown, framingLot: null },
     textureSource,
   })
+  keepWorldRoots(model, worldRoots)
   for (const record of imported.lights) {
     const lamp = lightFromRecord(record)
     model._addFromFile(lamp, lamp.target)

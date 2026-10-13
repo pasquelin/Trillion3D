@@ -1,9 +1,7 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/index.ts'
 import { PROBE_AT_WGSL } from './atlas.ts'
-import {
-  irradianceShader,
-  filteredRadianceShader,
-} from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
+import { irradianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 import { bitAt } from '../../../math/src/wgsl/integer.ts'
@@ -30,10 +28,15 @@ struct BounceGrid{
  reach:vec4f,
  counts:vec4u,
  frame:vec4u,
+ /** The world light grid's records' first word in the light grid's buffer (\`bounceLightSlice\`),
+  *  \`TILE_NO_SLICE\` for none. */
+ lists:vec4u,
  levels:array<BounceLevel,${BOUNCE_SETTINGS.cascadeLevels}>,
 }
-const PROBE_VECTORS:u32=${PROBE_FLOATS / 4}u;
-const CASCADE_LEVELS:u32=${BOUNCE_SETTINGS.cascadeLevels}u;
+${wgslConsts({
+  PROBE_VECTORS: PROBE_FLOATS / 4,
+  CASCADE_LEVELS: BOUNCE_SETTINGS.cascadeLevels,
+})}
 /** The w lanes that carry a probe's state, slot by slot. */
 const PROBE_CHANGE:u32=1u;
 const PROBE_VALID:u32=2u;
@@ -79,9 +82,6 @@ fn shIrradiance(probe:vec3u,n:vec3f)->vec3f{
  * That is the visibility test: a point farther from the probe than this distance is behind
  * a surface the probe sees, hence in another room, and the probe has nothing to tell it.
  */
-fn shFilteredRadiance(probe:vec3u,n:vec3f,bands:vec3f)->vec3f{
- return max(vec3f(0.0),${filteredRadianceShader((k) => `probeAt(probe,${k}u).xyz`, 'n', 'bands')});
-}
 fn probeDistance(probe:vec3u,direction:vec3f)->f32{
  let positive=probeAt(probe,PROBE_DISTANCE_POSITIVE).xyz;
  let negative=probeAt(probe,PROBE_DISTANCE_NEGATIVE).xyz;
@@ -89,22 +89,27 @@ fn probeDistance(probe:vec3u,direction:vec3f)->f32{
  let picked=select(negative,positive,direction>vec3f(0.0));
  return dot(picked,weight)/max(weight.x+weight.y+weight.z,1e-6);
 }
-/**
- * Irradiance of a level at a point, or nothing when that level does not reach it. Eight probes,
- * three weights: the cell's trilinear, the back of the surface — a probe behind it knows
- * nothing of it — and measured visibility, which closes leaks through walls. A probe that
- * does not carry the requested cell, was never updated, or is buried in a surface, weighs nothing.
- */
 `,
 )
 
-/** The eight-corner walk of one level, written once: its weights and visibility are the same
- *  whatever it gathers, so the single sum and the two sums run the very same operations on them. */
-const levelWalkWgsl = (head: string, empty: string, sums: string, add: string, result: string) =>
-  wgslBlock(
-    `levelWalk(${head})`,
-    [bitAt],
-    `fn ${head}{
+/**
+ * A field of the cascades, written once for every field they hold: `name` at a point is the finest
+ * level that can answer, from tightest to widest — exactly zero when none can, since a leak would
+ * be light without a source —, and a level's answer (`level`) the eight probes around the point,
+ * weighed, each evaluated by `value` (a shader expression of `probe`, `N` and the `params` the
+ * field takes beyond the point `P` and its normal `N`). A level answers a point or nothing, when
+ * it does not reach it: eight probes, three weights — the cell's trilinear, the back of the
+ * surface (a probe behind it knows nothing of it) and measured visibility, which closes leaks
+ * through walls; a probe that does not carry the requested cell, was never updated, or is buried
+ * in a surface, weighs nothing. `${name}Gathered` is the finest level's answer with the weight it
+ * gathered, in `w` and at most one, zero when none answers; `name` is its mean.
+ */
+export const probeFieldWgsl = (name: string, level: string, params: string, value: string) => {
+  const args = params.replace(/:[^,]+/g, '')
+  return wgslBlock(
+    `probeFieldWgsl(${name})`,
+    [BOUNCE_GRID_HEAD_WGSL, perspectiveDivide, bitAt],
+    `fn ${level}(level:u32,P:vec3f,N:vec3f${params})->vec4f{
  let spacing=bounce.levels[level].originSpacing.w;
  let base=vec3i(bounce.levels[level].base.xyz);
  let side=i32(bounce.counts.x);
@@ -112,10 +117,10 @@ const levelWalkWgsl = (head: string, empty: string, sums: string, add: string, r
  let local=biased/spacing-vec3f(0.5);
  let corner=vec3i(floor(local));
  // The level answers only if it holds all eight corners: a partial answer would make a seam.
- if(any(corner<base)||any(corner+vec3i(1)>=base+vec3i(side))){return ${empty};}
+ if(any(corner<base)||any(corner+vec3i(1)>=base+vec3i(side))){return vec4f(0.0);}
  let fraction=clamp(local-floor(local),vec3f(0.0),vec3f(1.0));
  let margin=BOUNCE_VISIBILITY*spacing;
- ${sums}
+ var sum=vec3f(0.0);
  var total=0.0;
  // A corner's neighbour one cell further on an axis has the next remainder, wrapped once at
  // the side: one remainder per axis for the eight corners, where each corner took its own.
@@ -137,76 +142,28 @@ const levelWalkWgsl = (head: string, empty: string, sums: string, add: string, r
   weight*=facing*facing;
   if(distance>probeDistance(probe,-direction)+margin){weight=0.0;}
   if(weight<=0.0){continue;}
-${add}
+  sum+=${value}*weight;
   total+=weight;
  }
- return ${result};
-}`,
-  )
-
-/** One level's diffuse irradiance and filtered radiance, \`field\` and \`specular\` both over the
- *  same \`field.w\` weight, each summed in the order its own walk of \`sampleLevelField\` sums it. */
-const LEVEL_FIELDS_WGSL = wgslBlock(
-  'LEVEL_FIELDS_WGSL',
-  [
-    levelWalkWgsl(
-      'sampleLevelFields(level:u32,P:vec3f,N:vec3f,R:vec3f,bands:vec3f)->LevelFields',
-      'LevelFields(vec4f(0.0),vec3f(0.0))',
-      'var sum=vec3f(0.0);var specularSum=vec3f(0.0);',
-      '  sum+=shIrradiance(probe,N)*weight;\n  specularSum+=shFilteredRadiance(probe,R,bands)*weight;',
-      'LevelFields(vec4f(sum,total),specularSum)',
-    ),
-  ],
-  `struct LevelFields{field:vec4f,specular:vec3f,}
-`,
-)
-
-/** The cascades' fields at a point, as the deferred resolve reads them: \`sampleProbeFields\` walks
- *  the corners once for the diffuse irradiance at \`N\` and the filtered radiance along \`R\`, the
- *  values \`sampleProbeField\` returns for each, bit for bit — the same level answers both, since the
- *  weights are the same. */
-export const BOUNCE_FIELDS_WGSL = wgslBlock(
-  'BOUNCE_FIELDS_WGSL',
-  [LEVEL_FIELDS_WGSL],
-  `struct ProbeFields{diffuse:vec3f,specular:vec3f,}
-fn sampleProbeFields(P:vec3f,N:vec3f,R:vec3f,bands:vec3f)->ProbeFields{
- if(bounce.counts.w==0u){return ProbeFields(vec3f(0.0),vec3f(0.0));}
- for(var level=0u;level<CASCADE_LEVELS;level++){
-  if(level>=bounce.counts.y){break;}
-  let gathered=sampleLevelFields(level,P,N,R,bands);
-  if(gathered.field.w>1e-5){return ProbeFields(gathered.field.xyz/gathered.field.w,gathered.specular/gathered.field.w);}
- }
- return ProbeFields(vec3f(0.0),vec3f(0.0));
-}`,
-)
-
-export const BOUNCE_GRID_WGSL = wgslBlock(
-  'BOUNCE_GRID_WGSL',
-  [
-    BOUNCE_GRID_HEAD_WGSL,
-    perspectiveDivide,
-    levelWalkWgsl(
-      'sampleLevelField(level:u32,P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)->vec4f',
-      'vec4f(0.0)',
-      'var sum=vec3f(0.0);',
-      '  var value=shIrradiance(probe,N);\n  if(specular){value=shFilteredRadiance(probe,R,bands);}\n  sum+=value*weight;',
-      'vec4f(sum,total)',
-    ),
-  ],
-  `/**
- * Cascade irradiance at a point: the finest level that can answer, from tightest to
- * widest. When no level can, the result is exactly zero — a leak would be light without a source.
- */
-fn sampleProbeField(P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)->vec3f{
- if(bounce.counts.w==0u){return vec3f(0.0);}
- for(var level=0u;level<CASCADE_LEVELS;level++){
-  if(level>=bounce.counts.y){break;}
-  let gathered=sampleLevelField(level,P,N,R,bands,specular);
-  if(gathered.w>1e-5){return perspectiveDivide(gathered);}
- }
- return vec3f(0.0);
+ return vec4f(sum,total);
 }
-fn sampleBounce(P:vec3f,N:vec3f)->vec3f{
- return sampleProbeField(P,N,N,vec3f(0.0),false);
-}`,
+fn ${name}Gathered(P:vec3f,N:vec3f${params})->vec4f{
+ if(bounce.counts.w==0u){return vec4f(0.0);}
+ for(var level=0u;level<CASCADE_LEVELS;level++){
+  if(level>=bounce.counts.y){break;}
+  let gathered=${level}(level,P,N${args});
+  if(gathered.w>1e-5){return vec4f(perspectiveDivide(gathered),gathered.w);}
+ }
+ return vec4f(0.0);
+}
+fn ${name}(P:vec3f,N:vec3f${params})->vec3f{return ${name}Gathered(P,N${args}).xyz;}`,
+  )
+}
+
+/** The cascades' irradiance at a point of normal `N` (`sampleBounce`), what the diffuse reads. */
+export const BOUNCE_GRID_WGSL = probeFieldWgsl(
+  'sampleBounce',
+  'sampleLevelField',
+  '',
+  'shIrradiance(probe,N)',
 )

@@ -1,3 +1,4 @@
+import { DEFAULT_CACHED_BYTES } from '../streaming/pageCache.ts'
 // The effect chain's targets in the GPU total: reserved on the declared canvas
 // by the rule the renderers count them with, before the pools, whose defaults stay what they were.
 import test from 'node:test'
@@ -7,12 +8,7 @@ import { effect } from '../../../sdk-core/src/world/effect/index.ts'
 import { createWebgpuEffects } from '../webgpu/effects/webgpuEffects.ts'
 import { effectChainBytesAt } from '../effects/targets.ts'
 import { DEFAULT_GEOMETRY_POOL_BUDGET, DEFAULT_TEXTURE_POOL_BUDGET } from './pools.ts'
-import {
-  DEFAULT_BUDGET_CANVAS,
-  DEFAULT_CPU_BUDGET,
-  effectTargetExcess,
-  splitMemoryBudget,
-} from './memoryBudget.ts'
+import { DEFAULT_BUDGET_CANVAS, effectTargetExcess, splitMemoryBudget } from './memoryBudget.ts'
 import { BOUNCE_PROBE_BYTES, SHADOW_POOL_BYTES } from './shadowBudgetBytes.ts'
 import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from './budget.fixture.ts'
 import { MIB } from '../../../math/src/constants.ts'
@@ -26,9 +22,7 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
   const gpu = fakeDevice()
   const webgpu = createWebgpuEffects(gpu.device, (error) => assert.fail(String(error)))
   const input = {} as GPUTextureView,
-    encoder = {
-      beginRenderPass: () => ({ setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }),
-    } as unknown as GPUCommandEncoder
+    encoder = gpu.device.createCommandEncoder()
   webgpu.encode(encoder, chain, input, width, height)
   await webgpu.settled()
   webgpu.encode(encoder, chain, input, width, height)
@@ -46,14 +40,14 @@ test('a larger declared canvas reserves more, and a canvas past it is the excess
   const uhd = { width: 7680, height: 4320 }
   const reserve = effectChainBytesAt(7680, 4320)
   assert.equal(
-    splitMemoryBudget(DEFAULT_GPU_BUDGET * 2, DEFAULT_CPU_BUDGET, uhd).effectTargets,
+    splitMemoryBudget(DEFAULT_GPU_BUDGET * 2, DEFAULT_CACHED_BYTES, uhd).effectTargets,
     reserve,
   )
   // The default total, not raised with it, leaves the pools what the larger reserve spares.
-  const squeezed = splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CPU_BUDGET, uhd)
+  const squeezed = splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CACHED_BYTES, uhd)
   assert.ok(squeezed.geometryPool < DEFAULT_GEOMETRY_POOL_BUDGET)
   assert.throws(
-    () => splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CPU_BUDGET, { width: 0, height }),
+    () => splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CACHED_BYTES, { width: 0, height }),
     /INVALID_BUDGET_CANVAS/,
   )
   assert.equal(effectTargetExcess(7680, 4320, DEFAULT_BUDGET_CANVAS), reserve - EFFECT_TARGET_BYTES)
@@ -63,7 +57,7 @@ test('a larger declared canvas reserves more, and a canvas past it is the excess
 })
 
 test('the split reserves the effect targets before the pools, whose defaults stay', () => {
-  const shares = splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CPU_BUDGET)
+  const shares = splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CACHED_BYTES)
   assert.equal(shares.effectTargets, EFFECT_TARGET_BYTES)
   assert.equal(shares.geometryPool, DEFAULT_GEOMETRY_POOL_BUDGET)
   assert.equal(shares.texturePool, DEFAULT_TEXTURE_POOL_BUDGET)
@@ -72,7 +66,7 @@ test('the split reserves the effect targets before the pools, whose defaults sta
     DEFAULT_GPU_BUDGET,
     fixed + DEFAULT_GEOMETRY_POOL_BUDGET + DEFAULT_TEXTURE_POOL_BUDGET,
   )
-  assert.throws(() => splitMemoryBudget(fixed - 1, DEFAULT_CPU_BUDGET), /UNDER_SHADOW_POOL/)
-  const least = splitMemoryBudget(fixed + 2, DEFAULT_CPU_BUDGET)
+  assert.throws(() => splitMemoryBudget(fixed - 1, DEFAULT_CACHED_BYTES), /UNDER_SHADOW_POOL/)
+  const least = splitMemoryBudget(fixed + 2, DEFAULT_CACHED_BYTES)
   assert.ok(fixed + least.geometryPool + least.texturePool <= fixed + 2)
 })

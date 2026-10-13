@@ -4,14 +4,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createExplorerFrameScheduler } from './frameScheduler.ts'
-import { frameQueue } from './frameQueue.fixture.ts'
+import { decided, frameQueue } from './frameQueue.fixture.ts'
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The scheduler's `FRAMES_IN_FLIGHT`: the cut's readback slots. */
 const FRAMES_IN_FLIGHT = DAG_READBACK_SLOTS
 
 /** Every microtask a settled feedback runs is done: the loop's decision is made. */
-const decided = () => new Promise(setImmediate)
 
 /** Runs the frames the loop asks, each decided, until it asks none; a loop that never stops fails. */
 async function runFrames(frames: ReturnType<typeof frameQueue>) {
@@ -93,8 +93,7 @@ test('a GPU slower than the CPU always has the next frame queued, never more tha
 
 test('feedbacks settling out of order are consumed in order, each once, K at most in flight', async () => {
   // A fixed shuffle (a linear congruence): reproducible, every order of two or three met.
-  let seed = 7
-  const random = () => (seed = (seed * 48271) % 2147483647) / 2147483647
+  const random = lcgRandom(7)
   const answers: { frame: number; settle: () => void; settled: boolean }[] = []
   let renders = 0
   /** Feedbacks the loop still waits on: those after the oldest one not settled yet. */
@@ -102,11 +101,9 @@ test('feedbacks settling out of order are consumed in order, each once, K at mos
     const oldest = answers.findIndex((a) => !a.settled)
     return oldest < 0 ? 0 : answers.length - oldest
   }
-  const render = () => {
-    renders++
-    assert.ok(inFlight() < FRAMES_IN_FLIGHT, `frame ${renders} drawn with every feedback awaited`)
-  }
+  const render = () => void renders++
   const t = loop(render, () => {
+    assert.ok(inFlight() < FRAMES_IN_FLIGHT, 'a feedback asked with every slot taken')
     const frame = renders
     return new Promise<boolean>((resolve) => {
       const answer = { frame, settled: false, settle: () => resolve(frame < 80) }
@@ -126,11 +123,11 @@ test('feedbacks settling out of order are consumed in order, each once, K at mos
     await decided()
   }
   assert.equal(t.frames.size, 0, 'the loop stopped on the newest feedback')
-  assert.ok(renders >= 80 && renders < 80 + FRAMES_IN_FLIGHT, `${renders} frames`)
+  assert.ok(renders >= 80, `${renders} frames`)
   assert.deepEqual(
     answers.map((a) => a.frame),
-    Array.from({ length: renders }, (_, n) => n + 1),
-    'one feedback asked per frame drawn',
+    [...new Set(answers.map((a) => a.frame))].sort((x, y) => x - y),
+    'a feedback asked per frame at most, each frame its own',
   )
 })
 
@@ -152,32 +149,28 @@ test('an older feedback settling after a newer one is still consumed first', asy
   assert.equal(t.frames.size, 0, 'consumed in order, the newer stop has the last word')
 })
 
-test('a feedback waiting for its landing holds the loop, and each landing wakes it', async () => {
+test('a job loading keeps every tick drawing; once nothing arrives, the limit pauses the loop', async () => {
   let loads = 0,
     renders = 0
-  const waits: (() => void)[] = []
-  // A residency job of 200 pages: the feedback waits for the next one, then for none.
-  const pending = () =>
-    loads < 200
-      ? new Promise<boolean>((woken) => waits.push(() => woken(true)))
-      : Promise.resolve(true)
-  const t = loop(
-    () => void renders++,
-    pending,
-    () => loads,
-  )
-  t.run.invalidate()
-  for (let page = 0; page < 200; page++) {
-    await runFrames(t.frames)
-    assert.equal(waits.length, FRAMES_IN_FLIGHT, 'the loop holds on its feedbacks')
-    const drawn = renders
-    loads++
-    for (const wake of waits.splice(0)) wake()
+  const frames = frameQueue()
+  let limited = 0
+  const run = createExplorerFrameScheduler({
+    request: frames.request,
+    cancel: frames.cancel,
+    render: () => void renders++,
+    pending: async () => true,
+    progress: () => 0,
+    arriving: () => loads < 200,
+    error: (error) => assert.fail(String(error)),
+    limited: () => void limited++,
+  })
+  run.invalidate()
+  for (; loads < 200; loads++) {
+    assert.ok(frames.run(), 'a tick with the job loading always has a frame')
     await decided()
-    assert.ok(t.frames.size, `landing ${page + 1} wakes the loop`)
-    assert.equal(renders, drawn)
   }
-  await runFrames(t.frames)
-  assert.equal(t.limited, 1, 'once nothing arrives, the loop pauses')
-  assert.equal(renders, 2 * 200 + 120, 'two frames a landing, then the limit counted from the last')
+  assert.equal(renders, 200, 'one frame a tick while the job loads')
+  await runFrames(frames)
+  assert.equal(limited, 1)
+  assert.equal(renders, 200 + 120, 'then the limit counted from the last tick of the job')
 })

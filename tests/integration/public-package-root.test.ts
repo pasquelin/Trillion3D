@@ -5,11 +5,10 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 import ts from 'typescript'
-
-const ROOT = resolve(import.meta.dirname, '../..')
+import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
 
 function diagnostics(file: string, options: ts.CompilerOptions): string[] {
-  const program = ts.createProgram([isAbsolute(file) ? file : resolve(ROOT, file)], {
+  const program = ts.createProgram([isAbsolute(file) ? file : resolve(REPOSITORY_ROOT, file)], {
     target: ts.ScriptTarget.ES2022,
     strict: true,
     skipLibCheck: false,
@@ -22,7 +21,7 @@ function diagnostics(file: string, options: ts.CompilerOptions): string[] {
 }
 
 test('package metadata exposes one environment-aware root', async () => {
-  const packageJson = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf8'))
+  const packageJson = readJson(resolve(REPOSITORY_ROOT, 'package.json'))
   assert.equal(packageJson.name, 'trillion3d')
   assert.equal(packageJson.version, '1.0.0')
   assert.equal(packageJson.private, true)
@@ -46,9 +45,7 @@ test('package metadata exposes one environment-aware root', async () => {
   assert.equal(packageJson.devDependencies.three, '^0.174.0')
   assert.equal(packageJson.devDependencies['@types/three'], '^0.174.0')
   assert.ok(packageJson.files.includes('!dist/witnesses'), 'the witness entry stays unpublished')
-  const browserPackage = JSON.parse(
-    await readFile(resolve(ROOT, 'packages/sdk-browser/package.json'), 'utf8'),
-  )
+  const browserPackage = readJson(resolve(REPOSITORY_ROOT, 'packages/sdk-browser/package.json'))
   assert.equal(browserPackage.peerDependencies?.three, undefined)
   assert.equal(browserPackage.dependencies?.three, undefined)
   assert.equal(packageJson.scripts.preinstall, undefined)
@@ -85,7 +82,10 @@ test('NodeNext, browser Bundler, and the safe default resolve matching declarati
 })
 
 test('type-only imports leave no runtime package import', async () => {
-  const source = await readFile(resolve(ROOT, 'tests/fixtures/public/publicTypesOnly.ts'), 'utf8')
+  const source = await readFile(
+    resolve(REPOSITORY_ROOT, 'tests/fixtures/public/publicTypesOnly.ts'),
+    'utf8',
+  )
   const emitted = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   }).outputText
@@ -97,11 +97,11 @@ test('the browser condition imports rendering and common bindings without initia
     const sdk = await import('trillion3d');
     if (typeof sdk.createWorld !== 'function') throw new Error('missing createWorld');
     if ('openMeasuredWorld' in sdk) throw new Error('the measurement entry leaked into the package');
-    if (typeof sdk.hierarchyUpdateBatch !== 'function') throw new Error('missing common maths');
+    if (typeof sdk.multiplyMatrix4 !== 'function') throw new Error('missing common maths');
     if ('prepare' in sdk) throw new Error('Node API leaked into browser');
   `
   execFileSync(process.execPath, ['--conditions=browser', '--input-type=module', '-e', probe], {
-    cwd: ROOT,
+    cwd: REPOSITORY_ROOT,
     stdio: 'pipe',
   })
 })
@@ -110,7 +110,7 @@ test('a packed installation resolves Node and browser runtime and declarations',
   const directory = await mkdtemp(join(tmpdir(), 'trillion3d-contract-'))
   try {
     execFileSync('pnpm', ['pack', '--pack-destination', directory], {
-      cwd: ROOT,
+      cwd: REPOSITORY_ROOT,
       env: { ...process.env, CI: 'true' },
       stdio: 'pipe',
     })
@@ -122,17 +122,17 @@ test('a packed installation resolves Node and browser runtime and declarations',
         private: true,
         type: 'module',
         dependencies: {
-          meshoptimizer: `link:${resolve(ROOT, 'node_modules/meshoptimizer')}`,
+          meshoptimizer: `link:${resolve(REPOSITORY_ROOT, 'node_modules/meshoptimizer')}`,
           trillion3d: `file:${join(directory, tarball)}`,
         },
         devDependencies: {
-          '@webgpu/types': `link:${resolve(ROOT, 'node_modules/@webgpu/types')}`,
+          '@webgpu/types': `link:${resolve(REPOSITORY_ROOT, 'node_modules/@webgpu/types')}`,
         },
       }),
     )
     await writeFile(
       join(directory, 'pnpm-workspace.yaml'),
-      `packages: []\noverrides:\n  meshoptimizer: link:${resolve(ROOT, 'node_modules/meshoptimizer')}\n`,
+      `packages: []\noverrides:\n  meshoptimizer: link:${resolve(REPOSITORY_ROOT, 'node_modules/meshoptimizer')}\n`,
     )
     execFileSync('pnpm', ['install', '--offline', '--config.auto-install-peers=false'], {
       cwd: directory,
@@ -140,11 +140,11 @@ test('a packed installation resolves Node and browser runtime and declarations',
     })
     await writeFile(
       join(directory, 'node.ts'),
-      "import {prepare,hierarchyUpdateBatch} from 'trillion3d'; if (!prepare || !hierarchyUpdateBatch) throw Error('node');",
+      "import {prepare,multiplyMatrix4} from 'trillion3d'; if (!prepare || !multiplyMatrix4) throw Error('node');",
     )
     await writeFile(
       join(directory, 'browser.ts'),
-      "import {createWorld,hierarchyUpdateBatch} from 'trillion3d'; if (!createWorld || !hierarchyUpdateBatch) throw Error('browser');",
+      "import {createWorld,multiplyMatrix4} from 'trillion3d'; if (!createWorld || !multiplyMatrix4) throw Error('browser');",
     )
     execFileSync(process.execPath, ['node.ts'], { cwd: directory, stdio: 'pipe' })
     execFileSync(process.execPath, ['--conditions=browser', 'browser.ts'], {
@@ -153,15 +153,15 @@ test('a packed installation resolves Node and browser runtime and declarations',
     })
     await writeFile(
       join(directory, 'node.mts'),
-      await readFile(resolve(ROOT, 'tests/fixtures/public/publicNode.mts')),
+      await readFile(resolve(REPOSITORY_ROOT, 'tests/fixtures/public/publicNode.mts')),
     )
     await writeFile(
       join(directory, 'browser.ts'),
-      await readFile(resolve(ROOT, 'tests/fixtures/public/publicBrowser.ts')),
+      await readFile(resolve(REPOSITORY_ROOT, 'tests/fixtures/public/publicBrowser.ts')),
     )
     await writeFile(
       join(directory, 'common.ts'),
-      await readFile(resolve(ROOT, 'tests/fixtures/public/publicCommon.ts')),
+      await readFile(resolve(REPOSITORY_ROOT, 'tests/fixtures/public/publicCommon.ts')),
     )
     assert.deepEqual(
       diagnostics(join(directory, 'node.mts'), {

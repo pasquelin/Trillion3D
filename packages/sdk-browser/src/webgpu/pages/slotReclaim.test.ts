@@ -4,13 +4,17 @@ import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera } from './testScenes.fixture.ts'
 import { twoCoarseQuadsScene } from './testOccluder.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
+import { EVICT_IN_USE } from '../../gpu/dag/evict.ts'
+import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 import { type ClusterManifest, type Primitive } from '../../../../sdk-core/src/index.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /** `twoCoarseQuadsScene`, its manifest completed with the cache-identity fields the fixture
  *  omits — unread by the backends under test. Its second primitive's `pages` carry every `Page`
@@ -31,12 +35,12 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
   const fixture = scene()
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const packed = packDagSelection(collected.roots)
-  const { device, draws, buffers } = mockGpu({ packed })
+  const { device, draws, buffers } = fakeDevice({ ...BACKEND, packed })
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
@@ -57,7 +61,7 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
         draws.length = 0
         backend.render(cam)
         assert.ok(
-          drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length > 0,
+          drawnPageIds(buffers, packed).length > 0,
           'current cut must retain visible coverage',
         )
         await backend.flush()
@@ -77,7 +81,7 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
 
 test('a recycled page-table row describes its new cluster and reaches the GPU before the image reads it', async () => {
   installGpuGlobals()
-  const { device, writes, buffers, submits } = mockGpu(),
+  const { device, writes, buffers, submits } = fakeDevice(BACKEND),
     fixture = scene()
   // Eight clusters share six rows, four of them the floor, so every jump between the two primitives recycles rows on eviction.
   const backend = webgpuPagesEngine({
@@ -86,8 +90,7 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
     maxResidentPages: 6,
     viewport: [32, 32],
   })
-  const view = camera(),
-    words = PAGE_INFO_STRIDE / 4
+  const view = camera()
   const look = (x: number) => {
     view.position.set(x, 0, 5)
     view.lookAt(x, 0, 0)
@@ -96,11 +99,12 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
   }
   try {
     await backend.prepare()
-    for (let round = 0; round < 6; round++) {
-      look(round % 2 ? 100 : 0)
-      await backend.flush()
-      look(round % 2 ? 100 : 0)
-    }
+    // Each view held until the other's pages are out of use and their order read back.
+    for (let round = 0; round < 6; round++)
+      for (let image = 0; image <= EVICT_IN_USE + DAG_READBACK_SLOTS; image++) {
+        look(round % 2 ? 100 : 0)
+        await backend.flush()
+      }
     assert.ok(backend.metrics().cacheEvictions! > 0, 'the run has to recycle rows')
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')
     assert.ok(table, 'the page table is allocated once')
@@ -112,26 +116,26 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
     const seen = new Set<number>(),
       slots = new Set<number>()
     for (let row = 0; row < table.size / PAGE_INFO_STRIDE; row++) {
-      const base = row * words,
-        indexCount = rows[base + 25]
+      const base = row * ROW_WORDS,
+        indexCount = rows[base + PAGE_INFO.at.indexCount]
       if (!indexCount) continue
       // A live row names itself, so a recycled row cannot be read through the identifier of its predecessor.
-      assert.equal(rows[base + 27], (row + 1) << 8, `row ${row} identifier`)
+      assert.equal(rows[base + PAGE_INFO.at.packedBase], (row + 1) << 8, `row ${row} identifier`)
       // Its index range is one of the fixture's clusters, and no two live rows claim the same cluster or
       // the same GPU slot: a row still describing the cluster it was recycled from would do both.
       assert.ok(indexCount === 3 || indexCount === 6, `row ${row} index count ${indexCount}`)
       assert.equal(
-        seen.has(rows[base + 47]),
+        seen.has(rows[base + PAGE_INFO.at.selectionIndex]),
         false,
-        `row ${row} duplicates cluster ${rows[base + 47]}`,
+        `row ${row} duplicates cluster ${rows[base + PAGE_INFO.at.selectionIndex]}`,
       )
       assert.equal(
-        slots.has(rows[base + 24]),
+        slots.has(rows[base + PAGE_INFO.at.pageOffset]),
         false,
-        `row ${row} duplicates slot ${rows[base + 24]}`,
+        `row ${row} duplicates slot ${rows[base + PAGE_INFO.at.pageOffset]}`,
       )
-      seen.add(rows[base + 47])
-      slots.add(rows[base + 24])
+      seen.add(rows[base + PAGE_INFO.at.selectionIndex])
+      slots.add(rows[base + PAGE_INFO.at.pageOffset])
     }
     // The rows are a cache of the resident instances the cut draws or asks (`../row/slots.ts`): a
     // leaked row would show up as a live row past the resident pages, and none at all as a lost one.
@@ -139,7 +143,9 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
       seen.size > 0 && seen.size <= backend.metrics().residentPages!,
       `live rows ${seen.size}`,
     )
-    const lastRowWrite = writes.filter((write) => write.label === 'Trillion3D page table').at(-1)
+    const lastRowWrite = writes
+      .filter((write) => write.buffer.label === 'Trillion3D page table')
+      .at(-1)
     assert.ok(lastRowWrite, 'rows are uploaded')
     assert.ok(
       lastRowWrite.seq < submits.at(-1)!,

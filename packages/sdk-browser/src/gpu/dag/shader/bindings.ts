@@ -1,4 +1,4 @@
-import { COMPUTE, namedBufferEntries } from '../../core/computeBindings.ts'
+import { computeBufferEntry, namedEntries } from '../../core/computeBindings.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /** Group-0 binding of each buffer the selection kernel reads, under its WGSL name. */
@@ -51,12 +51,18 @@ export function dagGroupEntries(
   const { parts, ...whole } = buffers
   const named = Object.entries(whole).map(([name, buffer]) => [name, { buffer }])
   return [
-    ...namedBufferEntries(DAG_BINDING, { ...Object.fromEntries(named), range }),
-    ...dagPartBindings(countsOf(parts)).map(({ table, part, binding }) => ({
-      binding,
-      resource: { buffer: parts![table]![part - 1] },
-    })),
+    ...namedEntries(DAG_BINDING, { ...Object.fromEntries(named), range }),
+    ...dagPartEntries(parts),
   ]
+}
+
+/** The entries of the further parts of the split tables `parts` lays out, each at the binding the
+ *  kernel gives it (`dagPartBindings`): what any pass over those tables binds them by. */
+export function dagPartEntries(parts?: DagExtraParts) {
+  return dagPartBindings(countsOf(parts)).map(({ table, part, binding }) => ({
+    binding,
+    resource: { buffer: parts![table]![part - 1] },
+  }))
 }
 
 /** Group-0 declarations of the selection kernel; its table accessors are the program's choice
@@ -71,7 +77,7 @@ export const DAG_BINDINGS_WGSL = wgslBlock(
 @group(0) @binding(${B.out}) var<storage, read_write> out:Output;
 @group(0) @binding(${B.work}) var<storage, read_write> work:array<atomic<u32>>;
 @group(0) @binding(${B.worlds}) var<storage, read> worlds:array<vec4u>;
-@group(0) @binding(${B.frames}) var<storage, read_write> frames:array<vec4f>;
+@group(0) @binding(${B.frames}) var<storage, read> frames:array<vec4f>;
 @group(0) @binding(${B.cold}) var<storage, read> cold:array<u32>;
 @group(0) @binding(${B.range}) var<uniform> range:FrameRange;
 `,
@@ -101,7 +107,7 @@ const DAG_TYPES: Record<keyof typeof DAG_BINDING, GPUBufferBindingType> = {
   out: write,
   work: write,
   worlds: read,
-  frames: write,
+  frames: read,
   cold: read,
   range: 'uniform',
 }
@@ -114,17 +120,12 @@ const DAG_TYPES: Record<keyof typeof DAG_BINDING, GPUBufferBindingType> = {
 export function dagBindEntries(
   counts?: Partial<Record<DagPartTable, number>>,
 ): GPUBindGroupLayoutEntry[] {
-  const entry = (binding: number, type: GPUBufferBindingType) => ({
-    binding,
-    visibility: COMPUTE,
-    buffer: { type },
-  })
   return [
     ...Object.entries(DAG_BINDING).map(([name, binding]) =>
-      entry(binding, DAG_TYPES[name as keyof typeof DAG_BINDING]),
+      computeBufferEntry(binding, DAG_TYPES[name as keyof typeof DAG_BINDING]),
     ),
     ...dagPartBindings(counts).map(({ table, binding }) =>
-      entry(binding, DAG_PART_TABLES[table] ? write : read),
+      computeBufferEntry(binding, DAG_PART_TABLES[table] ? write : read),
     ),
   ].sort((a, b) => a.binding - b.binding)
 }

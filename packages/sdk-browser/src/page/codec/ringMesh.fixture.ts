@@ -1,9 +1,8 @@
-// A real page for the codec's tests and the GPU decoding proof: it comes out of the reference
-// encoder `packages/page-codec`, the oracle of the JavaScript decoder, so what is compared is two
-// reads of a real page, not of a buffer made for the occasion.
+// A real page for the codec's tests and the GPU decoding proof: it comes out of the page encoder
+// of the SDK module, the compiler's, so what is compared is two reads of a real page, not of a buffer made for the occasion.
 import { TAU } from '../../../../math/src/constants.ts'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
-import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts'
+import { encodePage } from './encodePage.fixture.ts'
+import type { PageAttributes } from '../../../../sdk-core/src/page/pageInput.ts'
 
 /**
  * A ring of `triangles` triangles sharing their vertices, every attribute carried, positions off
@@ -34,5 +33,5 @@ export function ringMesh(triangles: number, exponent: number, colorWidth = 4) {
     TEXCOORD_1: { itemSize: 2, array: uv2 },
     COLOR_0: { itemSize: colorWidth, array: color },
   }
-  return { encoded: encodeGeometryPage(indices, attributes, exponent), indices, attributes }
+  return { encoded: encodePage(indices, attributes, exponent), indices, attributes }
 }

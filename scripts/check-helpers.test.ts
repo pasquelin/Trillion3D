@@ -139,7 +139,7 @@ test('a maths function copied under other names into any tree is red, owned by t
     'function bound(value: number, low: number, high: number) {\n  return Math.min(high, Math.max(low, value))\n}\n'
   for (const path of [
     'packages/sdk-browser/src/a/bound.ts',
-    'packages/page-codec/src/bound.ts',
+    'packages/sdk-core/src/bound.ts',
     'bench/runner/bound.ts',
     'scripts/fixtures/bound.ts',
     'tests/gpu/kit/bound.ts',

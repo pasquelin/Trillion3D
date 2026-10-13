@@ -139,15 +139,18 @@ test('a missing cluster is replaced by its nearest resident ancestor, and only i
   fixture.geometry.dispose()
 })
 
-test('a device without compute pipelines gets no GPU selection: the session is refused', async () => {
+test('a device that refuses the cut gets no GPU selection, and the host is told why', async () => {
   const fixture = dagFixture()
   const { dag } = packed(fixture)
   const { device } = fakeDevice({
     limits: { maxBufferSize: 1 << 20 },
-    compute: false,
     refuse: () => 'throw',
   })
-  assert.equal(await createGpuDagSelection(device, dag), undefined)
+  const told: unknown[][] = []
+  const onRefused = (...said: unknown[]) => void told.push(said)
+  assert.equal(await createGpuDagSelection(device, dag, { onRefused }), undefined)
+  // The device's own words reach the host: an error is never swallowed.
+  assert.deepEqual(told, [['camera cut creation failed: NO_MEMORY', { why: 'NO_MEMORY' }]])
   fixture.geometry.dispose()
 })
 

@@ -4,15 +4,11 @@ import { createGpuPageReader } from './reader.ts'
 import { createGpuPageLoader } from './load.ts'
 import { createGpuPagePins } from './gpuPagePins.ts'
 import { createPageBuffer, pageBufferBytes } from './resize.ts'
-import {
-  disposePageCache,
-  drainResidencyChanges,
-  pageCacheStats,
-  resizeBehind,
-  unloadPage,
-} from './cacheOps.ts'
+import { disposePageCache, pageCacheStats, resizeBehind, unloadPage } from './cacheOps.ts'
 import { heldHomes, type PageHomes } from './homes.ts'
-import { checked, ONE_REQUEST } from '../../cluster/checked.ts'
+import { createEviction, type EvictionOrder } from './eviction.ts'
+import { homePlacement, slotPlacement, wholeSlots } from './placement.ts'
+import { createResidencyLog } from './residencyLog.ts'
 import type { ResidentPage, GpuPageContext } from './types.ts'
 export type { ResidentPage } from './types.ts'
 /** How a GPU page cache is sized and where it reports (`createGpuPageCache`). */
@@ -23,14 +19,19 @@ export type GpuPageCacheOptions = {
   slots: number
   /** Each page's own place, taken while `slots` hold the whole catalogue (`homes.ts`). */
   homes?: PageHomes
+  /** The root cover's addresses: a resize keeps them before any other page. */
+  cover?: ReadonlySet<string>
   /** Hears what the cache reports: its layout, cancelled loads and refusals. */
   onDiagnostic?: (d: EngineDiagnostic) => void
 }
 
-/** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host. Queue writes
- * are ordered; dispose waits for in-flight submits before destroy. `pin(key, 'held')` keeps a page
- * ahead of ordinary pins during `resize(slots)`, which no longer accepts a held set. Ordinary
- * repinning preserves the held tier; `unpin(key)` removes it. */
+/** The GPU page cache (`createGpuPageCache`). */
+export type GpuPageCache = ReturnType<typeof createGpuPageCache>
+
+/** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host: each load
+ * reads its page from `source` (`reader.ts`), which joins the reads of a page in flight and says
+ * when a failed one is asked again. Queue writes are ordered; dispose waits for in-flight submits
+ * before destroy. A resize keeps the pages of `cover` before any pinned page. */
 export function createGpuPageCache(
   device: GPUDevice,
   source: PageSource,
@@ -54,25 +55,41 @@ export function createGpuPageCache(
      * into a buffer while it is being copied. The cache keeps held pins before ordinary pins.
      * Returns keys evicted for lack of room.
      */
-    resize: (slots: number) => resizeBehind(context, slots),
+    resize: (slots: number, grown?: { pageBytes: number; widths: ReadonlyMap<string, number> }) =>
+      resizeBehind(context, slots, grown),
     get(key: string) {
       return resident.get(key)
     },
     /** Evicts in `order` from now on: an arrival takes the slot of its first resident, unpinned page
-     *  not taken yet, never of a page it leaves out. `undefined` goes back to the least recent. */
-    evictInOrder(order?: { readonly count: number; keyAt(at: number): string }) {
-      Object.assign(context.eviction, { order, at: 0, lateAt: 0 })
-      context.eviction.epoch++
-      context.eviction.held.length = context.eviction.late.length = 0
+     *  not taken yet, never of a page it leaves out. `undefined`: no victim until the next one. */
+    evictInOrder: (order?: EvictionOrder) => context.eviction.follow(order),
+    /** Pages committed so far: what an order made now names as its `arrivals`. */
+    get arrivals() {
+      return state.generation
+    },
+    /** True when a load was refused for lack of a place since the last call: the order in hand is
+     *  spent, and the GPU is to publish another (`../../webgpu/residency/evictionFeed.ts`). */
+    takeRefused() {
+      const refused = state.refused
+      state.refused = false
+      return refused
     },
     /** Membership changes increase this counter; LRU touches do not. Callers with a verdict from
      * `get` can compare it instead of querying every page again. */
+    /** How many pages are resident now. */
+    get residentPages() {
+      return resident.size
+    },
     get residencyRevision() {
       return state.generation + state.evictions
     },
-    /** Moves the pending residency changes into the caller's arrays, then empties the log. */
-    drainResidencyChanges: (keys: string[], slots: number[]) =>
-      drainResidencyChanges(context, keys, slots),
+    /** Each key that arrived since the last call, told once, in order (`residencyLog.ts`). */
+    takeArrivals: (visit: (key: string) => void) => context.changes.takeArrivals(visit),
+    /** Each pinned page that left since the last call, its pin with it, told once. */
+    takeUnpinned: (visit: (key: string) => void) => context.changes.takeUnpinned(visit),
+    /** Moves the pending residency changes into the caller's arrays, then empties the log: one
+     *  entry a key, its last place (`residencyLog.ts`). */
+    drainResidencyChanges: (keys: string[], slots: number[]) => context.changes.drain(keys, slots),
     ...pinning,
     unload: (key: string) => unloadPage(context, key),
     stats: () => pageCacheStats(context),
@@ -88,13 +105,14 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
   const state = {
     pending: Promise.resolve() as Promise<unknown>,
     disposed: false,
+    loading: 0,
     generation: 0,
     bytesRead: 0,
     uploadedBytes: 0,
     evictions: 0,
+    refused: false,
   }
-  const fetches = new Map<string, Promise<Uint8Array>>()
-  const reader = createGpuPageReader(source, pageBytes, options.onDiagnostic, fetches)
+  const reader = createGpuPageReader(source, pageBytes, options.onDiagnostic)
   const { emit } = reader
   emit?.('gpu-page-catalogue', 'GPU cache configured', () => ({
     version: 1,
@@ -114,36 +132,32 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     }
     signal?.throwIfAborted()
   }
+  const resident = new Map<string, ResidentPage>()
+  const ownHomes = heldHomes(homes, slots)
+  const eviction = createEviction(resident)
+  const placement = ownHomes
+    ? homePlacement(ownHomes, ownHomes.homes.size)
+    : slotPlacement(
+        pageBytes,
+        wholeSlots(Array.from({ length: slots }, (_, slot) => slot)),
+        eviction,
+        resident,
+      )
   const context: GpuPageContext = {
     device,
     pageBytes,
     slots,
     homes,
     buffer,
-    resident: new Map<string, ResidentPage>(),
-    pins: new Set<string>(),
-    held: new Set<string>(),
-    free: Array.from({ length: heldHomes(homes, slots)?.homes.size ?? slots }, (_, i) => i),
+    resident,
+    cover: options.cover ?? new Set(),
     abort: new AbortController(),
-    fetches,
     state,
-    eviction: { at: 0, epoch: 0, lower: new Map(), held: [], late: [], lateAt: 0 },
-    // Every arrival and departure in order, so a host mirrors the cache page by page instead of
-    // asking for all of its catalogue every frame. `changeSlots[i]` is the slot's words offset,
-    // or -1.
-    changeKeys: [],
-    changeSlots: [],
+    eviction,
+    placement,
+    changes: createResidencyLog(),
     reader,
     check,
   }
   return context
-}
-/** A page source that fetches pages over HTTP, by key, from `baseUrl`. */
-export function httpPageSource(baseUrl: string): PageSource {
-  return {
-    async read(key, signal) {
-      const response = await checked(new URL(key, baseUrl).href, signal, ONE_REQUEST)
-      return new Uint8Array(await response.arrayBuffer())
-    },
-  }
 }

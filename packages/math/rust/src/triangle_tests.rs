@@ -124,3 +124,17 @@ fn newell_step_in_single_precision_runs_the_written_out_sums() {
     assert_eq!(stepped.map(f32::to_bits), by_hand.map(f32::to_bits));
     assert_eq!(newell(&ring).map(f32::to_bits), by_hand.map(f32::to_bits));
 }
+
+#[test]
+fn edge_key_is_the_same_for_both_directions_and_sorts_by_lower_corner() {
+    assert_eq!(edge_key(7, 3), edge_key(3, 7));
+    assert_eq!(edge_key(3, 7), (3u64 << 32) | 7);
+    assert!(edge_key(1, 9) < edge_key(2, 3));
+}
+
+#[test]
+fn longest_edge_is_the_longest_side_of_the_corners_named() {
+    let positions = [0.0f32, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 4.0, 0.0];
+    assert_eq!(longest_edge(&positions, &[0, 1, 2]), 5.0);
+    assert_eq!(longest_edge(&positions, &[2, 0, 2]), 4.0);
+}

@@ -15,9 +15,13 @@ import {
   type VsmPerPageBin,
 } from './markingPass.ts'
 import { VSM_PER_PAGE_DISPATCH_WGSL } from './markingWgsl.ts'
-import { vsmBufferEntry, vsmDynamicUniformEntry } from './passKit.ts'
+import {
+  computeBufferEntry,
+  computeUniformEntry,
+  sequentialEntries,
+} from '../gpu/core/computeBindings.ts'
 import type { VsmResources } from './resources.ts'
-import { vsmWriteChangedSlots } from './writeChanged.ts'
+import { writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../residency/pools.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
@@ -36,8 +40,8 @@ export function vsmPerPageDispatchWgsl(group: number) {
 
 /** The layout entries of the dispatch setup's group: its slot (dynamic uniform) and the ids. */
 export const vsmPerPageDispatchEntries = (): GPUBindGroupLayoutEntry[] => [
-  vsmDynamicUniformEntry(0, 16),
-  vsmBufferEntry(1, GPUShaderStage.COMPUTE, 'read-only-storage'),
+  computeUniformEntry(0, { hasDynamicOffset: true, minBindingSize: 16 }),
+  computeBufferEntry(1, 'read-only-storage', GPUShaderStage.COMPUTE),
 ]
 
 /** Bytes a dispatcher holds on a device of `limits`: its slots, the device's `uniformStride` apart. */
@@ -78,15 +82,15 @@ export class VsmPerPageDispatcher {
     this.bindGroup = this.device.createBindGroup({
       label: 'vsm.pm.perPage',
       layout: this.bindGroupLayout,
-      entries: [
-        { binding: 0, resource: { buffer: this.params, offset: 0, size: 16 } },
-        { binding: 1, resource: { buffer: res.perPageIds } },
-      ],
+      entries: sequentialEntries([
+        { buffer: this.params, offset: 0, size: 16 },
+        { buffer: res.perPageIds },
+      ]),
     })
   }
 
   /** This frame's `all` bins (ids already in `res.perPageIds`); the slots that changed go up by
-   *  queue write, before this frame's submit (`vsmWriteChangedSlots`). */
+   *  queue write, before this frame's submit (`writeChangedSlots`). */
   setBins(bins: readonly VsmPerPageBin[]) {
     const { args, slots } = this
     for (let b = 0; b < slots.count; b++) {
@@ -95,7 +99,7 @@ export class VsmPerPageDispatcher {
       if (b < bins.length) vsmWritePerPageBinArgs(args, at, bins[b], b)
       else args.fill(0, at, at + slots.words)
     }
-    vsmWriteChangedSlots(this.device, this.params, args, slots)
+    writeChangedSlots(this.device, this.params, args, slots)
     this.bins = bins
   }
 

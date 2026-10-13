@@ -4,7 +4,7 @@
 // primary button, and its wheel says no delta mode; these press any button and wheel in pixels, as
 // a mouse does. And the camera probe: one manual world whose controller is swapped, the image of
 // the pose a gesture starts from kept, what differs once the gesture is undone counted.
-import { pixelDifference } from '../../../bench/dawn/capture.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
 import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 import { settle } from '../world/proofWorld.ts'
@@ -124,7 +124,7 @@ export async function openCameraProbe(manifestUrl: string) {
     },
     async end() {
       const image = await draw()
-      const differences = pixelDifference(image, baseline).pixels
+      const differences = compareImages(image, baseline, { alpha: false }).differentPixels
       return { differences, pose: pose(), changes, bytes: image.length }
     },
     dispose() {

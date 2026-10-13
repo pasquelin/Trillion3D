@@ -123,9 +123,10 @@ const x = geometry.attributes.position.getX(0)
 Every model file read over HTTP — manifest, tables, binary, images, lights, pages, cooked physics,
 the WebAssembly modules — goes through one loader. A failure that may pass (the network, 408, 429,
 5xx) is asked again once after its `Retry-After` wait (ten seconds at most), or by the reader's own
-retry (the GPU page cache's two attempts, a physics tile's next update). The page streamer asks a
-page again for as long as the failure may pass, one request per step, after a wait of 0.5 s · 2^k
-(8 s at most, never less than the server's `Retry-After`); only a 4xx refusal fails for good. What
+retry (a physics tile's next update). The page streamer, the baked texture levels and the HTTP page
+source ask a page or a level again for as long as the failure may pass, one request per step,
+after a wait of 0.5 s · 2^k (8 s at most, never less than the server's `Retry-After`), never
+before; only a 4xx refusal fails for good. What
 still fails is `RESOURCE_HTTP_ERROR` (`details.url`, `details.status`, `null`
 for the network). `lights.json` and `physics.json` are absent, not failed, on a 404 or a hiding
 store's 403. An unreadable `kernels.wasm` leaves the batch kernels to their JavaScript twins.
@@ -180,16 +181,20 @@ Thirteen families describe the scene:
 Eight more exist because geometry is **cut into pages** the engine moves in and out of memory
 according to what the frame reads:
 
-| Family       | Members                                                                        | What it does                                                     | Example                                                                                                       |
-| ------------ | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `page`       | `createStreamer`, `createCache`, `httpSource`, `decode`                        | geometry in pages                                                | `page.createStreamer({ source: page.httpSource('assets/forest/') })`, passed as `scene.load(url, { stream })` |
-| `budget`     | `memory`, `geometryPool`, `texturePool`                                        | fixed envelopes, not wishes                                      | `world.budget.geometryPool = 512 * 1024 * 1024`                                                               |
-| `metric`     | `frame`, `cpuSteps`, `gpuPasses`, `createProfiler`                             | what the image cost, never estimated                             | `metrics.selectedTriangles`, `metrics.residentPages` in `world.onFrame`; `metric.createProfiler(world)`       |
-| `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion` | watching the engine work                                         | `world.diagnostic.mode = 'clusters'` (or `'wireframe'`, `'triangles'`, `'beauty'`)                            |
-| `capability` | `detect`, `lighting`                                                           | what the machine grants, before an image is promised             | `(await capability.detect()).webgpu`                                                                          |
-| `capture`    | `surface`, `buffer`                                                            | an image aside, at another resolution, without touching the view | `capture.surface(world, { width: 3840, height: 2160 })`                                                       |
-| `pose`       | `fromBounds`, `runPath`, `pointOfInterest`                                     | named poses, automatic framing, replaying a path                 | `world.camera.set(pose.fromBounds(math.box3().setFromObject(set)))`                                           |
-| `batch`      | `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                         | a thousand matrices at once instead of a loop                    | `batch.composeMatrix4(outputs, positions, quaternions, scales, 1000)`                                         |
+| Family       | Members                                                                        | What it does                                                     | Example                                                                                                                                            |
+| ------------ | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `page`       | `createStreamer`, `createCache`, `httpSource`, `decode`                        | geometry in pages                                                | `page.createStreamer({ source: page.httpSource('assets/forest/', { pages, cache: createPageCache() }) })`, passed as `scene.load(url, { stream })` |
+| `budget`     | `memory`, `geometryPool`, `texturePool`                                        | fixed envelopes, not wishes                                      | `world.budget.geometryPool = 512 * 1024 * 1024`                                                                                                    |
+| `metric`     | `frame`, `cpuSteps`, `gpuPasses`, `createProfiler`                             | what the image cost, never estimated                             | `metrics.selectedTriangles`, `metrics.residentPages` in `world.onFrame`; `metric.createProfiler(world)`                                            |
+| `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion` | watching the engine work                                         | `world.diagnostic.mode = 'clusters'` (or `'wireframe'`, `'triangles'`, `'beauty'`)                                                                 |
+| `capability` | `detect`, `lighting`                                                           | what the machine grants, before an image is promised             | `(await capability.detect()).webgpu`                                                                                                               |
+| `capture`    | `surface`, `buffer`                                                            | an image aside, at another resolution, without touching the view | `capture.surface(world, { width: 3840, height: 2160 })`                                                                                            |
+| `pose`       | `fromBounds`, `runPath`, `pointOfInterest`                                     | named poses, automatic framing, replaying a path                 | `world.camera.set(pose.fromBounds(math.box3().setFromObject(set)))`                                                                                |
+| `batch`      | `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                         | a thousand matrices at once instead of a loop                    | `batch.composeMatrix4(outputs, positions, quaternions, scales, 1000)`                                                                              |
+
+`metric.frame(world)` is never `null`: before the first frame it holds every metric key, the
+totals (`cpuFrameMs`, `pageLoads`, `pageBytesRead`) at zero and every measure `null` — not measured,
+never a zero that would read as an empty frame.
 
 The world is not a family: it carries `scene`, `camera`, `budget`, `diagnostic`, `controls`,
 `onFrame`/`loop`, `render`, `invalidate` and `dispose`. There is no level-of-detail object and no
@@ -222,6 +227,22 @@ function tick() {
   requestAnimationFrame(tick)
 }
 tick()
+```
+
+`world.beforeFrame(hook)` runs `hook({ delta, time })` ahead of each drawn frame, after the
+physics drew its bodies at that frame's time and the scene's clips advanced; `world.onFrame(hook)`
+runs after the frame was drawn. A camera that follows something that moves — a chase camera behind
+a vehicle, a view over a character — is written in `beforeFrame`: there it reads the pose this
+frame draws, and the two are drawn together. Written in `onFrame`, it is drawn a frame later than
+the body it follows, and the view judders against it at every uneven frame.
+
+```js
+world.beforeFrame(() => {
+  const { position, quaternion } = car.body // the pose this frame draws
+  // 6 m behind the car and 2 m above it, looking at it.
+  world.camera.position.set(0, 2, 6).applyQuaternion(quaternion).add(position)
+  world.camera.lookAt(position)
+})
 ```
 
 `world.render()` runs the loop's frame — clips, physics and `beforeFrame` hooks advance; only the
@@ -263,7 +284,11 @@ capture needs. A write applies next frame, no session reopened; a read says what
 the display drawn before temporal antialiasing rebuilds the image: `'auto'` lets the frame budget
 (the display's refresh interval) choose between 0.5 and 1, from the GPU frame time or, without
 timestamps, the frame interval; `{ min, max }` bounds it, a number fixes it. A read is the last
-image's scale.
+image's scale. Where the scale is fixed, or at its floor, and the GPU frame still outlasts the
+refresh, the loop draws on every second refresh (every n-th on a faster display, never under 60
+images a second), so each image is shown for the same time instead of one refresh or two as it
+lands; it draws on every refresh again once the GPU frame falls to 0.81 of the faster budget. A
+scene that holds the refresh is never touched, and the world's time steps by the refreshes shown.
 
 `world.effects` is the ordered chain of passes after temporal antialiasing, before the canvas.
 `effect.bloom({ intensity, radius })` is an energy-conserving glow on the linear
@@ -310,24 +335,24 @@ the three with a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`,
 
 **The character's body.** `'character'` moves an upright capsule with an adult's values
 (`HUMAN_BODY`: 1.75 m, a 3.5 m/s jog, a 0.5 m jump, 45° slopes, 0.5 m steps, 80 kg, a 250 N push),
-each a setting of `world.controls`. Without physics it collides with the static triangles of
-`world.controls.colliders` (meshes, built into a triangle tree once), or walks level where it
-stands. With physics on ([PHYSICS.md](PHYSICS.md)) it is the physics' virtual character in its
-worker: it climbs steps and slopes, rides a moving platform, pushes dynamic bodies with at most
-`pushStrength` newtons and is pushed back; `colliders` is unused (give the level
-`mesh.physics = 'static'`), and the feet are drawn at the bodies' time.
+each a setting of `world.controls`. Its body is the physics' virtual character in its worker
+([PHYSICS.md](PHYSICS.md)), so the world needs `physics: true`: it climbs steps and slopes, rides
+a moving platform, pushes dynamic bodies with at most `pushStrength` newtons and is pushed back,
+and the level is whatever carries `mesh.physics = 'static'`. The feet are drawn at the bodies' time.
+Until the physics runs the character stands where it was put and hears no key.
 
-Both read one drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over `stopTime`,
-jumps with a coyote time and a jump buffer, and no ground speed changing faster than a rubber sole's
-grip allows, `μ g` (the geometric mean of the sole's and the ground's frictions; without physics,
-stone). The triangle body drops a stall past 0.25 s (`MAX_CHARACTER_DELTA`); the physics' takes at
-most four steps a frame (`MAX_CATCH_UP_STEPS`): a slower page shows slow motion, never a jump.
+The body reads one drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over
+`stopTime`, jumps with a coyote time and a jump buffer, and no ground speed changing faster than a
+rubber sole's grip allows, `μ g` (the geometric mean of the sole's and the ground's frictions). The
+physics takes at most four steps a frame (`MAX_CATCH_UP_STEPS`): a slower page shows slow motion,
+never a jump.
 
 **Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` (`throttle`, `brake`, `steer`,
 `handbrake`) and hands it to `world.controls.vehicle.drive(input)` on each change. Any object with
 `drive` can be driven, the physics' vehicles first (`vehicle.car`,
 [PHYSICS.md](PHYSICS.md#vehicles)). `kind = 'vehicle'` while `vehicle` is `null` throws
-`NO_VEHICLE`. The camera does not follow: the page moves it.
+`NO_VEHICLE`. The camera does not follow: the page moves it in `world.beforeFrame` ([Loop](#loop)),
+never in `onFrame`, a frame late.
 
 ### Picking, moving and saving
 
@@ -366,8 +391,10 @@ in order, each replacing the last. A scene editor needs these three doors and no
 A material written on `color`, `emissive`, `emissiveIntensity`, `metalness` or `roughness` is
 repainted in place, the session kept (a colour picker dragged for ten seconds keeps one session). A
 change it cannot hold in place — a texture, a kind, a side, transparency, values another material
-object shares — is copied on write and reopens the session, once per burst;
-`world.diagnostic.sessions` counts the sessions a world opened.
+object shares — is copied on write: the copy is a new material, and the meshes that wear it join
+the running session as any mesh added to the scene does, the session never opened again for it.
+`world.diagnostic.sessions` counts the sessions a world opened: one, unless the device was lost or
+an option changed (`session-reopen`, `cause`).
 
 `material.meshPhysical` accepts `anisotropy` (strength, 0–1), `anisotropyRotation` (radians),
 `clearcoat` and `clearcoatRoughness`, drawn with `anisotropyMap` (RG the direction, B the
@@ -375,7 +402,7 @@ strength), `clearcoatMap` (R), `clearcoatRoughnessMap` (G) and `clearcoatNormalM
 (`clearcoatNormalScale`), each map at its native size with its own filters, wrap, transform and UV
 channel, read as linear data. The second UV channel (`TEXCOORD_1`) is read from the compiled
 geometry page or from the source geometry; a geometry without one reads the first. The coat lies
-over every light, the environment, bounced light and reflections, on an opaque surface as on a
+over every light, the environment and bounced light, on an opaque surface as on a
 blended or a transmissive one — whose transmitted light passes under it; a rectangle light
 stretches its specular lobe along the anisotropy.
 
@@ -387,8 +414,9 @@ Diffuse thin-surface transmission, not a volume: a glass volume uses physical `t
 With `transparentShadow: true`, blended glass tints the shadow transmission atlas by its base color
 and texture; a nonzero volume thickness applies Beer attenuation once at the entrance of a closed
 mesh (a declared-thickness approximation, not ray tracing); alpha-only blended shadows are
-coverage. A shadow-casting point light with positive `radius` uses contact-hardening PCSS; radius
-zero uses PCF.
+coverage. A shadow-casting light with a source size — a point or spot `radius`, a sun's
+`angularRadius` — casts penumbrae that harden at contact, traced through the shadow maps on opaque
+and blended surfaces alike; a size of zero casts hard shadows.
 
 ### Geometry rewritten every frame
 
@@ -522,7 +550,9 @@ shelf.add(crate).updateWorldMatrix()
 engine's graph extend it. Every write through a node is heard as it is made; numbers written
 straight into a kept `matrix.elements` are announced with `matrixWorldNeedsUpdate = true`, a light's
 colour channels written straight with `needsUpdate = true`: a still scene reads nothing per frame.
-An update or walk costs its subtree only; a dropped object frees its slot when collected.
+An update or walk costs its subtree only; a dropped object frees its slot when collected. A node
+the session poses under a moving parent is composed on the GPU: its `matrixWorld` is read composed
+once per frame, and `updateMatrixWorld` has nothing of it to do.
 
 The graph classes are `Object3D`, `Group`, `Mesh`, `Scene`, `Camera` and `Light` (its `kind`; a
 `rectArea` for a rectangle, a `probe` with 27 coefficients in `sh`). A light hears its colours and
@@ -701,10 +731,10 @@ What a host sets and reads; the pools' mechanics are [RESIDENCY.md](RESIDENCY.md
   coverage and texture tails are mandatory, and admission never changes resolution or raises the
   declared total.
 - **CPU split.** The decoded-page cache takes the whole CPU total (`split.pageCache`): manifest
-  tables, transfer queue, cut tables (sized by the view and the pool, never the world), the
-  resident proxy (`page-cache-kept-yielded` when pages need its room) and decoded baked texture
-  levels, at most three quarters of it (`split.textureLevels`), yielding first
-  (`page-cache-levels-yielded`). A change applies at once, pages and levels leaving by last use.
+  tables, transfer queue and cut tables (sized by the view and the pool, never the world) are
+  reserved off it, and its entries — pages, decoded baked texture levels, files read whole and
+  the resident proxy — share the rest under one budget, the proxy leaving last. A change applies
+  at once, entries leaving by last use, never one a frame keeps.
 - **Live textures.** A video or a canvas redrawn every frame takes its working texture,
   `textureLiveBytes`, from the texture pool; the recorded budget stays the declared one.
 - **Canvas.** Declared larger, it grows the default total, or takes room from the pools under a
@@ -754,8 +784,13 @@ waiting on a shadow pool or frame targets is held, never drawn without its shado
 A lost device is recovered without a reload: the session reopens on a new
 device and rebuilds from the decoded-page cache, fetching nothing it still holds, the canvas keeping
 its last image (`gpu-device-recovered`, `recoveryMs`). Each session reopen is said once as
-`session-reopen`: `cause` (`device-lost`, `option`, or a content change with `defect: true`),
-`durationMs`, `framesWithoutImage`.
+`session-reopen`: `cause` (`device-lost` or `option`, nothing else: no change to the scene's content
+opens a session again), `durationMs`, `framesWithoutImage`. A mesh, a material, a model with its
+cells or a world the scene gains joins the running session in place, and one it loses is parked.
+What the session cannot take in place — a catalogue past its keys (`KEY_PAGE_MAX`), a pool or a pass
+the device refuses, a picture that changed size where the atlas layout is fixed — is said by name,
+once, as `content-refused` (`kind: 'error'`, `what`, `reason`); the rest of the scene is drawn as it
+was.
 
 ## Captures and image checks
 

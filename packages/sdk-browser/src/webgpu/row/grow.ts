@@ -1,12 +1,9 @@
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import type { createDirtyRows } from './dirty.ts'
-import type { createWebgpuRowState } from './state.ts'
-
-type Rows = ReturnType<typeof createWebgpuRowState>
-const ROW_WORDS = PAGE_INFO_STRIDE / 4
+import type { WebgpuRowState } from './state.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 
 /** `from` copied into the head of `to`, the rest of `to` set to `fill`. */
-export function widened<T extends Int32Array | Uint32Array>(from: T, to: T, fill: number) {
+function widened<T extends Int32Array | Uint32Array>(from: T, to: T, fill: number) {
   to.set(from)
   to.fill(fill, from.length)
   return to
@@ -22,7 +19,7 @@ export function widened<T extends Int32Array | Uint32Array>(from: T, to: T, fill
  * the spheres, the mobility words — takes its rows again, once. `generation` names the table.
  */
 export function growRowState(
-  rows: Rows,
+  rows: WebgpuRowState,
   dirty: ReturnType<typeof createDirtyRows>,
   drawSlots: number,
   blendSlots: number,

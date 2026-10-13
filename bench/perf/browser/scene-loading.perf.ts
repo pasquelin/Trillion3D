@@ -1,6 +1,8 @@
 // loading a scene.
+import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/collect.ts'
+import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import { pagesBounds } from '../../../packages/sdk-browser/src/world/scene/pagesBounds.ts'
 import {
   indexManifestBundles,
@@ -9,11 +11,11 @@ import {
 import { measure, stress, rapport } from '../../core/index.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 import { referenceCollectClusterPages } from '../../oracles/browser/page-collection.ts'
+import { referenceExactPagesBounds } from '../../oracles/browser/bounds-and-index.ts'
 import {
-  referenceExactPagesBounds,
   referenceIndexManifestBundles,
   referenceIndexManifestPages,
-} from '../../oracles/browser/bounds-and-index.ts'
+} from '../../oracles/browser/manifest-index.ts'
 import { manifesteEtScene } from './support/scenesLoading.ts'
 import { DEFAULT_SCOPE, type ClusterManifest } from '../../../packages/sdk-core/src/index.ts'
 
@@ -80,13 +82,18 @@ const passeCollect =
   (input: ChargementScene) => {
     let output
     try {
-      output = fn(input.source, input.metadata, input.indices, input.associations)
+      output = fn(
+        input.source,
+        graphDraws(input.source, input.associations),
+        input.metadata,
+        input.indices,
+      )
     } catch (error) {
       return { refusal: error instanceof Error ? error.message : String(error) }
     }
     return {
       refusal: null,
-      requestCount: output.requestCount,
+      requestCount: output.requests.size,
       prepared: output.prepared,
       blendCopies: output.blendCopies.length,
       bootstrap: output.bootstrap.length,

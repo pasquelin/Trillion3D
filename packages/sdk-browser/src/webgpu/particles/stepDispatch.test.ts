@@ -12,20 +12,21 @@ import { particleGroups, particlesWgsl } from './particlesWgsl.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { DEFAULT_GROUP_WIDTH } from '../../gpu/dispatch/grid.ts'
 
-/** An encoder whose compute passes log each pipeline set and each dispatch. */
-function recorder() {
-  const log: string[] = []
-  const encoder = {
-    beginComputePass: () => ({
-      setPipeline: (pipeline: { entryPoint: string }) => void log.push(pipeline.entryPoint),
-      setBindGroup() {},
-      dispatchWorkgroups: (x: number, y = 1) => void log.push(y > 1 ? `${x}×${y}` : `${x}`),
-      dispatchWorkgroupsIndirect: () => void log.push('window'),
-      end: () => void log.push('end'),
-    }),
-  } as unknown as GPUCommandEncoder
-  return { encoder, log }
-}
+/** What `gpu`'s compute passes took: each pipeline set, each dispatch and each end. */
+const logOf = (gpu: ReturnType<typeof fakeDevice>) =>
+  gpu.computePasses.flatMap(({ commands }) =>
+    commands.flatMap(([name, [x, y = 1]]) =>
+      name === 'setPipeline'
+        ? [(x as { entryPoint: string }).entryPoint]
+        : name === 'dispatchWorkgroups'
+          ? [(y as number) > 1 ? `${x}×${y}` : `${x}`]
+          : name === 'dispatchWorkgroupsIndirect'
+            ? ['window']
+            : name === 'end'
+              ? ['end']
+              : [],
+    ),
+  )
 
 test('pools step their windows, then their records, then bound; each knows its workgroups', async () => {
   const gpu = fakeDevice()
@@ -37,10 +38,10 @@ test('pools step their windows, then their records, then bound; each knows its w
     return pool
   })
   await tick()
-  const { encoder, log } = recorder()
+  const encoder = gpu.device.createCommandEncoder()
   assert.equal(particles.run(pools, encoder), 6)
   const groups = [1, particleGroups(200)]
-  assert.deepEqual(log, [
+  assert.deepEqual(logOf(gpu), [
     ...['main', 'window', 'window'],
     ...['emit', ...groups.map(String)],
     ...['bound', '1', '1', 'end'],
@@ -64,9 +65,10 @@ test('records past one dimension of a dispatch step in rows of 65,535 groups', a
   // The staged records' copy is out of this test: it would copy 4.19M records' words.
   gpu.device.queue.writeBuffer = () => {}
   await tick()
-  const { encoder, log } = recorder()
+  const encoder = gpu.device.createCommandEncoder()
   particles.run([pool], encoder)
   // 65,536 groups: two rows of 65,535, the last row's groups past the records writing nothing.
+  const log = logOf(gpu)
   assert.deepEqual(log.slice(log.indexOf('emit'), log.indexOf('bound')), ['emit', '65535×2'])
 })
 

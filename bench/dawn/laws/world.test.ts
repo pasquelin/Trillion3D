@@ -8,13 +8,12 @@ import { fileURLToPath } from 'node:url'
 import { pageModules, readPage } from '../page.ts'
 import { lawWorld } from './world.ts'
 import { scatter } from './scatter.ts'
-
-const ROOT = fileURLToPath(new URL('../../../', import.meta.url))
+import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
 test('the runtime page builds the laws’ world module, every import it names mapped by the bench', () => {
   const page = fileURLToPath(new URL('./world.html', import.meta.url))
   const code = readPage(page).scripts.join('\n')
-  const modules = pageModules(ROOT, 'engine', page)
+  const modules = pageModules(REPOSITORY_ROOT, 'engine', page)
   const relative = [...code.matchAll(/from\s+['"](\.{1,2}\/[^'"]+)['"]/g)].map((found) => found[1])
   assert.deepEqual(
     relative.filter((path) => !(path in modules)),
@@ -36,6 +35,6 @@ test('the world holds the ground and one mesh a kind, at the scattered places', 
 })
 
 test('only the laws’ page reads the laws’ world: another scene’s own `./world.js` is none of it', () => {
-  const example = join(ROOT, 'bench', 'kit', 'scenes', 'a-scene.html')
-  assert.equal(pageModules(ROOT, 'engine', example)['./world.js'], undefined)
+  const example = join(REPOSITORY_ROOT, 'bench', 'kit', 'scenes', 'a-scene.html')
+  assert.equal(pageModules(REPOSITORY_ROOT, 'engine', example)['./world.js'], undefined)
 })

@@ -13,7 +13,7 @@ function scene() {
     mesh = G.mesh()
   mesh.name = 'drawn'
   source.add(mesh)
-  return { source, drawn: [{ sourceMesh: mesh }] }
+  return { source, drawn: [{ drawSource: { node: mesh } }] }
 }
 
 /** How many times frame entry asked for the drawn list, hence rebuilt the watched set. */
@@ -66,7 +66,7 @@ test('both announce the scene: a held frame is refused after either of them', ()
 
 test('a host write of its own is still taken after a move: the watch keeps listening', () => {
   const { source, drawn } = scene()
-  const mesh = (drawn[0] as { sourceMesh: G.HostMesh }).sourceMesh
+  const mesh = (drawn[0] as { drawSource: { node: G.HostMesh } }).drawSource.node
   const gate = createFrameGateCore(1)
   gate.readScene(source, drawn)
   gate.movedInPlace()
@@ -80,7 +80,7 @@ test('a host write of its own is still taken after a move: the watch keeps liste
 
 test('a move announced before the first image still has the watched set built', () => {
   const { source, drawn } = scene()
-  const mesh = (drawn[0] as { sourceMesh: G.HostMesh }).sourceMesh
+  const mesh = (drawn[0] as { drawSource: { node: G.HostMesh } }).drawSource.node
   const gate = createFrameGateCore(1)
   gate.movedInPlace()
   gate.readScene(source, drawn)
@@ -94,7 +94,7 @@ test('a reshape then a move before the same image: the node the reshape brought 
   const { source, drawn } = scene()
   const gate = createFrameGateCore(1)
   const entrant = G.mesh()
-  const list = [...drawn, { sourceMesh: entrant }]
+  const list = [...drawn, { drawSource: { node: entrant } }]
   gate.readScene(source, drawn)
   source.add(entrant)
   gate.sceneChanged() // the reshape: the watched set owes a rebuild
@@ -104,4 +104,30 @@ test('a reshape then a move before the same image: the node the reshape brought 
   entrant.visible = false
   gate.readScene(source, list)
   assert.notEqual(gate.revisions.scene, revision, 'the write on the entered node is seen')
+})
+
+test('a node the host reparented has the roots under it read, not every root; a destroyed one every root', () => {
+  const { source, drawn } = scene()
+  const mesh = (drawn[0] as { drawSource: { node: G.HostMesh } }).drawSource.node
+  const world = { refresh() {} } as Parameters<
+    ReturnType<typeof createFrameGateCore>['updateWorlds']
+  >[0]
+  const gate = createFrameGateCore(1)
+  gate.readScene(source, drawn)
+  assert.deepEqual(
+    gate.updateWorlds(world),
+    { reshaped: true, flipped: [] },
+    'the first image reads every root',
+  )
+  gate.readScene(source, drawn)
+  const moved: unknown[] = []
+  new G.Group().add(mesh)
+  gate.readScene(source, drawn)
+  const write = gate.updateWorlds(world, (nodes) => moved.push(...nodes))
+  assert.equal(write && write.reshaped, false)
+  assert.deepEqual(moved, [mesh])
+  assert.deepEqual(write && write.flipped, [mesh])
+  mesh.destroy()
+  gate.readScene(source, drawn)
+  assert.equal((gate.updateWorlds(world) || undefined)?.reshaped, true)
 })

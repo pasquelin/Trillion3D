@@ -1,24 +1,29 @@
 import { MIB } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createPageStreamerWith } from './pageStreamer.ts'
+import { createPageStreamer } from './pageStreamer.ts'
 import { createPageCache } from './pageCache.ts'
 import { manifestTableBytes } from './manifestTables.ts'
 import { dagFixture, wideCamera } from '../page/selection/dag.fixture.ts'
 import { kernelUrls, packed } from '../gpu/dag/selectionHelpers.fixture.ts'
 import type { StreamPage } from './types.ts'
 import { servedPages } from './servedPages.fixture.ts'
+import { retained } from './retained.fixture.ts'
 import { dagPageUrls } from '../gpu/dag/pack.fixture.ts'
 import { sha256Hex } from './sha256Hex.ts'
 
 const TRANSFER = 64
+
+/** The pages of `urls` `cache` holds. */
+const held = (cache: ReturnType<typeof createPageCache>, urls: readonly string[]) =>
+  urls.filter((url) => cache.page(url))
 
 const open = (
   pages: StreamPage[],
   cache: ReturnType<typeof createPageCache>,
   base = 'http://cache/',
 ) =>
-  createPageStreamerWith(pages, base, {
+  createPageStreamer(pages, base, {
     cache,
     workerCount: 1,
     maxTransferBytes: TRANSFER,
@@ -46,7 +51,7 @@ test('a session reopened after a device loss rebuilds the same cut, fetching not
   assert.equal(fetchedBefore, wanted.length)
   // The device is lost: the session closes, and the world keeps its cache.
   before.dispose()
-  assert.equal(cache.pages.size, wanted.length, 'the pages outlive the session')
+  assert.equal(cache.pageCount, wanted.length, 'the pages outlive the session')
   // A device granted again: the new session reads the same pages, from the cache alone.
   const after = open(pages, cache)
   await after.request(wanted, { signal: after.signal })
@@ -80,26 +85,26 @@ test('a lower total applies at once, pages leaving by last use, pins kept', asyn
   const reserved = manifestTableBytes(pages) + TRANSFER
   const cache = createPageCache(reserved + 4 * 12)
   const evicted: string[] = []
-  const streamer = createPageStreamerWith(pages, 'http://cache/', {
+  const streamer = createPageStreamer(pages, 'http://cache/', {
     cache,
     workerCount: 1,
     onEvict: (url) => evicted.push(url),
     maxTransferBytes: TRANSFER,
   })
   await streamer.request(urls, { signal: streamer.signal })
-  streamer.retain(['a.bin'])
+  retained(streamer, urls)(['a.bin'])
   // `b` read again: the least recently used is now `c`, then `d`.
   streamer.get('b.bin')
   cache.resize(reserved + 2 * 12)
   assert.deepEqual(evicted, ['c.bin', 'd.bin'])
-  assert.deepEqual([...cache.pages.keys()], ['a.bin', 'b.bin'])
+  assert.deepEqual(held(cache, urls), ['a.bin', 'b.bin'])
   assert.ok(streamer.stats().cpuBytes <= cache.cpuBytes)
   streamer.dispose()
   // No session reads: a total set lower still applies, oldest first.
   cache.resize(reserved + 12)
-  assert.deepEqual([...cache.pages.keys()], ['a.bin', 'b.bin'], 'a session gone reserves nothing')
+  assert.deepEqual(held(cache, urls), ['a.bin', 'b.bin'], 'a session gone reserves nothing')
   cache.resize(12)
-  assert.deepEqual([...cache.pages.keys()], ['b.bin'])
+  assert.deepEqual(held(cache, urls), ['b.bin'])
 })
 
 test("the engine's tables come out of the kept cache's total, beside the manifest and the queue", async () => {
@@ -108,18 +113,14 @@ test("the engine's tables come out of the kept cache's total, beside the manifes
   const cache = createPageCache(manifestTableBytes(pages) + TRANSFER + 3 * 12)
   const streamer = open(pages, cache)
   await streamer.request(urls, { signal: streamer.signal })
-  streamer.retain(['a.bin'])
-  streamer.reserve(() => 20)
-  assert.deepEqual([...cache.pages.keys()], ['a.bin'], 'twenty bytes reserved leave room for one')
+  retained(streamer, urls)(['a.bin'])
+  streamer.reserve(20)
+  assert.deepEqual(held(cache, urls), ['a.bin'], 'twenty bytes reserved leave room for one')
   streamer.dispose()
 })
 
-test("a streamer's own cache leaves with it; a kept one stays, minus pages cooked again", async () => {
+test('a kept cache outlives its streamer, minus pages cooked again', async () => {
   const { pages } = await servedPages(['a.bin', 'b.bin'])
-  const own = open(pages, undefined as never)
-  await own.request(['a.bin'], { signal: own.signal })
-  own.dispose()
-  assert.equal(own.has('a.bin'), false)
   const kept = createPageCache()
   const first = open(pages, kept)
   await first.request(['a.bin', 'b.bin'], { signal: first.signal })

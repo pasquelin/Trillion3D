@@ -31,10 +31,7 @@ test('deferred resolve samples a shadowed list on a ranked image and walks every
   }
   // The blend pass shades its lights in full: a forward surface has no history to average.
   assert.equal(
-    occurrences(
-      wgslModule(declaredLightingWgsl({ proxy: 11, transmittance: 26 })),
-      'sampledSliceLighting',
-    ),
+    occurrences(wgslModule(declaredLightingWgsl({ transmittance: 26 })), 'sampledSliceLighting'),
     0,
   )
 })
@@ -91,10 +88,7 @@ test("one loop shades the lights of a pixel in full: its cell's list or the scen
   // over the scene beside them, the no-list fallback of the blend pass included.
   assert.equal(occurrences(DIRECT_LIGHTING_WGSL, 'declaredLight(directLights.items['), 1)
   assert.equal(
-    occurrences(
-      wgslModule(declaredLightingWgsl({ proxy: 11, transmittance: 26 })),
-      'declaredLight(',
-    ),
+    occurrences(wgslModule(declaredLightingWgsl({ transmittance: 26 })), 'declaredLight('),
     2,
   )
 })

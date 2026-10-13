@@ -3,12 +3,12 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 
 test('opaque materials are rendered before lighting into reusable GPU surface textures', async () => {
   installGpuGlobals()
-  const { device, passes } = mockGpu()
+  const { device, passes } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device)
   try {
     await backend.prepare()
@@ -35,7 +35,7 @@ test('opaque materials are rendered before lighting into reusable GPU surface te
 
 test('surface capture uses its own camera and leaves the main view untouched, without copying pixels to CPU', async () => {
   installGpuGlobals()
-  const { device, imageCopies } = mockGpu()
+  const { device, textureBufferCopies } = fakeDevice(BACKEND)
   const fixture = quadScene()
   const viewport: [number, number] = [32, 32]
   const backend = webgpuPagesEngine({
@@ -57,7 +57,7 @@ test('surface capture uses its own camera and leaves the main view untouched, wi
     other.lookAt(0, 0, 0)
     other.updateMatrixWorld()
     assert.equal(typeof backend.captureSurfaceView, 'function')
-    imageCopies.length = 0
+    textureBufferCopies.length = 0
     const surface = await backend.captureSurfaceView!(other, { width: 16, height: 16 })
     assert.equal(surface.version, 1)
     assert.deepEqual(surface.cameraWorld, [1, 0, 5])
@@ -65,7 +65,7 @@ test('surface capture uses its own camera and leaves the main view untouched, wi
     assert.equal(surface.selectedTriangles, 2)
     assert.deepEqual(viewport, [32, 32])
     assert.deepEqual(G.xyz(main.position), [0, 0, 5])
-    assert.equal(imageCopies.length, 0, 'secondary views must remain GPU textures')
+    assert.equal(textureBufferCopies.length, 0, 'secondary views must remain GPU textures')
     await assert.rejects(
       () => backend.captureSurfaceView!(other, { width: 16, height: 16 }),
       /SURFACE_CAPTURE_BUSY/,
@@ -82,7 +82,7 @@ test('surface capture uses its own camera and leaves the main view untouched, wi
 
 test('an explicit capture reads an unflushed image back, and an aborted surface capture leaves the main view intact', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device)
   try {
     await backend.prepare()
@@ -111,7 +111,7 @@ test('an explicit capture reads an unflushed image back, and an aborted surface 
 
 test('surface capture rejects missing pages and a device-limit failure keeps the main viewport', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const fixture = quadScene()
   const viewport: [number, number] = [32, 32]
   const backend = webgpuPagesEngine({

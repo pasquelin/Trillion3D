@@ -7,10 +7,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { importHostTexture } from '../../../../packages/sdk-browser/src/host/textureImport.ts'
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import {
-  createEngineCamera,
-  readCameraWorld,
-} from '../../../../packages/sdk-browser/src/camera/world.ts'
+import { createEngineCamera } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
+import { readCameraWorld } from '../../../../packages/sdk-browser/src/camera/world.ts'
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
 import { identityRoots } from '../../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
 import {

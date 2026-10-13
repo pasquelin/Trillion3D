@@ -57,9 +57,22 @@ function token(kind: Kind, value: number): string {
   return `${kind}:${value}`
 }
 
-/** The same value, as the Rust side matches it: the same kind and bits, or two NaN of one width. */
-function matches(expected: Value, actual: number): boolean {
-  return holds(expected.kind, actual) && Object.is(expected.value, actual)
+/** The same value, as the Rust side matches it: the same kind and bits, or two NaN of one width;
+ *  with `ulps`, an `f64` at most that many representable steps from the twin's. */
+function matches(expected: Value, actual: number, ulps = 0): boolean {
+  if (!holds(expected.kind, actual)) return false
+  if (Object.is(expected.value, actual)) return true
+  return ulps > 0 && expected.kind === 'f64' && ulpDistance(expected.value, actual) <= ulps
+}
+
+/** The representable `f64` steps between two finite numbers of one sign. */
+function ulpDistance(a: number, b: number): number {
+  if (!Number.isFinite(a) || !Number.isFinite(b) || Math.sign(a) !== Math.sign(b)) return Infinity
+  view.setFloat64(0, Math.abs(a))
+  const x = view.getBigUint64(0)
+  view.setFloat64(0, Math.abs(b))
+  const y = view.getBigUint64(0)
+  return Number(x > y ? x - y : y - x)
 }
 
 /** The package's reference values, beside its sources. */
@@ -100,12 +113,15 @@ export function eachGolden(
 /**
  * Asserts that `compute` returns, on the inputs of every case of section `name` of `file`, the
  * outputs the Rust twin wrote, bit for bit; it reads the input numbers and returns the output
- * numbers, none for an input the twin refuses. Every case that differs is listed at once.
+ * numbers, none for an input the twin refuses. Every case that differs is listed at once. A twin
+ * built on a function no platform rounds correctly (`pow`) is held to `ulps` steps instead: each
+ * platform's library rounds it its own way.
  */
 export function assertGolden(
   file: string,
   name: string,
   compute: (inputs: number[]) => ArrayLike<number>,
+  { ulps = 0 } = {},
 ) {
   const cases = goldenCases(file, name)
   assert.ok(cases.length > 0, `${file} ${name}: no case`)
@@ -113,7 +129,8 @@ export function assertGolden(
   for (const { inputs, outputs, line } of cases) {
     const actual = Array.from(compute(inputs.map((v) => v.value)))
     const same =
-      actual.length === outputs.length && outputs.every((value, k) => matches(value, actual[k]))
+      actual.length === outputs.length &&
+      outputs.every((value, k) => matches(value, actual[k], ulps))
     if (!same) {
       const kinds = outputs.length ? outputs.map((v) => v.kind) : actual.map((): Kind => 'f64')
       wrong.push(

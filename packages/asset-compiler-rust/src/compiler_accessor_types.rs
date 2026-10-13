@@ -8,31 +8,30 @@ pub(super) struct SparseAccessor<'a> {
     pub(super) values_bin: &'a [u8],
     pub(super) values_offset: usize,
 }
+/// The unsigned integer that a glTF index component (5121, 5123 or 5125) holds at the start of
+/// `bytes`, or `None` for another component or too few bytes: the one reading of those types.
+pub(super) fn index_value(component: usize, bytes: &[u8]) -> Option<u32> {
+    Some(match component {
+        5121 => u32::from(*bytes.first()?),
+        5123 => u32::from(u16::from_le_bytes(*bytes.first_chunk()?)),
+        5125 => u32::from_le_bytes(*bytes.first_chunk()?),
+        _ => return None,
+    })
+}
 impl SparseAccessor<'_> {
     pub(super) fn index(&self, offset: usize, count: usize) -> Result<usize> {
-        let index = match self.indices_component {
-            5121 => *self
-                .indices_bin
-                .get(self.indices_offset + offset)
-                .ok_or_else(|| invalid("Sparse index out of bounds"))? as usize,
-            5123 => {
-                let start = self.indices_offset + offset * 2;
-                let bytes = self
-                    .indices_bin
-                    .get(start..start + 2)
-                    .ok_or_else(|| invalid("Sparse index out of bounds"))?;
-                u16::from_le_bytes([bytes[0], bytes[1]]) as usize
-            }
-            5125 => {
-                let start = self.indices_offset + offset * 4;
-                let bytes = self
-                    .indices_bin
-                    .get(start..start + 4)
-                    .ok_or_else(|| invalid("Sparse index out of bounds"))?;
-                u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize
-            }
+        let width = match self.indices_component {
+            5121 => 1,
+            5123 => 2,
+            5125 => 4,
             _ => return Err(invalid("Unsupported sparse indices component")),
         };
+        let start = self.indices_offset + offset * width;
+        let index = self
+            .indices_bin
+            .get(start..start + width)
+            .and_then(|bytes| index_value(self.indices_component, bytes))
+            .ok_or_else(|| invalid("Sparse index out of bounds"))? as usize;
         if index >= count {
             return Err(CompilerError::new(
                 "INDEX_OUT_OF_BOUNDS",

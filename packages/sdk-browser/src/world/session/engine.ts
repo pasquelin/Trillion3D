@@ -1,23 +1,24 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
+import { RASTER_BACKGROUND } from '../../page/raster.ts'
 import { worldOrGeometryReader, type WorldRootsHold } from '../../scene/worldRoots.ts'
 import type { HostTexture } from '../../host/resources.ts'
-import { DEFAULT_CLEAR_COLOR, isCancelled, pixelRatioOf } from '../../engine/common.ts'
+import { isCancelled, pixelRatioOf } from '../../engine/common.ts'
 import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts'
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts'
 import { createTextureLevelReader } from '../../texture/levelReader.ts'
 import { resolveDiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { declareImportedLights, loadImportedLights } from '../../lighting/importedLights.ts'
 import type { EngineContext, EngineFactory, Engine } from '../../engine/types.ts'
-import type { createExplorerPageSources } from './pageSources.ts'
+import type { ExplorerPageSources } from './pageSources.ts'
 import type { ExplorerSession } from './session.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 type Inputs = {
   source: Object3D
   sceneLightingSource?: Object3D
-  associations: EngineContext['associations']
+  draws: EngineContext['draws']
   textureIndices: Map<HostTexture, number>
-  pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>
+  pageSources: ExplorerPageSources
   gpuDevice?: GPUDevice
   /** What builds the session's engine: the WebGPU page raster's factory. */
   factory: EngineFactory
@@ -64,13 +65,12 @@ function optionContext(session: ExplorerSession) {
     maxResidentPages: options.maxResidentPages,
     pixelError: options.pixelError ?? 0,
     lodAdaptive: options.lodAdaptive,
-    clearColor: options.clearColor ?? DEFAULT_CLEAR_COLOR,
+    clearColor: options.clearColor ?? RASTER_BACKGROUND,
     pixelRatio: () => pixelRatioOf(options),
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
     temporalAntialiasing: options.temporalAntialiasing,
     renderScale: options.renderScale,
-    unboundedReflections: options.reference === true,
     effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
     admitGpuMemory: options.admitGpuMemory,
@@ -97,11 +97,13 @@ function engineContext(
   inputs: Inputs,
   lights: Awaited<ReturnType<typeof sessionLights>>,
 ): EngineContext {
-  const { canvas, options, metadata, signal, diagnosticChannel, diagnose } = session
-  const { indices, streamer, cacheCap } = inputs.pageSources
+  const { canvas, metadata, signal, diagnosticChannel, diagnose } = session
+  const { indices, streamer, pageCache } = inputs.pageSources
   // The world roots the scene's own manifest opened ride the context; their pages are read through
   // the one geometry reader, built here once.
-  const worldRoots = inputs.worldRoots.find((hold) => hold.metadata === metadata)
+  // The cut draws one world DAG: the first a model of the scene holds, drawn (`WorldRootsHold.drawn`);
+  // its table names its primitives as the scene ranks them (`WorldRootsHold.rank`).
+  const worldRoots = inputs.worldRoots.find((hold) => hold.drawn)
   return {
     ...optionContext(session),
     source: inputs.source,
@@ -109,13 +111,14 @@ function engineContext(
     indices,
     // The session's reads: the engine's own signal when it has one, the session's life at least.
     readPage: (url) => streamer.read(url, streamer.signal),
-    readGeometryPage: worldOrGeometryReader(worldRoots, streamer.readBytes, streamer.signal),
+    admitPages: (pages) => streamer.admit(pages),
+    onContentRefused: session.options.onContentRefused,
+    readGeometryPage: worldOrGeometryReader(inputs.worldRoots, streamer.readBytes, streamer.signal),
     worldRoots,
     pageRoundTripMs: streamer.roundTripMs,
-    associations: inputs.associations,
+    draws: inputs.draws,
     textureIndices: inputs.textureIndices,
     signal,
-    maxCachedPages: cacheCap,
     onDiagnostic: diagnosticChannel.enabled ? diagnosticChannel.emit : undefined,
     preparationStep: (step) => diagnose('engine-preparation-step', step, { kind: 'preparation' }),
     diagnosticDetail: diagnosticChannel.detail,
@@ -123,16 +126,11 @@ function engineContext(
     gpuDevice: inputs.gpuDevice,
     gpuCanvas: canvas,
     sceneLighting: inputs.sceneLightingSource,
-    readSceneProxy: createSceneProxyReader(metadata.proxy, inputs.base, options.pageCache, signal),
+    readSceneProxy: createSceneProxyReader(metadata.proxy, inputs.base, pageCache, signal),
     // The reader exists as soon as the cache declares texture chains, whatever the loader read:
     // the engine reads the levels the compiler baked and regenerates none it could have read
-    // instead. Its levels are held beside the pages the streamer reads (`textureLevels`).
-    readTextureLevel: createTextureLevelReader(
-      metadata,
-      inputs.base,
-      streamer.textureLevels,
-      signal,
-    ),
+    // instead. Its levels are held among the pages the streamer reads, in their page cache.
+    readTextureLevel: createTextureLevelReader(metadata, inputs.base, pageCache, signal),
     ...lights,
     frameBudget: inputs.frameBudget,
   }
@@ -184,10 +182,10 @@ export async function prepareExplorerEngine(session: ExplorerSession, inputs: In
   await prepareEngine(session, engine)
   if (preload !== 'all') indices.clear()
   // The engine's host tables, which follow the view, and the world roots the models hold come out
-  // of the cached pages' CPU share.
+  // of the cached pages' CPU share: reserved once prepared, then as each frame says them.
   const roots = inputs.worldRoots
-  streamer.reserve(() =>
-    roots.reduce((bytes, held) => bytes + held.bytes(), engine.hostTableBytes()),
-  )
-  return { viewport: context.viewport!, context, engine }
+  const hostBytes = () =>
+    roots.reduce((bytes, held) => bytes + held.bytes(), engine.hostTableBytes())
+  streamer.reserve(hostBytes())
+  return { viewport: context.viewport!, context, engine, hostBytes }
 }

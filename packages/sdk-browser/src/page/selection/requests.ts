@@ -1,7 +1,9 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { adaptivePixelError } from '../../../../sdk-core/src/index.ts'
-import type { CameraMotion, EngineCamera } from '../../camera/world.ts'
+import type { CameraMotion } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { readCameraMotion } from '../../camera/motion.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 export function resolvePixelError(
   context: { pixelError?: number; lodAdaptive?: boolean },
@@ -21,11 +23,12 @@ export function resolvePixelError(
 export function pageRequestUrl<T extends { url: string; streamUrl?: string }>(rec: T) {
   return rec.streamUrl ?? rec.url
 }
-/** Number distinct request keys once and for all; returns their count. */
+/** Number distinct request keys once and for all; returns the rank of each key. A key already
+ *  ranked in `byKey` keeps its rank, a new one takes the next: records joining a catalogue later
+ *  (`addPlacements`) are ranked behind those it holds, on the table the open made. */
 export function indexPageRequests<
   T extends { url: string; streamUrl?: string; requestIndex?: number },
->(pages: readonly T[]) {
-  const byKey = new Map<string, number>()
+>(pages: readonly T[], byKey = new Map<string, number>()) {
   for (let i = 0; i < pages.length; i++) {
     const key = pageRequestUrl(pages[i])
     let rank = byKey.get(key)
@@ -35,7 +38,7 @@ export function indexPageRequests<
     }
     pages[i].requestIndex = rank
   }
-  return byKey.size
+  return byKey
 }
 /**
  * Deduplicate request keys without a hash table: one stamp per rank, reused from one
@@ -46,6 +49,10 @@ export class RequestStamps {
   private current = 0
   constructor(count: number) {
     this.stamps = new Int32Array(Math.max(0, count))
+  }
+  /** The table holds `count` ranks at least: the new ones unseen, the others as they were. */
+  grow(count: number) {
+    this.stamps = resized(this.stamps, count)
   }
   /** Open a pass: everything seen before is forgotten. */
   begin() {

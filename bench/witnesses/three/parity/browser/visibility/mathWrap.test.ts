@@ -9,12 +9,23 @@ import { importWrapMode } from '../../../../../../packages/sdk-browser/src/host/
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
-import { wrapTexel } from '../../../../../../packages/sdk-browser/src/visibility/math.ts'
+import { mapTexel } from '../../../../../../packages/sdk-browser/src/visibility/math.ts'
+import type { Texture, WrapMode } from '../../../../../../packages/sdk-core/src/index.ts'
 import { nearestTexel } from '../../../../../../tests/gpu/texture/addressingCases.ts'
 
 const CLAMP = THREE.ClampToEdgeWrapping,
   REPEAT = THREE.RepeatWrapping,
   MIRROR = THREE.MirroredRepeatWrapping
+/** The texel an axis reads: the engine's `mapTexel` on a one-row image, its other axis clamped. */
+const wrapTexel = (t: number, size: number, wrap: WrapMode) =>
+  mapTexel(
+    { width: size, height: 1 },
+    { wrapS: wrap, wrapT: 'clamp', flipY: false } as Texture,
+    t,
+    0,
+    false,
+  ) / 4
+
 /** The oracle keeps the host constant; the engine reads the word the import gives it. */
 const mode = (wrap: THREE.Wrapping) => importWrapMode(wrap)
 

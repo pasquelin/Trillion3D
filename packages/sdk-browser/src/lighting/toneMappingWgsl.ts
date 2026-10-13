@@ -1,7 +1,8 @@
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
-import { ACES, AGX, CINEON, NEUTRAL } from './toneCurveConstants.ts'
+import { ACES, AGX, CINEON, GAMMA, NEUTRAL } from './toneCurveConstants.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { linearToSrgb } from '../../../math/src/wgsl/color.ts'
 import { maxChannel, minChannel } from '../../../math/src/wgsl/sampling.ts'
 
 /** The filmic curve (ACES, its 0.6 exposure scale folded in), the default one. */
@@ -30,12 +31,12 @@ const R = TONE_MAPPING_RANK
  *   over [-12.47, 4.03] EV, the sixth-degree contrast fit, the outset, back to linear sRGB;
  * - `neutral` is a neutral operator, which keeps base colours below 0.76 as they are.
  */
-export const TONE_MAPPING_WGSL = wgslBlock(
+const TONE_MAPPING_WGSL = wgslBlock(
   'TONE_MAPPING_WGSL',
   [ACES_WGSL, maxChannel, minChannel],
   `fn cineonCurve(color:vec3f)->vec3f{
  let x=max(vec3f(0.0),color-${CINEON.offset});
- return pow(${CINEON.curve},vec3f(2.2));
+ return pow(${CINEON.curve},vec3f(${GAMMA}));
 }
 fn agxCurve(color:vec3f)->vec3f{
  let toWide=${AGX.toWide};
@@ -47,7 +48,7 @@ fn agxCurve(color:vec3f)->vec3f{
  c=clamp((log2(max(c,vec3f(1e-10)))-low)/(high-low),vec3f(0.0),vec3f(1.0));
  let c2=c*c;let c4=c2*c2;
  c=${AGX.contrast};
- c=pow(max(vec3f(0.0),outset*c),vec3f(2.2));
+ c=pow(max(vec3f(0.0),outset*c),vec3f(${GAMMA}));
  return clamp(toNarrow*c,vec3f(0.0),vec3f(1.0));
 }
 fn neutralCurve(color:vec3f)->vec3f{
@@ -70,4 +71,12 @@ fn toneMap(color:vec3f,curve:u32)->vec3f{
   default:{return aces(color);}
  }
 }`,
+)
+
+/** The display value of linear radiance `exposed` (its exposure applied by the caller): the scene's
+ *  curve, then the sRGB transfer. The one chain of every composition and of the display layers. */
+export const DISPLAY_VALUE_WGSL = wgslBlock(
+  'DISPLAY_VALUE_WGSL',
+  [TONE_MAPPING_WGSL, linearToSrgb],
+  'fn displayValue(exposed:vec3f,curve:u32)->vec3f{return linearToSrgb(toneMap(exposed,curve));}',
 )

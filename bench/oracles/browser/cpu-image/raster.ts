@@ -11,12 +11,12 @@ import {
 import {
   assertVisibilityPageTriangles,
   VIS_MAX_PAGES,
-  VIS_TRIANGLE_MASK,
   type VisPage,
 } from '../../../../packages/sdk-browser/src/visibility/types.ts'
+import { VIS_TRIANGLE_MASK } from '../../../../packages/sdk-browser/src/visibility/visWords.ts'
 import { packVisibilityId } from './ids.ts'
 import { cutout } from './cutout.ts'
-import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/world.ts'
+import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import {
   locationOf,
   type PageLocations,
@@ -110,9 +110,9 @@ export function rasterVisibility(
     // declares NOW.
     const mat = refreshSurface(page.material),
       side = surfaceSide(mat)
-    // A reflection reverses the walk direction on screen: the face to drop is the other one, as
+    // A mirrored transform reverses the walk direction on screen: the face to drop is the other one, as
     // `visBin` does for WebGPU pipelines and the witness library (`frontFaceCW`). Without this
-    // flip, this rasterizer drew under reflection exactly the faces that cone rejection
+    // flip, this rasterizer drew under a mirror exactly the faces that cone rejection
     // drops — and its own shading (`visibilityLighting`) already flipped the sign.
     const world = locationOf(locations, pageIndex).world,
       positiveArea = (side === 'back') !== matrixWindingCw(world.elements)

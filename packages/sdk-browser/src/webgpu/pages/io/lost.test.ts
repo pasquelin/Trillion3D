@@ -68,7 +68,7 @@ test('the device lost after an error of its own keeps both causes, said on the c
   const gpu = asWebgpuDevice({})
   claimWebgpuDevice(rt as never, gpu.device)
   gpu.raise('[Invalid Texture] is invalid due to a previous error.')
-  gpu.lose('unknown')
+  gpu.lose({ reason: 'unknown', message: 'unknown' })
   await gpu.device.lost
   await Promise.resolve()
   assert.equal(

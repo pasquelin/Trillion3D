@@ -23,9 +23,7 @@ export interface BenchSettings {
   height: number
   dpr: number
   port: number
-  stageProfile: boolean
   trace: boolean
-  profileFrames: number
   textureSource: 'cache' | 'host'
   textureUploadMs: number | null
   temporalAntialiasing: boolean
@@ -44,5 +42,4 @@ export interface BenchSettings {
   gazeNetwork: boolean
   instances: number
   isolation: boolean
-  mathPath: 'auto' | 'js' | 'wasm'
 }

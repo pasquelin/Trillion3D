@@ -2,6 +2,7 @@ import { COMPUTE_TAKES_WGSL, FINE_SPAN, LARGE_SPAN, TILE } from './contract.ts'
 import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
+import { DRAW_MASK_WGSL } from '../dag/shader/drawMaskWgsl.ts'
 
 /**
  * What a triangle decides before a pixel is named, and the only writing of that compute: binning
@@ -27,7 +28,7 @@ import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
  */
 export const RASTER_TRI_WGSL = wgslBlock(
   'RASTER_TRI_WGSL',
-  [edgeFunction, PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL, COMPUTE_TAKES_WGSL],
+  [edgeFunction, PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL, COMPUTE_TAKES_WGSL, DRAW_MASK_WGSL],
   `
 struct Clip{n:u32,p:array<vec4f,4>,u:array<vec3f,4>,}
 fn clipNear(pa:vec4f,pb:vec4f,pc:vec4f,ua:vec3f,ub:vec3f,uc:vec3f)->Clip{
@@ -65,7 +66,7 @@ struct Tri{ca:vec4f,cb:vec4f,cc:vec4f,cd:vec4f,
 fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  var t:Tri;t.ok=0u;t.row=pageIndex;t.triangle=triangle;t.quad=0u;
  let page=pages[pageIndex];
- if(uni.selectionEnabled!=0u&&selectionMask[uni.selectionOffset+page.selectionIndex]==0u){return t;}
+ if(uni.selectionEnabled!=0u&&!maskSelects(page.selectionIndex)){return t;}
  if(triangle*3u+2u>=page.indexCount){return t;}
  let h=pageHeaderFor(page,pageSurfaceRead(page));
  let corners=pageTriangle(page,h,triangle);let ia=corners.x;let ib=corners.y;let ic=corners.z;

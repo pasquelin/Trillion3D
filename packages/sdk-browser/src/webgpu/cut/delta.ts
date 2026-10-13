@@ -1,7 +1,7 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import type { HeldList } from './heldList.ts'
 import { applyHashed } from './hashedDifference.ts'
 import { applyClaimed } from './claimedDifference.ts'

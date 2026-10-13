@@ -2,8 +2,7 @@ import { MIB } from '../../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice, BACKEND } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, quadBackend } from '../testScenes.fixture.ts'
 import { setWebgpuMemoryBudgets } from './memory.ts'
 import { geometryPoolFor } from '../../../residency/pools.ts'
@@ -12,7 +11,7 @@ import { geometryPoolFor } from '../../../residency/pools.ts'
 // again and without losing the image: the report says what it actually holds.
 test('setMemoryBudgets sets the pools in session, brings them back by name, and the image continues', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   // Two 12-byte root pages: a one-page budget is raised to root coverage.
   const { fixture, backend } = quadBackend(device, {
     maxResidentPages: undefined,
@@ -51,8 +50,7 @@ test('setMemoryBudgets sets the pools in session, brings them back by name, and 
 })
 
 test('a setting above the scene is brought back to its pages, and the cache resized once', async () => {
-  const resized: number[] = [],
-    unpinned: number[] = []
+  const resized: number[] = []
   let resources = 0
   const setup = {
     cap: 4,
@@ -66,10 +64,6 @@ test('a setting above the scene is brought back to its pages, and the cache resi
         uniquePages: 4,
         rootPages: 1,
       }),
-    tracking: {
-      pageCatalogIds: new Map([['p', 7]]),
-      unmarkPinned: (k: number) => unpinned.push(k),
-    },
     get slots() {
       return this.geometryPool.slots
     },
@@ -90,7 +84,6 @@ test('a setting above the scene is brought back to its pages, and the cache resi
   const report = await setWebgpuMemoryBudgets(rt as never, { geometryPoolBytes: 800 })
   assert.deepEqual([report.geometryPool.clamp, report.geometryPool.slots], ['scene', 4])
   assert.deepEqual(resized, [4])
-  assert.deepEqual(unpinned, [7], 'the evicted page is unpinned on the trace side')
   assert.equal(report.evictedPages, 1)
   assert.deepEqual(report.residentPages, { before: 3, after: 3 })
   assert.equal(setup.slots, 4)
@@ -104,7 +97,7 @@ test('a setting above the scene is brought back to its pages, and the cache resi
 // catalogue —, the report says so with `null`, and prepare draws the pools at that budget.
 test('a texture budget set before prepare is kept and drawn by prepare, the report saying null', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device, { maxResidentPages: undefined })
   try {
     const early = await backend.setMemoryBudgets!({ texturePoolBytes: 1 })
@@ -140,7 +133,6 @@ test('a geometry pool the device refuses mid-session shrinks, and the session go
     geometryPool: geometryPoolFor({ budgetBytes: 8, pageBytes: 8, uniquePages: 100, rootPages: 1 }),
     geometryPoolFor: (budgetBytes: number) =>
       geometryPoolFor({ budgetBytes, pageBytes: 8, uniquePages: 100, rootPages: 1 }),
-    tracking: { pageCatalogIds: new Map(), unmarkPinned() {} },
     get slots() {
       return this.geometryPool.slots
     },

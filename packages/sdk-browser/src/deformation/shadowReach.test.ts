@@ -7,7 +7,7 @@ import { updateWebgpuDeformation } from './webgpuFrame.ts'
 import { growClusterBox } from '../webgpu/shadow/bounds.ts'
 import { packClusterSpheres } from '../webgpu/shadow/spheres.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 
 test('deformation refreshes only its caster rows and grows CPU/GPU light and occlusion bounds', () => {
@@ -34,7 +34,7 @@ test('deformation refreshes only its caster rows and grows CPU/GPU light and occ
   const { rt, changed } = deformationRuntime(world, frame, [root], {
     pageTableFloats: new Float32Array(64),
     packedCount: 2,
-    rowOfPage: [0],
+    rowOf: (page: number) => [0][page] ?? -1,
     packedPageIndex: [0, 1],
     markRowWords: (row: number) => dirty.push(row),
   })

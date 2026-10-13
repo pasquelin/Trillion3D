@@ -6,7 +6,6 @@
 // shades `LIGHT_SAMPLES` of them: `2·L + LIGHT_SAMPLES`.
 //
 //   node bench/runner/lighting/lightTileSampledCount.ts [--width 3456] [--height 2234]
-import { parseArgs } from 'node:util'
 import { directLightingWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
 import {
   shaderFunctions,
@@ -15,7 +14,7 @@ import {
 import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts'
 import { walkGrid } from './lightGridWalk.ts'
-import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts'
+import { ATRIUM_POSES, atriumCountArgs, atriumDepth, atriumLamps } from './lightTileAtrium.ts'
 import type { Light } from './lightTileCity.ts'
 import { wgslModule } from '../../../packages/math/src/wgsl/assemble.ts'
 
@@ -66,13 +65,7 @@ export function countSampled(
 }
 
 async function main() {
-  const { values } = parseArgs({
-    options: {
-      width: { type: 'string', default: '3456' },
-      height: { type: 'string', default: '2234' },
-    },
-  })
-  const [width, height] = [Number(values.width), Number(values.height)]
+  const { width, height } = atriumCountArgs({})
   const lights = atriumLamps(200, 4)
   const rows = ATRIUM_POSES.map((pose, index) => {
     const view = camera(pose.eye, pose.yaw, pose.pitch, 60, width, height)

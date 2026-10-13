@@ -8,8 +8,7 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../../page/surface.ts'
 import { askLobedPrograms } from './contractLight.ts'
-import { createDeferredLighting } from '../../../lighting/deferred/deferred.ts'
-import { recorder } from '../../../lighting/deferred/recorder.fixture.ts'
+import { lobelessLighting } from '../../../lighting/deferred/recorder.fixture.ts'
 import { createForwardVariants } from '../../../lighting/deferred/forwardVariants.ts'
 import { FULL_CONTRACT, variantLabel } from '../../../lighting/deferred/contractCuts.ts'
 import { pipelinesCompiling, pipelinesSettled } from '../../../lighting/deferred/compileLedger.ts'
@@ -43,12 +42,7 @@ const runtime = (parts: {
   }) as unknown as WebgpuPagesRuntime
 
 test('a row that wears a lobe holds the frame until the lobed resolve lands, then lights it', async () => {
-  const { device } = fakeDevice()
-  const lighting = await createDeferredLighting(device)
-  const { labels, draw } = recorder(lighting)
-  draw({ lobeless: true })
-  await lighting.settle()
-  draw({ lobeless: true })
+  const { device, lighting, labels, draw } = await lobelessLighting()
   assert.equal(pipelinesCompiling(device), false)
   // Lobeless rows ask nothing.
   askLobedPrograms(runtime({ deferred: lighting }), device)
@@ -59,7 +53,7 @@ test('a row that wears a lobe holds the frame until the lobed resolve lands, the
   assert.equal(pipelinesCompiling(device), false)
   // The frame the hold released is lit with the lobes, never unlit nor lobeless.
   assert.equal(draw({ lobeless: false }), true)
-  assert.deepEqual(labels, ['DIRECT_LOBELESS_LIGHTING', 'DIRECT_LIGHTING'])
+  assert.deepEqual(labels(), ['DIRECT_LOBELESS_LIGHTING', 'DIRECT_LIGHTING'])
   // Landed, the next frames ask nothing.
   askLobedPrograms(runtime({ deferred: lighting, rows: rowsOf(true) }), device)
   assert.equal(pipelinesCompiling(device), false)
@@ -100,7 +94,6 @@ test('a lobed transmissive item holds the frame until its lobed stage lands', as
     module,
     {} as never,
     true,
-    false,
     undefined,
     undefined,
     lobes,

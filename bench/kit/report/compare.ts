@@ -12,7 +12,7 @@ export function comparison(
 ) {
   if (!a || !b || a.id === b.id) return { status: 'choose', delta: null, percent: null } as const
   const reasons: string[] = []
-  if (!['engine', 'version', 'lightShadows', 'temporalAntialiasing', 'mathPath'].includes(variable))
+  if (!['engine', 'version', 'lightShadows', 'temporalAntialiasing'].includes(variable))
     reasons.push('settings')
   if (
     !a.provenance?.machine?.id ||
@@ -38,7 +38,6 @@ export function comparison(
   for (const key of conditions) {
     if (a[key] == null || b[key] == null || !equal(a[key], b[key])) reasons.push(key)
   }
-  if (!a.data.errorMetric || a.data.errorMetric !== b.data.errorMetric) reasons.push('errorMetric')
   if (!a.buildHash || !b.buildHash || (variable !== 'version' && a.buildHash !== b.buildHash))
     reasons.push('version')
   if (!equal(a.variant, b.variant)) reasons.push('settings')

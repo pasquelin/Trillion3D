@@ -17,8 +17,7 @@ import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import { VOLUME_LAW_WGSL, volumeAttenuation } from './volumeLaw.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
-const f = Math.fround,
-  LOG2E = f(Math.LOG2E)
+const LOG2E = Math.fround(Math.LOG2E)
 const ulp = (x: number) => {
   const word = new Float32Array([Math.abs(x)]),
     bits = new Uint32Array(word.buffer)
@@ -29,24 +28,26 @@ const ulp = (x: number) => {
 const error = (value: number, exact: number) => Math.abs(value - exact) / ulp(exact)
 const random = lcgRandom(1563)
 /** The best f32 `pow(x, y)` WGSL allows: exp2(y·log2 x), each correctly rounded. */
-const pow = (x: number, y: number) => f(2 ** f(y * f(Math.log2(x))))
+const pow = (x: number, y: number) => Math.fround(2 ** Math.fround(y * Math.fround(Math.log2(x))))
 
 test('the water attenuation from its f64 constant is closer to c^(x / d) than the per-pixel log and exp', () => {
   const develop = (c: number, d: number, x: number) => {
-    const sigma = f(-f(Math.log(f(clamp(c, f(1e-5), 1)))) / d)
-    return f(2 ** f(f(-sigma * x) * LOG2E))
+    const sigma = Math.fround(
+      -Math.fround(Math.log(Math.fround(clamp(c, Math.fround(1e-5), 1)))) / d,
+    )
+    return Math.fround(2 ** Math.fround(Math.fround(-sigma * x) * LOG2E))
   }
   const k = [0, 0, 0]
   const shipped = (c: number, d: number, x: number) =>
-    f(2 ** f(f(volumeAttenuation([c, c, c], d, k)[0]) * x))
+    Math.fround(2 ** Math.fround(Math.fround(volumeAttenuation([c, c, c], d, k)[0]) * x))
   let worstDevelop = 0,
     worstShipped = 0,
     closer = 0,
     further = 0
   for (let i = 0; i < 400_000; i++) {
-    const c = f(1e-5 + random() * (1 - 1e-5)),
-      d = f(10 ** (random() * 4 - 2)),
-      x = f(random() * 4 * d)
+    const c = Math.fround(1e-5 + random() * (1 - 1e-5)),
+      d = Math.fround(10 ** (random() * 4 - 2)),
+      x = Math.fround(random() * 4 * d)
     const exact = c ** (x / d)
     if (exact < 1e-30) continue
     const [a, b] = [error(develop(c, d, x), exact), error(shipped(c, d, x), exact)]
@@ -66,24 +67,27 @@ test('f0, 1 / ior and the fifth power come within ULPs of their exact values', (
     etaShipped = 0
   for (let i = 0; i < 200_000; i++) {
     const ior = 1 + random() * 2,
-      stored = f(ior)
+      stored = Math.fround(ior)
     const r = (ior - 1) / (ior + 1)
-    f0Develop = Math.max(f0Develop, error(pow(f(f(stored - 1) / f(stored + 1)), 2), r * r))
-    f0Shipped = Math.max(f0Shipped, error(f(r * r), r * r))
-    etaDevelop = Math.max(etaDevelop, error(f(1 / stored), 1 / ior))
-    etaShipped = Math.max(etaShipped, error(f(1 / ior), 1 / ior))
+    f0Develop = Math.max(
+      f0Develop,
+      error(pow(Math.fround(Math.fround(stored - 1) / Math.fround(stored + 1)), 2), r * r),
+    )
+    f0Shipped = Math.max(f0Shipped, error(Math.fround(r * r), r * r))
+    etaDevelop = Math.max(etaDevelop, error(Math.fround(1 / stored), 1 / ior))
+    etaShipped = Math.max(etaShipped, error(Math.fround(1 / ior), 1 / ior))
   }
   assert.ok(f0Shipped <= 0.5 && f0Develop > 4, `f0 ${f0Shipped} against ${f0Develop} ULP`)
   assert.ok(etaShipped <= 0.5 && etaDevelop > 0.5, `1 / ior ${etaShipped} against ${etaDevelop}`)
   let fifthDevelop = 0,
     fifthShipped = 0
   for (let i = 0; i < 400_000; i++) {
-    const x = f(i < 200_000 ? random() : 1 - random() * 1e-3),
+    const x = Math.fround(i < 200_000 ? random() : 1 - random() * 1e-3),
       exact = x ** 5
     if (exact < 1e-30) continue
-    const x2 = f(x * x)
+    const x2 = Math.fround(x * x)
     fifthDevelop = Math.max(fifthDevelop, error(pow(x, 5), exact))
-    fifthShipped = Math.max(fifthShipped, error(f(f(x2 * x2) * x), exact))
+    fifthShipped = Math.max(fifthShipped, error(Math.fround(Math.fround(x2 * x2) * x), exact))
   }
   assert.ok(fifthShipped < 3 && fifthDevelop > 20, `x⁵ ${fifthShipped} against ${fifthDevelop}`)
 })
@@ -98,20 +102,24 @@ test('a black volume transmits nothing past a zero path, in the water and in its
   assert.deepEqual(volumeAttenuation([0, 0.5, 1], 0), [0, 0, 0], 'no volume')
   assert.deepEqual(volumeAttenuation([0.5, 0.5, 0.5], Infinity), [-0, -0, -0], 'no absorption')
   for (const path of [1e-12, 0.01, 3, 1e5]) {
-    assert.deepEqual(volumeTransmittance(k.map(f), path).slice(0, 1), [0], `water, ${path}`)
+    assert.deepEqual(
+      volumeTransmittance(k.map(Math.fround), path).slice(0, 1),
+      [0],
+      `water, ${path}`,
+    )
     assert.deepEqual(volumeTransmittanceOf([0, 0.5, 2], 3, path)[0], 0, `shadow, ${path}`)
   }
-  assert.deepEqual(volumeTransmittance(k.map(f), 0), [1, 1, 1])
+  assert.deepEqual(volumeTransmittance(k.map(Math.fround), 0), [1, 1, 1])
   assert.deepEqual(volumeTransmittanceOf([0, 0.5, 2], 3, 0), [1, 1, 1])
   // Develop's water at a twentieth of the distance: 10⁻⁵ to the 1/20 lets through more than half.
-  assert.ok(f(1e-5) ** (1 / 20) > 0.5)
+  assert.ok(Math.fround(1e-5) ** (1 / 20) > 0.5)
   // Any other colour: the shadow's power as it stood, pow(c, x / d).
   for (let i = 0; i < 10_000; i++) {
-    const c = [random(), random(), random()].map(f),
-      d = f(0.01 + random() * 10),
-      x = f(random() * 4 * d)
+    const c = [random(), random(), random()].map(Math.fround),
+      d = Math.fround(0.01 + random() * 10),
+      x = Math.fround(random() * 4 * d)
     const shipped = volumeTransmittanceOf(c, d, x)
-    c.forEach((v, j) => assert.ok(Object.is(shipped[j], f(v ** f(x / d)))))
+    c.forEach((v, j) => assert.ok(Object.is(shipped[j], Math.fround(v ** Math.fround(x / d)))))
   }
 })
 

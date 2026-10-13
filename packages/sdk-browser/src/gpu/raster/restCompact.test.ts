@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createGpuRestCompact } from './restCompact.ts'
 import { REST_COMPACT_SHADER } from './restCompactWgsl.ts'
-import { VIS_SHADER } from '../../visibility/buffer.ts'
+import { VIS_SHADER } from '../../visibility/shader/visWgsl.ts'
 import { BASE_SLOTS } from '../draw/draw.ts'
 import { HIZ_REJECTED_WGSL, VERDICT_REJECTED } from '../partition/contract.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -40,10 +40,14 @@ test('compaction scatters the survivors from a copy and only rewrites the instan
 })
 
 // Behaviour 2b: a tile past its slot's count leaves at once, from uniform control flow (the count
-// is broadcast by \`workgroupUniformLoad\`), so its lanes run no scan; tile 0 still records it.
+// is broadcast by \`workgroupUniformLoad\`), so its lanes run no scan; the scan, which always runs,
+// records the count.
 test('a tile past its slot count runs no scan', () => {
   assert.match(REST_COMPACT_SHADER, /return workgroupUniformLoad\(&slotCount\);/)
-  assert.match(REST_COMPACT_SHADER, /if\(t>0u&&t\*64u>=count\)\{return;\}/)
+  const count = REST_COMPACT_SHADER.slice(REST_COMPACT_SHADER.indexOf('fn restCount'))
+  assert.ok(count.indexOf('if(t*64u>=count){return;}') < count.indexOf('atomicAdd('))
+  const scan = REST_COMPACT_SHADER.slice(REST_COMPACT_SHADER.indexOf('fn restScan'))
+  assert.ok(scan.indexOf('work[countWord(n)]=count') < scan.indexOf('laneScan('))
   const scatter = REST_COMPACT_SHADER.slice(REST_COMPACT_SHADER.indexOf('fn restScatter'))
   assert.ok(scatter.indexOf('if(t*64u>=count){return;}') < scatter.indexOf('laneScan('))
 })
@@ -58,40 +62,32 @@ test('visited slots are those of the tested half', () => {
   )
 })
 
-// Behaviour 4: without compute there is no compaction and the frame keeps the previous path.
-test('a device without compute does not mount compaction', async () => {
-  const buffer = {} as GPUBuffer
-  const { device } = fakeDevice({ compute: false })
-  const made = await createGpuRestCompact(device, {
-    instances: buffer,
-    indirect: buffer,
-    slotOffsets: buffer,
-    flags: buffer,
-  })
-  assert.equal(made, undefined)
-})
-
-// Behaviour 5: a slot of more tiles than one dimension of a dispatch holds runs them in rows up
-// y (`dispatchGrid`), the slot up z; the shipped flat rank ranks every in-range group's tile
-// once, a single row's as x did, and the groups past the tiles leave.
+// Behaviour 5: the count and scatter dispatches are sized on the GPU by the partition's tested
+// rows (`restArgs`, indirect), never by the rows the table holds; a slot of more tiles than one
+// dimension of a dispatch holds runs them in rows up y (`dispatchGrid`), the slot up z; the
+// shipped flat rank ranks every in-range group's tile once, a single row's as x did, and the
+// groups past the tiles leave.
 test('tiles past one dimension of a dispatch run in rows up y, each tile ranked once', async () => {
   const buffer = { size: 4 * 64 } as GPUBuffer
   const { device } = fakeDevice()
   const made = (await createGpuRestCompact(device, {
+    state: buffer,
+    perRow: 4,
     instances: buffer,
     indirect: buffer,
     slotOffsets: buffer,
     flags: buffer,
   }))!
   const tiles = 65_537,
-    calls: number[][] = []
+    calls: unknown[][] = []
   const pass = {
     setBindGroup() {},
     setPipeline() {},
     dispatchWorkgroups: (...xyz: number[]) => void calls.push(xyz),
+    dispatchWorkgroupsIndirect: (_: GPUBuffer, at: number) => void calls.push(['indirect', at]),
   } as unknown as GPUComputePassEncoder
   assert.ok(made.encode({ pass } as OpenPass, 3, tiles * 64, buffer))
-  assert.deepEqual(calls, [[65_535, 2, 3], [1], [65_535, 2, 3]])
+  assert.deepEqual(calls, [[1], ['indirect', 0], [1], ['indirect', 0]])
   const { flatIndex } = shaderRun<{
     flatIndex: (wg: number[], n: number[], lanes: number) => number
   }>(REST_COMPACT_SHADER, ['flatIndex'], {})

@@ -1,16 +1,18 @@
+import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { existsSync, readFileSync } from 'node:fs'
 import type { BenchReport } from '../merge.ts'
 import { floorOf } from './floor.ts'
 import { frameOf, modelRows, modelText } from './modelTable.ts'
-import { PASSES, type Frame } from './passes.ts'
-import { DAG_FIXED_DISPATCHES, DAG_LEVEL_DISPATCHES } from './passConstants.ts'
+import { PASSES } from './passes.ts'
+import { DAG_FIXED_DISPATCHES, DAG_LEVEL_DISPATCHES, type Frame } from './passConstants.ts'
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts'
 import {
   cutResources,
   witnessEncoder,
 } from '../../../packages/sdk-browser/src/gpu/dag/encode.fixture.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
 // 400 GB/s of memory, 500 Gtexel/s, 400 GB/s of attachment (50 Gpixel/s), 4 Gtriangle/s, 0.01 ms a pass.
 const MACHINE = {
@@ -30,7 +32,7 @@ const frame: Frame = {
   N: 1e3,
   L: 1,
   reach: 1,
-  rough: 0,
+  reflecting: 0,
 }
 const pass = (label: string) => PASSES.find((p) => p.label === label)!
 
@@ -48,12 +50,19 @@ test('the passes count their shipped constants', () => {
   const taa = pass('temporal antialiasing').work(frame)
   assert.equal(taa.texels! / frame.D, 30)
   assert.equal(taa.bytes, 48 * frame.D + 17 * frame.P)
-  // One sun: one ray of nine samples, two fetches each, plus the screen ray's five.
+  // One sun: one ray of nine samples, two fetches each, plus the screen ray's march of eight.
   const vsm = pass('vsm.projection').work(frame)
-  assert.equal(vsm.texels, frame.P * (5 + 9 * 2))
+  assert.equal(vsm.texels, frame.P * (8 + 9 * 2))
   // Four lights fill one mask layer, five two.
   assert.equal(pass('vsm.projection').work({ ...frame, L: 5 }).bytes, 21 * frame.P + 8 * frame.P)
   assert.equal(pass('visibility primary').work(frame).triangles, frame.T)
+  // A reflecting pixel marches 16 iterations of three texels, and loads four plus four at its hit.
+  const marched = (reflecting: number) => pass('reflections').work({ ...frame, reflecting }).texels!
+  assert.equal((marched(1) - marched(0)) / frame.P, 4 + 16 * 3 + 4)
+  assert.equal(pass('reflections').work({ ...frame, reflecting: 1 }).filtered, 4 * frame.P)
+  // The radiance pyramid reads the lit image once and writes it, and a third of it again.
+  const radiance = pass('reflection radiance').work(frame)
+  assert.ok(Math.abs(radiance.bytes! / (8 * frame.P) - (2 + 1 / 3)) < 0.01)
 })
 
 const report = {
@@ -80,7 +89,7 @@ const report = {
 } as unknown as BenchReport
 
 test('a measured frame ranks its passes by the milliseconds above their floor', () => {
-  const f = frameOf(report, { cover: 1, reach: 1, rough: 0, placements: 1e3 })
+  const f = frameOf(report, { cover: 1, reach: 1, reflecting: 0, placements: 1e3 })
   assert.deepEqual(f, frame)
   const model = modelRows(report, f, MACHINE)
   assert.deepEqual(
@@ -93,11 +102,10 @@ test('a measured frame ranks its passes by the milliseconds above their floor', 
 })
 
 test('every source a pass cites holds its symbol, and its formula the bytes its work counts', () => {
-  const root = new URL('../../../', import.meta.url)
   const missing = PASSES.flatMap((p) =>
     p.sources
       .filter(({ path, symbol }) => {
-        const file = new URL(path, root)
+        const file = join(REPOSITORY_ROOT, path)
         if (!existsSync(file)) return true
         const text = readFileSync(file, 'utf8')
         return path.endsWith('.md')
@@ -113,10 +121,11 @@ test('every source a pass cites holds its symbol, and its formula the bytes its 
   assert.ok(dag.formula.includes(`${perRow} B`), `${dag.formula} counts ${perRow} B a row`)
 })
 
-test('the selection’s dispatches are the encoder’s: nine, and two a level', () => {
+test('the selection’s dispatches are the encoder’s: ten, and two a level', () => {
   for (const levels of [2, 3, 4, 5]) {
-    const { encoder, dispatches, armements } = witnessEncoder()
-    encodeDagKernels(encoder as never, cutResources(levels) as never)
+    const witness = witnessEncoder()
+    encodeDagKernels(witness.encoder as never, cutResources(levels) as never)
+    const { dispatches, armements } = witness.read()
     assert.equal(
       dispatches.length + armements.length,
       DAG_FIXED_DISPATCHES + DAG_LEVEL_DISPATCHES * levels,

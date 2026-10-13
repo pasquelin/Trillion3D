@@ -10,12 +10,14 @@
 // max ≤ pixelError + 0.1 px, forward and reverse. The scene is a compiled cache under the assets
 // folder (`TRILLION3D_ASSETS`, `.measure/assets` by default); one row per view is printed and the
 // whole run written to `<out>/<scene>.json`.
-import { execFileSync } from 'node:child_process'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { onFreshPage } from '../harness/chrome.ts'
 import { readBounds } from '../harness/page.ts'
-import { ENGINES, parseArgs, resolveMounts, resolveSides, sdkEntryUrl } from '../harness/options.ts'
+import { ENGINES } from '../harness/sideOptions.ts'
+import { parseArgs } from '../harness/flags.ts'
+import { resolveMounts } from '../harness/options.ts'
+import { resolveSides, sdkEntryUrl } from '../harness/dists.ts'
 import { sceneDerived } from '../assets/scene.ts'
 import {
   auditPoses,
@@ -30,8 +32,9 @@ import { screenErrorPass } from './screenErrorVerdict.ts'
 import type { HoldOptions } from './screenErrorPage.ts'
 import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts'
 import { buildTriangleTree } from '../../../packages/sdk-core/src/collision/triangleTree.ts'
+import { REPOSITORY_ROOT, readJson } from '../../../scripts/repository-files.ts'
+import { git } from '../../../scripts/git-paths.ts'
 
-const ROOT = resolve(import.meta.dirname, '../../..')
 const [WIDTH, HEIGHT, DPR] = [1728, 1117, 2]
 const PAGE = '/runner/screenError/screenErrorPage.ts'
 
@@ -41,17 +44,20 @@ const scene = flags.get('scene'),
 if (!scene || !set || !POSE_SETS.includes(set))
   throw new Error('usage: screenError.ts --scene <name> --poses bench|orbit|terrain')
 const thresholds = (flags.get('pixel-errors') ?? '0,1').split(',').map(Number)
-const out = resolve(flags.get('out') ?? join(ROOT, '.mesure/out/959'))
+const out = resolve(flags.get('out') ?? join(REPOSITORY_ROOT, '.mesure/out/959'))
 mkdirSync(out, { recursive: true })
 
-const sides = resolveSides({ root: ROOT })
+const sides = resolveSides({ root: REPOSITORY_ROOT })
 const sdkUrl = sdkEntryUrl(sides[0])
 const full = join(sceneDerived(scene), 'native/full')
 const manifestUrl = `/benchmark-assets/${scene}-derived/native/full/manifest.json`
 const { triangles: source, twoSided, drawn: clusterTriangles } = await cacheSurfaces(full),
   sourceTree = buildTriangleTree(source)
 const captures = new Map<string, Capture>()
-const { server, port } = await startServer({ captures, mounts: resolveMounts(ROOT, sides) })
+const { server, port } = await startServer({
+  captures,
+  mounts: resolveMounts(REPOSITORY_ROOT, sides),
+})
 
 /** Runs `work` on a fresh page of a fresh Chrome (`onFreshPage`), with the page's errors. */
 async function onPage<T>(work: (page: import('playwright').Page) => Promise<T>) {
@@ -144,8 +150,8 @@ try {
 } finally {
   await new Promise((done) => server.close(done))
 }
-const commit = execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
-const cache = JSON.parse(readFileSync(join(full, 'manifest.json'), 'utf8')).key
+const commit = git(REPOSITORY_ROOT, 'rev-parse', 'HEAD')
+const cache = readJson(join(full, 'manifest.json')).key
 const report = { scene, poses: set, width: WIDTH, height: HEIGHT, dpr: DPR, commit, cache, rows }
 writeFileSync(join(out, `${scene}.json`), JSON.stringify(report, null, 1))
 if (rows.length === 0 || rows.some((row) => !row.pass)) process.exitCode = 1

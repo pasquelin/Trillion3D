@@ -1,10 +1,14 @@
 import { createWebgpuRowJournal } from './journal.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { pageAddress } from './pageSlots.ts'
 import { flatInstances, type PackedInstances } from './instances.ts'
 import { createDirtyRows } from './dirty.ts'
-import { growRowState, widened } from './grow.ts'
+import { growRowState } from './grow.ts'
+import { createRowPageState } from './pageState.ts'
+/** The page-table rows a session holds (`createWebgpuRowState`). */
+export type WebgpuRowState = ReturnType<typeof createWebgpuRowState>
+
 /**
  * Stable row and residency arrays shared by the cut, visibility pass, and cache journal.
  *
@@ -37,7 +41,8 @@ export function createWebgpuRowState(
     /** A record's packed ranks all share its pool address: the address's first rank names it. A
      *  caller that needs ONE instance's rank uses the packed list the cut publishes, never this. */
     pageIndexOf: (rec: PageRec) => instances.first(pageAddress(rec)),
-    ...rowArrays(packedPages.length, drawSlots, casterSlots),
+    ...createRowPageState(createPageCatalogue(packedPages).recordOf, () => packedPages.length),
+    ...rowArrays(drawSlots, casterSlots),
     ...rowCounters(),
     /** Declares rows `[from, to]` dirty — one row by default —; `clearDirty` once all are sent. */
     markRowDirty: dirtyRows.mark,
@@ -45,20 +50,16 @@ export function createWebgpuRowState(
     markRowWords: dirtyRows.markWords,
     /** Packed page `page`'s readiness moved: its row, if it has one, is written again. */
     markRowOfPage: (page: number) => {
-      const row = state.rowOfPage[page]
+      const row = state.rowOf(page)
       if (row >= 0) dirtyRows.markWords(row)
     },
     clearDirty: dirtyRows.clear,
-    get dirtyMarks() {
-      return dirtyRows.marks
+    /** How many rows are dirty. */
+    get dirtyCount() {
+      return dirtyRows.count
     },
-    /** First and last dirty rows: the span that bounds every mark. */
-    get dirtyFrom() {
-      return dirtyRows.span.from
-    },
-    get dirtyTo() {
-      return dirtyRows.span.to
-    },
+    /** The runs of neighbouring dirty rows, in order, the rows past `last` left out. */
+    forEachDirtyRun: dirtyRows.forEachRun,
     /** Row writes since the table was made (`rowsMoved`). */
     get rowWrites() {
       return dirtyRows.writes
@@ -75,19 +76,14 @@ export function createWebgpuRowState(
   return state
 }
 
-/** The per-page arrays, over `pages` catalogue pages, and the per-row ones, over `drawSlots`
- *  visibility rows and `casterSlots` rows in all. */
-function rowArrays(pages: number, drawSlots: number, casterSlots: number) {
+/** The per-row arrays, over `drawSlots` visibility rows and `casterSlots` rows in all: nothing per
+ *  page (`pageState.ts`). */
+function rowArrays(drawSlots: number, casterSlots: number) {
   return {
-    /** Per catalogue page, the shadow-only row a blended cluster casts from, or -1. */
-    blendRowOf: new Int32Array(pages).fill(-1),
-    residentFlags: new Uint32Array(pages),
-    residentOffsetWords: new Int32Array(pages).fill(-1),
     rowPageIndex: new Int32Array(drawSlots).fill(-1),
     rowOffsetWords: new Int32Array(drawSlots).fill(-1),
     rowEpoch: new Int32Array(drawSlots),
     packedPageIndex: new Int32Array(casterSlots),
-    rowOfPage: new Int32Array(pages).fill(-1),
     packedRecs: new Array<PageRec | undefined>(casterSlots).fill(undefined),
   }
 }
@@ -97,6 +93,9 @@ function rowCounters() {
   return {
     rowCount: 0,
     tableEpoch: 1,
+    /** How many writes of material values the session took (`refreshWebgpuMaterials`): what the
+     *  blends' records reread with each (`../blend/resources.ts`). */
+    materialEpoch: 0,
     rowsEpoch: 0,
     candidateCount: 0,
     /**
@@ -116,24 +115,12 @@ function rowCounters() {
 
 /**
  * `packedPages` grew from `first` on (`../../placement/webgpuGrowth.ts`): `instances` indexes the
- * new roots, and the per-page arrays take the new pages, each with the pool slot the page at its
- * address holds — no residency flag and no row yet —, each named to the journal so the row cache
- * serves it as any arrival.
+ * new roots, and each new page — reading the pool slot its address holds, no residency flag and no
+ * row yet (`pageState.ts`) — is named to the journal so the row cache serves it as any arrival.
  */
 function addRowPages(state: RowState, packedPages: PageList, first: number) {
-  const { instances } = state
-  instances.add()
-  const n = packedPages.length,
-    { recordOf } = createPageCatalogue(packedPages)
-  state.residentFlags = widened(state.residentFlags, new Uint32Array(n), 0)
-  state.residentOffsetWords = widened(state.residentOffsetWords, new Int32Array(n), -1)
-  state.rowOfPage = widened(state.rowOfPage, new Int32Array(n), -1)
-  state.blendRowOf = widened(state.blendRowOf, new Int32Array(n), -1)
-  for (let page = first; page < n; page++) {
-    const sibling = instances.first(pageAddress(recordOf(page)!))!
-    state.residentOffsetWords[page] = state.residentOffsetWords[sibling]
-    state.touchPage(page)
-  }
+  state.instances.add()
+  for (let page = first; page < packedPages.length; page++) state.touchPage(page)
 }
 
 type RowState = ReturnType<typeof createWebgpuRowState>

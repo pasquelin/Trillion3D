@@ -1,13 +1,12 @@
 import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
 import type { Row } from '../report/types.ts'
+import { mib } from '../../dawn/reportText.ts'
 
 export const go = (b: number | null | undefined) =>
   typeof b === 'number' ? `${(b / 1e9).toFixed(3)} GB` : 'unmeasured'
 export const mo = (b: number | null | undefined) =>
   typeof b === 'number' ? `${(b / 1e6).toFixed(1)} MB` : 'unmeasured'
 const n = (v: number | null | undefined) => (typeof v === 'number' ? String(v) : 'unmeasured')
-/** MiB, the unit the live texture pool option takes, so a printed budget can be asked again as is. */
-const mib = (b: number) => (b / 1024 / 1024).toFixed(2)
 const n2 = (v: number | null | undefined) => (typeof v === 'number' ? v.toFixed(2) : 'unmeasured')
 
 /**
@@ -27,10 +26,6 @@ export function textures(
         .map(([kind, bytes]) => `${kind} ${go(bytes)}`)
         .join(', ')
     : 'unmeasured'
-  const preparation =
-    typeof row.preparationMs === 'number'
-      ? `${(row.preparationMs / 1000).toFixed(2)} s`
-      : 'unmeasured'
   return [
     `- Textures: pool ${go(m.texturePoolBytes)} computed in ${m.texturePoolFormat ?? 'unmeasured'}, ` +
       `${n(m.texturePoolLayers)} layer(s) over both atlases; resident ${go(m.textureResidentBytes)} in ` +
@@ -44,14 +39,14 @@ export function textures(
       `baked levels ${n(m.textureLevelReads)} in read, ${n(m.textureLevelsDecoded)} decoded, ` +
       `${mo(m.textureLevelCacheBytes)} held; ${n(m.textureScratchBuilds)} scratch textures`,
     ...liveTexturePool(row),
-    `- Prepare ${preparation}; network since prepare: ${network}`,
+    `- Network since the page opened: ${network}`,
     '',
   ]
 }
 
 /** The texture pool set in session, and what setting it cost; nothing when none was set (a live
  *  geometry pool alone still reports the texture pool in place). The eviction and upload time the
- *  moving series then spends is the streamer's passes above. */
+ *  moving series then spends is the streamer's counters above. */
 function liveTexturePool({ liveTuning: setting }: Partial<Row>) {
   const pool = setting?.texturePool
   if (!setting || !pool || setting.texturePoolAskedBytes === undefined) return []
@@ -60,7 +55,7 @@ function liveTexturePool({ liveTuning: setting }: Partial<Row>) {
       ? ''
       : ` (from ${mo(setting.residentTextureBytes)} resident)`
   return [
-    `- Texture pool set live: ${mo(setting.texturePoolAskedBytes)} (${mib(setting.texturePoolAskedBytes)} MiB) asked${fromResident}, ${mo(pool.allocatedBytes)} ` +
+    `- Texture pool set live: ${mo(setting.texturePoolAskedBytes)} (${mib(setting.texturePoolAskedBytes, 2)} MiB) asked${fromResident}, ${mo(pool.allocatedBytes)} ` +
       `held${pool.clamp ? ` (${pool.clamp})` : ''}; ${setting.evictedTiles} tiles evicted in ` +
       `${n2(setting.durationMs)} ms, pose held again after ${n(setting.recoveryFrames)} frames`,
   ]

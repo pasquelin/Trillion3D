@@ -1,28 +1,17 @@
 import { evictResident } from './commit.ts'
 import { heldHomes } from './homes.ts'
-import { resizeGpuPages } from './resize.ts'
+import { resizeGpuPages, type GrownPages } from './resize.ts'
 import type { GpuPageContext } from './types.ts'
 
 /** Changes the pool size behind the loads in flight (`createGpuPageCache`, `resize`). */
-export function resizeBehind(context: GpuPageContext, slots: number) {
+export function resizeBehind(context: GpuPageContext, slots: number, grown?: GrownPages) {
   const { state } = context
   const operation = state.pending.then(() => {
     context.check()
-    return resizeGpuPages(context, slots)
+    return resizeGpuPages(context, slots, grown)
   })
   state.pending = operation.catch(() => {})
   return operation
-}
-
-/** Moves the pending residency changes into the caller's arrays, then empties the log. */
-export function drainResidencyChanges(context: GpuPageContext, keys: string[], slots: number[]) {
-  const { changeKeys, changeSlots } = context
-  for (let i = 0; i < changeKeys.length; i++) {
-    keys.push(changeKeys[i])
-    slots.push(changeSlots[i])
-  }
-  changeKeys.length = 0
-  changeSlots.length = 0
 }
 
 /** Evicts `key` unless it is absent or pinned; true when it left. */
@@ -37,7 +26,7 @@ export function unloadPage(context: GpuPageContext, key: string) {
     }))
     return false
   }
-  if (context.pins.has(key)) {
+  if (context.eviction.isPinned(key)) {
     emit?.('gpu-page-unload-refused', 'GPU unload refused', () => ({
       version: 1,
       key,
@@ -48,7 +37,7 @@ export function unloadPage(context: GpuPageContext, key: string) {
     return false
   }
   evictResident(context, page, 'explicit-unload')
-  context.free.push(page.slot)
+  context.placement.freed(page)
   return true
 }
 
@@ -60,10 +49,11 @@ export function pageCacheStats(context: GpuPageContext) {
     slots,
     residentPages: context.resident.size,
     /** Loads in flight: each takes a slot when it lands. */
-    loading: context.fetches.size,
+    loading: state.loading,
     bytesRead: state.bytesRead,
     uploadedBytes: state.uploadedBytes,
     evictions: state.evictions,
+    pinned: context.eviction.pinnedCount,
     physicalVramBytes: null,
   }
 }
@@ -75,14 +65,13 @@ export function disposePageCache(context: GpuPageContext) {
   context.reader.emit?.('gpu-page-dispose', 'GPU cache released', () => ({
     version: 1,
     resident: resident.size,
-    loading: context.fetches.size,
+    loading: state.loading,
     evictions: state.evictions,
   }))
   state.disposed = true
   context.abort.abort()
   resident.clear()
-  context.pins.clear()
-  context.held.clear()
+  context.eviction.clear()
   state.pending = state.pending
     .catch(() => {})
     .then(async () => {

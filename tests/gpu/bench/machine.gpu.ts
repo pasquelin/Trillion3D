@@ -3,15 +3,13 @@
 // costs no less than independent ones — the order any GPU gives, whatever its numbers.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { installGpu } from '../../../bench/dawn/device.ts'
 import { measureMachine } from '../../../bench/dawn/machine.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
+import { openBenchDevice } from '../kit/benchDevice.ts'
 
 test('the machine’s limits are measured, positive and in order', { timeout: 300_000 }, async () => {
   const machine = await runOnDawn(async () => {
-    const gpu = installGpu({ limits: null, featuresOff: [] })
-    const adapter = (await navigator.gpu.requestAdapter())!
-    const device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'] })
+    const { gpu, device } = await openBenchDevice()
     return measureMachine(gpu, device, 'proof')
   }, null)
   for (const [key, value] of Object.entries(machine))

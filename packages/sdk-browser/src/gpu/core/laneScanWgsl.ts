@@ -12,6 +12,10 @@ import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
  *
  * `laneRun` splits `len` items into 64 contiguous runs, one per lane: `[first, last)`.
  *
+ * `laneRunSum`, `laneRunWalk` and `laneRunOffsets` write, as WGSL text (a function cannot take its
+ * array), the loops every user of `laneRun` repeats: a lane totals its run, the scan gives the run
+ * its offset, the lane walks the run handing each item its cursor.
+ *
  * Shared by the draw prefix (`../draw/shader.ts`), the drawable-page prefix
  * (`../dag/shader/compactWgsl.ts`), the tested-half compaction (`../raster/restCompactWgsl.ts`),
  * the blend expansion (`../../webgpu/blend/expandWgsl.ts`), the light grid's room in its pool
@@ -42,3 +46,30 @@ fn laneRun(lane:u32,len:u32)->vec2u{
 }
 `,
 )
+
+/** A lane's `sum` of `size`, an expression of the item `g`, over its run `span`. */
+export const laneRunSum = (g: string, span: string, size: string) =>
+  `var sum=0u;
+ for(var ${g}=${span}.x;${g}<${span}.y;${g}++){sum=sum+(${size});}`
+
+/** The lane walks its run, `put` (an expression of `g` and `cursor`) writing each item's place and
+ *  `cursor` moving on by its `size`, read before `put` writes. */
+export const laneRunWalk = (g: string, span: string, cursor: string, size: string, put: string) =>
+  `for(var ${g}=${span}.x;${g}<${span}.y;${g}++){
+  let taken=${size};
+  ${put};
+  ${cursor}=${cursor}+taken;
+ }`
+
+/** `laneRunSum`, then the lane's cursor, `base` past the runs before it, then `laneRunWalk`: leaves
+ *  `sum` and `cursor` declared, `cursor` the end of the lane's run. Every lane runs it, from uniform control flow. */
+export const laneRunOffsets = (
+  g: string,
+  span: string,
+  lane: string,
+  base: string,
+  size: string,
+  put: string,
+) => `${laneRunSum(g, span, size)}
+ var cursor=${base}laneScan(${lane},sum)-sum;
+ ${laneRunWalk(g, span, 'cursor', size, put)}`

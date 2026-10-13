@@ -1,4 +1,4 @@
-import { reflectionLayout } from '../../reflections/layout.ts'
+import { reflectionLayout } from '../../reflections/gpu.ts'
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts'
 import { TRANSPARENT_DEPTH_LAYER, depthLayerUnits } from '../../../../sdk-core/src/index.ts'
 import {
@@ -11,6 +11,7 @@ import { refreshSurface } from '../../page/surface.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
+import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
 
 /** Source alpha over what the target holds: the normal mode, and the blend of the water surfaces
  *  and of their composite over the frozen backdrop. */
@@ -68,7 +69,9 @@ export function pipelinesByMode(
  *  blend item declares: what both transparent paths compile up front. A scene of plain glass
  *  compiles normal alone; one with no transparent item compiles no blend program, a mode
  *  asked later compiles at its first draw (`at`). */
-export const declaredBlendModes = (items: readonly BlendGpuItem[]) =>
+export const declaredBlendModes = (
+  items: readonly Pick<BlendGpuItem, 'surface' | 'transmissive'>[],
+) =>
   BLEND_MODES.filter(
     (mode, rank) =>
       (!rank && items.length > 0) ||
@@ -102,10 +105,10 @@ export async function blendStagePipelines(
   layout: GPUBindGroupLayout,
   fragment: GPUFragmentState,
   depthWrite: boolean,
-  group2?: GPUBindGroupLayout,
+  mask?: GPUBindGroupLayout,
 ): Promise<BlendPipelines> {
   const [none, front, back] = await Promise.all(
-    stageDescriptors(device, module, layout, fragment, depthWrite, group2).map((stage) =>
+    stageDescriptors(device, module, layout, fragment, depthWrite, mask).map((stage) =>
       buildRenderPipeline(device, stage),
     ),
   )
@@ -114,7 +117,7 @@ export async function blendStagePipelines(
 
 const CULL_MODES: readonly GPUCullMode[] = ['none', 'front', 'back']
 
-/** The descriptors of those three, one per cull mode: what a blend mode compiles; `group2`, the
+/** The descriptors of those three, one per cull mode: what a blend mode compiles; `mask`, the
  *  display mask's layout of a filtered image's pipelines. Each draws one coplanar layer over the
  *  opaque depth (`TRANSPARENT_DEPTH_LAYER`): a glass lying on its base covers it, as the opaque
  *  layers and the lines cover the faces they lie on. */
@@ -124,10 +127,11 @@ export function stageDescriptors(
   layout: GPUBindGroupLayout,
   fragment: GPUFragmentState,
   depthWrite: boolean,
-  group2?: GPUBindGroupLayout,
+  mask?: GPUBindGroupLayout,
 ): GPURenderPipelineDescriptor[] {
+  // The reflection's group (`REFLECTION_GROUP`) behind the blend's, the display mask's last.
   const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: [layout, reflectionLayout(device), ...(group2 ? [group2] : [])],
+    bindGroupLayouts: [layout, reflectionLayout(device), ...(mask ? [mask] : [])],
   })
   return CULL_MODES.map((cullMode) => ({
     layout: pipelineLayout,
@@ -135,7 +139,7 @@ export function stageDescriptors(
     fragment,
     primitive: { topology: 'triangle-list', cullMode, frontFace: 'ccw' },
     depthStencil: {
-      format: 'depth32float',
+      format: DEPTH_FORMAT,
       depthWriteEnabled: depthWrite,
       depthCompare: DEPTH_COMPARE,
       // Reversed depth: moving closer to the eye ADDS units.

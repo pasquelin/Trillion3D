@@ -3,8 +3,7 @@ import { boxCenter } from '../../../../math/src/geometry/box.ts'
 import { BOX_VALUES, boxEmpty, boxUnion } from '../../../../sdk-core/src/index.ts'
 import { buildCentreTree, centreTreeNodes } from '../../../../sdk-core/src/collision/centreTree.ts'
 import { refreshBlendWorlds } from './worlds.ts'
-import type { createWebgpuBlendState } from './state.ts'
-type BlendState = ReturnType<typeof createWebgpuBlendState>
+import type { WebgpuBlendState } from './state.ts'
 
 /**
  * BOX TREE OF THE TRANSPARENT ITEMS, which the frustum verdict walks node by node
@@ -48,7 +47,7 @@ export function createBlendHierarchy() {
 }
 
 /** Builds the tree over the scene's items as they stand, then fits its boxes. */
-export function buildBlendHierarchy(blendState: BlendState) {
+export function buildBlendHierarchy(blendState: WebgpuBlendState) {
   const tree = blendState.hierarchy,
     items = blendState.blendGpu
   const boxed: number[] = [],
@@ -86,7 +85,7 @@ export function buildBlendHierarchy(blendState: BlendState) {
 }
 
 /** Fits every node box to its items' boxes, children first: pre-order read backwards. */
-function refitNodes(blendState: BlendState) {
+function refitNodes(blendState: WebgpuBlendState) {
   const items = blendState.blendGpu,
     { boxes, first, links, counts, leaves, nodes } = blendState.hierarchy
   for (let node = nodes - 1; node >= 0; node--) {
@@ -124,18 +123,18 @@ function refitNodes(blendState: BlendState) {
  * The transparent items' world boxes rebuilt after a matrix move (`refreshBlendWorlds`), and the
  * tree refit to them: the only box writes after prepare, so the tree never lags a box.
  */
-export function refreshBlendBoxes(blendState: BlendState) {
+export function refreshBlendBoxes(blendState: WebgpuBlendState) {
   refreshBlendWorlds(blendState.blendGpu)
   refitBlendHierarchy(blendState)
 }
 
 /** The tree refit to item boxes rewritten outside a matrix move (a deformed item's reach). */
-export function refitBlendHierarchy(blendState: BlendState) {
+export function refitBlendHierarchy(blendState: WebgpuBlendState) {
   if (blendState.hierarchy.count === blendState.blendGpu.length) refitNodes(blendState)
 }
 
 /** The tree of the scene's items, built first when the list changed without `buildBlendStatics`. */
-export function currentBlendHierarchy(blendState: BlendState) {
+export function currentBlendHierarchy(blendState: WebgpuBlendState) {
   if (blendState.hierarchy.count !== blendState.blendGpu.length) buildBlendHierarchy(blendState)
   return blendState.hierarchy
 }

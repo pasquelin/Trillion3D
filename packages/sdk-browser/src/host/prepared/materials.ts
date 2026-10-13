@@ -13,6 +13,7 @@
 import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts'
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 import type { AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
+import { COLOUR_MAPS, MATERIAL_COLOURS } from '../../../../sdk-core/src/world/material/material.ts'
 import { GraphSurface } from '../graph/surface.ts'
 import { type GraphTexture } from '../graph/texture.ts'
 import { hostSide } from '../../scene/materialSide.ts'
@@ -21,11 +22,6 @@ import { linearColour } from '../graph/surfaceFields.ts'
 
 type Slot = (slot: TableTextureSlot, colorSpace?: string) => Promise<GraphTexture | null>
 type Params = Record<string, unknown>
-
-/** The extension maps that hold colour, and are read in sRGB. */
-const COLOUR_MAPS = new Set(['sheenColorMap', 'specularColorMap'])
-/** The extension factors that are colours. */
-const COLOURS = new Set(['sheenColor', 'specularColor'])
 
 /** How a surface draws its alpha mode, at open and when a page changes it
  *  (`../../world/api/materialValues.ts`): blended, it composes and writes no depth; masked, it cuts
@@ -74,13 +70,13 @@ export function variantFields({ vertexColors, flatShading, twoSided }: SurfaceVa
 function extensionParams(
   entry: TableMaterial,
   params: Params,
-  assign: (name: string, slot: TableTextureSlot, colour?: boolean) => void,
+  assign: (name: string, slot: TableTextureSlot) => void,
 ) {
   for (const [name, value] of Object.entries(entry.extensions)) {
-    if (isSlot(value)) assign(name, value, COLOUR_MAPS.has(name))
+    if (isSlot(value)) assign(name, value)
     else if (name === 'clearcoatNormalScale')
       params[name] = new Vector2(value as number, value as number)
-    else if (COLOURS.has(name)) params[name] = linearColour(value as number[])
+    else if (MATERIAL_COLOURS.has(name)) params[name] = linearColour(value as number[])
     else params[name] = Array.isArray(value) ? [...value] : value
   }
   // A frame rebuilt from the triangle, on geometry without tangents, turns the second clear-coat
@@ -105,15 +101,16 @@ async function build(
   const entry = materials[rank]
   const params: Params = { color: linearColour(entry.baseColor), opacity: entry.opacity }
   const pending: Promise<void>[] = []
-  const assign = (name: string, from: TableTextureSlot | null, colour = false) => {
+  // A map that holds a colour (`COLOUR_MAPS`) is read in sRGB.
+  const assign = (name: string, from: TableTextureSlot | null) => {
     if (from)
       pending.push(
-        slot(from, colour ? HOST_COLOUR_SPACE_SRGB : undefined).then((texture) => {
+        slot(from, COLOUR_MAPS.has(name) ? HOST_COLOUR_SPACE_SRGB : undefined).then((texture) => {
           if (texture) params[name] = texture
         }),
       )
   }
-  assign('map', entry.map, true)
+  assign('map', entry.map)
   if (entry.kind !== 'unlit') {
     params.metalness = entry.metalness
     params.roughness = entry.roughness
@@ -124,7 +121,7 @@ async function build(
     assign('aoMap', entry.aoMap)
     params.aoMapIntensity = entry.aoIntensity
     params.emissive = linearColour(entry.emissive)
-    assign('emissiveMap', entry.emissiveMap, true)
+    assign('emissiveMap', entry.emissiveMap)
     extensionParams(entry, params, assign)
   }
   if (entry.kind === 'physical') {

@@ -12,7 +12,7 @@ const sheet = () =>
 test('geometry changes notify holders, invalidate position bounds and preserve unrelated bounds', () => {
   const geometry = sheet()
   let writes = 0
-  geometry._listeners.add(() => writes++)
+  geometry._listeners.subscribe(() => writes++)
   const box = geometry.computeBoundingBox(),
     sphere = geometry.computeBoundingSphere()
   geometry.recipe = { type: 'triangle', args: [] }
@@ -118,7 +118,7 @@ test('editing a triangle index notifies holders and preserves position-only boun
   assert.equal(geometry.boundingBox, box)
   assert.equal(geometry.boundingSphere, sphere)
   let notifications = 0
-  geometry._listeners.add(() => notifications++)
+  geometry._listeners.subscribe(() => notifications++)
   const version = geometry.version
   geometry.recipe = { type: 'triangle', args: [] }
   geometry.index!.array[0] = 2

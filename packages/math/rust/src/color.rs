@@ -13,6 +13,12 @@ pub fn srgb_to_linear(value: f64) -> f64 {
     }
 }
 
+/// An sRGB-encoded byte brought back to linear in `f64`: `srgb_to_linear` of the byte over 255.
+#[inline]
+pub fn srgb_byte_to_linear(byte: u8) -> f64 {
+    srgb_to_linear(crate::scalar::byte_to_unit(byte))
+}
+
 /// `srgb_to_linear` in single precision.
 #[inline]
 pub fn srgb_to_linear_f32(value: f32) -> f32 {

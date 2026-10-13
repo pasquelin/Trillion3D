@@ -29,13 +29,13 @@ export interface HostRetentionDelta {
 }
 
 /** How `request` reads a batch: its owner's signal, its priority, and what runs as each page
- *  lands. */
+ *  lands, handed its bytes. */
 export interface BatchRead {
   /** Lets the batch's reads go: a read no one waits on any more is dropped while it waits. */
   signal: AbortSignal
   /** Queue priority, 1 by default. */ priority?: number
   /** Runs as each page's read lands, not after the whole batch. */
-  onPage?: (url: string) => unknown
+  onPage?: (url: string, bytes: Uint8Array) => unknown
 }
 
 /** One page a streamer fetches: where, how big, and its fingerprint. */
@@ -44,7 +44,7 @@ export interface StreamPage {
   url: string
   /** Its size. */
   bytes: number
-  /** Fingerprint of its bytes. */
+  /** Fingerprint of its bytes, which its read checks with its size. */
   sha256: string
   /** A page that is the `bytes` of the file at `file` from `offset`, read by an HTTP Range: the
    *  queue reads the ranges queued end to end in one file by one request (`queueRanges.ts`). */
@@ -66,27 +66,25 @@ export type PageQueue = PageCatalogue & {
   readBytes(url: string, signal: AbortSignal, priority?: number): Promise<Uint8Array>
   readonly signal: AbortSignal
 }
-/** How a page streamer reads (`createPageStreamer`). Beside its pages, its cache reserves its
- *  manifest tables and its transfer queue; every member has a default. */
+/** How a page streamer reads (`createPageStreamer`): through `cache`, its owner's, which reserves
+ *  its manifest tables and its transfer queue beside its pages; every other member has a
+ *  default. */
 export interface PageStreamerOptions {
+  /** The page cache it reads through, its owner's: it outlives the streamer. */
+  cache: PageCache
   /** Cancels every read once aborted. */
   signal?: AbortSignal
   /** Reads running at once; 8 by default. */
   workerCount?: number
-  /** Most pages held at once; bounded by bytes only when absent. */
-  maxPages?: number
   /** Hears each page that leaves the cache. */
   onEvict?: (url: string) => void
   /** Bytes the transfer queue may hold; 8 MiB by default. */
   maxTransferBytes?: number
   /** Hears each step of every read. */
   onDiagnostic?: (diagnostic: EngineDiagnostic) => void
-  /** Hears, once, a read that fails for good or first waits the longest: again only after it
-   *  landed. */
-  onStalled?: (failure: { url: string; cause: unknown }) => void
-  /** Bytes of CPU memory the cache's pages may hold, its manifest tables and transfer queue
-   *  reserved on top; 256 MiB by default. */
-  maxCachedBytes?: number
+  /** Hears, once, a read that fails for good or first waits the longest, by its page's url: again
+   *  only after it landed. */
+  onStalled?: (failure: { key: string; cause: unknown }) => void
 }
 export type Job = {
   url: string
@@ -111,16 +109,15 @@ export type Job = {
 export type StreamContext = {
   base: string
   catalog: Map<string, StreamPage>
-  /** The decoded-page cache the streamer reads through, and its pages. */
+  /** The decoded-page cache the streamer reads through. */
   store: PageCache
-  cache: PageCache['pages']
   jobs: Map<string, Job>
   queue: TransferQueue
-  pinned: Set<string>
+  /** The pages kept, each with its count of owners (`streamingPins.ts`). */
+  pinned: Map<string, number>
   failures: ReadFailures
   abort: AbortController
   limit: number
-  maxPages?: number
   maxTransferBytes: number
   onEvict?: (url: string) => void
   onDiagnostic?: (diagnostic: EngineDiagnostic) => void
@@ -138,9 +135,9 @@ export type StreamContext = {
     /** CPU bytes the catalogue's tables hold (`manifestTables.ts`), as pages join and leave it. */
     tableBytes: number
     disposed: boolean
-    /** Bytes the engine's own tables take from the cache's share (`reserve`), read each time
-     *  the cache weighs itself: those tables follow the view. */
-    reservedBytes: () => number
+    /** Bytes the engine's own tables take from the cache's share (`reserve`), as last told:
+     *  those tables follow the view. */
+    engineBytes: number
   }
   /** `undefined` when nobody listens: `emit?.(…)` then builds nothing (`lazyDiagnostic`). */
   emit: LazyDiagnostic | undefined

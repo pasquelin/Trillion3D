@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
-import { ensurerOptions, lruCache, placement } from './residentEnsurer.fixture.ts'
+import { ensurerOptions, orderedPool, placement } from './residentEnsurer.fixture.ts'
 import { linkBundleDependencies } from '../../page/selection/bundleDependencies.ts'
 import { RequestStamps, collectPendingUrls } from '../../page/selection/selection.ts'
 import { createCutDelta } from '../cut/delta.ts'
@@ -16,12 +16,12 @@ function ensurerOver(
   options: Partial<Parameters<typeof createWebgpuResidentEnsurer>[0]> = {},
 ) {
   const tracking = createWebgpuPageTracking(pages)
-  const cache = lruCache(slots),
+  const cache = orderedPool(slots),
     loads: string[] = []
   const load = cache.load
-  cache.load = async (url: string, signal?: AbortSignal, tier?: 'held' | 'pinned') => (
+  cache.load = async (url: string, signal?: AbortSignal, pinned?: boolean) => (
     loads.push(url),
-    load(url, signal, tier)
+    load(url, signal, pinned)
   )
   const ensure = createWebgpuResidentEnsurer({ ...ensurerOptions(tracking, cache), ...options })
   const want = (...wanted: PageRec[]) => {
@@ -37,21 +37,20 @@ test('a requested page brings its missing dependencies, each loaded before what 
   const { cache, loads, want } = ensurerOver(8, pages, { parentsOf })
   await want(a, b)
   assert.deepEqual(loads, ['r', 'm', 'a', 'b'], 'the closure first, then the pages, once each')
-  assert.deepEqual([...cache.pins].sort(), ['a', 'b'], 'only what the image holds is pinned')
+  assert.equal(cache.pins.size, 0, 'nothing pinned: what the image uses, the GPU order holds')
 })
 
-test('a root-cover page admitted by the ensurer is pinned in the held tier', async () => {
+test('a root-cover page admitted by the ensurer is pinned on its arrival', async () => {
   const { pages, parentsOf } = placement()
   const [root, , a] = pages
   const tracking = createWebgpuPageTracking(pages),
-    cache = lruCache(8),
+    cache = orderedPool(8),
     base = ensurerOptions(tracking, cache)
   base.bootstrapKey[tracking.keyOf(root)] = 1
   const ensure = createWebgpuResidentEnsurer({ ...base, parentsOf })
   tracking.wanted.add(tracking.keyOf(a), a)
   await ensure([a], 1, 1)
-  assert.deepEqual([...cache.held], ['r'], 'the cover keeps its tier ahead of ordinary pins')
-  assert.ok(cache.pins.has('a') && !cache.held.has('a'))
+  assert.deepEqual([...cache.pins], ['r'], 'the cover alone is pinned')
 })
 
 test('a page whose parent is outside the cut brings its bundle, then both load in order', async () => {

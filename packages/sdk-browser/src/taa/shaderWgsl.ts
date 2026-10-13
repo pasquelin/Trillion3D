@@ -2,6 +2,7 @@ import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts'
 import * as layer from './layers.ts'
 import { BINDINGS_WGSL, shareBindingsWgsl } from './bindingsWgsl.ts'
 import { TAA_DEFORM_WGSL } from './deformWgsl.ts'
+import { NO_PAGE_ID } from './pageIdWgsl.ts'
 import {
   CATMULL_ROM_WGSL,
   CURRENT_SHARE_WGSL,
@@ -54,11 +55,10 @@ export const texelReads = (blended: boolean): TexelReads => ({
  * nor matrix. `coord` is the display pixel, `id` the identifier of the render texel its depth was
  * read at, read once by the resolve for its identity, its motion and its deformation.
  */
-export const taaReprojectWgsl = (deformation = true) =>
-  wgslBlock(
-    `taaReprojectWgsl(${deformation})`,
-    [...(deformation ? [TAA_DEFORM_WGSL] : []), pixelToNdcInv, clipToUv, transformHomogeneousPoint],
-    `
+const TAA_REPROJECT_WGSL = wgslBlock(
+  'TAA_REPROJECT_WGSL',
+  [TAA_DEFORM_WGSL, pixelToNdcInv, clipToUv, transformHomogeneousPoint],
+  `
 fn placementOf(id:u32)->u32{return pages[(id>>8u)-1u].placement;}
 fn pixelPoint(coord:vec2i,depthValue:f32)->vec4f{
  let ndc=pixelToNdcInv(vec2f(coord)+0.5,view.viewport.zw);
@@ -67,8 +67,8 @@ fn pixelPoint(coord:vec2i,depthValue:f32)->vec4f{
 fn pointBefore(here:vec4f,id:u32)->vec4f{
  var position=here;
  // A deformed surface was elsewhere in the last frame: its point moves back first.
-${deformation ? ' if(view.eye.w!=0.0){position=deformedPrevious(id,position);}' : ''}
- if(view.params.z!=0.0&&id!=0u){position=motion[placementOf(id)]*position;}
+ if(view.eye.w!=0.0){position=deformedPrevious(id,position);}
+ if(view.params.z!=0.0&&!(${NO_PAGE_ID})){position=motion[placementOf(id)]*position;}
  return position;
 }
 fn previousProjected(position:vec4f)->vec4f{
@@ -84,9 +84,7 @@ fn previousSample(coord:vec2i,depthValue:f32,id:u32)->vec4f{
 fn previousUv(coord:vec2i,depthValue:f32,id:u32)->vec3f{
  let p=previousSample(coord,depthValue,id);return vec3f(p.xy,p.w);
 }`,
-  )
-
-const TAA_REPROJECT_WGSL = taaReprojectWgsl()
+)
 
 /**
  * Temporal resolve. The current image is refiltered on its 3×3 neighbours with the uniform

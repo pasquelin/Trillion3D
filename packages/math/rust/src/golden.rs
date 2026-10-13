@@ -14,14 +14,16 @@ pub use value::{f32s, f64s, ordinary, Value, HOSTILE_F64};
 const REGENERATE: &str = "pnpm run golden:write";
 const LAYOUT: &str = "one case per line, read line by line: never reformatted";
 
-/// A mirrored primitive: its file and section, the section's description, its cases' inputs, and
-/// the Rust twin that answers them.
+/// A mirrored primitive: its file and section, the section's description, its cases' inputs, the
+/// Rust twin that answers them, and the `f64` steps its outputs may lie from the file's: none, but
+/// for a twin built on a function no platform rounds alike (`powf`).
 pub struct Twin {
     pub file: &'static str,
     pub name: &'static str,
     pub about: &'static str,
     pub inputs: &'static str,
     pub outputs: &'static str,
+    pub ulps: u32,
     pub cases: fn() -> Vec<Vec<Value>>,
     pub compute: fn(&[Value]) -> Vec<Value>,
 }
@@ -120,7 +122,7 @@ fn check(file: &str, sections: &[&Twin]) {
             continue;
         }
         let at = current.unwrap_or_else(|| panic!("{file}: a case outside a section"));
-        let (name, compute) = (sections[at].name, sections[at].compute);
+        let (name, compute, ulps) = (sections[at].name, sections[at].compute, sections[at].ulps);
         let out = tokens
             .iter()
             .position(|&t| t == "out")
@@ -134,8 +136,10 @@ fn check(file: &str, sections: &[&Twin]) {
         let inputs: Vec<Value> = tokens[1..out].iter().map(|t| Value::parse(t)).collect();
         let expected = tokens[out + 1..].iter().map(|t| Value::parse(t));
         let actual = compute(&inputs);
-        let same =
-            expected.len() == actual.len() && expected.zip(&actual).all(|(e, a)| e.matches(*a));
+        let same = expected.len() == actual.len()
+            && expected
+                .zip(&actual)
+                .all(|(e, a)| e.matches_within(*a, ulps));
         let got: Vec<String> = actual.iter().map(|v| v.token()).collect();
         assert!(same, "{file} {name}: {line} returns {got:?}");
         cases[at] += 1;

@@ -90,7 +90,7 @@ export function tileStreamerFor(
           rt.lights,
           rt.layout.rows,
           rt.layout.selectionRoots,
-          rt.layout.placement.rootOfPacked,
+          rt.layout.placement,
           slots,
         )
       },
@@ -121,7 +121,6 @@ export function reportTexturesReady(
         tileBytes: pool.tileBytes,
         pinnedTails: pool.resident,
       })),
-      requestReduce: textures.requestReduce,
     },
     pageTables: pageTablesReport(textures),
     progressiveLevels: { version: TEXTURE_PREVIEW_VERSION, base: PREVIEW_BASE },

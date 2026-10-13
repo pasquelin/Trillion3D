@@ -1,8 +1,9 @@
 import { readGpuBuffer, readGpuTextureR32F } from '../../gpu/core/readback.ts'
 import { visLayerTop } from '../visibility/uniforms.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts'
-import { rootOf } from '../../page/selection/placements.ts'
+import { BOX_CORNER_VALUES } from '../../hiz/corners.ts'
+import { auditView, packedPageCornersInto } from '../core/partitionAudit.ts'
+import type { AuditView } from '../../gpu/partition/types.ts'
 
 /**
  * What the transparent occlusion test REJECTED on the last image, and enough to refute it without
@@ -16,17 +17,7 @@ import { rootOf } from '../../page/selection/placements.ts'
  *
  * This is not a pass of the image: nothing exists until the host asks for it.
  */
-export interface TransparentOcclusionAudit {
-  /** Width in pixels. */
-  width: number
-  /** Height in pixels. */
-  height: number
-  /** Nearest distance. */
-  near: number
-  /** The camera's view matrix. */
-  view: Float64Array
-  /** The camera's view-projection. */
-  viewProj: Float64Array
+export interface TransparentOcclusionAudit extends AuditView {
   /** Coplanar layer whose bias served every entry: the highest of the image. */
   layer: number
   /** Table entries the test rejected, in table order. */
@@ -72,20 +63,13 @@ export async function readTransparentOcclusionAudit(
   if (!depth) return null
   const rejected = Uint32Array.from(keep)
   const corners = new Float64Array(rejected.length * BOX_CORNER_VALUES)
-  const { recordOf, selectionRoots, placement } = layout
   for (let i = 0; i < rejected.length; i++) {
     const page = table.pageOfEntry[rejected[i]],
-      rec = recordOf(page)
-    if (!rec) continue
-    const root = rootOf(selectionRoots, placement.rootOfPacked[page])
-    pageCornersInto(corners, i * BOX_CORNER_VALUES, rec, root.world, root.reach)
+      rec = layout.recordOf(page)
+    if (rec) packedPageCornersInto(layout, corners, i * BOX_CORNER_VALUES, page, rec)
   }
   return {
-    width: frame.width,
-    height: frame.height,
-    near: frame.near,
-    view: frame.view,
-    viewProj: frame.viewProj,
+    ...auditView(frame),
     layer: visLayerTop(vis),
     rejected,
     corners,

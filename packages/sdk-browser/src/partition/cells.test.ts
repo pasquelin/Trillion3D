@@ -22,6 +22,22 @@ test('the cells a camera needs are asked nearest first, then placed on rows once
   assert.ok(updates.length >= 2, 'the session is told which rows were written')
 })
 
+test('the plan pins the files it asks until their decodes are taken, then lets them go', async () => {
+  const { cells, bytes } = await sizedWhole(world())
+  const { port, held, pinned } = io(bytes)
+  await settled(cells, [6000, 0, 0], everywhere, port, noBudget)
+  const cellFiles = ['far.json', 'near.json'].map(cellUrl)
+  assert.deepEqual(
+    cellFiles.map((url) => pinned.get(url)),
+    [1, 1],
+    'asked and not yet read: pinned, whatever the cache does meanwhile',
+  )
+  cellFiles.forEach((url) => held.add(url))
+  await settled(cells, [6000, 0, 0], everywhere, port, noBudget)
+  assert.equal(cells.stats().held, 2)
+  assert.deepEqual([...pinned.values()], new Array(pinned.size).fill(0), 'all taken: none pinned')
+})
+
 test('a row holds the world matrix the engine composes for the same node under its parent', async () => {
   const { cells, links, core, bytes, node } = await sizedWhole(world())
   const { port, held } = io(bytes)
@@ -97,13 +113,18 @@ test('a parent scaled down grows the rows in place, on an engine that takes it, 
   // no buffer, or refuses this growth, is left with its rows as they were and asks for a reopen.
   for (const grows of [true, false, undefined]) {
     const { cells, links, core, bytes } = world(0, 0)
-    const { port, held, outgrown, updates } = io(bytes)
+    const { port, held, outgrown, updates, rebind } = io(bytes)
+    let grownAt: number | undefined
     const grown: [PlacementRows, PlacementRows][] = [],
       asked: [number, number][] = []
     if (grows !== undefined)
       port.grow = {
         growsInPlace: (from, capacity) => (asked.push([from.length, capacity]), grows),
-        growPlacements: (from, to) => void grown.push([from, to]),
+        growPlacements: (from, to) => (
+          grown.push([from, to]),
+          rebind(from, to),
+          void (grownAt ??= updates.length)
+        ),
       }
     ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
     await opened(cells, bytes, 100)
@@ -127,7 +148,7 @@ test('a parent scaled down grows the rows in place, on an engine that takes it, 
       [0, 1].map((at) => [before[at], after[at]]),
     )
     // The engine is told of the grown buffers only: no row of the replaced ones is read again.
-    assert.ok(updates.every(([rows]) => after.includes(rows)))
+    assert.ok(updates.slice(grownAt).every(([rows]) => after.includes(rows)))
     assert.ok(after.every((rows) => rows.live.reduce((a, b) => a + b, 0) === 3))
   }
 })
@@ -152,4 +173,18 @@ test('a world that poses the scene root reads the cells its camera sees there', 
   const { port, asked } = io(bytes)
   await settled(cells, [2, 0, 0], 100, port, noBudget)
   assert.deepEqual([...new Set(asked)], [cellUrl('far.json')])
+})
+
+test('a session opened again on the kept cells pins the files its plan asks anew', async () => {
+  const { cells, bytes } = await sizedWhole(world())
+  const first = io(bytes)
+  await settled(cells, [6000, 0, 0], everywhere, first.port, noBudget)
+  const second = io(bytes)
+  cells.frame([6000, 0, 0], everywhere, second.port, noBudget)
+  const cellFiles = ['far.json', 'near.json'].map(cellUrl)
+  assert.deepEqual(
+    cellFiles.map((url) => second.pinned.get(url)),
+    [1, 1],
+    'the new streamer holds none of the pins the first one did',
+  )
 })

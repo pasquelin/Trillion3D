@@ -1,4 +1,5 @@
-import { BOX_VALUES, boxEmpty, boxIsEmpty, boxUnionBatch } from '../../../sdk-core/src/index.ts'
+import { boxEmpty, boxIsEmpty } from '../../../sdk-core/src/index.ts'
+import { rootBoxUnion } from './update.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
 import { rowParked, type PlacementOf } from './rows.ts'
 import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
@@ -12,12 +13,11 @@ export type SeeThrough = { hidden?: boolean; readonly placement?: PlacementOf }
 export const notDrawn = (entry: SeeThrough) => !!entry.hidden || rowParked(entry.placement)
 
 /** The node a root comes from: its first page's mesh. */
-export const rootSource = <T extends { sourceMesh?: Object3D }>(root: ClusterRoot<T>) =>
-  root.pages[0]?.sourceMesh
+export const rootSource = <T extends { drawSource?: { node?: Object3D } }>(root: ClusterRoot<T>) =>
+  root.pages[0]?.drawSource?.node
 
 /** The node a see-through draw comes from. */
-export const blendSource = (item: { sourceMesh?: unknown }) =>
-  item.sourceMesh as Object3D | undefined
+export const blendSource = (item: { drawSource?: { node?: Object3D } }) => item.drawSource?.node
 
 /** True when `node` and every node above it are visible. */
 export function shownChain(node: Object3D) {
@@ -57,10 +57,8 @@ function followHidden<E extends { hidden?: boolean }>(
   }
 }
 
-/** The box the roots that flipped cover, as one union, and its two corners. */
-const moved = new Float64Array(BOX_VALUES),
-  movedMin = moved.subarray(0, 3),
-  movedMax = moved.subarray(3, 6)
+/** The box the roots that flipped cover. */
+const moved = rootBoxUnion()
 
 /**
  * Brings the roots and the see-through draws level with the visibility the host wrote on the
@@ -76,7 +74,10 @@ const moved = new Float64Array(BOX_VALUES),
  * `under`, when given, names the roots and the see-through draws to read — those under the nodes
  * the host flipped —, the others standing as they are.
  */
-export function followHostVisibility<T extends { sourceMesh?: Object3D }, S extends SeeThrough>(
+export function followHostVisibility<
+  T extends { drawSource?: { node?: Object3D } },
+  S extends SeeThrough,
+>(
   roots: readonly ClusterRoot<T>[],
   seeThrough: {
     entries: readonly S[]
@@ -87,7 +88,7 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
   moves?: (rank: number) => boolean,
   under?: { roots: Subset; seeThrough: Subset },
 ) {
-  boxEmpty(moved, 0)
+  boxEmpty(moved.box, 0)
   let movingOnly = true
   const flipped = (rank: number, root: ClusterRoot<T>) => {
     movingOnly &&= !!moves?.(rank)
@@ -101,7 +102,7 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
       if (parked === !!root.parked) return
       root.parked = parked
       flipped(rank, root)
-      if (root.worldBox) boxUnionBatch(moved, root.worldBox, 1)
+      moved.add(root)
     },
     under?.roots,
   )
@@ -110,10 +111,10 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
   for (let k = 0; k < count; k++) {
     const rank = ranks ? ranks[k] : k,
       root = roots[rank],
-      source = rootSource(root)
-    if (root.placement || !source || !markShadowless(root, !source.castShadow)) continue
+      node = rootSource(root)
+    if (root.placement || !node || !markShadowless(root, !node.castShadow)) continue
     flipped(rank, root)
-    if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1)
+    moved.add(root, root.parked)
   }
   followHidden(
     seeThrough.entries,
@@ -121,5 +122,5 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
     (entry) => seeThrough.flipped?.(entry),
     under?.seeThrough,
   )
-  return boxIsEmpty(moved, 0) ? null : { min: movedMin, max: movedMax, movingOnly }
+  return boxIsEmpty(moved.box, 0) ? null : { min: moved.min, max: moved.max, movingOnly }
 }

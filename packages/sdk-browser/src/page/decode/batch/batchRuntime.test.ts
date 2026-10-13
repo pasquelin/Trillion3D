@@ -1,15 +1,14 @@
-// Initial two batch computation kernels (`batchRuntime.ts`), JavaScript path vs
-// WebAssembly path, on small purely hostile batches (negative scales,
-// shear, zero `w`, NaN, ±0, infinities, 1e308, 5e-324): exact same bits on both sides down to
-// `Object.is` — same notion of equality that `wasm-batches.perf.ts` uses for the full benchmark, here
-// on a batch small enough to run in `pnpm test`.
+// The two batch kernels (`batchRuntime.ts`) against their oracles, each element alone by its
+// single-element function (`batchOracles.fixture.ts`), on small purely hostile batches
+// (negative scales, shear, zero `w`, NaN, ±0, infinities, 1e308, 5e-324): exact same bits down
+// to `Object.is` — same notion of equality that `wasm-batches.perf.ts` uses for the full
+// benchmark, here on a batch small enough to run in `pnpm test`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { prepareSdkWasm } from '../../../wasm/sdkWasm.ts'
-import { prepareMathBatch } from './batchState.ts'
+import '../../../wasm/sdkWasm.fixture.ts'
 import { createBoxTransformLot, createMultiplyLot } from './batchRuntime.ts'
+import { BOX_VALUES } from '../../../../../sdk-core/src/index.ts'
+import { boxesByLoop, productsByLoop } from './batchOracles.fixture.ts'
 import { assertBits } from '../../../../../../tests/kit/assert/bits.ts'
 import {
   fillsBoxes,
@@ -21,38 +20,17 @@ import {
 // would cut before NaN and ±0 boxes (fifth and sixth families listed in `BOXES`).
 const N = 63
 
-await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../../wasm/kernels.wasm')))
-
-/** Batch output on forced path, copied outside shared buffer. */
-async function sortie<T extends { run(): 'js' | 'wasm'; out: Float64Array }>(
-  lot: T,
-  path: 'js' | 'wasm',
-) {
-  await prepareMathBatch(path)
-  const played = lot.run()
-  assert.equal(played, path, `path ${played} played while ${path} is imposed`)
-  return lot.out.slice()
-}
-
-type Lot = { run(): 'js' | 'wasm'; out: Float64Array; shared: boolean; release(): void }
-
-/** A filled batch played on both paths, in module memory, then released. */
-async function assertSharedLotMatches(lot: Lot, kernel: string) {
-  const parJs = await sortie(lot, 'js')
-  const parWasm = await sortie(lot, 'wasm')
-  assert.equal(lot.shared, true, 'batch must work in module memory')
-  assert.equal(parJs.length, parWasm.length)
-  assertBits(parWasm, parJs, kernel)
-  lot.release()
-}
-
-test('boxTransformBatch: same bits in JavaScript and WebAssembly on hostile boxes', async () => {
+test('box transform lot: the bits of boxTransform on hostile boxes', async () => {
   const lot = await createBoxTransformLot(N)
+  assert.ok(lot)
   fillsBoxes(lot, N)
-  await assertSharedLotMatches(lot, 'boxTransformBatch')
+  const alone = boxesByLoop(lot.boxes.slice(), lot.mats.slice(), N)
+  lot.run()
+  assertBits(lot.out, alone, 'box transform lot')
+  lot.release()
 })
 
-test('boxTransformBatch: ±0 resolution of Math.min/Math.max matches at bit level', async () => {
+test('box transform lot: ±0 resolution of Math.min/Math.max matches at bit level', async () => {
   // None of 9 hostile matrices in `wasmBatchCases.ts` has translation at `-0`: crossed with
   // box `[0, -0, 0, -0, 0, -0]`, their 8 corners always sum to `+0` before reduction —
   // IEEE-754 addition of `+0` and `-0` yields `+0` regardless of order. Handcrafted case so
@@ -61,18 +39,47 @@ test('boxTransformBatch: ±0 resolution of Math.min/Math.max matches at bit leve
   const matriceTranslationMoinsZero = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -0, 0, 0, 1]
   const signedBoxInX = [0, -0, 0, -0, 0, -0]
   const lot = await createBoxTransformLot(1)
+  assert.ok(lot)
   lot.mats.set(matriceTranslationMoinsZero)
   lot.boxes.set(signedBoxInX)
-  const parJs = await sortie(lot, 'js')
-  const parWasm = await sortie(lot, 'wasm')
-  assert.ok(Object.is(parJs[0], -0), 'JS reference: Math.min must resolve to -0')
-  assert.ok(Object.is(parJs[3], 0) && !Object.is(parJs[3], -0), 'JS reference: Math.max to +0')
-  assertBits(parWasm, parJs, 'boxTransformBatch')
+  const alone = boxesByLoop(lot.boxes.slice(), lot.mats.slice(), 1)
+  lot.run()
+  assert.ok(Object.is(alone[0], -0), 'JS reference: Math.min must resolve to -0')
+  assert.ok(Object.is(alone[3], 0) && !Object.is(alone[3], -0), 'JS reference: Math.max to +0')
+  assertBits(lot.out, alone, 'box transform lot')
   lot.release()
 })
 
-test('multiplyMatrix4Batch: same bits in JavaScript and WebAssembly on hostile matrices', async () => {
+test('multiply lot: the bits of multiplyMatrix4 on hostile matrices', async () => {
   const lot = await createMultiplyLot(N)
+  assert.ok(lot)
   remplitMatrices(lot, N)
-  await assertSharedLotMatches(lot, 'multiplyMatrix4Batch')
+  const alone = productsByLoop(lot.a.slice(), lot.b.slice(), N)
+  lot.run()
+  assertBits(lot.out, alone, 'multiply lot')
+  lot.release()
+})
+
+test('a released lot holds nothing: its owner remakes it', async () => {
+  const lot = await createBoxTransformLot(2)
+  assert.ok(lot)
+  assert.equal(lot.holds(2), true)
+  lot.release()
+  assert.equal(lot.holds(2), false)
+})
+
+test('a run covers the first elements it is told, never the rest', async () => {
+  const lot = await createBoxTransformLot(2)
+  assert.ok(lot)
+  const unit = [0, 0, 0, 1, 1, 1]
+  lot.boxes.set([...unit, ...unit])
+  const moved = (x: number) => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1]
+  lot.mats.set([...moved(1), ...moved(2)])
+  lot.out.fill(7)
+  lot.run(1)
+  assertBits(lot.out.subarray(0, BOX_VALUES), boxesByLoop(lot.boxes, lot.mats, 1), 'the first')
+  assert.deepEqual(Array.from(lot.out.subarray(BOX_VALUES)), [7, 7, 7, 7, 7, 7], 'the second')
+  lot.run()
+  assertBits(lot.out, boxesByLoop(lot.boxes, lot.mats, 2), 'all by default')
+  lot.release()
 })

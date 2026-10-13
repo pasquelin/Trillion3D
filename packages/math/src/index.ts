@@ -43,22 +43,18 @@ export {
 } from './geometry/box.ts'
 export { sphereFromBounds } from './geometry/sphere.ts'
 export {
-  HIERARCHY_ROOT,
   MATRIX_VALUES,
   NORMAL_MATRIX_VALUES,
   POSITION_VALUES,
   QUATERNION_VALUES,
   SPHERE_VALUES,
-  boxTransformBatch,
   boxTransformUnionBatch,
   boxUnionBatch,
   composeMatrix4Batch,
   decomposeMatrix4Batch,
   frustumKeepsBoxBatch,
-  hierarchyUpdateBatch,
   invertMatrix4Batch,
   linearToSrgbBatch,
-  multiplyMatrix4Batch,
   normalMatrix3Batch,
   sphereFromBoundsBatch,
   srgbToLinearBatch,
@@ -67,6 +63,7 @@ export {
   transformPointsByMatricesBatch,
 } from './batch/batch.ts'
 export {
+  FAR_PLANE_SLOT,
   FRUSTUM_PLANE_VALUES,
   clipPlanesFromMatrix,
   frustumFarPlane,

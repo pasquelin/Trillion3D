@@ -4,9 +4,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { installGpu } from '../../../bench/dawn/device.ts'
 import type { FrameGpu } from '../../../bench/dawn/passSpans.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
+import { openBenchDevice } from '../kit/benchDevice.ts'
+import { kernelOn } from '../kit/computeReadback.ts'
 
 const SLOW = /* wgsl */ `
 @group(0) @binding(0) var<storage, read_write> out: array<f32>;
@@ -23,20 +24,11 @@ const LIGHT = /* wgsl */ `
 async function timed(
   encode: (device: GPUDevice, pass: (code: string, groups: number) => void) => Promise<void>,
 ) {
-  const gpu = installGpu({ limits: null, featuresOff: [] })
-  const adapter = (await navigator.gpu.requestAdapter())!
-  const device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'] })
+  const { gpu, device } = await openBenchDevice()
   const out = device.createBuffer({ size: 1 << 20, usage: GPUBufferUsage.STORAGE })
   const encoder = device.createCommandEncoder()
   const pass = (code: string, groups: number, label = code === SLOW ? 'slow' : 'light') => {
-    const pipeline = device.createComputePipeline({
-      layout: 'auto',
-      compute: { module: device.createShaderModule({ code }), entryPoint: 'main' },
-    })
-    const bind = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: [{ binding: 0, resource: { buffer: out } }],
-    })
+    const { pipeline, bind } = kernelOn(device, code, out)
     const p = encoder.beginComputePass({ label })
     p.setPipeline(pipeline)
     p.setBindGroup(0, bind)
@@ -90,18 +82,9 @@ test(
     assert.ok(frame.passes[0].gapMs === 0)
     // The idle: a second frame window holding two submits, the CPU sleeping between them.
     const idle = await runOnDawn(async () => {
-      const gpu = installGpu({ limits: null, featuresOff: [] })
-      const adapter = (await navigator.gpu.requestAdapter())!
-      const device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'] })
+      const { gpu, device } = await openBenchDevice()
       const out = device.createBuffer({ size: 4096, usage: GPUBufferUsage.STORAGE })
-      const pipeline = device.createComputePipeline({
-        layout: 'auto',
-        compute: { module: device.createShaderModule({ code: LIGHT }), entryPoint: 'main' },
-      })
-      const bind = device.createBindGroup({
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [{ binding: 0, resource: { buffer: out } }],
-      })
+      const { pipeline, bind } = kernelOn(device, LIGHT, out)
       const submit = () => {
         const encoder = device.createCommandEncoder()
         const p = encoder.beginComputePass({ label: 'light' })

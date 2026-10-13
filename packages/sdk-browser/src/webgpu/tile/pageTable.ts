@@ -1,4 +1,4 @@
-import { lastTrue } from '../../../../math/src/scalar/search.ts'
+import { lastAtMost } from '../../../../math/src/scalar/search.ts'
 import {
   entryLevel,
   MAX_LEVELS,
@@ -43,7 +43,8 @@ export type WebgpuTilePageTable = {
   entryOf(key: TileKey): number
   /** Feedback rank of a tile, and the inverse — both ends of the same list. */
   feedbackIndexOf(key: TileKey): number
-  tileOf(feedbackIndex: number): TileKey
+  /** The tile of a feedback rank, written into `into` — a new key by default. */
+  tileOf(feedbackIndex: number, into?: TileKey): TileKey
   /** The tail's place, and the tap every tile of the texture — this one included — is read by. */
   setTail(slot: number, place: TilePlace, tap: number): void
   setTile(key: TileKey, place: TilePlace): void
@@ -99,8 +100,8 @@ function pageTable(layouts: TileLayout[], feedbackOffset: number): Table {
 function wordIndex({ layouts, entriesAt, bases }: Table, { slot, level, tx, ty }: TileKey) {
   const layout = layouts[slot]
   if (level >= layout.tail) throw new Error('TEXTURE_TILE_IN_TAIL')
-  const [tw, th] = tilesAt(layout.width, layout.height, level)
-  if (tx >= tw || ty >= th) throw new Error('TEXTURE_TILE_OUT_OF_LEVEL')
+  const tw = layout.across[level]
+  if (tx >= tw || ty >= layout.down[level]) throw new Error('TEXTURE_TILE_OUT_OF_LEVEL')
   return entriesAt + bases[slot] + layout.offsets[level] + ty * tw + tx
 }
 
@@ -115,16 +116,21 @@ function write({ words, uploads }: Table, index: number, word: number) {
 const descend = (table: Table, key: TileKey, visit: (index: number) => boolean) =>
   descendTile(table.layouts[key.slot], table.entriesAt + table.bases[key.slot], key, visit)
 
-/** The tile of entry `entry`: its texture by the entries' bases, then its level and place. */
-function tileAt({ layouts, bases }: Table, entry: number): TileKey {
-  const lo = lastTrue(0, layouts.length - 1, (mid) => bases[mid] <= entry)
+/** The tile of entry `entry`, written into `into`: its texture by the entries' bases, then its level
+ *  and place. */
+function tileAt({ layouts, bases }: Table, entry: number, into: TileKey): TileKey {
+  const lo = lastAtMost(bases, entry)
   const layout = layouts[lo],
     local = entry - bases[lo]
   let level = layout.tail - 1
   while (level > 0 && layout.offsets[level] > local) level--
-  const [tw] = tilesAt(layout.width, layout.height, level),
+  const tw = layout.across[level],
     rank = local - layout.offsets[level]
-  return { slot: lo, level, tx: rank % tw, ty: Math.floor(rank / tw) }
+  into.slot = lo
+  into.level = level
+  into.tx = rank % tw
+  into.ty = Math.floor(rank / tw)
+  return into
 }
 
 /** Filter word, addressing and UV transform of texture `slot`; true when a word moved. */
@@ -199,10 +205,10 @@ export function createWebgpuTilePageTable(
     buffer,
     entryOf: (key) => words[wordIndex(table, key)],
     feedbackIndexOf: (key) => wordIndex(table, key) - entriesAt + options.feedbackOffset,
-    tileOf(feedbackIndex) {
+    tileOf(feedbackIndex, into = { slot: 0, level: 0, tx: 0, ty: 0 }) {
       const entry = feedbackIndex - options.feedbackOffset
       if (entry < 0 || entry >= entries) throw new Error('TEXTURE_FEEDBACK_INDEX')
-      return tileAt(table, entry)
+      return tileAt(table, entry, into)
     },
     setTail(slot, place, tap) {
       const header = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS

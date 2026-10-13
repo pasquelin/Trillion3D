@@ -1,8 +1,7 @@
 // The numbers of a segment of a bench play, from its frames: the frame's GPU time on the bench's
 // timer and on the engine's, the CPU, the hitches, the passes by their GPU time and the commands
 // per frame.
-import { stats } from '../core/chrono.ts'
-import { mean } from '../../packages/math/src/scalar/quantile.ts'
+import { quantileOf, summaryOf } from '../../packages/math/src/scalar/quantile.ts'
 import {
   gpuPassBlockOf,
   gpuPassStageOf,
@@ -15,30 +14,22 @@ import { WATCHED } from './watched.ts'
 /** Plays agreeing within this relative spread of their medians make a stable segment. */
 export const STABLE_SPREAD = 0.03
 
-/** The `q` quantile of sorted `values`, linearly between its two neighbours. */
-const quantile = (sorted: readonly number[], q: number) => {
-  const at = (sorted.length - 1) * q
-  const low = Math.floor(at)
-  return sorted[low] + (sorted[Math.ceil(at)] - sorted[low]) * (at - low)
-}
-
-/** Median, 95th percentile, lowest and highest of `values`, and how dispersed they are: `iqr`, the
- *  span of the middle half, and `std`; or `null` for none. */
+/** Median, 95th percentile, lowest and highest of `values` (`summary`), and how dispersed they are:
+ *  `iqr`, the span of the middle half by the nearest rank, and `std`; or `null` for none. */
 export function spread(values: readonly number[]) {
   const finite = values.filter(Number.isFinite)
-  if (!finite.length) return null
-  const { medianeMs: median, p95Ms: p95, minMs: min } = stats(finite)
-  const sorted = [...finite].sort((a, b) => a - b)
-  const average = mean(finite)
+  const found = summaryOf(finite)
+  if (!found) return null
+  const { p50: median, p95, min, max, mean: average, n } = found
   return {
     median,
     p95,
     min,
-    max: Math.max(...finite),
+    max,
     mean: average,
-    n: finite.length,
-    iqr: quantile(sorted, 0.75) - quantile(sorted, 0.25),
-    std: Math.sqrt(finite.reduce((sum, v) => sum + (v - average) ** 2, 0) / finite.length),
+    n,
+    iqr: quantileOf(finite, 0.75)! - quantileOf(finite, 0.25)!,
+    std: Math.sqrt(finite.reduce((sum, v) => sum + (v - average) ** 2, 0) / n),
   }
 }
 export type Spread = NonNullable<ReturnType<typeof spread>>
@@ -71,7 +62,11 @@ export function passTimes(frames: readonly FrameRecord[]) {
       if (ms === null || ms === undefined) continue
       const key = passKey(pass.name)
       if (!kinds.has(key))
-        kinds.set(key, { stage: gpuPassStageOf(pass.name), block: gpuPassBlockOf(pass.name) })
+        kinds.set(key, {
+          // A label the engine does not declare stands apart, never inside a stage or a block.
+          stage: gpuPassStageOf(pass.name) ?? 'unnamed',
+          block: gpuPassBlockOf(pass.name) ?? 'unnamed',
+        })
       sums.set(key, (sums.get(key) ?? 0) + ms)
       total += ms
     }

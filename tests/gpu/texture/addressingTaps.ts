@@ -3,10 +3,11 @@
 import { WRAP_COORD_WGSL } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts'
 import { COLOR_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/webgpu/tile/wgsl.ts'
 import { functionText } from '../../../packages/sdk-browser/src/bounce/wgslBody.fixture.ts'
+import { readTexture } from '../kit/computeReadback.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
-import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
+import { bilinear4 } from '../../../packages/math/src/wgsl/sampling.ts'
 
 /** One texture, its RGBA8 bytes, read as a `texture_2d_array` by every batch. */
 interface TapTexture {
@@ -36,7 +37,7 @@ function seamRead() {
   const level = functionText(COLOR_SAMPLE_WGSL, 'colorLevel')
   const seam = level.slice(level.indexOf(' let s00='))
   const fetch = /colorFetch\(s,(.+?),level,finest,nearest\)/g
-  if (seam.match(fetch)?.length !== 4 || !seam.includes('return mix('))
+  if (seam.match(fetch)?.length !== 4 || !seam.includes('return bilinear4('))
     throw new Error(`the atlas reads no longer blend a seam from four fetches:\n${level}`)
   return `fn seamRead(t:WrapTaps)->vec4f{\n${seam.replace(fetch, 'textureSampleLevel(maps,engineSampler,$1,0,0.0)')}\n}`
 }
@@ -64,7 +65,7 @@ struct Read{@location(0) engine:vec4f,@location(1) sampler:vec4f,}
  if((c.flags&${BLEND_BIT}u)!=0u&&t.couture){read=seamRead(t);}
  return Read(read,textureSampleLevel(maps,mapSampler,c.uv,0,0.0));
 }`,
-    [WRAP_COORD_WGSL],
+    [WRAP_COORD_WGSL, bilinear4],
   )
 
 type Input = { code: string; textures: TapTexture[]; batches: TapBatch[] }
@@ -138,22 +139,14 @@ async function sample({ code, textures, batches }: Input) {
     pass.setBindGroup(0, group)
     pass.draw(3)
     pass.end()
-    const row = alignUp(n * 16, 256)
-    const readbacks = targets.map((texture) => {
-      const usage = GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-      const buffer = device.createBuffer({ size: row, usage })
-      encoder.copyTextureToBuffer({ texture }, { buffer, bytesPerRow: row }, [n, 1])
-      return buffer
-    })
     device.queue.submit([encoder.finish()])
     const [engine, native] = await Promise.all(
-      readbacks.map(async (buffer) => {
-        await buffer.mapAsync(GPUMapMode.READ)
-        return Array.from(new Float32Array(buffer.getMappedRange().slice(0, n * 16)))
-      }),
+      targets.map(async (texture) =>
+        Array.from(new Float32Array((await readTexture(device, texture, 16)).buffer)),
+      ),
     )
     reads.push({ engine, sampler: native })
-    for (const resource of [taps, ...targets, ...readbacks]) resource.destroy()
+    for (const resource of [taps, ...targets]) resource.destroy()
   }
   await opened.fermer()
   return { errors, reads }

@@ -52,6 +52,10 @@ function loopScheduler(loop: LoopWiring, captures: Captures, events: ExplorerEmi
     // A page landing, or a still image an unfinished average takes, is the image still arriving:
     // those frames spend none of the settle limit: the engine's own count.
     progress: () => runtime.engine.landings(),
+    arriving: () => runtime.engine.arriving(),
+    // A display frame out of the engine's steady cadence draws and counts nothing. A frame that
+    // would not draw anyway — a capture, a family on its way — is not the engine's to leave out.
+    skip: () => !captures.count && !runtime.familiesPending() && runtime.engine.skipsFrame(),
     pending: () => (captures.count ? Promise.resolve(false) : runtime.pendingFrame()),
     error: fail,
     limited: () =>

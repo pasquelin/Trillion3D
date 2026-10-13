@@ -1,5 +1,4 @@
 import { invertMatrix4 } from '../../../../../sdk-core/src/index.ts'
-import { updateScreenReflection } from '../../../reflections/frame.ts'
 import { drawParticles } from '../../particles/webgpuParticleFrame.ts'
 import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts'
 import { directTiles, encodeDirectLights } from './encodeLights.ts'
@@ -7,7 +6,7 @@ import { finishVsmFrame } from './vsm/vsmFrameEnd.ts'
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts'
 import { encodeTaaPass, taaSampledRank } from '../../../taa/frame.ts'
 import { stochasticPhase } from '../../../taa/frameState.ts'
-import { encodeEffects } from './encodeEffects.ts'
+import { composedImage, encodeEffects } from './encodeEffects.ts'
 import { seedAsIsShare } from '../prepare/asIsShareTarget.ts'
 import {
   directLightResources,
@@ -17,12 +16,29 @@ import {
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
 import { encodeBlend, prepareBlend } from './encodeBlend.ts'
+import {
+  encodeDepthPyramid,
+  encodeReflectionRadiance,
+  encodeReflections,
+} from '../../../reflections/frame.ts'
+import { adoptRadianceImage } from '../../../reflections/radiance.ts'
 import { viewProj } from '../helpers.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 
 const inverseViewProj = new Float64Array(16),
   cameraWorldArray: [number, number, number, number] = [0, 0, 0, 1]
+
+/** What the proxy's pose reads of the deformation (`PoseHost`): one object, refilled for each call
+ *  and emptied after it, so that an image allocates none. */
+const poseHost = {
+  pool: undefined as GPUBuffer | undefined,
+  revision: 0,
+  deformation: undefined as WebgpuPagesRuntime['vis']['deformation'],
+  recordOf(world: object): number {
+    return poseHost.deformation?.wordOfWorld(world) ?? 0
+  },
+}
 
 /** Lights the surfaces into the HDR target, draws the forward transparents over it, and composes the
  *  display image at its size; returns whether it landed on the presented swap-chain view. */
@@ -38,12 +54,26 @@ export function encodeSurfaceLighting(
     throw new Error('DEFERRED_UNAVAILABLE')
   // The impostor cards complete the opaque surfaces before anything reads them.
   rt.gpu.impostorCode?.encodeImpostorCards(rt, encoder)
+  // The placement tree the proxy's rays walk, as the culling left it this image (`proxyInstances.ts`).
+  run.gpuSelection?.proxyMirror(encoder)
+  const { deformation } = rt.vis
+  poseHost.pool = rt.vis.concatPos
+  poseHost.deformation = deformation
+  poseHost.revision = deformation?.frame.revision ?? 0
+  run.gpuSelection?.proxyPose(encoder, poseHost)
+  poseHost.pool = poseHost.deformation = undefined
   const [width, height] = gpu.targetSize,
     raw = run.diagnostic !== 'beauty'
   invertMatrix4(inverseViewProj, viewProj)
+  // The depth's pyramid, complete: the contact rays of the lights and the reflections march it.
+  encodeDepthPyramid(rt, encoder)
   // The transparents are selected and ordered first; light lists encode before resolve, its inputs.
   const blendRuns = prepareBlend(rt, encoder, true)
   const direct = encodeDirectLights(rt, device, encoder, cam, viewProj)
+  for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i]
+  // What every surface reflects: the opaque ones traced here, the resolve's input; the blends and
+  // the water read the same view inline.
+  encodeReflections(rt, encoder)
   gpu.deferred.bind(
     gpu.surfaces,
     gpu.depthView,
@@ -52,7 +82,6 @@ export function encodeSurfaceLighting(
     directLightResources(rt),
     (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   )
-  for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i]
   // The jitter the raster drew this image with: the shadow level reads it.
   const taa = gpu.temporal?.frame
   gpu.deferred.setJitter(taa?.active ? taa.jitter : null, stochasticPhase(taa))
@@ -61,24 +90,26 @@ export function encodeSurfaceLighting(
     cameraWorldArray,
     width,
     height,
-    run.clearColor,
+    clear,
     raw,
     direct,
     taaSampledRank(rt),
   )
-  updateScreenReflection(rt, viewProj, gpu.deferred.usesContract && !raw)
-  run.gpuDrawCalls += gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection)
+  gpu.deferred.light(encoder, gpu.hdrView)
+  run.gpuDrawCalls++
   const blendShare = seedAsIsShare(rt, device, encoder)
   const filter = beginDisplayFilter(rt, device)
   encodeBlend(rt, device, encoder, true, blendRuns)
   drawParticles(rt, encoder, directTiles())
+  // The lit image whole, before its resolve: the next image's reflections read it.
+  encodeReflectionRadiance(rt, encoder)
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt)
   const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs, blendShare?.view)
   const effects = encodeEffects(rt, device, encoder, accumulated)
   const composed =
     asIs && blendShare && !accumulated
-      ? { ...(effects ?? { color: gpu.hdrView }), share: blendShare.view }
+      ? composedImage(effects?.color ?? gpu.hdrView, blendShare.view, effects?.bloom)
       : effects
   // A diagnostic variant, a guide or a view placed at a canvas rectangle composes offscreen.
   const guided = guidesShown(rt),
@@ -95,5 +126,8 @@ export function encodeSurfaceLighting(
   if (guided) encodeWebgpuGuides(rt, encoder, cam)
   // The transparents and water read this frame's maps: the frame's buffers swap only now.
   finishVsmFrame(rt, encoder)
+  // Every pass of the image that reads or writes the HDR target is encoded: the lit image becomes
+  // the radiance pyramid's level 0, and the HDR target the next image lights is the other one.
+  adoptRadianceImage(gpu)
   return !!presentation
 }

@@ -8,7 +8,7 @@
 // <page>: a bench scene's name (`an-open-world-of-every-cost`), a path, or a validation page's prefix (`v06`) with
 // TRILLION3D_VALIDATION_DIR set; a scenario file may name its page. One bench at a time on the
 // machine (`lock.ts`). The report, JSON and Markdown, lands in `.mesure/out/bench-gpu/`.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { measureOutput } from '../core/paths.ts'
 import { runChild } from './child.ts'
@@ -21,6 +21,7 @@ import { engineSources, findPassSources } from './passSource.ts'
 import { benchOptions, stamp } from './options.ts'
 import { playScenario, type BenchPlay } from './play.ts'
 import { reportText } from './reportText.ts'
+import { readJson } from '../../scripts/repository-files.ts'
 
 const options = benchOptions()
 const label = `${options.name} ${options.scenario.name}${options.search}`
@@ -84,7 +85,7 @@ try {
     )
     if (child.status !== 0)
       throw new Error(`BENCH_PLAY: play ${k + 1} of ${label} ended ${child.status ?? child.signal}`)
-    plays.push(JSON.parse(readFileSync(report, 'utf8')) as BenchPlay)
+    plays.push(readJson(report) as BenchPlay)
   }
 } catch (error) {
   // A play that failed leaves no half run behind.

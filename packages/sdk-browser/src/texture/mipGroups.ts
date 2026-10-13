@@ -1,7 +1,8 @@
+import { previewLevelSize } from '../../../sdk-core/src/index.ts'
 import { coverageGroups, LEVEL_BIN_BYTES } from './coverageMips.ts'
-import { levelSize } from './tiles.ts'
 import { levelView, MATERIAL_MIP_FORMAT, materialMipPipeline } from './mips.ts'
-import { sameEntries } from '../gpu/core/sameEntries.ts'
+import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 
 /** One texture of a batch: its pool format — its levels stored as `materialMipTexture` says —, its
  *  size, its colour rule — weighted by alpha when every reader takes alpha for coverage, in
@@ -29,20 +30,20 @@ export type ChainPlace = {
 export type BatchBuffers = { uniforms: GPUBuffer; stride: number; bins: GPUBuffer }
 
 /** What a texture keeps for its reductions: its level views — read in the pool format, written
- *  through its own; one list when they are the same —, and its groups with the batch place and
- *  buffers they were made for. */
+ *  through its own; one list when they are the same —, and its groups with the identity of the
+ *  batch place and buffers they were made for. */
 type Held = {
   reads: GPUTextureView[]
   writes: GPUTextureView[]
-  /** The batch place its groups were made for, and its level sizes. */
-  place: unknown[]
+  /** The batch place its groups were made for (`createWebgpuBindIdentity`), and its level sizes. */
+  place: WebgpuBindIdentity
   sizes: (readonly [number, number])[]
   reduce: GPUBindGroup[]
   counts?: GPUBindGroup[]
 }
+// Kept with the texture, as long as it: the batches reduce many textures at once, each its own
+// groups (`bindIdentity.ts`, its one exception).
 const held = new WeakMap<GPUTexture, Held>()
-/** The place a chain is asked at, compared with its held one. */
-const probe: unknown[] = []
 
 /** The views of `texture`'s first `count` mip levels, one a level, in `format` when given
  *  (`levelView`). */
@@ -71,12 +72,21 @@ export function chainGroups(
   if (!kept || kept.reads.length < levels) {
     const reads = levelViews(texture, levels, format)
     const writes = format === MATERIAL_MIP_FORMAT ? reads : levelViews(texture, levels)
-    held.set(texture, (kept = { reads, writes, place: [], sizes: [], reduce: [] }))
+    held.set(
+      texture,
+      (kept = { reads, writes, place: createWebgpuBindIdentity(), sizes: [], reduce: [] }),
+    )
   }
-  // The place written in one held array: nothing allocated while it holds.
-  probe.length = 0
-  probe.push(layout, uniforms, bins, stride, first, at, levels)
-  if (!sameEntries(kept.place, probe)) {
+  // The place written in the identity's one array: nothing allocated while it holds.
+  const { next } = kept.place
+  next[0] = layout
+  next[1] = uniforms
+  next[2] = bins
+  next[3] = stride
+  next[4] = first
+  next[5] = at
+  next[6] = levels
+  if (kept.place.moved()) {
     const { reads, writes } = kept
     const cover: GPUBufferBinding =
       at === undefined
@@ -86,23 +96,21 @@ export function chainGroups(
     kept.reduce = Array.from({ length: levels - 1 }, (_, above) =>
       device.createBindGroup({
         layout,
-        entries: [
-          { binding: 0, resource: reads[above] },
-          {
-            binding: 1,
-            resource: { buffer: uniforms, offset: (first + above + 1) * stride, size: 32 },
-          },
-          { binding: 2, resource: cover },
-          { binding: 3, resource: writes[above + 1] },
-        ],
+        entries: sequentialEntries([
+          reads[above],
+          { buffer: uniforms, offset: (first + above + 1) * stride, size: 32 },
+          cover,
+          writes[above + 1],
+        ]),
       }),
     )
     kept.counts =
       at === undefined
         ? undefined
         : coverageGroups(device, { views: reads, uniforms, first, stride, bins: cover }, levels)
-    kept.place = probe.slice()
-    kept.sizes = Array.from({ length: levels }, (_, level) => levelSize(width, height, level))
+    kept.sizes = Array.from({ length: levels }, (_, level) =>
+      previewLevelSize(width, height, level),
+    )
   }
   return { levels, sizes: kept.sizes, pipeline, reduce: kept.reduce, counts: kept.counts }
 }

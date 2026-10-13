@@ -1,5 +1,3 @@
-import { disabledStageProfile } from '../../../../sdk-core/src/index.ts'
-import { WEBGPU_ENGINE_ID } from '../../engine/factory.ts'
 import type { Engine, EngineContext } from '../../engine/types.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
 import { prepareWebgpuBackend } from './prepare/prepare.ts'
@@ -9,14 +7,8 @@ import { flushWebgpuPages } from './render/flush.ts'
 import { captureSurfaceView } from './io/surfaceCapture.ts'
 import { captureColorView } from './io/colorCapture.ts'
 import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts'
-import {
-  captureImage,
-  pageUrls,
-  pendingUrls,
-  rasterView,
-  retainedRanks,
-  syncResident,
-} from './io/hostApi.ts'
+import { captureImage, rasterView, syncResident } from './io/hostApi.ts'
+import { pendingUrls, retainedRanks } from './io/hostLists.ts'
 import { acceptPage, dropPage } from './io/pageApi.ts'
 import { createArrivalSpecs } from '../../page/integration/arrivalSpecs.ts'
 import { endCpuFrame, hostCpuStep } from './render/cpuSteps.ts'
@@ -27,16 +19,22 @@ import { webgpuVertexApi } from './dynamicVertices.ts'
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts'
 import { hostTableBytesOf, setWebgpuMemoryBudgets } from './io/memory.ts'
 import { runtimeMaterialApi } from './io/runtimeMaterialApi.ts'
+import { addWebgpuPlacements } from '../../placement/webgpuAppend.ts'
+import type { WorldRootsHold } from '../../scene/worldRoots.ts'
+import { addWebgpuWorldRoots } from '../../placement/webgpuAppendWorld.ts'
 import { setWebgpuClearColor } from './io/clearColor.ts'
 import * as materials from './io/refreshMaterials.ts'
 import { installGpuDeviceLedger, gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
 import { namesNoSession } from '../../gpu/core/sessionHandle.ts'
 import { families } from '../../host/families.ts'
+import { log } from '../../diagnostic/log.ts'
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts'
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts'
 import {
   measureWebgpuFrame,
   pendingWebgpuFrame,
+  skipsWebgpuFrame,
+  webgpuArriving,
   webgpuLandings,
 } from '../frame/interactiveFrame.ts'
 
@@ -60,12 +58,17 @@ export function backendSetters(rt: WebgpuPagesRuntime) {
     ...webgpuPlacementApi(rt),
     composePlacements: (parent, world, links, whole) =>
       composeWebgpuPlacements(rt, parent, world, links, whole),
-    worldCut: () => (run.gpuSelection?.packsWorld ? run.selectionUniforms : undefined),
+    worldCut: (roots) =>
+      run.gpuSelection?.packsWorld && roots && rt.context.worldRoots === roots
+        ? run.selectionUniforms
+        : undefined,
     ...webgpuVertexApi(rt),
     refreshMaterials: (values, alpha) => materials.refreshWebgpuMaterials(rt, values, alpha),
     materialClassRefusal: (alpha) => materials.webgpuMaterialClassRefusal(alpha, rt.setup.allPages),
     wearSurface: (assignment) => materials.wearWebgpuSurface(rt, assignment),
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
+    addPlacements: (source, primitive) => addWebgpuPlacements(rt, source, primitive),
+    addWorldRoots: (roots) => addWebgpuWorldRoots(rt, roots as WorldRootsHold),
     ...runtimeMaterialApi(rt),
     setClearColor: (hex) => setWebgpuClearColor(rt, hex),
   } satisfies Partial<Engine>
@@ -97,16 +100,33 @@ export async function prepareSession(
   }
 }
 
-/** Inert and read as lost at once; torn down once, after the preparation stopped. */
+/** Inert and read as lost at once; torn down once, after the preparation stopped, then swept
+ *  (`sweepSession`). */
 export function disposeSession(rt: WebgpuPagesRuntime, session: PagesSession) {
   const { setup } = rt
   rt.closer.abort()
   gpuDeviceLedgerOf(session.claim?.device)?.releaseAdmission()
   session.claim?.release()
   markWebgpuLost(rt)
-  return (session.closing ??= setup.preparing
-    ? setup.preparing.then(() => disposeWebgpuPages(rt))
-    : disposeWebgpuPages(rt))
+  return (session.closing ??= (
+    setup.preparing ? setup.preparing.then(() => disposeWebgpuPages(rt)) : disposeWebgpuPages(rt)
+  ).finally(() => sweepSession(session)))
+}
+
+/**
+ * What the closed session's handle still holds once torn down, destroyed through its ledger
+ * (`GpuDeviceLedger.sweep`), which counts every buffer and texture made through the handle and
+ * none of the device's shared caches: the buffers its holders keep between uses (`heldBuffers`),
+ * its zero words — and any resource a teardown forgot, which the console names, so a leak stays
+ * visible while it costs nothing.
+ */
+function sweepSession(session: PagesSession) {
+  const swept = gpuDeviceLedgerOf(session.claim?.device)?.sweep() ?? []
+  if (!swept.length) return
+  const byLabel = new Map<string, number>()
+  for (const label of swept) byLabel.set(label, (byLabel.get(label) ?? 0) + 1)
+  const named = [...byLabel].map(([label, count]) => (count > 1 ? `${label} ×${count}` : label))
+  log.info(`A closed session destroyed what its handle still held: ${named.join(', ')}`)
 }
 
 /** What the host reads and asks of the engine: frames, captures, views, pages, metrics. */
@@ -121,7 +141,9 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     feedbackAbSpatial: async () => (await views()).feedbackAbSpatial(rt),
     pendingFrame: () => pendingWebgpuFrame(rt),
     measureFrame: () => measureWebgpuFrame(rt),
+    skipsFrame: () => skipsWebgpuFrame(rt),
     landings: () => webgpuLandings(rt),
+    arriving: () => webgpuArriving(rt),
     flush(options?: { image?: boolean }) {
       return flushWebgpuPages(rt, options)
     },
@@ -145,7 +167,6 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     selectedClusterIds: () => run.shown.map((rec) => rec.clusterId),
     rasterView: () => rasterView(rt),
     pendingUrls: () => pendingUrls(rt),
-    pageUrls: () => pageUrls(rt),
     retainedRanks() {
       return retainedRanks(rt)
     },
@@ -167,11 +188,11 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
 export function backendTiming(rt: WebgpuPagesRuntime) {
   return {
     resetStageProfile() {
-      rt.timing.stages?.reset()
-      rt.timing.cpuWindow.reset()
+      rt.timing.hostSteps.reset()
+      rt.timing.profiler.stages?.reset()
     },
     cpuSteps() {
-      return rt.timing.cpuWindow.summary()
+      return rt.timing.hostSteps.read()
     },
     cpuStep(step, ms) {
       hostCpuStep(rt, step, ms)
@@ -183,10 +204,7 @@ export function backendTiming(rt: WebgpuPagesRuntime) {
       endCpuFrame(rt)
     },
     stageProfile() {
-      return (
-        rt.timing.stages?.profile() ??
-        disabledStageProfile(WEBGPU_ENGINE_ID, 'per-step profile not requested by the host')
-      )
+      return rt.timing.profiler.profile()
     },
   } satisfies Partial<Engine>
 }

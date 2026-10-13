@@ -6,7 +6,7 @@ import { encodeDagKernels } from './encode.ts'
 import { SELECTION_HEADER_WORDS, levelCountsWord } from './layout.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
-import type { createDagResources } from './resources.ts'
+import type { DagResources } from './resources.ts'
 import {
   holdSwap,
   inPlace,
@@ -17,14 +17,12 @@ import {
   saveRegionFor,
   takeAsideView,
 } from './swap.ts'
-import { tablesHeld } from './listCap.ts'
+import { cutTablesAt, tablesHeld } from './queueGrowth.ts'
 import { coarsenTick } from './coarsening.ts'
 import { recutView } from './runtimeState.ts'
-import { pickSlot } from './readbackSlot.ts'
 import { encodeSwap } from './swapEncode.ts'
-import { createAsideSlots, type AsideSlots } from './asideSlots.ts'
+import { createAsideSlots, type AsideCopy, type AsideSlots } from './asideSlots.ts'
 
-type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 /** What a view aside takes of the main cut: its owed copy (`dispatch.ts`, `copyOwed`), and the
  *  step every cut on the tables takes before it encodes (`runtime.ts`, `syncTables`). */
 type MainShare = {
@@ -46,13 +44,14 @@ const noop = () => {}
  * A VIEW DRAWN BESIDE THE MAIN ONE — a capture, a persistent view (#1097) — CUT ON THE GPU (#1483).
  * The kernels and their tables are the main cut's: the view's camera is written to the uniforms
  * and the cut runs in the view's command buffer, which draws from the mask it leaves. Its requests
- * and drawn pages are copied into slots of its own (`asideSlots.ts`) — no eviction queue, no
- * difference: the host publishes them by hashed difference (`../../webgpu/cut/publication.ts`).
+ * and drawn pages are copied into a readback ring of its own (`asideSlots.ts`) — no eviction
+ * queue, no difference: the host publishes them by hashed difference
+ * (`../../webgpu/cut/publication.ts`).
  * The view has a region of `out` of its own (`swap.ts`), asked of the list growth when it is made:
  * the mask comes back from it while the view's last cut stands, read back whole, as the main
  * view's does; a view whose mask is in place runs nothing. The kept snapshot the main cut's
- * differences are taken against is never touched, and the main cut's lists no slot copied yet are
- * copied before the view cuts on `out`.
+ * differences are taken against is never touched, and the main cut's lists no readback copied yet
+ * are copied before the view cuts on `out`.
  *
  * Its first readback copies each list whole; the next ones twice what the cut last asked. One whose
  * cut asked past what it copied is never adopted short: while the cut stands, its lists still in
@@ -84,7 +83,8 @@ export function createAsideCut(
     dispose() {
       aside.slots.disposed = true
       releaseAsideView(resources.swap, view)
-      aside.slots.release()
+      // The reads queued map nothing; one mapping is cut short, quietly.
+      aside.slots.ring.destroy()
     },
   }
 }
@@ -116,14 +116,15 @@ function dispatchAside(aside: Aside, uniforms: SelectionUniforms, shared: GPUCom
 }
 
 /** Cuts `uniforms` into `shared`, the main cut's lists owed copied first; its lists copied into a
- *  slot when one is free. */
+ *  readback when the ring has one. */
 function cutAside(aside: Aside, uniforms: SelectionUniforms, shared: GPUCommandEncoder) {
   const { resources, state, view } = aside,
     { swap, uniformData, packed, listCap } = resources
   const owed = aside.copyOwed(shared)
   const undo = holdSwap(swap, view)
   const { factor } = aside.slots.coarse
-  writeDagUniforms(uniformData, packed, uniforms, listCap, saveRegionFor(swap, view), factor)
+  const region = saveRegionFor(swap, view)
+  writeDagUniforms(uniformData, packed, uniforms, listCap, region, factor, cutTablesAt(resources))
   resources.device.queue.writeBuffer(resources.uniforms, 0, uniformData)
   encodeDagKernels(shared, resources, false)
   // One copy of the uniforms, kept by the swap and by the readback alike: none is written after.
@@ -137,39 +138,42 @@ function cutAside(aside: Aside, uniforms: SelectionUniforms, shared: GPUCommandE
   return settleAside(aside, copied, () => (owed?.(false), undo()), owed)
 }
 
-/** Copies `out`'s lists, the cut `serial` under `snap`, into a free slot of `shared`; nothing when
- *  both slots are still read: the lists are copied at a later image, while the cut stands. */
+/** Copies `out`'s lists, the cut `serial` under `snap`, into a readback of `shared`; nothing when
+ *  every one is still read: the lists are copied at a later image, while the cut stands. */
 function copyLists(
   { resources, state, slots }: Aside,
   snap: SelectionUniforms,
   shared: GPUCommandEncoder,
   serial: number,
 ) {
-  const i = pickSlot(slots.mapped, slots.next)
-  if (i < 0) return undefined
   const { output, listCap } = resources,
     ranks = Math.min(slots.copied, listCap),
-    bytes = (SELECTION_HEADER_WORDS + ranks) * 4,
-    target = slots.slotOf(i, 2 * bytes + ADMISSION_BUCKETS * 4)
+    bytes = (SELECTION_HEADER_WORDS + ranks) * 4
+  const captured = {
+    uniforms: snap,
+    worldRevision: state.worldRevision,
+    coarsen: slots.coarse.factor,
+  }
+  const copy: AsideCopy = { ranks, listCap, captured, serial, residency: -1 }
+  const target = slots.ring.take(copy, 2 * bytes + ADMISSION_BUCKETS * 4)
+  if (!target) return undefined
   // The requests, then the drawn list right behind them, each its header and `ranks` ranks, then
   // the requests' admission counts.
   shared.copyBufferToBuffer(output, 0, target, 0, bytes)
   shared.copyBufferToBuffer(output, (SELECTION_HEADER_WORDS + listCap) * 4, target, bytes, bytes)
   const counts = levelCountsWord(listCap) * 4
   shared.copyBufferToBuffer(output, counts, target, 2 * bytes, ADMISSION_BUCKETS * 4)
-  slots.mapped[i] = true
-  slots.next = 1 - i
-  slots.inFlight = slots.copiedSerial[i] = serial
-  const captured = {
-    uniforms: snap,
-    worldRevision: state.worldRevision,
-    coarsen: slots.coarse.factor,
+  slots.inFlight = serial
+  const read = () => {
+    copy.residency = state.residencyRevision
+    slots.ring.submitted(target)
   }
-  return { i, read: () => slots.read(i, ranks, listCap, captured, serial) }
+  return { target, copy, read }
 }
 
-/** The submission of a view's dispatch: its copy read once the buffer ran, its slot and `undo`
- *  given back when it is dropped; `owed`, the main cut's copy in the same buffer, settled with it. */
+/** The submission of a view's dispatch: its copy read once the buffer ran, its readback and
+ *  `undo` given back when it is dropped; `owed`, the main cut's copy in the same buffer, settled
+ *  with it. */
 function settleAside(
   { slots }: Aside,
   copied: ReturnType<typeof copyLists>,
@@ -181,7 +185,10 @@ function settleAside(
     if (settled) return
     settled = true
     if (submitted) return void (owed?.(true), copied?.read())
-    if (copied) slots.dropped(copied.i)
+    if (copied) {
+      slots.ring.dropped(copied.target)
+      slots.settled(copied.copy)
+    }
     undo()
   }
 }

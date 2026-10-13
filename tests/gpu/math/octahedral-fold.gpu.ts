@@ -4,7 +4,8 @@
 // (`visibility/shader/impostorWgsl.ts`) return, bit for bit, what each one's own formula returned
 // before they shared it — kept below as `develop` wrote it. A million directions of every octant,
 // on and off the axes, at lengths from 2^-8 to 2^7; a million lobe words; every 10-bit receiver
-// cell. The zero vector, which no caller encodes, is left out.
+// cell. The zero vector, which no caller encodes, is left out. Straight down on the
+// hemi-octahedron, where `develop` divided zero by zero, reads the zenith frame `(0, 0)`.
 //
 //   node bench/dawn/proofs.ts tests/gpu/math/octahedral-fold.gpu.ts
 import test from 'node:test'
@@ -72,7 +73,8 @@ fn tally(k:u32,same:bool){if(!same){atomicAdd(&differ[k],1u);}}
  tally(0u,lobeOctEncode(n)==wasLobeEncode(n));
  tally(1u,same2(octEncode(plane),wasReceiverOct(plane)));
  tally(2u,same2(octEncodeHemi(n,0.0),wasImpOctEncode(n,0.0)));
- tally(3u,same2(octEncodeHemi(n,1.0),wasImpOctEncode(n,1.0)));
+ let down=all(n.xz==vec2f(0.0))&&n.y<0.0;
+ tally(3u,same2(octEncodeHemi(n,1.0),select(wasImpOctEncode(n,1.0),vec2f(0.0),down)));
 }`,
   [hashUnit, LOBE_PACK_WGSL, octEncode, octDecode, octEncodeHemi],
 )

@@ -3,7 +3,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { TaaFrameState } from './frameState.ts'
 
 /** The still average restarts, history dropped, whichever view holds it: the one place that does,
- *  for every cause — a view cut, a landing, a settled reflection, a new size or scale, a barrier's
+ *  for every cause — a view cut, a landing, a new size or scale, a barrier's
  *  landing. A moving image only zeroes the count (`beginTaaFrame`); it keeps its history. */
 export function restartTaaAverage(frame: TaaFrameState | undefined) {
   if (!frame) return

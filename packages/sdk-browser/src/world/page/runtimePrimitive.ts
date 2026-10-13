@@ -1,11 +1,12 @@
 import { unpackDrawn } from './runtimePack.ts'
 import { runtimeDeformation } from './runtimeDeformation.ts'
-import type { Page, Primitive } from '../../../../sdk-core/src/index.ts'
+import type { CullingHierarchy, Page, Primitive } from '../../../../sdk-core/src/index.ts'
 import { LINE_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import type { PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
 import { cutPagesOffThread } from '../../page/work/host.ts'
-import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
+import { sphereFromBoundsBatch } from '../../../../math/src/batch/culling.ts'
 import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
+import { drawnBounds, type DrawnShape } from '../../../../sdk-core/src/world/geometry/drawnKind.ts'
 
 /** A runtime primitive, and the addresses its pages are served from until it is released. */
 export type RuntimePrimitive = { primitive: Primitive; urls: string[] }
@@ -17,9 +18,6 @@ function served(bytes: ArrayBuffer, sha256: string, urls: string[]) {
   return { url, sha256, bytes: bytes.byteLength }
 }
 
-/** What the cut triangles are, beside faces (`DrawnTriangles`). */
-export type DrawnKind = { lines?: boolean; spriteRadius?: number }
-
 /** A dynamic primitive's held box: six numbers, the least corner then the greatest. */
 export type HeldBox = Float64Array
 
@@ -30,35 +28,39 @@ export type HeldBox = Float64Array
 function restBounds(boxes: Float64Array, k: number) {
   const box = boxes.subarray(k * BOX_VALUES, (k + 1) * BOX_VALUES),
     sphere = new Float64Array(4)
-  sphereFromBounds(sphere, 0, box[0], box[1], box[2], box[3], box[4], box[5])
+  sphereFromBoundsBatch(sphere, box, 1)
   return { min: [...box.subarray(0, 3)], max: [...box.subarray(3)], sphere: [...sphere] }
 }
 
-/** The box and ball of a page: its own, or for a sprite's quad, which the rasters turn to face
- *  the camera about its origin (`drawnSprite`), the cube and ball of its radius there — what
- *  holds the quad whichever way it turns, so a sprite is culled by that ball. */
-function bounds(page: PageCutPayload['pages'][number], radius: number | undefined) {
-  if (radius === undefined) return { min: page.min, max: page.max, sphere: page.sphere }
-  return {
-    min: [-radius, -radius, -radius],
-    max: [radius, radius, radius],
-    sphere: [0, 0, 0, radius],
-  }
+/** `culling` with every node's box the one box all of a sprite's pages take. */
+function spriteCulling(culling: CullingHierarchy, box: { min: number[]; max: number[] }) {
+  const nodes = culling.nodes.slice()
+  for (let at = 0; at < nodes.length; at += culling.stride)
+    for (let a = 0; a < 3; a++) {
+      nodes[at + a] = box.min[a]
+      nodes[at + 3 + a] = box.max[a]
+    }
+  return { ...culling, nodes }
 }
 
-/** The pages of a cut, served at addresses of their own: the primitive a manifest lists. The
+/** The pages of a cut, served at addresses of their own: the primitive a manifest lists, with the
+ *  culling hierarchy the cut built over them (`runtimeCut.ts`). The
  *  pages of line quads draw one coplanar layer over the faces they lie on (`LINE_DEPTH_LAYER`).
+ *  A sprite's pages all take the box its radius gives (`drawnBounds`), and so does every node.
  * With `boxes`, the primitive is dynamic: index pages alone, no geometry page and no normal
  *  cone — its vertices, read as floats from the host geometry, are rewritten in place —, each page
  *  bounded by its own corners where they were cut (`restBounds`). */
-export function servePrimitive(cut: PageCutPayload, kind: DrawnKind, boxes?: Float64Array) {
+export function servePrimitive(cut: PageCutPayload, kind: DrawnShape, boxes?: Float64Array) {
   const urls: string[] = []
   const held = !!boxes
+  const sprite = !boxes && drawnBounds(kind)
   const pages: Page[] = cut.pages.map((page, id) => ({
     id,
     ...served(page.index, page.indexSha256, urls),
     count: page.count,
-    ...(boxes ? restBounds(boxes, id) : bounds(page, kind.spriteRadius)),
+    ...(boxes
+      ? restBounds(boxes, id)
+      : sprite || { min: page.min, max: page.max, sphere: page.sphere }),
     role: 'exact',
     start: page.start,
     level: 0,
@@ -86,6 +88,7 @@ export function servePrimitive(cut: PageCutPayload, kind: DrawnKind, boxes?: Flo
     clusterStrategy: 'dag-groups',
     pages,
     structure: { version: 1, roots: pages.map((page) => page.id), groups: [] },
+    culling: sprite ? spriteCulling(cut.culling, sprite) : cut.culling,
     quantization: {
       positionExponent: cut.positionExponent,
       uvExponent: cut.uvExponent,
@@ -104,10 +107,12 @@ export function servePrimitive(cut: PageCutPayload, kind: DrawnKind, boxes?: Flo
  */
 export async function cutRuntimePrimitive(
   packed: ArrayBuffer,
-  kind: DrawnKind,
+  kind: DrawnShape,
 ): Promise<RuntimePrimitive> {
   const deformation = runtimeDeformation(unpackDrawn(packed).drawn)
-  const result = servePrimitive(await cutPagesOffThread(packed), kind)
+  const cut = await cutPagesOffThread(packed)
+  const result = servePrimitive(cut, kind)
   if (deformation) result.primitive.deformation = deformation
+  if (cut.proxy) result.primitive.runtimeProxy = cut.proxy
   return result
 }

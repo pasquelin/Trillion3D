@@ -8,6 +8,8 @@ import assert from 'node:assert/strict'
 import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { fieldCamera } from '../../gpu/dag/placementTree.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { singleUlp } from '../../../../../bench/core/ulp.ts'
 
 /** The composition the card pass wrote before, rounded once to single. */
 function before(matrix: ArrayLike<number>, eye: ArrayLike<number>) {
@@ -18,8 +20,6 @@ function before(matrix: ArrayLike<number>, eye: ArrayLike<number>) {
       matrix[12 + r] + matrix[r] * eye[0] + matrix[4 + r] * eye[1] + matrix[8 + r] * eye[2]
   return out
 }
-
-const ulp = (x: number) => 2 ** (Math.floor(Math.log2(Math.abs(x) || 2 ** -126)) - 23)
 
 /** Pixel x, y and depth of `p` (at the eye) under single matrix `m`, at 1280 × 720. */
 function pixel(m: Float32Array, p: readonly number[]) {
@@ -32,8 +32,7 @@ function pixel(m: Float32Array, p: readonly number[]) {
 }
 
 test('the card matrices at the eye change no 8-bit pixel', () => {
-  let seed = 9
-  const next = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+  const next = lcgRandom(9)
   for (let i = 0; i < 200; i++) {
     const eye = [1e5 * (next() - 0.5), 30 * next(), 1e5 * (next() - 0.5)],
       at = [eye[0] + 500 * (next() - 0.5), 0, eye[2] - 300 - 500 * next()]
@@ -43,7 +42,7 @@ test('the card matrices at the eye change no 8-bit pixel', () => {
     for (let k = 0; k < 16; k++)
       // A fourth-column entry the eye cancels holds rounding residue alone, far under a unit.
       assert.ok(
-        Math.abs(now[k] - old[k]) <= Math.max(ulp(old[k]), 1e-9),
+        Math.abs(now[k] - old[k]) <= Math.max(singleUlp(old[k]), 1e-9),
         `entry ${k}: ${now[k]} against ${old[k]}`,
       )
     const p = [at[0] - eye[0] + 3, at[1] - eye[1] + 1, at[2] - eye[2]]
@@ -53,6 +52,9 @@ test('the card matrices at the eye change no 8-bit pixel', () => {
       Math.abs(a[0] - b[0]) < 1e-3 && Math.abs(a[1] - b[1]) < 1e-3,
       'within a thousandth of a pixel',
     )
-    assert.ok(Math.abs(Math.fround(a[2]) - Math.fround(b[2])) <= ulp(a[2]), 'within a depth unit')
+    assert.ok(
+      Math.abs(Math.fround(a[2]) - Math.fround(b[2])) <= singleUlp(a[2]),
+      'within a depth unit',
+    )
   }
 })

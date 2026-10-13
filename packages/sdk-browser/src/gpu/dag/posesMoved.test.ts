@@ -5,16 +5,19 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 
 test('the poses a send moved come back each once, increasing, nothing sorted', async () => {
   installGpuGlobals()
   const roots = placementField(40, 6),
     packed = packDagSelection(roots)
-  const selection = (await createGpuDagSelection(mockGpu({ packed }).device, packed))!
-  const next = random(4271),
+  const selection = (await createGpuDagSelection(
+    fakeDevice({ ...BACKEND, packed }).device,
+    packed,
+  ))!
+  const next = lcgRandom(4271),
     sort = Int32Array.prototype.sort
   let sorts = 0
   Int32Array.prototype.sort = function (this: Int32Array, ...args) {

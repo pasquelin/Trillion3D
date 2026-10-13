@@ -3,8 +3,6 @@ import test from 'node:test'
 import { Ajv } from 'ajv'
 import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts'
 import { BOUNCE_SETTINGS } from '../bounce/contracts.ts'
-import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts'
-import type { MathPathMode } from '../runtime/path/contracts.ts'
 import { explorerSwitch, type ExplorerSwitch } from '../runtime/explorerSwitches.ts'
 import { EXPLORER_SWITCH_NAMES } from '../runtime/explorerSwitches.fixture.ts'
 import {
@@ -31,8 +29,6 @@ test('explorer arguments accept a complete host request and keep host extensions
       bounce: true,
       bounceBudgetMs: 1,
       importedLights: false,
-      mathPath: 'js',
-      screenError: 'reference',
       textureSource: 'host',
       preload: 'all',
       stageProfile: true,
@@ -46,10 +42,6 @@ test('explorer arguments accept a complete host request and keep host extensions
 })
 
 test('explorer arguments name every choice the engine takes and refuse the rest', () => {
-  for (const mathPath of ['auto', 'js', 'wasm'] satisfies MathPathMode[])
-    assert.equal(validate({ ...explorer, mathPath }), true, mathPath)
-  for (const screenError of SCREEN_ERROR_VARIANTS)
-    assert.equal(validate({ ...explorer, screenError }), true, screenError)
   assert.equal(validate({}), false)
   assert.equal(validate({ manifestUrl: false }), false)
   for (const field of [
@@ -61,14 +53,7 @@ test('explorer arguments name every choice the engine takes and refuse the rest'
     'stageProfile',
   ])
     assert.equal(validate({ ...explorer, [field]: 'true' }), false, field)
-  for (const field of [
-    'scope',
-    'mathPath',
-    'screenError',
-    'textureSource',
-    'preload',
-    'diagnosticDetail',
-  ])
+  for (const field of ['scope', 'textureSource', 'preload', 'diagnosticDetail'])
     assert.equal(validate({ ...explorer, [field]: 'unknown' }), false, field)
   for (const patch of [
     { geometryPoolBytes: 1 },

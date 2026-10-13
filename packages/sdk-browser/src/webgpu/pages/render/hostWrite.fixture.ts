@@ -21,7 +21,7 @@ export function hostScene(count: number, blend = false) {
   const { rt, run, motions } = runtime(source, roots, worlds)
   const sent: number[] = [],
     parks: number[] = [],
-    blendGpu = blend ? meshes.map((mesh) => ({ sourceMesh: mesh })) : []
+    blendGpu = blend ? meshes.map((mesh) => ({ drawSource: { node: mesh } })) : []
   Object.assign(rt, {
     vis: {},
     timing: { worldCounts: { rootsUploaded: 0 } },

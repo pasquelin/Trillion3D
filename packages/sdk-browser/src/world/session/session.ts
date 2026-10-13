@@ -1,4 +1,4 @@
-import { DEFAULT_SCOPE, setScreenErrorVariant } from '../../../../sdk-core/src/index.ts'
+import { DEFAULT_SCOPE } from '../../../../sdk-core/src/index.ts'
 import type { AssetScope, ClusterManifest, RuntimeEvent } from '../../../../sdk-core/src/index.ts'
 import type { MeasuredWorldOptions } from '../../engine/types.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
@@ -25,9 +25,6 @@ export type ExplorerSession = ExplorerEmitters & {
 
 /** The session's outlets; `opening` watches it open under `label` until `opening.done()`. */
 export function createExplorerSession(options: MeasuredWorldOptions, label: string) {
-  // EXPERIENCE screen-error variant, set before any selection and before the DAG
-  // shader is compiled. A session without the option restores ours: nothing inherits.
-  setScreenErrorVariant(options.screenError)
   const diagnosticChannel = createDiagnosticChannel(options.onDiagnostic, {
     detail: options.diagnosticDetail ?? (options.onDiagnostic ? 'trace' : 'summary'),
   })

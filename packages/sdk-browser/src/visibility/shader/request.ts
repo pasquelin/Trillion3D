@@ -1,3 +1,4 @@
+import { SHADE_UNIFORM } from './uniformLayout.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -12,12 +13,8 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  * with an anisotropic or clear-coat record adds its four maps' picks after the others, each read
  * where the record says (`physicalRequest`, `physicalWgsl.ts`).
  */
-/** Words of the resolve uniform: the view-projection, the viewport, the pixel ratio, the mip bias, the page count, the mode and the
- *  feedback word,
- *  one padding word, then the depth ramp (`writeDepthRamp`, `../../camera/depthConvention.ts`) at
- *  `DEPTH_RAMP_WORD`. */
-export const DEPTH_RAMP_WORD = 24
-export const SHADE_UNIFORM_WORDS = DEPTH_RAMP_WORD + 4
+/** Words of the resolve uniform (`SHADE_UNIFORM`). */
+export const SHADE_UNIFORM_WORDS = SHADE_UNIFORM.words
 export const SHADE_UNIFORM_BYTES = SHADE_UNIFORM_WORDS * 4
 
 export const SHADE_REQUEST_WGSL = wgslBlock(

@@ -1,4 +1,6 @@
+import { VIS_UNIFORM } from './uniformLayout.ts'
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts'
+import { PAGE_INFO } from '../pageInfo.ts'
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { floatAtlasWgsl } from '../../webgpu/core/floatAtlas.ts'
 import { INSTANCE_WORD_WGSL } from '../../gpu/draw/contract.ts'
@@ -11,27 +13,12 @@ import { LINE_DASH_WGSL } from './lineWgsl.ts'
  * the visibility-buffer raster and by the shadow depth passes — two copies of this structure
  * would be two chances of seeing it drift.
  */
-/** Former atlas padding carries physical transmission and subsurface data. The final aligned
- *  block holds deformation metadata without aliasing those material values. `deform` is the
- *  float-pool record address plus one; zero means no deformation. `physical` is the surface's
- *  physical record rank plus one, zero without an anisotropic or clear-coat lobe
- *  (`../../webgpu/visibility/physicalTable.ts`). */
-export const PAGE_INFO_STRUCT_WGSL = wgslBlock(
-  'PAGE_INFO_STRUCT_WGSL',
-  [],
-  `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,dash:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32,attenuationRG:vec2f,aoIndex:u32,aoIntensity:f32,attenuationB:f32,attenuationDistance:f32,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,subsurfaceRG:vec2f,normalScaleY:f32,pad1:f32,screenError:f32,blendCoverage:f32,subsurfaceB:f32,subsurfaceMap:u32,depthBias:u32,lineWidth:f32,placement:u32,materialClass:u32,deform:u32,deformCount:u32,deformOutput:u32,physical:u32,}`,
-)
+/** The page-table row's struct, as its one layout table writes it (`../pageInfo.ts`). */
+export const PAGE_INFO_STRUCT_WGSL = wgslBlock('PAGE_INFO_STRUCT_WGSL', [], PAGE_INFO.wgsl)
 
-/** Uniform of a visibility-buffer image, the same word for word for both rasters and the
- *  resolves: `../../webgpu/visibility/uniforms.ts` writes it once per slot. `pixelRatio` is the
- *  render pixels per CSS pixel, the scale of a line's width (`lineWgsl.ts`); `mipBias` the texture
- *  level offset of a frame drawn below the display (`../../webgpu/tile/wgsl.ts`). Its size is
- *  `VIS_UNIFORM_BYTES`. */
-export const VIS_UNIFORMS_WGSL = wgslBlock(
-  'VIS_UNIFORMS_WGSL',
-  [],
-  `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,pixelRatio:f32,mipBias:f32,}`,
-)
+/** Uniform of a visibility-buffer image (`VIS_UNIFORM`), the same word for word for both rasters
+ *  and the resolves. */
+export const VIS_UNIFORMS_WGSL = wgslBlock('VIS_UNIFORMS_WGSL', [], VIS_UNIFORM.wgsl)
 
 /** Description of a cluster, followed by the uniform of a page-geometry pass. */
 export const PAGE_INFO_WGSL = wgslBlock(

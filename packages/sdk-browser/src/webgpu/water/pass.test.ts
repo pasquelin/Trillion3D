@@ -8,7 +8,7 @@ import { WATER_BINDINGS } from './compositeWgsl.ts'
 import { createBackdrop } from '../transparent/transmission.ts'
 import { DISPLAY_FORMAT } from '../../scene/surfaceBuffer.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { device, mountDevice, prepared, replay, targets } from './pass.fixture.ts'
+import { device, mountDevice, prepared, replay, targets, writesOf } from './pass.fixture.ts'
 import { createWebgpuBlendState } from '../blend/state.ts'
 import { createWebgpuVisState } from '../pages/state/vis.ts'
 import { createWebgpuPagesLayout } from '../pages/prepare/layout.ts'
@@ -31,31 +31,27 @@ test('water writes the reactive value into the frame’s share, with the share c
   const { rt, encoder, passes, gpu, mount } = await mounted()
   gpu.temporalWanted = true
   assert.equal(encodeWaterPass(rt, encoder), true)
-  const composite = passes.find((pass) => pass.label === WATER_COMPOSITE_PASS)!
-  assert.equal(
-    composite.writes.length,
-    2,
-    'the HDR target and the share, agreeing with its targets',
-  )
-  assert.equal(composite.writes[1], gpu.asIsShare!.view, 'the share the temporal pass reads')
+  const composite = writesOf(passes.find((pass) => pass.label === WATER_COMPOSITE_PASS)!)
+  assert.equal(composite.length, 2, 'the HDR target and the share, agreeing with its targets')
+  assert.equal(composite[1], gpu.asIsShare!.view, 'the share the temporal pass reads')
   assert.deepEqual(mount.formats('composeWaterReactive'), ['rgba16float', 'rg8unorm'])
   // No share the next image: today's composite, one target, the plain pipeline.
   gpu.temporalWanted = false
   encodeWaterPass(rt, encoder)
-  assert.equal(passes.at(-1)!.writes.length, 1)
+  assert.equal(writesOf(passes.at(-1)!).length, 1)
 })
 
 test('the water pass follows the blends: frozen backdrop, surfaces, then one composite', async () => {
-  const { rt, encoder, passes, counters } = await mounted()
+  const { rt, encoder, passes, textureCopies, drawn } = await mounted()
   drawBlendPass(rt, device, encoder)
   assert.equal(encodeWaterPass(rt, encoder), true, 'the pass was encoded')
   assert.deepEqual(
     passes.map((pass) => pass.label),
     ['Trillion3D transparents', WATER_SURFACE_PASS, WATER_COMPOSITE_PASS],
   )
-  assert.deepEqual(passes[0].drawn, [0, 2], 'blends draw the two non-transmissive items')
-  assert.deepEqual(passes[1].drawn, [1], 'the surface stage draws the transmissive one')
-  assert.equal(counters.copies, 1, 'the lit image; the surface pass restores the opaque depth')
+  assert.deepEqual(drawn(passes[0]), [0, 2], 'blends draw the two non-transmissive items')
+  assert.deepEqual(drawn(passes[1]), [1], 'the surface stage draws the transmissive one')
+  assert.equal(textureCopies.length, 1, 'the lit image; the surface pass restores the opaque depth')
   assert.equal(rt.run.blendDrawCalls, 3, 'the surface draws count as transparent draws')
   assert.equal(rt.run.gpuDrawCalls, 5, 'plus the depth restore and the composite')
 })
@@ -66,10 +62,14 @@ test('water keeps the surface flags temporal antialiasing and the composition re
   const flags = gpu.surfaces!.views()[3],
     word = gpu.colorView
   for (const pass of passes)
-    assert.ok(!pass.writes.includes(flags), `${pass.label} writes over the surface flags`)
-  const surface = passes.find((pass) => pass.label === WATER_SURFACE_PASS)!
-  assert.equal(surface.writes[3], word, 'the rank and opacity go to the display colour')
-  assert.equal(surface.writes.length, 5, 'three material surfaces, the word, the feedback')
+    assert.ok(!writesOf(pass).includes(flags), `${pass.label} writes over the surface flags`)
+  const surface = writesOf(passes.find((pass) => pass.label === WATER_SURFACE_PASS)!)
+  assert.equal(surface[3], word, 'the rank and opacity go to the display colour')
+  assert.equal(
+    surface.length,
+    6,
+    'three material surfaces, the word, the front depth, the feedback',
+  )
   assert.equal(groups.last.get(WATER_BINDINGS.word), word, 'the composite reads the word back')
   // The stage's fourth target is the display colour's format, and the backdrop holds no word.
   assert.equal(mount.formats('fsWater')[3], DISPLAY_FORMAT)
@@ -115,14 +115,14 @@ test("the shadow maps' double-buffered tables taking turns build one composite g
 })
 
 test('glass behind the camera: no copy, no surface pass, no composite', async () => {
-  const { rt, encoder, passes, counters, blendState } = await mounted()
+  const { rt, encoder, passes, textureCopies, blendState } = await mounted()
   // A frustum whose near plane faces +z rejects a box that lies entirely beyond z = -1.
   blendState.blendPlanes.set([0, 0, -1, -1])
   blendState.blendGpu[1].bounds = new Float64Array([-1, -1, 5, 1, 1, 6])
   orderBlendPasses(blendState, [0, 0, 0])
   assert.equal(blendState.transmissiveInView, 0, 'the only transmissive item is out of view')
   assert.equal(encodeWaterPass(rt, encoder), false)
-  assert.equal(counters.copies, 0)
+  assert.equal(textureCopies.length, 0)
   assert.deepEqual(passes, [])
 })
 
@@ -169,7 +169,7 @@ test('disposing the visibility path disposes the water pass with the blend pipel
 })
 
 test('a diagnostic view, or a capture from a second camera, keeps the pass out of the frame', async () => {
-  const { rt, encoder, counters } = await mounted()
+  const { rt, encoder, textureCopies } = await mounted()
   rt.run.diagnostic = 'wireframe'
   assert.equal(encodeWaterPass(rt, encoder), false, 'the slice draws as a coloured blend')
   rt.run.diagnostic = 'beauty'
@@ -178,5 +178,5 @@ test('a diagnostic view, or a capture from a second camera, keeps the pass out o
   rt.capture.capturing = false
   // An image no composition follows keeps its display colour: the word may not borrow it.
   assert.equal(encodeWaterPass(rt, encoder, false), false, 'no composition overwrites the word')
-  assert.equal(counters.copies, 0, 'the backdrop is not even frozen')
+  assert.equal(textureCopies.length, 0, 'the backdrop is not even frozen')
 })

@@ -14,46 +14,33 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 const SUN = { sun: true, local: false },
   LOCAL = { sun: false, local: true }
-/** The reads of the resolve (the point read of the transmission) and of the forward passes. */
-const READS = [
-  { name: 'vsmTransmissionRead', request: 14, traced: false },
-  { name: 'vsmShadowFactor', request: null, traced: false },
-  { name: 'vsmShadowFiltered', request: null, traced: false },
-]
-const text = (request: number | null, traced: boolean, kinds = ALL_SHADOW_KINDS) =>
-  wgslModule(directShadowWgsl(25, { resolveTransmission: request, traced, kinds }))
+/** The located read (`vsmLocate`) of the resolve (its transmission) and of the forward passes. */
+const REQUESTS = [14, null]
+const text = (request: number | null, kinds = ALL_SHADOW_KINDS) =>
+  wgslModule(directShadowWgsl(25, { resolveTransmission: request, kinds }))
 /** The read's text before its branches, its sun's, its local light's. */
-const parts = (source: string, name: string) => {
-  const body = functionsOf(source, [name])
+const parts = (source: string) => {
+  const body = functionsOf(source, ['vsmLocate'])
   const [head, rest] = body.split(' if(directional){\n')
   const [sun, local] = rest.replace(/\n\}\s*$/, '').split('\n }\n')
   return { head, sun, local }
 }
 
 test('each read of a variant is the full read with the other kind’s branch cut out', () => {
-  for (const { name, request, traced } of READS) {
-    const full = parts(text(request, traced), name)
-    assert.ok(full.sun.includes('vsmHandleFromIdDirectional(id)'), name)
-    assert.ok(!full.sun.includes('vsmHandleFromId(id)'), name)
-    assert.ok(full.local.includes('vsmCubeFace'), name)
+  for (const request of REQUESTS) {
+    const full = parts(text(request))
+    assert.ok(full.sun.includes('vsmHandleFromIdDirectional(id)'), `${request}`)
+    assert.ok(!full.sun.includes('vsmHandleFromId(id)'), `${request}`)
+    assert.ok(full.local.includes('vsmCubeFace'), `${request}`)
     for (const [kinds, keeps, cuts] of [
       [SUN, full.sun, full.local],
       [LOCAL, full.local, full.sun],
     ] as const) {
-      const variant = functionsOf(text(request, traced, kinds), [name])
-      assert.equal(variant, `${full.head} ${keeps}\n}`, `${name} ${JSON.stringify(kinds)}`)
-      assert.ok(!variant.includes(cuts), name)
+      const variant = functionsOf(text(request, kinds), ['vsmLocate'])
+      assert.equal(variant, `${full.head} ${keeps}\n}`, `${request} ${JSON.stringify(kinds)}`)
+      assert.ok(!variant.includes(cuts), `${request}`)
     }
   }
-})
-
-test('the traced read walks the rays of the kinds its program holds', () => {
-  const read = (kinds = ALL_SHADOW_KINDS) =>
-    functionsOf(text(null, true, kinds), ['vsmShadowTraced'])
-  assert.ok(read().includes('if(isSun(light)){'))
-  const [sun, local] = [read(SUN), read(LOCAL)]
-  assert.ok(sun.includes('vsmTraceSun(') && !sun.includes('vsmTraceLocal('))
-  assert.ok(local.includes('vsmTraceLocal(') && !local.includes('vsmTraceSun('))
 })
 
 test('the kinds a key names; a key that cuts none keeps both', () => {

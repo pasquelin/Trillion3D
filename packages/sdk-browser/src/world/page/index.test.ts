@@ -2,13 +2,13 @@
 // a page on the CPU) and answers what that decoder answers, from bytes or from their buffer.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
 import { families } from '../../host/families.ts'
 import { page } from './index.ts'
 
 test('page.decode downloads the decoder on its first call and decodes as it does', async () => {
-  const { data } = encodeGeometryPage([0, 1, 2], {
+  const { data } = encodePage([0, 1, 2], {
     POSITION: { itemSize: 3, array: new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9]) },
   })
   const bytes = data as Uint8Array

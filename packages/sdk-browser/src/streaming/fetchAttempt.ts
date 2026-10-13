@@ -6,17 +6,23 @@
 import { verifiedRun } from '../cluster/verified.ts'
 import type { StreamContext, StreamPage } from './types.ts'
 
+/** What one page of a transfer lands with: its bytes, or why they were refused. */
+type Checked = { bytes?: Uint8Array; refused?: unknown }
+
 /** `buffer`, the bytes one request read for `pages`, checked against what each announced, each
  *  check told: each page's bytes to keep, or its refusal (`corruptObject`). */
 export async function checkedPages(
   { emit }: StreamContext,
   pages: readonly StreamPage[],
   buffer: ArrayBuffer,
-) {
+): Promise<Checked[]> {
   const actualBytes = buffer.byteLength
-  const run = pages.map(({ url, bytes, sha256, range }) => {
-    return { url, bytes, sha256, offset: range?.offset ?? 0 }
-  })
+  const run = pages.map(({ url, bytes, sha256, range }) => ({
+    url,
+    bytes,
+    sha256,
+    offset: range?.offset ?? 0,
+  }))
   const checked = await verifiedRun(run, buffer)
   checked.forEach(({ bytes, found }, at) => {
     const { url, bytes: expectedBytes, sha256: expectedHash } = pages[at],

@@ -13,9 +13,10 @@
 //! - `linear`: a matrix's linear part, its determinants, column lengths and decomposition;
 //! - `rotation`, `quaternion`, `euler`: rotation matrices, quaternions and the animation's slerp,
 //!   Euler orders and their composition;
-//! - `aabb`, `box_transform`: axis-aligned boxes grown by points and by boxes, crossed by a ray,
-//!   their corners, sides and diagonal, and moved by a matrix;
-//! - `triangle`: a triangle's cross product, area, closest point and ray hit; Newell's normal;
+//! - `aabb`, `box_transform`, `ray_box`: axis-aligned boxes grown by points and by boxes, their
+//!   corners, sides and diagonal, moved by a matrix, and crossed by a ray;
+//! - `triangle`: a triangle's cross product, area, longest edge, closest point and ray hit, an
+//!   edge's key; Newell's normal;
 //! - `octahedral`: the octahedral maps of a direction, on two bytes and on a square;
 //! - `sphere`: bounding spheres merged;
 //! - `random`: the seeded xorshift, congruential and SplitMix generators, and a word hash;
@@ -36,6 +37,7 @@ pub mod matrix;
 pub mod octahedral;
 pub mod quaternion;
 pub mod random;
+pub mod ray_box;
 pub mod real;
 pub mod rotation;
 pub mod scalar;
@@ -52,6 +54,12 @@ pub const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
 /// `GOLDEN` on 32 bits: its high half, the fractional part of the golden ratio times 2³².
 pub const GOLDEN_32: u32 = 0x9E37_79B9;
 
+#[cfg(test)]
+mod golden_geometry;
+#[cfg(test)]
+mod golden_ray_triangle;
+#[cfg(test)]
+mod golden_scalar;
 #[cfg(test)]
 mod golden_tests;
 

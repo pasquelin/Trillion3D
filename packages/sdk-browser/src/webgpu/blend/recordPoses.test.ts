@@ -42,7 +42,7 @@ function scene() {
     blendState,
     vis: { mapLayer: new Map(), dataLayer: new Map() },
     gpu: {},
-    layout: { rows: { tableEpoch: 0 } },
+    layout: { rows: { tableEpoch: 0, materialEpoch: 0 } },
     run: { gate: { movedInPlace() {} } },
   } as unknown as WebgpuPagesRuntime
   return { matrices, items, blendState, writes, device: { queue } as unknown as GPUDevice, rt }

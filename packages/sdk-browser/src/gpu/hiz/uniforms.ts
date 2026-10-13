@@ -25,7 +25,7 @@ export function hizTestSlot(
 }
 
 /** The deepest pyramid the camera builds. */
-const HIZ_MAX_LEVELS = 16
+export const HIZ_MAX_LEVELS = 16
 /** Mips one build pass reduces in workgroup memory: an 8 × 8 workgroup reduces a 16 × 16 source
  *  tile down to one texel. */
 export const HIZ_PASS_LEVELS = 4
@@ -66,21 +66,21 @@ export function hizBuildPasses(sizes: Array<[number, number]>, maxLevels = HIZ_M
  * Every pass's source and destinations are a function of the target size alone, so the whole
  * uniform array is written once per allocation and no image uploads a byte to build the pyramid.
  * Slot `i`, `slotStride` bytes from the next, holds pass `i`: its source level's offset and size,
- * the count of levels it writes, `stride` — the words between two pyramids built in one dispatch,
- * zero for the camera's single pyramid (`shader.ts`) — then each written level's offset and size.
- * The source at offset zero is level 0, read from the texture.
+ * the count of levels it writes, `upper` — the texels of the coarser levels of one bound, by which
+ * the layers' bounds lie apart there (`hizRoute`) — then each written level's index and size;
+ * `offsets` are the levels' indices in the culling layer's routing. The source at index zero is level 0, read from the texture.
  */
 export function hizBuildWords(
   sizes: Array<[number, number]>,
   offsets: number[],
   passes: HizBuildPass[],
   slotStride: number,
-  stride = 0,
+  upper: number,
 ) {
   const slot = slotStride / 4,
     words = new Uint32Array(passes.length * slot)
   passes.forEach(({ source, width, height, levels }, i) => {
-    words.set([offsets[source], width, height, levels, stride], i * slot)
+    words.set([offsets[source], width, height, levels, upper], i * slot)
     for (let k = 0; k < levels; k++) {
       const level = source + 1 + k
       words.set([offsets[level], ...sizes[level]], i * slot + PASS_HEADER_WORDS + 4 * k)

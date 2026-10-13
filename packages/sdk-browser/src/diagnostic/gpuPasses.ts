@@ -1,23 +1,21 @@
 import type { GpuPassTimings } from '../../../sdk-core/src/index.ts'
-import type {
-  GpuPassBlock,
-  GpuPassBlockTotals,
-  gpuPassStageOf as stageOf,
-} from '../gpu/core/passBlocks.ts'
+import type { GpuPassBlockTotals } from '../gpu/core/passBlocks.ts'
+import type { GpuPassBlock, WebgpuStage } from '../stage/passDeclaration.ts'
 import { families } from '../host/families.ts'
 
 // The public pass mapping: as a shipping build strips its stat tools, the core holds only
 // these three facades, and the pass table they read is the measurement's chunk
 // (`../gpu/core/passBlocks.ts`, `../host/families.ts`), fetched on their first call or once debug
-// mode turns on. Until it has arrived a pass reads as unknown — stage `geometry`, block `other` —
-// and a sample's blocks as unmeasured, `null` (`docs/SDK.md`).
+// mode turns on. Until it has arrived a pass reads as unknown — no stage, block `other` — and a
+// sample's blocks as unmeasured, `null` (`docs/SDK.md`).
 
 /** The measurement's code once it has arrived; until then, asks for it. */
 const code = () => families.measurement.get()
 
-/** Stage of a pass, by its label. Unknown is `geometry`. */
-export const gpuPassStageOf = (name: string): ReturnType<typeof stageOf> =>
-  code()?.gpuPassStageOf(name) ?? 'geometry'
+/** Stage of a pass, by its label. Unknown is `undefined`: a label the engine does not name joins
+ *  no stage. */
+export const gpuPassStageOf = (name: string): WebgpuStage | undefined =>
+  code()?.gpuPassStageOf(name)
 /** Block of a pass, by its label. Unknown is `other`. */
 export const gpuPassBlockOf = (name: string): GpuPassBlock =>
   code()?.gpuPassBlockOf(name) ?? 'other'

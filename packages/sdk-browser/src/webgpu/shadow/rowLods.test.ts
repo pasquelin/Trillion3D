@@ -1,6 +1,7 @@
 // A moved model writes the detail of its own rows, not of the still rows between them. The
 // detail must not follow the table's one dirty span: two models moving at both ends of a table of
 // seven thousand rows would recompute and send every row of it, each image.
+import { runsOf } from '../row/dirty.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadRowLods } from './rowLods.ts'
@@ -8,10 +9,11 @@ import { ROW_LOD_FLOATS, writeRowLod } from './rowLodWords.ts'
 import { moveRootRows } from '../pages/render/movedRoot.ts'
 import { createSortedKeys } from '../cut/denseKeys.ts'
 import { createWebgpuRowState } from '../row/state.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { fakeDevice, replayWrites } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 
 const ROWS = 1000,
   MODEL_ROWS = [3, 4, 400, 401, 402, 997]
@@ -49,13 +51,13 @@ function scene() {
     pages,
   }
   const rows = createWebgpuRowState(pages, ROWS)
-  rows.pageTableFloats = new Float32Array((ROWS * PAGE_INFO_STRIDE) / 4)
+  rows.pageTableFloats = new Float32Array(ROWS * ROW_WORDS)
   // Packed ranks 0..5 are the model's, at its scattered rows; the terrain's fill the others.
   const free = Array.from({ length: ROWS }, (_, row) => row).filter(
     (row) => !MODEL_ROWS.includes(row),
   )
   ;[...MODEL_ROWS, ...free].forEach((row, packed) => {
-    rows.rowOfPage[packed] = row
+    rows.setRowOf(packed, row)
     rows.packedPageIndex[row] = packed
     rows.packedRecs[row] = pages[packed]
   })
@@ -67,9 +69,7 @@ function scene() {
     layout: {
       rows,
       selectionRoots: [model, terrain],
-      placement: {
-        rootOfPacked: Int32Array.from({ length: ROWS }, (_, p) => (p < MODEL_ROWS.length ? 0 : 1)),
-      },
+      placement: { baseOfRoot: Int32Array.of(0, MODEL_ROWS.length), packedCount: ROWS },
     },
     run: {
       noOccluderHistory: false,
@@ -93,7 +93,7 @@ function scene() {
         out,
         row,
         rows.packedRecs[row],
-        rt.layout.selectionRoots[rt.layout.placement.rootOfPacked[page]],
+        rt.layout.selectionRoots[rootOfPacked(rt.layout.placement, page)],
         ready[page] === 1,
         childReady[page] === 1,
       )
@@ -121,7 +121,8 @@ test('a model scattered across the table writes the detail of its own rows, run 
   const terrainPage = rows.packedPageIndex[600]
   ready[terrainPage] = 0
   rows.markRowWords(600)
-  assert.deepEqual([rows.dirtyFrom, rows.dirtyTo], [3, 997])
+  const dirty = runsOf(rows.forEachDirtyRun)
+  assert.deepEqual([dirty[0][0], dirty.at(-1)![1]], [3, 997])
   uploadRowLods(rt, device)
   assert.deepEqual(
     writes.map(({ size }) => size! / ROW_LOD_FLOATS),

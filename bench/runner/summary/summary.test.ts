@@ -49,8 +49,3 @@ test('frameHeld set to false is `no`, distinct from true and from absence', () =
   assert.equal(readings({ frameHeld: false })[HELD], 'no')
   assert.equal(readings({ frameHeld: true })[HELD], 'yes')
 })
-
-test('resume() opens the computation path section, even when no side publishes it', () => {
-  const row = tableRow(resume(rapport({ ...baseSide })), 'Batch compute path')
-  assert.equal(row.module, 'reading missing from this dist')
-})

@@ -32,6 +32,7 @@ import {
   edgeValues,
   haltonSpan,
 } from '../../../math/src/sequence/sweep.fixture.ts'
+import { fakeHizDepth } from './hizDepth.fixture.ts'
 
 /** The old viewMatrices: the four matrices of the view header, words 0-63. */
 function oldHeader(view: ArrayLike<number>, projection: ArrayLike<number>, shift: number[]) {
@@ -71,8 +72,7 @@ test('the projection view header: every word as the old composition wrote it', (
   const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
   const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
   const texture = {} as GPUTextureView
-  const pass = new Proxy({}, { get: () => () => {} })
-  const encoder = { beginComputePass: () => pass } as unknown as GPUCommandEncoder
+  const encoder = device.createCommandEncoder()
   const perspective = perspectiveProjection(new Float64Array(16), 60, 16 / 9, 0.1, 1)
   const ortho = orthographicProjection(new Float64Array(16), -40, 40, -30, 30, 0.5, 900)
   const check = (view: Float64Array, shift: number[] | undefined, isPerspective: boolean) => {
@@ -84,6 +84,7 @@ test('the projection view header: every word as the old composition wrote it', (
       {
         device,
         depth: texture,
+        hizDepth: fakeHizDepth,
         normalRough: texture,
         flags: texture,
         mask: texture,

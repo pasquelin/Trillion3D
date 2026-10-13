@@ -10,7 +10,7 @@ import { geometry } from '../../../sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../sdk-core/src/world/material/index.ts'
 import { collectedPages, dynamicWorld } from '../world/core/worldDynamic.fixture.ts'
 import { describePageSlots, pageAddress } from '../webgpu/row/pageSlots.ts'
-import { deformationSlotBytes, pooledOutputs } from './slotLayout.ts'
+import { assignDeformationOutputs } from './outputs.ts'
 import { rootCoverage } from '../page/selection/selection.ts'
 import { rootChildren } from '../residency/minimumCapacity.ts'
 import { pageHomes } from '../gpu/page/homes.ts'
@@ -52,7 +52,7 @@ async function scene(scale: number) {
  *  buffer holds every page at its own size twice, not the root cover in slots of the widest. */
 function poolOf({ roots, records }: Awaited<ReturnType<typeof scene>>) {
   const slots = describePageSlots(records)
-  const pageBytes = deformationSlotBytes(records, slots.pageBytes, roots, slots.homes)
+  const pageBytes = slots.pageBytes
   const cover = rootCoverage(roots, pageAddress).map(pageAddress)
   const rootPages = new Set([...cover, ...rootChildren(roots).map(pageAddress)]).size
   const homeBytes = pageHomes(slots.homes)!.bytes,
@@ -80,10 +80,11 @@ for (const [scale, least] of [
     assert.ok(pool.allocatedBytes <= DEFAULT_GEOMETRY_POOL_BUDGET, `${pool.allocatedBytes} bytes`)
     assert.ok(pool.slots >= rootPages)
     // The sheet's results: one block of all its vertices, shared by all its pages.
-    const outputs = pooledOutputs(built.records)
+    const outputs = assignDeformationOutputs(built.roots)
     assert.equal(outputs.length, 1)
     assert.equal(outputs[0].count, built.sheet.attributes.position.count)
-    const sheetPages = built.records.filter((rec) => rec.deformationOutput)
-    assert.ok(sheetPages.every((rec) => rec.deformationOutput === outputs[0]))
+    const sheet = built.roots.filter((root) => root.deformationOutputs)
+    assert.equal(sheet.length, 1)
+    assert.ok(sheet[0].deformationOutputs!.every((output) => !output || output === outputs[0]))
   })
 }

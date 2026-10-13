@@ -9,6 +9,7 @@
  * frame has none of its own (`lighting/deferred/program.ts`). A binding the layout gains and this
  * page does not know fails by its number, never as a drifted copy.
  */
+import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import { createSceneLightStore, type SceneLight } from '../../../packages/sdk-core/src/index.ts'
 import {
   createSceneLightContractBuffer,
@@ -24,29 +25,15 @@ import {
   ZERO_DIRECT,
   createDeferredView,
 } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
-import { LIGHTING_RECEIVER_BINDING } from '../../../packages/sdk-browser/src/lighting/deferred/surfaceWgsl.ts'
+import { DEFERRED_BINDINGS } from '../../../packages/sdk-browser/src/lighting/deferred/bindings.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/shadowWgsl.ts'
-import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../../packages/sdk-browser/src/vsm/transmissionWgsl.ts'
-import {
-  VSM_MASK_TABLE_BINDING,
-  VSM_MASK_TILES_BINDING,
-} from '../../../packages/sdk-browser/src/vsm/projectionMaskTable.ts'
-import { RESIDENT_PROXY_BINDING } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts'
-import { RECEIVER_BINDINGS } from '../../../packages/sdk-browser/src/visibility/shader/receiverOffsetWgsl.ts'
-import { SUBSURFACE_BINDING } from '../../../packages/sdk-browser/src/scene/subsurface.ts'
-import { PHYSICAL_LOBES_BINDING } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
+import { UNREAD } from './resolveUnread.ts'
 import { SAMPLE_FLOATS, SAMPLES_BINDING, SUMS_BINDING, resolveHarness } from './resolveHarness.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-
-/** The resolve's bindings the harness never reads: the surfaces, the receiver offset's, the
- *  subsurface and the lobes, which its entries set by hand. */
-const UNREAD = new Set([
-  ...RECEIVER_BINDINGS.map((_, i) => LIGHTING_RECEIVER_BINDING + i),
-  SUBSURFACE_BINDING,
-  PHYSICAL_LOBES_BINDING,
-])
+import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
+import { bufferHolding } from '../kit/computeReadback.ts'
 
 /** A cell record — its count, the shadow flag in its high bit, where its list starts in the pool —
  *  and the resolve reading it: `contractLighting`, or with `drawn` `sampledSliceLighting` alone, with
@@ -78,15 +65,8 @@ export async function run(scenes: ResolveScene[]) {
   const opened = await openGpuDevice()
   if (!opened) return { unavailable: 'no WebGPU adapter' } as const
   const { device } = opened
-  const storage = (data: Uint32Array<ArrayBuffer> | Float32Array<ArrayBuffer>, read = false) => {
-    const buffer = device.createBuffer({
-      size: Math.max(data.byteLength, 16),
-      usage:
-        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | (read ? GPUBufferUsage.COPY_SRC : 0),
-    })
-    device.queue.writeBuffer(buffer, 0, data)
-    return buffer
-  }
+  const storage = (data: Uint32Array<ArrayBuffer> | Float32Array<ArrayBuffer>, read = false) =>
+    bufferHolding(device, data, GPUBufferUsage.STORAGE | (read ? GPUBufferUsage.COPY_SRC : 0), 16)
   const placeholders = createDeferredPlaceholders(device)
   const view = createDeferredView(device)
   const resolveEntries = deferredLayoutEntries(true)
@@ -95,12 +75,8 @@ export async function run(scenes: ResolveScene[]) {
   const layout = device.createBindGroupLayout({
     entries: [
       ...resolveEntries,
-      {
-        binding: SAMPLES_BINDING,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: 'read-only-storage' },
-      },
-      { binding: SUMS_BINDING, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+      computeBufferEntry(SAMPLES_BINDING, 'read-only-storage'),
+      computeBufferEntry(SUMS_BINDING, 'storage'),
     ],
   })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
@@ -135,11 +111,9 @@ export async function run(scenes: ResolveScene[]) {
     [CONTRACT_VSM_BINDINGS.projectionData, { buffer: placeholders.vsmProjectionData }],
     [CONTRACT_VSM_BINDINGS.uniforms, { buffer: placeholders.vsmUniforms }],
     [CONTRACT_VSM_BINDINGS.pool, { buffer: placeholders.vsmPool }],
-    [RESIDENT_PROXY_BINDING, { buffer: placeholders.proxy }],
     [CONTRACT_SHADOW_BINDINGS.transmittance, placeholders.vsmMask],
-    [VSM_MASK_TABLE_BINDING, placeholders.vsmMaskTable.view],
-    [VSM_MASK_TILES_BINDING, placeholders.vsmMaskTiles],
-    [VSM_TRANSMISSION_RESOLVE_BINDING, placeholders.transmittanceView],
+    [DEFERRED_BINDINGS.maskTiles, placeholders.vsmMaskTiles],
+    [DEFERRED_BINDINGS.transmissionResolve, placeholders.transmittanceView],
   ])
   const runs: Record<string, number[]>[] = []
   for (const scene of scenes) {
@@ -151,7 +125,16 @@ export async function run(scenes: ResolveScene[]) {
     uploadSceneLights(device, lights)
     // One tile: the view is one tile wide and high, every sample at its pixel, at its rank.
     const direct = [scene.lights.length, 1, 1, ...ZERO_DIRECT.slice(3)]
-    view.write(new Float32Array(16), [0, 0, 0, 1], 16, 16, 0, false, direct, scene.rank ?? 0)
+    view.write(
+      new Float32Array(16),
+      [0, 0, 0, 1],
+      16,
+      16,
+      clearValueOf(0),
+      false,
+      direct,
+      scene.rank ?? 0,
+    )
     const samples = storage(new Float32Array(scene.samples))
     const count = scene.samples.length / SAMPLE_FLOATS
     const sums: Record<string, number[]> = {}

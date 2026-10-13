@@ -1,25 +1,15 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { MIB } from '../../../../math/src/constants.ts'
-import {
-  FLAG_COLOR,
-  FLAG_MORPH,
-  FLAG_NORMAL,
-  FLAG_SKIN,
-  FLAG_UV,
-  FLAG_UV1,
-  BLOCK_CORNERS,
-} from '../../cluster/format.ts'
-import { blockRecord, readGeometryPageHeader, type Quant } from './geometryPageHeader.ts'
-import { decodeMorphs, decodeSkin } from './geometryPageDeform.ts'
+import { loadedSdkWasm, type SdkWasm } from '../../wasm/sdkWasm.ts'
+import { META, META_WORDS } from '../../wasm/encodeAbi.ts'
+import { reserveArena, type Arena } from '../../wasm/wasmArena.ts'
 import { pageAttributeNames, pageViews } from './geometryPageBlock.ts'
-import { field } from '../../../../page-codec/src/bits.ts'
-import { dequant, octDecode } from '../../../../page-codec/src/pageGrids.ts'
 
 /**
- * JavaScript decoder of a `WGP3` quantized cluster page (`docs/FORMAT.md`), the mirror of the
- * shared Rust codec (`packages/page-codec-wasm`): same bytes, same refusals in the same order.
- * Every float is produced by the arithmetic the format prescribes — one multiply, one add, both
- * on 32-bit values — through `Math.fround`, so a position decoded here is the 32-bit float the
- * WebAssembly module and the WGSL routines decode.
+ * Decoder of a `WGP3` quantized cluster page (`docs/FORMAT.md`): the SDK module's
+ * (`packages/page-codec-wasm/src/unpack.rs`, `wasm_decode.rs`), the one decoder, as the encoder is
+ * the one encoder. The module lays the page out as 32-bit words; every float is the 32-bit float
+ * the format prescribes, which the WGSL routines decode alike.
  */
 /** A decoded page: `indices` and every attribute are views on one buffer of `decodedBytes`
  *  (`geometryPageBlock.ts`). */
@@ -43,105 +33,121 @@ export type DecodedGeometryPage = {
   quantizationError: number
 }
 
-/** One dequantized vector attribute into `out`: component `c` of vertex `i` at bit `i * bits[c]`
- *  of stream `c`. */
-function vector(out: Float32Array, words: Uint32Array, starts: number[], quant: Quant) {
-  const n = quant.min.length,
-    step = 2 ** quant.exponent,
-    count = out.length / n
-  for (let c = 0; c < n; c++) {
-    const bits = quant.bits[c],
-      base = starts[c] * 32,
-      min = quant.min[c]
-    for (let i = 0; i < count; i++)
-      out[i * n + c] = dequant(min, field(words, base + i * bits, bits), step)
+/** The decoded page budget a call may spend unless it names another. */
+const DEFAULT_MAX_DECODED_BYTES = 16 * MIB
+
+/** The module's memory is shared by all callers; a refusal to reserve it is an error. */
+const memoryRefused = () => new Error('PAGE_DECODER_MEMORY')
+
+/** The page copied into the module's memory with the block the module answers in, run through
+ *  `use`; the memory is freed whatever `use` does. The module allocates: its memory may have grown
+ *  and detached the views taken before a call, so `use` asks `arena.blocks()` again after each. */
+function staged<T>(
+  module: SdkWasm,
+  data: Uint8Array,
+  use: (arena: Arena, answer: number, page: number) => T,
+): T {
+  const arena = reserveArena(module, [
+    { type: 'u32', length: META_WORDS },
+    { type: 'u32', length: ceilDiv(data.length, 4) },
+  ])
+  if (!arena) throw memoryRefused()
+  try {
+    const [answer, page] = arena.blocks()
+    new Uint8Array(page.view.buffer, page.offset, data.length).set(data)
+    return use(arena, answer.offset, page.offset)
+  } finally {
+    arena.freed()
   }
 }
 
-/** Decode one complete page without referring to any source glTF buffer. */
+/** The answer block of the staged reservation, as words. */
+const answerOf = (arena: Arena) => arena.blocks()[0].view as Uint32Array
+
+/** Throws the refusal the module wrote in `answer`: its length in word 0, its ASCII from byte 4. */
+function refused(answer: Uint32Array): never {
+  const bytes = new Uint8Array(answer.buffer, answer.byteOffset + 4, answer[0])
+  throw new Error(new TextDecoder().decode(bytes))
+}
+
+/**
+ * The format's gate on a page the pool uploads as it is and the shaders decode in place: magic,
+ * version, grids, and counts that measure exactly this many bytes. Returns the page's counts, or
+ * throws its `GEOMETRY_PAGE_*` refusal.
+ */
+export function checkGeometryPage(
+  module: SdkWasm,
+  data: Uint8Array,
+  maxDecodedBytes = DEFAULT_MAX_DECODED_BYTES,
+) {
+  return staged(module, data, (arena, answer, page) => {
+    const status = module.page_check(page, data.length, maxDecodedBytes, answer)
+    const words = answerOf(arena)
+    if (status !== 0) refused(words)
+    return {
+      vertexCount: words[META.VERTEX_COUNT],
+      indexCount: words[META.INDEX_COUNT],
+      flags: words[META.FLAGS],
+      decodedBytes: words[META.DECODED_BYTES],
+      quantizationError: new Float32Array(
+        words.buffer,
+        words.byteOffset + META.QUANTIZATION_ERROR * 4,
+        1,
+      )[0],
+      morphTargets: words[META.MORPH_TARGETS],
+      skinInfluences: words[META.SKIN_INFLUENCES],
+    }
+  })
+}
+
+/**
+ * Decode one complete page without referring to any source glTF buffer, through the SDK module
+ * (`loadedSdkWasm`: the family that holds this function arrives once the module has).
+ */
 export function decodeGeometryPage(
   data: Uint8Array,
-  maxDecodedBytes = 16 * MIB,
+  maxDecodedBytes = DEFAULT_MAX_DECODED_BYTES,
 ): DecodedGeometryPage {
-  const {
-    vertexCount,
-    indexCount,
-    flags,
-    quantizationError,
-    position,
-    uv,
-    uv2,
-    color,
-    corners,
-    positionCount,
-    linkBits,
-    skin,
-    morphs,
-    headerWords,
-    bodyWords: at,
-    decodedBytes,
-    streams: {
-      blocks,
-      corners: cornerStream,
-      positions,
-      links,
-      normal,
-      uvs,
-      uv2s,
-      colors,
-      skinned,
-    },
-  } = readGeometryPageHeader(data, maxDecodedBytes)
-  // The streams are read in place when the page sits on a word boundary, from a copy otherwise.
-  const body = data.subarray(headerWords * 4)
-  const words =
-    body.byteOffset % 4
-      ? new Uint32Array(body.slice().buffer)
-      : new Uint32Array(body.buffer, body.byteOffset, at)
-  const { indices: decodedIndices, attributes } = pageViews(
-    new ArrayBuffer(decodedBytes),
-    pageAttributeNames(flags),
-    vertexCount,
-    morphs.length,
-    skin.influences,
+  const module = loadedSdkWasm()
+  const { decodedBytes, morphTargets, skinInfluences, ...counts } = checkGeometryPage(
+    module,
+    data,
+    maxDecodedBytes,
   )
-  // Corners block by block (`CornerCode::read`), every record inside the stream (the header gate).
-  for (let b = 0, i = 0; i < indexCount; b++) {
-    const [base, width, start] = blockRecord(words, blocks, corners, b),
-      end = Math.min(i + BLOCK_CORNERS, indexCount)
-    for (let k = 0; i < end; i++, k++) {
-      decodedIndices[i] = base + field(words, cornerStream * 32 + start + k * width, width)
-      if (decodedIndices[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX')
-    }
+  const block = new ArrayBuffer(decodedBytes)
+  const out = reserveArena(module, [{ type: 'u32', length: decodedBytes / 4 }])
+  if (!out) throw memoryRefused()
+  try {
+    staged(module, data, (arena, answer, page) => {
+      const status = module.page_unpack(
+        page,
+        data.length,
+        maxDecodedBytes,
+        answer,
+        out.blocks()[0].offset,
+      )
+      if (status !== 0) refused(answerOf(arena))
+    })
+    const [source] = out.blocks()
+    new Uint8Array(block).set(new Uint8Array(source.view.buffer, source.offset, decodedBytes))
+  } finally {
+    out.freed()
   }
-  if (positionCount < vertexCount) {
-    // Positions stored once, each vertex dequantized from the one its link names (`positions.rs`).
-    const step = 2 ** position.exponent
-    for (let i = 0; i < vertexCount; i++) {
-      const p = field(words, links * 32 + i * linkBits, linkBits)
-      for (let c = 0; c < 3; c++) {
-        const q = field(words, positions[c] * 32 + p * position.bits[c], position.bits[c])
-        attributes.position[i * 3 + c] = dequant(position.min[c], q, step)
-      }
-    }
-  } else vector(attributes.position, words, positions, position)
-  if (flags & FLAG_NORMAL)
-    for (let i = 0; i < vertexCount; i++)
-      octDecode(field(words, normal * 32 + i * 16, 16), attributes.normal, i * 3)
-  if (flags & FLAG_UV) vector(attributes.uv, words, uvs, uv)
-  if (flags & FLAG_UV1) vector(attributes.uv2, words, uv2s, uv2)
-  if (flags & FLAG_COLOR) vector(attributes.color, words, colors, color)
-  if (flags & FLAG_SKIN)
-    decodeSkin(words, skinned, skin, attributes.skinIndex, attributes.skinWeight)
-  if (flags & FLAG_MORPH) decodeMorphs(words, morphs, attributes.morph)
+  const { indices, attributes } = pageViews(
+    block,
+    pageAttributeNames(counts.flags),
+    counts.vertexCount,
+    morphTargets,
+    skinInfluences,
+  )
   return {
-    indices: decodedIndices,
+    indices,
     attributes,
-    vertexCount,
-    morphTargets: morphs.length,
-    skinInfluences: skin.influences,
-    flags,
+    vertexCount: counts.vertexCount,
+    morphTargets,
+    skinInfluences,
+    flags: counts.flags,
     decodedBytes,
-    quantizationError,
+    quantizationError: counts.quantizationError,
   }
 }

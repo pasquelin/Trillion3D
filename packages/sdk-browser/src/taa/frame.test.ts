@@ -26,6 +26,11 @@ test('an accumulated frame advances jitter, writes the uniform and returns the w
   const { rt, cam, temporal, encoded, frame, flags } = runtime()
   let u = frame(false)!
   assert.notEqual(taaRenderMatrix(rt, cam), cam.viewProjection, 'the matrix carries the jitter')
+  assert.deepEqual(
+    [...temporal.frame.cameraViewProjection],
+    [...cam.viewProjection],
+    'the camera view the run-time proxy follows holds no jitter',
+  )
   assert.equal(encoded.length, 1)
   assert.equal((encoded[0] as TaaInputs).flags, flags, 'what the as-is share comes from')
   assert.equal(temporal.motion.resets, 1, 'the first frame has no history: poses are taken')

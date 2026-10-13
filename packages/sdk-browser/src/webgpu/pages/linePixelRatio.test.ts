@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from './testScenes.fixture.ts'
 
 /** The words of the buffer `label` names, after the frames of a line surface 2.5 CSS pixels wide
@@ -14,7 +14,7 @@ async function frameWords(transparent = false, dashed = false) {
   scene.material.lineWidth = 2.5
   if (dashed) Object.assign(scene.material, { dashSize: 0.25, gapSize: 0.5 })
   if (transparent) Object.assign(scene.material, { transparent: true, opacity: 0.5 })
-  const { device, buffers } = mockGpu()
+  const { device, buffers } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: device,
@@ -47,7 +47,7 @@ test('the rasters, the resolve and the blend pass read the host pixel ratio', as
   assert.equal(words('Trillion3D visibility uniforms')[24], 2, 'Uniforms.pixelRatio')
   assert.equal(words('Trillion3D resolve uniform')[18], 2, 'ShadeUni.pixelRatio')
   const blend = await frameWords(true)
-  assert.equal(blend('Trillion3D blend view uniform')[32], 2, 'BlendView.pixelRatio')
+  assert.equal(blend('Trillion3D blend view uniform')[31], 2, 'BlendView.pixelRatio')
   assert.equal(blend('Trillion3D blend item records')[25], 2.5, 'BlendItem.lineWidth')
 })
 

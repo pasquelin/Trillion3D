@@ -3,27 +3,37 @@ import type { PartitionCountsFrame } from './counters.ts'
 import type { PendingGrowth } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 
-/** Buffers the partition uses but does not own: those of the draw compact, the Hi-Z test's
+/** Resources the partition uses but does not own: the draw compact's buffers, the Hi-Z test's
  *  verdict buffer, which it rereads to feed the occluder history, and the pyramid the previous
- *  image left, which its main-pass cull reads. The pyramid is asked for on every image because
- *  a target resize gives it a new identity; `undefined` once the Hi-Z is gone. */
+ *  image left, whose farthest layer its main-pass cull reads. The pyramid is asked for on every
+ *  image because a target resize gives it a new identity; `undefined` once the Hi-Z is gone. */
 export type PartitionSources = {
   items: GPUBuffer
   flags: GPUBuffer
   restBits: GPUBuffer
   slotUsed: GPUBuffer
-  pyramid: () => GPUBuffer | undefined
+  pyramid: () => GPUTextureView | undefined
+}
+
+/** The view an image was drawn under, as the partition keeps it and the audits report it. */
+export type AuditView = {
+  /** Width in pixels. */
+  width: number
+  /** Height in pixels. */
+  height: number
+  /** Nearest distance. */
+  near: number
+  /** View elements in double precision, as the image posted them. */
+  view: Float64Array
+  /** The camera's view-projection. */
+  viewProj: Float64Array
 }
 
 /** What the last frame sent the kernel, copied: the exact input of its projection. */
 export type KeptFrame = {
+  /** Rows checked. */
   rows: number
-  width: number
-  height: number
-  near: number
-  view: Float64Array
-  viewProj: Float64Array
-}
+} & AuditView
 
 export type GpuPartition = {
   /** Input of the last encoded frame, or `undefined` before the first. */
@@ -63,6 +73,8 @@ export type GpuPartition = {
    *  then gives — the grown draw compact's and Hi-Z test's — from then on. Every row reads as
    *  never projected. */
   grow(rows: number, sources: () => Omit<PartitionSources, 'pyramid'>): PendingGrowth
+  /** Reads what `sources` gives from now on — a draw compact made again —, its rows kept. */
+  rebind(sources: () => Omit<PartitionSources, 'pyramid'>): void
   /** True when the periodic-sample interval has elapsed and none is in flight. */
   countsDue(frame: number): boolean
   /** Encodes the copy of the counters this frame just wrote, on a frame that counts. */

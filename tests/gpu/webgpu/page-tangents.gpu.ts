@@ -1,27 +1,32 @@
-// A paged surface draws its normal map as its unpaged twin does. A geometry page stores no
-// tangent: a paged transparent rebuilds its frame from screen derivatives
-// (`webgpu/blend/shaderSurface.ts`), a paged opaque one from its triangle's texture coordinates
-// (`visibility/shader/shadeWgsl.ts`). The unpaged twin, a `shared-blend` primitive, is drawn forward
-// from its source buffers and reads the authored tangents (`webgpu/blend/prepare.ts`). The scenes
-// are the public `normal-tangent-mirror-test`, whose tangents are mirrored on half its texture,
-// blended and opaque (`bench/runner/scenes/tangentScenes.ts`, which prints how to compile them).
+// A surface draws its normal map from a frame it has no tangent for as it does from the authored
+// tangents. A geometry page stores no tangent: a paged transparent rebuilds its frame from screen
+// derivatives (`webgpu/blend/shaderSurface.ts`), a paged opaque one from its triangle's texture
+// coordinates (`visibility/shader/shadeWgsl.ts`). The compiler keeps a primitive outside the pages
+// for one property alone, a transmission (`unsplit_material`): such a primitive is drawn from its
+// source buffers and reads the authored tangents (`webgpu/blend/prepare.ts`), or, with none in the
+// source, rebuilds its frame as a page does. The scenes are the public `normal-tangent-mirror-test`,
+// whose tangents are mirrored on half its texture, blended and opaque, paged, unpaged and unpaged
+// without tangents (`bench/runner/scenes/tangentScenes.ts`, which prints how to compile them).
 //
-// - Blended pair: both twins take the forward blend pass, so the tangent source is the only
-//   difference, and the two images must be the same to the pixel.
-// - Opaque pair: recorded, not asserted. The resolve reads authored tangents only on a row with no
-//   geometry page (`HAS_TANGENT`, `shadeWgsl.ts`), which no current cache has: the compiler writes
-//   one for every cluster. The only opaque path that reads them is the forward pass of the unpaged
-//   twin, another shader than the resolve, so a difference there is not the tangents' alone.
+// - Blended pair, `unpaged` against `frame`: one pass, one shader, the tangent source the only
+//   difference. The rebuilt frame is a derivative one and the authored one is per vertex, so the
+//   images differ at a few seams, by a few levels; a handedness of the mirrored half taken wrong
+//   moves tens of levels over that whole half. The bound is a hundredth of the drawn pixels and a
+//   sixteenth of the range.
+// - `paged` against the others: recorded, not asserted. A paged blend is drawn in the blend pass,
+//   an unpaged one composed in the transmission pass over the frozen background, and a paged opaque
+//   one is resolved from the visibility buffer: the difference is not the tangents' alone.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
-import { pixelDifference } from '../../../bench/dawn/capture.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { readCacheManifest } from '../../../bench/runner/assets/cacheManifest.ts'
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { sceneDerived } from '../../../bench/runner/assets/scene.ts'
 import { TANGENT_SCENES } from '../../../bench/runner/scenes/tangentScenes.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
-import { benchManifest, defaultWorldImage, drawnPixels } from '../world/proofWorld.ts'
+import { benchManifest, defaultWorldImage } from '../world/proofWorld.ts'
+import { drawnPixels } from '../kit/sceneImageProof.ts'
 
 /** The bench sun, casting no shadow: the traced shadow read is seeded by the frame number, so an
  *  image held at another frame differs on every shadow edge — the pair would measure how many
@@ -52,7 +57,7 @@ test('each tangent scene is compiled to the pass its pair compares', async () =>
 })
 
 test(
-  'a blended paged surface draws its normal map as its unpaged twin',
+  'authored tangents and a rebuilt frame draw the same normal map',
   { timeout: 300_000 },
   async () => {
     // Interleaved, twice each: the A/A of a scene says what the harness itself moves.
@@ -60,17 +65,24 @@ test(
     for (const run of [1, 2])
       for (const { key, scene } of TANGENT_SCENES)
         images.set(`${key}-${run}`, await tangentImage(key, scene))
-    const delta = (a: string, b: string) => pixelDifference(images.get(a)!, images.get(b)!)
+    const delta = (a: string, b: string) =>
+      compareImages(images.get(a)!, images.get(b)!, { alpha: false })
     const deltas = Object.fromEntries([
       ...TANGENT_SCENES.map(({ key }) => [`${key} A/A`, delta(`${key}-1`, `${key}-2`)]),
-      ...['blend', 'opaque'].map((surface) => [
-        `${surface} paged vs unpaged`,
-        delta(`${surface}-paged-1`, `${surface}-unpaged-1`),
+      ...['blend', 'opaque'].flatMap((surface) => [
+        [`${surface} unpaged vs frame`, delta(`${surface}-unpaged-1`, `${surface}-frame-1`)],
+        [`${surface} paged vs unpaged`, delta(`${surface}-paged-1`, `${surface}-unpaged-1`)],
+        [`${surface} paged vs frame`, delta(`${surface}-paged-1`, `${surface}-frame-1`)],
       ]),
     ])
     console.log(JSON.stringify(deltas))
-    for (const { key } of TANGENT_SCENES) assert.equal(deltas[`${key} A/A`].pixels, 0, `${key} A/A`)
-    const blend = deltas['blend paged vs unpaged']
-    assert.equal(blend.pixels, 0, `blend paged vs unpaged: ${JSON.stringify(blend)}`)
+    for (const { key } of TANGENT_SCENES)
+      assert.equal(deltas[`${key} A/A`].differentPixels, 0, `${key} A/A`)
+    const pixels = images.get('blend-unpaged-1')!.length / 4
+    const tangents = deltas['blend unpaged vs frame']
+    assert.ok(
+      tangents.differentPixels <= pixels / 100 && tangents.maxChannelError <= 16,
+      `blend unpaged vs frame: ${JSON.stringify(tangents)} of ${pixels} pixels`,
+    )
   },
 )

@@ -1,9 +1,9 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts'
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
 import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL } from './gridWgsl.ts'
-import { residentProxyWgsl } from './nodeWgsl.ts'
-import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts'
-import { SURFACE_RAY_WGSL } from './reflectWgsl.ts'
+import { runtimeRadianceWgsl } from './runtimeTraceWgsl.ts'
+import { BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
 import { GOLDEN_ANGLE, TWO_PI } from '../../../math/src/wgsl/constants.ts'
@@ -12,6 +12,9 @@ import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irrad
 import { PROBE_TEXELS } from './atlas.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+
+/** The proxy in the probe pass: its buffer, the world matrices mirrored in it. */
+const PROBE_PROXY = { group: 0, proxy: 1 } as const
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
 const BOUNCE_WORKGROUP = 64
@@ -43,9 +46,9 @@ fn queuedProbe(entry:u32)->QueuedProbe{
 /**
  * Update of the cascade irradiance probes.
  *
- * A probe fires a fixed budget of rays against the resident proxy and reads, at the hit
- * texel, the radiance the surface cache already holds there — direct, shadows and bounce
- * of the previous round. It accumulates it all in **order-2** spherical harmonics, nine
+ * A probe fires a fixed budget of rays against the proxy and reads, at the hit, the radiance the
+ * surface is lit to there — direct, shadows traced against the proxy, and the bounce the grid
+ * already holds (`rtProbeRay`). It accumulates it all in **order-2** spherical harmonics, nine
  * coefficients: one constant term, three linear and five quadratic, which make a much
  * sharper irradiance field than an order-1 basis on the same ray spend.
  *
@@ -70,9 +73,11 @@ export const BOUNCE_PROBE_SHADER = wgslProgram(
 @group(0) @binding(3) var<storage,read> probeQueue:array<u32>;
 @group(0) @binding(4) var probes:texture_2d_array<f32>;
 @group(0) @binding(5) var probesOut:texture_storage_2d_array<rgba32float,write>;
-@group(0) @binding(6) var surface:texture_2d<f32>;
-const RAYS_PER_PROBE:u32=${BOUNCE_SETTINGS.raysPerProbe}u;
-const WORKGROUP:u32=${BOUNCE_WORKGROUP}u;
+@group(0) @binding(${BOUNCE_LIGHT_LIST_BINDING}) var<storage,read> tileLights:array<u32>;
+${wgslConsts({
+  RAYS_PER_PROBE: BOUNCE_SETTINGS.raysPerProbe,
+  WORKGROUP: BOUNCE_WORKGROUP,
+})}
 const BLEND_STABLE:f32=${BOUNCE_SETTINGS.blendStable};
 const BLEND_MOVING:f32=${BOUNCE_SETTINGS.blendMoving};
 const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};
@@ -90,9 +95,10 @@ fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
  let angle=index*GOLDEN_ANGLE+rotation;
  return vec3f(radius*cos(angle),radius*sin(angle),z);
 }
-/** Partial sums of a group: nine basis accumulators, four of distance, one of travel. */
+/** Partial sums of a group: nine basis accumulators, four of distance, the travel and the rays that
+ *  answered. */
 var<workgroup> partial:array<array<vec3f,${BOUNCE_WORKGROUP}>,13>;
-var<workgroup> partialTravelled:array<f32,${BOUNCE_WORKGROUP}>;
+var<workgroup> partialTravelled:array<vec2f,${BOUNCE_WORKGROUP}>;
 @compute @workgroup_size(${BOUNCE_WORKGROUP})
 fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
  if(group.x>=bounce.frame.y||bounce.counts.w==0u){return;}
@@ -112,13 +118,17 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let jitter=hashUnit(rank*6151u+bounce.frame.z*131u);
  var sums:array<vec3f,13>;
  var travelled=0.0;
+ var answered=0.0;
  // One thread per ray: a probe at sixty-four rays occupies a whole group, where a single
  // thread chained them one after another and left the GPU idle.
  for(var ray=lane;ray<RAYS_PER_PROBE;ray+=WORKGROUP){
   let d=rayDirection(ray,jitter,rotation);
-  let sample=rayRadiance(origin,d,reach);
+  let sample=rtProbeRay(origin,d,reach);
+  // An exhausted ray carries zero weight: the estimate is renormalised over the rays that answered.
+  if(sample.w<0.0){continue;}
   let span=sample.w;
   travelled+=span;
+  answered+=1.0;
   ${radianceProjectionShader((k) => `sums[${k}]`, 'sample.rgb', 'd')}
   let weight=abs(d);
   let positive=select(vec3f(0.0),weight,d>vec3f(0.0));
@@ -130,7 +140,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // The group's thread sums gather by successive halves: one barrier per
  // round, and thread zero writes the probe.
  for(var k=0u;k<13u;k++){partial[k][lane]=sums[k];}
- partialTravelled[lane]=travelled;
+ partialTravelled[lane]=vec2f(travelled,answered);
  for(var stride=WORKGROUP/2u;stride>0u;stride>>=1u){
   workgroupBarrier();
   if(lane<stride){
@@ -141,15 +151,18 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  workgroupBarrier();
  if(lane!=0u){return;}
  for(var k=0u;k<13u;k++){sums[k]=partial[k][0];}
- travelled=partialTravelled[0]/f32(RAYS_PER_PROBE);
+ answered=partialTravelled[0].y;
+ // No ray answered: the probe keeps what it holds.
+ if(answered==0.0){return;}
+ travelled=partialTravelled[0].x/answered;
  // A probe locked in a surface hits something in every direction, at point-blank
  // range; a probe in open sky hits nothing. The criterion is a distance, never a winding
  // order: that is reliable on no imported scene, and the proxy is two-sided.
  let buried=travelled<spacing*BOUNCE_BURIED;
  let asleep=buried||travelled>reach*BOUNCE_SKY;
  let usable=select(1.0,0.0,buried);
- // Monte-Carlo estimator over the whole sphere: 4π divided by the ray count.
- let scale=12.5663706/f32(RAYS_PER_PROBE);
+ // Monte-Carlo estimator over the whole sphere: 4π divided by the count of the rays that answered.
+ let scale=12.5663706/answered;
  let updates=select(0.0,probeAt(probe,0u).w,held);
  let previous=select(vec3f(0.0),probeAt(probe,0u).xyz,held);
  let fresh=sums[0]*scale;
@@ -178,16 +191,14 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  probeStore(probe,PROBE_DISTANCE_NEGATIVE,vec4f(mix(keptNegative,meanNegative,blend),0.0));
 }`,
   [
-    residentProxyWgsl(1),
+    runtimeRadianceWgsl(PROBE_PROXY),
     DIRECT_LIGHT_WGSL,
     BOUNCE_GRID_WGSL,
     QUEUED_PROBE_WGSL,
-    BOUNCE_TRACE_WGSL,
     TWO_PI,
     GOLDEN_ANGLE,
     hashUnit,
     sinFromCos,
-    SURFACE_RAY_WGSL,
   ],
 )
 

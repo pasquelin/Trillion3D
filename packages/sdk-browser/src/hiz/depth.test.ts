@@ -162,16 +162,11 @@ test('every pyramid texel is the farthest (the minimum) of the block it covers, 
   }
 })
 
-test('a background hole reaches the top of the pyramid and a rebuild reuses the buffer', () => {
+test('a background hole reaches the top of the pyramid', () => {
   const depth = new Float32Array(25).fill(0.6)
   depth[13] = DEPTH_CLEAR
   const pyramid = buildHizPyramid(depth, 5, 5)
   assert.equal(pyramid.data[pyramid.offsets[pyramid.count - 1]], DEPTH_CLEAR)
-  const data = pyramid.data
-  const again = buildHizPyramid(new Float32Array(25).fill(0.9), 5, 5, pyramid)
-  assert.equal(again, pyramid)
-  assert.equal(again.data, data)
-  assert.equal(again.data[again.offsets[again.count - 1]], Math.fround(0.9))
 })
 
 test('a depth too short for the viewport, or an empty viewport, is refused', () => {

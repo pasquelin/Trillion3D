@@ -32,26 +32,32 @@
 // third word, the width it carried, a pad, 0 — seed 2's third frame; every other word kept.
 // Retaken when the per-page thread-per-id bin read its rows' width off `num_workgroups` too: its
 // params' third word, the row pitch it carried, a pad, 0; every other word and buffer kept.
+// Retaken when the uniform block took 192 bytes for 208, the blended surfaces' one read leaving
+// no word for a read setting or the view's half-field tangent: the pressure bias in word 3, the
+// words past its old place closed up, their pads gone; every other buffer kept.
+// Retaken when the trace tunables left the uniform block for constants of the shader (144 bytes
+// for 192): the mip offsets moved up twelve words; every other buffer kept.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { planFrames, randomWorld, seeded } from './planFrames.fixture.ts'
+import { planFrames, randomWorld } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    '5f9fcbad2310bf24be7defe5dc3f359ed4ea8db31c6943bc3140126ab201e3d1',
-    '39d2f9cd7d229efb39c75705070cfb0150a4a03d3be5b19d229b08a252c721dd',
-    'd742542eb8c42384251021a7e2be4a238347dc6e0d260dbfc90c78007eb274ef',
+    'd7cfd953f61c8125ec63b84ab31e47ca5b80626949264f9da5a8226ef9d623c1',
+    '7348438683f5c6921031dd3c38604be28981edfb9d73ad34f31b5bb6177e03d0',
+    '7c56c84656ad5311d997fe4b21a430cdc4510a6ed1fa3f1a1ac4a8441b1e1ff7',
   ],
   2: [
-    '6f1d70f9e26b0eb55cf2dffc6b735dfab1f7a27eb6d4bc8a9232cb0f539cb203',
-    '7c1efdf7558dd2f964a8f2c0dc4726b82f29a550a33f2ccb62e85f7a5d8f333a',
-    '404726114ac50fa65b9929bf5e47a247e253e13d40b68a967a4a19d6129fa69c',
+    '27f03ebacd7be5a47813b08c1050d844e1392727cf9c0df75ea8c22a06a0060a',
+    'ceb41ce775f40a480ce8ef1b075030b1c685a202c437cf034ef3dc9b3e82ea3d',
+    '6b387dcb757c4b5a8d4d979ac86661a686ce5bb9375405c37cb3b868d9cfe89f',
   ],
 }
 
 for (const seed of [1, 2])
   test(`seed ${seed}: three frames leave the same bytes in every buffer they write`, () => {
-    const random = seeded(seed)
+    const random = mulberry32(seed)
     const run = planFrames()
     const eye: [number, number, number] = [0, 2, 0]
     const digests: string[] = []

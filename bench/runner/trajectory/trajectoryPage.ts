@@ -4,6 +4,7 @@ import type { MeasureViewOptions } from '../harness/measureOptions.ts'
 import { walkTrajectory } from './trajectoryWalk.ts'
 import { explorerOptions } from '../harness/explorerPage.ts'
 import { collecteDiagnostics, posterCapture } from '../harness/measurePage.ts'
+import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
 
 export async function captureTrajectory(
   options: MeasureViewOptions,
@@ -46,7 +47,7 @@ export async function captureTrajectory(
       {
         render: (pose) => explorer.render(pose),
         capture,
-        nextFrame: () => new Promise<void>((done) => requestAnimationFrame(() => done())),
+        nextFrame: animationFrame,
       },
       options.poses ?? [],
       indices,

@@ -1,7 +1,8 @@
+import { f32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HIZ_SLOT_WORDS, hizTestSlot, hizUniformSlots } from './uniforms.ts'
-import { createGpuHiz } from './hiz.ts'
+import { createGpuHiz } from './factory.ts'
 import { pyramidLayout } from './pyramid.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
@@ -14,7 +15,7 @@ const STRIDE_WORDS = 64
  *  frame. */
 function slotBefore(width: number, height: number, rows: number, counting = 0) {
   const packed = new Float32Array(STRIDE_WORDS)
-  const bias = new Uint32Array(new Float32Array([0]).buffer)[0]
+  const bias = f32Bits(0)
   new Uint32Array(packed.buffer).set([width, height, rows, bias, 0, counting])
   return [...new Uint32Array(packed.buffer)]
 }
@@ -54,6 +55,7 @@ test('the uniforms go up as the words that changed: build words, then the test s
       setPipeline() {},
       setBindGroup() {},
       dispatchWorkgroups() {},
+      dispatchWorkgroupsIndirect() {},
     } as unknown as GPUComputePassEncoder,
   }
   const slot = () => [...held().subarray(words.length, words.length + STRIDE_WORDS)]
@@ -109,6 +111,7 @@ test('a device aligning at 512 lays the build and test slots 512 bytes apart, th
     setBindGroup: (_: number, __: unknown, offsets?: readonly number[]) =>
       void (offsets && bound.push(offsets[0])),
     dispatchWorkgroups() {},
+    dispatchWorkgroupsIndirect() {},
   } as unknown as GPUComputePassEncoder
   hiz.encodePyramid({ pass })
   hiz.encodeTest(device, { pass }, 5, {} as GPUBuffer, true)

@@ -72,6 +72,10 @@ export type {
 export type { EngineDiagnostic, PointOfInterest, DiagnosticDetail } from './engine/types.ts'
 /** Placement rows, a cell's decoded rows and how a frame grows them in place, from the scene. */
 export type { PlacementRows } from './placement/rows.ts'
+/** A row of a scene's instance buffer that follows its parent, composed on the GPU. */
+export type { PlacementLink } from './placement/gpuCompose.ts'
+/** What the engine draws, source by source (`page/selection/drawSource.ts`). */
+export type { DrawAssociations, DrawRanks, DrawSource } from './page/selection/drawSource.ts'
 export type { CellRows } from './partition/cellDecode.ts'
 export type { PlacementGrowth } from './placement/engineSceneUpdates.ts'
 /** Host resources the engine reads and never builds (`host/resources.ts`): a host declares them
@@ -97,7 +101,8 @@ export type { GraphSurface } from './host/graph/surface.ts'
 export type { GraphTexture } from './host/graph/texture.ts'
 export type { HostNodeMatrix, MatrixElements } from './host/matrixElements.ts'
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './diagnostic/gpuPasses.ts'
-export type { GpuPassBlock, GpuPassBlockTotals } from './gpu/core/passBlocks.ts'
+export type { GpuPassBlockTotals } from './gpu/core/passBlocks.ts'
+export type { GpuPassBlock } from './stage/passDeclaration.ts'
 export { createDiagnosticChannel } from './diagnostic/channel.ts'
 export type {
   DiagnosticChannel,
@@ -116,13 +121,15 @@ export type { TexturePool } from './webgpu/residency/memoryBudgets.ts'
 export type { BudgetCanvas } from './residency/memoryBudget.ts'
 export type { PartitionAudit } from './webgpu/core/partitionAudit.ts'
 export type { TransparentOcclusionAudit } from './webgpu/transparent/occlusionAudit.ts'
-export type { CpuStepSummary } from './stage/cpuProfile.ts'
+export type { CpuStepSummary } from './stage/profiler.ts'
 export type { ArrivalPlan } from './page/integration/host.ts'
 export type { DecodedGeometryPage } from './page/codec/geometryPage.ts'
 export type {
   TextureLevel,
+  TextureLevelAddress,
   TextureLevelReader,
   TextureLevelRequest,
+  TextureLevelStore,
 } from './texture/levelReader.ts'
 export type { AtlasLanes, LaneCounts, TextureCompression } from './texture/blockFormats.ts'
 export type { HostRetentionDelta, PageStreamerOptions, StreamPage } from './streaming/types.ts'
@@ -132,35 +139,34 @@ export { framingFromBounds } from './camera/framing.ts'
 export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic.ts'
 export {
   createGpuPageCache,
-  httpPageSource,
   type GpuPageCacheOptions,
   type ResidentPage,
 } from './gpu/page/pages.ts'
-export type { PagePinTier } from './gpu/page/load.ts'
+export type { EvictionOrder } from './gpu/page/eviction.ts'
 export type { PageHome, PageHomes } from './gpu/page/homes.ts'
 export { createPageStreamer } from './streaming/pageStreamer.ts'
+// The page cache a streamer reads through, its owner's (`PageStreamerOptions.cache`).
+export { createPageCache, type CacheSession, type PageCache } from './streaming/pageCache.ts'
+export type { RangeAsk, ReadRange } from './cluster/ranged.ts'
+export type { ByteMeter } from './cluster/byteMeter.ts'
 export { LOD_QUALITY, type LightingCapabilities } from '../../sdk-core/src/index.ts'
 // A job around a load — cancellation, a status to observe — for pages built on the runtime.
 export { createJob } from '../../sdk-core/src/index.ts'
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/index.ts'
 export { detectCapabilities, type GpuCapabilities } from './world/capability/capabilities.ts'
 export {
-  HIERARCHY_ROOT,
   MATRIX_VALUES,
   NORMAL_MATRIX_VALUES,
   POSITION_VALUES,
   QUATERNION_VALUES,
   SPHERE_VALUES,
-  boxTransformBatch,
   boxTransformUnionBatch,
   boxUnionBatch,
   composeMatrix4Batch,
   decomposeMatrix4Batch,
   frustumKeepsBoxBatch,
-  hierarchyUpdateBatch,
   invertMatrix4Batch,
   linearToSrgbBatch,
-  multiplyMatrix4Batch,
   normalMatrix3Batch,
   sphereFromBoundsBatch,
   srgbToLinearBatch,
@@ -176,12 +182,6 @@ export type { FlyCameraControls } from './camera/controls/flyControls.ts'
 export type { FirstPersonCameraControls } from './camera/controls/firstPersonControls.ts'
 export type { HeadSettings, PersonHead } from './camera/controls/look.ts'
 export type { CharacterCameraControls } from './camera/controls/characterControls.ts'
-export type {
-  CharacterCollision,
-  TriangleCollision,
-} from '../../sdk-core/src/collision/characterCollision.ts'
-export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts'
-export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts'
 export * from '../../sdk-core/src/physics/vehicle.ts'
 export {
   VEHICLE_SPECS,

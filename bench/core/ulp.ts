@@ -28,14 +28,20 @@ function rang64(x: number) {
   return b < 0n ? -9223372036854775808n - b : b
 }
 
-/** ULP discrepancy between two floats. `Infinity` as soon as NaN or infinity is not shared. */
-function ulpBetween(a: number, b: number, bits = 64) {
+/** ULP discrepancy between two floats, in doubles (`bits` 64) or singles (32): how many floats lie
+ *  between them in bit order. `Infinity` as soon as NaN or infinity is not shared. */
+export function ulpBetween(a: number, b: number, bits = 64) {
   if (Object.is(a, b)) return 0
   if (!Number.isFinite(a) || !Number.isFinite(b)) return Infinity
   if (bits === 32) return Math.abs(rang32(a) - rang32(b))
   const d = rang64(a) - rang64(b)
   return Number(d < 0n ? -d : d)
 }
+
+/** The size of a single's last place at `x`: the step between two singles of its binade, the
+ *  smallest normal's at zero. A distance over it is a number of single ULPs at `x`, a fraction of
+ *  one included — not the count of singles between two values `ulpBetween` gives. */
+export const singleUlp = (x: number) => 2 ** (Math.floor(Math.log2(Math.abs(x) || 2 ** -126)) - 23)
 
 /** Discrepancy counter: how many values differ, by at most how many ULP, and first seen. */
 export function counter(): Counter {

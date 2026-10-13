@@ -13,10 +13,11 @@ import { open } from 'node:fs/promises'
 import type { TestContext } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { installGpuGlobals } from '../kit/gpu/globals.ts'
-import { mockGpu } from '../kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice, writtenBytes } from '../kit/gpu/fakeDevice.ts'
 import { byteRange } from '../../scripts/static-server.ts'
 import { openMeasuredWorld } from '../../packages/sdk-browser/src/world/session/explorer.ts'
 import type { EngineDiagnostic } from '../../packages/sdk-browser/src/diagnostic/types.ts'
+import { MIB } from '../../packages/math/src/constants.ts'
 
 /** The exit code of a process that ran out of memory, as a killed renderer's. */
 const OUT_OF_MEMORY = 137
@@ -38,7 +39,6 @@ const M2_LIMITS = {
   maxSamplersPerShaderStage: 16,
 }
 const [WIDTH, HEIGHT] = [1728 * 2, 1117 * 2]
-const MB = 1 << 20
 
 /** A canvas of the boss's case whose WebGPU context presents into a mock texture, and that
  *  grants no other context. */
@@ -67,14 +67,14 @@ function canvasOf(device: GPUDevice) {
  *  what it held at its peak, and how the image was cut. */
 async function openUnderCap(manifest: string, capMb: number) {
   installGpuGlobals()
-  const gpu = mockGpu({ limits: M2_LIMITS })
+  const gpu = fakeDevice({ ...BACKEND, limits: M2_LIMITS })
   const deviceBytes = () =>
     gpu.buffers.reduce((sum, buffer) => sum + buffer.size, 0) +
-    gpu.writes.reduce((sum, write) => sum + write.bytes.byteLength, 0)
+    gpu.writes.reduce((sum, write) => sum + writtenBytes(write).byteLength, 0)
   let peak = 0
   const poll = () => {
     const { heapUsed, arrayBuffers } = process.memoryUsage()
-    peak = Math.max(peak, (heapUsed + arrayBuffers - deviceBytes()) / MB)
+    peak = Math.max(peak, (heapUsed + arrayBuffers - deviceBytes()) / MIB)
     if (peak <= capMb) return
     process.stdout.write(`${JSON.stringify({ outOfMemory: true, peakMb: Math.round(peak) })}\n`)
     process.exit(OUT_OF_MEMORY)

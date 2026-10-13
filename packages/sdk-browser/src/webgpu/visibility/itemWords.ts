@@ -1,16 +1,18 @@
 import { CULL_BINS, DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts'
-import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { rowCutout } from '../row/pageRow.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import { visBin } from '../pages/prepare/pipelineFor.ts'
-import { createDirtyRows, forEachDirtyRun, forEachRewrittenRun } from '../row/dirty.ts'
+import { createDirtyRows, forEachRewrittenRun } from '../row/dirty.ts'
 import type { GpuDraw } from '../../gpu/draw/draw.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /**
  * The five words of a draw record — the row, its pipeline bin, its page index in the catalogue, its
  * coplanar layer and its triangles — are properties of the ROW, not of the image. A moving camera
  * changes none of them; only a page that arrives, leaves or changes rank does, and the row table
- * already marks those rows (`rows.dirtyMarks`).
+ * already marks those rows (`rows.forEachDirtyRun`).
  *
  * This witness therefore keeps the words from one image to the next and only accumulates, row by
  * row, the runs the GPU has not yet received. Along the way it holds the TOTAL of drawable-row
@@ -64,13 +66,12 @@ export function refreshDrawItemWords(
 /** Writes the words of rows `[from, to]` and marks them to send. */
 function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
   const { rows, drawItemWords, itemWordsHold: hold } = rt.layout
-  const rowWords = PAGE_INFO_STRIDE / 4,
-    ints = rows.pageTableInts,
+  const ints = rows.pageTableInts,
     layerSlots = hold.layerSlots
   for (let row = from; row <= to; row++) {
     const rec = rows.packedRecs[row]!,
       word = row * DRAW_ITEM_U32,
-      rank = rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]]
+      rank = rootOfPacked(rt.layout.placement, rows.packedPageIndex[row])
     const cull = visBin(rec, rank, rt.layout.selectionRoots)
     drawItemWords[word] = row
     // The cutout bit `maskKeep` reads on the GPU, from the words this image uploads.
@@ -81,7 +82,7 @@ function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
     // Triangles the row draws are those of its page-table row — what the GPU actually draws — not
     // those the cluster declares. The GPU partition weighs an occlusion reject with them, and the
     // table total follows without a per-image walk.
-    const triangles = ints ? ints[row * rowWords + ROW_INDEX_WORDS] / 3 : 0
+    const triangles = ints ? ints[row * ROW_WORDS + PAGE_INFO.at.indexCount] / 3 : 0
     drawItemWords[word + 4] = triangles
     hold.total += triangles - hold.triangles[row]
     hold.triangles[row] = triangles
@@ -92,7 +93,7 @@ function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
 /** Sends the pending rows' words to the compaction, run by run, then holds nothing pending. */
 export function sendDrawItemWords(rt: WebgpuPagesRuntime) {
   const { pending } = rt.layout.itemWordsHold
-  forEachDirtyRun(pending.marks, pending.span.from, pending.span.to, rt, sendRun)
+  pending.forEachRun(rt, sendRun)
   pending.clear()
 }
 

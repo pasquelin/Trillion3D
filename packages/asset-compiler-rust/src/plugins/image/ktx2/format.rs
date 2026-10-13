@@ -14,7 +14,7 @@
 //! here. The external decoder brought them back to eight bits by truncation and read their
 //! index field backwards; the neighbouring module says which of the two defects does what.
 use super::eac;
-use crate::plugins::image::blocks::BlockDecode;
+use crate::plugins::image::blocks::{rgba8_bytes, surface_bytes, BlockDecode};
 use crate::plugins::image::Transfer;
 use texture2ddecoder::{
     decode_astc, decode_bc1, decode_bc1a, decode_bc2, decode_bc3, decode_bc4, decode_bc5,
@@ -34,17 +34,11 @@ pub(super) enum Layout {
 }
 
 impl Layout {
-    /// Bytes occupied by a level of this size. Blocks always cover multiples of four texels:
-    /// a 1 × 1 level still weighs a whole block. The count saturates rather than overflowing:
-    /// absurd dimensions give an absurd need, hence a refusal.
+    /// Bytes occupied by a level of this size.
     pub(super) fn level_bytes(&self, width: u32, height: u32) -> u64 {
         match self {
-            Layout::Blocks { bytes, .. } => u64::from(width.div_ceil(4))
-                .saturating_mul(u64::from(height.div_ceil(4)))
-                .saturating_mul(*bytes as u64),
-            Layout::Rgba8 => u64::from(width)
-                .saturating_mul(u64::from(height))
-                .saturating_mul(4),
+            Layout::Blocks { bytes, .. } => surface_bytes(width, height, *bytes as u64),
+            Layout::Rgba8 => rgba8_bytes(width, height),
         }
     }
 }

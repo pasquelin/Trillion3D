@@ -11,11 +11,10 @@
 // (`LIGHTING_RATES`).
 //
 //   node bench/runner/lighting/lightGridCount.ts [--width 3456] [--height 2234] [--range 4]
-import { parseArgs } from 'node:util'
 import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts'
 import { reaches, tilePassWork, walkGrid } from './lightGridWalk.ts'
-import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts'
+import { ATRIUM_POSES, atriumCountArgs, atriumDepth, atriumLamps } from './lightTileAtrium.ts'
 import type { Light } from './lightTileCity.ts'
 
 /**
@@ -93,14 +92,7 @@ export function countGrid(view: TileView, depths: Float32Array, lights: Light[])
 }
 
 async function main() {
-  const { values } = parseArgs({
-    options: {
-      width: { type: 'string', default: '3456' },
-      height: { type: 'string', default: '2234' },
-      range: { type: 'string', default: '4' },
-    },
-  })
-  const [width, height, range] = [values.width, values.height, values.range].map(Number)
+  const { width, height, range } = atriumCountArgs({ range: 4 })
   const lights = atriumLamps(200, range)
   const rows = ATRIUM_POSES.map(({ eye, yaw, pitch }, pose) => {
     const view = camera(eye, yaw, pitch, 60, width, height)

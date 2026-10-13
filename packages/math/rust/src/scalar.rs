@@ -61,6 +61,15 @@ pub fn perspective_slope(fov_degrees: f64) -> f64 {
     (fov_degrees.to_radians() * 0.5).tan()
 }
 
+/// Side of mip level `level` of an image whose base side is `size`: `size` halved `level` times by
+/// integer division, one texel at least; a level past 31 gives one texel. The one rule of the
+/// pyramids that halve by integer division (`mipSize`, `packages/math/src/scalar/integers.ts`; its
+/// shader twin `mipSize`, `packages/math/src/wgsl/integer.ts`), held by `golden/mip_size.json`.
+#[inline]
+pub fn mip_size(size: u32, level: u32) -> u32 {
+    (size >> level.min(31)).max(1)
+}
+
 /// The cubic Hermite basis at `w ∈ [0, 1]`, by `w² = w·w` and `w³ = w²·w`: the weights of the
 /// start value `2w³ − 3w² + 1`, of the start tangent `w³ − 2w² + w`, of the end value
 /// `−2w³ + 3w²` and of the end tangent `w³ − w²`.

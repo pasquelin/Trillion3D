@@ -1,9 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CommandWriter } from './commands.ts'
-import { ADD_WORDS, DAMPING, JOINT_WORDS, OP, PART_WORDS, SHAPE, VIEW_WORDS } from './layout.ts'
+import {
+  ADD_WORDS,
+  DAMPING,
+  JOINT_WORDS,
+  OP,
+  PART_WORDS,
+  RESTORE_WORDS,
+  SHAPE,
+  VIEW_WORDS,
+} from './layout.ts'
 import { body, read } from './commands.fixture.ts'
-import { RESTORE_WORDS } from './wire.fixture.ts'
 import { alignUp } from '../../../math/src/scalar/integers.ts'
 
 /** Each ADD field's word, as `commands.cpp` reads it (`w + n`). */
@@ -153,7 +161,7 @@ test('JOINT carries its ids and frames, its motor, then its own words; MOTOR its
   const { words, floats } = read(writer.take())
   const joint = words.subarray(2),
     jointFloats = floats.subarray(2)
-  // `op, id, kind, a, b (-1: the world's MISS), motor mode, motor axis, extra count`.
+  // `op, id, kind, a, b (-1: the world's NO_INDEX), motor mode, motor axis, extra count`.
   assert.deepEqual([...joint.subarray(0, 8)], [OP.joint, 23, 8, 31, 0xffffffff, 2, 5, extra.length])
   assert.deepEqual(
     [...jointFloats.subarray(8, JOINT_WORDS + extra.length)],

@@ -2,6 +2,7 @@
 // the engine (`blendExpandBindEntries`, `EXPAND_BINDING`), dispatched as the engine dispatches them
 // (`BLEND_EXPAND_ENTRIES`, `blendExpandDispatch`), then its two outputs read back — the expanded
 // instance list and each run's indirect arguments.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import assert from 'node:assert/strict'
 import {
   BLEND_EXPAND_ENTRIES,
@@ -14,7 +15,7 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts'
 import { UNI_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
 import { EXPAND_GROUP } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
-import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
+import { namedEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
@@ -52,7 +53,7 @@ async function expand(input: ExpansionInput) {
     return made
   }
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
-  // Each buffer under its WGSL name: `namedBufferEntries` lays it at that name's binding.
+  // Each buffer under its WGSL name: `namedEntries` lays it at that name's binding.
   const buffers = {
     uni: {
       buffer: buffer(input.uniform, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
@@ -76,7 +77,7 @@ async function expand(input: ExpansionInput) {
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const group = device.createBindGroup({
     layout,
-    entries: namedBufferEntries(EXPAND_BINDING, buffers),
+    entries: namedEntries(EXPAND_BINDING, buffers),
   })
   const dispatches = blendExpandDispatch([], input.entries, input.runs)
   const encoder = device.createCommandEncoder()
@@ -89,26 +90,11 @@ async function expand(input: ExpansionInput) {
     pass.dispatchWorkgroups(dispatches[step])
   }
   pass.end()
-  const targets = (
-    [
-      [buffers.expanded.buffer, input.instanceWords],
-      [buffers.args.buffer, input.argsWords],
-    ] as const
-  ).map(([source, words]) => {
-    const target = device.createBuffer({
-      size: words * 4,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    })
-    encoder.copyBufferToBuffer(source, 0, target, 0, words * 4)
-    return target
-  })
   device.queue.submit([encoder.finish()])
-  const [expanded, args] = await Promise.all(
-    targets.map(async (target) => {
-      await target.mapAsync(GPUMapMode.READ)
-      return new Uint32Array(target.getMappedRange().slice(0))
-    }),
-  )
+  const [expanded, args] = [
+    (await readGpuBuffer(device, buffers.expanded.buffer, input.instanceWords * 4))!,
+    (await readGpuBuffer(device, buffers.args.buffer, input.argsWords * 4))!,
+  ]
   const { court: adapter } = await gpu.fermer()
   assert.deepEqual(gpu.errors, [], 'the device reports no error')
   return { adapter, expanded, args }

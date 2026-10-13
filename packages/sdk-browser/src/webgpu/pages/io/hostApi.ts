@@ -1,11 +1,10 @@
+import { environmentExposure } from '../../../../../sdk-core/src/scene/core/environment.ts'
 import { readGpuImage } from '../../../gpu/core/readback.ts'
 import type { VisPage } from '../../../visibility/types.ts'
 import { renderWebgpuPages } from '../render/render.ts'
 import { frameTargetsAwaited } from '../prepare/targetGrant.ts'
-import { defaultEngineCamera } from '../../../camera/world.ts'
+import { defaultEngineCamera } from '../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-
-export { pageUrls, pendingUrls, retainedRanks } from './hostLists.ts'
 
 /**
  * The contract's light store has changed. Nothing is recomputed here: the next image rereads the
@@ -22,7 +21,7 @@ export function refreshSceneLights(rt: WebgpuPagesRuntime) {
     lights: lights.store.count,
     view: lights.store.lightingView,
     unlit: lights.store.unlit,
-    exposure: lights.store.environment?.exposure ?? 1,
+    exposure: environmentExposure(lights.store.environment),
   })
 }
 
@@ -103,7 +102,7 @@ export const rasterView = (rt: WebgpuPagesRuntime) => {
     locations: {
       roots: rt.layout.selectionRoots,
       packed,
-      rootOfPacked: rt.layout.placement.rootOfPacked,
+      placement: rt.layout.placement,
     },
     cam: engineCameraOf(rt),
     size: rt.setup.viewport ?? rt.gpu.targetSize,

@@ -4,7 +4,7 @@ import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { EngineContext, Engine } from '../../engine/types.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import {
@@ -15,8 +15,15 @@ import {
   triangleGeometry,
 } from '../../engine/pagesEngineScenes.fixture.ts'
 import { rootPage, twoPrimitives } from './rootPages.fixture.ts'
+import { graphDraws, type DrawAssociations } from '../../page/selection/drawSource.ts'
+import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
+/** `scene` with the sources of its graph's drawn nodes, as a session is handed them. */
+export const withDraws = <S extends { source: G.Object3D; associations: DrawAssociations }>(
+  scene: S,
+) => ({ ...scene, draws: graphDraws(scene.source, scene.associations) })
+
 export function quadScene() {
   const { geometry, material, mesh, source } = quadMesh(G.basicSurface({ color: 0xff0000 }))
   const pages = dagRoots(
@@ -39,12 +46,16 @@ export function quadScene() {
         pass: 'exact-clusters',
         pages,
         structure: { version: 1, roots: [0, 1], groups: [] },
+        culling: manifestCulling(pages),
       },
     ],
   }
   const indices = quadIndices()
   const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
-  return { geometry, material, source, pages, metadata, indices, associations }
+  return {
+    ...{ geometry, material, source, pages, metadata, indices, associations },
+    draws: graphDraws(source, associations),
+  }
 }
 
 /**
@@ -53,7 +64,7 @@ export function quadScene() {
  */
 export function quadBackend(
   gpuDevice: EngineContext['gpuDevice'],
-  options: Partial<Omit<EngineContext, 'source' | 'metadata' | 'indices' | 'associations'>> = {},
+  options: Partial<Omit<EngineContext, 'source' | 'metadata' | 'indices' | 'draws'>> = {},
 ) {
   const fixture = quadScene()
   const backend = webgpuPagesEngine({
@@ -69,7 +80,7 @@ export function quadBackend(
 /** A pages backend over `scene` that reads its pages on demand: nothing resident at prepare,
  *  three resident slots, a 32 px viewport. */
 export function streamingQuadBackend(
-  scene: Pick<EngineContext, 'source' | 'metadata' | 'associations'> & {
+  scene: Pick<EngineContext, 'source' | 'metadata' | 'draws'> & {
     indices: Map<string, Uint32Array>
   },
   gpuDevice: EngineContext['gpuDevice'],
@@ -89,18 +100,13 @@ export function streamingQuadBackend(
  * pages, a 32 px viewport and whatever `options` add — then prepared, rendered once and flushed.
  */
 export async function flushedGpuScene(
-  scene: Pick<EngineContext, 'source' | 'metadata' | 'indices' | 'associations'>,
+  scene: Pick<EngineContext, 'source' | 'metadata' | 'indices' | 'draws'>,
   options: Partial<EngineContext> = {},
   limits?: Record<string, number>,
 ) {
-  const collected = collectClusterPages(
-    scene.source,
-    scene.metadata,
-    scene.indices,
-    scene.associations,
-  )
+  const collected = collectClusterPages(scene.source, scene.draws, scene.metadata, scene.indices)
   const packed = packDagSelection(collected.roots)
-  const gpu = mockGpu({ packed, limits })
+  const gpu = fakeDevice({ ...BACKEND, packed, limits })
   const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: gpu.device,

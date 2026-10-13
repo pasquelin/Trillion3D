@@ -1,4 +1,4 @@
-// Every name a program reads from the harness — flag, campaign run, view, report key — is
+// Every name a program reads from the harness — flag, view, report key — is
 // English, by the words `check:english` counts. Read off the source text, never imported: the
 // scan fails on a French name itself, whatever the module around it exports.
 import test from 'node:test'
@@ -11,7 +11,7 @@ const HERE = join(import.meta.dirname, '..')
 const read = (file: string) => readFileSync(join(HERE, file), 'utf8')
 
 /** How a harness names a flag: read from its map, through a reader taking the name first, as a
- *  side option's key, or written `--name` (help, errors, the campaign's lines). */
+ *  side option's key, or written `--name` (help, errors). */
 const NAMED = [
   /flags\.(?:get|has)\(\s*'([^']+)'/g,
   /\b(?:flag|number|mio|mioSi|triple)\(\s*'([^']+)'/g,
@@ -34,24 +34,22 @@ const captures = (text: string, pattern: RegExp) =>
 /** The names of `names` holding a French word. */
 const french = (names: Iterable<string>) => [...names].filter((name) => frenchWords(name).length)
 
-test('no flag a harness reads, and no flag of a campaign line, is named in French', () => {
+test('no flag a harness reads is named in French', () => {
   const names = new Set(harnessSources().flatMap((text) => NAMED.flatMap((p) => captures(text, p))))
   // The scan sees the flags, not an empty set: one of each way of naming them.
-  for (const known of ['views', 'geometry-pool-live', 'error-metric', 'target', 'from', 'list'])
+  for (const known of ['views', 'geometry-pool-live', 'target', 'from', 'list'])
     assert.ok(names.has(known), known)
   assert.deepEqual(french(names), [])
 })
 
-test('no campaign run and no view is named in French', () => {
-  const runs = captures(read('campaign.ts'), /^([a-z][\w-]*) \| [^|\n]+ \| /gm)
+test('no view is named in French', () => {
   const views = [
     ...captures(read('trajectory/poses.ts'), /^ {2}(\w+): \{ index:/gm),
     ...harnessSources().flatMap((text) => captures(text, /--views[ =]([\w,]+)/g)),
   ]
-  for (const known of ['mobile', 'bounce', 'lights-4']) assert.ok(runs.includes(known), known)
   for (const known of ['overview', 'ground', 'street', 'detail'])
     assert.ok(views.includes(known), known)
-  assert.deepEqual([...french(runs), ...french(views)], [])
+  assert.deepEqual(french(views), [])
 })
 
 /** The files shaping what the harness writes: the report, its settings, the page's reply, the
@@ -66,7 +64,7 @@ const SHAPES = [
 
 test('no key of the published report, the page reply or the oracle report is French', () => {
   const keys = SHAPES.flatMap((file) => captures(read(file), /^\s+(\w+)\??: /gm))
-  for (const known of ['stageProfile', 'pageBudget', 'witnessLights', 'load', 'error'])
+  for (const known of ['pageBudget', 'witnessLights', 'captureStatus', 'error'])
     assert.ok(keys.includes(known), known)
   assert.deepEqual(french(new Set(keys)), [])
 })

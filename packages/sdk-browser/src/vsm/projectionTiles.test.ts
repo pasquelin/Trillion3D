@@ -7,16 +7,16 @@
 // against the kernel before tiles: every light tested at every pixel, every layer stored. The traces
 // each light runs, in order, with the same `participating` at every lane — hence the same votes —,
 // and every lane the resolve reads (`vsmMaskFactor`) holds the same code.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CASES, lightsOf, pixelsOf } from './projectionTiles.fixture.ts'
 import { reference, shipped } from './projectionTileRun.fixture.ts'
 import { VSM_LIGHT_KIND_DIRECTIONAL as DIRECTIONAL } from './constants.ts'
-import { seeded } from './planFrames.fixture.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 test('a tile traces what every light tested at every pixel traces, and the resolve reads the same codes', () => {
-  const rand = seeded(1831)
+  const rand = mulberry32(1831)
   let pruned = 0,
     tested = 0,
     stored = 0,
@@ -70,13 +70,13 @@ test('a tile traces what every light tested at every pixel traces, and the resol
 })
 
 test('a pass of suns alone, every light its candidate, traces what every light tested traces', () => {
-  const rand = seeded(1832)
+  const rand = mulberry32(1832)
   for (let round = 0; round < 28; round++) {
     const kind = CASES[round % CASES.length]
     const pixels = pixelsOf(rand, [round % 4, 0], kind)
     const lit = pixels.filter((p) => p.info.valid).map((p) => p.shifted)
     const lights = lightsOf(rand, [1, 3, 35, 64][round % 4], lit.length ? lit : [[0, 0, 0]]).map(
-      (light) => ({ ...light, kind: DIRECTIONAL, invRadius: 0 }),
+      (light) => ({ ...light, kind: DIRECTIONAL }),
     )
     const suns = shipped(pixels, lights, false, 1),
       old = reference(pixels, lights, false)

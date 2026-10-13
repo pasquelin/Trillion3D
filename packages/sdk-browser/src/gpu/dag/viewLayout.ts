@@ -1,4 +1,4 @@
-import { alignUp } from '../../../../math/src/scalar/integers.ts'
+import { fieldLayout } from '../core/fieldLayout.ts'
 
 /**
  * One view's uniform block, described once.
@@ -8,104 +8,80 @@ import { alignUp } from '../../../../math/src/scalar/integers.ts'
  * together, so a field added to one side and not the other would move every word after it and the
  * kernels would read the wrong numbers — a silent image change, not a type error.
  *
- * So the field table below is the only description of the block. From it come the WGSL struct text
- * (`VIEW_UNIFORM_STRUCT`) and the word offsets the host writes (`VIEW_WORD`). Adding a field means
- * adding one line here, and both sides follow.
- *
- * Offsets follow WGSL's own layout rules, in 4-byte words: a field starts at the next multiple of
- * its alignment, and `align` below is that alignment counted in words — 1 for a scalar, 2 for
- * `vec2`, 4 for `vec3`, `vec4`, a matrix and an array. The `vec3` rule is the one that bites:
- * `cameraWorld` is twelve bytes yet cannot start at word 47, it waits for word 48.
+ * So the field table below is the only description of the block. `fieldLayout` makes of it the WGSL
+ * struct text (`VIEW_UNIFORM_STRUCT`) and the word offsets the host writes. Adding a field means
+ * adding one line here, and both sides follow. Offsets follow WGSL's own layout rules; the `vec3`
+ * rule is the one that bites: `cameraWorld` is twelve bytes yet cannot start at word 47, it waits
+ * for word 48.
  */
-type Field = {
-  readonly name: string
-  readonly type: string
-  readonly words: number
-  readonly align: number
-}
-
 /** The block, in order. `as const` is what makes `FieldName` a union of the field names rather
- *  than `string`: annotated `readonly Field[]`, the literal types widen and a typo in `viewWord`
- *  would compile and throw mid-frame, which is the drift this module exists to prevent. */
+ *  than `string`: a typo in `viewWord` is then a type error, not a throw mid-frame. */
 const VIEW_FIELDS = [
-  { name: 'planes', type: 'array<vec4f,6>', words: 24, align: 4 },
-  { name: 'view', type: 'mat4x4f', words: 16, align: 4 },
-  { name: 'pixelScale', type: 'vec2f', words: 2, align: 2 },
-  { name: 'pixelError', type: 'f32', words: 1, align: 1 },
-  { name: 'near', type: 'f32', words: 1, align: 1 },
-  { name: 'clusterCount', type: 'u32', words: 1, align: 1 },
-  { name: 'nodeCount', type: 'u32', words: 1, align: 1 },
-  { name: 'worldCount', type: 'u32', words: 1, align: 1 },
-  { name: 'cameraWorld', type: 'vec3f', words: 3, align: 4 },
-  { name: 'cameraStretch', type: 'f32', words: 1, align: 1 },
-  { name: 'listCap', type: 'u32', words: 1, align: 1 },
-  { name: 'perspective', type: 'f32', words: 1, align: 1 },
-  { name: 'viewCount', type: 'u32', words: 1, align: 1 },
-  { name: 'viewCapacity', type: 'u32', words: 1, align: 1 },
-  { name: 'queueCap', type: 'u32', words: 1, align: 1 },
-  { name: 'ahead', type: 'u32', words: 1, align: 1 },
-  { name: 'admitByLevel', type: 'u32', words: 1, align: 1 },
-  { name: 'swapRegions', type: 'u32', words: 1, align: 1 },
-  { name: 'worldRoot', type: 'u32', words: 1, align: 1 },
-  { name: 'treeTop', type: 'u32', words: 1, align: 1 },
-  { name: 'cellBase', type: 'u32', words: 1, align: 1 },
-  { name: 'members', type: 'u32', words: 1, align: 1 },
-  { name: 'worldLinks', type: 'u32', words: 1, align: 1 },
-  { name: 'worldScale', type: 'f32', words: 1, align: 1 },
-  { name: 'lightOriginHigh', type: 'vec4f', words: 4, align: 4 },
-  { name: 'lightOriginLow', type: 'vec4f', words: 4, align: 4 },
-  { name: 'lightPlanes', type: 'array<vec4f,6>', words: 24, align: 4 },
+  ['planes', 'array<vec4f,6>'],
+  ['view', 'mat4x4f'],
+  ['pixelScale', 'vec2f'],
+  ['pixelError', 'f32'],
+  ['near', 'f32'],
+  ['clusterCount', 'u32'],
+  ['nodeCount', 'u32'],
+  ['worldCount', 'u32'],
+  ['cameraWorld', 'vec3f'],
+  ['cameraStretch', 'f32'],
+  ['listCap', 'u32'],
+  ['perspective', 'f32'],
+  ['viewCount', 'u32'],
+  ['viewCapacity', 'u32'],
+  ['queueCap', 'u32'],
+  ['ahead', 'u32'],
+  ['admitByLevel', 'u32'],
+  ['swapRegions', 'u32'],
+  ['worldRoot', 'u32'],
+  ['treeTop', 'u32'],
+  ['cellBase', 'u32'],
+  ['members', 'u32'],
+  ['worldLinks', 'u32'],
+  ['worldScale', 'f32'],
+  // The open counts placements hold of their own (\`heldOpen.ts\`): the first word of their table in
+  // \`out.pages\`, and its slots less one.
+  ['heldBase', 'u32'],
+  ['heldMask', 'u32'],
+  // The candidates and the live list hold \`candCap\` entries each (\`shader/levelWgsl.ts\`); the
+  // cold table's unique records and content keys (\`layout.ts\`).
+  ['candCap', 'u32'],
+  ['recordCount', 'u32'],
+  ['keyCount', 'u32'],
+  // The keys' groups and the links to the groups replacing them, in the cold table (`evict.ts`);
+  // then the host's frame, the clock a use is stamped with (`shader/lastUseWgsl.ts`).
+  ['groupCount', 'u32'],
+  ['groupEdges', 'u32'],
+  ['frame', 'u32'],
+  // The placement tree's members drawn whatever the view (`placementTree.ts`, `drawnAlways`): where
+  // their list lies in the cold table and how many it holds, in the gap before the next vec4.
+  ['always', 'u32'],
+  ['alwaysCount', 'u32'],
+  ['lightOriginHigh', 'vec4f'],
+  ['lightOriginLow', 'vec4f'],
+  ['lightPlanes', 'array<vec4f,6>'],
   // The eye the cut reads its translations at, \`cameraWorld\` in doubles, high word then low word
   // (\`shader/worldPoseWgsl.ts\`): x and y in the first, z in the second.
-  { name: 'eye', type: 'array<vec4u,2>', words: 8, align: 4 },
-] as const satisfies readonly Field[]
+  ['eye', 'array<vec4u,2>'],
+] as const
 
-/** The first word of a field, by WGSL's alignment: its offset rounded up to the field's own. */
-const firstWord = (field: Field, after: number): number => alignUp(after, field.align)
-
-/** The word each field starts at, in declaration order. */
-const VIEW_WORD: Readonly<Record<string, number>> = Object.freeze(
-  Object.fromEntries(
-    VIEW_FIELDS.reduce<{ at: number; words: [string, number][] }>(
-      (acc, field) => {
-        const at = firstWord(field, acc.at)
-        acc.words.push([field.name, at])
-        acc.at = at + field.words
-        return acc
-      },
-      { at: 0, words: [] },
-    ).words,
-  ),
-)
+const LAYOUT = fieldLayout('Uniforms', VIEW_FIELDS)
 
 /** Words one view's block holds: the stride of the uniform array, and the size the host allocates. */
-export const VIEW_BLOCK_WORDS = VIEW_FIELDS.reduce(
-  (at, field) => firstWord(field, at) + field.words,
-  0,
-)
+export const VIEW_BLOCK_WORDS = LAYOUT.words
 
 /** The word a field starts at. `viewWord('ahead')` is where the host writes what the kernels read
- *  as `views[vi].ahead`; nothing else may hold that number.
- *
- *  `field` is a union of the table's names, so a typo is a type error rather than a throw thrown
- *  mid-frame: the compiler and the shader are checked against the same list. */
+ *  as `views[vi].ahead`; nothing else may hold that number. */
 export const viewWord = (field: FieldName): number => {
-  const at = VIEW_WORD[field]
+  const at: number | undefined = LAYOUT.at[field]
   if (at === undefined) throw new Error(`${field} is not a field of a view's uniform block`)
   return at
 }
 
-/** The name of a field of the block, as the union the compiler and the host are checked against: a
- *  typo is a type error, not a throw thrown mid-frame. */
-export type FieldName = (typeof VIEW_FIELDS)[number]['name']
-
-/** The stride must be a whole number of four-word units: WGSL lays a uniform array out with a
- *  sixteen-byte aligned stride, and a block of 65 words would fail at shader-compile time, on a
- *  device, rather than here. */
-if (VIEW_BLOCK_WORDS % 4 !== 0)
-  throw new Error(`a view's uniform block is ${VIEW_BLOCK_WORDS} words, not a multiple of four`)
+/** The name of a field of the block, as the union the compiler and the host are checked against. */
+export type FieldName = (typeof VIEW_FIELDS)[number][0]
 
 /** The WGSL struct the kernels bind, built from the same table the host writes against. */
-export const VIEW_UNIFORM_STRUCT = `struct Uniforms{${VIEW_FIELDS.map(
-  (field) => `${field.name}:${field.type}`,
-).join(',')},}`
+export const VIEW_UNIFORM_STRUCT = LAYOUT.wgsl

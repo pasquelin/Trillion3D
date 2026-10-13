@@ -3,11 +3,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import { bloomLevelSizes } from '../../effects/bloomFilter.ts'
-import { input, loaded, recorder, floatsOf } from './webgpuEffects.fixture.ts'
+import { floatsOf, input, loaded, offsetOf, recorder } from './webgpuEffects.fixture.ts'
 
 test('a device aligning at 512 lays the bloom’s uniform slots 512 bytes apart', async () => {
   const { gpu, effects } = await loaded(512)
-  const { encoder, passes } = recorder()
+  const { encoder, passes } = recorder(gpu)
   const bloom = effect.bloom({ intensity: 0.5, radius: 2 })
   effects.encode(encoder, [bloom], input, 64, 32)
   await effects.settled()
@@ -18,7 +18,7 @@ test('a device aligning at 512 lays the bloom’s uniform slots 512 bytes apart'
   assert.equal(uniform.size, 2 * levels * 512)
   // Every pass reads its own slot, the up passes from the smallest level back.
   assert.deepEqual(
-    passes.map((pass) => pass.offset!).sort((a, b) => a - b),
+    passes.map((pass) => offsetOf(pass)!).sort((a, b) => a - b),
     Array.from({ length: 2 * levels }, (_, slot) => slot * 512),
   )
   // Each slot's radius at its fifth float, 128 floats a slot.

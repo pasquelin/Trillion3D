@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { pagedQuad, FIRST, SECOND, type PagedQuad } from '../pages/pagedQuad.fixture.ts'
 import { createWebgpuPagesRuntime } from '../pages/runtime.ts'
 import { ensurePageTable } from '../pages/render/pageTable.ts'
@@ -24,7 +24,7 @@ async function preparedQuad(pass: string, surface: G.GraphSurface) {
   mesh.geometry.setAttribute('normal', G.floatAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], 3))
   mesh.geometry.setAttribute('uv', G.floatAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2))
   mesh.geometry.setAttribute('tangent', G.floatAttribute(new Array(16).fill(1), 4))
-  const mock = mockGpu()
+  const mock = fakeDevice(BACKEND)
   const rt = createWebgpuPagesRuntime({
     ...fixture,
     gpuDevice: mock.device,
@@ -59,9 +59,9 @@ test('a paged transparent item owns no host buffer and draws each cluster from i
     // Once resident, each cluster's span is its slot and the corners its page declares.
     ensurePageTable(rt, device)
     rt.services.syncRows()
-    const { spans, entryOfPage } = rt.blendState.table!
+    const { spans, entryOf } = rt.blendState.table!
     fixture.encoded.forEach((page, id) => {
-      const entry = entryOfPage[id]
+      const entry = entryOf(id)
       assert.equal(spans[entry * 4 + 1], page.indexCount)
       assert.equal(spans[entry * 4], rt.gpu.cache!.get(`g${id}`)!.offset / 4)
     })

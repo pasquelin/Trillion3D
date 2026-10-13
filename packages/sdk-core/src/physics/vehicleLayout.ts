@@ -7,6 +7,11 @@
 export const VEHICLE = { car: 0, motorcycle: 1, tracked: 2 } as const
 export const TORQUE_POINTS = 5
 export const MAX_GEARS = 6
+/** Words of VEHICLE before its wheels, of one wheel, of UNVEHICLE and of DRIVE. */
+export const VEHICLE_WORDS = 38
+export const WHEEL_WORDS = 6
+export const UNVEHICLE_WORDS = 2
+export const DRIVE_WORDS = 6
 /** A wheel's role bits: it steers, the engine drives it, the handbrake holds it; on a tracked
  *  vehicle, the track's driven wheel (its sprocket). */
 export const WHEEL_ROLE = { steers: 1, driven: 2, handbrake: 4, sprocket: 8 } as const

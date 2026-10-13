@@ -8,9 +8,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { OPEN_CONE, type NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
-import { coneCullsPageWith } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
-import { coneContextFor } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
-import { createConeContext } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
+import {
+  coneContextFor,
+  coneCullsPageWith,
+  createConeContext,
+} from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
@@ -21,7 +23,9 @@ import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gp
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { triangleCone } from '../../kit/reference/cone.ts'
 import { project } from '../kit/cameraRig.ts'
-import { runSelectionKernel, type SelectionCase } from './selectionKernel.ts'
+import { runSelectionKernel } from './selectionKernel.ts'
+import { type SelectionCase } from './selectionCase.ts'
+import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 
 const VIEWPORT: [number, number] = [1000, 1000]
 const POSITIONS = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0]
@@ -45,18 +49,18 @@ function coneCases(
   name: string,
   world: G.Matrix4,
   camera: ReturnType<typeof G.perspectiveCamera>,
-  page: object,
+  page: { min: number[]; max: number[] },
   cone: NormalCone,
 ) {
   const uniforms = cameraSelectionUniforms(engineCamera(camera), 0, VIEWPORT)
-  const pack = (pageCone: NormalCone) =>
-    packedWorldsToRenderOrigin(
-      packDagSelection([
-        { world, pages: [{ url: '0', lodError: 0, parentError: null, ...page, cone: pageCone }] },
-      ]),
+  const pack = (pageCone: NormalCone) => {
+    const pages = [{ url: '0', lodError: 0, parentError: null, ...page, cone: pageCone }]
+    return packedWorldsToRenderOrigin(
+      packDagSelection([{ world, pages, culling: cullingInPlace(pages) }]),
       [{ world, pages: [] }],
       uniforms.cameraWorld,
     )
+  }
   return [
     { name: `${name} with its cone`, packed: pack(cone), uniforms },
     { name: `${name} without a cone`, packed: pack(OPEN_CONE), uniforms },
@@ -109,13 +113,7 @@ test('every cut keeps a visible face under a small non-uniform scale', async () 
     )
     assert.equal(displayedTriangles, triangles, `CPU cut, cones ${cones}: the face is lost`)
   }
-  const cases = coneCases(
-    'trigger',
-    world,
-    camera,
-    { sphere: [0, 0, -0.5, 2], min: MIN, max: MAX },
-    cone,
-  )
+  const cases = coneCases('trigger', world, camera, { min: MIN, max: MAX }, cone)
   assert.deepEqual(evaluateDagSelectionKernel(cases[0].packed, cases[0].uniforms).pageIds, [0])
   const { adapter, readings } = await runSelectionKernel(cases)
   console.log(JSON.stringify({ adapter, cone, kept: readings.map(({ pages }) => pages) }))

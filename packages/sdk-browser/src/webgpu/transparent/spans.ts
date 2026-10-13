@@ -1,13 +1,13 @@
 import type { WebgpuPagesCore } from '../pages/runtime.ts'
 import { rowIndexCount } from '../row/pageRow.ts'
-import { writeSpanDeformation } from '../../deformation/slotLayout.ts'
+import { writeSpanDeformation } from '../../deformation/outputs.ts'
 
 /** The residency mirror reports only offsets that changed, including eviction and slot reuse. */
 export function updateTransparentSpan(rt: WebgpuPagesCore, page: number, offset: number) {
   const { table, dirtySpans } = rt.blendState
   if (!table) return
   // A page the table does not name is never a blended one.
-  const entry = table.entryOfPage[page] ?? -1
+  const entry = table.entryOf(page)
   if (entry < 0) return
   // The page back through the one catalogue accessor: its geometry page declares the corners, or
   // the index page it still draws from does.
@@ -18,7 +18,7 @@ export function updateTransparentSpan(rt: WebgpuPagesCore, page: number, offset:
   if (table.spans[entry * 4] === start && table.spans[entry * 4 + 1] === count) return
   table.spans[entry * 4] = start
   table.spans[entry * 4 + 1] = count
-  writeSpanDeformation(table.spans, entry, rec.deformationOutput, offset, count)
+  writeSpanDeformation(table.spans, entry, rt.layout.deformationOutputOf(page), count)
   dirtySpans.add(entry)
 }
 

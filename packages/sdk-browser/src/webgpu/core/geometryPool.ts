@@ -19,6 +19,7 @@ import {
   placeBlock,
   poolBytesOf,
   put,
+  reserveTail,
   writeBlock,
   type Pool,
 } from './geometryPoolOps.ts'
@@ -33,7 +34,10 @@ type GeometryBlocks = Map<HostAttributes, GeometryBlock>
  * mounted after the open, or one whose held box asks more, grows the room in place (`ensure`):
  * the stores are made wider, the buffers' contents copied, the normals written again from their
  * geometries, and the owners told (`grown`) — no reopen (#1293). Colours ride at the tail of the
- * UV buffer (`vertexColors.ts`), which carries none when no geometry has any.
+ * UV buffer (`vertexColors.ts`), which carries none when no geometry has any: the first geometry
+ * that brings colours, or a second UV set, the pool was opened without lays it out wider for them
+ * by the open's own rule (`poolFloats`, in `geometryPoolOps.ts`), what it holds copied, the owners
+ * told.
  */
 export function createVertexPool(
   device: GPUDevice,
@@ -72,6 +76,13 @@ export function createVertexPool(
     get normalBytes() {
       return p.stores.concatNrm.bytes
     },
+    /** The vertices the buffers hold room for. */
+    get size() {
+      return p.size
+    },
+    /** Room for a tail of `tail` floats after the positions, the buffers made over when it is
+     *  short (`reserveTail`); false when the device refuses. */
+    reserve: (tail: number) => reserveTail(p, tail),
     /** Frees the pool's stores: the pool is dropped. */
     destroy: () => releasePoolStores(p.stores),
     /** Places each geometry of `sourced`, dynamic or not, and uploads the buffers whole: the

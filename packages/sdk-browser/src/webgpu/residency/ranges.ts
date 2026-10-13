@@ -1,3 +1,5 @@
+import { resized } from '../../../../math/src/sequence/resized.ts'
+
 /**
  * How increasing indices become write ranges. `gap`: the largest step between two neighbours still
  * sent in one range — the indices in between are rewritten with their current value, which changes
@@ -52,4 +54,56 @@ export function coalesceRanges(
     if (i < count) from = sorted[i]
   }
   return ranges
+}
+
+/**
+ * The indices that changed since the last upload, each once, and the runs they make under the
+ * coalescer: the one changed list of every flush that sends what changed. `gap` is the largest step
+ * two neighbours share a run across, `cap` the most runs (none bounds them: every run stays apart).
+ * The runs are made when asked, once per change.
+ */
+export function createChangedRuns(size: number, gap: number, cap = Infinity) {
+  let marked = new Uint8Array(size)
+  let changed = new Int32Array(64),
+    count = 0
+  /** The runs as `[first, last]` pairs, valid while `joined`. */
+  let pairs = new Int32Array(128),
+    runCount = 0,
+    joined = true
+  const rule = { gap, cap, overflow: 'narrowest', steps: new Int32Array(64) } satisfies RangeRule
+  return {
+    /** How many indices changed. */
+    get count() {
+      return count
+    },
+    /** `index` changed since the last `clear`. */
+    mark(index: number) {
+      if (marked[index]) return
+      marked[index] = 1
+      if (count === changed.length) changed = resized(changed, count + 1)
+      changed[count++] = index
+      joined = false
+    },
+    /** The runs of the changed indices, in increasing order, as `[first, last]` pairs. */
+    runs() {
+      if (!joined) {
+        rule.cap = Math.min(cap, count)
+        rule.steps = resized(rule.steps, count)
+        pairs = resized(pairs, 2 * rule.cap)
+        runCount = coalesceRanges(changed.subarray(0, count).sort(), count, pairs, rule)
+        joined = true
+      }
+      return { count: runCount, pairs }
+    },
+    /** Every change sent: nothing is marked. */
+    clear() {
+      for (let i = 0; i < count; i++) marked[changed[i]] = 0
+      count = runCount = 0
+      joined = true
+    },
+    /** The indices run to `size`: the marks held so far are kept. */
+    grow(size: number) {
+      marked = resized(marked, size)
+    },
+  }
 }

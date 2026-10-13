@@ -1,5 +1,7 @@
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
+import { VIS_UNIFORM } from '../../visibility/shader/uniformLayout.ts'
 import { uniformSlots, uniformStride, type UniformSlots } from '../../residency/pools.ts'
-import { POOL_LANES } from '../../texture/blockFormats.ts'
+import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
 
 /**
  * Binding numbers of the four WebGPU-path layouts, the single source of truth: the layout
@@ -8,11 +10,11 @@ import { POOL_LANES } from '../../texture/blockFormats.ts'
  * once, never on one alone — the defect merging lots 1 and 2 cost.
  */
 
-/** Four bindings of a virtual-texture atlas: one pool per lane, in `POOL_LANES` order, then its
+/** Four bindings of a virtual-texture atlas: one pool per lane, in `PREVIEW_LAYOUT_NAMES` order, then its
  *  page table. */
 const atlas = (base: number) => ({
-  lanes: POOL_LANES.map((_, index) => base + index),
-  pages: base + POOL_LANES.length,
+  lanes: PREVIEW_LAYOUT_NAMES.map((_, index) => base + index),
+  pages: base + PREVIEW_LAYOUT_NAMES.length,
 })
 export type AtlasBindings = ReturnType<typeof atlas>
 
@@ -27,11 +29,10 @@ export const atlasLayoutEntries = (
     visibility,
     texture: { sampleType: 'float', viewDimension: '2d-array' } as GPUTextureBindingLayout,
   })),
-  { binding: bindings.pages, visibility, buffer: readOnly },
+  computeBufferEntry(bindings.pages, 'read-only-storage', visibility),
 ]
-/** Bytes of the visibility-buffer uniform `Uniforms` (`../../visibility/shader/pageWgsl.ts`): its
- *  nine words after the matrix, rounded up to the struct's 16-byte alignment. */
-export const VIS_UNIFORM_BYTES = 112
+/** Bytes of the visibility-buffer uniform `Uniforms` (`VIS_UNIFORM`). */
+export const VIS_UNIFORM_BYTES = VIS_UNIFORM.words * 4
 let visSlots: UniformSlots | undefined
 /** The visibility uniform's `count` slots on a device of `limits`: the layout the upload writes
  *  every frame, kept while the count and the alignment hold (nothing allocated a frame). */
@@ -100,7 +101,7 @@ export const BLEND_BINDINGS = {
   /** Per-tile light lists, the very ones the opaque resolve reads: the blend pass reads its own
    *  depth slice there, from the near plane to the opaque background. */
   tileLights: 23,
-  /** Resident proxy, the very one the opaque resolve binds, on a single binding. */
+  /** The proxy's buffer, the culling's world matrices mirrored in it, which the reflection of the forward programs traces. */
   proxy: 24,
   /** Parameters of each transparent item, indexed by its rank in the scene: world matrix, colour,
    *  the six maps and their factors. They do not depend on the frame, so a draw has no
@@ -110,11 +111,13 @@ export const BLEND_BINDINGS = {
    *  (`BLEND_VSM_BINDINGS`). */
   shadowTransmittance: 26,
   shadowTranslucentDepth: 27,
-  /** Shared outgoing radiance of proxy faces, read by mirror reflections. */
-  surfaceCache: 28,
   /** The surfaces' anisotropic and clear-coat records, the opaque resolve's own table
    *  (`../visibility/physicalTable.ts`), read by the lobed programs (`../blend/physicalWgsl.ts`). */
-  physical: 29,
+  physical: 28,
+  /** What a fragment traces its shadow with past the maps (`BLEND_TRACE_BINDINGS`): the shadow
+   *  projection's view uniform and its blue noise. */
+  shadowView: 29,
+  shadowNoise: 30,
 }
 
 /**
@@ -142,4 +145,9 @@ export const BLEND_VSM_BINDINGS = {
   projectionData: BLEND_BINDINGS.shadowAtlas,
   uniforms: BLEND_BINDINGS.shadowSampler,
   pool: BLEND_BINDINGS.shadowTranslucentDepth,
+}
+/** What a transparent's fragment traces its shadow with (`directShadowWgsl`). */
+export const BLEND_TRACE_BINDINGS = {
+  view: BLEND_BINDINGS.shadowView,
+  noise: BLEND_BINDINGS.shadowNoise,
 }

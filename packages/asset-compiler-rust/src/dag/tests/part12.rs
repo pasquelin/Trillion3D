@@ -1,6 +1,7 @@
 //! Seam-locked groups coarsen with solved vertices (`solved.rs`, `placed.rs`, `grown.rs`).
 use super::*;
-use crate::geometry_page::{Attribute, FLAG_NORMAL, FLAG_UV};
+use trillion3d_page_codec::encode::Attribute;
+use trillion3d_page_codec::{FLAG_NORMAL, FLAG_UV};
 
 /// `island_per_quad(n)` with up normals, as the pages carry it.
 fn sheet(n: usize) -> (Vec<f32>, Vec<Attribute>, Vec<u32>) {

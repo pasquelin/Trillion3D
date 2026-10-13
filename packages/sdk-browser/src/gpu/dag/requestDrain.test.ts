@@ -3,7 +3,7 @@
 // in that order. Run on the Node device, which replays the kernels through their CPU mirrors.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { requestScene } from './requestScene.fixture.ts'
@@ -15,7 +15,7 @@ import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 test('the requests reach the host in requestRank order, sorted by the GPU', async () => {
   installGpuGlobals()
   const { packed, uni: uniforms } = requestScene(1, 1024, 6)
-  const gpu = mockGpu({ packed })
+  const gpu = fakeDevice({ ...BACKEND, packed })
   const selection = await createGpuDagSelection(gpu.device, packed)
   assert.ok(selection)
   selection.dispatch(uniforms)

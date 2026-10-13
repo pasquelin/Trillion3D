@@ -5,18 +5,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { createVsmResources } from './resources.ts'
-import {
-  VSM_PROJECTION_MAX_PASS_LIGHTS,
-  VSM_PROJECTION_VIEW_BYTES,
-  vsmProjectionWgsl,
-} from './projectionWgsl.ts'
+import { commandArgs } from '../../../../tests/kit/gpu/fakeRenderPass.ts'
+import { vsmProjectionWgsl } from './projectionWgsl.ts'
+import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_BYTES } from './projectionView.ts'
 import { encodeVirtualShadowProjection, type VsmProjectionLight } from './projectionPass.ts'
 import { camera, sun } from './projectionScene.fixture.ts'
 import { vsmLayout } from './layout.ts'
+import { VSM_PROJECTION_HEADER_WORDS } from './projectionView.ts'
+import { projectionKit } from './projectionKit.fixture.ts'
 
-const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
+const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
   subgroups: false,
 })
 
@@ -49,24 +47,13 @@ test('one store a layer the tile holds a light of, under bounds the view gives: 
 })
 
 test('nine lights: one vsm.projection pass, each light at its offset of the view', async () => {
-  const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
-  const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
-  const passes: string[] = [],
-    constants: Record<string, number>[] = []
-  const encoder = {
-    beginComputePass: (d: GPUComputePassDescriptor) => (
-      passes.push(d.label!),
-      {
-        // The fake device's pipeline is its descriptor's compute stage.
-        setPipeline: (p: GPUProgrammableStage) =>
-          constants.push(p.constants as Record<string, number>),
-        setBindGroup() {},
-        dispatchWorkgroups() {},
-        end() {},
-      }
-    ),
-  } as unknown as GPUCommandEncoder
-  const view = {} as GPUTextureView
+  const { project, encoder, res, inputs, computePasses, upload: uploaded } = projectionKit()
+  /** The constants of each pipeline the passes set since `from`. */
+  const constants = (from = 0) =>
+    computePasses
+      .flatMap(({ commands }) => commandArgs(commands, 'setPipeline'))
+      .slice(from)
+      .map(([pipeline]) => (pipeline as GPUProgrammableStage).constants as Record<string, number>)
   const lights: VsmProjectionLight[] = Array.from({ length: 9 }, (_, k) => ({
     type: 'point',
     mapId: 8192 + 6 * k,
@@ -74,70 +61,50 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
     position: [k, 2, 3],
     radius: 10,
   }))
-  encodeVirtualShadowProjection(
-    encoder,
-    res,
-    {
-      device,
-      depth: view,
-      normalRough: view,
-      flags: view,
-      mask: view,
-      maskTiles: view,
-      width: 64,
-      height: 32,
-      camera: {
-        view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-        projection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0],
-        perspective: true,
-      },
-      frameIndex: 1,
-      subgroups: false,
-    },
-    lights,
+  project(lights)
+  assert.deepEqual(
+    computePasses.map(({ label }) => label),
+    ['vsm.projection'],
   )
-  assert.deepEqual(passes, ['vsm.projection'])
   // The header and the nine records: the shader reads no record past the count.
-  const upload = writes.find((w) => w.buffer.label === 'vsm.projection.view')
+  const upload = uploaded()
   assert.ok(upload)
   assert.equal(upload.size, 416 + 9 * 48, 'the view uniform, up to its last light')
   const u = new Uint32Array(upload.data.buffer, upload.data.byteOffset, upload.size! / 4)
   const f = new Float32Array(u.buffer, u.byteOffset, u.length)
   assert.equal(u[75], 9, 'the count')
   for (let k = 0; k < 9; k++) {
-    const o = 104 + 12 * k
-    assert.equal(u[o + 10], 8192 + 6 * k, `light ${k}'s map`)
+    const o = VSM_PROJECTION_HEADER_WORDS + 12 * k
+    assert.equal(u[o + 9], 8192 + 6 * k, `light ${k}'s map`)
     assert.equal(f[o] + 0, k, `light ${k}'s position, the eye at the origin`)
   }
   // Nine lights loop over the view's count; one light alone, over one the compiler knows. Each pass
   // is compiled with its lights' kinds (`projectionKinds.test.ts`): lamps 2, a sun 1, both 3.
-  const inputs = {
-    device,
-    depth: view,
-    normalRough: view,
-    flags: view,
-    mask: view,
-    maskTiles: view,
-    width: 8,
-    height: 8,
-  }
   const asked = [lights.slice(0, 1), [sun], [sun, lights[0]]]
   // Each is asked once, off the frame, then served by its own pipeline (`pipelineFor`).
+  let served = 0
   for (const round of [0, 1]) {
     if (round) {
-      constants.length = 0
+      served = constants().length
       await new Promise(setImmediate)
     }
     for (const [at, pass] of asked.entries())
       encodeVirtualShadowProjection(
         encoder,
         res,
-        { ...inputs, camera, frameIndex: 2 + at + 3 * round, subgroups: false },
+        {
+          ...inputs,
+          width: 8,
+          height: 8,
+          camera,
+          frameIndex: 2 + at + 3 * round,
+          subgroups: false,
+        },
         pass,
       )
   }
   assert.deepEqual(
-    constants.map((c) => [c.VSM_PROJECTION_ONE_LIGHT, c.VSM_PROJECTION_KINDS]),
+    constants(served).map((c) => [c.VSM_PROJECTION_ONE_LIGHT, c.VSM_PROJECTION_KINDS]),
     [
       [1, 2],
       [1, 1],

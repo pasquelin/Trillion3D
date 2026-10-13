@@ -12,10 +12,11 @@ import { createPageParents } from '../../page/selection/pageParents.ts'
 import type { LowerList } from '../residency/lowerTier.ts'
 import { createGroupClosure, type GroupClosure } from '../../page/cut/groupClosure.ts'
 import { acceptPage, dropPage } from './io/pageApi.ts'
-import { readGeometryAhead } from '../row/pageSlots.ts'
+import { pageAddress, readGeometryAhead } from '../row/pageSlots.ts'
 import { markWebgpuLost } from './io/lost.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 import { noteResidenceChange } from '../shadow/bounds.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /** The row table's sync: the residency mirror, the page-row writer, the row cache. */
 export function createRowSyncFor(rt: WebgpuPagesCore) {
@@ -31,7 +32,7 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
       rows.touchPage(page),
       updateTransparentSpan(rt, page, words),
       rowSync.blendCasters.follow(page),
-      run.gpuSelection?.notePool(page, words >= 0)
+      notePool(rt, page, words >= 0)
     ),
   })
   /** Writes one page-table row: when a cluster claims a row, when its GPU slot moves, or when a
@@ -43,7 +44,8 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
     rt.vis,
     rows.markRowDirty,
     rt.layout.selectionRoots,
-    (packed) => rt.layout.placement.rootOfPacked[packed],
+    (packed) => rootOfPacked(rt.layout.placement, packed),
+    rt.layout.deformationOutputOf,
   )
   // The residency mirror is the only incremental state of this path: its journal is checked against
   // the cache on every flush, and rebuilt at the slightest disagreement rather than drifting. The
@@ -59,20 +61,25 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
     () => createGroupClosure(rt.layout.selectionRoots, rt.layout.placement, packedPages, true),
     // Origin of the resource change: the page enters residency or leaves it. The shadows compare
     // the flag at their next plan (`../shadow/residence.ts`).
-    (_rec, page) => (
-      run.gate.resourcesChanged(),
-      rt.lights.residence.noteRow(page, packedPages.length)
-    ),
+    (_rec, page) => (run.gate.resourcesChanged(), rt.lights.residence.noteRow(page)),
     // A blended caster's opacity moved: the shadow pages under it redraw the slice it is cached
     // in — its placement's mobility decides, as for any caster (the VSM transmission atlas keeps a
     // still blended caster in the static slice).
     (rec, page) => {
       const { selectionRoots, placement } = rt.layout
-      noteResidenceChange(rt.lights, selectionRoots, placement.rootOfPacked, page, rec)
+      noteResidenceChange(rt.lights, selectionRoots, placement, page, rec)
     },
     context.frameBudget,
   )
   return rowSync
+}
+
+/** Packed page `page`'s place in the GPU's pool list (`../../gpu/dag/poolList.ts`): listed while
+ *  the pool holds it and does not pin it — the GPU never ranks a page the cache would refuse. */
+function notePool(rt: WebgpuPagesCore, page: number, held: boolean) {
+  const { run, gpu } = rt,
+    rec = rt.layout.recordOf(page)
+  run.gpuSelection?.notePool(page, held && !!rec && !gpu.cache?.isPinned(pageAddress(rec)))
 }
 
 /** The bootstrap cover: the pages read before the first cut. */
@@ -122,8 +129,8 @@ export function createResidencyFor(
     sets: residencySets,
     bootstrapKey: rt.setup.bootstrapKey,
     deferredDrops: run.deferredDrops,
-    byUrl: rt.setup.byUrl,
-    parentsOf,
+    relist: (address) =>
+      rows.instances.each(address, (page) => notePool(rt, page, !!gpu.cache?.get(address))),
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
   })
@@ -140,6 +147,7 @@ export function createResidencyFor(
     lowerTiers: () => lowerTiers,
     bytesRevision: rows.touchRevision,
     coverMissing: residencySets.coverMissing,
+    coverLacking: residencySets.coverLacking,
     prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
   })
   const residency = createWebgpuResidencyQueue({
@@ -149,7 +157,7 @@ export function createResidencyFor(
     room: parts.room,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
-    updatePins: () => pinUpdater(gpu.cache, run.shown, run.frame, (key) => dropPage(rt, key)),
+    updatePins: () => pinUpdater(gpu.cache, run.shown, run.frame, (key) => dropPage(rt, key, true)),
     closure,
     ensureResident,
     markLost: (error) => markWebgpuLost(rt, { reason: 'residency', message: String(error) }),

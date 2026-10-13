@@ -1,6 +1,6 @@
 // A synthetic world laid out as the open world lays its own: flat scene roots, one node per
 // placed instance of a handful of meshes — rocks, trees, houses —, turned and scaled, and a few
-// lamps. `world-partition.test.ts` compiles it at two sizes and opens it the way a page does, on
+// lamps. `world-partition-follow.test.ts` and `world-partition-parents.test.ts` compile it and open it the way a page does, on
 // a machine stand-in: every byte fetched is counted, and the GPU is a context that answers all.
 import type { TestContext } from 'node:test'
 import { execFileSync } from 'node:child_process'

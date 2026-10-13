@@ -12,7 +12,7 @@ import {
   orderFrameWords,
 } from './orderWgsl.ts'
 import { orderStepCount, sortSize, type OrderStep } from './orderSteps.ts'
-import { namedBufferEntries } from '../../gpu/core/computeBindings.ts'
+import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import { shaderFailed } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
@@ -21,7 +21,7 @@ import { blendExpandUniform } from './runs.ts'
 import { EXPAND_PASSES } from './planLayout.ts'
 import { UNI_WORDS } from './expandUniform.ts'
 import { uniformSlots, type UniformSlots } from '../../residency/pools.ts'
-import { vsmWriteChangedSlots } from '../../vsm/writeChanged.ts'
+import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
 
 export type BlendExpand = ReturnType<typeof expandApi>
 
@@ -120,7 +120,7 @@ function sendSteps(
   slots: UniformSlots,
 ) {
   if (words.length !== slots.bytes / 4) throw new Error(STEP_LAYOUT)
-  vsmWriteChangedSlots(device, buffer, words, slots, 0, slots.count, 'one')
+  writeChangedSlots(device, buffer, words, slots, 0, slots.count, 'one')
 }
 
 /** `words` of `source` — all of them by default — written from word `word` of `buffer`. */
@@ -148,38 +148,42 @@ function encodeOrder(
   }
 }
 
-/** A kernel's stages on a pipeline layout of its one group's `layout`. */
-const stagesOn = <E extends string>(
-  device: GPUDevice,
-  layout: GPUBindGroupLayout,
-  module: GPUShaderModule,
-  entries: readonly E[],
-) =>
-  buildComputeStages(
-    device,
-    device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    module,
-    entries,
-  )
-
 /** A device's refusal of the kernels: the scene's, by name. */
-const EXPANSION_REFUSED = 'WEBGPU_BLEND_EXPANSION_UNAVAILABLE'
+export const EXPANSION_REFUSED = 'WEBGPU_BLEND_EXPANSION_UNAVAILABLE'
 /** A plan's step words not laid as the kernels' step slots. */
 const STEP_LAYOUT = 'WEBGPU_BLEND_STEP_LAYOUT'
 
+/** The two kernels of the transparent pass, compiled: their layouts and pipelines, which name no
+ *  size of the scene. */
+export type BlendKernels = NonNullable<Awaited<ReturnType<typeof expandKernels>>>
+
 /**
- * The two kernels of the transparent pass — the order, then the expansion of the sorted plan — and
- * the scene buffers they read.
- *
- * Nothing is allocated per frame. What a frame gives fits in two writes: the eye with the own
- * entries' keys and order, and the frustum verdict when it moved. What it gets is the instance list
- * the blend shader reads and one indirect argument per slot — never per item. Both kernels compile
- * together, off the thread, while the scene prepares: no frame compiles one. The transparents are
- * expanded on the GPU alone (#1483): a device that refuses the kernels refuses the scene by name
- * (`WEBGPU_BLEND_EXPANSION_UNAVAILABLE`), what was made for them released.
+ * The two kernels of the transparent pass — the order, then the expansion of the sorted plan —
+ * compiled together, off the thread, while the scene prepares: no frame compiles one. The
+ * transparents are expanded on the GPU alone (#1483): a device that refuses the kernels refuses
+ * the scene by name (`WEBGPU_BLEND_EXPANSION_UNAVAILABLE`). They are compiled once; the scene's
+ * buffers are mounted on them (`mountBlendExpand`) as often as the scene's items change.
  */
-export async function createBlendExpand(
+export async function compileBlendExpand(device: GPUDevice) {
+  try {
+    const built = await validated(device, () => expandKernels(device))
+    if (built) return built
+  } catch (error) {
+    throw new Error(EXPANSION_REFUSED, { cause: error })
+  }
+  // The device refused the kernels: no error to carry.
+  throw new Error(EXPANSION_REFUSED)
+}
+
+/**
+ * The scene buffers of the kernels, and the kernels bound to them. Nothing is allocated per frame.
+ * What a frame gives fits in two writes: the eye with the own entries' keys and order, and the
+ * frustum verdict when it moved. What it gets is the instance list the blend shader reads and one
+ * indirect argument per slot — never per item. A refusal releases what was made.
+ */
+export function mountBlendExpand(
   device: GPUDevice,
+  kernels: BlendKernels,
   sizes: ExpandSizes,
   shared: { counts: GPUBuffer | undefined; clusters: GPUBuffer | undefined },
   outputs: { expanded: GPUBuffer; args: GPUBuffer },
@@ -188,16 +192,12 @@ export async function createBlendExpand(
   try {
     const slots = expandSlots(device, sizes.entries)
     const buffers = expandBuffers(device, sizes, slots, made)
-    const built = await validated(device, () => expandKernels(device, buffers, shared, outputs))
-    if (built)
-      return expandApi(device, buffers, built.order, built.expansion, sizes.items, slots, made)
+    const bound = bindKernels(device, kernels, buffers, shared, outputs)
+    return expandApi(device, buffers, bound.order, bound.expansion, sizes.items, slots, made)
   } catch (error) {
     cleanupFailedHiz(made)
     throw new Error(EXPANSION_REFUSED, { cause: error })
   }
-  // The device refused the kernels: no error to carry.
-  cleanupFailedHiz(made)
-  throw new Error(EXPANSION_REFUSED)
 }
 
 /** The scene's counts. */
@@ -246,29 +246,35 @@ function expandBuffers(
   }
 }
 
-/** The two kernels on their buffers, compiled together off the thread; `undefined` when a module
- *  does not compile. */
-async function expandKernels(
-  device: GPUDevice,
-  buffers: ReturnType<typeof expandBuffers>,
-  shared: { counts: GPUBuffer | undefined; clusters: GPUBuffer | undefined },
-  outputs: { expanded: GPUBuffer; args: GPUBuffer },
-) {
+/** The two kernels' modules, layouts and pipelines, compiled together off the thread; `undefined`
+ *  when a module does not compile. */
+async function expandKernels(device: GPUDevice) {
   const expandModule = device.createShaderModule({ code: BLEND_EXPAND_SHADER })
   const orderModule = device.createShaderModule({ code: BLEND_ORDER_SHADER })
   if ((await shaderFailed(expandModule)) || (await shaderFailed(orderModule))) return undefined
   const expandLayout = device.createBindGroupLayout({ entries: blendExpandBindEntries() })
   const orderLayout = device.createBindGroupLayout({ entries: blendOrderBindEntries() })
   const [expandStages, orderStages] = await Promise.all([
-    stagesOn(device, expandLayout, expandModule, BLEND_EXPAND_ENTRIES),
-    stagesOn(device, orderLayout, orderModule, BLEND_ORDER_ENTRIES),
+    buildComputeStages(device, [expandLayout], expandModule, BLEND_EXPAND_ENTRIES),
+    buildComputeStages(device, [orderLayout], orderModule, BLEND_ORDER_ENTRIES),
   ])
+  return { expandLayout, orderLayout, expandStages, orderStages }
+}
+
+/** The compiled kernels on `buffers`. */
+function bindKernels(
+  device: GPUDevice,
+  { expandLayout, orderLayout, expandStages, orderStages }: BlendKernels,
+  buffers: ReturnType<typeof expandBuffers>,
+  shared: { counts: GPUBuffer | undefined; clusters: GPUBuffer | undefined },
+  outputs: { expanded: GPUBuffer; args: GPUBuffer },
+) {
   // Without a paged primitive there is neither a count nor a cluster list to read: the kernel
   // never touches those two bindings, and `draws` fills them — the same group cannot stay empty.
   const expansion: Kernel = {
     group: device.createBindGroup({
       layout: expandLayout,
-      entries: namedBufferEntries(EXPAND_BINDING, {
+      entries: namedEntries(EXPAND_BINDING, {
         uni: { buffer: buffers.uniforms, size: UNI_WORDS * 4 },
         plan: { buffer: buffers.plan },
         keep: { buffer: buffers.keep },
@@ -285,7 +291,7 @@ async function expandKernels(
   const order: Kernel = {
     group: device.createBindGroup({
       layout: orderLayout,
-      entries: namedBufferEntries(ORDER_BINDING, {
+      entries: namedEntries(ORDER_BINDING, {
         uni: { buffer: buffers.steps, size: ORDER_UNI_WORDS * 4 },
         plan: { buffer: buffers.plan },
         keyed: { buffer: buffers.keyed },

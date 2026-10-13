@@ -2,24 +2,15 @@
 // therefore filed only at the end of the image, and only if it was filled.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createCpuStepProfile } from '../../../stage/cpuProfile.ts'
-import { CPU_STEP, CPU_STEP_NAMES } from './cpuStepTable.ts'
+import { createWebgpuTimingState } from '../state/timing.ts'
+import { CPU_STEP } from './cpuStepTable.ts'
 import { endCpuFrame, hostCpuStep } from './cpuSteps.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { setDebugMode } from '../../../host/debugMode.ts'
 
 /** What image close reads, and nothing else: a profile, a flag, an image number. */
 function banc() {
-  const cpuProfile = createCpuStepProfile(CPU_STEP_NAMES)
-  const timing = {
-    cpuProfile,
-    cpuWindow: createCpuStepProfile(CPU_STEP_NAMES, { row: cpuProfile.row }),
-    rowFilled: false,
-    stages: undefined,
-    cpuSample: undefined,
-    lastCpuLogFrame: -1,
-    lastCpuLogMs: 0,
-  }
+  const timing = createWebgpuTimingState()
   const rt = {
     timing,
     run: { frame: 7 },
@@ -34,7 +25,7 @@ test('the four host bounds each have their place in the profile row', () => {
   hostCpuStep(rt, 'pendingMs', 1.25)
   hostCpuStep(rt, 'retainMs', 0.75)
   hostCpuStep(rt, 'submitMs', 2)
-  const row = timing.cpuProfile.row
+  const row = timing.profiler.row
   assert.equal(row[CPU_STEP.arrivalsMs], 0.5)
   assert.equal(row[CPU_STEP.pendingMs], 1.25)
   assert.equal(row[CPU_STEP.retainMs], 0.75)
@@ -60,14 +51,18 @@ test('an image that has not filled its row deposits nothing, a filled image depo
   const { rt, timing } = banc()
   hostCpuStep(rt, 'pendingMs', 1.25)
   endCpuFrame(rt)
-  assert.equal(timing.cpuProfile.summary(), null, 'an image that has not filled its row files none')
+  assert.equal(
+    timing.publishedSteps.read(),
+    null,
+    'an image that has not filled its row files none',
+  )
 
-  timing.cpuProfile.row[CPU_STEP.worldMs] = 0.5
-  timing.cpuProfile.row[CPU_STEP.totalMs] = 4
+  timing.profiler.row[CPU_STEP.worldMs] = 0.5
+  timing.profiler.row[CPU_STEP.totalMs] = 4
   timing.rowFilled = true
   endCpuFrame(rt)
   endCpuFrame(rt)
-  const resume = timing.cpuProfile.summary()
+  const resume = timing.publishedSteps.read()
   assert.equal(resume?.frames, 1, 'the row is filed once, not twice')
   assert.equal(resume?.steps.pendingMs.p50, 1.25, 'the host bound is in the image')
   assert.equal(resume?.steps.worldMs.p50, 0.5)
@@ -79,21 +74,21 @@ test('the host window keeps every filed row until it is read, whatever the publi
   t.after(() => setDebugMode(false))
   const { rt, timing } = banc()
   for (const total of [4, 2]) {
-    timing.cpuProfile.row[CPU_STEP.totalMs] = total
+    timing.profiler.row[CPU_STEP.totalMs] = total
     timing.rowFilled = true
     endCpuFrame(rt)
   }
-  assert.equal(timing.cpuProfile.summary()?.frames, 2, 'the publish window reads and forgets')
-  assert.equal(timing.cpuWindow.summary()?.frames, 2, 'the host window still holds both images')
-  assert.equal(timing.cpuWindow.summary(), null, 'read once, then forgotten')
+  assert.equal(timing.publishedSteps.read()?.frames, 2, 'the publish window reads and forgets')
+  assert.equal(timing.hostSteps.read()?.frames, 2, 'the host window still holds both images')
+  assert.equal(timing.hostSteps.read(), null, 'read once, then forgotten')
 })
 
 test('outside debug mode, no one profiles: a filled image files no row and its next row is free', () => {
   const { rt, timing } = banc()
-  timing.cpuProfile.row[CPU_STEP.totalMs] = 4
+  timing.profiler.row[CPU_STEP.totalMs] = 4
   timing.rowFilled = true
   endCpuFrame(rt)
   assert.equal(timing.rowFilled, false, 'the image is closed')
-  assert.equal(timing.cpuProfile.summary(), null)
-  assert.equal(timing.cpuWindow.summary(), null)
+  assert.equal(timing.publishedSteps.read(), null)
+  assert.equal(timing.hostSteps.read(), null)
 })

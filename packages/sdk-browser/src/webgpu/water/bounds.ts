@@ -1,9 +1,9 @@
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { boxCornersInto, IDENTITY_MATRIX4, invertMatrix4 } from '../../../../sdk-core/src/index.ts'
 import { projectCornersInto } from '../../hiz/corners.ts'
-import { readHostBox } from '../../host/boxBounds.ts'
+import { readHostBox } from '../../host/world/bounds.ts'
 import type { HostBox } from '../../host/resources.ts'
-import type { EngineCamera } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { FLAG_CLUSTER_PAGE } from '../../visibility/types.ts'
 import type { BlendGpuItem } from '../blend/state.ts'
 import { VOLUME_WORDS, waterRankOf } from '../transparent/transmission.ts'
@@ -91,7 +91,7 @@ function project(b: WaterBounds, box: Float64Array) {
 
 /** Reads the item's local box, widened, and its binary32 matrix; false for a non-affine one. */
 function affineSurface(b: WaterBounds, local: HostBox, matrix: ArrayLike<number>) {
-  readHostBox(b.local, local)
+  readHostBox(local, b.local, 0)
   widenBox(b.local)
   b.matrix.set(matrix)
   return b.matrix[3] === 0 && b.matrix[7] === 0 && b.matrix[11] === 0 && b.matrix[15] === 1

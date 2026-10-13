@@ -18,13 +18,19 @@ class TextureContext {
   constructor(canvas: FakeCanvas) {
     this.canvas = canvas
   }
-  configure(config: GPUCanvasConfiguration) {
-    this.#config = config
+  /** The current texture given back: a new configuration, an unconfigured context or a resized
+   *  canvas holds it no more, as a browser's. */
+  #drop() {
     this.#texture?.destroy()
     this.#texture = null
   }
+  configure(config: GPUCanvasConfiguration) {
+    this.#config = config
+    this.#drop()
+  }
   unconfigure() {
     this.#config = null
+    this.#drop()
   }
   getConfiguration() {
     return this.#config
@@ -37,7 +43,7 @@ class TextureContext {
     const config = this.#config!,
       { width, height } = this.canvas
     if (this.#texture?.width !== width || this.#texture.height !== height) {
-      this.#texture?.destroy()
+      this.#drop()
       this.#texture = config.device.createTexture({
         label: 'bench canvas',
         size: [width, height],

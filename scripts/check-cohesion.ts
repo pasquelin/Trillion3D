@@ -14,11 +14,11 @@
 // and it falls as the tree is brought under it. What it does not measure is the number of
 // declarations a module holds: the tree decomposes by responsibility at a fine grain on purpose, and
 // a gate on that would condemn the style rather than a defect.
-import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { isTestModule, sourceFilesOf, unitOf } from './repository-files.ts'
 import { gitPathsSync } from './git-paths.ts'
 import { functionsOf, type Fn } from './check-cohesion-measure.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
 /** A function of a module this branch touches stays inside this many lines. The tree's own longest
  *  is 189 (`streaming/queue.ts`, `createStreamingQueue`), and 405 of its 4 637 functions are already
@@ -67,10 +67,11 @@ export function changedFiles(root: string): Set<string> {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const root = resolve(import.meta.dirname, '..')
-  const files = sourceFilesOf(EXTS, root, (file) => !!unitOf(file))
+  const files = sourceFilesOf(EXTS, REPOSITORY_ROOT, (file) => !!unitOf(file))
 
-  const touched = process.argv.includes('--changed') ? changedFiles(root) : new Set<string>()
+  const touched = process.argv.includes('--changed')
+    ? changedFiles(REPOSITORY_ROOT)
+    : new Set<string>()
   const scoped = new Map([...files].filter(([file]) => !touched.size || touched.has(file)))
   const over = overBound(scoped, { lines: MAX_FUNCTION_LINES, complexity: MAX_COMPLEXITY })
   for (const line of over) console.error(line)

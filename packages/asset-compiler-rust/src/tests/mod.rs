@@ -18,6 +18,7 @@ mod compile;
 mod coplanar;
 mod corpus;
 mod formats;
+mod geometry_page;
 mod lights;
 pub(crate) mod ngons;
 mod scene;

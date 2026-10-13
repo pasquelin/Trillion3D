@@ -1,23 +1,25 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { taaReprojectWgsl, taaShader } from './shaderWgsl.ts'
+import { taaShader } from './shaderWgsl.ts'
 import { TAA_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 import { TAA_BINDINGS, TAA_VIEW_BYTES } from './bindingsWgsl.ts'
 import { TAA_DEFORM_WGSL } from './deformWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { TAA_WEIGHTS } from './filterWeights.ts'
 import { YCOCG_WGSL } from './ycocgWgsl.ts'
-import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
-import { REFLECTION_RESOLVE_WGSL } from '../reflections/resolveWgsl.ts'
-import { REFLECTION_SOURCE_WGSL } from '../reflections/sourceWgsl.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
-const TAA_REPROJECT_WGSL = taaReprojectWgsl().text
+/** The reprojection fragment as the resolve assembled it: from `placementOf` to `previousUv`. */
+const TAA_REPROJECT_WGSL = TAA_SHADER.slice(
+  TAA_SHADER.indexOf('fn placementOf('),
+  TAA_SHADER.indexOf('\n}', TAA_SHADER.indexOf('fn previousUv(')) + 2,
+)
 
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
 
 test('the temporal shader assembles each fragment once, on the shared page record', () => {
-  for (const fragment of [wgslSource(YCOCG_WGSL), TAA_REPROJECT_WGSL])
+  for (const fragment of [wgslSource(YCOCG_WGSL), 'fn placementOf(', 'fn previousUv('])
     assert.equal(occurrences(TAA_SHADER, fragment), 1)
   assert.match(TAA_SHADER, /@vertex fn fullscreen\(/)
   assert.match(TAA_SHADER, /@fragment fn resolve\(/)
@@ -32,7 +34,7 @@ test('the temporal shader assembles each fragment once, on the shared page recor
     const size = type === 'mat4x4f' ? 16 : type === 'vec4f' ? 4 : type === 'vec2f' ? 2 : 1
     for (let i = 0; i < size; i++) words.push(name)
   }
-  assert.equal(words[ROW_PLACEMENT_WORD], 'placement')
+  assert.equal(words[PAGE_INFO.at.placement], 'placement')
   assert.match(
     TAA_REPROJECT_WGSL,
     /fn placementOf\(id:u32\)->u32\{return pages\[\(id>>8u\)-1u\]\.placement;\}/,
@@ -73,7 +75,7 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
   // resolve read once for its tag.
   assert.match(
     TAA_REPROJECT_WGSL,
-    /if\(view\.params\.z!=0\.0&&id!=0u\)\{position=motion\[placementOf\(id\)\]\*position;\}/,
+    /if\(view\.params\.z!=0\.0&&!\(id==0u\|\|id>=4278190080u\)\)\{position=motion\[placementOf\(id\)\]\*position;\}/,
   )
   assert.doesNotMatch(TAA_REPROJECT_WGSL, /textureLoad\(ids/)
   assert.match(TAA_REPROJECT_WGSL, /if\(previous\.w<=0\.0\)\{return vec4f\(0\.0\);\}/)
@@ -111,14 +113,11 @@ test('the flagless resolve is the flag-reading one without its share, written as
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line)
 })
 
-// `previousUv` takes the identifier its caller read once, never the texel to read it at: the
-// reflections' reprojections hand it theirs, as the resolve does.
+// `previousUv` takes the identifier its caller read once, never the texel to read it at.
 test('every reprojection hands previousUv the identifier it read', () => {
-  for (const shader of [TAA_SHADER, REFLECTION_RESOLVE_WGSL, REFLECTION_SOURCE_WGSL]) {
-    const calls = [...shader.matchAll(/previous(?:Uv|Sample)\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)]
-      .map((call) => call[1].split(',').at(-1))
-      .filter((last) => last !== 'id:u32')
-    assert.ok(calls.length > 0)
-    for (const last of calls) assert.equal(last, 'id')
-  }
+  const calls = [...TAA_SHADER.matchAll(/previous(?:Uv|Sample)\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)]
+    .map((call) => call[1].split(',').at(-1))
+    .filter((last) => last !== 'id:u32')
+  assert.ok(calls.length > 0)
+  for (const last of calls) assert.equal(last, 'id')
 })

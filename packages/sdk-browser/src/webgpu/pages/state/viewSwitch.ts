@@ -28,7 +28,7 @@ export function useWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   from.hiz = vis.gpuHiz?.swap(view.hiz)
   if (!vis.gpuHiz) view.hiz?.destroy()
   view.hiz = undefined
-  run.pendingHeld.cut = run.urlsHeld.cut = run.ranksHeld.cut = -1
+  run.pendingHeld.cut = run.ranksHeld.cut = -1
 }
 
 /** Runs `work` with `view` drawn — a late answer of the device lands on the view that asked for

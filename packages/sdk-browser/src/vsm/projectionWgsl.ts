@@ -1,7 +1,6 @@
 /**
- * The virtual shadow map projection compute pass: the per-pixel light projection and its
- * directional and local light traces, with the screen ray trace, the sample filter and the pieces
- * of the projection common helpers listed in `traceWgsl.ts`.
+ * The virtual shadow map projection compute pass: each opaque pixel's shadow of each light, the
+ * receiver's trace (`receiverTraceWgsl.ts`) evaluated 64 pixels a workgroup, whose halves vote.
  *
  * DISPATCH. 8×8 groups, pixels in Z-order inside a group (group index → Z-order decode),
  * 32-lane waves. The wave votes of the adaptive ray count (all true) and of the point-light face
@@ -17,15 +16,11 @@
  * group leaves a ray loop at once, where both its halves voted to stop (`vsmGroupVoted`).
  *
  * LIGHTS. Every shadowed light of the frame in one dispatch, up to 64 (`vsmView.lights`): light k
- * is the 8-bit lane k % 4 of the r32uint mask's layer k / 4 — its shadow factor as its trace
- * counted it (`vsmMaskCode`), 0 (= 1, lit) for the unused lanes of the last layer —, each pixel's
- * inputs read and reconstructed once for all of them. A directional light takes a pass-per-light
- * path (unfiltered), and so does a local light. A one-pass path would pack four lights into a
- * 16-bit word, each rounded to k/15, after a dither of one fifteenth that hides the rounding's
- * bands. Here a lane keeps the ray fraction as traced, k of n rays — where the dithered rounding
- * left a frame up to 0.033 off it (`projectionMask.test.ts`) — and the resolve decodes it to the
- * very half float the mask held when each light had its own rgba16float channel
- * (`projectionMaskTable.ts`): half the bytes, the same factors.
+ * is the 8-bit lane k % 4 of the r32uint mask's layer k / 4 — the k of n rays its trace counted
+ * missing (`vsmMaskCode`, decoded by `vsmMaskDecode`, `lighting/direct/shadowWgsl.ts`), 0 (= 1, lit) for the unused lanes
+ * of the last layer —, each pixel's inputs read and reconstructed once for all of them. Each light
+ * takes its own kind's trace; a pass of one kind, or of one light, runs a pipeline specialised to
+ * it (`VSM_PROJECTION_KINDS`, `VSM_PROJECTION_ONE_LIGHT`).
  *
  * TILES. A group's 8×8 pixels are a tile, and its work follows the lights that reach it, never the
  * frame's count: each lane bounds its lit pixel's point into the tile's box, lane k tests light k
@@ -34,8 +29,9 @@
  * is in — the very set a test of every light at every pixel gives. Only a layer holding one of
  * them is stored, and the layers stored go to the tile's word (`vsmShadowMaskTiles`): the resolve
  * reads a light's lane only where its tile stored its layer (`vsmMaskFactor`,
- * `lighting/direct/shadowWgsl.ts`), every other lane being 0, its factor 1. A pixel no light shades (sky, unlit, out of the rect)
- * reads its flags and stops there: it reconstructs nothing, takes no noise and decodes no receiver.
+ * `lighting/direct/shadowWgsl.ts`), every other lane being 0, its factor 1. A pixel no light
+ * shades (sky, unlit, out of the rect) reads its flags and stops there: it reconstructs nothing,
+ * takes no noise and decodes no receiver.
  * The lights are those of the frame's plan, not the light grid's cells: the projection's point is
  * the receiver's (`shadowReceiver`), off the depth a cell's list was built for. A thin-subsurface
  * pixel gets no normal bias, no screen ray, no back-face cull.
@@ -53,38 +49,32 @@ import {
   lowBits,
 } from '../../../math/src/wgsl/integer.ts'
 import { FLOAT32_MIN_NORMAL } from '../../../math/src/wgsl/constants.ts'
-import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
-import { perspectiveDivide, unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
+import { unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
 import { vsmBlueNoiseTwo, vsmBlueNoiseWgsl } from './blueNoise.ts'
-import { VSM_CONSTANTS_WGSL, VSM_LIGHT_KIND_RECT } from './constants.ts'
+import { VSM_CONSTANTS_WGSL } from './constants.ts'
+import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_STRUCT } from './projectionView.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec, vsmPoolLoadOf } from './resources.ts'
-import {
-  VSM_TRACE_RESULT_WGSL,
-  VSM_TRACE_COMMON_WGSL,
-  VSM_TRACE_LIGHT_WGSL,
-  vsmTraceWgsl,
-} from './traceWgsl.ts'
+import { VSM_TRACE_COMMON_WGSL, VSM_TRACE_LIGHT_WGSL } from './traceWgsl.ts'
+import { VSM_PROJECTION_KINDS_DIRECTIONAL, vsmReceiverTraceWgsl } from './receiverTraceWgsl.ts'
 import type { VsmLayout } from './layout.ts'
+import { localLightReaches } from '../lighting/direct/lightWgsl.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 /** Pixels a side of a projection group, a tile of the mask's tile words: 8, a power of two. */
 export const VSM_PROJECTION_GROUP_SHIFT = 3
 export const VSM_PROJECTION_GROUP_SIZE = 1 << VSM_PROJECTION_GROUP_SHIFT
-/** The projection's groups, a tile word each, over `width` × `height` pixels. */
+/** The projection's groups, a tile word each, along `pixels`. */
+export const vsmProjectionGroups = (pixels: number) => ceilDiv(pixels, VSM_PROJECTION_GROUP_SIZE)
+/** The projection's groups over `width` × `height` pixels. */
 export const vsmProjectionTiles = (width: number, height: number) =>
-  [ceilDiv(width, VSM_PROJECTION_GROUP_SIZE), ceilDiv(height, VSM_PROJECTION_GROUP_SIZE)] as const
+  [vsmProjectionGroups(width), vsmProjectionGroups(height)] as const
 /** Lights per layer of the mask: four 8-bit lanes of an r32uint texel. */
 export const VSM_PROJECTION_MAX_LIGHTS = 4
-/** Lights per dispatch: the frame's shadowed lights (`assignSlice`'s 64 channels). */
-export const VSM_PROJECTION_MAX_PASS_LIGHTS = 64
 /** Mask format: four lights' 8-bit lanes (`vsmMaskCode`). */
 export const VSM_PROJECTION_MASK_FORMAT: GPUTextureFormat = 'r32uint'
 /** Format of the mask's tile words: a texel per group, bit L where the group stored layer L. */
 export const VSM_PROJECTION_TILE_FORMAT: GPUTextureFormat = 'r32uint'
-/** Bits of `VSM_PROJECTION_KINDS`: a directional light in the pass, a local one. */
-export const VSM_PROJECTION_KINDS_DIRECTIONAL = 1
-export const VSM_PROJECTION_KINDS_LOCAL = 2
 
 /** Group 0: the VSM tables the projection reads (bindings 4.. = the pool, slices × parts). */
 export const VSM_PROJECTION_VSM_SPECS: readonly VsmBindingSpec[] = [
@@ -104,58 +94,26 @@ export const VSM_PROJECTION_BINDING = {
   blueNoise: 4,
   shadowMask: 5,
   shadowMaskTiles: 6,
+  /** The depth pyramid: four bindings from here (`hizDepthEntries`). */
+  hizDepth: 7,
 } as const
 
 /** Bind group of the shadow receiver target the resolve wrote (`receiverTargetWgsl.ts`), binding 0. */
 export const VSM_PROJECTION_RECEIVER_GROUP = 2
 
-/** Byte size of `VsmProjectionView` (uniform). */
-export const VSM_PROJECTION_VIEW_BYTES = 416 + VSM_PROJECTION_MAX_PASS_LIGHTS * 48
-
-/**
- * The view (view space +Z forward, reverse-Z, matrices column-major as the engine's) and the
- * lights. Offsets: 0 shiftedToClip, 64 shiftedToView,
- * 128 viewToClip, 192 clipToShifted, 256 originShiftHigh + frameIndex,
- * 272 originShiftLow + isOrtho, 288 shiftedEye + lightCount, 304 viewForward,
- * 320 depthFromDeviceZ, 336 screenRayScale, 352 halfFovTangents,
- * 368 viewPixels, 384 clipToBufferUv, 400 projectionRect, 416 lights[64] × 48.
- * Light: 0 shiftedPosition, 12 invRadius, 16 direction (towards the light), 28 sourceRadius,
- * 32 spotAngles (cos outer, 1/(cos inner − cos outer); (−2, 1) when not a spot), 40 mapId, 44 kind.
- */
+/** The view uniform and the light kind the lights' records carry (`projectionView.ts`). */
 const PROJECTION_VIEW = /* wgsl */ `
-struct VsmProjectionView{
- shiftedToClip:mat4x4f,
- shiftedToView:mat4x4f,
- viewToClip:mat4x4f,
- clipToShifted:mat4x4f,
- originShiftHigh:vec3f,
- frameIndex:u32,
- originShiftLow:vec3f,
- isOrtho:u32,
- shiftedEye:vec3f,
- lightCount:u32,
- viewForward:vec3f,
- _pad0:u32,
- depthFromDeviceZ:vec4f,
- screenRayScale:vec4f,
- halfFovTangents:vec4f,
- viewPixels:vec4f,
- clipToBufferUv:vec4f,
- projectionRect:vec4i,
- lights:array<VsmProjectionLight,${VSM_PROJECTION_MAX_PASS_LIGHTS}>,
-}
-const LIGHT_KIND_RECT:u32=${VSM_LIGHT_KIND_RECT}u;
+${VSM_PROJECTION_VIEW_STRUCT}
 `
 
 const bindingsWgsl = () => {
-  const B = VSM_PROJECTION_BINDING
   return /* wgsl */ `
-@group(1) @binding(${B.view}) var<uniform> vsmView:VsmProjectionView;
-@group(1) @binding(${B.sceneDepth}) var vsmSceneDepth:texture_depth_2d;
-@group(1) @binding(${B.normalRough}) var vsmNormalRough:texture_2d<f32>;
-@group(1) @binding(${B.flags}) var vsmFlags:texture_2d<u32>;
-@group(1) @binding(${B.shadowMask}) var vsmShadowMask:texture_storage_2d_array<${VSM_PROJECTION_MASK_FORMAT},write>;
-@group(1) @binding(${B.shadowMaskTiles}) var vsmShadowMaskTiles:texture_storage_2d<${VSM_PROJECTION_TILE_FORMAT},write>;`
+@group(1) @binding(${VSM_PROJECTION_BINDING.view}) var<uniform> vsmView:VsmProjectionView;
+@group(1) @binding(${VSM_PROJECTION_BINDING.sceneDepth}) var vsmSceneDepth:texture_depth_2d;
+@group(1) @binding(${VSM_PROJECTION_BINDING.normalRough}) var vsmNormalRough:texture_2d<f32>;
+@group(1) @binding(${VSM_PROJECTION_BINDING.flags}) var vsmFlags:texture_2d<u32>;
+@group(1) @binding(${VSM_PROJECTION_BINDING.shadowMask}) var vsmShadowMask:texture_storage_2d_array<${VSM_PROJECTION_MASK_FORMAT},write>;
+@group(1) @binding(${VSM_PROJECTION_BINDING.shadowMaskTiles}) var vsmShadowMaskTiles:texture_storage_2d<${VSM_PROJECTION_TILE_FORMAT},write>;`
 }
 
 /** Whether both halves voted true (`halfVoted`: the lane's half's vote), one answer for the
@@ -220,7 +178,7 @@ fn vsmVoteAllTrue(c:bool,split:bool)->bool{return vsmVoteCounter(c);}`
 }
 `
 
-/** Pixel reconstruction, normal bias, screen ray, filter. */
+/** Pixel reconstruction from the depth, and the surface's shading info. */
 const PIXEL_WGSL = /* wgsl */ `
 fn vsmUnpackEvenBits(xIn:u32)->u32{
  var x=xIn&0x55555555u;
@@ -237,60 +195,6 @@ fn vsmPixelToShifted(sv:vec4f)->vec3f{
  let p=(sv.xy-vec2f(vsmView.projectionRect.xy))*vsmView.viewPixels.zw;
  return unprojectPoint(vsmView.clipToShifted,vec3f(uvToNdc(p),sv.z));
 }
-/** The distance to the camera from a view vector (along the view axis for an orthographic view). */
-fn vsmCameraDistance(v:vec3f)->f32{
- var d=length(v);
- if(vsmView.isOrtho!=0u){d*=d/dot(v,vsmView.viewForward);}
- return d;
-}
-/** The normal bias length at a position (0.02 cm floor = VSM_NORMAL_OFFSET_FLOOR). */
-fn vsmNormalOffset(shiftedPosition:vec3f)->f32{
- let distanceToCamera=vsmCameraDistance(shiftedPosition-vsmView.shiftedEye);
- return max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera/vsmView.halfFovTangents.z);
-}
-/** The scene depth at a buffer UV: its nearest texel, clamped to the buffer. */
-fn vsmSampleSceneDepth(uv:vec2f)->f32{
- let size=vec2i(textureDimensions(vsmSceneDepth));
- let t=clampToExtent(vec2i(floor(uv*vec2f(size))),size);
- return textureLoad(vsmSceneDepth,t,0);
-}
-/** The screen-space ray cast (4 samples), its four depths read at once
- *  before any test: the samples and times are each the one before plus a step, and the reads sit side by
- *  side rather than each after the previous one's test. */
-fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,dither:f32)->f32{
- let startClip=vsmView.shiftedToClip*vec4f(rayOrigin,1.0);
- let stepClip=vsmView.shiftedToClip*vec4f(rayDirection*rayLength,0.0);
- let endClip=startClip+stepClip;
- let startNdc=perspectiveDivide(startClip);
- let endNdc=perspectiveDivide(endClip);
- let stepNdc=endNdc-startNdc;
- let sb=vsmView.clipToBufferUv;
- let screenUvzStart=vec3f(startNdc.xy*sb.xy+sb.wz,startNdc.z);
- let screenUvzStep=vec3f(stepNdc.xy*sb.xy,stepNdc.z);
- let steps=4;
- let stepJitter=dither-0.5;
- let step=1.0/f32(steps);
- let t0=stepJitter*step+step;
- let t1=t0+step;
- let t2=t1+step;
- let rayTime=vec4f(t0,t1,t2,t2+step);
- let startDepth=vsmSampleSceneDepth(screenUvzStart.xy);
- let storedDepth=vec4f(vsmSampleSceneDepth((screenUvzStart+screenUvzStep*t0).xy),vsmSampleSceneDepth((screenUvzStart+screenUvzStep*t1).xy),
-  vsmSampleSceneDepth((screenUvzStart+screenUvzStep*t2).xy),vsmSampleSceneDepth((screenUvzStart+screenUvzStep*rayTime.w).xy));
- for(var i=0;i<steps;i++){
-  let screenUvz=screenUvzStart+screenUvzStep*rayTime[i];
-  if(storedDepth[i]!=startDepth){
-   // Declared: a hit is placed a step and a half back along the ray.
-   if(screenUvz.z<storedDepth[i]){return rayLength*max(0.0,rayTime[i]-1.5*step);}
-  }
- }
- return rayLength;
-}
-/** The spot cone's attenuation mask of a direction. */
-fn vsmSpotCone(L:vec3f,spotDirection:vec3f,spotAngles:vec2f)->f32{return saturate((dot(L,-spotDirection)-spotAngles.x)*spotAngles.y);}
-/** \`biasNormal\`: the normal the receiver's biases follow (normal bias, receiver-plane depth slope);
- *  the shading normal unless the engine's shadow receiver gives its triangle's plane. */
-struct VsmSurfaceInfo{valid:bool,subsurface:bool,worldNormal:vec3f,biasNormal:vec3f,}
 /** The shading info of a pixel, from this engine's surface buffers: \`valid\` where a light can
  *  shade it — in the view rect, a lit surface model —, the one pixel whose normal is taken. */
 fn vsmSurfaceOf(coord:vec2u,inRect:bool,normal:vec3f)->VsmSurfaceInfo{
@@ -303,25 +207,12 @@ fn vsmSurfaceOf(coord:vec2u,inRect:bool,normal:vec3f)->VsmSurfaceInfo{
  r.biasNormal=r.worldNormal;
  return r;
 }
-/** What a pixel of the group brings to its lights: its position, whether it is in the view rect
- *  and its shading info; where a light can shade it (\`info.valid\`), its view depth, its shifted
- *  point on the receiver, its screen ray length and its blue noise — zero elsewhere, where no
- *  light reads them (\`vsmLightParticipates\`, the traces' \`participating\`). */
-struct VsmPixel{pos:vec2u,inRect:bool,info:VsmSurfaceInfo,sceneDepth:f32,shifted:vec3f,screenRayWorld:f32,noise:f32,}
 `
 
-/** The traces, with the votes of the compute groups, then the light's region and projection. */
+/** The light's region tests and the mask code (the receiver's trace: `receiverTraceWgsl.ts`). */
 const traceWgsl =
-  () => /* wgsl */ `/** The kinds of the pass's lights, set by the pass (\`pipelineFor\`, \`projectionPass.ts\`): a directional light,
- *  a local one, or both (any other value). A pass of one kind is compiled with that kind's trace alone: the
- *  other kind's code, and the registers its peak holds, are not in it. The same light either way. */
-override VSM_PROJECTION_KINDS:u32=0u;
-fn vsmLightIsDirectional(light:VsmProjectionLight)->bool{
- let kinds=VSM_PROJECTION_KINDS;
- return kinds==${VSM_PROJECTION_KINDS_DIRECTIONAL}u||(kinds!=${VSM_PROJECTION_KINDS_LOCAL}u&&light.kind==LIGHT_KIND_DIRECTIONAL);
-}
-/** The region test: whether light k shades the pixel at all (in the view
- *  rect, a lit surface, in the light's radius and cone, not back-facing). */
+  () => /* wgsl */ `/** The region test: whether light k shades the pixel at all (in the view rect, a lit surface,
+ *  where the lighting gives the light energy — \`localLightReaches\` —, not back-facing). */
 fn vsmLightParticipates(k:u32,info:VsmSurfaceInfo,shiftedPositionIn:vec3f)->bool{
  if(!info.valid){return false;}
  let light=vsmView.lights[k];
@@ -330,14 +221,8 @@ fn vsmLightParticipates(k:u32,info:VsmSurfaceInfo,shiftedPositionIn:vec3f)->bool
   return !(backfaceCull&&vsmFacesAwayFromSun(info.worldNormal,light.direction,light.sourceRadius));
  }
  let toLight=light.shiftedPosition-shiftedPositionIn;
- let invDist=inverseSqrt(dot(toLight,toLight));
- let L=toLight*invDist;
- var inLightRange=invDist>=light.invRadius&&vsmSpotCone(L,-light.direction,light.spotAngles)>0.0;
- if(light.kind==LIGHT_KIND_RECT&&dot(toLight,light.direction)<0.0){inLightRange=false;}
- if(inLightRange&&backfaceCull){
-  if(vsmFacesAwayFromLocal(toLight,info.worldNormal,light.sourceRadius)){inLightRange=false;}
- }
- return inLightRange;
+ if(!localLightReaches(toLight,light.radius,light.cosCone,-light.direction,light.kind==LIGHT_KIND_RECT)){return false;}
+ return !(backfaceCull&&vsmFacesAwayFromLocal(toLight,info.worldNormal,light.sourceRadius));
 }
 /** \`vsmLightParticipates\`'s radius test widened: a light whose sphere is this much larger misses
  *  the tile's box. 1/64 past the roundings of either test (a few units in the last place). */
@@ -346,54 +231,29 @@ const VSM_TILE_REACH:f32=1.015625;
  * Whether light k may shade a pixel of a tile whose lit pixels' points lie in the box [\`low\`,
  * \`high\`]: never false where \`vsmLightParticipates\` is true at one of those points. Every light
  * may reach a tile one of whose lit points is not finite (\`unbounded\`), whose test WGSL leaves
- * to the device, and a directional or unbounded light any tile; a local light is tested on its
- * sphere alone, the cone and the faces left to the pixels. The box's nearest point is no farther
- * from the centre than any of its pixels, axis by axis: a subtraction is correctly rounded, hence
- * monotonic, so each axis's difference is at most the pixel's own, exactly; the squared distance
- * and its inverse square root then round within a few units in the last place, which the reach's
- * 1/64 holds many times over. A box whose squared distance to the centre is under the smallest
- * normal f32 (\`FLOAT32_MIN_NORMAL\`) holds it, whatever the device does with
- * subnormals.
+ * to the device, and a directional light any tile; a local light is tested on its sphere alone,
+ * the cone and the faces left to the pixels. The box's nearest point is no farther from the
+ * centre than any of its pixels, axis by axis: a subtraction is correctly rounded, hence
+ * monotonic, so each axis's difference is at most the pixel's own, exactly; the squared distances
+ * — a pixel's, against its range squared — and the box's square root then round within a few
+ * units in the last place, which the reach's 1/64 holds many times over. A box whose squared
+ * distance to the centre is under the smallest normal f32 (\`FLOAT32_MIN_NORMAL\`) holds it,
+ * whatever the device does with subnormals.
  */
 fn vsmLightMayReachTile(k:u32,low:vec3f,high:vec3f,unbounded:bool)->bool{
  let light=vsmView.lights[k];
- if(unbounded||vsmLightIsDirectional(light)||light.invRadius==0.0){return true;}
+ if(unbounded||vsmLightIsDirectional(light)){return true;}
  let c=light.shiftedPosition;
  let d=max(max(low-c,c-high),vec3f(0.0));
  let g=dot(d,d);
- return g<FLOAT32_MIN_NORMAL||inverseSqrt(g)*VSM_TILE_REACH>=light.invRadius;
+ return g<FLOAT32_MIN_NORMAL||sqrt(g)<=light.radius*VSM_TILE_REACH;
 }
 /** Light k's 8-bit lane: 0 where no ray was traced (its factor 1), else its rays n (high nibble,
  *  n ≤ 15) and the k of them that missed (low nibble), recovered exactly from k/n: the division's
- *  error times n ≤ 15 stays far under a half. Decoded by \`projectionMaskTable.ts\`. */
+ *  error times n ≤ 15 stays far under a half. Decoded by \`vsmMaskDecode\` (\`lighting/direct/shadowWgsl.ts\`). */
 fn vsmMaskCode(r:VsmTraceResult)->u32{
  if(r.rayCount==0u){return 0u;}
  return (r.rayCount<<4u)|u32(round(r.shadowFactor*f32(r.rayCount)));
-}
-/** Projects light k onto a pixel (pass-per-light inputs: the light and its map id). */
-fn vsmProjectLight(k:u32,pixel:VsmPixel,participating:bool,voteSplit:bool)->VsmTraceResult{
- let light=vsmView.lights[k];
- let info=pixel.info;
- let directional=vsmLightIsDirectional(light);
- let toLight=light.shiftedPosition-pixel.shifted;
- let L=select(toLight*inverseSqrt(dot(toLight,toLight)),light.direction,directional);
- let worldNormal=info.biasNormal;
- var shiftedPosition=pixel.shifted;
- var traceStart=pixel.screenRayWorld;
- if(participating){
-  if(!info.subsurface){shiftedPosition+=worldNormal*vsmNormalOffset(shiftedPosition);}
-  if(!info.subsurface&&pixel.screenRayWorld>0.0){
-   traceStart=vsmScreenRayCast(shiftedPosition,L,pixel.screenRayWorld,pixel.noise);
-  }
- }
- var result=vsmEmptyTrace();
- if(directional){
-  result=vsmTraceSun(light.mapId,light,pixel.pos,shiftedPosition,traceStart,pixel.noise,worldNormal,participating,voteSplit);
- }else{
-  result=vsmTraceLocal(light.mapId,light,pixel.pos,pixel.sceneDepth,shiftedPosition,traceStart,pixel.noise,worldNormal,participating,voteSplit);
- }
- if(!participating){result=vsmEmptyTrace();}
- return result;
 }
 `
 
@@ -472,7 +332,9 @@ fn vsmPixelOf(groupId:vec2u,groupIndex:u32)->VsmPixel{
  p.pos=${VSM_PROJECTION_GROUP_SIZE}u*groupId+vsmZOrderDecode(groupIndex)+vec2u(rect.xy);
  p.inRect=all(p.pos<vec2u(rect.zw));
  let coord=min(p.pos,vec2u(rect.zw)-1u);
- // The surface's texels are read at once; what they feed waits for \`info.valid\`.
+ // The surface's texels are read at once; what they feed waits for \`info.valid\`. The depth is the
+ // attachment's \`vsmSceneDepth\`, not level 0 of \`hizDepth\` (a colour target the visibility pass writes
+ // beside it, which the screen ray alone marches): two resources, not proved to hold the same bits.
  let deviceZ=textureLoad(vsmSceneDepth,coord,0);${
    receiver
      ? `
@@ -490,10 +352,10 @@ fn vsmPixelOf(groupId:vec2u,groupIndex:u32)->VsmPixel{
  p.noise=vsmNoiseOne(vec2u(svPosition.xy),vsmView.frameIndex);${
    receiver
      ? `
- // The engine's shadow receiver (a deliberate addition), as the old shadow path
- // read every map: the pixel's point on the Phong surface its vertex normals describe rather than
- // its flat triangle (\`shadowReceiver\`), and the biases on the triangle's plane — the depth the
- // caster drew — turned to the side the shading normal faces (\`shadowBiasNormal\`). A smooth
+ // The engine's shadow receiver, as every shadow map of the engine reads it: the pixel's point
+ // on the Phong surface its vertex normals describe rather than its flat triangle
+ // (\`shadowReceiver\`), and the biases on the triangle's plane — the depth the caster drew —
+ // turned to the side the shading normal faces (\`shadowBiasNormal\`). A smooth
  // normal over a coarse triangle otherwise under-biases one side of every edge, and a faceted
  // curved surface shadows itself, in facet-wide streaks, above its shading terminator. Only
  // where a light can shade the pixel: the background and a pixel no surface model lights pay no
@@ -589,25 +451,6 @@ fn vsmProjection(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_
 }
 `
 
-/** Lanes, hence codes: 256 factors, four a texel. */
-export const VSM_MASK_TABLE_TEXELS = 64
-
-/** Fills the mask's decode table (`projectionMaskTable.ts`): code c's factor at texel c / 4,
- *  channel c % 4. */
-export const VSM_MASK_TABLE_WGSL = /* wgsl */ `
-@group(0) @binding(0) var table:texture_storage_2d<rgba16float,write>;
-/** Code \`c\`'s factor as the projection computes it (\`vsmTraceSun\`, \`vsmTraceLocal\`). */
-fn vsmMaskTableValue(c:u32)->f32{
- let rayCount=c>>4u;
- let missCount=c&15u;
- if(rayCount==0u){return 1.0;}
- return f32(missCount)/f32(rayCount);
-}
-@compute @workgroup_size(${VSM_MASK_TABLE_TEXELS}) fn vsmMaskTableFill(@builtin(local_invocation_index) t:u32){
- let c=4u*t;
- textureStore(table,vec2u(t,0u),vec4f(vsmMaskTableValue(c),vsmMaskTableValue(c+1u),vsmMaskTableValue(c+2u),vsmMaskTableValue(c+3u)));
-}`
-
 /** The whole module, for one layout (pool parts) and one vote variant. */
 export function vsmProjectionWgsl(
   layout: VsmLayout,
@@ -634,16 +477,16 @@ export function vsmProjectionWgsl(
       VSM_TRACE_LIGHT_WGSL,
       vsmBlueNoiseWgsl(1, VSM_PROJECTION_BINDING.blueNoise),
       VSM_TRACE_COMMON_WGSL,
-      VSM_TRACE_RESULT_WGSL,
-      // The traces sample this pass's pool and take the blue noise's pair.
-      vsmTraceWgsl(
-        true,
-        vsmPoolLoadOf(0, VSM_PROJECTION_VSM_SPECS, layout),
-        vsmBlueNoiseTwo(1, VSM_PROJECTION_BINDING.blueNoise),
-      ),
+      localLightReaches,
+      // The traces sample this pass's pool and take the blue noise's pair; its lanes vote.
+      vsmReceiverTraceWgsl({
+        pool: vsmPoolLoadOf(0, VSM_PROJECTION_VSM_SPECS, layout),
+        noise: vsmBlueNoiseTwo(1, VSM_PROJECTION_BINDING.blueNoise),
+        hiz: [1, VSM_PROJECTION_BINDING.hizDepth],
+        lone: false,
+      }),
       uvToNdc,
       unprojectPoint,
-      perspectiveDivide,
       ceilDivWgsl,
       bitWord,
       bitMask,
@@ -651,7 +494,6 @@ export function vsmProjectionWgsl(
       isFiniteWord,
       lowBits,
       FLOAT32_MIN_NORMAL,
-      clampToExtent,
       ...(receiver ? [receiverTargetReadWgsl(VSM_PROJECTION_RECEIVER_GROUP, 0)] : []),
     ],
   )

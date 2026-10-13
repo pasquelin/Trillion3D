@@ -1,4 +1,4 @@
-import type { DagViewUniforms, PackedDag } from './types.ts'
+import type { PackedDag } from './types.ts'
 import {
   OUT_AHEAD_PLACED,
   OUT_COUNT,
@@ -10,14 +10,21 @@ import {
   SELECTION_HEADER_WORDS,
   evictionWord,
 } from './layout.ts'
-import type { SelectionResult } from '../core/selection.ts'
+import type { SelectionResult, SelectionUniforms } from '../core/selection.ts'
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
+import { WORK_DROPPED } from './shader/viewsWgsl.ts'
 import { VIEW_BLOCK_WORDS, viewWord } from './viewLayout.ts'
 import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
-import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
+import { dagQueueWords } from './flagSections.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
+
+/** Where a cut's tables lie for its kernels: the open counts placements hold in `out` — the first
+ *  word in `out.pages`, the slots less one (`heldOpen.ts`) —, then the words of each descent queue
+ *  and the entries of each list its `flags` holds (`queueGrowth.ts`), the packing's when absent. */
+export type CutTablesAt = { base: number; mask: number; queueWords?: number; candCap?: number }
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -48,7 +55,7 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
 
 /** The view ahead of a moving camera (`shader/aheadWgsl.ts`): block 1 repeats the camera's with the
  *  planes and view ahead, block 0 says it is there. */
-function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagViewUniforms) {
+function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: SelectionUniforms) {
   const ahead = uniforms.ahead,
     at = AHEAD_VIEW * VIEW_BLOCK_WORDS
   if (!ahead || target.length < at + VIEW_BLOCK_WORDS) return
@@ -65,15 +72,18 @@ function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagV
  * every node. `listCap` is the ranks its readout holds (`listCap.ts`), `saveRegion` the region its
  * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none. `coarsen` is the
  * factor its projected-error threshold is cut under, 1 but past the list the device holds
- * (`coarsening.ts`).
+ * (`coarsening.ts`). `at`, where the open counts placements hold lie in `out` (`listCap.ts`,
+ * `heldOpenAt`) — none by default —, and the words of each queue and the entries of each list the
+ * cut's `flags` holds now (`queueGrowth.ts`), the packing's by default.
  */
 export function writeDagUniforms(
   target: Float32Array,
   packed: PackedDag,
-  uniforms: DagViewUniforms,
+  uniforms: SelectionUniforms,
   listCap: number,
   saveRegion = REGION_NONE,
   coarsen = 1,
+  at: CutTablesAt = { base: 0, mask: 0 },
 ) {
   const W = viewWord
   target.fill(0)
@@ -101,22 +111,35 @@ export function writeDagUniforms(
   ints[W('listCap')] = listCap
   // The projection's clip-w weight: 1 perspective, 0 orthographic (`screenErrorBound.ts`).
   target[W('perspective')] = uniforms.perspective ?? 1
-  // One view, the camera's, on buffers sized for one, whose queues hold every node.
+  // One view, the camera's, on buffers sized for one, whose queues hold every placement's every
+  // node: two words an entry, the node then its placement (`shader/levelWgsl.ts`).
   ints[W('viewCount')] = 1
   ints[W('viewCapacity')] = 1
-  ints[W('queueCap')] = packed.nodeCount
+  ints[W('queueCap')] = at.queueWords ?? dagQueueWords(packed)
+  // The open counts placements hold of their own (`heldOpen.ts`): where in `out.pages`, how many.
+  ints[W('heldBase')] = at.base
+  ints[W('heldMask')] = at.mask
+  ints[W('candCap')] = at.candCap ?? packed.candCount
+  ints[W('recordCount')] = packed.recordCount
+  ints[W('keyCount')] = packed.keyCount
+  ints[W('groupCount')] = packed.groupCount
+  ints[W('groupEdges')] = packed.groupEdges
+  // The host's frame: every view's cut of one frame stamps the same clock (`shader/lastUseWgsl.ts`).
+  ints[W('frame')] = uniforms.frame ?? 0
   // A pool short of the cut ranks the camera's requests by admission (`request.ts`).
   ints[W('admitByLevel')] = uniforms.admitByLevel ? 1 : 0
   ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)
-  // The world DAG's placement, wherever the packing put it, NONE without one; the placement tree
+  // The world DAG's placement, wherever the packing put it, NO_INDEX without one; the placement tree
   // (`placementTree.ts`): its top level's nodes, which open the descent, from its first node, and
   // where its order lies in the cold table; no top node, no tree.
   const tree = packed.placementTree,
     world = packed.world
-  ints[W('worldRoot')] = world?.root ?? NONE
+  ints[W('worldRoot')] = world?.root ?? NO_INDEX
   ints[W('treeTop')] = tree?.levels[0].count ?? 0
   ints[W('cellBase')] = tree?.cellBase ?? 0
   ints[W('members')] = tree?.members ?? 0
+  ints[W('always')] = tree?.alwaysAt ?? 0
+  ints[W('alwaysCount')] = tree?.always.set.count ?? 0
   // The placements' links to the world DAG (`worldLinks.ts`): none, no gate.
   ints[W('worldLinks')] = world?.linkBase ?? 0
   // The world DAG's threshold this cut, its transitions dithered in time (`worldFade.ts`).
@@ -167,6 +190,8 @@ export function parseDagOutput(
   // the frame mask is correct — but the reported LIST is truncated, and nothing that lives off
   // it must take it for the whole cut.
   result.truncated = ((ints[OUT_FLAGS] ?? 0) & 1) !== 0
+  // A queue or a list full: the cut was not drawn, and its lists are not the cut's.
+  result.dropped = (ints[OUT_FLAGS] ?? 0) & WORK_DROPPED
   result.drawablePageIds = undefined
   if (levelsWord) result.levelCounts = readLevelCounts(ints, levelsWord, scratch.levels)
   // The drawable list arrives already compacted, in increasing order: the CPU no longer walks
@@ -178,6 +203,7 @@ export function parseDagOutput(
     if (levelsWord && levelsWord <= evictAt) evict.length = 0
     else readCountedList(ints, evictAt, evict)
     result.evictPageIds = evict
+    result.evictOld = Math.min(evict.length, ints[evictAt + 1] ?? 0)
   }
   return result
 }

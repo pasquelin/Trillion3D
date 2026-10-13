@@ -1,13 +1,10 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
-import { ROW_ID_BASE_WORD, ROW_OFFSET_WORD, packedRowBase, restampHizSlot } from './pageRow.ts'
-import { writeRowDeformation } from '../../deformation/slotLayout.ts'
-import type { createPageRowWriter } from './pageRowWriter.ts'
-import type { createWebgpuRowState } from './state.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
-
-type Rows = ReturnType<typeof createWebgpuRowState>
-type Writer = ReturnType<typeof createPageRowWriter>
+import { ROW_WORDS } from '../../visibility/types.ts'
+import { packedRowBase, restampHizSlot } from './pageRow.ts'
+import type { PageRowWriter } from './pageRowWriter.ts'
+import type { WebgpuRowState } from './state.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /**
  * The only two ways a row-table rank changes occupant: a page is posted there, or a whole row is
@@ -15,10 +12,13 @@ type Writer = ReturnType<typeof createPageRowWriter>
  * `state.changed` so the image knows it must send the table again. A third write keeps the
  * occupant: its bytes moved in the pool (`replace`).
  */
-export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writePageRow: Writer) {
-  const rowWords = PAGE_INFO_STRIDE / 4
+export function createWebgpuRowWriters(
+  rows: WebgpuRowState,
+  packedPages: PageList,
+  writePageRow: PageRowWriter,
+) {
   const state = { changed: false }
-  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  /** A packed rank back to its record: the one catalogue accessor (`../../page/selection/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages)
 
   /** Posts page `page` at rank `row`: the row is written, therefore declared dirty, by the writer. */
@@ -29,7 +29,7 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writeP
     rows.rowPageIndex[row] = page
     rows.rowOffsetWords[row] = offsetWords
     rows.rowEpoch[row] = rows.tableEpoch
-    rows.rowOfPage[page] = row
+    rows.setRowOf(page, row)
     state.changed = true
     writePageRow(rec, page, row, offsetWords, rows.pageTableFloats!, rows.pageTableInts!)
   }
@@ -38,16 +38,16 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writeP
   const moveRow = (from: number, to: number) => {
     const ints = rows.pageTableInts!,
       page = rows.packedPageIndex[from],
-      base = to * rowWords
-    rows.pageTableFloats!.copyWithin(base, from * rowWords, (from + 1) * rowWords)
-    ints[base + ROW_ID_BASE_WORD] = packedRowBase(to)
+      base = to * ROW_WORDS
+    rows.pageTableFloats!.copyWithin(base, from * ROW_WORDS, (from + 1) * ROW_WORDS)
+    ints[base + PAGE_INFO.at.packedBase] = packedRowBase(to)
     restampHizSlot(ints, base, to)
     rows.packedRecs[to] = rows.packedRecs[from]
     rows.packedPageIndex[to] = page
     rows.rowPageIndex[to] = page
     rows.rowOffsetWords[to] = rows.rowOffsetWords[from]
     rows.rowEpoch[to] = rows.rowEpoch[from]
-    rows.rowOfPage[page] = to
+    rows.setRowOf(page, to)
     rows.markRowDirty(to)
     state.changed = true
   }
@@ -59,10 +59,9 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writeP
    */
   const replace = (row: number, page: number, offsetWords: number) => {
     const ints = rows.pageTableInts!,
-      base = row * rowWords
+      base = row * ROW_WORDS
     rows.rowOffsetWords[row] = offsetWords
-    ints[base + ROW_OFFSET_WORD] = offsetWords
-    writeRowDeformation(ints, base, recordOf(page)!.deformationOutput, offsetWords)
+    ints[base + PAGE_INFO.at.pageOffset] = offsetWords
     rows.markRowDirty(row)
     state.changed = true
   }

@@ -1,10 +1,11 @@
+import { join } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile, readdir } from 'node:fs/promises'
 import { BENCH_READS_DECLARATION, DECLARATION, NAMES_THREE } from './engine-without-three-lists.ts'
+import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
-const browser = new URL('../../packages/sdk-browser/src/', import.meta.url)
-const root = new URL('../../', import.meta.url)
+const browser = join(REPOSITORY_ROOT, 'packages/sdk-browser/src')
 /** The benches of the browser package, keyed by their path from the repository root. */
 const BENCHES = ['bench/perf/browser/', 'bench/oracles/browser/', 'bench/witnesses/']
 
@@ -17,7 +18,7 @@ const BENCHES = ['bench/perf/browser/', 'bench/oracles/browser/', 'bench/witness
  * written as a string is the one form the stripping hides, so it is looked for on the raw text.
  *
  * What it cannot see: a host material reached under another name. A host mesh's own field is
- * `material` (`WholeMesh`, `packages/sdk-browser/src/cluster/batchMesh.ts`); renaming it would be
+ * `material` (`HostMesh`, `packages/sdk-browser/src/host/resources.ts`); renaming it would be
  * renaming the host library's, and no file on the engine's page path, which holds the record,
  * reads it. The transparent copy, which was the one
  * contract to hand a host material out under that name, no longer declares one at all
@@ -45,8 +46,8 @@ const sources = async () =>
   )
 
 /** Every source under `base`, keyed by its path from `base` behind `prefix`. */
-async function walkTree(base: URL, prefix = ''): Promise<string[]> {
-  const entries = await readdir(new URL(prefix, base), { withFileTypes: true })
+async function walkTree(base: string, prefix = ''): Promise<string[]> {
+  const entries = await readdir(join(base, prefix), { withFileTypes: true })
   const found: string[] = []
   for (const entry of entries) {
     const name = `${prefix}${entry.name}`
@@ -58,10 +59,11 @@ async function walkTree(base: URL, prefix = ''): Promise<string[]> {
 
 /** Those sources AND the benches of the package: the declaration rule holds for the benches too,
  *  since a bench builds the page records the engine path then reads. */
-async function allSources(): Promise<Array<[string, URL]>> {
-  const found: Array<[string, URL]> = (await walkTree(browser)).map((f) => [f, new URL(f, browser)])
+async function allSources(): Promise<Array<[string, string]>> {
+  const found: Array<[string, string]> = (await walkTree(browser)).map((f) => [f, join(browser, f)])
   for (const bench of BENCHES)
-    for (const f of await walkTree(root, bench)) found.push([f, new URL(f, root)])
+    for (const f of await walkTree(REPOSITORY_ROOT, bench))
+      found.push([f, join(REPOSITORY_ROOT, f)])
   return found
 }
 
@@ -70,7 +72,7 @@ async function outsideList(motif: RegExp, exclu = ''): Promise<string[]> {
   const fuites: string[] = []
   for (const file of await sources()) {
     if (file === exclu) continue
-    if (motif.test(await readFile(new URL(file, browser), 'utf8'))) fuites.push(file)
+    if (motif.test(await readFile(join(browser, file), 'utf8'))) fuites.push(file)
   }
   return fuites
 }
@@ -104,13 +106,13 @@ test('only the declared boundary files cross back through `asHostLibrary`', asyn
 })
 
 test('no source of any other package imports the host library', async () => {
-  const packages = new URL('../../packages/', import.meta.url)
+  const packages = join(REPOSITORY_ROOT, 'packages')
   const fuites: string[] = []
   for (const name of await readdir(packages, { recursive: true })) {
     if (/(?:^|\/)(?:node_modules|target|dist)\//.test(name) || name.startsWith('sdk-browser/src/'))
       continue
     if (!/\.m?ts$/.test(name) || /\.(?:test|fixture)\.m?ts$/.test(name)) continue
-    if (NAMES_THREE.test(await readFile(new URL(name, packages), 'utf8'))) fuites.push(name)
+    if (NAMES_THREE.test(await readFile(join(packages, name), 'utf8'))) fuites.push(name)
   }
   assert.deepEqual(fuites, [], 'the published packages name no host library')
 })
@@ -154,13 +156,13 @@ const COMPOSE_LA_CAMERA = [
   /\bupdateCameraFrame\b/,
 ]
 test('`camera/world.ts` remains the only translation from host camera to engine camera', async () => {
-  const text = await readFile(new URL('camera/world.ts', browser), 'utf8')
+  const text = await readFile(join(browser, 'camera/world.ts'), 'utf8')
   assert.match(text, /export type HostCamera = \{/)
   assert.match(text, /export function readCameraWorld\(/)
   const secondes: string[] = []
   for (const file of await sources()) {
     if (file === 'camera/world.ts') continue
-    const code = sansCommentaires(await readFile(new URL(file, browser), 'utf8'))
+    const code = sansCommentaires(await readFile(join(browser, file), 'utf8'))
     if (/\bHostCamera\b/.test(code) && COMPOSE_LA_CAMERA.some((motif) => motif.test(code)))
       secondes.push(file)
   }
@@ -169,7 +171,7 @@ test('`camera/world.ts` remains the only translation from host camera to engine 
     [],
     'a host camera becomes an engine camera in `camera/world.ts` alone',
   )
-  const engine = await readFile(new URL('camera/engineCamera.ts', browser), 'utf8')
+  const engine = await readFile(join(browser, 'camera/engineCamera.ts'), 'utf8')
   for (const champ of ['world', 'projection', 'view', 'viewProjection', 'planes', 'eye'])
     assert.match(engine, new RegExp(`\\b${champ}\\b`), champ)
 })

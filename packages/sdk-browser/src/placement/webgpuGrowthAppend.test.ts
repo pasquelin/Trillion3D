@@ -7,7 +7,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPlacementRows, growPlacementRows, placementWorld } from './rows.ts'
-import { growthOf, startGrownCut, webgpuPlacementApi } from './webgpuGrowth.ts'
+import { sceneRoots, scenePages } from '../gpu/dag/cutFrontierScene.fixture.ts'
+import { startGrownCut, webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import { createSortedKeys } from '../webgpu/cut/denseKeys.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -17,8 +18,9 @@ const fakeCut = () => ({
   growing: false,
   taken: [] as number[],
   disposed: 0,
+  full: false,
   appendRoots(roots: readonly unknown[]) {
-    if (this.growing) return false
+    if (this.growing || this.full) return false
     this.taken.push(roots.length)
     return true
   },
@@ -31,19 +33,28 @@ const fakeCut = () => ({
  *  grown by one row, as an owner hands it (`growWebgpuPlacements`). The session reads nothing else
  *  while the running cut takes the roots: a cut made beside it would read the row cache. */
 function session() {
+  const refusals: string[][] = []
   const cut = fakeCut()
   let rows = createPlacementRows(1)
-  const root = { pages: [], placement: { rows, index: 0 }, world: placementWorld(rows, 0) }
+  const [held] = sceneRoots(scenePages(4, 2), [placementWorld(rows, 0)])
+  const root = { ...held, placement: { rows, index: 0 }, world: placementWorld(rows, 0) }
   const rt = {
     run: { gpuSelection: cut, movedWorlds: createSortedKeys() },
     layout: { selectionRoots: [root], worldUpdates: new Float32Array(4 * 16) },
+    // No blended surface and no deformation: nothing else reads the rows.
+    setup: { blendCopies: [], pagedBlendCopies: new Map(), deformationBlocks: [] },
+    blendState: { blendGpu: [] },
+    vis: {},
+    gpu: { device: {} },
+    signal: new AbortController().signal,
+    context: { onContentRefused: (what: string, reason: string) => refusals.push([what, reason]) },
   } as unknown as WebgpuPagesRuntime
   const grow = () => {
     const to = growPlacementRows(rows, rows.capacity + 1)
     webgpuPlacementApi(rt).growPlacements(rows, to)
     rows = to
   }
-  return { rt, cut, grow }
+  return { rt, cut, grow, refusals }
 }
 
 test('a made cut not adopted is released when the running cut takes the roots in place', () => {
@@ -51,7 +62,7 @@ test('a made cut not adopted is released when the running cut takes the roots in
   grow()
   // The state a cut made beside the running one leaves once it lands (`makeCut`).
   const made = fakeCut(),
-    growth = growthOf(rt)!
+    growth = rt.growth!
   growth.asked = false
   growth.ready = { cut: made as unknown as GpuSelection, roots: 2, moved: new Set() }
   grow()
@@ -67,7 +78,7 @@ test('a cut whose list grows takes the roots at the next frame entry, no cut mad
   grow()
   cut.growing = true
   startGrownCut(rt)
-  const growth = growthOf(rt)!
+  const growth = rt.growth!
   assert.equal(growth.making, undefined, 'no cut packed beside it')
   assert.equal(growth.asked, true, 'asked again at the next entry')
   assert.deepEqual(cut.taken, [])
@@ -81,7 +92,7 @@ test('a cut whose list grows takes the roots at the next frame entry, no cut mad
 test('the roots taken in place join the worlds the host sends, at their ranks', () => {
   const { rt, grow } = session()
   grow()
-  const growth = growthOf(rt)!
+  const growth = rt.growth!
   const [root] = growth.roots as unknown as { world: { elements: ArrayLike<number> } }[]
   ;(root.world.elements as Float64Array)[12] = 7.5
   startGrownCut(rt)
@@ -90,4 +101,20 @@ test('the roots taken in place join the worlds the host sends, at their ranks', 
     [...Float32Array.from(root.world.elements)],
     'rank 1 holds its world',
   )
+})
+
+test('a cut the device refuses is said by name: the running cut stays, the session is not lost', async () => {
+  const { rt, cut, grow, refusals } = session()
+  Object.assign(rt.layout, { rows: { logTouched() {} }, packedPages: [] })
+  ;(rt.run as { lost?: boolean }).lost = false
+  cut.full = true
+  grow()
+  startGrownCut(rt)
+  await rt.growth!.making
+  assert.equal(refusals.length, 1, 'said once, by name')
+  assert.match(refusals[0][1], /refused the cut/)
+  assert.equal(rt.run.gpuSelection, cut as unknown as GpuSelection, 'the running cut is kept')
+  assert.equal(rt.run.lost, false, 'no lost device: nothing reopens')
+  assert.equal(rt.growth!.ready, undefined)
+  assert.equal(cut.disposed, 0)
 })

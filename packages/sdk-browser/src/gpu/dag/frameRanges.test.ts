@@ -3,7 +3,6 @@
 // whole table is the GPU's to prove (`tests/gpu/dag/frame-ranges.gpu.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { framesBytes } from './frameRanges.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { createDagResources } from './resources.ts'
 import { packDagSelection } from './selection.ts'
@@ -14,17 +13,20 @@ import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { DAG_BINDING } from './shader/bindings.ts'
-import { cameraFrameRanges } from './cameraRanges.ts'
+import { PRIMITIVE_BYTES, WORLD_ROW_BYTES, cameraFrameRanges } from './cameraRanges.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { FRAME_VEC4 } from './types.ts'
 
 test('the ranges cover every primitive once, each within one binding', () => {
   const limits = { maxBufferSize: 64 << 20, maxStorageBufferBindingSize: 128 << 20 }
   const ranges = cameraFrameRanges(limits, 1_000_000)
-  assert.equal(ranges.length, ceilDiv(1_000_000, Math.floor((64 << 20) / 384)))
+  // A range is as many primitives as one binding holds of the wider table, `worlds`.
+  assert.ok(WORLD_ROW_BYTES > PRIMITIVE_BYTES)
+  assert.equal(ranges.length, ceilDiv(1_000_000, Math.floor((64 << 20) / WORLD_ROW_BYTES)))
   let next = 0
   for (const { first, count } of ranges) {
     assert.equal(first, next, 'no gap, no overlap')
-    assert.ok(framesBytes(count) <= storageBufferCap(limits))
+    assert.ok(count * PRIMITIVE_BYTES <= storageBufferCap(limits))
     next += count
   }
   assert.equal(next, 1_000_000)
@@ -35,8 +37,15 @@ test('the ranges cover every primitive once, each within one binding', () => {
 async function split(per: number) {
   const [root] = packed(dagFixture()).roots
   const dag = packDagSelection(Array.from({ length: 48 }, () => root))
-  const limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: framesBytes(per) }
-  const fake = fakeDevice({ limits: { ...limits, minUniformBufferOffsetAlignment: 256 } })
+  const limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: per * WORLD_ROW_BYTES }
+  // Its lists split `flags` in parts too (`split.ts`): the device binds them all at once.
+  const fake = fakeDevice({
+    limits: {
+      ...limits,
+      minUniformBufferOffsetAlignment: 256,
+      maxStorageBuffersPerShaderStage: 16,
+    },
+  })
   const resources = await createDagResources(fake.device, dag)
   assert.ok(resources)
   return { fake, resources }
@@ -47,7 +56,10 @@ test('each range is its own buffer and bind group, and the stages know the split
   const { frames, ranges } = resources
   const line = (values: ArrayLike<unknown>) => Array.from(values).join(' ')
   assert.equal(line(frames.ranges.map((r) => `${r.first}+${r.count}`)), '0+20 20+20 40+8')
-  assert.equal(line(frames.buffers.map((b) => b.size)), line([20, 20, 8].map(framesBytes)))
+  assert.equal(
+    line(frames.buffers.map((b) => b.size)),
+    line([20, 20, 8].map((count) => count * PRIMITIVE_BYTES)),
+  )
   assert.equal(line(ranges.map((r) => r.count)), '20 20 8')
   let bounds: GPUBuffer | undefined
   for (const [r, { bindGroup }] of ranges.entries()) {
@@ -71,10 +83,12 @@ test('each range is its own buffer and bind group, and the stages know the split
 test("the host's rows and words land in their range, at their row there", async () => {
   const { fake, resources } = await split(20)
   const { frames, frameData } = resources
-  // range:first row+rows, a host row being 28 floats, 112 bytes.
+  // range:first row+rows, a host row being `FRAME_VEC4` vec4s.
+  const rowBytes = FRAME_VEC4 * 16
   const at = (b: unknown) => frames.buffers.indexOf(b as GPUBuffer)
   const rows = fake.writes.filter((w) => at(w.buffer) >= 0)
-  const row = (w: (typeof rows)[number]) => `${at(w.buffer)}:${w.dataOffset / 112}+${w.size! / 112}`
+  const row = (w: (typeof rows)[number]) =>
+    `${at(w.buffer)}:${w.dataOffset / rowBytes}+${w.size! / rowBytes}`
   assert.equal(rows.map(row).join(' '), '0:0+20 1:20+20 2:40+8')
   // The world matrices follow the same ranges, 64 bytes a primitive.
   const world = (w: (typeof rows)[number]) =>
@@ -85,7 +99,7 @@ test("the host's rows and words land in their range, at their row there", async 
   frames.flushWords()
   const word = fake.writes.at(-1)!
   assert.equal(word.buffer, frames.buffers[1])
-  assert.equal(word.offset, 5 * 28 * 4, 'its row, the sixth of its range')
+  assert.equal(word.offset, 5 * rowBytes, 'its row, the sixth of its range')
   const sent = written(word).slice()
   assert.equal(new Uint32Array(sent.buffer)[primitiveWordAt(0) + 1], 7)
   assert.equal(new Uint32Array(frameData.buffer)[primitiveWordAt(25) + 1], 7)
@@ -93,9 +107,10 @@ test("the host's rows and words land in their range, at their row there", async 
 
 test('each kernel that reads a primitive runs once per range, under its bind group', () => {
   const ranges = [100, 30].map((count, r) => ({ first: r * 100, count, bindGroup: `r${r}` }))
-  const { encoder, dispatches, boundGroups } = witnessEncoder()
+  const witness = witnessEncoder()
   const cut = { ...cutResources(5), ranges } as unknown as Parameters<typeof encodeDagKernels>[1]
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cut)
+  encodeDagKernels(witness.encoder, cut)
+  const { dispatches, boundGroups } = witness.read()
   const of = (kernel: string) => dispatches.filter((l) => l.kernel === kernel).map((l) => l.groups)
   assert.deepEqual(of('dagPrepare'), [2, 1], 'the first range also resets 64 blocks')
   assert.deepEqual(of('dagRootLevel'), [2, 1], "each range's roots")

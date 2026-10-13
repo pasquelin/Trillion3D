@@ -58,22 +58,10 @@ test('a runtime module is read by the cohesion gate instead, and is not reported
   assert.deepEqual(lineLimitViolations(new Map([[runtime, 400]])), [])
 })
 
-test('a test, a fixture and an index keep the bound: they are read whole', () => {
-  for (const file of [
-    'packages/sdk-browser/src/gpu/dag/uniforms.test.ts',
-    'packages/sdk-browser/src/gpu/dag/uniforms.fixture.ts',
-    'packages/sdk-browser/src/gpu/dag/index.ts',
-  ]) {
-    assert.equal(keepsLineBound(file), true, file)
-    assert.equal(lineLimitViolations(new Map([[file, 400]])).length, 1, file)
-  }
-})
-
-test('the `page-codec` modules are read by the cohesion gate', () => {
+test('the `sdk-node` modules are read by the cohesion gate', () => {
   // The two lists must agree: a path `check-file-lines` exempts and `check:cohesion` never reads
   // would leave a file with no gate at all.
-  assert.equal(keepsLineBound('packages/page-codec/src/geometryPage.ts'), false)
-  assert.equal(unitOf('packages/page-codec/src/geometryPage.ts') !== null, true)
+  assert.equal(unitOf('packages/sdk-node/src/cli/cli.mts') !== null, true)
   assert.equal(keepsLineBound('packages/sdk-node/src/cli/cli.mts'), false)
   // A barrel keeps the bound and is read by the cohesion gate too: the overlap is harmless, and
   // what matters is that no file is read by neither.
@@ -81,8 +69,11 @@ test('the `page-codec` modules are read by the cohesion gate', () => {
   assert.equal(unitOf('packages/sdk-node/src/index.mts') !== null, true)
 })
 
-test('a Rust crate, a script, a test and the bench all keep the bound', () => {
+test('a test, a fixture and an index, read whole, and a Rust crate, a script, a test and the bench all keep the bound', () => {
   for (const file of [
+    'packages/sdk-browser/src/gpu/dag/uniforms.test.ts',
+    'packages/sdk-browser/src/gpu/dag/uniforms.fixture.ts',
+    'packages/sdk-browser/src/gpu/dag/index.ts',
     'packages/asset-compiler-rust/src/dag/layout.rs',
     'scripts/check-file-lines.ts',
     'bench/core/index.ts',

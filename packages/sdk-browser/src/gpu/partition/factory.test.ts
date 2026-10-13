@@ -4,28 +4,17 @@ import { createGpuPartition } from './factory.ts'
 import { PARTITION_SHADER } from './shader.ts'
 import { PARTITION_BINDING, PARTITION_KERNEL_BINDINGS, ROW_DATA_U32 } from './contract.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { buffer, frame } from './partition.fixture.ts'
+import { buffer, frame, view } from './partition.fixture.ts'
 
 const STORAGE_BUFFERS_PER_STAGE = 8
 
-/** The bind groups a device made, as the buffer bound under each binding. */
+/** The bind groups a device made, as the buffer — or the texture view — bound under each binding. */
 const bufferGroups = (bindGroups: GPUBindGroupDescriptor[]) =>
   bindGroups.map(({ entries }) =>
     Object.fromEntries(
-      [...entries].map((e) => [e.binding, (e.resource as GPUBufferBinding).buffer]),
+      [...entries].map((e) => [e.binding, (e.resource as GPUBufferBinding).buffer ?? e.resource]),
     ),
   )
-
-const encoder = () =>
-  ({
-    clearBuffer() {},
-    beginComputePass: () => ({
-      setPipeline() {},
-      setBindGroup() {},
-      dispatchWorkgroups() {},
-      end() {},
-    }),
-  }) as unknown as GPUCommandEncoder
 
 /** Body of every WGSL function of the module, by name. */
 function functionBodies(shader: string) {
@@ -38,7 +27,14 @@ function functionBodies(shader: string) {
   return bodies
 }
 
-/** Buffers a kernel reads or writes, through the helpers it calls. */
+/** What a binding's WGSL use looks like: an index or a member of its variable, a load of the
+ *  pyramid's texture. */
+const USE: Record<string, string> = {
+  uniforms: 'uni[\\[.]',
+  pyramid: 'textureLoad\\(hizPyramid\\b',
+}
+
+/** Resources a kernel reads or writes, through the helpers it calls. */
 function buffersUsed(bodies: Map<string, string>, kernel: string, names: readonly string[]) {
   const used = new Set<string>(),
     seen = new Set<string>(),
@@ -47,8 +43,7 @@ function buffersUsed(bodies: Map<string, string>, kernel: string, names: readonl
       seen.add(name)
       const body = bodies.get(name) ?? ''
       for (const buffer of names)
-        if (new RegExp(`\\b${buffer === 'uniforms' ? 'uni' : buffer}[\\[.]`).test(body))
-          used.add(buffer)
+        if (new RegExp(`\\b${USE[buffer] ?? `${buffer}[\\[.]`}`).test(body)) used.add(buffer)
       for (const call of body.matchAll(/\b(\w+)\(/g)) if (bodies.has(call[1])) walk(call[1])
     }
   walk(kernel)
@@ -67,7 +62,7 @@ test("each partition kernel binds what it reads, nothing else, within a stage's 
 
 test('the projection rebinds the pyramid when its identity changes, and only then', async () => {
   const { device, bindGroups } = fakeDevice()
-  let pyramid = buffer('pyramid A')
+  let pyramid = view('pyramid A')
   const partition = await createGpuPartition(device, 4, {
     items: buffer('items'),
     flags: buffer('flags'),
@@ -80,46 +75,39 @@ test('the projection rebinds the pyramid when its identity changes, and only the
     bufferGroups(bindGroups).filter((group) => PARTITION_BINDING.pyramid in group)
   assert.equal(projectGroups().length, 1, 'one projection group at creation')
   assert.equal(projectGroups()[0][PARTITION_BINDING.pyramid], pyramid)
-  partition.beginFrame(encoder(), frame(4))
-  partition.beginFrame(encoder(), frame(4))
+  partition.beginFrame(device.createCommandEncoder(), frame(4))
+  partition.beginFrame(device.createCommandEncoder(), frame(4))
   assert.equal(projectGroups().length, 1, 'the same pyramid is not rebound')
-  pyramid = buffer('pyramid B')
-  partition.beginFrame(encoder(), frame(4))
+  pyramid = view('pyramid B')
+  partition.beginFrame(device.createCommandEncoder(), frame(4))
   assert.equal(projectGroups().length, 2, 'a resized pyramid gets a new group')
   assert.equal(projectGroups()[1][PARTITION_BINDING.pyramid], pyramid)
   partition.dispose()
 })
 
 test('rows rewritten since the last image are cleared run by run, once', async () => {
-  const { device } = fakeDevice()
+  const { device, clears } = fakeDevice()
   const partition = await createGpuPartition(device, 64, {
     items: buffer('items'),
     flags: buffer('flags'),
     restBits: buffer('rest'),
     slotUsed: buffer('slots'),
-    pyramid: () => buffer('pyramid'),
+    pyramid: () => view('pyramid'),
   })
   assert.ok(partition)
-  const cleared: Array<[unknown, number, number]> = []
-  const clearing = () =>
-    ({
-      ...encoder(),
-      clearBuffer: (target: unknown, offset: number, size: number) =>
-        cleared.push([target, offset, size]),
-    }) as unknown as GPUCommandEncoder
   const rowBytes = ROW_DATA_U32 * 4
   const rowRuns = () =>
-    cleared
+    clears
       .splice(0)
-      .filter(([target]) => target === partition.rowData)
-      .map(([, offset, size]) => [offset / rowBytes, size / rowBytes])
-  partition.beginFrame(clearing(), frame(64))
+      .filter(({ buffer }) => buffer === partition.rowData)
+      .map(({ offset, size }) => [offset / rowBytes, size! / rowBytes])
+  partition.beginFrame(device.createCommandEncoder(), frame(64))
   assert.deepEqual(rowRuns(), [], 'nothing rewritten: nothing cleared')
   partition.forgetRows(10, 12)
   partition.forgetRows(20, 20)
   partition.forgetRows(5, 3)
   partition.forgetRows(60, 90)
-  partition.beginFrame(clearing(), frame(64))
+  partition.beginFrame(device.createCommandEncoder(), frame(64))
   assert.deepEqual(
     rowRuns(),
     [
@@ -129,7 +117,7 @@ test('rows rewritten since the last image are cleared run by run, once', async (
     ],
     'each run alone, none of the rows between them, bounded to the buffer',
   )
-  partition.beginFrame(clearing(), frame(64))
+  partition.beginFrame(device.createCommandEncoder(), frame(64))
   assert.deepEqual(rowRuns(), [], 'forgotten once, then remembered as projected again')
   partition.dispose()
 })

@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 /**
  * Physical page management kernels.
  *
@@ -77,7 +78,7 @@ export interface VsmPmKernel {
  * Assembles a module: the group-0 bindings of `specs`, params, optional per-page setup, optional
  * stats, then `body`, which lists the declarations its text uses.
  */
-export function vsmPmModule(
+function vsmPmModule(
   layout: VsmLayout,
   specs: VsmBindingSpec[],
   body: WgslDecl,
@@ -99,6 +100,22 @@ export function vsmPmModule(
   )
 }
 
+/** Kernel `label`: its entry point `vsm${label}`, its group-0 `specs` and the module of `body`
+ *  (`vsmPmModule`), dispatched per page when `options.perPage`. */
+export const vsmPmKernel = (
+  layout: VsmLayout,
+  label: string,
+  specs: VsmBindingSpec[],
+  body: WgslDecl,
+  options: { perPage?: boolean; stats?: boolean } = {},
+): VsmPmKernel => ({
+  label,
+  entryPoint: `vsm${label}`,
+  specs,
+  perPage: !!options.perPage,
+  code: vsmPmModule(layout, specs, body, options),
+})
+
 /** Appends the stats binding at `binding` when enabled. */
 function withStats(
   specs: VsmBindingSpec[],
@@ -112,11 +129,13 @@ const STAT_WGSL = wgslBlock(
   'STAT_WGSL',
   [],
   `
-const VSM_COUNT_WANTED:u32=${VSM_COUNT_WANTED}u;
-const VSM_COUNT_STATIC_KEPT:u32=${VSM_COUNT_STATIC_KEPT}u;
-const VSM_COUNT_DYNAMIC_KEPT:u32=${VSM_COUNT_DYNAMIC_KEPT}u;
-const VSM_COUNT_CLEARED:u32=${VSM_COUNT_CLEARED}u;
-const VSM_COUNT_GRANTED:u32=${VSM_COUNT_GRANTED}u;
+${wgslConsts({
+  VSM_COUNT_WANTED,
+  VSM_COUNT_STATIC_KEPT,
+  VSM_COUNT_DYNAMIC_KEPT,
+  VSM_COUNT_CLEARED,
+  VSM_COUNT_GRANTED,
+})}
 `,
 )
 
@@ -226,13 +245,7 @@ fn vsmCarryPages(@builtin(global_invocation_id) index:vec3u){
 }
 `,
   )
-  return {
-    label: 'CarryPages',
-    entryPoint: 'vsmCarryPages',
-    specs,
-    perPage: false,
-    code: vsmPmModule(layout, specs, body),
-  }
+  return vsmPmKernel(layout, 'CarryPages', specs, body)
 }
 
 /** Sorts the pool: each page in last frame's age order is kept, aged out or emptied, and the
@@ -355,13 +368,7 @@ fn vsmSortPool(@builtin(global_invocation_id) index:vec3u){
 }
 `,
   )
-  return {
-    label: 'SortPool',
-    entryPoint: 'vsmSortPool',
-    specs,
-    perPage: false,
-    code: vsmPmModule(layout, specs, body, { stats: !!o.stats }),
-  }
+  return vsmPmKernel(layout, 'SortPool', specs, body, { stats: !!o.stats })
 }
 
 /** Compacts the available pages, then appends the empty ones after them: allocated before the pages
@@ -410,13 +417,7 @@ fn vsmPackFreePages(@builtin(local_invocation_index) groupIndex:u32){
 }
 `,
   )
-  return {
-    label: 'PackFreePages',
-    entryPoint: 'vsmPackFreePages',
-    specs,
-    perPage: false,
-    code: vsmPmModule(layout, specs, body),
-  }
+  return vsmPmKernel(layout, 'PackFreePages', specs, body)
 }
 
 /** Maps the newly requested pages onto available physical pages, driven by the per-page dispatcher. */
@@ -501,13 +502,7 @@ fn vsmGrantPages(@builtin(global_invocation_id) dispatchThreadId:vec3u,@builtin(
 }
 `,
   )
-  return {
-    label: 'GrantPages',
-    entryPoint: 'vsmGrantPages',
-    specs,
-    perPage: true,
-    code: vsmPmModule(layout, specs, body, { perPage: true, stats: !!o.stats }),
-  }
+  return vsmPmKernel(layout, 'GrantPages', specs, body, { perPage: true, stats: !!o.stats })
 }
 
 /** Lists the pages to clear. Args (16, pages, 1): see header. */
@@ -564,13 +559,7 @@ fn vsmListClears(@builtin(global_invocation_id) id:vec3u){
 }
 `,
   )
-  return {
-    label: 'ListClears',
-    entryPoint: 'vsmListClears',
-    specs,
-    perPage: false,
-    code: vsmPmModule(layout, specs, body, { stats: !!o.stats }),
-  }
+  return vsmPmKernel(layout, 'ListClears', specs, body, { stats: !!o.stats })
 }
 
 /** Tile setup of the 16-tiles-per-page kernels (16x16 threads, 32x32 texels per tile). */
@@ -637,13 +626,7 @@ fn vsmClearPages(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(workg
 }
 `,
   )
-  return {
-    label: 'ClearPages',
-    entryPoint: 'vsmClearPages',
-    specs,
-    perPage: false,
-    code: vsmPmModule(layout, specs, body),
-  }
+  return vsmPmKernel(layout, 'ClearPages', specs, body)
 }
 
 /** The status feedback → `res.feedback` = [VSM_FEEDBACK_POOL, free pages (i32), pressure bias (f32 bits), scene frame]. */
@@ -675,13 +658,7 @@ fn vsmPoolFeedback(@builtin(local_invocation_index) lane:u32){
 }
 `,
   )
-  return {
-    label: 'PoolFeedback',
-    entryPoint: 'vsmPoolFeedback',
-    specs,
-    perPage: false,
-    code: vsmPmModule(layout, specs, body),
-  }
+  return vsmPmKernel(layout, 'PoolFeedback', specs, body)
 }
 
 /**
@@ -757,13 +734,7 @@ fn vsmFoldRasterMarks(@builtin(global_invocation_id) id:vec3u){
 }
 `,
   )
-  return {
-    label: 'FoldRasterMarks',
-    entryPoint: 'vsmFoldRasterMarks',
-    specs,
-    perPage: false,
-    code: vsmPmModule(layout, specs, body),
-  }
+  return vsmPmKernel(layout, 'FoldRasterMarks', specs, body)
 }
 
 /**
@@ -807,13 +778,7 @@ fn vsmTileDepthsBuild(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(
 }
 `,
   )
-  return {
-    label: 'TileDepthsBuild',
-    entryPoint: 'vsmTileDepthsBuild',
-    specs,
-    perPage: false,
-    code: vsmPmModule(layout, specs, body),
-  }
+  return vsmPmKernel(layout, 'TileDepthsBuild', specs, body)
 }
 
 /** Merges the static pages into the dynamic ones: dynamic = max(dynamic, static). */
@@ -843,13 +808,7 @@ fn vsmMergeStatic(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(work
 }
 `,
   )
-  return {
-    label: 'MergeStatic',
-    entryPoint: 'vsmMergeStatic',
-    specs,
-    perPage: false,
-    code: vsmPmModule(layout, specs, body),
-  }
+  return vsmPmKernel(layout, 'MergeStatic', specs, body)
 }
 
 /** Every page management kernel for `layout`. */

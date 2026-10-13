@@ -1,10 +1,12 @@
 // The hardware raster under the engine's face state: the `cullMode: 'back'` of the pages
 // pipelines and the `frontFace` that `windingCw` picks (`webgpu/pages/render/winding.ts`) —
-// winding reversed under a reflection. One fragment counter per case: the faces the engine draws,
+// winding reversed under a mirror. One fragment counter per case: the faces the engine draws,
 // the ground truth a cut decision is held against.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import assert from 'node:assert/strict'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { bufferHolding } from '../kit/computeReadback.ts'
 
 const RASTER = `struct Uni{viewProj:mat4x4f,}
 @group(0) @binding(0) var<uniform> uni:Uni;
@@ -52,31 +54,15 @@ async function rasterise({ vertices, ranges, viewProj, width, height, slots }: W
       primitive: { topology: 'triangle-list', cullMode: 'back', frontFace },
     })
   const pipelines = { ccw: pipeline('ccw'), cw: pipeline('cw') }
-  const buffer = (
-    data: Float32Array<ArrayBuffer> | Uint32Array<ArrayBuffer>,
-    usage: GPUBufferUsageFlags,
-  ) => {
-    const made = device.createBuffer({ size: Math.max(16, data.byteLength), usage })
-    device.queue.writeBuffer(made, 0, data)
-    return made
-  }
-  const vertexBuffer = buffer(
-    new Float32Array(vertices),
-    GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-  )
-  const uniform = buffer(
-    new Float32Array(viewProj),
-    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  )
+  const vertexBuffer = bufferHolding(device, new Float32Array(vertices), GPUBufferUsage.VERTEX, 16)
+  const uniform = bufferHolding(device, new Float32Array(viewProj), GPUBufferUsage.UNIFORM, 16)
   const bytes = Math.max(4, slots * 4)
-  const counts = buffer(
+  const counts = bufferHolding(
+    device,
     new Uint32Array(Math.max(1, slots)),
-    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    16,
   )
-  const readback = device.createBuffer({
-    size: bytes,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  })
   const target = device.createTexture({
     size: [width, height],
     format: 'rgba8unorm',
@@ -105,11 +91,8 @@ async function rasterise({ vertices, ranges, viewProj, width, height, slots }: W
     pass.draw(count, 1, first, 0)
   }
   pass.end()
-  encoder.copyBufferToBuffer(counts, 0, readback, 0, bytes)
   device.queue.submit([encoder.finish()])
-  await readback.mapAsync(GPUMapMode.READ)
-  const fragments = Array.from(new Uint32Array(readback.getMappedRange().slice(0), 0, slots))
-  readback.unmap()
+  const fragments = Array.from((await readGpuBuffer(device, counts, bytes))!.subarray(0, slots))
   const { court: adapter } = await gpu.fermer()
   assert.deepEqual(gpu.errors, [], 'the device reports no error')
   return { adapter, fragments }

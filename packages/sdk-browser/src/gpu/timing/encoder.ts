@@ -1,5 +1,7 @@
 import { QUERY_SET_SIZE } from './querySetSize.ts'
 import { alignUp } from '../../../../math/src/scalar/integers.ts'
+import type { ReadbackRing } from '../core/readbackRing.ts'
+import type { TimingEntry } from './sample.ts'
 
 /** A part's first query: its resolve lands at a 256-byte offset, 32 timestamps. */
 export const PART_ALIGN = 32
@@ -8,11 +10,27 @@ export const PART_ALIGN = 32
  *  idle between the two is measured (`timeline.ts`). */
 export const READBACKS = 2
 
-export type TimingResources = { sets: GPUQuerySet[]; resolve: GPUBuffer; reads: GPUBuffer[] }
+/** What an image's readback says of it, filled when the image closes (`closeImage.ts`): its frame,
+ *  its passes, whether it was truncated, the bytes its timestamps take, its metadata. */
+export type TimedRead = {
+  frame: number
+  entries: TimingEntry[]
+  truncated: boolean
+  used: number
+  metadata: Record<string, unknown>
+}
 
-/** Allocate all resources together — `queryCount` timestamps over as many sets as they take, and a
- *  readback per image in flight —; a failed allocation releases every earlier one. */
-export function createTimingResources(device: GPUDevice, queryCount: number): TimingResources {
+/** The timestamps' sets, their resolve buffer, and the ring an image's timestamps come back
+ *  through, a buffer per image in flight (`closeImage.ts`, `timingReadbacks`). */
+export type TimingResources = {
+  sets: GPUQuerySet[]
+  resolve: GPUBuffer
+  readbacks: ReadbackRing<TimedRead>
+}
+
+/** Allocate the queries together — `queryCount` timestamps over as many sets as they take, and the
+ *  buffer they resolve into —; a failed allocation releases every earlier one. */
+export function createTimingQueries(device: GPUDevice, queryCount: number) {
   const made: Array<GPUQuerySet | GPUBuffer> = []
   try {
     const bytes = queryCount * 8,
@@ -29,17 +47,7 @@ export function createTimingResources(device: GPUDevice, queryCount: number): Ti
       usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
     })
     made.push(resolve)
-    const reads: GPUBuffer[] = []
-    for (let i = 0; i < READBACKS; i++) {
-      const read = device.createBuffer({
-        label: 'Trillion3D timestamp readback',
-        size: bytes,
-        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-      })
-      made.push(read)
-      reads.push(read)
-    }
-    return { sets, resolve, reads }
+    return { sets, resolve }
   } catch (error) {
     for (const resource of made) resource.destroy()
     throw error
@@ -49,12 +57,13 @@ export function createTimingResources(device: GPUDevice, queryCount: number): Ti
 /** One encoder of the image: its first timestamp, once it timed a pass, and its passes' names. */
 export type TimingPart = { slot: number; base: number; names: string[]; resolved: boolean }
 /** The image's timestamps: the next free one, the part that took the last, and the readback its
- *  parts copy into. */
+ *  parts copy into, under what it says of the image (`tag`). */
 export type TimingImage = {
   truncated: boolean
   cursor: number
   latest?: TimingPart
   read: GPUBuffer
+  tag: TimedRead
 }
 
 /**

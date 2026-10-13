@@ -1,9 +1,9 @@
 // The kernels that measure a machine: each runs alone on the engine's device, timed by two GPU
 // timestamps, and says how long its fixed work took. `machine.ts` turns the times into rates.
+import { readGpuBuffer } from '../../packages/sdk-browser/src/gpu/core/readback.ts'
 import type { BenchGpu } from './device.ts'
 import { CHAINED, FILL, READ, TEXTURE_READ, TEXTURE_WRITE, TRIVIAL, WRITE } from './machineWgsl.ts'
 import { MIB } from '../../packages/math/src/constants.ts'
-import { readBack } from './readBack.ts'
 import { createWorkKernels } from './machineWork.ts'
 import { machineParts } from './machineParts.ts'
 
@@ -22,7 +22,6 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
   const usage = GPUBufferUsage
   const set = device.createQuerySet({ type: 'timestamp', count: 2 })
   const resolved = device.createBuffer({ size: 16, usage: usage.QUERY_RESOLVE | usage.COPY_SRC })
-  const read = device.createBuffer({ size: 16, usage: usage.MAP_READ | usage.COPY_DST })
   const buffer = (size: number) => device.createBuffer({ size, usage: usage.STORAGE })
   const stream = buffer(STREAM_BYTES),
     sink = buffer(STREAM_BYTES / 8),
@@ -33,12 +32,14 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
   /** Runs `encode` on a fresh encoder, timestamps resolved after it: the ms between the stamps. */
   const run = async (encode: (encoder: GPUCommandEncoder) => void) => {
     await device.queue.onSubmittedWorkDone()
-    const out = await readBack(gpu, device, read, 16, (encoder) => {
+    const out = await gpu.quiet(() => {
+      const encoder = device.createCommandEncoder({ label: 'bench kernel' })
       encode(encoder)
       encoder.resolveQuerySet(set, 0, 2, resolved, 0)
-      encoder.copyBufferToBuffer(resolved, 0, read, 0, 16)
+      device.queue.submit([encoder.finish()])
+      return readGpuBuffer(device, resolved, 16)
     })
-    const [begin, end] = new BigInt64Array(out)
+    const [begin, end] = new BigInt64Array(out!.buffer)
     return Number(end - begin) / 1e6
   }
   const parts = machineParts(device, { run, stamps }),
@@ -128,18 +129,7 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
     kernels,
     destroy() {
       work.destroy()
-      for (const held of [
-        set,
-        resolved,
-        read,
-        stream,
-        sink,
-        other,
-        sampled,
-        stored,
-        target,
-        ...apart,
-      ])
+      for (const held of [set, resolved, stream, sink, other, sampled, stored, target, ...apart])
         held.destroy()
     },
   }

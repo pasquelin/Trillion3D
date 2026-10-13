@@ -36,7 +36,8 @@ function coupeSansElagage(packed: ReturnType<typeof packDagSelection>, uniforms:
   const { coneRejects, visible, draws } = createDagOraclePredicates({
     packed,
     records,
-    nodeFlags: new Uint8Array(Math.max(1, packed.nodeCount)),
+    // Every (placement, node) kept: no verdict filters a page.
+    nodeFlags: { at: () => 0 },
     ...frames,
   })
   const retenues: number[] = []
@@ -56,47 +57,40 @@ const POSES: Array<[string, number, number]> = [
 ]
 const SEUILS = [0.25, 1, 4]
 
-for (const byLevels of [false, true]) {
-  const nomHierarchie = byLevels ? 'compiler hierarchy' : 'packing hierarchy'
-  test(`${nomHierarchie}: top-down pruning removes no kept cluster`, () => {
-    const roots = sceneRoots(
-      pages,
-      Array.from({ length: 4 }, () => new G.Matrix4()),
-      byLevels,
-    )
-    const packed = packDagSelection(roots)
-    // The same packing with every replacement ceiling withdrawn: what the descent walks when
-    // no node certifies a too-fine subtree. The ceiling must spare some of that walk.
-    const sansPlafond = { ...packed, nodes: packed.nodes.slice() }
-    for (let n = 0; n < packed.nodeCount; n++)
-      sansPlafond.nodes[n * DAG_NODE_FLOATS + NODE_CEIL] = -1
-    let elagages = 0,
-      plafonnes = 0
-    for (const [nom, x, z] of POSES)
-      for (const threshold of SEUILS) {
-        for (let w = 0; w < roots.length; w++)
-          asHostLibrary<G.Matrix4>(roots[w].world).makeTranslation(
-            (w % 2) * 6.5 - 3.25,
-            Math.floor(w / 2) * 6.5 - 3.25,
-            0,
-          )
-        cam.position.set(x, 0, z)
-        cam.lookAt(x, 0, 0)
-        cam.updateMatrixWorld()
-        const uniforms = cameraSelectionUniforms(engineCamera(cam), threshold, [1280, 720])
-        packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld)
-        const expected = coupeSansElagage(packed, uniforms)
-        const actual = [...evaluateDagSelectionKernel(packed, uniforms).pageIds].sort(
-          (a, b) => a - b,
+test('the one hierarchy: top-down pruning removes no kept cluster', () => {
+  const roots = sceneRoots(
+    pages,
+    Array.from({ length: 4 }, () => new G.Matrix4()),
+  )
+  const packed = packDagSelection(roots)
+  // The same packing with every replacement ceiling withdrawn: what the descent walks when
+  // no node certifies a too-fine subtree. The ceiling must spare some of that walk.
+  const sansPlafond = { ...packed, nodes: packed.nodes.slice() }
+  for (let n = 0; n < packed.nodeCount; n++) sansPlafond.nodes[n * DAG_NODE_FLOATS + NODE_CEIL] = -1
+  let elagages = 0,
+    plafonnes = 0
+  for (const [nom, x, z] of POSES)
+    for (const threshold of SEUILS) {
+      for (let w = 0; w < roots.length; w++)
+        asHostLibrary<G.Matrix4>(roots[w].world).makeTranslation(
+          (w % 2) * 6.5 - 3.25,
+          Math.floor(w / 2) * 6.5 - 3.25,
+          0,
         )
-        assert.deepEqual(actual, expected, `${nom} at ${threshold} px`)
-        elagages += descenteComptee(packed, uniforms, true).plancherCoupe
-        plafonnes +=
-          descenteComptee(sansPlafond, uniforms).visites - descenteComptee(packed, uniforms).visites
-      }
-    // Without pruning the proof would be empty: the threshold says the bound did cut somewhere.
-    assert.ok(elagages > 0, `no subtree pruned: the proof covers nothing`)
-    // Same for the ceiling: packing derives it for a primitive without a manifest too.
-    assert.ok(plafonnes > 0, `no too-fine subtree pruned: the ceiling covers nothing`)
-  })
-}
+      cam.position.set(x, 0, z)
+      cam.lookAt(x, 0, 0)
+      cam.updateMatrixWorld()
+      const uniforms = cameraSelectionUniforms(engineCamera(cam), threshold, [1280, 720])
+      packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld)
+      const expected = coupeSansElagage(packed, uniforms)
+      const actual = [...evaluateDagSelectionKernel(packed, uniforms).pageIds].sort((a, b) => a - b)
+      assert.deepEqual(actual, expected, `${nom} at ${threshold} px`)
+      elagages += descenteComptee(packed, uniforms, true).plancherCoupe
+      plafonnes +=
+        descenteComptee(sansPlafond, uniforms).visites - descenteComptee(packed, uniforms).visites
+    }
+  // Without pruning the proof would be empty: the threshold says the bound did cut somewhere.
+  assert.ok(elagages > 0, `no subtree pruned: the proof covers nothing`)
+  // Same for the ceiling: the builder writes it into every hierarchy.
+  assert.ok(plafonnes > 0, `no too-fine subtree pruned: the ceiling covers nothing`)
+})

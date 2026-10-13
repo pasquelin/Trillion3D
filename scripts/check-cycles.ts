@@ -19,13 +19,13 @@
 //                five groups the tree holds today are named there, and a sixth fails. The file is
 //                written by hand as groups are broken; `--write-baseline` prints the ones the tree
 //                holds, for that shrinking, and a name the tree does not have is reported too.
-import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
 import { isTestModule, sourceFilesOf, unitOf } from './repository-files.ts'
 import { normalized } from './check-calls-normalize.ts'
 import { readBaseline, report } from './check-cycles-baseline.ts'
 import { MATH_UNIT, mathLayeringBreaks } from './check-math-layering.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
 const EXTS = /\.m?ts$/
 
@@ -155,11 +155,12 @@ export function newRings(rings: string[][], baseline: readonly string[]): string
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const root = resolve(import.meta.dirname, '..')
   const maintained = (file: string) => !!unitOf(file) && !isTestModule(file)
   const inMath = (file: string) => file.startsWith(MATH_UNIT + '/')
   // One read of the tree: the maintained modules for the rings, the maths with its tests for layering.
-  const sources = [...sourceFilesOf(EXTS, root, (file) => maintained(file) || inMath(file))]
+  const sources = [
+    ...sourceFilesOf(EXTS, REPOSITORY_ROOT, (file) => maintained(file) || inMath(file)),
+  ]
   const files = new Map(sources.filter(([file]) => maintained(file)))
   const rings = cyclesOf(runtimeImportsOf(files))
   const layering = mathLayeringBreaks(new Map(sources.filter(([file]) => inMath(file))))
@@ -172,7 +173,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (process.argv.includes('--write-baseline')) {
     for (const key of [...new Set(rings.map(ringKey))].sort()) console.log(`  ${key}`)
   } else {
-    const { fresh, stale, held } = report(rings, readBaseline(root))
+    const { fresh, stale, held } = report(rings, readBaseline(REPOSITORY_ROOT))
     for (const ring of fresh)
       console.error(
         ring.length === 1

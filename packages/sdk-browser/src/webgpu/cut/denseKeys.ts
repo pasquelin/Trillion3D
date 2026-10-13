@@ -34,6 +34,9 @@ export function createDenseKeySet(mirror?: unknown[]) {
       return rank.byteLength + list.byteLength
     },
     has: (key: number) => rank.get(key) !== 0,
+    /** Where `key` stands in `list`, -1 when it is no member: the place a `remove` fills with the
+     *  last member. */
+    indexOf: (key: number) => rank.get(key) - 1,
     /** True when the key was not a member yet; `value` fills the mirror entry beside it. */
     add(key: number, value?: unknown) {
       if (rank.get(key) !== 0) return false
@@ -88,3 +91,40 @@ export function takeSorted(keys: SortedKeys) {
   keys.listed.clear()
   return ranks
 }
+
+/** Keys listed densely for a GPU list read a thread a key, with the places of the list written
+ *  since it last went up: the composition's roots and rows (`../../placement/composedRowInputs.ts`),
+ *  the placement tree's members drawn whatever the view (`../../gpu/dag/placementTree.ts`). */
+export type MirroredKeys = { set: DenseKeySet; moves: SortedKeys }
+
+export const createMirroredKeys = (): MirroredKeys => ({
+  set: createDenseKeySet(),
+  moves: createSortedKeys(),
+})
+
+/** `key` in `keys` or out of it, as `inside` says: the places of the list it wrote are noted. A
+ *  removal fills its place with the last key. */
+export function mirrorKey(keys: MirroredKeys, key: number, inside: boolean) {
+  const { set, moves } = keys
+  if (inside) {
+    if (set.add(key)) moves.listed.add(set.count - 1)
+    return
+  }
+  const at = set.indexOf(key)
+  if (at < 0) return
+  set.remove(key)
+  if (at < set.count) moves.listed.add(at)
+}
+
+/** The places of `keys`' list written since the last take that the list still holds, increasing:
+ *  a view the next take overwrites. */
+export function takeMirrored(keys: MirroredKeys) {
+  const sorted = takeSorted(keys.moves)
+  let held = sorted.length
+  while (held && sorted[held - 1] >= keys.set.count) held--
+  return sorted.subarray(0, held)
+}
+
+/** `keys`' list as words, the source a run writer sends the places of (`writeRanges`). */
+export const mirroredWords = ({ set }: MirroredKeys) =>
+  new Uint32Array(set.list.buffer, set.list.byteOffset, set.list.length)

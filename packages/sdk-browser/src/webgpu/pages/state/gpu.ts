@@ -1,6 +1,6 @@
-import type { ScreenReflection } from '../../../reflections/gpu.ts'
 import type { HostAttribute, HostAttributes } from '../../../host/resources.ts'
-import type { createGpuPageCache } from '../../../gpu/page/pages.ts'
+import type { ScreenReflection } from '../../../reflections/gpu.ts'
+import type { GpuPageCache } from '../../../gpu/page/pages.ts'
 import type { createGpuPresenter } from '../../../gpu/core/presentation.ts'
 import type { createDeferredLighting } from '../../../lighting/deferred/deferred.ts'
 import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts'
@@ -10,8 +10,7 @@ import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts'
 import type { WebgpuEffects } from '../../effects/webgpuEffects.ts'
 import type { WebgpuGuidePass } from '../../../guides/guidePass.ts'
 import type { WebgpuParticles } from '../../particles/webgpuParticles.ts'
-import type { DeviceGrant } from '../../../gpu/core/errorScope.ts'
-import type { FrameSize } from './renderScale.ts'
+import type { TargetGrant } from '../prepare/targetsSet.ts'
 import type { FloatAtlas } from '../../core/floatAtlas.ts'
 import type { WebgpuImpostors } from '../../impostor/frame.ts'
 import type * as ImpostorCode from '../../../impostor/impostorCode.ts'
@@ -21,7 +20,7 @@ export interface WebgpuGpuState {
   /** The session's handle on the device (`gpu/core/deviceOwners.ts`), from `prepare`: everything
    *  the session creates goes through it, so that the labels name the session. */
   device: GPUDevice | undefined
-  cache: ReturnType<typeof createGpuPageCache> | undefined
+  cache: GpuPageCache | undefined
   colorTexture: GPUTexture | undefined
   depthTexture: GPUTexture | undefined
   colorView: GPUTextureView | undefined
@@ -41,7 +40,9 @@ export interface WebgpuGpuState {
    *  blends, and the depth its surfaces write. A 1×1 texel while the scene carries no transmissive
    *  surface — the binding then exists without costing anything. */
   backdrop: TransmissionBackdrop | undefined
-  reflection?: ScreenReflection
+  /** The view's reflection: the opaque trace's target and the radiance pyramid of its last lit
+   *  image (`../../../reflections/gpu.ts`). */
+  reflection: ScreenReflection | undefined
   surfaces: SurfaceBuffer | undefined
   asIsShare: AsIsShare | undefined
   /** The display filter, made by the first image whose blends filter and kept while the plan
@@ -59,8 +60,8 @@ export interface WebgpuGpuState {
   /** Bytes of the image targets of this size, those the image budget admitted. */
   targetBytes: number
   /** The frame targets asked of the device (`targetGrant.ts`): in flight, or settled when refused
-   *  at that size; gone once granted. */
-  targetGrant: (FrameSize & DeviceGrant & { retryAt?: number }) | undefined
+   *  at that size; gone once granted — once swapped in, made aside. */
+  targetGrant: TargetGrant | undefined
   positionBuffers: Map<HostAttributes, GPUBuffer>
   /** Indices, UVs and normals of transparents, held by the source geometry: two instances of the same
    *  object share the same geometry, therefore the same buffers. `undefined` kept in the table says
@@ -125,6 +126,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     feedbackTexture: undefined,
     feedbackView: undefined,
     backdrop: undefined,
+    reflection: undefined,
     surfaces: undefined,
     asIsShare: undefined,
     displayFilter: undefined,
@@ -153,3 +155,8 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     impostorCode: undefined,
   }
 }
+
+/** `gpu`'s grant while it holds the frames: asked the held way, in flight or refused. Targets made
+ *  aside hold none — the frames draw into those in place meanwhile. */
+export const heldTargetGrant = (gpu: Pick<WebgpuGpuState, 'targetGrant'>) =>
+  gpu.targetGrant?.mode === 'held' ? gpu.targetGrant : undefined

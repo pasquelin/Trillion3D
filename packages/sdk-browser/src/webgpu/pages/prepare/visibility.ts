@@ -1,7 +1,8 @@
+import { createReflectionPipelines } from '../../../reflections/gpu.ts'
 import { createWebgpuVisibilityShaders } from '../../visibility/shaders.ts'
 import { visUniformSlots } from '../../visibility/uniforms.ts'
 import { MAX_DEPTH_LAYER } from '../../../../../sdk-core/src/index.ts'
-import { createGpuHiz } from '../../../gpu/hiz/hiz.ts'
+import { createGpuHiz } from '../../../gpu/hiz/factory.ts'
 import type { GpuHiz } from '../../../gpu/hiz/types.ts'
 import { validated } from '../../../gpu/core/errorScope.ts'
 import { createGpuDraw } from '../../../gpu/draw/draw.ts'
@@ -9,6 +10,7 @@ import { createGpuPartition } from '../../../gpu/partition/factory.ts'
 import { createGpuRestCompact } from '../../../gpu/raster/restCompact.ts'
 import { prepareTransparentOcclusion } from '../../transparent/occlusionHost.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { partitionSourcesOf, restSourcesOf } from './drawSources.ts'
 import {
   bindShade,
   prepareBlendPipelines,
@@ -16,6 +18,13 @@ import {
   prepareRasterPipelines,
   prepareShadeClasses,
 } from './visibilitySteps.ts'
+
+/** The coplanar layer slots `pages` ask: one more than the deepest layer they carry, 1 for none. */
+export function depthLayerSlots(pages: readonly { depthLayer: number }[]) {
+  let deepest = 0
+  for (const rec of pages) if (rec.depthLayer > deepest) deepest = rec.depthLayer
+  return 1 + Math.min(deepest, MAX_DEPTH_LAYER)
+}
 
 /** Builds the blend pipelines, the visibility raster and shade pipelines, the Hi-Z pyramid, the
  *  indirect draw and the partition; throws by name when one of them cannot be made: the visibility
@@ -25,10 +34,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     { drawSlots } = rt.layout
   await prepareBlendPipelines(rt, gpuDevice)
   // Coplanar depth sets draw slots before visibility uniforms and indirect compaction.
-  let maxDepthLayer = 0
-  for (const rec of rt.setup.allPages)
-    if (rec.depthLayer > maxDepthLayer) maxDepthLayer = rec.depthLayer
-  vis.drawLayerSlots = 1 + Math.min(maxDepthLayer, MAX_DEPTH_LAYER)
+  vis.drawLayerSlots = depthLayerSlots(rt.setup.allPages)
   const variant = rt.context?.diagnosticGpuVariant
   const shaders = await createWebgpuVisibilityShaders(
     gpuDevice,
@@ -42,6 +48,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   vis.visBindGroupLayout = shaders.visBindGroupLayout
   vis.zeroFlags = shaders.zeroFlags
   vis.visUniform = shaders.visUniform
+  vis.visModule = shaders.visModule
   const hiz = await createHizFor(rt, gpuDevice)
   await prepareRasterPipelines(rt, gpuDevice, shaders, variant)
   await prepareLayerPipelines(rt, gpuDevice, shaders, variant)
@@ -56,13 +63,24 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
  *  size refuses the scene by name, as one that cannot build the raster that writes it. */
 async function createHizFor(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const [width, height] = rt.setup.viewport
-  const hiz = await createGpuHiz(gpuDevice, 1, 1, rt.layout.drawSlots)
+  // The front depth it folds in is the drawn view's reflection's, whichever view is drawn.
+  const hiz = await createGpuHiz(
+    gpuDevice,
+    1,
+    1,
+    rt.layout.drawSlots,
+    () => rt.gpu.reflection?.front.foldedView,
+  )
   const size = () => hiz?.resize(gpuDevice, Math.max(1, width), Math.max(1, height)) || undefined
   if (!hiz || !(await validated(gpuDevice, size, 'out-of-memory'))) {
     hiz?.dispose()
     throw new Error('WEBGPU_HIZ_UNAVAILABLE')
   }
   rt.vis.gpuHiz = hiz
+  // The reflections march its pyramid, the whole depth: their kernels come with it, or the scene
+  // is refused.
+  rt.vis.reflectionPipelines = await createReflectionPipelines(gpuDevice)
+  if (!rt.vis.reflectionPipelines) throw new Error('WEBGPU_REFLECTIONS_UNAVAILABLE')
   return hiz
 }
 
@@ -75,20 +93,12 @@ async function prepareDrawPath(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, hiz
   vis.gpuDraw = gpuDraw
   // The partition mounts last: it writes compaction buffers and rereads pyramid verdicts.
   const partition = await createGpuPartition(gpuDevice, drawSlots, {
-    items: gpuDraw.itemsBuffer,
-    flags: hiz.flags,
-    restBits: gpuDraw.restBitsBuffer,
-    slotUsed: gpuDraw.slotUsedBuffer,
-    pyramid: () => vis.gpuHiz?.pyramidBuffer(),
+    ...partitionSourcesOf(gpuDraw, hiz),
+    pyramid: () => vis.gpuHiz?.pyramidView(),
   })
   if (!partition) throw new Error('WEBGPU_PARTITION_UNAVAILABLE')
   vis.gpuPartition = partition
   // The tested half's compaction reads the pyramid verdict and draw compaction's list: both.
-  vis.gpuRestCompact = await createGpuRestCompact(gpuDevice, {
-    instances: gpuDraw.instanceBuffer,
-    indirect: gpuDraw.indirectBuffer,
-    slotOffsets: gpuDraw.slotOffsetsBuffer,
-    flags: hiz.flags,
-  })
+  vis.gpuRestCompact = await createGpuRestCompact(gpuDevice, restSourcesOf(gpuDraw, hiz, partition))
   hiz.attach(partition.tested, partition.state)
 }

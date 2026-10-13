@@ -1,13 +1,12 @@
-// Shared fixtures for `summary/summary.test.ts`, `summary/summaryCoverage.test.ts` and `summary/summaryCompute.test.ts`:
+// Shared fixtures for `summary/summary.test.ts` and `summary/summaryCoverage.test.ts`:
 // split out to keep the files under the line budget.
-import type { Report, Row } from '../report/types.ts'
+import type { BenchReport, Row } from '../report/types.ts'
 
 /** A minimal report: one series, one side, just what `resume()` reads. */
-export function rapport(side: Partial<Row>): Report {
+export function rapport(side: Partial<Row>): BenchReport {
   return {
     startedAt: 't0',
     provenance: { machine: null, browser: null, displayCapHz: null },
-    campaignIdentity: null,
     engine: 'engine-test',
     scene: 'scene-test',
     command: 'pnpm run measure',
@@ -22,10 +21,15 @@ export function rapport(side: Partial<Row>): Report {
         cache: null,
         engine: 'engine-test',
         variant: null,
-        errorMetric: 'certifiee',
       },
     },
-    settings: { frames: 8, warmup: 2, width: 640, height: 360, maxPages: 32 } as Report['settings'],
+    settings: {
+      frames: 8,
+      warmup: 2,
+      width: 640,
+      height: 360,
+      maxPages: 32,
+    } as BenchReport['settings'],
     finishedAt: 't1',
     errors: [],
     series: [
@@ -45,9 +49,6 @@ export function rapport(side: Partial<Row>): Report {
 
 export const baseSide: Partial<Row> = {
   engine: undefined,
-  cpuFrameMs: null,
-  gpuFrameMs: null,
-  stageProfile: null,
   selectedTriangles: null,
   uncoveredTriangles: null,
   drawnTriangles: null,
@@ -70,7 +71,6 @@ export const baseSide: Partial<Row> = {
     budgetLimitedCoverage: null,
   },
   geometryBytes: null,
-  load: { start: [], end: [] },
 }
 
 /** The first data row of the table under `## ${section}` in a `resume()` text, keyed by header. */

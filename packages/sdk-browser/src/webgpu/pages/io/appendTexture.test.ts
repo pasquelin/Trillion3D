@@ -10,14 +10,18 @@ import type { HostTexture } from '../../../host/resources.ts'
 import type { Engine } from '../../../engine/types.ts'
 import type { EngineDiagnostic } from '../../../engine/types.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, quadBackend } from '../testScenes.fixture.ts'
+import type { Texture } from '../../../../../sdk-core/src/index.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { queueTableGrowth } from '../prepare/growthQueue.ts'
+import { appendWebgpuTexture } from './appendTexture.ts'
 
 type Group = { entries: Array<{ resource?: { buffer?: unknown } }> }
 
 test('a texture appended after open joins the atlas, regrows its table and rebinds once', async () => {
   installGpuGlobals()
-  const { device, buffers } = mockGpu()
+  const { device, buffers } = fakeDevice(BACKEND)
   const groups: Group[] = []
   const createBindGroup = device.createBindGroup.bind(device)
   device.createBindGroup = (descriptor) => (
@@ -51,10 +55,11 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     assert.equal(pages.length, 2, 'the table regrown by copy into a buffer of its new size')
     assert.equal(pages[1].size, pageTables.color.bytes)
     assert.equal(labelled('texture pages data').length, 2, 'the data ranks moved behind it')
-    // The counters and their two readbacks, made again at the new count; the reduction's own
-    // uniform, made once on a device with compute (every device, #1483), is no counter.
-    const counters = labelled('texture feedback').filter(({ label }) => !label!.includes('reduce'))
-    assert.equal(counters.length, 6, 'the feedback counts the 21 new ranks')
+    // The counters, their list and its two readbacks, made again at the new count; the reduction's
+    // and the gather's uniforms, made once on a device with compute (every device, #1483), are no
+    // counter.
+    const counters = labelled('texture feedback').filter(({ label }) => !label!.includes('uniform'))
+    assert.equal(counters.length, 8, 'the feedback counts the 21 new ranks')
     groups.length = 0
     backend.render(camera())
     const naming = groups.filter((group) =>
@@ -77,4 +82,29 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     fixture.geometry.dispose()
     fixture.material.dispose()
   }
+})
+
+// Appends ran in a chain of their own beside the session's growth queue: one could draw its lane
+// while a growth asked before it still moved the tables.
+test('an append waits in the growth queue, behind a growth asked before it', async () => {
+  const texture = {} as Texture
+  const rt = {
+    setup: {},
+    layout: { growing: undefined },
+    vis: { mapLayer: new Map([[texture, 3]]), dataLayer: new Map() },
+  } as unknown as WebgpuPagesRuntime
+  const order: string[] = []
+  let release = () => {}
+  void queueTableGrowth(rt, async () => {
+    await new Promise<void>((done) => (release = done))
+    order.push('growth')
+  })
+  const slot = appendWebgpuTexture(rt, texture, 'color').then(
+    (held) => (order.push('append'), held),
+  )
+  await new Promise((settle) => setTimeout(settle))
+  assert.deepEqual(order, [], 'the append waits for the growth')
+  release()
+  assert.equal(await slot, 3, 'the slot it holds')
+  assert.deepEqual(order, ['growth', 'append'])
 })

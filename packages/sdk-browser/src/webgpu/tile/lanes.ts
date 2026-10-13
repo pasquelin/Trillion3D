@@ -1,16 +1,12 @@
+import { arrayView } from '../../gpu/core/textureViews.ts'
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
 import { createWebgpuTilePool, type WebgpuTilePool } from './pool.ts'
-import { NO_VICTIMS, type VictimQueue } from './victimHeap.ts'
 import type { WebgpuTilePageTable } from './pageTable.ts'
-import {
-  POOL_LANES,
-  type LaneCounts,
-  type PoolEncoding,
-  type PoolLane,
-} from '../../texture/blockFormats.ts'
+import { type LaneCounts, type PoolEncoding, type PoolLane } from '../../texture/blockFormats.ts'
 import { resizeTileAtlas } from './atlasResize.ts'
 
-/** A lane's pool, the tiles resident in it by id, and its eviction victims of the image. */
-export type Lane = { pool: WebgpuTilePool; resident: Map<number, number>; victims: VictimQueue }
+/** A lane's pool, and the tiles resident in it by id. */
+export type Lane = { pool: WebgpuTilePool; resident: Map<number, number> }
 
 /**
  * The pools of an atlas, one per lane its textures take: the lossless RGBA8 lane, the RGBA block
@@ -45,9 +41,9 @@ export function createTileLanes(
     lanes.set(lane, {
       pool: createWebgpuTilePool(device, shape(lane, layers)),
       resident: new Map(),
-      victims: NO_VICTIMS,
     })
-  for (const lane of POOL_LANES) if (options.layers[lane] > 0) open(lane, options.layers[lane])
+  for (const lane of PREVIEW_LAYOUT_NAMES)
+    if (options.layers[lane] > 0) open(lane, options.layers[lane])
   const standInTexture = device.createTexture({
     label: `Trillion3D texture pool ${kind} stand-in`,
     size: { width: 4, height: 4, depthOrArrayLayers: 1 },
@@ -56,8 +52,8 @@ export function createTileLanes(
   })
   const white = new Uint8Array(4 * 4 * 4).fill(255)
   device.queue.writeTexture({ texture: standInTexture }, white, { bytesPerRow: 16 }, [4, 4])
-  const standIn = standInTexture.createView({ dimension: '2d-array' })
-  const views = () => POOL_LANES.map((lane) => lanes.get(lane)?.pool.view ?? standIn)
+  const standIn = arrayView(standInTexture)
+  const views = () => PREVIEW_LAYOUT_NAMES.map((lane) => lanes.get(lane)?.pool.view ?? standIn)
   const pools = () => [...lanes.values()].map((lane) => lane.pool)
   return {
     lanes,
@@ -78,7 +74,7 @@ export function createTileLanes(
     ) {
       let evicted = 0,
         replaced = 0
-      for (const name of POOL_LANES)
+      for (const name of PREVIEW_LAYOUT_NAMES)
         if (!lanes.has(name) && layers[name] > 0) {
           open(name, layers[name])
           replaced++

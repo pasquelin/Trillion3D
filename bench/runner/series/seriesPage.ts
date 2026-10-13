@@ -4,7 +4,7 @@ import type { Page } from 'playwright'
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
 import { reservoirs } from './seriesPools.ts'
 import type { Side } from '../harness/sideOptions.ts'
-import type { BenchSettings } from '../harness/options.ts'
+import type { BenchSettings } from '../harness/benchSettings.ts'
 import type { LightsPlan } from '../lighting/lamps.ts'
 import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts'
 import { sdkEntryUrl } from '../harness/dists.ts'
@@ -45,15 +45,11 @@ export function measurePayload(
     width: settings.width,
     height: settings.height,
     pixelRatio: settings.dpr,
-    stageProfile: settings.stageProfile,
     // This side's diagnostic variant: it is what makes two sides two variants.
     variant: side.variant ?? null,
-    // This side's screen-error metric (EXPERIMENT): `null` leaves ours.
-    errorMetric: side.errorMetric ?? null,
     trace: settings.trace === true,
     bounce: settings.bounce,
     importedLights: settings.importedLights,
-    profileFrames: settings.profileFrames,
     lights: lights ? lights.lights : [],
     moving: lights ? lights.moving : null,
     // Textures read from the cache: only for an engine that reads the atlas, never the witness.
@@ -64,7 +60,6 @@ export function measurePayload(
     // This side's render scale; `undefined` leaves the display's.
     renderScale: side.renderScale ?? undefined,
     temporalAntialiasing: settings.temporalAntialiasing,
-    mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
     movingNode: settings.movingNode,
     movingNodeRadius: settings.movingNodeRadius,
   }

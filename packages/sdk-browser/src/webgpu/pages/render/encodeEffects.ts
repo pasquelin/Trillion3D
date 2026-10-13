@@ -2,6 +2,21 @@ import { families } from '../../../host/families.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { AccumulatedImage, ComposedImage } from '../../../lighting/deferred/program.ts'
 
+/** The image composition reads, kept from frame to frame: an image allocates none. */
+const composed: ComposedImage = {
+  color: undefined as unknown as GPUTextureView,
+}
+export function composedImage(
+  color: GPUTextureView,
+  share?: GPUTextureView,
+  bloom?: ComposedImage['bloom'],
+) {
+  composed.color = color
+  composed.share = share
+  composed.bloom = bloom
+  return composed
+}
+
 /** The revision an image drawn while the chain compiles keeps: no chain's, which count from 0. */
 const COMPILING = -1
 
@@ -51,7 +66,7 @@ export function encodeEffects(
   run.gpuDrawCalls += gpu.effects.draws
   const bloom = gpu.effects.blend
   if (output === input && !bloom) return accumulated
-  return { color: output, share: accumulated?.share, bloom }
+  return composedImage(output, accumulated?.share, bloom)
 }
 
 /** True when the last encoded image lacks the chain as the page holds it — changed since, or

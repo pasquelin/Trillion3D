@@ -1,5 +1,7 @@
+import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { bitMask, bitWord, byteOf } from '../../../../math/src/wgsl/integer.ts'
 import { InvT3, invTranspose3Prep } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { windingKept, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
@@ -66,19 +68,20 @@ export const MARK_TILE = 8
 
 const LAYOUT_WGSL = wgslBlock(
   'LAYOUT_WGSL',
-  [],
-  `const SHADE_CACHE_CURSOR:u32=${SHADE_CACHE_CURSOR_WORD}u;
-const SHADE_CACHE_ROWS:u32=${SHADE_CACHE_ROWS_WORD}u;
-const SHADE_CACHE_CAPACITY:u32=${SHADE_CACHE_CAPACITY_WORD}u;
-const SHADE_CACHE_END:u32=${SHADE_CACHE_END_WORD}u;
-const ROW_RECORDS:u32=${SHADE_CACHE_HEADER_WORDS}u;
-const ROW_RECORD_WORDS:u32=${ROW_RECORD_WORDS}u;
-const ROW_BASE:u32=${ROW_FRAME_WORDS}u;
-const ROW_PREFIX:u32=${ROW_FRAME_WORDS + 1}u;
-const ROW_MARK_WORDS:u32=${ROW_MARK_WORDS}u;
-const PLANE_WORDS:u32=${ROW_MARK_WORDS / 2}u;
-const TRIANGLE_WORDS:u32=${TRIANGLE_WORDS}u;
-const NO_SLOT:u32=0xffffffffu;
+  [NO_INDEX],
+  `${wgslConsts({
+    SHADE_CACHE_CURSOR: SHADE_CACHE_CURSOR_WORD,
+    SHADE_CACHE_ROWS: SHADE_CACHE_ROWS_WORD,
+    SHADE_CACHE_CAPACITY: SHADE_CACHE_CAPACITY_WORD,
+    SHADE_CACHE_END: SHADE_CACHE_END_WORD,
+    ROW_RECORDS: SHADE_CACHE_HEADER_WORDS,
+    ROW_RECORD_WORDS,
+    ROW_BASE: ROW_FRAME_WORDS,
+    ROW_PREFIX: ROW_FRAME_WORDS + 1,
+    ROW_MARK_WORDS,
+    PLANE_WORDS: ROW_MARK_WORDS / 2,
+    TRIANGLE_WORDS,
+  })}
 /** Plane A of row \`row\`'s marks, of \`rows\` laid; plane B follows it. */
 fn rowMarks(rows:u32,row:u32)->u32{return ROW_RECORDS+rows*ROW_RECORD_WORDS+row*ROW_MARK_WORDS;}
 /** The first word of the triangles, of \`rows\` laid. */
@@ -114,13 +117,13 @@ fn rowFrame(row:u32,world:mat4x4f)->RowFrame{
  let adj=mat3x3f(cacheVec3(at),cacheVec3(at+3u),cacheVec3(at+6u));
  return RowFrame(InvT3(adj,bitcast<f32>(shadeCache[at+9u]),shadeCache[at+10u]!=0u),shadeCache[at+11u]!=0u);
 }
-/** The slot of triangle \`tri\` of row \`row\`, \`NO_SLOT\` for one the cache does not hold. */
+/** The slot of triangle \`tri\` of row \`row\`, \`NO_INDEX\` for one the cache does not hold. */
 fn cachedSlot(row:u32,tri:u32)->u32{
  let rows=shadeCache[SHADE_CACHE_ROWS];
- if(!SHADE_CACHE||row>=rows){return NO_SLOT;}
+ if(!SHADE_CACHE||row>=rows){return NO_INDEX;}
  let word=shadeCache[rowMarks(rows,row)+PLANE_WORDS+bitWord(tri)];
  let bit=bitMask(tri);
- if((word&bit)==0u){return NO_SLOT;}
+ if((word&bit)==0u){return NO_INDEX;}
  let record=ROW_RECORDS+row*ROW_RECORD_WORDS;
  let before=byteOf(shadeCache[record+ROW_PREFIX+(tri>>7u)],bitWord(tri)&3u);
  return shadeCache[record+ROW_BASE]+before+countOneBits(word&(bit-1u));
@@ -141,7 +144,7 @@ export const shadeCacheReadWgsl = (binding: number) =>
 /** The triangle a pixel of row \`row\` shades: as the triangles pass stored it, or decoded here. */
 fn pixelTriangle(row:u32,page:PageInfo,tri:u32)->PixelTriangle{
  let slot=cachedSlot(row,tri);
- if(slot==NO_SLOT){return decodeTriangle(page,tri,rowFrame(row,page.world).invT);}
+ if(slot==NO_INDEX){return decodeTriangle(page,tri,rowFrame(row,page.world).invT);}
  let at=cachedTriangles(shadeCache[SHADE_CACHE_ROWS])+slot*TRIANGLE_WORDS;
  return PixelTriangle(cacheVec4(at),cacheVec4(at+4u),cacheVec4(at+8u),cacheVec4(at+12u),cacheVec4(at+16u),cacheVec4(at+20u),
   cacheVec3(at+24u),cacheVec3(at+27u),cacheVec3(at+30u),cacheVec2(at+33u),cacheVec2(at+35u),cacheVec2(at+37u),cacheVec3(at+39u));

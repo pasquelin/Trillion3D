@@ -114,6 +114,9 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.vis.deformationCompute?.dispose()
   rt.vis.deformationCompute = undefined
   dropGpuSelection(rt)
+  // A cut a growth made beside the running one, never adopted, goes with it.
+  if (rt.growth?.ready && !rt.growth.ready.inPlace) rt.growth.ready.cut.dispose()
+  rt.growth = undefined
   disposeVis(rt)
   releaseTargets(rt)
   for (const buffer of gpu.positionBuffers.values()) buffer.destroy()
@@ -127,8 +130,10 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   pagedBlendCopies.clear()
   blendState.visibleBlend.length = 0
   disposeBlendResources(blendState)
+  blendState.kernels = undefined
   gpu.volumeBuffer?.destroy()
   gpu.volumeBuffer = undefined
+  gpu.zeroUv = undefined
   capture.surfaceCapture?.dispose()
   gpu.deferred?.dispose()
   gpu.temporal?.dispose()
@@ -150,7 +155,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.bounce.probes?.dispose()
   rt.bounce.probes = undefined
   rt.lights.spheres?.buffer.destroy()
-  rt.lights.spheres?.local?.destroy()
+  rt.compose?.inputs?.buffer.destroy()
+  rt.compose?.gpu?.dispose()
   rt.lights.spheres = undefined
   rt.lights.buffer?.destroy()
   const closing = gpu.cache?.dispose()

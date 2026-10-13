@@ -5,17 +5,17 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { refreshWebgpuMaterials } from './refreshMaterials.ts'
-import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
-import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../../row/pageRow.ts'
+import { FLAG_MASK, PAGE_INFO_STRIDE, ROW_WORDS } from '../../../visibility/types.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice, writtenBytes } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../testScenes.fixture.ts'
 import { surfaceOf } from '../../../page/surface.ts'
+import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 
 test('a blended surface rewritten in place reaches its item record at the values refresh', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device, writes } = mockGpu()
+    { device, writes } = fakeDevice(BACKEND)
   fixture.metadata.primitives[0].pass = 'shared-blend'
   fixture.material.transparent = true
   fixture.material.opacity = 0.5
@@ -26,8 +26,8 @@ test('a blended surface rewritten in place reaches its item record at the values
     viewport: [32, 32],
   })
   const rgba = () => {
-    const last = writes.filter((w) => w.label === 'Trillion3D blend item records').at(-1)!
-    return [...new Float32Array(last.bytes.slice().buffer).subarray(16, 20)]
+    const last = writes.filter((w) => w.buffer.label === 'Trillion3D blend item records').at(-1)!
+    return [...new Float32Array(writtenBytes(last).slice().buffer).subarray(16, 20)]
   }
   try {
     await backend.prepare()
@@ -51,7 +51,7 @@ test('a blended surface rewritten in place reaches its item record at the values
 test('an opaque surface turned masked cuts every row of its material', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device, buffers } = mockGpu()
+    { device, buffers } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
@@ -61,11 +61,10 @@ test('an opaque surface turned masked cuts every row of its material', async () 
   const masked = () => {
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
     const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
-    const words = PAGE_INFO_STRIDE / 4
-    const rows = Array.from({ length: table.size / PAGE_INFO_STRIDE }, (_, row) => row * words)
-    const drawn = rows.filter((base) => ints[base + ROW_INDEX_WORDS] > 0)
+    const rows = Array.from({ length: table.size / PAGE_INFO_STRIDE }, (_, row) => row * ROW_WORDS)
+    const drawn = rows.filter((base) => ints[base + PAGE_INFO.at.indexCount] > 0)
     assert.ok(drawn.length, 'the quad has rows')
-    return drawn.every((base) => (ints[base + ROW_FLAGS_WORD] & FLAG_MASK) !== 0)
+    return drawn.every((base) => (ints[base + PAGE_INFO.at.flags] & FLAG_MASK) !== 0)
   }
   try {
     await backend.prepare()
@@ -106,17 +105,18 @@ test('an alpha move is taken in place under a casting light, the shadow over its
     layout: {
       rows: {
         tableEpoch: 1,
+        materialEpoch: 0,
         rowCount: 1,
         blendFirst: 1,
         casterSlots: 1,
-        pageTableInts: new Uint32Array(PAGE_INFO_STRIDE / 4),
+        pageTableInts: new Uint32Array(ROW_WORDS),
         packedRecs: [cutout],
         packedPageIndex: new Int32Array([0]),
       },
       selectionRoots: [{ world: new G.Matrix4() }],
       placement: {
         baseOfRoot: Int32Array.from([0]),
-        rootOfPacked: Int32Array.from([0]),
+        packedCount: 1,
       },
     },
     run: { gate: { movedInPlace() {} } },

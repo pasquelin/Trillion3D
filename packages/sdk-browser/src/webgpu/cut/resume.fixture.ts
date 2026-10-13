@@ -7,7 +7,7 @@ import { fixtureTotals, mountCutAdopter } from './adopter.fixture.ts'
 import { cameraSelectionUniforms, createSelectionUniforms } from '../../gpu/core/selection.ts'
 import { createEngineCamera, writeEngineCamera } from '../../camera/engineCamera.ts'
 import { createWebgpuBudgetState } from '../residency/budgetState.ts'
-import type { GpuCut, GpuSelection } from '../../gpu/core/selection.ts'
+import type { GpuCut, GpuSelection, PageResidency } from '../../gpu/core/selection.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
@@ -50,10 +50,10 @@ export function banc(panne?: 'envoi') {
   }
   const selection = {
     worldRevision: 0,
-    updateResidency(flags: Uint32Array) {
+    updateResidency(flags: PageResidency) {
       comptes.residence++
-      const change = vueResidence !== flags[0]
-      vueResidence = flags[0]!
+      const change = vueResidence !== flags.flag(0)
+      vueResidence = flags.flag(0)
       return change
     },
     dispose() {
@@ -90,7 +90,7 @@ export function banc(panne?: 'envoi') {
     rowsDenied: 0,
     packedCount: 0,
     candidateCount: 1,
-    residentFlags,
+    residency: { length: 1, flag: (page: number) => residentFlags[page] },
     residencyChanges: undefined,
     clearResidencyChanges: () => {},
   }
@@ -159,7 +159,7 @@ export function banc(panne?: 'envoi') {
     shown,
     desired,
     rt,
-    image: () => renderGpuCut(rt, camera, 0, 0, 0),
+    image: () => renderGpuCut(rt, camera, 0, 0),
     arrive: () => {
       page.array = new Uint32Array([0, 1, 2])
     },

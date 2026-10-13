@@ -147,12 +147,12 @@ fn defects_with_a_vertex_moved(
     let source = page_indices(&scene.objects, page);
     let mut moved = positions.to_vec();
     moved[source[0] as usize * 3 + 1] += up;
-    let encoded = crate::geometry_page::encode(
+    let encoded = trillion3d_page_codec::encode::encode(
         &source,
         &moved,
         &[],
         exponent,
-        crate::geometry_page_quant::UV_EXPONENT,
+        trillion3d_page_codec::bits::grid::UV_EXPONENT,
     )
     .expect("encode");
     let digest = hash(&encoded.bytes);

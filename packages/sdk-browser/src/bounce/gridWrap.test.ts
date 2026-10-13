@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { functionText } from './wgslBody.fixture.ts'
 import { wrap } from '../../../math/src/scalar/reals.ts'
@@ -80,7 +80,7 @@ test('sampleLevelField wraps its corner once, outside the corner loop', () => {
 })
 
 test('the hoisted remainder is the per-cell one on every side, near zero and at random', () => {
-  const draw = random(927)
+  const draw = lcgRandom(927)
   const randomCorners = Array.from({ length: 512 }, () => (draw() * 2 ** 32) | 0)
   const around = Array.from({ length: 200 }, (_, index) => index - 100)
   const corners = [...around, ...EDGE_CORNERS, ...randomCorners]

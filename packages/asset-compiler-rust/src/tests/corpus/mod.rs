@@ -3,6 +3,7 @@
 //! what the DAG builder guarantees on it, `cache.rs` what the compiled cache guarantees, and
 //! `run.rs` asserts both on every case of every family.
 use super::*;
+use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
 
 mod attributes;
 mod cache;
@@ -125,19 +126,19 @@ impl Case {
     /// material samples.
     fn carried(&self, flag: u32) -> bool {
         match flag {
-            geometry_page::FLAG_UV => self.sampled[0],
-            geometry_page::FLAG_UV1 => self.sampled[1],
+            FLAG_UV => self.sampled[0],
+            FLAG_UV1 => self.sampled[1],
             _ => true,
         }
     }
     /// The attributes the pages carry, in the order the page format writes them.
-    pub fn attributes(&self) -> Vec<geometry_page::Attribute> {
-        geometry_page::PAGE_ATTRIBUTES
+    pub fn attributes(&self) -> Vec<encode::Attribute> {
+        encode::PAGE_ATTRIBUTES
             .iter()
             .filter(|&&(_, _, flag)| self.carried(flag))
             .filter_map(|&(name, _, flag)| {
                 let (width, values) = self.values(name)?;
-                Some(geometry_page::Attribute {
+                Some(encode::Attribute {
                     flag,
                     width,
                     values: values.to_vec(),
@@ -147,12 +148,9 @@ impl Case {
     }
     /// The texture sets the pages carry, by name: those the seam weld keeps apart.
     pub fn uv_sets(&self) -> Vec<(&'static str, &[f32])> {
-        geometry_page::PAGE_ATTRIBUTES
+        encode::PAGE_ATTRIBUTES
             .iter()
-            .filter(|&&(_, _, flag)| {
-                (flag == geometry_page::FLAG_UV || flag == geometry_page::FLAG_UV1)
-                    && self.carried(flag)
-            })
+            .filter(|&&(_, _, flag)| (flag == FLAG_UV || flag == FLAG_UV1) && self.carried(flag))
             .filter_map(|&(name, _, _)| Some((name, self.values(name)?.1)))
             .collect()
     }

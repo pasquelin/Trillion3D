@@ -25,13 +25,13 @@ type VsmStage = (typeof VSM_STAGES)[number]
 /** VSM stage of a timed pass, by its label; none for a pass of another stage. */
 function vsmStage(name: string): VsmStage | undefined {
   if (!name.startsWith(VSM_PASS_PREFIX)) return undefined
-  if (name.startsWith('vsm.invalidate')) return 'shadowVsmInvalidationMs'
-  // The marking is one pass (`vsm.marking`, `vsmEncode.ts`), the page address update and the
-  // clears in it.
-  if (name.startsWith('vsm.mark')) return 'shadowVsmMarkingMs'
-  if (name.startsWith('vsm.render')) return 'shadowVsmRenderMs'
-  if (name.startsWith('vsm.transmission')) return 'shadowVsmTransmissionMs'
-  if (name.startsWith('vsm.projection')) return 'shadowVsmProjectionMs'
+  const kernel = name.slice(VSM_PASS_PREFIX.length)
+  if (kernel.startsWith('invalidate')) return 'shadowVsmInvalidationMs'
+  // The marking is one pass (`vsmEncode.ts`), the page address update and the clears in it.
+  if (kernel.startsWith('mark')) return 'shadowVsmMarkingMs'
+  if (kernel.startsWith('render')) return 'shadowVsmRenderMs'
+  if (kernel.startsWith('transmission')) return 'shadowVsmTransmissionMs'
+  if (kernel.startsWith('projection')) return 'shadowVsmProjectionMs'
   return 'shadowVsmPageManagementMs'
 }
 

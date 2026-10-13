@@ -1,12 +1,6 @@
 import { wantsSubsurface, SUBSURFACE_TARGET } from '../../../scene/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../../scene/physicalLobes.ts'
 import { wantsPhysicalLobes } from './lobesTarget.ts'
-import { reflectionPlan, REFLECTION_VIEW_BYTES } from '../../../reflections/gpu.ts'
-import { reflectionConeAllocation } from '../../../reflections/conePyramid.ts'
-import { reflectionHistoryBytes } from '../../../reflections/historyTargets.ts'
-import { REFLECTION_RESOLVE_VIEW_BYTES } from '../../../reflections/resolveWgsl.ts'
-import { REFLECTION_SOURCE_BYTES_PER_PIXEL } from '../../../reflections/source.ts'
-import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts'
 import {
   checkSurfaceSize,
   emissiveAoBytes,
@@ -15,12 +9,23 @@ import {
 } from '../../../scene/surfaceBuffer.ts'
 import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts'
 import { wantsAsIsShare } from './asIsShareTarget.ts'
-import { backdropBytes } from '../../transparent/transmission.ts'
+import { backdropBytes, holdsWater } from '../../transparent/transmission.ts'
+import { reflectionBytes } from '../../../reflections/gpu.ts'
+import { wantsProxyStore } from '../../../reflections/proxyStore.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { FrameSize } from '../state/renderScale.ts'
 
 /** Bytes per pixel of the display colour (`DISPLAY_FORMAT`). */
 const DISPLAY_BYTES = 4
+
+/**
+ * Whether the scene has blends — water included —, which write the front depth the reflections
+ * march (`createFrontDepth`'s `blends`): laid out when the session opens, none enters or leaves it
+ * (`webgpuMaterialClassRefusal`). Any other scene keeps a texel of its target and nothing else, and
+ * draws what it drew before.
+ */
+export const sceneBlends = (rt: Pick<WebgpuPagesRuntime, 'blendState'>) =>
+  rt.blendState.blendGpu.length > 0 || !!rt.blendState.frontGranted
 
 /**
  * Whether a frame of `size` makes a display colour of its own at the render size (`Trillion3D
@@ -31,8 +36,7 @@ const DISPLAY_BYTES = 4
  */
 export const makesDisplayColor = (rt: WebgpuPagesRuntime, size: FrameSize) =>
   !size.apart ||
-  (rt.blendState.transmissive > 0 &&
-    (size.renderWidth !== size.width || size.renderHeight !== size.height))
+  (holdsWater(rt) && (size.renderWidth !== size.width || size.renderHeight !== size.height))
 
 /** Proposed image targets, passed to the existing global memory admission before allocation.
  * Device dimensions remain hard limits; streamable pools retain their coverage/tail minima.
@@ -44,7 +48,6 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     { renderWidth: width, renderHeight: height } = size,
     display = size.apart ? size.width * size.height : 0
   if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE')
-  const plan = reflectionPlan(rt)
   checkSurfaceSize(gpuDevice, size.width, size.height, 1)
   return (
     frameTargetBytes(width, height, hiz) -
@@ -62,16 +65,9 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     // The lobes target, or its 1×1 placeholder, which frameTargetBytes counts (`physicalLobes.ts`).
     PHYSICAL_LOBES_TARGET.bytes(width, height, wantsPhysicalLobes(rt)) -
     PHYSICAL_LOBES_TARGET.texelBytes +
-    (plan.pyramid
-      ? reflectionConeAllocation(width, height, gpuDevice.limits, plan.cone).bytes
-      : 0) +
-    // The reprojected source (8 bytes a pixel) and what it is reprojected from (`source.ts`).
-    (plan.active
-      ? width * height * (8 + REFLECTION_SOURCE_BYTES_PER_PIXEL) + REFLECTION_SOURCE_VIEW_BYTES
-      : 8) +
-    (plan.rough ? reflectionHistoryBytes(width, height) + REFLECTION_RESOLVE_VIEW_BYTES : 0) +
-    display * DISPLAY_BYTES +
-    REFLECTION_VIEW_BYTES
+    // The reflection's target and radiance pyramid (`../../../reflections/gpu.ts`).
+    reflectionBytes(width, height, sceneBlends(rt), wantsProxyStore(rt)) +
+    display * DISPLAY_BYTES
   )
 }
 

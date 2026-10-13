@@ -14,8 +14,9 @@ type Ask = {
  * The reads the frames' view asks of `queue`, one asker a url, each with a signal of its own: a
  * url the next frame asks again keeps its read — lifted once it turns visible —, one it no longer
  * asks is let go, so the queue drops it while it waits, its failure's wait included. A frame waits
- * on the reads it asks, whether they are new or on their way since an earlier frame; one asked
- * again after its read settled — its page evicted before it was taken — is read again.
+ * on the reads it asks, whether they are new or on their way since an earlier frame. One asked
+ * again after its read settled finds its page gone from the cache — the plan pins the pages it
+ * asks until they are taken (`../../partition/planPins.ts`) —: it is read again.
  *
  * Cost: O(u) a frame for the u urls it asks, O(a) for the a asks it ends; nothing per landing.
  */

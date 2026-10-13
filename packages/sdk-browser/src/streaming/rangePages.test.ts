@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { eventually } from './eventually.fixture.ts'
 import { sha256Hex } from './sha256Hex.ts'
 import { createPageStreamer } from './pageStreamer.ts'
+import { createPageCache } from './pageCache.ts'
 import type { StreamPage } from './types.ts'
 
 /** A file of `count` parts of four bytes (part i holds 4i + 1 … 4i + 4), served by Range, each
@@ -35,7 +36,10 @@ async function served(t: TestContext, count: number, { gap = 0, wrong = -1, held
       range: { file: 'world.bin', offset: i * (4 + gap) },
     })),
   )
-  const streamer = createPageStreamer(pages, 'http://cache/', { workerCount: 1 })
+  const streamer = createPageStreamer(pages, 'http://cache/', {
+    cache: createPageCache(),
+    workerCount: 1,
+  })
   t.after(() => streamer.dispose())
   return { streamer, asked, release }
 }

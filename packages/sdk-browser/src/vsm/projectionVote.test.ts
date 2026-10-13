@@ -4,14 +4,14 @@
 // counter (the group's whole, `split`) where one does not. The shipped `vsmLaneInit` and
 // `vsmVoteAllTrue` run lane by lane, each subgroup operation answered from the predicates its
 // subgroup's lanes gave at the same call.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
-import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
-const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }, 2 ** 27), {
+const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }), {
   subgroups: true,
 })
 type Vote = {
@@ -81,7 +81,7 @@ function vote(size: number, place: number[], votes: boolean[][]) {
   return { results, split, counted }
 }
 
-const random = seeded(1663)
+const random = mulberry32(1663)
 /** 40 votes: all true, one lane false, a half false, and random ones of every density. */
 const VOTES = Array.from({ length: 40 }, (_, j) =>
   Array.from({ length: 64 }, (_, lane) =>

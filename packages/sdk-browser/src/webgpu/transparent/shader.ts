@@ -1,7 +1,9 @@
-import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts'
+import { TRANSPARENT_GROUP } from './table.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { DRAW_MASK_WGSL } from '../../gpu/dag/shader/drawMaskWgsl.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /**
  * Stable compaction of the transparent clusters an image selected, one indirect command per item.
@@ -32,9 +34,9 @@ export const TRANSPARENT_COMPACT_SHADER = wgslProgram(
 @group(0) @binding(8) var<storage, read> occluded:array<u32>;
 fn selected(i:u32)->bool{
  let cluster=entries[i];
- if(cluster==${TRANSPARENT_NONE}u){return false;}
+ if(cluster==${NO_INDEX}u){return false;}
  if(occluded[i]!=0u){return false;}
- return selectionMask[uni.selectionOffset+cluster]!=0u;
+ return maskSelects(cluster);
 }
 @compute @workgroup_size(64)
 fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
@@ -76,5 +78,5 @@ fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num
  instances[groupOffsets[group]+rank]=i;
 }
 `,
-  [FLAT_INDEX_WGSL, ceilDiv],
+  [FLAT_INDEX_WGSL, ceilDiv, DRAW_MASK_WGSL],
 )

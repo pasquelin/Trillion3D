@@ -1,18 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { refuses } from '../contracts/cache.fixture.ts'
 import { readCookedPhysics } from './cooked.ts'
-import { JOLT_COMMIT } from './joltCommit.ts'
+import {
+  JOLT_COMMIT,
+  PHYSICS_FORMAT_VERSION,
+  PIECES_FORMAT_VERSION,
+} from '../contracts/writtenFormats.ts'
 
 /** The formats the compiler's cook writes (`physics_cook.rs`): plain, and with its pieces. */
-const cook = readFileSync(
-  new URL('../../../asset-compiler-rust/src/physics_cook.rs', import.meta.url),
-  'utf8',
-)
-const read = ['PHYSICS_FORMAT_VERSION', 'PIECES_FORMAT_VERSION'].map((name) =>
-  Number(cook.match(new RegExp(`const ${name}: u32 = (\\d+);`))![1]),
-)
+const read = [PHYSICS_FORMAT_VERSION, PIECES_FORMAT_VERSION]
 const file = { formatVersion: read[0], jolt: JOLT_COMMIT, colliders: [], instances: [] }
 /** A version that is none of those read. */
 const unread = Math.max(...read) + 1

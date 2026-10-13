@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 /**
  * Cache invalidation shaders (step 7): the load-balanced instance-page invalidation, with the
  * helpers it needs (frustum box cull, screen rect, mip level of a rect — the render cull's, from
@@ -75,9 +76,11 @@ struct VsmInvalidationItem{firstBox:u32,boxCount:u32,payload:u32,prefix:u32,}
 @group(1) @binding(0) var<uniform> vsmInv:VsmInvalidationParams;
 @group(1) @binding(1) var<storage,read> vsmInvInstances:array<VsmInvalidationInstance>;
 @group(1) @binding(2) var<storage,read> vsmInvItems:array<VsmInvalidationItem>;
-const VSM_BOX_CASTS:u32=${VSM_BOX_CASTS}u;
-const VSM_BOX_MOVING:u32=${VSM_BOX_MOVING}u;
-const VSM_INVALIDATION_GROUP_SIZE:u32=${VSM_INVALIDATION_GROUP_SIZE}u;
+${wgslConsts({
+  VSM_BOX_CASTS,
+  VSM_BOX_MOVING,
+  VSM_INVALIDATION_GROUP_SIZE,
+})}
 `
 
 /** Page-rect overlap and static caching (the box cull, its rect and the fine-caster test are the
@@ -100,13 +103,6 @@ fn vsmMappedRectPages(pixels:vec4i,h:VsmHandle,mipLevel:u32)->vec4u{
  var bounds=vec4u(0xFFFFFFFFu,0xFFFFFFFFu,0u,0u);
  if(i<arrayLength(&vsmMappedRects)){bounds=vsmMappedRects[i];}
  return vec4u(max(pagesRect.xy,bounds.xy),min(pagesRect.zw,bounds.zw));
-}
-/** Whether any valid page overlaps the page rect. */
-fn vsmTouchesMappedPage(h:VsmHandle,mipLevel:u32,pagesRectIn:vec4u,askedMarks:u32,fineCaster:bool)->bool{
- if(any(pagesRectIn.zw<pagesRectIn.xy)){return false;}
- let wantedMarks=askedMarks|select(0u,VSM_PAGE_FINE,fineCaster);
- let entryCell=vsmTableEntryOf(h,mipLevel,pagesRectIn.xy);
- return vsmMarksMatch(vsmRectMarks(entryCell.tableXY,pagesRectIn),wantedMarks);
 }
 /** Whether an instance is cached as static: its view is cached and its box does not move. */
 fn vsmCachesAsStatic(inst:VsmInvalidationInstance,viewUncached:bool)->bool{

@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 /**
  * Step 5, culling half: the per-page draw commands of the non-cluster raster, on the engine's
  * resident cluster rows (build of the per-page draw commands, page overlap, page cache, box cull
@@ -34,6 +35,7 @@
  * the sphere radius.
  */
 import { CUT_RULE_WGSL } from '../page/cut/rule.ts'
+import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { bitAt, bitIsSet, lowBits, rectCell } from '../../../math/src/wgsl/integer.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
@@ -71,30 +73,51 @@ export const VSM_RENDER_VIEW_DIRECTIONAL = 1
 
 /**
  * Per-chunk parameters (one slot each, the device's `uniformStride` apart, same frame values in
- * every slot). The camera is the main view whose level of detail the casters take: eye (split
+ * every slot), in one table: the struct the kernels read and the words the host writes
+ * (`renderPass.ts`). The camera is the main view whose level of detail the casters take: eye (split
  * double), world-to-view rotation rows (engine convention, −Z forward), focal in pixels, near,
  * perspective 0/1, the cut's threshold.
  */
-export const VSM_RENDER_PARAMS_WGSL = wgslBlock(
-  'VSM_RENDER_PARAMS_WGSL',
+export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
+  ['eyeHigh', 'vec3f'],
+  ['perspective', 'f32'],
+  ['eyeLow', 'vec3f'],
+  ['focal', 'f32'],
+  ['viewRow0', 'vec4f'],
+  ['viewRow1', 'vec4f'],
+  ['viewRow2', 'vec4f'],
+  ['near', 'f32'],
+  ['threshold', 'f32'],
+  ['smallCasterSq', 'f32'],
+  ['rowCount', 'u32'],
+  ['viewCount', 'u32'],
+  ['chunk', 'u32'],
+  ['chunkFirst', 'u32'],
+  ['chunkRows', 'u32'],
+  ['chunkCount', 'u32'],
+  ['cmdCapacity', 'u32'],
+  ['pairCapacity', 'u32'],
+  ['pad', 'u32'],
+] as const)
+const VSM_RENDER_PARAMS_STRUCT_WGSL = wgslBlock(
+  'VSM_RENDER_PARAMS_STRUCT_WGSL',
   [],
+  VSM_RENDER_PARAMS.wgsl,
+)
+const VSM_RENDER_PARAMS_WGSL = wgslBlock(
+  'VSM_RENDER_PARAMS_WGSL',
+  [VSM_RENDER_PARAMS_STRUCT_WGSL],
   `
-struct VsmRenderParams{
- eyeHigh:vec3f,perspective:f32,
- eyeLow:vec3f,focal:f32,
- viewRow0:vec4f,viewRow1:vec4f,viewRow2:vec4f,
- near:f32,threshold:f32,smallCasterSq:f32,rowCount:u32,
- viewCount:u32,chunk:u32,chunkFirst:u32,chunkRows:u32,
- chunkCount:u32,cmdCapacity:u32,pairCapacity:u32,pad:u32,
-}
 /** A caster row the camera's cut selects: world sphere (centre high + radius, centre low), its row,
  *  corners, flags (bit 0 cache as dynamic, bit 1 deforming: it invalidates the pages it draws), and the radius of
  *  its whole object (f32 bits, 0 when unknown: the row's sphere stands in). */
 struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,objectRadius:u32,pad1:u32,}
 const VSM_RENDER_CAND_DYNAMIC:u32=1u;
 const VSM_RENDER_CAND_DEFORMING:u32=2u;
-const VSM_RENDER_VIEW_DIRECTIONAL:u32=${VSM_RENDER_VIEW_DIRECTIONAL}u;
-const VSM_RENDER_COUNTS_HEAD:u32=${VSM_RENDER_COUNTS_HEAD}u;
+${wgslConsts({
+  VSM_RENDER_VIEW_DIRECTIONAL,
+  VSM_RENDER_COUNTS_HEAD,
+})}
 fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chunk*4u+k;}
 `,
 )
@@ -128,7 +151,7 @@ struct VsmRenderRowLod{own:vec4f,parent:vec4f,ownLow:vec4f,parentLow:vec4f,radii
 fn vsmRenderMainPixels(lod:vec4f,low:vec4f,radius:f32)->f32{
  let delta=(lod.xyz-params.eyeHigh)+(low.xyz-params.eyeLow);
  let v=vec3f(dot(params.viewRow0.xyz,delta),dot(params.viewRow1.xyz,delta),dot(params.viewRow2.xyz,delta));
- return projectedBound(lod.w,v,radius,1.0,params.focal,params.near,params.perspective,false);
+ return projectedBound(lod.w,v,radius,1.0,params.focal,params.near,params.perspective);
 }
 /** A caster row's candidate flags, from its mobility word and deformation output: cached as dynamic
  *  while its placement moves, and deforming — its pages invalidated as it draws them —
@@ -140,18 +163,15 @@ fn vsmRenderMainPixels(lod:vec4f,low:vec4f,radius:f32)->f32{
 fn vsmRenderCandidateFlags(word:u32,deformOutput:u32)->u32{
  if((word&${MOBILITY_MOVING}u)==0u){return 0u;}
  return VSM_RENDER_CAND_DYNAMIC|select(0u,VSM_RENDER_CAND_DEFORMING,deformOutput!=0u);
-}`,
-)
-
-/** The opaque caster rows the camera's cut selects (`VSM_RENDER_ROWS_WGSL`). */
-export const vsmRenderCandidatesWgsl = () =>
-  wgslProgram(
-    `@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderCandidates(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let row=flatIndex(wid,nwg,1u)*${VSM_RENDER_GROUP}u+lane;
- if(row>=params.rowCount){return;}
- let page=pages[row];
- if(page.indexCount==0u||(page.flags&${FLAG_BLEND_CASTER}u)!=0u||page.sprite.y!=0.0||(mobility[row]&${MOBILITY_SHADOWLESS}u)!=0u){return;}
- // The main view's level of detail, residency folded.
+}
+/** Whether a row casts nothing into the pass: no corners, a sprite, a placement that casts no shadow,
+ *  or a row of the other kind — \`blend\` the blended casters the transmission takes, else the opaque ones. */
+fn vsmRenderCasterSkipped(page:PageInfo,row:u32,blend:bool)->bool{
+ return page.indexCount==0u||((page.flags&${FLAG_BLEND_CASTER}u)!=0u)!=blend||page.sprite.y!=0.0||(mobility[row]&${MOBILITY_SHADOWLESS}u)!=0u;
+}
+/** Appends the row's candidate when the main view's level of detail, residency folded, selects it;
+ *  \`objectKnown\` carries the radius of its whole object (0, the row's sphere standing in, else). */
+fn vsmRenderAppendCandidate(row:u32,page:PageInfo,objectKnown:bool){
  let lod=lods[row];
  let parentPixels=vsmRenderMainPixels(lod.parent,lod.parentLow,lod.radii.y);
  let ownPixels=vsmRenderMainPixels(lod.own,lod.ownLow,lod.radii.x);
@@ -159,11 +179,29 @@ export const vsmRenderCandidatesWgsl = () =>
  let s=spheres[row];
  let flags=vsmRenderCandidateFlags(mobility[row],page.deformOutput);
  let at=atomicAdd(&counts[0],1u);
- candidates[at]=VsmRenderCandidate(s.c,s.l.xyz,row,page.indexCount,flags,bitcast<u32>(lod.radii.z),0u);
+ candidates[at]=VsmRenderCandidate(s.c,s.l.xyz,row,page.indexCount,flags,select(0u,bitcast<u32>(lod.radii.z),objectKnown),0u);
+}`,
+)
+
+/** A candidates kernel: one thread a caster row, the opaque rows' (\`vsmRenderCandidates\`) or, with
+ *  \`blend\`, the blended rows' of the frame's range (\`frame\`, \`transmissionWgsl.ts\`). */
+export const vsmCandidatesKernel = (name: string, blend: boolean) => `
+@compute @workgroup_size(${VSM_RENDER_GROUP}) fn ${name}(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
+ let i=flatIndex(wid,nwg,1u)*${VSM_RENDER_GROUP}u+lane;
+ if(i>=params.rowCount){return;}
+ let row=${blend ? 'frame.rowFirst+i' : 'i'};
+ let page=pages[row];
+ if(vsmRenderCasterSkipped(page,row,${blend})){return;}
+ vsmRenderAppendCandidate(row,page,${!blend});
 }
-`,
-    [VSM_RENDER_ROWS_WGSL, FLAT_INDEX_WGSL],
-  )
+`
+
+/** The opaque caster rows the camera's cut selects (`VSM_RENDER_ROWS_WGSL`). */
+export const vsmRenderCandidatesWgsl = () =>
+  wgslProgram(vsmCandidatesKernel('vsmRenderCandidates', false), [
+    VSM_RENDER_ROWS_WGSL,
+    FLAT_INDEX_WGSL,
+  ])
 
 // ---- Cull (per candidate × map view) -------------------------------------------------------
 
@@ -215,28 +253,24 @@ fn vsmMaskRectHits(mask2x2:vec4u,mn:vec2u,mx:vec2u)->bool{
  let cellBits=vec4u(xLow*rowsHigh,xHigh*rowsHigh,xHigh*rowsLow,xLow*rowsLow);
  return (mask2x2.x&cellBits.x)!=0u||(mask2x2.y&cellBits.y)!=0u||(mask2x2.z&cellBits.z)!=0u||(mask2x2.w&cellBits.w)!=0u;
 }
-/** Whether any valid page overlaps a pixel rect clamped to the valid page region. */
-fn vsmTouchesMappedPage(h:VsmHandle,mipLevel:u32,pixels:vec4i,askedMarks:u32,fineCaster:bool,useCover:bool)->bool{
+/** Whether any valid page overlaps a pixel rect clamped to the valid page region, and, with the
+ *  receiver cover, a receiver of the rect. */
+fn vsmTouchesMappedPixels(h:VsmHandle,mipLevel:u32,pixels:vec4i,askedMarks:u32,fineCaster:bool,useCover:bool)->bool{
  if(any(pixels.zw<pixels.xy)){return false;}
  let pagesRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE);
- let wantedMarks=askedMarks|select(0u,VSM_PAGE_FINE,fineCaster);
+ if(!vsmTouchesMappedPage(h,mipLevel,pagesRect,askedMarks,fineCaster)){return false;}
+ if(!useCover){return true;}
  let entryCell=vsmTableEntryOf(h,mipLevel,pagesRect.xy);
- if(vsmMarksMatch(vsmRectMarks(entryCell.tableXY,pagesRect),wantedMarks)){
-  if(useCover){
-   let halfPageRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE-1u);
-   let coverLevel=u32(vsmLevelHoldingRect(vec4i(halfPageRect),2));
-   let coverCell=entryCell.tableXY*2u+(halfPageRect.xy&vec2u(1u));
-   let offsetMip=halfPageRect.xy>>vec2u(coverLevel);
-   let offset=offsetMip<<vec2u(VSM_LOG2_COVER_CELLS+coverLevel-1u);
-   let cellRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE-VSM_LOG2_COVER_CELLS);
-   let subRect=cellRect-offset.xyxy;
-   let subRectAtLevel=subRect>>vec4u(coverLevel);
-   let cover8x8=vsmGatherCover(coverCell,coverLevel);
-   return vsmMaskRectHits(cover8x8,subRectAtLevel.xy,subRectAtLevel.zw);
-  }
-  return true;
- }
- return false;
+ let halfPageRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE-1u);
+ let coverLevel=u32(vsmLevelHoldingRect(vec4i(halfPageRect),2));
+ let coverCell=entryCell.tableXY*2u+(halfPageRect.xy&vec2u(1u));
+ let offsetMip=halfPageRect.xy>>vec2u(coverLevel);
+ let offset=offsetMip<<vec2u(VSM_LOG2_COVER_CELLS+coverLevel-1u);
+ let cellRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE-VSM_LOG2_COVER_CELLS);
+ let subRect=cellRect-offset.xyxy;
+ let subRectAtLevel=subRect>>vec4u(coverLevel);
+ let cover8x8=vsmGatherCover(coverCell,coverLevel);
+ return vsmMaskRectHits(cover8x8,subRectAtLevel.xy,subRectAtLevel.zw);
 }
 /** Clips a pixel rect to the uncached page rect bounds of a map's mip. */
 fn vsmClipToStaleRect(pixels:vec4i,h:VsmHandle,mipLevel:u32)->vec4i{
@@ -338,7 +372,7 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
   let fineCaster=vsmIsFineCaster(staticLayer,pixelRadius);
   pixelRadius*=0.5;
   pixels=vsmClipToStaleRect(pixels,h,mipLevel);
-  if(!vsmTouchesMappedPage(h,mipLevel,pixels,markMask,fineCaster,useCover)){continue;}
+  if(!vsmTouchesMappedPixels(h,mipLevel,pixels,markMask,fineCaster,useCover)){continue;}
   let pagesRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE);
   let slot=atomicAdd(&counts[vsmRenderChunkCounter(params.chunk,0u)],1u);
   if(slot>=params.cmdCapacity){continue;}
@@ -377,6 +411,33 @@ export const VSM_RENDER_EXPAND_SPECS: readonly VsmBindingSpec[] = [
 ]
 
 /**
+ * What the expand and the transmission's page list read of a chunk's commands — group 1: 0 params,
+ * 1 commands, 2 counters (rw atomic) —, and a command's words decoded (`vsmRenderCullWgsl`).
+ */
+export const VSM_RENDER_COMMAND_WGSL = wgslBlock(
+  'VSM_RENDER_COMMAND_WGSL',
+  [VSM_CONSTANTS_WGSL, VSM_RENDER_PARAMS_WGSL, bitAt, bitIsSet, lowBits],
+  `
+@group(1) @binding(0) var<uniform> params:VsmRenderParams;
+@group(1) @binding(1) var<storage,read> cmds:array<vec4u>;
+@group(1) @binding(2) var<storage,read_write> counts:array<atomic<u32>>;
+/** The chunk's commands, as many as it holds. */
+fn vsmRenderCommandCount()->u32{return min(atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,0u)]),params.cmdCapacity);}
+struct VsmRenderCommand{id:u32,mip:u32,staticLayer:bool,flatten:u32,rect:vec4u,corners:u32,markMask:u32,markBits:u32,}
+fn vsmRenderCommandOf(cmd:vec4u)->VsmRenderCommand{
+ return VsmRenderCommand(
+  cmd.y&0xFFFFu,
+  (cmd.y>>16u)&7u,
+  bitIsSet(cmd.y,19u),
+  bitAt(cmd.y,20u),
+  vec4u(cmd.z&0x7Fu,(cmd.z>>7u)&0x7Fu,(cmd.z>>14u)&0x7Fu,(cmd.z>>21u)&0x7Fu),
+  cmd.w&0xFFFFu,
+  (cmd.w>>16u)&0xFFu,
+  (cmd.w>>24u)&lowBits(VSM_DIRTY_SLICES));
+}`,
+)
+
+/**
  * `vsmRenderExpand`: group 0 = `VSM_RENDER_EXPAND_SPECS`; group 1: 0 params, 1 commands, 2 counters
  * (rw atomic), 3 pairs (rw). One workgroup per command (2D wrapped), threads over its page rect.
  *
@@ -386,9 +447,6 @@ export const VSM_RENDER_EXPAND_SPECS: readonly VsmBindingSpec[] = [
 export const vsmRenderExpandWgsl = (layout: VsmLayout) =>
   wgslProgram(
     /* wgsl */ `
-@group(1) @binding(0) var<uniform> params:VsmRenderParams;
-@group(1) @binding(1) var<storage,read> cmds:array<vec4u>;
-@group(1) @binding(2) var<storage,read_write> counts:array<atomic<u32>>;
 @group(1) @binding(3) var<storage,read_write> pairs:array<vec4u>;
 /** Marks a physical page dirty. */
 fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
@@ -401,31 +459,23 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
 }
 @compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderExpand(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let index=flatIndex(wid,nwg,1u);
- let count=min(atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,0u)]),params.cmdCapacity);
- if(index>=count){return;}
+ if(index>=vsmRenderCommandCount()){return;}
  let cmd=cmds[index];
- let id=cmd.y&0xFFFFu;
- let mipLevel=(cmd.y>>16u)&7u;
- let staticLayer=bitIsSet(cmd.y,19u);
- let flattenBit=bitAt(cmd.y,20u);
- let rect=vec4u(cmd.z&0x7Fu,(cmd.z>>7u)&0x7Fu,(cmd.z>>14u)&0x7Fu,(cmd.z>>21u)&0x7Fu);
- let corners=cmd.w&0xFFFFu;
- let markMask=(cmd.w>>16u)&0xFFu;
- let markBits=(cmd.w>>24u)&lowBits(VSM_DIRTY_SLICES);
- let h=vsmHandleFromId(id);
- let levelOffset=vsmTableLevelOrigin(h,mipLevel);
- let size=(rect.zw+vec2u(1u))-rect.xy;
+ let c=vsmRenderCommandOf(cmd);
+ let h=vsmHandleFromId(c.id);
+ let levelOffset=vsmTableLevelOrigin(h,c.mip);
+ let size=(c.rect.zw+vec2u(1u))-c.rect.xy;
  // The pool slice the raster writes: the static slice for a static-cached instance.
- let slice=select(0u,vsm.staticSlice,staticLayer);
+ let slice=select(0u,vsm.staticSlice,c.staticLayer);
  for(var i=lane;i<size.x*size.y;i+=${VSM_RENDER_GROUP}u){
-  let vPage=rectCell(rect,size,i);
-  let offset=vsmTableEntryAt(levelOffset,mipLevel,vPage);
+  let vPage=rectCell(c.rect,size,i);
+  let offset=vsmTableEntryAt(levelOffset,c.mip,vPage);
   let page=vsmTableEntryAtOffset(offset);
   // The instance's own layer of this page is uncached: its static slice for a static instance, its
   // dynamic slice for a dynamic one (the cull's mark mask).
-  let layerStale=(vsmPageMarkWord(offset)&markMask)!=0u;
+  let layerStale=(vsmPageMarkWord(offset)&c.markMask)!=0u;
   // Mark the page dirty: pages whose flags carry the instance's mask.
-  if(layerStale){vsmMarkDrawnPage(page,markBits);}
+  if(layerStale){vsmMarkDrawnPage(page,c.markBits);}
   // The raster's page: valid for rendering, and its layer uncached. A static instance is never
   // redrawn into a cached static slice (a page stale in its dynamic layer alone, as the sun's receiver
   // mask makes every requested page each frame): its depth is already there, not merged (no
@@ -433,8 +483,8 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
   if(page.thisLevelDrawable&&layerStale){
    let at=atomicAdd(&counts[vsmRenderChunkCounter(params.chunk,1u)],1u);
    if(at<params.pairCapacity){
-    pairs[at]=vec4u(cmd.x,id|(mipLevel<<16u)|(flattenBit<<20u)|(slice<<21u),vPage.x|(vPage.y<<8u),page.physicalAddress.x|(page.physicalAddress.y<<10u));
-    atomicMax(&counts[vsmRenderChunkCounter(params.chunk,2u)],corners);
+    pairs[at]=vec4u(cmd.x,c.id|(c.mip<<16u)|(c.flatten<<20u)|(slice<<21u),vPage.x|(vPage.y<<8u),page.physicalAddress.x|(page.physicalAddress.y<<10u));
+    atomicMax(&counts[vsmRenderChunkCounter(params.chunk,2u)],c.corners);
    }
   }
  }
@@ -447,12 +497,9 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
       vsmBindingsWgsl(0, VSM_RENDER_EXPAND_SPECS, layout),
       VSM_PAGE_LOOKUP_WGSL,
       VSM_PAGE_MARKS_GATHER_WGSL,
-      VSM_RENDER_PARAMS_WGSL,
+      VSM_RENDER_COMMAND_WGSL,
       FLAT_INDEX_WGSL,
       rectCell,
-      lowBits,
-      bitAt,
-      bitIsSet,
     ],
   )
 

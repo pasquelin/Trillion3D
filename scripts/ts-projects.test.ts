@@ -11,10 +11,10 @@ import {
   tsProjects,
   typeErrors,
 } from './ts-projects.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
-const ROOT = resolve(import.meta.dirname, '..')
 const refuse = () => assert.fail('no owner reads dist/: nothing to build')
-const project = (name: string) => parseProject(resolve(ROOT, name))
+const project = (name: string) => parseProject(resolve(REPOSITORY_ROOT, name))
 
 // A browser proof handed `page.evaluate` a `string[]` where its callback takes a
 // `[string, string]`; `check:changed` let it through, and CI's `check:tools-types` refused it.
@@ -25,9 +25,9 @@ export async function pair(page: Page, names: ${names}): Promise<string> {
 `
 
 function errorsOf(names: string): string[] {
-  const file = resolve(ROOT, 'tests/gpu/renders/pair.gpu.ts')
+  const file = resolve(REPOSITORY_ROOT, 'tests/gpu/renders/pair.gpu.ts')
   const tools = project('tsconfig.tools.json')
-  return typeErrors(projectProgram(tools, [file], new Map([[file, proof(names)]])), ROOT)
+  return typeErrors(projectProgram(tools, [file], new Map([[file, proof(names)]])), REPOSITORY_ROOT)
 }
 
 test('the changed-files gate refuses a type error in a changed GPU proof', () => {
@@ -41,18 +41,21 @@ test('the changed-files gate refuses a type error in a changed GPU proof', () =>
 })
 
 test('a changed TypeScript file no project type-checks is an error, not a skip', () => {
-  assert.deepEqual(changedTypeErrors(ROOT, [], [], refuse), [])
+  assert.deepEqual(changedTypeErrors(REPOSITORY_ROOT, [], [], refuse), [])
   assert.match(
-    changedTypeErrors(ROOT, [], ['tests/gpu/renders/pair.gpu.ts'], refuse).join(),
+    changedTypeErrors(REPOSITORY_ROOT, [], ['tests/gpu/renders/pair.gpu.ts'], refuse).join(),
     /pair\.gpu\.ts: no tsconfig project type-checks it/,
   )
   const tools = project('tsconfig.tools.json')
-  assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/public/publicTypesOnly.ts')))
-  assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/public/publicNode.mts')))
-  assert.ok(!excludes(tools, resolve(ROOT, 'tests/gpu/renders/pair.gpu.ts')))
+  assert.ok(excludes(tools, resolve(REPOSITORY_ROOT, 'tests/fixtures/public/publicTypesOnly.ts')))
+  assert.ok(excludes(tools, resolve(REPOSITORY_ROOT, 'tests/fixtures/public/publicNode.mts')))
+  assert.ok(!excludes(tools, resolve(REPOSITORY_ROOT, 'tests/gpu/renders/pair.gpu.ts')))
   const build = project('tsconfig.json')
-  assert.ok(!excludes(build, resolve(ROOT, 'bench/runner/x.test.ts')), 'outside its include')
-  const fixture = resolve(ROOT, 'packages/sdk-browser/src/x.fixture.ts')
+  assert.ok(
+    !excludes(build, resolve(REPOSITORY_ROOT, 'bench/runner/x.test.ts')),
+    'outside its include',
+  )
+  const fixture = resolve(REPOSITORY_ROOT, 'packages/sdk-browser/src/x.fixture.ts')
   assert.ok(!excludes(build, fixture), 'an emitting project excludes from its output only')
 })
 
@@ -62,7 +65,7 @@ test('the tools read trillion3d from dist/, so their check builds first', () => 
 })
 
 test('the projects are the tracked tsconfig files', () => {
-  const projects = tsProjects(repositoryFiles(ROOT) ?? [])
+  const projects = tsProjects(repositoryFiles(REPOSITORY_ROOT) ?? [])
   assert.ok(projects.includes('tsconfig.tools.json'), projects.join())
   assert.ok(projects.includes('tsconfig.browser.json'), projects.join())
   assert.deepEqual(tsProjects(['a/tsconfig.json', 'tsconfig.core.json', 'x.json']), [

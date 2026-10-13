@@ -1,16 +1,18 @@
-import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { FLAG_BLEND_CASTER, FLAG_MASK, ROW_WORDS } from '../../../visibility/types.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
-import type { Placements } from '../../../page/selection/placements.ts'
 import type { PageSurface } from '../../../page/surface.ts'
-import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts'
 import type { WebgpuLightState } from '../state/lights.ts'
 import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts'
 import { FAR_VALUE } from '../../../../../math/src/constants.ts'
 import { changeBoxes, growClusterBox, recordMoves } from '../../shadow/bounds.ts'
+import {
+  rootOfPacked,
+  type PlacementIndex,
+  type Placements,
+} from '../../../page/selection/placements.ts'
 
 const EVERYWHERE_MIN = [-FAR_VALUE, -FAR_VALUE, -FAR_VALUE],
   EVERYWHERE_MAX = [FAR_VALUE, FAR_VALUE, FAR_VALUE]
-const ROW_WORDS = PAGE_INFO_STRIDE / 4
 /** The rows whose shadow reads their colour map's alpha: a cutout's, and a blended caster's. */
 const ALPHA_READERS = FLAG_MASK | FLAG_BLEND_CASTER
 
@@ -42,7 +44,7 @@ export function shadowsFollowTextures(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
   roots: Placements,
-  rootOfPacked: Int32Array,
+  placement: PlacementIndex,
   slots: ReadonlySet<number> | -1,
 ) {
   if (!lights.store.count) return
@@ -52,10 +54,11 @@ export function shadowsFollowTextures(
   }
   const ints = rows.pageTableInts
   if (!ints || !slots.size) return
-  shadowsFollowRows(lights, rows, roots, rootOfPacked, (row) => {
+  shadowsFollowRows(lights, rows, roots, placement, (row) => {
     const base = row * ROW_WORDS
     return (
-      !!(ints[base + ROW_FLAGS_WORD] & ALPHA_READERS) && slots.has(ints[base + ROW_MAP_LAYER_WORD])
+      !!(ints[base + PAGE_INFO.at.flags] & ALPHA_READERS) &&
+      slots.has(ints[base + PAGE_INFO.at.mapIndex])
     )
   })
 }
@@ -69,7 +72,7 @@ export function shadowsFollowSurfaces(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
   roots: Placements,
-  rootOfPacked: Int32Array,
+  placement: PlacementIndex,
   surfaces: ReadonlySet<PageSurface>,
 ) {
   if (lights.store.count)
@@ -77,7 +80,7 @@ export function shadowsFollowSurfaces(
       lights,
       rows,
       roots,
-      rootOfPacked,
+      placement,
       (row) => surfaces.has(rows.packedRecs[row]?.material as PageSurface),
       'worldChanged',
     )
@@ -93,7 +96,7 @@ function shadowsFollowRows(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
   roots: Placements,
-  rootOfPacked: Int32Array,
+  placement: PlacementIndex,
   stale: (row: number) => boolean,
   change: 'representationChanged' | 'worldChanged' = 'representationChanged',
 ) {
@@ -105,7 +108,7 @@ function shadowsFollowRows(
     for (let row = from; row < to; row++) {
       const rec = stale(row) && rows.packedRecs[row]
       if (!rec) continue
-      const rank = rootOfPacked[rows.packedPageIndex[row]] ?? -1
+      const rank = rootOfPacked(placement, rows.packedPageIndex[row]) ?? -1
       const moving = row >= rows.blendFirst || recordMoves(lights, rank)
       growClusterBox(rec, roots, changeBoxes[+moving].box, rank)
     }
@@ -134,3 +137,4 @@ export {
   readsAsIs,
   wantsContractLighting,
 } from './contractLight.ts'
+import { PAGE_INFO } from '../../../visibility/pageInfo.ts'

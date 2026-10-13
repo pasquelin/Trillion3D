@@ -4,7 +4,7 @@ import { replicateInstances } from '../../scene/replicateInstances.ts'
 import { hostBoundsLot, hostWorldBounds } from '../../host/world/bounds.ts'
 import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import { createMultiplyLot } from '../../page/decode/batch/batchRuntime.ts'
-import { prepareMathBatch } from '../../page/decode/batch/batchState.ts'
+import { mathBatchModule } from '../../page/decode/batch/batchState.ts'
 import type { MeasuredWorldOptions } from '../../engine/types.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 import { resourceProgress } from './resourceProgress.ts'
@@ -17,14 +17,15 @@ import type { ByteMeter } from '../../cluster/byteMeter.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { hostWorldPlacements } from '../../host/world/placements.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 /** What a load that counts bytes adds: the meter of each read, and who hears the tables read. */
 type Metered = {
   meter?: ByteMeter
   onTables?: (tables: PreparedSceneTables) => void
-  /** The session's queue the scene loads through, its world roots bound to it; without one (a
-   *  world's model), they are read by the reader of `pageCache`. */
-  queue?: PageQueue
+  /** The queue the scene's world roots are read through, bound to it: the session's it loads for,
+   *  or — a world's model, before any session — one of its own over its world's page cache. */
+  queue: PageQueue
 }
 
 /** What one prepared scene's load reads and reports through. */
@@ -70,10 +71,7 @@ async function buildScene(load: SceneLoad, tables: PreparedSceneTables) {
       track: resourceProgress(options, diagnose, scope, signal),
       meter: options.meter,
     }),
-    openWorldRoots(metadata, base, signal, options.meter, !tables.partition, {
-      queue: options.queue,
-      cache: options.pageCache,
-    }),
+    openWorldRoots(metadata, base, options.queue, { signal, whole: !tables.partition }),
   ])
   if (skipBaked && metadata.textures)
     diagnose('preparation', `Images read from the cache: ${built.bakedImages}`, {
@@ -172,10 +170,10 @@ export async function loadPreparedScene(
   registerSource: (source: Object3D) => void,
 ) {
   const load: SceneLoad = { options, metadata, base, scope, signal, diagnose }
-  // The compute path the host asked for holds FROM LOAD: the governor receives it before the
-  // first lot, and `configureExplorer` will tell it again without changing anything. Module
-  // load starts here and overlaps with the scene's, which lasts much longer.
-  const mathBatch = prepareMathBatch(options.mathPath ?? 'auto')
+  // The module the load's lots run in starts loading here and overlaps with the scene's, which
+  // lasts much longer; a refusal is told where the lots wait for it, below.
+  const mathBatch = mathBatchModule()
+  mathBatch.catch(() => {})
   // The scene is built from the cache alone: its tables, the binary of the document it draws and
   // the images they locate. `textureSource` reads `'host'` for a model after a world's first
   // (`worldLoader.ts`), or where the platform cannot read the baked levels
@@ -197,17 +195,30 @@ export async function loadPreparedScene(
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await hostBoundsLot(source)
-  // The world roots the scene holds, counted in the session's CPU budget: only that count leaves
-  // the scene; its page source, DAG and binding stay the engine's (`worldRootsOf`).
-  const counted: { pinned: { bundles: number; bytes: number }; bytes(): number }[] = worldRoots
-    ? [worldRoots]
-    : []
   return {
-    ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
+    /** The root of the scene's nodes, replicated as the options ask. */
+    source,
+    /** The node whose lights and environment the scene is lit by: `options.sceneLighting`, else the
+     *  scene's own root before any replication. */
+    sceneLightingSource,
+    /** The meshes and primitives each node of the scene stands for, by node. */
+    associations,
+    /** What the scene draws, one source for each drawn node in the graph's order. */
+    draws: graphDraws(source, associations),
+    /** The rank of each texture of the scene in the table the shaders index. */
+    textureIndices,
+    /** The lot the camera framing takes the scene's bounds in, `null` when no node is bounded;
+     *  the caller returns it. */
+    framingLot,
+    /** The cells a partitioned scene is read by, none when the scene is not partitioned. */
+    partitions,
     /** The clips the file plays (#357). */
     clips: built.clips,
-    worldRoots: counted,
-    // Each glTF node's host node, by its index: a partition renumbers the table, replicas copy it.
+    /** The world roots the scene holds, bound to each session's queue and counted in its CPU
+     *  budget. */
+    worldRoots: worldRoots ? [worldRoots] : [],
+    /** Each glTF node's host node, by its index; none when the scene is partitioned or replicated: a
+     *  partition renumbers the table, replicas copy it. */
     nodes: tables.partition || replicas > 1 ? null : built.nodes,
   }
 }

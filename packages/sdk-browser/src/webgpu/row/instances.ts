@@ -1,7 +1,7 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import { postPackedBases, type PlacementIndex } from '../../page/selection/placements.ts'
 import { pageAddress } from './pageSlots.ts'
-import type { PageList } from '../pages/prepare/catalogue.ts'
+import type { PageList } from '../../page/selection/catalogue.ts'
 
 type Root = { readonly pages: readonly PageRec[] }
 /** One page of a primitive: the root ranks of the primitive's placements, shared by all its pages,
@@ -18,7 +18,10 @@ export type PackedInstances = ReturnType<typeof createPackedInstances>
 
 export function createPackedInstances(roots: readonly Root[], placement: PlacementIndex) {
   const byAddress = new Map<string, PrimitivePage[]>(),
-    placementsOf = new Map<readonly PageRec[], number[]>()
+    placementsOf = new Map<readonly PageRec[], number[]>(),
+    /** The blended pages, each once per primitive: what the casters' rows follow
+     *  (`blendCasters.ts`), never a walk over every page. */
+    blended: PrimitivePage[] = []
   let indexed = 0,
     entries = 0
   const instances = {
@@ -35,6 +38,7 @@ export function createPackedInstances(roots: readonly Root[], placement: Placeme
               list = byAddress.get(address)
             if (list) list.push(page)
             else byAddress.set(address, [page])
+            if (pages[offset].transparent) blended.push(page)
             entries++
           }
         }
@@ -48,6 +52,11 @@ export function createPackedInstances(roots: readonly Root[], placement: Placeme
       for (const { placements, offset } of list)
         for (const root of placements) visit(placement.baseOfRoot[root] + offset)
       return true
+    },
+    /** Hands `visit` the packed rank of every blended instance, primitive page by primitive page. */
+    eachBlended(visit: (packed: number) => void) {
+      for (const { placements, offset } of blended)
+        for (const root of placements) visit(placement.baseOfRoot[root] + offset)
     },
     /** The least packed rank at `address`, the one that names it: the address's first entry's
      *  first placement. Entries follow the root order their primitive first appears in, roots are

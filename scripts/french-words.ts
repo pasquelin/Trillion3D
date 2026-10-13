@@ -58,11 +58,6 @@ export const FRENCH_EXCEPTIONS: Record<string, FrenchException> = {
       'the measurement folder outside Git (`bench/core/paths.ts`, `.gitignore`, AGENTS.md rule 10): ' +
       'every machine and worktree keeps its bench assets there, which no script can fetch again',
   },
-  certifiee: {
-    reason:
-      'a value of the public engine API (`ScreenErrorVariant`, `packages/sdk-core/src/lod/' +
-      'screenErrorVariant.ts`): hosts pass it by name, so renaming it breaks their code',
-  },
   'atlas-couleur': {
     reason:
       'a fixture folder and file name (`tests/fixtures/formats/previews/atlas-couleur`) read by the ' +

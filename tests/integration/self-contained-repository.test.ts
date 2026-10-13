@@ -1,9 +1,9 @@
+import { join } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
 import { gitPaths } from '../../scripts/git-paths.ts'
-const root = new URL('../../', import.meta.url)
+import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
 // THE REPOSITORY NEVER NAMES THE MACHINE IT WAS WRITTEN ON.
 //
@@ -16,18 +16,18 @@ const root = new URL('../../', import.meta.url)
 const HOME_PATH = /\/(?:Users|home)\/[A-Za-z0-9._-]+\//
 
 test('no tracked file points into a home directory', async () => {
-  const tracked = await gitPaths(['ls-files', '-z'], fileURLToPath(root))
+  const tracked = await gitPaths(['ls-files', '-z'], REPOSITORY_ROOT)
   // A submodule is tracked as one entry, a directory: its files are another repository's.
   const submodules = new Set(
     await gitPaths(
       ['config', '-z', '--file', '.gitmodules', '--get-regexp', 'path'],
-      fileURLToPath(root),
+      REPOSITORY_ROOT,
     ).catch(() => []),
   )
   const offenders: string[] = []
   for (const file of tracked) {
     if ([...submodules].some((line) => line.endsWith(`\n${file}`))) continue
-    const bytes = await readFile(new URL(file, root))
+    const bytes = await readFile(join(REPOSITORY_ROOT, file))
     if (HOME_PATH.test(bytes.toString('latin1'))) offenders.push(file)
   }
   assert.deepEqual(offenders, [])

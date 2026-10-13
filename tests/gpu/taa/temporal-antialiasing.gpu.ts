@@ -10,11 +10,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import {
-  runPageProof as runPage,
-  assertSoundProof as assertHealthy,
-} from '../kit/enginePageProof.ts'
-import { estRouge as isRed } from '../kit/sceneImageProof.ts'
+import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts'
+import { isRed } from '../kit/sceneImageProof.ts'
+import { TAA_STILL_FRAMES } from '../../../packages/sdk-browser/src/taa/stillFrames.fixture.ts'
 import { changedPixels, nearEdge } from './antialiasingDiffs.ts'
 
 type Held = { rendered: number[] | undefined; held: number[] | null; count: number }
@@ -24,7 +22,7 @@ type Run = {
   moved: Held
   capabilities: { temporalAntialiasing?: boolean; motionVectors?: string; unsupported?: string[] }
 }
-type Result = Awaited<ReturnType<typeof runPage>> & {
+type Result = Awaited<ReturnType<typeof runPageProof>> & {
   viewport: [number, number]
   sans: Run
   with: Run
@@ -44,8 +42,8 @@ function between(pixels: number[]) {
 
 test('accumulation softens edges only, keeps its history under a pan, and leaves no ghost', async () => {
   const page = resolve(import.meta.dirname, 'temporalAntialiasingPage.ts')
-  const result = (await runPage(page, 'temporalAntialiasing', 'run')) as Result
-  assertHealthy(result)
+  const result = (await runPageProof(page, 'temporalAntialiasing', 'run')) as Result
+  assertSoundProof(result)
   const [width, height] = result.viewport
   const { sans: plain, with: accumulated, witness } = result
   assert.equal(plain.capabilities?.temporalAntialiasing, false, 'without the option, no pass')
@@ -58,10 +56,15 @@ test('accumulation softens edges only, keeps its history under a pan, and leaves
     // The held image is the one just rendered, shown again as it is.
     assert.deepEqual(run.still.held, run.still.rendered, `${name}: held ≠ rendered`)
   }
-  // A full cycle of still frames precedes the hold with accumulation; without, it comes at once.
+  // The still average (`taaStillFrames`: whole cycles of the jitter, `TAA_STILL_DRAWS` draws at
+  // least) precedes the hold with accumulation, and what lands while the view settles restarts it
+  // once at most; without accumulation, the hold comes at once.
   assert.ok(plain.still.count <= 4, `without accumulation, held after ${plain.still.count}`)
   const cycle = accumulated.still.count
-  assert.ok(cycle >= 16 && cycle <= 24, `with accumulation, held after ${cycle}; a cycle expected`)
+  assert.ok(
+    cycle >= TAA_STILL_FRAMES && cycle <= 2 * TAA_STILL_FRAMES,
+    `with accumulation, held after ${cycle}; ${TAA_STILL_FRAMES} to ${2 * TAA_STILL_FRAMES} expected`,
+  )
   assert.deepEqual(witness.still.held, accumulated.still.held, 'two runs differ while still')
   assert.deepEqual(witness.moved.held, accumulated.moved.held, 'two runs differ after the move')
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { probeWorldDevice } from '../capability/worldReady.ts'
 import { holdWorldDevice, worldRecovered } from './worldDevice.ts'
-import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts'
+import { createWorldNotices, worldNoticeListeners } from '../diagnostic/worldNotices.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { WEBGPU_REQUIRED_WGSL_FEATURES } from '../../engine/common.ts'
@@ -100,7 +100,9 @@ test('a session opened while a device is asked again waits on it, and a refused 
 
 test('a recovered world reopens its session and says the time to its first frame, once', async () => {
   const said: Array<{ phase: string; context: Record<string, unknown> }> = []
-  const stop = listenWorldNotices((notice) => said.push(notice as (typeof said)[number]))
+  const stop = worldNoticeListeners.subscribe((notice) =>
+    said.push(notice as (typeof said)[number]),
+  )
   const notices = createWorldNotices()
   const hooks = new Set<() => void>()
   const frames = {
@@ -108,7 +110,7 @@ test('a recovered world reopens its session and says the time to its first frame
     draw: () => [...hooks].forEach((hook) => hook()),
   }
   const cache = createPageCache()
-  cache.touch('kept.bin', new Uint8Array(4))
+  cache.put('kept.bin', new Uint8Array(4))
   let renewed = 0
   worldRecovered({ renew: () => renewed++ }, frames, notices, cache, performance.now() - 5)
   assert.equal(renewed, 1, 'the session reopens on the device granted again')

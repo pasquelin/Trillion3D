@@ -5,6 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuResidencyMirror } from './mirror.ts'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import { pageStateOf } from '../row/pageState.fixture.ts'
 
 test('a key the pool takes is noted for each placement at its arrival, before any row', () => {
   const noted: number[][] = []
@@ -20,7 +21,9 @@ test('a key the pool takes is noted for each placement at its arrival, before an
       slots.push(words)
       resident = words >= 0 ? 1 : 0
     },
-    stats: () => ({ residentPages: resident }),
+    get residentPages() {
+      return resident
+    },
   }
   const mirror = createWebgpuResidencyMirror({
     table: {
@@ -30,9 +33,8 @@ test('a key the pool takes is noted for each placement at its arrival, before an
           if (key === 'k') [0, 2].forEach((packed) => visit(packed))
           return key === 'k'
         },
-        first: (key: string) => (key === 'k' ? 0 : undefined),
       },
-      residentOffsetWords: new Int32Array(3).fill(-1),
+      ...pageStateOf(3),
     },
     tracking: createWebgpuPageTracking([]),
     engineDiagnostic: () => {},

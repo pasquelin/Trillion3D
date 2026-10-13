@@ -1,3 +1,4 @@
+import { DEFAULT_CACHED_BYTES } from '../streaming/pageCache.ts'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
@@ -8,12 +9,9 @@ import {
 import { laneCounts, poolEncoding } from '../texture/blockFormats.ts'
 import { TILES_PER_LAYER } from '../texture/tiles.ts'
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts'
-import { DEFAULT_CPU_BUDGET, defaultGpuBudget, splitMemoryBudget } from './memoryBudget.ts'
+import { defaultGpuBudget, splitMemoryBudget } from './memoryBudget.ts'
 import type { ActiveGpuMemory } from './activeMemory.ts'
-import {
-  cellObjects,
-  worldRootsFixture,
-} from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { cellObjects, worldRootsFixture } from '../scene/worldRootsPages.fixture.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from './shadowBudgetBytes.ts'
 import { DEFAULT_GPU_BUDGET } from './budget.fixture.ts'
 
@@ -52,7 +50,7 @@ const full: ActiveGpuMemory = {
 
 test('active admission uses real pool floors and does not charge inactive fixed reservations', () => {
   const active = { ...full, shadowPool: 0, effectTargets: 0 }
-  const split = splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CPU_BUDGET, undefined, active)
+  const split = splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CACHED_BYTES, undefined, active)
   assert.equal(split.shadowPool, 0)
   assert.equal(split.effectTargets, 0)
   assert.equal(split.frameTargets, active.frameTargets)
@@ -69,11 +67,11 @@ test('the asymmetric real tail floor is admitted exactly or refused, never silen
   assert.equal(textureMinimum, 218103808)
   const active = { ...full, shadowPool: 0, effectTargets: 0, bounceProbes: 0 }
   const exact = active.frameTargets + geometryMinimum + textureMinimum
-  const split = splitMemoryBudget(exact, DEFAULT_CPU_BUDGET, undefined, active)
+  const split = splitMemoryBudget(exact, DEFAULT_CACHED_BYTES, undefined, active)
   assert.equal(split.geometryPool, geometryMinimum)
   assert.equal(split.texturePool, textureMinimum)
   assert.throws(
-    () => splitMemoryBudget(exact - 1, DEFAULT_CPU_BUDGET, undefined, active),
+    () => splitMemoryBudget(exact - 1, DEFAULT_CACHED_BYTES, undefined, active),
     /UNDER_MINIMUM/,
   )
 })
@@ -86,7 +84,7 @@ test('full 4K reservations expose the concrete tail-fixture shortfall instead of
     const fixed = frameTargets + full.shadowPool + full.bounceProbes + full.effectTargets
     assert.throws(
       () =>
-        splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CPU_BUDGET, undefined, {
+        splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CACHED_BYTES, undefined, {
           ...full,
           frameTargets,
         }),
@@ -98,7 +96,7 @@ test('full 4K reservations expose the concrete tail-fixture shortfall instead of
 test('the default total of those 4K reservations funds them, each pool at its default', () => {
   const split = splitMemoryBudget(
     defaultGpuBudget(undefined, full),
-    DEFAULT_CPU_BUDGET,
+    DEFAULT_CACHED_BYTES,
     undefined,
     full,
   )
@@ -109,16 +107,16 @@ test('the default total of those 4K reservations funds them, each pool at its de
 test("shadows still to be made take the pools' room, never under their floors", () => {
   const active = { ...full, shadowPool: 0, effectTargets: 0, bounceProbes: 0 }
   const total = active.frameTargets + geometryMinimum + textureMinimum + 64 * 2 ** 20
-  const free = splitMemoryBudget(total, DEFAULT_CPU_BUDGET, undefined, active)
+  const free = splitMemoryBudget(total, DEFAULT_CACHED_BYTES, undefined, active)
   const reserved = { ...active, shadowReserve: 16 * 2 ** 20 }
-  const less = splitMemoryBudget(total, DEFAULT_CPU_BUDGET, undefined, reserved)
+  const less = splitMemoryBudget(total, DEFAULT_CACHED_BYTES, undefined, reserved)
   assert.equal(
     free.geometryPool + free.texturePool - less.geometryPool - less.texturePool,
     16 * 2 ** 20,
   )
   // More than the room: the pools at their floors, the frame never refused for it.
   const short = { ...active, shadowReserve: 2 ** 30 }
-  const floors = splitMemoryBudget(total, DEFAULT_CPU_BUDGET, undefined, short)
+  const floors = splitMemoryBudget(total, DEFAULT_CACHED_BYTES, undefined, short)
   assert.deepEqual([floors.geometryPool, floors.texturePool], [geometryMinimum, textureMinimum])
 })
 
@@ -126,7 +124,7 @@ test('invalid reservations cannot create artificial space in the global budget',
   for (const value of [-1, NaN, Infinity, 0.5])
     assert.throws(
       () =>
-        splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CPU_BUDGET, undefined, {
+        splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CACHED_BYTES, undefined, {
           ...full,
           frameTargets: value,
         }),
@@ -152,7 +150,7 @@ test('the existing open-world cell fixture keeps its pinned top and held-cell ro
     shadowPool: 0,
     effectTargets: 0,
   }
-  const split = splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CPU_BUDGET, undefined, active)
+  const split = splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CACHED_BYTES, undefined, active)
   const pool = geometryPoolFor({
     budgetBytes: split.geometryPool,
     pageBytes,

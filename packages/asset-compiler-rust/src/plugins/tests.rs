@@ -1,6 +1,7 @@
 //! Tests of the two contracts, and of them alone: what the router chooses, what it refuses, and
 //! what the image registry can read. Each format's behaviour is proven in its fixture.
 use super::*;
+use crate::tests::directories::scratch;
 use std::{fs, path::PathBuf};
 
 mod bmp;
@@ -25,6 +26,15 @@ fn rgba8(decoded: image::ImageDecoded) -> ::image::RgbaImage {
         image::DecodedImage::Rgba8(pixels) => pixels,
         image::DecodedImage::RgbaF32 { .. } => panic!("this driver must yield RGBA8"),
     }
+}
+
+/// RGBA8 bytes a fixture of eight pixels must yield: `colours`, each with the alpha that is its own.
+fn with_alpha(colours: &[[u8; 3]; 8], alpha: &[u8; 8]) -> Vec<u8> {
+    colours
+        .iter()
+        .zip(alpha)
+        .flat_map(|(colour, alpha)| [colour[0], colour[1], colour[2], *alpha])
+        .collect()
 }
 
 /// What a driver declared around the pixels: its transfer function and the named reasons of what
@@ -97,20 +107,6 @@ fn fixture(folder: &str, name: &str) -> Vec<u8> {
     fs::read(path).unwrap_or_else(|error| panic!("{folder}/{name}: {error}"))
 }
 
-/// A disposable directory, named by the case that uses it.
-fn temp_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "trillion3d-plugins-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    fs::create_dir_all(&dir).expect("temp dir");
-    dir
-}
-
 /// Reference image of the BMP and GIF fixtures, 4 × 2 pixels, top row first: four frank colours
 /// then three mixes whose each component is exactly carried by five bits, and each green also by
 /// six. That is what lets both 16-bit BMP writings yield those bytes and not their neighbours; GIF,
@@ -124,4 +120,26 @@ const REFERENCE_RGB: [[u8; 3]; 8] = [
     [247, 206, 8],
     [16, 49, 239],
     [132, 239, 66],
+];
+
+/// The sixteen reference pixels of the TGA and DDS fixtures, top row first: opaque, partial and
+/// zero alpha, so the slightest clipping of the channel shows. The TGA fixtures are their own
+/// 4 × 2 image, the first eight; the DDS surfaces are 4 × 4.
+const REFERENCE_RGBA: [[u8; 4]; 16] = [
+    [255, 0, 0, 255],
+    [0, 255, 0, 128],
+    [0, 0, 255, 255],
+    [255, 255, 0, 64],
+    [0, 0, 0, 0],
+    [255, 255, 255, 255],
+    [17, 34, 51, 68],
+    [200, 100, 50, 150],
+    [10, 20, 30, 40],
+    [240, 230, 220, 210],
+    [1, 2, 3, 4],
+    [250, 251, 252, 253],
+    [128, 128, 128, 128],
+    [0, 128, 255, 32],
+    [255, 128, 0, 224],
+    [64, 96, 128, 160],
 ];

@@ -1,8 +1,8 @@
 import { PI } from '../../../../math/src/wgsl/constants.ts'
 import { LOBE_PACK_WGSL, PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
+import { LOBE_AXIS_WGSL } from '../lobeAxisWgsl.ts'
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 import {
   DIELECTRIC_F0,
   fresnelScalar,
@@ -25,7 +25,7 @@ import {
  * 1 / (π αt αb |(T·H/αt, B·H/αb, N·H)|⁴) and its height-correlated visibility. The coat: a
  * dielectric GGX lobe (F0 0.04) on the coat normal at the coat roughness, weighted by the coat,
  * above a base that the coat's Fresnel at the view, 1 − coat·F(N_c·V), lets through — on every
- * light, the environment, bounced light and the mirror term alike. What a pixel's lights share is
+ * light, the environment and bounced light alike. What a pixel's lights share is
  * taken once: αt, αb, their reciprocals and the distribution's scale 1/(π αt αb) (a light's T·H/αt
  * is a product, its D a quotient by q², the same 8-bit image, `lobeLight.test.ts`), the view's
  * length in the stretched frame and, under a coat, the coat's own surface (`lobeSurface`) when its
@@ -35,21 +35,20 @@ import {
  */
 export const LOBES_LIGHTING_WGSL = wgslBlock(
   'LOBES_LIGHTING_WGSL',
-  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, lambertAlbedoMul, ndotvFloor, vectorRejection],
+  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, lambertAlbedoMul, ndotvFloor],
   `
-struct Lobes{on:bool,strength:f32,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,through:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,viewLength:f32,coatSurface:LobeSurface,}
+struct Lobes{on:bool,skewed:bool,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,through:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,viewLength:f32,coatSurface:LobeSurface,}
 var<private> lobes:Lobes;
-/** A pixel's lobes: its direction \`d\` kept orthogonal to the normal the lighting reads, and what
- *  its lights share of them at its roughness \`rough\`. */
-fn setLobes(d:vec3f,strength:f32,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:vec3f,rough:f32){
- let t=vectorRejection(d,N);let l=dot(t,t);
+/** A pixel's lobes: its lobe axis \`axis\` at its width \`alpha\` (\`lobeAxis\`: the direction kept
+ *  orthogonal to the normal the lighting reads and αt along it, or the round lobe), and what its
+ *  lights share of them. */
+fn setLobes(axis:vec4f,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:vec3f,alpha:f32){
  lobes.on=true;
- lobes.strength=select(0.0,strength,l>1e-12);
- lobes.T=select(vec3f(0.0),t*inverseSqrt(max(l,1e-24)),l>1e-12);
+ lobes.skewed=any(axis.xyz!=vec3f(0.0));
+ lobes.T=axis.xyz;
  lobes.B=cross(N,lobes.T);
  lobes.coat=coat;lobes.coatRough=coatRough;lobes.coatN=coatN;
- let alpha=rough*rough;
- lobes.at=mix(alpha,1.0,lobes.strength*lobes.strength);lobes.ab=alpha;
+ lobes.at=axis.w;lobes.ab=alpha;
  lobes.invAt=1.0/lobes.at;lobes.invAb=1.0/lobes.ab;lobes.dScale=1.0/(PI*lobes.at*lobes.ab);
  lobes.viewLength=length(vec3f(lobes.at*dot(lobes.T,V),lobes.ab*dot(lobes.B,V),ndotvFloor(N,V)));
  // Without a coat, its surface is never read (every coat term asks \`lobes.coat>0.0\`) and the base
@@ -61,14 +60,6 @@ fn setLobes(d:vec3f,strength:f32,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:ve
 }
 /** What the coat lets through of the base: one without lobes. */
 fn lobeThrough()->f32{return select(1.0,lobes.through,lobes.on);}
-/** The mirror term \`m\` of the surface under the coat, and the coat's own reflection on its
- *  normal at its roughness (\`surfaceMirrorLighting\`); as it is on a pixel without lobes. */
-fn lobeMirror(m:vec3f,V:vec3f,P:vec3f)->vec3f{
- if(!lobes.on){return m;}
- var coat=vec3f(0.0);
- if(lobes.coat>0.0){coat=lobes.coat*surfaceMirrorLighting(vec3f(0.0),0.0,lobes.coatRough,lobes.coatN,V,P);}
- return m*lobes.through+coat;
-}
 /** The anisotropic lobe of one light past its direction \`L\`, half-vector \`H\` and \`NdotL\` above
  *  zero, on surface \`s\`, as \`standardLobe\` is the standard one's. */
 fn anisotropicLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{
@@ -101,17 +92,16 @@ fn lobeLight(s:LobeSurface,N:vec3f,V:vec3f,light:vec4f)->vec3f{
  if(coatNdotL>0.0){coat=lobes.coat*standardLobe(lobes.coatSurface,lobes.coatN,V,H,coatNdotL,light.w);}
  var base=vec3f(0.0);
  if(NdotL>0.0){
-  if(lobes.strength>0.0){base=anisotropicLobe(s,N,V,L,H,NdotL,light.w);}
+  if(lobes.skewed){base=anisotropicLobe(s,N,V,L,H,NdotL,light.w);}
   else{base=standardLobe(s,N,V,H,NdotL,light.w);}
  }
  return base*lobes.through+coat;
 }
 /** A rectangle's fitted lobe of reflectance \`f0\` at the normal \`N\` (\`rectLtc\`), its polygon
- *  and the view stretched by the anisotropy (\`strength\` along \`T\`) as αt stretches the
- *  distribution. */
-fn rectLobe(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32,strength:f32,T:vec3f)->vec3f{
- if(!(strength>0.0)){return rectLtc(r,N,V,f0,rough);}
- let alpha=rough*rough;let k=alpha/mix(alpha,1.0,strength*strength)-1.0;
+ *  and the view stretched by the anisotropy (αt along \`T\`) as αt stretches the distribution. */
+fn rectLobe(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
+ if(!lobes.skewed){return rectLtc(r,N,V,f0,rough);}
+ let T=lobes.T;let k=lobes.ab/lobes.at-1.0;
  let s=RectView(r.a+k*T*dot(T,r.a),r.b+k*T*dot(T,r.b),r.c+k*T*dot(T,r.c),r.d+k*T*dot(T,r.d),r.window);
  return rectLtc(s,N,normalize(V+k*T*dot(T,V)),f0,rough);
 }
@@ -126,35 +116,41 @@ fn lobeRectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  let incident=rectIrradianceOf(r,N);
  if(incident.w<=0.0){return coat;}
  let E=light.colorIntensity.w*incident.w;
- let specular=rectLobe(r,N,V,f0,rough,lobes.strength,lobes.T)*light.colorIntensity.w*r.window;
+ let specular=rectLobe(r,N,V,f0,rough)*light.colorIntensity.w*r.window;
  return (lambertAlbedoMul(rgb,metal)*E+specular)*tint*lobes.through+coat;
 }`,
 )
 
-/** A lobeless program's stand-ins (`LOBES_LIGHTING_WGSL`'s): no lobe is ever set, so the coat
- *  lets the whole base through, an exact one, and the mirror term is the surface's — every term
- *  they weigh keeps its bits. */
+/** A lobeless program's stand-in (`LOBES_LIGHTING_WGSL`'s): no lobe is ever set, so the coat
+ *  lets the whole base through, an exact one — every term it weighs keeps its bits. */
 export const LOBELESS_LIGHTING_WGSL = wgslBlock(
   'LOBELESS_LIGHTING_WGSL',
   [],
-  `fn lobeThrough()->f32{return 1.0;}
-fn lobeMirror(m:vec3f,V:vec3f,P:vec3f)->vec3f{return m;}`,
+  'fn lobeThrough()->f32{return 1.0;}',
+)
+
+/** The decode of a texel of the lobes target into a pixel's lobes (`lobesAt`), at its roughness
+ *  `rough`, its coat normal turned by `side` (-1 where the water composite turned the stored
+ *  normal to face the eye, `../../webgpu/water/waterLobesWgsl.ts`): the one reading of the opaque
+ *  resolve, the water and the opaque reflection (`../../reflections/trace.ts`). */
+export const LOBES_DECODE_WGSL = wgslBlock(
+  'LOBES_DECODE_WGSL',
+  [LOBE_PACK_WGSL, LOBE_AXIS_WGSL],
+  `
+fn lobesAt(w:vec4u,side:f32,N:vec3f,V:vec3f,rough:f32){
+ let alpha=lobeAlpha(rough);
+ setLobes(packedLobeAxis(w,N,alpha),unpack2x16unorm(w.z).y,bitcast<f32>(w.w),lobeOctDecode(w.y)*side,N,V,alpha);
+}`,
 )
 
 /** The read of a pixel's lobes from the lobes target, a read-only storage texture: no sampled
- *  texture of the sixteen a stage is guaranteed (`../deferred/setup.ts`). `lobesAt` decodes a
- *  texel `w`, its coat normal turned by `side` (-1 where the water composite turned the stored
- *  normal to face the eye, `../../webgpu/water/waterLobesWgsl.ts`); `readLobes`, the opaque
+ *  texture of the sixteen a stage is guaranteed (`../deferred/setup.ts`). `readLobes`, the opaque
  *  resolve's, reads the pixel's texel as it is stored. */
 export const LOBES_TARGET_WGSL = wgslBlock(
   'LOBES_TARGET_WGSL',
-  [LOBE_PACK_WGSL],
+  [LOBES_DECODE_WGSL],
   `
 ${PHYSICAL_LOBES_TARGET.wgsl}
-fn lobesAt(w:vec4u,side:f32,N:vec3f,V:vec3f,rough:f32){
- let s=unpack2x16unorm(w.z);
- setLobes(lobeOctDecode(w.x),s.x,s.y,bitcast<f32>(w.w),lobeOctDecode(w.y)*side,N,V,rough);
-}
 fn readLobes(coord:vec2i,N:vec3f,V:vec3f,rough:f32){lobesAt(textureLoad(physicalLobes,coord),1.0,N,V,rough);}`,
 )
 

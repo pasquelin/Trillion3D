@@ -29,15 +29,6 @@ const TABLE = {
     editorOnly: false,
     invalidates: 'none',
   },
-  filter: {
-    kind: 'enum',
-    default: 1,
-    values: [0, 1, 2],
-    apply: 'pipeline',
-    group: 'shadows',
-    editorOnly: false,
-    invalidates: 'none',
-  },
 } as const satisfies Record<string, RenderSettingEntry>
 
 test('with nothing written, every setting is its default', () => {
@@ -83,7 +74,6 @@ test('a value out of its entry is refused, and an editor setting is the editorâ€
   const settings = createRenderSettings(TABLE)
   assert.throws(() => settings.set('rays', 0, 'page'), /RENDER_SETTING_VALUE/)
   assert.throws(() => settings.set('rays', 2.5, 'page'), /RENDER_SETTING_VALUE/)
-  assert.throws(() => settings.set('filter', 3, 'page'), /RENDER_SETTING_VALUE/)
   assert.throws(() => settings.set('glow', 1 as never, 'page'), /RENDER_SETTING_VALUE/)
   assert.throws(() => settings.set('bias', 0, 'quality'), /RENDER_SETTING_EDITOR_ONLY/)
   assert.throws(() => settings.set('bias', Number.NaN, 'editor'), /RENDER_SETTING_VALUE/)

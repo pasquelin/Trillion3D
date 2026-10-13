@@ -42,7 +42,8 @@
  * No frame bins every row at once: a sun's first bins, and those after it turned or after an upload
  * the bins could not follow, are made a slice a frame too, the worst case kept meanwhile.
  */
-import { CLUSTER_SPHERE_FLOATS as STRIDE } from '../gpu/shadow/sphereContract.ts'
+import { f32Bits, fromF32Bits } from '../../../math/src/float/bits.ts'
+import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
 import type { VsmClipmap } from './clipmap.ts'
 import { VSM_LEVEL0_PAGES, VSM_MIPS } from './constants.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
@@ -93,16 +94,14 @@ const SIDE = VSM_LEVEL0_PAGES
 const S_BINS = 128,
   E_BINS = 64,
   UNIT = 2 ** -10
-const bitsOf = (v: number) => new Int32Array(Float32Array.of(v).buffer)[0]
-const ofBits = (bits: number) => new Float32Array(Int32Array.of(bits).buffer)[0]
-const UNIT_BITS = bitsOf(UNIT)
+const UNIT_BITS = f32Bits(UNIT)
 /** The least s of bin j: quarter octaves, the mantissa's two top bits (shift 21). */
 const sLeast = Float64Array.from({ length: S_BINS }, (_, j) =>
-  j === 0 ? -Infinity : ofBits(UNIT_BITS + ((j - 1) << 21)),
+  j === 0 ? -Infinity : fromF32Bits(UNIT_BITS + ((j - 1) << 21)),
 )
 /** The greatest e of bin k: half octaves, the mantissa's top bit (shift 22). */
 const eMost = Float64Array.from({ length: E_BINS }, (_, k) =>
-  k === E_BINS - 1 ? Infinity : ofBits(UNIT_BITS + (k << 22)),
+  k === E_BINS - 1 ? Infinity : fromF32Bits(UNIT_BITS + (k << 22)),
 )
 const S_TOP = sLeast[S_BINS - 1],
   E_TOP = eMost[E_BINS - 2],
@@ -249,7 +248,7 @@ function binBlock(ref: Float64Array, shape: Shape, p: Float32Array, start: numbe
   // would be reloaded every row.
   const [a0, a1, a2, a3, a4, a5, a6, a7, a8] = shape.axes,
     [h0, h1, h2, l0, l1, l2] = ref
-  for (let i = 0, at = start * STRIDE; i < n; i++, at += STRIDE) {
+  for (let i = 0, at = start * CLUSTER_SPHERE_FLOATS; i < n; i++, at += CLUSTER_SPHERE_FLOATS) {
     const dx = p[at] - h0 + (p[at + 4] - l0),
       dy = p[at + 1] - h1 + (p[at + 5] - l1),
       dz = p[at + 2] - h2 + (p[at + 6] - l2)
@@ -459,7 +458,8 @@ function slice(b: Binned, shape: Shape, bound: VsmRowBound, budget: number) {
 }
 
 /** Rows of the bound's copy from its first. */
-const rowsOf = (bound: VsmRowBound) => bound.spheres!.packed.length / STRIDE - bound.first
+const rowsOf = (bound: VsmRowBound) =>
+  bound.spheres!.packed.length / CLUSTER_SPHERE_FLOATS - bound.first
 
 /** Each sun starts making bins around this frame's camera, unless it is already. */
 function startMaking(bound: VsmRowBound) {
@@ -1165,7 +1165,8 @@ export function vsmBoundChunk(
   const frame = frameLights(lights)
   // Rows past the copy have no sphere to bound them.
   if (!frame || !(frame.clipmaps.length || frame.maps.length)) return undefined
-  if (range.end <= range.first || range.end > spheres.packed.length / STRIDE) return undefined
+  if (range.end <= range.first || range.end > spheres.packed.length / CLUSTER_SPHERE_FLOATS)
+    return undefined
   const rebinned = updateBins(bound, spheres, range, frame, worst)
   if (rebinned === undefined || bound.suns.some((sun) => !sun.ready)) return undefined
   // The local lights are bounded by their bins once whole; until then, every page a row.

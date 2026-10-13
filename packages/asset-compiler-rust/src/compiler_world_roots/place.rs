@@ -6,12 +6,13 @@
 //! object's triangles turn back to the front: a world page is drawn under the identity.
 use super::*;
 use crate::compiler_world::cofactor_direction;
-use crate::dag::tight::ball_of_balls;
-use crate::geometry_page::{Attribute, FLAG_COLOR, FLAG_NORMAL};
-use crate::proxy::{place, world_scale};
+use crate::proxy::placement::place;
 use crate::shared_math::unit;
-use trillion3d_math::linear::determinant;
+use trillion3d_math::linear::{determinant, longest_column};
 use trillion3d_math::matrix::transform_point;
+use trillion3d_page_codec::encode::Attribute;
+use trillion3d_page_codec::min_ball::ball_of_balls;
+use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL};
 
 /// The attributes a world vertex may carry, in the order a page writes them, at the width a world
 /// page stores each: the page format's own.
@@ -85,7 +86,7 @@ pub(super) fn gather(
         let mirrored = determinant(&placed.matrix) < 0.0;
         place(&placed.cover.positions, &placed.matrix, &mut positions);
         place_attributes(placed.cover, &placed.matrix, mirrored, &mut carried);
-        let scale = world_scale(&placed.matrix);
+        let scale = longest_column(&placed.matrix);
         let (mut indices, mut error, mut spheres) = (Vec::new(), 0.0f64, Vec::new());
         for root in &placed.cover.clusters {
             for &[a, b, c] in root.indices.as_chunks::<3>().0 {

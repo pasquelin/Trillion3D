@@ -1,12 +1,12 @@
-import { DRAW_UNPAGED, planItem, planPipeline } from './plan.ts'
+import { planItem, planPipeline } from './plan.ts'
 import { PLAN_PIPELINE_MASK } from './planEntry.ts'
-import { itemKept } from './hierarchyCull.ts'
 import { instanceWord, placeBlendSlots } from './runs.fixture.ts'
 import { RUN_WORDS, slotCapacity } from './planLayout.ts'
 import { sortSeedsFarToNear } from './sortPlan.ts'
 import { eyeKey } from './eyeKey.ts'
-import type { createWebgpuBlendState } from './state.ts'
-type BlendState = ReturnType<typeof createWebgpuBlendState>
+import type { WebgpuBlendState } from './state.ts'
+import { hasBit } from '../../../../math/src/scalar/bits.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** The cull mode the vertex stage applies to an entry's instances, read back from the pipeline the
  *  entry sets (`planPipeline`): zero when the pipeline culls. */
@@ -69,14 +69,14 @@ export function expandBlendPlan(x: BlendExpansion) {
     // unpaged item draws its chunks, at the stride its geometry gave it.
     const owner = planItem(order[first])
     const vertexCount =
-      entries === 1 && draws[owner * 4] === DRAW_UNPAGED ? draws[owner * 4 + 3] : x.maxVertexWords
+      entries === 1 && draws[owner * 4] === NO_INDEX ? draws[owner * 4 + 3] : x.maxVertexWords
     for (let k = 0; k < entries; k++) {
       const entry = order[first + k],
         item = planItem(entry)
-      if (!itemKept(keep, item)) continue
+      if (!hasBit(keep, item)) continue
       const word = instanceWord(item, planVertexCull(entry))
       const paged = draws[item * 4]
-      if (paged === DRAW_UNPAGED) {
+      if (paged === NO_INDEX) {
         const words = draws[item * 4 + 3],
           chunks = draws[item * 4 + 1]
         for (let j = 0; j < chunks; j++) {
@@ -103,11 +103,11 @@ export function expandBlendPlan(x: BlendExpansion) {
 }
 
 /** The eye the frame data holds: what the CPU model ranks from. */
-export const orderEye = (blendState: BlendState) => blendState.frameDoubles.subarray(0, 3)
+export const orderEye = (blendState: WebgpuBlendState) => blendState.frameDoubles.subarray(0, 3)
 
 /** Copies every item's key into the flat array the CPU model ranks from (`orderKeys`), its source
  *  rank — its index — breaking equal keys. */
-export function refreshEyeKeys(blendState: BlendState, eye: ArrayLike<number>) {
+export function refreshEyeKeys(blendState: WebgpuBlendState, eye: ArrayLike<number>) {
   const items = blendState.blendGpu,
     ex = eye[0],
     ey = eye[1],
@@ -120,10 +120,10 @@ export function refreshEyeKeys(blendState: BlendState, eye: ArrayLike<number>) {
 
 /** The CPU model's own tables per scene, never the engine's: each pass's paint order (seed
  *  indices, kept from frame to frame as the GPU's) and its slot runs. */
-const models = new WeakMap<BlendState, { orders: Uint32Array[]; runs: Uint32Array[] }>()
+const models = new WeakMap<WebgpuBlendState, { orders: Uint32Array[]; runs: Uint32Array[] }>()
 
 /** The CPU model of `blendState`: its tables, sized by the plan. */
-export function cpuModel(blendState: BlendState) {
+export function cpuModel(blendState: WebgpuBlendState) {
   const words = slotCapacity(blendState.maxPlanEntries) * RUN_WORDS
   let model = models.get(blendState)
   if (!model || model.runs[0].length !== words) {
@@ -145,7 +145,7 @@ let sortedEntries = new Uint32Array(0),
  * keys and rule, its runs placed as `placeBlendSlots` places them. Returns the sorted entries; the
  * runs land in `cpuModel(blendState).runs[pass]`. `orderKeys` must hold every item's key.
  */
-export function orderBlendPlanCpu(blendState: BlendState, pass: number) {
+export function orderBlendPlanCpu(blendState: WebgpuBlendState, pass: number) {
   const seeds = blendState.seeds[pass],
     n = seeds.length,
     model = cpuModel(blendState)

@@ -1,45 +1,42 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
-import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
+import type { WebgpuDiagnosticChannel } from '../pages/io/diagnostics.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import type { WebgpuResidencySets } from './sets.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
 
-type Cache = ReturnType<typeof createGpuPageCache>
-type Diagnostics = ReturnType<typeof createWebgpuDiagnostics>
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
 export type QueueOptions = {
-  tracking: Tracking
+  tracking: WebgpuPageTracking
   sets: WebgpuResidencySets
   /** A packed rank's record: admission reads a request's level there. */
   recordOf: (id: number) => PageRec | undefined
   /** Slots the queue can ask beyond root coverage, read every cut. */
   room: () => number
-  getCache: () => Cache | undefined
+  getCache: () => GpuPageCache | undefined
   getFrame: () => number
   updatePins: () => void
   /** The groups the cut closes over: what admission walks (`requestAdmission.ts`). */
   closure: Pick<GroupClosure, 'closeOver'>
   /** A pass over the queue (`residentEnsurer.ts`): true when it left nothing to do, which stands
-   *  while neither the queue nor its `revision` moves; `touchLower` is what a pass would still do. */
+   *  while neither the queue nor its `revision` moves. */
   ensureResident: ((
     wanted: readonly PageRec[],
     frame: number,
     jobId: number,
     cameraWaiting: () => boolean,
     landed: () => void,
-  ) => Promise<boolean | void>) & { revision: () => number; touchLower: () => void }
+  ) => Promise<boolean | void>) & { revision: () => number }
   markLost: (error: unknown) => void
   traceEnabled: boolean
-  traceDiagnostic: Diagnostics['traceDiagnostic']
-  diagnosticFailure: Diagnostics['diagnosticFailure']
+  traceDiagnostic: WebgpuDiagnosticChannel['traceDiagnostic']
+  diagnosticFailure: WebgpuDiagnosticChannel['diagnosticFailure']
 }
 
 /** What the queue's job and its face share (`createWebgpuResidencyQueue`). */
 export type QueueRun = {
   options: QueueOptions
-  items: Tracking['wantedPages']
+  items: WebgpuPageTracking['wantedPages']
   pending: Promise<unknown>
   scheduled: boolean
   running: boolean
@@ -47,7 +44,7 @@ export type QueueRun = {
   landing: ReturnType<typeof createLanding>
   inputs: () => number
   settledAt: number
-  settledCache: Cache | undefined
+  settledCache: GpuPageCache | undefined
 }
 
 /**
@@ -88,10 +85,10 @@ export function createLanding() {
 /** The queue followed: pins updated, then a job queued unless the last pass settled what it
  *  reads, or one already runs and will run again. */
 export function followQueue(q: QueueRun) {
-  const { tracking, getCache, getFrame, updatePins, ensureResident, traceEnabled } = q.options
+  const { tracking, getCache, getFrame, updatePins, traceEnabled } = q.options
   updatePins()
   const settled = !q.running && q.settledAt === q.inputs() && q.settledCache === getCache()
-  if (settled) return ensureResident.touchLower()
+  if (settled) return
   const queuedAt = performance.now(),
     jobId = ++q.job,
     jobFrame = getFrame()
@@ -107,7 +104,7 @@ export function followQueue(q: QueueRun) {
         q.items.filter((rec) => !!getCache()?.get(pageAddress(rec))),
       ),
       queueDepth: q.items.length,
-      residentPages: getCache()?.stats().residentPages ?? null,
+      residentPages: getCache()?.residentPages ?? null,
     }))
   if (q.running) return
   q.running = true
@@ -160,7 +157,7 @@ async function runJob(q: QueueRun, at: { jobFrame: number; jobId: number; queued
       // The requested set is sampled by a bounded probe, and what the cache holds of it is the
       // count it already holds: filtering the whole set walked it twice more.
       pages: tracking.traceKeys('job', tracking.wanted),
-      residentPages: getCache()?.stats().residentPages ?? null,
+      residentPages: getCache()?.residentPages ?? null,
       queueWaitMs: started - queuedAt,
       cpuWorkIncluded: true,
       gpuQueueWaitIncluded: false,

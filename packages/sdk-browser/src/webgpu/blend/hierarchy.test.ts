@@ -3,7 +3,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { notDrawn } from '../../placement/hidden.ts'
 import type { PlacementOf } from '../../placement/rows.ts'
@@ -13,6 +12,7 @@ import { orderBlendPasses } from './order.ts'
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts'
 import { blendSceneOf } from './plan.fixture.ts'
 import type { BlendGpuItem } from './state.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const EDGES = [NaN, Infinity, -Infinity, -0, 0, Number.MAX_VALUE, -Number.MAX_VALUE]
 
@@ -66,7 +66,7 @@ function scene(count: number, next: () => number, edges: boolean) {
 /** Frames of camera, frustum, box, visibility and plan events, both states checked each frame.
  *  Returns the item verdicts compared. */
 function walk(count: number, seed: number, frames: number, edges = false) {
-  const next = random(seed),
+  const next = lcgRandom(seed),
     items = scene(count, next, edges)
   const tree = blendSceneOf(items),
     oracle = blendSceneOf(items)
@@ -119,7 +119,7 @@ test('empty, word-edge and maximal scenes', () => {
 })
 
 test('an off-screen cluster is rejected by its nodes, not box by box', () => {
-  const next = random(401),
+  const next = lcgRandom(401),
     items = scene(4000, next, false)
   const blendState = blendSceneOf(items)
   // A view of 20 units at a corner of the 200-unit world.
@@ -129,7 +129,7 @@ test('an off-screen cluster is rejected by its nodes, not box by box', () => {
 })
 
 test('a box moved into view is kept once the tree is refit', () => {
-  const next = random(501),
+  const next = lcgRandom(501),
     items = scene(500, next, false)
   const blendState = blendSceneOf(items)
   // Five planes pass the whole space; the sixth keeps x >= 150 only, where no item starts.

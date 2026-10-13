@@ -48,14 +48,16 @@ export function heldFrame() {
     lastGpuFrameMs: 9,
     lastGpuHostGapMs: 2,
     lastSubmitMs: 8,
-    cpuProfile: { row: new Float64Array(CPU_STEP_NAMES.length).fill(7) },
+    profiler: { row: new Float64Array(CPU_STEP_NAMES.length).fill(7) },
     rowFilled: false,
     cpuSample: { version: 1 },
     partitionCounts: {},
   }
+  // The main view drawn: its share of the GPU group is the runtime's (`viewGpu`).
+  const main = {}
   const rt = {
     run,
-    views: { active: {} },
+    views: { active: main, main },
     timing,
     context: {},
     scale: createScaleControl(undefined),
@@ -82,8 +84,7 @@ export function heldFrame() {
     layout: {
       rows: {
         rowsChanged: false,
-        dirtyFrom: 1,
-        dirtyTo: -1,
+        dirtyCount: 0,
         rowsEpoch: 1,
         tableEpoch: 1,
         rowsDenied: 0,

@@ -1,5 +1,5 @@
 import { createControlBase } from './base.ts'
-import { axisOf, trackKeys, type KeyAxis } from './input.ts'
+import { ADVANCE_ARROW_KEYS, axisOf, STRAFE_ARROW_KEYS, trackKeys } from './input.ts'
 import { controlPose } from './pose.ts'
 import type { VehicleDriver, VehicleInput } from '../../../../sdk-core/src/physics/vehicle.ts'
 import type { CameraControlBase, ControlCamera } from './types.ts'
@@ -9,7 +9,8 @@ import type { CameraControlBase, ControlCamera } from './types.ts'
  * same keys: W or the up arrow is the accelerator, S or the down arrow the brake, A/D or the side
  * arrows the wheel, Space the handbrake. Keys are all or nothing, so each is 0 or 1. The input is
  * handed to `vehicle` each time it changes, never polled: a vehicle held still costs nothing. The
- * controls do not move the camera; a page follows the vehicle with it.
+ * controls do not move the camera; a page follows the vehicle with it in `world.beforeFrame`, which
+ * reads the pose the frame draws (`world/core/worldFrames.ts`), never after the frame, a frame late.
  */
 export interface VehicleCameraControls extends CameraControlBase {
   /**
@@ -21,13 +22,7 @@ export interface VehicleCameraControls extends CameraControlBase {
   vehicle: VehicleDriver | null
 }
 
-const WHEEL: KeyAxis = [
-    ['KeyD', 'ArrowRight'],
-    ['KeyA', 'ArrowLeft'],
-  ],
-  THROTTLE = ['KeyW', 'ArrowUp'],
-  BRAKE = ['KeyS', 'ArrowDown'],
-  HANDBRAKE = 'Space'
+const HANDBRAKE = 'Space'
 
 /** Every key let go. */
 const RELEASED: Readonly<VehicleInput> = { throttle: 0, brake: 0, steer: 0, handbrake: false }
@@ -63,13 +58,13 @@ export function createVehicleCameraControls(
     base,
     () => {
       // The pedals and the wheel the keys (`KeyboardEvent.code`) ask for.
-      input.throttle = THROTTLE.some((code) => keys.has(code)) ? 1 : 0
-      input.brake = BRAKE.some((code) => keys.has(code)) ? 1 : 0
-      input.steer = axisOf(keys, ...WHEEL)
+      input.throttle = ADVANCE_ARROW_KEYS[0].some((code) => keys.has(code)) ? 1 : 0
+      input.brake = ADVANCE_ARROW_KEYS[1].some((code) => keys.has(code)) ? 1 : 0
+      input.steer = axisOf(keys, ...STRAFE_ARROW_KEYS)
       input.handbrake = keys.has(HANDBRAKE)
       vehicle?.drive(input)
     },
-    [WHEEL, THROTTLE, BRAKE, [HANDBRAKE]],
+    [STRAFE_ARROW_KEYS, ADVANCE_ARROW_KEYS, [HANDBRAKE]],
   )
   return api
 }

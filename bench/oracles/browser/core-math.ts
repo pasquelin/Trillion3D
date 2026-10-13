@@ -1,18 +1,7 @@
-// Oracles of the math foundation: the code that is not attached to the
-// foundation, copied as-is. These copies are wanted
-// duplicates — it is against them that attached consumers are opposed, value by value, by `Object.is`.
+// Oracle of the visibility buffer's projection, written with the host library's primitives: the
+// world placement by `Vector3.applyMatrix4`, then clip space inline. The bench's own projection
+// (`cpu-image/projection.ts`) is held to it value by value, by `Object.is`.
 import * as THREE from 'three'
-import type { NumberSink } from '../../../packages/sdk-core/src/index.ts'
-
-/** `packages/sdk-browser/src/webgpu/pages/render/winding.ts:23-28` from before: winding, determinant expanded inline. */
-export function referenceWindingCw(e: NumberSink) {
-  return (
-    e[0] * (e[5] * e[10] - e[6] * e[9]) -
-      e[1] * (e[4] * e[10] - e[6] * e[8]) +
-      e[2] * (e[4] * e[9] - e[5] * e[8]) <
-    0
-  )
-}
 
 /** `./cpu-image/projection.ts` (`projectVisibilityVertex`) from before: clip space written inline. */
 const projectScratch = new THREE.Vector3()
@@ -51,14 +40,4 @@ export function referenceProjectVisibilityVertex(
     worldY: v.y,
     worldZ: v.z,
   }
-}
-
-/** `packages/sdk-browser/src/visibility/math.ts:97-106` from before: the sRGB table and 8-bit encoding written inline. */
-export function referenceSrgb8Linear(octet: number) {
-  const c = octet / 255
-  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
-}
-export function referenceLinearToSrgb8(c: number) {
-  const s = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055
-  return Math.max(0, Math.min(255, Math.round(s * 255)))
 }

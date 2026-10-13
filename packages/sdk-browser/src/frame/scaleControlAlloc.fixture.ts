@@ -1,6 +1,6 @@
 import v8 from 'node:v8'
 import vm from 'node:vm'
-import { quantileFloorOf } from '../../../../tests/kit/stats/quantile.ts'
+import { summaryOf } from '../../../math/src/scalar/quantile.ts'
 
 /**
  * Bytes a run of the render-scale control allocates, as the optimiser compiles it — the measure
@@ -47,12 +47,16 @@ const WARM = 30_000
  *  which only adds, or a collection, which only takes away; the median is neither. A loaded
  *  machine may leave the code in a lower tier for the first rounds: the rounds go on until the
  *  last `SETTLED` read alike — within `SETTLE_BYTES` of one another, the heap's own accounting
- *  noise —, `MOST_ROUNDS` at most, and the last `ROUNDS` are read. */
+ *  noise —, `MOST_ROUNDS` at most, and the last `ROUNDS` are read, once. The stop reads the
+ *  rounds' stability alone, never the bound the test asserts: a measure is never taken again
+ *  until it passes. A run that creates an object a frame weighs sixteen bytes a run at least,
+ *  settled or not: over `SAMPLES` runs, far past the heap's noise, which the test's bound of a
+ *  byte a run sits between. */
 const ROUNDS = 5,
   SETTLED = 3,
   MOST_ROUNDS = 25,
   SETTLE_BYTES = 4096
-const median = (bytes: number[]) => quantileFloorOf(bytes, 0.5) as number
+const median = (bytes: number[]) => summaryOf(bytes)!.p50
 
 /** Whether the last `SETTLED` rounds of `bytes` read alike: the code settled. */
 export function settled(bytes: readonly number[]) {

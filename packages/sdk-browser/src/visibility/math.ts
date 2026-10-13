@@ -2,25 +2,8 @@ import { clamp, floorMod, saturate } from '../../../math/src/scalar/reals.ts'
 import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts'
 
-/** A projected vertex as the perspective weights read it: its `1 / w`. */
-type Projected = { invW: number }
-
-export function perspectiveBary(
-  a: Projected,
-  b: Projected,
-  c: Projected,
-  affine: { w0: number; w1: number; w2: number },
-) {
-  const a0 = affine.w0 * a.invW,
-    a1 = affine.w1 * b.invW,
-    a2 = affine.w2 * c.invW,
-    sum = a0 + a1 + a2
-  if (sum === 0) return affine
-  return { w0: a0 / sum, w1: a1 / sum, w2: a2 / sum }
-}
-
 /** Texel of an axis by the sampler's integer rule: mirror folds two periods. */
-export function wrapTexel(t: number, size: number, wrap: WrapMode) {
+function wrapTexel(t: number, size: number, wrap: WrapMode) {
   const p = wrap === 'mirror' ? 2 : 1
   const scaled = wrap === 'clamp' ? saturate(t) : floorMod(t, p)
   const i = Math.floor(scaled * size)

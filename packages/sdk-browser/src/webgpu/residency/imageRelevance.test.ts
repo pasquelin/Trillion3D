@@ -5,12 +5,15 @@ import { createImageRelevance } from './imageRelevance.ts'
 
 function world() {
   const w = scene()
+  /** The keys the cache holds pinned. */
+  const pinned = new Set<number>()
   const affectsImage = createImageRelevance({
     tracking: w.tracking,
     bootstrapKey: w.bootstrapKey,
     requests: w.sets.requests,
+    pinned: (key) => pinned.has(key),
   })
-  return { ...w, affectsImage }
+  return { ...w, pinned, affectsImage }
 }
 
 test('an arrival off the cut, the cover and the pins leaves the image alone', () => {
@@ -35,6 +38,6 @@ test('a page the cut asks for past the page budget still counts', () => {
 test('a page the cache holds pinned counts, whatever the cut says', () => {
   const w = world()
   frame(w, [], 64)
-  w.tracking.markPinned(w.tracking.keyOf(w.packed[14]))
+  w.pinned.add(w.tracking.keyOf(w.packed[14]))
   assert.equal(w.affectsImage([w.packed[14]]), true)
 })

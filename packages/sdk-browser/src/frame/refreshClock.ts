@@ -11,8 +11,8 @@ const SHORTEST_PERIOD_MS = 2
 /** A timer rounded to whole milliseconds (Safari, a page not cross-origin isolated) strays by up
  *  to this much, 8 or 9 ms at 120 Hz; a period under this many roundings is not sought, since
  *  its grid would then cover almost any interval. */
-const COARSE_MS = 1,
-  COARSE_PERIODS = 4
+export const COARSE_MS = 1
+const COARSE_PERIODS = 4
 /** Intervals that must sit together for their value to be a period — a lone late or early frame
  *  is none —, and the share of the window a period must hold on its grid. */
 export const SUPPORT = 3

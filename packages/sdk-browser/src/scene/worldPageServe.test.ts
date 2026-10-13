@@ -3,7 +3,7 @@
 // decodes in place: its world-space positions and its indices, no pose.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { worldPage } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldPage } from './worldRootsPages.fixture.ts'
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { decodeGeometryPage } from '../page/codec/geometryPage.ts'
 import { worldRootsBinSource, worldRootsPageFixtureSource } from './worldPageServe.fixture.ts'
@@ -35,6 +35,7 @@ function twoPageBundle() {
     { bundle: 0, offset: low.byteLength, bytes: high.byteLength, level: 0, lodError: 0 },
   ]
   const table = {
+    payload: { url: 'world-roots.bin', sha256: '0', bytes: bin.byteLength },
     bundles: [{ offset: 0, bytes: bin.byteLength, sha256: '0', count: 2, dependencies: [] }],
     pages: { count: pages.length, at: (page: number) => pages[page] },
   } as unknown as WorldRoots

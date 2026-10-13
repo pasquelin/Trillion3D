@@ -17,7 +17,6 @@ import {
 } from '../../../../../bench/oracles/browser/gpuLightGridOracle.ts'
 import { gridLists } from '../../../../../bench/runner/lighting/lightGridWalk.ts'
 import { validateSceneLight } from '../../../../sdk-core/src/scene/light/validate.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
@@ -25,6 +24,7 @@ import { NEAR, camera, pixelPoint, type Vec3 } from '../tiles/tileCamera.fixture
 import { directLightingWgsl } from './lightingWgsl.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Lamp = { centre: Vec3; radius: number; spot: boolean }
 type Sum = (...args: unknown[]) => number[]
@@ -114,7 +114,7 @@ function same(view: TileView, lamps: Lamp[], px: number, py: number, z: number, 
 const view = camera([3, 6, -2], 0.8, -0.5, 70, 320, 200)
 
 test('random lamp sets of 1 to 256: the cell list sums every lamp, bit for bit', () => {
-  const r = random(1369),
+  const r = lcgRandom(1369),
     u = (lo: number, hi: number) => lerp(lo, hi, r())
   let reached = 0
   for (let count = 1; count <= 256; count++) {

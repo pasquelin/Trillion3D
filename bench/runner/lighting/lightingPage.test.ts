@@ -22,24 +22,19 @@ function canvasMock() {
 }
 
 /** MeasuredWorld mock: records render poses and the images since the last profile reset. */
-type Mock = MeasuredWorld & Record<'seen' | 'waits', unknown[]> & { profileResets: number[] }
+type Mock = MeasuredWorld & Record<'seen' | 'waits', unknown[]>
 type Opened = { openedWith?: { pixelRatio?: number } }
 function explorerMock(metrics: Record<string, unknown> | null): Mock & Opened {
   const seen: unknown[] = [],
-    profileResets: number[] = [],
     waits: unknown[] = []
   return {
     seen,
-    profileResets,
     waits,
     // The engine publishes its selected cut (`selectedPageIds`), the only source left to read it.
     engine: { id: 'engine-test', selectedPageIds: () => [] },
     setDiagnostic: () => {},
     setPose: () => {},
     awaitPages: async () => waits.push(seen.at(-1)),
-    resetStageProfile: () => profileResets.push(seen.length),
-    stageProfile: () => null,
-    cpuSteps: () => ({ frames: seen.length - (profileResets.at(-1) ?? 0) }),
     render: (pose: unknown) => {
       seen.push(pose)
       return metrics
@@ -100,20 +95,16 @@ async function mesurer(
     texturePoolBytes: null,
     livePools: null,
     instances: 1,
-    stageProfile: false,
     variant: null,
-    errorMetric: null,
     trace: false,
     bounce: false,
     importedLights: true,
-    profileFrames: 0,
     lights: [],
     moving: null,
     textureSource: 'host',
     textureUploadMs: null,
     textureCompression: undefined,
     temporalAntialiasing: true,
-    mathPath: null,
     movingNode: null,
     movingNodeRadius: 1,
     captureFile: 'test.png',
@@ -130,10 +121,9 @@ async function mesurer(
   }
 }
 
-test('the measured moving loop publishes real requestAnimationFrame intervals', async () => {
+test('the engine opens at the pixel ratio the bench asks', async () => {
   const explorer = explorerMock({ drawCalls: 1 })
-  const result = await mesurer(null, { explorer, frames: 5, rafStep: 16.5, pixelRatio: 2 })
-  assert.deepEqual(result.rafIntervalMs, [16.5, 16.5])
+  await mesurer(null, { explorer, frames: 5, rafStep: 16.5, pixelRatio: 2 })
   assert.equal(explorer.openedWith?.pixelRatio, 2)
 })
 
@@ -166,7 +156,7 @@ test('measureView keeps a table of numbers — bytes per label — and filters t
   assert.equal('absent' in metrics, false, '`undefined` stays an absence, not a published value')
 })
 
-test('stage profile covers the moving suffix and capture keeps its last pose', async () => {
+test('the capture keeps the last measured pose', async () => {
   const a: CameraPose = { position: [1, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 },
     b: CameraPose = { position: [2, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 }
   const explorer = explorerMock({ drawCalls: 1 })
@@ -175,22 +165,11 @@ test('stage profile covers the moving suffix and capture keeps its last pose', a
     frames: 2,
     poses: [a, b],
     pose: a,
-    stageProfile: true,
-    profileFrames: 1,
   })
-  assert.deepEqual(explorer.profileResets, [1], 'profile starts inside the measured path')
   assert.ok(explorer.seen.length > 2, 'capture work follows measured frames')
   const afterMeasured = explorer.seen.slice(2)
   for (const pose of afterMeasured) {
     assert.equal(pose, b, 'capture pose is the last measured pose, not poseAt(0)')
   }
   assert.deepEqual(explorer.waits, [b], 'the capture pose waits for its pages (#1016)')
-})
-
-test('the CPU bounds cover the profiled images only: none of the warm-up, none of the capture', async () => {
-  const result = await mesurer(
-    { drawCalls: 1 },
-    { frames: 3, stageProfile: true, profileFrames: 2 },
-  )
-  assert.deepEqual(result.cpuBounds, { frames: 2 })
 })

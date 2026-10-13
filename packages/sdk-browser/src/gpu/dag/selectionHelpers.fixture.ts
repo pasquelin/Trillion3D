@@ -1,4 +1,5 @@
-import { createEngineCamera, readCameraWorld, type HostCamera } from '../../camera/world.ts'
+import { readCameraWorld, type HostCamera } from '../../camera/world.ts'
+import { createEngineCamera } from '../../camera/engineCamera.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
@@ -10,14 +11,15 @@ import { ruleResidency } from './readiness.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 export const VIEWPORT: [number, number] = [1280, 720]
 export function packed(fixture: ReturnType<typeof dagFixture>) {
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   return { roots, dag: packDagSelection(roots) }
 }
@@ -66,9 +68,9 @@ export function cpuUrls(
 ) {
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   return selectVisiblePages(roots, readCameraWorld(helperCam, camera), {
     pixelError,
@@ -88,7 +90,7 @@ export function gatedDag() {
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const { device, destroyedMaps } = mockDagDevice(dag, { mapGate: gate })
+  const { device, destroyedMaps } = mockDagDevice(dag, { mapping: gate })
   return { release, fixture, dag, uniforms, device, destroyedMaps }
 }
 

@@ -9,7 +9,9 @@ import { tileLayout } from '../../texture/tiles.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
 import type { WebgpuTileAtlas } from './atlas.ts'
 import { createTextureLevelReader } from '../../texture/levelReader.ts'
-import { tileRecord, tiledLevelBytes } from '../../texture/tileRecords.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
+import { tileRecord } from '../../texture/tileRecords.ts'
+import { tiledLevelBytes } from '../../texture/tileRecords.fixture.ts'
 
 // Behaviour: a block level whose bytes are not the whole blocks its dimensions imply is refused
 // where its read resolves — one failure, never held, never read again — and no tile of it takes
@@ -32,7 +34,10 @@ test('a block level of the wrong length fails once, is never held, and takes no 
   } as unknown as WebgpuTileAtlas
   const sources = createTileSources({
     device,
-    readLevel: async ({ format }) => (read.push(format), new Uint8Array(1)),
+    readLevel: Object.assign(
+      async ({ format }: { format: string }) => (read.push(format), new Uint8Array(1)),
+      { store: createPageCache(), key: 'k' },
+    ),
     encoding: poolEncoding('bc7'),
     counters: createTileCounters(),
     onFailure: (phase, error) => failures.push(`${phase}: ${(error as Error).message}`),
@@ -52,10 +57,11 @@ test('a block level of the wrong length fails once, is never held, and takes no 
   assert.deepEqual(read, ['bc7'], "the level file of the texture's lane, read once")
 })
 
-// A block tile is one request of its record, by Range, written as the file holds
-// it; a server that ignores Range sends the whole file once, and every tile of the level is cut
-// from it with no second request. Until the first answer says which, one read goes alone: six
-// tiles asked at once from a server that ignores Range would each download the whole file.
+// A block tile is one request of its record, by Range, written as the file holds it, through its
+// file's one reader (`cluster/ranged.ts`): a server that ignores Range sends the whole file once,
+// and every tile of the level is cut from it with no second request. Until the first answer says
+// which, one read goes alone: six tiles asked at once from a server that ignores Range would each
+// download the whole file.
 test('a block tile is read by its Range; a whole-file answer serves the whole level', async () => {
   globalThis.createImageBitmap ??= (() => Promise.reject(new Error('unused'))) as never
   const file = Uint8Array.from({ length: tiledLevelBytes(256, 256) }, (_, i) => (i * 13) & 255)
@@ -86,6 +92,7 @@ test('a block tile is read by its Range; a whole-file answer serves the whole le
     const readLevel = createTextureLevelReader(
       { textures: { url: '{sha}/{kind}-{level}.{format}', version: 6 }, key: 'k' },
       'https://host/',
+      createPageCache(),
     )
     const sources = createTileSources({
       device,
@@ -94,22 +101,18 @@ test('a block tile is read by its Range; a whole-file answer serves the whole le
       counters: createTileCounters(),
       onFailure: (_, error) => assert.fail(error as Error),
     })
-    const pass = (frame: number, keys = tiles) =>
-      keys.map((key) => sources.serve(atlas, key, frame, () => ({}) as never))
-    // Four tiles asked at once: one read probes the server, the others wait for its answer.
+    const pass = (frame: number) =>
+      tiles.map((key) => sources.serve(atlas, key, frame, () => ({}) as never))
+    // Four tiles asked at once: one request asks the server, the others wait for its answer.
     pass(1)
-    assert.equal(asked.length, 1, 'one probe while Range support is unknown')
+    assert.equal(asked.length, 1, 'one request while Range support is unknown')
     await sources.settled()
-    if (ranges) {
-      pass(2, tiles.slice(1))
-      await sources.settled()
-    }
-    assert.deepEqual(pass(3), ['served', 'served', 'served', 'served'])
+    assert.deepEqual(pass(2), ['served', 'served', 'served', 'served'])
     const slices = records.map(({ offset, bytes }) => file.subarray(offset, offset + bytes))
     assert.deepEqual(written, slices, 'each tile written from its record, a slice of the file')
     return asked
   }
   const ranges = records.map(({ offset, bytes }) => `bytes=${offset}-${offset + bytes - 1}`)
   assert.deepEqual(await run(true), ranges, 'one request per tile, its Range')
-  assert.deepEqual(await run(false), [ranges[0]], 'the whole file, once, for the probe')
+  assert.deepEqual(await run(false), [ranges[0]], 'the whole file, once, for the first record')
 })

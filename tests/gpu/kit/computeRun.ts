@@ -3,6 +3,7 @@
 // `../shadow/blend-transmittance.gpu.ts`, `../texture/pool-place.gpu.ts`, ...).
 import {
   computeReadback,
+  autoKernel,
   type ComputeInput,
   type ComputeReadbackOptions,
 } from './computeReadback.ts'
@@ -29,10 +30,7 @@ export async function runCompute({ code, bytes, workgroups, options = {} }: Run)
       errors: 'compilation' in opened ? opened.compilation : [opened.unavailable],
     }
   const { gpu, module } = opened
-  const pipeline = await gpu.device.createComputePipelineAsync({
-    layout: 'auto',
-    compute: { module, entryPoint: 'main' },
-  })
+  const pipeline = await gpu.device.createComputePipelineAsync(autoKernel(module))
   const { setup, ...read } = options
   const inputs = setup ? setup(gpu.device) : read.inputs
   const values = await computeReadback(gpu.device, pipeline, bytes, workgroups, {

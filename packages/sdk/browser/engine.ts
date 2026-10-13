@@ -16,7 +16,9 @@ export type {
   MultiplyLot,
 } from '../../sdk-browser/src/page/decode/batch/batchRuntime.ts'
 export type { BudgetCanvas } from '../../sdk-browser/src/residency/memoryBudget.ts'
-export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts'
+export type { ByteMeter } from '../../sdk-browser/src/cluster/byteMeter.ts'
+export { createPageCache } from '../../sdk-browser/src/streaming/pageCache.ts'
+export type { CacheSession, PageCache } from '../../sdk-browser/src/streaming/pageCache.ts'
 export type { CellRows } from '../../sdk-browser/src/partition/cellDecode.ts'
 export type {
   ChangeListener,
@@ -24,24 +26,20 @@ export type {
   PivotCameraControls,
 } from '../../sdk-browser/src/camera/controls/types.ts'
 export type { CharacterCameraControls } from '../../sdk-browser/src/camera/controls/characterControls.ts'
-export type {
-  CharacterCollision,
-  TriangleCollision,
-} from '../../sdk-core/src/collision/characterCollision.ts'
 export { ObjectPhysics } from '../../sdk-core/src/physics/objectPhysics.ts'
 export type {
   ContactEvent,
   ContactEventName,
   PhysicsHost,
 } from '../../sdk-core/src/physics/objectPhysics.ts'
-export type { CpuStepSummary } from '../../sdk-browser/src/stage/cpuProfile.ts'
+export type { CpuStepSummary } from '../../sdk-browser/src/stage/profiler.ts'
 export { createDiagnosticChannel } from '../../sdk-browser/src/diagnostic/channel.ts'
 export type {
   DiagnosticChannel,
   DiagnosticChannelOptions,
   DiagnosticObserver,
 } from '../../sdk-browser/src/diagnostic/channel.ts'
-export { createGpuPageCache, httpPageSource } from '../../sdk-browser/src/gpu/page/pages.ts'
+export { createGpuPageCache } from '../../sdk-browser/src/gpu/page/pages.ts'
 export type { GpuPageCacheOptions } from '../../sdk-browser/src/gpu/page/pages.ts'
 export { createPageStreamer } from '../../sdk-browser/src/streaming/pageStreamer.ts'
 export type { DecodedGeometryPage } from '../../sdk-browser/src/page/codec/geometryPage.ts'
@@ -63,7 +61,13 @@ export type {
   PhysicsType,
 } from '../../sdk-core/src/physics/options.ts'
 export type { DiagnosticDetail, EngineDiagnostic } from '../../sdk-browser/src/diagnostic/types.ts'
+export type {
+  DrawAssociations,
+  DrawRanks,
+  DrawSource,
+} from '../../sdk-browser/src/page/selection/drawSource.ts'
 export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts'
+export type { EvictionOrder } from '../../sdk-browser/src/gpu/page/eviction.ts'
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts'
 export type { FlyCameraControls } from '../../sdk-browser/src/camera/controls/flyControls.ts'
 export { framingFromBounds } from '../../sdk-browser/src/camera/framing.ts'
@@ -74,7 +78,7 @@ export type {
   PoolClamp,
   TableGrowthReport,
 } from '../../sdk-browser/src/residency/pools.ts'
-export type { GpuPassBlock } from '../../sdk-browser/src/stage/passTable.ts'
+export type { GpuPassBlock } from '../../sdk-browser/src/stage/passDeclaration.ts'
 export {
   gpuPassBlockOf,
   gpuPassBlockTotals,
@@ -120,14 +124,15 @@ export type {
 } from '../../sdk-core/src/physics/jointOptions.ts'
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts'
 export type { PageHome, PageHomes } from '../../sdk-browser/src/gpu/page/homes.ts'
-export type { PagePinTier } from '../../sdk-browser/src/gpu/page/load.ts'
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts'
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts'
 export type { PathRun } from '../../sdk-browser/src/camera/path.ts'
 export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts'
 export type { PlacementGrowth } from '../../sdk-browser/src/placement/engineSceneUpdates.ts'
+export type { PlacementLink } from '../../sdk-browser/src/placement/gpuCompose.ts'
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts'
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts'
+export type { RangeAsk, ReadRange } from '../../sdk-browser/src/cluster/ranged.ts'
 export type { RenderScale } from '../../sdk-browser/src/frame/renderScaleOption.ts'
 export type { ResidentPage } from '../../sdk-browser/src/gpu/page/types.ts'
 export {
@@ -145,13 +150,14 @@ export type { SurfaceBuffer, SurfaceCapture } from '../../sdk-browser/src/scene/
 export type { TelemetryReport } from '../../sdk-browser/src/diagnostic/telemetryTypes.ts'
 export type {
   TextureLevel,
+  TextureLevelAddress,
   TextureLevelReader,
   TextureLevelRequest,
+  TextureLevelStore,
 } from '../../sdk-browser/src/texture/levelReader.ts'
 export type { TexturePool } from '../../sdk-browser/src/webgpu/residency/memoryBudgets.ts'
 export type { TrackballCameraControls } from '../../sdk-browser/src/camera/controls/trackballControls.ts'
 export type { TransparentOcclusionAudit } from '../../sdk-browser/src/webgpu/transparent/occlusionAudit.ts'
-export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts'
 export { vehicle, Vehicle } from '../../sdk-core/src/physics/vehicle.ts'
 export type {
   VehicleDriver,

@@ -2,8 +2,6 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { directLightTimings, gpuPassStageOf } from './mapping.ts'
-import { PASSES } from './passTable.ts'
-import { VSM_PASS_PREFIX } from './passLabels.ts'
 import type { GpuPassTimings } from '../../../sdk-core/src/index.ts'
 
 const sample = (passes: GpuPassTimings['passes']): GpuPassTimings => ({
@@ -19,7 +17,6 @@ test('every virtual shadow map pass label the engine can emit lands in the Shado
   const files = [
     'vsm/markingPass.ts',
     'vsm/projectionPass.ts',
-    'vsm/projectionMaskTable.ts',
     'vsm/invalidationPass.ts',
     'vsm/pageManagementPass.ts',
     'vsm/transmissionPass.ts',
@@ -33,11 +30,6 @@ test('every virtual shadow map pass label the engine can emit lands in the Shado
   }
   assert.ok(labels.size >= 15, `the scan reached the passes (${labels.size})`)
   for (const label of labels) assert.equal(gpuPassStageOf(label), 'shadows', label)
-  assert.deepEqual(
-    Object.keys(PASSES).filter((name) => name.startsWith(VSM_PASS_PREFIX)),
-    [],
-    'the prefix is the one rule: no pass of the table repeats it',
-  )
   const s = sample([...labels].map((name) => ({ name, gpuMs: 1 })))
   assert.equal(directLightTimings(s).gpuShadowsMs, labels.size)
 })

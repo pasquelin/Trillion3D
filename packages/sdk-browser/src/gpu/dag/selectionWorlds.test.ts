@@ -68,7 +68,7 @@ test('worlds the GPU rewrote are cut again once announced, never under the last 
   assert.equal(selection.updateWorlds(dag.worlds.slice()).length, 0, 'no CPU world moved')
   selection.dispatch(uniforms)
   assert.equal((await selection.flush())?.pageIds.length, 4, 'unannounced: the stale cut')
-  selection.worldsMovedOnGpu()
+  selection.worldsMovedOnGpu([])
   selection.dispatch(uniforms)
   assert.equal((await selection.flush())?.pageIds.length, 0, 'announced: the composed world')
   selection.dispose()

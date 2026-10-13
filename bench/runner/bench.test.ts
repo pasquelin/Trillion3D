@@ -1,18 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DEFAULT_SCENE, FLUIDS_SCENE, sceneOf } from './assets/scene.ts'
-import { CAMPAIGN, BASE } from './campaign.ts'
-import {
-  ENGINES,
-  engineOf,
-  equipSide,
-  equipSides,
-  parseArgs,
-  poseAt,
-  readOptions,
-  trajectoryPoses,
-} from './harness/options.ts'
-import { isEngine } from './harness/sideOptions.ts'
+import { DEFAULT_SCENE, sceneOf } from './assets/scene.ts'
+import { ENGINES, engineOf, equipSide, isEngine } from './harness/sideOptions.ts'
+import { equipSides, readOptions } from './harness/options.ts'
+import { parseArgs } from './harness/flags.ts'
+import { poseAt, trajectoryPoses } from './trajectory/poses.ts'
 
 test('readOptions parses command line arguments correctly', () => {
   const root = '/tmp/test'
@@ -129,10 +121,6 @@ test('the bench refuses a flag it never reads, the retired French ones included'
   )
   // A side flag for a side the run does not measure changes nothing either.
   assert.throws(() => benchFlags(['--engine-before', 'three-lod']), /--engine-before/)
-  for (const [name, , args] of CAMPAIGN) {
-    const argv = [...BASE.split(' '), '--scene', FLUIDS_SCENE, ...args]
-    assert.doesNotThrow(() => benchFlags(argv), name)
-  }
 })
 
 test('engineOf rejects an unknown engine for a side', () => {

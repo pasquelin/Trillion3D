@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { STREAMING_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../engine/common.ts'
 import { createWebgpuResidencyQueue } from './queue.ts'
-import { lruCache, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts'
+import { orderedPool, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts'
 import { stubPage } from '../../world/render/frameQueue.fixture.ts'
 
 /** A pool whose every load spends `cost` of the main-thread share (a whole one by default), on a
@@ -14,7 +14,7 @@ function slowCache(slots: number, cost = STREAMING_FRAME_MS) {
   let clock = 0
   mock.method(performance, 'now', () => clock)
   const yields = mock.method(MessagePort.prototype, 'postMessage')
-  const cache = lruCache(slots),
+  const cache = orderedPool(slots),
     load = cache.load,
     order: string[] = [],
     perTask: number[] = []
@@ -152,7 +152,7 @@ test('the tier loads the list it began with, whatever a report rewrites meanwhil
   const pages = ['a', 'b', 'c', 'd'].map(pageOf)
   const [a, b, c, d] = pages
   const tracking = createWebgpuPageTracking(pages)
-  const cache = lruCache(3),
+  const cache = orderedPool(3),
     load = cache.load
   const live = [a, b, c, d]
   cache.load = async (url: string) => {
@@ -168,7 +168,8 @@ test('the tier loads the list it began with, whatever a report rewrites meanwhil
 test('a tier keeps a page its list still names', async () => {
   const pages = ['a', 'b', 'c'].map(pageOf)
   const tracking = createWebgpuPageTracking(pages)
-  const cache = lruCache(2)
+  // The GPU's order: a page the view ahead names is not old.
+  const cache = orderedPool(2, undefined, (url) => pages.some((page) => page.url === url))
   await cache.load('c')
   await tierEnsurer(tracking, cache, () => pages)([], 1, 1)
   assert.deepEqual(

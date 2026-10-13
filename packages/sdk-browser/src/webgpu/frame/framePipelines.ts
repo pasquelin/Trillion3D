@@ -7,6 +7,7 @@ import { wantsAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
 import { ensureGpuRaster } from '../pages/render/encodeVisSetup.ts'
 import { requestsComputeRaster } from '../../diagnostic/gpuGeometry.ts'
 import { askComposedPlacements } from '../../placement/gpuCompose.ts'
+import { wantsEmissiveAo } from '../pages/prepare/emissiveAoLayer.ts'
 import { askLobedPrograms } from '../pages/prepare/contractLight.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
@@ -15,8 +16,8 @@ const asked = new WeakMap<ShadeCensus, ShadeClasses>()
 
 /**
  * The census's classes, asked of the set in place once taken anew or once the set was replaced (a
- * feedback variant installed). Once a surface of the census can emit or occlude and the set does
- * not write the layer, they are asked of the set writing it (`withEmissiveAo`) alone, which
+ * feedback variant installed). Once the image needs the layer (`wantsEmissiveAo`: a surface of the census can emit or
+ * occlude, a water surface draws) and the set does not write it, they are asked of the set writing it (`withEmissiveAo`) alone, which
  * replaces the set once all are compiled. Nothing is read or allocated while nothing moved.
  */
 function askShadeClasses(rt: WebgpuPagesRuntime) {
@@ -25,7 +26,7 @@ function askShadeClasses(rt: WebgpuPagesRuntime) {
     classes = vis.shadeClasses
   if (!census || !classes) return
   const retaken = census.retake()
-  if (census.emits && !vis.writesEmissiveAo) {
+  if (wantsEmissiveAo(rt) && !vis.writesEmissiveAo) {
     const layered = classes.withEmissiveAo()
     let ready = true
     for (const key of census.keys) {
@@ -66,9 +67,5 @@ export function askFramePipelines(rt: WebgpuPagesRuntime) {
   if (wantsAsIsShare(rt)) askAsIsSeed(device)
   askComposedPlacements(rt, device)
   askLobedPrograms(rt, device)
-  if (
-    requestsComputeRaster(rt.context?.diagnosticGpuVariant) &&
-    typeof device.createComputePipeline === 'function'
-  )
-    ensureGpuRaster(rt, device)
+  if (requestsComputeRaster(rt.context?.diagnosticGpuVariant)) ensureGpuRaster(rt, device)
 }

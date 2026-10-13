@@ -9,12 +9,9 @@ import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { createVsmClipmap } from './clipmap.ts'
 import { vsmPixelPageMarkingWgsl } from './markingWgsl.ts'
-import { createVsmResources } from './resources.ts'
-import { encodeVirtualShadowProjection } from './projectionPass.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { projectionKit } from './projectionKit.fixture.ts'
 import { orthographicProjection } from '../../../math/src/projection/camera.ts'
 import { vsmLayout } from './layout.ts'
-import { MIB } from '../../../math/src/constants.ts'
 
 const PROJECTION = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, -0.1, 0]
 const VIEW = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
@@ -37,7 +34,6 @@ test("every clipmap level's UV matrix has the w row (0, 0, 0, 1), exactly in f32
         { id: 'sun', direction },
         { view: VIEW, projection: PROJECTION, perspective: true, eye },
         { width: 1024, height: 1024 },
-        0,
       )
       for (const { projectionData } of clipmap.cacheEntry.mapCaches) {
         const m = Float32Array.from(projectionData.shiftedToMapUv)
@@ -49,7 +45,7 @@ test("every clipmap level's UV matrix has the w row (0, 0, 0, 1), exactly in f32
 })
 
 test('only the sun marks without the divide: a lamp keeps it', () => {
-  const code = vsmPixelPageMarkingWgsl(vsmLayout({ fullMapCapacity: 63 }, 128 * MIB))
+  const code = vsmPixelPageMarkingWgsl(vsmLayout({ fullMapCapacity: 63 }))
   assert.match(
     functionText(code, 'vsmMarkPage'),
     /if\(!ortho\)\{mapUvz=vec4f\(perspectiveDivide\(mapUvz\),mapUvz\.w\);\}/,
@@ -65,32 +61,15 @@ test('the camera kind decides the projection path: an orthographic matrix scaled
   const scaled = ortho.map((v) => v * 0.25)
   // The view uniform the projection pass uploads for its dispatch, read back from the queue.
   const word = (perspective: boolean) => {
-    const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
-    const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
-    const view = {} as GPUTextureView
+    const kit = projectionKit()
     // The passes' recorded commands are not read: only the upload.
-    const pass = new Proxy({}, { get: () => () => {} })
-    const encoder = { beginComputePass: () => pass } as unknown as GPUCommandEncoder
-    encodeVirtualShadowProjection(
-      encoder,
-      res,
-      {
-        device,
-        depth: view,
-        normalRough: view,
-        flags: view,
-        mask: view,
-        maskTiles: view,
-        width: 64,
-        height: 64,
-        frameIndex: 0,
-        camera: { view: VIEW, projection: scaled, perspective },
-      },
-      [],
-    )
-    const write = writes.find(
-      (w) => (w.buffer as { label?: string }).label === 'vsm.projection.view',
-    )!
+    kit.project([], {
+      width: 64,
+      height: 64,
+      frameIndex: 0,
+      camera: { view: VIEW, projection: scaled, perspective },
+    })
+    const write = kit.upload()!
     const bytes = write.data as Uint8Array
     return new Uint32Array(bytes.buffer, bytes.byteOffset, 72)[71]
   }
@@ -102,7 +81,6 @@ test('the camera kind decides the projection path: an orthographic matrix scaled
       { id: 'sun', direction: [0, -1, 0] },
       { view: VIEW, projection: scaled, perspective, eye: [0, 0, 0] },
       { width: 64, height: 64 },
-      0,
     ).cacheEntry.mapCaches[0].projectionData.shiftedToMapUv
   assert.notDeepEqual(level(false), level(true), 'the clipmap sizes its levels by the kind')
 })

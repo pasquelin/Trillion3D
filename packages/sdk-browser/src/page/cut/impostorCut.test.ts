@@ -9,10 +9,12 @@ import { planImpostors, type ImpostorSection } from '../../../../sdk-core/src/in
 import { collectClusterPages } from '../selection/selection.ts'
 import { selectVisiblePages } from './cut.fixture.ts'
 import { dagFixture, frontCamera } from '../selection/dag.fixture.ts'
-import { createEngineCamera, readCameraWorld } from '../../camera/world.ts'
+import { createEngineCamera } from '../../camera/engineCamera.ts'
+import { readCameraWorld } from '../../camera/world.ts'
 import { focalPixels } from '../../../../math/src/projection/camera.ts'
 import { CASTS_NO_SHADOW, markCard } from '../../visibility/shader/spriteWgsl.ts'
 import { drawsCard } from './select.fixture.ts'
+import { graphDraws } from '../selection/drawSource.ts'
 
 /** The engine camera of a host camera, as frame entry reads it (`readCameraWorld`). */
 const engineOf = (cam: ReturnType<typeof frontCamera>) => readCameraWorld(createEngineCamera(), cam)
@@ -63,9 +65,9 @@ function impostorRoots() {
   const fixture = dagFixture()
   const { roots } = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   for (const root of roots) root.mesh = MESH
   return { fixture, roots }

@@ -54,14 +54,13 @@ export async function createWaterPass(
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
   feedback = true,
-  unboundedReflections = false,
   lit?: ForwardLit,
   reach?: Reach,
   lobes: WaterLobes = { module: async () => module, now: false },
 ): Promise<WaterPass> {
   const [surfaces, frame] = await Promise.all([
     createWaterSurfacePipelines(device, module, layout, feedback),
-    createWaterFrame(device, unboundedReflections, feedback, lit, reach),
+    createWaterFrame(device, feedback, lit, reach),
   ])
   const lobed = createLobedWaterStage(device, lobes.module, layout, feedback, frame.restore)
   if (lobes.now) await lobed.prepare()

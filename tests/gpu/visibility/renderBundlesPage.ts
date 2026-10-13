@@ -6,7 +6,8 @@
 // (`withDirectBundles`): the witness. The bundles each image records are counted.
 import type { EngineDiagnostic, Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { cameraFace } from '../kit/sharedSceneProof.ts'
-import { difference, untilHeld } from '../kit/sceneImageProof.ts'
+import { untilHeld } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { countBundles, withDirectBundles } from '../kit/directBundles.ts'
 import { occluderEngine, onOccluderScene } from '../hiz/occluderScene.ts'
 
@@ -72,7 +73,7 @@ export function runRenderBundles() {
           executed: counting.counts.executed - executed,
           recorded: held.recorded.reduce((sum, n) => sum + n, 0),
           recordedAfterFirst: held.recorded.slice(1).reduce((sum, n) => sum + n, 0),
-          gap: held.pixels && witness ? difference(held.pixels, witness) : null,
+          gap: held.pixels && witness ? compareImages(held.pixels, witness).differentPixels : null,
         })
       }
     } finally {

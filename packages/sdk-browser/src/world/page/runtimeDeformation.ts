@@ -1,6 +1,7 @@
 import { boxCenter, boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
+import { isSkinJoint } from '../../../../sdk-core/src/page/pageInput.ts'
 
 /** A joint box's centre, module scratch. */
 const centre = new Float64Array(3)
@@ -17,8 +18,7 @@ export function runtimeDeformation(drawn: DrawnTriangles) {
         const at = v * width + influence
         if (source.weights[at] <= 0) continue
         const joint = source.joints[at]
-        if (!Number.isInteger(joint) || joint < 0 || joint > 65535)
-          throw new RangeError('Invalid skin joint')
+        if (!isSkinJoint(joint)) throw new RangeError('Invalid skin joint')
         let box = boxes[joint]
         if (!box) {
           box = boxes[joint] = new Float64Array(6)

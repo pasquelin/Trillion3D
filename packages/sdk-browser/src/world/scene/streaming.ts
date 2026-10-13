@@ -5,10 +5,10 @@ import { PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { SessionState } from '../render/sessionState.ts'
 import type { ExplorerSession } from '../session/session.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
 type Inputs = {
-  streamer: ReturnType<typeof createPageStreamer>
+  streamer: PageStreaming
   engine: Engine
   state: Pick<SessionState, 'disposed'>
   /** The session's one integration budget per frame (`EngineContext.frameBudget`). */

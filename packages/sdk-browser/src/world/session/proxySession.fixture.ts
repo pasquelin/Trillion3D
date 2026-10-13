@@ -1,6 +1,5 @@
-import { proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture.ts'
 import { probeEngineContext } from './engine.fixture.ts'
-import { createExplorerPageSources } from './pageSources.ts'
+import { openExplorerPageSources } from './pageSources.ts'
 import { createDiagnosticChannel, type DiagnosticObserver } from '../../diagnostic/channel.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'
 import type { PageCache } from '../../streaming/pageCache.ts'
@@ -15,6 +14,11 @@ import {
 export const base = 'http://localhost/cache/'
 const page = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0])
 
+/** Bytes `cache` holds of the proxy `metadata` names under `root`, kept under its address and its
+ *  fingerprint (`createSceneProxyReader`). */
+export const keptProxy = (cache: PageCache, metadata: ClusterManifest, root = base) =>
+  cache.weight(`${root}proxy.bin#${metadata.proxy!.sha256}`)
+
 /**
  * A scene of `pages` 12-byte pages and a proxy of `triangles` triangles and no node, served under
  * any root by a `fetch` that records every url it is asked: a file `held` names is answered once
@@ -26,24 +30,12 @@ export async function servedScene(
   pages: number,
   { triangles = 1, held = [] as string[], missing = [] as string[] } = {},
 ) {
-  // One static identity owner for every triangle, and an empty group range for an empty proxy.
-  const groups = triangles ? 1 : 0,
-    owners = groups,
-    instances = groups
-  const prefix = SCENE_PROXY_HEADER_WORDS + triangles * (PROXY_TRIANGLE_FLOATS + 1)
-  const suffix = triangles + groups + 1 + owners * 2 + instances * 2
-  const words = new Uint32Array(prefix + suffix + instances * 32)
-  words.set([SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, triangles, 0, groups, owners, instances, 0])
-  if (instances) {
-    const range = prefix + triangles
-    words[range + 1] = 1
-    const parent = range + 2 + owners * 2
-    // No parent, no mesh, then the bind world.
-    words[parent] = words[parent + 1] = 0xffffffff
-    const view = new DataView(words.buffer),
-      identity = proxyIdentity()
-    for (let i = 0; i < 16; i++) view.setFloat64((parent + 2) * 4 + i * 8, identity[i], true)
-  }
+  // One mesh of `triangles` triangles and no node: the header, its table entry (triangles, nodes, grid
+  // step), then its triangles and their albedo.
+  const words = new Uint32Array(
+    SCENE_PROXY_HEADER_WORDS + 3 + triangles * (PROXY_TRIANGLE_FLOATS + 1),
+  )
+  words.set([SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, 1, triangles, 0, 0, triangles, 0])
   const pageSha = await sha256Hex(page.buffer)
   const urls = Array.from({ length: pages }, (_, i) => `p${i}.bin`)
   const metadata = {
@@ -55,9 +47,7 @@ export async function servedScene(
       sha256: await sha256Hex(words.buffer),
       triangles,
       nodes: 0,
-      groups,
-      owners,
-      instances,
+      meshes: 1,
       bounds: [0, 0, 0, 1, 1, 0],
     },
   } as unknown as ClusterManifest
@@ -111,7 +101,7 @@ export async function openSession(
 ) {
   const options = { manifestUrl: `${root}manifest.json`, pageCache, maxPageTransferBytes }
   const channel = createDiagnosticChannel(diagnostics)
-  const pageSources = await createExplorerPageSources(
+  const pageSources = await openExplorerPageSources(
     metadata,
     options,
     root,
@@ -119,7 +109,7 @@ export async function openSession(
     () => undefined,
     channel,
     () => {},
-  )
+  ).sources
   const context = await probeEngineContext(metadata, pageSources, {
     options,
     base: root,

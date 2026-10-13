@@ -1,8 +1,10 @@
 import { FLAG_CLIP, ROW_DATA_U32, ROW_FLAGS, ROW_NEAREST } from '../../gpu/partition/contract.ts'
 import { visLayerTop } from '../visibility/uniforms.ts'
-import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts'
+import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/corners.ts'
+import type { HizPage } from '../../hiz/types.ts'
+import type { AuditView, KeptFrame } from '../../gpu/partition/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { rootOf } from '../../page/selection/placements.ts'
+import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
 
 /**
  * What an image sent to the GPU partition, and what the partition wrote of it, row by row.
@@ -16,19 +18,7 @@ import { rootOf } from '../../page/selection/placements.ts'
  * This is not a pass of the image: none of this exists until the host asks for it, and the read only
  * makes sense after a rendered image.
  */
-export interface PartitionAudit {
-  /** Rows checked. */
-  rows: number
-  /** Width in pixels. */
-  width: number
-  /** Height in pixels. */
-  height: number
-  /** Nearest distance. */
-  near: number
-  /** View and view-projection elements in double precision, as the image posted them. */
-  view: Float64Array
-  /** The camera's view-projection. */
-  viewProj: Float64Array
+export interface PartitionAudit extends KeptFrame {
   /** World corners in double precision, eight per row: the exact input of both calculations. */
   corners: Float64Array
   /** Coplanar layer of each row, as the draw row carries it. */
@@ -39,6 +29,28 @@ export interface PartitionAudit {
   nearest: Float32Array
   /** 1 when the row carries the cut flag, therefore can never be rejected. */
   clips: Uint8Array
+}
+
+/** The view of the audit `frame` reports: the one the partition drew its last image under. */
+export const auditView = ({ width, height, near, view, viewProj }: AuditView): AuditView => ({
+  width,
+  height,
+  near,
+  view,
+  viewProj,
+})
+
+/** World corners of packed page `packed`, its record `rec`, at its root's world and reach, written
+ *  in `out` from `at` (`pageCornersInto`): the input both audits hand a reference. */
+export function packedPageCornersInto(
+  layout: WebgpuPagesRuntime['layout'],
+  out: Float64Array,
+  at: number,
+  packed: number,
+  rec: HizPage,
+) {
+  const root = rootOf(layout.selectionRoots, rootOfPacked(layout.placement, packed))
+  pageCornersInto(out, at, rec, root.world, root.reach)
 }
 
 /**
@@ -72,19 +84,16 @@ export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<Partit
     if (!rec) continue
     // The corners the GPU read are these, rounded to single precision for transport: the reference
     // therefore starts from the same doubles, and the rounding enters the kernel's error bound.
-    const root = rootOf(
-      rt.layout.selectionRoots,
-      rt.layout.placement.rootOfPacked[table.packedPageIndex[row]],
+    packedPageCornersInto(
+      rt.layout,
+      corners,
+      row * BOX_CORNER_VALUES,
+      table.packedPageIndex[row],
+      rec,
     )
-    pageCornersInto(corners, row * BOX_CORNER_VALUES, rec, root.world, root.reach)
   }
   return {
-    rows,
-    width: frame.width,
-    height: frame.height,
-    near: frame.near,
-    view: frame.view,
-    viewProj: frame.viewProj,
+    ...frame,
     corners,
     layers,
     rect,

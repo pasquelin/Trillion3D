@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { VIEW_BLOCK_WORDS } from '../viewLayout.ts'
 import { AHEAD_VIEW } from './aheadWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
@@ -30,31 +31,29 @@ const VIEW_SHIFT = 27
 if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
   throw new Error(`${DAG_MAX_VIEWS} views do not fit the ${32 - VIEW_SHIFT} view bits`)
 
-/**
- * Words of one view's uniform block: the uniform array's stride (`shader.ts`, `Uniforms`).
- *
- * It is the field table's own size (`../viewLayout.ts`), so a field added to the block moves the
- * stride with it.
- */
-export const DAG_VIEW_WORDS = VIEW_BLOCK_WORDS
 /** Bytes of the uniform array a cut binds: every view's block, whatever the views it runs. */
-export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * DAG_VIEW_WORDS * 4
+export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * VIEW_BLOCK_WORDS * 4
 /** Per-view words behind `work`'s frame counters, one row of `viewCapacity` each — live count,
  *  live offset, drawn count —, then one word: zeroed by `dagPrepare`, read by no kernel since the
  *  cut runs one view; the frame count lies behind them (`dagWorkLayout`). */
 export const VIEW_WORD_ROWS = 3
 /**
- * Bit of the output's flag word set when a queue or a list was full and work was dropped: each
- * list holds the whole catalogue, each queue every node and one root per slot.
+ * Bits of the output's flag word set when work was dropped — a descent queue full, or the
+ * candidate list, the live list or the log the cut writes: the cut is then not drawn
+ * (`dagCommitMask`), and the host grows what was full (`../queueGrowth.ts`).
  */
-const WORK_DROPPED = 4
+export const QUEUE_DROPPED = 4,
+  LIST_DROPPED = 8,
+  WORK_DROPPED = QUEUE_DROPPED | LIST_DROPPED
 
 export const DAG_VIEWS_WGSL = wgslBlock(
   'DAG_VIEWS_WGSL',
   [],
-  `const MAX_VIEWS:u32=${DAG_MAX_VIEWS}u;
-const VIEW_SHIFT:u32=${VIEW_SHIFT}u;
-const ENTRY_INDEX:u32=${(1 << VIEW_SHIFT) - 1}u;
+  `${wgslConsts({
+    MAX_VIEWS: DAG_MAX_VIEWS,
+    VIEW_SHIFT,
+    ENTRY_INDEX: (1 << VIEW_SHIFT) - 1,
+  })}
 /** The view the current work item serves: set by each kernel from its entry, read by every
  *  function that needs a view's uniforms. A camera leaves it at zero. */
 var<private> vi:u32;
@@ -78,6 +77,10 @@ fn rangeSlot(i:u32)->u32{if(!SPLIT){return i;}let v=i/range.count;return v*views
 fn viewWord(row:u32,v:u32)->u32{return extraBase()+row*views[0u].viewCapacity+v;}
 /** The word behind the per-view rows: the most sixty-four-wide groups any view drew. */
 fn drawnGroupsMax()->u32{return viewWord(${VIEW_WORD_ROWS}u,0u);}
-fn dropWork(){atomicOr(&out.overflow,${WORK_DROPPED}u);}
+${wgslConsts({
+  QUEUE_DROPPED,
+  LIST_DROPPED,
+})}
+fn dropWork(bit:u32){atomicOr(&out.overflow,bit);}
 `,
 )

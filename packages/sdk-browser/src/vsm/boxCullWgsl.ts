@@ -3,12 +3,13 @@ import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 import { floorLog2 } from '../../../math/src/wgsl/integer.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
-import { VSM_PAGE_MARKS_GATHER_WGSL } from './pageTableWgsl.ts'
+import { VSM_PAGE_ADDRESS_WGSL, VSM_PAGE_MARKS_GATHER_WGSL } from './pageTableWgsl.ts'
 /**
  * The cull of a box and of its pages that the cache invalidation (`invalidationWgsl.ts`) and the
  * render cull (`renderCullWgsl.ts`) share: the frustum cull of a box given in clip space, its rect
  * in pixels, the mip level covering a rect, the flags of a page rect and their mask test, the
- * clip-space radius of a bounding sphere and the fine-caster threshold.
+ * clip-space radius of a bounding sphere and the fine-caster threshold, and whether any valid page
+ * overlaps a page rect.
  *
  * Each caller takes its box to clip space its own way — the invalidation through the instance's
  * local-to-world and then the view's world-to-clip, the render cull through one shifted-to-clip
@@ -17,7 +18,14 @@ import { VSM_PAGE_MARKS_GATHER_WGSL } from './pageTableWgsl.ts'
  */
 export const VSM_BOX_CULL_WGSL = wgslBlock(
   'VSM_BOX_CULL_WGSL',
-  [FLOAT32_MAX, VSM_CONSTANTS_WGSL, VSM_PAGE_MARKS_GATHER_WGSL, perspectiveDivide, floorLog2],
+  [
+    FLOAT32_MAX,
+    VSM_CONSTANTS_WGSL,
+    VSM_PAGE_ADDRESS_WGSL,
+    VSM_PAGE_MARKS_GATHER_WGSL,
+    perspectiveDivide,
+    floorLog2,
+  ],
   `
 struct VsmBoxInView{clipLow:vec3f,clipHigh:vec3f,pastFar:bool,pastNear:bool,inMapView:bool,}
 /** The mip level whose texels cover a rect (inclusive) within a desired footprint. */
@@ -106,6 +114,13 @@ fn vsmRectMarks(tableXY:vec2u,pagesRect:vec4u)->u32{
  if(levelRect.x==levelRect.z){marks2x2.y=0u;marks2x2.z=0u;}
  if(levelRect.y==levelRect.w){marks2x2.x=0u;marks2x2.y=0u;}
  return marks2x2.x|marks2x2.y|marks2x2.z|marks2x2.w;
+}
+/** Whether any valid page overlaps the page rect. */
+fn vsmTouchesMappedPage(h:VsmHandle,mipLevel:u32,pagesRectIn:vec4u,askedMarks:u32,fineCaster:bool)->bool{
+ if(any(pagesRectIn.zw<pagesRectIn.xy)){return false;}
+ let wantedMarks=askedMarks|select(0u,VSM_PAGE_FINE,fineCaster);
+ let entryCell=vsmTableEntryOf(h,mipLevel,pagesRectIn.xy);
+ return vsmMarksMatch(vsmRectMarks(entryCell.tableXY,pagesRectIn),wantedMarks);
 }
 /** The clip-space radius estimate of a bounding sphere. */
 fn vsmClipRadius(isOrtho:bool,radius:f32,shiftedCenter:vec3f,viewToClip:mat4x4f)->f32{

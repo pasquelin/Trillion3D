@@ -4,21 +4,22 @@ import { webgpuPagesEngine } from '../pages.ts'
 import { collectClusterPages } from '../../../page/selection/selection.ts'
 import { packDagSelection } from '../../../gpu/dag/selection.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, streamingQuadBackend } from '../testScenes.fixture.ts'
 import { coarseQuadScene } from '../testOccluder.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'
+import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 test('a GPU-driven image reaches the queue as one command buffer', async () => {
   installGpuGlobals()
   const fixture = quadScene()
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
-  const { device, submits } = mockGpu({ packed: packDagSelection(collected.roots) })
+  const { device, submits } = fakeDevice({ ...BACKEND, packed: packDagSelection(collected.roots) })
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
@@ -55,12 +56,12 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
   fixture.indices.set('2', new Uint32Array([0, 1, 2]))
   const collected = collectClusterPages(
     fixture.source,
+    graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-    fixture.associations,
   )
   const packed = packDagSelection(collected.roots)
-  const { device, draws, buffers } = mockGpu({ packed })
+  const { device, draws, buffers } = fakeDevice({ ...BACKEND, packed })
   const backend = streamingQuadBackend(fixture, device) as Engine
   const render = () => {
     draws.length = 0
@@ -93,7 +94,7 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     assert.deepEqual(backend.selectedPageIds(), ['2'])
     // The coarse fallback is the only drawable page: the frame mask says so, even before the
     // indirect command turns it into its instance count.
-    assert.equal(drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length, 1)
+    assert.equal(drawnPageIds(buffers, packed).length, 1)
     backend.acceptPage('1', fixture.indices.get('1')!)
     render()
     await backend.flush()
@@ -102,7 +103,7 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
     assert.equal(backend.metrics().submittedTriangles, 2)
     assert.equal(
-      drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length,
+      drawnPageIds(buffers, packed).length,
       2,
       'coarse is absent once all fine pages are drawable',
     )

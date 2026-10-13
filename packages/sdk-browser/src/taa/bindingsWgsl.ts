@@ -1,7 +1,8 @@
-import { readOnly } from '../webgpu/core/bindLayout.ts'
+import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import * as layer from './layers.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
 
 /** Pass bindings, in the order of its layout entries. */
 export const TAA_BINDINGS = {
@@ -32,47 +33,33 @@ export const TAA_BINDINGS = {
 export function createTaaLayout(device: GPUDevice, asIs = true, blended = false, filtered = false) {
   const stage = GPUShaderStage.FRAGMENT
   const entries: GPUBindGroupLayoutEntry[] = [
-    {
-      binding: TAA_BINDINGS.current,
-      visibility: stage,
-      texture: { sampleType: 'unfilterable-float' },
-    },
-    { binding: TAA_BINDINGS.history, visibility: stage, texture: { sampleType: 'float' } },
+    computeTextureEntry(TAA_BINDINGS.current, 'unfilterable-float', '2d', stage),
+    computeTextureEntry(TAA_BINDINGS.history, 'float', '2d', stage),
     {
       binding: TAA_BINDINGS.historySampler,
       visibility: stage,
       sampler: { type: 'filtering' },
     },
-    { binding: TAA_BINDINGS.depth, visibility: stage, texture: { sampleType: 'depth' } },
-    { binding: TAA_BINDINGS.ids, visibility: stage, texture: { sampleType: 'uint' } },
-    { binding: TAA_BINDINGS.pages, visibility: stage, buffer: readOnly },
-    { binding: TAA_BINDINGS.motion, visibility: stage, buffer: readOnly },
-    { binding: TAA_BINDINGS.view, visibility: stage, buffer: { type: 'uniform' } },
-    {
-      binding: TAA_BINDINGS.flags,
-      visibility: stage,
-      texture: { sampleType: blended ? 'float' : 'uint' },
-    },
+    computeTextureEntry(TAA_BINDINGS.depth, 'depth', '2d', stage),
+    computeTextureEntry(TAA_BINDINGS.ids, 'uint', '2d', stage),
+    computeBufferEntry(TAA_BINDINGS.pages, 'read-only-storage', stage),
+    computeBufferEntry(TAA_BINDINGS.motion, 'read-only-storage', stage),
+    computeBufferEntry(TAA_BINDINGS.view, 'uniform', stage),
+    computeTextureEntry(TAA_BINDINGS.flags, blended ? 'float' : 'uint', '2d', stage),
     // Gathers only (`geometryHistoryWgsl.ts`): never filters, so depth and integers may use it.
     {
       binding: TAA_BINDINGS.texelSampler,
       visibility: stage,
       sampler: { type: 'non-filtering' },
     },
-    { binding: TAA_BINDINGS.reactive, visibility: stage, texture: { sampleType: 'float' } },
-    { binding: TAA_BINDINGS.shareHistory, visibility: stage, texture: { sampleType: 'float' } },
-    {
-      binding: TAA_BINDINGS.geometryHistory,
-      visibility: stage,
-      texture: { sampleType: 'uint' },
-    },
-    { binding: TAA_BINDINGS.shadingHistory, visibility: stage, texture: { sampleType: 'uint' } },
+    computeTextureEntry(TAA_BINDINGS.reactive, 'float', '2d', stage),
+    computeTextureEntry(TAA_BINDINGS.shareHistory, 'float', '2d', stage),
+    computeTextureEntry(TAA_BINDINGS.geometryHistory, 'uint', '2d', stage),
+    computeTextureEntry(TAA_BINDINGS.shadingHistory, 'uint', '2d', stage),
     // The page pool and the float pool the page geometry reads a deformed pixel's triangle from.
-    ...[TAA_BINDINGS.indices, TAA_BINDINGS.positions, TAA_BINDINGS.uvs].map((binding) => ({
-      binding,
-      visibility: stage,
-      buffer: readOnly,
-    })),
+    ...[TAA_BINDINGS.indices, TAA_BINDINGS.positions, TAA_BINDINGS.uvs].map((binding) =>
+      computeBufferEntry(binding, 'read-only-storage', stage),
+    ),
   ]
   const kept = asIs ? entries : entries.filter(({ binding }) => binding !== TAA_BINDINGS.flags)
   return device.createBindGroupLayout({
@@ -80,9 +67,23 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false,
   })
 }
 
-/** Uniform bytes: two matrices, two quadruplets, the nine weights in three, then the render grid,
- *  the jitter, the eye, the scene's exposure, the camera's parallax and the flicker rates. */
-export const TAA_VIEW_BYTES = 304
+/** The pass uniform's fields (`TAA_VIEW_WGSL`), in order: two matrices, two quadruplets, the nine
+ *  weights in three, then the render grid, the jitter, the eye, the scene's exposure, the
+ *  camera's parallax and the flicker rates. */
+export const TAA_VIEW = fieldLayout('TaaView', [
+  ['prevViewProj', 'mat4x4f'],
+  ['invViewProj', 'mat4x4f'],
+  ['viewport', 'vec4f'],
+  ['params', 'vec4f'],
+  ['weights', 'array<vec4f,3>'],
+  ['render', 'vec4f'],
+  ['jitter', 'vec4f'],
+  ['eye', 'vec4f'],
+  ['tsr', 'vec4f'],
+  ['parallax', 'vec4f'],
+  ['moire', 'vec4f'],
+] as const)
+export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
 
 /**
  * Pass uniform. `prevViewProj` and `invViewProj` are REPORTED TO THIS FRAME'S EYE and
@@ -103,11 +104,7 @@ export const TAA_VIEW_BYTES = 304
  * count's fade-in rate and the parallax limit's inverse (`FLICKER_COUNT_RATE`, `flickerParallax`), a render pixel's
  * width in the world at a clip w of one (`shadingStill`).
  */
-const TAA_VIEW_WGSL = wgslBlock(
-  'TAA_VIEW_WGSL',
-  [],
-  `struct TaaView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,eye:vec4f,tsr:vec4f,parallax:vec4f,moire:vec4f,}`,
-)
+const TAA_VIEW_WGSL = wgslBlock('TAA_VIEW_WGSL', [], TAA_VIEW.wgsl)
 
 export const BINDINGS_WGSL = wgslBlock(
   'BINDINGS_WGSL',

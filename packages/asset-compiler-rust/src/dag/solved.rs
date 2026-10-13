@@ -14,7 +14,7 @@
 //! error, under a pixel wherever its level is drawn, is not locked for being lit from behind: on a
 //! group the solve alone frees, that stalled it again (four groups of five on a hall scene).
 use super::border::required_locks;
-use super::charts::{densities, folded_span, longest_edge, open_border_welded, weighted};
+use super::charts::{densities, folded_span, open_border_welded, weighted};
 use super::grown::Placed;
 use super::placed::Local;
 use super::quality::backlit_corners;
@@ -23,6 +23,7 @@ use super::stopped::Stop;
 use super::*;
 use crate::qem::solve::Region;
 use std::borrow::Cow;
+use trillion3d_math::triangle::longest_edge;
 
 /// A solved reduction: its error, its clusters in the primitive's numbering — placed vertices
 /// from the level's vertex count on — and the vertices it placed.

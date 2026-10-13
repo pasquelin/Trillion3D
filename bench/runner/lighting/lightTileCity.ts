@@ -5,7 +5,7 @@
 // lights, never for a scene of the repository. `depthField` ray-casts it as the engine's depth
 // buffer holds it — reverse-Z, infinite far, 0 on the sky.
 import { lerp } from '../../../packages/math/src/scalar/reals.ts'
-import { lcgRandom as seeded } from '../../../packages/math/src/sequence/random.ts'
+import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import {
   pixelRay,
   rayDepth,
@@ -42,7 +42,7 @@ const light = (centre: Vec3, radius: number): Light => ({
 })
 
 export function buildCity(seed = 42): City {
-  const r = seeded(seed),
+  const r = lcgRandom(seed),
     u = (lo: number, hi: number) => lerp(lo, hi, r())
   const blocks = emptyBlocks()
   for (let i = -HALF; i < HALF; i++)

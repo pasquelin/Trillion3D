@@ -11,7 +11,7 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   // image it can (`../../../frame/scaleControl.ts`), its bounds read at each frame: a page may ask
   // `'auto'` after the session opened.
   const sampleEveryFrames = () =>
-    diag.traceEnabled || rt.scale.bounds.auto ? 1 : timing.stages ? 3 : 12
+    diag.traceEnabled || rt.scale.bounds.auto ? 1 : timing.profiler.stages ? 3 : 12
   const gpuLog = createGpuLog(gpuDevice)
   timing.logFrame = gpuLog.frame
   const gpuTiming = createGpuTiming(gpuDevice, {
@@ -27,12 +27,14 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       }
       timing.lastGpuFrameMs = sample.submittedMs
       gpuLog(rt, sample)
-      // The controller steps on an image timed whole: a pass whose pair cannot be read may lie
-      // outside the span, which is then short, and the frame interval steps it as for no time.
+      // The span is the image's whole time, or a lower bound of it where a pass's pair cannot be
+      // read (that pass may lie outside it): the scale steps on a whole one alone, the cadence
+      // slows on a bound too (`frame/cadence.ts`).
       rt.scale.observe(
-        sample.pairs.invalid > 0 ? null : sample.frameMs,
+        sample.frameMs,
         sample.renderScale,
         sample.scaleSteered !== false,
+        sample.pairs.invalid === 0,
       )
       // The bounce budget is a duration: it reads here the timer of its own stage, the per-pass
       // profile's, and corrects the next image's batch. Never an estimate.
@@ -42,9 +44,10 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       // The sample describes an image already past: it is filed by stage without ever blocking this one.
       // The image envelope is published separately: on a device that overlaps passes, the sum of stages
       // exceeds the image, and it is the envelope that tells the truth about its duration.
-      if (timing.stages) {
-        timing.stages.frameGpu((add) => addGpuPasses(timing.lastGpuPassMs, add))
-        if (sample.submittedMs !== null) timing.stages.pushImageGpu(sample.submittedMs)
+      const { stages } = timing.profiler
+      if (stages) {
+        stages.frameGpu((add) => addGpuPasses(timing.lastGpuPassMs, add))
+        if (sample.submittedMs !== null) stages.pushImageGpu(sample.submittedMs)
       }
       const phase = sample.error ? 'gpu-timing-unavailable' : 'gpu-timing',
         message = sample.error ? 'GPU timing unavailable' : 'GPU timings measured per pass'

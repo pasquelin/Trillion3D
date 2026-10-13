@@ -1,9 +1,9 @@
 // What npm and the tools that read no `exports` find in `package.json`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readJson } from '../../scripts/repository-files.ts'
 
-const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
+const pkg = readJson('package.json')
 
 test('a tool that reads no exports finds the root, and the gate list is never shipped', () => {
   // TypeScript's `node10` resolution and older bundlers read `main` and `types`: the root's own.

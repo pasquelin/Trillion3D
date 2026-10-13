@@ -1,7 +1,7 @@
 // The shadow passes share one text of each helper (`VSM_PROJECTION_DATA_WGSL`): the clipmap level
 // and distance, the cube face, a view's depth from device depth, a local map's pixel footprint and a
-// sun's back face. The marking, the projection and the blended surfaces' traced read call them with
-// their own view's words; no pass holds a copy of its own.
+// sun's back face. The marking, the projection and the blended surfaces' read call them with their
+// own view's words; no pass holds a copy of its own.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { vsmVariants } from '../gpu/core/engineShaders.vsm.fixture.ts'
@@ -27,7 +27,7 @@ test('one text of each shared helper, in every pass that declares it', () => {
     assert.equal(wgslSource(VSM_PROJECTION_DATA_WGSL).split(`fn ${name}(`).length, 2, name)
   const texts: Record<string, string> = {
     ...vsmVariants(),
-    TRACED_READ: wgslModule(directShadowWgsl(18, { traced: true })),
+    BLENDED_READ: wgslModule(directShadowWgsl(18)),
   }
   for (const [module, code] of Object.entries(texts)) {
     for (const name of SHARED)

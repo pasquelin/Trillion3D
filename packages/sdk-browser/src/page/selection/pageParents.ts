@@ -1,6 +1,7 @@
 import type { PageRec } from './selection.ts'
 import type { ClusterRoot } from './types.ts'
 import type { PlacementIndex } from './placements.ts'
+import { rootOfPacked } from './placements.ts'
 
 const NONE: readonly PageRec[] = []
 
@@ -17,7 +18,7 @@ export function createPageParents(
 ) {
   return (rec: PageRec): readonly PageRec[] => {
     const packed = rankOf(rec),
-      root = packed < 0 ? undefined : roots[placement.rootOfPacked[packed]],
+      root = packed < 0 ? undefined : roots[rootOfPacked(placement, packed)],
       structure = root?.structure,
       group = rec.group
     if (!root || !structure || group == null || group < 0 || group >= structure.groupCount)

@@ -3,11 +3,9 @@ import type { CutDelta, IdDelta } from '../cut/delta.ts'
 import { createDenseKeySet } from '../cut/denseKeys.ts'
 import { createKeyUnion } from '../cut/keyUnion.ts'
 import { createHeldKeys } from '../cut/heldKeys.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { createCoverHolders } from './coverHolders.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
-
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 
 export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>
 
@@ -18,29 +16,28 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>
  * what the image draws, which the cache must not reclaim under it. The root cover counts its
  * holders per key (`bootstrapKey`): the session holds its roots from open, and each cell held adds
  * a holder to the roots it alone needs (`holdCover`); a key is covered while it has one — kept,
- * pinned in the held tier and never weighed by the budget. The cut arrives as a DELTA of
+ * pinned and never weighed by the budget. The cut arrives as a DELTA of
  * each view's GPU readback, so a moving camera costs the
  * pages that changed and a still camera nothing at all. `tracking.wanted` is what the upload queue
  * walks: the desired set itself, unless the page budget forces the coarser subset the admission
  * ranks (`requestAdmission.ts`).
  */
 export function createWebgpuResidencySets(options: {
-  tracking: Tracking
+  tracking: WebgpuPageTracking
   /** Holders per key of the root cover, the session's set at open; `holdCover` moves the rest. */
   bootstrapKey: Uint8Array
   packedPages: PageList
 }) {
   const { tracking, bootstrapKey, packedPages } = options
   const { keyCount, keyOf, wanted, wantedPages } = tracking
-  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  /** A packed rank back to its record: the one catalogue accessor (`../../page/selection/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages)
   /** A packed page's cache key, cached on its record by the tracking (`PageRec.keyIndex`). */
   const keyOfId = (id: number) => keyOf(recordOf(id)!)
-  /** What joined and left `keep` since the pin step last ran, each joining key beside the record
-   *  it joined by (none for the pinned cover): the pin step reads its parents there. */
-  const enteringPages: (PageRec | undefined)[] = []
-  const entering = createDenseKeySet(enteringPages),
-    leaving = createDenseKeySet()
+  /** What joined and left the root cover since the pin step last ran (`pinUpdater.ts`): the
+   *  session's cover at open, then each cell's. */
+  const coverEntering = createDenseKeySet(),
+    coverLeaving = createDenseKeySet()
   const desiredPages: PageRec[] = []
   const desired = createDenseKeySet(desiredPages)
   let followsDesired = true
@@ -55,25 +52,20 @@ export function createWebgpuResidencySets(options: {
       if (followsDesired) dequeue(key)
     },
   })
-  const keep = createKeyUnion({
-    members: tracking.keep,
-    keyCount,
-    onListed: (key, page) => {
-      leaving.remove(key)
-      entering.add(key, page)
-    },
-    onUnlisted: (key) => {
-      entering.remove(key)
-      leaving.add(key)
-    },
-  })
-  for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key)
+  const keep = createKeyUnion({ members: tracking.keep, keyCount })
+  for (let key = 0; key < keyCount; key++)
+    if (bootstrapKey[key]) {
+      keep.retain(key)
+      coverEntering.add(key)
+    }
   const cover = createCoverHolders({
     ...{ holders: bootstrapKey, keyOf, requested, keep },
+    joined: (key) => (coverLeaving.remove(key), coverEntering.add(key)),
+    left: (key) => (coverEntering.remove(key), coverLeaving.add(key)),
   })
-  /** Entering the upload queue is what makes the image hold a page; leaving it lets the page go. */
   /** Bumped whenever the upload queue changes, so what `accepts` answers may have changed. */
   let acceptedRevision = 0
+  /** Entering the upload queue is what makes the image hold a page; leaving it lets the page go. */
   const enqueue = (key: number, page?: PageRec) => {
     if (!wanted.add(key, page)) return
     acceptedRevision++
@@ -118,9 +110,8 @@ export function createWebgpuResidencySets(options: {
     followsDesired = true
   }
   return {
-    entering,
-    enteringPages,
-    leaving,
+    coverEntering,
+    coverLeaving,
     /** Keys the cut asks for beyond the pinned cover. */
     get desiredCount() {
       return desired.count
@@ -141,15 +132,14 @@ export function createWebgpuResidencySets(options: {
      *  and draws, never the catalogue. */
     get hostBytes() {
       return (
-        entering.byteLength +
-        leaving.byteLength +
+        coverEntering.byteLength +
+        coverLeaving.byteLength +
         requested.byteLength +
         keep.byteLength +
         askedKeys.byteLength +
         drawnKeys.byteLength +
         wanted.byteLength +
-        cover.byteLength +
-        tracking.pinned.byteLength
+        cover.byteLength
       )
     },
     /** Changes whenever `accepts` may answer differently. */
@@ -178,6 +168,7 @@ export function createWebgpuResidencySets(options: {
       return cover.covered
     },
     coverMissing: cover.missing,
+    coverLacking: cover.lacking,
     /** Applies one difference of the drawable cut, which is what the image must not lose. */
     applyDrawn(delta: CutDelta) {
       drawnKeys.apply(delta)

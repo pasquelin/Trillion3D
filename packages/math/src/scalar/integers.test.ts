@@ -1,9 +1,17 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { mipSize, nextPow2, uniqueSortedInPlace } from './integers.ts'
-import { setBit } from './bits.ts'
-import { testBit } from './bits.fixture.ts'
-import { firstTrue, lastTrue } from './search.ts'
+import {
+  alignUp,
+  floorLog2,
+  isImageSize,
+  mipSize,
+  nextPow2,
+  slotsWithin,
+  uniqueSortedInPlace,
+} from './integers.ts'
+import { hasBit, setBit } from './bits.ts'
+import { firstTrue, lastAtMost, lastTrue } from './search.ts'
+import { HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
 test('nextPow2 is exact on its whole domain: each power, either side of it, and reals', () => {
   for (let k = 1; k <= 32; k++) {
@@ -20,13 +28,13 @@ test('nextPow2 is exact on its whole domain: each power, either side of it, and 
   assert.equal(nextPow2(1 + 2 ** -52), 2)
 })
 
-test('setBit and testBit: each bit alone, the top bit of a word, and the signed read', () => {
+test('setBit and hasBit: each bit alone, the top bit of a word, and the signed read', () => {
   const words = new Uint32Array(3)
   for (const i of [0, 31, 32, 63, 70]) setBit(words, i)
   assert.deepEqual([...words], [0x80000001, 0x80000001, 1 << 6])
   for (let i = 0; i < 96; i++) {
     const set = [0, 31, 32, 63, 70].includes(i) ? 1 : 0
-    assert.equal(testBit(words, i), set, `${i}`)
+    assert.equal(hasBit(words, i), set === 1, `${i}`)
     // The signed form a word read through `>>` gives: the same bit.
     assert.equal((words[i >> 5] >> (i & 31)) & 1, set, `${i}`)
   }
@@ -36,6 +44,20 @@ test('nextPow2 outside its domain: 1 up to 1, NaN for NaN, a throw past 2^32', (
   for (const v of [-Infinity, -5, -0, 0, 2 ** -1074, 0.5, 1]) assert.equal(nextPow2(v), 1, `${v}`)
   assert.ok(Number.isNaN(nextPow2(NaN)))
   for (const v of [2 ** 32 + 1, 2 ** 50 + 1, Infinity]) assert.throws(() => nextPow2(v), RangeError)
+})
+
+test('lastAtMost is lastTrue over a sorted array, with repeats and either end', () => {
+  for (let length = 1; length <= 9; length++)
+    for (let seed = 0; seed < 20; seed++) {
+      const sorted: number[] = []
+      for (let i = 0, value = seed % 3; i < length; i++) sorted.push((value += (seed * i) % 3))
+      for (let value = -1; value <= sorted[length - 1] + 1; value++)
+        assert.equal(
+          lastAtMost(sorted, value),
+          lastTrue(0, length - 1, (i) => sorted[i] <= value),
+          `${sorted} at ${value}`,
+        )
+    }
 })
 
 test('lastTrue and firstTrue: the searches they replace, every edge and empty range', () => {
@@ -105,4 +127,54 @@ test('mipSize halves by integer division, one texel at least, as `Math.max(1, si
     }
   }
   assert.equal(mipSize(1000, 40), 1)
+})
+
+test('alignUp to four is the mask (offset + 3) & ~3 on every byte offset of 16 bits and at 2³¹', () => {
+  for (let offset = 0; offset < 1 << 16; offset++)
+    assert.equal(alignUp(offset, 4), (offset + 3) & ~3, `${offset}`)
+  for (const offset of [2 ** 31 - 8, 2 ** 31 - 5, 2 ** 31 - 4])
+    assert.equal(alignUp(offset, 4), (offset + 3) & ~3, `${offset}`)
+})
+
+test('floorLog2 is floor(log2) on every side of 1 to 2³² − 1: a full mip chain counts the same levels', () => {
+  // On that span `Math.clz32` reads the side whole, and below 2³² `Math.log2` keeps every integer
+  // apart from the power of two above it; a fractional side truncates in `clz32` as `Math.floor`
+  // rounds the logarithm. Every side to 2¹⁴, the powers of two and their neighbours, Halton sides.
+  const sides: number[] = [2 ** 32 - 1]
+  for (let side = 1; side <= 2 ** 14; side++) sides.push(side)
+  for (let k = 0; k < 32; k++) sides.push(2 ** k - 1, 2 ** k, 2 ** k + 1)
+  for (let i = 1; i <= HALTON_SWEEP; i++)
+    sides.push(Math.floor(haltonSpan(i, 2, 1, 2 ** 32)), haltonSpan(i, 3, 1, 2 ** 32))
+  for (const side of sides.filter((side) => side >= 1 && side < 2 ** 32))
+    assert.equal(floorLog2(side), Math.floor(Math.log2(side)), `side ${side}`)
+})
+
+test('isImageSize holds two safe integers of one or more, and nothing else', () => {
+  assert.ok(isImageSize(1, 1) && isImageSize(3840, 2160))
+  for (const [w, h] of [
+    [0, 1],
+    [1, 0],
+    [-1, 4],
+    [1.5, 2],
+    [Number.NaN, 2],
+    [2, Infinity],
+    [2 ** 53, 1],
+  ])
+    assert.equal(isImageSize(w, h), false, `${w} × ${h}`)
+})
+
+test('slotsWithin is the largest power of two of slots the bytes hold, as the doubling loop found it', () => {
+  const doubled = (bytes: number, slotBytes: number) => {
+    const fit = Math.floor(bytes / slotBytes)
+    if (fit < 1) return 0
+    let slots = 1
+    while (slots * 2 <= fit) slots *= 2
+    return slots
+  }
+  const sizes = [-12, 0, 1, 11, 12, 13, 24, 47, 48, 1000, 2 ** 27, 2 ** 31 - 1, 2 ** 40 + 5]
+  for (const slotBytes of [1, 4, 12])
+    for (const b of sizes) assert.equal(slotsWithin(b, slotBytes), doubled(b, slotBytes), `${b}`)
+  assert.equal(slotsWithin(2 ** 36 - 1, 1), 2 ** 35)
+  assert.equal(slotsWithin(Infinity, 12), Infinity)
+  assert.equal(slotsWithin(NaN, 12), 0)
 })

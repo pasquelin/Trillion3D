@@ -11,18 +11,18 @@ import { lcgMaskedRandom } from '../../../../math/src/sequence/seeded.fixture.ts
 
 const mesh = (name: string) => ({ name }) as unknown as G.HostMesh
 // A placement is named by the world its root and its item read: here, one per mesh.
-const rec = (sourceMesh: G.HostMesh, id: number, sourceOrder: number, transparent = true) =>
+const rec = (node: G.HostMesh, id: number, sourceOrder: number, transparent = true) =>
   ({
     id,
     sourceOrder,
     transparent,
-    sourceMesh,
+    drawSource: { node },
     triangles: 1,
   }) as unknown as PageRec
 
 /** One primitive: its pages, and optionally the culling tree the cut walks them with. */
 function root(pages: PageRec[], leaves?: number[][]): ClusterRoot<PageRec> {
-  const world = pages[0]?.sourceMesh
+  const world = pages[0]?.drawSource?.node
   if (!leaves) return { pages, world } as unknown as ClusterRoot<PageRec>
   // A root node over `leaves.length` leaves, each holding a contiguous run of pages.
   const nodes = new Float64Array((leaves.length + 1) * CULL_STRIDE)
@@ -42,8 +42,8 @@ function root(pages: PageRec[], leaves?: number[][]): ClusterRoot<PageRec> {
     culling: { nodes, stride: CULL_STRIDE },
   } as unknown as ClusterRoot<PageRec>
 }
-const item = (sourceMesh: G.HostMesh | undefined, paged: boolean) =>
-  ({ sourceMesh, matrix: sourceMesh, paged }) as unknown as BlendGpuItem
+const item = (node: G.HostMesh | undefined, paged: boolean) =>
+  ({ drawSource: node && { node }, matrix: node, paged }) as unknown as BlendGpuItem
 
 /** A reproducible pseudo-random stream: the sweep below has to be the same on every run. */
 const stream = lcgMaskedRandom
@@ -97,7 +97,7 @@ test('the table is the source draw order, the culling walk separating equal rank
   // Rank 4 first, then the three that share rank 7 in the order the walk reaches them.
   assert.deepEqual([...table.entries.subarray(0, 4)], [3, 2, 0, 1])
   assert.deepEqual([...table.entries.subarray(TRANSPARENT_GROUP, TRANSPARENT_GROUP + 2)], [5, 4])
-  assert.equal(table.entryOfPage[3], 0)
+  assert.equal(table.entryOf(3), 0)
   assert.equal(table.maxVertexWords, 3)
 })
 

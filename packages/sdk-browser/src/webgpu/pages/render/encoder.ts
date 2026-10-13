@@ -1,5 +1,7 @@
 import { vsmSubmitted } from './vsm/vsmFrameEnd.ts'
+import { reflectionsSubmitted } from '../../../reflections/frame.ts'
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts'
+import { destroyRetired } from '../../../gpu/core/frameRetire.ts'
 import { viewProj } from '../helpers.ts'
 import { enginePose } from '../../../camera/world.ts'
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts'
@@ -68,11 +70,14 @@ export function submitColorCopy(
   const command = encoder.finish()
   device.queue.submit([command])
   timing.lastQueueSubmitMs = performance.now() - submitStart
+  // What the image replaced as it was encoded goes, its last command submitted (`frameRetire.ts`).
+  destroyRetired(device)
   // Counts of a sampled image are mapped only once the image that copied them is submitted.
   rt.vis.gpuPartition?.countsSubmitted()
   if (published) rt.vis.textures?.feedback.submitted()
   rt.lights.tiles?.submitted()
   vsmSubmitted(rt)
+  reflectionsSubmitted(rt)
   // Every encode path has sent what its rows need before it submits: the image that leaves consumed
   // the row change, whether it drew rows or had none to draw.
   rt.layout.rows.rowsChanged = false

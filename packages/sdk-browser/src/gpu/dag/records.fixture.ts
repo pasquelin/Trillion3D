@@ -4,7 +4,6 @@
  * with the other placements of its primitive. No rank is rewritten here: they are `layout.ts`'s,
  * so none can diverge from the one the GPU reads.
  */
-import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import type { PackedDag } from './types.ts'
 import {
   CLUSTER_WORDS,
@@ -22,19 +21,34 @@ import {
   HOT_SPHERE,
   coldBase,
 } from './layout.ts'
+import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 export type DagRecords = {
   hot: Float32Array
   hotInts: Uint32Array
   cold: Float32Array
   coldInts: Uint32Array
-  /** First cold record in `cold`, behind the working table and the residency bits. */
+  /** First cold record in `cold`, behind the residency bits, the pool's list and the keys. */
   coldAt: number
   recordShift: Uint32Array
   rootBases: Uint32Array
+  pageIndex: PlacementIndex
 }
 export function dagRecords(
-  packed: Pick<PackedDag, 'clusters' | 'pageCones' | 'pageCount' | 'recordShift' | 'rootBases'>,
+  packed: Pick<
+    PackedDag,
+    | 'clusters'
+    | 'pageCones'
+    | 'pageCount'
+    | 'recordCount'
+    | 'keyCount'
+    | 'groupCount'
+    | 'groupEdges'
+    | 'recordShift'
+    | 'rootBases'
+    | 'pageIndex'
+  >,
 ): DagRecords {
   const { clusters, pageCones } = packed
   return {
@@ -42,14 +56,15 @@ export function dagRecords(
     hotInts: new Uint32Array(clusters.buffer, clusters.byteOffset, clusters.length),
     cold: pageCones,
     coldInts: new Uint32Array(pageCones.buffer, pageCones.byteOffset, pageCones.length),
-    coldAt: coldBase(packed.pageCount),
+    coldAt: coldBase(packed),
     recordShift: packed.recordShift,
     rootBases: packed.rootBases,
+    pageIndex: packed.pageIndex,
   }
 }
 
-/** The page's placement: its word in the working table. */
-export const worldOf = (r: DagRecords, i: number) => r.coldInts[i]
+/** The page's placement, as the host keeps it: the kernels read it from the entry carrying it. */
+export const worldOf = (r: DagRecords, i: number) => rootOfPacked(r.pageIndex, i)
 /** The record the page reads: its index plus its placement's shift, wrapping as the u32 add does. */
 const recordOf = (r: DagRecords, i: number) => (i + r.recordShift[worldOf(r, i)]) >>> 0
 const coldOf = (r: DagRecords, i: number) => r.coldAt + recordOf(r, i) * COLD_WORDS
@@ -59,7 +74,7 @@ export const flagsOf = (r: DagRecords, i: number) =>
 /** Cut node that owns the page: the placement's first node plus the record's relative owner. */
 export function ownerOf(r: DagRecords, i: number) {
   const local = r.coldInts[coldOf(r, i) + COLD_OWNER]
-  return local === NONE ? NONE : r.rootBases[worldOf(r, i)] + local
+  return local === NO_INDEX ? NO_INDEX : r.rootBases[worldOf(r, i)] + local
 }
 export const hasBoxOf = (r: DagRecords, i: number) => r.cold[coldOf(r, i) + COLD_HAS_BOX]
 /** Cluster triangles, as an integer word: the shader's `trianglesOf` is the mirror. */

@@ -15,6 +15,8 @@ import { requestExplorerDevice } from '../../../packages/sdk-browser/src/world/s
  *
  * - `compile(code)` returns `{ module, compilation }`; `compilation` keeps only messages of type
  *   `error`, WGSL compiler warnings not being correctness discrepancies.
+ * - `buffer(size, usage)` makes an unlabelled buffer of the proof's: `fermer` destroys it with the
+ *   device.
  * - `fermer()` waits for the queue (`onSubmittedWorkDone`) before reading `adapter.info` and
  *   destroying the device, then returns the GPU reading in its two forms: `court` (vendor and
  *   architecture) and `complet` (the four filled fields).
@@ -47,8 +49,10 @@ export async function openGpuDevice(
   const errors: string[] = []
   device.addEventListener('uncapturederror', (event) => errors.push(event.error.message))
   return {
+    adapter,
     device,
     errors,
+    buffer: (size: number, usage: GPUBufferUsageFlags) => device.createBuffer({ size, usage }),
     async compile(code: string) {
       const module = device.createShaderModule({ code })
       const compilation = (await module.getCompilationInfo()).messages

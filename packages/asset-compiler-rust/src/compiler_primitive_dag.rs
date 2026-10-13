@@ -1,5 +1,6 @@
 use super::*;
 use crate::compiler_world_roots::RootCover;
+use trillion3d_page_codec::culling::{build_culling_bvh, CULLING_STRIDE};
 #[derive(Default)]
 pub(super) struct DagResult {
     pub pages: Vec<Value>,
@@ -54,12 +55,12 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
 pub(super) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
-    carried: &[&geometry_page::Attribute],
+    carried: &[&encode::Attribute],
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
     blended: bool,
     tile_log2: i32,
-    store_packed: &(impl Fn(&[u32], &[f32], &[&geometry_page::Attribute], &[u32], i32) -> Result<(Value, bool)>
+    store_packed: &(impl Fn(&[u32], &[f32], &[&encode::Attribute], &[u32], i32) -> Result<(Value, bool)>
           + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
@@ -80,7 +81,7 @@ pub(super) fn build_dag_primitive(
     // Pages follow the culling order so every hierarchy node owns a contiguous page range.
     let (order, culling) = {
         let _t = perf::Timer::new(perf::Phase::Culling);
-        crate::dag::build_culling_bvh(pos, &dag)
+        build_culling_bvh(&crate::dag::bounds::culling_clusters(pos, &dag))
     };
     laps.lap("cullingMs");
     let mut page_of = vec![0usize; dag.len()];
@@ -146,20 +147,17 @@ pub(super) fn build_dag_primitive(
         .collect();
     let structure_report =
         json!({"version":STRUCTURE_VERSION,"roots":roots,"groups":structure_groups});
-    // Flat node array, CULLING_STRIDE numbers per node; -1 marks a subtree holding a root.
+    // Flat node array, CULLING_STRIDE numbers per node (`CullingNode::flat`); -1 marks a subtree
+    // holding a root. The links and counts are written as integers.
     let mut flat = Vec::with_capacity(culling.len() * CULLING_STRIDE);
     for node in &culling {
-        let bounds = node.min.iter().chain(&node.max).chain(&node.sphere);
-        flat.extend(bounds.map(|value| json!(value)));
-        flat.push(if node.max_parent_error.is_finite() {
-            json!(node.max_parent_error)
-        } else {
-            json!(-1.0)
-        });
-        flat.push(json!(node.first_child));
-        flat.push(json!(node.child_count));
-        flat.push(json!(node.first_cluster));
-        flat.push(json!(node.cluster_count));
+        for (at, value) in node.flat().into_iter().enumerate() {
+            flat.push(if at > 10 {
+                json!(value as usize)
+            } else {
+                json!(value)
+            });
+        }
     }
     let culling_report = json!({"stride":CULLING_STRIDE,"count":culling.len(),"nodes":flat});
     laps.lap("reportMs");

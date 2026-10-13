@@ -2,14 +2,16 @@
 // segments, a row each. At most five scenes, ever (`suiteRuns.ts`); the first bad one ends the list.
 //   node bench/dawn/suite.ts [page[:scenario],…] [run options, as run.ts]
 // The default is the bench's one scene, which carries every cost the engine counts.
-import { readFileSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { measureOutput } from '../core/paths.ts'
 import { runChild } from './child.ts'
 import { LOCK_OWNER, takeBenchLock } from './lock.ts'
 import type { BenchReport } from './merge.ts'
 import { stamp } from './options.ts'
 import { suiteRuns } from './suiteRuns.ts'
-import { ms, percent, sameImages, table } from './reportText.ts'
+import { ms, percent, sameImages } from './reportText.ts'
+import { table } from '../core/table.ts'
+import { readJson } from '../../scripts/repository-files.ts'
 
 const options = process.argv.slice(2)
 const list = options[0] && !options[0].startsWith('--') ? options.shift() : undefined
@@ -34,7 +36,7 @@ for (const run of runs) {
     rows.push([page, scenario, `FAILED (${child.status ?? child.signal})`, ...Array(8).fill('')])
     break
   }
-  const merged = JSON.parse(readFileSync(`${report}.json`, 'utf8')) as BenchReport
+  const merged = readJson(`${report}.json`) as BenchReport
   if (child.status !== 0) failed++
   // Every measured segment is a row: a regression in one of them is seen, whichever it is.
   for (const segment of merged.segments.filter((s) => s.measured)) {

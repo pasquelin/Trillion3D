@@ -1,7 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { GpuPassTimings } from '../../../../sdk-core/src/index.ts'
-import { gpuPassBlockOf, gpuPassBlockTotals } from './passBlocks.ts'
+import { gpuPassBlockTotals } from './passBlocks.ts'
+import { gpuPassBlockOf } from '../../stage/mapping.ts'
+import { VSM_PASS_PREFIX } from '../../stage/passLabels.ts'
 
 const sample = (
   passes: Array<[string, number | null]>,
@@ -21,14 +23,14 @@ test('each pass falls in the block its label names, and an unknown one stays out
   assert.equal(gpuPassBlockOf('Trillion3D material surfaces v1'), 'materials')
   assert.equal(gpuPassBlockOf('Trillion3D empty surfaces'), 'materials')
   assert.equal(gpuPassBlockOf('Trillion3D deferred lighting'), 'other')
-  assert.equal(gpuPassBlockOf('vsm.pass'), 'other')
-  assert.equal(gpuPassBlockOf('Trillion3D pass invented tomorrow'), 'other')
+  assert.equal(gpuPassBlockOf(`${VSM_PASS_PREFIX}pass`), 'other')
+  assert.equal(gpuPassBlockOf('Trillion3D pass invented tomorrow'), undefined)
 })
 
 test("a block's durations add up, and the three sum to that of the passes", () => {
   const totals = gpuPassBlockTotals(
     sample([
-      ['Trillion3D clear', 0.066],
+      ['Trillion3D partition', 0.066],
       ['Trillion3D DAG selection', 0.406],
       ['Trillion3D visibility primary', 1.148],
       ['Trillion3D HiZ', 0.099],

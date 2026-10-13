@@ -30,4 +30,12 @@ export function decideComposedMotion(
   state.motionMode[0] = mode
   packDoubles(state.motionMode, 2, eye, 0, 3)
   device.queue.writeBuffer(state.gpu.motionMode, 0, state.motionMode)
+  // What the pass leaves: a restart takes every world as reference with no motion; a compared
+  // image takes them too, its motion identity where the reference was current already; a kept one
+  // writes identity and keeps the reference (`COMPOSE_ROOTS_WGSL`).
+  if (mode === MOTION_RESET) state.previousCurrent = state.motionIdentity = true
+  else if (mode === MOTION_SCAN) {
+    state.motionIdentity = state.ranCurrent
+    state.previousCurrent = true
+  } else if (mode === MOTION_KEEP) state.motionIdentity = true
 }

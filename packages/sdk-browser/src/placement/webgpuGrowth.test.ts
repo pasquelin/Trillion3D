@@ -18,7 +18,9 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, its G
       .find((page) => page.url === 'ground')!
     const before = {
       cut: rt.run.gpuSelection!,
-      ranks: Array.from(layout.rows.rowOfPage.subarray(0, layout.packedPages.length)),
+      ranks: Array.from({ length: layout.packedPages.length }, (_, page) =>
+        layout.rows.rowOf(page),
+      ),
       slot: cache.get(pageAddress(ground))!.offset,
       ...cache.stats(),
     }
@@ -46,7 +48,7 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, its G
     // (`growTables.ts`), the same pool, the ground in its slot, and no page uploaded for the new
     // rows, whose clusters read the slots their addresses hold.
     assert.deepEqual(
-      before.ranks.map((_, page) => layout.rows.rowOfPage[page]),
+      before.ranks.map((_, page) => layout.rows.rowOf(page)),
       before.ranks,
     )
     assert.equal(rt.gpu.cache, cache)
@@ -57,14 +59,14 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, its G
       [before.residentPages, before.uploadedBytes],
     )
     for (let packed = 0; packed < layout.packedPages.length; packed++)
-      assert.ok(layout.rows.residentOffsetWords[packed] >= 0, layout.recordOf(packed)!.url)
+      assert.ok(layout.rows.offsetOf(packed) >= 0, layout.recordOf(packed)!.url)
     // The new rows draw: every page of a taken leaf holds a row once the grown cut asked for it.
     for (let frame = 0; frame < 4; frame++) await session.draw()
     const { baseOfRoot } = layout.placement
     layout.selectionRoots.forEach((root, rank) => {
       if (!root.placement || root.parked) return
       for (let at = 0; at < root.pages.length; at++)
-        assert.ok(layout.rows.rowOfPage[baseOfRoot[rank] + at] >= 0, `root ${rank} draws`)
+        assert.ok(layout.rows.rowOf(baseOfRoot[rank] + at) >= 0, `root ${rank} draws`)
     })
   } finally {
     session.dispose()
@@ -80,7 +82,7 @@ test('the placement tables the group closure and page parents hold follow a grow
       held = layout.placement
     await scaleDown(session)
     assert.equal(layout.placement, held, 'the same tables, rewritten in place')
-    assert.equal(held.rootOfPacked.length, layout.packedPages.length, 'every instance ranked')
+    assert.equal(held.packedCount, layout.packedPages.length, 'every instance ranked')
     assert.equal(held.baseOfRoot.length, layout.selectionRoots.length, 'every root based')
   } finally {
     session.dispose()

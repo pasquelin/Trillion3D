@@ -6,42 +6,21 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { WebgpuGpuState } from '../state/gpu.ts'
 import type { WebgpuVisState } from '../state/vis.ts'
 import type { FrameSize } from '../state/renderScale.ts'
-import type { WebgpuView } from '../state/view.ts'
+import { TARGET_GPU_KEYS, VIEW_VIS_KEYS } from '../state/view.ts'
 
 /** The members of the frame targets (`makeTargets`), in the runtime's groups: what a set made
  *  beside those in place trades with them whole (`targetsAside.ts`), as a view switch trades a
  *  view's (`VIEW_GPU_KEYS`). */
 const SET_GPU_KEYS = [
-  'colorTexture',
-  'colorView',
-  'depthTexture',
-  'depthView',
-  'hdrTexture',
-  'hdrView',
-  'displayTexture',
-  'displayView',
-  'feedbackTexture',
-  'feedbackView',
-  'backdrop',
-  'reflection',
-  'surfaces',
+  ...TARGET_GPU_KEYS,
   'asIsShare',
   'displayFilter',
-  'targetSize',
-  'allocatedSize',
-  'displaySize',
-  'targetBytes',
 ] as const satisfies readonly (keyof WebgpuGpuState)[]
-const SET_VIS_KEYS = [
-  'visTexture',
-  'visView',
-  'gpuRaster',
-] as const satisfies readonly (keyof WebgpuVisState)[]
 
 /** One set of frame targets held outside the runtime's groups. */
 export interface TargetSet {
   gpu: Pick<WebgpuGpuState, (typeof SET_GPU_KEYS)[number]>
-  vis: Pick<WebgpuVisState, (typeof SET_VIS_KEYS)[number]>
+  vis: Pick<WebgpuVisState, (typeof VIEW_VIS_KEYS)[number]>
 }
 
 /** A set holding no target: traded in, it empties the groups. */
@@ -55,7 +34,7 @@ export function tradeSet(
   next: TargetSet,
 ) {
   tradeView(rt.gpu, into.gpu, next.gpu, SET_GPU_KEYS)
-  tradeView(rt.vis, into.vis, next.vis, SET_VIS_KEYS)
+  tradeView(rt.vis, into.vis, next.vis, VIEW_VIS_KEYS)
 }
 
 /** Destroys the targets `gpu` and `vis` hold — the runtime's groups or a set's —, their members
@@ -83,22 +62,27 @@ export function releaseSet(gpu: TargetSet['gpu'], vis: TargetSet['vis']) {
   vis.gpuRaster = undefined
 }
 
-/** Targets asked beside those in place (`targetsAside.ts`): the view that asked, the sizes and
- *  bytes asked, the set and the Hi-Z pyramid made — none where the render size stays —, whether
- *  the device granted them, and whether a release dropped them meanwhile. */
-export type AsideTargets = FrameSize & {
-  view: WebgpuView
-  requestedBytes: number
+/** The sizes and bytes a grant asks of the device. */
+export type AskedTargets = FrameSize & { requestedBytes: number }
+
+/** Targets asked the held way (`targetGrant.ts`): those in place released, the frames held until
+ *  the device answers; refused, `retryAt` is the frame this size may be asked again at. */
+export type HeldTargets = AskedTargets & { mode: 'held'; retryAt?: number }
+
+/** Targets asked beside those in place (`targetsAside.ts`): the set and the Hi-Z pyramid made —
+ *  none where the render size stays —, whether the device granted them, and whether a release
+ *  dropped them meanwhile. */
+export type AsideTargets = AskedTargets & {
+  mode: 'aside'
   set?: TargetSet
   hiz?: HizPyramid
   granted: boolean
   dropped: boolean
 }
-/** Those targets as asked of the device, `settled` once it answered. */
-export type Aside = AsideTargets & DeviceGrant
 
-/** The targets a runtime made aside, one at a time: those of its main view. */
-export const asides = new WeakMap<WebgpuPagesRuntime, Aside>()
+/** The one grant of frame targets a view has in flight, or refused, on its `gpu.targetGrant`:
+ *  asked the held way or aside, `settled` once the device answered. */
+export type TargetGrant = (HeldTargets | AsideTargets) & DeviceGrant
 
 /** Frees what `aside` made: refused, dropped, or never to be swapped in. */
 export function destroyAside(aside: AsideTargets) {
@@ -110,9 +94,9 @@ export function destroyAside(aside: AsideTargets) {
 
 /** The drawn view's targets made aside go: freed now, or as they land. */
 export function dropAside(rt: WebgpuPagesRuntime) {
-  const aside = asides.get(rt)
-  if (!aside || aside.view !== rt.views.active) return
-  asides.delete(rt)
+  const aside = rt.gpu.targetGrant
+  if (aside?.mode !== 'aside') return
+  rt.gpu.targetGrant = undefined
   aside.dropped = true
   destroyAside(aside)
 }

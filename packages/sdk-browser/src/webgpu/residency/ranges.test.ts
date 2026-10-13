@@ -3,9 +3,9 @@
 // exactly the cap, one past it, ties at the cut, the largest index.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { RESIDENCY_RULE, coalesceRanges } from './ranges.ts'
 import { PAGE_TABLE_RULE } from '../tile/pageTableRule.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** develop's `coalesceResidencyRanges`: past the cap, one range covers everything. */
 function developResidency(sorted: Int32Array, count: number) {
@@ -62,7 +62,7 @@ edges.push(Int32Array.from({ length: 200 }, (_, i) => i * 100 + (i % 3) * 17))
 test('the shared coalescer gives develop’s residency and page-table ranges, 0 divergence', () => {
   const into = new Int32Array(128)
   const cases = [...edges]
-  const next = random(961)
+  const next = lcgRandom(961)
   for (let n = 0; n < 10_000; n++)
     cases.push(indices(next, Math.floor(next() * 300), 1 + Math.floor(next() * 200)))
   for (const sorted of cases) {

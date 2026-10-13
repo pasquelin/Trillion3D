@@ -1,19 +1,14 @@
-import { createWorldOrigins, WORLD_ORIGIN_BYTES } from './worldOrigins.ts'
+import { createWorldOrigins } from './worldOrigins.ts'
 import type { PackedDag } from './types.ts'
 import { uniformSlots, type UniformSlots } from '../../residency/pools.ts'
 import { FRAME_VEC4 } from './types.ts'
 import { primitiveWordAt } from './worlds.ts'
 import { dagGroupEntries } from './shader/bindings.ts'
-import { PRIMITIVE_BYTES, cameraFrameRanges } from './cameraRanges.ts'
+import { PRIMITIVE_BYTES, WORLD_ROW_BYTES, cameraFrameRanges } from './cameraRanges.ts'
 import { writeParts, writeRanges } from './split.ts'
 import { createSortedKeys, takeSorted, type SortedKeys } from '../../webgpu/cut/denseKeys.ts'
 /** Floats of one host row (`primitiveFrameWords`). */
 const ROW_FLOATS = FRAME_VEC4 * 4
-/** Bytes of one primitive's world matrix in `worlds`. */
-const WORLD_BYTES = 64
-
-/** Bytes of one range's `frames`; a range holds at least one primitive. */
-export const framesBytes = (count: number) => count * PRIMITIVE_BYTES
 
 /**
  * A camera cut's `frames`, one buffer per range (`cameraFrameRanges`), and the uniform that tells
@@ -37,6 +32,7 @@ export function createCameraFrames(
     ...rangeBuffers(device, slots, ranges, own),
     frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
     pending: createSortedKeys(),
+    writes: 0,
   }
   const { buffers, worldBuffers, bounds } = f
   const origins = createWorldOrigins(device, ranges, worldBuffers, sources)
@@ -56,7 +52,11 @@ export function createCameraFrames(
     /** Every placement's exact translation — or those of `named`, increasing —, its doubles to
      *  its range, where each cut reads it at its own eye (`shader/worldPoseWgsl.ts`); those that
      *  moved (`createWorldOrigins`). */
-    writeWorldOrigins: (named?: Int32Array) => origins.write(named),
+    writeWorldOrigins: (named?: Int32Array) => {
+      const sent = origins.write(named)
+      if (sent.length) f.writes++
+      return sent
+    },
     /** Placement `row`'s translation as the GPU no longer holds it: its next write sends it. */
     forgetOrigin: (row: number) => origins.forget(row),
     originBytes: origins.hostBytes,
@@ -85,9 +85,14 @@ export function createCameraFrames(
      *  row at the next `flushWords`. */
     writeWord: (w: number, slot: number, value: number) => writeWord(f, w, slot, value),
     /** The rows a word was written in since the last flush, each run to its range by the cut's one
-     *  run writer (`writeRanges`): their planes are ones `dagPrepare` writes again before any
-     *  kernel reads them (`shader/shader.ts`). Nothing when no word was written. */
+     *  run writer (`writeRanges`): a row is the host's words alone. Nothing when no word was
+     *  written. */
     flushWords: () => flushWords(f),
+    /** Writes the host made into the frames, the worlds and their exact translations since they
+     *  were made: what a GPU writer of the same words follows (`../../placement/gpuCompose.ts`). */
+    get writes() {
+      return f.writes
+    },
   }
   table.writeRows()
   table.writeWorlds(worlds)
@@ -107,21 +112,24 @@ type Frames = {
   bounds: GPUBuffer
   /** The primitives whose row holds a word not yet sent. */
   pending: SortedKeys
+  /** Writes sent into the buffers above (`writes`). */
+  writes: number
 }
 
 /** The `count` increasing primitives of `named`, `stride` words each of `data`, to the buffers
  *  of their ranges, which start at the range's first primitive: one table split in equal parts. */
 function writeNamed(
-  { device, per }: Frames,
+  f: Frames,
   buffers: GPUBuffer[],
   stride: number,
   data: Float32Array,
   named: Int32Array,
   count: number,
 ) {
-  const parts = { buffers, bytes: per * stride * 4 },
+  if (count) f.writes++
+  const parts = { buffers, bytes: f.per * stride * 4 },
     source = { data, sourceBase: 0, targetBase: 0, stride }
-  writeRanges(device, parts, named, count, source)
+  writeRanges(f.device, parts, named, count, source)
 }
 
 /** Each range's `frames` and `worlds`, and the uniform of every range's `{first, count}`, written
@@ -135,15 +143,16 @@ function rangeBuffers(
   const buffers = ranges.map(({ count }) =>
     own({
       label: 'Trillion3D DAG frames',
-      size: framesBytes(count),
+      size: count * PRIMITIVE_BYTES,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     }),
   )
   const worldBuffers = ranges.map(({ count }) =>
     own({
       label: 'Trillion3D DAG worlds',
-      size: count * (WORLD_BYTES + WORLD_ORIGIN_BYTES),
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+      size: count * WORLD_ROW_BYTES,
+      // COPY_SRC: the reflection proxy's world mirror copies the rows written since its last copy.
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     }),
   )
   const bounds = own({
@@ -184,14 +193,17 @@ function writeSpan(
   words: number,
 ) {
   if (words <= 0) return
+  f.writes++
   const parts = { buffers, bytes: f.per * strideWords * 4 }
   const bytes = data.buffer as ArrayBuffer
   writeParts(f.device, parts, fromWord * 4, bytes, data.byteOffset + fromWord * 4, words * 4)
 }
 
-function writeWord({ frameInts, pending }: Frames, w: number, slot: number, value: number) {
-  frameInts[primitiveWordAt(w) + slot] = value
-  pending.listed.add(w)
+/** A word staged counts as a write from now: it goes up at the next flush, before any cut reads it. */
+function writeWord(f: Frames, w: number, slot: number, value: number) {
+  f.frameInts[primitiveWordAt(w) + slot] = value
+  f.pending.listed.add(w)
+  f.writes++
 }
 
 function flushWords(f: Frames) {

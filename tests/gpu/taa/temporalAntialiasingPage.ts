@@ -6,33 +6,33 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import {
   VIEWPORT,
-  batisseur as sceneBuilder,
-  square,
-  cameraFace as facingCamera,
-  release as release,
+  batisseur,
+  cameraFace,
+  release,
   engine,
-  versApi as toApiMatrix,
+  toApiMatrix,
 } from '../kit/sharedSceneProof.ts'
 import { image, untilHeld } from '../kit/sceneImageProof.ts'
-import { runAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts'
+import { runAccumulation } from '../kit/deviceProof.ts'
 
 /** The tile's rotation, a third of a radian: its edges are oblique. */
 const TURN = 0.33
 
 /** The background and the red tile. */
 function scene() {
-  const builder = sceneBuilder()
-  const background = G.mesh(square(4), G.basicSurface({ color: 0x1b3a5c }))
-  background.name = 'background'
-  background.position.z = -2
-  builder.source.add(background)
-  builder.add(background, 'exact-clusters', 4)
-  const tile = G.mesh(square(0.6), G.basicSurface({ color: 0xff2020 }))
-  tile.name = 'tile'
-  tile.rotation.z = TURN
-  builder.source.add(tile)
-  builder.add(tile, 'exact-clusters', 0.6)
+  const builder = batisseur()
+  const backdrop = G.basicSurface({ color: 0x1b3a5c })
+  builder.place(backdrop, 'exact-clusters', 4, [0, 0, -2]).name = 'background'
+  const red = G.basicSurface({ color: 0xff2020 })
+  builder.place(red, 'exact-clusters', 0.6, [0, 0, 0], { z: TURN }).name = 'tile'
   return builder.fini()
+}
+
+/** `camera` slid to `x` without changing its optical axis, as `cameraFace` places it. */
+function slide(camera: ReturnType<typeof cameraFace>, x: number) {
+  camera.position.set(x, 0, 3)
+  camera.lookAt(x, 0, 0)
+  camera.updateMatrixWorld(true)
 }
 
 /** One run: still, panned, then the tile moved. `temporal` picks the option. */
@@ -48,16 +48,21 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
     },
     { temporalAntialiasing: temporal },
   )
-  const camera = facingCamera()
+  const camera = cameraFace()
   try {
     await backend.prepare()
     const still = await untilHeld(backend, camera)
-    // The pan: the camera slides about two thirds of a pixel per frame, for sixteen frames.
-    // Nothing is held; the last rendered image is the one read.
+    // The pan: the camera slides about two thirds of a pixel per frame, for sixteen frames. It is
+    // one camera moved, as a host's controls move theirs: a new camera object at another pose is a
+    // view cut, which drops the history (`trackViewCamera`). Nothing is held; the last rendered
+    // image is the one read.
     let pannedPixels: Uint8Array = new Uint8Array()
-    for (let i = 1; i <= 16; i++)
-      pannedPixels = (await image(backend, facingCamera(0.02 * i))).pixels
+    for (let i = 1; i <= 16; i++) {
+      slide(camera, 0.02 * i)
+      pannedPixels = (await image(backend, camera)).pixels
+    }
     const panned = Array.from(pannedPixels)
+    slide(camera, 0)
     if (!backend.setTransform) throw new Error('the backend has no setTransform')
     backend.setTransform(
       'tile',
@@ -73,5 +78,5 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
 
 /** Without accumulation, with it, and with it again as the A/A witness; and the viewport. */
 export async function run() {
-  return { viewport: VIEWPORT, ...(await withAndWithoutAccumulation(fullRun)) }
+  return { viewport: VIEWPORT, ...(await runAccumulation(fullRun)) }
 }

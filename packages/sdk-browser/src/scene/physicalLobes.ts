@@ -1,3 +1,4 @@
+import { DEFERRED_BINDINGS } from '../lighting/deferred/bindings.ts'
 import type { VisMaterial } from '../visibility/materialType.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { octDecode, octEncode } from '../../../math/src/wgsl/octahedral.ts'
@@ -13,9 +14,6 @@ import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
  * lobe marks nothing and the lighting runs its standard lobe, operand for operand.
  */
 export const PHYSICAL_SURFACE_FLAG = 64
-/** The lighting's binding of the lobes target (`../lighting/deferred/setup.ts`): past 30 and 31,
- *  where the resolve proofs bind their samples and sums. */
-export const PHYSICAL_LOBES_BINDING = 32
 /** One texel a pixel: the anisotropy direction and the coat normal (octahedral, two signed
  *  halves each), the anisotropy strength and the coat factor (two unsigned halves), the coat
  *  roughness (a float's bits). */
@@ -24,7 +22,7 @@ export const PHYSICAL_LOBES_FORMAT: GPUTextureFormat = 'rgba32uint'
  *  composite's (`../lighting/direct/lobesWgsl.ts`); its bytes, one texel per pixel when wanted, a
  *  1×1 placeholder otherwise (`bytes`). */
 export const PHYSICAL_LOBES_TARGET = loadOnlyTarget(
-  PHYSICAL_LOBES_BINDING,
+  DEFERRED_BINDINGS.lobes,
   PHYSICAL_LOBES_FORMAT,
   'physicalLobes',
 )

@@ -1,7 +1,14 @@
 // The Hi-Z occlusion test's cases: a pyramid the engine's own packer builds (`packHizPyramid`),
 // one tested box, and the verdict each case must produce.
 import { DEPTH_CLEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts'
-import { packHizPyramid } from '../../../packages/sdk-browser/src/gpu/hiz/oracle.fixture.ts'
+import {
+  packHizPyramid,
+  type PackedHiz,
+} from '../../../packages/sdk-browser/src/gpu/hiz/oracle.fixture.ts'
+import {
+  HIZ_CULL_FARTHEST,
+  hizRoute,
+} from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
 import {
   VERDICT_KEPT,
   VERDICT_REJECTED,
@@ -16,10 +23,12 @@ const LEVEL = 2
 // the box's nearest point at 0.3 lies behind it.
 const OCCLUDER_DEPTH = 0.6
 export const BOX_NEAREST = 0.3
+/** Bytes of the tests' uniform block, bound at a dynamic offset. */
+export const UNIFORM_BYTES = 256
 
 export interface OcclusionCase {
   name: string
-  pyramid: Float32Array<ArrayBuffer>
+  packed: PackedHiz
   /** The box's rectangle, in texels of `LEVEL`, and that level's offset and width. */
   rectangle: [number, number, number, number]
   fineOffset: number
@@ -33,13 +42,14 @@ function occlusionCase(name: string, hole: boolean, clipsNear: boolean, expected
   const depth = Array.from({ length: HEIGHT }, () => Array<number>(WIDTH).fill(OCCLUDER_DEPTH))
   // A background hole, at the far plane: nothing behind it can be rejected.
   if (hole) depth[HEIGHT - 1][WIDTH - 1] = DEPTH_CLEAR
-  const { data, sizes, offsets } = packHizPyramid(depth)
+  const packed = packHizPyramid(depth)
+  const { sizes, offsets } = packed
   const [width, height] = sizes[LEVEL]
   return {
     name,
-    pyramid: data,
     rectangle: [0, 0, width - 1, height - 1],
-    fineOffset: offsets[LEVEL],
+    fineOffset: hizRoute(offsets[LEVEL], LEVEL, HIZ_CULL_FARTHEST, packed),
+    packed,
     fineWidth: width,
     clipsNear,
     expected,

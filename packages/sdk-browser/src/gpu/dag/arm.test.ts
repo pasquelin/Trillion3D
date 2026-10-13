@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { DAG_ARGS, DAG_ARGS_INITIAL, DAG_ARM_SHADER } from './shader/armWgsl.ts'
 import { DAG_BINDINGS_WGSL } from './shader/bindings.ts'
@@ -17,7 +17,7 @@ import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 test('each record holds the words the arming copy carried, z one', () => {
   for (const blockCount of [1, 7, 64]) {
     const layout = dagWorkLayout(blockCount)
-    const r = random(blockCount),
+    const r = lcgRandom(blockCount),
       work = Array.from({ length: layout.words }, () => Math.floor(r() * 2 ** 32))
     const args = [...DAG_ARGS_INITIAL]
     const { dagArm } = shaderRun<{ dagArm: (list: number) => void }>(DAG_ARM_SHADER, ['dagArm'], {

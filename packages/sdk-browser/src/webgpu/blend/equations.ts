@@ -30,7 +30,8 @@ export const filtersDisplay = (blending: Blending) =>
 export const displayRoute = (blending: Blending) =>
   filtersDisplay(blending) ? 2 : blending === 'none' ? 0 : 1
 
-const OVER: GPUBlendComponent = { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }
+/** Source over destination, premultiplied: the blend of one layer over another. */
+export const OVER: GPUBlendComponent = { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }
 const LAYER = (color: GPUBlendComponent): GPUBlendState => ({ color, alpha: KEEP })
 const FILTERING = { subtractive: LAYER(SUBTRACT), multiply: LAYER(MULTIPLY), none: undefined }
 

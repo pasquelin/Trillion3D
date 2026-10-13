@@ -90,8 +90,6 @@ fn drawn(@builtin(global_invocation_id) id:vec3u){
  *  \`isoAniso\`, the anisotropic lobe at a strength whose αt rounds to α, along a tangent of the
  *  normal: the isotropic lobe written in the anisotropic form. */
 const LOBE_ENTRIES_WGSL = `
-// The harness lights no mirror term: the coat's (\`lobeMirror\`) reads none.
-fn surfaceMirrorLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{return vec3f(0.0);}
 fn lobeSample(s:Sample)->vec3f{
  return contractLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,normalize(s.normalRough.xyz),normalize(s.eyeFlag.xyz),s.pointAo.xyz,s.pointAo.w,vec2f(${SAMPLE_PIXEL.join(',')}),0u,cellShadowed(0u));
 }
@@ -102,7 +100,7 @@ fn zeroLobes(@builtin(global_invocation_id) id:vec3u){
  surfaceModel=u32(s.eyeFlag.w);
  shadowFootprint=0.01;
  let N=normalize(s.normalRough.xyz);
- setLobes(vec3f(0.0,0.0,1.0),0.0,0.0,0.5,N,N,normalize(s.eyeFlag.xyz),s.normalRough.a);
+ setLobes(lobeAxis(vec3f(0.0,0.0,1.0),0.0,N,lobeAlpha(s.normalRough.a)),0.0,0.5,N,N,normalize(s.eyeFlag.xyz),lobeAlpha(s.normalRough.a));
  sums[id.x]=vec4u(bitcast<vec3u>(lobeSample(s)),0u);
 }
 @compute @workgroup_size(64)
@@ -113,6 +111,6 @@ fn isoAniso(@builtin(global_invocation_id) id:vec3u){
  shadowFootprint=0.01;
  let N=normalize(s.normalRough.xyz);
  let T=normalize(cross(select(vec3f(0.0,1.0,0.0),vec3f(1.0,0.0,0.0),abs(N.y)>0.9),N));
- setLobes(T,1e-6,0.0,0.5,N,N,normalize(s.eyeFlag.xyz),s.normalRough.a);
+ setLobes(lobeAxis(T,1e-6,N,lobeAlpha(s.normalRough.a)),0.0,0.5,N,N,normalize(s.eyeFlag.xyz),lobeAlpha(s.normalRough.a));
  sums[id.x]=vec4u(bitcast<vec3u>(lobeSample(s)),0u);
 }`

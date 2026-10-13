@@ -22,8 +22,8 @@ export const DIAGNOSTIC_BLEND_WGSL = wgslBlock(
   'DIAGNOSTIC_BLEND_WGSL',
   [],
   `
-@fragment fn fsPlat()->BlendOut{return BlendOut(vec4f(0.5,0.5,0.5,0.5),0u,vec4f(0.0,0.0,0.0,0.5),vec4f(1.0),vec4f(0.0));}
-@fragment fn fsJete()->BlendOut{discard;return BlendOut(vec4f(0.0),0u,vec4f(0.0),vec4f(1.0),vec4f(0.0));}`,
+@fragment fn fsPlat()->BlendOut{return BlendOut(vec4f(0.5,0.5,0.5,0.5),0u,vec4f(0.0,0.0,0.0,0.5),vec4f(1.0),vec4f(0.0),vec4f(0.0));}
+@fragment fn fsJete()->BlendOut{discard;return BlendOut(vec4f(0.0),0u,vec4f(0.0),vec4f(1.0),vec4f(0.0),vec4f(0.0));}`,
 )
 
 /** Fragment stage and write mask of a variant, for the blend pass. */

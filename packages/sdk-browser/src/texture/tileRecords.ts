@@ -24,10 +24,6 @@ function spans(texels: number, end = ceilDiv(texels, TILE_SIZE)) {
   return blocks
 }
 
-/** Bytes of a `width` × `height` block level file: its records end to end. */
-export const tiledLevelBytes = (width: number, height: number) =>
-  spans(width) * spans(height) * PREVIEW_BLOCK_BYTES
-
 /** The record of tile (`tx`, `ty`) in a `width` × `height` block level file: its first byte and
  *  its length. No array is built: a waiting tile asks every frame. */
 export function tileRecord(width: number, height: number, tx: number, ty: number) {

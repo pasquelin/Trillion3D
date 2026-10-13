@@ -2,17 +2,20 @@
 // (`createGpuDraw`), compacted in a compute pass, then each indirect slot and the direct page drawn
 // by the visibility raster in the same submission — no CPU readback or reorder between —, and what
 // both left read back.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
+import { bufferHolding, readTexture } from '../kit/computeReadback.ts'
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
 import type { GpuDraw } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
 import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'
-import { DIRECT_PAGE, HEIGHT, WIDTH, pageOfId, type setupVisibility } from './drawVisibility.ts'
+import { DIRECT_PAGE, pageOfId, type setupVisibility } from './drawVisibility.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { setBit } from '../../../packages/math/src/scalar/bits.ts'
 
 export interface DrawCase {
   name: string
   items: DrawItem[]
-  /** The selection mask, one word per selection index; absent, every row is selected. */
+  /** The selection mask, one flag per selection index, sent a bit each as the cut writes it
+   *  (`compactWgsl.ts`); absent, every row is selected. */
   mask?: number[]
 }
 
@@ -46,13 +49,10 @@ export async function runCase(
   device.queue.writeBuffer(draw.restBitsBuffer, 0, rest)
   let selection: { maskBuffer: GPUBuffer; maskOffset: number } | undefined
   if (mask) {
-    const words = new Uint32Array(cap + MASK_OFFSET).fill(1)
-    words.set(mask, MASK_OFFSET)
-    const maskBuffer = device.createBuffer({
-      size: words.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-    device.queue.writeBuffer(maskBuffer, 0, words)
+    const words = new Uint32Array(ceilDiv(cap, 32) + MASK_OFFSET).fill(0xffffffff)
+    const bits = words.subarray(MASK_OFFSET).fill(0)
+    mask.forEach((flag, index) => flag && setBit(bits, index))
+    const maskBuffer = bufferHolding(device, words, GPUBufferUsage.STORAGE)
     selection = { maskBuffer, maskOffset: MASK_OFFSET }
   }
   const encoder = device.createCommandEncoder()
@@ -79,33 +79,25 @@ export async function runCase(
     else render.draw(3, 1, 0, DIRECT_PAGE)
     render.end()
   }
-  const readback = (bytes: number) =>
-    device.createBuffer({ size: bytes, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST })
-  const [instanceRead, commandRead, pixelRead] = [
-    readback(cap * draw.perRow * 4),
-    readback(slots * 16),
-    readback(WIDTH * HEIGHT * 4 * (slots + 1)),
-  ]
-  encoder.copyBufferToBuffer(draw.instanceBuffer, 0, instanceRead, 0, cap * draw.perRow * 4)
-  encoder.copyBufferToBuffer(draw.indirectBuffer, 0, commandRead, 0, slots * 16)
-  encoder.copyTextureToBuffer(
-    { texture: vis.target },
-    { buffer: pixelRead, bytesPerRow: WIDTH * 4, rowsPerImage: HEIGHT },
-    [WIDTH, HEIGHT, slots + 1],
-  )
   device.queue.submit([encoder.finish()])
-  await Promise.all([instanceRead, commandRead, pixelRead].map((b) => b.mapAsync(GPUMapMode.READ)))
-  const commands = [...new Uint32Array(commandRead.getMappedRange())]
+  const commands = [...(await readGpuBuffer(device, draw.indirectBuffer, slots * 16))!]
   const instanceCount = commands.reduce((sum, word, i) => sum + (i % 4 === 1 ? word : 0), 0)
-  const instanceIds = [...new Uint32Array(instanceRead.getMappedRange(), 0, instanceCount)]
-  const pixels = new Uint32Array(pixelRead.getMappedRange())
-  const visiblePages = Array.from({ length: slots + 1 }, (_, slot) =>
-    [...new Set(pixels.subarray(slot * WIDTH * HEIGHT, (slot + 1) * WIDTH * HEIGHT))]
-      .filter((id) => id !== 0)
-      .map(pageOfId)
-      .sort((a, b) => a - b),
-  )
-  for (const buffer of [instanceRead, commandRead, pixelRead, selection?.maskBuffer])
-    buffer?.destroy()
+  const instanceIds = [
+    ...(await readGpuBuffer(device, draw.instanceBuffer, cap * draw.perRow * 4))!.subarray(
+      0,
+      instanceCount,
+    ),
+  ]
+  const visiblePages = []
+  for (let slot = 0; slot <= slots; slot++) {
+    const layer = await readTexture(device, vis.target, 4, { layer: slot })
+    visiblePages.push(
+      [...new Set(new Uint32Array(layer.buffer))]
+        .filter((id) => id !== 0)
+        .map(pageOfId)
+        .sort((a, b) => a - b),
+    )
+  }
+  selection?.maskBuffer?.destroy()
   return { name, instanceIds, commands, visiblePages }
 }

@@ -1,21 +1,30 @@
 // per-stage profile breakdown, done every frame: CPU bounds deposited on their
 // stages, and GPU passes read by their label.
-import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
-import { addCpuSteps } from '../../../packages/sdk-browser/src/stage/cpuSteps.ts'
+import {
+  stageQuantiles,
+  type GpuPassTimings,
+  type StageQuantiles,
+} from '../../../packages/sdk-core/src/index.ts'
 import {
   addGpuPasses,
   directLightTimings,
 } from '../../../packages/sdk-browser/src/stage/mapping.ts'
-import type { StageAdd } from '../../../packages/sdk-browser/src/stage/profiler.ts'
+import { WEBGPU_STAGES } from '../../../packages/sdk-browser/src/stage/passDeclaration.ts'
+import {
+  createStageProfiler,
+  type StageAdd,
+} from '../../../packages/sdk-browser/src/stage/profiler.ts'
 import {
   CPU_STEP_NAMES,
   CPU_STEP_STAGES,
 } from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts'
-import { xorshiftRandom, measure, parElement, stress, rapport } from '../../core/index.ts'
+import { measure, parElement, stress, rapport } from '../../core/index.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import {
   referenceAddCpuSteps,
   referenceDirectLightTimings,
   referenceGpuStages,
+  type StageNameAdd,
 } from '../../oracles/browser/stage-profile.ts'
 
 const alea = xorshiftRandom(113)
@@ -26,26 +35,54 @@ const lignes = (images: number): Float64Array[] =>
   Array.from({ length: images }, () => Float64Array.from({ length: NB_BORNES }, () => alea() * 10))
 
 const depose =
-  <Row>(ventile: (row: Row, add: StageAdd) => void) =>
+  <Row>(ventile: (row: Row, add: StageNameAdd) => void) =>
   (rows: Row[]) => {
     const total = new Map<string, number>()
-    const add: StageAdd = (stage, ms) => total.set(stage, (total.get(stage) ?? 0) + ms)
+    const add: StageNameAdd = (stage, ms) => total.set(stage, (total.get(stage) ?? 0) + ms)
     for (const row of rows) ventile(row, add)
     return total
   }
+/** The engine's deposits, by stage index, read by the stage's name. */
+const byName =
+  <Row>(ventile: (row: Row, add: StageAdd) => void) =>
+  (row: Row, add: StageNameAdd) =>
+    ventile(row, (at, ms) => add(WEBGPU_STAGES[at], ms))
+
+/** Each stage's CPU spread once `rows` are filed by a profile whose window holds them all. */
+const fileRows = (rows: Float64Array[]): Array<[string, StageQuantiles]> => {
+  const profiler = createStageProfiler({
+    backend: 'webgpu',
+    steps: { names: CPU_STEP_NAMES, stages: CPU_STEP_STAGES },
+    stages: WEBGPU_STAGES,
+    gpuMethod: null,
+    window: rows.length,
+  })
+  for (const row of rows) {
+    profiler.row.set(row)
+    profiler.record(0, 0)
+  }
+  return profiler.profile().stages.map((entry) => [entry.stage, entry.cpuMs])
+}
+const referenceFileRows = (rows: Float64Array[]): Array<[string, StageQuantiles]> => {
+  const series = new Map<string, number[]>()
+  for (const row of rows)
+    for (const [stage, ms] of depose(referenceAddCpuSteps)([row]))
+      series.set(stage, [...(series.get(stage) ?? []), ms])
+  return WEBGPU_STAGES.map((stage) => [stage, stageQuantiles(series.get(stage) ?? [])])
+}
 
 const measureCpu = await measure({
   name: 'CPU bounds per stage',
-  fichier: 'packages/sdk-browser/src/stage/cpuSteps.ts',
+  fichier: 'packages/sdk-browser/src/stage/profiler.ts',
   cas: [
     { name: `${NB_BORNES} bounds × 200 frames`, input: lignes(200), size: 200 * NB_BORNES },
     { name: 'no frames', input: [], size: 0 },
   ],
-  calculation: depose((row, add) => addCpuSteps(CPU_STEP_STAGES, row, add)),
-  expected: depose((row, add) => referenceAddCpuSteps(CPU_STEP_STAGES, row, add)),
+  calculation: fileRows,
+  expected: referenceFileRows,
 })
 
-// A sample carries known passes, one unknown pass — which joins "geometry" —, a virtual shadow
+// A sample carries known passes, one unknown pass — which joins no stage —, a virtual shadow
 // map pass — which joins "shadows" by its label's prefix — and, once in ten, a `null` duration
 // that leaves its stage unmeasured. Half the timed passes carry their own share of the image, as a
 // WebGPU timer gives it: a stage adds that share, not the pass's whole span.
@@ -54,9 +91,6 @@ const ETIQUETTES = [
   'Trillion3D partition',
   'Trillion3D HiZ',
   'Trillion3D material surfaces v1',
-  'Trillion3D shadow cull',
-  'Trillion3D shadow page pyramids',
-  'Trillion3D shadow occlusion',
   'vsm.pass',
   'Trillion3D light tiles v1',
   'Trillion3D bounce v1',
@@ -94,7 +128,7 @@ const measureGpu = await measure({
     { name: 'truncated sample', input: truncatedSample, size: 1 },
     { name: 'no sample', input: sansEchantillon, size: 1 },
   ],
-  calculation: depose(addGpuPasses),
+  calculation: depose(byName(addGpuPasses)),
   expected: depose(referenceGpuStages),
 })
 

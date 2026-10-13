@@ -1,5 +1,5 @@
-// The TypeScript twin of the compiler's manifest encoder (`asset-compiler-rust/src/manifest_binary`),
-// kept as a test fixture: only the tests build binary manifests in TypeScript.
+// The unit tests' manifest encoder, for shapes of their own with no native compile; the magic, the
+// version and the header words are the compiler's (`contracts/writtenFormats.ts`).
 import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/index.ts'
 import * as format from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
 import {

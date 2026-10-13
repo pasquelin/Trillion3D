@@ -7,6 +7,8 @@ import { createPlacementRows } from '../../../placement/rows.ts'
 import { setRowCell } from '../../../partition/rowCells.ts'
 import { linkWorldObject, linkWorldObjects, takeLandedPages, withWorldRoot } from './worldRoot.ts'
 import { placed, scene } from './worldRoot.fixture.ts'
+import { drawSourceOf } from '../../../page/selection/drawSource.ts'
+import * as G from '../../../host/graph/graph.fixture.ts'
 import { createWebgpuPagesLayout } from './layout.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 import type { WebgpuPagesSetup } from './setup.ts'
@@ -15,13 +17,13 @@ test('the world joins the catalogue as the last root, its requests ranked again'
   const { context, hold, opaque } = await scene(t)
   const roots = [placed(opaque)] as unknown as ClusterRoot<PageRec>[]
   const allPages = [...roots[0].pages]
-  const collected = withWorldRoot({ roots, allPages, requestCount: 1 }, context)
+  const collected = withWorldRoot({ roots, allPages, requests: new Map() }, context, context.draws)
   const world = collected.roots.at(-1)!
   assert.equal(world.pages.length, hold.drawn!.dag!.pages.length)
   assert.ok('origins' in world, 'the world DAG, packed last')
   assert.equal(collected.allPages.length, 1 + world.pages.length)
   assert.equal(world.pages[0].renderOrder, 4, 'drawn after every other')
-  assert.ok(collected.requestCount > 1, 'its pages ranked among the requests')
+  assert.ok(collected.requests.size > 1, 'its pages ranked among the requests')
 })
 
 test("a world page is read through the world's source, any other through the host", async (t) => {
@@ -67,9 +69,10 @@ test('the layout keeps the world DAG among the opaque roots, wherever it sits', 
     {
       roots: [opaquePlacement, blended] as unknown as ClusterRoot<PageRec>[],
       allPages: [],
-      requestCount: 0,
+      requests: new Map(),
     },
     context,
+    context.draws,
   ).roots
   const layout = createWebgpuPagesLayout({
     roots: [roots[2], roots[0], roots[1]],
@@ -101,7 +104,7 @@ test('the pages a bundle read lands go to the free slots of the pool, unpinned, 
     setup: { geometryUrls: new Map(['held', 'a', 'b', 'c', 'd', 'e'].map((url) => [url, url])) },
   }
   takeLandedPages(rt as unknown as Parameters<typeof takeLandedPages>[0])
-  for (const tell of hold.drawn!.landed) tell(['held', 'unknown', 'a', 'b', 'c'])
+  hold.drawn!.landed.emit(['held', 'unknown', 'a', 'b', 'c'])
   assert.deepEqual(loads, [
     ['a', undefined],
     ['b', undefined],
@@ -109,7 +112,7 @@ test('the pages a bundle read lands go to the free slots of the pool, unpinned, 
   // A load in flight takes the slot it lands in: a landed page counts it as taken.
   loads.length = 0
   inFlight = 1
-  for (const tell of hold.drawn!.landed) tell(['d', 'e'])
+  hold.drawn!.landed.emit(['d', 'e'])
   assert.deepEqual(loads, [['d', undefined]], 'one free slot, not two')
 })
 
@@ -130,4 +133,37 @@ test('a cut that packs no world DAG reads no root for an object, at its adoption
   linkWorldObjects(context, cut, roots)
   linkWorldObject({ context, layout: { selectionRoots: roots }, run: { gpuSelection: cut } }, 7)
   assert.equal(reads, 0, 'no root read')
+})
+
+test('a world a merged manifest moved ranks its objects by the primitives it was given, its root posed by its model', async (t) => {
+  const { context, hold } = await scene(t)
+  // A model whose mesh the world merged at rank 7: its row draws what the table's first object is.
+  const seven = drawSourceOf(G.triangleMesh(G.standardSurface()), { meshes: 7, primitives: 0 })
+  const rows = createPlacementRows(2),
+    root = placed(seven, rows) as unknown as ClusterRoot<PageRec>
+  setRowCell(rows, 0, { cell: 1, node: 0 })
+  const links: number[] = []
+  const rt = {
+    context,
+    layout: { selectionRoots: [root] },
+    run: {
+      gpuSelection: { packsWorld: true, placeObject: (_: number, o: number) => links.push(o) },
+    },
+  } as unknown as Parameters<typeof linkWorldObject>[0]
+  linkWorldObject(rt, 0)
+  assert.equal(links.at(-1), -1, 'a mesh the table does not name')
+  const pose = createPlacementRows(1)
+  pose.live[0] = 1
+  pose.matrices.set([2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 5, 0, 0, 1])
+  hold.drawnAs({ primitives: [{ mesh: 7, primitive: 0, pass: 'clustered' } as never], pose })
+  linkWorldObject(rt, 0)
+  assert.equal(links.at(-1), 1, 'the table’s first primitive is mesh 7 now')
+  const posed = () =>
+    withWorldRoot({ roots: [root], allPages: [], requests: new Map() }, context, [seven]).roots.at(
+      -1,
+    )!
+  assert.equal(posed().world.elements[12], 5, 'drawn at its model’s world')
+  assert.equal(posed().parked, false)
+  pose.live[0] = 0
+  assert.equal(posed().parked, true, 'parked with its model')
 })

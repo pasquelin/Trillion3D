@@ -4,40 +4,13 @@
  * its own defaults to what the engine does without it: the pass drawn, the bounce off.
  */
 import { LOD_QUALITY } from '../../../../sdk-core/src/lod/policy.ts'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import {
   createRenderSettings,
   type QualityGroup,
   type RenderSettingEntry,
 } from '../../../../sdk-core/src/runtime/renderSettings.ts'
 import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
-import {
-  VSM_CACHE_ON,
-  VSM_POOL_PAGES,
-  VSM_NORMAL_BIAS,
-  VSM_SUN_LEVEL_BIAS,
-  VSM_SUN_LEVEL_BIAS_MOVING,
-  VSM_LOCAL_LEVEL_BIAS,
-  VSM_LOCAL_LEVEL_BIAS_MOVING,
-  VSM_TRACE_SLOPE_CAP_SUN,
-  VSM_TRACE_SLOPE_CAP_LOCAL,
-  VSM_TRACE_RAYS_SUN,
-  VSM_TRACE_RAYS_LOCAL,
-  VSM_TRACE_STEPS_SUN,
-  VSM_TRACE_STEPS_LOCAL,
-  VSM_TRACE_DITHER_SUN,
-  VSM_TRACE_DITHER_LOCAL,
-  VSM_COVER_SUN,
-  VSM_COVER_LOCAL,
-  VSM_MASK_MAX_RAYS,
-} from '../../vsm/constants.ts'
-
-/** A count of the shadow maps' uniform block: an `i32` word, at least one. */
-const COUNT = [1, 2 ** 31 - 1] as const
-/** A light's rays: as many as its shadow mask lane counts (`VSM_MASK_MAX_RAYS`). */
-const RAYS = [1, VSM_MASK_MAX_RAYS] as const
-/** Any finite number. */
-const FINITE = [-Number.MAX_VALUE, Number.MAX_VALUE] as const
+import { VSM_POOL_PAGES } from '../../vsm/constants.ts'
 
 type Apply = RenderSettingEntry['apply']
 /** Who may write a setting, and what its change throws away: by default anyone, and nothing. */
@@ -65,16 +38,7 @@ const count = (
   range,
   ...base(group, apply, extra),
 })
-/** A float of the shadows, any finite value. */
-const shadowFloat = (value: number, apply: Apply, extra?: Extra) => ({
-  kind: 'float' as const,
-  default: value,
-  range: FINITE,
-  ...base('shadows', apply, extra),
-})
-const editor = { editorOnly: true }
 const cache = { invalidates: 'shadowCache' } as const
-const editorCache = { ...editor, ...cache }
 
 /** Every render setting of the engine, by name. */
 const WORLD_SETTINGS = {
@@ -91,7 +55,6 @@ const WORLD_SETTINGS = {
   dynamicShadows: flag(true, 'shadows', 'frame', cache),
   glass: flag(true, 'effects', 'frame'),
   particles: flag(true, 'effects', 'frame'),
-  reflections: flag(true, 'reflections', 'resources'),
   postProcessing: flag(true, 'imageEffects', 'frame'),
   maxAnisotropy: count(MAX_ANISOTROPY, [1, MAX_ANISOTROPY], 'textures', 'uniform'),
   // The pool shrinks to an eighth at most, as the grant does (`vsmGrant.ts`).
@@ -102,29 +65,6 @@ const WORLD_SETTINGS = {
     'resources',
     cache,
   ),
-  shadowCache: flag(VSM_CACHE_ON === 1, 'shadows', 'frame', editorCache),
-  sunReceiverMask: flag(VSM_COVER_SUN, 'shadows', 'resources', editorCache),
-  lampReceiverMask: flag(VSM_COVER_LOCAL, 'shadows', 'resources', editorCache),
-  sunRays: count(VSM_TRACE_RAYS_SUN, RAYS, 'shadows', 'uniform'),
-  sunSamplesPerRay: count(VSM_TRACE_STEPS_SUN, COUNT, 'shadows', 'uniform'),
-  lampRays: count(VSM_TRACE_RAYS_LOCAL, RAYS, 'shadows', 'uniform'),
-  lampSamplesPerRay: count(VSM_TRACE_STEPS_LOCAL, COUNT, 'shadows', 'uniform'),
-  sunResolutionBias: shadowFloat(VSM_SUN_LEVEL_BIAS, 'frame'),
-  sunResolutionBiasMoving: shadowFloat(VSM_SUN_LEVEL_BIAS_MOVING, 'frame'),
-  lampResolutionBias: shadowFloat(VSM_LOCAL_LEVEL_BIAS, 'frame'),
-  lampResolutionBiasMoving: shadowFloat(VSM_LOCAL_LEVEL_BIAS_MOVING, 'frame'),
-  shadowNormalBias: shadowFloat(VSM_NORMAL_BIAS, 'uniform', editor),
-  sunTexelDither: shadowFloat(VSM_TRACE_DITHER_SUN, 'uniform', editor),
-  lampTexelDither: shadowFloat(VSM_TRACE_DITHER_LOCAL, 'uniform', editor),
-  sunExtrapolateSlope: shadowFloat(VSM_TRACE_SLOPE_CAP_SUN, 'uniform', editor),
-  lampExtrapolateSlope: shadowFloat(VSM_TRACE_SLOPE_CAP_LOCAL, 'uniform', editor),
-  // Mode 2 is a variant of the blend and water programs (`directShadowWgsl`'s `traced`).
-  translucentShadowFilter: {
-    kind: 'enum',
-    default: LIGHT_SETTINGS.translucentShadowFilter,
-    values: [0, 1, 2],
-    ...base('shadows', 'pipeline', editor),
-  },
 } as const satisfies Readonly<Record<string, RenderSettingEntry>>
 
 /** A world's registry over the engine's settings. */

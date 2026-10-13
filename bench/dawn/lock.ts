@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { exitOnSignals } from './child.ts'
+import { readJson } from '../../scripts/repository-files.ts'
 
 /** The machine's one bench lock: in the home directory, so every clone and worktree sees it. */
 const BENCH_LOCK = join(homedir(), '.trillion3d', 'gpu-bench.lock')
@@ -18,7 +19,7 @@ export type LockHolder = { pid: number; since: string; what: string }
 /** The holder written in the lock, or `null` for none or an unreadable one. */
 export function lockHolder(path = BENCH_LOCK): LockHolder | null {
   try {
-    const holder = JSON.parse(readFileSync(path, 'utf8')) as LockHolder
+    const holder = readJson(path) as LockHolder
     return Number.isInteger(holder.pid) ? holder : null
   } catch {
     return null

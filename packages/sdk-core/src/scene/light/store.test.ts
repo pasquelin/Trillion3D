@@ -64,7 +64,7 @@ test('a shadow slice moved is pushed to the GPU, never a change of light transpo
   store.assignSlice(slot, 8192 * 64)
   store.assignSlice(slot, -1)
   assert.equal(store.epoch, epoch + 2, 'the buffer is pushed')
-  assert.equal(store.transportEpoch, transport, 'bounce and reflections keep their history')
+  assert.equal(store.transportEpoch, transport, 'the bounce keeps its history')
   store.assignSlice(slot, -1)
   assert.equal(store.epoch, epoch + 2, 'the same slice publishes nothing')
   store.set('l0', { intensity: 5 })
@@ -106,4 +106,39 @@ test('300 lights: every one is published, in the grown table the GPU reads', () 
     assert.equal(store.packed[baseOf(slot) + LIGHT_FIELD.position], slot, `light ${slot} written`)
   store.remove('l0')
   assert.equal(store.packed[baseOf(0) + LIGHT_FIELD.position], 299, 'the last took its slot')
+})
+
+// The lit programs' key walked every light of the store at each epoch to learn these kinds.
+test('the store counts its shadowed suns, shadowed local lights and rectangles as they change', () => {
+  const store = createSceneLightStore()
+  const kinds = () => [store.shadowedSuns, store.shadowedLocals, store.rects]
+  const { color, intensity } = LIGHT
+  store.add({ ...LIGHT })
+  store.add({
+    id: 'sun',
+    kind: 'directional',
+    color,
+    intensity,
+    direction: [0, -1, 0],
+    castsShadow: false,
+  })
+  store.add({
+    id: 'panel',
+    kind: 'rect',
+    castsShadow: false,
+    color,
+    intensity,
+    position: [0, 2, 0],
+    range: 5,
+    direction: [0, -1, 0],
+    right: [1, 0, 0],
+    size: [1, 1],
+  })
+  assert.deepEqual(kinds(), [0, 1, 1], 'a sun casting none is not counted')
+  store.set('sun', { castsShadow: true })
+  store.set('l0', { castsShadow: false })
+  assert.deepEqual(kinds(), [1, 0, 1], 'a change moves the counts')
+  store.remove('sun')
+  store.remove('panel')
+  assert.deepEqual(kinds(), [0, 0, 0])
 })

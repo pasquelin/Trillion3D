@@ -82,6 +82,12 @@ export function packClusterFlags(
  * host adopts the head of each list, never an exit from it (`../../webgpu/cut/adoption.ts`). The pool's list (`poolBase`) keeps this cap.
  */
 export const SELECTION_LIST_CAP = 262144
+/** What a cut's descent queues and its candidate and live lists hold when it is made: a view's
+ *  reach, never the world's. A cut that passes one is not drawn and grows them (`queueGrowth.ts`):
+ *  measured on an 8 km world from six eyes, a level holds up to 976 k entries and a frame lists up
+ *  to 3.9 M candidates with nothing resident, 1.7 M with everything. */
+export const QUEUE_ENTRIES_START = 4 * SELECTION_LIST_CAP,
+  CANDIDATES_START = 8 * SELECTION_LIST_CAP
 /** Cap of a scene: never more than its catalogue, which no cut can exceed. */
 export const selectionListCap = (pageCount: number) => clamp(pageCount, 0, SELECTION_LIST_CAP)
 /** Bytes a resident cut's frame copies: everything before the staged requests. */
@@ -100,8 +106,10 @@ export const keptSnapshotWord = (listCap: number) =>
 export const KEPT_HEADER_WORDS = 2
 /** Word of `out` where region `v`'s saved drawn journal lies, behind the kept snapshot: its
  *  length, then `listCap` pages (`shader/swapWgsl.ts`); region 0 the main view's, one more a view
- *  drawn aside (`swap.ts`). */
-const savedJournalWord = (listCap: number, v: number) =>
+ *  drawn aside (`swap.ts`). Region `regions` is the word behind all of them, where the open counts
+ *  placements hold of their own lie (`heldOpen.ts`): written by the host alone, outside what the
+ *  frame copies. */
+export const savedJournalWord = (listCap: number, v: number) =>
   keptSnapshotWord(listCap) + KEPT_HEADER_WORDS + 2 * listCap + v * (1 + listCap)
 /** Bytes of `out` with the staged requests behind, the camera's then those ahead, the kept
  *  snapshot and `regions` saved journals — none until a view is drawn aside: what the kernels
@@ -131,19 +139,41 @@ export const OUT_COUNT = 0,
   /** How many requests ahead the snapshot holds, behind every one of the camera's (`dagSortRequests`). */
   OUT_AHEAD_PLACED = 7
 
-/** First residency word, behind the working table's word per page: the cut rule's `resident(c)`
- *  (`../../page/cut/readiness.ts`, `ready`). */
-export const residentBase = (pageCount: number) => pageCount
+/** First residency word: the cut rule's `resident(c)` (`../../page/cut/readiness.ts`, `ready`). A page
+ *  names its placement in the entries that carry it (`shader/levelWgsl.ts`), never in a word of its
+ *  own. */
+export const residentBase = (_pageCount: number) => 0
 /** Residency words: one bit per cluster, thirty-two clusters per word. */
 export const residentWords = (pageCount: number) => bitWords(Math.max(0, pageCount))
 /** First word of the second bit set, the rule's `resident(childGroup(c))` (`childReady`). */
 export const childBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount)
-/** First word of the pool's list: its count, then a canonical page per held slot (`poolList.ts`). */
+/** First word of the pool's list: its count, then a content key per held slot (`poolList.ts`). */
 export const poolBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount)
-/** First word of the key column, one per page: its content key (`evict.ts`). */
-export const keyBase = (pageCount: number) => poolBase(pageCount) + 1 + selectionListCap(pageCount)
-/** First cold record, behind the bit sets, the pool's list and the key column. */
-export const coldBase = (pageCount: number) => keyBase(pageCount) + Math.max(0, pageCount)
+/** First word of the record keys, one per unique record: the content key it reads (`evict.ts`). */
+export const recordKeyBase = (pageCount: number) =>
+  poolBase(pageCount) + 1 + selectionListCap(pageCount)
+/** What the cold table is laid out for: its pages, unique records, content keys, and the groups
+ *  of those keys with the links to the groups that replace them (`evict.ts`). */
+type ColdShape = {
+  pageCount: number
+  recordCount: number
+  keyCount: number
+  groupCount: number
+  groupEdges: number
+}
+/** First word of the key words, one per content key: its canonical page and its coarsest level. */
+export const keyWordBase = (shape: Pick<ColdShape, 'pageCount' | 'recordCount'>) =>
+  recordKeyBase(shape.pageCount) + Math.max(1, shape.recordCount)
+/** First word of the key groups, one per content key: the group its last use is its group's. */
+export const keyGroupBase = (shape: Pick<ColdShape, 'pageCount' | 'recordCount' | 'keyCount'>) =>
+  keyWordBase(shape) + Math.max(1, shape.keyCount)
+/** First word of the groups' parents: `groupCount + 1` starts, then the parents they bound. */
+export const groupParentBase = (shape: Pick<ColdShape, 'pageCount' | 'recordCount' | 'keyCount'>) =>
+  keyGroupBase(shape) + Math.max(1, shape.keyCount)
+/** First cold record, behind the bit sets, the pool's list, the record keys, the key words, the key
+ *  groups and the groups' parents. */
+export const coldBase = (shape: ColdShape) =>
+  groupParentBase(shape) + shape.groupCount + 1 + shape.groupEdges
 
 /** Hot field ranks, in the order `struct Cluster` of the shader declares them. */
 export const HOT_SPHERE = 0,

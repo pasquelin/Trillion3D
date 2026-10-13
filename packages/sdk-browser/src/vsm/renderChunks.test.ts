@@ -7,7 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { recordingEncoder } from '../../../../tests/kit/gpu/usageScope.ts'
+import { commandArgs } from '../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { createVsmResources } from './resources.ts'
@@ -17,6 +17,7 @@ import {
   VSM_RENDER_ARGS_STRIDE_WORDS,
   VSM_RENDER_ARGS_WGSL,
   VSM_RENDER_COUNTS_HEAD,
+  VSM_RENDER_PARAMS,
 } from './renderCullWgsl.ts'
 import { uniformStride } from '../residency/pools.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
@@ -71,8 +72,7 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
     limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 },
   })
   const { device } = fake
-  const { encoder, calls } = recordingEncoder()
-  const stats = encodeRows(device, encoder)
+  const stats = encodeRows(device, device.createCommandEncoder())
   // The CPU knows no bound of the chosen rows below the row count: 8192 rows a chunk (2^21 pairs
   // over 256 pages), the chunks 200 000 rows need.
   assert.deepEqual([stats.chunkRows, stats.chunks], [8192, ceilDiv(200_000, 8192)])
@@ -86,6 +86,7 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
     fake.writes.filter((w) => w.buffer === (paramsBuffer as unknown as GPUBuffer)),
   )
   const slot = (c: number) => slots.subarray((c * uniformStride(device.limits)) / 4)
+  const { at } = VSM_RENDER_PARAMS
   const params = {
     chunk: 0,
     chunkRows: 0,
@@ -96,8 +97,9 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
   }
   const read = (c: number) =>
     Object.assign(params, {
-      ...{ viewCount: slot(c)[24], chunk: slot(c)[25], chunkRows: slot(c)[27] },
-      ...{ chunkCount: slot(c)[28], cmdCapacity: slot(c)[29], pairCapacity: slot(c)[30] },
+      ...{ viewCount: slot(c)[at.viewCount], chunk: slot(c)[at.chunk] },
+      ...{ chunkRows: slot(c)[at.chunkRows], chunkCount: slot(c)[at.chunkCount] },
+      ...{ cmdCapacity: slot(c)[at.cmdCapacity], pairCapacity: slot(c)[at.pairCapacity] },
     })
   // u32 words: a store truncates as WGSL's integer division does (`shaderRun` divides in doubles).
   const counts = new Uint32Array(VSM_RENDER_COUNTS_HEAD + 4 * stats.chunks)
@@ -112,25 +114,33 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
   const work = new Map<number, number[]>()
   // The candidates' kernel and its argument kernel, run above, open chunk 0's compute pass.
   const candidates = ['vsmRenderCandidates', 'vsmRenderArgsCull']
-  for (const call of calls.filter((c) => !candidates.includes(c.entry!))) {
-    // Chunk c's compute pass 2c, its raster pass 2c + 1.
+  // Every dispatch and draw, in pass order: chunk c's compute pass 2c, its raster pass 2c + 1.
+  type Call = {
+    pass: number
+    entryPoint?: string
+    buffer?: unknown
+    offset?: number
+    direct?: number
+  }
+  const calls: Call[] = [...fake.dispatches, ...fake.draws].sort((a, b) => a.pass - b.pass)
+  for (const call of calls.filter((c) => !candidates.includes(c.entryPoint!))) {
     const c = Math.floor(call.pass / 2)
     // Chunk 0's cull counted 12 commands, its expand 40 pairs of 3 corners.
-    if (call.entry === 'vsmRenderCull' && c === 0) counts[VSM_RENDER_COUNTS_HEAD] = 12
-    if (call.entry === 'vsmRenderExpand' && c === 0)
+    if (call.entryPoint === 'vsmRenderCull' && c === 0) counts[VSM_RENDER_COUNTS_HEAD] = 12
+    if (call.entryPoint === 'vsmRenderExpand' && c === 0)
       [counts[VSM_RENDER_COUNTS_HEAD + 1], counts[VSM_RENDER_COUNTS_HEAD + 2]] = [40, 3]
     let done: number
-    if (call.entry === 'vsmRenderArgsExpand' || call.entry === 'vsmRenderArgsDraw') {
+    if (call.entryPoint === 'vsmRenderArgsExpand' || call.entryPoint === 'vsmRenderArgsDraw') {
       // One thread, directly: the argument kernels write the buffer the others read.
-      assert.equal(call.direct, 1, call.entry)
+      assert.equal(call.direct, 1, call.entryPoint)
       read(c)
-      kernels[call.entry]()
+      kernels[call.entryPoint]()
       done = 1
     } else {
-      assert.equal(call.buffer, argsBuffer, `${call.entry}: the one argument buffer`)
+      assert.equal(call.buffer, argsBuffer, `${call.entryPoint}: the one argument buffer`)
       assert.equal(Math.floor(call.offset! / 4 / VSM_RENDER_ARGS_STRIDE_WORDS), c, 'its chunk')
       done =
-        call.entry === 'vsmRenderVs'
+        call.entryPoint === 'vsmRenderVs'
           ? args[call.offset! / 4] * args[call.offset! / 4 + 1]
           : groups(call.offset!)
     }
@@ -152,23 +162,15 @@ test('a device aligning at 512 lays the chunks’ parameter slots 512 bytes apar
       minUniformBufferOffsetAlignment: 512,
     },
   })
+  const { chunks } = encodeRows(fake.device, fake.device.createCommandEncoder())
   // Every group set with a dynamic offset: the chunks' parameters, the candidates' at 0.
-  const offsets = new Set<number>()
-  const pass = new Proxy(
-    {},
-    {
-      get: (_, name) =>
-        name === 'setBindGroup'
-          ? (_group: number, _set: unknown, dynamic?: readonly number[]) =>
-              void (dynamic?.length && offsets.add(dynamic[0]))
-          : () => undefined,
-    },
+  const offsets = new Set(
+    [...fake.computePasses, ...fake.passes]
+      .flatMap(({ commands }) => commandArgs(commands, 'setBindGroup'))
+      .flatMap(([, , dynamic]) =>
+        (dynamic as number[] | undefined)?.length ? [(dynamic as number[])[0]] : [],
+      ),
   )
-  const encoder = new Proxy(
-    {},
-    { get: (_, name) => (String(name).startsWith('begin') ? () => pass : () => undefined) },
-  ) as GPUCommandEncoder
-  const { chunks } = encodeRows(fake.device, encoder)
   const paramsBuffer = fake.buffers.find((b) => b.label === 'vsm.render.params')!
   assert.ok(paramsBuffer.size >= chunks * 512)
   const slots = new Uint32Array(paramsBuffer.size / 4)

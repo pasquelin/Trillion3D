@@ -3,8 +3,9 @@ import { zeroFlagsBuffer } from '../../visibility/shaders.ts'
 import { growShadowRows } from '../../shadow/rowBuffers.ts'
 import { pendingAll, pendingBuffers, type PendingGrowth } from '../../../gpu/core/tableGrowth.ts'
 import { restSlotCount } from '../../../gpu/draw/contract.ts'
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { partitionSourcesOf } from './drawSources.ts'
 
 /**
  * EVERY GPU BUFFER SIZED BY ROW, made for `drawSlots` visibility rows and `casterSlots` rows in
@@ -38,14 +39,7 @@ export function gpuGrowth(
     draw?.grow(drawSlots),
     hiz?.growFlags(drawSlots),
     // The draw compact and the Hi-Z test it reads, as they stood: a drop meanwhile throws nothing.
-    draw &&
-      hiz &&
-      vis.gpuPartition?.grow(drawSlots, () => ({
-        items: draw.itemsBuffer,
-        flags: hiz.flags,
-        restBits: draw.restBitsBuffer,
-        slotUsed: draw.slotUsedBuffer,
-      })),
+    draw && hiz && vis.gpuPartition?.grow(drawSlots, () => partitionSourcesOf(draw, hiz)),
     vis.gpuRestCompact?.growWork(compacted, restSlotCount(vis.drawLayerSlots), compacted),
     ...growShadowRows(lights, device, casterSlots),
   ])

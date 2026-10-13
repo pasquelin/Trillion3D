@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { OCT_BYTE_STEP, octDecodeScalar } from '../../../math/src/wgsl/octahedral.ts'
 import { DIVISOR_FLOOR } from '../../../math/src/wgsl/constants.ts'
+import { unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
 import {
   bitLength,
   bitWord,
@@ -12,10 +13,15 @@ import {
 import {
   BLOCK_CORNERS,
   CLUSTER_HEADER_WORDS,
+  FLAG_COLOR,
+  FLAG_NORMAL,
+  FLAG_UV,
+  FLAG_UV1,
+  MAX_MORPH_TARGETS,
   MORPH_WORDS,
   TRIANGLE_BLOCK,
   WIDTH_BITS,
-} from './format.ts'
+} from '../../../sdk-core/src/page/format.ts'
 import { CLUSTER_HEADER_WGSL } from './headerWgsl.ts'
 
 /**
@@ -28,14 +34,16 @@ import { CLUSTER_HEADER_WGSL } from './headerWgsl.ts'
  */
 export const COTANGENT_FRAME_WGSL = wgslBlock(
   'COTANGENT_FRAME_WGSL',
-  [DIVISOR_FLOOR],
+  [DIVISOR_FLOOR, unitOrZero],
   `struct CotangentFrame{T:vec3f,B:vec3f,}
 fn cotangentFrame(N:vec3f,e1:vec3f,e2:vec3f,duv1:vec2f,duv2:vec2f)->CotangentFrame{
  let p=cross(e2,N);let q=cross(N,e1);
  let T=p*duv1.x+q*duv2.x;let B=p*duv1.y+q*duv2.y;
  let scale=inverseSqrt(max(max(dot(T,T),dot(B,B)),DIVISOR_FLOOR));
  return CotangentFrame(T*scale,B*scale);
-}`,
+}
+/** The normal N bent by a tangent-space map value m over the frame T, B: unit, or zero. */
+fn bendNormal(N:vec3f,T:vec3f,B:vec3f,m:vec3f)->vec3f{return unitOrZero(T*m.x+B*m.y+N*m.z);}`,
 )
 
 /**
@@ -95,7 +103,7 @@ fn clusterPointHeader(base:u32)->ClusterHeader{
  h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
  h.positionCount=${buffer}[base+22u];h.linkBits=bitLength(h.positionCount-1u);
  // Word 23: the joint width in bits 0 to 5, the target count in 6 to 13, the smallest joint above.
- let dw=${buffer}[base+23u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&255u;h.skinBase=(dw>>14u)&0xffffu;
+ let dw=${buffer}[base+23u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&${MAX_MORPH_TARGETS}u;h.skinBase=(dw>>14u)&0xffffu;
  let stored=h.positionCount;var at=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;h.streams=at;
  h.blocks=clusterStream(true,ceilDiv(h.indexCount/3u,${TRIANGLE_BLOCK}u),h.recordBits,&at);
  h.corners=clusterStream(true,cornerBits,1u,&at);
@@ -118,10 +126,10 @@ fn clusterSurfaceHeader(point:ClusterHeader,base:u32)->ClusterHeader{
  h.influences=${buffer}[base+24u];
  let n=h.vertexCount;var at=h.links;
  clusterStream(h.positionCount<n,n,h.linkBits,&at);
- h.normal=clusterStream((h.flags&1u)!=0u,n,16u,&at);
- let hasUv=(h.flags&2u)!=0u;h.uv.x=clusterStream(hasUv,n,h.uvBits.x,&at);h.uv.y=clusterStream(hasUv,n,h.uvBits.y,&at);
- let hasUv1=(h.flags&4u)!=0u;h.uv1.x=clusterStream(hasUv1,n,h.uv1Bits.x,&at);h.uv1.y=clusterStream(hasUv1,n,h.uv1Bits.y,&at);
- let hasColor=(h.flags&8u)!=0u;h.color.x=clusterStream(hasColor,n,h.colorBits.x,&at);h.color.y=clusterStream(hasColor,n,h.colorBits.y,&at);
+ h.normal=clusterStream((h.flags&${FLAG_NORMAL}u)!=0u,n,16u,&at);
+ let hasUv=(h.flags&${FLAG_UV}u)!=0u;h.uv.x=clusterStream(hasUv,n,h.uvBits.x,&at);h.uv.y=clusterStream(hasUv,n,h.uvBits.y,&at);
+ let hasUv1=(h.flags&${FLAG_UV1}u)!=0u;h.uv1.x=clusterStream(hasUv1,n,h.uv1Bits.x,&at);h.uv1.y=clusterStream(hasUv1,n,h.uv1Bits.y,&at);
+ let hasColor=(h.flags&${FLAG_COLOR}u)!=0u;h.color.x=clusterStream(hasColor,n,h.colorBits.x,&at);h.color.y=clusterStream(hasColor,n,h.colorBits.y,&at);
  h.color.z=clusterStream(hasColor,n,h.colorBits.z,&at);h.color.w=clusterStream(hasColor,n,h.colorBits.w,&at);
  h.skin=at;
  return h;

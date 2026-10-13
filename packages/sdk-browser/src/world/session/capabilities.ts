@@ -1,5 +1,4 @@
-import { mathBatchMetrics, prepareMathBatch } from '../../page/decode/batch/batchState.ts'
-import { materialTextures, meshes as objects } from '../../scene/meshes.ts'
+import { materialTextures } from '../../scene/meshes.ts'
 import { hostTextureWritten } from '../../host/textureImport.ts'
 import { families } from '../../host/families.ts'
 import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
@@ -11,24 +10,22 @@ import {
   devicePixels,
 } from '../../engine/common.ts'
 import type { EngineContext } from '../../engine/types.ts'
-import type { createExplorerPageSources } from './pageSources.ts'
+import type { ExplorerPageSources } from './pageSources.ts'
 import type { ExplorerSession } from './session.ts'
 type Inputs = {
   manifestUrl: string
   metadataUrl: string
   base: string
-  source: EngineContext['source']
-  pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>
+  draws: EngineContext['draws']
+  pageSources: ExplorerPageSources
 }
 /** Sizes the canvas the engine presents into, and reports the session's configuration. */
 export async function configureExplorer(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, scope, metadata, diagnosticChannel, diagnose } = session
-  const { manifestUrl, metadataUrl, base, source, pageSources } = inputs
-  const { pages, cacheCap } = pageSources
-  const batchCompute = prepareMathBatch(options.mathPath ?? 'auto')
+  const { manifestUrl, metadataUrl, base, draws, pageSources } = inputs
+  const { pages } = pageSources
   canvas.width = devicePixels(options.width ?? DEFAULT_WIDTH, options.pixelRatio)
   canvas.height = devicePixels(options.height ?? DEFAULT_HEIGHT, options.pixelRatio)
-  await batchCompute
   // The provenance table, a family loaded with the scene when a channel listens (`familyUse.ts`);
   // unheard, the record is dropped unread and nothing loads it.
   const sdk = diagnosticChannel.enabled
@@ -40,7 +37,6 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
     detail: diagnosticChannel.detail,
     limits: {
       maxResidentPages: options.maxResidentPages ?? null,
-      maxCachedPages: cacheCap,
       pageFetchWorkers: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
       geometryPoolBytes: options.geometryPoolBytes ?? null,
       texturePoolBytes: options.texturePoolBytes ?? null,
@@ -49,7 +45,6 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
       url: page.url,
       bytes: page.bytes,
     })),
-    mathBatch: mathBatchMetrics(),
     provenance: {
       sdk,
       manifestUrl,
@@ -62,8 +57,8 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   })
   // The most detail: every texture read with the device's whole anisotropy (`MAX_ANISOTROPY`).
   if (options.detail === 'maximum') {
-    for (const mesh of objects(source))
-      for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material])
+    for (const { declaration } of draws)
+      for (const material of Array.isArray(declaration) ? declaration : [declaration])
         for (const texture of materialTextures(material)) {
           texture.anisotropy = MAX_ANISOTROPY
           texture.needsUpdate = true

@@ -3,7 +3,8 @@
 // (a few pages, or a whole level), the coarse-page thresholds and a log of what the text hands
 // them —, one set a case, read through one scope so that a text compiles once a test; and the
 // boxes' lights.
-import { Mat, shaderRun } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { vsmInvalidationWgsl } from './invalidationWgsl.ts'
@@ -13,7 +14,7 @@ import { vsmLayout } from './layout.ts'
 import { TAU } from '../../../math/src/constants.ts'
 
 export type Draw = ReturnType<typeof inputs>
-const LAYOUT = vsmLayout({ fullMapCapacity: 63 }, 1 << 27)
+const LAYOUT = vsmLayout({ fullMapCapacity: 63 })
 /** The two shipped modules the shared box cull is compiled into, on the one layout. */
 export const INVALIDATION = vsmInvalidationWgsl(LAYOUT),
   RENDER = vsmRenderCullWgsl(LAYOUT)

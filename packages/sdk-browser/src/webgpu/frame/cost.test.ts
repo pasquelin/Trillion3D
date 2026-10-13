@@ -6,9 +6,10 @@ import { createArrivalQueue } from '../../page/integration/arrivalQueue.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
+import { graphDraws } from '../../page/selection/drawSource.ts'
 
 test('paged transparent commands disappear outside the view and return with both faces on CPU and GPU cuts', async () => {
   installGpuGlobals()
@@ -22,13 +23,14 @@ test('paged transparent commands disappear outside the view and return with both
     fixture.associations.set(twin, { meshes: 0, primitives: 0 })
     const roots = collectClusterPages(
       fixture.source,
+      graphDraws(fixture.source, fixture.associations),
       fixture.metadata,
       fixture.indices,
-      fixture.associations,
     ).roots
-    const mock = mockGpu({ packed: gpuCut ? packDagSelection(roots) : undefined })
+    const mock = fakeDevice({ ...BACKEND, packed: gpuCut ? packDagSelection(roots) : undefined })
     const backend = webgpuPagesEngine({
       ...fixture,
+      draws: graphDraws(fixture.source, fixture.associations),
       gpuDevice: mock.device,
       maxResidentPages: 4,
       viewport: [32, 32],
@@ -56,7 +58,8 @@ test('paged transparent commands disappear outside the view and return with both
         assert.equal(backend.metrics().transparentDrawCalls, blend.length)
         assert.equal(blend[0].instanceCount, x ? 0 : 8, 'encode only the current view')
         assert.equal(
-          mock.writes.filter((w) => w.label === 'Trillion3D transparent cluster spans').length,
+          mock.writes.filter((w) => w.buffer.label === 'Trillion3D transparent cluster spans')
+            .length,
           0,
           'an unchanged cache does not rewrite spans, even after re-entering the view',
         )
@@ -72,7 +75,7 @@ test('paged transparent commands disappear outside the view and return with both
 test('queued page arrivals are integrated by the next render without a second GPU submission', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
-    mock = mockGpu()
+    mock = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: mock.device,

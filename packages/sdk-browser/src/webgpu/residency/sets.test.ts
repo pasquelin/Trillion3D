@@ -59,33 +59,41 @@ test('an image that moves no page touches no set at all', () => {
   const wantedBefore = queueOf(tracking.wanted)
   const listBefore = tracking.wanted.list
   // The pin step drains these; nothing else may add to them once the cut stops moving.
-  const entering = sets.entering.count,
-    leaving = sets.leaving.count
+  const entering = sets.coverEntering.count,
+    leaving = sets.coverLeaving.count
   for (let image = 0; image < 100; image++) {
     frame(world, ids, 64)
     assert.equal(delta.enteredCount, 0)
     assert.equal(delta.exitedCount, 0)
   }
-  assert.equal(sets.entering.count, entering)
-  assert.equal(sets.leaving.count, leaving)
+  assert.equal(sets.coverEntering.count, entering)
+  assert.equal(sets.coverLeaving.count, leaving)
   // Same backing array, same members, in the same places: nothing was rebuilt or reallocated.
   assert.equal(tracking.wanted.list, listBefore)
   assert.deepEqual(queueOf(tracking.wanted), wantedBefore)
 })
 
-test('a queue rebuilt past the budget hands the pin step only the keys it took and let go', () => {
+test('the pin step hears of the root cover alone: its pages at open, then each holder that moves it', () => {
   const world = scene()
-  const { sets, tracking } = world
-  // Eight pages, levels 0 to 7, over a budget of three: the ranking keeps the three coarsest.
+  const { sets, tracking, bootstrapKey, packed } = world
+  const covered = [...keysOf(sets.coverEntering)]
+  assert.deepEqual(
+    new Set(covered),
+    new Set(Array.from({ length: tracking.keyCount }, (_, k) => k).filter((k) => bootstrapKey[k])),
+    'the cover at open',
+  )
+  sets.coverEntering.clear()
+  // A cut that moves the queue, past the budget or not, tells the pins nothing.
   frame(world, [2, 4, 6, 8, 10, 12, 14], 3)
-  const before = keysOf(tracking.keep)
-  sets.entering.clear()
-  sets.leaving.clear()
-  // The coarsest page leaves the cut: the rebuilt queue drops it and takes the next one down.
   frame(world, [2, 4, 6, 8, 10, 12], 3)
-  const after = keysOf(tracking.keep)
-  const minus = (a: Set<number>, b: Set<number>) => new Set([...a].filter((key) => !b.has(key)))
-  assert.deepEqual(keysOf(sets.entering), minus(after, before), 'joined')
-  assert.deepEqual(keysOf(sets.leaving), minus(before, after), 'left')
-  assert.equal(sets.leaving.count, 1)
+  assert.equal(sets.coverEntering.count + sets.coverLeaving.count, 0)
+  // A cell's holder brings a page into the cover, then takes it away.
+  const page = packed[14]
+  sets.holdCover([page], true)
+  assert.deepEqual([...keysOf(sets.coverEntering)], [tracking.keyOf(page)])
+  sets.holdCover([page], false)
+  assert.deepEqual(
+    [sets.coverEntering.count, [...keysOf(sets.coverLeaving)]],
+    [0, [tracking.keyOf(page)]],
+  )
 })

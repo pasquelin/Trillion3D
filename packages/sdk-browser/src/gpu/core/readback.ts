@@ -1,5 +1,6 @@
 import { giveReadback, takeReadback } from './heldReadback.ts'
-import { alignUp } from '../../../../math/src/scalar/integers.ts'
+import { copyRowBytes } from './copyRowBytes.ts'
+import { mapStaging } from './readbackRing.ts'
 
 /**
  * The readbacks the proof tools and an explicit capture do, and that no frame does.
@@ -9,28 +10,29 @@ import { alignUp } from '../../../../math/src/scalar/integers.ts'
  * that wants to check what the GPU wrote calls them.
  */
 
-/** Copies `bytes` bytes of a GPU buffer, or `undefined` if the device does not map. */
+/** Copies `bytes` bytes of a GPU buffer from byte `offset`, or `undefined` if the device does not
+ *  map: through the device's held mapped buffer, as `readGpuImage` (a failed copy's is destroyed). */
 export async function readGpuBuffer(
   device: GPUDevice,
   source: GPUBuffer,
   bytes: number,
+  offset = 0,
 ): Promise<Uint32Array | undefined> {
   if (bytes < 4 || typeof device.createBuffer !== 'function') return undefined
-  const staging = device.createBuffer({
-    label: 'Trillion3D buffer readback',
-    size: bytes,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  })
+  const staging = takeReadback(device, bytes, 'Trillion3D buffer readback')
+  let read = false
   try {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D buffer readback' })
-    encoder.copyBufferToBuffer(source, 0, staging, 0, bytes)
+    encoder.copyBufferToBuffer(source, offset, staging, 0, bytes)
     device.queue.submit([encoder.finish()])
-    await staging.mapAsync(GPUMapMode.READ)
+    await mapStaging(staging)
     const copy = new Uint32Array(staging.getMappedRange().slice(0))
     staging.unmap()
+    read = true
     return copy
   } finally {
-    staging.destroy()
+    if (read) giveReadback(device, staging)
+    else staging.destroy()
   }
 }
 
@@ -46,9 +48,6 @@ export async function readGpuTextureR32F(
   const bytes = await readGpuImage(device, texture, width, height, undefined, { topDown: true })
   return new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4)
 }
-
-/** Row pitch of a readback buffer: RGBA8 rows padded to WebGPU's 256-byte alignment. */
-const readbackBytesPerRow = (width: number) => alignUp(width * 4, 256)
 
 /** How `readGpuImage` reads: which level of the texture, and in which row order. */
 export interface ReadImageOptions {
@@ -70,7 +69,7 @@ export async function readGpuImage(
   { mipLevel = 0, topDown = false }: ReadImageOptions = {},
 ) {
   signal?.throwIfAborted()
-  const bytesPerRow = readbackBytesPerRow(width),
+  const bytesPerRow = copyRowBytes(width),
     row = width * 4
   const buffer = takeReadback(device, bytesPerRow * height, 'Trillion3D explicit capture')
   let read = false
@@ -82,7 +81,7 @@ export async function readGpuImage(
       { width, height, depthOrArrayLayers: 1 },
     )
     device.queue.submit([encoder.finish()])
-    await buffer.mapAsync(GPUMapMode.READ)
+    await mapStaging(buffer)
     signal?.throwIfAborted()
     const mapped = new Uint8Array(buffer.getMappedRange()),
       pixels = new Uint8Array(row * height)

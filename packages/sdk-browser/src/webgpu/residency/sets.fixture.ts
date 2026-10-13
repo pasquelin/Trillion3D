@@ -3,7 +3,7 @@ import type { PageRec } from '../../page/selection/selection.ts'
 import { createCutDelta, type CutDelta } from '../cut/delta.ts'
 import { createGroupClosure } from '../../page/cut/groupClosure.ts'
 import { createRequestAdmission } from './requestAdmission.ts'
-import { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import { createWebgpuPageTracking, type WebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidencySets } from './sets.ts'
 import { admissionLevel } from '../../residency/minimumCapacity.ts'
 import { ADMISSION_BUCKETS, ADMISSION_LEVEL_MAX } from '../../gpu/dag/request.ts'
@@ -12,7 +12,7 @@ export const rec = (url: string, level: number) => ({ url, level }) as unknown a
 
 /** The residency sets over `packed`, the cover's holders in `bootstrapKey`, its addresses apart. */
 export const setsOver = (
-  tracking: ReturnType<typeof createWebgpuPageTracking>,
+  tracking: WebgpuPageTracking,
   bootstrapKey: Uint8Array,
   packed: readonly PageRec[],
 ) =>
@@ -57,11 +57,7 @@ export function world(packed: PageRec[], cover: readonly PageRec[] = []) {
   const sets = setsOver(tracking, bootstrapKey, packed)
   const pages: PageRec[] = []
   const delta = createCutDelta(packed, pages)
-  const closure = createGroupClosure(
-      [],
-      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
-      packed,
-    ),
+  const closure = createGroupClosure([], { baseOfRoot: new Int32Array(0), packedCount: 0 }, packed),
     admission = createRequestAdmission(sets, tracking, closure, (id) => packed[id])
   const cut = (difference: CutDelta = delta) => {
     closure.apply(difference)

@@ -9,7 +9,7 @@ use crate::dag::clusters::cluster_triangles;
 use crate::dag::{
     build_dag_from_roots, DagAttributes, DagCluster, DagGroup, Grown, DAG_CLUSTER_TRIANGLES,
 };
-use crate::geometry_page::Attribute;
+use trillion3d_page_codec::encode::Attribute;
 
 impl WorldDag {
     /// Every placed object still a root — alone in its material, or in a group whose reduction
@@ -125,6 +125,7 @@ pub(super) fn world_dag(
         );
     }
     world.stand_alone()?;
+    world.in_culling_order();
     let vertices = world.positions.len() / 3;
     for attribute in world.carried.iter_mut().filter(|a| !a.values.is_empty()) {
         attribute.values.resize(vertices * attribute.width, 0.0);

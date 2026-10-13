@@ -3,6 +3,13 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { COVERAGE_CHOOSE_WGSL, COVERAGE_COUNT_WGSL } from './mipsWgsl.ts'
 import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import {
+  sequentialEntries,
+  computeBufferEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+} from '../gpu/core/computeBindings.ts'
 
 /** Bytes of one level's 256 bins. */
 export const LEVEL_BIN_BYTES = 1024
@@ -10,21 +17,22 @@ export const LEVEL_BIN_BYTES = 1024
 /** The counts' program, built once per device — the shared one (`sharedGpuDevice`), as the mips'
  *  (`mips.ts`) —, its two pipelines compiled off the thread (`prepareCoveragePipelines`): `count`
  *  over a chain's level, `pick` over a batch's level (`COVERAGE_CHOOSE_WGSL`), its level block
- *  bound at a dynamic offset. */
+ *  bound at a dynamic offset; the picks' group (`pickGroup`) and the identity of the buffers it
+ *  binds, the device's batch buffers (`heldBuffers.ts`). */
 const coverageProgram = oncePerDevice((device: GPUDevice) => {
   const visibility = GPUShaderStage.COMPUTE
   const layout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility, texture: { sampleType: 'float' } },
-      { binding: 1, visibility, buffer: { type: 'uniform' } },
-      { binding: 2, visibility, buffer: { type: 'storage' } },
+      computeTextureEntry(0, 'float', '2d', visibility),
+      computeBufferEntry(1, 'uniform', visibility),
+      computeBufferEntry(2, 'storage', visibility),
     ],
   })
   const chooseLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility, buffer: { type: 'uniform', hasDynamicOffset: true } },
-      { binding: 1, visibility, buffer: { type: 'read-only-storage' } },
-      { binding: 2, visibility, buffer: { type: 'storage' } },
+      computeUniformEntry(0, { hasDynamicOffset: true }, visibility),
+      computeBufferEntry(1, 'read-only-storage', visibility),
+      computeBufferEntry(2, 'storage', visibility),
     ],
   })
   const pipeline = (code: string, bindGroupLayout: GPUBindGroupLayout, entryPoint: string) =>
@@ -37,6 +45,8 @@ const coverageProgram = oncePerDevice((device: GPUDevice) => {
     chooseLayout,
     count: pipeline(wgslModule(COVERAGE_COUNT_WGSL), layout, 'count'),
     pick: pipeline(COVERAGE_CHOOSE_WGSL, chooseLayout, 'choose'),
+    picked: createWebgpuBindIdentity(),
+    pickGroup: undefined as GPUBindGroup | undefined,
   }
 })
 
@@ -66,11 +76,11 @@ export function coverageGroups(device: GPUDevice, chain: CoverageChain, levels: 
   return Array.from({ length: levels }, (_, block) =>
     device.createBindGroup({
       layout,
-      entries: [
-        { binding: 0, resource: views[Math.max(0, block - 1)] },
-        { binding: 1, resource: { buffer: uniforms, offset: (first + block) * stride, size: 32 } },
-        { binding: 2, resource: bins },
-      ],
+      entries: sequentialEntries([
+        views[Math.max(0, block - 1)],
+        { buffer: uniforms, offset: (first + block) * stride, size: 32 },
+        bins,
+      ]),
     }),
   )
 }
@@ -83,22 +93,22 @@ export function coveragePipelines(device: GPUDevice) {
   return { count: count.get(), pick: pick.get() }
 }
 
-/** The picks' group of a batch, by its uniforms: their level blocks and table, and the bins. */
-const picked = new WeakMap<GPUBuffer, { bins: GPUBuffer; group: GPUBindGroup }>()
-
-/** The group the picks of a batch over `uniforms` and `bins` bind (`COVERAGE_CHOOSE_WGSL`), its
- *  level block at a dynamic offset: made again only when either buffer is. */
+/** The group the picks of a batch over `uniforms` and `bins` bind (`COVERAGE_CHOOSE_WGSL`): their
+ *  level blocks — one at a dynamic offset — and table, and the bins; made again only when either
+ *  buffer is. */
 export function pickGroup(device: GPUDevice, uniforms: GPUBuffer, bins: GPUBuffer) {
-  const held = picked.get(uniforms)
-  if (held?.bins === bins) return held.group
-  const group = device.createBindGroup({
-    layout: coverageProgram(sharedGpuDevice(device)).chooseLayout,
-    entries: [
-      { binding: 0, resource: { buffer: uniforms, size: 16 } },
-      { binding: 1, resource: { buffer: uniforms } },
-      { binding: 2, resource: { buffer: bins } },
-    ],
-  })
-  picked.set(uniforms, { bins, group })
-  return group
+  const program = coverageProgram(sharedGpuDevice(device)),
+    { picked } = program
+  picked.next[0] = uniforms
+  picked.next[1] = bins
+  if (picked.moved())
+    program.pickGroup = device.createBindGroup({
+      layout: program.chooseLayout,
+      entries: sequentialEntries([
+        { buffer: uniforms, size: 16 },
+        { buffer: uniforms },
+        { buffer: bins },
+      ]),
+    })
+  return program.pickGroup!
 }

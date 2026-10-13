@@ -15,13 +15,11 @@ import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
 import { cellReach } from '../../partition/plan.ts'
 import { lensSlope } from '../../partition/superRoots.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 import { patientTask } from '../../page/work/host.ts'
 import { cellRows, type CellRows } from '../../partition/cellDecode.ts'
 import { createViewAsks } from './viewAsks.ts'
 import type { PageBody } from '../../partition/cellIndex.ts'
-
-type Streamer = ReturnType<typeof createPageStreamer>
 
 /** Where a camera's eye stands in the world, and its reach there: the frustum its world matrix
  *  poses, which a scaled camera — or one under a scaled rig — stretches by up to its largest
@@ -35,8 +33,8 @@ function viewOf(camera: HostCamera) {
 }
 
 /** The cut's lens `backend` projects with while it packs the world DAG, else none (#1332). */
-function lensOf(backend: Engine, camera: HostCamera) {
-  const cut = backend.worldCut()
+function lensOf(backend: Engine, camera: HostCamera, cells: PartitionCells) {
+  const cut = backend.worldCut(cells.world)
   return cut && { ...cut, slope: lensSlope(camera) }
 }
 
@@ -65,7 +63,7 @@ async function decodePage(bytes: Uint8Array, url: string): Promise<PageBody> {
 export async function primePartitions(
   partitions: readonly PartitionCells[],
   camera: HostCamera,
-  streamer: Streamer,
+  streamer: PageStreaming,
   owned: boolean,
   signal?: AbortSignal,
 ) {
@@ -82,7 +80,7 @@ export async function primePartitions(
 
 type Inputs = {
   partitions: readonly PartitionCells[]
-  streamer: Streamer
+  streamer: PageStreaming
   camera: HostCamera
   engine: Engine
   /** The session's one integration budget per frame (`EngineContext.frameBudget`): cells spend
@@ -95,7 +93,8 @@ type Inputs = {
 }
 
 /**
- * The step a frame runs before it draws, or `null` when the scene is not partitioned. Its
+ * The step a frame runs before it draws, over the partitions the session follows: those it was
+ * opened with, and those that join it (`follow`) or leave it (`leave`) while it runs. Its
  * `pending` settles once the pages and cells the last frame asked for within reach are read, those
  * it handed to the page worker pool decoded, and the next of the cells' holds on its way landed,
  * true while one of them waits for a frame to place it, or a decode or a hold landed: a still
@@ -103,8 +102,8 @@ type Inputs = {
  * it lands (`../../streaming/failures.ts`): nothing else wakes the loop for it.
  */
 export function createPartitionFrame(inputs: Inputs) {
-  const { partitions, streamer, camera, engine: backend, renew, budget } = inputs
-  if (!partitions.length) return null
+  const { streamer, camera, engine: backend, renew, budget } = inputs
+  const partitions = [...inputs.partitions]
   const asks = createViewAsks(streamer)
   let reads: Promise<void>[] = [],
     later = false
@@ -124,26 +123,47 @@ export function createPartitionFrame(inputs: Inputs) {
     await Promise.all([...asked, ...turned])
     return later || turned.length > 0
   }
+  const io = (cells: PartitionCells): Parameters<PartitionCells['frame']>[2] => ({
+    bytes: (url: string) => streamer.getBytes(url),
+    decode: decodeCell,
+    decodePage,
+    failed: (url: string) => streamer.failed(url),
+    request,
+    pin: streamer.pin,
+    unpin: streamer.unpin,
+    admit: streamer.admit,
+    forget: streamer.forget,
+    update: (...range: Parameters<Engine['updatePlacements']>) =>
+      backend.updatePlacements(...range),
+    grow: backend,
+    compose: (parent, world, links, whole) =>
+      backend.composePlacements(parent, world, links, whole),
+    outgrown: renew,
+    // While the cut packs the world DAG, a cell its super-roots draw is held far (#1332).
+    lens: lensOf(backend, camera, cells),
+  })
   const step = () => {
-    const io: Parameters<PartitionCells['frame']>[2] = {
-      bytes: (url: string) => streamer.getBytes(url),
-      decode: decodeCell,
-      decodePage,
-      failed: (url: string) => streamer.failed(url),
-      request,
-      admit: streamer.admit,
-      forget: streamer.forget,
-      update: (...range: Parameters<Engine['updatePlacements']>) =>
-        backend.updatePlacements(...range),
-      grow: backend,
-      outgrown: renew,
-      // While the cut packs the world DAG, a cell its super-roots draw is held far (#1332).
-      lens: lensOf(backend, camera),
-    }
+    if (!partitions.length) return
     const { eye, reach } = viewOf(camera)
     later = false
-    for (const cells of partitions) later = cells.frame(eye, reach, io, budget) || later
+    for (const cells of partitions) later = cells.frame(eye, reach, io(cells), budget) || later
     asks.end()
   }
-  return Object.assign(step, { pending })
+  return Object.assign(step, {
+    pending,
+    /** `cells` are followed from the next frame, placed for the view by `primePartitions` first. */
+    follow(cells: readonly PartitionCells[]) {
+      for (const one of cells) if (!partitions.includes(one)) partitions.push(one)
+    },
+    /** `cells` are followed no more: each gives its rows and its holds back. */
+    leave(cells: readonly PartitionCells[]) {
+      for (const one of cells) {
+        const at = partitions.indexOf(one)
+        if (at < 0) continue
+        partitions.splice(at, 1)
+        one.close(io(one))
+      }
+      asks.end()
+    },
+  })
 }

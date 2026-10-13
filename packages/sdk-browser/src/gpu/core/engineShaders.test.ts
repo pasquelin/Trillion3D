@@ -1,8 +1,7 @@
 // A module with a name it declares nowhere compiles on no device: a browser would be the
 // first to see it (`unresolved value 'uni'` in the cluster decoding proof, which
 // decodes through the page geometry and declares no camera). This Node test reads every text the
-// engine compiles, and those of the proofs that compile their own, before any browser does: the
-// cut-dispatches oracle's too (`unresolved call target 'spriteOf'`).
+// engine compiles, and those of the proofs that compile their own, before any browser does.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -10,14 +9,13 @@ import { ENGINE_SHADERS } from './engineShaders.fixture.ts'
 import { reservedNames, topLevelNames, unresolvedNames } from './wgslNames.fixture.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_BINDING, PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
-import { VIS_SHADER } from '../../visibility/buffer.ts'
+import { VIS_SHADER } from '../../visibility/shader/visWgsl.ts'
 import { CLUSTER_DECODING_SHADER } from '../../../../../tests/gpu/cluster/decodingKernel.ts'
-import { DAG_SELECTION_SHADER_BEFORE } from '../../../../../bench/oracles/browser/cut-dispatches-wgsl.ts'
 import { FLOAT32_MAX } from '../../../../math/src/constants.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 test('every WGSL text the engine and its proofs compile declares every name it uses', () => {
-  const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER, DAG_SELECTION_SHADER_BEFORE }
+  const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER }
   const unresolved = Object.entries(shaders)
     .map(([name, code]) => [name, unresolvedNames(code)] as const)
     .filter(([, names]) => names.length)
@@ -34,7 +32,7 @@ test('no WGSL text the engine and its proofs compile declares a name twice', () 
   // A fragment spliced into two others, or a declaration written by a fragment and by its host,
   // is a module a device refuses even when both texts are equal: each fragment is a declaration
   // its hosts list, and the assembler writes it once.
-  const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER, DAG_SELECTION_SHADER_BEFORE }
+  const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER }
   const twice: string[] = []
   for (const [name, code] of Object.entries(shaders)) {
     const seen = new Set<string>()
@@ -61,10 +59,9 @@ test('a reserved word is found as a local, a parameter or a member, never in a c
     'target',
   ])
   assert.deepEqual(reservedNames('// from the target\n@builtin(position) p:vec4f'), [])
-  // The translucent march's walk, whose names the gate keeps clear of reserved words.
   const blend = ENGINE_SHADERS.BLEND_SHADER
   assert.deepEqual(reservedNames(blend), [])
-  assert.deepEqual(reservedNames(blend.replace(/\bwalkFrom\b/g, 'from')), ['from'])
+  assert.deepEqual(reservedNames(blend.replace(/\bclamped\b/g, 'from')), ['from'])
 })
 
 /** The call sites that compile a text their caller hands them (the resolve's, the deferred
@@ -73,7 +70,7 @@ test('a reserved word is found as a local, a parameter or a member, never in a c
  *  generator's text is on the list for one layout, and every generator they import must be. */
 const HANDED_IN = new Set([
   'gpu/core/shaderModule.ts',
-  'webgpu/shadow/computePass.ts',
+  'webgpu/visibility/computePass.ts',
   'gpu/raster/resolve.ts',
   'texture/coverageMips.ts',
   'lighting/deferred/program.ts',
@@ -92,7 +89,7 @@ test('the list holds the text of every call that compiles a module', () => {
   const fixture = [
     'engineShaders.fixture.ts',
     'engineShaders.vsm.fixture.ts',
-    'engineShaders.reflections.fixture.ts',
+    'engineShaders.compose.fixture.ts',
   ]
     .map((name) => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8'))
     .join('\n')

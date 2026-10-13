@@ -3,7 +3,8 @@
 // JavaScript against what each one claims: an orthonormal frame, det · M⁻ᵀ, a pixel and a uv.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
   frameAround,
@@ -13,7 +14,6 @@ import {
 } from '../../../../math/src/wgsl/basis.ts'
 import { cofactor3 } from '../../../../math/src/wgsl/matrix.ts'
 import {
-  clipToUvUnflipped,
   ndcToPixel,
   ndcToPixelFlip,
   perspectiveDivide,
@@ -31,7 +31,6 @@ const run = shaderRun<Record<string, F>>(
     cofactor3,
     ndcToPixel,
     ndcToPixelFlip,
-    clipToUvUnflipped,
     perspectiveDivide,
     transformHomogeneousPoint,
   ),
@@ -43,8 +42,6 @@ const run = shaderRun<Record<string, F>>(
     'cofactor3',
     'ndcToPixel',
     'ndcToPixelFlip',
-    'clipToUvUnflipped',
-    'ndcToUvUnflipped',
     'perspectiveDivide',
     'transformHomogeneousPoint',
   ],
@@ -130,7 +127,6 @@ test('the flipped pixel is the pixel ndcToPixel gives, the unflipped uv keeps y'
     flip.forEach((x, i) => close(x, other[i], `${ndc}`))
   }
   assert.deepEqual(run.ndcToPixelFlip([-1, 1], [640, 360]), [0, 0])
-  assert.deepEqual(run.clipToUvUnflipped([1, -2, 0, 2]), [0.75, 0])
   const m = new Mat([2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 1, 5, 6, 7, 0])
   assert.deepEqual(run.transformHomogeneousPoint(m, [1, 1, 1]), [7, 9, 11, 1])
 })

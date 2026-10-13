@@ -1,4 +1,4 @@
-import { RESIDENT_PROXY_BINDING, residentProxyWgsl } from '../../bounce/nodeWgsl.ts'
+import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { directLightWgsl } from './lightWgsl.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
@@ -12,11 +12,10 @@ import {
   directShadowWgsl,
   type VsmConsumerBindings,
   vsmBindingsLabel,
+  type VsmTraceBindings,
 } from './shadowWgsl.ts'
 import { shadowKindsOf } from './shadowKinds.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
-import { BOUNCE_TRACE_WGSL } from '../../bounce/traceWgsl.ts'
-import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
 import { FOG_WGSL } from '../fogShader.ts'
 import {
@@ -30,8 +29,8 @@ import {
  *  water composite reads them at too: the opaque resolve's mask — a forward pass's transmission
  *  (`directShadowWgsl`) —, and the pool the water reads. */
 export const CONTRACT_SHADOW_BINDINGS = {
-  transmittance: 18,
-  translucentDepth: CONTRACT_VSM_BINDINGS.pool,
+  transmittance: DEFERRED_BINDINGS.transmittance,
+  translucentDepth: DEFERRED_BINDINGS.pool,
 }
 
 /** A cell's list of lights — what the resolves walk, and the virtual shadow maps' marking
@@ -69,27 +68,26 @@ fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileL
   )
 /**
  * The **ranks** of the bindings a lighting program reads, which the layouts number differently:
- * the resident proxy, which the mirror reflection traces (`bounce/reflectWgsl.ts`), the translucent
- * casters' transmittance and the virtual shadow maps' (`CONTRACT_VSM_BINDINGS` unless given). The
+ * the translucent casters' transmittance and the virtual shadow maps' (`CONTRACT_VSM_BINDINGS` unless given). The
  * opaque resolve reads its mask and, at `resolveTransmission`, the translucent casters'
- * transmission; the blend and water passes, without it, read the transmission alone
- * (`directShadowWgsl`).
+ * transmission; the blend and water passes, without it, read the transmission alone, and trace
+ * their fragments with `trace` (`directShadowWgsl`).
  */
 export type LightingBindings = {
-  proxy: number
   transmittance: number
   vsm?: VsmConsumerBindings
   resolveTransmission?: number
+  trace?: VsmTraceBindings
 }
 
 /** The bindings as a block name reads them, in their declared order, the defaults resolved. */
 const bindingsLabel = ({
-  proxy,
   transmittance,
   vsm = CONTRACT_VSM_BINDINGS,
   resolveTransmission,
+  trace,
 }: LightingBindings) =>
-  `${proxy}, ${transmittance}, ${vsmBindingsLabel(vsm)}, ${resolveTransmission ?? null}`
+  `${transmittance}, ${vsmBindingsLabel(vsm)}, ${resolveTransmission ?? null}, ${trace ? Object.values(trace).join(' ') : null}`
 
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
@@ -112,12 +110,11 @@ const lightingBase = (
       ...(key.lobeless ? [LOBELESS_LIGHTING_WGSL] : [LOBES_LIGHTING_WGSL]),
       INVERSE_PI,
       directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined),
-      residentProxyWgsl(bindings.proxy),
-      BOUNCE_TRACE_WGSL,
       directShadowWgsl(bindings.transmittance, {
         resolveTransmission: bindings.resolveTransmission ?? null,
         vsm: bindings.vsm ?? CONTRACT_VSM_BINDINGS,
         kinds: shadowKindsOf(key),
+        trace: bindings.trace,
       }),
       FOG_WGSL,
       declaredLightWgsl(key, { pair }),
@@ -136,15 +133,22 @@ fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  let E=${irradianceShader((k) => `e[${k}].rgb`, 'N')};
  return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*INVERSE_PI;
 }
+/** The lit surface, one sum for every pass that lights one (the opaque resolve, the blended
+ *  surfaces, the water): its declared \`lights\`, its \`bounce\` and \`environment\` under the coat
+ *  (\`lobeThrough\`), the \`reflection\` and what it \`emissive\`ly gives, added in this order. A pass
+ *  with no bounce gives zero. A thin two-sided surface adds its back, \`bounce+environment\` lit
+ *  from \`-N\`, after. */
+fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emissive:vec3f)->vec3f{
+ return lights+bounce*lobeThrough()+environment*lobeThrough()+reflection+emissive;
+}
 `,
   )
 }
 
 /** The opaque resolve's bindings (`lightingBase`). */
 const DIRECT_BINDINGS: LightingBindings = {
-  proxy: RESIDENT_PROXY_BINDING,
   transmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
-  resolveTransmission: VSM_TRANSMISSION_RESOLVE_BINDING,
+  resolveTransmission: DEFERRED_BINDINGS.transmissionResolve,
 }
 
 /**
@@ -208,7 +212,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  *
  * With `pair`, `declaredLightingPair`: the two sums of one walk, on the surface and on a null
  * albedo (`declaredLightWgsl`), each that of its own walk bit for bit — the water lights its pixel
- * once for its colour and its reflection's specular.
+ * once for its colour and its specular.
  *
  * `key` (`LOBELESS_KEY` unless given) as the opaque resolve's, its `narrow` aside: `unshadowed`,
  * the loop of a scene no light of which holds a shadow slot; `rectless`, of a scene that holds no
@@ -228,6 +232,7 @@ export const declaredLightingWgsl = (
     `
 fn declaredLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->${pair ? 'LightPair' : 'vec3f'}{
  let cell=gridCell(pixel,z,vec2u(uni.lightTiles));
+ vsmTraceAt(pixel);
  var slice=vec2u(TILE_NO_SLICE,directLights.count);
  if(cell!=TILE_NO_SLICE){slice=cellSlice(cell);}
  return sliceLighting${pair ? 'Pair' : ''}(rgb,metal,rough,N,V,P,ao,slice);

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createWebgpuTilePool } from './pool.ts'
 import { poolLayerBytes, POOL_MAX_LAYERS, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const rgba = { kind: 'data', lane: 'lossless', format: 'rgba8unorm', texelBytes: 4 } as const
 
@@ -67,19 +68,57 @@ test('eviction candidates are unpinned tiles that neither this image nor the pre
   const { device } = fakeDevice()
   const pool = createWebgpuTilePool(device, { ...rgba, layers: 1 })
   const tail = pool.acquire(1, 1, true)!
-  const old = pool.acquire(2, 2)!
   const older = pool.acquire(3, 1)!
+  const old = pool.acquire(2, 2)!
   const fresh = pool.acquire(4, 7)!
   const drain = (frame: number) => {
-    const queue = pool.victims(frame),
-      out: number[] = []
-    for (let index = queue.take(); index !== undefined; index = queue.take()) out.push(index)
+    const out: number[] = []
+    for (let index = pool.victim(frame); index !== undefined; index = pool.victim(frame)) {
+      out.push(index)
+      pool.release(index)
+    }
     return out
   }
-  assert.deepEqual(drain(7), [older, old])
-  assert.deepEqual(drain(8), [older, old], 'seen on the previous image: kept')
-  assert.deepEqual(drain(9), [older, old, fresh])
-  assert.equal(pool.victims(2).length, 0)
-  pool.release(tail)
-  assert.equal(pool.resident, 3)
+  assert.equal(pool.victim(2), undefined, 'seen on the previous image: kept')
+  assert.equal(pool.victim(3), older)
+  assert.deepEqual(drain(8), [older, old], 'the tile seen on the previous image is kept')
+  assert.deepEqual(drain(9), [fresh])
+  assert.equal(pool.victim(100), undefined, 'a pinned tile never leaves')
+  assert.equal(pool.resident, 1)
+  assert.equal(pool.pinnedOf(tail), true)
+})
+
+test('random acquires, touches and releases: the victims leave by last use, then by touch', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    const next = lcgRandom(seed)
+    const { device } = fakeDevice()
+    const pool = createWebgpuTilePool(device, { ...rgba, layers: 1 })
+    /** The model: each resident place's last use and the order it was last touched in. */
+    const model = new Map<number, { use: number; at: number; pinned: boolean }>()
+    let at = 0,
+      frame = 0
+    for (let step = 0; step < 300; step++) {
+      frame += next() < 0.3 ? 1 : 0
+      const roll = next(),
+        places = [...model.keys()]
+      if (roll < 0.5) {
+        const pin = next() < 0.1,
+          index = pool.acquire(step, frame, pin)
+        if (index !== undefined) model.set(index, { use: frame, at: at++, pinned: pin })
+      } else if (roll < 0.8 && places.length) {
+        const index = places[Math.floor(next() * places.length)]
+        pool.touch(index, frame)
+        const each = model.get(index)!
+        if (each.use !== frame) Object.assign(each, { use: frame, at: at++ })
+      } else if (places.length) {
+        const index = places[Math.floor(next() * places.length)]
+        pool.release(index)
+        model.delete(index)
+      }
+      const eligible = [...model]
+        .filter(([, each]) => !each.pinned && each.use < frame - 1)
+        .sort(([, a], [, b]) => a.use - b.use || a.at - b.at)
+      assert.equal(pool.victim(frame), eligible[0]?.[0], `seed ${seed}, step ${step}`)
+    }
+  }
 })

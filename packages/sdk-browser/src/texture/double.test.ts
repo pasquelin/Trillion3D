@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from './shaderRun.fixture.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { dAdd, dDiv, dMul, dSub } from '../../../math/src/wgsl/double.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 type Pair = number[]
 type Run = {
@@ -74,7 +74,7 @@ const EDGES = [
 
 /** Random doubles over every exponent, and near neighbours of one another for cancellation. */
 function values(seed: number, count: number) {
-  const next = random(seed)
+  const next = lcgRandom(seed)
   const out: number[] = []
   for (let i = 0; i < count; i++) {
     const roll = next()
@@ -109,7 +109,7 @@ test('sums, differences, products and quotients of the edge values are the CPU d
 
 test('random doubles over every exponent, and near neighbours, round as the CPU rounds', () => {
   const pool = values(7, 600)
-  const next = random(8)
+  const next = lcgRandom(8)
   for (let i = 0; i < 6000; i++) {
     const a = pool[Math.floor(next() * pool.length)]
     // Half the time a neighbour: same magnitude, so subtraction cancels and addition carries.
@@ -134,7 +134,7 @@ test('ties round to even, and products fall into and out of the subnormal range'
 })
 
 test('quotients round once: ties, subnormal and overflowing results, reciprocals of determinants', () => {
-  const next = random(9)
+  const next = lcgRandom(9)
   for (let k = 0; k < 80; k++) {
     check('dDiv', 1, 3 + k)
     check('dDiv', 2 ** (-1000 - k), 2 ** 60 * (1 + next()))

@@ -22,9 +22,10 @@ import {
   firstAheadRequest,
 } from '../request.fixture.ts'
 import { CLUSTER_LEVEL_SHIFT, CLUSTER_ROOT_CHILD, CLUSTER_TRANSPARENT } from '../clusterFlags.ts'
-import type { PackedDag, DagViewUniforms } from '../types.ts'
+import type { PackedDag } from '../types.ts'
 import type { CutRuleAt } from './predicates.fixture.ts'
-import { SELECTION_NONE, type SelectionResult } from '../../core/selection.ts'
+import { type SelectionResult, type SelectionUniforms } from '../../core/selection.ts'
+import { NO_INDEX } from '../../../../../math/src/constants.ts'
 
 /**
  * Node oracle for the kernel, in the same shape the shader uses. Not called by the renderer.
@@ -35,7 +36,7 @@ import { SELECTION_NONE, type SelectionResult } from '../../core/selection.ts'
  */
 export function evaluateDagSelectionKernel(
   packed: PackedDag,
-  uniforms: DagViewUniforms,
+  uniforms: SelectionUniforms,
   resident?: DagCutResidency,
   rule?: CutRuleAt,
 ): DagOracleResult {
@@ -64,7 +65,7 @@ export function evaluateDagSelectionKernel(
     aheadFrames,
     oracleWorldCovers(packed, frames, resident?.ready),
   )
-  const predicates = (f: typeof frames, flags: Uint8Array) =>
+  const predicates = (f: typeof frames, flags: Pick<typeof nodeFlags, 'at'>) =>
     createDagOraclePredicates({
       packed,
       records,
@@ -77,10 +78,9 @@ export function evaluateDagSelectionKernel(
   // The view ahead reads every kept leaf, the camera's and its own.
   const aheadView =
     aheadFrames &&
-    predicates(
-      aheadFrames,
-      nodeFlags.map((f) => (f === AHEAD_LEAF ? 0 : f)),
-    )
+    predicates(aheadFrames, {
+      at: (w, n) => (nodeFlags.at(w, n) === AHEAD_LEAF ? 0 : nodeFlags.at(w, n)),
+    })
   /** The error the page's replacement removes, or its own when nothing replaces it (`dagWanted`). */
   const replaced = (view: ReturnType<typeof predicates>, i: number) =>
     view.bandPixels(i, bandError(records, i, 1) < 0 ? 0 : 1)
@@ -112,16 +112,18 @@ export function evaluateDagSelectionKernel(
     if (flagsOf(records, i) & CLUSTER_TRANSPARENT) totals.transparent += tri
   }
   let frustumRejected = 0,
-    lodLevel = 0
+    lodLevel = 0,
+    live = 0
   for (let i = 0; i < livePages; i++) {
     const w = worldOf(records, i)
     // Room past the roots, as a table read back from the GPU holds it: no placement, no cut.
-    if (w === SELECTION_NONE) continue
+    if (w === NO_INDEX) continue
     if (!visible(i)) {
       frustumRejected++
       wantAhead(i)
       continue
     }
+    live++
     if (!draws(i, thresholdOf(frames, w), true, true) || coneRejects(i, w)) {
       wantAhead(i)
       continue
@@ -135,7 +137,7 @@ export function evaluateDagSelectionKernel(
   const drawablePageIds: number[] = []
   for (let i = 0; i < livePages; i++) {
     const w = worldOf(records, i)
-    if (w === SELECTION_NONE || !visible(i) || coneRejects(i, w)) continue
+    if (w === NO_INDEX || !visible(i) || coneRejects(i, w)) continue
     const ready = !resident || !!resident.ready[i],
       childReady = !resident || !!resident.childReady[i]
     if (!draws(i, thresholdOf(frames, w), ready, childReady)) continue
@@ -157,6 +159,9 @@ export function evaluateDagSelectionKernel(
     selectedTriangles: totals.drawn,
     transparentTriangles: totals.transparent,
     drawnTriangles: totals.drawn,
+    // What the kernel's queues and lists hold (`../shader/levelWgsl.ts`): past their caps, it drops
+    // work and the cut is not drawn.
+    work: { ...nodeFlags.work, live },
   } as DagOracleResult
 }
 
@@ -171,4 +176,6 @@ export type DagOracleResult = SelectionResult & {
   /** Priority of each request, at the same rank as `pageIds` (`../request.ts`): the oracle's own,
    *  for the proofs that compare the two rankings; the GPU returns only the order. */
   requestPriorities: number[]
+  /** The entries each level's queue holds, the candidates and the live pages. */
+  work: { levels: number[]; candidates: number; live: number }
 }

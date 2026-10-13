@@ -8,7 +8,7 @@ import type { SdkWasm } from './sdkWasm.ts'
  *
  * GROWTH, HELD BY A GENERATION. `WebAssembly.Memory.grow` replaces the `ArrayBuffer` and detaches
  * every view already built: a stale view reads zero without signalling anything. Any module
- * allocation can trigger it — the run-time cut's cones or the animation sampler as much as a second
+ * allocation can trigger it — the run-time cut's cones or the page decoder as much as a second
  * reservation — so forbidding it elsewhere was not enough. Here `blocks()` compares the module's
  * current buffer to the one that carried the views and REBUILDS them all when it has changed,
  * counting one more generation. The bytes themselves survive: `grow` copies the memory, so a
@@ -44,8 +44,6 @@ export interface ArenaRequest {
   readonly type: ArenaType
   /** Number of elements in the block. For a variable-size output, its maximum. */
   readonly length: number
-  /** Stride of the subviews, in elements; absent when the block does not need them. */
-  readonly stride?: number
 }
 
 export interface ArenaBlock {
@@ -53,8 +51,6 @@ export interface ArenaBlock {
   /** Offset in BYTES in linear memory: what the module functions expect. */
   readonly offset: number
   readonly view: ArenaView
-  /** Subviews of `stride` elements, or `null` when the request did not ask for them. */
-  readonly views: readonly ArenaView[] | null
 }
 
 export interface Arena {
@@ -71,31 +67,35 @@ export interface Arena {
   freed(): void
 }
 
-/** A block and its subviews, whichever memory carries it. */
-function block(request: ArenaRequest, offset: number, view: ArenaView): ArenaBlock {
-  const stride = request.stride ?? 0
-  let views: ArenaView[] | null = null
-  if (stride > 0) {
-    const count = Math.floor(request.length / stride)
-    views = new Array(count)
-    for (let i = 0; i < count; i++) views[i] = view.subarray(i * stride, i * stride + stride)
-  }
-  return { type: request.type, offset, view, views }
-}
-
 /**
- * The same blocks outside the module memory: what the JavaScript path works on when
- * WebAssembly is missing. Their `offset` is zero — it names no linear memory.
+ * THE HAND-OFF of an answer the module sized only as it built it (`page-codec-wasm/src/held.rs`):
+ * the bytes its last build holds, cut into `parts` of the byte lengths given (the whole by
+ * default), each copied out of linear memory into a buffer of its own, then let go in the module.
+ * Called once the build returned, so read from the memory as it is then. Parts that do not add up
+ * to what the module holds name a layout the two sides disagree on: an error.
  */
-export function javaScriptBlocks(requests: readonly ArenaRequest[]): ArenaBlock[] {
-  return requests.map((request) =>
-    block(request, 0, new CONSTRUCTORS[request.type](request.length)),
-  )
+export function takeHeld(
+  wasm: SdkWasm,
+  parts: readonly number[] = [wasm.held_length()],
+): ArrayBuffer[] {
+  const at = wasm.held_at()
+  const length = wasm.held_length()
+  try {
+    if (parts.reduce((sum, bytes) => sum + bytes, 0) !== length) throw new Error('WASM_HELD_LAYOUT')
+    let from = at
+    return parts.map((bytes) => {
+      const part = wasm.memory.buffer.slice(from, from + bytes)
+      from += bytes
+      return part
+    })
+  } finally {
+    wasm.held_free()
+  }
 }
 
 /**
  * Reserves the requested blocks in one allocation and returns their views. `null` when the
- * module refuses the size: the caller then stays on the JavaScript path, with its own arrays.
+ * module refuses the size.
  */
 export function reserveArena(wasm: SdkWasm, requests: readonly ArenaRequest[]): Arena | null {
   const plan: { request: ArenaRequest; start: number }[] = []
@@ -107,13 +107,11 @@ export function reserveArena(wasm: SdkWasm, requests: readonly ArenaRequest[]): 
   const base = wasm.arena_alloc(bytes)
   if (!base) return null
   const build = () =>
-    plan.map(({ request, start }) =>
-      block(
-        request,
-        base + start,
-        new CONSTRUCTORS[request.type](wasm.memory.buffer, base + start, request.length),
-      ),
-    )
+    plan.map(({ request, start }) => ({
+      type: request.type,
+      offset: base + start,
+      view: new CONSTRUCTORS[request.type](wasm.memory.buffer, base + start, request.length),
+    }))
   let blocks = build()
   let carrier = wasm.memory.buffer
   let generation = 0

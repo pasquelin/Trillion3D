@@ -33,8 +33,11 @@
 //!    division truncating. `t = C` leaves the level as it is.
 //!
 //! Level `k + 1` is reduced from these bytes. Colours are not touched. A chain
-//! whose cutoff is 0 keeps the median alone.
+//! whose cutoff is 0 keeps the median alone. The integer arithmetic — `filtered`,
+//! `scaled`, `cut_bin` — is printed from the engine's TypeScript into `coverage_math.rs`;
+//! step 4's bytes at the chain's cutoff are a table built once from `scaled` (`scale_table`).
 
+use super::coverage_math::{cut_bin, filtered, scaled};
 use super::reduce::AtlasKind;
 
 /// The smallest byte `b` a material keeps at `cutoff` under a `baseColorFactor`
@@ -70,41 +73,6 @@ pub(crate) fn material_cut(material: &serde_json::Value, cutoff: f32) -> Cut {
     (cutoff, factor.clamp(0.0, 1.0))
 }
 
-/// Bilinear sample `s` (0 to 3, row by row) of the square of corner alphas `[a, b,
-/// c, d]`, rounded half up: 9, 3, 3, 1 sixteenths from the nearest (`filtered`, `coverageRule.ts`).
-fn filtered([a, b, c, d]: [u32; 4], s: u32) -> u32 {
-    let (x, y) = (3 - 2 * (s & 1), 3 - 2 * (s >> 1));
-    (y * (x * a + (4 - x) * b) + (4 - y) * (x * c + (4 - x) * d) + 8) >> 4
-}
-
-/// Step 4: alpha `a` scaled to cutoff `c` at `t`.
-fn scaled(a: u32, c: u32, t: u32) -> u32 {
-    ((2 * a * (2 * c - 1) + 2 * t - 1) / (4 * t - 2)).min(255)
-}
-
-/// Step 2's bin of sample `s` of square `a`: the highest `t` whose scale, `bytes[t]`,
-/// lifts it to `c` or more (`cutBin`, `coverageRule.ts`): a corner reaches `c` exactly while
-/// `t` is at most its byte, and a sample lies between its corners, so the bin does too.
-pub(super) fn cut_bin(a: [u32; 4], s: u32, c: u32, bytes: &[[u8; 256]; 256]) -> usize {
-    let mut low = a.into_iter().min().unwrap_or(0) as usize;
-    let mut high = a.into_iter().max().unwrap_or(0) as usize + 1;
-    while high - low > 1 {
-        let t = (low + high) >> 1;
-        let lifted = filtered(a.map(|a| u32::from(bytes[t][a as usize])), s) >= c;
-        *if lifted { &mut low } else { &mut high } = t;
-    }
-    low
-}
-
-/// Step 4's byte of every alpha at every `t` of `1..=255` for cutoff `c`; row 0 unused.
-pub(super) fn scale_table(c: u32) -> Box<[[u8; 256]; 256]> {
-    let mut bytes = Box::new([[0u8; 256]; 256]);
-    for (t, row) in bytes.iter_mut().enumerate().skip(1) {
-        *row = std::array::from_fn(|a| scaled(a as u32, c, t as u32) as u8);
-    }
-    bytes
-}
-
 /// The corner alphas of every texel's square in a level (RGBA8, `width` texels
 /// a row), an edge texel its own neighbour.
 fn squares(level: &[u8], width: usize) -> impl Iterator<Item = [u32; 4]> + '_ {
@@ -124,11 +92,23 @@ pub(crate) fn filtered_covered(level: &[u8], width: usize, c: u8) -> u64 {
     squares(level, width).map(passing).sum()
 }
 
-/// What level 0 covers at the chain's cutoff: the share every level keeps.
+/// Step 4's byte of every alpha at every `t` of `1..=255` for cutoff `c`, from
+/// `scaled`; row 0 unused.
+pub(super) fn scale_table(c: u32) -> Box<[[u8; 256]; 256]> {
+    let mut bytes = Box::new([[0u8; 256]; 256]);
+    for (t, row) in bytes.iter_mut().enumerate().skip(1) {
+        *row = std::array::from_fn(|a| scaled(a as u32, c, t as u32) as u8);
+    }
+    bytes
+}
+
+/// What level 0 covers at the chain's cutoff: the share every level keeps, and
+/// step 4's bytes at that cutoff (`scale_table`).
 pub(super) struct Covered {
     cutoff: u8,
     covered: u64,
     texels: u64,
+    bytes: Box<[[u8; 256]; 256]>,
 }
 
 impl Covered {
@@ -143,6 +123,7 @@ impl Covered {
             cutoff,
             covered,
             texels: (level0.len() / 4) as u64,
+            bytes: scale_table(u32::from(cutoff)),
         })
     }
 
@@ -154,6 +135,7 @@ impl Covered {
             cutoff,
             covered,
             texels,
+            bytes: scale_table(u32::from(cutoff)),
         }
     }
 
@@ -161,11 +143,10 @@ impl Covered {
     /// its filtered share at or above the cutoff is level 0's, steps 2 to 4.
     pub(super) fn preserve(&self, level: &mut [u8], width: usize) {
         let c = u32::from(self.cutoff);
-        let bytes = scale_table(c);
         let mut histogram = [0u64; 256];
         // Four equal corners — most of a foliage mask — are their bin, searched in no step.
         for square in squares(level, width) {
-            (0..4).for_each(|s| histogram[cut_bin(square, s, c, &bytes)] += 1);
+            (0..4).for_each(|s| histogram[cut_bin(square, s, c, &self.bytes) as usize] += 1);
         }
         let t = self.pick(&histogram, (level.len() / 4) as u64);
         self.scale(level, t);
@@ -173,11 +154,10 @@ impl Covered {
 
     /// Step 4 at `t`: every alpha of `level` (RGBA8) scaled; `t = C` leaves it.
     pub(super) fn scale(&self, level: &mut [u8], t: u8) {
-        let (c, t) = (u32::from(self.cutoff), u32::from(t));
-        if t == c {
+        if t == self.cutoff {
             return;
         }
-        let bytes: [u8; 256] = std::array::from_fn(|a| scaled(a as u32, c, t) as u8);
+        let bytes = &self.bytes[usize::from(t)];
         for texel in level.as_chunks_mut::<4>().0 {
             texel[3] = bytes[usize::from(texel[3])];
         }

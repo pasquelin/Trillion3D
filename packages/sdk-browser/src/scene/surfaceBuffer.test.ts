@@ -19,10 +19,11 @@ test('a surface rejects an invalid or off-device size, and nothing else: no byte
   assert.throws(() => checkSurfaceSize(device, 1025, 1), /SURFACE_DEVICE_LIMIT/)
   assert.equal(checkSurfaceSize(device, 100, 100), 330000)
   assert.equal(checkSurfaceSize(device, 1024, 1024), MIB * 33, 'targets follow resolution')
+  const pyramid = Math.max(9, 3 * (4 + 1)) * 4 * 3
   assert.equal(
     frameTargetBytes(3, 3, true),
-    9 * 57 + 9 * 4 + (9 + 4 + 1) * 4 + 8 + 16,
-    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made, odd levels at ceil dimensions; the 1×1 thin transmission and lobes',
+    9 * 57 + 9 * 4 + pyramid + 8 + 16,
+    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made: level 0 (4 B/px), then three layers of max(N, 3M) words (N = 9 at level 0, M = 4 + 1 in the coarser levels, odd levels at ceil dimensions) — the front depth it folds in is the reflection’s —; the 1×1 thin transmission and lobes',
   )
 })
 

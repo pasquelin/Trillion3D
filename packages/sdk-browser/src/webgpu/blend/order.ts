@@ -2,8 +2,7 @@ import { cullBlendHierarchy } from './hierarchyCull.ts'
 import { sortSeedsFarToNear } from './sortPlan.ts'
 import { assignOwnSlots } from './runs.ts'
 import { eyeKey } from './eyeKey.ts'
-import type { createWebgpuBlendState } from './state.ts'
-type BlendState = ReturnType<typeof createWebgpuBlendState>
+import type { WebgpuBlendState } from './state.ts'
 
 /**
  * PAINT ORDER OF TRANSPARENT SURFACES, REDONE EVERY FRAME.
@@ -29,7 +28,7 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>
  * The frame data the order kernel reads (`frameLayout`): the eye, each own item's key — a NaN as
  * the GPU's one NaN pattern, all ones —, then each pass's own seeds in paint order and their slots.
  */
-function writeOrderFrame(blendState: BlendState, eye: ArrayLike<number>) {
+function writeOrderFrame(blendState: WebgpuBlendState, eye: ArrayLike<number>) {
   const { frameDoubles: doubles, frameWords: words, frameLayout: layout } = blendState
   doubles[0] = eye[0]
   doubles[1] = eye[1]
@@ -58,13 +57,13 @@ function writeOrderFrame(blendState: BlendState, eye: ArrayLike<number>) {
  *
  * `cull` is the frustum verdict: the box tree, or develop's item walk the equivalence test ranks the
  * same scene with (`hierarchyOracle.fixture.ts`). It stays on the CPU: the water pass, its scissor,
- * the reflections, the frame signature and the published metrics read it, and none may wait for the
+ * the frame signature and the published metrics read it, and none may wait for the
  * GPU.
  */
 export function orderBlendPasses(
-  blendState: BlendState,
+  blendState: WebgpuBlendState,
   eye: ArrayLike<number> | undefined,
-  cull: (blendState: BlendState) => number = cullBlendHierarchy,
+  cull: (blendState: WebgpuBlendState) => number = cullBlendHierarchy,
 ) {
   if (!eye || !blendState.blendGpu.length) {
     blendState.runCount[0] = 0

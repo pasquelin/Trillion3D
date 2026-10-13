@@ -94,8 +94,6 @@ export const ENGINE_METRIC_KEYS = [
   'tileLightPoolOverflowed',
   'tileLightPoolGrowths',
   'gpuShadowsMs',
-  'gpuShadowCullMs',
-  'gpuShadowRasterMs',
   'gpuLightingMs',
 ] as const
 

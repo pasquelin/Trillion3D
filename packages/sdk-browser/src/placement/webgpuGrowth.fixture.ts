@@ -8,18 +8,19 @@ import { cameraAt } from '../webgpu/pages/twoPlaces.fixture.ts'
 import { cellUrl, io, noBudget, opened, settled, world } from '../partition/cells.fixture.ts'
 import type { RowLink } from '../partition/rows.ts'
 import { collectClusterPages } from '../page/selection/selection.ts'
-import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
 import { createWebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { prepareWebgpuBackend } from '../webgpu/pages/prepare/prepare.ts'
 import { disposeWebgpuPages } from '../webgpu/pages/io/metrics.ts'
 import { renderWebgpuPages } from '../webgpu/pages/render/render.ts'
 import { flushWebgpuPages } from '../webgpu/pages/render/flush.ts'
-import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE } from '../visibility/types.ts'
 import { readoutRow } from '../gpu/dag/bufferTable.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
-import { growthOf, webgpuPlacementApi } from './webgpuGrowth.ts'
+import { webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
+import { graphDraws } from '../page/selection/drawSource.ts'
 
 /** A ground triangle, and the two primitives of the mesh the partition places (`cells.fixture`),
  *  each a triangle of one root cluster, on the rows of `links`. */
@@ -34,7 +35,7 @@ function placedScene(links: readonly RowLink[]) {
     mesh,
     primitive: rank,
     pass: 'exact-clusters',
-    pages: dagRoots([rootPage(url, [-1, -1, 0], [1, 1, 0])]).pages,
+    ...dagRoots([rootPage(url, [-1, -1, 0], [1, 1, 0])]),
     structure,
   })
   const metadata: ClusterManifest = {
@@ -51,7 +52,14 @@ function placedScene(links: readonly RowLink[]) {
     [leaves[1], links[1]],
   ])
   const dispose = () => [...geometries, surface].forEach((item) => item.dispose())
-  return { source, metadata, indices, associations, dispose }
+  return {
+    source,
+    metadata,
+    indices,
+    associations,
+    draws: graphDraws(source, associations),
+    dispose,
+  }
 }
 
 /** Pages the scene packs, grown: the ground and four leaf rows of two pages. */
@@ -72,16 +80,17 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
   const scene = placedScene(links)
   const collected = collectClusterPages(
     scene.source,
+    graphDraws(scene.source, scene.associations),
     scene.metadata,
     scene.indices,
-    scene.associations,
   )
   // A binding of `bindingRows` table rows, no smaller than the GPU cut's readout at the scene's list
   // cap, grown or not: the cut is the engine's one cut, and a device that cannot hold it refuses
   // the scene (#1483).
   const binding = Math.max(bindingRows * PAGE_INFO_STRIDE, readoutRow(SCENE_PAGES).size)
-  // The double runs the cut on the DAG the session uploads, the grown one too (`mockDag.ts`).
-  const gpu = mockGpu({
+  // The double runs the cut on the DAG the session uploads, the grown one too (`fakeDag.ts`).
+  const gpu = fakeDevice({
+    ...BACKEND,
     limits: { maxBufferSize: Math.max(1 << 20, binding), maxStorageBufferBindingSize: binding },
   })
   const sceneLights = createSceneLightStore()
@@ -93,11 +102,14 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
     maxResidentPages: 3,
     viewport: [1, 1], // The intentionally tiny storage limit also bounds receiver offsets.
   })
-  const { port, held, outgrown: reopened } = io(bytes)
+  const { port, held, outgrown: reopened, rebind } = io(bytes)
   ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
   port.update = (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to)
   const { growsInPlace, growPlacements } = webgpuPlacementApi(rt)
-  port.grow = { growsInPlace, growPlacements }
+  port.grow = {
+    growsInPlace,
+    growPlacements: (from, to) => (growPlacements(from, to), rebind(from, to)),
+  }
   const view = cameraAt(0, 30)
   const draw = async () => {
     renderWebgpuPages(rt, view)
@@ -137,6 +149,6 @@ export async function scaleDown(session: Awaited<ReturnType<typeof placedSession
   core.scale.set(1e-3, 1e-3, 1e-3)
   await settled(cells, [0, 0, 0], 100, io, noBudget)
   await draw()
-  await growthOf(rt)?.making
+  await rt.growth?.making
   await draw()
 }

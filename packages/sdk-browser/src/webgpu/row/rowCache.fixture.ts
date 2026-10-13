@@ -5,10 +5,9 @@ import { createWebgpuRowSync } from './sync.ts'
 import { createRowUse } from './rowUse.ts'
 import type { InstanceClosure } from './rowDemand.ts'
 import type { IdDelta } from '../cut/delta.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-
-const WORDS = PAGE_INFO_STRIDE / 4
+import { pageAddress } from './pageSlots.ts'
 
 /** A mirror with nothing to report: the fixtures move residency by hand. */
 export const MIRROR = { sync: () => {}, dirty: true }
@@ -57,10 +56,6 @@ export function closePairs(): InstanceClosure {
   return alone
 }
 
-/** `count` packed instances, each a record of its own. */
-export const packedOf = (count: number) =>
-  Array.from({ length: count }, (_, id) => ({ id }) as unknown as PageRec)
-
 export function rowCache(instances: number, slots: number) {
   const pages = Array.from(
     { length: instances },
@@ -75,7 +70,7 @@ export function rowCache(instances: number, slots: number) {
       }) as unknown as PageRec,
   )
   const rows = createWebgpuRowState(pages, slots)
-  rows.pageTableFloats = new Float32Array(slots * WORDS)
+  rows.pageTableFloats = new Float32Array(slots * ROW_WORDS)
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer)
   // A row names its instance, one past it, where the GPU would read the record.
   const writer = (
@@ -85,12 +80,12 @@ export function rowCache(instances: number, slots: number) {
     _offset: number,
     _floats: Float32Array,
     ints: Uint32Array,
-  ) => void (ints[row * WORDS] = page + 1)
+  ) => void (ints[row * ROW_WORDS] = page + 1)
   const sync = createWebgpuRowSync(rows, MIRROR, pages, () => true, writer, closeAlone)
   /** The instances `ids` take their bytes (`offset` a slot) or give them back (-1). */
   const land = (ids: Iterable<number>, offset = 16) => {
     for (const page of ids) {
-      rows.residentOffsetWords[page] = offset < 0 ? -1 : page * offset
+      rows.setAddressOffset(pageAddress(pages[page]), offset < 0 ? -1 : page * offset)
       rows.touchPage(page)
     }
   }

@@ -1,6 +1,6 @@
 import { boxTransform, boxUnionBatch } from '../../../sdk-core/src/index.ts'
 import { boxEquals, boxGrow } from '../../../math/src/geometry/box.ts'
-import { readHostBox } from '../host/boxBounds.ts'
+import { readHostBox } from '../host/world/bounds.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { SessionDeformation } from './session.ts'
 import { noteDeformedBounds } from '../webgpu/pages/render/movedGeometry.ts'
@@ -29,7 +29,7 @@ export function updateWholeDeformationBounds(
     const changed = deformation.changedOfWorld(item.matrix)
     if (!box || !source || !(worldsMoved || changed)) continue
     before.set(box)
-    readHostBox(local, source)
+    readHostBox(source, local, 0)
     boxGrow(local, 0, local, 0, deformation.reachOfWorld(item.matrix))
     boxTransform(box, 0, local, 0, item.matrix.elements)
     item.bounds = box

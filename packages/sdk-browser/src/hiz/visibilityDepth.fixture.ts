@@ -4,8 +4,8 @@ import { DEPTH_CLEAR } from '../camera/depthConvention.ts'
 import { createVisibilityFrame } from '../../../../bench/oracles/browser/cpu-image/frame.ts'
 import { barycentricAt } from '../../../../bench/oracles/browser/cpu-image/math.ts'
 import { signedArea } from '../../../../bench/oracles/browser/cpu-image/projection.ts'
-import type { VisPage } from '../visibility/buffer.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { VisPage } from '../visibility/types.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { PageLocations } from '../page/selection/placements.ts'
 
 /** NDC z of the visbuffer winner. Background pixels stay at the far value. A triangle's vertices

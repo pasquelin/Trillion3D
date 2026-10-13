@@ -36,6 +36,8 @@ export function reserve(tree: TransformTree, capacity: number) {
   tree.free = grow(tree.free, Int32Array, capacity)
   tree.firstChild = grow(tree.firstChild, Int32Array, capacity)
   tree.lastChild = grow(tree.lastChild, Int32Array, capacity)
+  tree.firstLazy = grow(tree.firstLazy, Int32Array, capacity)
+  tree.lastLazy = grow(tree.lastLazy, Int32Array, capacity)
   tree.nextSibling = grow(tree.nextSibling, Int32Array, capacity)
   tree.previousSibling = grow(tree.previousSibling, Int32Array, capacity)
   tree.depth = grow(tree.depth, Int32Array, capacity)

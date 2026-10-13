@@ -19,17 +19,16 @@ const reserved: number[] = []
 const metadata = (textures?: { url: string }) =>
   ({ primitives: [], textures }) as unknown as ClusterManifest
 
-/** The cache a session with no world reads its pages through: the streamer's own. */
+/** The cache a session with no world reads its pages through: the session's own. */
 const ownCache = createPageCache()
 const pageSources = {
   indices: new Map<string, Uint32Array>(),
   streamer: {
     read: async () => undefined,
     readBytes: async () => undefined,
-    reserve: (bytes: () => number) => reserved.push(bytes()),
-    textureLevels: ownCache.levels,
+    reserve: (bytes: number) => reserved.push(bytes),
   },
-  cacheCap: 1,
+  pageCache: ownCache,
   preload: 'visible',
 } as never
 
@@ -58,14 +57,14 @@ test('the baked-level reader follows the cache, not the texture-source option', 
   }
 })
 
-// Behaviour (#745): with no world, the levels count in the session's own CPU total, beside its
+// Behaviour (#745): with no world, the levels count in the session's own CPU total, among its
 // pages, never in a store of their own outside it.
 test("the baked levels are held in the cache the session's pages are read through", async () => {
   const scope = globalThis as { createImageBitmap?: unknown }
   scope.createImageBitmap = async () => ({})
   try {
     const context = await run({}, { url: 'textures/v4' })
-    assert.equal(context.readTextureLevel?.store, ownCache.levels)
+    assert.equal(context.readTextureLevel?.store, ownCache)
   } finally {
     delete scope.createImageBitmap
   }
@@ -76,7 +75,7 @@ test('a cache that bakes no texture chain hands no reader over', async () => {
   assert.equal(context.readTextureLevel, undefined)
 })
 
-test("the engines' host tables are reserved in the page cache, read when it weighs itself", async () => {
+test("the engines' host tables are reserved in the page cache once the engine is ready", async () => {
   await run({}, undefined, { hostTableBytes: () => 1234 })
   assert.equal(reserved.at(-1), 1234)
   await run({})

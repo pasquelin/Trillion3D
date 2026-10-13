@@ -11,8 +11,7 @@ import type {
 } from '../../../packages/sdk-browser/src/measurement/measurement.ts'
 import { manifestUrlOf } from '../../kit/scenes/caches.ts'
 import { installProofGpu } from './onDawn.ts'
-
-const ROOT = resolve(import.meta.dirname, '../../..')
+import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
 /** The measurement SDK the proofs open their worlds with, imported once Dawn is installed: its
  *  modules read the WebGPU globals as they load. */
@@ -46,9 +45,9 @@ export const threeStackCache = (out: string) => coplanarCache(out, 'three-stack'
 /** Compiles the coplanar golden `name` (`tests/fixtures/formats/coplanar/`) into `<out>/cache`
  *  with the native compiler, and returns the addresses of its full manifest and objects folder. */
 export function coplanarCache(out: string, name: string) {
-  const fixture = resolve(ROOT, 'tests/fixtures/formats/coplanar', name)
+  const fixture = resolve(REPOSITORY_ROOT, 'tests/fixtures/formats/coplanar', name)
   compileFullCache({
-    cwd: ROOT,
+    cwd: REPOSITORY_ROOT,
     source: fixture,
     cache: resolve(out, 'cache'),
     resourceBase: `${pathToFileURL(fixture).href}/`,
@@ -77,7 +76,7 @@ export interface TestScene {
 export async function openTestScene(scene: TestScene): Promise<MeasuredWorld> {
   proofCanvas(scene.id)
   const world = await openEngineWorld(scene.id, {
-    manifestUrl: pathToFileURL(resolve(ROOT, manifestUrlOf(scene.folder).slice(1))).href,
+    manifestUrl: pathToFileURL(resolve(REPOSITORY_ROOT, manifestUrlOf(scene.folder).slice(1))).href,
     scope: 'full',
     importedLights: true,
     interactive: false,

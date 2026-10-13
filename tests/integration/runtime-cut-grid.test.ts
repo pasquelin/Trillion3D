@@ -6,16 +6,14 @@
 // published scene places its mesh at.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { readCacheManifest } from '../../bench/runner/assets/cacheManifest.ts'
 import { composeMatrix4, IDENTITY_MATRIX4, multiplyMatrix4 } from '../../packages/math/src/index.ts'
 import { positionGridExponent } from '../../packages/sdk-browser/src/world/page/cutGrid.ts'
+import { sdkWasm } from '../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import { sceneCacheFiles } from '../kit/scenes/caches.ts'
 import { length3 } from '../../packages/math/src/vector/vector.ts'
-
-const root = new URL('../../', import.meta.url)
+import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
 
 type GltfNode = {
   mesh?: number
@@ -57,8 +55,8 @@ function meshScales(nodes: GltfNode[]) {
 /** Every paged primitive of the scene cache whose pointer is `pointer`, and those whose run-time
  *  grid differs from the compiler's. */
 async function checkScene(pointer: string) {
-  const { dir, manifest } = await readCacheManifest(dirname(fileURLToPath(new URL(pointer, root))))
-  const gltf = JSON.parse(readFileSync(join(dir, 'source.gltf'), 'utf8')) as { nodes?: GltfNode[] }
+  const { dir, manifest } = await readCacheManifest(dirname(join(REPOSITORY_ROOT, pointer)))
+  const gltf = readJson(join(dir, 'source.gltf')) as { nodes?: GltfNode[] }
   const scales = meshScales(gltf.nodes ?? [])
   const differences: string[] = []
   let primitives = 0
@@ -84,7 +82,7 @@ async function checkScene(pointer: string) {
       finestError: Number.isFinite(finestError) ? finestError : null,
       scale: scales.get(primitive.mesh) ?? 0,
     }
-    const exponent = positionGridExponent(extent, blended, inputs)
+    const exponent = positionGridExponent(sdkWasm, extent, blended, inputs)
     if (exponent !== quantization.positionExponent)
       differences.push(
         `${pointer} mesh ${primitive.mesh} primitive ${primitive.primitive}: compiled ` +

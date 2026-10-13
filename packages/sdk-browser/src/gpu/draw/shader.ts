@@ -1,9 +1,11 @@
-import { COMPUTE } from '../core/computeBindings.ts'
-import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
+import { computeBufferEntry } from '../core/computeBindings.ts'
+import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitAt, bitWord, ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
+import { DRAW_MASK_WGSL } from '../dag/shader/drawMaskWgsl.ts'
 
 /**
  * Stable compaction of the frame's draw items into one indirect command per slot.
@@ -43,19 +45,18 @@ import { bitAt, bitWord, ceilDiv } from '../../../../math/src/wgsl/integer.ts'
  * `@binding(6)` while `restBits` and `slotUsed` entered at 7 and 8.
  */
 export function drawBindEntries(): GPUBindGroupLayoutEntry[] {
-  const lecture = { type: 'read-only-storage' } as const
-  const ecriture = { type: 'storage' } as const
-  return [
-    { binding: 0, visibility: COMPUTE, buffer: lecture },
-    { binding: 1, visibility: COMPUTE, buffer: { type: 'uniform' } },
-    { binding: 2, visibility: COMPUTE, buffer: ecriture },
-    { binding: 3, visibility: COMPUTE, buffer: ecriture },
-    { binding: 4, visibility: COMPUTE, buffer: ecriture },
-    { binding: 5, visibility: COMPUTE, buffer: ecriture },
-    { binding: 6, visibility: COMPUTE, buffer: lecture },
-    { binding: 7, visibility: COMPUTE, buffer: lecture },
-    { binding: 8, visibility: COMPUTE, buffer: lecture },
+  const types: GPUBufferBindingType[] = [
+    'read-only-storage',
+    'uniform',
+    'storage',
+    'storage',
+    'storage',
+    'storage',
+    'read-only-storage',
+    'read-only-storage',
+    'read-only-storage',
   ]
+  return types.map((type, binding) => computeBufferEntry(binding, type))
 }
 
 export const drawShader = (layerSlots: number) => {
@@ -74,10 +75,7 @@ export const drawShader = (layerSlots: number) => {
 @group(0) @binding(8) var<storage, read> slotUsed:array<u32>;
 // The occluder/rest partition is the only per-frame word of an item, so it travels as one bit each.
 fn restAt(i:u32)->u32{return bitAt(restBits[bitWord(i)],i);}
-fn selected(item:DrawItem)->bool{
- if(uni.selectionEnabled==0u){return true;}
- return selectionMask[uni.selectionOffset+item.selectionIndex]!=0u;
-}
+fn selected(item:DrawItem)->bool{return uni.selectionEnabled==0u||maskSelects(item.selectionIndex);}
 /** GPU mirror of \`slotOf\` (cpu.ts): same product, same sum, same layer ceiling. */
 fn slotOf(i:u32,item:DrawItem)->u32{return restAt(i)*${HALF_SLOTS}u+item.bin+${BASE_SLOTS}u*min(item.layer,${top}u);}
 fn writeCmd(slot:u32,count:u32){
@@ -92,16 +90,14 @@ fn writeCmd(slot:u32,count:u32){
 fn batchesOf(item:DrawItem)->u32{
  return clamp(ceilDiv(item.triangles*3u,uni.corners),1u,uni.perRow);
 }
-/** No slot: the lane is past the frame's items, or its item is not selected. */
-const NO_SLOT:u32=0xffffffffu;
 var<workgroup> laneSlots:array<u32,64>;
 var<workgroup> laneBatches:array<u32,64>;
 var<workgroup> slotTally:array<atomic<u32>,${slots}>;
-/** The slot item \`i\` draws in, or \`NO_SLOT\` when it lies at or past \`end\` or is not selected. */
+/** The slot item \`i\` draws in, or \`NO_INDEX\` when it lies at or past \`end\` or is not selected. */
 fn slotAt(i:u32,end:u32)->u32{
- if(i>=end){return NO_SLOT;}
+ if(i>=end){return NO_INDEX;}
  let item=items[i];
- if(!selected(item)){return NO_SLOT;}
+ if(!selected(item)){return NO_INDEX;}
  return slotOf(i,item);
 }
 @compute @workgroup_size(64)
@@ -112,7 +108,7 @@ fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) 
  // \`slotTally\` starts at zero: WGSL zero-initializes workgroup memory for each workgroup.
  let i=group*64u+lane;
  let s=slotAt(i,min(uni.count,uni.slotCap));
- if(s!=NO_SLOT){atomicAdd(&slotTally[s],batchesOf(items[i]));}
+ if(s!=NO_INDEX){atomicAdd(&slotTally[s],batchesOf(items[i]));}
  workgroupBarrier();
  for(var slot=lane;slot<${slots}u;slot+=64u){
   groupCounts[group*${slots}u+slot]=select(atomicLoad(&slotTally[slot]),0u,slotUsed[slot]==0u);
@@ -132,17 +128,8 @@ fn prefixGroups(@builtin(local_invocation_index) lane:u32){
    if(lane==0u){writeCmd(slot,0u);}
    continue;
   }
-  var sum=0u;
-  for(var group=span.x;group<span.y;group++){sum=sum+groupCounts[group*${slots}u+slot];}
-  // Inclusive scan of the run totals over the lanes.
-  let inclusive=laneScan(lane,sum);
+  ${laneRunOffsets('group', 'span', 'lane', 'start+', `groupCounts[group*${slots}u+slot]`, `groupOffsets[group*${slots}u+slot]=cursor`)}
   let total=laneSums[63u];
-  var cursor=start+inclusive-sum;
-  for(var group=span.x;group<span.y;group++){
-   let entry=group*${slots}u+slot;
-   groupOffsets[entry]=cursor;
-   cursor=cursor+groupCounts[entry];
-  }
   if(lane==0u){writeCmd(slot,total);}
   start=start+total;
   workgroupBarrier();
@@ -156,11 +143,11 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
  // the group's stable order.
  let s=slotAt(i,uni.count);
  var batches=0u;
- if(s!=NO_SLOT){batches=batchesOf(items[i]);}
+ if(s!=NO_INDEX){batches=batchesOf(items[i]);}
  laneSlots[lane]=s;
  laneBatches[lane]=batches;
  workgroupBarrier();
- if(s==NO_SLOT){return;}
+ if(s==NO_INDEX){return;}
  var rank=0u;
  for(var j=0u;j<lane;j++){if(laneSlots[j]==s){rank=rank+laneBatches[j];}}
  // A row's batches follow one another, so its triangles reach the raster in their page order.
@@ -169,6 +156,15 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
  for(var b=0u;b<batches;b++){instances[at+b]=page|((b*stride)<<${BATCH_SHIFT}u);}
 }
 `,
-    [DRAW_ITEM_WGSL, LANE_SCAN_WGSL, FLAT_INDEX_WGSL, ceilDiv, bitWord, bitAt],
+    [
+      DRAW_ITEM_WGSL,
+      LANE_SCAN_WGSL,
+      FLAT_INDEX_WGSL,
+      ceilDiv,
+      bitWord,
+      bitAt,
+      DRAW_MASK_WGSL,
+      NO_INDEX,
+    ],
   )
 }

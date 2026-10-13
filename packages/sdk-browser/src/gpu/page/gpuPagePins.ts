@@ -1,10 +1,12 @@
 import type { GpuPageContext } from './types.ts'
+import { placesFor } from './load.ts'
 
 export function createGpuPagePins(context: GpuPageContext) {
-  const { resident, pins, held, free, check, reader } = context
+  const { resident, eviction, check, reader } = context
   const { emit } = reader
   return {
-    pin(key: string, tier: 'held' | 'pinned' = 'pinned') {
+    /** Pins the resident page `key`, one hold of the eviction's heap. */
+    pin(key: string) {
       check()
       const page = resident.get(key)
       if (!page) {
@@ -15,45 +17,34 @@ export function createGpuPagePins(context: GpuPageContext) {
         }))
         throw new Error('PAGE_NOT_RESIDENT')
       }
-      const changed = !pins.has(key)
-      pins.add(key)
-      if (tier === 'held') held.add(key)
-      if (changed)
-        emit?.('gpu-page-pin', 'GPU page pinned', () => ({
-          version: 1,
-          key,
-          slot: page.slot,
-          generation: page.generation,
-          changed,
-          pinned: pins.size,
-        }))
+      if (!eviction.pin(key)) return
+      emit?.('gpu-page-pin', 'GPU page pinned', () => ({
+        version: 1,
+        key,
+        slot: page.slot,
+        generation: page.generation,
+        changed: true,
+        pinned: eviction.pinnedCount,
+      }))
     },
-    /**
-     * Moves a resident page to the far end of the eviction order, without a load: a page a
-     * lower tier still wants is then the last unpinned page a new arrival takes the slot of.
-     */
-    touch(key: string, lower = false) {
-      const page = resident.get(key)
-      if (!page) return false
-      resident.delete(key)
-      resident.set(key, page)
-      if (lower) context.eviction.lower.set(key, context.eviction.epoch)
-      return true
-    },
-    /** Slots a load can take without evicting a pinned page: the free ones and the unpinned. */
-    unpinnedSlots() {
-      return free.length + resident.size - pins.size
-    },
+    /** Places a load can take now: the free slots and quarters, then the pages the published
+     *  order still gives — its old head alone for a page of a lower tier (`eviction.ts`). */
+    room: (lower = false) => placesFor(context, lower),
+    /** Whether the page `key` is pinned. */
+    isPinned: eviction.isPinned,
+    /** Whether the pool holds the page `key` and keeps it: pinned, in use by some view, or not
+     *  given up by the order in hand (`eviction.ts`). */
+    holds: (key: string) => resident.has(key) && !eviction.evictable(key),
+    /** Unpins `key`; true when it was pinned. */
     unpin(key: string) {
-      const changed = pins.delete(key)
-      held.delete(key)
-      if (changed)
-        emit?.('gpu-page-unpin', 'GPU pin removed', () => ({
-          version: 1,
-          key,
-          changed,
-          pinned: pins.size,
-        }))
+      if (!eviction.unpin(key)) return false
+      emit?.('gpu-page-unpin', 'GPU pin removed', () => ({
+        version: 1,
+        key,
+        changed: true,
+        pinned: eviction.pinnedCount,
+      }))
+      return true
     },
   }
 }

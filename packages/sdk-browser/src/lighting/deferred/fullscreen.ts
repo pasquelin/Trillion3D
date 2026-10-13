@@ -25,20 +25,25 @@ export const buildComputePipeline = (
     : Promise.resolve(device.createComputePipeline(descriptor))
 
 /** The compute stages of one module on one layout, by entry point, compiled together off the
- *  thread: prepare never builds its pipelines one after another. */
+ *  thread: prepare never builds its pipelines one after another. The pipeline layout is made of
+ *  the bind-group layouts `layouts`, group by group. */
 export async function buildComputeStages<E extends string>(
   device: GPUDevice,
-  layout: GPUPipelineLayout,
+  layouts: readonly GPUBindGroupLayout[],
   module: GPUShaderModule,
   entryPoints: readonly E[],
   constants?: Record<string, number>,
+  /** Told of each pipeline as the device hands it back, with the ms since all were asked. */
+  handed?: (entryPoint: E, ms: number) => void,
 ) {
+  const layout = device.createPipelineLayout({ bindGroupLayouts: layouts })
+  const asked = performance.now()
   const built = await Promise.all(
     entryPoints.map((entryPoint) =>
       buildComputePipeline(device, {
         layout,
         compute: { module, entryPoint, ...(constants && { constants }) },
-      }),
+      }).then((pipeline) => (handed?.(entryPoint, performance.now() - asked), pipeline)),
     ),
   )
   return Object.fromEntries(entryPoints.map((entry, at) => [entry, built[at]])) as Record<
@@ -130,13 +135,14 @@ export const preparedComputePipeline = (
   )
 
 /** The pipelines of one program, keyed by what decides each: `of(key)` is the one `make(key)`
- *  describes, made once and prepared like any other (`PreparedPipeline`); two keys of the same
- *  `id` are the same pipeline. */
-export function preparedPipelines<K, P>(
-  make: (key: K) => PreparedPipeline<P>,
+ *  describes, made once and prepared like any other (`PreparedPipeline`) — or a pipeline with the
+ *  layouts and module it is made of, or that module alone, which several of a program's pipelines
+ *  share —; two keys of the same `id` are the same. */
+export function preparedPipelines<K, T>(
+  make: (key: K) => T,
   id: (key: K) => unknown = (key) => key,
 ) {
-  const held = new Map<unknown, { key: K; pipeline: PreparedPipeline<P> }>()
+  const held = new Map<unknown, { key: K; pipeline: T }>()
   return {
     of(key: K) {
       let entry = held.get(id(key))
@@ -149,7 +155,7 @@ export function preparedPipelines<K, P>(
     },
   }
 }
-export type PreparedPipelines<K, P> = ReturnType<typeof preparedPipelines<K, P>>
+export type PreparedPipelines<K, P> = ReturnType<typeof preparedPipelines<K, PreparedPipeline<P>>>
 
 /** `pipeline`, its compile started now off the thread with nothing awaiting it but
  *  prepare's end (`pipelinesSettled`): no frame is held on it, and a use before it lands compiles

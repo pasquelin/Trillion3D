@@ -7,8 +7,9 @@
  * read whole. A file that breaks its contract is refused whole, `INVALID_CACHE`.
  */
 import { uint64FromWords } from '../../../math/src/scalar/uint64.ts'
+import { hexOfBytes } from '../../../math/src/scalar/hex.ts'
 import { lastTrue } from '../../../math/src/scalar/search.ts'
-import type { ClusterGroup } from '../contracts/geometry.ts'
+import type { ClusterGroup, CullingHierarchy } from '../contracts/geometry.ts'
 import {
   WORLD_ROOTS_BIN,
   refuseWorldRoots as refuse,
@@ -16,14 +17,15 @@ import {
   type WorldRootsCluster,
   type WorldRootsPageFacts,
 } from './worldRoots.ts'
+import { NO_INDEX } from '../../../math/src/constants.ts'
 
 /** The products' version this reader knows: another is refused. */
-const VERSION = 5
+const VERSION = 6
 /** Bytes of each header and record (`records.rs`). */
 const [TABLE_HEADER, BUNDLE, PAGE, CELL, OBJECT] = [80, 56, 24, 16, 24]
-const [DAG_HEADER, CLUSTER, GROUP] = [24, 176, 64]
-/** An index word naming nothing. */
-const NONE = 0xffffffff
+const [DAG_HEADER, CLUSTER, GROUP, NODE] = [24, 176, 64, 120]
+/** Numbers per culling node (`page-codec-wasm/src/culling.rs`, `CULLING_STRIDE`). */
+const NODE_STRIDE = 15
 
 /** `bytes`' view, its `u32` words, and its pool from where `poolAt` reads it starts: `poolAt`
  *  refuses a file its records do not fill exactly. */
@@ -55,8 +57,6 @@ function opened(
   return { view, word, pool, list }
 }
 
-const hex = (bytes: Uint8Array) =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 const below = (values: Uint32Array, end: number) => values.every((value) => value < end)
 
 type Opened = ReturnType<typeof opened>
@@ -73,7 +73,7 @@ function tableBundles(bytes: Uint8Array, { word, list }: Opened, count: number) 
     if (!below(dependencies, count)) refuse(`bundle ${rank} dependencies`)
     const offset = end
     end += word(at + 8)
-    const sha256 = hex(bytes.subarray(at + 24, at + BUNDLE))
+    const sha256 = hexOfBytes(bytes.subarray(at + 24, at + BUNDLE))
     return {
       offset,
       bytes: word(at + 8),
@@ -110,7 +110,7 @@ function tableCells(
     const count = word(cellsAt + cell * CELL + 4)
     if (word(cellsAt + cell * CELL) !== next) refuse(`cell ${cell} objects`)
     for (const first of list(cellsAt + cell * CELL + 8))
-      if (first !== NONE && first >= count) refuse(`cell ${cell} nodes`)
+      if (first !== NO_INDEX && first >= count) refuse(`cell ${cell} nodes`)
     next += count
   }
   if (next !== objectCount) refuse('cells and objects')
@@ -125,7 +125,7 @@ function tableCells(
       const at = cellsAt + cell * CELL
       if (node >= word(at + 12)) return -1
       const first = pool[word(at + 8) + node]
-      return first !== NONE ? first : -1
+      return first !== NO_INDEX ? first : -1
     },
     objectNode: (object) => word(objectsAt + object * OBJECT),
     objectPrimitive: (object) => word(objectsAt + object * OBJECT + 4),
@@ -168,7 +168,11 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
     budgetBytes: word(8),
     pinned,
     pinnedTopBytes,
-    payload: { url: WORLD_ROOTS_BIN, sha256: hex(bytes.subarray(48, 80)), bytes: payloadBytes },
+    payload: {
+      url: WORLD_ROOTS_BIN,
+      sha256: hexOfBytes(bytes.subarray(48, 80)),
+      bytes: payloadBytes,
+    },
     bundles,
     pages: tablePages(file, pagesAt, pageCount),
     cells: tableCells(file, [cellsAt, objectsAt], [cellCount, objectCount, bundleCount]),
@@ -191,19 +195,21 @@ function pageFacts(view: DataView, at: number): WorldRootsPageFacts | null {
 
 /**
  * `bytes` as the world DAG, or `INVALID_CACHE`: every world cluster in the cook's rank, in the
- * shape the world stream reads (`WorldRootsCluster`), and the group list, its children and outputs
- * naming clusters of the DAG.
+ * shape the world stream reads (`WorldRootsCluster`), the group list, its children and outputs
+ * naming clusters of the DAG, and the world's culling hierarchy, its nodes naming ranges of those
+ * ranks (the cook ranks the clusters in its order, `compiler_world_roots/merge.rs`).
  */
 export function readWorldRootsDag(bytes: Uint8Array) {
   const { view, word, list } = opened(bytes, 'WRTD', DAG_HEADER, (w) => {
-    const records = DAG_HEADER + w(8) * CLUSTER + w(12) * GROUP
+    const records = DAG_HEADER + w(8) * CLUSTER + w(12) * GROUP + w(20) * NODE
     if (records + w(16) * 4 !== bytes.byteLength) refuse('DAG length')
+    if (w(8) > 0 && w(20) === 0) refuse('a DAG without its culling hierarchy')
     return records
   })
   const clusterCount = word(8)
   const floats = (at: number, count: number) =>
     Array.from({ length: count }, (_, i) => view.getFloat64(at + i * 8, true))
-  const named = (at: number) => (word(at) === NONE ? null : word(at))
+  const named = (at: number) => (word(at) === NO_INDEX ? null : word(at))
   const clusters: WorldRootsCluster[] = Array.from({ length: clusterCount }, (_, cluster) => {
     const at = DAG_HEADER + cluster * CLUSTER,
       parentError = view.getFloat64(at + 32, true),
@@ -233,5 +239,12 @@ export function readWorldRootsDag(bytes: Uint8Array) {
     const [error, ...sphere] = floats(at + 24, 5)
     return { level: word(at), error, sphere, children: [...children], outputs: [...outputs] }
   })
-  return { clusters, groups }
+  const nodesAt = groupsAt + word(12) * GROUP,
+    count = word(20)
+  const culling: CullingHierarchy = {
+    stride: NODE_STRIDE,
+    count,
+    nodes: floats(nodesAt, count * NODE_STRIDE),
+  }
+  return { clusters, groups, culling }
 }

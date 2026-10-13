@@ -1,11 +1,10 @@
 import {
-  HIERARCHY_ROOT,
   MATRIX_VALUES,
   POSITION_VALUES,
   QUATERNION_VALUES,
   EngineProfiler,
   createWorld,
-  hierarchyUpdateBatch,
+  multiplyMatrix4,
   type CameraPose,
   type MemoryBudgets,
   type PoolClamp,
@@ -30,13 +29,12 @@ export const poseWorld = (world: World) => world.camera.set(pose)
 const invalidPose: CameraPose = { ...pose, fov: 'wide' }
 
 export const browserContract = {
-  HIERARCHY_ROOT,
   MATRIX_VALUES,
   POSITION_VALUES,
   QUATERNION_VALUES,
   createWorld,
-  hierarchyUpdateBatch,
   invalidPose,
+  multiplyMatrix4,
   budgets,
   clamp,
   options,

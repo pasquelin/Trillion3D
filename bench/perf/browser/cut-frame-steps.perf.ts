@@ -1,6 +1,6 @@
 // The GPU cut's per-image CPU steps as wholes, on the engine's own runtime: a WebGPU pages
 // backend mounted on the mock device that executes the selection kernel on the CPU
-// (`tests/kit/gpu/mockGpu.ts`), drawing a streamed two-level terrain while the camera flies over
+// (`tests/kit/gpu/fakeDevice.ts`), drawing a streamed two-level terrain while the camera flies over
 // it. Each image's bounds are read from the engine's own CPU profile (`webgpu/pages/render/cpuStepTable.ts`),
 // the ones the explorer publishes: `adoptCutMs` (`services.adoptGpuCut`, `webgpu/cut/publication.ts`),
 // `admissionMs` (`admitGpuCut`) and the residency stream (`streamCutResidency`: queue, rows and
@@ -10,6 +10,7 @@ import { rapport } from '../../core/index.ts'
 import type { Measurement } from '../../core/index.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/selection.ts'
+import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { createWebgpuPagesRuntime } from '../../../packages/sdk-browser/src/webgpu/pages/runtime.ts'
 import { prepareWebgpuBackend } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts'
@@ -17,7 +18,7 @@ import { renderWebgpuPages } from '../../../packages/sdk-browser/src/webgpu/page
 import { flushWebgpuPages } from '../../../packages/sdk-browser/src/webgpu/pages/render/flush.ts'
 import { disposeWebgpuPages } from '../../../packages/sdk-browser/src/webgpu/pages/io/metrics.ts'
 import { CPU_STEP } from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts'
-import { mockGpu } from '../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../tests/kit/gpu/globals.ts'
 import { cutFrameScene } from './support/cutFrameScene.ts'
 
@@ -28,17 +29,19 @@ installGpuGlobals()
 const scene = cutFrameScene(SIDE)
 const { roots } = collectClusterPages(
   scene.source,
+  graphDraws(scene.source, scene.associations),
   scene.metadata,
   scene.indices,
-  scene.associations,
 )
 const dag = packDagSelection(roots)
-const gpu = mockGpu({
+const gpu = fakeDevice({
+  ...BACKEND,
   packed: dag,
   limits: { maxBufferSize: 1 << 28, maxStorageBufferBindingSize: 1 << 27 },
 })
 const rt = createWebgpuPagesRuntime({
   ...scene,
+  draws: graphDraws(scene.source, scene.associations),
   indices: new Map(),
   readPage: async (url: string) => scene.indices.get(url)!,
   gpuDevice: gpu.device,
@@ -84,7 +87,7 @@ async function flight(frames: number, still: boolean) {
       if (rt.run.coverageBudgetLimited !== (requestedCount > slots || keepCount > slots))
         fault = `frame ${f}: the admission verdict is not its counts'`
     }
-    const row = rt.timing.cpuProfile.row
+    const row = rt.timing.profiler.row
     for (const step of Object.keys(STEPS) as Step[])
       durations[step].push(STEPS[step].reduce((sum, at) => sum + row[at], 0))
     await flushWebgpuPages(rt)

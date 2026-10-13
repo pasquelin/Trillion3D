@@ -1,29 +1,38 @@
 import { validating } from './validation.ts'
+import type { LostInfo } from './fakeRecords.ts'
+
+/** A device's error scopes, innermost last, each with the first error raised under it: `push` opens
+ *  one, `pop` closes the innermost and gives its error, and refuses with none open as WebGPU does. */
+const errorScopes = (scopes: Array<object | null> = []) => ({
+  pushErrorScope: () => void scopes.push(null),
+  popErrorScope: async () => {
+    if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError')
+    return scopes.pop() ?? null
+  },
+})
 
 /**
- * A device as WebGPU writes one, around the members a test device provides: an `EventTarget` (a
+ * A device as WebGPU writes one, around the members `fakeDevice` provides: an `EventTarget` (a
  * test raises `uncapturederror` with `raise`), a `lost` that settles on `lose`, one stack of error
  * scopes (an error raised under one is caught there, not dispatched), WebGPU's validation of every
  * creation, write and copy (`validation.ts`), and creations that refuse a
  * `this` that is not the device ("Illegal invocation"). `given` records every descriptor a
  * creation received, `labels` the label each carried at that moment.
  */
-export function asWebgpuDevice(members: Record<string, unknown>) {
+export function asWebgpuDevice(
+  members: Record<string, unknown>,
+  scopes: Array<object | null> = [],
+) {
   // Every call checked by WebGPU's rules before it is made (`validation.ts`).
   validating(members)
-  let settle: (info: { reason: string; message: string }) => void = () => {}
-  const lost = new Promise<{ reason: string; message: string }>((resolve) => (settle = resolve))
+  let settle: (info: LostInfo) => void = () => {}
+  const lost = new Promise<LostInfo>((resolve) => (settle = resolve))
   const given: Array<{ label?: string } | undefined> = [],
-    labels: Array<string | undefined> = [],
-    scopes: Array<object | null> = []
+    labels: Array<string | undefined> = []
   const target = new EventTarget()
   const device = Object.assign(target, members, {
     lost,
-    pushErrorScope: () => void scopes.push(null),
-    popErrorScope: async () => {
-      if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError')
-      return scopes.pop() ?? null
-    },
+    ...errorScopes(scopes),
   }) as unknown as Record<string, unknown>
   for (const key of Object.keys(members)) {
     const make = members[key]
@@ -50,7 +59,8 @@ export function asWebgpuDevice(members: Record<string, unknown>) {
       const event = Object.assign(new Event('uncapturederror', { cancelable: true }), { error })
       return !target.dispatchEvent(event)
     },
-    lose: (reason = 'destroyed') => settle({ reason, message: reason }),
+    /** Settles `device.lost` with `info`, as a driver reset or a `destroy` would. */
+    lose: (info: LostInfo = { reason: 'destroyed', message: 'destroyed' }) => settle(info),
   }
 }
 

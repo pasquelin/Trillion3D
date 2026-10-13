@@ -31,6 +31,9 @@ export type LedgerBooks = {
   liveBytes: number
   refusal: Error | undefined
   tentative: number
+  /** Bytes the allocation in hand replaces (`GpuDeviceLedger.replacing`): freed once it is made
+   *  and filled, so the limit admits it as if they were already gone. */
+  replacing: number
   admissions: Set<Admission>
   transactions: Set<Set<{ destroy(): void }>>
   /** The snapshot is read every host frame, held frame included: it is rebuilt only after an
@@ -45,7 +48,7 @@ export type LedgerBooks = {
  *  ledger's `tentative`, or under its base's — so no budget it crosses is refused. */
 export function checkAllocation(books: LedgerBooks, bytes: number, label: string, held = false) {
   const soft = held || books.tentative > 0
-  const total = books.liveBytes + (books.base?.bytes ?? 0) + bytes
+  const total = books.liveBytes + (books.base?.bytes ?? 0) + bytes - books.replacing
   const ceiling = books.limit?.()
   if (ceiling !== undefined && (!Number.isFinite(ceiling) || total > ceiling)) {
     const error = new Error(
@@ -111,6 +114,22 @@ export function observeCreates(device: LedgerDevice, books: LedgerBooks) {
   }
 }
 
+/** Destroys those of `resources` the ledger still counts, and returns their labels. */
+function destroyLive(books: LedgerBooks, resources: Iterable<object>) {
+  const labels: string[] = []
+  for (const resource of [...resources]) {
+    const entry = books.live.get(resource)
+    if (!entry) continue
+    labels.push(entry.label)
+    ;(resource as { destroy(): void }).destroy()
+  }
+  return labels
+}
+
+/** Destroys every allocation the ledger still counts — its own, never its base's —, and returns
+ *  their labels (`GpuDeviceLedger.sweep`). */
+export const ledgerSweep = (books: LedgerBooks) => destroyLive(books, books.live.keys())
+
 /** The allocations made from now on, destroyed together by `rollback` unless `commit` keeps them. */
 export function ledgerTransaction(books: LedgerBooks) {
   const resources = new Set<{ destroy(): void }>()
@@ -125,7 +144,7 @@ export function ledgerTransaction(books: LedgerBooks) {
       if (!active) return
       active = false
       books.transactions.delete(resources)
-      for (const resource of resources) if (books.live.has(resource)) resource.destroy()
+      destroyLive(books, resources)
     },
   }
 }

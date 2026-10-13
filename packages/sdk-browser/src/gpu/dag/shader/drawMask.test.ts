@@ -9,7 +9,7 @@ import { DAG_SELECTION_SHADER } from './shader.ts'
 import { dagWorkLayout } from './floorWgsl.ts'
 import { wgslScope } from '../../../page/cut/wgslPredicate.fixture.ts'
 import { wgslConstants } from '../../../texture/shaderRule.fixture.ts'
-import { random } from '../../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
 
 const countOneBits = (word: number) => {
   let n = 0
@@ -63,7 +63,7 @@ function walkRanks(flags: Uint8Array) {
 }
 
 test('the mask rank is the walked rank, on every density and block edge', () => {
-  const next = random(922)
+  const next = lcgRandom(922)
   for (const count of [1, 31, 32, 33, 63, 64, 65, 127, 128, 129, 1000])
     for (const density of [0, 0.03, 0.5, 0.97, 1]) {
       const flags = Uint8Array.from({ length: count }, () => (next() < density ? 1 : 0))
@@ -80,8 +80,10 @@ test('the mask sits between the block offsets and the counters the layout alloca
       assert.equal(k.word(b * 64), k.drawMaskBase + 2 * b, `block ${b}, first half`)
       assert.equal(k.word(b * 64 + 32), k.drawMaskBase + 2 * b + 1, `block ${b}, second half`)
     }
-    // The draw mask, two words per block, then the counters: no word per page in `work`.
-    assert.equal(k.liveCounter, k.drawMaskBase + 2 * k.blockCount, 'then the counters')
+    // The mask the cut writes, two words per block, the frame's behind it, then the counters: no
+    // word per page in `work`.
+    assert.equal(layout.drawMask, k.drawMaskBase + 2 * k.blockCount, 'then the frame’s')
+    assert.equal(k.liveCounter, k.drawMaskBase + 4 * k.blockCount, 'then the counters')
     assert.equal(layout.liveCounter, k.liveCounter, 'the layout the engine allocates')
   }
 })

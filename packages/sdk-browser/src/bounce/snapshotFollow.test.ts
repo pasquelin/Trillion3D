@@ -9,11 +9,9 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER, snapshotGroups } from './probeWgsl.ts'
 import { PROBE_TEXELS } from './atlas.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { floorProxy } from '../../../sdk-core/src/scene/core/proxy.fixture.ts'
-import { createGpuBounceProbes } from './probes.ts'
-import { BOUNCE_PASS } from '../stage/passLabels.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
+import { floorProbes } from './floorProbes.fixture.ts'
+import { BOUNCE_LIGHT_LISTS_PASS, BOUNCE_PASS } from '../stage/passLabels.ts'
 
 /** The lanes of a snapshot workgroup, read from the shader's `@workgroup_size`. */
 const LANES = Number(/@workgroup_size\((\d+)\)/.exec(BOUNCE_SNAPSHOT_SHADER)?.[1])
@@ -28,7 +26,7 @@ const atlas = (width: number, height: number, layers: number, fill: () => number
 const at = (a: Atlas, [x, y]: number[], layer: number) => (layer * a.height + y) * a.width + x
 
 test('after the follow-up, the snapshot is the probes, word for word', () => {
-  const r = random(7),
+  const r = lcgRandom(7),
     side = 3,
     levels = 2,
     width = side * PROBE_TEXELS,
@@ -100,43 +98,52 @@ test('the update stores only the texels of the queued probe the follow-up copies
   assert.equal(PROBE_TEXELS, 11)
 })
 
-test('a working image copies no atlas: one bounce pass sweeps, updates, then the snapshot follows', async () => {
-  const gpu = fakeDevice({
-    limits: { maxStorageBufferBindingSize: 1 << 30, maxBufferSize: 1 << 30 },
-  })
-  const lights = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
-  const probes = await createGpuBounceProbes(gpu.device, floorProxy(8, 4), () => lights, 1000)
-  const work: string[] = []
-  let entry = ''
-  const encoder = {
-    copyTextureToTexture: () => void work.push('copy'),
-    beginRenderPass: (d: GPURenderPassDescriptor) => (
-      work.push(`clear ${[...d.colorAttachments].length}`),
-      { end() {} }
-    ),
-    beginComputePass: ({ label }: GPUComputePassDescriptor) => (
-      work.push(`pass ${label}`),
-      {
-        setPipeline: (p: { entryPoint: string }) => (entry = p.entryPoint),
-        setBindGroup() {},
-        dispatchWorkgroups: (x: number) => void work.push(`${entry} ${x}`),
-        end() {},
+test('a working image copies no atlas: one bounce pass updates, then the snapshot follows', async () => {
+  const { gpu, probes, encoder, tiles } = await floorProbes(true)
+  /** What the encoder took, in order: each compute pass by its label, then its dispatches by entry
+   *  point and groups; every other command as the kit names it. */
+  const workOf = () => {
+    const log: string[] = []
+    let next = 0
+    for (const command of gpu.commands) {
+      if (!command.startsWith('compute ')) {
+        log.push(command)
+        continue
       }
-    ),
-  } as unknown as GPUCommandEncoder
+      const { label, commands } = gpu.computePasses[next++]
+      log.push(`pass ${label}`)
+      let entry = ''
+      for (const [name, [x]] of commands) {
+        if (name === 'setPipeline') entry = (x as { entryPoint: string }).entryPoint
+        if (name === 'dispatchWorkgroups') log.push(`${entry} ${x}`)
+      }
+    }
+    return log
+  }
   assert.equal(probes.encode(encoder, 1, [4, 4, 2]), true)
-  const groups = probes.lastProbes
+  const groups = probes.lastProbes,
+    work = workOf()
   assert.ok(groups > 0)
-  assert.equal(work.includes('copy'), false, 'no copy of the atlas')
-  // One pass: the surface cache's sweep, the probes' update, the snapshot's follow-up.
+  assert.equal(gpu.textureCopies.length, 0, 'no copy of the atlas')
+  // One pass: the probes' update, the snapshot's follow-up.
   const at = work.indexOf(`pass ${BOUNCE_PASS}`)
   assert.deepEqual(
     work.slice(at).map((step) => step.split(' ')[0]),
-    ['pass', 'updateSurface', 'updateProbes', 'followSnapshot'],
+    ['pass', 'updateProbes', 'followSnapshot'],
   )
-  assert.deepEqual(work.slice(at + 2), [
+  assert.deepEqual(work.slice(at + 1), [
     `updateProbes ${groups}`,
     `followSnapshot ${snapshotGroups(groups)}`,
   ])
+  // The world grid's lists before it, on the frame that lists them; a frame whose lights and
+  // lattice did not change lists nothing again.
+  assert.ok(
+    work.indexOf(`pass ${BOUNCE_LIGHT_LISTS_PASS}`) < at &&
+      work.includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`),
+  )
+  const before = work.length
+  assert.equal(probes.encode(encoder, 1, [4, 4, 2]), true)
+  assert.equal(workOf().slice(before).includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`), false)
   probes.dispose()
+  tiles!.dispose()
 })

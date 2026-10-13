@@ -3,7 +3,7 @@
  * needs beside the engine and nothing drawn. A seeded sequence, so every run builds the same
  * scene, and its settings read at their declared start, the bench never touching a panel.
  */
-export { lcgRandom as seeded } from '../../packages/math/src/sequence/random.ts'
+export { lcgRandom } from '../../packages/math/src/sequence/random.ts'
 
 /** A setting as a page declares it, its kind read from the value: `[min, max, value]` or
  *  `[min, max, value, step]` a slider, `'#rrggbb'` a colour, any other text a line of help,

@@ -4,15 +4,12 @@
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { eventually } from '../streaming/eventually.fixture.ts'
-import {
-  worldRootsDag,
-  worldRootsFixture,
-} from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldRootsDag, worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
-import { heldBy, opened, rangeOf, served, sha } from './worldRoots.fixture.ts'
-import { openWorldRoots } from './worldRoots.ts'
+import { heldBy, modelOpened, opened, rangeOf, served, sha } from './worldRoots.fixture.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
+import { createPageCache } from '../streaming/pageCache.ts'
 
 type Dag = ReturnType<typeof worldRootsDag>
 
@@ -93,9 +90,9 @@ test('a bundle whose read may pass keeps its hold waiting; let go, it is dropped
 })
 
 test('a bundle read for one page request alone, refused for good, is refused at once again', async (t) => {
-  const { clusters, groups } = worldRootsDag()
+  const { clusters, groups, culling } = worldRootsDag()
   const world = served(t, {
-    dag: { clusters, groups },
+    dag: { clusters, groups, culling },
     answer: async (from, _to, respond) =>
       from === world.table.bundles[2].offset ? new Response('', { status: 404 }) : respond(),
   })
@@ -159,8 +156,8 @@ test('a page asked while its bundle transfers holds the bundle: its cell leaving
 
 test('a cell held before its world is bound waits for the bind, then reads', async (t) => {
   const { manifest, ranges, table } = served(t)
-  const roots = (await openWorldRoots(manifest, 'http://world/'))!
-  const queue = createPageStreamer([], 'http://world/')
+  const roots = (await modelOpened(manifest))!
+  const queue = createPageStreamer([], 'http://world/', { cache: createPageCache() })
   t.after(() => queue.dispose())
   const held = roots.hold(1)
   await new Promise(setImmediate)
@@ -173,7 +170,7 @@ test("a hold under way as its session's queue closes reads in the next session's
   const { roots, queue, ranges, table, land } = await heldAt(t, 2)
   const held = roots.hold(1) // bundles 2 and 3, one read, under way
   await eventually(() => ranges.length === 2)
-  const next = createPageStreamer([], 'http://world/')
+  const next = createPageStreamer([], 'http://world/', { cache: createPageCache() })
   queue.dispose() // the device is lost: its session closes
   land()
   roots.bind(next) // the next session

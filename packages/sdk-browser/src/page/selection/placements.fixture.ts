@@ -6,6 +6,20 @@ import type { PageLocations, PlacementIndex, Placements } from './placements.ts'
 const zeros = () =>
   new Proxy<number[]>([], { get: (_t, p) => (typeof p === 'symbol' ? undefined : 0) })
 
+/** The index of a packing whose page `p` is root `ranks[p]`'s, the ranks never decreasing, over
+ *  `roots` roots: each root's first page, a root of no page at the next one's. */
+export function indexOfRanks(
+  ranks: ArrayLike<number>,
+  roots = ranks.length ? ranks[ranks.length - 1] + 1 : 0,
+): PlacementIndex {
+  const baseOfRoot = new Int32Array(roots)
+  for (let r = 0, page = 0; r < roots; r++) {
+    while (page < ranks.length && ranks[page] < r) page++
+    baseOfRoot[r] = page
+  }
+  return { baseOfRoot, packedCount: ranks.length }
+}
+
 type Identity = Placements & PageLocations
 
 /**
@@ -18,19 +32,10 @@ export const identityRoots = (): Identity => {
   const roots = [{ world: new G.Matrix4() as MatrixElements }] as unknown as Identity
   Object.assign(roots, {
     packed: zeros(),
-    rootOfPacked: zeros() as unknown as Int32Array,
+    placement: { baseOfRoot: Int32Array.of(0), packedCount: Infinity },
   })
   ;(roots as { roots: Placements }).roots = roots
   return roots
-}
-
-/** The placement tables of a list whose `i`-th page is placed by root `i`. */
-function perPagePlacement(roots: Placements): PlacementIndex {
-  const n = roots.length
-  return {
-    baseOfRoot: Int32Array.from({ length: n }, (_, i) => i),
-    rootOfPacked: Int32Array.from({ length: n }, (_, i) => i),
-  }
 }
 
 /** Locations of `roots`, the `i`-th page placed by root `i`: the fixture every test uses. */
@@ -38,7 +43,7 @@ export function locatedBy(roots: Placements): PageLocations {
   return {
     roots,
     packed: Array.from({ length: roots.length }, (_, i) => i),
-    rootOfPacked: perPagePlacement(roots).rootOfPacked,
+    placement: indexOfRanks(Array.from({ length: roots.length }, (_, i) => i)),
   }
 }
 

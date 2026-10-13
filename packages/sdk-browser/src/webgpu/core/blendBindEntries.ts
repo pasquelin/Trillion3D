@@ -6,7 +6,7 @@ import { atlasEntries, type AtlasResources } from './bindEntries.ts'
 export type BlendLighting = {
   directLights: GPUBuffer
   /** The virtual shadow maps a transparent samples (`BLEND_VSM_BINDINGS`), on the old shadow
-   *  numbers: page table, projection data, uniforms and the pool's dynamic slice. */
+   *  numbers: page table, projection data, uniforms and the pool's first slice. */
   shadowData: GPUBuffer
   shadowAtlas: GPUBuffer
   shadowSampler: GPUBuffer
@@ -14,15 +14,18 @@ export type BlendLighting = {
    *  stand-in. */
   shadowTransmittance: GPUTextureView
   shadowTranslucentDepth: GPUBuffer
+  /** What a fragment traces with past the maps (`BLEND_TRACE_BINDINGS`): the shadow projection's
+   *  view uniform and blue noise. */
+  shadowView: GPUBuffer
+  shadowNoise: GPUTextureView
   bounceGrid: GPUBuffer
   /** The probes' atlas (`../../bounce/atlas.ts`). */
   probes: GPUTextureView
   /** Per-tile lamp lists: the blend pass reads the slice that concerns it. */
   tileLights: GPUBuffer
-  /** The resident proxy, the very one the opaque resolve binds. */
+  /** What a ray can meet of the scene: the proxy's buffer and the world matrices it places its meshes by
+   *  (`../../bounce/runtimeSceneWgsl.ts`), read by the reflection of the forward programs. */
   proxy: GPUBuffer
-  /** The bounce surface cache transparent and water reflections read (`../../bounce/reflectWgsl.ts`). */
-  surfaceCache: GPUTextureView
 }
 
 /** Resources of a transparent-mesh group: the mesh itself and the scene. */
@@ -86,14 +89,15 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   shadowSampler: ['fragment', UNIFORM],
   shadowTransmittance: ['fragment', { texture: { sampleType: 'uint', viewDimension: '2d-array' } }],
   shadowTranslucentDepth: ['fragment', STORAGE],
+  shadowView: ['fragment', UNIFORM],
+  shadowNoise: ['fragment', { texture: { sampleType: 'unfilterable-float' } }],
   bounceGrid: ['fragment', UNIFORM],
   probes: ['fragment', FLOAT_ARRAY],
   tileLights: ['fragment', STORAGE],
-  // The resident proxy, **read-only**: a binding the fragment stage could write would cost the
-  // pass its early depth reject (4232 hidden fragment draws). The probes and the surface cache are
-  // atlases (`../../bounce/atlas.ts`), no storage buffer.
+  // The proxy, the worlds it is placed by mirrored in it, **read-only**: a binding the fragment stage could write would
+  // cost the pass its early depth reject (4232 hidden fragment draws). The probes are an atlas
+  // (`../../bounce/atlas.ts`), no storage buffer.
   proxy: ['fragment', STORAGE],
-  surfaceCache: ['fragment', { texture: { sampleType: 'unfilterable-float' } }],
   // The physical records a lobed blend reads (`../blend/physicalWgsl.ts`): a texture, the
   // fragment stage holding the eight storage buffers WebGPU guarantees.
   physical: ['fragment', { texture: { sampleType: 'uint' } }],

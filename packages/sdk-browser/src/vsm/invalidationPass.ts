@@ -17,8 +17,9 @@
  * (`VsmLightCache.updateCommon`), so the map is set up uncached
  * (VSM_MAP_UNCACHED) and its next map drops VSM_NEXT_KEEPS_PAGES; the collector skips such entries.
  */
-import { vsmBufferEntry, vsmComputePipe, type VsmComputePipe } from './passKit.ts'
-import { vsmBufferGroup, vsmEnsureBuffer } from './renderPass.ts'
+import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
+import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
+import { vsmBufferGroup, vsmEnsureBuffer, vsmRenderStorage } from './renderPass.ts'
 import {
   type VsmCacheManager,
   type VsmInstanceInvalidation,
@@ -37,7 +38,8 @@ import {
 import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
-  type VsmFrameBuffers,
+  type VsmPerFrameSet,
+  vsmFrameSetHeld,
   type VsmResources,
   vsmPerFrameSet,
 } from './resources.ts'
@@ -47,6 +49,7 @@ import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import type { VsmLayout } from './layout.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
+import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
 /** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
  *  1 when it is cached as dynamic, else 0. */
@@ -104,6 +107,11 @@ function writeBox(
   return finite
 }
 
+/** The frame's phase, rebuilt in place: its boxes, its instances and the entries it walks. */
+let phaseBoxes = new Float64Array(0)
+const phaseInstances: VsmInstanceInvalidation[] = []
+const phaseEntries: VsmLightCache[] = []
+
 /**
  * The engine's moved world boxes (`plan.worldChanged` / `residencyChanged` / released
  * representation changes: each mover's box before AND after its move) as one invalidation phase,
@@ -118,9 +126,14 @@ export function vsmInvalidationPhaseFromShadowBoxes(
   source: VsmShadowBoxSource,
 ): VsmInvalidationPhase | null {
   if (!cache.acceptsInvalidations() || source.count === 0) return null
-  const boxes = new Float64Array(source.count * BOX_WORDS)
-  const instances: VsmInstanceInvalidation[] = []
-  const entries: VsmLightCache[] = []
+  // The phase is encoded in the frame that read it: its buffers are the frame's scratch.
+  if (phaseBoxes.length < source.count * BOX_WORDS)
+    phaseBoxes = new Float64Array(2 * source.count * BOX_WORDS)
+  const boxes = phaseBoxes
+  const instances = phaseInstances
+  instances.length = 0
+  const entries = phaseEntries
+  entries.length = 0
   for (const e of cache.entries.values()) if (e.mayHoldCachedPages()) entries.push(e)
   for (let b = 0; b < source.count; b++) {
     const { min, max, moving } = source.read(b)
@@ -143,40 +156,42 @@ export function vsmInvalidationPhaseFromShadowBoxes(
 
 // ---- GPU ------------------------------------------------------------------------------------
 
+/** The invalidation's pass, and its pipe. */
+const INVALIDATION_LABEL = `${VSM_PASS_PREFIX}invalidateInstancePages`
+
 /** The invalidation's pipe for `layout` (`vsmComputePipe`): made once a device and source. */
 export function vsmInvalidationPipe(device: GPUDevice, layout: VsmLayout) {
   const C = GPUShaderStage.COMPUTE
-  return vsmComputePipe(
-    device,
-    'vsm.invalidateInstancePages',
-    vsmInvalidationWgsl(layout),
-    'vsmStaleBoxes',
+  return vsmComputePipe(device, INVALIDATION_LABEL, vsmInvalidationWgsl(layout), 'vsmStaleBoxes', [
+    vsmBindGroupLayoutEntries(VSM_INVALIDATION_SPECS, layout, C),
     [
-      vsmBindGroupLayoutEntries(VSM_INVALIDATION_SPECS, layout, C),
-      [
-        vsmBufferEntry(0, C, 'uniform'),
-        ...[1, 2].map((binding) => vsmBufferEntry(binding, C, 'read-only-storage')),
-      ],
+      computeBufferEntry(0, 'uniform', C),
+      ...[1, 2].map((binding) => computeBufferEntry(binding, 'read-only-storage', C)),
     ],
-  )
+  ])
 }
 
 interface Pipe {
   pipe: VsmComputePipe
   device: GPUDevice
   /** Group 0 over the tables of a frame set (`res.current`, the two in turn), made once a set. */
-  tables: WeakMap<VsmFrameBuffers, GPUBindGroup>
+  tables: VsmPerFrameSet<GPUBindGroup>
 }
-/** The pipe each `res` was given: its WGSL is built and looked up once, not every frame. */
-const RES_PIPES = new WeakMap<VsmResources, Pipe>()
+/** What the invalidation of a set holds (`VsmResources.invalidation`): the pipe it was given, its
+ *  WGSL built and looked up once, not every frame, and the upload buffers of its phase slots. */
+export interface VsmInvalidationState {
+  pipe?: Pipe
+  slots: Slot[]
+}
+
+const invalidationOf = (res: VsmResources) => (res.invalidation ??= { slots: [] })
 
 function pipe(device: GPUDevice, res: VsmResources): Pipe {
-  let p = RES_PIPES.get(res)
-  if (!p) {
-    p = { pipe: vsmInvalidationPipe(device, res.layout), device, tables: new WeakMap() }
-    RES_PIPES.set(res, p)
-  }
-  return p
+  return (invalidationOf(res).pipe ??= {
+    pipe: vsmInvalidationPipe(device, res.layout),
+    device,
+    tables: vsmFrameSetHeld(),
+  })
 }
 
 /** Group 0 of `p` over the tables of `res.current` (`vsmPerFrameSet`). */
@@ -191,25 +206,22 @@ interface Slot {
   device: GPUDevice
   params: GPUBuffer
   buffers: Partial<Record<'instances' | 'items', GPUBuffer>>
-  /** Group 1 over the slot's buffers (its pipe is the set's, `RES_PIPES`): made again when a list
-   *  grew (`vsmEnsureBuffer`). */
+  /** Group 1 over the slot's buffers (its pipe is the set's, `VsmInvalidationState`): made again
+   *  when a list grew (`vsmEnsureBuffer`). */
   group?: GPUBindGroup
 }
-const SLOTS = new WeakMap<VsmResources, Slot[]>()
-const STORAGE = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 
 /** Frees the upload buffers of `res`'s invalidation phases, with the set (`destroyEngineVsm`). */
 export function releaseVsmInvalidation(res: VsmResources) {
-  for (const slot of SLOTS.get(res) ?? []) {
+  for (const slot of res.invalidation?.slots ?? []) {
     slot.params.destroy()
     for (const buffer of Object.values(slot.buffers)) buffer.destroy()
   }
-  SLOTS.delete(res)
+  res.invalidation = undefined
 }
 
 function slotOf(device: GPUDevice, res: VsmResources, k: number) {
-  let slots = SLOTS.get(res)
-  if (!slots) SLOTS.set(res, (slots = []))
+  const { slots } = invalidationOf(res)
   while (slots.length <= k)
     slots.push({
       device,
@@ -326,7 +338,7 @@ function dispatchPhase(
     'vsm.invalidation',
     'instances',
     instanceBytes,
-    STORAGE(),
+    vsmRenderStorage(),
     16,
   )
   const itemBuffer = vsmEnsureBuffer(
@@ -334,7 +346,7 @@ function dispatchPhase(
     'vsm.invalidation',
     'items',
     itemCount * 16,
-    STORAGE(),
+    vsmRenderStorage(),
     16,
   )
   if (instanceBuffer !== was0 || itemBuffer !== was1) slot.group = undefined
@@ -345,7 +357,7 @@ function dispatchPhase(
   device.queue.writeBuffer(slot.params, 0, paramsImage)
 
   const p = pipe(device, res)
-  const pass = encoder.beginComputePass({ label: 'vsm.invalidateInstancePages' })
+  const pass = encoder.beginComputePass({ label: INVALIDATION_LABEL })
   pass.setPipeline(p.pipe.pipeline)
   pass.setBindGroup(0, vsmPerFrameSet(p.tables, res, tablesGroup, p))
   pass.setBindGroup(

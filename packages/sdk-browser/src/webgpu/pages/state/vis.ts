@@ -6,7 +6,8 @@ import type { HostAttributes } from '../../../host/resources.ts'
 import type { Texture } from '../../../../../sdk-core/src/index.ts'
 import type { GpuPartition } from '../../../gpu/partition/types.ts'
 import { SHADE_UNIFORM_WORDS } from '../../../visibility/shader/request.ts'
-import type { GpuHiz } from '../../../gpu/hiz/hiz.ts'
+import type { GpuHiz } from '../../../gpu/hiz/types.ts'
+import type { ReflectionPipelines } from '../../../reflections/gpu.ts'
 import type { GpuRaster } from '../../../gpu/raster/raster.ts'
 import type { GpuDraw } from '../../../gpu/draw/draw.ts'
 import type { GpuRestCompact } from '../../../gpu/raster/restCompact.ts'
@@ -17,6 +18,7 @@ import { RenderBundles } from '../../../gpu/core/renderBundles.ts'
 import { createPresentClasses } from '../../core/materialPasses.ts'
 import type { GeometryBlock } from '../../row/pageRowMaterial.ts'
 import type { VertexPool } from '../../core/geometryPool.ts'
+import type { prepareWebgpuGeometry } from '../../core/geometryPrepare.ts'
 import type { BlendModePipelines } from '../../blend/stagePipelines.ts'
 import { type PresentClasses } from '../../core/presentClasses.ts'
 import type { MaterialTiles } from '../../core/materialTiles.ts'
@@ -64,6 +66,8 @@ export interface WebgpuVisState {
    *  the image writes the layer. Never unset, as `asIsShown`. */
   emissiveAoShown: boolean
   gpuHiz: GpuHiz | undefined
+  /** The reflection's kernels (`../../../reflections/gpu.ts`), made with the Hi-Z. */
+  reflectionPipelines: ReflectionPipelines | undefined
   gpuRaster: GpuRaster | undefined
   visHizRestBack: GPURenderPipeline | undefined
   visHizRestNone: GPURenderPipeline | undefined
@@ -79,6 +83,9 @@ export interface WebgpuVisState {
   /** GPU partition of the image: projection, split and occlusion bounds per row. */
   gpuPartition: GpuPartition | undefined
   visBindGroupLayout: GPUBindGroupLayout | undefined
+  /** The visibility raster's module: the coplanar layers' pipelines are made from it, at the open or
+   *  for layers a source brings (`../prepare/layerGrowth.ts`). */
+  visModule: GPUShaderModule | undefined
   visUniform: GPUBuffer | undefined
   zeroFlags: GPUBuffer | undefined
   // The textured forward pipelines share the visibility path's atlases and fall with it.
@@ -109,6 +116,8 @@ export interface WebgpuVisState {
   concatNrm: GPUTextureView | undefined
   /** The pool those three buffers are (`../../core/geometryPool.ts`). */
   vertexPool: VertexPool | undefined
+  /** Draws the pool again for what a source added to the session brings (`prepareWebgpuGeometry`). */
+  extendGeometry: ReturnType<typeof prepareWebgpuGeometry>['extendGeometry'] | undefined
   pageTable: GPUBuffer | undefined
   shadeUniform: GPUBuffer | undefined
   /** Virtual textures: the two pools, their page tables, image feedback. */
@@ -142,6 +151,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     writesEmissiveAo: true,
     emissiveAoShown: false,
     gpuHiz: undefined,
+    reflectionPipelines: undefined,
     gpuRaster: undefined,
     visHizRestBack: undefined,
     visHizRestNone: undefined,
@@ -150,6 +160,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     drawLayerSlots: 1,
     gpuPartition: undefined,
     visBindGroupLayout: undefined,
+    visModule: undefined,
     visUniform: undefined,
     zeroFlags: undefined,
     blendBindGroupLayout: undefined,
@@ -170,6 +181,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     concatUv: undefined,
     concatNrm: undefined,
     vertexPool: undefined,
+    extendGeometry: undefined,
     pageTable: undefined,
     shadeUniform: undefined,
     textures: undefined,

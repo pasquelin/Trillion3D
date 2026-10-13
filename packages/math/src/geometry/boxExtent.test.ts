@@ -1,9 +1,9 @@
-// box.ts boundsDiagonal, boxDiagonal, boxRadius and transformHalfExtent: Pythagorean boxes whose
+// box.ts boundsDiagonal, boxDiagonal, boxRadius: Pythagorean boxes whose
 // diagonals are whole, the radius sphereFromBounds writes bit for bit, the forms the sites write,
 // and the half extents against the eight transformed corners.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { boundsDiagonal, boxDiagonal, boxRadius, boxTransform, transformHalfExtent } from './box.ts'
+import { boundsDiagonal, boxDiagonal, boxRadius } from './box.ts'
 import { sphereFromBounds } from './sphere.ts'
 import { length3 } from '../vector/vector.ts'
 import { haltonSpan } from '../sequence/sweep.fixture.ts'
@@ -30,30 +30,4 @@ test('boxRadius is the radius sphereFromBounds writes, and the sites spell it al
     assert.ok(Object.is(boxDiagonal(box), d), `${k}`)
     assert.ok(Object.is(boxRadius(box), 0.5 * d), `${k}`)
   }
-})
-
-test('transformHalfExtent bounds the eight corners of the box it carries, and meets them', () => {
-  const box = new Float64Array(6),
-    image = new Float64Array(6),
-    half = new Float64Array(3)
-  for (let k = 0; k < 500; k++) {
-    // A rotation about z by a turn, a shear and a scale, translated: the linear part read alone.
-    const angle = haltonSpan(k, 2, -Math.PI, Math.PI),
-      c = Math.cos(angle),
-      s = Math.sin(angle),
-      shear = haltonSpan(k, 3, -1, 1),
-      scale = haltonSpan(k, 5, 0.25, 4)
-    const m = [c, s, 0, 0, -s, c, 0, 0, shear, 0, scale, 0, 7, -3, 11, 1]
-    box.set([-1, -2, -0.5, 1, 2, 0.5])
-    boxTransform(image, 0, box, 0, m)
-    transformHalfExtent(half, 0, m, 1, 2, 0.5)
-    for (let axis = 0; axis < 3; axis++) {
-      const centre = m[12 + axis]
-      // The carried box's centre is the translation; its half extent is the corners' reach.
-      const reach = Math.max(image[axis + 3] - centre, centre - image[axis])
-      assert.ok(Math.abs(half[axis] - reach) <= 1e-12 * (1 + reach), `${k} ${axis}`)
-    }
-  }
-  const out = transformHalfExtent([9, 9, 9, 9], 1, [-2, 0, 0, 0, 0, 3, 0, 0, 0, 0, -4, 0], 1, 1, 1)
-  assert.deepEqual(out, [9, 2, 3, 4])
 })

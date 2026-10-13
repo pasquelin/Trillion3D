@@ -9,8 +9,16 @@ export type { BounceBudget } from '../../sdk-core/src/bounce/budget.ts'
 export { createBounceCascades } from '../../sdk-core/src/bounce/cascades.ts'
 export type { BounceCascadeLevel, BounceCascades } from '../../sdk-core/src/bounce/cascades.ts'
 export { createBounceOccupancy } from '../../sdk-core/src/bounce/occupancy.ts'
-export type { BounceOccupancy } from '../../sdk-core/src/bounce/occupancy.ts'
+export type { BounceOccupancy, MovedRows } from '../../sdk-core/src/bounce/occupancy.ts'
 export { cloneSceneLight } from '../../sdk-core/src/scene/light/clone.ts'
+export { CORNER_INFLUENCES } from '../../sdk-core/src/contracts/proxy.ts'
+export type {
+  CutDeformation,
+  RuntimeCutProxy,
+  SceneProxy,
+  SceneProxyColumns,
+  SceneProxyDescriptor,
+} from '../../sdk-core/src/contracts/proxy.ts'
 export { createSceneLightStore } from '../../sdk-core/src/scene/light/store.ts'
 export type { SceneLightStore } from '../../sdk-core/src/scene/light/store.ts'
 export { LIGHT_FIELD } from '../../sdk-core/src/scene/light/fields.ts'
@@ -29,20 +37,5 @@ export type {
   ShadowViewpoint,
 } from '../../sdk-core/src/scene/light/contracts.ts'
 export type { LightingCapabilities } from '../../sdk-core/src/scene/light/capabilities.ts'
-export {
-  PROXY_CHILD_WORDS,
-  PROXY_CHILDREN,
-  PROXY_NODE_FLOATS,
-  PROXY_NODE_WORDS,
-  PROXY_TRIANGLE_FLOATS,
-  SCENE_PROXY_HEADER_WORDS,
-  SCENE_PROXY_MAGIC,
-  SCENE_PROXY_VERSION,
-} from '../../sdk-core/src/contracts/proxy.ts'
-export type {
-  SceneProxy,
-  SceneProxyColumns,
-  SceneProxyDescriptor,
-} from '../../sdk-core/src/contracts/proxy.ts'
 export { SHADOW_PAGE } from '../../sdk-core/src/scene/light-shadow/sunEntries.ts'
 export { validateSceneLight } from '../../sdk-core/src/scene/light/validate.ts'

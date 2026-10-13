@@ -1,8 +1,10 @@
-import { CORNER_VALUES, writeSplitDouble } from '../../gpu/partition/contract.ts'
+import { CORNER_VALUES } from '../../gpu/partition/contract.ts'
+import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { forEachRewrittenRun } from '../row/dirty.ts'
-import { BOX_CORNER_VALUES, pageCornersInto, type HizPage } from '../../hiz/hiz.ts'
+import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/corners.ts'
+import type { HizPage } from '../../hiz/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { rootOf } from '../../page/selection/placements.ts'
+import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
 
 /** What describes the corners already sent to the GPU: the age of the table they came from. */
@@ -65,7 +67,7 @@ function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
       cornerPacked.fill(0, base, base + CORNER_VALUES)
       continue
     }
-    const rank = rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]] ?? -1,
+    const rank = rootOfPacked(rt.layout.placement, rows.packedPageIndex[row]) ?? -1,
       root = rootOf(rt.layout.selectionRoots, rank)
     packPageCorners(cornerPacked, base, rec, root.world, root.reach)
   }

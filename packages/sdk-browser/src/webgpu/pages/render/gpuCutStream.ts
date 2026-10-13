@@ -25,7 +25,7 @@ export function streamCutResidency(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice)
   // the rest is drawn by its nearest resident ancestor (`../../residency/requestAdmission.ts`).
   services.queueCutResidency()
   // The cache gives slots back in the order the main cut published (`../../residency/evictionFeed.ts`).
-  if (selection && views.active === views.main) services.followEvictions(selection)
+  if (selection && views.active === views.main) services.followEvictions(selection, run.frame)
   marks.queueEnd = performance.now()
   ensurePageTable(rt, gpuDevice)
   // The readback the drawn view adopts.
@@ -38,10 +38,10 @@ export function streamCutResidency(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice)
   const casters = services.blendCasters
   if (passed && (rows.rowsDenied || casters.asked > casters.used))
     followCutRows(rt, Math.max(rows.packedCount + rows.rowsDenied, casters.asked))
-  // The rank journal names pages that just entered or left: comparing the DAG's two thousand three
-  // hundred pages no longer happens, and only their ranges are rewritten. A row whose readiness
+  // The rank journal names pages that just entered or left: comparing every page of the DAG
+  // no longer happens, and only their ranges are rewritten. A row whose readiness
   // moved has its mobility word written again: whether a finer form now stands for it (#831).
-  if (selection?.updateResidency(rows.residentFlags, rows.residencyChanges, rows.markRowOfPage))
+  if (selection?.updateResidency(rows.residency, rows.residencyChanges, rows.markRowOfPage))
     run.gpuMetricsReady = false
   rows.clearResidencyChanges()
   marks.residencyUploadEnd = performance.now()

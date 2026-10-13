@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { multiplyMatrix4 } from '../../../sdk-core/src/index.ts'
 import { COMPOSE_ROOTS_WGSL } from './gpuComposeWgsl.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
@@ -47,7 +47,7 @@ const wordsOf = (values: ArrayLike<number>) => [
 ]
 
 test('a single-precision word widens to its double exactly, subnormals and specials included', () => {
-  const next = random(5)
+  const next = lcgRandom(5)
   const words = [0, 0x80000000, 1, 0x80000001, 0x7fffff, 0x800000, 0x7f7fffff, 0x7f800000]
   words.push(0xff800000, 0x3f800000, 0x00400000, 0x00000003)
   for (let i = 0; i < 4000; i++) words.push(Math.floor(next() * 2 ** 32))
@@ -83,7 +83,7 @@ function cpuMotion(previous: Float32Array, current: Float32Array, eye: number[])
 }
 
 test("a linked root's motion is the CPU motion module's, word for word, near and far, turned, scaled and sheared", () => {
-  const next = random(23)
+  const next = lcgRandom(23)
   const product = new Float64Array(16)
   for (let i = 0; i < 300; i++) {
     const far = [10, 1e4, 1e7][i % 3]

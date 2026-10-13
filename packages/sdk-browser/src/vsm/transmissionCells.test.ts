@@ -1,12 +1,13 @@
 // The bin's cells (`transmissionWgsl.ts`: `vsmTCellRange`, `vsmTCoversCell`): a point's cell lists
 // every triangle the read finds it in, for small, large, thin triangles and corners far off the page.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { type Tri, CELL, CELLS, f32, geometry, random } from './transmissionSheets.fixture.ts'
+import { type Tri, CELL, CELLS, geometry } from './transmissionSheets.fixture.ts'
 import { TAU } from '../../../math/src/constants.ts'
 
 test('a point’s cell lists every triangle it lies in: small, large, thin, corners far off the page', () => {
-  const rnd = random(3)
+  const rnd = mulberry32(3)
   let checked = 0
   for (let k = 0; k < 3000; k++) {
     const size = 10 ** (rnd() * 3.5 - 0.5)
@@ -21,7 +22,7 @@ test('a point’s cell lists every triangle it lies in: small, large, thin, corn
       return [
         centre[0] + size * (a * u[0] + b * v[0]),
         centre[1] + size * (a * u[1] + b * v[1]),
-      ].map(f32)
+      ].map(Math.fround)
     }) as Tri
     const [a, b, c] = tri
     const area = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
@@ -35,7 +36,7 @@ test('a point’s cell lists every triangle it lies in: small, large, thin, corn
       if (n % 4 === 0) w = [rnd(), 0, 0]
       const s = w[0] + w[1] + w[2] || 1
       w = w.map((x) => x / s)
-      const p = [0, 1].map((ax) => f32(w[0] * a[ax] + w[1] * b[ax] + w[2] * c[ax]))
+      const p = [0, 1].map((ax) => Math.fround(w[0] * a[ax] + w[1] * b[ax] + w[2] * c[ax]))
       if (p.some((x) => x < 0 || x >= 128)) continue
       if (!geometry.vsmTInside(a, b, c, p)) continue
       const cell = p.map((x) => Math.min(Math.floor(x / CELL), CELLS - 1))

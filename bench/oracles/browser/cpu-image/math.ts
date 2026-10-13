@@ -16,6 +16,22 @@ export function backgroundRgb(background: number) {
 }
 
 type ScreenPoint = { x: number; y: number }
+
+/** The affine weights of a point corrected by each vertex's `1 / w`: the perspective-correct ones. */
+export function perspectiveBary(
+  a: Projected,
+  b: Projected,
+  c: Projected,
+  affine: { w0: number; w1: number; w2: number },
+) {
+  const a0 = affine.w0 * a.invW,
+    a1 = affine.w1 * b.invW,
+    a2 = affine.w2 * c.invW,
+    sum = a0 + a1 + a2
+  if (sum === 0) return affine
+  return { w0: a0 / sum, w1: a1 / sum, w2: a2 / sum }
+}
+
 /**
  * The three affine barycentric weights of the point `(x, y)`, the signed area already known.
  *

@@ -1,24 +1,20 @@
-import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts'
-import { PHYSICAL_LOBES_BINDING } from '../../scene/physicalLobes.ts'
-import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts'
+import { DEFERRED_BINDINGS } from './bindings.ts'
 import { receiverEntries, type ReceiverResources } from '../../webgpu/visibility/receiver.ts'
-import { reflectionPipelines } from '../../reflections/pipelines.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { createDeferredLightingLayout, type DeferredPlaceholders } from './setup.ts'
-import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
-import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
-import { VSM_MASK_TABLE_BINDING, VSM_MASK_TILES_BINDING } from '../../vsm/projectionMaskTable.ts'
-import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts'
-import type { ComposeInput, LitProgram } from './shaders.ts'
+import type { ComposeInput } from './shaders.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import type { ContractKey } from './contractCuts.ts'
 import { makeFullscreenPipeline } from './fullscreen.ts'
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { createCompositions, type CompositionSources } from './compositions.ts'
 import { type FusedBlend } from '../../webgpu/effects/webgpuKinds.ts'
+import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { sequentialEntries, namedEntries } from '../../gpu/core/computeBindings.ts'
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. With them,
  *  the frame's key: what its program leaves out (`contractCuts.ts`). */
@@ -27,8 +23,16 @@ export interface DirectLightResources extends Partial<ContractKey> {
   lights?: GPUBuffer
   tiles?: GPUBuffer
   /** The virtual shadow maps a non-mask read samples (`CONTRACT_VSM_BINDINGS`): this frame's
-   *  page table, projection data and uniforms, and the pool's dynamic slice. */
-  vsm?: { pageTable: GPUBuffer; projectionData: GPUBuffer; uniforms: GPUBuffer; pool: GPUBuffer }
+   *  page table, projection data and uniforms, the pool's first slice, and the projection's view
+   *  and blue noise a forward pass traces with (`vsmTraceFactor`). */
+  vsm?: {
+    pageTable: GPUBuffer
+    projectionData: GPUBuffer
+    uniforms: GPUBuffer
+    pool: GPUBuffer
+    view: GPUBuffer
+    noise: GPUTextureView
+  }
   /** The virtual shadow maps' traced mask array (`vsmEncode.ts`), one 8-bit lane per shadowed
    *  light: bound on the transmittance's number. */
   vsmMask?: GPUTextureView
@@ -36,24 +40,25 @@ export interface DirectLightResources extends Partial<ContractKey> {
   vsmMaskTiles?: GPUTextureView
   /** The translucent casters' transmission atlas (`../../vsm/transmissionPass.ts`), or none. */
   vsmTransmission?: GPUTextureView
-  /** Probe grid, coefficients, mirror surface cache — the two atlases of `atlas.ts`: one
-   *  lifetime, the probes' identity. */
+  /** Probe grid and coefficients — an atlas of `atlas.ts`: one lifetime, the probes'
+   *  identity. */
   bounceGrid?: GPUBuffer
   probes?: GPUTextureView
-  surfaceCache?: GPUTextureView
-  /** Resident proxy; absent, a zero substitute. */
+  /** The proxy's buffer, the world matrices it places its meshes by mirrored in it, which the forward programs
+   *  read (`webgpu/blend/lighting.ts`): the opaque resolve binds none. Absent, a zero substitute. */
   proxy?: GPUBuffer
+  /** The reflection target the opaque trace wrote (`../../reflections/trace.ts`); absent, a zero
+   *  substitute. */
+  reflection?: GPUTextureView
   receiver?: ReceiverResources // what the receiver offset reads
 }
 export interface DeferredSources {
-  /** The lighting program (`contractLightingProgram`): its plain pass compiles it at its own
-   *  mirror radiance, its reflection passes at the screen's (`reflectionPipelines`). */
-  lighting: LitProgram
+  /** The lighting program (`contractLightingProgram`). */
+  lighting: WgslDecl
   compose: CompositionSources
   label: string
   direct: boolean
   bounce?: boolean
-  unboundedReflections?: boolean // a reference session's rough trace (`reflectionTrace`)
 }
 /** What composition reads: a colour and its accumulated share, else the lit image's flags, and
  *  the chain's last blend when it left it to the composition. */
@@ -69,7 +74,7 @@ export interface DeferredBindings {
 
 export type DeferredProgram = Awaited<ReturnType<typeof createDeferredProgram>>
 
-const HDR: GPUColorTargetState[] = [{ format: 'rgba16float' }]
+const HDR: GPUColorTargetState[] = [{ format: HDR_FORMAT }]
 
 /** A composition: its group, and the input its pipelines compose (`compositions`). */
 type Composition = { group: GPUBindGroup; input: ComposeInput }
@@ -112,15 +117,12 @@ export async function createDeferredProgram(
 ) {
   const lighting = await createCheckedShaderModule(
     device,
-    wgslModule(sources.lighting()),
+    wgslModule(sources.lighting),
     `${sources.label}_LIGHTING`,
   )
   const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce)
-  const [light, reflection, compositions] = await Promise.all([
+  const [light, compositions] = await Promise.all([
     makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', HDR),
-    sources.direct
-      ? reflectionPipelines(device, sources.lighting, lightingLayout, sources)
-      : undefined,
     createCompositions(device, sources.compose, sources.label),
   ])
   const { placeholders } = bindings
@@ -129,6 +131,8 @@ export async function createDeferredProgram(
     projectionData: placeholders.vsmProjectionData,
     uniforms: placeholders.vsmUniforms,
     pool: placeholders.vsmPool,
+    view: placeholders.vsmProjectionView,
+    noise: placeholders.vsmBlueNoise,
   }
   const parts = { device, sources, bindings, lightingLayout, compositions, vsmPlaceholders }
   const state: ProgramState = {
@@ -138,7 +142,6 @@ export async function createDeferredProgram(
   }
   return {
     light,
-    reflection,
     get lightGroup() {
       return state.lightGroup
     },
@@ -179,11 +182,7 @@ function compositionOf(
   if (kept) return kept
   // A colour without its own share (the effect chain's, no TAA) reads the lit image's flags.
   const input = !asIs ? 'flagless' : image?.share ? 'accumulated' : 'still'
-  const entries: GPUBindGroupEntry[] = [
-    { binding: 0, resource: view },
-    { binding: 1, resource: { buffer: bindings.uniform } },
-  ]
-  if (asIs) entries.push({ binding: 2, resource: share })
+  const entries = sequentialEntries([view, { buffer: bindings.uniform }, ...(asIs ? [share] : [])])
   const group = device.createBindGroup({ layout: compositions.layouts[input], entries })
   const composition = { group, input } as const
   byShare.set(share, composition)
@@ -209,8 +208,8 @@ function bindLight(
     maskTiles = direct.vsmMaskTiles ?? placeholders.vsmMaskTiles,
     vsmTransmission = direct.vsmTransmission ?? placeholders.transmittanceView,
     probes = direct.probes,
-    proxy = direct.proxy ?? placeholders.proxy,
-    receiver = direct.receiver ?? placeholders.receiver
+    receiver = direct.receiver ?? placeholders.receiver,
+    reflection = direct.reflection ?? placeholders.reflection
   state.boundHdr = hdr
   const { next } = state.identity
   next[0] = surface
@@ -219,30 +218,39 @@ function bindLight(
   next[3] = vsm.pageTable
   next[4] = mask
   next[5] = probes
-  next[6] = proxy
-  for (let i = 0; i < receiver.length; i++) next[7 + i] = receiver[i]
-  next[7 + receiver.length] = vsm.projectionData
-  next[8 + receiver.length] = vsm.uniforms
-  next[9 + receiver.length] = vsmTransmission
-  next[10 + receiver.length] = maskTiles
+  for (let i = 0; i < receiver.length; i++) next[6 + i] = receiver[i]
+  next[6 + receiver.length] = vsm.projectionData
+  next[7 + receiver.length] = vsm.uniforms
+  next[8 + receiver.length] = vsmTransmission
+  next[9 + receiver.length] = maskTiles
+  next[10 + receiver.length] = reflection
   state.boundSurface = surface
   if (reboundLight(state)) return
   state.boundFlags = surface.views()[3]
   const entries: GPUBindGroupEntry[] = [
-    ...surface.views().map((resource, binding) => ({ binding, resource })),
-    { binding: 4, resource: depth },
-    { binding: 5, resource: { buffer: bindings.uniform } },
+    ...sequentialEntries(surface.views()),
+    ...namedEntries(DEFERRED_BINDINGS, { depth, view: { buffer: bindings.uniform } }),
   ]
   if (sources.direct) {
     if (!lights) throw new Error('the contract program binds no declared-light buffer')
-    const contract = { lights, tiles, vsm, mask, maskTiles, vsmTransmission, proxy, receiver }
+    const contract = {
+      lights,
+      tiles,
+      vsm,
+      mask,
+      maskTiles,
+      vsmTransmission,
+      receiver,
+      reflection,
+    }
     entries.push(...contractEntries(placeholders, surface, contract))
   }
-  if (sources.bounce && direct.bounceGrid && direct.probes && direct.surfaceCache)
+  if (sources.bounce && direct.bounceGrid && direct.probes)
     entries.push(
-      { binding: 11, resource: { buffer: direct.bounceGrid } },
-      { binding: 12, resource: direct.probes },
-      { binding: BOUNCE_SURFACE_BINDING, resource: direct.surfaceCache },
+      ...namedEntries(DEFERRED_BINDINGS, {
+        bounceGrid: { buffer: direct.bounceGrid },
+        probes: direct.probes,
+      }),
     )
   state.lightGroup = parts.device.createBindGroup({ layout: parts.lightingLayout, entries })
   state.held[state.identity.slot] = { group: state.lightGroup, flags: state.boundFlags }
@@ -264,7 +272,7 @@ function reboundLight(state: ProgramState) {
 }
 
 /** The light group's entries a contract program adds: its receiver, its surface's subsurface and
- *  lobes, its lights, their tiles and shadows, and the resident proxy. */
+ *  lobes, its lights, their tiles and shadows. */
 function contractEntries(
   placeholders: DeferredPlaceholders,
   surface: SurfaceBuffer,
@@ -275,24 +283,26 @@ function contractEntries(
     mask: GPUTextureView
     maskTiles: GPUTextureView
     vsmTransmission: GPUTextureView
-    proxy: GPUBuffer
     receiver: ReceiverResources
+    reflection: GPUTextureView
   },
 ): GPUBindGroupEntry[] {
   return [
-    ...receiverEntries(LIGHTING_RECEIVER_BINDING, r.receiver),
-    { binding: SUBSURFACE_BINDING, resource: surface.subsurfaceView },
-    { binding: PHYSICAL_LOBES_BINDING, resource: surface.lobesView },
-    { binding: 6, resource: { buffer: r.lights } },
-    { binding: 7, resource: { buffer: r.tiles } },
-    { binding: CONTRACT_VSM_BINDINGS.pageTable, resource: { buffer: r.vsm.pageTable } },
-    { binding: CONTRACT_VSM_BINDINGS.projectionData, resource: { buffer: r.vsm.projectionData } },
-    { binding: CONTRACT_VSM_BINDINGS.uniforms, resource: { buffer: r.vsm.uniforms } },
-    // The resident proxy as-is, no copy: its header says whether there is anything to trace.
-    { binding: RESIDENT_PROXY_BINDING, resource: { buffer: r.proxy } },
+    ...receiverEntries(DEFERRED_BINDINGS.receiver, r.receiver),
+    { binding: DEFERRED_BINDINGS.subsurface, resource: surface.subsurfaceView },
+    { binding: DEFERRED_BINDINGS.lobes, resource: surface.lobesView },
+    ...namedEntries(DEFERRED_BINDINGS, {
+      lights: { buffer: r.lights },
+      tiles: { buffer: r.tiles },
+    }),
+    ...namedEntries(CONTRACT_VSM_BINDINGS, {
+      pageTable: { buffer: r.vsm.pageTable },
+      projectionData: { buffer: r.vsm.projectionData },
+      uniforms: { buffer: r.vsm.uniforms },
+    }),
     { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: r.mask },
-    { binding: VSM_MASK_TABLE_BINDING, resource: placeholders.vsmMaskTable.view },
-    { binding: VSM_MASK_TILES_BINDING, resource: r.maskTiles },
-    { binding: VSM_TRANSMISSION_RESOLVE_BINDING, resource: r.vsmTransmission },
+    { binding: DEFERRED_BINDINGS.maskTiles, resource: r.maskTiles },
+    { binding: DEFERRED_BINDINGS.transmissionResolve, resource: r.vsmTransmission },
+    { binding: DEFERRED_BINDINGS.reflection, resource: r.reflection },
   ]
 }

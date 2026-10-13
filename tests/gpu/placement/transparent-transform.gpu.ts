@@ -1,7 +1,9 @@
 // A transparent object moved by the public `setTransform` changes place in the image, paged as
 // unpaged, by its own node as by its parent, under a sheared matrix, out of view and on return,
 // including after the held image has settled (`transparentTransformPage.ts`). Out of view, the
-// frustum rejects it and no draw is issued for it.
+// frustum rejects it and nothing is painted: an unpaged item is not encoded at all, a paged one
+// belongs to the main slot, whose single indirect draw the GPU leaves without an instance
+// (`webgpu/blend/draw.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
@@ -45,7 +47,11 @@ test('a transparent follows setTransform, paged and unpaged', async () => {
     const out = at('out-of-view')
     assert.ok(!out.red[LEFT] && !out.red[RIGHT], say('out-of-view', 'the transparent stayed'))
     assert.ok(out.rejected >= 1, say('out-of-view', 'the frustum did not reject it'))
-    assert.equal(out.draws, 0, say('out-of-view', 'draws were issued for it'))
+    assert.equal(
+      out.draws,
+      pass === 'paged' ? 1 : 0,
+      say('out-of-view', 'draws were issued for it beyond the main slot'),
+    )
     const back = at('back')
     assert.ok(back.red[LEFT], say('back', 'the transparent did not come back'))
     assert.ok(back.draws >= 1, say('back', 'no draw on its return'))

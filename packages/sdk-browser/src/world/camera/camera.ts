@@ -4,7 +4,7 @@ import { framingFromBounds } from '../../camera/framing.ts'
 import { DEFAULT_FOV } from '../../engine/common.ts'
 import type { MeasuredWorldOptions } from '../../engine/types.ts'
 import { hostBox, hostFramingCamera, hostPoint } from '../../host/scene/graphObjects.ts'
-import { sphereFromBounds } from '../../../../sdk-core/src/index.ts'
+import { sphereFromBoundsBatch } from '../../../../math/src/batch/culling.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /** Framing centre and radius: midpoint of the bounds and the half-diagonal, reread from a single sphere. */
@@ -14,14 +14,20 @@ export function createExplorerCamera(
   source: Object3D,
   canvas: HTMLCanvasElement,
   options: MeasuredWorldOptions,
-  /** Framing-box buffer, reserved at load; `null` leaves it in JavaScript. */
+  /** Framing-box buffer, reserved at load; without it, one is made for the framing. */
   lot?: BoxTransformLot | null,
+  /** The page poses the camera itself and the scene has no node to frame: a unit ball about the
+   *  origin stands for its bounds. */
+  placed = false,
 ) {
   const flat = emptyWorldBox()
   hostWorldBounds(source, flat, lot)
-  sphereFromBounds(framingSphere, 0, flat[0], flat[1], flat[2], flat[3], flat[4], flat[5])
+  sphereFromBoundsBatch(framingSphere, flat, 1)
+  if (placed && !(framingSphere[3] > 0)) {
+    flat.set([-1, -1, -1, 1, 1, 1])
+    sphereFromBoundsBatch(framingSphere, flat, 1)
+  }
   const radius = framingSphere[3]
-  if (!Number.isFinite(radius) || radius <= 0) throw new Error('Empty scene bounds')
   const framing = framingFromBounds(radius, canvas.width / canvas.height)
   // The box and the centre go back to the host — `explorer.bounds` and `explorer.center` are its
   // API, and its controls want a target. The host objects are built at the boundary

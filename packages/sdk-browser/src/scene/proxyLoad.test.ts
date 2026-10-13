@@ -1,25 +1,38 @@
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { createSceneProxyReader } from './proxyLoad.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import { sha256Hex } from '../streaming/sha256Hex.ts'
-import type { SceneProxyDescriptor } from '../../../sdk-core/src/index.ts'
+import {
+  PROXY_NODE_FLOATS,
+  PROXY_NODE_WORDS,
+  PROXY_TRIANGLE_FLOATS,
+  SCENE_PROXY_MAGIC,
+  SCENE_PROXY_VERSION,
+  type SceneProxyDescriptor,
+} from '../../../sdk-core/src/index.ts'
 
 test('shared expansion is decoded once across concurrent readers and sessions, and charged to CPU memory', async (t) => {
-  const bytes = new Uint8Array(
-    readFileSync(
-      new URL('../../../sdk-core/src/scene/core/fixtures/proxy-v5.bin', import.meta.url),
-    ),
-  )
-  const [, version, triangles, nodes, groups, owners, instances] = new Uint32Array(bytes.buffer)
+  // One mesh of one triangle under one leaf node (`SceneProxy::encode`).
+  const triangles = 1,
+    nodes = 1
+  const cell = f32Bits(0.5)
+  const children = new Uint32Array(PROXY_NODE_WORDS)
+  children[1] = (1 << 24) | (1 << 16)
+  const words = [
+    ...[SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, 1, triangles, nodes, 0, 1, 1, cell],
+    ...new Uint32Array(Float32Array.from({ length: PROXY_TRIANGLE_FLOATS }, (_, k) => k).buffer),
+    0xffffffff,
+    ...new Uint32Array(new Float32Array(PROXY_NODE_FLOATS).buffer),
+    ...children,
+  ]
+  const bytes = new Uint8Array(Uint32Array.from(words).buffer)
   const descriptor: SceneProxyDescriptor = {
-    version,
+    version: SCENE_PROXY_VERSION,
     triangles,
     nodes,
-    groups,
-    owners,
-    instances,
+    meshes: 1,
     bytes: bytes.byteLength,
     sha256: await sha256Hex(bytes.buffer),
     url: 'proxy.bin',
@@ -35,17 +48,19 @@ test('shared expansion is decoded once across concurrent readers and sessions, a
     return new Response(bytes.slice())
   })
   const cache = createPageCache()
+  /** Bytes the cache holds of the proxy, kept under its address and fingerprint. */
+  const kept = () => cache.weight(`https://example.test/proxy.bin#${descriptor.sha256}`)
   const read = createSceneProxyReader(descriptor, 'https://example.test/', cache)!
   const [first, concurrent] = await Promise.all([read(), read()])
   const reopened = createSceneProxyReader(descriptor, 'https://example.test/', cache)!
   assert.equal((await reopened()).data, first.data)
   assert.equal(concurrent.data, first.data)
   assert.equal(requests, 1)
-  assert.equal(cache.keptBytes, bytes.byteLength + triangles * 40 + instances * 128)
-  assert.equal(first.data.triangles.byteLength, triangles * 36)
-  const uncached = createSceneProxyReader(descriptor, 'https://example.test/', undefined)!
-  assert.equal((await uncached()).data, (await uncached()).data)
-  assert.equal(requests, 2, 'one read and expansion without a world cache, too')
+  assert.equal(kept(), bytes.byteLength)
+  assert.equal(first.data.meshes[0].triangles.byteLength, triangles * 36)
+  const own = createSceneProxyReader(descriptor, 'https://example.test/', createPageCache())!
+  assert.equal((await own()).data, (await own()).data)
+  assert.equal(requests, 2, "one read and expansion in a session's own cache, too")
   const changed = createSceneProxyReader(
     { ...descriptor, errorMetres: 9 },
     'https://example.test/',
@@ -60,5 +75,5 @@ test('shared expansion is decoded once across concurrent readers and sessions, a
   )!
   await assert.rejects(invalid(), /disagrees with its manifest/)
   cache.keepOnly()
-  assert.equal(cache.keptBytes, 0)
+  assert.equal(kept(), 0)
 })

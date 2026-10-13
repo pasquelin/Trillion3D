@@ -20,7 +20,7 @@ test('the build kernel writes each tile the greatest word whose float is not bel
     list = [3, 129, 4095],
     stored = new Map<number, number>()
   const tiles = Array.from({ length: 16 }, () => 0)
-  const code = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7, poolPages: 4096 }, 2 ** 27))
+  const code = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7, poolPages: 4096 }))
     .tileDepthsBuild.code
   // The tile setup's constants, which the WGSL derives: 32×32 texels a group, 16 groups a page.
   const tilesXY = VSM_LOG2_PAGE - 5
@@ -69,7 +69,7 @@ test('the build kernel writes each tile the greatest word whose float is not bel
 })
 
 test("the pages whose slice 0 changed are listed: allocated, dirty static or dynamic, referenced, a sun's", () => {
-  const code = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7, poolPages: 512 }, 2 ** 27))
+  const code = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7, poolPages: 512 }))
     .foldRasterMarks.code
   const C = wgslConstants(code)
   const ALLOCATED = C.VSM_PAGE_WANTED,
@@ -128,7 +128,7 @@ test("the pool's writers are the three that mark their pages dirty", () => {
     'physicalPagesWgsl.ts',
     'renderRasterWgsl.ts',
   ])
-  const kernels = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7 }, 2 ** 27))
+  const kernels = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7 }))
   const own = Object.values(kernels)
     .filter((k) => k.specs.some((s) => s.resource === 'pagePool' && s.access === 'read_write'))
     .map((k) => k.label)

@@ -3,10 +3,10 @@ import type { PageSurface } from '../page/surface.ts'
 import type { Texture } from '../../../sdk-core/src/index.ts'
 import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts'
 import { texelFormatOf } from '../host/textureImport.ts'
-import { VIS_MAX_PAGE_TRIANGLES } from './visWords.ts'
-export { VIS_TRIANGLE_BITS, VIS_TRIANGLE_MASK } from './visWords.ts'
-/** Largest addressable page count. Row `VIS_MAX_PAGES-1` still leaves 0xffffffff free as a sentinel. */
-export const VIS_MAX_PAGES = 0xfffffe
+import { VIS_CARD_ROWS, VIS_MAX_PAGE_TRIANGLES } from './visWords.ts'
+import { PAGE_INFO } from './pageInfo.ts'
+/** Largest addressable page count: the rows below a card's identifiers (`VIS_CARD_BASE`). */
+export const VIS_MAX_PAGES = VIS_CARD_ROWS - 1
 /** Rejects a page the identifier cannot address, naming the page so a bad cache is actionable. */
 export function assertVisibilityPageTriangles(triangles: number, page?: string) {
   if (!Number.isInteger(triangles) || triangles < 0 || triangles > VIS_MAX_PAGE_TRIANGLES)
@@ -15,23 +15,21 @@ export function assertVisibilityPageTriangles(triangles: number, page?: string) 
     )
   return triangles
 }
-export const PAGE_INFO_STRIDE = 272
-/** Deformation metadata follows the physical-material block; all offsets are u32 words. */
-export const PAGE_DEFORM_WORD = 64,
-  PAGE_DEFORM_COUNT_WORD = 65,
-  PAGE_DEFORM_OUTPUT_WORD = 66,
-  /** The surface's physical record rank plus one (`PageInfo.physical`), 0 without a lobe. */
-  PAGE_PHYSICAL_WORD = 67
+/** Words of a page-table row (`PAGE_INFO`), and its bytes: the stride of the page-table buffer. */
+export const ROW_WORDS = PAGE_INFO.words,
+  PAGE_INFO_STRIDE = PAGE_INFO.words * 4
 /** The high bit of a physical word (`PageInfo.physical`, a blend item's `physical`): the row reads
  *  its geometry as floats and its geometry carries a second UV set, at the tail of the normal atlas
  *  it reads (`vertUv1`, `../webgpu/core/geometryPoolLayout.ts`). A quantized page says so in its
  *  own header. Below it, the record's rank plus one. */
 export const PHYSICAL_SECOND_UV = 0x80000000,
   PHYSICAL_RECORD_MASK = 0x7fffffff
-/** The bits of `PAGE_DEFORM_OUTPUT_WORD`: results in the float pool rather than a slot's tail; a
- *  float-pool block with no source header (`../deformation/slotLayout.ts`); the address, the
- *  results' first word plus one. */
-export const DEFORM_IN_POOL = 0x80000000,
+/** The bits of `PageInfo.deformOutput`, the results lying in the float pool whatever they are:
+ *  the source of the deformation lies in the pool too — a whole copy's streams after a source
+ *  header, a float page's geometry — rather than in the page of the row's slot; a float-pool block
+ *  with no source header (`../deformation/outputs.ts`); the address, the results' first word
+ *  plus one. */
+export const DEFORM_SOURCE_IN_POOL = 0x80000000,
   DEFORM_NO_HEADER = 0x40000000,
   DEFORM_ADDRESS = 0x3fffffff
 export const FLAG_LIT = 1,
@@ -86,9 +84,6 @@ export type VisPage = {
   material: PageSurface
   clusterId?: string
 }
-export type { VisMaterial } from './materialType.ts'
-
-export { isTransmissive } from './shader/material.ts'
 
 /** Why raw texels cannot be read as `textureRgba` reads them — one byte per channel of four, as
  *  many as the size holds —, or nothing when they can: a gate names the storage, never draws it

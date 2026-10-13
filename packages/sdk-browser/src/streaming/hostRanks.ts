@@ -1,4 +1,5 @@
 import type { HostRetentionDelta } from './types.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 
 /** What the delta reads from a record: its request rank, and nothing else. */
 type Ranked = { requestIndex?: number }
@@ -61,26 +62,13 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
     /** Extends a mounted catalogue without changing ranks or the address table's identity. */
     grow(count: number) {
       if (count <= capacity) return
-      const next = Math.max(count, capacity * 2)
-      const marks = new Int32Array(next).fill(-1)
-      marks.set(markedAt)
-      markedAt = marks
-      const pins = new Uint8Array(next)
-      pins.set(published)
-      published = pins
-      const additions = new Int32Array(next),
-        removals = new Int32Array(next),
-        current = new Int32Array(next),
-        upcoming = new Int32Array(next)
-      additions.set(entered)
-      removals.set(exited)
-      current.set(held)
-      upcoming.set(heldNext)
-      entered = additions
-      exited = removals
-      held = current
-      heldNext = upcoming
-      capacity = next
+      markedAt = resized(markedAt, count, -1)
+      published = resized(published, count)
+      entered = resized(entered, count)
+      exited = resized(exited, count)
+      held = resized(held, count)
+      heldNext = resized(heldNext, count)
+      capacity = markedAt.length
     },
     /** Opens a pass: what is not re-marked before `finish()` will leave the set. */
     begin() {
@@ -123,5 +111,19 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
       exitedCount = 0
       return delta
     },
+  }
+}
+
+/** Hands `streamer` the ranks an engine retains — the delta applied before another read of the
+ *  engine can turn it into an empty one —, then `visit` each address they hold. */
+export function retainHeldUrls(
+  streamer: { retainRanks(ranks: HostRetentionDelta): void },
+  ranks: HostRetentionDelta,
+  visit: (url: string) => void,
+) {
+  streamer.retainRanks(ranks)
+  for (let i = 0; i < ranks.heldCount; i++) {
+    const url = ranks.urls[ranks.held[i]]
+    if (url !== undefined) visit(url)
   }
 }

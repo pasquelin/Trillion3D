@@ -5,9 +5,11 @@
 // same operations in the same order give the same bits, here in double precision.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { perspectiveProjection } from '../../../../sdk-core/src/index.ts'
+import { STRUCTS } from './triangleScene.fixture.ts'
 import { CLASS_FEATURE } from './classWords.ts'
 import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
@@ -144,20 +146,24 @@ const HELPERS = [
   'perspectiveDivide',
   'edgeFunction',
   'affineBarycentric',
-  'pixelBary',
+  'decodeCorners',
   'perspectiveBarycentric',
   'faceNormal',
-  'vertexNormals',
   'transformedNormals',
   'unitOrZero',
   'shadingPointOffset',
+  'shadowReceiverOfTriangle',
   'worldMatrix3',
   'windingKept',
 ]
 const { shadowReceiver } = shaderRun<{ shadowReceiver: (pixel: V) => { offset: V } }>(
   SHIPPED,
   ['shadowReceiver', ...HELPERS],
-  { ...scope, ShadowReceiver: (offset: V, plane: V) => ({ offset, plane }) },
+  {
+    ...scope,
+    PixelTriangle: STRUCTS.PixelTriangle,
+    ShadowReceiver: (offset: V, plane: V) => ({ offset, plane }),
+  },
 )
 const { storedOffset } = shaderRun<{ storedOffset: (pixel: V) => V }>(
   `${STORED_WGSL}\n${SHIPPED}`,

@@ -1,15 +1,15 @@
 //! The reference decoder of the equivalence harness (`unpack_tests.rs`): every field read at
 //! random, the first corner out of range refusing. Version 5 reads a vertex's position through its
 //! link, the one line the plain decoder lacks: the link rule itself is proved by the frozen
-//! digests of the compiler's harness (`geometry_page_positions_tests.rs`) and of
+//! digests of the compiler's harness (`tests/geometry_page/positions.rs`) and of
 //! `positions.test.ts`.
 
 use super::*;
 use crate::bits::tests::random_field;
-use crate::triangles::{BLOCK, WIDTH_BITS};
+use crate::triangles::{TRIANGLE_BLOCK, WIDTH_BITS};
 use trillion3d_math::octahedral::oct_decode;
 
-const CORNERS: usize = 3 * BLOCK;
+const CORNERS: usize = 3 * TRIANGLE_BLOCK;
 
 fn random_vector<const N: usize>(out: &mut [u32], w: &[u32], at: [usize; N], q: &Quant<N>) {
     for c in 0..N {

@@ -3,61 +3,15 @@ import assert from 'node:assert/strict'
 import type { Engine } from '../../engine/types.ts'
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { createPartitionCells, type PartitionCells } from '../../partition/cells.ts'
+import { createPartitionCells } from '../../partition/cells.ts'
 import { cellReach } from '../../partition/plan.ts'
 import { lensSlope } from '../../partition/superRoots.ts'
 import { createSelectionUniforms } from '../../gpu/core/selection.ts'
 import { placedMesh } from '../../partition/rows.ts'
 import { paged } from '../../partition/paged.fixture.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { createPartitionFrame } from './partitionFrame.ts'
-
-type Io = Parameters<PartitionCells['frame']>[2]
-/** No arrival budget: what a test places never depends on the time the machine takes. */
-const budget = { admits: () => true, spend() {} }
-/** An engine stand-in whose cut packs no world DAG. */
-const packsNoWorld = () => ({ worldCut: () => undefined }) as unknown as Engine
-
-/** Cells that record what a frame hands them, and ask for one cell visible and one ahead. */
-function recording() {
-  const seen: { eye: number[]; reach: number; io: Io }[] = []
-  const cells = {
-    frame(eye: number[], reach: number, io: Io) {
-      seen.push({ eye: [...eye], reach, io })
-      io.request(['near.json'], false)
-      io.request(['ahead.json'], true)
-    },
-    decodes: () => [],
-    reads: () => [],
-  } as unknown as PartitionCells
-  return { cells, seen }
-}
-
-/** A streamer that holds `files` by name, and records what it is asked. */
-function streamer(files: ReadonlyMap<string, Uint8Array> = new Map()) {
-  const asked: [readonly string[], number][] = []
-  const port = {
-    readBytes: async (url: string, _signal: AbortSignal, priority: number) =>
-      void asked.push([[url], priority]),
-    getBytes: (url: string) => files.get(url.split('/').at(-1)!),
-    failed: () => false,
-    admit() {},
-    forget() {},
-  } as unknown as ReturnType<typeof createPageStreamer>
-  return { port, asked }
-}
-
-test('no partition, no step before the frame', () => {
-  const frame = createPartitionFrame({
-    partitions: [],
-    streamer: streamer().port,
-    camera: hostFramingCamera(60, 1, 0.1, 100),
-    engine: packsNoWorld(),
-    budget,
-  })
-  assert.equal(frame, null)
-})
+import { budget, packsNoWorld, recording, streamer } from './partitionFrame.fixture.ts'
 
 test('a frame reads the cells within the far plane of its camera, visible first then ahead', () => {
   const { cells, seen } = recording()
@@ -70,7 +24,7 @@ test('a frame reads the cells within the far plane of its camera, visible first 
     camera,
     engine: packsNoWorld(),
     budget,
-  })!()
+  })()
   assert.deepEqual(seen[0].eye, [3, 4, 5])
   assert.equal(seen[0].reach, cellReach(camera))
   assert.equal(seen[0].io.lens, undefined, 'no cut packs the world DAG: no far cell')
@@ -86,7 +40,7 @@ test('a cut that packs the world DAG lends the plan its lens, on the frustum dia
   const uniforms = createSelectionUniforms(),
     worldCut = () => uniforms
   const frame = { partitions: [cells], streamer: streamer().port, camera, budget }
-  createPartitionFrame({ ...frame, engine: { worldCut } as unknown as Engine })!()
+  createPartitionFrame({ ...frame, engine: { worldCut } as unknown as Engine })()
   assert.deepEqual(seen[0].io.lens, { ...uniforms, slope: lensSlope(camera) })
   const diagonal = Math.tan(Math.PI / 6) * Math.hypot(1, 16 / 9)
   assert.ok(Math.abs(lensSlope(camera) - diagonal) < 1e-12, 'the half diagonal of the field')
@@ -117,7 +71,7 @@ async function asks(
     camera,
     engine,
     budget,
-  })!
+  })
   for (let step = 0; step < 4; step++) {
     frame()
     await frame.pending()

@@ -1,6 +1,7 @@
 import { directLightWgsl } from '../direct/lightWgsl.ts'
-import { GRID_BOUNDS_WGSL } from './boundsWgsl.ts'
-import { GRID_COMPACT_WGSL, GRID_LANES } from './compactWgsl.ts'
+import { GRID_BOUNDS_WGSL, WORLD_GRID_BOUNDS_WGSL } from './boundsWgsl.ts'
+import { GRID_LANES, gridCompactWgsl } from './compactWgsl.ts'
+import { BOUNCE_SETTINGS, LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /**
@@ -20,10 +21,17 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
  * corners are unprojected there, a light's centre is brought there by one subtraction, and the
  * render matrix's depth rows give a point there its depth. Depth is REVERSE-Z
  * (`../../camera/depthConvention.ts`): the near plane at one, the background at zero.
+ *
+ * The same pass lists the lights of the bounce's world grid (`kind` `world`): its columns the
+ * squares of the last cascade level's lattice, their cells along z (`WORLD_GRID_BOUNDS_WGSL`), so a
+ * bounce point walks the lights that reach its cell (`../../bounce/lightCellWgsl.ts`). Only the
+ * column's bounds and its cell count differ; the runs, the compaction, the pool and the records
+ * are the view's.
  */
-export const LIGHT_TILES_SHADER = wgslProgram(
-  `
-struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,depthRows:array<vec4f,2>,}
+export const lightTilesShader = (kind: LightGridKind) =>
+  wgslProgram(
+    `
+struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,depthRows:array<vec4f,2>,start:vec4u,}
 @group(0) @binding(0) var<uniform> view:TileView;
 @group(0) @binding(1) var<storage,read> lights:DirectLights;
 @group(0) @binding(2) var<storage,read_write> tiles:array<u32>;
@@ -35,7 +43,7 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
  if(lane==0u){lightCount=lights.count;cached=0u;resume=ALL_CACHED;}
  if(lane<2u){atomicStore(&keptLanes[lane],0u);atomicStore(&slotted[lane],0u);atomicStore(&full[lane],0u);}
  chunk[lane]=vec2u(0u,EMPTY_RUN);
- for(var slice=lane;slice<GRID_SLICES;slice+=LANES){
+ for(var slice=lane;slice<COLUMN_SLICES;slice+=LANES){
   counts[slice]=0u;atomicStore(&masks[slice*2u],0u);atomicStore(&masks[slice*2u+1u],0u);
  }
  let count=workgroupUniformLoad(&lightCount);
@@ -56,14 +64,14 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
   }
   workgroupBarrier();
  }
- let span=laneRun(lane,GRID_SLICES);
+ let span=laneRun(lane,COLUMN_SLICES);
  let before=roomBefore(lane,span);
  if(lane==0u){takeRoom();walked.y=cached;walked.z=select(resume,count,resume==ALL_CACHED);}
  let walk=workgroupUniformLoad(&walked);
  dealRoom(span,before,walk.w);
  workgroupBarrier();
- let base=(cell.y*u32(view.viewport.z)+cell.x)*GRID_SLICES*TILE_STRIDE;
- for(var slice=lane;slice<GRID_SLICES;slice+=LANES){
+ let base=view.start.x+(cell.y*u32(view.viewport.z)+cell.x)*COLUMN_SLICES*TILE_STRIDE;
+ for(var slice=lane;slice<COLUMN_SLICES;slice+=LANES){
   tiles[base+slice*TILE_STRIDE]=counts[slice];tiles[base+slice*TILE_STRIDE+1u]=cursor[slice];
  }
  if(walk.x==0u){return;}
@@ -86,5 +94,13 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
   workgroupBarrier();
  }
 }`,
-  [directLightWgsl(), GRID_COMPACT_WGSL, GRID_BOUNDS_WGSL],
-)
+    [
+      directLightWgsl(),
+      gridCompactWgsl(kind === 'view' ? LIGHT_SETTINGS.gridSlices : BOUNCE_SETTINGS.cascadeSize),
+      kind === 'view' ? GRID_BOUNDS_WGSL : WORLD_GRID_BOUNDS_WGSL,
+    ],
+  )
+
+/** What a light grid's columns are: the view's (its tiles of pixels and slices of depth), or the
+ *  bounce's world lattice. */
+export type LightGridKind = 'view' | 'world'

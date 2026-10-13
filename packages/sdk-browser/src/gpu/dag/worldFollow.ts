@@ -6,13 +6,12 @@
  * records before the next cut, the moved ranks joined into writes by the cut's one run writer,
  * by their bytes (`split.ts`) — what is written follows the moves (`worldLinks.ts`) —, read
  * by the descent's gate, and the residency mirror reads the move at the next residency it hands
- * the cut (`worldMirror.ts`). A move with no residency change behind it is handed
+ * the cut (`residencyMirror.ts`). A move with no residency change behind it is handed
  * over before the next cut is encoded, on the rows' flags the cut last received: the object's
  * cluster turns out the frame its placement leaves, so its group's super-roots stand in at once.
  * Each cut takes its own scale of the world's threshold (`worldFade.ts`).
  */
-import type { ResidencyChanges, SelectionUniforms } from '../core/selection.ts'
-import { SELECTION_NONE as NONE } from '../core/selection.ts'
+import type { PageResidency, ResidencyChanges, SelectionUniforms } from '../core/selection.ts'
 import { worldFadeScale } from './worldFade.ts'
 import type { PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
@@ -20,6 +19,7 @@ import { resized } from '../../../../math/src/sequence/resized.ts'
 import { keepNumbers } from '../../../../math/src/vector/vector.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { setBit } from '../../../../math/src/scalar/bits.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** No page of the rows moved: only the links did. */
 const NO_ROWS: ResidencyChanges = { pages: new Int32Array(0), count: 0 }
@@ -31,7 +31,7 @@ const NO_ROWS: ResidencyChanges = { pages: new Int32Array(0), count: 0 }
 export function createLinkFollower(
   resources: { device: GPUDevice; packed: PackedDag; coldParts: DagParts },
   hooks: {
-    updateResidency: (rows: Uint32Array, changes: ResidencyChanges) => void
+    updateResidency: (rows: PageResidency, changes: ResidencyChanges) => void
     linkMoved: (world: number) => void
   },
 ) {
@@ -40,7 +40,7 @@ export function createLinkFollower(
   if (!world) return undefined
   const { links } = world
   /** The rows' flags the cut last received, and whether a link moved since. */
-  let rows: Uint32Array | undefined,
+  let rows: PageResidency | undefined,
     pending = false
   /** The placements whose link moved since the last cut, one bit each, from `low` to `high`. */
   const dirty = new Uint32Array(bitWords(links.length))
@@ -87,7 +87,7 @@ export function createLinkFollower(
   return {
     /** The rows' flags `next` reach the cut: the links moved since are handed to the mirror
      *  first, once. */
-    residency(next: Uint32Array) {
+    residency(next: PageResidency) {
       rows = next
       pending = false
       if (handed) return
@@ -97,7 +97,7 @@ export function createLinkFollower(
       handed = true
     },
     /** Whether placement `w` is linked to an object, whose super-roots stand in for it far away. */
-    standsIn: (w: number) => w < links.length && links[w] !== NONE,
+    standsIn: (w: number) => w < links.length && links[w] !== NO_INDEX,
     /** Placement `w` places `object` now, or none (`-1`). */
     place(w: number, object: number) {
       const c = world.linkOf(object)

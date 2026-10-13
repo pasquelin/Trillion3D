@@ -1,13 +1,10 @@
 // The engine a bench run measures: a checkout of the repository, by default this one, and a clean
 // commit of it — a run reads the sources as they are on disk, and a file another session is
 // writing would make its numbers no commit's. Two checkouts of two commits, one scenario: an A/B.
-import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { RACINE } from '../core/paths.ts'
-
-const git = (root: string, ...args: string[]) =>
-  execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim()
+import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
+import { git } from '../../scripts/git-paths.ts'
 
 /** What the engine and the pages it runs are read from. */
 export type EngineRoot = { root: string; commit: string; subject: string; dirty: string[] }
@@ -17,7 +14,7 @@ export type EngineRoot = { root: string; commit: string; subject: string; dirty:
  * engine and the bench's scene kit that differ from it. A run on a dirty checkout is refused unless `dirtyOk`.
  */
 export function engineRoot(dir: string | undefined, dirtyOk: boolean): EngineRoot {
-  const root = resolve(dir ?? RACINE)
+  const root = resolve(dir ?? REPOSITORY_ROOT)
   if (!existsSync(join(root, 'packages', 'sdk-browser', 'src', 'index.ts')))
     throw new Error(`BENCH_ENGINE: ${root} holds no engine (packages/sdk-browser/src/index.ts)`)
   const dirty = git(root, 'status', '--porcelain', '--', 'packages', join('bench', 'kit'))

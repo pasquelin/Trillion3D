@@ -1,7 +1,9 @@
 // The upscaling resolve (`upscaleWgsl.ts`), or the native one (`shaderWgsl.ts`), run in JavaScript
 // over a small frame: its render inputs as functions of the texel, its history as one of the point
 // read.
-import { Mat, type Vec } from '../texture/shaderRun.fixture.ts'
+import { f32Bits } from '../../../math/src/float/bits.ts'
+import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
+import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
 import { taaUpscaleShader } from './upscaleWgsl.ts'
 import { taaShader } from './shaderWgsl.ts'
 import { TAA_WEIGHTS, taaWeights } from './filterWeights.ts'
@@ -110,7 +112,7 @@ export function upscaleRun(
     const own = (frame.id ? (frame.placement ?? 0) + 1 : 0) / 255
     const given = frame.historyGeometry?.(x, y)
     const [tag, z] = given ?? [Math.round((kept() ?? own) * 255), frame.depth?.(rx, ry) ?? 0]
-    return [tag, new Uint32Array(new Float32Array([z]).buffer)[0]]
+    return [tag, f32Bits(z)]
   }
   // The depth target allocated past the image drawn in it (`drawFrameAt`): a gather reading
   // beyond the render grid meets `texel`'s guard.

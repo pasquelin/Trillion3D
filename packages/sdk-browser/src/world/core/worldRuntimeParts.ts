@@ -1,25 +1,21 @@
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { openMeasuredWorld, type MeasuredWorld } from '../session/explorer.ts'
 import { buildWorldSource } from './worldSource.ts'
 import type { createRequestLoop } from './requestLoop.ts'
 import type { createWorldContents } from './worldContents.ts'
-import { releaseWorldMirror } from './worldMirror.ts'
 import type { createWorldLights } from './worldLights.ts'
 import type { createWorldBackground } from './worldBackground.ts'
 import type { worldReopens } from './worldReopen.ts'
 import type { createCanvasFit, followPageCamera } from './worldCamera.ts'
-import type { PosedTwin } from './worldPoses.ts'
 import type { namedMove } from './worldSceneMethods.ts'
 import type { WorldRuntimeInputs } from './worldRuntimeInputs.ts'
 import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts'
 import { vertexUploads } from './worldDynamicRanges.ts'
+import { noticeRefused } from '../diagnostic/worldNotices.ts'
 
 /** What a world runtime holds between frames: its session, the mirror it was opened on, and what
  *  the next frame or opening owes the scene. */
 export type WorldRuntimeState = {
   explorer: MeasuredWorld | null
-  mirror: NonNullable<ReturnType<typeof buildWorldSource>> | null
-  twins: Map<Object3D, PosedTwin>
   resolving: Promise<void> | null
   structureChanged: boolean
   seatWanted: boolean
@@ -52,6 +48,14 @@ export function worldOpening(parts: WorldRuntimeParts) {
   const { canvas, open = openMeasuredWorld } = inputs
   return async () => {
     if (state.disposed) return
+    // The models a world not yet drawing asked for are in its scene, and resolved, before the plan
+    // is taken (`worldLoader.ts`); a refused grant of the device is said below. A session in
+    // place, closed for a lost device or an option, is closed at once.
+    if (!state.explorer) {
+      await inputs.ready().catch(() => {})
+      while (state.resolving && !state.disposed) await state.resolving
+      if (state.disposed) return
+    }
     state.closed = 'its session is opening'
     // What was resolved since the last frame opens with this session, not with the next one.
     if (state.seatWanted) contents.seat()
@@ -60,13 +64,9 @@ export function worldOpening(parts: WorldRuntimeParts) {
     const built = buildWorldSource(plan)
     track.closing(state.explorer)
     state.explorer?.dispose()
-    if (state.mirror) releaseWorldMirror(state.mirror.root)
-    state.explorer = state.mirror = null
+    state.explorer = null
     fit.reset()
     plan.release()
-    state.twins = (built?.twins ?? new Map()) as Map<Object3D, PosedTwin>
-    for (const [node, twin] of state.twins)
-      contents.poses.writeTwin(node, twin, contents.shown(node))
     lights.reset()
     state.lightsChanged = true
     inputs.diagnostic.opening()
@@ -74,7 +74,6 @@ export function worldOpening(parts: WorldRuntimeParts) {
       state.closed = 'nothing to draw: the scene holds no mesh and no loaded model'
       return track.none()
     }
-    state.mirror = built
     let explorer: MeasuredWorld
     try {
       const scope = built.source.metadata.scope // its first model's scope, or the default
@@ -85,7 +84,16 @@ export function worldOpening(parts: WorldRuntimeParts) {
         contents.cuts.dynamic.drew(m),
         given.onFrame?.(m)
       )
-      const options = track.options({ ...given, scope, onFrame })
+      const options = track.options({
+        ...{ ...given, scope, onFrame },
+        onContentRefused: (what, reason) => noticeRefused(inputs.diagnostic.notices, what, reason),
+        onPartitionOutgrown: () =>
+          noticeRefused(
+            inputs.diagnostic.notices,
+            'partition rows',
+            'the view outgrew the rows and the engine cannot grow them in place: the cells past them wait',
+          ),
+      })
       // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
       explorer = state.explorer = await open(canvas, options, {
         ...built.source,
@@ -101,6 +109,8 @@ export function worldOpening(parts: WorldRuntimeParts) {
     // Lit before the page's own settings: the first image had no lights. A session's own loop is
     // asked a frame; a world its page leads draws the frame it asks (`worldAskedFrame.ts`).
     explorer.setLightingView('lit')
+    // What the scene gained while it opened — a mesh, a model — joins at the next frame.
+    state.seatWanted = true
     parts.invalidate()
     inputs.opened(explorer)
   }
@@ -108,25 +118,34 @@ export function worldOpening(parts: WorldRuntimeParts) {
 
 /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
 export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
-  const { inputs, state, contents, lights, background, track } = parts
+  const { inputs, state, contents, lights, background } = parts
   const { poses, cuts } = contents
   const uploads = vertexUploads(
     () => state.explorer,
-    (cut) => state.mirror?.geometryOf(cut),
-    track.asks('vertices-refused'),
+    () =>
+      noticeRefused(
+        inputs.diagnostic.notices,
+        'rewritten vertices',
+        'the engine cannot write them in place: they are not drawn',
+      ),
   )
   return () => {
     const session = state.explorer
     if (state.seatWanted) {
       state.seatWanted = false
       contents.seat(session ?? undefined)
-      if (contents.reopenNeeded() || (!session && !reopens.running)) track.request('scene-change')
-      // Values or pictures alone repaint the built surface (#335, #362, #572); a reopened one is new.
+      // No session: this opens the first (or the one a failed opening left), never reopens one.
+      if (!session && !reopens.running) reopens.request()
+      // Values or pictures alone repaint the built surface (#335, #362, #572); a session opened
+      // meanwhile is new.
       const painted = contents.repainted(),
         open = state.explorer === session ? session : null
-      const mirror = state.mirror
-      if (painted.length && mirror && !mirror.repaint(painted, open?.refreshMaterials.bind(open)))
-        track.request('repaint-refused')
+      if (painted.length && !contents.repaint(painted, open?.refreshMaterials.bind(open)))
+        noticeRefused(
+          inputs.diagnostic.notices,
+          'a picture',
+          'it changed size where the atlas layout is fixed: it is not redrawn',
+        )
     }
     if (!session || state.explorer !== session) return
     cuts.dynamic.upload(DYNAMIC_UPLOAD_BUDGET_BYTES, uploads)
@@ -134,7 +153,7 @@ export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
       poses.apply(
         inputs.scene,
         contents.seats,
-        state.twins,
+        contents.models,
         (rows, from, to) => session.updatePlacements(rows, from, to),
         {
           key: session,

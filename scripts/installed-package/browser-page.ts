@@ -1,20 +1,34 @@
 // Runs inside the browser page (`page.evaluate`): DOM globals (`location`, `devicePixelRatio`,
 // `crypto.subtle`, `Worker`) are ambient.
+import { readFileSync } from 'node:fs'
+import { stripTypeScriptTypes } from 'node:module'
 import type { EvaluatedInstalledPage, LooseSdk, LooseWorld } from './browser-page-types.ts'
 
-export type { EvaluatedInstalledPage } from './browser-page-types.ts'
+/** `hexOfBytes`'s module as a function body the page runs (`new Function`): the page cannot import
+ *  it, and a copy written beside it would be a second hex writer. */
+export function hexModuleSource() {
+  const source = readFileSync(
+    new URL('../../packages/math/src/scalar/hex.ts', import.meta.url),
+    'utf8',
+  )
+  return `${stripTypeScriptTypes(source).replace('export function', 'function')}\nreturn hexOfBytes`
+}
 
 export async function evaluateInstalledPage({
   moduleName,
   manifestUrl,
   replayUrl,
   commonWorkerPath,
+  hexSource,
 }: {
   moduleName: string | null
   manifestUrl: string
   replayUrl: string
   commonWorkerPath: string
+  /** The body of `hexOfBytes` (`packages/math/src/scalar/hex.ts`), as `hexModuleSource` writes it. */
+  hexSource: string
 }): Promise<EvaluatedInstalledPage> {
+  const hexOfBytes = new Function(hexSource)() as (bytes: ArrayLike<number>) => string
   const deadline = performance.now() + 10_000
   while (!moduleName && !globalThis.__installedSdk && performance.now() < deadline)
     await new Promise((resolve) => setTimeout(resolve, 25))
@@ -22,24 +36,12 @@ export async function evaluateInstalledPage({
     ? ((await import(moduleName)) as LooseSdk)
     : globalThis.__installedSdk
   if (!sdk) throw new Error('installed explorer bundle did not start')
-  const count = 2
-  const views = (buffer: Float64Array, stride: number): Float64Array[] =>
-    Array.from({ length: count }, (_, index) =>
-      buffer.subarray(index * stride, (index + 1) * stride),
-    )
-  const world = new Float64Array(count * sdk.MATRIX_VALUES)
-  sdk.hierarchyUpdateBatch(
-    views(world, sdk.MATRIX_VALUES),
-    views(new Float64Array([2, 3, 4, 5, 7, 11]), sdk.POSITION_VALUES),
-    views(new Float64Array([0, 0, 0, 1, 0, 0, 0, 1]), sdk.QUATERNION_VALUES),
-    views(new Float64Array(6).fill(1), sdk.POSITION_VALUES),
-    new Uint32Array([sdk.HIERARCHY_ROOT, 0]),
-    count,
-    new Float64Array(sdk.MATRIX_VALUES),
-  )
-  const hierarchy = { world: Array.from(world.subarray(28, 31)), parent: 0 }
-  if (hierarchy.world.join(',') !== '7,10,15')
-    throw new Error('installed browser hierarchy did not execute')
+  const translation = (x: number, y: number, z: number) =>
+    new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1])
+  const out = new Float64Array(16)
+  sdk.multiplyMatrix4(out, translation(2, 3, 4), translation(5, 7, 11))
+  const product = Array.from(out.subarray(12, 15))
+  if (product.join(',') !== '7,10,15') throw new Error('installed browser maths did not execute')
   const commonWorker = await new Promise<unknown>((resolve, reject) => {
     const worker = new Worker(commonWorkerPath, { type: 'module' })
     const timeout = setTimeout(() => {
@@ -115,9 +117,7 @@ export async function evaluateInstalledPage({
     )
       aaDifferentPixels++
   const hash = async (bytes: Uint8Array<ArrayBuffer>): Promise<string> =>
-    [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
-      .map((byte) => byte.toString(16).padStart(2, '0'))
-      .join('')
+    hexOfBytes(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
   const captureEvidence = {
     sha256: await hash(capture),
     repeatedSha256: await hash(repeated),
@@ -134,7 +134,7 @@ export async function evaluateInstalledPage({
   return {
     metrics: value,
     capture: captureEvidence,
-    hierarchy,
+    product,
     commonWorker,
   }
 }

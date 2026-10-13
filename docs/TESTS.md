@@ -168,7 +168,7 @@ machine, not a campaign, which uses the [harness](../bench/runner/README.md) und
 The gates and their order are `VALIDATE_GROUPS` in `scripts/validate-steps.ts`; each gate's rule is
 in its script's header, and `pnpm run check:changed` runs them on what a branch changed. Two rules
 that shape every file: a maintained JS, TS or Rust file holds at most 200 lines (`check:lines`),
-except the runtime modules of `sdk-core`, `sdk-browser`, `sdk-node` and `page-codec`, which answer
+except the runtime modules of `sdk-core`, `sdk-browser`, and `sdk-node`, which answer
 to `check:cohesion` instead (functions of at most 60 lines and a complexity of at most 20, on the
 modules a branch touches). The engine is WebGPU only: `check:webgpu-only`
 fails on any trace of the GL family of APIs in a tracked file or file name, with no allowlist.

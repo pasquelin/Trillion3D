@@ -1,6 +1,6 @@
 // A transmission frame that changes nothing makes no bind group and writes no buffer: its draw
 // groups are the opaque raster's mechanism (`bound`, `vsmPerFrameSet`) and its parameters, views
-// and frame words go up where they changed (`vsmWriteChanged`).
+// and frame words go up where they changed (`writeChanged`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'

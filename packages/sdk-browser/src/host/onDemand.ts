@@ -1,9 +1,7 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { HTTP_ATTEMPTS, pause } from '../cluster/checked.ts'
 import { RETRY_AFTER_CAP_MS } from '../cluster/retryCap.ts'
-
-/** The public code of a family that could not load (`FAMILY_LOAD_FAILED` in the message catalogue). */
-const FAMILY_LOAD_FAILED_ID = 'T3D-E090'
+import { FAMILY_LOAD_FAILED_ID } from './familyLoadFailedId.ts'
 
 /**
  * The engine's one on-demand loader: a module imported on its first use, which the

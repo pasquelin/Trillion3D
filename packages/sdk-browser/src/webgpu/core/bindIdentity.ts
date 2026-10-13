@@ -24,6 +24,12 @@ export type WebgpuBindIdentity = {
  * frame — a double-buffered set, its current frame's then the other's — finds each of them held
  * and keeps a group for each, where a single identity would move, and its groups be made again,
  * every frame.
+ *
+ * The engine's one bind-group cache, with one exception: a family whose resources are many at
+ * once, each bound every frame — an image per view presented (`gpu/core/presentAt.ts`), a texture
+ * per chain a batch reduces (`texture/mipGroups.ts`) —, not a few taking turns, keeps each group
+ * with the resource, in a map weakly keyed by it: no depth fits a count the page sets, one below it
+ * would make every group again each frame, one above it would hold destroyed resources.
  */
 export function createWebgpuBindIdentity(depth = 1): WebgpuBindIdentity {
   /** The identities held, by slot, and when each was last named. */

@@ -21,7 +21,7 @@ export async function createGpuDraw(
   maxCorners: number,
 ): Promise<GpuDraw | undefined> {
   const { corners, perRow } = drawBatches(maxCorners)
-  if (typeof device.createComputePipeline !== 'function' || slotCap < 1) return undefined
+  if (slotCap < 1) return undefined
   let allocated: ReturnType<typeof createGpuDrawBuffers> | undefined
   let d: Draw | undefined
   const release = () => {
@@ -67,8 +67,7 @@ function compileDraw(device: GPUDevice, layerSlots: number) {
     const layout = device.createBindGroupLayout({ entries: drawBindEntries() })
     const module = device.createShaderModule({ code: drawShader(layerSlots) })
     if (await shaderFailed(module)) return undefined
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-    const stages = await buildComputeStages(device, pipelineLayout, module, [
+    const stages = await buildComputeStages(device, [layout], module, [
       'countGroups',
       'prefixGroups',
       'scatterGroups',

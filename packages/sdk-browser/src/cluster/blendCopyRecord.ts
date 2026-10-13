@@ -1,15 +1,8 @@
-import type { HostMesh } from '../host/resources.ts'
+import type { DrawSource } from '../page/selection/drawSource.ts'
 import type { BlendCopy } from './blendCopyContract.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import type { PageSurface } from '../page/surface.ts'
 import type { PlacementOf } from '../placement/rows.ts'
-
-/** The source mesh a transparent copy stands for, read by shape: the geometry it draws and the
- *  culling the host declared on it. Nothing else of the mesh crosses. */
-type BlendSourceMesh = HostMesh & {
-  readonly geometry: BlendCopy['geometry']
-  readonly frustumCulled?: boolean
-}
 
 /**
  * The engine's own draw record for a transparent surface.
@@ -29,20 +22,19 @@ type BlendSourceMesh = HostMesh & {
  * and builds one on its side (`blendCopyMesh.ts`, injected into `collectClusterPages`).
  */
 export function createBlendCopyRecord(
-  mesh: HostMesh,
+  source: DrawSource,
   renderOrder: number,
   world: MatrixElements,
   surface: PageSurface,
   placement?: PlacementOf,
 ): BlendCopy {
-  const source = mesh as BlendSourceMesh
   return {
     geometry: source.geometry,
     surface,
     matrix: world,
     placement,
-    frustumCulled: !!source.frustumCulled,
+    frustumCulled: source.frustumCulled,
     renderOrder,
-    userData: { sourceMesh: mesh },
+    userData: { drawSource: source },
   }
 }

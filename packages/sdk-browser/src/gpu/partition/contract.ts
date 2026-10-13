@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { HIZ_MAX_LEVELS } from '../hiz/uniforms.ts'
 
 /**
  * Memory layout the GPU partition shares with the Hi-Z test and with the host.
@@ -117,8 +118,8 @@ export const PARTITION_BINDING = {
   uniforms: 8,
   pyramid: 9,
 } as const
-/** What each kernel binds: a stage may bind eight storage buffers, and the two together would
- *  need nine, so each layout names only the buffers its entry point reads or writes. */
+/** What each kernel binds: each layout names only the resources its entry point reads or
+ *  writes. */
 export const PARTITION_KERNEL_BINDINGS = {
   clearRows: ['restBits', 'slotUsed', 'state', 'uniforms'],
   projectRows: ['corners', 'items', 'flags', 'rowData', 'state', 'uniforms', 'pyramid'],
@@ -146,7 +147,4 @@ export const UNI_VIEW = 0,
   UNI_ANCHOR_LOW = 36,
   UNI_SCALARS = 40,
   UNI_LEVELS = 52
-export const MAX_HIZ_LEVELS = 16
-export const UNIFORM_U32 = UNI_LEVELS + MAX_HIZ_LEVELS * 2
-
-export { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
+export const UNIFORM_U32 = UNI_LEVELS + HIZ_MAX_LEVELS * 2

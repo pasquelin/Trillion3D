@@ -1,21 +1,21 @@
 import { wgslConst, wgslFn } from './decl.ts'
 import { wgslF32 } from './number.ts'
 import { byteOf } from './integer.ts'
+import {
+  SRGB_ENCODE_THRESHOLD,
+  SRGB_GAMMA,
+  SRGB_OFFSET,
+  SRGB_SCALE,
+  SRGB_SLOPE,
+} from '../color/color.ts'
 
 /**
- * Colours as the shaders read and write them: a byte or three bytes of a word as a unit value, a
+ * Colours as the shaders read and write them: a byte of a word as a unit value, a
  * colour's luminance, and the sRGB encode, linear to display (`../color/color.ts` on the processor).
  */
 
-/** The low three bytes of `packed`, red first, each over 255: divided, as written, never
+/** Byte `k` of `word` (`byteOf`) over 255, a unit value: divided, as written, never
  *  `unpack4x8unorm`, whose scale a device may round another way. */
-export const unorm8x3 = wgslFn(
-  'unorm8x3',
-  [],
-  'fn unorm8x3(packed:u32)->vec3f{return vec3f(f32(packed&255u),f32((packed>>8u)&255u),f32((packed>>16u)&255u))/255.0;}',
-)
-
-/** Byte `k` of `word` (`byteOf`) over 255, a unit value: divided, as `unorm8x3` divides. */
 export const unorm8 = wgslFn(
   'unorm8',
   [byteOf],
@@ -46,7 +46,7 @@ export const linearToSrgb = wgslFn(
   'linearToSrgb',
   [],
   `fn linearToSrgb(c:vec3f)->vec3f{
- let curve=1.055*pow(max(c,vec3f(0.0)),vec3f(${wgslF32(1 / 2.4)}))-0.055;
- return select(curve,c*12.92,c<=vec3f(0.0031308));
+ let curve=${SRGB_SCALE}*pow(max(c,vec3f(0.0)),vec3f(${wgslF32(1 / SRGB_GAMMA)}))-${SRGB_OFFSET};
+ return select(curve,c*${SRGB_SLOPE},c<=vec3f(${SRGB_ENCODE_THRESHOLD}));
 }`,
 )

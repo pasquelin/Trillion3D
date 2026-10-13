@@ -3,6 +3,9 @@ import assert from 'node:assert/strict'
 import { eventually } from './eventually.fixture.ts'
 import { sha256Hex } from './sha256Hex.ts'
 import { createPageStreamer } from './pageStreamer.ts'
+import { createPageCache } from './pageCache.ts'
+import { manifestEntryBytes } from './manifestTables.ts'
+import { retained } from './retained.fixture.ts'
 test('a priority read overtakes queued detail without exceeding one transfer', async () => {
   const bytes = new Uint32Array([0, 1, 2])
   const sha = await sha256Hex(bytes.buffer)
@@ -20,6 +23,7 @@ test('a priority read overtakes queued detail without exceeding one transfer', a
   }
   const pages = ['a.bin', 'b.bin', 'c.bin'].map((url) => ({ url, bytes: 12, sha256: sha }))
   const streamer = createPageStreamer(pages, 'http://cache/', {
+    cache: createPageCache(),
     workerCount: 1,
     maxTransferBytes: 12,
   })
@@ -57,7 +61,7 @@ test('cancelling obsolete detail leaves a shared page request alive', async () =
   const streamer = createPageStreamer(
     [{ url: 'shared.bin', bytes: 12, sha256: sha }],
     'http://cache/',
-    { workerCount: 1 },
+    { cache: createPageCache(), workerCount: 1 },
   )
   const obsolete = new AbortController()
   try {
@@ -89,8 +93,8 @@ test('stream diagnostics cover coalescing, verification, retention and eviction'
     ],
     'http://cache/',
     {
+      cache: createPageCache(manifestEntryBytes('a.bin') + manifestEntryBytes('b.bin') + 8 + 4),
       workerCount: 2,
-      maxPages: 1,
       maxTransferBytes: 8,
       onDiagnostic: (event) => {
         events.push(event.phase)
@@ -98,14 +102,15 @@ test('stream diagnostics cover coalescing, verification, retention and eviction'
       },
     },
   )
+  const retain = retained(streamer, ['a.bin', 'b.bin'])
   try {
     await Promise.all([
       streamer.read('a.bin', streamer.signal),
       streamer.read('a.bin', streamer.signal),
     ])
-    streamer.retain([])
+    retain([])
     await streamer.request(['b.bin'], { signal: streamer.signal })
-    streamer.retain(['b.bin'])
+    retain(['b.bin'])
     assert.ok(events.includes('page-catalogue'))
     assert.ok(events.includes('page-request-coalesced'))
     assert.ok(events.includes('page-hash-check'))

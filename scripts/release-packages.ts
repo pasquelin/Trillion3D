@@ -14,6 +14,7 @@ import {
 } from '../packages/sdk-node/src/compiler/platform.mts'
 import type { Run } from './installed-package/contracts.ts'
 import { packArchive, type PackResult } from './installed-package/fixture.ts'
+import { readJson } from './repository-files.ts'
 
 /** One packed package: its name, its archive and the files `pnpm pack` put in it. */
 interface ReleaseArchive {
@@ -60,7 +61,7 @@ const releaseFolders = (root: string) => [...compilers(root).map(({ folder }) =>
 function releaseVersion(root: string): string {
   const manifests = releaseFolders(root).map(
     (folder) =>
-      JSON.parse(readFileSync(join(folder, 'package.json'), 'utf8')) as {
+      readJson(join(folder, 'package.json')) as {
         name: string
         version: string
       },
@@ -134,7 +135,7 @@ export function packRelease(options: {
 /** The release packed in `out`, its archives' paths made absolute; refuses a missing package or
  *  archive, and any other order than the publication's. */
 export function readRelease(out: string): Release {
-  const release = JSON.parse(readFileSync(join(out, RECORD), 'utf8')) as Release
+  const release = readJson(join(out, RECORD)) as Release
   const names = release.archives.map((archive) => archive.name).join(', ')
   if (names !== releaseNames().join(', '))
     throw new Error(`release incomplete: ${names}; expected ${releaseNames().join(', ')}`)

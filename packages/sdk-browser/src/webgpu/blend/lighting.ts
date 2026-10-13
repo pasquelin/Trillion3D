@@ -20,10 +20,12 @@ export function blendLightResources(
     // The translucent casters' transmission atlas on the transmittance layer's number.
     shadowTransmittance: contract.vsmTransmission ?? placeholders.transmittanceView,
     shadowTranslucentDepth: contract.vsm?.pool ?? placeholders.vsmPool,
+    // What a fragment traces with past the maps: the projection's view and noise (`vsmTraceFactor`).
+    shadowView: contract.vsm?.view ?? placeholders.vsmProjectionView,
+    shadowNoise: contract.vsm?.noise ?? placeholders.vsmBlueNoise,
     bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,
     probes: contract.probes ?? placeholders.probes,
     tileLights: contract.tiles ?? placeholders.tiles,
-    proxy: contract.proxy ?? placeholders.proxy,
-    surfaceCache: contract.surfaceCache ?? placeholders.surfaceCache,
+    proxy: contract.proxy ?? placeholders.runtime,
   }
 }

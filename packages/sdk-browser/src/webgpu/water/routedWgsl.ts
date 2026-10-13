@@ -1,4 +1,4 @@
-import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
+import { FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
 import { WATER_COLOR_WGSL } from './waterColorWgsl.ts'
@@ -29,5 +29,5 @@ fn waterRoute(pixel:vec4f,c:vec4f)->Route{
 }`,
 )
 
-export const waterRoutedShader = (unbounded = false, key: Partial<ContractKey> = {}) =>
-  waterCompositeShader(unbounded, key, { route: WATER_ROUTE_WGSL })
+export const waterRoutedShader = (key: Partial<ContractKey> = {}) =>
+  waterCompositeShader(key, { route: WATER_ROUTE_WGSL })

@@ -2,6 +2,7 @@ import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts'
 import { floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { floorLog2 as floorLog2Decl } from '../../../../math/src/wgsl/integer.ts'
+import { HIZ_READ_WGSL } from './pyramidTexture.ts'
 
 /**
  * Choice of the mip that answers for a screen rectangle ALREADY clipped to the viewport: GPU
@@ -61,7 +62,8 @@ fn hizLevelFor(rect:vec4i,levels:u32)->vec3u{
  * most 2×2 texels: a coarse texel is the minimum of every finer texel under it, so when the coarse
  * texels hide the box, every texel of the footprint does — rejected in at most four reads. Else
  * the footprint itself decides. An empty rectangle, or one wider than the kernel, never hides.
- * The host kernel declares `pyramid`, the only buffer these functions read.
+ * They read the pyramid's farthest layer through `hizCullFarthest`, the host's: the sampled read
+ * (`HIZ_READ_WGSL`), or the build's own in the kernel that builds it (`shader.ts`).
  */
 export const HIZ_HIDES_WGSL = wgslBlock(
   'HIZ_HIDES_WGSL',
@@ -70,7 +72,7 @@ export const HIZ_HIDES_WGSL = wgslBlock(
 fn texelsHide(x0:i32,y0:i32,x1:i32,y1:i32,offset:u32,width:u32,nearest:f32)->bool{
  for(var y=y0;y<=y1;y++){
   for(var x=x0;x<=x1;x++){
-   if(!(nearest<pyramid[offset+u32(y)*width+u32(x)])){return false;}
+   if(!(nearest<hizCullFarthest(offset+u32(y)*width+u32(x)))){return false;}
   }
  }
  return true;
@@ -90,13 +92,14 @@ fn pyramidHides(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32,nearest
  * the mip that covers it is chosen, and the farthest depth read there is compared to the box's
  * nearest (`pyramidHides`, after its coarse pre-test) — reverse-Z, so hidden means SMALLER. A
  * rectangle outside the viewport, or one no mip covers, hides nothing. Reads the shared uniform
- * (`PARTITION_UNI_WGSL`) and `pyramid`, which the host kernel declares; the opaque main-pass cull
+ * (`PARTITION_UNI_WGSL`) and the sampled pyramid `hizPyramid`, which the host kernel declares
+ * (`HIZ_READ_WGSL`); the opaque main-pass cull
  * and the transparent-cluster test are this same function on their own inputs, so the two rules
  * cannot diverge.
  */
 export const HIZ_HIDDEN_WGSL = wgslBlock(
   'HIZ_HIDDEN_WGSL',
-  [HIZ_LEVEL_WGSL, HIZ_HIDES_WGSL],
+  [HIZ_LEVEL_WGSL, HIZ_HIDES_WGSL, HIZ_READ_WGSL],
   `fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
  let x0=max(rect.x,0);let y0=max(rect.y,0);
  let x1=min(rect.z,i32(uni.width)-1);let y1=min(rect.w,i32(uni.height)-1);

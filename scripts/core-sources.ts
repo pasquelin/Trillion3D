@@ -1,6 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import type { Metafile } from 'esbuild'
+import { readJson, posixPath } from './repository-files.ts'
 
 /** Beside the CDN bundle, the sources each of its files holds: `build-bundle.ts` writes it from
  *  esbuild's metafile, `cleanBundle` removes it with the bundle, the package never ships it. */
@@ -12,7 +13,7 @@ type BundleSources = Record<string, Record<string, number>>
 
 /** The `BundleSources` of an esbuild metafile whose outputs and inputs lie under `dist`. */
 export function bundleSources(metafile: Metafile, dist: string): BundleSources {
-  const under = (path: string) => relative(dist, resolve(path)).replaceAll('\\', '/')
+  const under = (path: string) => posixPath(relative(dist, resolve(path)))
   return Object.fromEntries(
     Object.entries(metafile.outputs)
       .filter(([file]) => file.endsWith('.js'))
@@ -64,7 +65,7 @@ const folderOf = (source: string) => {
 export function coreSources(dist: string, files: readonly string[]) {
   const path = join(dist, BUNDLE_SOURCES)
   if (!existsSync(path)) return null
-  const sources = JSON.parse(readFileSync(path, 'utf8')) as BundleSources
+  const sources = readJson(path) as BundleSources
   const held = new Map<string, number>()
   for (const file of files)
     for (const [source, bytes] of Object.entries(sources[file] ?? {}))

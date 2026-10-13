@@ -9,9 +9,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'
-import { animationFrame, runOnDawn } from '../kit/onDawn.ts'
+import { runOnDawn } from '../kit/onDawn.ts'
+import { animationFrame } from '../kit/frame.ts'
 import { canvasImage } from '../kit/patternImage.ts'
-import { difference } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { settle } from '../world/proofWorld.ts'
 import { FACING, openFacingWorld } from './facingWorld.ts'
 
@@ -67,25 +68,33 @@ test('a held WebGPU frame shows the composed image unchanged, lit and unlit', as
         name,
         settled,
         values: values(complete.capture),
-        presented: difference(complete.canvas, complete.capture),
+        presented: compareImages(complete.canvas, complete.capture).differentPixels,
         held: held.map((frame) => [
           frame.frameHeld,
-          difference(frame.canvas, complete.canvas),
-          difference(frame.capture, complete.capture),
+          compareImages(frame.canvas, complete.canvas).differentPixels,
+          compareImages(frame.capture, complete.capture).differentPixels,
         ]),
       }),
     )
     assert.ok(settled, `${name}: the image never settled`)
     assert.ok(values(complete.capture) > 2, `${name}: the image holds too few values to prove it`)
     assert.equal(
-      difference(complete.canvas, complete.capture),
+      compareImages(complete.canvas, complete.capture).differentPixels,
       0,
       `${name}: the canvas does not hold the display image byte for byte`,
     )
     for (const [rank, frame] of held.entries()) {
       assert.ok(frame.frameHeld, `${name}: frame ${rank} after the settled one was not held`)
-      assert.equal(difference(frame.canvas, complete.canvas), 0, `${name}: held canvas ${rank}`)
-      assert.equal(difference(frame.capture, complete.capture), 0, `${name}: held capture ${rank}`)
+      assert.equal(
+        compareImages(frame.canvas, complete.canvas).differentPixels,
+        0,
+        `${name}: held canvas ${rank}`,
+      )
+      assert.equal(
+        compareImages(frame.capture, complete.capture).differentPixels,
+        0,
+        `${name}: held capture ${rank}`,
+      )
     }
   }
 })

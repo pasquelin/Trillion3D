@@ -1,6 +1,6 @@
 import { runtime } from './frame.fixture.ts'
-import { stillTurn, stochasticPhase } from './frameState.ts'
-import { convergeStillPhase, restartTaaOnSettle, taaArrivals } from './frame.ts'
+import { stochasticPhase } from './frameState.ts'
+import { convergeStillPhase, taaArrivals } from './frame.ts'
 import { restartTaaAverage, restartTaaOnLanding } from './landing.ts'
 import { taaStillFrames } from './jitter.ts'
 
@@ -12,15 +12,13 @@ export type Step =
   | 'tile'
   | 'view'
   | 'drop'
-  | 'refine'
-  | 'settled'
   | 'scene'
   | 'rest'
   | `scale ${number}`
   | `replay ${number}`
 
 /** Runs `steps` on a fresh runtime and records, after each image, what the still average is:
- *  [still count, jitter rank, history, stochastic phase, still turn, arrivals, sampled rank, and the
+ *  [still count, jitter rank, history, stochastic phase, arrivals, sampled rank, and the
  *  uniform's share, moving flag and stochastic slot]. Between-steps events record nothing. */
 export function runOracle(steps: Step[]) {
   const { rt, temporal, frame } = runtime()
@@ -59,7 +57,6 @@ export function runOracle(steps: Step[]) {
           state.sample,
           +state.hasHistory,
           stochasticPhase(state),
-          +stillTurn(state).toFixed(6),
           taaArrivals(rt),
           state.sampledRank,
           u ? +u[36].toFixed(6) : 'none',
@@ -76,8 +73,6 @@ export function runOracle(steps: Step[]) {
     else if (step === 'tile') restartTaaOnLanding(rt, 1)
     else if (step === 'view') (rt.run.gate as { temporalRevision: number }).temporalRevision++
     else if (step === 'drop') restartTaaAverage(state)
-    else if (step === 'refine') restartTaaOnSettle(rt, true)
-    else if (step === 'settled') restartTaaOnSettle(rt, false)
     else if (step === 'scene') rt.run.gate.revisions.scene++
     else if (step === 'rest') {
       while (state.stillFrames < taaStillFrames(state.phases) - 1) image(true, false, false)

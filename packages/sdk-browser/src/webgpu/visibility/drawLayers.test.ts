@@ -10,8 +10,7 @@ import {
   MAX_DRAW_SLOTS,
   slotCount,
 } from '../../gpu/draw/draw.ts'
-import { ROW_INDEX_WORDS } from '../row/pageRow.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createWebgpuVisState, type WebgpuVisState } from '../pages/state/vis.ts'
 import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
@@ -21,6 +20,7 @@ import { drawVis } from './drawer.ts'
 import { visUniformSlots } from './uniforms.ts'
 import { createWebgpuVisibilityShaders } from './shaders.ts'
 import { createWebgpuCoplanarLayerPipelines } from './pipelines.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 // Follow-up of `../pages/layersState.test.ts`: the per-image draw modules, where the coplanar-
 // layer lot was reapplied too. `../row/pageRowWriter.ts` stays covered by `../row/pageRowDepthBias.test.ts` and has
@@ -36,10 +36,9 @@ test("a row's coplanar layer goes into its record word, capped, and its triangle
       material,
     }) as unknown as PageRec
   // The two page-table rows carry the three indices each page draws.
-  const rowWords = PAGE_INFO_STRIDE / 4
-  const pageTableInts = new Uint32Array(2 * rowWords)
-  pageTableInts[ROW_INDEX_WORDS] = 3
-  pageTableInts[rowWords + ROW_INDEX_WORDS] = 9
+  const pageTableInts = new Uint32Array(2 * ROW_WORDS)
+  pageTableInts[PAGE_INFO.at.indexCount] = 3
+  pageTableInts[ROW_WORDS + PAGE_INFO.at.indexCount] = 9
   const layout = {
     rows: {
       packedCount: 2,
@@ -55,7 +54,7 @@ test("a row's coplanar layer goes into its record word, capped, and its triangle
     drawItemWords: new Uint32Array(2 * DRAW_ITEM_U32),
     selectionRoots: [{ world: new G.Matrix4() }],
     // Both rows draw a page of the one placement: their packed ranks name root 0.
-    placement: { baseOfRoot: Int32Array.of(0), rootOfPacked: Int32Array.of(0, 0) },
+    placement: { baseOfRoot: Int32Array.of(0), packedCount: 2 },
   }
   const rt = { layout, vis: { drawLayerSlots: 3 } } as unknown as WebgpuPagesRuntime
   const hold = refreshDrawItemWords(rt, rt.vis.drawLayerSlots - 1, undefined)
