@@ -5,6 +5,7 @@
 //! become binary views, accessors, and primitive citing them. What
 //! depends on format — how to obtain arrays — stays in driver.
 use super::*;
+use trillion3d_math::aabb::aabb_of_f32;
 
 /// Primitive vertices, deduplicated by driver. `positions` mandatory; empty array
 /// means attribute does not exist on primitive and is not written.
@@ -33,7 +34,8 @@ impl Vertices {
 /// `material` is material index, `None` when primitive has no material.
 ///
 /// `POSITION` bounds computed here from written positions as glTF requires: position
-/// accessor without `min`/`max` cannot be read by scene-culling engine.
+/// accessor without `min`/`max` cannot be read by scene-culling engine. Every caller writes a
+/// primitive of at least one triangle, so the box is never the empty one.
 pub(crate) fn primitive(
     vertices: &Vertices,
     bin: &mut Bin,
@@ -41,7 +43,7 @@ pub(crate) fn primitive(
     material: Option<usize>,
 ) -> Value {
     let count = vertices.count();
-    let (min, max) = bounds(&vertices.positions);
+    let (min, max) = aabb_of_f32(vertices.positions.as_chunks::<3>().0.iter().copied());
     let view = bin.view(&f32_bytes(&vertices.positions), Some(34962));
     accessors.push(
         json!({"bufferView":view,"componentType":5126,"count":count,"type":"VEC3","min":min,"max":max}),
@@ -80,7 +82,7 @@ pub(crate) fn primitive(
     }
     let mut targets = Vec::new();
     for (offsets, normals) in &vertices.targets {
-        let (min, max) = bounds(offsets);
+        let (min, max) = aabb_of_f32(offsets.as_chunks::<3>().0.iter().copied());
         let view = bin.view(&f32_bytes(offsets), Some(34962));
         accessors.push(json!({"bufferView":view,"componentType":5126,"count":count,"type":"VEC3","min":min,"max":max}));
         let mut target = json!({"POSITION": accessors.len() - 1});
@@ -105,14 +107,4 @@ pub(crate) fn primitive(
         primitive["material"] = json!(material);
     }
     primitive
-}
-
-/// Position array bounds, per axis.
-fn bounds(positions: &[f32]) -> ([f32; 3], [f32; 3]) {
-    let mut min = [f32::MAX; 3];
-    let mut max = [f32::MIN; 3];
-    for vertex in positions.as_chunks::<3>().0 {
-        trillion3d_math::aabb::extend_aabb_f32(&mut min, &mut max, *vertex);
-    }
-    (min, max)
 }
