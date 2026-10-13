@@ -8,7 +8,6 @@ import {
 } from '../../../sdk-core/src/index.ts'
 import { RAY_TRIANGLES, RAY_WORK } from './runtimeLayout.ts'
 import { rayTriangle } from '../../../math/src/geometry/rayTriangle.ts'
-import { slabCut } from '../../../math/src/geometry/slab.ts'
 
 /** The columns of the arena's cuts, one cut's after another. */
 export type ArenaColumns = {
@@ -32,10 +31,20 @@ export const missed = (limit: number): Hit => ({
   found: false,
 })
 
-/** `rayBoxEntry`: where the ray enters the box, or `limit + 1`. */
+/** `rayBoxEntry`: where the ray enters the box, or `limit + 1` — by the shipped kernel's own rule,
+ *  each plane distance times the direction's reciprocal clamped at 1e-20 (`rayInverseDirection`),
+ *  not the math slab's quotient (`slabCut`), whose roundings and zero axes visit other nodes. */
 export function boxEntry(low: Vec, high: Vec, o: Vec, d: Vec, limit: number) {
-  const span = new Float64Array([0, limit])
-  return slabCut(span, low, 0, high, 0, o, d) ? span[0] : limit + 1
+  let entry = 0,
+    exit = limit
+  for (let a = 0; a < 3; a++) {
+    const inverse = 1 / (Math.abs(d[a]) < 1e-20 ? 1e-20 : d[a])
+    const t0 = (low[a] - o[a]) * inverse,
+      t1 = (high[a] - o[a]) * inverse
+    entry = Math.max(entry, Math.min(t0, t1))
+    exit = Math.min(exit, Math.max(t0, t1))
+  }
+  return entry <= exit ? entry : limit + 1
 }
 
 /** `rayTriangleDistance` on the triangle whose nine floats start at `at` of `v`: the distance along
