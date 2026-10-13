@@ -13,6 +13,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import type { Vec } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { normalAtlasWgsl } from '../../visibility/shader/pageWgsl.ts'
 import { GUARANTEED_SIDE } from '../../gpu/core/textureLimits.ts'
+import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { createVertexPool } from './geometryPool.ts'
 import { poolFits, poolFloats } from './geometryPoolLayout.ts'
 import { createFloatAtlas, type FloatAtlas } from './floatAtlas.ts'
@@ -97,7 +98,10 @@ test('a growth writes every placed normal again into the wider atlas, and frees 
   const after = pool.normalAtlas
   assert.notEqual(after.texture, before.texture, 'a new atlas')
   for (const block of [first, second]) assertNormals(gpu, after, block.vertexBase)
-  assert.ok(gpu.destroyed.includes(before.texture as never), 'the narrower atlas freed')
+  const freed = () => gpu.destroyed.includes(before.texture as never)
+  assert.ok(!freed(), 'the narrower atlas lives while this frame may still name it')
+  destroyRetired(gpu.device)
+  assert.ok(freed(), "the narrower atlas freed after the frame's submit")
 })
 
 test('the normal atlas weighs the bytes the normal buffer did: the budgets it funds see no change', () => {
