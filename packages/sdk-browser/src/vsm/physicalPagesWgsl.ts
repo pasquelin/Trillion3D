@@ -8,15 +8,14 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
  * dispatcher (`perPageDispatch.ts`) for the per-page kernels.
  *
  * Invariants of the kernels (WebGPU has no wave operations and at most 256 threads per group):
- * - The page list push, pop and page-to-process emit use one atomicAdd per thread. The set of
- *   entries pushed is the same whatever the thread order; only their order within a list varies.
- * - The available-pages compaction is one group of 256 looping over the list with a
- *   shared-memory exclusive prefix sum: an ordered compaction, so its output order is the input's.
+ * - The free pages are the pool sort's queue (`freePagesWgsl.ts`), in the pool rank's order: the
+ *   grant's pop and the page-to-process emit use one atomic per thread, so the pages a grant takes
+ *   are the queue's head whatever the thread order; only which request takes which varies.
  * - The indirect args of the 16-tiles-per-page kernels are (16, pages, 1), not (16·pages, 1, 1), so
  *   2·PoolPages·16 groups never exceed maxComputeWorkgroupsPerDimension (65535). The kernel
  *   rebuilds the 1D group index as wid.y·16 + wid.x: the same tiles, the same pixels.
  * - Stats only when the module is built with `stats: true` (the stats permutation): one more storage
- *   buffer, the eighth of the pool sort and of the page grant (its dispatcher's ids included).
+ *   buffer, the eighth of the page grant (its dispatcher's ids included).
  */
 import {
   VSM_CONSTANTS_WGSL,
@@ -32,6 +31,8 @@ import { VSM_PROJECTION_DATA_READ_WGSL } from './projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import { vsmPerPageDispatchWgsl } from './perPageDispatch.ts'
 import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
+import { VSM_FREE_PAGES_WGSL, VSM_POOL_SORT_WGSL } from './freePagesWgsl.ts'
+import { POOL_SORT_STAGES } from '../gpu/pool/sort.ts'
 import type { VsmLayout } from './layout.ts'
 import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
@@ -100,17 +101,17 @@ function vsmPmModule(
   )
 }
 
-/** Kernel `label`: its entry point `vsm${label}`, its group-0 `specs` and the module of `body`
- *  (`vsmPmModule`), dispatched per page when `options.perPage`. */
+/** Kernel `label`: its entry point (`vsm${label}` unless `options.entryPoint`), its group-0 `specs`
+ *  and the module of `body` (`vsmPmModule`), dispatched per page when `options.perPage`. */
 export const vsmPmKernel = (
   layout: VsmLayout,
   label: string,
   specs: VsmBindingSpec[],
   body: WgslDecl,
-  options: { perPage?: boolean; stats?: boolean } = {},
+  options: { perPage?: boolean; stats?: boolean; entryPoint?: string } = {},
 ): VsmPmKernel => ({
   label,
-  entryPoint: `vsm${label}`,
+  entryPoint: options.entryPoint ?? `vsm${label}`,
   specs,
   perPage: !!options.perPage,
   code: vsmPmModule(layout, specs, body, options),
@@ -136,57 +137,6 @@ ${wgslConsts({
   VSM_COUNT_CLEARED,
   VSM_COUNT_GRANTED,
 })}
-`,
-)
-
-/** List access over an atomic `vsmPoolLists` binding. */
-const LISTS_WGSL = wgslBlock(
-  'LISTS_WGSL',
-  [],
-  `
-fn pmListStart(list:u32)->u32{return list*(vsm.poolPages+1u);}
-fn pmListItem(list:u32,index:u32)->i32{return atomicLoad(&vsmPoolLists[pmListStart(list)+index]);}
-fn pmSetListItem(list:u32,index:u32,value:i32){atomicStore(&vsmPoolLists[pmListStart(list)+index],value);}
-fn pmListCount(list:u32)->i32{return atomicLoad(&vsmPoolLists[pmListStart(list)+vsm.poolPages]);}
-fn pmSetListCount(list:u32,count:i32){atomicStore(&vsmPoolLists[pmListStart(list)+vsm.poolPages],count);}
-/** Push onto a physical page list: guarded against overflowing into the counter / next list. */
-fn pmPush(list:u32,poolIndex:i32)->bool{
- let start=pmListStart(list);
- let offset=atomicAdd(&vsmPoolLists[start+vsm.poolPages],1i);
- if(offset<i32(vsm.poolPages)){
-  atomicStore(&vsmPoolLists[start+u32(offset)],poolIndex);
-  return true;
- }
- return false;
-}
-/** Single-group kernels' lanes, looping over a list. */
-const PM_PACK_THREADS:u32=256u;
-/**
- * Appends list \`inputList\` to \`outputList\`, which holds \`outputCount\` items, by the
- * \`PM_PACK_THREADS\` lanes of one group: order kept, robust to pool overflow, then the output's count
- * raised and the input's cleared — once every lane read the input's count. Reached in uniform flow.
- */
-fn pmAppendList(inputList:u32,outputList:u32,outputCount:i32,lane:u32){
- let inputCount=pmListCount(inputList);
- let copyCount=max(0i,min(inputCount,i32(vsm.poolPages)-outputCount));
- // A uniform loop, so that the barrier after it is reached in uniform flow.
- for(var first=0u;first<vsm.poolPages;first+=PM_PACK_THREADS){
-  let t=i32(first+lane);
-  if(t<copyCount){pmSetListItem(outputList,u32(outputCount+t),pmListItem(inputList,u32(t)));}
- }
- storageBarrier();
- if(lane==0u){
-  pmSetListCount(outputList,outputCount+copyCount);
-  pmSetListCount(inputList,0i);
- }
-}
-/** Pop from a physical page list: < 0 if none available. The counter may go negative; the empty check reads it as an empty list. */
-fn pmPop(list:u32)->i32{
- let start=pmListStart(list);
- let offset=atomicAdd(&vsmPoolLists[start+vsm.poolPages],-1i)-1i;
- if(offset<0i){return -1i;}
- return atomicLoad(&vsmPoolLists[start+u32(offset)]);
-}
 `,
 )
 
@@ -248,28 +198,26 @@ fn vsmCarryPages(@builtin(global_invocation_id) index:vec3u){
   return vsmPmKernel(layout, 'CarryPages', specs, body)
 }
 
-/** Sorts the pool: each page in last frame's age order is kept, aged out or emptied, and the
- *  lists are filled. */
-function sortPool(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
+/** The keep rule, a thread a pool page: a page this frame wants keeps its words and is stamped
+ *  wanted now; one unwanted for `VSM_PAGE_KEEP_FRAMES`, its light seen, is emptied; any other
+ *  keeps its cached words. The free pages' order is the pool sort's (`freePagesWgsl.ts`). */
+function keepPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
   const specs = withStats(
     [
       { resource: 'uniforms', binding: 0 },
       { resource: 'poolPageInfo', binding: 1, access: 'read_write' },
-      { resource: 'poolLists', binding: 2, access: 'atomic' },
-      { resource: 'poolLists', binding: 3, prev: true },
-      { resource: 'pageRequests', binding: 4 },
-      { resource: 'pageTable', binding: 5, access: 'read_write' },
-      { resource: 'pageMarks', binding: 6, access: 'read_write' },
-      { resource: 'projectionData', binding: 7 },
+      { resource: 'pageRequests', binding: 2 },
+      { resource: 'pageTable', binding: 3, access: 'read_write' },
+      { resource: 'pageMarks', binding: 4, access: 'read_write' },
+      { resource: 'projectionData', binding: 5 },
     ],
     o.stats,
-    8,
+    6,
   )
   const body = wgslBlock(
-    'sortPool',
+    'keepPages',
     [
       STAT_WGSL,
-      LISTS_WGSL,
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
@@ -279,16 +227,11 @@ function sortPool(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
 /** Frames a page unrequested since stays kept (\`VSM_PAGE_KEEP_FRAMES\`). */
 const PM_PAGE_KEEP_FRAMES:i32=${VSM_PAGE_KEEP_FRAMES}i;
 @compute @workgroup_size(VSM_GROUP_WIDTH)
-fn vsmSortPool(@builtin(global_invocation_id) index:vec3u){
+fn vsmKeepPages(@builtin(global_invocation_id) index:vec3u){
  if(index.x>=vsm.poolPages){return;}
- // The page's rank in the age order.
- let byAgeIndex=index.x;
- var leftList=false;
- var poolIndex=byAgeIndex;
+ let poolIndex=index.x;
  var nextMeta=0u;
  if(vsmPm.hasPrevFrame!=0u){
-  // Last frame's requested list, the free pages after it (\`vsmPoolFeedback\`): the age order.
-  poolIndex=u32(vsmPrevPoolLists[pmListStart(VSM_PAGES_REQUESTED)+byAgeIndex]);
   let prevInfo=vsmPoolPageInfo[poolIndex];
   let mipLevel=prevInfo.mipLevel;
   if(prevInfo.flags!=0u){
@@ -333,11 +276,9 @@ fn vsmSortPool(@builtin(global_invocation_id) index:vec3u){
        nextMarks|=VSM_PAGE_DYNAMIC_STALE;
       }
      }
-     // Requested: the page leaves the age order for the requested list.
+     // Requested: stamped wanted now, the page is in use (\`poolInUse\`).
      vsmCount(VSM_COUNT_WANTED);
-     pmPush(VSM_PAGES_REQUESTED,i32(poolIndex));
      vsmPoolPageInfo[poolIndex].lastWantedStamp=vsm.frameStamp;
-     leftList=true;
      // A page asked fine where it was held coarse, or the reverse, is drawn again whole.
      if(requestFine!=(prevMeta&VSM_PAGE_FINE)){
       nextMarks|=VSM_PAGE_STATIC_STALE|VSM_PAGE_DYNAMIC_STALE;
@@ -357,67 +298,29 @@ fn vsmSortPool(@builtin(global_invocation_id) index:vec3u){
    }
   }
  }
- // A page left with no word goes to the empty list, appended after the free ones once packed.
- if(nextMeta==0u){
-  pmPush(VSM_PAGES_EMPTY,i32(poolIndex));
-  leftList=true;
- }
+ // A page left with no word is empty: the pool sort lists it first.
  vsmPoolPageInfo[poolIndex].flags=nextMeta;
- // The age order keeps its ranks; a page that left it reads -1.
- pmSetListItem(VSM_PAGES_BY_AGE,byAgeIndex,select(i32(poolIndex),-1i,leftList));
 }
 `,
   )
-  return vsmPmKernel(layout, 'SortPool', specs, body, { stats: !!o.stats })
+  return vsmPmKernel(layout, 'KeepPages', specs, body, { stats: !!o.stats })
 }
 
-/** Compacts the available pages, then appends the empty ones after them: allocated before the pages
- *  holding cached data (single group, uniform loop). */
-function packFreePages(layout: VsmLayout): VsmPmKernel {
+/** The pool sort's three stages over the shadow pool (`freePagesWgsl.ts`), one module: the free
+ *  pages in the pool rank's order, after the keep rule. */
+function poolSort(layout: VsmLayout) {
   const specs: VsmBindingSpec[] = [
     { resource: 'uniforms', binding: 0 },
-    { resource: 'poolLists', binding: 1, access: 'atomic' },
+    { resource: 'poolPageInfo', binding: 1 },
+    { resource: 'projectionData', binding: 2 },
+    { resource: 'freePages', binding: 3, access: 'atomic' },
   ]
-  const body = wgslBlock(
-    'packFreePages',
-    [LISTS_WGSL, VSM_CONSTANTS_WGSL],
-    `
-var<workgroup> pmScan:array<i32,PM_PACK_THREADS>;
-@compute @workgroup_size(PM_PACK_THREADS)
-fn vsmPackFreePages(@builtin(local_invocation_index) groupIndex:u32){
- var totalCount=0i;
- let maxPages=i32(vsm.poolPages);
- // Uniform loop: every thread runs every iteration (barriers inside).
- for(var groupStart=0i;groupStart<maxPages;groupStart+=i32(PM_PACK_THREADS)){
-  let listIndex=groupStart+i32(groupIndex);
-  var poolIndex=-1i;
-  if(listIndex<maxPages){poolIndex=pmListItem(VSM_PAGES_BY_AGE,u32(listIndex));}
-  let listItemValid=poolIndex!=-1i;
-  let sumValue=select(0i,1i,listItemValid);
-  // Group prefix sum: inclusive Hillis-Steele scan, exclusive offset, group total.
-  pmScan[groupIndex]=sumValue;
-  workgroupBarrier();
-  for(var stride=1u;stride<PM_PACK_THREADS;stride<<=1u){
-   var v=0i;
-   if(groupIndex>=stride){v=pmScan[groupIndex-stride];}
-   workgroupBarrier();
-   pmScan[groupIndex]+=v;
-   workgroupBarrier();
-  }
-  let offset=pmScan[groupIndex]-sumValue;
-  let groupCount=workgroupUniformLoad(&pmScan[PM_PACK_THREADS-1u]);
-  if(listItemValid){
-   pmSetListItem(VSM_PAGES_FREE,u32(totalCount+offset),poolIndex);
-  }
-  totalCount+=groupCount;
-  workgroupBarrier();
- }
- // The compacted list's count is every lane's \`totalCount\`: the empty pages go after it.
- pmAppendList(VSM_PAGES_EMPTY,VSM_PAGES_FREE,totalCount,groupIndex);
-}
-`,
-  )
-  return vsmPmKernel(layout, 'PackFreePages', specs, body)
+  return Object.fromEntries(
+    POOL_SORT_STAGES.map((entryPoint) => [
+      entryPoint,
+      vsmPmKernel(layout, entryPoint, specs, VSM_POOL_SORT_WGSL, { entryPoint }),
+    ]),
+  ) as Record<(typeof POOL_SORT_STAGES)[number], VsmPmKernel>
 }
 
 /** Maps the newly requested pages onto available physical pages, driven by the per-page dispatcher. */
@@ -426,7 +329,7 @@ function grantPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
     [
       { resource: 'uniforms', binding: 0 },
       { resource: 'poolPageInfo', binding: 1, access: 'read_write' },
-      { resource: 'poolLists', binding: 2, access: 'atomic' },
+      { resource: 'freePages', binding: 2, access: 'atomic' },
       { resource: 'pageRequests', binding: 3 },
       { resource: 'pageTable', binding: 4, access: 'read_write' },
       { resource: 'pageMarks', binding: 5, access: 'read_write' },
@@ -439,7 +342,7 @@ function grantPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
     'grantPages',
     [
       STAT_WGSL,
-      LISTS_WGSL,
+      VSM_FREE_PAGES_WGSL,
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
@@ -456,13 +359,13 @@ fn pmGrantPage(handle:VsmHandle,entryAt:VsmTableCell,mipLevel:u32,pageAddress:ve
  let pageMarks=vsmPageMarksLoad(flagsIndex)&VSM_PAGE_MARK_MASK;
  if(pageMarks!=0u){return;}
  vsmCount(VSM_COUNT_WANTED);
- let poolIndex=pmPop(VSM_PAGES_FREE);
+ // The pool sort's head: an empty page first, then the one wanted longest ago.
+ let poolIndex=pmPop();
  if(poolIndex<0i){
   // No free page: the request stays unmapped.
   return;
  }
  vsmCount(VSM_COUNT_GRANTED);
- pmPush(VSM_PAGES_REQUESTED,poolIndex);
  let poolSlot=u32(poolIndex);
  let poolPageXY=vsmPoolPageOf(poolSlot);
  // The map that held this pool page loses its entry first.
@@ -633,28 +536,22 @@ fn vsmClearPages(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(workg
 function poolFeedback(layout: VsmLayout): VsmPmKernel {
   const specs: VsmBindingSpec[] = [
     { resource: 'uniforms', binding: 0 },
-    { resource: 'poolLists', binding: 1, access: 'atomic' },
+    { resource: 'freePages', binding: 1, access: 'atomic' },
     { resource: 'feedback', binding: 2, access: 'read_write' },
   ]
   const body = wgslBlock(
     'poolFeedback',
-    [LISTS_WGSL, VSM_CONSTANTS_WGSL],
+    [VSM_FREE_PAGES_WGSL, VSM_CONSTANTS_WGSL],
     `
-@compute @workgroup_size(PM_PACK_THREADS)
-fn vsmPoolFeedback(@builtin(local_invocation_index) lane:u32){
- if(lane==0u){
-  vsmFeedbackStore(0u,0u);
-  // Pages still available.
-  vsmFeedbackStore(1u,bitcast<u32>(pmListCount(VSM_PAGES_FREE)));
-  // This frame's pressure bias.
-  vsmFeedbackStore(2u,bitcast<u32>(vsm.pressureBias));
-  // Frame tag of the message.
-  vsmFeedbackStore(3u,vsm.frameStamp);
- }
- // Then the pages still available go after the requested ones for next frame: every lane reads
- // the counts before the append clears the available one (\`pmAppendList\`'s barrier).
- let requested=pmListCount(VSM_PAGES_REQUESTED);
- pmAppendList(VSM_PAGES_FREE,VSM_PAGES_REQUESTED,requested,lane);
+@compute @workgroup_size(1)
+fn vsmPoolFeedback(){
+ vsmFeedbackStore(0u,0u);
+ // Pages still available.
+ vsmFeedbackStore(1u,bitcast<u32>(pmFreeCount()));
+ // This frame's pressure bias.
+ vsmFeedbackStore(2u,bitcast<u32>(vsm.pressureBias));
+ // Frame tag of the message.
+ vsmFeedbackStore(3u,vsm.frameStamp);
 }
 `,
   )
@@ -815,8 +712,8 @@ fn vsmMergeStatic(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(work
 export function vsmPhysicalPageKernels(layout: VsmLayout, options: VsmPmKernelOptions = {}) {
   return {
     carryPages: carryPages(layout),
-    sortPool: sortPool(layout, options),
-    packFreePages: packFreePages(layout),
+    keepPages: keepPages(layout, options),
+    ...poolSort(layout),
     grantPages: grantPages(layout, options),
     listClears: listClears(layout, options),
     clearPages: clearPages(layout),

@@ -13,7 +13,7 @@
  * replay `frame.perPageBins`, built and uploaded by the page marking (`markingPass.ts`).
  *
  * Not here (other steps): the clears of the page marking (page table / flags / request flags,
- * page rect bounds which also resets the list counters, raster marks, stats), the next-map data
+ * page rect bounds, raster marks, stats), the next-map data
  * upload, the CPU side of the feedback, the depth pyramid itself.
  */
 import { VSM_GROUP_WIDTH } from './constants.ts'
@@ -40,6 +40,8 @@ import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../residency/
 import { writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import type { VsmLayout } from './layout.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
+import { encodePoolSort, type PoolSortPipelines } from '../gpu/pool/sort.ts'
+import { groupWidth } from '../gpu/dispatch/grid.ts'
 
 /** Options of the page management passes. */
 interface VsmPageManagementOptions {
@@ -82,6 +84,8 @@ export interface VsmPageManagementContext {
   device: GPUDevice
   stats: boolean
   pipes: Record<KernelName, Pipe>
+  /** The pool sort's pipelines among `pipes`, its stages' group 0 bound as `poolCount`'s. */
+  poolSort: PoolSortPipelines
   params: GPUBuffer
   /** The slots of `params`: their stride, offsets and words. */
   slots: UniformSlots
@@ -189,6 +193,18 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): VsmPageManag
     device,
     stats,
     pipes,
+    // Read where bound, as every pipe's: the pipeline compiled by then (`VsmComputePipe`).
+    poolSort: {
+      get count() {
+        return pipes.poolCount.pipe.pipeline
+      },
+      get place() {
+        return pipes.poolPlace.pipe.pipeline
+      },
+      get scatter() {
+        return pipes.poolScatter.pipe.pipeline
+      },
+    },
     params,
     slots,
     paramsU32: new Uint32Array(slots.bytes / 4),
@@ -289,9 +305,10 @@ export function encodeVsmPageCarry(
 }
 
 /**
- * Builds the page allocations of the frame. A page marked and not held takes an empty physical page
- * first, then the one wanted least recently among those holding cached data; a page this frame's
- * marking asked for keeps its physical page and is never taken.
+ * Builds the page allocations of the frame. A page marked and not held takes the free page the pool
+ * rank puts first (`freePagesWgsl.ts`): an empty page, then the one wanted longest ago, the finer
+ * level first within an age step; a page this frame's marking asked for keeps its physical page and
+ * is never taken.
  */
 export function encodeVsmPageMapping(
   encoder: GPUCommandEncoder,
@@ -309,17 +326,17 @@ export function encodeVsmPageMapping(
 
   const pass = encoder.beginComputePass({ label: `${VSM_PASS_PREFIX}pageMapping` })
   // Update cached or newly invalidated pages against the new requests.
-  run(ctx, res, pass, 'sortPool', SLOT_MAIN, maxGroups)
-  // The available pages compacted, the newly empty ones at their end: allocated before the pages
-  // holding cached data.
-  run(ctx, res, pass, 'packFreePages', SLOT_MAIN, 1)
+  run(ctx, res, pass, 'keepPages', SLOT_MAIN, maxGroups)
+  // The free pages in the pool rank's order: the stages share `poolCount`'s group 0.
+  bind(ctx, res, pass, 'poolCount', SLOT_MAIN)
+  encodePoolSort(pass, ctx.poolSort, res.layout.poolPages, groupWidth(ctx.device.limits))
   runPerPage(ctx, res, pass, 'grantPages')
   run(ctx, res, pass, 'pageFlagPyramid', SLOT_MAIN, maxGroups)
   if (frame.fullMapCount > 0) runPerPage(ctx, res, pass, 'fillCoarserFallbacks')
   run(ctx, res, pass, 'listClears', SLOT_MAIN, maxGroups)
   bind(ctx, res, pass, 'clearPages', SLOT_MAIN)
   pass.dispatchWorkgroupsIndirect(res.clearArgs, 0)
-  // The feedback, then the remaining available pages back into the sorted list for next frame.
+  // The feedback: the free pages left.
   run(ctx, res, pass, 'poolFeedback', SLOT_MAIN, 1)
   pass.end()
 }

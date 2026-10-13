@@ -33,14 +33,7 @@ import { MIB } from '../../../math/src/constants.ts'
 /** Directional maps a sun takes: its clipmap levels (`encodeVsm.ts`). */
 const LEVELS = 17
 const SHARED = ['pageTable', 'receiverCover', 'staleRects'] as const
-const DOUBLED = [
-  'uniforms',
-  'pageMarks',
-  'pageRequests',
-  'mappedRects',
-  'projectionData',
-  'poolLists',
-] as const
+const DOUBLED = ['uniforms', 'pageMarks', 'pageRequests', 'mappedRects', 'projectionData'] as const
 
 /** A recording device whose storage bindings hold `binding` bytes. */
 const deviceFor = (binding = 128 * MIB) =>

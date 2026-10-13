@@ -52,7 +52,6 @@ export interface VsmFrameBuffers {
   staleRects: GPUBuffer
   mappedRects: GPUBuffer
   projectionData: GPUBuffer
-  poolLists: GPUBuffer
 }
 
 export interface VsmResources {
@@ -87,6 +86,9 @@ export interface VsmResources {
   clearArgs: GPUBuffer
   mergeArgs: GPUBuffer
   tileArgs: GPUBuffer
+  /** The pool sort's `POOL_SORT_WORDS` counts and places, zero at creation, then the count of
+   *  free pages and the pages, the next one to take last (`freePagesWgsl.ts`). */
+  freePages: GPUBuffer
   /** Whether the cache data is available: prev buffers hold a frame extracted with caching on
    *  (`keepVsmFrame`). */
   prevFrameKept: boolean
@@ -208,6 +210,7 @@ export function createVsmResources(device: GPUDevice, options: VsmResourceOption
     clearArgs: buffer('clearArgs', once.clearArgs, indirect),
     mergeArgs: buffer('mergeArgs', once.mergeArgs, indirect),
     tileArgs: buffer('tileArgs', once.tileArgs, indirect),
+    freePages: buffer('freePages', once.freePages),
     prevFrameKept: false,
     swapFrames() {
       const c = res.current
@@ -230,7 +233,6 @@ const CARRIED_MEMBERS = [
   'pageRequests',
   'mappedRects',
   'projectionData',
-  'poolLists',
 ] as const
 
 /**
@@ -294,7 +296,7 @@ type VsmBindingResource =
   | 'staleRects'
   | 'mappedRects'
   | 'projectionData'
-  | 'poolLists'
+  | 'freePages'
   | 'poolPageInfo'
   | 'rasterMarks'
   | 'nextMaps'
@@ -332,7 +334,6 @@ const FRAME_RESOURCES = new Set<VsmBindingResource>([
   'staleRects',
   'mappedRects',
   'projectionData',
-  'poolLists',
 ])
 
 /** Resources read through `<name>Load(index)` (2D tables and flat u32 arrays). */
@@ -365,8 +366,6 @@ function varName(spec: VsmBindingSpec) {
 
 function elementType(resource: VsmBindingResource, atomic: boolean) {
   switch (resource) {
-    case 'poolLists':
-      return atomic ? 'atomic<i32>' : 'i32'
     case 'staleRects':
     case 'mappedRects':
       // Atomic users address .x/.y/.z/.w as 4·rect + component (atomic min / max).
