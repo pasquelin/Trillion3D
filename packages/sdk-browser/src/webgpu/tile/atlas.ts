@@ -1,8 +1,8 @@
 import { entryLevel } from '../../texture/tiles.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { createWebgpuTilePageTable } from './pageTable.ts'
-import { writeTailFromBytes } from './write.ts'
-import { writeTailFromBlocks } from './writeBlocks.ts'
+import { writeRgbaLevel, writeTail } from './write.ts'
+import { writeBlocksLevel } from './writeBlocks.ts'
 import type { LaneCounts, PoolEncoding } from '../../texture/blockFormats.ts'
 import { createTileLanes, type Lane } from './lanes.ts'
 import { tailId, tileId } from './ids.ts'
@@ -74,13 +74,14 @@ export function createWebgpuTileAtlas(
       const place = pool.placeOf(index)
       if (source.kind === 'host') fromHost(slot, place)
       else
-        (lane === 'lossless' ? writeTailFromBytes : writeTailFromBlocks)(
+        writeTail(
           queue,
           pool.texture,
           place,
           [layout.width, layout.height],
           layout.tail,
           encoding.tailOf(source.tail, lane),
+          lane === 'lossless' ? writeRgbaLevel : writeBlocksLevel,
         )
       pages.setTail(slot, place, encoding.tapOf(lane))
     }
