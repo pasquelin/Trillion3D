@@ -29,7 +29,7 @@ function run(
   seconds: number,
   gpu: (k: number) => number,
   at: At = { refresh: 0, free: 0 },
-  options: { period?: number; busy?: (k: number) => boolean } = {},
+  options: { period?: number; busy?: (k: number) => boolean; whole?: boolean } = {},
 ) {
   const period = options.period ?? HZ120,
     shown: number[] = [],
@@ -47,7 +47,7 @@ function run(
     shown.push(Math.ceil(at.free / period - 1e-9) * period)
     control.drew(1, false, false)
     late.push(cost)
-    if (late.length > LAG) control.observe(late.shift()!, 1, false)
+    if (late.length > LAG) control.observe(late.shift()!, 1, false, options.whole ?? true)
   }
   at.refresh = end
   return { shown, divisors, at }
@@ -125,4 +125,22 @@ test('the slowest cadence is 60 a second: a 60 Hz display is never divided', () 
   const r = run(control, 3, () => 20, undefined, { period: HZ60 })
   assert.ok(r.divisors.every((d) => d === 1))
   assert.ok(intervals(r.shown, HZ60).includes(2), 'the 20 ms frames do miss')
+})
+
+test('a GPU time read as a lower bound slows the cadence as a whole one does, and never speeds it up', () => {
+  // Every image's span a lower bound (a pass's pair unread): at 9.7 ms the GPU still misses.
+  const control = createScaleControl(undefined)
+  let r = run(control, 1, () => 9.7, undefined, { whole: false })
+  assert.equal(control.cadence, 2, 'slowed on lower bounds')
+  r = run(control, 2, () => 9.7, r.at, { whole: false })
+  assert.deepEqual(new Set(intervals(r.shown)), new Set([2]), 'steady on them')
+  // Light images, their spans lower bounds still: they prove no room, the cadence stays.
+  r = run(control, 4, () => 3, r.at, { whole: false })
+  assert.ok(
+    r.divisors.every((d) => d === 2),
+    'no rise on lower bounds',
+  )
+  // The same light images timed whole: back to every refresh.
+  r = run(control, 4, () => 3, r.at)
+  assert.equal(control.cadence, 1, 'risen on whole times')
 })
