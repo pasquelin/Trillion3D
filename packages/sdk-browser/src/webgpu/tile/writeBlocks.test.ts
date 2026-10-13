@@ -5,19 +5,12 @@ import { writeBlocksLevel, writeTileFromBlocks } from './writeBlocks.ts'
 import { writeTail } from './write.ts'
 import { tileRegion } from './write.ts'
 import { tailOffset, TILE_BORDER, TILE_PITCH } from '../../texture/tiles.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
-type Write = { origin: GPUOrigin3D; layout: GPUTexelCopyBufferLayout; size: GPUExtent3D }
+/** The device's queue (`fakeDevice`) and its texture writes. */
 function fakeQueue() {
-  const writes: Write[] = []
-  const queue = {
-    writeTexture: (
-      destination: { origin?: GPUOrigin3D },
-      _data: unknown,
-      layout: GPUTexelCopyBufferLayout,
-      size: GPUExtent3D,
-    ) => writes.push({ origin: destination.origin!, layout, size }),
-  } as unknown as GPUQueue
-  return { queue, writes }
+  const { device, textureWrites } = fakeDevice()
+  return { queue: device.queue, writes: textureWrites }
 }
 const pool = {} as GPUTexture
 const level = (width: number, height: number) =>
@@ -32,7 +25,7 @@ test('a tile region is written in whole blocks, from its record', () => {
   assert.deepEqual([region.sx, region.width, region.dx], [124, 6, 0])
   writeTileFromBlocks(queue, pool, { x: 2, y: 1, layer: 3 }, level(6, 132), region)
   assert.equal(writes.length, 1)
-  assert.deepEqual(writes[0].origin, [2 * TILE_PITCH, TILE_PITCH + region.dy, 3])
+  assert.deepEqual(writes[0].destination.origin, [2 * TILE_PITCH, TILE_PITCH + region.dy, 3])
   assert.deepEqual(writes[0].size, { width: 8, height: 132 })
   assert.deepEqual(writes[0].layout, { offset: 0, bytesPerRow: 2 * 16, rowsPerImage: 33 })
 })
@@ -45,7 +38,7 @@ test('tail levels are written block by block at their aligned offsets', () => {
   const tail = [64, 32, 16, 8, 4, 2, 1].map((side) => level(side, side))
   writeTail(queue, pool, place, [64, 64], 0, tail, writeBlocksLevel)
   assert.deepEqual(
-    writes.map((w) => (w.origin as number[])[0]),
+    writes.map((w) => (w.destination.origin as number[])[0]),
     [0, 1, 2, 3, 4, 5, 6].map((rank) => TILE_BORDER + tailOffset(rank)),
   )
   assert.deepEqual(writes[6].size, { width: 4, height: 4 })

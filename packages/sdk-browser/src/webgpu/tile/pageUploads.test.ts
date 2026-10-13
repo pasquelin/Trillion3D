@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { entryLevel, packEntry, tileLayout, tilesAt, type TileLayout } from '../../texture/tiles.ts'
 import { createWebgpuTilePageTable, type TileKey } from './pageTable.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -65,26 +65,20 @@ function oracle(words: Uint32Array, layouts: TileLayout[]) {
   return edits
 }
 
-/** A device whose buffer is a copy the flushes write into, and the writes each flush made. */
+/** A device whose last buffer is the table the flushes write into (`fakeDevice`), and the writes
+ *  each flush made. */
 function shadowDevice() {
-  installGpuGlobals()
-  let shadow = new Uint32Array(0),
-    writes = 0
-  const queue = {
-    writeBuffer(_: unknown, offset: number, data: Uint32Array, from = 0, size?: number) {
-      const words = data.subarray(from, size === undefined ? undefined : from + size)
-      shadow.set(words, offset / 4)
-      writes++
-    },
+  const gpu = fakeDevice()
+  const shadow = () => {
+    const { data } = gpu.buffers[gpu.buffers.length - 1]
+    return new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4)
   }
-  const device = {
-    queue,
-    createBuffer: ({ size }: { size: number }) => {
-      shadow = new Uint32Array(size / 4)
-      return { destroy() {} }
-    },
-  } as unknown as GPUDevice
-  return { device, shadow: () => shadow, writes: () => writes, reset: () => (writes = 0) }
+  return {
+    device: gpu.device,
+    shadow,
+    writes: () => gpu.writes.length,
+    reset: () => void (gpu.writes.length = 0),
+  }
 }
 
 // The capped descent prunes a subtree already served at the tile's level or finer. The

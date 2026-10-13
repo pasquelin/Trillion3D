@@ -6,23 +6,30 @@ import assert from 'node:assert/strict'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 import type { HeldImage } from './radiance.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
+import { fakeDevice, type FakeBuffer } from '../../../../tests/kit/gpu/fakeDevice.ts'
 
 /** A device whose queue lays each write into the words of one view uniform: what the buffer holds
  *  after each call, and the writes it took. */
 function viewDevice() {
-  const words = new Float32Array(REFLECTION_VIEW_WORDS + 16),
-    bits = new Uint32Array(words.buffer)
-  const held = { words, bits, writes: 0, last: 0 }
-  const device = {
-    queue: {
-      writeBuffer: (_: unknown, at: number, w: Uint32Array, from: number, count: number) => {
-        bits.set(w.subarray(from, from + count), at / 4)
-        held.writes++
-        held.last = Math.max(held.last, at / 4 + count)
-      },
+  const gpu = fakeDevice()
+  const buffer = gpu.device.createBuffer({
+    size: (REFLECTION_VIEW_WORDS + 16) * 4,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
+  const { data } = buffer as unknown as FakeBuffer
+  const words = new Float32Array(data.buffer, data.byteOffset, REFLECTION_VIEW_WORDS + 16)
+  const held = {
+    words,
+    bits: new Uint32Array(words.buffer, words.byteOffset, words.length),
+    get writes() {
+      return gpu.writes.length
     },
-  } as unknown as GPUDevice
-  return { device, buffer: { size: words.byteLength } as GPUBuffer, held }
+    /** The word past the last one written. */
+    get last() {
+      return Math.max(0, ...gpu.writes.map((w) => (w.offset + w.data.byteLength) / 4))
+    },
+  }
+  return { device: gpu.device, buffer, held }
 }
 
 test('the view uniform carries the pixel scale, the held image, the slab and whether the screen traces', () => {

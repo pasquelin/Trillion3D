@@ -8,6 +8,7 @@ import { dagFlagsWords } from './shader/lastUseWgsl.ts'
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { flagCuts, flagSectionStart, splitTable } from './splitFlags.ts'
 import { FLAG_SECTIONS } from './flagSections.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 test('a table splits in parts of as many whole elements as one binding holds', () => {
   assert.deepEqual(splitTable(10, 48, 4096), { per: 10, parts: 1 }, 'whole: one part')
@@ -45,17 +46,20 @@ test('flags cut between whole sections, each part within the binding, all words 
 })
 
 test('a host write spanning two parts lands in each at its own offset', () => {
-  const writes: [string, number, number, number][] = []
-  const device = {
-    queue: {
-      writeBuffer: (b: { name: string }, at: number, _d: unknown, from: number, size: number) =>
-        writes.push([b.name, at, from, size]),
-    },
-  } as unknown as GPUDevice
-  const buffers = [{ name: 'a' }, { name: 'b' }] as unknown as GPUBuffer[]
+  const { device, writes } = fakeDevice()
+  const buffers = ['a', 'b'].map((label) =>
+    device.createBuffer({
+      label,
+      size: 64,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    }),
+  )
   writeParts(device, { buffers, bytes: 64 }, 56, new ArrayBuffer(128), 56, 16)
-  assert.deepEqual(writes, [
-    ['a', 56, 56, 8],
-    ['b', 0, 64, 8],
-  ])
+  assert.deepEqual(
+    writes.map((w) => [w.buffer.label, w.offset, w.dataOffset, w.size]),
+    [
+      ['a', 56, 56, 8],
+      ['b', 0, 64, 8],
+    ],
+  )
 })
