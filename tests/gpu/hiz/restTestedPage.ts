@@ -14,7 +14,6 @@ import {
   VERDICT_REJECTED,
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
-import { heldBuffers } from '../kit/heldBuffers.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { readBuffer } from '../kit/computeReadback.ts'
 
@@ -28,8 +27,7 @@ const HIZ_SLOT_WORD = 31
 export async function testRestCompaction() {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('WebGPU must be available')
-  const { device } = gpu
-  const { buffer, release } = heldBuffers(device)
+  const { device, buffer } = gpu
   const tested = 100,
     slots = [HALF_SLOTS, HALF_SLOTS + 1],
     lengths = [130, 200],
@@ -131,7 +129,6 @@ export async function testRestCompaction() {
   const emptyCounts = slots.map((slot) => emptyCommands[slot * 4 + 1])
   compact.dispose()
   const { court: adapter } = await gpu.fermer()
-  release()
   return {
     adapter,
     errors: gpu.errors,

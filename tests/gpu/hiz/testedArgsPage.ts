@@ -14,7 +14,6 @@ import {
 import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { hizEntries, laidPyramid } from './casePyramid.ts'
-import { heldBuffers } from '../kit/heldBuffers.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { readBuffer } from '../kit/computeReadback.ts'
 import { BOX_NEAREST, CASES, UNIFORM_BYTES } from './occlusionTestCases.ts'
@@ -35,8 +34,7 @@ export interface TestedArgsRun {
 export async function testTestedArgs(counts: number[]): Promise<TestedArgsRun> {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('WebGPU must be available')
-  const { device } = gpu
-  const { buffer, release } = heldBuffers(device)
+  const { device, buffer } = gpu
   const pipelines = await createHizPipelines(device)
   if (!pipelines) throw new Error('the Hi-Z pipelines must compile')
   const [sample] = CASES
@@ -135,6 +133,5 @@ export async function testTestedArgs(counts: number[]): Promise<TestedArgsRun> {
   const wideArgs = [...(await readBuffer(device, args, 0, 12))]
 
   const { court: adapter } = await gpu.fermer()
-  release()
   return { adapter, errors: gpu.errors, hiz, wideArgs }
 }
