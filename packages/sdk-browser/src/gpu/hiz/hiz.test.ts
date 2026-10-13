@@ -188,7 +188,8 @@ test('Hi-Z compute shader declares this-frame min reduction, background at the f
   assert.match(HIZ_SHADER, /@compute[\s\S]*fn testHiz/)
   assert.match(HIZ_SHADER, /min\(/)
   assert.doesNotMatch(HIZ_SHADER, /far=max\(/)
-  assert.match(HIZ_SHADER, /texture_2d<f32>/)
+  // Level 0 binds as one array: the opaque depth, the nearest transparent surface's beside it.
+  assert.match(HIZ_SHADER, /var level0:texture_2d_array<f32>/)
   assert.doesNotMatch(HIZ_SHADER, /texture_depth_2d/)
   assert.match(HIZ_SHADER, /texture_storage_2d_array<r32uint,read_write>/)
 })
