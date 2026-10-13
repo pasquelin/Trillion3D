@@ -5,6 +5,8 @@ const TYPES = {
   u32: [1, 1],
   i32: [1, 1],
   vec2f: [2, 2],
+  vec2u: [2, 2],
+  vec2i: [2, 2],
   vec3f: [3, 4],
   vec4f: [4, 4],
   vec4u: [4, 4],
