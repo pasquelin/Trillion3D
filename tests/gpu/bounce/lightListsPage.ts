@@ -49,8 +49,8 @@ fn main(@builtin(global_invocation_id) id:vec3u){
     ],
   )
 
-/** Runs a dispatch is timed over. */
-const TIMED = 9
+/** Interleaved timings of each dispatch. */
+const REPEATS = 9
 
 export async function run(sets: { count: number; reach: number }[]) {
   const opened = await openGpuDevice(['timestamp-query'])
@@ -81,25 +81,24 @@ export async function run(sets: { count: number; reach: number }[]) {
     size: 16,
     usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
   })
-  /** The GPU time of what `encode` puts in one pass, the median of `TIMED` runs. */
-  async function timeOf(encode: (pass: GPUComputePassEncoder) => void) {
-    const ms: number[] = []
-    for (let k = 0; k < TIMED; k++) {
-      const encoder = device.createCommandEncoder()
-      const pass = encoder.beginComputePass(
-        querySet
-          ? { timestampWrites: { querySet, beginningOfPassWriteIndex: 0, endOfPassWriteIndex: 1 } }
-          : {},
-      )
-      encode(pass)
-      pass.end()
-      if (querySet) encoder.resolveQuerySet(querySet, 0, 2, stamps, 0)
-      device.queue.submit([encoder.finish()])
-      if (!querySet) continue
-      const t = new BigUint64Array((await readBuffer(device, stamps, 0, 16)).buffer)
-      ms.push(Number(t[1] - t[0]) / 1e6)
-    }
-    return ms.length ? ms.sort((a, b) => a - b)[ms.length >> 1] : null
+  /** The GPU time of the compute passes `encode` puts in one encoder: each pass it begins carries
+   *  the timestamps (one pass a call here). */
+  async function timeOf(encode: (encoder: GPUCommandEncoder) => void) {
+    const encoder = device.createCommandEncoder()
+    if (querySet) {
+      const begin = encoder.beginComputePass.bind(encoder)
+      encoder.beginComputePass = (descriptor?: GPUComputePassDescriptor) =>
+        begin({
+          ...descriptor,
+          timestampWrites: { querySet, beginningOfPassWriteIndex: 0, endOfPassWriteIndex: 1 },
+        })
+      encode(encoder)
+      encoder.resolveQuerySet(querySet, 0, 2, stamps, 0)
+    } else encode(encoder)
+    device.queue.submit([encoder.finish()])
+    if (!querySet) return null
+    const t = new BigUint64Array((await readBuffer(device, stamps, 0, 16)).buffer)
+    return Number(t[1] - t[0]) / 1e6
   }
   const runs = []
   for (const { count, reach } of sets) {
@@ -113,8 +112,7 @@ export async function run(sets: { count: number; reach: number }[]) {
     const listing = device.createCommandEncoder()
     tiles.encode(listing, 1)
     device.queue.submit([listing.finish()])
-    const results = []
-    for (const [listed, pipeline] of pipelines.entries()) {
+    const kernels = pipelines.map((pipeline, listed) => {
       const sums = device.createBuffer({
         size: POINTS * 16,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
@@ -123,39 +121,42 @@ export async function run(sets: { count: number; reach: number }[]) {
       const entries: GPUBindGroupEntry[] = [
         ...(listed ? [{ binding: 0, resource: { buffer: uniform } }] : []),
         { binding: 1, resource: { buffer: points } },
-        { binding: 2, resource: { buffer: lights.buffer } },
+        { binding: 2, resource: { buffer: lights.buffer! } },
         { binding: 3, resource: { buffer: sums } },
       ]
       if (listed)
         entries.push({ binding: BOUNCE_LIGHT_LIST_BINDING, resource: { buffer: tiles.buffer! } })
       const group = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries })
-      const ms = await timeOf((pass) => {
+      const encode = (encoder: GPUCommandEncoder) => {
+        const pass = encoder.beginComputePass()
         pass.setPipeline(pipeline)
         pass.setBindGroup(0, group)
         pass.dispatchWorkgroups(ceilDiv(POINTS, 64))
-      })
-      const words = new Uint32Array((await readBuffer(device, sums, 0, POINTS * 16)).buffer)
-      results.push({ ms, words: [...words] })
-      sums.destroy()
+        pass.end()
+      }
+      return { sums, encode }
+    })
+    // Interleaved: every light, then the listed walk, then the lists' rebuild — what every frame
+    // of lights that all move costs —, `REPEATS` times.
+    const ms = { all: [] as number[], listed: [] as number[], build: [] as number[] }
+    for (let k = 0; k < REPEATS; k++) {
+      ms.all.push((await timeOf(kernels[0].encode)) ?? NaN)
+      ms.listed.push((await timeOf(kernels[1].encode)) ?? NaN)
+      ms.build.push((await timeOf((encoder) => tiles.encode(encoder, 2 + k))) ?? NaN)
     }
-    // The lists' own pass, what a frame the lights change adds: its submission's wall time, the
-    // pass holding no timestamp of its own — an upper bound.
-    const wall: number[] = []
-    for (let k = 0; k < TIMED; k++) {
-      const start = performance.now()
-      const encoder = device.createCommandEncoder()
-      tiles.encode(encoder, 2 + k)
-      device.queue.submit([encoder.finish()])
-      await device.queue.onSubmittedWorkDone()
-      wall.push(performance.now() - start)
-    }
+    const words = await Promise.all(
+      kernels.map(async ({ sums }) => [
+        ...new Uint32Array((await readBuffer(device, sums, 0, POINTS * 16)).buffer),
+      ]),
+    )
+    for (const { sums } of kernels) sums.destroy()
     runs.push({
       count,
       reach,
-      listWallMs: wall.sort((a, b) => a - b)[TIMED >> 1],
-      all: results[0],
-      listed: results[1],
-      lit: results[0].words.filter((w, i) => i % 4 < 3 && w !== 0).length,
+      ms,
+      all: words[0],
+      listed: words[1],
+      lit: words[0].filter((w, i) => i % 4 < 3 && w !== 0).length,
     })
     lights.buffer.destroy()
   }

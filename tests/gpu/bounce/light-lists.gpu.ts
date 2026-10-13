@@ -24,13 +24,16 @@ test('a bounce point walking its cell list sums what walking every light sums, b
   const result = await runOnDawn(page.run, sets, pageErrors)
   assert.ok(!('unavailable' in result), 'WebGPU must be available')
   assert.deepEqual([...result.errors, ...pageErrors], [])
-  for (const { count, reach, all, listed, lit, listWallMs } of result.runs) {
-    console.log(
-      JSON.stringify({ count, reach, allMs: all.ms, listedMs: listed.ms, listWallMs, lit }),
-    )
+  const stats = (ms: number[]) => {
+    const sorted = [...ms].sort((a, b) => a - b)
+    return { median: sorted[sorted.length >> 1], min: sorted[0], max: sorted[sorted.length - 1] }
+  }
+  for (const { count, reach, all, listed, lit, ms } of result.runs) {
+    const timing = { all: stats(ms.all), listed: stats(ms.listed), build: stats(ms.build) }
+    console.log(JSON.stringify({ count, reach, lit, ...timing }))
     assert.ok(lit > 0, `${count} lights light some points`)
     let apart = 0
-    for (let i = 0; i < all.words.length; i++) if (all.words[i] !== listed.words[i]) apart++
+    for (let i = 0; i < all.length; i++) if (all[i] !== listed[i]) apart++
     assert.equal(apart, 0, `${count} lights: ${apart} words differ`)
   }
 })
