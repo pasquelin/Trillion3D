@@ -20,7 +20,6 @@ import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { PAGE_BYTES, evictionWorld } from './evictionWorld.ts'
 import { readFlightFrame, type FlightFrame } from './evictionFlightFrame.ts'
-export type { FlightFrame } from './evictionFlightFrame.ts'
 
 /** The flight: a row of DAGs twenty times the pool, flown in `flight` frames, then held still. */
 const FLIGHT = { copies: 16, slots: 72, flight: 160, hold: 40, seed: 0xf1197 }

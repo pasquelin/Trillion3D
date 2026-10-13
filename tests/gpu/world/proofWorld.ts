@@ -38,9 +38,6 @@ export async function settle(world: MeasuredWorld, pose?: CameraPose) {
 export const benchManifest = (scene: string) =>
   pathToFileURL(join(ASSETS, assetsManifest(scene, true).slice('/benchmark-assets/'.length))).href
 
-/** The pixels an image draws over its background, read where the image proofs read it. */
-export { drawnPixels } from '../kit/sceneImageProof.ts'
-
 /**
  * `manifestUrl` opened with no `engine` option — the session's own engine —, lit by
  * `lights` before its first frame (a cache whose light table is empty is lit by its host or by

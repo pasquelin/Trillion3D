@@ -10,7 +10,8 @@ import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/
 import { MEASURE_HEIGHT, MEASURE_WIDTH } from './measureResolution.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
-import { benchManifest, drawnPixels, settle } from '../world/proofWorld.ts'
+import { benchManifest, settle } from '../world/proofWorld.ts'
+import { drawnPixels } from '../kit/sceneImageProof.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** One reading per trajectory point: the first frame of each segment. */

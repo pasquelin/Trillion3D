@@ -21,7 +21,8 @@ import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gp
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { triangleCone } from '../../kit/reference/cone.ts'
 import { project } from '../kit/cameraRig.ts'
-import { runSelectionKernel, type SelectionCase } from './selectionKernel.ts'
+import { runSelectionKernel } from './selectionKernel.ts'
+import { type SelectionCase } from './selectionCase.ts'
 import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 
 const VIEWPORT: [number, number] = [1000, 1000]

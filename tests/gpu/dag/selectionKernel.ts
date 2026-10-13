@@ -24,8 +24,6 @@ import { bindCase, type SelectionCase, type StageOutput } from './selectionCase.
 import { workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
 import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
 
-export type { SelectionCase } from './selectionCase.ts'
-
 /** What one case's cut left on the GPU. */
 interface SelectionReading {
   name: string
