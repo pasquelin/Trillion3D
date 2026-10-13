@@ -43,9 +43,10 @@ const runtime = (parts: {
   }) as unknown as WebgpuPagesRuntime
 
 test('a row that wears a lobe holds the frame until the lobed resolve lands, then lights it', async () => {
-  const { device } = fakeDevice()
+  const gpu = fakeDevice(),
+    { device } = gpu
   const lighting = await createDeferredLighting(device)
-  const { labels, draw } = recorder(lighting)
+  const { labels, draw } = recorder(gpu, lighting)
   draw({ lobeless: true })
   await lighting.settle()
   draw({ lobeless: true })
@@ -59,7 +60,7 @@ test('a row that wears a lobe holds the frame until the lobed resolve lands, the
   assert.equal(pipelinesCompiling(device), false)
   // The frame the hold released is lit with the lobes, never unlit nor lobeless.
   assert.equal(draw({ lobeless: false }), true)
-  assert.deepEqual(labels, ['DIRECT_LOBELESS_LIGHTING', 'DIRECT_LIGHTING'])
+  assert.deepEqual(labels(), ['DIRECT_LOBELESS_LIGHTING', 'DIRECT_LIGHTING'])
   // Landed, the next frames ask nothing.
   askLobedPrograms(runtime({ deferred: lighting, rows: rowsOf(true) }), device)
   assert.equal(pipelinesCompiling(device), false)

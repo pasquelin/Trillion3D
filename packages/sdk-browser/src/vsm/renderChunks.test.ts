@@ -7,7 +7,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { recordingEncoder } from '../../../../tests/kit/gpu/usageScope.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { createVsmResources } from './resources.ts'
@@ -71,8 +70,7 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
     limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 },
   })
   const { device } = fake
-  const { encoder, calls } = recordingEncoder()
-  const stats = encodeRows(device, encoder)
+  const stats = encodeRows(device, device.createCommandEncoder())
   // The CPU knows no bound of the chosen rows below the row count: 8192 rows a chunk (2^21 pairs
   // over 256 pages), the chunks 200 000 rows need.
   assert.deepEqual([stats.chunkRows, stats.chunks], [8192, ceilDiv(200_000, 8192)])
@@ -112,25 +110,33 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
   const work = new Map<number, number[]>()
   // The candidates' kernel and its argument kernel, run above, open chunk 0's compute pass.
   const candidates = ['vsmRenderCandidates', 'vsmRenderArgsCull']
-  for (const call of calls.filter((c) => !candidates.includes(c.entry!))) {
-    // Chunk c's compute pass 2c, its raster pass 2c + 1.
+  // Every dispatch and draw, in pass order: chunk c's compute pass 2c, its raster pass 2c + 1.
+  type Call = {
+    pass: number
+    entryPoint?: string
+    buffer?: unknown
+    offset?: number
+    direct?: number
+  }
+  const calls: Call[] = [...fake.dispatches, ...fake.draws].sort((a, b) => a.pass - b.pass)
+  for (const call of calls.filter((c) => !candidates.includes(c.entryPoint!))) {
     const c = Math.floor(call.pass / 2)
     // Chunk 0's cull counted 12 commands, its expand 40 pairs of 3 corners.
-    if (call.entry === 'vsmRenderCull' && c === 0) counts[VSM_RENDER_COUNTS_HEAD] = 12
-    if (call.entry === 'vsmRenderExpand' && c === 0)
+    if (call.entryPoint === 'vsmRenderCull' && c === 0) counts[VSM_RENDER_COUNTS_HEAD] = 12
+    if (call.entryPoint === 'vsmRenderExpand' && c === 0)
       [counts[VSM_RENDER_COUNTS_HEAD + 1], counts[VSM_RENDER_COUNTS_HEAD + 2]] = [40, 3]
     let done: number
-    if (call.entry === 'vsmRenderArgsExpand' || call.entry === 'vsmRenderArgsDraw') {
+    if (call.entryPoint === 'vsmRenderArgsExpand' || call.entryPoint === 'vsmRenderArgsDraw') {
       // One thread, directly: the argument kernels write the buffer the others read.
-      assert.equal(call.direct, 1, call.entry)
+      assert.equal(call.direct, 1, call.entryPoint)
       read(c)
-      kernels[call.entry]()
+      kernels[call.entryPoint]()
       done = 1
     } else {
-      assert.equal(call.buffer, argsBuffer, `${call.entry}: the one argument buffer`)
+      assert.equal(call.buffer, argsBuffer, `${call.entryPoint}: the one argument buffer`)
       assert.equal(Math.floor(call.offset! / 4 / VSM_RENDER_ARGS_STRIDE_WORDS), c, 'its chunk')
       done =
-        call.entry === 'vsmRenderVs'
+        call.entryPoint === 'vsmRenderVs'
           ? args[call.offset! / 4] * args[call.offset! / 4 + 1]
           : groups(call.offset!)
     }

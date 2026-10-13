@@ -1,10 +1,10 @@
-// The kit refuses what the device refuses (`usageScope.ts`): a dispatch reading its arguments from
+// The kit refuses what the device refuses (`scopeRules.ts`): a dispatch reading its arguments from
 // a buffer a group set binds writable, a render pass drawing from one any of its groups binds
 // writable — the encoder the shadow chunks once finished, which lost the device on every page.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BACKEND, fakeDevice } from './fakeDevice.ts'
-import { createUsageScope, recordingEncoder, writableBuffers } from './usageScope.ts'
+import { createUsageScope, writableBuffers } from './scopeRules.ts'
 
 const args = { label: 'args' },
   other = { label: 'other' }
@@ -51,9 +51,8 @@ test('a render pass may not draw from a buffer any of its groups binds writable'
   assert.throws(() => scope.end(), REFUSED, 'the pass is one scope: the first group counts')
 })
 
-test('the recording encoder and the mock GPU refuse it where they encode', () => {
-  const { encoder } = recordingEncoder()
-  const pass = encoder.beginComputePass()
+test("the kit's passes refuse it where they encode", () => {
+  const pass = fakeDevice().device.createCommandEncoder().beginComputePass()
   pass.setPipeline({ entryPoint: 'k' } as unknown as GPUComputePipeline)
   pass.setBindGroup(0, group(other, args) as unknown as GPUBindGroup)
   assert.throws(() => pass.dispatchWorkgroupsIndirect(args as GPUBuffer, 0), REFUSED)
@@ -84,11 +83,9 @@ test('a group set with other dynamic offsets than its layout’s dynamic buffers
     () => scope.setBindGroup(0, { layout, entries: [] }, [0]),
     /dynamic offsets \(1\) does not match the number of dynamic buffers \(0\)/,
   )
-  // The recording encoder and the mock GPU check it where they encode.
-  const pass = recordingEncoder().encoder.beginComputePass()
+  // The kit's passes check it where they encode.
+  const pass = fakeDevice(BACKEND).device.createCommandEncoder().beginComputePass()
   assert.throws(() => pass.setBindGroup(0, { layout } as unknown as GPUBindGroup, [0]))
-  const mock = fakeDevice(BACKEND).device.createCommandEncoder().beginComputePass()
-  assert.throws(() => mock.setBindGroup(0, { layout } as unknown as GPUBindGroup, [0]))
 })
 
 test('an indirect buffer without the INDIRECT usage, an unset or other group are refused', () => {

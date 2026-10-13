@@ -1,8 +1,9 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { simulateComputeDispatch, type ComputeBind } from './mockCompute.ts'
-import { createUsageScope } from './usageScope.ts'
+import { createUsageScope } from './scopeRules.ts'
 import type {
   FakeCopy,
+  FakeDispatch,
   FakeResolve,
   FakeTextureBufferCopy,
   FakeTextureCopy,
@@ -18,8 +19,7 @@ export type EncoderRecords = {
   /** Every command that opens a GPU encoder of its own, in order: `compute <label>`, `render
    *  <label>`, `clear`, `copy`, `resolve` — what a test counts passes and their boundaries on. */
   commands: string[]
-  /** The entry point of each compute dispatch, in order. */
-  computes: string[]
+  dispatches: FakeDispatch[]
   copies: FakeCopy[]
   textureCopies: FakeTextureCopy[]
   textureBufferCopies: FakeTextureBufferCopy[]
@@ -30,13 +30,14 @@ export type EncoderRecords = {
  * The command encoders of `fakeDevice()`: each records what it encodes in `records`, copies and
  * clears move the buffers' bytes, and each compute dispatch runs its kernel's CPU double
  * (`mockCompute.ts`) on the bound buffers — `packed` the DAG the selection reads when the session
- * uploads none. `failVisPass` refuses the first visibility pass at its beginning.
+ * uploads none. `failVisPass` refuses the first visibility pass at its beginning. Every pass is
+ * encoded under the device's usage scopes (`scopeRules.ts`).
  */
 export function createMockCommandEncoderFactory(
   records: EncoderRecords,
   { packed, failVisPass = false }: { packed?: PackedDag; failVisPass?: boolean },
 ) {
-  const { passDescriptors, commands, computes, copies, textureCopies } = records
+  const { passDescriptors, commands, dispatches, copies, textureCopies } = records
   let computeBind: ComputeBind | undefined,
     computeOffsets: readonly number[] | undefined,
     computePipeline: { entryPoint: string } | undefined,
@@ -52,14 +53,22 @@ export function createMockCommandEncoderFactory(
       return renderPass(desc, records)
     },
     beginComputePass: (desc?: GPUComputePassDescriptor) => {
-      passDescriptors.push(desc)
+      const pass = passDescriptors.push(desc) - 1
       commands.push(`compute ${desc?.label ?? ''}`)
       // Each dispatch is a usage scope: one reading its arguments from a buffer a group set binds
-      // writable is refused.
+      // writable is refused, and so is one whose pipeline's groups are not all set, with its layouts.
       const scope = createUsageScope('compute')
+      const run = (call: Omit<FakeDispatch, 'pass' | 'entryPoint'>) => {
+        const entryPoint = computePipeline?.entryPoint ?? ''
+        scope.dispatch(entryPoint)
+        if (call.buffer) scope.indirect(call.buffer, entryPoint)
+        dispatches.push({ pass, entryPoint, ...call })
+        simulateComputeDispatch(computePipeline, computeBind, packed, computeOffsets)
+      }
       return {
         setPipeline(next: { entryPoint: string }) {
           computePipeline = next
+          scope.pipeline(next)
         },
         // Dynamic offsets count: plan expansion reads the uniform region of ITS pass, and two passes
         // follow each other in the same compute pass.
@@ -70,10 +79,7 @@ export function createMockCommandEncoderFactory(
         },
         // Kernels that spread over the live-cluster list go through here: the double replays the same
         // kernel whichever path the GPU launches it on.
-        dispatchWorkgroupsIndirect(buffer: unknown) {
-          scope.indirect(buffer, computePipeline?.entryPoint ?? '')
-          simulateComputeDispatch(computePipeline, computeBind, computes, packed, computeOffsets)
-        },
+        dispatchWorkgroupsIndirect: (buffer: GPUBuffer, offset: number) => run({ buffer, offset }),
         // A grid of no workgroup runs nothing, and the device warns ("DispatchWorkgroups with a
         // workgroup count of 0"): the engine encodes none, and the kit refuses it.
         dispatchWorkgroups(x: number, y = 1, z = 1) {
@@ -81,7 +87,7 @@ export function createMockCommandEncoderFactory(
             throw new Error(
               `${computePipeline?.entryPoint}: a dispatch of ${x}×${y}×${z} workgroups`,
             )
-          simulateComputeDispatch(computePipeline, computeBind, computes, packed, computeOffsets)
+          run({ direct: x, ...(y > 1 && { rows: y }) })
         },
         pushDebugGroup() {},
         popDebugGroup() {},

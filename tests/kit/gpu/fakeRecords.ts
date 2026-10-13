@@ -47,6 +47,20 @@ export type FakeTextureWrite = {
   size: GPUExtent3D
   seq: number
 }
+/** One compute dispatch an encoder recorded, in order: its pass (its index in `passDescriptors`),
+ *  its pipeline's entry point, and the buffer and byte offset an indirect one reads its arguments
+ *  from, or the groups of a direct one along x, and its rows along y when there are several. */
+export type FakeDispatch = {
+  pass: number
+  entryPoint: string
+  buffer?: GPUBuffer
+  offset?: number
+  direct?: number
+  rows?: number
+}
+/** The entry points of `dispatches`, in order. */
+export const dispatchedEntries = (dispatches: readonly FakeDispatch[]) =>
+  dispatches.map(({ entryPoint }) => entryPoint)
 /** One `copyBufferToBuffer` an encoder recorded, in the order it was encoded. */
 export type FakeCopy = {
   from: GPUBuffer

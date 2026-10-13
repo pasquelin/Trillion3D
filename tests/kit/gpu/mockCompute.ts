@@ -53,11 +53,9 @@ export type ComputeBind = {
 export function simulateComputeDispatch(
   computePipeline: { entryPoint: string } | undefined,
   computeBind: ComputeBind | undefined,
-  computes: string[],
   packed?: PackedDag,
   offsets?: readonly number[],
 ) {
-  if (computePipeline?.entryPoint) computes.push(computePipeline.entryPoint)
   const transparent = TRANSPARENT_STAGES[computePipeline?.entryPoint ?? '']
   if (transparent && computeBind) return transparent(computeBind, offsets)
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind) {

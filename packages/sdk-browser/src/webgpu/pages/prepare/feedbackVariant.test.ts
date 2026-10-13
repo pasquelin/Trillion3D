@@ -9,7 +9,11 @@ import { importHostTexture } from '../../../host/textureImport.ts'
 import type { HostTexture } from '../../../host/resources.ts'
 import { MATERIAL_SURFACES_PASS } from '../../../stage/passLabels.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import {
+  BACKEND,
+  dispatchedEntries,
+  fakeDevice,
+} from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, disposeQuadRun, quadScene } from '../testScenes.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -58,7 +62,7 @@ function feedbackOf(gpu: Gpu) {
       entry: desc.fragment!.entryPoint,
       r32: [...desc.fragment!.targets].some((target) => target?.format === 'r32uint'),
     })),
-    reduced: gpu.computes.includes('reduce'),
+    reduced: dispatchedEntries(gpu.dispatches).includes('reduce'),
   }
 }
 

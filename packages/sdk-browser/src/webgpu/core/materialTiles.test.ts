@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND, dispatchedEntries, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import {
@@ -115,7 +115,7 @@ test("the pass's first dispatch zeroes every slot's draw, as the encoder's clear
 
 test('the slots follow the classes held; a list is drawn indirectly, a class past them whole', async () => {
   installGpuGlobals()
-  const { device, buffers, computes } = fakeDevice(BACKEND)
+  const { device, buffers, dispatches } = fakeDevice(BACKEND)
   const tiles = await createMaterialTiles(device, materialTileDrawLayout(device))
   const table = () => {
     const data = buffers.find((b) => b.label === 'Trillion3D material tile slots')!.data
@@ -133,7 +133,7 @@ test('the slots follow the classes held; a list is drawn indirectly, a class pas
   tiles.layFor(100, 40)
   // The draws cleared then the tiles classified: two dispatches of the frame's pass.
   tiles.encode({ pass: encoder.beginComputePass() }, inputs)
-  assert.deepEqual(computes.slice(-2), ['clearTiles', 'classify'])
+  assert.deepEqual(dispatchedEntries(dispatches).slice(-2), ['clearTiles', 'classify'])
   const drawn: unknown[] = []
   const pass = {
     drawIndirect: (_: unknown, offset: number) => drawn.push(['indirect', offset]),
@@ -151,7 +151,7 @@ test('a device that refuses the classification draws every class full screen', a
   installGpuGlobals()
   class GPUPipelineError extends Error {}
   Object.assign(globalThis, { GPUPipelineError })
-  const { device, computes } = fakeDevice(BACKEND)
+  const { device, dispatches } = fakeDevice(BACKEND)
   device.createComputePipeline = (() => {
     throw new GPUPipelineError('refused')
   }) as typeof device.createComputePipeline
@@ -165,7 +165,7 @@ test('a device that refuses the classification draws every class full screen', a
     },
   }
   tiles.encode(open, { vis: {}, pages: {}, uniform: {} } as never)
-  assert.deepEqual(computes, [])
+  assert.deepEqual(dispatchedEntries(dispatches), [])
   const drawn: unknown[] = []
   const pass = {
     draw: (vertices: number, instances: number) => drawn.push([vertices, instances]),

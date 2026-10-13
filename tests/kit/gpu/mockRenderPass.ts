@@ -1,14 +1,22 @@
-import { createUsageScope } from './usageScope.ts'
+import { createUsageScope } from './scopeRules.ts'
 import { replayBundles } from './fakeBundles.ts'
 
+/** One draw a render pass recorded: its pass (its index in `passDescriptors`), the pipeline and the
+ *  groups set when it ran, its counts, and the buffer and byte offset an indirect one reads. */
 export type MockDraw = {
+  pass: number
+  pipeline: Pipeline
+  groups: unknown[]
   vertexCount: number
   instanceCount?: number
+  firstVertex?: number
   firstInstance?: number
   bindOffset?: number
   instanceBuffer?: unknown
   slotOffsetsBuffer?: unknown
   indirect?: boolean
+  buffer?: unknown
+  offset?: number
   entryPoint?: string
   fragment?: string
   /** The blend of the pipeline's first colour target, as it was made. */
@@ -28,15 +36,20 @@ type Pipeline = Partial<GPURenderPipelineDescriptor>
 type Bound = { entries?: Array<{ binding: number; resource: { offset?: number } }> } | undefined
 
 /**
- * A render pass of `fakeDevice()`, begun with `desc`: the pass is listed in `passes`, each draw in
- * `draws` with the entry points and blend of the pipeline set, an indirect draw read from its
- * buffer's bytes; its usage scope refuses an indirect buffer bound writable, and a bundle's
- * commands run in it, its usage scope included.
+ * A render pass of `fakeDevice()`, begun with `desc` as the last of `passDescriptors`: the pass is
+ * listed in `passes`, each draw in `draws` with the pipeline and groups set, an indirect draw read
+ * from its buffer's bytes; its usage scope refuses an indirect buffer bound writable, and a
+ * bundle's commands run in it, its usage scope included.
  */
 export function renderPass(
   desc: GPURenderPassDescriptor | undefined,
-  { passes, draws }: { passes: MockPass[]; draws: MockDraw[] },
+  {
+    passes,
+    draws,
+    passDescriptors,
+  }: { passes: MockPass[]; draws: MockDraw[]; passDescriptors: unknown[] },
 ) {
+  const at = passDescriptors.length - 1
   // An empty slot is `null`, as WebGPU takes it (the blend pass's share).
   const colors = [...(desc?.colorAttachments ?? [])]
   const scope = createUsageScope('render')
@@ -50,7 +63,11 @@ export function renderPass(
   })
   let pipeline: Pipeline = {},
     bound: Bound
+  const groups: unknown[] = []
   const stage = () => ({
+    pass: at,
+    pipeline,
+    groups: [...groups],
     entryPoint: pipeline.vertex?.entryPoint ?? '',
     fragment: pipeline.fragment?.entryPoint ?? '',
   })
@@ -61,6 +78,7 @@ export function renderPass(
     },
     setBindGroup(i: number, group: unknown, offsets?: readonly number[]) {
       bound = group as Bound
+      groups[i] = group
       scope.setBindGroup(i, group, offsets)
     },
     setViewport() {},
@@ -70,11 +88,12 @@ export function renderPass(
     pushDebugGroup() {},
     popDebugGroup() {},
     insertDebugMarker() {},
-    draw(vertexCount: number, instanceCount = 1, _firstVertex = 0, firstInstance = 0) {
+    draw(vertexCount: number, instanceCount = 1, firstVertex = 0, firstInstance = 0) {
       const made = blend()
       draws.push({
         vertexCount,
         instanceCount,
+        firstVertex,
         firstInstance,
         ...stage(),
         ...(made && { blend: made }),
@@ -95,7 +114,9 @@ export function renderPass(
         instanceBuffer: instances?.resource,
         slotOffsetsBuffer: offsets?.resource,
         indirect: true,
-        entryPoint: stage().entryPoint,
+        buffer,
+        offset,
+        ...stage(),
       })
     },
     executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(pass, bundles),
