@@ -18,6 +18,7 @@ import {
 } from '../webgpu/pages/render/encodeGuides.ts'
 import { families } from '../host/families.ts'
 import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/compileLedger.ts'
+import { destroyRetired } from '../gpu/core/frameRetire.ts'
 
 // The guides' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
 await families.guides.load()
@@ -84,6 +85,24 @@ test('guides draw over the display target, depth read and never written', async 
   pass.encode(encoder, guides, color, resized, { viewProjection: unjittered }, [8, 4], 1, [0, 0])
   const again = bindGroups[1]
   assert.equal([...again.entries][1]?.resource, resized, 'a resized depth is bound anew')
+})
+
+test('outgrown instances live until the frame is submitted: the image encoded names them', async () => {
+  const { device, encoder, buffers, destroyed } = recorder()
+  const guides = createGuideSet(),
+    pass = createWebgpuGuidePass(device)
+  await pipelinesSettled(device)
+  const draw = () =>
+    pass.encode(encoder, guides, color, depth, { viewProjection: unjittered }, [8, 4], 1, [0, 0])
+  guides.lines({ positions: [0, 0, 0, 1, 0, 0] })
+  draw()
+  const first = buffers.at(-1)!
+  guides.lines({ positions: Array.from({ length: 60 }, (_, i) => i % 7) })
+  draw()
+  assert.notEqual(buffers.at(-1), first, 'grown to hold the new segments')
+  assert.ok(!destroyed.includes(first), 'not destroyed while the image may still draw from it')
+  destroyRetired(device)
+  assert.ok(destroyed.includes(first), 'destroyed after the frame is submitted')
 })
 
 test('the pass draws with the camera, not the jittered matrix of temporal accumulation', async () => {

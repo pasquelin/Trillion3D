@@ -1,4 +1,3 @@
-import { nextPow2 } from '../../../math/src/scalar/integers.ts'
 import type { GuideSet } from './guideSet.ts'
 import { GUIDE_INSTANCE_FLOATS } from './guidePack.ts'
 import { GUIDE_UNIFORM_FLOATS, GUIDE_WGSL, writeGuideView } from './guideShaders.ts'
@@ -6,6 +5,7 @@ import { preparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { GUIDE_PASS } from '../stage/passLabels.ts'
 import { sequentialEntries, computeTextureEntry } from '../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { heldBuffers } from '../gpu/core/heldBuffers.ts'
 
 /** Label of the guide pass: its GPU time is read under this name, apart from the beauty passes. */
 
@@ -73,18 +73,13 @@ export function createWebgpuGuidePass(device: GPUDevice) {
         entries: sequentialEntries([{ buffer: uniform! }, depth]),
       })
   }
-  /** The instances, uploaded again only when the set packed anew; the buffer grows by doubling. */
+  /** The pass's instance buffer, grown to the next power of two, the outgrown one retired. */
+  const held = heldBuffers()
+  /** The instances, uploaded again only when the set packed anew. */
   const upload = (packed: ReturnType<GuideSet['pack']>) => {
     if (uploaded === packed) return
-    const bytes = packed.count * STRIDE
-    if (!instances || instances.size < bytes) {
-      instances?.destroy()
-      instances = device.createBuffer({
-        label: GUIDE_PASS,
-        size: Math.max(STRIDE, nextPow2(bytes)),
-        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-      })
-    }
+    const usage = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+    instances = held.grow(device, GUIDE_PASS, packed.count * STRIDE, usage)
     device.queue.writeBuffer(instances, 0, packed.data)
     uploaded = packed
   }
@@ -131,7 +126,7 @@ export function createWebgpuGuidePass(device: GPUDevice) {
     },
     dispose() {
       uniform?.destroy()
-      instances?.destroy()
+      held.drop(device, GUIDE_PASS)
       uniform = instances = group = uploaded = undefined
     },
   }
