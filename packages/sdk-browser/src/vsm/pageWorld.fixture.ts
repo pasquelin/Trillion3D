@@ -11,7 +11,7 @@ import { vsmLayout } from './layout.ts'
 
 const { VSM_ENTRY_MAPPED_BIT: ANY, VSM_ENTRY_DRAWABLE_BIT: RENDER } =
   wgslConstants(VSM_CONSTANTS_WGSL)
-const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27)
+const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
 export const CODE = vsmProjectionWgsl(LAYOUT, { subgroups: false })
 
 /** A 32-bit hash of integers: the same for the same ones. */

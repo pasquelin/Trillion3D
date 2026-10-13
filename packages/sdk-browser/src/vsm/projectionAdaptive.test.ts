@@ -12,7 +12,7 @@ import { VSM_CONSTANTS_WGSL, VSM_TRACE_RAYS_SUN } from './constants.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
-const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
+const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
   subgroups: false,
 })
 

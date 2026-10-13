@@ -2,7 +2,7 @@ import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { SHADOW_VIEW_WGSL } from './shadowViewWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from '../../vsm/constants.ts'
 import { VSM_UNIFORMS_WGSL } from '../../vsm/uniforms.ts'
-import { vsmPoolWindowBindings, vsmPoolWindowsWgsl } from '../../vsm/poolWindows.ts'
+import { VSM_FORWARD_LAYOUT, vsmForwardPoolBinding, vsmPoolLoadOf } from '../../vsm/resources.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
@@ -32,13 +32,12 @@ import {
 } from './shadowKinds.ts'
 
 /** Where a pass binds the virtual shadow maps a consumer samples (`vsmLocate`): the page
- *  table, the projection data, the uniforms and the windows of the pool's first slice
- *  (`vsmPoolWindowsWgsl`). */
+ *  table, the projection data, the uniforms and the pool's first slice (`vsmForwardPoolBinding`). */
 export interface VsmConsumerBindings {
   pageTable: number
   projectionData: number
   uniforms: number
-  pool: readonly number[]
+  pool: number
 }
 /** The opaque resolve's and the water composite's numbers (the records', atlas, sampler and
  *  translucent depth). */
@@ -46,7 +45,7 @@ export const CONTRACT_VSM_BINDINGS: VsmConsumerBindings = {
   pageTable: DEFERRED_BINDINGS.pageTable,
   projectionData: DEFERRED_BINDINGS.projectionData,
   uniforms: DEFERRED_BINDINGS.uniforms,
-  pool: vsmPoolWindowBindings(DEFERRED_BINDINGS.pool),
+  pool: vsmForwardPoolBinding(DEFERRED_BINDINGS.pool),
 }
 /** The water composite's trace bindings (`vsmTraceFactor`), on the deferred numbers. */
 export const CONTRACT_TRACE_BINDINGS: VsmTraceBindings = {
@@ -55,7 +54,12 @@ export const CONTRACT_TRACE_BINDINGS: VsmTraceBindings = {
 }
 /** The bindings as a block name reads them, in their declared order. */
 export const vsmBindingsLabel = (b: VsmConsumerBindings) =>
-  `${b.pageTable}, ${b.projectionData}, ${b.uniforms}, ${b.pool.join(' ')}`
+  `${b.pageTable}, ${b.projectionData}, ${b.uniforms}, ${b.pool}`
+
+/** The pool's first slice at \`binding\`, read as the VSM passes read it (\`vsmPoolLoadOf\`): the same
+ *  windows and words, compiled for the largest pool the engine grants (\`VSM_FORWARD_LAYOUT\`). */
+const forwardPool = (binding: number) =>
+  vsmPoolLoadOf(0, [{ resource: 'pagePool', binding, slices: 1 }], VSM_FORWARD_LAYOUT)
 
 /** The opaque resolve binds no pool: its opaque shadow is the mask's, and its transmission read
  *  takes a sample's page, never its depth (`vsmTransmissionRead`), so a depth reads 0 there, which
@@ -68,7 +72,7 @@ const RESOLVE_POOL = wgslFn('vsmPoolLoad', [], 'fn vsmPoolLoad(t:vec2u,slice:u32
  * lookup with a coarser-level fallback — for VSM id `id`: what the translucent casters'
  * transmission read starts from (`vsmTransmissionRead`), at a point `P` of unit normal `N` moved
  * along it by the normal bias length (`vsmReceiverFromEye`). The origin shift is the pass's eye
- * (`shadowCamera`), in single precision. `pool`: the pass reads the pool (`vsmPoolWindowsWgsl`),
+ * (`shadowCamera`), in single precision. `pool`: the pass reads the pool (`forwardPool`),
  * which the traces sample (`vsmTraceWgsl`); the opaque resolve does not.
  */
 const vsmConsumerWgsl = (
@@ -86,7 +90,7 @@ const vsmConsumerWgsl = (
       VSM_PROJECTION_DATA_WGSL,
       VSM_PAGE_LOOKUP_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
-      vsmProjectionSampleWgsl(pool ? vsmPoolWindowsWgsl(b.pool) : RESOLVE_POOL),
+      vsmProjectionSampleWgsl(pool ? forwardPool(b.pool) : RESOLVE_POOL),
       vsmTransmissionReadWgsl(transmission),
       perspectiveDivide,
     ],
@@ -264,7 +268,7 @@ const vsmFragmentTraceWgsl = (vsm: VsmConsumerBindings, t: VsmTraceBindings) =>
     [
       vsmBlueNoiseWgsl(0, t.noise),
       vsmReceiverTraceWgsl({
-        pool: vsmPoolWindowsWgsl(vsm.pool),
+        pool: forwardPool(vsm.pool),
         noise: vsmBlueNoiseTwo(0, t.noise),
         hiz: [REFLECTION_GROUP, REFLECTION_DEPTH_BINDING],
         lone: true,

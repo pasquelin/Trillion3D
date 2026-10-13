@@ -19,7 +19,7 @@ export function blendLightResources(
     shadowSampler: contract.vsm?.uniforms ?? placeholders.vsmUniforms,
     // The translucent casters' transmission atlas on the transmittance layer's number.
     shadowTransmittance: contract.vsmTransmission ?? placeholders.transmittanceView,
-    shadowTranslucentDepth: contract.vsm?.pool ?? placeholders.vsmPoolWindow,
+    shadowTranslucentDepth: contract.vsm?.pool ?? placeholders.vsmPool,
     // What a fragment traces with past the maps: the projection's view and noise (`vsmTraceFactor`).
     shadowView: contract.vsm?.view ?? placeholders.vsmProjectionView,
     shadowNoise: contract.vsm?.noise ?? placeholders.vsmBlueNoise,

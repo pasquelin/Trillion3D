@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }, 2 ** 27)
+const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
 
 test('the receiver texel is loaded with the surface reads and decoded for a lit pixel alone', () => {
   for (const subgroups of [false, true]) {

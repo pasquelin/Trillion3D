@@ -1,14 +1,12 @@
 // What the lighting and the other shadow reads take from this frame's shadow maps, or nothing.
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import { vsmProjectionShared } from '../../../../vsm/projectionPass.ts'
-import { vsmPoolWindow } from '../../../../vsm/poolWindows.ts'
-import type { VsmResources } from '../../../../vsm/resources.ts'
 
 const consumer = {} as {
   pageTable: GPUBuffer
   projectionData: GPUBuffer
   uniforms: GPUBuffer
-  pool: GPUBufferBinding
+  pool: GPUBuffer
   view: GPUBuffer
   noise: GPUTextureView
 }
@@ -19,18 +17,9 @@ function projectedVsm(rt: WebgpuPagesRuntime) {
   return vsm?.plan && vsm.plan.projectionCount > 0 ? vsm : undefined
 }
 
-/** The pool's first window of a set (`vsmPoolWindow`), made once a pool: the bind groups that name
- *  it find the same object while the pool stands. */
-const windows = new WeakMap<readonly GPUBuffer[], GPUBufferBinding>()
-function poolWindowOf(res: VsmResources) {
-  const parts = res.pagePool[0]
-  let window = windows.get(parts)
-  if (!window) windows.set(parts, (window = vsmPoolWindow(res, 0)!))
-  return window
-}
-
-/** This frame's resources a non-mask read takes (blend, water): the maps, the pool's window and the
- *  projection's view and noise its fragments trace with (`vsmTraceFactor`), or none. */
+/** This frame's resources a non-mask read takes (blend, water): the maps, the pool's first slice —
+ *  one window (`vsmForwardPoolBinding`) — and the projection's view and noise its fragments trace
+ *  with (`vsmTraceFactor`), or none. */
 export function vsmConsumerResources(rt: WebgpuPagesRuntime) {
   const vsm = projectedVsm(rt)
   const shared = vsm && vsmProjectionShared(vsm.res)
@@ -38,7 +27,7 @@ export function vsmConsumerResources(rt: WebgpuPagesRuntime) {
   consumer.pageTable = vsm.res.current.pageTable
   consumer.projectionData = vsm.res.current.projectionData
   consumer.uniforms = vsm.res.current.uniforms
-  consumer.pool = poolWindowOf(vsm.res)
+  consumer.pool = vsm.res.pagePool[0][0]
   consumer.view = shared.view
   consumer.noise = shared.noise
   return consumer

@@ -52,11 +52,11 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
   // mask (`directShadowWgsl`), so it holds the eight storage buffers with the receiver's three.
   if (direct && !resolve)
     entries.push(
-      ...CONTRACT_VSM_BINDINGS.pool.map((binding) => ({
-        binding,
+      {
+        binding: CONTRACT_VSM_BINDINGS.pool,
         visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'read-only-storage' as const },
-      })),
+        buffer: { type: 'read-only-storage' },
+      },
       {
         binding: CONTRACT_TRACE_BINDINGS.view,
         visibility: GPUShaderStage.FRAGMENT,
@@ -234,7 +234,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
 
 /** The virtual shadow maps' stand-ins: no light reads them (no light has a map without them). The
  *  resolve's mask stand-in, one zero texel (every lane lit), its tile words, one zero texel (no
- *  layer stored); the pool's window over the empty pool, the projection's view and blue noise a
+ *  layer stored); the projection's view and blue noise a
  *  forward pass traces with (`vsmTraceFactor`): zeros. */
 function createVsmPlaceholders(device: GPUDevice) {
   const vsmPageTable = device.createBuffer({
@@ -284,7 +284,6 @@ function createVsmPlaceholders(device: GPUDevice) {
       vsmProjectionData,
       vsmUniforms,
       vsmPool,
-      vsmPoolWindow: { buffer: vsmPool } as GPUBufferBinding,
       vsmMask: arrayView(vsmMask),
       vsmMaskTiles: vsmMaskTiles.createView(),
       vsmProjectionView,

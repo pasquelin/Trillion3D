@@ -67,7 +67,7 @@ import {
   type VsmFrameBuffers,
   type VsmResources,
 } from './resources.ts'
-import type { VsmLayout } from './layout.ts'
+import { poolWindowSizes, type VsmLayout } from './layout.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
 /** The camera the pixels are reconstructed with. */
@@ -484,7 +484,7 @@ function projectionPassLayout(device: GPUDevice) {
 function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, receiver: boolean) {
   let made = pipelines.get(device)
   if (!made) pipelines.set(device, (made = new Map()))
-  const key = `${subgroups}|${receiver}|${layout.poolPartsPerSlice}|${layout.poolPartTexelShift}|${layout.poolTexelsXY[0]}`
+  const key = `${subgroups}|${receiver}|${poolWindowSizes(layout).length}|${layout.poolRowShift}`
   let p = made.get(key)
   if (p) return p
   const vsmLayout = device.createBindGroupLayout({

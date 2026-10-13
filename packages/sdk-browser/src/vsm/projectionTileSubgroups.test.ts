@@ -12,7 +12,7 @@ import { CASES, SCOPE, pixelsOf, type Pixel } from './projectionTiles.fixture.ts
 import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27)
+const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
 type Bound = (valid: boolean, p: number[], lane: number) => void
 
 /** The group's words after every lane of `pixels` joined them through `code`'s `vsmTileBound`, the

@@ -1,7 +1,7 @@
 import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
 import { VIS_UNIFORM } from '../../visibility/shader/uniformLayout.ts'
 import { uniformSlots, uniformStride, type UniformSlots } from '../../residency/pools.ts'
-import { vsmPoolWindowBindings } from '../../vsm/poolWindows.ts'
+import { vsmForwardPoolBinding } from '../../vsm/resources.ts'
 
 /**
  * Binding numbers of the four WebGPU-path layouts, the single source of truth: the layout
@@ -144,7 +144,7 @@ export const BLEND_VSM_BINDINGS = {
   pageTable: BLEND_BINDINGS.shadowData,
   projectionData: BLEND_BINDINGS.shadowAtlas,
   uniforms: BLEND_BINDINGS.shadowSampler,
-  pool: vsmPoolWindowBindings(BLEND_BINDINGS.shadowTranslucentDepth),
+  pool: vsmForwardPoolBinding(BLEND_BINDINGS.shadowTranslucentDepth),
 }
 /** What a transparent's fragment traces its shadow with (`directShadowWgsl`). */
 export const BLEND_TRACE_BINDINGS = {

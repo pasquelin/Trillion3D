@@ -6,14 +6,14 @@ import { atlasEntries, type AtlasResources } from './bindEntries.ts'
 export type BlendLighting = {
   directLights: GPUBuffer
   /** The virtual shadow maps a transparent samples (`BLEND_VSM_BINDINGS`), on the old shadow
-   *  numbers: page table, projection data, uniforms and the pool's window (`vsmPoolWindow`). */
+   *  numbers: page table, projection data, uniforms and the pool's first slice. */
   shadowData: GPUBuffer
   shadowAtlas: GPUBuffer
   shadowSampler: GPUBuffer
   /** The translucent casters' transmission atlas (`vsmTransmissionReadWgsl`), or its one-texel
    *  stand-in. */
   shadowTransmittance: GPUTextureView
-  shadowTranslucentDepth: GPUBufferBinding
+  shadowTranslucentDepth: GPUBuffer
   /** What a fragment traces with past the maps (`BLEND_TRACE_BINDINGS`): the shadow projection's
    *  view uniform and blue noise. */
   shadowView: GPUBuffer
@@ -133,13 +133,6 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
       const [, layout, sized] = BLEND_TABLE[name],
         binding = BLEND_BINDINGS[name]
       if (!layout.buffer) return resourceEntry(binding, () => r[name] as GPUBindingResource)
-      if (name === 'shadowTranslucentDepth')
-        return bufferEntry(
-          binding,
-          () => r.shadowTranslucentDepth?.buffer,
-          () => r.shadowTranslucentDepth?.offset,
-          () => r.shadowTranslucentDepth?.size,
-        )
       return bufferEntry(binding, () => r[name] as GPUBuffer, undefined, sized ? size : undefined)
     }),
     ...atlasEntries(BLEND_BINDINGS.color, () => r.textures?.color),

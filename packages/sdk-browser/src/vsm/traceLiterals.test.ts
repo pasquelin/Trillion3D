@@ -19,7 +19,7 @@ const TRACE = vsmTraceWgsl(
   vsmPoolLoadOf(
     0,
     VSM_PROJECTION_VSM_SPECS,
-    vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27),
+    vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }),
   ),
   vsmBlueNoiseTwo(1, 0),
 )

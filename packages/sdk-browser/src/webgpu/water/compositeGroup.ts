@@ -119,9 +119,7 @@ export function waterCompositeEntries(
       .map((resource, binding) => ({ binding, resource })),
     ...HELD.map(([binding, of], at) => {
       const held = of(sources)
-      // A buffer held whole, or a binding of one (the pool's window, `vsmPoolWindow`) as it is.
-      const whole = buffer[at] && !(held as GPUBufferBinding | undefined)?.buffer
-      return { binding, resource: (whole ? { buffer: held } : held) as GPUBindingResource }
+      return { binding, resource: (buffer[at] ? { buffer: held } : held) as GPUBindingResource }
     }),
     { binding: PHYSICAL_LOBES_BINDING, resource: surfaces.lobesView },
   ]

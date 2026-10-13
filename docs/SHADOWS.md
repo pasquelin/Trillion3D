@@ -68,9 +68,9 @@ through the stored depths. Opaque surfaces read it from the mask, where the proj
 it 64 pixels a workgroup, its 32-pixel halves voting their ray count. Blended surfaces and water
 trace their own fragment with it on the same view, noise, maps and depth pyramid
 (`lighting/direct/shadowWgsl.ts:vsmTraceFactor`), lone: no vote, so a fragment stops early only on
-its own narrow contact and never traces fewer rays than a voting pixel. They read the pool's first
-slice through windows of WebGPU's guaranteed binding size (`vsm/poolWindows.ts`), whatever parts the
-device split it into. A page not drawn hands its point to the next coarser level mapped; where none
+its own narrow contact and never traces fewer rays than a voting pixel. Every pass reads the pool
+through the same windows: buffers of WebGPU's guaranteed binding size, the same on every device
+(`vsm/layout.ts:poolWindowSizes`, `vsm/resources.ts`). A page not drawn hands its point to the next coarser level mapped; where none
 holds it, it is lit.
 
 ## Metrics

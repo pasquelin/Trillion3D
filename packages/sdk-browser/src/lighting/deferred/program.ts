@@ -28,13 +28,13 @@ export interface DirectLightResources extends Partial<ContractKey> {
   lights?: GPUBuffer
   tiles?: GPUBuffer
   /** The virtual shadow maps a non-mask read samples (`CONTRACT_VSM_BINDINGS`): this frame's
-   *  page table, projection data and uniforms, the pool's window (`vsmPoolWindow`), and the
-   *  projection's view and blue noise a forward pass traces with (`vsmTraceFactor`). */
+   *  page table, projection data and uniforms, the pool's first slice, and the projection's view
+   *  and blue noise a forward pass traces with (`vsmTraceFactor`). */
   vsm?: {
     pageTable: GPUBuffer
     projectionData: GPUBuffer
     uniforms: GPUBuffer
-    pool: GPUBufferBinding
+    pool: GPUBuffer
     view: GPUBuffer
     noise: GPUTextureView
   }
@@ -134,7 +134,7 @@ export async function createDeferredProgram(
     pageTable: placeholders.vsmPageTable,
     projectionData: placeholders.vsmProjectionData,
     uniforms: placeholders.vsmUniforms,
-    pool: placeholders.vsmPoolWindow,
+    pool: placeholders.vsmPool,
     view: placeholders.vsmProjectionView,
     noise: placeholders.vsmBlueNoise,
   }
