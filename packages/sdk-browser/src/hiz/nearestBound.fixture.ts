@@ -1,5 +1,5 @@
 import { f32Bits, fromF32Bits } from '../../../math/src/float/bits.ts'
-import { referenceBiasedDepthBits as biasedDepthBits } from '../../../../bench/oracles/core/coplanar-layers.ts'
+import { depthLayerUnits } from '../../../sdk-core/src/lod/depthLayer.ts'
 import { FLOAT32_STEP } from '../../../math/src/constants.ts'
 
 /**
@@ -14,6 +14,13 @@ import { FLOAT32_STEP } from '../../../math/src/constants.ts'
  * more than `x`. One multiplier and one rounding, no per-box bit manipulation.
  */
 const GROW = 1 + FLOAT32_STEP / 2
+
+/** The bits of an f32 depth moved `depthLayerUnits(layer)` hardware units nearer, held at 1.0f:
+ *  the coplanar bias `gpu/core/boxProjectWgsl.ts` applies on the GPU. */
+function biasedDepthBits(bits: number, layer: number) {
+  const units = depthLayerUnits(layer)
+  return units === 0 ? bits >>> 0 : Math.min(0x3f800000, (bits >>> 0) + units) >>> 0
+}
 
 /**
  * Depth bound a box carries to the occlusion kernel: an OVERESTIMATE of what the cluster will
