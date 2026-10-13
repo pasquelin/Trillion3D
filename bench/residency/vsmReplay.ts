@@ -3,10 +3,10 @@ import { POOL_RANKS } from '../../packages/sdk-browser/src/gpu/pool/rank.ts'
 import { VSM_PAGE_KEEP_FRAMES } from '../../packages/sdk-browser/src/vsm/constants.ts'
 import { vsmPageLevel, type VsmTrace } from './trace.ts'
 
-/** The shadow pool's order of reuse (M2): `lru`, the exact order the GPU keeps today — pages not
- *  wanted for `VSM_PAGE_KEEP_FRAMES` first, then the least recently wanted (`vsmSortPool`) —, or
- *  `rank`, the pool rank's buckets — log2 age steps × map level — within which the GPU's order is
- *  the pages'. */
+/** The shadow pool's order of reuse (M2): `lru`, the exact order the GPU kept before the pool
+ *  rank — pages not wanted for `VSM_PAGE_KEEP_FRAMES` first, then the least recently wanted —, or
+ *  `rank`, the pool rank's buckets (`freePagesWgsl.ts`) — log2 age steps × map level — within
+ *  which the GPU's order is the pages'. */
 type VsmOrder = 'lru' | 'rank'
 
 /** What an order cost over a trace: the pages drawn again a frame — a wanted page not cached —,

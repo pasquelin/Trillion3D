@@ -14,7 +14,7 @@ static. The sizes are tuning values the engine declares, each with its reason, i
 `vsm/constants.ts` (`VSM_PAGE_TEXELS`, `VSM_LEVEL0_PAGES`, `VSM_MIPS`, `VSM_POOL_PAGES`); the
 buffers are `vsm/resources.ts`. A light takes no page of its own: the pixels mark the pages they
 read, only those are allocated and drawn, and a page nobody marks is evicted when a new one needs
-room. The set is made at the first lit frame with a casting light, sized for the lights that cast
+room, in the order of the pool rank every GPU pool evicts by (`vsm/freePagesWgsl.ts`). The set is made at the first lit frame with a casting light, sized for the lights that cast
 (`webgpu/pages/render/vsm/engineVsm.ts:fullMapsFor`), and grows with its cache kept
 (`webgpu/pages/render/vsm/vsmGrant.ts:growEngineVsm`).
 
