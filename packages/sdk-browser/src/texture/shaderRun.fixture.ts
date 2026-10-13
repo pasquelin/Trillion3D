@@ -18,7 +18,7 @@ const BINARY: Record<string, number> = Object.fromEntries(
     ops.split(' ').map((op) => [op, i + 1]),
   ),
 )
-
+const NAMED = /^(?:const|override(?= \w+:\w+=(?:true|false|\d+u?);)) (\w+)(?::[\w<>]+)?=([^;]+);/gm
 function tokens(text: string) {
   const out: string[] = []
   TOKEN.lastIndex = 0
@@ -181,8 +181,8 @@ class Translator {
 }
 
 /** The functions `names` of a shipped WGSL text, run in JavaScript: vectors as arrays, matrices
- *  as `Mat`, arithmetic component-wise with scalars broadcast, every WGSL built-in they call by
- *  `shaderRunBuiltins.fixture.ts`, the bindings by `scope`, constants by it or the text. */
+ *  as `Mat`, arithmetic by component, scalars broadcast, built-ins by `shaderRunBuiltins.fixture`,
+ *  bindings by `scope`, constants by it or the text — an override at its literal default. */
 export function shaderRun<T>(input: WgslSource, names: string[], scope: object): T {
   const source = wgslSource(input)
   const all: Record<string, unknown> = { ...builtins, $zero: structZero(source), ...scope }
@@ -192,7 +192,7 @@ export function shaderRun<T>(input: WgslSource, names: string[], scope: object):
       new Translator(tokens(text.slice(header.index, all[i + 1]?.index))).functionText(),
     )
     .join('\n')
-  const constants = [...source.matchAll(/^const (\w+)(?::[\w<>]+)?=([^;]+);/gm)]
+  const constants = [...source.matchAll(NAMED)]
     .filter(([, name]) => !(name in all) && new RegExp(`\\b${name}\\b`).test(text))
     .map(([, name, value]) => `const ${name}=${new Translator(tokens(value)).expression()};`)
   const body = `${constants.join('')}${js};return {${names}};`
