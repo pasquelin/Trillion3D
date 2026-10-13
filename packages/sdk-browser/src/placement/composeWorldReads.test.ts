@@ -13,7 +13,7 @@ test('a root a parent composes reads the composed world; a parent that turns its
   const roots = rt.layout.selectionRoots as unknown as { pages: unknown[]; windingEpoch?: number }[]
   for (const root of roots) root.pages = []
   ;(rt.run as unknown as { movedWorlds: unknown }).movedWorlds = {
-    listed: { add: (rank: number) => written.push(rank) },
+    mark: (rank: number) => written.push(rank),
   }
   const parent = {},
     links = [0, 1].map((index) => ({ rows, index, local: turn(0.25) }))
