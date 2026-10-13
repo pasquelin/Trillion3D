@@ -10,19 +10,25 @@ export const RUNTIME_NONE = 0xffffffff
  * surface per drawn material, then the arena of the meshes' own proxies — the columns of a `proxy.bin`
  * (`page-codec-wasm/src/proxy.rs`), one mesh's after another, in the mesh's own space —, the mirror of the
  * placement tree's nodes and the mirror of its member order, and the world matrices the instances are placed
- * by. The tree above the placements and their worlds are the culling's, copied here (`mirror`: the tree each
- * frame, the world rows written since the last copy and no other), so
- * that a program reads the whole proxy through one storage binding: the forward programs, whose fragment stage
- * binds the eight WebGPU guarantees, have no room for a second.
+ * by. The tree above the placements and their worlds are the culling's, copied here (`mirror`: the tree's
+ * nodes when the refit moved them, its member order when it was written, the world rows written since the last
+ * copy and no other), so that a program reads the whole proxy through one storage binding: the forward
+ * programs, whose fragment stage binds the eight storage buffers WebGPU guarantees, have no room for a second,
+ * and the culling's own stage binds eight as well.
+ *
+ * ONE BINDING HOLDS IT ALL, OR NO PROXY. A placement takes 112 bytes here (instance, world, exact translation)
+ * and 96 in the culling's world table (`gpu/dag/cameraRanges.ts`), which splits in ranges only past one binding:
+ * a proxy that fits one binding stands over a world of one range, every placement's row in it. A proxy past one
+ * binding is refused by name (`gpu/dag/proxyInstances.ts`), never made: the trace then reads its stand-ins.
  *
  * Header words, one table the writer's words and the shader's struct (`RUNTIME_PROXY_WGSL`) are both drawn
  * from (`fieldLayout`): the placements the instances hold (the blended copies' follow them), then the word
  * rank of each region — the copies' worlds a region of their own —, the tree's root node (`RUNTIME_NONE` for
  * a packing without a tree: the placements are then its few members), the id of the first node the mirror
  * holds, the words of its nodes and of its members, the live members, the word rank of the placements'
- * worlds, the rows the world table's first range holds, the greatest world error of a proxy, in metres, as an
- * `f32`'s bits: the distance a ray leaves a surface off its normal, the blended copies, and the word rank of
- * the placements' exact translations, which follow their worlds.
+ * worlds, the greatest world error of a proxy, in metres, as an `f32`'s bits: the distance a ray leaves a
+ * surface off its normal, the blended copies, and the word rank of the placements' exact translations, which
+ * follow their worlds.
  */
 const HEADER = fieldLayout(
   'RuntimeProxy',
@@ -40,7 +46,6 @@ const HEADER = fieldLayout(
     ['membersWord', 'u32'],
     ['members', 'u32'],
     ['worldsWord', 'u32'],
-    ['worldRows', 'u32'],
     ['error', 'f32'],
     ['copies', 'u32'],
     ['originsWord', 'u32'],

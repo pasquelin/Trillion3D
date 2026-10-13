@@ -6,8 +6,10 @@
  * forward family draws (the members after the placements, their worlds in the buffer: they are no member of
  * the culling's tree), a surface a drawn material, the arena of the meshes' proxies, each uploaded once, when
  * a placement or a copy first wears it, and the mirror of the culling's placement tree (`mirror`). The
- * placements' worlds are the culling's, copied beside the tree (`mirror`), the rows written since the last copy alone: one storage binding reads the
- * whole proxy.
+ * placements' worlds are the culling's, copied beside the tree (`mirror`), the rows written since the last copy
+ * alone: one storage binding reads the whole proxy. That binding is the one fit rule of the cut's buffers
+ * (`pastBinding`): a layout past it is refused by name (`refusal`) and no buffer is made, so a world that holds
+ * a proxy is one range of the culling's worlds (`runtimeLayout.ts`), every row of it in the buffer.
  *
  * A mesh's proxy reaches a placement through its primitive (`RootProxy.primitive`): a cut's at its making, a
  * compiled mesh's when the cache object arrives (`arrived`), which writes every instance again.
@@ -24,23 +26,18 @@ import {
 } from '../../../../sdk-core/src/index.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import { SQRT3 } from '../../../../math/src/constants.ts'
-import { boxTransform } from '../../../../math/src/geometry/box.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
-import {
-  longestColumn,
-  sameElements,
-  sameMatrixFloat32,
-} from '../../../../math/src/matrix/matrixElements.ts'
+import { longestColumn, sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
 import { constructGpuResources } from '../core/errorScope.ts'
-import type { ProxyBoxes } from '../../bounce/probeSync.ts'
 import { refreshSurface, type PageSurface } from '../../page/surface.ts'
 import type { RootProxy } from '../../page/selection/types.ts'
 import { rowParked, type PlacementOf } from '../../placement/rows.ts'
 import { createSpans } from '../../bounce/spans.ts'
 import { pendingMade } from '../core/tableGrowth.ts'
 import { createProxyPose, type PoseEntry } from './proxyPose.ts'
+import { createProxyBoxes } from './proxyBoxes.ts'
 import {
   INSTANCE,
   INSTANCE_WORDS,
@@ -53,6 +50,7 @@ import {
 } from '../../bounce/runtimeLayout.ts'
 import { NO_TINT, writeSurface } from '../../bounce/runtimeSurface.ts'
 import { copyParts, type DagParts } from './split.ts'
+import { pastBinding } from './bufferTable.ts'
 import { treeNodeCount } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
 
@@ -70,6 +68,11 @@ const WORLD_WORDS = RUNTIME_WORLD_WORDS,
   ORIGIN_BYTES = RUNTIME_ORIGIN_WORDS * 4
 /** Cuts, surfaces, triangles and nodes a first buffer is laid out for: doubled as needed. */
 const START = { surfaces: 16, triangles: 4096, nodes: 1024, corners: 4096 }
+const LABEL = 'Trillion3D run-time proxy'
+
+/** A write's arguments past the buffer it lands in (`GPUQueue.writeBuffer`). */
+type WriteArgs =
+  Parameters<GPUQueue['writeBuffer']> extends [GPUBuffer, ...infer Rest] ? Rest : never
 
 type Resources = {
   device: GPUDevice
@@ -186,45 +189,37 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     }
   }
   const byteAt = (word: number) => (RUNTIME_HEADER_WORDS + word) * 4
-  /** Every write to the buffer: what a ray can meet changed, so its answers are of another epoch. */
-  const send: GPUQueue['writeBuffer'] = (...args) => {
+  /** Every write to the buffer: what a ray can meet changed, so its answers are of another epoch. No
+   *  buffer, no write: the proxy refused (`refusal`) sends nothing. */
+  const send = (target: GPUBuffer | undefined, ...args: WriteArgs) => {
+    if (!target) return
     revision++
-    device.queue.writeBuffer(...args)
+    device.queue.writeBuffer(target, ...args)
   }
+  // Why the proxy holds no buffer although a placement wears one: its layout past one storage binding of
+  // this device, by the cut's one fit rule (`pastBinding`). Never undone: the layout only grows.
+  let refusal: string | undefined
 
   // The world rows written since the mirror last copied them, in the engine's one changed list: a still
   // world copies nothing. A buffer new made holds none of them (`ensure`), and takes them all.
   const mirrored = createChangedRuns(slots, WORLD_RUN_GAP, WORLD_RUNS)
   let worldsAll = true
-  // The tree's revision the mirror last copied (`TreeFollower.revision`): a still tree copies nothing.
-  let treeCopied = NaN
+  // The tree's revision the mirror last copied (`TreeFollower.revision`): a still tree copies nothing. Its
+  // member order moves only where roots join it (`appended`): copied then, and into a buffer new made.
+  let treeCopied = NaN,
+    membersCopied = false
 
-  // The placements' world boxes, for the probes' occupancy map (`bounce/probes.ts`), kept from call to call:
-  // a placement's box is its mesh's root bounds through the world it stands at, made again only for a row
-  // written since (`boxed`) whose world or proxy moved, the rows whose box did listed (`moved`), the extent
-  // kept as the boxes change. A row that wears no proxy holds the empty box.
-  const boxes = new Float64Array(slots * 6),
-    boxedWorlds = new Float64Array(slots * 16),
-    boxedCuts: (RuntimeCutProxy | undefined)[] = new Array(slots)
-  for (let w = 0; w < slots; w++)
-    boxes.fill(Infinity, w * 6, w * 6 + 3).fill(-Infinity, w * 6 + 3, w * 6 + 6)
-  const boxed = createChangedRuns(slots, 1),
-    movedBoxes = createChangedRuns(slots, 1)
-  const extent = [0, 0, 0, 0, 0, 0]
-  // Whether the extent was found again since a box that held its edge moved, and holds a box.
-  let extentStale = true,
-    extentHolds = false
+  // The placements standing, and their world boxes for the probes' occupancy map (`proxyBoxes.ts`).
+  const live = () => packed.live?.worlds ?? packed.worldSources.length
+  const boxes = createProxyBoxes(packed, slots, live)
 
   /** Row `w` of the culling's world table was written: its mirror is copied at the next `mirror`, its box
    *  made again at the next `worldBoxes`. */
   function worldWritten(w: number) {
     if (w < 0 || w >= slots) return
-    boxed.mark(w)
+    boxes.mark(w)
     if (!worldsAll) mirrored.mark(w)
   }
-
-  /** The rows of the culling's world table the buffer mirrors: the first range's, as many as it holds. */
-  const worldRows = () => Math.min(frames.ranges[0]?.count ?? 0, slots)
 
   const head = new Uint32Array(RUNTIME_HEADER_WORDS),
     headFloats = new Float32Array(head.buffer)
@@ -244,24 +239,34 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     head[at.membersWord] = layout.members
     head[at.members] = walksTree ? tree!.count : packed.worldSources.length
     head[at.worldsWord] = layout.worlds
-    head[at.worldRows] = worldRows()
     headFloats[at.error] = error
     head[at.copies] = copies.length
     head[at.originsWord] = layout.origins
     return head
   }
 
-  /** The buffer, made at the first need with everything the CPU holds written into it. */
+  /** The buffer, made at the first need with everything the CPU holds written into it; none past one storage
+   *  binding (`pastBinding`), the proxy then refused by name. A world past one range of the culling's worlds is
+   *  among them: 96 bytes a placement there split it, and this layout holds 112 (`runtimeLayout.ts`). */
   function ensure() {
-    if (buffer) return buffer
+    if (buffer || refusal) return buffer
+    const bytes = byteAt(layout.total),
+      past = pastBinding(device.limits, { proxy: { label: LABEL, size: bytes } })
+    if (past) {
+      refusal = `the run-time proxy needs ${bytes} bytes, past one storage binding of ${past.limit}`
+      // What a ray can meet changed: the answers a buffer gave before are of another epoch.
+      revision++
+      return undefined
+    }
     worldsAll = true
     treeCopied = NaN
+    membersCopied = false
     mirrored.clear()
     // Made in the device's ledger, as every resource the engine allocates (`constructGpuResources`).
     const made = constructGpuResources(device, () =>
       device.createBuffer({
-        label: 'Trillion3D run-time proxy',
-        size: byteAt(layout.total),
+        label: LABEL,
+        size: bytes,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
       }),
     )
@@ -274,7 +279,8 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   }
 
   /** The tables laid out again — `want` more triangles, nodes, surfaces, or a copy more or fewer —:
-   *  the buffer replaced by one the new layout fits, the columns it held carried over by copies. */
+   *  the buffer replaced by one the new layout fits, the columns it held carried over by copies — or by
+   *  none, the new layout past one binding (`ensure`). */
   function relayout(
     want: { triangles?: number; nodes?: number; surfaces?: number; corners?: number } = {},
   ) {
@@ -290,14 +296,16 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     buffer = undefined
     if (!old) return
     const made = ensure()
-    const encoder = device.createCommandEncoder({ label: 'Trillion3D run-time proxy growth' })
-    const copy = (from: number, to: number, count: number) =>
-      count > 0 && encoder.copyBufferToBuffer(old, byteAt(from), made, byteAt(to), count * 4)
-    copy(before.triangles, layout.triangles, triangles.extent * PROXY_TRIANGLE_FLOATS)
-    copy(before.bounds, layout.bounds, nodes.extent * PROXY_NODE_FLOATS)
-    copy(before.children, layout.children, nodes.extent * PROXY_NODE_WORDS)
-    copy(before.deform, layout.deform, corners.extent)
-    device.queue.submit([encoder.finish()])
+    if (made) {
+      const encoder = device.createCommandEncoder({ label: 'Trillion3D run-time proxy growth' })
+      const copy = (from: number, to: number, count: number) =>
+        count > 0 && encoder.copyBufferToBuffer(old, byteAt(from), made, byteAt(to), count * 4)
+      copy(before.triangles, layout.triangles, triangles.extent * PROXY_TRIANGLE_FLOATS)
+      copy(before.bounds, layout.bounds, nodes.extent * PROXY_NODE_FLOATS)
+      copy(before.children, layout.children, nodes.extent * PROXY_NODE_WORDS)
+      copy(before.deform, layout.deform, corners.extent)
+      device.queue.submit([encoder.finish()])
+    }
     // The old buffer may be recorded in commands of this image not yet submitted, or held by a group in
     // flight: it is freed when the work submitted by then is done, the one growth transaction
     // (`gpu/core/tableGrowth.ts`) with its free deferred.
@@ -458,7 +466,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   /** Placements `[from, to)` written: what they wear, parked ones none until they are taken back. */
   function write(from: number, to: number) {
     for (let w = from; w < to; w++) {
-      boxed.mark(w)
+      boxes.mark(w)
       resolve(w)
       const at = w * INSTANCE_WORDS,
         parked = packed.rootNodes[w] === RUNTIME_NONE
@@ -529,86 +537,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     send(made, byteAt(layout.copyWorlds), copyWorlds)
   }
 
-  const live = () => packed.live?.worlds ?? packed.worldSources.length
   write(0, live())
-
-  /** Placement `w`'s box made again where its world or its proxy moved: whether it did. */
-  function rebox(w: number) {
-    const root = packed.worldSources[w] as DagRoot | undefined
-    const cut = root?.proxy?.primitive.runtimeProxy
-    const at = w * 6
-    const wears =
-      w < live() && !!root && !!cut?.nodeBounds.length && packed.rootNodes[w] !== RUNTIME_NONE
-    if (!wears) {
-      if (!boxedCuts[w]) return false
-      boxedCuts[w] = undefined
-      boxes.fill(Infinity, at, at + 3).fill(-Infinity, at + 3, at + 6)
-      return true
-    }
-    const m = root!.world.elements
-    if (boxedCuts[w] === cut && sameElements(boxedWorlds, m, w * 16)) return false
-    boxedCuts[w] = cut
-    copyMatrix4(boxedWorlds, m, w * 16)
-    boxTransform(boxes, at, cut!.nodeBounds, 0, m)
-    return true
-  }
-
-  /** Whether box `w`, before it changes, touches the extent: the extent is then found again. */
-  function onEdge(w: number) {
-    for (let axis = 0; axis < 3; axis++)
-      if (boxes[w * 6 + axis] === extent[axis] || boxes[w * 6 + 3 + axis] === extent[3 + axis])
-        return true
-    return false
-  }
-
-  /** The extent of every box, found again: zeros without a box. */
-  function fitExtent() {
-    extent.fill(0)
-    let first = true
-    for (let w = 0; w < slots; w++) {
-      if (!boxedCuts[w]) continue
-      for (let axis = 0; axis < 3; axis++) {
-        const low = boxes[w * 6 + axis],
-          high = boxes[w * 6 + 3 + axis]
-        extent[axis] = first ? low : Math.min(extent[axis], low)
-        extent[3 + axis] = first ? high : Math.max(extent[3 + axis], high)
-      }
-      first = false
-    }
-    extentHolds = !first
-  }
-
-  /** The boxes made again for the rows written since the last call (`boxed`), and the runs of those
-   *  whose box moved: the work follows them, never the placements' count — the extent alone is found
-   *  again over every box, when a box that held its edge moved. */
-  function worldBoxes(): ProxyBoxes {
-    const { count, pairs } = boxed.runs()
-    for (let r = 0; r < count; r++)
-      for (let w = pairs[2 * r]; w <= pairs[2 * r + 1]; w++) {
-        const edge = !!boxedCuts[w] && onEdge(w)
-        if (!rebox(w)) continue
-        movedBoxes.mark(w)
-        if (edge || extentStale || !extentHolds || !boxedCuts[w]) {
-          extentStale ||= edge || (!extentHolds && !!boxedCuts[w])
-          continue
-        }
-        for (let axis = 0; axis < 3; axis++) {
-          extent[axis] = Math.min(extent[axis], boxes[w * 6 + axis])
-          extent[3 + axis] = Math.max(extent[3 + axis], boxes[w * 6 + 3 + axis])
-        }
-      }
-    boxed.clear()
-    if (extentStale) fitExtent()
-    extentStale = false
-    const moved = movedBoxes.runs()
-    const result = {
-      boxes,
-      moved: { count: moved.count, pairs: moved.pairs },
-      extent: extent.slice(),
-    }
-    movedBoxes.clear()
-    return result
-  }
 
   /** The blended copies the forward family draws, members of this proxy after the placements: their
    *  poses are the host's (`BlendCopy.matrix`), read again at each cut. The host's list grows in place
@@ -635,21 +564,26 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     buffer() {
       return buffer
     },
+    /** Why no buffer holds the proxy the placements wear: its bytes past one storage binding (`ensure`). */
+    get refusal() {
+      return refusal
+    },
     /**
      * The placements' worlds and the placement tree copied into the proxy's buffer, in `encoder`, before the
-     * first program of the image that traces it: sixty-four bytes of world a row written since the last copy — a
-     * still world copies none —, and the tree's nodes, as
-     * the culling's refit left them, and the order of its members, a few hundred kilobytes at a quarter of a
-     * million placements; no tree copies nothing to walk.
+     * first program of the image that traces it: ninety-six bytes of world and exact translation a row written
+     * since the last copy — a still world copies none —, the tree's nodes as the culling's refit left them,
+     * when it moved them — ninety-six bytes a node, some four hundred kilobytes at a quarter of a million
+     * placements —, and the order of its members when roots joined it, four bytes a member (a megabyte there,
+     * which a refit no longer copies again); no tree copies nothing to walk. A buffer stands over
+     * one range of the culling's worlds (`ensure`): its rows are every placement's.
      */
     mirror(encoder: GPUCommandEncoder, treeRevision: number) {
       if (!buffer) return
-      const rows = worldRows(),
-        source = frames.worldBuffers[0]
-      if (rows > 0 && source) {
+      const source = frames.worldBuffers[0]
+      if (source) {
         const into = buffer,
           // The exact translations lie behind the range's matrices: the translation a ray reads.
-          originsAt = (frames.ranges[0]?.count ?? 0) * WORLD_BYTES
+          originsAt = frames.ranges[0].count * WORLD_BYTES
         const copy = (from: number, to: number) => {
           if (from >= to) return
           encoder.copyBufferToBuffer(
@@ -667,36 +601,29 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
             (to - from) * ORIGIN_BYTES,
           )
         }
-        if (worldsAll) copy(0, rows)
+        if (worldsAll) copy(0, slots)
         else {
           const { count, pairs } = mirrored.runs()
-          for (let r = 0; r < count; r++) copy(pairs[2 * r], Math.min(pairs[2 * r + 1] + 1, rows))
+          for (let r = 0; r < count; r++) copy(pairs[2 * r], pairs[2 * r + 1] + 1)
         }
       }
       mirrored.clear()
       worldsAll = false
-      if (!walksTree || !tree || treeRevision === treeCopied) return
-      treeCopied = treeRevision
-      copyParts(
-        encoder,
-        nodeParts,
-        tree.cellBase * DAG_NODE_FLOATS * 4,
-        buffer,
-        byteAt(layout.tree),
-        treeWords * 4,
-      )
-      copyParts(
-        encoder,
-        coldParts,
-        tree.members * 4,
-        buffer,
-        byteAt(layout.members),
-        memberWords * 4,
-      )
+      if (!walksTree || !tree) return
+      if (treeRevision !== treeCopied) {
+        treeCopied = treeRevision
+        const nodesAt = tree.cellBase * DAG_NODE_FLOATS * 4
+        copyParts(encoder, nodeParts, nodesAt, buffer, byteAt(layout.tree), treeWords * 4)
+      }
+      if (!membersCopied) {
+        membersCopied = true
+        const membersAt = tree.members * 4
+        copyParts(encoder, coldParts, membersAt, buffer, byteAt(layout.members), memberWords * 4)
+      }
     },
     /** The world box of each placement that wears a proxy, and which of them are new or moved since the last
      *  call: what the probes' occupancy map keeps (`bounce/probes.ts`). */
-    worldBoxes,
+    worldBoxes: boxes.worldBoxes,
     /**
      * The deformed placements' copies posed, in `encoder`, before the first program of the image that traces
      * them: when the deformation's records moved (`host.revision`) or a copy is new, and once the pose's
@@ -747,15 +674,20 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     worldsRange(from: number, to: number) {
       for (let w = from; w < to && !worldsAll; w++) worldWritten(w)
     },
-    /** Roots `[from, to)` were appended behind the others: their instances, and the tree's members. */
-    appended: write,
+    /** Roots `[from, to)` were appended behind the others: their instances, and the tree's nodes and member
+     *  order they joined, copied at the next `mirror`. */
+    appended(from: number, to: number) {
+      write(from, to)
+      treeCopied = NaN
+      membersCopied = false
+    },
     /** The blended copies the forward family draws, members of this proxy after the placements: their
      *  poses are the host's (`BlendCopy.matrix`), read again at each cut. */
     setCopies,
     /** Placement `w` parked, or taken back. */
     park(w: number, parked: boolean) {
       if (w >= slots) return
-      boxed.mark(w)
+      boxes.mark(w)
       if (!buffer) return
       const at = w * INSTANCE_WORDS,
         node = parked ? RUNTIME_NONE : resolved[at + INSTANCE.node]
@@ -798,10 +730,9 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
         resolved.byteLength +
         surfaceWords.byteLength +
         copyWorlds.byteLength +
-        boxes.byteLength +
-        boxedWorlds.byteLength +
-        // The changed lists' marks, a byte a row each.
-        3 * slots
+        boxes.hostBytes +
+        // The mirror's changed list's marks, a byte a row.
+        slots
       )
     },
     /** Bytes of the buffer: what the cut's memory budget counts. */

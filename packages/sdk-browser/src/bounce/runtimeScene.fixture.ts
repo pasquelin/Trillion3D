@@ -157,7 +157,6 @@ export function world(
     membersWord: membersAt,
     members: tree ? tree.count : count,
     worldsWord: worldsAt,
-    worldRows: count,
     error: 0,
     copies: copies.length,
     originsWord: originsAt,

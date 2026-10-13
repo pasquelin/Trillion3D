@@ -152,6 +152,9 @@ function selectionOver(run: DagRun): GpuSelection {
       return run.proxies.hostBytes
     },
     proxyBuffer: () => (live() ? run.proxies.buffer() : undefined),
+    get proxyRefusal() {
+      return run.proxies.refusal
+    },
     proxyMirror: (encoder) => live() && run.proxies.mirror(encoder, run.tree?.revision ?? 0),
     proxyPose: (encoder, host) => live() && run.proxies.pose(encoder, host),
     proxyArrived: () => live() && run.proxies.arrived(),

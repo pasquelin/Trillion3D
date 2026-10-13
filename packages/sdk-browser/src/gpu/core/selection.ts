@@ -168,8 +168,10 @@ export type GpuSelection = {
    *  (`../dag/queueGrowth.ts`), grown before the next cut. */
   followRows?(rows: number): void
   /** The buffer a program reads the proxy through (`../dag/proxyInstances.ts`): none until a placement
-   *  wears one. */
+   *  wears one, or none past one storage binding of the device (`proxyRefusal`). */
   proxyBuffer(): GPUBuffer | undefined
+  /** Why no buffer holds the proxy a placement wears, by name: its bytes past one storage binding. */
+  readonly proxyRefusal: string | undefined
   /** Bytes the CPU keeps for the proxy (`../dag/proxyInstances.ts`): the streamer's reservation counts them. */
   readonly proxyHostBytes: number
   /** The placement tree copied into the proxy's buffer, before the first program of the image that walks it. */
