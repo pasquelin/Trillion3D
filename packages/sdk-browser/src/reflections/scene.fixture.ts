@@ -63,7 +63,7 @@ export function reflectionRunner(
   overrides: object = {},
 ) {
   const counter = { loads: 0, taps: [] as number[][], cells: [] as number[][] }
-  const token = { depth: {}, pyramid: {}, front: {}, image: {} }
+  const token = { depth: {}, pyramid: {}, image: {} }
   const run = shaderRun<{
     reflectionLobeOf: (R: V3, alpha: number, lobe: number[]) => Lobe
     reflectionSeen: (P: V3, N: V3, lobe: Lobe) => Seen
@@ -120,7 +120,6 @@ export function reflectionRunner(
       view,
       hizDepth: token.depth,
       hizPyramid: token.pyramid,
-      hizFront: token.front,
       hizLevels: depth.levels,
       reflectionImage: token.image,
       reflectionSampler: {},

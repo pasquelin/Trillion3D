@@ -128,10 +128,9 @@ export function hizLevelWords(
 
 /** The layout entries of a depth reader (`hizDepthWgsl`) from `binding`, read by `visibility`. */
 export const hizDepthEntries = (binding: number, visibility: number): GPUBindGroupLayoutEntry[] => [
-  computeTextureEntry(binding, 'unfilterable-float', '2d', visibility),
+  computeTextureEntry(binding, 'unfilterable-float', '2d-array', visibility),
   computeTextureEntry(binding + 1, 'uint', '2d-array', visibility),
   computeUniformEntry(binding + 2, {}, visibility),
-  computeTextureEntry(binding + 3, 'unfilterable-float', '2d', visibility),
 ]
 
 /** The bind-group entries of `depth` (`GpuHiz.depth`) from `binding`, the resources of
@@ -139,24 +138,33 @@ export const hizDepthEntries = (binding: number, visibility: number): GPUBindGro
 export const hizDepthBindEntries = (binding: number, depth: HizDepth): GPUBindGroupEntry[] =>
   sequentialEntries(depth.resources, binding)
 
+/** The layers of the level-0 texture (`HIZ_DEPTH_LAYERS` of them): the opaque depth, and the
+ *  nearest transparent surface's (`reflections/frontDepth.ts`, a depth a pixel, zero for none). */
+export const HIZ_OPAQUE_LAYER = 0
+export const HIZ_FRONT_LAYER = 1
+export const HIZ_DEPTH_LAYERS = 2
+
 /**
- * The front-over-opaque fold, written once for every reader (`hizDepthWgsl`, the Hi-Z build): the
- * depth at pixel `p` of the opaque texture `opaque` and the nearest transparent surface's `front` (a
- * depth a pixel, zero for none), reverse-Z, so the larger. A pixel without a transparent surface
- * reads the opaque depth, bit for bit.
+ * The front-over-opaque fold, written once for every reader (`hizDepthWgsl`, the Hi-Z build): at
+ * pixel `p` of the level-0 texture `depth`, the opaque depth and the nearest transparent surface's,
+ * its two layers, reverse-Z, so the larger. A pixel without a transparent surface reads the opaque
+ * depth, bit for bit.
  */
 export const HIZ_FOLD_WGSL = wgslBlock(
   'HIZ_FOLD_WGSL',
   [],
-  `fn hizFold(opaque:texture_2d<f32>,front:texture_2d<f32>,p:vec2i)->f32{
- return max(textureLoad(opaque,p,0).r,textureLoad(front,p,0).r);
+  `fn hizFold(depth:texture_2d_array<f32>,p:vec2i)->f32{
+ return max(textureLoad(depth,p,${HIZ_OPAQUE_LAYER},0).r,textureLoad(depth,p,${HIZ_FRONT_LAYER},0).r);
+}
+fn hizFoldOver(depth:texture_2d_array<f32>,p:vec2i)->bool{
+ return textureLoad(depth,p,${HIZ_FRONT_LAYER},0).r>textureLoad(depth,p,${HIZ_OPAQUE_LAYER},0).r;
 }`,
 )
 
 /**
- * What a reader of the whole depth binds in group `group` from `binding` (`GpuHiz.depth`): level 0,
- * the depth the image drew, the pyramid, its levels, and the nearest transparent surface's depth a
- * pixel (`front`, zero for none). `hizPlane` is a pixel's depth (the nearer of the opaque depth and
+ * What a reader of the whole depth binds in group `group` from `binding` (`GpuHiz.depth`): level 0 —
+ * the depth the image drew, and in its second layer the nearest transparent surface's depth a pixel
+ * (zero for none) —, the pyramid and its levels. `hizPlane` is a pixel's depth (the nearer of the opaque depth and
  * the transparent one, which the nearest layer's bounds fold in the same way, `hizFold`) and its
  * plane's slopes in depth per pixel, and `hizFrontOver` whether that depth is a transparent
  * surface's (`hizFoldOver`), in front of the opaque one (a reader that takes only opaque surfaces for walls skips
@@ -169,18 +177,14 @@ export const hizDepthWgsl = (group: number, binding: number) =>
     `hizDepthWgsl(${group}, ${binding})`,
     [HIZ_READ_WGSL, HIZ_FOLD_WGSL],
     `struct HizLevels{level:array<vec4u,${HIZ_MAX_LEVELS}>,count:vec4u,}
-@group(${group}) @binding(${binding}) var hizDepth:texture_2d<f32>;
+@group(${group}) @binding(${binding}) var hizDepth:texture_2d_array<f32>;
 @group(${group}) @binding(${binding + 1}) var hizPyramid:texture_2d_array<u32>;
 @group(${group}) @binding(${binding + 2}) var<uniform> hizLevels:HizLevels;
-@group(${group}) @binding(${binding + 3}) var hizFront:texture_2d<f32>;
 fn hizLevelCount()->i32{return i32(hizLevels.count.x);}
-fn hizFoldOver(opaque:texture_2d<f32>,front:texture_2d<f32>,p:vec2i)->bool{
- return textureLoad(front,p,0).r>textureLoad(opaque,p,0).r;
-}
 fn hizPixelIn(cell:vec2i,size:vec2u)->vec2u{return vec2u(clamp(cell,vec2i(0),vec2i(size)-vec2i(1)));}
 fn hizPixel(cell:vec2i)->vec2u{return hizPixelIn(cell,hizLevels.level[0].yz);}
-fn hizFrontDepth(cell:vec2i)->f32{return hizFold(hizDepth,hizFront,vec2i(hizPixel(cell)));}
-fn hizFrontOver(cell:vec2i)->bool{return hizFoldOver(hizDepth,hizFront,vec2i(hizPixel(cell)));}
+fn hizFrontDepth(cell:vec2i)->f32{return hizFold(hizDepth,vec2i(hizPixel(cell)));}
+fn hizFrontOver(cell:vec2i)->bool{return hizFoldOver(hizDepth,vec2i(hizPixel(cell)));}
 fn hizPlane(cell:vec2i)->vec3f{
  let size=hizLevels.level[0].yz;
  let p=hizPixel(cell);

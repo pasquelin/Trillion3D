@@ -2,15 +2,16 @@
 // (`screenBytesPage.ts`) at two sizes: a label that holds the same bytes a pixel at both follows the
 // screen. Their sum is the budget of the frame's images — the formula, per world:
 //
-//   opaque, lit by a sun      80 B/px, and the sun's shadow mask 4
+//   opaque, lit by a sun      84 B/px (the Hi-Z level 0's front layer 4 among them, zero without
+//                                  blends), and the sun's shadow mask 4
 //   + temporal antialiasing   +48 (history at the display size: geometry 8, colour 8, flicker 4,
 //                                  share 4, twice)
 //   + a mirror                 0 (the reflection's targets exist for every lit surface)
-//   + blends                  +10 front depth (the reflection's: target 2, buffer 4, the folded
-//                                  texture the Hi-Z binds 4), +8 emission and occlusion, with water
+//   + blends                  +6 front depth (the reflection's: target 2, buffer 4; the layer it
+//                                  folds into is the Hi-Z's), +8 emission and occlusion, with water
 //                                  +12 (backdrop 8, depth 4)
 //
-// A world with no blend holds a texel of the front depth's target, not 10 B/px.
+// A world with no blend holds a texel of the front depth's target, not 6 B/px.
 //
 //   node bench/dawn/proofs.ts tests/gpu/world/screen-bytes.gpu.ts
 import test from 'node:test'
@@ -33,7 +34,7 @@ function screenBytes([small, large]: ScreenReading[Kind]) {
 }
 
 /** The bytes a pixel each world holds, a few tenths aside (the tile lists): the formula above. */
-const BUDGET = { opaque: 84, glass: 114, mirror: 84, temporal: 132 } satisfies Record<Kind, number>
+const BUDGET = { opaque: 88, glass: 114, mirror: 88, temporal: 136 } satisfies Record<Kind, number>
 
 test('what a world holds per screen pixel is the formula', async () => {
   const result = (await runPageProof(

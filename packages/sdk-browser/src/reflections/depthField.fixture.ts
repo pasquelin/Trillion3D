@@ -7,6 +7,7 @@ import { HIZ_SHADER, HIZ_NEAREST_BUILD } from '../gpu/hiz/shader.ts'
 import { pyramidBytes } from '../gpu/hiz/oracle.ts'
 import { HIZ_MAX_LEVELS } from '../gpu/hiz/uniforms.ts'
 import {
+  HIZ_FRONT_LAYER,
   HIZ_NEAREST,
   hizTextureSize,
   HIZ_WHOLE_FARTHEST,
@@ -43,19 +44,16 @@ export const depthImage = (
   Float64Array.from({ length: width * height }, (_, i) => depth(i % width, Math.floor(i / width)))
 
 /**
- * The `textureLoad` of the readers over `field`: the opaque depth of `token.depth`, the nearest
- * transparent surface's of `token.front`, a word of the pyramid for any other texture;
- * `onNearest` is told each cell of the nearest layer a march reads.
+ * The `textureLoad` of the readers over `field`: of `token.depth`, level 0, the opaque depth in its
+ * first layer and the nearest transparent surface's in its second (`HIZ_FRONT_LAYER`); a word of
+ * the pyramid for any other texture; `onNearest` is told each cell of the nearest layer a march
+ * reads.
  */
 export const depthLoads =
-  (
-    field: DepthField,
-    token: { depth: object; front: object },
-    onNearest: (cell: number[]) => void,
-  ) =>
+  (field: DepthField, token: { depth: object }, onNearest: (cell: number[]) => void) =>
   (t: object, cell: number[], layer: number) => {
-    if (t === token.depth) return [field.depthAt(cell)]
-    if (t === token.front) return [field.frontAt(cell)]
+    if (t === token.depth)
+      return [layer === HIZ_FRONT_LAYER ? field.frontAt(cell) : field.depthAt(cell)]
     if (field.layerOf(cell, layer) === HIZ_NEAREST) onNearest(cell)
     return [field.word(cell, layer)]
   }
@@ -83,8 +81,7 @@ export function depthField(
   )
   const row = hizTextureSize(layout).width
   const slopes = new Uint32Array(width * height)
-  const level0 = {},
-    frontToken = {}
+  const level0 = {}
   const build = shaderRun<{
     hizSource: (at: number, x: number, y: number) => number[]
   }>(
@@ -107,9 +104,11 @@ export function depthField(
       [HIZ_NEAREST_BUILD]: true,
       uni: { a: 0, b: width, c: height, upper },
       level0,
-      front: frontToken,
-      textureLoad: (t: object, p: number[]) => [
-        Math.fround(t === frontToken ? frontOf(p[1] * width + p[0]) : depth[p[1] * width + p[0]]),
+      // Level 0's two layers: the opaque depth, then the nearest transparent surface's.
+      textureLoad: (_: object, p: number[], layer: number) => [
+        Math.fround(
+          layer === HIZ_FRONT_LAYER ? frontOf(p[1] * width + p[0]) : depth[p[1] * width + p[0]],
+        ),
       ],
       hizPut: (i: number, _: number, word: number) => void (slopes[i] = word),
     },

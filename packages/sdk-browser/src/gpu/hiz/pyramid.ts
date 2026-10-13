@@ -7,20 +7,23 @@ import type { HizDepth, HizPyramid } from './types.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import {
   HIZ_CULL_FARTHEST,
+  HIZ_DEPTH_LAYERS,
   HIZ_FORMAT,
+  HIZ_FRONT_LAYER,
+  HIZ_OPAQUE_LAYER,
   hizLevelWords,
   hizRoute,
   hizTextureBytes,
   hizTextureSize,
 } from './pyramidTexture.ts'
 
-/** The label of a pyramid's level 0, the one texture it holds. */
+/** The label of a pyramid's level 0. */
 const HIZ_LEVEL0_LABEL = 'Trillion3D Hi-Z level 0'
 /** Bytes one view's pyramid holds at `width × height` (`allocPyramid`): its level 0, one r32float
- *  texel a pixel, and its three layers of packed mips. The front depth it folds in is the
- *  reflection's (`reflections/frontDepth.ts`). */
+ *  texel a pixel in each of its layers — the opaque depth and the front depth it folds in
+ *  (`HIZ_DEPTH_LAYERS`) —, and its three layers of packed mips. */
 export const pyramidHeldBytes = (width: number, height: number) =>
-  width * height * 4 + hizTextureBytes(pyramidBytes(width, height))
+  width * height * 4 * HIZ_DEPTH_LAYERS + hizTextureBytes(pyramidBytes(width, height))
 
 /** Source texels one build workgroup covers per side: each thread reduces a 2 × 2 square. */
 const TILE = 2 * HIZ_BUILD_SIDE
@@ -69,14 +72,17 @@ export function pyramidLayout(width: number, height: number, slots: UniformSlots
 }
 
 export type Pyramid = HizPyramid & {
+  /** Level 0: the opaque depth the image draws and, in a second layer, the nearest transparent
+   *  surface's (`HIZ_DEPTH_LAYERS`), each a view of its own, and both in one (`depthView`). */
   level0: GPUTexture
   level0View: GPUTextureView
+  depthView: GPUTextureView
   /** The three layers of packed mips (`pyramidTexture.ts`), and their one view: written by the
    *  build as storage, read by the others as a texture. */
   pyramid: GPUTexture
   pyramidView: GPUTextureView
-  /** The front depth bound with it (`GpuHiz.depth`): the view `createGpuHiz`'s `front` gives, else
-   *  level 0 itself, whose fold with itself is the opaque depth. */
+  /** Level 0's front layer, which the transparents' fold writes (`reflections/frontDepth.ts`): zero
+   *  where no transparent surface lies, whose fold is the opaque depth, bit for bit. */
   frontView: GPUTextureView
   /** What this image draws in level 0 (`GpuHiz.extent`): the whole size until an image says. */
   drawn: ReturnType<typeof pyramidLayout>
@@ -98,10 +104,12 @@ export function allocPyramid(
 ): Pyramid {
   const level0 = device.createTexture({
     label: HIZ_LEVEL0_LABEL,
-    size: { width, height },
+    size: { width, height, depthOrArrayLayers: HIZ_DEPTH_LAYERS },
     format: 'r32float',
     usage,
   })
+  const layer = (baseArrayLayer: number) =>
+    level0.createView({ dimension: '2d', baseArrayLayer, arrayLayerCount: 1 })
   // `COPY_DST` and `COPY_SRC` serve only the proof tools, which lay a pyramid of their own and
   // reread it; no frame copies.
   const pyramid = device.createTexture({
@@ -114,15 +122,15 @@ export function allocPyramid(
       GPUTextureUsage.COPY_DST |
       GPUTextureUsage.COPY_SRC,
   })
-  const level0View = level0.createView()
   return {
     width,
     height,
     level0,
-    level0View,
+    level0View: layer(HIZ_OPAQUE_LAYER),
+    depthView: arrayView(level0),
     pyramid,
     pyramidView: arrayView(pyramid),
-    frontView: level0View,
+    frontView: layer(HIZ_FRONT_LAYER),
     drawn: pyramidLayout(width, height, slots),
     destroy() {
       level0.destroy()

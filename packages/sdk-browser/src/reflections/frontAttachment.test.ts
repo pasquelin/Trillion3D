@@ -36,13 +36,23 @@ function carriedFront() {
     front,
     radiance: { held: { size: [8, 8] } },
   } as never
-  /** The next image's carry: its scatter pass's dispatches. */
-  const carry = () => {
+  /** The Hi-Z level 0's front layer the carry folds into (`GpuHiz.frontView`). */
+  const layer = () =>
+    fake.device
+      .createTexture({
+        size: [8, 8, 2],
+        format: 'r32float',
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.STORAGE_BINDING,
+      })
+      .createView({ dimension: '2d', baseArrayLayer: 1, arrayLayerCount: 1 })
+  const folded = layer()
+  /** The next image's carry into `into`: its scatter pass's dispatches. */
+  const carry = (into = folded) => {
     const encoder = fake.device.createCommandEncoder()
-    encodeFrontDepth(encoder, reflection, stages)
+    encodeFrontDepth(encoder, reflection, stages, into)
     return fake.computePasses.at(-1)!.commands
   }
-  return { fake, front, verdict, carry }
+  return { fake, front, verdict, carry, layer }
 }
 
 test('a water-only image: the GPU rectangle and workgroups carry its front depth', () => {
@@ -71,4 +81,23 @@ test('a blend pass in the image: the whole target, the CPU rectangle, nothing co
   assert.deepEqual(fake.copies, [], 'the water is not the only writer')
   const commands = carry()
   assert.deepEqual(commandArgs(commands, 'dispatchWorkgroups')[0], [1, 1])
+})
+
+test('a front layer the carry never folded into is cleared once, before any fold', () => {
+  const { fake, front, carry, layer } = carriedFront()
+  const clears = () =>
+    fake.passDescriptors.filter((pass) =>
+      [...((pass as GPURenderPassDescriptor | undefined)?.colorAttachments ?? [])].some(
+        (color) => color?.loadOp === 'clear',
+      ),
+    ).length
+  frontAttachment(front)
+  carry()
+  assert.equal(clears(), 1, 'the first carry clears the layer')
+  frontAttachment(front)
+  carry()
+  assert.equal(clears(), 1, 'the same layer is not cleared again')
+  frontAttachment(front)
+  carry(layer())
+  assert.equal(clears(), 2, "another pyramid's layer is cleared")
 })

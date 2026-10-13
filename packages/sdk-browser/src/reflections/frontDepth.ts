@@ -23,8 +23,8 @@ import { REFLECTION_VIEW_BYTES, REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 /**
  * THE TRANSPARENTS' FRONT DEPTH: what lets the one reflection chain meet a blended surface. A ray
  * marches the depth pyramid, which holds the opaque surfaces; the nearest transparent surface of a
- * pixel joins that depth (this module's `folded` texture, which the Hi-Z binds as its front,
- * `GpuHiz.depth`, folded in by the nearest build, `hizFrontAt`), so that the same march, the same
+ * pixel joins that depth (the front layer of the Hi-Z's level 0, `GpuHiz.frontView`, which this
+ * module writes and the nearest build folds in, `hizFrontAt`), so that the same march, the same
  * pyramid and the same radiance — the lit image with its transparents, which the radiance pyramid
  * already reads — answer a pane as they answer a wall. No second pass, march or pyramid.
  *
@@ -40,12 +40,12 @@ import { REFLECTION_VIEW_BYTES, REFLECTION_VIEW_WGSL } from './viewLayout.ts'
  * texel of the rectangle the last image's transparents wrote unprojected through the last
  * view-projection and projected through this one's, one thread a pixel, an atomic only where a
  * surface was written — into a buffer, the box of the pixels it reached kept with it, one atomic a
- * workgroup. The box of this image and that of the last one (`frontBox`) bound what the `folded`
- * texture the readers bind changes by: over them alone, each word is moved into the texture and the
- * buffer left at zero for the next image (`frontFold`, dispatched from the box on the GPU). Outside,
- * the texture already holds the zero the last image left there. For a still view that is the
- * identity. One module owns all of it: the target, the buffer, the boxes, the texture, and whether
- * the scene has blends at all.
+ * workgroup. The box of this image and that of the last one (`frontBox`) bound what the front layer
+ * the readers bind changes by: over them alone, each word is moved into the layer and the buffer
+ * left at zero for the next image (`frontFold`, dispatched from the box on the GPU). Outside, the
+ * layer already holds the zero the last image left there. For a still view that is the identity.
+ * One module owns all of it but the layer, the Hi-Z's, which the readers bind with the opaque depth
+ * in one texture: the target, the buffer, the boxes, and whether the scene has blends at all.
  *
  * Why a buffer AND a texture: the scatter's nearest is an atomic `max`, which WebGPU offers on a
  * buffer only; the readers include the blend and water fragment stages, which bind WebGPU's
@@ -53,18 +53,19 @@ import { REFLECTION_VIEW_BYTES, REFLECTION_VIEW_WGSL } from './viewLayout.ts'
  * drawn as points into a depth target instead would clamp a depth past the near plane to 1: not the
  * same bits.
  *
- * Cost, for N pixels: with no transparent in view, nothing — no scatter, no fold, the texture is
+ * Cost, for N pixels: with no transparent in view, nothing — no scatter, no fold, the layer is
  * zero and the nearest depth ignores it (`max`): the opaque image keeps its bits. With
  * transparents: the target's 2N bytes written by the blends, the scatter's read of 2 bytes a pixel
  * of the written rectangle and one atomic per surface pixel, the fold's 12 bytes a pixel of the two
  * boxes (a word read and reset, a texel written) — the transparents' own pixels for a still view,
  * never the screen's —, then the nearest build's and the march's reads of 4N bytes — against the
  * radiance pyramid's 8N bytes written. Floor: the blends' own fill, which the target adds 2 bytes a fragment
- * to. A scene with no blend holds a texel of the target and nothing else: the readers bind level 0
- * as the front (`GpuHiz`), whose fold with itself is the opaque depth, bit for bit.
+ * to. A scene with no blend holds a texel of the target and nothing else: the front layer stays
+ * zero, whose fold is the opaque depth, bit for bit.
  */
 const FRONT_FORMAT: GPUTextureFormat = 'r16float'
-/** The format of the depth the readers fold in: the scatter's words, as they are. */
+/** The format of the depth the readers fold in, the Hi-Z level 0's (`allocPyramid`): the scatter's
+ *  words, as they are. */
 const FOLDED_FORMAT: GPUTextureFormat = 'r32float'
 /** Bytes of the scatter's rectangle uniform: its origin, then its end. */
 const RECT_BYTES = 16
@@ -258,18 +259,7 @@ function frontDescriptors(width: number, height: number, blends: boolean) {
       size: ARGS_BYTES,
       usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     },
-    // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread it and write it.
-    folded: {
-      label: LABEL,
-      size,
-      format: FOLDED_FORMAT,
-      usage:
-        GPUTextureUsage.TEXTURE_BINDING |
-        GPUTextureUsage.STORAGE_BINDING |
-        GPUTextureUsage.COPY_DST |
-        GPUTextureUsage.COPY_SRC,
-    },
-  } satisfies Record<string, GPUBufferDescriptor | GPUTextureDescriptor>
+  } satisfies Record<string, GPUBufferDescriptor>
   return { written, carried }
 }
 
@@ -284,8 +274,7 @@ export function frontBytes(width: number, height: number, blends: boolean) {
         carried.waterRect.size +
         carried.waterArgs.size +
         carried.box.size +
-        carried.args.size +
-        textureBytesOf(carried.folded)!
+        carried.args.size
       : 0)
   )
 }
@@ -297,8 +286,8 @@ const EMPTY_BOXES = Uint32Array.of(~0 >>> 0, ~0 >>> 0, 0, 0, ~0 >>> 0, ~0 >>> 0,
  * What a view keeps of the front depth: the target the transparents write and its one attachment,
  * whether they wrote it since it was last carried (`fresh`) and the rectangle they wrote, and — when
  * the scene has `blends`, laid once when the session opens — what carries it: the buffer the
- * scatter folds into, the texture the readers bind (`foldedView`, whether it holds a depth to
- * clear: `held`), the scatter's rectangle and its bind group. A scene with no blend draws no
+ * scatter folds into, whether the layer the readers bind holds a depth to clear (`held`), the
+ * scatter's rectangle and its bind group. A scene with no blend draws no
  * transparent pass, carries nothing and clears nothing: the target is a texel, and nothing else is
  * made.
  */
@@ -317,7 +306,6 @@ export function createFrontDepth(
     waterArgs: device.createBuffer(descriptors.carried.waterArgs),
     box: device.createBuffer(descriptors.carried.box),
     args: device.createBuffer(descriptors.carried.args),
-    folded: device.createTexture(descriptors.carried.folded),
   }
   // Both boxes start empty: no image reached a pixel yet.
   if (carried) device.queue.writeBuffer(carried.box, 0, EMPTY_BOXES)
@@ -340,7 +328,8 @@ export function createFrontDepth(
     /** The rectangle the scatter's uniform is given (`writeChanged`). */
     scattered: new Uint32Array(4),
     carried,
-    foldedView: carried?.folded.createView(),
+    /** The front layer it last folded into (`GpuHiz.frontView`): another is cleared first. */
+    target: undefined as GPUTextureView | undefined,
     fresh: false,
     held: false,
     /** The water pass is the only transparent pass that wrote since the target was cleared: its
@@ -362,7 +351,6 @@ export function createFrontDepth(
       carried?.waterArgs.destroy()
       carried?.box.destroy()
       carried?.args.destroy()
-      carried?.folded.destroy()
     },
   }
 }
@@ -372,7 +360,7 @@ export type FrontDepth = ReturnType<typeof createFrontDepth>
  * The front depth the transparents of the last image wrote, carried to this image's pixels when
  * there is one, before the image's reflections, in one compute pass: the scatter over the rectangle
  * they wrote, then the boxes (`frontBox`) and the fold over this image's and the last one's
- * destination boxes (`frontFold`), which moves the carried words into the `folded` texture and
+ * destination boxes (`frontFold`), which moves the carried words into the front layer `folded` and
  * leaves the buffer at zero. A texture that held a depth is cleared by the image after, once: its
  * box is the last one there.
  */
@@ -383,9 +371,23 @@ export function encodeFrontDepth(
     ReflectionPipelines,
     'frontLayout' | 'frontPipeline' | 'frontFoldPipeline' | 'frontBoxLayout' | 'frontBoxPipeline'
   >,
+  folded: GPUTextureView,
 ) {
   const { front, device } = reflection,
     { carried } = front
+  // A front layer this front depth never folded into may hold another's — a reflection remade over
+  // the same pyramid —: cleared once, before any fold reads or writes it.
+  if (front.target !== folded) {
+    encoder
+      .beginRenderPass({
+        label: LABEL,
+        colorAttachments: [
+          { view: folded, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
+        ],
+      })
+      .end()
+    front.target = folded
+  }
   const carries = front.fresh
   if (!carried || (!carries && !front.held)) return
   const { groups } = front,
@@ -394,7 +396,7 @@ export function encodeFrontDepth(
   next[1] = stages.frontBoxLayout
   next[2] = reflection.uniform
   next[3] = front.view
-  next[4] = front.foldedView
+  next[4] = folded
   next.length = 5
   if (groups.identity.moved() || !groups.group || !groups.boxGroup) {
     const scatterGroup = (rect: GPUBuffer) =>
@@ -407,7 +409,7 @@ export function encodeFrontDepth(
           { buffer: carried.buffer },
           { buffer: rect },
           { buffer: carried.box },
-          front.foldedView!,
+          folded,
         ]),
       })
     groups.group = scatterGroup(carried.rect)

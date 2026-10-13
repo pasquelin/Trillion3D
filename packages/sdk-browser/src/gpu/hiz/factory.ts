@@ -19,17 +19,15 @@ import {
 } from './hizOps.ts'
 
 /** The frame's depth pyramid (`shader.ts`): reverse-Z, its farthest layer for the occlusion, its
- *  nearest for the readers of the whole depth. Without compute, returns `undefined`. `front` gives
- *  the nearest transparent surface's depth the pyramid folds in — the drawn view's reflection's
- *  (`reflections/frontDepth.ts`), read at each use, so a view switch or a remade reflection is
- *  followed —; none, and the pyramid binds level 0 there, whose fold with itself is the opaque
- *  depth, bit for bit. */
+ *  nearest for the readers of the whole depth. Without compute, returns `undefined`. Its level 0
+ *  holds beside the opaque depth the nearest transparent surface's, which the transparents' fold
+ *  writes (`frontView`, `reflections/frontDepth.ts`); zero where none lies, whose fold is the
+ *  opaque depth, bit for bit. */
 export async function createGpuHiz(
   device: GPUDevice,
   width: number,
   height: number,
   maxBounds: number,
-  front?: () => GPUTextureView | undefined,
 ): Promise<GpuHiz | undefined> {
   if (width < 1 || height < 1) return undefined
   const buffers: GPUBuffer[] = []
@@ -37,7 +35,7 @@ export async function createGpuHiz(
   try {
     const pipelines = await createHizPipelines(device)
     if (!pipelines) return undefined
-    h = hizState(device, pipelines, buffers, Math.max(1, maxBounds), front)
+    h = hizState(device, pipelines, buffers, Math.max(1, maxBounds))
     const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots))
     const gpu = hizApi(h, first)
     installHiz(h, gpu, first)
@@ -54,7 +52,6 @@ function hizState(
   pipelines: HizPipelines,
   buffers: GPUBuffer[],
   cap: number,
-  front: HizState['front'],
 ): HizState {
   // The deepest pyramid's build passes, then the test's slot, at the device's alignment.
   const slots = hizUniformSlots(device.limits)
@@ -85,10 +82,11 @@ function hizState(
     ...pipelines,
     device,
     // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread depth and lay their own;
-    // no frame copies.
+    // no frame copies. The front layer is written by the transparents' fold, a storage texture.
     level0Usage:
       GPUTextureUsage.RENDER_ATTACHMENT |
       GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.STORAGE_BINDING |
       GPUTextureUsage.COPY_SRC |
       GPUTextureUsage.COPY_DST,
     pagesGroup: hizPagesGroup(device, pipelines.pagesLayout),
@@ -108,7 +106,6 @@ function hizState(
     state: idle,
     flags,
     cap,
-    front,
   }
 }
 
@@ -143,13 +140,14 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
     levels: () => h.at?.drawn.levels ?? [],
     extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),
     pyramidView: () => (h.disposed ? undefined : h.at?.pyramidView),
+    frontView: () => (h.disposed ? undefined : h.at?.frontView),
     depth() {
       if (h.disposed) return undefined
       bindHiz(h)
       const { at } = h
       if (!at) return undefined
       return (at.depth ??= {
-        resources: [at.level0View, at.pyramidView, { buffer: h.levelTable }, at.frontView],
+        resources: [at.depthView, at.pyramidView, { buffer: h.levelTable }],
       })
     },
     encodeTest: (queueDevice, open, maxRows, pages, counting) =>

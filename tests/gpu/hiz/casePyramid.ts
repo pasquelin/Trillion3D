@@ -29,8 +29,8 @@ export function laidPyramid(device: GPUDevice, packed: PackedHiz) {
 }
 
 /** The entries of the Hi-Z kernel's group over a laid `pyramid`, one for each entry of the shipped
- *  layout (`hizBindEntries`) by its kind: the test never reads level 0 nor the front depth, which
- *  `level0` stands for; `buffers` fill the storage bindings in order. */
+ *  layout (`hizBindEntries`) by its kind: the test never reads level 0, its opaque depth nor its
+ *  front depth, which `level0` stands for; `buffers` fill the storage bindings in order. */
 export function hizEntries(
   pyramid: GPUTexture,
   level0: GPUTexture,
@@ -43,7 +43,7 @@ export function hizEntries(
     resource: storageTexture
       ? pyramid.createView({ dimension: '2d-array' })
       : texture
-        ? level0.createView()
+        ? level0.createView({ dimension: '2d-array' })
         : buffer?.type === 'uniform'
           ? uniform
           : { buffer: storage.shift()! },

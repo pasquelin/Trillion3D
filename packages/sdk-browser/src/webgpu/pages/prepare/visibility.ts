@@ -63,14 +63,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
  *  size refuses the scene by name, as one that cannot build the raster that writes it. */
 async function createHizFor(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const [width, height] = rt.setup.viewport
-  // The front depth it folds in is the drawn view's reflection's, whichever view is drawn.
-  const hiz = await createGpuHiz(
-    gpuDevice,
-    1,
-    1,
-    rt.layout.drawSlots,
-    () => rt.gpu.reflection?.front.foldedView,
-  )
+  const hiz = await createGpuHiz(gpuDevice, 1, 1, rt.layout.drawSlots)
   const size = () => hiz?.resize(gpuDevice, Math.max(1, width), Math.max(1, height)) || undefined
   if (!hiz || !(await validated(gpuDevice, size, 'out-of-memory'))) {
     hiz?.dispose()

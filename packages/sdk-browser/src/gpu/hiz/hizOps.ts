@@ -41,8 +41,6 @@ export type HizState = HizPipelines & {
   state: GPUBuffer
   flags: GPUBuffer
   cap: number
-  /** The front depth the drawn pyramid folds in, read at each use (`createGpuHiz`). */
-  front: (() => GPUTextureView | undefined) | undefined
 }
 
 /** Verdict flags for `rows` rows. */
@@ -52,36 +50,27 @@ export const hizFlags = (device: GPUDevice, rows: number) =>
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   })
 
-/** The drawn pyramid's bind group, made again when the front depth — the one `h.front` gives now,
- *  else level 0 — or a buffer it names moved (`createWebgpuBindIdentity`: an `attach`, a growth of
- *  the flags), never per swap; what its readers bind (`at.depth`) goes with it when the front
- *  changed. */
+/** The drawn pyramid's bind group, made again when a buffer it names moved
+ *  (`createWebgpuBindIdentity`: an `attach`, a growth of the flags), never per swap. */
 export function bindHiz(h: HizState) {
   const { at } = h
   if (!at) return void (h.bindGroup = undefined)
-  const front = h.front?.() ?? at.level0View
-  if (at.frontView !== front) {
-    at.frontView = front
-    at.depth = undefined
-  }
   const bound = (at.bound ??= createWebgpuBindIdentity()),
     { next } = bound
-  next[0] = front
-  next[1] = h.uniforms
-  next[2] = h.bounds
-  next[3] = h.flags
-  next[4] = h.state
+  next[0] = h.uniforms
+  next[1] = h.bounds
+  next[2] = h.flags
+  next[3] = h.state
   if (bound.moved())
     at.group = h.device.createBindGroup({
       layout: h.layout,
       entries: sequentialEntries([
         at.pyramidView,
-        at.level0View,
+        at.depthView,
         { buffer: h.uniforms, size: HIZ_SLOT_WORDS * 4 },
         { buffer: h.bounds },
         { buffer: h.flags },
         { buffer: h.state },
-        at.frontView,
       ]),
     })
   h.bindGroup = at.group

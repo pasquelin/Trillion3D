@@ -25,6 +25,7 @@ import {
   HIZ_FOLD_WGSL,
   HIZ_FORMAT,
   HIZ_NEAREST,
+  HIZ_OPAQUE_LAYER,
   HIZ_TEXEL_WGSL,
   HIZ_WHOLE_FARTHEST,
 } from './pyramidTexture.ts'
@@ -42,12 +43,11 @@ export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] 
       visibility: COMPUTE,
       storageTexture: { access: 'read-write', format: HIZ_FORMAT, viewDimension: '2d-array' },
     },
-    computeTextureEntry(1, 'unfilterable-float'),
+    computeTextureEntry(1, 'unfilterable-float', '2d-array'),
     computeUniformEntry(2, { hasDynamicOffset: true, minBindingSize: uniformBytes }),
     computeBufferEntry(3, 'read-only-storage'),
     computeBufferEntry(4, 'storage'),
     computeBufferEntry(5, 'storage'),
-    computeTextureEntry(6, 'unfilterable-float'),
   ]
 }
 
@@ -95,7 +95,7 @@ export const HIZ_NEAREST_BUILD = 'HIZ_NEAREST_BUILD'
  *    of the four below it, level 1 of the nearest corner of each pixel's plane, half the slopes'
  *    sum in front of its depth. Built once the whole depth is drawn (`encodeNearest`), for the
  *    readers of the whole depth (`hizDepthWgsl`): a cell's two bounds, its plane at a pixel. Both
- *    reduce the depth with the nearest transparent surface's folded in (`Pyramid.frontView`): the one
+ *    reduce the depth with the nearest transparent surface's folded in (level 0's second layer, `Pyramid.frontView`): the one
  *    pyramid holds every surface a ray can meet.
  *
  * Per image of N pixels: the culling build reads level 0 once and writes 4N/3 words, the nearest
@@ -124,12 +124,11 @@ export const HIZ_SHADER = wgslProgram(
 struct Uni{a:u32,b:u32,c:u32,d:u32,upper:u32,counting:u32,pad1:u32,pad2:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
 struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fineOffset:u32,fineWidth:u32,triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,}
 @group(0) @binding(0) var hizPyramid:texture_storage_2d_array<${HIZ_FORMAT},read_write>;
-@group(0) @binding(1) var level0:texture_2d<f32>;
+@group(0) @binding(1) var level0:texture_2d_array<f32>;
 @group(0) @binding(2) var<uniform> uni:Uni;
 @group(0) @binding(3) var<storage, read> bounds:array<Bounds>;
 @group(0) @binding(4) var<storage, read_write> flags:array<u32>;
 @group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
-@group(0) @binding(6) var front:texture_2d<f32>;
 @group(1) @binding(0) var<storage, read> pages:array<PageInfo>;
 @group(1) @binding(1) var<storage, read_write> testArgs:array<u32>;
 var<workgroup> hizTile:array<vec2f,${S ** 2}>;
@@ -153,9 +152,10 @@ fn hizPutBound(i:u32,bound:vec2f){
  if(${HIZ_NEAREST_BUILD}){hizPut(i,${HIZ_WHOLE_FARTHEST}u,bitcast<u32>(bound.y));}
 }
 /** The depth of the nearest build at \`q\`: the opaque depth, or the nearest transparent surface's
- *  (\`front\`, a depth a pixel, zero for none) where it lies in front: reverse-Z, the larger. A pixel without one reads the opaque depth, bit for bit. */
+ *  (level 0's second layer, a depth a pixel, zero for none) where it lies in front: reverse-Z, the
+ *  larger. A pixel without one reads the opaque depth, bit for bit. */
 fn hizFrontAt(q:vec2i)->f32{
- return hizFold(level0,front,q);
+ return hizFold(level0,q);
 }
 /** The depth at \`q\` of level 0, clamped to the drawn size. */
 fn hizDepthAt(q:vec2i)->f32{
@@ -185,7 +185,7 @@ fn hizSource(at:u32,x:u32,y:u32)->vec2f{
  if(uni.a!=0u){return hizLoadBound(i);}
  let q=vec2i(i32(x),i32(y));
  if(${HIZ_NEAREST_BUILD}){return hizPlaneCorners(i,q,hizFrontAt(q));}
- let depth=textureLoad(level0,q,0).r;
+ let depth=textureLoad(level0,q,${HIZ_OPAQUE_LAYER},0).r;
  hizPut(i,${HIZ_CULL_FARTHEST}u,bitcast<u32>(depth));
  return vec2f(depth);
 }

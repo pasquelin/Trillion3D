@@ -108,7 +108,7 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   // what lies behind it from the occlusion test, the partition's cull or the transparent test.
   assert.match(
     build,
-    /let depth=textureLoad\(level0,q,0\)\.r;\s*hizPut\(i,\d+u,bitcast<u32>\(depth\)\);/,
+    /let depth=textureLoad\(level0,q,0,0\)\.r;\s*hizPut\(i,\d+u,bitcast<u32>\(depth\)\);/,
   )
   assert.equal(
     HIZ_SHADER.match(/hizFrontAt\(/g)?.length,

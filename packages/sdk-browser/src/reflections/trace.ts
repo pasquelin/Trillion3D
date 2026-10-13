@@ -22,6 +22,7 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { f0Of } from '../../../math/src/wgsl/lighting.ts'
 import { storageEntry } from './bindings.ts'
+import { HIZ_OPAQUE_LAYER } from '../gpu/hiz/pyramidTexture.ts'
 import { REFLECTION_FORMAT, REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_GROUP, reflectionLightViewWgsl } from './viewLayout.ts'
 import { reflectionShareWgsl } from './weight.ts'
@@ -122,7 +123,7 @@ fn tracePixel(rank:u32,lid:vec2u){
  let flags=textureLoad(traceFlags,coord,0).r;
  if(!surfaceReflects(flags)){return;}
  let base=textureLoad(traceBase,coord,0);
- let P=worldAt(vec2f(id)+vec2f(0.5),textureLoad(hizDepth,coord,0).r);
+ let P=worldAt(vec2f(id)+vec2f(0.5),textureLoad(hizDepth,coord,${HIZ_OPAQUE_LAYER},0).r);
  let normal=textureLoad(traceNormals,coord,0);
  let N=normalize(normal.xyz);
  let V=viewToEye(P);

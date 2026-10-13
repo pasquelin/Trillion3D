@@ -23,7 +23,7 @@ const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
  *  world; it counts the cells of the pyramid it reads. */
 function caster(width: number, height: number, depth: (x: number, y: number) => number) {
   const field = depthField(width, height, depthImage(width, height, depth))
-  const token = { depth: {}, pyramid: {}, front: {} }
+  const token = { depth: {}, pyramid: {} }
   const counter = { loads: 0 }
   const run = shaderRun<{
     vsmScreenRayCast: (o: number[], d: number[], length: number, thickness: number) => number
@@ -47,7 +47,6 @@ function caster(width: number, height: number, depth: (x: number, y: number) => 
       },
       hizDepth: token.depth,
       hizPyramid: token.pyramid,
-      hizFront: token.front,
       hizLevels: field.levels,
       ...constructors(CODE),
       textureLoad: depthLoads(field, token, () => counter.loads++),

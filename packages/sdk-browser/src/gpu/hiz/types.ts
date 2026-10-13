@@ -27,10 +27,13 @@ export type GpuHiz = {
   /** The pyramid texture's view, whose farthest layer the partition's cull and the transparent
    *  occlusion test walk with the `levels()` table. It changes identity on every target resize. */
   pyramidView(): GPUTextureView | undefined
-  /** What a reader of the whole depth binds (`hizDepthEntries`, `hizDepthWgsl`): level 0, the
-   *  pyramid, its levels uniform and its front depth, in that order: a new object whenever one
-   *  changes, which a reader's bind group follows. */
+  /** What a reader of the whole depth binds (`hizDepthEntries`, `hizDepthWgsl`): level 0 — the
+   *  opaque depth and the front depth, its two layers —, the pyramid and its levels uniform, in
+   *  that order: a new object whenever one changes, which a reader's bind group follows. */
   depth(): HizDepth | undefined
+  /** Level 0's front layer, which the transparents' fold writes (`reflections/frontDepth.ts`):
+   *  zero where no transparent surface lies. It changes identity on every target resize. */
+  frontView(): GPUTextureView | undefined
   /**
    * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after
    * the pyramid's build in the same pass; their count lives in the state, the CPU does
@@ -64,10 +67,10 @@ export type GpuHiz = {
   dispose(): void
 }
 
-/** The resources of `GpuHiz.depth`, the last the front depth (`createGpuHiz`). A new object
- *  whenever one of them changes: a reader's bind group follows its identity. */
+/** The resources of `GpuHiz.depth` (`createGpuHiz`). A new object whenever one of them changes: a
+ *  reader's bind group follows its identity. */
 export type HizDepth = {
-  resources: [GPUTextureView, GPUTextureView, GPUBufferBinding, GPUTextureView]
+  resources: [GPUTextureView, GPUTextureView, GPUBufferBinding]
 }
 
 /** One view's pyramid, at that view's size, held by the view while another is drawn. */

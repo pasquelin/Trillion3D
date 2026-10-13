@@ -51,7 +51,7 @@ export const REFLECTION_GROUP = 1
 /** The binding of the radiance pyramid's trilinear sampler in the reflection group. */
 export const REFLECTION_SAMPLER_BINDING = 2
 
-/** The binding from which the reflection group holds the depth pyramid (`hizDepthEntries`), four
+/** The binding from which the reflection group holds the depth pyramid (`hizDepthEntries`), three
  *  bindings. */
 export const REFLECTION_DEPTH_BINDING = 3
 
