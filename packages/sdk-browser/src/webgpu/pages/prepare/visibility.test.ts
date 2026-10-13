@@ -17,7 +17,7 @@ function deviceGranted(limit: number) {
     createRenderPipelineAsync: async (descriptor: GPURenderPipelineDescriptor) => {
       const formats = [...(descriptor.fragment?.targets ?? [])].map((target) => target?.format)
       if (colorBytesPerSample(formats) > limit) throw new Error('maxColorAttachmentBytesPerSample')
-      return create(descriptor)
+      return create.call(mount.device, descriptor)
     },
   })
   return mount.device

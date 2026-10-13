@@ -1,6 +1,7 @@
 import { bytesOf, installGpuGlobals } from './globals.ts'
 import {
   copyOf,
+  windowOf,
   type FakeDeviceOptions,
   type FakeTexture,
   type FakeTextureWrite,
@@ -69,7 +70,11 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
   // A pipeline's `getBindGroupLayout`: the layout its group `i` reads. Not enumerable, so a pipeline
   // compares to its descriptor as it was made.
   const withGroups = <P extends object>(pipeline: P, layout: GPUPipelineLayout | 'auto') =>
-    Object.defineProperty(pipeline, 'getBindGroupLayout', { value: groupLayout(layout) })
+    Object.defineProperty(pipeline, 'getBindGroupLayout', {
+      value: groupLayout(layout),
+      writable: true,
+      configurable: true,
+    })
   const groupLayout = (layout: GPUPipelineLayout | 'auto') => (i: number) =>
     [...((layout as Partial<GPUPipelineLayoutDescriptor>)?.bindGroupLayouts ?? [])][i] ?? {}
   // A render pipeline is its descriptor: a pass that sets it reads its entry points and blend.
@@ -137,7 +142,14 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
         dataOffset = 0,
         size?: number,
       ) {
-        writes.push({ buffer, offset, data: copyOf(data), dataOffset, size, seq: seq++ })
+        writes.push({
+          buffer,
+          offset,
+          data: windowOf(data, dataOffset, size),
+          dataOffset,
+          size,
+          seq: seq++,
+        })
         ;(buffer as { data?: Uint8Array } | undefined)?.data?.set(
           bytesOf(data, dataOffset, size),
           offset,

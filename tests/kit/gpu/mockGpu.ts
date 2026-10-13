@@ -1,4 +1,3 @@
-import { bytesOf } from './globals.ts'
 import { fakeDevice } from './fakeDevice.ts'
 import { BACKEND, type FakeDeviceOptions } from './fakeRecords.ts'
 import type { MapFaults } from './mockBuffers.ts'
@@ -14,9 +13,9 @@ export function mockGpu({ mapGate, ...options }: FakeDeviceOptions & MapFaults =
   return {
     ...gpu,
     get writes() {
-      return gpu.writes.map(({ buffer, offset, data, dataOffset, size, seq }) => ({
+      return gpu.writes.map(({ buffer, offset, data, seq }) => ({
         offset,
-        bytes: bytesOf(data as GPUAllowSharedBufferSource, dataOffset, size).slice(),
+        bytes: new Uint8Array(data.buffer, data.byteOffset, data.byteLength).slice(),
         label: buffer.label,
         size: buffer.size,
         seq,

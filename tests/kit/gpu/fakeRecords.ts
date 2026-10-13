@@ -27,8 +27,9 @@ export type FakeTexture = GPUTextureDescriptor & {
   createView(descriptor?: GPUTextureViewDescriptor): GPUTextureViewDescriptor
   destroy(): void
 }
-/** One `queue.writeBuffer`: `data` is a copy taken at the call, an `ArrayBuffer` as bytes; `size`
- *  the write's own, in elements of `data`; `seq` its rank among the queue's writes and submits. */
+/** One `queue.writeBuffer`: `data` a copy of what it sent — the window `dataOffset` and `size`
+ *  (elements of the source, bytes of an `ArrayBuffer`) cut out of its source —; `seq` its rank among
+ *  the queue's writes and submits. */
 export type FakeWrite = {
   buffer: GPUBuffer
   offset: number
@@ -78,8 +79,7 @@ export type FakeResolve = {
 export type LostInfo = { reason: string; message: string }
 
 /** The window of `data` a write sent: `dataOffset` and `size` count elements of `data`. */
-export const written = ({ data, dataOffset, size }: FakeWrite) =>
-  data.subarray(dataOffset, size === undefined ? undefined : dataOffset + size)
+export const written = ({ data }: FakeWrite) => data
 
 /** The bytes a write sent, where they sit in its copy (`written`, read as bytes). */
 export const writtenBytes = (write: FakeWrite) => {
@@ -99,6 +99,15 @@ export function replayWrites(bytes: ArrayBuffer, writes: FakeWrite[]) {
 
 export const copyOf = (data: BufferSource): Numbers =>
   data instanceof ArrayBuffer ? new Uint8Array(data.slice(0)) : (data as Numbers).slice()
+
+/** A copy of the window a `writeBuffer` sends out of `data`: `dataOffset` and `size` count its
+ *  elements, bytes for an `ArrayBuffer`. */
+export const windowOf = (data: BufferSource, dataOffset = 0, size?: number): Numbers => {
+  const end = size === undefined ? undefined : dataOffset + size
+  return data instanceof ArrayBuffer
+    ? new Uint8Array(data.slice(dataOffset, end))
+    : (data as Numbers).slice(dataOffset, end)
+}
 
 /** A buffer or texture creation `refuse` is asked about, and how it fails: `'throw'` throws
  *  `NO_MEMORY` at the call; `'oom'` returns the resource and leaves an out-of-memory error in the
