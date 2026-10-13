@@ -20,6 +20,7 @@ import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
 import { followWorldRoot } from '../webgpu/pages/prepare/worldRoot.ts'
 import { growthOf, heldPage, takeGrownCopies } from './webgpuGrowth.ts'
 import { growBlend, waitsForFrontDepth, waitsForWater } from '../webgpu/blend/growth.ts'
+import { forgetReflectedImage } from '../reflections/gpu.ts'
 import { announceGrowth, replayMoves, type GrownRoots } from './growthAnnounce.ts'
 import { joinDeformation, placeDeformation } from '../deformation/growth.ts'
 
@@ -99,6 +100,9 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
     growWebgpuTables(rt, setup.cap).catch((error) =>
       rt.diag.diagnosticFailure('page-tables-growth-failed', error),
     )
+  // What the reflections held shows the scene without them: the series restarts, as a fresh open's.
+  forgetReflectedImage(mainViewGpu(rt).reflection)
+  for (const view of rt.views.persistent) forgetReflectedImage(viewGpu(rt, view).reflection)
   announceGrowth(rt, added, firstRank)
   return true
 }

@@ -2,8 +2,6 @@
 // it draws, and the comparison of a world a source joins while it runs with a world opened on all of
 // its sources at once.
 import { createHash } from 'node:crypto'
-import { writeFileSync } from 'node:fs'
-let lastPixels: Uint8Array = new Uint8Array(0)
 import { createWorld } from '../../../packages/sdk-browser/src/world/core/world.ts'
 import {
   lastFrameOf,
@@ -41,23 +39,7 @@ export async function frame(world: World) {
     world.render()
     if (lastFrameOf(world)?.frameHeld) break
   }
-  // The reflections feed on the radiance of the image before (`reflections/gpu.ts`): the rest image
-  // is reached by the same short walk of the camera in every world, so none keeps the history of
-  // the content it joined after.
-  {
-    for (const y of [7, 6]) {
-      world.camera.position.set(0, y, 9)
-      world.camera.lookAt(0, 0, 0)
-      world.camera.updateMatrixWorld(true)
-      for (let i = 0; i < 40; i++) {
-        await animationFrame()
-        world.render()
-        if (lastFrameOf(world)?.frameHeld) break
-      }
-    }
-  }
   const pixels = await sessionOf(world).capture()
-  lastPixels = pixels
   return createHash('sha256').update(pixels).digest('hex')
 }
 
@@ -109,14 +91,11 @@ export async function joined(held: Content, added: Content) {
     const sessions = grown.world.diagnostic.sessions
     await added(grown.world)
     const after = await changed(grown.world, before)
-    if (process.env.APPEND_DUMP) writeFileSync(`${process.env.APPEND_DUMP}-joined.rgba`, lastPixels)
     const reference = open()
     try {
       await reference.world.ready
       await Promise.all([held(reference.world), added(reference.world)])
       const opened = await changed(reference.world, '')
-      if (process.env.APPEND_DUMP)
-        writeFileSync(`${process.env.APPEND_DUMP}-fresh.rgba`, lastPixels)
       return {
         before,
         after,

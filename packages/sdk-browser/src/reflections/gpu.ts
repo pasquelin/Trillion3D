@@ -252,6 +252,16 @@ export function bindForwardReflection(pass: GPURenderPassEncoder, rt: Reflection
  * it stands, never the one it moved from nor the light it changed. A held image is then final:
  * drawn again, it gives the same bits.
  */
+/** The image the reflections last reflected shows a scene that is no more: content joined it. The
+ *  next image traces nothing and builds the radiance from its own lit image, as a scene opened with
+ *  that content draws its first, so the images that follow are the same bits as a fresh open's,
+ *  whatever the scene was before — the series they converge to starts from the same image. */
+export function forgetReflectedImage(reflection: ScreenReflection | undefined) {
+  if (!reflection) return
+  reflection.radiance.held.valid = false
+  reflection.settle.busy()
+}
+
 export const reflectionsSettled = (
   reflection: ScreenReflection | undefined,
   accumulating: boolean,
