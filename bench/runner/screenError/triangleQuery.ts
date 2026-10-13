@@ -1,6 +1,6 @@
-import { slabCut } from '../../../math/src/geometry/slab.ts'
+import { slabCut } from '../../../packages/math/src/geometry/slab.ts'
 import type { TriangleTree } from './triangleTree.ts'
-import { rayTriangle } from '../../../math/src/geometry/rayTriangle.ts'
+import { rayTriangle } from '../../../packages/math/src/geometry/rayTriangle.ts'
 
 /**
  * THE QUERIES OF A TRIANGLE TREE (`triangleTree.ts`): every triangle whose box meets a box, and

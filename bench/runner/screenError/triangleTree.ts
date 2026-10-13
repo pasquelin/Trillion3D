@@ -1,11 +1,13 @@
 import { buildCentreTree, centreTreeNodes } from './centreTree.ts'
 
 /**
- * A STATIC TRIANGLE TREE: a bounding-volume hierarchy over triangles, built once and asked for
- * every triangle whose box meets a query box, or for the nearest one a ray crosses
- * (`triangleQuery.ts`).
+ * A STATIC TRIANGLE TREE, the screen-error measure's own (`screenErrorMeasure.ts`): a
+ * bounding-volume hierarchy over triangles, built once and asked for every triangle whose box meets
+ * a query box, or for the nearest one a ray crosses (`triangleQuery.ts`). The engine casts its rays
+ * on the GPU, over what it draws (`packages/sdk-browser/src/webgpu/rays/`); the bench measures the
+ * source mesh on the CPU in doubles, a reference no engine path reads.
  *
- * BUILD. The shared median split over the triangles' centres (`../math/centreTree.ts`): a
+ * BUILD. A median split over the triangles' centres (`centreTree.ts`): a
  * balanced tree, so a query's stack is a fixed array. Triangles are then copied in leaf order: a
  * leaf reads a contiguous run, no index list survives.
  *
@@ -20,7 +22,8 @@ import { buildCentreTree, centreTreeNodes } from './centreTree.ts'
  *  a query, never its result. */
 const LEAF_TRIANGLES = 4
 
-/** A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind the exact raycast. Built once by `buildTriangleTree`, read-only afterwards. */
+/** A bounding-volume hierarchy over world-space triangles, queried by box and by ray: the broad phase
+ *  of the screen-error measure. Built once by `buildTriangleTree`, read-only afterwards. */
 export interface TriangleTree {
   /** Nine numbers per triangle — three corners — in leaf order. */
   readonly triangles: Float32Array

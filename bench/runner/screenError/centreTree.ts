@@ -1,10 +1,9 @@
-import { ceilDiv, workgroupCount } from '../../../math/src/scalar/integers.ts'
-import { selectByKey } from '../../../math/src/select.ts'
+import { ceilDiv, workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
+import { selectByKey } from '../../../packages/math/src/select.ts'
 
 /**
- * THE SHAPE OF A BOUNDING-VOLUME HIERARCHY over points — the centres of whatever it bounds —,
- * shared by the triangle tree of the exact raycast (`../collision/triangleTree.ts`) and the transparent
- * items' box tree (`sdk-browser/src/webgpu/blend/hierarchy.ts`). Each keeps its own boxes.
+ * THE SHAPE OF A BOUNDING-VOLUME HIERARCHY over points — the centres of whatever it bounds —, the
+ * screen-error measure's triangle tree's (`triangleTree.ts`), which keeps its own boxes.
  *
  * Top-down: a node's entries are split near the median of their centres along the longest axis of
  * the centres' box — the left side rounded up to whole leaves — until a node holds at most `leaf`.
