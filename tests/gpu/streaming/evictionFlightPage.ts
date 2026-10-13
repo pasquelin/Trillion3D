@@ -1,9 +1,8 @@
 // Page of the eviction-flight proof: a camera flies down a generated world larger than its pool, on
-// Dawn, through the engine's own GPU cut, page pool, eviction feed, install order and group closure,
-// loads landing between frames at random delays, two frames read back behind. Each frame copies the
-// pool in its own command buffer after its cut: what it read, whatever lands after. Read for every
-// frame whose readback came (`evictionFlightFrame.ts`): its drawn pages, the slots its tables named
-// them at, the pool as it read it, and the cut an unbounded pool draws at the same pose.
+// Dawn, through the engine's GPU cut, page pool, eviction feed, install order and group closure,
+// loads landing at random delays, two frames read back behind. Each frame copies the pool in its own
+// command buffer after its cut; for every frame read back (`evictionFlightFrame.ts`): its drawn
+// pages, their slots, the pool as it read it, and the cut an unbounded pool draws at that pose.
 import {
   createGpuDagSelection,
   packDagSelection,
