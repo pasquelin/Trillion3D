@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 import { drawBlendPass } from '../../blend/draw.ts'
 import { writeBlendView } from '../../blend/uniforms.ts'
 import { encodeBlendExpansion } from '../../blend/resources.ts'
@@ -44,7 +45,7 @@ export function prepareBlend(
     blendState.expandedBuffer
   )
   if (!ready) return false
-  const cpuStart = performance.now()
+  const cpuStart = cpuNow()
   encodeTransparentInstances(rt, encoder)
   // The frustum verdict — one bit per item to the GPU, THE image's reject count, water's bounds —
   // and the few own entries' order on the CPU; the GPU sorts the rest far to near (a blend writes
@@ -53,7 +54,7 @@ export function prepareBlend(
   run.blendFrustumRejected = orderBlendPasses(blendState, blendEye(rt))
   // The GPU orders and expands the plan: instances, one indirect argument per slot.
   encodeBlendExpansion(rt, encoder)
-  const elapsed = performance.now() - cpuStart
+  const elapsed = msSince(cpuStart)
   timing.transparentPrepareMs += elapsed
   timing.transparentEncodeMs += elapsed
   return true
@@ -71,7 +72,7 @@ export function encodeBlend(
   // Every image reaches this stage: the particles step here, beside the water.
   encodeParticles(rt, device, encoder)
   if (!ready) return
-  const cpuStart = performance.now()
+  const cpuStart = cpuNow()
   writeBlendView(rt, device)
   // Resolve lighting resources once; a real resource voids a placeholder's bind group. Their key
   // picks the blend and water programs (`createForwardVariants`).
@@ -79,7 +80,7 @@ export function encodeBlend(
   // The physical records the item records named go up before a group names their texture.
   if (rt.vis.physicalTable.pending) rt.vis.physicalTable.upload(device)
   voidStaleBlendGroups(rt, blendLightResources(rt, contract))
-  const prepared = performance.now()
+  const prepared = cpuNow()
   timing.transparentPrepareMs += prepared - cpuStart
   drawBlendPass(rt, device, encoder, false, contract)
   // Water after blends, on a frozen backdrop: no transmissive surface reads a half-composed image.
@@ -87,7 +88,7 @@ export function encodeBlend(
   // composition follows — the slice draws as one more blend.
   if (blendState.transmissive && !encodeWaterPass(rt, encoder, composes, contract))
     drawBlendPass(rt, device, encoder, true, contract)
-  const finished = performance.now()
+  const finished = cpuNow()
   timing.transparentDrawMs += finished - prepared
   timing.transparentEncodeMs += finished - cpuStart
   if (diag.traceEnabled)

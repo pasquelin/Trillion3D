@@ -2,6 +2,7 @@
 // added as a child whose row the CPU writes: its flags go through the one row write, the session
 // parks or takes it from that write, and the GPU composes only roots linked to a parent it holds
 // (modelled here by the product the pass computes: its parent's world times its local).
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
@@ -13,7 +14,7 @@ import { createPlacementRows, placementWorld } from '../../placement/rows.ts'
 import { followPlacementRows } from '../../placement/update.ts'
 import { composeWebgpuPlacements, type ComposeState } from '../../placement/gpuCompose.ts'
 import { composeRuntime } from '../../placement/composeRuntime.fixture.ts'
-import { MATRIX_DOUBLES, NONE } from '../../placement/gpuComposeWgsl.ts'
+import { MATRIX_DOUBLES } from '../../placement/gpuComposeWgsl.ts'
 import { createWorldPoses, type PoseComposer } from './worldPoses.ts'
 import type { Seat } from './worldBatches.ts'
 import { noModels } from './worldModels.fixture.ts'
@@ -66,8 +67,8 @@ type Galaxy = ReturnType<typeof galaxy>
 
 /** The world the frame draws root `rank` at: composed when linked, its row otherwise. */
 function drawnWorld(state: ComposeState | undefined, roots: Galaxy['roots'], rank: number) {
-  const slot = state?.parentOf[rank] ?? NONE
-  if (slot === NONE) return roots[rank].world.elements
+  const slot = state?.parentOf[rank] ?? NO_INDEX
+  if (slot === NO_INDEX) return roots[rank].world.elements
   for (let k = 0; k < 16; k++) {
     const at = (rank * MATRIX_DOUBLES + k) * 2
     words[1] = state!.locals[at]
@@ -162,7 +163,7 @@ test('a child removed from a linked parent is unlinked, its row taken by another
   turn(g, 0.6)
   g.frame()
   assert.equal(g.roots[7].parked, true)
-  assert.equal(g.rt.compose!.parentOf[7], NONE, 'the removed child follows no parent')
+  assert.equal(g.rt.compose!.parentOf[7], NO_INDEX, 'the removed child follows no parent')
   assert.equal(drawable(g), N - 1)
   // Another mesh, under the scene, takes the freed row: it draws at its own world.
   const other = object.mesh(geometry.box(1, 1, 1))
@@ -172,14 +173,14 @@ test('a child removed from a linked parent is unlinked, its row taken by another
   turn(g, 0.9)
   g.frame()
   assert.equal(drawable(g), N, 'the new mesh at its own world, the others composed')
-  assert.equal(g.rt.compose!.parentOf[7], NONE)
+  assert.equal(g.rt.compose!.parentOf[7], NO_INDEX)
   const added = object.mesh(geometry.box(1, 1, 1))
   added.position.set(5, 6, 7)
   g.parent.add(added)
   seatNew(g, added, N)
   turn(g, 1.2)
   g.frame()
-  assert.notEqual(g.rt.compose!.parentOf[N], NONE, 'linked')
+  assert.notEqual(g.rt.compose!.parentOf[N], NO_INDEX, 'linked')
   turn(g, 1.6)
   g.frame()
   assert.equal(drawable(g), N + 1)

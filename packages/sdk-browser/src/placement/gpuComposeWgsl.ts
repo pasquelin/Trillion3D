@@ -22,19 +22,18 @@ import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { dAdd, dMul, dSub, splitDouble } from '../../../math/src/wgsl/double.ts'
-import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { STRETCH_WGSL } from './gpuStretchWgsl.ts'
 import { FRAME_ROW_WORDS } from '../gpu/dag/types.ts'
 import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { NO_INDEX } from '../../../math/src/wgsl/constants.ts'
 import { isNanWord } from '../../../math/src/wgsl/integer.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
-/** The parent slot of a root that follows none. */
-export const NONE = 0xffffffff
 /** Words of a tree node. */
 /** The parts of a row the rows pass derives besides its world words (`params.parts`). */
 export const PART_SPHERES = 1,
@@ -59,7 +58,7 @@ fn composed(parentAt:u32,localAt:u32,k:u32)->vec2u{
 )
 
 /** What both passes call: the product, its rounding to single precision and the grid index. */
-const SHARED = [PRODUCT_WGSL, toF32, FLAT_INDEX_WGSL]
+const SHARED = [PRODUCT_WGSL, toF32, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX]
 
 /**
  * True when two single-precision words are equal as the CPU compares them (`!==` on the numbers
@@ -100,13 +99,13 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(9) var<storage,read> rootInputs:array<vec2u>;
 @group(0) @binding(10) var<storage,read_write> rootBoxes:array<vec2u>;
 @group(0) @binding(11) var<storage,read> ranks:array<u32>;
-@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let j=flatIndex(g,n,64u);if(j>=params.listed){return;}
+@compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
  let rank=ranks[j];
  if(rank<params.first||rank>=params.first+params.count||rank>=params.rootCount){return;}
  let i=rank-params.first;
  let p=parentOf[rank];
- if(p==${NONE}u){return;}
+ if(p==NO_INDEX){return;}
  var world:array<u32,16>;
  for(var k=0u;k<16u;k++){
   let value=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);
@@ -224,7 +223,7 @@ fn composeRow(row:u32){
  let rank=table[base+${PAGE_INFO.at.placement}u];
  if(rank>=params.rootCount){return;}
  let p=parentOf[rank];
- if(p==${NONE}u){return;}
+ if(p==NO_INDEX){return;}
  var world:array<vec2u,16>;
  for(var k=0u;k<16u;k++){
   world[k]=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);
@@ -235,8 +234,8 @@ fn composeRow(row:u32){
  if((params.parts&${PART_CORNERS}u)!=0u&&(row+1u)*${CORNER_VALUES}u<=arrayLength(&corners)){composeCorners(row,world);}
  if((params.parts&${PART_LODS}u)!=0u&&(row+1u)*${ROW_LOD_FLOATS}u<=arrayLength(&lods)){composeLod(row,rank,world);}
 }
-@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let j=flatIndex(g,n,64u);if(j>=params.listed){return;}
+@compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
  let row=rowList[j];if(row<params.rowCount){composeRow(row);}
 }`,
   [...SHARED, SPHERE_WGSL, CORNERS_WGSL, LOD_WGSL],
@@ -260,15 +259,15 @@ export const composeMembersWgsl = (nodes: RefitLayout['nodes'] = WHOLE_LAYOUT.no
 @group(0) @binding(4) var<storage,read> frames:array<u32>;
 @group(0) @binding(5) var<storage,read_write> members:array<vec2u>;
 @group(0) @binding(6) var<storage,read> ranks:array<u32>;
-@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let j=flatIndex(g,n,64u);if(j>=params.listed){return;}
+@compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
  let rank=ranks[j];
  if(rank<params.first||rank>=params.first+params.count||rank>=params.rootCount){return;}
  let i=rank-params.first;
  let p=parentOf[rank];
- if(p==${NONE}u){return;}
+ if(p==NO_INDEX){return;}
  let root=frames[i*${FRAME_ROW_WORDS}u+1u];
- if(root==${NONE}u){return;}
+ if(root==NO_INDEX){return;}
  var world:array<vec2u,16>;
  for(var k=0u;k<16u;k++){world[k]=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);}
  // The reach its mark carries (the frame row's word 3), none past every finite one.
@@ -287,6 +286,8 @@ export const composeMembersWgsl = (nodes: RefitLayout['nodes'] = WHOLE_LAYOUT.no
     [
       PRODUCT_WGSL,
       FLAT_INDEX_WGSL,
+      WORKGROUP_THREADS_WGSL,
+      NO_INDEX,
       fromF32,
       dAdd,
       dSub,

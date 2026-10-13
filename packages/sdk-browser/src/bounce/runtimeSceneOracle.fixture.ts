@@ -1,6 +1,7 @@
 // The run-time proxy's rays on the CPU (`runtimeTraceWgsl.ts`), the scene level: the same walk of the
 // placement tree and of each placement's box, over the packing's own tables, the same budget. The tests
 // compare it with every triangle tested in turn.
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import { PROXY_NODE_FLOATS } from '../../../sdk-core/src/index.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from '../gpu/dag/types.ts'
 import {
@@ -11,7 +12,7 @@ import {
   NODE_MIN,
 } from '../gpu/dag/nodeLayout.ts'
 import { TREE_GROUP } from '../gpu/dag/placementTree.ts'
-import { RAY_WORK, RUNTIME_NONE } from './runtimeLayout.ts'
+import { RAY_WORK } from './runtimeLayout.ts'
 import { dotVector3 } from '../../../math/src/vector/vector.ts'
 import { cross, subtract } from '../../../math/src/vector/vectorTuple.ts'
 import {
@@ -129,7 +130,7 @@ export function traceScene(scene: OracleScene, o: Vec, d: Vec, limit: number, s:
     const first = nodes[node * DAG_NODE_FLOATS + NODE_FIRST_CHILD]
     if (nodes[node * DAG_NODE_FLOATS + NODE_KIND] === TREE_GROUP) {
       const w = cold[tree.members + first + k]
-      if (w !== RUNTIME_NONE) best = enter(scene, w, o, d, best, s)
+      if (w !== NO_INDEX) best = enter(scene, w, o, d, best, s)
     } else {
       const child = first + k
       const low: Vec = [

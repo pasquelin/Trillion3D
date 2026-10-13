@@ -6,7 +6,6 @@ import {
   FLAG_PREV_REST,
   VERDICT_KEPT,
   VERDICT_OCCLUDER,
-  PARTITION_WORKGROUP,
   ROW_DATA_U32,
   ROW_FLAGS,
   ROW_NEAREST,
@@ -20,7 +19,7 @@ import {
 } from './contract.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { bitMask, bitWord } from '../../../../math/src/wgsl/integer.ts'
-import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { HIZ_LEVEL_WGSL } from '../hiz/rectWgsl.ts'
 
 /**
@@ -36,11 +35,11 @@ import { HIZ_LEVEL_WGSL } from '../hiz/rectWgsl.ts'
  */
 export const PARTITION_CLASSIFY_WGSL = wgslBlock(
   'PARTITION_CLASSIFY_WGSL',
-  [STATE_TALLY_WGSL, FLAT_INDEX_WGSL, HIZ_LEVEL_WGSL, bitWord, bitMask],
+  [STATE_TALLY_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, HIZ_LEVEL_WGSL, bitWord, bitMask],
   `
-@compute @workgroup_size(${PARTITION_WORKGROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn classifyRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
- let row=flatIndex(id,n,${PARTITION_WORKGROUP}u);
+ let row=flatIndex(id,n,WORKGROUP_THREADS);
  if(row<uni.rows){classifyRow(row);}
  flushTally(lane);
 }

@@ -1,12 +1,12 @@
 // A parent that turns with its children composed on the GPU writes no CPU world: the GPU cut,
 // which compares the CPU worlds it is sent, must still cut again under the composed ones. The roots
 // pass announces the move to the selection on exactly the frames a parent moved.
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { askComposedPlacements, composeWebgpuPlacements, encodeComposedRows } from './gpuCompose.ts'
 import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/compileLedger.ts'
 import { decideComposedMotion, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
-import { NONE } from './gpuComposeWgsl.ts'
 import { session, turn } from './composeSession.fixture.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
@@ -36,10 +36,10 @@ test('a parent unlinked and linked anew starts from its new world: no motion fro
   composeWebgpuPlacements(rt, parent, turn(0), links, true)
   frame()
   composeWebgpuPlacements(rt, parent, turn(0), [], true)
-  assert.deepEqual([...rt.compose!.parentOf], [NONE, NONE])
+  assert.deepEqual([...rt.compose!.parentOf], [NO_INDEX, NO_INDEX])
   composeWebgpuPlacements(rt, parent, turn(1), [], false)
   composeWebgpuPlacements(rt, parent, turn(2), links.slice(1), true)
-  assert.deepEqual([...rt.compose!.parentOf], [NONE, 0], 'its slot taken again, one root')
+  assert.deepEqual([...rt.compose!.parentOf], [NO_INDEX, 0], 'its slot taken again, one root')
   assert.equal(frame(), 0, 'linked at its new world: nothing moved on the GPU')
 })
 
@@ -171,7 +171,11 @@ test('a whole link set sent again keeps the motion pose of the roots it already 
   assert.deepEqual(seeded(), [], 'held already: the GPU keeps the pose it accumulated')
   assert.deepEqual([...rt.compose!.ranksOf[0]], [0, 1])
   composeWebgpuPlacements(rt, parent, turn(0.1), links.slice(1), true)
-  assert.deepEqual([...rt.compose!.parentOf], [NONE, 0], 'root 0 left the set: the CPU writes it')
+  assert.deepEqual(
+    [...rt.compose!.parentOf],
+    [NO_INDEX, 0],
+    'root 0 left the set: the CPU writes it',
+  )
   composeWebgpuPlacements(rt, parent, turn(0.1), links, true)
   frame()
   assert.deepEqual(seeded(), [0], 'root 0 linked anew starts from its CPU pose again')

@@ -47,14 +47,14 @@ const entryPoints = () =>
 export const rasterKernels = (capacity: number) => `
 const LIST_S:u32=LIST+${LIST_HEADER}u;
 const LIST_L:u32=LIST+${LIST_HEADER + capacity}u;
-@compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u,@builtin(num_workgroups) n:vec3u){
- let offset=flatIndex(gid,n,64u);let pixels=pixelCount();if(offset>=pixels){return;}
+@compute @workgroup_size(WORKGROUP_THREADS) fn clear(@builtin(global_invocation_id) gid:vec3u,@builtin(num_workgroups) n:vec3u){
+ let offset=flatIndex(gid,n,WORKGROUP_THREADS);let pixels=pixelCount();if(offset>=pixels){return;}
  // Reverse-Z: the buffer starts at FAR, and the GREATEST wins afterwards.
- atomicStore(&work[offset],bitcast<u32>(${wgslF32(DEPTH_CLEAR)}));atomicStore(&work[pixels+offset],0xffffffffu);
+ atomicStore(&work[offset],bitcast<u32>(${wgslF32(DEPTH_CLEAR)}));atomicStore(&work[pixels+offset],NO_INDEX);
 }
 /** Verdict of a row, the contract's VERDICT_*; a row without a Hi-Z slot is an occluder. */
 fn rowVerdict(page:PageInfo)->u32{
- if(page.hizSlot==0xffffffffu){return ${VERDICT_OCCLUDER}u;}
+ if(page.hizSlot==NO_INDEX){return ${VERDICT_OCCLUDER}u;}
  return hizFlags[page.hizSlot];
 }
 fn modeKeeps(mode:u32,verdict:u32)->bool{
@@ -69,20 +69,20 @@ fn triOf(entry:u32,mode:u32)->Tri{
  if(!modeKeeps(mode,rowVerdict(page))){return t;}
  return setupTriangle(row,entry&0xffu,pageTransform(page),pageWinding(page));
 }
-// The 64 threads of a binning group share the same page: thread zero computes for them the two
-// quantities that belong only to the page, and the other 63 reread them instead of remaking them.
+// The threads of a binning group share the same page: thread zero computes for them the two
+// quantities that belong only to the page, and the others reread them instead of remaking them.
 var<workgroup> rowVp:mat4x4f;
 var<workgroup> rowDet:f32;
 // One thread per triangle of the drawable rows. Survivors are binned in their class list, whose
 // order the frame cannot see: the passes resolve their pixels by a minimum.
-// A group a page row, in rows along x and y; z: the row's triangles, 64 a group.
-@compute @workgroup_size(64) fn bin(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u,@builtin(num_workgroups) n:vec3u){
+// A group a page row, in rows along x and y; z: the row's triangles, \`WORKGROUP_THREADS\` a group.
+@compute @workgroup_size(WORKGROUP_THREADS) fn bin(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u,@builtin(num_workgroups) n:vec3u){
  let row=flatIndex(group,n,1u);
  let live=row<uni.pageCount;
  if(live&&lane.x==0u){let page=pages[row];rowVp=pageTransform(page);rowDet=pageWinding(page);}
  workgroupBarrier();
  if(!live){return;}
- let triangle=group.z*64u+lane.x;
+ let triangle=group.z*WORKGROUP_THREADS+lane.x;
  let t=setupTriangle(row,triangle,rowVp,rowDet);
  if(t.ok==0u){return;}
  let entry=(row<<8u)|(triangle&0xffu);

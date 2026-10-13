@@ -71,13 +71,13 @@ export const RAISED_PER_GROUP = 2
  *  candidates' counter and argument, the drawn log's counter and argument, then the counter of the
  *  log the running cut writes (`levelWgsl.ts`, `drawnAppend`). */
 const FRAME_COUNTERS = 13
-/** Words of `work` per block of sixty-four pages ahead of the counters: its drawn count, its
+/** Words of `work` per block of `WORKGROUP_THREADS` pages ahead of the counters: its drawn count, its
  *  offset, the draw mask the running cut writes and the one the frame draws, a bit a page each
  *  (`compactWgsl.ts`). Under half a byte a page: a binding holds those of a quarter billion. */
-export const WORK_BLOCK_WORDS = 2 + (2 * SELECTION_WORKGROUP) / 32
+export const WORK_BLOCK_WORDS = 2 + (2 * WORKGROUP_THREADS) / 32
 
+import { WORKGROUP_THREADS } from '../../dispatch/grid.ts'
 import { VIEW_WORD_ROWS } from './viewsWgsl.ts'
-import { SELECTION_WORKGROUP } from '../../core/selection.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { DAG_INF } from './infDecl.ts'
 

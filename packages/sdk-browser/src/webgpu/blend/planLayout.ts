@@ -1,3 +1,4 @@
+import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 /**
@@ -12,9 +13,6 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /** The two passes: blend, then transmission over the frozen background. */
 export const EXPAND_PASSES = 2
-/** Plan entries a kernel thread GROUP covers, and therefore its threads: the shader interpolates
- *  this value in its `@workgroup_size`, so the two cannot diverge. */
-export const EXPAND_GROUP = 64
 
 /**
  * TWO words per run: its first entry and their count, and nothing more.
@@ -70,4 +68,5 @@ export function planRegions(maxEntries: number) {
 /** Words the plan and the kernel scratch occupy for the whole scene. */
 export const planWords = (maxEntries: number) =>
   (maxEntries * PLAN_ENTRY_WORDS + RUN_WORDS) * EXPAND_PASSES
-export const scratchWords = (maxEntries: number) => maxEntries + ceilDiv(maxEntries, EXPAND_GROUP)
+export const scratchWords = (maxEntries: number) =>
+  maxEntries + ceilDiv(maxEntries, WORKGROUP_THREADS)

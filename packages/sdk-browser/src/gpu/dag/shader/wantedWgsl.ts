@@ -1,6 +1,6 @@
 import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 
 /**
  * The kernel that follows the descent, and that visits only what it kept.
@@ -16,10 +16,10 @@ import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
  */
 export const DAG_WANTED_WGSL = wgslBlock(
   'DAG_WANTED_WGSL',
-  [FLAT_INDEX_WGSL],
-  `@compute @workgroup_size(64)
+  [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
+  `@compute @workgroup_size(WORKGROUP_THREADS)
 fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id,n,64u);if(s>=min(atomicLoad(&work[candCounter()]),views[0u].candCap)){return;}
+ let s=flatIndex(id,n,WORKGROUP_THREADS);if(s>=min(atomicLoad(&work[candCounter()]),views[0u].candCap)){return;}
  // Only pages of the kept leaves: a page under a rejected node is never read, and its draw flag
  // is already zero — \`dagClearDrawn\` cleared the only ones that were one.
  let entry=flagAt(candBase()+2u*s);let i=entryIndex(entry);vi=entryView(entry);

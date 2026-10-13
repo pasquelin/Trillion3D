@@ -1,6 +1,7 @@
 import { InvT3, invTranspose3Prep } from '../../../../../math/src/wgsl/inverseTranspose.ts'
 import { worldMatrix3 } from '../../../../../math/src/wgsl/matrix.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
 import { outsidePlanesFn } from './outsidePlanesWgsl.ts'
 
@@ -18,9 +19,9 @@ import { outsidePlanesFn } from './outsidePlanesWgsl.ts'
  */
 export const DAG_PRIMITIVE_WGSL = wgslBlock(
   'DAG_PRIMITIVE_WGSL',
-  [InvT3, worldMatrix3, invTranspose3Prep, boxBehindPlane],
+  [InvT3, worldMatrix3, invTranspose3Prep, boxBehindPlane, NO_INDEX],
   `/** The placement this thread reads, its world at the eye and that world transposed. */
-var<private> placedW:u32=0xffffffffu;
+var<private> placedW:u32=NO_INDEX;
 var<private> placedPose:mat4x4f;
 var<private> placedT:mat4x4f;
 /** Placement \`w\`'s pose at the eye, made once for the thread (\`worldPose\`). */

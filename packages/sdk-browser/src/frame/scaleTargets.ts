@@ -1,7 +1,10 @@
+/** A second, ms: the span the frame clock judges over — the refresh measured, a cadence, a frame
+ *  missing its refresh once. */
+export const SECOND_MS = 1000
 /** What the render-scale control and its targets share (`scaleControl.ts`): the refresh
  *  assumed before the display's is measured, and an interval long enough to be a pause (a hidden
  *  page), not a frame. */
-export const FALLBACK_REFRESH_MS = 1000 / 60,
+export const FALLBACK_REFRESH_MS = SECOND_MS / 60,
   INTERVAL_PAUSE_MS = 500
 /** What the controller reads: the share of the budget they aim at, the display frames a sample is
  *  kept, the relative change below which the scale holds, and the display frames between two moves. */

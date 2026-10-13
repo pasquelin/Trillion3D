@@ -3,12 +3,12 @@
 // zero. Everything is an integer: on random series — full depth, more lights than lanes and than
 // the cache holds, pools that overflow or stand past half the word — the shipped routines give
 // the serial column's counts, cursors, lists and overflow flag, column after column.
+import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   CACHE,
   GRID_SLICES,
-  LANES,
   serialColumn,
   shippedColumn,
   suns,
@@ -70,14 +70,14 @@ test('random columns: the counts, cursors, lists and pool of the serial column',
 
 test('full depth: every light a sun, past the lanes and the cache', () => {
   const roomy = (head: number): Pool => ({ start: 7, capacity: 1 << 22, head, overflow: 0 })
-  same([suns(1), suns(LANES + 1), suns(CACHE + LANES + 3)], roomy(0))
+  same([suns(1), suns(WORKGROUP_THREADS + 1), suns(CACHE + WORKGROUP_THREADS + 3)], roomy(0))
   // Its lane bit stands for every slice: no slice's mask is ever marked.
-  assert.equal(shippedColumn(suns(CACHE + LANES + 3), roomy(0)).marks, 0)
+  assert.equal(shippedColumn(suns(CACHE + WORKGROUP_THREADS + 3), roomy(0)).marks, 0)
   assert.equal(shippedColumn([{ first: 2, last: 4, slot: false }], roomy(0)).marks, 3 * 2)
   // A sun, then lights that leave its lane: its bit is cleared, its slices not marked again.
   const mixed: Run[] = [
-    ...suns(LANES),
-    ...Array.from({ length: LANES }, (_, i) =>
+    ...suns(WORKGROUP_THREADS),
+    ...Array.from({ length: WORKGROUP_THREADS }, (_, i) =>
       i % 2 ? null : { first: i, last: i + 3, slot: false },
     ),
     ...suns(5),

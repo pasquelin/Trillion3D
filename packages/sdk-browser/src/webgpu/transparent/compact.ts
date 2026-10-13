@@ -1,6 +1,6 @@
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { TRANSPARENT_COMPACT_SHADER } from './shader.ts'
-import { dispatchRows } from '../../gpu/dispatch/grid.ts'
+import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { shaderFailed } from '../../gpu/core/shaderModule.ts'
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
@@ -83,7 +83,7 @@ function compactPasses(
     const groups = workgroupCount(table.length, TRANSPARENT_GROUP)
     const items = Math.max(1, table.pagedItems.length)
     // A thread a group, an item, an entry.
-    const launches = [ceilDiv(groups, 64), ceilDiv(items, 64), groups]
+    const launches = [ceilDiv(groups, WORKGROUP_THREADS), ceilDiv(items, WORKGROUP_THREADS), groups]
     uniData[0] = table.length
     uniData[1] = groups
     uniData[2] = table.pagedItems.length

@@ -23,12 +23,10 @@ import {
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
-import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 
-/** Thread group size of the instance load balancer. */
-export const VSM_INVALIDATION_GROUP_SIZE = 64
 /** Bytes per `VsmInvalidationInstance`. */
 export const VSM_INVALIDATION_INSTANCE_BYTES = 96
 /** Bytes of `VsmInvalidationParams`. */
@@ -79,23 +77,12 @@ struct VsmInvalidationItem{firstBox:u32,boxCount:u32,payload:u32,prefix:u32,}
 ${wgslConsts({
   VSM_BOX_CASTS,
   VSM_BOX_MOVING,
-  VSM_INVALIDATION_GROUP_SIZE,
 })}
 `
 
 /** Page-rect overlap and static caching (the box cull, its rect and the fine-caster test are the
  *  shared `VSM_BOX_CULL_WGSL`'s). */
 const VSM_PAGE_OVERLAP_WGSL = /* wgsl */ `
-/** The frustum cull of an instance's local box, taken to clip space through its local-to-world
- *  then the view's world-to-clip: orthographic, or perspective when near clipping is on. */
-fn vsmBoxInMapView(center:vec3f,extent:vec3f,localToWorld:mat4x4f,worldToClip:mat4x4f,viewToClip:mat4x4f,isOrtho:bool,nearClip:bool)->VsmBoxInView{
- if(isOrtho||!nearClip){
-  return vsmBoxInOrthoView((worldToClip*(localToWorld*vec4f(center,1.0))).xyz,
-   extent.x*(worldToClip*localToWorld[0]).xyz,extent.y*(worldToClip*localToWorld[1]).xyz,extent.z*(worldToClip*localToWorld[2]).xyz,nearClip);
- }
- return vsmBoxInPerspectiveView(worldToClip*(localToWorld*vec4f(center-extent,1.0)),
-  (2.0*extent.x)*(worldToClip*localToWorld[0]),(2.0*extent.y)*(worldToClip*localToWorld[1]),(2.0*extent.z)*(worldToClip*localToWorld[2]),viewToClip);
-}
 /** Clips the page rect of a pixel rect to the allocated bounds (at map id · 8 + mip). */
 fn vsmMappedRectPages(pixels:vec4i,h:VsmHandle,mipLevel:u32)->vec4u{
  let pagesRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE);
@@ -141,8 +128,11 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  let uvToClip=mat4x4f(vec4f(2.0,0.0,0.0,0.0),vec4f(0.0,-2.0,0.0,0.0),vec4f(0.0,0.0,1.0,0.0),vec4f(-1.0,1.0,0.0,1.0));
  let isOrtho=sunMap;
  let nearClip=!sunMap;
- let cull=vsmBoxInMapView(inst.boxCentre,inst.boxExtent,localToShifted,
-  uvToClip*pd.shiftedToMapUv,pd.lightViewToClip,isOrtho,nearClip);
+ // The box to clip space through its local-to-world, then the view's world-to-clip.
+ let toClip=uvToClip*pd.shiftedToMapUv;
+ let boxPoint=vsmBoxCullPoint(inst.boxCentre,inst.boxExtent,isOrtho,nearClip);
+ let cull=vsmBoxInView(toClip*(localToShifted*vec4f(boxPoint,1.0)),toClip*localToShifted[0],toClip*localToShifted[1],toClip*localToShifted[2],
+  inst.boxExtent,pd.lightViewToClip,isOrtho,nearClip);
  var pixelRadius=vsmClipRadius(isOrtho,boxRadius,shiftedCenter,pd.lightViewToClip)*f32(VSM_LEVEL0_TEXELS);
  if(!cull.inMapView){return;}
  let staticBox=vsmCachesAsStatic(inst,pd.uncached);
@@ -181,9 +171,9 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  }
 }
 /** The load-balanced entry point: one thread per (item, instance of the item), in rows. */
-@compute @workgroup_size(VSM_INVALIDATION_GROUP_SIZE)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn vsmStaleBoxes(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lidx:u32){
- let thread=flatIndex(wid,nwg,1u)*VSM_INVALIDATION_GROUP_SIZE+lidx;
+ let thread=flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lidx;
  if(thread>=vsmInv.boxCount||vsmInv.invItemCount==0u){return;}
  // Item of this thread: the last whose prefix is <= thread.
  var lo=0u;
@@ -223,6 +213,7 @@ export function vsmInvalidationWgsl(layout: VsmLayout) {
       VSM_PAGE_MARKS_GATHER_WGSL,
       VSM_BOX_CULL_WGSL,
       FLAT_INDEX_WGSL,
+      WORKGROUP_THREADS_WGSL,
       transformPoint,
     ],
   )

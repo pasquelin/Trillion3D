@@ -3,11 +3,11 @@
 // level descent, `dagWanted`, `dagMask`, `dagCommitMask` and `dagSortRequests` in the engine's order
 // (`gpu/dag/encode.ts`) for a cut that starts from fresh buffers, then the readout, the frame
 // counters and the draw flags read back.
+import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
 import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
-import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { stagedRequestsWord } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import { LEVEL_QUEUES } from '../../../packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts'
 import {
@@ -70,7 +70,7 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     mask = stage('dagMask'),
     commit = stage('dagCommitMask'),
     sort = stage('dagSortRequests')
-  const groups = (threads: number) => workgroupCount(threads, SELECTION_WORKGROUP)
+  const groups = (threads: number) => workgroupCount(threads, WORKGROUP_THREADS)
 
   const bind = (selection: SelectionCase, write?: StageOutput) =>
     bindCase(device, layout, selection, write)

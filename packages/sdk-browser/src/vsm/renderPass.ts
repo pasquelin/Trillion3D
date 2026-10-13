@@ -35,7 +35,7 @@ import {
   type PreparedPipeline,
 } from '../lighting/deferred/fullscreen.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
-import { dispatchRows } from '../gpu/dispatch/grid.ts'
+import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import {
   VSM_MIPS,
   VSM_PAGE_TEXELS,
@@ -73,7 +73,6 @@ import {
   VSM_RENDER_COUNTS_HEAD,
   VSM_RENDER_CULL_SPECS,
   VSM_RENDER_EXPAND_SPECS,
-  VSM_RENDER_GROUP,
   VSM_RENDER_PARAMS,
   VSM_RENDER_VIEW_DIRECTIONAL,
   vsmRenderCandidatesWgsl,
@@ -631,7 +630,7 @@ export function encodeVsmCandidates(
 ) {
   pass.setPipeline(candidates)
   pass.setBindGroup(0, candGroup, [0])
-  dispatchRows(pass, ceilDiv(rowCount, VSM_RENDER_GROUP))
+  dispatchRows(pass, ceilDiv(rowCount, WORKGROUP_THREADS))
   pass.setPipeline(kernels.args.cull.pipeline)
   pass.setBindGroup(0, argsGroup, [0])
   pass.dispatchWorkgroups(1)

@@ -1,8 +1,8 @@
-/** Frame intervals the refresh is measured over, at most, and the time they span: a period no
- *  interval of the last second stands for is gone (a window moved, a browser that slowed the
+import { SECOND_MS } from './scaleTargets.ts'
+/** Frame intervals the refresh is measured over, at most, and the time they span (`SECOND_MS`): a
+ *  period no interval of the last second stands for is gone (a window moved, a browser that slowed the
  *  page). An interval longer than `PAUSE_MS` is a pause, not a frame (under 10 fps). */
 const REFRESH_WINDOW = 120,
-  WINDOW_MS = 1000,
   PAUSE_MS = 100
 /** Share of the period an interval may stray from a whole number of periods (timer jitter), and
  *  the shortest period sought: no display refreshes faster than 500 Hz. */
@@ -128,7 +128,7 @@ export function createRefreshClock(fallback: number) {
       let n = 0,
         oldest = -1
       for (let i = 0; i < count; i++)
-        if (ends[i] > now - WINDOW_MS) {
+        if (ends[i] > now - SECOND_MS) {
           gaps[n] = gaps[i]
           ends[n] = ends[i]
           if (oldest < 0 || ends[n] < ends[oldest]) oldest = n

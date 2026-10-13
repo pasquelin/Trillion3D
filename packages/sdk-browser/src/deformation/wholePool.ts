@@ -1,3 +1,4 @@
+import { WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import type { BlendGpuItem } from '../webgpu/blend/state.ts'
@@ -5,7 +6,6 @@ import type { SessionDeformation } from './session.ts'
 import { wholeDeformationInputs } from './wholeInputs.ts'
 import { DEFORM_VERTEX_WORDS, deformOutputWord } from './outputs.ts'
 import { DEFORM_SOURCE_IN_POOL, FLAG_DYNAMIC } from '../visibility/types.ts'
-import { DEFORMATION_LANES } from './computeWgsl.ts'
 import type { GeometryBlock } from '../webgpu/row/pageRowMaterial.ts'
 import type { DeformationOutput } from '../page/selection/types.ts'
 import type { HostAttributes } from '../host/resources.ts'
@@ -51,7 +51,7 @@ export function wholeDeformationPool(
     const at = floats + 2
     floats += block.count * DEFORM_VERTEX_WORDS
     // A page's own results are deformed by its own row; a float geometry's block by rows of this table.
-    if (block.pool) rows += ceilDiv(block.count, DEFORMATION_LANES)
+    if (block.pool) rows += ceilDiv(block.count, WORKGROUP_THREADS)
     return at
   })
   return {
@@ -95,9 +95,9 @@ export function wholeDeformationPool(
           deform = world ? (session?.wordOfWorld(world) ?? 0) : 0
         const output = deformOutputWord(block)
         // One pass of the stage's group a row, so the block's vertices spread over the device.
-        for (let first = 0; first < block.count; first += DEFORMATION_LANES, row++) {
+        for (let first = 0; first < block.count; first += WORKGROUP_THREADS, row++) {
           const at = row * ROW_WORDS,
-            count = Math.min(DEFORMATION_LANES, block.count - first)
+            count = Math.min(WORKGROUP_THREADS, block.count - first)
           table[at + PAGE_INFO.at.flags] = geometry.dynamic ? FLAG_DYNAMIC : 0
           table[at + PAGE_INFO.at.indexCount] = count // any count but zero: the stage skips an empty row
           table[at + PAGE_INFO.at.vertexBase] = geometry.vertexBase + first

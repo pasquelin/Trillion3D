@@ -35,18 +35,18 @@
  * never refused for what reads its row: the rows no root reads — a blended surface's, or a row
  * whose root is not built yet — are composed for their readers (`composeReaders.ts`).
  */
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { uniformStride } from '../residency/pools.ts'
-import { dispatchRows } from '../gpu/dispatch/grid.ts'
+import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import {
   composeMembersWgsl,
   COMPOSE_ROOTS_WGSL,
   COMPOSE_ROWS_WGSL,
   MATRIX_DOUBLES,
-  NONE,
   PART_CORNERS,
   PART_LODS,
   PART_SPHERES,
@@ -188,7 +188,7 @@ export type PlacementLink = { rows: PlacementRows; index: number; local: ArrayLi
 function createComposeState(roots: number) {
   return {
     roots,
-    parentOf: new Uint32Array(Math.max(1, roots)).fill(NONE),
+    parentOf: new Uint32Array(Math.max(1, roots)).fill(NO_INDEX),
     locals: new Uint32Array(Math.max(1, roots) * MATRIX_DOUBLES * 2),
     /** Each linked root's local matrix, as the doubles it was linked by: what a CPU reader of its
      *  world composes with its parent's (`composedWorld`). */
@@ -445,7 +445,7 @@ function seedMotion(rt: WebgpuPagesRuntime, state: ComposeState, rank: number) {
  *  again from the pose its last image held. */
 function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, roots: number) {
   const held = state.roots
-  state.parentOf = resized(state.parentOf, roots, NONE)
+  state.parentOf = resized(state.parentOf, roots, NO_INDEX)
   state.locals = resized(state.locals, roots * MATRIX_DOUBLES * 2)
   state.localMats = resized(state.localMats, roots * 16)
   state.boxWords = resized(state.boxWords, roots * ROOT_BOX_WORDS)
@@ -456,7 +456,7 @@ function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, roots: nu
   state.gpu = undefined
   state.linksDirty = true
   for (let rank = 0; rank < held; rank++)
-    if (state.parentOf[rank] !== NONE) seedMotion(rt, state, rank)
+    if (state.parentOf[rank] !== NO_INDEX) seedMotion(rt, state, rank)
 }
 
 /**
@@ -472,7 +472,7 @@ function composedWorld(state: ComposeState, rank: number, view: Float64Array) {
   if (state.refreshed[rank] === state.version) return
   state.refreshed[rank] = state.version
   const slot = state.parentOf[rank]
-  if (slot === NONE) return
+  if (slot === NO_INDEX) return
   multiplyMatrix4(
     view,
     state.worlds.subarray(slot * 16, slot * 16 + 16),
@@ -496,7 +496,7 @@ function installComposedWorld(rt: WebgpuPagesRuntime, rank: number) {
   })
   Object.defineProperty(world, 'stamp', {
     configurable: true,
-    get: () => (state.parentOf[rank] === NONE ? 0 : state.version),
+    get: () => (state.parentOf[rank] === NO_INDEX ? 0 : state.version),
   })
 }
 
@@ -521,7 +521,7 @@ export function rebindComposedWorlds(rt: WebgpuPagesRuntime) {
   const state = rt.compose
   if (!state) return
   for (let rank = 0; rank < state.roots && rank < rt.layout.selectionRoots.length; rank++)
-    if (state.parentOf[rank] !== NONE) installComposedWorld(rt, rank)
+    if (state.parentOf[rank] !== NO_INDEX) installComposedWorld(rt, rank)
   // The rows a root reads now are composed by the roots pass from here on.
   const roots = rt.layout.selectionRoots
   for (const { slot, parent, readers } of adoptReaders(state.readers, (rows, index) =>
@@ -588,7 +588,7 @@ function unlinkHeld(rt: WebgpuPagesRuntime, state: ComposeState, slot: number, r
     movingOnly &&= mobility.moves(rank)
     if (kept.has(rank)) continue
     removeComposedWorld(rt, rank)
-    state.parentOf[rank] = NONE
+    state.parentOf[rank] = NO_INDEX
     mirrorKey(state.rankList, rank, false)
     state.relinked.push(rank)
     mobility.follow(rank, -1)
@@ -619,7 +619,7 @@ function linkRanks(
       was = state.parentOf[rank]
     if (whole || was !== slot) held.push(rank)
     // A root linked already keeps its own motion; one another slot held leaves its lists.
-    if (was === NONE) {
+    if (was === NO_INDEX) {
       seedMotion(rt, state, rank)
       mirrorKey(state.rankList, rank, true)
       state.relinked.push(rank)
@@ -888,7 +888,7 @@ export function composedLeaves(rt: WebgpuPagesRuntime): ComposedLeaves {
         held.identity.entries[0] ??= memberEntries(device, gpu, r)
         composeGroup(device, held, pipeline)
         pass.setBindGroup(0, held.group!)
-        dispatchRows(pass, ceilDiv(listed, 64))
+        dispatchRows(pass, ceilDiv(listed, WORKGROUP_THREADS))
       }
       gpu.frame.ranges = NO_RANGES
       pass.end()
@@ -1040,7 +1040,7 @@ export function encodeComposedRoots(
   pass.setPipeline(pipeline)
   for (let r = 0; r < ranges.length; r++) {
     pass.setBindGroup(0, gpu.rootGroups[r].group!)
-    dispatchRows(pass, ceilDiv(listed, 64))
+    dispatchRows(pass, ceilDiv(listed, WORKGROUP_THREADS))
   }
   pass.end()
   rt.run.gpuComputeDispatches += ranges.length
@@ -1103,7 +1103,7 @@ export function encodeComposedRows(
   const pass = encoder.beginComputePass({ label: COMPOSE_ROWS_PASS })
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, held.group!)
-  dispatchRows(pass, ceilDiv(listed, 64))
+  dispatchRows(pass, ceilDiv(listed, WORKGROUP_THREADS))
   pass.end()
   rt.run.gpuComputeDispatches++
 }

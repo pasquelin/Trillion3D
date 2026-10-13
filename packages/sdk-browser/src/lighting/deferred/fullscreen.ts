@@ -7,6 +7,7 @@
 // deferred lighting and composition, the temporal resolve, the water composite and the blend stages
 // build theirs here too. The compiles in flight are held in `compileLedger.ts`.
 
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { track, untrack } from './compileLedger.ts'
 
 /** Builds a render pipeline, asynchronously when the device offers it. */
@@ -37,13 +38,13 @@ export async function buildComputeStages<E extends string>(
   handed?: (entryPoint: E, ms: number) => void,
 ) {
   const layout = device.createPipelineLayout({ bindGroupLayouts: layouts })
-  const asked = performance.now()
+  const asked = cpuNow()
   const built = await Promise.all(
     entryPoints.map((entryPoint) =>
       buildComputePipeline(device, {
         layout,
         compute: { module, entryPoint, ...(constants && { constants }) },
-      }).then((pipeline) => (handed?.(entryPoint, performance.now() - asked), pipeline)),
+      }).then((pipeline) => (handed?.(entryPoint, msSince(asked)), pipeline)),
     ),
   )
   return Object.fromEntries(entryPoints.map((entry, at) => [entry, built[at]])) as Record<

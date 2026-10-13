@@ -92,7 +92,7 @@ import {
   VSM_TRANSMISSION_WIDTH,
 } from './transmissionLayout.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
-import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 
@@ -189,7 +189,7 @@ export const vsmTransmissionCandidatesWgsl = () =>
   wgslProgram(
     `@group(0) @binding(7) var<uniform> frame:VsmTransmissionFrame;
 ${vsmCandidatesKernel('vsmTransmissionCandidates', true)}`,
-    [VSM_RENDER_ROWS_WGSL, FRAME_STRUCT_WGSL, FLAT_INDEX_WGSL],
+    [VSM_RENDER_ROWS_WGSL, FRAME_STRUCT_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
   )
 
 // ---- Clear --------------------------------------------------------------------------------------
@@ -272,10 +272,6 @@ export const VSM_TRANSMISSION_PAGES_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'pageMarks', binding: 2 },
 ]
 
-/** Threads of the per-command kernels: a sea row's triangles (≤ 22) in one round, a row's most
- *  (128) in two, and the 81 to 121 pages of a sea command's rect in two. */
-const VSM_TRANSMISSION_COMMAND_GROUP = 64
-
 /**
  * `vsmTransmissionPages`, one group per command of the chunk's cull (the shared expand's dispatch,
  * `vsmRenderArgsExpand`): the pages of its rect the expand would pair (valid for rendering, the
@@ -305,7 +301,7 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
  if(build[VSM_T_STAMPS+key]!=frame.stamp){return ${NO_INDEX}u;}
  return key;
 }
-@compute @workgroup_size(${VSM_TRANSMISSION_COMMAND_GROUP}) fn vsmTransmissionPages(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
+@compute @workgroup_size(WORKGROUP_THREADS) fn vsmTransmissionPages(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let index=flatIndex(wid,nwg,1u);
  if(index>=frame.cmds){return;}
  if(lane==0u){
@@ -322,7 +318,7 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
  let size=(c.rect.zw+vec2u(1u))-c.rect.xy;
  // The pool slice the raster writes: the static slice for a static-cached instance.
  let slice=select(0u,vsm.staticSlice,c.staticLayer);
- for(var i=lane;i<size.x*size.y;i+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
+ for(var i=lane;i<size.x*size.y;i+=WORKGROUP_THREADS){
   if(vsmTPageKey(levelOffset,c.mip,rectCell(c.rect,size,i),c.markMask,slice)!=${NO_INDEX}u){atomicAdd(&wgFound,1u);}
  }
  workgroupBarrier();
@@ -334,7 +330,7 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
   vsmTHeader(index,vec4u(cmd.x,cmd.y,base,select(0u,min(found,frame.pairs-base),base<frame.pairs)));
  }
  let base=workgroupUniformLoad(&wgBase);
- for(var i=lane;i<size.x*size.y;i+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
+ for(var i=lane;i<size.x*size.y;i+=WORKGROUP_THREADS){
   let vPage=rectCell(c.rect,size,i);
   let key=vsmTPageKey(levelOffset,c.mip,vPage,c.markMask,slice);
   if(key==${NO_INDEX}u){continue;}
@@ -353,6 +349,7 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
       VSM_PAGE_MARKS_GATHER_WGSL,
       VSM_RENDER_COMMAND_WGSL,
       frameWgsl(layout),
+      WORKGROUP_THREADS_WGSL,
       rectCell,
     ],
   )
@@ -611,9 +608,9 @@ fn vsmTProject(page:PageInfo,h:ClusterHeader,t:u32,view:u32,raw:VsmProjectionRec
  out.box=vec4f(lo,hi);
  return out;
 }
-var<workgroup> tris:array<VsmTTri,${VSM_TRANSMISSION_COMMAND_GROUP}>;
+var<workgroup> tris:array<VsmTTri,WORKGROUP_THREADS>;
 var<workgroup> wgCommand:array<u32,5>;
-@compute @workgroup_size(${VSM_TRANSMISSION_COMMAND_GROUP}) fn vsmTransmissionBin(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
+@compute @workgroup_size(WORKGROUP_THREADS) fn vsmTransmissionBin(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let index=flatIndex(wid,nwg,1u);
  if(index>=frame.cmds){return;}
  if(lane==0u){
@@ -627,13 +624,13 @@ var<workgroup> wgCommand:array<u32,5>;
  let raw=vsmProjectionData[view&0xFFFFu];
  let h=pageHeaderFor(page,(page.flags&${FLAG_HAS_UV}u)!=0u);
  let scale=f32(VSM_LEVEL0_TEXELS>>((view>>16u)&7u));
- for(var batch=0u;batch<triangles;batch+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
+ for(var batch=0u;batch<triangles;batch+=WORKGROUP_THREADS){
   var tri:VsmTTri;
   if(batch+lane<triangles){tri=vsmTProject(page,h,batch+lane,view,raw);}
   tris[lane]=tri;
   workgroupBarrier();
-  let n=min(${VSM_TRANSMISSION_COMMAND_GROUP}u,triangles-batch);
-  for(var w=lane;w<found*n;w+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
+  let n=min(WORKGROUP_THREADS,triangles-batch);
+  for(var w=lane;w<found*n;w+=WORKGROUP_THREADS){
    let p=w/n;let i=w-p*n;
    if(tris[i].count<3u){continue;}
    let e=4u*frame.cmds+2u*(first+p);
@@ -663,6 +660,7 @@ var<workgroup> wgCommand:array<u32,5>;
       PAGE_GEOMETRY_WGSL,
       blendTransmittanceWgsl(maskAlpha, colorSampleWgsl(SHADOW_TILE_POOL_WGSL)),
       FLOAT32_MAX,
+      WORKGROUP_THREADS_WGSL,
       edgeFunction,
       faceNormal,
       byteOf,

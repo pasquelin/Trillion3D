@@ -3,6 +3,7 @@
 // model — each slice's list the lights whose run holds it, in increasing order, its room taken
 // after the others'. Between two barriers the lanes meet only through atomic ORs and their own
 // words, so running them one after the other is one of the orders the GPU may take.
+import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
@@ -15,7 +16,7 @@ import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 const GRID_COMPACT_WGSL = gridCompactWgsl(LIGHT_SETTINGS.gridSlices)
 
 const W = { ...wgslConstants(directLightWgsl()), ...wgslConstants(GRID_COMPACT_WGSL) }
-export const { GRID_SLICES, TILE_SHADOWED, TILE_NO_SLICE, LANES, CACHE } = W
+export const { GRID_SLICES, TILE_SHADOWED, TILE_NO_SLICE, CACHE } = W
 const { EMPTY_RUN, ALL_CACHED } = W
 /** A light's run in the column, `[first, last]`, and whether it holds a shadow slot; `null` when
  *  it meets no cell of the column. */
@@ -63,7 +64,7 @@ function workgroup(pool: Pool, words: Map<number, number>) {
   )
   const laneSums: number[] = []
   const memory = {
-    chunk: Array.from({ length: LANES }, () => [0, EMPTY_RUN]),
+    chunk: Array.from({ length: WORKGROUP_THREADS }, () => [0, EMPTY_RUN]),
     masks: new Proxy(new Array<number>(2 * GRID_SLICES).fill(0), { set: marked }),
     full: [0, 0],
     slotted: [0, 0],
@@ -83,7 +84,7 @@ function workgroup(pool: Pool, words: Map<number, number>) {
     laneSums,
     $b: u32,
     // The engine's lane scan (`../../gpu/core/laneScanWgsl.ts`), lanes called in order: each
-    // lane's inclusive prefix, `laneSums[63]` the total.
+    // lane's inclusive prefix, `laneSums[WORKGROUP_THREADS - 1]` the total.
     laneScan: (lane: number, value: number) =>
       (laneSums[lane] = ((laneSums[lane - 1] ?? 0) + value) >>> 0),
   })
@@ -93,7 +94,7 @@ function workgroup(pool: Pool, words: Map<number, number>) {
 /** Between the walks, as `lightTiles` runs it: the lanes scan their runs, lane zero takes the room
  *  and leaves the walk's words, each lane deals the room out over its run. */
 function dealRoom({ ws, fns }: ReturnType<typeof workgroup>, count: number) {
-  const lanes = [...Array(LANES).keys()],
+  const lanes = [...Array(WORKGROUP_THREADS).keys()],
     spans = lanes.map((lane) => fns.laneRun(lane as never, GRID_SLICES as never))
   const before = lanes.map((lane) => fns.roomBefore(lane as never, spans[lane]))
   fns.takeRoom()
@@ -117,7 +118,7 @@ export function shippedColumn(runs: Run[], pool: Pool): Column {
   const group = workgroup(pool, words),
     { ws, memory, fns } = group
   const each = (run: (lane: number) => void) => {
-    for (let lane = 0; lane < LANES; lane++) run(lane)
+    for (let lane = 0; lane < WORKGROUP_THREADS; lane++) run(lane)
   }
   /** One batch: `entry(lane)` marked, then `then` on every lane. */
   const batch = (entry: (lane: number) => number[], then: string) => {
@@ -126,8 +127,8 @@ export function shippedColumn(runs: Run[], pool: Pool): Column {
   }
   const count = runs.length,
     ofLight = (i: number) => (i < count ? entryOf(i, runs[i]) : [i, EMPTY_RUN])
-  for (let first = 0; first < count; first += LANES) {
-    const entries = Array.from({ length: LANES }, (_, lane) => ofLight(first + lane))
+  for (let first = 0; first < count; first += WORKGROUP_THREADS) {
+    const entries = Array.from({ length: WORKGROUP_THREADS }, (_, lane) => ofLight(first + lane))
     batch((lane) => entries[lane], 'countSlices')
     const kept =
       (builtins.countOneBits(memory.keptLanes[0]) as number) +
@@ -143,9 +144,9 @@ export function shippedColumn(runs: Run[], pool: Pool): Column {
   const records: Column = { counts: [...memory.counts], cursor: [...memory.cursor], words }
   const [room, held, resume] = ws.walked
   if (room !== 0) {
-    for (let at = 0; at < held; at += LANES)
+    for (let at = 0; at < held; at += WORKGROUP_THREADS)
       batch((lane) => (at + lane < held ? memory.cache[at + lane] : [0, EMPTY_RUN]), 'writeSlices')
-    for (let first = resume; first < count; first += LANES)
+    for (let first = resume; first < count; first += WORKGROUP_THREADS)
       batch((lane) => ofLight(first + lane), 'writeSlices')
   }
   return { ...records, marks: ws.marks }

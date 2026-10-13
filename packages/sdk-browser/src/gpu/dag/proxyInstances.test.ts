@@ -1,6 +1,7 @@
 // The run-time proxy kept to the placements it traces: an instance a placement, a surface a material,
 // a cut's columns once however many placements wear it — written as the culling's rows are, appended,
 // parked, marked —, and no buffer while none wears one. Over the device double.
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { fromF32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -11,12 +12,7 @@ import { dagRootCounts } from './pack.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { LIMITS, cut, open, region, surface, wordAt, writes } from './proxyInstances.fixture.ts'
-import {
-  INSTANCE,
-  INSTANCE_WORDS,
-  RUNTIME_HEADER_WORDS,
-  RUNTIME_NONE,
-} from '../../bounce/runtimeLayout.ts'
+import { INSTANCE, INSTANCE_WORDS, RUNTIME_HEADER_WORDS } from '../../bounce/runtimeLayout.ts'
 
 test('no placement wears a proxy: no buffer, nothing for the trace to read', async () => {
   const { gpu, selection } = await open(() => undefined)
@@ -51,7 +47,7 @@ test('placements of one cut share its columns; each names its cut, its surface a
   assert.equal(instance(12, INSTANCE.triangle), 5)
   assert.equal(instance(12, INSTANCE.surface), 1)
   // No proxy: none, whatever the others wear.
-  assert.equal(instance(15, INSTANCE.node), RUNTIME_NONE)
+  assert.equal(instance(15, INSTANCE.node), NO_INDEX)
   // The cut is written once.
   const triangleWrites = writes(gpu).filter(({ data }) => data.byteLength === 5 * 9 * 4)
   assert.equal(triangleWrites.length, 1, 'one upload of the shared cut')
@@ -89,7 +85,7 @@ test('a parked placement draws no proxy until it is taken back, and a mark follo
   const mark = (w: number) =>
     wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + INSTANCE.mark)
   selection.parkWorld(3, true)
-  assert.equal(node(3), RUNTIME_NONE)
+  assert.equal(node(3), NO_INDEX)
   selection.parkWorld(3, false)
   assert.equal(node(3), 0)
   selection.markWorld(4, 0x3c00_0001)

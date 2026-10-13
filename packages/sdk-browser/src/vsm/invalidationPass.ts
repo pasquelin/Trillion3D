@@ -27,7 +27,6 @@ import {
   type VsmLightCache,
 } from './cacheManager.ts'
 import {
-  VSM_INVALIDATION_GROUP_SIZE,
   VSM_INVALIDATION_INSTANCE_BYTES,
   VSM_INVALIDATION_PARAMS_BYTES,
   VSM_INVALIDATION_SPECS,
@@ -48,7 +47,7 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import type { VsmLayout } from './layout.ts'
-import { dispatchRows } from '../gpu/dispatch/grid.ts'
+import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
 /** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
@@ -368,7 +367,7 @@ function dispatchPhase(
       itemBuffer,
     ])),
   )
-  dispatchRows(pass, ceilDiv(threads, VSM_INVALIDATION_GROUP_SIZE))
+  dispatchRows(pass, ceilDiv(threads, WORKGROUP_THREADS))
   pass.end()
 }
 

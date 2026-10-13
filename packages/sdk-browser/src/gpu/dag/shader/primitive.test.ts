@@ -4,6 +4,7 @@
 // against the uncached form is `tests/gpu/dag/prepare.gpu.ts`; here, the bytes, the sites that read
 // the thread's pose, and the one verdict that has a form of its own — a never-culled primitive's
 // open planes — on every box.
+import { WORKGROUP_THREADS } from '../../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from './shader.ts'
@@ -42,7 +43,7 @@ test('the frame’s prepare reads no placement: ten thousand cost it what their 
   const count = 10_000,
     dag = packDagSelection(Array.from({ length: count }, () => root))
   const top = dag.placementTree!.levels[0].count,
-    blockCount = ceilDiv(dag.pageCount, 64)
+    blockCount = ceilDiv(dag.pageCount, WORKGROUP_THREADS)
   const witness = witnessEncoder()
   const cut = {
     ...cutResources(3),
@@ -55,7 +56,7 @@ test('the frame’s prepare reads no placement: ten thousand cost it what their 
   const prepare = dispatches.find((d) => d.kernel === 'dagPrepare')!,
     groups = Number(prepare.groups) * (prepare.rows ?? 1)
   // The tree's top nodes and the block counts it resets, never a thread a placement.
-  assert.equal(groups, ceilDiv(Math.max(top, blockCount), 64))
+  assert.equal(groups, ceilDiv(Math.max(top, blockCount), WORKGROUP_THREADS))
   assert.ok(64 * groups < count / 4, `${groups} groups`)
 })
 

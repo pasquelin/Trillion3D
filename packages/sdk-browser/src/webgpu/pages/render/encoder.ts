@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 import { vsmSubmitted } from './vsm/vsmFrameEnd.ts'
 import { reflectionsSubmitted } from '../../../reflections/frame.ts'
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts'
@@ -66,10 +67,10 @@ export function submitColorCopy(
   const refusal = gpuDeviceLedgerOf(device)?.refusal
   if (refusal) throw refusal
   // Submit is timed alone: the encode that precedes it no longer carries it.
-  const submitStart = performance.now()
+  const submitStart = cpuNow()
   const command = encoder.finish()
   device.queue.submit([command])
-  timing.lastQueueSubmitMs = performance.now() - submitStart
+  timing.lastQueueSubmitMs = msSince(submitStart)
   // What the image replaced as it was encoded goes, its last command submitted (`frameRetire.ts`).
   destroyRetired(device)
   // Counts of a sampled image are mapped only once the image that copied them is submitted.

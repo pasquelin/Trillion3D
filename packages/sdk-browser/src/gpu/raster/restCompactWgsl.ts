@@ -2,12 +2,9 @@ import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { BASE_SLOTS, HALF_SLOTS, INSTANCE_WORD_WGSL } from '../draw/contract.ts'
 import { HIZ_REJECTED_WGSL, ST_TESTED } from '../partition/contract.ts'
 import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
-import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
-
-/** Instances of one tile: the threads of a count or scatter workgroup. */
-export const REST_COMPACT_WORKGROUP = 64
 
 /**
  * Stable compaction of the tested half, between the occlusion test and the second geometry pass.
@@ -64,7 +61,7 @@ fn tileWord(n:u32,t:u32)->u32{return uni.copyWords+uni.restSlots+n*uni.tiles+t;}
 var<workgroup> tileKept:atomic<u32>;
 var<workgroup> slotCount:u32;
 /** The instances \`slot\`'s command counts before the compaction, at most the tiles \`work\` holds. */
-fn commandCount(slot:u32)->u32{return min(indirect[slot*4u+1u],uni.tiles*${REST_COMPACT_WORKGROUP}u);}
+fn commandCount(slot:u32)->u32{return min(indirect[slot*4u+1u],uni.tiles*WORKGROUP_THREADS);}
 /** Tested slot \`n\`'s count, broadcast so an empty tile can leave from uniform control flow. */
 fn sharedCount(lane:u32,count:u32)->u32{
  if(lane==0u){slotCount=count;}
@@ -74,19 +71,19 @@ fn sharedCount(lane:u32,count:u32)->u32{
  *  \`uni.tiles\` the work buffer holds, in rows, a tested slot up z. */
 @compute @workgroup_size(1)
 fn restArgs(){
- let tiles=min(ceilDiv(partitionState[${ST_TESTED}u]*uni.perRow,${REST_COMPACT_WORKGROUP}u),uni.tiles);
+ let tiles=min(ceilDiv(partitionState[${ST_TESTED}u]*uni.perRow,WORKGROUP_THREADS),uni.tiles);
  let g=groupGrid(tiles);
  tileArgs[0]=g.x;tileArgs[1]=g.y;tileArgs[2]=uni.restSlots;
 }
-@compute @workgroup_size(${REST_COMPACT_WORKGROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn restCount(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) groups:vec3u){
  let n=wg.z;let t=flatIndex(wg,groups,1u);
  if(n>=uni.restSlots||t>=uni.tiles){return;}
  let slot=restSlotAt(n);
  let count=sharedCount(lane,commandCount(slot));
  // Tiles past the count are never scanned.
- if(t*${REST_COMPACT_WORKGROUP}u>=count){return;}
- let x=t*${REST_COMPACT_WORKGROUP}u+lane;
+ if(t*WORKGROUP_THREADS>=count){return;}
+ let x=t*WORKGROUP_THREADS+lane;
  if(x<count){
   let at=slotOffsets[slot]+x;
   let row=instances[at];
@@ -96,26 +93,26 @@ fn restCount(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) la
  workgroupBarrier();
  if(lane==0u){work[tileWord(n,t)]=atomicLoad(&tileKept);}
 }
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn restScan(@builtin(local_invocation_index) lane:u32){
  for(var n=0u;n<uni.restSlots;n++){
   let count=sharedCount(lane,commandCount(restSlotAt(n)));
   if(lane==0u){work[countWord(n)]=count;}
-  let tiles=(count+${REST_COMPACT_WORKGROUP - 1}u)/${REST_COMPACT_WORKGROUP}u;
+  let tiles=(count+(WORKGROUP_THREADS-1u))/WORKGROUP_THREADS;
   let span=laneRun(lane,tiles);
   ${laneRunOffsets('t', 'span', 'lane', '', 'work[tileWord(n,t)]', 'work[tileWord(n,t)]=cursor')}
-  if(lane==0u){indirect[restSlotAt(n)*4u+1u]=laneSums[63u];}
+  if(lane==0u){indirect[restSlotAt(n)*4u+1u]=laneSums[WORKGROUP_THREADS-1u];}
   workgroupBarrier();
  }
 }
-@compute @workgroup_size(${REST_COMPACT_WORKGROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn restScatter(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) groups:vec3u){
  let n=wg.z;let t=flatIndex(wg,groups,1u);
  if(n>=uni.restSlots||t>=uni.tiles){return;}
  let count=sharedCount(lane,work[countWord(n)]);
- let x=t*${REST_COMPACT_WORKGROUP}u+lane;
+ let x=t*WORKGROUP_THREADS+lane;
  // A tile past the count moves nothing: it leaves before the scan.
- if(t*${REST_COMPACT_WORKGROUP}u>=count){return;}
+ if(t*WORKGROUP_THREADS>=count){return;}
  let start=slotOffsets[restSlotAt(n)];
  var row=0u;var kept=0u;
  if(x<count){row=work[start+x];kept=select(0u,1u,survives(row));}
@@ -130,6 +127,7 @@ fn restScatter(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) 
     INSTANCE_WORD_WGSL,
     FLAT_INDEX_WGSL,
     GROUP_GRID_WGSL,
+    WORKGROUP_THREADS_WGSL,
     ceilDiv,
     LANE_SCAN_WGSL,
   ],

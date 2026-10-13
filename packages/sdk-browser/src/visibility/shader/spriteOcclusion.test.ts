@@ -87,7 +87,9 @@ test('a constant-size sprite row carries no Hi-Z slot, which every GPU reader dr
   assert.ok(constant.length > 0)
   for (const slot of constant) assert.equal(slot, NO_INDEX)
   assert.deepEqual(await rowHizSlots(true), [0, 1], 'an attenuated sprite keeps its rank')
-  assert.ok(wgslSource(HIZ_REJECTED_WGSL).includes('hizSlot!=0xffffffffu&&'))
+  const rejected = wgslSource(HIZ_REJECTED_WGSL)
+  assert.ok(rejected.includes('hizSlot!=NO_INDEX&&'))
+  assert.ok(rejected.includes(`const NO_INDEX:u32=0x${NO_INDEX.toString(16)}u;`))
   // A row moved to another rank keeps having none; any other row takes its new rank.
   const ints = new Uint32Array(64)
   ints[PAGE_INFO.at.hizSlot] = NO_INDEX
@@ -99,7 +101,8 @@ test('a constant-size sprite row carries no Hi-Z slot, which every GPU reader dr
 
 test('the GPU Hi-Z test counts no reject for a row with no Hi-Z slot, which it keeps', () => {
   const kernel = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn testHiz'))
-  const noVerdict = kernel.indexOf(`pages[row].hizSlot==0x${NO_INDEX.toString(16)}u||`),
+  assert.ok(HIZ_SHADER.includes(`const NO_INDEX:u32=0x${NO_INDEX.toString(16)}u;`))
+  const noVerdict = kernel.indexOf('pages[row].hizSlot==NO_INDEX||'),
     kept = kernel.indexOf('return;}', noVerdict)
   // The row's slot sends it down the branch that keeps a row the pyramid cannot judge, before
   // the verdict and the reject counters.

@@ -25,7 +25,7 @@ import {
   PROXY_TRIANGLE_FLOATS,
 } from '../../../../sdk-core/src/index.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
-import { SQRT3 } from '../../../../math/src/constants.ts'
+import { SQRT3, NO_INDEX } from '../../../../math/src/constants.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { longestColumn, sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
@@ -43,7 +43,6 @@ import {
   INSTANCE_WORDS,
   RUNTIME_HEADER,
   RUNTIME_HEADER_WORDS,
-  RUNTIME_NONE,
   RUNTIME_ORIGIN_WORDS,
   RUNTIME_WORLD_WORDS,
   SURFACE_WORDS,
@@ -132,9 +131,9 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   const walksTree = !!tree
   const treeWords = tree ? treeNodeCount(tree) * DAG_NODE_FLOATS : 0,
     memberWords = tree ? tree.capacity : 0
-  let words = new Uint32Array(slots * INSTANCE_WORDS).fill(RUNTIME_NONE)
+  let words = new Uint32Array(slots * INSTANCE_WORDS).fill(NO_INDEX)
   // The instance a placement wears now, and the one it keeps while parked.
-  const resolved = new Uint32Array(slots * INSTANCE_WORDS).fill(RUNTIME_NONE)
+  const resolved = new Uint32Array(slots * INSTANCE_WORDS).fill(NO_INDEX)
   const cuts = new Map<RuntimeCutProxy, Placed>(),
     surfaces = new Map<PageSurface, Map<number, Held>>()
   let surfaceCount = 0
@@ -233,7 +232,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     head[at.copyWorldsWord] = layout.copyWorlds
     head[at.boundsWord] = layout.bounds
     head[at.childrenWord] = layout.children
-    head[at.treeRoot] = walksTree ? tree!.levels[0].base : RUNTIME_NONE
+    head[at.treeRoot] = walksTree ? tree!.levels[0].base : NO_INDEX
     head[at.treeFirst] = walksTree ? tree!.cellBase : 0
     head[at.treeWord] = layout.tree
     head[at.membersWord] = layout.members
@@ -443,7 +442,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     const cut = proxy?.primitive.runtimeProxy
     const placed = cut && place(cut)
     if (!proxy || !cut || !placed) {
-      resolved.fill(RUNTIME_NONE, at, at + INSTANCE_WORDS)
+      resolved.fill(NO_INDEX, at, at + INSTANCE_WORDS)
       resolved[at + INSTANCE.mark] = 0
       return
     }
@@ -463,9 +462,9 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       boxes.mark(w)
       resolve(w)
       const at = w * INSTANCE_WORDS,
-        parked = packed.rootNodes[w] === RUNTIME_NONE
+        parked = packed.rootNodes[w] === NO_INDEX
       words.set(resolved.subarray(at, at + INSTANCE_WORDS), at)
-      if (parked) words[at + INSTANCE.node] = RUNTIME_NONE
+      if (parked) words[at + INSTANCE.node] = NO_INDEX
     }
     if (buffer || cuts.size) {
       const made = ensure()
@@ -505,7 +504,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
           : undefined
       if (!posedAs) dropPosed(slots + k)
       moved =
-        setWord(at + INSTANCE.node, shown ? (posedAs?.node ?? placed.node) : RUNTIME_NONE) || moved
+        setWord(at + INSTANCE.node, shown ? (posedAs?.node ?? placed.node) : NO_INDEX) || moved
       moved =
         setWord(at + INSTANCE.triangle, shown ? (posedAs?.triangle ?? placed.triangle) : 0) || moved
       moved =
@@ -542,7 +541,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       const kept = words.subarray(0, slots * INSTANCE_WORDS)
       copies = next
       for (const w of [...posed.keys()]) if (w >= slots + next.length) dropPosed(w)
-      words = new Uint32Array((slots + copies.length) * INSTANCE_WORDS).fill(RUNTIME_NONE)
+      words = new Uint32Array((slots + copies.length) * INSTANCE_WORDS).fill(NO_INDEX)
       words.set(kept)
       copyWorlds = new Float32Array(copies.length * WORLD_WORDS)
       relayout()
@@ -684,7 +683,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       boxes.mark(w)
       if (!buffer) return
       const at = w * INSTANCE_WORDS,
-        node = parked ? RUNTIME_NONE : resolved[at + INSTANCE.node]
+        node = parked ? NO_INDEX : resolved[at + INSTANCE.node]
       if (words[at + INSTANCE.node] === node) return
       words[at + INSTANCE.node] = node
       send(buffer, byteAt(layout.instances + at + INSTANCE.node), words, at + INSTANCE.node, 1)

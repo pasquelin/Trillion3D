@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { probeWorldDevice } from '../capability/worldReady.ts'
 import type { WorldNotices } from '../diagnostic/worldNotices.ts'
 
@@ -23,7 +24,7 @@ export function holdWorldDevice(
       void granted.lost.then((info) => {
         if (disposed || info.reason === 'destroyed' || gpuDevice !== granted) return
         console.warn('World GPU device lost, asking for another:', info.message)
-        const lostAt = performance.now()
+        const lostAt = cpuNow()
         gpuDevice = undefined
         pending = grant()
         // Granted or not, the session reopens: it waits on `pending`, and reports a refusal.
@@ -71,7 +72,7 @@ export function worldRecovered(
   const remove = frames.add(() => {
     remove()
     notices.say('gpu-device-recovered', 'The world drew again on a device granted after a loss', {
-      recoveryMs: performance.now() - lostAt,
+      recoveryMs: msSince(lostAt),
       keptPages,
     })
   })

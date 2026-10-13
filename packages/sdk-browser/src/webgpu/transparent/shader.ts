@@ -1,5 +1,5 @@
 import { TRANSPARENT_GROUP } from './table.ts'
-import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 import { DRAW_MASK_WGSL } from '../../gpu/dag/shader/drawMaskWgsl.ts'
@@ -38,9 +38,9 @@ fn selected(i:u32)->bool{
  if(occluded[i]!=0u){return false;}
  return maskSelects(cluster);
 }
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let group=flatIndex(id,n,64u);
+ let group=flatIndex(id,n,WORKGROUP_THREADS);
  if(group>=uni.groupCount){return;}
  let begin=group*${TRANSPARENT_GROUP}u;
  let end=min(begin+${TRANSPARENT_GROUP}u,uni.entryCount);
@@ -48,9 +48,9 @@ fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_w
  for(var i=begin;i<end;i++){if(selected(i)){count=count+1u;}}
  groupCounts[group]=count;
 }
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let item=flatIndex(id,n,64u);
+ let item=flatIndex(id,n,WORKGROUP_THREADS);
  if(item>=uni.itemCount){return;}
  let base=itemRanges[item*2u];
  let held=itemRanges[item*2u+1u];
@@ -67,9 +67,9 @@ fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u,@builtin(num_w
  indirect[o+2u]=0u;
  indirect[o+3u]=0u;
 }
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id,n,64u);
+ let i=flatIndex(id,n,WORKGROUP_THREADS);
  if(i>=uni.entryCount||!selected(i)){return;}
  let group=i/${TRANSPARENT_GROUP}u;
  let begin=group*${TRANSPARENT_GROUP}u;
@@ -78,5 +78,5 @@ fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num
  instances[groupOffsets[group]+rank]=i;
 }
 `,
-  [FLAT_INDEX_WGSL, ceilDiv, DRAW_MASK_WGSL],
+  [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, ceilDiv, DRAW_MASK_WGSL],
 )

@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 import { createGpuDagSelection, packDagSelection } from '../../../gpu/dag/selection.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
@@ -47,9 +48,9 @@ export async function createSessionCut(
     ? undefined
     : (note: string) => rt.context.preparationStep?.(`GPU cut: ${note}`)
   progress?.('pack, at 0.0 s')
-  const packStart = performance.now()
+  const packStart = cpuNow()
   const packed = packDagSelection(roots, capacity)
-  const pack = { step: 'pack', ms: Math.round(performance.now() - packStart) }
+  const pack = { step: 'pack', ms: Math.round(msSince(packStart)) }
   const cut = await createGpuDagSelection(gpuDevice, packed, {
     diagnosticGpuVariant: rt.context.diagnosticGpuVariant,
     onRefused: (reason, details) => {

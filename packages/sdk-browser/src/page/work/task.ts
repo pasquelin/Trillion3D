@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { EngineError } from '../../../../sdk-core/src/index.ts'
 import {
   PAGE_TASK_PROTOCOL,
@@ -17,7 +18,7 @@ function done(
     protocol: PAGE_TASK_PROTOCOL,
     id: request.id,
     ok: true,
-    taskMs: performance.now() - started,
+    taskMs: msSince(started),
     ...fields,
   }
   return { answer, transfer }
@@ -31,7 +32,7 @@ function done(
 export async function runPageTask(
   request: PageTaskRequest,
 ): Promise<{ answer: PageTaskAnswer; transfer: ArrayBuffer[] }> {
-  const started = performance.now()
+  const started = cpuNow()
   try {
     if (request.op === 'cut') {
       // Loaded on the first cut alone: a worker that only reads cells never loads the cutter.

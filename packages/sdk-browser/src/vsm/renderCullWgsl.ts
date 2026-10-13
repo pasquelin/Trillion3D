@@ -38,8 +38,7 @@ import { CUT_RULE_WGSL } from '../page/cut/rule.ts'
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { bitAt, bitIsSet, lowBits, rectCell } from '../../../math/src/wgsl/integer.ts'
-import { transformPoint } from '../../../math/src/wgsl/projection.ts'
-import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { projectedBoundWgsl } from '../gpu/dag/shader/projectedBoundWgsl.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
@@ -59,8 +58,6 @@ import type { VsmLayout } from './layout.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslConst } from '../../../math/src/wgsl/decl.ts'
 
-/** Threads per group of every render-cull kernel. */
-export const VSM_RENDER_GROUP = 64
 /** Words per chunk in the indirect argument buffer: cull dispatch 3, expand dispatch 3, draw 4, pad 2. */
 export const VSM_RENDER_ARGS_STRIDE_WORDS = 12
 export const VSM_RENDER_ARGS_CULL = 0
@@ -186,8 +183,8 @@ fn vsmRenderAppendCandidate(row:u32,page:PageInfo,objectKnown:bool){
 /** A candidates kernel: one thread a caster row, the opaque rows' (\`vsmRenderCandidates\`) or, with
  *  \`blend\`, the blended rows' of the frame's range (\`frame\`, \`transmissionWgsl.ts\`). */
 export const vsmCandidatesKernel = (name: string, blend: boolean) => `
-@compute @workgroup_size(${VSM_RENDER_GROUP}) fn ${name}(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let i=flatIndex(wid,nwg,1u)*${VSM_RENDER_GROUP}u+lane;
+@compute @workgroup_size(WORKGROUP_THREADS) fn ${name}(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
+ let i=flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lane;
  if(i>=params.rowCount){return;}
  let row=${blend ? 'frame.rowFirst+i' : 'i'};
  let page=pages[row];
@@ -201,6 +198,7 @@ export const vsmRenderCandidatesWgsl = () =>
   wgslProgram(vsmCandidatesKernel('vsmRenderCandidates', false), [
     VSM_RENDER_ROWS_WGSL,
     FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
   ])
 
 // ---- Cull (per candidate × map view) -------------------------------------------------------
@@ -213,24 +211,6 @@ export const VSM_RENDER_CULL_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'staleRects', binding: 3 },
   { resource: 'projectionData', binding: 4 },
 ]
-
-/** The box frustum tests of the shared cull (`VSM_BOX_CULL_WGSL`) on a box of the shifted world,
- *  its local-to-world the identity: the shifted-to-clip matrix takes it to clip space. */
-const FRUSTUM_WGSL = /* wgsl */ `
-/** The frustum cull of a box under an orthographic view, identity local-to-world. */
-fn vsmShiftedBoxOrtho(center:vec3f,extent:vec3f,m:mat4x4f,nearClip:bool)->VsmBoxInView{
- return vsmBoxInOrthoView(transformPoint(m,center),extent.x*m[0].xyz,extent.y*m[1].xyz,extent.z*m[2].xyz,nearClip);
-}
-/** The frustum cull of a box under a perspective view, identity local-to-world. */
-fn vsmShiftedBoxPerspective(center:vec3f,extent:vec3f,m:mat4x4f,viewToClip:mat4x4f)->VsmBoxInView{
- return vsmBoxInPerspectiveView(m*vec4f(center-extent,1.0),(2.0*extent.x)*m[0],(2.0*extent.y)*m[1],(2.0*extent.z)*m[2],viewToClip);
-}
-/** The frustum cull of a box: orthographic, or perspective when near clipping is on. */
-fn vsmShiftedBoxInView(center:vec3f,extent:vec3f,m:mat4x4f,viewToClip:mat4x4f,isOrtho:bool,nearClip:bool)->VsmBoxInView{
- if(isOrtho||!nearClip){return vsmShiftedBoxOrtho(center,extent,m,nearClip);}
- return vsmShiftedBoxPerspective(center,extent,m,viewToClip);
-}
-`
 
 /** The page-overlap and static-caching pieces the command cull reads. */
 const OVERLAP_WGSL = /* wgsl */ `
@@ -308,7 +288,6 @@ fn vsmShiftedToClip(uv:mat4x4f)->mat4x4f{
 export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {}) =>
   wgslProgram(
     [
-      FRUSTUM_WGSL,
       OVERLAP_WGSL,
       /* wgsl */ `
 @group(1) @binding(0) var<uniform> params:VsmRenderParams;
@@ -316,8 +295,8 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
 @group(1) @binding(2) var<storage,read> candidates:array<VsmRenderCandidate>;
 @group(1) @binding(3) var<storage,read_write> counts:array<atomic<u32>>;
 @group(1) @binding(4) var<storage,read_write> cmds:array<vec4u>;
-@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderCull(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_index) lane:u32){
- let local=wid.x*${VSM_RENDER_GROUP}u+lane;
+@compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderCull(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_index) lane:u32){
+ let local=wid.x*WORKGROUP_THREADS+lane;
  let k=params.chunkFirst+local;
  if(local>=params.chunkRows||k>=atomicLoad(&counts[0])||wid.y>=params.viewCount){return;}
  let cand=candidates[k];
@@ -356,7 +335,9 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
   }else if(radius*radius<params.smallCasterSq*dot(d,d)){return;}
  }
  // Frustum cull; non-static geometry also within the depth range (0, the largest float).
- let cull=vsmShiftedBoxInView(center,vec3f(radius),shiftedToClip,viewToClip,isOrtho,nearClip);
+ let extent=vec3f(radius);
+ let boxPoint=vsmBoxCullPoint(center,extent,isOrtho,nearClip);
+ let cull=vsmBoxInView(shiftedToClip*vec4f(boxPoint,1.0),shiftedToClip[0],shiftedToClip[1],shiftedToClip[2],extent,viewToClip,isOrtho,nearClip);
  visible=cull.inMapView;
  if(visible&&!staticLayer){
   visible=cull.clipHigh.z>0.0&&cull.clipLow.z<FLOAT32_MAX;
@@ -395,7 +376,7 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
       VSM_RENDER_PARAMS_WGSL,
       VSM_BOX_CULL_WGSL,
       FLOAT32_MAX,
-      transformPoint,
+      WORKGROUP_THREADS_WGSL,
       lowBits,
     ],
   )
@@ -457,7 +438,7 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
   if((markBits&(1u<<s))!=0u){vsmRasterMarksStore(n*s+drawnPool,1u);}
  }
 }
-@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderExpand(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
+@compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderExpand(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let index=flatIndex(wid,nwg,1u);
  if(index>=vsmRenderCommandCount()){return;}
  let cmd=cmds[index];
@@ -467,7 +448,7 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
  let size=(c.rect.zw+vec2u(1u))-c.rect.xy;
  // The pool slice the raster writes: the static slice for a static-cached instance.
  let slice=select(0u,vsm.staticSlice,c.staticLayer);
- for(var i=lane;i<size.x*size.y;i+=${VSM_RENDER_GROUP}u){
+ for(var i=lane;i<size.x*size.y;i+=WORKGROUP_THREADS){
   let vPage=rectCell(c.rect,size,i);
   let offset=vsmTableEntryAt(levelOffset,c.mip,vPage);
   let page=vsmTableEntryAtOffset(offset);
@@ -499,6 +480,7 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
       VSM_PAGE_MARKS_GATHER_WGSL,
       VSM_RENDER_COMMAND_WGSL,
       FLAT_INDEX_WGSL,
+      WORKGROUP_THREADS_WGSL,
       rectCell,
     ],
   )
@@ -522,7 +504,7 @@ fn vsmRenderArgsAt(chunk:u32,word:u32)->u32{return chunk*${VSM_RENDER_ARGS_STRID
   let first=c*params.chunkRows;
   let n=select(0u,min(total-first,params.chunkRows),total>first);
   let at=vsmRenderArgsAt(c,${VSM_RENDER_ARGS_CULL}u);
-  args[at]=(n+${VSM_RENDER_GROUP - 1}u)/${VSM_RENDER_GROUP}u;
+  args[at]=(n+(WORKGROUP_THREADS-1u))/WORKGROUP_THREADS;
   args[at+1u]=select(0u,params.viewCount,n>0u);
   args[at+2u]=1u;
  }
@@ -542,5 +524,5 @@ fn vsmRenderArgsAt(chunk:u32,word:u32)->u32{return chunk*${VSM_RENDER_ARGS_STRID
  args[at+1u]=n;args[at+2u]=0u;args[at+3u]=0u;
 }
 `,
-  [VSM_RENDER_PARAMS_WGSL, GROUP_GRID_WGSL],
+  [VSM_RENDER_PARAMS_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL],
 )

@@ -6,10 +6,7 @@ import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../visibility/shader/pag
 export const DEFORMATION_NORMALS = 2
 import { DEFORM_ADDRESS, FLAG_CLUSTER_PAGE, FLAG_DYNAMIC } from '../visibility/types.ts'
 import { DEFORM_WGSL } from './deformWgsl.ts'
-import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
-
-/** Lanes of the stage's group: a row of at most as many vertices deforms them in one pass. */
-export const DEFORMATION_LANES = 64
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 
 /** One invocation per vertex, one group per resident placement; its results lie in the float pool. */
 export const DEFORMATION_COMPUTE_WGSL = wgslProgram(
@@ -24,14 +21,14 @@ fn storeDeformed(at:u32,v:vec3f){positions[at]=v.x;positions[at+1u]=v.y;position
 fn deformTagOf(tag:u32)->u32{return tag&0xffffffu;}
 fn deformTag(at:u32)->u32{return u32(positions[at]);}
 fn storeTag(at:u32,tag:u32){positions[at]=f32(deformTagOf(tag));}
-@compute @workgroup_size(${DEFORMATION_LANES})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) groups:vec3u){
  let row=flatIndex(group,groups,1u);
  if(row>=min(image.y,arrayLength(&pages))){return;}
  let page=pages[row];
  if(page.deformOutput==0u||page.indexCount==0u){return;}
  let h=pageHeader(page);
- for(var v=lane;v<page.deformCount;v+=${DEFORMATION_LANES}u){
+ for(var v=lane;v<page.deformCount;v+=WORKGROUP_THREADS){
   let p=pageRestPosition(page,h,v);
   var n=vec3f(0.0);
   if((page.flags&${FLAG_CLUSTER_PAGE}u)!=0u){n=clusterNormal(h,page.pageOffset,v);}
@@ -57,6 +54,7 @@ fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) la
     PAGE_GEOMETRY_WGSL,
     DEFORM_WGSL,
     FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
   ],
 )
 

@@ -6,9 +6,9 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { PARTITION_SHADER } from './shader.ts'
 import { partitionClearThreads } from './clearWgsl.ts'
-import { PARTITION_WORKGROUP, STATE_WORDS } from './contract.ts'
+import { STATE_WORDS } from './contract.ts'
 import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { dispatchGrid } from '../dispatch/grid.ts'
+import { dispatchGrid, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Ref = { get: () => number[] }
@@ -24,10 +24,10 @@ function cleared(rows: number, restWords: number, slotWords: number, width?: num
     ['clearRows', 'flatIndex', 'ceilDiv'],
     { ...m, uni: { rows }, arrayLength: (p: Ref) => p.get().length },
   )
-  const groups = ceilDiv(partitionClearThreads(rows, slotWords), PARTITION_WORKGROUP),
+  const groups = ceilDiv(partitionClearThreads(rows, slotWords), WORKGROUP_THREADS),
     [x, y] = dispatchGrid(groups, width)
   for (let row = 0; row < y; row++)
-    for (let i = 0; i < x * PARTITION_WORKGROUP; i++) clearRows([i, row, 0], [x, y, 1])
+    for (let i = 0; i < x * WORKGROUP_THREADS; i++) clearRows([i, row, 0], [x, y, 1])
   return m
 }
 

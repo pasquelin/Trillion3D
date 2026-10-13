@@ -7,6 +7,7 @@
  * (`StreamPage.kept`). One request, never retried here: what fails waits its turn
  * (`failures.ts`), and that wait is the retry.
  */
+import { cpuNow, msSince } from '../diagnostic/stopwatch.ts'
 import { checked, ONE_REQUEST } from '../cluster/checked.ts'
 import type { Job, StreamContext, StreamPage } from './types.ts'
 import { createRoundTrip } from './roundTrip.ts'
@@ -48,14 +49,14 @@ export function createStreamingFetcher(context: StreamContext) {
         expectedBytes: bytes,
       }))
     // Its round trip runs until the pages' bytes have landed: what a page asked ahead has to cover.
-    const sent = performance.now()
+    const sent = cpuNow()
     let buffer: ArrayBuffer
     try {
       buffer = await request(context, pages, signal)
     } catch (cause) {
       return jobs.map(() => ({ cause }))
     }
-    const durationMs = performance.now() - sent
+    const durationMs = msSince(sent)
     roundTrip.note(durationMs)
     emit?.('page-read-end', 'Page read finished', () => ({
       version: 1,

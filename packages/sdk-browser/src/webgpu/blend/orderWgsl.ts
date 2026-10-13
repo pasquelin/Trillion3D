@@ -2,10 +2,10 @@ import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeB
 import { PLAN_SHIFT } from './planEntry.ts'
 import { EXPAND_PASSES, RUN_WORDS } from './planLayout.ts'
 import { dAdd, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
-import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 
 /**
  * THE PAINT ORDER OF A TRANSPARENT PASS, SORTED ON THE GPU.
@@ -35,8 +35,6 @@ import { NO_INDEX } from '../../../../math/src/constants.ts'
  *  workgroup memory, half the default limit. */
 export const SORT_BLOCK = 512
 const SORT_THREADS = SORT_BLOCK / 2
-/** Threads of the slot kernel's groups. */
-export const SLOT_GROUP = 64
 /** Words of an item's key record (`keyRecords.ts`): six doubles, then its flags and its own rank. */
 export const KEY_RECORD_WORDS = 16
 export const KEY_HAS_BOX = 1
@@ -125,7 +123,7 @@ fn boxAxis(low:vec2u,high:vec2u,eye:vec2u)->vec2u{return dMul(dAdd(dSub(low,eye)
 fn itemKey(item:u32)->vec2u{
  let at=item*${KEY_RECORD_WORDS}u;
  let own=keyed[at+13u];
- if(own!=${NO_INDEX}u){return frameDouble(uni.ownKeyBase+own*2u);}
+ if(own!=NO_INDEX){return frameDouble(uni.ownKeyBase+own*2u);}
  let ex=frameDouble(0u);
  let ey=frameDouble(2u);
  let ez=frameDouble(4u);
@@ -157,7 +155,7 @@ fn goesFirst(a:vec4u,b:vec4u)->bool{
  *  last left it. */
 fn sortLoad(p:u32)->vec4u{
  if(uni.fresh==0u){return sorted[p];}
- if(p>=uni.entryCount){return vec4u(0u,0u,0xffffffffu,0u);}
+ if(p>=uni.entryCount){return vec4u(0u,0u,NO_INDEX,0u);}
  let entry=plan[uni.seedBase+p];
  let key=itemKey(entry>>${PLAN_SHIFT}u);
  return vec4u(key.x,key.y,p,entry);
@@ -219,9 +217,9 @@ fn sortBlendStep(@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id) 
  * none — and, for the last, the gap after it. The own entries come in the CPU's paint order with
  * their slots, which is the GPU's order: the same keys, the same rule.
  */
-@compute @workgroup_size(${SLOT_GROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn placeBlendSlots(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let k=flatIndex(id,n,${SLOT_GROUP}u);
+ let k=flatIndex(id,n,WORKGROUP_THREADS);
  if(uni.ownCount==0u){
   if(k==0u&&uni.gaps!=0u){writeRun(0u,0u,uni.entryCount);}
   return;
@@ -239,5 +237,5 @@ fn placeBlendSlots(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgrou
  if(k==uni.ownCount-1u){writeRun(slot+1u,at+1u,uni.entryCount-at-1u);}
 }
 `,
-  [orderUniformWgsl(), dAdd, dSub, dMul, FLAT_INDEX_WGSL],
+  [orderUniformWgsl(), dAdd, dSub, dMul, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX],
 )

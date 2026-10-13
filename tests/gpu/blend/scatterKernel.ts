@@ -2,6 +2,7 @@
 // the engine (`blendExpandBindEntries`, `EXPAND_BINDING`), dispatched as the engine dispatches them
 // (`BLEND_EXPAND_ENTRIES`, `blendExpandDispatch`), then its two outputs read back — the expanded
 // instance list and each run's indirect arguments.
+import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import assert from 'node:assert/strict'
 import {
@@ -14,7 +15,6 @@ import {
   EXPAND_BINDING,
 } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts'
 import { UNI_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
-import { EXPAND_GROUP } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
 import { namedEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -66,7 +66,7 @@ async function expand(input: ExpansionInput) {
     clusters: { buffer: buffer(input.clusters, storage) },
     scratch: {
       buffer: buffer(
-        new Uint32Array(input.entries + ceilDiv(input.entries, EXPAND_GROUP)),
+        new Uint32Array(input.entries + ceilDiv(input.entries, WORKGROUP_THREADS)),
         storage,
       ),
     },

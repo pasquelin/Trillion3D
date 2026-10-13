@@ -44,7 +44,7 @@ test("an instance's pages are invalidated as the golden holds: the same writes i
     INVALIDATION,
     [
       ...HELPERS,
-      ...['vsmBoxInMapView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'],
+      ...['vsmBoxCullPoint', 'vsmBoxInView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'],
       ...['vsmRectPixels', 'vsmRectMarks'],
     ],
     logged(INVALIDATION),

@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
+import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
+import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 
 /**
  * Level-by-level descent of the cut hierarchy, and the subtree pruning it allows.
@@ -58,7 +59,7 @@ export const CAND_LIVE_WORDS = 7
 
 export const DAG_LEVEL_WGSL = wgslBlock(
   'DAG_LEVEL_WGSL',
-  [FLAT_INDEX_WGSL, OPEN_SLICE_WGSL],
+  [FLAT_INDEX_WGSL, OPEN_SLICE_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX],
   `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].candCap*${CAND_LIVE_WORDS}u,0u,q==0u);}
 /** Entries a queue holds: two words each, the node then the placement that reads it. */
 fn queueEntries()->u32{return views[0u].queueCap/2u;}
@@ -86,16 +87,17 @@ fn pageBaseOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+1u].x);}
 /** The open counts placement \`w\` holds of its own (\`../heldOpen.ts\`): none, it reads its nodes'. */
 fn heldByOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+1u].y);}
 /** A range append, each entry tagged with the current view: the group count follows the
- *  opening of each sixty-four slice, so it equals \`ceil(total/64)\` without a one-thread kernel
- *  pulling it afterwards (\`openSlice\`). \`stride\` words an entry, the page then — two words — its
- *  placement \`w\`; past the list's \`cap\` entries, nothing is written and it is said (\`dropWork\`). */
+ *  opening of each slice of \`WORKGROUP_THREADS\`, so it equals \`ceil(total/WORKGROUP_THREADS)\`
+ *  without a one-thread kernel pulling it afterwards (\`openSlice\`). \`stride\` words an entry,
+ *  the page then — two words — its placement \`w\`; past the list's \`cap\` entries, nothing is
+ *  written and it is said (\`dropWork\`). */
 fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32,stride:u32,cap:u32,w:u32){
  let at=atomicAdd(&work[counter],count);
  for(var k=0u;k<count;k++){
   if(at+k>=cap){dropWork(LIST_DROPPED);return;}
   setFlag(base+stride*(at+k),packEntry(vi,first+k));
   if(stride>1u){setFlag(base+stride*(at+k)+1u,w);}
-  if(((at+k)&63u)==0u){openSlice(groups,(at+k)>>6u);}
+  if((at+k)%WORKGROUP_THREADS==0u){openSlice(groups,(at+k)/WORKGROUP_THREADS);}
  }
 }
 /** The same append on a descent queue, its group count opened as it fills: a level past the
@@ -107,7 +109,7 @@ fn queueAppend(dst:u32,first:u32,count:u32,w:u32){
  for(var k=0u;k<count;k++){
   if(at+k>=queueEntries()){dropWork(QUEUE_DROPPED);return;}
   putEntry(base,at+k,packEntry(vi,first+k),w);
-  if(((at+k)&63u)==0u){openSlice(queueGroups(dst),(at+k)>>6u);}
+  if((at+k)%WORKGROUP_THREADS==0u){openSlice(queueGroups(dst),(at+k)/WORKGROUP_THREADS);}
  }
 }
 /** Entry \`s\` of the queue at \`base\`: its node word, then its placement. */
@@ -137,7 +139,7 @@ fn levelStep(src:u32,s:u32){
  if(s==0u){let q=(src+2u)%${LEVEL_QUEUES}u;atomicStore(&work[queueCounter(q)],0u);resetGrid(queueGroups(q));}
  if(s>=min(atomicLoad(&work[queueCounter(src)]),queueEntries())){return;}
  let entry=flagAt(queueBase(src)+2u*s);
- if(entry==0xffffffffu){return;}
+ if(entry==NO_INDEX){return;}
  vi=entryView(entry);
  let index=entryIndex(entry);
  // Past the nodes, a member a kept group of the tree deposited (\`placementTreeWgsl.ts\`).
@@ -179,16 +181,16 @@ fn descend(src:u32,node:CullNode,w:u32){
  *  slots (\`rangeSlot\`); with one, its few entries (\`rootSlots\`), which every range's dispatch
  *  reads whole, each node keeping its own range's. Queue 0 reused deeper (level 3, 6…) mixes
  *  primitives: read whole (\`dagLevel0\`). */
-@compute @workgroup_size(64)
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn dagRootLevel(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id,n,64u);
+ let i=flatIndex(id,n,WORKGROUP_THREADS);
  levelStep(0u,select(rangeSlot(i),i,hasTree()));
 }
-@compute @workgroup_size(64)
-fn dagLevel0(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,flatIndex(id,n,64u));}
-@compute @workgroup_size(64)
-fn dagLevel1(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(1u,flatIndex(id,n,64u));}
-@compute @workgroup_size(64)
-fn dagLevel2(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(2u,flatIndex(id,n,64u));}
+@compute @workgroup_size(WORKGROUP_THREADS)
+fn dagLevel0(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,flatIndex(id,n,WORKGROUP_THREADS));}
+@compute @workgroup_size(WORKGROUP_THREADS)
+fn dagLevel1(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(1u,flatIndex(id,n,WORKGROUP_THREADS));}
+@compute @workgroup_size(WORKGROUP_THREADS)
+fn dagLevel2(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(2u,flatIndex(id,n,WORKGROUP_THREADS));}
 `,
 )

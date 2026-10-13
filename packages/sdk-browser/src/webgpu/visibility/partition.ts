@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { visLayerTop } from './uniforms.ts'
 import { taaRenderMatrix } from '../../taa/frame.ts'
 import type { PartitionFrame } from '../../gpu/partition/uniform.ts'
@@ -61,7 +62,7 @@ export function encodeWebgpuPartition(
   const twoPass = rows.packedCount >= 2
   const counts = timing.partitionCounts
   counts.rows = rows.packedCount
-  const start = performance.now()
+  const start = cpuNow()
   frame.view = cam.view
   // The render matrix, temporal-antialiasing jitter included: the pyramid the occlusion test reads
   // was rasterised with it, and its margins are to the ulp.
@@ -87,7 +88,7 @@ export function encodeWebgpuPartition(
   run.noOccluderHistory = false
   // What encoding the partition costs the CPU: one uniform and three dispatches, never a resident
   // row. Projection and the split have no CPU bound left at all.
-  timing.lastPartitionMs = performance.now() - start
+  timing.lastPartitionMs = msSince(start)
   // The image's counts are those the GPU wrote, reread one image in fifteen. They therefore describe
   // a previous image, never this one, and stay at zero before the first sample.
   const sample = partition.counts()

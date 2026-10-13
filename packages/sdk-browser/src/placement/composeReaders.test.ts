@@ -1,10 +1,10 @@
 // A link is never refused for what reads its row: waves, a soft body or a skeleton read the root's
 // composed world; a row no root reads is composed for its readers, and handed to the roots pass once
 // a growth brings it a root.
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { composeWebgpuPlacements, rebindComposedWorlds } from './gpuCompose.ts'
-import { NONE } from './gpuComposeWgsl.ts'
 import { createPlacementRows, placementWorld } from './rows.ts'
 import { forgetRowRoots } from './update.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
@@ -51,6 +51,6 @@ test('a row no root reads is composed for its readers, and a root a growth bring
   roots.push({ placement: { rows: extra, index: 1 }, world: placementWorld(extra, 1) })
   forgetRowRoots(roots as never)
   rebindComposedWorlds(rt)
-  assert.deepEqual([...rt.compose!.parentOf].slice(0, 3), [0, NONE, 0])
+  assert.deepEqual([...rt.compose!.parentOf].slice(0, 3), [0, NO_INDEX, 0])
   assert.equal(rt.compose!.readers.size, 0, 'no reader is left to this module')
 })

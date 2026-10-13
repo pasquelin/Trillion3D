@@ -1,3 +1,4 @@
+import { msSince } from '../../../diagnostic/stopwatch.ts'
 import { importTextureIndices } from '../../../host/surfaceImport.ts'
 import { materialsAndTangentsCount } from '../io/catalogue.ts'
 import type { takeMaterialTextures } from './textures.ts'
@@ -124,7 +125,7 @@ export function reportTexturesReady(
     },
     pageTables: pageTablesReport(textures),
     progressiveLevels: { version: TEXTURE_PREVIEW_VERSION, base: PREVIEW_BASE },
-    preparationMs: performance.now() - textureStarted,
+    preparationMs: msSince(textureStarted),
     lighting: 'GGX direct + diffuse hemisphere; no environment map',
     display: 'ACES once, sRGB once',
   })

@@ -1,12 +1,13 @@
 // The blended copies the forward family draws are members of the run-time proxy after the placements: their
 // instances and their poses, followed at each cut. Over the device double.
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { fromF32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera } from './placementTree.fixture.ts'
 import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { cut, open, region, surface, wordAt } from './proxyInstances.fixture.ts'
-import { INSTANCE, INSTANCE_WORDS, RUNTIME_NONE } from '../../bounce/runtimeLayout.ts'
+import { INSTANCE, INSTANCE_WORDS } from '../../bounce/runtimeLayout.ts'
 
 test('blended copies are members after the placements: their instances and their poses, followed at each cut', async () => {
   const c = cut(2, 1, 1),
@@ -30,8 +31,8 @@ test('blended copies are members after the placements: their instances and their
     new Float32Array([wordAt(gpu, region(gpu, 'copyWorldsWord') + k * 16 + 12)].map((v) => v))[0]
   assert.equal(region(gpu, 'copies'), 3)
   assert.equal(word(0, INSTANCE.node), 0, 'a copy wears the cut the placements share')
-  assert.equal(word(1, INSTANCE.node), RUNTIME_NONE, 'a hidden copy draws none')
-  assert.equal(word(2, INSTANCE.node), RUNTIME_NONE, 'a copy with no proxy draws none')
+  assert.equal(word(1, INSTANCE.node), NO_INDEX, 'a hidden copy draws none')
+  assert.equal(word(2, INSTANCE.node), NO_INDEX, 'a copy with no proxy draws none')
   assert.equal(fromF32Bits(wordAt(gpu, region(gpu, 'copyWorldsWord') + 12)), 3)
   void x
   // The host moves it and shows the hidden one: the next cut writes both.

@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 
 /**
  * The world DAG's gate in the descent (\`../worldLinks.ts\`): whether the world draws a
@@ -8,9 +9,9 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  */
 export const DAG_WORLD_GATE_WGSL = wgslBlock(
   'DAG_WORLD_GATE_WGSL',
-  [],
+  [NO_INDEX],
   `/** The world cluster that stands in for placement \`w\` (\`../worldLinks.ts\`), or none. */
-fn worldLinkOf(w:u32)->u32{return select(0xffffffffu,coldAt(views[0u].worldLinks+w),views[0u].worldLinks!=0u);}
+fn worldLinkOf(w:u32)->u32{return select(NO_INDEX,coldAt(views[0u].worldLinks+w),views[0u].worldLinks!=0u);}
 /** \`view · world\` of the world DAG under the view \`vi\`, as \`viewWorld\` makes a placement's: its
  *  world is the identity, its origin taken to the eye as a placement's is (\`worldPoseWgsl.ts\`). */
 fn worldViewOf()->mat4x4f{
@@ -23,7 +24,7 @@ fn worldViewOf()->mat4x4f{
  *  Leaves \`deformReach\` at the world's: none. */
 fn worldCovers(w:u32)->bool{
  let c=worldLinkOf(w);
- if(c==0xffffffffu){return false;}
+ if(c==NO_INDEX){return false;}
  if(!isResident(c)){return true;}
  deformReach=0.0;
  // The world DAG's record shift leads its links (\`../worldLinks.ts\`).

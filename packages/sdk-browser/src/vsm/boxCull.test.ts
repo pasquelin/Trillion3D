@@ -1,11 +1,12 @@
-// The box cull the cache invalidation and the render cull share (`boxCullWgsl.ts`), held to a
-// golden of its every bit: the frustum cull of a box, its rect in pixels and the mip level covering
-// a rect, over seeded boxes and views with their edges — boxes flush with the frustum's sides and
-// its near and far planes, corners at w = 0, empty extents, the f32 limits, infinities and NaN.
-// The goldens were taken when the shared cull was proved, case for case, the culls it replaced.
+// The box cull the cache invalidation and the render cull share (`boxCullWgsl.ts`: `vsmBoxCullPoint`,
+// `vsmBoxInView`), held to a golden of its every bit: the frustum cull of a box, its rect in pixels
+// and the mip level covering a rect, over seeded boxes and views with their edges — boxes flush with
+// the frustum's sides and its near and far planes, corners at w = 0, empty extents, the f32 limits,
+// infinities and NaN. The goldens were taken when the shared cull was proved, case for case, the
+// culls it replaced.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
+import { Mat, matrixProduct } from '../texture/shaderRunMatrix.fixture.ts'
 import { INVALIDATION, RENDER, run } from './boxCullTables.fixture.ts'
 import { bitsDigest, inputs } from './sameBits.fixture.ts'
 
@@ -40,6 +41,24 @@ function box(d: ReturnType<typeof inputs>, exact: boolean) {
     extent: d.vec(3, () => d.pick([0, 0.5, 1])),
   }
 }
+/** The shared cull (`vsmBoxInView`) as each caller hands it a box: the clip image of its
+ *  `vsmBoxCullPoint` and of its axes, through `toClip` after `toWorld` when the box has one. */
+function sharedCull(
+  after: Record<string, (...args: unknown[]) => unknown>,
+  [center, extent, toWorld, toClip, viewToClip]: (number[] | Mat | null)[],
+  flags: boolean[],
+) {
+  const clip = (v: number[]) => matrixProduct(toClip, toWorld ? matrixProduct(toWorld, v) : v)
+  const point = after.vsmBoxCullPoint(center, extent, ...flags) as number[]
+  const axes = [0, 1, 2].map((k) =>
+    toWorld ? matrixProduct(toClip, (toWorld as Mat)[k]) : (toClip as Mat)[k],
+  )
+  return after.vsmBoxInView(clip([...point, 1]), ...axes, extent, viewToClip, ...flags) as Record<
+    string,
+    unknown
+  >
+}
+const SHARED = ['vsmBoxCullPoint', 'vsmBoxInView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView']
 /** How many of the culls were visible, and how many crossed the near plane. */
 const tally = (counts: number[], cull: Record<string, unknown>) => {
   counts[0] += Number(cull.inMapView === true)
@@ -49,9 +68,7 @@ const tally = (counts: number[], cull: Record<string, unknown>) => {
 test("the invalidation's box cull keeps its golden bits, the side-culled bit no one read gone", () => {
   // That bit was only ever written: neither the invalidation's pages nor its kernel read it.
   assert.ok(!INVALIDATION.includes('offSide'))
-  const after = run(INVALIDATION, [
-    ...['vsmBoxInMapView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView', 'perspectiveDivide'],
-  ])
+  const after = run(INVALIDATION, [...SHARED, 'perspectiveDivide'])
   const counts = [0, 0],
     digest = bitsDigest()
   for (let k = 0; k < CASES; k++) {
@@ -60,7 +77,7 @@ test("the invalidation's box cull keeps its golden bits, the side-culled bit no 
     const { center, extent } = box(d, exact)
     const args = [center, extent, matrix(d, exact), matrix(d, exact), matrix(d, exact)]
     const flags = [d.bool(), d.bool()]
-    const is = after.vsmBoxInMapView(...args, ...flags) as Record<string, unknown>
+    const is = sharedCull(after, args, flags)
     digest.add(is, CULL_KEYS)
     tally(counts, is)
   }
@@ -69,18 +86,17 @@ test("the invalidation's box cull keeps its golden bits, the side-culled bit no 
 })
 
 test("the render cull's box cull keeps its golden bits", () => {
-  const after = run(RENDER, [
-    ...['vsmShiftedBoxInView', 'vsmShiftedBoxOrtho', 'vsmShiftedBoxPerspective'],
-    ...['vsmBoxInOrthoView', 'vsmBoxInPerspectiveView', 'perspectiveDivide'],
-  ])
+  const after = run(RENDER, [...SHARED, 'perspectiveDivide'])
   const counts = [0, 0],
     digest = bitsDigest()
   for (let k = 0; k < CASES; k++) {
     const d = inputs(2000 + k),
       exact = k % 3 === 0
     const { center, extent } = box(d, exact)
-    const args = [center, extent, matrix(d, exact), matrix(d, exact), d.bool(), d.bool()]
-    const is = after.vsmShiftedBoxInView(...args) as Record<string, unknown>
+    const m = matrix(d, exact),
+      viewToClip = matrix(d, exact),
+      flags = [d.bool(), d.bool()]
+    const is = sharedCull(after, [center, extent, null, m, viewToClip], flags)
     digest.add(is, CULL_KEYS)
     tally(counts, is)
   }

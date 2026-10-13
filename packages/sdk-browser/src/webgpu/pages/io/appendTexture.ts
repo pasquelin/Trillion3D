@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 import { EngineError, type Texture } from '../../../../../sdk-core/src/index.ts'
 import { poolLayerBytes, poolLayerLimit } from '../../../texture/tiles.ts'
 import { poolTaking } from '../../residency/memoryBudgets.ts'
@@ -135,7 +136,7 @@ async function growLane(rt: WebgpuPagesRuntime, a: Append) {
 function appendEntry(rt: WebgpuPagesRuntime, texture: Texture, a: Append) {
   const { vis, run, diag } = rt
   const { kind, slots, pools, streamer, entry, atlas } = a
-  const started = performance.now(),
+  const started = cpuNow(),
     before = { ...streamer.counters }
   let slot: number
   try {
@@ -153,7 +154,7 @@ function appendEntry(rt: WebgpuPagesRuntime, texture: Texture, a: Append) {
     kind,
     slot,
     uploadedBytes: streamer.counters.uploadedBytes - before.uploadedBytes,
-    uploadMs: performance.now() - started,
+    uploadMs: msSince(started),
     scratchBuilds: streamer.counters.scratches - before.scratches,
     catalogue: catalogueReport(atlas.textures),
     pageTables: pageTablesReport(streamer),

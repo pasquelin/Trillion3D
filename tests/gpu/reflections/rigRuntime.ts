@@ -2,11 +2,11 @@
 // proxy of a few faces, each one placement of a two-triangle mesh at the identity, wearing a surface that
 // emits the face's radiance — or an empty header in each of its two places, no placement, no ray —, and the
 // store of the answers when the view holds one, else a texel.
+import { NO_INDEX } from '../../../packages/math/src/constants.ts'
 import {
   INSTANCE_WORDS,
   RUNTIME_HEADER,
   RUNTIME_HEADER_WORDS,
-  RUNTIME_NONE,
   STORE_LAYERS,
   SURFACE_WORDS,
 } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
@@ -40,7 +40,7 @@ function proxyWords(faces: readonly RigFace[]) {
   words[at.copyWorldsWord] = surfacesAt
   words[at.boundsWord] = boundsAt
   words[at.childrenWord] = childrenAt
-  words[at.treeRoot] = RUNTIME_NONE
+  words[at.treeRoot] = NO_INDEX
   words[at.members] = n
   words[at.worldsWord] = worldsAt
   // The faces' exact translations, three doubles each: zeros, the identity's.

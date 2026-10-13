@@ -1,7 +1,7 @@
-import { PARTITION_WORKGROUP, STATE_WORDS } from './contract.ts'
+import { STATE_WORDS } from './contract.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 
 /**
@@ -13,11 +13,11 @@ import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
  */
 export const PARTITION_CLEAR_WGSL = wgslBlock(
   'PARTITION_CLEAR_WGSL',
-  [ceilDiv, FLAT_INDEX_WGSL],
+  [ceilDiv, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
   `
-@compute @workgroup_size(${PARTITION_WORKGROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn clearRows(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id,n,${PARTITION_WORKGROUP}u);
+ let i=flatIndex(id,n,WORKGROUP_THREADS);
  if(i<${STATE_WORDS}u){atomicStore(&state[i],0u);}
  if(i<ceilDiv(uni.rows,32u)){atomicStore(&restBits[i],0u);}
  if(i<arrayLength(&slotUsed)){atomicStore(&slotUsed[i],0u);}

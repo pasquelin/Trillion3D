@@ -1,6 +1,6 @@
 import { directLightWgsl } from '../direct/lightWgsl.ts'
 import { GRID_BOUNDS_WGSL, WORLD_GRID_BOUNDS_WGSL } from './boundsWgsl.ts'
-import { GRID_LANES, gridCompactWgsl } from './compactWgsl.ts'
+import { gridCompactWgsl } from './compactWgsl.ts'
 import { BOUNCE_SETTINGS, LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
@@ -11,8 +11,8 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
  * are culled once per image against the cells' own bounds — never against the depths the image
  * holds, which the pass does not read —, so its cost follows the columns and the lights alone.
  *
- * One workgroup per column of cells, a lane per light of each batch of 64: a light out of the
- * column's planes meets none of its cells; any other meets a run of them, whose two ends are solved
+ * One workgroup per column of cells, a lane per light of each batch of `WORKGROUP_THREADS`: a
+ * light out of the column's planes meets none of its cells; any other meets a run of them, whose two ends are solved
  * from its sphere and the column's section (`./boundsWgsl.ts`). The runs become the cells' lists,
  * in the view's pool, each in increasing light order (`./compactWgsl.ts`); a cell's record holds
  * its count, the high bit set when a listed light holds a shadow slot, and where its list starts.
@@ -37,18 +37,18 @@ struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,depthR
 @group(0) @binding(2) var<storage,read_write> tiles:array<u32>;
 /** The light count, one bound for the whole workgroup. */
 var<workgroup> lightCount:u32;
-@compute @workgroup_size(${GRID_LANES},1,1)
+@compute @workgroup_size(WORKGROUP_THREADS,1,1)
 fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index) lane:u32){
  let column=gridColumn(cell.xy);
  if(lane==0u){lightCount=lights.count;cached=0u;resume=ALL_CACHED;}
  if(lane<2u){atomicStore(&keptLanes[lane],0u);atomicStore(&slotted[lane],0u);atomicStore(&full[lane],0u);}
  chunk[lane]=vec2u(0u,EMPTY_RUN);
- for(var slice=lane;slice<COLUMN_SLICES;slice+=LANES){
+ for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){
   counts[slice]=0u;atomicStore(&masks[slice*2u],0u);atomicStore(&masks[slice*2u+1u],0u);
  }
  let count=workgroupUniformLoad(&lightCount);
  // First walk: each light's run, counted in the slices it holds; the runs kept while they fit.
- for(var first=0u;first<count;first+=LANES){
+ for(var first=0u;first<count;first+=WORKGROUP_THREADS){
   var entry=vec2u(first+lane,EMPTY_RUN);
   if(first+lane<count){entry=entryOf(column,first+lane);}
   markEntry(lane,entry);
@@ -71,13 +71,13 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
  dealRoom(span,before,walk.w);
  workgroupBarrier();
  let base=view.start.x+(cell.y*u32(view.viewport.z)+cell.x)*COLUMN_SLICES*TILE_STRIDE;
- for(var slice=lane;slice<COLUMN_SLICES;slice+=LANES){
+ for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){
   tiles[base+slice*TILE_STRIDE]=counts[slice];tiles[base+slice*TILE_STRIDE+1u]=cursor[slice];
  }
  if(walk.x==0u){return;}
  // Second walk: the cached runs, then the lights past them tested again, written slice by slice.
  let held=walk.y;
- for(var at=0u;at<held;at+=LANES){
+ for(var at=0u;at<held;at+=WORKGROUP_THREADS){
   var entry=vec2u(0u,EMPTY_RUN);
   if(at+lane<held){entry=cache[at+lane];}
   markEntry(lane,entry);
@@ -85,7 +85,7 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
   writeSlices(lane);
   workgroupBarrier();
  }
- for(var first=walk.z;first<count;first+=LANES){
+ for(var first=walk.z;first<count;first+=WORKGROUP_THREADS){
   var entry=vec2u(first+lane,EMPTY_RUN);
   if(first+lane<count){entry=entryOf(column,first+lane);}
   markEntry(lane,entry);

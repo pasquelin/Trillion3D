@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { HIZ_MAX_LEVELS } from '../hiz/uniforms.ts'
 
 /**
@@ -49,9 +50,6 @@ export const FLAG_CLIP = 1,
  */
 export const TESTED_U32 = 12
 
-/** Threads of a per-row kernel workgroup. */
-export const PARTITION_WORKGROUP = 64
-
 /** Words of `state`: the frame counters, all atomic. */
 export const STATE_WORDS = 16
 
@@ -101,8 +99,8 @@ export const VERDICT_OCCLUDER = 0,
  *  rejected verdict. Its negation is what draws. */
 export const HIZ_REJECTED_WGSL = wgslBlock(
   'HIZ_REJECTED_WGSL',
-  [],
-  `fn hizRejected(hizSlot:u32)->bool{return hizSlot!=0xffffffffu&&hizFlags[hizSlot]==${VERDICT_REJECTED}u;}`,
+  [NO_INDEX],
+  `fn hizRejected(hizSlot:u32)->bool{return hizSlot!=NO_INDEX&&hizFlags[hizSlot]==${VERDICT_REJECTED}u;}`,
 )
 
 /** Bindings of the partition module, by name: the number `PARTITION_SHADER` declares each under. */

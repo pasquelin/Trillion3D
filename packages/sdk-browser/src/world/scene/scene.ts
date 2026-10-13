@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { meshes as objects } from '../../scene/meshes.ts'
 import { assertFiniteTransform } from '../../host/world/matrices.ts'
 import { replicateInstances } from '../../scene/replicateInstances.ts'
@@ -41,9 +42,9 @@ type SceneLoad = {
 /** The scene tables, heard as soon as read (`onTables`, `onPreparation`), and when the read began
  *  and ended. */
 async function readTables({ options, base, signal }: SceneLoad) {
-  const readAt = performance.now()
+  const readAt = cpuNow()
   const { tables, bytes } = await loadPreparedSceneTables(base, signal, options.meter)
-  const buildAt = performance.now()
+  const buildAt = cpuNow()
   signal?.throwIfAborted()
   options.onTables?.(tables)
   options.onPreparation?.({
@@ -128,7 +129,7 @@ function reportPrepared(
     textures,
     bytes,
     readMs: buildAt - readAt,
-    buildMs: performance.now() - buildAt,
+    buildMs: msSince(buildAt),
   })
 }
 

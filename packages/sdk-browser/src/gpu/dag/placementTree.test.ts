@@ -1,5 +1,6 @@
 // The placement tree: cells and instance groups above the placements change no cut, and a
 // frame reads the placements its kept groups hold, not the world's; a change refits what it moved.
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
@@ -7,7 +8,6 @@ import { memberBox, refitLevels } from './placementTree.ts'
 import { refitTree } from './treeRefitRun.fixture.ts'
 import { packDagSelection } from './selection.ts'
 import { appendDagRoots, dagRootCounts } from './pack.ts'
-import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
 
@@ -53,12 +53,12 @@ test('moving, parking or opening one placement refits its group and its cell, at
       { dag } = fieldCut(roots, views[0], true),
       tree = dag.placementTree!
     // A group bounds one workgroup's lanes of placements.
-    const groupNode = tree.levels.at(-1)!.base + Math.floor(tree.slot[70] / SELECTION_WORKGROUP)
+    const groupNode = tree.levels.at(-1)!.base + Math.floor(tree.slot[70] / WORKGROUP_THREADS)
     const box = () => Array.from(dag.nodes.subarray(groupNode * 24, groupNode * 24 + 7))
     const before = box()
     // Placement 70 moves 1 km away: its group's box follows, and only a node per tree level is rewritten.
     ;(roots[70].world.elements as Float64Array)[12] = 1000
-    const group = Math.floor(tree.slot[70] / SELECTION_WORKGROUP)
+    const group = Math.floor(tree.slot[70] / WORKGROUP_THREADS)
     assert.deepEqual(
       refitLevels(tree, [group]).map(({ ids }) => ids.length),
       Array(tree.depth).fill(1),
@@ -136,9 +136,9 @@ test('a member drawn whatever the view is listed apart: every box stays finite, 
   refitTree(dag)
   assert.equal(tree.depth, 2, 'groups under one cell')
   for (const w of [70, 71]) {
-    const g = Math.floor(tree.slot[w] / SELECTION_WORKGROUP),
+    const g = Math.floor(tree.slot[w] / WORKGROUP_THREADS),
       group = tree.levels.at(-1)!.base + g,
-      cell = tree.levels[0].base + Math.floor(g / SELECTION_WORKGROUP)
+      cell = tree.levels[0].base + Math.floor(g / WORKGROUP_THREADS)
     const box = dag.nodes.subarray(group * 24, group * 24 + 7),
       leaf = tree.boxes.subarray(w * 6, w * 6 + 6)
     for (let a = 0; a < 3; a++)

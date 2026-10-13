@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { sampleWebgpuFrame } from './signature.ts'
 import { CPU_STEP } from '../pages/render/cpuStepTable.ts'
 import { beginTaaFrame, taaSettled } from '../../taa/frame.ts'
@@ -90,7 +91,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // targets are made aside: the frame that swaps them in is drawn.
   run.frameHeld = answered && !asidePending(rt)
   run.frame++
-  const start = performance.now()
+  const start = cpuNow()
   let presented = false
   // Nothing drawn yet, or targets not granted: nothing is shown.
   const { presenter, displayTexture } = gpu,
@@ -109,7 +110,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     run.imageRevision++
     presented = true
   }
-  recordHeldFrameWork(rt, presented, performance.now() - start)
+  recordHeldFrameWork(rt, presented, msSince(start))
   return true
 }
 

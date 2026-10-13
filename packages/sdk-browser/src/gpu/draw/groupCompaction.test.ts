@@ -1,3 +1,4 @@
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BASE_SLOTS, HALF_SLOTS, slotCount } from './contract.ts'
@@ -11,8 +12,6 @@ import { NO_INDEX } from '../../../../math/src/constants.ts'
 // item once and working from workgroup memory. Below, both pairs of kernels transcribed line by
 // line must write the same `groupCounts` and the same `instances`, hence the same draws in the
 // same order, on random frames: partial groups, selection masks, empty slots, overflow.
-
-const GROUP = 64
 
 type Frame = {
   bins: number[]
@@ -42,8 +41,11 @@ function countBefore(f: Frame, groups: number, slots: number) {
     const group = Math.floor(entry / slots),
       slot = entry % slots
     if (f.slotUsed[slot] === 0) continue
-    const end = Math.min(group * GROUP + GROUP, Math.min(f.count, f.slotCap))
-    for (let i = group * GROUP; i < end; i++) if (matches(f, i, slot)) counts[entry]++
+    const end = Math.min(
+      group * WORKGROUP_THREADS + WORKGROUP_THREADS,
+      Math.min(f.count, f.slotCap),
+    )
+    for (let i = group * WORKGROUP_THREADS; i < end; i++) if (matches(f, i, slot)) counts[entry]++
   }
   return counts
 }
@@ -52,8 +54,8 @@ function countAfter(f: Frame, groups: number, slots: number) {
   const counts = new Uint32Array(groups * slots)
   for (let group = 0; group < groups; group++) {
     const tally = new Uint32Array(slots)
-    for (let lane = 0; lane < GROUP; lane++) {
-      const s = slotAt(f, group * GROUP + lane, Math.min(f.count, f.slotCap))
+    for (let lane = 0; lane < WORKGROUP_THREADS; lane++) {
+      const s = slotAt(f, group * WORKGROUP_THREADS + lane, Math.min(f.count, f.slotCap))
       if (s !== NO_INDEX) tally[s]++
     }
     for (let slot = 0; slot < slots; slot++)
@@ -64,12 +66,12 @@ function countAfter(f: Frame, groups: number, slots: number) {
 
 function scatterBefore(f: Frame, groups: number, slots: number, offsets: Uint32Array) {
   const instances = new Uint32Array(f.count + 1).fill(NO_INDEX)
-  for (let i = 0; i < groups * GROUP; i++) {
+  for (let i = 0; i < groups * WORKGROUP_THREADS; i++) {
     if (i >= f.count || f.count > f.slotCap || !selected(f, i)) continue
     const slot = slotOf(f, i),
-      group = Math.floor(i / GROUP)
+      group = Math.floor(i / WORKGROUP_THREADS)
     let rank = 0
-    for (let j = group * GROUP; j < i; j++) if (matches(f, j, slot)) rank++
+    for (let j = group * WORKGROUP_THREADS; j < i; j++) if (matches(f, j, slot)) rank++
     instances[offsets[group * slots + slot] + rank] = f.pages[i]
   }
   return instances
@@ -79,15 +81,15 @@ function scatterAfter(f: Frame, groups: number, slots: number, offsets: Uint32Ar
   const instances = new Uint32Array(f.count + 1).fill(NO_INDEX)
   if (f.count > f.slotCap) return instances
   for (let group = 0; group < groups; group++) {
-    const laneSlots = Array.from({ length: GROUP }, (_, lane) =>
-      slotAt(f, group * GROUP + lane, f.count),
+    const laneSlots = Array.from({ length: WORKGROUP_THREADS }, (_, lane) =>
+      slotAt(f, group * WORKGROUP_THREADS + lane, f.count),
     )
-    for (let lane = 0; lane < GROUP; lane++) {
+    for (let lane = 0; lane < WORKGROUP_THREADS; lane++) {
       const s = laneSlots[lane]
       if (s === NO_INDEX) continue
       let rank = 0
       for (let j = 0; j < lane; j++) if (laneSlots[j] === s) rank++
-      instances[offsets[group * slots + s] + rank] = f.pages[group * GROUP + lane]
+      instances[offsets[group * slots + s] + rank] = f.pages[group * WORKGROUP_THREADS + lane]
     }
   }
   return instances
@@ -124,7 +126,7 @@ test('grouped counting and scattering write the counts and draws of the per-slot
   for (let trial = 0; trial < 600; trial++) {
     const f = frame(rand)
     const slots = slotCount(f.layerSlots)
-    const groups = workgroupCount(Math.min(f.count, f.slotCap), GROUP)
+    const groups = workgroupCount(Math.min(f.count, f.slotCap), WORKGROUP_THREADS)
     const counts = countBefore(f, groups, slots)
     assert.deepEqual(countAfter(f, groups, slots), counts, `trial ${trial}: groupCounts`)
     const overflow = f.count > f.slotCap

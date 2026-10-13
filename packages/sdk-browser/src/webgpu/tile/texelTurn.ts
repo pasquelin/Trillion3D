@@ -1,3 +1,4 @@
+import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { alignDown, ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
@@ -8,12 +9,7 @@ import { sharedGpuDevice } from '../../gpu/core/sessionHandle.ts'
 import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { storageBufferCap, uniformSlots, type UniformSlots } from '../../residency/pools.ts'
 import { levelView, MATERIAL_MIP_FORMAT } from '../../texture/mips.ts'
-import {
-  TEXEL_FLIP,
-  TEXEL_PREMULTIPLY,
-  TEXEL_TURN_WGSL,
-  TEXEL_TURN_WORKGROUP,
-} from './texelTurnWgsl.ts'
+import { TEXEL_FLIP, TEXEL_PREMULTIPLY, TEXEL_TURN_WGSL } from './texelTurnWgsl.ts'
 import { textureRgba } from '../../visibility/types.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { TEXEL_TURN_PASS } from '../../stage/passLabels.ts'
@@ -178,7 +174,7 @@ function encodeBand(
   const pass = encoder.beginComputePass({ label: TEXEL_TURN_PASS })
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, group)
-  pass.dispatchWorkgroups(ceilDiv(width, TEXEL_TURN_WORKGROUP), rows)
+  pass.dispatchWorkgroups(ceilDiv(width, WORKGROUP_THREADS), rows)
   pass.end()
 }
 

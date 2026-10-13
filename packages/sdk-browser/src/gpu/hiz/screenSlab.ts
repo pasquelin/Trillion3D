@@ -1,4 +1,4 @@
-import { dotVector3, length3 } from '../../../../math/src/vector/vector.ts'
+import { dotScalar3, length3 } from '../../../../math/src/vector/vector.ts'
 
 /**
  * The geometry of a surface's thickness (`screenBack`) under the view-projection `m`
@@ -12,13 +12,15 @@ import { dotVector3, length3 } from '../../../../math/src/vector/vector.ts'
  */
 export function screenSlab(m: ArrayLike<number>, height: number) {
   const scale = 2 / (height * length3(m[1], m[5], m[9]))
-  const gradientZ = [m[2], m[6], m[10]],
-    gradientW = [m[3], m[7], m[11]]
-  const perspective = gradientW.some((component) => component !== 0)
+  // The clip depth's gradient (row z: m[2], m[6], m[10]) and the clip w's (row w: m[3], m[7], m[11]).
+  const perspective = m[3] !== 0 || m[7] !== 0 || m[11] !== 0
   return [
     scale,
-    perspective ? dotVector3(gradientZ, gradientW) / dotVector3(gradientW, gradientW) : 0,
-    perspective ? 0 : scale * length3(gradientZ[0], gradientZ[1], gradientZ[2]),
+    perspective
+      ? dotScalar3(m[2], m[6], m[10], m[3], m[7], m[11]) /
+        dotScalar3(m[3], m[7], m[11], m[3], m[7], m[11])
+      : 0,
+    perspective ? 0 : scale * length3(m[2], m[6], m[10]),
     perspective ? 1 : 0,
   ]
 }

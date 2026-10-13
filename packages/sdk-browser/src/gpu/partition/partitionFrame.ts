@@ -1,4 +1,4 @@
-import { PARTITION_WORKGROUP, ROW_DATA_U32 } from './contract.ts'
+import { ROW_DATA_U32 } from './contract.ts'
 import { partitionClearThreads } from './clearWgsl.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import {
@@ -12,7 +12,7 @@ import type { createPartitionCounters } from './counters.ts'
 import { constructGpuResources } from '../core/errorScope.ts'
 import type { KeptFrame, PartitionSources } from './types.ts'
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import { dispatchRows } from '../dispatch/grid.ts'
+import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 
 /** The partition's kernels, in the order a frame dispatches them. */
 export const KERNELS = ['clearRows', 'projectRows', 'classifyRows'] as const
@@ -125,9 +125,9 @@ export function encodePartition(p: Partition, open: OpenPass) {
   // dispatch; then each row is projected, then classified.
   const pass = open.pass,
     rows = p.kept.rows,
-    rowGroups = workgroupCount(rows, PARTITION_WORKGROUP)
+    rowGroups = workgroupCount(rows, WORKGROUP_THREADS)
   const clearThreads = partitionClearThreads(rows, p.inputs.slotUsed.size / 4)
-  const clearGroups = ceilDiv(clearThreads, PARTITION_WORKGROUP)
+  const clearGroups = ceilDiv(clearThreads, WORKGROUP_THREADS)
   for (let k = 0; k < KERNELS.length; k++) {
     pass.setPipeline(p.pipelines[k])
     pass.setBindGroup(0, p.groups[k])

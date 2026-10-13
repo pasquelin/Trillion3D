@@ -3,9 +3,6 @@
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
-/** No instance, no node: a word every table spells the absence of a link with. */
-export const RUNTIME_NONE = 0xffffffff
-
 /**
  * THE PROXY'S BUFFER: one storage binding holding, in this order, the header, an instance per placement, a
  * surface per drawn material, then the arena of the meshes' own proxies — the columns of a `proxy.bin`
@@ -24,7 +21,7 @@ export const RUNTIME_NONE = 0xffffffff
  *
  * Header words, one table the writer's words and the shader's struct (`RUNTIME_PROXY_WGSL`) are both drawn
  * from (`fieldLayout`): the placements the instances hold (the blended copies' follow them), then the word
- * rank of each region — the copies' worlds a region of their own —, the tree's root node (`RUNTIME_NONE` for
+ * rank of each region — the copies' worlds a region of their own —, the tree's root node (`NO_INDEX` for
  * a packing without a tree: the placements are then its few members), the id of the first node the mirror
  * holds, the words of its nodes and of its members, the live members, the word rank of the placements'
  * worlds, the greatest world error of a proxy, in metres, as an `f32`'s bits: the distance a ray leaves a
@@ -64,7 +61,7 @@ export const RUNTIME_PROXY_WGSL = wgslBlock('RUNTIME_PROXY_WGSL', [], HEADER.wgs
 export const RUNTIME_WORLD_WORDS = 16
 export const RUNTIME_ORIGIN_WORDS = 8
 
-/** One placement's instance: its cut's first node and first triangle in the arena (`RUNTIME_NONE`
+/** One placement's instance: its cut's first node and first triangle in the arena (`NO_INDEX`
  *  where it draws no proxy), the surface it wears, and its frame word — the mark with the
  *  deformation's reach above it (`markReach`). */
 export const INSTANCE = { node: 0, triangle: 1, surface: 2, mark: 3 } as const

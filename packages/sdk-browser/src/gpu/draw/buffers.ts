@@ -1,10 +1,5 @@
-import {
-  slotCount,
-  DRAW_ITEM_U32,
-  UNIFORM_BYTES,
-  WORKGROUP,
-  DRAW_INDIRECT_STRIDE,
-} from './contract.ts'
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
+import { slotCount, DRAW_ITEM_U32, UNIFORM_BYTES, DRAW_INDIRECT_STRIDE } from './contract.ts'
 import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /**
@@ -19,7 +14,7 @@ export function createGpuDrawBuffers(
   perRow: number,
 ) {
   const slots = slotCount(layerSlots)
-  const groupCount = ceilDiv(slotCap, WORKGROUP),
+  const groupCount = ceilDiv(slotCap, WORKGROUP_THREADS),
     groupBytes = groupCount * slots * 4
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   const itemsBuf = device.createBuffer({ size: slotCap * DRAW_ITEM_U32 * 4, usage: storage })

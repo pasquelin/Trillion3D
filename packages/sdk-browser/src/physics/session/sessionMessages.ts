@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { emitContacts } from '../contacts.ts'
 import { eventsAt, type FromPhysics, type PhysicsResults } from '../protocol.ts'
@@ -9,7 +10,7 @@ type Message<T extends FromPhysics['type']> = Extract<FromPhysics, { type: T }>
  *  counts a frame reads; the buffer goes back to the worker. */
 function receiveResults(c: SessionParts, posed: SessionParts['bodies'], m: PhysicsResults) {
   const { s, stats, bodies, worker, writer } = c,
-    began = performance.now(),
+    began = cpuNow(),
     words = new Uint32Array(m.buffer)
   s.reached = Math.max(s.reached, m.step)
   const moved = c.poses.receive(words, m.poses, posed, m.steps) + c.soft.receive(m.soft, m.steps)
@@ -27,7 +28,7 @@ function receiveResults(c: SessionParts, posed: SessionParts['bodies'], m: Physi
   if (m.steps) Object.assign(stats, { stepMs: m.stepMs / m.steps, stepMaxMs: m.stepMaxMs })
   worker.postMessage({ type: 'buffer', buffer: m.buffer }, [m.buffer])
   writer.recycle(m.spent)
-  s.received += performance.now() - began
+  s.received += msSince(began)
   if (changed) c.invalidate()
 }
 
@@ -35,7 +36,7 @@ function receiveResults(c: SessionParts, posed: SessionParts['bodies'], m: Physi
  *  nothing, once a second at most (one brought back at every step would flood the console). */
 function receiveRecovered(c: SessionParts, data: Message<'recovered'>) {
   c.stats.softRecoveries += data.bodies.length
-  const now = performance.now()
+  const now = cpuNow()
   if (now - c.s.namedAt < 1000) return
   c.s.namedAt = now
   const names = data.bodies.flatMap((id) => c.bodies.meshOf(id)?.name ?? [])

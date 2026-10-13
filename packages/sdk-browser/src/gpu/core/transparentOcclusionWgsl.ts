@@ -1,7 +1,7 @@
 import { BOX_PROJECT_WGSL, PARTITION_UNI_WGSL } from './boxProjectWgsl.ts'
 import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
-import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
-import { CORNER_VALUES, PARTITION_WORKGROUP } from '../partition/contract.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
+import { CORNER_VALUES } from '../partition/contract.ts'
 import { TRANSPARENT_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
@@ -35,9 +35,9 @@ export function transparentOcclusionShader() {
 @group(0) @binding(2) var<storage, read_write> occluded:array<u32>;
 @group(0) @binding(3) var<uniform> uni:Uni;
 @group(0) @binding(4) var<storage, read> unculled:array<u32>;
-@compute @workgroup_size(${PARTITION_WORKGROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id,n,${PARTITION_WORKGROUP}u);if(i>=arrayLength(&corners)/${CORNER_VALUES}u){return;}
+ let i=flatIndex(id,n,WORKGROUP_THREADS);if(i>=arrayLength(&corners)/${CORNER_VALUES}u){return;}
  let box=projectBox(i,max(uni.layerTop,${TRANSPARENT_DEPTH_LAYER}u));
  // Same rectangle clipping, same mip, same pyramid walk as the opaque main-pass cull
  // (\`hiddenByPyramid\`); only the layer bias is the highest the frame names, at least the
@@ -47,6 +47,14 @@ fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u,@builtin(num_
  occluded[i]=select(0u,1u,reject);
 }
 `,
-    [PARTITION_UNI_WGSL, BOX_PROJECT_WGSL, HIZ_HIDDEN_WGSL, FLAT_INDEX_WGSL, bitWord, bitIsSet],
+    [
+      PARTITION_UNI_WGSL,
+      BOX_PROJECT_WGSL,
+      HIZ_HIDDEN_WGSL,
+      FLAT_INDEX_WGSL,
+      WORKGROUP_THREADS_WGSL,
+      bitWord,
+      bitIsSet,
+    ],
   )
 }

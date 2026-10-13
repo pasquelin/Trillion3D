@@ -15,7 +15,8 @@ import {
 import { HIZ_HIDES_WGSL } from './rectWgsl.ts'
 import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
-import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
+import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 import { SURFACE_SLOPE_WGSL } from '../../lighting/deferred/footprintWgsl.ts'
@@ -61,9 +62,6 @@ export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
  *  the kernel that writes them and replaced by the page table before the dispatch that reads them:
  *  an arguments buffer bound as storage in the dispatch it feeds is refused. */
 export const HIZ_TEST_ARGS_ENTRIES: GPUBindGroupLayoutEntry[] = [computeBufferEntry(1, 'storage')]
-
-/** Threads of the test's workgroup. */
-const HIZ_TEST_WORKGROUP = 64
 
 /** Bytes of the test's dispatch arguments. */
 export const HIZ_TEST_ARGS_BYTES = 12
@@ -246,16 +244,16 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
 // The box count is the one the partition compacted: the CPU does not know it, \`testHizArgs\`
 // sizes the dispatch by it.
 // Its reject counters, on a sampled frame only (\`uni.counting\`, \`STATE_TALLY_WGSL\`).
-@compute @workgroup_size(${HIZ_TEST_WORKGROUP})
+@compute @workgroup_size(WORKGROUP_THREADS)
 fn testHiz(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id,n,${HIZ_TEST_WORKGROUP}u);
+ let i=flatIndex(id,n,WORKGROUP_THREADS);
  if(i<atomicLoad(&state[${ST_TESTED}u])){testBox(i);}
  flushTally(lane);
 }
-/** The test's indirect arguments: one workgroup of threads per 64 compacted boxes, in rows. */
+/** The test's indirect arguments: one workgroup of threads per \`WORKGROUP_THREADS\` compacted boxes, in rows. */
 @compute @workgroup_size(1)
 fn testHizArgs(){
- let g=groupGrid(ceilDiv(atomicLoad(&state[${ST_TESTED}u]),${HIZ_TEST_WORKGROUP}u));
+ let g=groupGrid(ceilDiv(atomicLoad(&state[${ST_TESTED}u]),WORKGROUP_THREADS));
  testArgs[0]=g.x;testArgs[1]=g.y;testArgs[2]=1u;
 }
 fn testBox(i:u32){
@@ -264,7 +262,7 @@ fn testBox(i:u32){
  // A tested row the pyramid cannot judge stays drawn: kept, never an occluder — the compute
  // raster draws occluders in its other mode. A row with no verdict slot (never culled) is not
  // judged either: no reject is counted for a row that draws.
- if(pages[row].hizSlot==0xffffffffu||(b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=${VERDICT_KEPT}u;return;}
+ if(pages[row].hizSlot==NO_INDEX||(b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=${VERDICT_KEPT}u;return;}
  // Reverse-Z: a box is rejected when its NEAREST point stays behind the pyramid's farthest,
  // hence when it is SMALLER. The coarse mip the partition packed is read first (\`pyramidHides\`).
  let reject=select(0u,1u,pyramidHides(b.minX,b.minY,b.maxX,b.maxY,b.fineOffset,b.fineWidth,b.nearest,b.coarseOffset,b.coarseWidth,b.coarseShift));
@@ -279,6 +277,8 @@ fn testBox(i:u32){
     PAGE_INFO_STRUCT_WGSL,
     FLAT_INDEX_WGSL,
     GROUP_GRID_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    NO_INDEX,
     ceilDiv,
     STATE_TALLY_WGSL,
     HIZ_HIDES_WGSL,

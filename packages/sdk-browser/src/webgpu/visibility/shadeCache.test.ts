@@ -5,6 +5,7 @@
 // device's width, its triangles pass at the size the rows pass wrote; and, without a compute
 // stage, no dispatch and nothing for the pixels to read — the class pipelines then compute as
 // before.
+import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -15,7 +16,6 @@ import {
   ROW_MARK_WORDS,
   ROW_RECORD_WORDS,
   SHADE_CACHE_HEADER_WORDS,
-  SHADE_ROWS_LANES,
   TRIANGLE_WORDS,
 } from '../../visibility/shader/shadeCacheWgsl.ts'
 /** A compute pass that records its dispatches, an indirect one as its buffer's label and offset,
@@ -52,7 +52,7 @@ test('the cache is laid for the rows and the image, its passes over them in rows
   const cache = await createShadeCache(device)
   assert.deepEqual(cache.constants, { SHADE_CACHE: 1 })
   const first = cache.buffer,
-    rows = 5 * SHADE_ROWS_LANES
+    rows = 5 * WORKGROUP_THREADS
   // Each row at most 12 triangles: 3840, under the 3900 a 26 × 6300 image holds in its texels.
   cache.layFor(rows, 36, 26, 6300)
   const laid = cache.buffer,
@@ -76,7 +76,7 @@ test('the cache is laid for the rows and the image, its passes over them in rows
   // The marks and the triangles' groups cleared, one lane per mark word: eighty groups in rows of
   // two; the marks read in 8 × 8 tiles; five groups of rows in rows of two; the triangles at the
   // size the rows pass wrote, one deep since its creation.
-  assert.equal((rows * ROW_MARK_WORDS) / SHADE_ROWS_LANES, 80)
+  assert.equal((rows * ROW_MARK_WORDS) / WORKGROUP_THREADS, 80)
   const depth = writes.find((w) => w.buffer.label === 'Trillion3D material cache dispatch')!
   assert.deepEqual([depth.offset, ...new Uint32Array(written(depth))], [8, 1])
   assert.deepEqual(dispatches, [
