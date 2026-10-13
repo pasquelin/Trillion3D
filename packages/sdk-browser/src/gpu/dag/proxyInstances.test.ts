@@ -14,7 +14,7 @@ import { INSTANCE, INSTANCE_WORDS, RUNTIME_NONE } from '../../bounce/runtimeLayo
 
 test('no placement wears a proxy: no buffer, nothing for the trace to read', async () => {
   const { gpu, selection } = await open(() => undefined)
-  assert.equal(selection.proxyBuffers(), undefined)
+  assert.equal(selection.proxyBuffer(), undefined)
   assert.equal(writes(gpu).length, 0)
   selection.dispose()
 })
@@ -25,10 +25,13 @@ test('placements of one cut share its columns; each names its cut, its surface a
     glow = surface(9),
     plain = surface(0)
   const { gpu, selection } = await open((w) =>
-    w < 12 ? { cut: shared, surface: glow } : w < 15 ? { cut: other, surface: plain } : undefined,
+    w < 12
+      ? { primitive: { runtimeProxy: shared }, surface: glow }
+      : w < 15
+        ? { primitive: { runtimeProxy: other }, surface: plain }
+        : undefined,
   )
-  const buffers = selection.proxyBuffers()!
-  assert.ok(buffers.proxy.size > 0)
+  assert.ok(selection.proxyBuffer()!.size > 0)
   const instance = (w: number, k: number) =>
     wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + k)
   // Twelve placements of the first cut: the same node and triangle, the first surface.
@@ -52,7 +55,7 @@ test('placements of one cut share its columns; each names its cut, its surface a
 test('a surface goes up with the cut and again when its record moves on', async () => {
   const glow = surface(9)
   const { gpu, selection, packed, roots } = await open((w) =>
-    w < 2 ? { cut: cut(2, 1, 1), surface: glow } : undefined,
+    w < 2 ? { primitive: { runtimeProxy: cut(2, 1, 1) }, surface: glow } : undefined,
   )
   /** The surface's seven floats as the last writes left them. */
   const floats = () =>
@@ -113,8 +116,10 @@ test('past its first tables the arena grows, the columns it held carried over by
   // Cuts of a thousand triangles each, twice past the first layout's four thousand.
   const cuts = Array.from({ length: 6 }, (_, k) => cut(1000, 100, k + 1))
   const s = surface(1)
-  const { gpu, selection } = await open((w) => (w < 6 ? { cut: cuts[w], surface: s } : undefined))
-  assert.ok(selection.proxyBuffers()!.proxy.size > 0)
+  const { gpu, selection } = await open((w) =>
+    w < 6 ? { primitive: { runtimeProxy: cuts[w] }, surface: s } : undefined,
+  )
+  assert.ok(selection.proxyBuffer()!.size > 0)
   // Every placement still names its own cut's first triangle.
   const triangles = Array.from({ length: 6 }, (_, w) =>
     wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + INSTANCE.triangle),

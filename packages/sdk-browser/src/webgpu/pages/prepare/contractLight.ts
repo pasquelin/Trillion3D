@@ -191,8 +191,6 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   // The share of the radiance the opaque trace wrote this image (`../../../reflections/frame.ts`),
   // and the proxy the forward passes trace.
   contractResources.reflection = active ? rt.gpu.reflection?.targetView : undefined
-  const meshes = active ? rt.run.gpuSelection?.proxyBuffers() : undefined
-  contractResources.proxy = meshes?.proxy
-  contractResources.worlds = meshes?.worlds
+  contractResources.proxy = active ? rt.run.gpuSelection?.proxyBuffer() : undefined
   return contractResources
 }

@@ -27,7 +27,8 @@ function proxyWords(faces: readonly RigFace[]) {
     trianglesAt = surfacesAt + n * SURFACE_WORDS,
     boundsAt = trianglesAt + 2 * n * TRIANGLE_FLOATS,
     childrenAt = boundsAt + n * NODE_FLOATS,
-    total = childrenAt + n * NODE_WORDS
+    worldsAt = childrenAt + n * NODE_WORDS,
+    total = worldsAt + n * 16
   const words = new Uint32Array(RUNTIME_HEADER_WORDS + total + 1)
   const floats = new Float32Array(words.buffer)
   const at = RUNTIME_HEADER
@@ -40,7 +41,7 @@ function proxyWords(faces: readonly RigFace[]) {
   words[at.childrenWord] = childrenAt
   words[at.treeRoot] = RUNTIME_NONE
   words[at.members] = n
-  words[at.worldStride] = 16
+  words[at.worldsWord] = worldsAt
   words[at.worldRows] = n
   const base = RUNTIME_HEADER_WORDS
   faces.forEach(({ triangles, radiance }, k) => {
@@ -63,6 +64,9 @@ function proxyWords(faces: readonly RigFace[]) {
     words[child + 1] = (1 << 24) | (2 << 16) | (255 << 8) | 255
     words[child + 2] = 0
   })
+  // The faces stand at the identity.
+  for (let k = 0; k < n; k++)
+    for (const diagonal of [0, 5, 10, 15]) floats[base + worldsAt + k * 16 + diagonal] = 1
   return words
 }
 
@@ -77,17 +81,8 @@ export function rigProxy(
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(proxy, 0, words)
-  // The faces stand at the identity.
-  const identity = new Float32Array(Math.max(1, faces.length) * 16)
-  for (let k = 0; k < Math.max(1, faces.length); k++)
-    for (const diagonal of [0, 5, 10, 15]) identity[k * 16 + diagonal] = 1
-  const worlds = device.createBuffer({
-    size: identity.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(worlds, 0, identity)
   return {
-    runtime: { proxy, worlds },
+    proxy,
     store:
       reflection.store.view ??
       device

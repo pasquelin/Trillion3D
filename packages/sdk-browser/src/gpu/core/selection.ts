@@ -158,9 +158,9 @@ export type GpuSelection = {
   /** The row cache now holds `rows` rows: the open counts placements hold follow it
    *  (`../dag/queueGrowth.ts`), grown before the next cut. */
   followRows?(rows: number): void
-  /** The two buffers a program reads the proxy through (`../dag/proxyInstances.ts`): none until a placement
+  /** The buffer a program reads the proxy through (`../dag/proxyInstances.ts`): none until a placement
    *  wears one. */
-  proxyBuffers(): { proxy: GPUBuffer; worlds: GPUBuffer } | undefined
+  proxyBuffer(): GPUBuffer | undefined
   /** The placement tree copied into the proxy's buffer, before the first program of the image that walks it. */
   proxyMirror(encoder: GPUCommandEncoder): void
   /** The deformed placements' copies of their meshes' proxies posed by the records of the frame, before the

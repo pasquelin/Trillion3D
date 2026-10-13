@@ -16,7 +16,7 @@ import { INSTANCE_WORDS, RAY_TRIANGLES, RAY_WORK, RUNTIME_NONE } from './runtime
 
 /** The bindings of the proxy in a program that casts its rays: its own buffer (`runtimeLayout.ts`), which holds
  *  the placement tree it walks, and the world matrices of the first range (`gpu/dag/frameRanges.ts`). */
-export type SceneBindings = { group: number; proxy: number; worlds: number }
+export type SceneBindings = { group: number; proxy: number }
 
 /** Tree levels a ray walks down at most: a tree of 64-way nodes holds 2⁴² members in seven. */
 const TREE_DEPTH = 8
@@ -36,9 +36,9 @@ const TREE_DEPTH = 8
  * visited and every triangle spends from the same counters; a ray that spends them is `exhausted`
  * and answers nothing (`rtScene`, `rtRadiance`): the next stage of the chain answers, never a miss.
  */
-export const runtimeSceneWgsl = ({ group, proxy, worlds }: SceneBindings) =>
+export const runtimeSceneWgsl = ({ group, proxy }: SceneBindings) =>
   wgslBlock(
-    `runtimeSceneWgsl(${group}, ${proxy}, ${worlds})`,
+    `runtimeSceneWgsl(${group}, ${proxy})`,
     [WIDE_TRAVERSAL_WGSL],
     `
 ${wgslConsts({
@@ -63,11 +63,10 @@ struct RuntimeProxy{
  instances:u32,instancesWord:u32,surfacesWord:u32,trianglesWord:u32,
  copyWorldsWord:u32,boundsWord:u32,childrenWord:u32,treeRoot:u32,
  treeFirst:u32,treeWord:u32,membersWord:u32,members:u32,
- worldStride:u32,worldRows:u32,error:f32,copies:u32,
+ worldsWord:u32,worldRows:u32,error:f32,copies:u32,
  words:array<u32>,
 }
 @group(${group}) @binding(${proxy}) var<storage,read> rtProxy:RuntimeProxy;
-@group(${group}) @binding(${worlds}) var<storage,read> rtWorlds:array<f32>;
 /** The ray's spending: box tests and node visits in \`rtWork\`, triangle tests in \`rtTests\`. */
 var<private> rtWork:u32;
 var<private> rtTests:u32;
@@ -102,21 +101,14 @@ ${wideTraversal({
 /** Placement \`w\`'s world: its linear columns \`a\`, \`b\`, \`c\` and its translation \`t\`. */
 struct RtWorld{a:vec3f,b:vec3f,c:vec3f,t:vec3f,}
 fn rtWorldOf(w:u32)->RtWorld{
- // A placement's world is the culling's; a blended copy's, the proxy's own, past the placements.
- if(w>=rtProxy.instances){
-  let at=rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS;
-  return RtWorld(
-   vec3f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u)),
-   vec3f(rtFloat(at+4u),rtFloat(at+5u),rtFloat(at+6u)),
-   vec3f(rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u)),
-   vec3f(rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u)));
- }
- let base=w*rtProxy.worldStride;
+ // A placement's world is the culling's, mirrored in the proxy's buffer; a blended copy's, the proxy's own,
+ // past the placements.
+ let at=select(rtProxy.worldsWord+w*RT_WORLD_WORDS,rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS,w>=rtProxy.instances);
  return RtWorld(
-  vec3f(rtWorlds[base],rtWorlds[base+1u],rtWorlds[base+2u]),
-  vec3f(rtWorlds[base+4u],rtWorlds[base+5u],rtWorlds[base+6u]),
-  vec3f(rtWorlds[base+8u],rtWorlds[base+9u],rtWorlds[base+10u]),
-  vec3f(rtWorlds[base+12u],rtWorlds[base+13u],rtWorlds[base+14u]));
+  vec3f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u)),
+  vec3f(rtFloat(at+4u),rtFloat(at+5u),rtFloat(at+6u)),
+  vec3f(rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u)),
+  vec3f(rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u)));
 }
 /** The rows of the inverse of a world's linear part, over its determinant: \`inverse * v\` is the dot
  *  of each with \`v\`. Zero where the world is singular. */

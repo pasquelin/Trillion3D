@@ -25,7 +25,7 @@ export type { SceneBindings }
  */
 export const runtimeRadianceWgsl = (scene: SceneBindings) =>
   wgslBlock(
-    `runtimeRadianceWgsl(${scene.group}, ${scene.proxy}, ${scene.worlds})`,
+    `runtimeRadianceWgsl(${scene.group}, ${scene.proxy})`,
     [runtimeSceneWgsl(scene), SURFACE_RAY_WGSL],
     `
 ${wgslConsts({ RT_LAYERS: RAY_LAYERS, RT_SURFACE_BLENDED: SURFACE_BLENDED, RT_SURFACE_WORDS: SURFACE_WORDS })}
@@ -116,8 +116,8 @@ export type RuntimeBindings = SceneBindings & { list: number; store: number }
  */
 export const runtimeTraceWgsl = ({ list, store, ...scene }: RuntimeBindings) =>
   wgslBlock(
-    `runtimeTraceWgsl(${scene.group}, ${scene.proxy}, ${scene.worlds}, ${list}, ${store})`,
-    [runtimeRadianceWgsl(scene)],
+    `runtimeTraceWgsl(${scene.group}, ${scene.proxy}, ${list}, ${store})`,
+    [runtimeRadianceWgsl(scene), RUNTIME_ANSWER_WGSL],
     `
 ${wgslConsts({
   RT_FRAME_WORK: FRAME_WORK,
@@ -135,6 +135,5 @@ ${wgslConsts({
 var<private> rtPixel:vec2u;
 var<private> rtRank:u32;
 var<private> rtCalls:u32;
-${RUNTIME_ANSWER_WGSL}
 `,
   )

@@ -38,7 +38,7 @@ const FUNCTIONS = [
   'rtLit',
   'rtProbeRay',
 ]
-const BINDINGS = { group: 0, proxy: 12, worlds: 13, list: 8, store: 9 }
+const BINDINGS = { group: 0, proxy: 12, list: 8, store: 9 }
 
 /** The store of the answers as the shader reads it: two layers of words a pixel, keyed by texel. */
 export function makeStore() {
@@ -79,7 +79,6 @@ export function runOver(
     testReset: () => void
   }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testReset', 'testPixel'], {
     rtProxy: header,
-    rtWorlds: packed.worlds,
     rtWork: 0,
     rtTests: 0,
     rtExtra: 0,

@@ -101,9 +101,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.probes = contract.probes ?? deferred.placeholders.probes
     // What a ray can meet of the scene, else the empty stand-in.
     rt.run.gpuSelection?.proxyCopies(rt.setup.blendCopies)
-    const meshes = rt.run.gpuSelection?.proxyBuffers()
-    const empty = deferred.placeholders.runtime
-    inputs.runtime = meshes ?? { proxy: empty, worlds: empty }
+    inputs.proxy = rt.run.gpuSelection?.proxyBuffer() ?? deferred.placeholders.runtime
     inputs.store = reflection.store.view ?? deferred.placeholders.store
     inputs.lightView = over.lightView
     const group = reflectionGroup(reflection, depth, over)

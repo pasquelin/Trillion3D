@@ -50,10 +50,9 @@ export interface DirectLightResources extends Partial<ContractKey> {
    *  identity. */
   bounceGrid?: GPUBuffer
   probes?: GPUTextureView
-  /** The proxy's buffer and the world matrices it places its meshes by, which the forward programs read
-   *  (`webgpu/blend/lighting.ts`): the opaque resolve binds neither. Absent, a zero substitute. */
+  /** The proxy's buffer, the world matrices it places its meshes by mirrored in it, which the forward programs
+   *  read (`webgpu/blend/lighting.ts`): the opaque resolve binds none. Absent, a zero substitute. */
   proxy?: GPUBuffer
-  worlds?: GPUBuffer
   /** The reflection target the opaque trace wrote (`../../reflections/trace.ts`); absent, a zero
    *  substitute. */
   reflection?: GPUTextureView

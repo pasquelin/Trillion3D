@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+
 /**
  * THE RUN-TIME PROXY'S ANSWER, KEPT FROM IMAGE TO IMAGE: text of the program that casts its rays
  * (`runtimeTraceWgsl.ts`), after `rtRadiance`. What a pixel last got from its ray lives in the store
@@ -16,7 +18,10 @@
  * A lobe is answered along its centre, one ray. The mean over its directions, which a rough lobe is, is the
  * estimator the store makes room for (a count above the stamp) and this stage does not yet hold.
  */
-export const RUNTIME_ANSWER_WGSL = `
+export const RUNTIME_ANSWER_WGSL = wgslBlock(
+  'RUNTIME_ANSWER_WGSL',
+  [],
+  `
 /** A pixel's cell of the store: its radiance premultiplied by its confidence, its confidence and the stamp of its epoch. */
 struct RtCell{premult:vec3f,confidence:f32,stamp:u32,}
 /** A radiance on a shared exponent, nine bits a channel (rgb9e5): the pixel's colour in one word. */
@@ -73,4 +78,5 @@ fn rtAnswer(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
  atomicAdd(&rtList[RT_LEFT],1u);
  return rtCellAnswer(cell);
 }
-`
+`,
+)

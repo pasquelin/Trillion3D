@@ -33,12 +33,11 @@ const TILE_LIST = TRACE_LIST_FIRST
 /** The binding of the light grid's buffer in the trace's group 0: the world lists the proxy hits walk. */
 const LIGHT_LISTS_BINDING = 17
 
-/** The bindings of the proxy in the trace's group 0 (`runtimeTraceWgsl.ts`): its buffer and the world
- *  matrices, the trace's list with the frame's counters and the store of the answers. */
+/** The bindings of the proxy in the trace's group 0 (`runtimeTraceWgsl.ts`): its buffer, the world
+ *  matrices mirrored in it, the trace's list with the frame's counters and the store of the answers. */
 const RUNTIME_BINDINGS: RuntimeBindings = {
   group: 0,
   proxy: 11,
-  worlds: 12,
   list: 8,
   store: 9,
 }
@@ -154,12 +153,6 @@ fn reflectionBegin(){
 /** Bytes of the indirect arguments: the workgroups along x and y, 1, then the count of tiles. */
 export const TRACE_ARGS_BYTES = 16
 
-/** The proxy's two read-only storage bindings. */
-const runtimeEntries = {
-  proxy: computeBufferEntry(RUNTIME_BINDINGS.proxy, 'read-only-storage'),
-  worlds: computeBufferEntry(RUNTIME_BINDINGS.worlds, 'read-only-storage'),
-}
-
 /** The trace's bind group 0 and the frame state's layouts. */
 function traceLayouts(device: GPUDevice) {
   return {
@@ -176,7 +169,7 @@ function traceLayouts(device: GPUDevice) {
         storeEntry(RUNTIME_BINDINGS.store),
         computeTextureEntry(10, 'unfilterable-float'),
         computeBufferEntry(LIGHT_LISTS_BINDING, 'read-only-storage'),
-        ...Object.values(runtimeEntries),
+        computeBufferEntry(RUNTIME_BINDINGS.proxy, 'read-only-storage'),
       ],
     }),
     classifyLayout: device.createBindGroupLayout({
@@ -265,7 +258,7 @@ export type TraceInputs = {
   bounceGrid: GPUBuffer
   probes: GPUTextureView
   /** The proxy's buffers, or the empty one in each place (`gpu/dag/proxyInstances.ts`). */
-  runtime: { proxy: GPUBuffer; worlds: GPUBuffer }
+  proxy: GPUBuffer
   /** The store of the run-time proxy's answers, or its stand-in (`proxyStore.ts`). */
   store: GPUTextureView
   lightView: GPUBuffer
@@ -306,8 +299,7 @@ function traceGroups(
     inputs.lights,
     inputs.bounceGrid,
     inputs.probes,
-    inputs.runtime.proxy,
-    inputs.runtime.worlds,
+    inputs.proxy,
     inputs.store,
     tiles.list,
     inputs.lightView,
@@ -332,8 +324,7 @@ function traceGroups(
         { binding: RUNTIME_BINDINGS.store, resource: inputs.store },
         { binding: 10, resource: inputs.base },
         { binding: LIGHT_LISTS_BINDING, resource: { buffer: inputs.lightLists } },
-        { binding: RUNTIME_BINDINGS.proxy, resource: { buffer: inputs.runtime.proxy } },
-        { binding: RUNTIME_BINDINGS.worlds, resource: { buffer: inputs.runtime.worlds } },
+        { binding: RUNTIME_BINDINGS.proxy, resource: { buffer: inputs.proxy } },
       ],
     }),
     classify: device.createBindGroup({

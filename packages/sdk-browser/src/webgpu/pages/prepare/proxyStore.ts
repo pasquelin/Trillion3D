@@ -3,7 +3,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 /** Whether the view holds the run-time proxy's store: a placement or a copy wears a proxy, so that
  *  the selection made a buffer of it (`gpu/dag/proxyInstances.ts`). O(1). */
 export const wantsProxyStore = (rt: Pick<WebgpuPagesRuntime, 'run'>) =>
-  !!rt.run.gpuSelection?.proxyBuffers()
+  !!rt.run.gpuSelection?.proxyBuffer()
 
 /**
  * At every image's start, before anything names it (`encodeVis`): the store of the run-time proxy's
