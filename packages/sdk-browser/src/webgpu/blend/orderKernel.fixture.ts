@@ -45,7 +45,6 @@ export function gpuOf(blendState: WebgpuBlendState) {
     sorted: [] as Vec[],
     placed: [] as number[],
     held: [] as Vec[],
-    countLeadingZeros: (x: number) => Math.clz32(x),
   }
   return { scope, kernel: shaderRun<Kernel>(BLEND_ORDER_SHADER, NAMES, scope) }
 }

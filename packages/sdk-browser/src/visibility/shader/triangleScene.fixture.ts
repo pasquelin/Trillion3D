@@ -46,7 +46,6 @@ export const STRUCTS = {
   bitcast_vec3f: builtins.bitcast_f32,
   bitcast_vec4f: builtins.bitcast_f32,
   bitcast_vec4u: builtins.bitcast_vec3u,
-  countLeadingZeros: (x: number) => Math.clz32(x),
   i32: (x: number) => x | 0,
 }
 /** WGSL integers where the page decode leans on them: division truncates, `>>` of an `i32` keeps

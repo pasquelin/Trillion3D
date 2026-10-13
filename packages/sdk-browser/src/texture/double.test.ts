@@ -4,8 +4,8 @@ import { shaderRun } from './shaderRun.fixture.ts'
 import { dAdd, dDiv, dMul, dSub } from '../../../math/src/wgsl/double.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
+import { DOUBLE_HELPERS, type Pair } from '../placement/composeDoubles.fixture.ts'
 
-type Pair = number[]
 type Run = {
   dAdd(a: Pair, b: Pair): Pair
   dSub(a: Pair, b: Pair): Pair
@@ -13,28 +13,7 @@ type Run = {
   dDiv(a: Pair, b: Pair): Pair
 }
 
-const HELPERS = [
-  'dNan',
-  'dExponent',
-  'dIsNan',
-  'dIsZero',
-  'dSignificand',
-  'dScale',
-  'wideAdd',
-  'wideSub',
-  'wideLeadingZeros',
-  'wideShiftLeft',
-  'wideShiftRight',
-  'wideProduct',
-  'dRound',
-]
-const run = shaderRun<Run>(
-  wgslModule(dAdd, dSub, dMul, dDiv),
-  [...HELPERS, 'dAdd', 'dSub', 'dMul', 'dDiv'],
-  {
-    countLeadingZeros: (x: number) => Math.clz32(x),
-  },
-)
+const run = shaderRun<Run>(wgslModule(dAdd, dSub, dMul, dDiv), [...DOUBLE_HELPERS, 'dDiv'], {})
 
 const cell = new Float64Array(1),
   bits = new Uint32Array(cell.buffer)

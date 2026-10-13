@@ -107,6 +107,7 @@ export const builtins = {
     for (let v = n(x) >>> 0; v; v &= v - 1) count++
     return count
   }),
+  countLeadingZeros: each((x) => Math.clz32(n(x))),
   // The lowest set bit's rank; all ones (-1 as `i32`) for zero.
   firstTrailingBit: each((x) => (n(x) ? 31 - Math.clz32(n(x) & -n(x)) : 0xffffffff)),
   mat3x3f: (...columns: number[][]) => new Mat3(columns),

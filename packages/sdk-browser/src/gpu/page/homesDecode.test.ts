@@ -33,7 +33,6 @@ const HELPERS = [
  *  `i32` of a `u32` keeps its bits, `>>` of a negative `i32` is arithmetic. */
 const INTEGERS = {
   i32: (x: number) => x | 0,
-  countLeadingZeros: (x: number) => Math.clz32(x),
   $b: (op: string, a: number, b: number) =>
     typeof a !== 'number' || typeof b !== 'number'
       ? builtins.$b(op, a, b)

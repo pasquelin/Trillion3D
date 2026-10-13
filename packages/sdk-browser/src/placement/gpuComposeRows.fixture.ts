@@ -10,7 +10,7 @@ import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../visibility/types.ts'
 import { COMPOSE_ROWS_WGSL, PART_SPHERES } from './gpuComposeWgsl.ts'
 import { ROW_INPUT_DOUBLES } from './composedRowPack.ts'
-import { DOUBLE_HELPERS, countLeadingZeros, pair } from './composeDoubles.fixture.ts'
+import { DOUBLE_HELPERS, pair } from './composeDoubles.fixture.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 export const N = 120
@@ -77,7 +77,6 @@ export function composeRows(
     COMPOSE_ROWS_WGSL,
     [...DOUBLE_HELPERS, 'toF32', 'fromF32', 'composed', 'composeSphere', 'composeRow'],
     {
-      countLeadingZeros,
       params: { rootCount: N, rowCount: N, parts: spheres?.cast ? PART_SPHERES : 0 },
       arrayLength: (ref: { get(): unknown[] }) => ref.get().length,
       spheres: spheres?.out ?? [],

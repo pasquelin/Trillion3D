@@ -15,13 +15,7 @@ import { ROW_LOD_FLOATS, writeRowLod } from '../webgpu/shadow/rowLodWords.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL } from './gpuComposeWgsl.ts'
 import { ROW_INPUT_DOUBLES, packInputs, rowInputs } from './composedRowPack.ts'
-import {
-  DOUBLE_HELPERS,
-  countLeadingZeros,
-  generated,
-  pair,
-  type Pair,
-} from './composeDoubles.fixture.ts'
+import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 
 const FAMILY = 400
@@ -41,7 +35,6 @@ const derived = shaderRun<{
   COMPOSE_ROWS_WGSL,
   [...DOUBLE_HELPERS, ...SPLIT, ...STRETCH, 'composeCorners', 'lodCentre', 'composeLod'],
   {
-    countLeadingZeros,
     ...rows,
   },
 )
@@ -49,7 +42,7 @@ const roots = { rootInputs: [] as Pair[], rootBoxes: [] as Pair[] }
 const boxes = shaderRun<{ composeBox(rank: number, at: number, world: Pair[]): void }>(
   COMPOSE_ROOTS_WGSL,
   [...DOUBLE_HELPERS, 'affineAxis', 'dLess', 'dIsZero', 'dMin', 'dMax', 'carriedBox', 'composeBox'],
-  { countLeadingZeros, ...roots },
+  roots,
 )
 
 /** A page of a family: its box, its spheres, its errors, its level, now and then a dynamic box. */
