@@ -1,5 +1,5 @@
 // The transparent occlusion test's rejects refuted, cluster by cluster, by the engine's own
-// reference: `projectCornersInto` (`hiz/corners.ts`) in double precision, `hizNearestBound` for
+// reference: `projectCornersInto` (`hiz/projection.fixture.ts`) in double precision, `hizNearestBound` for
 // the lift and the layer's bias, then `buildHizPyramid` and `hizRejectsFlat`
 // (`bench/oracles/browser/hizPyramid.ts`, `hizOcclusion.ts`) on the depth the GPU left after the
 // opaque pass, read back at full resolution. Every transparent cluster the GPU removed must be rejected by the reference on its
@@ -8,8 +8,8 @@
 import {
   BOX_CORNER_VALUES,
   HIZ_BOUNDS_VALUES,
-  projectCornersInto,
 } from '../../../packages/sdk-browser/src/hiz/corners.ts'
+import { projectCornersInto } from '../../../packages/sdk-browser/src/hiz/projection.fixture.ts'
 import { hizNearestBound } from '../../../packages/sdk-browser/src/hiz/nearestBound.fixture.ts'
 import { buildHizPyramid } from '../../../bench/oracles/browser/hizPyramid.ts'
 import { hizRejectsFlat } from '../../../bench/oracles/browser/hizOcclusion.ts'

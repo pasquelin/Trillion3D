@@ -1,15 +1,13 @@
 // The partition audit held against the reference, row by row. The reference is the engine's own
-// double-precision arithmetic — `projectCornersInto` (`hiz/corners.ts`) then `hizNearestBound`
+// double-precision arithmetic — `projectCornersInto` (`hiz/projection.fixture.ts`) then `hizNearestBound`
 // (`hiz/nearestBound.fixture.ts`), what the CPU did per row before the partition moved to the GPU
 // and what the CPU cut and the oracles still do. Three rules:
 //   1. the GPU rectangle contains the reference's, each side at least as wide;
 //   2. a box the reference says the near plane clips carries the clip flag, so it is never
 //      rejected;
 //   3. the GPU depth bound stands nearer than the reference's, the coplanar layer's bias included.
-import {
-  HIZ_BOUNDS_VALUES,
-  projectCornersInto,
-} from '../../../packages/sdk-browser/src/hiz/corners.ts'
+import { HIZ_BOUNDS_VALUES } from '../../../packages/sdk-browser/src/hiz/corners.ts'
+import { projectCornersInto } from '../../../packages/sdk-browser/src/hiz/projection.fixture.ts'
 import { hizNearestBound } from '../../../packages/sdk-browser/src/hiz/nearestBound.fixture.ts'
 import type { PartitionAudit } from '../../../packages/sdk-browser/src/webgpu/core/partitionAudit.ts'
 
