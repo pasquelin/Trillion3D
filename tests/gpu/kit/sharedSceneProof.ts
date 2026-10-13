@@ -18,6 +18,7 @@ import type {
 } from '../../../packages/sdk-core/src/index.ts'
 import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import { manifestCulling } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
+import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
 
 export const VIEWPORT: [number, number] = [96, 96]
 
@@ -43,11 +44,11 @@ export function batisseur() {
     associations = new Map<G.Object3D, { meshes?: number; primitives?: number }>(),
     primitives: Primitive[] = [],
     geometries: G.Geometry[] = [],
-    materials: G.GraphSurface[] = []
+    materials: PageSurface[] = []
   const builder = {
     source,
     place(
-      surface: G.GraphSurface,
+      surface: PageSurface,
       pass: string,
       half: number,
       [x, y, z]: readonly number[] = [0, 0, 0],
@@ -96,7 +97,7 @@ export function batisseur() {
         indices.set(page.url, new Uint32Array(triangles.slice(page.start, page.start! + 3)))
       associations.set(mesh, { meshes: rank, primitives: 0 })
       geometries.push(mesh.geometry)
-      materials.push(mesh.material as G.GraphSurface)
+      materials.push(mesh.material as PageSurface)
     },
     fini() {
       source.updateMatrixWorld(true)

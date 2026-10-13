@@ -3,7 +3,7 @@
 import { signedArea, triangleAt, type Projected } from './projection.ts'
 import { matrixWindingCw } from '../../../../packages/sdk-core/src/index.ts'
 import { uvTransformed } from '../../../../packages/sdk-core/src/texture/contract.ts'
-import { refreshSurface, surfaceSide } from '../../../../packages/sdk-browser/src/page/surface.ts'
+import { surfaceSide } from '../../../../packages/sdk-browser/src/page/surface.ts'
 import {
   DEPTH_CLEAR,
   depthNearer,
@@ -105,10 +105,9 @@ export function rasterVisibility(
     const page = pages[pageIndex],
       index = page.array
     if (!page.attributes.position) continue
-    // Once per page and per image: the host writes its raster state — a side, an alpha cutoff
-    // — on the declaration it shares with its mesh, and this raster is an oracle of what it
-    // declares NOW.
-    const mat = refreshSurface(page.material),
+    // Once per page and per image: the record as its owner wrote it last — a side, an alpha
+    // cutoff written in place —, of which this raster is an oracle NOW.
+    const mat = page.material,
       side = surfaceSide(mat)
     // A mirrored transform reverses the walk direction on screen: the face to drop is the other one, as
     // `visBin` does for WebGPU pipelines and the witness library (`frontFaceCW`). Without this

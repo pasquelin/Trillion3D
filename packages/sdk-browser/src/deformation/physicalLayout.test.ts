@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { hostSide } from '../scene/materialSide.ts'
 import * as G from '../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../page/surface.ts'
 import { pageRecFixture } from '../../../../bench/perf/browser/support/pageRecFixture.ts'
@@ -10,8 +9,8 @@ import { ROW_WORDS } from '../visibility/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 const material = () =>
-  new G.GraphSurface('physical', {
-    side: hostSide('double'),
+  G.physicalSurface({
+    side: 'double',
     transmission: 0.5,
     thickness: 2,
     subsurfaceColor: new G.Color().setRGB(0.25, 0.5, 0.75),

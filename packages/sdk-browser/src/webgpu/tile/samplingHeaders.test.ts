@@ -26,7 +26,7 @@ test('one write among ten thousand textures visits one slot', () => {
   const colour = atlas(records),
     data = atlas([])
   const journal = openTextureJournal()
-  const follow = samplingHeaders(colour.atlas, data.atlas, journal)
+  const follow = samplingHeaders(colour.atlas, data.atlas, journal, new Set())
   follow(true)
   assert.equal(colour.set.length, 10_000, 'the first follow writes every header once')
   colour.set.length = 0

@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { surfaceOf } from '../../page/surface.ts'
+import { surfaceOf, type PageSurface } from '../../page/surface.ts'
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './items.ts'
 import { refreshBlendScene } from './resources.ts'
 import { createPhysicalTable } from '../visibility/physicalTable.ts'
@@ -14,7 +14,7 @@ import type { BlendGpuItem } from './state.ts'
 import { emptyGeometryBlock } from '../row/pageRowMaterial.ts'
 
 /** The physical word an item of `surface` writes, and what it returns. */
-function wordOf(surface: G.GraphSurface, item: Partial<BlendGpuItem> = {}, hasUv1 = false) {
+function wordOf(surface: PageSurface, item: Partial<BlendGpuItem> = {}, hasUv1 = false) {
   const floats = new Float32Array(BLEND_ITEM_WORDS),
     ints = new Uint32Array(floats.buffer)
   const geometry = new G.Geometry()

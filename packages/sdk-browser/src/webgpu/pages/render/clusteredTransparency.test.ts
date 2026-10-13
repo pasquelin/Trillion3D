@@ -14,7 +14,7 @@ test('clustered transparency submits only visible pages in one two-sided mesh dr
   const fixture = quadScene(),
     { device, draws, writes } = fakeDevice(BACKEND)
   fixture.material.transparent = true
-  fixture.material.side = G.DOUBLE_SIDE
+  G.sided(fixture.material, G.DOUBLE_SIDE)
   fixture.geometry.setAttribute(
     'position',
     G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0, 99, -1, 0, 101, -1, 0, 100, 1, 0], 3),
@@ -102,7 +102,7 @@ test('clustered transparency switches LOD with resident coverage and retains bot
   const fixture = coarseQuadScene(),
     { device } = fakeDevice(BACKEND)
   fixture.material.transparent = true
-  fixture.material.side = G.DOUBLE_SIDE
+  G.sided(fixture.material, G.DOUBLE_SIDE)
   fixture.metadata.primitives[0].pass = 'clustered-blend'
   fixture.metadata.primitives[0].pages[2].count = 3
   fixture.metadata.primitives[0].pages[2].bytes = 12
@@ -159,7 +159,7 @@ test('a transparent switched to double-sided still expands all its instances', a
     { device, draws, buffers } = fakeDevice(BACKEND)
   fixture.material.transparent = true
   // Single-sided at prepare: one plan entry, and half the room.
-  fixture.material.side = G.FRONT_SIDE
+  G.sided(fixture.material, G.FRONT_SIDE)
   fixture.metadata.primitives[0].pass = 'clustered-blend'
   const mesh = fixture.source.children[0] as G.HostMesh
   const backend = webgpuPagesEngine({
@@ -172,7 +172,7 @@ test('a transparent switched to double-sided still expands all its instances', a
     await backend.prepare()
     backend.render(camera())
     await backend.flush()
-    fixture.material.side = G.DOUBLE_SIDE
+    G.sided(fixture.material, G.DOUBLE_SIDE)
     // A move, and the scene rebuilds its plan: that is where the item gains its second entry.
     mesh.position.x = 0.1
     mesh.updateMatrixWorld(true)

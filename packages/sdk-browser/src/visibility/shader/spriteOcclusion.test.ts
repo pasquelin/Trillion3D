@@ -34,7 +34,7 @@ import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 const sprite = (sizeAttenuation: boolean) => ({ rotation: 0, sizeAttenuation })
 const spriteSurface = (sizeAttenuation: boolean, parameters = {}) =>
-  Object.assign(G.basicSurface(parameters), { sprite: true, rotation: 0, sizeAttenuation })
+  G.basicSurface({ ...parameters, sprite: true, rotation: 0, sizeAttenuation })
 
 test('the CPU Hi-Z test keeps a constant-size sprite whose box a nearer surface hides', () => {
   const depth = new Float32Array(48 * 48).fill(0.3)

@@ -1,5 +1,5 @@
 import * as G from '../../host/graph/graph.fixture.ts'
-import { surfaceOf } from '../../page/surface.ts'
+import { surfaceOf, type PageSurface } from '../../page/surface.ts'
 import { prepareWebgpuBlend } from '../blend/prepare.ts'
 import { voidStaleBlendGroups } from '../blend/identity.ts'
 import { blendLightResources } from '../blend/lighting.ts'
@@ -52,7 +52,7 @@ export function mountDevice() {
 export const device = mountDevice().device
 
 /** One triangle per mesh: only the material class distinguishes the three copies. */
-function copy(material: G.GraphSurface, order: number) {
+function copy(material: PageSurface, order: number) {
   const geometry = triangleGeometry()
   const mesh = G.mesh(geometry, material)
   mesh.matrixAutoUpdate = false
@@ -62,7 +62,8 @@ function copy(material: G.GraphSurface, order: number) {
 }
 
 function eau(transmission: number) {
-  return Object.assign(G.physicalSurface({ transparent: true, opacity: 0.6, side: G.FRONT_SIDE }), {
+  return G.physicalSurface({
+    ...{ transparent: true, opacity: 0.6, side: G.FRONT_SIDE },
     transmission,
     ior: 1.33,
     thickness: 2.5,

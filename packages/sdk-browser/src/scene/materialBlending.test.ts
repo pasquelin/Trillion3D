@@ -3,17 +3,12 @@ import assert from 'node:assert/strict'
 import {
   BLEND_EQUATIONS,
   BLEND_MODES,
-  blendingOf,
   composesWithBackground,
   drawnBlending,
-  hostBlending,
   weighsByAlpha,
 } from './materialBlending.ts'
 
-test('every engine mode maps to a host constant and back; an unnamed one is undefined', () => {
-  for (const mode of BLEND_MODES) assert.equal(blendingOf(hostBlending(mode)), mode, mode)
-  assert.equal(blendingOf(undefined), 'normal', 'the host default is normal')
-  assert.equal(blendingOf(5), undefined, 'a custom equation is no mode the engine draws')
+test('the modes that compose with the background are the three that need one', () => {
   assert.deepEqual(BLEND_MODES.filter(composesWithBackground), [
     'additive',
     'subtractive',

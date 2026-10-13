@@ -8,6 +8,7 @@ import * as G from '../../../host/graph/graph.fixture.ts'
 import { disposeQuadRun } from '../testScenes.fixture.ts'
 import { mappedQuadRun } from './mappedQuad.fixture.ts'
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../../../../sdk-core/src/contracts/poolBudgets.ts'
+import { surfaceWritten } from '../../../page/surfaceWrites.ts'
 
 type Labelled = { label?: string }
 
@@ -46,7 +47,7 @@ test('a map redrawn for 120 frames is copied in place, one working texture kept'
     for (let frame = 0; frame < 120; frame++) {
       pixels[0] = frame
       map.needsUpdate = true
-      surface.needsUpdate = true
+      surfaceWritten(surface)
       assert.equal(backend.refreshMaterials?.(), true, `frame ${frame}: no session reopened`)
       const before = [writes.length, copies.length]
       backend.render(cam)
@@ -98,7 +99,7 @@ test('a picture alone leaves the row table as it is; a value written rewrites it
     const frame = (values: boolean) => {
       pixels[0]++
       map.needsUpdate = true
-      surface.needsUpdate = true
+      surfaceWritten(surface)
       const [buffers, textures] = [gpu.writes.length, writes.length]
       assert.equal(backend.refreshMaterials?.(values), true)
       backend.render(cam)

@@ -6,6 +6,7 @@ import { batisseur } from '../kit/sharedSceneProof.ts'
 import { BACKGROUND, GROUND, waterSurface } from './waterPassCases.ts'
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
+import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
 
 export { BACKGROUND }
 export const SIZE: [number, number] = [1280, 720]
@@ -28,7 +29,7 @@ export function waterCostScene(fraction: number, enabled: boolean) {
     z: number,
     sx: number,
     sy: number,
-    material: G.GraphSurface,
+    material: PageSurface,
     pass: string,
   ) => {
     const mesh = builder.place(material, pass, 1, [x, y, z])

@@ -12,7 +12,7 @@ import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from '../tile/pageTable.ts'
 import { SAMPLE_MAG_NEAREST } from '../../texture/sampling.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
-import { visMaterial } from '../../visibility/shader/material.ts'
+import { surfaceOf } from '../../page/surface.ts'
 
 test('packedRowBase shifts the rank by VIS_TRIANGLE_BITS bits, one rank further than the rank', () => {
   assert.equal(packedRowBase(0), 1 << VIS_TRIANGLE_BITS)
@@ -74,7 +74,7 @@ test('a row over a quantized page takes its attributes from the page, never a ta
 // The bit only says where the geometry is read; it never splits a resolve class in two.
 test('the cluster-page flag rides the row without moving its material class', () => {
   const layers = { mapLayer: new Map(), dataLayer: new Map() }
-  const material = visMaterial(G.standardSurface())
+  const material = surfaceOf(G.standardSurface())
   const source = {
     vertexBase: 0,
     count: 3,
@@ -95,7 +95,7 @@ test('the cluster-page flag rides the row without moving its material class', ()
 test('a page takes the filter rule, and its class, only when one of its maps has a filter word', () => {
   const map = {} as Texture,
     normal = {} as Texture
-  const material = { ...visMaterial(G.standardSurface()), map, normalMap: normal }
+  const material = { ...surfaceOf(G.standardSurface()), map, normalMap: normal }
   const source = {
     vertexBase: 0,
     count: 3,
@@ -146,8 +146,8 @@ test('a row multiplies by its vertex colours only when the material asks and the
       new Map(),
       block,
     )!
-  const asks = visMaterial(G.standardSurface({ vertexColors: true })),
-    ignores = visMaterial(G.standardSurface())
+  const asks = surfaceOf(G.standardSurface({ vertexColors: true })),
+    ignores = surfaceOf(G.standardSurface())
   assert.equal(asks.vertexColors, true)
   assert.equal(ignores.vertexColors, false)
   const plain = rowMaterial(ignores, { ...page(FLAG_UV) }, layers)

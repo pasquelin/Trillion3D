@@ -1,4 +1,4 @@
-import { surfaceOf } from '../../packages/sdk-browser/src/page/surface.ts'
+import { surfaceOf, type PageSurface } from '../../packages/sdk-browser/src/page/surface.ts'
 import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import type { VisPage } from '../../packages/sdk-browser/src/visibility/types.ts'
 import { engineCamera } from '../../packages/sdk-browser/src/camera/camera.fixture.ts'
@@ -22,7 +22,7 @@ export function cameraAt(z = 5, near = 0.1) {
 }
 
 export function quad(
-  material: G.GraphSurface,
+  material: PageSurface,
   min: number[],
   max: number[],
   clusterId: string,

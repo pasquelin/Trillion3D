@@ -2,12 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPhysicalTable, PHYSICAL_ROW_RECORDS } from './physicalTable.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
-import { visMaterial } from '../../visibility/shader/material.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { setFlagsFromString } from 'node:v8'
 import { runInNewContext } from 'node:vm'
+import { surfaceOf } from '../../page/surface.ts'
 
 /** A record's words, as the upload lays them out: a row's words over the records it holds. */
 const recordWords = (sent: { layout: GPUTexelCopyBufferLayout }) =>
@@ -20,7 +20,7 @@ function gcOf() {
 }
 
 const map = (channel: number) => ({ channel }) as Texture
-const lit = { ...visMaterial([]), lit: true }
+const lit = { ...surfaceOf([]), lit: true }
 
 test('a surface without a lobe takes no record; one with a lobe takes its rank plus one', () => {
   const table = createPhysicalTable()

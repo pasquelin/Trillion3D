@@ -12,10 +12,11 @@ import { ensurePageTable } from '../pages/render/pageTable.ts'
 import { disposeWebgpuPages } from '../pages/io/metrics.ts'
 import { FLAG_CLUSTER_PAGE, FLAG_HAS_TANGENT } from '../../visibility/types.ts'
 import { prepareWebgpuPages } from '../pages/prepare/preparePages.ts'
+import type { PageSurface } from '../../page/surface.ts'
 
 /** The quad of two quantized clusters, drawn as `pass` says under `surface`, prepared on the mock
  *  device with its page reader. */
-async function preparedQuad(pass: string, surface: G.GraphSurface) {
+async function preparedQuad(pass: string, surface: PageSurface) {
   installGpuGlobals()
   const fixture = pagedQuad([{ corners: FIRST }, { corners: SECOND }])
   fixture.metadata.primitives[0].pass = pass as never
@@ -71,7 +72,7 @@ test('a paged transparent item owns no host buffer and draws each cluster from i
 })
 
 test('shared-blend and transmissive meshes keep their host buffers', async () => {
-  const cases: [string, G.GraphSurface][] = [
+  const cases: [string, PageSurface][] = [
     ['shared-blend', G.basicSurface({ transparent: true, opacity: 0.5 })],
     ['exact-clusters', G.physicalSurface({ transmission: 1 })],
   ]

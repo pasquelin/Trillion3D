@@ -33,7 +33,7 @@ export function scene() {
     // A blend: alphaMode BLEND.
     G.standardSurface({ transparent: true, opacity: 0.4 }),
     // Transmission: thick glass or water, which reads what is already drawn behind it.
-    Object.assign(G.physicalSurface({ transparent: true }), { transmission: 1 }),
+    G.physicalSurface({ transparent: true, transmission: 1 }),
   ]
   const passes = ['exact-clusters', 'clustered-blend', 'shared-blend']
   const primitives = materials.map((material, index) => {

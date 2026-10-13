@@ -3,6 +3,7 @@ import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, quadScene } from '../testScenes.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
+import type { PageSurface } from '../../../page/surface.ts'
 
 /** A pages backend on the mock device drawing the quad scene with `map` on its surface: prepared,
  *  one image drawn and flushed — the state a change made after it is measured from. */
@@ -11,7 +12,7 @@ export async function mappedQuadRun(map: G.Texture) {
   const gpu = fakeDevice(BACKEND)
   map.needsUpdate = true
   const fixture = quadScene()
-  const surface = fixture.material as G.GraphSurface
+  const surface = fixture.material as PageSurface
   surface.map = map
   const backend = webgpuPagesEngine({
     ...fixture,

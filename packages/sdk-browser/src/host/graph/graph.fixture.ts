@@ -14,7 +14,11 @@ import { resolveCameraWorld } from '../../camera/world.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
-import { GraphSurface, type GraphSurfaceFamily } from './surface.ts'
+import type { Side } from '../../../../sdk-core/src/index.ts'
+import { MATERIAL_COLOURS } from '../../../../sdk-core/src/world/material/material.ts'
+import type { PageSurface, SurfaceFamily } from '../../page/surface.ts'
+import { declareSurface } from '../../page/surfaceRecord.ts'
+import type { SurfaceDeclaration } from '../../page/surfaceDeclaration.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import type { HostAttributes } from '../resources.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -27,7 +31,6 @@ export { Matrix3, Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts
 export { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
 export { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 export { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
-export * from '../surfaceConstants.ts'
 export {
   BufferAttribute,
   InterleavedBufferAttribute,
@@ -41,20 +44,16 @@ export { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMe
 export type { HostMesh } from '../resources.ts'
 export { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 export { Scene } from '../../world/core/scene.ts'
-export { GraphSurface } from './surface.ts'
 export { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 export * from './graphLights.fixture.ts'
 
-/** The faces a surface draws, as a surface's `side` holds them (`../../scene/materialSide.ts`). */
-export const FRONT_SIDE = 0,
-  BACK_SIDE = 1,
-  DOUBLE_SIDE = 2
+/** The faces a surface draws, as a declaration names them. */
+export const FRONT_SIDE: Side = 'front',
+  BACK_SIDE: Side = 'back',
+  DOUBLE_SIDE: Side = 'double'
 
-/** The parameters a surface is declared with. */
+/** The parameters a surface is declared with, its colours given as a number or a CSS name too. */
 export type SurfaceParameters = Record<string, unknown>
-
-/** The depth test that passes only strictly nearer. */
-export const DEPTH_LESS = 2
 
 /** An empty geometry of the host's, as a loaded scene's is (`Geometry._owner`). */
 const hostGeometry = () => Object.assign(new Geometry(), { _owner: 'host' as const })
@@ -62,12 +61,12 @@ const hostGeometry = () => Object.assign(new Geometry(), { _owner: 'host' as con
 /** A drawn node: an empty geometry and an unlit surface unless given. */
 export const mesh = (
   geometry: Geometry = hostGeometry(),
-  material: GraphSurface | GraphSurface[] = new GraphSurface('basic'),
+  material: PageSurface | PageSurface[] = basicSurface(),
 ) => new Mesh(geometry, material)
 
 /** A drawn triangle — three indices, positions and normals — in `surface`, never culled: what a
  *  draw test submits once per pass. */
-export function triangleMesh(surface: GraphSurface) {
+export function triangleMesh(surface: PageSurface) {
   const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1))
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3))
@@ -85,20 +84,27 @@ export function triangleAttributes() {
 }
 
 /** A surface of each family a scene declares. */
-export const basicSurface = (parameters?: SurfaceParameters) => surface('basic', parameters)
-export const standardSurface = (parameters?: SurfaceParameters) => surface('standard', parameters)
-export const physicalSurface = (parameters?: SurfaceParameters) => surface('physical', parameters)
+export const basicSurface = (parameters?: SurfaceParameters) => familySurface('basic', parameters)
+export const standardSurface = (parameters?: SurfaceParameters) =>
+  familySurface('standard', parameters)
+export const physicalSurface = (parameters?: SurfaceParameters) =>
+  familySurface('physical', parameters)
 
-/** A surface whose colours may be given as a number or a CSS name. */
-function surface(family: GraphSurfaceFamily, parameters: SurfaceParameters = {}) {
-  const made = new GraphSurface(family)
-  const colours: SurfaceParameters = {}
+/** A surface of `family`, whose colours may be given as a number or a CSS name. */
+export function familySurface(family: SurfaceFamily, parameters: SurfaceParameters = {}) {
+  const declared: Record<string, unknown> = { family }
   for (const [key, value] of Object.entries(parameters))
-    colours[key] =
-      (made[key] as Color | undefined)?.isColor && typeof value !== 'object'
+    declared[key] =
+      MATERIAL_COLOURS.has(key) && value !== undefined && typeof value !== 'object'
         ? new Color(value as ColorInput)
         : value
-  return new GraphSurface(family, colours)
+  return declareSurface(declared as SurfaceDeclaration)
+}
+
+/** Draws `surface` on `side` from now on: what a host switching faces in place writes. */
+export function sided(surface: PageSurface, side: Side) {
+  surface.doubleSided = side === 'double'
+  surface.backSide = side === 'back'
 }
 
 /** Numbers stored as 32-bit floats, `itemSize` per vertex. */

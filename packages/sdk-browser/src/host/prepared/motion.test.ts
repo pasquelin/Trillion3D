@@ -9,7 +9,7 @@ import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { animation } from '../../../../sdk-core/src/world/animation/family.ts'
-import { GraphSurface } from '../graph/surface.ts'
+import { standardSurface } from '../graph/graph.fixture.ts'
 import { preparedGraph } from './graph.ts'
 
 const node = (fields: Partial<TableNode>): TableNode => ({
@@ -53,7 +53,7 @@ test('a skinned node bends by its skin, and a clip moves a joint the file left u
     tables,
     meshes: meshes as unknown as TableDocument['meshes'],
     geometryOf,
-    materialOf: () => Promise.resolve(new GraphSurface('standard')),
+    materialOf: () => Promise.resolve(standardSurface()),
   })
   const body = nodes[0] as unknown as Mesh
   assert.ok(body instanceof Mesh)

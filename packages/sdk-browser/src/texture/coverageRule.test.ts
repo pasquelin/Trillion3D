@@ -109,3 +109,19 @@ test('a chain is cut at its readers’ lowest cutoff byte, 0 once one blends', (
   surface(0)
   assert.equal(readers.cutoff(map), undefined, 'an opaque reader: the plain chain')
 })
+
+test('the readers follow the surfaces written in place, and visit no other', () => {
+  const map = { premultiplyAlpha: false } as Texture,
+    readers = new CoverageReaders()
+  const masked = { map, alphaTest: 0.5, opacity: 1, version: 0, transmission: 0 } as PageSurface
+  const still = { ...masked } as PageSurface
+  readers.read(masked)
+  readers.read(still)
+  assert.equal(readers.cutoff(map), 128)
+  Object.defineProperty(still, 'map', {
+    get: () => assert.fail('a surface no one wrote is never reread'),
+  })
+  masked.alphaTest = 0.25
+  readers.follow([masked])
+  assert.equal(readers.cutoff(map), 64, 'the written reader is filed as it stands now')
+})

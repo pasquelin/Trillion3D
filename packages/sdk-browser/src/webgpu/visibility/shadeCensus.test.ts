@@ -12,6 +12,7 @@ import { scene } from '../core/materialClasses.fixture.ts'
 import type * as G from '../../host/graph/graph.fixture.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { surfaceWritten } from '../../page/surfaceWrites.ts'
 
 /** The fixture's pages, the blocks their rows read, and the class a row of the cut-out carries. */
 function opened() {
@@ -69,8 +70,8 @@ test('a surface turned opaque takes, at the retake, the class its rows will carr
 test('a surface made to emit is heard by the census, before any row shows it', () => {
   const { census, cutout } = opened()
   assert.equal(census.emits, false)
-  cutout.emissive.setRGB(0.5, 0, 0)
-  cutout.needsUpdate = true
+  cutout.emissive = [0.5, 0, 0]
+  surfaceWritten(cutout)
   census.moved()
   census.retake()
   assert.equal(census.emits, true)

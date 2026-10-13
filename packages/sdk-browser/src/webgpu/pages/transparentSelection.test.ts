@@ -48,7 +48,7 @@ test('transparent frustum selection preserves intersections, transformed bounds 
       mesh = fixture.source.children[0] as G.HostMesh
     fixture.metadata.primitives[0].pass = 'shared-blend'
     fixture.material.transparent = true
-    fixture.material.side = G.DOUBLE_SIDE
+    G.sided(fixture.material, G.DOUBLE_SIDE)
     mesh.position.fromArray(item.position)
     if (item.scale) mesh.scale.fromArray(item.scale)
     if (item.rotate) mesh.rotation.y = 0.5

@@ -36,9 +36,9 @@ export const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(
 //     in pages of their own (`bench/runner/witness/threeMeasurePage.ts`), never as the engine.
 //  2. The pages, copies and lights a page hands back are objects of the engine's own graph
 //     (`packages/sdk-browser/src/host/pageObjects.ts`, `packages/sdk-browser/src/host/graph/`).
-//  3. Materials, textures, geometries and the constants they declare are read through the shapes
-//     of `packages/sdk-browser/src/host/resources.ts` and `packages/sdk-browser/src/host/shadedMaterial.ts`
-//     and the named constants of `packages/sdk-browser/src/host/surfaceConstants.ts`.
+//  3. Materials are the engine's own surface records (`packages/sdk-browser/src/page/surface.ts`),
+//     declared in its own words (`packages/sdk-browser/src/page/surfaceDeclaration.ts`); textures and
+//     geometries are read through the shapes of `packages/sdk-browser/src/host/resources.ts`.
 //
 // THE HOST SCENE GRAPH AND ITS CAMERA are written against the shapes of
 // `packages/sdk-browser/src/host/scene/graphNodes.ts` and the `HostCamera` of `packages/sdk-browser/src/camera/world.ts`. The graphs the engine

@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import { BLEND_MODES, hostBlending } from '../../scene/materialBlending.ts'
+import { BLEND_MODES } from '../../scene/materialBlending.ts'
 import { WEBGPU_REQUIRED_LIMITS } from '../../engine/common.ts'
 import { createContractVariants } from '../../lighting/deferred/contractVariants.ts'
 import { FULL_CONTRACT, type ContractKey } from '../../lighting/deferred/contractCuts.ts'
@@ -81,7 +81,7 @@ test("the blends and the water pass fit the device's per-stage limits", async ()
   const failures: unknown[] = []
   // One item per blending mode, every display route among them, and one that transmits: every
   // blend set, the routed ones and the water stage and composite are built.
-  const items = [...BLEND_MODES.map(hostBlending), undefined].map((blending, index, all) => {
+  const items = [...BLEND_MODES, 'normal' as const].map((blending, index, all) => {
     const surface = G.basicSurface()
     Object.assign(surface, { blending })
     return { surface: surfaceOf(surface), transmissive: index === all.length - 1 }

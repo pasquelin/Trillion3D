@@ -3,7 +3,7 @@
 // regimes. Both sides of the bench each build a copy, so neither benefits from the
 // state the other leaves.
 import * as THREE from 'three'
-import { GraphSurface } from '../../../../packages/sdk-browser/src/host/graph/surface.ts'
+import { basicSurface } from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
 import { uniformStride } from '../../../../packages/sdk-browser/src/residency/pools.ts'
 import {
@@ -55,7 +55,11 @@ export const FACES: [string, THREE.Side][] = [
  */
 function batisItems(side: THREE.Side): BenchItem[] {
   const items: BenchItem[] = [],
-    surface = surfaceOf(new GraphSurface('basic', { side }))
+    surface = surfaceOf(
+      basicSurface({
+        side: side === THREE.DoubleSide ? 'double' : side === THREE.BackSide ? 'back' : 'front',
+      }),
+    )
   for (let i = 0; i < ITEMS; i++) {
     const paged = i < PAGINES
     const matrix = new THREE.Matrix4().setPosition(

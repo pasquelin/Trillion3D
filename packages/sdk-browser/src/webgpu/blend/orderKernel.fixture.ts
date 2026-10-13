@@ -3,7 +3,6 @@
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import { hostBlending } from '../../scene/materialBlending.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { BLEND_ORDER_SHADER, ORDER_UNI, SLOT_GROUP, SORT_BLOCK } from './orderWgsl.ts'
 import { writeKeyRecords } from './keyRecords.ts'
@@ -93,6 +92,8 @@ function runOrder(blendState: WebgpuBlendState, pass: number, gpu: ReturnType<ty
 }
 
 const MODES = ['normal', 'normal', 'normal', 'additive', 'multiply'] as const
+/** The sides a pick names. */
+const SIDES = ['front', 'back', 'double'] as const
 
 /**
  * A scene on a coarse grid — equal keys are common — of paged and unpaged items, single and
@@ -117,9 +118,7 @@ export function transparentScene(count: number, seed: number) {
     const transmissive = next() < 0.15
     const blending = transmissive ? 'normal' : MODES[pick(MODES.length)]
     const item = {
-      surface: surfaceOf(
-        G.basicSurface({ side: pick(3), transparent: true, blending: hostBlending(blending) }),
-      ),
+      surface: surfaceOf(G.basicSurface({ side: SIDES[pick(3)], transparent: true, blending })),
       matrix,
       count: paged ? 0 : 3 * (1 + pick(4)),
       paged,

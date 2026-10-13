@@ -3,6 +3,7 @@
 // mirror, an opaque red tile —, each lit square a plane that carries its normals.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { batisseur } from './sharedSceneProof.ts'
+import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
 
 /** What stands before the backdrop: the glass, its centre at `at` on `x`, with a red volume that
  *  stops blue within a few hundredths of a unit when `volume`; the mirror; the tile in front. */
@@ -23,7 +24,7 @@ const glass = (volume: boolean) =>
 export function backdropScene({ glass: placed, mirror, tile }: Backdrop = {}) {
   const builder = batisseur()
   const lit = (half: number) => G.planeGeometry(2 * half, 2 * half)
-  const place = (surface: G.GraphSurface, pass: string, half: number, x: number, z: number) =>
+  const place = (surface: PageSurface, pass: string, half: number, x: number, z: number) =>
     builder.place(surface, pass, half, [x, 0, z], {}, lit(half))
   place(G.basicSurface({ color: 0x2244aa, side: G.DOUBLE_SIDE }), 'exact-clusters', 4, 0, -1)
   if (placed) place(glass(!!placed.volume), 'clustered-blend', 0.8, placed.at ?? 0, 0)

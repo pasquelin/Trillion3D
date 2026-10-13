@@ -3,7 +3,6 @@
 // and what it cannot apply to this material alone is refused by name before any write.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
 import { refusal, scene } from './materialApi.fixture.ts'
 
 test('the scene materials are listed by table rank, each a detached copy', async () => {
@@ -29,7 +28,7 @@ test('the scene materials are listed by table rank, each a detached copy', async
   }
   assert.deepEqual(api.material('0'), before)
   assert.deepEqual(api.importedMaterials()[0], before)
-  assert.equal((floor[0].color as G.Color).r, 0.5)
+  assert.equal(floor[0].baseColor[0], 0.5)
   for (const id of ['9', '', ' 1', '1.0'])
     assert.throws(() => api.material(id), refusal('UNKNOWN_MATERIAL'))
 })
@@ -59,7 +58,7 @@ test('setMaterial writes each listed value into every surface of the material, l
   assert.equal(read.alphaMode, 'opaque')
   for (const [i, surface] of floor.entries()) {
     assert.equal(surface.version, versions[i] + 1, 'every variant repainted in place')
-    assert.equal((surface.color as G.Color).b, 0.75)
+    assert.equal(surface.baseColor[2], 0.75)
     assert.equal(surface.roughness, 0.25)
   }
   assert.deepEqual([textures[0].repeat.x, textures[0].repeat.y], [4, 2])

@@ -11,6 +11,7 @@ import { surfaceOf } from '../../page/surface.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, dispatchedEntries, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { surfaceWritten } from '../../page/surfaceWrites.ts'
 
 test('a surface switched from masked to opaque after prepare reduces its hosted map again', async () => {
   installGpuGlobals()
@@ -55,6 +56,7 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   assert.equal(textures.followSampling(), false, 'no filter rule switched')
   assert.deepEqual([signalled, scratches().length], [[], 1], 'a still rule reduces nothing')
   material.alphaTest = 0
+  surfaceWritten(material)
   assert.equal(textures.followSampling(), false)
   assert.deepEqual(rules(), [1, 0], 'opaque now: reduced again, plain')
   assert.deepEqual(signalled, [[1]], 'its places copied again, as a landed tile')
@@ -65,11 +67,13 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   textures.followSampling()
   assert.equal(scratches().length, 2, 'once')
   material.alphaTest = 0.5
+  surfaceWritten(material)
   host.needsUpdate = true
   await Promise.resolve()
   textures.followSampling()
   assert.equal(scratches().length, 3, 'reduced once, by its new picture, never twice')
   material.alphaTest = 0.25
+  surfaceWritten(material)
   textures.followSampling()
   assert.equal(counted(), 6, 'a new cutoff reduces its chain again')
   // Append must not acknowledge a neighbour's pending image/filter change as already uploaded.
@@ -89,7 +93,7 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   assert.deepEqual(signalled.at(-1), [1])
   // A drop must keep the last reduced rule of surviving maps, even if another reader filed it.
   material.alphaTest = 0
-  readers.follow([map])
+  readers.follow([material])
   const beforeDrop = scratches().length,
     signalsBeforeDrop = signalled.length
   textures.release('color', appended)

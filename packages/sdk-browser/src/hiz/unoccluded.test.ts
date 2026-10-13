@@ -17,6 +17,7 @@ import { engineCamera } from '../camera/camera.fixture.ts'
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
 import { bounds, box, randomBox, type Tagged } from './occlusionCuts.fixture.ts'
+import type { PageSurface } from '../page/surface.ts'
 
 /** A full-screen occluder at the origin plane, seen from z = 5: everything behind it is hidden. */
 function wall(size: [number, number]) {
@@ -61,7 +62,7 @@ test('the test never culls a box that could be seen, over generated cuts and occ
   let rejected = 0
   for (let round = 0; round < 30; round++) {
     // Random occluding quads: some pixels of the pyramid hold a depth, some stay background.
-    const mats: G.GraphSurface[] = [],
+    const mats: PageSurface[] = [],
       quads = []
     for (let q = 0; q < 1 + Math.floor(rand() * 4); q++) {
       const material = G.basicSurface()

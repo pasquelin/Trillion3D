@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { surfaceOf } from '../page/surface.ts'
+import { surfaceOf, type PageSurface } from '../page/surface.ts'
 import { rowMaterial } from '../webgpu/row/pageRowMaterial.ts'
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from '../webgpu/blend/items.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
@@ -13,9 +13,10 @@ import {
   DIRECT_LIGHTING_SHADER,
   WATER_COMPOSITE_SHADER,
 } from '../gpu/core/shaderTexts.fixture.ts'
+import { surfaceWritten } from '../page/surfaceWrites.ts'
 
 test('a fog-free material reaches both the opaque flag and transparent shader', () => {
-  const material = new G.GraphSurface('standard', { fog: false })
+  const material = G.familySurface('standard', { fog: false })
   const surface = surfaceOf(material)
   assert.equal(surface.fog, false)
   const layers = { mapLayer: new Map(), dataLayer: new Map() }
@@ -33,7 +34,7 @@ test('a fog-free material reaches both the opaque flag and transparent shader', 
   assert.equal(floats[39], 8)
   assert.match(BLEND_SHADER, /flags&1048576u/)
   material.fog = true
-  material.needsUpdate = true
+  surfaceWritten(material)
   assert.equal(surfaceOf(material).fog, true, 'a declared material change is heard')
   assert.equal(rowMaterial(surface, undefined, layers).flags & (1 << 20), 0)
 })

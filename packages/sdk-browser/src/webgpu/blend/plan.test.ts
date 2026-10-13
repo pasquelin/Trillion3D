@@ -4,16 +4,13 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { planPipeline } from './plan.ts'
 import { planVertexCull } from './expandCpu.fixture.ts'
 import { blendSceneOf } from './plan.fixture.ts'
-import { hostBlending } from '../../scene/materialBlending.ts'
+import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { BlendGpuItem } from './state.ts'
-import { surfaceOf } from '../../page/surface.ts'
+import { surfaceOf, type PageSurface } from '../../page/surface.ts'
 import { planCull } from './planCull.ts'
 
 /** The blend plan of a lone item, everything but its material left at its simplest. */
-function plan(
-  material: G.GraphSurface | G.GraphSurface[],
-  { transmissive = false, paged = false } = {},
-) {
+function plan(material: PageSurface | PageSurface[], { transmissive = false, paged = false } = {}) {
   const blendState = blendSceneOf([
     {
       transmissive,
@@ -34,24 +31,26 @@ test('an item that declares no material plans the host default side: one front e
 
 // An entry picks the pipelines of its item's mode — three culls per mode, normal first.
 test('an item plans on the pipelines of its blend mode; a mode no path draws is refused', () => {
-  const pipelineOf = (blending: number, transmissive = false) =>
-    plan(G.basicSurface({ transparent: true, blending }), { transmissive }).map(planPipeline)
-  const normal = pipelineOf(hostBlending('normal'))
+  const pipelineOf = (blending: Blending | undefined, transmissive = false) =>
+    plan(Object.assign(G.basicSurface({ transparent: true }), { blending }), { transmissive }).map(
+      planPipeline,
+    )
+  const normal = pipelineOf('normal')
   assert.deepEqual(
-    pipelineOf(hostBlending('additive')),
+    pipelineOf('additive'),
     normal.map((p) => p + 3),
   )
   assert.deepEqual(
-    pipelineOf(hostBlending('multiply')),
+    pipelineOf('multiply'),
     normal.map((p) => p + 9),
   )
   assert.deepEqual(
-    pipelineOf(hostBlending('none')),
+    pipelineOf('none'),
     normal.map((p) => p + 12),
   )
-  assert.deepEqual(pipelineOf(hostBlending('normal'), true), normal)
-  assert.throws(() => pipelineOf(5), /blending no path draws/)
-  assert.throws(() => pipelineOf(hostBlending('additive'), true), /cannot use additive/)
+  assert.deepEqual(pipelineOf('normal', true), normal)
+  assert.throws(() => pipelineOf(undefined), /blending no path draws/)
+  assert.throws(() => pipelineOf('additive', true), /cannot use additive/)
 })
 
 test('a double-sided paged item plans back then face on the pipeline that culls nothing', () => {
@@ -70,7 +69,7 @@ test('a double-sided unpaged item keeps the hardware cull of its two pipelines',
 
 test("a double-sided paged item of another mode sets that mode's pipeline that culls nothing", () => {
   const entries = plan(
-    G.basicSurface({ side: G.DOUBLE_SIDE, transparent: true, blending: hostBlending('additive') }),
+    G.basicSurface({ side: G.DOUBLE_SIDE, transparent: true, blending: 'additive' }),
     { paged: true },
   )
   assert.deepEqual(entries.map(planCull), [1, 2])

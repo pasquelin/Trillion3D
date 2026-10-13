@@ -8,11 +8,11 @@ import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDoc
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { HostMesh } from '../resources.ts'
-import { GraphSurface } from '../graph/surface.ts'
+import { standardSurface } from '../graph/graph.fixture.ts'
 import { preparedGraph } from './graph.ts'
 import { rootedUnder } from '../world/rooted.ts'
-import { visMaterial } from '../../visibility/shader/material.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { surfaceOf } from '../../page/surface.ts'
 
 /** A scene of one node drawing one mesh of two primitives, with the morph weights it declares. */
 function oneNode(name: string, weights: number[] | null, visible = true) {
@@ -50,7 +50,7 @@ test('weights a node declares reach every primitive of its mesh, the group holdi
     geometry.morphAttributes.position = [new BufferAttribute(new Float32Array(9), 3)]
     return geometry
   }
-  const materialOf = () => Promise.resolve(new GraphSurface('standard'))
+  const materialOf = () => Promise.resolve(standardSurface())
   const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
   const parts: HostMesh[] = []
   scene.traverse((part) => part instanceof Mesh && parts.push(part))
@@ -72,13 +72,13 @@ test('a primitive that carries COLOR_0 asks for the vertex-coloured variant of i
   const variants: boolean[] = []
   const materialOf = (_rank: number, variant: { vertexColors: boolean }) => {
     variants.push(variant.vertexColors)
-    return Promise.resolve(new GraphSurface('standard', { vertexColors: variant.vertexColors }))
+    return Promise.resolve(standardSurface({ vertexColors: variant.vertexColors }))
   }
   const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
   assert.deepEqual(variants, [true, false])
   const records: (boolean | undefined)[] = []
   scene.traverse(
-    (part) => part instanceof Mesh && records.push(visMaterial(part.material).vertexColors),
+    (part) => part instanceof Mesh && records.push(surfaceOf(part.material).vertexColors),
   )
   assert.deepEqual(records, [true, false])
 })
@@ -91,7 +91,7 @@ test('a node the table says hidden is built hidden, every primitive it draws wit
     geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
     return geometry
   }
-  const materialOf = () => Promise.resolve(new GraphSurface('standard'))
+  const materialOf = () => Promise.resolve(standardSurface())
   for (const visible of [true, false]) {
     const { tables, meshes } = oneNode('piece', null, visible)
     const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
@@ -122,7 +122,7 @@ test('a mesh a hidden core node names is placed visible by the cells', async () 
     geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
     return geometry
   }
-  const materialOf = () => Promise.resolve(new GraphSurface('standard'))
+  const materialOf = () => Promise.resolve(standardSurface())
   const { scene } = await preparedGraph({
     tables: { ...tables, partition } as PreparedSceneTables,
     meshes: single,

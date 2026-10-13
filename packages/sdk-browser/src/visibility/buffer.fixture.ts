@@ -1,5 +1,5 @@
 import * as G from '../host/graph/graph.fixture.ts'
-import { surfaceOf } from '../page/surface.ts'
+import { surfaceOf, type PageSurface } from '../page/surface.ts'
 import type { VisPage } from './types.ts'
 import { triangleAt } from '../../../../bench/oracles/browser/cpu-image/projection.ts'
 import { UV_GRADIENTS_WGSL } from './shader/shadeDeclWgsl.ts'
@@ -19,7 +19,7 @@ export function camera() {
 }
 
 export function quadPages(
-  material: G.GraphSurface,
+  material: PageSurface,
   uv?: number[],
 ): { pages: VisPage[]; geometry: G.Geometry; roots: ReturnType<typeof identityRoots> } {
   const geometry = new G.Geometry()

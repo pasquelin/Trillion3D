@@ -145,7 +145,7 @@ test('a surface switched to double-sided in place gets its page back at the cut'
   assert.equal(leafCone({ cone, material: surface }), cone)
   // The host opens the surface on the declaration it shares with its mesh: no version is bumped,
   // and nothing on this path refreshes the record.
-  material.side = G.DOUBLE_SIDE
+  G.sided(material, G.DOUBLE_SIDE)
   assert.equal(leafCone({ cone, material: surface }), OPEN_CONE, 'the cut reopens the cone')
   assert.equal(
     coneCullsPage(cone, world, min, max, cam.eye, surface),

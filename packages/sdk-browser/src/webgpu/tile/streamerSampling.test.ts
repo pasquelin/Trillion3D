@@ -9,9 +9,7 @@ import { poolEncoding } from '../../texture/blockFormats.ts'
 import { tileLayout } from '../../texture/tiles.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import type { HostMaterials } from '../../host/resources.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
-import { visMaterial } from '../../visibility/shader/material.ts'
 import { holdWebgpuFrame, keepWebgpuFrame } from '../frame/hold.ts'
 import { settledRt } from '../frame/hold.fixture.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -121,7 +119,7 @@ test('two engines over the same texture both write the change', async () => {
 test('the map of a transparent surface alone follows its host, no surface reread', async () => {
   const map = host()
   const surface = G.standardSurface({ transparent: true, opacity: 0.5, map })
-  const read = visMaterial(surface as unknown as HostMaterials).map!
+  const read = surface.map!
   const { textures, signalled } = streamer([read], host())
   map.magFilter = 'nearest'
   map.wrapT = 'mirror'

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { disposeQuadRun } from '../testScenes.fixture.ts'
 import { mappedQuadRun } from './mappedQuad.fixture.ts'
+import { surfaceWritten } from '../../../page/surfaceWrites.ts'
 
 test('a filter written on a map is in its header before the image that draws it is submitted', async () => {
   const map = G.dataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1)
@@ -16,7 +17,7 @@ test('a filter written on a map is in its header before the image that draws it 
     const before = header().length
     map.magFilter = 'linear'
     map.needsUpdate = true
-    ;(fixture.material as G.GraphSurface).needsUpdate = true
+    surfaceWritten(fixture.material)
     backend.refreshMaterials?.()
     const submitted = gpu.submits.length
     backend.render(cam)

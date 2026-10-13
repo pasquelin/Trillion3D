@@ -1,89 +1,84 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { refreshSurface, surfaceFrontOnly, surfaceOf, surfaceSide } from './surface.ts'
+import { surfaceFrontOnly, surfaceOf, surfaceSide } from './surface.ts'
+import { copySurface, declareSurface, redeclareSurface } from './surfaceRecord.ts'
+import { closeSurfaceJournal, openSurfaceJournal, surfaceWritten } from './surfaceWrites.ts'
 import { visBin } from '../webgpu/pages/prepare/pipelineFor.ts'
 import { BIN_BACK, BIN_NONE } from '../gpu/draw/draw.ts'
 import type { PageRec } from './selection/selection.ts'
 import { identityRoots } from './selection/placements.fixture.ts'
 
-test('one record per declaration, shared by every page and placement that wears it', () => {
+test('a mesh wears its surface record itself: every reader holds the one record', () => {
   const material = G.standardSurface({ color: 0x336699, metalness: 0.25 })
-  const first = surfaceOf(material)
-  assert.equal(surfaceOf(material), first, 'the same declaration yields the same record')
-  assert.equal(first.metalness, 0.25)
-  assert.deepEqual(
-    first.baseColor.map((c) => Number(c.toFixed(4))),
-    [
-      (material.color as G.Color).r,
-      (material.color as G.Color).g,
-      (material.color as G.Color).b,
-    ].map((c) => Number(c.toFixed(4))),
-  )
-  assert.notEqual(surfaceOf(G.standardSurface()), first, 'another declaration, another record')
+  assert.equal(surfaceOf(material), material, 'no second object stands for the material')
+  assert.equal(material.metalness, 0.25)
+  const blue = new G.Color(0x336699)
+  assert.deepEqual(material.baseColor, [blue.r, blue.g, blue.b])
+  assert.notEqual(surfaceOf(G.standardSurface()), material, 'another declaration, another record')
   material.dispose()
 })
 
-test('the raster facts are reread on a side the host writes in place, which bumps no version', () => {
+test('the side answers what the record holds now, with no reread in between', () => {
+  // The opaque path — the pipelines, the face bins, the cut's normal cones — asks for the side. A
+  // front-only page carries a closed cone: a stale front on an opened surface would reject it.
   const material = G.basicSurface({ side: G.FRONT_SIDE })
-  const surface = surfaceOf(material)
-  assert.equal(surfaceSide(surface), 'front')
-  material.side = G.DOUBLE_SIDE
-  assert.equal(surfaceSide(refreshSurface(surface)), 'double', 'the plan sees the switch')
-  material.side = G.BACK_SIDE
-  assert.equal(surfaceSide(refreshSurface(surface)), 'back')
-  material.dispose()
+  assert.equal(surfaceFrontOnly(material), true)
+  G.sided(material, G.DOUBLE_SIDE)
+  assert.equal(surfaceSide(material), 'double')
+  assert.equal(surfaceFrontOnly(material), false)
+  G.sided(material, G.BACK_SIDE)
+  assert.equal(surfaceSide(material), 'back')
+  assert.equal(surfaceFrontOnly(material), false)
 })
 
-test('the side answers what the host declares now, with no refresh call in between', () => {
-  // The opaque path — the pipelines, the face bins, the cut's normal cones — never calls
-  // `refreshSurface`; it asks for the side. A record left as it was last filled would give a
-  // front-only answer for a surface the host has just opened, and a front-only page carries a
-  // closed cone: the page is rejected and its faces leave the image.
-  const material = G.basicSurface({ side: G.FRONT_SIDE })
-  const surface = surfaceOf(material)
-  assert.equal(surfaceFrontOnly(surface), true)
-  material.side = G.DOUBLE_SIDE
-  assert.equal(surfaceSide(surface), 'double', 'the side is reread, not remembered')
-  assert.equal(surfaceFrontOnly(surface), false)
-  material.side = G.BACK_SIDE
-  assert.equal(surfaceSide(surface), 'back')
-  assert.equal(surfaceFrontOnly(surface), false)
-  material.dispose()
-})
-
-test('the shaded fields are reread when the host bumps the version, and not before', () => {
+test('a redeclared record is filled in place, its version moved and its write journaled', () => {
   const material = G.standardSurface({ roughness: 0.9 })
-  const surface = surfaceOf(material)
-  assert.equal(surface.roughness, 0.9)
-  material.roughness = 0.1
-  assert.equal(refreshSurface(surface).roughness, 0.9, 'no version, no walk of the map slots')
-  material.needsUpdate = true
-  assert.equal(refreshSurface(surface).roughness, 0.1, 'the version moved: the record follows')
-  material.dispose()
+  const journal = openSurfaceJournal()
+  redeclareSurface(material, { family: 'standard', roughness: 0.1 })
+  assert.equal(material.roughness, 0.1, 'the same object holds the new value')
+  assert.equal(material.version, 1)
+  assert.deepEqual([...journal], [material], 'the write lands in every open journal')
+  journal.clear()
+  closeSurfaceJournal(journal)
+  surfaceWritten(material)
+  assert.equal(journal.size, 0, 'a closed journal hears nothing')
+  assert.equal(material.version, 2)
 })
 
-test('a declaration of several materials is blended if any of them is, and reads as grouped', () => {
+test('one write among ten thousand surfaces is the one record a journal holds', () => {
+  const surfaces = Array.from({ length: 10_000 }, () => declareSurface({ family: 'basic' }))
+  const journal = openSurfaceJournal()
+  surfaceWritten(surfaces[4321])
+  assert.deepEqual([...journal], [surfaces[4321]], 'a consumer visits one record, not 10⁴')
+  closeSurfaceJournal(journal)
+})
+
+test('a copy is a record of its own: a write on it never reaches the original', () => {
+  const plain = G.standardSurface({ roughness: 0.5 })
+  const copy = copySurface(plain)
+  assert.notEqual(copy, plain)
+  assert.notEqual(copy.released, plain.released, 'its own release')
+  copy.vertexColors = true
+  assert.equal(plain.vertexColors, false)
+  assert.equal(copy.roughness, 0.5)
+})
+
+test('a list wears its first surface, and an empty one a shared front, opaque record', () => {
   const opaque = G.basicSurface()
   const blended = G.basicSurface({ transparent: true, opacity: 0.4 })
-  const group = surfaceOf([opaque, blended])
-  assert.equal(group.transparent, true, 'one blended element makes the declaration blended')
-  assert.equal(group.grouped, true)
-  assert.equal(group.opacity, 1, 'the first element decides the raster values')
-  const alone = surfaceOf([blended])
-  assert.equal(alone.grouped, true, 'a declaration written as a list is a list, one element or ten')
-  assert.equal(alone.opacity, 0.4)
+  assert.equal(surfaceOf([opaque, blended]), opaque, 'the first element decides')
   const empty = surfaceOf([])
   assert.equal(empty.transparent, false)
-  assert.equal(surfaceSide(empty), 'front', 'an empty declaration declares the host default')
-  opaque.dispose()
-  blended.dispose()
+  assert.equal(surfaceSide(empty), 'front', 'an empty declaration is drawn front only')
+  assert.equal(surfaceOf([]), empty, 'one shared record')
 })
 
-test('a record this module did not build is returned untouched', () => {
-  const foreign = { ...surfaceOf(G.basicSurface()), version: 7 }
-  assert.equal(refreshSurface(foreign), foreign)
-  assert.equal(foreign.version, 7)
+test('a declared map its model never reads is refused by name', () => {
+  const ramp = G.dataTexture()
+  assert.throws(() => G.familySurface('toon', { gradientMap: ramp }), /gradientMap/)
+  assert.throws(() => G.familySurface('matcap', { map: ramp }), /declares a map/)
+  assert.throws(() => G.familySurface('normal', { normalMap: ramp }), /normalMap/)
 })
 
 test('the face bin of a draw follows a side switched in place, so no face is culled for nothing', () => {
@@ -91,7 +86,7 @@ test('the face bin of a draw follows a side switched in place, so no face is cul
   const rec = { material: surfaceOf(material) } as unknown as PageRec,
     roots = identityRoots()
   assert.equal(visBin(rec, 0, roots), BIN_BACK, 'front-only: the back faces are culled')
-  material.side = G.DOUBLE_SIDE
+  G.sided(material, G.DOUBLE_SIDE)
   assert.equal(
     visBin(rec, 0, roots),
     BIN_NONE,

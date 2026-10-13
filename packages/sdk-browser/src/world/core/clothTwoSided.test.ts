@@ -14,7 +14,6 @@ import { preparedMaterials } from '../../host/prepared/materials.ts'
 import { surfaceOf, surfaceSide } from '../../page/surface.ts'
 import { emptyGeometryBlock, rowMaterial } from '../../webgpu/row/pageRowMaterial.ts'
 import { FLAG_DOUBLE } from '../../visibility/types.ts'
-import { visMaterial } from '../../visibility/shader/material.ts'
 import { createdSurface, assignment, PLAIN } from '../api/createdMaterials.ts'
 import { createWorldBatches } from './worldBatches.ts'
 import { createWorldMaterials } from './worldMaterials.ts'
@@ -35,7 +34,7 @@ function faces(surface: HostMaterials) {
   return {
     side: surfaceSide(record),
     rowDouble: (rowMaterial(record, emptyGeometryBlock(), layers).flags & FLAG_DOUBLE) !== 0,
-    record: visMaterial(surface).doubleSided,
+    record: record.doubleSided,
   }
 }
 const BOTH = { side: 'double', rowDouble: true, record: true }

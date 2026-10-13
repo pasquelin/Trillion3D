@@ -14,7 +14,6 @@ import type {
   PageRec,
   ClusterRoot,
 } from '../../../packages/sdk-browser/src/page/selection/types.ts'
-import { isTransmissive } from '../../../packages/sdk-browser/src/visibility/shader/material.ts'
 import {
   streamPlacement,
   clusterErrorFields,
@@ -65,7 +64,7 @@ export function referenceCollectClusterPages(
   for (const mesh of meshes(source)) {
     const primitive = referencePrimitiveOf(metadata, associations, mesh)
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`)
-    if (primitive.pass === 'shared-blend' || isTransmissive(mesh.material)) {
+    if (primitive.pass === 'shared-blend' || surfaceOf(mesh.material).transmission > 0) {
       const copy = new Mesh(mesh.geometry, mesh.material)
       copy.matrixAutoUpdate = false
       copy.matrix.copy(mesh.matrixWorld)

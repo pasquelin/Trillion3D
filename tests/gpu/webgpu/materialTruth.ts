@@ -31,7 +31,7 @@ export function truthOf(
     fixture.back ||
     surface.transparent ||
     surface.family !== 'basic' ||
-    (surface.color as G.Color).getHex() !== 0xffffff ||
+    surface.baseColor.some((channel) => channel !== 1) ||
     map.flipY ||
     map.magFilter !== 'linear' ||
     map.wrapS !== 'repeat' ||

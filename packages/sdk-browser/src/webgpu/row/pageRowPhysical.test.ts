@@ -13,11 +13,12 @@ import { createPhysicalTable } from '../visibility/physicalTable.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import type { PageSurface } from '../../page/surface.ts'
 
 const [template] = blendFixture().metadata.primitives[0].pages
 
 /** The words of the row one lit triangle of `surface` writes; `hasUv1`, its float block's. */
-function rowOf(surface: G.GraphSurface, hasUv1 = false) {
+function rowOf(surface: PageSurface, hasUv1 = false) {
   const source = new G.Group()
   const geometry = new G.Geometry()
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3))

@@ -7,11 +7,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
-import { GraphSurface } from './surface.ts'
+import { basicSurface } from './graph.fixture.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 
 test('a copied subtree keeps the core group, the bare node and the mesh, each posed', () => {
-  const surface = new GraphSurface('basic')
+  const surface = basicSurface()
   const group = new Group(),
     bare = new Object3D(),
     mesh = new Mesh(new Geometry(), surface)
