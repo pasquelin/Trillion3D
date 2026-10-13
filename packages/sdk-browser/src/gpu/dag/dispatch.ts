@@ -4,7 +4,7 @@ import { createDagOutputScratch, writeDagUniforms, type DagOutputScratch } from 
 import type { DagResources } from './resources.ts'
 import { encodeDagKernels } from './encode.ts'
 import { encodeDagDifference } from './encodeDifference.ts'
-import { DAG_READBACK_SLOTS as SLOTS } from './layout.ts'
+import { DAG_READBACK_SLOTS } from './layout.ts'
 import { cutTablesAt, tablesHeld } from './queueGrowth.ts'
 import type { createDifferenceChain } from './differenceChain.ts'
 import {
@@ -44,7 +44,7 @@ export function createDagDispatch(resources: DagResources, state: DagRuntimeStat
     resources,
     state,
     chain,
-    scratch: Array.from({ length: SLOTS }, createDagOutputScratch),
+    scratch: Array.from({ length: DAG_READBACK_SLOTS }, createDagOutputScratch),
     reads: 0,
   }
   const dispatch: GpuSelection['dispatch'] = (next, shared) => dispatchMain(cut, next, shared)

@@ -4,7 +4,7 @@ import {
   DAG_READBACK_SLOTS,
   KEPT_HEADER_WORDS,
   OUT_COUNT,
-  SELECTION_HEADER_WORDS as HEAD,
+  SELECTION_HEADER_WORDS,
   savedJournalWord,
   keptSnapshotWord,
   residentReadbackBytes,
@@ -79,7 +79,7 @@ export function createDagList(
   regions = 0,
   heldSlots = 0,
 ) {
-  const outputBytes = (HEAD + listCap) * 4,
+  const outputBytes = (SELECTION_HEADER_WORDS + listCap) * 4,
     // The requests, the drawn list and one burst of the eviction queue (`EVICTION_BURST`).
     readbackBytes = residentReadbackBytes(listCap)
   // Behind the eviction queue, the requests wait for their sort, outside what the frame copies
@@ -96,7 +96,7 @@ export const heldOpenAt = (resources: {
   heldSlots: number
   swap: { regions: number }
 }) => ({
-  base: savedJournalWord(resources.listCap, resources.swap.regions) - HEAD,
+  base: savedJournalWord(resources.listCap, resources.swap.regions) - SELECTION_HEADER_WORDS,
   mask: Math.max(0, resources.heldSlots - 1),
 })
 
@@ -114,7 +114,7 @@ function writeHeldOpen(resources: DagResources, grown: boolean) {
     resources.frames.flushWords()
   }
   if (held.slots !== resources.heldSlots) return
-  const at = (heldOpenAt(resources).base + HEAD) * 4
+  const at = (heldOpenAt(resources).base + SELECTION_HEADER_WORDS) * 4
   resources.device.queue.writeBuffer(resources.output, at, held.words)
 }
 
