@@ -8,6 +8,8 @@ export const RADIANCE_HASH_BYTES = 16
 export const SAMPLE_BYTES = RADIANCE_HASH_BYTES + 8
 /** Samples in flight at most: an image's copy waits for none, and takes none when all are in flight. */
 const SAMPLES = 3
+/** Bytes the settle holds (`createRadianceSettle`): the hash and its samples in flight. */
+export const SETTLE_BYTES = RADIANCE_HASH_BYTES + SAMPLES * SAMPLE_BYTES
 
 /**
  * The samples of the hash, read back without a wait: a ring of staging buffers, each filled by a

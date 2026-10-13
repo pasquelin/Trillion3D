@@ -1,7 +1,13 @@
-import { COMPUTE, computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
+import {
+  COMPUTE,
+  computeBufferEntry,
+  computeTextureEntry,
+  sequentialEntries,
+} from '../gpu/core/computeBindings.ts'
 import { mipLevelCountFor } from '../texture/tiles.ts'
 import { levelViews } from '../texture/mipGroups.ts'
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { ceilDiv, mipSize } from '../../../math/src/scalar/integers.ts'
+import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
@@ -232,6 +238,25 @@ export type HeldImage = {
   still: boolean
 }
 
+/** What the pyramid of a view at `width × height` allocates, its usages aside: its levels from 1 on, at
+ *  half the size, and the lit image it holds as its level 0. */
+function radianceTextures(width: number, height: number) {
+  return {
+    coarse: {
+      size: [mipSize(width, 1), mipSize(height, 1)],
+      format: REFLECTION_FORMAT,
+      mipLevelCount: Math.max(1, radianceLevels(width, height) - 1),
+    },
+    image: { size: [width, height], format: HDR_FORMAT },
+  } satisfies Record<string, Omit<GPUTextureDescriptor, 'usage'>>
+}
+
+/** Bytes of the pyramid of a view at `width × height` (`radianceTextures`). */
+export function radianceBytes(width: number, height: number) {
+  const { coarse, image } = radianceTextures(width, height)
+  return textureBytesOf(coarse)! + textureBytesOf(image)!
+}
+
 /**
  * The radiance pyramid of a view at `width × height`: the lit image it holds (`image`, level 0: the
  * HDR target the last image lit, `adoptRadianceImage`), the levels from 1 on in a texture of half
@@ -241,19 +266,17 @@ export type HeldImage = {
  * levels at `width × height`, the lit image its level 0 (`reflectionBytes`).
  */
 export function createRadiancePyramid(device: GPUDevice, width: number, height: number) {
-  const levels = radianceLevels(width, height)
+  const levels = radianceLevels(width, height),
+    textures = radianceTextures(width, height)
   const coarse = device.createTexture({
+    ...textures.coarse,
     label: 'Trillion3D reflection radiance',
-    size: [Math.max(1, width >> 1), Math.max(1, height >> 1)],
-    format: REFLECTION_FORMAT,
-    mipLevelCount: Math.max(1, levels - 1),
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
   // The other HDR target: the frame's, the one before's turn about (`adoptRadianceImage`).
   const image = device.createTexture({
+    ...textures.image,
     label: 'Trillion3D HDR lighting',
-    size: [width, height],
-    format: HDR_FORMAT,
     usage: hdrUsage(),
   })
   return {
@@ -305,27 +328,22 @@ function buildGroups(
   const groups = [
     device.createBindGroup({
       layout: firstLayout,
-      entries: [
-        { binding: 0, resource: inputs.hdr },
-        { binding: 1, resource: views[0] },
-        { binding: 2, resource: views[1] },
-        { binding: 3, resource: sampler },
-        { binding: 4, resource: pyramid.image.view },
-        { binding: 5, resource: { buffer: inputs.view } },
-        { binding: 6, resource: { buffer: inputs.hash } },
-      ],
+      entries: sequentialEntries([
+        inputs.hdr,
+        views[0],
+        views[1],
+        sampler,
+        pyramid.image.view,
+        { buffer: inputs.view },
+        { buffer: inputs.hash },
+      ]),
     }),
   ]
   for (let at = 2; at + 2 < pyramid.levels; at += 2)
     groups.push(
       device.createBindGroup({
         layout: downLayout,
-        entries: [
-          { binding: 0, resource: views[at - 1] },
-          { binding: 1, resource: views[at] },
-          { binding: 2, resource: views[at + 1] },
-          { binding: 3, resource: sampler },
-        ],
+        entries: sequentialEntries([views[at - 1], views[at], views[at + 1], sampler]),
       }),
     )
   const roll = device.createBindGroup({

@@ -8,21 +8,19 @@ import {
   computeTextureEntry,
   computeUniformEntry,
 } from '../gpu/core/computeBindings.ts'
-import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { buildComputeStages } from '../lighting/deferred/fullscreen.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
 import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { REFLECTION_FORMAT } from './constants.ts'
-import { HDR_FORMAT } from '../scene/surfaceBuffer.ts'
 import { FRONT_SHADER, createFrontDepth, frontBytes, frontLayout } from './frontDepth.ts'
 import {
   RADIANCE_SHADER,
   createRadiancePyramid,
+  radianceBytes,
   radianceLayouts,
-  radianceLevels,
 } from './radiance.ts'
-import { RADIANCE_HASH_BYTES, SAMPLE_BYTES, createRadianceSettle } from './settle.ts'
+import { SETTLE_BYTES, createRadianceSettle } from './settle.ts'
 import { createProxyStore } from './proxyStore.ts'
 import { storeBytes } from '../bounce/runtimeLayout.ts'
 import {
@@ -122,18 +120,12 @@ export type ReflectionPipelines = NonNullable<Awaited<ReturnType<typeof createRe
 export function reflectionBytes(width: number, height: number, blends: boolean, store = false) {
   return (
     REFLECTION_TARGET.bytes(width, height, true) +
-    textureBytesOf({ size: [width, height], format: HDR_FORMAT })! +
-    textureBytesOf({
-      size: [Math.max(1, width >> 1), Math.max(1, height >> 1)],
-      format: REFLECTION_FORMAT,
-      mipLevelCount: Math.max(1, radianceLevels(width, height) - 1),
-    })! +
+    radianceBytes(width, height) +
     frontBytes(width, height, blends) +
     traceListBytes(width, height) +
     TRACE_ARGS_BYTES +
     REFLECTION_VIEW_BYTES +
-    RADIANCE_HASH_BYTES +
-    SAMPLE_BYTES * 3 +
+    SETTLE_BYTES +
     // The run-time proxy's answers, while a placement wears a proxy (`proxyStore.ts`).
     (store ? storeBytes(width, height) : 0)
   )
