@@ -31,9 +31,15 @@ function keeps(
  * nodes are its placements' alike, so a verdict is a placement's.
  */
 function createDescentFlags() {
-  const byPlacement = new Map<number, Map<number, number>>()
+  const byPlacement = new Map<number, Map<number, number>>(),
+    read = new Set<number>()
   return {
     at: (w: number, n: number) => byPlacement.get(w)?.get(n) ?? 1,
+    /** Whether the descent read a node of placement `w`'s own hierarchy: its root, kept or
+     *  rejected (a placement tree's node is no placement's). */
+    reached: (w: number) => read.has(w),
+    /** Says the descent read a node of placement `w`'s hierarchy. */
+    read: (w: number) => void read.add(w),
     set(w: number, n: number, flag: number) {
       let flags = byPlacement.get(w)
       if (!flags) byPlacement.set(w, (flags = new Map()))
@@ -131,6 +137,7 @@ export function dagOracleDescent(
       if (member.root < 0) continue
       ;({ w, root: n } = member)
     }
+    if (!nodeInts[n * DAG_NODE_FLOATS + NODE_KIND]) nodeFlags.read(w)
     let children = aheadOnly ? -1 : keeps(frames, packed, nodeInts, n, w)
     if (children < 0 && ahead) {
       children = keeps(ahead, packed, nodeInts, n, w)

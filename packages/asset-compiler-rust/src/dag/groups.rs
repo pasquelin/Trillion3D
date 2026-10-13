@@ -1,4 +1,4 @@
-use trillion3d_page_codec::culling::{bisect_centres, sort_along};
+use trillion3d_page_codec::split::{bisect_centres, sort_along};
 
 pub fn group_clusters(
     centres: &[[f64; 3]],

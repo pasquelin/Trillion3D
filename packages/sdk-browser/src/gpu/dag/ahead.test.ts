@@ -28,7 +28,6 @@ function scene(at = [0, 20, 40].map((x) => [x, 0])) {
   const roots = sceneRoots(
     pages,
     at.map(([x, z]) => new G.Matrix4().makeTranslation(x, 0, z)),
-    true,
   )
   return { pages, roots, packed: packDagSelection(roots) }
 }

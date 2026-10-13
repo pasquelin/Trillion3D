@@ -25,6 +25,7 @@ import {
   uvGridExponent,
 } from './cutGrid.ts'
 import { requireSdkWasm } from '../../wasm/sdkWasm.ts'
+import { buildCullingHierarchy } from '../../page/codec/cullingHierarchy.ts'
 
 /**
  * A compiled primitive cut again in session: its own clusters, `ends[k]` the end of cluster
@@ -51,6 +52,11 @@ export type Recut = GridInputs & { ends: Uint32Array }
  * paint order into runs no wider than a compact cluster of their triangles (`clusters`): the same
  * triangles painted in the same order, each page drawn by the shadow rasters into the pages it
  * reaches. Lines and sprites (no `cones`) keep the format's clusters: their quads have no area.
+ *
+ * The pages come out in the order of their culling hierarchy, built by the compiler's builder over
+ * their boxes (`buildCullingHierarchy`), and the hierarchy with them: the GPU descent tests the
+ * nodes a view reaches, never every page. Each page keeps its first source triangle (`start`),
+ * the paint rank a blended surface draws its pages in.
  */
 export async function cutDrawnTriangles(
   drawn: DrawnTriangles,
@@ -93,9 +99,7 @@ export async function cutDrawnTriangles(
       ? uvGridExponent(module, primitiveUvSpan(uvs), blended)
       : drawnUvGridExponent(module, uvs ? widestUvSpan(uvs, indices, ranges) : 0, blended)
   const built = cones && !held ? await clusterCones(positions, indices, ranges) : null
-  const cut = []
-  let maxPositionError = 0
-  for (const [start, end] of ranges) {
+  const cut = ranges.map(([start, end]) => {
     const corners = indices.slice(start, end)
     const page = encodeGeometryPage(
       module,
@@ -108,32 +112,43 @@ export async function cutDrawnTriangles(
         NORMAL: { itemSize: 3, array: target.normals },
       })),
     )
-    maxPositionError = Math.max(maxPositionError, page.quantizationError)
     const box = new Float64Array(6)
     boxEmpty(box, 0)
     for (const v of corners)
       boxExpandByPoint(box, 0, positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2])
     const sphere = new Float64Array(4)
     sphereFromBounds(sphere, 0, box[0], box[1], box[2], box[3], box[4], box[5])
-    cut.push({ start, corners, page, box, sphere, geometry: page.data.slice().buffer })
-  }
-  const pages: PageCutPage[] = await Promise.all(
-    cut.map(async ({ start, corners, page, box, sphere, geometry }, k) => ({
-      index: corners.buffer,
-      geometry,
-      indexSha256: await sha256Hex(corners.buffer),
-      geometrySha256: await sha256Hex(geometry),
-      count: corners.length,
-      start,
-      min: Array.from(box.subarray(0, 3)),
-      max: Array.from(box.subarray(3)),
-      sphere: Array.from(sphere),
-      vertexCount: page.vertexCount,
-      indexCount: page.indexCount,
-      flags: page.flags,
-      uncompressedBytes: page.uncompressedBytes,
-      ...(built ? { cone: built[k] } : {}),
+    return { start, corners, page, box, sphere, geometry: page.data.slice().buffer }
+  })
+  const maxPositionError = cut.reduce((most, { page }) => Math.max(most, page.quantizationError), 0)
+  // Every page a root, nothing replacing it: its band is its own sphere's.
+  const { order, culling } = buildCullingHierarchy(
+    module,
+    cut.map(({ box, sphere }) => ({
+      min: box.subarray(0, 3),
+      max: box.subarray(3),
+      parentSphere: sphere,
     })),
   )
-  return { pages, positionExponent, uvExponent, maxPositionError }
+  const pages: PageCutPage[] = await Promise.all(
+    Array.from(order, (k) => ({ ...cut[k], k })).map(
+      async ({ start, corners, page, box, sphere, geometry, k }) => ({
+        index: corners.buffer,
+        geometry,
+        indexSha256: await sha256Hex(corners.buffer),
+        geometrySha256: await sha256Hex(geometry),
+        count: corners.length,
+        start,
+        min: Array.from(box.subarray(0, 3)),
+        max: Array.from(box.subarray(3)),
+        sphere: Array.from(sphere),
+        vertexCount: page.vertexCount,
+        indexCount: page.indexCount,
+        flags: page.flags,
+        uncompressedBytes: page.uncompressedBytes,
+        ...(built ? { cone: built[k] } : {}),
+      }),
+    ),
+  )
+  return { pages, culling, positionExponent, uvExponent, maxPositionError }
 }

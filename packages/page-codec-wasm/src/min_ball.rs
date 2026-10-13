@@ -2,9 +2,8 @@
 //! iterative form: one nested scan per support point, over a deterministic shuffle of the points
 //! (expected linear time, the same result on every host). The normal cone (`normal_cone.rs`)
 //! takes the ball of the unit face normals; it is the one smallest-ball solver, beside the
-//! box-centred sphere of `asset-compiler-rust/src/dag/bounds.rs`. With it, the ball of balls
-//! (`ball_of_balls`): the sphere a DAG group and a culling node (`culling.rs`) enclose their
-//! children's with.
+//! box-centred sphere of `asset-compiler-rust/src/dag/bounds.rs`; with it, the ball of balls a DAG
+//! group and a culling node (`culling.rs`) enclose their children's with (`ball_of_balls`).
 use trillion3d_math::aabb::{aabb_of_boxes, centre};
 use trillion3d_math::random::xorshift64;
 use trillion3d_math::sphere::enclosing_sphere;

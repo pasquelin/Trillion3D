@@ -2,7 +2,7 @@
 //! and the cluster order the native build writes for generated families, which the SDK module
 //! must write bit for bit (`wasm_culling.rs`, `sdk-browser/src/page/codec/cullingHierarchy.golden.test.ts`).
 
-use crate::culling::tests::families;
+use crate::culling::families::families;
 use crate::culling::{build_culling_bvh, CullingCluster, CULLING_RECORD_FLOATS};
 use trillion3d_math::golden::{Twin, Value};
 

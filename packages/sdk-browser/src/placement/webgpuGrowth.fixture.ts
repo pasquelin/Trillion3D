@@ -34,7 +34,7 @@ function placedScene(links: readonly RowLink[]) {
     mesh,
     primitive: rank,
     pass: 'exact-clusters',
-    pages: dagRoots([rootPage(url, [-1, -1, 0], [1, 1, 0])]).pages,
+    ...dagRoots([rootPage(url, [-1, -1, 0], [1, 1, 0])]),
     structure,
   })
   const metadata: ClusterManifest = {

@@ -20,7 +20,7 @@ import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gp
  * node's open count: ready bits alone would make the drawn cut depend on the descent.
  */
 export function sceneView(leaves: number, levels: number, poses = [new G.Matrix4()]) {
-  const roots = sceneRoots(scenePages(leaves, levels), poses, true)
+  const roots = sceneRoots(scenePages(leaves, levels), poses)
   const packed = packDagSelection(roots)
   const resident = ruleResidency(packed, new Uint8Array(packed.pageCount).fill(1))
   const uniforms = cameraSelectionUniforms(engineCamera(frontCamera(16, 200)), 1, [1280, 720])

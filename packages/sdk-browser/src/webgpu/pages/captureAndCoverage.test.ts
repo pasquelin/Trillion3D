@@ -155,7 +155,7 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
   }
 })
 
-test('a visible opaque primitive without a hierarchy still has complete exact-page coverage', async () => {
+test('a visible opaque primitive of root pages has complete exact-page coverage', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
     { device } = mockGpu()

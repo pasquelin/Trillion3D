@@ -25,6 +25,7 @@ pub mod math;
 pub mod min_ball;
 pub mod normal_cone;
 mod positions;
+pub mod split;
 pub mod triangles;
 mod unpack;
 #[cfg(target_arch = "wasm32")]

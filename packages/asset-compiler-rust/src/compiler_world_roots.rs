@@ -26,6 +26,8 @@ mod alone_tests;
 mod attribute_tests;
 mod cells;
 mod cover;
+#[cfg(test)]
+mod culling_tests;
 mod dag_records;
 #[cfg(test)]
 mod decoded;

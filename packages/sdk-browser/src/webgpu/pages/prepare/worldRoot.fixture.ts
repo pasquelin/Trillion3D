@@ -2,7 +2,8 @@
 // it: what the world root's tests read (`worldRoot.test.ts`, `worldRootCover.test.ts`).
 import type { TestContext } from 'node:test'
 import type { ClusterManifest, Primitive } from '../../../../../sdk-core/src/index.ts'
-import { inCullingOrder, worldRootsDag } from '../../../scene/worldRootsPages.fixture.ts'
+import { worldRootsDag } from '../../../scene/worldRootsPages.fixture.ts'
+import { inCullingOrder } from '../../../scene/worldCulling.fixture.ts'
 import { opened, served } from '../../../scene/worldRoots.fixture.ts'
 import { worldOrGeometryReader } from '../../../scene/worldRoots.ts'
 import * as G from '../../../host/graph/graph.fixture.ts'

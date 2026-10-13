@@ -3,7 +3,10 @@
 //! levels and replacement bands in, a cluster order and the nodes the GPU descent reads out. Pages
 //! follow the order, so every node owns a contiguous page range.
 use crate::min_ball::ball_of_balls;
-use trillion3d_math::aabb::{aabb_of, aabb_of_boxes, centre, longest_axis};
+use crate::split::{bisect_least_surface, sort_along};
+use trillion3d_math::aabb::{aabb_of_boxes, centre};
+
+mod layout;
 
 /// Children of an inner node: three median splits.
 pub const CULLING_BRANCHING: usize = 8;
@@ -30,31 +33,6 @@ pub struct CullingCluster {
 /// and its level.
 pub const CULLING_RECORD_FLOATS: usize = 12;
 
-impl CullingCluster {
-    /// The cluster as its record.
-    pub fn record(&self) -> [f64; CULLING_RECORD_FLOATS] {
-        let mut out = [0.0; CULLING_RECORD_FLOATS];
-        out[..3].copy_from_slice(&self.min);
-        out[3..6].copy_from_slice(&self.max);
-        out[6..10].copy_from_slice(&self.parent_sphere);
-        out[10] = self.parent_error;
-        out[11] = self.level as f64;
-        out
-    }
-
-    /// The cluster of record `r`, `None` when its level is not a whole number under `2^32`.
-    pub fn from_record(r: &[f64]) -> Option<Self> {
-        let level = r[11];
-        (level >= 0.0 && level.fract() == 0.0 && level < 4_294_967_296.0).then(|| Self {
-            min: [r[0], r[1], r[2]],
-            max: [r[3], r[4], r[5]],
-            parent_sphere: [r[6], r[7], r[8], r[9]],
-            parent_error: r[10],
-            level: level as usize,
-        })
-    }
-}
-
 /// One node of the per-primitive culling hierarchy.
 ///
 /// `sphere` encloses every `parent_sphere` of the subtree and `max_parent_error` is the largest
@@ -70,93 +48,6 @@ pub struct CullingNode {
     pub child_count: usize,
     pub first_cluster: usize,
     pub cluster_count: usize,
-}
-
-impl CullingNode {
-    /// The node in the flat layout (`CULLING_STRIDE` numbers): an infinite ceiling is written -1.
-    pub fn flat(&self) -> [f64; CULLING_STRIDE] {
-        let mut out = [0.0; CULLING_STRIDE];
-        out[..3].copy_from_slice(&self.min);
-        out[3..6].copy_from_slice(&self.max);
-        out[6..10].copy_from_slice(&self.sphere);
-        out[10] = if self.max_parent_error.is_finite() {
-            self.max_parent_error
-        } else {
-            -1.0
-        };
-        out[11] = self.first_child as f64;
-        out[12] = self.child_count as f64;
-        out[13] = self.first_cluster as f64;
-        out[14] = self.cluster_count as f64;
-        out
-    }
-}
-
-/// The order of two ids by their centres' coordinate on `axis` (`total_cmp`, so NaN has a place),
-/// then by identifier: two coincident centres keep the same order from build to build.
-fn along(centres: &[[f64; 3]], axis: usize) -> impl Fn(&usize, &usize) -> std::cmp::Ordering + '_ {
-    move |&x, &y| {
-        centres[x][axis]
-            .total_cmp(&centres[y][axis])
-            .then(x.cmp(&y))
-    }
-}
-
-/// Puts the median of `slice` on `axis` at `slice.len() / 2` by selection, in linear time: every id
-/// before it comes first in the order of `along`, every one after it later, each half in no order.
-pub fn select_median(slice: &mut [usize], centres: &[[f64; 3]], axis: usize) {
-    if slice.len() > 1 {
-        slice.select_nth_unstable_by(slice.len() / 2, along(centres, axis));
-    }
-}
-
-/// Sorts `slice` in the order of `along` on `axis`.
-pub fn sort_along(slice: &mut [usize], centres: &[[f64; 3]], axis: usize) {
-    slice.sort_unstable_by(along(centres, axis));
-}
-
-/// Splits a group of ids in two spatial halves on the widest axis of their centres: the median
-/// falls on `slice.len() / 2` (`select_median`). Returns that axis; a caller that reads the halves
-/// in order sorts them on it (`sort_along`), which gives the order a full sort gives.
-pub fn bisect_centres(slice: &mut [usize], centres: &[[f64; 3]]) -> usize {
-    let (low, high) = aabb_of(slice.iter().map(|&id| centres[id]));
-    let axis = longest_axis(&low, &high);
-    select_median(slice, centres, axis);
-    axis
-}
-
-/// The surface of a box, half of it: what a split of a node into two halves is priced by.
-fn half_area(min: [f64; 3], max: [f64; 3]) -> f64 {
-    let [x, y, z] = [0, 1, 2].map(|a| max[a] - min[a]);
-    x * y + y * z + z * x
-}
-
-/// Splits `slice` at its median on the axis whose two halves' boxes have the least surface, of
-/// the three: the halves a view's frustum and occlusion tests reject most often. Each axis costs
-/// one selection and one pass over the boxes, so a split stays linear. Returns that axis.
-fn bisect_least_surface(
-    slice: &mut [usize],
-    centres: &[[f64; 3]],
-    clusters: &[CullingCluster],
-) -> usize {
-    let middle = slice.len() / 2;
-    let boxes =
-        |part: &[usize]| aabb_of_boxes(part.iter().map(|&id| (clusters[id].min, clusters[id].max)));
-    let mut best: Option<(f64, usize)> = None;
-    for axis in 0..3 {
-        select_median(slice, centres, axis);
-        let (low, high) = boxes(&slice[..middle]);
-        let (low1, high1) = boxes(&slice[middle..]);
-        let cost = half_area(low, high) + half_area(low1, high1);
-        if best.is_none_or(|(least, _)| cost < least) {
-            best = Some((cost, axis));
-        }
-    }
-    let axis = best.map_or(0, |(_, axis)| axis);
-    if axis != 2 {
-        select_median(slice, centres, axis);
-    }
-    axis
 }
 
 /// Node bounds: cluster box, sphere enclosing replacement spheres (`ball_of_balls`),
@@ -178,12 +69,13 @@ fn node_bounds(span: &[usize], clusters: &[CullingCluster]) -> ([f64; 3], [f64; 
 /// The hierarchy over `clusters`: the root splits by level first, then every node by three median
 /// splits of its clusters' centres, each on the axis of least surface (`bisect_least_surface`), down
 /// to leaves of `CULLING_LEAF` clusters, each leaf's clusters in their order on the axis that last
-/// split it. Returns the cluster order (rank to cluster) and the nodes, numbered level by level
-/// from the root: a balanced tree, its depth `⌈log₈(n / CULLING_LEAF)⌉` past the levels, built in
-/// `O(n log n)`.
+/// split it; no cluster gives one empty leaf. Returns the cluster order (rank to cluster) and the
+/// nodes, numbered level by level from the root: a balanced tree, its depth
+/// `⌈log₈(n / CULLING_LEAF)⌉` past the levels, built in `O(n log n)`.
 pub fn build_culling_bvh(clusters: &[CullingCluster]) -> (Vec<usize>, Vec<CullingNode>) {
     let mut order: Vec<usize> = (0..clusters.len()).collect();
-    let mut nodes: Vec<CullingNode> = Vec::new();
+    // No cluster: one empty leaf, so the descent still has a root to start from.
+    let mut nodes: Vec<CullingNode> = vec![CullingNode::default()];
     if clusters.is_empty() {
         return (order, nodes);
     }
@@ -203,7 +95,6 @@ pub fn build_culling_bvh(clusters: &[CullingCluster]) -> (Vec<usize>, Vec<Cullin
         level_ranges.push((start, end));
         start = end;
     }
-    nodes.push(CullingNode::default());
     let mut queue = std::collections::VecDeque::new();
     if level_ranges.len() < 2 {
         queue.push_back((0usize, 0usize, clusters.len(), None));
@@ -268,5 +159,7 @@ pub fn build_culling_bvh(clusters: &[CullingCluster]) -> (Vec<usize>, Vec<Cullin
 }
 
 #[cfg(test)]
+pub(crate) mod families;
+#[cfg(test)]
 #[path = "culling_tests.rs"]
-pub(crate) mod tests;
+mod tests;

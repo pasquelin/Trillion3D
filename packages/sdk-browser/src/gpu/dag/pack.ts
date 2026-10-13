@@ -1,4 +1,4 @@
-import { maxStretch } from '../../../../sdk-core/src/index.ts'
+import { EngineError, maxStretch } from '../../../../sdk-core/src/index.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
@@ -13,7 +13,7 @@ import {
 } from './types.ts'
 import { baseOpen, linksFor } from '../../page/cut/links.ts'
 import { cullingBoundsFor, packCullingNodes } from './packNodes.ts'
-import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts'
+import { hierarchyLevelSizes } from './hierarchy.ts'
 import {
   CANDIDATES_START,
   CLUSTER_WORDS,
@@ -46,7 +46,6 @@ export type DagCapacity = { pages: number; nodes: number; worlds: number }
 
 type PackShared = DagPackShared
 const emptyShared = (): PackShared => ({
-  flats: new Map(),
   levelSizesOf: new Map(),
   boundsOf: new Map(),
   firstOf: new Map(),
@@ -66,13 +65,14 @@ type Packing = Pick<
   rootClusters: number
 }
 
-/** Every primitive descends the same hierarchy: the manifest's, or the one packing gives it — once
- *  per page array, so placements sharing their pages share it too. */
-function cullingOf(root: DagRoot, shared: PackShared) {
+/** Every root descends the hierarchy its pages were built with, by the one builder
+ *  (`page-codec-wasm/src/culling.rs`): a compiled primitive's manifest, the world DAG's, a run-time
+ *  cut's. A root without one comes from a cache older than the cut it is packed for. */
+function cullingOf(root: DagRoot) {
   if (root.culling) return root.culling
-  let flat = shared.flats.get(root.pages)
-  if (!flat) shared.flats.set(root.pages, (flat = flatHierarchy(root.pages)))
-  return flat
+  throw new EngineError('STALE_CACHE', 'A cluster root without its culling hierarchy: recompile', {
+    pages: root.pages.length,
+  })
 }
 
 /** A node array's level sizes, walked once per array: every placement of a primitive shares it. */
@@ -117,7 +117,7 @@ function placeRoot(
   w: number,
   recordBase: (culling: Culling, owner: Uint32Array, nodeBase: number) => number,
 ) {
-  const culling = cullingOf(root, p.shared),
+  const culling = cullingOf(root),
     pageBase = p.live.pages,
     count = root.pages.length
   const { nodeBase, nodeCount, owner } = nodeBlockOf(p, root, culling)
@@ -175,7 +175,7 @@ function countRoots(
   const levels: number[] = [],
     seen = new Set<Float64Array>()
   roots.forEach((root, w) => {
-    const culling = cullingOf(root, shared),
+    const culling = cullingOf(root),
       sizes = levelSizesOf(culling, shared),
       below = shift(w),
       count = culling.nodes.length / culling.stride
@@ -392,7 +392,7 @@ export function appendDagRoots(
     // Its records are its template's, and their keys with them (`writeKeyTables`).
     const first = shared.firstOf.get(root.pages)!
     placeRoot(p, root, live.worlds, () => first.recordBase)
-    const sizes = levelSizesOf(cullingOf(root, shared), shared),
+    const sizes = levelSizesOf(cullingOf(root), shared),
       shift = tree?.depth ?? 0
     for (let level = 0; level < sizes.length; level++)
       packed.levelSizes[level + shift] += sizes[level]
@@ -421,7 +421,7 @@ function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShar
     entries = live.entries
   for (const root of roots) {
     if (!shared.firstOf.has(root.pages)) return false
-    const culling = cullingOf(root, shared),
+    const culling = cullingOf(root),
       shift = packed.placementTree?.depth ?? 0
     if (levelSizesOf(culling, shared).length + shift > packed.levelSizes.length) return false
     pages += root.pages.length

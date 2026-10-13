@@ -52,8 +52,7 @@ export function fieldCut(
   const result = evaluateDagSelectionKernel(packed, uniforms)
   const flags = dagOracleDescent(packed, dagViewFrames(packed, uniforms))
   const placements: number[] = []
-  for (let w = 0; w < roots.length; w++)
-    if (flags.at(w, packed.rootBases[w]) !== 1) placements.push(w)
+  for (let w = 0; w < roots.length; w++) if (flags.reached(w)) placements.push(w)
   const reached = placements.length
   return { pages: result.pageIds, drawn: result.drawablePageIds ?? [], reached, placements, dag }
 }
