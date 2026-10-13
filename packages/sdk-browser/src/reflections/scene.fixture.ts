@@ -62,7 +62,7 @@ export function reflectionRunner(
   overrides: object = {},
 ) {
   const counter = { loads: 0, taps: [] as number[][], cells: [] as number[][] }
-  const token = { depth: {}, pyramid: {}, front: {}, radiance: {} }
+  const token = { depth: {}, pyramid: {}, front: {}, radiance: {}, image: {} }
   const run = shaderRun<{
     reflectionLobeOf: (R: V3, alpha: number, lobe: number[]) => Lobe
     reflectionSeen: (P: V3, N: V3, lobe: Lobe) => Seen
@@ -119,6 +119,7 @@ export function reflectionRunner(
       hizFront: token.front,
       hizLevels: depth.levels,
       reflectionRadiance: token.radiance,
+      reflectionImage: token.image,
       reflectionSampler: {},
       ReflectionSeen: (color: number[], confidence: number) => ({ color, confidence }),
       ReflectionLobe: (R: V3, T: V3, bands: number[], widths: number[]) => ({
@@ -146,11 +147,12 @@ export function reflectionRunner(
         counter.loads++
         counter.cells.push(cell)
       }),
-      textureSampleLevel: (_: unknown, __: unknown, uv: number[], level: number) => {
+      // A tap names its pyramid level: 0 the lit image, else the coarse levels' mip and one.
+      textureSampleLevel: (t: unknown, __: unknown, uv: number[], lod: number) => {
         const tap = [
           uv[0] * reflectionView.radiance[0],
           uv[1] * reflectionView.radiance[1],
-          level,
+          t === token.image ? 0 : lod + 1,
           1,
         ]
         counter.taps.push(tap)

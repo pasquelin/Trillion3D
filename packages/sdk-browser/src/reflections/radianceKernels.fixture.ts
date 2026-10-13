@@ -36,16 +36,14 @@ export function bilinear(level: Image, uv: number[]) {
   )
 }
 
-/** The shipped kernels over `finer` into `coarser`, `coarsest` (and `copy`), `drawn` the image's
- *  drawn size. A workgroup runs as the device runs it: every thread's tents (`radianceFill`) into
+/** The shipped kernels over `finer` into `coarser`, `coarsest`, `drawn` the image's drawn size. A workgroup runs as the device runs it: every thread's tents (`radianceFill`) into
  *  its tile, then — past the barrier — every thread's sum (`radianceSum`) from it. */
 export function radianceKernels(drawn: number[]) {
-  const binding = { finer: {}, coarser: {}, coarsest: {}, copy: {} }
+  const binding = { finer: {}, coarser: {}, coarsest: {} }
   const io: Record<keyof typeof binding, Image> = {
     finer: blank(1, 1),
     coarser: blank(1, 1),
     coarsest: blank(1, 1),
-    copy: blank(1, 1),
   }
   const of = (t: object) =>
     io[(Object.keys(binding) as (keyof typeof binding)[]).find((k) => binding[k] === t)!]
@@ -53,13 +51,13 @@ export function radianceKernels(drawn: number[]) {
   const run = shaderRun<{
     radianceFill: (lane: number, wg: number[], bounds: number[]) => void
     radianceSum: (lid: number[], wg: number[]) => void
-    radianceCopy: (c: number[]) => number[]
+    radianceFold: (c: number[]) => number[]
   }>(
     RADIANCE_SHADER,
     [
       'radianceFill',
       'radianceSum',
-      'radianceCopy',
+      'radianceFold',
       'radianceTent',
       'tent',
       'radianceHash',
@@ -78,9 +76,9 @@ export function radianceKernels(drawn: number[]) {
       },
     },
   )
-  /** The workgroups over `groups` a side, each as the device runs it; `copy` the first kernel's,
+  /** The workgroups over `groups` a side, each as the device runs it; `hashed` the first kernel's,
    *  which also folds the image into its hash: the sum of its threads', two words. */
-  const dispatch = (groups: number[], bounds: number[], copy: boolean) => {
+  const dispatch = (groups: number[], bounds: number[], hashed: boolean) => {
     const hash = [0, 0]
     for (let y = 0; y < groups[1]; y++)
       for (let x = 0; x < groups[0]; x++) {
@@ -88,8 +86,8 @@ export function radianceKernels(drawn: number[]) {
         for (let lane = 0; lane < 64; lane++) {
           const lid = [lane % 8, Math.floor(lane / 8)]
           run.radianceSum(lid, [x, y])
-          if (copy) {
-            const sum = run.radianceCopy([x * 8 + lid[0], y * 8 + lid[1]])
+          if (hashed) {
+            const sum = run.radianceFold([x * 8 + lid[0], y * 8 + lid[1]])
             hash[0] = (hash[0] + sum[0]) >>> 0
             hash[1] = (hash[1] + sum[1]) >>> 0
           }
@@ -102,11 +100,10 @@ export function radianceKernels(drawn: number[]) {
      *  `radianceGroups`, else whole). */
     first(source: Image, groups = [Math.ceil(source.width / 32), Math.ceil(source.height / 32)]) {
       io.finer = source
-      io.copy = blank(source.width, source.height)
       io.coarser = blank(source.width >> 1, source.height >> 1)
       io.coarsest = blank(source.width >> 2, source.height >> 2)
       const hash = dispatch(groups, drawn, true)
-      return { copy: io.copy, coarser: io.coarser, coarsest: io.coarsest, hash }
+      return { coarser: io.coarser, coarsest: io.coarsest, hash }
     },
     down(source: Image) {
       io.finer = source

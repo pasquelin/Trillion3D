@@ -62,20 +62,23 @@ export async function createTemporalAntialiasing(
     images: AccumulatedImage[] = [],
     geometry: GPUTextureView[] = [],
     shading: GPUTextureView[] = [],
-    groups: (GPUBindGroup | undefined)[] = [undefined, undefined]
+    /** The two groups (one a history target read) for each identity the inputs were seen with:
+     *  the lit image is one of two HDR targets that take turns (`reflections/radiance.ts`). */
+    held: (GPUBindGroup | undefined)[][] = []
   let width = 0,
     height = 0,
     /** Target read on the next frame: the other is written. */
     read = 0
-  /** What the groups name: the layout, then each of `INPUTS` (`bindIdentity.ts`). */
-  const identity = createWebgpuBindIdentity()
+  /** What the groups name: the layout, then each of `INPUTS` (`bindIdentity.ts`); two held, the
+   *  HDR targets' turns. */
+  const identity = createWebgpuBindIdentity(2)
   /** Where the last ordinary frame started: what a convergence frame replays. */
   const saved = createTaaCheckpoint()
   const dropTargets = () => {
     for (const texture of textures) texture.destroy()
     textures.length = 0
     images.length = geometry.length = shading.length = 0
-    groups[0] = groups[1] = undefined
+    held.length = 0
     filterHistory.drop()
   }
   return {
@@ -164,7 +167,9 @@ export async function createTemporalAntialiasing(
       const { next } = identity
       next[0] = layout
       for (let i = 0; i < INPUTS.length; i++) next[1 + i] = inputs[INPUTS[i]]
-      if (identity.moved() || !groups[0]) {
+      const moved = identity.moved(),
+        groups = (held[identity.slot] ??= [undefined, undefined])
+      if (moved || !groups[0]) {
         for (let i = 0; i < 2; i++) {
           const entries = taaGroupEntries(
             inputs,

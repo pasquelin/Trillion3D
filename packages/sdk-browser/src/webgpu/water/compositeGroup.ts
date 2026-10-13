@@ -83,9 +83,10 @@ const buffersOf = () =>
 /** The sources the frame names, reused: naming them allocates nothing. */
 const named = {} as Sources
 
-/** Writes into `next` (`createWebgpuBindIdentity`) what the frame's water pass names: its surfaces
- *  — the material targets and the lobes target —, its colour target and every binding of `HELD`. A
- *  still frame finds the same, and allocates nothing. */
+/** Writes into `next` (`createWebgpuBindIdentity`) what the frame's water group names: its
+ *  surfaces — the material targets and the lobes target — and every binding of `HELD`; not the HDR
+ *  target it lights into, an attachment, one of two that take turns. A still frame finds the
+ *  same, and allocates nothing. */
 export function nameWaterResources(
   next: unknown[],
   gpu: WebgpuGpuState,
@@ -96,8 +97,7 @@ export function nameWaterResources(
   named.uniform = uniform
   named.lighting = lighting
   next[0] = gpu.surfaces
-  next[1] = gpu.hdrView
-  for (let i = 0; i < HELD.length; i++) next[i + 2] = HELD[i][1](named)
+  for (let i = 0; i < HELD.length; i++) next[i + 1] = HELD[i][1](named)
 }
 
 /** The composite's bind group entries (`createWaterCompositeLayout`), on the targets `bind` found
