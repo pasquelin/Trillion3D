@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { fieldCamera } from '../../gpu/dag/placementTree.fixture.ts'
-import { ulpBetween } from '../../../../../bench/core/ulp.ts'
+import { singleUlp } from '../../../../../bench/core/ulp.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** `m · v` in single, each product and sum rounded, `m` column-major and already single. */
@@ -70,8 +70,9 @@ test('a card at the eye keeps its depth within three ULP of the double, to 10⁵
     })
     const now = mulSingle(Float32Array.from(at), [...relative, 1])
     const depth = exact[2] / exact[3]
-    before = Math.max(before, ulpBetween(Math.fround(old[2] / old[3]), depth, 32))
-    after = Math.max(after, ulpBetween(Math.fround(now[2] / now[3]), depth, 32))
+    // Single ULPs at the double's depth: the distance in its binade, a fraction of one included.
+    before = Math.max(before, Math.abs(Math.fround(old[2] / old[3]) - depth) / singleUlp(depth))
+    after = Math.max(after, Math.abs(Math.fround(now[2] / now[3]) - depth) / singleUlp(depth))
   }
   console.log(`depth error: ${after.toFixed(2)} ULP at the eye, ${before.toFixed(2)} composed`)
   assert.ok(after <= 3 && before <= 2, `${after} ULP at the eye, ${before} composed`)

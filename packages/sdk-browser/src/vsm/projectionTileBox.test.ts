@@ -20,14 +20,14 @@ import {
   type V3,
 } from './projectionTiles.fixture.ts'
 import { seeded } from './planFrames.fixture.ts'
+import { singleUlp } from '../../../../bench/core/ulp.ts'
 
 test('the box test never drops a light a pixel of the tile is in, even with the roundings against it', () => {
   // The pixel's squared distance as binary32 rounds it, the box's square root two units high (it
   // takes the light less readily): the reach still holds every light a pixel is in.
-  const ulp = (x: number) => 2 ** (Math.floor(Math.log2(Math.abs(x))) - 23)
   const high = (x: number) => {
     const r = Math.fround(Math.sqrt(x))
-    return r + 2 * ulp(r)
+    return r + 2 * singleUlp(r)
   }
   const run = (lights: Light[], roots: object = {}) =>
     shaderRun<{

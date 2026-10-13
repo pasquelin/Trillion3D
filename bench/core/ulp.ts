@@ -38,6 +38,11 @@ export function ulpBetween(a: number, b: number, bits = 64) {
   return Number(d < 0n ? -d : d)
 }
 
+/** The size of a single's last place at `x`: the step between two singles of its binade, the
+ *  smallest normal's at zero. A distance over it is a number of single ULPs at `x`, a fraction of
+ *  one included — not the count of singles between two values `ulpBetween` gives. */
+export const singleUlp = (x: number) => 2 ** (Math.floor(Math.log2(Math.abs(x) || 2 ** -126)) - 23)
+
 /** Discrepancy counter: how many values differ, by at most how many ULP, and first seen. */
 export function counter(): Counter {
   return { count: 0, ulpMax: 0, premier: null }
