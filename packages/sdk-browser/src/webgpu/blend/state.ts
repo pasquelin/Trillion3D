@@ -143,6 +143,10 @@ function waterState() {
     waterBounds: createWaterBounds(),
     /** Volume of each transmissive item, at its water rank, written with the records. */
     volumePacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
+    /** What the water rectangle reads of each transmissive item, by water rank, two views of one
+     *  buffer (`../water/waterItems.ts`). */
+    waterItemPacked: new Float64Array(0) as Float64Array<ArrayBuffer>,
+    waterItemWords: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     /** The water pass — surface pipelines and composite — of a scene that transmits, mounted with
      *  the blend pipelines; absent, the transmission slice draws as a blend (`../water/pass.ts`). */
     water: undefined as WaterPass | undefined,

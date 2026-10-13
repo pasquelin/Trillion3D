@@ -4,8 +4,8 @@ import { boxTransform } from '../../../../sdk-core/src/index.ts'
 // Eight binary32 unit roundoffs cover WGSL division's allowed error as well as separate
 // multiply/add evaluation. Products/sums accumulate by gamma(n), not a fixed world-space epsilon.
 export const ROUND = 4 * FLOAT32_STEP
-const ROUNDING_GAMMA = (8 * ROUND) / (1 - 8 * ROUND)
-const FLUSH = 8 * 2 ** -126
+export const ROUNDING_GAMMA = (8 * ROUND) / (1 - 8 * ROUND)
+export const FLUSH = 8 * 2 ** -126
 
 /** Include conversion, arithmetic and permitted subnormal flushing in a coordinate interval. */
 export function widenBox(box: Float64Array, distance = 0) {

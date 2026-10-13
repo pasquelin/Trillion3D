@@ -7,7 +7,8 @@ import { EXPAND_PASSES } from './planLayout.ts'
  * entries' keys and seeds (`order.ts`): the eye (four doubles), the frustum planes (24 doubles, as
  * `frustumExcludesBox` reads them), what the water rectangle projects with (`../water/frameWords.ts`:
  * the jittered projection and its inverse in single precision, the view in doubles, the near plane,
- * the target's size and the view's form), and the item count the verdict walks.
+ * the target's size and the view's form), the item count the verdict walks and the water items
+ * the rectangle walks.
  */
 export const FRAME_HEAD = {
   eye: 0,
@@ -20,6 +21,7 @@ export const FRAME_HEAD = {
   height: 123,
   viewForm: 124,
   items: 125,
+  waters: 126,
   words: 128,
 } as const
 /** The view's fourth row is `0, 0, 0, 1`: a corner's view depth is not divided. */
@@ -46,6 +48,7 @@ export const FRAME_HEAD_WGSL = wgslBlock(
     FRAME_HEIGHT: FRAME_HEAD.height,
     FRAME_VIEW_FORM: FRAME_HEAD.viewForm,
     FRAME_ITEMS: FRAME_HEAD.items,
+    FRAME_WATERS: FRAME_HEAD.waters,
     VIEW_AFFINE,
     VIEW_MIRRORED,
   })}
