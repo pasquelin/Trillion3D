@@ -25,9 +25,13 @@ const RISE = HEADROOM * HEADROOM
  *   the GPU's own work misses the cadence, not the CPU or a hitch. The divisor grows by one,
  *   while the cadence stays at `SLOWEST_MS` or faster, and only where the render scale cannot
  *   lower the cost any more (fixed, or at its floor: `scaleControl.ts` answers first).
- * - faster: a whole window with one late image at most, `SUPPORT` GPU times, and the second
- *   costliest at most `RISE · (divisor − 1) · R`: the faster cadence holds with room. The
- *   divisor falls by one.
+ * - faster: a whole window with one late image at most, `SUPPORT` GPU times, every one whole, and
+ *   the second costliest at most `RISE · (divisor − 1) · R`: the faster cadence holds with room.
+ *   The divisor falls by one.
+ * A GPU time is the span of the passes the timer read (`gpu/timing/sample.ts`): the image's whole,
+ * or, where a pass's pair could not be read, a lower bound of it — the image took at least that
+ * long. A lower bound over the slower bound proves the miss the GPU's as a whole time does, so it
+ * counts for slowing; it proves no room, so a window holding one never speeds up.
  * Between the two bounds the divisor stays: the hysteresis that keeps it from flipping.
  *
  * A scene that holds the refresh never misses it twice a second, so its divisor stays 1 and
@@ -50,6 +54,8 @@ export function createCadence() {
     count: 0,
     first: 0,
     second: 0,
+    /** A GPU time of the window was a lower bound only: the window proves no room. */
+    partial: false,
   }
 }
 
@@ -58,6 +64,7 @@ export type Cadence = ReturnType<typeof createCadence>
 /** The window starts again: nothing judged since the last verdict. */
 function restart(c: Cadence) {
   c.frames = c.late = c.count = c.first = c.second = 0
+  c.partial = false
 }
 
 /** Back to every refresh, knowing nothing. */
@@ -67,9 +74,11 @@ export function resetCadence(c: Cadence) {
   restart(c)
 }
 
-/** A GPU time of an image, ms, as the timer gave it. */
-export function sampleCadence(c: Cadence, gpuMs: number) {
+/** A GPU time of an image, ms, as the timer gave it: its whole time where `whole`, else a lower
+ *  bound of it (a pass's pair unread). */
+export function sampleCadence(c: Cadence, gpuMs: number, whole: boolean) {
   c.count++
+  if (!whole) c.partial = true
   if (gpuMs > c.first) {
     c.second = c.first
     c.first = gpuMs
@@ -127,6 +136,13 @@ export function judgeCadence(c: Cadence, refresh: Refresh, judged: boolean, floo
     return
   }
   if (c.frames * d * period < SECOND_MS) return
-  if (d > 1 && c.late <= 1 && c.count >= SUPPORT && c.second <= RISE * (d - 1) * period) c.divisor--
+  if (
+    d > 1 &&
+    c.late <= 1 &&
+    c.count >= SUPPORT &&
+    !c.partial &&
+    c.second <= RISE * (d - 1) * period
+  )
+    c.divisor--
   restart(c)
 }

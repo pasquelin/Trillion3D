@@ -68,7 +68,7 @@ import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './sca
  * `capMemory`, `uncapMemory` and `memoryCapped`, the render targets' scale and memory cap
  * (`scaleMemory.ts`); `drew(scale, steered, still)`, an image was drawn; `tick(now, timed)`, a
  * frame of the display began at `now`, ms, its rAF timestamp, `timed`: the device has a GPU timer
- * (`tickScale`); `observe(gpuMs, scale, steered)`, the GPU time of an image drawn at `scale`, a few
+ * (`tickScale`); `observe(gpuMs, scale, steered, whole)`, the GPU time of an image drawn at `scale`, a few
  * frames late: a cost of the window, brought to the current scale by its area, where the image was
  * drawn at the controller's scale.
  */
@@ -131,9 +131,11 @@ export function createScaleControl(option: RenderScale | undefined) {
     /** Whether the interactive loop leaves out the display frame that begins at `now`, ms, its rAF
      *  timestamp, to hold its steady cadence: it draws nothing and counts no frame. */
     skips: (now: number) => skipsDisplayFrame(cadence, refresh, now, control.still),
-    observe(gpuMs: number | null, scale: unknown, steered = true) {
+    observe(gpuMs: number | null, scale: unknown, steered = true, whole = true) {
       if (gpuMs === null) return
-      sampleCadence(cadence, gpuMs)
+      sampleCadence(cadence, gpuMs, whole)
+      // The scale steps on an image timed whole: a lower bound is a span its cost model cannot read.
+      if (!whole) return
       w.timedAt = w.images
       if (steered && w.timed && w.bounds.auto && typeof scale === 'number' && scale > 0)
         sampleCost(w, gpuMs * (w.s / scale) ** 2)
