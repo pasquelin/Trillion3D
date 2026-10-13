@@ -1,4 +1,4 @@
-import type { ParticlePool, ParticleStep } from '../../../sdk-core/src/fluids/particles.ts'
+import type { ParticlePool, ParticleStep } from '../../../../sdk-core/src/fluids/particles.ts'
 
 /** The step uniform, the WGSL `Step`: acceleration and `dt`, then the ring's first slot, count
  *  and capacity, and the workgroups of its records — the partial windows past the window's that its

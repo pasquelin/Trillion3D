@@ -1,5 +1,5 @@
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { anyMoving } from '../../particles/poolStates.ts'
+import { anyMoving } from './poolStates.ts'
 import { viewProj } from '../pages/helpers.ts'
 import { routedFilter } from '../blend/displayFilter.ts'
 import { particleCode } from '../../particles/particleFamily.ts'

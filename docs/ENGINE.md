@@ -110,7 +110,7 @@ any more, the loop holds a steady divisor of the refresh (`frame/cadence.ts`). T
 
 `world.effects` (`sdk-core/world/effect/`; API in [SDK.md](SDK.md#canvas-camera-and-teardown)) runs
 over linear radiance between the temporal resolve and tone mapping:
-`webgpu/effects/webgpuEffects.ts`, one table of pass kinds. An empty chain adds no pass; bloom is `effects/bloomFilter.ts`.
+`webgpu/effects/webgpuEffects.ts`, one table of pass kinds. An empty chain adds no pass; bloom is `webgpu/effects/bloomFilter.ts`.
 
 ## Direct lighting
 

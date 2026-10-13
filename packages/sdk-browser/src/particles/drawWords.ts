@@ -1,7 +1,7 @@
 import { distanceSqVector3 } from '../../../math/src/vector/vector.ts'
 import { inverseAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts'
-import { usedSlots } from './poolStates.ts'
+import { usedSlots } from '../webgpu/particles/poolStates.ts'
 import { OVER } from '../webgpu/blend/equations.ts'
 
 /** The words the particle draw gives a pool: clip matrix from its origin and inverse, made
