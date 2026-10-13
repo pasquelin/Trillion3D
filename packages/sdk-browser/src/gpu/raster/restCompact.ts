@@ -11,7 +11,7 @@ import { shaderFailed } from '../core/shaderModule.ts'
 import { pendingBuffers, type PendingGrowth } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { computeBufferEntry } from '../core/computeBindings.ts'
+import { computeBufferEntry, sequentialEntries } from '../core/computeBindings.ts'
 
 export type GpuRestCompact = {
   /**
@@ -208,11 +208,10 @@ function encodeRest(
   }
   c.argsGroup ??= device.createBindGroup({
     layout: c.argsLayout,
-    entries: [
-      { binding: 6, resource: { buffer: uniforms } },
-      { binding: 7, resource: { buffer: buffers.state } },
-      { binding: 8, resource: { buffer: c.tileArgs } },
-    ],
+    entries: sequentialEntries(
+      [{ buffer: uniforms }, { buffer: buffers.state }, { buffer: c.tileArgs }],
+      6,
+    ),
   })
   // Slots and tiles are fixed by preparation: the uniform is written only when they change.
   if (uniData[0] !== restSlots || uniData[1] !== tiles) {

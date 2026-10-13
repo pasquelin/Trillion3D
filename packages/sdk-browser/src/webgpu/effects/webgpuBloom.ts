@@ -9,6 +9,7 @@ import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
 import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
 import { BLOOM_PASS } from '../../stage/passLabels.ts'
 import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /** Words of one uniform slot, the `Bloom` struct a pass binds. */
 const SLOT_WORDS = BLOOM_UNIFORM_BYTES / 4
@@ -68,18 +69,14 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
   const levelGroup = (view: GPUTextureView) =>
     device.createBindGroup({
       layout: layouts.level,
-      entries: [
-        { binding: 0, resource: view },
-        { binding: 1, resource: sampler },
-        { binding: 2, resource: { buffer: uniform!, size: BLOOM_UNIFORM_BYTES } },
-      ],
+      entries: sequentialEntries([view, sampler, { buffer: uniform!, size: BLOOM_UNIFORM_BYTES }]),
     })
   const inputGroups = (view: GPUTextureView) => {
     let bound = inputs.get(view)
     if (!bound) {
       const scene = device.createBindGroup({
         layout: layouts.scene,
-        entries: [{ binding: 0, resource: view }],
+        entries: sequentialEntries([view]),
       })
       inputs.set(view, (bound = { level: levelGroup(view), scene }))
     }

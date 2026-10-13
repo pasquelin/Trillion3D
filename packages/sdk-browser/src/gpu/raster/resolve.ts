@@ -4,6 +4,7 @@ import { VIS_UNIFORM_BYTES } from '../../webgpu/core/bindLayout.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { RASTER_OCCLUDER_HIZ_PASS, RASTER_RESOLVE_PASS } from '../../stage/passLabels.ts'
 import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { sequentialEntries } from '../core/computeBindings.ts'
 
 const RESOLVE_DEPTH = {
   format: DEPTH_FORMAT,
@@ -119,10 +120,10 @@ function resolvePipelines(device: GPUDevice, code: string) {
 const bound = (z: Resolves, uniform: GPUBuffer) =>
   (z.group ??= z.device.createBindGroup({
     layout: z.layout,
-    entries: [
-      { binding: 0, resource: { buffer: z.work, offset: 0, size: z.targetBytes } },
-      { binding: 1, resource: { buffer: uniform, offset: 0, size: VIS_UNIFORM_BYTES } },
-    ],
+    entries: sequentialEntries([
+      { buffer: z.work, offset: 0, size: z.targetBytes },
+      { buffer: uniform, offset: 0, size: VIS_UNIFORM_BYTES },
+    ]),
   }))
 
 /** A colour attachment kept as the hardware raster left it. */

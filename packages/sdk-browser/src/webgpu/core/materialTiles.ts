@@ -10,6 +10,7 @@ import {
 import { createWebgpuBindIdentity } from './bindIdentity.ts'
 import type { OpenPass } from '../../gpu/core/lazyComputePass.ts'
 import type { RenderCommands } from '../../gpu/core/renderBundles.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /** Bytes of one class's indirect draw: vertex count, instance count, first vertex, first instance. */
 const DRAW_BYTES = 16
@@ -147,10 +148,7 @@ function layFor(t: Tiles, width: number, height: number) {
     }))
     t.drawGroup = t.device.createBindGroup({
       layout: t.drawLayout,
-      entries: [
-        { binding: 0, resource: { buffer: t.slots } },
-        { binding: 1, resource: { buffer: lists } },
-      ],
+      entries: sequentialEntries([{ buffer: t.slots }, { buffer: lists }]),
     })
   }
   return t.drawGroup!
@@ -166,14 +164,14 @@ function encodeTiles(t: Tiles, open: OpenPass, inputs: MaterialTileInputs) {
   if (bound.moved() || !t.classifyGroup)
     t.classifyGroup = t.device.createBindGroup({
       layout: classify.layout,
-      entries: [
-        { binding: 0, resource: inputs.vis },
-        { binding: 1, resource: { buffer: inputs.pages } },
-        { binding: 2, resource: { buffer: inputs.uniform } },
-        { binding: 3, resource: { buffer: t.slots } },
-        { binding: 4, resource: { buffer: t.lists! } },
-        { binding: 5, resource: { buffer: t.draws } },
-      ],
+      entries: sequentialEntries([
+        inputs.vis,
+        { buffer: inputs.pages },
+        { buffer: inputs.uniform },
+        { buffer: t.slots },
+        { buffer: t.lists! },
+        { buffer: t.draws },
+      ]),
     })
   const pass = open.pass
   pass.setPipeline(classify.clearTiles)

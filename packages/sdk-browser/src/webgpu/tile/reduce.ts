@@ -19,6 +19,7 @@ import {
   computeBufferEntry,
   computeTextureEntry,
   computeUniformEntry,
+  sequentialEntries,
 } from '../../gpu/core/computeBindings.ts'
 
 export type WebgpuTileReduce = {
@@ -94,12 +95,12 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | un
         groupKey = [target, feedback.buffer, feedback.list]
         group = device.createBindGroup({
           layout,
-          entries: [
-            { binding: 0, resource: target },
-            { binding: 1, resource: { buffer: feedback.buffer } },
-            { binding: 2, resource: { buffer: uniform } },
-            { binding: 3, resource: { buffer: feedback.list } },
-          ],
+          entries: sequentialEntries([
+            target,
+            { buffer: feedback.buffer },
+            { buffer: uniform },
+            { buffer: feedback.list },
+          ]),
         })
       }
       words[0] = size[0]
@@ -124,11 +125,11 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | un
           gatheredKey = [feedback.buffer, feedback.list]
           gathered = device.createBindGroup({
             layout: gatherLayout,
-            entries: [
-              { binding: 0, resource: { buffer: feedback.buffer } },
-              { binding: 1, resource: { buffer: feedback.list } },
-              { binding: 2, resource: { buffer: gatherUniform } },
-            ],
+            entries: sequentialEntries([
+              { buffer: feedback.buffer },
+              { buffer: feedback.list },
+              { buffer: gatherUniform },
+            ]),
           })
         }
         capWord[0] = feedback.capacity

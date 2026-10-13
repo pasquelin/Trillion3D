@@ -3,6 +3,7 @@ import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred
 import { WATER_DEPTH_RESTORE_SHADER } from './depthRestoreShader.ts'
 import { waterSurfaceTargets } from './surfaceTargets.ts'
 import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /**
  * WebGPU forbids cropped depth texture copies. Restore texels through a fragment that reads one
@@ -51,7 +52,7 @@ export async function createWaterDepthRestore(device: GPUDevice, feedback: boole
     restoreFor,
     /** The depth the draw reads. */
     bind(source: GPUTextureView) {
-      group = device.createBindGroup({ layout, entries: [{ binding: 0, resource: source }] })
+      group = device.createBindGroup({ layout, entries: sequentialEntries([source]) })
     },
     /** Into an open pass, already scissored: the lobed stage's when `lobes`, prepared with it. */
     draw(pass: GPURenderPassEncoder, lobes = false) {

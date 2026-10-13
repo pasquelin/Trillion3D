@@ -8,6 +8,7 @@ import {
 } from '../../impostor/feed.ts'
 import type { TextureLevelReader } from '../../texture/levelReader.ts'
 import { core } from '../../impostor/borrowed.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /** The three maps' formats: the colour is stored sRGB, the normal, depth and ORM linear. */
 const MAP_FORMATS: Record<keyof ImpostorAtlasLevels, GPUTextureFormat> = {
@@ -102,8 +103,7 @@ export function createImpostorFeed(
         label: `Trillion3D impostor atlas ${key}`,
         layout,
         entries: [
-          ...made.textures.map((texture, binding) => ({ binding, resource: texture.createView() })),
-          { binding: 3, resource: sampler },
+          ...sequentialEntries([...made.textures.map((texture) => texture.createView()), sampler]),
         ],
       })
       feed.made(key, entry, group, made.destroy)

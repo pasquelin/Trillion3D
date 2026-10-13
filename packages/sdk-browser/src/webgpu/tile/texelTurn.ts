@@ -18,6 +18,7 @@ import { textureRgba } from '../../visibility/types.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { TEXEL_TURN_PASS } from '../../stage/passLabels.ts'
 import { MIB } from '../../../../math/src/constants.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /**
  * RAW TEXELS TURNED ON THE GPU as their host texture asks (#362): rows reversed under `flipY` — the
@@ -156,11 +157,11 @@ function takeHold(
     device.createBindGroup({
       label: TEXEL_TURN_PASS,
       layout,
-      entries: [
-        { binding: 0, resource: { buffer: words, offset: slots.offset(b)[0], size: 16 } },
-        { binding: 1, resource: { buffer: ring, size: Math.min(band, height - b * band) * row } },
-        { binding: 2, resource: level },
-      ],
+      entries: sequentialEntries([
+        { buffer: words, offset: slots.offset(b)[0], size: 16 },
+        { buffer: ring, size: Math.min(band, height - b * band) * row },
+        level,
+      ]),
     }),
   )
   return { words, ring, groups }

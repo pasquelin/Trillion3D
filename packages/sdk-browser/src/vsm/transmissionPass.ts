@@ -35,7 +35,7 @@ import {
 } from './rowPageBound.ts'
 import type { WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { vsmComputePipe } from './passKit.ts'
-import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
+import { computeBufferEntry, sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import type { VsmLayout } from './layout.ts'
 import { storageBufferCap, type UniformSlots } from '../residency/pools.ts'
@@ -593,11 +593,10 @@ function transmissionGroups(device: GPUDevice, ctx: Ctx, trans: VsmTransmission)
     resolve: device.createBindGroup({
       layout: ctx.resolve.groups[0],
       entries: [
-        ...[uniform, build, table, pool, links].map((buffer, binding) => ({
-          binding,
-          resource: { buffer },
-        })),
-        { binding: 5, resource: trans.storageView },
+        ...sequentialEntries([
+          ...[uniform, build, table, pool, links].map((buffer) => ({ buffer })),
+          trans.storageView,
+        ]),
       ],
     }),
   })

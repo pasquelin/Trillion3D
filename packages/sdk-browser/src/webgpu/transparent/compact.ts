@@ -4,6 +4,7 @@ import { dispatchRows } from '../../gpu/dispatch/grid.ts'
 import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
 import { TRANSPARENT_COMPACTION_PASS } from '../../stage/passLabels.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 const UNIFORM_WORDS = 8
 
@@ -52,17 +53,11 @@ async function compactPasses(
   const bindTo = (mask: GPUBuffer) =>
     device.createBindGroup({
       layout,
-      entries: [
-        bound[0],
-        uniforms,
-        mask,
-        bound[1],
-        bound[2],
-        bound[3],
-        bound[4],
-        bound[5],
-        bound[6],
-      ].map((buffer, binding) => ({ binding, resource: { buffer } })),
+      entries: sequentialEntries(
+        [bound[0], uniforms, mask, bound[1], bound[2], bound[3], bound[4], bound[5], bound[6]].map(
+          (buffer) => ({ buffer }),
+        ),
+      ),
     })
   let boundMask = bound[0],
     bindGroup = bindTo(boundMask)

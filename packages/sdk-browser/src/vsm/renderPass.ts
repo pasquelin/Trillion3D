@@ -40,7 +40,11 @@ import {
   VSM_RENDER_PAIR_CAPACITY,
 } from './constants.ts'
 import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
-import { computeBufferEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeUniformEntry,
+  sequentialEntries,
+} from '../gpu/core/computeBindings.ts'
 import { ledgerRoom } from '../gpu/core/deviceLedger.ts'
 import { madeTextureBytes, textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
@@ -985,10 +989,7 @@ export function vsmBufferGroup(
 ) {
   return device.createBindGroup({
     layout,
-    entries: resources.map((r, binding) => ({
-      binding,
-      resource: 'buffer' in r ? r : { buffer: r },
-    })),
+    entries: sequentialEntries(resources.map((r) => ('buffer' in r ? r : { buffer: r }))),
   })
 }
 
@@ -1030,7 +1031,7 @@ function rasterTables(res: VsmResources, ctx: Ctx): RasterTables {
     raster1: device.createBindGroup({
       layout: ctx.raster.layout1,
       entries: [
-        { binding: 0, resource: { buffer: groups.pairs } },
+        ...sequentialEntries([{ buffer: groups.pairs }]),
         ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_VERTEX_SPECS),
         ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_FRAGMENT_SPECS),
       ],

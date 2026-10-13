@@ -49,3 +49,10 @@ export const namedBufferEntries = <Name extends string>(
     binding: bindings[name],
     resource: buffers[name],
   }))
+
+/** Bind-group entries of `resources` in their order, the first at binding `first`, each next one a
+ *  binding further: the group of a shader that numbers its bindings as it lists them. */
+export const sequentialEntries = (
+  resources: readonly GPUBindingResource[],
+  first = 0,
+): GPUBindGroupEntry[] => resources.map((resource, at) => ({ binding: first + at, resource }))

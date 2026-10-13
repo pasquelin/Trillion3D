@@ -10,7 +10,11 @@
  * reverse-Z in both. Shifted = world + originShift (default −camera position), the
  * same split double the projection data carries.
  */
-import { computeTextureEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
+import {
+  computeTextureEntry,
+  computeUniformEntry,
+  sequentialEntries,
+} from '../gpu/core/computeBindings.ts'
 import { NO_CONE } from '../../../sdk-core/src/scene/light/fields.ts'
 import { hasSubgroups } from '../gpu/core/subgroups.ts'
 import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
@@ -616,7 +620,7 @@ function receiverGroupFor(p: Pipelines, layout: GPUBindGroupLayout, receiver: GP
     group = p.device.createBindGroup({
       label: 'vsm.projection.receiver',
       layout,
-      entries: [{ binding: 0, resource: receiver }],
+      entries: sequentialEntries([receiver]),
     })
     p.receiverGroups.set(receiver, group)
   }

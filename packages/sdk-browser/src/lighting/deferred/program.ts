@@ -21,6 +21,7 @@ import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { createCompositions, type CompositionSources } from './compositions.ts'
 import { type FusedBlend } from '../../webgpu/effects/webgpuKinds.ts'
 import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. With them,
  *  the frame's key: what its program leaves out (`contractCuts.ts`). */
@@ -177,11 +178,7 @@ function compositionOf(
   if (kept) return kept
   // A colour without its own share (the effect chain's, no TAA) reads the lit image's flags.
   const input = !asIs ? 'flagless' : image?.share ? 'accumulated' : 'still'
-  const entries: GPUBindGroupEntry[] = [
-    { binding: 0, resource: view },
-    { binding: 1, resource: { buffer: bindings.uniform } },
-  ]
-  if (asIs) entries.push({ binding: 2, resource: share })
+  const entries = sequentialEntries([view, { buffer: bindings.uniform }, ...(asIs ? [share] : [])])
   const group = device.createBindGroup({ layout: compositions.layouts[input], entries })
   const composition = { group, input } as const
   byShare.set(share, composition)
@@ -229,7 +226,7 @@ function bindLight(
   if (reboundLight(state)) return
   state.boundFlags = surface.views()[3]
   const entries: GPUBindGroupEntry[] = [
-    ...surface.views().map((resource, binding) => ({ binding, resource })),
+    ...sequentialEntries(surface.views()),
     { binding: DEFERRED_BINDINGS.depth, resource: depth },
     { binding: DEFERRED_BINDINGS.view, resource: { buffer: bindings.uniform } },
   ]
