@@ -1,4 +1,5 @@
-// Engine nodes copied into the reference renderer; resources cross through `fromGraph.ts`.
+// Engine nodes copied into the reference renderer; resources cross through `fromGraph.ts` and
+// `fromSurface.ts`.
 import * as THREE from 'three'
 import { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import { Light } from '../../../packages/sdk-core/src/world/light/light.ts'
@@ -10,7 +11,8 @@ import {
 import { isPlacedLight } from '../../../packages/sdk-browser/src/host/graph/graphLights.fixture.ts'
 import { resolveCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts'
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts'
-import { threeGeometry, threeMaterials } from './fromGraph.ts'
+import { threeGeometry } from './fromGraph.ts'
+import { threeMaterials } from './fromSurface.ts'
 import { Group, type Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 

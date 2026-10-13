@@ -8,10 +8,8 @@ import { composesWithBackground } from '../../scene/materialBlending.ts'
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts'
 import { alphaMoves, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import type { GraphSurface } from '../../host/graph/surface.ts'
-import type { GraphTexture } from '../../host/graph/texture.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import { hostSurface, repaintHostSurface } from './worldSurface.ts'
-import { HOST_MAPS, type HostTextures } from './worldTextures.ts'
 
 /** The parameters a session lays out when it opens, and so the only ones never written in place:
  *  `kind` its family, `transparent`, `blending` and `transmission` its pass, `side`, `depthTest`
@@ -84,7 +82,7 @@ export type MaterialEntry = {
   readonly id: number
   key: string
   readonly material: Material
-  readonly surfaces: (GraphSurface | undefined)[]
+  readonly surfaces: (PageSurface | undefined)[]
 }
 
 /** What a resource's triangles are read as by the surface that draws them. */
@@ -113,28 +111,16 @@ function surfaceFor(
           : 'faces'
   const rank =
     reading === 'lines' ? 2 : reading === 'sprite' ? 3 : (reading === 'sheet' ? 4 : 0) + +tinted
-  return (entry.surfaces[rank] ??= hostSurface(material, tinted, state.textures, reading))
+  return (entry.surfaces[rank] ??= hostSurface(material, tinted, reading))
 }
 
-/** Gives back the surfaces of `entries`, and the textures only they wore. */
-function release(state: MaterialsState, entries: Iterable<MaterialEntry>) {
-  const { textures } = state
+/** Gives back the surfaces of `entries`. The textures they wore are the page's own records,
+ *  held as they are: nothing of theirs is the table's to give back. */
+function release(entries: Iterable<MaterialEntry>) {
   for (const entry of entries) {
     for (const surface of entry.surfaces) surface?.dispose()
     entry.surfaces.length = 0
   }
-  const worn = new Set<GraphTexture>()
-  for (const entry of state.entries.values())
-    for (const surface of entry.surfaces)
-      for (const field of HOST_MAPS) {
-        const texture = surface?.[field] as GraphTexture | null | undefined
-        if (texture) worn.add(texture)
-      }
-  for (const [key, texture] of textures)
-    if (!worn.has(texture)) {
-      texture.dispose()
-      textures.delete(key)
-    }
 }
 
 /** How an entry was repainted: its values written or its pictures alone, its alpha moved. */
@@ -158,7 +144,6 @@ export function createWorldMaterials() {
     sources: new Map(),
     known: new WeakMap(),
     repainted: new Map(),
-    textures: new Map(),
     counts: { duplicates: 0 },
     ids: 0,
   }
@@ -193,11 +178,11 @@ export function createWorldMaterials() {
           repainted.delete(entry)
           dropped.push(entry)
         }
-      release(state, dropped)
+      release(dropped)
     },
-    /** The world is gone: every surface and texture it built is given back. */
+    /** The world is gone: every surface it built is given back. */
     dispose() {
-      release(state, entries.values())
+      release(entries.values())
       entries.clear()
     },
   }
@@ -214,8 +199,6 @@ type MaterialsState = {
   /** The entries repainted since the last take, each with whether its values were written and,
    *  when its cutoff moved, its alpha mode before the first repaint and after the last. */
   repainted: Map<MaterialEntry, Repaint>
-  /** The textures its surfaces wear, each built once (`hostTexture`). */
-  textures: HostTextures
   counts: { duplicates: number }
   ids: number
 }
@@ -290,9 +273,9 @@ type Refresh = (values: boolean, alpha?: AlphaChange) => boolean
 function repaintSurfaces(painted: readonly RepaintedEntry[], refresh?: Refresh) {
   let written = false,
     values = false
-  const moved = new Map<string, AlphaChange & { surfaces: GraphSurface[] }>()
+  const moved = new Map<string, AlphaChange & { surfaces: PageSurface[] }>()
   for (const { entry, alpha, values: wrote } of painted) {
-    const worn = entry.surfaces.filter((surface): surface is GraphSurface => !!surface)
+    const worn = entry.surfaces.filter((surface): surface is PageSurface => !!surface)
     for (const surface of worn) repaintHostSurface(surface, entry.material)
     if (!worn.length) continue
     written = true

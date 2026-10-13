@@ -1,6 +1,6 @@
 /**
- * How a surface composes over what is behind it, read once at the boundary into the engine's own
- * names (`Blending`), and the one blend equation each name stands for.
+ * How a surface composes over what is behind it, in the engine's own names (`Blending`), and the
+ * one blend equation each name stands for.
  *
  * In linear light, with `s` the source colour, `a` its opacity, `d` what the target holds and `t`
  * its alpha: normal is `s·a + d·(1 − a)` (alpha `a + t·(1 − a)`), additive `d + s·a` (alpha
@@ -9,13 +9,6 @@
  * is not a mode the engine draws.
  */
 import type { Blending } from '../../../sdk-core/src/world/constants/index.ts'
-import {
-  HOST_BLENDING_ADDITIVE,
-  HOST_BLENDING_MULTIPLY,
-  HOST_BLENDING_NONE,
-  HOST_BLENDING_NORMAL,
-  HOST_BLENDING_SUBTRACTIVE,
-} from '../host/surfaceConstants.ts'
 
 /** Every mode the engine draws, in the rank the transparent pass gives its pipelines: normal
  *  first, so a transmissive entry, which blends by its backdrop, indexes the first three. */
@@ -26,24 +19,6 @@ export const BLEND_MODES: readonly Blending[] = [
   'multiply',
   'none',
 ]
-
-const HOST: Record<Blending, number> = {
-  none: HOST_BLENDING_NONE,
-  normal: HOST_BLENDING_NORMAL,
-  additive: HOST_BLENDING_ADDITIVE,
-  subtractive: HOST_BLENDING_SUBTRACTIVE,
-  multiply: HOST_BLENDING_MULTIPLY,
-}
-
-/** The host constant for a mode the engine names: the way in, for a boundary that builds one. */
-export const hostBlending = (blending: Blending): number => HOST[blending]
-
-/** The mode a host constant stands for; an undeclared one is the host default, normal, and one
- *  the engine has no name for is `undefined`, which every reader refuses by name. */
-export function blendingOf(host: number | undefined): Blending | undefined {
-  if (host === undefined) return 'normal'
-  return BLEND_MODES.find((mode) => HOST[mode] === host)
-}
 
 /** Why a surface's mode is drawn by no path, or `undefined`: the one refusal every draw shares. A transmissive surface composes by the backdrop it reads, and a mode the
  *  engine has no name for is no mode at all: both are refused by name, never drawn as normal. */

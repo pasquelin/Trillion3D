@@ -11,7 +11,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { type VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
-import { matrixWindingCw } from '../../../../packages/sdk-core/src/index.ts'
+import { matrixWindingCw, type Side } from '../../../../packages/sdk-core/src/index.ts'
 import { engineCamera } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
 import { locatedBy } from '../../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
@@ -22,7 +22,7 @@ const VIEW: [number, number] = [96, 96]
 // Left: front winding. Right: reverse winding. Same area, same height, no overlap.
 const POSITIONS = [-2, -1, 0, -0.5, -1, 0, -1.25, 1, 0, 0.5, -1, 0, 1.25, 1, 0, 2, -1, 0]
 
-function page(side: number): VisPage {
+function page(side: Side): VisPage {
   const geometry = new G.Geometry()
   geometry.setAttribute('position', G.floatAttribute(POSITIONS, 3))
   return {
@@ -41,7 +41,7 @@ function camera() {
 }
 
 /** Triangles actually written into the buffer, and how many pixels each covers. */
-function drawnTriangles(matrix: G.Matrix4, side: number) {
+function drawnTriangles(matrix: G.Matrix4, side: Side) {
   const { ids } = rasterVisibility(
     [page(side)],
     locatedBy([{ world: matrix }]),

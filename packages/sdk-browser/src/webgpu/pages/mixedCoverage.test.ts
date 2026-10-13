@@ -19,7 +19,7 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
   const mesh = blend.source.children[0] as G.HostMesh
   fixture.source.add(mesh)
   blend.material.transparent = true
-  blend.material.side = G.DOUBLE_SIDE
+  G.sided(blend.material, G.DOUBLE_SIDE)
   const primitive = blend.metadata.primitives[0]
   primitive.mesh = 1
   primitive.pass = 'clustered-blend'
@@ -83,12 +83,12 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
     legacy = quadScene(),
     { device, writes, draws } = fakeDevice(BACKEND)
   fixture.material.transparent = true
-  fixture.material.side = G.DOUBLE_SIDE
+  G.sided(fixture.material, G.DOUBLE_SIDE)
   fixture.metadata.primitives[0].pass = 'clustered-blend'
   const mesh = fixture.source.children[0] as G.HostMesh,
     legacyMesh = legacy.source.children[0] as G.HostMesh
   legacy.material.transparent = true
-  legacy.material.side = G.DOUBLE_SIDE
+  G.sided(legacy.material, G.DOUBLE_SIDE)
   legacy.metadata.primitives[0].mesh = 1
   legacy.metadata.primitives[0].pass = 'shared-blend'
   fixture.source.add(legacyMesh)
@@ -96,7 +96,7 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   fixture.associations.set(legacyMesh, { meshes: 1, primitives: 0 })
   const otherMesh = other.source.children[0] as G.HostMesh
   other.material.transparent = true
-  other.material.side = G.DOUBLE_SIDE
+  G.sided(other.material, G.DOUBLE_SIDE)
   const otherPrimitive = other.metadata.primitives[0]
   otherPrimitive.mesh = 2
   otherPrimitive.pass = 'clustered-blend'

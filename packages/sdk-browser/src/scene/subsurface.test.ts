@@ -2,12 +2,10 @@ import { TAU } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { importHostSurface } from '../host/surfaceImport.ts'
 import { createSurfaceBuffer } from './surfaceAllocation.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { directLightingWgsl } from '../lighting/direct/lightingWgsl.ts'
 import { shaderFunctions } from '../texture/shaderRule.fixture.ts'
-import { hostSide } from './materialSide.ts'
 import { material } from '../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../sdk-core/src/world/texture/texture.ts'
 import { hostSurface, repaintHostSurface } from '../world/core/worldSurface.ts'
@@ -21,25 +19,18 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 
 test('thin transmission stays independent of albedo, disabled by default and on single sides', () => {
-  const material = G.standardSurface()
-  assert.deepEqual(importHostSurface(material)?.subsurfaceColor, [0, 0, 0])
-  Object.assign(material, {
-    side: hostSide('double'),
-    subsurfaceColor: new G.Color().setRGB(0.2, 0.7, 0.1),
-  })
-  const surface = importHostSurface(material)!
-  assert.deepEqual(surface.subsurfaceColor, [0.2, 0.7, 0.1])
-  Object.assign(material, { color: new G.Color().setRGB(1, 0, 0) })
-  assert.deepEqual(importHostSurface(material)?.subsurfaceColor, [0.2, 0.7, 0.1])
-  material.side = hostSide('front')
-  assert.deepEqual(importHostSurface(material)?.subsurfaceColor, [0, 0, 0])
+  assert.deepEqual(G.standardSurface().subsurfaceColor, [0, 0, 0])
+  const sheet = { side: 'double', subsurfaceColor: new G.Color().setRGB(0.2, 0.7, 0.1) }
+  assert.deepEqual(G.standardSurface(sheet).subsurfaceColor, [0.2, 0.7, 0.1])
+  const red = G.standardSurface({ ...sheet, color: new G.Color().setRGB(1, 0, 0) })
+  assert.deepEqual(red.subsurfaceColor, [0.2, 0.7, 0.1])
+  const front = G.standardSurface({ ...sheet, side: 'front' })
+  assert.deepEqual(front.subsurfaceColor, [0, 0, 0])
 })
 
 test('a transmission map enters the existing color atlas and keeps its own slot', () => {
   const image = G.dataTexture(new Uint8Array([20, 100, 40, 255]), 1, 1)
-  const material = G.standardSurface()
-  Object.assign(material, { side: hostSide('double'), subsurfaceMap: image })
-  const surface = importHostSurface(material)!
+  const surface = G.standardSurface({ side: 'double', subsurfaceMap: image })
   assert.ok(surface.subsurfaceMap)
   const row = rowMaterial(surface, undefined, {
     mapLayer: new Map([[surface.subsurfaceMap, 7]]),
@@ -90,14 +81,14 @@ test('public material reaches the engine, and a color edit repaints without an A
     subsurfaceColor: 0x00ff00,
     subsurfaceMap: map,
   })
-  const surface = hostSurface(paint, false, new Map())
-  assert.deepEqual(importHostSurface(surface)?.subsurfaceColor, [0, 1, 0])
-  assert.ok(importHostSurface(surface)?.subsurfaceMap)
+  const surface = hostSurface(paint, false)
+  assert.deepEqual(surface.subsurfaceColor, [0, 1, 0])
+  assert.ok(surface.subsurfaceMap)
   const version = paint.version
   paint.subsurfaceColor.set(0xff0000)
   assert.ok(paint.version > version)
   repaintHostSurface(surface, paint)
-  const repainted = importHostSurface(surface)!
+  const repainted = surface
   assert.deepEqual(repainted.subsurfaceColor, [1, 0, 0])
   const layers = { mapLayer: new Map([[repainted.subsurfaceMap!, 3]]), dataLayer: new Map() }
   assert.equal(rowMaterial(repainted, undefined, layers).subsurface, 3, 'its own atlas slot')

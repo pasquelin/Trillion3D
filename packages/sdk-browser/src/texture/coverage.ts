@@ -1,5 +1,5 @@
 import type { Texture } from '../../../sdk-core/src/index.ts'
-import { refreshSurface, surfaceOpacity, type PageSurface } from '../page/surface.ts'
+import { surfaceOpacity, type PageSurface } from '../page/surface.ts'
 import { weighsByAlpha } from '../scene/materialBlending.ts'
 import { cutoffByte } from './cutoffByte.ts'
 
@@ -14,57 +14,56 @@ const alphaIsCoverage = (mat: PageSurface) =>
 const cutOf = (surface: PageSurface) =>
   surface.transparent ? 0 : cutoffByte(surface.alphaTest, surfaceOpacity(surface))
 
-/** The colour maps' readers: mips weigh colours by alpha when EVERY reader
- *  takes alpha for coverage — never an emissive map (`collect.rs`) — and the texels are not
- *  premultiplied. A host switches opaque and masked with no signal: `follow` rereads them. */
+/** The colour maps' readers: mips weigh colours by alpha when EVERY reader takes alpha for
+ *  coverage — never an emissive map (`collect.rs`) — and the texels are not premultiplied. A
+ *  surface written in place is filed again from the journal of writes (`follow`): only the
+ *  surfaces written are visited, never every reader of every map. */
 export class CoverageReaders {
-  private filed = new WeakMap<PageSurface, number>() // the version each surface was filed at
-  /** Per colour texture, its readers filed — as a base or emissive map — and whether every one
-   *  takes its alpha for coverage. */
-  private readers = new WeakMap<Texture, { surfaces: Set<PageSurface>; rule: boolean }>()
+  /** The version each surface was filed at, and the maps it was filed under. */
+  private filed = new WeakMap<PageSurface, { version: number; maps: Texture[] }>()
+  /** Per colour texture, its readers filed — as a base or emissive map — and whether each takes
+   *  its alpha for coverage. */
+  private readers = new WeakMap<Texture, Map<PageSurface, boolean>>()
   /** Files a surface's colour maps once per version; false when already filed. */
   read(surface: PageSurface) {
-    if (this.filed.has(surface) && this.filed.get(surface) === surface.version) return false
-    this.filed.set(surface, surface.version)
+    const held = this.filed.get(surface)
+    if (held && held.version === surface.version) return false
     this.file(surface)
     return true
   }
-  /** Rereads the readers of `maps` only — the chains that follow the rule —, as the host declares
-   *  them now (`refreshSurface`), in place; a reader moved to another map is filed under it. */
-  follow(maps: Iterable<Texture>) {
-    for (const map of maps) {
-      const held = this.readers.get(map)
-      if (!held) continue
-      held.rule = true
-      for (const surface of held.surfaces) {
-        const { map: base, emissiveMap, subsurfaceMap } = refreshSurface(surface)
-        if (base === map || emissiveMap === map || subsurfaceMap === map)
-          held.rule &&= emissiveMap !== map && subsurfaceMap !== map && alphaIsCoverage(surface)
-        else if (held.surfaces.delete(surface)) this.file(surface)
-      }
-      held.rule &&= held.surfaces.size > 0
-    }
+  /** Files again the surfaces of `written` (`../page/surfaceWrites.ts`) filed here: a reader moved
+   *  to another map, or between blended, masked and opaque, is filed as it stands now. */
+  follow(written: Iterable<PageSurface>) {
+    for (const surface of written) if (this.filed.has(surface)) this.file(surface)
   }
   /** True when `texture`'s chain weighs its colours by alpha; false for one no surface wears. */
   private weighs(texture: Texture) {
-    return !!this.readers.get(texture)?.rule && !texture.premultiplyAlpha
+    const readers = this.readers.get(texture)
+    if (!readers?.size || texture.premultiplyAlpha) return false
+    for (const coverage of readers.values()) if (!coverage) return false
+    return true
   }
   /** The cutoff byte `C` whose share of covered texels every level of `texture`'s chain keeps
    *  (docs/FORMAT.md, "Coverage-preserving alpha"): the lowest of its masked readers', each under
    *  its opacity, 0 — the median alone — once a reader blends; none when the chain does not weigh. */
   cutoff(texture: Texture) {
-    const held = this.weighs(texture) ? this.readers.get(texture)! : undefined
-    return held && Math.min(255, ...Array.from(held.surfaces, cutOf))
+    const readers = this.weighs(texture) ? this.readers.get(texture)! : undefined
+    return readers && Math.min(255, ...Array.from(readers.keys(), cutOf))
   }
+  /** Files `surface` under the maps it wears now, out of the ones it was filed under. */
   private file(surface: PageSurface) {
-    const { map, emissiveMap, subsurfaceMap } = surface
-    if (map) this.wear(map, surface, alphaIsCoverage(surface))
-    if (emissiveMap) this.wear(emissiveMap, surface, false)
-    if (subsurfaceMap) this.wear(subsurfaceMap, surface, false)
+    for (const map of this.filed.get(surface)?.maps ?? []) this.readers.get(map)?.delete(surface)
+    const { map, emissiveMap, subsurfaceMap } = surface,
+      maps: Texture[] = []
+    if (map) this.wear(maps, map, surface, alphaIsCoverage(surface))
+    if (emissiveMap) this.wear(maps, emissiveMap, surface, false)
+    if (subsurfaceMap) this.wear(maps, subsurfaceMap, surface, false)
+    this.filed.set(surface, { version: surface.version, maps })
   }
-  private wear(texture: Texture, surface: PageSurface, coverage: boolean) {
-    const held = this.readers.get(texture)
-    if (!held) this.readers.set(texture, { surfaces: new Set([surface]), rule: coverage })
-    else held.rule = held.surfaces.add(surface) && held.rule && coverage
+  private wear(maps: Texture[], texture: Texture, surface: PageSurface, coverage: boolean) {
+    let readers = this.readers.get(texture)
+    if (!readers) this.readers.set(texture, (readers = new Map()))
+    readers.set(surface, (readers.get(surface) ?? true) && coverage)
+    maps.push(texture)
   }
 }

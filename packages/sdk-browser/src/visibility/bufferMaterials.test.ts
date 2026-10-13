@@ -8,14 +8,13 @@ import { engineCamera } from '../camera/camera.fixture.ts'
 import { surfaceOf } from '../page/surface.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
 import { DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
-import { isTransmissive, visMaterial } from './shader/material.ts'
 import { VIS_INVALID } from '../../../../bench/oracles/browser/cpu-image/ids.ts'
 import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 
 test('Repeat wrap samples the same texel at UV 0.25 and 1.25', () => {
   const map = nearestQuadTexture()
-  map.wrapS = G.HOST_WRAP_REPEAT
-  map.wrapT = G.HOST_WRAP_REPEAT
+  map.wrapS = 'repeat'
+  map.wrapT = 'repeat'
   const a = G.basicSurface({ color: 0xffffff, map })
   const b = G.basicSurface({ color: 0xffffff, map })
   const left = quadPages(a, [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25])
@@ -55,8 +54,8 @@ test('FrontSide visbuffer culls a back-facing triangle', () => {
 })
 
 test('a metalness map B=0 keeps a dielectric; B=1 is a metal', () => {
-  const dielectric = G.dataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, G.HOST_FORMAT_RGBA)
-  const metal = G.dataTexture(new Uint8Array([0, 255, 255, 255]), 1, 1, G.HOST_FORMAT_RGBA)
+  const dielectric = G.dataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, 'rgba')
+  const metal = G.dataTexture(new Uint8Array([0, 255, 255, 255]), 1, 1, 'rgba')
   const a = G.standardSurface({
     color: 0xffffff,
     metalness: 1,
@@ -77,8 +76,8 @@ test('a metalness map B=0 keeps a dielectric; B=1 is a metal', () => {
   const dark = shadeVisibility(ids, pages, identityRoots(), engineCamera(cam), size),
     bright = shadeVisibility(ids, metalPages, identityRoots(), engineCamera(cam), size)
   assert.ok(compareImages(dark, bright).maxChannelError > 0)
-  assert.equal(visMaterial(a).metalness, 1)
-  assert.ok(visMaterial(a).metalnessMap)
+  assert.equal(surfaceOf(a).metalness, 1)
+  assert.ok(surfaceOf(a).metalnessMap)
   geometry.dispose()
   a.dispose()
   b.dispose()
@@ -87,8 +86,8 @@ test('a metalness map B=0 keeps a dielectric; B=1 is a metal', () => {
 })
 
 test('a roughness map G channel changes the GGX highlight', () => {
-  const smooth = G.dataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, G.HOST_FORMAT_RGBA)
-  const rough = G.dataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, G.HOST_FORMAT_RGBA)
+  const smooth = G.dataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, 'rgba')
+  const rough = G.dataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, 'rgba')
   const a = G.standardSurface({
     color: 0xffffff,
     metalness: 1,
@@ -127,9 +126,8 @@ test('transmissive MeshPhysicalMaterial is not packed for the visbuffer', () => 
     roughness: 0,
     metalness: 0,
   })
-  assert.equal(visMaterial(material).transmission, 1)
-  assert.equal(isTransmissive(material), true)
-  assert.equal(isTransmissive(G.standardSurface()), false)
+  assert.equal(surfaceOf(material).transmission, 1)
+  assert.equal(G.standardSurface().transmission, 0)
   material.dispose()
 })
 
@@ -154,8 +152,8 @@ test('MeshStandardMaterial visbuffer lighting implements Cook-Torrance GGX micro
   standard.dispose()
 })
 
-test('visMaterial([]) resolves an empty declaration to host defaults: white, opaque, front, unlit', () => {
-  const empty = visMaterial([])
+test('an empty declaration draws as one shared surface: white, opaque, front, unlit', () => {
+  const empty = surfaceOf([])
   assert.deepEqual(empty.baseColor, [1, 1, 1])
   assert.equal(empty.lit, false)
   assert.equal(empty.metalness, 0)
@@ -166,8 +164,8 @@ test('visMaterial([]) resolves an empty declaration to host defaults: white, opa
   assert.equal(empty.transmission, 0)
   assert.deepEqual(empty.emissive, [0, 0, 0])
   assert.equal(
-    visMaterial([]),
+    surfaceOf([]),
     empty,
-    'empty declaration reuses a shared default, not allocating per frame',
+    'an empty declaration reuses a shared record, not allocating per frame',
   )
 })

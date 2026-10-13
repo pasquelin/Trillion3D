@@ -10,13 +10,14 @@ import { blendFixture, camera } from './blend.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { OPEN_CONE, type NormalCone } from '../cone/cone.ts'
 import { graphDraws } from './drawSource.ts'
+import type { PageSurface } from '../surface.ts'
 
 /** A cone that looks opposite the camera: honoured, it rejects its page; open, the page stays. */
 const COOKED: NormalCone = { axis: [0, 0, -1], angle: 0 }
 
 /** What `read` finds of the fixture wearing `material`, its nearest page cooked with `COOKED`. */
 function collectedWith<T>(
-  material: G.GraphSurface,
+  material: PageSurface,
   read: (collected: ReturnType<typeof collectClusterPages>) => T,
 ) {
   const fixture = blendFixture(material)
@@ -34,9 +35,9 @@ function collectedWith<T>(
   return found
 }
 
-const cones = (material: G.GraphSurface) =>
+const cones = (material: PageSurface) =>
   collectedWith(material, ({ allPages }) => allPages.map((page) => page.cone))
-const shown = (material: G.GraphSurface) =>
+const shown = (material: PageSurface) =>
   collectedWith(material, ({ roots }) =>
     selectVisiblePages(roots, engineCamera(camera()), {}).shown.map((page) => page.url),
   )

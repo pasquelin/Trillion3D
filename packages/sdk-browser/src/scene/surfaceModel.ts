@@ -1,7 +1,7 @@
 /**
  * THE SURFACE MODELS BESIDE THE PHYSICAL ONE: HOW A NON-PBR MATERIAL READS IN THE ONE PIPELINE.
  *
- * The engine lights every surface with one model (`../lighting/standardLighting.ts`). A host material of
+ * The engine lights every surface with one model (`../lighting/standardLighting.ts`). A surface of
  * another family is mapped onto it, never given a pipeline of its own:
  * - `diffuse` (a Lambert material): the diffuse lobe of the same lights, and no specular one;
  * - `toon`: that diffuse lobe quantised into two bands at `N·L = 0.4`, the cel look;
@@ -13,7 +13,8 @@
  * The rank travels in three bits of the page row (`MODEL_SHIFT`); the surface pass writes the
  * lit ones as the surface flag (`MODEL_FLAG`) the resolve reads.
  */
-import type { HostShadedMaterial } from '../host/shadedMaterial.ts'
+import type { SurfaceFamily } from '../page/surface.ts'
+import type { SurfaceDeclaration } from '../page/surfaceDeclaration.ts'
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { lambertAlbedoMul } from '../../../math/src/wgsl/lighting.ts'
 import { signedToUnit3 } from '../../../math/src/wgsl/reals.ts'
@@ -57,8 +58,8 @@ export const FOG_FREE_MODEL_BIT = 8
 export const shownAsIs = (model: number | undefined) =>
   model === SURFACE_MODEL.normal || model === SURFACE_MODEL.depth
 
-/** The model a surface declares by its family; the physical model otherwise. */
-export function hostSurfaceModel({ family }: HostShadedMaterial): number {
+/** The model a surface of `family` reads in; the physical model otherwise. */
+export function familyModel(family: SurfaceFamily): number {
   if (family === 'lambert') return SURFACE_MODEL.diffuse
   if (family === 'toon') return SURFACE_MODEL.toon
   if (family === 'normal') return SURFACE_MODEL.normal
@@ -67,26 +68,30 @@ export function hostSurfaceModel({ family }: HostShadedMaterial): number {
   return SURFACE_MODEL.standard
 }
 
-/** Whether a surface carries the metal-rough parameters: a standard or a physical one. */
-export const metalRough = ({ family }: HostShadedMaterial) =>
+/** Whether a family carries the metal-rough parameters: a standard or a physical one. */
+export const metalRoughFamily = (family: SurfaceFamily) =>
   family === 'standard' || family === 'physical'
 
-/** True when the surface's model is lit by the scene's lights: a Phong material is the standard
+/** True when the family's model is lit by the scene's lights: a Phong surface is the standard
  *  model. */
-export const litModel = (host: HostShadedMaterial) =>
-  host.family === 'lambert' || host.family === 'toon' || metalRough(host) || host.family === 'phong'
+export const litFamily = (family: SurfaceFamily) =>
+  family === 'lambert' || family === 'toon' || metalRoughFamily(family) || family === 'phong'
+
+/** The unlit families that still carry relief maps, and so may declare a normal map. */
+const RELIEF_UNLIT = new Set<SurfaceFamily>(['normal', 'matcap'])
 
 /**
- * Why a surface declares a map that its model never reads, or `undefined`: a
- * toon's tone ramp, a matcap's colour map, the normal map of a surface drawn unlit. The one
- * refusal the page record holds (`../page/surface.ts`), so no surface drops one from the image.
+ * Why a declaration names a map that its model never reads, or `undefined`: a toon's tone ramp,
+ * a matcap's colour map, the normal map of a surface drawn unlit. The one refusal the surface
+ * record holds (`../page/surfaceRecord.ts`), so no surface drops one from the image.
  */
-export function unreadMapRefusal(host: HostShadedMaterial) {
+export function unreadMapRefusal(declared: SurfaceDeclaration) {
+  const { family } = declared
   const named = (map: string) =>
-    `material ${host.family} declares a ${map} its surface model never reads`
-  if (host.gradientMap) return named('gradientMap')
-  if (host.family === 'matcap' && host.map) return named('map')
-  if (host.normalMap && !litModel(host)) return named('normalMap')
+    `material ${family} declares a ${map} its surface model never reads`
+  if (family === 'toon' && declared.gradientMap) return named('gradientMap')
+  if (family === 'matcap' && declared.map) return named('map')
+  if (declared.normalMap && RELIEF_UNLIT.has(family)) return named('normalMap')
 }
 
 /**

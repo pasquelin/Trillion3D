@@ -33,9 +33,12 @@ test('a texture reads the image rank its table row names, a WebP-only one includ
     (rank) => (read.push(rank), Promise.resolve({ width: 1, height: 1 })),
     new Map(),
   )
-  const texture = await slot({ texture: 0, texCoord: 0, slotTexCoord: 0, transform: null })
+  const texture = await slot({ texture: 0, texCoord: 0, slotTexCoord: 0, transform: null }, true)
   assert.deepEqual(read, [1])
   assert.equal(texture?.name, 'b.webp')
+  // The compiler's filter words read once, at load, into the engine's own.
+  assert.deepEqual([texture?.minFilter, texture?.wrapS], ['linearMipLinear', 'repeat'])
+  assert.deepEqual([texture?.flipY, texture?.colorSpace], [false, 'srgb'])
 })
 
 // A slot naming another coordinate set than the first reads a copy of its texture, which answers to
@@ -66,13 +69,16 @@ test('a slot reading another set or moved reads a copy, ranked unless the slot n
   )
   type Offset = readonly [number, number] | null
   const at = (texCoord: number, slotTexCoord: number, offset: Offset = null) =>
-    slot({
-      texture: 0,
-      texCoord,
-      slotTexCoord,
-      transform: { offset, rotation: null, scale: null },
-    })
-  const plain = (await slot({ texture: 0, texCoord: 0, slotTexCoord: 0, transform: null }))!
+    slot(
+      {
+        texture: 0,
+        texCoord,
+        slotTexCoord,
+        transform: { offset, rotation: null, scale: null },
+      },
+      false,
+    )
+  const plain = (await slot({ texture: 0, texCoord: 0, slotTexCoord: 0, transform: null }, false))!
   assert.equal(ranks.get(plain), 0)
   const cases: [number, number, Offset, number | undefined][] = [
     [0, 1, null, undefined], // its own set 1 sent back to 0
@@ -86,7 +92,7 @@ test('a slot reading another set or moved reads a copy, ranked unless the slot n
     assert.notEqual(texture, plain, `${name}: a copy`)
     assert.equal(texture.channel, texCoord, name)
     assert.equal(ranks.get(texture), rank, name)
-    if (offset) assert.deepEqual([texture.offset.x, texture.offset.y], offset, name)
+    if (offset) assert.deepEqual([texture.transform[6], texture.transform[7]], offset, name)
   }
   assert.equal(await at(0, 0), plain, 'its own set, unmoved: the texture itself')
 })

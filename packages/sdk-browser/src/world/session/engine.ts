@@ -1,7 +1,6 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { RASTER_BACKGROUND } from '../../page/raster.ts'
 import { worldOrGeometryReader, type WorldRootsHold } from '../../scene/worldRoots.ts'
-import type { HostTexture } from '../../host/resources.ts'
 import { isCancelled, pixelRatioOf } from '../../engine/common.ts'
 import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts'
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts'
@@ -12,12 +11,13 @@ import type { EngineContext, EngineFactory, Engine } from '../../engine/types.ts
 import type { ExplorerPageSources } from './pageSources.ts'
 import type { ExplorerSession } from './session.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { Texture } from '../../../../sdk-core/src/index.ts'
 
 type Inputs = {
   source: Object3D
   sceneLightingSource?: Object3D
   draws: EngineContext['draws']
-  textureIndices: Map<HostTexture, number>
+  textureIndices: Map<Texture, number>
   pageSources: ExplorerPageSources
   gpuDevice?: GPUDevice
   /** What builds the session's engine: the WebGPU page raster's factory. */

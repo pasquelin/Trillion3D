@@ -6,11 +6,7 @@
 import type { VertexAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts'
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { InstancedMesh } from '../../../sdk-core/src/world/object/instancedMesh.ts'
-import type { GraphSurface } from './graph/surface.ts'
-import type { GraphTexture } from './graph/texture.ts'
-
-/** A texture of the graph: a decoded picture or raw texels, and the sampler state it declares. */
-export type HostTexture = GraphTexture
+import type { PageSurface } from '../page/surface.ts'
 
 /** One vertex attribute of a geometry, owning its storage or viewing an interleaved one. */
 export type HostAttribute = VertexAttribute
@@ -39,17 +35,15 @@ export type HostDisposable = {
   dispose(): void
 }
 
-/** A surface of the graph, of the family it declares. */
-export type HostMaterial = GraphSurface
-
-/** What a mesh wears: one surface, or one per geometry group. */
-export type HostMaterials = GraphSurface | GraphSurface[]
+/** What a mesh wears: the surface record of its material (`../page/surface.ts`), or one per
+ *  geometry group. */
+export type HostMaterials = PageSurface | PageSurface[]
 
 /** A drawn node of the graph, held by identity: the draw record, the transparent table and the
  *  selection sets name the mesh the engine placed. */
-export type HostMesh = Mesh<GraphSurface>
+export type HostMesh = Mesh<PageSurface>
 /** A drawn node of the graph at several placements, one matrix each. */
-export type HostInstancedMesh = InstancedMesh<GraphSurface>
+export type HostInstancedMesh = InstancedMesh<PageSurface>
 
 /** A host colour: three linear components, read one by one and written the same way. The engine
  *  never converts here — a colour crosses as the host holds it. */

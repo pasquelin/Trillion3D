@@ -14,6 +14,7 @@ import { createGuideSet } from '../../guides/guideSet.ts'
 import { families } from '../../host/families.ts'
 import { MATERIAL_SURFACES_PASS } from '../../stage/passLabels.ts'
 import { gateCompiles } from '../../lighting/deferred/gatedDevice.fixture.ts'
+import { surfaceWritten } from '../../page/surfaceWrites.ts'
 
 /** The executing device, whose compiles land off the thread a task after they are asked, and which
  *  counts each synchronous compile made inside `frame`. */
@@ -67,12 +68,12 @@ test('no image compiles a pipeline, whatever enters the scene after preparation'
     assert.ok(resolves() > 0, 'the images were drawn')
     // A material turned masked: a class the census did not have.
     material.alphaTest = 0.5
-    material.needsUpdate = true
+    surfaceWritten(material)
     backend.refreshMaterials?.(true, { surfaces: [material], from: 'opaque', to: 'mask' })
     await settle()
     // The same surface made to emit: the classes writing the layer.
-    ;(material.emissive as G.Color).setRGB(0.5, 0.25, 0)
-    material.needsUpdate = true
+    material.emissive = [0.5, 0.25, 0]
+    surfaceWritten(material)
     backend.refreshMaterials?.(true)
     await settle()
     // A guide shown: its pass.

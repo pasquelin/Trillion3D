@@ -1,5 +1,5 @@
 import type { Side as EngineSide } from '../../contracts/material.ts'
-import type { WrapMode } from '../../texture/contract.ts'
+import type { TextureFilter, WrapMode } from '../../texture/contract.ts'
 import { TONE_MAPPING_RANK, type SceneToneMapping } from '../../scene/core/environment.ts'
 
 /** Which faces a surface draws: the engine's own `Side` words (`contracts/material.ts`). */
@@ -36,7 +36,7 @@ export const filter = Object.freeze({
   nearestMipLinear: 'nearestMipLinear',
   /** Smooth pixel, mixed between two smaller copies: the smoothest. */
   linearMipLinear: 'linearMipLinear',
-} as const)
+} as const satisfies Record<string, TextureFilter>)
 
 /** How a surface composes over what is behind it. */
 export const blending = Object.freeze({

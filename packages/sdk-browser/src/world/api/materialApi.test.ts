@@ -3,8 +3,6 @@
 // and what it cannot apply to this material alone is refused by name before any write.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
-import { followHostTexture, importHostTexture } from '../../host/textureImport.ts'
 import { refusal, scene } from './materialApi.fixture.ts'
 
 test('the scene materials are listed by table rank, each a detached copy', async () => {
@@ -30,7 +28,7 @@ test('the scene materials are listed by table rank, each a detached copy', async
   }
   assert.deepEqual(api.material('0'), before)
   assert.deepEqual(api.importedMaterials()[0], before)
-  assert.equal((floor[0].color as G.Color).r, 0.5)
+  assert.equal(floor[0].baseColor[0], 0.5)
   for (const id of ['9', '', ' 1', '1.0'])
     assert.throws(() => api.material(id), refusal('UNKNOWN_MATERIAL'))
 })
@@ -38,8 +36,7 @@ test('the scene materials are listed by table rank, each a detached copy', async
 test('setMaterial writes each listed value into every surface of the material, live', async () => {
   const { api, floor, textures, refreshes } = await scene()
   const versions = floor.map((surface) => surface.version)
-  const record = importHostTexture(textures[0])
-  followHostTexture(record)
+  const record = textures[0]
   const placement = record.placement
   api.setMaterial('0', {
     baseColor: [0.25, 0.5, 0.75],
@@ -61,12 +58,15 @@ test('setMaterial writes each listed value into every surface of the material, l
   assert.equal(read.alphaMode, 'opaque')
   for (const [i, surface] of floor.entries()) {
     assert.equal(surface.version, versions[i] + 1, 'every variant repainted in place')
-    assert.equal((surface.color as G.Color).b, 0.75)
+    assert.equal(surface.baseColor[2], 0.75)
     assert.equal(surface.roughness, 0.25)
   }
   assert.deepEqual([textures[0].repeat.x, textures[0].repeat.y], [4, 2])
-  followHostTexture(record)
-  assert.equal(record.placement, placement + 1, 'an engine following the map sees it tiled')
+  assert.equal(
+    record.placement,
+    placement + 1,
+    'the record itself is tiled, its transform composed',
+  )
   assert.equal(record.transform[0], 4)
   assert.equal(api.setMaterial('1', { alphaCutoff: 0.25 }), true, 'every engine took it')
   assert.equal(api.material('1').alphaCutoff, 0.25)

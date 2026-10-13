@@ -1,5 +1,5 @@
 import type { AdmitGpuMemory } from '../residency/activeMemory.ts'
-import type { HostScene, HostTexture } from '../host/resources.ts'
+import type { HostScene } from '../host/resources.ts'
 import type { HostCamera } from '../camera/world.ts'
 import type {
   EngineCapabilities,
@@ -7,6 +7,7 @@ import type {
   DiagnosticMode,
   SceneLightStore,
   StageProfile,
+  Texture,
 } from '../../../sdk-core/src/index.ts'
 import type { EngineDrawCounters, EngineMetrics } from '../diagnostic/metricKeys.ts'
 import type { MemoryBudgets, MemoryBudgetsReport } from '../residency/pools.ts'
@@ -118,7 +119,7 @@ export interface EngineContext {
    *  instance rows that place it in place of a node's pose (`page/selection/drawSource.ts`). */
   draws: readonly DrawSource[]
   /** glTF rank of each texture of the prepared scene, to tie an atlas layer to its preview. */
-  textureIndices?: Map<HostTexture, number>
+  textureIndices?: Map<Texture, number>
   /** Reader of texture levels baked in the cache; absent from a cache that has none. */
   readTextureLevel?: import('../texture/levelReader.ts').TextureLevelReader
   signal?: AbortSignal

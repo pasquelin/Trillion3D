@@ -86,19 +86,16 @@ export type {
   HostBox,
   HostColour,
   HostDisposable,
-  HostMaterial,
   HostMaterials,
   HostMesh,
   HostPoint,
   HostScene,
-  HostTexture,
 } from './host/resources.ts'
 /** The shapes a host node's pose and rotation are read through (`host/scene/graphNodes.ts`). */
 export type { HostRotation, HostVector } from './host/scene/graphNodes.ts'
-/** The engine's own scene graph (`host/graph/`): the surfaces and textures a loaded scene hands
- *  back; its nodes are the core's. */
-export type { GraphSurface } from './host/graph/surface.ts'
-export type { GraphTexture } from './host/graph/texture.ts'
+/** The surface record a mesh of the engine's graph wears (`page/surface.ts`), holding the core's
+ *  texture records; its nodes are the core's. */
+export type { PageSurface, SurfaceFamily } from './page/surface.ts'
 export type { HostNodeMatrix, MatrixElements } from './host/matrixElements.ts'
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './diagnostic/gpuPasses.ts'
 export type { GpuPassBlockTotals } from './gpu/core/passBlocks.ts'

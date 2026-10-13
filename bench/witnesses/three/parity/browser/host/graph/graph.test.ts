@@ -17,8 +17,9 @@ import { Camera } from '../../../../../../../packages/sdk-core/src/world/camera/
 import { perspectiveProjection } from '../../../../../../../packages/math/src/projection/camera.ts'
 import { Light } from '../../../../../../../packages/sdk-core/src/world/light/light.ts'
 import { BufferAttribute } from '../../../../../../../packages/sdk-core/src/world/buffer/attribute.ts'
-import { GraphSurface } from '../../../../../../../packages/sdk-browser/src/host/graph/surface.ts'
-import { GraphTexture } from '../../../../../../../packages/sdk-browser/src/host/graph/texture.ts'
+import { familySurface } from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { threeMaterials } from '../../../../../fromSurface.ts'
+import { Texture } from '../../../../../../../packages/sdk-core/src/world/texture/texture.ts'
 import { hookHostNode } from '../../../../../../../packages/sdk-browser/src/host/scene/hooks.ts'
 import { Geometry } from '../../../../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 
@@ -120,20 +121,20 @@ test('a geometry bounds itself by the rule of the engine, morph targets included
 })
 
 test('a texture transform, a surface family and a copied light hold the default values', () => {
-  const texture = new GraphTexture(null),
+  const texture = new Texture(null),
     reference = new THREE.Texture()
   for (const t of [texture, reference]) {
     t.offset.set(0.25, -0.5)
     t.repeat.set(2, 3)
-    t.center.set(0.5, 0.5)
     t.rotation = 0.7
-    t.updateMatrix()
   }
-  assert.deepEqual([...texture.matrix.elements], reference.matrix.elements)
-  const surface = new GraphSurface('physical'),
+  reference.updateMatrix()
+  assert.deepEqual([...texture.transform], reference.matrix.elements)
+  const surface = familySurface('physical'),
+    drawn = threeMaterials(surface) as unknown as Record<string, unknown>,
     physical = new THREE.MeshPhysicalMaterial() as unknown as Record<string, unknown>
   for (const key of ['ior', 'blending', 'depthFunc', 'side', 'normalMapType', 'alphaTest'])
-    assert.equal(surface[key], physical[key], key)
+    assert.equal(drawn[key], physical[key], key)
   const light = new Light('spot'),
     spot = new THREE.SpotLight()
   const copy = light.clone()
@@ -185,7 +186,7 @@ test('the ambient, rectangle and probe lights copy themselves whole', () => {
 })
 
 test('an instanced mesh holds one matrix per placement and gives them back once', () => {
-  const mesh = new InstancedMesh(new Geometry(), new GraphSurface('standard'), 3)
+  const mesh = new InstancedMesh(new Geometry(), familySurface('standard'), 3)
   assert.equal(mesh.instanceMatrix.array.length, 48)
   assert.equal(mesh.count, 3)
   let released = 0

@@ -4,7 +4,7 @@ import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import type { GraphSurface } from '../../host/graph/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import { createWorldMaterials } from './worldMaterials.ts'
 
 // A material written every frame on a value — a pulsing lamp, a colour picker — keeps its
@@ -170,10 +170,10 @@ test('one material worn with and without colours gets one surface per case, both
     true,
   )
   assert.deepEqual(refreshed, [true], 'the session reads them again once')
-  ;[a, b].forEach((surface: GraphSurface, i) => assert.ok(surface.version > versions[i]!))
+  ;[a, b].forEach((surface: PageSurface, i) => assert.ok(surface.version > versions[i]!))
 })
 
-test('the surfaces of an entry the table drops are given back, and the textures only they wore', () => {
+test('the surfaces of an entry the table drops are given back', () => {
   const table = createWorldMaterials()
   const kept = table.entryOf(material.meshStandard({ color: 0x111111 })),
     dropped = table.entryOf(material.meshStandard({ color: 0x222222 }))

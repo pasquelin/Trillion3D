@@ -1,6 +1,6 @@
 import type { HostAttributes } from '../../host/resources.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import { refreshSurface, type PageSurface } from '../../page/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import { surfaceEmitsOrOccludes } from '../../scene/surfaceEmission.ts'
 import {
   emptyGeometryBlock,
@@ -58,8 +58,7 @@ function classKeys(
   const block = emptyGeometryBlock()
   seen.clear()
   keys.length = 0
-  for (const [surface, geometries] of worn) {
-    const mat = refreshSurface(surface)
+  for (const [mat, geometries] of worn) {
     for (let bits = 0; bits < GEOMETRIES; bits++)
       if (geometries & (1 << bits))
         seen.add(rowMaterial(mat, blockOf(bits, block), layers).classKey)
@@ -70,8 +69,7 @@ function classKeys(
 
 /** Whether a worn surface can emit or occlude (`surfaceEmitsOrOccludes`). */
 function emitting(worn: ReadonlyMap<PageSurface, number>) {
-  for (const surface of worn.keys())
-    if (surfaceEmitsOrOccludes(refreshSurface(surface))) return true
+  for (const surface of worn.keys()) if (surfaceEmitsOrOccludes(surface)) return true
   return false
 }
 

@@ -1,5 +1,4 @@
 import { msSince } from '../../../diagnostic/stopwatch.ts'
-import { importTextureIndices } from '../../../host/surfaceImport.ts'
 import { materialsAndTangentsCount } from '../io/catalogue.ts'
 import type { takeMaterialTextures } from './textures.ts'
 import { previewsByAtlas, tileCatalogue } from '../../tile/catalogue.ts'
@@ -47,9 +46,8 @@ export function textureCatalogues(
   // holds kept chains in — a device with both features takes the family the cook wrote.
   const choice = chooseBlockFormat(gpuDevice.features, previews, rt.context.textureCompression)
   const encoding = poolEncoding(choice.block)
-  // The host names its textures by glTF rank on its own objects; the atlas addresses the engine's
-  // records, so the table is rekeyed once, here, before a preview is looked up.
-  const ranks = importTextureIndices(rt.context.textureIndices)
+  // The glTF rank of each record: what its baked preview is found by.
+  const ranks = rt.context.textureIndices
   const previewOf = (atlas: number, list: typeof maps) => (index: number) => {
     const source = ranks?.get(list[index])
     return source === undefined ? undefined : previewAt(source, atlas)

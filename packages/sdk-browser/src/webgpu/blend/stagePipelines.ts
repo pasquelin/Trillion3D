@@ -7,7 +7,6 @@ import {
   started,
 } from '../../lighting/deferred/fullscreen.ts'
 import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts'
-import { refreshSurface } from '../../page/surface.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
@@ -75,7 +74,7 @@ export const declaredBlendModes = (
   BLEND_MODES.filter(
     (mode, rank) =>
       (!rank && items.length > 0) ||
-      items.some((item) => !item.transmissive && refreshSurface(item.surface).blending === mode),
+      items.some((item) => !item.transmissive && item.surface.blending === mode),
   )
 
 /** The blend pass's pipelines by plan rank — mode rank × 3 + cull rank (`plan.ts`), read from its

@@ -5,7 +5,7 @@ import { uniqueNames } from './nodes.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { animation } from '../../../../sdk-core/src/world/animation/family.ts'
-import { GraphSurface } from '../graph/surface.ts'
+import { standardSurface } from '../graph/graph.fixture.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type {
   PreparedSceneTables,
@@ -53,7 +53,7 @@ test('a reused multipart morph mesh animates only the targeted instance through 
       geometry.morphAttributes.position = [new BufferAttribute(new Float32Array(9), 3)]
       return geometry
     },
-    materialOf: () => Promise.resolve(new GraphSurface('standard')),
+    materialOf: () => Promise.resolve(standardSurface()),
   })
   const mixer = animation.createMixer(graph.scene)
   const action = mixer.clipAction(graph.clips[0])

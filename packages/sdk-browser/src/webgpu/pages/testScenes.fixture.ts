@@ -17,6 +17,7 @@ import {
 import { rootPage, twoPrimitives } from './rootPages.fixture.ts'
 import { graphDraws, type DrawAssociations } from '../../page/selection/drawSource.ts'
 import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
+import type { PageSurface } from '../../page/surface.ts'
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
 /** `scene` with the sources of its graph's drawn nodes, as a session is handed them. */
@@ -155,7 +156,7 @@ export function assertBothQuadPagesDrawn(
 /** Releases a backend and the quad it was mounted on. */
 export function disposeQuadRun(
   backend: { dispose(): void },
-  fixture: { geometry: G.Geometry; material: G.GraphSurface },
+  fixture: { geometry: G.Geometry; material: PageSurface },
 ) {
   backend.dispose()
   fixture.geometry.dispose()

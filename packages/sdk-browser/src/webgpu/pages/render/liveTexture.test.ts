@@ -7,8 +7,8 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { disposeQuadRun } from '../testScenes.fixture.ts'
 import { mappedQuadRun } from './mappedQuad.fixture.ts'
-import { hostTextureWritten } from '../../../host/textureImport.ts'
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../../../../sdk-core/src/contracts/poolBudgets.ts'
+import { surfaceWritten } from '../../../page/surfaceWrites.ts'
 
 type Labelled = { label?: string }
 
@@ -47,8 +47,7 @@ test('a map redrawn for 120 frames is copied in place, one working texture kept'
     for (let frame = 0; frame < 120; frame++) {
       pixels[0] = frame
       map.needsUpdate = true
-      hostTextureWritten()
-      surface.needsUpdate = true
+      surfaceWritten(surface)
       assert.equal(backend.refreshMaterials?.(), true, `frame ${frame}: no session reopened`)
       const before = [writes.length, copies.length]
       backend.render(cam)
@@ -83,7 +82,6 @@ test('a map redrawn for 120 frames is copied in place, one working texture kept'
     // A new size: the tiles were laid out at the old one.
     map.image = { data: new Uint8Array(16), width: 2, height: 2 }
     map.needsUpdate = true
-    hostTextureWritten()
     assert.equal(backend.refreshMaterials?.(), false, 'a new size asks for a new session')
   } finally {
     disposeQuadRun(backend, fixture)
@@ -101,8 +99,7 @@ test('a picture alone leaves the row table as it is; a value written rewrites it
     const frame = (values: boolean) => {
       pixels[0]++
       map.needsUpdate = true
-      hostTextureWritten()
-      surface.needsUpdate = true
+      surfaceWritten(surface)
       const [buffers, textures] = [gpu.writes.length, writes.length]
       assert.equal(backend.refreshMaterials?.(values), true)
       backend.render(cam)

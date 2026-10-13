@@ -13,6 +13,7 @@ import { webgpuPagesEngine } from '../pages.ts'
 import { runtime } from './targets.fixture.ts'
 import { frameTargetAllocation } from './targetAllocation.ts'
 import { wantsEmissiveAo } from './emissiveAoLayer.ts'
+import { surfaceWritten } from '../../../page/surfaceWrites.ts'
 
 type Gpu = ReturnType<typeof fakeDevice>
 const count = (list: string[], item: string) => list.filter((at) => at === item).length
@@ -22,7 +23,7 @@ async function opened(emits: boolean) {
   const gpu = fakeDevice(BACKEND)
   const fixture = quadScene()
   const material = G.standardSurface({ roughness: 0.5 })
-  if (emits) (material.emissive as G.Color).setRGB(0.5, 0.25, 0)
+  if (emits) material.emissive = [0.5, 0.25, 0]
   ;(fixture.source.children[0] as G.HostMesh).material = material
   const backend = webgpuPagesEngine({
     ...fixture,
@@ -93,8 +94,8 @@ test('a surface made to emit after open brings the layer before the image that d
       standIn = gpu.textures.find(
         ({ label, width }) => label === 'Trillion3D surface v1 rgba16float' && width === 1,
       )!
-    ;(material.emissive as G.Color).setRGB(0, 0.5, 1)
-    material.needsUpdate = true
+    material.emissive = [0, 0.5, 1]
+    surfaceWritten(material)
     backend.refreshMaterials?.(true)
     const resolves = () => gpu.passes.filter(({ label }) => label === MATERIAL_SURFACES_PASS)
     const drawn = resolves().length

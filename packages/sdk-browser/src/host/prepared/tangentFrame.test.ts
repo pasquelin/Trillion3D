@@ -9,17 +9,16 @@ import { preparedMaterials } from './materials.ts'
 import { entry } from '../../world/api/materialApi.fixture.ts'
 import { frameNormalScaleY } from '../../visibility/frameNormal.ts'
 import * as G from '../graph/graph.fixture.ts'
-import { visMaterial } from '../../visibility/shader/material.ts'
 
 const plain = { vertexColors: false, flatShading: false }
 
 test('both variants of a table surface shade a page with one factor, vertex tangents with their own', async () => {
-  const surfaceOf = preparedMaterials(
+  const materialOf = preparedMaterials(
     [entry({ normalScaleY: 0.8 }), entry({ derivativeTangents: true, normalScaleY: -0.8 })],
     async () => null,
   )
-  const tangents = visMaterial(await surfaceOf(0, plain)),
-    rebuilt = visMaterial(await surfaceOf(1, plain))
+  const tangents = await materialOf(0, plain),
+    rebuilt = await materialOf(1, plain)
   assert.equal(frameNormalScaleY(tangents, false), -0.8, 'a page: the rebuilt frame’s factor')
   assert.equal(frameNormalScaleY(rebuilt, false), -0.8, 'the other variant shades it alike')
   assert.equal(frameNormalScaleY(tangents, true), 0.8, 'vertex tangents: the factor as written')
@@ -27,7 +26,7 @@ test('both variants of a table surface shade a page with one factor, vertex tang
 })
 
 test('a surface no table wrote keeps the factor it declares in either frame', () => {
-  const foreign = visMaterial(G.standardSurface({ normalScale: new G.Vector2(1, 0.5) }))
+  const foreign = G.standardSurface({ normalScale: new G.Vector2(1, 0.5) })
   assert.equal(frameNormalScaleY(foreign, false), 0.5)
   assert.equal(frameNormalScaleY(foreign, true), 0.5)
 })

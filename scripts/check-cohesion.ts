@@ -31,8 +31,7 @@ export const MAX_FUNCTION_LINES = 60
  *  This is McCabe with a deviation, and the deviation is deliberate: `&&`, `||` and `??` each add a
  *  path, which stock McCabe does not count. Much of what this bound reports is a guard chain rather
  *  than a decision tree, which is why the number is not comparable to ESLint's `complexity` rule and
- *  why the gate says which measure it used. The tree's own worst measures 65
- *  (`host/surfaceImport.ts`). */
+ *  why the gate says which measure it used. The tree's own worst measured 65 when it was set. */
 export const MAX_COMPLEXITY = 20
 
 const EXTS = /\.m?ts$/

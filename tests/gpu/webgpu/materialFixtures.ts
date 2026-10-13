@@ -109,8 +109,8 @@ export const fixtures: Fixture[] = [
     'map repeated and turned',
     () => {
       const map = img.colourMap(img.FOUR_COLOURS)
-      map.wrapS = map.wrapT = G.HOST_WRAP_REPEAT
-      map.magFilter = G.HOST_FILTER_LINEAR
+      map.wrapS = map.wrapT = 'repeat'
+      map.magFilter = 'linear'
       map.repeat.set(4, 4)
       map.rotation = 30 * DEG2RAD
       return { map }

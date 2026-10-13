@@ -22,7 +22,7 @@ import { MAX_ANISOTROPY } from './maxAnisotropy.ts'
  * footprint's. A filter without `mip` picks the read inside a level — nearest or linear — and
  * never the level, so level selection and tile requests stay those of the default read.
  *
- * Bits of the filter word, zero for the default `linear` / `linear-mip-linear` / 1 × untransformed:
+ * Bits of the filter word, zero for the default `linear` / `linearMipLinear` / 1 × untransformed:
  * the zero word takes the read the pools had before, and nothing else. Which read a pass compiles
  * is not tested per sample: a page whose maps are all at zero carries no `FLAG_SAMPLED`, and its
  * resolve class — `HAS_SAMPLING` — compiles the default read alone (`samplingWgsl.ts`).
@@ -48,10 +48,10 @@ export const TRANSFORM_WORDS = 6
 const MIN_BITS: Record<TextureFilter, number> = {
   nearest: SAMPLE_MIN_NEAREST,
   linear: 0,
-  'nearest-mip-nearest': SAMPLE_MIN_NEAREST | SAMPLE_MIP_NEAREST,
-  'nearest-mip-linear': SAMPLE_MIN_NEAREST,
-  'linear-mip-nearest': SAMPLE_MIP_NEAREST,
-  'linear-mip-linear': 0,
+  nearestMipNearest: SAMPLE_MIN_NEAREST | SAMPLE_MIP_NEAREST,
+  nearestMipLinear: SAMPLE_MIN_NEAREST,
+  linearMipNearest: SAMPLE_MIP_NEAREST,
+  linearMipLinear: 0,
 }
 
 /** Where `samplingWords` writes: one array, reused, read back by its caller before the next call. */

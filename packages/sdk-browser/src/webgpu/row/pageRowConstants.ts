@@ -1,5 +1,5 @@
 import { clusterHash } from '../../visibility/math.ts'
-import { refreshSurface, type PageSurface } from '../../page/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 
 /** What a material brings to a page row: its read fields. */
 type MaterialRow = { version: number; mat: PageSurface }
@@ -19,8 +19,7 @@ export function createPageRowConstants() {
   const hashes = new Map<string, number>()
   return {
     /** Fields of a surface, computed at its first row. */
-    materialOf(surface: PageSurface) {
-      const mat = refreshSurface(surface)
+    materialOf(mat: PageSurface) {
       const held = materials.get(mat)
       if (held && held.version === mat.version) return held
       const row = { version: mat.version, mat }

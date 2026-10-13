@@ -1,5 +1,5 @@
 import * as G from '../host/graph/graph.fixture.ts'
-import { surfaceOf } from '../page/surface.ts'
+import { surfaceOf, type PageSurface } from '../page/surface.ts'
 import type { VisPage } from './types.ts'
 import { triangleAt } from '../../../../bench/oracles/browser/cpu-image/projection.ts'
 import { UV_GRADIENTS_WGSL } from './shader/shadeDeclWgsl.ts'
@@ -19,7 +19,7 @@ export function camera() {
 }
 
 export function quadPages(
-  material: G.GraphSurface,
+  material: PageSurface,
   uv?: number[],
 ): { pages: VisPage[]; geometry: G.Geometry; roots: ReturnType<typeof identityRoots> } {
   const geometry = new G.Geometry()
@@ -49,17 +49,11 @@ export function centerId(ids: Uint32Array, width: number, height: number) {
 
 /** A 2×2 RGBA map sampled nearest — red, green, blue, white — its rows as stored. */
 export function nearestQuadTexture() {
-  const map = G.dataTexture(
+  return G.dataTexture(
     new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]),
     2,
     2,
-    G.HOST_FORMAT_RGBA,
   )
-  map.magFilter = G.HOST_FILTER_NEAREST
-  map.minFilter = G.HOST_FILTER_NEAREST
-  map.flipY = false
-  map.needsUpdate = true
-  return map
 }
 
 /** Analytical UV derivatives of the winning triangle, by the resolve's own gradients. Not a finite

@@ -50,10 +50,10 @@ test('MASK alpha-test punches a visbuffer hole before shading', () => {
     new Uint8Array([255, 0, 0, 255, 0, 255, 0, 0, 0, 0, 255, 0, 255, 255, 0, 0]),
     2,
     2,
-    G.HOST_FORMAT_RGBA,
+    'rgba',
   )
-  map.magFilter = G.HOST_FILTER_NEAREST
-  map.minFilter = G.HOST_FILTER_NEAREST
+  map.magFilter = 'nearest'
+  map.minFilter = 'nearest'
   map.flipY = false
   map.needsUpdate = true
   const mask = G.basicSurface({ color: 0xffffff, map, alphaTest: 0.5 })

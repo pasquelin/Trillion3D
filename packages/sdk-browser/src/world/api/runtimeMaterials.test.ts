@@ -4,15 +4,15 @@ import { runtimeMaterials } from './runtimeMaterials.ts'
 import { bitmapFixture } from './bitmap.fixture.ts'
 import { refusal } from './materialApi.fixture.ts'
 import type { Engine } from '../../engine/types.ts'
-import type { GraphSurface } from '../../host/graph/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import { RUNTIME_MAP_BYTES_CEILING } from './runtimeMapCeiling.ts'
 
-function engine(admit: (surface: GraphSurface) => Promise<void> = async () => {}) {
-  const released: GraphSurface[] = []
+function engine(admit: (surface: PageSurface) => Promise<void> = async () => {}) {
+  const released: PageSurface[] = []
   const backend = {
     signal: new AbortController().signal,
     admitMaterial: admit,
-    releaseMaterial: (surface: GraphSurface) => released.push(surface),
+    releaseMaterial: (surface: PageSurface) => released.push(surface),
   } as unknown as Engine
   return { backend, released }
 }

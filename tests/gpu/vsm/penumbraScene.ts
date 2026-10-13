@@ -5,6 +5,7 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts'
 import { batisseur, square } from '../kit/sharedSceneProof.ts'
+import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
 
 export type Receiver = 'opaque' | 'blend' | 'none'
 
@@ -25,7 +26,7 @@ const CAMERA_Z = 1
 
 export function penumbraScene(receiver: Receiver, { open = false, half = 2 } = {}) {
   const builder = batisseur()
-  const add = (z: number, x: number, sx: number, sy: number, s: G.GraphSurface, pass: string) => {
+  const add = (z: number, x: number, sx: number, sy: number, s: PageSurface, pass: string) => {
     const mesh = G.mesh(square(1), s)
     mesh.position.set(x, 0, z)
     mesh.scale.set(sx, sy, 1)

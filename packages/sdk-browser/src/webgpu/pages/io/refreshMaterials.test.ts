@@ -11,6 +11,7 @@ import { BACKEND, fakeDevice, writtenBytes } from '../../../../../../tests/kit/g
 import { quadScene, camera } from '../testScenes.fixture.ts'
 import { surfaceOf } from '../../../page/surface.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
+import { surfaceWritten } from '../../../page/surfaceWrites.ts'
 
 test('a blended surface rewritten in place reaches its item record at the values refresh', async () => {
   installGpuGlobals()
@@ -33,9 +34,9 @@ test('a blended surface rewritten in place reaches its item record at the values
     await backend.prepare()
     backend.render(camera())
     assert.deepEqual(rgba(), [1, 0, 0, 0.5])
-    ;(fixture.material.color as G.Color).setRGB(0, 0.5, 1)
+    fixture.material.baseColor = [0, 0.5, 1]
     fixture.material.opacity = 0.25
-    fixture.material.needsUpdate = true
+    surfaceWritten(fixture.material)
     backend.refreshMaterials?.(true)
     backend.render(camera())
     assert.deepEqual(rgba(), [0, 0.5, 1, 0.25])
@@ -71,7 +72,7 @@ test('an opaque surface turned masked cuts every row of its material', async () 
     backend.render(camera())
     assert.equal(masked(), false)
     fixture.material.alphaTest = 0.5
-    fixture.material.needsUpdate = true
+    surfaceWritten(fixture.material)
     backend.refreshMaterials?.(true, { surfaces: [fixture.material], from: 'opaque', to: 'mask' })
     // The masked class is asked at the next frame entry, the image held until it compiled.
     backend.render(camera())

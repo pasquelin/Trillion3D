@@ -4,13 +4,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import { BLEND_MODES, hostBlending } from '../../scene/materialBlending.ts'
+import { BLEND_MODES } from '../../scene/materialBlending.ts'
 import { declaredBlendModes, pipelinesByMode } from './stagePipelines.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 
-/** Blend items as prepare leaves them, one per host blending constant. */
-function items(blendings: (number | undefined)[], transmissive: boolean[] = []) {
+/** Blend items as prepare leaves them, one per blending mode. */
+function items(blendings: Blending[], transmissive: boolean[] = []) {
   return blendings.map((blending, index) => {
     const surface = G.basicSurface()
     Object.assign(surface, { blending })
@@ -20,9 +20,9 @@ function items(blendings: (number | undefined)[], transmissive: boolean[] = []) 
 
 test('the declared modes are normal, then every mode a non-transmissive item names, in rank', () => {
   assert.deepEqual(declaredBlendModes([]), [], 'no transparent item, no blend program')
-  const all = items([...BLEND_MODES].reverse().map(hostBlending))
+  const all = items([...BLEND_MODES].reverse())
   assert.deepEqual(declaredBlendModes(all), BLEND_MODES)
-  const glass = items([hostBlending('additive'), hostBlending('multiply')], [true, false])
+  const glass = items(['additive', 'multiply'], [true, false])
   assert.deepEqual(declaredBlendModes(glass), ['normal', 'multiply'], 'transmission blends normal')
 })
 

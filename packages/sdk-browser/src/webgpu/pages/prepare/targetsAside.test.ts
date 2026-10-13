@@ -16,8 +16,6 @@ import { refusing } from './refusing.fixture.ts'
 import { frameTargetsAwaited } from './targetGrant.ts'
 import { installGpuDeviceLedger } from '../../../gpu/core/deviceLedger.ts'
 import * as G from '../../../host/graph/graph.fixture.ts'
-import { importHostTexture } from '../../../host/textureImport.ts'
-import type { HostTexture } from '../../../host/resources.ts'
 import { appendWebgpuTexture } from '../io/appendTexture.ts'
 
 installGpuGlobals()
@@ -145,8 +143,8 @@ test('targets made aside under the old feedback variant take the target of the o
   const s = await session()
   try {
     assert.equal(s.rt.vis.writesFeedback, false, 'the quad wears no texture')
-    const map = G.dataTexture(new Uint8Array(64), 4, 4) as unknown as HostTexture
-    await appendWebgpuTexture(s.rt, importHostTexture(map), 'color')
+    const map = G.dataTexture(new Uint8Array(64), 4, 4)
+    await appendWebgpuTexture(s.rt, map, 'color')
     s.rt.scale.set({ min: 0.5, max: 0.75 })
     const followed: boolean[] = []
     const follows = () => followed.push(!!s.rt.gpu.feedbackTexture === s.rt.vis.writesFeedback)

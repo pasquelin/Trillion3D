@@ -1,6 +1,5 @@
 import { EngineError } from '../../../../sdk-core/src/index.ts'
-import { GraphTexture } from '../../host/graph/texture.ts'
-import { HOST_COLOUR_SPACE_SRGB } from '../../host/surfaceConstants.ts'
+import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { RUNTIME_MAP_BYTES_CEILING } from './runtimeMapCeiling.ts'
 
 /** Maps borrow caller-owned bitmaps until drop/session disposal. The engine never closes them. */
@@ -21,10 +20,8 @@ export function runtimeMaps() {
           ceiling: RUNTIME_MAP_BYTES_CEILING,
         })
       bytes += asked
-      const texture = new GraphTexture(bitmap)
+      const texture = new Texture(bitmap)
       texture.flipY = false
-      texture.colorSpace = HOST_COLOUR_SPACE_SRGB
-      texture.needsUpdate = true
       let dropped = false
       return {
         texture,

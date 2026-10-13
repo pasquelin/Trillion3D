@@ -1,5 +1,5 @@
 import type { BlendGpuItem } from './state.ts'
-import { refreshSurface } from '../../page/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import {
   layerSlot,
   physicalSampledFlag,
@@ -91,8 +91,8 @@ export function writeBlendItemRecord(
   tables: BlendAtlasTables,
 ) {
   const base = index * BLEND_ITEM_WORDS,
-    // Read as the host holds it now: a surface rewritten in place is refilled here (#335).
-    mat = refreshSurface(item.surface)
+    // Read as its owner wrote it last: a surface rewritten in place is read here (#335).
+    mat = item.surface
   floats.set(item.matrix.elements, base + ITEM.world)
   floats[base + ITEM.color] = mat.baseColor[0]
   floats[base + ITEM.color + 1] = mat.baseColor[1]
@@ -127,7 +127,7 @@ function writeMaterialWords(
   ints: Uint32Array,
   base: number,
   item: BlendGpuItem,
-  mat: ReturnType<typeof refreshSurface>,
+  mat: PageSurface,
   tables: BlendAtlasTables,
 ) {
   const layer = layerSlot(tables.mapLayer, mat.map),

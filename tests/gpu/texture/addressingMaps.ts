@@ -2,17 +2,17 @@
 // map's header carries. The GPU proof (`texture-addressing.gpu.ts`) and the unit test of the
 // nibbles (`visibility/wrapModes.test.ts`) both read this material: one thing to read again when
 // the modes change.
-import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import type { WrapMode } from '../../../packages/sdk-core/src/index.ts'
 import { textureBytes } from './addressingCases.ts'
 import {
   SAMPLE_WRAP_SHIFT,
   samplingWords,
 } from '../../../packages/sdk-browser/src/texture/sampling.ts'
 
-const CLAMP = G.HOST_WRAP_CLAMP_TO_EDGE,
-  REPEAT = G.HOST_WRAP_REPEAT,
-  MIRROR = G.HOST_WRAP_MIRRORED_REPEAT
+const CLAMP = 'clamp',
+  REPEAT = 'repeat',
+  MIRROR = 'mirror'
 
 /** The six texture slots a standard surface carries. */
 type MapSlot = 'map' | 'roughnessMap' | 'metalnessMap' | 'normalMap' | 'aoMap' | 'emissiveMap'
@@ -21,7 +21,7 @@ type MapSlot = 'map' | 'roughnessMap' | 'metalnessMap' | 'normalMap' | 'aoMap' |
  * One map per slot, each on its own pair of modes: no pair is shared by two neighbouring maps, so a
  * nibble applied to the wrong map shows at once.
  */
-export const MAPS: { name: string; slot: MapSlot; wrapS: number; wrapT: number }[] = [
+export const MAPS: { name: string; slot: MapSlot; wrapS: WrapMode; wrapT: WrapMode }[] = [
   { name: 'base', slot: 'map', wrapS: REPEAT, wrapT: REPEAT },
   { name: 'roughness', slot: 'roughnessMap', wrapS: CLAMP, wrapT: MIRROR },
   { name: 'metal', slot: 'metalnessMap', wrapS: MIRROR, wrapT: CLAMP },
@@ -51,7 +51,7 @@ export const UV = AXIS.flatMap((t) => [
 export function mixedMaterial() {
   const material = G.standardSurface({ alphaTest: 0.5 })
   for (const { slot, wrapS, wrapT } of MAPS)
-    material[slot] = Object.assign(new G.GraphTexture(), { wrapS, wrapT })
+    material[slot] = Object.assign(new G.Texture(), { wrapS, wrapT })
   return material
 }
 
@@ -60,9 +60,6 @@ export function mixedMaterial() {
 export function mixedNibbles() {
   const material = mixedMaterial()
   return MAPS.map(
-    ({ slot }) =>
-      (samplingWords(importHostTexture(material[slot] as G.GraphTexture))[0] >>>
-        SAMPLE_WRAP_SHIFT) &
-      15,
+    ({ slot }) => (samplingWords(material[slot] as G.Texture)[0] >>> SAMPLE_WRAP_SHIFT) & 15,
   )
 }

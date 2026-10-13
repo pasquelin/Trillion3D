@@ -1,6 +1,5 @@
 import { DEFERRED_BINDINGS } from '../lighting/deferred/bindings.ts'
 import { surfacesOfRows } from '../page/rowSurfaces.ts'
-import { refreshSurface } from '../page/surface.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 
@@ -16,8 +15,7 @@ export const SUBSURFACE_TARGET = loadOnlyTarget(
   'subsurfaceColor',
 )
 export function wantsSubsurface(rt: WebgpuPagesRuntime) {
-  return surfacesOfRows(rt.layout.rows).some((surface) => {
-    const material = refreshSurface(surface)
-    return material.doubleSided && material.subsurfaceColor?.some((component) => component > 0)
-  })
+  return surfacesOfRows(rt.layout.rows).some(
+    (surface) => surface.doubleSided && surface.subsurfaceColor?.some((component) => component > 0),
+  )
 }

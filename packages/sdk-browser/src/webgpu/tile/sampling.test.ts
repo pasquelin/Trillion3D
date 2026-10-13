@@ -34,7 +34,7 @@ const record = (fields: Partial<Texture> = {}) =>
     wrapS: 'clamp',
     wrapT: 'clamp',
     magFilter: 'linear',
-    minFilter: 'linear-mip-linear',
+    minFilter: 'linearMipLinear',
     anisotropy: 1,
     transform: IDENTITY,
     ...fields,
@@ -59,14 +59,14 @@ test('each filter name sets its base filter and mip rule', () => {
   assert.equal(filterOf({ magFilter: 'nearest' }), SAMPLE_MAG_NEAREST)
   assert.equal(filterOf({ minFilter: 'nearest' }), SAMPLE_MIN_NEAREST)
   assert.equal(
-    filterOf({ minFilter: 'nearest-mip-nearest', magFilter: 'nearest' }),
+    filterOf({ minFilter: 'nearestMipNearest', magFilter: 'nearest' }),
     SAMPLE_MAG_NEAREST | SAMPLE_MIN_NEAREST | SAMPLE_MIP_NEAREST,
   )
   assert.equal(
-    filterOf({ minFilter: 'nearest-mip-linear', magFilter: 'nearest' }),
+    filterOf({ minFilter: 'nearestMipLinear', magFilter: 'nearest' }),
     SAMPLE_MAG_NEAREST | SAMPLE_MIN_NEAREST,
   )
-  assert.equal(filterOf({ minFilter: 'linear-mip-nearest' }), SAMPLE_MIP_NEAREST)
+  assert.equal(filterOf({ minFilter: 'linearMipNearest' }), SAMPLE_MIP_NEAREST)
 })
 
 // A filter without `mip` picks the read inside a level, never the level: every texture — the
@@ -94,10 +94,10 @@ test('anisotropy is clamped to the ceiling, and granted only to a linear read mi
   assert.equal(granted(filterOf({ anisotropy: 8 })), 8)
   assert.equal(granted(filterOf({ anisotropy: 64 })), MAX_ANISOTROPY)
   assert.equal(granted(filterOf({ anisotropy: 0 })), 1)
-  assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'nearest-mip-linear' })), 16)
+  assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'nearestMipLinear' })), 16)
   assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'linear' })), 16)
   assert.equal(granted(filterOf({ anisotropy: 16, magFilter: 'nearest' })), 1)
-  assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'linear-mip-nearest' })), 1)
+  assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'linearMipNearest' })), 1)
   assert.equal(filterOf({ anisotropy: 16 }) & SAMPLE_TRANSFORMED, 0, 'below the transform bit')
 })
 

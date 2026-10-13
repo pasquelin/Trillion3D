@@ -8,8 +8,7 @@ import { poolEncoding } from '../../texture/blockFormats.ts'
 import type { WebgpuTileAtlas } from './atlas.ts'
 import { tileCatalogue } from './catalogue.ts'
 import { collectWebgpuMaterialTextures } from '../core/materialTextures.ts'
-import { importHostTexture } from '../../host/textureImport.ts'
-import { GraphTexture } from '../../host/graph/graph.fixture.ts'
+import { Texture } from '../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
@@ -21,8 +20,7 @@ import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 // a surface whose blending draws the colour under alpha 0 (`none`) or that transmits, stays plain.
 test('a hosted texture is reduced weighted only when every reader takes it for coverage', async () => {
   installGpuGlobals()
-  const map = () =>
-    importHostTexture(new GraphTexture({ data: new Uint8Array(16), width: 2, height: 2 }))
+  const map = () => new Texture({ data: new Uint8Array(16), width: 2, height: 2 })
   const [masked, opaque, mixed, blended, unblended, glass] = [1, 2, 3, 4, 5, 6].map(map)
   const surface = (fields: object) => ({ alphaTest: 0, transparent: false, ...fields })
   const pages = [

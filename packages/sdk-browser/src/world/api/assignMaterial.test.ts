@@ -8,6 +8,7 @@ import { meshes } from '../../scene/meshes.ts'
 import { drawSourceOf } from '../../page/selection/drawSource.ts'
 import { refusal, scene } from './materialApi.fixture.ts'
 import type { AlphaChange, SurfaceAssignment } from '../../placement/engineSceneUpdates.ts'
+import type { PageSurface } from '../../page/surface.ts'
 
 test('a created material is worn by the drawable it is assigned to, every engine told', async () => {
   const { api, source, refreshes } = await scene()
@@ -31,11 +32,10 @@ test('a vertex-coloured drawable wears the coloured variant of a created materia
   drawable.geometry.setAttribute('color', new G.BufferAttribute(new Float32Array(3), 3))
   const made = api.createMaterial({ baseColor: [0, 0, 1] })
   assert.equal(api.assignMaterial('2/0', made.id), true)
-  const worn = drawable.material as G.GraphSurface
+  const worn = drawable.material as PageSurface
   assert.equal(worn.vertexColors, true, 'its colours kept, as the open kept them')
   api.setMaterial(made.id, { baseColor: [0, 1, 0] })
-  const { r, g, b } = worn.color as G.Color
-  assert.deepEqual([r, g, b], [0, 1, 0], 'no stale copy')
+  assert.deepEqual(worn.baseColor, [0, 1, 0], 'no stale copy')
 })
 
 test('a drawable whose meshes wear several classes is asked about the one that moves', async () => {

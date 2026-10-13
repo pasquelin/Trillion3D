@@ -12,13 +12,14 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { commandArgs } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
+import type { Side } from '../../../../sdk-core/src/index.ts'
 
 const FRONT = 'front' as unknown as GPURenderPipeline,
   BACK = 'back' as unknown as GPURenderPipeline,
   TEXTURED = 'textured' as unknown as GPURenderPipeline
 
 /** An already-bound blend item: only the pipeline sequence is observed here. */
-const item = (side: number, negatif = false, paged = false) => {
+const item = (side: Side, negatif = false, paged = false) => {
   const matrix = new G.Matrix4()
   if (negatif) matrix.makeScale(-1, 1, 1)
   return {
@@ -30,7 +31,7 @@ const item = (side: number, negatif = false, paged = false) => {
   }
 }
 /** The same item, but paged: it reads concatenated geometry, so it shares draws. */
-const pagee = (side: number) => item(side, false, true)
+const pagee = (side: Side) => item(side, false, true)
 
 function joue(items: ReturnType<typeof item>[]) {
   const gpu = fakeDevice()

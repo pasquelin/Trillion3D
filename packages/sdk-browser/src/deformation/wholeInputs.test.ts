@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts'
-import { GraphSurface } from '../host/graph/surface.ts'
+import { physicalSurface } from '../host/graph/graph.fixture.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { wholeDeformationInputs } from './wholeInputs.ts'
 import { createSessionDeformation } from './session.ts'
@@ -33,7 +33,7 @@ test('whole-copy inputs preserve source skin IDs and convert absolute morph targ
 
 test('whole transmission keeps no pages and distinct placement outputs in the existing pool', () => {
   const g = sample(),
-    surface = new GraphSurface('physical', { transmission: 1 })
+    surface = physicalSurface({ transmission: 1 })
   const a = new Mesh(g, surface),
     b = new Mesh(g, surface)
   const copies = [a, b].map((mesh) => {

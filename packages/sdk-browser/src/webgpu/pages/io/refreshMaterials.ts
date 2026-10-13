@@ -1,4 +1,3 @@
-import { followHostTexture } from '../../../host/textureImport.ts'
 import { pictureFits } from '../../tile/live.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { shadowsFollowSurfaces } from '../prepare/lightResources.ts'
@@ -11,9 +10,9 @@ import {
 import type { HostMaterials } from '../../../host/resources.ts'
 import {
   recordsOfMeshes,
-  surfaceOf,
   unpagedRefusal,
   wearDeclaration,
+  type PageSurface,
 } from '../../../page/surface.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 
@@ -40,7 +39,7 @@ const assignsBlended = (assignment: SurfaceAssignment, pages: readonly PageRec[]
   recordsOfMeshes(pages, assignment.meshes).some((rec) => rec.transparent)
 
 /**
- * Host surfaces rewritten in place. When their values moved, every row is written again at
+ * Surface records rewritten in place. When their values moved, every row is written again at
  * the next frame, and the writer rereads each surface whose version moved
  * (`row/pageRowConstants.ts`); a resolve class one of them moved into is compiled before the image
  * that draws it (`shadeCensus`). When only their textures moved (`values` false) — a video's
@@ -55,13 +54,12 @@ const assignsBlended = (assignment: SurfaceAssignment, pages: readonly PageRec[]
  */
 export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, alpha?: AlphaChange) {
   if (alpha) {
-    const surfaces = alpha.surfaces.map((surface) => surfaceOf(surface as HostMaterials))
     shadowsFollowSurfaces(
       rt.lights,
       rt.layout.rows,
       rt.layout.selectionRoots,
       rt.layout.placement,
-      new Set(surfaces),
+      new Set(alpha.surfaces as readonly PageSurface[]),
     )
   }
   if (values) {
@@ -76,10 +74,7 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
   const textures = rt.vis.textures
   if (!textures) return true
   return [textures.color, textures.data].every((atlas) =>
-    atlas.textures.every((entry) => {
-      if (entry.source.kind === 'host') followHostTexture(entry.source.map)
-      return pictureFits(entry)
-    }),
+    atlas.textures.every((entry) => pictureFits(entry)),
   )
 }
 

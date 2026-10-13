@@ -8,8 +8,7 @@ import { createTileCounters } from './counters.ts'
 import { tileCatalogue } from './catalogue.ts'
 import type { WebgpuTileAtlas } from './atlas.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
-import { importHostTexture } from '../../host/textureImport.ts'
-import { GraphTexture } from '../../host/graph/graph.fixture.ts'
+import { Texture } from '../../host/graph/graph.fixture.ts'
 import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -18,10 +17,10 @@ test('a live texture keeps its turn ring between pictures, given back once idle'
   t.mock.timers.enable({ apis: ['setTimeout'] })
   installGpuGlobals()
   const { device, buffers, destroyed } = fakeDevice(BACKEND)
-  const host = new GraphTexture({ data: new Uint8Array(16), width: 2, height: 2 })
+  const host = new Texture({ data: new Uint8Array(16), width: 2, height: 2 })
   host.flipY = true
   const encoding = poolEncoding(undefined)
-  const maps = [importHostTexture(host)]
+  const maps = [host]
   const atlas = {
     kind: 'color',
     textures: tileCatalogue(maps, () => undefined, undefined, encoding),

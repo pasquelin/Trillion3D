@@ -1,70 +1,12 @@
 import type { Side } from '../../../sdk-core/src/index.ts'
-import type { Blending } from '../../../sdk-core/src/world/constants/index.ts'
 import type { HostMaterials } from '../host/resources.ts'
-import { blendingOf } from './materialBlending.ts'
-
-/** The host face constants, in the order glTF and every rendering library built on it number
- *  them: front, back, then both. Read here once and nowhere else — the raster, the cones, the
- *  pipelines and the blend plan compare against `Side`. */
-const HOST_SIDE_FRONT = 0,
-  HOST_SIDE_BACK = 1,
-  HOST_SIDE_DOUBLE = 2
+import { surfaceOf, surfaceSide } from '../page/surface.ts'
 
 /** The material that decides for a mesh: the one declared, or the first of an array — an
  *  empty array declaring nothing (`undefined`). */
 export const firstMaterial = <M>(material: M | M[]): M | undefined =>
   Array.isArray(material) ? material[0] : material
 
-/** The host side constant a material declares, the first of an array deciding; an empty
- *  array declares nothing and gets the host default, front, instead of a crash. */
-export function materialSide(
-  material: { readonly side: number } | readonly { readonly side: number }[],
-): number {
-  const first = 'length' in material ? material[0] : material
-  return first?.side ?? HOST_SIDE_FRONT
-}
-
-/** The side a host material declares, read once at the boundary into the engine's own enum. */
-export function sideOf(material: HostMaterials): Side {
-  const side = materialSide(material)
-  return side === HOST_SIDE_DOUBLE ? 'double' : side === HOST_SIDE_BACK ? 'back' : 'front'
-}
-
-/** The host face constant for the side the engine declares: the way back, for a boundary that
- *  builds a host material out of the engine's own material parameters. */
-export const hostSide = (side: Side): number =>
-  side === 'double' ? HOST_SIDE_DOUBLE : side === 'back' ? HOST_SIDE_BACK : HOST_SIDE_FRONT
-
-/**
- * The raster facts a host declares beside the shaded ones: which version of the declaration this
- * is, its opacity, its alpha cutoff, whether it is drawn blended and how (`undefined`: a mode
- * the engine has no name for, refused by the transparent plan), whether the engine draws a
- * double-sided blended surface in one pass, whether a blended surface casts a shadow (unsaid: no),
- * and whether it is declared as one material per geometry group. The host declaration they are
- * read from is built from the cache's material table (`../host/prepared/materials.ts`); they are read here, at the same boundary as the side, and travel on inside the engine's own surface record (`../page/surface.ts`).
- * They are written INTO the record given: this runs per page row and per plan entry.
- */
-export type MaterialRaster = {
-  version: number
-  opacity: number
-  alphaTest: number
-  transparent: boolean
-  blending: Blending | undefined
-  forceSinglePass: boolean
-  transparentShadow: boolean
-  grouped: boolean
-}
-export function materialRaster<T extends MaterialRaster>(material: HostMaterials, into: T): T {
-  const first = firstMaterial(material)
-  into.version = first?.version ?? 0
-  into.opacity = first?.opacity ?? 1
-  into.alphaTest = first?.alphaTest ?? 0
-  into.transparent = Array.isArray(material)
-    ? material.some((entry) => entry.transparent)
-    : !!material?.transparent
-  into.blending = blendingOf(first?.blending as number | undefined)
-  into.forceSinglePass = !!first?.forceSinglePass
-  into.transparentShadow = !!first?.transparentShadow
-  into.grouped = Array.isArray(material)
-  return into
-}
+/** The side a mesh's surface declares, the first of an array deciding; an empty array declares
+ *  nothing and is drawn front only. */
+export const sideOf = (material: HostMaterials): Side => surfaceSide(surfaceOf(material))

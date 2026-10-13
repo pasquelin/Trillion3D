@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { createPageRowWriter } from '../row/pageRowWriter.ts'
 import { FLAG_MASK, PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
-import { isTransmissive } from '../../visibility/shader/material.ts'
 import { createShadeCensus } from '../visibility/shadeCensus.ts'
 import { createPresentClasses } from './materialPasses.ts'
 import { SURFACE_MODEL } from '../../scene/surfaceModel.ts'
@@ -13,6 +12,7 @@ import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { markPresentClasses } from './presentClasses.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { surfaceOf } from '../../page/surface.ts'
 
 test('the three material classes take the three paths the engine has for them', () => {
   const { source, meshes, metadata, indices, associations } = scene()
@@ -26,8 +26,8 @@ test('the three material classes take the three paths the engine has for them', 
   assert.equal(collected.roots[0].pages[0].drawSource?.node, meshes[0], 'the cut-out stays opaque')
   assert.equal(collected.blendCopies.length, 1, 'only transmission leaves the DAG')
   assert.equal(collected.blendCopies[0].userData.drawSource?.node, meshes[2])
-  assert.equal(isTransmissive(meshes[2].material), true)
-  assert.equal(isTransmissive(meshes[1].material), false, 'a plain blend does not transmit')
+  assert.equal(surfaceOf(meshes[2].material).transmission > 0, true)
+  assert.equal(surfaceOf(meshes[1].material).transmission, 0, 'a plain blend does not transmit')
 })
 
 test('a cut-out cluster carries its alpha test into the visibility row', () => {

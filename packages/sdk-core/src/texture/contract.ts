@@ -1,4 +1,5 @@
 import { clamp } from '../../../math/src/scalar/reals.ts'
+import type { ColorSpace } from '../world/constants/index.ts'
 /**
  * The engine's texture: the image the compiler imported and the sampler state declared beside it,
  * in the engine's own words. No rendering-library object — a texture reaches a pool, an atlas lane
@@ -18,13 +19,10 @@ export type WrapMode = 'clamp' | 'repeat' | 'mirror'
 export type TextureFilter =
   | 'nearest'
   | 'linear'
-  | 'nearest-mip-nearest'
-  | 'nearest-mip-linear'
-  | 'linear-mip-nearest'
-  | 'linear-mip-linear'
-
-/** How the texels are encoded: a colour map carries an sRGB transfer curve, a data map does not. */
-export type TextureColorSpace = 'srgb' | 'linear'
+  | 'nearestMipNearest'
+  | 'nearestMipLinear'
+  | 'linearMipNearest'
+  | 'linearMipLinear'
 
 /** One imported texture, held by identity: an atlas layer, a preview rank or a wrap nibble is
  *  addressed by the record itself, so one source texture is one record for the session. */
@@ -58,7 +56,11 @@ export interface Texture {
   /** Whether colour is pre-multiplied. */
   readonly premultiplyAlpha: boolean
   /** How its numbers are read. */
-  readonly colorSpace: TextureColorSpace
+  readonly colorSpace: ColorSpace
+  /** What the image holds beyond its pixels: `'data'` for raw texels `{ data, width, height }`. */
+  readonly layout: string
+  /** How each raw texel is stored: `'rgba'`, `'rgb'`, `'r'`. */
+  readonly format: string
   /** UV transform of the sampler, `KHR_texture_transform` composed into a 3 × 3 matrix stored
    *  column-major: entries 0 to 2 the first column, 6 and 7 the translation. */
   readonly transform: ArrayLike<number>
@@ -76,10 +78,10 @@ export function uvTransformed(m: ArrayLike<number>) {
 
 /**
  * Anisotropy a texture is sampled with: a linear magnification over a chain mixed across levels —
- * every minification but `*-mip-nearest`, a filter without `mip` mixing the levels as the default
+ * every minification but `*MipNearest`, a filter without `mip` mixing the levels as the default
  * read does — takes it, clamped to `ceiling`; any other filter reads one tap.
  */
 export function grantedAnisotropy(texture: Texture, ceiling: number) {
-  if (texture.magFilter === 'nearest' || texture.minFilter.endsWith('mip-nearest')) return 1
+  if (texture.magFilter === 'nearest' || texture.minFilter.endsWith('MipNearest')) return 1
   return clamp(texture.anisotropy, 1, ceiling)
 }

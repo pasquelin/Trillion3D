@@ -1,4 +1,3 @@
-import { importHostTexture } from '../../host/textureImport.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -27,9 +26,9 @@ const preview = (width: number, height: number, bakedLevels: number): TexturePre
   ...previewLevels(width, height, 3),
 })
 const map = () => {
-  const texture = new G.GraphTexture()
+  const texture = new G.Texture()
   texture.image = { data: new Uint8Array(4 * 4 * 4), width: 4, height: 4 }
-  return importHostTexture(texture)
+  return texture
 }
 const reader = Object.assign(
   async () => {

@@ -6,9 +6,6 @@ import assert from 'node:assert/strict'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import type { GraphSurface } from '../../host/graph/surface.ts'
-import { importHostSurface } from '../../host/surfaceImport.ts'
-import { hostSide } from '../../scene/materialSide.ts'
 import { createPlacementRows } from '../../placement/rows.ts'
 import { hostSurface, repaintHostSurface } from './worldSurface.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
@@ -20,7 +17,7 @@ import type { Seat } from './worldBatches.ts'
 import { boxTransform } from '../../../../sdk-core/src/index.ts'
 import { SPRITE_UNCULLED, spriteAt } from '../../visibility/shader/spriteWgsl.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
-import { surfaceOf } from '../../page/surface.ts'
+import { surfaceOf, surfaceSide } from '../../page/surface.ts'
 import { blendSceneOf } from '../../webgpu/blend/plan.fixture.ts'
 import type { BlendGpuItem } from '../../webgpu/blend/state.ts'
 import { packed } from '../../gpu/dag/selectionHelpers.fixture.ts'
@@ -29,16 +26,16 @@ import { planCull } from '../../webgpu/blend/planCull.ts'
 
 test('a sprite surface carries its turn and size rule, both sides, and a repaint writes its turn', () => {
   const picture = material.sprite({ rotation: 0.4, sizeAttenuation: false })
-  const surface = hostSurface(picture, false, new Map(), 'sprite')
-  assert.equal(surface.side, hostSide('double'), 'a quad turned to the camera has no back')
-  assert.deepEqual(importHostSurface(surface)?.sprite, { rotation: 0.4, sizeAttenuation: false })
+  const surface = hostSurface(picture, false, 'sprite')
+  assert.equal(surfaceSide(surface), 'double', 'a quad turned to the camera has no back')
+  assert.deepEqual(surface.sprite, { rotation: 0.4, sizeAttenuation: false })
   picture.rotation = 1.2
   picture.sizeAttenuation = true
   repaintHostSurface(surface, picture)
   // The size rule sets the root mark, taken once at collection: a repaint never moves it.
-  assert.deepEqual(importHostSurface(surface)?.sprite, { rotation: 1.2, sizeAttenuation: false })
+  assert.deepEqual(surface.sprite, { rotation: 1.2, sizeAttenuation: false })
   // The same material worn by faces is no sprite.
-  assert.equal(importHostSurface(hostSurface(picture, false, new Map()))?.sprite, undefined)
+  assert.equal(hostSurface(picture, false).sprite, undefined)
 })
 
 test("a sprite's rotation written at run time repaints its entry in place", () => {
@@ -63,7 +60,7 @@ test("a sprite's size rule written at run time is a new entry, whose roots carry
     if (marks.length) assert.notEqual(entry, before, 'copied on write, never repainted')
     assert.deepEqual(table.takeRepainted(), [])
     const fixture = dagFixture()
-    fixture.mesh.material = hostSurface(entry.material, false, new Map(), 'sprite')
+    fixture.mesh.material = hostSurface(entry.material, false, 'sprite')
     const { roots, dag } = packed(fixture)
     const frames = new Uint32Array(primitiveFrameWords(dag).buffer)
     assert.equal(roots[0].mark, dag.mark[0], 'the CPU cut root and the packed DAG agree')
@@ -87,7 +84,7 @@ function spriteMesh() {
 
 test("a sprite's host mesh wears the sprite surface and is bounded by its radius", () => {
   const mesh = spriteMesh()
-  assert.ok(importHostSurface(mesh.material as GraphSurface)?.sprite)
+  assert.ok(surfaceOf(mesh.material).sprite)
   const { boundingBox, boundingSphere } = mesh.geometry
   const r = Math.SQRT2
   assert.deepEqual(boundingBox!.min.toArray(), [-r, -r, -r])

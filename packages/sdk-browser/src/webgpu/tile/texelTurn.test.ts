@@ -11,8 +11,7 @@ import { createTexelTurn, prepareTexelTurn } from './texelTurn.ts'
 import { TEXEL_FLIP } from './texelTurnWgsl.ts'
 import { tileCatalogue } from './catalogue.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
-import { importHostTexture } from '../../host/textureImport.ts'
-import { GraphTexture } from '../../host/graph/graph.fixture.ts'
+import { Texture } from '../../host/graph/graph.fixture.ts'
 
 test('static turns share the device’s ring and words, destroyed once idle', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
@@ -53,10 +52,10 @@ test('the turn compiles ahead only for a host texture whose texels turn', async 
   installGpuGlobals()
   const compiled = async (flipY: boolean) => {
     const gpu = fakeDevice(BACKEND)
-    const host = new GraphTexture({ data: new Uint8Array(16), width: 2, height: 2 })
+    const host = new Texture({ data: new Uint8Array(16), width: 2, height: 2 })
     host.flipY = flipY
     host.premultiplyAlpha = false
-    const maps = [importHostTexture(host)]
+    const maps = [host]
     const textures = tileCatalogue(maps, () => undefined, undefined, poolEncoding(undefined))
     await prepareTexelTurn(gpu.device, textures)
     return gpu.computePipelines.filter(({ label }) => label === 'Trillion3D texel turn').length

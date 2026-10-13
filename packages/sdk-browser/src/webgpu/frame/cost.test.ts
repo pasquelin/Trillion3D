@@ -16,7 +16,7 @@ test('paged transparent commands disappear outside the view and return with both
   for (const gpuCut of [false, true]) {
     const fixture = quadScene()
     fixture.material.transparent = true
-    fixture.material.side = G.DOUBLE_SIDE
+    G.sided(fixture.material, G.DOUBLE_SIDE)
     fixture.metadata.primitives[0].pass = 'clustered-blend'
     const twin = fixture.source.children[0].clone() as G.HostMesh
     fixture.source.add(twin)

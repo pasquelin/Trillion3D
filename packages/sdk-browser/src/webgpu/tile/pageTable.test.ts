@@ -151,7 +151,7 @@ test("a texture's sampling rides in its header, and only the words that moved ar
     wrapS: 'clamp',
     wrapT: 'clamp',
     magFilter: 'linear',
-    minFilter: 'linear-mip-linear',
+    minFilter: 'linearMipLinear',
     anisotropy: 1,
     transform: [1, 0, 0, 0, 1, 0, 0, 0, 1],
   } as unknown as Texture & { transform: number[]; magFilter: string }

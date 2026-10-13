@@ -11,7 +11,7 @@ import { type BlendGpuItem, type WebgpuBlendState } from './state.ts'
 /** A paged double-sided item whose box is centred on `z`, the one input its rank reads. */
 function item(z: number, extra: Partial<BlendGpuItem> = {}) {
   return {
-    surface: surfaceOf(G.basicSurface({ side: 2 })),
+    surface: surfaceOf(G.basicSurface({ side: G.DOUBLE_SIDE })),
     matrix: new G.Matrix4(),
     count: 3,
     paged: true,

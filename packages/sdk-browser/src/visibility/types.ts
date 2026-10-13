@@ -1,8 +1,6 @@
 import type { HostAttributes } from '../host/resources.ts'
 import type { PageSurface } from '../page/surface.ts'
 import type { Texture } from '../../../sdk-core/src/index.ts'
-import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts'
-import { texelFormatOf } from '../host/textureImport.ts'
 import { VIS_CARD_ROWS, VIS_MAX_PAGE_TRIANGLES } from './visWords.ts'
 import { PAGE_INFO } from './pageInfo.ts'
 /** Largest addressable page count: the rows below a card's identifiers (`VIS_CARD_BASE`). */
@@ -88,8 +86,8 @@ export type VisPage = {
 /** Why raw texels cannot be read as `textureRgba` reads them — one byte per channel of four, as
  *  many as the size holds —, or nothing when they can: a gate names the storage, never draws it
  *  blank. */
-const texelsReason = ({ format, image }: { format?: number; image: unknown }) => {
-  if (format !== HOST_FORMAT_RGBA) return `texel format ${format} is unsupported: RGBA only`
+const texelsReason = ({ format, image }: { format: string; image: unknown }) => {
+  if (format !== 'rgba') return `texel format ${format} is unsupported: RGBA only`
   const { data, width, height } = image as { data?: unknown; width: number; height: number }
   if (!(data instanceof Uint8Array || data instanceof Uint8ClampedArray))
     return 'texel storage is unsupported: 8-bit texels only'
@@ -98,10 +96,13 @@ const texelsReason = ({ format, image }: { format?: number; image: unknown }) =>
 }
 
 /** Why the texels a record holds in memory cannot be read as `textureRgba` reads them, in
- *  `texelsReason`'s words: its host's format for raw texels, RGBA for any other picture. The
- *  texture fill throws it (#43). */
+ *  `texelsReason`'s words: its own format for raw texels (`layout` `'data'`), RGBA for any other
+ *  picture. The texture fill throws it (#43). */
 export const texelsRefusal = (texture: Texture) =>
-  texelsReason({ format: texelFormatOf(texture) ?? HOST_FORMAT_RGBA, image: texture.image })
+  texelsReason({
+    format: texture.layout === 'data' ? texture.format : 'rgba',
+    image: texture.image,
+  })
 
 type TextureRgba = { data: Uint8Array; width: number; height: number }
 /**
