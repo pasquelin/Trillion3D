@@ -21,6 +21,8 @@ import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts'
 import { setBit } from '../../../../math/src/scalar/bits.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import type { TransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts'
+import { createChangedRuns } from '../residency/ranges.ts'
 import { ENTRY_CORNERS_ENTRY, ENTRY_CORNERS_WGSL, ENTRY_INPUT_DOUBLES } from './entryCornersWgsl.ts'
 
 const ENTRY_WORDS = ENTRY_INPUT_DOUBLES * 2
@@ -63,6 +65,24 @@ export function createEntryCorners() {
   }
 }
 export type EntryCorners = ReturnType<typeof createEntryCorners>
+
+/** The transparent table's occlusion test and what its corners were derived at, as the blend state
+ *  holds them (`../blend/state.ts`). */
+export function transparentOcclusionState() {
+  return {
+    /** Hi-Z test of transparent clusters, mounted after the pyramid it depends on. */
+    occlusion: undefined as TransparentOcclusion | undefined,
+    /** The age of the table the entries' corners were derived at, and the entries pass's state
+     *  (`createEntryCorners`), made at its first image. */
+    occlusionEpoch: -1,
+    occlusionEntries: undefined as EntryCorners | undefined,
+    /** The entries whose pages a rewrite bounded elsewhere since the corners were derived, their
+     *  inputs sent again alone (`refreshTransparentCorners`); none when `to` is below `from`. */
+    occlusionMoved: { from: Infinity, to: -1 },
+    /** The entries whose placement moved since: derived again alone, from its world. */
+    occlusionPosed: createChangedRuns(),
+  }
+}
 
 /** Entry `entry` derived at the next pass. */
 export function targetEntry(held: EntryCorners, entry: number) {
