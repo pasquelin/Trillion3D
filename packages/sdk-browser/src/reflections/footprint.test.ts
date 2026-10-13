@@ -7,12 +7,12 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { REFLECTION_CONE_WGSL } from './footprint.ts'
-import { reflectionConstant } from './constants.fixture.ts'
+import { REFLECTION_CONSTANTS } from './constants.ts'
 import { reflectionRunner, sceneOver, viewOf } from './scene.fixture.ts'
 import { depthField } from './depthField.fixture.ts'
 import { camera, castBoxes, type Box, type V3 } from './boxes.fixture.ts'
 
-const TAPS = reflectionConstant('REFLECTION_TAPS')
+const TAPS = REFLECTION_CONSTANTS.REFLECTION_TAPS
 
 /**
  * A sheet standing over a plank on a slab, the sheet a blended surface outside the depth — a pane

@@ -7,7 +7,7 @@ import { depthField, depthLoads, HIZ_DEPTH_READERS, type DepthField } from './de
 import { reflectedRadianceWgsl } from './wgsl.ts'
 import { reflectionLightViewWgsl, REFLECTION_GROUP } from './viewLayout.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
-import { reflectionConstant } from './constants.fixture.ts'
+import { REFLECTION_CONSTANTS } from './constants.ts'
 import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
 
 type Seen = { color: number[]; confidence: number }
@@ -169,7 +169,7 @@ export function reflectionRunner(
     counter,
     levels: depth.levels.count[0],
     slab: reflectionView.slab,
-    thickness: reflectionConstant('REFLECTION_THICKNESS'),
+    thickness: REFLECTION_CONSTANTS.REFLECTION_THICKNESS,
   }
 }
 
