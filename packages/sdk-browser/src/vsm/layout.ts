@@ -5,7 +5,6 @@
  * (`residency/shadowBudgetBytes.ts`).
  */
 import {
-  VSM_PAGE_LIST_COUNT,
   VSM_DIRTY_SLICES,
   VSM_LOG2_PAGE,
   VSM_MIPS,
@@ -21,6 +20,7 @@ import {
   VSM_TILE_DEPTHS_PER_PAGE,
   VSM_UNIFORMS_BYTES,
 } from './constants.ts'
+import { POOL_SORT_WORDS } from '../gpu/pool/sort.ts'
 import {
   alignUp,
   ceilDiv,
@@ -184,7 +184,6 @@ export function frameBufferSizes(layout: VsmLayout): Record<keyof VsmFrameBuffer
     staleRects: layout.pageRectCount * 16,
     mappedRects: layout.pageRectCount * 16,
     projectionData: layout.mapSlots * VSM_PROJECTION_RECORD_BYTES,
-    poolLists: VSM_PAGE_LIST_COUNT * (layout.poolPages + 1) * 4,
   }
 }
 
@@ -202,6 +201,7 @@ type VsmSetBuffer =
   | 'clearArgs'
   | 'mergeArgs'
   | 'tileArgs'
+  | 'freePages'
 
 export function setBufferSizes(layout: VsmLayout): Record<VsmSetBuffer, number> {
   const maxPages = layout.poolPages
@@ -217,6 +217,8 @@ export function setBufferSizes(layout: VsmLayout): Record<VsmSetBuffer, number> 
     clearArgs: 16,
     mergeArgs: 2 * 16,
     tileArgs: 2 * 16,
+    // The pool sort's counts and places, then the free pages' count and the pages (`freePages`).
+    freePages: (POOL_SORT_WORDS + 1 + maxPages) * 4,
   }
 }
 

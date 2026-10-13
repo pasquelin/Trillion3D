@@ -228,18 +228,12 @@ export const VSM_INIT_RECT_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'uniforms', binding: 0 },
   { resource: 'staleRects', binding: 1, access: 'read_write' },
   { resource: 'mappedRects', binding: 2, access: 'read_write' },
-  { resource: 'poolLists', binding: 3, access: 'read_write' },
 ]
 
 /** The page rect bounds init, entry `vsmInitPageRects`, 256 threads. Binding 4: params. */
 export const vsmPageRectInitWgsl = (layout: VsmLayout) =>
   wgslProgram(
     `@group(0) @binding(4) var<uniform> vsmMarking:VsmMarkingParams;
-/** Start and count access of the physical page lists. */
-fn vsmPageListStart(pageList:u32)->u32{return pageList*(vsm.poolPages+1u);}
-fn vsmSetPageListCount(pageList:u32,newCount:i32){
- vsmPoolLists[vsmPageListStart(pageList)+vsm.poolPages]=newCount;
-}
 @compute @workgroup_size(${256}) fn vsmInitPageRects(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let index=flatIndex(id,n,256u);
  if(index<vsmMarking.rectsToClear){
@@ -251,13 +245,6 @@ fn vsmSetPageListCount(pageList:u32,newCount:i32){
   let empty=vec4u(VSM_LEVEL0_PAGES,VSM_LEVEL0_PAGES,0u,0u);
   vsmStaleRects[rectOffset]=empty;
   vsmMappedRects[rectOffset]=empty;
- }
- // Clear the various list counters.
- if(index==0u){
-  vsmSetPageListCount(VSM_PAGES_BY_AGE,i32(vsm.poolPages));
-  vsmSetPageListCount(VSM_PAGES_FREE,0);
-  vsmSetPageListCount(VSM_PAGES_EMPTY,0);
-  vsmSetPageListCount(VSM_PAGES_REQUESTED,0);
  }
 }
 `,

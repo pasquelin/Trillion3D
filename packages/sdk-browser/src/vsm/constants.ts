@@ -121,13 +121,6 @@ const VSM_META_ANY_STALE = VSM_META_DYNAMIC_STALE | VSM_META_STATIC_STALE
 const VSM_ENTRY_DRAWABLE_BIT = 0x40000000
 const VSM_ENTRY_MAPPED_BIT = 0x80000000
 
-// Physical page lists, each VSM_POOL_PAGES + 1 long (the last word is the counter).
-const VSM_PAGES_BY_AGE = 0
-const VSM_PAGES_FREE = 1
-const VSM_PAGES_EMPTY = 2
-const VSM_PAGES_REQUESTED = 3
-export const VSM_PAGE_LIST_COUNT = 4
-
 /** The light kinds (a map's `VsmProjectionData.lightKind`, a projected light's
  *  `VsmProjectionLight.kind`; a rect light is projected only). */
 export const VSM_LIGHT_KIND_DIRECTIONAL = 0
@@ -375,11 +368,6 @@ ${wgslConsts({
   VSM_META_ANY_STALE,
   VSM_ENTRY_DRAWABLE_BIT,
   VSM_ENTRY_MAPPED_BIT,
-  VSM_PAGES_BY_AGE,
-  VSM_PAGES_FREE,
-  VSM_PAGES_EMPTY,
-  VSM_PAGES_REQUESTED,
-  VSM_PAGE_LIST_COUNT,
   LIGHT_KIND_DIRECTIONAL: VSM_LIGHT_KIND_DIRECTIONAL,
   LIGHT_KIND_SPOT: VSM_LIGHT_KIND_SPOT,
   LIGHT_KIND_RECT: VSM_LIGHT_KIND_RECT,
