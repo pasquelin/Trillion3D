@@ -15,6 +15,7 @@ import {
 } from '../core/environment.ts'
 import { LIGHT_FIELD, baseOf, writeLightFields } from './fields.ts'
 import { validateSceneLight } from './validate.ts'
+import { createLightKinds } from './kinds.ts'
 
 export { LIGHT_FIELD } from './fields.ts'
 
@@ -56,7 +57,8 @@ export function createSceneLightStore() {
   }
   /** Fields declared by the host. The shadow slice is not one: the scheduler sets it. */
   const write = (slot: number, light: SceneLight) => writeLightFields(packed, baseOf(slot), light)
-  const records = new Map<string, SceneLight>()
+  const records = new Map<string, SceneLight>(),
+    kinds = createLightKinds()
   const store = {
     settings: LIGHT_SETTINGS,
     /** Every light, packed for the GPU: a new array when the table grows. */
@@ -80,6 +82,17 @@ export function createSceneLightStore() {
     /** How many lights. */
     get count() {
       return ids.length
+    },
+    /** Lights casting a shadow that are suns, that are local lights; lights that are rectangles:
+     *  counted at every add, change and removal (`createLightKinds`). */
+    get shadowedSuns() {
+      return kinds.shadowedSuns
+    },
+    get shadowedLocals() {
+      return kinds.shadowedLocals
+    },
+    get rects() {
+      return kinds.rects
     },
     /** Bumped when the set of lights changes. */
     get epoch() {
@@ -135,6 +148,7 @@ export function createSceneLightStore() {
       ids.push(validated.id)
       indexOf.set(validated.id, slot)
       records.set(validated.id, validated)
+      kinds.tally(validated, 1)
       revision[slot]++
       write(slot, validated)
       // A new slot is zero in the buffer; without a slice, the published value is −1.
@@ -153,6 +167,8 @@ export function createSceneLightStore() {
       // A light reset identically is not a change: neither its revision nor the epoch
       // move, so the scheduler stales no shadow page and the held frame stays.
       if (sameSceneLight(current, merged)) return
+      kinds.tally(current, -1)
+      kinds.tally(merged, 1)
       records.set(id, merged)
       revision[slot]++
       write(slot, merged)
@@ -174,6 +190,7 @@ export function createSceneLightStore() {
       }
       ids.length = last
       indexOf.delete(id)
+      kinds.tally(records.get(id)!, -1)
       records.delete(id)
       revision[last] = 0
       packed.fill(0, baseOf(last), baseOf(last + 1))
