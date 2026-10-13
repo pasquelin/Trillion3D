@@ -1,28 +1,24 @@
 /**
- * THE ENGINE'S GRAPH, HANDED TO THE WITNESS RENDERER: the geometries, surfaces and textures of
- * `packages/sdk-browser/src/host/graph/`, copied into the library the witnesses draw with. Each has
- * one copy, made on first request and kept in step with the version the engine bumps; a library
- * object crosses as it is. Every number is the engine's.
+ * THE ENGINE'S GRAPH, HANDED TO THE WITNESS RENDERER: the geometries and textures a scene of the
+ * engine's own graph holds, copied into the library the witnesses draw with (its surfaces cross in
+ * `fromSurface.ts`). Each has one copy, made on first request and kept in step with the version the
+ * engine bumps; a library object crosses as it is. Every number is the engine's.
  */
 import * as THREE from 'three'
 import type { VertexAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
-import type { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts'
 import type { Texture } from '../../../packages/sdk-core/src/world/texture/texture.ts'
-import { COLOUR_MAPS } from '../../../packages/sdk-core/src/world/material/material.ts'
-import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts'
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 
 type Held<T> = { made: T; version: number }
 /** One copy per record and reading: a texture worn as colour and as data is decoded twice. */
 const textures = [false, true].map(() => new WeakMap<Texture, Held<THREE.Texture>>())
 const sources = new WeakMap<object, THREE.Source>()
-const surfaces = new WeakMap<GraphSurface, Held<THREE.Material>>()
 const geometries = new WeakMap<Geometry, THREE.BufferGeometry>()
 const attributes = new WeakMap<object, THREE.BufferAttribute | THREE.InterleavedBufferAttribute>()
 const buffers = new WeakMap<object, THREE.InterleavedBuffer>()
 
 /** Gives the copy back when the engine gives the original back. */
-function follow(original: { released: Set<() => void> }, copy: { dispose(): void }) {
+export function follow(original: { released: Set<() => void> }, copy: { dispose(): void }) {
   original.released.add(() => copy.dispose())
 }
 
@@ -54,14 +50,10 @@ const FORMATS: Record<string, THREE.PixelFormat> = {
   r: THREE.RedFormat,
 }
 
-/** Whether a surface field holds an engine texture record. */
-const isTexture = (value: unknown): value is Texture =>
-  (value as { isTexture?: boolean } | null)?.isTexture === true
-
 /** The library's texture of an engine texture record, its sampler state and transform kept in
  *  step with the record's three counters; decoded as sRGB only where a colour field wears an sRGB
  *  record, as the engine's colour atlas reads it. */
-function threeTexture(texture: Texture | THREE.Texture, colour: boolean): THREE.Texture {
+export function threeTexture(texture: Texture | THREE.Texture, colour: boolean): THREE.Texture {
   if (texture instanceof THREE.Texture) return texture
   const version = texture.version + texture.sampling + texture.placement
   const copies = textures[+colour]
@@ -100,59 +92,6 @@ function threeTexture(texture: Texture | THREE.Texture, colour: boolean): THREE.
   made.needsUpdate = true
   held.version = version
   return made
-}
-
-/** The family each engine surface is drawn as. */
-const FAMILIES: Record<GraphSurface['family'], new () => THREE.Material> = {
-  basic: THREE.MeshBasicMaterial,
-  standard: THREE.MeshStandardMaterial,
-  physical: THREE.MeshPhysicalMaterial,
-  lambert: THREE.MeshLambertMaterial,
-  phong: THREE.MeshPhongMaterial,
-  toon: THREE.MeshToonMaterial,
-  normal: THREE.MeshNormalMaterial,
-  matcap: THREE.MeshMatcapMaterial,
-  depth: THREE.MeshDepthMaterial,
-}
-/** Fields of an engine surface that are its identity or its bookkeeping, never a parameter. */
-const BOOKKEEPING = new Set(['uuid', 'version', 'released', 'type', 'family', 'userData'])
-/** A brand the family carries itself: `isMeshStandardMaterial`… */
-const BRAND = /^is[A-Z]/
-
-/** Writes the engine surface's parameters into the library's, as its constructor would. */
-function paint(into: THREE.Material, surface: GraphSurface) {
-  const target = into as unknown as Record<string, unknown>
-  for (const [key, value] of Object.entries(surface)) {
-    if (BOOKKEEPING.has(key) || BRAND.test(key) || !(key in into)) continue
-    const held = target[key] as { isColor?: boolean; isVector2?: boolean } | null
-    const given = value as Record<'r' | 'g' | 'b' | 'x' | 'y', number>
-    if (isTexture(value)) target[key] = threeTexture(value, COLOUR_MAPS.has(key))
-    else if (held?.isColor && value) (held as THREE.Color).setRGB(given.r, given.g, given.b)
-    else if (held?.isVector2 && value) (held as THREE.Vector2).set(given.x, given.y)
-    else target[key] = Array.isArray(value) ? value.slice() : value
-  }
-}
-
-/** The library's surface of an engine surface, kept in step with its version. */
-function threeMaterial(surface: GraphSurface | THREE.Material): THREE.Material {
-  if (surface instanceof THREE.Material) return surface
-  let held = surfaces.get(surface)
-  if (!held) {
-    held = { made: new FAMILIES[surface.family](), version: -1 }
-    surfaces.set(surface, held)
-    follow(surface, held.made)
-  }
-  // Painted at every request: a texture it samples may have changed without the surface.
-  paint(held.made, surface)
-  if (held.version >= 0 && held.version !== surface.version) held.made.needsUpdate = true
-  held.version = surface.version
-  return held.made
-}
-
-/** One surface or one per geometry group, each handed to the library. */
-export function threeMaterials(declared: HostMaterials | THREE.Material | THREE.Material[]) {
-  const surfaces = declared as unknown as GraphSurface | GraphSurface[]
-  return Array.isArray(surfaces) ? surfaces.map(threeMaterial) : threeMaterial(surfaces)
 }
 
 /** The library's attribute of an engine one, sharing its storage. */

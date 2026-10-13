@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url'
 import * as THREE from 'three'
 import type { Object3D } from '../../../../../../../packages/sdk-core/src/world/object/object3d.ts'
 import * as K from './sceneKinds.fixture.ts'
+import { threeView } from '../../../../fromSurface.ts'
+import type { PageSurface } from '../../../../../../../packages/sdk-browser/src/page/surface.ts'
 import { sceneCacheFiles } from '../../../../../../../tests/kit/scenes/caches.ts'
 import { decodingImages } from '../../../../../../../packages/sdk-browser/src/host/prepared/decodedImages.fixture.ts'
 import { readJson } from '../../../../../../../scripts/repository-files.ts'
@@ -126,8 +128,8 @@ const SURFACE_FIELDS = (
   'name visible side forceSinglePass vertexColors toneMapped depthTest depthWrite ' +
   'depthFunc colorWrite transparent ' +
   'opacity alphaTest shininess matcap color map metalness roughness metalnessMap ' +
-  'roughnessMap normalMap normalMapType normalScale aoMap aoMapIntensity emissive ' +
-  'emissiveIntensity emissiveMap transmission ior thickness attenuationDistance ' +
+  'roughnessMap normalMap normalMapType normalScale aoMap aoMapIntensity ' +
+  'emissiveMap transmission ior thickness attenuationDistance ' +
   'attenuationColor alphaHash blending premultipliedAlpha alphaToCoverage stencilWrite ' +
   'flatShading wireframe envMap lightMap bumpMap displacementMap alphaMap transmissionMap ' +
   'thicknessMap clearcoat clearcoatMap clearcoatRoughnessMap clearcoatNormalMap ' +
@@ -151,6 +153,20 @@ function read(value: unknown, ranks: Ranks): unknown {
   return Array.isArray(value) ? [...(value as unknown[])] : value
 }
 
+/** A surface by its family and fields under the library's names — an engine record read through
+ *  the witness (`threeView`), its texture records kept —, its glow as it shades (colour × strength). */
+function surfaceShape(surface: unknown, ranks: Ranks) {
+  const m = (
+    'baseColor' in (surface as object) ? threeView(surface as PageSurface) : surface
+  ) as Record<string, unknown>
+  const glow = read(m.emissive, ranks) as number[] | undefined
+  return {
+    family: K.surfaceFamily(m),
+    ...Object.fromEntries(SURFACE_FIELDS.map((key) => [key, read(m[key], ranks)])),
+    emissive: glow?.map((c) => c * ((m.emissiveIntensity as number | undefined) ?? 1)),
+  }
+}
+
 /** The graph as the engine reads it, by name and by shape, whichever library built it. */
 export function describeShape(root: Object3D | THREE.Object3D, ranks: Ranks) {
   const out: unknown[] = []
@@ -168,15 +184,7 @@ export function describeShape(root: Object3D | THREE.Object3D, ranks: Ranks) {
       ranks: drawn ? { meshes, primitives } : undefined,
       geometry: drawn ? geometry(o.geometry) : undefined,
       morph: drawn ? o.morphTargetInfluences : undefined,
-      materials: materials.map((m) => ({
-        family: K.surfaceFamily(m as unknown as Record<string, unknown>),
-        ...Object.fromEntries(
-          SURFACE_FIELDS.map((key) => [
-            key,
-            read((m as unknown as Record<string, unknown>)[key], ranks),
-          ]),
-        ),
-      })),
+      materials: materials.map((m) => surfaceShape(m, ranks)),
       light: K.isLightKind(kind)
         ? ['color', ...(DECLARED[kind] ?? ['intensity'])].map((key) => read(o[key], ranks))
         : undefined,
