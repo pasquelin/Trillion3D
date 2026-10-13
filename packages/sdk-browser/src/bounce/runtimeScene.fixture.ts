@@ -83,7 +83,8 @@ export function world(
   const surfaces = options.surfaces ?? [[1, 1, 1, 1, 0, 0, 0, 0]]
   const copies = options.copies ?? []
   const instancesAt = 0,
-    copyWorldsAt = (count + copies.length) * INSTANCE_WORDS,
+    worldsAt = (count + copies.length) * INSTANCE_WORDS,
+    copyWorldsAt = worldsAt + count * 16,
     surfacesAt = copyWorldsAt + copies.length * 16,
     trianglesAt = surfacesAt + surfaces.length * SURFACE_WORDS,
     boundsAt = trianglesAt + triangles * PROXY_TRIANGLE_FLOATS,
@@ -96,6 +97,10 @@ export function world(
   const words = new Uint32Array(membersAt + (tree?.capacity ?? 0))
   for (let w = 0; w < count + copies.length; w++)
     words.set([0, 0, options.surfaceOf?.(w) ?? 0, 0], instancesAt + w * INSTANCE_WORDS)
+  // The placements' worlds, as the proxy's buffer mirrors the culling's.
+  new Float32Array(words.buffer, worldsAt * 4, count * 16).set(
+    packed.worlds.subarray(0, count * 16),
+  )
   copies.forEach((m, k) =>
     new Float32Array(words.buffer, (copyWorldsAt + k * 16) * 4, 16).set(m.elements),
   )
@@ -140,7 +145,7 @@ export function world(
     treeWord: treeAt,
     membersWord: membersAt,
     members: tree ? tree.count : count,
-    worldStride: 16,
+    worldsWord: worldsAt,
     worldRows: count,
     error: 0,
     copies: copies.length,

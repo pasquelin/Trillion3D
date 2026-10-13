@@ -11,6 +11,7 @@ import { HIZ_SHADER } from '../hiz/shader.ts'
 import { RADIANCE_SHADER } from '../../reflections/radiance.ts'
 import { FRONT_SHADER } from '../../reflections/frontDepth.ts'
 import { BEGIN_SHADER, TRACE_SHADER } from '../../reflections/trace.ts'
+import { RUNTIME_POSE_SHADER } from '../../bounce/runtimePoseWgsl.ts'
 import { MATERIAL_TILES_SHADER } from '../../visibility/shader/materialTilesWgsl.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { PARTITION_SHADER } from '../partition/shader.ts'
@@ -93,6 +94,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   HIZ_SHADER,
   BEGIN_SHADER,
   TRACE_SHADER,
+  RUNTIME_POSE_SHADER,
   RADIANCE_SHADER,
   FRONT_SHADER,
   MATERIAL_TILES_SHADER,

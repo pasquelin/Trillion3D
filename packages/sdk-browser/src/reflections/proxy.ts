@@ -29,7 +29,7 @@ export const reflectionProxyWgsl = (group: number, runtime: ProxyBindings) => {
   // reject) and answers it whole (`rtRadiance`).
   const answers = 'store' in runtime
   return wgslBlock(
-    `reflectionProxyWgsl(${group}, ${runtime.proxy}, ${runtime.worlds}, ${answers})`,
+    `reflectionProxyWgsl(${group}, ${runtime.proxy}, ${answers})`,
     [
       reflectionBindingsWgsl(group),
       REFLECTION_LOBE_WGSL,

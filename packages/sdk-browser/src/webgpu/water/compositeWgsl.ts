@@ -38,9 +38,8 @@ export const WATER_BINDINGS = {
   shadowSampler: 10,
   bounceGrid: 11,
   probes: 12,
-  /** The proxy's buffer and the culling's world matrices, which the reflection traces. */
+  /** The proxy's buffer, the world matrices mirrored in it, which the reflection traces. */
   proxy: 13,
-  worlds: 36,
   backdrop: 14,
   backdropDepth: 15,
   /** The blend view uniform, as written for the blend pass: projection, eye, tiles, flags. */
@@ -115,7 +114,6 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
       forwardReflectionWgsl(REFLECTION_GROUP, lobes, {
         group: 0,
         proxy: WATER_BINDINGS.proxy,
-        worlds: WATER_BINDINGS.worlds,
       }),
       WATER_COLOR_WGSL,
       VIEW_WGSL,

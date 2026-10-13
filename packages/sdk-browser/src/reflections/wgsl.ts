@@ -104,7 +104,7 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  */
 export const reflectedRadianceWgsl = (group: number, runtime: ProxyBindings) =>
   wgslBlock(
-    `reflectedRadianceWgsl(${group}, ${runtime.proxy}, ${runtime.worlds}, ${'store' in runtime})`,
+    `reflectedRadianceWgsl(${group}, ${runtime.proxy}, ${'store' in runtime})`,
     [
       reflectionSeenWgsl(group),
       reflectionProxyWgsl(group, runtime),

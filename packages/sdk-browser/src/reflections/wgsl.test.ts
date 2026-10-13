@@ -79,7 +79,7 @@ test('nothing a reflection reads turns with the frame: no seed, no frame rank, n
   // The code, not the declarations nor the comments: the bounce grid it shares with the diffuse
   // declares the probe update's frame counters, which nothing here reads.
   const text = withoutComments(
-    wgslModule(reflectedRadianceWgsl(1, { group: 0, proxy: 20, worlds: 21 })),
+    wgslModule(reflectedRadianceWgsl(1, { group: 0, proxy: 20 })),
   ).replace(/struct \w+\{[^}]*\}/g, '')
   for (const name of ['jitter', 'seed', 'noise', 'history', 'random', 'hash'])
     assert.doesNotMatch(text, new RegExp(`\\b${name}\\b`, 'i'), name)

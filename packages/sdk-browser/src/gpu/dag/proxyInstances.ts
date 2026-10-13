@@ -6,7 +6,8 @@
  * forward family draws (the members after the placements, their worlds in the buffer: they are no member of
  * the culling's tree), a surface a drawn material, the arena of the meshes' proxies, each uploaded once, when
  * a placement or a copy first wears it, and the mirror of the culling's placement tree (`mirror`). The
- * placements' worlds are the culling's: that buffer is read where it lies (`buffers`).
+ * placements' worlds are the culling's, copied beside the tree each frame (`mirror`): one storage binding reads the
+ * whole proxy.
  *
  * A mesh's proxy reaches a placement through its primitive (`RootProxy.primitive`): a cut's at its making, a
  * compiled mesh's when the cache object arrives (`arrived`), which writes every instance again.
@@ -146,7 +147,8 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
 
   function layoutOf() {
     const instances = 0,
-      copyWorldsAt = instances + (slots + copies.length) * INSTANCE_WORDS,
+      worldsAt = instances + (slots + copies.length) * INSTANCE_WORDS,
+      copyWorldsAt = worldsAt + slots * WORLD_WORDS,
       surfacesAt = copyWorldsAt + copies.length * WORLD_WORDS,
       trianglesAt = surfacesAt + surfaceCapacity * SURFACE_WORDS,
       boundsAt = trianglesAt + triangles.capacity * PROXY_TRIANGLE_FLOATS,
@@ -156,6 +158,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       deformAt = membersAt + memberWords
     return {
       instances,
+      worlds: worldsAt,
       copyWorlds: copyWorldsAt,
       surfaces: surfacesAt,
       triangles: trianglesAt,
@@ -174,6 +177,9 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     device.queue.writeBuffer(...args)
   }
 
+  /** The rows of the culling's world table the buffer mirrors: the first range's, as many as it holds. */
+  const worldRows = () => Math.min(frames.ranges[0]?.count ?? 0, slots)
+
   /** The header, as it stands. */
   function header() {
     const head = new Uint32Array(RUNTIME_HEADER_WORDS)
@@ -190,8 +196,8 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     head[at.treeWord] = layout.tree
     head[at.membersWord] = layout.members
     head[at.members] = walksTree ? tree!.count : packed.worldSources.length
-    head[at.worldStride] = WORLD_WORDS
-    head[at.worldRows] = frames.ranges[0]?.count ?? 0
+    head[at.worldsWord] = layout.worlds
+    head[at.worldRows] = worldRows()
     new Float32Array(head.buffer)[at.error] = error
     head[at.copies] = copies.length
     return head
@@ -503,18 +509,28 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   }
 
   return {
-    /** The two buffers a program reads the proxy through, or none: it then reads the stand-ins. */
-    buffers() {
-      if (!buffer) return undefined
-      return { proxy: buffer, worlds: frames.worldBuffers[0] }
+    /** The buffer a program reads the proxy through, or none: it then reads the stand-ins. */
+    buffer() {
+      return buffer
     },
     /**
-     * The placement tree copied into the proxy's buffer, in `encoder`, before the first program of the image
-     * that walks it: its nodes, as the culling's refit left them, and the order of its members. Two copies of
-     * a few hundred kilobytes at a quarter of a million placements; none without a tree to walk.
+     * The placements' worlds and the placement tree copied into the proxy's buffer, in `encoder`, before the
+     * first program of the image that traces it: sixty-four bytes a placement of worlds, and the tree's nodes, as
+     * the culling's refit left them, and the order of its members, a few hundred kilobytes at a quarter of a
+     * million placements; no tree copies nothing to walk.
      */
     mirror(encoder: GPUCommandEncoder) {
-      if (!buffer || !walksTree || !tree) return
+      if (!buffer) return
+      const rows = worldRows()
+      if (rows > 0 && frames.worldBuffers[0])
+        encoder.copyBufferToBuffer(
+          frames.worldBuffers[0],
+          0,
+          buffer,
+          byteAt(layout.worlds),
+          rows * WORLD_WORDS * 4,
+        )
+      if (!walksTree || !tree) return
       encoder.copyBufferToBuffer(
         nodeParts.buffers[nodePart!],
         (tree.cellBase - nodesFirst) * DAG_NODE_FLOATS * 4,

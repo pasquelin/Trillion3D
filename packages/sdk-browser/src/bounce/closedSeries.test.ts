@@ -14,7 +14,7 @@ test('a closed bounce series encodes and writes nothing: a redraw reads what the
   const lights = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
   // One placement wears a proxy: its two buffers, and its box over the floor the probes keep.
   const scene = {
-    buffers: () => ({ proxy: lights, worlds: lights }),
+    buffer: () => lights,
     boxes: () => ({ boxes: Float64Array.from([0, 0, 0, 8, 0.1, 4]), changed: Uint8Array.of(0) }),
   }
   const probes = await createGpuBounceProbes(

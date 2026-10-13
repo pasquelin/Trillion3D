@@ -107,7 +107,7 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
   const lights = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
   const tiles = await createGpuLightTiles(gpu.device)
   const scene = {
-    buffers: () => ({ proxy: lights, worlds: lights }),
+    buffer: () => lights,
     boxes: () => ({ boxes: Float64Array.from([0, 0, 0, 8, 0.1, 4]), changed: Uint8Array.of(0) }),
   }
   const probes = await createGpuBounceProbes(

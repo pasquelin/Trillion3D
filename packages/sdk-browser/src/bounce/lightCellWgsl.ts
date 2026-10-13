@@ -3,7 +3,7 @@ import { TILE_SLICE_WGSL } from '../lighting/direct/lightingWgsl.ts'
 
 /** The binding both bounce passes read the light grid's buffer at (`bindings.ts`): the view's
  *  records and lists, then the world grid's. */
-export const BOUNCE_LIGHT_LIST_BINDING = 7
+export const BOUNCE_LIGHT_LIST_BINDING = 6
 
 /**
  * The lights a bounce point walks (`bounceLightSlice`): the list of its cell of the world light grid,

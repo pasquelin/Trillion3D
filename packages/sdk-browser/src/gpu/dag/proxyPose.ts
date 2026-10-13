@@ -41,11 +41,8 @@ export function createProxyPose(device: GPUDevice) {
   let orderSent = 0
   let poseBuffer: GPUBuffer | undefined
   let poseCapacity = 0
-  const params = device.createBuffer({
-    label: 'Trillion3D proxy pose steps',
-    size: MAX_LEVELS * PARAM_STRIDE,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
+  // Made with the first pose, as the other buffers are: a scene with no deformed placement holds none.
+  let params: GPUBuffer | undefined
   const groups = new Map<string, { key: unknown[]; group: GPUBindGroup }>()
 
   /** The program, built the first time a pose is asked and ready some frames after. */
@@ -155,6 +152,11 @@ export function createProxyPose(device: GPUDevice) {
         device.queue.writeBuffer(orderBuffer, 0, orderWords)
         orderSent = orderWords.length
       }
+      params ??= device.createBuffer({
+        label: 'Trillion3D proxy pose steps',
+        size: MAX_LEVELS * PARAM_STRIDE,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      })
       for (let level = 0; level < levels; level++)
         device.queue.writeBuffer(
           params,
@@ -193,7 +195,7 @@ export function createProxyPose(device: GPUDevice) {
       return true
     },
     dispose() {
-      params.destroy()
+      params?.destroy()
       poseBuffer?.destroy()
       orderBuffer?.destroy()
     },
