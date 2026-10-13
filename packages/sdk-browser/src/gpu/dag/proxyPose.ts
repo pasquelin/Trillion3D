@@ -200,4 +200,3 @@ export function createProxyPose(device: GPUDevice) {
     },
   }
 }
-export type ProxyPose = ReturnType<typeof createProxyPose>

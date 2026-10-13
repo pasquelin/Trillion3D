@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { boxesExtent, syncBounceProbes } from './probeSync.ts'
+import { syncBounceProbes } from './probeSync.ts'
 
 /** Probe-side parts that record what a sync asked of them. */
 function parts(boxes: number[], changed: number[]) {
@@ -23,9 +23,4 @@ test('nothing moved, nothing is touched; a moved placement replans, marks and re
   const change = syncBounceProbes(moved)
   assert.deepEqual(moved.calls, ['replan', 'invalidate', 'occupancy', 'restart'])
   assert.deepEqual(change?.extent, [0, 0, 0, 6, 7, 8])
-})
-
-test('the extent of the boxes is their union, zeros without a box', () => {
-  assert.deepEqual(boxesExtent([]), [0, 0, 0, 0, 0, 0])
-  assert.deepEqual(boxesExtent([-1, 2, 3, 4, 5, 6, 0, 0, 0, 9, 1, 1]), [-1, 0, 0, 9, 5, 6])
 })

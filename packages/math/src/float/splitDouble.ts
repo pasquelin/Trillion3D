@@ -14,30 +14,6 @@ export function writeSplitDouble(out: NumberSink, highAt: number, lowAt: number,
   out[lowAt] = value - high
 }
 
-const rounded = new Float32Array(1),
-  bits = new Uint32Array(rounded.buffer)
-
-/** Smallest float not below value, including subnormals; bounds must never round inward. */
-export function ceilFloat32(value: number) {
-  // `Math.fround` is the nearest float; only when it lies below does the float buffer step it one
-  // ulp up (away from zero for a positive, toward zero for a negative).
-  const nearest = Math.fround(value)
-  if (!(nearest < value)) return nearest
-  rounded[0] = nearest
-  bits[0] += nearest >= 0 ? 1 : -1
-  return rounded[0]
-}
-
-/** Greatest float not above value, including subnormals and negative zero: `ceilFloat32` mirrored. */
-export function floorFloat32(value: number) {
-  // `ceilFloat32`'s form mirrored: the nearest float, stepped one ulp down only when it lies above.
-  const nearest = Math.fround(value)
-  if (!(nearest > value)) return nearest
-  rounded[0] = nearest
-  bits[0] += nearest > 0 ? -1 : 1
-  return rounded[0]
-}
-
 /** Writes `count` of `values` from `from` — all of them by default — as doubles in the shaders'
  *  form (`../wgsl/double.ts`), high word then low word, from word `at`. */
 export function packDoubles(

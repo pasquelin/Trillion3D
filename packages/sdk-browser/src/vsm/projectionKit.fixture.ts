@@ -9,7 +9,7 @@ import { fakeHizDepth } from './hizDepth.fixture.ts'
 type Frame = Parameters<typeof encodeVirtualShadowProjection>[2]
 
 /** The camera the proofs look through: at the origin, a perspective of near 0.1. */
-export const PROOF_CAMERA: Frame['camera'] = {
+const PROOF_CAMERA: Frame['camera'] = {
   view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
   projection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0],
   perspective: true,

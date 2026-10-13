@@ -12,7 +12,7 @@ export type ProbeSyncParts = {
 }
 
 /** The extent of `boxes` (six numbers each): three lower bounds then three upper; zeros without a box. */
-export function boxesExtent(boxes: ArrayLike<number>) {
+function boxesExtent(boxes: ArrayLike<number>) {
   const extent = [0, 0, 0, 0, 0, 0]
   for (let at = 0; at + 6 <= boxes.length; at += 6)
     for (let axis = 0; axis < 3; axis++) {

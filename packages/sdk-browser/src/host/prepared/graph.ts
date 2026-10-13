@@ -13,7 +13,7 @@
  * - a node's pose is set from what it declares: a matrix decomposed, or its translation, rotation
  *   and scale as they are — so the engine composes the same world matrices from them.
  */
-import { readPreparedSourceRank, registerPreparedNodeRank } from './sourceRanks.ts'
+import { readPreparedSourceRank } from './sourceRanks.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { camera, light, pose, uniqueNames, weigh } from './nodes.ts'
@@ -220,7 +220,8 @@ function assembler(
     // Hidden, it is parked as any hidden node (`placement/hidden.ts`); its subtree with it.
     node.visible = declared.visible
     nodes[id] = node
-    registerPreparedNodeRank(node, readPreparedSourceRank(declared.sourceNode, id))
+    // Its declared source rank is checked: a malformed one refuses the tables.
+    readPreparedSourceRank(declared.sourceNode, id)
     for (const child of declared.children) node.add(assemble(child))
     return node
   }

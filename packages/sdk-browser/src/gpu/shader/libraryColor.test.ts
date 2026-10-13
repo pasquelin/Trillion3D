@@ -1,30 +1,19 @@
 // The colour declarations of the maths library (`packages/math/src/wgsl/color.ts`), their shipped
-// text run in JavaScript against the processor's sRGB encode and the bytes they unpack.
+// text run in JavaScript against the processor's sRGB encode.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { linearToSrgb, luminance, unorm8x3 } from '../../../../math/src/wgsl/color.ts'
+import { linearToSrgb, luminance } from '../../../../math/src/wgsl/color.ts'
 import { minChannel } from '../../../../math/src/wgsl/sampling.ts'
 import { linearToSrgb as linearToSrgbTs } from '../../../../math/src/color/color.ts'
 
 type V = number[]
 const run = shaderRun<{
-  unorm8x3: (p: number) => V
   luminance: (c: V) => number
   linearToSrgb: (c: V) => V
   minChannel: (c: V) => number
-}>(
-  wgslModule(unorm8x3, luminance, linearToSrgb, minChannel),
-  ['unorm8x3', 'luminance', 'linearToSrgb', 'minChannel'],
-  {},
-)
-
-test('three bytes of a word, red first, each over 255; the fourth is ignored', () => {
-  assert.deepEqual(run.unorm8x3(0xff804000), [0, 64 / 255, 128 / 255])
-  assert.deepEqual(run.unorm8x3(0x00ffffff), [1, 1, 1])
-  assert.deepEqual(run.unorm8x3(0x12030201), [1 / 255, 2 / 255, 3 / 255])
-})
+}>(wgslModule(luminance, linearToSrgb, minChannel), ['luminance', 'linearToSrgb', 'minChannel'], {})
 
 test('the luminance weighs the linear primaries, white to one', () => {
   assert.ok(Math.abs(run.luminance([1, 1, 1]) - 1) < 1e-7)
