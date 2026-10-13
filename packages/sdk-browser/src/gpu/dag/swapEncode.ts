@@ -34,7 +34,7 @@ export function encodeSwap(
     pass.setPipeline(resources.armPipeline)
     pass.setBindGroup(0, resources.armGroup)
     pass.dispatchWorkgroups(1)
-    pass.setBindGroup(0, resources.ranges[0].bindGroup)
+    pass.setBindGroup(0, resources.bindGroup)
   }
   arm()
   pass.setPipeline(resources.clearDrawnPipeline)

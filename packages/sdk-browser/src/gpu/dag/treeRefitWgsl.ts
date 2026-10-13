@@ -12,12 +12,12 @@
  * Group 0 binds the tree's record table (`treeTable.ts`) as a storage texture read and written in
  * place — the WGSL feature `readonly_and_readwrite_storage_textures`, which the engine asks of every
  * browser before it starts (`WEBGPU_REQUIRED_WGSL_FEATURES`) —: its nodes (`treeWord`,
- * `treeSetWord`), indexed within the tree, and its order (`treeMember`). Group 1 binds the pass's own:
+ * `treeSetWord`), indexed within the tree, and its order (`treeMember`); and the frame words, read
+ * (`frameTable.ts`): each placement's root. Group 1 binds the pass's own:
  *
  *   params      uniform        the level's first id, how many, and what it fits (below)
  *   ids         array<u32>     the nodes of the level to fit, as their index within it
  *   members     array<vec2u>   each placement's leaf box, six doubles
- *   frames<r>   array<u32>     each placement's frame words: its root, its mark, a buffer a range
  */
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { dAbs, dAdd, dLess, dMax, dMin, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
@@ -25,7 +25,7 @@ import { fromF32, toF32 } from '../../../../math/src/wgsl/f32.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { treeTableWgsl } from './treeTable.ts'
-import { FRAME_ROW_WORDS } from './types.ts'
+import { frameTableWgsl } from './frameTable.ts'
 import { MARGIN, TREE_SPAN } from './placementTree.ts'
 import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/wgsl/constants.ts'
@@ -81,7 +81,7 @@ fn fitGroup(j:u32){
  for(var k=0u;k<gm;k++){
   let w=treeMember(first+k);
   if(w==${NO_INDEX}u){continue;}
-  if(frameWord(w,${FRAME_ROOT}u)==${NO_INDEX}u){continue;}
+  if(framesWord(w,${FRAME_ROOT}u)==${NO_INDEX}u){continue;}
   for(var a=0u;a<3u;a++){
    lo[a]=dMin(lo[a],members[w*6u+a]);
    hi[a]=dMax(hi[a],members[w*6u+3u+a]);
@@ -106,37 +106,12 @@ fn fitCell(j:u32){
 }`,
 )
 
-/** How the frames the refit reads are laid on a device: the first placement of each range. */
-export type RefitLayout = { frames: readonly number[] }
-
-/** One range. */
-const WHOLE_LAYOUT: RefitLayout = { frames: [0] }
-
-/** The tree's table, read and written in place (`treeTable.ts`), and the frames of each range. */
-function refitAccessBlock(layout: RefitLayout) {
-  const ranges = layout.frames
-  let frames = ''
-  ranges.forEach((first, r) => {
-    const next = ranges[r + 1]
-    const read = `return frames${r}[(w-${first}u)*${FRAME_ROW_WORDS}u+k];`
-    frames += next === undefined ? read : `if(w<${next}u){${read}}`
-  })
-  return wgslBlock(
-    `refitAccess(${JSON.stringify(layout)})`,
-    [treeTableWgsl('tree', { group: 0, binding: 0, access: 'read_write' })],
-    `${ranges.map((_, r) => `@group(1) @binding(${3 + r}) var<storage,read> frames${r}:array<u32>;`).join('\n')}
-fn frameWord(w:u32,k:u32)->u32{${frames}}`,
-  )
-}
-
 /**
  * One thread per node of a level: the group or the cell `ids` names, fitted. Its dispatches run
- * bottom up in one pass: the level above reads the boxes the one below wrote. `layout`: how the
- * device lays the frames out; one range by default.
+ * bottom up in one pass: the level above reads the boxes the one below wrote.
  */
-export function treeRefitWgsl(layout: RefitLayout = WHOLE_LAYOUT) {
-  return wgslProgram(
-    `struct Params{first:u32,count:u32,base:u32,live:u32,childBase:u32,childCount:u32,cells:u32,pad:u32,}
+export const TREE_REFIT_WGSL = wgslProgram(
+  `struct Params{first:u32,count:u32,base:u32,live:u32,childBase:u32,childCount:u32,cells:u32,pad:u32,}
 @group(1) @binding(0) var<uniform> params:Params;
 @group(1) @binding(1) var<storage,read> ids:array<u32>;
 @group(1) @binding(2) var<storage,read> members:array<vec2u>;
@@ -145,6 +120,11 @@ export function treeRefitWgsl(layout: RefitLayout = WHOLE_LAYOUT) {
  let j=ids[params.first+i];
  if(params.cells==0u){fitGroup(j);}else{fitCell(j);}
 }`,
-    [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, FIT_WGSL, refitAccessBlock(layout)],
-  )
-}
+  [
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    FIT_WGSL,
+    treeTableWgsl('tree', { group: 0, binding: 0, access: 'read_write' }),
+    frameTableWgsl('frames', { group: 0, binding: 1, access: 'read' }),
+  ],
+)

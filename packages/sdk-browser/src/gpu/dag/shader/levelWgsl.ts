@@ -79,13 +79,13 @@ fn drawnGroups()->u32{return drawnCounter()+1u;}
 /** The log the running cut writes: its count (\`dagCommitMask\` makes it the drawn log). */
 fn writtenCounter()->u32{return liveCounter()+12u;}
 /** Index of the primitive's root node, deposited once and for all behind its stretch. */
-fn rootOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME].y);}
+fn rootOf(w:u32)->u32{return framesWord(w,1u);}
 /** The primitive's root mark (\`PackedDag.mark\`), the word behind its record shift. */
-fn markOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME].w);}
+fn markOf(w:u32)->u32{return framesWord(w,3u);}
 /** Placement \`w\`'s first page: its shared nodes count their pages from it. */
-fn pageBaseOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+1u].x);}
+fn pageBaseOf(w:u32)->u32{return framesWord(w,4u);}
 /** The open counts placement \`w\` holds of its own (\`../heldOpen.ts\`): none, it reads its nodes'. */
-fn heldByOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+1u].y);}
+fn heldByOf(w:u32)->u32{return framesWord(w,5u);}
 /** A range append, each entry tagged with the current view: the group count follows the
  *  opening of each slice of \`WORKGROUP_THREADS\`, so it equals \`ceil(total/WORKGROUP_THREADS)\`
  *  without a one-thread kernel pulling it afterwards (\`openSlice\`). \`stride\` words an entry,
@@ -152,7 +152,6 @@ fn levelStep(src:u32,s:u32){
  *  placement \`w\` reads, whose root its gate already opened (\`opensRoot\`). */
 fn nodeStep(src:u32,index:u32,w:u32){
  let node=nodeAt(index);
- if(!inRange(w)){return;}
  deformReach=reachOf(w);
  // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.
  let open=openOf(w,index,node.open);
@@ -178,15 +177,8 @@ fn descend(src:u32,node:CullNode,w:u32){
  if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount,w);return;}
  spanAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount,2u,views[0u].candCap,w);
 }
-/** Pass 0: without a tree, queue 0 holds one root per slot, so a range's dispatch reads its own
- *  slots (\`rangeSlot\`); with one, its few entries (\`rootSlots\`), which every range's dispatch
- *  reads whole, each node keeping its own range's. Queue 0 reused deeper (level 3, 6…) mixes
- *  primitives: read whole (\`dagLevel0\`). */
-@compute @workgroup_size(WORKGROUP_THREADS)
-fn dagRootLevel(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id,n,WORKGROUP_THREADS);
- levelStep(0u,select(rangeSlot(i),i,hasTree()));
-}
+/** Queue \`q\`'s level, a thread an entry. Pass 0 is \`dagLevel0\` on queue 0: without a tree one root
+ *  per slot, with one its few entries (\`rootSlots\`); queue 0 reused deeper (level 3, 6…) alike. */
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn dagLevel0(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,flatIndex(id,n,WORKGROUP_THREADS));}
 @compute @workgroup_size(WORKGROUP_THREADS)

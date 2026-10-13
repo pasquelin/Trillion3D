@@ -53,11 +53,11 @@ test('a level past the first is dispatched on what the level before it deposited
   const witness = witnessEncoder()
   encodeDagKernels(witness.encoder, cutResources(5))
   const { dispatches } = witness.read()
-  const levels = dispatches.filter((l) => /^dag(Root)?Level/.test(l.kernel))
+  const levels = dispatches.filter((l) => /^dagLevel/.test(l.kernel))
   assert.deepEqual(
     levels.map((l) => [l.kernel, l.groups === 'indirect' ? l.list : l.groups]),
     [
-      ['dagRootLevel', 1],
+      ['dagLevel0', 1],
       ['dagLevel1', 1],
       ['dagLevel2', QUEUE + 2],
       ['dagLevel0', QUEUE],
@@ -80,7 +80,7 @@ test('a flat dispatch past the device width runs in rows of it', () => {
   encodeDagKernels(witness.encoder, wide)
   const { dispatches } = witness.read()
   const levels = dispatches
-    .filter((l) => /^dag(Root)?Level/.test(l.kernel))
+    .filter((l) => /^dagLevel/.test(l.kernel))
     .map((l) => `${l.groups}x${l.rows ?? 1}`)
   assert.deepEqual(levels, ['1x1', '4x4'])
 })
@@ -102,23 +102,18 @@ test('the camera cut sorts its requests once, then lists its evictions over the 
 })
 
 test('with a placement tree, prepare and pass 0 run over its top and the world DAG, not the world', () => {
-  // 100,000 placements in two ranges, the world DAG in the second: the tree's one top node and that
-  // root, never a thread per placement.
-  const base = cutResources(2),
-    ranges = [0, 1].map((r) => ({ first: r * 65_536, count: r ? 34_464 : 65_536, bindGroup: {} }))
+  // 100,000 placements, the world DAG among them: the tree's one top node and that root, never a
+  // thread per placement, in one dispatch each whatever the world's size.
+  const base = cutResources(2)
   const packed = {
     placementTree: { levels: [{ count: 1 }], always: { set: { count: 0 } } },
     world: { root: 70_000 },
   }
-  const cut = { ...base, blockCount: 1, ranges, packed } as unknown as typeof base
+  const cut = { ...base, blockCount: 1, worldCount: 100_000, packed } as unknown as typeof base
   const witness = witnessEncoder()
   encodeDagKernels(witness.encoder, cut)
   const { dispatches } = witness.read()
   const of = (kernel: string) => dispatches.filter((l) => l.kernel === kernel).map((l) => l.groups)
-  assert.deepEqual(
-    of('dagPrepare'),
-    [1, 1],
-    'the head range its top node, the world range its root',
-  )
-  assert.deepEqual(of('dagRootLevel'), [1, 1], 'each range reads those two entries')
+  assert.deepEqual(of('dagPrepare'), [1], 'its top node and the world DAG root')
+  assert.deepEqual(of('dagLevel0'), [1], 'pass 0 reads those two entries')
 })

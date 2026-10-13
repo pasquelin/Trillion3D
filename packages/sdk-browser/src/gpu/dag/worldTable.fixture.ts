@@ -1,4 +1,4 @@
-// A whole worlds' table on a device, as the engine's host writes it (`frameRanges.ts`): each
+// A whole worlds' table on a device, as the engine's host writes it (`cameraFrames.ts`): each
 // placement's matrix and its exact translation beside it (`createWorldOrigins`), for the browser
 // proofs that bind the selection kernel by hand.
 import { createWorldOrigins } from './worldOrigins.ts'

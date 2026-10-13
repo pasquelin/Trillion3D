@@ -30,7 +30,6 @@ import { DAG_AHEAD_WGSL } from './aheadWgsl.ts'
 import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts'
 import { DAG_CONE_WGSL } from './coneWgsl.ts'
 import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts'
-import { FRAME_VEC4 } from '../types.ts'
 import { VIEW_UNIFORM_STRUCT } from '../viewLayout.ts'
 
 /** The selection kernel over the tables `access` reads (`DAG_ACCESS_WGSL`, or a split's,
@@ -48,10 +47,6 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`view*\` words; \`queueCap\` is the capacity of each descent queue; \`ahead\`, non-zero, says block 1 is the view ahead (\`aheadWgsl.ts\`).
 ${VIEW_UNIFORM_STRUCT}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,ahead:atomic<u32>,aheadPlaced:u32,pages:array<u32>,}
-// The primitives the bound \`frames\` holds (\`../frameRanges.ts\`): a camera or light cut's range.
-struct FrameRange{first:u32,count:u32,}
-/** Vec4s of a placement's row of \`frames\`: the host's words alone (\`../worlds.ts\`). */
-const FRAME:u32=${FRAME_VEC4}u;
 /** Rank of the far plane among the six (\`frustum.ts\`: right, left, bottom, top, far, near). */
 const FAR_PLANE:u32=${FAR_PLANE_SLOT}u;
 /** The plane the frustum test of view \`v\` skips: the far plane when the view has none, else none (6).
@@ -73,31 +68,30 @@ fn visible(r:u32,w:u32,cluster:Cluster)->bool{
  if((cluster.flags&2u)!=0u){return false;}
  return !outsideFrustum(w,vi,boxMin(r),boxMax(r));
 }
-fn stretchOf(world:u32)->f32{return frames[rowOf(world)*FRAME].x*views[vi].cameraStretch;}
+fn stretchOf(world:u32)->f32{return bitcast<f32>(framesWord(world,0u))*views[vi].cameraStretch;}
 /** The frame's reset and the descent's first entries in a single dispatch: the output counters
  *  and block counts \`dagMask\` accumulates, then queue 0. No placement is prepared: what a cut reads
  *  of one is made where it is read (\`primitiveWgsl.ts\`).
  *  Without a placement tree, one thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot
- *  is its primitive, each range's dispatch takes its range's slots (\`rangeSlot\`). With one, the
- *  tree's top nodes and the world DAG's root alone (\`prepareTreeRoots\`): a member is its kept
- *  group's to prepare. The first range's dispatch resets the frame. */
+ *  is its primitive. With one, the tree's top nodes and the world DAG's root alone
+ *  (\`prepareTreeRoots\`): a member is its kept group's to prepare. */
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let head=rangeFirst()==0u;let i=flatIndex(id,n,WORKGROUP_THREADS);
- if(head&&i==0u){
+ let i=flatIndex(id,n,WORKGROUP_THREADS);
+ if(i==0u){
   atomicStore(&out.count,0u);atomicStore(&out.overflow,0u);atomicStore(&out.ahead,0u);out.aheadPlaced=0u;
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
  }
- if(head&&i<blockCount()){atomicStore(&work[blockBase()+i],0u);atomicStore(&work[drawMaskBase()+2u*i],0u);atomicStore(&work[drawMaskBase()+2u*i+1u],0u);}
- if(head&&i<views[0u].viewCount){atomicStore(&work[viewWord(0u,i)],0u);atomicStore(&work[viewWord(2u,i)],0u);}
- if(head&&i==0u){atomicStore(&work[drawnGroupsMax()],0u);clearRaised();}
+ if(i<blockCount()){atomicStore(&work[blockBase()+i],0u);atomicStore(&work[drawMaskBase()+2u*i],0u);atomicStore(&work[drawMaskBase()+2u*i+1u],0u);}
+ if(i<views[0u].viewCount){atomicStore(&work[viewWord(0u,i)],0u);atomicStore(&work[viewWord(2u,i)],0u);}
+ if(i==0u){atomicStore(&work[drawnGroupsMax()],0u);clearRaised();}
  if(hasTree()){prepareTreeRoots(i);return;}
  let world=views[0u].worldCount;
- if(i>=rangeCount()*views[0u].viewCount){return;}
- let t=rangeSlot(i);vi=t/world;let w=t-vi*world;
+ if(i>=world*views[0u].viewCount){return;}
+ vi=i/world;let w=i-vi*world;
  // The primitive's root opens the descent: one thread, one root, no counter to contend for, unless
  // its gate closes it (\`opensRoot\`).
- openRoot(t,w);
+ openRoot(i,w);
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lid:u32){
@@ -107,8 +101,6 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
  let s=flatIndex(id,n,WORKGROUP_THREADS);
  if(s<liveCount()){
   let entry=liveAt(s);let i=entryIndex(entry);let w=liveWorld(s);
-  // A page of another range's primitive is that range's dispatch's (\`inRange\`).
-  if(inRange(w)){
   deformReach=reachOf(w);
   vi=entryView(entry);let r=recordOf(i,w);
   let clusterFlags=clusterAt(r).flags;
@@ -124,7 +116,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
   // Drawn count of this page's block, held here rather than reread later page by page; its bit is
   // the draw mask every reader takes (\`compactWgsl.ts\`).
   if(draw){atomicAdd(&work[blockBase()+i/WORKGROUP_THREADS],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(r);}
- }}
+ }
  verseTotaux(lid);
 }
 `,

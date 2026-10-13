@@ -5,27 +5,20 @@ import type { CutSteps } from './cutSteps.ts'
 import { POOL_SORT_STAGES, poolSortPipelines } from '../pool/sort.ts'
 import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
 
-/** Every selection stage of `module` on `layout`; a split table's stages are its own (`SPLIT`,
- *  `shader/viewsWgsl.ts`), and a device whose dispatch width is not WebGPU's default sets its own
- *  (`GROUP_WIDTH`, `../dispatch/grid.ts`). The real-GPU compile probe builds exactly these
+/** Every selection stage of `module` on `layout`; a device whose dispatch width is not WebGPU's
+ *  default sets its own (`GROUP_WIDTH`, `../dispatch/grid.ts`). The real-GPU compile probe builds exactly these
  *  (`tests/gpu/dag/kernels-compile.gpu.ts`). All compile together, off the thread. */
 export async function createDagStages(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   module: GPUShaderModule,
-  split: boolean,
   steps?: CutSteps,
 ) {
   const width = groupWidth(device.limits)
-  const set = {
-    ...(split && { SPLIT: 1 }),
-    ...(width !== DEFAULT_GROUP_WIDTH && { GROUP_WIDTH: width }),
-  }
-  const constants = Object.keys(set).length ? set : undefined
+  const constants = width !== DEFAULT_GROUP_WIDTH ? { GROUP_WIDTH: width } : undefined
   const levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => `dagLevel${q}`)
   const entries = [
     ...levels,
-    'dagRootLevel',
     'dagPrepare',
     'dagClearDrawn',
     'dagWanted',
@@ -61,9 +54,6 @@ export async function createDagStages(
   return {
     preparePipeline: stage.dagPrepare,
     clearDrawnPipeline: stage.dagClearDrawn,
-    // Pass 0 reads each range's slots, a grouped placement's left to its kept group
-    // (`shader/placementTreeWgsl.ts`): never `dagLevel0`, which reads queue 0 whole.
-    rootLevelPipeline: stage.dagRootLevel,
     levelPipelines,
     wantedPipeline: stage.dagWanted,
     maskPipeline: stage.dagMask,

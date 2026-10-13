@@ -8,6 +8,7 @@ import { placementField } from './placementTree.fixture.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { dagRootCounts } from './pack.ts'
 import { WORLD_TABLE } from './worldTable.ts'
+import { FRAME_TABLE } from './frameTable.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 
@@ -22,14 +23,8 @@ test('a host walk that turned one placement sends its world alone, no stretch', 
   const next = packed.worlds.slice()
   // Placement 70 scaled twice along x: its stretch moves with it, on the GPU.
   next[70 * 16] *= 2
-  const before = gpu.writes.length,
-    texturesBefore = gpu.textureWrites.length
+  const texturesBefore = gpu.textureWrites.length
   assert.deepEqual([...selection.updateWorlds(next)], [70], 'the one pose moved')
-  const bytes = (label: string) =>
-    gpu.writes
-      .slice(before)
-      .filter((write) => write.buffer.label === label)
-      .reduce((sum, { data }) => sum + data.byteLength, 0)
   // The worlds are a record table (`worldTable.ts`): its matrix alone, four texels of 16 bytes —
   // its translation did not move, no origin goes up.
   const texels = gpu.textureWrites
@@ -42,6 +37,9 @@ test('a host walk that turned one placement sends its world alone, no stretch', 
       return sum + w * h * d
     }, 0)
   assert.equal(texels * 16, 64, 'its world')
-  assert.equal(bytes('Trillion3D DAG frames'), 0, 'no frame row: its stretch is the GPU’s')
+  const rows = gpu.textureWrites
+    .slice(texturesBefore)
+    .filter(({ destination }) => destination.texture.label === FRAME_TABLE.label)
+  assert.equal(rows.length, 0, 'no frame row: its stretch is the GPU’s')
   selection.dispose()
 })

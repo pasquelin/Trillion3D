@@ -2,27 +2,21 @@
  * THE ENTRIES OF THE COMPOSITION'S PASSES (`gpuCompose.ts`), read live (`liveBuffer`): each pass's
  * group made once, and again only when a buffer it names is replaced.
  */
-import { uniformStride } from '../residency/pools.ts'
 import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import type { ComposeGpu } from './gpuComposeGpu.ts'
+import { PASS_PARAM_BYTES, type ComposeGpu } from './gpuComposeGpu.ts'
 import { COMPOSE_WORLDS_BINDING } from './gpuComposeWgsl.ts'
 
-/** The roots pass's entries over range `r` (`COMPOSE_ROOTS_WGSL`), read live: its parameters'
- *  slot, the roots' double worlds, the parents' indices, the cut's worlds, the motion and its mode,
+/** The roots pass's entries (`COMPOSE_ROOTS_WGSL`), read live: its parameters, the roots' double
+ *  worlds, the parents' indices, the cut's worlds, the motion and its mode,
  *  the previous worlds and the roots' list. */
-export const rootEntries = (
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  gpu: ComposeGpu,
-  r: number,
-) => [
+export const rootEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) => [
   ...sequentialEntries([
     liveBuffer(
       () => gpu.rootParams.buffer,
-      () => r * uniformStride(device.limits),
-      () => 16,
+      undefined,
+      () => PASS_PARAM_BYTES,
     ),
     liveBuffer(() => rt.rootWorlds?.worlds),
     liveBuffer(() => gpu.parentOf),

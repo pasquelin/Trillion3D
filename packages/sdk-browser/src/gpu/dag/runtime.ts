@@ -108,7 +108,7 @@ function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
       return packed.live?.pages ?? pageCount
     },
     worldCapacity: packed.worldCount,
-    worldRanges: frames.ranges.map((range, r) => ({ ...range, frames: frames.buffers[r] })),
+    frames: frames.rows.view,
     get worlds() {
       return frames.worlds.view
     },

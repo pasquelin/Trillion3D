@@ -5,7 +5,11 @@
 // against the same subtraction).
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { WORLD_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.ts'
-import { recordWordAt } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.fixture.ts'
+import {
+  recordWordAt,
+  texelWords,
+} from '../../../packages/sdk-browser/src/gpu/core/recordTexture.fixture.ts'
+import type { RecordLayout } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
 import { words } from './fakeBuffers.ts'
 import type { FakeTexture } from './fakeRecords.ts'
 
@@ -20,6 +24,26 @@ function double(held: Uint32Array, at: number) {
 
 /** The texture a bound view names (`fakeResources.ts`, `createView`). */
 export const viewTexture = (view: unknown) => (view as { texture: FakeTexture }).texture
+
+/** The words of the texture a bound view names, made at the first read: none before a write. */
+export function viewWords(view: unknown) {
+  const texture = viewTexture(view),
+    words = texture.format === 'rgba32uint' ? 4 : 1
+  texture.words ??= new Uint32Array(
+    texture.width * texture.height * texture.depthOrArrayLayers * words,
+  )
+  return texture.words
+}
+
+/** The texels of the texture a bound view names, as a shader run loads and stores them
+ *  (`texelWords`). */
+export const viewTexels = (view: unknown) =>
+  texelWords(viewTexture(view).format as RecordLayout['format'], viewTexture(view), viewWords(view))
+
+/** Word `k` of field `field` of record `r` of the table `layout` lays in the texture a bound view
+ *  names, as the kernels read it. */
+export const recordWord = (view: unknown, layout: RecordLayout, field: string, r: number, k = 0) =>
+  viewWords(view)[recordWordAt(layout, viewTexture(view), field, r, k)]
 
 /** The first `length / 16` worlds of the bound worlds' table `worlds` at the eye of the view block
  *  `views`: a copy, the table left as written. */

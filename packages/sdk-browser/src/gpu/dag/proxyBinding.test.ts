@@ -1,12 +1,11 @@
 // The run-time proxy's buffer holds no instance, no placement's world and no tree: the trace reads them
 // in the culling's record tables (`worldTable.ts`, the instances a field of each placement's record;
-// `treeTable.ts`), so the buffer grows with the meshes alone and a world the culling splits in ranges
+// `treeTable.ts`), so the buffer grows with the meshes alone and a world past one storage binding
 // keeps its proxy. Over the device double.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { packDagSelection } from './selection.ts'
-import { cameraFrameRanges, PRIMITIVE_BYTES } from './cameraRanges.ts'
 import { createProxyInstances } from './proxyInstances.ts'
 import { createRecordTexture } from '../core/recordTexture.ts'
 import { WORLD_TABLE } from './worldTable.ts'
@@ -23,8 +22,7 @@ const proxyOn = (device: GPUDevice, packed: PackedDag) => {
   return createProxyInstances({ device, packed, frames: { worlds } })
 }
 
-/** The proxy of `side`² placements, each wearing one cut, over a device of `limits`, and the ranges the
- *  culling lays its frames in there. */
+/** The proxy of `side`² placements, each wearing one cut, over a device of `limits`. */
 function proxyOver(limits: typeof LIMITS, side = 4) {
   installGpuGlobals()
   const roots = placementField(side, 3),
@@ -32,23 +30,21 @@ function proxyOver(limits: typeof LIMITS, side = 4) {
   roots.forEach((root) => (root.proxy = worn))
   const packed = packDagSelection(roots)
   const gpu = fakeDevice({ limits })
-  const ranges = cameraFrameRanges(limits, Math.max(1, packed.worldCount))
   const proxies = proxyOn(gpu.device, packed)
-  return { gpu, packed, ranges, proxies }
+  return { gpu, packed, proxies }
 }
 
-test('a world the culling splits in ranges holds its proxy: the worlds are read in their table, never in it', () => {
-  // Eight placements a range of the frames: the sixteen of the field lie in two.
-  const binding = 8 * PRIMITIVE_BYTES
-  const { gpu, ranges, proxies } = proxyOver({
+test('a world past one storage binding holds its proxy: the worlds are read in their table, never in it', () => {
+  // A binding of eight placements' 112 bytes of records: the sixteen of the field lie past it.
+  const binding = 8 * 112
+  const { gpu, proxies } = proxyOver({
     ...LIMITS,
     maxBufferSize: 1 << 20,
     maxStorageBufferBindingSize: binding,
   })
-  assert.equal(ranges.length, 2, 'the culling splits its frames')
   assert.ok(proxies.buffer(), 'the proxy is made')
   assert.ok(writes(gpu).length > 0, 'its header and surfaces are sent')
-  // A placement written in the second range writes nothing into it: no world lies there.
+  // A placement past the binding written writes nothing into it: no world lies there.
   const sent = writes(gpu).length
   proxies.worldWritten(12)
   assert.equal(writes(gpu).length, sent, 'no world is sent')

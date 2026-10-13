@@ -12,7 +12,6 @@ import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/c
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
-import { PRIMITIVE_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/cameraRanges.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
@@ -27,6 +26,8 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
 import { worldTableOn } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.fixture.ts'
 import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
+import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
+import { FRAME_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
 import {
   childBase,
   savedJournalWord,
@@ -113,11 +114,8 @@ function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: Sel
     clusters: packed.clusters,
     nodes: packed.nodes,
     cold,
-    /** The host's row per primitive, then what `dagPrepare` derives behind it. */
+    /** The host's row per primitive (`frameTable.ts`). */
     frames: primitiveFrameWords(packed),
-    framesBytes: worldCount * PRIMITIVE_BYTES,
-    /** One range holds every primitive (`frameRanges.ts`): `{first, count}`. */
-    range: new Uint32Array([0, worldCount, 0, 0]),
     views,
   }
 }
@@ -153,18 +151,21 @@ export function bindCase(
     flags: buffer(at.flagsWords * 4),
     out: buffer(at.outBytes, out),
     work: buffer(at.work.words * 4),
-    frames: buffer(at.framesBytes, at.frames),
     cold: buffer(48, at.cold),
-    range: buffer(16, at.range, uniform),
   }
   // The worlds' table, as the engine's host writes it (`worldTable.ts`).
   const worlds = worldTableOn(device, selection.packed.worlds, selection.packed.worldSources)
   // The placement tree's table, as the engine makes it (`treeTable.ts`).
   const tree = createTreeTable(device, selection.packed.placementTree)
-  made.push(worlds, tree)
+  // The frame words' table, as the engine's host writes it (`cameraFrames.ts`).
+  const read = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    frames = createRecordTexture(device, FRAME_TABLE, at.worldCount, read)
+  frames.write('Row', 0, at.worldCount, at.frames.buffer, at.frames.byteOffset)
+  made.push(worlds, tree, frames)
+  const views = { worlds: worlds.view, frames: frames.view, tree: tree.view }
   const group = device.createBindGroup({
     layout,
-    entries: namedEntries(DAG_BINDING, { ...buffers, worlds: worlds.view, tree: tree.view }),
+    entries: namedEntries(DAG_BINDING, { ...buffers, ...views }),
   })
   return { at, buffers, group, destroy: () => made.forEach((created) => created.destroy()) }
 }

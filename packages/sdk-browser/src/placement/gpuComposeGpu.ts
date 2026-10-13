@@ -1,16 +1,9 @@
 /**
  * WHAT THE COMPOSITION HOLDS ON THE GPU (`gpuCompose.ts`): the links, the parents' worlds, the
- * previous worlds and the motion mode, the lists, the passes' parameters and their groups; and the
- * parameters of the passes that run a dispatch a range of the cut's worlds.
+ * previous worlds and the motion mode, the lists, the passes' parameters and their groups.
  */
-import { resized } from '../../../math/src/sequence/resized.ts'
-import { uniformStride } from '../residency/pools.ts'
-import type { GpuSelection } from '../gpu/core/selection.ts'
 import { MATRIX_DOUBLES } from './gpuComposeWgsl.ts'
-import { heldGroup, type HeldGroup } from './composeGroups.ts'
-
-/** The ranges the record holds between two passes: none. */
-export const NO_RANGES: GpuSelection['worldRanges'] = []
+import { heldGroup } from './composeGroups.ts'
 
 export function createComposeGpu(device: GPUDevice, rootCount: number) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
@@ -44,9 +37,8 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
     locals,
     parentOf,
     parents: undefined as GPUBuffer | undefined,
-    /** The roots pass's parameters, a uniform slot a range of the cut's worlds (`rangeParams`); the
-     *  worlds pass's one block. */
-    rootParams: rangeParams('Trillion3D compose params'),
+    /** The roots pass's parameters (`passParams`); the worlds pass's one block. */
+    rootParams: passParams('Trillion3D compose params'),
     worldParams,
     noMotion,
     previous,
@@ -54,14 +46,12 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
     /** The composed roots and their rows as the passes read them (`sendList`). */
     rankList: undefined as GPUBuffer | undefined,
     rowList: undefined as GPUBuffer | undefined,
-    /** The roots pass's group of each range of the cut's worlds, and the worlds pass's. */
-    rootGroups: [] as HeldGroup[],
+    /** The roots pass's group, and the worlds pass's. */
+    rootGroup: heldGroup(),
     worldsGroup: heldGroup(),
     /** What the groups' entries read live (`liveBuffer`), written at each pass's start: the cut's
-     *  world ranges, its worlds — the one table every range's roots are written into — and the
-     *  motion the roots bind. */
+     *  worlds — the one table the roots are written into — and the motion the roots bind. */
     frame: {
-      ranges: NO_RANGES,
       worlds: undefined as GPUTextureView | undefined,
       motion: undefined as GPUBuffer | undefined,
     },
@@ -81,63 +71,40 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
 }
 export type ComposeGpu = ReturnType<typeof createComposeGpu>
 
-/** A pass's parameters, a uniform slot (`uniformStride`) a range of the cut's worlds — the roots
- *  it runs over, the range, how many roots its list holds, whether it runs over every root —, sent
- *  when one of them moved: a frame that runs under the same ranges and lists sends none. The
- *  composition's passes, the root boxes pass (`rootBoxes.ts`) and the tree's leaves
- *  (`treeLeaves.ts`) keep theirs so. */
-export const rangeParams = (label: string) => ({
+/** A pass's parameters — the roots it runs over, how many roots its list holds, whether it runs
+ *  over every root —, one uniform block sent when one of them moved: a frame that runs under the
+ *  same lists sends none. The composition's roots pass, the root boxes pass (`rootBoxes.ts`) and
+ *  the tree's leaves (`treeLeaves.ts`) keep theirs so. */
+export const passParams = (label: string) => ({
   label,
   buffer: undefined as GPUBuffer | undefined,
-  words: new Uint32Array(0),
-  /** Words of `words` the buffer holds, -1 before any write. */
-  written: -1,
+  words: new Uint32Array(4),
+  written: false,
 })
-type RangeParams = ReturnType<typeof rangeParams>
+type PassParams = ReturnType<typeof passParams>
 
-/** `params` written for `ranges`, `roots` roots and `listed` listed ones — every root when
- *  `whole` —, a slot of the device's stride (`uniformStride`) each. */
-export function writeRangeParams(
+/** Bytes of a pass's parameters (`passParams`). */
+export const PASS_PARAM_BYTES = 16
+
+/** `params` written for `roots` roots and `listed` listed ones — every root when `whole` —, made
+ *  at its first write. */
+export function writePassParams(
   device: GPUDevice,
-  params: RangeParams,
-  ranges: readonly { first: number; count: number }[],
+  params: PassParams,
   roots: number,
   listed: number,
   whole = 0,
 ) {
-  const stride = uniformStride(device.limits),
-    slot = stride / 4,
-    words = slot * ranges.length
-  if (params.written === words) {
-    let same = true
-    for (let r = 0; r < ranges.length && same; r++) {
-      const at = r * slot
-      same =
-        params.words[at] === roots &&
-        params.words[at + 1] === ranges[r].first &&
-        params.words[at + 2] === ranges[r].count &&
-        params.words[at + 3] === listed &&
-        params.words[at + 4] === whole
-    }
-    if (same) return
-  }
-  params.words = resized(params.words, words)
-  if (!params.buffer || params.buffer.size < words * 4) {
-    params.buffer?.destroy()
-    params.buffer = device.createBuffer({
-      label: params.label,
-      size: Math.max(stride, words * 4),
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    })
-  }
-  for (let r = 0; r < ranges.length; r++) {
-    const at = r * slot
-    params.words[at] = roots
-    params.words[at + 1] = ranges[r].first
-    params.words[at + 2] = ranges[r].count
-    params.words[at + 3] = listed
-    params.words[at + 4] = whole
-  }
-  device.queue.writeBuffer(params.buffer, 0, params.words, 0, words)
-  params.written = words
+  const { words } = params
+  if (params.written && words[0] === roots && words[1] === listed && words[2] === whole) return
+  words[0] = roots
+  words[1] = listed
+  words[2] = whole
+  params.buffer ??= device.createBuffer({
+    label: params.label,
+    size: PASS_PARAM_BYTES,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
+  device.queue.writeBuffer(params.buffer, 0, words)
+  params.written = true
 }

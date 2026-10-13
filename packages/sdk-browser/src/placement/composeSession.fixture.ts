@@ -33,16 +33,6 @@ export function session() {
   }))
   let revision = 0
   const selection = {
-    worldRanges: [
-      {
-        first: 0,
-        count: 2,
-        frames: device.createBuffer({
-          size: 64,
-          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-        }),
-      },
-    ],
     // The cut's records (`../gpu/dag/worldTable.ts`), whose worlds the roots pass writes.
     worlds: device
       .createTexture({

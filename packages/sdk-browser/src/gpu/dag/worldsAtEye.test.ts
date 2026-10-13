@@ -12,7 +12,7 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { DOUBLE_HELPERS, pair, type Pair } from '../../placement/composeDoubles.fixture.ts'
 import { DAG_WORLD_POSE_WGSL } from './shader/worldPoseWgsl.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
-import { createCameraFrames } from './frameRanges.ts'
+import { createCameraFrames } from './cameraFrames.ts'
 import { FRAME_VEC4 } from './types.ts'
 import { cutOnce, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { createGpuDagSelection } from './selection.ts'
@@ -115,7 +115,6 @@ test('a pose sent writes its world and its exact translation, nothing more', () 
     fake.device,
     new Float32Array(2 * FRAME_VEC4 * 4),
     2,
-    (descriptor) => fake.device.createBuffer(descriptor),
     worlds,
     sources as never,
   )

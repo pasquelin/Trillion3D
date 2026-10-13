@@ -15,7 +15,7 @@ import { heldOpenSlots } from './heldOpen.ts'
 import { makeDagBuffer, readoutRow } from './bufferTable.ts'
 import { cutBytes, madeAsked } from './cutBuffers.ts'
 import type { DagResources } from './resources.ts'
-import type { CameraFrames } from './frameRanges.ts'
+import type { CameraFrames } from './cameraFrames.ts'
 import { newRegions } from './swap.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { type Limits, deviceListCap } from './deviceListCap.ts'
@@ -161,7 +161,7 @@ export async function growDagList(
       grown = heldSlots > resources.heldSlots
     Object.assign(resources, list)
     resources.group.out = list!.output
-    resources.ranges = resources.frames.bindGroups(resources.layout, resources.group)
+    resources.bindGroup = resources.frames.bindGroup(resources.layout, resources.group)
     resources.rankGroups = rankGroups(resources)
     // The saved journals and the lists were the old readout's (`swap.ts`).
     newRegions(resources.swap, regions)
@@ -232,7 +232,7 @@ function carryKeptSnapshot(to: DagResources, from: { output: GPUBuffer; listCap:
 }
 
 /** The cut's group of each kept list, its ranks where the cut binds `work`: what its difference
- *  kernels bind (`shader/differenceWgsl.ts`), made again with the ranges when `out` is. */
+ *  kernels bind (`shader/differenceWgsl.ts`), made again with the cut's group when `out` is. */
 export function rankGroups(resources: {
   layout: GPUBindGroupLayout
   frames: Pick<CameraFrames, 'bindGroup'>
@@ -240,8 +240,7 @@ export function rankGroups(resources: {
   ranks: GPUBuffer[]
 }) {
   const { layout, frames, group } = resources
-  // The first range's group alone: the difference reads no primitive's words.
-  return resources.ranks.map((work) => frames.bindGroup(layout, { ...group, work }, 0))
+  return resources.ranks.map((work) => frames.bindGroup(layout, { ...group, work }))
 }
 
 /**

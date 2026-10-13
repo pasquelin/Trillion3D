@@ -26,7 +26,7 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   // level's node count — known at packing too —, and each deeper level from the queue the level
   // before it filled: no level visits the whole hierarchy, nor every placement's.
   assert.deepEqual(dispatches.slice(2, 5), [
-    { kernel: 'dagRootLevel', groups: 1 },
+    { kernel: 'dagLevel0', groups: 1 },
     { kernel: 'dagLevel1', groups: ceilDiv(ETAGES[1], WORKGROUP_THREADS) },
     { kernel: 'dagLevel2', groups: 'indirect', list: QUEUE + 2 },
   ])
@@ -38,7 +38,7 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   const plats = dispatches.filter((l) => l.groups !== 'indirect').map((l) => l.kernel)
   assert.deepEqual(plats, [
     'dagPrepare',
-    'dagRootLevel',
+    'dagLevel0',
     'dagLevel1',
     'dagDrawPrefix',
     'dagCommitMask',

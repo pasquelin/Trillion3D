@@ -4,11 +4,11 @@ import { dagPartCounts, type DagSplit } from './split.ts'
 import { dagBindEntries, type dagGroupEntries } from './shader/bindings.ts'
 import { validatedOrWhy } from '../core/errorScope.ts'
 import { checkShaderModule } from '../core/shaderModule.ts'
-import type { CameraFrames } from './frameRanges.ts'
+import type { CameraFrames } from './cameraFrames.ts'
 import { createDagStages } from './stages.ts'
 
-/** The selection stages, and one bind group per range of `frames` with its primitive count, under
- *  one validation scope, or why the device refused them. `split`, the tables in parts on this
+/** The selection stages, and the cut's bind group over `frames`, under one validation scope, or
+ *  why the device refused them. `split`, the tables in parts on this
  *  device (`split.ts`): the layout binds every part, and the text reads across them. A text that
  *  does not compile throws its compiler's messages. */
 export function createDagPipeline(
@@ -30,14 +30,14 @@ export function createDagPipeline(
       'camera cut selection',
     )
     steps?.begin('pipelines')
-    const stages = await createDagStages(device, layout, module, frames.ranges.length > 1, steps)
-    const ranges = frames.bindGroups(layout, buffers)
+    const stages = await createDagStages(device, layout, module, steps)
+    const bindGroup = frames.bindGroup(layout, buffers)
     return {
       /** Bind layout, returned with the stages: the dispatch bench mounts the previous cut on
        *  EXACTLY this one, instead of retyping a fourth copy. */
       layout,
       ...stages,
-      ranges,
+      bindGroup,
     }
   })
 }

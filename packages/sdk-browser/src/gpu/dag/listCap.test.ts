@@ -94,10 +94,7 @@ test('a cut past its list grows it and stays on the GPU, every drawn cluster lis
     [...(group as unknown as GPUBindGroupDescriptor).entries].find(
       (e) => e.binding === DAG_BINDING.out,
     )
-  assert.equal(
-    (outOf(resources.ranges[0].bindGroup)?.resource as GPUBufferBinding).buffer,
-    resources.output,
-  )
+  assert.equal((outOf(resources.bindGroup)?.resource as GPUBufferBinding).buffer, resources.output)
   const block = fake.writes.filter((w) => w.buffer === resources.uniforms).at(-1)!
   assert.equal(new Uint32Array(written(block).buffer)[52], 20, 'the kernels read the new cap')
 })

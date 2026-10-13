@@ -18,21 +18,19 @@ const textures = () =>
 
 test('the DAG layout entries are the bindings the selection shader declares', () => {
   const declared = wgslBufferBindings(DAG_SELECTION_SHADER)
-  assert.equal(declared.length, 9)
+  assert.equal(declared.length, 7)
   assert.deepEqual(buffers(), declared)
-  // The worlds and the placement tree are record textures (`../worldTable.ts`, `../treeTable.ts`),
-  // no storage buffer of the stage's eight.
-  assert.deepEqual(textures(), [DAG_BINDING.worlds, DAG_BINDING.tree])
-  assert.deepEqual(wgslTextureBindings(DAG_SELECTION_SHADER), [
-    DAG_BINDING.worlds,
-    DAG_BINDING.tree,
-  ])
+  // The worlds, the frame words and the placement tree are record textures (`../worldTable.ts`,
+  // `../frameTable.ts`, `../treeTable.ts`), no storage buffer of the stage's eight.
+  const records = [DAG_BINDING.worlds, DAG_BINDING.frames, DAG_BINDING.tree]
+  assert.deepEqual(textures(), records)
+  assert.deepEqual(wgslTextureBindings(DAG_SELECTION_SHADER), records)
 })
 
 test('a binding whose access changes in the shader no longer matches the entries', () => {
   const drifted = DAG_SELECTION_SHADER.replace(
-    '@binding(7) var<storage, read> frames',
-    '@binding(7) var<storage, read_write> frames',
+    '@binding(8) var<storage, read> cold',
+    '@binding(8) var<storage, read_write> cold',
   )
   assert.notEqual(drifted, DAG_SELECTION_SHADER)
   assert.notDeepEqual(buffers(), wgslBufferBindings(drifted))

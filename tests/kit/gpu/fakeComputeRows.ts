@@ -16,8 +16,10 @@ import { NO_INDEX } from '../../../packages/math/src/constants.ts'
 import { DOUBLE_HELPERS } from '../../../packages/sdk-browser/src/placement/composeDoubles.fixture.ts'
 import {
   ROOT_BOXES_ENTRY,
+  ROOT_BOXES_FRAMES_BINDING,
   ROOT_BOXES_WGSL,
 } from '../../../packages/sdk-browser/src/placement/rootBoxesWgsl.ts'
+import { viewTexels } from './fakeWorldPose.ts'
 import {
   ENTRY_CORNERS_ENTRY,
   ENTRY_CORNERS_WGSL,
@@ -117,35 +119,30 @@ function simulateComposeWorlds(bind: ComputeBind) {
   }
 }
 
-/** Replays a dispatch of the root boxes pass (`ROOT_BOXES_WGSL`) over its range: each listed root,
- *  or every one, its world box and its stretch. */
+/** Replays a dispatch of the root boxes pass (`ROOT_BOXES_WGSL`): each listed root, or every one,
+ *  its world box and its stretch. */
 function simulateRootBoxes(bind: ComputeBind) {
-  const entry = bind.entries.find(({ binding }) => binding === 0)!,
-    at = ((entry.resource as { offset?: number }).offset ?? 0) / 4
-  const [rootCount, first, count, listed, whole] = words(entry.resource.buffer.data).slice(
-    at,
-    at + 5,
-  )
-  const run = shaderRun<{ deriveRoot(rank: number, i: number): void }>(
+  const [rootCount, listed, whole] = boundWords(bind, 0)
+  const frames = bind.entries.find(({ binding }) => binding === ROOT_BOXES_FRAMES_BINDING)!
+  const run = shaderRun<{ deriveRoot(rank: number): void }>(
     ROOT_BOXES_WGSL,
     [
       ...DOUBLE_HELPERS,
       ...['affineAxis', 'dLess', 'dMin', 'dMax', 'carriedBox', 'composeBox', 'toF32', 'fromF32'],
       ...['dDiv', 'dRsqrt', 'dSqrt', 'chebyshevRoot', 'maxStretchOf', 'maxStretchBits'],
-      'deriveRoot',
+      ...['framesRowStore', 'framesSetWord', 'deriveRoot'],
     ],
     {
       rootWorlds: pairs(boundWords(bind, 1)),
       rootInputs: pairs(boundWords(bind, 2)),
       rootBoxes: pairs(boundWords(bind, 3)),
-      frames: boundWords(bind, 4),
+      frames: viewTexels(frames.resource),
     },
   )
-  const ranks = boundWords(bind, 5)
+  const ranks = boundWords(bind, 4)
   for (let j = 0; j < listed; j++) {
     const rank = whole ? j : ranks[j]
-    if (rank >= first && rank < first + count && rank < rootCount)
-      run.deriveRoot(rank, rank - first)
+    if (rank < rootCount) run.deriveRoot(rank)
   }
 }
 

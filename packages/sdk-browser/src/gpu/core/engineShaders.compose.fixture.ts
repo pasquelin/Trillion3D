@@ -3,11 +3,11 @@ import { treeLeavesWgsl } from '../../placement/treeLeavesWgsl.ts'
 import { ROOT_BOXES_WGSL } from '../../placement/rootBoxesWgsl.ts'
 import { DERIVE_ROWS_WGSL } from '../../placement/rowWordsWgsl.ts'
 import { ENTRY_CORNERS_WGSL } from '../../webgpu/transparent/entryCornersWgsl.ts'
-import { treeRefitWgsl } from '../dag/treeRefitWgsl.ts'
+import { TREE_REFIT_WGSL } from '../dag/treeRefitWgsl.ts'
 
 /** The texts of the GPU composition, of the root boxes and rows passes, of the tree's leaves and of
  *  its refit: the tables whole, and as a device that splits them lays them out (`nodeTableWgsl.ts`,
- *  `nodeTableBlock`; the frames' ranges). */
+ *  `nodeTableBlock`). */
 export const COMPOSE_SHADERS = {
   TREE_LEAVES: treeLeavesWgsl(),
   TREE_LEAVES_SPLIT: treeLeavesWgsl({ per: 4096, parts: 2 }),
@@ -16,6 +16,5 @@ export const COMPOSE_SHADERS = {
   ROOT_BOXES_WGSL,
   DERIVE_ROWS_WGSL,
   ENTRY_CORNERS_WGSL,
-  TREE_REFIT: treeRefitWgsl(),
-  TREE_REFIT_SPLIT: treeRefitWgsl({ frames: [0, 1024] }),
+  TREE_REFIT_WGSL,
 }

@@ -1,7 +1,7 @@
 // The placement tree's GPU refit (`gpu/dag/treeRefit.ts`) run on a real device over a generated
 // field: the nodes it leaves in the tree's record table (`treeTable.ts`), read and written in place,
-// are the CPU build's (`packPlacementTree`) after the same change, word for word, with the frames in
-// one range and in two; the tree's order beside them is never written.
+// are the CPU build's (`packPlacementTree`) after the same change, word for word, the frame words
+// read in their record table (`frameTable.ts`); the tree's order beside them is never written.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { placementField } from '../../../packages/sdk-browser/src/gpu/dag/placementTree.fixture.ts'
@@ -22,20 +22,12 @@ import {
   recordExtentOf,
   recordTable,
 } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.fixture.ts'
+import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
+import { FRAME_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
 import {
   DAG_NODE_FLOATS,
   FRAME_ROW_WORDS,
 } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-
-/** `words` in a storage buffer of its own. */
-function inBuffer(device: GPUDevice, words: Uint32Array<ArrayBuffer>) {
-  const buffer = device.createBuffer({
-    size: Math.max(4, words.byteLength),
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(buffer, 0, words)
-  return buffer
-}
 
 /** The words of the tree's table `texture` holds, read back: one layer, as `recordTable` lays them. */
 async function tableWords(device: GPUDevice, texture: GPUTexture, records: number) {
@@ -58,8 +50,8 @@ async function tableWords(device: GPUDevice, texture: GPUTexture, records: numbe
   return new Uint32Array(words)
 }
 
-/** One refit on the device: `split`, the frames in two ranges. */
-export async function runRefit(split: boolean) {
+/** One refit on the device. */
+export async function runRefit() {
   const gpu = await openGpuDevice()
   if (!gpu) return { unavailable: true }
   const { device } = gpu
@@ -79,17 +71,12 @@ export async function runRefit(split: boolean) {
   const table = createTreeTable(device, tree, (descriptor) =>
     device.createTexture({ ...descriptor, usage: descriptor.usage | GPUTextureUsage.COPY_SRC }),
   )
-  const framesAt = split ? [0, 5000] : [0]
-  const frameBuffers = framesAt.map((first, r) =>
-    inBuffer(
-      device,
-      frames.slice(first * FRAME_ROW_WORDS, (framesAt[r + 1] ?? roots.length) * FRAME_ROW_WORDS),
-    ),
-  )
-  const refit = createTreeRefit(device, dag, tree, {
-    tree: table.view,
-    frames: { buffers: frameBuffers, ranges: framesAt.map((first) => ({ first })) },
-  })
+  // The frame words' table as the engine's host writes it (`cameraFrames.ts`).
+  const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    frameTable = createRecordTexture(device, FRAME_TABLE, roots.length, usage)
+  const sendFrames = () => frameTable.write('Row', 0, roots.length, frames.buffer, 0)
+  sendFrames()
+  const refit = createTreeRefit(device, dag, tree, { tree: table.view, frames: frameTable.view })
   // The leaves as the GPU writes them (`treeLeavesWgsl.ts`, proven against `leafBoxes`), sent.
   const sendLeaves = () => {
     const leaves = leafBoxes(dag),
@@ -107,13 +94,7 @@ export async function runRefit(split: boolean) {
   const touched = treeChange(dag, roots)
   writeFrames()
   // The frame words the change moved go up, as the cut's run writes them.
-  framesAt.forEach((first, r) =>
-    device.queue.writeBuffer(
-      frameBuffers[r],
-      0,
-      frames.subarray(first * FRAME_ROW_WORDS, (framesAt[r + 1] ?? roots.length) * FRAME_ROW_WORDS),
-    ),
-  )
+  sendFrames()
   sendLeaves()
   const groups = new Set([...touched].map((w) => Math.floor(tree.slot[w] / TREE_SPAN)))
   const encoder = device.createCommandEncoder()
@@ -134,7 +115,7 @@ export async function runRefit(split: boolean) {
     if (held.get('Members', Math.floor(k / TREE_SPAN))[k % TREE_SPAN] !== tree.order[k])
       untouched = false
   table.destroy()
-  for (const buffer of frameBuffers) buffer.destroy()
+  frameTable.destroy()
   refit.dispose()
   const { court } = await gpu.fermer()
   return {

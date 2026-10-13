@@ -23,15 +23,13 @@ test('a cut in two ranges and table parts cuts as the whole cut, on the GPU', as
     JSON.stringify({
       adapter,
       storageBindings,
-      split: split && [split.ranges, split.parts],
+      split: split?.parts,
       drawn: whole?.cuts.map(({ pageIds }) => pageIds.length),
     }),
   )
   assert.deepEqual([...errors, ...pageErrors], [])
   assert.equal(refusal, undefined, 'the engine refuses the split device: the adapter binds too few')
   assert.ok(whole && split, 'the cut does not mount')
-  assert.equal(whole.ranges, 1)
-  assert.equal(split.ranges, 2, '`frames` splits in two ranges')
   // The nodes are each primitive's once, shared by its placements: they hold in one part here.
   assert.ok(split.parts.flags > 1, 'the tables split in parts')
   for (const [k, cut] of whole.cuts.entries()) {

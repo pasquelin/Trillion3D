@@ -119,15 +119,10 @@ export type GpuSelection = {
   /** Bytes of its GPU tables, within the cut's share (`../../residency/cutTableBytes.ts`). */
   readonly gpuBytes?: number
   readonly worldRevision: number
-  /** The ranges of primitives the cut's frame words are split in (`../dag/frameRanges.ts`): what
-   *  a GPU composition of the poses writes the stretch into (`../../placement/gpuCompose.ts`). */
-  readonly worldRanges: readonly {
-    first: number
-    count: number
-    /** The range's frame words, whose first word of a root's row is its stretch. */
-    frames: GPUBuffer
-  }[]
-  /** The cut's records, one table whatever the ranges (`../dag/worldTable.ts`): what the
+  /** The cut's frame words, one record table (`../dag/frameTable.ts`): what the root boxes pass
+   *  writes the stretch into and the tree's leaves read (`../../placement/rootBoxes.ts`). */
+  readonly frames: GPUTextureView
+  /** The cut's records, one table (`../dag/worldTable.ts`): what the
    *  composition writes and the proxy's rays read (`../../bounce/runtimeSceneWgsl.ts`). A new view
    *  once the proxy's copies grow it: read at each use. */
   readonly worlds: GPUTextureView

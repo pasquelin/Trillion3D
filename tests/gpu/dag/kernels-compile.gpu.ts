@@ -1,6 +1,6 @@
 // Every stage of the DAG selection kernel compiles and validates on the machine's device:
 // the text the engine compiles (`shader.ts`, the normal cone and the cut kernels it feeds), then the
-// engine's own stages (`createDagStages`) with and without the `SPLIT` override. The Node gate only
+// engine's own stages (`createDagStages`). The Node gate only
 // parses the text; here the GPU's own WGSL compiler reads it. The proof can fail: a copy with a
 // WGSL syntax error in the cone, and one with a type error, must each be refused.
 import test from 'node:test'
@@ -38,7 +38,7 @@ const verdictsOf = async (source: string) =>
 
 test('every DAG selection stage compiles and validates on the GPU', async () => {
   const verdicts = await verdictsOf('shipped')
-  assert.equal(verdicts.length, 2)
+  assert.equal(verdicts.length, 1)
   assert.deepEqual(
     verdicts.filter(({ errors }) => errors.length),
     [],
@@ -50,9 +50,9 @@ test('every DAG selection stage compiles and validates on the GPU', async () => 
 
 test('a WGSL syntax error or type error in the cone is refused', async () => {
   for (const source of ['syntax error', 'type error'])
-    for (const { name, split, errors } of await verdictsOf(source))
+    for (const { name, errors } of await verdictsOf(source))
       assert.ok(
         errors.some((error) => error.startsWith('module:')),
-        `${name}${split ? ' SPLIT' : ''}: not refused`,
+        `${name}: not refused`,
       )
 })

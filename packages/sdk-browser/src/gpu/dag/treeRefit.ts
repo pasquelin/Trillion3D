@@ -9,29 +9,22 @@
  * taken nor kept on the CPU. The pass is the one entry point of a refit — the placement tree's, and
  * whatever else bounds its boxes the same way.
  *
- * The pass reads and writes the tree's record table in place (`treeTable.ts`), the frames through
- * their ranges. Nothing is ever left unfitted, and no group is held open for want of a binding.
+ * The pass reads and writes the tree's record table in place (`treeTable.ts`), and reads the frame
+ * words in theirs (`frameTable.ts`). Nothing is ever left unfitted, and no group is held open for
+ * want of a binding.
  */
 import { TREE_REFIT_PASS } from '../../stage/passLabels.ts'
 import { refitLevels, treeNodeCount, type PlacementTree } from './placementTree.ts'
-import { REFIT_PARAM_WORDS, treeRefitWgsl, type RefitLayout } from './treeRefitWgsl.ts'
+import { REFIT_PARAM_WORDS, TREE_REFIT_WGSL } from './treeRefitWgsl.ts'
 import type { PackedDag } from './types.ts'
-import { preparedComputePipeline, preparedPipelines } from '../../lighting/deferred/fullscreen.ts'
+import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { oncePerDevice } from '../core/oncePerDevice.ts'
 import { sequentialEntries } from '../core/computeBindings.ts'
 import { createRefitLevels } from './treeRefitLevels.ts'
 
-/** What a refit reads and writes: the tree's record table (`treeTable.ts`), and the frames of each
- *  range of placements. */
-export type RefitTables = {
-  tree: GPUTextureView
-  frames: { buffers: GPUBuffer[]; ranges: readonly { first: number }[] }
-}
-
-/** How `tables` lay the frames out: the first placement of each range. */
-const layoutOf = ({ frames }: RefitTables): RefitLayout => ({
-  frames: frames.ranges.map(({ first }) => first),
-})
+/** What a refit reads and writes: the tree's record table (`treeTable.ts`), and the frame words
+ *  (`frameTable.ts`). */
+export type RefitTables = { tree: GPUTextureView; frames: GPUTextureView }
 
 export function createTreeRefit(
   device: GPUDevice,
@@ -39,7 +32,6 @@ export function createTreeRefit(
   tree: PlacementTree,
   tables: RefitTables,
 ) {
-  const layout = layoutOf(tables)
   const worlds = Math.max(1, packed.worldCount)
   // Written by the leaves pass alone; a proof of the refit on a device sends the leaves it fits.
   const members = device.createBuffer({
@@ -50,7 +42,7 @@ export function createTreeRefit(
   /** A level's own parameters past its ids (`Params`): what it fits and the level below it. */
   const extra = new Uint32Array(REFIT_PARAM_WORDS - 2)
   // Compiled off the thread as the tree is followed: the frames wait for it, none compiles it.
-  const kernel = refitKernels(device).of(layout).ask()
+  const kernel = refitKernel(device).ask()
   let program: ReturnType<typeof refitProgram> | undefined
   return {
     members,
@@ -89,23 +81,16 @@ export function createTreeRefit(
   }
 }
 
-/** The refit kernels of a device, one a layout of its tables, each made once. */
-const refitKernels = oncePerDevice((device: GPUDevice) =>
-  preparedPipelines(
-    (layout: RefitLayout) =>
-      preparedComputePipeline(device, {
-        label: TREE_REFIT_PASS,
-        layout: 'auto',
-        compute: {
-          module: device.createShaderModule({
-            label: TREE_REFIT_PASS,
-            code: treeRefitWgsl(layout),
-          }),
-          entryPoint: 'main',
-        },
-      }),
-    (layout) => JSON.stringify(layout),
-  ),
+/** The refit kernel of a device, made once. */
+const refitKernel = oncePerDevice((device: GPUDevice) =>
+  preparedComputePipeline(device, {
+    label: TREE_REFIT_PASS,
+    layout: 'auto',
+    compute: {
+      module: device.createShaderModule({ label: TREE_REFIT_PASS, code: TREE_REFIT_WGSL }),
+      entryPoint: 'main',
+    },
+  }),
 )
 
 /** The pipeline's lists and parameters, made when the first pass runs: the tables' group once, and
@@ -128,10 +113,10 @@ function refitProgram(
     tree.levels.length,
     REFIT_PARAM_WORDS,
   )
-  // The tree's record table, read and written in place.
+  // The tree's record table, read and written in place, and the frame words.
   const tables = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
-    entries: [{ binding: 0, resource: table }],
+    entries: sequentialEntries([table, frames]),
   })
   const groups = tree.levels.map((_, step) =>
     device.createBindGroup({
@@ -144,7 +129,6 @@ function refitProgram(
         },
         { buffer: ids },
         { buffer: members },
-        ...frames.buffers.map((buffer) => ({ buffer })),
       ]),
     }),
   )

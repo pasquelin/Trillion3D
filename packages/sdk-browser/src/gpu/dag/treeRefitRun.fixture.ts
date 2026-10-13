@@ -1,8 +1,7 @@
 // The tree refit (`treeRefitWgsl.ts`, the shipped WGSL run in JavaScript) over a packing's tables:
 // the one fit a test has of the placement tree, there being no other (`packPlacementTree` leaves
 // every node open), over the leaves the GPU writes from the packing as it stands (`leafBoxes`). The
-// tree's record table is held in words (`treeTable.ts`), the frames in the ranges `layout` gives —
-// one, or as a small device splits them.
+// tree's record table and the frame words are held in words (`treeTable.ts`, `frameTable.ts`).
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import {
   refitLevels,
@@ -17,11 +16,12 @@ import { fromHalf } from '../../../../math/src/float/half.ts'
 import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
-import { treeRefitWgsl, type RefitLayout } from './treeRefitWgsl.ts'
+import { TREE_REFIT_WGSL } from './treeRefitWgsl.ts'
 import { DOUBLE_HELPERS, pair, type Pair } from '../../placement/composeDoubles.fixture.ts'
 import { DAG_NODE_FLOATS, FRAME_ROW_WORDS, type PackedDag } from './types.ts'
 import { recordTable } from '../core/recordTexture.fixture.ts'
 import { TREE_TABLE } from './treeTable.ts'
+import { FRAME_TABLE } from './frameTable.ts'
 
 /** `tree`'s record table as the host writes it: its nodes, then its order. */
 function treeTableOf(tree: PlacementTree) {
@@ -35,7 +35,7 @@ function treeTableOf(tree: PlacementTree) {
 }
 
 /** Each placement's frame words the refit reads: its root, its mark. */
-export const frameWords = (dag: PackedDag) =>
+const frameWords = (dag: PackedDag) =>
   Array.from({ length: dag.worldSources.length * FRAME_ROW_WORDS }, (_, k) => {
     const w = Math.floor(k / FRAME_ROW_WORDS),
       at = k % FRAME_ROW_WORDS
@@ -63,35 +63,35 @@ export function leafBoxes(dag: PackedDag) {
   return leaves
 }
 
+/** `dag`'s frame words as their record table holds them (`frameWords`). */
+export function frameTableOf(dag: PackedDag) {
+  const count = dag.worldSources.length,
+    table = recordTable(FRAME_TABLE, Math.max(1, count)),
+    words = frameWords(dag)
+  for (let w = 0; w < count; w++)
+    table.set('Row', w, words.slice(w * FRAME_ROW_WORDS, (w + 1) * FRAME_ROW_WORDS))
+  return table
+}
+
 /** Fits `groups` of `dag`'s tree and every node above them, in `tree.nodes`; every group by default.
  *  The leaves are the GPU's from the packing as it stands (`leafBoxes`), the marks and parks the
  *  packing's. Returns the nodes fitted. */
-export function refitTree(dag: PackedDag, groups?: Iterable<number>, layout?: RefitLayout) {
+export function refitTree(dag: PackedDag, groups?: Iterable<number>) {
   const tree = dag.placementTree as PlacementTree
-  const count = dag.worldSources.length,
-    ranges = layout?.frames ?? [0]
-  const frames = frameWords(dag)
   const { table, words } = treeTableOf(tree)
-  const tables: Record<string, unknown> = { tree: table }
-  ranges.forEach(
-    (first, r) =>
-      (tables[`frames${r}`] = frames.slice(
-        first * FRAME_ROW_WORDS,
-        (ranges[r + 1] ?? count) * FRAME_ROW_WORDS,
-      )),
-  )
   const params = { first: 0, count: 0, base: 0, live: tree.count } as Record<string, number>
   const run = shaderRun<{ fitGroup(j: number): void; fitCell(j: number): void }>(
-    treeRefitWgsl(layout),
+    TREE_REFIT_WGSL,
     [
       ...DOUBLE_HELPERS,
       ...['dLess', 'dMin', 'dMax', 'dAbs', 'toF32', 'fromF32'],
       ...['treeNode', 'treeNodeStore', 'treeMembers', 'treeWord', 'treeSetWord', 'treeMember'],
-      ...['frameWord', 'writeBox', 'fitGroup', 'fitCell'],
+      ...['framesRow', 'framesWord', 'writeBox', 'fitGroup', 'fitCell'],
     ],
     {
       params,
-      ...tables,
+      tree: table,
+      frames: frameTableOf(dag),
       members: Array.from(leafBoxes(dag), (v) => pair(v) as Pair),
     },
   )

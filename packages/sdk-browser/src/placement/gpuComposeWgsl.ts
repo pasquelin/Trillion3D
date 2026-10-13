@@ -86,8 +86,8 @@ fn sameWord(a:u32,b:u32)->bool{
 )
 
 /**
- * One thread per root a parent composes (`ranks`, the composition's dense list of them), those of a
- * range of the cut's frame words alone at work: its composed world as the worlds pass wrote it, into
+ * One thread per root a parent composes (`ranks`, the composition's dense list of them): its
+ * composed world as the worlds pass wrote it, into
  * the root's record of the cut's worlds (`../gpu/dag/worldTable.ts`), written whole — its matrix as
  * the host writes it, its exact translation beside it, as the host's is (`worldOrigins.ts`), which
  * each cut reads at its own eye —, and,
@@ -98,7 +98,7 @@ fn sameWord(a:u32,b:u32)->bool{
  * writes identity.
  */
 export const COMPOSE_ROOTS_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,first:u32,count:u32,listed:u32,}
+  `struct Params{rootCount:u32,listed:u32,whole:u32,pad:u32,}
 struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> rootWorlds:array<vec2u>;
@@ -110,7 +110,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
  let rank=ranks[j];
- if(rank<params.first||rank>=params.first+params.count||rank>=params.rootCount){return;}
+ if(rank>=params.rootCount){return;}
  let p=parentOf[rank];
  if(p==NO_INDEX){return;}
  var world:array<u32,16>;

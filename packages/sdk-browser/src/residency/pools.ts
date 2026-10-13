@@ -11,8 +11,8 @@ import type { TexturePool } from '../webgpu/residency/memoryBudgets.ts'
  */
 
 /** Bytes one storage buffer may occupy and bind on this device: the smaller of its limits. Every
- *  buffer sized from the device reads it — the page pool, and the DAG cut's per-primitive tables
- *  (`../gpu/dag/frameRanges.ts`). */
+ *  buffer sized from the device reads it — the page pool, and the DAG cut's buffers
+ *  (`../gpu/dag/bufferTable.ts`). */
 export const storageBufferCap = (limits?: {
   maxBufferSize?: number
   maxStorageBufferBindingSize?: number

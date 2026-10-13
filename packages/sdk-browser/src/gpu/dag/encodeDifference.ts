@@ -26,7 +26,7 @@ export function encodeDifference(pass: GPUComputePassEncoder, resources: DagReso
       pass.setPipeline(pipeline)
       pass.dispatchWorkgroupsIndirect(resources.dispatchArgs, LIST_ARGS[l])
     })
-  pass.setBindGroup(0, resources.ranges[0].bindGroup)
+  pass.setBindGroup(0, resources.bindGroup)
 }
 
 /** A dispatch that copies the snapshot in hand without cutting: its difference in a pass of its

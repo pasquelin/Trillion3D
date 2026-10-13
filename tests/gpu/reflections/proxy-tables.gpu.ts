@@ -1,9 +1,9 @@
 // The proxy's rays read the culling's worlds and placement tree where they lie (`gpu/dag/worldTable.ts`,
 // `gpu/dag/treeTable.ts`): on the GPU, the shipped walk over the record tables and the walk of before, over the
 // worlds and the tree the proxy's buffer mirrored, answer every ray with the same words — its distance's bits, its placement, its triangle, found or not, its work and its
-// tests —, on generated fields with and without a placement tree, blended copies among them. And a world the
-// culling splits in ranges keeps its proxy: once refused past one storage binding, its rays now meet the
-// placements of every range, hit for hit those of the same world held whole.
+// tests —, on generated fields with and without a placement tree, blended copies among them. And a world past
+// one storage binding keeps its proxy and its camera cut: once refused past the device's limits, its rays now
+// meet every placement, hit for hit those of the same world held whole.
 //
 //   node bench/dawn/proofs.ts tests/gpu/reflections/proxy-tables.gpu.ts
 import test from 'node:test'
@@ -60,27 +60,25 @@ for (const [count, seed] of [
   )
 
 test(
-  'a world the culling splits in ranges keeps its proxy rays, those of the world held whole',
+  'a world past one storage binding keeps its proxy rays, those of the world held whole',
   {
     timeout: 300_000,
   },
   async () => {
     const { splitWorld } = await page()
-    const { whole, split, errors } = await runOnDawn(splitWorld, { count: 1000, rayCount: 4096 })
-    console.log(
-      JSON.stringify({ whole: whole.ranges, split: split.ranges, refused: split.refused }),
-    )
+    const { whole, split, errors, past } = await runOnDawn(splitWorld, {
+      count: 1000,
+      rayCount: 4096,
+    })
+    console.log(JSON.stringify({ past, refused: split.refused }))
     assert.deepEqual(errors, [])
     assert.equal(whole.refused, undefined)
-    assert.equal(split.refused, undefined, 'the proxy of a split world is made')
-    assert.deepEqual(whole.ranges, [1000])
-    assert.equal(split.ranges?.length, 2, 'the culling splits its frames')
+    assert.equal(split.refused, undefined, 'the camera cut past the device limits is made')
     const hits = split.hits!
     assert.deepEqual(differing(hits, whole.hits!), [], 'every ray answers as over the whole world')
-    const firstRange = split.ranges![0]
     assert.ok(
-      found(hits).some((r) => hits[r * HIT_WORDS + 1] >= firstRange),
-      'a ray meets a placement of the second range',
+      found(hits).some((r) => hits[r * HIT_WORDS + 1] >= past),
+      'a ray meets a placement past the binding',
     )
   },
 )

@@ -1,14 +1,19 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
-import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { floats, words } from './fakeBuffers.ts'
-import { viewTexture, worldsAtEye } from './fakeWorldPose.ts'
+import { recordWord, viewTexture, worldsAtEye } from './fakeWorldPose.ts'
+import { FRAME_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
 import { indexOfRanks } from '../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
 
 type Bound = Map<number, { data: Uint8Array }>
-/** The bound worlds' table: the view at the worlds' binding (`DAG_BINDING.worlds`). */
-type Worlds = Parameters<typeof viewTexture>[0]
+/** A bound record table: the view at its binding (`DAG_BINDING.worlds`, `DAG_BINDING.frames`). */
+type View = Parameters<typeof viewTexture>[0]
+
+/** Word `k` of placement `w`'s frame words in the bound frame table `frames`, as the kernels read
+ *  it (`frameTable.ts`). */
+export const frameWord = (frames: View, w: number, k: number) =>
+  recordWord(frames, FRAME_TABLE, 'Row', w, k)
 
 /** The DAG selection uniform block as the shader reads it: the camera. */
 export function readDagUniforms(data: Uint8Array) {
@@ -44,20 +49,17 @@ export const boundListCap = (byBinding: Bound) =>
  */
 export function packedFromBindings(
   byBinding: Bound,
-  worlds: Worlds,
+  worlds: View,
+  frames: View,
 ): PackedDag & { frameStretch: Float32Array } {
   const views = words(byBinding.get(DAG_BINDING.views)!.data)
   const pageCount = views[viewWord('clusterCount')],
     nodeCount = views[viewWord('nodeCount')],
     worldCount = views[viewWord('worldCount')]
-  const frameBytes = byBinding.get(DAG_BINDING.frames)!.data,
-    frameInts = words(frameBytes),
-    frameFloats = floats(frameBytes)
-  /** Word `at` of each primitive's frame row, read as floats or as integers. */
-  const floatsAt = (at: number) =>
-    Float32Array.from({ length: worldCount }, (_, w) => frameFloats[primitiveWordAt(w) + at])
+  /** Word `at` of each primitive's frame row, read as integers or as floats. */
   const intsAt = (at: number) =>
-    Uint32Array.from({ length: worldCount }, (_, w) => frameInts[primitiveWordAt(w) + at])
+    Uint32Array.from({ length: worldCount }, (_, w) => frameWord(frames, w, at))
+  const floatsAt = (at: number) => new Float32Array(intsAt(at).buffer)
   const rootNodes = intsAt(1)
   // Each page's placement, from each placement's first page and page count (`worlds.ts`): the
   // kernels read it from the entries that carry it, the double indexes the placements.

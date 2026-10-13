@@ -7,7 +7,7 @@
 // steps) is counted at its least, so what a pass takes above its floor (`floor.ts`) holds those
 // walks. Pure.
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { PRIMITIVE_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/cameraRanges.ts'
+import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import {
   VSM_TRACE_RAYS_SUN,
   VSM_TRACE_STEPS_SUN,
@@ -20,18 +20,21 @@ import {
 import { passKey } from '../summary.ts'
 import * as K from './passConstants.ts'
 
+/** Bytes of a placement's frame words (`FRAME_ROW_WORDS`). */
+const ROW_BYTES = FRAME_ROW_WORDS * 4
+
 export const PASSES: K.PassModel[] = [
   {
     label: 'DAG selection',
-    formula: `(N + R)·${PRIMITIVE_BYTES} B rows; ${K.DAG_FIXED_DISPATCHES} + ${K.DAG_LEVEL_DISPATCHES}·${K.DAG_LEVELS} levels dependent dispatches`,
+    formula: `(N + R)·${ROW_BYTES} B rows; ${K.DAG_FIXED_DISPATCHES} + ${K.DAG_LEVEL_DISPATCHES}·${K.DAG_LEVELS} levels dependent dispatches`,
     work: (f) => ({
-      bytes: (f.N + f.R) * PRIMITIVE_BYTES,
+      bytes: (f.N + f.R) * ROW_BYTES,
       passes: 1,
       dispatches: K.DAG_FIXED_DISPATCHES + K.DAG_LEVEL_DISPATCHES * K.DAG_LEVELS,
     }),
     sources: [
       K.engine('gpu/dag/encode.ts', 'encodeDagKernels'),
-      K.engine('gpu/dag/cameraRanges.ts', 'PRIMITIVE_BYTES'),
+      K.engine('gpu/dag/types.ts', 'FRAME_ROW_WORDS'),
     ],
   },
   {

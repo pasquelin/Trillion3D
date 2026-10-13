@@ -12,26 +12,25 @@ test("the cut's groups are made again when the records they bind are, and only t
     get worlds() {
       return { view }
     },
-    bindGroups: () => [{ first: 0, count: 1, bindGroup: { made: ++made } }],
-    bindGroup: () => ({ rank: made }),
+    bindGroup: () => ({ made: ++made }),
   }
   const resources = {
     frames,
     layout: {},
     group: {},
     ranks: [{}, {}],
-    ranges: frames.bindGroups(),
+    bindGroup: frames.bindGroup(),
     rankGroups: [],
     recordsBound: recordsIdentity(view as unknown as GPUTextureView),
   } as unknown as DagResources
-  const ranges = resources.ranges
+  const group = resources.bindGroup
   followRecords(resources)
-  assert.equal(resources.ranges, ranges, 'the records stand: nothing made')
+  assert.equal(resources.bindGroup, group, 'the records stand: nothing made')
   view = { name: 'grown' }
   followRecords(resources)
-  assert.notEqual(resources.ranges, ranges, 'grown: every range made again')
+  assert.notEqual(resources.bindGroup, group, "grown: the cut's group made again")
   assert.equal(resources.rankGroups.length, 2, 'and each kept list')
-  const again = resources.ranges
+  const again = resources.bindGroup
   followRecords(resources)
-  assert.equal(resources.ranges, again)
+  assert.equal(resources.bindGroup, again)
 })

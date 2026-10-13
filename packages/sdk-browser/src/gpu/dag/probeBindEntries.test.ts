@@ -29,11 +29,11 @@ for (const [kernel, bindings] of KERNELS) {
 }
 
 // The two probes (the selection kernel's group is built with its case, `selectionCase.ts`) and
-// the frame ranges, which bind the selection kernel's group 0 per range for the camera cut.
+// the camera's frames, which bind the selection kernel's group 0 for the camera cut.
 const BUILDERS = [
   '../../../../../tests/gpu/dag/selectionCase.ts',
   '../../../../../tests/gpu/blend/scatterKernel.ts',
-  './frameRanges.ts',
+  './cameraFrames.ts',
 ]
 for (const probe of BUILDERS) {
   test(`${probe} builds its bind group through namedEntries, not by position`, () => {

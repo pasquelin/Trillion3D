@@ -57,10 +57,9 @@ function encodeOnce(
     blockCount,
     levelSizes,
     dispatchArgs,
-    ranges,
+    bindGroup,
     preparePipeline,
     clearDrawnPipeline,
-    rootLevelPipeline,
     levelPipelines,
     wantedPipeline,
     maskPipeline,
@@ -81,19 +80,17 @@ function encodeOnce(
     arm(pass, resources)
     pass.setPipeline(clearDrawnPipeline)
     pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.drawn)
-  } else pass.setBindGroup(0, ranges[0].bindGroup)
-  // The first range's dispatch also resets the block counts.
-  perRange(pass, resources, preparePipeline, width, prepareEntries, blockCount)
+  } else pass.setBindGroup(0, bindGroup)
+  // Its dispatch also resets the block counts.
+  flat(pass, preparePipeline, width, Math.max(prepareEntries(resources), blockCount))
   // The whole descent in THIS pass: dispatches of the same pass run in order and see what the
   // previous ones wrote — prepare and pass 0 already depended on that.
   //
-  // Pass 0 starts from one root per primitive: each range's count of primitives and NOT
-  // `levelSizes[0]`, which would not always bound it: `dagPrepare` puts one entry per primitive,
-  // missing root included — pass 0 reads it there and rejects it —, where stage zero only counts
-  // roots that exist. A primitive whose caller supplies an empty hierarchy would make the two
-  // diverge. Each range reads its own roots; a deeper level mixes them, so each range walks the
-  // level's whole queue and keeps its own primitives' nodes.
-  perRange(pass, resources, rootLevelPipeline, width, levelEntries)
+  // Pass 0 starts from one root per primitive: the count of primitives and NOT `levelSizes[0]`,
+  // which would not always bound it: `dagPrepare` puts one entry per primitive, missing root
+  // included — pass 0 reads it there and rejects it —, where stage zero only counts roots that
+  // exist. A primitive whose caller supplies an empty hierarchy would make the two diverge.
+  flat(pass, levelPipelines[0], width, levelEntries(resources))
   // Each following level reads only the nodes the previous one kept, and fills the next of the
   // three queues — the one a level earlier cleared. Level 1 is dispatched flat on its stage's nodes,
   // an upper bound the layout knows and a small one: the placement tree's second level, or the
@@ -104,14 +101,16 @@ function encodeOnce(
     const pipeline = levelPipelines[level % levelPipelines.length]
     if (level >= 2) {
       arm(pass, resources)
-      perRangeIndirect(pass, ranges, pipeline, dispatchArgs, DAG_ARGS.queues[level % 3])
+      pass.setPipeline(pipeline)
+      pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.queues[level % 3])
       continue
     }
-    perRange(pass, resources, pipeline, width, Math.min(levelSizes[level], resources.entryCount))
+    flat(pass, pipeline, width, Math.min(levelSizes[level], resources.entryCount))
   }
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
   arm(pass, resources)
-  perRangeIndirect(pass, ranges, wantedPipeline, dispatchArgs, DAG_ARGS.cand)
+  pass.setPipeline(wantedPipeline)
+  pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.cand)
   if (headOnly) {
     // The groups it stamped raise their parents, as a whole cut's do (`shader/lastUseWgsl.ts`): the
     // cut repeated after it finds them stamped, and raises no group again.
@@ -123,7 +122,8 @@ function encodeOnce(
   arm(pass, resources)
   // These kernels visit only live clusters, those `dagWanted` has just listed: their verdict is
   // the previous one, it is no longer spoken on those it said nothing about.
-  perRangeIndirect(pass, ranges, maskPipeline, dispatchArgs, DAG_ARGS.live)
+  pass.setPipeline(maskPipeline)
+  pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.live)
   // The drawable-page list is compacted here, in increasing order: the snapshot no longer
   // reports one flag per page but the count alone and its ranks.
   // Then the camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one
@@ -153,77 +153,42 @@ function encodeOnce(
   pass.end()
 }
 
-/**
- * Every list's argument copied from `work` (`shader/armWgsl.ts`), then the first range's group
- * back in place: the kernels that follow bind it, and a range's own when there are several
- * (`perRange`).
- */
-function arm(pass: GPUComputePassEncoder, { armPipeline, armGroup, ranges }: DagResources) {
+/** Every list's argument copied from `work` (`shader/armWgsl.ts`), then the cut's group back in
+ *  place: the kernels that follow bind it. */
+function arm(pass: GPUComputePassEncoder, { armPipeline, armGroup, bindGroup }: DagResources) {
   pass.setPipeline(armPipeline)
   pass.setBindGroup(0, armGroup)
   pass.dispatchWorkgroups(1)
-  pass.setBindGroup(0, ranges[0].bindGroup)
+  pass.setBindGroup(0, bindGroup)
 }
 
 /**
- * The threads of queue 0 range `r`'s `dagPrepare` (`levelEntries` the entries pass 0 reads): without
- * a placement tree, its own placements; with one, the head range the tree's top nodes, the world
- * DAG's range its root, then every range a thread each member drawn whatever the view, the range
- * that holds it writing it — and every range reads those few entries whole (`placementTreeWgsl.ts`).
+ * The threads of `dagPrepare` (`levelEntries` the entries pass 0 reads): without a placement tree,
+ * every placement; with one, the tree's top nodes, the world DAG's root, then a thread each member
+ * drawn whatever the view (`shader/placementTreeWgsl.ts`).
  */
-function prepareEntries({ packed, ranges }: DagResources, r: number) {
-  const tree = packed.placementTree,
-    world = packed.world?.root ?? -1
-  if (!tree) return ranges[r].count
-  const holds = world >= ranges[r].first && world < ranges[r].first + ranges[r].count,
-    always = tree.always.set.count
-  return (r ? 0 : tree.levels[0].count) + (always ? 1 + always : holds ? 1 : 0)
+function prepareEntries({ packed, worldCount }: DagResources) {
+  const tree = packed.placementTree
+  if (!tree) return worldCount
+  const always = tree.always.set.count
+  return tree.levels[0].count + (always ? 1 + always : (packed.world?.root ?? -1) >= 0 ? 1 : 0)
 }
 
-/** The entries of queue 0 range `r`'s pass 0 reads (`prepareEntries`). */
-function levelEntries({ packed, ranges }: DagResources, r: number) {
+/** The entries of queue 0 pass 0 reads (`prepareEntries`). */
+function levelEntries({ packed, worldCount }: DagResources) {
   const tree = packed.placementTree
-  if (!tree) return ranges[r].count
+  if (!tree) return worldCount
   const world = (packed.world?.root ?? -1) >= 0 ? 1 : 0
   return tree.levels[0].count + world + tree.always.set.count
 }
 
-/**
- * The kernels that read a primitive's words run once per range of `frames`, each under its
- * range's bind group, on its range's primitives (`frameRanges.ts`): `threads`, or `threads(view, r)` on range `r`, at
- * least `firstFloor` on the first, in rows of `width` workgroups. One range: the commands of before.
- */
-function perRange(
+/** A kernel on `threads` threads, in rows of `width` workgroups. */
+function flat(
   pass: GPUComputePassEncoder,
-  view: DagResources,
-  pipeline: GPUComputePipeline,
+  pipe: GPUComputePipeline,
   width: number,
-  threads: number | ((view: DagResources, r: number) => number),
-  firstFloor = 0,
+  threads: number,
 ) {
-  const { ranges } = view
-  pass.setPipeline(pipeline)
-  for (let r = 0; r < ranges.length; r++) {
-    if (ranges.length > 1) pass.setBindGroup(0, ranges[r].bindGroup)
-    const count = Math.max(
-      typeof threads === 'number' ? threads : threads(view, r),
-      r ? 0 : firstFloor,
-    )
-    dispatchRows(pass, workgroupCount(count, WORKGROUP_THREADS), 1, width)
-  }
-}
-
-/** A list kernel once per range, each indirect on the armed record at `offset` of `args`. */
-function perRangeIndirect(
-  pass: GPUComputePassEncoder,
-  ranges: DagResources['ranges'],
-  pipeline: GPUComputePipeline,
-  args: GPUBuffer,
-  offset: number,
-) {
-  pass.setPipeline(pipeline)
-  for (let r = 0; r < ranges.length; r++) {
-    if (ranges.length > 1) pass.setBindGroup(0, ranges[r].bindGroup)
-    pass.dispatchWorkgroupsIndirect(args, offset)
-  }
+  pass.setPipeline(pipe)
+  dispatchRows(pass, workgroupCount(threads, WORKGROUP_THREADS), 1, width)
 }

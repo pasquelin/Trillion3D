@@ -14,8 +14,8 @@ type DagDeviceLimits = Limits & { maxStorageBuffersPerShaderStage?: number }
  * WHAT OF A CAMERA CUT THIS DEVICE CANNOT HOLD, by name, or `undefined` when it holds it all. A
  * buffer past one binding would fail on the device — a bind group refused — and the GPU cut would
  * be gone without a word. Refused here, before any buffer, the host names it and refuses the scene.
- * `frames` is not checked: it splits in ranges (`frameRanges.ts`), and a primitive's pass runs once
- * per range; the worlds are a record texture (`worldTable.ts`), no storage binding. `clusters`,
+ * The frame words and the worlds are record textures (`frameTable.ts`, `worldTable.ts`), no
+ * storage binding. `clusters`,
  * `nodes`, `pageCones` and `flags` split in parts, bound at once (`split.ts`): refused only when one
  * part is still past a binding — one element, or queue 0's root slots, each flag section starting
  * within one (`dagFlagShape`) —, or when the device cannot bind every part in one stage. No

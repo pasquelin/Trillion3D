@@ -74,13 +74,10 @@ test('a view aside cut alone reads the tree refitted and the root word of a park
     'the moved placement’s leaf written',
   )
   assert.ok(refits() > 0, 'the tree refit pass encoded')
-  const frames = held(resources.frames.buffers[0]),
-    rows = bytes(
-      resources.frameData,
-      0,
-      Math.min(frames.byteLength, resources.frameData.byteLength),
-    )
-  assert.deepEqual(frames.subarray(0, rows.byteLength), rows, 'the parked root word sent')
+  // The frame words' first row of records holds the field's 400 placements, as the host laid them.
+  const words = (resources.frames.rows.texture as unknown as { words: Uint32Array }).words,
+    rows = bytes(resources.frameData)
+  assert.deepEqual(bytes(words, 0, rows.byteLength), rows, 'the parked root word sent')
 })
 
 test('a view aside cut alone reads the links of a cell placed since', async () => {

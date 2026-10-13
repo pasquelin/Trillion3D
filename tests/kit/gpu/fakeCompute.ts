@@ -1,7 +1,6 @@
 import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
-import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
 import { compactDrawnPages, drawMask, maskBit, writtenMask } from './globals.ts'
 import {
@@ -16,7 +15,7 @@ import { words } from './fakeBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
 import { fakeTileSort, isTileSort } from './fakeTileEvict.ts'
-import { boundListCap, packedFromBindings, readDagUniforms } from './fakeDag.ts'
+import { boundListCap, frameWord, packedFromBindings, readDagUniforms } from './fakeDag.ts'
 import { viewTexture, worldsAtEye } from './fakeWorldPose.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 import {
@@ -118,9 +117,12 @@ export function simulateComputeDispatch(
   const byBinding = new Map(
     computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
   )
-  const boundWorlds = computeBind.entries.find((e) => e.binding === DAG_BINDING.worlds)!.resource
+  const bound = (binding: number) =>
+    computeBind.entries.find((e) => e.binding === binding)!.resource
+  const boundWorlds = bound(DAG_BINDING.worlds),
+    boundFrames = bound(DAG_BINDING.frames)
   // A test that hands no DAG reads the one the session uploaded (`fakeDag.ts`).
-  const dag = packed ?? packedFromBindings(byBinding, boundWorlds),
+  const dag = packed ?? packedFromBindings(byBinding, boundWorlds, boundFrames),
     listCap = boundListCap(byBinding)
   if (stage === 'dagSortRequests') return sortStagedRequests(byBinding, listCap)
   if (mirrorListStage(stage!, byBinding, dag, listCap)) return // the lists' and the journals' mirror
@@ -153,10 +155,9 @@ export function simulateComputeDispatch(
     byBinding.get(DAG_BINDING.views)!.data,
     dag.worlds.length,
   )
-  // So is each primitive's root, behind its stretch in the frame buffer: a parked one is NONE
+  // So is each primitive's root, behind its stretch in the frame words: a parked one is NONE
   // (`parkWorld`), and the cut skips it as the shader does.
-  const frames = words(byBinding.get(DAG_BINDING.frames)!.data)
-  const rootNodes = dag.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1])
+  const rootNodes = dag.rootNodes.map((_, w) => frameWord(boundFrames, w, 1))
   const result = evaluateDagSelectionKernel({ ...dag, worlds, rootNodes }, uniforms, resident)
   fakeEvictions(byBinding, dag).stamp(
     [...result.pageIds, ...(result.drawablePageIds ?? [])],

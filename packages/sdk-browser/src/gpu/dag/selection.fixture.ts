@@ -5,10 +5,9 @@ import {
   type FakeDeviceOptions,
 } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts'
-import { FRAME_VEC4 } from './types.ts'
-
-/** Bytes of one host row of the frames. */
-const ROW_BYTES = FRAME_VEC4 * 16
+import { FRAME_ROW_WORDS } from './types.ts'
+import { FRAME_TABLE } from './frameTable.ts'
+import { textureExtent } from '../core/textureExtent.ts'
 
 /**
  * The kit's device running the DAG selection on the CPU double of its kernel, its mappings meeting
@@ -27,24 +26,33 @@ export function mockDagDevice(
     readbackCopies: () => gpu.copies.filter(({ to }) => to.usage & GPUBufferUsage.MAP_READ).length,
     /** Mappings asked of a destroyed buffer: each one a validation error on the device. */
     destroyedMaps: gpu.destroyedMaps,
-    /** The host rows the writes to the frames sent (`frameRanges.ts`), every write decoded into
-     *  the rows it holds — one run of several included —, each as its first word's index in its
-     *  buffer and its words. */
+    /** The host rows the writes to the frame words sent (`cameraFrames.ts`), every write decoded
+     *  into the rows it holds — one run of several included —, each as its first word's index in
+     *  the host's rows and its words. */
     rows: () =>
-      gpu.writes
-        .filter(({ buffer }) => buffer.label === 'Trillion3D DAG frames')
-        .flatMap(({ offset, data }) => {
-          const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
-          // A write of the frames is whole rows, from a row's start: never a word alone.
-          if (offset % ROW_BYTES || bytes.byteLength % ROW_BYTES)
-            throw new Error(`a frames write of ${bytes.byteLength} B at ${offset} is no whole rows`)
-          return Array.from(
-            { length: bytes.byteLength / ROW_BYTES },
-            (_, k): [number, Uint32Array] => [
-              (offset + k * ROW_BYTES) / 4,
-              new Uint32Array(bytes.buffer, bytes.byteOffset + k * ROW_BYTES, ROW_BYTES / 4),
-            ],
-          )
+      gpu.textureWrites
+        .filter(({ destination }) => destination.texture.label === FRAME_TABLE.label)
+        .flatMap(({ destination, data, layout, size }) => {
+          const [x, y, layer] = destination.origin as number[],
+            [width, lines] = textureExtent(size)
+          // A write of the frame words is whole rows, from a row's start: never a word alone.
+          if (x % FRAME_ROW_WORDS || width % FRAME_ROW_WORDS)
+            throw new Error(`a frames write of ${width} words at ${x} is no whole rows`)
+          const bytes = data as unknown as Uint8Array,
+            rows: [number, Uint32Array][] = []
+          for (let line = 0; line < lines; line++)
+            for (let k = 0; k < width / FRAME_ROW_WORDS; k++) {
+              const row =
+                  (((layer << FRAME_TABLE.layerShift) + y + line) << FRAME_TABLE.rowShift) +
+                  x / FRAME_ROW_WORDS +
+                  k,
+                from = (layout.offset ?? 0) + line * layout.bytesPerRow! + k * FRAME_ROW_WORDS * 4
+              rows.push([
+                row * FRAME_ROW_WORDS,
+                new Uint32Array(bytes.slice(from, from + FRAME_ROW_WORDS * 4).buffer),
+              ])
+            }
+          return rows
         }),
   }
 }

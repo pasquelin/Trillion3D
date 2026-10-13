@@ -8,9 +8,9 @@ import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { COMPOSE_ROOTS_PASS } from '../stage/passLabels.ts'
 import { MOTION_SKIP } from './composedMotion.ts'
-import { composeGroup, heldGroup } from './composeGroups.ts'
+import { composeGroup } from './composeGroups.ts'
 import { composeKernels, frameParents } from './gpuComposeFrame.ts'
-import { NO_RANGES, writeRangeParams } from './gpuComposeGpu.ts'
+import { writePassParams } from './gpuComposeGpu.ts'
 import { rootEntries, worldEntries } from './gpuComposeEntries.ts'
 
 /**
@@ -75,7 +75,7 @@ export function encodeComposedRoots(
 export const ENCODED = 1,
   COMPOSED = 2
 
-/** The roots pass (`COMPOSE_ROOTS_WGSL`) over every range of the cut's worlds, into `pass`. */
+/** The roots pass (`COMPOSE_ROOTS_WGSL`) into the cut's worlds, into `pass`. */
 function encodeRootsPass(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -94,21 +94,14 @@ function encodeRootsPass(
   // write does, and the dispatch that follows in this command buffer cuts again under them.
   if (state.moving) selection.worldsMovedOnGpu(state.rankList.set.list.subarray(0, listed))
   const motionBuffer = rt.gpu.temporal?.frame.active ? rt.gpu.temporal.motion.buffer : undefined
-  const ranges = selection.worldRanges,
-    pipeline = composeKernels(device).roots.get()
-  writeRangeParams(device, gpu.rootParams, ranges, state.roots, listed)
-  gpu.frame.ranges = ranges
+  const pipeline = composeKernels(device).roots.get(),
+    held = gpu.rootGroup
+  writePassParams(device, gpu.rootParams, state.roots, listed)
   gpu.frame.worlds = selection.worlds
   gpu.frame.motion = motionBuffer
-  let bound = false
-  for (let r = 0; r < ranges.length; r++) {
-    const held = (gpu.rootGroups[r] ??= heldGroup())
-    held.identity.entries[0] ??= rootEntries(rt, device, gpu, r)
-    if (composeGroup(device, held, pipeline)) bound = true
-  }
-  // The groups are made: the cut's ranges and worlds are not held past them, so a cut swapped out
-  // goes.
-  gpu.frame.ranges = NO_RANGES
+  held.identity.entries[0] ??= rootEntries(rt, gpu)
+  const bound = composeGroup(device, held, pipeline)
+  // The group is made: the cut's worlds are not held past it, so a cut swapped out goes.
   gpu.frame.worlds = undefined
   // Every word this pass writes is the one it wrote last, unless something it reads moved, a host
   // write put its own words there (`frameWrites`), or the motion is not settled: a still view of a
@@ -137,9 +130,7 @@ function encodeRootsPass(
   device.queue.writeBuffer(gpu.motionMode, 0, state.motionMode)
   const encoder = pass()
   encoder.setPipeline(pipeline)
-  for (let r = 0; r < ranges.length; r++) {
-    encoder.setBindGroup(0, gpu.rootGroups[r].group!)
-    dispatchRows(encoder, ceilDiv(listed, WORKGROUP_THREADS))
-  }
-  rt.run.gpuComputeDispatches += ranges.length
+  encoder.setBindGroup(0, held.group!)
+  dispatchRows(encoder, ceilDiv(listed, WORKGROUP_THREADS))
+  rt.run.gpuComputeDispatches++
 }

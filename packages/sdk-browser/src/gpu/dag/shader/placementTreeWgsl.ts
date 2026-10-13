@@ -49,19 +49,16 @@ fn opensRoot(w:u32)->bool{return rootOf(w)!=NO_INDEX&&(markOf(w)&${CARD_ROOT}u)=
 fn openRoot(at:u32,w:u32){
  putEntry(queueBase(0u),at,select(NO_INDEX,packEntry(vi,rootOf(w)),opensRoot(w)),w);
 }
-/** \`dagPrepare\`'s thread \`i\` of the bound range, with a tree: the head range writes its top
- *  nodes, the world DAG's range that root behind them, and each member drawn whatever the view is
- *  written behind it by the range that holds it — thread \`top + 1 + j\` of every range, member
- *  \`j\`. */
+/** \`dagPrepare\`'s thread \`i\`, with a tree: the top nodes, the world DAG's root behind them, and
+ *  each member drawn whatever the view behind it — thread \`top + 1 + j\`, member \`j\`. */
 fn prepareTreeRoots(i:u32){
- let top=select(0u,views[0u].treeTop,rangeFirst()==0u);
+ let top=views[0u].treeTop;
  if(i<top){putEntry(queueBase(0u),i,packEntry(0u,treeEntry(i)),0u);return;}
  let w=views[0u].worldRoot;
- if(i==top){if(w!=NO_INDEX&&inRange(w)){vi=0u;openRoot(views[0u].treeTop,w);}return;}
+ if(i==top){if(w!=NO_INDEX){vi=0u;openRoot(top,w);}return;}
  let j=i-top-1u;
  if(j>=views[0u].alwaysCount){return;}
- let m=treeAlwaysAt(j);
- if(inRange(m)){vi=0u;openRoot(views[0u].treeTop+select(0u,1u,w!=NO_INDEX)+j,m);}
+ vi=0u;openRoot(top+select(0u,1u,w!=NO_INDEX)+j,treeAlwaysAt(j));
 }
 `,
 )
@@ -78,17 +75,15 @@ fn treeEntry(t:u32)->u32{return views[0u].cellBase+t;}
  *  (\`opensRoot\`) or queue 0 opened it already (\`drawnAlways\`). */
 fn placementStep(src:u32,k:u32){
  let w=treeMember(k);
- if(w==NO_INDEX||!inRange(w)||!opensRoot(w)||drawnAlways(w)){return;}
+ if(w==NO_INDEX||!opensRoot(w)||drawnAlways(w)){return;}
  nodeStep(src,rootOf(w),w);
 }
 /** Node \`t\`'s box corner from word \`k\`. */
 fn treeCorner(t:u32,k:u32)->vec3f{
  return vec3f(bitcast<f32>(treeWord(t,k)),bitcast<f32>(treeWord(t,k+1u)),bitcast<f32>(treeWord(t,k+2u)));
 }
-/** Cell or group \`t\` of the tree: its world box under the camera, then under the view ahead. Its
- *  world is the first (\`NODE_WORLD\`), so one range's dispatch reads it. */
+/** Cell or group \`t\` of the tree: its world box under the camera, then under the view ahead. */
 fn treeStep(src:u32,t:u32){
- if(!inRange(0u)){return;}
  deformReach=0.0;
  let lo=treeCorner(t,${NODE_MIN}u)-views[0u].cameraWorld;let hi=treeCorner(t,${NODE_MAX}u)-views[0u].cameraWorld;
  if(aheadOn()&&vi==AHEAD_VIEW){if(!outsideView(AHEAD_VIEW,lo,hi)){descendTree(src,t);}return;}

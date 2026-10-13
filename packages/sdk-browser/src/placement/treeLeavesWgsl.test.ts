@@ -9,7 +9,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { placementField } from '../gpu/dag/placementTree.fixture.ts'
 import { packDagSelection } from '../gpu/dag/selection.ts'
-import { frameWords, leafBoxes } from '../gpu/dag/treeRefitRun.fixture.ts'
+import { frameTableOf, leafBoxes } from '../gpu/dag/treeRefitRun.fixture.ts'
 import { REACH_UNBOUNDED } from '../gpu/dag/placementTree.ts'
 import { treeLeavesWgsl } from './treeLeavesWgsl.ts'
 import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
@@ -25,20 +25,21 @@ test('every leaf the GPU writes is the CPU formula’s, word for word', () => {
   dag.mark[5] = REACH_UNBOUNDED << 16
   dag.rootNodes[6] = 0xffffffff
   const members: Pair[] = Array.from({ length: roots.length * 6 }, () => [0, 0])
-  const run = shaderRun<{ writeLeaf(w: number, i: number): void }>(
+  const run = shaderRun<{ writeLeaf(w: number): void }>(
     treeLeavesWgsl(),
     [
       ...DOUBLE_HELPERS,
-      ...['dLess', 'dMin', 'dMax', 'fromF32', 'affineAxis', 'carriedBox', 'nodeWord', 'writeLeaf'],
+      ...['dLess', 'dMin', 'dMax', 'fromF32', 'affineAxis', 'carriedBox', 'nodeWord'],
+      ...['framesRow', 'framesWord', 'writeLeaf'],
     ],
     {
       nodes: Array.from(new Uint32Array(dag.nodes.buffer, dag.nodes.byteOffset, dag.nodes.length)),
       worlds: roots.flatMap(({ world }) => Array.from(world.elements, (v) => pair(v))),
-      frames: frameWords(dag),
+      frames: frameTableOf(dag),
       members,
     },
   )
-  for (let w = 0; w < roots.length; w++) run.writeLeaf(w, w)
+  for (let w = 0; w < roots.length; w++) run.writeLeaf(w)
   const expected = leafBoxes(dag)
   for (let k = 0; k < expected.length; k++)
     assert.deepEqual(

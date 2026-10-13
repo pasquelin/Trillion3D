@@ -30,7 +30,11 @@ test('a table past one binding splits in parts the device binds at once, instead
   const limits = { maxStorageBufferBindingSize: LIMIT, maxComputeWorkgroupsPerDimension: 65535 }
   const wide = { ...limits, maxStorageBuffersPerShaderStage: 16 }
   assert.equal(dagDeviceRefusal(limits, dag()), undefined, 'under every limit: the cut of before')
-  assert.equal(dagDeviceRefusal(limits, dag('worlds')), undefined, 'worlds split in ranges')
+  assert.equal(
+    dagDeviceRefusal(limits, dag('worlds')),
+    undefined,
+    'worlds and frame words, record tables',
+  )
   for (const name of ['clusters', 'nodes', 'pageCones'] as const) {
     assert.equal(dagDeviceRefusal(wide, dag(name)), undefined, `${name} in parts`)
     assert.equal(

@@ -32,10 +32,30 @@ export function recordWordAt(
   return ((layer * height + y) * width + x) * channels(layout)
 }
 
+/** A texture's words as `textureLoad` answers them — four words, an `r32uint`'s word in the first —
+ *  at `(x, y)` of `layer`, and as `textureStore` writes them: a table held in words, or the words a
+ *  fake device keeps of a texture (`tests/kit/gpu`). */
+export function texelWords(
+  format: RecordLayout['format'],
+  { width, height }: { width: number; height: number },
+  held: Uint32Array,
+) {
+  const words = format === 'rgba32uint' ? 4 : 1,
+    at = ([x, y]: number[], layer: number) => ((layer * height + y) * width + x) * words
+  return {
+    load(coords: number[], layer: number) {
+      const i = at(coords, layer)
+      return words === 4 ? [...held.subarray(i, i + 4)] : [held[i], 0, 0, 1]
+    },
+    store(coords: number[], layer: number, value: number[]) {
+      held.set(value.slice(0, words), at(coords, layer))
+    },
+  }
+}
+
 /**
- * A record table held in words: `set` a record's field, `get` it back, `load` a texel as
- * `textureLoad` answers it — four words, an `r32uint`'s word in the first — at `(x, y)` of `layer`,
- * and `store` one as `textureStore` writes it.
+ * A record table held in words: `set` a record's field, `get` it back, `load` and `store` a texel
+ * (`texelWords`).
  */
 export function recordTable(layout: RecordLayout, records: number, words?: Uint32Array) {
   const extent = recordExtentOf(layout, records),
@@ -50,13 +70,6 @@ export function recordTable(layout: RecordLayout, records: number, words?: Uint3
       const at = recordWordAt(layout, extent, field, r)
       return held.slice(at, at + layout.fields[field] * channels(layout))
     },
-    load([x, y]: number[], layer: number) {
-      const at = ((layer * extent.height + y) * extent.width + x) * channels(layout)
-      return channels(layout) === 4 ? [...held.subarray(at, at + 4)] : [held[at], 0, 0, 1]
-    },
-    store([x, y]: number[], layer: number, value: number[]) {
-      const at = ((layer * extent.height + y) * extent.width + x) * channels(layout)
-      held.set(value.slice(0, channels(layout)), at)
-    },
+    ...texelWords(layout.format, extent, held),
   }
 }

@@ -69,7 +69,7 @@ async function growDagFlags(resources: DagResources, shape: FlagShape, disposed:
       flagShape: shape,
       group,
     })
-    if (!compiled) resources.ranges = resources.frames.bindGroups(resources.layout, group!)
+    if (!compiled) resources.bindGroup = resources.frames.bindGroup(resources.layout, group!)
     resources.rankGroups = rankGroups(resources)
   })
   if (!parts || !group || (compiled && !compiled.value) || disposed()) {

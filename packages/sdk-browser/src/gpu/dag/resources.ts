@@ -1,6 +1,6 @@
 import type { PackedDag } from './types.ts'
 import { primitiveFrameWords } from './worlds.ts'
-import { createCameraFrames } from './frameRanges.ts'
+import { createCameraFrames } from './cameraFrames.ts'
 import { createDagPipeline } from './pipeline.ts'
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts'
 import { VIEW_BLOCK_WORDS } from './viewLayout.ts'
@@ -170,15 +170,7 @@ function dagBuffers(
   const work = makeDagBuffer(own, rows.work)
   const worldCount = Math.max(1, packed.worldCount)
   const { worlds, worldSources } = packed
-  const frames = createCameraFrames(
-    device,
-    frameData,
-    worldCount,
-    own,
-    worlds,
-    worldSources,
-    ownTexture,
-  )
+  const frames = createCameraFrames(device, frameData, worldCount, worlds, worldSources, ownTexture)
   // The placement tree's record table (`treeTable.ts`): the culling, the refit and the rays read it.
   const treeTable = createTreeTable(device, packed.placementTree, ownTexture)
   const group = { ...dagGroup(tables, uniforms, list.output, work), tree: treeTable.view }

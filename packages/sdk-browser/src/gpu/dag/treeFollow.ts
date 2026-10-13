@@ -12,7 +12,7 @@ import { type PackedDag } from './types.ts'
 import type { DagParts } from './split.ts'
 import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
 import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
-import { createTreeRefit, type RefitTables } from './treeRefit.ts'
+import { createTreeRefit } from './treeRefit.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { TreeTable } from './treeTable.ts'
 
@@ -25,16 +25,9 @@ export type TreeLeaves = {
   ready(): boolean
   encode(
     encoder: GPUCommandEncoder,
-    tables: { members: GPUBuffer; nodeParts: DagParts; frames: TreeFrames },
+    tables: { members: GPUBuffer; nodeParts: DagParts; frames: GPUTextureView },
     named: { ranks: Int32Array<ArrayBuffer>; count: number; whole: boolean },
   ): void
-}
-
-/** The frames of the cut whose tree is followed, each range's buffer and placements: where each
- *  placement's root and mark lie, which its leaf reads. */
-export type TreeFrames = {
-  buffers: readonly GPUBuffer[]
-  ranges: readonly { first: number; count: number }[]
 }
 
 /** The follower of `packed`'s tree on `resources`; none without a tree. A member of the run
@@ -46,12 +39,13 @@ export function createTreeFollower(
     packed: PackedDag
     nodeParts: DagParts
     treeTable: TreeTable
-    frames: RefitTables['frames'] & TreeFrames
+    frames: { rows: { view: GPUTextureView } }
   },
   leaves?: TreeLeaves,
 ) {
-  const { device, packed, nodeParts, treeTable, frames } = resources,
-    tree = packed.placementTree
+  const { device, packed, nodeParts, treeTable } = resources,
+    tree = packed.placementTree,
+    frames = resources.frames.rows.view
   if (!tree) return undefined
   const refit = createTreeRefit(device, packed, tree, { tree: treeTable.view, frames })
   // What moved since the tree was last read, each placement once, and the groups a composition

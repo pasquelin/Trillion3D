@@ -25,7 +25,7 @@ import {
   createGpuDagSelection,
   packDagSelection,
 } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
-import { PRIMITIVE_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/cameraRanges.ts'
+import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { surface } from '../../../packages/sdk-browser/src/gpu/dag/proxyInstances.fixture.ts'
 
 /** `count` rays over a field `side` cubes wide spaced three metres apart: half cast down at a cube's
@@ -154,14 +154,15 @@ function cubeField(count: number) {
   return { side, packed: packDagSelection(roots) }
 }
 
-/** The engine's proxy over `count` cubes on `device`: its ranges, and the hits of `cast`. */
+/** The engine's proxy over `count` cubes on `device`: whether it is refused, and the hits of
+ *  `cast`. */
 async function engineWalk(device: GPUDevice, count: number, cast: Float32Array<ArrayBuffer>) {
   const { packed } = cubeField(count)
   let refused: string | undefined
   const selection = await createGpuDagSelection(device, packed, {
     onRefused: (reason) => (refused = reason),
   })
-  if (!selection) return { refused, ranges: undefined, hits: undefined }
+  if (!selection) return { refused, hits: undefined }
   const proxy = selection.proxy()
   const hits =
     proxy &&
@@ -170,13 +171,13 @@ async function engineWalk(device: GPUDevice, count: number, cast: Float32Array<A
       worlds: proxy.worlds,
       tree: proxy.tree,
     }))
-  const ranges = selection.worldRanges.map(({ count: held }) => held)
   selection.dispose()
-  return { refused, ranges, hits }
+  return { refused, hits }
 }
 
-/** The engine's proxy over a world the culling splits in two ranges of its frames — the device
- *  reporting a binding four fifths of them hold —, and over the same world held whole. */
+/** The engine's proxy over a world past one storage binding — the device reporting a binding four
+ *  fifths of its placements' frame words hold, `past` the first placement past it —, and over the
+ *  same world held whole. */
 export async function splitWorld({ count, rayCount }: { count: number; rayCount: number }) {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('WebGPU must be available')
@@ -184,8 +185,8 @@ export async function splitWorld({ count, rayCount }: { count: number; rayCount:
   const side = Math.ceil(Math.sqrt(count)),
     cast = rays(rayCount, side, 7)
   const whole = await engineWalk(device, count, cast)
-  const binding = ceilDiv(count * 4, 5) * PRIMITIVE_BYTES
-  const split = await engineWalk(reporting(device, binding), count, cast)
+  const past = ceilDiv(count * 4, 5)
+  const split = await engineWalk(reporting(device, past * FRAME_ROW_WORDS * 4), count, cast)
   const info = await gpu.fermer()
-  return { adapter: info.court, errors, whole, split }
+  return { adapter: info.court, errors, whole, split, past }
 }

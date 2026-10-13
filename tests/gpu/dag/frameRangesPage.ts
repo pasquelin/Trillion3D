@@ -12,7 +12,7 @@ import {
   writeDagUniforms,
   parseDagOutput,
 } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
-import { PRIMITIVE_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/cameraRanges.ts'
+import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagDeviceRefusal } from '../../../packages/sdk-browser/src/gpu/dag/deviceRefusal.ts'
 import { selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { cutTablesAt } from '../../../packages/sdk-browser/src/gpu/dag/queueGrowth.ts'
@@ -45,7 +45,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
   if (!gpu) throw new Error('WebGPU must be available')
   const { device, errors } = gpu
   const { packed, uniforms } = sceneView(2, 2, poses)
-  const lying = reporting(device, ceilDiv(2 * packed.worldCount, 3) * PRIMITIVE_BYTES)
+  const lying = reporting(device, ceilDiv(2 * packed.worldCount, 3) * FRAME_ROW_WORDS * 4)
   const refusal = dagDeviceRefusal(lying.limits, packed)
   const cut = async (target: GPUDevice) => {
     // The readout keeps the catalogue's cap on both devices: a list sized from the reported
@@ -94,7 +94,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
     const parts = { nodes: resources.nodeParts.buffers.length, flags: resources.flagParts.length }
     for (const buffer of resources.buffers) buffer.destroy()
     for (const { texture } of resources.textures) texture.destroy()
-    return { ranges: resources.ranges.length, parts, cuts }
+    return { parts, cuts }
   }
   const whole = await cut(device)
   const split = refusal ? undefined : await cut(lying)

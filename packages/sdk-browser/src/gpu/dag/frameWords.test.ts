@@ -1,13 +1,14 @@
 // The root and mark words written between two cuts go up as the rows that hold them, each run to
-// its range, never the span between the lowest and the highest: two marks far apart send two
+// its records, never the span between the lowest and the highest: two marks far apart send two
 // rows, and two rows side by side one write the frames' mock reads as both. On 5000 generated
 // placements, and on a generated field of 16.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createCameraFrames } from './frameRanges.ts'
-import { FRAME_VEC4 } from './types.ts'
+import { createCameraFrames } from './cameraFrames.ts'
+import { FRAME_ROW_WORDS, FRAME_VEC4 } from './types.ts'
 import { primitiveWordAt } from './worlds.ts'
-import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { textureExtent } from '../core/textureExtent.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
@@ -15,8 +16,7 @@ import { placementField } from './placementTree.fixture.ts'
 import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
 import { createSelectionUniforms } from '../core/selection.ts'
 
-const COUNT = 5000,
-  ROW_BYTES = FRAME_VEC4 * 16
+const COUNT = 5000
 
 test('two words far apart go up as their two rows', () => {
   const sources = Array.from({ length: COUNT }, (_, w) => ({
@@ -29,32 +29,28 @@ test('two words far apart go up as their two rows', () => {
     fake.device,
     new Float32Array(COUNT * FRAME_VEC4 * 4),
     COUNT,
-    (descriptor) => fake.device.createBuffer(descriptor),
     worlds,
     sources as never,
   )
-  const before = fake.writes.length
+  const rows = () => fake.textureWrites.filter((w) => w.destination.texture === table.rows.texture)
+  const before = rows().length
   table.writeWord(3, 1, 7)
   table.writeWord(4990, 1, 9)
   table.writeWord(3, 2, 8)
   table.flushWords()
-  const sent = fake.writes.slice(before).reduce((sum, write) => sum + written(write).byteLength, 0)
-  assert.equal(sent, 2 * ROW_BYTES, 'their two rows, nothing between')
-  // What the buffers hold once every write landed: the three words, each at its row.
-  const held = new Map<GPUBuffer, Uint8Array>()
-  for (const write of fake.writes) {
-    const bytes = held.get(write.buffer) ?? new Uint8Array(write.buffer.size)
-    bytes.set(written(write), write.offset)
-    held.set(write.buffer, bytes)
-  }
+  const sent = rows()
+    .slice(before)
+    .reduce((sum, { size }) => sum + textureExtent(size)[0] * textureExtent(size)[1], 0)
+  assert.equal(sent, 2 * FRAME_ROW_WORDS, 'their two rows, nothing between')
+  // What the table holds once every write landed: the three words, each at its row.
+  const held = (table.rows.texture as unknown as { words: Uint32Array }).words
   const word = (w: number, slot: number) => {
-    const r = table.ranges.findIndex(({ first, count }) => w >= first && w < first + count),
-      bytes = held.get(table.buffers[r])!
-    return new Uint32Array(bytes.buffer)[primitiveWordAt(w - table.ranges[r].first) + slot]
+    const row = w >> 10
+    return held[row * 8192 + (w & 1023) * FRAME_ROW_WORDS + slot]
   }
   assert.deepEqual([word(3, 1), word(3, 2), word(4990, 1)], [7, 8, 9])
   table.flushWords()
-  assert.equal(fake.writes.length, before + 2, 'nothing more to send')
+  assert.equal(rows().length, before + 2, 'nothing more to send')
 })
 
 test('two marks on rows side by side reach the cut, read off their one write', async () => {

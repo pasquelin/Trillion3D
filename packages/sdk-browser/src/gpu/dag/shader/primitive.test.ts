@@ -26,13 +26,14 @@ import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 test('a placement holds 144 bytes at most, whatever the placements, past one row of the records', async () => {
   const [root] = packed(dagFixture()).roots
   // A row of the records holds 1024 placements of 112 bytes — world, exact translation, the proxy's
-  // instance (`../worldTable.ts`) —: a world of fewer pays that row whole, once.
-  const row = 1024 * 112
+  // instance (`../worldTable.ts`) —, a row of the frame words 1024 of 32 (`../frameTable.ts`): a
+  // world of fewer pays those rows whole, once.
+  const row = 1024 * (112 + 32)
   for (const count of [1, 100, 5000]) {
     const dag = packDagSelection(Array.from({ length: count }, () => root))
     const resources = (await createDagResources(fakeDevice().device, dag))!
-    const { buffers, worlds } = resources.frames
-    const bytes = buffers.reduce((sum, buffer) => sum + buffer.size, 0) + worlds.bytes
+    const { rows, worlds } = resources.frames
+    const bytes = rows.bytes + worlds.bytes
     assert.ok(
       bytes <= 144 * dag.worldCount + row,
       `${count} placements: ${bytes / dag.worldCount} B each`,
@@ -52,7 +53,7 @@ test('the frame’s prepare reads no placement: ten thousand cost it what their 
     ...cutResources(3),
     packed: dag,
     blockCount,
-    ranges: [{ first: 0, count, bindGroup: {} }],
+    worldCount: count,
   } as unknown as Parameters<typeof encodeDagKernels>[1]
   encodeDagKernels(witness.encoder, cut)
   const { dispatches } = witness.read()

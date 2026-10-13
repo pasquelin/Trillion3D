@@ -89,7 +89,13 @@ function scene() {
         isReady: (page: number) => ready[page] === 1,
         isChildReady: (page: number) => childReady[page] === 1,
         // The roots' frame words, where the root boxes pass writes their stretch.
-        worldRanges: [{ first: 0, count: 2, frames: device.createBuffer({ size: 256, usage }) }],
+        frames: device
+          .createTexture({
+            size: [8192, 1, 1],
+            format: 'r32uint',
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+          })
+          .createView({ dimension: '2d-array' }),
       },
     },
     blendState: { occlusionEpoch: 1 },

@@ -23,7 +23,7 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:
  // Only pages of the kept leaves: a page under a rejected node is never read, and its draw flag
  // is already zero — \`dagClearDrawn\` cleared the only ones that were one.
  let entry=flagAt(candBase()+2u*s);let i=entryIndex(entry);vi=entryView(entry);
- let w=flagAt(candBase()+2u*s+1u);if(!inRange(w)){return;}deformReach=reachOf(w);let r=recordOf(i,w);
+ let w=flagAt(candBase()+2u*s+1u);deformReach=reachOf(w);let r=recordOf(i,w);
  let cluster=clusterAt(r);
  // A page of the view ahead is only requested, never live; one the camera does not request is
  // tried there (\`aheadWgsl.ts\`).

@@ -6,9 +6,11 @@ import {
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { worldTableWgsl } from '../worldTable.ts'
 import { treeTableWgsl } from '../treeTable.ts'
+import { frameTableWgsl } from '../frameTable.ts'
 
 /** Group-0 binding of each table the selection kernel reads, under its WGSL name: buffers, and the
- *  record textures of the worlds (`../worldTable.ts`) and of the placement tree (`../treeTable.ts`). */
+ *  record textures of the worlds (`../worldTable.ts`), of the frame words (`../frameTable.ts`) and
+ *  of the placement tree (`../treeTable.ts`). */
 export const DAG_BINDING = {
   clusters: 0,
   nodes: 1,
@@ -19,21 +21,20 @@ export const DAG_BINDING = {
   worlds: 6,
   frames: 7,
   cold: 8,
-  range: 9,
-  tree: 10,
+  tree: 9,
 } as const
 
 const B = DAG_BINDING
 
 /** The tables a cut splits in parts past one binding (`../split.ts`), in the order their extra
- *  bindings follow `range`, and whether the kernel writes them. */
+ *  bindings follow `tree`, and whether the kernel writes them. */
 const DAG_PART_TABLES = { clusters: false, nodes: false, cold: false, flags: true } as const
 export type DagPartTable = keyof typeof DAG_PART_TABLES
 /** Parts 1 on of each split table: part 0 is the table's own binding. */
 type DagExtraParts = Partial<Record<DagPartTable, readonly GPUBuffer[]>>
 
 /** The record textures of group 0: a view each, no buffer. */
-type DagTextureName = 'worlds' | 'tree'
+type DagTextureName = 'worlds' | 'frames' | 'tree'
 
 /** The bindings parts 1 on of each table take, from the binding behind the kernel's own, table after
  *  table: `counts` the parts of each. None when every table is whole. */
@@ -51,18 +52,16 @@ const countsOf = (extra: DagExtraParts = {}) =>
   Object.fromEntries(Object.entries(extra).map(([table, list]) => [table, list.length + 1]))
 
 /** Group 0 of the selection kernel, each buffer at its WGSL name's binding, the record textures'
- *  views at theirs, and `range` the primitives its `frames` holds (`../frameRanges.ts`): the camera
- *  cut's, the light cut's and the dispatch bench's. `parts`, a split table's further parts, each at
- *  its own binding. */
+ *  views at theirs (`../cameraFrames.ts`): the camera cut's and the dispatch bench's. `parts`, a
+ *  split table's further parts, each at its own binding. */
 export function dagGroupEntries(
-  buffers: Record<Exclude<keyof typeof DAG_BINDING, 'range' | DagTextureName>, GPUBuffer> &
+  buffers: Record<Exclude<keyof typeof DAG_BINDING, DagTextureName>, GPUBuffer> &
     Record<DagTextureName, GPUTextureView> & { parts?: DagExtraParts },
-  range: GPUBufferBinding,
 ) {
-  const { parts, worlds, tree, ...whole } = buffers
+  const { parts, worlds, frames, tree, ...whole } = buffers
   const named = Object.entries(whole).map(([name, buffer]) => [name, { buffer }])
   return [
-    ...namedEntries(DAG_BINDING, { ...Object.fromEntries(named), worlds, tree, range }),
+    ...namedEntries(DAG_BINDING, { ...Object.fromEntries(named), worlds, frames, tree }),
     ...dagPartEntries(parts),
   ]
 }
@@ -82,6 +81,7 @@ export const DAG_BINDINGS_WGSL = wgslBlock(
   'DAG_BINDINGS_WGSL',
   [
     worldTableWgsl('worlds', { group: 0, binding: B.worlds, access: 'read' }),
+    frameTableWgsl('frames', { group: 0, binding: B.frames, access: 'read' }),
     treeTableWgsl('tree', { group: 0, binding: B.tree, access: 'read' }),
   ],
   `@group(0) @binding(${B.clusters}) var<storage, read> clusters:array<Cluster>;
@@ -90,9 +90,7 @@ export const DAG_BINDINGS_WGSL = wgslBlock(
 @group(0) @binding(${B.flags}) var<storage, read_write> flags:array<u32>;
 @group(0) @binding(${B.out}) var<storage, read_write> out:Output;
 @group(0) @binding(${B.work}) var<storage, read_write> work:array<atomic<u32>>;
-@group(0) @binding(${B.frames}) var<storage, read> frames:array<vec4f>;
 @group(0) @binding(${B.cold}) var<storage, read> cold:array<u32>;
-@group(0) @binding(${B.range}) var<uniform> range:FrameRange;
 `,
 )
 
@@ -119,9 +117,7 @@ const DAG_TYPES: Record<Exclude<keyof typeof DAG_BINDING, DagTextureName>, GPUBu
   flags: write,
   out: write,
   work: write,
-  frames: read,
   cold: read,
-  range: 'uniform',
 }
 
 /**
@@ -134,7 +130,7 @@ export function dagBindEntries(
 ): GPUBindGroupLayoutEntry[] {
   return [
     ...Object.entries(DAG_BINDING).map(([name, binding]) =>
-      name === 'worlds' || name === 'tree'
+      name === 'worlds' || name === 'frames' || name === 'tree'
         ? computeTextureEntry(binding, 'uint', '2d-array')
         : computeBufferEntry(binding, DAG_TYPES[name as keyof typeof DAG_TYPES]),
     ),

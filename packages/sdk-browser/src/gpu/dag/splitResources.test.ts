@@ -27,9 +27,9 @@ test('flags past one binding: parts, all bound, the mask in `work`', async () =>
   assert.ok(resources.flagParts.length > 1, 'flags in parts')
   for (const part of resources.flagParts) assert.ok(part.size <= limit, 'each within a binding')
   const extra = dagPartBindings(dagPartCounts(resources.split)).map(({ binding }) => binding)
-  // The selection's group, the one that binds the primitive range (the arming kernel's does not).
+  // The selection's group, the one that binds the frame words (the arming kernel's does not).
   const groups = fake.bindGroups.map((group) => [...group.entries].map(({ binding }) => binding))
-  const bound = groups.filter((bindings) => bindings.includes(DAG_BINDING.range)).at(-1)!
+  const bound = groups.filter((bindings) => bindings.includes(DAG_BINDING.frames)).at(-1)!
   for (const binding of extra) assert.ok(bound.includes(binding), `binding ${binding} bound`)
 
   const selection = createDagRuntime(resources)

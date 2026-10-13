@@ -2,9 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { FakeTexture } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { createCameraFrames } from './frameRanges.ts'
-import { PRIMITIVE_BYTES } from './cameraRanges.ts'
-import { FRAME_VEC4 } from './types.ts'
+import { createCameraFrames } from './cameraFrames.ts'
+import { FRAME_ROW_WORDS, FRAME_VEC4 } from './types.ts'
 import { rootWorlds } from './pack.ts'
 import { rootWorldsToRenderOrigin } from './pack.fixture.ts'
 import { WORLD_TABLE } from './worldTable.ts'
@@ -23,14 +22,15 @@ const field = (frames: { worlds: { texture: GPUTexture } }, name: string, w: num
   return texture.words!.slice(at, at + WORLD_TABLE.fields[name] * 4)
 }
 
-test('the worlds stay one table past one binding of the frames, and keep absolute origins across camera moves', () => {
+test('the worlds stay one table past one storage binding, and keep absolute origins across camera moves', () => {
   const sources = roots(),
     next = new Float32Array(sources.length * 16)
   rootWorlds(next, sources)
+  const rowBytes = FRAME_ROW_WORDS * 4
   const fake = fakeDevice({
     limits: {
-      maxBufferSize: 2 * PRIMITIVE_BYTES,
-      maxStorageBufferBindingSize: 2 * PRIMITIVE_BYTES,
+      maxBufferSize: 2 * rowBytes,
+      maxStorageBufferBindingSize: 2 * rowBytes,
       minUniformBufferOffsetAlignment: 256,
     },
   })
@@ -38,11 +38,9 @@ test('the worlds stay one table past one binding of the frames, and keep absolut
     fake.device,
     new Float32Array(sources.length * FRAME_VEC4 * 4),
     sources.length,
-    (descriptor) => fake.device.createBuffer(descriptor),
     next,
     sources,
   )
-  assert.equal(frames.ranges.length, 2, 'the frames split')
   const origins = sources.map((_, w) => {
     assert.deepEqual(
       new Float32Array(field(frames, 'Matrix', w).buffer),
@@ -54,7 +52,7 @@ test('the worlds stay one table past one binding of the frames, and keep absolut
     rootWorldsToRenderOrigin(next, sources, [origin, 0, 0])
     const before = fake.textureWrites.length
     frames.writeWorlds(next)
-    assert.equal(fake.textureWrites.length - before, 1, 'one write, whatever the ranges')
+    assert.equal(fake.textureWrites.length - before, 1, 'one write, whatever one binding holds')
     sources.forEach((_, w) => assert.deepEqual(field(frames, 'Origin', w), origins[w]))
     assert.equal(frames.writeWorldOrigins().length, 0, 'unchanged physical poses upload no origin')
   }
@@ -69,7 +67,6 @@ test('a millimetre physical move updates only its origin texels, its exact doubl
     fake.device,
     new Float32Array(sources.length * FRAME_VEC4 * 4),
     sources.length,
-    (descriptor) => fake.device.createBuffer(descriptor),
     next,
     sources,
   )
