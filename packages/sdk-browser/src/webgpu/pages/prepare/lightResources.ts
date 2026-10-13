@@ -4,7 +4,8 @@ import type { PageSurface } from '../../../page/surface.ts'
 import type { WebgpuLightState } from '../state/lights.ts'
 import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts'
 import { FAR_VALUE } from '../../../../../math/src/constants.ts'
-import { changeBoxes, growClusterBox, recordMoves } from '../../shadow/bounds.ts'
+import { changeBoxes, recordMoves } from '../../shadow/bounds.ts'
+import { growClusterBox } from '../../shadow/spheres.ts'
 import {
   rootOfPacked,
   type PlacementIndex,

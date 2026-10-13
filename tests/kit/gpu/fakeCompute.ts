@@ -11,6 +11,7 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { TRANSPARENT_STAGES } from './fakeComputeBlend.ts'
+import { ROW_STAGES } from './fakeComputeRows.ts'
 import { words } from './fakeBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
@@ -58,6 +59,8 @@ export function simulateComputeDispatch(
 ) {
   const transparent = TRANSPARENT_STAGES[computePipeline?.entryPoint ?? '']
   if (transparent && computeBind) return transparent(computeBind, offsets)
+  const rows = ROW_STAGES[computePipeline?.entryPoint ?? '']
+  if (rows && computeBind?.entries) return rows(computeBind)
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind) {
     const byBinding = new Map(
       computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),

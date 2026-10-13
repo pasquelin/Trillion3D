@@ -7,12 +7,13 @@ import { taaRenderMatrix } from '../../../taa/frame.ts'
 import { abandonFrameEncoder } from './encoder.ts'
 import { ensurePageTable } from './pageTable.ts'
 import { encodeVis } from './encodeVis.ts'
-import { uploadComposedRowInputs } from '../../../placement/composedRowInputs.ts'
-import { uploadRowCorners } from '../../visibility/corners.ts'
+import { followRowWords } from '../../../placement/rowWords.ts'
+import { forgetRewrittenRows } from '../../visibility/corners.ts'
 import { refreshDrawItemWords } from '../../visibility/itemWords.ts'
 import { visLayerTop } from '../../visibility/uniforms.ts'
-import { uploadClusterSpheres, uploadDirtyRowMobility } from '../../shadow/bounds.ts'
-import { uploadRowLods } from '../../shadow/rowLods.ts'
+import { uploadDirtyRowMobility } from '../../shadow/bounds.ts'
+import { ensureClusterSpheres } from '../../shadow/spheres.ts'
+import { ensureRowLods } from '../../shadow/rowLods.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { uploadDirtyRows } from './dirtyRows.ts'
@@ -27,7 +28,8 @@ import { rootOfPacked } from '../../../page/selection/placements.ts'
  * granted (`planVsmFrame`, after the rows in `encodeVis`), so the grant's room counts them, and the
  * budget reserved their bytes beside the set's until then (`vsmReserveBytes`); every caster row is
  * marked once, so each reader writes them all. Later frames write the rows the table declared
- * dirty, as long as a light casts.
+ * dirty, as long as a light casts: the mobility words here, the spheres and the detail in the rows
+ * pass (`../../../placement/rowWords.ts`).
  */
 function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights, layout } = rt,
@@ -41,16 +43,16 @@ function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   }
   if (!lights.rowsFollowed && rows.casterSlots > 0) rows.markRowWords(0, rows.casterSlots - 1)
   lights.rowsFollowed = true
-  uploadClusterSpheres(rt, device)
+  ensureClusterSpheres(rt, device)
   uploadDirtyRowMobility(rt, device)
-  uploadRowLods(rt, device)
+  ensureRowLods(rt, device)
 }
 
 /**
  * Brings the row table up to date, once an image and before anything reads it — the deformation,
  * the cut, the raster: the table made, the screen-error view's words written, then every reader of
- * the row table's dirty marks followed — draw records, spheres, mobility, corners — and the rows
- * uploaded, the marks cleared. A reader skipped would keep another occupant's words (#198). Each
+ * the row table's dirty marks followed — draw records, mobility, the occlusion history, the rows
+ * pass's inputs and rows — and the rows uploaded, the marks cleared. A reader skipped would keep another occupant's words (#198). Each
  * costs the rows that changed. An image with no visibility row follows them too: the blended
  * casters' rows, behind, still feed its shadows, and rows left dirty would keep the frame from
  * being held.
@@ -82,8 +84,8 @@ export function followRows(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engin
   }
   refreshDrawItemWords(rt, visLayerTop(vis), vis.gpuDraw)
   followShadowRows(rt, device)
-  uploadRowCorners(rt)
-  uploadComposedRowInputs(rt, device)
+  forgetRewrittenRows(rt)
+  followRowWords(rt, device)
   uploadDirtyRows(rt)
 }
 

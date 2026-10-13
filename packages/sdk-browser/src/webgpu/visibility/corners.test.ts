@@ -1,16 +1,16 @@
-// A moved model forgets and sends its own rows, not the terrain rows between them. The
-// table must not keep one dirty interval: a model whose rows sit at both ends of the table would
-// drop the occlusion history of every row in between and send them all again, each image it moved.
+// A model scattered across the table that only moves forgets no occlusion history and sends no
+// row: its corners are the rows pass's (`../../placement/rowWordsPass.ts`), derived from its new
+// world, and a stale rectangle only moves a row between the two halves. A model whose pages are
+// bounded elsewhere forgets and sends its own rows, not the terrain rows between them: the table
+// must not keep one dirty interval, or a model whose rows sit at both ends of the table would drop
+// the occlusion history of every row in between and send them all again.
 import { runsOf } from '../row/dirty.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { uploadRowCorners, createCornerUploadHold } from './corners.ts'
-import { uploadClusterSpheres } from '../shadow/bounds.ts'
-import { CLUSTER_SPHERE_FLOATS } from '../shadow/rowBuffers.ts'
-import { moveRootRows } from '../pages/render/movedRoot.ts'
+import { forgetRewrittenRows, createCornerHold } from './corners.ts'
+import { markRootRows, moveRootRows } from '../pages/render/movedRoot.ts'
 import { createChangedRuns } from '../residency/ranges.ts'
 import { createWebgpuRowState } from '../row/state.ts'
-import { CORNER_VALUES } from '../../gpu/partition/contract.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { PageRec } from '../../page/selection/types.ts'
@@ -33,11 +33,13 @@ function scatteredScene() {
       }) as unknown as PageRec,
   )
   // One world for every row, the model's root's: its rows are those it moves. The model's pages
-  // are packed 0..5 and their rows are the scattered MODEL_ROWS.
+  // are packed 0..5 and their rows are the scattered MODEL_ROWS. Its winding is held: a move that
+  // keeps it writes no row.
   const model = {
     world,
     pages: MODEL_ROWS.map((row) => pages[row]),
     windingEpoch: 1,
+    windingCw: false,
     packedBase: 0,
   }
   const rows = createWebgpuRowState(pages, ROWS)
@@ -51,25 +53,16 @@ function scatteredScene() {
     rows.packedPageIndex[row] = packed
   })
   rows.packedCount = ROWS
-  const cornerHold = createCornerUploadHold()
-  cornerHold.epoch = rows.tableEpoch
+  const cornerHold = createCornerHold()
   cornerHold.count = ROWS
-  const forgotten: number[] = [],
-    corners: number[] = []
-  const sphereBuffer = {} as GPUBuffer
+  const forgotten: number[] = []
   const { device, writes } = fakeDevice()
-  // Rows each write sent, to the sphere buffer or to the page table.
-  const sent = (toSpheres: boolean) =>
-    writes
-      .filter(({ buffer }) => (buffer === sphereBuffer) === toSpheres)
-      .map(({ size }) => size! / (toSpheres ? CLUSTER_SPHERE_FLOATS : PAGE_INFO_STRIDE))
-  const spheres = () => sent(true),
-    table = () => sent(false)
+  // Rows each write sent to the page table.
+  const table = () => writes.map(({ size }) => size! / PAGE_INFO_STRIDE)
   const rt = {
     layout: {
       rows,
       drawSlots: ROWS,
-      cornerPacked: new Float32Array(ROWS * CORNER_VALUES),
       cornerHold,
       selectionRoots: [model],
       // Every packed rank names the one placement.
@@ -80,60 +73,79 @@ function scatteredScene() {
     },
     run: { noOccluderHistory: false, movedWorlds: createChangedRuns() },
     blendState: { occlusionEpoch: 1 },
-    lights: {
-      spheres: {
-        buffer: sphereBuffer,
-        packed: new Float32Array(ROWS * CLUSTER_SPHERE_FLOATS),
-        rows: ROWS,
-        written: { epoch: 0, runs: [] },
-      },
-    },
     timing: { encodeCounts: { rowsUploaded: 0 } },
     gpu: { device },
     vis: {
       pageTable: {},
       gpuPartition: {
         forgetRows: (from: number, to: number) => forgotten.push(to - from + 1),
-        uploadCorners: (_p: unknown, from: number, to: number) => corners.push(to - from + 1),
       },
     },
   } as unknown as WebgpuPagesRuntime
   const sum = (counts: number[]) => counts.reduce((a, b) => a + b, 0)
-  return { rt, model, forgotten, corners, table, spheres, sum }
+  return { rt, model, forgotten, table, sum }
 }
 
-test('a model scattered across the table forgets and sends its own rows, run by run', () => {
-  const { rt, model, forgotten, corners, table, spheres, sum } = scatteredScene()
+test('a scattered model that only moved forgets no history and sends no row: its world goes up', () => {
+  const { rt, model, forgotten, table } = scatteredScene()
+  assert.equal(moveRootRows(rt, model, 0), 0, 'its winding kept: no row written')
+  assert.equal(rt.layout.rows.dirtyCount, 0)
+  assert.deepEqual(rt.rootWorlds?.moved.take(), Int32Array.of(0), 'its world named, once')
+  forgetRewrittenRows(rt)
+  uploadDirtyRows(rt)
+  assert.deepEqual(forgotten, [], 'its rows keep their occlusion history')
+  assert.deepEqual(table(), [], 'no row of the table travels')
+})
+
+test('a scattered model whose winding turned writes its own rows, run by run', () => {
+  const { rt, model, forgotten, table, sum } = scatteredScene()
+  model.windingCw = true
   assert.equal(moveRootRows(rt, model, 0), MODEL_ROWS.length)
+  assert.equal(model.windingEpoch, undefined, 'its winding is computed again')
+  forgetRewrittenRows(rt)
+  uploadDirtyRows(rt)
+  assert.deepEqual(forgotten, [2, 3, 1], 'three runs, 6 rows of the 995 spanned')
+  assert.deepEqual(table(), [2, 3, 1], 'the same 6 rows of the table sent')
+  assert.equal(rt.timing.encodeCounts.rowsUploaded, sum(table()))
+})
+
+test('pages bounded elsewhere forget and send their own rows, run by run', () => {
+  const { rt, model, forgotten, table, sum } = scatteredScene()
+  assert.equal(markRootRows(rt, model, 0, MODEL_ROWS.length - 1), MODEL_ROWS.length)
   const { rows } = rt.layout
   // The runs reach the first and last rows of the model.
   const dirty = runsOf(rows.forEachDirtyRun)
   assert.deepEqual([dirty[0][0], dirty.at(-1)![1]], [3, 997])
-  uploadClusterSpheres(rt, rt.gpu.device!)
-  uploadRowCorners(rt)
+  forgetRewrittenRows(rt)
   uploadDirtyRows(rt)
   assert.deepEqual(forgotten, [2, 3, 1], 'three runs, 6 rows forgotten of the 995 spanned')
-  assert.deepEqual(spheres(), [2, 3, 1], 'the same 6 shadow spheres sent')
-  assert.deepEqual(corners, [2, 3, 1], 'the same 6 rows of corners sent')
   assert.deepEqual(table(), [2, 3, 1], 'the same 6 rows of the table sent')
-  assert.equal(rt.timing.encodeCounts.rowsUploaded, sum(table()))
   assert.equal(rows.dirtyCount, 0, 'every mark consumed')
   // A still image: nothing marked, nothing forgotten, nothing sent.
-  uploadRowCorners(rt)
+  forgetRewrittenRows(rt)
   uploadDirtyRows(rt)
   assert.equal(sum(forgotten), 6)
   assert.equal(sum(table()), 6)
   assert.equal(rt.timing.encodeCounts.rowsUploaded, 0)
 })
 
-test('a table that grew forgets the rows that entered; a new age sends every row once', () => {
-  const { rt, forgotten, corners } = scatteredScene()
+test('a table that grew forgets the rows that entered', () => {
+  const { rt, forgotten } = scatteredScene()
   const { rows, cornerHold } = rt.layout
   cornerHold.count = ROWS - 10
   rows.markRowDirty(5)
-  rows.tableEpoch++
-  uploadRowCorners(rt)
+  forgetRewrittenRows(rt)
   assert.deepEqual(forgotten, [1, 10], 'the dirty row, then the ten that entered')
-  assert.deepEqual(corners, [ROWS], 'a stale witness sends the whole rank')
   assert.equal(cornerHold.count, ROWS)
+})
+
+test('an image without a partition holds no history: the next one forgets every drawable row', () => {
+  const { rt, forgotten } = scatteredScene()
+  const partition = rt.vis.gpuPartition
+  rt.vis.gpuPartition = undefined
+  forgetRewrittenRows(rt)
+  assert.equal(rt.layout.cornerHold.count, 0)
+  rt.vis.gpuPartition = partition
+  forgetRewrittenRows(rt)
+  assert.deepEqual(forgotten, [ROWS])
 })

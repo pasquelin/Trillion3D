@@ -1,7 +1,7 @@
-// What the compose passes derive from a composed world (`gpuComposeDerivedWgsl.ts`, the shipped
-// WGSL run in JavaScript) is what the CPU writes from the same world and the same inputs, word for
-// word: the eight Hi-Z corners (`packPageCorners`), the shadow detail words (`writeRowLod`) and the
-// root's world box (`refreshRootBox`). Generated families: rotations, uneven, negative and sheared
+// What the rows pass and the worlds pass derive from a world (`gpuComposeDerivedWgsl.ts`, the
+// shipped WGSL run in JavaScript) is what the CPU formulas give from the same world and the same
+// inputs, word for word: the eight Hi-Z corners (`packPageCorners`), the shadow detail words (the
+// oracle `writeRowLod`) and the root's world box (`refreshRootBox`). Generated families: rotations, uneven, negative and sheared
 // worlds near and far from the origin, boxes and spheres of every size, a reach and a dynamic
 // box now and then, every combination of the cut rule's residency, rows with and without a
 // coarser form, roots with and without a box.
@@ -11,10 +11,12 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { refreshRootBox } from '../page/selection/batchBoxes.ts'
 import { packPageCorners } from '../webgpu/visibility/corners.ts'
-import { ROW_LOD_FLOATS, writeRowLod } from '../webgpu/shadow/rowLodWords.ts'
+import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
+import { writeRowLod } from '../webgpu/shadow/rowLodWords.fixture.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
-import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL } from './gpuComposeWgsl.ts'
-import { ROW_INPUT_DOUBLES, packInputs, rowInputs } from './composedRowPack.ts'
+import { COMPOSE_WORLDS_WGSL } from './gpuComposeWgsl.ts'
+import { DERIVE_ROWS_WGSL } from './rowWordsWgsl.ts'
+import { ROW_INPUT_DOUBLES, packInputs, rowInputs } from './rowInputPack.ts'
 import {
   DOUBLE_HELPERS,
   countLeadingZeros,
@@ -38,7 +40,7 @@ const derived = shaderRun<{
   composeCorners(row: number, world: Pair[]): void
   composeLod(row: number, rank: number, world: Pair[]): void
 }>(
-  COMPOSE_ROWS_WGSL,
+  DERIVE_ROWS_WGSL,
   [...DOUBLE_HELPERS, ...SPLIT, ...STRETCH, 'composeCorners', 'lodCentre', 'composeLod'],
   {
     countLeadingZeros,
@@ -46,9 +48,11 @@ const derived = shaderRun<{
   },
 )
 const roots = { rootInputs: [] as Pair[], rootBoxes: [] as Pair[] }
+// The worlds pass subtracts no double: its text holds no `dSub`.
+const worldHelpers = DOUBLE_HELPERS.filter((name) => name !== 'dSub')
 const boxes = shaderRun<{ composeBox(rank: number, at: number, world: Pair[]): void }>(
-  COMPOSE_ROOTS_WGSL,
-  [...DOUBLE_HELPERS, 'affineAxis', 'dLess', 'dIsZero', 'dMin', 'dMax', 'carriedBox', 'composeBox'],
+  COMPOSE_WORLDS_WGSL,
+  [...worldHelpers, 'affineAxis', 'dLess', 'dIsZero', 'dMin', 'dMax', 'carriedBox', 'composeBox'],
   { countLeadingZeros, ...roots },
 )
 
@@ -80,7 +84,7 @@ const doubleOf = (p: Pair) => {
   return new Float64Array(cell.buffer)[0]
 }
 
-test('the corners, the detail and the world box a parent’s move derives are the CPU’s, word for word', () => {
+test('the corners, the detail and the world box a world derives are the CPU formulas’, word for word', () => {
   const next = lcgRandom(41)
   let withBox = 0
   const scratch = new Float64Array(ROW_INPUT_DOUBLES),

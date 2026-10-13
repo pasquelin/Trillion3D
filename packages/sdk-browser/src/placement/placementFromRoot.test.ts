@@ -19,23 +19,28 @@ type Session = Awaited<ReturnType<typeof placedSession>>
 /** Word of a row holding its page's offset in the pool, in words: its address, not its placement. */
 const OFFSET_WORD = 24
 
-/** What the image is drawn from: the rows, the draw items, the corners and the cut. The pool's
- *  layout is the pool's (`gpu/page/homes.ts`): `homes` reads the offsets, which the digest leaves out. */
+/** A copy of what a buffer of the mocked device holds: what a pass that binds it reads. */
+const heldBytes = (buffer: GPUBuffer) =>
+  (buffer as unknown as { data: Uint8Array }).data.slice().buffer
+
+/** What the image is drawn from: the rows, the draw items, the corners and the cut, as the GPU
+ *  holds them — the rows pass writes every word a row's world decides (`rowWords.ts`). The pool's
+ *  layout is the pool's (`gpu/page/homes.ts`): `homes` reads the offsets, which the digest leaves
+ *  out. */
 function digest({ rt }: Session) {
-  const { rows, drawItemWords, cornerPacked } = rt.layout
+  const { rows, drawItemWords } = rt.layout
   const hash = createHash('sha256')
   // Padding words hold physical-surface fields; the placement oracle compares
   // the original row contract, leaving those independently tested material words out.
-  const originalWords = 64
-  const table = new Float32Array((rows.pageTableFloats!.length / ROW_WORDS) * originalWords)
+  const originalWords = 64,
+    held = new Float32Array(heldBytes(rt.vis.pageTable!))
+  const table = new Float32Array((held.length / ROW_WORDS) * originalWords)
   for (let row = 0; row < table.length / originalWords; row++)
-    table.set(
-      rows.pageTableFloats!.subarray(row * ROW_WORDS, row * ROW_WORDS + originalWords),
-      row * originalWords,
-    )
+    table.set(held.subarray(row * ROW_WORDS, row * ROW_WORDS + originalWords), row * originalWords)
   for (let row = 0; row < table.length; row += originalWords)
     for (const word of [OFFSET_WORD, 38, 39, 40, 41, 44, 45, 52, 53, 58, 59]) table[row + word] = 0
-  for (const words of [table, rows.packedPageIndex, drawItemWords, cornerPacked])
+  const corners = new Float32Array(heldBytes(rt.vis.gpuPartition!.corners))
+  for (const words of [table, rows.packedPageIndex, drawItemWords, corners])
     hash.update(new Uint8Array(words.buffer, words.byteOffset, words.byteLength))
   // The instances as packed ranks, rank by rank: a record serves every placement.
   hash.update(
@@ -57,21 +62,19 @@ const homes = ({ rt }: Session) => {
   )
 }
 
-/** A copy of what a buffer of the mocked device holds: what a pass that binds it reads. */
-const held = (buffer: GPUBuffer) => (buffer as unknown as { data: Uint8Array }).data.slice().buffer
-
 /**
  * What the virtual shadow maps' raster reads of each row it takes casters from (the table's
- * `packedCount` rows, `../webgpu/pages/render/vsm/vsmEncode.ts`): the mobility word and the world
- * sphere the session uploaded for it (`../webgpu/shadow/bounds.ts`), read back from the two buffers
+ * `packedCount` rows, `../webgpu/pages/render/vsm/vsmEncode.ts`): the mobility word the session
+ * uploaded for it (`../webgpu/shadow/bounds.ts`) and the world sphere the rows pass wrote
+ * (`rowWordsPass.ts`), read back from the two buffers
  * the raster binds, beside the box of the record the row draws and the world of its placement.
  */
 function casterRows({ rt }: Session) {
   const { lights, layout } = rt,
     { rows, placement, selectionRoots } = layout
   assert.ok(lights.mobilityRows && lights.spheres, 'the session keeps what the shadow raster binds')
-  const words = new Uint32Array(held(lights.mobilityRows)),
-    spheres = new Float32Array(held(lights.spheres.buffer))
+  const words = new Uint32Array(heldBytes(lights.mobilityRows)),
+    spheres = new Float32Array(heldBytes(lights.spheres.buffer))
   return Array.from({ length: rows.packedCount }, (_, row) => {
     const rec = rows.packedRecs[row]!,
       rank = rootOfPacked(placement, rows.packedPageIndex[row]),

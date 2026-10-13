@@ -14,7 +14,6 @@ import {
   type Placements,
 } from '../../page/selection/placements.ts'
 
-export { growClusterBox, uploadClusterSpheres } from './spheres.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /**

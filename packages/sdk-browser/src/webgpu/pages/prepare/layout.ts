@@ -2,9 +2,8 @@ import { workgroupCount } from '../../../../../math/src/scalar/integers.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import { createWebgpuRowState } from '../../row/state.ts'
 import { pageAddress } from '../../row/pageSlots.ts'
-import { CORNER_VALUES } from '../../../gpu/partition/contract.ts'
 import { DRAW_ITEM_U32 } from '../../../gpu/draw/draw.ts'
-import { createCornerUploadHold } from '../../visibility/corners.ts'
+import { createCornerHold } from '../../visibility/corners.ts'
 import { createDrawItemWordsHold } from '../../visibility/itemWords.ts'
 import { VIS_MAX_PAGES } from '../../../visibility/types.ts'
 import { boundTableRows, ROW_STEP, VIEW_ROWS } from '../../row/tableRows.ts'
@@ -165,10 +164,8 @@ export function rowScratch(drawSlots: number, pageBytes: number) {
   return {
     /** Every triangle of every drawable row: the bound a raster list cannot exceed. */
     rasterCapacity: drawSlots * workgroupCount(pageBytes / 4, 3),
-    /** World-space corners per ROW, in single precision: what the GPU partition reads. They are
-     *  derived from each page's local bounds and rewritten only on the table's dirty range. */
-    cornerPacked: new Float32Array(drawSlots * CORNER_VALUES),
-    cornerHold: createCornerUploadHold(),
+    /** The drawable rank the partition holds an occlusion history for (`forgetRewrittenRows`). */
+    cornerHold: createCornerHold(),
     /** Draw rows, held from one image to the next: only a changing row rewrites them. */
     drawItemWords: new Uint32Array(drawSlots * DRAW_ITEM_U32),
     itemWordsHold: createDrawItemWordsHold(drawSlots),

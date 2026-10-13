@@ -1,10 +1,10 @@
 /**
- * What the compose passes derive from a composed world besides the words of the row itself
- * (`gpuComposeWgsl.ts`), each the CPU's to the word — the doubles it derives them in, rounded where
- * it rounds them: the root's world box, the eight corners of a row the Hi-Z test projects, and the
- * detail words the shadows' levels are judged by. They read what a world does not change from a
- * row's inputs (`composedRowInputs.ts`), twenty-four doubles a row, the declarations the
- * program holds:
+ * What the rows pass (`rowWordsWgsl.ts`) and the compose worlds pass (`gpuComposeWgsl.ts`) derive
+ * from a root's world besides the words of the row itself, each the CPU formula's to the word — the
+ * doubles it derives them in, rounded where it rounds them: the root's world box, the eight corners
+ * of a row the Hi-Z test projects, and the detail words the shadows' levels are judged by. They read
+ * what a world does not change from a row's inputs (`rowInputPack.ts`), twenty-four doubles a row,
+ * the declarations the program holds:
  *
  *   inputs    array<vec2u>   a row's inputs, `INPUT_DOUBLES` doubles each
  *   corners   array<u32>     `CORNER_VALUES` words a row, the Hi-Z corners
@@ -28,8 +28,8 @@ import {
 import { FINITE_SENTINEL } from '../../../math/src/wgsl/constants.ts'
 import { STRETCH_DOUBLE_WGSL } from './gpuStretchWgsl.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
-import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
-import { INPUT_LOD, ROW_INPUT_DOUBLES } from './composedRowPack.ts'
+import { LOD_BIT, LOD_INPUT, ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
+import { INPUT_LOD, ROW_INPUT_DOUBLES } from './rowInputPack.ts'
 
 /** `m[i]·x + m[4+i]·y + m[8+i]·z + m[12+i]`, summed left to right: the axis `i` of
  *  `transformAffinePoint`. */
@@ -116,7 +116,7 @@ fn composeBox(rank:u32,at:u32,world:array<vec2u,16>){
 }`,
 )
 
-/** Row `row`'s detail words at `world` (`applyRowLod`): the errors and their centres by the stretch of
+/** Row `row`'s detail words at `world`: the errors and their centres by the stretch of
  *  the world, the radii, the radius of the root's world box, the residency folded in. */
 export const LOD_WGSL = wgslBlock(
   'LOD_WGSL',
@@ -134,8 +134,8 @@ fn composeLod(row:u32,rank:u32,world:array<vec2u,16>){
  let o=row*${ROW_LOD_FLOATS}u;
  for(var k=0u;k<${ROW_LOD_FLOATS}u;k++){lods[o+k]=0u;}
  lods[o+7u]=bitcast<u32>(FINITE_SENTINEL);
- let flags=inputs[at+10u].x;
- if((flags&16u)!=0u){
+ let flags=inputs[at+${LOD_INPUT.flags}u].x;
+ if((flags&${LOD_BIT.hasBox}u)!=0u){
   let a=rootBoxes[rank*6u];let b=rootBoxes[rank*6u+1u];let c=rootBoxes[rank*6u+2u];
   let dx=dSub(rootBoxes[rank*6u+3u],a);
   let dy=dSub(rootBoxes[rank*6u+4u],b);
@@ -143,16 +143,16 @@ fn composeLod(row:u32,rank:u32,world:array<vec2u,16>){
   let s=dAdd(dAdd(dMul(dx,dx),dMul(dy,dy)),dMul(dz,dz));
   lods[o+18u]=toF32(dMul(dSqrt(s),vec2u(0x3fe00000u,0u)));
  }
- if((flags&1u)==0u){return;}
+ if((flags&${LOD_BIT.has}u)==0u){return;}
  let scale=maxStretchOf(world);
- if((flags&2u)!=0u){lods[o+3u]=toF32(dMul(inputs[at+8u],scale));}
- lodCentre(o,at,world,0u,8u);
- lods[o+16u]=toF32(dMul(inputs[at+3u],scale));
- if((flags&4u)==0u){lods[o+7u]=0u;return;}
- if((flags&8u)!=0u){
-  lodCentre(o+4u,at,world,4u,8u);
-  lods[o+7u]=toF32(dMul(inputs[at+9u],scale));
-  lods[o+17u]=toF32(dMul(inputs[at+7u],scale));
+ if((flags&${LOD_BIT.childReady}u)!=0u){lods[o+3u]=toF32(dMul(inputs[at+${LOD_INPUT.own}u],scale));}
+ lodCentre(o,at,world,${LOD_INPUT.sphere}u,8u);
+ lods[o+16u]=toF32(dMul(inputs[at+${LOD_INPUT.sphere + 3}u],scale));
+ if((flags&${LOD_BIT.ready}u)==0u){lods[o+7u]=0u;return;}
+ if((flags&${LOD_BIT.hasParent}u)!=0u){
+  lodCentre(o+4u,at,world,${LOD_INPUT.parentSphere}u,8u);
+  lods[o+7u]=toF32(dMul(inputs[at+${LOD_INPUT.parent}u],scale));
+  lods[o+17u]=toF32(dMul(inputs[at+${LOD_INPUT.parentSphere + 3}u],scale));
  }
 }`,
 )

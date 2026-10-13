@@ -7,6 +7,7 @@ import { wantsAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
 import { ensureGpuRaster } from '../pages/render/encodeVisSetup.ts'
 import { requestsComputeRaster } from '../../diagnostic/gpuGeometry.ts'
 import { askComposedPlacements } from '../../placement/gpuCompose.ts'
+import { askRowWords } from '../../placement/rowWordsPass.ts'
 import { wantsEmissiveAo } from '../pages/prepare/emissiveAoLayer.ts'
 import { askLobedPrograms } from '../pages/prepare/contractLight.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -51,7 +52,8 @@ function askShadeClasses(rt: WebgpuPagesRuntime) {
  * Asks, at a frame's entry, the pipelines the frame binds that something which entered the scene
  * since needs — a resolve class a material changed into, the classes writing the emission layer,
  * the guide pass once a guide is shown, the particles' routed draw, the seed of the share the
- * transparents and particles write, the kernels composing placements once a parent links rows, the
+ * transparents and particles write, the rows pass once the table holds a row, the kernels
+ * composing placements once a parent links rows, the
  * lobe code of a lobed surface (`askLobedPrograms`), the compute raster a variant asks for on a
  * visibility path —,
  * each compiled off the thread (`PreparedPipeline.ask`): the frame is held while one compiles
@@ -65,6 +67,7 @@ export function askFramePipelines(rt: WebgpuPagesRuntime) {
   askGuidePass(rt, device)
   askParticles(rt, device)
   if (wantsAsIsShare(rt)) askAsIsSeed(device)
+  askRowWords(rt, device)
   askComposedPlacements(rt, device)
   askLobedPrograms(rt, device)
   if (requestsComputeRaster(rt.context?.diagnosticGpuVariant)) ensureGpuRaster(rt, device)

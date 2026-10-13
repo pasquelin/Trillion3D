@@ -15,7 +15,7 @@ import { rootOfPacked } from '../page/selection/placements.ts'
 import { packClusterSpheres } from '../webgpu/shadow/spheres.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
-import { followComposedRows } from './composedRowInputs.ts'
+import { followComposedRows } from './composedRows.ts'
 
 /** The composed rows in order, one scratch for every refresh. */
 let sorted = new Int32Array(8)

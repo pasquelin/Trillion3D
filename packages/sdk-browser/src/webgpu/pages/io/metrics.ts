@@ -1,4 +1,6 @@
 import { DEFORMATION_PASS } from '../../../deformation/pass.ts'
+import { disposeRowWords } from '../../../placement/rowWordsGpu.ts'
+import { disposeRootWorlds } from '../../../placement/rootWorlds.ts'
 import { disposeVis, dropGpuSelection } from './drops.ts'
 import { releaseTargets } from '../prepare/targets.ts'
 import { dropBlendBuffers } from '../../blend/buffers.ts'
@@ -155,8 +157,9 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.bounce.probes?.dispose()
   rt.bounce.probes = undefined
   rt.lights.spheres?.buffer.destroy()
-  rt.compose?.inputs?.buffer.destroy()
   rt.compose?.gpu?.dispose()
+  disposeRowWords(rt)
+  disposeRootWorlds(rt)
   rt.lights.spheres = undefined
   rt.lights.buffer?.destroy()
   const closing = gpu.cache?.dispose()

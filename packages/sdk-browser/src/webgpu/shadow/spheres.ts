@@ -12,7 +12,7 @@ import { rootOfPacked } from '../../page/selection/placements.ts'
 /**
  * World sphere of a cluster: the centre of its local box transformed by its root's world, and the
  * radius of the sphere about it that holds the transformed box (`../../placement/rowSphere.ts`, the
- * formula the compose rows pass evaluates). A dynamic page's box is where its vertices are this
+ * formula the rows pass evaluates). A dynamic page's box is where its vertices are this
  * frame (`moved`); another grows by its root's deformation reach.
  */
 function writeClusterSphere(
@@ -72,14 +72,12 @@ export function packClusterSpheres(
 
 /**
  * World sphere of every caster row — the drawable rows, then the blended casters' —, in page-table
- * row order.
- *
- * That is the only geometric datum the shadow pass needs to drop a cluster: its sphere against a
- * light's range and against a face's cone. It is written exactly on the rows the page table just
- * declared dirty — a moved row, a rewritten row, a moved node — and never otherwise: an image
- * with no change writes nothing.
+ * row order: the only geometric datum the shadow pass needs to drop a cluster, its sphere against
+ * a light's range and against a face's cone. The rows pass writes the buffer
+ * (`../../placement/rowWordsPass.ts`), for every row whose root moved or which was written; made
+ * here at the table's caster rows while a light casts.
  */
-function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
+export function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights } = rt,
     { casterSlots } = rt.layout.rows
   if (lights.spheres && lights.spheres.rows === casterSlots) return lights.spheres
@@ -89,45 +87,28 @@ function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /**
- * The spheres the compose rows pass rewrites for the rows of roots linked to a parent
- * (`../../placement/gpuCompose.ts`), from the inputs each row keeps (`composedRowInputs.ts`).
- * Undefined while no light casts: no sphere is read.
+ * The CPU copy of rows `[from, to]`'s spheres (`spheres.packed`), what the shadow raster sizes its
+ * chunks from (`../../vsm/rowPageBound.ts`), made by the one sphere formula from the world a CPU
+ * reader reads, while a light casts: the run is noted for the bins to follow (`closeSphereCopies`).
+ * The buffer is the GPU's, the copy a reader's, and neither is written by the other.
  */
-export function linkedRowSpheres(rt: WebgpuPagesRuntime) {
-  const spheres = rt.lights.spheres
-  if (!spheres || spheres.rows === 0) return undefined
-  return spheres
-}
-
-function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
-  const spheres = rt.lights.spheres!
-  ;(spheres.writing ??= []).push(from, to)
+export function copyClusterSpheres(rt: WebgpuPagesRuntime, from: number, to: number) {
+  const { spheres, rowsFollowed } = rt.lights
+  if (!spheres || !rowsFollowed) return
+  const last = Math.min(to, spheres.rows - 1)
+  if (last < from) return
+  ;(spheres.writing ??= []).push(from, last)
   const { rows, selectionRoots, placement } = rt.layout
-  packClusterSpheres(rows.packedRecs, selectionRoots, spheres.packed, from, to, (row) =>
+  packClusterSpheres(rows.packedRecs, selectionRoots, spheres.packed, from, last, (row) =>
     rootOfPacked(placement, rows.packedPageIndex[row]),
   )
-  // Offset and size counted in floats: that is what `writeBuffer` expects of a typed array.
-  rt.gpu.device!.queue.writeBuffer(
-    spheres.buffer,
-    from * CLUSTER_SPHERE_FLOATS * 4,
-    spheres.packed,
-    from * CLUSTER_SPHERE_FLOATS,
-    (to - from + 1) * CLUSTER_SPHERE_FLOATS,
-  )
 }
 
-/**
- * Writes the spheres of the rows the table declared dirty and pushes them run by run: a model whose
- * rows are scattered sends its own and none of the rows between them. An upload that writes rows
- * starts a new `written` epoch over them.
- */
-export function uploadClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const spheres = ensureClusterSpheres(rt, device),
-    { rows } = rt.layout
-  rows.forEachDirtyRun(rt, uploadSphereRun, spheres.rows - 1)
-  // The runs it wrote, a new epoch when any: `vsm/rowPageBound.ts` re-bins those rows alone.
-  if (spheres.writing) {
-    spheres.written = { epoch: spheres.written.epoch + 1, runs: spheres.writing }
-    spheres.writing = undefined
-  }
+/** The runs copied since the last close, a new `written` epoch over them when any:
+ *  `../../vsm/rowPageBound.ts` re-bins those rows alone. */
+export function closeSphereCopies(rt: WebgpuPagesRuntime) {
+  const spheres = rt.lights.spheres
+  if (!spheres?.writing) return
+  spheres.written = { epoch: spheres.written.epoch + 1, runs: spheres.writing }
+  spheres.writing = undefined
 }

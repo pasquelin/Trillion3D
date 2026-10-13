@@ -102,10 +102,12 @@ function writeRow(
   if (!rec.transparent && shownAsIs(mat.model)) resources.asIsShown = true
   if (!rec.transparent && !resources.emissiveAoShown && surfaceEmitsOrOccludes(mat))
     resources.emissiveAoShown = true
-  // Row placement: its world, and its rank, where the temporal pass reads the pixel motion
-  // matrix. A packed rank without a placement does not exist in a WebGPU layout: `rootOf` throws.
+  // Row placement: its rank, where the temporal pass reads the pixel motion matrix and the rows
+  // pass the world it writes the row's world words from (`../../placement/rowWords.ts`), their
+  // one writer. A packed rank without a placement does not exist in a WebGPU layout: `rootOf`
+  // throws.
   const rank = rootRank(pageIndex)
-  floats.set(rootOf(roots, rank).world.elements, base)
+  rootOf(roots, rank)
   writeMaterialWords(floats, ints, base, mat, maps, geo)
   // A page holding more triangles than the identifier's eight low bits would alias the next page.
   assertVisibilityPageTriangles(indexCount / 3, rec.url)

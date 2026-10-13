@@ -4,6 +4,7 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { encodeComposedRoots } from './gpuCompose.ts'
 import { createPlacementRows } from './rows.ts'
 import { composeRuntime } from './composeRuntime.fixture.ts'
+import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 
 /** A parent's world turned by `angle` about y, moved off the origin. */
 export const turn = (angle: number) => {
@@ -54,6 +55,18 @@ export function session() {
     gpuSelection: selection,
     gpuComputeDispatches: 0,
   })
+  // The roots' double worlds the worlds pass writes and the roots pass reads (`rootWorlds.ts`).
+  const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  rt.rootWorlds = {
+    worlds: device.createBuffer({ label: 'Trillion3D root worlds', size: 2 * 128, usage }),
+    boxes: device.createBuffer({ label: 'Trillion3D root world boxes', size: 2 * 48, usage }),
+    capacity: 2,
+    moved: createChangedRuns(),
+    whole: false,
+    epoch: 1,
+    worldWords: new Uint32Array(0),
+    boxWords: new Uint32Array(0),
+  }
   const encoder = device.createCommandEncoder()
   const frame = () => {
     rt.run.frame++

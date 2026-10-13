@@ -6,7 +6,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ruleDag } from '../../../page/cut/cutRule.fixture.ts'
 import { placements } from '../../../page/cut/cutRuleBackends.fixture.ts'
-import { CORNER_VALUES } from '../../../gpu/partition/contract.ts'
 import { ROW_STEP, VIEW_ROWS } from '../../row/tableRows.ts'
 import { createWebgpuPagesLayout } from './layout.ts'
 import type { WebgpuPagesSetup } from './setup.ts'
@@ -26,7 +25,7 @@ const layoutOf = (count: number) => {
   } as unknown as WebgpuPagesSetup)
 }
 
-test('the rows, corners and draw words do not grow with the placements', () => {
+test('the rows and draw words do not grow with the placements', () => {
   const placed = ceilDiv(VIEW_ROWS, dag.pages.length) + 1
   const [some, more] = [layoutOf(placed), layoutOf(2 * placed)]
   assert.ok(some.packedPages.length > VIEW_ROWS, 'past the rows a view holds')
@@ -34,7 +33,6 @@ test('the rows, corners and draw words do not grow with the placements', () => {
   for (const layout of [some, more]) {
     assert.equal(layout.drawSlots, ROW_STEP, 'one step of the row cache, the cut growing it')
     assert.equal(layout.rows.casterSlots, ROW_STEP)
-    assert.equal(layout.cornerPacked.length, ROW_STEP * CORNER_VALUES)
     assert.equal(layout.drawItemWords.length, more.drawItemWords.length)
     assert.equal(layout.rows.rowPageIndex.length, ROW_STEP)
   }

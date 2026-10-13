@@ -2,12 +2,16 @@ import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readba
 import { f32Bits } from '../../../packages/math/src/float/bits.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { autoKernel, bufferHolding, groupZero } from '../kit/computeReadback.ts'
-import { IDENTITY_MATRIX4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import {
-  COMPOSE_ROWS_WGSL,
+  DERIVE_ROWS_ENTRY,
+  DERIVE_ROWS_WGSL,
   PART_SPHERES,
-} from '../../../packages/sdk-browser/src/placement/gpuComposeWgsl.ts'
-import { ROW_INPUT_DOUBLES } from '../../../packages/sdk-browser/src/placement/composedRowPack.ts'
+} from '../../../packages/sdk-browser/src/placement/rowWordsWgsl.ts'
+import {
+  INPUT_FLAGS,
+  ROW_HAS_RECORD,
+  ROW_INPUT_DOUBLES,
+} from '../../../packages/sdk-browser/src/placement/rowInputPack.ts'
 import { sphereRadius } from '../../../packages/sdk-browser/src/placement/rowSphere.ts'
 import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
@@ -33,6 +37,7 @@ export async function runSphere() {
       half = [0, 1, 2].map(() => 0.001 + next() * 5)
     packDoubles(worlds, i * 32, w)
     packDoubles(inputs, i * ROW_INPUT_DOUBLES * 2, [...centre, ...half])
+    inputs[(i * ROW_INPUT_DOUBLES + INPUT_FLAGS) * 2] = ROW_HAS_RECORD
     transformAffinePoint(c, w, centre[0], centre[1], centre[2], 0)
     const row = new Array(8).fill(0)
     for (let a = 0; a < 3; a++) {
@@ -47,41 +52,35 @@ export async function runSphere() {
   if (!gpu) return { unavailable: true as const }
   const { device } = gpu
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
-  const { module, compilation } = await gpu.compile(COMPOSE_ROWS_WGSL)
+  const { module, compilation } = await gpu.compile(DERIVE_ROWS_WGSL)
   if (compilation.length) return { errors: compilation }
   const buffer = (data: ArrayBufferView<ArrayBuffer>) => bufferHolding(device, data, STORAGE, 16)
-  // Every row's root is linked to slot 0, a parent at the identity: the composed world is its local.
+  // Row `i` is root `i`'s, its world the roots' double world the rows pass reads.
   const stride = ROW_WORDS,
     table = new Uint32Array(CASES * stride)
   for (let i = 0; i < CASES; i++) table[i * stride + PAGE_INFO.at.placement] = i
-  const parents = new Uint32Array(32),
-    locals = worlds
-  packDoubles(parents, 0, IDENTITY_MATRIX4)
+  // Every row of the table (`all`): the pass's list names none.
   const params = bufferHolding(
     device,
-    new Uint32Array([CASES, CASES, PART_SPHERES, CASES]),
+    new Uint32Array([CASES, PART_SPHERES, CASES, 1]),
     GPUBufferUsage.UNIFORM,
   )
   const spheres = gpu.buffer(CASES * 8 * 4, STORAGE)
-  const pipeline = await device.createComputePipelineAsync(autoKernel(module))
+  const pipeline = await device.createComputePipelineAsync(autoKernel(module, DERIVE_ROWS_ENTRY))
   const absent = () => gpu.buffer(16, STORAGE)
-  // Every row is a composed root's: the pass's list names them all.
-  const rows = buffer(Uint32Array.from({ length: CASES }, (_, i) => i))
   const group = groupZero(
     device,
     pipeline,
     [
       params,
-      buffer(locals),
-      buffer(new Uint32Array(CASES)),
-      buffer(parents),
+      buffer(worlds),
       buffer(table),
       spheres,
       buffer(inputs),
       absent(),
       absent(),
       absent(),
-      rows,
+      absent(),
     ].map((held) => ({ buffer: held })),
   )
   const encoder = device.createCommandEncoder()

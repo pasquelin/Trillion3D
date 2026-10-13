@@ -1,5 +1,5 @@
 /**
- * THE WORLD SPHERE OF A ROW, one formula for the GPU that writes it (`gpuComposeWgsl.ts`,
+ * THE WORLD SPHERE OF A ROW, one formula for the GPU that writes it (`rowWordsWgsl.ts`,
  * `composeSphere`) and the CPU that reads it where a shadow's change box is declared
  * (`../webgpu/shadow/spheres.ts`). A row's local box has a centre `c` and half extents `h` (the
  * reach in). Its world image is a parallelepiped about `W·c + t`; its farthest corner lies at

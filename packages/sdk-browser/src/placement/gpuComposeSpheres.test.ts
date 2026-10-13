@@ -1,6 +1,6 @@
 // A linked row's world sphere, what the shadow cull drops a row by, follows its parent's move on
-// the GPU: the compose rows pass (`composeSphere`, the shipped WGSL) writes it from the composed
-// world and the row's local box, around the sphere the CPU writes at that world
+// the GPU: the rows pass (`composeSphere`, the shipped WGSL) writes it from the composed world and
+// the row's local box, around the sphere the CPU writes at that world
 // (`../webgpu/shadow/spheres.ts`), and writes none while no light casts.
 import test from 'node:test'
 import assert from 'node:assert/strict'

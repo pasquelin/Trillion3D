@@ -5,7 +5,7 @@ import { encodeWebgpuPartition } from '../../visibility/partition.ts'
 import { sendDrawItemWords } from '../../visibility/itemWords.ts'
 import { encodeWebgpuVisibilityPasses } from '../../visibility/passes.ts'
 import { createRenderEncoder, openFrameEncoder, submitColorCopy } from './encoder.ts'
-import { encodeComposedRows } from '../../../placement/gpuCompose.ts'
+import { encodeRowWords } from '../../../placement/rowWordsPass.ts'
 import { encodeSurfaceLighting } from './surfaceLighting.ts'
 import { followLobes } from '../prepare/lobesTarget.ts'
 import { followProxyStore } from '../../../reflections/proxyStore.ts'
@@ -43,7 +43,7 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   const idsView = vis.visView,
     depthTarget = gpu.depthView
   const [width, height] = gpu.targetSize
-  encodeComposedRows(rt, device, timing.frameEncoder ?? openFrameEncoder(rt, device))
+  encodeRowWords(rt, device, timing.frameEncoder ?? openFrameEncoder(rt, device))
   followLobes(rt) // Every image's, one of transmissive lobed surfaces alone too.
   followProxyStore(rt)
   if (!rows.packedCount) return encodeEmptySurfaces(rt, device, cam, depthTarget)

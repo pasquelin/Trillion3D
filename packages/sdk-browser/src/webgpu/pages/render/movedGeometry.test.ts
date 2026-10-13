@@ -9,7 +9,8 @@ import { noteRewritten } from './movedGeometry.ts'
 import { runtime, scene, selectionRoot } from '../../core/transformShear.fixture.ts'
 import { markReach } from '../../../deformation/halfFloat.ts'
 import { growClusterBox } from '../../shadow/spheres.ts'
-import { ROW_LOD_FLOATS, writeRowLod } from '../../shadow/rowLodWords.ts'
+import { ROW_LOD_FLOATS } from '../../shadow/rowLodWords.ts'
+import { writeRowLod } from '../../shadow/rowLodWords.fixture.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 
 const box = (...values: number[]) => Float64Array.from(values)

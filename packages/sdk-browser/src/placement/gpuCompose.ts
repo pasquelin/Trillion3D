@@ -2,15 +2,16 @@
  * PLACEMENTS COMPOSED ON THE GPU UNDER A MOVED PARENT.
  *
  * A row of an instance buffer whose mesh only follows its parent is linked once: the mesh's own
- * local matrix and the parent's slot. From then on a parent that moves sends one matrix; two
- * compute passes write, for every linked root, `parent · local` in exact double arithmetic
- * (`gpuComposeWgsl.ts`) into the cut's worlds — the exact translation behind them, which each cut
- * reads at its own eye (`gpu/dag/shader/worldPoseWgsl.ts`) —, and the temporal motion, and into the world words of every page-table row of that root: the very
- * single-precision words the CPU would have written. The frame hears a pose move as from any
- * engine write (`engineMovedInPlace`): every reader of the scene revision follows; the GPU cut,
- * which compares the CPU worlds it is sent, hears it from the roots pass (`worldsMovedOnGpu`) and
- * cuts again under the composed worlds. The CPU rows of a linked root keep the world of their last
- * full write: nothing on the CPU reads them while the parent turns.
+ * local matrix and the parent's slot. From then on a parent that moves sends one matrix; the worlds
+ * pass writes, for every linked root, `parent · local` in exact double arithmetic
+ * (`gpuComposeWgsl.ts`) into the roots' double worlds (`rootWorlds.ts`) and its world box; the
+ * roots pass carries it into the cut's worlds — the exact translation behind them, which each cut
+ * reads at its own eye (`gpu/dag/shader/worldPoseWgsl.ts`) — and the temporal motion; the rows
+ * pass derives every word of the root's page-table rows from it (`rowWordsPass.ts`): the very
+ * single-precision words the CPU formulas give. The frame hears a pose move as from any engine
+ * write (`engineMovedInPlace`): every reader of the scene revision follows; the GPU cut, which
+ * compares the CPU worlds it is sent, hears it from the roots pass (`worldsMovedOnGpu`) and cuts
+ * again under the composed worlds.
  *
  * The temporal motion of a linked root is the CPU's to the word (`../taa/motion.ts`): the roots pass
  * computes it from the root's composed single-precision world and the one the GPU holds for it at the
@@ -23,13 +24,12 @@
  * through its local matrix, made when the links change) is declared at the parent's last world and
  * at its new one, each on its own, the second only when it differs — one box per moved parent, at
  * most two per move, never a row. Its first move makes its roots moving casters, once
- * (`mobility.moveLead`); a later move stales the moving casters alone. The rows pass writes each
- * linked row's world sphere, what the shadow cull drops a row by, from its composed world.
+ * (`mobility.moveLead`); a later move stales the moving casters alone.
  *
  * Everything a composed world gives is derived on the GPU, the CPU's to the word: the roots pass
- * writes the primitive stretch every cut projects its errors through (`gpuStretchWgsl.ts`) and the
- * root's world box; the rows pass the Hi-Z corners and the world-dependent levels of detail of each
- * row (`gpuComposeDerivedWgsl.ts`); the members pass the leaf boxes the placement tree is refitted
+ * writes the primitive stretch every cut projects its errors through (`gpuStretchWgsl.ts`); the
+ * rows pass each row's sphere, Hi-Z corners and world-dependent levels of detail
+ * (`gpuComposeDerivedWgsl.ts`); the members pass the leaf boxes the placement tree is refitted
  * over (`gpu/dag/treeRefit.ts`). The CPU readers — impostor cards, transparent depth, the winding —
  * read the lazy world of the root once a frame, as waves, a soft body and a skeleton do. A link is
  * never refused for what reads its row: the rows no root reads — a blended surface's, or a row
@@ -41,20 +41,19 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { uniformStride } from '../residency/pools.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
+import { composeMembersWgsl } from './gpuComposeMembersWgsl.ts'
 import {
-  composeMembersWgsl,
   COMPOSE_ROOTS_WGSL,
-  COMPOSE_ROWS_WGSL,
+  COMPOSE_WORLDS_ENTRY,
+  COMPOSE_WORLDS_WGSL,
   MATRIX_DOUBLES,
   NONE,
-  PART_CORNERS,
-  PART_LODS,
-  PART_SPHERES,
 } from './gpuComposeWgsl.ts'
 import { DAG_BINDING, dagPartEntries } from '../gpu/dag/shader/bindings.ts'
 import type { RefitLayout } from '../gpu/dag/treeRefitWgsl.ts'
 import { nodeLayout } from '../gpu/dag/treeRefit.ts'
-import { composedRowInputs, followComposedRows, sendList } from './composedRowInputs.ts'
+import { sendList } from './composedRows.ts'
+import { noteRootWorld } from './rootWorlds.ts'
 import { MOTION_SKIP } from './composedMotion.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
@@ -67,7 +66,6 @@ import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts'
 import { BOX_VALUES, matrixWindingCw } from '../../../sdk-core/src/index.ts'
 import { WORLD_ORIGIN_BYTES } from '../gpu/dag/worldOrigins.ts'
 import { PRIMITIVE_BYTES } from '../gpu/dag/cameraRanges.ts'
-import { linkedRowSpheres } from '../webgpu/shadow/spheres.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import {
   composedRoot,
@@ -76,32 +74,13 @@ import {
   linkBox,
   remakeSlotBox,
 } from './composeBoxes.ts'
-import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { composeGroup, heldGroup, type HeldGroup } from './composeGroups.ts'
 import { liveBuffer } from '../webgpu/core/liveEntries.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { createMirroredKeys, mirrorKey } from '../webgpu/cut/denseKeys.ts'
-import { COMPOSE_MEMBERS_PASS, COMPOSE_ROOTS_PASS, COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
+import { COMPOSE_MEMBERS_PASS, COMPOSE_ROOTS_PASS } from '../stage/passLabels.ts'
 import type { ComposedLeaves } from '../gpu/dag/treeFollow.ts'
 import { adoptReaders, holdReaders, writeReaders, type Readers } from './composeReaders.ts'
-
-/** A compose pass's bind group and what it names: made again only when one of them moves. */
-const heldGroup = () => ({
-  identity: createWebgpuBindIdentity(),
-  group: undefined as GPUBindGroup | undefined,
-})
-type HeldGroup = ReturnType<typeof heldGroup>
-
-/** `held`'s group over its entries (`identity.entries[0]`, read live) on `pipeline`'s group 0,
- *  made again when the pipeline or a resource they name moved (`entriesMoved`); whether it was. */
-function composeGroup(device: GPUDevice, held: HeldGroup, pipeline: GPUComputePipeline) {
-  const moved = held.identity.entriesMoved(pipeline)
-  if (moved)
-    held.group = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: held.identity.entries[0],
-    })
-  return moved
-}
 
 /** The world range `r` of the cut this frame, and its first `count` worlds' words as a binding
  *  of `bytes` each. */
@@ -111,8 +90,8 @@ const NO_RANGES: GpuSelection['worldRanges'] = []
 const rangeBytes = (gpu: ComposeGpu, r: number, bytes: number) => () =>
   rangeOf(gpu, r).count * bytes
 
-/** What the roots and members passes over range `r` both bind first: their parameters' slot in
- *  `params`, the links, the parents' indices and the parents. */
+/** What the members pass over range `r` binds first: its parameters' slot in `params`, the links,
+ *  the parents' indices and the parents. */
 const linkEntries = (
   device: GPUDevice,
   gpu: ComposeGpu,
@@ -130,11 +109,17 @@ const linkEntries = (
 ]
 
 /** The roots pass's entries over range `r` (`COMPOSE_ROOTS_WGSL`), read live: its parameters'
- *  slot, the links, the parents, its worlds, the motion and its mode, the previous worlds, its
- *  frames, the roots' boxes and their list. */
-const rootEntries = (device: GPUDevice, gpu: ComposeGpu, r: number) =>
+ *  slot, the roots' double worlds, the parents' indices, its worlds, the motion and its mode, the
+ *  previous worlds, its frames and the roots' list. */
+const rootEntries = (rt: WebgpuPagesRuntime, device: GPUDevice, gpu: ComposeGpu, r: number) =>
   sequentialEntries([
-    ...linkEntries(device, gpu, () => gpu.rootParams.buffer, r),
+    liveBuffer(
+      () => gpu.rootParams.buffer,
+      () => r * uniformStride(device.limits),
+      () => 16,
+    ),
+    liveBuffer(() => rt.rootWorlds?.worlds),
+    liveBuffer(() => gpu.parentOf),
     liveBuffer(
       () => rangeOf(gpu, r).buffer,
       undefined,
@@ -144,8 +129,25 @@ const rootEntries = (device: GPUDevice, gpu: ComposeGpu, r: number) =>
     liveBuffer(() => gpu.motionMode),
     liveBuffer(() => gpu.previous),
     liveBuffer(() => rangeOf(gpu, r).frames, undefined, rangeBytes(gpu, r, PRIMITIVE_BYTES)),
+    liveBuffer(() => gpu.rankList),
+  ])
+
+/** The worlds pass's entries (`COMPOSE_WORLDS_WGSL`), read live: its parameters, the links, the
+ *  parents' indices, the parents, the roots' double worlds, their local boxes, their world boxes
+ *  and the roots' list. */
+const worldEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) =>
+  sequentialEntries([
+    liveBuffer(
+      () => gpu.worldParams,
+      undefined,
+      () => 16,
+    ),
+    liveBuffer(() => gpu.locals),
+    liveBuffer(() => gpu.parentOf),
+    liveBuffer(() => gpu.parents),
+    liveBuffer(() => rt.rootWorlds?.worlds),
     liveBuffer(() => gpu.rootInputs),
-    liveBuffer(() => gpu.rootBoxes),
+    liveBuffer(() => rt.rootWorlds?.boxes),
     liveBuffer(() => gpu.rankList),
   ])
 
@@ -159,29 +161,6 @@ const memberEntries = (device: GPUDevice, gpu: ComposeGpu, r: number) =>
     liveBuffer(() => gpu.rankList),
   ])
 
-/** The rows pass's entries, read live: its parameters, the links, the parents, the page table, the
- *  parts it writes and reads, and the composed rows' list. */
-const rowEntries = (gpu: ComposeGpu) => {
-  const { frame } = gpu
-  return sequentialEntries([
-    liveBuffer(
-      () => gpu.rowParams,
-      undefined,
-      () => 16,
-    ),
-    liveBuffer(() => gpu.locals),
-    liveBuffer(() => gpu.parentOf),
-    liveBuffer(() => gpu.parents),
-    liveBuffer(() => frame.table),
-    liveBuffer(() => frame.spheres),
-    liveBuffer(() => frame.inputs),
-    liveBuffer(() => gpu.rootBoxes),
-    liveBuffer(() => frame.corners),
-    liveBuffer(() => frame.lods),
-    liveBuffer(() => gpu.rowList),
-  ])
-}
-
 /** A row linked to a parent: its rows, its rank there, its mesh's local matrix. */
 export type PlacementLink = { rows: PlacementRows; index: number; local: ArrayLike<number> }
 
@@ -194,7 +173,7 @@ function createComposeState(roots: number) {
      *  world composes with its parent's (`composedWorld`). */
     localMats: new Float64Array(Math.max(1, roots) * 16),
     /** Each linked root's local box, seven doubles — the box, then whether it has one —, which the
-     *  roots pass carries by the composed world into its world box. */
+     *  worlds pass carries by the composed world into its world box. */
     boxWords: new Uint32Array(Math.max(1, roots) * ROOT_BOX_WORDS),
     /** The world versions each root's CPU world was composed at (`composedWorld`), and the
      *  current one: it moves whenever a parent's world, or a link, does. */
@@ -202,29 +181,23 @@ function createComposeState(roots: number) {
     version: 1,
     /** The tree groups each slot's roots stand in, for the selection that named them. */
     groups: undefined as { cut: WeakRef<object>; bySlot: Map<number, Int32Array> } | undefined,
-    /** The rows' inputs the rows pass derives their words from (`composedRowInputs.ts`). */
-    inputs: undefined as
-      | { buffer: GPUBuffer; packed: Uint32Array<ArrayBuffer>; rows: number; scratch: Float64Array }
-      | undefined,
     /** The rows no root reads that a parent composes for their readers (`composeReaders.ts`). */
     readers: new Map() as Readers,
-    /** The roots a parent composes, a thread each of the roots and members passes, and the
-     *  page-table rows of those roots, a thread each of the rows pass (`composedRowInputs.ts`). */
+    /** The roots a parent composes, a thread each of the worlds, roots and members passes, and the
+     *  page-table rows of those roots, a thread each of the rows pass (`composedRows.ts`). */
     rankList: createMirroredKeys(),
     rowList: createMirroredKeys(),
     /** Roots linked or unlinked since the rows list followed them (`followComposedRows`). */
     relinked: [] as number[],
     /** False until the rows list follows the table: listed again whole (`followComposedRows`). */
     rowsFollowed: false,
-    /** A row of the table was written since the rows pass last ran (`uploadComposedRowInputs`). */
-    rowsWritten: true,
-    /** What each pass last ran over: the composition's version, the cut's host writes, the
-     *  table's age, the motion bound. */
+    /** What each pass last ran over: the composition's version, the cut's host writes, the motion
+     *  bound. */
     ranAt: {
+      worlds: -1,
       roots: -1,
       rows: -1,
       frameWrites: -1,
-      tableEpoch: -1,
       motion: undefined as GPUBuffer | undefined,
     },
     /** The GPU's previous worlds hold every composed root's world, and its motion rows are
@@ -256,8 +229,8 @@ function createComposeState(roots: number) {
      *  for it (`../webgpu/pages/prepare/pipelineFor.ts`). */
     winding: [] as boolean[],
     packed: new Uint32Array(MATRIX_DOUBLES * 2),
-    /** The rows pass's four parameters (the ranges' passes keep theirs, `rangeParams`). */
-    rowParams: new Uint32Array(4),
+    /** The worlds pass's parameters (the ranges' passes keep theirs, `rangeParams`). */
+    worldParams: new Uint32Array(4),
     /** Each linked root's local box through its local matrix: its box in its parent's frame. */
     rankBoxes: new Float64Array(Math.max(1, roots) * BOX_VALUES),
     /** Each slot's box in its parent's frame: the union of its linked roots' (`rankBoxes`). */
@@ -589,6 +562,8 @@ function unlinkHeld(rt: WebgpuPagesRuntime, state: ComposeState, slot: number, r
     if (kept.has(rank)) continue
     removeComposedWorld(rt, rank)
     state.parentOf[rank] = NONE
+    // Its world is the CPU's again: sent from it, its rows derived from it.
+    noteRootWorld(rt, rank)
     mirrorKey(state.rankList, rank, false)
     state.relinked.push(rank)
     mobility.follow(rank, -1)
@@ -669,17 +644,7 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
     size: Math.max(1, rootCount) * ROOT_BOX_WORDS * 4,
     usage: storage,
   })
-  const rootBoxes = device.createBuffer({
-    label: 'Trillion3D composed world boxes',
-    size: Math.max(1, rootCount) * 6 * 8,
-    usage: storage,
-  })
   const noMotion = device.createBuffer({ label: 'Trillion3D no motion', size: 64, usage: storage })
-  // The writable bindings of the rows pass whose buffer is not made: one stand-in each, a binding
-  // never aliasing another's range.
-  const absent = [0, 1, 2].map(() =>
-    device.createBuffer({ label: 'Trillion3D no row part', size: 64, usage: storage }),
-  )
   const previous = device.createBuffer({
     label: 'Trillion3D composed previous worlds',
     size: Math.max(1, rootCount) * 64,
@@ -690,8 +655,8 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
     size: 32,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  const rowParams = device.createBuffer({
-    label: 'Trillion3D compose params',
+  const worldParams = device.createBuffer({
+    label: 'Trillion3D compose world params',
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
@@ -699,50 +664,40 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
     locals,
     parentOf,
     rootInputs,
-    rootBoxes,
     parents: undefined as GPUBuffer | undefined,
     /** The roots pass's parameters and the members pass's, a uniform slot a range of the cut's
-     *  worlds (`rangeParams`); the rows pass's one block. */
+     *  worlds (`rangeParams`); the worlds pass's one block. */
     rootParams: rangeParams('Trillion3D compose params'),
     memberParams: rangeParams('Trillion3D compose member params'),
-    rowParams,
+    worldParams,
     noMotion,
-    absent,
     previous,
     motionMode,
     /** The composed roots and their rows as the passes read them (`sendList`). */
     rankList: undefined as GPUBuffer | undefined,
     rowList: undefined as GPUBuffer | undefined,
     /** The roots pass's and the members pass's group of each range of the cut's worlds, the
-     *  members pass's group of the tree's nodes, and the rows pass's. */
+     *  members pass's group of the tree's nodes, and the worlds pass's. */
     rootGroups: [] as HeldGroup[],
     memberGroups: [] as HeldGroup[],
     memberNodes: heldGroup(),
-    rowsGroup: heldGroup(),
+    worldsGroup: heldGroup(),
     /** What the groups' entries read live (`liveBuffer`), written at each pass's start: the cut's
-     *  world ranges, the motion the roots bind, the members the tree's fit hands, the rows' table
-     *  and the parts they write — a stand-in each where the part is not made. */
+     *  world ranges, the motion the roots bind and the members the tree's fit hands. */
     frame: {
       ranges: NO_RANGES,
       motion: undefined as GPUBuffer | undefined,
       members: undefined as GPUBuffer | undefined,
-      table: undefined as GPUBuffer | undefined,
-      spheres: undefined as GPUBuffer | undefined,
-      inputs: undefined as GPUBuffer | undefined,
-      corners: undefined as GPUBuffer | undefined,
-      lods: undefined as GPUBuffer | undefined,
     },
     dispose() {
       locals.destroy()
       parentOf.destroy()
       rootInputs.destroy()
-      rootBoxes.destroy()
       this.parents?.destroy()
       this.rootParams.buffer?.destroy()
       this.memberParams.buffer?.destroy()
-      rowParams.destroy()
+      worldParams.destroy()
       noMotion.destroy()
-      for (const buffer of absent) buffer.destroy()
       previous.destroy()
       motionMode.destroy()
       this.rankList?.destroy()
@@ -807,22 +762,23 @@ function writeRangeParams(
   params.written = words
 }
 
-/** The roots' and the rows' kernels, once a device, compiled off the thread: asked at a frame's
+/** The worlds' and the roots' kernels, once a device, compiled off the thread: asked at a frame's
  *  entry once a parent holds a link (`askComposedPlacements`), the frames held until they landed,
  *  so the frame that composes binds them compiled. */
 const composeKernels = oncePerDevice((device) => {
-  const kernel = (module: GPUShaderModule) =>
+  const kernel = (module: GPUShaderModule, entryPoint = 'main') =>
     preparedComputePipeline(device, {
       label: module.label,
       layout: 'auto',
-      compute: { module, entryPoint: 'main' },
+      compute: { module, entryPoint },
     })
   return {
     roots: kernel(
       device.createShaderModule({ label: 'Trillion3D compose roots', code: COMPOSE_ROOTS_WGSL }),
     ),
-    rows: kernel(
-      device.createShaderModule({ label: 'Trillion3D compose rows', code: COMPOSE_ROWS_WGSL }),
+    worlds: kernel(
+      device.createShaderModule({ label: 'Trillion3D compose worlds', code: COMPOSE_WORLDS_WGSL }),
+      COMPOSE_WORLDS_ENTRY,
     ),
   }
 })
@@ -903,7 +859,7 @@ export function askComposedPlacements(rt: WebgpuPagesRuntime, device: GPUDevice)
   if (!rt.compose?.parentIds.size) return
   const kernels = composeKernels(device)
   kernels.roots.ask()
-  kernels.rows.ask()
+  kernels.worlds.ask()
   const nodes = rt.run.gpuSelection?.treeNodes
   if (nodes) memberKernels(device).of(nodes).ask()
 }
@@ -978,18 +934,70 @@ function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return gpu
 }
 
-/** The linked roots' cut worlds and motion, before the cut kernel reads them: a thread each of the
- *  composed roots, and nothing on a frame where nothing they read or write moved — no parent, no
- *  link, no host write of the cut's words, and their motion settled (`decideComposedMotion`). */
+/**
+ * The linked roots' composed worlds, once a root, into the roots' double worlds and their world
+ * boxes (`COMPOSE_WORLDS_WGSL`), on the frames what they compose moved — a parent, a link — or a
+ * table they write was made anew: what the roots pass and the rows pass read next. Encoded into
+ * `pass`; whether it was.
+ */
+function encodeComposedWorlds(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  pass: () => GPUComputePassEncoder,
+) {
+  const state = rt.compose!,
+    gpu = state.gpu!,
+    listed = state.rankList.set.count
+  if (!rt.rootWorlds?.worlds || !listed) return
+  const pipeline = composeKernels(device).worlds.get(),
+    held = gpu.worldsGroup
+  held.identity.entries[0] ??= worldEntries(rt, gpu)
+  const bound = composeGroup(device, held, pipeline)
+  if (state.composedAt === state.ranAt.worlds && !bound) return
+  state.ranAt.worlds = state.composedAt
+  // A table made anew holds no composed world: the rows pass derives every row of them again.
+  state.ranAt.rows = bound ? -1 : state.ranAt.rows
+  const params = state.worldParams
+  params[0] = state.roots
+  params[1] = listed
+  device.queue.writeBuffer(gpu.worldParams, 0, params)
+  const encoder = pass()
+  encoder.setPipeline(pipeline)
+  encoder.setBindGroup(0, held.group!)
+  dispatchRows(encoder, ceilDiv(listed, 64))
+  rt.run.gpuComputeDispatches++
+}
+
+/** The linked roots' worlds (`encodeComposedWorlds`), then their cut worlds and motion, before the
+ *  cut kernel reads them: a thread each of the composed roots, and nothing on a frame where nothing
+ *  they read or write moved — no parent, no link, no host write of the cut's words, and their
+ *  motion settled (`decideComposedMotion`). One compute pass, opened by the first that runs. */
 export function encodeComposedRoots(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
 ) {
   const state = rt.compose,
-    selection = rt.run.gpuSelection,
     gpu = frameParents(rt, device)
-  if (!state || !gpu?.parents || !gpu.rankList || !selection) return
+  if (!state || !gpu?.parents || !gpu.rankList) return
+  let open: GPUComputePassEncoder | undefined
+  const pass = () => (open ??= encoder.beginComputePass({ label: COMPOSE_ROOTS_PASS }))
+  encodeComposedWorlds(rt, device, pass)
+  encodeRootsPass(rt, device, pass)
+  open?.end()
+}
+
+/** The roots pass (`COMPOSE_ROOTS_WGSL`) over every range of the cut's worlds, into `pass`. */
+function encodeRootsPass(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  pass: () => GPUComputePassEncoder,
+) {
+  const state = rt.compose!,
+    selection = rt.run.gpuSelection,
+    gpu = state.gpu!
+  // The worlds it reads are the roots' double worlds (`rootWorlds.ts`), sent with the frame's rows.
+  if (!selection || !rt.rootWorlds?.worlds) return
   const listed = state.rankList.set.count
   if (!listed) return
   // The worlds this pass writes are the ones the cut kernel reads next: no CPU world changed, so
@@ -1006,7 +1014,7 @@ export function encodeComposedRoots(
   let bound = false
   for (let r = 0; r < ranges.length; r++) {
     const held = (gpu.rootGroups[r] ??= heldGroup())
-    held.identity.entries[0] ??= rootEntries(device, gpu, r)
+    held.identity.entries[0] ??= rootEntries(rt, device, gpu, r)
     if (composeGroup(device, held, pipeline)) bound = true
   }
   // The groups are made: the cut's ranges are not held past them, so a cut swapped out goes.
@@ -1036,74 +1044,11 @@ export function encodeComposedRoots(
   state.motionBound = motionBuffer
   state.motionMode[0] = MOTION_SKIP
   device.queue.writeBuffer(gpu.motionMode, 0, state.motionMode)
-  const pass = encoder.beginComputePass({ label: COMPOSE_ROOTS_PASS })
-  pass.setPipeline(pipeline)
+  const encoder = pass()
+  encoder.setPipeline(pipeline)
   for (let r = 0; r < ranges.length; r++) {
-    pass.setBindGroup(0, gpu.rootGroups[r].group!)
-    dispatchRows(pass, ceilDiv(listed, 64))
+    encoder.setBindGroup(0, gpu.rootGroups[r].group!)
+    dispatchRows(encoder, ceilDiv(listed, 64))
   }
-  pass.end()
   rt.run.gpuComputeDispatches += ranges.length
-}
-
-/** The world words of every page-table row of a linked root, after the CPU rows went up: a thread
- *  each of the rows of the composed roots (`rowList`), and nothing on a frame where no parent, no
- *  link and no row of the table moved. */
-export function encodeComposedRows(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-) {
-  const state = rt.compose,
-    table = rt.vis.pageTable,
-    gpu = frameParents(rt, device)
-  if (!state || !gpu?.parents || !table) return
-  const { rows } = rt.layout
-  if (!rows.rowCount) return
-  // The parts of a row it derives from the composed world, each when what it writes is made: the
-  // shadow cull's spheres while a light casts, the Hi-Z corners with the partition, the shadows'
-  // detail with the light that casts.
-  const inputs = composedRowInputs(rt, device),
-    spheres = linkedRowSpheres(rt),
-    corners = rt.vis.gpuPartition?.corners,
-    lods = rt.lights.rowLods?.buffer
-  if (!inputs) return
-  followComposedRows(rt, state)
-  gpu.rowList = sendList(device, gpu.rowList, 'Trillion3D composed rows', state.rowList)
-  const listed = state.rowList.set.count
-  if (!listed) return
-  const pipeline = composeKernels(device).rows.get()
-  const held = gpu.rowsGroup,
-    { frame } = gpu
-  frame.table = table
-  frame.spheres = spheres?.buffer ?? gpu.absent[0]
-  frame.inputs = inputs.buffer
-  frame.corners = corners ?? gpu.absent[1]
-  frame.lods = lods ?? gpu.absent[2]
-  held.identity.entries[0] ??= rowEntries(gpu)
-  const bound = composeGroup(device, held, pipeline)
-  // The rows it writes hold what it wrote last unless a parent or a link moved, or the host wrote
-  // a row since (`rowsWritten`, the table's age): a still view writes none.
-  if (
-    state.composedAt === state.ranAt.rows &&
-    !bound &&
-    !state.rowsWritten &&
-    rows.tableEpoch === state.ranAt.tableEpoch
-  )
-    return
-  state.ranAt.rows = state.composedAt
-  state.rowsWritten = false
-  state.ranAt.tableEpoch = rows.tableEpoch
-  const params = state.rowParams
-  params[0] = state.roots
-  params[1] = rows.rowCount
-  params[2] = (spheres ? PART_SPHERES : 0) | (corners ? PART_CORNERS : 0) | (lods ? PART_LODS : 0)
-  params[3] = listed
-  device.queue.writeBuffer(gpu.rowParams, 0, params)
-  const pass = encoder.beginComputePass({ label: COMPOSE_ROWS_PASS })
-  pass.setPipeline(pipeline)
-  pass.setBindGroup(0, held.group!)
-  dispatchRows(pass, ceilDiv(listed, 64))
-  pass.end()
-  rt.run.gpuComputeDispatches++
 }

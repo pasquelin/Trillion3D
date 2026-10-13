@@ -1,5 +1,6 @@
 // A group of crystals placed as the instances page places them, the CPU's row write of each, and
-// the compose rows pass (`composeRow`, the shipped WGSL) over such a table, run in JavaScript.
+// the composed worlds (`composed`, the worlds pass) then the rows pass (`deriveRow`), the shipped
+// WGSL, over such a table, run in JavaScript.
 import { TAU } from '../../../math/src/constants.ts'
 import { object } from '../../../sdk-core/src/world/object/index.ts'
 import { geometry } from '../../../sdk-core/src/world/geometry/index.ts'
@@ -8,20 +9,22 @@ import { updateTransformTree } from '../../../sdk-core/src/world/transform-tree/
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../visibility/types.ts'
-import { COMPOSE_ROWS_WGSL, PART_SPHERES } from './gpuComposeWgsl.ts'
-import { ROW_INPUT_DOUBLES } from './composedRowPack.ts'
+import { COMPOSE_WORLDS_WGSL } from './gpuComposeWgsl.ts'
+import { DERIVE_ROWS_WGSL, PART_SPHERES } from './rowWordsWgsl.ts'
+import { INPUT_FLAGS, ROW_HAS_RECORD, ROW_INPUT_DOUBLES } from './rowInputPack.ts'
 import { DOUBLE_HELPERS, countLeadingZeros, pair } from './composeDoubles.fixture.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 export const N = 120
 const pairs = (values: ArrayLike<number>) => Array.from(values, pair)
-/** The rows' inputs of the sphere boxes `boxes` (centre, then half extent, six doubles a row): the
- *  rest of each row's inputs is zero. */
-const inputsOf = (boxes: ArrayLike<number>) =>
+/** The rows' inputs of the sphere boxes `boxes` (centre, then half extent, six doubles a row), each
+ *  row holding a page: the rest of each row's inputs is zero. */
+const inputsOf = (boxes?: ArrayLike<number>) =>
   Array.from({ length: N * ROW_INPUT_DOUBLES }, (_, k) => {
     const row = Math.floor(k / ROW_INPUT_DOUBLES),
       at = k % ROW_INPUT_DOUBLES
-    return pair(at < 6 ? boxes[row * 6 + at] : 0)
+    if (at === INPUT_FLAGS) return [ROW_HAS_RECORD, 0]
+    return pair(at < 6 && boxes ? boxes[row * 6 + at] : 0)
   })
 
 /** A group of `N` crystals placed as the instances page places them, each on its own row. */
@@ -65,7 +68,26 @@ export function cpuTable(meshes: readonly { matrixWorld: { elements: ArrayLike<n
   return ints
 }
 
-/** The compose rows pass over `table`: each row's root linked to slot 0 at `parent`'s world. */
+/** The composed worlds of `N` roots linked to slot 0 at `parent`'s world, as the worlds pass
+ *  writes them: sixteen doubles a root. */
+function composedWorlds(parent: ArrayLike<number>, locals: readonly ArrayLike<number>[]) {
+  const scope = { parents: pairs(parent), locals: [] as number[][] }
+  const run = shaderRun<{ composed(parentAt: number, localAt: number, k: number): number[] }>(
+    COMPOSE_WORLDS_WGSL,
+    // The worlds pass subtracts no double: its text holds no `dSub`.
+    [...DOUBLE_HELPERS.filter((name) => name !== 'dSub'), 'composed'],
+    { countLeadingZeros, ...scope },
+  )
+  const worlds: number[][] = []
+  locals.forEach((local, rank) => {
+    scope.locals.splice(0, scope.locals.length, ...pairs(local))
+    for (let k = 0; k < 16; k++) worlds[rank * 16 + k] = run.composed(0, 0, k)
+  })
+  return worlds
+}
+
+/** The rows pass over `table`: each row's root linked to slot 0 at `parent`'s world, its world the
+ *  worlds pass's. */
 export function composeRows(
   table: Uint32Array,
   parent: ArrayLike<number>,
@@ -73,21 +95,19 @@ export function composeRows(
   spheres?: { out: number[]; boxes: ArrayLike<number>; cast: boolean },
 ) {
   const words = Array.from(table)
-  const run = shaderRun<{ composeRow(row: number): void }>(
-    COMPOSE_ROWS_WGSL,
-    [...DOUBLE_HELPERS, 'toF32', 'fromF32', 'composed', 'composeSphere', 'composeRow'],
+  const run = shaderRun<{ deriveRow(row: number): void }>(
+    DERIVE_ROWS_WGSL,
+    [...DOUBLE_HELPERS, 'toF32', 'fromF32', 'composeSphere', 'clearRow', 'deriveRow'],
     {
       countLeadingZeros,
-      params: { rootCount: N, rowCount: N, parts: spheres?.cast ? PART_SPHERES : 0 },
+      params: { rootCount: N, parts: spheres?.cast ? PART_SPHERES : 0 },
       arrayLength: (ref: { get(): unknown[] }) => ref.get().length,
       spheres: spheres?.out ?? [],
-      inputs: spheres ? inputsOf(spheres.boxes) : [],
-      parentOf: new Array(N).fill(0),
-      parents: pairs(parent),
-      locals: locals.flatMap((local) => pairs(local)),
+      inputs: inputsOf(spheres?.boxes),
+      rootWorlds: composedWorlds(parent, locals),
       table: words,
     },
   )
-  for (let row = 0; row < N; row++) run.composeRow(row)
+  for (let row = 0; row < N; row++) run.deriveRow(row)
   return Uint32Array.from(words)
 }
