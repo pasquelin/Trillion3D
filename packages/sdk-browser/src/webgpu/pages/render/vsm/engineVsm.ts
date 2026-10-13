@@ -74,6 +74,7 @@ import {
   VSM_COUNT_STATIC_KEPT,
 } from '../../../../vsm/constants.ts'
 import type { VsmResourceOptions } from '../../../../vsm/layout.ts'
+import type { VsmFrameScratch } from './vsmEncode.ts'
 
 /** Directional clipmap levels a sun takes. */
 const CLIPMAP_LEVELS = VSM_SUN_COARSEST_LEVEL - VSM_SUN_FINEST_LEVEL + 1
@@ -134,6 +135,8 @@ export interface EngineVsm {
   countersOn: boolean
   /** Whether the maps have settled, and their contents' version (`../../state/vsmSettle.ts`). */
   settle: VsmSettle
+  /** What its frames rebuild in place (`./vsmEncode.ts`), made at its first frame. */
+  frameScratch?: VsmFrameScratch
   /** Diagnostics of the last frame. */
   stats: {
     lights: number

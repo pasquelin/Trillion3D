@@ -4,12 +4,7 @@ import type { SceneLight } from '../../../../../../sdk-core/src/index.ts'
 import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
-import {
-  planVirtualShadowFrame,
-  vsmLightSeen,
-  vsmSeenPlanes,
-  type VsmFrameLight,
-} from '../../../../vsm/frameSetup.ts'
+import { planVirtualShadowFrame, vsmLightSeen, vsmSeenPlanes } from '../../../../vsm/frameSetup.ts'
 import { FRUSTUM_PLANE_VALUES } from '../../../../../../math/src/geometry/frustum/frustum.ts'
 import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
 import { vsmInvalidationPhaseFromShadowBoxes } from '../../../../vsm/invalidationPass.ts'
@@ -37,9 +32,6 @@ import { shadowHeldBytes } from './vsmStats.ts'
 import { shadowRowBytes } from '../../../shadow/rowBuffers.ts'
 
 const seenPlanes = new Float64Array(FRUSTUM_PLANE_VALUES)
-/** Each runtime's light lists, rewritten in place: the plan's, and the reserve's (`vsmReserveBytes`),
- *  apart so that neither rewrites the other's while it is read. */
-const LISTS = new WeakMap<WebgpuPagesRuntime, { plan: VsmFrameLight[]; reserve: VsmFrameLight[] }>()
 
 /** The light store as the frame plan reads it, into `lights`: every declared light, at its slot.
  *  Seen from `cam` — the plan's, else the last image's —, a local light no lit point of the frame
@@ -51,9 +43,7 @@ function frameLights(
   which: 'plan' | 'reserve',
   cam = rt.run.lastCamera ? rt.run.gate.cam : undefined,
 ) {
-  let lists = LISTS.get(rt)
-  if (!lists) LISTS.set(rt, (lists = { plan: [], reserve: [] }))
-  const lights = lists[which]
+  const lights = (rt.lights.vsmLights ??= { plan: [], reserve: [] })[which]
   const { store } = rt.lights,
     size = rt.gpu.targetSize
   const planes = cam && vsmSeenPlanes(seenPlanes, cam.view, cam.projection, size[0], size[1])
