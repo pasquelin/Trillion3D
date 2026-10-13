@@ -48,7 +48,9 @@ const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
   'eac-rg11unorm': 16,
 }
 
-function extent(size: GPUExtent3D): [number, number, number] {
+/** A `GPUExtent3D`, a sequence or a dictionary, as its width, height and depth or layers: what
+ *  WebGPU leaves out is one. */
+export function extentOf(size: GPUExtent3D): [number, number, number] {
   if (Array.isArray(size)) return [size[0] ?? 1, size[1] ?? 1, size[2] ?? 1]
   const s = size as GPUExtent3DDict
   return [s.width, s.height ?? 1, s.depthOrArrayLayers ?? 1]
@@ -61,7 +63,7 @@ export function textureBytesOf(
   const perTexel = BYTES_PER_TEXEL[descriptor.format]
   const perBlock = BYTES_PER_BLOCK[descriptor.format]
   if (perTexel === undefined && perBlock === undefined) return null
-  const [width, height, depth] = extent(descriptor.size)
+  const [width, height, depth] = extentOf(descriptor.size)
   const levels = descriptor.mipLevelCount ?? 1
   const volume = descriptor.dimension === '3d'
   let bytes = 0

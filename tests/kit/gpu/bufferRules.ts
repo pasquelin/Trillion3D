@@ -1,4 +1,5 @@
 import { BUFFER, TEXTURE, srgbPair } from './formats.ts'
+import { extentOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 import type { TextureInfo } from './textureRules.ts'
 
 /**
@@ -88,8 +89,7 @@ export function checkTextureWrite(texture: TextureInfo | undefined, external = f
 /** The rows a copy moves between a buffer and a texture, by the size it copies. */
 const rowsOf = (size: GPUExtent3D | undefined) => {
   if (!size || typeof size !== 'object') return { height: 1, layers: 1 }
-  const [, height = 1, layers = 1] =
-    'width' in size ? [size.width, size.height, size.depthOrArrayLayers] : [...size]
+  const [, height, layers] = extentOf(size)
   return { height, layers }
 }
 
