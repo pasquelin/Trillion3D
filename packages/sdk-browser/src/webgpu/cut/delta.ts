@@ -73,15 +73,17 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  *
  * The main cut arrives there by its ids and the ranks its readback claims for them (`apply` with
  * claims), a view drawn aside by its ids alone (`apply`), the bootstrap cover by its records
- * (`adoptRecords`): one contract, and readers do not know which one decides.
+ * (`adoptRecords`): one contract, and readers do not know which one decides. A list of ids that
+ * names no record — the row demand's (`../row/rowDemand.ts`), a plan's pins — passes no
+ * `packedPages`: every id it names is listed, and its marks follow what it holds as the cut's do.
  */
-export function createCutDelta(packedPages: PageList, pages?: PageRec[]): CutDelta {
+export function createCutDelta(packedPages?: PageList, pages?: PageRec[]): CutDelta {
   /** Page ranks of a record list. Emptied then filled by push, never grown by its length: an array
    *  grown that way stays holed for life, and the engine's hottest loop pays for it. Measured:
    *  1.611 ms against 1.737 ms for an equivalent typed buffer. */
   const recordIds: number[] = []
   const delta: HeldDelta = {
-    recordOf: createPageCatalogue(packedPages).recordOf,
+    recordOf: packedPages && createPageCatalogue(packedPages).recordOf,
     mark: createSparseInts(),
     pages,
     // Epochs start at 1: an id without a mark reads 0, never a current or previous epoch.

@@ -1,5 +1,5 @@
 // A readback costs the row demand its lists' marks, never the catalogue: each list — drawn, asked,
-// asked ahead — reaches it as a difference of plain ids (`listDifference.ts`), and no page record is
+// asked ahead — reaches it as a difference of plain ids (`../cut/delta.ts`), and no page record is
 // read, nor any catalogue made over the packed instances, at 10³ as at 10⁵ of them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -59,7 +59,7 @@ test('a readback reads no page record and makes no catalogue, at 10³ and 10⁵ 
   }
 })
 
-test('per readback, the lists are marked with no hash probe, and the row table read per change', () => {
+test('per readback, the row table is read per change, never per id named', () => {
   const count = 1e5,
     table = pageStateOf(count)
   // An instance in eight holds a row, resident.
@@ -75,9 +75,15 @@ test('per readback, the lists are marked with no hash probe, and the row table r
     demand.follow(cut)
     named += cut.drawablePageIds.length + cut.pageIds.length + cut.aheadPageIds.length
   }
-  // The marks are a byte an id up to the largest named — dense, read with no probe —, the
-  // difference's and the demand's alike.
-  assert.ok(demand.bytes >= 2 * Math.max(...readbacks(count, 24).flatMap((c) => c.drawablePageIds)))
   // The row table is read for what entered or left the held closure alone, never per id named.
   assert.ok(rowReads < named / 4, `${rowReads} row reads for ${named} ids named`)
+})
+
+test('the lists hold bytes by the ids they hold, never by the largest: one asked at 10⁹', () => {
+  const far = 1e9,
+    demand = createRowDemand(pageStateOf(far + 1), createRowUse(8), () => false, closeAlone)
+  demand.follow({ drawablePageIds: [far, 3], pageIds: [far], aheadPageIds: [far - 1] })
+  demand.follow({ drawablePageIds: [3], pageIds: [far - 2], aheadPageIds: [] })
+  // A mark per id up to the largest named would weigh a gigabyte a list.
+  assert.ok(demand.bytes < 1 << 16, `${demand.bytes} bytes for four ids held`)
 })

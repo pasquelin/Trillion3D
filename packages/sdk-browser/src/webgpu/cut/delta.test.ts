@@ -126,3 +126,16 @@ test('the published sequence decides the flag: same order no, same set in anothe
   delta.apply([])
   assert.equal(delta.changed, true, 'an empty cut is not the one that was held')
 })
+
+test('a list of ids alone lists every id once, its marks following the ids it holds', () => {
+  const delta = createCutDelta(),
+    far = 1e9
+  delta.apply([far, 4, far, 2])
+  assert.deepEqual(listOf(delta), [far, 4, 2], 'each id once, in list order')
+  assert.deepEqual([...delta.ids].slice(0, delta.count), [far, 4, 2])
+  delta.apply([2, 7])
+  assert.deepEqual(listOf(delta), [7])
+  assert.deepEqual(goneOf(delta), [far, 4], 'exits in the held order')
+  assert.ok(delta.has(7) && !delta.has(far))
+  assert.ok(delta.hostBytes < 1 << 12, `${delta.hostBytes} bytes for two ids held`)
+})

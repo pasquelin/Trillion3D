@@ -3,9 +3,8 @@ import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { RowUse } from './rowUse.ts'
 import { serveInOrder } from './claims.ts'
-import { createListDifference } from './listDifference.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
-import type { IdDelta } from '../cut/delta.ts'
+import { createCutDelta, type CutDelta, type IdDelta } from '../cut/delta.ts'
 
 /** What a readback names, as packed instances: those its cut drew, and those it asks for — the
  *  camera's, then the view ahead's — in the order the GPU ranked them (`../../gpu/dag/request.ts`). */
@@ -36,7 +35,8 @@ const STOP = () => true
  * full. One still waiting for its bytes stays marked and takes its row when they land.
  *
  * Nothing is closed over again per readback: each list — drawn, asked, asked ahead — reaches the
- * demand as its difference (`listDifference.ts`), and two counted closures follow the differences
+ * demand as its difference (`../cut/delta.ts`, a list of ids alone: its marks follow the ids it
+ * holds, never the largest), and two counted closures follow the differences
  * alone: the closure of every list holds the rows in use (a group-mate outside the view keeps a
  * drawn page ready), the closure of the requests the instances wanted. What a difference brings is
  * listed in the readback's order, each group-mate behind the request it came in with. A page whose
@@ -69,9 +69,9 @@ export function createRowDemand(
   const d: DemandState = {
     ...{ table, use, drawsRow },
     lists: {
-      drawn: createListDifference(),
-      asked: createListDifference(),
-      ahead: createListDifference(),
+      drawn: createCutDelta(),
+      asked: createCutDelta(),
+      ahead: createCutDelta(),
     },
     held: closure(),
     asking: closure(),
@@ -162,14 +162,14 @@ type DemandState = {
   use: RowUse
   drawsRow: (page: number) => boolean
   /** Each list's difference from the readback followed before. */
-  lists: Record<'drawn' | 'asked' | 'ahead', ReturnType<typeof createListDifference>>
+  lists: Record<'drawn' | 'asked' | 'ahead', CutDelta>
   /** The closure of every list: the rows in use. */
   held: InstanceClosure
   /** The closure of the requests: the instances wanted. */
   asking: InstanceClosure
   /** Per instance, `WANTED` while the requests' closure holds it, `LISTED` while it is in `list`:
    *  a byte an instance up to the largest the readbacks named, read per id at each readback with
-   *  no probe (`listDifference.ts` keeps its marks so too). */
+   *  no probe. */
   marks: Uint8Array
   list: Int32Array
   /** Per entry of `list`, the request it came in with: itself, or the one its group-mate asked. */

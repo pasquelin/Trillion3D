@@ -66,9 +66,9 @@ export function applyClaimed(
       continue
     }
     const id = ids[w],
-      rec = recordOf(id)
+      rec = recordOf?.(id)
     // No record: the list never holds it. Marked by this list already: a repeat.
-    const seen = rec ? mark.set(id, PENDING) : PENDING
+    const seen = rec || !recordOf ? mark.set(id, PENDING) : PENDING
     if (seen === PENDING) {
       next[w] = SKIPPED
       skipped++
