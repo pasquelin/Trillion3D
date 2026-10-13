@@ -2,7 +2,7 @@
 // cuts and surfaces, and the words the proxy's buffer holds as the last writes left them.
 import { placementField } from './placementTree.fixture.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice, writtenBytes } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import type { PageSurface } from '../../page/surface.ts'
@@ -36,27 +36,27 @@ export const surface = (emissive: number, version = 1): PageSurface =>
   }) as unknown as PageSurface
 
 /** The writes of the proxy's buffer. */
-export const writes = (gpu: ReturnType<typeof mockGpu>) =>
-  gpu.writes.filter(({ label }) => label === LABEL)
+export const writes = (gpu: ReturnType<typeof fakeDevice>) =>
+  gpu.writes.filter(({ buffer }) => buffer.label === LABEL)
 const words = (bytes: Uint8Array) =>
   new Uint32Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
 /** The word at `index` (counted from the header) of the last write that covers it. */
-export function wordAt(gpu: ReturnType<typeof mockGpu>, index: number) {
+export function wordAt(gpu: ReturnType<typeof fakeDevice>, index: number) {
   const at = (RUNTIME_HEADER_WORDS + index) * 4
   for (const write of writes(gpu).reverse())
-    if (write.offset <= at && at < write.offset + write.bytes.byteLength)
-      return words(write.bytes)[(at - write.offset) / 4]
+    if (write.offset <= at && at < write.offset + write.data.byteLength)
+      return words(writtenBytes(write))[(at - write.offset) / 4]
   throw new Error(`no write covers word ${index}`)
 }
 
 /** The header as the last write of it left it, and where a region of the buffer starts by it. */
-function headerOf(gpu: ReturnType<typeof mockGpu>) {
+function headerOf(gpu: ReturnType<typeof fakeDevice>) {
   const last = writes(gpu)
     .filter(({ offset }) => offset === 0)
     .at(-1)!
-  return words(last.bytes)
+  return words(writtenBytes(last))
 }
-export const region = (gpu: ReturnType<typeof mockGpu>, name: keyof typeof RUNTIME_HEADER) =>
+export const region = (gpu: ReturnType<typeof fakeDevice>, name: keyof typeof RUNTIME_HEADER) =>
   headerOf(gpu)[RUNTIME_HEADER[name]]
 
 export async function open(
@@ -66,7 +66,7 @@ export async function open(
   const roots = placementField(4, 3)
   roots.forEach((root, w) => (root.proxy = wear(w)))
   const packed = packDagSelection(roots)
-  const gpu = mockGpu({ packed, limits: LIMITS })
+  const gpu = fakeDevice({ ...BACKEND, packed, limits: LIMITS })
   const selection = (await createGpuDagSelection(gpu.device, packed))!
   return { roots, packed, gpu, selection }
 }

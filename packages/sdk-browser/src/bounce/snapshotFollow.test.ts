@@ -9,7 +9,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER, snapshotGroups } from './probeWgsl.ts'
 import { PROBE_TEXELS } from './atlas.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createGpuBounceProbes } from './probes.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, BOUNCE_PASS } from '../stage/passLabels.ts'
@@ -28,7 +28,7 @@ const atlas = (width: number, height: number, layers: number, fill: () => number
 const at = (a: Atlas, [x, y]: number[], layer: number) => (layer * a.height + y) * a.width + x
 
 test('after the follow-up, the snapshot is the probes, word for word', () => {
-  const r = random(7),
+  const r = lcgRandom(7),
     side = 3,
     levels = 2,
     width = side * PROBE_TEXELS,

@@ -7,7 +7,7 @@ import { fieldCamera, placementField } from './placementTree.fixture.ts'
 import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { dagRootCounts } from './pack.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { LIMITS, cut, open, region, surface, wordAt, writes } from './proxyInstances.fixture.ts'
 import { INSTANCE, INSTANCE_WORDS, RUNTIME_NONE } from '../../bounce/runtimeLayout.ts'
@@ -44,7 +44,7 @@ test('placements of one cut share its columns; each names its cut, its surface a
   // No proxy: none, whatever the others wear.
   assert.equal(instance(15, INSTANCE.node), RUNTIME_NONE)
   // The cut is written once.
-  const triangleWrites = writes(gpu).filter(({ bytes }) => bytes.byteLength === 5 * 9 * 4)
+  const triangleWrites = writes(gpu).filter(({ data }) => data.byteLength === 5 * 9 * 4)
   assert.equal(triangleWrites.length, 1, 'one upload of the shared cut')
   selection.dispose()
 })
@@ -100,7 +100,7 @@ test('roots appended behind the others join with their instances', async () => {
     nodes: 2 * counts.nodes,
     worlds: 2 * roots.length,
   })
-  const gpu = mockGpu({ packed, limits: LIMITS })
+  const gpu = fakeDevice({ ...BACKEND, packed, limits: LIMITS })
   const selection = (await createGpuDagSelection(gpu.device, packed))!
   assert.equal(selection.appendRoots(roots.slice(10)), true)
   const node = (w: number) =>
