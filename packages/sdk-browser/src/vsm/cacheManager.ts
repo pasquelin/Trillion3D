@@ -29,7 +29,7 @@ import {
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { vsmDefaultProjectionData, type VsmProjectionDataValues } from './projectionData.ts'
 import {
-  createReadbackRing as createVsmReadbackRing,
+  createReadbackRing,
   type ReadbackRing as VsmReadbackRing,
 } from '../gpu/core/readbackRing.ts'
 import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
@@ -484,7 +484,7 @@ export class VsmFeedbackReadback {
   private readonly ring: VsmReadbackRing
 
   constructor(device: GPUDevice, cache: VsmCacheManager, maxInFlight = 3) {
-    this.ring = createVsmReadbackRing(
+    this.ring = createReadbackRing(
       device,
       { label: 'vsm.feedbackReadback', bytes: 16, count: maxInFlight },
       (mapped) => {

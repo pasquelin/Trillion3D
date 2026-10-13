@@ -28,20 +28,19 @@ import { arrayView } from '../gpu/core/textureViews.ts'
  * the power of two that holds it.
  */
 import {
-  createVsmRowBound,
   vsmWorstChunk,
   type VsmBoundLight,
   type VsmChunk,
   type VsmRowBound,
 } from './rowPageBound.ts'
-import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import type { WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { vsmComputePipe } from './passKit.ts'
 import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import type { VsmLayout } from './layout.ts'
 import { storageBufferCap, type UniformSlots } from '../residency/pools.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
-import { createReadbackRing as createVsmReadbackRing } from '../gpu/core/readbackRing.ts'
+import { createReadbackRing } from '../gpu/core/readbackRing.ts'
 import { writeChanged } from '../gpu/core/writeChanged.ts'
 import { shadowPageEntries } from '../webgpu/shadow/pageGroup.ts'
 import {
@@ -57,6 +56,7 @@ import {
   vsmChunkKernels,
   vsmChunkListGroups,
   vsmChunkListSizes,
+  vsmChunkContext,
   vsmChunkPasses,
   vsmChunkParamSlots,
   vsmChunkRows,
@@ -282,7 +282,7 @@ export function createVsmTransmission(
     { build } = buffers
   const memory = transmissionMemory(device, layout, caps.blocks)
   // The counters, read back a few frames late.
-  const feedback = createVsmReadbackRing(
+  const feedback = createReadbackRing(
     device,
     {
       label: `${TRANSMISSION_LABEL}.feedback`,
@@ -471,8 +471,6 @@ function context(trans: VsmTransmission, device: GPUDevice): Ctx {
   const existing = contexts.get(trans)
   if (existing && existing.device === device) return existing
   const { layout } = trans
-  // The chunks' parameter slots lie at the device's dynamic-offset alignment.
-  const slots = vsmChunkParamSlots(device.limits)
   const ctx: Ctx = {
     device,
     ...vsmTransmissionPipes(device, layout),
@@ -483,11 +481,7 @@ function context(trans: VsmTransmission, device: GPUDevice): Ctx {
       vsmRenderCullWgsl(layout, { marksDirty: false }),
     ),
     buffers: {},
-    slots,
-    passes: vsmChunkPasses(TRANSMISSION_LABEL, slots),
-    bound: createWebgpuBindIdentity(),
-    tables: new WeakMap(),
-    rowBound: existing?.rowBound ?? createVsmRowBound(),
+    ...vsmChunkContext(TRANSMISSION_LABEL, device.limits, existing),
   }
   contexts.set(trans, ctx)
   return ctx
