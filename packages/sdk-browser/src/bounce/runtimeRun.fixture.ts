@@ -3,16 +3,25 @@
 import * as G from '../host/graph/graph.fixture.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { HISTORY, HISTORY_HEADER_WORDS, HISTORY_PIXEL_WORDS } from '../reflections/proxyHistory.ts'
+import { TRACE_LIST, TRACE_LIST_FIRST } from './runtimeLayout.ts'
 import { runtimeTraceWgsl } from './runtimeTraceWgsl.ts'
 import type { Hit, Vec, world } from './runtimeScene.fixture.ts'
 
 /** The functions of the program the run reaches, each named: the interpreter follows the library's alone. */
 const FUNCTIONS = [
   'rtRadiance',
-  'rtAnswer',
+  'rtLobeAnswer',
+  'rtCellRead',
+  'rtCellWrite',
+  'rtCellAnswer',
+  'rtPackShared',
+  'rtUnpackShared',
   'rtStamp',
-  'rtKept',
+  'rtCapOf',
+  'rtRotation',
+  'rtSequence',
+  'rtSampleLobe',
+  'rtLobePdf',
   'rtSurfaceOf',
   'rtShade',
   'rtScene',
@@ -31,13 +40,33 @@ const FUNCTIONS = [
   'rtTreeLow',
   'rtTreeHigh',
 ]
-const BINDINGS = { group: 0, proxy: 12, nodes: 13, cold: 14, worlds: 15, history: 16 }
+const BINDINGS = { group: 0, proxy: 12, nodes: 13, cold: 14, worlds: 15, list: 8, store: 9 }
 
-export function runOver(w: ReturnType<typeof world>, history: number[] = [0, 0, 0, 0], epoch = 2) {
+/** The store of the answers as the shader reads it: two layers of words a pixel, keyed by texel. */
+export function makeStore() {
+  const words = new Map<string, number>()
+  const key = (at: number[], layer: number) => `${at[0]},${at[1]},${layer}`
+  return {
+    words,
+    get: (at: number[], layer: number) => words.get(key(at, layer)) ?? 0,
+    set: (at: number[], layer: number, word: number) => void words.set(key(at, layer), word >>> 0),
+  }
+}
+export type Store = ReturnType<typeof makeStore>
+
+/** The epochs a frame is of: the scene's and the view's. */
+export type Epochs = [scene: number, view: number]
+
+export function runOver(
+  w: ReturnType<typeof world>,
+  list: number[] = counters(0),
+  epochs: Epochs = [2, 2],
+  store: Store = makeStore(),
+) {
   const { packed, header, nodes, cold } = w
   const text =
     wgslModule(runtimeTraceWgsl(BINDINGS)) +
-    'fn testWork()->u32{return rtWork;}\nfn testTests()->u32{return rtTests;}\nfn testReset(){rtWork=0u;rtTests=0u;}\nfn testPixel(p:u32){rtPixel=p;rtCalls=0u;}\n'
+    'fn testWork()->u32{return rtWork;}\nfn testTests()->u32{return rtTests;}\nfn testReset(){rtWork=0u;rtTests=0u;}\nfn testPixel(x:u32,y:u32,n:u32){rtPixel=vec2u(x,y);rtCalls=0u;rtRank=n;}\n'
   return shaderRun<{
     rtScene: (o: Vec, d: Vec, limit: number) => Hit
     rtRadiance: (
@@ -46,8 +75,20 @@ export function runOver(w: ReturnType<typeof world>, history: number[] = [0, 0, 
       reach: number,
       tangent: number,
     ) => { color: Vec; confidence: number }
-    rtAnswer: (o: Vec, d: Vec, reach: number, tangent: number) => { color: Vec; confidence: number }
-    testPixel: (pixel: number) => void
+    rtLobeAnswer: (
+      p: Vec,
+      n: Vec,
+      v: Vec,
+      alpha: number,
+      reach: number,
+      tangent: number,
+    ) => { color: Vec; confidence: number }
+    rtPackShared: (c: Vec) => number
+    rtUnpackShared: (word: number) => Vec
+    rtSampleLobe: (n: Vec, v: Vec, alpha: number, u: [number, number]) => Vec
+    rtLobePdf: (n: Vec, v: Vec, alpha: number, l: Vec) => number
+    rtSequence: (k: number, p: [number, number]) => [number, number]
+    testPixel: (x: number, y: number, rank: number) => void
     testWork: () => number
     testTests: () => number
     testReset: () => void
@@ -58,11 +99,14 @@ export function runOver(w: ReturnType<typeof world>, history: number[] = [0, 0, 
     rtWorlds: packed.worlds,
     rtWork: 0,
     rtTests: 0,
-    rtPixel: 0,
+    rtPixel: [0, 0],
     rtCalls: 0,
     rtRank: 0,
-    rtHistory: history,
-    reflectionView: { runtime: [epoch, 0, 0, 0] },
+    rtList: list,
+    rtStore: store,
+    textureLoad: (t: Store, at: number[], layer: number) => [t.get(at, layer), 0, 0, 0],
+    textureStore: (t: Store, at: number[], layer: number, v: number[]) => t.set(at, layer, v[0]),
+    reflectionView: { runtime: [epochs[0], epochs[1], 0, 0] },
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec) => tint,
     RtSurface: (tint: Vec, opacity: number, emission: Vec, blended: boolean) => ({
@@ -72,6 +116,13 @@ export function runOver(w: ReturnType<typeof world>, history: number[] = [0, 0, 
       blended,
     }),
     RtRadiance: (color: Vec, confidence: number) => ({ color, confidence }),
+    RtCell: (premult: Vec, confidence: number, count: number, scene: number, view: number) => ({
+      premult,
+      confidence,
+      count,
+      scene,
+      view,
+    }),
     Box: (low: Vec, high: Vec) => ({ low, high }),
     ProxyChild: (
       box: unknown,
@@ -107,9 +158,9 @@ export const along = (count: number, gap: number) =>
 export const ahead: Vec = [1, 0, 0]
 export const origin: Vec = [0, 0, 0]
 
-/** A history of `pixels` pixels at epoch `epoch`, `spent` of the frame's work gone. */
-export const history = (pixels: number, spent: number) => {
-  const words = new Array<number>(HISTORY_HEADER_WORDS + pixels * HISTORY_PIXEL_WORDS).fill(0)
-  words[HISTORY.spent] = spent
+/** The trace's list of a frame that has spent `spent` of its work: the counters, no tile. */
+export const counters = (spent: number) => {
+  const words = new Array<number>(TRACE_LIST_FIRST).fill(0)
+  words[TRACE_LIST.spent] = spent
   return words
 }

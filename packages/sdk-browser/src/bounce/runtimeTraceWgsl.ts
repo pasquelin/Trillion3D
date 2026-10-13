@@ -1,6 +1,7 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { byteOf } from '../../../math/src/wgsl/integer.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import {
   rayBoxEntry,
   rayInverseDirection,
@@ -19,29 +20,36 @@ import { TREE_GROUP } from '../gpu/dag/placementTree.ts'
 import { BOUNCE_NODE_WGSL, wideNodeFns } from './nodeWgsl.ts'
 import { BOUNCE_TRACE_WGSL, wideTraversal } from './traceWgsl.ts'
 import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
-import { HISTORY, HISTORY_HEADER_WORDS, HISTORY_PIXEL_WORDS } from '../reflections/proxyHistory.ts'
+import { RUNTIME_ANSWER_WGSL } from './runtimeAnswerWgsl.ts'
 import {
   FRAME_WORK,
   INSTANCE_WORDS,
+  MIRROR_ALPHA,
+  MOTION_COUNT,
   RAY_LAYERS,
   RAY_TRIANGLES,
   RAY_WORK,
   RUNTIME_NONE,
+  SAMPLE_CAP,
+  SCENE_COUNT,
+  STORE_BITS,
   SURFACE_BLENDED,
   SURFACE_WORDS,
+  TRACE_LIST,
 } from './runtimeLayout.ts'
 
 /** The bindings of the run-time proxy in the program that casts its rays: its own buffer, the
  *  culling's nodes and cold table (the placement tree and its member order), the world matrices
- *  of the first range (`gpu/dag/frameRanges.ts`) and the history of the answers
- *  (`reflections/proxyHistory.ts`). */
+ *  of the first range (`gpu/dag/frameRanges.ts`), the trace's list with the frame's counters and the store of
+ *  the answers (`runtimeLayout.ts`). */
 export type RuntimeBindings = {
   group: number
   proxy: number
   nodes: number
   cold: number
   worlds: number
-  history: number
+  list: number
+  store: number
 }
 
 /** Tree levels a ray walks down at most: a tree of 64-way nodes holds 2⁴² members in seven. */
@@ -67,9 +75,17 @@ const TREE_DEPTH = 8
  * (`surfaceLit`), the shadows traced against the cooked proxy alone. A cut whose placement deforms is
  * traced at its rest shape, its confidence cut by the placement's reach against the footprint.
  */
-export const runtimeTraceWgsl = ({ group, proxy, nodes, cold, worlds, history }: RuntimeBindings) =>
+export const runtimeTraceWgsl = ({
+  group,
+  proxy,
+  nodes,
+  cold,
+  worlds,
+  list,
+  store,
+}: RuntimeBindings) =>
   wgslBlock(
-    `runtimeTraceWgsl(${group}, ${proxy}, ${nodes}, ${cold}, ${worlds}, ${history})`,
+    `runtimeTraceWgsl(${group}, ${proxy}, ${nodes}, ${cold}, ${worlds}, ${list}, ${store})`,
     [
       BOUNCE_NODE_WGSL,
       BOUNCE_TRACE_WGSL,
@@ -99,15 +115,21 @@ ${wgslConsts({
   RT_INSTANCE_WORDS: INSTANCE_WORDS,
   RT_WORLD_WORDS: 16,
   RT_FRAME_WORK: FRAME_WORK,
-  RT_HISTORY_HEADER: HISTORY_HEADER_WORDS,
-  RT_HISTORY_PIXEL: HISTORY_PIXEL_WORDS,
-  RT_LEFT: HISTORY.left,
-  RT_SPENT: HISTORY.spent,
-  RT_OFFSET: HISTORY.offset,
-  RT_CURSOR: HISTORY.cursor,
+  RT_LEFT: TRACE_LIST.left,
+  RT_SPENT: TRACE_LIST.spent,
+  RT_OFFSET: TRACE_LIST.offset,
+  RT_CURSOR: TRACE_LIST.cursor,
+  RT_SAMPLE_CAP: SAMPLE_CAP,
+  RT_MOTION_COUNT: MOTION_COUNT,
+  RT_SCENE_COUNT: SCENE_COUNT,
+  RT_CONFIDENCE_MAX: 2 ** STORE_BITS.confidence - 1,
+  RT_COUNT_SHIFT: STORE_BITS.confidence,
+  RT_SCENE_SHIFT: STORE_BITS.confidence + STORE_BITS.count,
+  RT_VIEW_SHIFT: STORE_BITS.confidence + STORE_BITS.count + STORE_BITS.scene,
   RT_SURFACE_WORDS: SURFACE_WORDS,
   RT_TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
 })}
+const RT_MIRROR_ALPHA:f32=${wgslF32(MIRROR_ALPHA)};
 struct RuntimeProxy{
  instances:u32,instancesWord:u32,surfacesWord:u32,trianglesWord:u32,
  copyWorldsWord:u32,boundsWord:u32,childrenWord:u32,treeRoot:u32,
@@ -119,7 +141,8 @@ struct RuntimeProxy{
 @group(${group}) @binding(${nodes}) var<storage,read> rtNodes:array<u32>;
 @group(${group}) @binding(${cold}) var<storage,read> rtCold:array<u32>;
 @group(${group}) @binding(${worlds}) var<storage,read> rtWorlds:array<f32>;
-@group(${group}) @binding(${history}) var<storage,read_write> rtHistory:array<atomic<u32>>;
+@group(${group}) @binding(${list}) var<storage,read_write> rtList:array<atomic<u32>>;
+@group(${group}) @binding(${store}) var rtStore:texture_storage_2d_array<r32uint,read_write>;
 /** The ray's spending: box tests and node visits in \`rtWork\`, triangle tests in \`rtTests\`. */
 var<private> rtWork:u32;
 var<private> rtTests:u32;
@@ -321,50 +344,10 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
 }
 
 /** The pixel the trace is at, and the rays it has asked of the proxy for it: the first is the base
- *  lobe's, which keeps its answer in the history (\`rtAnswer\`); a coat's goes without. */
-var<private> rtPixel:u32;
+ *  lobe's, which keeps its answer in the store (\`rtLobeAnswer\`); a coat's goes without. */
+var<private> rtPixel:vec2u;
 var<private> rtRank:u32;
 var<private> rtCalls:u32;
-/** An epoch's stamp on eight bits, never zero: a pixel never answered holds none. */
-fn rtStamp(epoch:u32)->u32{return epoch%255u+1u;}
-/**
- * \`rtRadiance\`, within the frame's budget and from the history: a ray is cast while the frame has
- * spent under \`RT_FRAME_WORK\` — one a frame at \`RT_WORK\` at most, and the trace starts at another tile
- * each image (\`ReflectionView.runtime\`) —, its work added to the frame's, its answer kept for its
- * pixel under the epoch's stamp. A ray the budget leaves out answers what its pixel last got, and is
- * counted as left when that answer is older than the epoch (\`HISTORY.left\`): the view settles
- * (\`settle.ts\`) when none is. No placement wearing a proxy, no ray: nothing is read or written.
- */
-fn rtAnswer(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
- if(rtProxy.instances==0u){return RtRadiance(vec3f(0.0),0.0);}
- let first=rtCalls==0u;
- rtCalls++;
- let at=RT_HISTORY_HEADER+rtPixel*RT_HISTORY_PIXEL;
- let stamp=rtStamp(reflectionView.runtime.x);
- var high=0u;
- if(first){
-  high=atomicLoad(&rtHistory[at+1u]);
-  // An answer of this epoch is the answer: no ray is cast again for it, whatever budget is left.
-  if((high>>24u)==stamp){return rtKept(at,high);}
- }
- if(atomicLoad(&rtHistory[RT_SPENT])<RT_FRAME_WORK){
-  let seen=rtRadiance(origin,direction,reach,tangent);
-  atomicAdd(&rtHistory[RT_SPENT],rtWork);
-  if(first){
-   atomicMax(&rtHistory[RT_CURSOR],rtRank+1u);
-   atomicStore(&rtHistory[at],pack2x16float(seen.color.xy));
-   atomicStore(&rtHistory[at+1u],(pack2x16float(vec2f(seen.color.z,0.0))&0xffffu)|(u32(round(clamp(seen.confidence,0.0,1.0)*255.0))<<16u)|(stamp<<24u));
-  }
-  return seen;
- }
- if(!first){return RtRadiance(vec3f(0.0),0.0);}
- atomicAdd(&rtHistory[RT_LEFT],1u);
- return rtKept(at,high);
-}
-/** The answer a pixel kept: its colour and its confidence, of whatever epoch. */
-fn rtKept(at:u32,high:u32)->RtRadiance{
- let rg=unpack2x16float(atomicLoad(&rtHistory[at]));
- return RtRadiance(vec3f(rg,unpack2x16float(high&0xffffu).x),f32((high>>16u)&255u)/255.0);
-}
+${RUNTIME_ANSWER_WGSL}
 `,
   )

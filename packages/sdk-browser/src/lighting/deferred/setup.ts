@@ -9,7 +9,7 @@ import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts'
 import { PROXY_HEADER_BYTES } from '../../bounce/sizes.ts'
-import { HISTORY_HEADER_WORDS } from '../../reflections/proxyHistory.ts'
+import { STORE_LAYERS } from '../../bounce/runtimeLayout.ts'
 import { RUNTIME_HEADER_WORDS } from '../../bounce/runtimeLayout.ts'
 import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
@@ -199,11 +199,12 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: (RUNTIME_HEADER_WORDS + 1) * 4,
     usage: GPUBufferUsage.STORAGE,
   })
-  // The run-time proxy's history, a view that holds none: four words the trace's frame counters write.
-  const history = device.createBuffer({
-    label: 'Trillion3D empty run-time proxy history',
-    size: HISTORY_HEADER_WORDS * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  // The run-time proxy's store, a view that holds none: one texel of two layers, which no pixel reads.
+  const store = device.createTexture({
+    label: 'Trillion3D empty run-time proxy store',
+    size: [1, 1, STORE_LAYERS],
+    format: 'r32uint',
+    usage: GPUTextureUsage.STORAGE_BINDING,
   })
   const receiver = receiverPlaceholders(device)
   const vsm = createVsmPlaceholders(device)
@@ -222,7 +223,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     probes: arrayView(probes),
     proxy,
     runtime,
-    history,
+    store: store.createView({ dimension: '2d-array' }),
     receiver: receiver.resources,
     reflection: reflection.createView(),
     /** The empty normal atlas: what a transparent item without normals reads (zeros). */
@@ -237,7 +238,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
       probes.destroy()
       proxy.destroy()
       runtime.destroy()
-      history.destroy()
+      store.destroy()
     },
   }
 }

@@ -1,7 +1,9 @@
 // What the reflection rig binds in place of the run-time proxy (`runtime-proxy.gpu.ts` proves it): its empty
-// header in each of its four places, no history, and the radiance hash its epoch follows.
-import { HISTORY_HEADER_WORDS } from '../../../packages/sdk-browser/src/reflections/proxyHistory.ts'
-import { RUNTIME_HEADER_WORDS } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
+// header in each of its four places, and a store of one texel when the view holds none.
+import {
+  RUNTIME_HEADER_WORDS,
+  STORE_LAYERS,
+} from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import type { ScreenReflection } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
 
 export function noRuntimeProxy(device: GPUDevice, reflection: ScreenReflection) {
@@ -11,11 +13,14 @@ export function noRuntimeProxy(device: GPUDevice, reflection: ScreenReflection) 
   })
   return {
     runtime: { proxy: empty, nodes: empty, cold: empty, worlds: empty },
-    history:
-      reflection.history.buffer ??
-      device.createBuffer({
-        size: HISTORY_HEADER_WORDS * 4,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      }),
+    store:
+      reflection.store.view ??
+      device
+        .createTexture({
+          size: [1, 1, STORE_LAYERS],
+          format: 'r32uint',
+          usage: GPUTextureUsage.STORAGE_BINDING,
+        })
+        .createView({ dimension: '2d-array' }),
   }
 }

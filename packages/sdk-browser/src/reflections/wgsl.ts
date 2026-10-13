@@ -30,7 +30,7 @@ import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
  * count of images, a seed or a history of its own, so two images of a still view give the same
  * bits — but the run-time proxy's stage, in the opaque trace alone (`reflectionProxyWgsl`): its
  * frame has a budget, and the rays it leaves out go on in the next images from the answer they last got
- * (`bounce/runtimeTraceWgsl.ts`, `proxyHistory.ts`); a still view reaches the same bits once none
+ * (`bounce/runtimeTraceWgsl.ts`, `proxyStore.ts`); a still view reaches the same bits once none
  * is left, which is what its settling waits for (`settle.ts`).
  *
  * - `gpu/hiz/screenMarch.ts`: the engine's hierarchical march of the depth pyramid, and where it hits;

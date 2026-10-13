@@ -144,7 +144,7 @@ export type GpuSelection = {
    *  (`../dag/proxyInstances.ts`): their poses are read again at each cut. */
   proxyCopies(copies: readonly ProxyCopy[]): void
   /** The revision of the run-time proxy's buffer and of the cut's poses, which move when what a ray can
-   *  meet did (`../../reflections/proxyHistory.ts`). */
+   *  meet did (`../../reflections/proxyStore.ts`). */
   proxyRevision(): number
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void

@@ -1,9 +1,10 @@
 import { createReadbackRing } from '../gpu/core/readbackRing.ts'
+import { TRACE_LIST } from '../bounce/runtimeLayout.ts'
 
 /** Bytes of the hash: the lit image's two words, then the image before it's. */
 export const RADIANCE_HASH_BYTES = 16
 /** Bytes of a sample: the hash, then the count of tiles the trace listed that image, then the run-time
- *  proxy's rays it left for later (`runtimeTraceWgsl.ts`). */
+ *  proxy's pixels that hold fewer samples than they want (`runtimeLayout.ts`). */
 export const SAMPLE_BYTES = RADIANCE_HASH_BYTES + 8
 /** Samples in flight at most: an image's copy waits for none, and takes none when all are in flight. */
 const SAMPLES = 3
@@ -30,7 +31,7 @@ function createSampleRing(device: GPUDevice, answer: (image: number, words: Uint
       encoder: GPUCommandEncoder,
       hash: GPUBuffer,
       tiles: GPUBuffer,
-      left: GPUBuffer,
+      list: GPUBuffer,
       image: number,
     ) {
       // A copy still waiting for its submission is an abandoned image's: its commands never ran.
@@ -38,7 +39,7 @@ function createSampleRing(device: GPUDevice, answer: (image: number, words: Uint
       if (!sample) return
       encoder.copyBufferToBuffer(hash, 0, sample, 0, RADIANCE_HASH_BYTES)
       encoder.copyBufferToBuffer(tiles, 12, sample, RADIANCE_HASH_BYTES, 4)
-      encoder.copyBufferToBuffer(left, 0, sample, RADIANCE_HASH_BYTES + 4, 4)
+      encoder.copyBufferToBuffer(list, TRACE_LIST.left * 4, sample, RADIANCE_HASH_BYTES + 4, 4)
     },
     /** The image is submitted: its copies are mapped, and answer when the GPU has run them. */
     submitted: ring.submitted,
@@ -88,9 +89,9 @@ export function createRadianceSettle(device: GPUDevice) {
     /** An image is drawn, its radiance pyramid encoded: counted, and, while the view is not
      *  settled, its hash and the count of tiles the trace listed (the fourth word of `tiles`, its
      *  indirect arguments) copied, to be mapped once the image is submitted (`submitted`). */
-    image(encoder: GPUCommandEncoder, tiles: GPUBuffer, left: GPUBuffer) {
+    image(encoder: GPUCommandEncoder, tiles: GPUBuffer, list: GPUBuffer) {
       images++
-      if (!this.verified) samples.copy(encoder, hash, tiles, left, images)
+      if (!this.verified) samples.copy(encoder, hash, tiles, list, images)
     },
     /** The image about to be drawn is drawn for another reason than the reflections'. */
     busy() {

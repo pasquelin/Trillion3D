@@ -53,7 +53,7 @@ export const SURFACE_BLENDED = 1
  * two; a ray stops at `RAY_WORK` units or `RAY_TRIANGLES` triangle tests, and answers that
  * it is exhausted (zero confidence, the next stage of the chain), never a miss. A frame spends at
  * most about `FRAME_WORK` units (`runtimeTraceWgsl.ts`): the rays the budget leaves out go on in the
- * next frames, from the answer they last got (`reflections/proxyHistory.ts`).
+ * next frames, from the answer they last got (`reflections/proxyStore.ts`).
  */
 export const RAY_WORK = 512
 export const RAY_TRIANGLES = 128
@@ -64,3 +64,39 @@ export const FRAME_WORK = 2 ** 22
 /** Surfaces met in a ray before it ends: a blended one is looked through, up to this many — a closed
  *  blended solid is two, its front face and its back. */
 export const RAY_LAYERS = 3
+/**
+ * THE RUN-TIME PROXY'S ANSWERS, KEPT FROM IMAGE TO IMAGE, in the reflection's own store: a texture of two
+ * layers of `r32uint` the image's size (`reflections/proxyStore.ts`), eight bytes a pixel, which the trace
+ * reads and writes where it traces. Layer 0 is the pixel's mean radiance, premultiplied by its confidence, as
+ * a shared-exponent `rgb9e5`; layer 1 holds, from the low bit, the mean confidence on ten bits, the count of
+ * the samples the mean is of on eight, the scene's stamp on seven and the view's on seven (`rtStamp`): a
+ * stamp is the low bits of an epoch (`follow`), never zero, so that a pixel never answered holds none.
+ *
+ * The frame's counters live in the trace's list (`TRACE_LIST`): the tiles the classification listed, the pixels
+ * that hold fewer samples than their cap (`left`: what the settle waits for, `settle.ts`), the work the frame has
+ * spent, the tile the next frame starts at (`offset`) and the tiles the last one served from it (`cursor`), then
+ * the list itself from `TRACE_LIST_FIRST`. The trace binds that one buffer, writable, and the store: no buffer of
+ * its own for the answers, which keeps a stage of it under eight storage buffers.
+ */
+export const TRACE_LIST = { count: 0, left: 1, spent: 2, offset: 3, cursor: 4 } as const
+export const TRACE_LIST_FIRST = 8
+/** Layers of the store, and its bytes a pixel. */
+export const STORE_LAYERS = 2
+export const STORE_BYTES_PER_PIXEL = 8
+/** Bytes of the store of an image of `width × height`, which a view that wants it holds. */
+export const storeBytes = (width: number, height: number) => width * height * STORE_BYTES_PER_PIXEL
+/** Bits of a pixel's second word, from the low bit: the confidence, the count, the scene's stamp, the view's. */
+export const STORE_BITS = { confidence: 10, count: 8, scene: 7, view: 7 } as const
+
+/**
+ * THE SAMPLES OF A LOBE. A rough lobe is the mean of the radiance over its directions, which no one ray holds:
+ * each pixel adds one sample of its lobe a frame to its mean in the store, up to `SAMPLE_CAP` of them
+ * (`rtLobeAnswer`); a lobe narrower than `MIRROR_ALPHA` is its centre, one sample. An answer a moved view or
+ * a changed scene made stale is kept as a mean of at most `MOTION_COUNT` (the view moved) or `SCENE_COUNT`
+ * (the scene changed) samples, which the new samples then replace: the image goes on from the last one, it
+ * does not restart from the black of an empty store.
+ */
+export const SAMPLE_CAP = 64
+export const MIRROR_ALPHA = 0.002
+export const MOTION_COUNT = 8
+export const SCENE_COUNT = 2

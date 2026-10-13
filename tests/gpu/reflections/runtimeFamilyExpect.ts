@@ -27,7 +27,15 @@ function splitSum(f0: number, rough: number, nov: number) {
   return f0 * (-1.04 * a004 + r[2]) + 1.04 * a004 + r[3]
 }
 
-export type Decided = { index: number; expected: Rgb; at: [number, number]; hit: number }
+export type Decided = {
+  index: number
+  expected: Rgb
+  at: [number, number]
+  hit: number
+  /** The floor point and the unit vector from it to the eye. */
+  point: Vec
+  view: Vec
+}
 
 /** The decided pixels of the grid of an image `width × height` and what each must show. */
 export function expectedFloor(
@@ -100,7 +108,14 @@ export function expectedFloor(
       }
       const f0 = c.floor.metal ? 1 : 0.04,
         w = splitSum(f0, rough, nov)
-      out.push({ index, expected: total.map((e) => e * w) as Rgb, at: [i, j], hit: own })
+      out.push({
+        index,
+        expected: total.map((e) => e * w) as Rgb,
+        at: [i, j],
+        hit: own,
+        point: here,
+        view: v,
+      })
     }
   return out
 }

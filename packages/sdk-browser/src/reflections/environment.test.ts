@@ -111,8 +111,9 @@ test('a scene is surrounded by its background, as the display shows it, declared
   }
   const reflectionView = { surroundings: [9, 9, 9, 9], runtime: [0, 0, 0, 0] }
   const work = [7, 0, 0, 0]
-  // The run-time proxy's counters of a frame that left rays: the next frame starts where its budget ended.
-  const proxyHistory = [4, 7, 3, 5]
+  // The trace's list of a frame that left rays (its tiles, the pixels left, the work spent, the offset and the
+  // cursor): the next frame starts where its budget ended.
+  const traceList = [9, 4, 7, 3, 5]
   const run = shaderRun<{ reflectionBegin: () => void; aces: (c: number[]) => number[] }>(
     BEGIN_SHADER + wgslModule(DISPLAY_VALUE_WGSL),
     [
@@ -125,7 +126,7 @@ test('a scene is surrounded by its background, as the display shows it, declared
       'aces',
       'srgbToLinear',
     ],
-    { view, reflectionView, work, proxyHistory },
+    { view, reflectionView, work, traceList },
   )
   run.reflectionBegin()
   // A mirror (its weight one) shows it through the exposure and the curve: the background's bytes.
@@ -139,12 +140,12 @@ test('a scene is surrounded by its background, as the display shows it, declared
   // Answers were left (4) and the budget ended at tile 5 from tile 3: the next frame starts at 8, the
   // counters start again.
   assert.deepEqual(
-    proxyHistory,
-    [0, 0, 8, 0],
-    'left, spent and cursor restart, the offset moves on',
+    traceList,
+    [0, 0, 0, 8, 0],
+    'the count, left, spent and cursor restart, the offset moves on',
   )
   // Every answer was in: the next frame starts where this one did.
-  proxyHistory.splice(0, 4, 0, 6, 8, 2)
+  traceList.splice(0, 5, 3, 0, 6, 8, 2)
   run.reflectionBegin()
-  assert.deepEqual(proxyHistory, [0, 0, 8, 0])
+  assert.deepEqual(traceList, [0, 0, 0, 8, 0])
 })

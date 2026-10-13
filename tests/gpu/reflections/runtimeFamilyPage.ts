@@ -2,7 +2,7 @@
 // it is held — a moving case moved and held again —, the reflection target the engine wrote read back at a
 // grid of its pixels, and the frames timed.
 import { fromHalf } from '../../../packages/math/src/float/half.ts'
-import { HISTORY } from '../../../packages/sdk-browser/src/reflections/proxyHistory.ts'
+import { TRACE_LIST } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import { proofCanvas } from '../kit/renderHarness.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
@@ -62,10 +62,10 @@ async function draw(index: number, limit: number) {
       const at = (j * width + i) * 4
       samples.push(fromHalf(half[at]), fromHalf(half[at + 1]), fromHalf(half[at + 2]))
     }
-  const history = [...made]
+  const list = [...made]
     .reverse()
-    .find(([label]) => label.startsWith('Trillion3D run-time proxy history'))?.[1]
-  const counters = history ? await readWords(canvasDevice(canvas), history, 4) : [0, 0, 0, 0]
+    .find(([label]) => label.startsWith('Trillion3D reflection tile list'))?.[1]
+  const counters = list ? await readWords(canvasDevice(canvas), list, 5) : [0, 0, 0, 0, 0]
   world.dispose()
   canvas.remove()
   return {
@@ -74,8 +74,8 @@ async function draw(index: number, limit: number) {
     samples,
     frames,
     worldErrors,
-    spent: counters[HISTORY.spent],
-    left: counters[HISTORY.left],
+    spent: counters[TRACE_LIST.spent],
+    left: counters[TRACE_LIST.left],
   }
 }
 
