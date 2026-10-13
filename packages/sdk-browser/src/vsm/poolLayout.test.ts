@@ -1,7 +1,7 @@
 // The pool's texels page by page (`vsmPoolTexelIndexWgsl`), by its TS mirror: every texel of a
 // slice has a word of its own, page k filling [k·16384, (k+1)·16384), at 128 pages a row;
 // each texel stays in the binding part its page row was in; and both WGSL accessors — the passes'
-// (`vsmBindingsWgsl`) and the consumers' (`directShadowWgsl`, the shift from the uniform) — give
+// (`vsmBindingsWgsl`) and the consumers' (`directShadowWgsl`, through its windows) — give
 // the mirror's words.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -77,7 +77,7 @@ test('the passes and the consumers address the pool by the mirror', () => {
         functionText(passes, accessor),
         new RegExp(`let l=vsmPoolTexelIndex\\(t\\);[^]*>>${layout.poolPartTexelShift}u\\)`),
       )
-    assert.match(functionText(consumer, 'vsmPoolLoad'), /let i=vsmPoolTexelIndex\(t\);/)
+    assert.match(functionText(consumer, 'vsmPoolLoad'), /let l=vsmPoolTexelIndex\(t\);/)
     type Run = { vsmPoolTexelIndex: (t: number[]) => number }
     const run = (code: string | WgslDecl) =>
       shaderRun<Run>(code, ['vsmPoolTexelIndex'], {

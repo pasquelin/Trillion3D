@@ -20,7 +20,7 @@ const b = WATER_BINDINGS
  *  identity (`nameWaterResources`) are all made of it. The water word — a colour, in the surface
  *  flags' place —, the water depth, the lights and their shadows — the virtual shadow maps on the
  *  contract's numbers (`CONTRACT_VSM_BINDINGS`), the translucent depth made and dropped with the
- *  transmittance —, the probes and the proxy, the frozen backdrop and its depth, the blend view
+ *  transmittance —, what its pixels trace their shadow with (the projection's view and noise), the probes and the proxy, the frozen backdrop and its depth, the blend view
  *  and the volumes. */
 const HELD: readonly Held[] = [
   [b.word, ({ gpu }) => gpu.colorView, { texture: { sampleType: 'unfilterable-float' } }],
@@ -33,6 +33,8 @@ const HELD: readonly Held[] = [
   [b.shadowSampler, ({ lighting }) => lighting.shadowSampler],
   [b.shadowTransmittance, ({ lighting }) => lighting.shadowTransmittance],
   [b.shadowTranslucentDepth, ({ lighting }) => lighting.shadowTranslucentDepth],
+  [b.shadowView, ({ lighting }) => lighting.shadowView],
+  [b.shadowNoise, ({ lighting }) => lighting.shadowNoise],
   [b.bounceGrid, ({ lighting }) => lighting.bounceGrid],
   [b.probes, ({ lighting }) => lighting.probes],
   [b.proxy, ({ lighting }) => lighting.proxy],
@@ -117,7 +119,9 @@ export function waterCompositeEntries(
       .map((resource, binding) => ({ binding, resource })),
     ...HELD.map(([binding, of], at) => {
       const held = of(sources)
-      return { binding, resource: (buffer[at] ? { buffer: held } : held) as GPUBindingResource }
+      // A buffer held whole, or a binding of one (the pool's window, `vsmPoolWindow`) as it is.
+      const whole = buffer[at] && !(held as GPUBufferBinding | undefined)?.buffer
+      return { binding, resource: (whole ? { buffer: held } : held) as GPUBindingResource }
     }),
     { binding: PHYSICAL_LOBES_BINDING, resource: surfaces.lobesView },
   ]

@@ -6,14 +6,18 @@ import { atlasEntries, type AtlasResources } from './bindEntries.ts'
 export type BlendLighting = {
   directLights: GPUBuffer
   /** The virtual shadow maps a transparent samples (`BLEND_VSM_BINDINGS`), on the old shadow
-   *  numbers: page table, projection data, uniforms and the pool's dynamic slice. */
+   *  numbers: page table, projection data, uniforms and the pool's window (`vsmPoolWindow`). */
   shadowData: GPUBuffer
   shadowAtlas: GPUBuffer
   shadowSampler: GPUBuffer
   /** The translucent casters' transmission atlas (`vsmTransmissionReadWgsl`), or its one-texel
    *  stand-in. */
   shadowTransmittance: GPUTextureView
-  shadowTranslucentDepth: GPUBuffer
+  shadowTranslucentDepth: GPUBufferBinding
+  /** What a fragment traces with past the maps (`BLEND_TRACE_BINDINGS`): the shadow projection's
+   *  view uniform and blue noise. */
+  shadowView: GPUBuffer
+  shadowNoise: GPUTextureView
   bounceGrid: GPUBuffer
   /** The probes' atlas (`../../bounce/atlas.ts`). */
   probes: GPUTextureView
@@ -84,6 +88,8 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   shadowSampler: ['fragment', UNIFORM],
   shadowTransmittance: ['fragment', { texture: { sampleType: 'uint', viewDimension: '2d-array' } }],
   shadowTranslucentDepth: ['fragment', STORAGE],
+  shadowView: ['fragment', UNIFORM],
+  shadowNoise: ['fragment', { texture: { sampleType: 'unfilterable-float' } }],
   bounceGrid: ['fragment', UNIFORM],
   probes: ['fragment', FLOAT_ARRAY],
   tileLights: ['fragment', STORAGE],
@@ -127,6 +133,13 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
       const [, layout, sized] = BLEND_TABLE[name],
         binding = BLEND_BINDINGS[name]
       if (!layout.buffer) return resourceEntry(binding, () => r[name] as GPUBindingResource)
+      if (name === 'shadowTranslucentDepth')
+        return bufferEntry(
+          binding,
+          () => r.shadowTranslucentDepth?.buffer,
+          () => r.shadowTranslucentDepth?.offset,
+          () => r.shadowTranslucentDepth?.size,
+        )
       return bufferEntry(binding, () => r[name] as GPUBuffer, undefined, sized ? size : undefined)
     }),
     ...atlasEntries(BLEND_BINDINGS.color, () => r.textures?.color),

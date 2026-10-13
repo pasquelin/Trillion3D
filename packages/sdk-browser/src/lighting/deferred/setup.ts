@@ -6,7 +6,7 @@ import { receiverLayoutEntries, receiverPlaceholders } from '../../webgpu/visibi
 import { arrayView } from '../../gpu/core/textureViews.ts'
 import { PROBE_TEXELS, emptyAtlas } from '../../bounce/atlas.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
-import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
+import { CONTRACT_TRACE_BINDINGS, CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts'
 import { PROXY_HEADER_BYTES } from '../../bounce/sizes.ts'
 import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
@@ -18,6 +18,7 @@ import {
   VSM_PROJECTION_TILE_FORMAT,
 } from '../../vsm/projectionWgsl.ts'
 import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
+import { VSM_PROJECTION_VIEW_BYTES } from '../../vsm/projectionView.ts'
 import { REFLECTION_TARGET } from '../../reflections/weight.ts'
 
 /** Empty proxy header: no proxy ray without resident nodes. */
@@ -46,14 +47,23 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
     { binding: B.view, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
   ]
   if (direct) entries.push(...contractLayoutEntries())
-  // The pool a non-mask read samples: the water composite's alone, the resolve reading the mask
-  // (`directShadowWgsl`), so it holds the eight storage buffers with the receiver's three.
+  // The pool a non-mask read samples, the projection's view and noise its fragments trace with
+  // (`vsmTraceFactor`): the water composite's alone, the resolve reading the
+  // mask (`directShadowWgsl`), so it holds the eight storage buffers with the receiver's three.
   if (direct && !resolve)
-    entries.push({
-      binding: CONTRACT_VSM_BINDINGS.pool,
-      visibility: GPUShaderStage.FRAGMENT,
-      buffer: { type: 'read-only-storage' },
-    })
+    entries.push(
+      ...CONTRACT_VSM_BINDINGS.pool.map((binding) => ({
+        binding,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'read-only-storage' as const },
+      })),
+      {
+        binding: CONTRACT_TRACE_BINDINGS.view,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'uniform' },
+      },
+      texture(CONTRACT_TRACE_BINDINGS.noise, 'unfilterable-float'),
+    )
   if (direct && resolve) entries.push(...resolveLayoutEntries())
   // Probe grid and their coefficients: bound only by the bounce program, so a session without
   // bounce keeps exactly the previous layout. The coefficients are an atlas (`atlas.ts`): no
@@ -224,7 +234,8 @@ export function createDeferredPlaceholders(device: GPUDevice) {
 
 /** The virtual shadow maps' stand-ins: no light reads them (no light has a map without them). The
  *  resolve's mask stand-in, one zero texel (every lane lit), its tile words, one zero texel (no
- *  layer stored), and the mask's decode table. */
+ *  layer stored); the pool's window over the empty pool, the projection's view and blue noise a
+ *  forward pass traces with (`vsmTraceFactor`): zeros. */
 function createVsmPlaceholders(device: GPUDevice) {
   const vsmPageTable = device.createBuffer({
     label: 'Trillion3D empty VSM page table',
@@ -258,19 +269,37 @@ function createVsmPlaceholders(device: GPUDevice) {
     format: VSM_PROJECTION_TILE_FORMAT,
     usage: GPUTextureUsage.TEXTURE_BINDING,
   })
+  const vsmProjectionView = device.createBuffer({
+    label: 'Trillion3D empty VSM projection view',
+    size: VSM_PROJECTION_VIEW_BYTES,
+    usage: GPUBufferUsage.UNIFORM,
+  })
+  const texel = (label: string, format: GPUTextureFormat) =>
+    device.createTexture({ label, size: [1, 1], format, usage: GPUTextureUsage.TEXTURE_BINDING })
+  const vsmBlueNoise = texel('Trillion3D empty VSM blue noise', 'rgba8unorm')
+  const textures = [vsmMask, vsmMaskTiles, vsmBlueNoise]
   return {
     views: {
       vsmPageTable,
       vsmProjectionData,
       vsmUniforms,
       vsmPool,
+      vsmPoolWindow: { buffer: vsmPool } as GPUBufferBinding,
       vsmMask: arrayView(vsmMask),
       vsmMaskTiles: vsmMaskTiles.createView(),
+      vsmProjectionView,
+      vsmBlueNoise: vsmBlueNoise.createView(),
     },
     destroy() {
-      for (const buffer of [vsmPageTable, vsmProjectionData, vsmUniforms, vsmPool]) buffer.destroy()
-      vsmMask.destroy()
-      vsmMaskTiles.destroy()
+      for (const buffer of [
+        vsmPageTable,
+        vsmProjectionData,
+        vsmUniforms,
+        vsmPool,
+        vsmProjectionView,
+      ])
+        buffer.destroy()
+      for (const texture of textures) texture.destroy()
     },
   }
 }

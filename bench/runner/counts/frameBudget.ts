@@ -24,7 +24,7 @@ import {
   CLASSES,
   DEMAND_MARKS,
   FRAME_RATES,
-  PCF_GATHERS,
+  MASK_TEXELS,
   SETUP_TEXELS,
   SPONZA_TRIANGLES,
   SURFACE_ACCESSES,
@@ -93,9 +93,9 @@ export function frameBudget(pose = 1, width = DISPLAY.width, height = DISPLAY.he
     ),
     row(
       'shadows',
-      `shadow reads, ${PCF_GATHERS} gathers`,
+      `shadow reads, ${MASK_TEXELS} mask texel`,
       work.shadows,
-      texels(work.shadows * PCF_GATHERS),
+      texels(work.shadows * MASK_TEXELS),
     ),
     row(
       'shadows',

@@ -28,4 +28,8 @@ export const DEFERRED_BINDINGS = {
   maskTiles: 29,
   lobes: 32,
   reflection: 33,
+  /** What the water composite's fragments trace their shadow with (`CONTRACT_TRACE_BINDINGS`): the
+   *  shadow projection's view uniform and its blue noise. */
+  shadowView: 34,
+  shadowNoise: 35,
 } as const

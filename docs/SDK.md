@@ -387,8 +387,9 @@ Diffuse thin-surface transmission, not a volume: a glass volume uses physical `t
 With `transparentShadow: true`, blended glass tints the shadow transmission atlas by its base color
 and texture; a nonzero volume thickness applies Beer attenuation once at the entrance of a closed
 mesh (a declared-thickness approximation, not ray tracing); alpha-only blended shadows are
-coverage. A shadow-casting point light with positive `radius` uses contact-hardening PCSS; radius
-zero uses PCF.
+coverage. A shadow-casting light with a source size — a point or spot `radius`, a sun's
+`angularRadius` — casts penumbrae that harden at contact, traced through the shadow maps on opaque
+and blended surfaces alike; a size of zero casts hard shadows.
 
 ### Geometry rewritten every frame
 

@@ -3,7 +3,7 @@ import * as surfaceModel from '../../scene/surfaceModel.ts'
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { tileDeclarations } from '../tile/wgsl.ts'
-import { BLEND_BINDINGS, BLEND_VSM_BINDINGS } from '../core/bindLayout.ts'
+import { BLEND_BINDINGS, BLEND_TRACE_BINDINGS, BLEND_VSM_BINDINGS } from '../core/bindLayout.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
 import * as itemFlags from '../../visibility/buffer.ts'
 import { blendSurfaceWgsl } from './shaderSurface.ts'
@@ -32,6 +32,7 @@ const blendProgram = (key: Partial<ContractKey>) => {
     proxy: BLEND_BINDINGS.proxy,
     transmittance: BLEND_BINDINGS.shadowTransmittance,
     vsm: BLEND_VSM_BINDINGS,
+    trace: BLEND_TRACE_BINDINGS,
   }
   return wgslBlock(
     `blendProgram(${variantLabel(key)})`,

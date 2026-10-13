@@ -12,13 +12,16 @@ const pagedGroup = ({ identity, pagedGroups }: ReturnType<typeof createWebgpuBle
 test('blend identity follows translucent depth independently of transmittance', () => {
   const blendState = createWebgpuBlendState()
   const rt = { gpu: {}, vis: { physicalTable: {} }, blendState } as unknown as WebgpuPagesRuntime
-  const lighting = { shadowTransmittance: {}, shadowTranslucentDepth: {} } as BlendLighting
+  const lighting = {
+    shadowTransmittance: {},
+    shadowTranslucentDepth: { buffer: {} as GPUBuffer },
+  } as BlendLighting
   voidStaleBlendGroups(rt, lighting)
   const group = {} as GPUBindGroup
   blendState.pagedGroups[blendState.identity.slot] = group
   voidStaleBlendGroups(rt, lighting)
   assert.equal(pagedGroup(blendState), group)
-  lighting.shadowTranslucentDepth = {} as typeof lighting.shadowTranslucentDepth
+  lighting.shadowTranslucentDepth = { buffer: {} as GPUBuffer }
   voidStaleBlendGroups(rt, lighting)
   assert.equal(pagedGroup(blendState), undefined)
 })
