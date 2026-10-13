@@ -12,6 +12,7 @@ import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readba
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { autoKernel, groupZero } from '../kit/computeReadback.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** The shipped count's read through the workgroup's alphas, and the direct read it replaces. */
@@ -71,10 +72,7 @@ async function countBins({ texts, cases }: { texts: string[]; cases: CountCase[]
     texts.map(async (code) => {
       const { module, compilation } = await gpu.compile(code)
       if (compilation.length) throw new Error(compilation.join('\n'))
-      return device.createComputePipeline({
-        layout: 'auto',
-        compute: { module, entryPoint: 'count' },
-      })
+      return device.createComputePipeline(autoKernel(module, 'count'))
     }),
   )
   const bins: Uint32Array[][] = []
@@ -95,14 +93,11 @@ async function countBins({ texts, cases }: { texts: string[]; cases: CountCase[]
         size: bytes,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
       })
-      const group = device.createBindGroup({
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: source.createView() },
-          { binding: 1, resource: { buffer: level } },
-          { binding: 2, resource: { buffer: cover } },
-        ],
-      })
+      const group = groupZero(device, pipeline, [
+        source.createView(),
+        { buffer: level },
+        { buffer: cover },
+      ])
       const encoder = device.createCommandEncoder(),
         pass = encoder.beginComputePass()
       pass.setPipeline(pipeline)

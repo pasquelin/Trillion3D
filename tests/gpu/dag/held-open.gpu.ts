@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
-import { packed as fixturePacked } from '../../../packages/sdk-browser/src/gpu/dag/selectionHelpers.fixture.ts'
+import { packed } from '../../../packages/sdk-browser/src/gpu/dag/selectionHelpers.fixture.ts'
 import {
   dagFixture,
   frontCamera,
@@ -20,7 +20,7 @@ import { ruleResidency } from '../../../packages/sdk-browser/src/gpu/dag/readine
 import { runSelectionKernel } from './selectionKernel.ts'
 
 test('a table of open counts too small for them cuts as one that holds them all, on the GPU', async () => {
-  const [root] = fixturePacked(dagFixture()).roots
+  const [root] = packed(dagFixture()).roots
   const roots = Array.from({ length: 50 }, (_, w) => ({
     ...root,
     world: new G.Matrix4().setPosition((w % 10) * 5 - 25, 0, -Math.floor(w / 10) * 5),
@@ -38,7 +38,7 @@ test('a table of open counts too small for them cuts as one that holds them all,
   const model = pack(),
     resident = new Uint8Array(model.pageCount).fill(1)
   const expected = evaluateDagSelectionKernel(model, uniforms, ruleResidency(model, resident))
-  const counts = cases.map(({ packed }) => packed.heldOpen!.entries)
+  const counts = cases.map((c) => c.packed.heldOpen!.entries)
   console.log(JSON.stringify({ adapter, counts, drawn: readings.map((r) => r.drawn.length) }))
   assert.ok(
     counts[0] >= roots.length && counts[1] < counts[0],

@@ -6,7 +6,8 @@ import type { BenchReport } from '../merge.ts'
 import { table } from '../../core/table.ts'
 import { floorOf } from './floor.ts'
 import type { Machine } from '../machine.ts'
-import { PASSES, type Frame } from './passes.ts'
+import { PASSES } from './passes.ts'
+import type { Frame } from './passConstants.ts'
 
 /** The frame a bench report measured: its sizes and counters, with what no counter says. */
 export function frameOf(

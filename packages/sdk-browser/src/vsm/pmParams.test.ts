@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice, written } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { commandArgs } from '../../../../tests/kit/gpu/mockRenderPass.ts'
+import { commandArgs } from '../../../../tests/kit/gpu/fakeRenderPass.ts'
 import {
   encodeVsmPageCarry,
   encodeVsmAfterRaster,

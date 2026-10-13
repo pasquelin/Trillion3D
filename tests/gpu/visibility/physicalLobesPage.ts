@@ -6,7 +6,7 @@
 // pass, and lighting; no shader is substituted.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { HALF_PI, createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
-import { runOnDevice as withDevice } from '../kit/deviceProof.ts'
+import { runOnDevice } from '../kit/deviceProof.ts'
 import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
 import { VIEWPORT, batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
 import { compilePages } from './compiledPages.ts'
@@ -172,7 +172,7 @@ export const ANISOTROPY_CASES: Record<string, G.SurfaceParameters> = {
 
 /** Each case's opaque plane, read. */
 const opaque = (cases: Record<string, G.SurfaceParameters>) =>
-  withDevice<{ readings: Record<string, LobeReading> }>((device, events, result) =>
+  runOnDevice<{ readings: Record<string, LobeReading> }>((device, events, result) =>
     readCases(device, events, result, cases),
   )
 

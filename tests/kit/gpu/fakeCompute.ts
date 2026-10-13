@@ -10,12 +10,12 @@ import {
   WORK_DROPPED,
 } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
-import { TRANSPARENT_STAGES } from './mockComputeBlend.ts'
-import { words } from './mockBuffers.ts'
+import { TRANSPARENT_STAGES } from './fakeComputeBlend.ts'
+import { words } from './fakeBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { mockEvictions, sortStagedRequests } from './mockEvict.ts'
-import { boundListCap, packedFromBindings, readDagUniforms } from './mockDag.ts'
-import { worldsAtEye } from './mockWorldPose.ts'
+import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
+import { boundListCap, packedFromBindings, readDagUniforms } from './fakeDag.ts'
+import { worldsAtEye } from './fakeWorldPose.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 
 import {
@@ -32,7 +32,7 @@ import {
   stagedPage,
   stagedPriority,
 } from '../../../packages/sdk-browser/src/gpu/dag/request.fixture.ts'
-import { LIST_KERNELS, mirrorListStage } from './mockLists.ts'
+import { LIST_KERNELS, mirrorListStage } from './fakeLists.ts'
 import { hasBit, setBit } from '../../../packages/math/src/scalar/bits.ts'
 
 /** The camera cut's kernels the double replays, on the selection's bind group or one of its
@@ -109,12 +109,12 @@ export function simulateComputeDispatch(
   const byBinding = new Map(
     computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
   )
-  // A test that hands no DAG reads the one the session uploaded (`mockDag.ts`).
+  // A test that hands no DAG reads the one the session uploaded (`fakeDag.ts`).
   const dag = packed ?? packedFromBindings(byBinding),
     listCap = boundListCap(byBinding)
   if (stage === 'dagSortRequests') return sortStagedRequests(byBinding, listCap)
   if (mirrorListStage(stage!, byBinding, dag, listCap)) return // the lists' and the journals' mirror
-  if (stage === 'dagListEvictions') return mockEvictions(byBinding, dag).list()
+  if (stage === 'dagListEvictions') return fakeEvictions(byBinding, dag).list()
   // Compaction rereads the draw flags `dagMask` left, as `dagDrawPrefix` then `dagDrawScatter` do.
   if (stage === 'dagDrawScatter')
     return compactDrawnPages(
@@ -133,7 +133,7 @@ export function simulateComputeDispatch(
     childReady: residentFlags(cold, dag.pageCount, childBase(dag.pageCount)),
   }
   // World matrices are read IN THE BOUND BUFFER, where the shader reads them, each translation at
-  // the eye of the same uniform block as the kernel reads it (`mockWorldPose.ts`): the view and
+  // the eye of the same uniform block as the kernel reads it (`fakeWorldPose.ts`): the view and
   // planes are of that frame. A copy made at packing would put absolute worlds under a view with no
   // translation — two frames in one formula, and not a single page kept.
   const worlds = worldsAtEye(
@@ -146,7 +146,7 @@ export function simulateComputeDispatch(
   const frames = words(byBinding.get(DAG_BINDING.frames)!.data)
   const rootNodes = dag.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1])
   const result = evaluateDagSelectionKernel({ ...dag, worlds, rootNodes }, uniforms, resident)
-  mockEvictions(byBinding, dag).stamp(
+  fakeEvictions(byBinding, dag).stamp(
     [...result.pageIds, ...(result.drawablePageIds ?? [])],
     result.aheadPageIds,
   )

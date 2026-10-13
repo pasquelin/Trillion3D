@@ -1,3 +1,4 @@
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSceneProxyReader } from './proxyLoad.ts'
@@ -16,7 +17,7 @@ test('shared expansion is decoded once across concurrent readers and sessions, a
   // One mesh of one triangle under one leaf node (`SceneProxy::encode`).
   const triangles = 1,
     nodes = 1
-  const cell = new Uint32Array(Float32Array.of(0.5).buffer)[0]
+  const cell = f32Bits(0.5)
   const children = new Uint32Array(PROXY_NODE_WORDS)
   children[1] = (1 << 24) | (1 << 16)
   const words = [

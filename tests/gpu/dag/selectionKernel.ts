@@ -3,6 +3,7 @@
 // level descent, `dagWanted`, `dagMask`, `dagCommitMask` and `dagSortRequests` in the engine's order
 // (`gpu/dag/encode.ts`) for a cut that starts from fresh buffers, then the readout, the frame
 // counters and the draw flags read back.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
 import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
@@ -17,14 +18,11 @@ import {
   OUT_TRANSPARENT_TRIANGLES,
   SELECTION_HEADER_WORDS,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { bindCase, type SelectionCase, type StageOutput } from './selectionCase.ts'
 import { workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
 import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
-
-export type { SelectionCase } from './selectionCase.ts'
 
 /** What one case's cut left on the GPU. */
 interface SelectionReading {
@@ -119,19 +117,22 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
       ],
     )
     const header = SELECTION_HEADER_WORDS
-    const out = await readBuffer(device, buffers.out.buffer, 0, (header + packed.pageCount) * 4)
-    const work = await readBuffer(device, buffers.work.buffer, 0, at.work.words * 4)
+    const out = (await readGpuBuffer(device, buffers.out.buffer, (header + packed.pageCount) * 4))!
+    const work = (await readGpuBuffer(device, buffers.work.buffer, at.work.words * 4))!
     // The frame's draw mask, a bit a page in `work` (`compactWgsl.ts`).
     const drawBits = work.subarray(at.work.drawMask)
     const count = Math.min(out[OUT_COUNT], packed.pageCount)
     const requests = Array.from(out.subarray(header, header + count))
     // The staged pairs, page then priority, in the order the threads won the counter.
-    const staged = await readBuffer(
-      device,
-      buffers.out.buffer,
-      stagedRequestsWord(at.listCap) * 4,
-      count * 8,
-    )
+    // None staged reads nothing: a readback of no byte is none.
+    const staged = count
+      ? (await readGpuBuffer(
+          device,
+          buffers.out.buffer,
+          count * 8,
+          stagedRequestsWord(at.listCap) * 4,
+        ))!
+      : new Uint32Array(0)
     destroy()
     const priorityOf = new Map<number, number>()
     for (let s = 0; s < count; s++) priorityOf.set(staged[2 * s], staged[2 * s + 1])

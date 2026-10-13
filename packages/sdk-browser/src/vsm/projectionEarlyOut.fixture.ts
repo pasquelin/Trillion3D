@@ -4,15 +4,9 @@
 // with raised boxes, depths on a grid of 2^-10 so a reference depth often meets one exactly, and a
 // few words no depth is: -0, NaN, +inf. The tile depths are each 8×8 tile's greatest word whose float
 // is not below 0 or NaN, as `vsmTileDepthsBuild` writes them (`projectionEarlyOut.test.ts`).
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import {
-  CODE,
-  PAGE_FUNCTIONS,
-  f32Bits,
-  unit,
-  vsmWorld,
-  type Ptr as PtrOf,
-} from './pageWorld.fixture.ts'
+import { CODE, PAGE_FUNCTIONS, unit, vsmWorld, type Ptr as PtrOf } from './pageWorld.fixture.ts'
 import { VSM_PAGE_TEXELS, VSM_TILE_DEPTHS_PER_PAGE } from './constants.ts'
 
 /** The words no depth is, one texel in 200 each. */

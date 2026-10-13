@@ -1,9 +1,9 @@
 // The kernels that measure a machine: each runs alone on the engine's device, timed by two GPU
 // timestamps, and says how long its fixed work took. `machine.ts` turns the times into rates.
+import { readGpuBuffer } from '../../packages/sdk-browser/src/gpu/core/readback.ts'
 import type { BenchGpu } from './device.ts'
 import { CHAINED, FILL, READ, TEXTURE_READ, TEXTURE_WRITE, TRIVIAL, WRITE } from './machineWgsl.ts'
 import { MIB } from '../../packages/math/src/constants.ts'
-import { readBuffer } from '../../tests/gpu/kit/computeReadback.ts'
 import { createWorkKernels } from './machineWork.ts'
 import { machineParts } from './machineParts.ts'
 
@@ -37,9 +37,9 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
       encode(encoder)
       encoder.resolveQuerySet(set, 0, 2, resolved, 0)
       device.queue.submit([encoder.finish()])
-      return readBuffer(device, resolved, 0, 16)
+      return readGpuBuffer(device, resolved, 16)
     })
-    const [begin, end] = new BigInt64Array(out.buffer)
+    const [begin, end] = new BigInt64Array(out!.buffer)
     return Number(end - begin) / 1e6
   }
   const parts = machineParts(device, { run, stamps }),

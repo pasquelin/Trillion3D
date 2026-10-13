@@ -3,6 +3,7 @@
 // `encodeNearest`. The pyramid texture is read back whole and compared with the oracle's
 // reductions (`sdk-core/src/hiz/oracles.fixture.ts`), bit for bit; the finished depth's farthest
 // layer reduces the far corner of each pixel's plane, not its depth.
+import { fromF32Bits } from '../../../packages/math/src/float/bits.ts'
 import { fromHalf, toHalf } from '../../../packages/math/src/float/half.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
@@ -61,8 +62,7 @@ function farthestCorners(depth: Float32Array, width: number, height: number) {
  *  division is not the correctly rounded one the model makes, and the slope is held in 16 bits. */
 function sameCorner(a: number, b: number) {
   if (a === b) return true
-  const x = new Float32Array(new Uint32Array([a, b]).buffer)
-  return Math.abs(x[0] - x[1]) <= 2 ** -11
+  return Math.abs(fromF32Bits(a) - fromF32Bits(b)) <= 2 ** -11
 }
 
 /** One layer of the pyramid texture, read back: its words. */

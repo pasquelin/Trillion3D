@@ -25,7 +25,7 @@
  */
 import { pathToFileURL } from 'node:url'
 import { encodeLtcTable, LTC_SIZE } from '../packages/sdk-core/src/lighting/ltcTable.ts'
-import { unit as normalize } from '../packages/math/src/vector/vectorTuple.ts'
+import { unit } from '../packages/math/src/vector/vectorTuple.ts'
 import { ggxDistribution, ggxVisibility } from '../packages/sdk-core/src/lighting/ggxLobe.ts'
 import { minimise } from './ltc-minimise.ts'
 import { hypot3 } from '../packages/math/src/float/hypot.ts'
@@ -37,7 +37,7 @@ type V3 = [number, number, number]
 /** The engine's specular lobe times the cosine, Fresnel at 1: `standardLighting`'s D·Vis·NdotL. */
 function lobe(v: V3, l: V3, alpha: number) {
   if (l[2] <= 0) return 0
-  const h = normalize([v[0] + l[0], v[1] + l[1], v[2] + l[2]])
+  const h = unit([v[0] + l[0], v[1] + l[1], v[2] + l[2]])
   const a2 = alpha * alpha,
     nv = Math.max(v[2], 1e-4),
     nl = l[2]
@@ -59,7 +59,7 @@ function sampleLobe(v: V3, alpha: number, u1: number, u2: number): [V3, number] 
 
 /** Density of `sampleLobe` at the direction l. */
 function lobeDensity(v: V3, l: V3, alpha: number) {
-  const h = normalize([v[0] + l[0], v[1] + l[1], v[2] + l[2]])
+  const h = unit([v[0] + l[0], v[1] + l[1], v[2] + l[2]])
   const vh = Math.max(dotVector3(v, h), 1e-7)
   return (ggxDistribution(h[2], alpha * alpha) * Math.max(h[2], 0)) / (4 * vh)
 }
@@ -68,7 +68,7 @@ type Ltc = { m: number[]; inverse: number[]; det: number }
 
 /** M from the lobe's mean direction and the three parameters; its inverse and determinant. */
 function ltcOf(mean: V3, p: number[]): Ltc {
-  const x = normalize([mean[2], 0, -mean[0]])
+  const x = unit([mean[2], 0, -mean[0]])
   // M = [x y mean] · [[p0, 0, p2], [0, p1, 0], [0, 0, 1]]: its xz block and its y scale.
   const a = x[0] * p[0],
     b = x[0] * p[2] + mean[0],
@@ -108,9 +108,7 @@ function fitError(v: V3, alpha: number, norm: number, t: Ltc, points: [number, n
   for (const [u1, u2] of points) {
     const r = Math.sqrt(u1),
       phi = 2 * PI * u2
-    const fromCosine = normalize(
-      apply(t.m, [r * Math.cos(phi), r * Math.sin(phi), Math.sqrt(1 - u1)]),
-    )
+    const fromCosine = unit(apply(t.m, [r * Math.cos(phi), r * Math.sin(phi), Math.sqrt(1 - u1)]))
     const [fromLobe, lobePdf] = sampleLobe(v, alpha, u1, u2)
     for (const [w, own] of [
       [fromCosine, ltcDensity(t, fromCosine)],
@@ -147,14 +145,14 @@ export function fitLtcTable(size: number, side: number) {
       for (const [u1, u2] of points) {
         const [l, pdf] = sampleLobe(v, alpha, u1, u2)
         const weight = pdf > 0 ? lobe(v, l, alpha) / pdf : 0
-        const h = normalize([v[0] + l[0], v[1] + l[1], v[2] + l[2]])
+        const h = unit([v[0] + l[0], v[1] + l[1], v[2] + l[2]])
         norm += weight
         schlick += weight * (1 - Math.max(dotVector3(v, h), 0)) ** 5
         for (let k = 0; k < 3; k++) mean[k] += weight * l[k]
       }
       norm /= points.length
       schlick /= points.length
-      const axis = normalize([mean[0], 0, Math.max(mean[2], 1e-4)])
+      const axis = unit([mean[0], 0, Math.max(mean[2], 1e-4)])
       const fitted = minimise(
         (p) => (p[0] > 0 && p[1] > 0 ? fitError(v, alpha, norm, ltcOf(axis, p), points) : Infinity),
         start,

@@ -3,7 +3,7 @@ import { replayBundles } from './fakeBundles.ts'
 
 /** One draw a render pass recorded: its pass (its index in `passDescriptors`), the pipeline and the
  *  groups set when it ran, its counts, and the buffer and byte offset an indirect one reads. */
-export type MockDraw = {
+export type FakeDraw = {
   pass: number
   pipeline: Pipeline
   groups: unknown[]
@@ -25,7 +25,7 @@ export type MockDraw = {
 /** One render pass, as it began — its attachments copied, since a frame rewrites its descriptors
  *  in place; an empty colour slot is `null` — and every command it took since, in order, with its
  *  arguments (a bundle's among them, after `executeBundles`; `end` last once it ended). */
-export type MockPass = {
+export type FakePass = {
   label?: string
   colors: Array<GPURenderPassColorAttachment | null>
   depth?: GPURenderPassDepthStencilAttachment
@@ -71,14 +71,14 @@ export function renderPass(
     passes,
     draws,
     passDescriptors,
-  }: { passes: MockPass[]; draws: MockDraw[]; passDescriptors: unknown[] },
+  }: { passes: FakePass[]; draws: FakeDraw[]; passDescriptors: unknown[] },
 ) {
   const at = passDescriptors.length - 1
   // An empty slot is `null`, as WebGPU takes it (the blend pass's share).
   const colors = [...(desc?.colorAttachments ?? [])].map((color) => (color ? { ...color } : null))
   const depth = desc?.depthStencilAttachment
   const scope = createUsageScope('render')
-  const record: MockPass = {
+  const record: FakePass = {
     label: desc?.label,
     colors,
     ...(depth && { depth: { ...depth } }),

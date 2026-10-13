@@ -1,11 +1,12 @@
 // The image contract against the texel store the read replaced (`transmissionRead.fixture.ts`): on
 // generated scenes, the changed pixels are edges alone — the changed mask eroded once by a 3 × 3
 // square is empty — and every pixel inside one caster is identical in 8 bits.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { memoryOf, readAt, reader } from './transmissionRead.fixture.ts'
 import { byte, scene, texelStore } from './transmissionScenes.fixture.ts'
-import { type V, f32, geometry, random } from './transmissionSheets.fixture.ts'
+import { type V, geometry } from './transmissionSheets.fixture.ts'
 
 test('the changed pixels are edges alone: the changed mask eroded by a 3 × 3 square is empty', () => {
   // A pixel is 6 texels wide (the texel is 1/5.7 to 1/11.3 of a pixel at the sea's levels).
@@ -14,7 +15,7 @@ test('the changed pixels are edges alone: the changed mask eroded by a 3 × 3 sq
     const casters = scene(seed)
     const read = reader(memoryOf(casters))
     const store = texelStore(casters)
-    const rnd = random(200 + seed)
+    const rnd = mulberry32(200 + seed)
     const offset = [rnd(), rnd()].map((x) => x * pixel)
     const n = Math.floor((128 - pixel) / pixel)
     const changed: boolean[][] = []
@@ -23,7 +24,7 @@ test('the changed pixels are edges alone: the changed mask eroded by a 3 × 3 sq
     for (let y = 0; y < n; y++) {
       changed.push([])
       for (let x = 0; x < n; x++) {
-        const p = [offset[0] + x * pixel, offset[1] + y * pixel].map(f32)
+        const p = [offset[0] + x * pixel, offset[1] + y * pixel].map(Math.fround)
         const now = byte(readAt(read, p, 0.001)),
           before = byte(store(p, 0.001))
         const differs = now.some((c, i) => c !== before[i])

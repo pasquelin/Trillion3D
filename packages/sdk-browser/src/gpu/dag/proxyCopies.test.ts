@@ -1,5 +1,6 @@
 // The blended copies the forward family draws are members of the run-time proxy after the placements: their
 // instances and their poses, followed at each cut. Over the device double.
+import { fromF32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera } from './placementTree.fixture.ts'
@@ -31,19 +32,13 @@ test('blended copies are members after the placements: their instances and their
   assert.equal(word(0, INSTANCE.node), 0, 'a copy wears the cut the placements share')
   assert.equal(word(1, INSTANCE.node), RUNTIME_NONE, 'a hidden copy draws none')
   assert.equal(word(2, INSTANCE.node), RUNTIME_NONE, 'a copy with no proxy draws none')
-  assert.equal(
-    new Float32Array(new Uint32Array([wordAt(gpu, region(gpu, 'copyWorldsWord') + 12)]).buffer)[0],
-    3,
-  )
+  assert.equal(fromF32Bits(wordAt(gpu, region(gpu, 'copyWorldsWord') + 12)), 3)
   void x
   // The host moves it and shows the hidden one: the next cut writes both.
   copies[0].matrix.elements[12] = 4
   copies[1].hidden = false
   selection.dispatch(kernelUniforms(packed, roots, fieldCamera([0, 5, 20], [0, 0, 0]), 1))
-  assert.equal(
-    new Float32Array(new Uint32Array([wordAt(gpu, region(gpu, 'copyWorldsWord') + 12)]).buffer)[0],
-    4,
-  )
+  assert.equal(fromF32Bits(wordAt(gpu, region(gpu, 'copyWorldsWord') + 12)), 4)
   assert.equal(word(1, INSTANCE.node), 0)
   selection.dispose()
 })

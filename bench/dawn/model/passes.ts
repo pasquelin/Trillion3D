@@ -19,8 +19,6 @@ import {
 import { passKey } from '../summary.ts'
 import * as K from './passConstants.ts'
 
-export type { Frame } from './passConstants.ts'
-
 export const PASSES: K.PassModel[] = [
   {
     label: 'DAG selection',

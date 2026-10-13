@@ -1,4 +1,4 @@
-import type { EvaluatedInstalledPage } from './browser-page.ts'
+import type { EvaluatedInstalledPage } from './browser-page-types.ts'
 import type { IntegrationWorkerResult, PageWorkerResult } from './workers.ts'
 import type { RequestRecord } from './server.ts'
 import { INSTALLED_SCENE_TRIANGLES } from './scene.ts'

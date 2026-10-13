@@ -4,8 +4,6 @@ import { readFileSync } from 'node:fs'
 import { stripTypeScriptTypes } from 'node:module'
 import type { EvaluatedInstalledPage, LooseSdk, LooseWorld } from './browser-page-types.ts'
 
-export type { EvaluatedInstalledPage } from './browser-page-types.ts'
-
 /** `hexOfBytes`'s module as a function body the page runs (`new Function`): the page cannot import
  *  it, and a copy written beside it would be a second hex writer. */
 export function hexModuleSource() {

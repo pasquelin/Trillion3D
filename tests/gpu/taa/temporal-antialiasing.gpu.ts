@@ -10,11 +10,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import {
-  runPageProof as runPage,
-  assertSoundProof as assertHealthy,
-} from '../kit/enginePageProof.ts'
-import { estRouge as isRed } from '../kit/sceneImageProof.ts'
+import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts'
+import { isRed } from '../kit/sceneImageProof.ts'
 import { TAA_STILL_FRAMES } from '../../../packages/sdk-browser/src/taa/stillFrames.fixture.ts'
 import { changedPixels, nearEdge } from './antialiasingDiffs.ts'
 
@@ -25,7 +22,7 @@ type Run = {
   moved: Held
   capabilities: { temporalAntialiasing?: boolean; motionVectors?: string; unsupported?: string[] }
 }
-type Result = Awaited<ReturnType<typeof runPage>> & {
+type Result = Awaited<ReturnType<typeof runPageProof>> & {
   viewport: [number, number]
   sans: Run
   with: Run
@@ -45,8 +42,8 @@ function between(pixels: number[]) {
 
 test('accumulation softens edges only, keeps its history under a pan, and leaves no ghost', async () => {
   const page = resolve(import.meta.dirname, 'temporalAntialiasingPage.ts')
-  const result = (await runPage(page, 'temporalAntialiasing', 'run')) as Result
-  assertHealthy(result)
+  const result = (await runPageProof(page, 'temporalAntialiasing', 'run')) as Result
+  assertSoundProof(result)
   const [width, height] = result.viewport
   const { sans: plain, with: accumulated, witness } = result
   assert.equal(plain.capabilities?.temporalAntialiasing, false, 'without the option, no pass')

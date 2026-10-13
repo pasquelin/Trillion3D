@@ -1,9 +1,9 @@
 // The cut's worlds as its kernels read them (`packages/sdk-browser/src/gpu/dag/shader/worldPoseWgsl.ts`),
-// replayed on the mock device: each placement's translation the exact doubles behind the range's
+// replayed on the fake device: each placement's translation the exact doubles behind the range's
 // matrices less the eye's doubles in the view block, in double, then single precision — the bits
 // the kernel reads (`worldsAtEye.test.ts` proves the kernel's text against the same subtraction).
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
-import { words } from './mockBuffers.ts'
+import { words } from './fakeBuffers.ts'
 
 const bits = new Float64Array(1),
   halves = new Uint32Array(bits.buffer)

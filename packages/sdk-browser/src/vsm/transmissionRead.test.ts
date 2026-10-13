@@ -1,19 +1,20 @@
 // The whole read over a slice laid out as the resolve writes it (`transmissionRead.fixture.ts`):
 // equal to a brute-force cast in 8 bits for one layer, only the layers above the receiver counted
 // whatever the list order, a translucent receiver never shadowed by its own triangle.
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { type Caster, memoryOf, pack, readAt, reader } from './transmissionRead.fixture.ts'
 import { byte, oracle, scene } from './transmissionScenes.fixture.ts'
-import { type Tri, f32, random } from './transmissionSheets.fixture.ts'
+import { type Tri } from './transmissionSheets.fixture.ts'
 
 test('one layer: the read equals a brute-force cast in 8 bits, and the interior the texel store’s exactly', () => {
   for (const seed of [1, 2, 3]) {
     const casters = scene(seed)
     const read = reader(memoryOf(casters))
-    const rnd = random(100 + seed)
+    const rnd = mulberry32(100 + seed)
     for (let k = 0; k < 400; k++) {
-      const p = [128 * rnd(), 128 * rnd()].map(f32)
+      const p = [128 * rnd(), 128 * rnd()].map(Math.fround)
       const got = readAt(read, p, 0.001)
       assert.deepEqual(byte(got), byte(oracle(casters, p, 0.001)), `seed ${seed} at ${p}`)
     }

@@ -17,9 +17,6 @@ import { encodeVsmInvalidations, vsmInvalidationPhaseFromShadowBoxes } from './i
 import { encodeVsmRender } from './renderPass.ts'
 import { emptyRowSpheres } from './rowPageBound.fixture.ts'
 
-/** Seeded uniform numbers in [0, 1), the Mulberry32 sequence. */
-export { mulberry32 as seeded } from '../../../math/src/sequence/random.ts'
-
 /** One frame's world: its lights, the eye (looking down −Z) and the boxes that moved. */
 export interface PlanWorld {
   lights: SceneLight[]

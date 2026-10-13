@@ -1,6 +1,7 @@
 // The run-time proxy kept to the placements it traces: an instance a placement, a surface a material,
 // a cut's columns once however many placements wear it — written as the culling's rows are, appended,
 // parked, marked —, and no buffer while none wears one. Over the device double.
+import { fromF32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, placementField } from './placementTree.fixture.ts'
@@ -61,7 +62,7 @@ test('a surface goes up with the cut and again when its record moves on', async 
   const floats = () =>
     Float32Array.from(
       Array.from({ length: 7 }, (_, k) => wordAt(gpu, region(gpu, 'surfacesWord') + k)),
-      (word) => new Float32Array(new Uint32Array([word]).buffer)[0],
+      fromF32Bits,
     )
   assert.equal(floats()[4], 9, 'its emission')
   assert.equal(floats()[0], 1, 'its tint, a lit surface with no metal')

@@ -1,6 +1,7 @@
 // The engine's Hi-Z test kernel (`testHiz`, `gpu/hiz/shader.ts`) on the machine's device: one
 // dispatch per case, the box laid out as the partition packs it (`Bounds`, `TESTED_U32` words),
 // the verdict read back.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import {
   HIZ_SHADER,
   HIZ_TEST_PAGES_ENTRIES,
@@ -14,7 +15,6 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import { hizEntries, laidPyramid } from './casePyramid.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 import { BOX_NEAREST, UNIFORM_BYTES, type OcclusionCase } from './occlusionTestCases.ts'
 
 /** Words of `Bounds` the cases fill: the rectangle, then these. */
@@ -91,7 +91,7 @@ export async function testOcclusion(cases: OcclusionCase[]) {
     pass.dispatchWorkgroups(1)
     pass.end()
     device.queue.submit([encoder.finish()])
-    verdicts.push((await readBuffer(device, flags, 0, 4))[0])
+    verdicts.push((await readGpuBuffer(device, flags, 4))![0])
     pyramid.destroy()
   }
   const { court: adapter } = await gpu.fermer()

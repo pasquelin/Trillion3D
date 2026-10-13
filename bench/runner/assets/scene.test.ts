@@ -12,7 +12,7 @@ import {
   sceneOf,
 } from './scene.ts'
 import { catalogueScenes } from './assetsCatalogue.ts'
-import { parseArgs } from '../harness/options.ts'
+import { parseArgs } from '../harness/flags.ts'
 
 test('the reference scenes are the public ones, the cut first and the mirror next', () => {
   assert.deepEqual(REFERENCE_SCENES, ['sponza', 'normal-tangent-mirror-test'])

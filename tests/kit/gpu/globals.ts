@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { BASE_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
-import type { MockDraw } from './mockRenderPass.ts'
-import { words } from './mockBuffers.ts'
+import type { FakeDraw } from './fakeRenderPass.ts'
+import { words } from './fakeBuffers.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
@@ -15,7 +15,7 @@ const STORAGE_OFFSET_ALIGN = 256
  * per slot, first instance at zero, page table bound at an aligned offset. Each test keeps only what
  * is its own — instances, bins, buffers.
  */
-export function indirectDraws(draws: readonly MockDraw[]) {
+export function indirectDraws(draws: readonly FakeDraw[]) {
   // The material classes draw their tiles indirectly too (`materialTiles.ts`): not the raster's.
   const vis = draws.filter((draw) => draw.indirect && draw.entryPoint !== 'shade_tile_vs')
   assert.ok(vis.length >= 1 && vis.length <= BASE_SLOTS)

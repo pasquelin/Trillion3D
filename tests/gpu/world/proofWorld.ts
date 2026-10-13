@@ -7,7 +7,7 @@ import { ASSETS, assetsManifest } from '../../../bench/runner/assets/scene.ts'
 import { openDefaultWorld } from '../kit/defaultWorld.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
 import type { CameraPose, SceneLight } from '../../../packages/sdk-core/src/index.ts'
-import { animationFrame } from '../kit/onDawn.ts'
+import { animationFrame } from '../kit/frame.ts'
 import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts'
 
 /** Frames a pose gets to be held before the proof gives up on it. */
@@ -37,9 +37,6 @@ export async function settle(world: MeasuredWorld, pose?: CameraPose) {
  *  `bench/runner/README.md` § Assets) as a file address; a scene not compiled there throws. */
 export const benchManifest = (scene: string) =>
   pathToFileURL(join(ASSETS, assetsManifest(scene, true).slice('/benchmark-assets/'.length))).href
-
-/** The pixels an image draws over its background, read where the image proofs read it. */
-export { drawnPixels } from '../kit/sceneImageProof.ts'
 
 /**
  * `manifestUrl` opened with no `engine` option — the session's own engine —, lit by

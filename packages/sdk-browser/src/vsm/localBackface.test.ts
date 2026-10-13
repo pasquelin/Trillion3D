@@ -4,6 +4,7 @@
 // that took the unit direction and added 1 m² where the shared one adds 1 cm² — the nearInverse of a
 // light at a distance of one metre whatever its distance —, so it culled differently (an approved
 // image change: which grazing back faces the marking skips, hence which pages it marks).
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
@@ -11,7 +12,6 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../lighting/shaderRunF32.fixture.ts'
 import { vsmPixelPageMarkingWgsl } from './markingWgsl.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
-import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
 
@@ -52,7 +52,7 @@ test('the marking and the trace call the one back-face test, with the vector to 
 test('on generated points, normals and lamps, the marking skips exactly the faces the trace does', () => {
   const marking = run(MARKING),
     trace = run(PROJECTION)
-  const rand = seeded(1305)
+  const rand = mulberry32(1305)
   let changed = 0,
     culled = 0
   for (let k = 0; k < 4000; k++) {
