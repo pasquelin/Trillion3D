@@ -24,32 +24,18 @@ test('a closed bounce series encodes and writes nothing: a redraw reads what the
     () => lights,
     1000,
   )
-  const work: string[] = []
-  const pass = {
-    setPipeline() {},
-    setBindGroup() {},
-    dispatchWorkgroups: () => void work.push('dispatch'),
-    end() {},
-  }
-  // The probes are atlases: a texture copy snapshots them, a render pass clears a level.
-  const encoder = {
-    copyBufferToBuffer: () => void work.push('copy'),
-    copyTextureToTexture: () => void work.push('copy'),
-    clearBuffer: () => void work.push('clear'),
-    beginRenderPass: () => (work.push('clear'), { end() {} }),
-    beginComputePass: () => pass,
-  } as unknown as GPUCommandEncoder
+  const encoder = gpu.device.createCommandEncoder()
   const eye = [4, 4, 2]
   let frames = 0
   while (probes.working) {
     assert.ok(++frames < 100_000, 'the series closes')
     probes.encode(encoder, 1, eye)
   }
-  assert.ok(work.includes('dispatch'), 'the series traced probes before it closed')
-  const writes = gpu.writes.length
-  work.length = 0
+  assert.ok(gpu.dispatches.length > 0, 'the series traced probes before it closed')
+  const writes = gpu.writes.length,
+    encoded = gpu.commands.length
   for (let frame = 0; frame < 8; frame++) assert.equal(probes.encode(encoder, 1, eye), false)
-  assert.deepEqual(work, [], 'no pass, copy or clear once closed')
+  assert.deepEqual(gpu.commands.slice(encoded), [], 'no pass, copy or clear once closed')
   assert.equal(gpu.writes.length, writes, 'no buffer written once closed')
   assert.equal(probes.working, false)
 })
