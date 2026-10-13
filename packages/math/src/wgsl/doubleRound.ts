@@ -12,7 +12,7 @@ import { dAdd } from './double.ts'
 import { lowBits } from './integer.ts'
 
 /** `Math.trunc(a)`: toward zero, the sign of a zero kept. */
-export const dTrunc = wgslFn(
+const dTrunc = wgslFn(
   'dTrunc',
   [dExponent, lowBits],
   `fn dTrunc(a:vec2u)->vec2u{

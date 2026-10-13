@@ -3,14 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from './shaderRun.fixture.ts'
-import {
-  dCeil,
-  dFloor,
-  dFromU32,
-  dIsFinite,
-  dToU32,
-  dTrunc,
-} from '../../../math/src/wgsl/doubleRound.ts'
+import { dCeil, dFloor, dFromU32, dIsFinite, dToU32 } from '../../../math/src/wgsl/doubleRound.ts'
 import { dBelow, dMathMax, dMathMin } from '../../../math/src/wgsl/doubleOrder.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
@@ -39,7 +32,8 @@ const NAMES = [
   'dMathMax',
 ]
 const run = shaderRun<Run>(
-  wgslModule(dTrunc, dFloor, dCeil, dIsFinite, dFromU32, dToU32, dBelow, dMathMin, dMathMax),
+  // `dTrunc` comes with the roundings that call it.
+  wgslModule(dFloor, dCeil, dIsFinite, dFromU32, dToU32, dBelow, dMathMin, dMathMax),
   NAMES,
   { countLeadingZeros: (x: number) => Math.clz32(x) },
 )
