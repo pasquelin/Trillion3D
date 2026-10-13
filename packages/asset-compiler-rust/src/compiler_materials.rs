@@ -74,8 +74,8 @@ pub(super) fn carried_attributes<'a>(
     attributes
         .iter()
         .filter(|a| match a.flag {
-            encode::FLAG_UV => material_reads_texcoord(material, 0),
-            encode::FLAG_UV1 => material_reads_texcoord(material, 1),
+            trillion3d_page_codec::FLAG_UV => material_reads_texcoord(material, 0),
+            trillion3d_page_codec::FLAG_UV1 => material_reads_texcoord(material, 1),
             _ => true,
         })
         .collect()

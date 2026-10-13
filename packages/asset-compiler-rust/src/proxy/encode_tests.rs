@@ -1,9 +1,12 @@
 use crate::proxy::{
-    columns_of, stage_proxy, ProxyInputs, SceneProxy, PROXY_NODE_FLOATS, PROXY_NODE_WORDS,
-    PROXY_TRIANGLE_FLOATS, SCENE_PROXY_HEADER_WORDS, SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION,
+    stage_proxy, ProxyInputs, SceneProxy, SCENE_PROXY_HEADER_WORDS, SCENE_PROXY_MAGIC,
+    SCENE_PROXY_VERSION,
 };
 use serde_json::json;
 use std::collections::{BTreeMap, BTreeSet};
+use trillion3d_page_codec::proxy::{
+    columns_of, PROXY_NODE_FLOATS, PROXY_NODE_WORDS, PROXY_TRIANGLE_FLOATS,
+};
 
 /// A right triangle of half a metre's legs, three vertices of nine floats.
 pub(crate) fn plate() -> Vec<f32> {

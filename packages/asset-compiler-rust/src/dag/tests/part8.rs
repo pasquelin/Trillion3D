@@ -3,7 +3,8 @@
 //! whose error drops or whose normals turn their back on their faces.
 use super::*;
 use trillion3d_math::vec3::{divide_f32, length_f32};
-use trillion3d_page_codec::encode::{Attribute, FLAG_NORMAL};
+use trillion3d_page_codec::encode::Attribute;
+use trillion3d_page_codec::FLAG_NORMAL;
 
 /// A mesh with one normal per vertex.
 #[derive(Default)]

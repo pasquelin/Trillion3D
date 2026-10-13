@@ -1,5 +1,6 @@
-use super::{PROXY_ERROR_METRES, PROXY_TRIANGLE_FLOATS};
 use crate::dag::DagCluster;
+use trillion3d_page_codec::bits::grid::object_units;
+use trillion3d_page_codec::proxy::{PROXY_ERROR_METRES, PROXY_TRIANGLE_FLOATS};
 
 /// Threshold doublings a cut allows before giving up: the sixteenth is 65536× the
 /// first, i.e. the DAG roots beyond which nothing coarser exists. A known bound,
@@ -96,7 +97,7 @@ pub fn cut_demand(
     triangles: usize,
     scene_triangles: usize,
 ) -> CutDemand {
-    let threshold = super::object_units(PROXY_ERROR_METRES, scale);
+    let threshold = object_units(PROXY_ERROR_METRES, scale);
     let share = if scene_triangles == 0 {
         budget
     } else {

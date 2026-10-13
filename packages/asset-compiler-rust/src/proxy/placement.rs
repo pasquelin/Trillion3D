@@ -1,9 +1,9 @@
-use super::world_scale;
 use crate::compiler_validate::{item, required_index, values};
 use crate::compiler_world::{world_matrices, Mat4};
 use crate::Result;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+use trillion3d_math::linear::longest_column;
 use trillion3d_math::matrix::transform_point;
 
 /// Max world scale under which each source mesh placed. Primitive placed
@@ -16,7 +16,7 @@ pub fn mesh_scales(g: &Value, chosen: &BTreeSet<usize>) -> Result<BTreeMap<usize
     for node_id in chosen {
         let node = item(nodes, *node_id, "node")?;
         let mesh = required_index(node.get("mesh"), "node.mesh")?;
-        let scale = world_scale(&world[*node_id]);
+        let scale = longest_column(&world[*node_id]);
         let slot = scales.entry(mesh).or_insert(0.0);
         if scale > *slot {
             *slot = scale;
@@ -35,18 +35,6 @@ pub(crate) fn primitives_by_mesh(primitives: &[Value]) -> BTreeMap<u64, Vec<usiz
         }
     }
     by_mesh
-}
-
-/// `bounds` grown by the extent `extent` of a mesh seen through `matrix`: its eight corners placed.
-pub(super) fn grow(bounds: &mut [f64], matrix: &Mat4, extent: &[f64; 6]) {
-    for corner in 0..8 {
-        let at = |axis: usize| extent[axis + 3 * ((corner >> axis) & 1)];
-        let world = transform_point(matrix, [at(0), at(1), at(2)]);
-        for axis in 0..3 {
-            bounds[axis] = bounds[axis].min(world[axis]);
-            bounds[axis + 3] = bounds[axis + 3].max(world[axis]);
-        }
-    }
 }
 
 /// Cut vertices, transformed once by placing node.

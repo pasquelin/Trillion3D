@@ -1,8 +1,8 @@
-use super::{
-    SceneProxy, PROXY_ERROR_METRES, PROXY_NODE_WORDS, PROXY_TRIANGLE_BUDGET, PROXY_TRIANGLE_FLOATS,
-    SCENE_PROXY_HEADER_WORDS, SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION,
-};
+use super::{SceneProxy, SCENE_PROXY_HEADER_WORDS, SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION};
 use serde_json::{json, Value};
+use trillion3d_page_codec::proxy::{
+    PROXY_ERROR_METRES, PROXY_NODE_WORDS, PROXY_TRIANGLE_BUDGET, PROXY_TRIANGLE_FLOATS,
+};
 
 impl SceneProxy {
     /// Descriptor manifest carries: where to read object, weight, value.

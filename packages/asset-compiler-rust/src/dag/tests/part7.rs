@@ -15,7 +15,7 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
     let group: Vec<&DagCluster> = children.iter().collect();
     let carried: Vec<trillion3d_page_codec::encode::Attribute> = uvs
         .map(|uvs| trillion3d_page_codec::encode::Attribute {
-            flag: trillion3d_page_codec::encode::FLAG_UV,
+            flag: trillion3d_page_codec::FLAG_UV,
             width: 2,
             values: uvs.to_vec(),
         })

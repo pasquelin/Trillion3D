@@ -12,8 +12,7 @@ use vertices::{first_use, localise, stored_positions};
 
 use crate::triangles::Spans;
 use crate::writer::BitWriter;
-use crate::{Header, Layout};
-pub use crate::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
+use crate::{Header, Layout, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
 /// A refusal of the encoder: a stable code and what it says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

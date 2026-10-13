@@ -4,19 +4,20 @@ use crate::texture_preview::TexturePreview;
 use crate::Result;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+use trillion3d_math::aabb::{grow_flat, EMPTY_FLAT};
+use trillion3d_math::box_transform::{box_transform, BOX_VALUES};
+use trillion3d_math::linear::longest_column;
+// The proxy's pure geometry — snapping, BVH, wide collapse — and its layout numbers live in the
+// page codec, the crate the browser's one WebAssembly module and the compiler share: one builder.
+use trillion3d_page_codec::proxy::{
+    bvh, columns_of, simplify, CutColumns, PROXY_ERROR_METRES, PROXY_NODE_WORDS,
+    PROXY_TRIANGLE_FLOATS,
+};
 
 pub mod albedo;
-/// The proxy's pure geometry — snapping, BVH, wide collapse — and its layout numbers live in the page codec,
-/// the crate the browser's one WebAssembly module and the compiler share: one builder.
-pub use trillion3d_page_codec::proxy::{
-    bvh, columns_of, simplify, wide, CutColumns, PROXY_CHILDREN, PROXY_CHILD_WORDS,
-    PROXY_ERROR_METRES, PROXY_LEAF_TRIANGLES, PROXY_NODE_FLOATS, PROXY_NODE_WORDS,
-    PROXY_TRIANGLE_BUDGET, PROXY_TRIANGLE_FLOATS,
-};
 pub mod cut;
 pub mod encode;
 pub mod placement;
-use placement::grow;
 pub(crate) mod tracer;
 
 /// Version of the "proxy" cache product. A proxy of another version is rejected, never guessed.
@@ -73,13 +74,6 @@ pub struct ProxyInputs<'a> {
     pub previews: &'a [TexturePreview],
 }
 
-/// World matrix scale factor: longest of three linear columns.
-/// Object error multiplier when becoming world error, up to upper bound.
-pub use trillion3d_math::linear::longest_column as world_scale;
-
-/// A length of `metres` in the object units of a primitive: the rule the tile grid shares.
-pub use trillion3d_page_codec::bits::grid::object_units;
-
 /// The proxy of each compiled primitive a shown node places, once: its coarse cut built into a wide
 /// tree in the primitive's own space (`columns_of`, the builder the browser's cuts go through), with the
 /// colour of its material. A primitive placed ten times is one proxy: the engine places it, a ray has the
@@ -91,14 +85,7 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let by_mesh = placement::primitives_by_mesh(inputs.primitives);
     // The largest scale each placed primitive is placed at, and the world extent of its placements.
     let mut scales: BTreeMap<usize, f64> = BTreeMap::new();
-    let mut bounds = [
-        f64::INFINITY,
-        f64::INFINITY,
-        f64::INFINITY,
-        f64::NEG_INFINITY,
-        f64::NEG_INFINITY,
-        f64::NEG_INFINITY,
-    ];
+    let mut bounds = EMPTY_FLAT;
     for node_id in inputs.shown {
         let node = item(nodes, *node_id, "node")?;
         let old_mesh = required_index(node.get("mesh"), "node.mesh")?;
@@ -109,7 +96,8 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             continue;
         };
         let matrix = &world[*node_id];
-        let scale = world_scale(matrix);
+        // The world scale of the placement: the error a cut makes in its own units grows by it.
+        let scale = longest_column(matrix);
         for index in indices.iter().copied() {
             let Some(cut) = inputs.cuts.get(index).filter(|cut| !cut.is_empty()) else {
                 continue;
@@ -118,7 +106,9 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             if scale > *slot {
                 *slot = scale;
             }
-            grow(&mut bounds, matrix, &bvh::extent(cut));
+            let mut placed = [0.0; BOX_VALUES];
+            box_transform(&mut placed, &bvh::extent(cut), matrix);
+            grow_flat(&mut bounds, &placed);
         }
     }
     let mut meshes: Vec<CutColumns> = inputs
