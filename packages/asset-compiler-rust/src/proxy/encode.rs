@@ -1,7 +1,8 @@
 use super::{SceneProxy, SCENE_PROXY_HEADER_WORDS, SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION};
 use serde_json::{json, Value};
 use trillion3d_page_codec::proxy::{
-    PROXY_ERROR_METRES, PROXY_NODE_WORDS, PROXY_TRIANGLE_BUDGET, PROXY_TRIANGLE_FLOATS,
+    CutColumns, PROXY_ERROR_METRES, PROXY_NODE_WORDS, PROXY_SOURCES_COLUMN, PROXY_TRIANGLE_BUDGET,
+    PROXY_TRIANGLE_FLOATS,
 };
 
 impl SceneProxy {
@@ -42,17 +43,12 @@ impl SceneProxy {
             words.push((mesh.node_children.len() / PROXY_NODE_WORDS) as u32);
             words.push((mesh.cell as f32).to_bits());
         }
-        for mesh in &self.meshes {
-            words.extend(mesh.triangles.iter().map(|v| v.to_bits()));
-        }
-        for mesh in &self.meshes {
-            words.extend_from_slice(&mesh.albedo);
-        }
-        for mesh in &self.meshes {
-            words.extend(mesh.node_bounds.iter().map(|v| v.to_bits()));
-        }
-        for mesh in &self.meshes {
-            words.extend_from_slice(&mesh.node_children);
+        // Every column but the sources, each of every mesh in turn.
+        let columns: Vec<_> = self.meshes.iter().map(CutColumns::column_words).collect();
+        for column in 0..PROXY_SOURCES_COLUMN {
+            for mesh in &columns {
+                words.extend_from_slice(&mesh[column]);
+            }
         }
         words.iter().flat_map(|word| word.to_le_bytes()).collect()
     }

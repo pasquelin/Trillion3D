@@ -71,6 +71,26 @@ pub struct CutColumns {
     pub cell: f64,
 }
 
+/// The rank of the sources among the columns of `CutColumns::column_words`, the last: what a
+/// run-time cut carries and the compiler's cache file does not.
+pub const PROXY_SOURCES_COLUMN: usize = 4;
+
+impl CutColumns {
+    /// The columns as words, in the one order every writer lays them out: the triangles, the
+    /// albedo, the node bounds, the node children, then the sources (`PROXY_SOURCES_COLUMN`). The
+    /// browser's hand-off (`wasm_proxy.rs`) answers them one after the other, the compiler's cache
+    /// file (`asset-compiler-rust/src/proxy/encode.rs`) each column of every mesh in turn.
+    pub fn column_words(&self) -> [Vec<u32>; PROXY_SOURCES_COLUMN + 1] {
+        [
+            self.triangles.iter().map(|v| v.to_bits()).collect(),
+            self.albedo.clone(),
+            self.node_bounds.iter().map(|v| v.to_bits()).collect(),
+            self.node_children.clone(),
+            self.sources.clone(),
+        ]
+    }
+}
+
 /// The proxy of one cut at run time, by the builder the compiler's meshes go through
 /// (`columns_of`): `indices` over `positions` are placed as triangles.
 pub fn cut_columns(indices: &[u32], positions: &[f32]) -> CutColumns {
