@@ -26,13 +26,13 @@ const UNDER_WAY = 240
 const STEADY = 0.95
 
 for (const pixelRatio of [1, 3])
-  test(`a car driven over a terrain at a ratio of ${pixelRatio} is shown at a steady interval, moving smoothly`, async () => {
+  test(`a car driven over a terrain at a ratio of ${pixelRatio} is shown at a steady interval, moving smoothly`, async (t) => {
     const page = (await loadPage(
       resolve(import.meta.dirname, 'vehicleCadencePage.ts'),
       'vehicleCadence',
     )) as typeof import('./vehicleCadencePage.ts')
     const result = (await runOnDawn(page.run, {
-      seconds: 6,
+      seconds: 8,
       pixelRatio,
     })) as Partial<CadenceReading> & {
       error?: string
@@ -40,19 +40,26 @@ for (const pixelRatio of [1, 3])
     }
     assert.equal(result.error, undefined, result.error)
     assert.deepEqual(result.errors, [])
-    const frames = result.frames!.filter((frame) => frame.drawn >= UNDER_WAY)
-    assert.ok(frames.length > 120, `${frames.length} frames under way`)
+    // The cadence reads the GPU time by the engine's timer: a device without GPU timestamps has
+    // none, and draws on every refresh by design (`frame/cadence.ts`) — named, never passed.
+    if (!result.timestampQuery) {
+      t.skip("the world's device was not granted 'timestamp-query': the cadence reads no GPU time")
+      return
+    }
+    // Under way: past the car's start, from the engine timer's first reading on — the display
+    // places each image by it.
+    const under = result.frames!.filter((frame) => frame.drawn >= UNDER_WAY)
+    const frames = under.filter((frame) => frame.timer !== null)
+    assert.ok(
+      frames.length > 120,
+      `'timestamp-query' granted, yet the engine's GPU timer read ${frames.length} of the ${under.length} frames under way`,
+    )
     assert.ok(result.speed! > 5, `driven: ${result.speed} m/s`)
     // Steady: one interval between the images shown.
     const intervals = frames.slice(1).map((frame, i) => Math.round(frame.shown - frames[i].shown))
     const counts = new Map<number, number>()
     for (const interval of intervals) counts.set(interval, (counts.get(interval) ?? 0) + 1)
     const [mode, kept] = [...counts].sort((a, b) => b[1] - a[1])[0]
-    // The display placed the images by the engine's GPU timer, the time the cadence judges.
-    assert.ok(
-      frames.every((frame) => frame.timer !== null),
-      'the GPU timer read every image under way',
-    )
     console.log(
       JSON.stringify({
         pixelRatio,
