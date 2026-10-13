@@ -1,16 +1,11 @@
-// Object-to-view stretch depends only on the linear part of the world matrices: a render frame
-// that follows the eye only moves their translations, so it must recompute nothing and push
-// nothing. Oracle: the previous full recompute, `maxStretch` on each matrix.
+// What the cut's frame words take of the worlds: a render frame that follows the eye only moves
+// their translations, so no row's read words move; the frame words carry each primitive's stretch —
+// the one memo of it, `maxStretch` of its double world —, its root and its record shift.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { maxStretch } from '../../../../sdk-core/src/index.ts'
 import { FRAME_VEC4 } from './types.ts'
-import {
-  primitiveFrameWords,
-  primitiveWordAt,
-  refreshMovedStretch,
-  changedWorlds,
-} from './worlds.ts'
+import { primitiveFrameWords, primitiveWordAt, changedWorlds } from './worlds.ts'
 
 const WORLDS = 4
 
@@ -30,59 +25,6 @@ function scene() {
   }
   return worlds
 }
-/** Oracle: each primitive's stretch, recomputed without looking at what moved. */
-const reference = (worlds: Float32Array) =>
-  Float32Array.from({ length: WORLDS }, (_, w) => maxStretch(worlds.subarray(w * 16, w * 16 + 16)))
-
-function packedOf() {
-  return { worldStretch: new Float32Array(WORLDS) }
-}
-
-/** Every primitive, as a send that moved them all names them, and the ones whose stretch moved. */
-const ALL = Int32Array.from({ length: WORLDS }, (_, w) => w),
-  stretched = new Int32Array(WORLDS)
-const refresh = (
-  previous: Float32Array,
-  next: Float32Array,
-  packed: ReturnType<typeof packedOf>,
-  frameData: Float32Array,
-) => refreshMovedStretch(previous, next, packed, frameData, ALL, WORLDS, stretched)
-
-test('a moved origin recomputes no stretch and pushes no frame', () => {
-  const previous = scene(),
-    packed = packedOf(),
-    frameData = new Float32Array(WORLDS * FRAME_VEC4 * 4)
-  assert.equal(refresh(new Float32Array(WORLDS * 16), previous, packed, frameData), 4)
-  const stretch = packed.worldStretch.slice(),
-    frames = frameData.slice()
-  // The render frame follows the eye: only translations change, from one frame to the next.
-  const next = previous.slice()
-  for (let w = 0; w < WORLDS; w++) {
-    next[w * 16 + 12] += 1000
-    next[w * 16 + 13] -= 2000
-    next[w * 16 + 14] += 3
-  }
-  assert.equal(refresh(previous, next, packed, frameData), 0)
-  assert.deepEqual([...packed.worldStretch], [...stretch])
-  assert.deepEqual([...frameData], [...frames])
-  // And what the full recompute would have written is already there.
-  assert.deepEqual([...packed.worldStretch], [...reference(next)])
-})
-
-test('a single resized primitive is the only one recomputed, to the float', () => {
-  const previous = scene(),
-    packed = packedOf(),
-    frameData = new Float32Array(WORLDS * FRAME_VEC4 * 4)
-  refresh(new Float32Array(WORLDS * 16), previous, packed, frameData)
-  const next = previous.slice()
-  next[2 * 16 + 5] = 9.5
-  next[0 * 16 + 12] = 42
-  assert.equal(refresh(previous, next, packed, frameData), 1)
-  assert.equal(stretched[0], 2, 'the resized one listed')
-  assert.deepEqual([...packed.worldStretch], [...reference(next)])
-  assert.equal(frameData[2 * FRAME_VEC4 * 4], reference(next)[2])
-})
-
 test('changedWorlds lists the rows whose read words moved; a translation alone moves none', () => {
   const previous = scene(),
     next = Float32Array.from(previous),
@@ -97,9 +39,12 @@ test('changedWorlds lists the rows whose read words moved; a translation alone m
 })
 
 test('the frame words carry each primitive stretch, root and record shift, as the kernel reads them', () => {
+  const scaled = (k: number) => ({
+    world: { elements: Float64Array.of(k, 0, 0, 0, 0, k / 3, 0, 0, 0, 0, 1, 0, 9, 8, 7, 1) },
+  })
   const packed = {
     worldCount: 3,
-    worldStretch: Float32Array.of(1, 2.5, 4),
+    worldSources: [scaled(1), scaled(2.5), scaled(Math.PI)],
     rootNodes: Uint32Array.of(0, 0xffffffff, 17),
     // A shift below zero wraps: page 12 of the second primitive reads record 2.
     recordShift: Uint32Array.of(0, (2 - 12) >>> 0, 5),
@@ -109,7 +54,7 @@ test('the frame words carry each primitive stretch, root and record shift, as th
   assert.equal(frames.length, 3 * FRAME_VEC4 * 4)
   for (let w = 0; w < 3; w++) {
     const at = primitiveWordAt(w)
-    assert.equal(frames[at], packed.worldStretch[w])
+    assert.equal(frames[at], Math.fround(maxStretch(packed.worldSources[w].world.elements)))
     assert.equal(ints[at + 1], packed.rootNodes[w])
     assert.equal(ints[at + 2], packed.recordShift[w])
   }

@@ -60,12 +60,16 @@ export function session() {
   rt.rootWorlds = {
     worlds: device.createBuffer({ label: 'Trillion3D root worlds', size: 2 * 128, usage }),
     boxes: device.createBuffer({ label: 'Trillion3D root world boxes', size: 2 * 48, usage }),
+    locals: device.createBuffer({ label: 'Trillion3D root local boxes', size: 2 * 56, usage }),
     capacity: 2,
+    sent: 2,
     moved: createChangedRuns(),
     whole: false,
     epoch: 1,
     worldWords: new Uint32Array(0),
-    boxWords: new Uint32Array(0),
+    localWords: new Uint32Array(0),
+    rows: { whole: false, ranks: new Int32Array(0), count: 0 },
+    roots: { whole: false, ranks: new Int32Array(0), count: 0 },
   }
   const encoder = device.createCommandEncoder()
   const frame = () => {

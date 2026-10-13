@@ -1,19 +1,15 @@
 /**
  * THE COMPOSITION'S STATE (`gpuCompose.ts`): the links of the roots a parent composes — each one's
- * parent slot, local matrix and local box —, the parents' worlds, the lists the passes run over and
+ * parent slot and local matrix —, the parents' worlds, the lists the passes run over and
  * what each pass last ran at; grown with the session's roots.
  */
 import { BOX_VALUES } from '../../../sdk-core/src/index.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
-import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { createMirroredKeys } from '../webgpu/cut/denseKeys.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { MATRIX_DOUBLES, NONE } from './gpuComposeWgsl.ts'
 import type { Readers } from './composeReaders.ts'
 import type { ComposeGpu } from './gpuComposeGpu.ts'
-
-/** Words of a root's entry in the roots pass's box inputs: six doubles and the flag. */
-export const ROOT_BOX_WORDS = 14
 
 export function createComposeState(roots: number) {
   return {
@@ -23,9 +19,6 @@ export function createComposeState(roots: number) {
     /** Each linked root's local matrix, as the doubles it was linked by: what a CPU reader of its
      *  world composes with its parent's (`composedWorld`). */
     localMats: new Float64Array(Math.max(1, roots) * 16),
-    /** Each linked root's local box, seven doubles — the box, then whether it has one —, which the
-     *  worlds pass carries by the composed world into its world box. */
-    boxWords: new Uint32Array(Math.max(1, roots) * ROOT_BOX_WORDS),
     /** The world versions each root's CPU world was composed at (`composedWorld`), and the
      *  current one: it moves whenever a parent's world, or a link, does. */
     refreshed: new Uint32Array(Math.max(1, roots)),
@@ -34,8 +27,9 @@ export function createComposeState(roots: number) {
     groups: undefined as { cut: WeakRef<object>; bySlot: Map<number, Int32Array> } | undefined,
     /** The rows no root reads that a parent composes for their readers (`composeReaders.ts`). */
     readers: new Map() as Readers,
-    /** The roots a parent composes, a thread each of the worlds, roots and members passes, and the
-     *  page-table rows of those roots, a thread each of the rows pass (`composedRows.ts`). */
+    /** The roots a parent composes, a thread each of the worlds, roots, root boxes and leaves
+     *  passes, and the page-table rows of those roots, a thread each of the rows pass
+     *  (`composedRows.ts`). */
     rankList: createMirroredKeys(),
     rowList: createMirroredKeys(),
     /** Roots linked or unlinked since the rows list followed them (`followComposedRows`). */
@@ -103,19 +97,6 @@ export function createComposeState(roots: number) {
 
 export type ComposeState = ReturnType<typeof createComposeState>
 
-/** Root `rank`'s local box and whether it has a world box, as the roots pass reads them. */
-export function writeRootBox(
-  state: ComposeState,
-  rank: number,
-  root: { localBox?: ArrayLike<number>; worldBox?: ArrayLike<number> },
-) {
-  const at = rank * ROOT_BOX_WORDS
-  state.boxWords.fill(0, at, at + ROOT_BOX_WORDS)
-  if (!root.localBox || !root.worldBox) return
-  packDoubles(state.boxWords, at, root.localBox as ArrayLike<number>, 0, 6)
-  state.boxWords[at + 12] = 1
-}
-
 /** Root `rank`'s motion starts from the pose the CPU motion last accumulated it at — the one
  *  `../taa/motion.ts` would compare its next world with —, its world without one. */
 export function seedMotion(rt: WebgpuPagesRuntime, state: ComposeState, rank: number) {
@@ -132,7 +113,6 @@ export function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, ro
   state.parentOf = resized(state.parentOf, roots, NONE)
   state.locals = resized(state.locals, roots * MATRIX_DOUBLES * 2)
   state.localMats = resized(state.localMats, roots * 16)
-  state.boxWords = resized(state.boxWords, roots * ROOT_BOX_WORDS)
   state.refreshed = resized(state.refreshed, roots)
   state.rankBoxes = resized(state.rankBoxes, roots * BOX_VALUES)
   state.roots = roots

@@ -28,20 +28,18 @@
  * kept in its group for what walks the tree by boxes — a ray (`../../bounce/runtimeSceneWgsl.ts`).
  * A parked member, or a member slot no placement holds yet, holds nothing.
  *
- * The tree is built here — `packPlacementTree` fits every node once, as the tables are made —, and
- * refit on the GPU from then on (`treeRefit.ts`): what a pose, a park or a mark moved, over the
- * leaves a caller writes (`memberBox`, or a composition's own), bottom up.
+ * The tree is laid out here — `packPlacementTree` writes every node open, as the tables are made —,
+ * and fit on the GPU alone (`treeRefit.ts`): every node at the first cut, then what a pose, a park
+ * or a mark moved, over the leaves the GPU writes from the worlds it holds
+ * (`../../placement/treeLeaves.ts`), bottom up. The CPU holds no box of it.
  */
 import { rowCell } from '../../partition/rowCells.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
-import { boxTransform } from '../../../../sdk-core/src/index.ts'
 import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
 import { FINITE_SENTINEL, NO_INDEX } from '../../../../math/src/constants.ts'
-import { fromHalf } from '../../../../math/src/float/half.ts'
-import { boxGrow } from '../../../../math/src/geometry/box.ts'
 import { createMirroredKeys, mirrorKey, type MirroredKeys } from '../../webgpu/cut/denseKeys.ts'
 import {
   NODE_CEIL,
@@ -80,9 +78,6 @@ export type PlacementTree = {
   order: Uint32Array
   slot: Uint32Array
   members: number
-  /** Each placement's root box through its world as its last fit took it, six numbers a slot of
-   *  the worlds: a refit transforms the moved members' alone and joins the others' kept. */
-  boxes: Float64Array
   /** The members drawn whatever the view (`drawnAlways`), and the cold word their list lies from,
    *  behind the order: queue 0 opens them (`placementTreeWgsl.ts`). */
   always: MirroredKeys
@@ -134,7 +129,6 @@ export function placementTreeShape(
     ...{ capacity: capacity.members, count: members.length, cellBase, levels, order, slot },
     depth: levels.length,
     members: 0,
-    boxes: new Float64Array(capacity.worlds * 6),
     always: createMirroredKeys(),
     alwaysAt: 0,
   }
@@ -208,8 +202,8 @@ export const treeNodeCount = (tree?: PlacementTree) =>
 /** The tree's groups: its last level. */
 const groupLevel = (tree: PlacementTree) => tree.levels[tree.levels.length - 1]
 
-/** What the tree reads of the packing: each placement's root box, its absolute world, its mark. */
-type TreeSource = Pick<PackedDag, 'nodes' | 'rootNodes' | 'rootBases' | 'mark' | 'worldSources'>
+/** What the tree reads of the packing: its nodes, each placement's mark and source. */
+type TreeSource = Pick<PackedDag, 'nodes' | 'mark' | 'worldSources'>
 
 /** Relative margin a box grows by: far above both tests' single-precision rounding (2⁻²⁴). */
 export const MARGIN = 2 ** -16
@@ -241,10 +235,9 @@ export function packPlacementTree(packed: TreeSource, tree: PlacementTree) {
     }
   })
   // The boxes are the refit's (`treeRefit.ts`): every node holds the whole world until the first
-  // cut fits it, over the leaves taken here.
+  // cut fits it, over the leaves the GPU writes then.
   for (let k = 0; k < tree.count; k++) {
     const w = tree.order[k]
-    memberBox(packed, tree, w)
     if (drawnAlways(packed.mark[w])) mirrorKey(tree.always, w, true)
   }
   for (const { base, count } of tree.levels)
@@ -299,34 +292,10 @@ export const REACH_UNBOUNDED = 0x7c00
 export const drawnAlways = (mark: number) =>
   (mark & SPRITE_UNCULLED) !== 0 || mark >>> 16 >= REACH_UNBOUNDED
 
-/** The reach a placement of mark `mark` grows its leaf by, in its own space: the half its root test
- *  grows its planes by (`reachOf`), none past every finite one — `drawnAlways` draws it. */
-const leafReach = (mark: number) => {
-  const bits = mark >>> 16
-  return bits && bits < REACH_UNBOUNDED ? fromHalf(bits) : 0
-}
-
 /** Whether a mark moving from `before` to `mark` moves what the tree holds of its placement: its
  *  leaf's reach, or whether it is drawn whatever the view. */
 export const treeMarkMoved = (before: number, mark: number) =>
   before >>> 16 !== mark >>> 16 || drawnAlways(before) !== drawnAlways(mark)
-
-const box = new Float64Array(12)
-
-/** Member `w`'s leaf, kept in `tree.boxes`: its root box grown by its reach (`leafReach`) through
- *  its world, taken when it moved, the refit joining the kept one. A parked member, or one without
- *  a root, keeps none. */
-export function memberBox(packed: TreeSource, tree: PlacementTree, w: number) {
-  if (w === NO_INDEX || packed.rootNodes[w] === NO_INDEX) return
-  const root = packed.rootBases[w] * DAG_NODE_FLOATS,
-    nodes = packed.nodes
-  for (let a = 0; a < 3; a++) {
-    box[a] = nodes[root + NODE_MIN + a]
-    box[3 + a] = nodes[root + NODE_MAX + a]
-  }
-  boxGrow(box, 6, box, 0, leafReach(packed.mark[w]))
-  boxTransform(tree.boxes, w * 6, box, 6, packed.worldSources[w].world.elements)
-}
 
 /**
  * THE ONE REFIT SCHEDULE: the nodes to fit at each of `levels` levels once `touched` changed, bottom up

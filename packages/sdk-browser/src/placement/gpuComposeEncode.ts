@@ -1,6 +1,7 @@
 /**
- * THE COMPOSITION'S PASSES IN THE FRAME'S COMMAND BUFFER (`gpuCompose.ts`): the worlds pass, then
- * the roots pass, before the cut kernel reads what they write.
+ * THE COMPOSITION'S PASSES (`gpuCompose.ts`): the worlds pass, then the roots pass, in the roots'
+ * command buffer that goes before every cut (`rootPasses.ts`): what they write is on the GPU before
+ * the root boxes, the tree's leaves, the cut and the rows read it.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
@@ -26,12 +27,12 @@ function encodeComposedWorlds(
   const state = rt.compose!,
     gpu = state.gpu!,
     listed = state.rankList.set.count
-  if (!rt.rootWorlds?.worlds || !listed) return
+  if (!rt.rootWorlds?.worlds || !listed) return false
   const pipeline = composeKernels(device).worlds.get(),
     held = gpu.worldsGroup
   held.identity.entries[0] ??= worldEntries(rt, gpu)
   const bound = composeGroup(device, held, pipeline)
-  if (state.composedAt === state.ranAt.worlds && !bound) return
+  if (state.composedAt === state.ranAt.worlds && !bound) return false
   state.ranAt.worlds = state.composedAt
   // A table made anew holds no composed world: the rows pass derives every row of them again.
   state.ranAt.rows = bound ? -1 : state.ranAt.rows
@@ -44,12 +45,15 @@ function encodeComposedWorlds(
   encoder.setBindGroup(0, held.group!)
   dispatchRows(encoder, ceilDiv(listed, 64))
   rt.run.gpuComputeDispatches++
+  return true
 }
 
 /** The linked roots' worlds (`encodeComposedWorlds`), then their cut worlds and motion, before the
  *  cut kernel reads them: a thread each of the composed roots, and nothing on a frame where nothing
  *  they read or write moved — no parent, no link, no host write of the cut's words, and their
- *  motion settled (`decideComposedMotion`). One compute pass, opened by the first that runs. */
+ *  motion settled (`decideComposedMotion`). One compute pass, opened by the first that runs.
+ *  Returns what it encoded: nothing (0), a pass (`ENCODED`), the worlds composed anew too
+ *  (`COMPOSED`), which the root boxes pass derives the composed roots' boxes from. */
 export function encodeComposedRoots(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -57,13 +61,19 @@ export function encodeComposedRoots(
 ) {
   const state = rt.compose,
     gpu = frameParents(rt, device)
-  if (!state || !gpu?.parents || !gpu.rankList) return
+  if (!state || !gpu?.parents || !gpu.rankList) return 0
   let open: GPUComputePassEncoder | undefined
   const pass = () => (open ??= encoder.beginComputePass({ label: COMPOSE_ROOTS_PASS }))
-  encodeComposedWorlds(rt, device, pass)
+  const composed = encodeComposedWorlds(rt, device, pass)
   encodeRootsPass(rt, device, pass)
-  open?.end()
+  if (!open) return 0
+  open.end()
+  return composed ? ENCODED | COMPOSED : ENCODED
 }
+
+/** What `encodeComposedRoots` encoded: a pass, and the worlds composed anew. */
+export const ENCODED = 1,
+  COMPOSED = 2
 
 /** The roots pass (`COMPOSE_ROOTS_WGSL`) over every range of the cut's worlds, into `pass`. */
 function encodeRootsPass(

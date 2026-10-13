@@ -1,16 +1,16 @@
-// A host walk that turned one placement sends that placement alone: its world, and its frame row
-// for the stretch the turn moved — never every row, never the room a growth keeps. On a generated
-// field of 1600 placements packed in a room of 3200.
+// A host walk that turned one placement sends that placement alone: its world — never every row,
+// never the room a growth keeps —, and no frame row for the stretch the turn moved, which the GPU
+// derives from the world it holds (`../../placement/rootBoxes.ts`). On a generated field of 1600
+// placements packed in a room of 3200.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { dagRootCounts } from './pack.ts'
-import { FRAME_VEC4 } from './types.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 
-test('a host walk that turned one placement sends its world and its row alone', async () => {
+test('a host walk that turned one placement sends its world alone, no stretch', async () => {
   installGpuGlobals()
   const roots = placementField(40, 6),
     counts = dagRootCounts(roots)
@@ -19,7 +19,7 @@ test('a host walk that turned one placement sends its world and its row alone', 
   const gpu = fakeDevice({ ...BACKEND, packed })
   const selection = (await createGpuDagSelection(gpu.device, packed))!
   const next = packed.worlds.slice()
-  // Placement 70 scaled twice along x: its stretch moves with it.
+  // Placement 70 scaled twice along x: its stretch moves with it, on the GPU.
   next[70 * 16] *= 2
   const before = gpu.writes.length
   assert.deepEqual([...selection.updateWorlds(next)], [70], 'the one pose moved')
@@ -29,6 +29,6 @@ test('a host walk that turned one placement sends its world and its row alone', 
       .filter((write) => write.buffer.label === label)
       .reduce((sum, { data }) => sum + data.byteLength, 0)
   assert.equal(bytes('Trillion3D DAG worlds'), 64, 'its world')
-  assert.ok(bytes('Trillion3D DAG frames') <= FRAME_VEC4 * 16, 'its frame row, no other')
+  assert.equal(bytes('Trillion3D DAG frames'), 0, 'no frame row: its stretch is the GPU’s')
   selection.dispose()
 })

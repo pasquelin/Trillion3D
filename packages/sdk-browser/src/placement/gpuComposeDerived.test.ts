@@ -1,4 +1,4 @@
-// What the rows pass and the worlds pass derive from a world (`gpuComposeDerivedWgsl.ts`, the
+// What the rows pass and the root boxes pass derive from a world (`gpuComposeDerivedWgsl.ts`, the
 // shipped WGSL run in JavaScript) is what the CPU formulas give from the same world and the same
 // inputs, word for word: the eight Hi-Z corners (`packPageCorners`), the shadow detail words (the
 // oracle `writeRowLod`) and the root's world box (`refreshRootBox`). Generated families: rotations, uneven, negative and sheared
@@ -14,7 +14,7 @@ import { packPageCorners } from '../webgpu/visibility/corners.fixture.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { writeRowLod } from '../webgpu/shadow/rowLodWords.fixture.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
-import { COMPOSE_WORLDS_WGSL } from './gpuComposeWgsl.ts'
+import { ROOT_BOXES_WGSL } from './rootBoxesWgsl.ts'
 import { DERIVE_ROWS_WGSL } from './rowWordsWgsl.ts'
 import { ROW_INPUT_DOUBLES, packInputs, rowInputs } from './rowInputPack.ts'
 import {
@@ -56,11 +56,9 @@ const derived = shaderRun<{
   },
 )
 const roots = { rootInputs: [] as Pair[], rootBoxes: [] as Pair[] }
-// The worlds pass subtracts no double: its text holds no `dSub`.
-const worldHelpers = DOUBLE_HELPERS.filter((name) => name !== 'dSub')
 const boxes = shaderRun<{ composeBox(rank: number, at: number, world: Pair[]): void }>(
-  COMPOSE_WORLDS_WGSL,
-  [...worldHelpers, 'affineAxis', 'dLess', 'dIsZero', 'dMin', 'dMax', 'carriedBox', 'composeBox'],
+  ROOT_BOXES_WGSL,
+  [...DOUBLE_HELPERS, 'affineAxis', 'dLess', 'dIsZero', 'dMin', 'dMax', 'carriedBox', 'composeBox'],
   { countLeadingZeros, ...roots },
 )
 
@@ -126,7 +124,7 @@ test('the corners, the detail and the world box a world derives are the CPU form
       ...Array.from({ length: ROW_INPUT_DOUBLES }, (_, k) => [packed[k * 2], packed[k * 2 + 1]]),
     )
     const doubles = Array.from(world, pair)
-    // The box is one the root's local box carries: its inputs as the roots pass reads them.
+    // The box is one the root's local box carries: its inputs as the root boxes pass reads them.
     roots.rootInputs.splice(0, 7, ...[...local, 0].map((v) => pair(v)))
     roots.rootInputs[6] = [root.worldBox ? 1 : 0, 0]
     boxes.composeBox(0, 0, doubles)

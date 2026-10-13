@@ -25,14 +25,13 @@ export const openFrameEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   (rt.timing.frameEncoder = newEncoder(rt, device))
 
 /** Drops the open command buffer and settles the selection whose readback would have ridden in it.
- *  The passes it held never ran: the compose worlds pass and the rows pass run again, whole. */
+ *  The passes it held never ran: the rows pass runs again, whole. */
 export function abandonFrameEncoder(rt: WebgpuPagesCore) {
   const { timing } = rt
   const dropped = timing.frameEncoder
   if (!dropped) return
   timing.frameEncoder = undefined
   if (rt.rowWords?.encodedInto === dropped) rt.rowWords.all = true
-  if (rt.compose) rt.compose.ranAt.worlds = -1
   const settle = timing.frameSelection
   timing.frameSelection = undefined
   settle?.(false)

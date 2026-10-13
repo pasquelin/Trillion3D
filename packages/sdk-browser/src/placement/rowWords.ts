@@ -12,6 +12,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { RowRunVisitor } from '../webgpu/row/dirty.ts'
 import { createRowInputs, ensureRowInputs, sendRowFlags, sendRowInputs } from './rowInputs.ts'
 import { sendRootWorlds } from './rootWorlds.ts'
+import { takeMovedRows } from './rootMoves.ts'
 import { followComposedRun } from './composedRows.ts'
 import { closeSphereCopies, copyClusterSpheres } from '../webgpu/shadow/spheres.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
@@ -91,7 +92,8 @@ export function followRowWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (compose && !compose.parentIds.size) compose.rowsFollowed = false
   const fresh = ensureRowInputs(state.inputs, device, rows.casterSlots)
   if (fresh && compose) compose.rowsFollowed = false
-  const moved = sendRootWorlds(rt, device)
+  sendRootWorlds(rt, device)
+  const moved = takeMovedRows(rt.rootWorlds!)
   state.sentWhole = fresh || !moved
   if (state.sentWhole) {
     state.all = true

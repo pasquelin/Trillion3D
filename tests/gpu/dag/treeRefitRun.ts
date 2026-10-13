@@ -11,9 +11,11 @@ import {
   TREE_SPAN,
 } from '../../../packages/sdk-browser/src/gpu/dag/placementTree.ts'
 import {
+  leafBoxes,
   refitTree,
   treeChange,
 } from '../../../packages/sdk-browser/src/gpu/dag/treeRefitRun.fixture.ts'
+import { packDoubles } from '../../../packages/math/src/float/splitDouble.ts'
 import { createTreeRefit } from '../../../packages/sdk-browser/src/gpu/dag/treeRefit.ts'
 import {
   DAG_NODE_FLOATS,
@@ -80,6 +82,14 @@ export async function runRefit(split: boolean) {
     coldParts: { buffers: coldBuffers, bytes: (split ? coldPer : cold.length) * 4 },
     frames: { buffers: frameBuffers, ranges: framesAt.map((first) => ({ first })) },
   })
+  // The leaves as the GPU writes them (`treeLeavesWgsl.ts`, proven against `leafBoxes`), sent.
+  const sendLeaves = () => {
+    const leaves = leafBoxes(dag),
+      words = new Uint32Array(leaves.length * 2)
+    packDoubles(words, 0, leaves)
+    device.queue.writeBuffer(refit.members, 0, words)
+  }
+  sendLeaves()
   // The first fit, on the GPU: every group, from the open tree the pack leaves.
   const everyGroup = Array.from({ length: tree.levels.at(-1)!.count }, (_, g) => g)
   const first = device.createCommandEncoder()
@@ -97,8 +107,7 @@ export async function runRefit(split: boolean) {
       frames.subarray(first * FRAME_ROW_WORDS, end * FRAME_ROW_WORDS),
     )
   })
-  const moved = Int32Array.from(touched).sort()
-  refit.leaves(moved, moved.length)
+  sendLeaves()
   const groups = new Set([...touched].map((w) => Math.floor(tree.slot[w] / TREE_SPAN)))
   const encoder = device.createCommandEncoder()
   refit.run(encoder, groups)

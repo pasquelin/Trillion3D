@@ -9,7 +9,7 @@ import { placementField } from './placementTree.fixture.ts'
 import { packDagSelection } from './selection.ts'
 import { treeNodeCount, TREE_SPAN } from './placementTree.ts'
 import { WHOLE_LAYOUT, type RefitLayout } from './treeRefitWgsl.ts'
-import { refitTree, treeChange } from './treeRefitRun.fixture.ts'
+import { leafBoxes, refitTree, treeChange } from './treeRefitRun.fixture.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
 
@@ -67,9 +67,10 @@ test('a fitted tree holds every member, grown past the single-precision rounding
   const held = groups.base + Math.floor(tree.slot[70] / TREE_SPAN)
   assert.ok(node(held)[0] > -1e38 && node(held)[4] < 1e38, 'the group of an uncullable member')
   assert.ok(node(tree.levels[0].base)[0] > -1e38, 'and every node above it')
+  const leaves = leafBoxes(dag)
   for (const w of [0, 5, 70, 1599]) {
     const box = node(groups.base + Math.floor(tree.slot[w] / TREE_SPAN)),
-      leaf = tree.boxes.subarray(w * 6, w * 6 + 6)
+      leaf = leaves.subarray(w * 6, w * 6 + 6)
     for (let a = 0; a < 3; a++) {
       assert.ok(box[a] <= leaf[a] && box[4 + a] >= leaf[3 + a], `member ${w}, axis ${a}`)
     }

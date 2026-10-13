@@ -4,23 +4,21 @@
  * the pass fits them and every node above them, bottom up, in one compute pass of one command
  * buffer — a dispatch a level, a thread a node, the engine's one level loop (`treeRefitLevels.ts`) —
  * and nothing else of the tree is read or written.
- * The leaves it fits over are the table `members` holds, six doubles a placement: the caller
- * writes the ones it moved (`leaves`, the root's box through the world the CPU holds, sent in the
- * cut's one run writer's ranges) or has the GPU write them (a composition's, `treeFollow.ts`),
- * before `run`. The pass is the one entry point of a refit — the placement tree's, and whatever else
- * bounds its boxes the same way.
+ * The leaves it fits over are the table `members` holds, six doubles a placement, which the GPU
+ * alone writes (`../../placement/treeLeaves.ts`, through `treeFollow.ts`) before `run`: no leaf is
+ * taken nor kept on the CPU. The pass is the one entry point of a refit — the placement tree's, and
+ * whatever else bounds its boxes the same way.
  *
  * The pass binds the cut's tables as the cut does: a table the device splits across bindings is read
  * through its parts at the bindings the kernel gives them (`dagPartEntries`), the frames through
  * their ranges. Nothing is ever left unfitted, and no group is held open for want of a binding.
  */
 import { TREE_REFIT_PASS } from '../../stage/passLabels.ts'
-import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
-import { memberBox, refitLevels, treeNodeCount, type PlacementTree } from './placementTree.ts'
+import { refitLevels, treeNodeCount, type PlacementTree } from './placementTree.ts'
 import { REFIT_PARAM_WORDS, treeRefitWgsl, type RefitLayout } from './treeRefitWgsl.ts'
 import { DAG_BINDING, dagPartEntries } from './shader/bindings.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
-import { writeRanges, type DagParts } from './split.ts'
+import type { DagParts } from './split.ts'
 import { preparedComputePipeline, preparedPipelines } from '../../lighting/deferred/fullscreen.ts'
 import { oncePerDevice } from '../core/oncePerDevice.ts'
 import { sequentialEntries } from '../core/computeBindings.ts'
@@ -52,30 +50,18 @@ function layoutOf({ nodeParts, coldParts, frames }: RefitTables): RefitLayout {
 
 export function createTreeRefit(
   device: GPUDevice,
-  packed: Pick<
-    PackedDag,
-    'nodes' | 'rootNodes' | 'rootBases' | 'mark' | 'worldSources' | 'worldCount'
-  >,
+  packed: Pick<PackedDag, 'worldCount'>,
   tree: PlacementTree,
   tables: RefitTables,
 ) {
   const layout = layoutOf(tables)
   const worlds = Math.max(1, packed.worldCount)
+  // Written by the leaves pass alone; a proof of the refit on a device sends the leaves it fits.
   const members = device.createBuffer({
     label: 'Trillion3D placement tree leaf boxes',
     size: worlds * 6 * 8,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
-  // The leaves the build fitted the tree over, as it holds them.
-  const words = new Uint32Array(worlds * 12)
-  packDoubles(words, 0, tree.boxes)
-  device.queue.writeBuffer(members, 0, words)
-  // The leaves a sync wrote, sent as runs of the words above (`writeRanges`): a run's gap sends
-  // the leaves as last sent, and a composed leaf it covers is written again by the composition's
-  // pass, encoded after the writes land (`treeFollow.ts`).
-  const leafSource = { data: words, sourceBase: 0, targetBase: 0, stride: 12 }
-  const toMembers = (offset: number, data: ArrayBuffer, from: number, size: number) =>
-    device.queue.writeBuffer(members, offset, data, from, size)
   /** A level's own parameters past its ids (`Params`): what it fits and the level below it. */
   const extra = new Uint32Array(REFIT_PARAM_WORDS - 2)
   // Compiled off the thread as the tree is followed: the frames wait for it, none compiles it.
@@ -83,16 +69,6 @@ export function createTreeRefit(
   let program: ReturnType<typeof refitProgram> | undefined
   return {
     members,
-    /** The leaf boxes of the `count` placements `sorted` names, ascending — each its root's box
-     *  through the world the CPU holds —, written in the fewest runs. */
-    leaves(sorted: Int32Array, count: number) {
-      for (let k = 0; k < count; k++) {
-        const w = sorted[k]
-        memberBox(packed, tree, w)
-        packDoubles(words, w * 12, tree.boxes, w * 6, 6)
-      }
-      writeRanges(device, toMembers, sorted, count, leafSource)
-    },
     /** The groups `groups` and every node above them fit again, encoded in `encoder`: the leaves
      *  they hold are those `members` holds when it runs. */
     run(encoder: GPUCommandEncoder, groups: Iterable<number>) {

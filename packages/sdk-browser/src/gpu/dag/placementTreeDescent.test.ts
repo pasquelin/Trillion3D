@@ -4,7 +4,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
-import { memberBox } from './placementTree.ts'
 import { refitTree } from './treeRefitRun.fixture.ts'
 import { packDagSelection } from './selection.ts'
 import { appendDagRoots, dagRootCounts } from './pack.ts'
@@ -66,7 +65,6 @@ test("a growth's batch far from the packed placements fills its own groups: none
   const capacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 160 }
   const dag = packDagSelection(near, capacity)
   assert.ok(appendDagRoots(dag, far))
-  for (let w = 80; w < 100; w++) memberBox(dag, dag.placementTree!, w)
   refitTree(dag)
   const at = fieldCamera([10_012, 30, 20], [10_012, 0, -12], 200)
   const seen = fieldCut([...near, ...far], at, true, dag).placements

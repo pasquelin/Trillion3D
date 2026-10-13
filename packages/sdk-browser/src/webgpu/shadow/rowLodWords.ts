@@ -3,6 +3,7 @@ import type { MovedBox } from '../../page/selection/types.ts'
 import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
 import { rowGrowth } from '../../hiz/corners.ts'
 import type { Placements } from '../../page/selection/placements.ts'
+import type { WorldMemo } from '../../page/selection/rootWorld.ts'
 
 /** Own/parent world centres and errors, their low residues, then two world radii, the radius of
  *  the row's whole object (its root's world box, 0 for none) and padding. */
@@ -36,14 +37,16 @@ export function rowLodInputs(
   into: Float64Array,
   o: number,
   rec: PageRec | undefined,
-  root: (Placements[number] & { readonly worldBox?: ArrayLike<number> }) | undefined,
+  root: (Placements[number] & WorldMemo) | undefined,
   ready = true,
   childReady = true,
 ) {
   into.fill(0, o, o + ROW_LOD_INPUT_DOUBLES)
   let flags = 0
-  const box = root?.worldBox
-  if (box && box[3] >= box[0]) flags |= LOD_BIT.hasBox
+  // A root has a world box when it has a local box to carry: the one the GPU carries by its world
+  // (`../../placement/rootBoxesWgsl.ts`), whose radius the detail reads.
+  const local = root?.localBox
+  if (root?.worldBox && local && local[3] >= local[0]) flags |= LOD_BIT.hasBox
   if (root && rec?.sphere && rec.lodError !== undefined) {
     flags |= LOD_BIT.has | (childReady ? LOD_BIT.childReady : 0) | (ready ? LOD_BIT.ready : 0)
     // A page bounded where its vertices are (`rowBox`) takes its box's sphere, which no reach

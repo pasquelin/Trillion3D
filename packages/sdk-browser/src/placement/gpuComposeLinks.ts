@@ -17,7 +17,6 @@ import {
   growComposeState,
   seedMotion,
   slotMoved,
-  writeRootBox,
   type ComposeState,
 } from './gpuComposeState.ts'
 import { installComposedWorld, removeComposedWorld } from './gpuComposeWorld.ts'
@@ -140,7 +139,6 @@ export function linkRanks(
     packDoubles(state.locals, rank * MATRIX_DOUBLES * 2, links[k].local)
     state.localMats.set(links[k].local as ArrayLike<number>, rank * 16)
     installComposedWorld(rt, rank)
-    writeRootBox(state, rank, roots[rank])
     linkBox(state, rank, roots[rank], links[k].local)
   }
   if (ranks.length) state.linksDirty = true

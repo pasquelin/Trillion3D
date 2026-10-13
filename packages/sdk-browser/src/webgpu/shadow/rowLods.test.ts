@@ -87,6 +87,8 @@ function scene() {
       gpuSelection: {
         isReady: (page: number) => ready[page] === 1,
         isChildReady: (page: number) => childReady[page] === 1,
+        // The roots' frame words, where the root boxes pass writes their stretch.
+        worldRanges: [{ first: 0, count: 2, frames: device.createBuffer({ size: 256, usage }) }],
       },
     },
     blendState: { occlusionEpoch: 1 },
@@ -142,14 +144,11 @@ test('a model scattered across the table has the rows pass derive its own rows, 
   ready[rows.packedPageIndex[600]] = 0
   rows.markRowOfPage(rows.packedPageIndex[600])
   assert.deepEqual(frame(), [600, ...MODEL_ROWS], 'seven rows of the 995 spanned')
-  // The CPU sent the model's world and box, then the bits of the row whose readiness moved: one
-  // double, no row of the table.
-  assert.deepEqual(labels(writes).slice(0, 3), [
-    'Trillion3D root worlds',
-    'Trillion3D root world boxes',
-    'Trillion3D row inputs',
-  ])
-  assert.deepEqual([writes[0].size, writes[1].size, writes[2].size], [32, 12, 2])
+  // The CPU sent the model's world, then the bits of the row whose readiness moved: one double, no
+  // row of the table, and no box — the GPU carries the model's by its world.
+  assert.deepEqual(labels(writes).slice(0, 2), ['Trillion3D root worlds', 'Trillion3D row inputs'])
+  assert.deepEqual([writes[0].size, writes[1].size], [32, 2])
+  assert.equal(labels(writes).includes('Trillion3D root world boxes'), false, 'no CPU box')
   assert.equal(labels(writes).includes(undefined), false, 'no table row sent')
   // Bit for bit what the oracle gives for every row, the model at its new world.
   assert.deepEqual(held(), everyRow())

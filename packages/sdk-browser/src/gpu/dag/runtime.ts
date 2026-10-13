@@ -9,7 +9,7 @@ import { coarsenTick } from './coarsening.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { createWorldResidencyMirror } from './residencyMirror.ts'
 import { createAsideCut } from './aside.ts'
-import { createTreeFollower, type ComposedLeaves } from './treeFollow.ts'
+import { createTreeFollower, type TreeLeaves } from './treeFollow.ts'
 import { nodeLayout } from './treeRefit.ts'
 import { createLinkFollower } from './worldFollow.ts'
 import {
@@ -27,12 +27,15 @@ import { cutBytes } from './cutBuffers.ts'
 import { createProxyInstances } from './proxyInstances.ts'
 import { NO_PROXY_BOXES } from '../../bounce/probeSync.ts'
 
+/** What a session writes of its roots on the GPU before every cut on the tables (`syncTables`):
+ *  their worlds, boxes and stretches (`../../placement/rootPasses.ts`), then the tree's leaves. */
+export type RootsOnGpu = { roots(): void; leaves: TreeLeaves }
+
 export function createDagRuntime(
   resources: DagResources,
   /** The pages the pool already holds, when the cut is made beside it (`poolList.ts`). */
   poolHeld?: (page: number) => boolean,
-  /** The leaves a parent's composition writes into the tree's refit (`treeFollow.ts`). */
-  leaves?: ComposedLeaves,
+  roots?: RootsOnGpu,
 ): GpuSelection {
   const { device, packed } = resources
   const state = createDagRuntimeState()
@@ -49,7 +52,7 @@ export function createDagRuntime(
     // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
     // before #1333, and the rows' flags go up as they are.
     mirror: packed.world && createWorldResidencyMirror({ ...packed, world: packed.world }),
-    tree: createTreeFollower(resources, leaves),
+    tree: createTreeFollower(resources, roots?.leaves),
     // What a ray can meet of the run-time cuts, one instance a placement (`proxyInstances.ts`).
     proxies: createProxyInstances(resources),
     // A link move with no residency behind it goes to the cut's residency as the rows last stood;
@@ -60,11 +63,11 @@ export function createDagRuntime(
     }),
     moves: new Int32Array(8),
   }
-  return selectionOver(run)
+  return selectionOver(run, roots)
 }
 
 /** The camera cut's face (`GpuSelection`) over `run`. */
-function selectionOver(run: DagRun): GpuSelection {
+function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
   const { resources, state, uploadResidency, poolList, mirror, chain } = run
   const { packed, pageCount, frames, buffers } = resources
   // The draw mask, in the part of `flags` that holds its section whole (`split.ts`): its readers
@@ -74,10 +77,12 @@ function selectionOver(run: DagRun): GpuSelection {
   const mainView = {}
   // The one step every cut on these tables takes before it encodes, the main view's and each view
   // aside's: the rows of the root and mark words parked or marked since go up (`flushWords`), the
-  // tree fits what moved again, the links that moved go up.
+  // roots' worlds, boxes and stretches are written, the tree fits what moved again over the leaves
+  // they decide, the links that moved go up.
   const syncTables = (uniforms: SelectionUniforms, view: object) => {
     if (!live()) return
     frames.flushWords()
+    roots?.roots()
     run.tree?.sync()
     run.proxies.refresh()
     run.links?.sync(uniforms, view)

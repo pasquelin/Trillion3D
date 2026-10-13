@@ -22,6 +22,7 @@ import { composeGroup } from './composeGroups.ts'
 import { createRowWordsGpu, partsMoved, rowEntries, type RowWordsGpu } from './rowWordsGpu.ts'
 import { followComposedRows, sendList } from './composedRows.ts'
 import type { RowWords } from './rowWords.ts'
+import { writeMovedRoots } from './rootPasses.ts'
 
 /** The rows kernel, once a device, compiled off the thread (`askRowWords`). */
 const rowsKernel = oncePerDevice((device) =>
@@ -113,6 +114,8 @@ export function encodeRowWords(
     worlds = rt.rootWorlds,
     { rows } = rt.layout
   if (!state?.inputs.buffer || !worlds?.worlds || !rt.vis.pageTable || !rows.casterSlots) return
+  // The root boxes the detail reads, of a world moved since the cut wrote them, first.
+  writeMovedRoots(rt)
   const gpu = (state.gpu ??= createRowWordsGpu(device))
   gpu.frame[0] = rt.lights.spheres?.buffer
   gpu.frame[1] = rt.vis.gpuPartition?.corners

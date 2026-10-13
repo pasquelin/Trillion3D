@@ -5,6 +5,7 @@ import type { WebgpuPagesLayout } from '../prepare/layout.ts'
 import { noteWorldMoved } from './movedWorlds.ts'
 import { extendSpan } from '../../../../../math/src/sequence/span.ts'
 import { noteRootWorld } from '../../../placement/rootWorlds.ts'
+import { worldMoved } from '../../../page/selection/rootWorld.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** What a moved root rewrites: its rows and the memos its world feeds, and the runtime's list of
@@ -22,7 +23,8 @@ export type MovedRootTarget = Pick<WebgpuPagesRuntime, 'rootWorlds'> & {
 
 /**
  * The world of one placement moved: only what reads it follows, and no word of its rows is written
- * here. Its world goes to the GPU (`rootWorlds.ts`), and the rows pass derives every word of its
+ * here. Its CPU box and stretch are taken again when read (`worldMoved`); its world goes to the
+ * GPU (`rootWorlds.ts`), and the rows pass derives every word of its
  * rows from it (`../../../placement/rowWords.ts`): world words, sphere, corners, detail. Placement
  * `rank` is named beside that send: its world alone goes up to the cut (`movedWorlds.ts`), and the
  * GPU cut's tree fits again the group of the pose its send says moved (`updateWorlds`). A world
@@ -35,6 +37,7 @@ export type MovedRootTarget = Pick<WebgpuPagesRuntime, 'rootWorlds'> & {
  * written again.
  */
 export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>, rank: number) {
+  worldMoved(root)
   if (rt.run) noteWorldMoved(rt.run, rank)
   noteRootWorld(rt, rank)
   if (root.pages[0]?.transparent) poseEntries(rt, root)

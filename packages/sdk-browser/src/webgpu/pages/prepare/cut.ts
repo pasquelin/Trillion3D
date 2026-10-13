@@ -4,7 +4,8 @@ import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 import { linkWorldObjects } from './worldRoot.ts'
 import type { DagCapacity } from '../../../gpu/dag/pack.ts'
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
-import { composedLeaves } from '../../../placement/gpuComposeLeaves.ts'
+import { rootsOnGpu } from '../../../placement/rootPasses.ts'
+import { deriveEveryRoot } from '../../../placement/rootMoves.ts'
 import { admitCutTables } from './targetFunding.ts'
 import { log } from '../../../diagnostic/log.ts'
 
@@ -31,8 +32,8 @@ export async function prepareGpuCut(
 /** The session's GPU cut over `roots` — at open, exactly theirs, or beside the running one for a
  *  growth in place (`../../../placement/webgpuGrowth.ts`), at the grown `capacity` later growths
  *  append into, the pages the pool holds listed at once (`poolHeld`) —, or why the device refused
- *  it, said by name. Its placement tree is fitted over the leaves a parent's composition writes for
- *  the roots it composes on the GPU (`composedLeaves`). */
+ *  it, said by name. Before each of its cuts the roots' worlds, boxes and stretches are written on
+ *  the GPU, and its placement tree's leaves from them (`rootsOnGpu`). */
 export async function createSessionCut(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
@@ -61,7 +62,7 @@ export async function createSessionCut(
       })
     },
     poolHeld,
-    leaves: composedLeaves(rt),
+    roots: rootsOnGpu(rt),
     rows: rt.layout.rows.casterSlots,
     admit: (bytes) => admitCutTables(rt, bytes),
     progress,
@@ -97,7 +98,7 @@ function reportCutSteps(
  * cut is let go.
  */
 export function adoptCut(
-  rt: Pick<WebgpuPagesRuntime, 'context' | 'layout' | 'run' | 'gpu'>,
+  rt: Pick<WebgpuPagesRuntime, 'context' | 'layout' | 'run' | 'gpu' | 'rootWorlds'>,
   cut: GpuSelection,
 ) {
   const { run, layout } = rt,
@@ -111,4 +112,6 @@ export function adoptCut(
       if (old.worldStandsIn(rank) !== cut.worldStandsIn(rank)) linkMoved(rank)
   old?.dispose()
   run.gpuSelection = cut
+  // Its frame words were packed from the CPU's stretches: the GPU's are written into them again.
+  deriveEveryRoot(rt)
 }

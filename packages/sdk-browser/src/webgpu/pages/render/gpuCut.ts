@@ -3,7 +3,6 @@ import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts'
 import { prefetchHorizonMs } from '../../../engine/common.ts'
 import { mirrorDrawnFromShown } from '../helpers.ts'
 import { abandonFrameEncoder, openFrameEncoder } from './encoder.ts'
-import { encodeComposedRoots } from '../../../placement/gpuComposeEncode.ts'
 import { encodeDraws, followRows } from './encodeDraws.ts'
 import { admitGpuCut } from './gpuCutAdmission.ts'
 import { dispatchCut, dispatchWaitingSelection, streamCutResidency } from './gpuCutStream.ts'
@@ -101,7 +100,6 @@ function cutFrame(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, cam: EngineCamer
     const encoder = openFrameEncoder(rt, gpuDevice)
     followRows(rt, gpuDevice, cam)
     rt.vis.deformationCode?.encodeDeformation(rt, encoder)
-    encodeComposedRoots(rt, gpuDevice, encoder)
     cut = dispatchCut(rt, encoder)
   } catch (error) {
     abandonFrameEncoder(rt)

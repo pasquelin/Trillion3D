@@ -1,10 +1,5 @@
 import { type ResidencyChanges, type SelectionUniforms } from '../core/selection.ts'
-import {
-  refreshMovedStretch,
-  changedWorlds,
-  worldChangedAt,
-  writePrimitiveWords,
-} from './worlds.ts'
+import { changedWorlds, worldChangedAt, writePrimitiveWords } from './worlds.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { createDagResidencyUpload } from './residencyUpload.ts'
 import type { createDagPoolList } from './poolList.ts'
@@ -108,17 +103,15 @@ function posesMoved(run: DagRun, moved: number, origins: Int32Array) {
   return ranks
 }
 
-/** The placements that moved among those of `named`, those whose stretch moved with them, and the
- *  one an unlink writes again. */
-let movedScratch = new Int32Array(8),
-  stretchedScratch = new Int32Array(8)
+/** The placements that moved among those of `named`, and the one an unlink writes again. */
+let movedScratch = new Int32Array(8)
 const rewritten = new Int32Array(1)
 
 /**
  * The placements of `named`, increasing — the ones a call moved —, compared with the worlds last
- * received and those that moved sent, each run to its range, with their exact translations and,
- * where the linear part moved, their stretch: a frame's CPU and upload follow what moved, never
- * the placements' count. Each cut reads a translation at its own eye from the exact one
+ * received and those that moved sent, each run to its range, with their exact translations; their
+ * stretch is the GPU's, from the world it holds (`../../placement/rootBoxes.ts`): a frame's CPU and
+ * upload follow what moved, never the placements' count. Each cut reads a translation at its own eye from the exact one
  * (`shader/worldPoseWgsl.ts`): a translation that alone moved writes its doubles alone. The ranks
  * the packing holds are kept once, here: every step below reads them alone.
  */
@@ -136,22 +129,10 @@ function updateNamedWorlds(run: DagRun, next: Float32Array, all: Int32Array) {
   return posesMoved(run, sendMoved(run, next, moved), origins)
 }
 
-/** The `moved` first placements of `movedScratch`, whose read words moved: their stretch
- *  refreshed where their linear part moved, before their copy (`refreshMovedStretch`), their
- *  worlds copied into those held and sent, each run to its range, with the rows whose stretch
- *  moved; their count. */
+/** The `moved` first placements of `movedScratch`, whose read words moved: their worlds copied
+ *  into those held and sent, each run to its range; their count. */
 function sendMoved(run: DagRun, next: Float32Array, moved: number) {
-  const { packed, frames, frameData } = run.resources
-  stretchedScratch = resized(stretchedScratch, moved)
-  const stretched = refreshMovedStretch(
-    packed.worlds,
-    next,
-    packed,
-    frameData,
-    movedScratch,
-    moved,
-    stretchedScratch,
-  )
+  const { packed, frames } = run.resources
   for (let i = 0; i < moved; i++) {
     const w = movedScratch[i]
     packed.worlds.set(next.subarray(w * 16, w * 16 + 16), w * 16)
@@ -160,7 +141,6 @@ function sendMoved(run: DagRun, next: Float32Array, moved: number) {
     frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
     run.proxies.worldsWritten(movedScratch, moved)
   }
-  if (stretched) frames.writeNamedRows(stretchedScratch, stretched)
   return moved
 }
 
@@ -175,7 +155,7 @@ export function rewritePlacement({ resources, state, proxies }: DagRun, w: numbe
   frames.writeWorldOrigins(rewritten)
   frames.writeNamedWorlds(packed.worlds, rewritten, 1)
   proxies.worldsWritten(rewritten, 1)
-  // Its stretch too: the GPU's composition wrote the one of the pose its parent gave it.
+  // Its stretch too, the host's world's: the GPU's composition wrote the one its parent gave it.
   frames.writeNamedRows(rewritten, 1)
   state.worldRevision++
 }

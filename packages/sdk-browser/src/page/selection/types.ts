@@ -137,8 +137,12 @@ export type ClusterRoot<T> = {
   /** The local box of which `worldBox` is the image: what a node move reprojects (R8). Shared by
    *  every placement of the primitive, so it is read, never written. */
   localBox?: Float64Array
+  /** The stamp its world moved at (`worldMoved`), and what the memo of its stretch was taken at
+   *  (`rootWorld.ts`). */
+  worldAt?: number
   stretch?: number
-  stretchKey?: Float64Array
+  stretchAt?: number
+  stretchStamp?: number
   structure?: ClusterStructureIndex
   /** What the root declares of its pages' boxes, once and for all at prepare time: `true` says
    *  each carries `min` and `max`, and the cut then stops checking them per cluster under a node

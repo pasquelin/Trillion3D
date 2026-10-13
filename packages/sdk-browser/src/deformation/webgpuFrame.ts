@@ -1,6 +1,6 @@
 import { markRootRows } from '../webgpu/pages/render/movedRoot.ts'
 import { updateWholeDeformationBounds } from './wholeBounds.ts'
-import { worldStretch } from '../page/cut/logic.ts'
+import { worldStretch } from '../page/selection/rootWorld.ts'
 import { noteDeformed } from '../webgpu/pages/render/movedGeometry.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'

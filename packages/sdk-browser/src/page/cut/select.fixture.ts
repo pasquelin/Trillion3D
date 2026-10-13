@@ -4,7 +4,7 @@ import {
   multiplyMatrix4,
 } from '../../../../sdk-core/src/index.ts'
 import type { ConeContext } from '../cone/cone.fixture.ts'
-import { worldStretch } from './logic.ts'
+import { worldStretch } from '../selection/rootWorld.ts'
 import { selectionScratch, type PageRecord, type SelectionState } from './state.fixture.ts'
 import { traverse } from './visit.fixture.ts'
 import type { ClusterRoot } from '../selection/types.ts'

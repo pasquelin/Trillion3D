@@ -1,6 +1,6 @@
 import { boxCenter } from '../../../math/src/geometry/box.ts'
 import { focalPixels } from '../../../math/src/projection/camera.ts'
-import { worldStretch } from '../page/cut/logic.ts'
+import { worldStretch } from '../page/selection/rootWorld.ts'
 import { screenErrorBound } from '../../../sdk-core/src/lod/screenErrorBound.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import { viewDepthOf, viewLateralOf } from '../page/selection/projection.ts'

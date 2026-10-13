@@ -10,6 +10,7 @@ import { rowBox, rowGrowth } from '../hiz/corners.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 import { LOD_INPUT, ROW_LOD_INPUT_DOUBLES, rowLodInputs } from '../webgpu/shadow/rowLodWords.ts'
 import type { Placements } from '../page/selection/placements.ts'
+import type { WorldMemo } from '../page/selection/rootWorld.ts'
 
 /** A row's inputs: its local box's centre and half extent grown by the reach (the sphere), its box
  *  grown by it (the corners), then the detail's. The centre and half extent are kept beside the
@@ -50,7 +51,7 @@ export function rowInputs(
   into: Float64Array,
   o: number,
   rec: PageRec | undefined,
-  root: (Placements[number] & { readonly worldBox?: ArrayLike<number> }) | undefined,
+  root: (Placements[number] & WorldMemo) | undefined,
   ready: boolean,
   childReady: boolean,
   lod = true,

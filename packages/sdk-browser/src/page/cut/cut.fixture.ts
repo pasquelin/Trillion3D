@@ -1,7 +1,7 @@
 import { frustumExcludesBox, maxStretch } from '../../../../sdk-core/src/index.ts'
 import { drawsCard, selectFlat } from './select.fixture.ts'
 import { openMark } from './openRoot.fixture.ts'
-import { worldStretch } from './logic.ts'
+import { worldStretch } from '../selection/rootWorld.ts'
 import { selectionScratch, selectionState, type PageRecord } from './state.fixture.ts'
 import { copyMatrix4, multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { IDENTITY_WORLD } from '../../host/matrixElements.ts'

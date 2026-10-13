@@ -1,7 +1,7 @@
 /**
- * The primitive stretch of a composed root, on the GPU (`gpuComposeWgsl.ts`): `maxStretch` of the
- * root's single-precision world words (`math/src/projection/projectionOracles.ts`, as
- * `refreshStretchAt` reads them), the number the cut projects every error through. The CPU takes
+ * The primitive stretch of a moved root, on the GPU (`rootBoxesWgsl.ts`): `maxStretch` of the
+ * root's double world (`math/src/projection/projectionOracles.ts`), as the CPU's one memo takes it
+ * (`worldStretch`), the number the cut projects every error through. The CPU takes
  * the largest singular value of the linear part in doubles — the symmetric matrix `AᵀA`, its
  * eigenvalue by the trigonometric solution of a cubic —; so does this, in the same doubles
  * (`math/src/wgsl/double.ts`), every product and sum rounded once as the CPU rounds it, and the
@@ -20,7 +20,6 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { dAdd, dDiv, dLess, dMul, dSqrt, dRsqrt, dSub } from '../../../math/src/wgsl/double.ts'
 import { dIsZero } from '../../../math/src/wgsl/doubleWords.ts'
 import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
-import { isFiniteWord } from '../../../math/src/wgsl/integer.ts'
 
 /** The largest root of `4t³ − 3t = x`, `x` in [−1, 1], in double precision. */
 const CHEBYSHEV_WGSL = wgslBlock(
@@ -107,19 +106,15 @@ export const STRETCH_DOUBLE_WGSL = wgslBlock(
 )
 
 /**
- * The single-precision bits of `maxStretch` of the matrix whose words are `w`; all ones for a
- * word that is no finite number, where the CPU refuses the matrix (the stretch is then left as it
- * was).
+ * The single-precision bits of `maxStretch` of the world whose sixteen doubles are `m`, as a
+ * `Float32Array` stores the CPU's (`worldStretch`, `../page/selection/rootWorld.ts`); all ones for a number
+ * that is no finite one, where the CPU refuses the matrix (the stretch is then left as it was).
  */
 export const STRETCH_WGSL = wgslBlock(
   'STRETCH_WGSL',
-  [fromF32, toF32, isFiniteWord, STRETCH_DOUBLE_WGSL],
-  `fn maxStretchBits(w:array<u32,16>)->u32{
- var m:array<vec2u,16>;
- for(var k=0u;k<16u;k++){
-  if(!isFiniteWord(w[k])){return 0xffffffffu;}
-  m[k]=fromF32(w[k]);
- }
+  [toF32, STRETCH_DOUBLE_WGSL],
+  `fn maxStretchBits(m:array<vec2u,16>)->u32{
+ for(var k=0u;k<16u;k++){if((m[k].x&0x7ff00000u)==0x7ff00000u){return 0xffffffffu;}}
  return toF32(maxStretchOf(m));
 }`,
 )

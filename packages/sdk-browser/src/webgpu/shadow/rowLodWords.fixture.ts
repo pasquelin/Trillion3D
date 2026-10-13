@@ -10,7 +10,7 @@ import { transformAffinePoint } from '../../../../sdk-core/src/index.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/constants.ts'
 import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { boxRadius } from '../../../../math/src/geometry/box.ts'
-import { worldStretch } from '../../page/cut/logic.ts'
+import { worldStretch, type WorldMemo } from '../../page/selection/rootWorld.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import {
@@ -45,7 +45,7 @@ export function writeRowLod(
   out: Float32Array,
   row: number,
   rec: PageRec | undefined,
-  root: (Placements[number] & { readonly worldBox?: ArrayLike<number> }) | undefined,
+  root: (Placements[number] & WorldMemo) | undefined,
   ready = true,
   childReady = true,
 ) {

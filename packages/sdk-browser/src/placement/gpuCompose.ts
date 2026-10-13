@@ -26,11 +26,11 @@
  * most two per move, never a row. Its first move makes its roots moving casters, once
  * (`mobility.moveLead`); a later move stales the moving casters alone.
  *
- * Everything a composed world gives is derived on the GPU, the CPU's to the word: the roots pass
- * writes the primitive stretch every cut projects its errors through (`gpuStretchWgsl.ts`); the
- * rows pass each row's sphere, Hi-Z corners and world-dependent levels of detail
- * (`gpuComposeDerivedWgsl.ts`); the members pass the leaf boxes the placement tree is refitted
- * over (`gpu/dag/treeRefit.ts`). The CPU readers — impostor cards, transparent depth, the winding —
+ * Everything a composed world gives is derived on the GPU, the CPU's to the word, as a host's world
+ * is: the root boxes pass writes its world box and the primitive stretch every cut projects its
+ * errors through (`rootBoxes.ts`); the rows pass each row's sphere, Hi-Z corners and
+ * world-dependent levels of detail (`gpuComposeDerivedWgsl.ts`); the tree's leaves pass the leaf
+ * boxes the placement tree is refitted over (`treeLeaves.ts`). The CPU readers — impostor cards, transparent depth, the winding —
  * read the lazy world of the root once a frame, as waves, a soft body and a skeleton do. A link is
  * never refused for what reads its row: the rows no root reads — a blended surface's, or a row
  * whose root is not built yet — are composed for their readers (`composeReaders.ts`).

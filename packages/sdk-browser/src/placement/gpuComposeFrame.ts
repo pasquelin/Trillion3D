@@ -5,19 +5,16 @@
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
-import { preparedComputePipeline, preparedPipelines } from '../lighting/deferred/fullscreen.ts'
-import type { RefitLayout } from '../gpu/dag/treeRefitWgsl.ts'
+import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { COMPOSE_MEMBERS_PASS } from '../stage/passLabels.ts'
 import {
   COMPOSE_ROOTS_WGSL,
   COMPOSE_WORLDS_ENTRY,
   COMPOSE_WORLDS_WGSL,
   MATRIX_DOUBLES,
 } from './gpuComposeWgsl.ts'
-import { composeMembersWgsl } from './gpuComposeMembersWgsl.ts'
 import { sendList } from './composedRows.ts'
-import { ROOT_BOX_WORDS, type ComposeState } from './gpuComposeState.ts'
+import type { ComposeState } from './gpuComposeState.ts'
 import { createComposeGpu } from './gpuComposeGpu.ts'
 
 /** The worlds' and the roots' kernels, once a device, compiled off the thread: asked at a frame's
@@ -41,25 +38,6 @@ export const composeKernels = oncePerDevice((device) => {
   }
 })
 
-/** The members kernel for each layout of the nodes it reads, made once a device (`nodeTableWgsl`). */
-export const memberKernels = oncePerDevice((device) =>
-  preparedPipelines(
-    (nodes: RefitLayout['nodes']) =>
-      preparedComputePipeline(device, {
-        label: COMPOSE_MEMBERS_PASS,
-        layout: 'auto',
-        compute: {
-          module: device.createShaderModule({
-            label: COMPOSE_MEMBERS_PASS,
-            code: composeMembersWgsl(nodes),
-          }),
-          entryPoint: 'main',
-        },
-      }),
-    (nodes) => `${nodes.per}x${nodes.parts}`,
-  ),
-)
-
 /** Asks the kernels the next frame binds once a parent holds a link
  *  (`../webgpu/frame/framePipelines.ts`); nothing while none does. */
 export function askComposedPlacements(rt: WebgpuPagesRuntime, device: GPUDevice) {
@@ -67,8 +45,6 @@ export function askComposedPlacements(rt: WebgpuPagesRuntime, device: GPUDevice)
   const kernels = composeKernels(device)
   kernels.roots.ask()
   kernels.worlds.ask()
-  const nodes = rt.run.gpuSelection?.treeNodes
-  if (nodes) memberKernels(device).of(nodes).ask()
 }
 
 /** Parent matrices for this frame, each world in doubles, packed when one was set since they last
@@ -110,7 +86,6 @@ export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
     const roots = Math.max(1, state.roots)
     device.queue.writeBuffer(gpu.locals, 0, state.locals, 0, roots * MATRIX_DOUBLES * 2)
     device.queue.writeBuffer(gpu.parentOf, 0, state.parentOf, 0, roots)
-    device.queue.writeBuffer(gpu.rootInputs, 0, state.boxWords, 0, roots * ROOT_BOX_WORDS)
     state.linksDirty = false
   }
   const seeded = state.seeds.size > 0

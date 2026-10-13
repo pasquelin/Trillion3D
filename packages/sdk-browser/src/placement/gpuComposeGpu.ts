@@ -1,14 +1,13 @@
 /**
- * WHAT THE COMPOSITION HOLDS ON THE GPU (`gpuCompose.ts`): the links, the parents' worlds, the roots'
- * local boxes, the previous worlds and the motion mode, the lists, the passes' parameters and their
- * groups; and the parameters of the passes that run a dispatch a range of the cut's worlds.
+ * WHAT THE COMPOSITION HOLDS ON THE GPU (`gpuCompose.ts`): the links, the parents' worlds, the
+ * previous worlds and the motion mode, the lists, the passes' parameters and their groups; and the
+ * parameters of the passes that run a dispatch a range of the cut's worlds.
  */
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { uniformStride } from '../residency/pools.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import { MATRIX_DOUBLES } from './gpuComposeWgsl.ts'
 import { heldGroup, type HeldGroup } from './composeGroups.ts'
-import { ROOT_BOX_WORDS } from './gpuComposeState.ts'
 
 /** The ranges the record holds between two passes: none. */
 export const NO_RANGES: GpuSelection['worldRanges'] = []
@@ -23,11 +22,6 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
   const parentOf = device.createBuffer({
     label: 'Trillion3D composed parents of',
     size: Math.max(1, rootCount) * 4,
-    usage: storage,
-  })
-  const rootInputs = device.createBuffer({
-    label: 'Trillion3D composed root boxes',
-    size: Math.max(1, rootCount) * ROOT_BOX_WORDS * 4,
     usage: storage,
   })
   const noMotion = device.createBuffer({ label: 'Trillion3D no motion', size: 64, usage: storage })
@@ -49,12 +43,10 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
   return {
     locals,
     parentOf,
-    rootInputs,
     parents: undefined as GPUBuffer | undefined,
-    /** The roots pass's parameters and the members pass's, a uniform slot a range of the cut's
-     *  worlds (`rangeParams`); the worlds pass's one block. */
+    /** The roots pass's parameters, a uniform slot a range of the cut's worlds (`rangeParams`); the
+     *  worlds pass's one block. */
     rootParams: rangeParams('Trillion3D compose params'),
-    memberParams: rangeParams('Trillion3D compose member params'),
     worldParams,
     noMotion,
     previous,
@@ -62,26 +54,20 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
     /** The composed roots and their rows as the passes read them (`sendList`). */
     rankList: undefined as GPUBuffer | undefined,
     rowList: undefined as GPUBuffer | undefined,
-    /** The roots pass's and the members pass's group of each range of the cut's worlds, the
-     *  members pass's group of the tree's nodes, and the worlds pass's. */
+    /** The roots pass's group of each range of the cut's worlds, and the worlds pass's. */
     rootGroups: [] as HeldGroup[],
-    memberGroups: [] as HeldGroup[],
-    memberNodes: heldGroup(),
     worldsGroup: heldGroup(),
     /** What the groups' entries read live (`liveBuffer`), written at each pass's start: the cut's
-     *  world ranges, the motion the roots bind and the members the tree's fit hands. */
+     *  world ranges and the motion the roots bind. */
     frame: {
       ranges: NO_RANGES,
       motion: undefined as GPUBuffer | undefined,
-      members: undefined as GPUBuffer | undefined,
     },
     dispose() {
       locals.destroy()
       parentOf.destroy()
-      rootInputs.destroy()
       this.parents?.destroy()
       this.rootParams.buffer?.destroy()
-      this.memberParams.buffer?.destroy()
       worldParams.destroy()
       noMotion.destroy()
       previous.destroy()
@@ -94,9 +80,11 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
 export type ComposeGpu = ReturnType<typeof createComposeGpu>
 
 /** A pass's parameters, a uniform slot (`uniformStride`) a range of the cut's worlds — the roots
- *  the composition runs over, the range, how many composed roots the list holds —, sent when one
- *  of them moved: a frame that composes under the same ranges and links sends none. */
-const rangeParams = (label: string) => ({
+ *  it runs over, the range, how many roots its list holds, whether it runs over every root —, sent
+ *  when one of them moved: a frame that runs under the same ranges and lists sends none. The
+ *  composition's passes, the root boxes pass (`rootBoxes.ts`) and the tree's leaves
+ *  (`treeLeaves.ts`) keep theirs so. */
+export const rangeParams = (label: string) => ({
   label,
   buffer: undefined as GPUBuffer | undefined,
   words: new Uint32Array(0),
@@ -105,14 +93,15 @@ const rangeParams = (label: string) => ({
 })
 type RangeParams = ReturnType<typeof rangeParams>
 
-/** `params` written for `ranges`, `roots` roots and `listed` composed ones, a slot of the device's
- *  stride (`uniformStride`) each. */
+/** `params` written for `ranges`, `roots` roots and `listed` listed ones — every root when
+ *  `whole` —, a slot of the device's stride (`uniformStride`) each. */
 export function writeRangeParams(
   device: GPUDevice,
   params: RangeParams,
-  ranges: GpuSelection['worldRanges'],
+  ranges: readonly { first: number; count: number }[],
   roots: number,
   listed: number,
+  whole = 0,
 ) {
   const stride = uniformStride(device.limits),
     slot = stride / 4,
@@ -125,7 +114,8 @@ export function writeRangeParams(
         params.words[at] === roots &&
         params.words[at + 1] === ranges[r].first &&
         params.words[at + 2] === ranges[r].count &&
-        params.words[at + 3] === listed
+        params.words[at + 3] === listed &&
+        params.words[at + 4] === whole
     }
     if (same) return
   }
@@ -144,6 +134,7 @@ export function writeRangeParams(
     params.words[at + 1] = ranges[r].first
     params.words[at + 2] = ranges[r].count
     params.words[at + 3] = listed
+    params.words[at + 4] = whole
   }
   device.queue.writeBuffer(params.buffer, 0, params.words, 0, words)
   params.written = words
