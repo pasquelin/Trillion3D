@@ -2,7 +2,7 @@
 // exceeds. A fine triangle off the axis, view centre (8, 0, −10), and its coarse replacement, the
 // same triangle shifted vertically by ε, chosen so the on-axis formula `ε·f / (|C| − r)` would
 // announce 0.39 px where the vertices truly move 0.5 px. At 0.4 px, every cut keeps the fine one:
-// the CPU cut (`selectVisiblePages`, flat and with a culling node and its bounds), the kernel's
+// the CPU cut (`selectVisiblePages`, with a culling node and its bounds), the kernel's
 // Node oracle and the WGSL kernel.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -86,7 +86,8 @@ test('the CPU cut, the oracle and the GPU keep the fine cluster off the axis', a
   const { camera, world, pages, culling, displacement, announced } = offAxisCase()
   const names = (ids: number[]) => ids.map((id) => (id === 0 ? 'coarse' : 'fine'))
   const uniforms = cameraSelectionUniforms(engineCamera(camera), THRESHOLD, VIEWPORT)
-  const variants = { flat: undefined, 'with a node': culling }
+  // Every root carries its hierarchy: there is no flat descent to compare with any more.
+  const variants = { 'with a node': culling }
   const cuts: Record<string, string[]> = {}
   const cases = Object.entries(variants).map(([variant, node]) => {
     const cpu = selectVisiblePages(

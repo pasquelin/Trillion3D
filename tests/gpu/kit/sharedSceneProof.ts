@@ -17,6 +17,7 @@ import type {
   Primitive,
 } from '../../../packages/sdk-core/src/index.ts'
 import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
+import { manifestCulling } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 
 export const VIEWPORT: [number, number] = [96, 96]
 
@@ -34,7 +35,8 @@ export function square(half: number): G.Geometry {
 
 /**
  * Builder of a prepared scene: each added mesh becomes a primitive of two level-0
- * clusters that nothing replaces — the smallest legal DAG — one triangle each. `place` makes and
+ * clusters that nothing replaces — the smallest legal DAG — one triangle each, with the culling
+ * hierarchy the compiler writes beside them (`manifestCulling`, the one builder). `place` makes and
  * adds one: a square of half-side `half` (`square`, or `geometry` of that extent — a lit plane
  * that carries its normals) wearing `surface`, at `position`, turned by the Euler angles `turn`
  * (each zero unsaid), drawn in `pass`.
@@ -91,6 +93,7 @@ export function batisseur() {
         clusterStrategy: 'dag-groups',
         pages,
         structure: { version: 1, roots: [0, 1], groups: [] } satisfies ClusterStructure,
+        culling: manifestCulling(pages),
       })
       const triangles = mesh.geometry.index!.array
       for (const page of pages)

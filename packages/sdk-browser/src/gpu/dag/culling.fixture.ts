@@ -9,7 +9,8 @@ import { sdkWasm } from '../../wasm/sdkWasm.fixture.ts'
 export function cullingInPlace<P extends CullingInput>(pages: P[]) {
   const { order, culling } = buildCullingHierarchy(sdkWasm, pages)
   const ranked = Array.from(order, (k) => pages[k])
-  pages.splice(0, pages.length, ...ranked)
+  // Copied rank by rank: a spread of a million pages would pass the call stack's bound.
+  ranked.forEach((page, at) => (pages[at] = page))
   return { nodes: Float64Array.from(culling.nodes), stride: culling.stride }
 }
 

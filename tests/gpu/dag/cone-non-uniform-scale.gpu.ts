@@ -22,6 +22,7 @@ import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gp
 import { triangleCone } from '../../kit/reference/cone.ts'
 import { project } from '../kit/cameraRig.ts'
 import { runSelectionKernel, type SelectionCase } from './selectionKernel.ts'
+import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 
 const VIEWPORT: [number, number] = [1000, 1000]
 const POSITIONS = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0]
@@ -45,18 +46,18 @@ function coneCases(
   name: string,
   world: G.Matrix4,
   camera: ReturnType<typeof G.perspectiveCamera>,
-  page: object,
+  page: { min: number[]; max: number[] },
   cone: NormalCone,
 ) {
   const uniforms = cameraSelectionUniforms(engineCamera(camera), 0, VIEWPORT)
-  const pack = (pageCone: NormalCone) =>
-    packedWorldsToRenderOrigin(
-      packDagSelection([
-        { world, pages: [{ url: '0', lodError: 0, parentError: null, ...page, cone: pageCone }] },
-      ]),
+  const pack = (pageCone: NormalCone) => {
+    const pages = [{ url: '0', lodError: 0, parentError: null, ...page, cone: pageCone }]
+    return packedWorldsToRenderOrigin(
+      packDagSelection([{ world, pages, culling: cullingInPlace(pages) }]),
       [{ world, pages: [] }],
       uniforms.cameraWorld,
     )
+  }
   return [
     { name: `${name} with its cone`, packed: pack(cone), uniforms },
     { name: `${name} without a cone`, packed: pack(OPEN_CONE), uniforms },

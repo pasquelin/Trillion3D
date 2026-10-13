@@ -13,6 +13,7 @@ import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/c
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { runSelectionKernel } from '../dag/selectionKernel.ts'
+import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 
 const VIEWPORT: [number, number] = [1000, 1000]
 // A unit local box: sheared, it covers x ∈ [-4, 4]; recomposed as TRS, x ∈ [-2.364, 2.364].
@@ -50,7 +51,8 @@ function selectionCase(
   uniforms: ReturnType<typeof view>,
 ) {
   const page = { url: '0', lodError: 0, parentError: null, sphere, min: MIN, max: MAX }
-  const packed = packDagSelection([{ world, pages: [{ ...page, cone: OPEN_CONE }] }])
+  const pages = [{ ...page, cone: OPEN_CONE }]
+  const packed = packDagSelection([{ world, pages, culling: cullingInPlace(pages) }])
   const roots = [{ world, pages: [] }]
   return {
     name,
