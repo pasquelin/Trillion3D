@@ -7,6 +7,7 @@ import { named, readLeaves, type PageKind, type TablePage } from '../scene/core/
 import { decodeManifestBinary } from './binaryDecode.ts'
 import { MANIFEST_BINARY_VERSION } from './binaryFormat.ts'
 import { assertManifestBinary, type SlimClusterManifest } from './binaryTypes.ts'
+import { ownBuffer } from '../runtime/ownBuffer.ts'
 
 /** The manifest's pages: a mesh page lists its slim primitives. */
 const MANIFEST_PAGES: PageKind = {
@@ -19,12 +20,6 @@ const MANIFEST_PAGES: PageKind = {
 
 type Body = Awaited<ReturnType<typeof readLeaves>>[number]
 
-/** The bytes of `view` as a buffer of their own. */
-const buffer = (view: Uint8Array): ArrayBuffer =>
-  view.byteOffset === 0 && view.byteLength === view.buffer.byteLength
-    ? (view.buffer as ArrayBuffer)
-    : (view.slice().buffer as ArrayBuffer)
-
 /** The root's fields and slots, or a named refusal of a root without a head page or pages. */
 function split(root: Record<string, unknown>) {
   const { head, pages, ...fixed } = root
@@ -36,7 +31,7 @@ function split(root: Record<string, unknown>) {
 /** A page's body beside its sidecar, read through `read`, which proves it by its slot. */
 async function withSidecar(body: Body, read: (page: TablePage) => Promise<Uint8Array>) {
   assertManifestBinary(body.binary)
-  return { body, bytes: buffer(await read(body.binary)) }
+  return { body, bytes: ownBuffer(await read(body.binary)) }
 }
 
 /** The manifest the head page `first` names — its primitives none — and the decoder of a mesh
