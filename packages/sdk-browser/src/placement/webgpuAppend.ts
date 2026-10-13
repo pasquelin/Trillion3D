@@ -17,7 +17,8 @@
  */
 import type { Texture } from '../../../sdk-core/src/index.ts'
 import type { Primitive } from '../../../sdk-core/src/index.ts'
-import { collectedSink, drawsBlended } from '../page/selection/collect.ts'
+import { collectedSink, drawsBlended, type Collected } from '../page/selection/collect.ts'
+import type { BlendCopy } from '../cluster/blendCopyContract.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import { sourceSurface, type PageSurface } from '../page/surface.ts'
 import { PHYSICAL_MAP_FIELDS } from '../visibility/materialType.ts'
@@ -49,8 +50,38 @@ function texturesOf(surface: PageSurface) {
   ].filter((entry): entry is readonly [Texture, 'color' | 'data'] => !!entry[0])
 }
 
-/** Why a source cannot join, said by name; the session is the owner's still, no source of it lost. */
-const CLOSED = 'the session holds no GPU cut: it is closing or its device is lost'
+/** Why content cannot join, said by name; the session is the owner's still, nothing of it lost. */
+export const CLOSED = 'the session holds no GPU cut: it is closing or its device is lost'
+
+/** True when the session takes nothing any more: no device, a lost one, or no cut. */
+export const shut = ({ gpu, run }: WebgpuPagesRuntime) =>
+  !gpu.device || run.lost || !run.gpuSelection
+
+/** The check after each await of a join: an aborted session throws, a shut one is `CLOSED`. */
+export function closed(rt: WebgpuPagesRuntime) {
+  rt.signal.throwIfAborted()
+  return shut(rt)
+}
+
+/**
+ * The end of every join, once nothing refused what `into` collected: the catalogue ranks its pages
+ * (`growCatalogue`), the pool is laid out for them, the cover holds what an open's would, and its
+ * roots wait beside those a growth brings, `copies` with them (`joinGrownRoots`). `undefined` once
+ * they wait, else the refusal by name.
+ */
+export async function joinCatalogued(
+  rt: WebgpuPagesRuntime,
+  into: Collected,
+  copies: readonly BlendCopy[],
+) {
+  const { grown, cover } = growCatalogue(rt, into)
+  if (!(await growWebgpuPagePool(rt, grown))) return 'the device refused the size of the page pool'
+  if (closed(rt)) return CLOSED
+  holdCatalogueCover(rt, cover)
+  rt.setup.blendCopies.push(...copies)
+  joinGrownRoots(rt, into.roots, copies)
+  return undefined
+}
 
 /** The session draws `source` too, from now on; `undefined` once its roots wait to join, else the
  *  refusal by name (a closing session, a device or a catalogue that cannot hold it). */
@@ -59,8 +90,8 @@ export async function addWebgpuPlacements(
   source: DrawSource,
   primitive: Primitive,
 ): Promise<string | undefined> {
-  const { gpu, run, setup, context } = rt
-  if (!gpu.device || run.lost || !run.gpuSelection) return CLOSED
+  const { gpu, setup, context } = rt
+  if (shut(rt) || !gpu.device) return CLOSED
   if (!source.rows) return 'a source drawn by no rows'
   const { collector } = setup
   // The primitive the session holds under the source's ranks is the one the source draws: the
@@ -79,8 +110,7 @@ export async function addWebgpuPlacements(
   }
   setup.texturePools?.coverage.read(surface)
   for (const [texture, kind] of texturesOf(surface)) await appendWebgpuTexture(rt, texture, kind)
-  rt.signal.throwIfAborted()
-  if (run.lost || !run.gpuSelection) return CLOSED
+  if (closed(rt)) return CLOSED
   const into = collectedSink()
   collector.add(source, into)
   const full = catalogueRefusal(rt, into.allPages)
@@ -88,27 +118,17 @@ export async function addWebgpuPlacements(
   // The coplanar layers its pages stack, which the session draws in sets of slots of their own.
   if (!(await grantDepthLayers(rt, gpu.device, into.allPages)))
     return 'the device refused the slots of its coplanar layers'
-  rt.signal.throwIfAborted()
-  if (run.lost || !run.gpuSelection) return CLOSED
+  if (closed(rt)) return CLOSED
   // The copies it draws blended or transmissive, ordered as the open orders them.
   const copies = [...into.blendCopies, ...pagedBlendCopiesOf(into.roots, setup.pagedBlendCopies)]
   copies.sort(byRenderOrder)
   if (!(await prepareBlendGrowth(rt, gpu.device, copies, into.allPages)))
     return 'the device refused the transparent pass'
-  rt.signal.throwIfAborted()
-  if (run.lost || !run.gpuSelection) return CLOSED
+  if (closed(rt)) return CLOSED
   // The deformation stage, and the float geometries its pages read, for what moves or is rewritten.
   const deforms = deformsContent(source, primitive, into.allPages)
   if (!(await prepareDeformationGrowth(rt, gpu.device, deforms, into.allPages)))
     return 'the deformation stage or the float pool was refused'
-  rt.signal.throwIfAborted()
-  if (run.lost || !run.gpuSelection) return CLOSED
-  const { grown, cover } = growCatalogue(rt, into)
-  if (!(await growWebgpuPagePool(rt, grown))) return 'the device refused the size of the page pool'
-  rt.signal.throwIfAborted()
-  if (run.lost) return CLOSED
-  holdCatalogueCover(rt, cover)
-  setup.blendCopies.push(...copies)
-  joinGrownRoots(rt, into.roots, copies)
-  return undefined
+  if (closed(rt)) return CLOSED
+  return joinCatalogued(rt, into, copies)
 }

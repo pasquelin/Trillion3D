@@ -15,16 +15,8 @@ import type { WorldRootsHold } from '../scene/worldRoots.ts'
 import { collectedSink } from '../page/selection/collect.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { worldDagRoot, worldFits } from '../webgpu/pages/prepare/worldRoot.ts'
-import {
-  catalogueRefusal,
-  growCatalogue,
-  holdCatalogueCover,
-} from '../webgpu/pages/prepare/catalogueGrowth.ts'
-import { growWebgpuPagePool } from '../webgpu/pages/io/memory.ts'
-import { joinGrownRoots } from './webgpuGrowth.ts'
-
-/** Why the world DAG cannot join, said by name; the session draws what it drew. */
-const CLOSED = 'the session holds no GPU cut: it is closing or its device is lost'
+import { catalogueRefusal } from '../webgpu/pages/prepare/catalogueGrowth.ts'
+import { CLOSED, joinCatalogued, shut } from './webgpuAppend.ts'
 
 /** The session draws the world DAG `hold` holds, once its model's sources joined (they wear its
  *  pages): `undefined` once its root waits to join the cut — or when there is nothing to draw:
@@ -33,8 +25,8 @@ export async function addWebgpuWorldRoots(
   rt: WebgpuPagesRuntime,
   hold: WorldRootsHold,
 ): Promise<string | undefined> {
-  const { gpu, run, setup, context, layout } = rt
-  if (!gpu.device || run.lost || !run.gpuSelection) return CLOSED
+  const { setup, context, layout } = rt
+  if (shut(rt)) return CLOSED
   const dag = hold.drawn?.dag
   if (!dag || context.worldRoots) return undefined
   const roots = [...layout.selectionRoots, ...(rt.growth?.roots ?? [])]
@@ -46,13 +38,8 @@ export async function addWebgpuWorldRoots(
   into.allPages.push(...root.pages)
   const full = catalogueRefusal(rt, into.allPages)
   if (full) return full
-  const { grown, cover } = growCatalogue(rt, into)
-  if (!(await growWebgpuPagePool(rt, grown))) return 'the device refused the size of the page pool'
-  rt.signal.throwIfAborted()
-  if (run.lost || !run.gpuSelection) return CLOSED
-  holdCatalogueCover(rt, cover)
+  const refused = await joinCatalogued(rt, into, [])
   // The cut that packs it links the placements to its objects, and the cells it draws far read it.
-  context.worldRoots = hold
-  joinGrownRoots(rt, into.roots, [])
-  return undefined
+  if (!refused) context.worldRoots = hold
+  return refused
 }
