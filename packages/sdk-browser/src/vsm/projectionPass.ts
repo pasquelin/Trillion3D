@@ -49,8 +49,6 @@ import {
 } from './projectionView.ts'
 import {
   VSM_PROJECTION_BINDING,
-  VSM_PROJECTION_KINDS_DIRECTIONAL,
-  VSM_PROJECTION_KINDS_LOCAL,
   VSM_PROJECTION_MASK_FORMAT,
   VSM_PROJECTION_RECEIVER_GROUP,
   VSM_PROJECTION_TILE_FORMAT,
@@ -58,6 +56,10 @@ import {
   vsmProjectionGroups,
   vsmProjectionWgsl,
 } from './projectionWgsl.ts'
+import {
+  VSM_PROJECTION_KINDS_DIRECTIONAL,
+  VSM_PROJECTION_KINDS_LOCAL,
+} from './receiverTraceWgsl.ts'
 import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
@@ -389,6 +391,16 @@ export function vsmProjectionReserve(device: GPUDevice, res: VsmResources) {
     state.blueNoiseView = state.blueNoise.createView()
   }
   return state
+}
+
+/** The view uniform and the blue noise the projection of `res` reads: what a blended surface's and
+ *  the water's trace reads too (`vsmTraceFactor`), the same view and noise. None before the set's
+ *  first reservation. */
+export function vsmProjectionShared(res: VsmResources) {
+  const state = states.get(res)
+  return state?.uniform && state.blueNoiseView
+    ? { view: state.uniform, noise: state.blueNoiseView }
+    : undefined
 }
 
 /** Frees what the projection of `res` holds, with the set (`destroyEngineVsm`). */
