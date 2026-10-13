@@ -55,11 +55,16 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     assert.equal(pages.length, 2, 'the table regrown by copy into a buffer of its new size')
     assert.equal(pages[1].size, pageTables.color.bytes)
     assert.equal(labelled('texture pages data').length, 2, 'the data ranks moved behind it')
-    // The counters, their list and its two readbacks, made again at the new count; the reduction's
-    // and the gather's uniforms, made once on a device with compute (every device, #1483), are no
-    // counter.
-    const counters = labelled('texture feedback').filter(({ label }) => !label!.includes('uniform'))
-    assert.equal(counters.length, 8, 'the feedback counts the 21 new ranks')
+    // The counters and their list, made again at the new count; the one readback ring is kept, each
+    // take sizing its buffer (`feedback.ts`).
+    const counters = buffers.filter(({ label }) => label === 'Trillion3D texture feedback')
+    assert.deepEqual(
+      counters.map(({ size }) => size),
+      [16, 21 * 4],
+      'the feedback counts the 21 new ranks',
+    )
+    assert.equal(labelled('texture feedback hits').length, 2, 'and lists them')
+    assert.equal(labelled('texture feedback readback').length, 2, 'through the one ring')
     groups.length = 0
     backend.render(camera())
     const naming = groups.filter((group) =>
