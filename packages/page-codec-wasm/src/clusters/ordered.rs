@@ -2,9 +2,12 @@
 //! with the number of the cluster that last took it: no set per triangle. Bit for bit the scan the
 //! run-time cut ran in TypeScript before it came here: every float operation in the same order on
 //! the same doubles, `Math.min`/`Math.max` as `js_min`/`js_max`.
-use super::Caps;
+use super::{point, Caps};
+use trillion3d_math::aabb::EMPTY_FLAT;
 use trillion3d_math::js::{js_max, js_min};
-use trillion3d_math::vec3::{cross, dot, sub};
+use trillion3d_math::triangle::triangle_area;
+use trillion3d_math::vec3::{length, sub};
+use trillion3d_math::vecn::distance2;
 
 /// The squared diagonal of the least box that holds `triangles` triangles of total area
 /// `triangles · area / count` side by side, the longest of them `longest` across: a square of that
@@ -17,12 +20,6 @@ fn compact_squared(triangles: usize, count: f64, area: f64, longest: f64) -> f64
     }
     let other = held / side;
     side * side + other * other
-}
-
-/// The length of `a`, as `length3` gives it for coordinates read from 32-bit floats: their squares
-/// never leave the normal range, so the plain root is the banded one.
-fn length(a: [f64; 3]) -> f64 {
-    dot(a, a).sqrt()
 }
 
 /// A run of consecutive triangles: its box, its triangles' area, their longest edge.
@@ -39,15 +36,12 @@ struct Run<'a> {
 }
 
 impl Run<'_> {
-    fn p(&self, v: u32) -> [f64; 3] {
-        let at = v as usize * 3;
-        [0, 1, 2].map(|k| self.positions.get(at + k).map_or(f64::NAN, |&x| x as f64))
-    }
-
-    /// The area and longest edge of `(a, b, c)`, and the run's box grown by it.
+    /// The area and longest edge of `(a, b, c)`, and the run's box grown by it. A length is the
+    /// plain root (`vec3::length`): squares of coordinates read from 32-bit floats never leave the
+    /// normal range.
     fn measure(&mut self, a: u32, b: u32, c: u32) {
-        let [pa, pb, pc] = [self.p(a), self.p(b), self.p(c)];
-        self.next_area = length(cross(sub(pb, pa), sub(pc, pa))) / 2.0;
+        let [pa, pb, pc] = [a, b, c].map(|v| point(self.positions, v));
+        self.next_area = triangle_area(pa, pb, pc);
         let edge = |u: [f64; 3], v: [f64; 3]| length(sub(v, u));
         self.next_longest = js_max(js_max(edge(pa, pb), edge(pb, pc)), edge(pc, pa));
         self.grown = self.bounds;
@@ -65,8 +59,7 @@ impl Run<'_> {
         if !fresh {
             self.measure(a, b, c);
             let g = self.grown;
-            let d = [g[3] - g[0], g[4] - g[1], g[5] - g[2]];
-            let diagonal = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+            let diagonal = distance2([g[3], g[4], g[5]], [g[0], g[1], g[2]]);
             let longest = js_max(self.longest, self.next_longest);
             let compact = compact_squared(
                 self.triangles,
@@ -78,14 +71,7 @@ impl Run<'_> {
         }
         if fresh {
             (self.count, self.area, self.longest) = (0.0, 0.0, 0.0);
-            self.bounds = [
-                f64::INFINITY,
-                f64::INFINITY,
-                f64::INFINITY,
-                -f64::INFINITY,
-                -f64::INFINITY,
-                -f64::INFINITY,
-            ];
+            self.bounds = EMPTY_FLAT;
             self.measure(a, b, c);
         }
         self.bounds = self.grown;

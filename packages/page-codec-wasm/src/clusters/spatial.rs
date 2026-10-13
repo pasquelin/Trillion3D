@@ -6,9 +6,11 @@
 //! a set fixed by the order of `split` (coordinate, then identifier), never by how a selection
 //! arranges it, and a cluster lists its triangles in their source order: the result is the same on
 //! every build. `O(T log T)` for `T` triangles, whatever the size of the vertex buffer.
-use super::Caps;
-use crate::hash::word_map;
+use super::{point, Caps};
+use crate::encode::vertices::first_use;
 use crate::split::bisect_least_cost;
+use trillion3d_math::aabb::aabb_of;
+use trillion3d_math::scalar::mean;
 
 /// The clusters of a triangle list: its triangles in cluster order, and where each cluster ends,
 /// in indices.
@@ -21,29 +23,17 @@ pub struct Clustered {
 /// within `caps`, its triangles in their source order.
 pub fn spatial(positions: &[f32], indices: &[u32], caps: Caps) -> Clustered {
     let count = indices.len() / 3;
-    let point = |v: u32| {
-        let at = v as usize * 3;
-        [0, 1, 2].map(|k| positions.get(at + k).map_or(f64::NAN, |&x| x as f64))
-    };
     let mut boxes = Vec::with_capacity(count);
     let mut centres = Vec::with_capacity(count);
     for tri in indices.as_chunks::<3>().0 {
-        let [a, b, c] = [point(tri[0]), point(tri[1]), point(tri[2])];
-        let low = [0, 1, 2].map(|k| a[k].min(b[k]).min(c[k]));
-        boxes.push((low, [0, 1, 2].map(|k| a[k].max(b[k]).max(c[k]))));
-        centres.push([0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0));
+        let corners = tri.map(|v| point(positions, v));
+        boxes.push(aabb_of(corners));
+        centres.push([0, 1, 2].map(|k| mean(corners.map(|p| p[k]))));
     }
-    // Each corner's vertex numbered among those the triangles use: a cluster of a large buffer's
-    // region costs its own size, never the buffer's.
-    let mut local = word_map::<u32, u32>(indices.len() / 2);
-    let corners: Vec<u32> = indices
-        .iter()
-        .map(|&v| {
-            let next = local.len() as u32;
-            *local.entry(v).or_insert(next)
-        })
-        .collect();
-    let (mut stamp, mut generation) = (vec![0u32; local.len()], 0u32);
+    // Each corner's vertex numbered among those the triangles use, by first use: a cluster of a
+    // large buffer's region costs its own size, never the buffer's.
+    let (used, corners) = first_use(indices.iter().copied());
+    let (mut stamp, mut generation) = (vec![0u32; used.len()], 0u32);
     let mut distinct = |part: &[usize]| {
         generation += 1;
         let mut n = 0;
