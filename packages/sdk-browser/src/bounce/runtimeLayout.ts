@@ -86,7 +86,7 @@ export const TRACE_LIST = { count: 0, left: 1, spent: 2, offset: 3, cursor: 4 } 
 export const TRACE_LIST_FIRST = 8
 /** Layers of the store, and its bytes a pixel. */
 export const STORE_LAYERS = 2
-export const STORE_BYTES_PER_PIXEL = 8
+const STORE_BYTES_PER_PIXEL = 8
 /** Bytes of the store of an image of `width × height`, which a view that wants it holds. */
 export const storeBytes = (width: number, height: number) => width * height * STORE_BYTES_PER_PIXEL
 /** Bits of a pixel's second word: the confidence from the low bit, the stamp from `stamp`. */

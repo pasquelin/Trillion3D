@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { DrawnDeformation } from '../../../../sdk-core/src/world/geometry/drawnDeformation.ts'
-import { cornerDeformation, cornerFloats } from './runtimeDeform.ts'
+import { cornerDeformation } from './runtimeDeform.ts'
+import { CORNER_INFLUENCES } from '../../../../sdk-core/src/contracts/proxy.ts'
 
 const skin = (extra: Partial<DrawnDeformation>) =>
   ({ targets: [], influences: 4, ...extra }) as unknown as DrawnDeformation
@@ -22,10 +23,12 @@ test("each corner keeps its vertex's four heaviest influences, and the proxy tri
     skin({ joints, weights }),
   )!
   assert.equal(found.targets, 0)
-  assert.equal(found.corners.length, 3 * cornerFloats(0))
+  // A corner without morph targets: its influences' joints, then their weights.
+  const corner = 2 * CORNER_INFLUENCES
+  assert.equal(found.corners.length, 3 * corner)
   // Corner 0 of the proxy's triangle 0 stands on vertex 2 of the source triangle 1: indices[3] = 2.
   assert.deepEqual([...found.corners.slice(0, 4)], [9, 10, 11, 12])
   assert.deepEqual([...found.corners.slice(4, 8)], [0.5, 0.5, 0, 0])
   // Corner 1: vertex 1, whose heaviest influence is its first.
-  assert.equal(found.corners[cornerFloats(0)], 5)
+  assert.equal(found.corners[corner], 5)
 })

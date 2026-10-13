@@ -2,7 +2,7 @@ import { CORNER_INFLUENCES, type CutDeformation } from '../../../../sdk-core/src
 import type { DrawnDeformation } from '../../../../sdk-core/src/world/geometry/drawnDeformation.ts'
 
 /** Floats of one corner: its joint ranks, its weights, then three deltas a morph target. */
-export const cornerFloats = (targets: number) => 2 * CORNER_INFLUENCES + 3 * targets
+const cornerFloats = (targets: number) => 2 * CORNER_INFLUENCES + 3 * targets
 
 /**
  * What poses a cut's proxy (`CutDeformation`): for each corner of each triangle the proxy holds, the skin

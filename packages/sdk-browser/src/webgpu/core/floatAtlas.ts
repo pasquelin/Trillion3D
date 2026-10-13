@@ -22,7 +22,7 @@ type AtlasLimits = Parameters<typeof textureLimits>[0]
 /** Width and height of a one-layer atlas of `texels` texels: the fewest rows of at most `side`
  *  texels, filled evenly, so that under one texel per row is padding. Its readers take the width
  *  from the texture itself. */
-export function atlasExtent(texels: number, side: number): [number, number] {
+function atlasExtent(texels: number, side: number): [number, number] {
   const count = Math.max(1, texels)
   const height = ceilDiv(count, side)
   return [ceilDiv(count, height), height]

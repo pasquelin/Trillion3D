@@ -2,7 +2,7 @@
 // commands each row can make: the shipped cull (`vsmRenderCullWgsl`, run by `shaderRun`) on the
 // projection data's clip matrix — the orthographic box, the screen rect — then the pages of the rect;
 // for a local light's maps, its range first, the perspective box, and every mip's rect.
-import { ceilFloat32, writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
+import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { CLUSTER_SPHERE_FLOATS as STRIDE } from '../gpu/shadow/sphereContract.ts'
 import { Mat, shaderRun } from '../texture/shaderRun.fixture.ts'
@@ -62,7 +62,9 @@ export function scene(
 }
 export function writeRow(packed: Float32Array, i: number, c: number[], r: number) {
   for (let a = 0; a < 3; a++) writeSplitDouble(packed, i * STRIDE + a, i * STRIDE + 4 + a, c[a])
-  packed[i * STRIDE + 3] = ceilFloat32(r)
+  // The radius stored as the engine stores it (`webgpu/shadow/spheres.ts`): its single, a bound by
+  // construction there.
+  packed[i * STRIDE + 3] = r
 }
 
 /** A sun's clipmap around `eye`, as the frame's light (`VsmBoundLight`). */

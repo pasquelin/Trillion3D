@@ -1,8 +1,5 @@
 import type { NumberSink } from '../matrix/matrix4.ts'
-import { length3, writeCrossVector3 } from '../vector/vector.ts'
-
-/** The cross product `triangleArea` measures, reused within a call. */
-const CROSS = new Float64Array(3)
+import { writeCrossVector3 } from '../vector/vector.ts'
 
 /**
  * The triangle's edge cross product, `(b − a) × (c − a)`, into `out[o..o + 2]`: its normal by its
@@ -33,11 +30,4 @@ export function triangleCross<T extends NumberSink>(
     v[c + 2] - az,
   )
   return out
-}
-
-/** The triangle's area, `length3(triangleCross) / 2`, corners read as `triangleCross` reads them:
- *  `triangle_area` of the Rust crate, whose plain root `length3` holds inside its normal band. */
-export function triangleArea(v: ArrayLike<number>, a: number, b: number, c: number) {
-  triangleCross(CROSS, 0, v, a, b, c)
-  return length3(CROSS[0], CROSS[1], CROSS[2]) / 2
 }

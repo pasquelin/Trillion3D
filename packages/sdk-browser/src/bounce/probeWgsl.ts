@@ -14,7 +14,7 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** The proxy in the probe pass: its buffer, the world matrices mirrored in it. */
-export const PROBE_PROXY = { group: 0, proxy: 1 } as const
+const PROBE_PROXY = { group: 0, proxy: 1 } as const
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
 const BOUNCE_WORKGROUP = 64
