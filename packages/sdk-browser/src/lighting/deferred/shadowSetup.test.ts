@@ -24,7 +24,7 @@ test('the surface reads its cell once and sets up its shadow read behind the cel
     const surface = surfaceOf(shader)
     assert.ok(surface.includes('let cell=pixelCell(pixel.xy,z);let shadowed=cellShadowed(cell);'))
     assert.ok(surface.includes('if(shadowed){shadowSetup(coord,pixel,z,P);}'))
-    assert.ok(surface.includes(',pixel.xy,cell,shadowed);'), 'the lighting takes the cell read')
+    assert.ok(surface.includes(',emissive.a,cell);'), 'the lighting takes the cell read')
     assert.doesNotMatch(surface, /pixelFootprint\(|shadowReceiver\(|shadowFootprint=/)
     // The lighting finds no cell again, nor reads the flag again.
     assert.doesNotMatch(
