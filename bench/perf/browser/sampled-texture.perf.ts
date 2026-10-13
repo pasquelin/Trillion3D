@@ -3,7 +3,8 @@ import type { Texture } from '../../../packages/sdk-core/src/index.ts'
 import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { textureRgba } from '../../../packages/sdk-browser/src/visibility/types.ts'
-import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
+import { measure, stress, rapport } from '../../core/index.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceTextureRgba } from '../../oracles/browser/sampled-texture.ts'
 
 const alea = xorshiftRandom(3313)

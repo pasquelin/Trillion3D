@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { bitmapFixture } from '../../../world/api/bitmap.fixture.ts'
 import { createExplorerMaterialApi } from '../../../world/api/materialApi.ts'
 import { GraphTexture } from '../../../host/graph/texture.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { tileBytes } from '../../../texture/tiles.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { camera, quadScene } from '../testScenes.fixture.ts'
@@ -13,7 +13,7 @@ import type { EngineDiagnostic } from '../../../engine/types.ts'
 /** Record the source and flags of the real scratch upload, without pretending to rasterize pixels. */
 function open(map?: ImageBitmap) {
   installGpuGlobals()
-  const gpu = mockGpu(),
+  const gpu = fakeDevice(BACKEND),
     copies: unknown[] = [],
     diagnostics: EngineDiagnostic[] = []
   gpu.device.queue.copyExternalImageToTexture = (source, destination, size) => {
@@ -114,7 +114,7 @@ test('queued bitmap admissions reject after device loss or disposal without leak
   for (const stop of ['loss', 'dispose']) {
     const opened = open()
     await opened.backend.prepare()
-    if (stop === 'loss') opened.lose('test loss')
+    if (stop === 'loss') opened.lose({ reason: 'test loss', message: 'test loss' })
     else await opened.backend.dispose()
     const before = opened.textures.length
     const pending = [

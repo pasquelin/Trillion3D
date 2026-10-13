@@ -7,6 +7,9 @@ import { installDawn } from '../../../bench/dawn/device.ts'
 import { takeBenchLock } from '../../../bench/dawn/lock.ts'
 import { assertProofEntryPoint } from '../../../bench/dawn/proofs.ts'
 import { installBrowser } from '../../../bench/dawn/dom.ts'
+// The engine opens on the SDK module as it opens on its device: its lots and page codec run there.
+// Node cannot fetch the module by its URL, so the kit hands it the bytes the repository ships.
+import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 
 let installed = false
 

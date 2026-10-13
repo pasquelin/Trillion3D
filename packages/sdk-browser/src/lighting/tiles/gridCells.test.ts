@@ -22,7 +22,6 @@ import {
   columnFrame,
   lightRun,
 } from '../../../../../bench/oracles/browser/gpuLightGridRunOracle.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { NEAR, camera, pixelPoint, type Vec3 } from './tileCamera.fixture.ts'
 import { GRID_BOUNDS_WGSL } from './boundsWgsl.ts'
 import { directLightingWgsl } from '../direct/lightingWgsl.ts'
@@ -30,6 +29,7 @@ import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import { clamp, lerp } from '../../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 
@@ -60,7 +60,7 @@ function checkPixel(view: TileView, px: number, py: number, z: number, lights: L
 
 test("random views: every light that reaches a pixel is in its cell's list", () => {
   for (let seed = 1; seed <= 400; seed++) {
-    const r = random(seed),
+    const r = lcgRandom(seed),
       u = (lo: number, hi: number) => lerp(lo, hi, r())
     const [width, height] = [Math.round(u(320, 3456)), Math.round(u(240, 2234))]
     const far = seed % 4 === 0 ? 150_000 : 5000

@@ -12,9 +12,10 @@ import {
   type RowLink,
 } from '../../../packages/sdk-browser/src/partition/rows.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { batisseur, cameraFace, engine, release, square } from '../kit/sharedSceneProof.ts'
-import { difference, drawnPixels, untilHeld } from '../kit/sceneImageProof.ts'
+import { batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
+import { drawnPixels, untilHeld } from '../kit/sceneImageProof.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
 /** Half-width of the tile, and the three places its rows put it. */
 const HALF = 0.3,
@@ -23,13 +24,9 @@ const HALF = 0.3,
 /** A background, and a tile drawn by rows of one placed mesh, its rows sized for `rows`. */
 function placedScene(rows: number) {
   const builder = batisseur()
-  const background = G.mesh(square(4), G.basicSurface({ color: 0x1b3a5c, side: G.DOUBLE_SIDE }))
-  background.position.z = -2
-  builder.source.add(background)
-  builder.add(background, 'exact-clusters', 4)
-  const tile = G.mesh(square(HALF), G.basicSurface({ color: 0xff2020, side: G.DOUBLE_SIDE }))
-  builder.source.add(tile)
-  builder.add(tile, 'exact-clusters', HALF)
+  const flat = (color: number) => G.basicSurface({ color, side: G.DOUBLE_SIDE })
+  builder.place(flat(0x1b3a5c), 'exact-clusters', 4, [0, 0, -2])
+  const tile = builder.place(flat(0xff2020), 'exact-clusters', HALF)
   const scene = builder.fini()
   const link = scene.associations.get(tile) as RowLink
   const mesh = placedMesh([link], [tile])
@@ -58,7 +55,11 @@ function place(
 async function settled(backend: Engine, before?: number[] | null) {
   const camera = cameraFace()
   let image = await untilHeld(backend, camera)
-  for (let wait = 0; before && wait < 50 && !difference(image.held ?? [], before); wait++) {
+  for (
+    let wait = 0;
+    before && wait < 50 && !(image.held && compareImages(image.held, before).differentPixels);
+    wait++
+  ) {
     await new Promise((resolve) => setTimeout(resolve, 20))
     image = await untilHeld(backend, camera)
   }
@@ -91,8 +92,8 @@ async function sequence(device: GPUDevice, events: unknown[]) {
       capacity: grown.link.placements!.capacity,
       beforePixels: drawnPixels(before),
       afterPixels: drawnPixels(after),
-      grownFromBefore: difference(after, before),
-      grownFromOpened: difference(after, opened),
+      grownFromBefore: compareImages(after, before).differentPixels,
+      grownFromOpened: compareImages(after, opened).differentPixels,
     }
   } finally {
     release(a.backend, a.canvas, grown.scene)

@@ -1,13 +1,9 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 
-type PoolCache = Pick<
-  ReturnType<typeof createGpuPageCache>,
-  'get' | 'load' | 'pin' | 'unpinnedSlots'
->
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
+type PoolCache = Pick<GpuPageCache, 'get' | 'load'>
 
 /**
  * Install order, the one rule of every path that fills the pool: a page is loaded only after the
@@ -27,13 +23,13 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>
  * `admit` returns the number of pages it loaded, or -1 when a dependency has no bytes yet or was
  * reclaimed before the page could follow it: the page then waits for its requested bytes, drawn
  * through its resident ancestor. A full pool is not caught here: the load throws, before any read
- * when every slot is pinned, and the caller stops.
+ * when the pool has no place to give (`../../gpu/page/load.ts`), and the caller stops.
  * `priority` goes with every read the admission makes, its parents' included: a lower tier's stays
  * a prefetch, so the view's loading `total` never counts it.
  */
 export function createPageAdmission(options: {
   getCache: () => PoolCache | undefined
-  tracking: Pick<Tracking, 'keyOf' | 'wanted'>
+  tracking: Pick<WebgpuPageTracking, 'keyOf'>
   bootstrapKey: Uint8Array
   signal?: AbortSignal
   isLost: () => boolean
@@ -47,17 +43,14 @@ export function createPageAdmission(options: {
     return cache
   }
   const holds = (rec: PageRec) => !!getCache()?.get(pageAddress(rec))
-  /** One load, pinned when the image holds the page: the wanted set or the root cover. */
+  /** One load, pinned when it is the root cover's: what any view uses, the GPU's order says. */
   const load = async (rec: PageRec, priority?: number) => {
     const address = pageAddress(rec),
-      key = tracking.keyOf(rec),
-      held = !!bootstrapKey[key]
-    // A pool its pins fill takes no page: none is read for it, read for nothing and again by the
-    // next image, until a pin is let go. The caller stops as on a full pool.
-    if (current().unpinnedSlots() <= 0) throw new Error('ALL_PAGES_PINNED')
-    // The root cover is held on arrival, inside the cache's queue, never left unpinned in between.
+      held = !!bootstrapKey[tracking.keyOf(rec)]
+    // A pool with no place to give refuses the page before reading it (`POOL_FULL`): the caller
+    // stops as on a full pool. The root cover is held on arrival, inside the cache's queue, never
+    // left unpinned in between.
     await current().load(address, signal, held, priority)
-    if (!held && tracking.wanted.has(key)) current().pin(address)
   }
   const admit = async (rec: PageRec, priority?: number): Promise<number> => {
     const parents = parentsOf(rec)

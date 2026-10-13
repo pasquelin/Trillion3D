@@ -2,8 +2,9 @@ import { srgbToLinear } from '../../../../packages/sdk-core/src/index.ts'
 import type { triangleAt } from './projection.ts'
 import { backgroundRgb, sampleLinear, sampleMap } from './math.ts'
 import { shadingNormal } from './shadingNormal.ts'
-import type { VisMaterial, VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
-import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/world.ts'
+import type { VisMaterial } from '../../../../packages/sdk-browser/src/visibility/materialType.ts'
+import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
+import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { ROUGHNESS_FLOOR } from '../../../../packages/sdk-browser/src/lighting/shaderConstants.ts'
 import {
   ggxDistribution,

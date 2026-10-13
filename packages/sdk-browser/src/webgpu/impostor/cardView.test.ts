@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { fieldCamera } from '../../gpu/dag/placementTree.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The composition the card pass wrote before, rounded once to single. */
 function before(matrix: ArrayLike<number>, eye: ArrayLike<number>) {
@@ -32,8 +33,7 @@ function pixel(m: Float32Array, p: readonly number[]) {
 }
 
 test('the card matrices at the eye change no 8-bit pixel', () => {
-  let seed = 9
-  const next = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+  const next = lcgRandom(9)
   for (let i = 0; i < 200; i++) {
     const eye = [1e5 * (next() - 0.5), 30 * next(), 1e5 * (next() - 0.5)],
       at = [eye[0] + 500 * (next() - 0.5), 0, eye[2] - 300 - 500 * next()]

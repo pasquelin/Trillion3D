@@ -4,7 +4,7 @@ import type { CullingHierarchy, Page, Primitive } from '../../../../sdk-core/src
 import { LINE_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import type { PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
 import { cutPagesOffThread } from '../../page/work/host.ts'
-import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
+import { sphereFromBoundsBatch } from '../../../../math/src/batch/culling.ts'
 import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
 import { drawnBounds, type DrawnShape } from '../../../../sdk-core/src/world/geometry/drawnKind.ts'
 
@@ -28,7 +28,7 @@ export type HeldBox = Float64Array
 function restBounds(boxes: Float64Array, k: number) {
   const box = boxes.subarray(k * BOX_VALUES, (k + 1) * BOX_VALUES),
     sphere = new Float64Array(4)
-  sphereFromBounds(sphere, 0, box[0], box[1], box[2], box[3], box[4], box[5])
+  sphereFromBoundsBatch(sphere, box, 1)
   return { min: [...box.subarray(0, 3)], max: [...box.subarray(3)], sphere: [...sphere] }
 }
 

@@ -2,6 +2,7 @@ import { previewLevelSize } from '../../../sdk-core/src/index.ts'
 import { coverageGroups, LEVEL_BIN_BYTES } from './coverageMips.ts'
 import { levelView, MATERIAL_MIP_FORMAT, materialMipPipeline } from './mips.ts'
 import { sameEntries } from '../gpu/core/sameEntries.ts'
+import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 
 /** One texture of a batch: its pool format — its levels stored as `materialMipTexture` says —, its
  *  size, its colour rule — weighted by alpha when every reader takes alpha for coverage, in
@@ -86,15 +87,12 @@ export function chainGroups(
     kept.reduce = Array.from({ length: levels - 1 }, (_, above) =>
       device.createBindGroup({
         layout,
-        entries: [
-          { binding: 0, resource: reads[above] },
-          {
-            binding: 1,
-            resource: { buffer: uniforms, offset: (first + above + 1) * stride, size: 32 },
-          },
-          { binding: 2, resource: cover },
-          { binding: 3, resource: writes[above + 1] },
-        ],
+        entries: sequentialEntries([
+          reads[above],
+          { buffer: uniforms, offset: (first + above + 1) * stride, size: 32 },
+          cover,
+          writes[above + 1],
+        ]),
       }),
     )
     kept.counts =

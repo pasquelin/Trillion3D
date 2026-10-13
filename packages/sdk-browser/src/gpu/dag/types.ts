@@ -127,6 +127,10 @@ export type PackedDag = {
   recordCount: number
   /** Content keys behind the records, one per page address (`evict.ts`). */
   keyCount: number
+  /** The groups of those keys, and the links from each group to the groups replacing it: what a
+   *  use stamps upward (`evict.ts`, `shader/lastUseWgsl.ts`). */
+  groupCount: number
+  groupEdges: number
   /** What the candidate and live lists hold, and each descent queue, now (`shader/levelWgsl.ts`):
    *  a view's reach, grown when a cut passes one (`queueGrowth.ts`). */
   candCount: number

@@ -30,6 +30,7 @@ import {
   type TextureLevelRequest,
 } from './levelReader.ts'
 import { createReadFailures } from '../streaming/failures.ts'
+import { createListeners } from '../../../sdk-core/src/runtime/listeners.ts'
 import { retriableError } from '../cluster/checked.ts'
 import { tileRecord } from './tileRecords.ts'
 import { PREVIEW_LOSSLESS_FORMAT } from '../../../sdk-core/src/index.ts'
@@ -77,7 +78,7 @@ function createHeldLevels(read: TextureLevelReader) {
       retriable: (error) => !(error instanceof LevelBytesError) && retriableError(error),
     }),
     /** Who hears each level land. */
-    watchers = new Set<() => void>()
+    watchers = createListeners()
   /** Bytes the reads in flight will hold once landed. */
   let reading = 0,
     fetched = 0
@@ -97,7 +98,7 @@ function createHeldLevels(read: TextureLevelReader) {
         failures.passed(id)
         fetched++
         store.keepLevel(id, level)
-        for (const landed of watchers) landed()
+        watchers.emit()
       })
       .catch((error: unknown) => {
         failures.record(id, error)
@@ -182,10 +183,7 @@ function createHeldLevels(read: TextureLevelReader) {
       return store.roomBytes
     },
     /** Tells `landed` each level that lands from now on; returns what stops it. */
-    watch(landed: () => void) {
-      watchers.add(landed)
-      return () => void watchers.delete(landed)
-    },
+    watch: watchers.subscribe,
     get inFlight() {
       return pending.size
     },

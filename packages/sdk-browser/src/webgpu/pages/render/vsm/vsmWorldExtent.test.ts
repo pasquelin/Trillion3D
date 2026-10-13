@@ -8,7 +8,7 @@ import { createSceneLightStore } from '../../../../../../sdk-core/src/index.ts'
 import type { SceneLight } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import { SUN } from '../../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts'
 import { installGpuGlobals } from '../../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { SHADOW_LIMITS, camera, disposeQuadRun, quadBackend } from '../../testScenes.fixture.ts'
 
 const light = (id: string, kind: 'point' | 'spot', position: number[], range: number) =>
@@ -42,7 +42,7 @@ function world(side: number, near = 0) {
  *  marks and requests, and its mask's layers. */
 async function shadowSet(side: number, near = 0) {
   installGpuGlobals()
-  const gpu = mockGpu({ limits: SHADOW_LIMITS })
+  const gpu = fakeDevice({ ...BACKEND, limits: SHADOW_LIMITS })
   const { fixture, backend } = quadBackend(gpu.device, {
     sceneLights: world(side, near),
     // A view wide enough that a lamp a step away asks its faces finer than one page.
@@ -54,8 +54,8 @@ async function shadowSet(side: number, near = 0) {
       backend.render(camera())
       await backend.flush()
     }
-    const live = <T extends { destroyed: boolean; label?: string }>(made: T[], label: RegExp) =>
-      made.filter((it) => !it.destroyed && label.test(it.label ?? ''))
+    const live = <T extends { label?: string }>(made: T[], label: RegExp) =>
+      made.filter((it) => !gpu.destroyed.includes(it) && label.test(it.label ?? ''))
     return {
       shadowed: backend.metrics().shadowVsmLights,
       tables: live(gpu.buffers, /^vsm\.page(Table|Marks|Requests)/).reduce((s, b) => s + b.size, 0),

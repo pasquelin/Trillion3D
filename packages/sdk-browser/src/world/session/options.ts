@@ -1,10 +1,5 @@
 import type { AdmitGpuMemory } from '../../residency/activeMemory.ts'
-import type {
-  AssetScope,
-  CameraPose,
-  MathPathMode,
-  PreparationProgress,
-} from '../../../../sdk-core/src/index.ts'
+import type { AssetScope, CameraPose, PreparationProgress } from '../../../../sdk-core/src/index.ts'
 import type { EngineDiagnostic, EngineFactory, DiagnosticDetail } from '../../engine/types.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -142,10 +137,5 @@ export interface MeasuredWorldOptions {
   /** Declare the lights the source file carried, read from the cache. On by default: an
    *  imported scene arrives with its lights. `false` opens the scene with none of them. */
   importedLights?: boolean
-  /** Path of batched compute operations: `'auto'` by default, measurement arbitrating
-   *  between reference JavaScript and the WebAssembly module. `'js'` or `'wasm'` impose it
-   *  for a campaign; `'wasm'` falls back on `'js'` where the module is missing, and says so
-   *  in the metrics. */
-  mathPath?: MathPathMode
   logInterval?: number
 }

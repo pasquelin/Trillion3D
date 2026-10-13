@@ -19,7 +19,7 @@
  */
 import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
 import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
-import { vsmBufferGroup, vsmEnsureBuffer } from './renderPass.ts'
+import { vsmBufferGroup, vsmEnsureBuffer, vsmRenderStorage } from './renderPass.ts'
 import {
   type VsmCacheManager,
   type VsmInstanceInvalidation,
@@ -205,7 +205,6 @@ interface Slot {
   group?: GPUBindGroup
 }
 const SLOTS = new WeakMap<VsmResources, Slot[]>()
-const STORAGE = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 
 /** Frees the upload buffers of `res`'s invalidation phases, with the set (`destroyEngineVsm`). */
 export function releaseVsmInvalidation(res: VsmResources) {
@@ -335,7 +334,7 @@ function dispatchPhase(
     'vsm.invalidation',
     'instances',
     instanceBytes,
-    STORAGE(),
+    vsmRenderStorage(),
     16,
   )
   const itemBuffer = vsmEnsureBuffer(
@@ -343,7 +342,7 @@ function dispatchPhase(
     'vsm.invalidation',
     'items',
     itemCount * 16,
-    STORAGE(),
+    vsmRenderStorage(),
     16,
   )
   if (instanceBuffer !== was0 || itemBuffer !== was1) slot.group = undefined

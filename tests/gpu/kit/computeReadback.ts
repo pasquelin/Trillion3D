@@ -3,6 +3,22 @@ import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
  *  resource as it is (a texture view, a sampler). */
 export type ComputeInput = ArrayBufferView<ArrayBuffer> | GPUBindingResource
 
+/** A GPU buffer of `usage` holding `data`, written through the queue (`COPY_DST` added), at least
+ *  `minBytes` long for a binding that refuses an empty or a shorter buffer. */
+export function bufferHolding(
+  device: GPUDevice,
+  data: ArrayBuffer | ArrayBufferView<ArrayBuffer>,
+  usage: GPUBufferUsageFlags,
+  minBytes = 0,
+) {
+  const made = device.createBuffer({
+    size: Math.max(minBytes, data.byteLength),
+    usage: usage | GPUBufferUsage.COPY_DST,
+  })
+  device.queue.writeBuffer(made, 0, data)
+  return made
+}
+
 export interface ComputeReadbackOptions {
   /** Bound in order in group 0, around the output's binding. */
   inputs?: ComputeInput[]
@@ -22,18 +38,16 @@ export async function computeReadback(
   workgroups = 1,
   { inputs = [], output: at = inputs.length, words = 'f32' }: ComputeReadbackOptions = {},
 ) {
-  const made: GPUBuffer[] = []
-  const buffer = (size: number, usage: number) => {
-    const created = device.createBuffer({ size, usage })
-    made.push(created)
-    return created
-  }
+  const output = device.createBuffer({
+    size: bytes,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  })
+  const made: GPUBuffer[] = [output]
   try {
-    const output = buffer(bytes, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC)
     const resource = (input: ComputeInput): GPUBindingResource => {
       if (!ArrayBuffer.isView(input)) return input
-      const storage = buffer(input.byteLength, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST)
-      device.queue.writeBuffer(storage, 0, input)
+      const storage = bufferHolding(device, input, GPUBufferUsage.STORAGE)
+      made.push(storage)
       return { buffer: storage }
     }
     const group = device.createBindGroup({

@@ -5,6 +5,7 @@ import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { waterSurfaceWgsl } from '../water/surfaceWgsl.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Corner = readonly [x: number, y: number, z: number, w: number]
 type Triangle = readonly [Corner, Corner, Corner]
@@ -105,8 +106,8 @@ test('a triangle the frustum clips, a corner behind the eye, or a NaN, is left t
 })
 
 test('every triangle is drawn by exactly one side, whatever its shape', () => {
-  let seed = 7
-  const next = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5) * 8
+  const draw = lcgRandom(7)
+  const next = () => (draw() - 0.5) * 8
   for (let n = 0; n < 5000; n++) {
     const triangle = [0, 1, 2].map(() => [next(), next(), next(), next()]) as unknown as Triangle
     for (const front of [true, false]) {

@@ -35,20 +35,3 @@ export async function captureCanvas(
   writeFileSync(path, encodePng(width, height, rgba))
   return { path, width, height }
 }
-
-/** Pixels that differ between two images of one size, and the largest channel difference. */
-export function pixelDifference(a: Uint8Array, b: Uint8Array) {
-  if (a.length !== b.length) return { pixels: Number.NaN, largest: Number.NaN }
-  let pixels = 0,
-    largest = 0
-  for (let i = 0; i < a.length; i += 4) {
-    const d = Math.max(
-      Math.abs(a[i] - b[i]),
-      Math.abs(a[i + 1] - b[i + 1]),
-      Math.abs(a[i + 2] - b[i + 2]),
-    )
-    if (d) pixels++
-    if (d > largest) largest = d
-  }
-  return { pixels, largest }
-}

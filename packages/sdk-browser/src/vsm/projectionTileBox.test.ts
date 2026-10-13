@@ -13,7 +13,6 @@ import {
   CODE,
   NAMES,
   SCOPE,
-  f,
   lightsOf,
   pixelsOf,
   type Light,
@@ -27,7 +26,7 @@ test('the box test never drops a light a pixel of the tile is in, even with the 
   // takes the light less readily): the reach still holds every light a pixel is in.
   const ulp = (x: number) => 2 ** (Math.floor(Math.log2(Math.abs(x))) - 23)
   const high = (x: number) => {
-    const r = f(Math.sqrt(x))
+    const r = Math.fround(Math.sqrt(x))
     return r + 2 * ulp(r)
   }
   const run = (lights: Light[], roots: object = {}) =>

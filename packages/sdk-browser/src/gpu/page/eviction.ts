@@ -1,5 +1,4 @@
 import type { ResidentPage } from './types.ts'
-import { createCacheEntries } from '../../streaming/cacheEntries.ts'
 
 /** An eviction order a GPU cut publishes (`../dag/evict.ts`), its keys read one at a time as
  *  victims are taken. */
@@ -8,120 +7,133 @@ export type EvictionOrder = {
   readonly count: number
   /** The key at rank `at`, the first victim at 0. */
   keyAt(at: number): string
+  /** How many of its first keys are OLD: older than any page the view ahead asks for. */
+  readonly old: number
+  /** The cache's arrivals when its cut ran (`arrivals`): a page that arrived since is not in it,
+   *  whatever its key. */
+  readonly arrivals: number
+  /** False while the cut the frames draw is older than the order (`../core/selection.ts`,
+   *  `cutHeld`): a page it lists may be drawn still, so none leaves. */
+  open(): boolean
 }
 
 /** Whether a page may give its place to the arrival asking. */
 export type Accept = (page: ResidentPage) => boolean
 
-/** Why no slot is given back: every page pinned, or the published order spent. */
-export type NoVictim = 'all-pages-pinned' | 'eviction-queue-spent'
+/** Why no slot is given back: no order, or the order spent. */
+export type NoVictim = 'eviction-queue-spent'
 
 /**
- * Which unpinned page an arrival takes the slot of, in a pool of fixed slots. Its pages' recency is
- * the host caches' one heap (`streaming/cacheEntries.ts`): a page is an entry, its pin a hold, so
- * the heap holds only the unpinned pages, the least recently loaded or touched on top. Before any
- * order, the victim is that top, in O(log n) whatever is pinned. Once a GPU cut published an
- * order: its next resident, unpinned page the arrival may take, each entry passed once — one
- * pinned or refused when passed waits in `held` for its unpin, and one a lower tier touched since
- * the last order (`touched`) in `late`, taken after every other —, never a page it leaves out.
+ * Which resident page an arrival takes the slot of, in a pool of fixed slots: the next page of the
+ * order the GPU cut published (`../dag/evict.ts`), which alone knows when each page was last used
+ * by any view, and holds a page's parents as long as the page. Each entry is passed once; one
+ * pinned or refused when passed waits in `held` for its unpin, and is offered before the entries
+ * after it. A page that arrived after the order's cut is never its victim, nor one it does not list.
+ * Before any order, or while the frames draw a cut older than it, there is no victim: the arrival
+ * waits for the next readback. `lower` — a page of a lower tier asking — takes only from the order's
+ * OLD head: it never evicts a page any view used of late.
+ *
+ * A pin is the cache's own hold: the root cover's pages, which the GPU never lists either
+ * (`../dag/poolList.ts`). No clock, no recency: the GPU's.
  */
 export function createEviction(resident: ReadonlyMap<string, ResidentPage>) {
-  const recent = createCacheEntries<ResidentPage>()
-  /** The pages `leastRecent` holds aside while it looks: held for that, pinned by no one. */
-  const aside = new Set<string>()
-  const isPinned = (key: string) => !aside.has(key) && (recent.entry(key)?.holds ?? 0) > 0
-  /** The order each page a lower tier touched was touched under. */
-  const lower = new Map<string, number>()
-  let epoch = 0
-  /** The unpinned resident page `key` when `accept` takes it. */
-  const free = (key: string, accept: Accept) => {
-    const page = isPinned(key) ? undefined : resident.get(key)
-    return page && accept(page) ? page : undefined
-  }
-
-  /** The heap's top that `accept` takes, or why none is. It stays in the heap, for the eviction of
-   *  its page to drop; each the heap offered before it that `accept` refused is held aside, and put
-   *  back at its last touch's place. */
-  const leastRecent = (accept: Accept): ResidentPage | NoVictim => {
-    let page: ResidentPage | undefined
-    for (page = recent.first?.value; page && !accept(page); page = recent.first?.value) {
-      aside.add(page.key)
-      recent.acquire(page.key)
+  const pins = new Set<string>()
+  let order: EvictionOrder | undefined,
+    at = 0
+  /** The rank of each key the order lists, and its keys by rank, read once when first asked:
+   *  victims alone read no more than they take. */
+  const ranks = new Map<string, number>(),
+    keys: string[] = []
+  let mapped = false
+  const rankOf = (key: string) => {
+    if (!mapped && order) {
+      mapped = true
+      for (let rank = 0; rank < order.count; rank++)
+        ranks.set((keys[rank] = order.keyAt(rank)), rank)
     }
-    for (const key of aside) recent.release(key)
-    aside.clear()
-    return page ?? 'all-pages-pinned'
+    return ranks.get(key)
   }
-
-  const inOrder = (order: EvictionOrder): ((accept: Accept) => ResidentPage | NoVictim) => {
-    const held: string[] = [],
-      late: string[] = []
-    let at = 0,
-      lateAt = 0
-    return (accept) => {
-      while (at < order.count) {
-        const key = order.keyAt(at++)
-        const page = resident.get(key)
-        if (!page) continue
-        if ((lower.get(key) ?? -2) >= epoch - 1) late.push(key)
-        else if (isPinned(key) || !accept(page)) held.push(key)
-        else return page
-      }
-      for (const key of held) {
-        const page = free(key, accept)
-        if (page) return page
-      }
-      while (lateAt < late.length) {
-        const page = free(late[lateAt++], accept)
-        if (page) return page
-      }
-      return 'eviction-queue-spent'
-    }
+  const keyAt = (rank: number) => (mapped ? keys[rank] : order!.keyAt(rank))
+  /** Entries passed while pinned or refused, with their rank: offered again, first. */
+  const held: { key: string; rank: number }[] = []
+  /** The listed page `key` when it may give its place: still resident, not arrived since, not
+   *  pinned, accepted. `undefined` keeps it held; `null` drops it for good. */
+  const listed = (key: string, accept: Accept) => {
+    const page = resident.get(key)
+    if (!page || page.generation > order!.arrivals) return null
+    return pins.has(key) || !accept(page) ? undefined : page
   }
-
-  let strategy: (accept: Accept) => ResidentPage | NoVictim = leastRecent
   return {
     /** The page whose place the next arrival takes among those `accept` takes, or why none is. */
-    victim: (accept: Accept = () => true) => strategy(accept),
-    /** Evicts in `order` from now on; `undefined` goes back to the least recent. */
-    follow(order?: EvictionOrder) {
-      epoch++
-      strategy = order ? inOrder(order) : leastRecent
+    victim(accept: Accept = () => true, lower = false): ResidentPage | NoVictim {
+      if (!order?.open()) return 'eviction-queue-spent'
+      const end = lower ? order.old : order.count
+      for (let i = 0; i < held.length; i++) {
+        if (held[i].rank >= end) continue
+        const page = listed(held[i].key, accept)
+        if (page === undefined) continue
+        held.splice(i--, 1)
+        if (page) return page
+      }
+      while (at < end) {
+        const rank = at++,
+          key = keyAt(rank),
+          page = listed(key, accept)
+        if (page) return page
+        if (page === undefined) held.push({ key, rank })
+      }
+      return 'eviction-queue-spent'
     },
-    /** `page` arrived: the most recent. */
-    arrived: (page: ResidentPage) => recent.set(page.key, page, page.bytes),
-    /** `key` was read or touched: the most recent; `lowerTier` when only a lower tier wants it. */
-    touched(key: string, lowerTier = false) {
-      recent.touch(key)
-      if (lowerTier) lower.set(key, epoch)
+    /** How many victims the order may still give an arrival, `lower` or not: an upper bound, read
+     *  before a page is read for nothing. */
+    victims(lower = false) {
+      if (!order?.open()) return 0
+      return Math.max(0, (lower ? order.old : order.count) - at) + held.length
     },
-    /** `key`'s page is pinned, one hold of the heap's: no eviction takes it until its unpin. False
-     *  when it already was. */
+    /** Whether `key`'s page may leave with a victim — the order lists it, in its old head for
+     *  `lower` —: what a slot split in quarters asks of every page it holds (`placement.ts`). */
+    evictable(key: string, lower = false) {
+      const rank = rankOf(key)
+      if (rank === undefined || !order?.open() || pins.has(key)) return false
+      const page = resident.get(key)
+      return !!page && page.generation <= order.arrivals && rank < (lower ? order.old : order.count)
+    },
+    /** `key`'s rank in the order, the first victim at 0; `undefined` for a key it does not list. */
+    rankOf,
+    /** Evicts in `order` from now on; `undefined`: no victim until the next one. */
+    follow(next?: EvictionOrder) {
+      order = next
+      at = 0
+      held.length = 0
+      ranks.clear()
+      keys.length = 0
+      mapped = false
+    },
+    /** `key`'s page is pinned: no eviction takes it until its unpin. False when it already was. */
     pin(key: string) {
-      if (isPinned(key)) return false
-      recent.acquire(key)
+      if (pins.has(key)) return false
+      pins.add(key)
       return true
     },
-    /** `key`'s page is unpinned, back at its last touch's place. False when it was not pinned. */
-    unpin(key: string) {
-      if (!isPinned(key)) return false
-      recent.release(key)
-      return true
-    },
-    isPinned,
-    /** How many pages are pinned: the entries the heap does not hold. */
+    /** `key`'s page is unpinned. False when it was not pinned. */
+    unpin: (key: string) => pins.delete(key),
+    isPinned: (key: string) => pins.has(key),
+    /** How many pages are pinned. */
     get pinnedCount() {
-      return recent.heldCount
+      return pins.size
     },
-    /** `key` left the pool. */
+    /** `key` left the pool, its pin with it. */
     left(key: string) {
-      recent.drop(key)
-      lower.delete(key)
+      pins.delete(key)
     },
     /** Every page left at once. */
     clear() {
-      recent.clear()
-      lower.clear()
+      pins.clear()
+      order = undefined
+      held.length = 0
+      ranks.clear()
+      keys.length = 0
+      mapped = false
     },
   }
 }

@@ -9,7 +9,7 @@ import { surfaceOf } from '../../page/surface.ts'
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './items.ts'
 import { refreshBlendScene } from './resources.ts'
 import { createPhysicalTable } from '../visibility/physicalTable.ts'
-import { PHYSICAL_SECOND_UV } from '../../visibility/buffer.ts'
+import { PHYSICAL_SECOND_UV } from '../../visibility/types.ts'
 import type { BlendGpuItem } from './state.ts'
 import { emptyGeometryBlock } from '../row/pageRowMaterial.ts'
 

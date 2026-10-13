@@ -11,7 +11,7 @@ import type { EngineContext } from '../../engine/types.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { webgpuPagesEngine } from '../pages/pages.ts'
 import { SHADOW_LIMITS, mixedBinScene } from '../pages/testScenes.fixture.ts'
 
@@ -37,7 +37,7 @@ export async function floorCasterBackend(
     scene.indices,
     scene.associations,
   )
-  const gpu = mockGpu({ packed: packDagSelection(roots), limits: SHADOW_LIMITS })
+  const gpu = fakeDevice({ ...BACKEND, packed: packDagSelection(roots), limits: SHADOW_LIMITS })
   const lights = createSceneLightStore()
   lights.add(light)
   const backend = webgpuPagesEngine({

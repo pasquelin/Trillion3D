@@ -15,11 +15,10 @@ import { checkAttachment, checkTexture, checkView } from './textureRules.ts'
 import { buffers, known, remember, resolve, samplers, textures, views } from './kitMade.ts'
 
 /**
- * The validation every device of the kit applies — `fakeDevice`, `mockGpu` (through
- * `asWebgpuDevice`), the timing fixture —, in this one place: each creation, write and encoded
- * copy is checked by WebGPU's rules (`textureRules.ts`, `bufferRules.ts`, `bindRules.ts`) before
- * the device records it, and refused with an error naming the rule where a real device would
- * raise a validation error or be lost. What the kit makes is remembered (`kitMade.ts`), so a view,
+ * The validation the kit's device applies (`fakeDevice`, through `asWebgpuDevice`), in this one
+ * place: each creation, write and encoded copy is checked by WebGPU's rules (`textureRules.ts`,
+ * `bufferRules.ts`, `bindRules.ts`) before the device records it, and refused with an error naming
+ * the rule where a real device would raise a validation error or be lost. What the kit makes is remembered (`kitMade.ts`), so a view,
  * a group or a copy is checked against the resources it names; a test's own object is not checked.
  */
 

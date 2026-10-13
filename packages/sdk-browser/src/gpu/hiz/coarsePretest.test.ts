@@ -2,17 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts'
 import { HIZ_TEST_VALUES, hizTestRect } from '../../../../../bench/oracles/browser/hizOcclusion.ts'
-import { lcg } from './buildTranscripts.fixture.ts'
 import { packHizPyramid } from './oracle.fixture.ts'
 import type { PackedHiz } from './oracle.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 // The Hi-Z rectangle test reads a coarse mip first and stops at the first texel that does not
 // hide (`pyramidHides`), instead of taking the minimum of the whole footprint
 // (`pyramidFar`). Below, both WGSL functions transcribed line by line, in f32, must return the
 // same verdict on random pyramids, rectangles and depths, and on the hostile values:
 // NaN, ±0, ±Inf, a one-texel pyramid, a footprint as wide as the kernel, a mip table cut short.
-
-const f32 = Math.fround
 const KERNEL = HIZ_KERNEL_TEXELS
 
 /** The mip that covers an already clipped rectangle, or -1: `hizTestRect`, the CPU rule
@@ -37,7 +35,7 @@ const minNum: Min = (a, b) => (a !== a ? b : b !== b ? a : Math.min(a, b))
 
 /** The footprint read: the minimum of the footprint (`pyramidFar`). */
 function footprintFar(p: PackedHiz, l: number, rect: number[], min: Min) {
-  let far = f32(1.0e30)
+  let far = Math.fround(1.0e30)
   for (let y = rect[1]; y <= rect[3]; y++)
     for (let x = rect[0]; x <= rect[2]; x++)
       far = min(far, p.data[p.offsets[l] + y * p.sizes[l][0] + x])
@@ -99,11 +97,11 @@ function judge(p: PackedHiz, rect: number[], levels: number, nearest: number, mi
   return { before, after, shift }
 }
 
-const SPECIALS = [0, -0, 1, Infinity, -Infinity, Number.NaN, f32(0.5), f32(1e-30)]
+const SPECIALS = [0, -0, 1, Infinity, -Infinity, Number.NaN, Math.fround(0.5), Math.fround(1e-30)]
 
 function pyramid(rand: () => number, width: number, height: number, hostile: boolean) {
   // A few distinct depths so that ties between the box and the texels are frequent.
-  const palette = Array.from({ length: 6 }, () => f32(rand()))
+  const palette = Array.from({ length: 6 }, () => Math.fround(rand()))
   const pick = () =>
     hostile && rand() < 0.05
       ? SPECIALS[Math.floor(rand() * SPECIALS.length)]
@@ -112,7 +110,7 @@ function pyramid(rand: () => number, width: number, height: number, hostile: boo
 }
 
 function sweep(seed: number, hostile: boolean, min: Min = Math.min) {
-  const rand = lcg(seed)
+  const rand = lcgRandom(seed)
   let judged = 0,
     rejected = 0,
     coarse = 0
@@ -131,7 +129,7 @@ function sweep(seed: number, hostile: boolean, min: Min = Math.min) {
       const nearest =
         hostile && rand() < 0.1
           ? SPECIALS[Math.floor(rand() * SPECIALS.length)]
-          : f32(p.data[Math.floor(rand() * p.data.length)] - (rand() - 0.5) * 0.1)
+          : Math.fround(p.data[Math.floor(rand() * p.data.length)] - (rand() - 0.5) * 0.1)
       const verdicts = judge(p, [x0, y0, x1, y1], levels, nearest, min)
       if (!verdicts) continue
       judged++

@@ -1,5 +1,5 @@
 use super::*;
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::tests::directories::scratch;
 
 mod admission;
 mod atlas_rule;
@@ -19,19 +19,6 @@ mod median_alpha;
 mod tile_records;
 mod weighted_colour;
 
-/// A fresh directory under the OS temp dir, unique per call so parallel tests never collide.
-pub(crate) fn temp_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "trillion3d-texture-preview-{tag}-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    fs::create_dir_all(&dir).expect("temp dir");
-    dir
-}
 /// Minimal `Options` a stage needs; only `cancelled`, `source` and `cache` ever matter to these tests.
 pub(crate) fn options(source: &Path) -> Options {
     Options {

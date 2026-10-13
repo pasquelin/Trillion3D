@@ -17,7 +17,7 @@ import type { BakedEntry } from '../../../sdk-core/src/impostor/switchTable.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import type { DenseKeySet } from '../webgpu/cut/denseKeys.ts'
 import { core } from './borrowed.ts'
-import { resized } from '../../../math/src/sequence/resized.ts'
+import { grownLength, resized } from '../../../math/src/sequence/resized.ts'
 import { sameLinearPartFloat32 } from '../../../math/src/matrix/matrixElements.ts'
 
 /** Floats of one card record. */
@@ -128,7 +128,7 @@ export function slotAtEnd<G>(
   segment: CardSegment<G>,
 ) {
   if (segment.count < segment.capacity) return segment.start + segment.count
-  const room = Math.max(4, segment.capacity * 2)
+  const room = grownLength(segment.capacity, 4)
   if (segment.start + segment.capacity === slots.used) {
     hold(slots, segment.start + room)
     slots.used = segment.start + room

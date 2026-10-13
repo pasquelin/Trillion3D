@@ -20,20 +20,6 @@ import type { BlendGpuItem } from '../../webgpu/blend/state.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { stageBindingCounts } from '../../../../../tests/kit/gpu/bindRules.ts'
 
-/** A kit device that keeps every pipeline layout it was asked for, after the kit checked it. */
-function recordingDevice() {
-  const { device } = fakeDevice()
-  const layouts: GPUPipelineLayoutDescriptor[] = []
-  const make = device.createPipelineLayout.bind(device)
-  Object.assign(device, {
-    createPipelineLayout: (descriptor: GPUPipelineLayoutDescriptor) => (
-      layouts.push(descriptor),
-      make(descriptor)
-    ),
-  })
-  return { device, layouts }
-}
-
 /** The most bindings of `limit`'s kind one stage of these layouts binds; `stage`, in it alone. */
 const widest = (layouts: GPUPipelineLayoutDescriptor[], limit: string, stage = '') =>
   Math.max(
@@ -66,7 +52,7 @@ const KEYS: ContractKey[] = [false, true].flatMap((narrow) =>
 )
 
 test("every opaque resolve program fits the device's per-stage limits", async () => {
-  const { device, layouts } = recordingDevice()
+  const { device, pipelineLayouts: layouts } = fakeDevice()
   const failures: unknown[] = []
   const onFailure = (error: unknown) => void failures.push(error)
   const unlit = await createDeferredLighting(device)
@@ -91,7 +77,7 @@ test("every opaque resolve program fits the device's per-stage limits", async ()
 })
 
 test("the blends and the water pass fit the device's per-stage limits", async () => {
-  const { device, layouts } = recordingDevice()
+  const { device, pipelineLayouts: layouts } = fakeDevice()
   const failures: unknown[] = []
   // One item per blending mode, every display route among them, and one that transmits: every
   // blend set, the routed ones and the water stage and composite are built.

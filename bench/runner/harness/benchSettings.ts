@@ -42,5 +42,4 @@ export interface BenchSettings {
   gazeNetwork: boolean
   instances: number
   isolation: boolean
-  mathPath: 'auto' | 'js' | 'wasm'
 }

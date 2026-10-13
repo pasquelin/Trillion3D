@@ -75,13 +75,6 @@ export {
 } from '../../math/src/matrix/matrix4.ts'
 export type { NumberSink } from '../../math/src/matrix/matrix4.ts'
 export {
-  createPathGovernor,
-  PATH_EXPLORE_EVERY,
-  PATH_MIN_SAMPLES,
-  PATH_SWITCH_RUNS,
-} from '../../sdk-core/src/runtime/path/governor.ts'
-export type { PathGovernor } from '../../sdk-core/src/runtime/path/governor.ts'
-export {
   decomposeMatrix4Batch,
   invertMatrix4Batch,
   normalMatrix3Batch,
@@ -104,13 +97,6 @@ export {
   updateNodeMatrixWorld,
   updateNodeWorldMatrix,
 } from '../../sdk-core/src/world/transform-tree/update.ts'
-export { MATH_PATH_CONTRACT } from '../../sdk-core/src/runtime/path/contracts.ts'
-export type {
-  MathPath,
-  MathPathMetrics,
-  MathPathMode,
-  MathPathOperation,
-} from '../../sdk-core/src/runtime/path/contracts.ts'
 export {
   MATRIX_VALUES,
   NORMAL_MATRIX_VALUES,

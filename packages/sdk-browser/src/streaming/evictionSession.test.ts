@@ -7,7 +7,7 @@ import { createPageCache } from './pageCache.ts'
 import { manifestTableBytes } from './manifestTables.ts'
 import { servedPages } from './servedPages.fixture.ts'
 import { retained } from './retained.fixture.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 const TRANSFER = 64,
   PAGE = 12
@@ -21,7 +21,7 @@ test('random pins, reads and totals: the session evicts the least recently used 
   const { pages } = await servedPages(urls)
   const reserved = manifestTableBytes(pages) + TRANSFER
   for (const seed of [3, 914]) {
-    const draw = random(seed)
+    const draw = lcgRandom(seed)
     const cache = createPageCache(reserved + urls.length * PAGE)
     const evicted: string[] = []
     const streamer = createPageStreamer(pages, 'http://cache/', {

@@ -5,17 +5,17 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { refreshWebgpuMaterials } from './refreshMaterials.ts'
-import { FLAG_MASK, PAGE_INFO_STRIDE, ROW_WORDS } from '../../../visibility/buffer.ts'
+import { FLAG_MASK, PAGE_INFO_STRIDE, ROW_WORDS } from '../../../visibility/types.ts'
 import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../../row/pageRow.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice, writtenBytes } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../testScenes.fixture.ts'
 import { surfaceOf } from '../../../page/surface.ts'
 
 test('a blended surface rewritten in place reaches its item record at the values refresh', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device, writes } = mockGpu()
+    { device, writes } = fakeDevice(BACKEND)
   fixture.metadata.primitives[0].pass = 'shared-blend'
   fixture.material.transparent = true
   fixture.material.opacity = 0.5
@@ -26,8 +26,8 @@ test('a blended surface rewritten in place reaches its item record at the values
     viewport: [32, 32],
   })
   const rgba = () => {
-    const last = writes.filter((w) => w.label === 'Trillion3D blend item records').at(-1)!
-    return [...new Float32Array(last.bytes.slice().buffer).subarray(16, 20)]
+    const last = writes.filter((w) => w.buffer.label === 'Trillion3D blend item records').at(-1)!
+    return [...new Float32Array(writtenBytes(last).slice().buffer).subarray(16, 20)]
   }
   try {
     await backend.prepare()
@@ -51,7 +51,7 @@ test('a blended surface rewritten in place reaches its item record at the values
 test('an opaque surface turned masked cuts every row of its material', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device, buffers } = mockGpu()
+    { device, buffers } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,

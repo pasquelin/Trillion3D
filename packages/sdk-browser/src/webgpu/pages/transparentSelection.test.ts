@@ -3,12 +3,12 @@ import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from './testScenes.fixture.ts'
 
 test('a host diagnostic exception cannot break GPU initialization or rendering', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device, {
     onDiagnostic() {
       throw new Error('HOST_LOG_FAILURE')
@@ -44,7 +44,7 @@ test('transparent frustum selection preserves intersections, transformed bounds 
   ]
   for (const item of cases) {
     const fixture = quadScene(),
-      { device, draws } = mockGpu(),
+      { device, draws } = fakeDevice(BACKEND),
       mesh = fixture.source.children[0] as G.HostMesh
     fixture.metadata.primitives[0].pass = 'shared-blend'
     fixture.material.transparent = true
@@ -94,7 +94,7 @@ test('transparent frustum selection preserves intersections, transformed bounds 
 test('transparent selection follows each camera without retaining an old rejected list', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device, draws } = mockGpu()
+    { device, draws } = fakeDevice(BACKEND)
   fixture.metadata.primitives[0].pass = 'shared-blend'
   fixture.material.transparent = true
   const backend = webgpuPagesEngine({

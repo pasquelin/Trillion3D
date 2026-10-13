@@ -54,12 +54,14 @@ export function createWorkerLink(
     ;[s.live, s.sent, s.redraw] = [true, true, true]
     s.wakes++
   }
-  const send = (message: ToPhysics, transfer: Transferable[] = []) => {
-    worker.postMessage(message, transfer)
+  /** The one post that wakes the worker; a transfer list rides only the flush's own words. */
+  const post = (message: ToPhysics, transfer?: Transferable[]) => {
+    worker.postMessage(message, transfer ?? [])
     wake()
   }
   return {
-    send,
+    /** Sends `message`, one argument: a caller handing `send` to `forEach` passes no index. */
+    send: (message: ToPhysics) => post(message),
     /** The worker stands at the page's step `at`, at rest after the first `heard` waking
      *  messages. */
     rested(heard: number, at: number) {
@@ -76,7 +78,7 @@ export function createWorkerLink(
     },
     flush() {
       const words = s.ready && writer.length ? writer.take() : null
-      if (words) send({ type: 'commands', words }, [words.buffer])
+      if (words) post({ type: 'commands', words }, [words.buffer])
     },
   }
 }

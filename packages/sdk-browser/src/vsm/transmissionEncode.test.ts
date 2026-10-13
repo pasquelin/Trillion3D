@@ -1,11 +1,10 @@
-// A whole transmission frame encoded on the recording device under the binding rules the device
-// enforces (`tests/kit/gpu/usageScope.ts`, `bindRules.ts`): every group set with its layout's
+// A whole transmission frame encoded on the kit's device under the binding rules the device
+// enforces (`tests/kit/gpu/scopeRules.ts`, `bindRules.ts`): every group set with its layout's
 // dynamic offsets, every pipeline's groups set and of its layouts, every indirect buffer made for
 // it — the frame whose index group, set with an offset its layout has no room for, lost the device.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { recordingEncoder } from '../../../../tests/kit/gpu/usageScope.ts'
+import { dispatchedEntries, fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { shadowPageEntries } from '../webgpu/shadow/pageGroup.ts'
 import { createVsmResources } from './resources.ts'
 import { createVsmTransmission, encodeVsmTransmission } from './transmissionPass.ts'
@@ -32,7 +31,7 @@ test('a transmission frame encodes clear, bin and resolve under the device’s b
       resource: e.buffer ? { buffer } : e.sampler ? device.createSampler() : view,
     })),
   })
-  const { encoder, calls } = recordingEncoder()
+  const encoder = device.createCommandEncoder()
   const lights = [{ kind: 'directional' as const, firstId: 0, count: 1, shouldRender: true }]
   const binned = encodeVsmTransmission(
     encoder,
@@ -52,7 +51,7 @@ test('a transmission frame encodes clear, bin and resolve under the device’s b
     },
   )
   assert.ok(binned, 'the blended rows are binned')
-  const entries = calls.map((c) => c.entry)
+  const entries = dispatchedEntries(fake.dispatches)
   for (const kernel of [
     'vsmTransmissionClear',
     'vsmTransmissionCandidates',
@@ -65,7 +64,7 @@ test('a transmission frame encodes clear, bin and resolve under the device’s b
   ])
     assert.ok(entries.includes(kernel), kernel)
   // Past the clear and the argument kernels, every dispatch is indirect: a still frame runs none.
-  const direct = calls.filter((c) => c.direct !== undefined).map((c) => c.entry)
+  const direct = dispatchedEntries(fake.dispatches.filter((c) => c.direct !== undefined))
   assert.deepEqual(
     [...new Set(direct)].filter((e) => e.startsWith('vsmTransmission')),
     ['vsmTransmissionClear', 'vsmTransmissionCandidates', 'vsmTransmissionNumber'],

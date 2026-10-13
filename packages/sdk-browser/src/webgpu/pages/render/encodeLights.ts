@@ -1,4 +1,4 @@
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import {
   environmentExposure,
   DEFAULT_TONE_MAPPING,

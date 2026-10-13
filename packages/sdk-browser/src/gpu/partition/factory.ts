@@ -1,5 +1,5 @@
 import { CORNER_VALUES, ROW_DATA_U32 } from './contract.ts'
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputePipeline, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { createGpuPartitionBuffers, createGpuPartitionLayout } from './buffers.ts'
 import { createPartitionUniformWriter } from './uniform.ts'
 import { createPartitionCounters } from './counters.ts'
@@ -29,8 +29,7 @@ export async function createGpuPartition(
 ): Promise<GpuPartition | undefined> {
   const inputs = { ...sources },
     pyramid = sources.pyramid()
-  if (typeof device.createComputePipeline !== 'function' || slotCap < 1 || !pyramid)
-    return undefined
+  if (!canCompute(device) || slotCap < 1 || !pyramid) return undefined
   const allocated = constructGpuResources(device, () => createGpuPartitionBuffers(device, slotCap))
   try {
     const made = await compilePartition(device)

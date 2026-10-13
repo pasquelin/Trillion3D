@@ -1,4 +1,5 @@
-import { createEngineCamera, readCameraWorld, type EngineCamera, type HostCamera } from './world.ts'
+import { createEngineCamera, type EngineCamera } from './engineCamera.ts'
+import { readCameraWorld, type HostCamera } from './world.ts'
 
 /**
  * Engine camera of a test host camera: what frame entry does every frame, in one call.

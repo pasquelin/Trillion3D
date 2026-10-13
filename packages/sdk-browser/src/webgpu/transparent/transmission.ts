@@ -5,6 +5,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { WATER_BYTES_PER_PIXEL } from './waterBytes.ts'
 import { volumeAttenuation } from './volumeLaw.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { DEPTH_FORMAT, HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
 
 /** `transmission`, the refraction ratio 1 / ior, `thickness`, Fresnel's f0 = ((ior − 1) / (ior + 1))²,
  *  then aligned the volume's attenuation `k` (`volumeAttenuation`) and the marks word: one record
@@ -45,13 +46,13 @@ export function createBackdrop(
   const color = device.createTexture({
     label: 'Trillion3D backdrop color',
     size,
-    format: 'rgba16float',
+    format: HDR_FORMAT,
     usage,
   })
   const waterDepth = device.createTexture({
     label: 'Trillion3D water depth',
     size,
-    format: 'depth32float',
+    format: DEPTH_FORMAT,
     usage: usage | GPUTextureUsage.RENDER_ATTACHMENT,
   })
   return {

@@ -1,4 +1,8 @@
-import { mockGpu, type MockGpuOptions } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import {
+  BACKEND,
+  fakeDevice,
+  type FakeDeviceOptions,
+} from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 
 type Made = { label?: string; size?: { width: number; height: number } }
 
@@ -9,9 +13,9 @@ export function refusing(
   label: string,
   answer: (raise: (message: string) => void, descriptor: Made) => void = (raise) =>
     raise('Out of memory'),
-  options?: MockGpuOptions,
+  options?: FakeDeviceOptions,
 ) {
-  const gpu = mockGpu(options)
+  const gpu = fakeDevice({ ...BACKEND, ...options })
   const device = gpu.device as unknown as Record<string, (d: Made) => unknown>
   const make = device[kind]
   device[kind] = function (this: unknown, descriptor: Made) {

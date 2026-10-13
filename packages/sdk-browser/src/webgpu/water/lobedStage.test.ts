@@ -9,7 +9,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeWaterPass } from './pass.ts'
 import { createWaterPass } from './waterPass.ts'
-import { prepared, replay, targets } from './pass.fixture.ts'
+import { prepared, replay, stepsOf, targets, writesOf } from './pass.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { waterSurfaceTargets } from './surfaceTargets.ts'
 
@@ -39,7 +39,8 @@ test('a lobed transmissive surface draws the lobed stage into the lobes target',
     r.passes.length = 0
     assert.equal(encodeWaterPass(r.rt, r.encoder, true, {}), true)
     const lobed = ready && waterLobed && hasLobes
-    const [{ writes, commands }] = r.passes
+    const writes = writesOf(r.passes[0]),
+      commands = stepsOf(r.passes[0])
     // The three surfaces, the word, the lobes target where lobed, the front depth, the feedback.
     assert.equal(writes.length, lobed ? 7 : 6)
     assert.equal(writes[4] === surfaces.lobesView, lobed, `${waterLobed}, ${hasLobes}`)

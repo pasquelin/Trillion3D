@@ -16,13 +16,13 @@ import { postPackedBases } from '../../page/selection/placements.ts'
 import { createGroupClosure } from '../../page/cut/groupClosure.ts'
 import { cameraSelectionUniforms } from '../../gpu/core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { createRowUse } from './rowUse.ts'
 import { createRowDemand } from './rowDemand.ts'
 import type { DagRoot } from '../../gpu/dag/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { IdDelta } from '../cut/delta.ts'
 import { pageStateOf } from './pageState.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** `count` host meshes of one page — a box, its cluster its own root —, laid out by `at`. */
 function hostMeshes(count: number, at: (k: number) => [number, number]) {
@@ -44,7 +44,7 @@ const FAMILIES: Array<[string, DagRoot[], number]> = [
   ['cooked placements on a grid of 900', placementField(30, 6), 180],
   [
     'host boxes scattered, 3000',
-    hostMeshes(3000, ((n) => () => [n() * 200, -n() * 200])(random(3))),
+    hostMeshes(3000, ((n) => () => [n() * 200, -n() * 200])(lcgRandom(3))),
     200,
   ],
   [

@@ -8,15 +8,7 @@ import assert from 'node:assert/strict'
 import { createVsmClipmap, type VsmClipmap } from '../../../../vsm/clipmap.ts'
 import { VsmCacheManager } from '../../../../vsm/cacheManager.ts'
 import { haltonSpan } from '../../../../../../math/src/sequence/sweep.fixture.ts'
-import {
-  cam,
-  f,
-  now,
-  pixelSamples,
-  shifted,
-  sweptHeaders,
-  transform,
-} from './vsmProject.fixture.ts'
+import { cam, now, pixelSamples, shifted, sweptHeaders, transform } from './vsmProject.fixture.ts'
 
 /** The header words the projection feeds: shiftedToClip (0-15), viewToClip (32-47),
  *  clipToShifted (48-63). */
@@ -36,16 +28,24 @@ test('of the two headers only the projection matrices differ, the view and scree
 function texel(clipmap: VsmClipmap, view: ArrayLike<number>, s: number[]) {
   const levels = clipmap.cacheEntry.mapCaches.map((m) => m.projectionData)
   const base = levels[0],
-    d = s.map((x, a) => f(x + f(base.originShift[a] - view[a] - base.clipmapOrigin[a])))
-  const level = 0.5 * Math.log2(f(f(f(d[0] * d[0]) + f(d[1] * d[1])) + f(d[2] * d[2])) * 1e4)
+    d = s.map((x, a) =>
+      Math.fround(x + Math.fround(base.originShift[a] - view[a] - base.clipmapOrigin[a])),
+    )
+  const level =
+    0.5 *
+    Math.log2(
+      Math.fround(
+        Math.fround(Math.fround(d[0] * d[0]) + Math.fround(d[1] * d[1])) + Math.fround(d[2] * d[2]),
+      ) * 1e4,
+    )
   const k = Math.min(
     Math.max(Math.floor(level + base.levelBias) - base.mapLevel, 0),
     levels.length - 1,
   )
   const at = levels[k],
-    p = s.map((x, a) => f(x + f(at.originShift[a] - view[a])))
+    p = s.map((x, a) => Math.fround(x + Math.fround(at.originShift[a] - view[a])))
   const uv = transform(at.shiftedToMapUv, p[0], p[1], p[2], 1)
-  return `${k}:${Math.floor(f(uv[0] * 16384))}:${Math.floor(f(uv[1] * 16384))}`
+  return `${k}:${Math.floor(Math.fround(uv[0] * 16384))}:${Math.floor(Math.fround(uv[1] * 16384))}`
 }
 
 test('class 1: every pixel rebuilt from either projection reads the same shadow texel', () => {

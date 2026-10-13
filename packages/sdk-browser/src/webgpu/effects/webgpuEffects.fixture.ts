@@ -1,6 +1,7 @@
-// What the effect-chain tests share: the encoder that records passes, and a chain on a fake device.
+// What the effect-chain tests share: the kit device's encoder and its passes, and a chain on it.
 import assert from 'node:assert/strict'
 import { fakeDevice, written, type FakeWrite } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { commandArgs, type MockPass } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
 import { createWebgpuEffects } from './webgpuEffects.ts'
 
 /** A write's words as the floats the bloom's slots hold. */
@@ -9,26 +10,29 @@ export const floatsOf = (write: FakeWrite) => {
   return new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4)
 }
 
-/** An encoder that records the passes begun on it, their target and the dynamic offset of
- *  their first bind group, as each begins, and every descriptor and offset array it was handed. */
-export function recorder() {
-  const passes: { label?: string; load: string; view: unknown; offset?: number }[] = []
-  const handed = new Set<unknown>()
-  const encoder = {
-    beginRenderPass: (descriptor: GPURenderPassDescriptor) => {
-      const [color] = descriptor.colorAttachments as GPURenderPassColorAttachment[]
-      const pass = { label: descriptor.label, load: color.loadOp, view: color.view } as const
-      passes.push(pass)
-      handed.add(descriptor)
-      const setBindGroup = (index: number, _group: unknown, offsets?: Uint32Array) => {
-        if (index) return
-        handed.add(offsets)
-        Object.assign(pass, { offset: offsets?.[0] })
-      }
-      return { setPipeline() {}, setBindGroup, draw() {}, end() {} }
-    },
-  } as unknown as GPUCommandEncoder
-  return { encoder, passes, handed }
+/** The first target of `pass`: its view and its load. */
+export const viewOf = (pass: MockPass) => pass.colors[0]?.view
+export const loadOf = (pass: MockPass) => pass.colors[0]?.loadOp
+/** The dynamic offset `pass` set its first bind group at. */
+export const offsetOf = (pass: MockPass) =>
+  (
+    commandArgs(pass.commands, 'setBindGroup').find(([index]) => !index)?.[2] as
+      Uint32Array | undefined
+  )?.[0]
+
+/** One of `gpu`'s encoders, its render passes, and every descriptor and first group's offset array
+ *  the chain handed it. */
+export function recorder(gpu: ReturnType<typeof fakeDevice>) {
+  const handed = () =>
+    new Set<unknown>([
+      ...gpu.passDescriptors,
+      ...gpu.passes.flatMap(({ commands }) =>
+        commandArgs(commands, 'setBindGroup')
+          .filter(([index]) => !index)
+          .map(([, , offsets]) => offsets),
+      ),
+    ])
+  return { encoder: gpu.device.createCommandEncoder(), passes: gpu.passes, handed }
 }
 
 export const input = { input: true } as unknown as GPUTextureView

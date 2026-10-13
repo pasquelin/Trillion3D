@@ -3,12 +3,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSparseInts } from './sparseInts.ts'
-import { random } from './cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 test('random writes, adds and removals read back as a plain map', () => {
   const map = createSparseInts(),
     model = new Map<number, number>()
-  const next = random(7)
+  const next = lcgRandom(7)
   for (let step = 0; step < 20000; step++) {
     // Keys clustered and spread, so probes collide and removals shift runs back.
     const key = next() < 0.5 ? Math.floor(next() * 64) : Math.floor(next() * 1e6)

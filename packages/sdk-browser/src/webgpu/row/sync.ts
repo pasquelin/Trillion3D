@@ -1,24 +1,22 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { PageList } from '../../page/selection/catalogue.ts'
 import type { createWebgpuResidencyMirror } from '../residency/mirror.ts'
-import type { createWebgpuRowState } from './state.ts'
-import type { createPageRowWriter } from './pageRowWriter.ts'
+import type { WebgpuRowState } from './state.ts'
+import type { PageRowWriter } from './pageRowWriter.ts'
 import { createWebgpuRowSlots } from './slots.ts'
 import type { CutLists, InstanceClosure } from './rowDemand.ts'
 import { createBlendCasterRows } from './blendCasters.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 
-type Rows = ReturnType<typeof createWebgpuRowState>
 type Mirror = Pick<ReturnType<typeof createWebgpuResidencyMirror>, 'sync' | 'dirty'>
-type Writer = ReturnType<typeof createPageRowWriter>
 
 /** Keeps the drawable row table a cache of what the GPU cut draws and asks for (`slots.ts`). */
 export function createWebgpuRowSync(
-  rows: Rows,
+  rows: WebgpuRowState,
   mirror: Mirror,
   packedPages: PageList,
   cacheReady: () => boolean,
-  writePageRow: Writer,
+  writePageRow: PageRowWriter,
   /** A counted closure over the instances, per placement (`rowDemand.ts`). */
   closure: () => InstanceClosure,
   /** Called when a page enters residency or leaves it, before the row changes. */
@@ -35,7 +33,7 @@ export function createWebgpuRowSync(
   /** The readback last followed: each is followed once, whichever view adopted it. */
   let followed: object | null = null
   /**
-   * Rows for the drawable set. What the image owes the table depends only on the pages whose cache
+   * WebgpuRowState for the drawable set. What the image owes the table depends only on the pages whose cache
    * slot just changed, on the readback the GPU cut just brought (`followCut`), and on what the
    * previous image's time budget left to write: the whole catalogue is walked again only on a
    * rebuild, which the rank allocator decides alone. `bounded` false lifts the frame's budget (a
@@ -47,7 +45,7 @@ export function createWebgpuRowSync(
     rows.clearResidencyChanges()
     mirror.sync()
     blendCasters.refresh()
-    // Rows still owed recall the pass even if the cache has moved nothing more: they carry pages the
+    // WebgpuRowState still owed recall the pass even if the cache has moved nothing more: they carry pages the
     // previous image left outside residency, for lack of time.
     if (
       !mirror.dirty &&
@@ -61,14 +59,16 @@ export function createWebgpuRowSync(
     slots.apply(bounded ? budget : undefined)
     return true
   }
-  /** A readback a view adopted (`cut`, its identity new per readback): its rows stamped used, its
-   *  requests for instances without a row served at the next sync. */
-  const followCut = (cut: { readonly result: CutLists } | null | undefined) => {
+  /** A readback a view adopted (`cut`, its identity new per readback): its rows stamped used at the
+   *  frame it was cut at, its requests for instances without a row served at the next sync. */
+  const followCut = (
+    cut: { readonly result: CutLists; readonly uniforms?: { frame?: number } } | null | undefined,
+  ) => {
     if (!cut || cut === followed) return
     followed = cut
-    slots.follow(cut.result)
+    slots.follow(cut.result, cut.uniforms?.frame)
   }
-  /** Rows the time budget deferred to a later image. */
+  /** WebgpuRowState the time budget deferred to a later image. */
   const rowsOwed = () => slots.pending
   return {
     syncRows,

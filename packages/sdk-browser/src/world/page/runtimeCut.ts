@@ -10,7 +10,7 @@
 import { encodeGeometryPage } from '../../page/codec/encodeGeometryPage.ts'
 import type { PageAttributes } from '../../../../sdk-core/src/page/pageInput.ts'
 import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
-import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
+import { sphereFromBoundsBatch } from '../../../../math/src/batch/culling.ts'
 import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
 export { packDrawn, unpackDrawn } from './runtimePack.ts'
 import type { CutWay } from './runtimePack.ts'
@@ -120,7 +120,7 @@ export async function cutDrawnTriangles(
     for (const v of corners)
       boxExpandByPoint(box, 0, positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2])
     const sphere = new Float64Array(4)
-    sphereFromBounds(sphere, 0, box[0], box[1], box[2], box[3], box[4], box[5])
+    sphereFromBoundsBatch(sphere, box, 1)
     return { start, corners, page, box, sphere, geometry: page.data.slice().buffer }
   })
   const maxPositionError = cut.reduce((most, { page }) => Math.max(most, page.quantizationError), 0)

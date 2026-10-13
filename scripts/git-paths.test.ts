@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { gitPaths, gitPathsSync } from './git-paths.ts'
+import { git, gitPaths, gitPathsSync } from './git-paths.ts'
 
 test('reads every Git path beyond 1 MiB, preserving Unicode and embedded newlines', async () => {
   const cwd = mkdtempSync(join(tmpdir(), 'geometry-git-paths-'))
@@ -27,6 +27,17 @@ test('reads every Git path beyond 1 MiB, preserving Unicode and embedded newline
     )
     await assert.rejects(gitPaths(['not-a-git-command'], cwd), /git exited/)
     assert.throws(() => gitPathsSync(['not-a-git-command'], cwd))
+  } finally {
+    rmSync(cwd, { recursive: true, force: true })
+  }
+})
+
+test("git answers its output trimmed in the checkout named, and throws with git's message", () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'geometry-git-run-'))
+  try {
+    git(cwd, 'init', '--quiet')
+    assert.equal(git(cwd, 'rev-parse', '--is-inside-work-tree'), 'true')
+    assert.throws(() => git(cwd, 'rev-parse', 'HEAD'), /ambiguous argument 'HEAD'|unknown revision/)
   } finally {
     rmSync(cwd, { recursive: true, force: true })
   }

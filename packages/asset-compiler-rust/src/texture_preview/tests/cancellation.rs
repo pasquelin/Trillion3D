@@ -34,7 +34,7 @@ fn one_thread() -> rayon::ThreadPool {
 // Flag set by progress, not another thread: no race.
 #[test]
 fn cancellation_is_honoured_between_two_images_not_mid_decode() {
-    let dir = temp_dir("cancel-between");
+    let dir = scratch("texture-preview", "cancel-between");
     let big = rgba_from(2200, 2200, |x, y| {
         [(x % 256) as u8, (y % 256) as u8, 5, 255]
     });

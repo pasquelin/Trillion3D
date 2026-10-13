@@ -29,8 +29,6 @@ const shader = shaderRun<{
     Outline: (F: V, exit: V, entry: V) => ({ F, exit, entry }),
   },
 )
-
-const f = Math.fround
 const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 const cross = (a: V, b: V) =>
   [0, 1, 2].map((i) => a[(i + 1) % 3] * b[(i + 2) % 3] - a[(i + 2) % 3] * b[(i + 1) % 3])
@@ -63,13 +61,13 @@ const sphere = () => {
 /** A light as the scene declares it (f32), `distance` from a point P near `origin`, P in front
  *  of its face; its true corners relative to P, in f64. */
 function light(distance: number, size: number, origin = 0) {
-  const P = sphere().map((x) => f(origin + 3 * x))
-  const n = unit(sphere()).map(f)
+  const P = sphere().map((x) => Math.fround(origin + 3 * x))
+  const n = unit(sphere()).map(Math.fround)
   const toP = unit(sphere().map((x, k) => x + 1.2 * n[k]))
-  const C = P.map((x, k) => f(x - (dot(toP, n) > 0.05 ? toP : n)[k] * distance))
-  const U = unit(cross(n, sphere())).map((x) => f(x * size * (0.3 + random())))
-  const h = f(size * (0.3 + random()))
-  const W = F32_SCOPE.normalize(F32_SCOPE.cross(U, n)).map((x) => f(x * h))
+  const C = P.map((x, k) => Math.fround(x - (dot(toP, n) > 0.05 ? toP : n)[k] * distance))
+  const U = unit(cross(n, sphere())).map((x) => Math.fround(x * size * (0.3 + random())))
+  const h = Math.fround(size * (0.3 + random()))
+  const W = F32_SCOPE.normalize(F32_SCOPE.cross(U, n)).map((x) => Math.fround(x * h))
   const record = { positionRange: [...C, 1e30], directionCone: [...n, 0], shape: [...U, h] }
   const corners = [-1, 1, 1, -1].map((u, i) =>
     [0, 1, 2].map((k) => C[k] - P[k] + u * U[k] + (i < 2 ? -1 : 1) * W[k]),
@@ -127,7 +125,7 @@ test('a rectangle cut by the horizon is integrated to f32, whole above, cut or w
   let cut = 0
   for (let i = 0; i < 1500; i++) {
     const { corners, quad, toward } = light(0.2 + 4 * random(), 0.1 + random())
-    const up = unit(sphere()).map(f)
+    const up = unit(sphere()).map(Math.fround)
     cut += Number(corners.some((q) => dot(q, up) > 0) && corners.some((q) => dot(q, up) <= 0))
     const exact = clipped(corners, up)
     if (corners.every((q) => dot(q, up) <= 0))
@@ -150,7 +148,7 @@ test('a light 1 000 times its size away, or 1e4 m from the origin, keeps its irr
     const errors = Array.from({ length: 400 }, () => {
       const { corners, quad, toward } = light(distance * (0.5 + random()), 0.5, origin)
       const exact = clipped(corners, toward)
-      return Math.abs(shader.polygonFormFactor(...quad, toward.map(f))[3] - exact) / exact
+      return Math.abs(shader.polygonFormFactor(...quad, toward.map(Math.fround))[3] - exact) / exact
     })
     assert.ok(worst(errors) < bound, `${distance} m: ${worst(errors)}`)
   }
@@ -161,8 +159,8 @@ test('a far light in the mirror direction keeps its glint: the fitted lobe, clip
   const errors = Array.from({ length: 400 }, () => {
     const { corners, quad, toward } = light(500 * (0.5 + random()), 0.5)
     const V = sphere(),
-      N = unit(toward.map((x, k) => x + V[k])).map(f)
-    const T1 = unit(V.map((x, k) => x - N[k] * dot(N, V))).map(f),
+      N = unit(toward.map((x, k) => x + V[k])).map(Math.fround)
+    const T1 = unit(V.map((x, k) => x - N[k] * dot(N, V))).map(Math.fround),
       T2 = F32_SCOPE.cross(N, T1)
     const cell = [0.0525 + 0.5 * random(), Math.sqrt(1 - Math.max(dot(N, V), 1e-4))]
       .map((x) => Math.min(Math.round(x * (LTC_SIZE - 1)), LTC_SIZE - 1))

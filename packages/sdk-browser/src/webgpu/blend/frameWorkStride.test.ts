@@ -10,32 +10,27 @@ import { orderStepCount } from './orderSteps.ts'
 import { ORDER_UNI } from './orderWgsl.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { commandArgs } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
 
 test('a device aligning uniform offsets at 512 lays every step and pass 512 bytes apart', async () => {
   const { items } = counted()
   // Half the items transmissive: both passes are ordered and expanded.
   items.forEach((item, i) => (item.transmissive = i % 2 === 1))
-  const { device, buffers, writes } = fakeDevice({
-    limits: { minUniformBufferOffsetAlignment: 512 },
-  })
+  const fake = fakeDevice({ limits: { minUniformBufferOffsetAlignment: 512 } }),
+    { device, buffers, writes } = fake
   const blendState = blendSceneOf(items, device.limits)
   for (let p = 0; p < 6; p++) blendState.blendPlanes.set([0, 0, 0, 1], p * 4)
   assert.equal(blendState.uniformStride, 512)
   const entries = await expandable(device, blendState)
-  const offsets: number[] = []
-  const pass = new Proxy(
-    {},
-    {
-      get: (_, name) =>
-        name === 'setBindGroup'
-          ? (_index: number, _group: unknown, dynamic: readonly number[]) =>
-              void offsets.push(dynamic[0])
-          : () => undefined,
-    },
-  )
-  const encoder = { beginComputePass: () => pass } as unknown as GPUCommandEncoder
   orderBlendPasses(blendState, [0, 5, 0])
-  encodeBlendExpansion({ blendState } as unknown as WebgpuPagesRuntime, encoder)
+  encodeBlendExpansion(
+    { blendState } as unknown as WebgpuPagesRuntime,
+    fake.device.createCommandEncoder(),
+  )
+  // The dynamic offset of each group the passes set.
+  const offsets = fake.computePasses
+    .flatMap(({ commands }) => commandArgs(commands, 'setBindGroup'))
+    .map(([, , dynamic]) => (dynamic as readonly number[])[0])
 
   const steps = blendState.orderSteps
   assert.ok(steps[0].length && steps[1].length, 'both passes ordered')

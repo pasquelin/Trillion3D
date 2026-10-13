@@ -5,7 +5,8 @@
 // `setWebgpuTransform`).
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { release } from '../kit/sharedSceneProof.ts'
-import { difference, image, redCount } from '../kit/sceneImageProof.ts'
+import { image, redCount } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { runPasses } from '../kit/deviceProof.ts'
 import { PIVOT, TILE, openPass, translation } from './transformScene.ts'
 
@@ -54,10 +55,10 @@ async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
     return {
       steps,
       initialRed: redCount(reference),
-      dirtyPixels: difference(reference, dirty),
-      settledPixels: difference(reference, settled),
-      repeatPixels: difference(reference, repeated),
-      movedPixels: difference(reference, moved),
+      dirtyPixels: compareImages(reference, dirty).differentPixels,
+      settledPixels: compareImages(reference, settled).differentPixels,
+      repeatPixels: compareImages(reference, repeated).differentPixels,
+      movedPixels: compareImages(reference, moved).differentPixels,
       singular,
     }
   } finally {

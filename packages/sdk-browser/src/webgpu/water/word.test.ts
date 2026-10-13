@@ -11,17 +11,16 @@ import { waterSurfaceWgsl, WATER_UNPACK_WGSL } from './surfaceWgsl.ts'
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts'
 import { WATER_COMPOSITE_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-
-const f32 = Math.fround
 /** WGSL `unpack4x8unorm`: each byte over 255, low byte first. */
 const unpack4x8unorm = (word: number) =>
-  [0, 8, 16, 24].map((shift) => f32(((word >>> shift) & 255) / 255))
+  [0, 8, 16, 24].map((shift) => Math.fround(((word >>> shift) & 255) / 255))
 /** What an `rgba8unorm` target keeps of a channel written, then returns when loaded. */
-const stored = (channel: number) => f32(Math.round(saturate(channel) * 255) / 255)
+const stored = (channel: number) => Math.fround(Math.round(saturate(channel) * 255) / 255)
 /** WGSL `pack4x8unorm`: `u32(0.5 + 255 × clamp(e, 0, 1))` per channel, low byte first. */
 const pack4x8unorm = (channels: number[]) =>
   channels.reduce(
-    (word, e, i) => (word | (Math.trunc(f32(0.5 + f32(255 * saturate(e)))) << (8 * i))) >>> 0,
+    (word, e, i) =>
+      (word | (Math.trunc(Math.fround(0.5 + Math.fround(255 * saturate(e)))) << (8 * i))) >>> 0,
     0,
   )
 
@@ -53,7 +52,8 @@ test('every rank and opacity reads back as the word the stage packed', () => {
     for (const opacity of [0, 1, 127, 128, 255, 256, 32767, 65534, 65535])
       words.push((rank | (opacity << WATER_RANK_SHIFT)) >>> 0)
   // A backend may truncate rather than round the float-to-unorm8 store: every byte survives both.
-  for (let k = 0; k < 256; k++) assert.equal(Math.trunc(f32(f32(k / 255) * 255)), k, `byte ${k}`)
+  for (let k = 0; k < 256; k++)
+    assert.equal(Math.trunc(Math.fround(Math.fround(k / 255) * 255)), k, `byte ${k}`)
   for (const word of words) {
     texel = unpack4x8unorm(word).map(stored)
     // `waterRank` and `waterOpacity` read the same word the `r32uint` target returned.

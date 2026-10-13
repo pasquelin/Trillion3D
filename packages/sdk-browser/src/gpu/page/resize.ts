@@ -1,5 +1,6 @@
 import type { GpuPageContext, ResidentPage } from './types.ts'
 import { ledgerReplacing } from '../core/deviceLedger.ts'
+import { pendingBuffers } from '../core/tableGrowth.ts'
 import { evictResident } from './commit.ts'
 import type { Eviction } from './eviction.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
@@ -38,10 +39,11 @@ export const createPageBuffer = (
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
   })
 
-const byRecency = (a: ResidentPage, b: ResidentPage) => b.generation - a.generation
-
 /** The resident pages, ranked only when some must leave: the root cover first, then the pinned
- *  pages, then by recency. A pool that keeps everything has no rank to compute. */
+ *  pages, then those the GPU's order does not list — in use, or too recent for it —, each the most
+ *  recent arrival first, then the listed ones, its last first: what an arrival would take is what a
+ *  smaller pool gives up first (`eviction.ts`). A pool that keeps everything has no rank to
+ *  compute. */
 function rankedPages(
   resident: ReadonlyMap<string, ResidentPage>,
   slots: number,
@@ -50,16 +52,24 @@ function rankedPages(
 ): ResidentPage[] {
   const pages = [...resident.values()]
   if (pages.length <= slots) return pages
-  const buckets: ResidentPage[][] = [[], [], []]
-  for (const page of pages)
-    buckets[cover.has(page.key) ? 2 : eviction.isPinned(page.key) ? 1 : 0].push(page)
-  return buckets.reverse().flatMap((bucket) => bucket.sort(byRecency))
+  const kept: ResidentPage[][] = [[], [], []],
+    listed: ResidentPage[] = []
+  for (const page of pages) {
+    if (cover.has(page.key)) kept[0].push(page)
+    else if (eviction.isPinned(page.key)) kept[1].push(page)
+    else if (eviction.rankOf(page.key) === undefined) kept[2].push(page)
+    else listed.push(page)
+  }
+  // Among the pages the order says nothing of, the most recent arrival first.
+  for (const bucket of kept) bucket.sort((a, b) => b.generation - a.generation)
+  listed.sort((a, b) => eviction.rankOf(b.key)! - eviction.rankOf(a.key)!)
+  return [...kept.flat(), ...listed]
 }
 
 /**
  * The pool changes size WITHOUT losing what it holds. The pages that matter most keep a place, wherever they
  * were: the root cover first — which a pool never goes below —, then the pinned
- * pages, then the most recent. A page whose slot survives is copied on the GPU in the same place;
+ * pages, then by the GPU's order. A page whose slot survives is copied on the GPU in the same place;
  * one whose slot disappears takes a slot left free — by the new size or by a page that ranks
  * below it — and the rest is evicted. A pool that comes to hold the whole catalogue moves every
  * page to its own home (`homes.ts`); one that leaves it ranks them all as displaced, a home being
@@ -144,10 +154,13 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
     free.splice(0, displaced.length)
     context.placement = slotPlacement(pageBytes, wholeSlots(free), context.eviction, resident)
   }
-  device.queue.submit([encoder.finish()])
-  context.buffer.destroy()
-  context.buffer = next
-  context.slots = slots
+  pendingBuffers([next], () => {
+    device.queue.submit([encoder.finish()])
+    const held = context.buffer
+    context.buffer = next
+    context.slots = slots
+    return [held]
+  }).commit()
   return evicted
 }
 

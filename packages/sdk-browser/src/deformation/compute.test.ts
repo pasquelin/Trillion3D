@@ -13,24 +13,16 @@ test('cluster and whole-copy deformation dispatch in one pass and reuse stable b
     .createView({ dimension: '2d-array' })
   const buffers = Array.from({ length: 5 }, (_, at) => (at === 2 ? normals : buffer()))
   const whole = { table: buffer(), count: 2 }
-  const calls: string[] = []
-  const encoder = {
-    beginComputePass() {
-      calls.push('begin')
-      return {
-        setPipeline() {},
-        setBindGroup() {},
-        dispatchWorkgroups(x: number, y: number) {
-          calls.push(`${x}:${y}`)
-        },
-        end() {
-          calls.push('end')
-        },
-      }
-    },
-  } as unknown as GPUCommandEncoder
+  const encoder = gpu.device.createCommandEncoder()
   compute.encode(encoder, buffers, 3, 1, whole)
-  assert.deepEqual(calls, ['begin', '3:1', '2:1', 'end'])
+  // One pass: its two dispatches, then its end.
+  assert.equal(gpu.computePasses.length, 1)
+  assert.deepEqual(
+    gpu.computePasses[0].commands.flatMap(([name, [x, y]]) =>
+      name === 'dispatchWorkgroups' ? [`${x}:${y}`] : name === 'end' ? ['end'] : [],
+    ),
+    ['3:1', '2:1', 'end'],
+  )
   const count = gpu.bindGroups.length
   compute.encode(encoder, buffers, 3, 2, whole)
   assert.equal(gpu.bindGroups.length, count)

@@ -5,16 +5,10 @@
 // and `--depth 1` keeps no history. A scene folder already on disk is never touched — the fetch is
 // idempotent, and the sources under `.measure/assets/<scene>/` are read-only for everything else.
 import { cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { SAMPLE_REPOSITORY, kebab, sceneGltfFile } from './assetsCatalogue.ts'
-
-function git(args: string[], cwd?: string) {
-  const run = spawnSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'inherit'] })
-  if (run.error) throw run.error
-  if (run.status !== 0) throw new Error(`git ${args.join(' ')} failed (${run.status})`)
-}
+import { git } from '../../../scripts/git-paths.ts'
 
 /** Models of `wanted` (repository names) whose scene folder carries no glTF yet. */
 export const missingModels = (assets: string, wanted: string[]) =>
@@ -31,10 +25,19 @@ export function fetchModels(assets: string, wanted: string[]) {
   if (missing.length === 0) return []
   const clone = mkdtempSync(join(tmpdir(), 'trillion3d-sample-assets-'))
   try {
-    git(['clone', '--filter=blob:none', '--no-checkout', '--depth', '1', SAMPLE_REPOSITORY, clone])
-    git(['sparse-checkout', 'init', '--no-cone'], clone)
-    git(['sparse-checkout', 'set', '--no-cone', ...missing.map((n) => `/Models/${n}/glTF/`)], clone)
-    git(['checkout'], clone)
+    git(
+      tmpdir(),
+      'clone',
+      '--filter=blob:none',
+      '--no-checkout',
+      '--depth',
+      '1',
+      SAMPLE_REPOSITORY,
+      clone,
+    )
+    git(clone, 'sparse-checkout', 'init', '--no-cone')
+    git(clone, 'sparse-checkout', 'set', '--no-cone', ...missing.map((n) => `/Models/${n}/glTF/`))
+    git(clone, 'checkout')
     for (const name of missing) {
       const from = join(clone, 'Models', name, 'glTF')
       if (sceneGltfFile(from) === null) throw new Error(`no glTF in Models/${name}/glTF`)

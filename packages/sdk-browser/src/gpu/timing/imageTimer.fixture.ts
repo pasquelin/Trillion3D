@@ -1,13 +1,18 @@
-import { fixture } from '../../../../../tests/kit/gpu/timingDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createGpuTiming, type GpuTimingSample } from './timing.ts'
 
 /** A millisecond, in the nanoseconds the device's timestamps count. */
 export const MS = 1_000_000n
 
-/** A timer on the fixture device; `image(frame, passes)` encodes one image whose passes the
+/** The kit's device with timestamp queries, as a timer is measured on (`supported`); without them
+ *  when not. */
+export const timedDevice = (supported = true) =>
+  fakeDevice({ features: supported ? ['timestamp-query'] : [] })
+
+/** A timer on the timed device; `image(frame, passes)` encodes one image whose passes the
  *  device timed at `passes` (ms pairs) and submits it, its readback not yet landed. */
 export function timer(sampleEveryFrames = 1) {
-  const f = fixture(),
+  const f = timedDevice(),
     samples: GpuTimingSample[] = []
   const timing = createGpuTiming(f.device, {
     sampleEveryFrames,

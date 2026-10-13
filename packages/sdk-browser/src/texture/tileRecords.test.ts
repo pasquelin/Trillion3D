@@ -5,8 +5,8 @@ import { tiledLevelBytes } from './tileRecords.fixture.ts'
 import { tilesAt } from './tiles.ts'
 import { tileRegion } from '../webgpu/tile/write.ts'
 import { writeTileFromBlocks } from '../webgpu/tile/writeBlocks.ts'
-import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 /** `rows` block rows of `blocks` blocks from `data`, `stride` bytes apart from `offset`. */
 function rowsOf(data: Uint8Array, offset: number, stride: number, rows: number, blocks: number) {
@@ -28,7 +28,7 @@ test('a tile record’s place in its level file follows from the level’s dimen
 // Records tile the file end to end, and a tile written from its record — its region's
 // blocks — lands the very blocks the row-major level cuts, on random sizes and edges.
 test('a tile written from its record lands the blocks the whole-level cut wrote', () => {
-  const next = random(962)
+  const next = lcgRandom(962)
   const sizes = [1, 128, 129, 769, 4096, 260].map((w, i) => [w, [1, 128, 5, 300, 12, 1031][i]])
   for (let i = 0; i < 20; i++) sizes.push([next() * 700, next() * 700].map(Math.ceil))
   let landed: number[] = []

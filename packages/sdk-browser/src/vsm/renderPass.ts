@@ -40,7 +40,11 @@ import {
   VSM_RENDER_PAIR_CAPACITY,
 } from './constants.ts'
 import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
-import { computeBufferEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeUniformEntry,
+  sequentialEntries,
+} from '../gpu/core/computeBindings.ts'
 import { ledgerRoom } from '../gpu/core/deviceLedger.ts'
 import { madeTextureBytes, textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
@@ -349,9 +353,6 @@ function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupL
   // A context made again for the same device keeps its lists; its old target is freed.
   if (existing?.device === device) existing.targetTexture.destroy()
   const targetTexture = device.createTexture(renderTarget())
-  // The chunks' parameter slots lie at the device's dynamic-offset alignment.
-  const slots = vsmChunkParamSlots(device.limits)
-
   const ctx: Ctx = {
     device,
     layout,
@@ -361,11 +362,7 @@ function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupL
     target: targetTexture.createView(),
     targetTexture,
     buffers: existing?.device === device ? existing.buffers : {},
-    slots,
-    passes: vsmChunkPasses(RENDER_LABEL, slots),
-    bound: createWebgpuBindIdentity(),
-    tables: new WeakMap(),
-    rowBound: existing?.rowBound ?? createVsmRowBound(),
+    ...vsmChunkContext(RENDER_LABEL, device.limits, existing),
   }
   contexts.set(res, ctx)
   return ctx
@@ -823,6 +820,24 @@ export function vsmSetChunking(
 
 /** The pass labels of a chunked raster under `prefix`, and chunk `c`'s parameter offset in `slots`:
  *  made once for every frame (the raster's and the transmission's). */
+/** What a pass named `label` holds of its chunk lists on a device of `limits`: the chunks'
+ *  parameter slots at the device's dynamic-offset alignment, their passes, the bind identity, the
+ *  tables, and the row bound `existing` kept. */
+export function vsmChunkContext(
+  label: string,
+  limits: GPUSupportedLimits,
+  existing?: { rowBound: VsmRowBound },
+) {
+  const slots = vsmChunkParamSlots(limits)
+  return {
+    slots,
+    passes: vsmChunkPasses(label, slots),
+    bound: createWebgpuBindIdentity(),
+    tables: new WeakMap(),
+    rowBound: existing?.rowBound ?? createVsmRowBound(),
+  }
+}
+
 export function vsmChunkPasses(prefix: string, slots: UniformSlots) {
   const held: { cullPass: GPUComputePassDescriptor; raster: string; offset: number[] }[] = []
   return {
@@ -974,10 +989,7 @@ export function vsmBufferGroup(
 ) {
   return device.createBindGroup({
     layout,
-    entries: resources.map((r, binding) => ({
-      binding,
-      resource: 'buffer' in r ? r : { buffer: r },
-    })),
+    entries: sequentialEntries(resources.map((r) => ('buffer' in r ? r : { buffer: r }))),
   })
 }
 
@@ -1019,7 +1031,7 @@ function rasterTables(res: VsmResources, ctx: Ctx): RasterTables {
     raster1: device.createBindGroup({
       layout: ctx.raster.layout1,
       entries: [
-        { binding: 0, resource: { buffer: groups.pairs } },
+        ...sequentialEntries([{ buffer: groups.pairs }]),
         ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_VERTEX_SPECS),
         ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_FRAGMENT_SPECS),
       ],

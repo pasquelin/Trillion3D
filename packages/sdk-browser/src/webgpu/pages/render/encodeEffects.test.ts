@@ -21,11 +21,9 @@ import { families } from '../../../host/families.ts'
 await families.effects.load()
 
 const input = { color: {}, share: {} } as AccumulatedImage
-/** Counts the passes the chain begins. */
-let begun = 0
-const encoder = {
-  beginRenderPass: () => (begun++, { setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }),
-} as unknown as GPUCommandEncoder
+/** The kit's encoder the chains draw into, and the passes they begin there. */
+const { device: encoding, passes } = fakeDevice()
+const encoder = encoding.createCommandEncoder()
 
 /** A settled runtime drawing `chain`, in the beauty view, with no pass drawn yet. */
 function drawing(chain: EffectChain) {
@@ -64,11 +62,11 @@ test('a held frame with a chain does no work; a change of the chain draws it aga
   const still = encodeEffects(rt, device, encoder, undefined)
   assert.ok(still?.color && still.color !== lit && still.share === undefined, 'a still image too')
   drawTwice(rt, device)
-  const drawn = begun
+  const drawn = passes.length
   assert.ok(drawn > 0, 'the full frames drew the bloom')
   assert.equal(holdWebgpuFrame(rt, device), true, 'still: the image the chain drew is redisplayed')
   assert.equal(holdWebgpuFrame(rt, device), true)
-  assert.equal(begun, drawn, 'held frames draw no pass of the chain')
+  assert.equal(passes.length, drawn, 'held frames draw no pass of the chain')
   bloom.intensity = 0.3
   assert.equal(holdWebgpuFrame(rt, device), false, 'a setting changed: the image is out of date')
   assert.equal(rt.run.frameHeld, false)

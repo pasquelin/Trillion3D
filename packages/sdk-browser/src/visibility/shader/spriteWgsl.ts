@@ -1,4 +1,4 @@
-import type { VisMaterial } from '../types.ts'
+import type { VisMaterial } from '../materialType.ts'
 import { length3, transformPointRow } from '../../../../math/src/vector/vector.ts'
 import { SHADOWLESS_ROOT } from './shadowlessRoot.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'

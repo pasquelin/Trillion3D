@@ -27,7 +27,7 @@ fn stage(dir: &Path) -> (Vec<TexturePreview>, Value) {
 // — a smooth ramp passes —, one byte per texel; and the tail in blocks too.
 #[test]
 fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
-    let dir = temp_dir("bake-files");
+    let dir = scratch("texture-preview", "bake-files");
     // A ramp along one direction: one segment per block holds it, the gate keeps it.
     let source = rgba_from(256, 256, |x, _| [x as u8, 255 - x as u8, 77, 255]);
     source.save(dir.join("leaf.png")).expect("save");
@@ -92,7 +92,7 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
 // content correct. File retains timestamp and content.
 #[test]
 fn an_existing_level_file_is_left_untouched() {
-    let dir = temp_dir("bake-reuse");
+    let dir = scratch("texture-preview", "bake-reuse");
     rgba_from(128, 128, |x, _| [x as u8, 0, 0, 255])
         .save(dir.join("leaf.png"))
         .expect("save");
@@ -125,7 +125,7 @@ fn an_existing_level_file_is_left_untouched() {
 // sidecar — count confirms.
 #[test]
 fn a_small_image_bakes_nothing_to_disk() {
-    let dir = temp_dir("bake-small");
+    let dir = scratch("texture-preview", "bake-small");
     rgba_from(32, 32, |_, _| [1, 2, 3, 255])
         .save(dir.join("leaf.png"))
         .expect("save");
@@ -140,7 +140,7 @@ fn a_small_image_bakes_nothing_to_disk() {
 // report names failure. Engine loads source image unchanged.
 #[test]
 fn a_level_that_cannot_be_written_keeps_the_tail_and_bakes_nothing() {
-    let dir = temp_dir("bake-unwritable");
+    let dir = scratch("texture-preview", "bake-unwritable");
     let source = rgba_from(128, 128, |x, _| [x as u8, 0, 0, 255]);
     source.save(dir.join("leaf.png")).expect("save");
     let native = dir.join("cache").join("native");

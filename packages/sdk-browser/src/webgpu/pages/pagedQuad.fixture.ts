@@ -1,7 +1,7 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { QUAD_MANIFEST, quadScene } from '../../engine/pagesEngineScenes.fixture.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import type { EngineDiagnostic } from '../../engine/types.ts'
@@ -91,7 +91,7 @@ export function pagedQuadBackend(
   events: EngineDiagnostic[],
   readGeometryPage = async (url: string) => fixture.bytes.get(url)!,
 ) {
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: gpu.device,

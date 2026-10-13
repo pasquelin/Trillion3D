@@ -7,6 +7,7 @@ import {
 } from '../../page/decode/batch/batchRuntime.ts'
 import { hostWorldPlacements } from './placements.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { HostBox } from '../resources.ts'
 
 /**
  * World bounds of a host subtree, computed by the core on flat boxes.
@@ -58,11 +59,7 @@ export async function hostBoundsLot(source: Object3D) {
 }
 
 /** A host box written flat into `out` from `at`: its least corner, then its greatest. */
-export function readHostBox(
-  box: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } },
-  out: Float64Array,
-  at: number,
-) {
+export function readHostBox(box: HostBox, out: Float64Array, at: number) {
   out[at] = box.min.x
   out[at + 1] = box.min.y
   out[at + 2] = box.min.z
@@ -75,8 +72,8 @@ export function readHostBox(
  * Union of the world bounds of `source` and its descendants into `into`, which must arrive empty
  * or already started. The world matrices are the transform tree's after one frame pass, which
  * walks only what changed since the last. When `lot` carries exactly these boxes, they go AS A
- * LOT through the governor; otherwise each goes alone, by the same `boxTransform` and on the same
- * inputs.
+ * LOT through the module's kernel; otherwise each goes alone, by `boxTransform`, the kernel's bits
+ * on the same inputs.
  */
 export function hostWorldBounds(
   source: Object3D,

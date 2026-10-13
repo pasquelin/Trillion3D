@@ -1,6 +1,6 @@
 import type { HostMaterials } from '../../host/resources.ts'
 import { importHostSurface } from '../../host/surfaceImport.ts'
-import type { VisMaterial } from '../types.ts'
+import type { VisMaterial } from '../materialType.ts'
 
 const WHITE: [number, number, number] = [1, 1, 1]
 const BLACK: [number, number, number] = [0, 0, 0]

@@ -1,35 +1,23 @@
 // winding of a cluster.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import {
   setWindingEpoch,
   windingCw,
 } from '../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts'
-import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
+import { measure, stress, rapport } from '../../core/index.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceWindingCw } from '../../oracles/browser/pages-webgpu.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
+import { pageRecFixture } from './support/pageRecFixture.ts'
 
 const alea = xorshiftRandom(67)
 
-/** Fields the winding test never reads: shared across every fixture record. */
-const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {}
-const DUMMY_BOUNDS: number[] = [0, 0, 0]
 /** A record with the world the oracle reads on it, and the one root that carries it. */
 type Cluster = PageRec & { matrix: G.Matrix4; roots: { world: G.Matrix4 }[] }
 const pageOf = (matrix: G.Matrix4): Cluster => ({
-  id: 0,
-  url: '',
-  clusterId: '',
-  triangles: 0,
-  indexBytes: 0,
-  min: DUMMY_BOUNDS,
-  max: DUMMY_BOUNDS,
-  depthLayer: 0,
-  attributes: DUMMY_ATTRIBUTES,
-  material: surfaceOf([]),
+  ...pageRecFixture(),
   matrix,
   roots: [{ world: matrix }],
-  renderOrder: 0,
 })
 
 function clusters(count: number): Cluster[] {

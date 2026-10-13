@@ -1,8 +1,9 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from '../../gpu/dispatch/grid.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
+import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
 /** The pipeline constant that turns the cache on in the shade and the triangles passes. */
 export const CACHED = { SHADE_CACHE: 1 }
@@ -10,10 +11,8 @@ export const CACHED = { SHADE_CACHE: 1 }
 /** The passes' pipelines and layouts, for what the session caches; none on a device with no
  *  compute or that refuses them. */
 export async function cachePasses(device: GPUDevice) {
-  if (typeof device.createComputePipeline !== 'function') return
-  const compute = GPUShaderStage.COMPUTE,
-    readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' },
-    storage: GPUBufferBindingLayout = { type: 'storage' }
+  if (!canCompute(device)) return
+  const compute = GPUShaderStage.COMPUTE
   const span = groupWidth(device.limits)
   return validated(device, async () => {
     const [rowsModule, trisModule] = await Promise.all([
@@ -22,36 +21,30 @@ export async function cachePasses(device: GPUDevice) {
     ])
     const rowsLayout = device.createBindGroupLayout({
       entries: [
-        { binding: 0, visibility: compute, buffer: readOnly },
-        { binding: 1, visibility: compute, buffer: storage },
-        { binding: 2, visibility: compute, texture: { sampleType: 'uint' } },
-        { binding: 3, visibility: compute, buffer: storage },
+        computeBufferEntry(0, 'read-only-storage', compute),
+        computeBufferEntry(1, 'storage', compute),
+        computeTextureEntry(2, 'uint', '2d', compute),
+        computeBufferEntry(3, 'storage', compute),
       ],
     })
     const trisLayout = device.createBindGroupLayout({
       entries: [
-        { binding: 0, visibility: compute, buffer: readOnly },
-        { binding: 1, visibility: compute, buffer: storage },
-        ...[2, 3, 4].map((binding) => ({ binding, visibility: compute, buffer: readOnly })),
-        { binding: 5, visibility: compute, buffer: { type: 'uniform' } },
-        {
-          binding: 6,
-          visibility: compute,
-          texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
-        },
+        computeBufferEntry(0, 'read-only-storage', compute),
+        computeBufferEntry(1, 'storage', compute),
+        ...[2, 3, 4].map((binding) => computeBufferEntry(binding, 'read-only-storage', compute)),
+        computeBufferEntry(5, 'uniform', compute),
+        computeTextureEntry(6, 'unfilterable-float', '2d-array', compute),
       ] as GPUBindGroupLayoutEntry[],
     })
-    const layoutOf = (layout: GPUBindGroupLayout) =>
-      device.createPipelineLayout({ bindGroupLayouts: [layout] })
     const [rows, triangles] = await Promise.all([
       buildComputeStages(
         device,
-        layoutOf(rowsLayout),
+        [rowsLayout],
         rowsModule,
         ['shade_clear', 'shade_marks', 'shade_rows'],
         { ...CACHED, ...(span !== DEFAULT_GROUP_WIDTH && { GROUP_WIDTH: span }) },
       ),
-      buildComputeStages(device, layoutOf(trisLayout), trisModule, ['shade_tris'], CACHED),
+      buildComputeStages(device, [trisLayout], trisModule, ['shade_tris'], CACHED),
     ])
     const work = device.createBuffer({
       label: 'Trillion3D material cache dispatch',

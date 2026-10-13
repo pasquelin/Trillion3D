@@ -16,8 +16,7 @@ test('composition presents and preserves the capture target in one fullscreen dr
   lighting.bind(h.surface, h.view(), h.view(), false)
   lighting.compose(h.encoder, capture, clear, presentation)
   assert.equal(h.passes.length, 1)
-  const pass = h.passes[0],
-    attachments = Array.from(pass.descriptor.colorAttachments)
+  const attachments = h.passes[0].colors
   assert.equal(attachments.length, 2)
   assert.equal(attachments[0]!.view, capture)
   assert.equal(attachments[1]!.view, presentation)
@@ -25,10 +24,13 @@ test('composition presents and preserves the capture target in one fullscreen dr
     attachments.every((attachment) => attachment!.storeOp === 'store'),
     'both images must survive the composition pass',
   )
-  assert.deepEqual(pass.draws, [3])
-  assert.equal(pass.ended, true)
+  assert.deepEqual(
+    h.draws.map((draw) => draw.vertexCount),
+    [3],
+  )
+  assert.deepEqual(h.passes[0].commands.at(-1), ['end', []])
   // The fake's render pipeline is its descriptor.
-  const descriptor = pass.pipeline as unknown as GPURenderPipelineDescriptor
+  const descriptor = h.draws[0].pipeline
   assert.deepEqual(
     Array.from(descriptor.fragment!.targets).map((target) => target!.format),
     ['rgba8unorm', 'bgra8unorm'],
@@ -48,18 +50,18 @@ test('composition without presentation keeps its capture-only output and clear c
   lighting.bind(h.surface, h.view(), h.view(), false)
   lighting.compose(h.encoder, capture, clear)
   assert.equal(h.passes.length, 1)
-  const pass = h.passes[0]
-  assert.deepEqual(Array.from(pass.descriptor.colorAttachments), [
+  assert.deepEqual(h.passes[0].colors, [
     { view: capture, loadOp: 'clear', storeOp: 'store', clearValue: clear },
   ])
   assert.deepEqual(
-    Array.from((pass.pipeline as unknown as GPURenderPipelineDescriptor).fragment!.targets).map(
-      (target) => target!.format,
-    ),
+    Array.from(h.draws[0].pipeline.fragment!.targets).map((target) => target!.format),
     ['rgba8unorm'],
   )
-  assert.deepEqual(pass.draws, [3])
-  assert.equal(pass.ended, true)
+  assert.deepEqual(
+    h.draws.map((draw) => draw.vertexCount),
+    [3],
+  )
+  assert.deepEqual(h.passes[0].commands.at(-1), ['end', []])
   lighting.dispose()
 })
 
@@ -74,12 +76,12 @@ test('diagnostic composition retains the display-space flag and unbound calls fa
   assert.equal(h.passes.length, 0)
   const matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
   lighting.update(matrix, [1, 2, 3], 800, 600, CLEAR, true)
-  assert.deepEqual([...h.writes[0].slice(20, 24)], [800, 600, 1, 0])
+  assert.deepEqual([...h.viewWrites[0].slice(20, 24)], [800, 600, 1, 0])
   lighting.update(matrix, [1, 2, 3], 800, 600, CLEAR, false)
-  assert.deepEqual([...h.writes[1].slice(20, 24)], [800, 600, 0, 0])
+  assert.deepEqual([...h.viewWrites[1].slice(20, 24)], [800, 600, 0, 0])
   lighting.bind(h.surface, h.view(), h.view(), false)
   lighting.dispose()
-  assert.equal(h.destroyed, true)
+  assert.equal(h.viewDestroyed, true)
   assert.throws(
     () => lighting.compose(h.encoder, target, [0, 0, 0, 1], h.view()),
     /SURFACE_NOT_BOUND/,
@@ -92,10 +94,10 @@ test('the rank of a sampled image rides in the fourth viewport slot, zero withou
     lighting = await createDeferredLighting(h.device),
     matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
   lighting.update(matrix, [1, 2, 3], 800, 600, CLEAR, false, [3, 2, 1, 1], 7)
-  assert.deepEqual([...h.writes[0].slice(20, 24)], [800, 600, 0, 7])
-  assert.deepEqual([...h.writes[0].slice(28, 32)], [3, 2, 1, 1])
+  assert.deepEqual([...h.viewWrites[0].slice(20, 24)], [800, 600, 0, 7])
+  assert.deepEqual([...h.viewWrites[0].slice(28, 32)], [3, 2, 1, 1])
   lighting.update(matrix, [1, 2, 3], 800, 600, CLEAR, false)
-  assert.deepEqual([...h.writes[1].slice(20, 24)], [800, 600, 0, 0])
+  assert.deepEqual([...h.viewWrites[1].slice(20, 24)], [800, 600, 0, 0])
   lighting.dispose()
 })
 
@@ -146,23 +148,14 @@ test("a lit frame over the shadow maps' double-buffered tables makes one light g
   // The tables this frame reads, then the other frame's: the sets take turns.
   const sets = [vsmOf(), vsmOf()]
   const lightsBuffer = {} as GPUBuffer
-  const bound: unknown[] = []
-  const encoder = {
-    beginRenderPass: () => ({
-      setViewport() {},
-      setPipeline() {},
-      setBindGroup: (_index: number, group: unknown) => bound.push(group),
-      draw() {},
-      end() {},
-    }),
-  } as unknown as GPUCommandEncoder
-  const made = h.bindGroups.length
+  const made = h.bindGroups.length,
+    drawn = h.draws.length
   for (let frame = 0; frame < 6; frame++) {
     h.lighting.bind(h.surface, h.target, h.target, true, {
       lights: lightsBuffer,
       vsm: sets[frame % 2],
     })
-    h.lighting.light(encoder, h.target)
+    h.lighting.light(h.encoder, h.target)
   }
   assert.equal(h.bindGroups.length - made, 2, 'a group per table, each made once')
   const tableOf = (group: unknown) =>
@@ -171,6 +164,10 @@ test("a lit frame over the shadow maps' double-buffered tables makes one light g
     )
       ? 0
       : 1
-  assert.deepEqual(bound.map(tableOf), [0, 1, 0, 1, 0, 1], 'each frame binds its own table')
+  assert.deepEqual(
+    h.draws.slice(drawn).map(({ groups }) => tableOf(groups[0])),
+    [0, 1, 0, 1, 0, 1],
+    'each frame binds its own table',
+  )
   h.lighting.dispose()
 })

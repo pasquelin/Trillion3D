@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ruleDag } from './cutRule.fixture.ts'
 import { createCutReadiness } from './readiness.ts'
-import { random } from './cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const dag = ruleDag(64),
   s = dag.structure,
@@ -59,7 +59,7 @@ function dense(r: Readiness, pageCount = pages, nodeCount = nodes) {
 test('kept by difference, readiness is the definition after every change', () => {
   const r = createCutReadiness(s, dag.culling.links)
   const resident = new Uint8Array(pages),
-    next = random(7)
+    next = lcgRandom(7)
   for (let step = 0; step < 200; step++) {
     // A handful of pages arrive or leave, in any order: parents after children included.
     for (let k = 0; k < 1 + Math.floor(next() * 6); k++) {

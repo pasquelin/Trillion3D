@@ -30,18 +30,10 @@ test('a steady frame sends the GPU the eye alone: no order, no run, no word per 
   const { items } = counted()
   const blendState = blendSceneOf(items)
   for (let p = 0; p < 6; p++) blendState.blendPlanes.set([0, 0, 0, 1], p * 4)
-  const { device, writes } = fakeDevice()
+  const { device, writes, dispatches } = fakeDevice()
   await expandable(device, blendState)
   assert.ok(blendState.expand, 'the kernels are made')
-  const dispatches: number[] = []
-  const encoder = {
-    beginComputePass: () => ({
-      setPipeline() {},
-      setBindGroup() {},
-      dispatchWorkgroups: (groups: number) => void dispatches.push(groups),
-      end() {},
-    }),
-  } as unknown as GPUCommandEncoder
+  const encoder = device.createCommandEncoder()
   const rt = { blendState } as unknown as WebgpuPagesRuntime
   orderBlendPasses(blendState, [0, 5, 0])
   encodeBlendExpansion(rt, encoder)
@@ -67,9 +59,7 @@ test('a plan sends its order steps in one write at 256 bytes, as the whole steps
   const blendState = blendSceneOf(items, device.limits)
   for (let p = 0; p < 6; p++) blendState.blendPlanes.set([0, 0, 0, 1], p * 4)
   await expandable(device, blendState)
-  const encoder = {
-    beginComputePass: () => new Proxy({}, { get: () => () => undefined }),
-  } as unknown as GPUCommandEncoder
+  const encoder = device.createCommandEncoder()
   const steps = buffers.find((b) => b.label === 'Trillion3D blend order steps')!
   const ofSteps = () => writes.filter((w) => w.buffer === (steps as unknown as GPUBuffer))
   writes.length = 0

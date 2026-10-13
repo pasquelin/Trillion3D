@@ -13,7 +13,7 @@ test('a filter written on a map is in its header before the image that draws it 
   const { gpu, fixture, backend, cam } = await mappedQuadRun(map)
   try {
     const header = () =>
-      gpu.writes.filter((write) => write.label?.startsWith('Trillion3D texture pages'))
+      gpu.writes.filter((write) => write.buffer.label?.startsWith('Trillion3D texture pages'))
     const before = header().length
     map.magFilter = G.HOST_FILTER_LINEAR
     map.needsUpdate = true

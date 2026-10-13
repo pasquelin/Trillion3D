@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import {
   quadScene,
   camera,
@@ -22,7 +22,7 @@ import {
 
 test('a surface capture blocks external renders while its own view is drawn, and not after', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const fixture = quadScene()
   const main = camera()
   let capturing = false,
@@ -62,7 +62,7 @@ test('a surface capture blocks external renders while its own view is drawn, and
 
 test('a failed transparent material pipeline refuses the scene by name, never drawing another image', async () => {
   installGpuGlobals()
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const fixture = quadScene()
   fixture.material.transparent = true
   fixture.material.opacity = 0.5
@@ -92,7 +92,7 @@ test('a failed transparent material pipeline refuses the scene by name, never dr
 
 test('camera jumps and obsolete uploads preserve coverage while detail slots are reclaimed', async () => {
   installGpuGlobals()
-  const { device } = mockGpu(),
+  const { device } = fakeDevice(BACKEND),
     fixture = twoCoarseQuadsScene(deepQuadScene)
   // `twoCoarseQuadsScene` rebuilds `metadata` with only `primitives`, itself narrowed to `{url}`
   // pages by an inner callback's own annotation: the real page objects it spreads keep every
@@ -158,7 +158,7 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
 test('a visible opaque primitive of root pages has complete exact-page coverage', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device } = mockGpu()
+    { device } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...fixture,
     metadata: { ...fixture.metadata, primitives: [{ ...fixture.metadata.primitives[0] }] },

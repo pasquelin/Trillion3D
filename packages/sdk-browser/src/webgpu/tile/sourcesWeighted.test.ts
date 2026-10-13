@@ -11,7 +11,7 @@ import { collectWebgpuMaterialTextures } from '../core/materialTextures.ts'
 import { importHostTexture } from '../../host/textureImport.ts'
 import { GraphTexture } from '../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 
@@ -61,7 +61,7 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
   }
   // One device per pass: the reduction pipelines it builds say the rules its textures took.
   const rulesOf = async (...slots: number[]) => {
-    const { device, computePipelines, submits, textures: made } = mockGpu()
+    const { device, computePipelines, submits, textures: made } = fakeDevice(BACKEND)
     const { sources, pass } = on(device, slots)
     // The pass that asks builds nothing — no texture, no upload, no submit —; a task
     // after it builds the working textures asked, their mips in one submit.
@@ -89,7 +89,7 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
   )
   assert.deepEqual(await rulesOf(1, 2), [1, 0], 'a masked and an opaque texture, one batch')
   // Two working textures at most a pass: a third texture's tiles wait for a pass with room.
-  const { sources, pass } = on(mockGpu().device, [1, 2, 3])
+  const { sources, pass } = on(fakeDevice(BACKEND).device, [1, 2, 3])
   pass()
   await sources.settled()
   assert.deepEqual(pass(), ['served', 'served', 'waiting'])

@@ -115,12 +115,9 @@ test('an admission refusal prevents an already encoded incomplete image from bei
   gpu.device.queue.submit = () => {
     submits++
   }
-  const encoder = {
-    finish() {
-      finishes++
-      return {}
-    },
-  } as GPUCommandEncoder
+  const encoder = gpu.device.createCommandEncoder(),
+    finish = encoder.finish.bind(encoder)
+  encoder.finish = () => (finishes++, finish())
   assert.throws(() => submitColorCopy(rt, gpu.device, encoder, 4, 4), /GPU_BUDGET_EXCEEDED/)
   assert.deepEqual([finishes, submits, rt.run.imageRevision], [0, 0, 0])
 })

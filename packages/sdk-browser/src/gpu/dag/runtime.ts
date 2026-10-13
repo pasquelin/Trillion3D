@@ -2,7 +2,7 @@ import type { GpuSelection, SelectionUniforms } from '../core/selection.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { createDagPoolList } from './poolList.ts'
 import { createDagDispatch } from './dispatch.ts'
-import { followRows } from './queueGrowth.ts'
+import { followRows, growthAsked } from './queueGrowth.ts'
 import { createDifferenceChain } from './differenceChain.ts'
 import { createDagRuntimeState, recutMain } from './runtimeState.ts'
 import { coarsenTick } from './coarsening.ts'
@@ -19,9 +19,9 @@ import {
   updateRuntimeResidency,
   updateRuntimeWorlds,
   writeMark,
-  type DagResources,
   type DagRun,
 } from './runtimeOps.ts'
+import type { DagResources } from './resources.ts'
 import { cutBytes } from './cutBuffers.ts'
 
 export function createDagRuntime(
@@ -116,6 +116,10 @@ function selectionOver(run: DagRun): GpuSelection {
     get growing() {
       return state.growing
     },
+    // What `tablesHeld` says, asked without growing anything.
+    get cutHeld() {
+      return state.disposed || state.dead || state.growing || growthAsked(resources, state)
+    },
     get coarsen() {
       return state.coarse.factor
     },
@@ -128,6 +132,9 @@ function selectionOver(run: DagRun): GpuSelection {
     updateResidency: (next, changes, moved) => updateRuntimeResidency(run, next, changes, moved),
     isReady: (page) => uploadResidency.isReady(page),
     isChildReady: (page) => uploadResidency.isChildReady(page),
+    askEvictions() {
+      if (live()) recutMain(resources.swap, state)
+    },
     notePool(page, held) {
       // The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand
       // stays.

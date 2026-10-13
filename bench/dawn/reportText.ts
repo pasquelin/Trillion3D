@@ -27,9 +27,9 @@ type Segment = BenchReport['segments'][number]
 export const sameImages = (segment: Segment) =>
   segment.sameImages.length === 0
     ? '—'
-    : segment.sameImages.every((d) => d && d.pixels === 0)
+    : segment.sameImages.every((d) => d && d.differentPixels === 0)
       ? 'identical'
-      : segment.sameImages.map((d) => (d ? `${d.pixels} px` : '?')).join(', ')
+      : segment.sameImages.map((d) => (d ? `${d.differentPixels} px` : '?')).join(', ')
 
 export function reportText(report: BenchReport, insights?: Insights) {
   const { bench } = report

@@ -1,29 +1,26 @@
-import { ROW_WORDS } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { createPresentClasses } from './materialPasses.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { RenderBundles } from '../../gpu/core/renderBundles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
+import { commandArgs, type MockPass } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
 
-/** A runtime reduced to what the resolve reads, a device that records its bundles, and an encoder
- *  that records its passes: its render passes — what their bundles draw replayed there —, and the
- *  labels of its compute passes in `computePasses`. Its class set holds
+/** The pipelines `pass` set, in order. */
+export const pipelinesOf = (pass: MockPass) =>
+  commandArgs(pass.commands, 'setPipeline').map(([pipeline]) => pipeline)
+/** How many draws `pass` made, its bundles' among them. */
+export const drawsOf = (pass: MockPass) => commandArgs(pass.commands, 'draw').length
+
+/** A runtime reduced to what the resolve reads, on the kit's device and one of its encoders: its
+ *  render passes and compute passes are the device's records. Its class set holds
  *  `compiled`; `made` names each class a pipeline's `get` had to compile — one nothing asked
  *  (`PreparedPipeline.get`). */
 export function resolveFixture(classes: number[], compiled: number[], single: number[] = []) {
   const ints = new Uint32Array(ROW_WORDS * classes.length)
   classes.forEach((key, row) => (ints[row * ROW_WORDS + ROW_MATERIAL_CLASS_WORD] = key))
-  const made: number[] = [],
-    passes: Array<{
-      label: string
-      pipelines: unknown[]
-      draws: number
-      depth: unknown
-      colors: unknown[]
-    }> = []
+  const made: number[] = []
   const tiles = { assigned: [] as number[][], classified: 0, slots: [] as number[] }
-  const computePasses: string[] = []
   const pipeline = (key: number) => ({ key }),
     ordinary = new Map(compiled.map((key) => [key, pipeline(key)])),
     direct = new Map(single.map((key) => [key, pipeline(key)]))
@@ -63,32 +60,7 @@ export function resolveFixture(classes: number[], compiled: number[], single: nu
       },
     },
   } as unknown as WebgpuPagesRuntime
-  const encoder = {
-    beginComputePass: (desc: { label: string }) => (computePasses.push(desc.label), { end() {} }),
-    beginRenderPass: (desc: {
-      label: string
-      depthStencilAttachment?: unknown
-      colorAttachments?: unknown[]
-    }) => {
-      const pass = {
-        label: desc.label,
-        pipelines: [] as unknown[],
-        draws: 0,
-        depth: desc.depthStencilAttachment,
-        colors: desc.colorAttachments ?? [],
-      }
-      passes.push(pass)
-      const commands = {
-        setViewport() {},
-        setBindGroup() {},
-        setPipeline: (p: unknown) => pass.pipelines.push(p),
-        draw: () => pass.draws++,
-        executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(commands, bundles),
-        end() {},
-      }
-      return commands
-    },
-  } as unknown as GPUCommandEncoder
-  const { device, bundles } = fakeDevice()
+  const { device, bundles, passes, computePasses } = fakeDevice()
+  const encoder = device.createCommandEncoder()
   return { rt, device, bundles, encoder, passes, computePasses, made, ordinary, direct, tiles }
 }

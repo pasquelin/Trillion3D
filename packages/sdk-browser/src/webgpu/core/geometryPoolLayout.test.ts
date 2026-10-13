@@ -44,7 +44,7 @@ type Vertex = {
 /** The atlas the texture writes left, as the shared text reads it (`normalAtlasWgsl`). */
 function replayAtlas(gpu: ReturnType<typeof fakeDevice>, texture: object, width: number) {
   const texels = new Map<number, number>()
-  for (const { destination, data, layout, size } of gpu.texelWrites) {
+  for (const { destination, data, layout, size } of gpu.textureWrites) {
     if (destination.texture !== texture) continue
     const [x, y, layer] = destination.origin as number[]
     const [w, h] = size as number[]

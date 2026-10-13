@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'
 import { createTexelTurn, prepareTexelTurn } from './texelTurn.ts'
 import { TEXEL_FLIP } from './texelTurnWgsl.ts'
@@ -17,7 +17,7 @@ import { GraphTexture } from '../../host/graph/graph.fixture.ts'
 test('static turns share the device’s ring and words, destroyed once idle', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   installGpuGlobals()
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const turned = (width: number) => {
     const texture = gpu.device.createTexture({
       size: [width, 4],
@@ -30,19 +30,19 @@ test('static turns share the device’s ring and words, destroyed once idle', (t
   }
   const before = gpu.buffers.length
   for (const width of [64, 64, 32]) turned(width)
-  const made = gpu.buffers.slice(before) as unknown as { label: string; destroyed: boolean }[]
+  const made = gpu.buffers.slice(before)
   assert.deepEqual(
     made.map(({ label }) => label),
     ['Trillion3D texel turn words', 'Trillion3D texel turn source'],
     'made by the first turn, taken by the next two',
   )
   assert.ok(
-    made.every(({ destroyed }) => !destroyed),
+    made.every((buffer) => !gpu.destroyed.includes(buffer)),
     'held between the turns',
   )
   t.mock.timers.tick(READBACK_IDLE_MS)
   assert.ok(
-    made.every(({ destroyed }) => destroyed),
+    made.every((buffer) => gpu.destroyed.includes(buffer)),
     'destroyed once idle',
   )
 })
@@ -52,7 +52,7 @@ test('static turns share the device’s ring and words, destroyed once idle', (t
 test('the turn compiles ahead only for a host texture whose texels turn', async () => {
   installGpuGlobals()
   const compiled = async (flipY: boolean) => {
-    const gpu = mockGpu()
+    const gpu = fakeDevice(BACKEND)
     const host = new GraphTexture({ data: new Uint8Array(16), width: 2, height: 2 })
     host.flipY = flipY
     host.premultiplyAlpha = false

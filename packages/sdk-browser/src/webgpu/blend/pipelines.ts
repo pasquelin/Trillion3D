@@ -23,6 +23,7 @@ import {
 } from '../../diagnostic/gpuVariant.ts'
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
 import { blendTargets } from './blendTargets.ts'
+import { TRANSPARENT_FRONT } from '../../reflections/frontDepth.ts'
 import { createForwardVariants, type ForwardLit } from '../../lighting/deferred/forwardVariants.ts'
 import {
   FULL_CONTRACT,
@@ -35,10 +36,10 @@ import {
 type BlendProgram = { module: GPUShaderModule; pipelines: BlendModePipelines }
 
 /** The blend fragment's values, in their order: what a feedback-free entry keeps. */
-const BLEND_OUT: [string, string][] = ['color', 'asIs', 'tint', 'add', 'front'].map((name) => [
-  name,
-  'vec4f',
-])
+const BLEND_OUT: [string, string][] = [
+  ...['color', 'asIs', 'tint', 'add'].map((name): [string, string] => [name, 'vec4f']),
+  TRANSPARENT_FRONT.out,
+]
 const FRAGMENT_IN = ['in:VSOut,@builtin(front_facing) front:bool', 'in,front'] as const
 
 /** The transmission code a scene that transmits imports (`families.transmission`). */

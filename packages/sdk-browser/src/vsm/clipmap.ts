@@ -44,7 +44,6 @@ import type { VsmCacheManager, VsmLightCache } from './cacheManager.ts'
 
 /** Level radii a level's footprint spans: its corner offset is half of it. */
 const LEVEL_SPAN_RADII = 4
-const f32 = Math.fround
 
 // ---- Matrix helpers -------------------------------------------------------------------------------
 
@@ -161,7 +160,7 @@ export interface VsmClipmap {
 
 /** A level's radius in centimetres (float). */
 function vsmClipmapLevelRadiusCm(absoluteLevel: number) {
-  return f32(Math.pow(2, f32(absoluteLevel + 1)))
+  return Math.fround(Math.pow(2, Math.fround(absoluteLevel + 1)))
 }
 
 /** The clipmap each light's cache entry keeps (`createVsmClipmap`): its matrices, levels and
@@ -250,10 +249,10 @@ export function createVsmClipmap(
   if (isOrthographic) screenWidthPx = Math.max(Math.ceil(viewHalfWidth * 2), screenWidthPx)
   screenWidthPx = Math.max(viewport.minScreenWidth ?? 0, screenWidthPx)
 
-  let texelsPerPixel = f32(0.5 / projectionScaleX)
-  texelsPerPixel = f32(texelsPerPixel * f32(VSM_LEVEL0_TEXELS / screenWidthPx))
-  let levelBias = f32(config.levelBias + Math.log2(texelsPerPixel))
-  levelBias = f32(levelBias + (light.levelBias ?? 0))
+  let texelsPerPixel = Math.fround(0.5 / projectionScaleX)
+  texelsPerPixel = Math.fround(texelsPerPixel * Math.fround(VSM_LEVEL0_TEXELS / screenWidthPx))
+  let levelBias = Math.fround(config.levelBias + Math.log2(texelsPerPixel))
+  levelBias = Math.fround(levelBias + (light.levelBias ?? 0))
   // Below 0 a receiver would read a level too small to reach it: a negative light bias sharpens
   // only until it has used up the screen term.
   levelBias = Math.max(0, levelBias)
@@ -267,7 +266,7 @@ export function createVsmClipmap(
   let firstLevel = config.firstLevel
   let lastLevel = config.lastLevel
   if (isOrthographic) {
-    const orthoFirstLevel = Math.floor(Math.log2(f32(viewHalfWidth)))
+    const orthoFirstLevel = Math.floor(Math.log2(Math.fround(viewHalfWidth)))
     if (orthoFirstLevel > firstLevel) firstLevel = orthoFirstLevel
     firstLevel = Math.max(firstLevel, 0)
   }

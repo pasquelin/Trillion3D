@@ -20,10 +20,12 @@ import {
   COLD_WORDS,
   QUEUE_ENTRIES_START,
   coldBase,
+  groupParentBase,
+  keyGroupBase,
   keyWordBase,
   recordKeyBase,
 } from './layout.ts'
-import { KEY_PAGE_MAX, keyCount, writeKeyTables } from './evict.ts'
+import { KEY_PAGE_MAX, contentKeys, writeKeyTables } from './evict.ts'
 import { createRecordTable } from './packRecords.ts'
 import { packWorldLinks, worldLinkWords } from './worldLinks.ts'
 import {
@@ -257,7 +259,7 @@ function packPlan(roots: readonly DagRoot[], shared: PackShared, capacity?: DagC
  * shift leads the page to its record (`layout.ts`). Nodes are each primitive's once, shared by its
  * placements — a queue entry names the placement beside the node (`shader/levelWgsl.ts`) —, and the
  * placement tree's follow them all (`placementTree.ts`). A packing with room past its roots (a growth's,
- * `grownCapacity`) takes later placements of its primitives in place (`appendDagRoots`), each a
+ * `grownLength`) takes later placements of its primitives in place (`appendDagRoots`), each a
  * member of its tree and linked to the world DAG as the others.
  */
 export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapacity): PackedDag {
@@ -302,6 +304,8 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     pageCount: size.pages,
     recordCount: records.count,
     keyCount: tables.keyCount,
+    groupCount: tables.groupCount,
+    groupEdges: tables.groupEdges,
     // The lists and queues a view's reach holds, the catalogue's at most: grown on demand.
     candCount: clampLowWins(size.pages, 1, CANDIDATES_START),
     // Queue 0 holds a root slot a placement without a tree (`dagPrepare`): never fewer.
@@ -338,8 +342,14 @@ function recordTables(
   { tree, world, worlds }: ReturnType<typeof packPlan>,
 ) {
   const recordSlots = Math.max(1, records.count),
-    keys = keyCount(roots),
-    shape = { pageCount: pages, recordCount: records.count, keyCount: keys },
+    keys = contentKeys(roots),
+    shape = {
+      pageCount: pages,
+      recordCount: records.count,
+      keyCount: keys.keyCount,
+      groupCount: keys.groupCount,
+      groupEdges: keys.parents.length,
+    },
     coldAt = coldBase(shape)
   // The tree's order behind the cold records, for every member slot.
   const members = coldAt + recordSlots * COLD_WORDS,
@@ -348,10 +358,15 @@ function recordTables(
     pageCones = new Float32Array(linkBase + (world >= 0 ? worldLinkWords(worlds) : 0)),
     cold = new Uint32Array(pageCones.buffer)
   if (tree) cold.set(tree.order, (tree.members = members))
-  const at = { recordKey: recordKeyBase(pages), keyWord: keyWordBase(shape) }
-  writeKeyTables(roots, p, cold, at)
+  const at = {
+    recordKey: recordKeyBase(pages),
+    keyWord: keyWordBase(shape),
+    keyGroup: keyGroupBase(shape),
+    groupParent: groupParentBase(shape),
+  }
+  writeKeyTables(roots, p, cold, at, keys)
   records.finish(clusters, pageCones, coldAt)
-  return { clusters, pageCones, cold, linkBase, keyCount: keys }
+  return { clusters, pageCones, cold, linkBase, ...shape }
 }
 
 /** The live ranges `appendDagRoots` filled: pages and placements `[from, to)` — no node: an

@@ -1,11 +1,10 @@
-// The kit's devices validate as WebGPU does (`validation.ts`): each rule refuses the call a real
-// device refuses — by its name — and lets the valid twin through, on `fakeDevice` and `mockGpu`
-// alike. The first case is the device loss a unit test once missed: an sRGB view of a storage
+// The kit's device validates as WebGPU does (`validation.ts`): each rule refuses the call a real
+// device refuses — by its name — and lets the valid twin through, on `fakeDevice` alone and as a
+// backend runs on it (`BACKEND`) alike. The first case is the device loss a unit test once missed: an sRGB view of a storage
 // texture that inherits the texture's usage, storage binding included.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from './fakeDevice.ts'
-import { mockGpu } from './mockGpu.ts'
+import { fakeDevice, BACKEND } from './fakeDevice.ts'
 
 const T = () => GPUTextureUsage,
   B = () => GPUBufferUsage
@@ -21,7 +20,7 @@ const chain = (device: GPUDevice, mipLevelCount = 1) =>
   })
 
 test('an sRGB view of a storage texture names its usage: inherited, storage binding is refused', () => {
-  for (const device of [fakeDevice().device, mockGpu().device]) {
+  for (const device of [fakeDevice().device, fakeDevice(BACKEND).device]) {
     const texture = chain(device)
     assert.throws(
       () => texture.createView({ format: 'rgba8unorm-srgb' }),
@@ -114,7 +113,7 @@ test('a buffer maps for copies alone, whole words when mapped at creation', () =
 })
 
 test('a copy reads COPY_SRC into COPY_DST, rows 256-byte aligned; a write moves whole words', () => {
-  const { device } = mockGpu()
+  const { device } = fakeDevice(BACKEND)
   const source = device.createBuffer({ size: 1024, usage: B().COPY_SRC }),
     target = device.createBuffer({ size: 1024, usage: B().COPY_DST | B().MAP_READ })
   const encoder = device.createCommandEncoder()

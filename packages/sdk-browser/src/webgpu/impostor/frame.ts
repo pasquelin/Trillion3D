@@ -1,6 +1,6 @@
 import type { ImpostorMaps, ImpostorSection } from '../../../../sdk-core/src/index.ts'
 import { markReach } from '../../deformation/halfFloat.ts'
-import type { EngineCamera } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import {
   createImpostorCards,

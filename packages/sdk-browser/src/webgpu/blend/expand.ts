@@ -148,20 +148,6 @@ function encodeOrder(
   }
 }
 
-/** A kernel's stages on a pipeline layout of its one group's `layout`. */
-const stagesOn = <E extends string>(
-  device: GPUDevice,
-  layout: GPUBindGroupLayout,
-  module: GPUShaderModule,
-  entries: readonly E[],
-) =>
-  buildComputeStages(
-    device,
-    device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    module,
-    entries,
-  )
-
 /** A device's refusal of the kernels: the scene's, by name. */
 const EXPANSION_REFUSED = 'WEBGPU_BLEND_EXPANSION_UNAVAILABLE'
 /** A plan's step words not laid as the kernels' step slots. */
@@ -260,8 +246,8 @@ async function expandKernels(
   const expandLayout = device.createBindGroupLayout({ entries: blendExpandBindEntries() })
   const orderLayout = device.createBindGroupLayout({ entries: blendOrderBindEntries() })
   const [expandStages, orderStages] = await Promise.all([
-    stagesOn(device, expandLayout, expandModule, BLEND_EXPAND_ENTRIES),
-    stagesOn(device, orderLayout, orderModule, BLEND_ORDER_ENTRIES),
+    buildComputeStages(device, [expandLayout], expandModule, BLEND_EXPAND_ENTRIES),
+    buildComputeStages(device, [orderLayout], orderModule, BLEND_ORDER_ENTRIES),
   ])
   // Without a paged primitive there is neither a count nor a cluster list to read: the kernel
   // never touches those two bindings, and `draws` fills them — the same group cannot stay empty.

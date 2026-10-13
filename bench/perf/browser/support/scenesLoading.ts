@@ -2,7 +2,7 @@
 // seeded generator. Loading reads them once, so the fixture must be large: hundreds of
 // primitives, thousands of pages, and the exact coverage the collector checks.
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { xorshiftRandom } from '../../../core/index.ts'
+import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { material, porte } from './scenesCut.ts'
 import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts'
 import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../packages/sdk-core/src/index.ts'

@@ -1,4 +1,4 @@
-import { alignUp, ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
+import { alignUp, ceilDiv, isImageSize, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import {
   previewFirstLevel,
   previewLastLevel,
@@ -84,8 +84,7 @@ export type TileLayout = {
 }
 
 export function tileLayout(width: number, height: number): TileLayout {
-  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
-    throw new Error('INVALID_TEXTURE_SIZE')
+  if (!isImageSize(width, height)) throw new Error('INVALID_TEXTURE_SIZE')
   // The tail starts at the level whose both sides fit under 64 texels, and ends at one texel.
   const tail = previewFirstLevel(width, height),
     last = previewLastLevel(width, height)

@@ -1,5 +1,5 @@
-// Oracles, loading side: `packages/sdk-browser/src/page/selection/collect.ts:34-153`, `packages/sdk-browser/src/world/scene/scene.ts:18-36` and
-// `packages/sdk-browser/src/world/session/pageSources.ts:20-49`, copied as-is.
+// Oracle, loading side: `packages/sdk-browser/src/page/selection/collect.ts:34-153`, copied as-is;
+// a mesh's primitive is found as the scene oracle finds it (`referencePrimitiveOf`).
 import * as THREE from 'three'
 import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
 import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
@@ -14,18 +14,20 @@ import type {
   PageRec,
   ClusterRoot,
 } from '../../../packages/sdk-browser/src/page/selection/types.ts'
-import { isTransmissive } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { isTransmissive } from '../../../packages/sdk-browser/src/visibility/shader/material.ts'
 import {
-  objects,
   streamPlacement,
   clusterErrorFields,
   cullingNodes,
 } from '../../../packages/sdk-browser/src/page/selection/helpers.ts'
+import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
 import { structureIndex } from '../../../packages/sdk-browser/src/page/selection/structure.ts'
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts'
 import { indexPageRequests } from '../../../packages/sdk-browser/src/page/selection/requests.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
+import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
+import { referencePrimitiveOf } from './bounds-and-index.ts'
 
 type Primitive = ClusterManifest['primitives'][number]
 
@@ -55,12 +57,8 @@ export function referenceCollectClusterPages(
   // `meshes` resolved the host subtree before batch 8; the witness now resolves it
   // itself, since it reads `matrixWorld` — what it computes does not change by a bit.
   source.updateMatrixWorld(true)
-  for (const sourceMesh of objects(source)) {
-    const mesh = sourceMesh
-    const association = associations.get(mesh),
-      primitive = metadata.primitives.find(
-        (p) => p.mesh === association?.meshes && p.primitive === (association?.primitives ?? 0),
-      )
+  for (const mesh of meshes(source)) {
+    const primitive = referencePrimitiveOf(metadata, associations, mesh)
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`)
     if (primitive.pass === 'shared-blend' || isTransmissive(mesh.material)) {
       const copy = new Mesh(mesh.geometry, mesh.material)

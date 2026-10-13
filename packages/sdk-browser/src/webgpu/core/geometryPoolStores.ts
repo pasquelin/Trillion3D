@@ -42,6 +42,10 @@ export function copyPoolStores(
         encoder.copyBufferToBuffer(held[key], source * 4, made[key], destination * 4, count * 4)
 }
 
+/** The bytes the stores hold: their buffers and the normal atlas. */
+export const storesBytes = (held: PoolStores) =>
+  BUFFERS.reduce((total, key) => total + held[key].size, held.concatNrm.bytes)
+
 /** Frees the stores. */
 export function releasePoolStores(held: PoolStores) {
   for (const key of BUFFERS) held[key].destroy()

@@ -169,7 +169,7 @@ function encodeWaterFrame(
   const rect = frame.freeze.encode(encoder, rt.blendState.waterBounds, rt.gpu.targetSize)
   const written = rt.vis.writesFeedback ? feedbackAttachment(rt) : undefined
   const pass = encoder.beginRenderPass(
-    passes.surface(lobed, frontAttachment(rt.gpu.reflection!.front), written),
+    passes.surface(lobed, frontAttachment(rt.gpu.reflection!.front, rect), written),
   )
   pass.setViewport(0, 0, rt.gpu.targetSize[0], rt.gpu.targetSize[1], 0, 1)
   scissorTo(pass, rect)

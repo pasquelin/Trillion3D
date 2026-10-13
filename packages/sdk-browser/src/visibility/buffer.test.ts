@@ -2,17 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { opaqueBackgroundRgba } from '../page/raster.fixture.ts'
-import {
-  VIS_MAX_PAGES,
-  VIS_TRIANGLE_MASK,
-  assertVisibilityPageTriangles,
-  SHADE_SHADER,
-} from './buffer.ts'
+import { VIS_MAX_PAGES, assertVisibilityPageTriangles } from './types.ts'
+import { SHADE_SHADER } from './shader/shadeWgsl.ts'
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'
 import { camera, quadPages, centerId } from './buffer.fixture.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
-import { VIS_MAX_PAGE_TRIANGLES } from './visWords.ts'
+import { VIS_MAX_PAGE_TRIANGLES, VIS_TRIANGLE_MASK } from './visWords.ts'
 import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 import {
   VIS_INVALID,

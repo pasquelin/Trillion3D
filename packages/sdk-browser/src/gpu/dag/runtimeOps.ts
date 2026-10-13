@@ -17,7 +17,7 @@ import type { createDagDispatch } from './dispatch.ts'
 import { readFor } from './dispatchRead.ts'
 import type { createDifferenceChain } from './differenceChain.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
-import type { createDagResources } from './resources.ts'
+import type { DagResources } from './resources.ts'
 import type { createWorldResidencyMirror } from './residencyMirror.ts'
 import { MAIN_VIEW } from './swap.ts'
 import { appendDagRoots, type DagAppended } from './pack.ts'
@@ -25,8 +25,6 @@ import { writeParts } from './split.ts'
 import { uploadNodes, type TreeFollower } from './treeFollow.ts'
 import type { LinkFollower } from './worldFollow.ts'
 import type { PageResidency } from '../core/selection.ts'
-
-export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
 /** What a camera cut's methods share (`runtime.ts`): its tables, its state, the difference chain,
  *  the residency upload, the pool list, the world mirror, the tree's and links' followers, and the

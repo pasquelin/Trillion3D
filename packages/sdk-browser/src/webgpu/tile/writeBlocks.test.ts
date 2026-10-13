@@ -1,7 +1,8 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { writeTailFromBlocks, writeTileFromBlocks } from './writeBlocks.ts'
+import { writeBlocksLevel, writeTileFromBlocks } from './writeBlocks.ts'
+import { writeTail } from './write.ts'
 import { tileRegion } from './write.ts'
 import { tailOffset, TILE_BORDER, TILE_PITCH } from '../../texture/tiles.ts'
 
@@ -42,7 +43,7 @@ test('tail levels are written block by block at their aligned offsets', () => {
   const { queue, writes } = fakeQueue()
   const place = { x: 0, y: 0, layer: 0 }
   const tail = [64, 32, 16, 8, 4, 2, 1].map((side) => level(side, side))
-  writeTailFromBlocks(queue, pool, place, [64, 64], 0, tail)
+  writeTail(queue, pool, place, [64, 64], 0, tail, writeBlocksLevel)
   assert.deepEqual(
     writes.map((w) => (w.origin as number[])[0]),
     [0, 1, 2, 3, 4, 5, 6].map((rank) => TILE_BORDER + tailOffset(rank)),
@@ -53,7 +54,15 @@ test('tail levels are written block by block at their aligned offsets', () => {
   // is taken, in `sources.ts`.
   assert.throws(
     () =>
-      writeTailFromBlocks(queue, pool, place, [64, 64], 0, [new Uint8Array(15), ...tail.slice(1)]),
+      writeTail(
+        queue,
+        pool,
+        place,
+        [64, 64],
+        0,
+        [new Uint8Array(15), ...tail.slice(1)],
+        writeBlocksLevel,
+      ),
     /TEXTURE_LEVEL_BYTES/,
   )
 })

@@ -9,7 +9,11 @@ import { importHostTexture } from '../../../host/textureImport.ts'
 import type { HostTexture } from '../../../host/resources.ts'
 import { MATERIAL_SURFACES_PASS } from '../../../stage/passLabels.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
+import {
+  BACKEND,
+  dispatchedEntries,
+  fakeDevice,
+} from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, disposeQuadRun, quadScene } from '../testScenes.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -17,11 +21,11 @@ import type { Engine } from '../../../engine/types.ts'
 import { followFeedback } from './feedbackVariant.ts'
 
 const FEEDBACK_TARGET = 'Trillion3D texture feedback target'
-type Gpu = ReturnType<typeof mockGpu>
+type Gpu = ReturnType<typeof fakeDevice>
 
 async function opened(textured: boolean) {
   installGpuGlobals()
-  const gpu = mockGpu()
+  const gpu = fakeDevice(BACKEND)
   const fixture = quadScene()
   // The pages read their material when the backend is made.
   if (textured)
@@ -58,7 +62,7 @@ function feedbackOf(gpu: Gpu) {
       entry: desc.fragment!.entryPoint,
       r32: [...desc.fragment!.targets].some((target) => target?.format === 'r32uint'),
     })),
-    reduced: gpu.computes.includes('reduce'),
+    reduced: dispatchedEntries(gpu.dispatches).includes('reduce'),
   }
 }
 
@@ -83,7 +87,7 @@ test('a textured scene keeps the target at the size of the others, writes it and
   try {
     const seen = feedbackOf(gpu)
     assert.deepEqual(
-      seen.targets.map(({ width, height, destroyed }) => [width, height, destroyed]),
+      seen.targets.map((t) => [t.width, t.height, gpu.destroyed.includes(t)]),
       [[32, 32, false]],
     )
     assert.equal(seen.lastPass?.at(4), 'r32uint')
@@ -110,12 +114,12 @@ test('a texture that comes after open brings the target in place, the other targ
     await drawn(backend)
     const seen = feedbackOf(gpu)
     assert.deepEqual(
-      seen.targets.map(({ width, height, destroyed }) => [width, height, destroyed]),
+      seen.targets.map((t) => [t.width, t.height, gpu.destroyed.includes(t)]),
       [[32, 32, false]],
     )
     assert.equal(seen.lastPass?.at(4), 'r32uint')
     assert.deepEqual(hdr(), [before], 'no target remade: the frame set stays in place')
-    assert.equal(before.destroyed, false)
+    assert.equal(gpu.destroyed.includes(before), false)
     assert.ok(seen.shade.some((pipeline) => pipeline.entry === 'shade_fs' && pipeline.r32))
   } finally {
     disposeQuadRun(backend, fixture)

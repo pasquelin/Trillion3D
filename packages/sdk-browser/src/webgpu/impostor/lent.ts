@@ -10,7 +10,7 @@
 export { VIS_CARD_BASE } from '../../visibility/visWords.ts'
 export { markCard, SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts'
 export { focalPixels } from '../../../../math/src/projection/camera.ts'
-export { grownCapacity } from '../../placement/rows.ts'
+export { grownLength } from '../../../../math/src/sequence/resized.ts'
 export { heldLevelsOf } from '../../texture/heldLevels.ts'
 export { bitmapBytes } from '../../texture/levelReader.ts'
 export { createCacheEntries } from '../../streaming/cacheEntries.ts'

@@ -1,14 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MATERIAL_CLASS_WGSL, materialClassKey } from './materialClass.ts'
-import {
-  FLAG_HAS_COLOR,
-  FLAG_HAS_MAP,
-  FLAG_HAS_NORMAL,
-  FLAG_HAS_UV,
-  FLAG_MASK,
-  SHADE_SHADER,
-} from '../buffer.ts'
+import { FLAG_HAS_COLOR, FLAG_HAS_MAP, FLAG_HAS_NORMAL, FLAG_HAS_UV, FLAG_MASK } from '../types.ts'
+import { SHADE_SHADER } from './shadeWgsl.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { DIAGNOSTICS } from '../../../../sdk-core/src/index.ts'
 import { createExplorerDiagnosticApi } from '../../world/api/diagnosticApi.ts'

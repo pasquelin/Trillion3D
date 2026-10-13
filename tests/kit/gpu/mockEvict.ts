@@ -2,7 +2,7 @@ import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/select
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
 import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
-import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts'
+import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import {
   sortStaged,
@@ -17,45 +17,45 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/request.ts'
 import { words } from './mockBuffers.ts'
 import { boundListCap } from './mockDag.ts'
-import { listEvictions } from '../../../packages/sdk-browser/src/gpu/dag/evict.fixture.ts'
+import {
+  aheadClock,
+  listEvictions,
+  pageKeys,
+  raiseGroups,
+} from '../../../packages/sdk-browser/src/gpu/dag/evict.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { dagFlagShape } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
-import { rootOfPacked } from '../../../packages/sdk-browser/src/page/selection/placements.ts'
 
-/** The camera cut's last-use clock and `dagListEvictions`, replayed on the words the kernels read
- *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`). */
+/** The groups' last uses and `dagListEvictions`, replayed on the words the kernels read
+ *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`): the clock is the frame the camera's uniform
+ *  block carries, the words live in `work`. */
 export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, packed: PackedDag) {
-  const [flags, work, cold, out] = (['flags', 'work', 'cold', 'out'] as const).map((name) =>
+  const [work, cold, out, views] = (['work', 'cold', 'out', 'views'] as const).map((name) =>
     words(byBinding.get(DAG_BINDING[name])!.data),
   )
-  const { pageCount } = packed,
-    frame = dagWorkLayout(ceilDiv(pageCount, SELECTION_WORKGROUP)).frame,
-    shape = dagFlagShape(packed),
-    stamps = dagFlagsWords(shape.queueWords, shape.candCap, 0),
-    recordKeys = cold.subarray(L.recordKeyBase(pageCount)),
-    keyWords = cold.subarray(L.keyWordBase(packed)),
-    pool = L.poolBase(pageCount),
+  const layout = dagWorkLayout(ceilDiv(packed.pageCount, SELECTION_WORKGROUP), packed.groupCount),
+    lastUse = work.subarray(layout.lastUse, layout.lastUse + packed.groupCount),
+    now = views[viewWord('frame')],
+    keys = pageKeys(packed),
+    pool = L.poolBase(packed.pageCount),
     listCap = boundListCap(byBinding)
   return {
-    /** `countFrame`, then `stampUse` on each page the cut drew or asked for, at its content key. */
-    stamp(used: Iterable<number>) {
-      const now = ++work[frame]
-      for (const page of used)
-        flags[
-          stamps +
-            recordKeys[(page + packed.recordShift[rootOfPacked(packed.pageIndex, page)]) >>> 0]
-        ] = now
+    /** `stampUse` on each page the cut drew or asked for, `stampAhead` on those the view ahead
+     *  asked for, and `dagRaiseParents`, at once. */
+    stamp(used: Iterable<number>, ahead: Iterable<number> = []) {
+      raiseGroups(lastUse, keys.groups, [...ahead].map(keys.groupOf), aheadClock(now))
+      raiseGroups(lastUse, keys.groups, [...used].map(keys.groupOf), now)
     },
-    /** The queue behind the drawn list, at most `EVICTION_BURST` entries. */
+    /** The queue behind the drawn list, at most `EVICTION_BURST` entries, its old head counted. */
     list() {
-      const queue = listEvictions({
+      const { queue, old } = listEvictions({
         pool: cold.subarray(pool + 1, pool + 1 + cold[pool]),
-        keyWords,
-        stampOf: (key) => flags[stamps + key],
-        now: work[frame],
+        keyWords: keys.keyWords,
+        useOf: (key) => lastUse[keys.groups.keyGroups[key]],
+        now,
         cap: L.EVICTION_BURST,
       })
       out[L.evictionWord(listCap)] = queue.length
+      out[L.evictionWord(listCap) + 1] = old
       out.set(queue, L.evictionWord(listCap) + L.SELECTION_HEADER_WORDS)
     },
   }

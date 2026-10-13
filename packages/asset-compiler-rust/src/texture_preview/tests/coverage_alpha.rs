@@ -142,7 +142,7 @@ fn a_texture_is_cut_at_its_lowest_cutoff_unless_a_reader_blends() {
 // cutoffs never serve each other's levels, and a blended-only chain keeps the plain chain's name.
 #[test]
 fn each_cutoff_names_its_own_chain() {
-    let dir = temp_dir("bake-cutoffs");
+    let dir = scratch("texture-preview", "bake-cutoffs");
     foliage(256).save(dir.join("map.png")).expect("save");
     let kinds = [("MASK", 0.5), ("MASK", 0.25), ("BLEND", 0.5)]
         .map(|(mode, cutoff)| stage_scene(&dir, &gate::scene(material(mode, cutoff, 0))).0[0].kind);
@@ -164,7 +164,7 @@ fn each_cutoff_names_its_own_chain() {
 // one keeps the median alone, byte for byte, and only the masked one is scaled.
 #[test]
 fn a_blended_texture_keeps_the_median_beside_a_masked_one_of_its_image() {
-    let dir = temp_dir("bake-shared-image");
+    let dir = scratch("texture-preview", "bake-shared-image");
     let source = foliage(256);
     source.save(dir.join("map.png")).expect("save");
     let primitives = [0, 1].map(|m| json!({"attributes": {}, "material": m}));

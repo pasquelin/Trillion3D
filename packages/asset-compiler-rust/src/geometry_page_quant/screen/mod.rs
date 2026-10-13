@@ -63,7 +63,7 @@ fn displacement(bytes: &[u8], slice: &[u32], positions: &[f32]) -> f64 {
 
 /// Every page of `primitive`, compiled into a scratch cache and measured back from it.
 fn measure(primitive: &Primitive) -> Vec<Page> {
-    let root = crate::texture_preview::tests::temp_dir("screen-error");
+    let root = crate::tests::directories::scratch("geometry-page", "screen-error");
     let mut o = crate::texture_preview::tests::options(&root);
     o.simplification = "qem-endpoints".into();
     std::fs::create_dir_all(o.cache.join("native/objects")).expect("objects");

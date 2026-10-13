@@ -8,9 +8,9 @@ import { uploadWorlds } from './worldUpload.ts'
 import { noteWorldMoved } from './movedWorlds.ts'
 import { createSortedKeys } from '../../cut/denseKeys.ts'
 import { rootWorlds } from '../../../gpu/dag/pack.ts'
-import { random } from '../../../page/cut/cutRuleChecks.fixture.ts'
 import type { DagRoot } from '../../../gpu/dag/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
 
 /** An image entry over `count` random roots, whose cut records each send, or answers `reply`. */
 function image(count: number, next: () => number) {
@@ -52,7 +52,7 @@ function image(count: number, next: () => number) {
 }
 
 test('a moving eye over a still scene sends nothing', () => {
-  const next = random(918)
+  const next = lcgRandom(918)
   const entry = image(24, next)
   uploadWorlds(entry.rt)
   assert.equal(entry.sends.length, 1, "the host's first walk sends the worlds")
@@ -64,7 +64,7 @@ test('a moving eye over a still scene sends nothing', () => {
 })
 
 test('a named pose sends its world again; a throwing cut is not hidden', () => {
-  const next = random(7)
+  const next = lcgRandom(7)
   const entry = image(5, next)
   uploadWorlds(entry.rt)
   ;(entry.selectionRoots[2].world.elements as Float64Array)[0] = 3

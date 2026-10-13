@@ -6,12 +6,10 @@ import assert from 'node:assert/strict'
 import { planImpostors, type ImpostorRoot } from './plan.ts'
 import { impostorBakedByMesh } from './switchTable.ts'
 import { impostorSwitchDepth } from './switch.ts'
-import { MAPS, bakedMesh } from './bakedMesh.fixture.ts'
+import { BUSH, MAPS, TREE, bakedMesh } from './bakedMesh.fixture.ts'
 import type { ImpostorMesh, ImpostorSection } from '../contracts/impostor.ts'
 
 const FOCAL = 1117
-const TREE = { objectRadius: 4.2, rootTriangles: 2100, coverage: 0.43, frameSide: 128 }
-const BUSH = { objectRadius: 0.6, rootTriangles: 460, coverage: 0.66, frameSide: 64 }
 const REFUSED: ImpostorMesh = {
   ...bakedMesh(9, 'rock', { objectRadius: 1, rootTriangles: 10, coverage: 0, frameSide: 16 }),
   status: 'refused',
