@@ -23,6 +23,7 @@ import {
   RAD2DEG,
   SQRT3,
   TAU,
+  WORD_RANGE,
 } from './constants.ts'
 import { toHalf } from './float/half.ts'
 import { HALTON_SWEEP, haltonSpan } from './sequence/sweep.fixture.ts'
@@ -39,6 +40,7 @@ test('each constant is the bits of the expression its doc names', () => {
   assert.equal(GOLDEN_ANGLE, Math.PI * (3 - Math.sqrt(5)))
   assert.equal(FLOAT32_STEP, 2 ** -23)
   assert.equal(MIB, 1024 * 1024)
+  assert.equal(WORD_RANGE, 2 ** 32)
 })
 
 test('QUARTER_PI, SQRT3 and GOLDEN_ANGLE against their independent definitions', () => {
