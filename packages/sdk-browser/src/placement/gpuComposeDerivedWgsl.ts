@@ -25,7 +25,6 @@ import {
   dSub,
   splitDouble,
 } from '../../../math/src/wgsl/double.ts'
-import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 import { FINITE_SENTINEL } from '../../../math/src/wgsl/constants.ts'
 import { STRETCH_DOUBLE_WGSL } from './gpuStretchWgsl.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'

@@ -15,6 +15,7 @@
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { clearValueOf } from '../../../sdk-core/src/world/math/packedColour.ts'
 import { srgbToLinear } from '../../../math/src/color/color.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import { ACES, AGX, CINEON, GAMMA, NEUTRAL } from './toneCurveConstants.ts'
 
 type V3 = [number, number, number]
@@ -37,7 +38,7 @@ const AGX_STEPS = 52
 
 function acesInverse(y: readonly number[]) {
   const F = ACES.fit
-  const v = each(apply3(ACES.outputInverse, y), (x) => Math.min(Math.max(x, -F.b / F.f), 1))
+  const v = each(apply3(ACES.outputInverse, y), (x) => clamp(x, -F.b / F.f, 1))
   const c = each(v, (x) => {
     const a = 1 - x * F.d,
       b = F.a - x * F.e,

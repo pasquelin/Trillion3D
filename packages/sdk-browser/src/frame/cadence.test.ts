@@ -141,6 +141,6 @@ test('a GPU time read as a lower bound slows the cadence as a whole one does, an
     'no rise on lower bounds',
   )
   // The same light images timed whole: back to every refresh.
-  r = run(control, 4, () => 3, r.at)
+  run(control, 4, () => 3, r.at)
   assert.equal(control.cadence, 1, 'risen on whole times')
 })
