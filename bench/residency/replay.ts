@@ -51,7 +51,7 @@ export const FLIGHTS: Flight[] = [
 
 /** The policies compared at a pool of `places`: today's heap, the heap that hears ancestors, the
  *  GPU rank (b), its finer ages (c), and (b) under M3's window of a whole feedback phase. */
-export const tilePolicies = (places: number): TilePolicy[] => [
+const tilePolicies = (places: number): TilePolicy[] => [
   heapPolicy(places, false),
   heapPolicy(places, true),
   rankPolicy(places, { name: 'rank' }),

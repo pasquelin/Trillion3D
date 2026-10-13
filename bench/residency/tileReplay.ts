@@ -4,7 +4,7 @@ import type { TileTrace } from './trace.ts'
 
 /** The replay's knobs: the pool's places, the feedback's cap (`FEEDBACK_HITS`), the readback's
  *  lag, the tiles a pass uploads, and the window a refetch is counted in. */
-export type TileReplayOptions = {
+type TileReplayOptions = {
   places: number
   cap?: number
   lag?: number

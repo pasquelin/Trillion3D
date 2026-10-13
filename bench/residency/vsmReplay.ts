@@ -7,7 +7,7 @@ import { vsmPageLevel, type VsmTrace } from './trace.ts'
  *  wanted for `VSM_PAGE_KEEP_FRAMES` first, then the least recently wanted (`vsmSortPool`) —, or
  *  `rank`, the pool rank's buckets — log2 age steps × map level — within which the GPU's order is
  *  the pages'. */
-export type VsmOrder = 'lru' | 'rank'
+type VsmOrder = 'lru' | 'rank'
 
 /** What an order cost over a trace: the pages drawn again a frame — a wanted page not cached —,
  *  on average and at worst, and the cached pages a frame kept beside the wanted ones, on average. */
