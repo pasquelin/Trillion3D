@@ -7,9 +7,11 @@ import { HEADROOM, THRESHOLD } from './scaleTargets.ts'
  * place: a closure's number is boxed at each write. `s` the scale, `max` under the memory cap;
  * `lo`/`hi` the costs `τ` lies between, `trial` the one aimed at, `at` the refresh they were learnt
  * on; the window since the last move: display frames, moving ones and misses past `PERIOD`, costs
- * (count, mean, sum of squared deviations, the two largest); the images drawn and when the last
- * time came; the frames the loop held to measure the refresh; whether costs are GPU times; an image
- * drawn since the last display frame.
+ * (count, mean, sum of squared deviations, the two largest) and whether one of them was a lower
+ * bound; the images drawn and when the last time came; the frames the loop held to measure the
+ * refresh; whether costs are GPU times; an image drawn since the last display frame. The one
+ * window of the frame loop: the steady cadence (`cadence.ts`) reads it too, its misses counted
+ * against the cadence's divisor.
  */
 export function createScaleWindow(bounds: RenderScaleBounds) {
   return {
@@ -33,6 +35,8 @@ export function createScaleWindow(bounds: RenderScaleBounds) {
     m2: 0,
     first: 0,
     second: 0,
+    /** A cost of the window was a lower bound (`partial`): it proves a cost at least, never room. */
+    partial: false,
     images: 0,
     timedAt: 0,
     held: 0,
@@ -58,6 +62,7 @@ export function holdFrame(w: ScaleWindow) {
 /** The window's costs start again. */
 export function clearCosts(w: ScaleWindow) {
   w.count = w.mean = w.m2 = w.first = w.second = 0
+  w.partial = false
 }
 
 /** A window starts: nothing measured since the last move. */
@@ -111,6 +116,10 @@ export function sampleCost(w: ScaleWindow, cost: number) {
     w.first = cost
   } else if (cost > w.second) w.second = cost
 }
+
+/** Whether the window's costs are GPU times: the auto scale's while the timer gives them, a fixed
+ *  scale's always — it fits nothing, its window holds every GPU time for the cadence. */
+export const gpuCosts = (w: ScaleWindow) => !w.bounds.auto || w.timed
 
 /** The cost the scale fits: the second costliest of the window, or its one. */
 export const fittedCost = (w: ScaleWindow) => (w.count > 1 ? w.second : w.first)

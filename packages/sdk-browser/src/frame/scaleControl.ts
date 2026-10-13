@@ -1,4 +1,4 @@
-import { createCadence, sampleCadence, skipsDisplayFrame } from './cadence.ts'
+import { createCadence, resetCadence, skipsDisplayFrame } from './cadence.ts'
 import { createRefreshClock } from './refreshClock.ts'
 import { renderScaleBounds, type RenderScale } from './renderScaleOption.ts'
 import {
@@ -63,14 +63,16 @@ import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './sca
  * agree — four frames at the least —, `PERIOD` at most; `held`, whether the display frame that
  * began was held, the loop then asks the next at once; `hold`, the loop held it; `frameIntervalMs`,
  * the interval from the previous display frame `tick` read to the last (null before two or after a
- * pause); `set`, another scale: the controller restarts at the bounds' maximum, knowing nothing;
+ * pause); `set`, another scale: the controller restarts at the bounds' maximum, knowing nothing,
+ * and the cadence at every refresh;
  * `wanted`, the scale an image is drawn at, the controller's or the fixed one; `allocated`,
  * `capMemory`, `uncapMemory` and `memoryCapped`, the render targets' scale and memory cap
  * (`scaleMemory.ts`); `drew(scale, steered, still)`, an image was drawn; `tick(now, timed)`, a
  * frame of the display began at `now`, ms, its rAF timestamp, `timed`: the device has a GPU timer
  * (`tickScale`); `observe(gpuMs, scale, steered, whole)`, the GPU time of an image drawn at `scale`, a few
  * frames late: a cost of the window, brought to the current scale by its area, where the image was
- * drawn at the controller's scale.
+ * drawn at the controller's scale — under a fixed scale, every GPU time as it came. The window is
+ * the cadence's too (`scaleWindow.ts`).
  */
 export function createScaleControl(option: RenderScale | undefined) {
   const display = { width: 0, height: 0, ratio: 0 }
@@ -107,6 +109,7 @@ export function createScaleControl(option: RenderScale | undefined) {
       targets.reset(w.bounds.max)
       w.s = w.max = w.bounds.max
       forgetThreshold(w, refresh.display)
+      resetCadence(cadence)
     },
     wanted: () => (w.bounds.auto ? w.s : w.bounds.max),
     allocated: memory.allocated,
@@ -133,7 +136,11 @@ export function createScaleControl(option: RenderScale | undefined) {
     skips: (now: number) => skipsDisplayFrame(cadence, refresh, now, control.still),
     observe(gpuMs: number | null, scale: unknown, steered = true, whole = true) {
       if (gpuMs === null) return
-      sampleCadence(cadence, gpuMs, whole)
+      // A lower bound marks the window: it proves a cost at least, never room (`cadence.ts`).
+      if (!whole) w.partial = true
+      // A fixed scale fits nothing: its window holds every GPU time as the timer gave it, for the
+      // cadence.
+      if (!w.bounds.auto) sampleCost(w, gpuMs)
       // The scale steps on an image timed whole: a lower bound is a span its cost model cannot read.
       if (!whole) return
       w.timedAt = w.images

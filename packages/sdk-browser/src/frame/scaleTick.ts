@@ -70,34 +70,40 @@ function settleWindow(w: ScaleWindow, refresh: ScaleParts['refresh'], still: boo
   if (!fitScale(w, true, still)) restartWindow(w)
 }
 
-/** A display frame of the auto controller began, `gap` ms after the last: the image drawn before it
- *  (`fresh`) is measured, and the window judged once `PERIOD` frames passed. */
-function judgeFrame(p: ScaleParts, image: DrawnImage, fresh: boolean) {
-  const { w, refresh } = p,
+/**
+ * A display frame began, `gap` ms after the last: the window counts it. The image drawn before it
+ * (`fresh`) is measured where the controller drew it (`steered`) — a fixed scale's, every one —,
+ * and, moving, `PERIOD` frames past the window's start, its interval is a miss where it shows the
+ * image later than the cadence's divisor of refreshes. The refresh moved: what was learnt on the
+ * last one goes, the cadence's divisor with it.
+ */
+function countFrame(p: ScaleParts, image: DrawnImage, fresh: boolean) {
+  const { w, refresh, cadence } = p,
     gap = refresh.gap,
-    period = refresh.display
+    period = refresh.display,
+    auto = w.bounds.auto
   if (refresh.settled && !(Math.abs(period - w.at) <= GRID_TOLERANCE * w.at)) {
     w.at = period
-    forgetThreshold(w, refresh.display)
+    forgetThreshold(w, period)
+    resetCadence(cadence)
   }
-  const measured = fresh && image.steered && refresh.settled && gap < INTERVAL_PAUSE_MS
-  if (measured && !w.timed) sampleCost(w, w.s * w.s)
+  const measured = fresh && (image.steered || !auto) && refresh.settled && gap < INTERVAL_PAUSE_MS
+  if (measured && auto && !w.timed) sampleCost(w, w.s * w.s)
   // A still image's interval is no verdict: the loop draws it when its feedback lands
   // (`frameScheduler.ts`), not at the GPU's pace.
   if (measured && !image.still && w.frames >= PERIOD) {
     w.moving++
     // The costs a miss is judged on arrive after it: its image's GPU time comes late.
-    if (Math.round(gap / period) > 1 && w.misses++ === 0) clearCosts(w)
+    if (Math.round(gap / period) > cadence.divisor && w.misses++ === 0) clearCosts(w)
   }
-  if (++w.frames <= PERIOD || w.count === 0) return
-  settleWindow(w, refresh, image.still)
+  w.frames++
 }
 
 /**
  * A frame of the display began at `now`, ms, its rAF timestamp; `timed`: the device has a GPU
- * timer. The refresh is measured; the interval since the last frame, where the image before it
- * moved at the controller's scale, says whether it missed the refresh; past `PERIOD` frames
- * since the last move, the window's verdict (`settleWindow`).
+ * timer. The refresh is measured; the window counts the frame (`countFrame`); the cadence gives
+ * its verdict on the window (`judgeCadence`), then, past `PERIOD` frames since the last move, the
+ * scale its own (`settleWindow`).
  */
 export function tickScale(p: ScaleParts, image: DrawnImage, now: number, timed: boolean) {
   const { w, refresh } = p,
@@ -123,15 +129,14 @@ export function tickScale(p: ScaleParts, image: DrawnImage, now: number, timed: 
   // The image drawn before this display frame, read once whatever the bounds.
   const fresh = w.fresh
   w.fresh = false
-  // The cadence judges the moving images the loop drew at the GPU's pace; it slows only where the
-  // scale cannot lower the cost any more: fixed, or at its floor.
   p.cadence.drawnAt = now
-  judgeCadence(
-    p.cadence,
-    refresh,
-    fresh && !image.still && gap < INTERVAL_PAUSE_MS,
-    !w.bounds.auto || w.s <= w.bounds.min,
-  )
   // A display frame began: another call in the same frame (gap 0) counts none.
-  if (w.bounds.auto) judgeFrame(p, image, fresh)
+  countFrame(p, image, fresh)
+  // The cadence slows only where the scale cannot lower the cost any more: fixed, or at its floor.
+  judgeCadence(p.cadence, w, refresh, !w.bounds.auto || w.s <= w.bounds.min)
+  // The scale is judged while the loop draws on every refresh: under a slower cadence, which it
+  // took at the floor, the scale holds there, its threshold learnt on one refresh unmoved by
+  // images the cadence spaces.
+  if (w.bounds.auto && p.cadence.divisor === 1 && w.frames > PERIOD && w.count > 0)
+    settleWindow(w, refresh, image.still)
 }
