@@ -5,6 +5,7 @@ import {
   HISTORY,
   INTERVAL_PAUSE_MS,
   PERIOD,
+  SECOND_MS,
   type createTargetCap,
 } from './scaleTargets.ts'
 import {
@@ -17,9 +18,6 @@ import {
   swapUnit,
   type ScaleWindow,
 } from './scaleWindow.ts'
-
-/** The span a frame may miss its refresh once in: one image a second shown two refreshes. */
-const SECOND_MS = 1000
 
 /** What a tick reads and moves: the controller's state, the display's clock and size, the
  *  render targets' memory cap, and the steady cadence (`cadence.ts`). */

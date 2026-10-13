@@ -1,11 +1,10 @@
 import { GRID_TOLERANCE, SUPPORT } from './refreshClock.ts'
-import { HEADROOM } from './scaleTargets.ts'
+import { HEADROOM, SECOND_MS } from './scaleTargets.ts'
 import { gpuCosts, restartWindow, type ScaleWindow } from './scaleWindow.ts'
 
-/** The span a cadence is judged over, ms: a second of images, as the render scale judges its. */
-const SECOND_MS = 1000
-/** The slowest steady cadence, ms between two images: 60 a second, never fewer by this rule. */
-const SLOWEST_MS = 1000 / 60
+/** The slowest steady cadence, ms between two images: 60 a second, never fewer by this rule. A
+ *  cadence is judged over a second of images (`SECOND_MS`), as the render scale judges its. */
+const SLOWEST_MS = SECOND_MS / 60
 /** The share of a slower cadence's budget the GPU must fall to before a faster one is tried
  *  again: `HEADROOM²`, a tenth below the headroom a slower cadence is taken at, so a cost between
  *  the two keeps the cadence it has. */
