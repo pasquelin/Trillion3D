@@ -1,6 +1,7 @@
-// The run-time proxy is one storage binding or none, and holds no placement's world and no tree: the trace
-// reads them in the culling's record tables (`worldTable.ts`, `treeTable.ts`), so a world the culling splits
-// in ranges keeps its proxy. Over the device double.
+// The run-time proxy's buffer holds no instance, no placement's world and no tree: the trace reads the
+// instances in the proxy's own record table (`proxyInstanceTable.ts`) and the others in the culling's
+// (`worldTable.ts`, `treeTable.ts`), so the buffer grows with the meshes alone and a world the culling
+// splits in ranges keeps its proxy. Over the device double.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
@@ -10,7 +11,6 @@ import { createProxyInstances } from './proxyInstances.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { LIMITS, cut, region, surface, writes } from './proxyInstances.fixture.ts'
-import { INSTANCE_WORDS } from '../../bounce/runtimeLayout.ts'
 
 /** The proxy of `side`² placements, each wearing one cut, over a device of `limits`, and the ranges the
  *  culling lays its frames in there. */
@@ -36,18 +36,27 @@ test('a world the culling splits in ranges holds its proxy: the worlds are read 
   })
   assert.equal(ranges.length, 2, 'the culling splits its frames')
   assert.ok(proxies.buffer(), 'the proxy is made')
-  assert.equal(proxies.refusal, undefined)
-  assert.ok(writes(gpu).length > 0, 'its instances are sent')
+  assert.ok(writes(gpu).length > 0, 'its header and surfaces are sent')
   // A placement written in the second range writes nothing into it: no world lies there.
   const sent = writes(gpu).length
   proxies.worldWritten(12)
   assert.equal(writes(gpu).length, sent, 'no world is sent')
   assert.equal(
     region(gpu, 'copyWorldsWord'),
-    16 * INSTANCE_WORDS,
-    'behind the instances, the copies’ worlds: no placement’s world, no exact translation',
+    0,
+    'the copies’ worlds first: no instance, no placement’s world, no exact translation',
   )
   proxies.dispose()
+})
+
+test('the proxy’s buffer holds no instance: it grows with the meshes, never with the placements', () => {
+  // Sixteen placements and four thousand, each wearing the one cut.
+  const few = proxyOver(LIMITS, 4).proxies,
+    many = proxyOver(LIMITS, 64).proxies
+  assert.equal(many.buffer()!.size, few.buffer()!.size, 'the same buffer')
+  assert.ok(many.instances() && many.bytes > many.buffer()!.size, 'the instances in their table')
+  few.dispose()
+  many.dispose()
 })
 
 test('the proxy holds no tree: its rays walk the culling’s tree where it lies', () => {

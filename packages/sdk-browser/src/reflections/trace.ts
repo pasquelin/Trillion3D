@@ -32,8 +32,8 @@ import { TRACE_LIST, TRACE_LIST_FIRST } from '../bounce/runtimeLayout.ts'
  * THE ONE TABLE OF THE TRACE'S GROUP 0, shared by the classification and the trace: the WGSL
  * declarations, the layouts and the entries read their numbers here. The surface targets, the
  * target it writes, the lights, the bounce cascades and their probes, the indirect arguments
- * (`work`), the trace's list with the frame's counters, the proxy's buffer, the culling's worlds it
- * places its meshes by and the placement tree its rays walk, and the light grid's buffer, whose world
+ * (`work`), the trace's list with the frame's counters, the proxy's buffer and instances, the
+ * culling's worlds it places its meshes by and the placement tree its rays walk, and the light grid's buffer, whose world
  * lists the proxy hits walk.
  */
 const TRACE_BINDINGS = {
@@ -50,6 +50,7 @@ const TRACE_BINDINGS = {
   proxy: 11,
   proxyWorlds: 12,
   proxyTree: 13,
+  proxyInstances: 14,
   lightLists: 17,
 } as const
 
@@ -57,6 +58,7 @@ const TRACE_BINDINGS = {
 const RUNTIME_BINDINGS: RuntimeBindings = {
   group: 0,
   proxy: TRACE_BINDINGS.proxy,
+  instances: TRACE_BINDINGS.proxyInstances,
   worlds: TRACE_BINDINGS.proxyWorlds,
   tree: TRACE_BINDINGS.proxyTree,
   list: TRACE_BINDINGS.list,
@@ -182,6 +184,7 @@ function traceLayouts(device: GPUDevice) {
         computeBufferEntry(TRACE_BINDINGS.proxy, 'read-only-storage'),
         computeTextureEntry(TRACE_BINDINGS.proxyWorlds, 'uint', '2d-array'),
         computeTextureEntry(TRACE_BINDINGS.proxyTree, 'uint', '2d-array'),
+        computeTextureEntry(TRACE_BINDINGS.proxyInstances, 'uint', '2d-array'),
       ],
     }),
     classifyLayout: device.createBindGroupLayout({
@@ -279,6 +282,8 @@ export type TraceInputs = {
   proxyWorlds: GPUTextureView
   /** The culling's placement tree the proxy's rays walk (`gpu/dag/treeTable.ts`), or the stand-in. */
   proxyTree: GPUTextureView
+  /** The proxy's instances (`gpu/dag/proxyInstanceTable.ts`), or the stand-in. */
+  proxyInstances: GPUTextureView
 }
 
 /** The groups of a trace: the trace's, the classification's and the frame state's. */
@@ -316,6 +321,7 @@ function traceGroups(
     inputs.proxy,
     inputs.proxyWorlds,
     inputs.proxyTree,
+    inputs.proxyInstances,
     inputs.lightLists,
   )
   if (!trace.identity.moved() && trace.groups) return trace.groups
@@ -336,6 +342,7 @@ function traceGroups(
         proxy: { buffer: inputs.proxy },
         proxyWorlds: inputs.proxyWorlds,
         proxyTree: inputs.proxyTree,
+        proxyInstances: inputs.proxyInstances,
       }),
     }),
     classify: device.createBindGroup({

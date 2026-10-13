@@ -78,9 +78,9 @@ test("every opaque resolve program fits the device's per-stage limits", async ()
   unlit.dispose()
 })
 
-/** Whether a layout of `layouts` shows the fragment stage a record table of the culling at
- *  `binding` — its worlds (`../dag/worldTable.ts`), its placement tree (`../dag/treeTable.ts`) —: a
- *  texture of words, no storage buffer. */
+/** Whether a layout of `layouts` shows the fragment stage a record table at `binding` — the proxy's
+ *  instances (`../dag/proxyInstanceTable.ts`), the culling's worlds (`../dag/worldTable.ts`) and
+ *  placement tree (`../dag/treeTable.ts`) —: a texture of words, no storage buffer. */
 const bindsRecords = (layouts: GPUBindGroupLayoutDescriptor[], binding: number) =>
   layouts.some((layout) =>
     [...layout.entries].some(
@@ -120,8 +120,8 @@ test("the blends and the water pass fit the device's per-stage limits", async ()
   }
   assert.deepEqual(failures, [])
   assert.ok(layouts.length > 0)
-  // Both trace the proxy through the culling's worlds and tree, read in place: a sampled texture
-  // each, which the counts below hold, the eight storage buffers of their fragment stage left as
+  // Both trace the proxy through its instances and the culling's worlds and tree, read in place: a
+  // sampled texture each, which the counts below hold, the eight storage buffers of their fragment stage left as
   // they were.
   for (const [name, bindings] of [
     ['blends', BLEND_BINDINGS],
@@ -129,6 +129,10 @@ test("the blends and the water pass fit the device's per-stage limits", async ()
   ] as const) {
     assert.ok(bindsRecords(bindGroupLayouts, bindings.proxyWorlds), `the ${name} bind the worlds`)
     assert.ok(bindsRecords(bindGroupLayouts, bindings.proxyTree), `the ${name} bind the tree`)
+    assert.ok(
+      bindsRecords(bindGroupLayouts, bindings.proxyInstances),
+      `the ${name} bind the instances`,
+    )
   }
   assert.ok(widestSampled(layouts) <= WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage)
   // Their storage bindings within the guaranteed ones of a fragment stage: the water composite's

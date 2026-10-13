@@ -151,14 +151,12 @@ function selectionOver(run: DagRun): GpuSelection {
       return run.proxies.hostBytes
     },
     proxy() {
-      const buffer = live() ? run.proxies.buffer() : undefined
-      if (!buffer) return undefined
-      if (proxy?.buffer !== buffer)
-        proxy = { buffer, worlds: frames.worlds.view, tree: resources.treeTable.view }
+      const buffer = live() ? run.proxies.buffer() : undefined,
+        instances = run.proxies.instances()
+      if (!buffer || !instances) return undefined
+      if (proxy?.buffer !== buffer || proxy.instances !== instances)
+        proxy = { buffer, instances, worlds: frames.worlds.view, tree: resources.treeTable.view }
       return proxy
-    },
-    get proxyRefusal() {
-      return run.proxies.refusal
     },
     proxyPose: (encoder, host) => live() && run.proxies.pose(encoder, host),
     proxyArrived: () => live() && run.proxies.arrived(),

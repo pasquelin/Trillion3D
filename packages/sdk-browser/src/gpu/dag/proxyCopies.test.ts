@@ -5,8 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera } from './placementTree.fixture.ts'
 import { kernelUniforms } from './selectionHelpers.fixture.ts'
-import { cut, open, region, surface, wordAt } from './proxyInstances.fixture.ts'
-import { INSTANCE, INSTANCE_WORDS, RUNTIME_NONE } from '../../bounce/runtimeLayout.ts'
+import { cut, instanceAt, open, region, surface, wordAt } from './proxyInstances.fixture.ts'
+import { INSTANCE, RUNTIME_NONE } from '../../bounce/runtimeLayout.ts'
 
 test('blended copies are members after the placements: their instances and their poses, followed at each cut', async () => {
   const c = cut(2, 1, 1),
@@ -24,8 +24,7 @@ test('blended copies are members after the placements: their instances and their
     { matrix: pose(7) },
   ]
   selection.proxyCopies(copies)
-  const word = (k: number, j: number) =>
-    wordAt(gpu, region(gpu, 'instancesWord') + (slots + k) * INSTANCE_WORDS + j)
+  const word = (k: number, j: number) => instanceAt(gpu, slots + k, j)
   const x = (k: number) =>
     new Float32Array([wordAt(gpu, region(gpu, 'copyWorldsWord') + k * 16 + 12)].map((v) => v))[0]
   assert.equal(region(gpu, 'copies'), 3)
@@ -59,10 +58,6 @@ test('a copy that joins the host’s list in place is counted at the next cut, b
   copies.push(copy(5))
   selection.dispatch(kernelUniforms(packed, roots, fieldCamera([0, 5, 20], [0, 0, 0]), 1))
   assert.equal(region(gpu, 'copies'), 2)
-  assert.equal(
-    wordAt(gpu, region(gpu, 'instancesWord') + (packed.worldCount + 1) * INSTANCE_WORDS),
-    0,
-    'the joined copy wears the cut',
-  )
+  assert.equal(instanceAt(gpu, packed.worldCount + 1, 0), 0, 'the joined copy wears the cut')
   selection.dispose()
 })

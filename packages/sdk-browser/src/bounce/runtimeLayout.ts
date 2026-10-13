@@ -7,28 +7,26 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 export const RUNTIME_NONE = 0xffffffff
 
 /**
- * THE PROXY'S BUFFER: one storage binding holding, in this order, the header, an instance per placement, a
- * surface per drawn material, then the arena of the meshes' own proxies — the columns of a `proxy.bin`
- * (`page-codec-wasm/src/proxy.rs`), one mesh's after another, in the mesh's own space —, and the worlds of the
- * blended copies. The tree above the placements and the placements' worlds are the culling's, read where they
- * lie: the record tables a program binds beside this buffer (`gpu/dag/treeTable.ts`, `gpu/dag/worldTable.ts`),
- * sampled textures, no storage binding — the forward programs' fragment stage binds the eight storage buffers
- * WebGPU guarantees.
- *
- * ONE BINDING HOLDS THE REST, OR NO PROXY. A proxy past one binding is refused by name
- * (`gpu/dag/proxyInstances.ts`), never made: the trace then reads its stand-ins.
+ * THE PROXY'S BUFFER: one storage binding holding, in this order, the header, the worlds of the blended
+ * copies, a surface per drawn material, then the arena of the meshes' own proxies — the columns of a
+ * `proxy.bin` (`page-codec-wasm/src/proxy.rs`), one mesh's after another, in the mesh's own space —:
+ * what grows with the meshes, never with the placements. What grows with them lies in record tables a
+ * program binds beside this buffer, sampled textures, no storage binding — the forward programs'
+ * fragment stage binds the eight storage buffers WebGPU guarantees —: the instances, the proxy's own
+ * (`gpu/dag/proxyInstanceTable.ts`), and the tree above the placements and their worlds, the
+ * culling's, read where they lie (`gpu/dag/treeTable.ts`, `gpu/dag/worldTable.ts`).
  *
  * Header words, one table the writer's words and the shader's struct (`RUNTIME_PROXY_WGSL`) are both drawn
  * from (`fieldLayout`): the placements the instances hold (the blended copies' follow them), then the word
  * rank of each region — the copies' worlds a region of their own —, the tree's root node, within the tree
  * (`RUNTIME_NONE` for a packing without a tree: the placements are then its few members), the live members,
- * the greatest world error of a proxy, in metres, as an `f32`'s bits: the distance a ray leaves a surface off its normal, and the blended copies.
+ * the greatest world error of a proxy, in metres, as an `f32`'s bits: the distance a ray leaves a surface
+ * off its normal, and the blended copies.
  */
 const HEADER = fieldLayout(
   'RuntimeProxy',
   [
     ['instances', 'u32'],
-    ['instancesWord', 'u32'],
     ['surfacesWord', 'u32'],
     ['trianglesWord', 'u32'],
     ['copyWorldsWord', 'u32'],
@@ -49,9 +47,10 @@ export const RUNTIME_PROXY_WGSL = wgslBlock('RUNTIME_PROXY_WGSL', [], HEADER.wgs
 /** Words of one blended copy's world, the proxy's own: its matrix. */
 export const RUNTIME_WORLD_WORDS = 16
 
-/** One placement's instance: its cut's first node and first triangle in the arena (`RUNTIME_NONE`
- *  where it draws no proxy), the surface it wears, and its frame word — the mark with the
- *  deformation's reach above it (`markReach`). */
+/** One placement's instance, one texel of the instances' table (`gpu/dag/proxyInstanceTable.ts`): its
+ *  cut's first node and first triangle in the arena (`RUNTIME_NONE` where it draws no proxy), the
+ *  surface it wears, and its frame word — the mark with the deformation's reach above it
+ *  (`markReach`). */
 export const INSTANCE = { node: 0, triangle: 1, surface: 2, mark: 3 } as const
 export const INSTANCE_WORDS = Object.keys(INSTANCE).length
 

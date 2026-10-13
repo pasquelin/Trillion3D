@@ -1,12 +1,13 @@
 // The scene the run-time proxy's tests run over: cubes turned and stretched, packed with the culling's
-// tree, the proxy's buffer as the shader reads it, and the culling's record tables it reads beside it:
-// the worlds and the placement tree.
+// tree, the proxy's buffer and instances as the shader reads them, and the culling's record tables it
+// reads beside them: the worlds and the placement tree.
 import * as G from '../host/graph/graph.fixture.ts'
 import { scenePages, sceneRoots } from '../gpu/dag/cutFrontierScene.fixture.ts'
 import { packDagSelection } from '../gpu/dag/selection.ts'
 import { treeNodeCount, TREE_SPAN } from '../gpu/dag/placementTree.ts'
 import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
 import { TREE_TABLE } from '../gpu/dag/treeTable.ts'
+import { INSTANCE_TABLE } from '../gpu/dag/proxyInstanceTable.ts'
 import { sdkWasm } from '../wasm/sdkWasm.fixture.ts'
 import {
   PROXY_NODE_FLOATS,
@@ -15,12 +16,7 @@ import {
 } from '../../../sdk-core/src/index.ts'
 import { buildCutProxy } from '../world/page/runtimeProxy.ts'
 import { cubeGeometry } from '../world/page/cube.fixture.ts'
-import {
-  INSTANCE_WORDS,
-  RUNTIME_NONE,
-  RUNTIME_WORLD_WORDS,
-  SURFACE_WORDS,
-} from './runtimeLayout.ts'
+import { RUNTIME_NONE, RUNTIME_WORLD_WORDS, SURFACE_WORDS } from './runtimeLayout.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { recordTable } from '../gpu/core/recordTexture.fixture.ts'
 import { WORLD_TABLE } from '../gpu/dag/worldTable.ts'
@@ -45,8 +41,9 @@ export function cubeCut() {
 }
 
 /** `count` cubes turned and stretched, packed with the culling's tree, the run-time proxy's buffer
- *  over them as the shader reads it — instances, then the cut's columns —, and the culling's record
- *  tables the trace reads beside it: `worlds` and `tree`. */
+ *  over them as the shader reads it — the copies' worlds, the surfaces, then the cut's columns —,
+ *  its instances' table (`instances`), and the culling's record tables the trace reads beside it:
+ *  `worlds` and `tree`. */
 export function world(
   count: number,
   seed: number,
@@ -93,16 +90,17 @@ export function world(
     nodes = cut.nodeBounds.length / PROXY_NODE_FLOATS
   const surfaces = options.surfaces ?? [[1, 1, 1, 1, 0, 0, 0, 0]]
   const copies = options.copies ?? []
-  const instancesAt = 0,
-    copyWorldsAt = (count + copies.length) * INSTANCE_WORDS,
+  const copyWorldsAt = 0,
     surfacesAt = copyWorldsAt + copies.length * RUNTIME_WORLD_WORDS,
     trianglesAt = surfacesAt + surfaces.length * SURFACE_WORDS,
     boundsAt = trianglesAt + triangles * PROXY_TRIANGLE_FLOATS,
     childrenAt = boundsAt + nodes * PROXY_NODE_FLOATS
   const tree = packed.placementTree
   const words = new Uint32Array(childrenAt + nodes * PROXY_NODE_WORDS)
+  // Every instance wears the cube's cut, its first node and triangle, the surface asked.
+  const instanceTable = recordTable(INSTANCE_TABLE, count + copies.length)
   for (let w = 0; w < count + copies.length; w++)
-    words.set([0, 0, options.surfaceOf?.(w) ?? 0, 0], instancesAt + w * INSTANCE_WORDS)
+    instanceTable.set('Instance', w, [0, 0, options.surfaceOf?.(w) ?? 0, 0])
   // The placements' worlds as the culling holds them: each matrix, and its exact translation beside
   // it, three doubles.
   const table = recordTable(WORLD_TABLE, count),
@@ -138,7 +136,6 @@ export function world(
   }
   const header = {
     instances: count,
-    instancesWord: instancesAt,
     surfacesWord: surfacesAt,
     trianglesWord: trianglesAt,
     copyWorldsWord: copyWorldsAt,
@@ -166,6 +163,7 @@ export function world(
   return {
     packed,
     header,
+    instances: instanceTable,
     worlds: table,
     tree: treeTable,
     scene: { packed, columns, instances, copyBase: count, copyWorlds } satisfies OracleScene,

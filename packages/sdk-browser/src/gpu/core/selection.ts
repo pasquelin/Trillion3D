@@ -19,11 +19,13 @@ import type { ProxyBoxes } from '../../bounce/probeSync.ts'
  *  object the main view holds for the selection's life, or each view aside its own, never another
  *  view's — (`../dag/runtime.ts`, `syncTables`). */
 export type TableSync = (uniforms: SelectionUniforms, view: object) => void
-/** What a program reads the proxy through (`../dag/proxyInstances.ts`): its buffer, and the cut's
- *  record tables, read where they lie — the worlds it places its meshes by (`../dag/worldTable.ts`)
- *  and the placement tree its rays walk (`../dag/treeTable.ts`). */
+/** What a program reads the proxy through (`../dag/proxyInstances.ts`): its buffer and its
+ *  instances' table (`../dag/proxyInstanceTable.ts`), and the cut's record tables, read where they
+ *  lie — the worlds it places its meshes by (`../dag/worldTable.ts`) and the placement tree its rays
+ *  walk (`../dag/treeTable.ts`). */
 export type ProxyResources = {
   readonly buffer: GPUBuffer
+  readonly instances: GPUTextureView
   readonly worlds: GPUTextureView
   readonly tree: GPUTextureView
 }
@@ -176,11 +178,8 @@ export type GpuSelection = {
   /** The row cache now holds `rows` rows: the open counts placements hold follow it
    *  (`../dag/queueGrowth.ts`), grown before the next cut. */
   followRows?(rows: number): void
-  /** What a program reads the proxy through (`ProxyResources`): none until a placement wears one, or
-   *  none past one storage binding of the device (`proxyRefusal`). */
+  /** What a program reads the proxy through (`ProxyResources`): none until a placement wears one. */
   proxy(): ProxyResources | undefined
-  /** Why no buffer holds the proxy a placement wears, by name: its bytes past one storage binding. */
-  readonly proxyRefusal: string | undefined
   /** Bytes the CPU keeps for the proxy (`../dag/proxyInstances.ts`): the streamer's reservation counts them. */
   readonly proxyHostBytes: number
   /** The deformed placements' copies of their meshes' proxies posed by the records of the frame, before the

@@ -38,9 +38,10 @@ export const WATER_BINDINGS = {
   shadowSampler: 10,
   bounceGrid: 11,
   probes: 12,
-  /** The proxy's buffer, which the reflection traces, the culling's worlds it places its meshes by
-   *  and the placement tree its rays walk (`proxyWorlds`, `proxyTree`, record textures:
-   *  `../../gpu/dag/worldTable.ts`, `treeTable.ts`). */
+  /** The proxy's buffer, which the reflection traces, its instances, the culling's worlds it places
+   *  its meshes by and the placement tree its rays walk (`proxyInstances`, `proxyWorlds`,
+   *  `proxyTree`, record textures: `../../gpu/dag/proxyInstanceTable.ts`, `worldTable.ts`,
+   *  `treeTable.ts`). */
   proxy: 13,
   backdrop: 14,
   backdropDepth: 15,
@@ -49,6 +50,7 @@ export const WATER_BINDINGS = {
   volumes: 17,
   proxyWorlds: 20,
   proxyTree: 21,
+  proxyInstances: 22,
   /** The shadow pool's transmittance layer, on the deferred resolve's numbers. */
   shadowTransmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
   shadowTranslucentDepth: CONTRACT_SHADOW_BINDINGS.translucentDepth,
@@ -118,6 +120,7 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
       forwardReflectionWgsl(REFLECTION_GROUP, lobes, {
         group: 0,
         proxy: WATER_BINDINGS.proxy,
+        instances: WATER_BINDINGS.proxyInstances,
         worlds: WATER_BINDINGS.proxyWorlds,
         tree: WATER_BINDINGS.proxyTree,
       }),

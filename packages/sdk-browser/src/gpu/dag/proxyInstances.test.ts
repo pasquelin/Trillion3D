@@ -10,8 +10,17 @@ import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { dagRootCounts } from './pack.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { LIMITS, cut, open, region, surface, wordAt, writes } from './proxyInstances.fixture.ts'
-import { INSTANCE, INSTANCE_WORDS, RUNTIME_NONE } from '../../bounce/runtimeLayout.ts'
+import {
+  LIMITS,
+  cut,
+  instanceAt,
+  open,
+  region,
+  surface,
+  wordAt,
+  writes,
+} from './proxyInstances.fixture.ts'
+import { INSTANCE, RUNTIME_NONE } from '../../bounce/runtimeLayout.ts'
 
 test('no placement wears a proxy: no buffer, nothing for the trace to read', async () => {
   const { gpu, selection } = await open(() => undefined)
@@ -33,8 +42,7 @@ test('placements of one cut share its columns; each names its cut, its surface a
         : undefined,
   )
   assert.ok(selection.proxy()!.buffer.size > 0)
-  const instance = (w: number, k: number) =>
-    wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + k)
+  const instance = (w: number, k: number) => instanceAt(gpu, w, k)
   // Twelve placements of the first cut: the same node and triangle, the first surface.
   for (let w = 0; w < 12; w++) {
     assert.equal(instance(w, INSTANCE.node), 0)
@@ -79,10 +87,8 @@ test('a parked placement draws no proxy until it is taken back, and a mark follo
   const c = cut(2, 1, 1),
     s = surface(1)
   const { gpu, selection } = await open(() => ({ primitive: { runtimeProxy: c }, surface: s }))
-  const node = (w: number) =>
-    wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + INSTANCE.node)
-  const mark = (w: number) =>
-    wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + INSTANCE.mark)
+  const node = (w: number) => instanceAt(gpu, w, INSTANCE.node)
+  const mark = (w: number) => instanceAt(gpu, w, INSTANCE.mark)
   selection.parkWorld(3, true)
   assert.equal(node(3), RUNTIME_NONE)
   selection.parkWorld(3, false)
@@ -107,8 +113,7 @@ test('roots appended behind the others join with their instances', async () => {
   const gpu = fakeDevice({ ...BACKEND, packed, limits: LIMITS })
   const selection = (await createGpuDagSelection(gpu.device, packed))!
   assert.equal(selection.appendRoots(roots.slice(10)), true)
-  const node = (w: number) =>
-    wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + INSTANCE.node)
+  const node = (w: number) => instanceAt(gpu, w, INSTANCE.node)
   for (const w of [0, 9, 10, 15]) assert.equal(node(w), 0, `placement ${w}`)
   selection.dispose()
 })
@@ -122,9 +127,7 @@ test('past its first tables the arena grows, the columns it held carried over by
   )
   assert.ok(selection.proxy()!.buffer.size > 0)
   // Every placement still names its own cut's first triangle.
-  const triangles = Array.from({ length: 6 }, (_, w) =>
-    wordAt(gpu, region(gpu, 'instancesWord') + w * INSTANCE_WORDS + INSTANCE.triangle),
-  )
+  const triangles = Array.from({ length: 6 }, (_, w) => instanceAt(gpu, w, INSTANCE.triangle))
   assert.deepEqual(triangles, [0, 1000, 2000, 3000, 4000, 5000])
   selection.dispose()
 })
