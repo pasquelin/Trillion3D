@@ -45,6 +45,13 @@ export type TextureLevelReader = ((request: TextureLevelRequest) => Promise<Text
   readonly key: string
 }
 
+/** Decode options of every image the engine samples, a source image or a lossless baked level:
+ *  pixels as the file stores them, neither premultiplied nor colour-converted. */
+export const RAW_BITMAP: ImageBitmapOptions = {
+  premultiplyAlpha: 'none',
+  colorSpaceConversion: 'none',
+}
+
 /** Host bytes a decoded bitmap of `width` × `height` texels holds. */
 export const bitmapBytes = (width: number, height: number) => width * height * 4
 /** Host bytes a level holds: the bitmap's texels, or the blocks. */
@@ -57,13 +64,13 @@ export const closeTextureLevel = (level: TextureLevel) => {
 /**
  * Reader of a cache's baked levels, built by the explorer that knows the manifest address; the
  * engine itself only receives the function. A lossless level is read whole, by one request, and
- * decodes as the browser does, off the main thread, with exactly the options the prepared scene
- * decodes its source images with (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`,
- * `../host/prepared/images.ts`): the bytes that reach the atlas by this path are those that reached
- * it by the other. A block level is read by one tile's record at a time, by the page cache's
- * `readRange` (`PageCache.readRange`, which keeps the file a server answers whole). A read fails
- * once, never asked again here: `heldLevels.ts` checks each record and holds back what failed. A
- * cache whose levels are of another version is refused before any read (`assertCacheIdentity`).
+ * decodes as the browser does, off the main thread, with `RAW_BITMAP`, the options the prepared
+ * scene decodes its source images with (`../host/prepared/images.ts`): the bytes that reach the
+ * atlas by this path are those that reached it by the other. A block level is read by one tile's
+ * record at a time, by the page cache's `readRange` (`PageCache.readRange`, which keeps the file a
+ * server answers whole). A read fails once, never asked again here: `heldLevels.ts` checks each
+ * record and holds back what failed. A cache whose levels are of another version is refused before
+ * any read (`assertCacheIdentity`).
  *
  * Levels are held in `cache` under the cook's `key`, which hashes the source, its images, the
  * compiler and every option that decides the product: under one key a level names one file.
@@ -87,10 +94,7 @@ export function createTextureLevelReader(
       return new Uint8Array(bytes)
     }
     const response = await checked(url, signal, ONE_REQUEST)
-    return createImageBitmap(await response.blob(), {
-      premultiplyAlpha: 'none',
-      colorSpaceConversion: 'none',
-    })
+    return createImageBitmap(await response.blob(), RAW_BITMAP)
   }
   return Object.assign(read, { store: cache, key })
 }
