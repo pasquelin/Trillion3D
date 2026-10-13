@@ -44,8 +44,8 @@ const TREE_DEPTH = 8
  * the nearest, and returns at the first surface.
  *
  * ONE BUDGET A RAY (`RAY_WORK`, `RAY_TRIANGLES`): every box tested at either level, every node
- * visited and every triangle spends from the same counters; a ray that spends them is `exhausted`
- * and answers nothing (`rtScene`, `rtRadiance`): the next stage of the chain answers, never a miss.
+ * visited and every triangle spends from the same counters; a ray that spends them, or whose shadow
+ * ray spends its own (`rtLost`), is exhausted and carries zero weight (`runtimeLayout.ts`).
  */
 export const runtimeSceneWgsl = ({ group, proxy }: SceneBindings) =>
   wgslBlock(
@@ -83,6 +83,9 @@ var<private> rtTests:u32;
 var<private> rtExtra:u32;
 /** Whether \`rtScene\` answers the first surface it meets, not the nearest (\`rtBlocked\`). */
 var<private> rtAnyHit:bool;
+/** Whether a shadow ray the ray's lighting cast (\`rtBlocked\`) spent its budget: the ray then
+ *  carries zero weight, as one that spent its own (\`runtimeLayout.ts\`). */
+var<private> rtLost:bool;
 fn rtSpent()->bool{return rtWork>=RT_WORK||rtTests>=RT_TRIANGLES;}
 fn rtFloat(word:u32)->f32{return bitcast<f32>(rtProxy.words[word]);}
 fn rtVertex(index:u32,vertex:u32)->vec3f{
@@ -212,8 +215,8 @@ fn rtScene(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
 }
 /** Whether anything of the proxy stands on the segment of length \`span\` from \`origin\` along \`direction\`: the
  *  first surface met answers, not the nearest. The ray has its own budget; what it spent is charged to the
- *  ray the lighting is cast for (\`rtExtra\`). A ray that spends its budget reports no blocker, which lights what
- *  should be dark and never darkens what should be lit. */
+ *  ray the lighting is cast for (\`rtExtra\`). A ray that spends its budget marks that ray lost (\`rtLost\`):
+ *  its answer carries zero weight, and this one reports a blocker, which spares the rest of its lighting. */
 fn rtBlocked(origin:vec3f,direction:vec3f,span:f32)->bool{
  let work=rtWork;
  let tests=rtTests;
@@ -222,10 +225,12 @@ fn rtBlocked(origin:vec3f,direction:vec3f,span:f32)->bool{
  rtAnyHit=true;
  let hit=rtScene(origin,direction,span);
  rtAnyHit=false;
+ let lost=rtSpent();
+ rtLost=rtLost||lost;
  rtExtra+=rtWork;
  rtWork=work;
  rtTests=tests;
- return hit.found;
+ return hit.found||lost;
 }
 `,
   )

@@ -71,10 +71,17 @@ export const SURFACE_BLENDED = 1
 /**
  * THE BUDGETS OF A RAY AND OF A FRAME. One counter of `work` units per ray, shared by the placement
  * tree and the cuts' own nodes: a child a tree node examines costs one, a cut's node four, a triangle
- * two; a ray stops at `RAY_WORK` units or `RAY_TRIANGLES` triangle tests, and answers that
- * it is exhausted (zero confidence, the next stage of the chain), never a miss. A frame spends at
- * most about `FRAME_WORK` units (`runtimeTraceWgsl.ts`): the rays the budget leaves out go on in the
- * next frames, from the answer they last got (`reflections/proxyStore.ts`).
+ * two; a ray stops at `RAY_WORK` units or `RAY_TRIANGLES` triangle tests.
+ *
+ * ONE RULE FOR AN EXHAUSTED RAY, the physically safe one: a ray that spends its budget — or whose
+ * hit's lighting casts a shadow ray that spends its own — carries zero weight. It is never a miss
+ * (which would darken) nor an unblocked shadow (which would leak light): a reflection's ray answers
+ * zero confidence, its share left to the next stage of the chain (`rtRadiance`), and a probe's ray
+ * is dropped from the probe's estimate, which is renormalised over the rays that answered
+ * (`rtProbeRay`, `probeWgsl.ts`).
+ *
+ * A frame spends at most about `FRAME_WORK` units (`runtimeTraceWgsl.ts`): the rays the budget leaves
+ * out go on in the next frames, from the answer they last got (`reflections/proxyStore.ts`).
  */
 export const RAY_WORK = 512
 export const RAY_TRIANGLES = 128

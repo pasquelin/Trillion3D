@@ -76,12 +76,14 @@ fn rtShade(hit:RtHit,origin:vec3f,direction:vec3f,surface:RtSurface,reach:f32)->
  * radiance of the light they hold, \`confidence\` the share of the ray they stop; the rest goes on to the
  * next stage. \`error\` is the width the ray's lobe covers at a metre, \`tangent\`: a deformed placement's
  * reach, which its rest shape does not hold, takes confidence from a hit narrower than it.
- * Exhausted — the budget spent — is no answer at all, confidence zero.
+ * Exhausted — its budget or a shadow ray's spent — is no answer at all, confidence zero
+ * (\`runtimeLayout.ts\`).
  */
 fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
  rtWork=0u;
  rtTests=0u;
  rtExtra=0u;
+ rtLost=false;
  var color=vec3f(0.0);
  var through=1.0;
  var start=origin;
@@ -96,6 +98,7 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
   let known=spread/(spread+marked*length(rtWorldOf(hit.placement)[0].xyz));
   let opacity=select(1.0,surface.opacity,surface.blended)*known;
   color+=through*opacity*rtShade(hit,start,direction,surface,reach);
+  if(rtLost){return RtRadiance(vec3f(0.0),0.0);}
   through*=1.0-opacity;
   let travelled=hit.distance+max(rtProxy.error,1e-3);
   start+=direction*travelled;
@@ -107,16 +110,21 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
 }
 
 /** The light a probe's ray brings back: from \`origin\` along \`direction\`, \`reach\` far, what the first surface it
- *  meets is lit to — its emission is not bounced, the lamp lights the room directly — and the distance travelled:
- *  \`reach\` where it meets nothing or spends its budget, which darkens. */
+ *  meets is lit to — its emission is not bounced, the lamp lights the room directly — and the distance travelled,
+ *  \`reach\` where it meets nothing. An exhausted ray carries zero weight (\`runtimeLayout.ts\`): its distance is
+ *  then negative, and the probe leaves it out of its estimate. */
 fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  rtWork=0u;
  rtTests=0u;
  rtExtra=0u;
+ rtLost=false;
  let hit=rtScene(origin,direction,reach);
- if(!hit.found||rtSpent()){return vec4f(0.0,0.0,0.0,reach);}
+ if(rtSpent()){return vec4f(0.0,0.0,0.0,-1.0);}
+ if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}
  let surface=rtSurfaceOf(rtInstanceWord(hit.placement,RT_INSTANCE_SURFACE));
- return vec4f(rtLit(hit,origin,direction,surface,reach),hit.distance);
+ let lit=rtLit(hit,origin,direction,surface,reach);
+ if(rtLost){return vec4f(0.0,0.0,0.0,-1.0);}
+ return vec4f(lit,hit.distance);
 }
 `,
   )

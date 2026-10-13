@@ -82,6 +82,7 @@ export function runOver(
     rtTests: 0,
     rtExtra: 0,
     rtAnyHit: false,
+    rtLost: false,
     rtPixel: [0, 0],
     rtCalls: 0,
     rtRank: 0,
