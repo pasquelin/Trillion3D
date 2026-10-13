@@ -18,6 +18,7 @@ import { syncBounceProbes, type ProxyBoxes } from './probeSync.ts'
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
 import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { BOUNCE_PASS } from '../stage/passLabels.ts'
+import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import type { GpuLightTiles } from '../lighting/tiles/tiles.ts'
 import { BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
@@ -130,33 +131,27 @@ export async function createGpuBounceProbes(
   let pipeline: GPUComputePipeline
   let group: GPUBindGroup | undefined
   let follow: SnapshotFollow
-  let boundLights: GPUBuffer
-  let bound: GPUBuffer | undefined
   let layout: GPUBindGroupLayout
   const lists = worldLightLists(tiles, lights, uniform)
   // The lists' stand-in where no grid holds them: no point reads it (`setLightLists`).
   const noLists = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
-  let boundLists: GPUBuffer = noLists
-  /** The probe group, on the light buffer, the proxy buffer and the world lists of the moment (a growth of
-   *  the proxy's tables replaces its buffer); none while no placement wears a proxy. */
-  const bind = () => {
-    const meshes = scene.buffer()
-    if (!meshes) return (group = undefined)
-    bound = meshes
-    return (group = bounceGroup(
-      device,
-      layout,
-      [
-        uniform.buffer,
-        meshes,
-        (boundLights = lights()),
-        queue,
-        snapshotView,
-        probesView,
-        boundLists,
-      ],
-      PROBE_TYPES,
-    ))
+  /** What the probe group names (`createWebgpuBindIdentity`): the proxy buffer, the light buffer
+   *  and the world lists of the moment — a growth of the proxy's tables replaces its buffer. */
+  const bound = createWebgpuBindIdentity()
+  /** The probe group over `meshes`, the lights and `listed`, made again when one of them moved. */
+  const bind = (meshes: GPUBuffer, listed: GPUBuffer) => {
+    const light = lights(),
+      { next } = bound
+    next[0] = meshes
+    next[1] = light
+    next[2] = listed
+    if (bound.moved())
+      group = bounceGroup(
+        device,
+        layout,
+        [uniform.buffer, meshes, light, queue, snapshotView, probesView, listed],
+        PROBE_TYPES,
+      )
   }
   try {
     const module = await createCheckedShaderModule(device, BOUNCE_PROBE_SHADER, 'BOUNCE_PROBE')
@@ -249,10 +244,7 @@ export async function createGpuBounceProbes(
           ? lists.encode(encoder, cascades, lightsActive, frame)
           : undefined
       if (!meshes || !cascades.probes || !lightsActive || !working()) return false
-      if (meshes !== bound || lights() !== boundLights || (listing ?? noLists) !== boundLists) {
-        boundLists = listing ?? noLists
-        bind()
-      }
+      bind(meshes, listing ?? noLists)
       frame++
       const groups = schedule.plan(batch())
       if (groups) device.queue.writeBuffer(queue, 0, schedule.queue, 0, groups)
@@ -262,7 +254,7 @@ export async function createGpuBounceProbes(
       const pass = encoder.beginComputePass({ label: BOUNCE_PASS })
       if (groups) {
         pass.setPipeline(pipeline)
-        pass.setBindGroup(0, group)
+        pass.setBindGroup(0, group!)
         pass.dispatchWorkgroups(groups, 1, 1)
         follow(pass, groups)
       }

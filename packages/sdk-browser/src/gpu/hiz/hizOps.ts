@@ -7,6 +7,7 @@ import type { OpenPass } from '../core/lazyComputePass.ts'
 import type { createHizPipelines, hizPagesGroup } from './pipelines.ts'
 import type { GpuHiz } from './types.ts'
 import { sequentialEntries } from '../core/computeBindings.ts'
+import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 
 export type HizPipelines = NonNullable<Awaited<ReturnType<typeof createHizPipelines>>>
 
@@ -36,8 +37,6 @@ export type HizState = HizPipelines & {
   /** The drawn view's pyramid; another view keeps its own while this one is drawn (`swap`). */
   at: Pyramid | undefined
   bindGroup: GPUBindGroup | undefined
-  /** Bumped when the partition's buffers change: a pyramid's cached bind group is then stale. */
-  bindings: number
   bounds: GPUBuffer
   state: GPUBuffer
   flags: GPUBuffer
@@ -53,9 +52,10 @@ export const hizFlags = (device: GPUDevice, rows: number) =>
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   })
 
-/** The drawn pyramid's bind group, made once per pyramid, per `attach` and per front depth — the
- *  one `h.front` gives now, else level 0 —, never per swap; what its readers bind (`at.depth`)
- *  goes with it when the front changed. */
+/** The drawn pyramid's bind group, made again when the front depth — the one `h.front` gives now,
+ *  else level 0 — or a buffer it names moved (`createWebgpuBindIdentity`: an `attach`, a growth of
+ *  the flags), never per swap; what its readers bind (`at.depth`) goes with it when the front
+ *  changed. */
 export function bindHiz(h: HizState) {
   const { at } = h
   if (!at) return void (h.bindGroup = undefined)
@@ -63,20 +63,28 @@ export function bindHiz(h: HizState) {
   if (at.frontView !== front) {
     at.frontView = front
     at.depth = undefined
-  } else if (at.group && at.bindings === h.bindings) return void (h.bindGroup = at.group)
-  at.bindings = h.bindings
-  h.bindGroup = at.group = h.device.createBindGroup({
-    layout: h.layout,
-    entries: sequentialEntries([
-      at.pyramidView,
-      at.level0View,
-      { buffer: h.uniforms, size: HIZ_SLOT_WORDS * 4 },
-      { buffer: h.bounds },
-      { buffer: h.flags },
-      { buffer: h.state },
-      at.frontView,
-    ]),
-  })
+  }
+  const bound = (at.bound ??= createWebgpuBindIdentity()),
+    { next } = bound
+  next[0] = front
+  next[1] = h.uniforms
+  next[2] = h.bounds
+  next[3] = h.flags
+  next[4] = h.state
+  if (bound.moved())
+    at.group = h.device.createBindGroup({
+      layout: h.layout,
+      entries: sequentialEntries([
+        at.pyramidView,
+        at.level0View,
+        { buffer: h.uniforms, size: HIZ_SLOT_WORDS * 4 },
+        { buffer: h.bounds },
+        { buffer: h.flags },
+        { buffer: h.state },
+        at.frontView,
+      ]),
+    })
+  h.bindGroup = at.group
 }
 
 /** Installs `next` as the drawn pyramid: bound, its build words written, its size published. */
@@ -106,8 +114,7 @@ export function hizGrowFlags(h: HizState, gpu: GpuHiz, rows: number) {
     const old = h.flags
     h.buffers[h.buffers.indexOf(old)] = gpu.flags = h.flags = next
     h.cap = rows
-    // Every pyramid's group names the flags: each is made again at its next install.
-    h.bindings++
+    // Every pyramid's group names the flags: each is made again at its next bind (`bindHiz`).
     bindHiz(h)
     return [old]
   })
