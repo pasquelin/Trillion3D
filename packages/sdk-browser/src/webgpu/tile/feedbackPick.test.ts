@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { FEEDBACK_EVERY, PICK_SHIFT, createWebgpuTileFeedback } from './feedback.ts'
 import { fakeDevice, BACKEND } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { PICK_CYCLE } from './pickCycle.ts'
+import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 
 // Ordinary images must turn the pick, so a live view asks the sliver's
 // tile. Each pixel speaks once per phase round: the pick turns once per round, and each pixel
@@ -31,9 +32,18 @@ test('feedback growth discards completed and in-flight counts from the previous 
   const feedback = createWebgpuTileFeedback(device, 4)
   feedback.encode(device.createCommandEncoder())
   feedback.submitted()
-  const old = buffers.slice()
+  const old = buffers.slice(),
+    [counters, list] = old
   feedback.grow(8)
-  assert.ok(old.every((buffer) => destroyed.includes(buffer)))
+  assert.ok(
+    !old.some((buffer) => destroyed.includes(buffer)),
+    'the image encoded may still name them: nothing destroyed at the growth',
+  )
+  destroyRetired(device)
+  assert.ok(
+    [counters, list].every((buffer) => destroyed.includes(buffer)),
+    'the outgrown counters and list, once the frame is submitted',
+  )
   resume()
   await feedback.settled()
   assert.equal(feedback.take(), undefined, 'late old counts cannot name new slots')
@@ -41,6 +51,8 @@ test('feedback growth discards completed and in-flight counts from the previous 
   feedback.submitted()
   await feedback.settled()
   assert.equal(feedback.take()?.index.length, 8, 'listing at most the ranks of its generation')
+  const staging = buffers.filter(({ label }) => label === 'Trillion3D texture feedback readback')
+  assert.equal(staging.length, 3, 'one ring: one buffer made again at the grown size, at a take')
   feedback.grow(2)
   assert.equal(feedback.take(), undefined, 'completed counts are also invalidated')
   feedback.destroy()
