@@ -5,7 +5,8 @@ import { TRACE_LIST } from '../../../packages/sdk-browser/src/bounce/runtimeLayo
 import { proofCanvas } from '../kit/renderHarness.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
-import { listenToWorldDevices, readWords } from '../kit/worldErrors.ts'
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
+import { listenToWorldDevices } from '../kit/worldErrors.ts'
 import { familyCase } from './runtimeFamilyCases.ts'
 import { familyWorld } from './runtimeFamilyWorld.ts'
 
@@ -58,7 +59,7 @@ export const run = (size: readonly [number, number]) =>
         .reverse()
         .find(([label]) => label.startsWith('Trillion3D reflection tile list'))?.[1]
       if (!list || !context.current) continue
-      const counters = await readWords(context.getConfiguration().device, list, 5)
+      const counters = (await readGpuBuffer(context.getConfiguration().device, list, 5 * 4))!
       trail.push({
         spent: counters[TRACE_LIST.spent],
         left: counters[TRACE_LIST.left],

@@ -7,7 +7,8 @@ import { proofCanvas } from '../kit/renderHarness.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { readTexture } from '../kit/computeReadback.ts'
-import { listenToWorldDevices, readWords } from '../kit/worldErrors.ts'
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
+import { listenToWorldDevices } from '../kit/worldErrors.ts'
 import { familyCase, GRID } from './runtimeFamilyCases.ts'
 import { familyWorld } from './runtimeFamilyWorld.ts'
 
@@ -65,7 +66,9 @@ async function draw(index: number, limit: number) {
   const list = [...made]
     .reverse()
     .find(([label]) => label.startsWith('Trillion3D reflection tile list'))?.[1]
-  const counters = list ? await readWords(canvasDevice(canvas), list, 5) : [0, 0, 0, 0, 0]
+  const counters = list
+    ? (await readGpuBuffer(canvasDevice(canvas), list, 5 * 4))!
+    : new Uint32Array(5)
   world.dispose()
   canvas.remove()
   return {
