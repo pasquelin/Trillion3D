@@ -4,6 +4,8 @@ import {
   changedWorlds,
   worldChangedAt,
   writePrimitiveWords,
+  MARK_WORD,
+  ROOT_WORD,
 } from './worlds.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { createDagResidencyUpload } from './residencyUpload.ts'
@@ -224,7 +226,7 @@ export function parkRoot({ resources, state, tree, proxies }: DagRun, w: number,
   if (packed.rootNodes[w] === node) return
   packed.rootNodes[w] = node
   // The root travels behind the stretch in the frame buffer (`resources.ts`).
-  frames.writeWord(w, 1, node)
+  frames.writeWord(w, ROOT_WORD, node)
   proxies.park(w, parked)
   tree?.touch(w)
   voidCuts(state)
@@ -237,7 +239,7 @@ export function writeMark({ resources, state, tree, proxies }: DagRun, w: number
   if (before === mark) return
   packed.mark[w] = mark
   // The mark travels behind the record shift (`primitiveFrameWords`).
-  frames.writeWord(w, 3, mark)
+  frames.writeWord(w, MARK_WORD, mark)
   proxies.mark(w, mark)
   tree?.marked(w, before)
   voidCuts(state)

@@ -19,6 +19,8 @@ import type { StreamPage } from '../streaming/types.ts'
 import type { EngineSceneUpdates } from '../placement/engineSceneUpdates.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { EngineProbes } from './probes.ts'
+import type { Ray } from '../../../sdk-core/src/world/math/volumes.ts'
+import type { Intersection, RayFilter } from '../world/query/types.ts'
 export type { EngineCapabilities, EngineDiagnostic, DiagnosticDetail }
 type ViewSize = { width: number; height: number }
 /** The engine: the WebGPU page raster (`../webgpu/pages/pages.ts`), the session's one renderer.
@@ -100,6 +102,11 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   landings(): number
   /** A residency job still loads pages: the view is arriving, whatever the last landing. */
   arriving(): boolean
+  /** The nearest drawn triangle a world ray meets, of the objects `filter` lets it meet, within
+   *  `reach` (`../webgpu/rays/rayQueue.ts`): traced on the GPU at the next tick with every ray cast
+   *  meanwhile, answered a frame or so later, never waited for. A session that cannot trace —
+   *  opening, lost, disposed — answers `null`. */
+  castRay(ray: Ray, filter?: RayFilter, reach?: number): Promise<Intersection | null>
   /** Current GPU image, bottom-left origin, read back without stalling a frame: the one the last
    *  flush read when it is still current. */
   capture(): Promise<Uint8Array>

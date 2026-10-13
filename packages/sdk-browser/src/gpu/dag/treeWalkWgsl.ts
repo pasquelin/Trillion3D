@@ -12,7 +12,7 @@ const TREE_DEPTH = 8
  * What differs between the rays that walk the placement tree (`placementTreeWalk`): where its nodes
  * are read, what entering a member does, and the ray's own bounds.
  */
-export type TreeWalk = {
+type TreeWalk = {
   /** The tree's top node, an expression. */
   root: string
   /** The functions reading word `field` of tree node `node`, and the low and high corners of its
