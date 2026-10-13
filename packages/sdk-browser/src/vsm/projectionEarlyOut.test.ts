@@ -6,7 +6,8 @@
 // the trace without it does. The tile depths it reads are `tileDepth.test.ts`'s.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun, Mat } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { CODE, IDENTITY, ref, unit } from './pageWorld.fixture.ts'
 import {
   earlyOutWorld,

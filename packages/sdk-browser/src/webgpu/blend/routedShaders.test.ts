@@ -3,7 +3,8 @@
 // and maps the tint and the added value by its display colour, elsewhere it draws unchanged.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { close, display, srgb } from './blendModel.fixture.ts'
 import { ACES, ROUTE_FUNCTIONS, routeScope } from './displayRun.fixture.ts'
 import { PARTICLE_DRAW_WGSL } from '../particles/particlesWgsl.ts'

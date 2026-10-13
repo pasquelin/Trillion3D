@@ -2,7 +2,8 @@
 // over a small frame: its render inputs as functions of the texel, its history as one of the point
 // read.
 import { f32Bits } from '../../../math/src/float/bits.ts'
-import { Mat, type Vec } from '../texture/shaderRun.fixture.ts'
+import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
+import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
 import { taaUpscaleShader } from './upscaleWgsl.ts'
 import { taaShader } from './shaderWgsl.ts'
 import { TAA_WEIGHTS, taaWeights } from './filterWeights.ts'

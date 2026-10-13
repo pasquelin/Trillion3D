@@ -5,7 +5,7 @@
 // page. With the stand-ins `shaderRun` lacks: WGSL's 3×3, the structures the text builds by name,
 // integer division for the page decode (`homesDecode.test.ts`).
 import { f32Bits } from '../../../../math/src/float/bits.ts'
-import { Mat } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { encodePage } from '../../page/codec/encodePage.fixture.ts'

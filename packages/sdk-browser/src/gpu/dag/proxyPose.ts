@@ -32,7 +32,8 @@ import { PROXY_POSE_PASS } from '../../stage/passLabels.ts'
 
 /** Levels a fit serves at most: a wide tree of 16384 triangles is under a dozen deep. */
 const MAX_LEVELS = 32
-const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+/** The usage of the pose buffers, read when a buffer is made: the module loads without a GPU. */
+const storage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 
 /** A pose: the copy of a mesh's proxy that stands at the pose of one placement. */
 export type PoseEntry = {
@@ -108,7 +109,7 @@ export function createProxyPose(device: GPUDevice) {
       device,
       'Trillion3D proxy pose levels',
       Math.max(16, schedule.ids.byteLength),
-      STORAGE,
+      storage(),
     )
     idsSent = undefined
   }
@@ -145,7 +146,7 @@ export function createProxyPose(device: GPUDevice) {
         device,
         'Trillion3D proxy pose entries',
         Math.max(16, table.byteLength),
-        STORAGE,
+        storage(),
       )
       writeChanged(device, poses, table, 0, table.length)
       if (idsSent !== ids) {

@@ -3,7 +3,7 @@
 // NaN —, the bit-for-bit equality of two results, and the built-ins of the VSM helpers that
 // `shaderRunBuiltins.fixture.ts` lacks.
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
-import { Mat } from '../texture/shaderRun.fixture.ts'
+import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { builtins, each } from '../texture/shaderRunBuiltins.fixture.ts'
 import { unit } from './pageWorld.fixture.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'

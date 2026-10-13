@@ -4,7 +4,7 @@
 // drawn the same way), projection records per map, pool words per texel — each a hash of its
 // address, so a word read twice is the same word. The world counts the page-table words read.
 import { f32Bits } from '../../../math/src/float/bits.ts'
-import { Mat } from '../texture/shaderRun.fixture.ts'
+import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'

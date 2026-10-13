@@ -5,7 +5,8 @@
 // same operations in the same order give the same bits, here in double precision.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { perspectiveProjection } from '../../../../sdk-core/src/index.ts'
 import { STRUCTS } from './triangleScene.fixture.ts'

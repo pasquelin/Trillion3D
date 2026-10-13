@@ -4,7 +4,8 @@
 // after their trace (`directShadowWgsl`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { functionText } from '../../bounce/wgslBody.fixture.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'

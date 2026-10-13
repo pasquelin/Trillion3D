@@ -136,7 +136,7 @@ function reassignBlend(records: readonly PageRec[], alpha: AlphaChange) {
 }
 
 /** What a collection fills: the roots, the records, the forward copies and the cover's records. */
-type Collected = {
+export type Collected = {
   roots: ClusterRoot<PageRec>[]
   allPages: PageRec[]
   blendCopies: BlendCopy[]

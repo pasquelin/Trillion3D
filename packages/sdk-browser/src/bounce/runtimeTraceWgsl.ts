@@ -1,4 +1,5 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
 import { inverseTranspose3, unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
@@ -42,9 +43,6 @@ export const runtimeRadianceWgsl = (scene: SceneBindings) =>
     `
 ${wgslConsts({
   RT_LAYERS: RAY_LAYERS,
-  RT_SPREAD_FLOOR: RAY_SPREAD_FLOOR,
-  RT_THROUGH_FLOOR: RAY_THROUGH_FLOOR,
-  RT_ERROR_FLOOR: RAY_ERROR_FLOOR,
   RT_SURFACE_BLENDED: SURFACE_BLENDED,
   RT_SURFACE_WORDS: SURFACE_WORDS,
   RT_SURFACE_TINT: SURFACE.tint,
@@ -52,6 +50,9 @@ ${wgslConsts({
   RT_SURFACE_EMISSION: SURFACE.emission,
   RT_SURFACE_FLAGS: SURFACE.flags,
 })}
+const RT_SPREAD_FLOOR:f32=${wgslF32(RAY_SPREAD_FLOOR)};
+const RT_THROUGH_FLOOR:f32=${wgslF32(RAY_THROUGH_FLOOR)};
+const RT_ERROR_FLOOR:f32=${wgslF32(RAY_ERROR_FLOOR)};
 /** What a ray brings back: the radiance of what it met, weighed by the confidence of the answer. */
 struct RtRadiance{color:vec3f,confidence:f32,}
 /** A surface's words (\`runtimeLayout.ts\`): its diffuse tint and opacity, its emission and its flags. */

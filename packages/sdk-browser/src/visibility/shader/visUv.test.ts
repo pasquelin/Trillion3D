@@ -4,7 +4,8 @@
 // verdict it had when every row with UVs handed them on.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun, Mat } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { FLAG_HAS_COLOR, FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_MASK, FLAG_SAMPLED } from '../types.ts'

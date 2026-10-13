@@ -3,7 +3,8 @@
 // JavaScript against what each one claims: an orthonormal frame, det · M⁻ᵀ, a pixel and a uv.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
   frameAround,

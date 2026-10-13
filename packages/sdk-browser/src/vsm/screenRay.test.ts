@@ -6,7 +6,8 @@
 // reads it takes grow with the logarithm of the ray's length in pixels — never with it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun, Mat } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import {
   depthField,

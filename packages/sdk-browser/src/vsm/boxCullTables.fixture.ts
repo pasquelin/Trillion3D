@@ -3,7 +3,8 @@
 // (a few pages, or a whole level), the coarse-page thresholds and a log of what the text hands
 // them —, one set a case, read through one scope so that a text compiles once a test; and the
 // boxes' lights.
-import { Mat, shaderRun } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { vsmInvalidationWgsl } from './invalidationWgsl.ts'

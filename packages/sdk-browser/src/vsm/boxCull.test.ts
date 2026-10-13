@@ -5,7 +5,7 @@
 // w = 0, empty extents, the f32 limits, infinities and NaN.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Mat } from '../texture/shaderRun.fixture.ts'
+import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { INVALIDATION_BOX_CULL, RENDER_BOX_CULL } from './boxCullBefore.fixture.ts'
 import { INVALIDATION, RENDER, run } from './boxCullTables.fixture.ts'
 import { inputs, sameBits } from './sameBits.fixture.ts'

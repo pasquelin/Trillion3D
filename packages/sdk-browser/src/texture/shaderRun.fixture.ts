@@ -6,7 +6,6 @@ import { assigned, builtins } from './shaderRunBuiltins.fixture.ts'
 import { structZero, zeroOf } from './shaderRunStructs.fixture.ts'
 import { type WgslSource, wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
-export { Mat, type Vec } from './shaderRunBuiltins.fixture.ts'
 const SWIZZLE = /^(?:[xyzw]{1,4}|[rgba]{1,4})$/
 /** A token, or what it skips: blanks and `//` comments. */
 const TOKEN =

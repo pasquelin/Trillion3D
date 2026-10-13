@@ -1,14 +1,15 @@
 // The scene the tests of the shipped stages run over: quantized pages of 1 to 128 triangles
 // under every row kind, a source-buffer page, far from the origin; `stages` runs a shipped text
 // over it.
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts'
 import * as F from '../types.ts'
 import { NO_HIZ_SLOT } from '../../webgpu/row/noHizSlot.ts'
 import { perspectiveProjection } from '../../../../sdk-core/src/index.ts'
-import type { Vec } from '../../texture/shaderRun.fixture.ts'
+import type { Vec } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 const random = lcgFloatRandom(831)

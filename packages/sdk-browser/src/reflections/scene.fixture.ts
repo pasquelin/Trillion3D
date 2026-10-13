@@ -1,7 +1,8 @@
 // The reflection's shipped WGSL over synthetic views, for its tests: the shipped `reflectionSeen`
 // and march run in JavaScript (`reflectionRunner`) over a depth pyramid (`depthField.fixture.ts`)
 // of boxes seen by a camera (`boxes.fixture.ts`).
-import { Mat, shaderRun } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { depthField, depthLoads, HIZ_DEPTH_READERS, type DepthField } from './depthField.fixture.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'

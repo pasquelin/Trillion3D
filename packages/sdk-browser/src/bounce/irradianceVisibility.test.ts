@@ -4,7 +4,8 @@
 // (`lightsIrradiance`, `../lighting/direct/lightLoopWgsl.ts`), runs here against a flat wall.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun, type Vec } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
 import { LIGHTS_IRRADIANCE_WGSL } from '../lighting/direct/lightLoopWgsl.ts'
 
 type Light = { height: number; energy: number; casts?: boolean; range?: number }
