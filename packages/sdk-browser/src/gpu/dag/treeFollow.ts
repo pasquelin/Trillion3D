@@ -7,10 +7,16 @@
  * engine's one (`treeRefit.ts`): this module names what it fits and writes the leaves — the box of
  * each placement the CPU holds the world of — and the composition writes the ones it composes.
  */
-import { opensTree, TREE_SPAN } from './placementTree.ts'
+import { drawnAlways, treeMarkMoved, TREE_SPAN } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
-import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
+import {
+  createSortedKeys,
+  mirrorKey,
+  mirroredWords,
+  takeMirrored,
+  takeSorted,
+} from '../../webgpu/cut/denseKeys.ts'
 import { createTreeRefit, type RefitTables } from './treeRefit.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 
@@ -69,9 +75,14 @@ export function createTreeFollower(
   }
   return {
     touch,
-    /** Placement `w`'s mark moved from `before`: its group fits again where it opens or closes. */
+    /** Placement `w`'s mark moved from `before`: its leaf fits again where its reach moved, and it
+     *  joins or leaves the members drawn whatever the view (`drawnAlways`). */
     marked(w: number, before: number) {
-      if (opensTree(packed.mark[w]) !== opensTree(before)) touch(w)
+      const mark = packed.mark[w]
+      if (!treeMarkMoved(before, mark)) return
+      touch(w)
+      if (w < tree.slot.length && tree.slot[w] !== 0xffffffff)
+        mirrorKey(tree.always, w, drawnAlways(mark))
     },
     /** The poses a send moved (`updateWorlds`), a host walk's as a call's. */
     moved(ranks: ArrayLike<number>) {
@@ -90,6 +101,15 @@ export function createTreeFollower(
     /** Before every cut on the tables, the main view's or one aside: what moved fitted again, in a
      *  command buffer of its own that the cut's follows. */
     sync() {
+      // The members drawn whatever the view, their places moved since sent behind the order.
+      if (tree.always.moves.listed.count) {
+        const moved = takeMirrored(tree.always),
+          source = { data: mirroredWords(tree.always), sourceBase: 0, stride: 1 }
+        writeRanges(device, coldParts, moved, moved.length, {
+          ...source,
+          targetBase: tree.alwaysAt,
+        })
+      }
       const placements = dirty.listed.count ? takeSorted(dirty) : undefined
       if (!placements?.length && !groups.size) return
       const fit = new Set(groups)

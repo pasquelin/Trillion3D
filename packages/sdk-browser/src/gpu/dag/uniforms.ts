@@ -138,6 +138,8 @@ export function writeDagUniforms(
   ints[W('treeTop')] = tree?.levels[0].count ?? 0
   ints[W('cellBase')] = tree?.cellBase ?? 0
   ints[W('members')] = tree?.members ?? 0
+  ints[W('always')] = tree?.alwaysAt ?? 0
+  ints[W('alwaysCount')] = tree?.always.set.count ?? 0
   // The placements' links to the world DAG (`worldLinks.ts`): none, no gate.
   ints[W('worldLinks')] = world?.linkBase ?? 0
   // The world DAG's threshold this cut, its transitions dithered in time (`worldFade.ts`).

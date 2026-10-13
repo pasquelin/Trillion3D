@@ -17,13 +17,16 @@
  * the placements on a Morton curve of their positions, so a group is a patch of the world whatever
  * order the scene lists its nodes in. The order rides behind the cold records (`members`).
  *
- * A tree node's box is the WORLD box of its members — each root's box through its absolute
+ * A tree node's box is the WORLD box of its members — each root's box, grown in its own space by its
+ * deformation's reach as its root test grows its planes (`primitiveWgsl.ts`), through its absolute
  * world —, tested against the frustum's render-frame planes once the eye is taken off it. It holds
- * every member's root box, grown by a margin past the single-precision rounding of both tests, so a
- * box the tree rejects is one every member's root test would have rejected: the cut is unchanged.
- * A member whose pose the box cannot hold — never culled, deformed by a reach
- * — opens its group and every node above it: they are never rejected, their box the one no plane
- * rejects (`OPEN`). A parked member, or a member slot no placement holds yet, holds nothing.
+ * every member's leaf, grown by a margin past the single-precision rounding of both tests, so a box
+ * the tree rejects is one every member's root test would have rejected: the cut is unchanged. Every
+ * box is finite: a member drawn whatever the view — never culled, or deformed past every finite
+ * reach (`drawnAlways`) — is no group's to open; it is listed apart (`always`, behind the order in
+ * the cold table) and opened from queue 0 with the tree's top (`placementTreeWgsl.ts`), its leaf
+ * kept in its group for what walks the tree by boxes — a ray (`../../bounce/runtimeSceneWgsl.ts`).
+ * A parked member, or a member slot no placement holds yet, holds nothing.
  *
  * The tree is built here — `packPlacementTree` fits every node once, as the tables are made —, and
  * refit on the GPU from then on (`treeRefit.ts`): what a pose, a park or a mark moved, over the
@@ -36,6 +39,10 @@ import { boxTransform } from '../../../../sdk-core/src/index.ts'
 import { SELECTION_NONE as NONE, SELECTION_WORKGROUP } from '../core/selection.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
+import { FINITE_SENTINEL } from '../../../../math/src/constants.ts'
+import { fromHalf } from '../../../../math/src/float/half.ts'
+import { boxGrow } from '../../../../math/src/geometry/box.ts'
+import { createMirroredKeys, mirrorKey, type MirroredKeys } from '../../webgpu/cut/denseKeys.ts'
 import {
   NODE_CEIL,
   NODE_CHILD_COUNT,
@@ -76,6 +83,10 @@ export type PlacementTree = {
   /** Each placement's root box through its world as its last fit took it, six numbers a slot of
    *  the worlds: a refit transforms the moved members' alone and joins the others' kept. */
   boxes: Float64Array
+  /** The members drawn whatever the view (`drawnAlways`), and the cold word their list lies from,
+   *  behind the order: queue 0 opens them (`placementTreeWgsl.ts`). */
+  always: MirroredKeys
+  alwaysAt: number
 }
 
 /** Whether `members` member slots take a tree: not when one group would hold them all, a cell of
@@ -124,6 +135,8 @@ export function placementTreeShape(
     depth: levels.length,
     members: 0,
     boxes: new Float64Array(capacity.worlds * 6),
+    always: createMirroredKeys(),
+    alwaysAt: 0,
   }
 }
 
@@ -198,8 +211,6 @@ const groupLevel = (tree: PlacementTree) => tree.levels[tree.levels.length - 1]
 /** What the tree reads of the packing: each placement's root box, its absolute world, its mark. */
 type TreeSource = Pick<PackedDag, 'nodes' | 'rootNodes' | 'rootBases' | 'mark' | 'worldSources'>
 
-/** Twice a float's largest finite value: an open box's bounds, past every plane. */
-export const OPEN = 3.4e38
 /** Relative margin a box grows by: far above both tests' single-precision rounding (2⁻²⁴). */
 export const MARGIN = 2 ** -16
 
@@ -229,19 +240,23 @@ export function packPlacementTree(packed: TreeSource, tree: PlacementTree) {
       packed.nodes[at + NODE_FLOOR] = 0
     }
   })
-  // The boxes are the refit's (`treeRefit.ts`): every node opens until the first cut fits it, over
-  // the leaves taken here.
-  for (let k = 0; k < tree.count; k++) memberBox(packed, tree, tree.order[k])
+  // The boxes are the refit's (`treeRefit.ts`): every node holds the whole world until the first
+  // cut fits it, over the leaves taken here.
+  for (let k = 0; k < tree.count; k++) {
+    const w = tree.order[k]
+    memberBox(packed, tree, w)
+    if (drawnAlways(packed.mark[w])) mirrorKey(tree.always, w, true)
+  }
   for (const { base, count } of tree.levels)
-    for (let j = 0; j < count; j++) openNode(packed.nodes, base + j)
+    for (let j = 0; j < count; j++) wholeNode(packed.nodes, base + j)
 }
 
-/** Node `n` takes the box no plane rejects. */
-function openNode(nodes: Float32Array, n: number) {
+/** Node `n` takes the box of the whole world, which no plane rejects: a node before its first fit. */
+function wholeNode(nodes: Float32Array, n: number) {
   const at = n * DAG_NODE_FLOATS
   for (let a = 0; a < 3; a++) {
-    nodes[at + NODE_MIN + a] = -OPEN
-    nodes[at + NODE_MAX + a] = OPEN
+    nodes[at + NODE_MIN + a] = -FINITE_SENTINEL
+    nodes[at + NODE_MAX + a] = FINITE_SENTINEL
   }
 }
 
@@ -264,6 +279,7 @@ export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, batch
   order.forEach((w, i) => {
     tree.order[from + i] = w
     tree.slot[w] = from + i
+    if (drawnAlways(packed.mark[w])) mirrorKey(tree.always, w, true)
   })
   tree.count = from + batch.length
   const groups = groupLevel(tree).base,
@@ -275,21 +291,40 @@ export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, batch
   return { nodes: Int32Array.from(nodes), members: [from, tree.count] as const }
 }
 
-/** Whether placement `w`'s box cannot hold its pose: never culled, or deformed by a reach. */
-export const opensTree = (mark: number) => (mark & SPRITE_UNCULLED) !== 0 || mark >>> 16 !== 0
+/** A deformation reach's bits from an infinite half up: past every finite reach (`markReach`). */
+export const REACH_UNBOUNDED = 0x7c00
+
+/** Whether a placement of mark `mark` is drawn whatever the view: never culled, or deformed past
+ *  every finite reach. Its root opens from queue 0, never through its group (`always`). */
+export const drawnAlways = (mark: number) =>
+  (mark & SPRITE_UNCULLED) !== 0 || mark >>> 16 >= REACH_UNBOUNDED
+
+/** The reach a placement of mark `mark` grows its leaf by, in its own space: the half its root test
+ *  grows its planes by (`reachOf`), none past every finite one — `drawnAlways` draws it. */
+export const leafReach = (mark: number) => {
+  const bits = mark >>> 16
+  return bits && bits < REACH_UNBOUNDED ? fromHalf(bits) : 0
+}
+
+/** Whether a mark moving from `before` to `mark` moves what the tree holds of its placement: its
+ *  leaf's reach, or whether it is drawn whatever the view. */
+export const treeMarkMoved = (before: number, mark: number) =>
+  before >>> 16 !== mark >>> 16 || drawnAlways(before) !== drawnAlways(mark)
 
 const box = new Float64Array(12)
 
-/** Member `w`'s root box through its world, kept in `tree.boxes`: taken when it moved, the refit
- *  joining the kept one. A parked member, or one without a root, keeps none. */
+/** Member `w`'s leaf, kept in `tree.boxes`: its root box grown by its reach (`leafReach`) through
+ *  its world, taken when it moved, the refit joining the kept one. A parked member, or one without
+ *  a root, keeps none. */
 export function memberBox(packed: TreeSource, tree: PlacementTree, w: number) {
   if (w === NONE || packed.rootNodes[w] === NONE) return
   const root = packed.rootBases[w] * DAG_NODE_FLOATS,
     nodes = packed.nodes
   for (let a = 0; a < 3; a++) {
-    box[6 + a] = nodes[root + NODE_MIN + a]
-    box[9 + a] = nodes[root + NODE_MAX + a]
+    box[a] = nodes[root + NODE_MIN + a]
+    box[3 + a] = nodes[root + NODE_MAX + a]
   }
+  boxGrow(box, 6, box, 0, leafReach(packed.mark[w]))
   boxTransform(tree.boxes, w * 6, box, 6, packed.worldSources[w].world.elements)
 }
 

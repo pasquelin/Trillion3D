@@ -14,6 +14,7 @@ import {
   WORLD_BOX_WGSL,
 } from './gpuComposeDerivedWgsl.ts'
 import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
+import { REACH_UNBOUNDED } from '../gpu/dag/placementTree.ts'
 import { nodeTableBlock, WHOLE_LAYOUT, type RefitLayout } from '../gpu/dag/treeRefitWgsl.ts'
 import { ROW_INPUT_DOUBLES } from './composedRowPack.ts'
 import { CENTRE_ERROR, SPHERE_GROWTH, SPHERE_MARGIN } from './rowSphere.ts'
@@ -247,9 +248,9 @@ fn composeRow(row:u32){
  * One thread per root a parent composes (`ranks`), those of a range at work: the leaf box the
  * placement tree fits over (`treeRefit.ts`) of a
  * root a parent composes — the box of its root node, as the packing holds it, carried by the
- * composed world — in the table of leaf boxes, six doubles a placement, as `memberBox` writes it for
- * a root whose world the CPU holds. A root without a parent, or parked (its root node none), keeps
- * the box it had.
+ * composed world, grown first in its own space by its deformation's reach (`leafReach`) — in the
+ * table of leaf boxes, six doubles a placement, as `memberBox` writes it for a root whose world the
+ * CPU holds. A root without a parent, or parked (its root node none), keeps the box it had.
  */
 export const composeMembersWgsl = (nodes: RefitLayout['nodes'] = WHOLE_LAYOUT.nodes) =>
   wgslProgram(
@@ -272,14 +273,26 @@ export const composeMembersWgsl = (nodes: RefitLayout['nodes'] = WHOLE_LAYOUT.no
  if(root==${NONE}u){return;}
  var world:array<vec2u,16>;
  for(var k=0u;k<16u;k++){world[k]=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);}
+ // The reach its mark carries (the frame row's word 3), none past every finite one.
+ let mark=frames[i*${FRAME_ROW_WORDS}u+3u];
+ var reach=vec2u(0u,0u);
+ if((mark>>16u)<${REACH_UNBOUNDED}u){reach=fromF32(bitcast<u32>(unpack2x16float(mark).y));}
  var lo:array<vec2u,3>;
  var hi:array<vec2u,3>;
  for(var a=0u;a<3u;a++){
-  lo[a]=fromF32(nodeWord(root,${NODE_MIN}u+a));
-  hi[a]=fromF32(nodeWord(root,${NODE_MAX}u+a));
+  lo[a]=dSub(fromF32(nodeWord(root,${NODE_MIN}u+a)),reach);
+  hi[a]=dAdd(fromF32(nodeWord(root,${NODE_MAX}u+a)),reach);
  }
  let box=carriedBox(world,lo,hi);
  for(var k=0u;k<6u;k++){members[rank*6u+k]=box[k];}
 }`,
-    [PRODUCT_WGSL, FLAT_INDEX_WGSL, fromF32, CARRIED_BOX_WGSL, nodeTableBlock(nodes, 1, false)],
+    [
+      PRODUCT_WGSL,
+      FLAT_INDEX_WGSL,
+      fromF32,
+      dAdd,
+      dSub,
+      CARRIED_BOX_WGSL,
+      nodeTableBlock(nodes, 1, false),
+    ],
   )
