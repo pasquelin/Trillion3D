@@ -8,7 +8,10 @@ import { RUNTIME_ANSWER_WGSL } from './runtimeAnswerWgsl.ts'
 import { runtimeSceneWgsl, type SceneBindings } from './runtimeSceneWgsl.ts'
 import {
   FRAME_WORK,
+  RAY_ERROR_FLOOR,
   RAY_LAYERS,
+  RAY_SPREAD_FLOOR,
+  RAY_THROUGH_FLOOR,
   STORE_BITS,
   SURFACE,
   SURFACE_BLENDED,
@@ -39,6 +42,9 @@ export const runtimeRadianceWgsl = (scene: SceneBindings) =>
     `
 ${wgslConsts({
   RT_LAYERS: RAY_LAYERS,
+  RT_SPREAD_FLOOR: RAY_SPREAD_FLOOR,
+  RT_THROUGH_FLOOR: RAY_THROUGH_FLOOR,
+  RT_ERROR_FLOOR: RAY_ERROR_FLOOR,
   RT_SURFACE_BLENDED: SURFACE_BLENDED,
   RT_SURFACE_WORDS: SURFACE_WORDS,
   RT_SURFACE_TINT: SURFACE.tint,
@@ -93,17 +99,17 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
   if(rtSpent()){return RtRadiance(vec3f(0.0),0.0);}
   if(!hit.found){break;}
   let surface=rtSurfaceOf(rtInstanceWord(hit.placement,RT_INSTANCE_SURFACE));
-  let spread=hit.distance*tangent+0.01;
+  let spread=hit.distance*tangent+RT_SPREAD_FLOOR;
   let marked=unpack2x16float(rtInstanceWord(hit.placement,RT_INSTANCE_MARK)>>16u).x;
   let known=spread/(spread+marked*length(rtWorldOf(hit.placement)[0].xyz));
   let opacity=select(1.0,surface.opacity,surface.blended)*known;
   color+=through*opacity*rtShade(hit,start,direction,surface,reach);
   if(rtLost){return RtRadiance(vec3f(0.0),0.0);}
   through*=1.0-opacity;
-  let travelled=hit.distance+max(rtProxy.error,1e-3);
+  let travelled=hit.distance+max(rtProxy.error,RT_ERROR_FLOOR);
   start+=direction*travelled;
   left-=travelled;
-  if(through<0.02||left<=0.0){break;}
+  if(through<RT_THROUGH_FLOOR||left<=0.0){break;}
  }
  let held=1.0-through;
  return RtRadiance(select(vec3f(0.0),color/held,held>0.0),held);

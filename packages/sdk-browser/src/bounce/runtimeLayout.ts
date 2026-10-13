@@ -92,6 +92,15 @@ export const FRAME_WORK = 2 ** 22
 /** Surfaces met in a ray before it ends: a blended one is looked through, up to this many — a closed
  *  blended solid is two, its front face and its back. */
 export const RAY_LAYERS = 3
+/** The width a ray's footprint has at its origin, in metres: the spread a deformed placement's reach
+ *  is weighed against at a hit (`rtRadiance`), never zero at a contact. */
+export const RAY_SPREAD_FLOOR = 0.01
+/** The light a ray lets through under which the surfaces behind are not looked for: under one step
+ *  of an 8-bit channel of five times the light. */
+export const RAY_THROUGH_FLOOR = 0.02
+/** The least distance a ray leaves a hit by to look behind it, in metres, where the proxy's own
+ *  error is smaller. */
+export const RAY_ERROR_FLOOR = 1e-3
 /**
  * THE RUN-TIME PROXY'S ANSWERS, KEPT FROM IMAGE TO IMAGE, in the reflection's own store: a texture of two
  * layers of `r32uint` the image's size (`reflections/proxyStore.ts`), eight bytes a pixel, which the trace

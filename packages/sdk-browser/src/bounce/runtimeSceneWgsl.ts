@@ -109,6 +109,7 @@ ${wideTraversal({
      let distance=rayTriangleDistance(origin,direction,rtVertex(tri0+index,0u),rtVertex(tri0+index,1u),rtVertex(tri0+index,2u),best.distance);
      if(distance<best.distance){best=RtHit(distance,placement,tri0+index,true);if(rtAnyHit){return best;}}`,
   answer: 'best',
+  overflow: 'rtWork=RT_WORK;',
 })}
 /** Placement \`w\`'s world, column-major: a placement's is the culling's, mirrored in the proxy's
  *  buffer; a blended copy's, the proxy's own, past the placements. */
