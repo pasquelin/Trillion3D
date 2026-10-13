@@ -3,7 +3,8 @@
 // every node open). The tables are laid out as `layout` says — whole, or split into parts and
 // ranges as a small device lays them.
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { refitLevels, type PlacementTree } from './placementTree.ts'
+import { memberBox, refitLevels, TREE_SPAN, type PlacementTree } from './placementTree.ts'
+import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { treeRefitWgsl, WHOLE_LAYOUT, type RefitLayout } from './treeRefitWgsl.ts'
 import {
   DOUBLE_HELPERS,
@@ -89,4 +90,33 @@ export function refitTree(
   }
   words.set(nodeParts.flat())
   return fitted
+}
+
+/** No node: a parked root's. */
+const NONE = 0xffffffff
+
+/** The change the refit proofs fit again, on `dag` packed from `roots`: poses a long way off, a
+ *  park, a mark that opens, a whole group parked. Returns the placements it touched. */
+export function treeChange(dag: PackedDag, roots: readonly { world: { elements: unknown } }[]) {
+  const tree = dag.placementTree!,
+    touched = new Set<number>()
+  const move = (w: number, x: number) => {
+    ;(roots[w].world.elements as Float64Array)[12] += x
+    memberBox(dag, tree, w)
+    touched.add(w)
+  }
+  for (const [w, x] of [
+    [3, 4000],
+    [70, -900],
+    [4000, 50],
+    [4001, 51],
+    [9999, 1e5],
+  ])
+    move(w, x)
+  dag.rootNodes[130] = NONE
+  dag.mark[200] = SPRITE_UNCULLED
+  dag.mark[7000] = 5 << 16
+  for (let k = 0; k < TREE_SPAN; k++) dag.rootNodes[tree.order[640 + k]] = NONE
+  for (const w of [130, 200, 7000, tree.order[640]]) touched.add(w)
+  return touched
 }

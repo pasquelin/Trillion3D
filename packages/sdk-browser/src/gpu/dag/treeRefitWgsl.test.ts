@@ -7,13 +7,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { packDagSelection } from './selection.ts'
-import { memberBox, treeNodeCount, TREE_SPAN } from './placementTree.ts'
+import { treeNodeCount, TREE_SPAN } from './placementTree.ts'
 import { WHOLE_LAYOUT, type RefitLayout } from './treeRefitWgsl.ts'
-import { refitTree } from './treeRefitRun.fixture.ts'
+import { refitTree, treeChange } from './treeRefitRun.fixture.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
-
-const NONE = 0xffffffff
 
 /** The device that splits the nodes inside the tree's own range, the order in three, the frames in
  *  three ranges of placements. */
@@ -37,25 +35,7 @@ for (const name of ['whole', 'split across parts and ranges'] as const)
     refitTree(dag, undefined, layout)
     const held = Array.from(words())
     // The change: poses a long way off, a park, a mark that opens, a whole group parked.
-    const touched = new Set<number>()
-    const move = (w: number, x: number) => {
-      ;(roots[w].world.elements as Float64Array)[12] += x
-      memberBox(dag, tree, w)
-      touched.add(w)
-    }
-    for (const [w, x] of [
-      [3, 4000],
-      [70, -900],
-      [4000, 50],
-      [4001, 51],
-      [9999, 1e5],
-    ])
-      move(w, x)
-    dag.rootNodes[130] = NONE
-    dag.mark[200] = SPRITE_UNCULLED
-    dag.mark[7000] = 5 << 16
-    for (let k = 0; k < TREE_SPAN; k++) dag.rootNodes[tree.order[640 + k]] = NONE
-    for (const w of [130, 200, 7000, tree.order[640]]) touched.add(w)
+    const touched = treeChange(dag, roots)
     const groups = [...touched].map((w) => Math.floor(tree.slot[w] / TREE_SPAN))
     const fitted = refitTree(dag, groups, layout)
     const incremental = Array.from(words())

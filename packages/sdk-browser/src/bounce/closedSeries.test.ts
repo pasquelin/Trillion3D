@@ -4,27 +4,10 @@
 // draw the same pixels. Driven here on the engine's own probes, over a recording device.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { createGpuBounceProbes } from './probes.ts'
+import { floorProbes } from './floorProbes.fixture.ts'
 
 test('a closed bounce series encodes and writes nothing: a redraw reads what the held frame read', async () => {
-  const gpu = fakeDevice({
-    limits: { maxStorageBufferBindingSize: 1 << 30, maxBufferSize: 1 << 30 },
-  })
-  const lights = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
-  // One placement wears a proxy: its two buffers, and its box over the floor the probes keep.
-  const scene = {
-    buffer: () => lights,
-    boxes: () => ({ boxes: Float64Array.from([0, 0, 0, 8, 0.1, 4]), changed: Uint8Array.of(0) }),
-  }
-  const probes = await createGpuBounceProbes(
-    gpu.device,
-    [0, 0, 0, 8, 0.1, 4],
-    scene,
-    () => lights,
-    1000,
-  )
-  const encoder = gpu.device.createCommandEncoder()
+  const { gpu, probes, encoder } = await floorProbes()
   const eye = [4, 4, 2]
   let frames = 0
   while (probes.working) {

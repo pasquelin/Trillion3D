@@ -3,21 +3,18 @@
 // the records its host writes, and the bounce's world light lists, from the reader's cell to the
 // run the list pass gives the light in its column.
 import type { SceneLight } from '../../../../sdk-core/src/index.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import type { WgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { lightTilesShader } from '../tiles/shader.ts'
 import { CODE as PROJECTION, SCOPE as PROJECTION_SCOPE } from '../../vsm/projectionTiles.fixture.ts'
-import { encodeVirtualShadowProjection } from '../../vsm/projectionPass.ts'
+import { projectionKit } from '../../vsm/projectionKit.fixture.ts'
 import {
   VSM_PROJECTION_HEADER_WORDS,
   VSM_PROJECTION_LIGHT_WORD,
   VSM_PROJECTION_LIGHT_WORDS,
 } from '../../vsm/projectionView.ts'
-import { createVsmResources } from '../../vsm/resources.ts'
-import { fakeHizDepth } from '../../vsm/hizDepth.fixture.ts'
 import { projectionLight } from '../../webgpu/pages/render/vsm/vsmPlan.ts'
 import type { LightRecord, V3 } from './lightReach.fixture.ts'
 
@@ -45,33 +42,9 @@ export function shadesOf(code: string) {
 /** The projection's region test (`vsmLightParticipates`) on a surface that culls no back face,
  *  over the records its host writes for `lights` (`projectionLight`), the eye at the origin. */
 export function projectionOf(lights: readonly SceneLight[]) {
-  const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
-  const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
-  const view = {} as GPUTextureView
-  encodeVirtualShadowProjection(
-    device.createCommandEncoder(),
-    res,
-    {
-      device,
-      depth: view,
-      hizDepth: fakeHizDepth,
-      normalRough: view,
-      flags: view,
-      mask: view,
-      maskTiles: view,
-      width: 64,
-      height: 32,
-      camera: {
-        view: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-        projection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0],
-        perspective: true,
-      },
-      frameIndex: 1,
-      subgroups: false,
-    },
-    lights.map((light, k) => projectionLight(light, 8192 + 6 * k)),
-  )
-  const upload = writes.find((w) => w.buffer.label === 'vsm.projection.view')
+  const kit = projectionKit()
+  kit.project(lights.map((light, k) => projectionLight(light, 8192 + 6 * k)))
+  const upload = kit.upload()
   if (!upload) throw new Error('the projection wrote no view')
   const words = upload.size! / 4
   const f = new Float32Array(upload.data.buffer, upload.data.byteOffset, words),
