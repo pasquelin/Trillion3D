@@ -6,10 +6,7 @@
 import * as THREE from 'three'
 import { measure, rapport } from '../../core/index.ts'
 import { rootWorlds } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
-import {
-  changedWorlds,
-  refreshMovedStretch,
-} from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
+import { changedWorlds } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 
 /** Emerald Square, `--scene emerald-square`: 2 479 selection roots (campaign `l-80b`). */
@@ -25,11 +22,7 @@ rootWorlds(worlds, roots)
 // The previous scene's worlds: the first root turned — the scan lists it, and reads every root.
 const previous = worlds.slice()
 previous[0] += 0.5
-const listed = new Int32Array(ROOTS),
-  everyRoot = Int32Array.from({ length: ROOTS }, (_, i) => i),
-  stretched = new Int32Array(ROOTS)
-const packed = { worldStretch: new Float32Array(ROOTS) }
-const frameData = new Float32Array(ROOTS * 7 * 4)
+const listed = new Int32Array(ROOTS)
 
 const results = await measure({
   name: 'world step loops',
@@ -51,12 +44,6 @@ const results = await measure({
     {
       name: 'change scan, nothing moved',
       input: () => changedWorlds(worlds, worlds, listed),
-      size: ROOTS,
-    },
-    {
-      name: 'stretch scan, a root turned',
-      input: () =>
-        refreshMovedStretch(previous, worlds, packed, frameData, everyRoot, ROOTS, stretched),
       size: ROOTS,
     },
   ],
