@@ -14,21 +14,12 @@ import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
 import type { PoseHost, ProxyCopy } from '../dag/proxyInstances.ts'
 import type { ProxyBoxes } from '../../bounce/probeSync.ts'
-import type { CutTables } from '../dag/cutTables.ts'
+import type { CutTables, ProxyResources } from '../dag/cutTables.ts'
 
 /** The step a cut takes on the tables before it encodes, under its uniforms, for its view — an
  *  object the main view holds for the selection's life, or each view aside its own, never another
  *  view's — (`../dag/runtime.ts`, `syncTables`). */
 export type TableSync = (uniforms: SelectionUniforms, view: object) => void
-/** What a program reads the proxy through (`../dag/proxyInstances.ts`): its buffer, and the cut's
- *  record tables, read where they lie — the placements' records, the worlds it places its meshes by
- *  and its instances (`../dag/worldTable.ts`), and the placement tree its rays walk
- *  (`../dag/treeTable.ts`). */
-export type ProxyResources = {
-  readonly buffer: GPUBuffer
-  readonly worlds: GPUTextureView
-  readonly tree: GPUTextureView
-}
 
 /**
  * `cameraStretch` is the camera half of the cut's object-to-view stretch, `perspective` the
