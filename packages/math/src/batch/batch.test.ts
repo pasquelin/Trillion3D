@@ -1,9 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  BOX_VALUES,
   SPHERE_VALUES,
-  boxTransform,
   boxTransformUnionBatch,
   boxUnionBatch,
   frustumKeepsBoxBatch,
