@@ -1,3 +1,4 @@
+import { isImageSize } from '../../../math/src/scalar/integers.ts'
 import { SUBSURFACE_TARGET } from './subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from './physicalLobes.ts'
 import { pyramidHeldBytes } from '../gpu/hiz/pyramid.ts'
@@ -43,8 +44,7 @@ const FRAME_BYTES_PER_PIXEL = texelBytesOf(
 /** Color, depth, visibility, HDR, material surfaces, the transparent texture feedback target and
  *  the optional Hi-Z pyramid, with the front depth of the scene's blends when it has any. */
 export function frameTargetBytes(width: number, height: number, withHiz: boolean, front: boolean) {
-  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
-    throw new Error('INVALID_SURFACE_SIZE')
+  if (!isImageSize(width, height)) throw new Error('INVALID_SURFACE_SIZE')
   let bytes = width * height * (FRAME_BYTES_PER_PIXEL + SURFACE_BYTES_PER_PIXEL)
   if (withHiz) bytes += pyramidHeldBytes(width, height, front)
   return bytes + SUBSURFACE_TARGET.texelBytes + PHYSICAL_LOBES_TARGET.texelBytes
@@ -101,8 +101,7 @@ export function checkSurfaceSize(
   height: number,
   bytesPerPixel = SURFACE_BYTES_PER_PIXEL,
 ) {
-  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
-    throw new Error('INVALID_SURFACE_SIZE')
+  if (!isImageSize(width, height)) throw new Error('INVALID_SURFACE_SIZE')
   if (Math.max(width, height) > textureLimits(device.limits).side)
     throw new Error('SURFACE_DEVICE_LIMIT')
   const bytes = width * height * bytesPerPixel
