@@ -1,5 +1,7 @@
 use super::{PROXY_LEAF_TRIANGLES, PROXY_TRIANGLE_FLOATS};
-use trillion3d_math::scalar::mean_f32;
+use crate::split::bisect_centres;
+use trillion3d_math::aabb::{aabb_of_f32, half_area};
+use trillion3d_math::scalar::mean;
 
 /// A binary node being built: its bounds, and either a triangle range or its
 /// right child — left child is always next node.
@@ -14,45 +16,48 @@ impl Node {
     pub fn leaf(&self) -> bool {
         self.count > 0
     }
-    /// Box area, up to a factor of two: decides which child opens first
+    /// Box area, up to a factor of two (`half_area`): decides which child opens first
     /// when a wide node seeks to fill itself.
     pub fn area(&self) -> f32 {
-        let span = [
-            (self.high[0] - self.low[0]).max(0.0),
-            (self.high[1] - self.low[1]).max(0.0),
-            (self.high[2] - self.low[2]).max(0.0),
-        ];
-        span[0] * span[1] + span[1] * span[2] + span[2] * span[0]
+        half_area(self.low, self.high)
     }
 }
 
 /// Bounds of a triangle range, read once per node.
 fn bounds_of(triangles: &[f32], order: &[usize], range: (usize, usize)) -> ([f32; 3], [f32; 3]) {
-    let mut low = [f32::INFINITY; 3];
-    let mut high = [f32::NEG_INFINITY; 3];
-    for slot in &order[range.0..range.1] {
+    aabb_of_f32(order[range.0..range.1].iter().flat_map(|slot| {
         let base = slot * PROXY_TRIANGLE_FLOATS;
-        for vertex in 0..3 {
-            let at = base + vertex * 3;
-            let point = [triangles[at], triangles[at + 1], triangles[at + 2]];
-            trillion3d_math::aabb::extend_aabb_f32(&mut low, &mut high, point);
-        }
-    }
-    (low, high)
+        triangles[base..base + PROXY_TRIANGLE_FLOATS]
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .copied()
+    }))
 }
 
-/// Triangle centroid on an axis: what median sorts.
-fn centre(triangles: &[f32], slot: usize, axis: usize) -> f32 {
-    let base = slot * PROXY_TRIANGLE_FLOATS;
-    mean_f32([0, 3, 6].map(|corner| triangles[base + corner + axis]))
+/// Triangle centroids, the `mean` of the three corners axis by axis: what the median splits.
+fn centres(triangles: &[f32]) -> Vec<[f64; 3]> {
+    let centre = |t: &[f32; PROXY_TRIANGLE_FLOATS]| {
+        [0, 1, 2].map(|axis| mean([0, 3, 6].map(|corner| f64::from(t[corner + axis]))))
+    };
+    (triangles.as_chunks::<PROXY_TRIANGLE_FLOATS>().0.iter())
+        .map(centre)
+        .collect()
 }
 
-/// Builds tree by median on longest axis, leaf at `PROXY_LEAF_TRIANGLES`.
+/// Builds tree by the median split of every tree over boxed things (`split::bisect_centres`: the
+/// widest axis of the centroids, ties by rank), leaf at `PROXY_LEAF_TRIANGLES`.
 ///
 /// Median gives balanced tree, depth logarithmic in triangle count:
 /// engine can announce known traversal bound before frame. A split separating
 /// nothing — all centroids coincident — splits into two equal parts rather than looping.
-fn split(triangles: &[f32], order: &mut [usize], range: (usize, usize), nodes: &mut Vec<Node>) {
+fn split(
+    triangles: &[f32],
+    centres: &[[f64; 3]],
+    order: &mut [usize],
+    range: (usize, usize),
+    nodes: &mut Vec<Node>,
+) {
     let (low, high) = bounds_of(triangles, order, range);
     let at = nodes.len();
     nodes.push(Node {
@@ -65,20 +70,12 @@ fn split(triangles: &[f32], order: &mut [usize], range: (usize, usize), nodes: &
     if range.1 - range.0 <= PROXY_LEAF_TRIANGLES {
         return;
     }
-    // Axis choice differs from `trillion3d_math::aabb::longest_axis`: `max_by` keeps last axis
-    // on tie where DAG's `>` keeps first, `total_cmp` ranks NaNs instead of
-    // ignoring. Following split also differs — `select_nth_unstable_by` vs full sort.
-    let axis = (0..3)
-        .max_by(|a, b| (high[*a] - low[*a]).total_cmp(&(high[*b] - low[*b])))
-        .unwrap_or(0);
+    bisect_centres(&mut order[range.0..range.1], centres);
     let middle = range.0 + (range.1 - range.0) / 2;
-    order[range.0..range.1].select_nth_unstable_by(middle - range.0, |a, b| {
-        centre(triangles, *a, axis).total_cmp(&centre(triangles, *b, axis))
-    });
     nodes[at].count = 0;
-    split(triangles, order, (range.0, middle), nodes);
+    split(triangles, centres, order, (range.0, middle), nodes);
     let right = nodes.len();
-    split(triangles, order, (middle, range.1), nodes);
+    split(triangles, centres, order, (middle, range.1), nodes);
     nodes[at].right = right;
 }
 
@@ -96,7 +93,13 @@ pub fn build_ordered(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> (Vec<No
     }
     let mut order: Vec<usize> = (0..count).collect();
     let mut nodes: Vec<Node> = Vec::with_capacity(count * 2 / PROXY_LEAF_TRIANGLES + 2);
-    split(triangles, &mut order, (0, count), &mut nodes);
+    split(
+        triangles,
+        &centres(triangles),
+        &mut order,
+        (0, count),
+        &mut nodes,
+    );
     let mut sorted = Vec::with_capacity(triangles.len());
     let mut colours = Vec::with_capacity(albedo.len());
     for slot in &order {
