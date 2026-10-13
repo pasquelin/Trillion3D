@@ -54,13 +54,7 @@ import {
 import { DAG_BINDING, dagPartEntries } from '../gpu/dag/shader/bindings.ts'
 import type { RefitLayout } from '../gpu/dag/treeRefitWgsl.ts'
 import { nodeLayout } from '../gpu/dag/treeRefit.ts'
-import {
-  composedList,
-  composedRowInputs,
-  followComposedRows,
-  followKey,
-  sendList,
-} from './composedRowInputs.ts'
+import { composedRowInputs, followComposedRows, sendList } from './composedRowInputs.ts'
 import { MOTION_SKIP } from './composedMotion.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
@@ -83,6 +77,7 @@ import {
   remakeSlotBox,
 } from './composeBoxes.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { createMirroredKeys, mirrorKey } from '../webgpu/cut/denseKeys.ts'
 import { COMPOSE_MEMBERS_PASS, COMPOSE_ROOTS_PASS, COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
 import type { ComposedLeaves } from '../gpu/dag/treeFollow.ts'
 import { adoptReaders, holdReaders, writeReaders, type Readers } from './composeReaders.ts'
@@ -122,8 +117,8 @@ function createComposeState(roots: number) {
     readers: new Map() as Readers,
     /** The roots a parent composes, a thread each of the roots and members passes, and the
      *  page-table rows of those roots, a thread each of the rows pass (`composedRowInputs.ts`). */
-    rankList: composedList(),
-    rowList: composedList(),
+    rankList: createMirroredKeys(),
+    rowList: createMirroredKeys(),
     /** Roots linked or unlinked since the rows list followed them (`followComposedRows`). */
     relinked: [] as number[],
     /** False until the rows list follows the table: listed again whole (`followComposedRows`). */
@@ -493,7 +488,7 @@ function unlinkHeld(rt: WebgpuPagesRuntime, state: ComposeState, slot: number, r
     if (kept.has(rank)) continue
     removeComposedWorld(rt, rank)
     state.parentOf[rank] = NONE
-    followKey(state.rankList, rank, false)
+    mirrorKey(state.rankList, rank, false)
     state.relinked.push(rank)
     mobility.follow(rank, -1)
     rt.run.gpuSelection?.composedPlacement(rank, false)
@@ -525,7 +520,7 @@ function linkRanks(
     // A root linked already keeps its own motion; one another slot held leaves its lists.
     if (was === NONE) {
       seedMotion(rt, state, rank)
-      followKey(state.rankList, rank, true)
+      mirrorKey(state.rankList, rank, true)
       state.relinked.push(rank)
     } else if (was !== slot) slotMoved(state, was)
     state.parentOf[rank] = slot

@@ -10,14 +10,20 @@
  * `writeRowLod`); the GPU's are the same words (`gpuComposeDerivedWgsl.ts`).
  *
  * The rows pass runs a thread a row of a composed root, never a thread a row of the table: the
- * rows whose root, as the table names it, a parent composes are listed densely (`ComposedList`),
+ * rows whose root, as the table names it, a parent composes are listed densely,
  * followed where the table changes — the rows each frame's dirty marks name, the rows of a root
- * linked or unlinked — and listed again whole only when the list starts following a table.
+ * linked or unlinked — and listed again whole only when the list starts following a table
+ * (`MirroredKeys`).
  */
 import { rootOf, rootOfPacked } from '../page/selection/placements.ts'
 import { ROW_INPUT_DOUBLES, packInputs, rowInputs } from './composedRowPack.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { createDenseKeySet, createSortedKeys, takeSorted } from '../webgpu/cut/denseKeys.ts'
+import {
+  mirroredWords,
+  mirrorKey,
+  takeMirrored,
+  type MirroredKeys,
+} from '../webgpu/cut/denseKeys.ts'
 import { grownLength, resized } from '../../../math/src/sequence/resized.ts'
 import { writeRanges } from '../gpu/dag/split.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
@@ -28,25 +34,6 @@ import type { ComposeState } from './gpuCompose.ts'
 /** Words of a row's inputs, packed. */
 const ROW_INPUT_WORDS = ROW_INPUT_DOUBLES * 2
 
-/** Keys a compose pass runs a thread each over, listed densely, and the places of the list written
- *  since it last went up (`sendList`). */
-export const composedList = () => ({ set: createDenseKeySet(), moves: createSortedKeys() })
-export type ComposedList = ReturnType<typeof composedList>
-
-/** `key` in `list` or out of it, as `inside` says: the places of the list it wrote are noted. A
- *  removal fills its place with the last key. */
-export function followKey(list: ComposedList, key: number, inside: boolean) {
-  const { set, moves } = list
-  if (inside) {
-    if (set.add(key)) moves.listed.add(set.count - 1)
-    return
-  }
-  const at = set.indexOf(key)
-  if (at < 0) return
-  set.remove(key)
-  if (at < set.count) moves.listed.add(at)
-}
-
 /**
  * `list` in `held` on the GPU, the buffer returned: one made again — the list sent whole — when the
  * list outgrows it, at a capacity grown by the one rule (`grownLength`); else the places written
@@ -56,9 +43,10 @@ export function sendList(
   device: GPUDevice,
   held: GPUBuffer | undefined,
   label: string,
-  { set, moves }: ComposedList,
+  list: MirroredKeys,
 ) {
-  const count = set.count
+  const { set, moves } = list,
+    count = set.count
   if (!held || held.size < count * 4) {
     const capacity = grownLength(held ? held.size / 4 : 0, Math.max(4, count))
     held?.destroy()
@@ -72,28 +60,23 @@ export function sendList(
     return buffer
   }
   if (!moves.listed.count) return held
-  const sorted = takeSorted(moves)
-  let written = sorted.length
-  // A place past the list's end, emptied since, is read by no thread.
-  while (written && sorted[written - 1] >= count) written--
-  if (written) {
-    const words = new Uint32Array(set.list.buffer, set.list.byteOffset, set.list.length)
-    const into = (offset: number, data: ArrayBuffer, from: number, size: number) =>
-      device.queue.writeBuffer(held, offset, data, from, size)
-    writeRanges(device, into, sorted, written, {
-      data: words,
+  const moved = takeMirrored(list)
+  const into = (offset: number, data: ArrayBuffer, from: number, size: number) =>
+    device.queue.writeBuffer(held, offset, data, from, size)
+  if (moved.length)
+    writeRanges(device, into, moved, moved.length, {
+      data: mirroredWords(list),
       sourceBase: 0,
       targetBase: 0,
       stride: 1,
     })
-  }
   return held
 }
 
 /** Row `row` in the rows list or out of it: in while the root the table names it by is composed. */
 function followRow(state: ComposeState, ints: Uint32Array, rowCount: number, row: number) {
   const rank = row < rowCount ? ints[row * ROW_WORDS + ROW_PLACEMENT_WORD] : NONE
-  followKey(state.rowList, row, rank < state.roots && state.parentOf[rank] !== NONE)
+  mirrorKey(state.rowList, row, rank < state.roots && state.parentOf[rank] !== NONE)
 }
 
 /** Rows `[from, to]` of the table followed into the rows list. */
