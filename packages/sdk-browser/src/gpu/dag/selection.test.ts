@@ -144,7 +144,6 @@ test('a device that refuses the cut gets no GPU selection, and the host is told 
   const { dag } = packed(fixture)
   const { device } = fakeDevice({
     limits: { maxBufferSize: 1 << 20 },
-    compute: false,
     refuse: () => 'throw',
   })
   const told: unknown[][] = []

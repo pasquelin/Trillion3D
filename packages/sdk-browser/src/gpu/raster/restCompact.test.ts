@@ -62,21 +62,6 @@ test('visited slots are those of the tested half', () => {
   )
 })
 
-// Behaviour 4: without compute there is no compaction and the frame keeps the previous path.
-test('a device without compute does not mount compaction', async () => {
-  const buffer = {} as GPUBuffer
-  const { device } = fakeDevice({ compute: false })
-  const made = await createGpuRestCompact(device, {
-    state: buffer,
-    perRow: 4,
-    instances: buffer,
-    indirect: buffer,
-    slotOffsets: buffer,
-    flags: buffer,
-  })
-  assert.equal(made, undefined)
-})
-
 // Behaviour 5: the count and scatter dispatches are sized on the GPU by the partition's tested
 // rows (`restArgs`, indirect), never by the rows the table holds; a slot of more tiles than one
 // dimension of a dispatch holds runs them in rows up y (`dispatchGrid`), the slot up z; the

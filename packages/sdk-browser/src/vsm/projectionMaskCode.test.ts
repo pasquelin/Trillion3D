@@ -116,7 +116,7 @@ test('four lanes in a word: each light reads its own; a layer its tile did not s
   assert.match(resolve, /var vsmShadowMask:texture_2d_array<u32>;/)
 })
 
-test('a device without compute pipelines still makes the lighting stand-ins: none compiled at once', () => {
-  const { device } = fakeDevice({ compute: false })
+test('the lighting stand-ins are made with no pipeline compiled at once', () => {
+  const { device } = fakeDevice()
   createDeferredPlaceholders(device).dispose()
 })

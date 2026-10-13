@@ -121,7 +121,6 @@ export function reportTexturesReady(
         tileBytes: pool.tileBytes,
         pinnedTails: pool.resident,
       })),
-      requestReduce: textures.requestReduce,
     },
     pageTables: pageTablesReport(textures),
     progressiveLevels: { version: TEXTURE_PREVIEW_VERSION, base: PREVIEW_BASE },
