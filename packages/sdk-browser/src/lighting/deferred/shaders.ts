@@ -16,7 +16,6 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { VIEW_WGSL, WORLD_AT_WGSL } from './worldAtWgsl.ts'
 import { resolvedReflectionWgsl } from '../../reflections/weight.ts'
-const B = DEFERRED_BINDINGS
 /** The full-screen triangle's vertex stage (`FULLSCREEN_XY`), which every full-screen pass lists. */
 export const FULLSCREEN_VERTEX = wgslBlock(
   'FULLSCREEN_VERTEX',
@@ -29,12 +28,12 @@ export const surfaceBindingsWgsl = (third = 'flags:texture_2d<u32>') =>
   wgslBlock(
     `surfaceBindingsWgsl(${third})`,
     [VIEW_WGSL],
-    `@group(0) @binding(${B.baseMetal}) var baseMetal:texture_2d<f32>;
-@group(0) @binding(${B.normalRough}) var normalRough:texture_2d<f32>;
-@group(0) @binding(${B.emissiveAo}) var emissiveAo:texture_2d<f32>;
-@group(0) @binding(${B.flags}) var ${third};
-@group(0) @binding(${B.depth}) var depth:texture_depth_2d;
-@group(0) @binding(${B.view}) var<uniform> view:View;`,
+    `@group(0) @binding(${DEFERRED_BINDINGS.baseMetal}) var baseMetal:texture_2d<f32>;
+@group(0) @binding(${DEFERRED_BINDINGS.normalRough}) var normalRough:texture_2d<f32>;
+@group(0) @binding(${DEFERRED_BINDINGS.emissiveAo}) var emissiveAo:texture_2d<f32>;
+@group(0) @binding(${DEFERRED_BINDINGS.flags}) var ${third};
+@group(0) @binding(${DEFERRED_BINDINGS.depth}) var depth:texture_depth_2d;
+@group(0) @binding(${DEFERRED_BINDINGS.view}) var<uniform> view:View;`,
   )
 /**
  * Unlit view: material albedo as-is, with no light and no ambient; what a surface emits is kept, as
@@ -58,8 +57,8 @@ ${LIGHT_SURFACE_ENTRY}
 export const CONTRACT_BINDINGS_WGSL = wgslBlock(
   'CONTRACT_BINDINGS_WGSL',
   [],
-  `@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
-@group(0) @binding(${B.tiles}) var<storage,read> tileLights:array<u32>;`,
+  `@group(0) @binding(${DEFERRED_BINDINGS.lights}) var<storage,read> directLights:DirectLights;
+@group(0) @binding(${DEFERRED_BINDINGS.tiles}) var<storage,read> tileLights:array<u32>;`,
 )
 /** Shared body of the two contract programs, what its surface lists: only the bounce lines
  *  separate them. Each program lists the full-screen vertex (`FULLSCREEN_VERTEX`). */

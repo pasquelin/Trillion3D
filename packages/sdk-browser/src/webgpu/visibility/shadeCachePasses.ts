@@ -3,7 +3,7 @@ import { validated } from '../../gpu/core/errorScope.ts'
 import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from '../../gpu/dispatch/grid.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
-import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
+import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
 /** The pipeline constant that turns the cache on in the shade and the triangles passes. */
 export const CACHED = { SHADE_CACHE: 1 }
@@ -23,7 +23,7 @@ export async function cachePasses(device: GPUDevice) {
       entries: [
         computeBufferEntry(0, 'read-only-storage', compute),
         computeBufferEntry(1, 'storage', compute),
-        { binding: 2, visibility: compute, texture: { sampleType: 'uint' } },
+        computeTextureEntry(2, 'uint', '2d', compute),
         computeBufferEntry(3, 'storage', compute),
       ],
     })
@@ -33,11 +33,7 @@ export async function cachePasses(device: GPUDevice) {
         computeBufferEntry(1, 'storage', compute),
         ...[2, 3, 4].map((binding) => computeBufferEntry(binding, 'read-only-storage', compute)),
         computeBufferEntry(5, 'uniform', compute),
-        {
-          binding: 6,
-          visibility: compute,
-          texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
-        },
+        computeTextureEntry(6, 'unfilterable-float', '2d-array', compute),
       ] as GPUBindGroupLayoutEntry[],
     })
     const [rows, triangles] = await Promise.all([

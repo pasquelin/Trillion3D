@@ -3,7 +3,11 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { COVERAGE_CHOOSE_WGSL, COVERAGE_COUNT_WGSL } from './mipsWgsl.ts'
 import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
-import { sequentialEntries, computeBufferEntry } from '../gpu/core/computeBindings.ts'
+import {
+  sequentialEntries,
+  computeBufferEntry,
+  computeTextureEntry,
+} from '../gpu/core/computeBindings.ts'
 
 /** Bytes of one level's 256 bins. */
 export const LEVEL_BIN_BYTES = 1024
@@ -16,7 +20,7 @@ const coverageProgram = oncePerDevice((device: GPUDevice) => {
   const visibility = GPUShaderStage.COMPUTE
   const layout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility, texture: { sampleType: 'float' } },
+      computeTextureEntry(0, 'float', '2d', visibility),
       computeBufferEntry(1, 'uniform', visibility),
       computeBufferEntry(2, 'storage', visibility),
     ],

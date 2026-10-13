@@ -10,7 +10,11 @@ import {
 import { createWebgpuBindIdentity } from './bindIdentity.ts'
 import type { OpenPass } from '../../gpu/core/lazyComputePass.ts'
 import type { RenderCommands } from '../../gpu/core/renderBundles.ts'
-import { sequentialEntries, computeBufferEntry } from '../../gpu/core/computeBindings.ts'
+import {
+  sequentialEntries,
+  computeBufferEntry,
+  computeTextureEntry,
+} from '../../gpu/core/computeBindings.ts'
 
 /** Bytes of one class's indirect draw: vertex count, instance count, first vertex, first instance. */
 const DRAW_BYTES = 16
@@ -36,7 +40,7 @@ async function classifier(device: GPUDevice) {
     const module = await createCheckedShaderModule(device, MATERIAL_TILES_SHADER, 'MATERIAL_TILES')
     const layout = device.createBindGroupLayout({
       entries: [
-        { binding: 0, visibility: compute, texture: { sampleType: 'uint' } },
+        computeTextureEntry(0, 'uint', '2d', compute),
         computeBufferEntry(1, 'read-only-storage', compute),
         computeBufferEntry(2, 'uniform', compute),
         computeBufferEntry(3, 'read-only-storage', compute),

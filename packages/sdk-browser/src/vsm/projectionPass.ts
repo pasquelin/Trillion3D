@@ -496,9 +496,7 @@ function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, 
   const receiverLayout = receiver
     ? device.createBindGroupLayout({
         label: 'vsm.projection.receiver',
-        entries: [
-          { binding: 0, visibility: GPUShaderStage.COMPUTE, texture: { sampleType: 'uint' } },
-        ],
+        entries: [computeTextureEntry(0, 'uint', '2d', GPUShaderStage.COMPUTE)],
       })
     : undefined
   const pipelineLayout = device.createPipelineLayout({

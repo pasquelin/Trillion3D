@@ -3,7 +3,7 @@ import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred
 import { WATER_DEPTH_RESTORE_SHADER } from './depthRestoreShader.ts'
 import { waterSurfaceTargets } from './surfaceTargets.ts'
 import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
-import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import { sequentialEntries, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
 /**
  * WebGPU forbids cropped depth texture copies. Restore texels through a fragment that reads one
@@ -20,9 +20,7 @@ export async function createWaterDepthRestore(device: GPUDevice, feedback: boole
     'WATER_DEPTH_RESTORE',
   )
   const layout = device.createBindGroupLayout({
-    entries: [
-      { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
-    ],
+    entries: [computeTextureEntry(0, 'depth', '2d', GPUShaderStage.FRAGMENT)],
   })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const pipelines = new Map<boolean, PreparedPipeline<GPURenderPipeline>>()

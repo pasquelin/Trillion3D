@@ -2,7 +2,7 @@ import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import * as layer from './layers.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
+import { computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
 
 /** Pass bindings, in the order of its layout entries. */
 export const TAA_BINDINGS = {
@@ -33,41 +33,29 @@ export const TAA_BINDINGS = {
 export function createTaaLayout(device: GPUDevice, asIs = true, blended = false, filtered = false) {
   const stage = GPUShaderStage.FRAGMENT
   const entries: GPUBindGroupLayoutEntry[] = [
-    {
-      binding: TAA_BINDINGS.current,
-      visibility: stage,
-      texture: { sampleType: 'unfilterable-float' },
-    },
-    { binding: TAA_BINDINGS.history, visibility: stage, texture: { sampleType: 'float' } },
+    computeTextureEntry(TAA_BINDINGS.current, 'unfilterable-float', '2d', stage),
+    computeTextureEntry(TAA_BINDINGS.history, 'float', '2d', stage),
     {
       binding: TAA_BINDINGS.historySampler,
       visibility: stage,
       sampler: { type: 'filtering' },
     },
-    { binding: TAA_BINDINGS.depth, visibility: stage, texture: { sampleType: 'depth' } },
-    { binding: TAA_BINDINGS.ids, visibility: stage, texture: { sampleType: 'uint' } },
+    computeTextureEntry(TAA_BINDINGS.depth, 'depth', '2d', stage),
+    computeTextureEntry(TAA_BINDINGS.ids, 'uint', '2d', stage),
     computeBufferEntry(TAA_BINDINGS.pages, 'read-only-storage', stage),
     computeBufferEntry(TAA_BINDINGS.motion, 'read-only-storage', stage),
     computeBufferEntry(TAA_BINDINGS.view, 'uniform', stage),
-    {
-      binding: TAA_BINDINGS.flags,
-      visibility: stage,
-      texture: { sampleType: blended ? 'float' : 'uint' },
-    },
+    computeTextureEntry(TAA_BINDINGS.flags, blended ? 'float' : 'uint', '2d', stage),
     // Gathers only (`geometryHistoryWgsl.ts`): never filters, so depth and integers may use it.
     {
       binding: TAA_BINDINGS.texelSampler,
       visibility: stage,
       sampler: { type: 'non-filtering' },
     },
-    { binding: TAA_BINDINGS.reactive, visibility: stage, texture: { sampleType: 'float' } },
-    { binding: TAA_BINDINGS.shareHistory, visibility: stage, texture: { sampleType: 'float' } },
-    {
-      binding: TAA_BINDINGS.geometryHistory,
-      visibility: stage,
-      texture: { sampleType: 'uint' },
-    },
-    { binding: TAA_BINDINGS.shadingHistory, visibility: stage, texture: { sampleType: 'uint' } },
+    computeTextureEntry(TAA_BINDINGS.reactive, 'float', '2d', stage),
+    computeTextureEntry(TAA_BINDINGS.shareHistory, 'float', '2d', stage),
+    computeTextureEntry(TAA_BINDINGS.geometryHistory, 'uint', '2d', stage),
+    computeTextureEntry(TAA_BINDINGS.shadingHistory, 'uint', '2d', stage),
     // The page pool and the float pool the page geometry reads a deformed pixel's triangle from.
     ...[TAA_BINDINGS.indices, TAA_BINDINGS.positions, TAA_BINDINGS.uvs].map((binding) =>
       computeBufferEntry(binding, 'read-only-storage', stage),

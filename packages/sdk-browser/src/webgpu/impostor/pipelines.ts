@@ -1,7 +1,7 @@
 import { core } from '../../impostor/borrowed.ts'
 import { cardPassWgsl } from './cardWgsl.ts'
 import { IMPOSTOR_PASS, IMPOSTOR_VISIBILITY_PASS } from '../../stage/passLabels.ts'
-import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
+import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
 /**
  * The card pipelines (#1335) and their three group layouts: the image's (view uniform, card
@@ -26,17 +26,13 @@ async function makeCardPipelines(device: GPUDevice) {
   const atlasLayout = device.createBindGroupLayout({
     label: 'Trillion3D impostor atlas',
     entries: [
-      ...[0, 1, 2].map((binding) => ({
-        binding,
-        visibility: FRAGMENT,
-        texture: { sampleType: 'float' as const },
-      })),
+      ...[0, 1, 2].map((binding) => computeTextureEntry(binding, 'float', '2d', FRAGMENT)),
       { binding: 3, visibility: FRAGMENT, sampler: { type: 'filtering' as const } },
     ],
   })
   const idsLayout = device.createBindGroupLayout({
     label: 'Trillion3D impostor identifiers',
-    entries: [{ binding: 0, visibility: FRAGMENT, texture: { sampleType: 'uint' } }],
+    entries: [computeTextureEntry(0, 'uint', '2d', FRAGMENT)],
   })
   const module = device.createShaderModule({ label: IMPOSTOR_PASS, code: cardPassWgsl() })
   const layout = device.createPipelineLayout({ bindGroupLayouts: [imageLayout, atlasLayout] })

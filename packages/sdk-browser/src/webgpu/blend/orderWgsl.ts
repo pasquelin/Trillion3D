@@ -89,28 +89,30 @@ export const ORDER_BINDING = {
   sorted: 4,
   placed: 5,
 } as const
-const B = ORDER_BINDING
 
 /** Group-0 layout entries of the order kernel, read from the names above: the uniform at its
  *  dynamic offset, then its five storage buffers. */
 export function blendOrderBindEntries(): GPUBindGroupLayoutEntry[] {
   return [
-    computeUniformEntry(B.uni, { hasDynamicOffset: true, minBindingSize: ORDER_UNI_WORDS * 4 }),
-    computeBufferEntry(B.plan, 'storage'),
-    computeBufferEntry(B.keyed, 'read-only-storage'),
-    computeBufferEntry(B.frame, 'read-only-storage'),
-    computeBufferEntry(B.sorted, 'storage'),
-    computeBufferEntry(B.placed, 'storage'),
+    computeUniformEntry(ORDER_BINDING.uni, {
+      hasDynamicOffset: true,
+      minBindingSize: ORDER_UNI_WORDS * 4,
+    }),
+    computeBufferEntry(ORDER_BINDING.plan, 'storage'),
+    computeBufferEntry(ORDER_BINDING.keyed, 'read-only-storage'),
+    computeBufferEntry(ORDER_BINDING.frame, 'read-only-storage'),
+    computeBufferEntry(ORDER_BINDING.sorted, 'storage'),
+    computeBufferEntry(ORDER_BINDING.placed, 'storage'),
   ]
 }
 
 export const BLEND_ORDER_SHADER = wgslProgram(
-  `@group(0) @binding(${B.uni}) var<uniform> uni:OrderUni;
-@group(0) @binding(${B.plan}) var<storage,read_write> plan:array<u32>;
-@group(0) @binding(${B.keyed}) var<storage,read> keyed:array<u32>;
-@group(0) @binding(${B.frame}) var<storage,read> frame:array<u32>;
-@group(0) @binding(${B.sorted}) var<storage,read_write> sorted:array<vec4u>;
-@group(0) @binding(${B.placed}) var<storage,read_write> placed:array<u32>;
+  `@group(0) @binding(${ORDER_BINDING.uni}) var<uniform> uni:OrderUni;
+@group(0) @binding(${ORDER_BINDING.plan}) var<storage,read_write> plan:array<u32>;
+@group(0) @binding(${ORDER_BINDING.keyed}) var<storage,read> keyed:array<u32>;
+@group(0) @binding(${ORDER_BINDING.frame}) var<storage,read> frame:array<u32>;
+@group(0) @binding(${ORDER_BINDING.sorted}) var<storage,read_write> sorted:array<vec4u>;
+@group(0) @binding(${ORDER_BINDING.placed}) var<storage,read_write> placed:array<u32>;
 var<workgroup> held:array<vec4u,${SORT_BLOCK}>;
 fn keyedDouble(at:u32)->vec2u{return vec2u(keyed[at+1u],keyed[at]);}
 fn frameDouble(at:u32)->vec2u{return vec2u(frame[at+1u],frame[at]);}
