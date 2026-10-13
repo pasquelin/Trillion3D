@@ -94,7 +94,7 @@ test('a scale change with targets in place is made aside: never held, old ones f
     )
     // The two lit images that take turns: the frame's, and the reflection pyramid's.
     assert.equal(s.live(HDR).length, 2, 'one set left')
-    assert.ok(s.live(HDR).includes(s.rt.gpu.hdrTexture!))
+    assert.ok(s.live(HDR).some((texture) => (texture as unknown) === s.rt.gpu.hdrTexture))
     assert.equal(s.rt.gpu.temporal, temporal)
     assert.deepEqual(s.live(HISTORY), history, 'the same history, at the same display size')
   } finally {
