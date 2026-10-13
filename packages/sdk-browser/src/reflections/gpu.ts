@@ -8,6 +8,7 @@ import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
 import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { REFLECTION_FORMAT } from './constants.ts'
+import { HDR_FORMAT } from '../scene/surfaceBuffer.ts'
 import { FRONT_SHADER, createFrontDepth, frontBytes, frontLayout } from './frontDepth.ts'
 import {
   RADIANCE_SHADER,
@@ -29,6 +30,7 @@ import { createReflectionViewWriter } from './viewWrite.ts'
 import {
   REFLECTION_DEPTH_BINDING,
   REFLECTION_GROUP,
+  REFLECTION_IMAGE_BINDING,
   REFLECTION_LIGHT_VIEW_BINDING,
   REFLECTION_SURFACE_BINDING,
   REFLECTION_VIEW_BYTES,
@@ -36,8 +38,9 @@ import {
 import { REFLECTION_TARGET } from './weight.ts'
 
 /** The reflection group's layout (`reflectionBindingsWgsl`), once a device: the view uniform, the
- *  radiance pyramid and its sampler, then the depth pyramid (`hizDepthEntries`), the lighting's
- *  view and the proxy's surface cache, read by compute and fragment stages. */
+ *  radiance pyramid's levels from 1 on and its sampler, then the depth pyramid
+ *  (`hizDepthEntries`), the lighting's view, the proxy's surface cache and the pyramid's level 0,
+ *  the lit image itself, read by compute and fragment stages. */
 export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
   const visibility = COMPUTE | GPUShaderStage.FRAGMENT
   return device.createBindGroupLayout({
@@ -52,6 +55,7 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
       ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
       computeBufferEntry(REFLECTION_LIGHT_VIEW_BINDING, 'uniform', visibility),
       computeTextureEntry(REFLECTION_SURFACE_BINDING, 'unfilterable-float', '2d', visibility),
+      { binding: REFLECTION_IMAGE_BINDING, visibility, texture: { sampleType: 'float' } },
     ],
   })
 })
@@ -85,7 +89,11 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
     const frontLayouts = frontLayout(device)
     const [trace, first, down, roll, front] = await Promise.all([
       createTraceStages(device, modules, reflectionLayout(device)),
-      buildComputeStages(device, layout(layouts.firstLayout), modules.radiance, ['radianceFirst']),
+      buildComputeStages(device, layout(layouts.firstLayout), modules.radiance, [
+        'radianceFirst',
+        'radianceFirstHashed',
+        'radianceFirstBoth',
+      ]),
       buildComputeStages(device, layout(layouts.downLayout), modules.radiance, ['radianceDown']),
       buildComputeStages(device, layout(layouts.rollLayout), modules.radiance, ['radianceRoll']),
       buildComputeStages(device, layout(frontLayouts), modules.front, ['frontScatter']),
@@ -94,6 +102,8 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
       ...trace,
       ...layouts,
       firstPipeline: first.radianceFirst,
+      firstHashedPipeline: first.radianceFirstHashed,
+      firstBothPipeline: first.radianceFirstBoth,
       downPipeline: down.radianceDown,
       rollPipeline: roll.radianceRoll,
       frontLayout: frontLayouts,
@@ -104,17 +114,18 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
 export type ReflectionPipelines = NonNullable<Awaited<ReturnType<typeof createReflectionPipelines>>>
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
- *  radiance pyramid, its tile list, its uniform, its radiance hash and the front depth
- *  (`frontBytes`, which `blends` sizes); the depth it marches is the Hi-Z's, its front depth
- *  folded in. */
+ *  radiance pyramid — the lit image of the HDR targets' turn about, its level 0, then the levels
+ *  after it at half the size, the bytes of one pyramid —, its tile list, its uniform, its radiance
+ *  hash and the front depth (`frontBytes`, which `blends` sizes); the depth it marches is the
+ *  Hi-Z's, its front depth folded in. */
 export function reflectionBytes(width: number, height: number, blends: boolean) {
-  const size: GPUExtent3D = [width, height]
   return (
     REFLECTION_TARGET.bytes(width, height, true) +
+    textureBytesOf({ size: [width, height], format: HDR_FORMAT })! +
     textureBytesOf({
-      size,
+      size: [Math.max(1, width >> 1), Math.max(1, height >> 1)],
       format: REFLECTION_FORMAT,
-      mipLevelCount: radianceLevels(width, height),
+      mipLevelCount: Math.max(1, radianceLevels(width, height) - 1),
     })! +
     frontBytes(width, height, blends) +
     traceListBytes(width, height) +
@@ -165,14 +176,19 @@ export function createScreenReflection(
     settle,
     front,
     writeView: createReflectionViewWriter(device, uniform),
-    /** The reflection group over each depth it was bound with (`GpuHiz.depth`, a view's), and
-     *  what else it was made over. */
-    groups: new WeakMap<HizDepth, { group: GPUBindGroup; over: unknown[] }>(),
+    /** The reflection group over each depth it was bound with (`GpuHiz.depth`, a view's) and each
+     *  lit image the pyramid held as its level 0 (the two HDR targets take turns), and what else
+     *  it was made over. */
+    groups: new WeakMap<
+      HizDepth,
+      WeakMap<GPUTextureView, { group: GPUBindGroup; over: unknown[] }>
+    >(),
     /** The trace's bind groups, kept while its inputs stay (`encodeReflectionTrace`). */
     traceGroups: undefined as TraceGroups | undefined,
     dispose() {
       target.destroy()
-      radiance.texture.destroy()
+      radiance.coarse.destroy()
+      radiance.image.texture.destroy()
       tiles.args.destroy()
       tiles.list.destroy()
       uniform.destroy()
@@ -188,14 +204,18 @@ export type ScreenReflection = ReturnType<typeof createScreenReflection>
  *  zero without a proxy). */
 export type ReflectionOver = { lightView: GPUBuffer; surface: GPUTextureView }
 
-/** The reflection group of `reflection` over the depth pyramid `depth` (`GpuHiz.depth`) and
- *  `over`, made once a pyramid and while they stay. */
+/** The reflection group of `reflection` over the depth pyramid `depth` (`GpuHiz.depth`), the lit
+ *  image its pyramid holds now and `over`, made once a pyramid, lit image and depth, and while
+ *  they stay: the two HDR targets taking turns find a group each. */
 export function reflectionGroup(
   reflection: ScreenReflection,
   depth: HizDepth,
   over: ReflectionOver,
 ) {
-  const kept = reflection.groups.get(depth)
+  const image = reflection.radiance.image.view
+  let byImage = reflection.groups.get(depth)
+  if (!byImage) reflection.groups.set(depth, (byImage = new WeakMap()))
+  const kept = byImage.get(image)
   if (kept && kept.over[0] === over.lightView && kept.over[1] === over.surface) return kept.group
   const { device } = reflection
   const group = device.createBindGroup({
@@ -208,9 +228,10 @@ export function reflectionGroup(
       ...hizDepthBindEntries(REFLECTION_DEPTH_BINDING, depth),
       { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: over.lightView } },
       { binding: REFLECTION_SURFACE_BINDING, resource: over.surface },
+      { binding: REFLECTION_IMAGE_BINDING, resource: image },
     ],
   })
-  reflection.groups.set(depth, { group, over: [over.lightView, over.surface] })
+  byImage.set(image, { group, over: [over.lightView, over.surface] })
   return group
 }
 

@@ -83,7 +83,8 @@ Lighting reads those surfaces and the depth; transparency and transmission are s
 Edges are recovered temporally: a jittered image, motion derived from the visibility buffer, a
 history clamped to its neighbours (`taa/`). A quiet image averages the final state alone, so a still
 image is exact and repeatable. The render scale is fitted to the display's refresh
-(`frame/scaleControl.ts`) and reconstructed by `taa/upscaleWgsl.ts`. The page's options are
+(`frame/scaleControl.ts`) and reconstructed by `taa/upscaleWgsl.ts`; where it cannot lower the cost
+any more, the loop holds a steady divisor of the refresh (`frame/cadence.ts`). The page's options are
 [SDK.md](SDK.md#canvas-camera-and-teardown).
 
 ## Effect chain

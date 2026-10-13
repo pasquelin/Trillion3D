@@ -1,3 +1,4 @@
+import { createCadence, sampleCadence, skipsDisplayFrame } from './cadence.ts'
 import { createRefreshClock } from './refreshClock.ts'
 import { renderScaleBounds, type RenderScale } from './renderScaleOption.ts'
 import {
@@ -48,6 +49,10 @@ import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './sca
  * At rest: after a still image the scale only lowers, so a still average closes at one
  * size and the frame is held, encoding nothing (`hold.ts`).
  *
+ * Where the scale cannot help — fixed, or at its floor, and the GPU still misses the refresh —
+ * the loop draws at a steady divisor of the refresh instead (`cadence.ts`, `skips`), so each image
+ * is shown for the same time; the scale's misses are its own as before.
+ *
  * One per session.
  *
  * Its members: `drawn`, the scale of the last image drawn (1 before any); `steered`, whether that
@@ -74,7 +79,8 @@ export function createScaleControl(option: RenderScale | undefined) {
     w = createScaleWindow(renderScaleBounds(option)),
     targets = createTargetCap(w.bounds.max),
     memory = createScaleMemory(w, targets),
-    parts = { w, refresh, display, targets }
+    cadence = createCadence(),
+    parts = { w, refresh, display, targets, cadence }
   const control = {
     get bounds() {
       return w.bounds
@@ -117,8 +123,18 @@ export function createScaleControl(option: RenderScale | undefined) {
       w.images++
     },
     tick: (now: number, timed = false) => tickScale(parts, control, now, timed),
+    /** The display refreshes a drawn frame spans under the steady cadence (`cadence.ts`): 1 while
+     *  the GPU holds the refresh. */
+    get cadence() {
+      return cadence.divisor
+    },
+    /** Whether the interactive loop leaves out the display frame that begins at `now`, ms, its rAF
+     *  timestamp, to hold its steady cadence: it draws nothing and counts no frame. */
+    skips: (now: number) =>
+      refresh.settled && skipsDisplayFrame(cadence, now, refresh.display, control.still),
     observe(gpuMs: number | null, scale: unknown, steered = true) {
       if (gpuMs === null) return
+      sampleCadence(cadence, gpuMs)
       w.timedAt = w.images
       if (steered && w.timed && w.bounds.auto && typeof scale === 'number' && scale > 0)
         sampleCost(w, gpuMs * (w.s / scale) ** 2)

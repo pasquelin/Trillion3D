@@ -9,7 +9,8 @@ import type { CameraControlBase, ControlCamera } from './types.ts'
  * same keys: W or the up arrow is the accelerator, S or the down arrow the brake, A/D or the side
  * arrows the wheel, Space the handbrake. Keys are all or nothing, so each is 0 or 1. The input is
  * handed to `vehicle` each time it changes, never polled: a vehicle held still costs nothing. The
- * controls do not move the camera; a page follows the vehicle with it.
+ * controls do not move the camera; a page follows the vehicle with it in `world.beforeFrame`, which
+ * reads the pose the frame draws (`world/core/worldFrames.ts`), never after the frame, a frame late.
  */
 export interface VehicleCameraControls extends CameraControlBase {
   /**

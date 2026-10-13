@@ -21,6 +21,7 @@ import {
   encodeReflectionRadiance,
   encodeReflections,
 } from '../../../reflections/frame.ts'
+import { adoptRadianceImage } from '../../../reflections/radiance.ts'
 import { viewProj } from '../helpers.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
@@ -106,5 +107,8 @@ export function encodeSurfaceLighting(
   if (guided) encodeWebgpuGuides(rt, encoder, cam)
   // The transparents and water read this frame's maps: the frame's buffers swap only now.
   finishVsmFrame(rt, encoder)
+  // Every pass of the image that reads or writes the HDR target is encoded: the lit image becomes
+  // the radiance pyramid's level 0, and the HDR target the next image lights is the other one.
+  adoptRadianceImage(gpu)
   return !!presentation
 }

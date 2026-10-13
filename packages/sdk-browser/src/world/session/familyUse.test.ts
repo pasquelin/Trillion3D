@@ -43,7 +43,12 @@ test("a session's own loop: the frame waits for its pools' code, neither stepped
     ownedControls: [],
     state: { disposed: false },
     familiesPending: () => frameWaits(held),
-    engine: { measureFrame: () => false, landings: () => 0, arriving: () => false },
+    engine: {
+      measureFrame: () => false,
+      skipsFrame: () => false,
+      landings: () => 0,
+      arriving: () => false,
+    },
     // As the host runtime answers (`sessionRuntime.ts`): the frame that waited draws on arrival.
     pendingFrame: async () => !!(await frameWaits(held)?.then(() => true)),
   }

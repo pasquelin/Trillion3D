@@ -4,6 +4,7 @@
  */
 import { hypot4 } from '../float/hypot.ts'
 import { fdlibmAcos, fdlibmSin } from '../float/trig.ts'
+import { HALF_PI } from '../constants.ts'
 import type { NumberSink } from '../matrix/matrix4.ts'
 import { NORMAL_SQUARES } from '../vector/vector.ts'
 
@@ -172,11 +173,19 @@ export function normalizeQuaternionAt(
   return out
 }
 
+/** The half-angle under which a turn is its explicit step to rounding: `sin θ = θ` and
+ *  `cos θ = 1` in float64 below 2⁻²⁷ (`fdlibmSin` returns θ itself under 2⁻²⁶). */
+const SMALL_HALF_ANGLE = 2 ** -27
+
 /**
  * The quaternion at `q[qAt]` turned at angular velocity `w` (radians per unit time, world axes, read
- * at `wAt`) for the half step `h` — half the time — into `out` at `outAt`: one explicit step of
- * `q̇ = ½ (ω, 0) ⊗ q`, `q + h · (ω, 0) ⊗ q`, each term summed in a fixed order, then made unit by
- * `normalizeQuaternionAt`. `out` may be `q`: the eight numbers are read before the write.
+ * at `wAt`) for the time `2h` — `h` is half of it — into `out` at `outAt`: the exact turn of a
+ * constant `ω` about its axis by `|ω| · 2h`, `(ω̂ sin θ, cos θ) ⊗ q` with `θ = |ω| h`, as a fixed
+ * step turns a body (one axis, one rate: `Body::AddRotationStep`) and as `slerpOnArc` goes on along
+ * an arc, then made unit by `normalizeQuaternionAt`. Under `SMALL_HALF_ANGLE` it is the explicit
+ * step `q + h · (ω, 0) ⊗ q`, bit for bit, each term summed in a fixed order. The sine and cosine
+ * are fdlibm's (`cos θ = sin(π/2 − θ)`): the same bits on every machine. `out` may be `q`: the
+ * eight numbers are read before the write.
  */
 export function turnByAngularVelocity(
   out: Float64Array,
@@ -194,14 +203,57 @@ export function turnByAngularVelocity(
     ty = q[qAt + 1],
     tz = q[qAt + 2],
     tw = q[qAt + 3]
+  const rate = Math.sqrt(wx * wx + wy * wy + wz * wz),
+    half = rate * Math.abs(h),
+    small = !(half >= SMALL_HALF_ANGLE),
+    k = small ? h : (Math.sign(h) * fdlibmSin(half)) / rate,
+    c = small ? 1 : fdlibmSin(HALF_PI - half)
   return normalizeQuaternionAt(
     out,
     outAt,
-    tx + h * (wx * tw + wy * tz - wz * ty),
-    ty + h * (wy * tw + wz * tx - wx * tz),
-    tz + h * (wz * tw + wx * ty - wy * tx),
-    tw - h * (wx * tx + wy * ty + wz * tz),
+    c * tx + k * (wx * tw + wy * tz - wz * ty),
+    c * ty + k * (wy * tw + wz * tx - wx * tz),
+    c * tz + k * (wz * tw + wx * ty - wy * tx),
+    c * tw - k * (wx * tx + wy * ty + wz * tz),
   )
+}
+
+/**
+ * The angular velocity that turns the quaternion at `a[ai]` into the one at `b[bi]` in the time
+ * `time`, about one axis at one rate along their shorter arc (`arc[arcAt]`, their `slerpArc`),
+ * into `out` at `outAt`: the axis of `b ⊗ a⁻¹` at the rate `2A / time`, `A` the arc's angle — the
+ * velocity `turnByAngularVelocity` goes on along that arc with, as `slerpOnArc` past its end. Where
+ * the arc is a line (its sine under 1e-6, `slerpOnArc`'s threshold), its limit `2 (b ⊗ a⁻¹)_xyz /
+ * time`.
+ */
+export function arcAngularVelocity(
+  out: Float64Array,
+  outAt: number,
+  a: ArrayLike<number>,
+  ai: number,
+  b: ArrayLike<number>,
+  bi: number,
+  arc: ArrayLike<number>,
+  arcAt: number,
+  time: number,
+) {
+  const ax = a[ai],
+    ay = a[ai + 1],
+    az = a[ai + 2],
+    aw = a[ai + 3],
+    bx = b[bi],
+    by = b[bi + 1],
+    bz = b[bi + 2],
+    bw = b[bi + 3]
+  const sign = arc[arcAt],
+    angle = arc[arcAt + 1],
+    sin = arc[arcAt + 2],
+    scale = (sign * (sin < 1e-6 ? 2 : (2 * angle) / sin)) / time
+  // The vector part of b ⊗ conj(a): the turn's axis times sin A, signed to the shorter arc.
+  out[outAt] = (aw * bx - bw * ax - (by * az - bz * ay)) * scale
+  out[outAt + 1] = (aw * by - bw * ay - (bz * ax - bx * az)) * scale
+  out[outAt + 2] = (aw * bz - bw * az - (bx * ay - by * ax)) * scale
+  return out
 }
 
 /** The arc `slerpQuaternion` follows, rewritten per call. */
