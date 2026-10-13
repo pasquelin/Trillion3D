@@ -15,6 +15,7 @@ import type { HostAttribute } from '../host/resources.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import type { PageSurface } from '../page/surface.ts'
+import type { RootProxy } from '../page/selection/types.ts'
 import type { PlacementOf } from '../placement/rows.ts'
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 
@@ -33,6 +34,9 @@ export type BlendCopy = {
    *  contract does not hand it out — `blendCopyMesh.ts` is where it is set, and `PageRec.declaration`
    *  is the one field the closed list of `tests/integration/engine-without-three.test.ts` governs. */
   readonly surface: PageSurface
+  /** What a ray can meet of it beyond the drawn copy: the proxy of its primitive's cut, built where the
+   *  world cut it (`world/page/runtimeProxy.ts`); a run-time cut's alone. */
+  proxy?: RootProxy
   /** Rebound onto the same row of a larger buffer when its owner's rows grow (`placement/growth.ts`). */
   matrix: MatrixElements
   /** The row of an instance buffer the copy is posed by, when its mesh is placed by rows: one

@@ -19,7 +19,6 @@ export const DEFERRED_BINDINGS = {
   uniforms: 10,
   bounceGrid: 11,
   probes: 12,
-  proxy: 13,
   transmissionResolve: 14,
   transmittance: 18,
   pool: 19,

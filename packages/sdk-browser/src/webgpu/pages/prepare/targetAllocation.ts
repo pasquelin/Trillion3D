@@ -11,6 +11,7 @@ import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts'
 import { wantsAsIsShare } from './asIsShareTarget.ts'
 import { backdropBytes, holdsWater } from '../../transparent/transmission.ts'
 import { reflectionBytes } from '../../../reflections/gpu.ts'
+import { wantsProxyStore } from './proxyStore.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { FrameSize } from '../state/renderScale.ts'
 
@@ -65,7 +66,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     PHYSICAL_LOBES_TARGET.bytes(width, height, wantsPhysicalLobes(rt)) -
     PHYSICAL_LOBES_TARGET.texelBytes +
     // The reflection's target and radiance pyramid (`../../../reflections/gpu.ts`).
-    reflectionBytes(width, height, sceneBlends(rt)) +
+    reflectionBytes(width, height, sceneBlends(rt), wantsProxyStore(rt)) +
     display * DISPLAY_BYTES
   )
 }

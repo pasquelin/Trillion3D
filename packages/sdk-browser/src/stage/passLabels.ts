@@ -77,6 +77,9 @@ export const BOUNCE_PROBE_CLEAR_PASS = 'Trillion3D bounce probe level clear'
 /** The reflections' compute pass: the depth pyramid's nearest mips, then the opaque surfaces'
  *  trace (`../reflections/frame.ts`). */
 export const REFLECTION_PASS = 'Trillion3D reflections'
+/** The pose of the deformed placements' proxies: their corners moved, their bounds fitted again, before the
+ *  reflections and the bounce trace them (`../gpu/dag/proxyPose.ts`). */
+export const PROXY_POSE_PASS = 'Trillion3D proxy pose'
 /** The radiance pyramid of the lit image, which the next image's reflections read. */
 export const REFLECTION_RADIANCE_PASS = 'Trillion3D reflection radiance'
 /** The pass that carries the last image's transparents' front depth to this one's pixels. */
@@ -146,6 +149,7 @@ export const ENGINE_PASSES = [
   definePass({ label: BOUNCE_PASS, stage: 'bounce', block: 'other' }),
   definePass({ label: BOUNCE_LIGHT_LISTS_PASS, stage: 'bounce', block: 'other' }),
   definePass({ label: BOUNCE_PROBE_CLEAR_PASS, stage: 'bounce', block: 'other' }),
+  definePass({ label: PROXY_POSE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_RADIANCE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: FRONT_DEPTH_PASS, stage: 'reflections', block: 'other' }),

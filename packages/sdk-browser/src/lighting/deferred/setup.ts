@@ -8,8 +8,8 @@ import { PROBE_TEXELS, emptyAtlas } from '../../bounce/atlas.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
 import { CONTRACT_TRACE_BINDINGS, CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts'
-import { PROXY_HEADER_BYTES } from '../../bounce/sizes.ts'
-import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
+import { STORE_LAYERS } from '../../bounce/runtimeLayout.ts'
+import { RUNTIME_HEADER_WORDS } from '../../bounce/runtimeLayout.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import {
@@ -23,8 +23,6 @@ import { REFLECTION_TARGET } from '../../reflections/weight.ts'
 import { REFLECTION_FORMAT } from '../../reflections/constants.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
-/** Empty proxy header: no proxy ray without resident nodes. */
-const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16
 /**
  * Bindings of the deferred pass. The unlit view stops at the surfaces and the uniform; the contract
  * program adds the declared lights, their per-tile lists and the virtual shadow maps they read; the
@@ -84,7 +82,7 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
 }
 
 /** What a contract program adds to the deferred layout: the declared lights, their per-tile lists,
- *  the virtual shadow maps they read, the resident proxy and the shadow mask. */
+ *  the virtual shadow maps they read and the shadow mask. */
 function contractLayoutEntries(): GPUBindGroupLayoutEntry[] {
   return [
     {
@@ -113,14 +111,6 @@ function contractLayoutEntries(): GPUBindGroupLayoutEntry[] {
       binding: CONTRACT_VSM_BINDINGS.uniforms,
       visibility: GPUShaderStage.FRAGMENT,
       buffer: { type: 'uniform' },
-    },
-    // The resident proxy the shadow rays trace: a single read-only binding, which carries the
-    // columns a ray traverses and that ray's settings, so every lighting pass (opaque, blend,
-    // water) binds it alike.
-    {
-      binding: RESIDENT_PROXY_BINDING,
-      visibility: GPUShaderStage.FRAGMENT,
-      buffer: { type: 'read-only-storage' },
     },
     // The opaque resolve's compact shadow mask (`vsmMaskFactor`); the water composite's
     // translucent casters' transmission on the same number: both words.
@@ -192,13 +182,21 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     usage: GPUBufferUsage.UNIFORM,
   })
   const probes = emptyAtlas(device, 'Trillion3D empty bounce probes', PROBE_TEXELS)
-  // The absent proxy: a header of zeros, which the shader reads as a tree with no node.
-  // Both lighting passes bind the same one, so a session without
-  // proxy renders exactly the same image on opaque and on blend.
-  const proxy = device.createBuffer({
-    label: 'Trillion3D empty resident proxy',
-    size: PLACEHOLDER_PROXY_BYTES,
+  // The proxy's bindings in every program that traces it when no placement wears one: one buffer of
+  // zeros, a header that says no placement holds an instance (`bounce/runtimeLayout.ts`), so that a session
+  // without proxy renders exactly the same image on opaque and on blend.
+  const runtime = device.createBuffer({
+    label: 'Trillion3D empty run-time proxy',
+    // The header and one word of the arena: what a binding of the program's struct holds at least.
+    size: (RUNTIME_HEADER_WORDS + 1) * 4,
     usage: GPUBufferUsage.STORAGE,
+  })
+  // The run-time proxy's store, a view that holds none: one texel of two layers, which no pixel reads.
+  const store = device.createTexture({
+    label: 'Trillion3D empty run-time proxy store',
+    size: [1, 1, STORE_LAYERS],
+    format: 'r32uint',
+    usage: GPUTextureUsage.STORAGE_BINDING,
   })
   const receiver = receiverPlaceholders(device)
   const vsm = createVsmPlaceholders(device)
@@ -215,7 +213,8 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     transmittanceView: arrayView(transmittance),
     bounceGrid,
     probes: arrayView(probes),
-    proxy,
+    runtime,
+    store: store.createView({ dimension: '2d-array' }),
     receiver: receiver.resources,
     reflection: reflection.createView(),
     /** The empty normal atlas: what a transparent item without normals reads (zeros). */
@@ -228,7 +227,8 @@ export function createDeferredPlaceholders(device: GPUDevice) {
       transmittance.destroy()
       bounceGrid.destroy()
       probes.destroy()
-      proxy.destroy()
+      runtime.destroy()
+      store.destroy()
     },
   }
 }

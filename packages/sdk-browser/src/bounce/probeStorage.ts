@@ -1,7 +1,6 @@
 import { arrayView } from '../gpu/core/textureViews.ts'
-import type { SceneProxy, BounceCascades } from '../../../sdk-core/src/index.ts'
+import type { BounceCascades } from '../../../sdk-core/src/index.ts'
 import { constructGpuResources } from '../gpu/core/errorScope.ts'
-import { createGpuBounceProxy } from './proxy.ts'
 import { createBounceUniform } from './uniform.ts'
 import { BOUNCE_ATLAS_FORMAT } from './atlas.ts'
 import { BOUNCE_PROBE_CLEAR_PASS } from '../stage/passLabels.ts'
@@ -12,13 +11,11 @@ import { BOUNCE_PROBE_CLEAR_PASS } from '../stage/passLabels.ts'
  *  in both by one render pass on its layer, so the two stay equal between updates. */
 export function createProbeStorage(
   device: GPUDevice,
-  proxy: SceneProxy,
   cascades: BounceCascades,
   queueBytes: number,
   extent: [number, number, number],
 ) {
   return constructGpuResources(device, () => {
-    const resident = createGpuBounceProxy(device, proxy)
     const uniform = createBounceUniform(device, cascades)
     const queue = device.createBuffer({
       label: 'Trillion3D bounce probe queue v1',
@@ -74,6 +71,6 @@ export function createProbeStorage(
         encoder.beginRenderPass(clear).end()
       }
     }
-    return { resident, uniform, queue, probes, snapshot, views, clearLevels }
+    return { uniform, queue, probes, snapshot, views, clearLevels }
   })
 }

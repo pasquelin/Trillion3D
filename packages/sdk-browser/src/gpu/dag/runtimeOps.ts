@@ -31,6 +31,7 @@ import {
 } from './layout.ts'
 import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
 import { uploadNodes, type TreeFollower } from './treeFollow.ts'
+import type { ProxyInstances } from './proxyInstances.ts'
 import type { LinkFollower } from './worldFollow.ts'
 import type { PageResidency } from '../core/selection.ts'
 
@@ -46,6 +47,8 @@ export type DagRun = ReturnType<typeof createDagDispatch> & {
   mirror: ReturnType<typeof createWorldResidencyMirror> | undefined
   /** The placement tree's follower (`treeFollow.ts`), none without a tree. */
   tree: TreeFollower | undefined
+  /** The run-time cuts' instances, one a placement (`proxyInstances.ts`). */
+  proxies: ProxyInstances
   /** The world links' follower (`worldFollow.ts`), none without a world DAG. */
   links: LinkFollower | undefined
   /** Told of each placement whose link moved (`GpuSelection.linkMoved`). */
@@ -174,10 +177,8 @@ export function rewritePlacement({ resources, state }: DagRun, w: number) {
 }
 
 /** `GpuSelection.appendRoots`: roots packed behind the others, their words sent. */
-export function appendRoots(
-  { resources, state, uploadResidency, tree }: DagRun,
-  roots: readonly DagRoot[],
-) {
+export function appendRoots(run: DagRun, roots: readonly DagRoot[]) {
+  const { resources, state, uploadResidency, tree } = run
   if (state.disposed || state.dead || state.growing) return false
   const added = appendDagRoots(resources.packed, roots)
   if (!added) return false
@@ -187,6 +188,7 @@ export function appendRoots(
   // Their groups are fitted at the next cut, over the leaves of the placements they hold.
   const [first, end] = added.worlds
   for (let w = first; w < end; w++) tree?.touch(w)
+  run.proxies.appended(first, end)
   voidCuts(state)
   return true
 }
@@ -211,25 +213,27 @@ export function updateRuntimeResidency(
 
 /** Primitive `w`'s root parked or put back. The cut in hand holds pages the new word no longer
  *  lets through, or lacks some it does: another cut from here. */
-export function parkRoot({ resources, state, tree }: DagRun, w: number, parked: boolean) {
+export function parkRoot({ resources, state, tree, proxies }: DagRun, w: number, parked: boolean) {
   const { packed, frames } = resources
   const node = parked ? NONE : packed.rootBases[w]
   if (packed.rootNodes[w] === node) return
   packed.rootNodes[w] = node
   // The root travels behind the stretch in the frame buffer (`resources.ts`).
   frames.writeWord(w, 1, node)
+  proxies.park(w, parked)
   tree?.touch(w)
   voidCuts(state)
 }
 
 /** Primitive `w`'s mark, as `parkRoot`. */
-export function writeMark({ resources, state, tree }: DagRun, w: number, mark: number) {
+export function writeMark({ resources, state, tree, proxies }: DagRun, w: number, mark: number) {
   const { packed, frames } = resources
   const before = packed.mark[w]
   if (before === mark) return
   packed.mark[w] = mark
   // The mark travels behind the record shift (`primitiveFrameWords`).
   frames.writeWord(w, 3, mark)
+  proxies.mark(w, mark)
   tree?.marked(w, before)
   voidCuts(state)
 }

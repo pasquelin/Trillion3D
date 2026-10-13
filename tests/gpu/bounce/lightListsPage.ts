@@ -39,7 +39,7 @@ struct BounceGrid{reach:vec4f,counts:vec4u,frame:vec4u,lists:vec4u,levels:array<
 @group(0) @binding(3) var<storage,read_write> sums:array<vec4f>;
 @group(0) @binding(${BOUNCE_LIGHT_LIST_BINDING}) var<storage,read> tileLights:array<u32>;
 /** No proxy: no light here casts a shadow. */
-fn proxyBlocked(o:vec3f,d:vec3f,span:f32)->bool{return false;}
+fn rtBlocked(o:vec3f,d:vec3f,span:f32)->bool{return false;}
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=arrayLength(&sums)){return;}

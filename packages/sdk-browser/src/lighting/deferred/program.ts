@@ -5,7 +5,6 @@ import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts'
 import { receiverEntries, type ReceiverResources } from '../../webgpu/visibility/receiver.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { createDeferredLightingLayout, type DeferredPlaceholders } from './setup.ts'
-import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
@@ -51,8 +50,10 @@ export interface DirectLightResources extends Partial<ContractKey> {
    *  identity. */
   bounceGrid?: GPUBuffer
   probes?: GPUTextureView
-  /** Resident proxy; absent, a zero substitute. */
+  /** The proxy's buffer and the world matrices it places its meshes by, which the forward programs read
+   *  (`webgpu/blend/lighting.ts`): the opaque resolve binds neither. Absent, a zero substitute. */
   proxy?: GPUBuffer
+  worlds?: GPUBuffer
   /** The reflection target the opaque trace wrote (`../../reflections/trace.ts`); absent, a zero
    *  substitute. */
   reflection?: GPUTextureView
@@ -214,7 +215,6 @@ function bindLight(
     maskTiles = direct.vsmMaskTiles ?? placeholders.vsmMaskTiles,
     vsmTransmission = direct.vsmTransmission ?? placeholders.transmittanceView,
     probes = direct.probes,
-    proxy = direct.proxy ?? placeholders.proxy,
     receiver = direct.receiver ?? placeholders.receiver,
     reflection = direct.reflection ?? placeholders.reflection
   state.boundHdr = hdr
@@ -225,13 +225,12 @@ function bindLight(
   next[3] = vsm.pageTable
   next[4] = mask
   next[5] = probes
-  next[6] = proxy
-  for (let i = 0; i < receiver.length; i++) next[7 + i] = receiver[i]
-  next[7 + receiver.length] = vsm.projectionData
-  next[8 + receiver.length] = vsm.uniforms
-  next[9 + receiver.length] = vsmTransmission
-  next[10 + receiver.length] = maskTiles
-  next[11 + receiver.length] = reflection
+  for (let i = 0; i < receiver.length; i++) next[6 + i] = receiver[i]
+  next[6 + receiver.length] = vsm.projectionData
+  next[7 + receiver.length] = vsm.uniforms
+  next[8 + receiver.length] = vsmTransmission
+  next[9 + receiver.length] = maskTiles
+  next[10 + receiver.length] = reflection
   state.boundSurface = surface
   if (reboundLight(state)) return
   state.boundFlags = surface.views()[3]
@@ -248,7 +247,6 @@ function bindLight(
       mask,
       maskTiles,
       vsmTransmission,
-      proxy,
       receiver,
       reflection,
     }
@@ -281,7 +279,7 @@ function reboundLight(state: ProgramState) {
 }
 
 /** The light group's entries a contract program adds: its receiver, its surface's subsurface and
- *  lobes, its lights, their tiles and shadows, and the resident proxy. */
+ *  lobes, its lights, their tiles and shadows. */
 function contractEntries(
   placeholders: DeferredPlaceholders,
   surface: SurfaceBuffer,
@@ -292,7 +290,6 @@ function contractEntries(
     mask: GPUTextureView
     maskTiles: GPUTextureView
     vsmTransmission: GPUTextureView
-    proxy: GPUBuffer
     receiver: ReceiverResources
     reflection: GPUTextureView
   },
@@ -310,8 +307,6 @@ function contractEntries(
       projectionData: { buffer: r.vsm.projectionData },
       uniforms: { buffer: r.vsm.uniforms },
     }),
-    // The resident proxy as-is, no copy: its header says whether there is anything to trace.
-    { binding: RESIDENT_PROXY_BINDING, resource: { buffer: r.proxy } },
     { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: r.mask },
     { binding: VSM_MASK_TILES_BINDING, resource: r.maskTiles },
     { binding: VSM_TRANSMISSION_RESOLVE_BINDING, resource: r.vsmTransmission },

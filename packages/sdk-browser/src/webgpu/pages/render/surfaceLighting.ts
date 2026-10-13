@@ -43,6 +43,14 @@ export function encodeSurfaceLighting(
     throw new Error('DEFERRED_UNAVAILABLE')
   // The impostor cards complete the opaque surfaces before anything reads them.
   rt.gpu.impostorCode?.encodeImpostorCards(rt, encoder)
+  // The placement tree the proxy's rays walk, as the culling left it this image (`proxyInstances.ts`).
+  run.gpuSelection?.proxyMirror(encoder)
+  const { deformation } = rt.vis
+  run.gpuSelection?.proxyPose(encoder, {
+    pool: rt.vis.concatPos,
+    recordOf: (world) => deformation?.wordOfWorld(world) ?? 0,
+    revision: deformation?.frame.revision ?? 0,
+  })
   const [width, height] = gpu.targetSize,
     raw = run.diagnostic !== 'beauty'
   invertMatrix4(inverseViewProj, viewProj)

@@ -1,13 +1,13 @@
 // A closed room for the reflection proofs: six slabs seen from inside (`boxFrame.ts`) of nearly one
-// grey, a glossy metal patch in the middle of its floor, and its resident proxy (`rig.ts`): the
-// twelve triangles of its inner faces, whose surface cache holds each face's colour. A ray that
+// grey, a glossy metal patch in the middle of its floor, and its proxy (`rig.ts`): the
+// twelve triangles of its inner faces, each face giving its colour. A ray that
 // leaves the screen finds the room again in the proxy, and never the background. The patch lies
 // metres from every wall. Its far wall's colour is a parameter (`roomFrame`): a dark one tells the
 // proxy's answer from the background's.
-import { trianglesProxy } from '../../../packages/sdk-core/src/scene/core/proxy.fixture.ts'
 import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
 import type { RigFrame } from './rigFrame.ts'
+import type { RigFace } from './rigRuntime.ts'
 
 /** The room's inner extent: x, y and z from `low` to `high`. */
 const LOW: V3 = [-5, 0, -10],
@@ -40,11 +40,11 @@ function slab(axis: number, side: number): Block['box'] {
   return { low, high }
 }
 
-/** The room's proxy: two triangles to a face, and the radiance of both sides of each. */
+/** The room's proxy: two triangles to a face, and the radiance it gives. */
 function roomProxy(faces: typeof FACES) {
-  const triangles: number[] = []
-  const surface: number[] = []
+  const proxy: RigFace[] = []
   for (const { axis, side, color } of faces) {
+    const triangles: number[] = []
     const [u, v] = [0, 1, 2].filter((a) => a !== axis)
     const at = side ? HIGH[axis] : LOW[axis]
     const corner = (a: number, b: number): number[] => {
@@ -59,14 +59,10 @@ function roomProxy(faces: typeof FACES) {
       [corner(0, 0), corner(1, 1), corner(0, 1)],
     ]) {
       triangles.push(...quad.flat())
-      surface.push(...color, 1, ...color, 1)
     }
+    proxy.push({ triangles: Float32Array.from(triangles), radiance: color })
   }
-  return {
-    scene: { ...trianglesProxy(Float32Array.from(triangles), 6), cellMetres: 1 },
-    surface: Float32Array.from(surface),
-    reach: 100,
-  }
+  return { faces: proxy }
 }
 
 /** The room seen from `eye` toward `target`, `width × height` pixels: its glossy patch of

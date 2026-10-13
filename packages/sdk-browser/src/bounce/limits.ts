@@ -8,9 +8,7 @@
  * refused bounce with the measurement that missed, never with a guess.
  */
 
-import { PROBE_FLOATS, type SceneProxy } from '../../../sdk-core/src/index.ts'
-import { PROXY_HEADER_BYTES, surfaceCacheTexels } from './sizes.ts'
-import { atlasExtent } from '../webgpu/core/floatAtlas.ts'
+import { PROBE_FLOATS } from '../../../sdk-core/src/index.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { BOUNCE_GRID_BYTES } from './uniform.ts'
 
@@ -56,73 +54,21 @@ function bounceLimitFailure(device: GPUDevice, bindings: readonly BounceBinding[
 }
 
 /**
- * Resident-proxy bytes: its header, then its three columns back to back in the single
- * buffer the traversal binds. A proxy without data keeps the four words of the empty binding.
- */
-function residentProxyBytes(proxy: SceneProxy) {
-  const data = proxy.data
-  const columns =
-    (data?.triangles.byteLength ?? 0) +
-    (data?.nodeBounds.byteLength ?? 0) +
-    (data?.nodeChildren.byteLength ?? 0) +
-    (data?.triangleGroups.byteLength ?? 0) +
-    (data?.groupOffsets.byteLength ?? 0) +
-    (data?.owners.byteLength ?? 0) +
-    (data?.bindWorlds.length ?? 0) * 4
-  return PROXY_HEADER_BYTES + Math.max(16, columns)
-}
-
-/**
- * Bytes of each buffer binding bounce will create, in the order it creates them: the resident
- * proxy and its albedo, the frame queue and the cascade uniform. The probes, their snapshot and
- * the surface cache are atlases, checked against the texture limits (`atlasLimitFailure`).
- */
-function plannedBindings(proxy: SceneProxy, queueBytes: number): BounceBinding[] {
-  const data = proxy.data,
-    storage = 'maxStorageBufferBindingSize'
-  return [
-    { name: 'resident proxy', bytes: residentProxyBytes(proxy), limit: storage },
-    { name: 'proxy albedo', bytes: data?.albedo.byteLength ?? 4, limit: storage },
-    { name: 'probe queue', bytes: queueBytes, limit: storage },
-    { name: 'cascades uniform', bytes: BOUNCE_GRID_BYTES, limit: 'maxUniformBufferBindingSize' },
-  ]
-}
-
-/**
- * Refuses bounce before a single buffer is created when this device cannot hold it.
+ * Refuses bounce before a single buffer is created when this device cannot hold it: the frame queue
+ * and the cascade uniform, and the probes' atlas. The proxy the probes trace is the scene's, grown as
+ * every table of the cut is, and refused by the engine's own named refusal.
  * The caller surfaces the message as-is: it is the one that says which binding missed and by how much.
  */
 export function ensureBounceFits(
   device: GPUDevice,
-  proxy: SceneProxy,
   probeExtent: readonly number[],
   queueBytes: number,
 ) {
+  const storage = 'maxStorageBufferBindingSize'
   const failure =
-    bounceLimitFailure(device, plannedBindings(proxy, queueBytes)) ??
-    atlasLimitFailure(device, [
-      { name: 'probes', extent: probeExtent },
-      {
-        name: 'surface cache',
-        extent: atlasExtent(surfaceCacheTexels(proxy.triangles), textureLimits(device.limits).side),
-      },
-    ])
-  if (failure) throw new Error(failure)
-}
-
-/** The resident proxy uses the same complete binding admission as bounce. */
-export function ensureProxyFits(device: GPUDevice, proxy: SceneProxy) {
-  const failure = bounceLimitFailure(device, [
-    {
-      name: 'resident proxy',
-      bytes: residentProxyBytes(proxy),
-      limit: 'maxStorageBufferBindingSize',
-    },
-    {
-      name: 'proxy albedo',
-      bytes: Math.max(4, proxy.data?.albedo.byteLength ?? 0),
-      limit: 'maxStorageBufferBindingSize',
-    },
-  ])
+    bounceLimitFailure(device, [
+      { name: 'probe queue', bytes: queueBytes, limit: storage },
+      { name: 'cascades uniform', bytes: BOUNCE_GRID_BYTES, limit: 'maxUniformBufferBindingSize' },
+    ]) ?? atlasLimitFailure(device, [{ name: 'probes', extent: probeExtent }])
   if (failure) throw new Error(failure)
 }

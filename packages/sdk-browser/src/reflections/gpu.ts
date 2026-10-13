@@ -1,7 +1,7 @@
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { validated } from '../gpu/core/errorScope.ts'
 import { shaderFailed } from '../gpu/core/shaderModule.ts'
-import { COMPUTE, computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
+import { COMPUTE, computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { buildComputeStages } from '../lighting/deferred/fullscreen.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
@@ -17,6 +17,8 @@ import {
   radianceLevels,
 } from './radiance.ts'
 import { RADIANCE_HASH_BYTES, SAMPLE_BYTES, createRadianceSettle } from './settle.ts'
+import { createProxyStore } from './proxyStore.ts'
+import { storeBytes } from '../bounce/runtimeLayout.ts'
 import {
   BEGIN_SHADER,
   TRACE_SHADER,
@@ -32,15 +34,14 @@ import {
   REFLECTION_GROUP,
   REFLECTION_IMAGE_BINDING,
   REFLECTION_LIGHT_VIEW_BINDING,
-  REFLECTION_SURFACE_BINDING,
   REFLECTION_VIEW_BYTES,
 } from './viewLayout.ts'
 import { REFLECTION_TARGET } from './weight.ts'
 
 /** The reflection group's layout (`reflectionBindingsWgsl`), once a device: the view uniform, the
  *  radiance pyramid's levels from 1 on and its sampler, then the depth pyramid
- *  (`hizDepthEntries`), the lighting's view, the proxy's surface cache and the pyramid's level 0,
- *  the lit image itself, read by compute and fragment stages. */
+ *  (`hizDepthEntries`), the lighting's view and the pyramid's level 0, the lit image itself, read by
+ *  compute and fragment stages. */
 export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
   const visibility = COMPUTE | GPUShaderStage.FRAGMENT
   return device.createBindGroupLayout({
@@ -54,7 +55,6 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
       { binding: 2, visibility, sampler: { type: 'filtering' } },
       ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
       computeBufferEntry(REFLECTION_LIGHT_VIEW_BINDING, 'uniform', visibility),
-      computeTextureEntry(REFLECTION_SURFACE_BINDING, 'unfilterable-float', '2d', visibility),
       { binding: REFLECTION_IMAGE_BINDING, visibility, texture: { sampleType: 'float' } },
     ],
   })
@@ -116,9 +116,10 @@ export type ReflectionPipelines = NonNullable<Awaited<ReturnType<typeof createRe
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
  *  radiance pyramid — the lit image of the HDR targets' turn about, its level 0, then the levels
  *  after it at half the size, the bytes of one pyramid —, its tile list, its uniform, its radiance
- *  hash and the front depth (`frontBytes`, which `blends` sizes); the depth it marches is the
- *  Hi-Z's, its front depth folded in. */
-export function reflectionBytes(width: number, height: number, blends: boolean) {
+ *  hash, the front depth (`frontBytes`, which `blends` sizes) and, while a placement wears a proxy
+ *  (`store`), the run-time proxy's answers (`proxyStore.ts`); the depth it marches is the Hi-Z's, its
+ *  front depth folded in. */
+export function reflectionBytes(width: number, height: number, blends: boolean, store = false) {
   return (
     REFLECTION_TARGET.bytes(width, height, true) +
     textureBytesOf({ size: [width, height], format: HDR_FORMAT })! +
@@ -132,7 +133,9 @@ export function reflectionBytes(width: number, height: number, blends: boolean) 
     TRACE_ARGS_BYTES +
     REFLECTION_VIEW_BYTES +
     RADIANCE_HASH_BYTES +
-    SAMPLE_BYTES * 3
+    SAMPLE_BYTES * 3 +
+    // The run-time proxy's answers, while a placement wears a proxy (`proxyStore.ts`).
+    (store ? storeBytes(width, height) : 0)
   )
 }
 
@@ -148,6 +151,7 @@ export function createScreenReflection(
   width: number,
   height: number,
   blends: boolean,
+  store = false,
 ) {
   // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread the target and set it first;
   // no frame copies it.
@@ -166,6 +170,7 @@ export function createScreenReflection(
   const tiles = createTraceTiles(device, width, height)
   const settle = createRadianceSettle(device)
   const front = createFrontDepth(device, width, height, blends)
+  const answers = createProxyStore(device, width, height, store)
   return {
     device,
     target,
@@ -174,6 +179,8 @@ export function createScreenReflection(
     tiles,
     uniform,
     settle,
+    /** The run-time proxy's answers, kept from image to image (`proxyStore.ts`). */
+    store: answers,
     front,
     writeView: createReflectionViewWriter(device, uniform),
     /** The reflection group over each depth it was bound with (`GpuHiz.depth`, a view's) and each
@@ -193,6 +200,7 @@ export function createScreenReflection(
       tiles.list.destroy()
       uniform.destroy()
       settle.dispose()
+      answers.dispose()
       front.dispose()
     },
   }
@@ -200,9 +208,8 @@ export function createScreenReflection(
 export type ScreenReflection = ReturnType<typeof createScreenReflection>
 
 /** What the reflection group holds beside the view's own buffers, the radiance pyramid and the
- *  depth: the deferred lighting's view, and the surface cache of the resident proxy (a texel of
- *  zero without a proxy). */
-export type ReflectionOver = { lightView: GPUBuffer; surface: GPUTextureView }
+ *  depth: the deferred lighting's view. */
+export type ReflectionOver = { lightView: GPUBuffer }
 
 /** The reflection group of `reflection` over the depth pyramid `depth` (`GpuHiz.depth`), the lit
  *  image its pyramid holds now and `over`, made once a pyramid, lit image and depth, and while
@@ -216,7 +223,7 @@ export function reflectionGroup(
   let byImage = reflection.groups.get(depth)
   if (!byImage) reflection.groups.set(depth, (byImage = new WeakMap()))
   const kept = byImage.get(image)
-  if (kept && kept.over[0] === over.lightView && kept.over[1] === over.surface) return kept.group
+  if (kept && kept.over[0] === over.lightView) return kept.group
   const { device } = reflection
   const group = device.createBindGroup({
     label: 'Trillion3D reflection',
@@ -227,11 +234,10 @@ export function reflectionGroup(
       { binding: 2, resource: reflection.radiance.sampler },
       ...hizDepthBindEntries(REFLECTION_DEPTH_BINDING, depth),
       { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: over.lightView } },
-      { binding: REFLECTION_SURFACE_BINDING, resource: over.surface },
       { binding: REFLECTION_IMAGE_BINDING, resource: image },
     ],
   })
-  byImage.set(image, { group, over: [over.lightView, over.surface] })
+  byImage.set(image, { group, over: [over.lightView] })
   return group
 }
 
@@ -239,21 +245,16 @@ export function reflectionGroup(
 export type ReflectionHost = {
   gpu: {
     reflection?: ScreenReflection
-    deferred?: { uniform: GPUBuffer; placeholders: { reflection: GPUTextureView } }
+    deferred?: { uniform: GPUBuffer }
   }
   vis: { gpuHiz?: GpuHiz }
-  bounce: { probes?: { surface: { view: GPUTextureView } } }
 }
 
-/** The reflection group's other resources: the lighting's view, the proxy's surface cache else a
- *  zero texel. Undefined while the lighting is not made. */
-export function reflectionOver({ gpu, bounce }: ReflectionHost): ReflectionOver | undefined {
+/** The reflection group's other resource: the lighting's view. Undefined while the lighting is not made. */
+export function reflectionOver({ gpu }: ReflectionHost): ReflectionOver | undefined {
   const { deferred } = gpu
   if (!deferred) return undefined
-  return {
-    lightView: deferred.uniform,
-    surface: bounce.probes?.surface.view ?? deferred.placeholders.reflection,
-  }
+  return { lightView: deferred.uniform }
 }
 
 /** Binds, in the forward `pass`, the reflection group (`REFLECTION_GROUP`): the view's reflection

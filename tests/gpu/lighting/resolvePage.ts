@@ -29,7 +29,6 @@ import { CONTRACT_SHADOW_BINDINGS } from '../../../packages/sdk-browser/src/ligh
 import { CONTRACT_VSM_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/shadowWgsl.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../../packages/sdk-browser/src/vsm/transmissionWgsl.ts'
 import { VSM_MASK_TILES_BINDING } from '../../../packages/sdk-browser/src/vsm/projectionWgsl.ts'
-import { RESIDENT_PROXY_BINDING } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts'
 import { UNREAD } from './resolveUnread.ts'
 import { SAMPLE_FLOATS, SAMPLES_BINDING, SUMS_BINDING, resolveHarness } from './resolveHarness.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -112,7 +111,7 @@ export async function run(scenes: ResolveScene[]) {
     [CONTRACT_VSM_BINDINGS.pageTable, { buffer: placeholders.vsmPageTable }],
     [CONTRACT_VSM_BINDINGS.projectionData, { buffer: placeholders.vsmProjectionData }],
     [CONTRACT_VSM_BINDINGS.uniforms, { buffer: placeholders.vsmUniforms }],
-    [RESIDENT_PROXY_BINDING, { buffer: placeholders.proxy }],
+    [CONTRACT_VSM_BINDINGS.pool, { buffer: placeholders.vsmPool }],
     [CONTRACT_SHADOW_BINDINGS.transmittance, placeholders.vsmMask],
     [VSM_MASK_TILES_BINDING, placeholders.vsmMaskTiles],
     [VSM_TRANSMISSION_RESOLVE_BINDING, placeholders.transmittanceView],

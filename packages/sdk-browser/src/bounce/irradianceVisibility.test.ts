@@ -29,7 +29,7 @@ const { lightsIrradiance } = shaderRun<{
   tileLights: [],
   rectIrradiance: () => [0, 0, 0, 0],
   directIncidence: () => [0, 1, 0, 1],
-  proxyBlocked: (origin: Vec, direction: Vec, span: number) => {
+  rtBlocked: (origin: Vec, direction: Vec, span: number) => {
     scene.rays++
     const hit = (scene.wall - Number(origin[1])) / Number(direction[1])
     return hit > 0 && hit < span

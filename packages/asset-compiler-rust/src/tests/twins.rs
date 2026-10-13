@@ -1,10 +1,10 @@
 //! The reference values of the compiler's mirrored encodings (`trillion3d_math::golden`): the
-//! albedo bytes here, the proxy BVH's child boxes (`proxy/wide_tests.rs`). The octahedral normal
-//! and the quantization are the codec's.
+//! albedo bytes here. The octahedral normal, the quantization and the proxy BVH's child boxes are
+//! the codec's.
 
 use trillion3d_math::golden::{f64s, run, Twin, Value, HOSTILE_F64};
 
-fn twins() -> [Twin; 3] {
+fn twins() -> [Twin; 2] {
     [
         Twin {
             file: "albedo_pack",
@@ -19,7 +19,6 @@ fn twins() -> [Twin; 3] {
             },
             compute: |v| vec![Value::U32(crate::albedo::pack([0, 1, 2].map(|c| v[c].f64())))],
         },
-        crate::proxy::wide::tests::twin(),
         Twin {
             file: "preview_levels",
             name: "preview_levels",

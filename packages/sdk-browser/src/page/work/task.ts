@@ -39,6 +39,14 @@ export async function runPageTask(
       const { drawn, cones, blended, recut, held } = cutter.unpackDrawn(request.source)
       const cut = await cutter.cutDrawnTriangles(drawn, cones, blended, { recut, held })
       const transfer = cut.pages.flatMap((page) => [page.index, page.geometry])
+      const { proxy } = cut
+      if (proxy)
+        transfer.push(
+          proxy.triangles.buffer as ArrayBuffer,
+          proxy.albedo.buffer as ArrayBuffer,
+          proxy.nodeBounds.buffer as ArrayBuffer,
+          proxy.nodeChildren.buffer as ArrayBuffer,
+        )
       return done(request, started, { cut }, transfer)
     }
     if (request.op === 'cells') {

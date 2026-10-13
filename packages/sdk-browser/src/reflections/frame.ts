@@ -33,6 +33,13 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
   frame.size = gpu.targetSize
   frame.depthDrawn = run.depthDrawn
   frame.proxyError = bounce.probes?.proxy?.errorMetres ?? 0
+  // The run-time proxy's answers are of an epoch: it moves with the view, the lights, the poses and the proxy.
+  frame.epoch = reflection.store.follow(
+    [rt.lights.store.epoch, run.gpuSelection?.proxyRevision() ?? 0],
+    // The camera's own view: the jitter moves the render matrix every image, and an epoch that followed it
+    // would restart the budget for ever.
+    gpu.temporal?.frame.active ? gpu.temporal.frame.cameraViewProjection : frame.viewProjection,
+  )
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
 }
 
@@ -63,18 +70,17 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
 /**
  * The image's reflections, before its lighting: the view uniform, then one compute pass — the frame
  * state and the opaque surfaces' trace into the reflection target the resolve reads, when the image is lit, its field read from the bounce
- * cascades and its proxy from the resident proxy. What the lighting's view holds of the image — its
+ * cascades and its proxy from the scene's proxy. What the lighting's view holds of the image — its
  * inverse view-projection, the eye, the exposure, the display curve, the background — the trace
  * reads there (`gpu.deferred.update`, written before the image is submitted).
  */
 export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
-  const { gpu, vis, lights, bounce } = rt,
+  const { gpu, vis, lights } = rt,
     reflection = gpu.reflection,
     stages = vis.reflectionPipelines,
     hiz = vis.gpuHiz,
     depth = hiz?.depth(),
-    over = reflectionOver(rt),
-    resident = bounce.probes?.proxy
+    over = reflectionOver(rt)
   if (!reflection || !stages || !hiz || !depth || !over) return
   writeFrame(rt, reflection)
   const surfaces = gpu.surfaces,
@@ -93,7 +99,12 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.lightLists = lights.tiles?.buffer ?? deferred.placeholders.tiles
     inputs.bounceGrid = contract.bounceGrid ?? deferred.placeholders.bounceGrid
     inputs.probes = contract.probes ?? deferred.placeholders.probes
-    inputs.proxy = resident?.buffer ?? deferred.placeholders.proxy
+    // What a ray can meet of the scene, else the empty stand-in.
+    rt.run.gpuSelection?.proxyCopies(rt.setup.blendCopies)
+    const meshes = rt.run.gpuSelection?.proxyBuffers()
+    const empty = deferred.placeholders.runtime
+    inputs.runtime = meshes ?? { proxy: empty, worlds: empty }
+    inputs.store = reflection.store.view ?? deferred.placeholders.store
     inputs.lightView = over.lightView
     const group = reflectionGroup(reflection, depth, over)
     encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)
@@ -124,7 +135,12 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     viewProj,
   )
   pass.end()
-  reflection.settle.image(encoder, reflection.tiles.args, reflection.radiance.held.still)
+  reflection.settle.image(
+    encoder,
+    reflection.tiles.args,
+    reflection.tiles.list,
+    reflection.radiance.held.still,
+  )
 }
 
 /** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */

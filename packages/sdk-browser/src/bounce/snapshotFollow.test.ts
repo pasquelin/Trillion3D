@@ -11,7 +11,6 @@ import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER, snapshotGroups } from './p
 import { PROBE_TEXELS } from './atlas.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { floorProxy } from '../../../sdk-core/src/scene/core/proxy.fixture.ts'
 import { createGpuBounceProbes } from './probes.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, BOUNCE_PASS } from '../stage/passLabels.ts'
 import { createGpuLightTiles } from '../lighting/tiles/tiles.ts'
@@ -101,15 +100,20 @@ test('the update stores only the texels of the queued probe the follow-up copies
   assert.equal(PROBE_TEXELS, 11)
 })
 
-test('a working image copies no atlas: one bounce pass sweeps, updates, then the snapshot follows', async () => {
+test('a working image copies no atlas: one bounce pass updates, then the snapshot follows', async () => {
   const gpu = fakeDevice({
     limits: { maxStorageBufferBindingSize: 1 << 30, maxBufferSize: 1 << 30 },
   })
   const lights = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
   const tiles = await createGpuLightTiles(gpu.device)
+  const scene = {
+    buffers: () => ({ proxy: lights, worlds: lights }),
+    boxes: () => ({ boxes: Float64Array.from([0, 0, 0, 8, 0.1, 4]), changed: Uint8Array.of(0) }),
+  }
   const probes = await createGpuBounceProbes(
     gpu.device,
-    floorProxy(8, 4),
+    [0, 0, 0, 8, 0.1, 4],
+    scene,
     () => lights,
     1000,
     () => tiles,
@@ -138,13 +142,13 @@ test('a working image copies no atlas: one bounce pass sweeps, updates, then the
   const groups = probes.lastProbes
   assert.ok(groups > 0)
   assert.equal(work.includes('copy'), false, 'no copy of the atlas')
-  // One pass: the surface cache's sweep, the probes' update, the snapshot's follow-up.
+  // One pass: the probes' update, the snapshot's follow-up.
   const at = work.indexOf(`pass ${BOUNCE_PASS}`)
   assert.deepEqual(
     work.slice(at).map((step) => step.split(' ')[0]),
-    ['pass', 'updateSurface', 'updateProbes', 'followSnapshot'],
+    ['pass', 'updateProbes', 'followSnapshot'],
   )
-  assert.deepEqual(work.slice(at + 2), [
+  assert.deepEqual(work.slice(at + 1), [
     `updateProbes ${groups}`,
     `followSnapshot ${snapshotGroups(groups)}`,
   ])

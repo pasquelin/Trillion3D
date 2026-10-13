@@ -1,6 +1,6 @@
 import type { DagReport, PrimitiveDagStall } from './dag.ts'
 import type { AssetScope } from './base.ts'
-import type { SceneProxyDescriptor } from './proxy.ts'
+import type { RuntimeCutProxy, SceneProxyDescriptor } from './proxy.ts'
 import type { ImpostorSection } from './impostor.ts'
 import type {
   GeometryPageDescriptor,
@@ -141,6 +141,9 @@ export interface StreamCatalogue {
   /** Its culling tree. */ culling?: CullingHierarchy | null
   /** Its group links. */ structure?: ClusterStructure | null
   /** Its stream bundles. */ streams?: StreamCatalogue | null
+  /** The proxy of a cut the world made at run time (`world/page/runtimeProxy.ts`): in memory only,
+   *  what the run-time proxy's instances of it trace. */
+  runtimeProxy?: RuntimeCutProxy
   /** A world's dynamic geometry: index pages alone, their vertices read as floats from the
    *  host geometry the engine rewrites in place. */
   dynamic?: boolean

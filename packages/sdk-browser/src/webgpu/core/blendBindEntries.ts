@@ -23,8 +23,10 @@ export type BlendLighting = {
   probes: GPUTextureView
   /** Per-tile lamp lists: the blend pass reads the slice that concerns it. */
   tileLights: GPUBuffer
-  /** The resident proxy, the very one the opaque resolve binds. */
+  /** What a ray can meet of the scene: the proxy's buffer and the world matrices it places its meshes by
+   *  (`../../bounce/runtimeSceneWgsl.ts`), read by the reflection of the forward programs. */
   proxy: GPUBuffer
+  worlds: GPUBuffer
 }
 
 /** Resources of a transparent-mesh group: the mesh itself and the scene. */
@@ -93,10 +95,11 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   bounceGrid: ['fragment', UNIFORM],
   probes: ['fragment', FLOAT_ARRAY],
   tileLights: ['fragment', STORAGE],
-  // The resident proxy, **read-only**: a binding the fragment stage could write would cost the
-  // pass its early depth reject (4232 hidden fragment draws). The probes are an atlas
+  // The proxy and the worlds it is placed by, **read-only**: a binding the fragment stage could write would
+  // cost the pass its early depth reject (4232 hidden fragment draws). The probes are an atlas
   // (`../../bounce/atlas.ts`), no storage buffer.
   proxy: ['fragment', STORAGE],
+  worlds: ['fragment', STORAGE],
   // The physical records a lobed blend reads (`../blend/physicalWgsl.ts`): a texture, the
   // fragment stage holding the eight storage buffers WebGPU guarantees.
   physical: ['fragment', { texture: { sampleType: 'uint' } }],

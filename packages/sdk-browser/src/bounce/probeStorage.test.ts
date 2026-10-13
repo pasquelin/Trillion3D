@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createBounceCascades } from '../../../sdk-core/src/index.ts'
-import { ownedProxy } from '../../../sdk-core/src/scene/core/proxy.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuDeviceLedger } from '../gpu/core/deviceLedger.ts'
 import { createProbeStorage } from './probeStorage.ts'
@@ -13,15 +12,14 @@ test('a refused probe snapshot releases the entire new probe bundle, preserving 
   let ceiling = 1e9
   const ledger = installGpuDeviceLedger(gpu.device, { limit: () => ceiling })
   const previous = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
-  const proxy = ownedProxy()
-  const cascades = createBounceCascades(proxy.bounds)
+  const cascades = createBounceCascades([0, 0, 0, 20, 3, 3])
   const originalCreate = gpu.device.createTexture.bind(gpu.device)
   gpu.device.createTexture = (descriptor) => {
     if (descriptor.label === 'Trillion3D bounce probes snapshot v3') ceiling = ledger.bytes
     return originalCreate(descriptor)
   }
   assert.throws(
-    () => createProbeStorage(gpu.device, proxy, cascades, 16, [11, 1, 1]),
+    () => createProbeStorage(gpu.device, cascades, 16, [11, 1, 1]),
     /GPU_BUDGET_EXCEEDED/,
   )
   assert.equal(ledger.bytes, 64)
@@ -38,11 +36,9 @@ test('a level is cleared in the probes and in their snapshot by one pass, the tw
   const gpu = fakeDevice({
     limits: { maxStorageBufferBindingSize: 1 << 28, maxBufferSize: 1 << 28 },
   })
-  const proxy = ownedProxy()
   const storage = createProbeStorage(
     gpu.device,
-    proxy,
-    createBounceCascades(proxy.bounds),
+    createBounceCascades([0, 0, 0, 20, 3, 3]),
     16,
     [11, 1, 3],
   )

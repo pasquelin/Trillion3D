@@ -7,8 +7,8 @@ import { length3 } from '../../../packages/math/src/vector/vector.ts'
 export const SIDE = BOUNCE_SETTINGS.cascadeSize,
   SPACING = 2,
   BASE = -SIDE / 2
-/** Points a run reads: a cache sweep's ceiling. */
-export const POINTS = BOUNCE_SETTINGS.surfaceTexelsPerFrame
+/** Points a run reads: the hits of a frame's probe rays, a few thousand probes' worth. */
+export const POINTS = 16384
 
 /** `count` lights over the lattice, ranges from 0.5 m to `reach`, spread evenly in log: lamps and
  *  spots, a rectangle, a sun. */
@@ -41,8 +41,8 @@ export function lightsOf(count: number, reach: number, r: () => number): SceneLi
 }
 
 /** Points inside the lattice, on its cells' faces, and past it; their unit normals. `coherent`: in
- *  cell order, as the cache sweep holds its texels — the proxy's triangles in its tree's order, a
- *  workgroup's in one leaf —; else scattered, as probe and reflection hits are. */
+ *  cell order, as the rays of one probe leave a cell —, a
+ *  workgroup's in one leaf; else scattered, as probe and reflection hits are. */
 export function pointsOf(r: () => number, coherent: boolean) {
   const words = new Float32Array(POINTS * 8)
   const half = (SIDE * SPACING) / 2

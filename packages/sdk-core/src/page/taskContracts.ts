@@ -1,3 +1,4 @@
+import type { RuntimeCutProxy } from '../contracts/proxy.ts'
 import type { CullingHierarchy, Page } from '../contracts/geometry.ts'
 import type { readCellPage } from '../scene/core/tablePartition.ts'
 
@@ -54,6 +55,9 @@ export interface PageCutPayload {
   /** Grid step of positions, as a power of two. */ positionExponent: number
   /** Grid step of texture coordinates, as a power of two. */ uvExponent: number
   /** Largest position error on that grid. */ maxPositionError: number
+  /** The cut's own proxy, for the faces a light's ray or a reflection can meet; absent for lines,
+   *  sprites, blended, skinned or rewritten faces. */
+  proxy?: RuntimeCutProxy
 }
 
 /** A message asking a worker to cut pages, or to read a partition's cells. */
