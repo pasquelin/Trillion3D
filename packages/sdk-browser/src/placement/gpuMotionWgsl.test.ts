@@ -15,13 +15,7 @@ import type { WgslDecl } from '../../../math/src/wgsl/decl.ts'
 import { unresolvedNames } from '../gpu/core/wgslNames.fixture.ts'
 import { createPlacementMotion } from '../taa/motion.ts'
 import { fakeDevice, written } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import {
-  DOUBLE_HELPERS,
-  countLeadingZeros,
-  generated,
-  pair,
-  type Pair,
-} from './composeDoubles.fixture.ts'
+import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
 
 const motionRun = shaderRun<{
   fromF32(w: number): Pair
@@ -39,7 +33,7 @@ const motionRun = shaderRun<{
     'inverse4',
     'motionWords',
   ],
-  { countLeadingZeros },
+  {},
 )
 
 const wordsOf = (values: ArrayLike<number>) => [
