@@ -33,10 +33,13 @@ export function updateWholeDeformationBounds(
     readHostBox(source, local, 0)
     boxGrow(local, 0, local, 0, deformation.reachOfWorld(item.matrix))
     boxTransform(box, 0, local, 0, item.matrix.elements)
+    // The key record follows the box the item now names: new values, or this box taking over from
+    // its world box (`refreshBlendWorlds`).
+    const switched = item.bounds !== box
     item.bounds = box
     const same = boxEquals(box, 0, before, 0)
-    if (!same) noteKeyRecord(rt.blendState, rank)
-    else if (!changed) continue
+    if (!same || switched) noteKeyRecord(rt.blendState, rank)
+    if (same && !changed) continue
     boxUnionBatch(before, box, 1)
     noteDeformedBounds(rt, before)
   }
