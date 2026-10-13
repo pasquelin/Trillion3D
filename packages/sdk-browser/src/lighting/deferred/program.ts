@@ -21,7 +21,7 @@ import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { createCompositions, type CompositionSources } from './compositions.ts'
 import { type FusedBlend } from '../../webgpu/effects/webgpuKinds.ts'
 import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
-import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import { sequentialEntries, namedBufferEntries } from '../../gpu/core/computeBindings.ts'
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. With them,
  *  the frame's key: what its program leaves out (`contractCuts.ts`). */
@@ -227,8 +227,7 @@ function bindLight(
   state.boundFlags = surface.views()[3]
   const entries: GPUBindGroupEntry[] = [
     ...sequentialEntries(surface.views()),
-    { binding: DEFERRED_BINDINGS.depth, resource: depth },
-    { binding: DEFERRED_BINDINGS.view, resource: { buffer: bindings.uniform } },
+    ...namedBufferEntries(DEFERRED_BINDINGS, { depth, view: { buffer: bindings.uniform } }),
   ]
   if (sources.direct) {
     if (!lights) throw new Error('the contract program binds no declared-light buffer')
@@ -247,8 +246,10 @@ function bindLight(
   }
   if (sources.bounce && direct.bounceGrid && direct.probes)
     entries.push(
-      { binding: DEFERRED_BINDINGS.bounceGrid, resource: { buffer: direct.bounceGrid } },
-      { binding: DEFERRED_BINDINGS.probes, resource: direct.probes },
+      ...namedBufferEntries(DEFERRED_BINDINGS, {
+        bounceGrid: { buffer: direct.bounceGrid },
+        probes: direct.probes,
+      }),
     )
   state.lightGroup = parts.device.createBindGroup({ layout: parts.lightingLayout, entries })
   state.held[state.identity.slot] = { group: state.lightGroup, flags: state.boundFlags }
@@ -290,11 +291,15 @@ function contractEntries(
     ...receiverEntries(LIGHTING_RECEIVER_BINDING, r.receiver),
     { binding: SUBSURFACE_BINDING, resource: surface.subsurfaceView },
     { binding: PHYSICAL_LOBES_BINDING, resource: surface.lobesView },
-    { binding: DEFERRED_BINDINGS.lights, resource: { buffer: r.lights } },
-    { binding: DEFERRED_BINDINGS.tiles, resource: { buffer: r.tiles } },
-    { binding: CONTRACT_VSM_BINDINGS.pageTable, resource: { buffer: r.vsm.pageTable } },
-    { binding: CONTRACT_VSM_BINDINGS.projectionData, resource: { buffer: r.vsm.projectionData } },
-    { binding: CONTRACT_VSM_BINDINGS.uniforms, resource: { buffer: r.vsm.uniforms } },
+    ...namedBufferEntries(DEFERRED_BINDINGS, {
+      lights: { buffer: r.lights },
+      tiles: { buffer: r.tiles },
+    }),
+    ...namedBufferEntries(CONTRACT_VSM_BINDINGS, {
+      pageTable: { buffer: r.vsm.pageTable },
+      projectionData: { buffer: r.vsm.projectionData },
+      uniforms: { buffer: r.vsm.uniforms },
+    }),
     // The resident proxy as-is, no copy: its header says whether there is anything to trace.
     { binding: RESIDENT_PROXY_BINDING, resource: { buffer: r.proxy } },
     { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: r.mask },

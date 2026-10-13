@@ -38,16 +38,17 @@ export const computeTextureEntry = (
 ): GPUBindGroupLayoutEntry => ({ binding, visibility, texture: { sampleType, viewDimension } })
 
 /**
- * Bind-group entries of a kernel whose group-0 buffers are named by `bindings` (name → binding):
- * each buffer lands at the binding of its shader name, whatever order the caller lists them in.
+ * Bind-group entries of a group whose bindings are named by `bindings` (name → binding): each
+ * resource — a buffer, a view, a sampler — lands at the binding of its shader name, whatever order
+ * the caller lists them in; a name the caller leaves out is bound by none.
  */
 export const namedBufferEntries = <Name extends string>(
   bindings: Record<Name, number>,
-  buffers: Record<Name, GPUBufferBinding>,
+  resources: Partial<Record<Name, GPUBindingResource>>,
 ): GPUBindGroupEntry[] =>
-  (Object.keys(bindings) as Name[]).map((name) => ({
+  (Object.keys(resources) as Name[]).map((name) => ({
     binding: bindings[name],
-    resource: buffers[name],
+    resource: resources[name]!,
   }))
 
 /** Bind-group entries of `resources` in their order, the first at binding `first`, each next one a

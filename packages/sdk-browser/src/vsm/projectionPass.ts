@@ -14,6 +14,7 @@ import {
   computeTextureEntry,
   computeUniformEntry,
   sequentialEntries,
+  namedBufferEntries,
 } from '../gpu/core/computeBindings.ts'
 import { NO_CONE } from '../../../sdk-core/src/scene/light/fields.ts'
 import { hasSubgroups } from '../gpu/core/subgroups.ts'
@@ -449,18 +450,17 @@ const projectionDescriptor = (
 /** The layout of the pass group: the view uniform, the scene's depth, normals and flags, the blue
  *  noise, and the mask and its tiles the pass writes. */
 function projectionPassLayout(device: GPUDevice) {
-  const B = VSM_PROJECTION_BINDING
   return device.createBindGroupLayout({
     label: 'vsm.projection.pass',
     entries: [
-      computeUniformEntry(B.view),
-      computeTextureEntry(B.sceneDepth, 'depth'),
-      computeTextureEntry(B.normalRough, 'unfilterable-float'),
-      computeTextureEntry(B.flags, 'uint'),
-      computeTextureEntry(B.blueNoise, 'unfilterable-float'),
-      ...hizDepthEntries(B.hizDepth, GPUShaderStage.COMPUTE),
+      computeUniformEntry(VSM_PROJECTION_BINDING.view),
+      computeTextureEntry(VSM_PROJECTION_BINDING.sceneDepth, 'depth'),
+      computeTextureEntry(VSM_PROJECTION_BINDING.normalRough, 'unfilterable-float'),
+      computeTextureEntry(VSM_PROJECTION_BINDING.flags, 'uint'),
+      computeTextureEntry(VSM_PROJECTION_BINDING.blueNoise, 'unfilterable-float'),
+      ...hizDepthEntries(VSM_PROJECTION_BINDING.hizDepth, GPUShaderStage.COMPUTE),
       {
-        binding: B.shadowMask,
+        binding: VSM_PROJECTION_BINDING.shadowMask,
         visibility: GPUShaderStage.COMPUTE,
         storageTexture: {
           access: 'write-only',
@@ -469,7 +469,7 @@ function projectionPassLayout(device: GPUDevice) {
         },
       },
       {
-        binding: B.shadowMaskTiles,
+        binding: VSM_PROJECTION_BINDING.shadowMaskTiles,
         visibility: GPUShaderStage.COMPUTE,
         storageTexture: { access: 'write-only', format: VSM_PROJECTION_TILE_FORMAT },
       },
@@ -585,20 +585,23 @@ function passGroupFor(
     passGroup.mask !== mask ||
     passGroup.maskTiles !== maskTiles
   ) {
-    const B = VSM_PROJECTION_BINDING
     state.group = passGroup = {
       group: device.createBindGroup({
         label: 'vsm.projection.pass',
         layout: p.passLayout,
         entries: [
-          { binding: B.view, resource: { buffer: state.uniform! } },
-          { binding: B.sceneDepth, resource: inputs.depth },
-          { binding: B.normalRough, resource: inputs.normalRough },
-          { binding: B.flags, resource: inputs.flags },
-          { binding: B.blueNoise, resource: state.blueNoiseView! },
-          ...hizDepthBindEntries(B.hizDepth, inputs.hizDepth),
-          { binding: B.shadowMask, resource: mask },
-          { binding: B.shadowMaskTiles, resource: maskTiles },
+          ...namedBufferEntries(VSM_PROJECTION_BINDING, {
+            view: { buffer: state.uniform! },
+            sceneDepth: inputs.depth,
+            normalRough: inputs.normalRough,
+            flags: inputs.flags,
+            blueNoise: state.blueNoiseView!,
+          }),
+          ...hizDepthBindEntries(VSM_PROJECTION_BINDING.hizDepth, inputs.hizDepth),
+          ...namedBufferEntries(VSM_PROJECTION_BINDING, {
+            shadowMask: mask,
+            shadowMaskTiles: maskTiles,
+          }),
         ],
       }),
       layout: p.passLayout,
