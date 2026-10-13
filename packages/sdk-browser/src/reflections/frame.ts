@@ -53,7 +53,7 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
   if (!hiz) return
   if (reflection && stages && depth && reflectionOver(rt)) {
     writeFrame(rt, reflection)
-    encodeFrontDepth(encoder, reflection, stages, depth.front, gpu.targetSize)
+    encodeFrontDepth(encoder, reflection, stages, gpu.targetSize)
   }
   if (!rt.run.depthDrawn) return
   hiz.encodeNearest(reflectionPass.begin(encoder))

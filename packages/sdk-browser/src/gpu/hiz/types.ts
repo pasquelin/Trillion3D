@@ -28,8 +28,8 @@ export type GpuHiz = {
    *  occlusion test walk with the `levels()` table. It changes identity on every target resize. */
   pyramidView(): GPUTextureView | undefined
   /** What a reader of the whole depth binds (`hizDepthEntries`, `hizDepthWgsl`): level 0, the
-   *  pyramid, its levels uniform and its front depth, in that order; `pyramid` names the drawn view's pyramid, which
-   *  a reader's bind group follows. */
+   *  pyramid, its levels uniform and its front depth, in that order: a new object whenever one
+   *  changes, which a reader's bind group follows. */
   depth(): HizDepth | undefined
   /**
    * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after
@@ -64,12 +64,9 @@ export type GpuHiz = {
   dispose(): void
 }
 
-/** The resources of `GpuHiz.depth`. */
+/** The resources of `GpuHiz.depth`, the last the front depth (`createGpuHiz`). A new object
+ *  whenever one of them changes: a reader's bind group follows its identity. */
 export type HizDepth = {
-  pyramid: GPUTexture
-  /** The nearest transparent surface's depth a pixel (`allocPyramid`), whose view is the last
-   *  resource of the list. */
-  front: GPUTexture
   resources: [GPUTextureView, GPUTextureView, GPUBufferBinding, GPUTextureView]
 }
 

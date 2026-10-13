@@ -22,6 +22,7 @@ import type { WebgpuTileStreamer } from '../tile/streamer.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { visGroupFor } from '../visibility/visGroup.ts'
+import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
 
 type Recorded = { layout: { entries: unknown[] }; entries: unknown[] }
 
@@ -98,7 +99,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   const rt = {
     vis,
     gpu: {
-      reflection: { front: { view: {}, fresh: false } },
+      reflection: reflectionFront(),
       cache: { buffer: {} },
       surfaces: { subsurfaceView: {}, receiverView: {}, lobesView: {}, lobes: { width: 1 } },
       zeroUv: {},

@@ -1,19 +1,10 @@
+import { oncePerDevice } from './oncePerDevice.ts'
 import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
-import { createListeners } from '../../../../sdk-core/src/runtime/listeners.ts'
-
-/** Every holder's release of one device's buffers (`releaseHeldBuffers`). */
-const releases = createListeners<[device: GPUDevice]>()
-
-/** Destroys every buffer any holder keeps for `device`: a session's handle gives them back when it
- *  closes, as the shared device outlives it and the hold is keyed by the handle that took them. */
-export function releaseHeldBuffers(device: GPUDevice) {
-  releases.emit(device)
-}
 
 /**
  * Buffers a device holds between the uses that take them, one a slot, so a burst of uses
  * allocates once instead of a buffer made and destroyed each. Each holder keeps its own slots per
- * device, mutated in place, and gives them up with `releaseHeldBuffers`:
+ * device (`oncePerDevice`), mutated in place:
  * - `take` lends the held buffer when it fits — out of the hold: two uses in flight never share
  *   one —, else makes one; `give` puts it back, the one it replaces destroyed (under `larger`, the
  *   larger of the two kept). With `idleMs`, everything held is destroyed once nothing was given
@@ -22,24 +13,13 @@ export function releaseHeldBuffers(device: GPUDevice) {
  *   power of two when outgrown — a stream of slightly larger asks reallocates rarely —, the
  *   outgrown one destroyed once the work submitted so far, which may read it, is done.
  */
-type Hold = { held: Map<string, GPUBuffer>; idle: ReturnType<typeof setTimeout> | undefined }
-
 export function heldBuffers(idleMs?: number) {
-  const holds = new WeakMap<GPUDevice, Hold>()
-  const holdOf = (device: GPUDevice) => {
-    let hold = holds.get(device)
-    if (!hold) holds.set(device, (hold = { held: new Map(), idle: undefined }))
-    return hold
-  }
-  releases.subscribe((device) => {
-    const hold = holds.get(device)
-    if (!hold) return
-    clearTimeout(hold.idle)
-    for (const buffer of hold.held.values()) buffer.destroy()
-    hold.held.clear()
-  })
+  const holdOf = oncePerDevice(() => ({
+    held: new Map<string, GPUBuffer>(),
+    idle: undefined as ReturnType<typeof setTimeout> | undefined,
+  }))
   /** Restarts the hold's idle time: everything it holds is destroyed once it runs out. */
-  const rest = (hold: Hold) => {
+  const rest = (hold: ReturnType<typeof holdOf>) => {
     if (idleMs === undefined) return
     clearTimeout(hold.idle)
     hold.idle = setTimeout(() => {

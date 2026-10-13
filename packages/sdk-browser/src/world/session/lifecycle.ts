@@ -61,12 +61,15 @@ function holdPages(
   }
 }
 
-/** The session's teardown: once, its owned controls, reads, workers, engine and resources. */
+/** The session's teardown: once, its owned controls, reads, workers, engine and resources. It
+ *  returns the engine's release (`Engine.dispose`), which resolves once the engine gave back all it
+ *  held — its session's handle swept included —, every later call the same one. */
 function sessionDisposal(session: ExplorerSession, inputs: Inputs) {
   const { scope, diagnosticChannel, diagnose } = session
   const { state, profiler, ownedControls, streaming, streamer, engine } = inputs
+  let released: Promise<void> | void
   return () => {
-    if (state.disposed) return
+    if (state.disposed) return released
     diagnose('dispose-start', 'MeasuredWorld disposal started', { kind: 'lifecycle', scope })
     diagnosticChannel.flushSync()
     state.disposed = true
@@ -83,11 +86,12 @@ function sessionDisposal(session: ExplorerSession, inputs: Inputs) {
     streamer.dispose()
     releasePageWorkers()
     releasePageIntegration()
-    engine.dispose()
+    released = engine.dispose()
     releaseOwned(session, inputs)
     diagnose('dispose-complete', 'MeasuredWorld disposal completed', { kind: 'lifecycle', scope })
     diagnosticChannel.flushSync()
     diagnosticChannel.close()
+    return released
   }
 }
 

@@ -10,6 +10,7 @@ import { orderBlendPasses } from './order.ts'
 import { createWebgpuBlendState } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
 
 const FRONT = 'front' as unknown as GPURenderPipeline,
   BACK = 'back' as unknown as GPURenderPipeline,
@@ -79,7 +80,7 @@ function joue(items: ReturnType<typeof item>[]) {
     },
     gpu: {
       // The front depth the blends write (`frontAttachment`).
-      reflection: { front: { view: {}, fresh: false } },
+      reflection: reflectionFront(),
       hdrView: {},
       colorView: {},
       depthView: {},

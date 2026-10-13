@@ -336,7 +336,7 @@ interface PassGroup {
   group: GPUBindGroup
   layout: GPUBindGroupLayout
   depth: GPUTextureView
-  pyramid: GPUTexture
+  hizDepth: HizDepth
   normalRough: GPUTextureView
   flags: GPUTextureView
   mask: GPUTextureView
@@ -570,7 +570,7 @@ function passGroupFor(
     !passGroup ||
     passGroup.layout !== p.passLayout ||
     passGroup.depth !== inputs.depth ||
-    passGroup.pyramid !== inputs.hizDepth.pyramid ||
+    passGroup.hizDepth !== inputs.hizDepth ||
     passGroup.normalRough !== inputs.normalRough ||
     passGroup.flags !== inputs.flags ||
     passGroup.mask !== mask ||
@@ -594,7 +594,7 @@ function passGroupFor(
       }),
       layout: p.passLayout,
       depth: inputs.depth,
-      pyramid: inputs.hizDepth.pyramid,
+      hizDepth: inputs.hizDepth,
       normalRough: inputs.normalRough,
       flags: inputs.flags,
       mask,

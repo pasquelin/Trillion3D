@@ -40,10 +40,14 @@ test('compaction scatters the survivors from a copy and only rewrites the instan
 })
 
 // Behaviour 2b: a tile past its slot's count leaves at once, from uniform control flow (the count
-// is broadcast by \`workgroupUniformLoad\`), so its lanes run no scan; tile 0 still records it.
+// is broadcast by \`workgroupUniformLoad\`), so its lanes run no scan; the scan, which always runs,
+// records the count.
 test('a tile past its slot count runs no scan', () => {
   assert.match(REST_COMPACT_SHADER, /return workgroupUniformLoad\(&slotCount\);/)
-  assert.match(REST_COMPACT_SHADER, /if\(t>0u&&t\*64u>=count\)\{return;\}/)
+  const count = REST_COMPACT_SHADER.slice(REST_COMPACT_SHADER.indexOf('fn restCount'))
+  assert.ok(count.indexOf('if(t*64u>=count){return;}') < count.indexOf('atomicAdd('))
+  const scan = REST_COMPACT_SHADER.slice(REST_COMPACT_SHADER.indexOf('fn restScan'))
+  assert.ok(scan.indexOf('work[countWord(n)]=count') < scan.indexOf('laneScan('))
   const scatter = REST_COMPACT_SHADER.slice(REST_COMPACT_SHADER.indexOf('fn restScatter'))
   assert.ok(scatter.indexOf('if(t*64u>=count){return;}') < scatter.indexOf('laneScan('))
 })

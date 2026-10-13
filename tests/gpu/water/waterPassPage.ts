@@ -5,7 +5,6 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import {
   VIEWPORT,
   batisseur,
-  square,
   cameraFace,
   engine,
   release,
@@ -29,21 +28,10 @@ import {
 
 function scene(paged: boolean, kase: WaterCase): ScenePreparee {
   const builder = batisseur()
-  const ground = G.mesh(
-    square(4),
-    G.basicSurface({
-      color: new G.Color(GROUND.color),
-      side: G.DOUBLE_SIDE,
-    }),
-  )
-  ground.name = 'ground'
-  ground.position.set(kase.groundX, 0, -GROUND.depth)
-  builder.source.add(ground)
-  builder.add(ground, 'exact-clusters', 4)
-  const water = G.mesh(square(1), waterSurface(kase.transmission, kase.thickness))
-  water.name = 'water'
-  builder.source.add(water)
-  builder.add(water, paged ? 'clustered-blend' : 'shared-blend', 1)
+  const ground = G.basicSurface({ color: new G.Color(GROUND.color), side: G.DOUBLE_SIDE })
+  builder.place(ground, 'exact-clusters', 4, [kase.groundX, 0, -GROUND.depth]).name = 'ground'
+  const water = waterSurface(kase.transmission, kase.thickness)
+  builder.place(water, paged ? 'clustered-blend' : 'shared-blend', 1).name = 'water'
   return builder.fini()
 }
 

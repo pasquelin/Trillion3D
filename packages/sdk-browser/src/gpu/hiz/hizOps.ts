@@ -41,8 +41,8 @@ export type HizState = HizPipelines & {
   state: GPUBuffer
   flags: GPUBuffer
   cap: number
-  /** Whether the pyramids hold a front depth a pixel (`createGpuHiz`). */
-  front: boolean
+  /** The front depth the drawn pyramid folds in, read at each use (`createGpuHiz`). */
+  front: (() => GPUTextureView | undefined) | undefined
 }
 
 /** Verdict flags for `rows` rows. */
@@ -52,11 +52,17 @@ export const hizFlags = (device: GPUDevice, rows: number) =>
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   })
 
-/** The drawn pyramid's bind group, made once per pyramid and per `attach`, never per swap. */
+/** The drawn pyramid's bind group, made once per pyramid, per `attach` and per front depth — the
+ *  one `h.front` gives now, else level 0 —, never per swap; what its readers bind (`at.depth`)
+ *  goes with it when the front changed. */
 export function bindHiz(h: HizState) {
   const { at } = h
   if (!at) return void (h.bindGroup = undefined)
-  if (at.group && at.bindings === h.bindings) return void (h.bindGroup = at.group)
+  const front = h.front?.() ?? at.level0View
+  if (at.frontView !== front) {
+    at.frontView = front
+    at.depth = undefined
+  } else if (at.group && at.bindings === h.bindings) return void (h.bindGroup = at.group)
   at.bindings = h.bindings
   h.bindGroup = at.group = h.device.createBindGroup({
     layout: h.layout,
@@ -127,6 +133,7 @@ export function hizTest(
   pages: GPUBuffer,
   counting: boolean,
 ) {
+  bindHiz(h)
   const { at, bindGroup, image } = h
   if (h.disposed || !bindGroup || !at || h.bounds === h.idle) return 0
   const rows = Math.min(maxRows, h.cap)
@@ -161,7 +168,7 @@ export function hizResize(
   try {
     // The drawn view's pyramid is replaced; another view's, held aside, is not touched.
     h.at?.destroy()
-    installHiz(h, gpu, allocPyramid(h.device, h.level0Usage, width, height, h.slots, h.front))
+    installHiz(h, gpu, allocPyramid(h.device, h.level0Usage, width, height, h.slots))
     return true
   } catch {
     return false
