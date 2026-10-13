@@ -68,16 +68,17 @@ test('transparent frustum selection preserves intersections, transformed bounds 
       draws.length = 0
       backend.render(camera())
       const metrics = backend.metrics()
-      // The scene carries its item and the cut writes the instance count of each draw; an item
-      // entirely out of frustum is not encoded at all, a partly visible item keeps both faces.
-      // The reject count is reread on its own.
+      // The scene carries its item and the cut writes the instance count of each draw; the
+      // frustum verdict is the GPU's (`../blend/verdictWgsl.ts`): an item's slots are encoded as in
+      // view, and an item entirely out of frustum leaves each indirect draw without an instance, a
+      // partly visible item keeps both faces. The reject count is read back on its own.
       assert.equal(metrics.submittedTriangles, 4, item.name)
       assert.equal(metrics.transparentMeshes, 1, item.name)
       assert.equal(metrics.transparentFrustumRejected, item.visible ? 0 : 1, item.name)
       assert.equal(metrics.transparentDrawCalls, item.visible ? 2 : 0, item.name)
       assert.equal(metrics.transparentSubmittedTriangles, 4, item.name)
       const actual = draws.filter((draw) => draw.entryPoint === 'vs')
-      assert.equal(actual.length, item.visible ? 2 : 0, item.name + ' actual GPU commands')
+      assert.equal(actual.length, 2, item.name + ' actual GPU commands, encoded as in view')
       assert.equal(
         actual.reduce((sum, draw) => sum + ((draw.instanceCount ?? 0) * draw.vertexCount) / 3, 0),
         item.visible ? 4 : 0,
