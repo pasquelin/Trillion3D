@@ -110,13 +110,7 @@ test('every cut keeps a visible face under a small non-uniform scale', async () 
     )
     assert.equal(displayedTriangles, triangles, `CPU cut, cones ${cones}: the face is lost`)
   }
-  const cases = coneCases(
-    'trigger',
-    world,
-    camera,
-    { sphere: [0, 0, -0.5, 2], min: MIN, max: MAX },
-    cone,
-  )
+  const cases = coneCases('trigger', world, camera, { min: MIN, max: MAX }, cone)
   assert.deepEqual(evaluateDagSelectionKernel(cases[0].packed, cases[0].uniforms).pageIds, [0])
   const { adapter, readings } = await runSelectionKernel(cases)
   console.log(JSON.stringify({ adapter, cone, kept: readings.map(({ pages }) => pages) }))
