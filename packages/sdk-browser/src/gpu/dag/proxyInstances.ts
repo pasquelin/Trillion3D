@@ -35,7 +35,7 @@ import type { ProxyBoxes } from '../../bounce/probeSync.ts'
 import { refreshSurface, type PageSurface } from '../../page/surface.ts'
 import type { RootProxy } from '../../page/selection/types.ts'
 import { rowParked, type PlacementOf } from '../../placement/rows.ts'
-import { createSpans } from '../../bounce/runtimeArena.ts'
+import { createSpans } from '../../bounce/spans.ts'
 import { pendingMade } from '../core/tableGrowth.ts'
 import { createProxyPose, type PoseEntry } from './proxyPose.ts'
 import {
