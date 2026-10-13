@@ -48,7 +48,7 @@ export function createTileEvictions(device: GPUDevice) {
     ],
   })
   const module = device.createShaderModule({
-    label: 'Trillion3D texture eviction queue',
+    label: TEXTURE_EVICTION_PASS,
     code: TILE_SORT_WGSL,
   })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
