@@ -42,6 +42,7 @@ export type {
 export { createGpuPageCache } from '../../sdk-browser/src/gpu/page/pages.ts'
 export type { GpuPageCacheOptions } from '../../sdk-browser/src/gpu/page/pages.ts'
 export { createPageStreamer } from '../../sdk-browser/src/streaming/pageStreamer.ts'
+export { declareSurface } from '../../sdk-browser/src/page/surfaceRecord.ts'
 export type { DecodedGeometryPage } from '../../sdk-browser/src/page/codec/geometryPage.ts'
 export {
   DEFAULT_PHYSICS_BUDGET,
@@ -144,6 +145,7 @@ export type {
   SoftVolumeOptions,
 } from '../../sdk-core/src/physics/soft.ts'
 export type { SurfaceBuffer, SurfaceCapture } from '../../sdk-browser/src/scene/surfaceBuffer.ts'
+export type { SurfaceDeclaration } from '../../sdk-browser/src/page/surfaceDeclaration.ts'
 export type { TelemetryReport } from '../../sdk-browser/src/diagnostic/telemetryTypes.ts'
 export type {
   TextureLevel,

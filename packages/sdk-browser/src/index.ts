@@ -96,6 +96,8 @@ export type { HostRotation, HostVector } from './host/scene/graphNodes.ts'
 /** The surface record a mesh of the engine's graph wears (`page/surface.ts`), holding the core's
  *  texture records; its nodes are the core's. */
 export type { PageSurface, SurfaceFamily } from './page/surface.ts'
+export { declareSurface } from './page/surfaceRecord.ts'
+export type { SurfaceDeclaration } from './page/surfaceDeclaration.ts'
 export type { HostNodeMatrix, MatrixElements } from './host/matrixElements.ts'
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './diagnostic/gpuPasses.ts'
 export type { GpuPassBlockTotals } from './gpu/core/passBlocks.ts'

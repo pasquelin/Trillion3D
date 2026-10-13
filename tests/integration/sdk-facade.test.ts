@@ -59,7 +59,7 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 706 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 708 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -77,12 +77,12 @@ test('generated inventory and explicit facade files are current', async () => {
   // beside the streaming (httpPageSource): `page.httpSource` reads through a streamer. The run-time proxy a placement
   // wears carries its deformation (CutDeformation, CORNER_INFLUENCES), and the bounce occupancy names
   // the rows it is told moved (MovedRows). A mesh wears the one surface record its material declared
-  // (PageSurface, its SurfaceFamily), which holds the core's texture record: the host surface and
+  // (PageSurface, its SurfaceFamily, and declareSurface with its SurfaceDeclaration to make one), which holds the core's texture record: the host surface and
   // texture copies (GraphSurface, GraphTexture, HostMaterial, HostTexture), the host's side word
   // (materialSide) and the texture's own colour-space word (TextureColorSpace, now the world's
   // ColorSpace, public in the common entry too) are gone; the compiler's filter words (TableFilter)
   // the table texture carries are named; the bounce budget is the proxy's (ProxyBudget).
-  assert.equal(inventory.exports.length, 706)
+  assert.equal(inventory.exports.length, 708)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
