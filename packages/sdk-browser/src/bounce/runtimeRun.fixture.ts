@@ -28,6 +28,7 @@ const FUNCTIONS = [
   'rtBox',
   'rtChild',
   'rtWorldOf',
+  'rtOrigin',
   'rtInverseOf',
   'rtInverseApply',
   'rtInstanceWord',

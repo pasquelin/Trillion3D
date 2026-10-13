@@ -72,6 +72,7 @@ export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int
   if (next.byteLength !== packed.worlds.byteLength) throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED')
   if (named) return updateNamedWorlds(run, next, named)
   const origins = frames.writeWorldOrigins()
+  run.proxies.worldsWritten(origins)
   // `packed.worlds` is what this selection last received, and only this method writes it:
   // the worlds the next send is compared with, without a second copy of them beside it. The rows
   // whose read words moved go up, they alone: a translation goes up through the origins.
@@ -130,6 +131,8 @@ function updateNamedWorlds(run: DagRun, next: Float32Array, all: Int32Array) {
   while (held && all[held - 1] >= packed.worldSources.length) held--
   const named = held === all.length ? all : all.subarray(0, held)
   const origins = frames.writeWorldOrigins(named)
+  // A translation alone is no cut's matrix word: the proxy mirrors it from the origins.
+  run.proxies.worldsWritten(origins)
   movedScratch = resized(movedScratch, named.length)
   let moved = 0
   for (const w of named) if (worldChangedAt(packed.worlds, next, w)) movedScratch[moved++] = w

@@ -1,5 +1,6 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { toF32 } from '../../../math/src/wgsl/f32.ts'
 import { BOUNCE_SETTINGS, PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/index.ts'
 import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
 import {
@@ -12,7 +13,14 @@ import {
 import { TREE_GROUP } from '../gpu/dag/placementTree.ts'
 import { wideNodeFns } from './nodeWgsl.ts'
 import { WIDE_TRAVERSAL_WGSL, wideTraversal } from './traceWgsl.ts'
-import { INSTANCE_WORDS, RAY_TRIANGLES, RAY_WORK, RUNTIME_NONE } from './runtimeLayout.ts'
+import {
+  INSTANCE_WORDS,
+  RAY_TRIANGLES,
+  RAY_WORK,
+  RUNTIME_NONE,
+  RUNTIME_ORIGIN_WORDS,
+  RUNTIME_WORLD_WORDS,
+} from './runtimeLayout.ts'
 
 /** The bindings of the proxy in a program that casts its rays: its own buffer (`runtimeLayout.ts`), which holds
  *  the placement tree it walks, and the world matrices of the first range (`gpu/dag/frameRanges.ts`). */
@@ -39,7 +47,7 @@ const TREE_DEPTH = 8
 export const runtimeSceneWgsl = ({ group, proxy }: SceneBindings) =>
   wgslBlock(
     `runtimeSceneWgsl(${group}, ${proxy})`,
-    [WIDE_TRAVERSAL_WGSL],
+    [WIDE_TRAVERSAL_WGSL, toF32],
     `
 ${wgslConsts({
   RT_NONE: RUNTIME_NONE,
@@ -56,7 +64,8 @@ ${wgslConsts({
   RT_NODE_COUNT: NODE_CHILD_COUNT,
   RT_NODE_KIND: NODE_KIND,
   RT_INSTANCE_WORDS: INSTANCE_WORDS,
-  RT_WORLD_WORDS: 16,
+  RT_WORLD_WORDS: RUNTIME_WORLD_WORDS,
+  RT_ORIGIN_WORDS: RUNTIME_ORIGIN_WORDS,
   RT_TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
 })}
 struct RuntimeProxy{
@@ -64,6 +73,7 @@ struct RuntimeProxy{
  copyWorldsWord:u32,boundsWord:u32,childrenWord:u32,treeRoot:u32,
  treeFirst:u32,treeWord:u32,membersWord:u32,members:u32,
  worldsWord:u32,worldRows:u32,error:f32,copies:u32,
+ originsWord:u32,
  words:array<u32>,
 }
 @group(${group}) @binding(${proxy}) var<storage,read> rtProxy:RuntimeProxy;
@@ -100,15 +110,27 @@ ${wideTraversal({
 })}
 /** Placement \`w\`'s world: its linear columns \`a\`, \`b\`, \`c\` and its translation \`t\`. */
 struct RtWorld{a:vec3f,b:vec3f,c:vec3f,t:vec3f,}
+/** One coordinate of a placement's exact translation, three doubles in their words, as the single-precision
+ *  value a host write of its world holds. */
+fn rtOrigin(at:u32,k:u32)->f32{return bitcast<f32>(toF32(vec2u(rtProxy.words[at+2u*k],rtProxy.words[at+2u*k+1u])));}
 fn rtWorldOf(w:u32)->RtWorld{
- // A placement's world is the culling's, mirrored in the proxy's buffer; a blended copy's, the proxy's own,
- // past the placements.
- let at=select(rtProxy.worldsWord+w*RT_WORLD_WORDS,rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS,w>=rtProxy.instances);
+ // A placement's world is the culling's, mirrored in the proxy's buffer, its translation the exact one
+ // behind the matrices (the matrices' own are no cut's); a blended copy's, the proxy's own, past the placements.
+ if(w>=rtProxy.instances){
+  let at=rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS;
+  return RtWorld(
+   vec3f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u)),
+   vec3f(rtFloat(at+4u),rtFloat(at+5u),rtFloat(at+6u)),
+   vec3f(rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u)),
+   vec3f(rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u)));
+ }
+ let at=rtProxy.worldsWord+w*RT_WORLD_WORDS;
+ let o=rtProxy.originsWord+w*RT_ORIGIN_WORDS;
  return RtWorld(
   vec3f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u)),
   vec3f(rtFloat(at+4u),rtFloat(at+5u),rtFloat(at+6u)),
   vec3f(rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u)),
-  vec3f(rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u)));
+  vec3f(rtOrigin(o,0u),rtOrigin(o,1u),rtOrigin(o,2u)));
 }
 /** The rows of the inverse of a world's linear part, over its determinant: \`inverse * v\` is the dot
  *  of each with \`v\`. Zero where the world is singular. */

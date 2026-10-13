@@ -36,6 +36,8 @@ import {
   RUNTIME_HEADER,
   RUNTIME_HEADER_WORDS,
   RUNTIME_NONE,
+  RUNTIME_ORIGIN_WORDS,
+  RUNTIME_WORLD_WORDS,
   SURFACE_WORDS,
 } from '../../bounce/runtimeLayout.ts'
 import { writeSurface } from '../../bounce/runtimeSurface.ts'
@@ -48,8 +50,9 @@ const WORLD_RUN_GAP = 4,
   WORLD_RUNS = 128
 
 /** The world matrices are sixteen words each in the cut's worlds, the exact translations behind. */
-const WORLD_WORDS = 16,
-  WORLD_BYTES = WORLD_WORDS * 4
+const WORLD_WORDS = RUNTIME_WORLD_WORDS,
+  WORLD_BYTES = WORLD_WORDS * 4,
+  ORIGIN_BYTES = RUNTIME_ORIGIN_WORDS * 4
 /** Cuts, surfaces, triangles and nodes a first buffer is laid out for: doubled as needed. */
 const START = { surfaces: 16, triangles: 4096, nodes: 1024, corners: 4096 }
 
@@ -154,7 +157,8 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   function layoutOf() {
     const instances = 0,
       worldsAt = instances + (slots + copies.length) * INSTANCE_WORDS,
-      copyWorldsAt = worldsAt + slots * WORLD_WORDS,
+      originsAt = worldsAt + slots * WORLD_WORDS,
+      copyWorldsAt = originsAt + slots * RUNTIME_ORIGIN_WORDS,
       surfacesAt = copyWorldsAt + copies.length * WORLD_WORDS,
       trianglesAt = surfacesAt + surfaceCapacity * SURFACE_WORDS,
       boundsAt = trianglesAt + triangles.capacity * PROXY_TRIANGLE_FLOATS,
@@ -165,6 +169,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     return {
       instances,
       worlds: worldsAt,
+      origins: originsAt,
       copyWorlds: copyWorldsAt,
       surfaces: surfacesAt,
       triangles: trianglesAt,
@@ -235,6 +240,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     head[at.worldRows] = worldRows()
     new Float32Array(head.buffer)[at.error] = error
     head[at.copies] = copies.length
+    head[at.originsWord] = layout.origins
     return head
   }
 
@@ -594,6 +600,16 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
             buffer,
             byteAt(layout.worlds) + from * WORLD_BYTES,
             (to - from) * WORLD_BYTES,
+          )
+        // Their exact translations, which lie behind the range's matrices: the translation a ray reads.
+        const originsAt = (frames.ranges[0]?.count ?? 0) * WORLD_BYTES
+        for (const [from, to] of runs)
+          encoder.copyBufferToBuffer(
+            source,
+            originsAt + from * ORIGIN_BYTES,
+            buffer,
+            byteAt(layout.origins) + from * ORIGIN_BYTES,
+            (to - from) * ORIGIN_BYTES,
           )
       }
       for (const w of worldList) worldFlags[w] = 0

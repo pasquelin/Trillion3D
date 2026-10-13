@@ -18,7 +18,8 @@ export const RUNTIME_NONE = 0xffffffff
  * packing without a tree: the placements are then its few members), the id of the first node the mirror holds,
  * the words of its nodes and of its members, the live members, the word rank of the placements' worlds, the rows the world
  * table's first range holds, the greatest world error of a proxy, in metres, as an `f32`'s bits: the distance a
- * ray leaves a surface off its normal, and the blended copies.
+ * ray leaves a surface off its normal, the blended copies, and the word rank of the placements' exact
+ * translations, which follow their worlds.
  */
 export const RUNTIME_HEADER = {
   instances: 0,
@@ -37,8 +38,15 @@ export const RUNTIME_HEADER = {
   worldRows: 13,
   error: 14,
   copies: 15,
+  originsWord: 16,
 } as const
-export const RUNTIME_HEADER_WORDS = 16
+export const RUNTIME_HEADER_WORDS = 17
+
+/** Words of one placement's world as the proxy mirrors it: sixteen of the matrix, of which the translation's
+ *  three are no cut's, and eight of its exact translation, three doubles (`gpu/dag/worldOrigins.ts`), the
+ *  rounding of which to single precision is the translation a ray reads (`rtWorldOf`). */
+export const RUNTIME_WORLD_WORDS = 16
+export const RUNTIME_ORIGIN_WORDS = 8
 
 /** Words of one placement's instance: its cut's first node and first triangle in the arena
  *  (`RUNTIME_NONE` where it draws no proxy), the surface it wears, and its frame word — the mark
