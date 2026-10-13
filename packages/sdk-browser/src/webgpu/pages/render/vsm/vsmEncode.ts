@@ -18,7 +18,8 @@ import {
   type VsmPageManagementFrame,
 } from '../../../../vsm/pageManagementPass.ts'
 import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
-import { encodeVsmInvalidations } from '../../../../vsm/invalidationPass.ts'
+import { encodeVsmInvalidations, invalidationOf } from '../../../../vsm/invalidationPass.ts'
+import { encodeCastInvalidation } from '../../../../vsm/castInvalidation.ts'
 import { lightIdsBuffer, type EngineVsm } from './engineVsm.ts'
 import { VSM_PASS_PREFIX } from '../../../../stage/passLabels.ts'
 import { encodeVsmProjection, encodeVsmRaster, type VsmFrame } from './vsmProject.ts'
@@ -98,6 +99,10 @@ export function encodeVsmFrame(
     [vsm.pendingBoxes],
   )
   vsm.pendingBoxes = null
+  // The rows' shadow changes, appended by the rows pass earlier in this command buffer.
+  const castFrame = { device, mapSlotCount: vsm.prevSlots, maps: vsm.pendingCastMaps }
+  encodeCastInvalidation(encoder, res, invalidationOf(res), { ...castFrame, casts: lights.casts })
+  vsm.pendingCastMaps = null
   if (plan.projectionCount === 0) {
     vsm.renderedPlan = plan
     return

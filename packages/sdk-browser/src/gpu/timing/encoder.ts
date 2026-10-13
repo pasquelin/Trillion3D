@@ -54,23 +54,28 @@ export function createTimingQueries(device: GPUDevice, queryCount: number) {
   }
 }
 
-/** One encoder of the image: its first timestamp, once it timed a pass, and its passes' names. */
-export type TimingPart = { slot: number; base: number; names: string[]; resolved: boolean }
-/** The image's timestamps: the next free one, the part that took the last, and the readback its
- *  parts copy into, under what it says of the image (`tag`). */
+/** One encoder of the image: the timestamp each of its timed passes begins at, their names, and
+ *  its place among the image's submissions once it finished (`order`, -1 before). */
+export type TimingPart = { at: number[]; names: string[]; order: number; resolved: boolean }
+/** The image's timestamps: the next free one, the part that took the last, the parts finished so
+ *  far, and the readback its parts copy into, under what it says of the image (`tag`). */
 export type TimingImage = {
   truncated: boolean
   cursor: number
   latest?: TimingPart
+  finished: number
   read: GPUBuffer
   tag: TimedRead
 }
 
 /**
  * Attach timestamp writes to every pass and resolve them when the encoder finishes. The image's
- * parts take their timestamps one after the other from one range of `queryCount`: a part's run
- * from its first pass, while no later part took any. A pass past the range, or of a part another
- * one followed, is not timed and the image says it is truncated.
+ * parts take their timestamps one after the other from one range of `queryCount`: a pass follows
+ * its part's last one while no other part took any since, and opens a run of its own at the next
+ * aligned timestamp otherwise — a command buffer encoded and submitted while another is open (the
+ * roots' before a cut, `../../placement/rootPasses.ts`) is timed beside it, neither truncated. A
+ * pass past the range is not timed and the image says it is truncated. A part's place among the
+ * image's submissions is the order it finishes in, as every part is submitted once finished.
  */
 export function instrumentTimingEncoder(
   encoder: GPUCommandEncoder,
@@ -85,14 +90,12 @@ export function instrumentTimingEncoder(
       if (key === 'beginRenderPass' || key === 'beginComputePass')
         return (descriptor: GPURenderPassDescriptor | GPUComputePassDescriptor = {}) => {
           let instrumented = descriptor
-          if (part.base < 0) {
-            part.base = alignUp(image.cursor, PART_ALIGN)
-            image.latest = part
-          }
-          const index = part.base + part.names.length * 2
-          if (image.latest === part && index + 2 <= queryCount && !descriptor.timestampWrites) {
+          const index = image.latest === part ? image.cursor : alignUp(image.cursor, PART_ALIGN)
+          if (index + 2 <= queryCount && !descriptor.timestampWrites) {
+            part.at.push(index)
             part.names.push(descriptor.label ?? String(key))
             image.cursor = index + 2
+            image.latest = part
             const local = index % QUERY_SET_SIZE
             instrumented = {
               ...descriptor,
@@ -109,28 +112,31 @@ export function instrumentTimingEncoder(
         }
       if (key === 'finish')
         return (descriptor?: GPUCommandBufferDescriptor) => {
-          if (part.names.length) {
-            const end = part.base + part.names.length * 2
-            // A set boundary is a multiple of the alignment: each chunk resolves at its own offset.
-            for (let at = part.base; at < end;) {
-              const set = Math.floor(at / QUERY_SET_SIZE),
-                stop = Math.min(end, (set + 1) * QUERY_SET_SIZE)
-              target.resolveQuerySet(sets[set], at % QUERY_SET_SIZE, stop - at, resolve, at * 8)
-              at = stop
-            }
-            target.copyBufferToBuffer(
-              resolve,
-              part.base * 8,
-              image.read,
-              part.base * 8,
-              (end - part.base) * 8,
-            )
-            part.resolved = true
+          const { at } = part
+          for (let first = 0; first < at.length;) {
+            let last = first
+            while (last + 1 < at.length && at[last + 1] === at[last] + 2) last++
+            resolveRun(target, at[first], at[last] + 2)
+            first = last + 1
           }
+          if (at.length) part.resolved = true
+          part.order = image.finished++
           return target.finish(descriptor)
         }
       const value = Reflect.get(target, key, target)
       return typeof value === 'function' ? value.bind(target) : value
     },
   })
+
+  /** Timestamps `[begin, end)` resolved and copied into the image's readback, from `target`. A set
+   *  boundary is a multiple of the alignment: each chunk resolves at its own offset. */
+  function resolveRun(target: GPUCommandEncoder, begin: number, end: number) {
+    for (let at = begin; at < end;) {
+      const set = Math.floor(at / QUERY_SET_SIZE),
+        stop = Math.min(end, (set + 1) * QUERY_SET_SIZE)
+      target.resolveQuerySet(sets[set], at % QUERY_SET_SIZE, stop - at, resolve, at * 8)
+      at = stop
+    }
+    target.copyBufferToBuffer(resolve, begin * 8, image.read, begin * 8, (end - begin) * 8)
+  }
 }

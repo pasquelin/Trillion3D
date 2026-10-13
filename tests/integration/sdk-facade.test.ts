@@ -73,8 +73,9 @@ test('generated inventory and explicit facade files are current', async () => {
   // CharacterCollision, TriangleCollision): Jolt is the one character body; and the frustum's
   // `FAR_PLANE_SLOT`, the slot a culling reader tests the far plane at. It holds no compute-path
   // governor either: the batches run their WebAssembly kernels alone, and no JavaScript twin of the
-  // two (boxTransformBatch, multiplyMatrix4Batch) stands beside them; nor a second page source
-  // beside the streaming (httpPageSource): `page.httpSource` reads through a streamer. The run-time proxy a placement
+  // two (boxTransformBatch, multiplyMatrix4Batch, boxTransformUnionBatch) stands beside them; nor a
+  // second page source beside the streaming (httpPageSource): `page.httpSource` reads through a
+  // streamer. The run-time proxy a placement
   // wears carries its deformation (CutDeformation, CORNER_INFLUENCES), and the bounce occupancy names
   // the rows it is told moved (MovedRows). A mesh wears the one surface record its material declared
   // (PageSurface, its SurfaceFamily, its three parts VisMaterial, SurfaceFacts and Releasable, and declareSurface with its SurfaceDeclaration to make one), which holds the core's texture record: the host surface and
@@ -82,7 +83,7 @@ test('generated inventory and explicit facade files are current', async () => {
   // (materialSide) and the texture's own colour-space word (TextureColorSpace, now the world's
   // ColorSpace, public in the common entry too) are gone; the compiler's filter words (TableFilter)
   // the table texture carries are named; the bounce budget is the proxy's (ProxyBudget).
-  assert.equal(inventory.exports.length, 711)
+  assert.equal(inventory.exports.length, 710)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

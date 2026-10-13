@@ -92,12 +92,14 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.deepEqual(parks, [[0, true]])
   assert.equal(item.hidden, true, 'the blend item of the hidden node is hidden')
   assert.ok(!kept.hidden, 'another node keeps its blend item')
-  assert.deepEqual(changed, [[-1, -2, -3, 1, 2, 3]], 'its shadow pages are drawn again')
+  const asked = () => (rt as { rowWords?: { roots: number[] } }).rowWords?.roots ?? []
+  assert.deepEqual(asked(), [0], 'its rows, derived again, stale its shadow pages')
+  assert.deepEqual(changed, [], 'no box declared on the CPU')
   assert.deepEqual(touched, [0], "its rows' words are written anew: the casters skip them")
   orderBlendPasses(blendState, [0, 0, 0])
   assert.equal(blendState.keepPacked[0] & 1, 0, 'the frustum verdict keeps it out')
   uploadWorlds(rt)
-  assert.equal(changed.length, 1, 'a revision that changes nothing stales nothing')
+  assert.equal(asked().length, 1, 'a revision that changes nothing stales nothing')
   group.visible = true
   uploadWorlds(rt)
   assert.deepEqual(parks, [
@@ -105,7 +107,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
     [0, false],
   ])
   assert.equal(item.hidden, false)
-  assert.equal(changed.length, 2, 'shown again, its shadow is drawn again')
+  assert.equal(asked().length, 2, 'shown again, its shadow is drawn again')
   assert.deepEqual(touched, [0, 0])
   orderBlendPasses(blendState, [0, 0, 0])
   assert.equal(blendState.keepPacked[0] & 1, 1)
@@ -113,5 +115,6 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   node.castShadow = false
   uploadWorlds(rt)
   assert.deepEqual(marks.slice(-1), [SHADOWLESS_ROOT])
-  assert.equal(changed.length, 3, 'its shadow is drawn again without it')
+  assert.equal(asked().length, 3, 'its shadow is drawn again without it')
+  assert.deepEqual(changed, [])
 })

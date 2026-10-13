@@ -43,7 +43,7 @@ export {
   boxUnion,
 } from '../../math/src/geometry/box.ts'
 export { boxConeRejects, CONE_LENGTH_RATIO, CONE_ORTHO_EPS } from '../../math/src/geometry/cone.ts'
-export { boxTransformUnionBatch, boxUnionBatch } from '../../math/src/batch/batch.ts'
+export { boxUnionBatch } from '../../math/src/batch/batch.ts'
 export {
   createCameraFrame,
   orthographicProjection,

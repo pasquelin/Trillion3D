@@ -1,4 +1,4 @@
-import { EngineError, maxStretch } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/index.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
@@ -81,7 +81,7 @@ const emptyShared = (): PackShared => ({
 /** The tables a packing writes a root into, and its live counts (`placeRoot`). */
 type Packing = Pick<
   PackedDag,
-  'nodes' | 'worlds' | 'worldStretch' | 'rootNodes' | 'rootBases' | 'mark' | 'recordShift'
+  'nodes' | 'worlds' | 'rootNodes' | 'rootBases' | 'mark' | 'recordShift'
 > & {
   nodeInts: Uint32Array
   pageIndex: PlacementIndex
@@ -133,7 +133,7 @@ function nodeBlockOf(p: Packing, root: DagRoot, culling: Culling) {
 }
 
 /**
- * Root `root` packed as placement `w`, behind the live pages: its world, stretch, root node — its
+ * Root `root` packed as placement `w`, behind the live pages: its world, root node — its
  * primitive's, shared — and mark, its links, its pages' placement words, and the shift that leads
  * its pages to their records, the first record `recordBase` gives for its owner nodes.
  */
@@ -148,7 +148,6 @@ function placeRoot(
     count = root.pages.length
   const { nodeBase, nodeCount, owner } = nodeBlockOf(p, root, culling)
   p.worlds.set(root.world.elements, w * 16)
-  p.worldStretch[w] = maxStretch(root.world.elements)
   p.rootBases[w] = nodeBase
   p.rootNodes[w] = root.parked ? NO_INDEX : nodeBase
   p.mark[w] = root.mark ?? 0
@@ -233,7 +232,6 @@ function allocatePacking(capacity: DagCapacity, shared: PackShared): Packing {
     // Each placement's first page; the room past the live ones names no page (`rootOfPacked`).
     pageIndex: { baseOfRoot: new Int32Array(worldSlots).fill(ROOM_BASE), packedCount: 0 },
     worlds: new Float32Array(worldSlots * 16),
-    worldStretch: new Float32Array(worldSlots),
     recordShift: new Uint32Array(worldSlots),
     // Each primitive's root, which prepare deposits in pass 0's queue; a parked row deposits none,
     // and `rootBases` keeps the node it takes back.
@@ -326,7 +324,6 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     pageCones,
     worlds: p.worlds,
     worldSources,
-    worldStretch: p.worldStretch,
     rootNodes: p.rootNodes,
     rootBases: p.rootBases,
     mark: p.mark,

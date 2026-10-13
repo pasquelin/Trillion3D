@@ -62,8 +62,8 @@ function rowRoot(template: ClusterRoot<PageRec>, rows: PlacementRows, index: num
     // same records as the root it was cloned from, never a copy.
     pages: template.pages,
     worldBox: template.worldBox && new Float64Array(BOX_VALUES),
+    boxAt: undefined,
     stretch: undefined,
-    stretchKey: undefined,
     parked: true,
   }
   root.world = placementWorld(rows, index)

@@ -33,6 +33,8 @@ export function createShadowMobility() {
     get rowWords() {
       return s.rows
     },
+    /** How far the placements and parent slots went since the rows took it (`rowTravel.ts`). */
+    travel: s.travel,
     holds: (rank: number, world: ArrayLike<number>, box?: ArrayLike<number>) =>
       holdsPose(s, rank, world, box),
     ensure: (placements: number, drawSlots: number, worldOf: (rank: number) => ArrayLike<number>) =>
@@ -40,8 +42,13 @@ export function createShadowMobility() {
     move: (rank: number, world: ArrayLike<number>, forced = false) =>
       moveRank(s, rank, world, forced),
     follow: (rank: number, lead: number) => followLead(s, rank, lead),
-    moveLead: (lead: number, ranks: readonly number[]) => moveLeadSlot(s, lead, ranks),
-    settle: (threshold: number, turnedStatic: (rank: number, lead: number) => void) =>
+    moveLead: (
+      lead: number,
+      ranks: readonly number[],
+      from: ArrayLike<number>,
+      to: ArrayLike<number>,
+    ) => moveLeadSlot(s, lead, ranks, from, to),
+    settle: (threshold: number, turnedStatic: (rank: number) => void) =>
       settleMoving(s, threshold, turnedStatic),
     touch: (rank: number) => touchRank(s, rank),
     writeRows: writeMobilityRows.bind(null, s),

@@ -8,7 +8,9 @@ import { enginePose } from '../../../camera/world.ts'
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts'
 import type { WebgpuPagesCore } from '../runtime.ts'
 
-const newEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
+/** A command buffer of the image, timed with its other parts when the image is sampled
+ *  (`../../../gpu/timing/encoder.ts`), never a capture's. */
+export const createImagePart = (rt: WebgpuPagesCore, device: GPUDevice) =>
   rt.timing.gpuTiming && !rt.capture.capturing
     ? rt.timing.gpuTiming.createEncoder(rt.run.frame)
     : device.createCommandEncoder()
@@ -20,16 +22,19 @@ const feedbackPublished = (rt: WebgpuPagesCore) => !rt.capture.capturing && !!rt
 
 /** The image's own command buffer when one is open, a fresh one otherwise. */
 export const createRenderEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
-  rt.timing.frameEncoder ?? newEncoder(rt, device)
+  rt.timing.frameEncoder ?? createImagePart(rt, device)
 
 export const openFrameEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
-  (rt.timing.frameEncoder = newEncoder(rt, device))
+  (rt.timing.frameEncoder = createImagePart(rt, device))
 
-/** Drops the open command buffer and settles the selection whose readback would have ridden in it. */
+/** Drops the open command buffer and settles the selection whose readback would have ridden in it.
+ *  The passes it held never ran: the rows pass runs again, whole. */
 export function abandonFrameEncoder(rt: WebgpuPagesCore) {
   const { timing } = rt
-  if (!timing.frameEncoder) return
+  const dropped = timing.frameEncoder
+  if (!dropped) return
   timing.frameEncoder = undefined
+  if (rt.rowWords?.encodedInto === dropped) rt.rowWords.all = true
   const settle = timing.frameSelection
   timing.frameSelection = undefined
   settle?.(false)

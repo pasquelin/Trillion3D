@@ -1,4 +1,4 @@
-import { CORNER_VALUES, ROW_DATA_U32 } from './contract.ts'
+import { ROW_DATA_U32 } from './contract.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { createGpuPartitionBuffers, createGpuPartitionLayout } from './buffers.ts'
 import { createPartitionUniformWriter } from './uniform.ts'
@@ -118,7 +118,6 @@ function compilePartition(device: GPUDevice) {
 /** The partition's face (`GpuPartition`) over `p`. */
 function partitionApi(p: Partition): GpuPartition {
   const { device, allocated, counters } = p
-  const cornerBytes = CORNER_VALUES * 4
   return {
     get lastFrame() {
       return p.lastFrame
@@ -143,14 +142,6 @@ function partitionApi(p: Partition): GpuPartition {
     rebind: (next) => rebindPartition(p, next),
     forgetRows(from: number, to: number) {
       if (to >= from) p.forgotten.push(from, to)
-    },
-    /** World corners of rows `[from, to]`: one run of the rows the table declared dirty. */
-    uploadCorners(packed: Float32Array, from: number, to: number) {
-      if (p.disposed || to < from) return
-      const { buffer, byteOffset } = packed
-      const at = from * cornerBytes
-      const bytes = (to - from + 1) * cornerBytes
-      device.queue.writeBuffer(allocated.corners, at, buffer as ArrayBuffer, byteOffset + at, bytes)
     },
     get counting() {
       return p.counting

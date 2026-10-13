@@ -1,6 +1,6 @@
 import { boxCenter } from '../../../math/src/geometry/box.ts'
 import { focalPixels } from '../../../math/src/projection/camera.ts'
-import { worldStretch } from '../page/cut/logic.ts'
+import { rootWorldBox, worldStretch } from '../page/selection/rootWorld.ts'
 import { screenErrorBound } from '../../../sdk-core/src/lod/screenErrorBound.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import { viewDepthOf, viewLateralOf } from '../page/selection/projection.ts'
@@ -15,7 +15,7 @@ const centre = new Float64Array(3)
 /** How many pixels `reach` of root's units spans at worst, seen from `cam`: from the nearest point
  *  of its rest box the reach can bring closer. */
 function pixelsOf(root: ClusterRoot<PageRec>, reach: number, cam: EngineCamera, focal: number) {
-  const box = root.worldBox
+  const box = rootWorldBox(root)
   if (!box) return Infinity
   boxCenter(centre, 0, box[0], box[1], box[2], box[3], box[4], box[5])
   const x = centre[0],

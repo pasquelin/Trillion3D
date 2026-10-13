@@ -1,5 +1,6 @@
-// At the move: a root whose box follows it declares to the shadow scheduler where it stood and
-// where it stands, two boxes apart, never the room between them.
+// At the move: a root whose box follows it has its rows derived again, their shadow change asked —
+// the rows pass stales the pages each row left and entered (`placement/rowCastWgsl.ts`) —, and
+// declares no box on the CPU.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
@@ -8,17 +9,11 @@ import { selectionRoot, runtime, scene } from '../../core/transformShear.fixture
 
 const moved = new Float32Array(new G.Matrix4().makeTranslation(4, -2, 1).elements)
 
-test('a moved root declares the box it left and the box it lands in', () => {
+test("a moved root asks its rows' shadow change, and declares no box", () => {
   const { source, mesh, worlds } = scene()
   const root = selectionRoot(mesh, [-1, -1, -1, 1, 1, 1], worlds)
   const { rt, motions } = runtime(source, [root], worlds)
   setWebgpuTransform(rt, 'target', moved)
-  // The shadow scheduler hears the two boxes apart: the pages between them keep.
-  assert.deepEqual(
-    motions.map(({ min, max }) => [...min, ...max]),
-    [
-      [-1, -1, -1, 1, 1, 1],
-      [3, -3, 0, 5, -1, 2],
-    ],
-  )
+  assert.deepEqual(rt.rowWords?.roots, [0], 'its rows derived again, their change asked')
+  assert.deepEqual(motions, [], 'no box declared on the CPU')
 })

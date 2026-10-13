@@ -1,6 +1,7 @@
 /**
- * Cache invalidation pass (step 7): the GPU half of the invalidation processing. The CPU half —
- * the per-light filtering of the engine's moved boxes — is `vsmInvalidationPhaseFromShadowBoxes`.
+ * Cache invalidation pass (step 7): the GPU half of the invalidation processing of the CPU's change
+ * boxes. The CPU half — their per-light filtering — is `vsmInvalidationPhaseFromShadowBoxes`. The
+ * rows' moves never reach the CPU: their changes are staled on the GPU (`castInvalidation.ts`).
  *
  * Frame start, before `encodeVsmPageCarry` (and before `planVirtualShadowFrame`,
  * whose ids replace the previous frame's the payloads name):
@@ -32,6 +33,7 @@ import {
   VSM_INVALIDATION_SPECS,
   VSM_BOX_MOVING,
   VSM_BOX_CASTS,
+  UNBOUNDED_EXTENT,
   vsmInvalidationWgsl,
 } from './invalidationWgsl.ts'
 import {
@@ -49,6 +51,7 @@ import { length3 } from '../../../math/src/vector/vector.ts'
 import type { VsmLayout } from './layout.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
+import { releaseCastInvalidation, type VsmCastState } from './castInvalidation.ts'
 
 /** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
  *  1 when it is cached as dynamic, else 0. */
@@ -77,8 +80,6 @@ interface VsmShadowBoxSource {
   }
 }
 
-/** A box that bounds nothing finite reaches every page: as large an extent as f32 clip math keeps. */
-const UNBOUNDED_EXTENT = 1e15
 /** The last box `writeBox` wrote, centre then half extent, as the lights' range test reads it. */
 const lastBox = new Float64Array(6)
 
@@ -112,8 +113,9 @@ const phaseInstances: VsmInstanceInvalidation[] = []
 const phaseEntries: VsmLightCache[] = []
 
 /**
- * The engine's moved world boxes (`plan.worldChanged` / `residencyChanged` / released
- * representation changes: each mover's box before AND after its move) as one invalidation phase,
+ * The engine's change boxes (`worldChanged` — geometry rewritten in place, a light, a sphere buffer
+ * made anew —, `residencyChanged`, released representation changes) as one invalidation phase — a
+ * move's are the rows' own, on the GPU (`castInvalidation.ts`) —,
  * filtered per light like the collector's: no entry fully cached, uncached
  * or invalidated; dynamic casters skip receiver-cover maps; local lights cull by radius.
  * One instance per box (identity rotation, world AABB); `moving` (already moving, outside the
@@ -181,9 +183,12 @@ interface Pipe {
 export interface VsmInvalidationState {
   pipe?: Pipe
   slots: Slot[]
+  /** The stale of the rows' shadow changes (`castInvalidation.ts`). */
+  casts?: VsmCastState
 }
 
-const invalidationOf = (res: VsmResources) => (res.invalidation ??= { slots: [] })
+/** What the invalidations of `res` hold, made at their first use. */
+export const invalidationOf = (res: VsmResources) => (res.invalidation ??= { slots: [] })
 
 function pipe(device: GPUDevice, res: VsmResources): Pipe {
   return (invalidationOf(res).pipe ??= {
@@ -216,6 +221,7 @@ export function releaseVsmInvalidation(res: VsmResources) {
     slot.params.destroy()
     for (const buffer of Object.values(slot.buffers)) buffer.destroy()
   }
+  if (res.invalidation) releaseCastInvalidation(res.invalidation)
   res.invalidation = undefined
 }
 

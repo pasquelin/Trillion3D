@@ -162,7 +162,6 @@ export {
   POSITION_VALUES,
   QUATERNION_VALUES,
   SPHERE_VALUES,
-  boxTransformUnionBatch,
   boxUnionBatch,
   composeMatrix4Batch,
   decomposeMatrix4Batch,

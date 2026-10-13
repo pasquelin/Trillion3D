@@ -3,6 +3,7 @@ import type { PackedDag } from './types.ts'
 import { uniformSlots, type UniformSlots } from '../../residency/pools.ts'
 import { FRAME_VEC4 } from './types.ts'
 import { primitiveWordAt } from './worlds.ts'
+import { worldStretch } from '../../page/selection/rootWorld.ts'
 import { dagGroupEntries } from './shader/bindings.ts'
 import { PRIMITIVE_BYTES, WORLD_ROW_BYTES, cameraFrameRanges } from './cameraRanges.ts'
 import { writeParts, writeRanges } from './split.ts'
@@ -31,6 +32,7 @@ export function createCameraFrames(
     ...{ device, frameData, ranges, per: ranges[0].count },
     ...rangeBuffers(device, slots, ranges, own),
     frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
+    sources,
     pending: createChangedRuns(),
     writes: 0,
   }
@@ -72,8 +74,10 @@ export function createCameraFrames(
      *  buffer at its row. `dagPrepare` writes the rest. */
     writeRows: (from = 0, to = Infinity) => writeRows(f, from, to),
     /** The host rows of the `count` increasing primitives of `named`, each run to its range. */
-    writeNamedRows: (named: Int32Array, count: number) =>
-      writeNamed(f, f.buffers, ROW_FLOATS, f.frameData, named, count),
+    writeNamedRows: (named: Int32Array, count: number) => {
+      for (let k = 0; k < count; k++) restretch(f, named[k])
+      writeNamed(f, f.buffers, ROW_FLOATS, f.frameData, named, count)
+    },
     /** The world matrices in `next` of primitives `[from, to)` — every one by default —, each run
      *  to its range. */
     writeWorlds: (next: Float32Array, from = 0, to = Infinity) => writeWorlds(f, next, from, to),
@@ -104,6 +108,8 @@ type Frames = {
   device: GPUDevice
   frameData: Float32Array<ArrayBuffer>
   frameInts: Uint32Array<ArrayBuffer>
+  /** Each placement's root: what its stretch is taken from (`restretch`). */
+  sources: PackedDag['worldSources']
   ranges: ReturnType<typeof cameraFrameRanges>
   /** Primitives of a full range: the first range a word lands in is found by division. */
   per: number
@@ -169,6 +175,7 @@ function rangeBuffers(
 
 function writeRows(f: Frames, from: number, to: number) {
   const rows = Math.min(to, primitives(f)) - from
+  for (let w = from; w < from + rows; w++) restretch(f, w)
   writeSpan(f, f.buffers, ROW_FLOATS, f.frameData, from * ROW_FLOATS, rows * ROW_FLOATS)
 }
 
@@ -209,7 +216,16 @@ function writeWord(f: Frames, w: number, slot: number, value: number) {
 function flushWords(f: Frames) {
   if (!f.pending.count) return
   const named = f.pending.take()
+  for (let k = 0; k < named.length; k++) restretch(f, named[k])
   writeNamed(f, f.buffers, ROW_FLOATS, f.frameData, named, named.length)
+}
+
+/** Primitive `w`'s stretch in its host row, as its world stands — the one memo of it
+ *  (`worldStretch`) — before the row goes up: a row the host sends never takes back a stretch the
+ *  GPU wrote since its world moved (`../../placement/rootBoxes.ts`). */
+function restretch(f: Frames, w: number) {
+  const source = f.sources[w]
+  if (source) f.frameData[primitiveWordAt(w)] = worldStretch(source)
 }
 export type CameraFrames = ReturnType<typeof createCameraFrames>
 /** A cut's group without its range's own buffers (`dagGroupEntries`). */

@@ -1,5 +1,5 @@
-// The stretch the GPU derives for a composed root (`gpuStretchWgsl.ts`) is the CPU's `maxStretch`
-// of its single-precision world words, as `refreshStretchAt` stores it in a `Float32Array`: word
+// The stretch the GPU derives for a moved root (`gpuStretchWgsl.ts`) is the CPU's `maxStretch` of
+// its double world, as the one memo takes it (`worldStretch`) and a `Float32Array` stores it: word
 // for word, on generated worlds — rotations, uneven and negative scales, shears, a cut-down
 // matrix, a sphere's scale, the exact cases (an identity, a pure turn, a pure scale) that take
 // each branch of the formula.
@@ -11,9 +11,9 @@ import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { maxStretch } from '../../../sdk-core/src/index.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { STRETCH_WGSL } from './gpuStretchWgsl.ts'
-import { DOUBLE_HELPERS, generated } from './composeDoubles.fixture.ts'
+import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
 
-const run = shaderRun<{ maxStretchBits(w: number[]): number }>(
+const run = shaderRun<{ maxStretchBits(m: Pair[]): number }>(
   wgslProgram('', [STRETCH_WGSL]),
   [
     ...DOUBLE_HELPERS,
@@ -23,10 +23,9 @@ const run = shaderRun<{ maxStretchBits(w: number[]): number }>(
   {},
 )
 
-/** The words of a world's single-precision row, and what the CPU stores for its stretch. */
-const words = (world: ArrayLike<number>) => Array.from(world, f32Bits)
-const expected = (world: ArrayLike<number>) =>
-  f32Bits(maxStretch(Array.from(Float32Array.from(world))))
+/** A world's doubles as the shaders hold them, and what the CPU stores for its stretch. */
+const words = (world: ArrayLike<number>) => Array.from(world, (value) => pair(value))
+const expected = (world: ArrayLike<number>) => f32Bits(maxStretch(Array.from(world)))
 
 test('the stretch of a generated world is the CPU’s, word for word', () => {
   const next = lcgRandom(23)
@@ -74,11 +73,11 @@ test('the exact cases take the branches of the formula: pure scales, turns, the 
     assert.equal(run.maxStretchBits(words(world)) >>> 0, expected(world), `case ${i}`)
 })
 
-test('a word that is no finite number leaves the stretch as it was: the CPU refuses the matrix', () => {
+test('a number that is no finite one leaves the stretch as it was: the CPU refuses the matrix', () => {
   const world = generated(lcgRandom(3), 10),
     row = words(world)
-  row[5] = 0x7f800000
+  row[5] = pair(Infinity)
   assert.equal(run.maxStretchBits(row) >>> 0, 0xffffffff)
-  row[5] = 0x7fc00000
+  row[5] = pair(NaN)
   assert.equal(run.maxStretchBits(row) >>> 0, 0xffffffff)
 })

@@ -1,4 +1,5 @@
 import type { WebgpuRunState } from '../state/run.ts'
+import { disposeEntryCorners } from '../../transparent/entryCorners.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** The previous image's occluders no longer describe this one. */
@@ -25,6 +26,8 @@ function dropGpuPartition(rt: WebgpuPagesRuntime) {
   // transparent table gets all its entries back.
   rt.blendState.occlusion?.dispose()
   rt.blendState.occlusion = undefined
+  disposeEntryCorners(rt.blendState.occlusionEntries)
+  rt.blendState.occlusionEntries = undefined
   rt.blendState.occlusionEpoch = -1
   rt.vis.gpuPartition?.dispose()
   rt.vis.gpuPartition = undefined

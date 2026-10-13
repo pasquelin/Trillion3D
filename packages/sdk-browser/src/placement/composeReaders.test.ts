@@ -37,15 +37,18 @@ test('a row no root reads is composed for its readers, and a root a growth bring
   const { rt, rows } = session()
   const extra = createPlacementRows(3),
     parent = {}
+  // A blended item reads row 1 of `extra` through its view, as the blend pass reads its copies.
+  const item = { placement: { rows: extra, index: 1 }, matrix: placementWorld(extra, 1) }
+  rt.blendState.blendGpu.push(item as never)
   const links = [
     { rows, index: 0, local: turn(0) },
     { rows: extra, index: 1, local: local(5) },
   ]
   composeWebgpuPlacements(rt, parent, turn(0.3), links, true)
-  assert.deepEqual(Array.from(placementWorld(extra, 1).elements), product(turn(0.3), local(5)))
-  // The parent turns: the reader's row follows it.
+  assert.deepEqual(Array.from(item.matrix.elements), product(turn(0.3), local(5)))
+  // The parent turns: the reader's row follows it, composed when it is read.
   composeWebgpuPlacements(rt, parent, turn(0.6), [], false)
-  assert.deepEqual(Array.from(placementWorld(extra, 1).elements), product(turn(0.6), local(5)))
+  assert.deepEqual(Array.from(item.matrix.elements), product(turn(0.6), local(5)))
   // A growth builds the root of that row: the roots pass composes it from now on.
   const roots = rt.layout.selectionRoots as unknown as object[]
   roots.push({ placement: { rows: extra, index: 1 }, world: placementWorld(extra, 1) })
@@ -53,4 +56,21 @@ test('a row no root reads is composed for its readers, and a root a growth bring
   rebindComposedWorlds(rt)
   assert.deepEqual([...rt.compose!.parentOf].slice(0, 3), [0, NO_INDEX, 0])
   assert.equal(rt.compose!.readers.size, 0, 'no reader is left to this module')
+  assert.equal(Object.getOwnPropertyDescriptor(item.matrix, 'elements')?.get, undefined)
+})
+
+test("a parent's move composes no reader's row: the product waits for a read, one a read", () => {
+  const { rt } = session()
+  const extra = createPlacementRows(3),
+    parent = {}
+  const item = { placement: { rows: extra, index: 2 }, matrix: placementWorld(extra, 2) }
+  rt.blendState.blendGpu.push(item as never)
+  composeWebgpuPlacements(rt, parent, turn(0.1), [{ rows: extra, index: 2, local: local(1) }], true)
+  const row = () => Array.from(extra.matrices.subarray(32, 48))
+  const read = row()
+  composeWebgpuPlacements(rt, parent, turn(0.9), [], false)
+  composeWebgpuPlacements(rt, parent, turn(1.2), [], false)
+  assert.deepEqual(row(), read, 'two moves: the row is not written')
+  assert.deepEqual(Array.from(item.matrix.elements), product(turn(1.2), local(1)))
+  assert.deepEqual(row(), product(turn(1.2), local(1)), 'read once: composed at the last world')
 })

@@ -37,18 +37,16 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
   if (reshaped && run.movedWorlds.since) run.movedWorlds.since.walked = true
   // A node the host hid or showed parks its roots and hides its blend items, or takes them back,
   // in every cut, and one set to cast or not leaves or enters every light cut; the shadow pages its
-  // roots covered are drawn again, static casters included unless every root that flipped was
-  // moving already: the static layer never held those (`../../shadow/mobility.ts`).
+  // roots covered are drawn again, by their rows (`flipWorld`), static casters included unless they
+  // were moving already: the static layer never held those (`../../shadow/mobility.ts`).
   if (reshaped || (write && write.flipped.length)) {
     const blend = rt.blendState.blendGpu
-    const flipped = followHostVisibility(
+    followHostVisibility(
       selectionRoots,
       { entries: blend, sourceOf: blendSource },
       flipWorld(rt),
-      rt.lights.mobility.moves,
       reshaped ? undefined : underFlipped(rt, write.flipped),
     )
-    if (flipped) rt.lights.changes.worldChanged(flipped.min, flipped.max, flipped.movingOnly)
   }
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene
   rt.timing.worldCounts.rootsUploaded = 0

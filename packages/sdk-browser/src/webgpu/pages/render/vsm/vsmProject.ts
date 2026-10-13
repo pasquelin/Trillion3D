@@ -1,5 +1,4 @@
 // The frame's shadow-map raster and projection (`vsmEncode.ts`).
-import { refreshComposedSpheres } from '../../../../placement/composedSpheres.ts'
 import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import {
@@ -15,6 +14,7 @@ import { focalPixels } from '../../../../../../math/src/projection/camera.ts'
 import { ensureMask, maskLayersFor, type EngineVsm } from './engineVsm.ts'
 import { projectionLight } from './vsmPlan.ts'
 import { encodeVsmRenderAndTransmission } from './vsmTransmission.ts'
+import { encodeRowBins } from '../../../../vsm/rowBinsGpu.ts'
 
 /** What a frame's VSM steps read: the engine, the device, the encoder, the camera, the projection
  *  the raster drew this image with (the TAA jitter in it, `taaRenderProjection`: the depth the
@@ -38,8 +38,6 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
   const { spheres, mobilityRows, rowLods, pageLayout } = lights
   if (!pageGroup || !spheres || !mobilityRows || !rowLods || !pageLayout || !vis.pageTable) return
   vsm.renderedPlan = plan
-  // The chunks are sized from the CPU copy of the spheres: a composed row's is made current.
-  refreshComposedSpheres(rt)
   vsm.stats.render = encodeVsmRenderAndTransmission(
     rt,
     vsm,
@@ -65,6 +63,16 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
       },
     },
   )
+  // The histograms the chunks of a later frame are sized from (`rowPageBound.ts`): the spheres as
+  // the rows pass wrote them this frame, the raster's rows and the blended casters'.
+  const binned = { spheres: spheres.buffer, mobility: mobilityRows, rowSpheres: spheres },
+    { rows } = layout
+  const raster = vsm.res.render?.rowBound,
+    blended = vsm.transmission?.context?.rowBound
+  const blendedRows = { first: rows.blendFirst, end: rows.casterSlots }
+  if (raster)
+    encodeRowBins(device, encoder, raster, binned, { first: 0, end: rows.packedCount }, plan.lights)
+  if (blended) encodeRowBins(device, encoder, blended, binned, blendedRows, plan.lights)
 }
 
 /** Projection: one pass, every light a channel reads (`planVsmFrame`: the first 64), four a layer

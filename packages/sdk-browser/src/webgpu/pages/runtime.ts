@@ -1,4 +1,8 @@
-import type { ComposeState } from '../../placement/gpuCompose.ts'
+import type { ComposeState } from '../../placement/gpuComposeState.ts'
+import type { RootWorlds } from '../../placement/rootWorlds.ts'
+import type { RootBoxesGpu } from '../../placement/rootBoxes.ts'
+import type { TreeLeavesGpu } from '../../placement/treeLeaves.ts'
+import type { RowWords } from '../../placement/rowWords.ts'
 import type { GrowthInFlight } from '../../placement/webgpuGrowth.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/index.ts'
@@ -73,6 +77,14 @@ export interface WebgpuPagesRuntime {
   services: WebgpuPagesServices
   /** Placements composed on the GPU under a moved parent (`../../placement/gpuCompose.ts`). */
   compose?: ComposeState
+  /** Every root's world in doubles on the GPU (`../../placement/rootWorlds.ts`). */
+  rootWorlds?: RootWorlds
+  /** The root boxes pass and the tree's leaves on the GPU (`../../placement/rootBoxes.ts`,
+   *  `../../placement/treeLeaves.ts`). */
+  rootBoxes?: RootBoxesGpu
+  treeLeaves?: TreeLeavesGpu
+  /** The rows pass's inputs and the rows it derives next (`../../placement/rowWords.ts`). */
+  rowWords?: RowWords
   /** The rows grown in place and the roots waiting to join the cut, until a cut holds them
    *  (`../../placement/webgpuGrowth.ts`). */
   growth?: GrowthInFlight

@@ -2,10 +2,14 @@
 import * as THREE from 'three'
 import {
   boxEmpty,
-  boxTransformUnionBatch,
+  boxUnionBatch,
   decomposeMatrix4Batch,
   transformPointsByMatricesBatch,
 } from '../../../packages/math/src/index.ts'
+import {
+  createBoxTransformLot,
+  madeLot,
+} from '../../../packages/sdk-browser/src/page/decode/batch/batchRuntime.ts'
 import { rapport } from '../../core/index.ts'
 import type { Measurement } from '../../core/index.ts'
 import { duel } from '../../oracles/core/three-duel.ts'
@@ -62,12 +66,14 @@ lines.push(
 
 const threeUnion = new THREE.Box3(),
   scratch = new THREE.Box3()
+// The engine's one batch of moved boxes: the WebAssembly lot, its output united.
+const lot = madeLot(await createBoxTransformLot(N), N)
 const oracleUnion = new Float64Array(6),
   union = new Float64Array(6)
 lines.push(
   await duel({
     name: 'Box3 transform and union batch',
-    fichier: 'packages/math/src/batch/batch.ts',
+    fichier: 'packages/sdk-browser/src/page/decode/batch/batchRuntime.ts',
     three: () => {
       threeUnion.makeEmpty()
       for (let i = 0; i < N; i++)
@@ -79,8 +85,11 @@ lines.push(
       return oracleUnion
     },
     core: () => {
+      lot.boxes.set(boxes)
+      lot.mats.set(mats.flat)
+      lot.run(N)
       boxEmpty(union, 0)
-      boxTransformUnionBatch(union, boxes, mats.views, N)
+      boxUnionBatch(union, lot.out, N)
       return union
     },
   }),

@@ -1,11 +1,11 @@
 // A linked row's world sphere, what the shadow cull drops a row by, follows its parent's move on
-// the GPU: the compose rows pass (`composeSphere`, the shipped WGSL) writes it from the composed
-// world and the row's local box, around the sphere the CPU writes at that world
-// (`../webgpu/shadow/spheres.ts`), and writes none while no light casts.
+// the GPU: the rows pass (`composeSphere`, the shipped WGSL) writes it from the composed world and
+// the row's local box, around the sphere the CPU's formula gives at that world
+// (`../webgpu/shadow/clusterSphere.ts`), and writes none while no light casts.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { packClusterSpheres } from '../webgpu/shadow/spheres.ts'
-import { CLUSTER_SPHERE_FLOATS } from '../webgpu/shadow/rowBuffers.ts'
+import { packClusterSpheres } from '../webgpu/shadow/spheres.fixture.ts'
+import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 import type { Placements } from '../page/selection/placements.ts'
 import { composeRows, cpuTable, crystals, N } from './gpuComposeRows.fixture.ts'

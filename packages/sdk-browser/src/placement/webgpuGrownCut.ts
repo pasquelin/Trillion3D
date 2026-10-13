@@ -8,7 +8,6 @@
 import { countRootCopies } from '../webgpu/pages/prepare/layout.ts'
 import { growWebgpuTables, tableRowsFor } from '../webgpu/pages/prepare/growTables.ts'
 import { postPackedBases } from '../page/selection/placements.ts'
-import { rootBoxesFor } from '../page/selection/batchBoxes.ts'
 import { mainViewGpu, viewGpu } from '../webgpu/pages/state/view.ts'
 import { markReach } from '../deformation/halfFloat.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
@@ -85,7 +84,6 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   )
   mainViewGpu(rt).temporal?.motion.grow()
   for (const view of rt.views.persistent) viewGpu(rt, view).temporal?.motion.grow()
-  reserveBoxes(rt)
   // Taken in place, the running cut already holds them; else the cut made over them replaces it.
   if (!ready.inPlace) swapCut(rt, ready, added, firstRank)
   // A world DAG among them is the session's: the cells it draws far are followed.
@@ -149,10 +147,4 @@ function swapCut(
   // The pool's slots taken or given back while the cut was made: a page whose held state moved.
   for (const page of moved)
     if (page < layout.packedPages.length) cut.notePool(page, heldPage(rt, page))
-}
-
-/** The root boxes' lot for the longer list, remade at its count at once: the next move reads it. */
-function reserveBoxes(rt: WebgpuPagesRuntime) {
-  const { layout } = rt
-  layout.rootBoxes = rootBoxesFor(layout.rootBoxes, layout.selectionRoots)
 }

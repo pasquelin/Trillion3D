@@ -1,6 +1,6 @@
-import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts'
+import { markRootRows } from '../webgpu/pages/render/movedRoot.ts'
 import { updateWholeDeformationBounds } from './wholeBounds.ts'
-import { worldStretch } from '../page/cut/logic.ts'
+import { worldStretch } from '../page/selection/rootWorld.ts'
 import { noteDeformed } from '../webgpu/pages/render/movedGeometry.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -38,7 +38,8 @@ export function updateWebgpuDeformation(
     root.reach = frame.reach[entry]
     const grew = before !== root.reach
     rt.run.gpuSelection?.markWorld(i, markReach(root.mark ?? 0, root.reach))
-    if (grew) moveRootRows(rt, root, i)
+    // Another reach grows its rows' boxes: their inputs are written again, no pose moved.
+    if (grew) markRootRows(rt, root, 0, root.pages.length - 1)
     if (frame.dirty[entry] || grew)
       noteDeformed(rt, i, Math.max(before, root.reach) * worldStretch(root))
   }

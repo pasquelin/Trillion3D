@@ -10,18 +10,26 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { worldToRenderOrigin } from '../../../sdk-core/src/index.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import { COMPOSE_ROWS_WGSL } from './gpuComposeWgsl.ts'
+import { COMPOSE_WORLDS_WGSL } from './gpuComposeWgsl.ts'
+import { DERIVE_ROWS_WGSL } from './rowWordsWgsl.ts'
 import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
 import { FLOAT32_MAX } from '../../../math/src/constants.ts'
 
-/** The parent's and the local matrix's doubles the shipped `composed` reads, one case at a time. */
+/** The parent's and the local matrix's doubles the shipped `composed` reads, one case at a time:
+ *  the worlds pass's product, and the rows pass's rounding of a double to a word. */
 const parents: Pair[] = [],
   locals: Pair[] = []
-const run = shaderRun<{
+const product = shaderRun<{
+  composed(parentAt: number, localAt: number, k: number): Pair
+}>(COMPOSE_WORLDS_WGSL, [...DOUBLE_HELPERS.filter((name) => name !== 'dSub'), 'composed'], {
+  parents,
+  locals,
+})
+const rounding = shaderRun<{
   toF32(a: Pair): number
   dSub(a: Pair, b: Pair): Pair
-  composed(parentAt: number, localAt: number, k: number): Pair
-}>(COMPOSE_ROWS_WGSL, [...DOUBLE_HELPERS, 'toF32', 'composed'], { parents, locals })
+}>(DERIVE_ROWS_WGSL, [...DOUBLE_HELPERS, 'toF32'], {})
+const run = { ...rounding, composed: product.composed }
 
 test('a double rounds to single precision as a Float32Array stores it', () => {
   const next = lcgRandom(3)

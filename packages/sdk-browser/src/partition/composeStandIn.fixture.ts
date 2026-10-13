@@ -1,12 +1,8 @@
 // The engine's composition as a test stand-in: it takes every link (`Engine.composePlacements`) and
-// holds its rows at the parent's world times their local, through the composition's own reader
-// module (`placement/composeReaders.ts`), as a session without a GPU would give them to a reader.
-import {
-  holdReaders,
-  rebindReaders,
-  writeReaders,
-  type Readers,
-} from '../placement/composeReaders.ts'
+// holds its rows at the parent's world times their local, its links held by the composition's own
+// reader module (`placement/composeReaders.ts`), every row written at each send.
+import { holdReaders, rebindReaders, type Readers } from '../placement/composeReaders.ts'
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { PlacementRows } from '../placement/rows.ts'
 import type { PlacementLink } from '../placement/gpuCompose.ts'
 
@@ -26,7 +22,10 @@ export function composeStandIn(update?: (rows: PlacementRows, from: number, to: 
     holdReaders(readers, slot, parent, links, whole)
     const held = readers.get(slot) ?? [],
       before = held.map(({ rows, index }) => rows.matrices.slice(index * 16, index * 16 + 16))
-    writeReaders(readers, slot, world)
+    const parentWorld = Float64Array.from(world)
+    for (const { rows, index, local } of held)
+      if (index < rows.capacity)
+        multiplyMatrix4(rows.matrices.subarray(index * 16, index * 16 + 16), parentWorld, local)
     held.forEach(({ rows, index }, k) => {
       const now = rows.matrices.subarray(index * 16, index * 16 + 16)
       if (now.some((v, at) => v !== before[k][at])) update?.(rows, index, index)

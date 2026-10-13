@@ -1,6 +1,7 @@
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts'
 import { holdsPose, promoteRank, touchRank, type MobilityState } from './mobilityState.ts'
+import { noteTravel } from './mobilityTravel.ts'
 
 /**
  * Placement `rank` was posed at `world`: it moved unless `world` is the pose it was last seen
@@ -18,6 +19,7 @@ export function moveRank(
 ) {
   if (rank < 0 || rank >= s.moving.length) return MOVE_PROMOTED
   if (!forced && holdsPose(s, rank, world)) return MOVE_NONE
+  noteTravel(s.travel.ranks, rank, s.poses.subarray(rank * 16, rank * 16 + 16), world)
   s.poses.set(world, rank * 16)
   s.lastMoved[rank] = s.frame
   if (s.moving[rank]) return MOVE_MOVING
@@ -33,6 +35,8 @@ export function followLead(s: MobilityState, rank: number, lead: number) {
     s.leads = resized(s.leads, rank + 1, -1)
   }
   s.leads[rank] = lead
+  // Linked or let go, its world is another's: its rows may be anywhere.
+  s.travel.jumped.push(rank)
   if (lead < 0) return
   if (lead >= s.leadMoved.length) growSlots(s, lead + 1)
   if (!(rank < s.moving.length && s.moving[rank])) s.leadMoving[lead] = 0
@@ -42,17 +46,23 @@ export function followLead(s: MobilityState, rank: number, lead: number) {
 function growSlots(s: MobilityState, size: number) {
   s.leadMoved = resized(s.leadMoved, size)
   s.leadMoving = resized(s.leadMoving, size)
-  s.leadDeclared = resized(s.leadDeclared, size)
 }
 
 /**
- * Parent slot `lead` moved: every placement of `ranks` that follows it moved with it, as one
- * `move` each would weigh it, without a pose per placement. Its first move makes its still
- * followers moving, once; a later one only stamps the slot's frame, which `settle` reads for
- * each follower. Returns `MOVE_PROMOTED` when a follower left the static slice, else
- * `MOVE_MOVING`.
+ * Parent slot `lead` moved from world `from` to `to`: every placement of `ranks` that follows it
+ * moved with it, as one `move` each would weigh it, without a pose per placement — the slot's
+ * travel is noted once. Its first move makes its still followers moving, once; a later one only
+ * stamps the slot's frame, which `settle` reads for each follower. Returns `MOVE_PROMOTED` when a
+ * follower left the static slice, else `MOVE_MOVING`.
  */
-export function moveLeadSlot(s: MobilityState, lead: number, ranks: readonly number[]) {
+export function moveLeadSlot(
+  s: MobilityState,
+  lead: number,
+  ranks: readonly number[],
+  from: ArrayLike<number>,
+  to: ArrayLike<number>,
+) {
+  noteTravel(s.travel.slots, lead, from, to)
   if (lead < 0 || lead >= s.leadMoved.length) return MOVE_PROMOTED
   s.leadMoved[lead] = s.frame
   if (s.leadMoving[lead]) return MOVE_MOVING
@@ -69,16 +79,14 @@ export function moveLeadSlot(s: MobilityState, lead: number, ranks: readonly num
 /**
  * One scene frame: every moving placement that has not moved for more than `threshold` frames
  * — itself, nor the parent slot it follows (`moveLead`) — turns static and is handed to
- * `turnedStatic`, which invalidates its static pages, so the static slice draws it. A follower
- * is handed with its slot, once a call for the slot: the slot's box holds every follower where
- * its parent now holds it, which the follower's own box, made at its last CPU pose, may not.
- * Its rows' words are written anew at the next `writeRows`, its rows alone. Walks the moving
- * placements only. Returns whether one did.
+ * `turnedStatic`, which has its rows stale their static pages, so the static slice draws it
+ * (`../../placement/rowCastWgsl.ts`). Its rows' words are written anew at the next `writeRows`, its
+ * rows alone. Walks the moving placements only. Returns whether one did.
  */
 export function settleMoving(
   s: MobilityState,
   threshold: number,
-  turnedStatic: (rank: number, lead: number) => void,
+  turnedStatic: (rank: number) => void,
 ) {
   s.frame = (s.frame + 1) >>> 0
   const frame = s.frame,
@@ -95,13 +103,8 @@ export function settleMoving(
     list.pop()
     touchRank(s, rank)
     any = true
-    if (lead < 0) turnedStatic(rank, -1)
-    else {
-      s.leadMoving[lead] = 0
-      if (s.leadDeclared[lead] === frame) continue
-      s.leadDeclared[lead] = frame
-      turnedStatic(rank, lead)
-    }
+    if (lead >= 0) s.leadMoving[lead] = 0
+    turnedStatic(rank)
   }
   return any
 }

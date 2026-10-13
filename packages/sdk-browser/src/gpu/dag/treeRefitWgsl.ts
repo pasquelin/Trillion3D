@@ -1,11 +1,11 @@
 /**
  * THE PLACEMENT TREE REFIT, in the shader (`treeRefit.ts`): the boxes of the nodes a change touched,
- * bottom up, each the CPU build's to the word (`fitPlacementTree`, `placementTree.ts`). A group's box
- * is the union of its members' leaf boxes — doubles, `members` six a placement, `memberBox` or a
- * composition's own —, a cell's the union of its children's boxes as the nodes hold them; both grown
- * by `MARGIN` of the farthest coordinate and the widest side, then stored as single precision. Every
- * box is finite: a member's leaf holds its deformation's reach (`memberBox`), and one drawn whatever
- * the view is opened from queue 0, never by its group (`placementTree.ts`). A parked member, or a
+ * bottom up. A group's box is the union of its members' leaf boxes — doubles, `members` six a
+ * placement, the GPU's (`../../placement/treeLeavesWgsl.ts`) —, a cell's the union of its children's
+ * boxes as the nodes hold them; both grown by `MARGIN` of the farthest coordinate and the widest
+ * side, then stored as single precision. Every box is finite: a member's leaf holds its
+ * deformation's reach, and one drawn whatever the view is opened from queue 0, never by its group
+ * (`placementTree.ts`). A parked member, or a
  * slot no placement holds, holds nothing; a node that holds nothing takes the empty box, its bounds
  * crossed at the finite sentinel (`FINITE_SENTINEL`), which every union passes over.
  *

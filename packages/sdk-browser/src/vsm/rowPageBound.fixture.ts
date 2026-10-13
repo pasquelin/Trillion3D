@@ -16,6 +16,7 @@ import { addVsmLocalLightShadow, vsmLocalViewData, type VsmLocalLightInput } fro
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
 import { createVsmResources } from './resources.ts'
 import type { VsmBoundLight, VsmRowSpheres, VsmWorst } from './rowPageBound.ts'
+import { createRowMotion } from '../gpu/shadow/rowMotion.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 export const PAGES = 2048
@@ -27,21 +28,22 @@ export const worstOf = (cap = 1 << 21): VsmWorst => ({
   cap,
 })
 
-/** No rows' spheres: no row has one, the bound cannot speak. */
-export const emptyRowSpheres = (): VsmRowSpheres => ({
-  packed: new Float32Array(0),
-  written: { epoch: 0, runs: [] },
-})
+/** Spheres no histogram was made of: the bound cannot speak. */
+export const emptyRowSpheres = (): VsmRowSpheres => ({ motion: createRowMotion() })
+
+/** A scene's rows as the GPU holds them: their spheres packed as the engine's, which are moving
+ *  (`MOBILITY_MOVING`), and what changed in them (`spheres`). */
+export type SceneRows = { packed: Float32Array; moving: Uint8Array; spheres: VsmRowSpheres }
 
 /** `n` rows: centre `at(i)` (world metres, double), radius `radius(i)`, packed as the engine's. */
 export function sphereRows(
   n: number,
   at: (i: number) => number[],
   radius: (i: number) => number,
-): VsmRowSpheres {
+): SceneRows {
   const packed = new Float32Array(n * CLUSTER_SPHERE_FLOATS)
   for (let i = 0; i < n; i++) writeRow(packed, i, at(i), radius(i))
-  return { packed, written: { epoch: 0, runs: [] } }
+  return { packed, moving: new Uint8Array(n), spheres: emptyRowSpheres() }
 }
 /** `n` rows within `spread` metres of `centre`, radii log-uniform in [rMin, rMax]. */
 export function scene(
@@ -138,7 +140,7 @@ const pagesRect = ([x0, y0, x1, y1]: number[]) =>
 
 /** Per row, the pairs (pages of every level's rect, at most `pages`) and the commands (levels
  *  whose rect is not empty) the shipped cull gives it — every page valid, nothing cached. */
-export function bruteForce(rows: VsmRowSpheres, light: VsmBoundLight, pages: number) {
+export function bruteForce(rows: SceneRows, light: VsmBoundLight, pages: number) {
   const n = rows.packed.length / CLUSTER_SPHERE_FLOATS,
     p = rows.packed
   const pairs = new Float64Array(n),
@@ -164,7 +166,7 @@ export function bruteForce(rows: VsmRowSpheres, light: VsmBoundLight, pages: num
 
 /** The same under a local light's maps (`localAt`): range, the perspective box, then a command
  *  and the rect's pages per mip whose rect is not empty. Pairs not capped. */
-export function bruteForceLocal(rows: VsmRowSpheres, light: VsmBoundLight) {
+export function bruteForceLocal(rows: SceneRows, light: VsmBoundLight) {
   const n = rows.packed.length / CLUSTER_SPHERE_FLOATS,
     p = rows.packed
   const pairs = new Float64Array(n),
@@ -189,12 +191,4 @@ export function bruteForceLocal(rows: VsmRowSpheres, light: VsmBoundLight) {
     }
   }
   return { pairs, cmds }
-}
-
-/** Sums of the k largest of `v`, for every k (index k). */
-export function topSums(v: Float64Array) {
-  const sorted = Float64Array.from(v).sort().reverse()
-  const out = new Float64Array(v.length + 1)
-  for (let k = 0; k < v.length; k++) out[k + 1] = out[k] + sorted[k]
-  return out
 }

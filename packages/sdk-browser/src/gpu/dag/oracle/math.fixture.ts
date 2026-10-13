@@ -3,6 +3,7 @@ import { screenErrorBound } from '../../../../../sdk-core/src/lod/screenErrorBou
 import { viewDepthOf, viewLateralOf } from '../../../page/selection/projection.ts'
 import { OPEN_PLANES, openMark } from '../../../page/cut/openRoot.fixture.ts'
 import type { PackedDag } from '../types.ts'
+import { worldStretch } from '../../../page/selection/rootWorld.ts'
 import type { SelectionUniforms } from '../../core/selection.ts'
 
 /**
@@ -102,10 +103,16 @@ function worldThresholds(packed: Partial<PackedDag> & { worldCount: number }, pi
 /** The threshold placement `w`'s cut is held to in `f`. */
 export const thresholdOf = (f: DagViewFrames, w: number) => f.thresholds[w] ?? f.pixelError
 
-export function dagViewFrames(
-  packed: Pick<PackedDag, 'worlds' | 'worldStretch' | 'worldCount'> & Partial<PackedDag>,
-  uniforms: SelectionUniforms,
-): DagViewFrames {
+/** The stretch of placement `w` as its frame words hold it: those a device wrote when read back
+ *  (`frameStretch`), else the CPU's one memo, as a `Float32Array` stores it. */
+const stretchOf = (packed: OraclePack, w: number) =>
+  packed.frameStretch?.[w] ?? Math.fround(worldStretch(packed.worldSources![w]))
+
+/** What the oracle reads of a packing, the frame words' stretches when a device's are read back. */
+type OraclePack = Pick<PackedDag, 'worlds' | 'worldCount'> &
+  Partial<PackedDag> & { frameStretch?: ArrayLike<number> }
+
+export function dagViewFrames(packed: OraclePack, uniforms: SelectionUniforms): DagViewFrames {
   const cameraStretch = uniforms.cameraStretch ?? 1,
     perspective = uniforms.perspective ?? 1
   const planes: Float64Array[] = [],
@@ -121,7 +128,7 @@ export function dagViewFrames(
     planes.push(object)
     multiplyMatrix4(viewMatrix, view, world)
     views.push(Array.from(viewMatrix))
-    stretches.push(packed.worldStretch[w] * cameraStretch)
+    stretches.push(stretchOf(packed, w) * cameraStretch)
   }
   return {
     planes,

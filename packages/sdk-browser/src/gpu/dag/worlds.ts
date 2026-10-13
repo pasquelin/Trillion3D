@@ -1,4 +1,4 @@
-import { maxStretch } from '../../../../sdk-core/src/index.ts'
+import { worldStretch } from '../../page/selection/rootWorld.ts'
 import { FRAME_VEC4, type PackedDag } from './types.ts'
 import { sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
 
@@ -11,48 +11,6 @@ export const primitiveWordAt = (w: number) => w * FRAME_VEC4 * 4
 const PAGE_BASE_WORD = 4,
   PAGE_COUNT_WORD = 6
 export const HELD_BY_WORD = 5
-
-/**
- * Object-to-view stretch of the `count` primitives of `moved` whose linear part moved, recomputed
- * for them only and listed in `into`, increasing as `moved` is; returns their count.
- *
- * A pose that only moved keeps its linear part. Stretch depends only on the nine linear
- * coefficients — `maxStretch` reads only those — so recomputing it for a moved translation would
- * yield the exact same float, then push its frame row again. Zero returned here means "no stretch
- * changed": the buffer has nothing to receive.
- */
-export function refreshMovedStretch(
-  previous: Float32Array,
-  next: Float32Array,
-  packed: Pick<PackedDag, 'worldStretch'>,
-  frameData: Float32Array,
-  moved: ArrayLike<number>,
-  count: number,
-  into: Int32Array,
-) {
-  let stretched = 0
-  for (let i = 0; i < count; i++)
-    if (refreshStretchAt(previous, next, packed, frameData, moved[i])) into[stretched++] = moved[i]
-  return stretched
-}
-
-/** Primitive `w`'s stretch recomputed when its linear part moved (`refreshMovedStretch`); whether
- *  it was. */
-function refreshStretchAt(
-  previous: Float32Array,
-  next: Float32Array,
-  packed: Pick<PackedDag, 'worldStretch'>,
-  frameData: Float32Array,
-  w: number,
-) {
-  const base = w * 16
-  // `maxStretch` reads the linear part alone (`projectionOracles.ts`).
-  if (sameLinearPart(previous, next, base, base)) return false
-  const stretch = maxStretch(next.subarray(base, base + 16))
-  packed.worldStretch[w] = stretch
-  frameData[primitiveWordAt(w)] = stretch
-  return true
-}
 
 /** Whether primitive `w`'s words a cut reads differ between `previous` and `next`: its linear part
  *  and word 15. Words 12 to 14 are no cut's — each makes the translation from the exact one at its
@@ -77,13 +35,14 @@ export function changedWorlds(
 }
 
 /**
- * Per-primitive frame words, behind the six planes of its first row: the stretch, the root the
- * descent starts from, the record shift that leads its pages to their shared records
+ * Per-primitive frame words, behind the six planes of its first row: the stretch — the CPU's one
+ * memo of it (`worldStretch`), which the GPU writes again from its doubles once the world moves
+ * (`../../placement/rootBoxes.ts`) —, the root the descent starts from, the record shift that leads its pages to their shared records
  * (`layout.ts`), and the primitive's root mark (`PackedDag.mark`). Four words the
  * kernel reads without one more storage buffer bound to the stage.
  */
 export function primitiveFrameWords(
-  packed: Pick<PackedDag, 'worldCount' | 'worldStretch' | 'rootNodes' | 'recordShift'> &
+  packed: Pick<PackedDag, 'worldCount' | 'worldSources' | 'rootNodes' | 'recordShift'> &
     Partial<Pick<PackedDag, 'mark' | 'cutLinks' | 'heldOpen'>>,
 ) {
   const worldCount = Math.max(1, packed.worldCount)
@@ -95,13 +54,13 @@ export function primitiveFrameWords(
 /** Primitive `w`'s frame words (`primitiveFrameWords`), written into `frameData`. */
 export function writePrimitiveWords(
   frameData: Float32Array,
-  packed: Pick<PackedDag, 'worldStretch' | 'rootNodes' | 'recordShift'> &
+  packed: Pick<PackedDag, 'worldSources' | 'rootNodes' | 'recordShift'> &
     Partial<Pick<PackedDag, 'mark' | 'cutLinks' | 'heldOpen'>>,
   w: number,
 ) {
   const at = primitiveWordAt(w),
     frameInts = new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length)
-  frameData[at] = packed.worldStretch[w]
+  frameData[at] = worldStretch(packed.worldSources[w])
   frameInts[at + 1] = packed.rootNodes[w]
   frameInts[at + 2] = packed.recordShift[w]
   frameInts[at + 3] = packed.mark?.[w] ?? 0

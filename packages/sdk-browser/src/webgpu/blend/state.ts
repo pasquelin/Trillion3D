@@ -1,4 +1,5 @@
 import type { Primitive } from '../../../../sdk-core/src/index.ts'
+import { transparentOcclusionState } from '../transparent/entryCorners.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
@@ -8,7 +9,6 @@ import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import type { BlendLighting } from '../core/blendBindEntries.ts'
 import type { BlendOverdraw } from './overdraw.ts'
 import type { TransparentCompaction } from '../transparent/compact.ts'
-import type { TransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts'
 import type { TransparentTable } from '../transparent/table.ts'
 import type { BlendExpand, BlendKernels } from './expand.ts'
 import { createWaterBounds } from '../water/bounds.ts'
@@ -103,14 +103,7 @@ function tableState() {
      *  before `prepare` built them — or when the scene carries no paged transparent cluster. */
     table: undefined as TransparentTable | undefined,
     compaction: undefined as TransparentCompaction | undefined,
-    /** Hi-Z test of transparent clusters, mounted after the pyramid it depends on. */
-    occlusion: undefined as TransparentOcclusion | undefined,
-    /** World corners of each table entry, and the age of the table they come from. */
-    occlusionCorners: new Float32Array(0) as Float32Array<ArrayBuffer>,
-    occlusionEpoch: -1,
-    /** The entries whose pages a rewrite bounded elsewhere since the corners left, sent
-     *  again alone (`refreshTransparentCorners`); none when `to` is below `from`. */
-    occlusionMoved: { from: Infinity, to: -1 },
+    ...transparentOcclusionState(),
     /** Table entries changed by the residency journal, awaiting a partial upload. */
     dirtySpans: new Set<number>(),
     /** What the transparent groups currently name: a moved identity voids them. Two are held,

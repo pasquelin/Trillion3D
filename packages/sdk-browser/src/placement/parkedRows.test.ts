@@ -1,7 +1,8 @@
 // A parked car (0 km/h) stales no shadow page as moving.
 // A car the physics poses writes its placement rows (`physics/placer.ts`): a pose written again
 // within a float32 step of the one its shadows last saw — a parked body's pose rounded again, frame
-// after frame — stales no page; a millimetre does, its moving casters alone.
+// after frame — has its rows derived without asking their shadow change; a millimetre asks it, the
+// car moving already, its moving casters alone (`rowCastWgsl.ts`). The CPU declares no box.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
@@ -26,18 +27,16 @@ test('a parked caster written again within a float32 step stales no page, frame 
     rows.matrices.set(pose)
     updateWebgpuPlacements(rt, rows, 0, 0)
   }
-  // Its first move: it turns moving, its pages stale whole.
+  const asked = () => rt.rowWords?.roots.length ?? 0
+  // Its first move: it turns moving, its rows' change asked.
   write(40.001)
-  const first = motions.length
-  assert.ok(first > 0 && motions.every((motion) => !motion.movingOnly), 'its first move')
+  assert.equal(asked(), 1, 'its first move')
+  assert.equal(rt.lights.mobility.moves(0), true)
   // Parked: a hundred frames of the same pose, rounded again by less than a float32 step.
   for (let frame = 0; frame < 100; frame++) write(40.001 + (frame % 2) * 1e-6, (frame % 3) * 1e-9)
-  assert.equal(motions.length, first, 'parked: no page staled')
-  // Driven on a millimetre: its moving casters' pages alone.
+  assert.equal(asked(), 1, 'parked: no change asked')
+  // Driven on a millimetre: its change asked again, a moving caster's.
   write(40.002)
-  assert.ok(motions.length > first, 'a millimetre stales its pages')
-  assert.ok(
-    motions.slice(first).every((motion) => motion.movingOnly),
-    'its moving casters',
-  )
+  assert.equal(asked(), 2, 'a millimetre asks its change')
+  assert.deepEqual(motions, [], 'no box declared on the CPU')
 })

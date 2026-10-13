@@ -4,8 +4,8 @@
  * parked or taken back, marked past what a box holds, one whose pose a send moved (`updateWorlds`,
  * a call's or a host walk's alike), one a parent composes on the GPU
  * (`../../placement/gpuCompose.ts`) whose parent moved, or one appended. The refit is the GPU's, the
- * engine's one (`treeRefit.ts`): this module names what it fits and writes the leaves — the box of
- * each placement the CPU holds the world of — and the composition writes the ones it composes.
+ * engine's one (`treeRefit.ts`), and so are the leaves it fits over (`TreeLeaves`): this module
+ * names the placements whose leaves are written and the groups to fit, and holds no box.
  */
 import { drawnAlways, treeMarkMoved, TREE_SPAN } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
@@ -27,11 +27,25 @@ export function uploadNodes(
   writeRanges(device, nodeParts, nodes, nodes.length, source)
 }
 
-/** The leaves a parent's composition writes: whether it holds placement `w`, and the pass that
- *  writes them all into `members`, the root boxes of `nodes` carried by the worlds it composes. */
-export type ComposedLeaves = {
-  has(w: number): boolean
-  encode(encoder: GPUCommandEncoder, tables: { members: GPUBuffer; nodeParts: DagParts }): void
+/** The one writer of the tree's leaves (`../../placement/treeLeaves.ts`): each placement's root
+ *  node box, grown by its reach, carried by the world the GPU holds of it. `encode` writes into
+ *  `members` the leaves of the `count` placements `ranks` names — every placement's when `whole` —
+ *  and of every root a parent composes; nothing is written, and nothing fits, until it is `ready`:
+ *  every world it reads on the GPU. */
+export type TreeLeaves = {
+  ready(): boolean
+  encode(
+    encoder: GPUCommandEncoder,
+    tables: { members: GPUBuffer; nodeParts: DagParts; frames: TreeFrames },
+    named: { ranks: Int32Array; count: number; whole: boolean },
+  ): void
+}
+
+/** The frames of the cut whose tree is followed, each range's buffer and placements: where each
+ *  placement's root and mark lie, which its leaf reads. */
+export type TreeFrames = {
+  buffers: readonly GPUBuffer[]
+  ranges: readonly { first: number; count: number }[]
 }
 
 /** The follower of `packed`'s tree on `resources`; none without a tree. A member of the run
@@ -43,9 +57,9 @@ export function createTreeFollower(
     packed: PackedDag
     nodeParts: DagParts
     coldParts: DagParts
-    frames: RefitTables['frames']
+    frames: RefitTables['frames'] & TreeFrames
   },
-  leaves?: ComposedLeaves,
+  leaves?: TreeLeaves,
 ) {
   const { device, packed, nodeParts, coldParts, frames } = resources,
     tree = packed.placementTree
@@ -61,8 +75,10 @@ export function createTreeFollower(
         ? Array.from({ length: tree.levels.at(-1)!.count }, (_, g) => g)
         : [],
     )
-  // The moved placements whose leaf the CPU writes, ascending: one scratch for every sync.
-  let written = new Int32Array(8)
+  // The placements whose leaf is written, ascending: one scratch for every sync. The first fit
+  // writes every leaf.
+  let written = new Int32Array(8),
+    whole = true
   /** Placement `w`'s group fits again at the next cut: parked or taken back, posed by a send,
    *  appended, or composed on the GPU by a parent from now on or no longer. */
   const touch = (w: number) => {
@@ -98,8 +114,10 @@ export function createTreeFollower(
     groupsMoved(named: ArrayLike<number>) {
       for (let k = 0; k < named.length; k++) groups.add(named[k])
     },
-    /** Before every cut on the tables, the main view's or one aside: what moved fitted again, in a
-     *  command buffer of its own that the cut's follows. */
+    /** Before every cut on the tables, the main view's or one aside: what moved fitted again, its
+     *  leaves written first, in a command buffer of its own that the cut's follows. Without a
+     *  writer of leaves, or before the worlds they read are on the GPU, nothing fits: the nodes
+     *  keep the boxes they hold — the whole world before the first fit, which no plane rejects. */
     sync() {
       // The members drawn whatever the view, their places moved since sent behind the order.
       if (tree.always.moves.count) {
@@ -110,6 +128,7 @@ export function createTreeFollower(
           targetBase: tree.alwaysAt,
         })
       }
+      if (!leaves?.ready()) return
       const placements = dirty.count ? dirty.take() : undefined
       if (!placements?.length && !groups.size) return
       const fit = new Set(groups)
@@ -119,11 +138,15 @@ export function createTreeFollower(
       for (const w of placements ?? []) {
         if (tree.slot[w] === 0xffffffff) continue
         fit.add(Math.floor(tree.slot[w] / TREE_SPAN))
-        if (!leaves?.has(w)) written[count++] = w
+        written[count++] = w
       }
-      refit.leaves(written, count)
       const encoder = device.createCommandEncoder({ label: 'Trillion3D placement tree refit' })
-      leaves?.encode(encoder, { members: refit.members, nodeParts })
+      leaves.encode(
+        encoder,
+        { members: refit.members, nodeParts, frames },
+        { ranks: written, count, whole },
+      )
+      whole = false
       refit.run(encoder, fit)
       device.queue.submit([encoder.finish()])
       revision++

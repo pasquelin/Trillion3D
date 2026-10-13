@@ -12,5 +12,8 @@ const IMAGE_PASSES = 256
  * in flight (`READBACKS`, `encoder.ts`).
  */
 export const TIMED_PASSES = IMAGE_PASSES + VSM_TIMED_PASSES
-/** Timestamps: a pair per pass, and each part's start aligned for its resolve. */
-export const QUERY_COUNT = 2 * TIMED_PASSES + PARTS * PART_ALIGN
+/** Aligned runs of timestamps an image takes before its padding runs out: each part's first, and
+ *  one each time a part's passes resume after another part's (`encoder.ts`), once a part. */
+const RUNS = 2 * PARTS
+/** Timestamps: a pair per pass, and each run's start aligned for its resolve. */
+export const QUERY_COUNT = 2 * TIMED_PASSES + RUNS * PART_ALIGN

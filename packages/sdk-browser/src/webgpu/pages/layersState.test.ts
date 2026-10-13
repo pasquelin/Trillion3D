@@ -6,7 +6,6 @@ import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { quadScene } from './testScenes.fixture.ts'
 import { BASE_SLOTS, DRAW_ITEM_U32, HALF_SLOTS } from '../../gpu/draw/draw.ts'
-import { CORNER_VALUES } from '../../gpu/partition/contract.ts'
 import { createWebgpuVisState } from './state/vis.ts'
 import { createWebgpuPagesLayout } from './prepare/layout.ts'
 import type { WebgpuPagesSetup } from './prepare/setup.ts'
@@ -36,11 +35,11 @@ test('createWebgpuVisState starts with drawLayerSlots at one and no coplanar lay
 })
 
 // prepare/layout.ts
-test('createWebgpuPagesLayout sizes world corners per drawable row, for the GPU partition', () => {
+test('createWebgpuPagesLayout holds the draw words per drawable row, and no CPU corner', () => {
   const layout = createWebgpuPagesLayout(fakeSetup())
-  // Per-slot counts no longer live here: the GPU partition writes them into the compaction buffer.
-  // What the layout still holds is the corners that partition reads.
-  assert.equal(layout.cornerPacked.length, layout.drawSlots * CORNER_VALUES)
+  // Per-slot counts no longer live here: the GPU partition writes them into the compaction buffer,
+  // and the rows pass writes the corners it reads (`../../placement/rowWordsPass.ts`).
+  assert.equal('cornerPacked' in layout, false)
   assert.equal(layout.drawItemWords.length, layout.drawSlots * DRAW_ITEM_U32)
 })
 

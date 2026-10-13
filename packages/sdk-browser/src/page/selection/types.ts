@@ -132,13 +132,20 @@ export type ClusterRoot<T> = {
     bounds: Float64Array
     links?: CullingLinks
   }
-  /** Root world box, six bounds flat (`packages/math/src/geometry/box.ts`). */
+  /** Root world box, six bounds flat (`packages/math/src/geometry/box.ts`), taken when read
+   *  (`rootWorldBox`, `rootWorld.ts`): read through it, never directly. */
   worldBox?: Float64Array
-  /** The local box of which `worldBox` is the image: what a node move reprojects (R8). Shared by
-   *  every placement of the primitive, so it is read, never written. */
+  /** The local box of which `worldBox` is the image. Shared by every placement of the primitive,
+   *  so it is read, never written. */
   localBox?: Float64Array
+  /** The stamp its world moved at (`worldMoved`), and what the memos of its box and stretch were
+   *  taken at (`rootWorld.ts`). */
+  worldAt?: number
+  boxAt?: number
+  boxStamp?: number
   stretch?: number
-  stretchKey?: Float64Array
+  stretchAt?: number
+  stretchStamp?: number
   structure?: ClusterStructureIndex
   /** What the root declares of its pages' boxes, once and for all at prepare time: `true` says
    *  each carries `min` and `max`, and the cut then stops checking them per cluster under a node

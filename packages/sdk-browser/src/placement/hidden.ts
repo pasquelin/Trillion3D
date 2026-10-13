@@ -1,5 +1,3 @@
-import { boxEmpty, boxIsEmpty } from '../../../sdk-core/src/index.ts'
-import { rootBoxUnion } from './update.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
 import { rowParked, type PlacementOf } from './rows.ts'
 import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
@@ -52,22 +50,17 @@ function followHidden<E extends { hidden?: boolean }>(
   }
 }
 
-/** The box the roots that flipped cover. */
-const moved = rootBoxUnion()
-
 /**
  * Brings the roots and the see-through draws level with the visibility the host wrote on the
  * source graph. A root whose source node, or one of its ancestors, is hidden is parked as a parked
  * row is — every cut, the light cuts included, skips it, its tables stay —, and taken back once
  * shown again, unless its row is parked. A root placed at its own node's world casts as its mesh
  * says (`castShadow`, its shadowless bit); a row says for its own (`followPlacementRows`). `flip`
- * hears the rank of each root that flipped. A see-through draw of a hidden node takes `hidden`,
- * which its selection reads (`notDrawn`), and `seeThrough.flipped` hears it. Read once per scene
- * revision, never per frame. Returns the box of the roots that flipped, where the shadow pages must
- * be drawn again, or `null`; its corners are views of one scratch box, read before the next call.
- * `movingOnly` says every root that flipped `moves` already: the static casters under it stay.
- * `under`, when given, names the roots and the see-through draws to read — those under the nodes
- * the host flipped —, the others standing as they are.
+ * hears the rank of each root that flipped: its rows, derived again, stale the shadow pages it left
+ * or entered (`rowCastWgsl.ts`). A see-through draw of a hidden node takes `hidden`, which its
+ * selection reads (`notDrawn`), and `seeThrough.flipped` hears it. Read once per scene revision,
+ * never per frame. `under`, when given, names the roots and the see-through draws to read — those
+ * under the nodes the host flipped —, the others standing as they are.
  */
 export function followHostVisibility<
   T extends { drawSource?: { node?: Object3D } },
@@ -80,15 +73,8 @@ export function followHostVisibility<
     flipped?: (entry: S) => void
   },
   flip?: (rank: number, root: ClusterRoot<T>) => void,
-  moves?: (rank: number) => boolean,
   under?: { roots: Subset; seeThrough: Subset },
 ) {
-  boxEmpty(moved.box, 0)
-  let movingOnly = true
-  const flipped = (rank: number, root: ClusterRoot<T>) => {
-    movingOnly &&= !!moves?.(rank)
-    flip?.(rank, root)
-  }
   followHidden(
     roots,
     rootSource,
@@ -96,8 +82,7 @@ export function followHostVisibility<
       const parked = !!root.hidden || rowParked(root.placement)
       if (parked === !!root.parked) return
       root.parked = parked
-      flipped(rank, root)
-      moved.add(root)
+      flip?.(rank, root)
     },
     under?.roots,
   )
@@ -108,8 +93,7 @@ export function followHostVisibility<
       root = roots[rank],
       node = rootSource(root)
     if (root.placement || !node || !markShadowless(root, !node.castShadow)) continue
-    flipped(rank, root)
-    moved.add(root, root.parked)
+    flip?.(rank, root)
   }
   followHidden(
     seeThrough.entries,
@@ -117,5 +101,4 @@ export function followHostVisibility<
     (entry) => seeThrough.flipped?.(entry),
     under?.seeThrough,
   )
-  return boxIsEmpty(moved.box, 0) ? null : { min: moved.min, max: moved.max, movingOnly }
 }

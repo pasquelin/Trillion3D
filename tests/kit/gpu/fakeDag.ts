@@ -40,7 +40,7 @@ export const boundListCap = (byBinding: Bound) =>
  * CPU doubles read of a packing, and nothing more: the GPU cut is the engine's one cut (#1483), so
  * every session on the double runs it.
  */
-export function packedFromBindings(byBinding: Bound): PackedDag {
+export function packedFromBindings(byBinding: Bound): PackedDag & { frameStretch: Float32Array } {
   const views = words(byBinding.get(DAG_BINDING.views)!.data)
   const pageCount = views[viewWord('clusterCount')],
     nodeCount = views[viewWord('nodeCount')],
@@ -72,7 +72,7 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
       byBinding.get(DAG_BINDING.views)!.data,
       worldCount * 16,
     ),
-    worldStretch: floatsAt(0),
+    frameStretch: floatsAt(0),
     rootNodes,
     rootBases: rootNodes.slice(),
     recordShift: intsAt(2),

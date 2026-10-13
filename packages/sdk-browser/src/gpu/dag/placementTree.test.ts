@@ -4,8 +4,8 @@ import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
-import { memberBox, refitLevels } from './placementTree.ts'
-import { refitTree } from './treeRefitRun.fixture.ts'
+import { refitLevels } from './placementTree.ts'
+import { leafBoxes, refitTree } from './treeRefitRun.fixture.ts'
 import { packDagSelection } from './selection.ts'
 import { appendDagRoots, dagRootCounts } from './pack.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
@@ -64,7 +64,6 @@ test('moving, parking or opening one placement refits its group and its cell, at
       Array(tree.depth).fill(1),
       'a node per level of the tree',
     )
-    memberBox(dag, tree, 70)
     refitTree(dag, [group])
     assert.ok(box()[4] >= 1000 && box()[4] > before[4])
     // Its cut is the flat one's at the new pose.
@@ -76,7 +75,6 @@ test('moving, parking or opening one placement refits its group and its cell, at
     assert.ok(moved.pages.length > 0, 'the moved placement is drawn where it went')
     // Parked, its box no longer holds the far pose.
     dag.rootNodes[70] = 0xffffffff
-    memberBox(dag, tree, 70)
     refitTree(dag, [group])
     assert.ok(box()[4] < 1000)
     // Never culled, it stays a finite leaf of its group and is drawn whatever the view, from the
@@ -84,7 +82,6 @@ test('moving, parking or opening one placement refits its group and its cell, at
     dag.rootNodes[70] = dag.rootBases[70]
     dag.mark[70] = SPRITE_UNCULLED
     mirrorKey(tree.always, 70, true)
-    memberBox(dag, tree, 70)
     refitTree(dag, [group])
     assert.ok(box()[4] >= 1000 && box()[4] < 1e38 && box()[0] > -1e38, 'its group finite')
     const away = fieldCamera([30, 2, -30], [30, 0, -200])
@@ -108,8 +105,7 @@ test("a growth's placements join the tree in place, the cut the flat one's", () 
   assert.equal(tree.count, 128 + 20)
   for (let w = 0; w < 100; w++) assert.equal(tree.order[tree.slot[w]], w, `placement ${w}`)
   assert.deepEqual(added.tree.members, [128, 148])
-  // The new members' leaves are taken as the follower takes them (`TreeRefit.leaves`), their groups fit.
-  for (let w = 80; w < 100; w++) memberBox(dag, tree, w)
+  // The new members' leaves are the GPU's from their worlds, their groups fit.
   refitTree(dag)
   for (const camera of views) {
     const cut = fieldCut(roots, camera, true, dag)
@@ -135,12 +131,13 @@ test('a member drawn whatever the view is listed apart: every box stays finite, 
   assert.deepEqual(Array.from(set.list.subarray(0, set.count)), [70], 'the never culled alone')
   refitTree(dag)
   assert.equal(tree.depth, 2, 'groups under one cell')
+  const leaves = leafBoxes(dag)
   for (const w of [70, 71]) {
     const g = Math.floor(tree.slot[w] / WORKGROUP_THREADS),
       group = tree.levels.at(-1)!.base + g,
       cell = tree.levels[0].base + Math.floor(g / WORKGROUP_THREADS)
     const box = dag.nodes.subarray(group * 24, group * 24 + 7),
-      leaf = tree.boxes.subarray(w * 6, w * 6 + 6)
+      leaf = leaves.subarray(w * 6, w * 6 + 6)
     for (let a = 0; a < 3; a++)
       assert.ok(box[a] <= leaf[a] && box[4 + a] >= leaf[3 + a], `member ${w}, axis ${a}`)
     for (const node of [group, cell])
@@ -150,13 +147,11 @@ test('a member drawn whatever the view is listed apart: every box stays finite, 
       )
   }
   // The reach grows the leaf past the rest one's on every side.
-  const grown = tree.boxes.slice(71 * 6, 71 * 6 + 6)
+  const grown = leaves.slice(71 * 6, 71 * 6 + 6)
   dag.mark[71] = 0
-  memberBox(dag, tree, 71)
-  const rest = tree.boxes.slice(71 * 6, 71 * 6 + 6)
+  const rest = leafBoxes(dag).slice(71 * 6, 71 * 6 + 6)
   for (let a = 0; a < 3; a++) assert.ok(grown[a] < rest[a] && grown[3 + a] > rest[3 + a])
   dag.mark[71] = 0x4000 << 16
-  memberBox(dag, tree, 71)
   for (const camera of views)
     assert.deepEqual(
       fieldCut(roots, camera, true, dag).pages,

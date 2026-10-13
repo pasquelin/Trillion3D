@@ -15,8 +15,7 @@ import type { GpuSelection } from '../core/selection.ts'
 import type { PackedDag } from './types.ts'
 import { selectionRepeat, type DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { createDagResources } from './resources.ts'
-import type { ComposedLeaves } from './treeFollow.ts'
-import { createDagRuntime } from './runtime.ts'
+import { createDagRuntime, type RootsOnGpu } from './runtime.ts'
 import { dagDeviceRefusal } from './deviceRefusal.ts'
 import { cutHeldSlots } from './listCap.ts'
 import type { CutAdmission } from './cutBuffers.ts'
@@ -32,8 +31,9 @@ export async function createGpuDagSelection(
     onRefused?: (reason: string, details?: Record<string, unknown>) => void
     /** The pages the pool already holds: a cut made beside a running one (a growth in place). */
     poolHeld?: (page: number) => boolean
-    /** The leaves a parent's composition writes into the placement tree's refit. */
-    leaves?: ComposedLeaves
+    /** What the session writes of its roots on the GPU before every cut, the tree's leaves among
+     *  them (`RootsOnGpu`). */
+    roots?: RootsOnGpu
     /** The rows the session's row cache holds: the open counts placements hold follow them. */
     rows?: number
     /** The most its tables may hold (`../../residency/cutTableBytes.ts`): past it, refused. */
@@ -72,5 +72,5 @@ export async function createGpuDagSelection(
     options.onRefused?.(`camera cut creation failed: ${why}`, { why })
     return undefined
   }
-  return createDagRuntime(resources, options.poolHeld, options.leaves)
+  return createDagRuntime(resources, options.poolHeld, options.roots)
 }

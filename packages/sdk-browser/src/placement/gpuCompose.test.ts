@@ -4,12 +4,11 @@
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { askComposedPlacements, composeWebgpuPlacements, encodeComposedRows } from './gpuCompose.ts'
+import { composeWebgpuPlacements } from './gpuCompose.ts'
+import { askComposedPlacements } from './gpuComposeFrame.ts'
 import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/compileLedger.ts'
 import { decideComposedMotion, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { session, turn } from './composeSession.fixture.ts'
-import { ROW_WORDS } from '../visibility/types.ts'
-import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 test("a parent's turn advances the cut's world revision on the frame it moved, and only then", () => {
   const { rt, rows, frame } = session()
@@ -43,24 +42,8 @@ test('a parent unlinked and linked anew starts from its new world: no motion fro
   assert.equal(frame(), 0, 'linked at its new world: nothing moved on the GPU')
 })
 
-/** A table of `count` rows holding no page, row `i` naming root `i`: the rows' inputs are zero. */
-const tableOf = (count: number) => {
-  const pageTableInts = new Uint32Array(count * ROW_WORDS)
-  for (let row = 0; row < count; row++)
-    pageTableInts[row * ROW_WORDS + PAGE_INFO.at.placement] = row
-  return {
-    rowCount: count,
-    packedRecs: [],
-    packedPageIndex: [],
-    blendFirst: count,
-    tableEpoch: 1,
-    pageTableInts,
-    forEachDirtyRun: () => {},
-  }
-}
-
 test('the compose kernels are asked once a parent links rows, the frames held until they compiled off the thread', async () => {
-  const { rt, rows, frame, device, encoder, compiled } = session()
+  const { rt, rows, frame, device, compiled } = session()
   askComposedPlacements(rt, device)
   assert.equal(pipelinesCompiling(device), false, 'no link, nothing asked')
   const links = [0, 1].map((index) => ({ rows, index, local: turn(0) }))
@@ -70,48 +53,33 @@ test('the compose kernels are asked once a parent links rows, the frames held un
   await pipelinesSettled(device, true)
   assert.equal(pipelinesCompiling(device), false)
   frame()
-  Object.assign(rt, {
-    vis: {
-      pageTable: device.createBuffer({
-        size: 64,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      }),
-    },
-  })
-  Object.assign(rt.layout, { rows: tableOf(2) })
-  encodeComposedRows(rt, device, encoder)
-  assert.deepEqual(compiled, { sync: 0, async: 2 }, 'both kernels compiled off the frame, once')
+  assert.deepEqual(
+    compiled,
+    { sync: 0, async: 2 },
+    'the worlds and roots kernels, off the frame, once',
+  )
 })
 
 test('the compose passes make their groups once, then only when a buffer one names is replaced', () => {
-  const { rt, rows, frame, device, encoder, bindGroups } = session()
+  const { rt, rows, frame, device, bindGroups } = session()
   const parent = {},
     links = [0, 1].map((index) => ({ rows, index, local: turn(0) }))
   composeWebgpuPlacements(rt, parent, turn(0), links, true)
-  Object.assign(rt, {
-    vis: {
-      pageTable: device.createBuffer({
-        size: 64,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      }),
-    },
-  })
-  Object.assign(rt.layout, { rows: tableOf(2) })
-  const image = () => {
-    frame()
-    encodeComposedRows(rt, device, encoder)
-    return bindGroups.length
-  }
+  const image = () => (frame(), bindGroups.length)
   const made = image()
   assert.equal(image(), made, 'a still frame makes no group')
   composeWebgpuPlacements(rt, parent, turn(0.5), [], false)
   assert.equal(image(), made, 'nor does a turning parent: its worlds go up in the same buffer')
-  rt.vis.pageTable = device.createBuffer({
-    size: 128,
+  rt.rootWorlds!.worlds = device.createBuffer({
+    size: 512,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
-  assert.equal(image(), made + 1, 'a page table made again: the rows pass binds it, once')
-  assert.equal(image(), made + 1)
+  assert.equal(
+    image(),
+    made + 2,
+    "the roots' worlds made again: the worlds and roots passes bind them, once",
+  )
+  assert.equal(image(), made + 2)
 })
 
 test("the linked roots' motion waits for the temporal pass's decision, written before the image leaves", () => {

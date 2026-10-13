@@ -1,11 +1,12 @@
-import { BOX_VALUES, boxTransform, boxUnion } from '../geometry/box.ts'
+import { BOX_VALUES, boxUnion } from '../geometry/box.ts'
 
 /**
  * Math foundation operations executed IN BATCHES: `n` flat elements, a single function
- * entry, no allocation. A box moved by its matrix and a matrix product in batches are the
+ * entry, no allocation. Boxes moved by their matrices and matrix products in batches are the
  * WebAssembly kernels' alone (`packages/page-codec-wasm/src/math.rs`, over `packages/math/rust`'s
  * `matrix.rs` and `box_transform.rs`), which the engine's lots run
- * (`packages/sdk-browser/src/page/decode/batch/batchRuntime.ts`): no JavaScript loop beside them.
+ * (`packages/sdk-browser/src/page/decode/batch/batchRuntime.ts`): no JavaScript loop beside them,
+ * a union of moved boxes included — the lot moves them, `boxUnionBatch` unites its output.
  *
  * Matrices are passed as SUB-VIEWS of sixteen numbers, not offsets: `multiplyMatrix4` and
  * `boxCornersInto` read their inputs at constant indices, and a parameter offset would
@@ -55,35 +56,6 @@ export function boxUnionBatch(into: Float64Array, boxes: ArrayLike<number>, n: n
       boxes[at + 3],
       boxes[at + 4],
       boxes[at + 5],
-    )
-  }
-}
-
-const scratchUnionBox = new Float64Array(BOX_VALUES)
-
-/**
- * Transforms `n` boxes by `n` matrices and unites them into `into` in a single pass without allocation.
- *
- * Repeats `boxTransform` then `boxUnion`. One box around many objects.
- */
-export function boxTransformUnionBatch(
-  into: Float64Array,
-  boxes: ArrayLike<number>,
-  mats: readonly ArrayLike<number>[],
-  n: number,
-): void {
-  for (let i = 0; i < n; i++) {
-    const at = i * BOX_VALUES
-    boxTransform(scratchUnionBox, 0, boxes, at, mats[i])
-    boxUnion(
-      into,
-      0,
-      scratchUnionBox[0],
-      scratchUnionBox[1],
-      scratchUnionBox[2],
-      scratchUnionBox[3],
-      scratchUnionBox[4],
-      scratchUnionBox[5],
     )
   }
 }

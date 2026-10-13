@@ -1,53 +1,74 @@
-import { ROW_WORDS } from '../../../visibility/types.ts'
+import { matrixWindingCw } from '../../../../../sdk-core/src/index.ts'
 import type { ClusterRoot } from '../../../page/selection/types.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { WebgpuPagesLayout } from '../prepare/layout.ts'
 import { noteWorldMoved } from './movedWorlds.ts'
 import { extendSpan } from '../../../../../math/src/sequence/span.ts'
+import { noteRootWorld } from '../../../placement/rootWorlds.ts'
+import { worldMoved } from '../../../page/selection/rootWorld.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** What a moved root rewrites: its rows and the memos its world feeds, and the runtime's list of
  *  moved placements, which names it (`movedWorlds.ts`). */
-export type MovedRootTarget = {
+export type MovedRootTarget = Pick<WebgpuPagesRuntime, 'rootWorlds'> & {
   layout: Pick<WebgpuPagesLayout, 'rows'>
   run?: Parameters<typeof noteWorldMoved>[0]
   blendState: {
     occlusionEpoch: number
     occlusionMoved?: { from: number; to: number }
+    occlusionPosed?: { mark(entry: number): void }
     table?: { entryOf(page: number): number }
   }
 }
 
 /**
- * The world of one placement moved: only what reads it follows. Its resident rows get their world
- * matrix — the only words of a row a pose writes (`../../row/pageRowWriter.ts`) — and are declared dirty,
- * so the table, the corners, the draw items and the shadow spheres travel for them alone, and the
- * partition forgets their occlusion verdict (`../../visibility/corners.ts`) while the rest of the
- * scene keeps its own. Its windings are computed again. A transparent placement claims no visibility
- * row: its caster rows move, and the transparent corners are sent again. Placement `rank` is named
- * beside that write: its world alone goes up (`movedWorlds.ts`), and the GPU cut's tree fits again
- * the group of the pose its send says moved (`updateWorlds`). Returns the rows rewritten.
- *
- * The table's age does not move: it rewrote every row, every corner and every transparent corner,
- * and dropped the whole scene's occlusion history, each image a model moved.
+ * The world of one placement moved: only what reads it follows, and no word of its rows is written
+ * here. Its CPU box and stretch are taken again when read (`worldMoved`); its world goes to the
+ * GPU (`rootWorlds.ts`), and the rows pass derives every word of its
+ * rows from it (`../../../placement/rowWords.ts`): world words, sphere, corners, detail. Placement
+ * `rank` is named beside that send: its world alone goes up to the cut (`movedWorlds.ts`), and the
+ * GPU cut's tree fits again the group of the pose its send says moved (`updateWorlds`). A world
+ * that turned its winding swaps the face every row of it culls: its rows are written again
+ * (`markRootRows`), their draw bins made for the new one. A transparent placement claims no
+ * visibility row: its caster rows move with it, and the corners of its own transparent entries are
+ * derived again (`occlusionPosed`), never the table's. The
+ * occlusion history of its rows is kept: a stale rectangle only moves a row between the two halves
+ * of the partition, never a pixel (`../../../gpu/partition/projectWgsl.ts`). Returns the rows
+ * written again.
  */
 export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>, rank: number) {
-  root.windingEpoch = undefined
+  worldMoved(root)
   if (rt.run) noteWorldMoved(rt.run, rank)
-  return markRootRows(rt, root, 0, root.pages.length - 1, root.world.elements)
+  noteRootWorld(rt, rank)
+  if (root.pages[0]?.transparent) poseEntries(rt, root)
+  const cw = matrixWindingCw(root.world.elements)
+  if (root.windingCw === cw) return 0
+  root.windingEpoch = undefined
+  return markRootRows(rt, root, 0, root.pages.length - 1)
 }
 
-/** A blended root's pages `from` to `to`, from packed rank `base`, moved: a pose sends every
- *  transparent corner again; a page bounded elsewhere, its own entry's (`occlusionMoved`). */
-function reboundCorners(
-  rt: MovedRootTarget,
-  base: number,
-  from: number,
-  to: number,
-  pose: boolean,
-) {
+/** A blended root moved: the entries of its pages have their corners derived again from its world
+ *  (`../../transparent/entryCorners.ts`), every entry's without a table. */
+function poseEntries(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
+  const { blendState } = rt,
+    { table, occlusionPosed: posed } = blendState,
+    base = root.packedBase ?? -1
+  if (!table || !posed || base < 0) {
+    blendState.occlusionEpoch = -1
+    return
+  }
+  for (let page = 0; page < root.pages.length; page++) {
+    const entry = table.entryOf(base + page)
+    if (entry >= 0) posed.mark(entry)
+  }
+}
+
+/** A blended root's pages `from` to `to`, from packed rank `base`, bounded elsewhere: their own
+ *  entries' transparent corners are sent again (`occlusionMoved`), every entry's without a table. */
+function reboundCorners(rt: MovedRootTarget, base: number, from: number, to: number) {
   const { blendState } = rt,
     { table, occlusionMoved: moved } = blendState
-  if (pose || !table || !moved || base < 0) {
+  if (!table || !moved || base < 0) {
     blendState.occlusionEpoch = -1
     return
   }
@@ -59,12 +80,10 @@ function reboundCorners(
 }
 
 /**
- * Declares the rows of `root`'s pages `from` to `to` dirty, each given `world` first when one is
- * given: their table words, corners, shadow spheres and level-of-detail words travel again for them
- * alone, and a blended root's transparent corners are sent again (`reboundCorners`). Without a
- * `world`, the pages are
- * bounded elsewhere and no pose moved — a dynamic page's vertices lie in another box
- * (`PageRec.moved`), or its root holds another reach —: the windings keep.
+ * Declares the rows of `root`'s pages `from` to `to` dirty: their inputs, table words, draw bins and
+ * every word the rows pass derives travel again for them alone, and a blended root's transparent
+ * corners are sent again (`reboundCorners`). No pose moved here: a dynamic page's vertices lie in
+ * another box (`PageRec.moved`), its root holds another reach, or its world turned its winding.
  * Returns the rows marked.
  */
 export function markRootRows(
@@ -72,22 +91,19 @@ export function markRootRows(
   root: ClusterRoot<PageRec>,
   from: number,
   to: number,
-  world?: ArrayLike<number>,
 ) {
   const { rows } = rt.layout,
-    floats = rows.pageTableFloats,
     base = root.packedBase ?? -1
-  if (to >= from && root.pages[0]?.transparent) reboundCorners(rt, base, from, to, !!world)
+  if (to >= from && root.pages[0]?.transparent) reboundCorners(rt, base, from, to)
   let rewritten = 0
   for (let page = from; page <= to; page++) {
     const index = base + page,
       transparent = !!root.pages[page].transparent
     // A blended cluster moves its caster row (`../../row/blendCasters.ts`), which is its own.
     const row = transparent ? rows.blendRowOf(index) : rows.rowOf(index)
-    if (!floats || row < 0) continue
+    if (!rows.pageTableFloats || row < 0) continue
     // A row the cache gave back may name another page since: only a row that is this page's.
     if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue
-    if (world) floats.set(world, row * ROW_WORDS)
     rows.markRowWords(row)
     rewritten++
   }

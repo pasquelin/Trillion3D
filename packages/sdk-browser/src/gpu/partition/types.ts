@@ -41,7 +41,7 @@ export type GpuPartition = {
   /** Reads back the words the kernel wrote for `rows` rows; `undefined` if the device does not
    *  map. This is not a frame pass: it allocates, copies, then returns its buffer. */
   readRowData(rows: number): Promise<Uint32Array | undefined>
-  /** World corners per row, written by the caller on the rows the table declared dirty. */
+  /** World corners per row, written by the rows pass (`../../placement/rowWordsPass.ts`). */
   corners: GPUBuffer
   /** Bounds of the tested half, already packed for the occlusion kernel. */
   tested: GPUBuffer
@@ -53,7 +53,6 @@ export type GpuPartition = {
    *  table. The transparent occlusion test reads this SAME buffer, so both projections of the
    *  frame share the arithmetic and not only the rule. */
   uniforms: GPUBuffer
-  uploadCorners(packed: Float32Array, from: number, to: number): void
   /** Rows `[from, to]` the table rewrote: what they held — rectangle, verdict, kept flag —
    *  described the page or the place that left, and the next image reads them as never projected.
    *  Called once per run: rows scattered across the table forget nothing between them. */

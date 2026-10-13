@@ -1,8 +1,8 @@
 // The page-table row a linked root is drawn from is the row the CPU writes, word for word, while
 // nothing moved on the GPU alone: a group of crystals turns once and its children are linked with
 // the rows' own CPU write (`../world/core/worldPoses.ts`), then the scene stays still. Every word of
-// every row the CPU path leaves is compared with the words the compose rows pass (`composeRow`, the
-// shipped WGSL) leaves over the same CPU write. A parent turned on the GPU makes the row's world words
+// every row the CPU path leaves is compared with the words the rows pass (`deriveRow`, the shipped
+// WGSL) leaves over the same CPU write, from the worlds the worlds pass composes. A parent turned on the GPU makes the row's world words
 // the CPU's of that turn, and nothing else: its Hi-Z slot stays the row's own, its corners being
 // derived from the composed world (`gpuComposeDerived.test.ts`).
 import test from 'node:test'

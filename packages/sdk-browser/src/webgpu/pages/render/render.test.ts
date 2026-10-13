@@ -12,6 +12,7 @@ import { moveRootRows } from './movedRoot.ts'
 import { createWebgpuRowState } from '../../row/state.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 import { ROW_WORDS } from '../../../visibility/types.ts'
+import type { RootWorlds } from '../../../placement/rootWorlds.ts'
 
 const VIEWPORT: [number, number] = [800, 600]
 
@@ -79,18 +80,20 @@ test('invalidateOccluderHistory drops the occluder history', () => {
   assert.equal(run.noOccluderHistory, true)
 })
 
-// A moved model rewrites its own rows, not the scene's. The table's age must not advance on
-// every move: that would write every row, every corner and every transparent corner again, and
-// drop the whole scene's occlusion history, each image a model moved.
+// A moved model writes no row: its world goes up, 128 bytes, and the rows pass derives its rows'
+// words from it (`../../../placement/rowWords.ts`). The table's age must not advance on every
+// move: that would write every row, every corner and every transparent corner again, and drop the
+// whole scene's occlusion history, each image a model moved. A world that turned its winding
+// writes its own rows again, never the scene's: their draw bins cull the other face.
 
-/** A root of `count` clusters, all placed by the same world. */
+/** A root of `count` clusters, all placed by the same world, its winding held. */
 function root(name: string, count: number, transparent = false): ClusterRoot<PageRec> {
   const world = { elements: new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]) }
   const pages = Array.from(
     { length: count },
     (_, i) => ({ url: `${name}${i}`, transparent }) as unknown as PageRec,
   )
-  return { world, pages, windingEpoch: 1 }
+  return { world, pages, windingEpoch: 1, windingCw: false }
 }
 
 /** A terrain of `terrain` rows, then a model of `model` rows, every cluster resident; then
@@ -111,34 +114,37 @@ function scene(terrain: number, model: number, blendSlots = 0) {
     rows.packedPageIndex[row] = row
   }
   rows.packedCount = terrain + model
-  const rt = { layout: { rows }, blendState: { occlusionEpoch: 1 } }
+  const rt = {
+    layout: { rows },
+    blendState: { occlusionEpoch: 1 },
+    rootWorlds: undefined as RootWorlds | undefined,
+  }
   return { rt, rows, moving, glass }
 }
 
-test('a model of N rows moved in a scene of M rows rewrites N rows', () => {
+test('a model of N rows moved in a scene of M rows writes no row: its world is named', () => {
   const terrain = 900,
     model = 12
   const { rt, rows, moving } = scene(terrain, model)
   const before = rows.pageTableFloats!.slice()
   ;(moving.world.elements as Float64Array)[12] = 3
-  assert.equal(moveRootRows(rt, moving, 0), model)
-  // The table travels for the model's rows alone, and keeps its age.
-  assert.deepEqual(runsOf(rows.forEachDirtyRun), [[terrain, terrain + model - 1]])
-  assert.equal(rows.tableEpoch, 1)
-  const after = rows.pageTableFloats!
-  for (let row = 0; row < terrain + model; row++) {
-    const base = row * ROW_WORDS,
-      moved = row >= terrain
-    assert.equal(after[base + 12], moved ? 3 : 0, `row ${row}: its world translation`)
-    if (!moved)
-      assert.deepEqual(
-        after.subarray(base, base + ROW_WORDS),
-        before.subarray(base, base + ROW_WORDS),
-      )
-  }
-  // Their windings are computed again — their corners travel with their dirty rows.
-  assert.equal(moving.windingEpoch, undefined)
+  assert.equal(moveRootRows(rt, moving, 7), 0)
+  assert.equal(rows.dirtyCount, 0, 'no row travels')
+  assert.deepEqual([...rt.rootWorlds!.moved.take()], [7], 'its world alone goes up')
+  assert.equal(rows.tableEpoch, 1, 'the table keeps its age')
+  assert.deepEqual(rows.pageTableFloats, before, 'no word of the table written')
+  assert.equal(moving.windingEpoch, 1, 'its winding held')
   assert.equal(rt.blendState.occlusionEpoch, 1, 'no transparent cluster moved')
+})
+
+test('a mirrored model writes its own rows again, its winding computed again', () => {
+  const terrain = 900,
+    model = 12
+  const { rt, rows, moving } = scene(terrain, model)
+  ;(moving.world.elements as Float64Array)[0] = -1
+  assert.equal(moveRootRows(rt, moving, 0), model)
+  assert.deepEqual(runsOf(rows.forEachDirtyRun), [[terrain, terrain + model - 1]])
+  assert.equal(moving.windingEpoch, undefined)
 })
 
 test('a transparent model claims no row: its corners are sent again, no row is', () => {
@@ -148,14 +154,12 @@ test('a transparent model claims no row: its corners are sent again, no row is',
   assert.equal(rt.blendState.occlusionEpoch, -1)
 })
 
-test('a moved blended model moves its shadow caster rows, and those alone', () => {
+test('a mirrored blended model writes its shadow caster rows again, and those alone', () => {
   const { rt, rows, glass } = scene(4, 2, 2)
   // The glass casts from the rows behind the visibility rows, in reverse order.
   rows.setBlendRowOf(6, 7)
   rows.setBlendRowOf(7, 6)
-  ;(glass.world.elements as Float64Array)[12] = 5
+  ;(glass.world.elements as Float64Array)[0] = -1
   assert.equal(moveRootRows(rt, glass, 0), 2)
   assert.deepEqual(runsOf(rows.forEachDirtyRun), [[6, 7]], 'the caster rows travel, no other')
-  for (let row = 0; row < rows.casterSlots; row++)
-    assert.equal(rows.pageTableFloats![row * ROW_WORDS + 12], row >= 6 ? 5 : 0, `row ${row}`)
 })

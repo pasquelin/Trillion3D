@@ -44,7 +44,8 @@ export function timingEntries(parts: Iterable<TimingPart>, initialTruncated: boo
   let truncated = initialTruncated
   let unresolvedParts = 0
   const entries: TimingEntry[] = []
-  for (const part of [...parts].sort((a, b) => a.slot - b.slot)) {
+  // The queue's order: the parts as the image submitted them, each one's passes as encoded.
+  for (const part of [...parts].sort((a, b) => a.order - b.order)) {
     if (!part.resolved) {
       if (part.names.length) {
         truncated = true
@@ -53,7 +54,7 @@ export function timingEntries(parts: Iterable<TimingPart>, initialTruncated: boo
       continue
     }
     for (let i = 0; i < part.names.length; i++)
-      entries.push({ slot: part.base + i * 2, name: part.names[i], part: part.slot })
+      entries.push({ slot: part.at[i], name: part.names[i], part: part.order })
   }
   return { entries, truncated, unresolvedParts }
 }

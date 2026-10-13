@@ -73,7 +73,7 @@ export function createDenseKeySet(mirror?: unknown[]) {
 }
 
 /** Keys listed densely for a GPU list read a thread a key, with the places of the list written
- *  since it last went up: the composition's roots and rows (`../../placement/composedRowInputs.ts`),
+ *  since it last went up: the composition's roots and rows (`../../placement/composedRows.ts`),
  *  the placement tree's members drawn whatever the view (`../../gpu/dag/placementTree.ts`). */
 export type MirroredKeys = { set: DenseKeySet; moves: ChangedRuns }
 

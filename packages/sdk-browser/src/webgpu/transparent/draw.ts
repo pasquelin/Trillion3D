@@ -17,7 +17,7 @@ export function encodeTransparentInstances(rt: WebgpuPagesRuntime, encoder: GPUC
   if (!selection || !compaction?.encode) return
   // The occlusion verdict is written just before the compaction, in the same submission and on
   // this frame's pyramid: the compaction never reads another frame's verdict.
-  refreshTransparentCorners(rt)
+  refreshTransparentCorners(rt, encoder)
   if (blendState.occlusion) blendState.occlusion.encode(encoder, run.hizPyramidFresh)
   else encoder.clearBuffer(compaction.occludedBuffer)
   compaction.encode(encoder, selection.maskBuffer, selection.maskOffset)
