@@ -6,16 +6,18 @@
 // for run at the refresh's timestamp (the document timeline the engine reads), unless the display
 // still queues `QUEUED` images. An image drawn is run on the GPU alone — the page waits for the
 // device's answer — and its GPU time, after the images before it, places it on the display: shown
-// at the first refresh after its work ends, as a compositor shows it. The GPU times are the
-// device's own, the engine's timer reads them; the display's time runs as the frames need, so a
-// machine whose main thread is slow plays the same display.
+// at the first refresh after its work ends and after the image before it, one image a refresh at
+// most, as a compositor shows it. The GPU time is the engine's own timer's (`gpuFrameMs`, the last
+// image it timed), the very time the cadence judges: the device's answer comes later than the work
+// ends, by the time its event takes to reach the page, which no display waits for. The display's
+// time runs as the frames need, so a machine whose main thread is slow plays the same display.
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
+import { catchDevice, playDisplay, REFRESH } from './playedDisplay.ts'
 
-/** The display's refresh, ms, and the images it queues at most. */
-export const REFRESH = 1000 / 120
+/** The images the display queues at most. */
 const QUEUED = 2
 
 /** One drawn frame, as the page read it in `world.onFrame`. */
@@ -29,60 +31,18 @@ export type CadenceFrame = {
   aim: number
   /** The car's place as the frame drew it. */
   at: [number, number, number]
-  /** The GPU time of the image, ms, as the device answered it. */
+  /** The GPU time the display placed the image by, ms (`timer`, else `answer`); the engine
+   *  timer's last reading when the frame was drawn, null before its first; and the time the
+   *  device took to answer the page. */
   gpu: number
+  timer: number | null
+  answer: number
 }
 
 export type CadenceReading = { frames: CadenceFrame[]; refreshes: number; speed: number }
 
 /** The terrain's height at `x, z`: gentle rolls a car drives over. */
 const height = (x: number, z: number) => 0.4 * Math.sin(x / 13) * Math.sin(z / 17)
-
-/** The device the world asks for, caught as the page's GPU hands it out. */
-function catchDevice() {
-  const caught: { device?: GPUDevice } = {}
-  const gpu = navigator.gpu,
-    ask = gpu.requestAdapter.bind(gpu)
-  gpu.requestAdapter = async (options) => {
-    const adapter = await ask(options)
-    if (adapter) {
-      const make = adapter.requestDevice.bind(adapter)
-      adapter.requestDevice = async (descriptor) => (caught.device = await make(descriptor))
-    }
-    return adapter
-  }
-  return { caught, restore: () => void (gpu.requestAdapter = ask) }
-}
-
-/** The page's display (`REFRESH`): the frames asked, run when a refresh comes. */
-function playDisplay() {
-  let asked = new Map<number, FrameRequestCallback>(),
-    next = 1
-  const scope = globalThis as unknown as {
-    requestAnimationFrame: typeof requestAnimationFrame
-    cancelAnimationFrame: typeof cancelAnimationFrame
-  }
-  const [request, cancel] = [scope.requestAnimationFrame, scope.cancelAnimationFrame]
-  scope.requestAnimationFrame = (callback) => (asked.set(next, callback), next++)
-  scope.cancelAnimationFrame = (id) => void asked.delete(id)
-  return {
-    get waiting() {
-      return asked.size
-    },
-    /** Runs the frames asked before refresh `k`, at its timestamp. */
-    refresh(k: number) {
-      const time = k * REFRESH
-      ;(document as unknown as { timeline: { currentTime: number } }).timeline.currentTime = time
-      const due = asked
-      asked = new Map()
-      for (const callback of due.values()) callback(time)
-    },
-    restore() {
-      scope.requestAnimationFrame = request
-      scope.cancelAnimationFrame = cancel
-    },
-  }
-}
 
 /**
  * Drives the car for `seconds` of the display's time on a canvas drawn at `pixelRatio` (the GPU's
@@ -141,10 +101,12 @@ export function run({ seconds, pixelRatio }: { seconds: number; pixelRatio: numb
       })
       const frames: CadenceFrame[] = []
       /** The frame the last refresh drew, if it drew one. */
-      const last: { frame?: Omit<CadenceFrame, 'shown' | 'gpu'> } = {}
+      const last: { frame?: Omit<CadenceFrame, 'shown' | 'gpu' | 'answer'> } = {}
+      let timer: number | null = null
       let k = 0
       const forward = sdk.math.vector3()
-      world.onFrame(({ delta }) => {
+      world.onFrame(({ delta, metrics }) => {
+        timer = metrics.gpuFrameMs ?? timer
         const { position } = body,
           eye = world.camera.position
         world.camera.getWorldDirection(forward)
@@ -156,6 +118,7 @@ export function run({ seconds, pixelRatio }: { seconds: number; pixelRatio: numb
           delta,
           aim: Math.acos(Math.min(1, cos)),
           at: [position.x, position.y, position.z],
+          timer,
         }
       })
       const refreshes = Math.round((seconds * 1000) / REFRESH)
@@ -167,16 +130,19 @@ export function run({ seconds, pixelRatio }: { seconds: number; pixelRatio: numb
         if (display.waiting && queued < QUEUED) {
           last.frame = undefined
           display.refresh(k)
-          const drawn = last.frame as Omit<CadenceFrame, 'shown' | 'gpu'> | undefined
+          const drawn = last.frame as Omit<CadenceFrame, 'shown' | 'gpu' | 'answer'> | undefined
           if (drawn && caught.device) {
-            // The image's work alone on the GPU: its time, after the images before it.
+            // The image's work alone on the GPU, then its time, after the images before it: shown
+            // at the first refresh after it ends, a refresh after the image before it at least.
             const start = performance.now()
             await caught.device.queue.onSubmittedWorkDone()
-            const gpu = performance.now() - start
+            const answer = performance.now() - start
+            const gpu = drawn.timer ?? answer
             free = Math.max(free, time) + gpu
-            const at = Math.ceil(free / REFRESH - 1e-9) * REFRESH
+            const after = shown.length ? shown[shown.length - 1] / REFRESH + 1 : 0
+            const at = Math.max(Math.ceil(free / REFRESH - 1e-9), after) * REFRESH
             shown.push(at)
-            frames.push({ ...drawn, shown: at / REFRESH, gpu })
+            frames.push({ ...drawn, shown: at / REFRESH, gpu, answer })
           }
         }
         // The engine's answers, the physics worker's ticks and the pages land between refreshes.

@@ -18,6 +18,7 @@ import { loadPage, runOnDawn } from '../kit/onDawn.ts'
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import type { CadenceReading } from './vehicleCadencePage.ts'
+import { REFRESH } from './playedDisplay.ts'
 
 /** The display time the car takes to get under way, refreshes of 120 Hz: two seconds. */
 const UNDER_WAY = 240
@@ -47,10 +48,19 @@ for (const pixelRatio of [1, 3])
     const counts = new Map<number, number>()
     for (const interval of intervals) counts.set(interval, (counts.get(interval) ?? 0) + 1)
     const [mode, kept] = [...counts].sort((a, b) => b[1] - a[1])[0]
+    // The display placed the images by the engine's GPU timer, the time the cadence judges.
+    assert.ok(
+      frames.every((frame) => frame.timer !== null),
+      'the GPU timer read every image under way',
+    )
     console.log(
       JSON.stringify({
         pixelRatio,
         intervals: Object.fromEntries(counts),
+        answerMs: quantileOf(
+          frames.map((frame) => frame.answer),
+          0.5,
+        ),
         gpuMs: quantileOf(
           frames.map((frame) => frame.gpu),
           0.5,
@@ -62,7 +72,6 @@ for (const pixelRatio of [1, 3])
       `steady at ${mode}: ${kept} of ${intervals.length}`,
     )
     // Smooth: the world steps by the time each image is shown, to the display's grid.
-    const REFRESH = page.REFRESH
     let matched = 0
     for (let i = 1; i < frames.length; i++) {
       const shownFor = (frames[i].shown - frames[i - 1].shown) * REFRESH
