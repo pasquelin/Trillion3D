@@ -1,3 +1,4 @@
+import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
@@ -52,8 +53,8 @@ export function dagFlagShape(
     queueWords = dagQueueWords(packed),
     roots = Math.min(queueWords, 2 * (packed.worldCount ?? 0))
   return {
-    queueWords: Math.max(Math.min(queueWords, cap.queueWords), roots),
-    candCap: Math.max(1, Math.min(packed.candCount ?? packed.pageCount, cap.candCap)),
+    queueWords: clampLowWins(queueWords, roots, cap.queueWords),
+    candCap: clampLowWins(packed.candCount ?? packed.pageCount, 1, cap.candCap),
   }
 }
 
