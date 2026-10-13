@@ -10,7 +10,7 @@
  */
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { RowRunVisitor } from '../webgpu/row/dirty.ts'
-import { createRowInputs, ensureRowInputs, sendRowInputs } from './rowInputs.ts'
+import { createRowInputs, ensureRowInputs, sendRowFlags, sendRowInputs } from './rowInputs.ts'
 import { sendRootWorlds } from './rootWorlds.ts'
 import { followComposedRun } from './composedRows.ts'
 import { closeSphereCopies, copyClusterSpheres } from '../webgpu/shadow/spheres.ts'
@@ -102,6 +102,12 @@ export function followRowWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     }
   }
   rows.forEachDirtyRun(rt, dirtyRun, rows.casterSlots - 1)
+  // A row whose readiness moved: its detail's bits go up, eight bytes, and its words are derived.
+  const ready = rows.takeReadyRows()
+  for (let k = 0; k < ready.length && ready[k] < rows.casterSlots; k++) {
+    if (!state.sentWhole) sendRowFlags(rt, device, state.inputs, ready[k])
+    target(state, ready[k])
+  }
   if (moved) for (let k = 0; k < moved.length; k++) targetRootRows(rt, state, moved[k])
   closeSphereCopies(rt)
 }

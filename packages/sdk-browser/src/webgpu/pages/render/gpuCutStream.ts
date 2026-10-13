@@ -40,7 +40,8 @@ export function streamCutResidency(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice)
     followCutRows(rt, Math.max(rows.packedCount + rows.rowsDenied, casters.asked))
   // The rank journal names pages that just entered or left: comparing every page of the DAG
   // no longer happens, and only their ranges are rewritten. A row whose readiness
-  // moved has its mobility word written again: whether a finer form now stands for it (#831).
+  // moved has its detail's bits written again, nothing else of it: whether a finer form now stands
+  // for it (`../../../placement/rowWords.ts`).
   if (selection?.updateResidency(rows.residency, rows.residencyChanges, rows.markRowOfPage))
     run.gpuMetricsReady = false
   rows.clearResidencyChanges()

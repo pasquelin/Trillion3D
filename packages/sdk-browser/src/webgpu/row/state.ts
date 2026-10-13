@@ -4,6 +4,7 @@ import { createPageCatalogue, type PageList } from '../../page/selection/catalog
 import { pageAddress } from './pageSlots.ts'
 import { flatInstances, type PackedInstances } from './instances.ts'
 import { createDirtyRows } from './dirty.ts'
+import { createChangedRuns } from '../residency/ranges.ts'
 import { growRowState } from './grow.ts'
 import { createRowPageState } from './pageState.ts'
 /** The page-table rows a session holds (`createWebgpuRowState`). */
@@ -28,7 +29,8 @@ export function createWebgpuRowState(
   instances: PackedInstances = flatInstances(packedPages),
 ) {
   const casterSlots = drawSlots + blendSlots
-  const dirtyRows = createDirtyRows()
+  const dirtyRows = createDirtyRows(),
+    readyRows = createChangedRuns()
   const state = {
     /** Pages named by the cache and those whose residency flag just flipped. */
     ...createWebgpuRowJournal(),
@@ -48,11 +50,15 @@ export function createWebgpuRowState(
     markRowDirty: dirtyRows.mark,
     /** Declares rows dirty whose occupant is kept (a pose, a diagnostic word): `markWords`. */
     markRowWords: dirtyRows.markWords,
-    /** Packed page `page`'s readiness moved: its row, if it has one, is written again. */
+    /** Packed page `page`'s readiness moved: of its row, if it has one, the detail's bits alone
+     *  are written again (`../../placement/rowWords.ts`), never the row. */
     markRowOfPage: (page: number) => {
       const row = state.rowOf(page)
-      if (row >= 0) dirtyRows.markWords(row)
+      if (row >= 0) readyRows.mark(row)
     },
+    /** The rows whose readiness moved since the last take, increasing: a view the next take
+     *  overwrites. */
+    takeReadyRows: () => readyRows.take(),
     clearDirty: dirtyRows.clear,
     /** How many rows are dirty. */
     get dirtyCount() {

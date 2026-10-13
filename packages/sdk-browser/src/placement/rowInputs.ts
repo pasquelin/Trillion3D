@@ -7,7 +7,7 @@
  * row's root moves. No CPU copy of them is held: a run is packed in a scratch and sent.
  */
 import { rootOf, rootOfPacked } from '../page/selection/placements.ts'
-import { ROW_INPUT_DOUBLES, packInputs, rowInputs } from './rowInputPack.ts'
+import { INPUT_FLAGS, ROW_INPUT_DOUBLES, packInputs, rowInputs } from './rowInputPack.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { grownLength, resized } from '../../../math/src/sequence/resized.ts'
 
@@ -67,6 +67,18 @@ function packRun(rt: WebgpuPagesRuntime, held: RowInputs, from: number, to: numb
     )
     packInputs(held.words, (row - from) * ROW_INPUT_WORDS, held.scratch)
   }
+}
+
+/** Row `row`'s inputs' bits sent alone, one double: its cut readiness moved, nothing else of it. */
+export function sendRowFlags(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  held: RowInputs,
+  row: number,
+) {
+  packRun(rt, held, row, row)
+  const flags = INPUT_FLAGS * 2
+  device.queue.writeBuffer(held.buffer!, (row * ROW_INPUT_WORDS + flags) * 4, held.words, flags, 2)
 }
 
 /** The inputs of rows `[from, to]` of the table sent, a write each `RUN_ROWS` rows. */

@@ -140,15 +140,17 @@ test('a model scattered across the table has the rows pass derive its own rows, 
   model.world.elements[0] = 2
   assert.equal(moveRootRows(rt, model, 0), 0, 'no row of the moved model written')
   ready[rows.packedPageIndex[600]] = 0
-  rows.markRowWords(600)
+  rows.markRowOfPage(rows.packedPageIndex[600])
   assert.deepEqual(frame(), [600, ...MODEL_ROWS], 'seven rows of the 995 spanned')
-  // The CPU sent the model's world and box, then the inputs and the table row of the row written.
-  assert.deepEqual(labels(writes).slice(0, 4), [
+  // The CPU sent the model's world and box, then the bits of the row whose readiness moved: one
+  // double, no row of the table.
+  assert.deepEqual(labels(writes).slice(0, 3), [
     'Trillion3D root worlds',
     'Trillion3D root world boxes',
     'Trillion3D row inputs',
-    undefined,
   ])
+  assert.deepEqual([writes[0].size, writes[1].size, writes[2].size], [32, 12, 2])
+  assert.equal(labels(writes).includes(undefined), false, 'no table row sent')
   // Bit for bit what the oracle gives for every row, the model at its new world.
   assert.deepEqual(held(), everyRow())
   // A still image: nothing named, nothing written, no pass.
