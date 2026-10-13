@@ -114,10 +114,18 @@ test('the store counts its shadowed suns, shadowed local lights and rectangles a
   const kinds = () => [store.shadowedSuns, store.shadowedLocals, store.rects]
   const { color, intensity } = LIGHT
   store.add({ ...LIGHT })
-  store.add({ id: 'sun', kind: 'directional', color, intensity, direction: [0, -1, 0] })
+  store.add({
+    id: 'sun',
+    kind: 'directional',
+    color,
+    intensity,
+    direction: [0, -1, 0],
+    castsShadow: false,
+  })
   store.add({
     id: 'panel',
     kind: 'rect',
+    castsShadow: false,
     color,
     intensity,
     position: [0, 2, 0],
