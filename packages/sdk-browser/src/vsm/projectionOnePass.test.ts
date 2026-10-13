@@ -16,7 +16,7 @@ import { vsmLayout } from './layout.ts'
 import { VSM_PROJECTION_HEADER_WORDS } from './projectionView.ts'
 import { fakeHizDepth } from './hizDepth.fixture.ts'
 
-const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
+const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
   subgroups: false,
 })
 

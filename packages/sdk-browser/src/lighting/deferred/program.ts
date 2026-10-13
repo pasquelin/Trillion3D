@@ -30,8 +30,16 @@ export interface DirectLightResources extends Partial<ContractKey> {
   lights?: GPUBuffer
   tiles?: GPUBuffer
   /** The virtual shadow maps a non-mask read samples (`CONTRACT_VSM_BINDINGS`): this frame's
-   *  page table, projection data and uniforms, and the pool's dynamic slice. */
-  vsm?: { pageTable: GPUBuffer; projectionData: GPUBuffer; uniforms: GPUBuffer; pool: GPUBuffer }
+   *  page table, projection data and uniforms, the pool's first slice, and the projection's view
+   *  and blue noise a forward pass traces with (`vsmTraceFactor`). */
+  vsm?: {
+    pageTable: GPUBuffer
+    projectionData: GPUBuffer
+    uniforms: GPUBuffer
+    pool: GPUBuffer
+    view: GPUBuffer
+    noise: GPUTextureView
+  }
   /** The virtual shadow maps' traced mask array (`vsmEncode.ts`), one 8-bit lane per shadowed
    *  light: bound on the transmittance's number. */
   vsmMask?: GPUTextureView
@@ -129,6 +137,8 @@ export async function createDeferredProgram(
     projectionData: placeholders.vsmProjectionData,
     uniforms: placeholders.vsmUniforms,
     pool: placeholders.vsmPool,
+    view: placeholders.vsmProjectionView,
+    noise: placeholders.vsmBlueNoise,
   }
   const parts = { device, sources, bindings, lightingLayout, compositions, vsmPlaceholders }
   const state: ProgramState = {

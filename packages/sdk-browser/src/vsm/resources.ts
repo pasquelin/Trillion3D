@@ -10,11 +10,11 @@
  * `createVsmResources` (which drops the cache).
  *
  * 2D tables are storage buffers of u32, row-major, mips concatenated (see `pageTableWgsl.ts`). The
- * physical pool (R32 texel array, 2 slices) is one buffer per slice, its texels page by page
- * (`vsmPoolTexelIndexWgsl`), split into parts of whole page rows when a slice exceeds
- * `device.limits.maxStorageBufferBindingSize`. The VSM passes bind every part; a consumer outside
- * them (`../lighting/direct/shadowWgsl.ts`: blended surfaces, water) binds the first part alone, and
- * a texel past it reads as no occluder, so a split slice gives those surfaces no shadow there.
+ * physical pool (R32 texel array, 2 slices) is, a slice, buffers of one window each
+ * (`poolWindowSizes`), its texels page by page (`vsmPoolTexelIndexWgsl`): WebGPU's guaranteed
+ * binding, so the same buffers and the same addressing on every device. The VSM passes bind every
+ * window of both slices; a reader outside them (`../lighting/direct/shadowWgsl.ts`: blended
+ * surfaces, water) every window of the first (`vsmForwardPoolBinding`).
  */
 import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS, VSM_POOL_SLICES } from './constants.ts'
 import { VSM_STRUCTS_WGSL } from './pageTableWgsl.ts'
@@ -25,7 +25,8 @@ import { pendingBuffers } from '../gpu/core/tableGrowth.ts'
 import {
   bufferBytes,
   frameBufferSizes,
-  poolPartSizes,
+  poolWindowSizes,
+  VSM_POOL_WINDOW_SHIFT,
   setBufferSizes,
   SHARED_FRAME_MEMBERS,
   tableBufferSizes,
@@ -97,10 +98,10 @@ export interface VsmResources {
  * of the layout, or the uniform where a module is built without one); the page's texels row by
  * row inside. Two texels one row apart in a page are one page row of words apart (512 bytes),
  * where a slice laid row by row put them a whole pool row apart (64 KiB at 128 pages a row). Page
- * rows stay whole and in order: a binding part (`poolPartTexelShift`) holds the pages it held.
+ * rows stay whole and in order: a window (`VSM_POOL_WINDOW_SHIFT`) holds whole page rows.
  * A buffer has no driver tiling; it is laid out as this says.
  */
-export function vsmPoolTexelIndexWgsl(name: string, rowShift: string) {
+function vsmPoolTexelIndexWgsl(name: string, rowShift: string) {
   const L = VSM_LOG2_PAGE,
     M = VSM_PAGE_TEXELS - 1
   return wgslBlock(
@@ -162,16 +163,16 @@ function createVsmTables(device: GPUDevice, layout: VsmLayout, made: GPUBuffer[]
 const bytesOf = (buffers: readonly GPUBuffer[]) => buffers.reduce((n, b) => n + b.size, 0)
 
 export function createVsmResources(device: GPUDevice, options: VsmResourceOptions): VsmResources {
-  const layout = vsmLayout(options, device.limits.maxStorageBufferBindingSize)
+  const layout = vsmLayout(options)
   const tableBuffers: GPUBuffer[] = [],
     rest: GPUBuffer[] = []
   const buffer = (label: string, size: number, usage?: GPUBufferUsageFlags) =>
     makeBuffer(device, rest, label, size, usage)
   const { frames, nextMaps, perPageIds } = createVsmTables(device, layout, tableBuffers)
 
-  const parts = poolPartSizes(layout)
+  const windows = poolWindowSizes(layout)
   const pagePool = Array.from({ length: VSM_POOL_SLICES }, (_, s) =>
-    parts.map((size, p) => buffer(`physicalPool${s}.${p}`, size)),
+    windows.map((size, w) => buffer(`physicalPool${s}.${w}`, size)),
   )
 
   const indirect = GPUBufferUsage.INDIRECT | S()
@@ -238,10 +239,7 @@ export function growVsmTables(
   options: VsmResourceOptions,
 ): VsmLayout | undefined {
   const held = res.layout
-  const layout = vsmLayout(
-    { ...options, poolPages: held.poolPages },
-    device.limits.maxStorageBufferBindingSize,
-  )
+  const layout = vsmLayout({ ...options, poolPages: held.poolPages })
   if (layout.fullMapCapacity <= held.fullMapCapacity && layout.coverWords <= held.coverWords)
     return undefined
   const made = madeBuffers.get(res)!
@@ -303,8 +301,10 @@ type VsmBindingResource =
 
 export interface VsmBindingSpec {
   resource: VsmBindingResource
-  /** First binding number; the pool takes `slices · parts` consecutive numbers. */
+  /** First binding number; the pool takes `slices · windows` consecutive numbers. */
   binding: number
+  /** The pool: the slices bound, from the first (`VSM_POOL_SLICES` unless given). */
+  slices?: number
   access?: VsmAccess
   /** Previous-frame buffer of a double-buffered resource. */
   prev?: boolean
@@ -409,7 +409,7 @@ export function vsmBindingsWgsl(
       continue
     }
     if (spec.resource === 'pagePool') {
-      deps.add(vsmPoolWgsl(group, spec.binding, access, layout, name).accessors)
+      deps.add(vsmPoolWgsl(group, spec, layout).accessors)
       continue
     }
     const struct = STRUCT_OF[spec.resource]
@@ -434,61 +434,86 @@ export function vsmBindingsWgsl(
   )
 }
 
-/** The layout's numbers a module's text reads: the pool's parts, their texel shift, its row shift. */
-const layoutKey = (layout: VsmLayout) =>
-  `${layout.poolPartsPerSlice}/${layout.poolPartTexelShift}/${layout.poolRowShift}`
+/** The layout's numbers a module's text reads: the pool's windows, its row shift. */
+const layoutKey = (layout: VsmLayout) => `${poolWindowSizes(layout).length}/${layout.poolRowShift}`
+
+/** The layout a reader outside the VSM passes (blend, water) is compiled for, before any pool is
+ *  granted: the largest pool the engine grants (`VSM_POOL_PAGES`), whose windows and row shift are
+ *  every smaller pool's text too — one window, the table's fixed width. */
+export const VSM_FORWARD_LAYOUT = vsmLayout({ fullMapCapacity: 0 })
+
+/** The binding such a reader declares the pool's first slice at, `first`: one window, one binding.
+ *  A pool grown past one window gives those layouts a number a window, which this refuses until
+ *  they hold them. */
+export function vsmForwardPoolBinding(first: number) {
+  const windows = poolWindowSizes(VSM_FORWARD_LAYOUT).length
+  if (windows !== 1)
+    throw new Error(`VSM: the pool spans ${windows} windows, a forward pass binds one`)
+  return first
+}
+
+/** The slices a pool spec binds. */
+const slicesOf = (spec: VsmBindingSpec) => spec.slices ?? VSM_POOL_SLICES
 
 /** The pool's `<name>Load` of `specs`' page pool in `group` (`vsmBindingsWgsl`): what a fragment
  *  that reads the pool lists. */
 export function vsmPoolLoadOf(group: number, specs: readonly VsmBindingSpec[], layout: VsmLayout) {
   const spec = specs.find((s) => s.resource === 'pagePool')
   if (!spec) throw new Error('VSM: no page pool among the bindings')
-  return vsmPoolWgsl(group, spec.binding, spec.access ?? 'read', layout, varName(spec)).load
+  return vsmPoolWgsl(group, spec, layout).load
 }
 
-/** Each pool's declarations, built once per binding, access and layout numbers: the bindings and
- *  `vsmPoolLoadOf` share them. */
+/** Each pool's declarations, built once per binding, access, slices and layout numbers: the
+ *  bindings and `vsmPoolLoadOf` share them. */
 const pools = new Map<string, { load: WgslDecl; accessors: WgslDecl }>()
 
-function vsmPoolWgsl(
-  group: number,
-  first: number,
-  access: VsmAccess,
-  layout: VsmLayout,
-  name: string,
-) {
-  const key = `${name}(${group}, ${first}, ${access}, ${layoutKey(layout)})`
+function vsmPoolWgsl(group: number, spec: VsmBindingSpec, layout: VsmLayout) {
+  const access = spec.access ?? 'read',
+    name = varName(spec),
+    slices = slicesOf(spec)
+  const key = `${name}(${group}, ${spec.binding}, ${access}, ${slices}, ${layoutKey(layout)})`
   let pool = pools.get(key)
-  if (!pool) pools.set(key, (pool = buildPool(key, group, first, access, layout, name)))
+  if (!pool)
+    pools.set(key, (pool = buildPool(key, group, spec.binding, access, slices, layout, name)))
   return pool
 }
 
+/**
+ * The pool's accessors over `slices` slices of the layout's windows from binding `first`: a texel's
+ * word (`vsmPoolTexelIndexWgsl`), its window that word over `VSM_POOL_WINDOW_SHIFT`, the slice's
+ * windows bound in order. A slice of one window — every pool the engine grants — is read at the word
+ * itself, the switch choosing the slice alone.
+ */
 function buildPool(
   key: string,
   group: number,
   first: number,
   access: VsmAccess,
+  slices: number,
   layout: VsmLayout,
   name: string,
 ) {
   const atomic = access === 'atomic'
   const space = access === 'read' ? 'storage,read' : 'storage,read_write'
-  const parts = layout.poolPartsPerSlice
+  const windows = poolWindowSizes(layout).length
   const lines: string[] = []
   const vars: string[] = []
-  for (let s = 0; s < VSM_POOL_SLICES; s++)
-    for (let p = 0; p < parts; p++) {
-      const v = `${name}${s}_${p}`
+  for (let s = 0; s < slices; s++)
+    for (let w = 0; w < windows; w++) {
+      const v = `${name}${s}_${w}`
       vars.push(v)
       lines.push(
-        `@group(${group}) @binding(${first + s * parts + p}) var<${space}> ${v}:array<${atomic ? 'atomic<u32>' : 'u32'}>;`,
+        `@group(${group}) @binding(${first + s * windows + w}) var<${space}> ${v}:array<${atomic ? 'atomic<u32>' : 'u32'}>;`,
       )
     }
-  const shift = layout.poolPartTexelShift
-  const mask = `${(2 ** shift - 1) >>> 0}u`
-  // One accessor: the texel's part by slice and word, `body` on that part's array.
+  const mask = `${(2 ** VSM_POOL_WINDOW_SHIFT - 1) >>> 0}u`
+  // One accessor: the texel's window by slice and word, \`body\` on that window's array at \`i\`.
+  const select =
+    windows === 1
+      ? ` let i=${name}TexelIndex(t);\n switch(slice){`
+      : ` let l=${name}TexelIndex(t);\n let i=l&${mask};\n switch(slice*${windows}u+(l>>${VSM_POOL_WINDOW_SHIFT}u)){`
   const accessor = (signature: string, body: (v: string) => string, otherwise: string) =>
-    `fn ${name}${signature}{\n let l=${name}TexelIndex(t);\n let i=l&${mask};\n switch(slice*${parts}u+(l>>${shift}u)){\n${vars
+    `fn ${name}${signature}{\n${select}\n${vars
       .map((v, k) => ` case ${k}u:{${body(v)}}`)
       .join('\n')}\n default:{${otherwise}}\n }\n}`
   // Texture2DArray texel (x, y, slice): its word in the slice, page by page.
@@ -527,7 +552,7 @@ function buildPool(
 
 /** Number of binding slots a spec consumes. */
 function vsmBindingCount(spec: VsmBindingSpec, layout: VsmLayout) {
-  return spec.resource === 'pagePool' ? VSM_POOL_SLICES * layout.poolPartsPerSlice : 1
+  return spec.resource === 'pagePool' ? slicesOf(spec) * poolWindowSizes(layout).length : 1
 }
 
 /** Bind group layout entries matching `vsmBindingsWgsl`. */
@@ -559,6 +584,7 @@ export function vsmBindGroupEntries(
   for (const spec of specs) {
     if (spec.resource === 'pagePool') {
       res.pagePool
+        .slice(0, slicesOf(spec))
         .flat()
         .forEach((buffer, k) => out.push({ binding: spec.binding + k, resource: { buffer } }))
       continue

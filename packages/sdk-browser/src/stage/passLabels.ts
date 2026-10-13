@@ -66,6 +66,9 @@ export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1'
 /** The bounce pass — the surface cache's sweep, then the probes' update and the snapshot's
  *  follow-up —; the "Bounce" step is read under this name, not by its rank. */
 export const BOUNCE_PASS = 'Trillion3D bounce v1'
+/** The light grid pass over the bounce's world lattice (`../lighting/tiles/tiles.ts`, `world`):
+ *  timed with the bounce, which reads its lists. */
+export const BOUNCE_LIGHT_LISTS_PASS = 'Trillion3D bounce light lists v1'
 /** The clear of a probe level the bounce grows (`../bounce/probeStorage.ts`). */
 export const BOUNCE_PROBE_CLEAR_PASS = 'Trillion3D bounce probe level clear'
 /** The reflections' compute pass: the depth pyramid's nearest mips, then the opaque surfaces'
@@ -136,6 +139,7 @@ export const ENGINE_PASSES = [
   definePass({ label: PARTICLE_DRAW_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: LIGHT_TILES_PASS, stage: 'lightLists', block: 'other' }),
   definePass({ label: BOUNCE_PASS, stage: 'bounce', block: 'other' }),
+  definePass({ label: BOUNCE_LIGHT_LISTS_PASS, stage: 'bounce', block: 'other' }),
   definePass({ label: BOUNCE_PROBE_CLEAR_PASS, stage: 'bounce', block: 'other' }),
   definePass({ label: REFLECTION_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_RADIANCE_PASS, stage: 'reflections', block: 'other' }),

@@ -144,6 +144,8 @@ test("a lit frame over the shadow maps' double-buffered tables makes one light g
     projectionData: {} as GPUBuffer,
     uniforms: {} as GPUBuffer,
     pool: {} as GPUBuffer,
+    view: {} as GPUBuffer,
+    noise: {} as GPUTextureView,
   })
   // The tables this frame reads, then the other frame's: the sets take turns.
   const sets = [vsmOf(), vsmOf()]

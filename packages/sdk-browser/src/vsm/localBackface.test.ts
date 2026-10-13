@@ -15,7 +15,7 @@ import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }, 2 ** 27)
+const LAYOUT = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
 const MARKING = vsmPixelPageMarkingWgsl(LAYOUT),
   PROJECTION = vsmProjectionWgsl(LAYOUT, { subgroups: false })
 type V3 = [number, number, number]

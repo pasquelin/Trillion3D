@@ -11,7 +11,7 @@ import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
-const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }, 2 ** 27), {
+const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }), {
   subgroups: true,
 })
 type Vote = {

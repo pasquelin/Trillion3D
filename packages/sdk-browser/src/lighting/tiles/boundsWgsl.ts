@@ -130,3 +130,52 @@ fn lightRun(column:Column,centre:vec3f,radius:f32)->vec2u{
  return vec2u(depthAt(column,centre,lo,RUN_FRONT),depthAt(column,centre,hi,RUN_BACK));
 }`,
 )
+
+/**
+ * A column of the bounce's world light grid (`lightTilesShader('world')`) and the run of its cells a
+ * light's range meets. The grid is the last cascade level's lattice, which covers the scene
+ * (`../../bounce/lightCellWgsl.ts`); the pass reads its view as `origin.xyz`, the grid's lowest
+ * corner, `origin.w`, a cell's side, and `viewport.z`, the columns of a row. A column is a square of
+ * cells across x and y, its cells the slices along z, all relative to that corner, as a light's
+ * centre is (`entryOf`).
+ *
+ * A light of range `r` meets the column where its distance `d` across x and y to the column's
+ * square is at most `r`, and there the slices between `c.z − h` and `c.z + h`, `h = √(r² − d²)`: the
+ * very cells its sphere meets. The range is widened by a thousandth, and by a thousandth of a cell,
+ * past every rounding of the point a reader takes its cell at (`bounceLightSlice`): a run never
+ * misses a cell its light reaches, and a light it holds in excess adds an exact zero there.
+ */
+export const WORLD_GRID_BOUNDS_WGSL = wgslBlock(
+  'WORLD_GRID_BOUNDS_WGSL',
+  [INFINITE_THRESHOLD],
+  `struct Column{low:vec2f,high:vec2f,}
+/** The column of cell \`cell\`: its square, relative to the grid's corner. */
+fn gridColumn(cell:vec2u)->Column{
+ let side=view.origin.w;
+ return Column(vec2f(cell)*side,vec2f(cell+vec2u(1u))*side);
+}
+/** The squared distance across x and y from \`centre\` to the column's square. */
+fn columnGap(column:Column,centre:vec3f)->f32{
+ let d=max(max(column.low-centre.xy,centre.xy-column.high),vec2f(0.0));
+ return dot(d,d);
+}
+/** The range a run is solved for: widened past the roundings of a reader's cell. */
+fn runReach(radius:f32)->f32{return radius*1.001+view.origin.w*0.001;}
+/** A sphere that meets the column's square. */
+fn sphereInColumn(column:Column,centre:vec3f,radius:f32)->bool{
+ let r=runReach(radius);
+ return columnGap(column,centre)<=r*r;
+}
+/** The first and last cell of the column a sphere may meet, \`vec2u(1u,0u)\` for none. */
+fn lightRun(column:Column,centre:vec3f,radius:f32)->vec2u{
+ if(!(radius>0.0)){return vec2u(1u,0u);}
+ if(radius>INFINITE_THRESHOLD){return vec2u(0u,COLUMN_SLICES-1u);}
+ let r=runReach(radius);
+ let gap=columnGap(column,centre);
+ if(gap>r*r){return vec2u(1u,0u);}
+ let h=sqrt(r*r-gap);
+ let lo=floor((centre.z-h)/view.origin.w);let hi=floor((centre.z+h)/view.origin.w);
+ if(hi<0.0||lo>f32(COLUMN_SLICES-1u)){return vec2u(1u,0u);}
+ return vec2u(u32(max(lo,0.0)),u32(min(hi,f32(COLUMN_SLICES-1u))));
+}`,
+)

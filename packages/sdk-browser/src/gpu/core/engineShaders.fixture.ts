@@ -25,7 +25,7 @@ import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts'
 import { BLOOM_WGSL } from '../../webgpu/effects/bloomWgsl.ts'
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts'
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts'
-import { LIGHT_TILES_SHADER } from '../../lighting/tiles/shader.ts'
+import { lightTilesShader } from '../../lighting/tiles/shader.ts'
 import { taaShader } from '../../taa/shaderWgsl.ts'
 import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts'
 import {
@@ -133,7 +133,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
   ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
   ...compositions('UNLIT_COMPOSE_BLOOM', UNLIT_COMPOSITIONS.bloom),
-  LIGHT_TILES_SHADER,
+  LIGHT_TILES_SHADER: lightTilesShader('view'),
+  LIGHT_TILES_WORLD_SHADER: lightTilesShader('world'),
   TAA_SHADER,
   TAA_FLAGLESS_SHADER: taaShader(false),
   TAA_UPSCALE_SHADER: taaUpscaleShader(true),

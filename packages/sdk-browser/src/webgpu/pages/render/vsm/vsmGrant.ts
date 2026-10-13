@@ -116,10 +116,7 @@ function bytesBeside(
 /** The layout of the first set of `lights` (`grantEngineVsm`, from `planVsmFrame`): the maps they
  *  want at every physical page. */
 export const vsmFirstSetLayout = (device: GPUDevice, lights: readonly VsmFrameLight[]) =>
-  vsmLayout(
-    engineVsmOptions(fullMapsFor(lights), directionalCount(lights)),
-    device.limits.maxStorageBufferBindingSize,
-  )
+  vsmLayout(engineVsmOptions(fullMapsFor(lights), directionalCount(lights)))
 
 /** Bytes the first set of `lights` takes as the first lit frame asks it (`grantEngineVsm`, from
  *  `planVsmFrame`) — the maps they want at every physical page — with what the frame makes beside
@@ -166,17 +163,16 @@ export function grantEngineVsm(
   if (same) fullMapCapacity = Math.max(fullMapCapacity, refused.fullMapCapacity)
   const poolPages = same ? Math.min(pagesAsked, refused.poolPages) : pagesAsked
   const options = engineVsmOptions(fullMapCapacity, directional, poolPages)
-  const binding = device.limits.maxStorageBufferBindingSize
   const refusal = (retryAt: number) =>
     (lights.vsmRefusal = { retryAt, wanted, directional, fullMapCapacity, poolPages })
   try {
-    const asked = vsmLayout(options, binding)
+    const asked = vsmLayout(options)
     const room = ledgerRoom(device) - bytesBeside(rt, device, list, asked, held)
     if (same && room < refused.retryAt) return undefined
-    const pool = vsmPoolWithin(room, options, binding)
+    const pool = vsmPoolWithin(room, options)
     if (!pool) {
       const smallest = { ...options, poolPages: poolPages / 8 }
-      refusal(vsmResourceBytes(vsmLayout(smallest, binding)))
+      refusal(vsmResourceBytes(vsmLayout(smallest)))
       lights.shadowReason = `${UNAVAILABLE} refused: no page pool fits the GPU budget`
       noteShadowPressure(lights.memory, 'pool-refused')
       diag.engineDiagnostic(
@@ -220,7 +216,7 @@ export function growEngineVsm(
     Math.max(vsm.suns, directionalCount(list)),
     layout.poolPages,
   )
-  const grown = vsmLayout(options, device.limits.maxStorageBufferBindingSize)
+  const grown = vsmLayout(options)
   if (vsmTableBytes(grown) > ledgerRoom(device)) return false
   try {
     return growEngineVsmTables(device, vsm, options)
@@ -278,10 +274,9 @@ export function regrowEngineVsm(
   vsm.regrowFrame = rt.run.frame + VSM_PRESSURE_CALM_FRAMES
   const { fullMapCapacity } = layout
   const options = engineVsmOptions(fullMapCapacity, directionalCount(list))
-  const binding = device.limits.maxStorageBufferBindingSize
   const room = ledgerRoom(device)
   const beside = bytesBeside(rt, device, list, layout, heldBeside(vsm))
-  const pool = vsmPoolWithin(room + engineVsmBytes(vsm) - beside, options, binding)
+  const pool = vsmPoolWithin(room + engineVsmBytes(vsm) - beside, options)
   const grown = pool?.layout.poolPages ?? 0
   if (grown <= pages) return vsm
   const { lights } = rt

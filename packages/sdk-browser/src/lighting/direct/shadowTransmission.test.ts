@@ -1,13 +1,50 @@
-// The opaque resolve reads the transmission alone, at the located sample (`vsmLocate`), as the
-// blended surfaces' read takes it (`vsmFilteredRead.test.ts`).
+// The opaque resolve reads the transmission alone, at the located sample (`vsmLocate`): the opaque
+// shadow is the mask's, the translucent casters' colour the page table's, read only where a pane
+// covers the sample's page. The blended surfaces and the water read it through the same function
+// after their trace (`directShadowWgsl`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Mat } from '../../texture/shaderRun.fixture.ts'
+import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { functionText } from '../../bounce/wgslBody.fixture.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
-import { type V, PAGE, LEVEL, MAP, World, run } from './vsmFilteredRead.fixture.ts'
-import { pagedSample } from './vsmFilteredSample.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+
+type V = number[]
+const PAGE = 128,
+  LEVEL = 16384,
+  /** The first full map's id: the handle every case reads. */
+  MAP = 8192
+
+/** A sample at virtual texel position `p` of map `MAP`, its physical page its virtual one shifted
+ *  by (3, 1). */
+function pagedSample(p: V) {
+  const at = p.map(Math.floor)
+  return {
+    depth: 0,
+    mipLevel: 0,
+    handle: { id: MAP, isSinglePage: false },
+    valid: true,
+    mapTexelXY: at,
+    mapTexelPos: p,
+    poolTexel: at.map((t, a) => t + [3, 1][a] * PAGE),
+  }
+}
+
+/** The module run in JavaScript, with the stubs `extra`. */
+const run = <T>(names: string[], extra: object, source: string) =>
+  shaderRun<T>(source, names, {
+    VSM_NORMAL_OFFSET_FLOOR: 0.0002,
+    LIGHT_KIND_SPOT: 2,
+    vsm: { poolPages: 2048, poolPagesXY: [128, 16], normalBias: 0.0005 },
+    shadowTransmission: [1, 1, 1],
+    shadowCamera: [0, 0, 0],
+    shadowAngularPixel: 0.001,
+    shadowViewWidth: 1000,
+    VsmLocated: (sm: object, clipmap: boolean, fromMap: V) => ({ sm, clipmap, fromMap }),
+    vsmEmptyRead: () => ({ valid: false }),
+    vsmHandleOffset: (h: { id: number }, offset: number) => ({ ...h, id: h.id + offset }),
+    ...extra,
+  })
 
 /** The opaque resolve's read (`shadowFactor` over the mask). */
 const RESOLVE = `${wgslModule(directShadowWgsl(25, { resolveTransmission: 14 }))}
@@ -25,7 +62,7 @@ type Resolve = { shadowFactor: (...a: unknown[]) => number; testTransmission: ()
 
 test('the resolve reads the mask, and the transmission alone where a pane covers its sample', () => {
   const read = functionText(RESOLVE, 'vsmTransmissionRead')
-  assert.doesNotMatch(read, /\.depth|vsmConsumerSlope/, 'no opaque compare, no receiver plane')
+  assert.doesNotMatch(read, /\.depth/, 'no opaque compare')
   assert.match(read, /if\(!vsmTransmissionPaned\(at\.sm\)\)\{return;\}\n shadowTransmission=/)
   const uv = new Mat([0.01 / 1.6384, 0, 0, 0, 0, 0, 1, 0, 0, 0.01 / 1.6384, 0, 0, 0.5, 0.5, 0.5, 1])
   const normal = new Mat([0.2, 0, 0, 0, 0, 0, 1, 0, 0, 0.3, 0, 0, 0, 0, 0, 0])
@@ -62,7 +99,6 @@ test('the resolve reads the mask, and the transmission alone where a pane covers
               originShiftHigh: [0, 0, 0],
               originShiftLow: [0, 0, 0],
             }
-            const world = new World()
             const calls: unknown[][] = []
             const covered = pane !== 'none' && k < 3
             const sampleAt = (h: { id: number }, uvs: V) => {
@@ -101,7 +137,7 @@ test('the resolve reads the mask, and the transmission alone where a pane covers
             }
             // The runner has no typed array constructor: \`array(…)\`, the same two origins.
             const source = RESOLVE.replace('array<vec2u,2>(', 'array(')
-            const r = run<Resolve>(world, RESOLVE_READ, stubs, source)
+            const r = run<Resolve>(RESOLVE_READ, stubs, source)
             const value = r.shadowFactor(64 * MAP + 1, {}, P, normals[k], true)
             const where = `${light} ${pane} mask ${mask} ${coarser} ${P}`
             // A sample where a level holds the point: every light's but a sun's past its levels.

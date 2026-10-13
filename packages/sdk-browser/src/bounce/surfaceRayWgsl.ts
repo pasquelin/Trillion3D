@@ -1,13 +1,16 @@
-import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts'
+import { LIGHTS_IRRADIANCE_WGSL } from '../lighting/direct/lightLoopWgsl.ts'
+import { BOUNCE_LIGHT_CELL_WGSL } from './lightCellWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
 
 /** Posed hits read the surface cache, an atlas (`atlas.ts`) whose padding texels, never written,
  *  hold zero — what a texel past the cache returns. An owned leaf's hit evaluates the lighting at
- *  its owner's transformed centroid: no stale coowner cell, no owner-sized radiance allocation. */
+ *  its owner's transformed centroid: no stale coowner cell, no owner-sized radiance allocation —
+ *  walking the lights of its cell (`bounceLightSlice`), in every program that traces it (the probes,
+ *  the reflections), each binding the light grid's buffer as `tileLights`. */
 export const SURFACE_RAY_WGSL = wgslBlock(
   'SURFACE_RAY_WGSL',
-  [INVERSE_PI_BOUNCE, SURFACE_IRRADIANCE_WGSL],
+  [INVERSE_PI_BOUNCE, LIGHTS_IRRADIANCE_WGSL, BOUNCE_LIGHT_CELL_WGSL],
   `
 fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  let hit=traceProxy(origin,direction,reach);
@@ -18,7 +21,7 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  if(hit.owner!=PROXY_POSED){
   let normal=select(geometric,-geometric,face==1u);
   let point=proxyOwnerCentre(hit.triangle,hit.owner);
-  let lighting=directIrradiance(point,normal,reach)+sampleBounce(point,normal);
+  let lighting=lightsIrradiance(point,normal,reach)+sampleBounce(point,normal);
   return vec4f(proxyOwnerAlbedo(hit.owner)*lighting*INVERSE_PI_BOUNCE,hit.distance);
  }
  let texel=hit.triangle*2u+face;

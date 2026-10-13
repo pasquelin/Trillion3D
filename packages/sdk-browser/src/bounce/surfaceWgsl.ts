@@ -1,4 +1,5 @@
-import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts'
+import { LIGHTS_IRRADIANCE_WGSL } from '../lighting/direct/lightLoopWgsl.ts'
+import { BOUNCE_LIGHT_CELL_WGSL, BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
 import { atlasBytes } from './atlas.ts'
 import { atlasExtent } from '../webgpu/core/floatAtlas.ts'
 import { surfaceCacheTexels } from './sizes.ts'
@@ -44,6 +45,7 @@ struct SurfaceSpan{span:vec4u,}
 @group(0) @binding(4) var probes:texture_2d_array<f32>;
 @group(0) @binding(5) var surface:texture_storage_2d<rgba32float,write>;
 @group(0) @binding(6) var<uniform> cursor:SurfaceSpan;
+@group(0) @binding(${BOUNCE_LIGHT_LIST_BINDING}) var<storage,read> tileLights:array<u32>;
 @compute @workgroup_size(${SURFACE_WORKGROUP})
 fn updateSurface(@builtin(global_invocation_id) id:vec3u){
  let total=cursor.span.z;
@@ -61,7 +63,7 @@ fn updateSurface(@builtin(global_invocation_id) id:vec3u){
  let reach=bounce.reach.x;
  // Exact direct of the frame, plus the indirect the grid has already converged: that is
  // the term that closes the bounce series, one more order on every sweep.
- let irradiance=directIrradiance(point,normal,reach)+sampleBounce(point,normal);
+ let irradiance=lightsIrradiance(point,normal,reach)+sampleBounce(point,normal);
  let width=textureDimensions(surface).x;
  textureStore(surface,vec2u(texel%width,texel/width),vec4f(proxyAlbedoOf(triangle)*irradiance*INVERSE_PI_BOUNCE,1.0));
 }`,
@@ -71,7 +73,8 @@ fn updateSurface(@builtin(global_invocation_id) id:vec3u){
     BOUNCE_GRID_WGSL,
     BOUNCE_TRACE_WGSL,
     PROXY_ALBEDO_WGSL,
-    SURFACE_IRRADIANCE_WGSL,
+    LIGHTS_IRRADIANCE_WGSL,
+    BOUNCE_LIGHT_CELL_WGSL,
     INVERSE_PI_BOUNCE,
   ],
 )

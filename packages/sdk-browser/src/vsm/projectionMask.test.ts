@@ -13,7 +13,7 @@ import assert from 'node:assert/strict'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
-const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
+const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
   subgroups: false,
 })
 /** An rgba16float channel's value: the nearest half float. */
