@@ -100,8 +100,8 @@ export const RAY_LAYERS = 3
  * stamp on eight (`rtStamp`): the low bits of an epoch (`follow`), never zero, so that a pixel never answered
  * holds none.
  *
- * The frame's counters live in the trace's list (`TRACE_LIST`): the tiles the classification listed, the pixels
- * whose answer is older than the epoch (`left`: what the settle waits for, `settle.ts`), the work the frame has
+ * The frame's counters live in the trace's list (`TRACE_LIST`): the tiles the classification listed, the
+ * workgroups holding a pixel whose answer is older than the epoch (`left`: what the settle waits for, `settle.ts`), the work the frame has
  * spent, the tile the next frame starts at (`offset`) and the tiles the last one served from it (`cursor`), then
  * the list itself from `TRACE_LIST_FIRST`. The trace binds that one buffer, writable, and the store: no buffer of
  * its own for the answers, which keeps a stage of it under eight storage buffers.

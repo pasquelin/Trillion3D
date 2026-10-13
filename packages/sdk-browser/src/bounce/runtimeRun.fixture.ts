@@ -36,6 +36,8 @@ const FUNCTIONS = [
   'rtBlocked',
   'rtLit',
   'rtProbeRay',
+  'rtGroupAdd',
+  'rtGroupSend',
 ]
 const BINDINGS = { group: 0, proxy: 12, list: 8, store: 9 }
 
@@ -60,7 +62,7 @@ export function runOver(
   const { header } = w
   const text =
     wgslModule(runtimeTraceWgsl(BINDINGS)) +
-    'fn testWork()->u32{return rtWork+rtExtra;}\nfn testTests()->u32{return rtTests;}\nfn testReset(){rtWork=0u;rtTests=0u;}\nfn testPixel(x:u32,y:u32,n:u32){rtPixel=vec2u(x,y);rtCalls=0u;rtRank=n;}\n'
+    'fn testWork()->u32{return rtWork+rtExtra;}\nfn testTests()->u32{return rtTests;}\nfn testReset(){rtWork=0u;rtTests=0u;}\nfn testPixel(x:u32,y:u32,n:u32){rtPixel=vec2u(x,y);rtCalls=0u;rtRank=n;}\nfn testShare(){rtGroupAdd();rtGroupSend();for(var k=0u;k<3u;k++){atomicStore(&rtGroup[k],0u);}rtSpentHere=0u;rtCastHere=false;rtLeftHere=false;}\n'
   return shaderRun<{
     rtScene: (o: Vec, d: Vec, limit: number) => Hit
     rtRadiance: (
@@ -76,7 +78,8 @@ export function runOver(
     testWork: () => number
     testTests: () => number
     testReset: () => void
-  }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testReset', 'testPixel'], {
+    testShare: () => void
+  }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testReset', 'testPixel', 'testShare'], {
     rtProxy: header,
     rtWork: 0,
     rtTests: 0,
@@ -86,6 +89,10 @@ export function runOver(
     rtPixel: [0, 0],
     rtCalls: 0,
     rtRank: 0,
+    rtSpentHere: 0,
+    rtCastHere: false,
+    rtLeftHere: false,
+    rtGroup: [0, 0, 0],
     rtList: list,
     rtStore: store,
     textureLoad: (t: Store, at: number[], layer: number) => [t.get(at, layer), 0, 0, 0],

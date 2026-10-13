@@ -105,15 +105,20 @@ fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgrou
  }
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
-fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) rows:vec3u,@builtin(local_invocation_id) lid:vec3u){
- let rank=flatIndex(wg,rows,1u);
+fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) rows:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(local_invocation_index) lane:u32){
+ rtRank=flatIndex(wg,rows,1u);
+ tracePixel(rtRank,lid.xy);
+ // The run-time proxy's frame counters, one atomic of each a workgroup.
+ rtShare(lane);
+}
+/** The pixel \`lid\` of the listed tile of rank \`rank\`, traced. */
+fn tracePixel(rank:u32,lid:vec2u){
  let count=atomicLoad(&rtList[${TRACE_LIST.count}u]);
  if(rank>=count){return;}
  // The run-time proxy's budget goes to the first tiles it meets, and the next frame's start where this
  // one's ended (the list's offset).
- rtRank=rank;
  let tile=atomicLoad(&rtList[${TRACE_LIST_FIRST}u+(rank+atomicLoad(&rtList[${TRACE_LIST.offset}u]))%count]);
- let id=vec2u(tile&65535u,tile>>16u)*${REFLECTION_SIDE}u+lid.xy;
+ let id=vec2u(tile&65535u,tile>>16u)*${REFLECTION_SIDE}u+lid;
  if(any(vec2f(id)>=view.viewport.xy)){return;}
  let coord=vec2i(id);
  let flags=textureLoad(traceFlags,coord,0).r;
