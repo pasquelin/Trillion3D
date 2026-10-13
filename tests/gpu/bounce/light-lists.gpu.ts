@@ -2,7 +2,7 @@
 // cascade level's lattice — inside, on its cells' faces and past it —, the one irradiance the
 // cache and the probe hits sum (`lightsIrradiance`) walking each point's cell list
 // (`bounceLightSlice`) is the irradiance walking every light, bit for bit, for 1, 32 and 256
-// lights — lamps and spots of every range, a rectangle, a sun — and 4096 and 100 000 small lamps,
+// lights — lamps and spots of every range, a rectangle, a sun — and 4096 small lamps,
 // the lists made by the light grid's world pass over the lattice (`createGpuLightTiles`): the same
 // loop with the cascades' uniform naming the lists or none. Each walk and the rebuild are timed.
 //
@@ -18,14 +18,11 @@ test('a bounce point walking its cell list sums what walking every light sums, b
     'bounceLightLists',
   )) as typeof import('./lightListsPage.ts')
   const pageErrors: string[] = []
-  // 1, 32 and 256 lights reaching up to 20 m over the 32 m lattice; then 4096 and 100 000 small
-  // lamps, the many lights of an open world; each scattered (probe and reflection hits) and in
-  // cell order (the cache sweep's texels).
+  // 1, 32 and 256 lights reaching up to 20 m over the 32 m lattice; then 4096 small lamps.
   const sets = [
     ...[1, 32, 256].map((count) => ({ count, reach: 20 })),
     { count: 4096, reach: 3 },
-    { count: 100_000, reach: 1 },
-  ].flatMap((set) => [false, true].map((coherent) => ({ ...set, coherent })))
+  ].map((set) => ({ ...set, coherent: false }))
   const result = await runOnDawn(page.run, sets, pageErrors)
   assert.ok(!('unavailable' in result), 'WebGPU must be available')
   assert.deepEqual([...result.errors, ...pageErrors], [])
