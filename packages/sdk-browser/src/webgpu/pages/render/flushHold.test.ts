@@ -47,6 +47,8 @@ function flushState(adopts?: () => boolean, armed = true) {
       displaySize: [8, 8],
     },
     vis: { textureJobs: [] },
+    // No root and no caster row: the frame entry asks no roots' or rows' pass.
+    layout: { rows: {}, selectionRoots: [] },
     capture: { capturing: false, capturePending: undefined },
     timing: { gpuTiming: undefined },
     diag: { engineDiagnostic: () => {}, diagnosticFailure: () => {} },

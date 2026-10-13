@@ -57,7 +57,8 @@ export function settledRt() {
   const rt = {
     run,
     views: { main, active: main, persistent: [] },
-    layout: { rows },
+    // No root and no caster row: the frame entry asks no roots' or rows' pass (`askFramePipelines`).
+    layout: { rows, selectionRoots: [] as unknown[] },
     vis: { gpuDraw: true, textureJobs: [] as unknown[], gpuHiz: undefined },
     lights: {
       changes: { deferred: () => false },
