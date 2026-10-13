@@ -5,7 +5,6 @@ import {
   CAST_WORDS,
   DEFAULT_PHYSICS_BUDGET,
   EVENT_WORDS,
-  MISS,
   PHYSICS_STEP,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts'
@@ -19,6 +18,7 @@ import { physicsRaycast, type PhysicsRaycastOptions } from './raycast.ts'
 import type { PhysicsSession } from './session/session.ts'
 import { engineIdOf } from './simulatedIds.ts'
 import type { JoltThreadStart, SpawnJoltThread } from './joltThreads.ts'
+import { NO_INDEX } from '../../../math/src/constants.ts'
 
 /** A committed module started for the tests: 64 bodies and 64 MB unless told otherwise, in fixed
  *  steps of `step` seconds (`startJolt`). */
@@ -80,7 +80,7 @@ export function events(jolt: Module) {
 export function castDown(jolt: Module, x: number) {
   const query = new Uint32Array(CAST_WORDS)
   query[0] = CAST.ray
-  query[10] = MISS
+  query[10] = NO_INDEX
   new Float32Array(query.buffer).set([x, 5, 0, 0, -10, 0], 1)
   return jolt.cast(query)
 }

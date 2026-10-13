@@ -1,5 +1,4 @@
 import { leafCone } from '../../page/cone/cone.ts'
-import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import type { DagRoot } from './types.ts'
 import {
   CLUSTER_WORDS,
@@ -18,6 +17,7 @@ import {
   packClusterFlags,
 } from './layout.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 function writeSphere(
   target: Float32Array,
@@ -53,7 +53,7 @@ function writeRecords(
     hot[dst + HOT_PARENT_ERROR] = parent
     // A cluster that no culling leaf owns is unreachable for the CPU cut too; never select it.
     hotInts[dst + HOT_FLAGS] = packClusterFlags(
-      owner[i] === NONE,
+      owner[i] === NO_INDEX,
       rec.level ?? 0,
       !!rec.transparent,
       !!rec.rootChild,
@@ -71,7 +71,7 @@ function writeRecords(
       cold[base + COLD_MAX + a] = hasBox ? rec.max![a] : 0
     }
     // The owner node is only read by the oracle, which replays descent: it stays cold.
-    coldInts[base + COLD_OWNER] = owner[i] === NONE ? NONE : owner[i] - nodeBase
+    coldInts[base + COLD_OWNER] = owner[i] === NO_INDEX ? NO_INDEX : owner[i] - nodeBase
     // Cluster triangles, as an integer word: the GPU holds the totals.
     coldInts[base + COLD_TRIANGLES] = Math.max(0, Math.trunc(rec.triangles ?? 0))
   }

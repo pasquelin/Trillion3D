@@ -29,6 +29,8 @@ export const PAGE_INFO = fieldLayout('PageInfo', [
   // A dashed line's dash and gap (`lineDash`); zero on any other row.
   ['dash', 'vec2f'],
   ['clusterHash', 'u32'],
+  // The row's Hi-Z slot; `NO_INDEX` for a row never culled (`neverCulled`), which every reader of
+  // the verdict draws unjudged (`HIZ_REJECTED_WGSL`, `rowVerdict`).
   ['hizSlot', 'u32'],
   ['roughnessIndex', 'u32'],
   ['metalnessIndex', 'u32'],

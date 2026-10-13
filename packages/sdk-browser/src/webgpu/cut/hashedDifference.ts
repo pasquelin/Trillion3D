@@ -1,5 +1,5 @@
-import { SELECTION_NONE as NONE } from '../../gpu/core/selection.ts'
 import { mapRawRanks, type HeldList } from './heldList.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /**
  * The difference of a list named by its ids alone: every id through the marks, then every id held
@@ -29,7 +29,7 @@ export function applyHashed(held: HeldList, ids: ArrayLike<number>, count: numbe
     const seen = rec ? mark.set(id, epoch) : epoch
     if (seen === epoch) {
       raw ??= mapRawRanks(held, count, i)
-      raw[i] = NONE
+      raw[i] = NO_INDEX
       continue
     }
     if (raw) raw[i] = nextCount

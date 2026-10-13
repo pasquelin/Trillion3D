@@ -1,12 +1,12 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import { FLAG_MASK, ROW_WORDS } from '../../visibility/types.ts'
 import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
-import { NO_HIZ_SLOT } from './noHizSlot.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** Stamps rank `row` as the Hi-Z slot of the row at `base`, unless the row has none. */
 export function restampHizSlot(ints: Uint32Array, base: number, row: number) {
-  if (ints[base + PAGE_INFO.at.hizSlot] !== NO_HIZ_SLOT) ints[base + PAGE_INFO.at.hizSlot] = row
+  if (ints[base + PAGE_INFO.at.hizSlot] !== NO_INDEX) ints[base + PAGE_INFO.at.hizSlot] = row
 }
 /** True when row `row` of the table `ints` is a cutout (`FLAG_MASK`): the bit `maskKeep` tests. */
 export const rowCutout = (ints: Uint32Array, row: number) =>

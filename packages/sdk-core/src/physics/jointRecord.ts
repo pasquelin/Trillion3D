@@ -2,7 +2,7 @@
 export interface JointRecord {
   /** The joint's slot and generation. */ id: number
   /** `JOINT`. */ kind: number
-  /** The bodies' engine ids; `MISS` for the world. */ a: number
+  /** The bodies' engine ids; `NO_INDEX` for the world. */ a: number
   b: number
   /** Each end's `point, axis, normal`, nine numbers in its body's own frame. */
   frameA: readonly number[]

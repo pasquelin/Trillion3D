@@ -4,7 +4,6 @@ import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
 
-import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import {
   DAG_NODE_FLOATS,
   type DagCutLinks,
@@ -36,6 +35,7 @@ import {
   placementTreeShape,
   treeNodeCount,
 } from './placementTree.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** The first page of a placement the room holds and no root filled: past every page. */
 const ROOM_BASE = 0x7fffffff
@@ -121,7 +121,7 @@ function nodeBlockOf(p: Packing, root: DagRoot, culling: Culling) {
   if (known) return known
   const count = root.pages.length,
     nodeBase = p.live.nodes,
-    owner = new Uint32Array(count).fill(NONE)
+    owner = new Uint32Array(count).fill(NO_INDEX)
   const bounds = cullingBoundsFor(culling, root.pages, p.shared.boundsOf)
   const open = root.structure && baseOpen(linksFor(culling, count), root.structure)
   const place = { nodeBase, pageBase: 0 }
@@ -150,7 +150,7 @@ function placeRoot(
   p.worlds.set(root.world.elements, w * 16)
   p.worldStretch[w] = maxStretch(root.world.elements)
   p.rootBases[w] = nodeBase
-  p.rootNodes[w] = root.parked ? NONE : nodeBase
+  p.rootNodes[w] = root.parked ? NO_INDEX : nodeBase
   p.mark[w] = root.mark ?? 0
   const links = linksFor(culling, count)
   const { structure } = root
@@ -223,7 +223,7 @@ export function dagRootCounts(roots: readonly DagRoot[]): DagCapacity {
 }
 
 /** A packing's tables at `capacity`: every placement past the live ones parked, every page past
- *  them in no placement (`NONE`). */
+ *  them in no placement (`NO_INDEX`). */
 function allocatePacking(capacity: DagCapacity, shared: PackShared): Packing {
   const nodes = new Float32Array(Math.max(1, capacity.nodes) * DAG_NODE_FLOATS),
     worldSlots = Math.max(1, capacity.worlds)
@@ -237,8 +237,8 @@ function allocatePacking(capacity: DagCapacity, shared: PackShared): Packing {
     recordShift: new Uint32Array(worldSlots),
     // Each primitive's root, which prepare deposits in pass 0's queue; a parked row deposits none,
     // and `rootBases` keeps the node it takes back.
-    rootNodes: new Uint32Array(worldSlots).fill(NONE),
-    rootBases: new Uint32Array(worldSlots).fill(NONE),
+    rootNodes: new Uint32Array(worldSlots).fill(NO_INDEX),
+    rootBases: new Uint32Array(worldSlots).fill(NO_INDEX),
     // The whole frame word: the mark's bits, and the deformation reach above them (`markReach`).
     mark: new Uint32Array(worldSlots),
     cutLinks: [],

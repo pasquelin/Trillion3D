@@ -1,9 +1,8 @@
 import { BOUNCE_SETTINGS, type BounceCascades } from '../../../sdk-core/src/index.ts'
+import { TILE_NO_SLICE } from '../lighting/direct/lightWgsl.ts'
 
 /** Four-byte words of a level in the uniform: two `vec4f`, origin and base cell. */
 const LEVEL_WORDS = 8
-/** No world light lists: `TILE_NO_SLICE`, which `bounceLightSlice` reads as every light. */
-const LISTS_NONE = 0xffffffff
 /** The header's word of the world light grid's start (`lists.x`). */
 const LISTS_WORD = 12
 /** Header words: range and diagnostic view, cascade sizes, frame state, the world light lists. */
@@ -41,7 +40,7 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
   floats[0] = cascades.reach
   integers.set([cascades.size, cascades.levels.length, cascades.probesPerLevel, cascades.probes], 4)
   // No world light lists yet (`bounceLightSlice`): every light.
-  integers[LISTS_WORD] = LISTS_NONE
+  integers[LISTS_WORD] = TILE_NO_SLICE
   const upload = () => device.queue.writeBuffer(buffer, 0, packed)
   // Word by word: this write happens every encoded frame, and therefore allocates nothing.
   const writeLevels = () => {
@@ -84,7 +83,7 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
     /** The world light grid's records' first word in the light grid's buffer, or `undefined`:
      *  none, every point walking every light (`bounceLightSlice`). */
     setLightLists(start: number | undefined) {
-      const word = start ?? LISTS_NONE
+      const word = start ?? TILE_NO_SLICE
       if (integers[LISTS_WORD] === word) return
       integers[LISTS_WORD] = word
       // The levels with it: the lattice the lists were listed on, even in a frame no update writes.

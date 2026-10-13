@@ -62,7 +62,7 @@ export function cullingBoundsFor(
  * them —, each node's first page counted from `place.pageBase` (zero: the primitive's own first
  * page, which a placement's entry adds its base to), and returns, per cluster, the leaf node that
  * owns it. `owner` is filled in place; a cluster no leaf stores stays at
- * `SELECTION_NONE`, as in the oracle (`oracle/*.fixture.ts`), and is never selected. `open`, the
+ * `NO_INDEX`, as in the oracle (`oracle/*.fixture.ts`), and is never selected. `open`, the
  * DAG's open count of each node with nothing resident; zero without a structure.
  */
 export function packCullingNodes(

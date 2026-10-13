@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
 import { LIGHTS_IRRADIANCE_WGSL } from '../lighting/direct/lightLoopWgsl.ts'
+import { TILE_NO_SLICE } from '../lighting/direct/lightWgsl.ts'
 
 type Light = { height: number; energy: number; casts?: boolean; range?: number }
 type Items = { params: Vec; positionRange: Vec; colorIntensity: Vec }[]
@@ -25,7 +26,7 @@ const { lightsIrradiance } = shaderRun<{
   isSun: () => false,
   isSunKind: () => false,
   // No world lists: every light, the loop's fallback (`bounceLightSlice`).
-  TILE_NO_SLICE: 0xffffffff,
+  TILE_NO_SLICE,
   bounceLightSlice: () => [0xffffffff, directLights.count],
   tileLights: [],
   rectIrradiance: () => [0, 0, 0, 0],
@@ -84,7 +85,7 @@ test('a rectangle light behind a wall lights no cell through it: one ray toward 
     isRect: () => true,
     isSun: () => false,
     isSunKind: () => false,
-    TILE_NO_SLICE: 0xffffffff,
+    TILE_NO_SLICE,
     bounceLightSlice: () => [0xffffffff, rect.count],
     tileLights: [],
     rectIrradiance: () => [0, 0, 0, 1],

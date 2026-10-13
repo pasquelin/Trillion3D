@@ -12,7 +12,7 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 const WIDTH = 24,
   HEIGHT = 16
-const { NO_SLOT, SHADE_CACHE_END } = wgslConstants(SHADE_TRIS_SHADER)
+const { NO_INDEX, SHADE_CACHE_END } = wgslConstants(SHADE_TRIS_SHADER)
 type Run = ReturnType<typeof cacheRun>
 type Triangle = Record<string, number[]>
 type Frame = { invT: { adj: number[][]; scale: number; regular: boolean }; positive: boolean }
@@ -49,7 +49,7 @@ function assertPixelsRead(run: Run) {
     const read = run.reads.pixelTriangle(row, page, id & 0xff) as Triangle,
       decoded = run.exact.decodeTriangle(page, id & 0xff, own.invT) as Triangle
     assert.equal(bits(read), bits(decoded), `row ${row} triangle ${id & 0xff}`)
-    if (slot(run, id) !== NO_SLOT) cached++
+    if (slot(run, id) !== NO_INDEX) cached++
   }
   return cached
 }
@@ -60,9 +60,9 @@ test('each triangle two pixels read is cached, every pixel reads its decode bit 
   run.frame(1 << 20)
   const count = reads(run)
   for (const [id, pixels] of count)
-    assert.equal(slot(run, id) !== NO_SLOT, pixels >= 2, `${id >> 8}:${id & 0xff} read ${pixels}`)
+    assert.equal(slot(run, id) !== NO_INDEX, pixels >= 2, `${id >> 8}:${id & 0xff} read ${pixels}`)
   // The slots are the cursor's, one per triangle, none twice.
-  const slots = [...count.keys()].map((id) => slot(run, id)).filter((s) => s !== NO_SLOT)
+  const slots = [...count.keys()].map((id) => slot(run, id)).filter((s) => s !== NO_INDEX)
   assert.equal(new Set(slots).size, slots.length)
   assert.deepEqual(
     slots.toSorted((a, b) => a - b),
@@ -83,7 +83,7 @@ test('each triangle two pixels read is cached, every pixel reads its decode bit 
   for (let row = 0; row < run.pages.length; row++) {
     const own = [...count.keys()].filter((id) => (id >> 8) - 1 === row && valid(run, id))
     assert.ok(
-      own.some((id) => slot(run, id) !== NO_SLOT) && own.some((id) => slot(run, id) === NO_SLOT),
+      own.some((id) => slot(run, id) !== NO_INDEX) && own.some((id) => slot(run, id) === NO_INDEX),
       `${row}`,
     )
   }
@@ -95,9 +95,9 @@ test('a row past the capacity is decoded by its pixels, the rows before still ca
   // Exactly the capacity it needs: every row fits.
   run.frame(needed)
   const twice = [...reads(run)].filter(([, pixels]) => pixels >= 2)
-  assert.ok(twice.every(([id]) => slot(run, id) !== NO_SLOT))
+  assert.ok(twice.every(([id]) => slot(run, id) !== NO_INDEX))
   run.frame(needed - 1)
-  const cached = [...reads(run).keys()].filter((id) => slot(run, id) !== NO_SLOT)
+  const cached = [...reads(run).keys()].filter((id) => slot(run, id) !== NO_INDEX)
   const rows = new Set(cached.map((id) => id >> 8))
   assert.ok(rows.size > 0 && rows.size < run.pages.length, 'some rows fit, one does not')
   for (const id of cached) assert.ok(slot(run, id) < needed - 1)
@@ -107,6 +107,6 @@ test('a row past the capacity is decoded by its pixels, the rows before still ca
 test('without the cache every pixel composes and decodes its own (trillion3dShadeNoCache)', () => {
   const run = cacheRun(WIDTH, HEIGHT, true)
   run.frame(1 << 20)
-  assert.ok([...reads(run).keys()].every((id) => slot(run, id) === NO_SLOT))
+  assert.ok([...reads(run).keys()].every((id) => slot(run, id) === NO_INDEX))
   assert.equal(assertPixelsRead(run), 0)
 })

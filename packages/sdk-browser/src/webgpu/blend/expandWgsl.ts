@@ -1,5 +1,4 @@
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import { DRAW_UNPAGED } from './plan.ts'
 import { PLAN_PIPELINE_MASK, PLAN_SHIFT, PLAN_VERTEX_CULL_BIT } from './planEntry.ts'
 import { INSTANCE_CULL_SHIFT } from './runs.ts'
 import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts'
@@ -9,6 +8,7 @@ import { LANE_SCAN_WGSL, laneRunOffsets } from '../../gpu/core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /**
  * The kernel's four dispatches: one thread group per entry packet, ONE for the running sum over
@@ -70,7 +70,7 @@ fn instancesOf(i:u32)->u32{
  let item=itemOf(i);
  if(!kept(item)){return 0u;}
  let d=draws[item];
- if(d.x==${DRAW_UNPAGED}u){return d.y;}
+ if(d.x==${NO_INDEX}u){return d.y;}
  return counts[d.x*4u+1u];
 }
 /** One thread group per entry packet: each counts ITS entry once, and the packet takes from that
@@ -110,7 +110,7 @@ fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgr
  // pipeline's rank among the three of its blend mode (planCull).
  let word=item|select(0u,((entry&${PLAN_PIPELINE_MASK}u)%3u)<<${INSTANCE_CULL_SHIFT}u,(entry&${PLAN_VERTEX_CULL_BIT}u)!=0u);
  let d=draws[item];
- if(d.x==${DRAW_UNPAGED}u){
+ if(d.x==${NO_INDEX}u){
   for(var j=0u;j<held;j++){expanded[at+j]=vec2u(word,j*d.w);}
   return;
  }
@@ -138,7 +138,7 @@ fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  // draws what ITS item carries — one read of its sixteen-byte draw description.
  let described=draws[plan[uni.orderBase+first]>>${PLAN_SHIFT}u];
  var vertexCount=uni.maxVertexWords;
- if(entries==1u&&described.x==${DRAW_UNPAGED}u){vertexCount=described.w;}
+ if(entries==1u&&described.x==${NO_INDEX}u){vertexCount=described.w;}
  args[o]=vertexCount;
  args[o+1u]=scratch[last]+instancesOf(last)-base;
  args[o+2u]=base<<uni.vertexShift;

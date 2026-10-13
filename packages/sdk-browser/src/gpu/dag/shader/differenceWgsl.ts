@@ -3,11 +3,12 @@ import { ADMISSION_BUCKETS } from '../request.ts'
 import { KEPT_HEADER_WORDS } from '../layout.ts'
 import { KEPT_RANK_HEAD } from '../keptRanks.ts'
 import { OPEN_SLOT_WORDS } from '../heldOpen.ts'
-import { SELECTION_NONE, SELECTION_WORKGROUP } from '../../core/selection.ts'
+import { SELECTION_WORKGROUP } from '../../core/selection.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { mixWord } from '../../../../../math/src/wgsl/sampling.ts'
 import { halfLoadSlots } from '../../../../../math/src/wgsl/integer.ts'
 import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
+import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 
 /**
  * THE CUT AS A DIFFERENCE, taken where the cut is: for each rank of a copied snapshot's two lists,
@@ -42,9 +43,8 @@ export const DIFFERENCE_STAGES = ['dagCutDifference0', 'dagCutDifference1'] as c
 
 export const DAG_DIFFERENCE_WGSL = wgslBlock(
   'DAG_DIFFERENCE_WGSL',
-  [FLAT_INDEX_WGSL, mixWord, halfLoadSlots],
-  `const RANK_NONE:u32=${SELECTION_NONE}u;
-/** Admission bucket \`b\`'s count of the camera's requests in \`out.pages\`, behind the eviction
+  [FLAT_INDEX_WGSL, mixWord, halfLoadSlots, NO_INDEX],
+  `/** Admission bucket \`b\`'s count of the camera's requests in \`out.pages\`, behind the eviction
  *  burst (\`levelCountsWord\`). */
 fn levelCountAt(b:u32)->u32{return 2u*views[0u].listCap+2u*HEAD+${EVICTION_BURST}u+b;}
 /** Word \`k\` of the difference in \`out.pages\`, behind the level counts (\`differenceWord\`). */
@@ -79,17 +79,17 @@ fn keptHome(i:u32)->u32{return mixWord(i)&(keptSlots()-1u);}
  *  repeated in the list is found at one of its ranks. */
 fn keptRankOf(l:u32,i:u32)->u32{
  let gen=atomicLoad(&work[KEPT_GEN]);
- if(gen==0u){return RANK_NONE;}
+ if(gen==0u){return NO_INDEX;}
  let mask=keptSlots()-1u;
  var s=keptHome(i);
  for(var k=0u;k<=mask;k++){
   let at=KEPT_HEAD+${OPEN_SLOT_WORDS}u*s;
-  if(atomicLoad(&work[at])!=gen){return RANK_NONE;}
+  if(atomicLoad(&work[at])!=gen){return NO_INDEX;}
   let r=atomicLoad(&work[at+2u]);
   if(atomicLoad(&work[at+1u])==i&&r<out.pages[keptAt(l)]&&out.pages[keptPage(l,r)]==i){return r;}
   s=(s+1u)&mask;
  }
- return RANK_NONE;
+ return NO_INDEX;
 }
 /** Page \`i\` at rank \`r\` in the table, stamped \`gen\`: the first slot from its home no keep of
  *  \`gen\` holds, taken by exchange — a lookup walks the same slots and stops past it. */

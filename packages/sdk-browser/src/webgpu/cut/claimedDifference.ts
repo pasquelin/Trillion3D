@@ -1,10 +1,10 @@
 import { bitWords, floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import { SELECTION_NONE as NONE } from '../../gpu/core/selection.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { copyPages } from '../pages/helpers.ts'
 import { mapRawRanks, type HeldList } from './heldList.ts'
 import { hasBit, setBit } from '../../../../math/src/scalar/bits.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** The mark of a held id or an entry this list names at a rank no claim reached, until the held
  *  ranks are read: an id read back at it again is a repeat. */
@@ -130,7 +130,7 @@ function carryClaimed(
   for (let i = 0; i < count; i++) {
     const id = ids[i]
     let t = claims[i]
-    if (raw && t !== NONE) t = raw[t]
+    if (raw && t !== NO_INDEX) t = raw[t]
     next[i] = id
     published[i] = id
     if (!(t < keptCount) || kept[t] !== id) {
@@ -156,7 +156,7 @@ function compact(held: HeldList, pages: PageRec[] | undefined, count: number) {
   let kept = 0
   for (let i = 0; i < count; i++) {
     if (next[i] === SKIPPED) {
-      raw[i] = NONE
+      raw[i] = NO_INDEX
       continue
     }
     raw[i] = kept

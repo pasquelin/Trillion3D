@@ -21,10 +21,10 @@ import type { ResidencyChanges } from '../core/selection.ts'
 import type { PackedDag } from './types.ts'
 import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { createDenseKeySet } from '../../webgpu/cut/denseKeys.ts'
-import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
 import type { PageResidency } from '../core/selection.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 type WorldPacked = PackedDag & Required<Pick<PackedDag, 'world'>>
 type Mirror = ReturnType<typeof mirrorState>
@@ -108,7 +108,7 @@ function link(m: Mirror, w: number, object: number) {
 
 /** The object a placement's link names, or none. */
 const linkedObject = (m: Mirror, c: number) =>
-  c === NONE ? -1 : m.packed.world.origins[c - m.pageBase]
+  c === NO_INDEX ? -1 : m.packed.world.origins[c - m.pageBase]
 
 /** `scene`, the rows' residency at the pages `changes` names, mirrored (`createWorldResidencyMirror`). */
 function update(m: Mirror, scene: PageResidency, changes?: ResidencyChanges) {

@@ -16,10 +16,10 @@ import { WORK_DROPPED } from './shader/viewsWgsl.ts'
 import { VIEW_BLOCK_WORDS, viewWord } from './viewLayout.ts'
 import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
-import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { dagQueueWords } from './flagSections.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** Where a cut's tables lie for its kernels: the open counts placements hold in `out` — the first
  *  word in `out.pages`, the slots less one (`heldOpen.ts`) —, then the words of each descent queue
@@ -129,12 +129,12 @@ export function writeDagUniforms(
   // A pool short of the cut ranks the camera's requests by admission (`request.ts`).
   ints[W('admitByLevel')] = uniforms.admitByLevel ? 1 : 0
   ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)
-  // The world DAG's placement, wherever the packing put it, NONE without one; the placement tree
+  // The world DAG's placement, wherever the packing put it, NO_INDEX without one; the placement tree
   // (`placementTree.ts`): its top level's nodes, which open the descent, from its first node, and
   // where its order lies in the cold table; no top node, no tree.
   const tree = packed.placementTree,
     world = packed.world
-  ints[W('worldRoot')] = world?.root ?? NONE
+  ints[W('worldRoot')] = world?.root ?? NO_INDEX
   ints[W('treeTop')] = tree?.levels[0].count ?? 0
   ints[W('cellBase')] = tree?.cellBase ?? 0
   ints[W('members')] = tree?.members ?? 0

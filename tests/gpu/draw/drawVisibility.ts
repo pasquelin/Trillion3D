@@ -4,7 +4,6 @@
 import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/src/visibility/visWords.ts'
 import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { packedRowBase } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts'
-import { NO_HIZ_SLOT } from '../../../packages/sdk-browser/src/webgpu/row/noHizSlot.ts'
 import {
   VIS_BINDINGS,
   VIS_UNIFORM_BYTES,
@@ -12,6 +11,7 @@ import {
 import { visLayoutEntries } from '../../../packages/sdk-browser/src/webgpu/visibility/shaders.ts'
 import { bufferHolding } from '../kit/computeReadback.ts'
 import { PAGE_INFO } from '../../../packages/sdk-browser/src/visibility/pageInfo.ts'
+import { NO_INDEX } from '../../../packages/math/src/constants.ts'
 
 /** Pages in the table, laid `COLUMNS` × `ROWS` over a target of `WIDTH` × `HEIGHT`. */
 const PAGES = 147,
@@ -43,7 +43,7 @@ function pageTable() {
     table.set([0.8 / COLUMNS, 0, 0, 0, 0, 0.8 / ROWS, 0, 0, 0, 0, 1, 0, x, y, 0, 1], base)
     ints[base + PAGE_INFO.at.indexCount] = 3
     ints[base + PAGE_INFO.at.packedBase] = packedRowBase(page)
-    ints[base + PAGE_INFO.at.hizSlot] = NO_HIZ_SLOT
+    ints[base + PAGE_INFO.at.hizSlot] = NO_INDEX
   }
   return table
 }

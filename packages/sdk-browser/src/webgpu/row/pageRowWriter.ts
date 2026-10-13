@@ -23,10 +23,10 @@ import { shownAsIs } from '../../scene/surfaceModel.ts'
 import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts'
 import type { SessionDeformation } from '../../deformation/session.ts'
 import { writeRowDeformation } from '../../deformation/outputs.ts'
-import { NO_HIZ_SLOT } from './noHizSlot.ts'
 import { surfaceEmitsOrOccludes } from '../../scene/surfaceEmission.ts'
 import { packedRowBase, rowIndexCount } from './pageRow.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 type PageRowResources = MaterialLayers & {
   geometryBlocks: Map<HostAttributes, GeometryBlock>
@@ -131,7 +131,7 @@ function writeRow(
         resources.physicalTable?.rowWord(mat, resources.dataLayer) ?? 0,
         !!geo && !geo.quantized && !!geo.hasUv1,
       )
-  ints[base + PAGE_INFO.at.hizSlot] = neverCulled(mat) || deform ? NO_HIZ_SLOT : row
+  ints[base + PAGE_INFO.at.hizSlot] = neverCulled(mat) || deform ? NO_INDEX : row
   ints[base + PAGE_INFO.at.selectionIndex] = pageIndex
   floats[base + PAGE_INFO.at.pad1] = rec.role === 'coarse' ? 1 : 0
   // Depth units to add for this cluster's coplanar layer — engine depth is reversed: zero for

@@ -17,7 +17,7 @@ import {
   slotCapacity,
 } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
 import { UNI_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
-import { DRAW_UNPAGED, planPipeline } from '../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
+import { planPipeline } from '../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
 import {
   PLAN_SHARED_BIT,
   planEntry,
@@ -26,6 +26,7 @@ import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { expandOnGpu } from './scatterKernel.ts'
 import { setBit } from '../../../packages/math/src/scalar/bits.ts'
+import { NO_INDEX } from '../../../packages/math/src/constants.ts'
 
 const next = xorshiftRandom(1789)
 /** The vertex words of the widest item, and the clusters an item holds. */
@@ -44,7 +45,7 @@ function plan(items: number, unpaged: number[], base: { instances: number; args:
     keep = new Uint32Array(bitWords(items))
   for (let item = 0; item < items; item++) {
     const own = unpaged.includes(item)
-    draws[item * 4] = own ? DRAW_UNPAGED : item
+    draws[item * 4] = own ? NO_INDEX : item
     draws[item * 4 + 1] = own ? 1 + Math.floor(next() * 4) : CLUSTERS
     draws[item * 4 + 2] = item * CLUSTERS
     draws[item * 4 + 3] = own ? 3 * (1 + Math.floor(next() * 5)) : 0

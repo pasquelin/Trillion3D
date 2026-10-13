@@ -15,6 +15,7 @@ import {
   HALF_OVERFLOW,
   HALF_PI,
   MIB,
+  NO_INDEX,
   OCT_BYTE_STEP,
   PI,
   PLASTIC_STEP_X,
@@ -41,6 +42,7 @@ test('each constant is the bits of the expression its doc names', () => {
   assert.equal(FLOAT32_STEP, 2 ** -23)
   assert.equal(MIB, 1024 * 1024)
   assert.equal(WORD_RANGE, 2 ** 32)
+  assert.equal(NO_INDEX, 2 ** 32 - 1)
 })
 
 test('QUARTER_PI, SQRT3 and GOLDEN_ANGLE against their independent definitions', () => {

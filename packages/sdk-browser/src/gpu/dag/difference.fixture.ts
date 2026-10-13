@@ -10,13 +10,13 @@ import {
   differenceWord,
   keptSnapshotWord,
 } from './layout.ts'
-import { SELECTION_NONE } from '../core/selection.ts'
 import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** `list`'s difference against `kept`: the rank each page held there, or none. */
 export function differenceOf(list: ArrayLike<number>, kept: ArrayLike<number>) {
   const rankOf = new Map(Array.from(kept, (page, rank) => [page, rank]))
-  return Uint32Array.from(list, (page) => rankOf.get(page) ?? SELECTION_NONE)
+  return Uint32Array.from(list, (page) => rankOf.get(page) ?? NO_INDEX)
 }
 
 /** The two lists a readout of `listCap` ranks carries, and the two it keeps behind their lengths

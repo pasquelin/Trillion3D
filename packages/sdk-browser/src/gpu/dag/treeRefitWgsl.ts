@@ -26,13 +26,13 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { partName } from './shader/splitWgsl.ts'
 import { DAG_BINDING, dagPartBindings, type DagPartTable } from './shader/bindings.ts'
-import { SELECTION_NONE } from '../core/selection.ts'
 import { FRAME_ROW_WORDS, DAG_NODE_FLOATS } from './types.ts'
 import { MARGIN, TREE_SPAN } from './placementTree.ts'
 import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/wgsl/constants.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { REFIT_LANES } from './treeRefitLevels.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** Where a placement's root lies in its frame row (`primitiveFrameWords`). */
 const FRAME_ROOT = 1
@@ -82,8 +82,8 @@ fn fitGroup(j:u32){
  for(var a=0u;a<3u;a++){lo[a]=vec2u(0x7ff00000u,0u);hi[a]=vec2u(0xfff00000u,0u);}
  for(var k=0u;k<gm;k++){
   let w=coldAt(params.members+first+k);
-  if(w==${SELECTION_NONE}u){continue;}
-  if(frameWord(w,${FRAME_ROOT}u)==${SELECTION_NONE}u){continue;}
+  if(w==${NO_INDEX}u){continue;}
+  if(frameWord(w,${FRAME_ROOT}u)==${NO_INDEX}u){continue;}
   for(var a=0u;a<3u;a++){
    lo[a]=dMin(lo[a],members[w*6u+a]);
    hi[a]=dMax(hi[a],members[w*6u+3u+a]);

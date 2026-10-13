@@ -12,7 +12,6 @@
  * Each cut takes its own scale of the world's threshold (`worldFade.ts`).
  */
 import type { PageResidency, ResidencyChanges, SelectionUniforms } from '../core/selection.ts'
-import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { worldFadeScale } from './worldFade.ts'
 import type { PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
@@ -20,6 +19,7 @@ import { resized } from '../../../../math/src/sequence/resized.ts'
 import { keepNumbers } from '../../../../math/src/vector/vector.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { setBit } from '../../../../math/src/scalar/bits.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** No page of the rows moved: only the links did. */
 const NO_ROWS: ResidencyChanges = { pages: new Int32Array(0), count: 0 }
@@ -97,7 +97,7 @@ export function createLinkFollower(
       handed = true
     },
     /** Whether placement `w` is linked to an object, whose super-roots stand in for it far away. */
-    standsIn: (w: number) => w < links.length && links[w] !== NONE,
+    standsIn: (w: number) => w < links.length && links[w] !== NO_INDEX,
     /** Placement `w` places `object` now, or none (`-1`). */
     place(w: number, object: number) {
       const c = world.linkOf(object)
