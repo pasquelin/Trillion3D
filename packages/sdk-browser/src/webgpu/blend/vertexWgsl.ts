@@ -2,7 +2,7 @@ import { VERTEX_LISTS_WGSL, VERTEX_READS_WGSL, vsOutWgsl } from './vertexReadsWg
 import * as itemFlags from '../../visibility/types.ts'
 import * as surfaceModel from '../../scene/surfaceModel.ts'
 import { NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts'
-import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
+import { mixWord } from '../../../../math/src/wgsl/sampling.ts'
 import { PAGE_GEOMETRY_WGSL, PAGE_UV1_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/rank.ts'
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts'
@@ -61,7 +61,7 @@ export const blendVertexWgsl = (lobes: boolean) => {
       ...layout.read,
       VERTEX_LISTS_WGSL,
       vsOutWgsl(layout.uv, layout.ids),
-      TRIANGLE_PALETTE_WGSL,
+      mixWord,
       FACING_WGSL,
       lowBits,
     ],
@@ -103,7 +103,7 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  out.diagId=0u;
  if((flags&${itemFlags.FLAG_DIAGNOSTIC_CLUSTER_VIEWS}u)!=0u){out.diagId=clusterId;}
  if((flags&${itemFlags.FLAG_DIAGNOSTIC_WIREFRAME}u)!=0u){
-  let a=triangleHash(corners.x);let b=triangleHash(corners.y);let c=triangleHash(corners.z);
+  let a=mixWord(corners.x);let b=mixWord(corners.y);let c=mixWord(corners.z);
   out.tri=a^((b<<1u)|(b>>31u))^((c<<2u)|(c>>30u));
  }
  let corner=local%3u;
