@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import * as G from '../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { threeMaterials } from '../../../../fromSurface.ts'
+import { threeMaterials } from '../../../fromSurface.ts'
 
 const texture = () => G.dataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, 'rgba')
 

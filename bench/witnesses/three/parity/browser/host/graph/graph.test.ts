@@ -18,7 +18,7 @@ import { perspectiveProjection } from '../../../../../../../packages/math/src/pr
 import { Light } from '../../../../../../../packages/sdk-core/src/world/light/light.ts'
 import { BufferAttribute } from '../../../../../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { familySurface } from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { threeMaterials } from '../../../../../fromSurface.ts'
+import { threeMaterials } from '../../../../fromSurface.ts'
 import { Texture } from '../../../../../../../packages/sdk-core/src/world/texture/texture.ts'
 import { hookHostNode } from '../../../../../../../packages/sdk-browser/src/host/scene/hooks.ts'
 import { Geometry } from '../../../../../../../packages/sdk-core/src/world/geometry/geometry.ts'
