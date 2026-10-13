@@ -38,7 +38,6 @@ import { CUT_RULE_WGSL } from '../page/cut/rule.ts'
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { bitAt, bitIsSet, lowBits, rectCell } from '../../../math/src/wgsl/integer.ts'
-import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { projectedBoundWgsl } from '../gpu/dag/shader/projectedBoundWgsl.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
@@ -213,24 +212,6 @@ export const VSM_RENDER_CULL_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'projectionData', binding: 4 },
 ]
 
-/** The box frustum tests of the shared cull (`VSM_BOX_CULL_WGSL`) on a box of the shifted world,
- *  its local-to-world the identity: the shifted-to-clip matrix takes it to clip space. */
-const FRUSTUM_WGSL = /* wgsl */ `
-/** The frustum cull of a box under an orthographic view, identity local-to-world. */
-fn vsmShiftedBoxOrtho(center:vec3f,extent:vec3f,m:mat4x4f,nearClip:bool)->VsmBoxInView{
- return vsmBoxInOrthoView(transformPoint(m,center),extent.x*m[0].xyz,extent.y*m[1].xyz,extent.z*m[2].xyz,nearClip);
-}
-/** The frustum cull of a box under a perspective view, identity local-to-world. */
-fn vsmShiftedBoxPerspective(center:vec3f,extent:vec3f,m:mat4x4f,viewToClip:mat4x4f)->VsmBoxInView{
- return vsmBoxInPerspectiveView(m*vec4f(center-extent,1.0),(2.0*extent.x)*m[0],(2.0*extent.y)*m[1],(2.0*extent.z)*m[2],viewToClip);
-}
-/** The frustum cull of a box: orthographic, or perspective when near clipping is on. */
-fn vsmShiftedBoxInView(center:vec3f,extent:vec3f,m:mat4x4f,viewToClip:mat4x4f,isOrtho:bool,nearClip:bool)->VsmBoxInView{
- if(isOrtho||!nearClip){return vsmShiftedBoxOrtho(center,extent,m,nearClip);}
- return vsmShiftedBoxPerspective(center,extent,m,viewToClip);
-}
-`
-
 /** The page-overlap and static-caching pieces the command cull reads. */
 const OVERLAP_WGSL = /* wgsl */ `
 /** A mask of \`runWidth\` bits at \`runStart\`. */
@@ -307,7 +288,6 @@ fn vsmShiftedToClip(uv:mat4x4f)->mat4x4f{
 export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {}) =>
   wgslProgram(
     [
-      FRUSTUM_WGSL,
       OVERLAP_WGSL,
       /* wgsl */ `
 @group(1) @binding(0) var<uniform> params:VsmRenderParams;
@@ -355,7 +335,9 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
   }else if(radius*radius<params.smallCasterSq*dot(d,d)){return;}
  }
  // Frustum cull; non-static geometry also within the depth range (0, the largest float).
- let cull=vsmShiftedBoxInView(center,vec3f(radius),shiftedToClip,viewToClip,isOrtho,nearClip);
+ let extent=vec3f(radius);
+ let boxPoint=vsmBoxCullPoint(center,extent,isOrtho,nearClip);
+ let cull=vsmBoxInView(shiftedToClip*vec4f(boxPoint,1.0),shiftedToClip[0],shiftedToClip[1],shiftedToClip[2],extent,viewToClip,isOrtho,nearClip);
  visible=cull.inMapView;
  if(visible&&!staticLayer){
   visible=cull.clipHigh.z>0.0&&cull.clipLow.z<FLOAT32_MAX;
@@ -395,7 +377,6 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
       VSM_BOX_CULL_WGSL,
       FLOAT32_MAX,
       WORKGROUP_THREADS_WGSL,
-      transformPoint,
       lowBits,
     ],
   )

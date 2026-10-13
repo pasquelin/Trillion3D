@@ -1,11 +1,11 @@
-// The box cull the cache invalidation and the render cull share (`boxCullWgsl.ts`) gives each of
-// them, bit for bit, what its own cull gave (`boxCullBefore.fixture.ts`): the frustum cull of a
+// The box cull the cache invalidation and the render cull share (`boxCullWgsl.ts`, `vsmBoxInView`)
+// gives each of them, bit for bit, what its own cull gave (`boxCullBefore.fixture.ts`): the frustum cull of a
 // box, its rect in pixels and the mip level covering a rect, over seeded boxes and views with
 // their edges — boxes flush with the frustum's sides and its near and far planes, corners at
 // w = 0, empty extents, the f32 limits, infinities and NaN.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
+import { Mat, matrixProduct } from '../texture/shaderRunMatrix.fixture.ts'
 import { INVALIDATION_BOX_CULL, RENDER_BOX_CULL } from './boxCullBefore.fixture.ts'
 import { INVALIDATION, RENDER, run } from './boxCullTables.fixture.ts'
 import { inputs, sameBits } from './sameBits.fixture.ts'
@@ -34,6 +34,24 @@ function box(d: ReturnType<typeof inputs>, exact: boolean) {
     extent: d.vec(3, () => d.pick([0, 0.5, 1])),
   }
 }
+/** The shared cull (`vsmBoxInView`) as each caller hands it a box: the clip image of its
+ *  `vsmBoxCullPoint` and of its axes, through `toClip` after `toWorld` when the box has one. */
+function sharedCull(
+  after: Record<string, (...args: unknown[]) => unknown>,
+  [center, extent, toWorld, toClip, viewToClip]: (number[] | Mat | null)[],
+  flags: boolean[],
+) {
+  const clip = (v: number[]) => matrixProduct(toClip, toWorld ? matrixProduct(toWorld, v) : v)
+  const point = after.vsmBoxCullPoint(center, extent, ...flags) as number[]
+  const axes = [0, 1, 2].map((k) =>
+    toWorld ? matrixProduct(toClip, (toWorld as Mat)[k]) : (toClip as Mat)[k],
+  )
+  return after.vsmBoxInView(clip([...point, 1]), ...axes, extent, viewToClip, ...flags) as Record<
+    string,
+    unknown
+  >
+}
+const SHARED = ['vsmBoxCullPoint', 'vsmBoxInView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView']
 /** How many of the culls were visible, and how many crossed the near plane. */
 const tally = (counts: number[], cull: Record<string, unknown>) => {
   counts[0] += Number(cull.inMapView === true)
@@ -52,9 +70,7 @@ test("the invalidation's box cull is its own, bit for bit, the side-culled bit n
       'vsmMax3v2',
     ],
   ])
-  const after = run(INVALIDATION, [
-    ...['vsmBoxInMapView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView', 'perspectiveDivide'],
-  ])
+  const after = run(INVALIDATION, [...SHARED, 'perspectiveDivide'])
   const counts = [0, 0]
   for (let k = 0; k < CASES; k++) {
     const d = inputs(1000 + k),
@@ -63,7 +79,7 @@ test("the invalidation's box cull is its own, bit for bit, the side-culled bit n
     const args = [center, extent, matrix(d, exact), matrix(d, exact), matrix(d, exact)]
     const flags = [d.bool(), d.bool()]
     const was = before.vsmShiftedBoxInView(...args, ...flags) as Record<string, unknown>,
-      is = after.vsmBoxInMapView(...args, ...flags) as Record<string, unknown>
+      is = sharedCull(after, args, flags)
     assert.ok(sameBits(was, is, CULL_KEYS), `case ${k}: ${JSON.stringify([was, is])}`)
     tally(counts, is)
   }
@@ -73,20 +89,20 @@ test("the invalidation's box cull is its own, bit for bit, the side-culled bit n
 test("the render cull's box cull is its own, bit for bit", () => {
   const names = ['vsmShiftedBoxInView', 'vsmShiftedBoxOrtho', 'vsmShiftedBoxPerspective']
   const before = run(RENDER_BOX_CULL, names),
-    after = run(RENDER, [
-      ...names,
-      'vsmBoxInOrthoView',
-      'vsmBoxInPerspectiveView',
-      'perspectiveDivide',
-    ])
+    after = run(RENDER, [...SHARED, 'perspectiveDivide'])
   const counts = [0, 0]
   for (let k = 0; k < CASES; k++) {
     const d = inputs(2000 + k),
       exact = k % 3 === 0
     const { center, extent } = box(d, exact)
-    const args = [center, extent, matrix(d, exact), matrix(d, exact), d.bool(), d.bool()]
-    const was = before.vsmShiftedBoxInView(...args) as Record<string, unknown>,
-      is = after.vsmShiftedBoxInView(...args) as Record<string, unknown>
+    const m = matrix(d, exact),
+      viewToClip = matrix(d, exact),
+      flags = [d.bool(), d.bool()]
+    const was = before.vsmShiftedBoxInView(center, extent, m, viewToClip, ...flags) as Record<
+        string,
+        unknown
+      >,
+      is = sharedCull(after, [center, extent, null, m, viewToClip], flags)
     assert.ok(sameBits(was, is, CULL_KEYS), `case ${k}: ${JSON.stringify([was, is])}`)
     tally(counts, is)
   }

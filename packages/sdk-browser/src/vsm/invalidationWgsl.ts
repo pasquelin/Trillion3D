@@ -83,16 +83,6 @@ ${wgslConsts({
 /** Page-rect overlap and static caching (the box cull, its rect and the fine-caster test are the
  *  shared `VSM_BOX_CULL_WGSL`'s). */
 const VSM_PAGE_OVERLAP_WGSL = /* wgsl */ `
-/** The frustum cull of an instance's local box, taken to clip space through its local-to-world
- *  then the view's world-to-clip: orthographic, or perspective when near clipping is on. */
-fn vsmBoxInMapView(center:vec3f,extent:vec3f,localToWorld:mat4x4f,worldToClip:mat4x4f,viewToClip:mat4x4f,isOrtho:bool,nearClip:bool)->VsmBoxInView{
- if(isOrtho||!nearClip){
-  return vsmBoxInOrthoView((worldToClip*(localToWorld*vec4f(center,1.0))).xyz,
-   extent.x*(worldToClip*localToWorld[0]).xyz,extent.y*(worldToClip*localToWorld[1]).xyz,extent.z*(worldToClip*localToWorld[2]).xyz,nearClip);
- }
- return vsmBoxInPerspectiveView(worldToClip*(localToWorld*vec4f(center-extent,1.0)),
-  (2.0*extent.x)*(worldToClip*localToWorld[0]),(2.0*extent.y)*(worldToClip*localToWorld[1]),(2.0*extent.z)*(worldToClip*localToWorld[2]),viewToClip);
-}
 /** Clips the page rect of a pixel rect to the allocated bounds (at map id · 8 + mip). */
 fn vsmMappedRectPages(pixels:vec4i,h:VsmHandle,mipLevel:u32)->vec4u{
  let pagesRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE);
@@ -138,8 +128,11 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  let uvToClip=mat4x4f(vec4f(2.0,0.0,0.0,0.0),vec4f(0.0,-2.0,0.0,0.0),vec4f(0.0,0.0,1.0,0.0),vec4f(-1.0,1.0,0.0,1.0));
  let isOrtho=sunMap;
  let nearClip=!sunMap;
- let cull=vsmBoxInMapView(inst.boxCentre,inst.boxExtent,localToShifted,
-  uvToClip*pd.shiftedToMapUv,pd.lightViewToClip,isOrtho,nearClip);
+ // The box to clip space through its local-to-world, then the view's world-to-clip.
+ let toClip=uvToClip*pd.shiftedToMapUv;
+ let boxPoint=vsmBoxCullPoint(inst.boxCentre,inst.boxExtent,isOrtho,nearClip);
+ let cull=vsmBoxInView(toClip*(localToShifted*vec4f(boxPoint,1.0)),toClip*localToShifted[0],toClip*localToShifted[1],toClip*localToShifted[2],
+  inst.boxExtent,pd.lightViewToClip,isOrtho,nearClip);
  var pixelRadius=vsmClipRadius(isOrtho,boxRadius,shiftedCenter,pd.lightViewToClip)*f32(VSM_LEVEL0_TEXELS);
  if(!cull.inMapView){return;}
  let staticBox=vsmCachesAsStatic(inst,pd.uncached);

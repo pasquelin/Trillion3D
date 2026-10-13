@@ -66,7 +66,7 @@ test("an instance's pages are invalidated as before: the same writes in the same
     INVALIDATION,
     [
       ...HELPERS,
-      ...['vsmBoxInMapView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'],
+      ...['vsmBoxCullPoint', 'vsmBoxInView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'],
       ...['vsmRectPixels', 'vsmRectMarks'],
     ],
     logged(INVALIDATION, []),

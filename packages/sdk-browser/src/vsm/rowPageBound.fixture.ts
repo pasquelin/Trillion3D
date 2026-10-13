@@ -7,7 +7,7 @@ import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
+import { Mat, matrixProduct } from '../texture/shaderRunMatrix.fixture.ts'
 import { vector } from '../texture/shaderRunBuiltins.fixture.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { frame, LEVELS, PROJECTION, VIEW } from './clipmap.fixture.ts'
@@ -101,26 +101,26 @@ const res = createVsmResources(
   { fullMapCapacity: 63 },
 )
 const cull = shaderRun<{
-  vsmShiftedBoxOrtho: (c: number[], e: number[], m: Mat, near: boolean) => Cull
-  vsmShiftedBoxPerspective: (c: number[], e: number[], m: Mat, viewToClip: Mat) => Cull
+  vsmBoxCullPoint: (c: number[], e: number[], isOrtho: boolean, near: boolean) => number[]
+  vsmBoxInView: (...args: unknown[]) => Cull
   vsmRectPixels: (view: number[], cull: Cull) => number[]
 }>(
   // The perspective box's corner list, `array<vec4f,8>(…)`, as a JavaScript array.
   wgslSource(vsmRenderCullWgsl(res.layout)).replace(/array<\s*\w+\s*,\s*\d+\s*>\(/g, 'arrayOf('),
   [
-    ...[
-      'vsmShiftedBoxOrtho',
-      'vsmShiftedBoxPerspective',
-      'vsmRectPixels',
-      'perspectiveDivide',
-      'transformPoint',
-    ],
+    ...['vsmBoxCullPoint', 'vsmBoxInView', 'vsmRectPixels', 'perspectiveDivide'],
     // The cull of the box in clip space they hand it to (`boxCullWgsl.ts`).
     ...['vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'],
   ],
   { vec4i: vector(4, (x) => Math.trunc(Number(x))), arrayOf: (...v: unknown[]) => v },
 )
 const SIZE = VSM_LEVEL0_TEXELS
+/** The shipped cull of the box `c ± r` under `m`, as the render cull hands it. */
+const boxIn = (c: number[], r: number, m: Mat, viewToClip: Mat, ortho: boolean) => {
+  const e = [r, r, r],
+    at = matrixProduct(m, [...cull.vsmBoxCullPoint(c, e, ortho, !ortho), 1])
+  return cull.vsmBoxInView(at, m[0], m[1], m[2], e, viewToClip, ortho, !ortho)
+}
 /** vsmShiftedToClip: each column (x, y, z, w) of the UV matrix → (2x − w, w − 2y, z, w). */
 const clipOf = (uv: Float64Array) =>
   new Mat(
@@ -150,7 +150,7 @@ export function bruteForce(rows: VsmRowSpheres, light: VsmBoundLight, pages: num
       const b = i * CLUSTER_SPHERE_FLOATS,
         r = p[b + 3]
       const c = [0, 1, 2].map((a) => p[b + a] + p[b + 4 + a] + pd.originShift[a])
-      const box = cull.vsmShiftedBoxOrtho(c, [r, r, r], m, false)
+      const box = boxIn(c, r, m, m, true)
       if (!box.inMapView) continue
       const count = pagesRect(cull.vsmRectPixels([0, 0, SIZE, SIZE], box))
       if (count === 0) continue
@@ -178,7 +178,7 @@ export function bruteForceLocal(rows: VsmRowSpheres, light: VsmBoundLight) {
         r = p[b + 3]
       const c = [0, 1, 2].map((a) => p[b + a] + p[b + 4 + a] + pd.originShift[a])
       if (Math.hypot(c[0], c[1], c[2]) > pd.lightRange + r) continue
-      const box = cull.vsmShiftedBoxPerspective(c, [r, r, r], m, viewToClip)
+      const box = boxIn(c, r, m, viewToClip, false)
       if (!box.inMapView) continue
       for (let mip = 0; mip < VSM_MIPS; mip++) {
         const size = SIZE >> mip

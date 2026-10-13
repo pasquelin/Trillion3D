@@ -13,8 +13,8 @@ import { VSM_PAGE_ADDRESS_WGSL, VSM_PAGE_MARKS_GATHER_WGSL } from './pageTableWg
  *
  * Each caller takes its box to clip space its own way — the invalidation through the instance's
  * local-to-world and then the view's world-to-clip, the render cull through one shifted-to-clip
- * matrix — and hands the cull the clip-space centre (or corner) and axes it computed: the
- * floating-point operations of each are its own, in its own order.
+ * matrix — and hands `vsmBoxInView` the clip image of the box's `vsmBoxCullPoint` and of its
+ * axes: the floating-point operations of each are its own, in its own order.
  */
 export const VSM_BOX_CULL_WGSL = wgslBlock(
   'VSM_BOX_CULL_WGSL',
@@ -89,6 +89,15 @@ fn vsmBoxInPerspectiveView(corner000:vec4f,dx:vec4f,dy:vec4f,dz:vec4f,viewToClip
  let offView=any(sideLow>vec4f(0.0));
  cull.inMapView=cull.inMapView&&!offView;
  return cull;
+}
+/** The local point a box's frustum cull starts from: its centre under an orthographic view or
+ *  without near clipping, else its corner, its centre less its extent. */
+fn vsmBoxCullPoint(center:vec3f,extent:vec3f,isOrtho:bool,nearClip:bool)->vec3f{return select(center-extent,center,isOrtho||!nearClip);}
+/** The frustum cull of a box: orthographic, or perspective when near clipping is on, from the clip
+ *  image \`point\` of its \`vsmBoxCullPoint\` and the clip images of its three local axes. */
+fn vsmBoxInView(point:vec4f,axisX:vec4f,axisY:vec4f,axisZ:vec4f,extent:vec3f,viewToClip:mat4x4f,isOrtho:bool,nearClip:bool)->VsmBoxInView{
+ if(isOrtho||!nearClip){return vsmBoxInOrthoView(point.xyz,extent.x*axisX.xyz,extent.y*axisY.xyz,extent.z*axisZ.xyz,nearClip);}
+ return vsmBoxInPerspectiveView(point,(2.0*extent.x)*axisX,(2.0*extent.y)*axisY,(2.0*extent.z)*axisZ,viewToClip);
 }
 /** The screen rect of a culled box, in pixels. */
 fn vsmRectPixels(viewRect:vec4i,cull:VsmBoxInView)->vec4i{
