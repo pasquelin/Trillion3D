@@ -18,7 +18,7 @@ export type BudgetReading = {
 }
 
 /** The case the budget proof draws: one whose floor reflects many shapes. */
-export const BUDGET_CASE = 0
+export const BUDGET_CASE = 25
 
 export const run = (size: readonly [number, number]) =>
   runOnDevice<BudgetReading>(async (_device, _events, result) => {

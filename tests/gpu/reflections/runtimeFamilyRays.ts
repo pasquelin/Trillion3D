@@ -10,13 +10,13 @@ export type Vec = [number, number, number]
 export const add = (a: Vec, b: Vec): Vec => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 export const sub = (a: Vec, b: Vec): Vec => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 export const scale = (a: Vec, s: number): Vec => [a[0] * s, a[1] * s, a[2] * s]
-export const dot = (a: Vec, b: Vec) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+const dot = (a: Vec, b: Vec) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 export const cross = (a: Vec, b: Vec): Vec => [
   a[1] * b[2] - a[2] * b[1],
   a[2] * b[0] - a[0] * b[2],
   a[0] * b[1] - a[1] * b[0],
 ]
-export const length = (a: Vec) => length3(a[0], a[1], a[2])
+const length = (a: Vec) => length3(a[0], a[1], a[2])
 export const unit = (a: Vec): Vec => scale(a, 1 / length(a))
 
 /** A world vector in a shape's frame: the inverse of its pose, `pitch` about x then `yaw` about y. */
@@ -29,8 +29,7 @@ function unturn(v: Vec, yaw: number, pitch: number): Vec {
 }
 
 /** Where shape `s` stands once its move is made: its centre plus the move. */
-export const finalCentre = (s: Shape): Vec =>
-  s.kind === 'skinned' ? s.centre : add(s.centre, s.move)
+const finalCentre = (s: Shape): Vec => (s.kind === 'skinned' ? s.centre : add(s.centre, s.move))
 
 /** The parameters `t > 1e-6` at which the ray `o + t d` crosses shape `s`, ascending. */
 export function crossings(s: Shape, o: Vec, d: Vec): number[] {

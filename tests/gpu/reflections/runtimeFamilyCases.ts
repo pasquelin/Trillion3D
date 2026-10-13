@@ -4,7 +4,7 @@
 // a black disc showed under a lamp's globe is whatever the seed makes it, one among the others.
 import { lcgRandom, type Random } from '../../../packages/math/src/sequence/random.ts'
 
-export type ShapeKind = 'sphere' | 'box' | 'torus' | 'post' | 'quad' | 'disc' | 'morph' | 'skinned'
+type ShapeKind = 'sphere' | 'box' | 'torus' | 'post' | 'quad' | 'disc' | 'morph' | 'skinned'
 export type Rgb = [number, number, number]
 
 /** A shape of the scene, in its own frame (axes along x, y, z, the post and the torus along y): `size`
