@@ -27,10 +27,15 @@ function splitSum(f0: number, rough: number, nov: number) {
   return f0 * (-1.04 * a004 + r[2]) + 1.04 * a004 + r[3]
 }
 
-export type Decided = { index: number; expected: Rgb }
+export type Decided = { index: number; expected: Rgb; at: [number, number]; hit: number }
 
 /** The decided pixels of the grid of an image `width × height` and what each must show. */
-export function expectedFloor(c: FamilyCase, width: number, height: number): Decided[] {
+export function expectedFloor(
+  c: FamilyCase,
+  width: number,
+  height: number,
+  lobeSamples = LOBE_SAMPLES,
+): Decided[] {
   const forward = unit(sub(c.target, c.eye)),
     right = unit(cross(forward, [0, 1, 0])),
     up = cross(right, forward),
@@ -77,7 +82,7 @@ export function expectedFloor(c: FamilyCase, width: number, height: number): Dec
         nov = v[1]
       const alpha = Math.max(rough * rough, 1e-4)
       const total: Rgb = [0, 0, 0]
-      const count = rough < 0.04 ? 1 : LOBE_SAMPLES
+      const count = rough < 0.04 ? 1 : lobeSamples
       for (let k = 0; k < count; k++) {
         // The half vector of the lobe's D·cosθ, on a Hammersley set.
         const u = (k + 0.5) / count
@@ -95,7 +100,7 @@ export function expectedFloor(c: FamilyCase, width: number, height: number): Dec
       }
       const f0 = c.floor.metal ? 1 : 0.04,
         w = splitSum(f0, rough, nov)
-      out.push({ index, expected: total.map((e) => e * w) as Rgb })
+      out.push({ index, expected: total.map((e) => e * w) as Rgb, at: [i, j], hit: own })
     }
   return out
 }
@@ -104,8 +109,18 @@ export function expectedFloor(c: FamilyCase, width: number, height: number): Dec
  *  worst one: the pixel off by the largest share of what it must show. */
 export function judge(decided: Decided[], samples: number[]) {
   let passed = 0
-  let worst = { index: -1, got: [0, 0, 0] as Rgb, expected: [0, 0, 0] as Rgb, off: 0 }
-  for (const { index, expected } of decided) {
+  // The failing pixels by what is wrong: nothing shown where something is expected (`missing`), something
+  // shown where nothing is (`spurious`), both nonzero but off (`energy`: `over` brighter, `under` darker).
+  const kinds = { missing: 0, spurious: 0, over: 0, under: 0 }
+  let worst = {
+    index: -1,
+    got: [0, 0, 0] as Rgb,
+    expected: [0, 0, 0] as Rgb,
+    off: 0,
+    at: [0, 0],
+    hit: -1,
+  }
+  for (const { index, expected, at, hit } of decided) {
     const got = [0, 1, 2].map((m) => samples[index * 3 + m]) as Rgb
     const off = Math.max(
       ...[0, 1, 2].map((m) => {
@@ -114,9 +129,17 @@ export function judge(decided: Decided[], samples: number[]) {
       }),
     )
     if (off <= TOLERANCE.relative) passed++
-    if (off > worst.off) worst = { index, got, expected, off }
+    else {
+      const [g, e] = [Math.max(...got), Math.max(...expected)]
+      if (e <= TOLERANCE.absolute) kinds.spurious++
+      else if (g <= TOLERANCE.absolute) kinds.missing++
+      else if (g > e) kinds.over++
+      else kinds.under++
+    }
+    if (off > worst.off) worst = { index, got, expected, off, at, hit }
   }
   return {
+    kinds,
     decided: decided.length,
     passed,
     rate: decided.length ? passed / decided.length : 1,

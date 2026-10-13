@@ -16,6 +16,9 @@ export interface TaaFrameState {
   /** Render view-projection of this image, jitter included: what the raster, shading, blend and
    *  the partition read, decided once at image entry. */
   viewProjection: Float64Array
+  /** The camera's view-projection of this image, WITHOUT jitter: what a reader that must not follow the
+   *  sub-pixel offset (the run-time proxy's epoch) tells the view's move by. */
+  cameraViewProjection: Float64Array
   /** View-projection WITHOUT jitter of the last accumulated image: what the history describes. */
   previousViewProjection: Float64Array
   /** The eye of that image: the camera's move since, which a point's parallax is told by. */
@@ -68,6 +71,7 @@ export function createTaaFrameState(): TaaFrameState {
     jitter: new Float64Array(2),
     jitterGrid: new Float64Array(2),
     viewProjection: new Float64Array(16),
+    cameraViewProjection: new Float64Array(16),
     previousViewProjection: new Float64Array(16),
     previousEye: new Float64Array(3),
     hasHistory: false,

@@ -14,6 +14,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
+import { writeFileSync } from 'node:fs'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
 import { FRAME_WORK } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import { FAMILY_SIZE, familyCase } from './runtimeFamilyCases.ts'
@@ -35,14 +36,22 @@ for (let index = 0; index < FAMILY_SIZE; index++)
           resolve(import.meta.dirname, 'runtimeFamilyPage.ts'),
           'reflectionFamily',
         )) as typeof import('./runtimeFamilyPage.ts')
-        const result = await runOnDawn(page.run, index)
+        const result = await runOnDawn(page.run, {
+          index,
+          limit: Number(process.env.TRILLION3D_HOLD ?? 400),
+        })
         if (result.error) console.log(`CASE ${index} ERROR ${String(result.error).slice(0, 600)}`)
         assert.equal(result.error, undefined, result.error)
         assert.deepEqual(result.errors, [])
         assert.deepEqual(result.worldErrors, [], "the world's own device raised no error")
         const { width = 0, height = 0, samples = [], frames = 0, spent = 0, left = 0 } = result
+        if (process.env.TRILLION3D_DUMP)
+          writeFileSync(
+            `${process.env.TRILLION3D_DUMP}-${index}.json`,
+            JSON.stringify({ width, height, samples }),
+          )
         const decided = expectedFloor(c, width, height)
-        const { passed, rate, worst } = judge(decided, samples)
+        const { passed, rate, worst, kinds } = judge(decided, samples)
         rates.push(rate)
         console.log(
           JSON.stringify({
@@ -54,6 +63,7 @@ for (let index = 0; index < FAMILY_SIZE; index++)
             frames,
             decided: decided.length,
             passed,
+            kinds,
             rate: Number(rate.toFixed(3)),
             worst: { ...worst, off: Number(worst.off.toFixed(2)) },
             spent,

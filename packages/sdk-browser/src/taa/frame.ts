@@ -79,6 +79,7 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   taaJitter(state.sample + offset, state.jitter, state.phases)
   state.jitterGrid[0] = targetSize[0]
   state.jitterGrid[1] = targetSize[1]
+  state.cameraViewProjection.set(cam.viewProjection)
   jitterViewProjection(
     state.viewProjection,
     cam.viewProjection,

@@ -36,7 +36,9 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
   // The run-time proxy's answers are of an epoch: it moves with the view, the lights, the poses and the proxy.
   frame.epoch = reflection.history.follow(
     [rt.lights.store.epoch, run.gpuSelection?.proxyRevision() ?? 0],
-    frame.viewProjection,
+    // The camera's own view: the jitter moves the render matrix every image, and an epoch that followed it
+    // would restart the budget for ever.
+    gpu.temporal?.frame.active ? gpu.temporal.frame.cameraViewProjection : frame.viewProjection,
   )
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
 }

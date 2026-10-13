@@ -35,19 +35,19 @@ export async function hold(world: ReturnType<typeof familyWorld>['world'], limit
   return frames
 }
 
-async function draw(index: number) {
+async function draw(index: number, limit: number) {
   const c = familyCase(index)
   const { errors: worldErrors, made, textures } = listenToWorldDevices()
   const canvas = proofCanvas(`runtime-family-${index}`) as unknown as Canvas
   canvas.readable = true
   const { world, moved } = familyWorld(canvas, c)
   await world.ready
-  let frames = await hold(world)
+  let frames = await hold(world, limit)
   if (c.shapes.some((s) => s.move.some((v) => v !== 0))) {
     moved()
     await animationFrame()
     await animationFrame()
-    frames += await hold(world)
+    frames += await hold(world, limit)
   }
   const target = [...textures]
     .reverse()
@@ -84,7 +84,7 @@ const canvasDevice = (canvas: Canvas) =>
     canvas.getContext('webgpu') as unknown as { getConfiguration(): { device: GPUDevice } }
   ).getConfiguration().device
 
-export const run = (index: number) =>
+export const run = ({ index, limit }: { index: number; limit: number }) =>
   runOnDevice<FamilyReading>(async (_device, _events, result) => {
-    Object.assign(result, await draw(index))
+    Object.assign(result, await draw(index, limit))
   })

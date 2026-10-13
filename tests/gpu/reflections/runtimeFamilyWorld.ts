@@ -16,14 +16,8 @@ import {
 } from '../../../packages/sdk-browser/src/index.ts'
 import type { FamilyCase, Rgb, Shape } from './runtimeFamilyCases.ts'
 
-const hex = (c: Rgb) =>
-  `#${c
-    .map((v) =>
-      Math.round(Math.min(1, v) * 255)
-        .toString(16)
-        .padStart(2, '0'),
-    )
-    .join('')}`
+/** A linear colour: an array is read as it is, never as the sRGB a hex string names. */
+const linear = (c: Rgb): [number, number, number] => [c[0], c[1], c[2]]
 
 /** The geometry of `s` in its own frame (`Shape`): the post and the torus along y, the quad and the disc
  *  in the plane y = 0, a morph's sphere with one target that stretches it along y. */
@@ -77,10 +71,8 @@ function shapeMesh(s: Shape) {
   const mesh = object.mesh(
     shapeGeometry(s),
     material.meshStandard({
-      color: hex(s.albedo),
-      emissive: s.emission.some((v) => v > 0)
-        ? hex(s.emission.map((v) => v / peak) as Rgb)
-        : '#000000',
+      color: linear(s.albedo),
+      emissive: linear(s.emission.map((v) => v / peak) as Rgb),
       emissiveIntensity: peak,
       opacity: s.opacity,
       transparent: s.opacity < 1,
@@ -107,7 +99,7 @@ export function familyWorld(canvas: HTMLCanvasElement, c: FamilyCase) {
   const { metal, roughness, albedo } = c.floor
   const floor = object.mesh(
     geometry.box(60, 0.2, 60),
-    material.meshStandard({ color: hex(albedo), metalness: metal ? 1 : 0, roughness }),
+    material.meshStandard({ color: linear(albedo), metalness: metal ? 1 : 0, roughness }),
   )
   floor.position.y = -0.1
   const meshes = c.shapes.map(shapeMesh)
