@@ -1,6 +1,12 @@
 import { wantsSubsurface } from '../../../scene/subsurface.ts'
 import { wantsPhysicalLobes } from './lobesTarget.ts'
-import { DISPLAY_FORMAT, FEEDBACK_FORMAT, holds } from '../../../scene/surfaceBuffer.ts'
+import {
+  DISPLAY_FORMAT,
+  FEEDBACK_FORMAT,
+  holds,
+  DEPTH_FORMAT,
+  HDR_FORMAT,
+} from '../../../scene/surfaceBuffer.ts'
 import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
 import { createBackdrop } from '../../transparent/transmission.ts'
 import { createScreenReflection } from '../../../reflections/gpu.ts'
@@ -126,10 +132,10 @@ export function buildTargets(
     : undefined
   gpu.depthTexture = target(
     'Trillion3D opaque depth',
-    'depth32float',
+    DEPTH_FORMAT,
     usage | GPUTextureUsage.COPY_DST,
   )
-  gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float')
+  gpu.hdrTexture = target('Trillion3D HDR lighting', HDR_FORMAT)
   if (vis.writesFeedback) makeFeedbackTarget(rt, device, width, height)
   gpu.surfaces = createSurfaceBuffer(device, width, height, {
     subsurface: wantsSubsurface(rt),

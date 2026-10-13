@@ -20,6 +20,7 @@ import { makeFullscreenPipeline } from './fullscreen.ts'
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { createCompositions, type CompositionSources } from './compositions.ts'
 import { type FusedBlend } from '../../webgpu/effects/webgpuKinds.ts'
+import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. With them,
  *  the frame's key: what its program leaves out (`contractCuts.ts`). */
@@ -70,7 +71,7 @@ export interface DeferredBindings {
 
 export type DeferredProgram = Awaited<ReturnType<typeof createDeferredProgram>>
 
-const HDR: GPUColorTargetState[] = [{ format: 'rgba16float' }]
+const HDR: GPUColorTargetState[] = [{ format: HDR_FORMAT }]
 
 /** A composition: its group, and the input its pipelines compose (`compositions`). */
 type Composition = { group: GPUBindGroup; input: ComposeInput }

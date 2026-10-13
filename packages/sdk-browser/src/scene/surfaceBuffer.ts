@@ -24,6 +24,11 @@ export const SURFACE_FORMATS: GPUTextureFormat[] = [
 /** Bytes of the four surface targets per pixel, and the shadow receiver's the resolve writes for
  *  the virtual shadow maps' projection (`../visibility/shader/receiverTargetWgsl.ts`). */
 export const SURFACE_BYTES_PER_PIXEL = texelBytesOf(...SURFACE_FORMATS) + RECEIVER_TARGET_BYTES
+/** The HDR colour: what the lighting writes, and the transparents, the effects and the temporal
+ *  antialiasing read and write. */
+export const HDR_FORMAT: GPUTextureFormat = 'rgba16float'
+/** The scene's depth: every opaque raster's, and every copy made of it. */
+export const DEPTH_FORMAT: GPUTextureFormat = 'depth32float'
 /** Display colour target, what the composition writes; before it, the water pass borrows it. */
 export const DISPLAY_FORMAT: GPUTextureFormat = 'rgba8unorm'
 /** Virtual-texture feedback target: the tile rank a pixel asks for, written by hardware
@@ -36,9 +41,9 @@ export const FEEDBACK_BYTES = texelBytesOf(FEEDBACK_FORMAT)
  *  visibility, the HDR colour and the texture feedback. */
 const FRAME_BYTES_PER_PIXEL = texelBytesOf(
   DISPLAY_FORMAT,
-  'depth32float',
+  DEPTH_FORMAT,
   'r32uint',
-  'rgba16float',
+  HDR_FORMAT,
   FEEDBACK_FORMAT,
 )
 /** Color, depth, visibility, HDR, material surfaces, the transparent texture feedback target and

@@ -8,8 +8,8 @@ import { uniformSlots } from '../../residency/pools.ts'
 import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
 import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
 import { BLOOM_PASS } from '../../stage/passLabels.ts'
+import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
 
-const FORMAT: GPUTextureFormat = 'rgba16float'
 /** Words of one uniform slot, the `Bloom` struct a pass binds. */
 const SLOT_WORDS = BLOOM_UNIFORM_BYTES / 4
 type Size = readonly [number, number]
@@ -35,12 +35,12 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
   const module = await createCheckedShaderModule(device, BLOOM_WGSL, BLOOM_PASS)
   const add: GPUBlendComponent = { srcFactor: 'one', dstFactor: 'one', operation: 'add' }
   const [down, up, composite] = await Promise.all([
-    makeFullscreenPipeline(device, module, layouts.level, 'down', [{ format: FORMAT }]),
+    makeFullscreenPipeline(device, module, layouts.level, 'down', [{ format: HDR_FORMAT }]),
     makeFullscreenPipeline(device, module, layouts.level, 'up', [
-      { format: FORMAT, blend: { color: add, alpha: add } },
+      { format: HDR_FORMAT, blend: { color: add, alpha: add } },
     ]),
     makeFullscreenPipeline(device, module, [layouts.level, layouts.scene], 'composite', [
-      { format: FORMAT },
+      { format: HDR_FORMAT },
     ]),
   ])
   const sampler = device.createSampler({
@@ -171,7 +171,7 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
         label: `${BLOOM_PASS} levels`,
         size: { width: sizes[0][0], height: sizes[0][1] },
         mipLevelCount: sizes.length,
-        format: FORMAT,
+        format: HDR_FORMAT,
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
       })
       slots = uniformSlots(device.limits, passes * sizes.length * 2, SLOT_WORDS)

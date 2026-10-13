@@ -2,6 +2,7 @@ import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts'
 import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts'
 import { RECEIVER_TARGET_FORMAT } from '../../visibility/shader/receiverTargetWgsl.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../scene/physicalLobes.ts'
+import { SUBSURFACE_FORMAT } from '../../scene/subsurface.ts'
 /** The material pass's bind layout, which the feedback-free diagnostic pipelines share. */
 export function shadeLayout(device: GPUDevice) {
   const b = SHADE_BINDINGS
@@ -11,7 +12,7 @@ export function shadeLayout(device: GPUDevice) {
       {
         binding: b.subsurface,
         visibility: fragment,
-        storageTexture: { access: 'write-only', format: 'rgba16float' },
+        storageTexture: { access: 'write-only', format: SUBSURFACE_FORMAT },
       },
       {
         binding: b.receiver,

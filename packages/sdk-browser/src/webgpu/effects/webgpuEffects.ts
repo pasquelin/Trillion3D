@@ -7,6 +7,7 @@ import {
   type EffectPassOf,
 } from '../../effects/targets.ts'
 import { type FusedBlend, type Kinds, WEBGPU_KINDS } from './webgpuKinds.ts'
+import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
 
 /**
  * The WebGPU side of `world.effects`: the passes that run before tone mapping, between the
@@ -73,7 +74,7 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
       const target = device.createTexture({
         label: `Trillion3D effect target ${targets.length}`,
         size: { width: w, height: h },
-        format: 'rgba16float',
+        format: HDR_FORMAT,
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
       })
       targets.push(target)

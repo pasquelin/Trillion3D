@@ -2,6 +2,7 @@ import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { WATER_DEPTH_RESTORE_SHADER } from './depthRestoreShader.ts'
 import { waterSurfaceTargets } from './surfaceTargets.ts'
+import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
 
 /**
  * WebGPU forbids cropped depth texture copies. Restore texels through a fragment that reads one
@@ -38,7 +39,7 @@ export async function createWaterDepthRestore(device: GPUDevice, feedback: boole
           targets: targets.map((target) => ({ ...target, writeMask: 0 })),
         },
         primitive: { topology: 'triangle-list' },
-        depthStencil: { format: 'depth32float', depthCompare: 'always', depthWriteEnabled: true },
+        depthStencil: { format: DEPTH_FORMAT, depthCompare: 'always', depthWriteEnabled: true },
       })
       pipelines.set(lobes, pipeline)
     }

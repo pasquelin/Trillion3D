@@ -19,6 +19,7 @@ import {
 } from '../../vsm/projectionWgsl.ts'
 import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
 import { REFLECTION_TARGET } from '../../reflections/weight.ts'
+import { REFLECTION_FORMAT } from '../../reflections/constants.ts'
 
 /** Empty proxy header: no proxy ray without resident nodes. */
 const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16
@@ -195,7 +196,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   const reflection = device.createTexture({
     label: 'Trillion3D empty reflection',
     size: [1, 1],
-    format: 'rgba16float',
+    format: REFLECTION_FORMAT,
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
   return {

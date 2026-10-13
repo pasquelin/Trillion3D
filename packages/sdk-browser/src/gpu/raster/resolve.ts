@@ -3,9 +3,10 @@ import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts'
 import { VIS_UNIFORM_BYTES } from '../../webgpu/core/bindLayout.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { RASTER_OCCLUDER_HIZ_PASS, RASTER_RESOLVE_PASS } from '../../stage/passLabels.ts'
+import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
 
 const RESOLVE_DEPTH = {
-  format: 'depth32float' as const,
+  format: DEPTH_FORMAT,
   depthWriteEnabled: true,
   depthCompare: DEPTH_COMPARE_OR_EQUAL,
 }
