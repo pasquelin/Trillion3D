@@ -35,8 +35,8 @@ const kernel = oncePerDevice((device) =>
   }),
 )
 
-/** The joint bins' tables (`rowBinTables`), once a device. */
-const tablesOf = oncePerDevice((device) => {
+/** The joint bins' tables (`rowBinTables`) on `device`. */
+function createTables(device: GPUDevice) {
   const words = rowBinTables()
   const buffer = device.createBuffer({
     label: `${LABEL} tables`,
@@ -45,12 +45,14 @@ const tablesOf = oncePerDevice((device) => {
   })
   device.queue.writeBuffer(buffer, 0, words)
   return buffer
-})
+}
 
-/** A bound's pass on one device: its parameters, its histograms, its group and its ring. */
+/** A bound's pass on one device: its tables, its parameters, its histograms, its group and its
+ *  ring, all released with it (`releaseRowBins`). */
 function createRowBinsGpu(device: GPUDevice, bound: VsmRowBound) {
   return {
     device,
+    tables: createTables(device),
     params: undefined as GPUBuffer | undefined,
     bins: undefined as GPUBuffer | undefined,
     held: heldGroup(),
@@ -64,15 +66,23 @@ function createRowBinsGpu(device: GPUDevice, bound: VsmRowBound) {
 type RowBinsGpu = ReturnType<typeof createRowBinsGpu>
 const gpus = new WeakMap<VsmRowBound, RowBinsGpu>()
 
+/** Frees what the pass of `bound` holds on its device, if it holds any: at the teardown of the
+ *  shadows that own it (`destroyEngineVsm`), or for a pass made again on another device. */
+export function releaseRowBins(bound: VsmRowBound | undefined) {
+  const held = bound && gpus.get(bound)
+  if (!held) return
+  held.ring.destroy()
+  held.tables.destroy()
+  held.params?.destroy()
+  held.bins?.destroy()
+  gpus.delete(bound)
+}
+
 /** The pass of `bound` on `device`: the one it holds, or made again for another device. */
 function gpuOf(device: GPUDevice, bound: VsmRowBound) {
   const held = gpus.get(bound)
   if (held?.device === device) return held
-  if (held) {
-    held.ring.destroy()
-    held.params?.destroy()
-    held.bins?.destroy()
-  }
+  releaseRowBins(bound)
   const made = createRowBinsGpu(device, bound)
   gpus.set(bound, made)
   return made
@@ -120,7 +130,7 @@ export function encodeRowBins(
   gpu.params = sized(device, gpu.params, params.byteLength, 0)
   device.queue.writeBuffer(gpu.params, 0, params)
   gpu.bins = sized(device, gpu.bins, bytes, GPUBufferUsage.COPY_SRC)
-  const resources = [scene.spheres, scene.mobility, gpu.params, tablesOf(device), gpu.bins]
+  const resources = [scene.spheres, scene.mobility, gpu.params, gpu.tables, gpu.bins]
   const entries = (gpu.held.identity.entries[0] ??= resources.map((buffer, binding) => ({
     binding,
     resource: { buffer },

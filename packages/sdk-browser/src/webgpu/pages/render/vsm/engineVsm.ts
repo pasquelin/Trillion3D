@@ -43,6 +43,7 @@ import {
   type VsmRenderStats,
 } from '../../../../vsm/renderPass.ts'
 import { releaseVsmProjection, vsmProjectionHeldBytes } from '../../../../vsm/projectionPass.ts'
+import { releaseRowBins } from '../../../../vsm/rowBinsGpu.ts'
 import {
   VSM_PROJECTION_MASK_FORMAT,
   VSM_PROJECTION_MAX_LIGHTS,
@@ -342,6 +343,8 @@ function grownImage(image: ArrayBuffer, bytes: number) {
 }
 
 export function destroyEngineVsm(vsm: EngineVsm) {
+  releaseRowBins(vsm.res.render?.rowBound)
+  releaseRowBins(vsm.transmission?.context?.rowBound)
   vsm.marking.destroy()
   vsm.feedback.destroy()
   releaseVsmRender(vsm.res)
