@@ -83,12 +83,16 @@ export type TileLayout = {
   entries: number
 }
 
-export function tileLayout(width: number, height: number): TileLayout {
+/** The layout of a `width`×`height` texture; `levels`, a chain that stops before one texel — an
+ *  impostor map's, whose last level keeps frames of four texels —: its last level is `levels - 1`,
+ *  and a chain that stops before its tail is refused. */
+export function tileLayout(width: number, height: number, levels?: number): TileLayout {
   if (!isImageSize(width, height)) throw new Error('INVALID_TEXTURE_SIZE')
   // The tail starts at the level whose both sides fit under 64 texels, and ends at one texel.
   const tail = previewFirstLevel(width, height),
-    last = previewLastLevel(width, height)
+    last = Math.min(previewLastLevel(width, height), (levels ?? Infinity) - 1)
   if (last >= MAX_LEVELS) throw new Error('TEXTURE_TOO_LARGE')
+  if (last < tail) throw new Error('TEXTURE_CHAIN_BEFORE_TAIL')
   const offsets: number[] = [],
     across: number[] = [],
     down: number[] = []

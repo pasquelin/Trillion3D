@@ -70,7 +70,8 @@ export function createWebgpuTileAtlas(
   ) => {
     for (let slot = from; slot < to; slot++) {
       const { layout, source, lane, retired } = textures[slot]
-      if (retired) continue
+      // A level files' tail is pinned once its levels arrive (`fileTails.ts`), never here.
+      if (retired || source.kind === 'files') continue
       if (slot === 0 && fillWaits()) {
         pages.setTail(0, { x: 0, y: 0, layer: 0 }, encoding.tapOf(lane))
         continue

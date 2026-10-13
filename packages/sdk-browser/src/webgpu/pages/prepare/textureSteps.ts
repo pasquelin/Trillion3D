@@ -2,6 +2,7 @@ import { importTextureIndices } from '../../../host/surfaceImport.ts'
 import { materialsAndTangentsCount } from '../io/catalogue.ts'
 import type { takeMaterialTextures } from './textures.ts'
 import { previewsByAtlas, tileCatalogue } from '../../tile/catalogue.ts'
+import { appendCardMaps, cardsStream } from '../../tile/cardMaps.ts'
 import { createWebgpuTileStreamer } from '../../tile/streamer.ts'
 import { chooseBlockFormat, poolEncoding } from '../../../texture/blockFormats.ts'
 import type { TexturePool } from '../../residency/memoryBudgets.ts'
@@ -32,7 +33,8 @@ export function reportTextureNeeds(rt: WebgpuPagesRuntime, { maps, dataMaps }: C
   })
 }
 
-/** The block family, the pools' encoding and each atlas's tile catalogue. */
+/** The block family, the pools' encoding and each atlas's tile catalogue, the impostor maps
+ *  appended after the scene's textures (`appendCardMaps`) with each mesh's slots. */
 export function textureCatalogues(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
@@ -60,7 +62,9 @@ export function textureCatalogues(
     coverage,
   )
   const data = tileCatalogue(dataMaps, previewOf(PREVIEW_ATLAS_DATA, dataMaps), readLevel, encoding)
-  return { choice, encoding, color, data, readLevel }
+  const section = cardsStream(rt) ? rt.context.metadata.impostors : undefined
+  const cards = appendCardMaps(section, color, data, rt.diag.diagnosticFailure)
+  return { choice, encoding, color, data, readLevel, cards }
 }
 
 /** The tile streamer over the lane pools' `layers`. */
@@ -69,7 +73,7 @@ export function tileStreamerFor(
   gpuDevice: GPUDevice,
   catalogues: ReturnType<typeof textureCatalogues>,
 ) {
-  const { color, data, encoding, readLevel } = catalogues
+  const { color, data, encoding, readLevel, cards } = catalogues
   return (layers: TexturePool['layers']) =>
     createWebgpuTileStreamer({
       device: gpuDevice,
@@ -81,6 +85,8 @@ export function tileStreamerFor(
       budgetMs: rt.setup.textureUploadMs,
       readLevel,
       onFailure: rt.diag.diagnosticFailure,
+      cards,
+      onCardsLanded: () => rt.run.gate.resourcesChanged(),
       onColorChanged: (slots) => {
         // Origin of the resource change: colour tiles have just reached the pool or left it, or a
         // texture's sampling moved, and the shadow of the cutout foliage that reads them follows —

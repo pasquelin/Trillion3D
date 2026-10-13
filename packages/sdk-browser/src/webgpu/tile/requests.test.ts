@@ -119,3 +119,38 @@ test('the requests are records reused from one feedback to the next', () => {
     'a shorter feedback is served from the records the longer one made',
   )
 })
+
+// #1527: a texture no pixel reads yet — an impostor card drawn once its maps reside — names no tile
+// in the feedback; the CPU asks them, and the next pass serves them among the feedback's, by weight.
+// Fails on the old code: a pass served the feedback alone.
+test('the tiles the CPU asks are served by the next pass, by weight, and hold for that pass alone', () => {
+  const { queue } = requests([hits([1, 0, 3]), undefined, undefined])
+  const color = atlas(3)
+  queue.ask(color, { slot: 1, level: 0, tx: 7, ty: 0 }, 2)
+  const first = queue.take(1)
+  assert.deepEqual(
+    served(first).map((r) => [r.weight, r.key.tx, r.asked]),
+    [
+      [3, 2, false],
+      [2, 7, true],
+      [1, 0, false],
+    ],
+  )
+  // Nothing served: the backlog is offered again, the ask gone — its asker names it again.
+  queue.defer(0)
+  assert.deepEqual(
+    served(queue.take(2)).map((r) => r.weight),
+    [3, 1],
+  )
+  queue.defer(0)
+  queue.ask(color, { slot: 1, level: 1, tx: 0, ty: 0 }, 5)
+  assert.deepEqual(
+    served(queue.take(3)).map((r) => [r.weight, r.key.level]),
+    [
+      [5, 1],
+      [3, 0],
+      [1, 0],
+    ],
+    'an ask since joins the backlog, heaviest first',
+  )
+})

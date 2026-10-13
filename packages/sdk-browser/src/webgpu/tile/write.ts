@@ -138,6 +138,23 @@ export function writeTail(
   )
 }
 
+/** Tail levels decoded by the browser — a level files' (`fileTails.ts`) —, from the first, each
+ *  copied whole at its place in the tile, by the path a streamed tile of theirs takes. */
+export function writeTailFromBitmaps(
+  queue: GPUQueue,
+  pool: GPUTexture,
+  place: TilePlace,
+  levels: readonly ImageBitmap[],
+) {
+  levels.forEach((bitmap, rank) =>
+    queue.copyExternalImageToTexture(
+      { source: bitmap },
+      { texture: pool, origin: tailOrigin(place, rank) },
+      [bitmap.width, bitmap.height],
+    ),
+  )
+}
+
 export function copyTailFromTexture(
   encoder: GPUCommandEncoder,
   pool: GPUTexture,

@@ -10,6 +10,7 @@ import { createTileCounters } from './counters.ts'
 import { createTileRequests } from './requests.ts'
 import { createTileGrowth } from './growth.ts'
 import { HEADERS_SWITCHED, HEADERS_WRITTEN, samplingHeaders } from './samplingHeaders.ts'
+import { createCardTiles, type CardOptions } from './cardTiles.ts'
 /**
  * Tile streamer: what the image asked becomes resident, under a per-image budget in bytes AND in
  * milliseconds, most looked-at tile first. Image-feedback counters name the tiles; the streamer
@@ -47,6 +48,9 @@ export function createWebgpuTileStreamer(options: {
    *  — what a cutout-foliage shadow must follow; empty when only a data texture's did —, or `-1`
    *  when the pool was resized. */
   onColorChanged: (slots: ReadonlySet<number> | -1) => void
+  /** The impostor maps' slots, and who hears a waiting card brought something (`cardTiles.ts`). */
+  cards?: CardOptions['cards']
+  onCardsLanded?: CardOptions['onCardsLanded']
 }) {
   const { device, encoding } = options,
     now = options.now ?? (() => performance.now()),
@@ -80,6 +84,7 @@ export function createWebgpuTileStreamer(options: {
     onFailure: options.onFailure,
   })
   const requests = createTileRequests({ feedback, color, data, counters })
+  const cards = createCardTiles({ device, encoding, sources, color, data, requests }, options)
   const atlases = [color, data]
   const published = createTilePublish(device, feedback, atlases)
   const flushAll = () => atlases.forEach((atlas) => atlas.flush(device))
@@ -90,6 +95,7 @@ export function createWebgpuTileStreamer(options: {
     feedback,
     counters,
     sources,
+    cards,
     /** Pins every queue: what the image shows before any tile is requested. */
     prepare() {
       for (const atlas of atlases)
@@ -114,12 +120,15 @@ export function createWebgpuTileStreamer(options: {
       colorChanged.clear()
       const open = () =>
         (encoder ??= device.createCommandEncoder({ label: 'Trillion3D texture tiles' }))
-      const wanted = requests.take(frame),
+      const pinned = cards.pass(),
+        wanted = requests.take(frame),
         at = requests.frame
       counters.worked = wanted.to > wanted.from
       let index = wanted.from
       for (; index < wanted.to && !stop; index++) {
         const request = wanted.list[index]
+        // A tile both asked and named by a pass deferred lands once.
+        if (request.atlas.resides(request.key)) continue
         let verdict: ReturnType<typeof sources.serve> = 'waiting'
         try {
           verdict = sources.serve(request.atlas, request.key, at, open)
@@ -142,6 +151,7 @@ export function createWebgpuTileStreamer(options: {
       counters.deferred = requests.deferred
       counters.pending = waiting + requests.deferred
       counters.bytesLastFrame = bytes
+      cards.served(served, pinned)
       // The shadows that follow the landed tiles are the pass's cost too: timed before the clock stops.
       if (colorChanged.size) options.onColorChanged(colorChanged)
       counters.pass(now() - started, unbounded)
@@ -178,6 +188,7 @@ export function createWebgpuTileStreamer(options: {
      *  working textures asked are built. */
     settled: () => Promise.all([feedback.settled(), sources.settled()]).then(() => undefined),
     destroy() {
+      cards.dispose()
       sources.destroy()
       published.destroy()
       feedback.destroy()
