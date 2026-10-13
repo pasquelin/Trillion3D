@@ -1,8 +1,10 @@
 // The ray proof's oracle (`raycastPage.ts`): what a ray meets of a generated scene, in doubles, from
 // the meshes the page built — each triangle where the world draws it, its morph targets applied at
-// their weights —, by every triangle in turn, two-sided, as the engine's test rejects a hit at or
-// under 1e-4 (`rayTriangleDistance`). The test kit's alone: the engine's query is on the GPU.
+// their weights —, by every triangle in turn, with the engine's two-sided test in doubles. The test
+// kit's alone: the engine's query is on the GPU.
 import type { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
+import { rayTriangle } from '../../../packages/math/src/geometry/rayTriangle.ts'
+import { normalizeVector3, writeCrossVector3 } from '../../../packages/math/src/vector/vector.ts'
 
 /** A world triangle of the oracle: its three corners, and the mesh and rank it comes from. */
 export type OracleTriangle = { corners: number[][]; mesh: Mesh; rank: number }
@@ -36,32 +38,11 @@ export function drawnTriangles(mesh: Mesh): OracleTriangle[] {
   return out
 }
 
-const sub = (a: number[], b: number[]) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-const cross = (a: number[], b: number[]) => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-]
+/** Where the engine's test rejects a hit, as near (`rayTriangleDistance`): at or under 1e-4. */
+const NEAR = 1e-4
 
-/** The distance along the unit `direction` from `origin` to the triangle, or `Infinity`. */
-function crossing(origin: number[], direction: number[], [a, b, c]: number[][]) {
-  const e0 = sub(b, a),
-    e1 = sub(c, a),
-    p = cross(direction, e1),
-    det = dot(e0, p)
-  if (det === 0) return Infinity
-  const offset = sub(origin, a),
-    u = dot(offset, p) / det
-  if (u < 0 || u > 1) return Infinity
-  const q = cross(offset, e0),
-    v = dot(direction, q) / det
-  if (v < 0 || u + v > 1) return Infinity
-  const t = dot(e1, q) / det
-  return t > 1e-4 ? t : Infinity
-}
-
-/** The nearest of `triangles` the ray meets: the triangle, the distance and its world normal as its
+/** The nearest of `triangles` the ray meets — the engine's Möller–Trumbore test, its processor
+ *  twin in doubles (`rayTriangle`) —: the triangle, the distance, and its world normal as its
  *  winding orients it, or `null`. */
 export function nearestTriangle(
   triangles: readonly OracleTriangle[],
@@ -70,12 +51,18 @@ export function nearestTriangle(
 ) {
   let best: { triangle: OracleTriangle; distance: number } | null = null
   for (const triangle of triangles) {
-    const t = crossing(origin, direction, triangle.corners)
-    if (t < (best?.distance ?? Infinity)) best = { triangle, distance: t }
+    const far = best?.distance ?? Infinity
+    const t = rayTriangle(origin, direction, triangle.corners.flat(), 0, NEAR, far)
+    if (t < far) best = { triangle, distance: t }
   }
   if (!best) return null
   const [a, b, c] = best.triangle.corners,
-    n = cross(sub(b, a), sub(c, a)),
-    length = Math.hypot(n[0], n[1], n[2])
-  return { ...best, normal: n.map((x) => x / length) }
+    normal = new Float64Array(3)
+  writeCrossVector3(normal, 0, ...edge(b, a), ...edge(c, a))
+  normalizeVector3(normal)
+  return { ...best, normal: [...normal] }
 }
+
+/** `to − from`, three numbers. */
+const edge = (to: number[], from: number[]) =>
+  [to[0] - from[0], to[1] - from[1], to[2] - from[2]] as const
