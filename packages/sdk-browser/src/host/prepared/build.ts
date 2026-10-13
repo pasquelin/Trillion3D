@@ -17,7 +17,8 @@ import { preparedGeometries } from './geometry.ts'
 import { clothPrimitives, preparedGraph } from './graph.ts'
 import { preparedImages } from './images.ts'
 import { preparedMaterials } from './materials.ts'
-import { preparedTextures, type TextureRanks } from './textures.ts'
+import { preparedTextures } from './textures.ts'
+import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 type Inputs = {
@@ -58,7 +59,7 @@ export async function buildPreparedScene(inputs: Inputs) {
   })
   const skipped = skipBaked ? bakedImages(metadata, document.images.length) : new Set<number>()
   const images = preparedImages({ document, documentUrl, binary, skipped, signal, track, meter })
-  const ranks: TextureRanks = new Map()
+  const ranks = new Map<Texture, number>()
   const slot = preparedTextures(tables, document, images, ranks)
   const {
     scene,

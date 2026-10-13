@@ -31,10 +31,6 @@ const FILTERS: Record<TableFilter, TextureFilter> = {
   'linear-mip-linear': 'linearMipLinear',
 }
 
-/** The rank each built texture answers to, keyed by the texture: what the engine finds the baked
- *  preview of a texture by. */
-export type TextureRanks = Map<Texture, number>
-
 /**
  * The textures of `tables` for the images of `document`: `slot` resolves a material's map slot
  * to its texture record, or `null` when its image could not be read.
@@ -43,7 +39,9 @@ export function preparedTextures(
   tables: PreparedSceneTables,
   document: TableDocument,
   images: (rank: number) => Promise<unknown>,
-  ranks: TextureRanks,
+  /** The rank each built texture answers to, keyed by the texture: what the engine finds the
+   *  baked preview of a texture by (`textureIndices`). */
+  ranks: Map<Texture, number>,
 ) {
   const sources = new Map<number, Promise<Texture | null>>()
   const folded = new Map<string, Promise<Texture | null>>()

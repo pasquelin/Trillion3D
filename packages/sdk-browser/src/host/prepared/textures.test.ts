@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { preparedTextures, type TextureRanks } from './textures.ts'
+import { preparedTextures } from './textures.ts'
+import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 
@@ -60,7 +61,7 @@ test('a slot reading another set or moved reads a copy, ranked unless the slot n
   const document = {
     images: [{ uri: 'a.png', view: null, mimeType: null, name: '' }],
   } as unknown as TableDocument
-  const ranks: TextureRanks = new Map()
+  const ranks = new Map<Texture, number>()
   const slot = preparedTextures(
     tables,
     document,
