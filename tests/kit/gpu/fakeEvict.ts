@@ -15,8 +15,8 @@ import {
   ADMISSION_ERROR_BITS,
   REQUEST_AHEAD,
 } from '../../../packages/sdk-browser/src/gpu/dag/request.ts'
-import { words } from './mockBuffers.ts'
-import { boundListCap } from './mockDag.ts'
+import { words } from './fakeBuffers.ts'
+import { boundListCap } from './fakeDag.ts'
 import {
   aheadClock,
   listEvictions,
@@ -28,7 +28,7 @@ import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 /** The groups' last uses and `dagListEvictions`, replayed on the words the kernels read
  *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`): the clock is the frame the camera's uniform
  *  block carries, the words live in `work`. */
-export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, packed: PackedDag) {
+export function fakeEvictions(byBinding: Map<number, { data: Uint8Array }>, packed: PackedDag) {
   const [work, cold, out, views] = (['work', 'cold', 'out', 'views'] as const).map((name) =>
     words(byBinding.get(DAG_BINDING[name])!.data),
   )

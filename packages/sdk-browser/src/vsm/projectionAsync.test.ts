@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { commandArgs } from '../../../../tests/kit/gpu/mockRenderPass.ts'
+import { commandArgs } from '../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { createVsmResources } from './resources.ts'
 import { encodeVirtualShadowProjection, type VsmProjectionLight } from './projectionPass.ts'
 import { camera, sun } from './projectionScene.fixture.ts'

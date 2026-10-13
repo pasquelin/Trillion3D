@@ -15,7 +15,7 @@ import { createWebgpuVisibilityRasterPipelines } from './pipelines.ts'
 import { encodeWebgpuVisibilityPasses } from './passes.ts'
 import { createDrawItemWordsHold } from './itemWords.ts'
 import { createWebgpuVisState } from '../pages/state/vis.ts'
-import { commandArgs } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
+import { commandArgs } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 
 test('the tested vertex stage is the occluder one and its verdict read, nothing else', () => {
   const [plain, tested] = ['vis_vs', 'vis_hiz_vs'].map((name) => functionsOf(VIS_SHADER, [name]))

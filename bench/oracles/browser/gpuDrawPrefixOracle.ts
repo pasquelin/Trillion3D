@@ -7,7 +7,7 @@
  * totals are scanned in workgroup memory. All compute in u32
  * (`>>> 0`), as WGSL does.
  *
- * This file depends on no real GPU run: `tests/kit/gpu/mockCompute.ts` does not replay
+ * This file depends on no real GPU run: `tests/kit/gpu/fakeCompute.ts` does not replay
  * `prefixGroups` (it short-circuits the whole compaction with the CPU oracle `evaluateDrawCompact`),
  * so equivalence of the kernels is proved here by direct transcription and comparison.
  */

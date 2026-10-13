@@ -1,4 +1,4 @@
-// The creations of `fakeDevice()` beside its buffers (`mockBuffers.ts`): a texture as the device
+// The creations of `fakeDevice()` beside its buffers (`fakeBuffers.ts`): a texture as the device
 // makes it, a pipeline's group layouts, and the refusal a test asks of an allocation.
 import type { FakeDeviceOptions, FakeTexture } from './fakeRecords.ts'
 import { untag } from './fakeWebgpuDevice.ts'

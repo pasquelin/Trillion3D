@@ -10,8 +10,8 @@ import {
 import { bundleMaker } from './fakeBundles.ts'
 import { asWebgpuDevice } from './fakeWebgpuDevice.ts'
 import { refusing, texture, withGroups } from './fakeResources.ts'
-import { fakeBuffers } from './mockBuffers.ts'
-import { createMockCommandEncoderFactory, type EncoderRecords } from './mockEncoder.ts'
+import { fakeBuffers } from './fakeBuffers.ts'
+import { createFakeCommandEncoderFactory, type EncoderRecords } from './fakeEncoder.ts'
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 
 export {
@@ -30,7 +30,7 @@ export {
  * error scopes, loss, `this` checks, WebGPU's validation). Every creation, write, encoded command,
  * render bundle and destroy succeeds and is recorded in call order — a test reads the list it
  * observes —; the buffers hold their bytes, copies and clears move them, and each compute
- * dispatch runs its kernel's CPU double (`mockCompute.ts`), so a whole pages backend runs on it.
+ * dispatch runs its kernel's CPU double (`fakeCompute.ts`), so a whole pages backend runs on it.
  * Options (`FakeDeviceOptions`): limits, features, allocations, mappings or compute pipelines that
  * fail, pipelines built at the call alone, the DAG the selection reads, and the injected failures.
  */
@@ -126,7 +126,7 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
     }),
     createBindGroup: (d: GPUBindGroupDescriptor) => (bindGroups.push(d), d),
     createRenderBundleEncoder: bundles.make,
-    createCommandEncoder: createMockCommandEncoderFactory(records, options),
+    createCommandEncoder: createFakeCommandEncoderFactory(records, options),
     queue: {
       writeBuffer(
         buffer: GPUBuffer,
@@ -158,7 +158,7 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
       },
       copyExternalImageToTexture: (_source: unknown, destination: GPUCopyExternalImageDestInfo) =>
         void imageCopies.push(destination),
-      // A deferred device's commands run when their buffer is submitted (`mockEncoder.ts`).
+      // A deferred device's commands run when their buffer is submitted (`fakeEncoder.ts`).
       submit(done: Iterable<{ ops?: Array<() => void> }> = []) {
         for (const { ops = [] } of done) for (const op of ops) op()
         submits.push(seq++)

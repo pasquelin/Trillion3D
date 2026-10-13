@@ -7,7 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { commandArgs } from '../../../../tests/kit/gpu/mockRenderPass.ts'
+import { commandArgs } from '../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { createVsmResources } from './resources.ts'

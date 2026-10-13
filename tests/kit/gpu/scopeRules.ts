@@ -7,8 +7,8 @@
  * and another usage in the same synchronization scope"), and the device is lost with the frame. So
  * is a group set with a number of dynamic offsets other than its layout's dynamic buffers, an
  * indirect buffer made without the INDIRECT usage, and a dispatch whose pipeline layout names a
- * group that is unset or whose layout is not the one set. A pass of the kit (`mockEncoder.ts`,
- * `mockRenderPass.ts`) throws that error where the device would refuse it.
+ * group that is unset or whose layout is not the one set. A pass of the kit (`fakeEncoder.ts`,
+ * `fakeRenderPass.ts`) throws that error where the device would refuse it.
  */
 
 type Layout = {

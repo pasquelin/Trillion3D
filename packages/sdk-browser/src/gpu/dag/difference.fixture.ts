@@ -1,6 +1,6 @@
 // The difference kernels' mirror (`shader/differenceWgsl.ts`): each list's difference and keep
 // on the readout's words, with a map where the kernels read each page's kept rank back off the kept
-// list — what the GPU double replays (`tests/kit/gpu/mockCompute.ts`) and what the cut's tests take
+// list — what the GPU double replays (`tests/kit/gpu/fakeCompute.ts`) and what the cut's tests take
 // differences with. A page repeated in the kept list is named at one of its ranks: the last, here,
 // as the last write of a keep kernel may be.
 import {

@@ -10,7 +10,7 @@ import { orderBlendPasses } from './order.ts'
 import { createWebgpuBlendState } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { commandArgs } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
+import { commandArgs } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
 
 const FRONT = 'front' as unknown as GPURenderPipeline,
