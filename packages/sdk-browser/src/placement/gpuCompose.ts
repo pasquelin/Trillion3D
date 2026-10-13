@@ -109,19 +109,30 @@ const rangeOf = (gpu: ComposeGpu, r: number) => gpu.frame.ranges[r]
 const rangeBytes = (gpu: ComposeGpu, r: number, bytes: number) => () =>
   rangeOf(gpu, r).count * bytes
 
+/** What the roots and members passes over range `r` both bind first: their parameters' slot in
+ *  `params`, the links, the parents' indices and the parents. */
+const linkEntries = (
+  device: GPUDevice,
+  gpu: ComposeGpu,
+  params: () => GPUBuffer | undefined,
+  r: number,
+) => [
+  liveBuffer(
+    params,
+    () => r * uniformStride(device.limits),
+    () => 16,
+  ),
+  liveBuffer(() => gpu.locals),
+  liveBuffer(() => gpu.parentOf),
+  liveBuffer(() => gpu.parents),
+]
+
 /** The roots pass's entries over range `r` (`COMPOSE_ROOTS_WGSL`), read live: its parameters'
  *  slot, the links, the parents, its worlds, the motion and its mode, the previous worlds, its
  *  frames, the roots' boxes and their list. */
 const rootEntries = (device: GPUDevice, gpu: ComposeGpu, r: number) =>
   sequentialEntries([
-    liveBuffer(
-      () => gpu.rootParams.buffer,
-      () => r * uniformStride(device.limits),
-      () => 16,
-    ),
-    liveBuffer(() => gpu.locals),
-    liveBuffer(() => gpu.parentOf),
-    liveBuffer(() => gpu.parents),
+    ...linkEntries(device, gpu, () => gpu.rootParams.buffer, r),
     liveBuffer(
       () => rangeOf(gpu, r).buffer,
       undefined,
@@ -140,14 +151,7 @@ const rootEntries = (device: GPUDevice, gpu: ComposeGpu, r: number) =>
  *  parents, its frames, the tree's members and the composed roots' list. */
 const memberEntries = (device: GPUDevice, gpu: ComposeGpu, r: number) =>
   sequentialEntries([
-    liveBuffer(
-      () => gpu.memberParams.buffer,
-      () => r * uniformStride(device.limits),
-      () => 16,
-    ),
-    liveBuffer(() => gpu.locals),
-    liveBuffer(() => gpu.parentOf),
-    liveBuffer(() => gpu.parents),
+    ...linkEntries(device, gpu, () => gpu.memberParams.buffer, r),
     liveBuffer(() => rangeOf(gpu, r).frames, undefined, rangeBytes(gpu, r, PRIMITIVE_BYTES)),
     liveBuffer(() => gpu.frame.members),
     liveBuffer(() => gpu.rankList),
