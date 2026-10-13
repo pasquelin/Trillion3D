@@ -356,24 +356,29 @@ never in `onFrame`, a frame late.
 
 ### Picking, moving and saving
 
-`world.raycast(at)` returns the nearest hit under a canvas point (CSS pixels,
+`await world.raycast(at)` resolves to the nearest hit under a canvas point (CSS pixels,
 `event.offsetX`/`offsetY`) or along a world `Ray`, or `null`: the node the page added, world
-`point` and `normal`, `distance` and triangle rank `face`. It runs on the CPU: meshes triangle by
-triangle; lines, points and sprites never; a loaded model (GPU pages) on its box, or at the ray's
-origin from inside (`distance` 0); hidden subtrees and `helper` marks skipped. `{ objects }` limits
-the subtrees; a sizeless canvas refuses a point (`RAYCAST_NO_VIEW`). `raycast(roots, ray)` returns
-every hit, nearest first; `camera.rayThrough(x, y, aspect)` is the ray through a picture point; the
-exact raycast is [PHYSICS.md](PHYSICS.md#exact-raycast). An orthographic camera made with
-`fitAspect: true` takes its width from the canvas. Triangle trees are kept within
-`world.budget.raycastTrees` bytes (64 MiB by default, shared by every world on the page), the least
-recently cast dropped past it.
+`point` and `normal`, `distance`, and `face`, the drawn triangle (its cluster × 256 + its rank in
+it). It always returns a promise, settled a frame or so later: the GPU traces every ray cast in the
+same tick in one dispatch — down the placement tree, each placement's cluster hierarchy, then the
+triangles the rasters draw — and reads the hits back without ever stalling the page. What is hit
+is what is drawn, at the finest detail resident: a loaded model on its own triangles, a skinned,
+morphed or waved mesh where it is drawn this frame. Lines, points, sprites and blended surfaces
+are never hit; hidden objects and `helper` marks are passed by (`{ helpers: true }` meets them,
+as `controls.transform` does). `{ objects }` limits the subtrees; a sizeless canvas refuses a
+point (`RAYCAST_NO_VIEW`); a world whose drawing session is not open yet resolves `null`.
+`camera.rayThrough(x, y, aspect)` is the ray through a picture point; the exact raycast, on the
+physics' collision shapes, is [PHYSICS.md](PHYSICS.md#exact-raycast). An orthographic camera made
+with `fitAspect: true` takes its width from the canvas.
 
 `controls.transform(world, options)` puts move, turn and scale handles on one object:
 `attach(object)`, `detach()`, `setMode('translate' | 'rotate' | 'scale')`,
 `setSpace('world' | 'local')`, `snap = { translate, rotate, scale }`, events `change`, `dragStart`,
 `dragEnd` — one drag, one undo step. The handles are unlit `helper` meshes at a share of the canvas
-height (`size`, a quarter by default), picked before the camera controller hears the press. A drag
-writes the local pose through the parents; the centre cube scales uniformly, by e per handle length
+height (`size`, a quarter by default). The pointer's hover is asked of `world.raycast` as it moves;
+a press takes the latest answer — a handle when the nearest hit is one, so a handle hidden by the
+scene is never grabbed — before the camera controller hears it. A touch has no hover: its first
+press asks, the next one grabs. A drag writes the local pose through the parents; the centre cube scales uniformly, by e per handle length
 up the screen. `attach` or `detach` mid-drag ends it with its `dragEnd`.
 
 `scene.toJSON(camera)` writes plain, versioned JSON (`format: 'trillion3d-scene'`, `formatVersion:
@@ -579,7 +584,7 @@ displacements), `drawRange`, `name`, `userData`; its bounds span every vertex an
 the value each stands for (a normalised integer scaled back, a two-number position at z = 0).
 `toNonIndexed()` gives each corner its own vertex. A geometry no mesh wears gives back its pages
 and GPU memory, with no call; replacing a mesh's geometry disposes the one it
-replaces, raycast tree and host copies included.
+replaces, host copies included.
 
 ## Page materials
 
@@ -723,7 +728,6 @@ What a host sets and reads; the pools' mechanics are [RESIDENCY.md](RESIDENCY.md
 | `world.budget.geometryPool` | 512 MiB                      | cluster page slots, the root cover always resident; clamped to `geometryPoolCeiling`; the call a memory slider makes |
 | `world.budget.texturePool`  | 512 MiB                      | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`                         |
 | `world.budget.canvas`       | 3840 × 2160                  | the largest drawing buffer, `{ width, height }`, the effect targets are reserved at                                  |
-| `world.budget.raycastTrees` | 64 MiB                       | [Picking](#picking-moving-and-saving)                                                                                |
 | `world.budget.physics`      | `DEFAULT_PHYSICS_BUDGET`     | [PHYSICS.md](PHYSICS.md#budgets)                                                                                     |
 
 - **GPU split.** The shadow pool, bounce probes and effect targets are reserved first (at
