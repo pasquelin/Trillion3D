@@ -62,6 +62,9 @@ async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
     setTransform(TILE, shear(0, 0.9))
     await step('sheared')
     setTransform(TILE, translation(60))
+    // The frustum's reject count is the GPU's, read back a few images late (`verdictRead.ts`): the
+    // images it takes to come back, then the one read.
+    for (let i = 0; i < 3; i++) await step(`out-of-view-${i}`)
     await step('out-of-view')
     setTransform(TILE, translation(-0.8))
     await step('back')
