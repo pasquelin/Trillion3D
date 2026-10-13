@@ -50,35 +50,21 @@ export function createSceneProxyReader(
     // The kept read outlives its session, its caller does not: an engine disposed meanwhile builds
     // nothing on the device from it, which nothing would release.
     signal?.throwIfAborted()
-    // Tree/ownership columns may view the bytes; shared triangles and unaligned matrices are
-    // allocated once. All columns remain immutable; dynamic refits own separate copies.
+    // The columns view the bytes and stay immutable.
     let result = decoded.get(buffer)
     if (!result) {
       result = decodeSceneProxy(proxy, buffer)
       decoded.set(buffer, result)
     }
-    for (const field of [
-      'version',
-      'bytes',
-      'triangles',
-      'nodes',
-      'groups',
-      'owners',
-      'instances',
-    ] as const)
+    for (const field of ['version', 'bytes', 'triangles', 'nodes', 'meshes'] as const)
       if (proxy[field] !== result[field])
         throw new EngineError(
           'INVALID_CACHE',
           'The scene proxy object disagrees with its manifest',
           { field },
         )
-    const allocations = new Set(Object.values(result.data).map((column) => column.buffer))
-    allocations.delete(buffer)
-    const expandedBytes = [...allocations].reduce(
-      (sum, allocation) => sum + allocation.byteLength,
-      0,
-    )
-    cache.weigh(key, buffer.byteLength + expandedBytes)
+    // The columns are views of the kept bytes: nothing is expanded, the cache weighs what it holds.
+    cache.weigh(key, buffer.byteLength)
     return { ...proxy, data: result.data }
   }
 }

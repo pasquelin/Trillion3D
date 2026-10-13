@@ -1,8 +1,9 @@
 /**
  * Indirect bounce lighting: published parameters and bounded limits.
  *
- * The proxy mesh is a coarse global geometry representation built at cook time and independent of
- * camera view; probes trace rays against it, never against the visible cut. Accumulated irradiance
+ * The proxy is a coarse global geometry representation — one proxy a mesh, built at cook time, and a cut's
+ * built where the world made it — placed by the culling's worlds and independent of camera view; probes trace
+ * rays against it, never against the visible cut. Accumulated irradiance
  * modulates the opaque deferred pass multiplied by surface albedo.
  *
  * Light requires declared sources: without active lights, indirect irradiance is strictly zero.
@@ -15,18 +16,13 @@ export const BOUNCE_SETTINGS = {
    * The actual threshold doubles until the cut fits within the triangle budget.
    */
   proxyErrorMetres: 0.05,
-  /** Total proxy triangle budget for a full scene across all instances: resident footprint. */
+  /** Total triangle budget of the meshes' proxies of a scene, each mesh counted once whatever its instances. */
   proxyTriangleBudget: 300_000,
-  /**
-   * Proxy mesh resolution floor in meters: size of simplified triangles / surface cache cells.
-   * Doubled by the compiler if budget is exceeded.
-   */
-  proxyCellMetres: 0.5,
   /** Triangles per BVH leaf: leaf traversal loops are bounded by this constant. */
   proxyLeafTriangles: 8,
   /**
    * Visited BVH nodes per ray on the tree as built, bounded before frame execution. A refit
-   * adds the nodes it let into a ray, never the node count (`bounce/proxy.ts`).
+   * adds the nodes it let into a ray, never the node count (`bounce/runtimeSceneWgsl.ts`).
    * A 4-wide node covers 4× more tree per step than a binary BVH.
    */
   traversalSteps: 128,
@@ -58,8 +54,6 @@ export const BOUNCE_SETTINGS = {
   raysPerProbe: 64,
   /** Maximum probe rays per frame: static ceiling bounding compute dispatch size. */
   raysPerFrame: 49152,
-  /** Surface cache cells updated per frame ceiling. */
-  surfaceTexelsPerFrame: 16384,
   /** Target duration of bounce pass on GPU per frame, in milliseconds. */
   budgetMs: 0.8,
   /** Error correction share retained per sample to prevent oscillations. */

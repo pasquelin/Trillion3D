@@ -26,7 +26,7 @@ test('a session reopened after a device loss reads the resident proxy from the k
   assert.equal(relit.data, lit.data, 'decoded columns are reused across device sessions')
   assert.equal(
     keptProxy(pageCache, metadata),
-    metadata.proxy!.bytes + lit.data.bindWorlds.byteLength,
+    metadata.proxy!.bytes,
     'its bytes count against the CPU total',
   )
   after.close()
@@ -36,11 +36,7 @@ test('pages that outgrow the CPU total never evict the kept proxy: a device loss
   const { metadata, urls, fetched } = await servedScene(6)
   const transfer = 64
   // Room for the tables, one transfer, the proxy and two pages: fewer than the six read.
-  const cpu =
-    manifestTableBytes(metadata.primitives[0].pages) +
-    transfer +
-    metadata.proxy!.bytes +
-    metadata.proxy!.instances * 128
+  const cpu = manifestTableBytes(metadata.primitives[0].pages) + transfer + metadata.proxy!.bytes
   const pageCache = createPageCache(cpu + 2 * 12)
   const before = await openSession(metadata, pageCache, { maxPageTransferBytes: transfer })
   await before.context.readSceneProxy!()
@@ -102,10 +98,7 @@ test('a session reopened while the proxy is in flight joins that read, fetching 
   release('proxy.bin')
   await Promise.all([lost, relit])
   assert.deepEqual(fetched, [proxyUrl])
-  assert.equal(
-    keptProxy(pageCache, metadata),
-    metadata.proxy!.bytes + metadata.proxy!.instances * 128,
-  )
+  assert.equal(keptProxy(pageCache, metadata), metadata.proxy!.bytes)
   after.close()
 })
 
