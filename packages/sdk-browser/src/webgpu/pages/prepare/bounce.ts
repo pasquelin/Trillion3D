@@ -76,7 +76,7 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
           boxes: () => rt.run.gpuSelection?.proxyBoxes() ?? NO_PROXY_BOXES,
         },
         () => lights.buffer!,
-        bounce.budgetMs,
+        bounce.budget,
         () => lights.tiles,
       )
     })
@@ -123,10 +123,10 @@ function publish(rt: WebgpuPagesRuntime) {
     mapBytes: probes?.occupancy.bytes ?? null,
     probeBytes: probes ? bounceProbeBytes(probes.cascades.probes) : null,
     // The target, the fraction the servo holds, and the last duration it saw.
-    budgetMs: probes?.budget.budgetMs ?? bounce.budgetMs,
-    budgetLoad: probes?.budget.load ?? null,
-    budgetLastMs: probes?.budget.lastMs ?? null,
-    budgetSamples: probes?.budget.samples ?? null,
+    budgetMs: bounce.budget.budgetMs,
+    budgetLoad: probes ? bounce.budget.load : null,
+    budgetLastMs: probes ? bounce.budget.lastMs : null,
+    budgetSamples: probes ? bounce.budget.samples : null,
     sweepFrames: probes?.sweepFrames ?? null,
     unavailable: bounce.reason,
     approximations: BOUNCE_APPROXIMATIONS,

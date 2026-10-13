@@ -41,6 +41,8 @@ const FUNCTIONS = [
   'rtGroupSend',
 ]
 const BINDINGS = { group: 0, proxy: 12, list: 8, store: 9 }
+/** The work units a run's frame may spend on its rays (`reflectionView.runtime.y`). */
+export const FRAME_UNITS = 2 ** 22
 
 /** The store of the answers as the shader reads it: two layers of words a pixel, keyed by texel. */
 export function makeStore() {
@@ -98,7 +100,7 @@ export function runOver(
     rtStore: store,
     textureLoad: (t: Store, at: number[], layer: number) => [t.get(at, layer), 0, 0, 0],
     textureStore: (t: Store, at: number[], layer: number, v: number[]) => t.set(at, layer, v[0]),
-    reflectionView: { runtime: [epoch, 0, 0, 0] },
+    reflectionView: { runtime: [epoch, FRAME_UNITS, 0, 0] },
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec) => tint,
     RtSurface: (tint: Vec, opacity: number, emission: Vec, blended: boolean) => ({

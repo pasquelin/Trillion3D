@@ -1,4 +1,8 @@
-import type { SceneProxy } from '../../../../../sdk-core/src/index.ts'
+import {
+  createProxyBudget,
+  type ProxyBudget,
+  type SceneProxy,
+} from '../../../../../sdk-core/src/index.ts'
 import type { GpuBounceProbes } from '../../../bounce/probes.ts'
 
 /**
@@ -13,8 +17,9 @@ export interface WebgpuBounceState {
   pending: Promise<unknown> | undefined
   /** What the host asked. */
   wanted: boolean
-  /** Target duration of the Bounce stage per image, in milliseconds: the host's instruction. */
-  budgetMs: number
+  /** The proxy rays' one GPU budget, on the host's milliseconds: the reflections' units, then the
+   *  probes' fraction (`createProxyBudget`). */
+  budget: ProxyBudget
   /** Why bounce does not exist, when it does not. */
   reason: string | null
   /** Light-store revision already seen: a change restarts convergence. */
@@ -37,8 +42,8 @@ export function bounceState(bounce: WebgpuBounceState) {
     probes: probes?.cascades.probes ?? null,
     probesUpdated: bounce.probesUpdated,
     rays: bounce.raysLaunched,
-    budgetLoad: probes?.budget.load ?? null,
-    budgetLastMs: probes?.budget.lastMs ?? null,
+    budgetLoad: probes ? bounce.budget.load : null,
+    budgetLastMs: probes ? bounce.budget.lastMs : null,
     converged: probes ? !probes.working : null,
     unavailable: bounce.reason,
   }
@@ -50,7 +55,7 @@ export function createWebgpuBounceState(wanted: boolean, budgetMs: number): Webg
     proxy: undefined,
     pending: undefined,
     wanted,
-    budgetMs,
+    budget: createProxyBudget(budgetMs),
     reason: null,
     lightEpoch: 0,
     sceneEpoch: -1,

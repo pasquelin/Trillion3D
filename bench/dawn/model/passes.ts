@@ -15,6 +15,7 @@ import {
 import {
   REFLECTION_PASS,
   REFLECTION_RADIANCE_PASS,
+  REFLECTION_TRACE_PASS,
 } from '../../../packages/sdk-browser/src/stage/passLabels.ts'
 import { passKey } from '../summary.ts'
 import * as K from './passConstants.ts'
@@ -126,10 +127,20 @@ export const PASSES: K.PassModel[] = [
   },
   {
     label: passKey(REFLECTION_PASS),
-    formula: `nearest and finished-depth pyramid builds (9 plane reads a pixel and 4 reads, a write a coarser texel of two bounds); P texels classified; P·reflecting·(${K.TRACE_LOADS} + ${K.MARCH_ITERATIONS} iterations × ${K.MARCH_FETCHES} + ${K.HIT_LOADS} loads, ${K.HIT_TAPS} filtered taps, ${K.TRACE_BYTES} B written) — 16 iterations on average, 35 at p99`,
+    formula:
+      'nearest and finished-depth pyramid builds (9 plane reads a pixel and 4 reads, a write a coarser texel of two bounds)',
+    work: (f) => ({ texels: K.hizNearestTexels(f.P), passes: 1 }),
+    sources: [
+      K.engine('reflections/frame.ts', 'encodeDepthPyramid'),
+      K.engine('gpu/hiz/shader.ts', 'HIZ_SHADER'),
+      { path: 'bench/runner/counts/frameBudgetRates.ts', symbol: 'hizNearestAccesses' },
+    ],
+  },
+  {
+    label: passKey(REFLECTION_TRACE_PASS),
+    formula: `P texels classified; P·reflecting·(${K.TRACE_LOADS} + ${K.MARCH_ITERATIONS} iterations × ${K.MARCH_FETCHES} + ${K.HIT_LOADS} loads, ${K.HIT_TAPS} filtered taps, ${K.TRACE_BYTES} B written) — 16 iterations on average, 35 at p99`,
     work: (f) => ({
       texels:
-        K.hizNearestTexels(f.P) +
         f.P +
         f.P * f.reflecting * (K.TRACE_LOADS + K.MARCH_ITERATIONS * K.MARCH_FETCHES + K.HIT_LOADS),
       filtered: f.P * f.reflecting * K.HIT_TAPS,
@@ -140,8 +151,6 @@ export const PASSES: K.PassModel[] = [
       K.engine('reflections/frame.ts', 'encodeReflections'),
       K.engine('gpu/hiz/screenMarch.ts', 'SCREEN_MARCH_WGSL'),
       K.engine('reflections/trace.ts', 'TRACE_SHADER'),
-      K.engine('gpu/hiz/shader.ts', 'HIZ_SHADER'),
-      { path: 'bench/runner/counts/frameBudgetRates.ts', symbol: 'hizNearestAccesses' },
     ],
   },
   {

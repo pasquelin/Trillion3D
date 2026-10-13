@@ -8,5 +8,5 @@ export const REFERENCE_APPROXIMATIONS = [
 ] as const
 
 /** The bounce target of the reference mode, in milliseconds: far past any frame, so the budget never
- *  lowers the probes traced below their per-frame ceiling (`createBounceBudget`). */
+ *  lowers the probes traced below their per-frame ceiling (`createProxyBudget`). */
 export const REFERENCE_BOUNCE_BUDGET_MS = 1000

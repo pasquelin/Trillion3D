@@ -128,7 +128,8 @@ export interface MeasuredWorldOptions {
   particles?: readonly import('../../../../sdk-core/src/fluids/particles.ts').ParticlePool[]
   /** Bounced light. Off by default; `true` turns it on for the whole session. */
   bounce?: boolean
-  /** Target duration of the "Bounce" step per frame, in milliseconds. 0.8 ms by default. */
+  /** Target GPU duration per frame of every proxy ray — reflections first, bounce probes the rest —,
+   *  in milliseconds. 2 ms by default. */
   bounceBudgetMs?: number
   /** Time every step of the frame and publish `explorer.stageProfile()`. Off by default. */
   stageProfile?: boolean

@@ -37,7 +37,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
     cascadeProbes: bounce.probes?.cascades.probes ?? 0,
     // Fraction of the ceiling the millisecond budget holds, in thousandths: a count is an integer,
     // and it is the duration that decides this count, never the reverse.
-    budgetFraction: Math.round((bounce.probes?.budget.load ?? 0) * 1000),
+    budgetFraction: Math.round((bounce.probes ? bounce.budget.load : 0) * 1000),
   })
   if (!bounce.probes)
     stages.setReason('bounce', {

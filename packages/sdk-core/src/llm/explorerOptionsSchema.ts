@@ -81,11 +81,11 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     bounceBudgetMs: {
       type: 'number',
-      default: 0.8,
+      default: 2,
       minimum: 0.1,
       maximum: 8.0,
       description:
-        'Target GPU budget in milliseconds for the radiance bounce stage. Default 0.8 ms.',
+        'Target GPU budget in milliseconds for every proxy ray of a frame: reflections first, bounce probes the rest. Default 2 ms.',
     },
     importedLights: {
       type: 'boolean',

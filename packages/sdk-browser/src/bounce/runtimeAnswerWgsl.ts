@@ -4,11 +4,11 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  * THE RUN-TIME PROXY'S ANSWER, KEPT FROM IMAGE TO IMAGE: text of the program that casts its rays
  * (`runtimeTraceWgsl.ts`), after `rtRadiance`. What a pixel last got from its ray lives in the store
  * (`runtimeLayout.ts`) under the stamp of the epoch (`follow`) it was cast in, so that a frame that spends its budget
- * (`FRAME_WORK`) leaves the pixels after it their last answer, and the next frames — the trace starts where the last
- * one's budget ended — answer them.
+ * (`ProxyBudget.units`) leaves the pixels after it their last answer, and the next frames — the trace starts where the
+ * last one's budget ended — answer them.
  *
  * \`rtAnswer\`, within the frame's budget and from the store: a ray is cast while the frame has spent under
- * \`RT_FRAME_WORK\` — one a frame at \`RT_WORK\` at most, and the trace starts at another tile each image
+ * the frame's units (\`reflectionView.runtime.y\`) — one a frame at \`RT_WORK\` at most, and the trace starts at another tile each image
  * (the list's \`offset\`) —, its work added to the frame's, its answer kept for its pixel under the epoch's stamp.
  * An answer of this epoch is the answer: no ray is cast again for it, whatever budget is left. A ray the budget
  * leaves out answers what its pixel last got, and is counted as left when that answer is older than the epoch: the view
@@ -78,7 +78,7 @@ fn rtAnswer(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
   cell=rtCellRead(rtPixel);
   if(cell.stamp==stamp){return rtCellAnswer(cell);}
  }
- if(atomicLoad(&rtList[RT_SPENT])+rtSpentHere<RT_FRAME_WORK){
+ if(atomicLoad(&rtList[RT_SPENT])+rtSpentHere<reflectionView.runtime.y){
   let seen=rtRadiance(origin,direction,reach,tangent);
   rtSpentHere+=rtWork+rtExtra;
   if(first){

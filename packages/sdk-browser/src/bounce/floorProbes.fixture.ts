@@ -3,6 +3,7 @@
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createGpuLightTiles } from '../lighting/tiles/tiles.ts'
 import { createGpuBounceProbes } from './probes.ts'
+import { createProxyBudget } from '../../../sdk-core/src/proxy/budget.ts'
 
 /** The probes over the floor `[0, 0, 0]–[8, 0.1, 4]`, the light list they read, the tiles when
  *  `tiled` (the world grid's lists), and an encoder of the device. */
@@ -26,7 +27,7 @@ export async function floorProbes(tiled = false) {
     [0, 0, 0, 8, 0.1, 4],
     scene,
     () => lights,
-    1000,
+    createProxyBudget(1000),
     tiles && (() => tiles),
   )
   return { gpu, lights, tiles, probes, encoder: gpu.device.createCommandEncoder() }

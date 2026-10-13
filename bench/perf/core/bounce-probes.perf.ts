@@ -1,6 +1,6 @@
 // the probe batch encoded by a bounce image, and the control loop of this batch on the
 // "Bounce" stage duration measured on the GPU.
-import { bounceBatchOf, createBounceBudget } from '../../../packages/sdk-core/src/bounce/budget.ts'
+import { bounceBatchOf, createProxyBudget } from '../../../packages/sdk-core/src/proxy/budget.ts'
 import { measure, rapport } from '../../core/index.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceBounceBatch, referenceBudgetSequence } from '../../oracles/core/bounce-probes.ts'
@@ -24,7 +24,7 @@ const lot =
 
 const measureBatch = await measure({
   name: 'bounce batch',
-  fichier: 'packages/sdk-core/src/bounce/budget.ts',
+  fichier: 'packages/sdk-core/src/proxy/budget.ts',
   cas: [
     {
       name: '10 000 pairs',
@@ -65,7 +65,7 @@ const observations = (count: number) => ({
   samples: new Float64Array(count),
 })
 
-/** The fields `suit` reads and drives, shared by `createBounceBudget`'s `BounceBudget` and the
+/** The fields `suit` reads and drives, shared by `createProxyBudget`'s `ProxyBudget` and the
  *  oracle's `ReferenceBudget` — the two engines this bench sets against each other. */
 type BudgetLike = ReferenceBudget
 
@@ -79,7 +79,7 @@ interface Observations {
 const suit = (observe: (budgetMs: number) => BudgetLike) => (input: Observations) => {
   const budget = observe(2)
   for (let i = 0; i < input.list.length; i++) {
-    budget.observe(input.list[i])
+    budget.observe(null, input.list[i])
     input.loads[i] = budget.load
     input.lasts[i] = budget.lastMs ?? -1
     input.samples[i] = budget.samples
@@ -89,12 +89,12 @@ const suit = (observe: (budgetMs: number) => BudgetLike) => (input: Observations
 
 const measureBudget = await measure({
   name: 'budget control loop',
-  fichier: 'packages/sdk-core/src/bounce/budget.ts',
+  fichier: 'packages/sdk-core/src/proxy/budget.ts',
   cas: [
     { name: '100 observations', input: observations(100), size: 100 },
     { name: 'no sample', input: observations(20), size: 20 },
   ],
-  calculation: suit(createBounceBudget),
+  calculation: suit(createProxyBudget),
   expected: suit(referenceBudgetSequence),
   options: { tours: 100 },
 })

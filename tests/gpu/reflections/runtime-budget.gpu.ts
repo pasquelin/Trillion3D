@@ -8,7 +8,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
-import { FRAME_WORK } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
+import { createProxyBudget } from '../../../packages/sdk-core/src/proxy/budget.ts'
+import { BOUNCE_SETTINGS } from '../../../packages/sdk-core/src/bounce/contracts.ts'
+
+/** The units a frame's reflection rays may spend before the device's first measure: the budget's prior. */
+const FRAME_UNITS = createProxyBudget(BOUNCE_SETTINGS.budgetMs).units
 
 test(
   'a frame past its budget leaves its rays for the next frames, and the view settles on the full answer',
@@ -32,7 +36,7 @@ test(
         held,
         trail: cast.slice(0, 6),
         frames_cast: cast.length,
-        budget: FRAME_WORK,
+        budget: FRAME_UNITS,
       }),
     )
     assert.ok(
@@ -42,6 +46,6 @@ test(
     assert.ok(held, 'the view holds once the rays are all answered')
     assert.equal(trail.at(-1)!.left, 0, 'none is left when it holds')
     const worst = Math.max(...trail.map((frame) => frame.spent))
-    assert.ok(worst < 2.2 * FRAME_WORK, `${worst} units a frame, the budget ${FRAME_WORK}`)
+    assert.ok(worst < 2.2 * FRAME_UNITS, `${worst} units a frame, the budget ${FRAME_UNITS}`)
   },
 )

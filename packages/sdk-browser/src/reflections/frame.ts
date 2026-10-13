@@ -1,4 +1,8 @@
-import { REFLECTION_PASS, REFLECTION_RADIANCE_PASS } from '../stage/passLabels.ts'
+import {
+  REFLECTION_PASS,
+  REFLECTION_RADIANCE_PASS,
+  REFLECTION_TRACE_PASS,
+} from '../stage/passLabels.ts'
 import { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
 import {
   directLightResources,
@@ -17,8 +21,10 @@ import {
   environmentExposure,
 } from '../../../sdk-core/src/scene/core/environment.ts'
 
-/** The reflections' compute pass, opened by the first of its dispatches. */
+/** The depth pyramid's nearest layer's compute pass, and the trace's, each opened by its first
+ *  dispatch: the trace is timed alone, the proxy budget's measure (`reflectionTraceGpuMs`). */
 const reflectionPass = new LazyComputePass(REFLECTION_PASS)
+const tracePass = new LazyComputePass(REFLECTION_TRACE_PASS)
 
 /** What an image tells its reflection view, and what the trace reads: written in place, each image. */
 const frame: ReflectionFrame = {
@@ -54,6 +60,9 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
     // would restart the budget for ever.
     gpu.temporal?.frame.active ? gpu.temporal.frame.cameraViewProjection : frame.viewProjection,
   )
+  // The proxy rays' units this frame, from the device's rate the last frames measured.
+  bounce.budget.spent(reflection.settle.takeSpent())
+  frame.proxyUnits = bounce.budget.units
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
 }
 
@@ -100,7 +109,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
   const surfaces = gpu.surfaces,
     deferred = gpu.deferred,
     traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer && !!deferred
-  const open = reflectionPass.begin(encoder)
+  const open = tracePass.begin(encoder)
   if (traced) {
     const views = surfaces.views()
     // The cascades the resolve reads, else its empty ones: the field a miss reads is the diffuse's.
@@ -120,7 +129,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     const group = reflectionGroup(reflection, depth, lightView)
     encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)
   }
-  reflectionPass.end()
+  tracePass.end()
 }
 
 /** The radiance pyramid of the image's lit colour, once every surface drew into it and before

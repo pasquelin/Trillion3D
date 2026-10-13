@@ -4,8 +4,16 @@
 // it shares them (`rtShare`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { FRAME_WORK, STORE_BITS, TRACE_LIST } from './runtimeLayout.ts'
-import { along, ahead, counters, makeStore, origin, runOver } from './runtimeRun.fixture.ts'
+import { STORE_BITS, TRACE_LIST } from './runtimeLayout.ts'
+import {
+  along,
+  ahead,
+  counters,
+  FRAME_UNITS,
+  makeStore,
+  origin,
+  runOver,
+} from './runtimeRun.fixture.ts'
 import { world, type Vec } from './runtimeScene.fixture.ts'
 
 const lit = () => world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, 3, 2, 1, 0]] })
@@ -39,7 +47,7 @@ test('a frame past its budget leaves the ray for the next image: the pixel answe
   const first = runOver(w, list, 2, store)
   first.testPixel(2, 0, 0)
   first.rtAnswer(origin, ahead, 1000, 0.01)
-  list[TRACE_LIST.spent] = FRAME_WORK
+  list[TRACE_LIST.spent] = FRAME_UNITS
   const run = runOver(w, list, 2, store)
   run.testPixel(2, 0, 0)
   const again = run.rtAnswer(origin, [-1, 0, 0], 1000, 0.01)
@@ -62,7 +70,7 @@ test('a frame past its budget leaves the ray for the next image: the pixel answe
 
 test('a second lobe of a pixel keeps nothing: past the budget it answers nothing', () => {
   const w = lit(),
-    list = counters(FRAME_WORK),
+    list = counters(FRAME_UNITS),
     store = makeStore()
   const run = runOver(w, list, 2, store)
   run.testPixel(1, 0, 0)

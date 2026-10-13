@@ -8,7 +8,6 @@ import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { RUNTIME_ANSWER_WGSL } from './runtimeAnswerWgsl.ts'
 import { runtimeSceneWgsl, type SceneBindings } from './runtimeSceneWgsl.ts'
 import {
-  FRAME_WORK,
   RAY_ERROR_FLOOR,
   RAY_LAYERS,
   RAY_SPREAD_FLOOR,
@@ -150,7 +149,6 @@ export const runtimeTraceWgsl = ({ list, store, ...scene }: RuntimeBindings) =>
     [runtimeRadianceWgsl(scene), RUNTIME_ANSWER_WGSL],
     `
 ${wgslConsts({
-  RT_FRAME_WORK: FRAME_WORK,
   RT_LEFT: TRACE_LIST.left,
   RT_SPENT: TRACE_LIST.spent,
   RT_OFFSET: TRACE_LIST.offset,

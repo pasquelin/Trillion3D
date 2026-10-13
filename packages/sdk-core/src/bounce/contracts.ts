@@ -54,8 +54,9 @@ export const BOUNCE_SETTINGS = {
   raysPerProbe: 64,
   /** Maximum probe rays per frame: static ceiling bounding compute dispatch size. */
   raysPerFrame: 49152,
-  /** Target duration of bounce pass on GPU per frame, in milliseconds. */
-  budgetMs: 0.8,
+  /** Target GPU duration of every proxy ray of a frame, in milliseconds: the reflections' first,
+   *  the bounce probes' the rest (`../proxy/budget.ts`). */
+  budgetMs: 2,
   /** Error correction share retained per sample to prevent oscillations. */
   budgetSmoothing: 0.25,
   /** Workload fraction floor: minimum progress guarantee. */

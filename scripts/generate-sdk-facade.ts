@@ -15,7 +15,10 @@ const CATEGORY_RULES: [string, RegExp][] = [
     'math',
     /^packages\/math\/src\/|\/src\/(?:hiz|world\/(?:math|transform-tree)|runtime\/path)\/|\/world\/observed\.ts$/,
   ],
-  ['lighting', /\/src\/(?:lighting|bounce|scene\/light(?:-shadow)?)\/|\/contracts\/proxy\.ts$/],
+  [
+    'lighting',
+    /\/src\/(?:lighting|bounce|proxy|scene\/light(?:-shadow)?)\/|\/contracts\/proxy\.ts$/,
+  ],
   [
     'streaming',
     /\/src\/(?:manifest\/|page\/(?!contracts\.ts)|texture\/)|\/contracts\/(?:geometry|cache)\.ts$/,

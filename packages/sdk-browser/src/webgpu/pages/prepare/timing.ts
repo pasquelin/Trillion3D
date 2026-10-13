@@ -1,5 +1,5 @@
 import { createGpuTiming } from '../../../gpu/timing/timing.ts'
-import { addGpuPasses, bounceGpuMs } from '../../../stage/mapping.ts'
+import { addGpuPasses, bounceGpuMs, reflectionTraceGpuMs } from '../../../stage/mapping.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { createGpuLog } from './gpuLog.ts'
 
@@ -36,9 +36,12 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
         sample.scaleSteered !== false,
         sample.pairs.invalid === 0,
       )
-      // The bounce budget is a duration: it reads here the timer of its own stage, the per-pass
-      // profile's, and corrects the next image's batch. Never an estimate.
-      rt.bounce.probes?.observeGpuMs(bounceGpuMs(timing.lastGpuPassMs))
+      // The proxy rays' budget is a duration: it reads here the reflection trace's pass and the
+      // bounce stage, the per-pass profile's, and corrects the next images' units and batch.
+      rt.bounce.budget.observe(
+        reflectionTraceGpuMs(timing.lastGpuPassMs),
+        bounceGpuMs(timing.lastGpuPassMs),
+      )
       timing.lastGpuHostGapMs = sample.hostGapMs
       timing.lastGpuIdleMs = sample.idleBetweenMs
       // The sample describes an image already past: it is filed by stage without ever blocking this one.

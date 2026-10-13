@@ -2,10 +2,10 @@ import {
   BOUNCE_PROBES_PER_FRAME,
   BOUNCE_SETTINGS,
   bounceBatchOf,
-  createBounceBudget,
   createBounceCascades,
   createBounceOccupancy,
   type BounceCascades,
+  type ProxyBudget,
 } from '../../../sdk-core/src/index.ts'
 import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts'
 import { atlasBytes, probeAtlasExtent } from './atlas.ts'
@@ -103,7 +103,8 @@ export async function createGpuBounceProbes(
   scene: ProbeScene,
   /** The declared-light buffer, read at each encode: it is replaced when the scene outgrows it. */
   lights: () => GPUBuffer,
-  budgetMs: number,
+  /** The proxy rays' one budget (`createProxyBudget`), whose probe fraction sizes each batch. */
+  budget: ProxyBudget,
   /** The light grid, whose buffer holds the world grid's lists beside the view's. */
   tiles: () => GpuLightTiles | undefined = () => undefined,
 ) {
@@ -111,7 +112,6 @@ export async function createGpuBounceProbes(
   const cascades = createBounceCascades(bounds)
   const occupancy = createBounceOccupancy(bounds, first.boxes, cascades)
   const schedule = createBounceSchedule(cascades, occupancy)
-  const budget = createBounceBudget(budgetMs)
   const extent = probeAtlasExtent(cascades.size, BOUNCE_SETTINGS.cascadeLevels)
   ensureBounceFits(device, extent, schedule.queue.byteLength)
   const { uniform, queue, probes, snapshot, views, clearLevels } = createProbeStorage(
@@ -193,7 +193,6 @@ export async function createGpuBounceProbes(
     },
     cascades,
     occupancy,
-    budget,
     uniform: uniform.buffer,
     /** The probes' atlas, one layer per level, which the lit passes read. */
     probes: probesView,
@@ -219,9 +218,6 @@ export async function createGpuBounceProbes(
     },
     get working() {
       return working()
-    },
-    observeGpuMs(ms: number | null) {
-      budget.observe(ms)
     },
     setIrradianceView: uniform.setIrradianceView,
     /** A light changed: sweeps restart, sleeping probes wake. */
