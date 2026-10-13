@@ -138,8 +138,8 @@ test('a still world copies no byte into the proxy; a moved row copies its own an
   const c = cut(2, 1, 1),
     s = surface(1)
   const { gpu, selection } = await open(() => ({ primitive: { runtimeProxy: c }, surface: s }))
-  const rows = region(gpu, 'worldRows')
-  assert.ok(rows >= 10, 'the world table holds the placements')
+  const rows = region(gpu, 'instances')
+  assert.ok(rows >= 10, 'one range of the world table holds every placement')
   // The bytes the mirror copies into the worlds' region of the buffer, and into the exact translations'
   // behind it, whatever else it copies (the tree).
   const worldsFrom = (RUNTIME_HEADER_WORDS + region(gpu, 'worldsWord')) * 4,

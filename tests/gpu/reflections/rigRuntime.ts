@@ -43,7 +43,6 @@ function proxyWords(faces: readonly RigFace[]) {
   words[at.treeRoot] = RUNTIME_NONE
   words[at.members] = n
   words[at.worldsWord] = worldsAt
-  words[at.worldRows] = n
   // The faces' exact translations, three doubles each: zeros, the identity's.
   words[at.originsWord] = originsAt
   const base = RUNTIME_HEADER_WORDS
