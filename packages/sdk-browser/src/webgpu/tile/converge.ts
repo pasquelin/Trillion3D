@@ -24,8 +24,9 @@ const SHADOW_DRAIN_LIMIT = 64
 const POSE_ROUNDS = 4
 
 /**
- * Converges the textures of a pose: the image is rendered with all its pixels on feedback, each
- * naming the first of its picks whose tile is missing (`everyPick`), what they ask is served with
+ * Converges the textures of a pose: the image is rendered with all its pixels on feedback, every
+ * other row naming the first of its picks whose tile is missing (`everyPick`), the others the tile
+ * they read, stamped so that the pool keeps it (`feedbackMissing`); what they ask is served with
  * no budget, and we start over until no requested tile is missing. At a capture's barrier
  * (`pictured`) each image draws the next jitter phase of the still image (`convergeStillPhase`),
  * and a whole round of them must ask nothing: the still frames that average those phases then

@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts'
+import { FEEDBACK_EVERY, PICK_SHIFT } from './feedback.ts'
 import { TILE_REQUEST_WGSL } from './requestWgsl.ts'
 import { SHADE_REQUEST_WGSL } from '../../visibility/shader/request.ts'
 import { blendRequestWgsl } from '../blend/requestWgsl.ts'
@@ -53,7 +54,7 @@ test('a convergence image names, per pixel, the first of all its picks whose til
     ['lobed blend', wgslSource(blendRequestWgsl(true)), 'choices'],
   ]) {
     const loop = new RegExp(
-      `if\\(feedbackEvery\\(uni\\.feedback\\)\\)\\{\\n  for\\(var turn=0u;turn<${choices}\\*PICK_TURNS;turn\\+\\+\\)\\{\\n` +
+      `if\\(feedbackMissing\\([^)]*,uni\\.feedback\\)\\)\\{\\n  for\\(var turn=0u;turn<${choices}\\*PICK_TURNS;turn\\+\\+\\)\\{\\n` +
         `   let rank=\\w+\\([^;]*everyPick\\([^;]*,${choices},turn\\),true,[^;]*;\\n   if\\(rank!=0u\\)\\{return rank;\\}`,
     )
     assert.match(text, loop, `${name}: every pick, the first missing`)
@@ -78,7 +79,8 @@ test("a capture's convergence stops on a quiet round of the still phases, closin
   )
   assert.equal(texturesConverged(8, 8, 15, 0, false), true)
   assert.equal(texturesConverged(8, 8, 7, 2, true), false, 'a level still read is waited for')
-  assert.equal(texturesConverged(1, 1, 0, 0, false), true, 'no accumulation: one quiet image')
+  assert.equal(texturesConverged(1, 1, 0, 0, false), false, 'no accumulation: one row of two heard')
+  assert.equal(texturesConverged(2, 1, 1, 0, false), true, 'no accumulation: two quiet images')
 })
 
 // A round of the still phases outnumbers the 64 turns at a low render scale (8 per
@@ -108,4 +110,31 @@ test('a page made resident after the last drain image draws one more image', () 
     true,
     'shadows unsettled: one more',
   )
+})
+
+// A convergence image named, on every pixel, the first missing pick: a pixel never posted the
+// resident tiles it reads, so a surface whose normal tile was missing everywhere left its base
+// tile unstamped (`stampWgsl.ts`), and the GPU's queue gave it up while the image read it. The
+// asking rows now alternate with rows that post their own read, swapping each image.
+test('a convergence image asks the missing picks on every other row and posts the read on the others', () => {
+  assert.match(
+    wgslSource(TILE_REQUEST_WGSL),
+    /fn feedbackMissing\(p:vec2f,word:u32\)->bool\{return feedbackEvery\(word\)&&\(\(u32\(p\.y\)\+word\)&1u\)==0u;\}/,
+  )
+  // The shaders' rule, mirrored: does pixel row `y` of image word `word` ask, or post its read.
+  const asks = (y: number, word: number) => (word & FEEDBACK_EVERY) !== 0 && ((y + word) & 1) === 0
+  const choices = MAP_CHOICES + 1
+  for (let phase = 0; phase < FEEDBACK_EVERY; phase++) {
+    const word = FEEDBACK_EVERY | phase | (3 << PICK_SHIFT),
+      next = FEEDBACK_EVERY | ((phase + 1) % FEEDBACK_EVERY) | (3 << PICK_SHIFT)
+    // A block where every pixel misses a pick: the reading rows post every map of the block.
+    const read = new Set<number>()
+    for (let y = 0; y < 2; y++)
+      for (let x = 0; x < choices; x++) if (!asks(y, word)) read.add((x + y + 3) % choices)
+    assert.equal(read.size, choices, `image ${phase}: every map of the block is read and stamped`)
+    for (let y = 0; y < 2; y++)
+      assert.notEqual(asks(y, word), asks(y, next), `row ${y} asks one image in two`)
+  }
+  for (let y = 0; y < 4; y++)
+    assert.equal(asks(y, 5 << PICK_SHIFT), false, 'an ordinary image reads')
 })

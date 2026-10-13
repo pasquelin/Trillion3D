@@ -54,12 +54,20 @@ const tileRequestIndexWgsl = (k: string) =>
  * (`everyPick`, `PICK_TURNS` per map) and names the first whose tile is missing: one image asks
  * every tile the pose reads, a sliver's included, so what a settled pose reads is what it asked,
  * never what the pool kept of an earlier pose.
+ *
+ * It does so on every other row (`feedbackMissing`), the rows swapping each image: the others post
+ * their own pick as an ordinary image does, missing or not, and the reduction stamps the place it
+ * reads (`stampWgsl.ts`). A pixel's missing pick names the ancestor it reads, never its resident
+ * ones: were every pixel of a surface asking its missing normal tile, the base tile they all read
+ * would go unstamped and be given up while the image reads it. A pixel's read is stamped one image
+ * in two, inside the queue's in-use window; a missing tile is asked one image in two at worst.
  */
 export const FEEDBACK_RULE_WGSL = wgslBlock(
   'FEEDBACK_RULE_WGSL',
   [],
   `const PICK_TURNS:u32=${PICK_BLENDS * PICK_TAPS}u;
 fn feedbackEvery(word:u32)->bool{return (word&${FEEDBACK_EVERY}u)!=0u;}
+fn feedbackMissing(p:vec2f,word:u32)->bool{return feedbackEvery(word)&&((u32(p.y)+word)&1u)==0u;}
 fn feedbackPhase(p:vec2f,word:u32)->bool{
  if(feedbackEvery(word)){return true;}
  return ((u32(p.x)&${FEEDBACK_STRIDE_MASK}u)|((u32(p.y)&${FEEDBACK_STRIDE_MASK}u)<<2u))==(word&${FEEDBACK_EVERY - 1}u);
