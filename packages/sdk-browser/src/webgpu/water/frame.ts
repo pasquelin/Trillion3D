@@ -166,9 +166,10 @@ function bindWaterFrame(
  * lights and composes every water pixel into the HDR target, which keeps what it held wherever no
  * water is (the display layers where their mask is set), and, when the frame has a share, its
  * coverage as the reactive value the blends and particles also write (`asIsShare.ts`). No scissor:
- * a surface draws inside its rectangle by construction, the quads cover it alone, and every draw
- * and the copy take zero instances or workgroups from the GPU when no water draws. The word clear
- * stays full-target, a load clear. The composite is the program of the frame's lights' `key`
+ * a surface's fragments lie in its rectangle by construction — its local box enclosed under its
+ * pose and the projection, with every rounding (`rectWgsl.ts`) —, the quads cover the rectangle
+ * alone, and every draw and the copy take zero instances or workgroups from the GPU when no water
+ * draws. The word clear stays full-target, a load clear. The composite is the program of the frame's lights' `key`
  * (`createForwardVariants`). With `lobed`, `pipelines` are the lobed stage's (`lobedStage.ts`): the
  * lobes target is one more attachment, and the composite the program that reads it
  * (`waterLobesWgsl.ts`); without, the program without lobe code. Returns the surface draws encoded.

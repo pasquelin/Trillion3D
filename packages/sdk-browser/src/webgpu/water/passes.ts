@@ -10,9 +10,9 @@ import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from './passLabels.ts'
  * the three material surfaces, the water word (cleared: zero says "no water here" to the
  * composite), the lobes the lobed stage writes (loaded, a pixel's read only where its word is set,
  * by the fragment that set it), the feedback target, whose load `feedbackAttachment` decides per
- * image —, its depth cleared then restored over the water rectangle by the pass's first draw
- * (the only texels a surface draw tests and the composite reads); and the composite pass
- * (`createCompositePass`).
+ * image —, its depth cleared then restored over the water rectangle by the pass's first draw (the
+ * texels a surface draw tests, the composite reads them and their neighbours); and the composite
+ * pass (`createCompositePass`).
  */
 export function createWaterPasses() {
   const unnamed = undefined as unknown as GPUTextureView
