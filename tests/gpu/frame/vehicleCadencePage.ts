@@ -1,4 +1,4 @@
-// The page of the moving-vehicle cadence proof (`vehicleCadence.gpu.ts`): a generated car driven at
+// The page of the moving-vehicle cadence proof (`vehicle-cadence.gpu.ts`): a generated car driven at
 // full throttle over a generated terrain, through the public SDK alone, its chase camera written in
 // `world.beforeFrame`, the world leading its own loop on a display of 120 Hz the page plays.
 //
