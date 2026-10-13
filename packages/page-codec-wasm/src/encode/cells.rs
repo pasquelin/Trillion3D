@@ -36,7 +36,13 @@ fn max_error<const N: usize>(values: &[f32], record: &Quant<N>, offsets: &[[u32;
 
 /// The page's vertices, `width` floats each, gathered from the primitive's `source_width`-wide
 /// values in local order; a missing trailing component reads 1, the alpha of a three-wide colour.
-fn gather(values: &[f32], source_width: usize, width: usize, original: &[u32]) -> Result<Vec<f32>> {
+/// A value that is not finite refuses the page: no decoder would read it back.
+pub(super) fn gather(
+    values: &[f32],
+    source_width: usize,
+    width: usize,
+    original: &[u32],
+) -> Result<Vec<f32>> {
     let mut out = Vec::with_capacity(original.len() * width);
     for &source in original {
         let slice = &values[source as usize * source_width..(source as usize + 1) * source_width];
