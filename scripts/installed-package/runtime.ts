@@ -4,11 +4,11 @@ import type { Bundle, Run, Write } from './contracts.ts'
 const json = (value: string): string => JSON.stringify(value)
 
 function installedWorkerRuntimeSource(packageName: string): string {
-  return `import {MATRIX_VALUES,multiplyMatrix4Batch} from ${json(packageName)};
+  return `import {MATRIX_VALUES,multiplyMatrix4} from ${json(packageName)};
 const a=new Float64Array([1,0,0,0,0,1,0,0,0,0,1,0,2,3,4,1]);
 const b=new Float64Array([1,0,0,0,0,1,0,0,0,0,1,0,5,7,11,1]);
 const out=new Float64Array(MATRIX_VALUES);
-multiplyMatrix4Batch([out],[a],[b],1);
+multiplyMatrix4(out,a,b);
 const translation=Array.from(out.subarray(12,15));
 if(translation.join(',')!=='7,10,15')throw new Error('installed worker common maths produced '+translation);
 postMessage({translation,commonSubset:true});`
@@ -29,7 +29,7 @@ const fsp=process.getBuiltinModule('node:fs/promises');
 for(const name of ['access','open','readFile','readdir','stat'])fsp[name]=fail('host file read');
 syncBuiltinESMExports();
 const sdk=await import(${json(packageName)});
-if(typeof sdk.multiplyMatrix4Batch!=='function')throw new Error('common maths exports missing');`
+if(typeof sdk.multiplyMatrix4!=='function')throw new Error('common maths exports missing');`
 }
 
 const emittedInputs = (meta: Metafile, output: string) =>
@@ -66,7 +66,7 @@ export function proveInstalledRuntime({
   const bundles = {
     maths: bundle(
       'maths',
-      `import { multiplyMatrix4Batch } from ${json(packageName)};\nconsole.log(multiplyMatrix4Batch);\n`,
+      `import { multiplyMatrix4 } from ${json(packageName)};\nconsole.log(multiplyMatrix4);\n`,
     ),
   }
   assertInstalledMathReachability(bundles.maths)

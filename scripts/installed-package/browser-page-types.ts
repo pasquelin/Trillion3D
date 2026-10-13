@@ -15,12 +15,7 @@ export interface LooseWorld {
 }
 
 export interface LooseSdk {
-  multiplyMatrix4Batch(
-    out: Float64Array[],
-    a: readonly Float64Array[],
-    b: readonly Float64Array[],
-    n: number,
-  ): void
+  multiplyMatrix4(out: Float64Array, a: Float64Array, b: Float64Array): void
   createWorld(target: string, options: Record<string, unknown>): LooseWorld
   pose: { fromBounds(box: unknown, options: { aspect: number }): unknown }
   metric: { frame(world: LooseWorld): Record<string, number> | null }

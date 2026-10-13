@@ -1,4 +1,4 @@
-import { requireSdkWasm, type SdkWasm } from '../../../wasm/sdkWasm.ts'
+import { loadedSdkWasm, requireSdkWasm, type SdkWasm } from '../../../wasm/sdkWasm.ts'
 import { WASM_ARENA_CONTRACT } from '../../../wasm/wasmArena.ts'
 
 /**
@@ -10,16 +10,22 @@ import { WASM_ARENA_CONTRACT } from '../../../wasm/wasmArena.ts'
 
 let pending: Promise<SdkWasm> | null = null
 
+/** `wasm`, refused by name unless its compute contract is the one the batches expect. */
+function contracted(wasm: SdkWasm) {
+  const contract = typeof wasm.math_contract === 'function' ? wasm.math_contract() : 0
+  if (contract !== WASM_ARENA_CONTRACT)
+    throw new Error(
+      `SDK_WASM_CONTRACT: computation contract ${contract}; this loader expects ${WASM_ARENA_CONTRACT}`,
+    )
+  return wasm
+}
+
 /** The module, loaded once for the session and checked against the batches' contract. */
 export function mathBatchModule(): Promise<SdkWasm> {
-  pending ??= (async () => {
-    const wasm = await requireSdkWasm()
-    const contract = typeof wasm.math_contract === 'function' ? wasm.math_contract() : 0
-    if (contract !== WASM_ARENA_CONTRACT)
-      throw new Error(
-        `SDK_WASM_CONTRACT: computation contract ${contract}; this loader expects ${WASM_ARENA_CONTRACT}`,
-      )
-    return wasm
-  })()
+  pending ??= requireSdkWasm().then(contracted)
   return pending
 }
+
+/** The module once it has arrived (`mathBatchModule`), for a lot made where nothing can wait — a
+ *  lot that no longer holds its elements, remade: an error naming that it was not awaited. */
+export const loadedMathBatchModule = () => contracted(loadedSdkWasm())

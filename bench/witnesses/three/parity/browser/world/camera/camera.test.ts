@@ -1,6 +1,7 @@
 // Batch M4a, camera.ts: framing by flat bounds and core `sphereFromBounds` instead of
 // a host box's centre and half-diagonal. Confronted bit for bit (Object.is) with the old
 // path on hostile bounds.
+import '../../../../../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'

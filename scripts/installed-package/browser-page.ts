@@ -39,7 +39,7 @@ export async function evaluateInstalledPage({
   const translation = (x: number, y: number, z: number) =>
     new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1])
   const out = new Float64Array(16)
-  sdk.multiplyMatrix4Batch([out], [translation(2, 3, 4)], [translation(5, 7, 11)], 1)
+  sdk.multiplyMatrix4(out, translation(2, 3, 4), translation(5, 7, 11))
   const product = Array.from(out.subarray(12, 15))
   if (product.join(',') !== '7,10,15') throw new Error('installed browser maths did not execute')
   const commonWorker = await new Promise<unknown>((resolve, reject) => {

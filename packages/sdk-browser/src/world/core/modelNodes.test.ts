@@ -1,3 +1,4 @@
+import '../../wasm/sdkWasm.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'

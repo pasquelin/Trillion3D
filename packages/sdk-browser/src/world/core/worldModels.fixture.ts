@@ -1,3 +1,4 @@
+import '../../wasm/sdkWasm.fixture.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { Material } from '../../../../sdk-core/src/world/material/material.ts'

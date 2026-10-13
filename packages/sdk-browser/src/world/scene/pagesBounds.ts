@@ -91,5 +91,5 @@ export function pagesBounds(
         union.pose(world)
       }
   }
-  return union.ferme()
+  return union.close()
 }

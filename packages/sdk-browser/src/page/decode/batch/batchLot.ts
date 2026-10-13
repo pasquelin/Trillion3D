@@ -1,5 +1,5 @@
 import type { SdkWasm } from '../../../wasm/sdkWasm.ts'
-import { mathBatchModule } from './batchState.ts'
+import { loadedMathBatchModule } from './batchState.ts'
 import { reserveArena, type ArenaBlock, type ArenaRequest } from '../../../wasm/wasmArena.ts'
 
 /**
@@ -19,8 +19,8 @@ export interface MathLot {
   readonly n: number
   /** True when batch holds EXACTLY `n` elements and has not been released. */
   holds(n: number): boolean
-  /** Runs the module's kernel over the batch. */
-  run(): void
+  /** Runs the module's kernel over the batch's first `count` elements, all `n` by default. */
+  run(count?: number): void
   release(): void
 }
 
@@ -30,10 +30,10 @@ export interface BatchBuffer {
   release(): void
 }
 
-/** Batch blocks in module memory, or `null` when the module refuses their size (`arena_alloc`):
- *  the caller then takes each element by its single-element function. */
-export async function batchBuffer(requests: readonly ArenaRequest[]): Promise<BatchBuffer | null> {
-  const wasm = await mathBatchModule()
+/** Batch blocks in the memory of the module, arrived (`mathBatchModule`), or `null` when it
+ *  refuses their size (`arena_alloc`). */
+export function batchBuffer(requests: readonly ArenaRequest[]): BatchBuffer | null {
+  const wasm = loadedMathBatchModule()
   const arena = reserveArena(wasm, requests)
   return arena && { wasm, blocks: arena.blocks, release: arena.freed }
 }

@@ -1,5 +1,5 @@
-// Performance bench: the batches' WebAssembly kernels, each checked against the JavaScript loop
-// of the maths package on the same inputs.
+// Performance bench: the batches' WebAssembly kernels, each checked against its oracle, each
+// element alone by its single-element function, on the same inputs (`batchOracles.fixture.ts`).
 import { measure, rapport } from '../../core/index.ts'
 import type { MeasureCase } from '../../core/index.ts'
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
@@ -11,36 +11,16 @@ import {
 } from '../../../packages/sdk-browser/src/page/decode/batch/batchRuntime.ts'
 import type { MathLot } from '../../../packages/sdk-browser/src/page/decode/batch/batchLot.ts'
 import {
-  MATRIX_VALUES,
-  boxTransformBatch,
-  multiplyMatrix4Batch,
-} from '../../../packages/math/src/index.ts'
+  boxesByLoop,
+  productsByLoop,
+} from '../../../packages/sdk-browser/src/page/decode/batch/batchOracles.fixture.ts'
 import { TAILLES, fillsBoxes, remplitMatrices } from './support/wasmBatchCases.ts'
 
-/** `n` sub-views of sixteen numbers over a copy of `values`: the JavaScript loop's matrices. */
-function matrices(values: Float64Array, n: number) {
-  const copy = values.slice()
-  return Array.from({ length: n }, (_, i) =>
-    copy.subarray(i * MATRIX_VALUES, (i + 1) * MATRIX_VALUES),
-  )
-}
+/** The oracle's boxes for `lot`. */
+const boxesOf = (lot: BoxTransformLot) => boxesByLoop(lot.boxes.slice(), lot.mats.slice(), lot.n)
 
-/** The JavaScript loop's boxes for `lot`. */
-function boxesByLoop(lot: BoxTransformLot) {
-  const out = new Float64Array(lot.out.length)
-  boxTransformBatch(out, lot.boxes.slice(), matrices(lot.mats, lot.n), lot.n)
-  return out
-}
-
-/** The JavaScript loop's products for `lot`. */
-function productsByLoop(lot: MultiplyLot) {
-  const out = new Float64Array(lot.out.length)
-  const views = Array.from({ length: lot.n }, (_, i) =>
-    out.subarray(i * MATRIX_VALUES, (i + 1) * MATRIX_VALUES),
-  )
-  multiplyMatrix4Batch(views, matrices(lot.a, lot.n), matrices(lot.b, lot.n), lot.n)
-  return out
-}
+/** The oracle's products for `lot`. */
+const productsOf = (lot: MultiplyLot) => productsByLoop(lot.a.slice(), lot.b.slice(), lot.n)
 
 // Each lot keeps its own buffer type end to end: `cree` and `remplit` are called together,
 // never mixed across the two operations, so the pair stays type-correlated per call.
@@ -71,8 +51,8 @@ async function benchLot<T extends MathLot & { readonly out: Float64Array }>(
 }
 
 const results = [
-  await benchLot('boxTransformBatch', createBoxTransformLot, fillsBoxes, boxesByLoop),
-  await benchLot('multiplyMatrix4Batch', createMultiplyLot, remplitMatrices, productsByLoop),
+  await benchLot('box transform', createBoxTransformLot, fillsBoxes, boxesOf),
+  await benchLot('matrix product', createMultiplyLot, remplitMatrices, productsOf),
 ]
 
 rapport('lots-wasm', results, 'batched WebAssembly compute yields the same bits as JavaScript')
