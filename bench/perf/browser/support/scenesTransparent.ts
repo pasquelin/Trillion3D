@@ -17,6 +17,7 @@ import {
 } from '../../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { planReference } from '../../../oracles/browser/transparent-orders.ts'
+import { frustumExcludesBox } from '../../../../packages/sdk-core/src/index.ts'
 
 /** The reduced item this bench builds: only the fields the blend order reads (no GPU buffers),
  *  picked from the engine's item so a renamed field fails the type check, not the bench run. */
@@ -49,6 +50,18 @@ export const FACES: [string, THREE.Side][] = [
   ['double-sided', THREE.DoubleSide],
 ]
 
+/** Where item `i` stands: a grid of 64 by 16 by its rank. */
+const centreOf = (i: number): [number, number, number] => [
+  (i % 64) * 3 - 96,
+  ((i >> 6) % 16) * 4,
+  Math.floor(i / 1024) * 5,
+]
+/** Item `i`'s world box: a unit half extent around its centre. */
+function boxOf(i: number) {
+  const [x, y, z] = centreOf(i)
+  return new Float64Array([x - 1, y - 1, z - 1, x + 1, y + 1, z + 1])
+}
+
 /**
  * The scene: twelve placements per prototype, plus four primitives that carry their buffers.
  * Reduced fixture: only the fields the blend order reads are populated (no real GPU buffers).
@@ -62,20 +75,8 @@ function batisItems(side: THREE.Side): BenchItem[] {
     )
   for (let i = 0; i < ITEMS; i++) {
     const paged = i < PAGINES
-    const matrix = new THREE.Matrix4().setPosition(
-      (i % 64) * 3 - 96,
-      ((i >> 6) % 16) * 4,
-      Math.floor(i / 1024) * 5,
-    )
-    const m = matrix.elements
-    const bounds = new Float64Array([
-      m[12] - 1,
-      m[13] - 1,
-      m[14] - 1,
-      m[12] + 1,
-      m[13] + 1,
-      m[14] + 1,
-    ])
+    const matrix = new THREE.Matrix4().setPosition(...centreOf(i))
+    const bounds = boxOf(i)
     items.push({
       surface,
       matrix,
@@ -107,16 +108,22 @@ function plansDe(x: number): Float64Array {
   return planes
 }
 
-/** A frame: the eye, its planes, and the cut compaction would have written for each item. */
+/** A frame: the eye, its planes, and the cut compaction would have written for each item: none
+ *  for one past the frustum. */
 function imageA(x: number) {
-  const counts = new Uint32Array(PAGINES),
+  const planes = plansDe(x),
+    counts = new Uint32Array(PAGINES),
     instances = new Uint32Array(PAGINES * CLUSTERS)
   for (let p = 0; p < counts.length; p++) {
-    const tenues = 1 + Math.floor(alea() * CLUSTERS)
+    // The frame's cut selects no page of a placement past the frustum: the compaction, which
+    // lists the cut's clusters, counts none for it (`webgpu/transparent/compact.ts`).
+    const tenues = 1 + Math.floor(alea() * CLUSTERS),
+      box = boxOf(p)
+    if (frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])) continue
     counts[p] = tenues
     for (let j = 0; j < tenues; j++) instances[p * CLUSTERS + j] = p * CLUSTERS + j
   }
-  return { eye: [x, 8, 0], planes: plansDe(x), counts, instances }
+  return { eye: [x, 8, 0], planes, counts, instances }
 }
 export type Frame = ReturnType<typeof imageA>
 
