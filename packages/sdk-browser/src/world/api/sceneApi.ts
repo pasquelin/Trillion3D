@@ -5,7 +5,6 @@ import type {
   StablePreview,
 } from '../../../../sdk-core/src/index.ts'
 import type { Engine } from '../../engine/types.ts'
-import { DEFAULT_CLEAR_COLOR } from '../../engine/common.ts'
 import type { MemoryBudgets } from '../../residency/pools.ts'
 import type { PlacementRows } from '../../placement/rows.ts'
 import type { AlphaChange } from '../../placement/engineSceneUpdates.ts'
@@ -135,8 +134,9 @@ export function createExplorerSceneApi(inputs: Inputs) {
       check()
       engine.setBounce(on)
     },
-    /** The clear colour behind the scene, `0xrrggbb` or the default, at the next frame. */
-    setClearColor(hex = DEFAULT_CLEAR_COLOR) {
+    /** The clear colour behind the scene, `0xrrggbb`, or none declared (`undefined`, the default
+     *  drawn), at the next frame. */
+    setClearColor(hex?: number) {
       check()
       engine.setClearColor(hex)
     },

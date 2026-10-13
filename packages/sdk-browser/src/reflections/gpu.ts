@@ -140,8 +140,8 @@ export function reflectionBytes(width: number, height: number, blends: boolean, 
 /**
  * A view's reflection at `width × height`: the target the opaque trace writes, the radiance
  * pyramid of its last lit image (`radiance`, which holds the image it was made of: the next image
- * reprojects its hits with its view-projection), the tile list of the trace, the view uniform —
- * whose surroundings the GPU writes — and the writer of the rest of it. `blends`, whether the scene
+ * reprojects its hits with its view-projection), the tile list of the trace, the view uniform and
+ * its writer. `blends`, whether the scene
  * has any, sizes the front depth (`createFrontDepth`).
  */
 export function createScreenReflection(
@@ -162,7 +162,7 @@ export function createScreenReflection(
   const uniform = device.createBuffer({
     label: 'Trillion3D reflection view',
     size: REFLECTION_VIEW_BYTES,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const radiance = createRadiancePyramid(device, width, height)
   const tiles = createTraceTiles(device, width, height)

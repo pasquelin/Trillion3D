@@ -98,13 +98,13 @@ test('a picture background is refused by name', () => {
   assert.equal(scene.background, null)
 })
 
-test('the session writes the engine, the default colour for none', () => {
-  const taken: number[] = []
-  const engine = { setClearColor: (hex: number) => taken.push(hex) } as unknown as Engine
+test('the session writes the engine, none declared for none', () => {
+  const taken: (number | undefined)[] = []
+  const engine = { setClearColor: (hex?: number) => taken.push(hex) } as unknown as Engine
   const api = createExplorerSceneApi({ check: () => {}, engine } as never)
   api.setClearColor(0x102030)
   api.setClearColor()
-  assert.deepEqual(taken, [0x102030, 0x171d28])
+  assert.deepEqual(taken, [0x102030, undefined])
 })
 
 test('WebGPU: the passes read the new colour, the frame is not held on the old one', () => {
@@ -114,8 +114,13 @@ test('WebGPU: the passes read the new colour, the frame is not held on the old o
   const { scene: moved, resources } = gate.revisions
   setWebgpuClearColor(rt, 0xffffff)
   assert.equal(rt.run.clearColor, 0xffffff)
+  assert.equal(rt.run.backgroundDeclared, true)
   assert.deepEqual(scene.background, { isColor: true, r: 1, g: 1, b: 1 })
   // The held frame is broken, and nothing is walked again: the scene revision stays.
   assert.equal(gate.revisions.scene, moved)
   assert.notEqual(gate.revisions.resources, resources)
+  // None declared: the default drawn, and a ray that leaves the scene reaches the environment.
+  setWebgpuClearColor(rt, undefined)
+  assert.equal(rt.run.clearColor, 0x171d28)
+  assert.equal(rt.run.backgroundDeclared, false)
 })

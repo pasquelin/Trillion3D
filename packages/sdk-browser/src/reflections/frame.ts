@@ -11,6 +11,11 @@ import { reflectionGroup, reflectionOver, type ScreenReflection } from './gpu.ts
 import { encodeRadiancePyramid, type RadianceInputs } from './radiance.ts'
 import { encodeReflectionTrace, type TraceInputs } from './trace.ts'
 import type { ReflectionFrame } from './viewWrite.ts'
+import { createSurroundings } from '../lighting/toneUnmap.ts'
+import {
+  environmentCurve,
+  environmentExposure,
+} from '../../../sdk-core/src/scene/core/environment.ts'
 
 /** The reflections' compute pass, opened by the first of its dispatches. */
 const reflectionPass = new LazyComputePass(REFLECTION_PASS)
@@ -22,6 +27,9 @@ const frame: ReflectionFrame = {
   depthDrawn: false,
   proxyError: 0,
 }
+/** The radiance a ray that leaves the scene reaches, computed again when the background, the
+ *  exposure or the curve moves. */
+const surroundings = createSurroundings()
 const inputs = {} as TraceInputs
 const radianceInputs = {} as RadianceInputs
 
@@ -33,6 +41,13 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
   frame.size = gpu.targetSize
   frame.depthDrawn = run.depthDrawn
   frame.proxyError = bounce.proxy?.errorMetres ?? 0
+  const { environment } = rt.lights.store
+  frame.surroundings = surroundings(
+    run.clearColor,
+    run.backgroundDeclared,
+    environmentExposure(environment),
+    environmentCurve(environment),
+  )
   // The run-time proxy's answers are of an epoch: it moves with the view, the lights, the poses and the proxy.
   frame.epoch = reflection.store.follow(
     [rt.lights.store.epoch, run.gpuSelection?.proxyRevision() ?? 0],

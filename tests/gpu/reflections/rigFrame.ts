@@ -20,7 +20,8 @@ export type RigFrame = {
   lobes?: Uint32Array<ArrayBuffer>
   /** The proxy of the scene: its faces, two triangles each, and the radiance each gives (`rigRuntime.ts`). */
   proxy?: { faces: RigFace[] }
-  /** The background, `0xrrggbb`, as the display shows it: black by default. */
+  /** The background, `0xrrggbb`, as the display shows it: none declared by default, drawn black,
+   *  and a ray that leaves the scene then reaches the environment (`createSurroundings`). */
   background?: number
   /** The irradiance of a light declared around the scene: nine RGB coefficients, 27 numbers
    *  (`SceneEnvironment.irradiance`); none by default. */

@@ -1,7 +1,8 @@
 // A glass pane under an open sky (`skyPage.ts`): its mirror ray leaves the scene, and what it
-// reflects is the sky the view shows, times the pane's weight (a polished surface's, between 0.9
-// and 1 at grazing), whether the scene declares light around it or not: a declared light dimmer than
-// the sky never takes the pane's sky away, and a brighter one is read.
+// reflects is what the view shows in its direction, times the pane's weight (a polished surface's,
+// between 0.9 and 1 at grazing): the declared background, whatever light the scene declares around
+// it — a light brighter than the sky the view shows is not what the view shows there —, and that
+// light where the scene declares no background.
 //
 //   node bench/dawn/proofs.ts tests/gpu/reflections/sky.gpu.ts
 import test from 'node:test'
@@ -22,9 +23,10 @@ const CASES: SkyCase[] = [
   { sky: SKY, rough: 0.02 },
   { sky: SKY, declared: DIM, rough: 0.02 },
   { sky: SKY, declared: BRIGHT, rough: 0.02 },
+  { declared: BRIGHT, rough: 0.02 },
 ]
 
-test('a pane under an open sky reflects the sky the view shows, declared light or none', async () => {
+test('a pane under an open sky reflects what the view shows there: the background, else the declared light', async () => {
   const page = (await loadPage(
     resolve(import.meta.dirname, 'skyPage.ts'),
     'reflectionSky',
@@ -36,7 +38,7 @@ test('a pane under an open sky reflects the sky the view shows, declared light o
   const poses = result.poses!
   poses.forEach(({ minimum, maximum, pixels }, k) => {
     assert.ok(pixels > 500, `case ${k}: ${pixels} pane pixels`)
-    const expected = Math.max(SKY_LINEAR, (CASES[k].declared ?? 0) / Math.PI)
+    const expected = CASES[k].sky === undefined ? (CASES[k].declared ?? 0) / Math.PI : SKY_LINEAR
     assert.ok(minimum >= 0.9 * expected - 0.005, `case ${k}: ${minimum} of a sky of ${expected}`)
     assert.ok(maximum <= 1.01 * expected + 0.005, `case ${k}: ${maximum} of a sky of ${expected}`)
   })

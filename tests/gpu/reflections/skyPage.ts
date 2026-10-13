@@ -1,7 +1,8 @@
 // A glass pane under an open sky, over a floor (`boxFrame.ts`): a polished vertical pane facing the
 // eye, whose mirror ray rises where the pane stands above the eye and meets nothing the screen or a
-// proxy holds — it leaves the scene, to the sky. What it reflects is the sky the view shows (the
-// background), times its weight, whatever light is declared around the scene.
+// proxy holds — it leaves the scene, to the sky. What it reflects is what the view shows there, times
+// its weight: the declared background whatever light is declared around the scene, and that light
+// where the scene declares no background.
 import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import {
   addUniformIrradiance,
@@ -19,9 +20,10 @@ const EYE: V3 = [0, 1, 0],
 /** The pane's front face (`faceOf`: 2 · axis + 1 for the high side of z). */
 const FRONT = 5
 
-/** A case: the sky shown, `0xrrggbb` as the display shows it, the light declared around the scene
- *  (its uniform irradiance, none when absent) and the pane's roughness. */
-export type SkyCase = { sky: number; declared?: number; rough: number }
+/** A case: the sky shown, `0xrrggbb` as the display shows it (no background declared when absent),
+ *  the light declared around the scene (its uniform irradiance, none when absent) and the pane's
+ *  roughness. */
+export type SkyCase = { sky?: number; declared?: number; rough: number }
 
 /** What the proof reads per case: the pane's smallest and largest reflected value, in its pixels,
  *  and how many. */

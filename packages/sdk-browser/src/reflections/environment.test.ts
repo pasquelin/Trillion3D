@@ -1,6 +1,6 @@
 // The radiance around the scene a reflection reads, and the frame's state, shipped WGSL run as JavaScript (`shaderRun`):
-// the GGX lobe's zonal moments over the environment's bands, the background the larger of it and the
-// environment's, and the background as the display shows it.
+// the GGX lobe's zonal moments over the environment's bands, the declared background else the
+// environment, and the background as the display shows it (`createSurroundings`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
@@ -10,6 +10,7 @@ import { BEGIN_SHADER } from './trace.ts'
 import { DISPLAY_VALUE_WGSL } from '../lighting/toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { linearToSrgb } from '../../../math/src/color/color.ts'
+import { createSurroundings } from '../lighting/toneUnmap.ts'
 
 type Lobe = { R: number[]; T: number[]; bands: number[]; widths: number[] }
 const environmentRun = (environment: number[][], surroundings: number[]) =>
@@ -45,12 +46,12 @@ test('the GGX lobe keeps a mirror whole and filters the higher bands as it widen
   }
 })
 
-test('the surroundings and the environment: the larger of the two, through every lobe', () => {
+test('a ray that leaves the scene reaches the declared background, else the environment, through every lobe', () => {
   const environment = zero()
   environment[0] = [0.4, 0.2, 0.1, 0]
-  const surroundings = [0.25, 0.5, 0.125, 0]
+  const surroundings = [0.25, 0.5, 0.125, 1]
   const bare = environmentRun(environment, [0, 0, 0, 0])
-  const lit = environmentRun(environment, surroundings)
+  const shown = environmentRun(environment, surroundings)
   for (const [alpha, long] of [
     [0.0025, 0.0025],
     [0.25, 0.25],
@@ -61,10 +62,10 @@ test('the surroundings and the environment: the larger of the two, through every
       [0.6, 0, 0.8],
     ]) {
       const lobe = [1, 0, 0, long]
-      const without = bare.reflectionEnvironment(bare.reflectionLobeOf(R, alpha, lobe))
-      const with_ = lit.reflectionEnvironment(lit.reflectionLobeOf(R, alpha, lobe))
-      for (let c = 0; c < 3; c++)
-        assert.ok(Math.abs(with_[c] - Math.max(without[c], surroundings[c])) < 1e-12)
+      const sky = bare.reflectionEnvironment(bare.reflectionLobeOf(R, alpha, lobe))
+      assert.ok(sky[0] > 0, 'no background: the environment')
+      const seen = shown.reflectionEnvironment(shown.reflectionLobeOf(R, alpha, lobe))
+      assert.deepEqual(seen, surroundings.slice(0, 3), 'a background: what the view shows, whole')
     }
 })
 
@@ -102,39 +103,38 @@ test('a stretched lobe filters each axis by its own width, a round one is the zo
 })
 
 test('a scene is surrounded by its background, as the display shows it, declared light or none', () => {
-  // The lighting's view: the background 0x171d28 as the display shows it, the curve and an exposure
-  // of 2; the reflection's own, whose surroundings the begin writes.
-  const view = {
-    background: [...[0x17, 0x1d, 0x28].map((b) => b / 255), 1],
-    display: [TONE_MAPPING_RANK.aces, 0, 0, 0],
-    lightParams: [0, 0, 0, 2],
-  }
-  const reflectionView = { surroundings: [9, 9, 9, 9], runtime: [0, 0, 0, 0] }
-  const work = [7, 0, 0, 0]
-  // The trace's list of a frame that left rays (its tiles, the pixels left, the work spent, the offset and the
-  // cursor): the next frame starts where its budget ended.
-  const traceList = [9, 4, 7, 3, 5]
-  const run = shaderRun<{ reflectionBegin: () => void; aces: (c: number[]) => number[] }>(
-    BEGIN_SHADER + wgslModule(DISPLAY_VALUE_WGSL),
-    [
-      'reflectionBegin',
-      'toneUnmap',
-      'acesInverse',
-      'cineonInverse',
-      'agxInverse',
-      'neutralInverse',
-      'aces',
-      'srgbToLinear',
-    ],
-    { view, reflectionView, work, traceList },
+  // The background 0x171d28 as the display shows it, the curve and an exposure of 2: the
+  // surroundings the view writes (`createSurroundings`).
+  const surroundings = createSurroundings()(0x171d28, true, 2, TONE_MAPPING_RANK.aces)
+  assert.equal(surroundings[3], 1, 'a declared background')
+  const { aces } = shaderRun<{ aces: (c: number[]) => number[] }>(
+    wgslModule(DISPLAY_VALUE_WGSL),
+    ['aces'],
+    {},
   )
-  run.reflectionBegin()
   // A mirror (its weight one) shows it through the exposure and the curve: the background's bytes.
-  const shown = run.aces(reflectionView.surroundings.slice(0, 3).map((c) => c * 2))
+  const shown = aces([...surroundings.slice(0, 3)].map((c) => c * 2))
   assert.deepEqual(
     shown.map((c) => Math.round(linearToSrgb(c) * 255)),
     [0x17, 0x1d, 0x28],
   )
+  assert.deepEqual(
+    [...createSurroundings()(0x171d28, false, 2, TONE_MAPPING_RANK.aces)],
+    [0, 0, 0, 0],
+    'none declared: the environment',
+  )
+})
+
+test('the frame state restarts the tile list and moves the proxy schedule on', () => {
+  const work = [7, 0, 0, 0]
+  // The trace's list of a frame that left rays (its tiles, the pixels left, the work spent, the offset and the
+  // cursor): the next frame starts where its budget ended.
+  const traceList = [9, 4, 7, 3, 5]
+  const run = shaderRun<{ reflectionBegin: () => void }>(BEGIN_SHADER, ['reflectionBegin'], {
+    work,
+    traceList,
+  })
+  run.reflectionBegin()
   // The tile list starts empty: its indirect arguments, one row of nothing, then 1, and the count.
   assert.deepEqual(work, [0, 1, 1, 0])
   // Answers were left (4) and the budget ended at tile 5 from tile 3: the next frame starts at 8, the
