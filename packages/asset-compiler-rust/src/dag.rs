@@ -11,7 +11,7 @@
 //! simplification error (`attributes.rs`), and the cook refuses a DAG whose error drops from a
 //! cluster to its parent or whose coarse level bends a normal past its bound (`quality.rs`).
 use crate::perf::{Phase, Timer};
-use crate::qem::{compact_region, simplify_with_locked_vertices};
+use crate::qem::simplify_with_locked_vertices;
 use crate::{invalid, Result};
 use rayon::prelude::*;
 use trillion3d_page_codec::hash::{word_map, WordMap, WordSet};

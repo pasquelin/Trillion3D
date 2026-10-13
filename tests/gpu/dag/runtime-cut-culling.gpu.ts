@@ -1,8 +1,8 @@
-// A mesh cut at run time is culled by the hierarchy its cut builds (`runtimeCut.ts`, the compiler's
-// builder in the page worker): the GPU descent tests the pages a view reaches, never all N. On a
-// generated grid whose index buffer runs by COLUMNS — the order a page-order hierarchy turns into
-// boxes as wide as the mesh — the same close view over the grid and over the grid four times as
-// large tests the same candidates, a small share of the pages: the law is O(visible), not O(N).
+// A mesh cut at run time is clustered and culled by the compiler's builders (`runtimeCut.ts`, in the
+// page worker): the GPU descent tests the pages a view reaches, never all N. On a generated grid
+// whose index buffer runs by COLUMNS — the order in which consecutive runs make pages and boxes as
+// long as the mesh — the same close view over the grid and over the grid four times as large tests
+// the same candidates, a small share of the pages: the law is O(visible), not O(N).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
@@ -10,7 +10,7 @@ import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import { cutDrawnTriangles } from '../../../packages/sdk-browser/src/world/page/runtimeCut.ts'
 import { cullingNodes } from '../../../packages/sdk-browser/src/page/selection/helpers.ts'
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import { runSelectionKernel } from './selectionKernel.ts'
+import { runSelectionKernel, type SelectionCase } from './selectionKernel.ts'
 import { posedSelection } from './selectionCase.ts'
 
 const VIEWPORT: [number, number] = [1280, 720]
@@ -53,7 +53,7 @@ async function cutRoot(side: number): Promise<DagRoot> {
 
 test('a run-time cut tests the pages a view reaches, not all of them, whatever the mesh size', async () => {
   const camera = G.perspectiveCamera(55, VIEWPORT[0] / VIEWPORT[1], 0.1, 50)
-  const cases = []
+  const cases: SelectionCase[] = []
   for (const side of [128, 256]) {
     const roots = [await cutRoot(side)]
     // A close view of a corner of the grid, the same for both sizes.

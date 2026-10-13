@@ -34,7 +34,9 @@ fn cases() -> Vec<Vec<Value>> {
 fn compute(v: &[Value]) -> Vec<Value> {
     let records: Vec<f64> = v[1..].iter().map(|value| value.f64()).collect();
     let clusters: Vec<CullingCluster> = records
-        .chunks_exact(CULLING_RECORD_FLOATS)
+        .as_chunks::<CULLING_RECORD_FLOATS>()
+        .0
+        .iter()
         .map(|r| CullingCluster::from_record(r).expect("a whole level"))
         .collect();
     let (order, nodes) = build_culling_bvh(&clusters);

@@ -44,6 +44,18 @@ export type SdkWasm = {
   ): number
   /** The grids of a primitive (`../world/page/cutGrid.ts`): NaN where nothing is known, `blended`
    *  0 or 1. */
+  /** The clusters of the run-time cut (`../page/codec/clusterTriangles.ts`): 0 built, the answer
+   *  waiting for `cluster_build_take`; 1 refused. */
+  cluster_build(
+    indices: number,
+    indexCount: number,
+    positions: number,
+    vertexCount: number,
+    rule: number,
+    caps: number,
+    meta: number,
+  ): number
+  cluster_build_take(indices: number, ends: number): void
   /** The culling hierarchy of the run-time cut's pages (`../page/codec/cullingHierarchy.ts`): 0
    *  built, the answer waiting for `culling_build_take`; 1 refused. */
   culling_build(records: number, count: number, meta: number): number

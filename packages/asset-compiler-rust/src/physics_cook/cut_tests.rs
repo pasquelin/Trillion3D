@@ -58,11 +58,11 @@ fn collider_sources() -> Vec<(String, Vec<f32>, Vec<u32>)> {
 // Behaviour: a cooked collider holds its tolerance, on every primitive with a simplified level:
 // its measured distance to level 0 is at or under the tolerance, and is the distance the cut
 // publishes. Where the tolerance's own cut measures over it (a cluster's error is the simplifier's
-// estimate, not a bound), the collider is a finer cut that holds; some primitive of the set needs
-// that search, so the set exercises it.
+// estimate, not a bound), the collider is a finer cut that holds: the scenes' DAGs need that search
+// on none of their primitives, the case below builds one that does.
 #[test]
 fn every_collider_holds_its_tolerance() {
-    let (mut checked, mut searched) = (0, 0);
+    let mut checked = 0;
     for (name, pos, source) in collider_sources() {
         let strategy = DagStrategy::named("qem-endpoints");
         let attributes = DagAttributes::default();
@@ -80,20 +80,8 @@ fn every_collider_holds_its_tolerance() {
             hausdorff::distance(&pos, &source, &tiles.concat()),
             "{name}"
         );
-        let own: Vec<u32> = dag
-            .iter()
-            .filter(|c| crate::proxy::cut::selected(c, t))
-            .flat_map(|c| c.indices.iter().copied())
-            .collect();
-        if hausdorff::distance(&pos, &source, &own) > t {
-            searched += 1;
-        }
     }
     assert!(checked > 0, "no primitive with a simplified level");
-    assert!(
-        searched > 0,
-        "no primitive whose tolerance's own cut measures over it"
-    );
 }
 
 // Behaviour: when the tolerance's own cut measures over it, the coarsest cut that holds is kept,

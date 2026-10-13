@@ -17,7 +17,8 @@ import type { CutWay } from './runtimePack.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'
 import { clusterCones } from './cutCones.ts'
-import { clusters, givenClusters, primitiveUvSpan, widestUvSpan } from './cutClusters.ts'
+import { givenClusters, primitiveUvSpan, widestUvSpan } from './cutClusters.ts'
+import { clusterTriangles, type ClusterRule } from '../../page/codec/clusterTriangles.ts'
 import {
   drawnUvGridExponent,
   positionGridExponent,
@@ -35,28 +36,29 @@ import { buildCullingHierarchy } from '../../page/codec/cullingHierarchy.ts'
 export type Recut = GridInputs & { ends: Uint32Array }
 
 /**
- * Cuts drawn triangles into single-level clusters of the format's size, in index order, each
- * written as its index page and its quantized geometry page (`encodeGeometryPage`), with no
- * simplification — every cluster is a root, drawn as it is — and, when `cones` holds, with the
- * cone of its triangles' normals (`cutCones.ts`). Positions sit on the compiler's tiled grid
- * (`cutGrid.ts`). Texture coordinates sit on the format's 2^-14, or on the finest grid the widest
- * cluster's range fits when it does not — a dashed line's distance along it (`drawn.ts`) spans
- * past 1024 units on a long line: every page is cut, none refused, and each coordinate stays
- * within a 32-bit float's own step of that range. A `blended` primitive takes the finest grids
- * a page holds for both (2^23 steps), the compiler's rule too: a coarser one shows through a
- * transparent surface. A `recut` keeps the compiled primitive's own clusters and takes the
- * grids the compiler gives its class — texture coordinates by their span over every vertex —, so
- * each page is the one the compiler writes for that class. `held` faces — faces that move
- * after the cut: a dynamic geometry's, a mesh the waves carry —, whose pages keep no
- * cone, are cut, when blended, in their
- * paint order into runs no wider than a compact cluster of their triangles (`clusters`): the same
- * triangles painted in the same order, each page drawn by the shadow rasters into the pages it
- * reaches. Lines and sprites (no `cones`) keep the format's clusters: their quads have no area.
+ * Cuts drawn triangles into single-level clusters of the format's size by the compiler's
+ * clusterer (`clusterTriangles`), each written as its index page and its quantized geometry page
+ * (`encodeGeometryPage`), with no simplification — every cluster is a root, drawn as it is — and,
+ * when `cones` holds, with the cone of its triangles' normals (`cutCones.ts`). Opaque faces take
+ * its spatial rule, the compiler's: compact patches whatever the index order, a grid listed by
+ * columns or a soup cut as a cooked mesh is. A `blended` surface keeps its source order, its paint
+ * order, in consecutive runs; its `held` faces — faces that move after the cut: a dynamic
+ * geometry's, a mesh the waves carry —, whose pages keep no cone, in runs no wider than a compact
+ * cluster of their triangles, each page drawn by the shadow rasters into the pages it reaches.
+ * Lines and sprites (no `cones`) keep their order too: their quads have no area, their layer is
+ * coplanar. Positions sit on the compiler's tiled grid (`cutGrid.ts`). Texture coordinates sit on
+ * the format's 2^-14, or on the finest grid the widest cluster's range fits when it does not — a
+ * dashed line's distance along it (`drawn.ts`) spans past 1024 units on a long line: every page is
+ * cut, none refused, and each coordinate stays within a 32-bit float's own step of that range. A
+ * `blended` primitive takes the finest grids a page holds for both (2^23 steps), the compiler's
+ * rule too: a coarser one shows through a transparent surface. A `recut` keeps the compiled
+ * primitive's own clusters and takes the grids the compiler gives its class — texture coordinates
+ * by their span over every vertex —, so each page is the one the compiler writes for that class.
  *
  * The pages come out in the order of their culling hierarchy, built by the compiler's builder over
  * their boxes (`buildCullingHierarchy`), and the hierarchy with them: the GPU descent tests the
- * nodes a view reaches, never every page. Each page keeps its first source triangle (`start`),
- * the paint rank a blended surface draws its pages in.
+ * nodes a view reaches, never every page. Each page keeps its first triangle in the clustered
+ * order (`start`): for a blended surface its source rank, the paint rank it draws its pages in.
  */
 export async function cutDrawnTriangles(
   drawn: DrawnTriangles,
@@ -65,7 +67,7 @@ export async function cutDrawnTriangles(
   { recut, held = false }: CutWay = {},
 ): Promise<PageCutPayload> {
   const module = await requireSdkWasm()
-  const { positions, normals, uvs, colors, indices } = drawn
+  const { positions, normals, uvs, colors } = drawn
   const bounds = new Float64Array(6)
   boxEmpty(bounds, 0)
   for (let i = 0; i + 2 < positions.length; i += 3)
@@ -90,10 +92,11 @@ export async function cutDrawnTriangles(
     ...(uvs ? { TEXCOORD_0: { itemSize: 2, array: uvs } } : {}),
     ...(colors ? { COLOR_0: { itemSize: 4, array: colors } } : {}),
   }
-  const compactAt = blended && held && cones ? positions : undefined
-  const ranges = recut
-    ? givenClusters(recut.ends)
-    : [...clusters(indices, positions.length / 3, compactAt)]
+  const rule: ClusterRule =
+    blended || !cones ? (blended && held && cones ? 'compact' : 'ordered') : 'spatial'
+  const { indices, ranges } = recut
+    ? { indices: drawn.indices, ranges: givenClusters(recut.ends) }
+    : clusterTriangles(module, drawn.indices, positions, rule)
   const uvExponent =
     recut && uvs
       ? uvGridExponent(module, primitiveUvSpan(uvs), blended)
