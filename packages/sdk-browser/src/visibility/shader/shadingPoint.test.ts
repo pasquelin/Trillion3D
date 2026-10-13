@@ -29,7 +29,7 @@ test('receiver projects onto interpolated vertex tangent planes and keeps flat s
     [-0.3, -0.3, 1],
     [0.3, 0, 1],
     [0, 0.3, 1],
-  ].map(unit)
+  ].map((v) => unit(v as T3))
   const actual = shadingPointOffset(P, bary, ...vertices, ...normals)
   // Independent construction: each tangent-plane projection, then barycentric interpolation.
   const projected = vertices.map((v, i) => {
@@ -70,7 +70,7 @@ test('degenerate normals and world translations preserve a finite receiver displ
     [0, 0, 1],
     [0.2, 0, 1],
     [0, 0.2, 1],
-  ].map(unit)
+  ].map((v) => unit(v as T3))
   const point = [0.5, 1, 0],
     translation = [128, -64, 32]
   const move = (v: V) => v.map((x, i) => x + translation[i])
@@ -91,7 +91,7 @@ test('the receiver never falls behind its triangle: a concave patch keeps its po
     [0.3, 0.3, 1],
     [-0.3, 0, 1],
     [0, -0.3, 1],
-  ].map(unit)
+  ].map((v) => unit(v as T3))
   assert.deepEqual(
     shadingPointOffset([0.6, 1, 0], [0.2, 0.3, 0.5], ...vertices, ...concave).map(Math.abs),
     [0, 0, 0],
