@@ -104,14 +104,18 @@ pub fn plan_cell(triangles: &[f32], floor: f64, budget: usize) -> f64 {
 }
 
 /// Snaps `triangles` to the grid `size` in place, dropping what has no area and what repeats: the
-/// first of equal triangles stays, and `albedo` follows it.
-pub fn simplify_sources(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, size: f64) {
+/// first of equal triangles stays, and `albedo` follows it. Returns the rank each kept triangle had
+/// among the source triangles.
+pub fn simplify_sources(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, size: f64) -> Vec<usize> {
     let mut out: Vec<f32> = Vec::with_capacity(triangles.len());
     let mut colours: Vec<u32> = Vec::with_capacity(albedo.len());
+    let mut sources: Vec<usize> = Vec::new();
     for (index, snapped) in kept(triangles, size) {
         out.extend_from_slice(&snapped);
         colours.push(albedo.get(index).copied().unwrap_or(0xffff_ffff));
+        sources.push(index);
     }
     *triangles = out;
     *albedo = colours;
+    sources
 }

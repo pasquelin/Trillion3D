@@ -4,6 +4,8 @@ import {
   PROXY_TRIANGLE_FLOATS,
 } from '../../../../sdk-core/src/index.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
+import type { DrawnDeformation } from '../../../../sdk-core/src/world/geometry/drawnDeformation.ts'
+import { cornerDeformation } from './runtimeDeform.ts'
 import { reserveArena } from '../../wasm/wasmArena.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
 
@@ -15,12 +17,14 @@ const META_WORDS = 4
  * The proxy of a cut, in the cut's own space, by the builder the compiler's resident proxy goes
  * through (`proxy.rs`, `cut_columns`): `indices` over `positions` are snapped to the finest grid
  * that leaves a bounded count of triangles, a BVH is built over them and collapsed to wide nodes.
- * Run where the cut runs (`runtimeCut.ts`), the page worker's; the columns come back owned.
+ * Run where the cut runs (`runtimeCut.ts`), the page worker's; the columns come back owned. A cut that
+ * deforms (`deformation`) brings what poses its corners (`runtimeDeform.ts`).
  */
 export function buildCutProxy(
   module: SdkWasm,
   indices: Uint32Array,
   positions: Float32Array,
+  deformation?: DrawnDeformation,
 ): RuntimeCutProxy {
   const input = reserveArena(module, [
     { type: 'u32', length: indices.length },
@@ -53,6 +57,7 @@ export function buildCutProxy(
     triangles,
     nodes * PROXY_NODE_FLOATS,
     nodes * PROXY_NODE_WORDS,
+    triangles,
   ]
   const total = counts.reduce((sum, count) => sum + count, 0)
   const out = reserveArena(module, [{ type: 'u32', length: total }])
@@ -67,13 +72,15 @@ export function buildCutProxy(
       at += count
       return part
     }
-    const [triangleWords, albedo, boundWords, children] = counts.map(take)
+    const [triangleWords, albedo, boundWords, children, sources] = counts.map(take)
+    const deform = deformation && cornerDeformation(sources, indices, deformation)
     return {
       triangles: new Float32Array(triangleWords.buffer),
       albedo,
       nodeBounds: new Float32Array(boundWords.buffer),
       nodeChildren: children,
       cellMetres: cell,
+      ...(deform ? { deform } : {}),
     }
   } finally {
     out.freed()

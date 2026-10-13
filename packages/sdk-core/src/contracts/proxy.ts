@@ -23,6 +23,19 @@ export {
   SCENE_PROXY_VERSION,
 } from './writtenFormats.ts'
 
+/** What poses a deformed placement's proxy from its rest shape: for each corner of the proxy's triangles, in
+ *  triangle order and corner order, the vertex it was built from keeps its skin and its morph deltas
+ *  (`world/page/runtimeDeform.ts`). A corner is `CORNER_INFLUENCES` joint ranks, as many weights, then the
+ *  three deltas of each target: `8 + 3 × targets` floats. */
+export interface CutDeformation {
+  /** Morph targets of the mesh. */
+  targets: number
+  corners: Float32Array<ArrayBuffer>
+}
+
+/** Influences a posed corner keeps of its vertex: the four heaviest. */
+export const CORNER_INFLUENCES = 4
+
 /** A mesh's or a cut's proxy in its own space (`page-codec-wasm/src/proxy.rs` `columns_of`): the columns of
  *  a `proxy.bin`'s mesh, built by the compiler's builder, and the grid step taken. Read from the cache for a
  *  compiled mesh, held in memory by the primitive of a cut the world made at run time, never written to a
@@ -33,6 +46,7 @@ export interface RuntimeCutProxy {
   /** Exact bounds of each wide node. */ nodeBounds: Float32Array<ArrayBuffer>
   /** The four children of each node. */ nodeChildren: Uint32Array<ArrayBuffer>
   /** The grid step the mesh was snapped to, in the mesh's units. */ cellMetres: number
+  /** Present on a mesh that deforms: what poses it (`CutDeformation`). */ deform?: CutDeformation
 }
 
 /** The proxy's columns as its cache object carries them: one proxy a compiled primitive. */

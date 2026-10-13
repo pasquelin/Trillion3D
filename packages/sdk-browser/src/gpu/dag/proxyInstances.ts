@@ -27,6 +27,7 @@ import { refreshSurface, type PageSurface } from '../../page/surface.ts'
 import type { RootProxy } from '../../page/selection/types.ts'
 import { rowParked, type PlacementOf } from '../../placement/rows.ts'
 import { createSpans } from '../../bounce/runtimeArena.ts'
+import { createProxyPose, type PoseEntry } from './proxyPose.ts'
 import {
   INSTANCE,
   INSTANCE_WORDS,
@@ -43,7 +44,7 @@ import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
 /** The world matrices are sixteen words each in the cut's worlds, the exact translations behind. */
 const WORLD_WORDS = 16
 /** Cuts, surfaces, triangles and nodes a first buffer is laid out for: doubled as needed. */
-const START = { surfaces: 16, triangles: 4096, nodes: 1024 }
+const START = { surfaces: 16, triangles: 4096, nodes: 1024, corners: 4096 }
 
 type Resources = {
   device: GPUDevice
@@ -69,7 +70,32 @@ export type ProxyCopy = {
 const WHITE = 0xffffffff
 
 /** Where a proxy lies in the arena: its first node and triangle, and what it holds. */
-type Placed = { node: number; triangle: number; nodes: number; triangles: number }
+type Placed = {
+  node: number
+  triangle: number
+  nodes: number
+  triangles: number
+  /** A mesh that deforms: where its corner table lies among the corner words, and how many. */
+  corner?: number
+  corners: number
+}
+
+/** The copy of a mesh's proxy a deformed placement owns, which the pose moves (`proxyPose.ts`). */
+type Posed = {
+  cut: RuntimeCutProxy
+  placed: Placed
+  node: number
+  triangle: number
+  fresh: boolean
+}
+
+/** What the pose reads of the deformation (`deformation/session.ts`): the float pool its records lie in, each
+ *  placement's record in it (the first float plus one, zero for none) and the revision of the records. */
+export type PoseHost = {
+  pool: GPUBuffer | undefined
+  recordOf(world: object): number
+  revision: number
+}
 
 /** A surface slot: the words it holds are those of a version of its record, under a tint. */
 type Held = { slot: number; version: number; at: number }
@@ -102,7 +128,11 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     surfaces = new Map<PageSurface, Map<number, Held>>()
   let surfaceCount = 0
   const triangles = createSpans(START.triangles),
-    nodes = createSpans(START.nodes)
+    nodes = createSpans(START.nodes),
+    corners = createSpans(START.corners)
+  const posed = new Map<number, Posed>()
+  const pose = createProxyPose(device)
+  let posedRevision = -1
   let copies: readonly ProxyCopy[] = [],
     copyCount = 0,
     copyWorlds = new Float32Array(0),
@@ -122,7 +152,8 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       boundsAt = trianglesAt + triangles.capacity * PROXY_TRIANGLE_FLOATS,
       childrenAt = boundsAt + nodes.capacity * PROXY_NODE_FLOATS,
       treeAt = childrenAt + nodes.capacity * PROXY_NODE_WORDS,
-      membersAt = treeAt + treeWords
+      membersAt = treeAt + treeWords,
+      deformAt = membersAt + memberWords
     return {
       instances,
       copyWorlds: copyWorldsAt,
@@ -132,7 +163,8 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       children: childrenAt,
       tree: treeAt,
       members: membersAt,
-      total: membersAt + memberWords,
+      deform: deformAt,
+      total: deformAt + corners.capacity,
     }
   }
   const byteAt = (word: number) => (RUNTIME_HEADER_WORDS + word) * 4
@@ -182,9 +214,15 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
 
   /** The tables laid out again — `want` more triangles, nodes, surfaces, or a copy more or fewer —:
    *  the buffer replaced by one the new layout fits, the columns it held carried over by copies. */
-  function relayout(want = { triangles: 0, nodes: 0, surfaces: 0 }) {
+  function relayout(want: {
+    triangles: number
+    nodes: number
+    surfaces: number
+    corners?: number
+  }) {
     triangles.grown(want.triangles)
     nodes.grown(want.nodes)
+    corners.grown(want.corners ?? 0)
     const before = layout,
       grownSurfaces = Math.max(surfaceCapacity, want.surfaces)
     if (grownSurfaces !== surfaceCapacity) {
@@ -204,38 +242,89 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     copy(before.triangles, layout.triangles, triangles.extent * PROXY_TRIANGLE_FLOATS)
     copy(before.bounds, layout.bounds, nodes.extent * PROXY_NODE_FLOATS)
     copy(before.children, layout.children, nodes.extent * PROXY_NODE_WORDS)
+    copy(before.deform, layout.deform, corners.extent)
     device.queue.submit([encoder.finish()])
     old.destroy()
   }
 
-  /** A cut's columns in the arena, uploaded the first time a placement wears it. */
+  /** `count` units of each table taken, the tables laid out again when one cannot hold them: the spans, or
+   *  none where the arena cannot be made larger (the engine's own refusal then says why). */
+  function taken(triangleCount: number, nodeCount: number, cornerCount = 0) {
+    const take = () => [
+      triangles.take(triangleCount),
+      nodes.take(nodeCount),
+      corners.take(cornerCount),
+    ]
+    let [triangle, node, corner] = take()
+    if (triangle === undefined || node === undefined || corner === undefined) {
+      if (triangle !== undefined) triangles.release(triangle, triangleCount)
+      if (node !== undefined) nodes.release(node, nodeCount)
+      if (corner !== undefined) corners.release(corner, cornerCount)
+      relayout({
+        triangles: triangles.extent + triangleCount,
+        nodes: nodes.extent + nodeCount,
+        corners: corners.extent + cornerCount,
+        surfaces: 0,
+      })
+      ;[triangle, node, corner] = take()
+    }
+    return triangle === undefined || node === undefined || corner === undefined
+      ? undefined
+      : { triangle, node, corner }
+  }
+
+  /** A mesh's columns in the arena, uploaded the first time a placement wears it. */
   function place(cut: RuntimeCutProxy): Placed | undefined {
     const known = cuts.get(cut)
     if (known) return known
     const triangleCount = cut.triangles.length / PROXY_TRIANGLE_FLOATS,
-      nodeCount = cut.nodeBounds.length / PROXY_NODE_FLOATS
+      nodeCount = cut.nodeBounds.length / PROXY_NODE_FLOATS,
+      cornerCount = cut.deform?.corners.length ?? 0
     if (!triangleCount || !nodeCount) return undefined
-    let triangle = triangles.take(triangleCount),
-      node = nodes.take(nodeCount)
-    if (triangle === undefined || node === undefined) {
-      if (triangle !== undefined) triangles.release(triangle, triangleCount)
-      if (node !== undefined) nodes.release(node, nodeCount)
-      relayout({
-        triangles: triangles.extent + triangleCount,
-        nodes: nodes.extent + nodeCount,
-        surfaces: 0,
-      })
-      triangle = triangles.take(triangleCount)
-      node = nodes.take(nodeCount)
-    }
-    if (triangle === undefined || node === undefined) return undefined
+    const got = taken(triangleCount, nodeCount, cornerCount)
+    if (!got) return undefined
+    const { triangle, node, corner } = got
     const made = ensure()
     send(made, byteAt(layout.triangles + triangle * PROXY_TRIANGLE_FLOATS), cut.triangles)
     send(made, byteAt(layout.bounds + node * PROXY_NODE_FLOATS), cut.nodeBounds)
     send(made, byteAt(layout.children + node * PROXY_NODE_WORDS), cut.nodeChildren)
-    const placed = { node, triangle, nodes: nodeCount, triangles: triangleCount }
+    if (cut.deform) send(made, byteAt(layout.deform + corner), cut.deform.corners)
+    const placed = {
+      node,
+      triangle,
+      nodes: nodeCount,
+      triangles: triangleCount,
+      corners: cornerCount,
+      ...(cut.deform ? { corner } : {}),
+    }
     cuts.set(cut, placed)
     return placed
+  }
+
+  /** The copy of `placed`'s mesh that placement `w` owns, which the pose moves: its triangles and nodes in
+   *  the arena, the rest shape to begin with. */
+  function posedCopy(w: number, cut: RuntimeCutProxy, placed: Placed) {
+    const held = posed.get(w)
+    if (held?.cut === cut) return held
+    if (held) dropPosed(w)
+    const got = taken(placed.triangles, placed.nodes)
+    if (!got) return undefined
+    const made = ensure()
+    send(made, byteAt(layout.triangles + got.triangle * PROXY_TRIANGLE_FLOATS), cut.triangles)
+    send(made, byteAt(layout.bounds + got.node * PROXY_NODE_FLOATS), cut.nodeBounds)
+    send(made, byteAt(layout.children + got.node * PROXY_NODE_WORDS), cut.nodeChildren)
+    const copy = { cut, placed, node: got.node, triangle: got.triangle, fresh: true }
+    posed.set(w, copy)
+    return copy
+  }
+
+  /** Placement `w` stands at its mesh's rest shape again: its copy is given back. */
+  function dropPosed(w: number) {
+    const copy = posed.get(w)
+    if (!copy) return
+    triangles.release(copy.triangle, copy.placed.triangles)
+    nodes.release(copy.node, copy.placed.nodes)
+    posed.delete(w)
   }
 
   /** A surface's slot under a tint (none: its own), its words written the first time and each time its
@@ -282,6 +371,10 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     }
   }
 
+  /** A placement's mark as its instance holds it: a posed one is traced where the deformation put it, so the
+   *  reach the mark carries above its flags, which tells how far its rest shape can be from there, goes. */
+  const markOf = (w: number, mark: number) => (posed.has(w) ? mark & 0xffff : mark)
+
   /** The instance words of placement `w`, from the root it holds, parked or not. */
   function resolve(w: number) {
     const root = packed.worldSources[w] as DagRoot | undefined,
@@ -294,10 +387,13 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       resolved[at + INSTANCE.mark] = 0
       return
     }
-    resolved[at + INSTANCE.node] = placed.node
-    resolved[at + INSTANCE.triangle] = placed.triangle
+    // A placement whose mesh deforms stands at its own copy, which the pose moves; the others share the mesh's.
+    const copy = cut.deform && placed.corner !== undefined ? posedCopy(w, cut, placed) : undefined
+    if (!copy) dropPosed(w)
+    resolved[at + INSTANCE.node] = copy?.node ?? placed.node
+    resolved[at + INSTANCE.triangle] = copy?.triangle ?? placed.triangle
     resolved[at + INSTANCE.surface] = surfaceSlot(proxy.surface, tintOf(cut))
-    resolved[at + INSTANCE.mark] = packed.mark[w] ?? 0
+    resolved[at + INSTANCE.mark] = markOf(w, packed.mark[w] ?? 0)
     noteError(cut.cellMetres, packed.worlds, w * 16)
   }
 
@@ -437,6 +533,32 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     /** The world box of each placement that wears a proxy, and which of them are new or moved since the last
      *  call: what the probes' occupancy map keeps (`bounce/probes.ts`). */
     worldBoxes,
+    /**
+     * The deformed placements' copies posed, in `encoder`, before the first program of the image that traces
+     * them: when the deformation's records moved (`host.revision`) or a copy is new, and once the pose's
+     * program is built. Their answers are of another epoch from then on.
+     */
+    pose(encoder: GPUCommandEncoder, host: PoseHost) {
+      if (!buffer || !posed.size || !host.pool) return
+      let due = host.revision !== posedRevision
+      const entries: PoseEntry[] = []
+      for (const [w, copy] of posed) {
+        const root = packed.worldSources[w] as DagRoot
+        due ||= copy.fresh
+        entries.push({
+          cut: copy.cut,
+          restTriangle: copy.placed.triangle,
+          posedTriangle: copy.triangle,
+          posedNode: copy.node,
+          corners: RUNTIME_HEADER_WORDS + layout.deform + copy.placed.corner!,
+          record: host.recordOf(root.world),
+        })
+      }
+      if (!due || !pose.run(encoder, buffer, host.pool, entries)) return
+      posedRevision = host.revision
+      for (const copy of posed.values()) copy.fresh = false
+      revision++
+    },
     /** The meshes' proxies of a compiled scene arrived (`RootProxy.primitive.runtimeProxy` was set): every
      *  placement wears what its primitive holds now. */
     arrived() {
@@ -455,7 +577,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
         words.set(kept)
         copyWorlds = new Float32Array(copies.length * WORLD_WORDS)
         copyCount = copies.length
-        relayout()
+        relayout({ triangles: 0, nodes: 0, surfaces: 0 })
       } else copies = next
       syncCopies()
     },
@@ -471,10 +593,11 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     /** Placement `w`'s frame word, its mark and the deformation's reach above it. */
     mark(w: number, mark: number) {
       if (!buffer || w >= slots) return
-      const at = w * INSTANCE_WORDS + INSTANCE.mark
-      resolved[at] = mark
-      if (words[at] === mark) return
-      words[at] = mark
+      const at = w * INSTANCE_WORDS + INSTANCE.mark,
+        held = markOf(w, mark)
+      resolved[at] = held
+      if (words[at] === held) return
+      words[at] = held
       send(buffer, byteAt(layout.instances + at), words, at, 1)
     },
     /** The surfaces a host edited and the copies that moved since the last cut, written again. */
@@ -499,6 +622,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     dispose() {
       buffer?.destroy()
       buffer = undefined
+      pose.dispose()
     },
   }
 }

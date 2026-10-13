@@ -136,14 +136,14 @@ export async function cutDrawnTriangles(
       ...(built ? { cone: built[k] } : {}),
     })),
   )
-  // What a ray can meet: faces. A deforming or rewritten cut is traced at its rest shape, the
-  // placement's reach telling how far it can have moved (`runtimeTraceWgsl.ts`); a blended one keeps its
-  // opacity at the surface, which lets the rest of the light through. Lines and sprites have no area.
+  // What a ray can meet: faces. A deforming cut brings what poses them (`runtimeDeform.ts`), so that its placement
+  // is traced at its pose; a blended one keeps its opacity at the surface, which lets the rest of the light
+  // through. Lines and sprites have no area.
   return {
     pages,
     positionExponent,
     uvExponent,
     maxPositionError,
-    ...(cones && { proxy: buildCutProxy(module, indices, positions) }),
+    ...(cones && { proxy: buildCutProxy(module, indices, positions, drawn.deformation) }),
   }
 }

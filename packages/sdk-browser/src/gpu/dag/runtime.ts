@@ -134,6 +134,7 @@ function selectionOver(run: DagRun): GpuSelection {
     markWorld: (w, mark) => live() && writeMark(run, w, mark),
     proxyBuffers: () => (live() ? run.proxies.buffers() : undefined),
     proxyMirror: (encoder) => live() && run.proxies.mirror(encoder),
+    proxyPose: (encoder, host) => live() && run.proxies.pose(encoder, host),
     proxyArrived: () => live() && run.proxies.arrived(),
     proxyBoxes: () => (live() ? run.proxies.worldBoxes() : EMPTY_BOXES),
     proxyCopies: (copies) => live() && run.proxies.setCopies(copies),

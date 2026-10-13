@@ -18,7 +18,7 @@ thread_local! {
 
 /// Builds the proxy of the triangles `indices` (`index_count` words) draw over `positions`
 /// (`vertex_count` × 3 floats), in the cut's own space. Fills `meta` (`PROXY_META_WORDS` words) and
-/// leaves the columns — triangles, albedo, node bounds, node children, four bytes a number — waiting
+/// leaves the columns — triangles, albedo, node bounds, node children, sources, four bytes a number — waiting
 /// for `proxy_build_take`.
 ///
 /// # Safety
@@ -39,7 +39,7 @@ pub unsafe extern "C" fn proxy_build(
     answer[0] = (built.triangles.len() / crate::proxy::PROXY_TRIANGLE_FLOATS) as u32;
     answer[1] = (built.node_children.len() / crate::proxy::PROXY_NODE_WORDS) as u32;
     answer[2] = (built.cell as f32).to_bits();
-    // The columns' order in the answer: triangles, albedo, node bounds, node children.
+    // The columns' order in the answer: triangles, albedo, node bounds, node children, sources.
     let mut ordered = Vec::new();
     for float in &built.triangles {
         ordered.extend_from_slice(&float.to_le_bytes());
@@ -51,6 +51,9 @@ pub unsafe extern "C" fn proxy_build(
         ordered.extend_from_slice(&float.to_le_bytes());
     }
     for word in &built.node_children {
+        ordered.extend_from_slice(&word.to_le_bytes());
+    }
+    for word in &built.sources {
         ordered.extend_from_slice(&word.to_le_bytes());
     }
     COLUMNS.with(|held| *held.borrow_mut() = ordered);

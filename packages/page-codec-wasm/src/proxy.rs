@@ -9,10 +9,12 @@ pub mod bvh;
 pub mod simplify;
 pub mod wide;
 
-/// The node columns `build_columns` leaves besides the triangles and albedos it rewrites in place.
+/// The node columns `build_columns` leaves besides the triangles and albedos it rewrites in place,
+/// and the rank each triangle of its leaf order had among the triangles it was given.
 pub struct Built {
     pub node_bounds: Vec<f32>,
     pub node_children: Vec<u32>,
+    pub sources: Vec<u32>,
 }
 
 /// THE PROXY BUILDER, one for the compiler's meshes and the browser's cuts: snaps `triangles` to the
@@ -20,12 +22,13 @@ pub struct Built {
 /// the BVH, reorders the triangles and `albedo` into its leaves' order, and collapses it to the wide
 /// node columns.
 pub fn build_columns(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, cell: f64) -> Built {
-    simplify::simplify_sources(triangles, albedo, cell);
-    let (tree, _) = bvh::build_ordered(triangles, albedo);
+    let kept = simplify::simplify_sources(triangles, albedo, cell);
+    let (tree, order) = bvh::build_ordered(triangles, albedo);
     let (node_bounds, node_children) = wide::collapse(&tree);
     Built {
         node_bounds,
         node_children,
+        sources: order.iter().map(|rank| kept[*rank] as u32).collect(),
     }
 }
 
@@ -54,13 +57,15 @@ pub const PROXY_CHILD_WORDS: usize = 3;
 pub const PROXY_NODE_WORDS: usize = PROXY_CHILDREN * PROXY_CHILD_WORDS;
 
 /// A mesh's proxy columns, in its own space: the triangles, their albedo (one value a mesh, white for a
-/// cut the world made: its instance carries the material), the wide nodes, and the grid step taken (`cell`, metres of the cut's units).
+/// cut the world made: its instance carries the material), the rank each had among the triangles it was
+/// built from (`sources`: what lets a deformed placement pose them from the vertices they came from), the wide nodes, and the grid step taken (`cell`, metres of the cut's units).
 #[derive(Default)]
 pub struct CutColumns {
     pub triangles: Vec<f32>,
     pub albedo: Vec<u32>,
     pub node_bounds: Vec<f32>,
     pub node_children: Vec<u32>,
+    pub sources: Vec<u32>,
     pub cell: f64,
 }
 
@@ -98,6 +103,7 @@ pub fn columns_of(mut triangles: Vec<f32>, albedo: u32) -> CutColumns {
         albedo: colours,
         node_bounds: built.node_bounds,
         node_children: built.node_children,
+        sources: built.sources,
         cell,
     }
 }

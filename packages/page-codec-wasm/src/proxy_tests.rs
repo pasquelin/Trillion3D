@@ -29,6 +29,26 @@ fn a_cube_keeps_its_twelve_triangles_in_a_tree_that_holds_them() {
     assert_eq!(&cut.node_bounds[..6], &[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]);
 }
 
+/// Each triangle of the tree's order names the triangle it was built from: a cube's twelve, each once.
+#[test]
+fn every_triangle_names_the_source_it_came_from() {
+    let (indices, positions) = cube();
+    let cut = cut_columns(&indices, &positions);
+    let mut sources = cut.sources.clone();
+    sources.sort_unstable();
+    assert_eq!(sources, (0..12).collect::<Vec<u32>>());
+    // The vertices the triangle stands on are the source's corners, on the grid.
+    for (at, source) in cut.sources.iter().enumerate() {
+        for corner in 0..3 {
+            let vertex = indices[*source as usize * 3 + corner] as usize;
+            for axis in 0..3 {
+                let built = cut.triangles[at * PROXY_TRIANGLE_FLOATS + corner * 3 + axis];
+                assert!((built - positions[vertex * 3 + axis]).abs() <= cut.cell as f32);
+            }
+        }
+    }
+}
+
 #[test]
 fn a_mesh_over_the_budget_is_snapped_not_subdivided() {
     // A grid of 200 × 200 quads: 80 000 triangles, over `PROXY_CUT_TRIANGLES`.

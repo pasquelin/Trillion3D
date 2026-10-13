@@ -11,7 +11,7 @@ import type { CameraMotion, EngineCamera } from '../../camera/world.ts'
 import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
-import type { ProxyCopy } from '../dag/proxyInstances.ts'
+import type { PoseHost, ProxyCopy } from '../dag/proxyInstances.ts'
 
 /** The step a cut takes on the tables before it encodes, under its uniforms, for its view — an
  *  object the main view holds for the selection's life, or each view aside its own, never another
@@ -141,6 +141,9 @@ export type GpuSelection = {
   proxyBuffers(): { proxy: GPUBuffer; worlds: GPUBuffer } | undefined
   /** The placement tree copied into the proxy's buffer, before the first program of the image that walks it. */
   proxyMirror(encoder: GPUCommandEncoder): void
+  /** The deformed placements' copies of their meshes' proxies posed by the records of the frame, before the
+   *  first program of the image that traces them (`../dag/proxyPose.ts`). */
+  proxyPose(encoder: GPUCommandEncoder, host: PoseHost): void
   /** The compiled meshes' proxies arrived: every placement wears what its primitive holds now. */
   proxyArrived(): void
   /** The world boxes of the placements that wear a proxy, and which are new or moved since the last call. */
