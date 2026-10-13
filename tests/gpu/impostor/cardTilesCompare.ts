@@ -24,13 +24,22 @@ function shown(s: Uint8Array[], t: number) {
   ]
 }
 
+/** The card slot whose identifier the visibility stage kept at texel `t` of either drawing (the
+ *  fifth readback, `VIS_CARD_BASE | slot`), the low bits. */
+function cardAt(a: Uint8Array[], b: Uint8Array[], t: number) {
+  const id = (s: Uint8Array) => new DataView(s.buffer, s.byteOffset).getUint32(t * 4, true)
+  return (id(a[4]) || id(b[4])) & 0xffff
+}
+
 /** How the two drawings differ: the texels a card wrote in either, those differing at 8 bits and by
- *  how many steps at most, and those whose half-float words differ at all. */
+ *  how many steps at most — in all and by card slot —, and those whose half-float words differ at
+ *  all. */
 export function compareSurfaces(a: Uint8Array[], b: Uint8Array[], texels: number) {
   let covered = 0,
     differ8 = 0,
     maxStep = 0,
     exact = 0
+  const byCard: Record<number, { covered: number; differ8: number; maxStep: number }> = {}
   for (let t = 0; t < texels; t++) {
     if (!a[3][t] && !b[3][t]) continue
     covered++
@@ -38,10 +47,14 @@ export function compareSurfaces(a: Uint8Array[], b: Uint8Array[], texels: number
     const step = Math.max(...x.map((v, k) => Math.abs(v - y[k])))
     if (step > 0) differ8++
     maxStep = Math.max(maxStep, step)
+    const card = (byCard[cardAt(a, b, t)] ??= { covered: 0, differ8: 0, maxStep: 0 })
+    card.covered++
+    if (step > 0) card.differ8++
+    card.maxStep = Math.max(card.maxStep, step)
     if (
       [0, 1, 2].some((k) => a[k].subarray(t * 8, t * 8 + 8).some((v, i) => v !== b[k][t * 8 + i]))
     )
       exact++
   }
-  return { covered, differ8, maxStep, exact }
+  return { covered, differ8, maxStep, exact, byCard }
 }

@@ -83,7 +83,7 @@ function records(device: GPUDevice) {
 type Stages = { vis: GPURenderPipeline; surface: GPURenderPipeline; maps: GPUBindGroup }
 
 /** The cards drawn by `stages` — their visibility stage, then their surface stage —, the four
- *  surfaces read back. */
+ *  surfaces read back, then the identifiers the visibility stage kept. */
 async function drawn(
   device: GPUDevice,
   stages: Stages,
@@ -133,7 +133,10 @@ async function drawn(
   surface.draw(4, LODS.length)
   surface.end()
   device.queue.submit([encoder.finish()])
-  return Promise.all(surfaces.map((texture, k) => readTexture(device, texture, surfaceBytes[k])))
+  return Promise.all([
+    ...surfaces.map((texture, k) => readTexture(device, texture, surfaceBytes[k])),
+    readTexture(device, idTexture, 4),
+  ])
 }
 
 export function runCardTiles() {
@@ -182,6 +185,10 @@ export function runCardTiles() {
     const failure = await device.popErrorScope()
     if (failure) throw new Error(`validation: ${failure.message}`)
     tiles.destroy()
-    Object.assign(result, { cards: LODS.length, ...compareSurfaces(pool, chains, SIDE * SIDE) })
+    Object.assign(result, {
+      cards: LODS.length,
+      lods: LODS,
+      ...compareSurfaces(pool, chains, SIDE * SIDE),
+    })
   })
 }
