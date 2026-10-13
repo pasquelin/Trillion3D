@@ -1,8 +1,9 @@
 // #1527: `world.raycast` is one GPU ray query over what the world draws (`webgpu/rays/`): each ray of
 // a generated scene (`raycastPage.ts`) meets the object, at the distance, with the normal and on the
 // triangle a double-precision oracle finds (`raycastOracle.ts`) — a morphed quad where its morph
-// draws it, not where its rest pose lies; the helper mark and the hidden quad passed by, the helper
-// met when asked; a filter's objects alone; a ray from inside the box; a ray that meets nothing. The
+// draws it, not where its rest pose lies; a blended quad; a box out of every view; the helper mark and
+// the hidden quad passed by, the helper met when asked; a filter's objects alone; a ray from inside
+// the box; a ray that meets nothing. The
 // faces are the drawn triangles: two rays share one exactly when the oracle's triangle is the same.
 import test from 'node:test'
 import assert from 'node:assert/strict'

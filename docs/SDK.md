@@ -359,17 +359,18 @@ never in `onFrame`, a frame late.
 `await world.raycast(at)` resolves to the nearest hit under a canvas point (CSS pixels,
 `event.offsetX`/`offsetY`) or along a world `Ray`, or `null`: the scene node drawn there (a mesh
 the page added, or a node of a loaded model, under it), world `point` and `normal`, `distance`, and
-`face`, the drawn triangle (its cluster × 256 + its rank in it). It always returns a promise, settled a frame or so later: the GPU traces every ray cast in the
-same tick in one dispatch — down the placement tree, each placement's cluster hierarchy, then the
-triangles the rasters draw — and reads the hits back without ever stalling the page. What is hit
-is what is drawn, at the finest detail resident: a loaded model on its own triangles, a skinned,
-morphed or waved mesh where it is drawn this frame. Lines, points, sprites and blended surfaces
-are never hit; hidden objects and `helper` marks are passed by (`{ helpers: true }` meets them,
-as `controls.transform` does). `{ objects }` limits the subtrees; a sizeless canvas refuses a
-point (`RAYCAST_NO_VIEW`); a world whose drawing session is not open yet resolves `null`.
-`camera.rayThrough(x, y, aspect)` is the ray through a picture point; the exact raycast, on the
-physics' collision shapes, is [PHYSICS.md](PHYSICS.md#exact-raycast). An orthographic camera made
-with `fitAspect: true` takes its width from the canvas.
+`face`, the drawn triangle (its cluster × 256 + its rank in it). It always returns a promise,
+settled a frame or so later: the GPU traces every ray cast in the same tick together — down the
+placement tree, each placement's cluster hierarchy, then the triangles the rasters draw — and reads
+the hits back without ever stalling the page. What is hit is the finest detail the pool holds, in
+view or out of it, opaque or blended: a loaded model on its own triangles, a skinned, morphed or
+waved mesh where this frame draws it. Lines, points and sprites are never hit; hidden objects and
+`helper` marks are passed by (`{ helpers: true }` meets them, as `controls.transform` does).
+`{ objects }` limits the subtrees; a sizeless canvas refuses a point (`RAYCAST_NO_VIEW`); a world
+whose drawing session is not open yet resolves `null`. `camera.rayThrough(x, y, aspect)` is the ray
+through a picture point; the exact raycast, on the physics' collision shapes, is
+[PHYSICS.md](PHYSICS.md#exact-raycast). An orthographic camera made with `fitAspect: true` takes its
+width from the canvas.
 
 `controls.transform(world, options)` puts move, turn and scale handles on one object:
 `attach(object)`, `detach()`, `setMode('translate' | 'rotate' | 'scale')`,
@@ -378,8 +379,8 @@ with `fitAspect: true` takes its width from the canvas.
 height (`size`, a quarter by default). The pointer's hover is asked of `world.raycast` as it moves;
 a press takes the latest answer — a handle when the nearest hit is one, so a handle hidden by the
 scene is never grabbed — before the camera controller hears it. A touch has no hover: its first
-press asks, the next one grabs. A drag writes the local pose through the parents; the centre cube scales uniformly, by e per handle length
-up the screen. `attach` or `detach` mid-drag ends it with its `dragEnd`.
+press asks, the next one grabs. A drag writes the local pose through the parents; the centre cube
+scales uniformly, by e per handle length up the screen. `attach` or `detach` mid-drag ends it with its `dragEnd`.
 
 `scene.toJSON(camera)` writes plain, versioned JSON (`format: 'trillion3d-scene'`, `formatVersion:
 2`): hierarchy, poses, each shape by the call that built it (`geometry.box(2, 1, 1)`; one changed

@@ -1,6 +1,6 @@
 // Page of the ray proof (`raycast.gpu.ts`): a world draws a generated scene — two still quads, a
-// box, a quad its morph target moves a unit toward the eye, a helper mark before the box and a hidden
-// quad before a third one —, then each ray of `RAYS` is cast with `world.raycast` and its answer read
+// box, a quad its morph target moves a unit toward the eye, a helper mark before the box, a hidden
+// quad before a third one, a blended quad, and a box behind the camera, out of every view —, then each ray of `RAYS` is cast with `world.raycast` and its answer read
 // beside the oracle's (`raycastOracle.ts`): the object, the distance, the normal and the triangle,
 // in doubles from the meshes the page built. A generated scene: no file of the site.
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
@@ -15,6 +15,7 @@ import { drawnTriangles, nearestTriangle } from './raycastOracle.ts'
 import { frame, open, type World } from './appendProof.ts'
 
 const paint = material.meshStandard({ color: 0xb04a3a, roughness: 0.7 })
+const glass = material.meshStandard({ color: 0x70b03a, transparent: true, opacity: 0.5 })
 
 /** A 2 × 2 quad facing +z whose one morph target moves every corner a unit toward +z. */
 function movingQuad() {
@@ -42,6 +43,9 @@ function build(world: World) {
     moved: at(object.mesh(movingQuad(), paint), 'moved', 3, 0, -3),
     helper: at(markHelper(object.mesh(geometry.plane(1, 1), paint)), 'helper', -3, 0, -1),
     hidden: at(object.mesh(geometry.plane(2, 2), paint), 'hidden', 0, -2.5, -1),
+    glass: at(object.mesh(geometry.plane(2, 2), glass), 'glass', 0, 2.5, -3),
+    // Behind the camera (`frame`, at (0, 6, 9) looking at the origin): out of every view.
+    behind: at(object.mesh(geometry.box(1, 1, 1), paint), 'behind', 0, 0, 20),
   }
   meshes.moved.morphTargetInfluences![0] = 1
   meshes.hidden.visible = false
@@ -83,6 +87,8 @@ const RAYS: Array<{
     ...{ origin: [-3, 0.1, 5], direction: [0, 0, -1], meets: [] },
     options: (m) => ({ objects: [m.still] }),
   },
+  { name: 'a blended quad', origin: [0.3, 2.7, 5], direction: [0, 0, -1], meets: ['glass'] },
+  { name: 'out of every view', origin: [0.1, 0.2, 30], direction: [0, 0, -1], meets: ['behind'] },
   { name: 'nothing', origin: [0, 9, 5], direction: [0, 0, -1], meets: [] },
 ]
 
