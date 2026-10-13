@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { STREAMING_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../engine/common.ts'
 import { createFrameBudget, createSharePace } from '../../page/integration/frameBudget.ts'
 import { pageAddress } from '../row/pageSlots.ts'
@@ -91,7 +92,7 @@ async function ensurePass(
 ) {
   const cache = s.getCache()
   if (!cache) return
-  const started = performance.now(),
+  const started = cpuNow(),
     urls = s.traceEnabled ? wanted.map(pageAddress) : []
   const run: EnsureRun = { frame, jobId, started, urls, cache, missing: 0, full: false }
   s.traceDiagnostic('residency-ensure-start', 'GPU residency check requested', () =>
@@ -114,8 +115,8 @@ async function ensurePass(
   s.traceDiagnostic('residency-ensure-end', 'GPU residency checked', () => ({
     ...tracePayload(s, run, {
       loaded: loadedSet(s, run),
-      durationMs: performance.now() - started,
-      elapsedMs: performance.now() - started,
+      durationMs: msSince(started),
+      elapsedMs: msSince(started),
     }),
     // Bounded probe of the pinned set: it has the size of the cut, not of the queue.
     pinned: run.cache.stats().pinned,

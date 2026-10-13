@@ -1,3 +1,4 @@
+import { msSince } from '../../diagnostic/stopwatch.ts'
 import type { GpuPageContext, ResidentPage } from './types.ts'
 import type { Place } from './placement.ts'
 import { alignDown, alignUp } from '../../../../math/src/scalar/integers.ts'
@@ -58,7 +59,7 @@ export function commitGpuPage(
     tail.set(bytes.subarray(body))
     device.queue.writeBuffer(buffer, offset + body, tail, 0, 4)
   }
-  const uploadDurationMs = report ? performance.now() - uploadStarted : null
+  const uploadDurationMs = report ? msSince(uploadStarted) : null
   state.uploadedBytes += padded
   const page = {
     key,
@@ -89,7 +90,7 @@ export function commitGpuPage(
     generation: page.generation,
     actualDataBytes: bytes.byteLength,
     uploadedBytes: padded,
-    durationMs: report ? performance.now() - requestStarted : null,
+    durationMs: report ? msSince(requestStarted) : null,
   }))
   return page
 }

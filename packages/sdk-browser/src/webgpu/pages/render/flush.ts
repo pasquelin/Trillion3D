@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 import { readGpuImage } from '../../../gpu/core/readback.ts'
 import { collectPendingUrls } from '../../../page/selection/selection.ts'
 import { awaitedPages } from '../../row/pageSlots.ts'
@@ -12,8 +13,8 @@ import { sendCoverageBudget } from '../../../diagnostic/engineDiagnostic.ts'
 
 function reportProgress(rt: WebgpuPagesRuntime) {
   const { run, gpu, blendState, diag, services, context } = rt
-  if (performance.now() - run.lastProgressMs < 2000) return
-  run.lastProgressMs = performance.now()
+  if (msSince(run.lastProgressMs) < 2000) return
+  run.lastProgressMs = cpuNow()
   diag.engineDiagnostic('render-progress', 'GPU render progress', {
     frame: run.frame,
     coverage: {

@@ -1,3 +1,4 @@
+import { msSince } from '../../diagnostic/stopwatch.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { resolveExplorerTarget, type MeasuredWorldTarget } from './target.ts'
 import { interactiveOptions } from './interactiveOptions.ts'
@@ -50,7 +51,7 @@ function sessionApi(
   const explorer = createExplorerApi({
     ...runtime,
     capabilities: prepared.capabilities,
-    preparationMs: performance.now() - inputs.preparationStart,
+    preparationMs: msSince(inputs.preparationStart),
     moveNamed: source?.moveNamed,
   })
   // A change asks the session's own loop for a frame; without one, the page draws (`render`)

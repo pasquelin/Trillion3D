@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 import { wantsSubsurface, SUBSURFACE_TARGET } from '../../../scene/subsurface.ts'
 import { invertMatrix4 } from '../../../../../sdk-core/src/index.ts'
 import {
@@ -127,7 +128,7 @@ export async function captureSurfaceView(
   // it reads any other — resolved pose, declared optics — at the aspect ratio of the surface
   // written into rather than the one the camera declares for the host's own canvas.
   const aspect = options.width / options.height
-  const started = performance.now()
+  const started = cpuNow()
   const throwIfAborted = () => {
     options.signal?.throwIfAborted()
     context.signal?.throwIfAborted()
@@ -176,7 +177,7 @@ export async function captureSurfaceView(
     height: options.height,
     selectedTriangles: run.selectedTriangles,
     allocationBytes: reserve,
-    durationMs: performance.now() - started,
+    durationMs: msSince(started),
     imageReadback: false,
   })
   return result!

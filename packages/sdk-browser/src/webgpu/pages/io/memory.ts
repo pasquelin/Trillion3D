@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 import {
   checkGeometryPoolBudget,
   checkTexturePoolBudget,
@@ -68,7 +69,7 @@ export async function setWebgpuMemoryBudgets(
   origin: 'host' | 'prepare-targets' = 'host',
 ): Promise<MemoryBudgetsReport> {
   const { setup, run, diag } = rt
-  const started = performance.now()
+  const started = cpuNow()
   const before = { pages: residentPages(rt), tiles: residentTiles(rt) }
   // A pool is replaced only by one the device grants; none granted, even at its floor, and the pool
   // in place stays.
@@ -94,7 +95,7 @@ export async function setWebgpuMemoryBudgets(
     evictedTiles,
     residentPages: { before: before.pages, after: residentPages(rt) },
     residentTiles: { before: before.tiles, after: residentTiles(rt) },
-    durationMs: performance.now() - started,
+    durationMs: msSince(started),
     tables: geometry.tables,
     transientBytes: geometry.transientBytes,
   }

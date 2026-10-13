@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { PAGE_TASK_PROTOCOL, pageWorkerCount } from '../../../../sdk-core/src/page/taskContracts.ts'
 import { createPageWorkPool, type PageWorkPool } from './pool.ts'
 import { runPageTask } from './task.ts'
@@ -49,10 +50,10 @@ function ownBuffer(bytes: Uint8Array) {
  * the main thread already, so the bytes are neither transferred to a worker nor copied.
  */
 export async function verifyPageBytes(source: ArrayBuffer | Uint8Array<ArrayBuffer>) {
-  const started = performance.now()
+  const started = cpuNow()
   const sha256 = await sha256Hex(source)
   counters.checked++
-  counters.checkMs += performance.now() - started
+  counters.checkMs += msSince(started)
   return sha256
 }
 

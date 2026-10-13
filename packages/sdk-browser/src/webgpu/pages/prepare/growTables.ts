@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 import { askedTableRows, rowScratch } from './layout.ts'
 import { grownTableRows, rowsAhead, viewRowsFor } from '../../row/tableRows.ts'
 import { pageTableBuffer } from '../render/pageTable.ts'
@@ -67,7 +68,7 @@ async function growTables(
 ): Promise<TableGrowthReport | null> {
   const { layout, setup, gpu, run, diag } = rt,
     { rows } = layout
-  const started = performance.now()
+  const started = cpuNow()
   // What the catalogue needs; when the tables must grow, a growth ahead of it (`rowsAhead`).
   const needed = tableRowsFor(rt, slots),
     grows =
@@ -95,7 +96,7 @@ async function growTables(
         grantedBytes: null,
       })
     const { blendFirst, casterSlots: held } = rows
-    const durationMs = performance.now() - started
+    const durationMs = msSince(started)
     return {
       drawSlots: blendFirst,
       casterSlots: held,
@@ -126,7 +127,7 @@ async function growTables(
   // The rows that waited draw now: the lit image the images meanwhile left lacks them, and the series
   // the reflections converge to restarts from the one that holds them.
   forgetReflectedImages(rt)
-  const durationMs = performance.now() - started
+  const durationMs = msSince(started)
   const report = { drawSlots, casterSlots, bytes: made.bytes, refused: false, durationMs }
   diag.engineDiagnostic('page-tables-grown', 'Page tables grown in place', report)
   return report

@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { pageRequestUrl, type PageRec } from '../../page/selection/selection.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 import type { GpuPageCache } from '../../gpu/page/pages.ts'
@@ -52,7 +53,7 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
 /** The cover read, uploaded and pinned, `onReady` told before the diagnostics say so. */
 async function loadCover(options: BootstrapOptions, onReady: () => void) {
   const { pages, getSlots, tracking, getFrame, engineDiagnostic, traceDiagnostic } = options
-  const started = performance.now()
+  const started = cpuNow()
   engineDiagnostic('coverage-bootstrap-start', 'Loading the full emergency cover', {
     version: 1,
     pages: pages.length,
@@ -78,7 +79,7 @@ async function loadCover(options: BootstrapOptions, onReady: () => void) {
     pages: pages.length,
     bootstrap: tracking.traceSet('bootstrap', pages.map(pageAddress)),
     slots: getSlots(),
-    durationMs: performance.now() - started,
+    durationMs: msSince(started),
     loaded: tracking.traceRecs('bootstrap.loaded', pages),
     wanted: tracking.traceRecs('bootstrap.wanted', pages),
   }))

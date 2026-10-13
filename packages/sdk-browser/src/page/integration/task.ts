@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import {
   createPageIntegrationPlan,
   PAGE_INTEGRATION_PROTOCOL,
@@ -25,7 +26,7 @@ export function createPageIntegrationRunner() {
   let plan: PageIntegrationPlan | undefined
 
   const run = (request: PageIntegrationRequest): PageIntegrationAnswer => {
-    const started = performance.now()
+    const started = cpuNow()
     if (request.specs) specsByUrl.set(request.url, new Int32Array(request.specs))
     const specs = specsByUrl.get(request.url)
     if (!specs)
@@ -51,7 +52,7 @@ export function createPageIntegrationRunner() {
       count: plan.count,
       pages: pages.buffer as ArrayBuffer,
       pageCount: plan.pageCount,
-      taskMs: performance.now() - started,
+      taskMs: msSince(started),
     }
   }
 

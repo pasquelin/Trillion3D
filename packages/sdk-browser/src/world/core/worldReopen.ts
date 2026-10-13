@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { keepCanvasImage, releaseCanvasImage } from '../../gpu/core/canvasHandover.ts'
 import type { WorldNotices } from '../diagnostic/worldNotices.ts'
 import type { MeasuredWorldOptions } from '../session/options.ts'
@@ -46,7 +47,7 @@ export function worldReopens(
       kind: 'lifecycle',
       cause: causes.join('+'),
       drawn,
-      durationMs: performance.now() - by.start,
+      durationMs: msSince(by.start),
       framesWithoutImage: by.frames,
     })
   }
@@ -75,7 +76,7 @@ export function worldReopens(
         // One display-frame counter per reopen, stopped once it is said.
         const by: Reopening = {
           causes: new Set(causes),
-          start: performance.now(),
+          start: cpuNow(),
           frames: 0,
           tick() {
             if (reopening !== by) return

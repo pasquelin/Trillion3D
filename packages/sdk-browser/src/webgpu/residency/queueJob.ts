@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { GpuPageCache } from '../../gpu/page/pages.ts'
 import type { WebgpuDiagnosticChannel } from '../pages/io/diagnostics.ts'
@@ -89,7 +90,7 @@ export function followQueue(q: QueueRun) {
   updatePins()
   const settled = !q.running && q.settledAt === q.inputs() && q.settledCache === getCache()
   if (settled) return
-  const queuedAt = performance.now(),
+  const queuedAt = cpuNow(),
     jobId = ++q.job,
     jobFrame = getFrame()
   q.scheduled = true
@@ -117,7 +118,7 @@ export function followQueue(q: QueueRun) {
 async function runJob(q: QueueRun, at: { jobFrame: number; jobId: number; queuedAt: number }) {
   const { tracking, getCache, ensureResident, traceDiagnostic } = q.options
   const { jobFrame, jobId, queuedAt } = at
-  const started = performance.now()
+  const started = cpuNow()
   traceDiagnostic('residency-job-start', 'GPU residency job started', () => ({
     frame: jobFrame,
     jobId,
@@ -152,8 +153,8 @@ async function runJob(q: QueueRun, at: { jobFrame: number; jobId: number; queued
       frame: jobFrame,
       jobId,
       scope: 'async-residency-job',
-      durationMs: performance.now() - started,
-      elapsedMs: performance.now() - queuedAt,
+      durationMs: msSince(started),
+      elapsedMs: msSince(queuedAt),
       // The requested set is sampled by a bounded probe, and what the cache holds of it is the
       // count it already holds: filtering the whole set walked it twice more.
       pages: tracking.traceKeys('job', tracking.wanted),

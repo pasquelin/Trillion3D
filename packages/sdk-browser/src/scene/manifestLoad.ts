@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../diagnostic/stopwatch.ts'
 import {
   assertCacheIdentity,
   assertCachePointer,
@@ -121,25 +122,25 @@ export async function loadClusterManifest(
   signal?: AbortSignal,
   meter: ByteMeter = unmetered,
 ): Promise<LoadedManifest> {
-  const started = performance.now()
+  const started = cpuNow()
   const pointerResource = await jsonResource(manifestUrl, signal, meter),
     pointer = pointerResource.value
-  const pointerMs = performance.now() - started
+  const pointerMs = msSince(started)
   const declared = requested ?? (pointer as { scope?: AssetScope } | null)?.scope
   const pointerTarget = located(
     () => assertCachePointer(pointer, declared ?? DEFAULT_SCOPE),
     pointerResource.details,
   )
   const metadataUrl = new URL(pointerTarget, new URL(manifestUrl, location.href)).href
-  const jsonStart = performance.now()
+  const jsonStart = cpuNow()
   const metadataResource = await jsonResource(metadataUrl, signal, meter),
     value = metadataResource.value
-  const jsonMs = performance.now() - jsonStart
+  const jsonMs = msSince(jsonStart)
   // Readiness, scope and format are settled before the pages are worth a request. A pointer
   // that declares no scope leaves the cache's own to be read.
   const scope = declared ?? (value.scope as AssetScope)
   located(() => assertCacheRoot(value, scope), metadataResource.details)
-  const binaryStart = performance.now()
+  const binaryStart = cpuNow()
   let binaryBytes = 0
   const read = async (page: { url: string; bytes: number; sha256: string }) => {
     const url = new URL(page.url, metadataUrl).href
@@ -162,8 +163,8 @@ export async function loadClusterManifest(
       binaryBytes,
       pointerMs,
       jsonMs,
-      binaryMs: performance.now() - binaryStart,
-      totalMs: performance.now() - started,
+      binaryMs: msSince(binaryStart),
+      totalMs: msSince(started),
     },
   }
 }

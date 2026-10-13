@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { EngineError } from '../../../../sdk-core/src/index.ts'
 import { PAGE_REQUEST_BATCH } from '../../engine/common.ts'
 import type { Engine } from '../../engine/types.ts'
@@ -33,7 +34,7 @@ export function createDrawFrame(inputs: Inputs) {
   const { camera, streamer, streaming, engine, hostBytes } = inputs
   return () => {
     engine.render(camera)
-    const renderEnd = performance.now()
+    const renderEnd = cpuNow()
     const missing = engine.pendingUrls()
     if (missing.length > 0) {
       streaming.queueCached(missing)
@@ -57,12 +58,12 @@ export function createDrawFrame(inputs: Inputs) {
         }
       }
     }
-    const pendingEnd = performance.now()
+    const pendingEnd = cpuNow()
     // The pages the view reads pinned through its request-rank difference.
     streamer.retainRanks(engine.retainedRanks())
     streamer.reserve(hostBytes())
     engine.cpuStep('pendingMs', pendingEnd - renderEnd)
-    engine.cpuStep('retainMs', performance.now() - pendingEnd)
+    engine.cpuStep('retainMs', msSince(pendingEnd))
     // The engine draws into the page canvas: the frame closes here, where the bounds the host
     // just sampled still belong to it.
     engine.cpuFrameEnd()

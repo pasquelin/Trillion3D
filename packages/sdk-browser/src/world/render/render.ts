@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { type CameraPose, type FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import { emitExplorerFrameDiagnostic } from '../diagnostic/frameDiagnostic.ts'
 import { createHostFrameCostAudit } from '../../frame/costAudit.ts'
@@ -45,7 +46,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
   const render = (pose?: CameraPose): FrameMetrics => {
     check()
     const frameNumber = ++state.frame
-    const start = performance.now()
+    const start = cpuNow()
     if (pose) setPose(pose)
     guides?.follow() // no integration: it spends none of the budget
     // One integration budget per frame: the cells placed, then the arrivals drained, both
@@ -54,16 +55,16 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     let arrivalStart: number
     try {
       followCells?.()
-      arrivalStart = performance.now()
+      arrivalStart = cpuNow()
       streaming.arrivals.drain()
     } finally {
       frameBudget.pause() // balanced on every path: the engine's own work spends none of it
     }
-    engine.cpuStep('arrivalsMs', performance.now() - arrivalStart)
+    engine.cpuStep('arrivalsMs', msSince(arrivalStart))
     // The engine draws and presents its own surface; an error is the caller's, never hidden.
     drawFrame()
     fillMetrics()
-    const frameEnd = performance.now()
+    const frameEnd = cpuNow()
     metricsScratch.cpuFrameMs = frameEnd - start
     engine.frameCpuMs(metricsScratch.cpuFrameMs)
     // Submitted triangles of this frame: those the engine counted, and only those. `null` when

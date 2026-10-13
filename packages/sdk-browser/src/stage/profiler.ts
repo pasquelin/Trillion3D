@@ -1,3 +1,4 @@
+import { cpuNow, msSince } from '../diagnostic/stopwatch.ts'
 import {
   disabledStageProfile,
   stageLabel,
@@ -161,11 +162,11 @@ function createStageDeposits(options: {
   const open = () => {
     sums.fill(0)
     touched.fill(0)
-    return performance.now()
+    return cpuNow()
   }
   const close = (rings: ReturnType<typeof createRings>, started: number) => {
     for (let at = 0; at < stages.length; at++) if (touched[at]) rings.push(at, sums[at])
-    overhead.push(0, performance.now() - started)
+    overhead.push(0, msSince(started))
   }
 
   return {
