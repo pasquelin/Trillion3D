@@ -1,62 +1,28 @@
-// cone.ts against its former verdicts, on one sweep: before its early exit — every length paid by
-// the length rule, the verdict then — on every case; and develop's before the length rule paid the
-// box radius, the eye distance and the view vector by `Math.hypot`, the turned axis by the plain
-// root of its squares. The rule's range takes `hypot` wherever the plain sum leaves the normal
-// band, so those verdicts differ only where develop's plain axis root overflowed or underflowed.
+// cone.ts's verdicts on one sweep of 300 000 seeded cases, one in two hostile throughout, the
+// others grazing (`coneCases`), held to a golden: the digest of every verdict, taken once its early
+// exit and its length rule had been proved, case for case, against the forms they replaced.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { boxConeRejects } from '../../../../../../../packages/sdk-core/src/index.ts'
-import { length3 } from '../../../../../../../packages/math/src/vector/vector.ts'
-import {
-  boxConeRejectsBefore,
-  coneCases,
-  HYPOT_LENGTHS,
-} from '../../../../../../oracles/core/hot-path-math.ts'
+import { coneCases } from '../../../../../../oracles/core/hot-path-math.ts'
 
-/** A number of the ordinary range: zero or finite between 1e-100 and 1e100 in magnitude. */
-const ordinary = (v: number) => v === 0 || (Math.abs(v) >= 1e-100 && Math.abs(v) <= 1e100)
+/** The SHA-256 of the 300 000 verdicts, one byte each, and how many of them reject. */
+const VERDICTS = '3400b26b41ea6e24cf0738516df566dcb1884d2c4d5c203a13e25fd150244408'
+const REJECTED = 35_974
 
-test('boxConeRejects keeps its verdict before the early exit on 300 000 cases, and its develop verdict on every ordinary one', () => {
+test('boxConeRejects keeps its golden verdicts on 300 000 hostile and grazing cases', () => {
   const cases = coneCases(917)
-  let ordinaryCases = 0,
-    axisRange = 0
-  const seen = [0, 0]
-  for (let i = 0; i < 300_000; i++) {
-    const c = cases(i)
-    const { axis, angle, min, max, world, normal, scale, eye } = c
+  const verdicts = new Uint8Array(300_000)
+  for (let i = 0; i < verdicts.length; i++) {
+    const { axis, angle, min, max, world, normal, scale, eye } = cases(i)
     const [ex, ey, ez, ew] = eye
-    const verdict = boxConeRejects(axis, angle, min, max, world, normal, scale, ex, ey, ez, ew)
-    if (verdict !== boxConeRejectsBefore(axis, angle, min, max, world, normal, scale, eye))
-      assert.fail(`the early exit moved the verdict: ${JSON.stringify(c)}`)
-    seen[+verdict]++
-    const before = boxConeRejectsBefore(
-      axis,
-      angle,
-      min,
-      max,
-      world,
-      normal,
-      scale,
-      eye,
-      HYPOT_LENGTHS,
-    )
-    const plain = [axis, [angle], min, max, world, normal, [scale], eye].every((v) =>
-      v.every(ordinary),
-    )
-    if (plain) ordinaryCases++
-    if (verdict === before) continue
-    assert.ok(!plain, `an ordinary case differs: ${JSON.stringify(c)}`)
-    // Every other difference is the axis length alone: develop's lengths with the rule's axis
-    // root give the verdict back.
-    const ruleAxis = { ...HYPOT_LENGTHS, axisLength: length3 }
-    assert.equal(
-      verdict,
-      boxConeRejectsBefore(axis, angle, min, max, world, normal, scale, eye, ruleAxis),
-      JSON.stringify(c),
-    )
-    axisRange++
+    verdicts[i] = +boxConeRejects(axis, angle, min, max, world, normal, scale, ex, ey, ez, ew)
   }
-  assert.ok(seen[0] > 0 && seen[1] > 0, `both verdicts met: ${seen}`)
-  assert.ok(ordinaryCases > 100_000, `${ordinaryCases} ordinary cases`)
-  assert.ok(axisRange < 1000, `${axisRange} hostile axes, each the plain root's range`)
+  assert.equal(
+    verdicts.reduce((sum, v) => sum + v, 0),
+    REJECTED,
+    'rejected cases',
+  )
+  assert.equal(createHash('sha256').update(verdicts).digest('hex'), VERDICTS)
 })
