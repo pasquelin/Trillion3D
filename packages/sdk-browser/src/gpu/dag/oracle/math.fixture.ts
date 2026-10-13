@@ -104,9 +104,12 @@ function worldThresholds(packed: Partial<PackedDag> & { worldCount: number }, pi
 export const thresholdOf = (f: DagViewFrames, w: number) => f.thresholds[w] ?? f.pixelError
 
 /** The stretch of placement `w` as its frame words hold it: those a device wrote when read back
- *  (`frameStretch`), else the CPU's one memo, as a `Float32Array` stores it. */
-const stretchOf = (packed: OraclePack, w: number) =>
-  packed.frameStretch?.[w] ?? Math.fround(worldStretch(packed.worldSources![w]))
+ *  (`frameStretch`), else the CPU's one memo, as a `Float32Array` stores it; a slot of the room no
+ *  placement holds yet, none (its words are zeros). */
+function stretchOf(packed: OraclePack, w: number) {
+  const source = packed.worldSources?.[w]
+  return packed.frameStretch?.[w] ?? (source ? Math.fround(worldStretch(source)) : 0)
+}
 
 /** What the oracle reads of a packing, the frame words' stretches when a device's are read back. */
 type OraclePack = Pick<PackedDag, 'worlds' | 'worldCount'> &
