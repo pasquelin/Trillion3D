@@ -2,7 +2,7 @@
 
 use super::{Attribute, EncodeError, Result};
 use crate::bits::{self, Quant, QuantRefusal};
-use crate::wide::wide;
+use crate::simd::dispatch;
 use crate::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 use trillion3d_math::octahedral::oct_encode;
 
@@ -14,9 +14,9 @@ pub const COLOR_EXPONENT: i32 = -8;
 /// whole primitive and is never widened here — a page whose range needs more than `MAX_BITS` on
 /// that grid is refused as `PAGE_ATTRIBUTE_RANGE`, since a page on a grid of its own would no
 /// longer share its border vertices' cells with its neighbours. A loop over every vertex of every
-/// page: AVX2 where the processor has it (`wide`).
+/// page: AVX2 where the processor has it (`simd::dispatch`).
 fn quantize<const N: usize>(values: &[f32], exponent: i32) -> Result<(Quant<N>, Vec<[u32; N]>)> {
-    wide(|| bits::quantize::<N>(values, exponent)).map_err(|refusal| match refusal {
+    dispatch(|| bits::quantize::<N>(values, exponent)).map_err(|refusal| match refusal {
         QuantRefusal::Range => EncodeError::new(
             "PAGE_ATTRIBUTE_RANGE",
             "Page attribute range exceeds 2^24 steps of its primitive grid",
@@ -31,7 +31,7 @@ fn quantize<const N: usize>(values: &[f32], exponent: i32) -> Result<(Quant<N>, 
 /// The error bound a page header carries (`bits::quantization_error`), AVX2 where the processor
 /// has it, as `quantize`.
 fn max_error<const N: usize>(values: &[f32], record: &Quant<N>, offsets: &[[u32; N]]) -> f32 {
-    wide(|| bits::quantization_error::<N>(values, record, offsets))
+    dispatch(|| bits::quantization_error::<N>(values, record, offsets))
 }
 
 /// The page's vertices, `width` floats each, gathered from the primitive's `source_width`-wide
@@ -135,5 +135,5 @@ pub fn grids(
 }
 
 #[cfg(test)]
-#[path = "wide_tests.rs"]
-mod wide_tests;
+#[path = "simd_tests.rs"]
+mod simd_tests;

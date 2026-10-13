@@ -29,6 +29,7 @@ pub mod min_ball;
 pub mod normal_cone;
 mod positions;
 pub mod proxy;
+pub mod simd;
 pub mod split;
 pub mod triangles;
 mod unpack;
@@ -46,7 +47,6 @@ mod wasm_encode;
 mod wasm_math;
 #[cfg(target_arch = "wasm32")]
 mod wasm_proxy;
-pub mod wide;
 pub mod writer;
 
 pub use attributes::{DecodedPage, Layout, OPTIONAL};
