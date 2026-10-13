@@ -1,6 +1,5 @@
 import { DAG_ARGS } from './shader/armWgsl.ts'
 import type { DagResources } from './resources.ts'
-import { followRecords } from './recordsFollow.ts'
 import { DAG_SELECTION_PASS } from '../../stage/passLabels.ts'
 
 const DAG_PASS: GPUComputePassDescriptor = { label: DAG_SELECTION_PASS }
@@ -18,7 +17,6 @@ const LIST_ARGS = [DAG_ARGS.list0, DAG_ARGS.list1]
  * own group is bound again behind them.
  */
 export function encodeDifference(pass: GPUComputePassEncoder, resources: DagResources) {
-  followRecords(resources)
   pass.setPipeline(resources.armPipeline)
   pass.setBindGroup(0, resources.armGroup)
   pass.dispatchWorkgroups(1)

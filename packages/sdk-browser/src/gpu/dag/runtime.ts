@@ -25,6 +25,7 @@ import {
 import type { DagResources } from './resources.ts'
 import { cutBytes } from './cutBuffers.ts'
 import { createProxyInstances } from './proxyInstances.ts'
+import { followRecords } from './recordsFollow.ts'
 import { NO_PROXY_BOXES } from '../../bounce/probeSync.ts'
 
 /** What a session writes of its roots on the GPU before every cut on the tables (`syncTables`):
@@ -87,6 +88,8 @@ function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
     roots?.roots()
     run.tree?.sync()
     run.proxies.refresh()
+    // The records the cut's groups bind, grown for the proxy's copies since: the groups follow.
+    followRecords(resources)
     run.links?.sync(uniforms, view)
   }
   const selection: GpuSelection = {
