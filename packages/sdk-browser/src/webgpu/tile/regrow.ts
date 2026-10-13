@@ -5,16 +5,19 @@ import {
   PAGE_SLOT_WORDS,
   type WebgpuTilePageTable,
 } from './pageTable.ts'
+import { retire } from '../../gpu/core/frameRetire.ts'
 
 /**
  * An atlas's page table laid out again for `layouts` at `feedbackOffset`: a texture was
  * appended to it, or the atlas before it grew. Each texture it held keeps its header words — tail
  * place, sampling, transform — and its entries — the tiles resident, the ancestors serving the
  * others —; only the head and the absolute level addresses move. The table is copied into a
- * buffer of its new size, sent whole, and the old one destroyed: every group naming it is rebuilt.
+ * buffer of its new size, sent whole, and the old one retired — commands of this image not yet
+ * submitted may name it, so it is destroyed after the frame's submit (`frameRetire.ts`) —: every
+ * group naming it is rebuilt.
  */
 export function regrownPageTable(
-  device: Pick<GPUDevice, 'createBuffer' | 'queue'>,
+  device: GPUDevice,
   old: WebgpuTilePageTable,
   layouts: TileLayout[],
   options: { kind: 'color' | 'data'; feedbackOffset: number },
@@ -33,6 +36,6 @@ export function regrownPageTable(
     table.words.set(held.subarray(oldStart, oldStart + count), newStart)
   }
   device.queue.writeBuffer(table.buffer, 0, table.words)
-  old.destroy()
+  retire(device, old)
   return table
 }

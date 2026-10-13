@@ -4,9 +4,11 @@ import { createWebgpuTilePageTable, PAGE_HEADER_WORDS } from './pageTable.ts'
 import { regrownPageTable } from './regrow.ts'
 import { packEntry, tileLayout } from '../../texture/tiles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 
 // A texture appended after open lays the table out again around what it held — each header,
-// each entry — at its feedback offset, in a buffer of its new size sent whole; the old destroyed.
+// each entry — at its feedback offset, in a buffer of its new size sent whole; the old retired,
+// destroyed once the frame that may still name it is submitted.
 test('a table regrown for an appended texture keeps every held word, at its new ranks', () => {
   const { device, writes, destroyed } = fakeDevice()
   const layouts = [tileLayout(1, 1), tileLayout(2048, 1024), tileLayout(512, 512)]
@@ -19,7 +21,9 @@ test('a table regrown for an appended texture keeps every held word, at its new 
   const headers = old.words.slice(PAGE_HEADER_WORDS, old.words[3])
   layouts.push(tileLayout(256, 256))
   const table = regrownPageTable(device, old, layouts, { kind: 'color', feedbackOffset: 9 })
-  assert.ok(destroyed.includes(old.buffer as never), 'the old buffer destroyed')
+  assert.ok(!destroyed.includes(old.buffer as never), 'the image encoded may still name it')
+  destroyRetired(device)
+  assert.ok(destroyed.includes(old.buffer as never), 'the old buffer destroyed after the submit')
   assert.equal(table.buffer.size, table.words.byteLength)
   const last = writes.at(-1)!
   assert.deepEqual([last.offset, last.size ?? table.words.length], [0, table.words.length])

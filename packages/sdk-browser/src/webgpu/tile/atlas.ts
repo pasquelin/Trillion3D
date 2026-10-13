@@ -20,7 +20,7 @@ export type { WebgpuTileAtlas } from './atlasTypes.ts'
 import type { WebgpuTileAtlas } from './atlasTypes.ts'
 
 export function createWebgpuTileAtlas(
-  device: Pick<GPUDevice, 'createTexture' | 'createBuffer' | 'queue'>,
+  device: GPUDevice,
   options: {
     kind: 'color' | 'data'
     encoding: PoolEncoding
