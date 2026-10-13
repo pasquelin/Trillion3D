@@ -16,6 +16,7 @@ import {
 import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
 import { nodeTableBlock, WHOLE_LAYOUT, type RefitLayout } from '../gpu/dag/treeRefitWgsl.ts'
 import { ROW_INPUT_DOUBLES } from './composedRowPack.ts'
+import { CENTRE_ERROR, SPHERE_GROWTH, SPHERE_MARGIN } from './rowSphere.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
@@ -139,37 +140,35 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 )
 
 /**
- * The world sphere of a linked root's row (`../webgpu/shadow/spheres.ts`), what the shadow cull
- * drops a row by, from its composed world and its local box (`inputs`: centre then half extent,
- * the reach in, six doubles). The centre is the CPU's double sum in the same order, split into a
- * high and a low single. The radius is the CPU's per-axis overestimate, in single precision, then
- * grown so that it never falls below the CPU's: each axis sum takes at most six roundings of 2⁻²⁴
- * (the matrix and extent words, three products, two sums) and the norm five more, eleven in all,
- * below the 2⁻²⁰ the radius is grown by even after that product's own rounding; the centre's double
- * sum and its split err by less than 2⁻⁴⁸ of the sum of its terms' magnitudes, below the 2⁻⁴⁴ of it
- * that is added. A larger sphere only lets a row reach a page its triangles do not touch: no texel
- * changes.
+ * The world sphere of a linked root's row, what the shadow cull drops a row by, from its composed
+ * world and its local box (`inputs`: centre then half extent, the reach in, six doubles). The
+ * centre is the double sum, split into a high and a low single; the radius is the farthest corner
+ * of the box, in single precision and grown past every rounding: the one formula of `rowSphere.ts`,
+ * the CPU's twin step for step.
  */
 const SPHERE_WGSL = wgslBlock(
   'SPHERE_WGSL',
   [dAdd, dSub, dMul, fromF32, toF32],
   `
-const SPHERE_GROWTH:f32=1.00000095367431640625;
-const CENTRE_ERROR:f32=5.684341886080802e-14;
+const SPHERE_GROWTH:f32=${SPHERE_GROWTH};
+const SPHERE_MARGIN:f32=${SPHERE_MARGIN};
+const CENTRE_ERROR:f32=${CENTRE_ERROR};
 fn composeSphere(row:u32,world:array<vec2u,16>){
  let at=row*${ROW_INPUT_DOUBLES}u;
  let s=row*8u;
  if(s+8u>arrayLength(&spheres)||at+6u>arrayLength(&inputs)){return;}
- var r2=0.0;
+ var m:array<f32,9>;
  var size=0.0;
+ var sums=0.0;
  for(var i=0u;i<3u;i++){
   var centre=dMul(world[i],inputs[at]);
-  var axis=0.0;
+  var l1=0.0;
   for(var j=0u;j<3u;j++){
    if(j>0u){centre=dAdd(centre,dMul(world[j*4u+i],inputs[at+j]));}
-   let e=abs(bitcast<f32>(toF32(world[j*4u+i])));
-   axis+=e*bitcast<f32>(toF32(inputs[at+3u+j]));
-   size+=e*abs(bitcast<f32>(toF32(inputs[at+j])));
+   let w=bitcast<f32>(toF32(world[j*4u+i]));
+   m[i*3u+j]=w*bitcast<f32>(toF32(inputs[at+3u+j]));
+   size+=abs(w)*abs(bitcast<f32>(toF32(inputs[at+j])));
+   l1+=abs(m[i*3u+j]);
   }
   centre=dAdd(centre,world[12u+i]);
   size+=abs(bitcast<f32>(toF32(world[12u+i])));
@@ -178,9 +177,20 @@ fn composeSphere(row:u32,world:array<vec2u,16>){
   if(((high>>23u)&0xffu)!=0u){low=toF32(dSub(centre,fromF32(high)));}
   spheres[s+i]=bitcast<f32>(high);
   spheres[s+4u+i]=bitcast<f32>(low);
-  r2+=axis*axis;
+  sums+=l1*l1;
  }
- spheres[s+3u]=sqrt(r2)*SPHERE_GROWTH+size*CENTRE_ERROR;
+ var r2=0.0;
+ for(var k=0u;k<4u;k++){
+  let a=select(-1.0,1.0,(k&1u)==0u);
+  let b=select(-1.0,1.0,(k&2u)==0u);
+  var norm=0.0;
+  for(var i=0u;i<3u;i++){
+   let x=m[i*3u]+a*m[i*3u+1u]+b*m[i*3u+2u];
+   norm+=x*x;
+  }
+  r2=max(r2,norm);
+ }
+ spheres[s+3u]=sqrt(r2)*SPHERE_GROWTH+sqrt(sums)*SPHERE_MARGIN+size*CENTRE_ERROR;
  spheres[s+7u]=0.0;
 }`,
 )

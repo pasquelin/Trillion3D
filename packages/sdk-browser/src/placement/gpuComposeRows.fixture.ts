@@ -81,9 +81,6 @@ export function composeRows(
     {
       countLeadingZeros,
       params: { rootCount: N, rowCount: N, parts: spheres?.cast ? PART_SPHERES : 0 },
-      // The shader's two constants, `1 + 2⁻²⁰` and `2⁻⁴⁴`, as its f32 literals hold them.
-      SPHERE_GROWTH: 1 + 2 ** -20,
-      CENTRE_ERROR: 2 ** -44,
       arrayLength: (ref: { get(): unknown[] }) => ref.get().length,
       spheres: spheres?.out ?? [],
       inputs: spheres ? inputsOf(spheres.boxes) : [],

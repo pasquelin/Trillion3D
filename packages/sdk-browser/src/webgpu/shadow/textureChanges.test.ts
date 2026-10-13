@@ -3,7 +3,7 @@
 // The textures a pump changed are declared together: one scan of the page table, one box.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ceilFloat32 } from '../../../../math/src/float/splitDouble.ts'
+import { sphereRadius } from '../../placement/rowSphere.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { FLAG_BLEND_CASTER, FLAG_MASK, ROW_WORDS } from '../../visibility/buffer.ts'
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../row/pageRow.ts'
@@ -77,8 +77,8 @@ function lightsSpy() {
   return { lights, boxes, worlds, moving }
 }
 
-/** A unit cube's sphere radius as the engine packs it: rounded up to f32, never down. */
-const r = ceilFloat32(Math.sqrt(3))
+/** A unit cube's sphere radius as the engine packs it (`placement/rowSphere.ts`). */
+const r = sphereRadius([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [0, 0, 0], [1, 1, 1])
 
 test('a tile of a texture read by a cutout stales the box of that cutout, not the opaque surface beside it', () => {
   const { lights, boxes } = lightsSpy(),

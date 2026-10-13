@@ -1,7 +1,7 @@
-import { ceilFloat32, writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
+import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { boxUnion, transformAffinePoint } from '../../../../sdk-core/src/index.ts'
-import { length3 } from '../../../../math/src/vector/vector.ts'
-import { boxCenter, transformHalfExtent } from '../../../../math/src/geometry/box.ts'
+import { sphereRadius } from '../../placement/rowSphere.ts'
+import { boxCenter } from '../../../../math/src/geometry/box.ts'
 import { rootOf, type PageRec } from '../../page/selection/selection.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -11,10 +11,9 @@ import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /**
  * World sphere of a cluster: the centre of its local box transformed by its root's world, and the
- * radius of the sphere circumscribed to the transformed box, overestimated term by term. It is an
- * overestimate, never an underestimate — a cluster is dropped only by being certainly outside the
- * volume. A dynamic page's box is where its vertices are this frame (`moved`); another grows
- * by its root's deformation reach.
+ * radius of the sphere about it that holds the transformed box (`../../placement/rowSphere.ts`, the
+ * formula the compose rows pass evaluates). A dynamic page's box is where its vertices are this
+ * frame (`moved`); another grows by its root's deformation reach.
  */
 function writeClusterSphere(
   rec: PageRec,
@@ -27,21 +26,15 @@ function writeClusterSphere(
     e = root.world.elements,
     { min, max } = rowBox(rec),
     reach = rowGrowth(rec, root.reach)
-  // The local box's centre, then its world image in place.
-  const c = centreScratch
+  const c = centreScratch,
+    h = extentScratch
   boxCenter(c, 0, min[0], min[1], min[2], max[0], max[1], max[2])
-  const hx = (max[0] - min[0]) / 2 + reach,
-    hy = (max[1] - min[1]) / 2 + reach,
-    hz = (max[2] - min[2]) / 2 + reach
+  for (let axis = 0; axis < 3; axis++) h[axis] = (max[axis] - min[axis]) / 2 + reach
+  const radius = sphereRadius(e, c, h)
   transformAffinePoint(c, e, c[0], c[1], c[2], 0)
-  let centreError = 0
-  for (let axis = 0; axis < 3; axis++) {
+  for (let axis = 0; axis < 3; axis++)
     writeSplitDouble(out, base + axis, base + 4 + axis, centreScratch[axis])
-    centreError += (centreScratch[axis] - (out[base + axis] + out[base + 4 + axis])) ** 2
-  }
-  const h = transformHalfExtent(extentScratch, 0, e, hx, hy, hz)
-  const radius = length3(h[0], h[1], h[2])
-  out[base + 3] = ceilFloat32(radius + Math.sqrt(centreError))
+  out[base + 3] = radius
   out[base + 7] = 0
 }
 
