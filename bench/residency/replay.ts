@@ -7,6 +7,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
+import { DEG2RAD } from '../../packages/math/src/constants.ts'
 import { heapPolicy, fineRank, rankPolicy, type TilePolicy } from './tilePolicies.ts'
 import { peakWorkingSet, replayTiles, type TileReplay } from './tileReplay.ts'
 import { replayVsm, type VsmReplay } from './vsmReplay.ts'
@@ -22,7 +23,7 @@ export const FLIGHTS: Flight[] = [
     frames: 480,
     width: 640,
     height: 360,
-    fov: Math.PI / 3,
+    fov: 60 * DEG2RAD,
     textures: 24,
     side: 4096,
     patch: 32,
@@ -40,7 +41,7 @@ export const FLIGHTS: Flight[] = [
     frames: 480,
     width: 640,
     height: 360,
-    fov: Math.PI / 3,
+    fov: 60 * DEG2RAD,
     textures: 64,
     side: 4096,
     patch: 4,

@@ -2,6 +2,7 @@ import type { HeldLevels, LevelFailed } from '../../texture/heldLevels.ts'
 import type { PoolEncoding } from '../../texture/blockFormats.ts'
 import type { WebgpuTileAtlas } from './atlas.ts'
 import type { TileKey } from './pageTable.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { createFileTails } from './fileTails.ts'
 import { FEEDBACK_EVERY } from './feedback.ts'
 
@@ -95,7 +96,7 @@ export function createCardTiles(
     /** Whether the cards of `tiles` may be drawn for `ask`: every tile they read resides; what is
      *  missing asked. */
     ready(tiles: CardTiles, { from, to, pixels }: CardAsk) {
-      const weight = Math.max(1, Math.ceil(pixels / FEEDBACK_EVERY))
+      const weight = Math.max(1, ceilDiv(pixels, FEEDBACK_EVERY))
       const colour = mapReady(color, tiles[0], from, to, weight),
         normalDepth = mapReady(data, tiles[1], from, to, weight),
         orm = mapReady(data, tiles[2], from, to, weight)

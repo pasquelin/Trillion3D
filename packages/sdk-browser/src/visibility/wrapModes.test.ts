@@ -6,7 +6,6 @@
 import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
 import {
   WRAP_S_MIRROR,
   WRAP_S_REPEAT,

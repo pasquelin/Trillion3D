@@ -1,3 +1,5 @@
+import { length3 } from '../../packages/math/src/vector/vector.ts'
+import { clamp } from '../../packages/math/src/scalar/reals.ts'
 import { tileId } from '../../packages/sdk-browser/src/webgpu/tile/ids.ts'
 import { tileLayout, tilesAt } from '../../packages/sdk-browser/src/texture/tiles.ts'
 import type { TileTrace, TileTraceFrame, VsmTrace } from './trace.ts'
@@ -44,7 +46,7 @@ function hit(flight: Flight, f: number, px: number, py: number) {
     right = [sy0, -cy, 0],
     up = [-sp * cy, -sp * sy0, cp]
   const d = [0, 1, 2].map((k) => forward[k] + sx * right[k] + sy * up[k])
-  const length = Math.hypot(d[0], d[1], d[2])
+  const length = length3(d[0], d[1], d[2])
   if (d[2] >= 0) return undefined
   const t = -z / d[2]
   return { wx: x + t * d[0], wy: y + t * d[1], distance: t * length, cos: -d[2] / length }
@@ -104,7 +106,7 @@ export function vsmFlight(flight: Flight, levels = 8, page = 4): VsmTrace {
         const at = hit(flight, f, px, py)
         if (!at) continue
         const footprint = at.distance * pixelAngle * 128
-        const level = Math.min(levels - 1, Math.max(0, Math.ceil(Math.log2(footprint / page))))
+        const level = clamp(Math.ceil(Math.log2(footprint / page)), 0, levels - 1)
         const size = page * 2 ** level
         const gx = Math.floor(at.wx / size) & 4095,
           gy = Math.floor(at.wy / size) & 4095

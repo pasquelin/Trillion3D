@@ -3,7 +3,6 @@
 // two copies in the same text would be two chances of seeing it drift, as before this lot.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
 import { PAGE_INFO_STRUCT_WGSL, PAGE_VERTEX_WGSL, PAGE_UV_WGSL, maskKeepWgsl } from './pageWgsl.ts'
 import { WRAP_COORD_WGSL } from '../wrapModes.ts'
 import { linearTexels } from '../../../../../tests/gpu/texture/addressingCases.ts'

@@ -4,6 +4,7 @@
 // one past the chain's last level included; the engine's card pipelines read the pool
 // (`cardTileRig.ts`), the reference the three whole chains with the hardware sampler
 // (`cardTilesReference.ts`). Both write the four surfaces, read back and compared at 8 bits.
+import { length2, length3 } from '../../../packages/math/src/vector/vector.ts'
 import { lend } from '../../../packages/sdk-browser/src/impostor/borrowed.ts'
 import * as lent from '../../../packages/sdk-browser/src/webgpu/impostor/lent.ts'
 import {
@@ -30,7 +31,7 @@ const LODS = [0, 0.25, 0.5, 0.75, 1, 1.4, 1.9, 2.5, 3.3]
  *  swing, and an ORM; any bytes do, as long as both reads read the same. */
 const atlas = FRAMES * FRAME_SIDE
 const inDisc = (x: number, y: number) =>
-  Math.hypot((x % FRAME_SIDE) - FRAME_SIDE / 2, (y % FRAME_SIDE) - FRAME_SIDE / 2) < 20
+  length2((x % FRAME_SIDE) - FRAME_SIDE / 2, (y % FRAME_SIDE) - FRAME_SIDE / 2) < 20
 const wave = (v: number) => Math.round(128 + 100 * Math.sin(v))
 const maps = {
   colour: chainOf(atlas, LEVELS, (x, y) => [
@@ -72,7 +73,7 @@ function records(device: GPUDevice) {
       }
     data.set([...t, 1], at + 12)
     data[at + 35] = 1
-    data.set([1, FRAMES, 0, Math.log2(Math.hypot(...t)) - lod], at + 36)
+    data.set([1, FRAMES, 0, Math.log2(length3(t[0], t[1], t[2])) - lod], at + 36)
     data.set([0, 0, 0, radius], at + 40)
     data.set([...CARD_MAPS(0), 0], at + 44)
   })
