@@ -84,14 +84,13 @@ export function batisseur() {
         group: null,
         source: null,
       }))
-      const structure: ClusterStructure = { version: 1, roots: [0, 1], groups: [] }
       primitives.push({
         mesh: rank,
         primitive: 0,
         pass,
         clusterStrategy: 'dag-groups',
         pages,
-        structure,
+        structure: { version: 1, roots: [0, 1], groups: [] } satisfies ClusterStructure,
       })
       const triangles = mesh.geometry.index!.array
       for (const page of pages)
@@ -190,10 +189,8 @@ export function release(backend: Engine, canvas: HTMLCanvasElement, scene: Scene
 export function releaseScene(scene: ScenePreparee): void {
   for (const g of scene.geometries) g.dispose()
   for (const m of scene.materials) {
-    // A material's texture-valued properties are not typed generically by the witness library: read as
-    // `unknown` and narrow at this one boundary.
-    const values: unknown[] = Object.values(m)
-    for (const value of values) {
+    // A material's texture-valued properties are untyped in the witness library: narrowed here.
+    for (const value of Object.values(m) as unknown[]) {
       const texture = value as { isTexture?: boolean; dispose?: () => void } | undefined
       if (texture?.isTexture) texture.dispose?.()
     }
