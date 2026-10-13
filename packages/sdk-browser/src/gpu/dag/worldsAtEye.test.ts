@@ -24,6 +24,7 @@ import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, dispatchedEntries, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { f32Bits } from '../../../../math/src/float/bits.ts'
 
 /** The double functions the pose's subtraction reaches: those of the compose passes but the
  *  product's. */
@@ -34,7 +35,6 @@ const run = shaderRun<{
 }>(DAG_WORLD_POSE_WGSL, [...SUBTRACTION, 'toF32', 'atEye', 'translationAtEye'], {
   countLeadingZeros,
 })
-const f32Bits = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
 
 test('a translation the kernel reads at the eye is the rebased one, bit for bit', () => {
   const next = lcgRandom(1473)

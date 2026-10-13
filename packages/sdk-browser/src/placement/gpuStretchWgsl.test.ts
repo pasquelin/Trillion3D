@@ -11,6 +11,7 @@ import { maxStretch } from '../../../sdk-core/src/index.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { STRETCH_WGSL } from './gpuStretchWgsl.ts'
 import { DOUBLE_HELPERS, countLeadingZeros, generated } from './composeDoubles.fixture.ts'
+import { f32Bits } from '../../../math/src/float/bits.ts'
 
 const run = shaderRun<{ maxStretchBits(w: number[]): number }>(
   wgslProgram('', [STRETCH_WGSL]),
@@ -22,11 +23,10 @@ const run = shaderRun<{ maxStretchBits(w: number[]): number }>(
   { countLeadingZeros },
 )
 
-const bitsOf = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
 /** The words of a world's single-precision row, and what the CPU stores for its stretch. */
 const words = (world: ArrayLike<number>) => [...new Uint32Array(Float32Array.from(world).buffer)]
 const expected = (world: ArrayLike<number>) =>
-  bitsOf(maxStretch(Array.from(Float32Array.from(world))))
+  f32Bits(maxStretch(Array.from(Float32Array.from(world))))
 
 test('the stretch of a generated world is the CPU’s, word for word', () => {
   const next = lcgRandom(23)
