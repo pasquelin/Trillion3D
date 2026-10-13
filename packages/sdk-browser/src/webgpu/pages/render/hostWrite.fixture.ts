@@ -29,7 +29,8 @@ export function hostScene(count: number, blend = false) {
   Object.assign(rt, {
     vis: {},
     timing: { worldCounts: { rootsUploaded: 0 } },
-    blendState: { ...rt.blendState, blendGpu },
+    // A see-through draw hidden or shown notes its key record stale (`noteKeyRecord`).
+    blendState: { ...rt.blendState, blendGpu, keyMoved: { from: Infinity, to: -1 } },
   })
   Object.assign(rt.layout, { worldUpdates: new Float32Array(count * 16) })
   run.gpuSelection = {
