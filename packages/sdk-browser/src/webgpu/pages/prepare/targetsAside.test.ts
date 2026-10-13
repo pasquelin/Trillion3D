@@ -56,7 +56,7 @@ async function session(refusals = 0) {
     }
   }
   const live = (label: string) =>
-    gpu.textures.filter((t) => !!t.label?.startsWith(label) && !t.destroyed)
+    gpu.textures.filter((t) => !!t.label?.startsWith(label) && !gpu.destroyed.includes(t))
   const dispose = () => {
     disposeWebgpuPages(rt)
     scene.geometry.dispose()
@@ -81,12 +81,13 @@ test('a scale change with targets in place is made aside: never held, old ones f
     await s.frames(4, (held) => {
       asked.push(held)
       drawnIn.push(s.rt.gpu.allocatedSize[0])
-      if (s.rt.gpu.allocatedSize[0] === DISPLAY[0]) assert.equal(old.destroyed, false)
+      if (s.rt.gpu.allocatedSize[0] === DISPLAY[0])
+        assert.equal(s.gpu.destroyed.includes(old), false)
     })
     assert.deepEqual(asked, [false, false, false, false], 'no frame waits for the grant')
     assert.equal(drawnIn[0], DISPLAY[0], 'the frames draw in the targets in place meanwhile')
     assert.deepEqual(s.rt.gpu.allocatedSize, [ASKED, renderExtent(DISPLAY[1], 0.75)])
-    assert.equal(old.destroyed, true, 'freed once swapped out')
+    assert.equal(s.gpu.destroyed.includes(old), true, 'freed once swapped out')
     assert.deepEqual(s.live(HDR), [s.rt.gpu.hdrTexture], 'one set left')
     assert.equal(s.rt.gpu.temporal, temporal)
     assert.deepEqual(s.live(HISTORY), history, 'the same history, at the same display size')

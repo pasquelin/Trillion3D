@@ -16,7 +16,7 @@ function slotOf(map: () => Promise<void>, range: () => ArrayBuffer) {
   return slot
 }
 
-const shape = { queueWords: 8, candCap: 2, keyCount: 4 }
+const shape = { queueWords: 8, candCap: 2 }
 
 const read = (slot: ReturnType<typeof slotOf>, full = false, coarse = createCoarsening()) =>
   readDagSlot(

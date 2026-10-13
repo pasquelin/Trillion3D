@@ -1,4 +1,4 @@
-// Shared fixtures for `series/series.test.ts`, `series/seriesHiz.test.ts` and `series/seriesCompute.test.ts`: split out
+// Shared fixtures for `series/series.test.ts` and `series/seriesHiz.test.ts`: split out
 // to keep the files under the line budget.
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

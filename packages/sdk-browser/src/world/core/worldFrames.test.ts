@@ -5,7 +5,7 @@ import { createWorldFrames, NOT_DRAWN } from './worldFrames.ts'
 import { createExplorerMetrics } from '../diagnostic/metrics.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
 test('the first frame after a pause spans at most two of the intervals the loop measured', (t) => {
   let now = 1000
@@ -116,7 +116,7 @@ test('the GPU frame time the engine measured reaches the page hook; an unmeasure
       hits: 0,
       misses: 0,
     }),
-  } as unknown as ReturnType<typeof createPageStreamer>
+  } as unknown as PageStreaming
   let published: object = {}
   const engine = { metrics: () => published } as unknown as Engine
   const { metricsScratch, fillMetrics } = createExplorerMetrics(
@@ -144,4 +144,14 @@ test('the GPU frame time the engine measured reaches the page hook; an unmeasure
     frames.dispatch(metricsScratch)
   }
   assert.deepEqual(seen, [3.2, null])
+})
+
+test('before the first frame every metric key is there: the totals zero, every measure null', () => {
+  const zero = new Set(['cpuFrameMs', 'pageLoads', 'pageBytesRead'])
+  assert.ok(Object.isFrozen(NOT_DRAWN))
+  assert.equal(NOT_DRAWN.hizCulled, null)
+  for (const [key, value] of Object.entries(NOT_DRAWN))
+    assert.equal(value, zero.has(key) ? 0 : null, key)
+  for (const key of ['displayRefreshMs', 'gpuPassMs', 'shadowVsmLights', 'textureResidentBytes'])
+    assert.ok(Object.hasOwn(NOT_DRAWN, key), `${key} held before any frame`)
 })

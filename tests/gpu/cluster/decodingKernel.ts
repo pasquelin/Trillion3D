@@ -10,10 +10,7 @@ import {
   ROW_FLAGS_WORD,
   ROW_INDEX_WORDS,
 } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts'
-import {
-  FLAG_CLUSTER_PAGE,
-  ROW_WORDS,
-} from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { FLAG_CLUSTER_PAGE, ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { readBuffer } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'

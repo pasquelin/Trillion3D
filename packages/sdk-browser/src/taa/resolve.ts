@@ -4,6 +4,7 @@ import { FILTER_FORMAT } from '../webgpu/blend/displayFilter.ts'
 import { taaShader } from './shaderWgsl.ts'
 import { createTaaLayout } from './bindingsWgsl.ts'
 import { taaUpscaleShader } from './upscaleWgsl.ts'
+import { HDR_FORMAT } from '../scene/surfaceBuffer.ts'
 
 /** As-is share, flicker gradient, still weight and history count. Geometry uses an integer target. */
 export const SHARE_FORMAT: GPUTextureFormat = 'rgba8unorm'
@@ -56,7 +57,7 @@ export async function createTaaResolves(device: GPUDevice, upscale = false) {
       name,
     )
     const targets: GPUColorTargetState[] = [
-      { format: 'rgba16float' },
+      { format: HDR_FORMAT },
       { format: SHARE_FORMAT },
       { format: 'rg32uint' },
       { format: MOIRE_FORMAT },

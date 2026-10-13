@@ -1,7 +1,9 @@
-import { createEngineCamera, readCameraWorld, type HostCamera } from '../../camera/world.ts'
+import { createEngineCamera } from '../../camera/engineCamera.ts'
+import { readCameraWorld, type HostCamera } from '../../camera/world.ts'
 import type { AssetScope, FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import type { Engine } from '../../engine/types.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
+import { retainHeldUrls } from '../../streaming/hostRanks.ts'
 import type { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 
@@ -14,7 +16,7 @@ type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   lookAtTarget: { x: number; y: number; z: number }
   metricsScratch: FrameMetrics
   pageIdByUrl: Map<string, number>
-  streamer: ReturnType<typeof createPageStreamer>
+  streamer: PageStreaming
   scope: AssetScope
   frameNumber: number
 }
@@ -32,13 +34,8 @@ function requestedPageIds(
   const protectedOrRequested = new Set<string | number>()
   const addPage = (url: string) => protectedOrRequested.add(pageIdByUrl.get(url) ?? url)
   for (const url of engine.pendingUrls()) addPage(url)
-  const ranks = engine.retainedRanks()
   // A failed draw may reach the trace before normal retention; consume its delta here.
-  streamer.retainRanks(ranks)
-  for (let i = 0; i < ranks.heldCount; i++) {
-    const url = ranks.urls[ranks.held[i]]
-    if (url !== undefined) addPage(url)
-  }
+  retainHeldUrls(streamer, engine.retainedRanks(), addPage)
   return [...protectedOrRequested]
 }
 

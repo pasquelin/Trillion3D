@@ -8,10 +8,8 @@ import { along, camera } from '../testScenes.fixture.ts'
 import { floorCasterBackend } from '../../shadow/floorCaster.fixture.ts'
 
 /** What the virtual shadow maps made on `gpu`: their buffers and textures, by label. */
-const vsmResources = (gpu: { buffers: unknown[]; textures: unknown[] }) =>
-  ([...gpu.buffers, ...gpu.textures] as { label?: string; destroyed?: boolean }[]).filter(
-    ({ label }) => label?.startsWith('vsm.'),
-  )
+const vsmResources = (gpu: { buffers: { label?: string }[]; textures: { label?: string }[] }) =>
+  [...gpu.buffers, ...gpu.textures].filter(({ label }) => label?.startsWith('vsm.'))
 
 /** A caster over a floor, lit by the sun, drawn then moved once: its shadow maps are made. */
 async function drawnShadows(refuse = false) {
@@ -50,7 +48,7 @@ test('a disposed session frees every virtual shadow map resource, and says nothi
   await backend.dispose()
   for (let tick = 0; tick < 8; tick++) await new Promise((next) => setTimeout(next, 0))
   assert.deepEqual(
-    made.filter(({ destroyed }) => !destroyed).map(({ label }) => label),
+    made.filter((made) => !gpu.destroyed.includes(made)).map(({ label }) => label),
     [],
     'every map resource freed',
   )

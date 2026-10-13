@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from './pageTracking.ts'
 import { pageAddress } from './pageSlots.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The pool addresses of a list: what a trace set over its records names. */
 const urlsOf = (pages: readonly PageRec[]) => pages.map(pageAddress)
@@ -21,7 +21,7 @@ function catalogue(size: number) {
 }
 
 test('traceRecs publishes what traceSet publishes from the addresses, history included', () => {
-  const next = random(919)
+  const next = lcgRandom(919)
   const pages = catalogue(120)
   const bySet = createWebgpuPageTracking(pages),
     byRecs = createWebgpuPageTracking(pages)

@@ -6,8 +6,8 @@
 // byte to a fresh engine placed at once at the same world pose.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import type { EngineDiagnostic, Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { cameraFace, countsStep } from '../kit/sharedSceneProof.ts'
-import { image } from '../kit/sceneImageProof.ts'
+import { cameraFace } from '../kit/sharedSceneProof.ts'
+import { countsStep, image } from '../kit/sceneImageProof.ts'
 import { occluderEngine, onOccluderScene, slabPixels } from './occluderScene.ts'
 
 /** Rig poses; the camera itself never changes its local pose. */

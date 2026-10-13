@@ -9,8 +9,7 @@ import {
 } from '../../../packages/sdk-core/src/index.ts'
 import {
   VIEWPORT,
-  batisseur as sceneBuilder,
-  square,
+  batisseur,
   cameraFace as facingCamera,
   release as release,
   engine,
@@ -27,14 +26,9 @@ const LIGHTS = 8
 
 /** One grey, rough, lit square facing the camera. */
 function scene() {
-  const builder = sceneBuilder()
-  const plane = G.mesh(
-    square(1.2),
-    G.standardSurface({ color: 0x9a9a9a, roughness: 0.7, metalness: 0 }),
-  )
-  plane.name = 'plane'
-  builder.source.add(plane)
-  builder.add(plane, 'exact-clusters', 1.2)
+  const builder = batisseur()
+  const grey = G.standardSurface({ color: 0x9a9a9a, roughness: 0.7, metalness: 0 })
+  builder.place(grey, 'exact-clusters', 1.2).name = 'plane'
   return builder.fini()
 }
 

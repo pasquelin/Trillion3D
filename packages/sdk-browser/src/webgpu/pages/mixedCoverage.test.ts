@@ -5,7 +5,7 @@ import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice, writtenBytes } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from './testScenes.fixture.ts'
 
 test('mixed GPU and transparent pages wait for initial coverage before validating the resident cut', async () => {
@@ -34,7 +34,8 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
   )
   // One catalogue for one cut: the kernel the mock replays selects the transparent clusters too,
   // opaque roots first then transparent, exactly as the layout packs them.
-  const { device } = mockGpu({
+  const { device } = fakeDevice({
+    ...BACKEND,
     packed: packDagSelection([
       ...collected.roots.filter((root) => !root.pages[0].transparent),
       ...collected.roots.filter((root) => root.pages[0].transparent),
@@ -78,7 +79,7 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   const fixture = quadScene(),
     other = quadScene(),
     legacy = quadScene(),
-    { device, writes, draws } = mockGpu()
+    { device, writes, draws } = fakeDevice(BACKEND)
   fixture.material.transparent = true
   fixture.material.side = G.DOUBLE_SIDE
   fixture.metadata.primitives[0].pass = 'clustered-blend'
@@ -176,7 +177,8 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
       indexData = [...fixture.indices.values(), meshIndices]
     const reuploads = writes
       .slice(uploads)
-      .filter(({ bytes }) =>
+      .map(writtenBytes)
+      .filter((bytes) =>
         indexData.some(
           (data) =>
             data.byteLength === bytes.byteLength &&

@@ -1,6 +1,7 @@
 //! Tests of the two contracts, and of them alone: what the router chooses, what it refuses, and
 //! what the image registry can read. Each format's behaviour is proven in its fixture.
 use super::*;
+use crate::tests::directories::scratch;
 use std::{fs, path::PathBuf};
 
 mod bmp;
@@ -25,6 +26,15 @@ fn rgba8(decoded: image::ImageDecoded) -> ::image::RgbaImage {
         image::DecodedImage::Rgba8(pixels) => pixels,
         image::DecodedImage::RgbaF32 { .. } => panic!("this driver must yield RGBA8"),
     }
+}
+
+/// RGBA8 bytes a fixture of eight pixels must yield: `colours`, each with the alpha that is its own.
+fn with_alpha(colours: &[[u8; 3]; 8], alpha: &[u8; 8]) -> Vec<u8> {
+    colours
+        .iter()
+        .zip(alpha)
+        .flat_map(|(colour, alpha)| [colour[0], colour[1], colour[2], *alpha])
+        .collect()
 }
 
 /// What a driver declared around the pixels: its transfer function and the named reasons of what
@@ -95,20 +105,6 @@ fn fixture(folder: &str, name: &str) -> Vec<u8> {
         .join(folder)
         .join(name);
     fs::read(path).unwrap_or_else(|error| panic!("{folder}/{name}: {error}"))
-}
-
-/// A disposable directory, named by the case that uses it.
-fn temp_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "trillion3d-plugins-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    fs::create_dir_all(&dir).expect("temp dir");
-    dir
 }
 
 /// Reference image of the BMP and GIF fixtures, 4 × 2 pixels, top row first: four frank colours

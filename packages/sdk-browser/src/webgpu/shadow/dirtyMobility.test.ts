@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { uploadDirtyRowMobility, uploadRowMobility } from './bounds.ts'
 import { createShadowMobility } from './mobility.ts'
 import { createWebgpuRowState } from '../row/state.ts'
-import { ROW_WORDS } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import { ROW_INDEX_WORDS } from '../row/pageRow.ts'
 import {
   MOBILITY_CORNER_SHIFT,

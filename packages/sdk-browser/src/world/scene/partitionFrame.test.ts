@@ -10,7 +10,7 @@ import { createSelectionUniforms } from '../../gpu/core/selection.ts'
 import { placedMesh } from '../../partition/rows.ts'
 import { paged } from '../../partition/paged.fixture.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 import { createPartitionFrame } from './partitionFrame.ts'
 
 type Io = Parameters<PartitionCells['frame']>[2]
@@ -46,7 +46,7 @@ function streamer(files: ReadonlyMap<string, Uint8Array> = new Map()) {
     unpin() {},
     admit() {},
     forget() {},
-  } as unknown as ReturnType<typeof createPageStreamer>
+  } as unknown as PageStreaming
   return { port, asked }
 }
 

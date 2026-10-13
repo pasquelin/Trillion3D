@@ -1,5 +1,6 @@
 import { FILTER_FORMAT, texelBytes } from '../webgpu/blend/displayFilter.ts'
 import { gradientOut } from './shadingHistoryWgsl.ts'
+import { computeTextureEntry } from '../gpu/core/computeBindings.ts'
 
 /** The display layers, the tint and the added value (`../webgpu/blend/displayFilter.ts`). */
 export type DisplayLayers = readonly [GPUTextureView, GPUTextureView]
@@ -70,11 +71,9 @@ export const stillWeightIn = (stored: string) => `${stored}*${stored}*${STILL_WE
 /** The layers' four textures in a `filtered` resolve's layout, read by the fragment stage. */
 export const layerEntries = (filtered: boolean): GPUBindGroupLayoutEntry[] =>
   filtered
-    ? Object.values(LAYER_BINDINGS).map((binding) => ({
-        binding,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float' as const },
-      }))
+    ? Object.values(LAYER_BINDINGS).map((binding) =>
+        computeTextureEntry(binding, 'float', '2d', GPUShaderStage.FRAGMENT),
+      )
     : []
 
 /**

@@ -1,7 +1,7 @@
 import { visLayerTop } from './uniforms.ts'
 import { taaRenderMatrix } from '../../taa/frame.ts'
 import type { PartitionFrame } from '../../gpu/partition/uniform.ts'
-import type { EngineCamera } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { prepared } from '../pages/state/prepared.ts'
 

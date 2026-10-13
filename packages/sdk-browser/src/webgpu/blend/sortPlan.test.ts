@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { orderBlendPasses } from './order.ts'
 import { buildBlendStatics, planItem, refreshBlendPlan } from './plan.ts'
@@ -10,6 +9,7 @@ import { cpuModel } from './expandCpu.fixture.ts'
 import { precedes } from './paintOrder.ts'
 import { sortSeedsFarToNear } from './sortPlan.ts'
 import type { BlendGpuItem } from './state.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type BlendState = ReturnType<typeof blendSceneOf>
 
@@ -36,7 +36,7 @@ const EDGES = [NaN, Infinity, -Infinity, -0, 0, Number.MAX_VALUE]
 
 /** Items on a coarse grid, so equal keys are common; `edges` puts special values in some boxes. */
 function scene(count: number, seed: number, edges = false) {
-  const next = random(seed)
+  const next = lcgRandom(seed)
   const pick = (n: number) => Math.floor(next() * n)
   const items: BlendGpuItem[] = []
   for (let i = 0; i < count; i++) {
@@ -158,7 +158,7 @@ test('insertion and its merge fallback reach the one sorted list, from any start
     ...Array.from({ length: 10 }, () => 5000),
   ]
   assert.deepEqual(sortedFrom(keys, [...keys.keys()]), expected(keys), 'late jump')
-  const next = random(71)
+  const next = lcgRandom(71)
   for (let trial = 0; trial < 50; trial++) {
     const n = 1 + Math.floor(next() * 500),
       start = Array.from({ length: n }, (_, rank) => rank)

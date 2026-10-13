@@ -89,7 +89,7 @@ test('an appended texture opens its lane, pins its tail there and hands out new 
 // stand-in, written opaque white — every tap of its one texel read white in its pool —, until a
 // map opens its lane, where the fill then takes its place first.
 test('the white fill alone takes no pool, reads the white stand-in, and joins its lane once opened', () => {
-  const { device, texelWrites } = fakeDevice()
+  const { device, textureWrites } = fakeDevice()
   const encoding = poolEncoding(undefined),
     fill = { layout: tileLayout(1, 1), lane: 'lossless' as const }
   const atlas = createWebgpuTileAtlas(device, {
@@ -100,13 +100,13 @@ test('the white fill alone takes no pool, reads the white stand-in, and joins it
     textures: [{ ...fill, source: { kind: 'bytes' as const, tail: WHITE_TAIL } }],
   })
   assert.equal(atlas.pools.length, 0, 'no layer')
-  assert.deepEqual([...(texelWrites[0].data as Uint8Array)], new Array(64).fill(255))
+  assert.deepEqual([...(textureWrites[0].data as Uint8Array)], new Array(64).fill(255))
   atlas.pinTails(device.queue, () => {})
   assert.equal(atlas.pages.words[4 + 3] >>> 24, encoding.tapOf('lossless'), 'the stand-in lane')
   assert.equal(atlas.residentIn('lossless'), 0)
   atlas.resize(device, { lossless: 1, rgba: 0, 'two-channel': 0 })
   assert.deepEqual(atlas.poolOf(0).occupied(), [0], 'the fill pinned first in the opened lane')
-  assert.equal(texelWrites.length, 2, 'its white texel written there')
+  assert.equal(textureWrites.length, 2, 'its white texel written there')
   // Its last map released, a budget gives the lane no layer: the fill reads the stand-in again.
   atlas.resize(device, { lossless: 0, rgba: 0, 'two-channel': 0 })
   assert.equal(atlas.pools.length, 0, 'the lane closed with the fill in it')

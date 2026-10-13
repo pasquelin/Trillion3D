@@ -9,7 +9,7 @@ import {
   rasterEntry,
 } from './contract.ts'
 import { RESOLVE, rasterSource } from './shader.ts'
-import { SMALL_BINDINGS, atlasLayoutEntries, readOnly } from '../../webgpu/core/bindLayout.ts'
+import { SMALL_BINDINGS, atlasLayoutEntries } from '../../webgpu/core/bindLayout.ts'
 import { createRasterBindings } from './bindings.ts'
 import { createRasterResolves } from './resolve.ts'
 import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
@@ -22,6 +22,7 @@ import {
   RASTER_OCCLUDER_DEPTH_PASS,
   RASTER_TESTED_DEPTH_PASS,
 } from '../../stage/passLabels.ts'
+import { computeBufferEntry } from '../core/computeBindings.ts'
 
 /**
  * Compute raster of the opaque and masked cut.
@@ -108,16 +109,16 @@ function rasterPipelines(device: GPUDevice, capacity: number, listOffset: number
   const compute = GPUShaderStage.COMPUTE
   const computeLayout = device.createBindGroupLayout({
     entries: [
-      { binding: b.indices, visibility: compute, buffer: readOnly },
-      { binding: b.positions, visibility: compute, buffer: readOnly },
-      { binding: b.pages, visibility: compute, buffer: readOnly },
-      { binding: b.hizFlags, visibility: compute, buffer: readOnly },
-      { binding: b.uniform, visibility: compute, buffer: { type: 'uniform' } },
-      { binding: b.uvs, visibility: compute, buffer: readOnly },
+      computeBufferEntry(b.indices, 'read-only-storage', compute),
+      computeBufferEntry(b.positions, 'read-only-storage', compute),
+      computeBufferEntry(b.pages, 'read-only-storage', compute),
+      computeBufferEntry(b.hizFlags, 'read-only-storage', compute),
+      computeBufferEntry(b.uniform, 'uniform', compute),
+      computeBufferEntry(b.uvs, 'read-only-storage', compute),
       ...atlasLayoutEntries(b.color, compute),
       { binding: b.sampler, visibility: compute, sampler: {} },
-      { binding: b.work, visibility: compute, buffer: { type: 'storage' } },
-      { binding: b.selectionMask, visibility: compute, buffer: readOnly },
+      computeBufferEntry(b.work, 'storage', compute),
+      computeBufferEntry(b.selectionMask, 'read-only-storage', compute),
     ],
   })
   const computeModule = device.createShaderModule({ code: rasterSource(capacity, listOffset / 4) })

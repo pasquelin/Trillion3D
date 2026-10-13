@@ -21,6 +21,7 @@ import { VSM_STRUCTS_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { writeChangedCopy } from '../gpu/core/writeChanged.ts'
+import { pendingBuffers } from '../gpu/core/tableGrowth.ts'
 import {
   bufferBytes,
   frameBufferSizes,
@@ -244,24 +245,27 @@ export function growVsmTables(
   const made = madeBuffers.get(res)!
   const tableBuffers: GPUBuffer[] = []
   const tables = createVsmTables(device, layout, tableBuffers)
-  const parity = res.current === res.frames[0] ? 0 : 1
-  const prev = tables.frames[1 - parity]
-  const encoder = device.createCommandEncoder({ label: 'vsm.growTables' })
-  for (const member of CARRIED_MEMBERS) {
-    encoder.copyBufferToBuffer(res.prev[member], 0, prev[member], 0, res.prev[member].size)
-    // An upload that sends only what changed (`writeChanged`) knows what the copy holds.
-    writeChangedCopy(res.prev[member], prev[member])
-  }
-  device.queue.submit([encoder.finish()])
-  for (const b of made.tables) b.destroy()
-  made.tables = tableBuffers
-  res.layout = layout
-  res.frames = tables.frames
-  res.current = tables.frames[parity]
-  res.prev = prev
-  res.nextMaps = tables.nextMaps
-  res.perPageIds = tables.perPageIds
-  res.bytes = bytesOf(tableBuffers) + bytesOf(made.rest)
+  pendingBuffers(tableBuffers, () => {
+    const parity = res.current === res.frames[0] ? 0 : 1
+    const prev = tables.frames[1 - parity]
+    const encoder = device.createCommandEncoder({ label: 'vsm.growTables' })
+    for (const member of CARRIED_MEMBERS) {
+      encoder.copyBufferToBuffer(res.prev[member], 0, prev[member], 0, res.prev[member].size)
+      // An upload that sends only what changed (`writeChanged`) knows what the copy holds.
+      writeChangedCopy(res.prev[member], prev[member])
+    }
+    device.queue.submit([encoder.finish()])
+    const held = made.tables
+    made.tables = tableBuffers
+    res.layout = layout
+    res.frames = tables.frames
+    res.current = tables.frames[parity]
+    res.prev = prev
+    res.nextMaps = tables.nextMaps
+    res.perPageIds = tables.perPageIds
+    res.bytes = bytesOf(tableBuffers) + bytesOf(made.rest)
+    return held
+  }).commit()
   return layout
 }
 

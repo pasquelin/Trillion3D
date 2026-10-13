@@ -5,9 +5,9 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 /**
  * A CUT'S TABLES IN PARTS, past one storage binding of the device. `frames` and `worlds` split in
  * ranges of primitives, one dispatch each (`frameRanges.ts`); the tables a thread reads at any
- * index — a page's record, a queue's node, a key's canonical page, whose last use a range may stamp
- * in another's — cannot: they split in parts that every dispatch binds at once, each its own buffer
- * of at most one binding, and the kernel reads them through one accessor per table
+ * index — a page's record, a queue's node, a key's canonical page — cannot: they split in parts
+ * that every dispatch binds at once, each its own buffer of at most one binding, and the kernel
+ * reads them through one accessor per table
  * (`shader/splitWgsl.ts`). A table the device holds whole is one part: the layout, the text and the
  * bindings of before. A device that cannot bind the parts at once refuses the GPU cut, and the CPU
  * cut draws (`deviceRefusal.ts`): coarser in time, never a hole.
@@ -32,10 +32,9 @@ export function flagSectionStart(s: number, { queueWords, candCap }: FlagShape) 
   return (s - LISTS) * queueWords + CAND_LIVE_WORDS * candCap
 }
 
-/** Sections a cut keeps from one cut to the next: the drawn log of the last cut that ran whole,
- *  and each content key's last use. The others each cut writes before it reads them. */
-export const JOURNAL_SECTION = 3,
-  LAST_USE_SECTION = FLAG_SECTIONS - 1
+/** The section a cut keeps from one cut to the next: the drawn log of the last cut that ran whole.
+ *  The others each cut writes before it reads them. */
+export const JOURNAL_SECTION = 3
 
 /** The part of a `flags` of `shape` cut at `cuts` holding section `s`, and its first word there. */
 export function flagSectionPlace(cuts: readonly number[], shape: FlagShape, s: number) {
@@ -50,11 +49,11 @@ export function flagSectionPlace(cuts: readonly number[], shape: FlagShape, s: n
 const LIST_STARTS = [0, 2, 5, 6],
   LISTS = LIST_STARTS.length
 
-/** Words of section `s`: a queue's, a list's, or the last uses, a word a content key. */
+/** Words of section `s`: a queue's or a list's. */
 function sectionWords(s: number, shape: FlagShape) {
   if (s >= 1 && s <= LISTS)
     return ((LIST_STARTS[s] ?? CAND_LIVE_WORDS) - LIST_STARTS[s - 1]) * shape.candCap
-  return s === FLAG_SECTIONS - 1 ? shape.keyCount : shape.queueWords
+  return shape.queueWords
 }
 
 /** The sections a `flags` of `shape` starts parts at, first fit: each part as many whole sections

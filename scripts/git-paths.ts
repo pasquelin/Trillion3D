@@ -3,6 +3,15 @@ import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+/** Git's output for `args` run in the checkout at `root`, trimmed. Git's own messages are kept
+ *  out of the terminal: when git fails, they are in the error thrown. */
+export function git(root: string, ...args: string[]): string {
+  return execFileSync('git', ['-C', root, ...args], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim()
+}
+
 /** Synchronous configuration readers keep their contract without buffering child stdout. */
 export function gitPathsSync(args: string[], cwd = process.cwd()): string[] {
   const directory = mkdtempSync(join(tmpdir(), 'geometry-git-output-'))

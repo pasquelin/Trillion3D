@@ -12,14 +12,7 @@ const GUID: &str = "00000000000000000000000000000001";
 // re-decodes exactly to what the author named.
 #[test]
 fn a_project_asset_is_named_by_an_escaped_uri() {
-    let root = std::env::temp_dir().join(format!(
-        "trillion3d-unity-uri-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
+    let root = crate::tests::directories::scratch("unity", "uri");
     let assets = root.join("Assets").join("Textures");
     fs::create_dir_all(&assets).expect("directory");
     let image = assets.join(AWKWARD);

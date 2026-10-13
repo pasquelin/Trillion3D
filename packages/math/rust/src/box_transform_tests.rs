@@ -1,18 +1,11 @@
 use super::*;
 use crate::golden::HOSTILE_F64 as HOSTILE;
-
-/// Marsaglia's xorshift, the draws of the codec's tests.
-fn xorshift(state: &mut u64) -> u64 {
-    *state ^= *state << 13;
-    *state ^= *state >> 7;
-    *state ^= *state << 17;
-    *state
-}
+use crate::random::xorshift64;
 
 #[test]
 fn the_affine_sums_are_the_corner_walk_s_bits() {
     let mut state = crate::GOLDEN;
-    let mut draw = || xorshift(&mut state);
+    let mut draw = || xorshift64(&mut state);
     let value = |draw: &mut dyn FnMut() -> u64| match draw() % 4 {
         0 => HOSTILE[(draw() % 16) as usize],
         1 => [0.0, -0.0][(draw() % 2) as usize],

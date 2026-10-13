@@ -1,3 +1,4 @@
+import { isImageSize } from '../../../../math/src/scalar/integers.ts'
 import type { CameraPose } from '../../../../sdk-core/src/index.ts'
 import { devicePixels } from '../../engine/common.ts'
 import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
@@ -41,8 +42,7 @@ export function createExplorerViewportApi(inputs: Inputs) {
     },
     resize(width: number, height: number) {
       check()
-      if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
-        throw new Error('Invalid viewport size')
+      if (!isImageSize(width, height)) throw new Error('Invalid viewport size')
       canvas.width = devicePixels(width, options.pixelRatio)
       canvas.height = devicePixels(height, options.pixelRatio)
       // Sizing a canvas blanks it, to the same size too: the engine's image is to be presented.

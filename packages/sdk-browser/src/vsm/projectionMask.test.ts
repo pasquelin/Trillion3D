@@ -13,8 +13,6 @@ import assert from 'node:assert/strict'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
-
-const f = Math.fround
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
   subgroups: false,
 })
@@ -26,10 +24,11 @@ const half = (x: number) => {
 }
 /** Develop's value of fraction `s` under blue-noise texel `noise`: dithered, then k/15. */
 const develop = (s: number, noise: number) => {
-  const scale = f(1 / 15)
+  const scale = Math.fround(1 / 15)
   let x = s
-  if (s > f(scale / 4) && s < 1) x = saturate(f(s + f(f(noise - 0.5) * scale)))
-  return half(f((Math.round(f(x * 15)) & 15) / 15))
+  if (s > Math.fround(scale / 4) && s < 1)
+    x = saturate(Math.fround(s + Math.fround(Math.fround(noise - 0.5) * scale)))
+  return half(Math.fround((Math.round(Math.fround(x * 15)) & 15) / 15))
 }
 
 test('the mask stores the ray fraction as traced: no dither, no fifteenths', () => {
@@ -44,11 +43,11 @@ test('every reachable ray fraction is stored as close or closer, each frame and 
   for (let n = 1; n <= 7; n++)
     for (let k = 0; k <= n; k++) {
       const x = k / n,
-        shipped = half(f(k) / f(n))
+        shipped = half(Math.fround(k) / Math.fround(n))
       let squares = 0,
         mean = 0
       for (let j = 0; j < 256; j++) {
-        const value = develop(f(f(k) / f(n)), f(j / 255))
+        const value = develop(Math.fround(Math.fround(k) / Math.fround(n)), Math.fround(j / 255))
         squares += (value - x) ** 2
         mean += value / 256
         worstDevelop = Math.max(worstDevelop, Math.abs(value - x))

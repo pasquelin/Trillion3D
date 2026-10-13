@@ -46,19 +46,13 @@ function square(fixture: Fixture): G.Geometry {
 export function sceneOf(fixture: Fixture, sun: G.Object3D): ScenePreparee {
   const builder = batisseur()
   const material = fixture.material()
-  const mesh = G.mesh(square(fixture), material)
-  if (fixture.back) mesh.rotation.y = Math.PI
-  if (fixture.tilt) mesh.rotation.x = fixture.tilt
-  builder.source.add(mesh)
-  builder.add(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1)
+  const pass = material.transparent ? 'clustered-blend' : 'exact-clusters',
+    turn = { x: fixture.tilt ?? 0, y: fixture.back ? Math.PI : 0 }
+  builder.place(material, pass, SQUARE_SIDE / 2, [0, 0, 0], turn, square(fixture))
   if (fixture.behind !== undefined) {
-    const back = G.mesh(
-      G.planeGeometry(BEHIND.side, BEHIND.side),
-      G.basicSurface({ color: fixture.behind }),
-    )
-    back.position.z = BEHIND.z
-    builder.source.add(back)
-    builder.add(back, 'exact-clusters', 2)
+    const behind = G.basicSurface({ color: fixture.behind }),
+      plane = G.planeGeometry(BEHIND.side, BEHIND.side)
+    builder.place(behind, 'exact-clusters', BEHIND.side / 2, [0, 0, BEHIND.z], {}, plane)
   }
   if (fixture.lit) builder.source.add(sun)
   return builder.fini()

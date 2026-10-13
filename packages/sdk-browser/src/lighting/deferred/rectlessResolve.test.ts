@@ -38,9 +38,10 @@ test('the rectless program is the full one less its two rectangle branches', () 
 })
 
 test('a scene with no rectangle is lit by the rectless program, one with a rectangle never is', async () => {
-  const { device } = fakeDevice()
+  const gpu = fakeDevice(),
+    { device } = gpu
   const lighting = await createDeferredLighting(device)
-  const { labels, draw } = recorder(lighting)
+  const { labels, draw } = recorder(gpu, lighting)
   const frame = (rectless: boolean) => draw({ rectless })
   frame(true)
   await lighting.settle()
@@ -48,7 +49,7 @@ test('a scene with no rectangle is lit by the rectless program, one with a recta
   frame(true)
   frame(false)
   frame(true)
-  assert.deepEqual(labels, [
+  assert.deepEqual(labels(), [
     'DIRECT_RECTLESS_LIGHTING',
     'DIRECT_LIGHTING',
     'DIRECT_RECTLESS_LIGHTING',

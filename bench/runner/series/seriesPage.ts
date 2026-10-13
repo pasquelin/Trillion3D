@@ -60,7 +60,6 @@ export function measurePayload(
     // This side's render scale; `undefined` leaves the display's.
     renderScale: side.renderScale ?? undefined,
     temporalAntialiasing: settings.temporalAntialiasing,
-    mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
     movingNode: settings.movingNode,
     movingNodeRadius: settings.movingNodeRadius,
   }

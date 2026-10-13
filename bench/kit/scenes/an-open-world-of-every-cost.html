@@ -34,7 +34,7 @@
         texture,
         wrap,
       } from '../runtime/engine.js'
-      import { controls, seeded } from '../runtime/kit.js'
+      import { controls, lcgRandom } from '../runtime/kit.js'
 
       // THE BENCH'S SCENE: one world that carries every cost the engine counts at once, each part
       // a switch (default on). Its parts, the cost each one carries and how its size is chosen:
@@ -85,8 +85,8 @@
       world.physics.paused = true
       world.scene.background = math.color('#cfd8e6')
       world.camera.far = FIELD.span * 2
-      const next = seeded(11)
-      const paint = seeded(23)
+      const next = lcgRandom(11)
+      const paint = lcgRandom(23)
 
       // The compiled models first: a cache that is not there stops the page, by name.
       async function model(name, scene) {

@@ -4,6 +4,7 @@ import { preparedPipeline, started } from '../../lighting/deferred/fullscreen.ts
 import { createPresentAt, type PresentRect } from './presentAt.ts'
 import { canvasImageKept, canvasImageReplaced, closeCanvasImage } from './canvasHandover.ts'
 import { DIRECT_PRESENT_PASS } from '../../stage/passLabels.ts'
+import { sequentialEntries, computeTextureEntry } from './computeBindings.ts'
 
 /** Configures `context` on `device` itself — WebGPU refuses a session's handle, no `GPUDevice` —:
  *  configuring blanks the canvas, so the image of a closed session stays until this one draws. */
@@ -85,13 +86,7 @@ function canvasHold(
 /** The program that draws a display image over the whole canvas, compiled off the frame. */
 function presentProgram(device: GPUDevice, format: GPUTextureFormat) {
   const layout = device.createBindGroupLayout({
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'unfilterable-float' },
-      },
-    ],
+    entries: [computeTextureEntry(0, 'unfilterable-float', '2d', GPUShaderStage.FRAGMENT)],
   })
   const module = device.createShaderModule({ code: PRESENT_SHADER })
   const pipeline = started(
@@ -201,7 +196,7 @@ function presenterOf(
         texture = image
         group = device.createBindGroup({
           layout,
-          entries: [{ binding: 0, resource: image.createView() }],
+          entries: sequentialEntries([image.createView()]),
         })
       }
       drawWhole(encoder, view, pipeline.get(), group!)

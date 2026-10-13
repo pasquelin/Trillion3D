@@ -43,7 +43,7 @@ fn noise(width: u32, height: u32) -> image::RgbaImage {
 // report counts it as such; the lossless PNG is still there.
 #[test]
 fn a_normal_map_is_cooked_on_two_channels() {
-    let dir = temp_dir("gate-normal");
+    let dir = scratch("texture-preview", "gate-normal");
     normal_map(128, 128)
         .save(dir.join("map.png"))
         .expect("save");
@@ -76,7 +76,7 @@ fn a_normal_map_is_cooked_on_two_channels() {
 // decibels, its largest gap and its flips.
 #[test]
 fn a_texture_under_the_bar_stays_lossless_and_is_named() {
-    let dir = temp_dir("gate-noise");
+    let dir = scratch("texture-preview", "gate-noise");
     noise(128, 128).save(dir.join("map.png")).expect("save");
     let (previews, report) = stage_scene(
         &dir,
@@ -108,7 +108,7 @@ fn a_texture_under_the_bar_stays_lossless_and_is_named() {
 // factor of 0.5 cuts where 0.5 does, alone it cuts nothing the alphas reach.
 #[test]
 fn a_masked_texture_that_flips_a_texel_stays_lossless() {
-    let dir = temp_dir("gate-mask");
+    let dir = scratch("texture-preview", "gate-mask");
     // Alpha climbs through 128 along X while the colour varies along Y:
     // one RGBA segment per block cannot hold both, and alpha lands off by a few.
     rgba_from(128, 128, |x, y| {
@@ -136,7 +136,7 @@ fn a_masked_texture_that_flips_a_texel_stays_lossless() {
 // layout word lossless, no gate line, the report saying which families it wrote.
 #[test]
 fn no_block_family_leaves_every_chain_lossless() {
-    let dir = temp_dir("gate-none");
+    let dir = scratch("texture-preview", "gate-none");
     normal_map(128, 128)
         .save(dir.join("map.png"))
         .expect("save");
@@ -159,7 +159,7 @@ fn no_block_family_leaves_every_chain_lossless() {
 #[test]
 fn a_kept_chain_whose_level_will_not_write_is_counted_lossless() {
     use std::os::unix::fs::PermissionsExt;
-    let dir = temp_dir("gate-unwritable");
+    let dir = scratch("texture-preview", "gate-unwritable");
     rgba_from(256, 256, |x, _| [x as u8, 255 - x as u8, 77, 255])
         .save(dir.join("map.png"))
         .expect("save");

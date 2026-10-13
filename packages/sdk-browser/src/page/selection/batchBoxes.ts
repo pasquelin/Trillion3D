@@ -11,7 +11,7 @@ import type { ClusterRoot, PageRec } from './types.ts'
  * World boxes computed IN BATCHES: two utilities shared by sites uniting bounds
  * (`../../world/scene/pagesBounds.ts`, `../../host/world/bounds.ts`), and the buffer of selection roots.
  *
- * World boxes of selection roots, computed IN BATCHES by governor: single buffer
+ * World boxes of selection roots, computed IN BATCHES by the module's kernel: single buffer
  * allocated during setup, zero allocation afterward. Loading runs it once on all roots;
  * node transformation updates matrices of affected roots and re-runs. Unchanged roots
  * pass through kernel with same inputs as reservation: their output is ignored.
@@ -19,8 +19,8 @@ import type { ClusterRoot, PageRec } from './types.ts'
  * ROOT BOXES REMAIN JAVASCRIPT ARRAYS: written during collection on each root, copied
  * into buffer. Linear module memory is shared with the other kernels — the run-time cut's cones,
  * the animation sampler —, which allocate and may grow it mid-frame. Buffer survives — `../../wasm/wasmArena.ts`
- * rebuilds views on same bytes/offsets —, and `holds()` falls back to JS only when buffer
- * released or root count changed.
+ * rebuilds views on same bytes/offsets —, and `holds()` sends each box to its single-element
+ * function (`boxTransform`, the kernel's bits) only when buffer released or root count changed.
  */
 
 /** Root `root`'s world box, its local box at its world: what a root taken or moved reads again. */
@@ -103,12 +103,12 @@ function relit(lot: BoxTransformLot, i: number, root: ClusterRoot<PageRec>) {
 
 /**
  * Reserves root batch and runs first pass: world boxes returned equal those computed by collection.
- * `null` when nothing to compute or root misses box declarations — caller remains on JS path.
+ * `null` when nothing to compute or root misses box declarations — caller moves each box alone.
  */
 export async function reserveRootBoxes(roots: readonly ClusterRoot<PageRec>[]) {
   if (!roots.length || roots.some((root) => !root.localBox || !root.worldBox)) return null
-  const lot = await createBoxTransformLot(roots.length)
-  if (!lotBoxesReady(lot, roots.length)) return null
+  const lot = lotBoxesReady(await createBoxTransformLot(roots.length), roots.length)
+  if (!lot) return null
   for (let i = 0; i < roots.length; i++) ecrit(lot, i, roots[i])
   lot.run()
   for (let i = 0; i < roots.length; i++) relit(lot, i, roots[i])

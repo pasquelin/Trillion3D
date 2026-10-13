@@ -10,7 +10,6 @@
 // max ≤ pixelError + 0.1 px, forward and reverse. The scene is a compiled cache under the assets
 // folder (`TRILLION3D_ASSETS`, `.measure/assets` by default); one row per view is printed and the
 // whole run written to `<out>/<scene>.json`.
-import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { onFreshPage } from '../harness/chrome.ts'
@@ -31,6 +30,7 @@ import type { HoldOptions } from './screenErrorPage.ts'
 import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts'
 import { buildTriangleTree } from '../../../packages/sdk-core/src/collision/triangleTree.ts'
 import { REPOSITORY_ROOT, readJson } from '../../../scripts/repository-files.ts'
+import { git } from '../../../scripts/git-paths.ts'
 
 const [WIDTH, HEIGHT, DPR] = [1728, 1117, 2]
 const PAGE = '/runner/screenError/screenErrorPage.ts'
@@ -147,9 +147,7 @@ try {
 } finally {
   await new Promise((done) => server.close(done))
 }
-const commit = execFileSync('git', ['-C', REPOSITORY_ROOT, 'rev-parse', 'HEAD'], {
-  encoding: 'utf8',
-}).trim()
+const commit = git(REPOSITORY_ROOT, 'rev-parse', 'HEAD')
 const cache = readJson(join(full, 'manifest.json')).key
 const report = { scene, poses: set, width: WIDTH, height: HEIGHT, dpr: DPR, commit, cache, rows }
 writeFileSync(join(out, `${scene}.json`), JSON.stringify(report, null, 1))

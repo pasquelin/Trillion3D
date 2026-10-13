@@ -19,7 +19,7 @@
 import { VSM_GROUP_WIDTH } from './constants.ts'
 import { vsmPageManagementKernels } from './pageManagementWgsl.ts'
 import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
-import { computeUniformEntry } from '../gpu/core/computeBindings.ts'
+import { computeUniformEntry, sequentialEntries } from '../gpu/core/computeBindings.ts'
 import type { VsmPerPageBin } from './markingPass.ts'
 import {
   vsmPerPageDispatcherBytes,
@@ -170,7 +170,7 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
   const paramsGroup = device.createBindGroup({
     label: 'vsm.pm.params',
     layout: paramsLayout,
-    entries: [{ binding: 0, resource: { buffer: params, offset: 0, size: VSM_PM_PARAMS_BYTES } }],
+    entries: sequentialEntries([{ buffer: params, offset: 0, size: VSM_PM_PARAMS_BYTES }]),
   })
   // Cleared indirect args: initialize and tile depths (16, 0, 1, 0); post-process merge (16, 0, 1, 0)
   // + filter set (0, 1, 1, 0).

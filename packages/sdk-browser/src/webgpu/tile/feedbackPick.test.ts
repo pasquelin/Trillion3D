@@ -3,8 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FEEDBACK_EVERY, PICK_SHIFT, createWebgpuTileFeedback } from './feedback.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice, BACKEND } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { PICK_CYCLE } from './pickCycle.ts'
 
 // Ordinary images must turn the pick, so a live view asks the sliver's
@@ -25,16 +24,16 @@ test('ordinary images turn the pick once per whole phase round', () => {
 
 test('feedback growth discards completed and in-flight counts from the previous slot layout', async () => {
   let resume!: () => void
-  const mapGate = new Promise<void>((resolve) => {
+  const mapping = new Promise<void>((resolve) => {
     resume = resolve
   })
-  const { device, buffers } = mockGpu({ mapGate })
+  const { device, buffers, destroyed } = fakeDevice({ ...BACKEND, mapping })
   const feedback = createWebgpuTileFeedback(device, 4)
   feedback.encode(device.createCommandEncoder())
   feedback.submitted()
   const old = buffers.slice()
   feedback.grow(8)
-  assert.ok(old.every((buffer) => buffer.destroyed))
+  assert.ok(old.every((buffer) => destroyed.includes(buffer)))
   resume()
   await feedback.settled()
   assert.equal(feedback.take(), undefined, 'late old counts cannot name new slots')

@@ -9,10 +9,10 @@ import {
 } from '../../../sdk-core/src/physics/index.ts'
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { startModule } from './module.fixture.ts'
-import { lcg } from '../gpu/hiz/buildTranscripts.fixture.ts'
 import { id } from './records.fixture.ts'
 import { softBodiesIn, WRITEBACK_BOUND as BOUND, writeSoftBody } from './soft.fixture.ts'
 import { writebackScene } from './softWriteback.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 /** Each step's words in `bytes` (`u32` step count, then per step its word count and words). */
 function stepsOf(bytes: Uint8Array) {
@@ -96,7 +96,7 @@ async function restingCloths(segments: number, poses: [Triple, number[], Triple]
 }
 
 test('a resting soft body writes back its own vertices, at random places, turns and scales', async () => {
-  const random = lcg(975)
+  const random = lcgRandom(975)
   const draw = (reach: number) => (random() * 2 - 1) * reach
   const poses = Array.from({ length: 24 }, (_, n): [Triple, number[], Triple] => {
     const q = [draw(1), draw(1), draw(1), draw(1)]

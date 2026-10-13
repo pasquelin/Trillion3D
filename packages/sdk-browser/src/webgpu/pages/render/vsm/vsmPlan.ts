@@ -2,7 +2,7 @@
 // channel and first map, before the light buffer goes up.
 import type { SceneLight } from '../../../../../../sdk-core/src/index.ts'
 import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
-import type { EngineCamera } from '../../../../camera/world.ts'
+import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import {
   planVirtualShadowFrame,

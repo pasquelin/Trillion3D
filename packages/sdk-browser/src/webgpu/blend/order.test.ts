@@ -6,9 +6,7 @@ import type { PlacementOf } from '../../placement/rows.ts'
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts'
 import { orderBlendPasses } from './order.ts'
 import { blendSceneOf, paintOutcome } from './plan.fixture.ts'
-import { createWebgpuBlendState, type BlendGpuItem } from './state.ts'
-
-type BlendState = ReturnType<typeof createWebgpuBlendState>
+import { type BlendGpuItem, type WebgpuBlendState } from './state.ts'
 
 /** A paged double-sided item whose box is centred on `z`, the one input its rank reads. */
 function item(z: number, extra: Partial<BlendGpuItem> = {}) {
@@ -23,7 +21,7 @@ function item(z: number, extra: Partial<BlendGpuItem> = {}) {
 }
 
 /** Everything a ranking hands the frame: paint order, slots, mask, reject and water counts. */
-function outcome(blendState: BlendState, rejected: number) {
+function outcome(blendState: WebgpuBlendState, rejected: number) {
   return {
     rejected,
     ...paintOutcome(blendState),
@@ -33,7 +31,7 @@ function outcome(blendState: BlendState, rejected: number) {
 }
 
 /** Ranks `blendState` and a fresh scene of the same items and planes, from source order. */
-function rankAgainstFresh(blendState: BlendState, eye: number[]) {
+function rankAgainstFresh(blendState: WebgpuBlendState, eye: number[]) {
   const kept = outcome(blendState, orderBlendPasses(blendState, eye))
   const fresh = blendSceneOf([...blendState.blendGpu])
   fresh.blendPlanes.set(blendState.blendPlanes)

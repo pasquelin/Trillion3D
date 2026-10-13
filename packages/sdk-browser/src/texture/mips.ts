@@ -4,6 +4,7 @@ import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'
 import { preparedComputePipeline, preparedPipelines } from '../lighting/deferred/fullscreen.ts'
 import type { PoolEncoding } from './blockFormats.ts'
 import { prepareCoveragePipelines } from './coverageMips.ts'
+import { computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
 
 /** What decides a reduction's pipeline: the level's pool format, sRGB or not, and the colour
  *  rule — plain, or weighted by alpha. */
@@ -49,9 +50,9 @@ const materialProgram = oncePerDevice((device: GPUDevice) => {
   const visibility = GPUShaderStage.COMPUTE
   const layout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility, texture: { sampleType: 'float' } },
-      { binding: 1, visibility, buffer: { type: 'uniform' } },
-      { binding: 2, visibility, buffer: { type: 'read-only-storage' } },
+      computeTextureEntry(0, 'float', '2d', visibility),
+      computeBufferEntry(1, 'uniform', visibility),
+      computeBufferEntry(2, 'read-only-storage', visibility),
       {
         binding: 3,
         visibility,

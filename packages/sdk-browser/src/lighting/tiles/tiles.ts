@@ -10,7 +10,11 @@ import { storageBufferCap } from '../../residency/pools.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, LIGHT_TILES_PASS } from '../../stage/passLabels.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
-import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeUniformEntry,
+  sequentialEntries,
+} from '../../gpu/core/computeBindings.ts'
 /** Columns of the light grid over `pixels`, at least one: the grid covers the whole target, never
  *  one column short. */
 const tilesOn = (pixels: number) => workgroupCount(pixels, LIGHT_SETTINGS.tileSize)
@@ -135,12 +139,12 @@ function lightTiles(device: GPUDevice, layout: GPUBindGroupLayout, view: Grid, w
     if (grid.bound.moved() || !grid.group)
       grid.group = device.createBindGroup({
         layout,
-        entries: [
-          { binding: 0, resource: { buffer: grid.uniform } },
-          { binding: 1, resource: { buffer: lights } },
-          { binding: 2, resource: { buffer: state.tiles! } },
-          { binding: 3, resource: { buffer: grid.pool.state } },
-        ],
+        entries: sequentialEntries([
+          { buffer: grid.uniform },
+          { buffer: lights },
+          { buffer: state.tiles! },
+          { buffer: grid.pool.state },
+        ]),
       })
     return !!grid.group
   }

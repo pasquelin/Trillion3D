@@ -1,6 +1,7 @@
 import { CARD_VIEW_FLOATS } from '../../../packages/sdk-browser/src/webgpu/impostor/cardWgsl.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { CARD_FLOATS } from '../../../packages/sdk-browser/src/impostor/cardSlots.ts'
+import { bufferHolding } from '../kit/computeReadback.ts'
 
 // The rig of the card identifier proof (`cardIdPage.ts`): the view, the records, the atlases, the readback.
 
@@ -28,12 +29,7 @@ export function viewUniform(device: GPUDevice, skew: number) {
   const data = new Float32Array(CARD_VIEW_FLOATS)
   data.set(projection(skew), 0)
   data.set(projection(1), 16)
-  const buffer = device.createBuffer({
-    size: data.byteLength,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(buffer, 0, data)
-  return buffer
+  return bufferHolding(device, data, GPUBufferUsage.UNIFORM)
 }
 
 /** The records of cards at `centres` (z, radius), each a mesh of unit object radius whose pivot is
@@ -74,12 +70,7 @@ export function cardRecords(device: GPUDevice, cards: Array<{ z: number; radius:
     data.set([1, FRAMES, 1, 8], at + 36)
     data.set([0, 0, 0, radius], at + 40)
   })
-  const buffer = device.createBuffer({
-    size: data.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(buffer, 0, data)
-  return buffer
+  return bufferHolding(device, data, GPUBufferUsage.STORAGE)
 }
 
 /** An atlas of one colour in all its frames: the colour and coverage (sRGB), a flat normal at the

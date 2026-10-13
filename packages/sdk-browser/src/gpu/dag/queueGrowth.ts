@@ -2,15 +2,21 @@ import { validationScope } from '../core/errorScope.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { cameraCutBuffers, makeDagBuffer } from './bufferTable.ts'
 import type { FlagShape } from './flagSections.ts'
-import { JOURNAL_SECTION, LAST_USE_SECTION, flagSectionPlace } from './splitFlags.ts'
+import { JOURNAL_SECTION, flagSectionPlace } from './splitFlags.ts'
 import { createDagPipeline } from './pipeline.ts'
-import { cutHeldSlots, growDagList, heldOpenAt, madeWithin, rankGroups } from './listCap.ts'
+import {
+  cutGrowth,
+  cutHeldSlots,
+  growDagList,
+  heldOpenAt,
+  madeWithin,
+  rankGroups,
+} from './listCap.ts'
 import { regionsWanted } from './swap.ts'
 import { recutMain, recutView, type DagRuntimeState } from './runtimeState.ts'
 import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
 import type { CutTablesAt } from './uniforms.ts'
-import type { createDagResources } from './resources.ts'
-type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
+import type { DagResources } from './resources.ts'
 
 /**
  * THE QUEUES AND LISTS A CUT GROWS TO. A cut's descent queues and its candidate and live lists are
@@ -52,7 +58,6 @@ export const widerFlagShape = (a: FlagShape | undefined, b: FlagShape): FlagShap
     ? {
         queueWords: Math.max(a.queueWords, b.queueWords),
         candCap: Math.max(a.candCap, b.candCap),
-        keyCount: b.keyCount,
       }
     : b
 
@@ -100,31 +105,28 @@ async function growDagFlags(resources: DagResources, shape: FlagShape, disposed:
   const same = cut.split.flagCuts.join() === resources.split.flagCuts.join()
   const compiled =
     group && !same ? await createDagPipeline(device, group, resources.frames, cut.split) : undefined
+  const growth = cutGrowth(resources, made, resources.flagParts, () => {
+    carryFlags(resources, parts!, cut.split.flagCuts, shape)
+    Object.assign(resources, compiled?.value, {
+      flags: parts![0],
+      flagParts: parts,
+      split: cut.split,
+      flagShape: shape,
+      group,
+    })
+    if (!compiled) resources.ranges = resources.frames.bindGroups(resources.layout, group!)
+    resources.rankGroups = rankGroups(resources)
+  })
   if (!parts || !group || (compiled && !compiled.value) || disposed()) {
-    for (const buffer of made) buffer.destroy()
+    growth.destroy()
     return false
   }
-  carryFlags(resources, parts, cut.split.flagCuts, shape)
-  const old = resources.flagParts
-  Object.assign(resources, compiled?.value, {
-    flags: parts[0],
-    flagParts: parts,
-    split: cut.split,
-    flagShape: shape,
-    group,
-  })
-  resources.buffers.push(...made)
-  if (!compiled) resources.ranges = resources.frames.bindGroups(resources.layout, group)
-  resources.rankGroups = rankGroups(resources)
-  for (const buffer of old) {
-    resources.buffers.splice(resources.buffers.indexOf(buffer), 1)
-    buffer.destroy()
-  }
+  growth.commit()
   return true
 }
 
-/** The sections a cut keeps across cuts (`JOURNAL_SECTION`, `LAST_USE_SECTION`) copied from
- *  `resources`' flags into `parts`, cut at `cuts` for `shape`, each at its new place. */
+/** The section a cut keeps across cuts (`JOURNAL_SECTION`) copied from `resources`' flags into
+ *  `parts`, cut at `cuts` for `shape`, at its new place. */
 function carryFlags(
   resources: DagResources,
   parts: GPUBuffer[],
@@ -133,13 +135,10 @@ function carryFlags(
 ) {
   const from = resources.flagShape,
     encoder = resources.device.createCommandEncoder()
-  const words = { [JOURNAL_SECTION]: from.candCap, [LAST_USE_SECTION]: from.keyCount }
-  for (const s of [JOURNAL_SECTION, LAST_USE_SECTION]) {
-    const a = flagSectionPlace(resources.split.flagCuts, from, s),
-      b = flagSectionPlace(cuts, shape, s)
-    const source = resources.flagParts[a.part]
-    encoder.copyBufferToBuffer(source, a.word * 4, parts[b.part], b.word * 4, words[s] * 4)
-  }
+  const a = flagSectionPlace(resources.split.flagCuts, from, JOURNAL_SECTION),
+    b = flagSectionPlace(cuts, shape, JOURNAL_SECTION)
+  const source = resources.flagParts[a.part]
+  encoder.copyBufferToBuffer(source, a.word * 4, parts[b.part], b.word * 4, from.candCap * 4)
   resources.device.queue.submit([encoder.finish()])
 }
 
@@ -180,7 +179,7 @@ function queueDagGrowth(resources: DagResources, state: DagRuntimeState) {
 
 /** True when `flags` or the list must grow, or `out` must hold the saved regions the views aside
  *  ask. */
-const growthAsked = (resources: DagResources, state: DagRuntimeState) =>
+export const growthAsked = (resources: DagResources, state: DagRuntimeState) =>
   !!state.grow ||
   !!state.growFlags ||
   state.growHeld > resources.heldSlots ||

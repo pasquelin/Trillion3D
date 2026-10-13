@@ -9,7 +9,7 @@ import assert from 'node:assert/strict'
 import { createSceneLightStore } from '../../../../../../sdk-core/src/index.ts'
 import { SUN } from '../../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts'
 import { installGpuGlobals } from '../../../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { SHADOW_LIMITS, camera, disposeQuadRun, quadBackend } from '../../testScenes.fixture.ts'
 
 /** A pipeline's name, before the tag the session gives its label (`vsm.projection @t3d:1`). */
@@ -17,7 +17,7 @@ const nameOf = (descriptor: { label?: string }) => (descriptor.label ?? '').spli
 
 test('the first lit frame creates no shadow pipeline at once: prepare compiled them off the thread', async () => {
   installGpuGlobals()
-  const gpu = mockGpu({ limits: SHADOW_LIMITS })
+  const gpu = fakeDevice({ ...BACKEND, limits: SHADOW_LIMITS })
   const sceneLights = createSceneLightStore()
   sceneLights.add(SUN)
   const { fixture, backend } = quadBackend(gpu.device, { sceneLights })

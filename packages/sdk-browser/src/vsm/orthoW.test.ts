@@ -68,10 +68,8 @@ test('the camera kind decides the projection path: an orthographic matrix scaled
     const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
     const view = {} as GPUTextureView
     // The passes' recorded commands are not read: only the upload.
-    const pass = new Proxy({}, { get: () => () => {} })
-    const encoder = { beginComputePass: () => pass } as unknown as GPUCommandEncoder
     encodeVirtualShadowProjection(
-      encoder,
+      device.createCommandEncoder(),
       res,
       {
         device,

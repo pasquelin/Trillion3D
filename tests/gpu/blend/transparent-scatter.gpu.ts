@@ -23,11 +23,11 @@ import {
   planEntry,
 } from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts'
 import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
-import { xorshiftRandom as seeded } from '../../../bench/core/index.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { expandOnGpu } from './scatterKernel.ts'
 import { setBit } from '../../../packages/math/src/scalar/bits.ts'
 
-const next = seeded(1789)
+const next = xorshiftRandom(1789)
 /** The vertex words of the widest item, and the clusters an item holds. */
 const VERTEX_WORDS = 48,
   CLUSTERS = 6

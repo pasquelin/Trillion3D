@@ -7,6 +7,7 @@ import {
   worldToRenderOrigin,
 } from '../../../sdk-core/src/index.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
+import { extendSpan } from '../../../math/src/sequence/span.ts'
 import { type MatrixElements } from '../host/matrixElements.ts'
 import { createDenseKeySet } from '../webgpu/cut/denseKeys.ts'
 
@@ -73,12 +74,8 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
   const current = new Float64Array(16),
     held = new Float64Array(16),
     motion = new Float64Array(16)
-  let from = count,
-    to = -1
-  const touch = (w: number) => {
-    from = Math.min(from, w)
-    to = Math.max(to, w)
-  }
+  const span = { from: count, to: -1 }
+  const touch = (w: number) => extendSpan(span, w)
   /** Reset to identity what had moved, without sending it yet. */
   const clearMoved = () => {
     for (const w of moved) {
@@ -88,10 +85,16 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
     moved.length = 0
   }
   const flush = () => {
-    if (to < from) return
-    device.queue.writeBuffer(buffer!, from * 64, mirror, from * 16, (to - from + 1) * 16)
-    from = count
-    to = -1
+    if (span.to < span.from) return
+    device.queue.writeBuffer(
+      buffer!,
+      span.from * 64,
+      mirror,
+      span.from * 16,
+      (span.to - span.from + 1) * 16,
+    )
+    span.from = count
+    span.to = -1
   }
   return {
     /** Replaced when roots join in place (`grow`): read at each frame, never kept. */

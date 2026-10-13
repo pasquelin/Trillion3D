@@ -7,7 +7,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planImpostors, type ImpostorRoot } from './plan.ts'
 import { createImpostorWatch } from './watch.ts'
-import { COS, FOCAL, PROJECTION, TREE, field, keptHeaps, section, viewAt } from './watch.fixture.ts'
+import { COS, FOCAL, PROJECTION, field, keptHeaps, section, viewAt } from './watch.fixture.ts'
+import { TREE } from './bakedMesh.fixture.ts'
 import { impostorTexelDepth, impostorTriangleDepth } from './switch.ts'
 
 test('roots read every image under a still view hold one place each in the heaps', () => {

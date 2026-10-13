@@ -47,6 +47,10 @@ export const FLAG_SKIN = 16
 
 export const FLAG_MORPH = 32
 
+/** Whether `joint` is a skin joint index a page holds: an integer of 16 bits, 0 to 65535. */
+export const isSkinJoint = (joint: number) =>
+  Number.isInteger(joint) && joint >= 0 && joint <= 65535
+
 /**
  * Most morph targets a page carries: eight bits of word 23.
  */

@@ -1,6 +1,7 @@
 import { PRESENT_AT_SHADER } from './presentWgsl.ts'
 import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { VIEW_PRESENT_PASS } from '../../stage/passLabels.ts'
+import { sequentialEntries } from './computeBindings.ts'
 
 /** A rectangle of the canvas, in canvas pixels from the top left. */
 export type PresentRect = { x: number; y: number; width: number; height: number }
@@ -33,7 +34,7 @@ export function createPresentAt(
     if (!made) {
       made = device.createBindGroup({
         layout,
-        entries: [{ binding: 0, resource: image.createView() }],
+        entries: sequentialEntries([image.createView()]),
       })
       groups.set(image, made)
     }

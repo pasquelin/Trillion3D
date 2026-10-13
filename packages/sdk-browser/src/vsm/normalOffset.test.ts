@@ -18,13 +18,12 @@ const { vsmNormalOffsetLength } = shaderRun<{
   vsmNormalOffsetLength: (bias: number, distance: number, inverseTangent: number) => number
 }>(source, ['vsmNormalOffsetLength'], {})
 const floor = wgslConstants(VSM_CONSTANTS_WGSL).VSM_NORMAL_OFFSET_FLOOR
-const f = Math.fround
 const ulp = (x: number) => 2 ** (Math.floor(Math.log2(Math.abs(x))) - 23)
 
 test('the projection’s length is its former expression, operation for operation', () => {
   for (let i = 1; i <= 2000; i++) {
-    const distance = f(2 ** (halton(i, 2) * 20 - 6)),
-      inverseTangent = f(0.2 + halton(i, 3) * 6)
+    const distance = Math.fround(2 ** (halton(i, 2) * 20 - 6)),
+      inverseTangent = Math.fround(0.2 + halton(i, 3) * 6)
     const former = Math.max(floor, (VSM_NORMAL_BIAS * distance) / inverseTangent)
     assert.equal(vsmNormalOffsetLength(VSM_NORMAL_BIAS, distance, inverseTangent), former)
   }
@@ -32,7 +31,7 @@ test('the projection’s length is its former expression, operation for operatio
 
 test('an orthographic view’s length is the bias times its distance along the view axis, the floor under it', () => {
   for (let i = 1; i <= 500; i++) {
-    const distance = f(2 ** (halton(i, 2) * 20 - 6))
+    const distance = Math.fround(2 ** (halton(i, 2) * 20 - 6))
     const expected = Math.max(floor, VSM_NORMAL_BIAS * distance)
     assert.equal(vsmNormalOffsetLength(VSM_NORMAL_BIAS, distance, 1), expected)
   }
@@ -41,10 +40,10 @@ test('an orthographic view’s length is the bias times its distance along the v
 
 test('the lighting’s length is its former product to within two units of the last place', () => {
   for (let i = 1; i <= 2000; i++) {
-    const distance = f(2 ** (halton(i, 2) * 20 - 6)),
-      tangent = f(0.05 + halton(i, 3) * 4)
+    const distance = Math.fround(2 ** (halton(i, 2) * 20 - 6)),
+      tangent = Math.fround(0.05 + halton(i, 3) * 4)
     const former = Math.max(floor, VSM_NORMAL_BIAS * distance * tangent)
-    const now = vsmNormalOffsetLength(VSM_NORMAL_BIAS, distance, f(1 / tangent))
+    const now = vsmNormalOffsetLength(VSM_NORMAL_BIAS, distance, Math.fround(1 / tangent))
     if (former > floor) assert.ok(Math.abs(now - former) <= 2 * ulp(former), `${now} for ${former}`)
   }
 })

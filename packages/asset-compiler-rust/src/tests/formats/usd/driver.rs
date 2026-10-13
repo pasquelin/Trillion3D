@@ -14,16 +14,11 @@ pub(in crate::tests) fn plugin(name: &str) -> &'static dyn plugins::scene::Scene
         .unwrap_or_else(|| panic!("the registry does not carry the driver {name}"))
 }
 
-/// A throwaway folder, named by the case that uses it.
-pub(in crate::tests) fn temp_dir(tag: &str) -> PathBuf {
-    scratch("usd", tag)
-}
-
 /// Writes a throwaway layer and compiles it with the common harness. The source
 /// folder is erased once compilation is done: everything the golden rereads is
 /// already in its cache.
 pub(in crate::tests) fn compile_layer(tag: &str, body: &str) -> GoldenRun {
-    let dir = temp_dir(tag);
+    let dir = scratch("usd", tag);
     let source = dir.join("scene.usda");
     fs::write(&source, body).expect("layer");
     let run = compile_golden_source(&source, tag);

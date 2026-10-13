@@ -13,16 +13,6 @@ fn image(place: &str) -> String {
     )
 }
 
-/// glTF material of this name in intermediate scene.
-fn material<'a>(gltf: &'a Value, name: &str) -> &'a Value {
-    gltf["materials"]
-        .as_array()
-        .expect("materials")
-        .iter()
-        .find(|material| material["name"] == json!(name))
-        .unwrap_or_else(|| panic!("no material named {name}"))
-}
-
 // Image plugged into color does not hide multiplying scalar weight.
 // `.dc` of lambert and `.e` of `standardSurface` gave white factors (2x bright);
 // now passed to factor, texture remaining in place.

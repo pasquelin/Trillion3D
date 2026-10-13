@@ -15,36 +15,19 @@ test('each chunk raster encodes its pipeline, two groups and its indirect draw, 
   })
   const { device } = fake
   const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
-  const { encoder: silent, scene, lights } = recordingRaster(device, 100)
-  const rasters: Array<{ label: string; commands: unknown[][] }> = []
-  const encoder = {
-    ...silent,
-    beginComputePass: silent.beginComputePass,
-    beginRenderPass(descriptor: GPURenderPassDescriptor) {
-      const commands: unknown[][] = []
-      rasters.push({ label: descriptor.label ?? '', commands })
-      const record =
-        (name: string) =>
-        (...args: unknown[]) =>
-          void commands.push([name, ...args])
-      return {
-        ...{ setPipeline: record('setPipeline'), setBindGroup: record('setBindGroup') },
-        ...{ drawIndirect: record('drawIndirect'), end() {} },
-      }
-    },
-  } as unknown as GPUCommandEncoder
+  const { encoder, scene, lights } = recordingRaster(device, 100)
   const { chunks } = encodeVsmRender(encoder, res, { device, lights }, scene)!
   assert.ok(chunks > 0)
-  const chunkRasters = rasters.filter(({ label }) => /\.raster \d+$/.test(label))
+  const chunkRasters = fake.passes.filter(({ label }) => /\.raster \d+$/.test(label ?? ''))
   assert.equal(chunkRasters.length, chunks, 'one raster pass a chunk')
   chunkRasters.forEach(({ commands }, c) => {
     assert.deepEqual(
       commands.map(([name]) => name),
-      ['setPipeline', 'setBindGroup', 'setBindGroup', 'drawIndirect'],
+      ['setPipeline', 'setBindGroup', 'setBindGroup', 'drawIndirect', 'end'],
     )
-    assert.equal(commands[1][2], scene.pageGroup, 'the page group at 0')
+    assert.equal(commands[1][1][1], scene.pageGroup, 'the page group at 0')
     assert.equal(
-      commands[3][2],
+      commands[3][1][1],
       c * VSM_RENDER_ARGS_STRIDE_WORDS * 4 + VSM_RENDER_ARGS_DRAW * 4,
       "the chunk's own arguments",
     )

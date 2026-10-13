@@ -1,5 +1,6 @@
 import { frustumExcludesBox, type FrameMetrics } from '../../../sdk-core/src/index.ts'
-import { enginePose, type EngineCamera } from '../camera/world.ts'
+import { enginePose } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import { families } from '../host/families.ts'
 import { addressFlag } from '../host/addressFlag.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'

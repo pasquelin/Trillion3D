@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from '../pages/pages.ts'
-import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts'
 
@@ -15,7 +15,7 @@ test('writePageRow writes the layer bias in positive units at the table row dept
   // The quad's second cluster carries the layer the coplanar step would have assigned; the first
   // stays at layer 0 (a missing field equals 0, as decoding leaves it).
   ;(scene.metadata.primitives[0].pages[1] as { depthLayer?: number }).depthLayer = 5
-  const { device, buffers } = mockGpu()
+  const { device, buffers } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: device,

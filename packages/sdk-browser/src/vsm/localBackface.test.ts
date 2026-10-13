@@ -27,11 +27,10 @@ const run = (code: string) =>
 
 /** The marking's copy before: its nearInverse of 1 m², fed the unit direction. */
 const before = (d: V3, n: V3, r: number) => {
-  const f = Math.fround
   const len = Math.hypot(...d)
-  const u = d.map((x) => f(x / len))
-  const rangeSq = f(u[0] * u[0] + u[1] * u[1] + u[2] * u[2])
-  const emitterSin = Math.sqrt(saturate(f(r * r) / (rangeSq + 1)))
+  const u = d.map((x) => Math.fround(x / len))
+  const rangeSq = Math.fround(u[0] * u[0] + u[1] * u[1] + u[2] * u[2])
+  const emitterSin = Math.sqrt(saturate(Math.fround(r * r) / (rangeSq + 1)))
   return n[0] * u[0] + n[1] * u[1] + n[2] * u[2] < -emitterSin
 }
 

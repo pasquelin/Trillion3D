@@ -71,15 +71,21 @@ export function acceptPage(
   }))
 }
 
-/** Releases one request, unless a cluster it carries is pinned, wanted or part of the bootstrap. */
-export function dropPage(rt: WebgpuPagesCore, url: string) {
+/**
+ * Releases one request, unless a cluster it carries is still held: part of the root cover, kept by
+ * the image — asked for, drawn —, or held by the pool, whose GPU order alone says what no view uses
+ * any more (`../../../gpu/page/eviction.ts`). A held request waits (`deferredDrops`), asked again at
+ * each pin step (`../../residency/pinUpdater.ts`) until none of its clusters is held. `again` is
+ * such a question: it says nothing new when the answer is the same.
+ */
+export function dropPage(rt: WebgpuPagesCore, url: string, again = false) {
   const { run, gpu, diag } = rt,
     { rows } = rt.layout,
     { byUrl, sourceBytes, tracking, bootstrapKey } = rt.setup
   const recs = byUrl.get(url)
   if (!recs) return
-  // A request is kept whole: dropping it would take away every cluster it carries, so one pinned
-  // cluster is enough to refuse or defer the drop.
+  // A request is kept whole: dropping it would take away every cluster it carries, so one held
+  // cluster is enough to defer the drop.
   if (recs.some((rec) => bootstrapKey[tracking.keyOf(rec)] > 0)) {
     diag.traceDiagnostic(
       'page-drop-deferred',
@@ -88,9 +94,10 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
     )
     return
   }
-  const pinned = recs.some((rec) => gpu.cache?.isPinned(pageAddress(rec))),
-    wanted = recs.some((rec) => tracking.wanted.has(tracking.keyOf(rec)))
-  if (pinned || wanted) {
+  const kept = recs.some((rec) => tracking.keep.has(tracking.keyOf(rec))),
+    pooled = recs.some((rec) => !!gpu.cache?.holds(pageAddress(rec)))
+  if (kept || pooled) {
+    if (again) return
     run.deferredDrops.add(url)
     diag.traceDiagnostic(
       'page-drop-deferred',
@@ -98,9 +105,9 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
       () => ({
         frame: run.frame,
         url,
-        reason: pinned ? 'pinned' : 'wanted',
-        pinned,
-        wanted,
+        reason: kept ? 'kept' : 'pooled',
+        kept,
+        pooled,
         deferred: [...run.deferredDrops],
       }),
     )

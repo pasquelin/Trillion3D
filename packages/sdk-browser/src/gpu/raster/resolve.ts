@@ -3,9 +3,11 @@ import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts'
 import { VIS_UNIFORM_BYTES } from '../../webgpu/core/bindLayout.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { RASTER_OCCLUDER_HIZ_PASS, RASTER_RESOLVE_PASS } from '../../stage/passLabels.ts'
+import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { sequentialEntries, computeBufferEntry } from '../core/computeBindings.ts'
 
 const RESOLVE_DEPTH = {
-  format: 'depth32float' as const,
+  format: DEPTH_FORMAT,
   depthWriteEnabled: true,
   depthCompare: DEPTH_COMPARE_OR_EQUAL,
 }
@@ -79,8 +81,8 @@ type Resolves = ReturnType<typeof resolvePipelines> & {
 function resolvePipelines(device: GPUDevice, code: string) {
   const layout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      computeBufferEntry(0, 'read-only-storage', GPUShaderStage.FRAGMENT),
+      computeBufferEntry(1, 'uniform', GPUShaderStage.FRAGMENT),
     ],
   })
   const module = device.createShaderModule({ code })
@@ -118,10 +120,10 @@ function resolvePipelines(device: GPUDevice, code: string) {
 const bound = (z: Resolves, uniform: GPUBuffer) =>
   (z.group ??= z.device.createBindGroup({
     layout: z.layout,
-    entries: [
-      { binding: 0, resource: { buffer: z.work, offset: 0, size: z.targetBytes } },
-      { binding: 1, resource: { buffer: uniform, offset: 0, size: VIS_UNIFORM_BYTES } },
-    ],
+    entries: sequentialEntries([
+      { buffer: z.work, offset: 0, size: z.targetBytes },
+      { buffer: uniform, offset: 0, size: VIS_UNIFORM_BYTES },
+    ]),
   }))
 
 /** A colour attachment kept as the hardware raster left it. */

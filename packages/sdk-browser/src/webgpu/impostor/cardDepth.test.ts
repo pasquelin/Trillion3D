@@ -8,6 +8,8 @@ import assert from 'node:assert/strict'
 import { multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { fieldCamera } from '../../gpu/dag/placementTree.fixture.ts'
+import { ulpBetween } from '../../../../../bench/core/ulp.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** `m · v` in single, each product and sum rounded, `m` column-major and already single. */
 function mulSingle(m: ArrayLike<number>, v: readonly number[]) {
@@ -19,13 +21,8 @@ function mulSingle(m: ArrayLike<number>, v: readonly number[]) {
   })
 }
 
-/** ULPs of single between `a` and `b`, at `b`. */
-const ulps = (a: number, b: number) =>
-  Math.abs(a - b) / 2 ** (Math.floor(Math.log2(Math.abs(b))) - 23)
-
 test('a card at the eye keeps its depth within three ULP of the double, to 10⁵ m', () => {
-  let seed = 3
-  const next = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+  const next = lcgRandom(3)
   let before = 0,
     after = 0
   for (let i = 0; i < 400; i++) {
@@ -73,8 +70,8 @@ test('a card at the eye keeps its depth within three ULP of the double, to 10⁵
     })
     const now = mulSingle(Float32Array.from(at), [...relative, 1])
     const depth = exact[2] / exact[3]
-    before = Math.max(before, ulps(Math.fround(old[2] / old[3]), depth))
-    after = Math.max(after, ulps(Math.fround(now[2] / now[3]), depth))
+    before = Math.max(before, ulpBetween(Math.fround(old[2] / old[3]), depth, 32))
+    after = Math.max(after, ulpBetween(Math.fround(now[2] / now[3]), depth, 32))
   }
   console.log(`depth error: ${after.toFixed(2)} ULP at the eye, ${before.toFixed(2)} composed`)
   assert.ok(after <= 3 && before <= 2, `${after} ULP at the eye, ${before} composed`)

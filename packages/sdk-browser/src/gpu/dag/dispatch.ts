@@ -1,7 +1,7 @@
 import type { GpuSelection, SelectionSubmission, SelectionUniforms } from '../core/selection.ts'
 import { copySelectionUniforms } from '../core/selectionCopy.ts'
 import { createDagOutputScratch, writeDagUniforms, type DagOutputScratch } from './uniforms.ts'
-import type { createDagResources } from './resources.ts'
+import type { DagResources } from './resources.ts'
 import { encodeDagKernels } from './encode.ts'
 import { encodeDagDifference } from './encodeDifference.ts'
 import { DAG_READBACK_SLOTS as SLOTS } from './layout.ts'
@@ -21,7 +21,6 @@ import { pickSlot } from './readbackSlot.ts'
 import { readFor, readMain } from './dispatchRead.ts'
 import { encodeSwap } from './swapEncode.ts'
 
-type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 type Chain = ReturnType<typeof createDifferenceChain>
 /** What the main view's dispatches share: the tables, the state, the chain the readbacks land in,
  *  and one set of arrays per readback slot. */

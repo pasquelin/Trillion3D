@@ -6,7 +6,6 @@ import { disposeBlendResources } from '../../blend/resources.ts'
 import { directLightTimings, passOwnMs } from '../../../stage/mapping.ts'
 import { taaSampledRank } from '../../../taa/frame.ts'
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts'
-import { releaseHeldBuffers } from '../../../gpu/core/heldBuffers.ts'
 import { markWebgpuLost } from './lost.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { vsmFrameMetrics } from '../render/vsm/vsmStats.ts'
@@ -130,7 +129,6 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   disposeBlendResources(blendState)
   gpu.volumeBuffer?.destroy()
   gpu.volumeBuffer = undefined
-  gpu.zeroUv?.destroy()
   gpu.zeroUv = undefined
   capture.surfaceCapture?.dispose()
   gpu.deferred?.dispose()
@@ -156,8 +154,6 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.lights.spheres?.local?.destroy()
   rt.lights.spheres = undefined
   rt.lights.buffer?.destroy()
-  // What the session's handle kept between uses (mip batches, captures' readbacks, tile turns).
-  if (gpu.device) releaseHeldBuffers(gpu.device)
   const closing = gpu.cache?.dispose()
   gpu.cache = undefined
   scene.clear()

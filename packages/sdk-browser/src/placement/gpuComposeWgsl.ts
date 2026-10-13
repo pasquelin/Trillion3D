@@ -7,7 +7,7 @@
  * the GPU writes is the CPU's, to the bit; a translation is kept exact, as two words a coordinate,
  * for each cut to take its eye off (`../gpu/dag/shader/worldPoseWgsl.ts`).
  */
-import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
+import { ROW_WORDS } from '../visibility/types.ts'
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
 import { NO_HIZ_SLOT } from '../webgpu/row/noHizSlot.ts'
@@ -179,7 +179,7 @@ export const COMPOSE_ROWS_WGSL = wgslProgram(
 @group(0) @binding(5) var<storage,read_write> spheres:array<f32>;
 @group(0) @binding(6) var<storage,read> localBoxes:array<vec2u>;
 fn composeRow(row:u32){
- let base=row*${PAGE_INFO_STRIDE / 4}u;
+ let base=row*${ROW_WORDS}u;
  let rank=table[base+${ROW_PLACEMENT_WORD}u];
  if(rank>=params.rootCount){return;}
  let p=parentOf[rank];

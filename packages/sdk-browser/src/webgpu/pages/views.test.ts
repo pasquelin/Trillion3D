@@ -152,5 +152,8 @@ test('a capture leaves the main view’s targets, TAA and Hi-Z history intact', 
   const made = gpu.textures
     .slice(textures)
     .filter((texture) => texture.label && texture.width === 16)
-  assert.ok(made.length && made.every((texture) => texture.destroyed), 'the capture view is freed')
+  assert.ok(
+    made.length && made.every((texture) => gpu.destroyed.includes(texture)),
+    'the capture view is freed',
+  )
 })

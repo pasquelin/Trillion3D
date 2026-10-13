@@ -1,9 +1,10 @@
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { TRANSPARENT_COMPACT_SHADER } from './shader.ts'
 import { dispatchRows } from '../../gpu/dispatch/grid.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
 import { TRANSPARENT_COMPACTION_PASS } from '../../stage/passLabels.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 const UNIFORM_WORDS = 8
 
@@ -35,35 +36,28 @@ async function compactPasses(
   bound: readonly GPUBuffer[],
   uniforms: GPUBuffer,
 ) {
-  if (typeof device.createComputePipeline !== 'function') return undefined
+  if (!canCompute(device)) return undefined
   const layout = compactLayout(device)
   const module = device.createShaderModule({ code: TRANSPARENT_COMPACT_SHADER })
   if (typeof module.getCompilationInfo === 'function') {
     const info = await module.getCompilationInfo()
     if (info.messages.some((message) => message.type === 'error')) return undefined
   }
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const entryPoints = [
     'countTransparentGroups',
     'prefixTransparentItems',
     'scatterTransparentGroups',
   ] as const
-  const stages = await buildComputeStages(device, pipelineLayout, module, entryPoints)
+  const stages = await buildComputeStages(device, [layout], module, entryPoints)
   const pipelines = entryPoints.map((entry) => stages[entry])
   const bindTo = (mask: GPUBuffer) =>
     device.createBindGroup({
       layout,
-      entries: [
-        bound[0],
-        uniforms,
-        mask,
-        bound[1],
-        bound[2],
-        bound[3],
-        bound[4],
-        bound[5],
-        bound[6],
-      ].map((buffer, binding) => ({ binding, resource: { buffer } })),
+      entries: sequentialEntries(
+        [bound[0], uniforms, mask, bound[1], bound[2], bound[3], bound[4], bound[5], bound[6]].map(
+          (buffer) => ({ buffer }),
+        ),
+      ),
     })
   let boundMask = bound[0],
     bindGroup = bindTo(boundMask)

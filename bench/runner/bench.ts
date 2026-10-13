@@ -6,7 +6,6 @@
 // side, plus A/A capture. `null` = not measured, never inferred; a black capture is an error.
 // Everything it launches it stops, including on error. NO SERIOUS TIMING IS PROMISED HERE: it
 // records machine load at each series boundary. Caller judges if the machine was quiet.
-import { execFileSync } from 'node:child_process'
 import { mkdir } from 'node:fs/promises'
 import type { Page } from 'playwright'
 import { onFreshPage } from './harness/chrome.ts'
@@ -27,6 +26,7 @@ import { readLimits } from './harness/limits.ts'
 import { againstReference, sceneReference } from './references/referenceProof.ts'
 import type { BenchReport, RunContext, Series } from './report/types.ts'
 import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
+import { git } from '../../scripts/git-paths.ts'
 
 const {
   settings,
@@ -71,9 +71,7 @@ async function main() {
     startedAt: new Date().toISOString(),
     provenance: measurementProvenance(),
     command: `node bench/runner/bench.ts ${process.argv.slice(2).join(' ')}`,
-    head: execFileSync('git', ['-C', REPOSITORY_ROOT, 'rev-parse', 'HEAD'], {
-      encoding: 'utf8',
-    }).trim(),
+    head: git(REPOSITORY_ROOT, 'rev-parse', 'HEAD'),
     scene,
     engine: settings.engine,
     pathVersion: options.PATH_VERSION,

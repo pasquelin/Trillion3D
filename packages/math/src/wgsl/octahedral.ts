@@ -33,16 +33,23 @@ export const octDecode = wgslFn(
 /** ±1, never 0, called by `octDecodeHemi` alone. */
 const octSide = wgslFn('octSide', [], 'fn octSide(x:f32)->f32{return select(1.0,-1.0,x<0.0);}')
 
+/**
+ * The impostor's map: the hemi-octahedron first flattens a direction below the horizon onto it.
+ * A direction with no part on the map's octahedron (zero, or straight down on the hemi-octahedron)
+ * reads the zenith frame `(0, 0)`, as the compiler's `octahedral_encode` defines it: its sum is
+ * replaced by 1, never divided by.
+ */
 export const octEncodeHemi = wgslFn(
   'octEncodeHemi',
   [],
   `fn octEncodeHemi(d:vec3f,hemi:f32)->vec2f{
- let o=d/(abs(d.x)+abs(d.y)+abs(d.z));
+ let upper=hemi==1.0;
+ let v=select(d,vec3f(d.x,max(d.y,0.0),d.z),upper);
+ let sum=abs(v.x)+abs(v.y)+abs(v.z);
+ let o=v/select(sum,1.0,sum<=0.0);
  let q=o.xz;
  let full=select(q,(1.0-abs(q.yx))*select(vec2f(-1.0),vec2f(1.0),q>=vec2f(0.0)),o.y<0.0);
- let hd=vec3f(d.x,max(d.y,0.0),d.z);
- let ho=hd/(abs(hd.x)+max(hd.y,0.0)+abs(hd.z));
- return select(full,vec2f(ho.x+ho.z,ho.z-ho.x),hemi==1.0);
+ return select(full,vec2f(o.x+o.z,o.z-o.x),upper);
 }`,
 )
 

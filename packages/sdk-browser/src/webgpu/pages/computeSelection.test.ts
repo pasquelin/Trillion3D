@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import {
   quadScene,
   camera,
@@ -19,7 +19,7 @@ const LIMITS = { maxBufferSize: 1 << 24, maxStorageBufferBindingSize: 1 << 24 }
 
 test('webgpu pages cut on the GPU name its clusters once the readback lands', async () => {
   installGpuGlobals()
-  const { device } = mockGpu({ limits: LIMITS })
+  const { device } = fakeDevice({ ...BACKEND, limits: LIMITS })
   const { fixture, backend } = quadBackend(device)
   await backend.prepare()
   backend.render(camera())

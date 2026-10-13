@@ -9,9 +9,9 @@ import { createVsmBlueNoiseTexture } from './blueNoise.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 
 test("the texture's texels are develop's, byte for byte", () => {
-  const { device, texelWrites } = fakeDevice()
+  const { device, textureWrites } = fakeDevice()
   createVsmBlueNoiseTexture(device)
-  const { data } = texelWrites[0]
+  const { data } = textureWrites[0]
   const digest = createHash('sha256')
     .update(new Uint8Array(data.buffer, data.byteOffset, data.byteLength))
     .digest('hex')

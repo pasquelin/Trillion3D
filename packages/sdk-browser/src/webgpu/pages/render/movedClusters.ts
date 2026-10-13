@@ -1,6 +1,7 @@
 import { BOX_VALUES, boxTransform, boxUnionBatch } from '../../../../../sdk-core/src/index.ts'
 import { boxEquals } from '../../../../../math/src/geometry/box.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
+import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
@@ -91,14 +92,6 @@ function declarePair(
   if (!meet) changes.worldChanged(nowMin, nowMax, movingOnly)
 }
 
-/** Whether record `rec` bounds the same box as `prev`: a dynamic primitive's pages all hold its
- *  primitive's box, declared once. */
-function sameBox(rec: PageRec, prev: PageRec) {
-  for (let axis = 0; axis < 3; axis++)
-    if (rec.min[axis] !== prev.min[axis] || rec.max[axis] !== prev.max[axis]) return false
-  return true
-}
-
 /** Whether every record of `pages` is a leaf of its primitive: none stands for others. */
 function leavesOnly(pages: readonly PageRec[]) {
   for (const rec of pages) if ((rec.level ?? 0) > 0) return false
@@ -129,7 +122,9 @@ function declareClusters(
   const { pages } = rt.layout.selectionRoots[rank]
   for (let i = 0; i < pages.length; i++) {
     const rec = pages[i]
-    if (i > 0 && sameBox(rec, pages[i - 1])) continue
+    // A dynamic primitive's pages all hold its primitive's box, declared once.
+    const prev = pages[i - 1]
+    if (i > 0 && sameValues(rec.min, prev.min) && sameValues(rec.max, prev.max)) continue
     local.set(rec.min, 0)
     local.set(rec.max, 3)
     declarePair(rt, local, world, movingOnly, pose)

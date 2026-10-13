@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createGpuHiz } from './hiz.ts'
+import { createGpuHiz } from './factory.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 test('missing compute leaves GPU Hi-Z undefined so the visbuffer cut stays conservative', async () => {

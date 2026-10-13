@@ -8,7 +8,7 @@ import {
   FLAG_DIAGNOSTIC_VIEW,
   FLAG_DIAGNOSTIC_WIREFRAME,
   FLAG_UNLIT_VIEW,
-} from '../../visibility/buffer.ts'
+} from '../../visibility/types.ts'
 import { writeBlendDiagnostic } from './diagnostic.ts'
 import { directTiles } from '../pages/render/encodeLights.ts'
 import { wantsContractLighting } from '../pages/prepare/lightResources.ts'

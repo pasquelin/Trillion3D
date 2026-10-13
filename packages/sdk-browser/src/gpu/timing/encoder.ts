@@ -1,5 +1,6 @@
 import { QUERY_SET_SIZE } from './querySetSize.ts'
 import { alignUp } from '../../../../math/src/scalar/integers.ts'
+import { createStaging } from '../core/readbackRing.ts'
 
 /** A part's first query: its resolve lands at a 256-byte offset, 32 timestamps. */
 export const PART_ALIGN = 32
@@ -31,11 +32,7 @@ export function createTimingResources(device: GPUDevice, queryCount: number): Ti
     made.push(resolve)
     const reads: GPUBuffer[] = []
     for (let i = 0; i < READBACKS; i++) {
-      const read = device.createBuffer({
-        label: 'Trillion3D timestamp readback',
-        size: bytes,
-        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-      })
+      const read = createStaging(device, 'Trillion3D timestamp readback', bytes)
       made.push(read)
       reads.push(read)
     }

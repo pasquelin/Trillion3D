@@ -35,19 +35,27 @@ export async function testOcclusion(cases: OcclusionCase[]) {
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout, pagesLayout] }),
     compute: { module, entryPoint: 'testHiz' },
   })
-  const buffer = (size: number, usage: GPUBufferUsageFlags) => device.createBuffer({ size, usage })
   const level0 = device.createTexture({
     size: [1, 1],
     format: 'r32float',
     usage: GPUTextureUsage.TEXTURE_BINDING,
   })
   // A zero block: counters off (`uni.counting`), and nothing else the test reads.
-  const uniform = buffer(UNIFORM_BYTES, GPUBufferUsage.UNIFORM)
-  const bounds = buffer(TESTED_U32 * 4, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST)
-  const flags = buffer(4, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC)
-  const state = buffer(STATE_WORDS * 4, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST)
+  const uniform = device.createBuffer({ size: UNIFORM_BYTES, usage: GPUBufferUsage.UNIFORM })
+  const bounds = device.createBuffer({
+    size: TESTED_U32 * 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
+  const flags = device.createBuffer({
+    size: 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  })
+  const state = device.createBuffer({
+    size: STATE_WORDS * 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
   // One zeroed page row: Hi-Z slot 0, a row the pyramid judges.
-  const pages = buffer(PAGE_INFO_STRIDE, GPUBufferUsage.STORAGE)
+  const pages = device.createBuffer({ size: PAGE_INFO_STRIDE, usage: GPUBufferUsage.STORAGE })
   const pagesGroup = device.createBindGroup({
     layout: pagesLayout,
     entries: [{ binding: 0, resource: { buffer: pages } }],

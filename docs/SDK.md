@@ -192,6 +192,10 @@ according to what the frame reads:
 | `pose`       | `fromBounds`, `runPath`, `pointOfInterest`                                     | named poses, automatic framing, replaying a path                 | `world.camera.set(pose.fromBounds(math.box3().setFromObject(set)))`                                           |
 | `batch`      | `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                         | a thousand matrices at once instead of a loop                    | `batch.composeMatrix4(outputs, positions, quaternions, scales, 1000)`                                         |
 
+`metric.frame(world)` is never `null`: before the first frame it holds every metric key, the
+totals (`cpuFrameMs`, `pageLoads`, `pageBytesRead`) at zero and every measure `null` — not measured,
+never a zero that would read as an empty frame.
+
 The world is not a family: it carries `scene`, `camera`, `budget`, `diagnostic`, `controls`,
 `onFrame`/`loop`, `render`, `invalidate` and `dispose`. There is no level-of-detail object and no
 instanced or batched mesh type: the DAG cut, instancing and draw grouping are native.

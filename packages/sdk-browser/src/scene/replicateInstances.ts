@@ -39,8 +39,8 @@ export function replicateInstances(
   const [columns, rows] = count === 12 ? [4, 3] : [Math.sqrt(count), Math.sqrt(count)],
     group = new Group(),
     meshes = objects(source)
-  // Products dispatched IN BATCHES by governor when buffer holds exactly one copy per slot.
-  // Otherwise each product runs in place, by same `multiplyMatrix4` on same inputs: same bits.
+  // Products run IN BATCHES by the module's kernel when buffer holds exactly one copy per slot.
+  // Otherwise each product runs in place, by `multiplyMatrix4` on same inputs: the kernel's bits.
   const enLot = lot?.holds(rows * columns * meshes.length) ? lot : null
   const copies: HostMesh[] = []
   // Group world pose does not change between copies: copied once.

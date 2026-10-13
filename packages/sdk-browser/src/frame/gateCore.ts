@@ -8,13 +8,8 @@ import {
 import { trackViewCamera } from './viewCamera.ts'
 import { createViewHold, type ViewHold } from './viewRevision.ts'
 import { createHostSceneWatch, type WatchedSources } from '../host/scene/watch.ts'
-import {
-  createEngineCamera,
-  readCameraWorld,
-  type CameraMotion,
-  type EngineCamera,
-  type HostCamera,
-} from '../camera/world.ts'
+import { createEngineCamera, type EngineCamera } from '../camera/engineCamera.ts'
+import { readCameraWorld, type CameraMotion, type HostCamera } from '../camera/world.ts'
 import { resolvePixelError } from '../page/selection/selection.ts'
 import type { HostWorldPlacements } from '../host/world/placements.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'

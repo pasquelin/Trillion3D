@@ -17,6 +17,9 @@ export function createCoverHolders(options: {
   keyOf: (page: PageRec) => number
   requested: Union
   keep: Union
+  /** A key joined the cover, or left it: the pins follow (`pinUpdater.ts`). */
+  joined: (key: number) => void
+  left: (key: number) => void
 }) {
   const { holders, keyOf, requested, keep } = options
   /** Keys with a holder: the pool slots the cover takes, a key an address. */
@@ -33,6 +36,7 @@ export function createCoverHolders(options: {
     keep.retain(key, page)
     requested.cover(key, true, page)
     lacking.add(key, page)
+    options.joined(key)
     return true
   }
   /** `page` loses a holder: with its last, it leaves the cover. */
@@ -43,6 +47,7 @@ export function createCoverHolders(options: {
     requested.cover(key, false, page)
     keep.release(key)
     lacking.remove(key)
+    options.left(key)
     return true
   }
   /** What `missing` hands out when the pool lacks nothing: no list made a frame. */

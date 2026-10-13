@@ -6,7 +6,7 @@ import { TAA_CAPABILITIES, TAA_CAPABILITY } from './capability.ts'
 import { beginTaaFrame, taaSettled } from './frame.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { createScaleControl } from '../frame/scaleControl.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 
 function runtime(temporalAntialiasing: boolean) {
   let changed = 0

@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import type {
   CommandWriter,
   CookedBody,
@@ -7,6 +8,7 @@ import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { createPhysicsBodies } from './bodies.ts'
+import type { CookedParts } from './cookedObjects.ts'
 import {
   cooked,
   declared,
@@ -15,9 +17,23 @@ import {
   modelStreamer,
   place,
   settle,
+  sharedShapes,
   stubFetch,
   tile,
 } from './tiles.fixture.ts'
+
+/** What a cooked-body factory makes its bodies with over `writer` and `bodies` (`CookedParts`): the
+ *  shared shapes above, no redraw, a refusal failing the test. */
+export const cookedParts = (
+  writer: CommandWriter,
+  bodies: ReturnType<typeof createPhysicsBodies>,
+): CookedParts => ({
+  writer,
+  bodies,
+  shapes: sharedShapes(writer, bodies),
+  invalidate: () => {},
+  failed: assert.fail,
+})
 
 /** A model placing one two-byte tile, `t0.bin`, `count` times, ten metres apart along x from the
  *  origin: the `i`-th spans x `10 i` to `10 i + 2`. */

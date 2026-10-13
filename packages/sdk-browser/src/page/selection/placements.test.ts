@@ -4,10 +4,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { postPackedBases, rootOfPacked } from './placements.ts'
-import { random } from '../cut/cutRuleChecks.fixture.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 test('a packed rank is its root’s, empty roots skipped, past the packing none', () => {
-  const next = random(5)
+  const next = lcgRandom(5)
   for (let layout = 0; layout < 50; layout++) {
     const counts = Array.from({ length: 1 + Math.floor(next() * 40) }, () =>
       next() < 0.3 ? 0 : Math.floor(next() * 9),

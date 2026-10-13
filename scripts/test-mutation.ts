@@ -5,7 +5,6 @@
 // credited with none is run again alone against every mutant it reaches, so a file killing only
 // mutants another file killed first is still credited, at a fraction of the cost of running every
 // file against every mutant.
-import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { availableParallelism, setPriority } from 'node:os'
 import { join, relative, resolve } from 'node:path'
@@ -15,6 +14,7 @@ import { mutationMarkdown, mutationTargets, summarizeMutation } from './mutation
 import { localFileGlobs, repositoryFiles } from './repository-files.ts'
 import { isUnitTest } from './unit-tests.ts'
 import { REPOSITORY_ROOT } from './repository-files.ts'
+import { git } from './git-paths.ts'
 
 const PACKAGES = ['packages/math/src/', 'packages/sdk-core/src/']
 const { values } = parseArgs({
@@ -30,13 +30,7 @@ const testFiles = (repositoryFiles() ?? []).filter(
 if (!testFiles.length) throw new Error(`No unit test under ${PACKAGES.join(' or ')}.`)
 mkdirSync(out, { recursive: true })
 // The sandbox is a copy without `.git`: a test reading the index reads this checkout's.
-process.env.GIT_DIR = resolve(
-  REPOSITORY_ROOT,
-  execFileSync('git', ['rev-parse', '--git-dir'], {
-    cwd: REPOSITORY_ROOT,
-    encoding: 'utf8',
-  }).trim(),
-)
+process.env.GIT_DIR = resolve(REPOSITORY_ROOT, git(REPOSITORY_ROOT, 'rev-parse', '--git-dir'))
 
 /** One Stryker run of `files`; `full`, every file reaching a mutant runs against it. */
 const mutationRun = (files: string[], full: boolean) =>

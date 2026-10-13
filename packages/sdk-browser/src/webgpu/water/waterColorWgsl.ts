@@ -1,5 +1,5 @@
 import { LOBE_AXIS_WGSL } from '../../lighting/lobeAxisWgsl.ts'
-import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
+import { FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { VOLUME_FOG_FREE, VOLUME_MARKED_WGSL } from '../transparent/transmission.ts'
 import { WORLD_AT_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
 import { PIXEL_FOOTPRINT_WGSL, SHADOW_VIEW_AT_WGSL } from '../../lighting/deferred/footprintWgsl.ts'

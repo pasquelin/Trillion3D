@@ -5,9 +5,10 @@ import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { tileDeclarations } from '../tile/wgsl.ts'
 import { BLEND_BINDINGS, BLEND_TRACE_BINDINGS, BLEND_VSM_BINDINGS } from '../core/bindLayout.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
-import * as itemFlags from '../../visibility/buffer.ts'
+import * as itemFlags from '../../visibility/types.ts'
 import { blendSurfaceWgsl } from './shaderSurface.ts'
 import { DIAGNOSTIC_PALETTE_WGSL } from '../../diagnostic/colors.ts'
+import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts'
 import { blendVertexWgsl } from './vertexWgsl.ts'
 import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_WGSL } from './physicalWgsl.ts'
@@ -78,6 +79,7 @@ const blendFragmentWgsl = (lobes: boolean) =>
       ...(lobes ? [] : [BLEND_LOBELESS_WGSL]),
       wireframeEdge,
       DIAGNOSTIC_PALETTE_WGSL,
+      TRIANGLE_PALETTE_WGSL,
     ],
     `fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
  let flags=in.ids.y;

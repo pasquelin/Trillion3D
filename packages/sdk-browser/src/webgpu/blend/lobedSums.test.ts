@@ -8,7 +8,6 @@
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
@@ -16,6 +15,7 @@ import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { blendShader } from './shader.ts'
 import { randomLampScope } from './shadedLightScope.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Sum = (...args: unknown[]) => number[]
 const LOOP = [
@@ -37,7 +37,7 @@ const OFF = { on: false }
 const NOTHING = { on: true, skewed: false, coat: 0, coatRough: 0.5, coatN: [0, 0, 1], through: 1 }
 
 test('the lobed blend program sums a fragment without lobes as the lobeless one, bit for bit', () => {
-  const r = random(2207),
+  const r = lcgRandom(2207),
     u = (lo: number, hi: number) => lerp(lo, hi, r())
   const key = { rectless: true, unshadowed: true }
   const lobed = blendShader(key),

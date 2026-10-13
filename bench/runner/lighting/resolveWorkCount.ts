@@ -18,12 +18,11 @@
 //   (`vsm/markingWgsl.ts`), whatever the draw shades.
 //
 //   node bench/runner/lighting/resolveWorkCount.ts [--width 3456] [--height 2234] [--slots 64]
-import { parseArgs } from 'node:util'
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'
 import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts'
 import { reaches, walkGrid } from './lightGridWalk.ts'
-import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts'
+import { ATRIUM_POSES, atriumCountArgs, atriumDepth, atriumLamps } from './lightTileAtrium.ts'
 import type { Light } from './lightTileCity.ts'
 
 const SAMPLES = LIGHT_SETTINGS.samplesPerPixel,
@@ -69,14 +68,7 @@ export function countResolveWork(
 }
 
 async function main() {
-  const { values } = parseArgs({
-    options: {
-      width: { type: 'string', default: '3456' },
-      height: { type: 'string', default: '2234' },
-      slots: { type: 'string', default: '64' },
-    },
-  })
-  const [width, height, slots] = [values.width, values.height, values.slots].map(Number)
+  const { width, height, slots } = atriumCountArgs({ slots: 64 })
   const lights = atriumLamps(200, 4)
   const rows = ATRIUM_POSES.flatMap(({ eye, yaw, pitch }, pose) => {
     const view = camera(eye, yaw, pitch, 60, width, height)

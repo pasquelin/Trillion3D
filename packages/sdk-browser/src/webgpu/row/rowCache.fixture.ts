@@ -5,7 +5,7 @@ import { createWebgpuRowSync } from './sync.ts'
 import { createRowUse } from './rowUse.ts'
 import type { InstanceClosure } from './rowDemand.ts'
 import type { IdDelta } from '../cut/delta.ts'
-import { ROW_WORDS } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { pageAddress } from './pageSlots.ts'
 
