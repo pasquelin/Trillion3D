@@ -62,8 +62,7 @@ export function scene(
 export function writeRow(packed: Float32Array, i: number, c: number[], r: number) {
   const at = i * CLUSTER_SPHERE_FLOATS
   for (let a = 0; a < 3; a++) writeSplitDouble(packed, at + a, at + 4 + a, c[a])
-  // The radius stored as the engine stores it (`webgpu/shadow/spheres.ts`): its single, a bound by
-  // construction there.
+  // The radius as the engine stores it (`webgpu/shadow/spheres.ts`): its single, a bound there.
   packed[at + 3] = r
 }
 
