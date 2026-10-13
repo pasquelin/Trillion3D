@@ -46,6 +46,7 @@ export type { CanvasPoint, RaycastOptions } from '../../sdk-browser/src/world/co
 export { capability } from '../../sdk-browser/src/world/capability/index.ts'
 export { capture } from '../../sdk-browser/src/world/capture/index.ts'
 export type { CaptureSize } from '../../sdk-browser/src/world/capture/index.ts'
+export type { CharacterSettings } from '../../sdk-browser/src/world/core/worldCharacterAccessors.ts'
 export type {
   Clip,
   Track,
@@ -55,6 +56,7 @@ export type {
 export { Color } from '../../sdk-core/src/world/math/color.ts'
 export type { ColorInput } from '../../sdk-core/src/world/math/color.ts'
 export { controls } from '../../sdk-browser/src/world/controls/index.ts'
+export type { ControlSettings } from '../../sdk-browser/src/world/core/worldControlsAccessors.ts'
 export type { CreatedMaterial } from '../../sdk-browser/src/world/api/createdMaterials.ts'
 export { createWorld } from '../../sdk-browser/src/world/core/world.ts'
 export type { World } from '../../sdk-browser/src/world/core/world.ts'
