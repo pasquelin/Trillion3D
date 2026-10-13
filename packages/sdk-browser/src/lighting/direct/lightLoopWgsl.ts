@@ -13,7 +13,7 @@ import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contra
  *   model's;
  * - `irradiance`, what a point of the bounce cache receives (`declaredIrradiance`, `../../bounce/`),
  *   wherever in the world, mostly off screen: its shadow one ray through the resident proxy
- *   (`rtBlocked`), whatever the view, and its response the cosine alone — the cache multiplies
+ *   (`rtBlocked`), a rectangle's toward its centre, whatever the view, and its response the cosine alone — the cache multiplies
  *   by its albedo over π. The maps would leave an off-screen point unshadowed, or draw pages no
  *   view asks for: each term's visibility is the one its points can read.
  * The incidence, the range, the rectangle's irradiance and the light's colour and intensity are
@@ -74,10 +74,18 @@ const INCIDENCE = (zeroTerm: string) => `
  let incidence=directIncidence(light,P);
  if(incidence.w<=0.0){return ${zeroTerm};}`
 
-/** A rectangle's irradiance: its whole contribution, unshadowed — its maps hold no shadow. */
+/** A rectangle's irradiance, under the one visibility rule of every light the bounce reads: where it
+ *  adds light and casts a shadow, one ray through the resident proxy toward its centre — a rectangle
+ *  behind a wall lights no cell through it, as a lamp does not. */
 const IRRADIANCE_RECT = `
- // A rectangle casts no shadow: its irradiance is its whole contribution.
- if(isRect(light)){return light.colorIntensity.rgb*light.colorIntensity.w*rectIrradiance(light,P,N).w;}`
+ if(isRect(light)){
+  let lit=light.colorIntensity.rgb*light.colorIntensity.w*rectIrradiance(light,P,N).w;
+  if(all(lit==vec3f(0.0))||light.params.z<=0.5){return lit;}
+  let offset=light.positionRange.xyz-P;
+  let span=length(offset);
+  if(span>0.0&&rtBlocked(P+N*1e-3,offset/span,span)){return vec3f(0.0);}
+  return lit;
+ }`
 
 /**
  * A punctual light's irradiance through the proxy: its cosine, then — where it adds light and casts
